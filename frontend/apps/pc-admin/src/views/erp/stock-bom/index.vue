@@ -1,289 +1,536 @@
 <template>
-  <ErrorBoundary @reset="fetchData" @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="bom-header">
-        <div class="bom-header__left">
-          <span class="bom-header__breadcrumb">ERP / 库存管理 / BOM物料清单</span>
-          <h2 class="bom-header__title">BOM物料清单</h2>
-        </div>
-        <div class="bom-header__right">
-          <a-space :size="12">
-            <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-              <SyncOutlined /> {{ autoRefreshCountdown }}s
-            </span>
-            <span class="data-status">
-              <a-badge :status="loading ? 'processing' : 'success'" />
-              <span v-if="lastUpdateTime" class="update-time">
-                数据更新: {{ lastUpdateTime }}
+  <ErrorBoundary
+    @reset="fetchData"
+    @error="handleError"
+  >
+    <PageContainer full-height>
+      <template #header>
+        <div class="bom-header">
+          <div class="bom-header__left">
+            <span class="bom-header__breadcrumb">ERP / 库存管理 / BOM物料清单</span>
+            <h2 class="bom-header__title">
+              BOM物料清单
+            </h2>
+          </div>
+          <div class="bom-header__right">
+            <a-space :size="12">
+              <span
+                v-if="autoRefreshCountdown > 0"
+                class="auto-refresh-badge"
+              >
+                <SyncOutlined /> {{ autoRefreshCountdown }}s
               </span>
-            </span>
-            <span class="shortcut-hints">
-              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-            </span>
-            <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)">
-              <template #icon><ReloadOutlined /></template>
-              刷新
+              <span class="data-status">
+                <a-badge :status="loading ? 'processing' : 'success'" />
+                <span
+                  v-if="lastUpdateTime"
+                  class="update-time"
+                >
+                  数据更新: {{ lastUpdateTime }}
+                </span>
+              </span>
+              <span class="shortcut-hints">
+                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+              </span>
+              <a-button
+                size="small"
+                :loading="refreshLoading"
+                @click="debounceClick('refresh', fetchData)"
+              >
+                <template #icon>
+                  <ReloadOutlined />
+                </template>
+                刷新
+              </a-button>
+            </a-space>
+          </div>
+        </div>
+      </template>
+
+      <BillTableList
+        ref="tableRef"
+        :columns="vxeColumns"
+        :data-source="tableData"
+        :loading="loading"
+        :pagination="pagination"
+        row-key="id"
+        :selectable="true"
+        :filter-fields="filterFields"
+        add-text="新建BOM"
+        style="flex: 1;"
+        @add="handleCreate"
+        @refresh="fetchData"
+        @search="handleSearch"
+        @page-change="handlePageChange"
+        @filter-change="handleFilterChange"
+        @selection-change="handleSelectionChange"
+        @cell-dblclick="handleView"
+      >
+        <template #toolbar-actions>
+          <span class="list-update-timestamp">最后更新：{{ dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss') }}</span>
+        </template>
+
+        <template #empty>
+          <div
+            v-if="hasError"
+            class="table-empty"
+          >
+            <WarningOutlined class="table-empty-icon" />
+            <p class="table-empty-text">
+              数据加载异常，请重试
+            </p>
+            <a-button
+              type="primary"
+              @click="fetchData"
+            >
+              <ReloadOutlined /> 重试
+            </a-button>
+          </div>
+          <div
+            v-else
+            class="table-empty"
+          >
+            <SearchOutlined
+              v-if="hasActiveFilters"
+              class="table-empty-icon"
+            />
+            <FileTextOutlined
+              v-else
+              class="table-empty-icon"
+            />
+            <p
+              v-if="hasActiveFilters"
+              class="table-empty-text"
+            >
+              没有符合条件的BOM，<a @click="handleResetFilters">清除筛选</a>
+            </p>
+            <p
+              v-else
+              class="table-empty-text"
+            >
+              暂无BOM数据，点击右上角「新建BOM」开始创建
+            </p>
+          </div>
+        </template>
+
+        <template #statusCell="{ record }">
+          <StatusTag
+            :status="record.status"
+            :map="BOM_STATUS"
+          />
+        </template>
+
+        <template #totalCostCell="{ record }">
+          ¥{{ (record.totalCost || 0).toFixed(2) }}
+        </template>
+
+        <template #action="{ record }">
+          <a-space :size="4">
+            <a-tooltip title="查看">
+              <a-button
+                v-permission="'erp:stock:view'"
+                type="link"
+                size="small"
+                @click="handleView(record)"
+              >
+                <template #icon>
+                  <EyeOutlined />
+                </template>
+              </a-button>
+            </a-tooltip>
+            <a-tooltip
+              v-if="record.status === 0"
+              title="启用"
+            >
+              <a-button
+                v-permission="'erp:stock:enable'"
+                type="link"
+                size="small"
+                style="color: #52c41a;"
+                @click="handleEnable(record)"
+              >
+                <template #icon>
+                  <CheckOutlined />
+                </template>
+              </a-button>
+            </a-tooltip>
+            <a-tooltip
+              v-else-if="record.status === 1"
+              title="停用"
+            >
+              <a-button
+                v-permission="'erp:stock:disable'"
+                type="link"
+                size="small"
+                style="color: #ff4d4f;"
+                @click="handleDisable(record)"
+              >
+                <template #icon>
+                  <StopOutlined />
+                </template>
+              </a-button>
+            </a-tooltip>
+            <a-dropdown trigger="click">
+              <a-button
+                type="link"
+                size="small"
+                class="action-more-btn"
+              >
+                <template #icon>
+                  <EllipsisOutlined />
+                </template>
+              </a-button>
+              <template #overlay>
+                <a-menu @click="(e) => handleActionMenuClick(String(e.key), record)">
+                  <a-menu-item
+                    key="edit"
+                    :disabled="record.status === 1"
+                  >
+                    <EditOutlined /> 编辑
+                  </a-menu-item>
+                  <a-menu-item key="delete">
+                    <DeleteOutlined /> 删除
+                  </a-menu-item>
+                </a-menu>
+              </template>
+            </a-dropdown>
+          </a-space>
+        </template>
+      </BillTableList>
+
+      <!-- 详情抽屉 -->
+      <a-drawer
+        v-model:open="detailVisible"
+        title="BOM详情"
+        placement="right"
+        width="80vw"
+      >
+        <a-spin :spinning="detailLoading">
+          <a-descriptions
+            v-if="detailData"
+            bordered
+            :column="2"
+          >
+            <a-descriptions-item label="BOM编号">
+              {{ detailData.bomNo }}
+            </a-descriptions-item>
+            <a-descriptions-item label="BOM名称">
+              {{ detailData.bomName }}
+            </a-descriptions-item>
+            <a-descriptions-item label="成品编码">
+              {{ detailData.productCode }}
+            </a-descriptions-item>
+            <a-descriptions-item label="成品名称">
+              {{ detailData.productName }}
+            </a-descriptions-item>
+            <a-descriptions-item label="BOM类型">
+              {{ detailData.bomType === 1 ? '组装BOM' : detailData.bomType === 2 ? '拆分BOM' : '通用' }}
+            </a-descriptions-item>
+            <a-descriptions-item label="状态">
+              <StatusTag
+                :status="detailData.status"
+                :map="BOM_STATUS"
+              />
+            </a-descriptions-item>
+            <a-descriptions-item label="产出数量">
+              {{ detailData.outputQuantity ?? '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item label="总成本">
+              ¥{{ (detailData.totalCost || 0).toFixed(2) }}
+            </a-descriptions-item>
+            <a-descriptions-item
+              label="备注"
+              :span="2"
+            >
+              {{ detailData.remark || '-' }}
+            </a-descriptions-item>
+          </a-descriptions>
+
+          <template v-if="detailData">
+            <h4 style="margin: 16px 0 8px;">
+              BOM明细
+            </h4>
+            <a-table
+              :data-source="detailItems"
+              :columns="detailItemColumns"
+              :pagination="false as any"
+              size="small"
+              bordered
+              row-key="id"
+            >
+              <template #bodyCell="{ column, record }">
+                <template v-if="column.dataIndex === 'unitCost' || column.dataIndex === 'cost'">
+                  ¥{{ (record[column.dataIndex] || 0).toFixed(2) }}
+                </template>
+              </template>
+            </a-table>
+          </template>
+        </a-spin>
+
+        <template
+          v-if="detailData"
+          #footer
+        >
+          <a-space>
+            <a-button @click="detailVisible = false">
+              关闭
+            </a-button>
+            <a-button
+              v-if="detailData.status === 0"
+              v-permission="'erp:stock:enable'"
+              type="primary"
+              @click="handleEnable(detailData)"
+            >
+              <template #icon>
+                <CheckOutlined />
+              </template>
+              启用
+            </a-button>
+            <a-button
+              v-if="detailData.status === 1"
+              v-permission="'erp:stock:disable'"
+              danger
+              @click="handleDisable(detailData)"
+            >
+              <template #icon>
+                <StopOutlined />
+              </template>
+              停用
             </a-button>
           </a-space>
-        </div>
-      </div>
-    </template>
-
-    <BillTableList
-      ref="tableRef"
-      :columns="vxeColumns"
-      :data-source="tableData"
-      :loading="loading"
-      :pagination="pagination"
-      row-key="id"
-      :selectable="true"
-      :filter-fields="filterFields"
-      add-text="新建BOM"
-      style="flex: 1;"
-      @add="handleCreate"
-      @refresh="fetchData"
-      @search="handleSearch"
-      @page-change="handlePageChange"
-      @filter-change="handleFilterChange"
-      @selection-change="handleSelectionChange"
-      @cell-dblclick="handleView"
-    >
-      <template #toolbar-actions>
-        <span class="list-update-timestamp">最后更新：{{ dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss') }}</span>
-      </template>
-
-      <template #empty>
-        <div v-if="hasError" class="table-empty">
-          <WarningOutlined class="table-empty-icon" />
-          <p class="table-empty-text">数据加载异常，请重试</p>
-          <a-button type="primary" @click="fetchData"><ReloadOutlined /> 重试</a-button>
-        </div>
-        <div v-else class="table-empty">
-          <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-          <FileTextOutlined v-else class="table-empty-icon" />
-          <p v-if="hasActiveFilters" class="table-empty-text">
-            没有符合条件的BOM，<a @click="handleResetFilters">清除筛选</a>
-          </p>
-          <p v-else class="table-empty-text">
-            暂无BOM数据，点击右上角「新建BOM」开始创建
-          </p>
-        </div>
-      </template>
-
-      <template #statusCell="{ record }">
-        <StatusTag :status="record.status" :map="BOM_STATUS" />
-      </template>
-
-      <template #totalCostCell="{ record }">
-        ¥{{ (record.totalCost || 0).toFixed(2) }}
-      </template>
-
-      <template #action="{ record }">
-        <a-space :size="4">
-          <a-tooltip title="查看">
-            <a-button type="link" size="small" v-permission="'erp:stock:view'" @click="handleView(record)">
-              <template #icon><EyeOutlined /></template>
-            </a-button>
-          </a-tooltip>
-          <a-tooltip v-if="record.status === 0" title="启用">
-            <a-button type="link" size="small" style="color: #52c41a;" v-permission="'erp:stock:enable'" @click="handleEnable(record)">
-              <template #icon><CheckOutlined /></template>
-            </a-button>
-          </a-tooltip>
-          <a-tooltip v-else-if="record.status === 1" title="停用">
-            <a-button type="link" size="small" style="color: #ff4d4f;" v-permission="'erp:stock:disable'" @click="handleDisable(record)">
-              <template #icon><StopOutlined /></template>
-            </a-button>
-          </a-tooltip>
-          <a-dropdown trigger="click">
-            <a-button type="link" size="small" class="action-more-btn">
-              <template #icon><EllipsisOutlined /></template>
-            </a-button>
-            <template #overlay>
-              <a-menu @click="(e) => handleActionMenuClick(String(e.key), record)">
-                <a-menu-item key="edit" :disabled="record.status === 1">
-                  <EditOutlined /> 编辑
-                </a-menu-item>
-                <a-menu-item key="delete">
-                  <DeleteOutlined /> 删除
-                </a-menu-item>
-              </a-menu>
-            </template>
-          </a-dropdown>
-        </a-space>
-      </template>
-    </BillTableList>
-
-    <!-- 详情抽屉 -->
-    <a-drawer v-model:open="detailVisible" title="BOM详情" placement="right" width="80vw">
-      <a-spin :spinning="detailLoading">
-        <a-descriptions bordered :column="2" v-if="detailData">
-          <a-descriptions-item label="BOM编号">{{ detailData.bomNo }}</a-descriptions-item>
-          <a-descriptions-item label="BOM名称">{{ detailData.bomName }}</a-descriptions-item>
-          <a-descriptions-item label="成品编码">{{ detailData.productCode }}</a-descriptions-item>
-          <a-descriptions-item label="成品名称">{{ detailData.productName }}</a-descriptions-item>
-          <a-descriptions-item label="BOM类型">
-            {{ detailData.bomType === 1 ? '组装BOM' : detailData.bomType === 2 ? '拆分BOM' : '通用' }}
-          </a-descriptions-item>
-          <a-descriptions-item label="状态">
-            <StatusTag :status="detailData.status" :map="BOM_STATUS" />
-          </a-descriptions-item>
-          <a-descriptions-item label="产出数量">{{ detailData.outputQuantity ?? '-' }}</a-descriptions-item>
-          <a-descriptions-item label="总成本">¥{{ (detailData.totalCost || 0).toFixed(2) }}</a-descriptions-item>
-          <a-descriptions-item label="备注" :span="2">{{ detailData.remark || '-' }}</a-descriptions-item>
-        </a-descriptions>
-
-        <template v-if="detailData">
-          <h4 style="margin: 16px 0 8px;">BOM明细</h4>
-          <a-table
-            :data-source="detailItems"
-            :columns="detailItemColumns"
-            :pagination="false as any"
-            size="small"
-            bordered
-            row-key="id"
-          >
-            <template #bodyCell="{ column, record }">
-              <template v-if="column.dataIndex === 'unitCost' || column.dataIndex === 'cost'">
-                ¥{{ (record[column.dataIndex] || 0).toFixed(2) }}
-              </template>
-            </template>
-          </a-table>
         </template>
-      </a-spin>
+      </a-drawer>
+    </PageContainer>
 
-      <template #footer v-if="detailData">
-        <a-space>
-          <a-button @click="detailVisible = false">关闭</a-button>
-          <a-button v-if="detailData.status === 0" type="primary" v-permission="'erp:stock:enable'" @click="handleEnable(detailData)">
-            <template #icon><CheckOutlined /></template>
-            启用
-          </a-button>
-          <a-button v-if="detailData.status === 1" danger v-permission="'erp:stock:disable'" @click="handleDisable(detailData)">
-            <template #icon><StopOutlined /></template>
-            停用
-          </a-button>
-        </a-space>
-      </template>
-    </a-drawer>
-  </PageContainer>
-
-  <!-- 新建/编辑BOM弹窗 -->
-  <a-modal
-    v-model:open="createVisible"
-    :title="editingId ? '编辑BOM' : '新建BOM'"
-    width="900px"
-    :confirm-loading="createLoading"
-    @ok="handleCreateSubmit"
-    @cancel="handleCreateCancel"
-    :mask-closable="false"
-    destroy-on-close
-  >
-    <a-form ref="createFormRef" :model="createForm" :rules="createRules" layout="vertical">
-      <a-row :gutter="16">
-        <a-col :span="12">
-          <a-form-item label="BOM名称" name="bomName">
-            <a-input v-model:value="createForm.bomName" placeholder="请输入BOM名称" size="small" />
-          </a-form-item>
-        </a-col>
-        <a-col :span="12">
-          <a-form-item label="成品" name="productId">
-            <a-select
-              v-model:value="createForm.productId"
-              placeholder="请选择成品"
-              show-search
-              :filter-option="filterOption"
-              allow-clear
-              size="small"
-              @change="handleProductChange"
-            >
-              <a-select-option v-for="p in productOptions" :key="p.id" :value="p.id">
-                {{ p.productCode }} - {{ p.productName }}
-              </a-select-option>
-            </a-select>
-          </a-form-item>
-        </a-col>
-      </a-row>
-      <a-row :gutter="16">
-        <a-col :span="8">
-          <a-form-item label="BOM类型" name="bomType">
-            <a-select v-model:value="createForm.bomType" placeholder="请选择BOM类型" size="small">
-              <a-select-option :value="1">组装BOM</a-select-option>
-              <a-select-option :value="2">拆分BOM</a-select-option>
-              <a-select-option :value="3">通用</a-select-option>
-            </a-select>
-          </a-form-item>
-        </a-col>
-        <a-col :span="8">
-          <a-form-item label="产出数量" name="outputQuantity">
-            <a-input-number v-model:value="createForm.outputQuantity" :min="1" :precision="0" style="width: 100%" placeholder="产出数量" size="small" />
-          </a-form-item>
-        </a-col>
-        <a-col :span="8">
-          <a-form-item label="备注" name="remark">
-            <a-input v-model:value="createForm.remark" placeholder="备注信息" size="small" />
-          </a-form-item>
-        </a-col>
-      </a-row>
-
-      <!-- BOM明细 -->
-      <div class="sub-table-header">
-        <span class="sub-table-title">物料明细</span>
-        <a-button type="dashed" size="small" @click="addItem"><PlusOutlined /> 添加物料</a-button>
-      </div>
-      <a-table
-        :data-source="createForm.items"
-        :columns="itemColumns"
-        :pagination="false as any"
-        size="small"
-        row-key="tempId"
-        style="margin-bottom: 12px;"
+    <!-- 新建/编辑BOM弹窗 -->
+    <a-modal
+      v-model:open="createVisible"
+      :title="editingId ? '编辑BOM' : '新建BOM'"
+      width="900px"
+      :confirm-loading="createLoading"
+      :mask-closable="false"
+      destroy-on-close
+      @ok="handleCreateSubmit"
+      @cancel="handleCreateCancel"
+    >
+      <a-form
+        ref="createFormRef"
+        :model="createForm"
+        :rules="createRules"
+        layout="vertical"
       >
-        <template #bodyCell="{ column, record, index }">
-          <template v-if="column.dataIndex === 'productName'">
-            <a-input v-model:value="record.productName" placeholder="产品名称" style="width: 120px" size="small" />
-            <a-tooltip title="选择产品"><a-button size="small" type="link" @click="selectItemProduct(index)"><SearchOutlined /></a-button></a-tooltip>
+        <a-row :gutter="16">
+          <a-col :span="12">
+            <a-form-item
+              label="BOM名称"
+              name="bomName"
+            >
+              <a-input
+                v-model:value="createForm.bomName"
+                placeholder="请输入BOM名称"
+                size="small"
+              />
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item
+              label="成品"
+              name="productId"
+            >
+              <a-select
+                v-model:value="createForm.productId"
+                placeholder="请选择成品"
+                show-search
+                :filter-option="filterOption"
+                allow-clear
+                size="small"
+                @change="handleProductChange"
+              >
+                <a-select-option
+                  v-for="p in productOptions"
+                  :key="p.id"
+                  :value="p.id"
+                >
+                  {{ p.productCode }} - {{ p.productName }}
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+          </a-col>
+        </a-row>
+        <a-row :gutter="16">
+          <a-col :span="8">
+            <a-form-item
+              label="BOM类型"
+              name="bomType"
+            >
+              <a-select
+                v-model:value="createForm.bomType"
+                placeholder="请选择BOM类型"
+                size="small"
+              >
+                <a-select-option :value="1">
+                  组装BOM
+                </a-select-option>
+                <a-select-option :value="2">
+                  拆分BOM
+                </a-select-option>
+                <a-select-option :value="3">
+                  通用
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+          </a-col>
+          <a-col :span="8">
+            <a-form-item
+              label="产出数量"
+              name="outputQuantity"
+            >
+              <a-input-number
+                v-model:value="createForm.outputQuantity"
+                :min="1"
+                :precision="0"
+                style="width: 100%"
+                placeholder="产出数量"
+                size="small"
+              />
+            </a-form-item>
+          </a-col>
+          <a-col :span="8">
+            <a-form-item
+              label="备注"
+              name="remark"
+            >
+              <a-input
+                v-model:value="createForm.remark"
+                placeholder="备注信息"
+                size="small"
+              />
+            </a-form-item>
+          </a-col>
+        </a-row>
+
+        <!-- BOM明细 -->
+        <div class="sub-table-header">
+          <span class="sub-table-title">物料明细</span>
+          <a-button
+            type="dashed"
+            size="small"
+            @click="addItem"
+          >
+            <PlusOutlined /> 添加物料
+          </a-button>
+        </div>
+        <a-table
+          :data-source="createForm.items"
+          :columns="itemColumns"
+          :pagination="false as any"
+          size="small"
+          row-key="tempId"
+          style="margin-bottom: 12px;"
+        >
+          <template #bodyCell="{ column, record, index }">
+            <template v-if="column.dataIndex === 'productName'">
+              <a-input
+                v-model:value="record.productName"
+                placeholder="产品名称"
+                style="width: 120px"
+                size="small"
+              />
+              <a-tooltip title="选择产品">
+                <a-button
+                  size="small"
+                  type="link"
+                  @click="selectItemProduct(index)"
+                >
+                  <SearchOutlined />
+                </a-button>
+              </a-tooltip>
+            </template>
+            <template v-else-if="column.dataIndex === 'productCode'">
+              <a-input
+                v-model:value="record.productCode"
+                placeholder="编码"
+                style="width: 100px"
+                size="small"
+              />
+            </template>
+            <template v-else-if="column.dataIndex === 'spec'">
+              <a-input
+                v-model:value="record.spec"
+                placeholder="规格"
+                style="width: 80px"
+                size="small"
+              />
+            </template>
+            <template v-else-if="column.dataIndex === 'quantity'">
+              <a-input-number
+                v-model:value="record.quantity"
+                :min="0"
+                :precision="2"
+                style="width: 80px"
+                size="small"
+              />
+            </template>
+            <template v-else-if="column.dataIndex === 'unitCost'">
+              <a-input-number
+                v-model:value="record.unitCost"
+                :min="0"
+                :precision="2"
+                style="width: 100px"
+                size="small"
+              />
+            </template>
+            <template v-else-if="column.dataIndex === 'action'">
+              <a-button
+                type="link"
+                danger
+                size="small"
+                @click="removeItem(index)"
+              >
+                <DeleteOutlined />
+              </a-button>
+            </template>
           </template>
-          <template v-else-if="column.dataIndex === 'productCode'">
-            <a-input v-model:value="record.productCode" placeholder="编码" style="width: 100px" size="small" />
-          </template>
-          <template v-else-if="column.dataIndex === 'spec'">
-            <a-input v-model:value="record.spec" placeholder="规格" style="width: 80px" size="small" />
-          </template>
-          <template v-else-if="column.dataIndex === 'quantity'">
-            <a-input-number v-model:value="record.quantity" :min="0" :precision="2" style="width: 80px" size="small" />
-          </template>
-          <template v-else-if="column.dataIndex === 'unitCost'">
-            <a-input-number v-model:value="record.unitCost" :min="0" :precision="2" style="width: 100px" size="small" />
-          </template>
-          <template v-else-if="column.dataIndex === 'action'">
-            <a-button type="link" danger size="small" @click="removeItem(index)"><DeleteOutlined /></a-button>
+        </a-table>
+      </a-form>
+    </a-modal>
+
+    <!-- 产品选择弹窗 -->
+    <a-modal
+      v-model:open="productPickerVisible"
+      title="选择产品"
+      width="640px"
+      :footer="null"
+      destroy-on-close
+    >
+      <a-input-search
+        v-model:value="productSearchKeyword"
+        placeholder="搜索产品编码/名称"
+        size="small"
+        @search="loadProductOptions"
+      />
+      <a-table
+        :data-source="productOptions"
+        :columns="productPickerColumns"
+        :pagination="{ pageSize: 5 }"
+        :loading="productLoading"
+        size="small"
+        row-key="id"
+        style="margin-top: 12px;"
+      >
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.dataIndex === 'action'">
+            <a-button
+              type="primary"
+              size="small"
+              @click="pickProduct(record)"
+            >
+              选择
+            </a-button>
           </template>
         </template>
       </a-table>
-    </a-form>
-  </a-modal>
-
-  <!-- 产品选择弹窗 -->
-  <a-modal v-model:open="productPickerVisible" title="选择产品" width="640px" :footer="null" destroy-on-close>
-    <a-input-search v-model:value="productSearchKeyword" placeholder="搜索产品编码/名称" @search="loadProductOptions" size="small" />
-    <a-table
-      :data-source="productOptions"
-      :columns="productPickerColumns"
-      :pagination="{ pageSize: 5 }"
-      :loading="productLoading"
-      size="small"
-      row-key="id"
-      style="margin-top: 12px;"
-    >
-      <template #bodyCell="{ column, record }">
-        <template v-if="column.dataIndex === 'action'">
-          <a-button type="primary" size="small" @click="pickProduct(record)">选择</a-button>
-        </template>
-      </template>
-    </a-table>
-  </a-modal>
+    </a-modal>
   </ErrorBoundary>
 </template>
 

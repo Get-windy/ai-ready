@@ -18,7 +18,11 @@
       <!-- 工具栏 -->
       <div class="toolbar">
         <div class="toolbar-left">
-          <a-button type="primary" class="btn-add" @click="handleAdd">
+          <a-button
+            type="primary"
+            class="btn-add"
+            @click="handleAdd"
+          >
             <PlusOutlined /> 新增{{ currentTabLabel }}
           </a-button>
         </div>
@@ -31,8 +35,17 @@
             allow-clear
             @press-enter="handleSearch"
           />
-          <a-button type="primary" size="small" @click="handleSearch">查询</a-button>
-          <a-button size="small" @click="handleRefresh">
+          <a-button
+            type="primary"
+            size="small"
+            @click="handleSearch"
+          >
+            查询
+          </a-button>
+          <a-button
+            size="small"
+            @click="handleRefresh"
+          >
             <ReloadOutlined /> 刷新
           </a-button>
         </div>
@@ -40,7 +53,10 @@
 
       <!-- 表格区域 -->
       <!-- 品牌/单位/标签 使用 BillDetailTable -->
-      <div v-if="activeTab !== 'category'" class="table-wrapper">
+      <div
+        v-if="activeTab !== 'category'"
+        class="table-wrapper"
+      >
         <BillDetailTable
           :columns="currentColumns"
           :data-source="tableData"
@@ -51,10 +67,17 @@
         >
           <!-- 对应商品列（标签tab专用） -->
           <template #relatedProductsCell="{ record }">
-            <a-button type="link" size="small" @click="openProductSelector(record)">
+            <a-button
+              type="link"
+              size="small"
+              @click="openProductSelector(record)"
+            >
               选择商品
             </a-button>
-            <span v-if="record.productCount" class="product-count">{{ record.productCount }}个</span>
+            <span
+              v-if="record.productCount"
+              class="product-count"
+            >{{ record.productCount }}个</span>
           </template>
         </BillDetailTable>
         <a-empty
@@ -65,7 +88,10 @@
       </div>
 
       <!-- 分类树表格（ColumnConfigTable 内置列配置 + 填充列） -->
-      <div v-else class="table-wrapper">
+      <div
+        v-else
+        class="table-wrapper"
+      >
         <ColumnConfigTable
           :column-defs="categoryColDefs"
           storage-key="product-supplement-category-columns"
@@ -78,12 +104,15 @@
           class="category-tree-table"
         >
           <template #bodyCell="{ column, record, index }">
-            <template v-if="!column"></template>
+            <template v-if="!column" />
             <template v-else-if="column.key === 'rowNo'">
               {{ index + 1 }}
             </template>
             <template v-else-if="column.key === 'categoryName'">
-              <span class="tree-indent" :style="{ paddingLeft: (record._level || 0) * 20 + 'px' }">
+              <span
+                class="tree-indent"
+                :style="{ paddingLeft: (record._level || 0) * 20 + 'px' }"
+              >
                 <span
                   v-if="record._hasChildren"
                   class="tree-expand-icon"
@@ -92,7 +121,10 @@
                   <CaretDownOutlined v-if="categoryExpandedKeys.includes(record.id)" />
                   <CaretRightOutlined v-else />
                 </span>
-                <span v-else class="tree-expand-placeholder" />
+                <span
+                  v-else
+                  class="tree-expand-placeholder"
+                />
                 <span
                   :class="{ 'tree-node-clickable': record._hasChildren }"
                   @click="record._hasChildren && toggleCategoryExpand(record.id)"
@@ -100,9 +132,28 @@
               </span>
             </template>
             <template v-else-if="column.key === 'action'">
-              <a-button type="link" size="small" @click="handleAddSubCategory(record)">新增</a-button>
-              <a-button type="link" size="small" @click="handleEditCategory(record)">修改</a-button>
-              <a-button type="link" size="small" danger @click="handleDeleteCategory(record)">删除</a-button>
+              <a-button
+                type="link"
+                size="small"
+                @click="handleAddSubCategory(record)"
+              >
+                新增
+              </a-button>
+              <a-button
+                type="link"
+                size="small"
+                @click="handleEditCategory(record)"
+              >
+                修改
+              </a-button>
+              <a-button
+                type="link"
+                size="small"
+                danger
+                @click="handleDeleteCategory(record)"
+              >
+                删除
+              </a-button>
             </template>
           </template>
           <template #emptyText>
@@ -126,20 +177,37 @@
       <a-modal
         v-model:open="brandModalVisible"
         :title="isEdit ? '修改商品品牌' : '新增商品品牌'"
-        @ok="handleBrandSubmit"
-        @cancel="brandModalVisible = false"
         :confirm-loading="modalLoading"
         width="480px"
+        @ok="handleBrandSubmit"
+        @cancel="brandModalVisible = false"
       >
-        <a-form :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }" style="margin-top: 16px">
-          <a-form-item label="品牌名称" :required="true">
-            <a-input v-model:value="brandForm.brandName" placeholder="请输入品牌名称" />
+        <a-form
+          :label-col="{ span: 6 }"
+          :wrapper-col="{ span: 16 }"
+          style="margin-top: 16px"
+        >
+          <a-form-item
+            label="品牌名称"
+            :required="true"
+          >
+            <a-input
+              v-model:value="brandForm.brandName"
+              placeholder="请输入品牌名称"
+            />
           </a-form-item>
           <a-form-item label="助记码">
-            <a-input v-model:value="brandForm.mnemonicCode" placeholder="请输入助记码(拼音首字母)" />
+            <a-input
+              v-model:value="brandForm.mnemonicCode"
+              placeholder="请输入助记码(拼音首字母)"
+            />
           </a-form-item>
           <a-form-item label="备注">
-            <a-textarea v-model:value="brandForm.remark" placeholder="请输入备注" :rows="3" />
+            <a-textarea
+              v-model:value="brandForm.remark"
+              placeholder="请输入备注"
+              :rows="3"
+            />
           </a-form-item>
         </a-form>
       </a-modal>
@@ -148,20 +216,37 @@
       <a-modal
         v-model:open="unitModalVisible"
         :title="isEdit ? '修改商品单位' : '新增商品单位'"
-        @ok="handleUnitSubmit"
-        @cancel="unitModalVisible = false"
         :confirm-loading="modalLoading"
         width="480px"
+        @ok="handleUnitSubmit"
+        @cancel="unitModalVisible = false"
       >
-        <a-form :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }" style="margin-top: 16px">
-          <a-form-item label="单位名称" :required="true">
-            <a-input v-model:value="unitForm.unitName" placeholder="请输入单位名称" />
+        <a-form
+          :label-col="{ span: 6 }"
+          :wrapper-col="{ span: 16 }"
+          style="margin-top: 16px"
+        >
+          <a-form-item
+            label="单位名称"
+            :required="true"
+          >
+            <a-input
+              v-model:value="unitForm.unitName"
+              placeholder="请输入单位名称"
+            />
           </a-form-item>
           <a-form-item label="助记码">
-            <a-input v-model:value="unitForm.mnemonicCode" placeholder="请输入助记码(拼音首字母)" />
+            <a-input
+              v-model:value="unitForm.mnemonicCode"
+              placeholder="请输入助记码(拼音首字母)"
+            />
           </a-form-item>
           <a-form-item label="备注">
-            <a-textarea v-model:value="unitForm.remark" placeholder="请输入备注" :rows="3" />
+            <a-textarea
+              v-model:value="unitForm.remark"
+              placeholder="请输入备注"
+              :rows="3"
+            />
           </a-form-item>
         </a-form>
       </a-modal>
@@ -170,17 +255,31 @@
       <a-modal
         v-model:open="tagModalVisible"
         :title="isEdit ? '修改商品标签' : '新增商品标签'"
-        @ok="handleTagSubmit"
-        @cancel="tagModalVisible = false"
         :confirm-loading="modalLoading"
         width="480px"
+        @ok="handleTagSubmit"
+        @cancel="tagModalVisible = false"
       >
-        <a-form :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }" style="margin-top: 16px">
-          <a-form-item label="标签名称" :required="true">
-            <a-input v-model:value="tagForm.tagName" placeholder="请输入标签名称" />
+        <a-form
+          :label-col="{ span: 6 }"
+          :wrapper-col="{ span: 16 }"
+          style="margin-top: 16px"
+        >
+          <a-form-item
+            label="标签名称"
+            :required="true"
+          >
+            <a-input
+              v-model:value="tagForm.tagName"
+              placeholder="请输入标签名称"
+            />
           </a-form-item>
           <a-form-item label="排序">
-            <a-input-number v-model:value="tagForm.sortOrder" :min="0" style="width: 100%" />
+            <a-input-number
+              v-model:value="tagForm.sortOrder"
+              :min="0"
+              style="width: 100%"
+            />
           </a-form-item>
         </a-form>
       </a-modal>
@@ -189,17 +288,30 @@
       <a-modal
         v-model:open="categoryModalVisible"
         :title="isEdit ? '修改商品分类' : '新增商品分类'"
-        @ok="handleCategorySubmit"
-        @cancel="categoryModalVisible = false"
         :confirm-loading="modalLoading"
         width="480px"
+        @ok="handleCategorySubmit"
+        @cancel="categoryModalVisible = false"
       >
-        <a-form :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }" style="margin-top: 16px">
-          <a-form-item label="分类名称" :required="true">
-            <a-input v-model:value="categoryForm.categoryName" placeholder="请输入分类名称" />
+        <a-form
+          :label-col="{ span: 6 }"
+          :wrapper-col="{ span: 16 }"
+          style="margin-top: 16px"
+        >
+          <a-form-item
+            label="分类名称"
+            :required="true"
+          >
+            <a-input
+              v-model:value="categoryForm.categoryName"
+              placeholder="请输入分类名称"
+            />
           </a-form-item>
           <a-form-item label="分类编码">
-            <a-input v-model:value="categoryForm.categoryCode" placeholder="请输入分类编码" />
+            <a-input
+              v-model:value="categoryForm.categoryCode"
+              placeholder="请输入分类编码"
+            />
           </a-form-item>
           <a-form-item label="上级分类">
             <a-tree-select
@@ -213,7 +325,11 @@
             />
           </a-form-item>
           <a-form-item label="排序">
-            <a-input-number v-model:value="categoryForm.sortOrder" :min="0" style="width: 100%" />
+            <a-input-number
+              v-model:value="categoryForm.sortOrder"
+              :min="0"
+              style="width: 100%"
+            />
           </a-form-item>
         </a-form>
       </a-modal>
@@ -223,17 +339,17 @@
         v-model:open="productSelectorVisible"
         title="选择对应商品"
         width="700px"
+        :confirm-loading="productSelectorLoading"
         @ok="handleProductSelectorOk"
         @cancel="productSelectorVisible = false"
-        :confirm-loading="productSelectorLoading"
       >
         <div style="margin-bottom: 12px">
           <a-input-search
             v-model:value="productSearchKeyword"
             placeholder="搜索商品名称/编码"
             style="width: 300px"
-            @search="searchProductsForTag"
             allow-clear
+            @search="searchProductsForTag"
           />
         </div>
         <a-table
@@ -257,7 +373,6 @@
           已选择 {{ selectedProductIds.length }} 个商品
         </div>
       </a-modal>
-
     </PageContainer>
   </ErrorBoundary>
 </template>

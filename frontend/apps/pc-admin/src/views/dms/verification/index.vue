@@ -1,176 +1,286 @@
 <template>
-  <ErrorBoundary @error="handleError"><PageContainer full-height>
-    <template #header>
-      <div class="page-header">
-        <div class="page-header__left">
-          <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item>DMS / 核验管理</a-breadcrumb-item>
-          </a-breadcrumb>
-          <h2>核验管理</h2>
+  <ErrorBoundary @error="handleError">
+    <PageContainer full-height>
+      <template #header>
+        <div class="page-header">
+          <div class="page-header__left">
+            <a-breadcrumb>
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>DMS / 核验管理</a-breadcrumb-item>
+            </a-breadcrumb>
+            <h2>核验管理</h2>
+          </div>
+          <div class="page-header__right">
+            <span
+              v-if="lastUpdateTime"
+              class="update-time"
+            >更新于 {{ lastUpdateTime }}</span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            ><SyncOutlined /> {{ autoRefreshCountdown }}s</span>
+            <a-button
+              size="small"
+              :loading="loading"
+              @click="debounceClick('refresh', handleRefresh)"
+            >
+              <ReloadOutlined /> 刷新
+            </a-button>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+              <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+            </span>
+          </div>
         </div>
-        <div class="page-header__right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge"><SyncOutlined /> {{ autoRefreshCountdown }}s</span>
-          <a-button size="small" :loading="loading" @click="debounceClick('refresh', handleRefresh)">
-            <ReloadOutlined /> 刷新
-          </a-button>
-          <span class="shortcut-hints">
-            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-            <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
-          </span>
-        </div>
-      </div>
-    </template>
+      </template>
 
-    <template #default>
-      <div class="page-body">
-        <a-tabs v-model:activeKey="activeTab" @change="handleTabChange">
-          <!-- Tab 1: 绑定记录 -->
-          <a-tab-pane key="binding" tab="绑定记录">
-            <SearchBar :fields="bindingSearchFields" :loading="bindingLoading" @search="handleBindingSearch" @reset="handleBindingReset" />
-            <div style="margin-top:12px;">
-              <SkeletonTable v-if="bindingLoading && bindingDataList.length === 0" :columns="bindingColumns.length" :rows="8" />
-              <a-table
-                v-else
-                :dataSource="bindingDataList"
-                :columns="bindingColumns"
+      <template #default>
+        <div class="page-body">
+          <a-tabs
+            v-model:active-key="activeTab"
+            @change="handleTabChange"
+          >
+            <!-- Tab 1: 绑定记录 -->
+            <a-tab-pane
+              key="binding"
+              tab="绑定记录"
+            >
+              <SearchBar
+                :fields="bindingSearchFields"
                 :loading="bindingLoading"
-                :pagination="bindingPagination"
-                rowKey="id"
-                size="small"
-                bordered
-                @change="handleBindingTableChange"
-              >
-                <template #emptyText>
-                  <a-empty description="暂无绑定记录">
-                    <a-button size="small" @click="fetchBindingData">刷新</a-button>
-                  </a-empty>
-                </template>
-                <template #bodyCell="{ column, record }">
-                  <template v-if="column.dataIndex === 'bindTime' || column.dataIndex === 'handoverTime'">
-                    {{ formatDateTime(record[column.dataIndex]) }}
+                @search="handleBindingSearch"
+                @reset="handleBindingReset"
+              />
+              <div style="margin-top:12px;">
+                <SkeletonTable
+                  v-if="bindingLoading && bindingDataList.length === 0"
+                  :columns="bindingColumns.length"
+                  :rows="8"
+                />
+                <a-table
+                  v-else
+                  :data-source="bindingDataList"
+                  :columns="bindingColumns"
+                  :loading="bindingLoading"
+                  :pagination="bindingPagination"
+                  row-key="id"
+                  size="small"
+                  bordered
+                  @change="handleBindingTableChange"
+                >
+                  <template #emptyText>
+                    <a-empty description="暂无绑定记录">
+                      <a-button
+                        size="small"
+                        @click="fetchBindingData"
+                      >
+                        刷新
+                      </a-button>
+                    </a-empty>
                   </template>
-                  <template v-if="column.dataIndex === 'status'">
-                    <a-tag :color="record.status === 1 ? 'blue' : 'default'">
-                      {{ record.status === 1 ? '绑定中' : '已交车' }}
-                    </a-tag>
+                  <template #bodyCell="{ column, record }">
+                    <template v-if="column.dataIndex === 'bindTime' || column.dataIndex === 'handoverTime'">
+                      {{ formatDateTime(record[column.dataIndex]) }}
+                    </template>
+                    <template v-if="column.dataIndex === 'status'">
+                      <a-tag :color="record.status === 1 ? 'blue' : 'default'">
+                        {{ record.status === 1 ? '绑定中' : '已交车' }}
+                      </a-tag>
+                    </template>
+                    <template v-if="column.dataIndex === 'action'">
+                      <a-space :size="4">
+                        <a-tooltip title="查看详情">
+                          <a-button
+                            v-permission="'dms:verification:view'"
+                            type="link"
+                            size="small"
+                            @click="handleViewBinding(record)"
+                          >
+                            <EyeOutlined />
+                          </a-button>
+                        </a-tooltip>
+                        <a-tooltip
+                          v-if="record.status === 1"
+                          title="交车"
+                        >
+                          <a-button
+                            v-permission="'dms:verification:handover'"
+                            type="link"
+                            size="small"
+                            @click="handleHandover(record)"
+                          >
+                            <SwapRightOutlined />
+                          </a-button>
+                        </a-tooltip>
+                      </a-space>
+                    </template>
                   </template>
-                  <template v-if="column.dataIndex === 'action'">
-                    <a-space :size="4">
-                      <a-tooltip title="查看详情">
-                        <a-button v-permission="'dms:verification:view'" type="link" size="small" @click="handleViewBinding(record)"><EyeOutlined /></a-button>
-                      </a-tooltip>
-                      <a-tooltip v-if="record.status === 1" title="交车">
-                        <a-button v-permission="'dms:verification:handover'" type="link" size="small" @click="handleHandover(record)"><SwapRightOutlined /></a-button>
-                      </a-tooltip>
-                    </a-space>
-                  </template>
-                </template>
-              </a-table>
-            </div>
-          </a-tab-pane>
+                </a-table>
+              </div>
+            </a-tab-pane>
 
-          <!-- Tab 2: 预警记录 -->
-          <a-tab-pane key="alert" tab="预警记录">
-            <SearchBar :fields="alertSearchFields" :loading="alertLoading" @search="handleAlertSearch" @reset="handleAlertReset" />
-            <div style="margin-top:12px;">
-              <SkeletonTable v-if="alertLoading && alertDataList.length === 0" :columns="alertColumns.length" :rows="8" />
-              <a-table
-                v-else
-                :dataSource="alertDataList"
-                :columns="alertColumns"
+            <!-- Tab 2: 预警记录 -->
+            <a-tab-pane
+              key="alert"
+              tab="预警记录"
+            >
+              <SearchBar
+                :fields="alertSearchFields"
                 :loading="alertLoading"
-                :pagination="alertPagination"
-                rowKey="id"
-                size="small"
-                bordered
-                @change="handleAlertTableChange"
-              >
-                <template #emptyText>
-                  <a-empty description="暂无预警记录">
-                    <a-button size="small" @click="fetchAlertData">刷新</a-button>
-                  </a-empty>
-                </template>
-                <template #bodyCell="{ column, record }">
-                  <template v-if="column.dataIndex === 'createTime'">
-                    {{ formatDateTime(record.createTime) }}
+                @search="handleAlertSearch"
+                @reset="handleAlertReset"
+              />
+              <div style="margin-top:12px;">
+                <SkeletonTable
+                  v-if="alertLoading && alertDataList.length === 0"
+                  :columns="alertColumns.length"
+                  :rows="8"
+                />
+                <a-table
+                  v-else
+                  :data-source="alertDataList"
+                  :columns="alertColumns"
+                  :loading="alertLoading"
+                  :pagination="alertPagination"
+                  row-key="id"
+                  size="small"
+                  bordered
+                  @change="handleAlertTableChange"
+                >
+                  <template #emptyText>
+                    <a-empty description="暂无预警记录">
+                      <a-button
+                        size="small"
+                        @click="fetchAlertData"
+                      >
+                        刷新
+                      </a-button>
+                    </a-empty>
                   </template>
-                  <template v-if="column.dataIndex === 'alertType'">
-                    <a-tag :color="alertTypeMap[record.alertType]?.color || 'default'">
-                      {{ alertTypeMap[record.alertType]?.text || record.alertType }}
-                    </a-tag>
+                  <template #bodyCell="{ column, record }">
+                    <template v-if="column.dataIndex === 'createTime'">
+                      {{ formatDateTime(record.createTime) }}
+                    </template>
+                    <template v-if="column.dataIndex === 'alertType'">
+                      <a-tag :color="alertTypeMap[record.alertType]?.color || 'default'">
+                        {{ alertTypeMap[record.alertType]?.text || record.alertType }}
+                      </a-tag>
+                    </template>
+                    <template v-if="column.dataIndex === 'alertLevel'">
+                      <a-tag :color="alertLevelMap[record.alertLevel]?.color || 'default'">
+                        {{ alertLevelMap[record.alertLevel]?.text || record.alertLevel }}
+                      </a-tag>
+                    </template>
+                    <template v-if="column.dataIndex === 'handleStatus'">
+                      <a-tag :color="handleStatusMap[record.handleStatus]?.color || 'default'">
+                        {{ handleStatusMap[record.handleStatus]?.text || record.handleStatus }}
+                      </a-tag>
+                    </template>
+                    <template v-if="column.dataIndex === 'action'">
+                      <a-button
+                        v-permission="'dms:verification:handle-alert'"
+                        type="link"
+                        size="small"
+                        :disabled="record.handleStatus === 2"
+                        @click="handleAlertAction(record)"
+                      >
+                        处理
+                      </a-button>
+                    </template>
                   </template>
-                  <template v-if="column.dataIndex === 'alertLevel'">
-                    <a-tag :color="alertLevelMap[record.alertLevel]?.color || 'default'">
-                      {{ alertLevelMap[record.alertLevel]?.text || record.alertLevel }}
-                    </a-tag>
-                  </template>
-                  <template v-if="column.dataIndex === 'handleStatus'">
-                    <a-tag :color="handleStatusMap[record.handleStatus]?.color || 'default'">
-                      {{ handleStatusMap[record.handleStatus]?.text || record.handleStatus }}
-                    </a-tag>
-                  </template>
-                  <template v-if="column.dataIndex === 'action'">
-                    <a-button v-permission="'dms:verification:handle-alert'" type="link" size="small" :disabled="record.handleStatus === 2" @click="handleAlertAction(record)">
-                      处理
-                    </a-button>
-                  </template>
-                </template>
-              </a-table>
-            </div>
-          </a-tab-pane>
+                </a-table>
+              </div>
+            </a-tab-pane>
 
-          <!-- Tab 3: 巡检记录 -->
-          <a-tab-pane key="inspection" tab="巡检记录">
-            <SearchBar :fields="inspectionSearchFields" :loading="inspectionLoading" @search="handleInspectionSearch" @reset="handleInspectionReset" />
-            <div style="margin-top:12px;">
-              <SkeletonTable v-if="inspectionLoading && inspectionDataList.length === 0" :columns="inspectionColumns.length" :rows="8" />
-              <a-table
-                v-else
-                :dataSource="inspectionDataList"
-                :columns="inspectionColumns"
+            <!-- Tab 3: 巡检记录 -->
+            <a-tab-pane
+              key="inspection"
+              tab="巡检记录"
+            >
+              <SearchBar
+                :fields="inspectionSearchFields"
                 :loading="inspectionLoading"
-                :pagination="inspectionPagination"
-                rowKey="id"
-                size="small"
-                bordered
-                @change="handleInspectionTableChange"
-              >
-                <template #emptyText>
-                  <a-empty description="暂无巡检记录">
-                    <a-button size="small" @click="fetchInspectionData">刷新</a-button>
-                  </a-empty>
-                </template>
-                <template #bodyCell="{ column, record }">
-                  <template v-if="column.dataIndex === 'inspectionTime'">
-                    {{ formatDateTime(record.inspectionTime) }}
+                @search="handleInspectionSearch"
+                @reset="handleInspectionReset"
+              />
+              <div style="margin-top:12px;">
+                <SkeletonTable
+                  v-if="inspectionLoading && inspectionDataList.length === 0"
+                  :columns="inspectionColumns.length"
+                  :rows="8"
+                />
+                <a-table
+                  v-else
+                  :data-source="inspectionDataList"
+                  :columns="inspectionColumns"
+                  :loading="inspectionLoading"
+                  :pagination="inspectionPagination"
+                  row-key="id"
+                  size="small"
+                  bordered
+                  @change="handleInspectionTableChange"
+                >
+                  <template #emptyText>
+                    <a-empty description="暂无巡检记录">
+                      <a-button
+                        size="small"
+                        @click="fetchInspectionData"
+                      >
+                        刷新
+                      </a-button>
+                    </a-empty>
                   </template>
-                  <template v-if="column.dataIndex === 'inspectionType'">
-                    <a-tag :color="inspectionTypeMap[record.inspectionType]?.color || 'default'">
-                      {{ inspectionTypeMap[record.inspectionType]?.text || record.inspectionType }}
-                    </a-tag>
+                  <template #bodyCell="{ column, record }">
+                    <template v-if="column.dataIndex === 'inspectionTime'">
+                      {{ formatDateTime(record.inspectionTime) }}
+                    </template>
+                    <template v-if="column.dataIndex === 'inspectionType'">
+                      <a-tag :color="inspectionTypeMap[record.inspectionType]?.color || 'default'">
+                        {{ inspectionTypeMap[record.inspectionType]?.text || record.inspectionType }}
+                      </a-tag>
+                    </template>
+                    <template v-if="column.dataIndex === 'result'">
+                      <a-tag :color="record.result === 1 ? 'green' : 'red'">
+                        {{ record.result === 1 ? '通过' : '不通过' }}
+                      </a-tag>
+                    </template>
+                    <template v-if="column.dataIndex === 'action'">
+                      <a-button
+                        v-permission="'dms:verification:review'"
+                        type="link"
+                        size="small"
+                        @click="handleInspectionReview(record)"
+                      >
+                        审核
+                      </a-button>
+                    </template>
                   </template>
-                  <template v-if="column.dataIndex === 'result'">
-                    <a-tag :color="record.result === 1 ? 'green' : 'red'">
-                      {{ record.result === 1 ? '通过' : '不通过' }}
-                    </a-tag>
-                  </template>
-                  <template v-if="column.dataIndex === 'action'">
-                    <a-button v-permission="'dms:verification:review'" type="link" size="small" @click="handleInspectionReview(record)">审核</a-button>
-                  </template>
-                </template>
-              </a-table>
-            </div>
-          </a-tab-pane>
-        </a-tabs>
-      </div>
-    </template>
-  </PageContainer></ErrorBoundary>
+                </a-table>
+              </div>
+            </a-tab-pane>
+          </a-tabs>
+        </div>
+      </template>
+    </PageContainer>
+  </ErrorBoundary>
 
   <!-- 交车弹窗 -->
-  <a-modal v-model:open="handoverVisible" title="交车操作" width="480px" :confirm-loading="handoverLoading" @ok="handleHandoverOk" @cancel="handoverVisible = false">
-    <a-form :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
+  <a-modal
+    v-model:open="handoverVisible"
+    title="交车操作"
+    width="480px"
+    :confirm-loading="handoverLoading"
+    @ok="handleHandoverOk"
+    @cancel="handoverVisible = false"
+  >
+    <a-form
+      :label-col="{ span: 6 }"
+      :wrapper-col="{ span: 16 }"
+    >
       <a-form-item label="骑手">
         <span>{{ handoverRecord?.riderName }}</span>
       </a-form-item>
@@ -178,53 +288,138 @@
         <span>{{ handoverRecord?.plateNo || handoverRecord?.vehiclePlate }}</span>
       </a-form-item>
       <a-form-item label="交车里程">
-        <a-input-number v-model:value="handoverForm.mileage" :min="0" size="small" style="width:100%" placeholder="请输入交车里程" />
+        <a-input-number
+          v-model:value="handoverForm.mileage"
+          :min="0"
+          size="small"
+          style="width:100%"
+          placeholder="请输入交车里程"
+        />
       </a-form-item>
       <a-form-item label="交车地点">
-        <a-input v-model:value="handoverForm.location" size="small" placeholder="请输入交车地点" />
+        <a-input
+          v-model:value="handoverForm.location"
+          size="small"
+          placeholder="请输入交车地点"
+        />
       </a-form-item>
     </a-form>
   </a-modal>
 
   <!-- 预警处理弹窗 -->
-  <a-modal v-model:open="alertHandleVisible" title="处理预警" width="480px" :confirm-loading="alertHandleLoading" @ok="handleAlertHandleOk" @cancel="alertHandleVisible = false">
-    <a-form ref="alertHandleFormRef" :model="alertHandleForm" :rules="alertHandleRules" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
+  <a-modal
+    v-model:open="alertHandleVisible"
+    title="处理预警"
+    width="480px"
+    :confirm-loading="alertHandleLoading"
+    @ok="handleAlertHandleOk"
+    @cancel="alertHandleVisible = false"
+  >
+    <a-form
+      ref="alertHandleFormRef"
+      :model="alertHandleForm"
+      :rules="alertHandleRules"
+      :label-col="{ span: 6 }"
+      :wrapper-col="{ span: 16 }"
+    >
       <a-form-item label="预警类型">
-        <a-tag :color="alertTypeMap[alertHandleRecord?.alertType]?.color">{{ alertTypeMap[alertHandleRecord?.alertType]?.text }}</a-tag>
+        <a-tag :color="alertTypeMap[alertHandleRecord?.alertType]?.color">
+          {{ alertTypeMap[alertHandleRecord?.alertType]?.text }}
+        </a-tag>
       </a-form-item>
       <a-form-item label="预警内容">
         <span>{{ alertHandleRecord?.alertContent || alertHandleRecord?.alertMsg }}</span>
       </a-form-item>
-      <a-form-item label="处理结果" name="handleStatus">
-        <a-select v-model:value="alertHandleForm.handleStatus" size="small" placeholder="请选择处理结果">
-          <a-select-option :value="1">已确认</a-select-option>
-          <a-select-option :value="2">已忽略</a-select-option>
-          <a-select-option :value="3">已处理</a-select-option>
+      <a-form-item
+        label="处理结果"
+        name="handleStatus"
+      >
+        <a-select
+          v-model:value="alertHandleForm.handleStatus"
+          size="small"
+          placeholder="请选择处理结果"
+        >
+          <a-select-option :value="1">
+            已确认
+          </a-select-option>
+          <a-select-option :value="2">
+            已忽略
+          </a-select-option>
+          <a-select-option :value="3">
+            已处理
+          </a-select-option>
         </a-select>
       </a-form-item>
-      <a-form-item label="备注" name="remark">
-        <a-textarea v-model:value="alertHandleForm.remark" :rows="2" size="small" placeholder="请输入处理备注" />
+      <a-form-item
+        label="备注"
+        name="remark"
+      >
+        <a-textarea
+          v-model:value="alertHandleForm.remark"
+          :rows="2"
+          size="small"
+          placeholder="请输入处理备注"
+        />
       </a-form-item>
     </a-form>
   </a-modal>
 
   <!-- 巡检审核弹窗 -->
-  <a-modal v-model:open="inspectionReviewVisible" title="审核巡检" width="480px" :confirm-loading="inspectionReviewLoading" @ok="handleInspectionReviewOk" @cancel="inspectionReviewVisible = false">
-    <a-form ref="inspectionReviewFormRef" :model="inspectionReviewForm" :rules="inspectionReviewRules" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
+  <a-modal
+    v-model:open="inspectionReviewVisible"
+    title="审核巡检"
+    width="480px"
+    :confirm-loading="inspectionReviewLoading"
+    @ok="handleInspectionReviewOk"
+    @cancel="inspectionReviewVisible = false"
+  >
+    <a-form
+      ref="inspectionReviewFormRef"
+      :model="inspectionReviewForm"
+      :rules="inspectionReviewRules"
+      :label-col="{ span: 6 }"
+      :wrapper-col="{ span: 16 }"
+    >
       <a-form-item label="巡检类型">
         <a-tag>{{ inspectionTypeMap[inspectionReviewRecord?.inspectionType]?.text || '-' }}</a-tag>
       </a-form-item>
-      <a-form-item label="审核结果" name="result">
-        <a-select v-model:value="inspectionReviewForm.result" size="small" placeholder="请选择审核结果">
-          <a-select-option :value="1">通过</a-select-option>
-          <a-select-option :value="0">不通过</a-select-option>
+      <a-form-item
+        label="审核结果"
+        name="result"
+      >
+        <a-select
+          v-model:value="inspectionReviewForm.result"
+          size="small"
+          placeholder="请选择审核结果"
+        >
+          <a-select-option :value="1">
+            通过
+          </a-select-option>
+          <a-select-option :value="0">
+            不通过
+          </a-select-option>
         </a-select>
       </a-form-item>
-      <a-form-item label="审核人" name="reviewer">
-        <a-input v-model:value="inspectionReviewForm.reviewer" size="small" placeholder="请输入审核人" />
+      <a-form-item
+        label="审核人"
+        name="reviewer"
+      >
+        <a-input
+          v-model:value="inspectionReviewForm.reviewer"
+          size="small"
+          placeholder="请输入审核人"
+        />
       </a-form-item>
-      <a-form-item label="备注" name="remark">
-        <a-textarea v-model:value="inspectionReviewForm.remark" :rows="2" size="small" placeholder="请输入审核备注" />
+      <a-form-item
+        label="备注"
+        name="remark"
+      >
+        <a-textarea
+          v-model:value="inspectionReviewForm.remark"
+          :rows="2"
+          size="small"
+          placeholder="请输入审核备注"
+        />
       </a-form-item>
     </a-form>
   </a-modal>

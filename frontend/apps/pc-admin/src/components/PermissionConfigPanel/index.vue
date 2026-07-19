@@ -4,16 +4,33 @@
     <div class="role-sidebar">
       <div class="role-sidebar-header">
         <h3>角色列表</h3>
-        <a-button size="small" type="primary" ghost @click="loadRoles">
-          <template #icon><ReloadOutlined /></template>
+        <a-button
+          size="small"
+          type="primary"
+          ghost
+          @click="loadRoles"
+        >
+          <template #icon>
+            <ReloadOutlined />
+          </template>
         </a-button>
       </div>
       <div class="role-search">
-        <a-input v-model:value="roleSearchKeyword" placeholder="搜索角色..." size="small" allow-clear>
-          <template #prefix><SearchOutlined /></template>
+        <a-input
+          v-model:value="roleSearchKeyword"
+          placeholder="搜索角色..."
+          size="small"
+          allow-clear
+        >
+          <template #prefix>
+            <SearchOutlined />
+          </template>
         </a-input>
       </div>
-      <div class="role-list" v-if="filteredRoles.length > 0">
+      <div
+        v-if="filteredRoles.length > 0"
+        class="role-list"
+      >
         <div
           v-for="role in filteredRoles"
           :key="role.id"
@@ -23,14 +40,23 @@
         >
           <div class="role-item-info">
             <span class="role-item-name">{{ role.roleName }}</span>
-            <a-tag size="small" :color="role.scope === 'PLATFORM' ? 'purple' : 'blue'" style="font-size: 11px; line-height: 18px; padding: 0 4px;">
+            <a-tag
+              size="small"
+              :color="role.scope === 'PLATFORM' ? 'purple' : 'blue'"
+              style="font-size: 11px; line-height: 18px; padding: 0 4px;"
+            >
               {{ role.scope === 'PLATFORM' ? '平台' : '租户' }}
             </a-tag>
           </div>
-          <div class="role-item-code">{{ role.roleCode }}</div>
+          <div class="role-item-code">
+            {{ role.roleCode }}
+          </div>
         </div>
       </div>
-      <div class="role-list-empty" v-else>
+      <div
+        v-else
+        class="role-list-empty"
+      >
         <a-empty description="暂无角色" />
       </div>
     </div>
@@ -58,8 +84,14 @@
             <span class="config-header-code">{{ selectedRole.roleCode }}</span>
           </div>
           <div class="config-header-actions">
-            <a-button size="small" @click="handleCopyPermission" :disabled="!selectedRole">
-              <template #icon><CopyOutlined /></template>
+            <a-button
+              size="small"
+              :disabled="!selectedRole"
+              @click="handleCopyPermission"
+            >
+              <template #icon>
+                <CopyOutlined />
+              </template>
               从其他角色复制权限
             </a-button>
           </div>
@@ -69,9 +101,16 @@
         <div class="config-body">
           <!-- 模块分类侧栏 -->
           <div class="module-sidebar">
-            <div class="module-sidebar-title">功能分类</div>
+            <div class="module-sidebar-title">
+              功能分类
+            </div>
             <div class="module-sidebar-search">
-              <a-input v-model:value="moduleSearchKeyword" placeholder="搜索..." size="small" allow-clear />
+              <a-input
+                v-model:value="moduleSearchKeyword"
+                placeholder="搜索..."
+                size="small"
+                allow-clear
+              />
             </div>
             <div class="module-sidebar-list">
               <div
@@ -92,25 +131,50 @@
             <div class="grouped-tables-toolbar">
               <span class="grouped-tables-title">权限分组</span>
               <a-space size="small">
-                <a-button size="small" @click="expandAll" :disabled="allExpanded">
-                  <template #icon><FolderOpenOutlined /></template>
+                <a-button
+                  size="small"
+                  :disabled="allExpanded"
+                  @click="expandAll"
+                >
+                  <template #icon>
+                    <FolderOpenOutlined />
+                  </template>
                   展开全部
                 </a-button>
-                <a-button size="small" @click="collapseAll" :disabled="allCollapsed">
-                  <template #icon><FolderOutlined /></template>
+                <a-button
+                  size="small"
+                  :disabled="allCollapsed"
+                  @click="collapseAll"
+                >
+                  <template #icon>
+                    <FolderOutlined />
+                  </template>
                   收起全部
                 </a-button>
               </a-space>
             </div>
 
-            <div class="tree-loading" v-if="loading">
+            <div
+              v-if="loading"
+              class="tree-loading"
+            >
               <a-spin tip="加载权限数据..." />
             </div>
 
             <template v-else>
-              <div v-if="visibleGroups.length > 0" class="grouped-table-scroll">
-                <div v-for="group in visibleGroups" :key="group.id" class="group-card">
-                  <div class="group-header" @click="toggleGroupExpand(group.id)">
+              <div
+                v-if="visibleGroups.length > 0"
+                class="grouped-table-scroll"
+              >
+                <div
+                  v-for="group in visibleGroups"
+                  :key="group.id"
+                  class="group-card"
+                >
+                  <div
+                    class="group-header"
+                    @click="toggleGroupExpand(group.id)"
+                  >
                     <a-checkbox
                       :checked="getGroupCheckedState(group).checked"
                       :indeterminate="getGroupCheckedState(group).indeterminate"
@@ -128,7 +192,10 @@
                       />
                     </div>
                   </div>
-                  <div v-show="expandedGroupIds.has(group.id)" class="group-table-body">
+                  <div
+                    v-show="expandedGroupIds.has(group.id)"
+                    class="group-table-body"
+                  >
                     <a-table
                       :columns="groupColumns"
                       :data-source="group.permissions"
@@ -141,13 +208,19 @@
                     >
                       <template #bodyCell="{ column, record }">
                         <template v-if="column.key === 'name'">
-                          <div class="perm-name-cell" :class="{ 'cell-changed': changedIds.has(record.id) }">
+                          <div
+                            class="perm-name-cell"
+                            :class="{ 'cell-changed': changedIds.has(record.id) }"
+                          >
                             <span class="perm-name-text">{{ record.name }}</span>
                             <code class="perm-code-hint">{{ record.code }}</code>
                           </div>
                         </template>
                         <template v-else-if="column.key === record.operationType">
-                          <div :class="{ 'cell-changed': changedIds.has(record.id) }" class="perm-check-cell">
+                          <div
+                            :class="{ 'cell-changed': changedIds.has(record.id) }"
+                            class="perm-check-cell"
+                          >
                             <a-checkbox
                               :checked="isChecked(record.id)"
                               :disabled="readonly"
@@ -160,7 +233,10 @@
                   </div>
                 </div>
               </div>
-              <div v-else class="no-permissions">
+              <div
+                v-else
+                class="no-permissions"
+              >
                 <a-empty :description="activeModule ? '该分类下没有权限项' : '暂无可配置的权限数据'" />
               </div>
             </template>
@@ -168,16 +244,27 @@
         </div>
 
         <!-- 底部操作栏 -->
-        <div class="bottom-action-bar" v-if="hasChanges && !readonly">
+        <div
+          v-if="hasChanges && !readonly"
+          class="bottom-action-bar"
+        >
           <div class="bottom-action-bar-inner">
             <span class="change-summary">
               已修改 <b>{{ pendingChangeCount }}</b> 项权限
             </span>
             <div class="bottom-action-bar-buttons">
               <a-space>
-                <a-button @click="handleResetPermissions">重置</a-button>
-                <a-button type="primary" :loading="saveLoading" @click="handleSavePermissions">
-                  <template #icon><SaveOutlined /></template>
+                <a-button @click="handleResetPermissions">
+                  重置
+                </a-button>
+                <a-button
+                  type="primary"
+                  :loading="saveLoading"
+                  @click="handleSavePermissions"
+                >
+                  <template #icon>
+                    <SaveOutlined />
+                  </template>
                   保存权限
                 </a-button>
               </a-space>
@@ -188,8 +275,19 @@
     </div>
 
     <!-- 从其他角色复制权限弹窗 -->
-    <a-modal v-model:open="copyModalVisible" title="从其他角色复制权限" width="400px" :confirm-loading="copyLoading" @ok="handleCopyConfirm">
-      <a-alert message="将把选中角色的权限完全覆盖当前角色的权限配置" type="warning" show-icon style="margin-bottom: 16px" />
+    <a-modal
+      v-model:open="copyModalVisible"
+      title="从其他角色复制权限"
+      width="400px"
+      :confirm-loading="copyLoading"
+      @ok="handleCopyConfirm"
+    >
+      <a-alert
+        message="将把选中角色的权限完全覆盖当前角色的权限配置"
+        type="warning"
+        show-icon
+        style="margin-bottom: 16px"
+      />
       <a-select
         v-model:value="copySourceRoleId"
         style="width: 100%"

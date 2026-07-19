@@ -1,34 +1,63 @@
 <template>
-  <div class="skeleton-dashboard" aria-busy="true" aria-label="仪表盘数据加载中">
+  <div
+    class="skeleton-dashboard"
+    aria-busy="true"
+    aria-label="仪表盘数据加载中"
+  >
     <!-- ===== 欢迎栏 ===== -->
     <div class="skeleton-dashboard__header">
       <div class="skeleton-dashboard__header-left">
-        <div class="skeleton-bar" style="width: 120px; height: 28px; margin-bottom: 8px" />
-        <div class="skeleton-bar" style="width: 220px; height: 16px" />
+        <div
+          class="skeleton-bar"
+          style="width: 120px; height: 28px; margin-bottom: 8px"
+        />
+        <div
+          class="skeleton-bar"
+          style="width: 220px; height: 16px"
+        />
       </div>
       <div class="skeleton-dashboard__header-right">
-        <div class="skeleton-bar" style="width: 220px; height: 24px" />
-        <div class="skeleton-bar" style="width: 80px; height: 24px" />
+        <div
+          class="skeleton-bar"
+          style="width: 220px; height: 24px"
+        />
+        <div
+          class="skeleton-bar"
+          style="width: 80px; height: 24px"
+        />
       </div>
     </div>
 
     <!-- ===== KPI 卡片行 ===== -->
     <div class="skeleton-dashboard__kpis">
-      <SkeletonCard v-for="i in 4" :key="'kpi-' + i" show-suffix />
+      <SkeletonCard
+        v-for="i in 4"
+        :key="'kpi-' + i"
+        show-suffix
+      />
     </div>
 
     <!-- ===== 图表 + 待办行 ===== -->
     <div class="skeleton-dashboard__content-row">
       <!-- 图表卡片 -->
       <div class="skeleton-dashboard__chart-card">
-        <SkeletonCard has-chart show-extra />
+        <SkeletonCard
+          has-chart
+          show-extra
+        />
       </div>
       <!-- 待办列表卡片 -->
       <div class="skeleton-dashboard__todo-card">
         <div class="skeleton-dashboard__card">
           <div class="skeleton-dashboard__card-header">
-            <div class="skeleton-bar" style="width: 80px; height: 18px" />
-            <div class="skeleton-bar" style="width: 32px; height: 14px" />
+            <div
+              class="skeleton-bar"
+              style="width: 80px; height: 18px"
+            />
+            <div
+              class="skeleton-bar"
+              style="width: 32px; height: 14px"
+            />
           </div>
           <div class="skeleton-dashboard__card-body">
             <div
@@ -36,10 +65,19 @@
               :key="'todo-' + i"
               class="skeleton-dashboard__todo-item"
             >
-              <div class="skeleton-bar" style="width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0" />
+              <div
+                class="skeleton-bar"
+                style="width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0"
+              />
               <div class="skeleton-dashboard__todo-content">
-                <div class="skeleton-bar" :style="{ width: (70 - i * 5) + '%', height: '14px' }" />
-                <div class="skeleton-bar" style="width: 30%; height: 12px; margin-top: 4px" />
+                <div
+                  class="skeleton-bar"
+                  :style="{ width: (70 - i * 5) + '%', height: '14px' }"
+                />
+                <div
+                  class="skeleton-bar"
+                  style="width: 30%; height: 12px; margin-top: 4px"
+                />
               </div>
             </div>
           </div>
@@ -53,12 +91,25 @@
       <div class="skeleton-dashboard__quick-card">
         <div class="skeleton-dashboard__card">
           <div class="skeleton-dashboard__card-header">
-            <div class="skeleton-bar" style="width: 80px; height: 18px" />
+            <div
+              class="skeleton-bar"
+              style="width: 80px; height: 18px"
+            />
           </div>
           <div class="skeleton-dashboard__quick-grid">
-            <div v-for="i in 6" :key="'quick-' + i" class="skeleton-dashboard__quick-item">
-              <div class="skeleton-bar" style="width: 32px; height: 32px; border-radius: 50%" />
-              <div class="skeleton-bar" style="width: 48px; height: 12px; margin-top: 8px" />
+            <div
+              v-for="i in 6"
+              :key="'quick-' + i"
+              class="skeleton-dashboard__quick-item"
+            >
+              <div
+                class="skeleton-bar"
+                style="width: 32px; height: 32px; border-radius: 50%"
+              />
+              <div
+                class="skeleton-bar"
+                style="width: 48px; height: 12px; margin-top: 8px"
+              />
             </div>
           </div>
         </div>
@@ -68,17 +119,38 @@
       <div class="skeleton-dashboard__alert-card">
         <div class="skeleton-dashboard__card">
           <div class="skeleton-dashboard__card-header">
-            <div class="skeleton-bar" style="width: 80px; height: 18px" />
-            <div class="skeleton-bar" style="width: 28px; height: 20px; border-radius: 10px" />
+            <div
+              class="skeleton-bar"
+              style="width: 80px; height: 18px"
+            />
+            <div
+              class="skeleton-bar"
+              style="width: 28px; height: 20px; border-radius: 10px"
+            />
           </div>
           <div class="skeleton-dashboard__card-body">
             <!-- 表头 -->
             <div class="skeleton-dashboard__alert-header">
-              <div class="skeleton-bar" style="width: 80px; height: 14px" />
-              <div class="skeleton-bar" style="width: 100px; height: 14px" />
-              <div class="skeleton-bar" style="width: 50px; height: 14px" />
-              <div class="skeleton-bar" style="width: 50px; height: 14px" />
-              <div class="skeleton-bar" style="width: 40px; height: 14px" />
+              <div
+                class="skeleton-bar"
+                style="width: 80px; height: 14px"
+              />
+              <div
+                class="skeleton-bar"
+                style="width: 100px; height: 14px"
+              />
+              <div
+                class="skeleton-bar"
+                style="width: 50px; height: 14px"
+              />
+              <div
+                class="skeleton-bar"
+                style="width: 50px; height: 14px"
+              />
+              <div
+                class="skeleton-bar"
+                style="width: 40px; height: 14px"
+              />
             </div>
             <!-- 数据行 -->
             <div
@@ -86,11 +158,26 @@
               :key="'alert-' + i"
               class="skeleton-dashboard__alert-row"
             >
-              <div class="skeleton-bar" style="width: 70px; height: 14px" />
-              <div class="skeleton-bar" style="width: 90px; height: 14px" />
-              <div class="skeleton-bar" style="width: 36px; height: 14px" />
-              <div class="skeleton-bar" style="width: 36px; height: 14px" />
-              <div class="skeleton-bar" style="width: 36px; height: 20px; border-radius: 2px" />
+              <div
+                class="skeleton-bar"
+                style="width: 70px; height: 14px"
+              />
+              <div
+                class="skeleton-bar"
+                style="width: 90px; height: 14px"
+              />
+              <div
+                class="skeleton-bar"
+                style="width: 36px; height: 14px"
+              />
+              <div
+                class="skeleton-bar"
+                style="width: 36px; height: 14px"
+              />
+              <div
+                class="skeleton-bar"
+                style="width: 36px; height: 20px; border-radius: 2px"
+              />
             </div>
           </div>
         </div>

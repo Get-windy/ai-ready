@@ -5,83 +5,223 @@
     </div>
 
     <!-- 常用联系人（首行） -->
-    <div class="contact-block" v-if="firstRow">
+    <div
+      v-if="firstRow"
+      class="contact-block"
+    >
       <div class="contact-block-label">
         <span class="contact-label-text">常用联系人</span>
-        <a-tag v-if="firstRow.isDefault" color="red" style="margin-left:6px;font-size:11px">默认</a-tag>
+        <a-tag
+          v-if="firstRow.isDefault"
+          color="red"
+          style="margin-left:6px;font-size:11px"
+        >
+          默认
+        </a-tag>
         <template v-if="showMallAccount">
           <a-checkbox
             :checked="!!firstRow.openMallAccount"
+            style="margin-left: 12px; font-size: 13px; font-weight: 400; color: #8c8c8c"
             @update:checked="(checked) => firstRow.openMallAccount = checked ? 1 : 0"
-            style="margin-left: 12px; font-size: 13px; font-weight: 400; color: #8c8c8c">
+          >
             开通商城帐号
           </a-checkbox>
         </template>
       </div>
       <div class="contact-fields">
-        <input class="c-input" v-model="firstRow.contactName" placeholder="联系人*" />
-        <input class="c-input" v-model="firstRow.contactPhone" placeholder="手机*" />
-        <input class="c-input" v-model="firstRow.contactEmail" placeholder="邮箱" />
-        <input class="c-input" v-model="firstRow.position" placeholder="职位" />
-        <input class="c-input" v-model="firstRow.department" placeholder="部门" />
+        <input
+          v-model="firstRow.contactName"
+          class="c-input"
+          placeholder="联系人*"
+        >
+        <input
+          v-model="firstRow.contactPhone"
+          class="c-input"
+          placeholder="手机*"
+        >
+        <input
+          v-model="firstRow.contactEmail"
+          class="c-input"
+          placeholder="邮箱"
+        >
+        <input
+          v-model="firstRow.position"
+          class="c-input"
+          placeholder="职位"
+        >
+        <input
+          v-model="firstRow.department"
+          class="c-input"
+          placeholder="部门"
+        >
       </div>
-      <div class="contact-fields" style="margin-top:6px">
-        <input class="c-input" v-model="firstRow.region" placeholder="所在地区" />
-        <input class="c-input c-input-wide" v-model="firstRow.detailAddress" placeholder="详情地址" />
-        <a-button size="small" class="c-locate-btn">设置定位</a-button>
+      <div
+        class="contact-fields"
+        style="margin-top:6px"
+      >
+        <input
+          v-model="firstRow.region"
+          class="c-input"
+          placeholder="所在地区"
+        >
+        <input
+          v-model="firstRow.detailAddress"
+          class="c-input c-input-wide"
+          placeholder="详情地址"
+        >
+        <a-button
+          size="small"
+          class="c-locate-btn"
+        >
+          设置定位
+        </a-button>
         <template v-if="showMallAccount">
-          <a-select v-model:value="firstRow.deliveryMethod" placeholder="配送方式" size="small" class="c-select" allow-clear>
-            <a-select-option value="EXPRESS">快递</a-select-option>
-            <a-select-option value="SELF_PICKUP">自提</a-select-option>
-            <a-select-option value="DELIVERY">配送</a-select-option>
-            <a-select-option value="LOGISTICS">物流</a-select-option>
+          <a-select
+            v-model:value="firstRow.deliveryMethod"
+            placeholder="配送方式"
+            size="small"
+            class="c-select"
+            allow-clear
+          >
+            <a-select-option value="EXPRESS">
+              快递
+            </a-select-option>
+            <a-select-option value="SELF_PICKUP">
+              自提
+            </a-select-option>
+            <a-select-option value="DELIVERY">
+              配送
+            </a-select-option>
+            <a-select-option value="LOGISTICS">
+              物流
+            </a-select-option>
           </a-select>
-          <input class="c-input" v-model="firstRow.deliveryRoute" placeholder="配送线路" style="min-width:80px;flex:0.3" />
+          <input
+            v-model="firstRow.deliveryRoute"
+            class="c-input"
+            placeholder="配送线路"
+            style="min-width:80px;flex:0.3"
+          >
         </template>
       </div>
     </div>
 
     <!-- 其他联系人 -->
-    <div v-for="(row, idx) in otherRows" :key="row._uid" class="contact-block">
+    <div
+      v-for="(row, idx) in otherRows"
+      :key="row._uid"
+      class="contact-block"
+    >
       <div class="contact-block-label">
         <span class="contact-label-text">其他联系人{{ idx + 1 }}</span>
         <template v-if="showMallAccount">
           <a-checkbox
             :checked="!!row.openMallAccount"
+            style="margin-left: 12px; font-size: 13px; font-weight: 400; color: #8c8c8c"
             @update:checked="(checked) => row.openMallAccount = checked ? 1 : 0"
-            style="margin-left: 12px; font-size: 13px; font-weight: 400; color: #8c8c8c">
+          >
             开通商城帐号
           </a-checkbox>
         </template>
-        <a-button size="small" type="link" @click="setDefault(row)" :style="{ padding: '0 0 0 8px', color: row.isDefault ? '#ff4d4f' : '#595959', fontWeight: row.isDefault ? 600 : 400 }">设为常用联系人</a-button>
+        <a-button
+          size="small"
+          type="link"
+          :style="{ padding: '0 0 0 8px', color: row.isDefault ? '#ff4d4f' : '#595959', fontWeight: row.isDefault ? 600 : 400 }"
+          @click="setDefault(row)"
+        >
+          设为常用联系人
+        </a-button>
       </div>
       <div class="contact-fields">
-        <input class="c-input" v-model="row.contactName" placeholder="联系人" />
-        <input class="c-input" v-model="row.contactPhone" placeholder="电话" />
-        <input class="c-input" v-model="row.contactEmail" placeholder="邮箱" />
-        <input class="c-input" v-model="row.position" placeholder="职位" />
-        <input class="c-input" v-model="row.department" placeholder="部门" />
+        <input
+          v-model="row.contactName"
+          class="c-input"
+          placeholder="联系人"
+        >
+        <input
+          v-model="row.contactPhone"
+          class="c-input"
+          placeholder="电话"
+        >
+        <input
+          v-model="row.contactEmail"
+          class="c-input"
+          placeholder="邮箱"
+        >
+        <input
+          v-model="row.position"
+          class="c-input"
+          placeholder="职位"
+        >
+        <input
+          v-model="row.department"
+          class="c-input"
+          placeholder="部门"
+        >
       </div>
-      <div class="contact-fields" style="margin-top:6px">
-        <input class="c-input" v-model="row.region" placeholder="所在地区" />
-        <input class="c-input c-input-wide" v-model="row.detailAddress" placeholder="详情地址" />
-        <a-button size="small" class="c-locate-btn">设置定位</a-button>
+      <div
+        class="contact-fields"
+        style="margin-top:6px"
+      >
+        <input
+          v-model="row.region"
+          class="c-input"
+          placeholder="所在地区"
+        >
+        <input
+          v-model="row.detailAddress"
+          class="c-input c-input-wide"
+          placeholder="详情地址"
+        >
+        <a-button
+          size="small"
+          class="c-locate-btn"
+        >
+          设置定位
+        </a-button>
         <template v-if="showMallAccount">
-          <a-select v-model:value="row.deliveryMethod" placeholder="配送方式" size="small" class="c-select" allow-clear>
-            <a-select-option value="EXPRESS">快递</a-select-option>
-            <a-select-option value="SELF_PICKUP">自提</a-select-option>
-            <a-select-option value="DELIVERY">配送</a-select-option>
-            <a-select-option value="LOGISTICS">物流</a-select-option>
+          <a-select
+            v-model:value="row.deliveryMethod"
+            placeholder="配送方式"
+            size="small"
+            class="c-select"
+            allow-clear
+          >
+            <a-select-option value="EXPRESS">
+              快递
+            </a-select-option>
+            <a-select-option value="SELF_PICKUP">
+              自提
+            </a-select-option>
+            <a-select-option value="DELIVERY">
+              配送
+            </a-select-option>
+            <a-select-option value="LOGISTICS">
+              物流
+            </a-select-option>
           </a-select>
-          <input class="c-input" v-model="row.deliveryRoute" placeholder="配送线路" style="min-width:80px;flex:0.3" />
+          <input
+            v-model="row.deliveryRoute"
+            class="c-input"
+            placeholder="配送线路"
+            style="min-width:80px;flex:0.3"
+          >
         </template>
-        <DeleteOutlined class="c-del-icon" @click="handleDelete(row)" />
+        <DeleteOutlined
+          class="c-del-icon"
+          @click="handleDelete(row)"
+        />
       </div>
     </div>
 
     <!-- 添加按钮 -->
-    <a-button class="add-contact-btn" @click="addContact">
-      <template #icon><PlusOutlined /></template>
+    <a-button
+      class="add-contact-btn"
+      @click="addContact"
+    >
+      <template #icon>
+        <PlusOutlined />
+      </template>
       其他联系人
     </a-button>
   </div>

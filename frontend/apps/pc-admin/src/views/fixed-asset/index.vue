@@ -1,19 +1,40 @@
 <template>
-  <PageContainer title="固定资产管理" full-height>
+  <PageContainer
+    title="固定资产管理"
+    full-height
+  >
     <template #headerExtra>
       <a-space :size="12">
-        <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+        <span
+          v-if="autoRefreshCountdown > 0"
+          class="auto-refresh-badge"
+        >
           <SyncOutlined /> {{ autoRefreshCountdown }}s
         </span>
         <span class="data-status">
           <a-badge :status="loading ? 'processing' : 'success'" />
-          <span v-if="lastUpdateTime" class="update-time">
+          <span
+            v-if="lastUpdateTime"
+            class="update-time"
+          >
             数据更新: {{ lastUpdateTime }}
           </span>
         </span>
-        <PrintButton business-type="fixed_asset" button-type="link" button-size="small" tooltip="打印资产总览" />
-        <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', handleRefresh)()" v-permission="'erp:fixed-asset:asset:list'">
-          <template #icon><ReloadOutlined /></template>
+        <PrintButton
+          business-type="fixed_asset"
+          button-type="link"
+          button-size="small"
+          tooltip="打印资产总览"
+        />
+        <a-button
+          v-permission="'erp:fixed-asset:asset:list'"
+          size="small"
+          :loading="refreshLoading"
+          @click="debounceClick('refresh', handleRefresh)()"
+        >
+          <template #icon>
+            <ReloadOutlined />
+          </template>
           刷新
         </a-button>
       </a-space>
@@ -23,37 +44,61 @@
       <!-- 统计卡片 -->
       <div class="stat-cards">
         <div class="stat-card stat-blue">
-          <div class="stat-card-icon"><FileTextOutlined /></div>
+          <div class="stat-card-icon">
+            <FileTextOutlined />
+          </div>
           <div class="stat-card-content">
-            <div class="stat-card-title">资产总数</div>
-            <div class="stat-card-value">{{ assetCount }}</div>
+            <div class="stat-card-title">
+              资产总数
+            </div>
+            <div class="stat-card-value">
+              {{ assetCount }}
+            </div>
           </div>
         </div>
         <div class="stat-card stat-green">
-          <div class="stat-card-icon"><CalculatorOutlined /></div>
+          <div class="stat-card-icon">
+            <CalculatorOutlined />
+          </div>
           <div class="stat-card-content">
-            <div class="stat-card-title">待折旧</div>
-            <div class="stat-card-value">{{ depreciationCount }}</div>
+            <div class="stat-card-title">
+              待折旧
+            </div>
+            <div class="stat-card-value">
+              {{ depreciationCount }}
+            </div>
           </div>
         </div>
         <div class="stat-card stat-orange">
-          <div class="stat-card-icon"><DeleteOutlined /></div>
+          <div class="stat-card-icon">
+            <DeleteOutlined />
+          </div>
           <div class="stat-card-content">
-            <div class="stat-card-title">待处置</div>
-            <div class="stat-card-value">{{ disposalCount }}</div>
+            <div class="stat-card-title">
+              待处置
+            </div>
+            <div class="stat-card-value">
+              {{ disposalCount }}
+            </div>
           </div>
         </div>
         <div class="stat-card stat-purple">
-          <div class="stat-card-icon"><CheckSquareOutlined /></div>
+          <div class="stat-card-icon">
+            <CheckSquareOutlined />
+          </div>
           <div class="stat-card-content">
-            <div class="stat-card-title">待盘点</div>
-            <div class="stat-card-value">{{ inventoryCount }}</div>
+            <div class="stat-card-title">
+              待盘点
+            </div>
+            <div class="stat-card-value">
+              {{ inventoryCount }}
+            </div>
           </div>
         </div>
       </div>
 
       <a-tabs
-        v-model:activeKey="activeKey"
+        v-model:active-key="activeKey"
         class="fixed-asset-tabs"
         type="card"
         animated
@@ -62,7 +107,12 @@
         <a-tab-pane key="asset">
           <template #tab>
             <span><FileTextOutlined /> 资产列表</span>
-            <a-badge :count="assetCount" :overflow-count="99" :number-style="{ backgroundColor: '#1890ff' }" style="margin-left: 8px" />
+            <a-badge
+              :count="assetCount"
+              :overflow-count="99"
+              :number-style="{ backgroundColor: '#1890ff' }"
+              style="margin-left: 8px"
+            />
           </template>
         </a-tab-pane>
         <a-tab-pane key="category">
@@ -73,13 +123,23 @@
         <a-tab-pane key="purchase">
           <template #tab>
             <span><ShoppingCartOutlined /> 购置申请</span>
-            <a-badge :count="purchaseCount" :overflow-count="99" :number-style="{ backgroundColor: '#722ed1' }" style="margin-left: 8px" />
+            <a-badge
+              :count="purchaseCount"
+              :overflow-count="99"
+              :number-style="{ backgroundColor: '#722ed1' }"
+              style="margin-left: 8px"
+            />
           </template>
         </a-tab-pane>
         <a-tab-pane key="depreciation">
           <template #tab>
             <span><CalculatorOutlined /> 折旧管理</span>
-            <a-badge :count="depreciationCount" :overflow-count="99" :number-style="{ backgroundColor: '#52c41a' }" style="margin-left: 8px" />
+            <a-badge
+              :count="depreciationCount"
+              :overflow-count="99"
+              :number-style="{ backgroundColor: '#52c41a' }"
+              style="margin-left: 8px"
+            />
           </template>
         </a-tab-pane>
         <a-tab-pane key="transfer">
@@ -90,7 +150,12 @@
         <a-tab-pane key="disposal">
           <template #tab>
             <span><DeleteOutlined /> 资产处置</span>
-            <a-badge :count="disposalCount" :overflow-count="99" :number-style="{ backgroundColor: '#faad14' }" style="margin-left: 8px" />
+            <a-badge
+              :count="disposalCount"
+              :overflow-count="99"
+              :number-style="{ backgroundColor: '#faad14' }"
+              style="margin-left: 8px"
+            />
           </template>
         </a-tab-pane>
         <a-tab-pane key="inventory">
@@ -109,14 +174,42 @@
       <div class="tab-content-area">
         <ErrorBoundary @reset="handleRefresh">
           <KeepAlive>
-            <AssetList v-if="activeKey === 'asset'" ref="assetRef" @update-count="updateAssetCount" />
-            <CategoryList v-else-if="activeKey === 'category'" ref="categoryRef" />
-            <PurchaseList v-else-if="activeKey === 'purchase'" ref="purchaseRef" @update-count="updatePurchaseCount" />
-            <DepreciationList v-else-if="activeKey === 'depreciation'" ref="depreciationRef" @update-count="updateDepreciationCount" />
-            <TransferList v-else-if="activeKey === 'transfer'" ref="transferRef" />
-            <DisposalList v-else-if="activeKey === 'disposal'" ref="disposalRef" @update-count="updateDisposalCount" />
-            <InventoryList v-else-if="activeKey === 'inventory'" ref="inventoryRef" />
-            <ReportPage v-else-if="activeKey === 'report'" ref="reportRef" />
+            <AssetList
+              v-if="activeKey === 'asset'"
+              ref="assetRef"
+              @update-count="updateAssetCount"
+            />
+            <CategoryList
+              v-else-if="activeKey === 'category'"
+              ref="categoryRef"
+            />
+            <PurchaseList
+              v-else-if="activeKey === 'purchase'"
+              ref="purchaseRef"
+              @update-count="updatePurchaseCount"
+            />
+            <DepreciationList
+              v-else-if="activeKey === 'depreciation'"
+              ref="depreciationRef"
+              @update-count="updateDepreciationCount"
+            />
+            <TransferList
+              v-else-if="activeKey === 'transfer'"
+              ref="transferRef"
+            />
+            <DisposalList
+              v-else-if="activeKey === 'disposal'"
+              ref="disposalRef"
+              @update-count="updateDisposalCount"
+            />
+            <InventoryList
+              v-else-if="activeKey === 'inventory'"
+              ref="inventoryRef"
+            />
+            <ReportPage
+              v-else-if="activeKey === 'report'"
+              ref="reportRef"
+            />
           </KeepAlive>
         </ErrorBoundary>
       </div>

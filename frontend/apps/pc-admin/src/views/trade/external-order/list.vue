@@ -1,25 +1,60 @@
 <template>
   <div class="page-container">
     <div class="page-header">
-      <h2 class="page-title">外部订单</h2>
+      <h2 class="page-title">
+        外部订单
+      </h2>
     </div>
     <div class="page-container__body">
-      <a-card :bordered="false" class="table-card">
-        <a-table :columns="columns" :data-source="tableData" :loading="loading" :pagination="pagination" row-key="id" @change="handleTableChange">
+      <a-card
+        :bordered="false"
+        class="table-card"
+      >
+        <a-table
+          :columns="columns"
+          :data-source="tableData"
+          :loading="loading"
+          :pagination="pagination"
+          row-key="id"
+          @change="handleTableChange"
+        >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'channelCode'">
-              <a-tag :color="getChannelColor(record.channelCode)">{{ getChannelName(record.channelCode) }}</a-tag>
+              <a-tag :color="getChannelColor(record.channelCode)">
+                {{ getChannelName(record.channelCode) }}
+              </a-tag>
             </template>
             <template v-if="column.key === 'processStatus'">
-              <a-tag :color="STATUS_COLOR_MAP[record.processStatus]">{{ STATUS_TEXT_MAP[record.processStatus] }}</a-tag>
+              <a-tag :color="STATUS_COLOR_MAP[record.processStatus]">
+                {{ STATUS_TEXT_MAP[record.processStatus] }}
+              </a-tag>
             </template>
             <template v-if="column.key === 'rawData'">
-              <a-button type="link" size="small" @click="showRawData(record)">查看原始数据</a-button>
+              <a-button
+                type="link"
+                size="small"
+                @click="showRawData(record)"
+              >
+                查看原始数据
+              </a-button>
             </template>
             <template v-if="column.key === 'action'">
               <a-space>
-                <a-button type="link" size="small" v-if="record.processStatus === 3" @click="handleRetry(record)">重试</a-button>
-                <a-button type="link" size="small" v-if="record.processStatus === 2">查看订单</a-button>
+                <a-button
+                  v-if="record.processStatus === 3"
+                  type="link"
+                  size="small"
+                  @click="handleRetry(record)"
+                >
+                  重试
+                </a-button>
+                <a-button
+                  v-if="record.processStatus === 2"
+                  type="link"
+                  size="small"
+                >
+                  查看订单
+                </a-button>
               </a-space>
             </template>
           </template>
@@ -27,7 +62,12 @@
       </a-card>
     </div>
 
-    <a-modal v-model:open="rawDataModalVisible" title="原始订单数据" width="700px" :footer="null">
+    <a-modal
+      v-model:open="rawDataModalVisible"
+      title="原始订单数据"
+      width="700px"
+      :footer="null"
+    >
       <pre style="background: #f5f5f5; padding: 16px; overflow: auto; max-height: 400px">{{ rawJsonData }}</pre>
     </a-modal>
   </div>

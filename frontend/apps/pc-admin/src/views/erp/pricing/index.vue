@@ -1,379 +1,763 @@
 <template>
   <ErrorBoundary @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="page-header">
-        <div class="page-header__left">
-          <span class="page-header__breadcrumb">ERP / 价格管理 / 客户等级价格配置</span>
-          <h2 class="page-header__title">客户等级与产品价格关联</h2>
-        </div>
-        <div class="page-header__right">
-          <span v-if="lastUpdateTime" class="update-time">更新于: {{ lastUpdateTime }}</span>
-          <span class="shortcut-hints">
-            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-            <span class="shortcut-hint"><kbd>Ctrl+E</kbd> 导出</span>
-          </span>
-          <a-button v-permission="'pricing:export'" size="small" @click="debounceClick('export', handleExport)">
-            <template #icon><ExportOutlined /></template>
-            导出
-          </a-button>
-          <a-button v-permission="'pricing:import'" size="small" @click="handleImport">
-            <template #icon><ImportOutlined /></template>
-            导入
-          </a-button>
-          <PrintButton page-code="erp/pricing" button-size="small" tooltip="打印" />
-        </div>
-      </div>
-    </template>
-
-    <!-- 统计概览卡片 -->
-    <a-row :gutter="16" style="margin-bottom: 16px" v-if="selectedGrade">
-      <a-col :span="8">
-        <a-card size="small" :body-style="{ padding: '12px 16px' }">
-          <div class="stat-item">
-            <div class="stat-label">产品总数</div>
-            <div class="stat-value">{{ stats.totalProductCount }}</div>
+    <PageContainer full-height>
+      <template #header>
+        <div class="page-header">
+          <div class="page-header__left">
+            <span class="page-header__breadcrumb">ERP / 价格管理 / 客户等级价格配置</span>
+            <h2 class="page-header__title">
+              客户等级与产品价格关联
+            </h2>
           </div>
-        </a-card>
-      </a-col>
-      <a-col :span="8">
-        <a-card size="small" :body-style="{ padding: '12px 16px' }">
-          <div class="stat-item">
-            <div class="stat-label">已配置价格</div>
-            <div class="stat-value">{{ stats.configuredCount }}</div>
-          </div>
-        </a-card>
-      </a-col>
-      <a-col :span="8">
-        <a-card size="small" :body-style="{ padding: '12px 16px' }">
-          <div class="stat-item">
-            <div class="stat-label">价格覆盖率</div>
-            <div class="stat-value" :style="stats.coverageStyle">{{ stats.coverageRate }}%</div>
-          </div>
-        </a-card>
-      </a-col>
-    </a-row>
-
-    <!-- 价格分布图 -->
-    <a-card v-if="selectedGrade && filteredPriceList.length > 0" size="small" :body-style="{ padding: '12px 16px' }" style="margin-bottom: 16px">
-      <div class="distribution-chart">
-        <div class="distribution-title">价格分布</div>
-        <div class="distribution-bars">
-          <div v-for="cat in priceDistribution" :key="cat.label" class="distribution-bar-row">
-            <span class="distribution-bar-label">{{ cat.label }}</span>
-            <div class="distribution-bar-track" :title="`${cat.count} 项 (${cat.percentage}%)`">
-              <div class="distribution-bar-fill" :style="{ width: cat.barWidth + '%' }"></div>
-            </div>
-            <span class="distribution-bar-count">{{ cat.count }} 项</span>
-            <span class="distribution-bar-pct">{{ cat.percentage }}%</span>
-          </div>
-        </div>
-      </div>
-    </a-card>
-
-    <a-row :gutter="16">
-      <a-col :span="6">
-        <a-card title="客户等级" size="small" :body-style="{ padding: '8px' }">
-          <a-spin :spinning="gradeLoading">
-            <a-menu v-model:selected-keys="selectedGradeKeys" @click="onGradeSelect" style="border: none">
-              <a-menu-item v-for="g in grades" :key="g.id">
-                <StatusTag :status="g.gradeCode" :map="GRADE_CODE_MAP" />
-                {{ g.gradeName }}
-              </a-menu-item>
-            </a-menu>
-            <EmptyState
-              v-if="grades.length === 0 && !gradeLoading"
-              title="暂无客户等级"
-              description="请在客户管理中添加客户等级"
+          <div class="page-header__right">
+            <span
+              v-if="lastUpdateTime"
+              class="update-time"
+            >更新于: {{ lastUpdateTime }}</span>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+              <span class="shortcut-hint"><kbd>Ctrl+E</kbd> 导出</span>
+            </span>
+            <a-button
+              v-permission="'pricing:export'"
               size="small"
-              :show-add="false"
-              :show-refresh="true"
-              @refresh="loadGrades"
+              @click="debounceClick('export', handleExport)"
+            >
+              <template #icon>
+                <ExportOutlined />
+              </template>
+              导出
+            </a-button>
+            <a-button
+              v-permission="'pricing:import'"
+              size="small"
+              @click="handleImport"
+            >
+              <template #icon>
+                <ImportOutlined />
+              </template>
+              导入
+            </a-button>
+            <PrintButton
+              page-code="erp/pricing"
+              button-size="small"
+              tooltip="打印"
             />
-          </a-spin>
-        </a-card>
-      </a-col>
+          </div>
+        </div>
+      </template>
 
-      <a-col :span="18">
-        <a-card :title="`等级价格配置 - ${selectedGrade?.gradeName || ''}`" size="small">
-          <template #extra>
-            <a-space>
-              <a-button v-permission="'pricing:export'" size="small" @click="debounceClick('export', handleExport)">
-                <template #icon><ExportOutlined /></template>
-                导出
-              </a-button>
-              <a-button v-permission="'pricing:import'" size="small" @click="handleImport">导入</a-button>
-              <a-button v-permission="'pricing:compare'" size="small" @click="handleShowComparison">对比等级</a-button>
-              <a-button v-permission="'pricing:seasonal'" size="small" @click="showSeasonalAdjustmentModal">季节性调价</a-button>
-              <a-button v-permission="'pricing:history'" size="small" @click="showChangeHistoryDrawer = true">变更记录</a-button>
-              <a-button v-permission="'pricing:save'" type="primary" size="small" :loading="saving" @click="handleSave">保存配置</a-button>
-            </a-space>
-          </template>
-          <EmptyState
-            v-if="!selectedGrade"
-            title="请选择客户等级"
-            description="请先在左侧选择需要配置价格的客户等级"
-            size="middle"
-            :show-actions="false"
-          />
-          <template v-else>
-            <a-spin :spinning="priceListLoading">
-              <div class="pricing-toolbar">
-                <SearchBar :fields="searchFields" @search="handleSearch" @reset="handleReset" />
-                <a-button size="small" :disabled="selectedRows.length === 0" @click="handleBatchToggle">批量启用/禁用</a-button>
-                <a-button size="small" @click="showPriceAdjustmentModal">整表调价</a-button>
-                <a-button size="small" @click="handleImport">导入</a-button>
-                <a-button size="small" @click="handleShowComparison">对比等级</a-button>
-                <a-button size="small" @click="showSeasonalAdjustmentModal">季节性调价</a-button>
-                <span v-if="selectedRows.length > 0" class="selected-count">已选择 {{ selectedRows.length }} 项</span>
-                <span v-if="autoRefreshCountdown > 0" class="countdown-hint">
-                  <SyncOutlined :spin="priceListLoading" /> {{ autoRefreshCountdown }}s 后自动刷新
-                </span>
+      <!-- 统计概览卡片 -->
+      <a-row
+        v-if="selectedGrade"
+        :gutter="16"
+        style="margin-bottom: 16px"
+      >
+        <a-col :span="8">
+          <a-card
+            size="small"
+            :body-style="{ padding: '12px 16px' }"
+          >
+            <div class="stat-item">
+              <div class="stat-label">
+                产品总数
               </div>
-              <vxe-table
-                ref="priceTableRef"
-                :data="filteredPriceList"
-                border
-                size="small"
-                max-height="500"
-                align="center"
-                :edit-config="{ trigger: 'click', mode: 'row' }"
-                :checkbox-config="{ highlight: true }"
-                show-footer
-                :footer-method="footerMethod"
-                @checkbox-change="onCheckboxChange"
-                @checkbox-all="onCheckboxAll"
+              <div class="stat-value">
+                {{ stats.totalProductCount }}
+              </div>
+            </div>
+          </a-card>
+        </a-col>
+        <a-col :span="8">
+          <a-card
+            size="small"
+            :body-style="{ padding: '12px 16px' }"
+          >
+            <div class="stat-item">
+              <div class="stat-label">
+                已配置价格
+              </div>
+              <div class="stat-value">
+                {{ stats.configuredCount }}
+              </div>
+            </div>
+          </a-card>
+        </a-col>
+        <a-col :span="8">
+          <a-card
+            size="small"
+            :body-style="{ padding: '12px 16px' }"
+          >
+            <div class="stat-item">
+              <div class="stat-label">
+                价格覆盖率
+              </div>
+              <div
+                class="stat-value"
+                :style="stats.coverageStyle"
               >
-                <vxe-column type="checkbox" width="50" />
-                <vxe-column type="seq" title="#" width="50" />
-                <vxe-column field="productCode" title="产品编码" width="120" sortable />
-                <vxe-column field="productName" title="产品名称" min-width="140" sortable />
-                <vxe-column field="standardPrice" title="标准售价" width="110" align="right" sortable>
-                  <template #default="{ row }">{{ row.standardPrice ? '¥' + row.standardPrice.toFixed(2) : '-' }}</template>
-                </vxe-column>
-                <vxe-column field="gradeOriginalPrice" title="等级基准价" width="110" align="right" sortable>
-                  <template #default="{ row }">{{ row.gradeOriginalPrice ? '¥' + row.gradeOriginalPrice.toFixed(2) : '-' }}</template>
-                </vxe-column>
-                <vxe-column field="price" title="客户等级售价" width="140" align="right" sortable
-                  :edit-render="{ name: 'input', props: { type: 'number', precision: 2, min: 0 } }">
-                  <template #default="{ row }">
-                    <span :style="getPriceStyle(row)">{{ row.price != null ? '¥' + row.price.toFixed(2) : '-' }}</span>
-                  </template>
-                </vxe-column>
-                <vxe-column title="折扣率" width="90" align="right">
-                  <template #default="{ row }">
-                    <span v-if="row.price != null && row.standardPrice > 0"
-                      :style="{ color: row.price < row.standardPrice ? '#52c41a' : row.price > row.standardPrice ? '#f5222d' : undefined }">
-                      {{ (row.price / row.standardPrice * 100).toFixed(1) }}%
-                    </span>
-                    <span v-else>-</span>
-                  </template>
-                </vxe-column>
-                <vxe-column title="启用" width="70">
-                  <template #default="{ row }">
-                    <a-switch v-model:checked="row.enabled" size="small" />
-                  </template>
-                </vxe-column>
-              </vxe-table>
+                {{ stats.coverageRate }}%
+              </div>
+            </div>
+          </a-card>
+        </a-col>
+      </a-row>
+
+      <!-- 价格分布图 -->
+      <a-card
+        v-if="selectedGrade && filteredPriceList.length > 0"
+        size="small"
+        :body-style="{ padding: '12px 16px' }"
+        style="margin-bottom: 16px"
+      >
+        <div class="distribution-chart">
+          <div class="distribution-title">
+            价格分布
+          </div>
+          <div class="distribution-bars">
+            <div
+              v-for="cat in priceDistribution"
+              :key="cat.label"
+              class="distribution-bar-row"
+            >
+              <span class="distribution-bar-label">{{ cat.label }}</span>
+              <div
+                class="distribution-bar-track"
+                :title="`${cat.count} 项 (${cat.percentage}%)`"
+              >
+                <div
+                  class="distribution-bar-fill"
+                  :style="{ width: cat.barWidth + '%' }"
+                />
+              </div>
+              <span class="distribution-bar-count">{{ cat.count }} 项</span>
+              <span class="distribution-bar-pct">{{ cat.percentage }}%</span>
+            </div>
+          </div>
+        </div>
+      </a-card>
+
+      <a-row :gutter="16">
+        <a-col :span="6">
+          <a-card
+            title="客户等级"
+            size="small"
+            :body-style="{ padding: '8px' }"
+          >
+            <a-spin :spinning="gradeLoading">
+              <a-menu
+                v-model:selected-keys="selectedGradeKeys"
+                style="border: none"
+                @click="onGradeSelect"
+              >
+                <a-menu-item
+                  v-for="g in grades"
+                  :key="g.id"
+                >
+                  <StatusTag
+                    :status="g.gradeCode"
+                    :map="GRADE_CODE_MAP"
+                  />
+                  {{ g.gradeName }}
+                </a-menu-item>
+              </a-menu>
               <EmptyState
-                v-if="filteredPriceList.length === 0 && !priceListLoading"
-                title="暂无产品数据"
-                description="当前等级下没有可配置的产品"
+                v-if="grades.length === 0 && !gradeLoading"
+                title="暂无客户等级"
+                description="请在客户管理中添加客户等级"
                 size="small"
-                :show-actions="false"
+                :show-add="false"
+                :show-refresh="true"
+                @refresh="loadGrades"
               />
             </a-spin>
-          </template>
-        </a-card>
-      </a-col>
-    </a-row>
+          </a-card>
+        </a-col>
 
-    <!-- 整表调价弹窗 -->
-    <a-modal v-model:open="priceAdjustmentVisible" title="整表调价" @ok="applyPriceAdjustment" destroy-on-close>
-      <a-form layout="vertical">
-        <a-form-item label="调整范围">
-          <a-radio-group v-model:value="adjustmentScope">
-            <a-radio value="visible">当前所有可见产品（{{ filteredPriceList.length }} 项）</a-radio>
-            <a-radio value="selected" :disabled="selectedRows.length === 0">已选产品（{{ selectedRows.length }} 项）</a-radio>
-          </a-radio-group>
-        </a-form-item>
-        <a-form-item label="调整类型">
-          <a-radio-group v-model:value="adjustmentType">
-            <a-radio value="fixed">固定金额（元）</a-radio>
-            <a-radio value="percentage">百分比（%）</a-radio>
-          </a-radio-group>
-        </a-form-item>
-        <a-form-item label="调整方向">
-          <a-radio-group v-model:value="adjustmentDirection">
-            <a-radio value="increase">涨价</a-radio>
-            <a-radio value="decrease">降价</a-radio>
-          </a-radio-group>
-        </a-form-item>
-        <a-form-item label="调整值">
-          <a-input-number v-model:value="adjustmentValue"
+        <a-col :span="18">
+          <a-card
+            :title="`等级价格配置 - ${selectedGrade?.gradeName || ''}`"
             size="small"
-            :precision="adjustmentType === 'fixed' ? 2 : 1"
-            :min="0.01"
-            :max="adjustmentType === 'fixed' ? 99999 : 100"
-            :formatter="(value: number | undefined) => adjustmentType === 'fixed' ? `\u00A5${value ?? 0}` : `${value ?? 0}%`"
-            :parser="(value: string | undefined) => (value || '').replace(/[¥%]/g, '')"
-            style="width: 100%" />
-        </a-form-item>
-      </a-form>
-    </a-modal>
-
-    <!-- 批量导入弹窗 -->
-    <a-modal v-model:open="importModalVisible" title="批量导入价格" width="720px" :footer="null" destroy-on-close>
-      <div class="import-modal">
-        <div class="import-upload-area" @click="triggerFileInput" @dragover.prevent @drop.prevent="onFileDrop">
-          <UploadOutlined style="font-size: 48px; color: #1890ff;" />
-          <p style="margin: 12px 0 4px; color: #333; font-weight: 500;">点击或拖拽文件到此处</p>
-          <p style="margin: 0; color: #999; font-size: 12px;">支持 .csv 格式文件</p>
-          <a style="margin-top: 8px; font-size: 12px;" @click.stop="downloadTemplate">下载导入模板</a>
-        </div>
-        <input ref="fileInputRef" type="file" accept=".csv" style="display:none" @change="onFileSelected" />
-
-        <template v-if="importPreviewData.length > 0">
-          <a-divider />
-          <div class="import-summary">
-            <a-alert
-              type="info"
-              show-icon
-              :message="`文件解析完成：总 ${importPreviewData.length} 行，有效 ${validImportCount} 行，无效 ${importPreviewData.length - validImportCount} 行`"
-              style="margin-bottom: 12px"
+          >
+            <template #extra>
+              <a-space>
+                <a-button
+                  v-permission="'pricing:export'"
+                  size="small"
+                  @click="debounceClick('export', handleExport)"
+                >
+                  <template #icon>
+                    <ExportOutlined />
+                  </template>
+                  导出
+                </a-button>
+                <a-button
+                  v-permission="'pricing:import'"
+                  size="small"
+                  @click="handleImport"
+                >
+                  导入
+                </a-button>
+                <a-button
+                  v-permission="'pricing:compare'"
+                  size="small"
+                  @click="handleShowComparison"
+                >
+                  对比等级
+                </a-button>
+                <a-button
+                  v-permission="'pricing:seasonal'"
+                  size="small"
+                  @click="showSeasonalAdjustmentModal"
+                >
+                  季节性调价
+                </a-button>
+                <a-button
+                  v-permission="'pricing:history'"
+                  size="small"
+                  @click="showChangeHistoryDrawer = true"
+                >
+                  变更记录
+                </a-button>
+                <a-button
+                  v-permission="'pricing:save'"
+                  type="primary"
+                  size="small"
+                  :loading="saving"
+                  @click="handleSave"
+                >
+                  保存配置
+                </a-button>
+              </a-space>
+            </template>
+            <EmptyState
+              v-if="!selectedGrade"
+              title="请选择客户等级"
+              description="请先在左侧选择需要配置价格的客户等级"
+              size="middle"
+              :show-actions="false"
             />
+            <template v-else>
+              <a-spin :spinning="priceListLoading">
+                <div class="pricing-toolbar">
+                  <SearchBar
+                    :fields="searchFields"
+                    @search="handleSearch"
+                    @reset="handleReset"
+                  />
+                  <a-button
+                    size="small"
+                    :disabled="selectedRows.length === 0"
+                    @click="handleBatchToggle"
+                  >
+                    批量启用/禁用
+                  </a-button>
+                  <a-button
+                    size="small"
+                    @click="showPriceAdjustmentModal"
+                  >
+                    整表调价
+                  </a-button>
+                  <a-button
+                    size="small"
+                    @click="handleImport"
+                  >
+                    导入
+                  </a-button>
+                  <a-button
+                    size="small"
+                    @click="handleShowComparison"
+                  >
+                    对比等级
+                  </a-button>
+                  <a-button
+                    size="small"
+                    @click="showSeasonalAdjustmentModal"
+                  >
+                    季节性调价
+                  </a-button>
+                  <span
+                    v-if="selectedRows.length > 0"
+                    class="selected-count"
+                  >已选择 {{ selectedRows.length }} 项</span>
+                  <span
+                    v-if="autoRefreshCountdown > 0"
+                    class="countdown-hint"
+                  >
+                    <SyncOutlined :spin="priceListLoading" /> {{ autoRefreshCountdown }}s 后自动刷新
+                  </span>
+                </div>
+                <vxe-table
+                  ref="priceTableRef"
+                  :data="filteredPriceList"
+                  border
+                  size="small"
+                  max-height="500"
+                  align="center"
+                  :edit-config="{ trigger: 'click', mode: 'row' }"
+                  :checkbox-config="{ highlight: true }"
+                  show-footer
+                  :footer-method="footerMethod"
+                  @checkbox-change="onCheckboxChange"
+                  @checkbox-all="onCheckboxAll"
+                >
+                  <vxe-column
+                    type="checkbox"
+                    width="50"
+                  />
+                  <vxe-column
+                    type="seq"
+                    title="#"
+                    width="50"
+                  />
+                  <vxe-column
+                    field="productCode"
+                    title="产品编码"
+                    width="120"
+                    sortable
+                  />
+                  <vxe-column
+                    field="productName"
+                    title="产品名称"
+                    min-width="140"
+                    sortable
+                  />
+                  <vxe-column
+                    field="standardPrice"
+                    title="标准售价"
+                    width="110"
+                    align="right"
+                    sortable
+                  >
+                    <template #default="{ row }">
+                      {{ row.standardPrice ? '¥' + row.standardPrice.toFixed(2) : '-' }}
+                    </template>
+                  </vxe-column>
+                  <vxe-column
+                    field="gradeOriginalPrice"
+                    title="等级基准价"
+                    width="110"
+                    align="right"
+                    sortable
+                  >
+                    <template #default="{ row }">
+                      {{ row.gradeOriginalPrice ? '¥' + row.gradeOriginalPrice.toFixed(2) : '-' }}
+                    </template>
+                  </vxe-column>
+                  <vxe-column
+                    field="price"
+                    title="客户等级售价"
+                    width="140"
+                    align="right"
+                    sortable
+                    :edit-render="{ name: 'input', props: { type: 'number', precision: 2, min: 0 } }"
+                  >
+                    <template #default="{ row }">
+                      <span :style="getPriceStyle(row)">{{ row.price != null ? '¥' + row.price.toFixed(2) : '-' }}</span>
+                    </template>
+                  </vxe-column>
+                  <vxe-column
+                    title="折扣率"
+                    width="90"
+                    align="right"
+                  >
+                    <template #default="{ row }">
+                      <span
+                        v-if="row.price != null && row.standardPrice > 0"
+                        :style="{ color: row.price < row.standardPrice ? '#52c41a' : row.price > row.standardPrice ? '#f5222d' : undefined }"
+                      >
+                        {{ (row.price / row.standardPrice * 100).toFixed(1) }}%
+                      </span>
+                      <span v-else>-</span>
+                    </template>
+                  </vxe-column>
+                  <vxe-column
+                    title="启用"
+                    width="70"
+                  >
+                    <template #default="{ row }">
+                      <a-switch
+                        v-model:checked="row.enabled"
+                        size="small"
+                      />
+                    </template>
+                  </vxe-column>
+                </vxe-table>
+                <EmptyState
+                  v-if="filteredPriceList.length === 0 && !priceListLoading"
+                  title="暂无产品数据"
+                  description="当前等级下没有可配置的产品"
+                  size="small"
+                  :show-actions="false"
+                />
+              </a-spin>
+            </template>
+          </a-card>
+        </a-col>
+      </a-row>
+
+      <!-- 整表调价弹窗 -->
+      <a-modal
+        v-model:open="priceAdjustmentVisible"
+        title="整表调价"
+        destroy-on-close
+        @ok="applyPriceAdjustment"
+      >
+        <a-form layout="vertical">
+          <a-form-item label="调整范围">
+            <a-radio-group v-model:value="adjustmentScope">
+              <a-radio value="visible">
+                当前所有可见产品（{{ filteredPriceList.length }} 项）
+              </a-radio>
+              <a-radio
+                value="selected"
+                :disabled="selectedRows.length === 0"
+              >
+                已选产品（{{ selectedRows.length }} 项）
+              </a-radio>
+            </a-radio-group>
+          </a-form-item>
+          <a-form-item label="调整类型">
+            <a-radio-group v-model:value="adjustmentType">
+              <a-radio value="fixed">
+                固定金额（元）
+              </a-radio>
+              <a-radio value="percentage">
+                百分比（%）
+              </a-radio>
+            </a-radio-group>
+          </a-form-item>
+          <a-form-item label="调整方向">
+            <a-radio-group v-model:value="adjustmentDirection">
+              <a-radio value="increase">
+                涨价
+              </a-radio>
+              <a-radio value="decrease">
+                降价
+              </a-radio>
+            </a-radio-group>
+          </a-form-item>
+          <a-form-item label="调整值">
+            <a-input-number
+              v-model:value="adjustmentValue"
+              size="small"
+              :precision="adjustmentType === 'fixed' ? 2 : 1"
+              :min="0.01"
+              :max="adjustmentType === 'fixed' ? 99999 : 100"
+              :formatter="(value: number | undefined) => adjustmentType === 'fixed' ? `\u00A5${value ?? 0}` : `${value ?? 0}%`"
+              :parser="(value: string | undefined) => (value || '').replace(/[¥%]/g, '')"
+              style="width: 100%"
+            />
+          </a-form-item>
+        </a-form>
+      </a-modal>
+
+      <!-- 批量导入弹窗 -->
+      <a-modal
+        v-model:open="importModalVisible"
+        title="批量导入价格"
+        width="720px"
+        :footer="null"
+        destroy-on-close
+      >
+        <div class="import-modal">
+          <div
+            class="import-upload-area"
+            @click="triggerFileInput"
+            @dragover.prevent
+            @drop.prevent="onFileDrop"
+          >
+            <UploadOutlined style="font-size: 48px; color: #1890ff;" />
+            <p style="margin: 12px 0 4px; color: #333; font-weight: 500;">
+              点击或拖拽文件到此处
+            </p>
+            <p style="margin: 0; color: #999; font-size: 12px;">
+              支持 .csv 格式文件
+            </p>
+            <a
+              style="margin-top: 8px; font-size: 12px;"
+              @click.stop="downloadTemplate"
+            >下载导入模板</a>
           </div>
+          <input
+            ref="fileInputRef"
+            type="file"
+            accept=".csv"
+            style="display:none"
+            @change="onFileSelected"
+          >
+
+          <template v-if="importPreviewData.length > 0">
+            <a-divider />
+            <div class="import-summary">
+              <a-alert
+                type="info"
+                show-icon
+                :message="`文件解析完成：总 ${importPreviewData.length} 行，有效 ${validImportCount} 行，无效 ${importPreviewData.length - validImportCount} 行`"
+                style="margin-bottom: 12px"
+              />
+            </div>
+            <vxe-table
+              :data="importPreviewData.filter(r => r.valid)"
+              border
+              size="small"
+              max-height="300"
+              align="center"
+            >
+              <vxe-column
+                type="seq"
+                title="#"
+                width="50"
+              />
+              <vxe-column
+                field="productCode"
+                title="产品编码"
+                width="140"
+              />
+              <vxe-column
+                field="price"
+                title="导入价格"
+                width="140"
+                align="right"
+              >
+                <template #default="{ row }">
+                  ¥{{ row.price.toFixed(2) }}
+                </template>
+              </vxe-column>
+              <vxe-column
+                title="状态"
+                width="80"
+              >
+                <template #default="{ row }">
+                  <a-tag :color="row.valid ? 'green' : 'red'">
+                    {{ row.valid ? '有效' : '无效' }}
+                  </a-tag>
+                </template>
+              </vxe-column>
+            </vxe-table>
+            <div class="import-actions">
+              <a-button
+                style="margin-right: 8px"
+                @click="importModalVisible = false"
+              >
+                取消
+              </a-button>
+              <a-button
+                type="primary"
+                :disabled="validImportCount === 0"
+                @click="confirmImport"
+              >
+                确认导入
+              </a-button>
+            </div>
+          </template>
+        </div>
+      </a-modal>
+
+      <!-- 等级对比抽屉 -->
+      <a-drawer
+        v-model:open="comparisonDrawerVisible"
+        title="多等级价格对比"
+        placement="right"
+        width="80%"
+      >
+        <template v-if="comparisonLoading">
+          <div style="text-align: center; padding: 60px 0;">
+            <a-spin tip="加载对比数据中..." />
+          </div>
+        </template>
+        <template v-else-if="comparisonData.length === 0">
+          <EmptyState
+            title="暂无对比数据"
+            description="请先加载客户等级和产品数据"
+            size="small"
+            :show-actions="false"
+          />
+        </template>
+        <template v-else>
           <vxe-table
-            :data="importPreviewData.filter(r => r.valid)"
+            :data="comparisonData"
             border
             size="small"
-            max-height="300"
+            max-height="600"
             align="center"
           >
-            <vxe-column type="seq" title="#" width="50" />
-            <vxe-column field="productCode" title="产品编码" width="140" />
-            <vxe-column field="price" title="导入价格" width="140" align="right">
-              <template #default="{ row }">¥{{ row.price.toFixed(2) }}</template>
-            </vxe-column>
-            <vxe-column title="状态" width="80">
+            <vxe-column
+              type="seq"
+              title="#"
+              width="50"
+            />
+            <vxe-column
+              field="productCode"
+              title="产品编码"
+              width="130"
+              sortable
+            />
+            <vxe-column
+              field="productName"
+              title="产品名称"
+              min-width="150"
+              sortable
+            />
+            <vxe-column
+              field="standardPrice"
+              title="标准售价"
+              width="110"
+              align="right"
+              sortable
+            >
               <template #default="{ row }">
-                <a-tag :color="row.valid ? 'green' : 'red'">{{ row.valid ? '有效' : '无效' }}</a-tag>
+                {{ row.standardPrice ? '¥' + row.standardPrice.toFixed(2) : '-' }}
+              </template>
+            </vxe-column>
+            <vxe-column
+              v-for="g in comparisonGrades"
+              :key="g.id"
+              :field="'grade_' + g.id"
+              :title="g.gradeName"
+              width="120"
+              align="right"
+              sortable
+            >
+              <template #default="{ row }">
+                <span
+                  v-if="row['grade_' + g.id] != null"
+                  :style="getComparisonPriceStyle(row['grade_' + g.id] as number, row.standardPrice)"
+                >
+                  ¥{{ (row['grade_' + g.id] as number).toFixed(2) }}
+                </span>
+                <span v-else>-</span>
               </template>
             </vxe-column>
           </vxe-table>
-          <div class="import-actions">
-            <a-button style="margin-right: 8px" @click="importModalVisible = false">取消</a-button>
-            <a-button type="primary" :disabled="validImportCount === 0" @click="confirmImport">确认导入</a-button>
-          </div>
         </template>
-      </div>
-    </a-modal>
+      </a-drawer>
 
-    <!-- 等级对比抽屉 -->
-    <a-drawer
-      v-model:open="comparisonDrawerVisible"
-      title="多等级价格对比"
-      placement="right"
-      width="80%"
-    >
-      <template v-if="comparisonLoading">
-        <div style="text-align: center; padding: 60px 0;">
-          <a-spin tip="加载对比数据中..." />
-        </div>
-      </template>
-      <template v-else-if="comparisonData.length === 0">
-        <EmptyState title="暂无对比数据" description="请先加载客户等级和产品数据" size="small" :show-actions="false" />
-      </template>
-      <template v-else>
-        <vxe-table
-          :data="comparisonData"
-          border
-          size="small"
-          max-height="600"
-          align="center"
-        >
-          <vxe-column type="seq" title="#" width="50" />
-          <vxe-column field="productCode" title="产品编码" width="130" sortable />
-          <vxe-column field="productName" title="产品名称" min-width="150" sortable />
-          <vxe-column field="standardPrice" title="标准售价" width="110" align="right" sortable>
-            <template #default="{ row }">{{ row.standardPrice ? '¥' + row.standardPrice.toFixed(2) : '-' }}</template>
-          </vxe-column>
-          <vxe-column v-for="g in comparisonGrades" :key="g.id" :field="'grade_' + g.id" :title="g.gradeName" width="120" align="right" sortable>
-            <template #default="{ row }">
-              <span v-if="row['grade_' + g.id] != null" :style="getComparisonPriceStyle(row['grade_' + g.id] as number, row.standardPrice)">
-                ¥{{ (row['grade_' + g.id] as number).toFixed(2) }}
-              </span>
-              <span v-else>-</span>
-            </template>
-          </vxe-column>
-        </vxe-table>
-      </template>
-    </a-drawer>
+      <!-- 变更记录抽屉 -->
+      <a-drawer
+        v-model:open="showChangeHistoryDrawer"
+        title="变更记录"
+        placement="right"
+        width="640px"
+      >
+        <template v-if="pendingChanges.length === 0">
+          <EmptyState
+            title="暂无变更记录"
+            description="当前会话中尚未修改任何价格"
+            size="small"
+            :show-actions="false"
+          />
+        </template>
+        <template v-else>
+          <a-alert
+            type="info"
+            show-icon
+            :message="`当前会话共有 ${pendingChanges.length} 条修改，尚未保存`"
+            style="margin-bottom: 16px"
+          />
+          <vxe-table
+            :data="pendingChanges"
+            border
+            size="small"
+            max-height="500"
+            align="center"
+          >
+            <vxe-column
+              type="seq"
+              title="#"
+              width="50"
+            />
+            <vxe-column
+              field="productCode"
+              title="产品编码"
+              width="100"
+            />
+            <vxe-column
+              field="productName"
+              title="产品名称"
+              min-width="110"
+            />
+            <vxe-column
+              field="oldPrice"
+              title="原价"
+              width="100"
+              align="right"
+            >
+              <template #default="{ row }">
+                {{ row.oldPrice != null ? '¥' + row.oldPrice.toFixed(2) : '-' }}
+              </template>
+            </vxe-column>
+            <vxe-column
+              field="newPrice"
+              title="新价"
+              width="100"
+              align="right"
+            >
+              <template #default="{ row }">
+                ¥{{ row.newPrice.toFixed(2) }}
+              </template>
+            </vxe-column>
+            <vxe-column
+              field="timestamp"
+              title="变更时间"
+              width="170"
+            />
+          </vxe-table>
+        </template>
+      </a-drawer>
 
-    <!-- 变更记录抽屉 -->
-    <a-drawer
-      v-model:open="showChangeHistoryDrawer"
-      title="变更记录"
-      placement="right"
-      width="640px"
-    >
-      <template v-if="pendingChanges.length === 0">
-        <EmptyState title="暂无变更记录" description="当前会话中尚未修改任何价格" size="small" :show-actions="false" />
-      </template>
-      <template v-else>
-        <a-alert
-          type="info"
-          show-icon
-          :message="`当前会话共有 ${pendingChanges.length} 条修改，尚未保存`"
-          style="margin-bottom: 16px"
-        />
-        <vxe-table
-          :data="pendingChanges"
-          border
-          size="small"
-          max-height="500"
-          align="center"
-        >
-          <vxe-column type="seq" title="#" width="50" />
-          <vxe-column field="productCode" title="产品编码" width="100" />
-          <vxe-column field="productName" title="产品名称" min-width="110" />
-          <vxe-column field="oldPrice" title="原价" width="100" align="right">
-            <template #default="{ row }">{{ row.oldPrice != null ? '¥' + row.oldPrice.toFixed(2) : '-' }}</template>
-          </vxe-column>
-          <vxe-column field="newPrice" title="新价" width="100" align="right">
-            <template #default="{ row }">¥{{ row.newPrice.toFixed(2) }}</template>
-          </vxe-column>
-          <vxe-column field="timestamp" title="变更时间" width="170" />
-        </vxe-table>
-      </template>
-    </a-drawer>
-
-    <!-- 季节性调价弹窗 -->
-    <a-modal v-model:open="seasonalAdjustmentVisible" title="季节性调价" @ok="applySeasonalAdjustment" destroy-on-close>
-      <a-form layout="vertical">
-        <a-form-item label="调价比例（%）">
-          <a-input-number v-model:value="seasonalPercentage" :min="0.1" :max="999" :precision="1" size="small" style="width: 100%" placeholder="输入调价百分比（正数为涨价）" />
-        </a-form-item>
-        <a-form-item label="生效等级">
-          <a-checkbox-group v-model:value="seasonalGradeIds">
-            <a-checkbox v-for="g in grades" :key="g.id" :value="g.id">
-              <StatusTag :status="g.gradeCode" :map="GRADE_CODE_MAP" />
-              {{ g.gradeName }}
-            </a-checkbox>
-          </a-checkbox-group>
-        </a-form-item>
-        <a-form-item label="生效日期">
-          <a-date-picker v-model:value="seasonalEffectiveDate" value-format="YYYY-MM-DD" size="small" style="width: 100%" placeholder="选择生效日期" />
-        </a-form-item>
-        <a-alert
-          v-if="seasonalPercentage > 0 && seasonalTargetCount > 0"
-          type="warning"
-          show-icon
-          :message="`将对当前已筛选产品（${seasonalTargetCount} 项）按 ${seasonalPercentage}% 的比例进行调价`"
-        />
-      </a-form>
-    </a-modal>
-  </PageContainer>
+      <!-- 季节性调价弹窗 -->
+      <a-modal
+        v-model:open="seasonalAdjustmentVisible"
+        title="季节性调价"
+        destroy-on-close
+        @ok="applySeasonalAdjustment"
+      >
+        <a-form layout="vertical">
+          <a-form-item label="调价比例（%）">
+            <a-input-number
+              v-model:value="seasonalPercentage"
+              :min="0.1"
+              :max="999"
+              :precision="1"
+              size="small"
+              style="width: 100%"
+              placeholder="输入调价百分比（正数为涨价）"
+            />
+          </a-form-item>
+          <a-form-item label="生效等级">
+            <a-checkbox-group v-model:value="seasonalGradeIds">
+              <a-checkbox
+                v-for="g in grades"
+                :key="g.id"
+                :value="g.id"
+              >
+                <StatusTag
+                  :status="g.gradeCode"
+                  :map="GRADE_CODE_MAP"
+                />
+                {{ g.gradeName }}
+              </a-checkbox>
+            </a-checkbox-group>
+          </a-form-item>
+          <a-form-item label="生效日期">
+            <a-date-picker
+              v-model:value="seasonalEffectiveDate"
+              value-format="YYYY-MM-DD"
+              size="small"
+              style="width: 100%"
+              placeholder="选择生效日期"
+            />
+          </a-form-item>
+          <a-alert
+            v-if="seasonalPercentage > 0 && seasonalTargetCount > 0"
+            type="warning"
+            show-icon
+            :message="`将对当前已筛选产品（${seasonalTargetCount} 项）按 ${seasonalPercentage}% 的比例进行调价`"
+          />
+        </a-form>
+      </a-modal>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

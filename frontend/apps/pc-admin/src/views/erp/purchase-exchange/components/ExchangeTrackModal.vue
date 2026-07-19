@@ -6,15 +6,31 @@
     width="80vw"
     :footer="null"
   >
-    <div v-if="record" class="track-content">
+    <div
+      v-if="record"
+      class="track-content"
+    >
       <!-- 基本信息 -->
-      <a-descriptions :column="3" bordered>
-        <a-descriptions-item label="换货单号">{{ record.exchangeNo }}</a-descriptions-item>
-        <a-descriptions-item label="原采购订单">{{ record.originalOrderNo }}</a-descriptions-item>
-        <a-descriptions-item label="供应商">{{ record.supplierName }}</a-descriptions-item>
-        <a-descriptions-item label="换货金额">¥{{ record.totalAmount?.toFixed(2) }}</a-descriptions-item>
+      <a-descriptions
+        :column="3"
+        bordered
+      >
+        <a-descriptions-item label="换货单号">
+          {{ record.exchangeNo }}
+        </a-descriptions-item>
+        <a-descriptions-item label="原采购订单">
+          {{ record.originalOrderNo }}
+        </a-descriptions-item>
+        <a-descriptions-item label="供应商">
+          {{ record.supplierName }}
+        </a-descriptions-item>
+        <a-descriptions-item label="换货金额">
+          ¥{{ record.totalAmount?.toFixed(2) }}
+        </a-descriptions-item>
         <a-descriptions-item label="状态">
-          <a-tag :color="getStatusColor(record.status)">{{ getStatusText(record.status) }}</a-tag>
+          <a-tag :color="getStatusColor(record.status)">
+            {{ getStatusText(record.status) }}
+          </a-tag>
         </a-descriptions-item>
       </a-descriptions>
 
@@ -30,13 +46,22 @@
             :color="item.status"
           >
             <div class="timeline-item">
-              <div class="timeline-title">{{ item.title }}</div>
-              <div class="timeline-time">{{ item.time }}</div>
-              <div class="timeline-content">{{ item.content }}</div>
+              <div class="timeline-title">
+                {{ item.title }}
+              </div>
+              <div class="timeline-time">
+                {{ item.time }}
+              </div>
+              <div class="timeline-content">
+                {{ item.content }}
+              </div>
             </div>
           </a-timeline-item>
         </a-timeline>
-        <a-empty v-else description="暂无跟踪记录" />
+        <a-empty
+          v-else
+          description="暂无跟踪记录"
+        />
       </div>
 
       <a-divider />
@@ -78,7 +103,9 @@
           :show-batch-delete="false"
         >
           <template #action="{ record }">
-            <a-tag :color="getActionColor(record.action)">{{ record.actionName }}</a-tag>
+            <a-tag :color="getActionColor(record.action)">
+              {{ record.actionName }}
+            </a-tag>
           </template>
         </BillTableList>
       </div>

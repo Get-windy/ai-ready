@@ -4,15 +4,27 @@
       <div class="page-header">
         <div class="page-header-left">
           <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>
+              <router-link to="/">
+                首页
+              </router-link>
+            </a-breadcrumb-item>
             <a-breadcrumb-item>系统管理</a-breadcrumb-item>
             <a-breadcrumb-item>模板管理</a-breadcrumb-item>
           </a-breadcrumb>
-          <h2 class="page-header-title">模板管理</h2>
+          <h2 class="page-header-title">
+            模板管理
+          </h2>
         </div>
         <div class="page-header-right">
-          <a-button type="primary" size="small" @click="openForm()">
-            <template #icon><PlusOutlined /></template>
+          <a-button
+            type="primary"
+            size="small"
+            @click="openForm()"
+          >
+            <template #icon>
+              <PlusOutlined />
+            </template>
             新增模板
           </a-button>
         </div>
@@ -20,19 +32,33 @@
     </template>
 
     <a-card :bordered="false">
-      <a-table :data-source="list" :columns="columns" :loading="loading" row-key="id" :pagination="false" size="small">
+      <a-table
+        :data-source="list"
+        :columns="columns"
+        :loading="loading"
+        row-key="id"
+        :pagination="false"
+        size="small"
+      >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'type'">
             <a-tag>{{ typeLabel(record.type) }}</a-tag>
           </template>
           <template v-if="column.key === 'enabled'">
-            <a-switch :checked="record.enabled" size="small" @change="(checked: boolean) => toggleEnabled(record, checked)" />
+            <a-switch
+              :checked="record.enabled"
+              size="small"
+              @change="(checked: boolean) => toggleEnabled(record, checked)"
+            />
           </template>
           <template v-if="column.key === 'action'">
             <a-space>
               <a @click="openForm(record)">编辑</a>
               <a-divider type="vertical" />
-              <a-popconfirm title="确定删除?" @confirm="handleDelete(record)">
+              <a-popconfirm
+                title="确定删除?"
+                @confirm="handleDelete(record)"
+              >
                 <a class="text-danger">删除</a>
               </a-popconfirm>
             </a-space>
@@ -41,31 +67,76 @@
       </a-table>
     </a-card>
 
-    <a-modal v-model:open="formVisible" :title="editingId ? '编辑模板' : '新增模板'" @ok="handleSave" :confirm-loading="saving" destroy-on-close width="720px">
-      <a-form :model="form" layout="vertical">
-        <a-form-item label="模板名称" required>
-          <a-input v-model:value="form.name" placeholder="请输入模板名称" />
+    <a-modal
+      v-model:open="formVisible"
+      :title="editingId ? '编辑模板' : '新增模板'"
+      :confirm-loading="saving"
+      destroy-on-close
+      width="720px"
+      @ok="handleSave"
+    >
+      <a-form
+        :model="form"
+        layout="vertical"
+      >
+        <a-form-item
+          label="模板名称"
+          required
+        >
+          <a-input
+            v-model:value="form.name"
+            placeholder="请输入模板名称"
+          />
         </a-form-item>
-        <a-form-item label="模板编码" required>
-          <a-input v-model:value="form.code" placeholder="请输入模板编码" />
+        <a-form-item
+          label="模板编码"
+          required
+        >
+          <a-input
+            v-model:value="form.code"
+            placeholder="请输入模板编码"
+          />
         </a-form-item>
-        <a-form-item label="模板类型" required>
+        <a-form-item
+          label="模板类型"
+          required
+        >
           <a-select v-model:value="form.type">
-            <a-select-option value="entity">实体类</a-select-option>
-            <a-select-option value="controller">Controller</a-select-option>
-            <a-select-option value="service">Service</a-select-option>
-            <a-select-option value="mapper">Mapper</a-select-option>
-            <a-select-option value="frontend">前端页面</a-select-option>
+            <a-select-option value="entity">
+              实体类
+            </a-select-option>
+            <a-select-option value="controller">
+              Controller
+            </a-select-option>
+            <a-select-option value="service">
+              Service
+            </a-select-option>
+            <a-select-option value="mapper">
+              Mapper
+            </a-select-option>
+            <a-select-option value="frontend">
+              前端页面
+            </a-select-option>
           </a-select>
         </a-form-item>
         <a-form-item label="版本号">
-          <a-input v-model:value="form.version" placeholder="例如 1.0" />
+          <a-input
+            v-model:value="form.version"
+            placeholder="例如 1.0"
+          />
         </a-form-item>
         <a-form-item label="描述">
-          <a-textarea v-model:value="form.description" :rows="2" />
+          <a-textarea
+            v-model:value="form.description"
+            :rows="2"
+          />
         </a-form-item>
         <a-form-item label="模板内容">
-          <a-textarea v-model:value="form.content" :rows="6" placeholder="使用 ${variable} 作为占位符" />
+          <a-textarea
+            v-model:value="form.content"
+            :rows="6"
+            placeholder="使用 ${variable} 作为占位符"
+          />
         </a-form-item>
       </a-form>
     </a-modal>

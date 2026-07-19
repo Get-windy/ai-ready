@@ -6,22 +6,57 @@
     width="80vw"
     :footer="null"
   >
-    <div v-if="record" class="detail-content">
+    <div
+      v-if="record"
+      class="detail-content"
+    >
       <!-- 基本信息 -->
-      <a-descriptions title="基本信息" :column="3" bordered>
-        <a-descriptions-item label="换货单号">{{ record.exchangeNo }}</a-descriptions-item>
-        <a-descriptions-item label="原采购订单">{{ record.originalOrderNo }}</a-descriptions-item>
-        <a-descriptions-item label="供应商">{{ record.supplierName }}</a-descriptions-item>
-        <a-descriptions-item label="换货日期">{{ record.exchangeDate }}</a-descriptions-item>
-        <a-descriptions-item label="换货类型">{{ getExchangeTypeText(record.exchangeType) }}</a-descriptions-item>
-        <a-descriptions-item label="状态">
-          <a-tag :color="getStatusColor(record.status)">{{ getStatusText(record.status) }}</a-tag>
+      <a-descriptions
+        title="基本信息"
+        :column="3"
+        bordered
+      >
+        <a-descriptions-item label="换货单号">
+          {{ record.exchangeNo }}
         </a-descriptions-item>
-        <a-descriptions-item label="换货金额">¥{{ record.totalAmount?.toFixed(2) }}</a-descriptions-item>
-        <a-descriptions-item label="创建人">{{ record.createdByName }}</a-descriptions-item>
-        <a-descriptions-item label="创建时间">{{ record.createTime }}</a-descriptions-item>
-        <a-descriptions-item label="换货原因" :span="3">{{ record.exchangeReason }}</a-descriptions-item>
-        <a-descriptions-item label="备注" :span="3">{{ record.remark || '-' }}</a-descriptions-item>
+        <a-descriptions-item label="原采购订单">
+          {{ record.originalOrderNo }}
+        </a-descriptions-item>
+        <a-descriptions-item label="供应商">
+          {{ record.supplierName }}
+        </a-descriptions-item>
+        <a-descriptions-item label="换货日期">
+          {{ record.exchangeDate }}
+        </a-descriptions-item>
+        <a-descriptions-item label="换货类型">
+          {{ getExchangeTypeText(record.exchangeType) }}
+        </a-descriptions-item>
+        <a-descriptions-item label="状态">
+          <a-tag :color="getStatusColor(record.status)">
+            {{ getStatusText(record.status) }}
+          </a-tag>
+        </a-descriptions-item>
+        <a-descriptions-item label="换货金额">
+          ¥{{ record.totalAmount?.toFixed(2) }}
+        </a-descriptions-item>
+        <a-descriptions-item label="创建人">
+          {{ record.createdByName }}
+        </a-descriptions-item>
+        <a-descriptions-item label="创建时间">
+          {{ record.createTime }}
+        </a-descriptions-item>
+        <a-descriptions-item
+          label="换货原因"
+          :span="3"
+        >
+          {{ record.exchangeReason }}
+        </a-descriptions-item>
+        <a-descriptions-item
+          label="备注"
+          :span="3"
+        >
+          {{ record.remark || '-' }}
+        </a-descriptions-item>
       </a-descriptions>
 
       <!-- 换货明细 -->
@@ -56,7 +91,12 @@
             :color="getTimelineColor(record.action)"
           >
             <p>{{ record.actionName }} - {{ record.operatorName }} {{ record.createTime }}</p>
-            <p v-if="record.remark" class="timeline-remark">备注：{{ record.remark }}</p>
+            <p
+              v-if="record.remark"
+              class="timeline-remark"
+            >
+              备注：{{ record.remark }}
+            </p>
           </a-timeline-item>
         </a-timeline>
       </template>

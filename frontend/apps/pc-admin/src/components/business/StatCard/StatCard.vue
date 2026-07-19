@@ -1,13 +1,24 @@
 <template>
   <div class="stat-card">
-    <div class="stat-card__label">{{ title }}</div>
+    <div class="stat-card__label">
+      {{ title }}
+    </div>
     <div class="stat-card__body">
       <span class="stat-card__value">{{ value }}</span>
-      <span v-if="amount !== undefined" class="stat-card__amount" :style="{ color: color }">
+      <span
+        v-if="amount !== undefined"
+        class="stat-card__amount"
+        :style="{ color: color }"
+      >
         ¥{{ formatAmount(amount) }}
       </span>
     </div>
-    <div v-if="subtitle" class="stat-card__subtitle">{{ subtitle }}</div>
+    <div
+      v-if="subtitle"
+      class="stat-card__subtitle"
+    >
+      {{ subtitle }}
+    </div>
   </div>
 </template>
 

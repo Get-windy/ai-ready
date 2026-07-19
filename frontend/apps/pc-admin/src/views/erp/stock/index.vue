@@ -1,263 +1,504 @@
 <template>
-  <ErrorBoundary @error="handleError"><PageContainer full-height>
-    <template #header>
-      <div class="stock-page-header">
-        <div class="stock-page-header-left">
-          <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item>库存管理</a-breadcrumb-item>
-          </a-breadcrumb>
-          <h2 class="stock-page-title">库存管理</h2>
-        </div>
-        <div class="stock-page-header-right">
-          <a-switch size="small" v-model:checked="autoRefreshEnabled" checked-children="自动" un-checked-children="手动" @change="handleAutoRefreshChange" />
-          <span v-if="autoRefreshEnabled && autoRefreshCountdown > 0" class="auto-refresh-badge">
-            <SyncOutlined /> {{ autoRefreshCountdown }}s
-          </span>
-          <span v-if="lastUpdateTime" class="update-time">数据更新: {{ lastUpdateTime }}</span>
-          <a-button size="small" :loading="loading" @click="debounceClick('refresh', fetchData)">
-            <template #icon><ReloadOutlined /></template>
-            刷新
-          </a-button>
-          <!-- 快捷键提示 -->
-          <span class="shortcut-hints">
-            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-            <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 入库</span>
-            <span class="shortcut-hint"><kbd>Ctrl+E</kbd> 导出</span>
-          </span>
-        </div>
-      </div>
-    </template>
-
-    <!-- 统计卡片 -->
-    <a-row :gutter="16" style="margin-bottom: 16px;">
-      <a-col :span="6">
-        <div class="summary-card">
-          <div class="summary-icon" style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);">
-            <DatabaseOutlined />
+  <ErrorBoundary @error="handleError">
+    <PageContainer full-height>
+      <template #header>
+        <div class="stock-page-header">
+          <div class="stock-page-header-left">
+            <a-breadcrumb>
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>库存管理</a-breadcrumb-item>
+            </a-breadcrumb>
+            <h2 class="stock-page-title">
+              库存管理
+            </h2>
           </div>
-          <div class="summary-content">
-            <div class="summary-title">总库存SKU</div>
-            <div class="summary-value">{{ statistics.totalSku }}</div>
-          </div>
-        </div>
-      </a-col>
-      <a-col :span="6">
-        <div class="summary-card">
-          <div class="summary-icon" style="background: linear-gradient(135deg, #f5222d 0%, #cf1322 100%);">
-            <AlertOutlined />
-          </div>
-          <div class="summary-content">
-            <div class="summary-title">低库存预警</div>
-            <div class="summary-value warning">{{ statistics.lowStockCount }}</div>
-          </div>
-        </div>
-      </a-col>
-      <a-col :span="6">
-        <div class="summary-card">
-          <div class="summary-icon" style="background: linear-gradient(135deg, #fa8c16 0%, #d46b08 100%);">
-            <ExclamationCircleOutlined />
-          </div>
-          <div class="summary-content">
-            <div class="summary-title">超储预警</div>
-            <div class="summary-value warning">{{ statistics.overStockCount }}</div>
-          </div>
-        </div>
-      </a-col>
-      <a-col :span="6">
-        <div class="summary-card highlight">
-          <div class="summary-icon" style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);">
-            <CheckCircleOutlined />
-          </div>
-          <div class="summary-content">
-            <div class="summary-title">正常库存</div>
-            <div class="summary-value">{{ statistics.normalCount }}</div>
-          </div>
-        </div>
-      </a-col>
-    </a-row>
-
-    <a-card title="库存管理" style="flex: 1; overflow: hidden;" :bodyStyle="{ display: 'flex', flexDirection: 'column', height: 'calc(100% - 57px)' }">
-      <!-- 搜索区域 -->
-      <SearchBar
-        :fields="stockSearchFields"
-        :loading="loading"
-        @search="handleSearch"
-        @reset="handleReset"
-      />
-
-      <!-- 操作按钮 -->
-      <div class="action-area">
-        <a-space>
-          <a-button type="primary" v-permission="'erp:stock:inbound'" @click="handleInbound">
-            <template #icon><LoginOutlined /></template>
-            入库
-          </a-button>
-          <a-button v-permission="'erp:stock:outbound'" @click="handleOutbound">
-            <template #icon><LogoutOutlined /></template>
-            出库
-          </a-button>
-          <a-button v-permission="'erp:stock:stocktake'" @click="handleStocktake">
-            <template #icon><AuditOutlined /></template>
-            盘点
-          </a-button>
-          <a-button v-permission="'erp:stock:lock'" @click="handleLock">
-            <template #icon><LockOutlined /></template>
-            锁定
-          </a-button>
-          <a-button v-permission="'erp:stock:export'" @click="debounceClick('export', handleExport)">
-            <template #icon><ExportOutlined /></template>
-            导出
-          </a-button>
-        </a-space>
-      </div>
-
-      <BillTableList
-        ref="tableRef"
-        :columns="vxeColumns"
-        :data-source="tableData"
-        :loading="loading"
-        :pagination="pagination"
-        row-key="id"
-        :show-toolbar="false"
-        :selectable="false"
-        :show-add="false"
-        :show-search="false"
-        :show-export="false"
-        :show-batch-delete="false"
-        @cell-dblclick="handleView"
-        @page-change="handlePageChange"
-      >
-        <template #empty>
-          <div v-if="hasError" class="table-empty">
-            <WarningOutlined class="table-empty-icon" />
-            <p class="table-empty-text">数据加载异常，请重试</p>
-            <a-button type="primary" @click="fetchData"><ReloadOutlined /> 重试</a-button>
-          </div>
-          <EmptyState v-else title="暂无数据" description="暂无库存数据" size="small" :show-actions="false" />
-        </template>
-        <template #quantityCell="{ record }">
-          <span :class="getStockClass(record)">
-            {{ record.quantity }} {{ record.unit }}
-          </span>
-        </template>
-        <template #warningStatusCell="{ record }">
-          <StatusTag :status="getStockWarningStatusKey(record)" :map="STOCK_WARNING_STATUS" />
-        </template>
-        <template #action="{ record }">
-          <a-space :size="4">
-            <a-button type="link" size="small" @click="handleView(record)">查看</a-button>
-            <a-button type="link" size="small" v-permission="'erp:stock:edit'" @click="handleEdit(record)">编辑</a-button>
-            <a-button type="link" size="small" @click="handleStockLog(record)">库存明细</a-button>
-            <a-dropdown v-permission="'erp:stock:lock'">
-              <a-button type="link" size="small">
-                库存操作 <DownOutlined />
-              </a-button>
-              <template #overlay>
-                <a-menu>
-                  <a-menu-item @click="handleFreezeStock(record)">
-                    <LockOutlined /> 冻结库存
-                  </a-menu-item>
-                  <a-menu-item @click="handleUnfreezeStock(record)">
-                    <UnlockOutlined /> 解冻库存
-                  </a-menu-item>
-                </a-menu>
+          <div class="stock-page-header-right">
+            <a-switch
+              v-model:checked="autoRefreshEnabled"
+              size="small"
+              checked-children="自动"
+              un-checked-children="手动"
+              @change="handleAutoRefreshChange"
+            />
+            <span
+              v-if="autoRefreshEnabled && autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            >
+              <SyncOutlined /> {{ autoRefreshCountdown }}s
+            </span>
+            <span
+              v-if="lastUpdateTime"
+              class="update-time"
+            >数据更新: {{ lastUpdateTime }}</span>
+            <a-button
+              size="small"
+              :loading="loading"
+              @click="debounceClick('refresh', fetchData)"
+            >
+              <template #icon>
+                <ReloadOutlined />
               </template>
-            </a-dropdown>
-          </a-space>
-        </template>
-      </BillTableList>
-    </a-card>
+              刷新
+            </a-button>
+            <!-- 快捷键提示 -->
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+              <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 入库</span>
+              <span class="shortcut-hint"><kbd>Ctrl+E</kbd> 导出</span>
+            </span>
+          </div>
+        </div>
+      </template>
 
-    <!-- 库存明细弹窗 -->
-    <a-modal v-model:open="logModalVisible" title="库存明细" :footer="null" width="800px">
-      <BillTableList
-        :columns="logVxeColumns"
-        :data-source="stockLogs"
-        :show-toolbar="false"
-        :selectable="false"
-        :pagination="false as any"
-        :show-add="false"
-        :show-search="false"
-        :show-export="false"
-        :show-batch-delete="false"
+      <!-- 统计卡片 -->
+      <a-row
+        :gutter="16"
+        style="margin-bottom: 16px;"
       >
-        <template #typeCell="{ record }">
-          <a-tag :color="record.type === 'in' ? 'green' : 'red'">{{ record.type === 'in' ? '入库' : '出库' }}</a-tag>
-        </template>
-      </BillTableList>
-    </a-modal>
+        <a-col :span="6">
+          <div class="summary-card">
+            <div
+              class="summary-icon"
+              style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);"
+            >
+              <DatabaseOutlined />
+            </div>
+            <div class="summary-content">
+              <div class="summary-title">
+                总库存SKU
+              </div>
+              <div class="summary-value">
+                {{ statistics.totalSku }}
+              </div>
+            </div>
+          </div>
+        </a-col>
+        <a-col :span="6">
+          <div class="summary-card">
+            <div
+              class="summary-icon"
+              style="background: linear-gradient(135deg, #f5222d 0%, #cf1322 100%);"
+            >
+              <AlertOutlined />
+            </div>
+            <div class="summary-content">
+              <div class="summary-title">
+                低库存预警
+              </div>
+              <div class="summary-value warning">
+                {{ statistics.lowStockCount }}
+              </div>
+            </div>
+          </div>
+        </a-col>
+        <a-col :span="6">
+          <div class="summary-card">
+            <div
+              class="summary-icon"
+              style="background: linear-gradient(135deg, #fa8c16 0%, #d46b08 100%);"
+            >
+              <ExclamationCircleOutlined />
+            </div>
+            <div class="summary-content">
+              <div class="summary-title">
+                超储预警
+              </div>
+              <div class="summary-value warning">
+                {{ statistics.overStockCount }}
+              </div>
+            </div>
+          </div>
+        </a-col>
+        <a-col :span="6">
+          <div class="summary-card highlight">
+            <div
+              class="summary-icon"
+              style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);"
+            >
+              <CheckCircleOutlined />
+            </div>
+            <div class="summary-content">
+              <div class="summary-title">
+                正常库存
+              </div>
+              <div class="summary-value">
+                {{ statistics.normalCount }}
+              </div>
+            </div>
+          </div>
+        </a-col>
+      </a-row>
 
-    <!-- 库存详情弹窗 -->
-    <a-drawer v-model:open="detailVisible" title="库存详情" placement="right" width="80vw">
-      <div style="text-align: right; margin-bottom: 12px;">
-        <PrintButton :record="detailData" business-type="STOCK" button-size="small" />
-      </div>
-      <a-spin :spinning="detailLoading">
-        <a-descriptions bordered :column="2" v-if="detailData">
-          <a-descriptions-item label="商品编码">{{ detailData.productCode }}</a-descriptions-item>
-          <a-descriptions-item label="商品名称">{{ detailData.productName }}</a-descriptions-item>
-          <a-descriptions-item label="规格">{{ detailData.specification }}</a-descriptions-item>
-          <a-descriptions-item label="单位">{{ detailData.unit }}</a-descriptions-item>
-          <a-descriptions-item label="库存数量">
-            <span :class="getStockClass(detailData)">{{ detailData.quantity }}</span>
-          </a-descriptions-item>
-          <a-descriptions-item label="最低库存">{{ detailData.minStock }}</a-descriptions-item>
-          <a-descriptions-item label="最高库存">{{ detailData.maxStock }}</a-descriptions-item>
-          <a-descriptions-item label="仓库">{{ detailData.warehouseName }}</a-descriptions-item>
-          <a-descriptions-item label="最后入库">{{ detailData.lastInboundDate || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="最后出库">{{ detailData.lastOutboundDate || '-' }}</a-descriptions-item>
-        </a-descriptions>
-      </a-spin>
-    </a-drawer>
+      <a-card
+        title="库存管理"
+        style="flex: 1; overflow: hidden;"
+        :body-style="{ display: 'flex', flexDirection: 'column', height: 'calc(100% - 57px)' }"
+      >
+        <!-- 搜索区域 -->
+        <SearchBar
+          :fields="stockSearchFields"
+          :loading="loading"
+          @search="handleSearch"
+          @reset="handleReset"
+        />
 
-    <!-- 编辑库存弹窗 -->
-    <a-modal v-model:open="editModalVisible" title="编辑库存" @ok="handleEditSubmit" :confirm-loading="editLoading" destroy-on-close>
-      <a-form :model="editForm" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
-        <a-form-item label="商品编码">{{ editForm.productCode }}</a-form-item>
-        <a-form-item label="商品名称">{{ editForm.productName }}</a-form-item>
-        <a-form-item label="最低库存">
-          <a-input-number size="small" v-model:value="editForm.minStock" :min="0" style="width: 100%" />
-        </a-form-item>
-        <a-form-item label="最高库存">
-          <a-input-number size="small" v-model:value="editForm.maxStock" :min="0" style="width: 100%" />
-        </a-form-item>
-      </a-form>
-    </a-modal>
+        <!-- 操作按钮 -->
+        <div class="action-area">
+          <a-space>
+            <a-button
+              v-permission="'erp:stock:inbound'"
+              type="primary"
+              @click="handleInbound"
+            >
+              <template #icon>
+                <LoginOutlined />
+              </template>
+              入库
+            </a-button>
+            <a-button
+              v-permission="'erp:stock:outbound'"
+              @click="handleOutbound"
+            >
+              <template #icon>
+                <LogoutOutlined />
+              </template>
+              出库
+            </a-button>
+            <a-button
+              v-permission="'erp:stock:stocktake'"
+              @click="handleStocktake"
+            >
+              <template #icon>
+                <AuditOutlined />
+              </template>
+              盘点
+            </a-button>
+            <a-button
+              v-permission="'erp:stock:lock'"
+              @click="handleLock"
+            >
+              <template #icon>
+                <LockOutlined />
+              </template>
+              锁定
+            </a-button>
+            <a-button
+              v-permission="'erp:stock:export'"
+              @click="debounceClick('export', handleExport)"
+            >
+              <template #icon>
+                <ExportOutlined />
+              </template>
+              导出
+            </a-button>
+          </a-space>
+        </div>
 
-    <!-- 冻结库存弹窗 -->
-    <a-modal v-model:open="freezeModalVisible" title="冻结库存" @ok="handleFreezeSubmit" :confirm-loading="freezeLoading" destroy-on-close>
-      <a-form :model="lockForm" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
-        <a-form-item label="商品编码">{{ lockForm.productCode }}</a-form-item>
-        <a-form-item label="商品名称">{{ lockForm.productName }}</a-form-item>
-        <a-form-item label="仓库">{{ lockForm.warehouseName }}</a-form-item>
-        <a-form-item label="可用库存">
-          <span style="color: #52c41a; font-weight: bold;">{{ lockForm.availableQuantity }}</span>
-        </a-form-item>
-        <a-form-item label="已冻结">
-          <span style="color: #faad14;">{{ lockForm.frozenQuantity }}</span>
-        </a-form-item>
-        <a-form-item label="冻结数量" required>
-          <a-input-number size="small" v-model:value="lockForm.quantity" :min="1" :max="lockForm.availableQuantity" style="width: 100%" placeholder="输入冻结数量" />
-        </a-form-item>
-      </a-form>
-    </a-modal>
+        <BillTableList
+          ref="tableRef"
+          :columns="vxeColumns"
+          :data-source="tableData"
+          :loading="loading"
+          :pagination="pagination"
+          row-key="id"
+          :show-toolbar="false"
+          :selectable="false"
+          :show-add="false"
+          :show-search="false"
+          :show-export="false"
+          :show-batch-delete="false"
+          @cell-dblclick="handleView"
+          @page-change="handlePageChange"
+        >
+          <template #empty>
+            <div
+              v-if="hasError"
+              class="table-empty"
+            >
+              <WarningOutlined class="table-empty-icon" />
+              <p class="table-empty-text">
+                数据加载异常，请重试
+              </p>
+              <a-button
+                type="primary"
+                @click="fetchData"
+              >
+                <ReloadOutlined /> 重试
+              </a-button>
+            </div>
+            <EmptyState
+              v-else
+              title="暂无数据"
+              description="暂无库存数据"
+              size="small"
+              :show-actions="false"
+            />
+          </template>
+          <template #quantityCell="{ record }">
+            <span :class="getStockClass(record)">
+              {{ record.quantity }} {{ record.unit }}
+            </span>
+          </template>
+          <template #warningStatusCell="{ record }">
+            <StatusTag
+              :status="getStockWarningStatusKey(record)"
+              :map="STOCK_WARNING_STATUS"
+            />
+          </template>
+          <template #action="{ record }">
+            <a-space :size="4">
+              <a-button
+                type="link"
+                size="small"
+                @click="handleView(record)"
+              >
+                查看
+              </a-button>
+              <a-button
+                v-permission="'erp:stock:edit'"
+                type="link"
+                size="small"
+                @click="handleEdit(record)"
+              >
+                编辑
+              </a-button>
+              <a-button
+                type="link"
+                size="small"
+                @click="handleStockLog(record)"
+              >
+                库存明细
+              </a-button>
+              <a-dropdown v-permission="'erp:stock:lock'">
+                <a-button
+                  type="link"
+                  size="small"
+                >
+                  库存操作 <DownOutlined />
+                </a-button>
+                <template #overlay>
+                  <a-menu>
+                    <a-menu-item @click="handleFreezeStock(record)">
+                      <LockOutlined /> 冻结库存
+                    </a-menu-item>
+                    <a-menu-item @click="handleUnfreezeStock(record)">
+                      <UnlockOutlined /> 解冻库存
+                    </a-menu-item>
+                  </a-menu>
+                </template>
+              </a-dropdown>
+            </a-space>
+          </template>
+        </BillTableList>
+      </a-card>
 
-    <!-- 解冻库存弹窗 -->
-    <a-modal v-model:open="unfreezeModalVisible" title="解冻库存" @ok="handleUnfreezeSubmit" :confirm-loading="unfreezeLoading" destroy-on-close>
-      <a-form :model="lockForm" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
-        <a-form-item label="商品编码">{{ lockForm.productCode }}</a-form-item>
-        <a-form-item label="商品名称">{{ lockForm.productName }}</a-form-item>
-        <a-form-item label="仓库">{{ lockForm.warehouseName }}</a-form-item>
-        <a-form-item label="已冻结数量">
-          <span style="color: #faad14; font-weight: bold;">{{ lockForm.frozenQuantity }}</span>
-        </a-form-item>
-        <a-form-item label="解冻数量" required>
-          <a-input-number size="small" v-model:value="lockForm.quantity" :min="1" :max="lockForm.frozenQuantity" style="width: 100%" placeholder="输入解冻数量" />
-        </a-form-item>
-      </a-form>
-    </a-modal>
-  </PageContainer>
+      <!-- 库存明细弹窗 -->
+      <a-modal
+        v-model:open="logModalVisible"
+        title="库存明细"
+        :footer="null"
+        width="800px"
+      >
+        <BillTableList
+          :columns="logVxeColumns"
+          :data-source="stockLogs"
+          :show-toolbar="false"
+          :selectable="false"
+          :pagination="false as any"
+          :show-add="false"
+          :show-search="false"
+          :show-export="false"
+          :show-batch-delete="false"
+        >
+          <template #typeCell="{ record }">
+            <a-tag :color="record.type === 'in' ? 'green' : 'red'">
+              {{ record.type === 'in' ? '入库' : '出库' }}
+            </a-tag>
+          </template>
+        </BillTableList>
+      </a-modal>
+
+      <!-- 库存详情弹窗 -->
+      <a-drawer
+        v-model:open="detailVisible"
+        title="库存详情"
+        placement="right"
+        width="80vw"
+      >
+        <div style="text-align: right; margin-bottom: 12px;">
+          <PrintButton
+            :record="detailData"
+            business-type="STOCK"
+            button-size="small"
+          />
+        </div>
+        <a-spin :spinning="detailLoading">
+          <a-descriptions
+            v-if="detailData"
+            bordered
+            :column="2"
+          >
+            <a-descriptions-item label="商品编码">
+              {{ detailData.productCode }}
+            </a-descriptions-item>
+            <a-descriptions-item label="商品名称">
+              {{ detailData.productName }}
+            </a-descriptions-item>
+            <a-descriptions-item label="规格">
+              {{ detailData.specification }}
+            </a-descriptions-item>
+            <a-descriptions-item label="单位">
+              {{ detailData.unit }}
+            </a-descriptions-item>
+            <a-descriptions-item label="库存数量">
+              <span :class="getStockClass(detailData)">{{ detailData.quantity }}</span>
+            </a-descriptions-item>
+            <a-descriptions-item label="最低库存">
+              {{ detailData.minStock }}
+            </a-descriptions-item>
+            <a-descriptions-item label="最高库存">
+              {{ detailData.maxStock }}
+            </a-descriptions-item>
+            <a-descriptions-item label="仓库">
+              {{ detailData.warehouseName }}
+            </a-descriptions-item>
+            <a-descriptions-item label="最后入库">
+              {{ detailData.lastInboundDate || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item label="最后出库">
+              {{ detailData.lastOutboundDate || '-' }}
+            </a-descriptions-item>
+          </a-descriptions>
+        </a-spin>
+      </a-drawer>
+
+      <!-- 编辑库存弹窗 -->
+      <a-modal
+        v-model:open="editModalVisible"
+        title="编辑库存"
+        :confirm-loading="editLoading"
+        destroy-on-close
+        @ok="handleEditSubmit"
+      >
+        <a-form
+          :model="editForm"
+          :label-col="{ span: 6 }"
+          :wrapper-col="{ span: 16 }"
+        >
+          <a-form-item label="商品编码">
+            {{ editForm.productCode }}
+          </a-form-item>
+          <a-form-item label="商品名称">
+            {{ editForm.productName }}
+          </a-form-item>
+          <a-form-item label="最低库存">
+            <a-input-number
+              v-model:value="editForm.minStock"
+              size="small"
+              :min="0"
+              style="width: 100%"
+            />
+          </a-form-item>
+          <a-form-item label="最高库存">
+            <a-input-number
+              v-model:value="editForm.maxStock"
+              size="small"
+              :min="0"
+              style="width: 100%"
+            />
+          </a-form-item>
+        </a-form>
+      </a-modal>
+
+      <!-- 冻结库存弹窗 -->
+      <a-modal
+        v-model:open="freezeModalVisible"
+        title="冻结库存"
+        :confirm-loading="freezeLoading"
+        destroy-on-close
+        @ok="handleFreezeSubmit"
+      >
+        <a-form
+          :model="lockForm"
+          :label-col="{ span: 6 }"
+          :wrapper-col="{ span: 16 }"
+        >
+          <a-form-item label="商品编码">
+            {{ lockForm.productCode }}
+          </a-form-item>
+          <a-form-item label="商品名称">
+            {{ lockForm.productName }}
+          </a-form-item>
+          <a-form-item label="仓库">
+            {{ lockForm.warehouseName }}
+          </a-form-item>
+          <a-form-item label="可用库存">
+            <span style="color: #52c41a; font-weight: bold;">{{ lockForm.availableQuantity }}</span>
+          </a-form-item>
+          <a-form-item label="已冻结">
+            <span style="color: #faad14;">{{ lockForm.frozenQuantity }}</span>
+          </a-form-item>
+          <a-form-item
+            label="冻结数量"
+            required
+          >
+            <a-input-number
+              v-model:value="lockForm.quantity"
+              size="small"
+              :min="1"
+              :max="lockForm.availableQuantity"
+              style="width: 100%"
+              placeholder="输入冻结数量"
+            />
+          </a-form-item>
+        </a-form>
+      </a-modal>
+
+      <!-- 解冻库存弹窗 -->
+      <a-modal
+        v-model:open="unfreezeModalVisible"
+        title="解冻库存"
+        :confirm-loading="unfreezeLoading"
+        destroy-on-close
+        @ok="handleUnfreezeSubmit"
+      >
+        <a-form
+          :model="lockForm"
+          :label-col="{ span: 6 }"
+          :wrapper-col="{ span: 16 }"
+        >
+          <a-form-item label="商品编码">
+            {{ lockForm.productCode }}
+          </a-form-item>
+          <a-form-item label="商品名称">
+            {{ lockForm.productName }}
+          </a-form-item>
+          <a-form-item label="仓库">
+            {{ lockForm.warehouseName }}
+          </a-form-item>
+          <a-form-item label="已冻结数量">
+            <span style="color: #faad14; font-weight: bold;">{{ lockForm.frozenQuantity }}</span>
+          </a-form-item>
+          <a-form-item
+            label="解冻数量"
+            required
+          >
+            <a-input-number
+              v-model:value="lockForm.quantity"
+              size="small"
+              :min="1"
+              :max="lockForm.frozenQuantity"
+              style="width: 100%"
+              placeholder="输入解冻数量"
+            />
+          </a-form-item>
+        </a-form>
+      </a-modal>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

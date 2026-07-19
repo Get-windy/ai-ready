@@ -14,6 +14,11 @@ public interface SaleExchangeService extends IService<SaleExchange> {
     Page<SaleExchange> pageList(String keyword, Long customerId, Integer status, Integer exchangeType,
                                 String startDate, String endDate, int pageNum, int pageSize);
 
+    /**
+     * 扩展分页查询（支持更多条件）
+     */
+    Page<SaleExchange> pageListExtended(Map<String, Object> params, int pageNum, int pageSize);
+
     List<SaleExchange> exportList(String keyword, Long customerId, Integer status, Integer exchangeType,
                                   String startDate, String endDate);
 
@@ -27,13 +32,33 @@ public interface SaleExchangeService extends IService<SaleExchange> {
 
     SaleExchange approve(Long id, Long approverId, String approvedByName, String remark);
 
+    /**
+     * 批量审核
+     */
+    int batchApprove(List<Long> ids, Long approverId, String approvedByName);
+
     SaleExchange reject(Long id, String remark);
 
     SaleExchange cancel(Long id, String reason);
 
     SaleExchange complete(Long id);
 
+    /**
+     * 打印（打印次数+1）
+     */
+    void print(Long id);
+
+    /**
+     * 批量打印
+     */
+    void batchPrint(List<Long> ids);
+
     List<SaleExchangeItem> getItems(Long exchangeId);
+
+    /**
+     * 按仓库类型获取明细
+     */
+    List<SaleExchangeItem> getItemsByWarehouseType(Long exchangeId, Integer warehouseType);
 
     List<ExchangeApprovalRecord> getApprovalRecords(Long exchangeId);
 

@@ -1,89 +1,129 @@
 <template>
   <ErrorBoundary @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="reports-page-header">
-        <div class="reports-page-header-left">
-          <a-breadcrumb class="reports-breadcrumb">
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item>财务管理</a-breadcrumb-item>
-            <a-breadcrumb-item>财务报表</a-breadcrumb-item>
-          </a-breadcrumb>
-          <h2 class="reports-page-header-title">财务报表</h2>
+    <PageContainer full-height>
+      <template #header>
+        <div class="reports-page-header">
+          <div class="reports-page-header-left">
+            <a-breadcrumb class="reports-breadcrumb">
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>财务管理</a-breadcrumb-item>
+              <a-breadcrumb-item>财务报表</a-breadcrumb-item>
+            </a-breadcrumb>
+            <h2 class="reports-page-header-title">
+              财务报表
+            </h2>
+          </div>
+          <div class="reports-page-header-right">
+            <span
+              v-if="lastUpdateTime"
+              class="update-time"
+            >更新于 {{ lastUpdateTime }}</span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            >
+              <SyncOutlined /> {{ autoRefreshCountdown }}s
+            </span>
+            <a-button
+              size="small"
+              :loading="refreshLoading"
+              @click="debounceClick('refresh', refreshData)"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
+              刷新
+            </a-button>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            </span>
+          </div>
         </div>
-        <div class="reports-page-header-right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-            <SyncOutlined /> {{ autoRefreshCountdown }}s
-          </span>
-          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', refreshData)">
-            <template #icon><ReloadOutlined /></template>
-            刷新
-          </a-button>
-          <span class="shortcut-hints">
-            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-          </span>
+      </template>
+      <div class="reports-page">
+        <!-- 统计卡片 -->
+        <div class="stat-cards">
+          <div class="stat-card stat-assets">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ formatAmount(summaryData.totalAssets) }}
+              </div>
+              <div class="stat-card-label">
+                总资产
+              </div>
+            </div>
+            <FundOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-liabilities">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ formatAmount(summaryData.totalLiabilities) }}
+              </div>
+              <div class="stat-card-label">
+                总负债
+              </div>
+            </div>
+            <CreditCardOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-income">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ formatAmount(summaryData.netIncome) }}
+              </div>
+              <div class="stat-card-label">
+                净利润
+              </div>
+            </div>
+            <DollarOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-date">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ periodDate.format('YYYY-MM') }}
+              </div>
+              <div class="stat-card-label">
+                报表期间
+              </div>
+            </div>
+            <CalendarOutlined class="stat-card-icon" />
+          </div>
         </div>
-      </div>
-    </template>
-    <div class="reports-page">
-    <!-- 统计卡片 -->
-    <div class="stat-cards">
-      <div class="stat-card stat-assets">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ formatAmount(summaryData.totalAssets) }}</div>
-          <div class="stat-card-label">总资产</div>
-        </div>
-        <FundOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-liabilities">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ formatAmount(summaryData.totalLiabilities) }}</div>
-          <div class="stat-card-label">总负债</div>
-        </div>
-        <CreditCardOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-income">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ formatAmount(summaryData.netIncome) }}</div>
-          <div class="stat-card-label">净利润</div>
-        </div>
-        <DollarOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-date">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ periodDate.format('YYYY-MM') }}</div>
-          <div class="stat-card-label">报表期间</div>
-        </div>
-        <CalendarOutlined class="stat-card-icon" />
-      </div>
-    </div>
 
-    <a-card title="财务报表">
-      <!-- Tab切换 -->
-      <a-tabs v-model:active-key="activeTab">
-        <a-tab-pane
-          key="balance-sheet"
-          tab="资产负债表"
-        >
-          <BalanceSheet :period="periodDate.format('YYYY-MM')" @loaded="handleBalanceLoaded" />
-        </a-tab-pane>
-        <a-tab-pane
-          key="profit-statement"
-          tab="利润表"
-        >
-          <ProfitStatement :period="periodDate.format('YYYY-MM')" @loaded="handleProfitLoaded" />
-        </a-tab-pane>
-        <a-tab-pane
-          key="cash-flow"
-          tab="现金流量表"
-        >
-          <CashFlowStatement :period="periodDate.format('YYYY-MM')" />
-        </a-tab-pane>
-      </a-tabs>
-    </a-card>
-    </div>
-  </PageContainer>
+        <a-card title="财务报表">
+          <!-- Tab切换 -->
+          <a-tabs v-model:active-key="activeTab">
+            <a-tab-pane
+              key="balance-sheet"
+              tab="资产负债表"
+            >
+              <BalanceSheet
+                :period="periodDate.format('YYYY-MM')"
+                @loaded="handleBalanceLoaded"
+              />
+            </a-tab-pane>
+            <a-tab-pane
+              key="profit-statement"
+              tab="利润表"
+            >
+              <ProfitStatement
+                :period="periodDate.format('YYYY-MM')"
+                @loaded="handleProfitLoaded"
+              />
+            </a-tab-pane>
+            <a-tab-pane
+              key="cash-flow"
+              tab="现金流量表"
+            >
+              <CashFlowStatement :period="periodDate.format('YYYY-MM')" />
+            </a-tab-pane>
+          </a-tabs>
+        </a-card>
+      </div>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

@@ -1,32 +1,126 @@
 <template>
   <div>
     <div class="panel-toolbar">
-      <a-button size="small" type="primary" @click="showAddModal"><PlusOutlined /> 添加银行账户</a-button>
+      <a-button
+        size="small"
+        type="primary"
+        @click="showAddModal"
+      >
+        <PlusOutlined /> 添加银行账户
+      </a-button>
     </div>
-    <vxe-table :data="list" border size="small" max-height="300" align="center">
-      <vxe-column type="seq" title="#" width="50" />
-      <vxe-column field="accountName" title="开户名" />
-      <vxe-column field="bankName" title="开户银行" />
-      <vxe-column field="bankBranch" title="支行" />
-      <vxe-column field="accountNo" title="账号" />
-      <vxe-column field="isDefault" title="默认" width="60">
-        <template #default="{ row }"><a-tag v-if="row.isDefault" color="green">默认</a-tag></template>
-      </vxe-column>
-      <vxe-column title="操作" width="120">
+    <vxe-table
+      :data="list"
+      border
+      size="small"
+      max-height="300"
+      align="center"
+    >
+      <vxe-column
+        type="seq"
+        title="#"
+        width="50"
+      />
+      <vxe-column
+        field="accountName"
+        title="开户名"
+      />
+      <vxe-column
+        field="bankName"
+        title="开户银行"
+      />
+      <vxe-column
+        field="bankBranch"
+        title="支行"
+      />
+      <vxe-column
+        field="accountNo"
+        title="账号"
+      />
+      <vxe-column
+        field="isDefault"
+        title="默认"
+        width="60"
+      >
         <template #default="{ row }">
-          <a-button type="link" size="small" @click="editRow(row)">编辑</a-button>
-          <a-button type="link" size="small" danger @click="handleDelete(row.id)">删除</a-button>
+          <a-tag
+            v-if="row.isDefault"
+            color="green"
+          >
+            默认
+          </a-tag>
+        </template>
+      </vxe-column>
+      <vxe-column
+        title="操作"
+        width="120"
+      >
+        <template #default="{ row }">
+          <a-button
+            type="link"
+            size="small"
+            @click="editRow(row)"
+          >
+            编辑
+          </a-button>
+          <a-button
+            type="link"
+            size="small"
+            danger
+            @click="handleDelete(row.id)"
+          >
+            删除
+          </a-button>
         </template>
       </vxe-column>
     </vxe-table>
 
-    <a-modal v-model:open="modalVisible" :title="editingId ? '编辑银行账户' : '添加银行账户'" width="600px" @ok="handleSave">
-      <a-form :label-col="{ span: 5 }" :wrapper-col="{ span: 17 }">
-        <a-form-item label="开户名" required><a-input v-model:value="form.accountName" size="small" /></a-form-item>
-        <a-form-item label="开户银行" required><a-input v-model:value="form.bankName" size="small" /></a-form-item>
-        <a-form-item label="支行"><a-input v-model:value="form.bankBranch" size="small" /></a-form-item>
-        <a-form-item label="银行账号" required><a-input v-model:value="form.accountNo" size="small" /></a-form-item>
-        <a-form-item label="设为默认"><a-switch v-model:checked="form.isDefault" /></a-form-item>
+    <a-modal
+      v-model:open="modalVisible"
+      :title="editingId ? '编辑银行账户' : '添加银行账户'"
+      width="600px"
+      @ok="handleSave"
+    >
+      <a-form
+        :label-col="{ span: 5 }"
+        :wrapper-col="{ span: 17 }"
+      >
+        <a-form-item
+          label="开户名"
+          required
+        >
+          <a-input
+            v-model:value="form.accountName"
+            size="small"
+          />
+        </a-form-item>
+        <a-form-item
+          label="开户银行"
+          required
+        >
+          <a-input
+            v-model:value="form.bankName"
+            size="small"
+          />
+        </a-form-item>
+        <a-form-item label="支行">
+          <a-input
+            v-model:value="form.bankBranch"
+            size="small"
+          />
+        </a-form-item>
+        <a-form-item
+          label="银行账号"
+          required
+        >
+          <a-input
+            v-model:value="form.accountNo"
+            size="small"
+          />
+        </a-form-item>
+        <a-form-item label="设为默认">
+          <a-switch v-model:checked="form.isDefault" />
+        </a-form-item>
       </a-form>
     </a-modal>
   </div>

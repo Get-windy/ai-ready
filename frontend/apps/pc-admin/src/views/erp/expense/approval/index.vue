@@ -1,131 +1,261 @@
 <template>
   <ErrorBoundary @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="page-header">
-        <div class="page-header__left">
-          <span class="page-header__breadcrumb">ERP / 费用管理 / 审批中心</span>
-          <h2 class="page-header__title">审批中心</h2>
-        </div>
-        <div class="page-header__right">
-          <span v-if="lastUpdateTime" class="page-header__update-time">更新于: {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-            <SyncOutlined /> {{ autoRefreshCountdown }}s
-          </span>
-          <a-space :size="8">
-            <span class="shortcut-hints">
-              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-              <span class="shortcut-hint"><kbd>Ctrl</kbd>+<kbd>E</kbd> 导出</span>
+    <PageContainer full-height>
+      <template #header>
+        <div class="page-header">
+          <div class="page-header__left">
+            <span class="page-header__breadcrumb">ERP / 费用管理 / 审批中心</span>
+            <h2 class="page-header__title">
+              审批中心
+            </h2>
+          </div>
+          <div class="page-header__right">
+            <span
+              v-if="lastUpdateTime"
+              class="page-header__update-time"
+            >更新于: {{ lastUpdateTime }}</span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            >
+              <SyncOutlined /> {{ autoRefreshCountdown }}s
             </span>
-            <a-tooltip title="导出">
-              <a-button size="small" @click="debounceClick('export', handleExport)">
-                <template #icon><ExportOutlined /></template>
+            <a-space :size="8">
+              <span class="shortcut-hints">
+                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+                <span class="shortcut-hint"><kbd>Ctrl</kbd>+<kbd>E</kbd> 导出</span>
+              </span>
+              <a-tooltip title="导出">
+                <a-button
+                  size="small"
+                  @click="debounceClick('export', handleExport)"
+                >
+                  <template #icon>
+                    <ExportOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <a-button
+                size="small"
+                @click="debounceClick('refresh', fetchData)"
+              >
+                <ReloadOutlined /> 刷新
               </a-button>
-            </a-tooltip>
-            <a-button size="small" @click="debounceClick('refresh', fetchData)">
-              <ReloadOutlined /> 刷新
-            </a-button>
-          </a-space>
+            </a-space>
+          </div>
         </div>
-      </div>
-    </template>
-
-    <!-- 骨架加载 -->
-    <a-skeleton :loading="refreshLoading" active :paragraph="{ rows: 8 }">
-    </a-skeleton>
-
-    <template v-if="!refreshLoading">
-    <!-- 统计卡片 -->
-    <a-row :gutter="16" style="margin-bottom: 16px">
-      <a-col :xs="12" :sm="12" :md="6">
-        <a-card size="small" :bordered="true">
-          <StatCard title="待审批" :value="stats.pendingCount" :amount="stats.pendingAmount" color="#faad14" />
-        </a-card>
-      </a-col>
-      <a-col :xs="12" :sm="12" :md="6">
-        <a-card size="small" :bordered="true">
-          <StatCard title="已通过" :value="stats.approvedCount" :amount="stats.approvedAmount" color="#52c41a" />
-        </a-card>
-      </a-col>
-      <a-col :xs="12" :sm="12" :md="6">
-        <a-card size="small" :bordered="true">
-          <StatCard title="已拒绝" :value="stats.rejectedCount" :amount="stats.rejectedAmount" color="#ff4d4f" />
-        </a-card>
-      </a-col>
-      <a-col :xs="12" :sm="12" :md="6">
-        <a-card size="small" :bordered="true">
-          <StatCard title="合计笔数" :value="stats.totalCount" :amount="stats.totalAmount" color="#1890ff" />
-        </a-card>
-      </a-col>
-    </a-row>
-
-    <a-tabs v-model:activeKey="activeTab" @change="handleTabChange">
-      <a-tab-pane key="application" tab="费用申请待审批" />
-      <a-tab-pane key="reimbursement" tab="费用报销待审批" />
-    </a-tabs>
-
-    <!-- 搜索栏 -->
-    <SearchBar
-      :fields="searchFields"
-      :loading="loading"
-      v-model="searchForm"
-      :expandable="false"
-      :show-result-count="true"
-      show-clear
-      :total="pagination.total"
-      @search="handleSearch"
-      @reset="handleReset"
-      @clear="handleClear"
-    />
-
-    <BillTableList
-      ref="tableRef"
-      :columns="vxeColumns"
-      :data-source="dataList"
-      :loading="loading"
-      :pagination="pagination"
-      row-key="id"
-      :show-toolbar="false"
-      :show-add="false"
-      :show-search="false"
-      :min-empty-rows="12"
-      @page-change="onPageChange"
-    >
-      <template #statusCell="{ record }">
-        <StatusTag :status="record.status" :map="EXPENSE_APPROVAL_STATUS" />
       </template>
-      <template #empty>
-        <EmptyState v-if="!loading" title="暂无数据" :description="activeTab === 'application' ? '暂无待审批费用申请' : '暂无待审批费用报销'" size="small" :show-actions="false" />
-      </template>
-      <template #action="{ record }">
-        <a-space :size="4">
-          <PrintButton :record="record" :business-id="record.id" :business-type="activeTab === 'application' ? 'expense_application' : 'expense_reimbursement'" button-type="link" button-size="small" tooltip="打印" />
-          <a-button type="link" size="small" @click="viewDetail(record)">查看</a-button>
-          <a-button v-permission="'erp:expense:approval:process'" type="primary" size="small" @click="showApprove(record)">审批</a-button>
-        </a-space>
-      </template>
-    </BillTableList>
 
-    <!-- 审批弹窗 -->
-    <a-modal v-model:open="approveModalVisible" title="审批处理" width="500px" :confirm-loading="approveLoading" @ok="handleApproveOk" @cancel="handleApproveCancel">
-      <a-form :model="approveForm" :label-col="{ span: 4 }" :wrapper-col="{ span: 18 }">
-        <a-form-item label="当前单据">
-          <span>{{ currentRecord?.applicationTitle || currentRecord?.reimbursementTitle }}</span>
-        </a-form-item>
-        <a-form-item label="审批结果">
-          <a-radio-group v-model:value="approveForm.action">
-            <a-radio value="APPROVE">通过</a-radio>
-            <a-radio value="REJECT">拒绝</a-radio>
-            <a-radio value="RETURN">退回</a-radio>
-          </a-radio-group>
-        </a-form-item>
-        <a-form-item label="审批意见">
-          <a-textarea v-model:value="approveForm.comment" :rows="3" placeholder="请输入审批意见" size="small" />
-        </a-form-item>
-      </a-form>
-    </a-modal>
-    </template>
-  </PageContainer>
+      <!-- 骨架加载 -->
+      <a-skeleton
+        :loading="refreshLoading"
+        active
+        :paragraph="{ rows: 8 }"
+      />
+
+      <template v-if="!refreshLoading">
+        <!-- 统计卡片 -->
+        <a-row
+          :gutter="16"
+          style="margin-bottom: 16px"
+        >
+          <a-col
+            :xs="12"
+            :sm="12"
+            :md="6"
+          >
+            <a-card
+              size="small"
+              :bordered="true"
+            >
+              <StatCard
+                title="待审批"
+                :value="stats.pendingCount"
+                :amount="stats.pendingAmount"
+                color="#faad14"
+              />
+            </a-card>
+          </a-col>
+          <a-col
+            :xs="12"
+            :sm="12"
+            :md="6"
+          >
+            <a-card
+              size="small"
+              :bordered="true"
+            >
+              <StatCard
+                title="已通过"
+                :value="stats.approvedCount"
+                :amount="stats.approvedAmount"
+                color="#52c41a"
+              />
+            </a-card>
+          </a-col>
+          <a-col
+            :xs="12"
+            :sm="12"
+            :md="6"
+          >
+            <a-card
+              size="small"
+              :bordered="true"
+            >
+              <StatCard
+                title="已拒绝"
+                :value="stats.rejectedCount"
+                :amount="stats.rejectedAmount"
+                color="#ff4d4f"
+              />
+            </a-card>
+          </a-col>
+          <a-col
+            :xs="12"
+            :sm="12"
+            :md="6"
+          >
+            <a-card
+              size="small"
+              :bordered="true"
+            >
+              <StatCard
+                title="合计笔数"
+                :value="stats.totalCount"
+                :amount="stats.totalAmount"
+                color="#1890ff"
+              />
+            </a-card>
+          </a-col>
+        </a-row>
+
+        <a-tabs
+          v-model:active-key="activeTab"
+          @change="handleTabChange"
+        >
+          <a-tab-pane
+            key="application"
+            tab="费用申请待审批"
+          />
+          <a-tab-pane
+            key="reimbursement"
+            tab="费用报销待审批"
+          />
+        </a-tabs>
+
+        <!-- 搜索栏 -->
+        <SearchBar
+          v-model="searchForm"
+          :fields="searchFields"
+          :loading="loading"
+          :expandable="false"
+          :show-result-count="true"
+          show-clear
+          :total="pagination.total"
+          @search="handleSearch"
+          @reset="handleReset"
+          @clear="handleClear"
+        />
+
+        <BillTableList
+          ref="tableRef"
+          :columns="vxeColumns"
+          :data-source="dataList"
+          :loading="loading"
+          :pagination="pagination"
+          row-key="id"
+          :show-toolbar="false"
+          :show-add="false"
+          :show-search="false"
+          :min-empty-rows="12"
+          @page-change="onPageChange"
+        >
+          <template #statusCell="{ record }">
+            <StatusTag
+              :status="record.status"
+              :map="EXPENSE_APPROVAL_STATUS"
+            />
+          </template>
+          <template #empty>
+            <EmptyState
+              v-if="!loading"
+              title="暂无数据"
+              :description="activeTab === 'application' ? '暂无待审批费用申请' : '暂无待审批费用报销'"
+              size="small"
+              :show-actions="false"
+            />
+          </template>
+          <template #action="{ record }">
+            <a-space :size="4">
+              <PrintButton
+                :record="record"
+                :business-id="record.id"
+                :business-type="activeTab === 'application' ? 'expense_application' : 'expense_reimbursement'"
+                button-type="link"
+                button-size="small"
+                tooltip="打印"
+              />
+              <a-button
+                type="link"
+                size="small"
+                @click="viewDetail(record)"
+              >
+                查看
+              </a-button>
+              <a-button
+                v-permission="'erp:expense:approval:process'"
+                type="primary"
+                size="small"
+                @click="showApprove(record)"
+              >
+                审批
+              </a-button>
+            </a-space>
+          </template>
+        </BillTableList>
+
+        <!-- 审批弹窗 -->
+        <a-modal
+          v-model:open="approveModalVisible"
+          title="审批处理"
+          width="500px"
+          :confirm-loading="approveLoading"
+          @ok="handleApproveOk"
+          @cancel="handleApproveCancel"
+        >
+          <a-form
+            :model="approveForm"
+            :label-col="{ span: 4 }"
+            :wrapper-col="{ span: 18 }"
+          >
+            <a-form-item label="当前单据">
+              <span>{{ currentRecord?.applicationTitle || currentRecord?.reimbursementTitle }}</span>
+            </a-form-item>
+            <a-form-item label="审批结果">
+              <a-radio-group v-model:value="approveForm.action">
+                <a-radio value="APPROVE">
+                  通过
+                </a-radio>
+                <a-radio value="REJECT">
+                  拒绝
+                </a-radio>
+                <a-radio value="RETURN">
+                  退回
+                </a-radio>
+              </a-radio-group>
+            </a-form-item>
+            <a-form-item label="审批意见">
+              <a-textarea
+                v-model:value="approveForm.comment"
+                :rows="3"
+                placeholder="请输入审批意见"
+                size="small"
+              />
+            </a-form-item>
+          </a-form>
+        </a-modal>
+      </template>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

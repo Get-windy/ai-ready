@@ -1,33 +1,126 @@
 <template>
   <div>
     <div class="panel-toolbar">
-      <a-button size="small" type="primary" @click="showAddModal"><PlusOutlined /> 添加联系人</a-button>
+      <a-button
+        size="small"
+        type="primary"
+        @click="showAddModal"
+      >
+        <PlusOutlined /> 添加联系人
+      </a-button>
     </div>
-    <vxe-table :data="list" border size="small" max-height="300" align="center">
-      <vxe-column type="seq" title="#" width="50" />
-      <vxe-column field="contactName" title="姓名" />
-      <vxe-column field="contactPhone" title="电话" />
-      <vxe-column field="contactEmail" title="邮箱" />
-      <vxe-column field="position" title="职位" />
-      <vxe-column field="isDefault" title="默认" width="60">
-        <template #default="{ row }"><a-tag v-if="row.isDefault" color="green">默认</a-tag></template>
-      </vxe-column>
-      <vxe-column title="操作" width="120">
+    <vxe-table
+      :data="list"
+      border
+      size="small"
+      max-height="300"
+      align="center"
+    >
+      <vxe-column
+        type="seq"
+        title="#"
+        width="50"
+      />
+      <vxe-column
+        field="contactName"
+        title="姓名"
+      />
+      <vxe-column
+        field="contactPhone"
+        title="电话"
+      />
+      <vxe-column
+        field="contactEmail"
+        title="邮箱"
+      />
+      <vxe-column
+        field="position"
+        title="职位"
+      />
+      <vxe-column
+        field="isDefault"
+        title="默认"
+        width="60"
+      >
         <template #default="{ row }">
-          <a-button type="link" size="small" @click="editRow(row)">编辑</a-button>
-          <a-button type="link" size="small" danger @click="handleDelete(row.id)">删除</a-button>
+          <a-tag
+            v-if="row.isDefault"
+            color="green"
+          >
+            默认
+          </a-tag>
+        </template>
+      </vxe-column>
+      <vxe-column
+        title="操作"
+        width="120"
+      >
+        <template #default="{ row }">
+          <a-button
+            type="link"
+            size="small"
+            @click="editRow(row)"
+          >
+            编辑
+          </a-button>
+          <a-button
+            type="link"
+            size="small"
+            danger
+            @click="handleDelete(row.id)"
+          >
+            删除
+          </a-button>
         </template>
       </vxe-column>
     </vxe-table>
 
-    <a-modal v-model:open="modalVisible" :title="editingId ? '编辑联系人' : '添加联系人'" width="500px" @ok="handleSave">
-      <a-form :label-col="{ span: 5 }" :wrapper-col="{ span: 17 }">
-        <a-form-item label="姓名" required><a-input v-model:value="form.contactName" size="small" /></a-form-item>
-        <a-form-item label="电话"><a-input v-model:value="form.contactPhone" size="small" /></a-form-item>
-        <a-form-item label="邮箱"><a-input v-model:value="form.contactEmail" size="small" /></a-form-item>
-        <a-form-item label="职位"><a-input v-model:value="form.position" size="small" /></a-form-item>
-        <a-form-item label="部门"><a-input v-model:value="form.department" size="small" /></a-form-item>
-        <a-form-item label="设为默认"><a-switch v-model:checked="form.isDefault" /></a-form-item>
+    <a-modal
+      v-model:open="modalVisible"
+      :title="editingId ? '编辑联系人' : '添加联系人'"
+      width="500px"
+      @ok="handleSave"
+    >
+      <a-form
+        :label-col="{ span: 5 }"
+        :wrapper-col="{ span: 17 }"
+      >
+        <a-form-item
+          label="姓名"
+          required
+        >
+          <a-input
+            v-model:value="form.contactName"
+            size="small"
+          />
+        </a-form-item>
+        <a-form-item label="电话">
+          <a-input
+            v-model:value="form.contactPhone"
+            size="small"
+          />
+        </a-form-item>
+        <a-form-item label="邮箱">
+          <a-input
+            v-model:value="form.contactEmail"
+            size="small"
+          />
+        </a-form-item>
+        <a-form-item label="职位">
+          <a-input
+            v-model:value="form.position"
+            size="small"
+          />
+        </a-form-item>
+        <a-form-item label="部门">
+          <a-input
+            v-model:value="form.department"
+            size="small"
+          />
+        </a-form-item>
+        <a-form-item label="设为默认">
+          <a-switch v-model:checked="form.isDefault" />
+        </a-form-item>
       </a-form>
     </a-modal>
   </div>

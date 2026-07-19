@@ -6,29 +6,55 @@
         <!-- 实时数据 -->
         <div class="dash-section realtime-section">
           <div class="section-header">
-            <h2 class="section-title"><span class="title-bar" /> 实时数据</h2>
+            <h2 class="section-title">
+              <span class="title-bar" /> 实时数据
+            </h2>
             <span class="section-hint">统计截止当前时间</span>
           </div>
-          <a-row :gutter="24" class="realtime-cards">
+          <a-row
+            :gutter="24"
+            class="realtime-cards"
+          >
             <a-col :span="8">
               <div class="realtime-card">
-                <div class="rt-label">本月收入</div>
-                <div class="rt-value rt-income">{{ formatMoney(realtime.monthlyIncome) }}</div>
-                <div class="rt-today">今日{{ formatMoney(realtime.todayIncome) }}</div>
+                <div class="rt-label">
+                  本月收入
+                </div>
+                <div class="rt-value rt-income">
+                  {{ formatMoney(realtime.monthlyIncome) }}
+                </div>
+                <div class="rt-today">
+                  今日{{ formatMoney(realtime.todayIncome) }}
+                </div>
               </div>
             </a-col>
             <a-col :span="8">
               <div class="realtime-card">
-                <div class="rt-label">本月支出</div>
-                <div class="rt-value rt-expense">{{ formatMoney(realtime.monthlyExpense) }}</div>
-                <div class="rt-today">今日{{ formatMoney(realtime.todayExpense) }}</div>
+                <div class="rt-label">
+                  本月支出
+                </div>
+                <div class="rt-value rt-expense">
+                  {{ formatMoney(realtime.monthlyExpense) }}
+                </div>
+                <div class="rt-today">
+                  今日{{ formatMoney(realtime.todayExpense) }}
+                </div>
               </div>
             </a-col>
             <a-col :span="8">
               <div class="realtime-card">
-                <div class="rt-label">本月营业利润</div>
-                <div class="rt-value" :class="realtime.monthlyProfit >= 0 ? 'rt-income' : 'rt-expense'">{{ formatMoney(realtime.monthlyProfit) }}</div>
-                <div class="rt-today">今日{{ formatMoney(realtime.todayProfit) }}</div>
+                <div class="rt-label">
+                  本月营业利润
+                </div>
+                <div
+                  class="rt-value"
+                  :class="realtime.monthlyProfit >= 0 ? 'rt-income' : 'rt-expense'"
+                >
+                  {{ formatMoney(realtime.monthlyProfit) }}
+                </div>
+                <div class="rt-today">
+                  今日{{ formatMoney(realtime.todayProfit) }}
+                </div>
               </div>
             </a-col>
           </a-row>
@@ -38,24 +64,45 @@
         <div class="dash-section overview-section">
           <div class="section-header">
             <div class="section-title-wrap">
-              <h2 class="section-title"><span class="title-bar" /> 业绩概览</h2>
+              <h2 class="section-title">
+                <span class="title-bar" /> 业绩概览
+              </h2>
               <span class="section-hint">本月默认统计1号到当前日期的数据</span>
             </div>
             <div class="section-actions">
-              <a-select v-model:value="periodType" size="small" style="width: 100px" @change="handlePeriodChange">
-                <a-select-option value="month">本月</a-select-option>
-                <a-select-option value="week">本周</a-select-option>
-                <a-select-option value="quarter">本季度</a-select-option>
+              <a-select
+                v-model:value="periodType"
+                size="small"
+                style="width: 100px"
+                @change="handlePeriodChange"
+              >
+                <a-select-option value="month">
+                  本月
+                </a-select-option>
+                <a-select-option value="week">
+                  本周
+                </a-select-option>
+                <a-select-option value="quarter">
+                  本季度
+                </a-select-option>
               </a-select>
             </div>
           </div>
 
           <!-- KPI 卡片横向滚动 -->
           <div class="kpi-scroll-wrapper">
-            <button v-if="kpiScrollable" class="kpi-arrow kpi-arrow-left" @click="scrollKpi(-1)">
+            <button
+              v-if="kpiScrollable"
+              class="kpi-arrow kpi-arrow-left"
+              @click="scrollKpi(-1)"
+            >
               <LeftOutlined />
             </button>
-            <div ref="kpiScrollRef" class="kpi-scroll" @scroll="onKpiScroll">
+            <div
+              ref="kpiScrollRef"
+              class="kpi-scroll"
+              @scroll="onKpiScroll"
+            >
               <div
                 v-for="ind in currentIndicators"
                 :key="ind.id"
@@ -63,43 +110,79 @@
               >
                 <div class="kpi-header">
                   <span class="kpi-label">{{ ind.label }}</span>
-                  <span v-if="ind.id === 'visit_count'" class="kpi-rate">0%</span>
+                  <span
+                    v-if="ind.id === 'visit_count'"
+                    class="kpi-rate"
+                  >0%</span>
                 </div>
-                <div class="kpi-value" :style="{ color: ind.color }">
+                <div
+                  class="kpi-value"
+                  :style="{ color: ind.color }"
+                >
                   {{ ind.prefix || '' }}{{ formatKpiValue(ind) }}
                 </div>
-                <div class="kpi-unit">{{ ind.unit || '' }}</div>
+                <div class="kpi-unit">
+                  {{ ind.unit || '' }}
+                </div>
               </div>
             </div>
-            <button v-if="kpiScrollable" class="kpi-arrow kpi-arrow-right" @click="scrollKpi(1)">
+            <button
+              v-if="kpiScrollable"
+              class="kpi-arrow kpi-arrow-right"
+              @click="scrollKpi(1)"
+            >
               <RightOutlined />
             </button>
           </div>
 
           <!-- 趋势图 -->
-          <div ref="trendChartRef" class="trend-chart" />
+          <div
+            ref="trendChartRef"
+            class="trend-chart"
+          />
         </div>
 
         <!-- 排行榜 -->
-        <a-row :gutter="4" class="rank-row">
+        <a-row
+          :gutter="4"
+          class="rank-row"
+        >
           <a-col :span="12">
             <div class="dash-section rank-section">
               <div class="section-header">
-                <h2 class="section-title"><span class="title-bar" /> 本月客户销售排行</h2>
+                <h2 class="section-title">
+                  <span class="title-bar" /> 本月客户销售排行
+                </h2>
                 <a class="detail-link">详情 &gt;</a>
               </div>
               <table class="rank-table">
                 <thead>
-                  <tr><th style="width:50px">排名</th><th>客户名称</th><th style="width:100px">销售金额</th></tr>
+                  <tr>
+                    <th style="width:50px">
+                      排名
+                    </th><th>客户名称</th><th style="width:100px">
+                      销售金额
+                    </th>
+                  </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="(r, i) in customerRanking" :key="i">
+                  <tr
+                    v-for="(r, i) in customerRanking"
+                    :key="i"
+                  >
                     <td>{{ i + 1 }}</td>
                     <td>{{ r.name }}</td>
-                    <td class="rank-amount">{{ formatMoney(r.amount) }}</td>
+                    <td class="rank-amount">
+                      {{ formatMoney(r.amount) }}
+                    </td>
                   </tr>
                   <tr v-if="customerRanking.length === 0">
-                    <td colspan="3" class="empty-text">暂无数据</td>
+                    <td
+                      colspan="3"
+                      class="empty-text"
+                    >
+                      暂无数据
+                    </td>
                   </tr>
                 </tbody>
               </table>
@@ -108,21 +191,39 @@
           <a-col :span="12">
             <div class="dash-section rank-section">
               <div class="section-header">
-                <h2 class="section-title"><span class="title-bar" /> 本月商品销售排行</h2>
+                <h2 class="section-title">
+                  <span class="title-bar" /> 本月商品销售排行
+                </h2>
                 <a class="detail-link">详情 &gt;</a>
               </div>
               <table class="rank-table">
                 <thead>
-                  <tr><th style="width:50px">排名</th><th>商品名称</th><th style="width:100px">销售金额</th></tr>
+                  <tr>
+                    <th style="width:50px">
+                      排名
+                    </th><th>商品名称</th><th style="width:100px">
+                      销售金额
+                    </th>
+                  </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="(r, i) in productRanking" :key="i">
+                  <tr
+                    v-for="(r, i) in productRanking"
+                    :key="i"
+                  >
                     <td>{{ i + 1 }}</td>
                     <td>{{ r.name }}</td>
-                    <td class="rank-amount">{{ formatMoney(r.amount) }}</td>
+                    <td class="rank-amount">
+                      {{ formatMoney(r.amount) }}
+                    </td>
                   </tr>
                   <tr v-if="productRanking.length === 0">
-                    <td colspan="3" class="empty-text">暂无数据</td>
+                    <td
+                      colspan="3"
+                      class="empty-text"
+                    >
+                      暂无数据
+                    </td>
                   </tr>
                 </tbody>
               </table>
@@ -135,18 +236,31 @@
       <div class="right-col">
         <div class="dash-section notice-section">
           <div class="section-header">
-            <h2 class="section-title"><span class="title-bar" /> 公告</h2>
+            <h2 class="section-title">
+              <span class="title-bar" /> 公告
+            </h2>
           </div>
           <div class="notice-list">
-            <div v-for="n in notices" :key="n.id" class="notice-item">
+            <div
+              v-for="n in notices"
+              :key="n.id"
+              class="notice-item"
+            >
               <span class="notice-title">{{ n.title }}</span>
               <span class="notice-date">{{ n.date }}</span>
             </div>
-            <div v-if="notices.length === 0" class="empty-text">暂无公告</div>
+            <div
+              v-if="notices.length === 0"
+              class="empty-text"
+            >
+              暂无公告
+            </div>
           </div>
         </div>
         <div class="ad-banner">
-          <div class="ad-placeholder">聚合在线支付<br/>抄底费率</div>
+          <div class="ad-placeholder">
+            聚合在线支付<br>抄底费率
+          </div>
         </div>
       </div>
     </div>
@@ -158,22 +272,34 @@
       :footer="null"
       width="500px"
     >
-      <p class="custom-tip">勾选需要在工作台显示的指标（至少保留1个）</p>
+      <p class="custom-tip">
+        勾选需要在工作台显示的指标（至少保留1个）
+      </p>
       <div class="custom-indicator-list">
         <a-checkbox
           v-for="ind in ALL_INDICATORS"
           :key="ind.id"
           :checked="customSelectedIds.includes(ind.id)"
-          @change="onCustomToggle(ind.id)"
           class="custom-item"
+          @change="onCustomToggle(ind.id)"
         >
-          <component :is="ind.icon" :style="{ color: ind.color, marginRight: 6 }" />
+          <component
+            :is="ind.icon"
+            :style="{ color: ind.color, marginRight: 6 }"
+          />
           {{ ind.label }}
         </a-checkbox>
       </div>
       <div class="custom-actions">
-        <a-button @click="handleResetIndicators">恢复默认</a-button>
-        <a-button type="primary" @click="handleSaveCustom">确定</a-button>
+        <a-button @click="handleResetIndicators">
+          恢复默认
+        </a-button>
+        <a-button
+          type="primary"
+          @click="handleSaveCustom"
+        >
+          确定
+        </a-button>
       </div>
     </a-modal>
   </div>

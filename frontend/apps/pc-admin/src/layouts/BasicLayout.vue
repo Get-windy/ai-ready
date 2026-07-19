@@ -1,5 +1,9 @@
 <template>
-  <a-layout class="basic-layout" aria-label="主导航布局" :has-sider="true">
+  <a-layout
+    class="basic-layout"
+    aria-label="主导航布局"
+    :has-sider="true"
+  >
     <!-- 桌面端 Mega Sidebar (140px / 60px) -->
     <div
       v-if="isDesktopView || isTabletView"
@@ -8,11 +12,20 @@
       @mouseleave="hoverState.handleTargetLeave()"
     >
       <div class="mega-sidebar-logo">
-        <img src="@/assets/logo.svg" alt="logo" />
-        <span v-show="!sidebarCollapsed" class="mega-sidebar-logo-text">企智连</span>
+        <img
+          src="@/assets/logo.svg"
+          alt="logo"
+        >
+        <span
+          v-show="!sidebarCollapsed"
+          class="mega-sidebar-logo-text"
+        >企智连</span>
       </div>
 
-      <div ref="sidebarItemsRef" class="mega-sidebar-items">
+      <div
+        ref="sidebarItemsRef"
+        class="mega-sidebar-items"
+      >
         <div
           v-for="menu in userStore.menus"
           :key="menu.id"
@@ -21,12 +34,25 @@
           @mouseenter="handleSidebarHover(menu, $event.currentTarget as HTMLElement)"
           @click="handleSidebarClick(menu, $event.currentTarget as HTMLElement)"
         >
-          <component :is="getIcon(menu.icon)" v-if="menu.icon" class="mega-sidebar-icon" />
-          <span v-show="!sidebarCollapsed" class="mega-sidebar-label">{{ menu.menuName }}</span>
-          <div v-if="!isDashboard(menu) && !sidebarCollapsed" class="mega-sidebar-hover-bar" />
+          <component
+            :is="getIcon(menu.icon)"
+            v-if="menu.icon"
+            class="mega-sidebar-icon"
+          />
+          <span
+            v-show="!sidebarCollapsed"
+            class="mega-sidebar-label"
+          >{{ menu.menuName }}</span>
+          <div
+            v-if="!isDashboard(menu) && !sidebarCollapsed"
+            class="mega-sidebar-hover-bar"
+          />
         </div>
         <!-- Spacer: 动态增高以创造滚动空间 -->
-        <div ref="sidebarSpacerRef" class="mega-sidebar-spacer" />
+        <div
+          ref="sidebarSpacerRef"
+          class="mega-sidebar-spacer"
+        />
       </div>
 
       <!-- MegaMenuPanel 弹出面板（折叠时不显示） -->
@@ -57,11 +83,17 @@
         role="navigation"
         aria-label="移动端导航菜单"
       >
-        <template v-for="menu in userStore.menus" :key="menu.id">
+        <template
+          v-for="menu in userStore.menus"
+          :key="menu.id"
+        >
           <a-menu-item
             @click="handleMobileMenuClick(getFirstLeafPath(menu) || '/')"
           >
-            <component :is="getIcon(menu.icon)" v-if="menu.icon" />
+            <component
+              :is="getIcon(menu.icon)"
+              v-if="menu.icon"
+            />
             <span>{{ menu.menuName }}</span>
           </a-menu-item>
         </template>
@@ -99,8 +131,15 @@
           />
 
           <!-- 常用菜单快捷下拉 -->
-          <a-dropdown placement="bottomLeft" :trigger="['click']">
-            <a-button type="text" size="small" class="quick-menu-btn">
+          <a-dropdown
+            placement="bottomLeft"
+            :trigger="['click']"
+          >
+            <a-button
+              type="text"
+              size="small"
+              class="quick-menu-btn"
+            >
               常用菜单
               <DownOutlined style="margin-left: 2px; font-size: 10px;" />
             </a-button>
@@ -111,10 +150,17 @@
                   :key="item.path"
                   @click="navigateTo(item.path)"
                 >
-                  <component :is="getIcon(item.icon)" v-if="item.icon" style="margin-right: 6px;" />
+                  <component
+                    :is="getIcon(item.icon)"
+                    v-if="item.icon"
+                    style="margin-right: 6px;"
+                  />
                   {{ item.menuName }}
                 </a-menu-item>
-                <a-menu-item v-if="quickMenuItems.length === 0" disabled>
+                <a-menu-item
+                  v-if="quickMenuItems.length === 0"
+                  disabled
+                >
                   <span style="color: #999;">暂无常用菜单</span>
                 </a-menu-item>
               </a-menu>
@@ -131,13 +177,23 @@
               class="header-btn"
               @click="showFavorites = !showFavorites"
             >
-              <template #icon><StarOutlined :style="{ color: showFavorites ? '#faad14' : undefined }" /></template>
+              <template #icon>
+                <StarOutlined :style="{ color: showFavorites ? '#faad14' : undefined }" />
+              </template>
             </a-button>
           </a-tooltip>
 
           <!-- 通知 -->
-          <a-dropdown v-model:open="notif.showDropdown.value" placement="bottomRight" :trigger="['click']">
-            <a-badge :count="notif.unreadCount.value" :dot="notif.unreadCount.value > 0" size="small">
+          <a-dropdown
+            v-model:open="notif.showDropdown.value"
+            placement="bottomRight"
+            :trigger="['click']"
+          >
+            <a-badge
+              :count="notif.unreadCount.value"
+              :dot="notif.unreadCount.value > 0"
+              size="small"
+            >
               <a-tooltip title="通知">
                 <a-button
                   type="text"
@@ -145,23 +201,36 @@
                   class="header-btn"
                   @click="notif.showDropdown.value = !notif.showDropdown.value"
                 >
-                  <template #icon><BellOutlined /></template>
+                  <template #icon>
+                    <BellOutlined />
+                  </template>
                 </a-button>
               </a-tooltip>
             </a-badge>
             <template #overlay>
               <a-menu class="notification-dropdown">
-                <a-menu-item key="header" disabled style="cursor: default; height: auto; padding: 8px 16px;">
+                <a-menu-item
+                  key="header"
+                  disabled
+                  style="cursor: default; height: auto; padding: 8px 16px;"
+                >
                   <div style="display: flex; justify-content: space-between; align-items: center;">
                     <strong>通知</strong>
                     <span style="font-size: 12px; color: #999;">
-                      <a @click.stop="notif.markAllAsRead()" style="margin-right: 8px;">全部已读</a>
+                      <a
+                        style="margin-right: 8px;"
+                        @click.stop="notif.markAllAsRead()"
+                      >全部已读</a>
                       <a @click.stop="notif.clearAll()">清空</a>
                     </span>
                   </div>
                 </a-menu-item>
 
-                <a-menu-item v-if="notif.notifications.value.length === 0" key="empty" disabled>
+                <a-menu-item
+                  v-if="notif.notifications.value.length === 0"
+                  key="empty"
+                  disabled
+                >
                   <div style="text-align: center; padding: 20px 0; color: #999;">
                     <BellOutlined style="font-size: 24px; display: block; margin-bottom: 8px;" />
                     暂无通知
@@ -178,13 +247,19 @@
                   <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                     <div style="flex: 1; min-width: 0;">
                       <div style="font-weight: 500; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                        <a-badge v-if="!item.read" status="processing" color="#1890ff" />
+                        <a-badge
+                          v-if="!item.read"
+                          status="processing"
+                          color="#1890ff"
+                        />
                         {{ item.title }}
                       </div>
                       <div style="font-size: 12px; color: #666; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                         {{ item.content }}
                       </div>
-                      <div style="font-size: 11px; color: #bbb; margin-top: 2px;">{{ formatTime(item.time) }}</div>
+                      <div style="font-size: 11px; color: #bbb; margin-top: 2px;">
+                        {{ formatTime(item.time) }}
+                      </div>
                     </div>
                     <a-button
                       v-if="!item.read"
@@ -214,7 +289,10 @@
 
           <LocaleSwitcher v-if="isDesktopView" />
 
-          <div v-if="showTenantSwitcher" class="tenant-switcher">
+          <div
+            v-if="showTenantSwitcher"
+            class="tenant-switcher"
+          >
             <a-select
               :value="userStore.tenantId"
               size="small"
@@ -233,8 +311,16 @@
           </div>
 
           <!-- 帮助中心 -->
-          <a-dropdown placement="bottomRight" :trigger="['click']">
-            <QuestionCircleOutlined class="help-center-icon" role="button" aria-label="帮助中心" tabindex="0" />
+          <a-dropdown
+            placement="bottomRight"
+            :trigger="['click']"
+          >
+            <QuestionCircleOutlined
+              class="help-center-icon"
+              role="button"
+              aria-label="帮助中心"
+              tabindex="0"
+            />
             <template #overlay>
               <a-menu class="help-center-dropdown">
                 <a-menu-item key="complaint">
@@ -253,7 +339,11 @@
                   <MobileOutlined style="color: #ff8c00;" /> 移动端
                 </a-menu-item>
                 <a-menu-divider />
-                <a-menu-item key="phone" disabled class="help-phone-item">
+                <a-menu-item
+                  key="phone"
+                  disabled
+                  class="help-phone-item"
+                >
                   <PhoneOutlined style="color: #ff4d4f;" /> 19115973320
                 </a-menu-item>
               </a-menu>
@@ -261,19 +351,30 @@
           </a-dropdown>
 
           <a-dropdown>
-            <div class="user-info" role="button" :aria-label="t('a11y.userMenu')" tabindex="0">
+            <div
+              class="user-info"
+              role="button"
+              :aria-label="t('a11y.userMenu')"
+              tabindex="0"
+            >
               <span class="username">欢迎您，{{ userStore.nickname }}</span>
               <DownOutlined style="font-size: 10px; margin-left: 4px;" />
             </div>
             <template #overlay>
               <a-menu class="user-dropdown-menu">
-                <a-menu-item key="profile" @click="navigateTo('/profile')">
+                <a-menu-item
+                  key="profile"
+                  @click="navigateTo('/profile')"
+                >
                   <SettingOutlined style="color: #ff8c00;" /> 个人设置
                 </a-menu-item>
                 <a-menu-item key="fontsize">
                   <AppstoreOutlined style="color: #ff8c00;" /> 字体大小
                 </a-menu-item>
-                <a-menu-item key="refresh" @click="handleRefresh">
+                <a-menu-item
+                  key="refresh"
+                  @click="handleRefresh"
+                >
                   <ReloadOutlined style="color: #ff8c00;" /> 刷新
                 </a-menu-item>
                 <a-menu-divider />
@@ -281,7 +382,10 @@
                   <LockOutlined style="color: #ff4d4f;" /> 获取临时密码
                 </a-menu-item>
                 <a-menu-divider />
-                <a-menu-item key="logout" @click="handleLogout">
+                <a-menu-item
+                  key="logout"
+                  @click="handleLogout"
+                >
                   <PoweroffOutlined style="color: #ff4d4f;" /> 退出
                 </a-menu-item>
               </a-menu>
@@ -303,7 +407,10 @@
         <template v-if="recentStore.favoriteList.length === 0">
           <a-empty description="暂无收藏" />
         </template>
-        <div v-else class="favorites-list">
+        <div
+          v-else
+          class="favorites-list"
+        >
           <div
             v-for="item in recentStore.favoriteList"
             :key="item.id"
@@ -315,7 +422,13 @@
           </div>
         </div>
         <template #extra>
-          <a-button type="link" danger @click="clearAllFavorites">清除全部</a-button>
+          <a-button
+            type="link"
+            danger
+            @click="clearAllFavorites"
+          >
+            清除全部
+          </a-button>
         </template>
       </a-drawer>
 
@@ -329,8 +442,14 @@
         }"
       >
         <router-view v-slot="{ Component, route }">
-          <transition name="fade" mode="out-in">
-            <keep-alive :include="tabsStore.cachedComponentNames" :max="15">
+          <transition
+            name="fade"
+            mode="out-in"
+          >
+            <keep-alive
+              :include="tabsStore.cachedComponentNames"
+              :max="15"
+            >
               <component :is="Component" />
             </keep-alive>
           </transition>
@@ -338,7 +457,6 @@
       </a-layout-content>
     </a-layout>
   </a-layout>
-
 </template>
 
 <script setup lang="ts">

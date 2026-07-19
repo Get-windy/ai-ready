@@ -1,543 +1,962 @@
 <template>
-  <ErrorBoundary @error="handleError"><PageContainer title="销售分析报表" full-height>
-    <!-- 状态栏 -->
-    <template #headerExtra>
-      <a-space :size="12">
-        <!-- 对比期选择 -->
-        <a-select v-model:value="comparePeriod" style="width: 120px" size="small" @change="onComparePeriodChange">
-          <a-select-option value="none">无对比</a-select-option>
-          <a-select-option value="prev_month">环比上月</a-select-option>
-          <a-select-option value="prev_year">同比去年</a-select-option>
-        </a-select>
-        <a-divider type="vertical" />
-        <span class="data-status">
-          <StatusTag :status="dataFreshness" :map="DATA_FRESHNESS" />
-          <span v-if="lastUpdateTime" class="update-time">
-            数据更新: {{ lastUpdateTime }}
+  <ErrorBoundary @error="handleError">
+    <PageContainer
+      title="销售分析报表"
+      full-height
+    >
+      <!-- 状态栏 -->
+      <template #headerExtra>
+        <a-space :size="12">
+          <!-- 对比期选择 -->
+          <a-select
+            v-model:value="comparePeriod"
+            style="width: 120px"
+            size="small"
+            @change="onComparePeriodChange"
+          >
+            <a-select-option value="none">
+              无对比
+            </a-select-option>
+            <a-select-option value="prev_month">
+              环比上月
+            </a-select-option>
+            <a-select-option value="prev_year">
+              同比去年
+            </a-select-option>
+          </a-select>
+          <a-divider type="vertical" />
+          <span class="data-status">
+            <StatusTag
+              :status="dataFreshness"
+              :map="DATA_FRESHNESS"
+            />
+            <span
+              v-if="lastUpdateTime"
+              class="update-time"
+            >
+              数据更新: {{ lastUpdateTime }}
+            </span>
           </span>
-        </span>
-        <a-tooltip title="自动刷新 (每60秒)">
-          <a-switch v-model:checked="autoRefresh" size="small" />
-        </a-tooltip>
-        <a-tooltip title="F5 刷新 | Ctrl+E 导出 | Ctrl+N 新建">
-          <a-button size="small" @click="debounceClick('refresh', loadData)">
-            <template #icon><ReloadOutlined /></template>
-            刷新
+          <a-tooltip title="自动刷新 (每60秒)">
+            <a-switch
+              v-model:checked="autoRefresh"
+              size="small"
+            />
+          </a-tooltip>
+          <a-tooltip title="F5 刷新 | Ctrl+E 导出 | Ctrl+N 新建">
+            <a-button
+              size="small"
+              @click="debounceClick('refresh', loadData)"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
+              刷新
+            </a-button>
+          </a-tooltip>
+          <span class="shortcut-hints">
+            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            <span class="shortcut-hint"><kbd>Ctrl</kbd>+<kbd>N</kbd> 新建</span>
+            <span class="shortcut-hint"><kbd>Ctrl</kbd>+<kbd>E</kbd> 导出</span>
+          </span>
+          <a-tooltip title="Ctrl+N 新建分析">
+            <a-button
+              v-permission="'erp:sales:create'"
+              size="small"
+              @click="debounceClick('create', handleCreate)"
+            >
+              <template #icon>
+                <PlusOutlined />
+              </template>
+              新建
+            </a-button>
+          </a-tooltip>
+          <PrintButton
+            page-code="erp/sales-analysis"
+            button-size="small"
+            tooltip="打印当前报表"
+          />
+          <a-button
+            size="small"
+            @click="showExportModal = true"
+          >
+            <template #icon>
+              <ExportOutlined />
+            </template>
+            导出
           </a-button>
-        </a-tooltip>
-        <span class="shortcut-hints">
-          <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-          <span class="shortcut-hint"><kbd>Ctrl</kbd>+<kbd>N</kbd> 新建</span>
-          <span class="shortcut-hint"><kbd>Ctrl</kbd>+<kbd>E</kbd> 导出</span>
-        </span>
-        <a-tooltip title="Ctrl+N 新建分析">
-          <a-button size="small" v-permission="'erp:sales:create'" @click="debounceClick('create', handleCreate)">
-            <template #icon><PlusOutlined /></template>
-            新建
-          </a-button>
-        </a-tooltip>
-        <PrintButton page-code="erp/sales-analysis" button-size="small" tooltip="打印当前报表" />
-        <a-button size="small" @click="showExportModal = true">
-          <template #icon><ExportOutlined /></template>
-          导出
-        </a-button>
-      </a-space>
-    </template>
+        </a-space>
+      </template>
 
-    <!-- 搜索筛选 -->
-    <template #filter>
-      <SearchBar
-        :fields="searchFields"
-        :loading="loading"
-        @search="handleSearch"
-        @reset="handleResetFilter"
-        :expandable="false"
-        :show-result-count="false"
-      />
-    </template>
+      <!-- 搜索筛选 -->
+      <template #filter>
+        <SearchBar
+          :fields="searchFields"
+          :loading="loading"
+          :expandable="false"
+          :show-result-count="false"
+          @search="handleSearch"
+          @reset="handleResetFilter"
+        />
+      </template>
 
-    <!-- 错误提示 -->
-    <div v-if="hasError" class="error-banner">
-      <a-alert
-        type="error"
-        message="数据加载失败"
-        description="系统异常，请检查网络连接后重试"
-        show-icon
-        closable
-        @close="hasError = false"
+      <!-- 错误提示 -->
+      <div
+        v-if="hasError"
+        class="error-banner"
       >
-        <template #action>
-          <a-button size="small" type="primary" @click="loadData">
-            <template #icon><ReloadOutlined /></template>
-            重试
-          </a-button>
-        </template>
-      </a-alert>
-    </div>
-
-    <!-- 汇总统计卡片 -->
-    <div v-if="!hasError" class="summary-cards">
-      <a-row :gutter="16">
-        <a-col :span="6">
-          <div class="summary-card">
-            <div class="summary-icon" style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);">
-              <DollarOutlined />
-            </div>
-            <div class="summary-content">
-              <div class="summary-title">销售总额</div>
-              <div class="summary-value">¥{{ formatAmount(summary.totalAmount) }}</div>
-              <div class="summary-change positive" v-if="summary.totalGrowth">
-                <ArrowUpOutlined /> {{ summary.totalGrowth }}%
-              </div>
-            </div>
-          </div>
-        </a-col>
-        <a-col :span="6">
-          <div class="summary-card">
-            <div class="summary-icon" style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);">
-              <ShoppingOutlined />
-            </div>
-            <div class="summary-content">
-              <div class="summary-title">订单数量</div>
-              <div class="summary-value">{{ summary.orderCount }} 单</div>
-              <div class="summary-change positive" v-if="summary.orderGrowth">
-                <ArrowUpOutlined /> {{ summary.orderGrowth }}%
-              </div>
-            </div>
-          </div>
-        </a-col>
-        <a-col :span="6">
-          <div class="summary-card">
-            <div class="summary-icon" style="background: linear-gradient(135deg, #722ed1 0%, #531dab 100%);">
-              <TeamOutlined />
-            </div>
-            <div class="summary-content">
-              <div class="summary-title">平均客单价</div>
-              <div class="summary-value">¥{{ formatAmount(summary.avgOrderAmount) }}</div>
-              <div class="summary-change positive" v-if="summary.avgGrowth">
-                <ArrowUpOutlined /> {{ summary.avgGrowth }}%
-              </div>
-            </div>
-          </div>
-        </a-col>
-        <a-col :span="6">
-          <div class="summary-card highlight">
-            <div class="summary-icon" style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);">
-              <PercentageOutlined />
-            </div>
-            <div class="summary-content">
-              <div class="summary-title">毛利率</div>
-              <div class="summary-value">{{ summary.grossMargin.toFixed(1) }}%</div>
-              <div class="summary-change positive" v-if="summary.marginGrowth">
-                <ArrowUpOutlined /> {{ summary.marginGrowth }}%
-              </div>
-            </div>
-          </div>
-        </a-col>
-      </a-row>
-    </div>
-
-    <!-- Tab 内容区 -->
-    <div v-if="!hasError" class="tab-content">
-      <a-tabs v-model:activeKey="activeTab" type="card" size="small">
-        <a-tab-pane key="overview" tab="销售概览">
-          <template v-if="!hasChartData">
-            <EmptyState title="暂无概览数据" description="当前筛选条件下没有销售概览数据" :show-add="false" />
+        <a-alert
+          type="error"
+          message="数据加载失败"
+          description="系统异常，请检查网络连接后重试"
+          show-icon
+          closable
+          @close="hasError = false"
+        >
+          <template #action>
+            <a-button
+              size="small"
+              type="primary"
+              @click="loadData"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
+              重试
+            </a-button>
           </template>
-          <template v-else>
+        </a-alert>
+      </div>
+
+      <!-- 汇总统计卡片 -->
+      <div
+        v-if="!hasError"
+        class="summary-cards"
+      >
+        <a-row :gutter="16">
+          <a-col :span="6">
+            <div class="summary-card">
+              <div
+                class="summary-icon"
+                style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);"
+              >
+                <DollarOutlined />
+              </div>
+              <div class="summary-content">
+                <div class="summary-title">
+                  销售总额
+                </div>
+                <div class="summary-value">
+                  ¥{{ formatAmount(summary.totalAmount) }}
+                </div>
+                <div
+                  v-if="summary.totalGrowth"
+                  class="summary-change positive"
+                >
+                  <ArrowUpOutlined /> {{ summary.totalGrowth }}%
+                </div>
+              </div>
+            </div>
+          </a-col>
+          <a-col :span="6">
+            <div class="summary-card">
+              <div
+                class="summary-icon"
+                style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);"
+              >
+                <ShoppingOutlined />
+              </div>
+              <div class="summary-content">
+                <div class="summary-title">
+                  订单数量
+                </div>
+                <div class="summary-value">
+                  {{ summary.orderCount }} 单
+                </div>
+                <div
+                  v-if="summary.orderGrowth"
+                  class="summary-change positive"
+                >
+                  <ArrowUpOutlined /> {{ summary.orderGrowth }}%
+                </div>
+              </div>
+            </div>
+          </a-col>
+          <a-col :span="6">
+            <div class="summary-card">
+              <div
+                class="summary-icon"
+                style="background: linear-gradient(135deg, #722ed1 0%, #531dab 100%);"
+              >
+                <TeamOutlined />
+              </div>
+              <div class="summary-content">
+                <div class="summary-title">
+                  平均客单价
+                </div>
+                <div class="summary-value">
+                  ¥{{ formatAmount(summary.avgOrderAmount) }}
+                </div>
+                <div
+                  v-if="summary.avgGrowth"
+                  class="summary-change positive"
+                >
+                  <ArrowUpOutlined /> {{ summary.avgGrowth }}%
+                </div>
+              </div>
+            </div>
+          </a-col>
+          <a-col :span="6">
+            <div class="summary-card highlight">
+              <div
+                class="summary-icon"
+                style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);"
+              >
+                <PercentageOutlined />
+              </div>
+              <div class="summary-content">
+                <div class="summary-title">
+                  毛利率
+                </div>
+                <div class="summary-value">
+                  {{ summary.grossMargin.toFixed(1) }}%
+                </div>
+                <div
+                  v-if="summary.marginGrowth"
+                  class="summary-change positive"
+                >
+                  <ArrowUpOutlined /> {{ summary.marginGrowth }}%
+                </div>
+              </div>
+            </div>
+          </a-col>
+        </a-row>
+      </div>
+
+      <!-- Tab 内容区 -->
+      <div
+        v-if="!hasError"
+        class="tab-content"
+      >
+        <a-tabs
+          v-model:active-key="activeTab"
+          type="card"
+          size="small"
+        >
+          <a-tab-pane
+            key="overview"
+            tab="销售概览"
+          >
+            <template v-if="!hasChartData">
+              <EmptyState
+                title="暂无概览数据"
+                description="当前筛选条件下没有销售概览数据"
+                :show-add="false"
+              />
+            </template>
+            <template v-else>
+              <a-row :gutter="16">
+                <a-col :span="12">
+                  <a-card
+                    title="销售趋势"
+                    size="small"
+                    :loading="chartLoading"
+                  >
+                    <div
+                      ref="trendChartRef"
+                      class="chart-container"
+                    />
+                  </a-card>
+                </a-col>
+                <a-col :span="12">
+                  <a-card
+                    title="销售渠道分布"
+                    size="small"
+                    :loading="chartLoading"
+                  >
+                    <div
+                      ref="channelChartRef"
+                      class="chart-container"
+                    />
+                  </a-card>
+                </a-col>
+              </a-row>
+              <a-row
+                :gutter="16"
+                style="margin-top: 16px"
+              >
+                <a-col :span="12">
+                  <a-card
+                    title="月度对比"
+                    size="small"
+                    :loading="chartLoading"
+                  >
+                    <div
+                      ref="monthlyChartRef"
+                      class="chart-container"
+                    />
+                  </a-card>
+                </a-col>
+                <a-col :span="12">
+                  <a-card
+                    title="同比环比分析"
+                    size="small"
+                    :loading="chartLoading"
+                  >
+                    <div
+                      ref="compareChartRef"
+                      class="chart-container"
+                    />
+                  </a-card>
+                </a-col>
+              </a-row>
+            </template>
+          </a-tab-pane>
+
+          <a-tab-pane
+            key="customer"
+            tab="客户分析"
+          >
+            <a-row :gutter="16">
+              <a-col :span="8">
+                <a-card
+                  title="客户等级分布"
+                  size="small"
+                  :loading="chartLoading"
+                >
+                  <div
+                    ref="customerLevelChartRef"
+                    class="chart-container"
+                  />
+                </a-card>
+              </a-col>
+              <a-col :span="8">
+                <a-card
+                  title="客户来源分析"
+                  size="small"
+                  :loading="chartLoading"
+                >
+                  <div
+                    ref="customerSourceChartRef"
+                    class="chart-container"
+                  />
+                </a-card>
+              </a-col>
+              <a-col :span="8">
+                <a-card
+                  title="客户地区分布"
+                  size="small"
+                  :loading="chartLoading"
+                >
+                  <div
+                    ref="customerRegionChartRef"
+                    class="chart-container"
+                  />
+                </a-card>
+              </a-col>
+            </a-row>
+            <a-card
+              title="客户销售排行 TOP10"
+              size="small"
+              style="margin-top: 16px"
+            >
+              <div
+                v-if="sectionErrors.customerRank"
+                class="section-error-banner"
+              >
+                <a-alert
+                  type="error"
+                  message="客户排行加载失败"
+                  description="系统异常，请重试"
+                  show-icon
+                  closable
+                  @close="clearSectionError('customerRank')"
+                >
+                  <template #action>
+                    <a-button
+                      size="small"
+                      type="primary"
+                      @click="retrySection('customerRank')"
+                    >
+                      <ReloadOutlined /> 重试
+                    </a-button>
+                  </template>
+                </a-alert>
+              </div>
+              <div
+                v-else-if="customerRankData.length === 0"
+                class="empty-table-placeholder"
+              >
+                <EmptyState
+                  title="暂无客户排行数据"
+                  description="当前筛选条件下没有客户排行数据"
+                  size="small"
+                  show-actions
+                  :show-add="false"
+                  :show-refresh="true"
+                  @refresh="loadData"
+                />
+              </div>
+              <div
+                v-else
+                class="ranking-table-container"
+              >
+                <BillTableList
+                  :columns="customerRankVxeColumns"
+                  :data-source="customerRankData"
+                  :pagination="noPagination"
+                  row-key="rank"
+                  :show-toolbar="false"
+                  :selectable="false"
+                  :show-add="false"
+                  :show-search="false"
+                  :show-export="false"
+                  :show-batch-delete="false"
+                >
+                  <template #rankCell="{ record }">
+                    <a-tag
+                      v-if="record.rank <= 3"
+                      :color="getRankColor(record.rank)"
+                    >
+                      {{ record.rank }}
+                    </a-tag>
+                    <span v-else>{{ record.rank }}</span>
+                  </template>
+                  <template #customerTypeCell="{ record }">
+                    <StatusTag
+                      :status="record.customerType"
+                      :map="CUSTOMER_TYPE_MAP"
+                    />
+                  </template>
+                  <template #totalAmountCell="{ record }">
+                    <span class="amount-cell">¥{{ formatAmount(record.totalAmount) }}</span>
+                  </template>
+                  <template #growthCell="{ record }">
+                    <span :class="['growth-cell', { positive: record.growth > 0, negative: record.growth < 0 }]">
+                      <ArrowUpOutlined v-if="record.growth > 0" />
+                      <ArrowDownOutlined v-if="record.growth < 0" />
+                      {{ Math.abs(record.growth) }}%
+                    </span>
+                  </template>
+                </BillTableList>
+              </div>
+            </a-card>
+          </a-tab-pane>
+
+          <a-tab-pane
+            key="product"
+            tab="产品分析"
+          >
+            <a-row :gutter="16">
+              <a-col :span="8">
+                <a-card
+                  title="产品类别销售"
+                  size="small"
+                  :loading="chartLoading"
+                >
+                  <div
+                    ref="productCategoryChartRef"
+                    class="chart-container"
+                  />
+                </a-card>
+              </a-col>
+              <a-col :span="8">
+                <a-card
+                  title="产品销量分布"
+                  size="small"
+                  :loading="chartLoading"
+                >
+                  <div
+                    ref="productVolumeChartRef"
+                    class="chart-container"
+                  />
+                </a-card>
+              </a-col>
+              <a-col :span="8">
+                <a-card
+                  title="产品毛利率分布"
+                  size="small"
+                  :loading="chartLoading"
+                >
+                  <div
+                    ref="productMarginChartRef"
+                    class="chart-container"
+                  />
+                </a-card>
+              </a-col>
+            </a-row>
+            <a-card
+              title="产品销售排行 TOP10"
+              size="small"
+              style="margin-top: 16px"
+            >
+              <div
+                v-if="sectionErrors.productRank"
+                class="section-error-banner"
+              >
+                <a-alert
+                  type="error"
+                  message="产品排行加载失败"
+                  description="系统异常，请重试"
+                  show-icon
+                  closable
+                  @close="clearSectionError('productRank')"
+                >
+                  <template #action>
+                    <a-button
+                      size="small"
+                      type="primary"
+                      @click="retrySection('productRank')"
+                    >
+                      <ReloadOutlined /> 重试
+                    </a-button>
+                  </template>
+                </a-alert>
+              </div>
+              <div
+                v-else-if="productRankData.length === 0"
+                class="empty-table-placeholder"
+              >
+                <EmptyState
+                  title="暂无产品排行数据"
+                  description="当前筛选条件下没有产品排行数据"
+                  size="small"
+                  show-actions
+                  :show-add="false"
+                  :show-refresh="true"
+                  @refresh="loadData"
+                />
+              </div>
+              <div
+                v-else
+                class="ranking-table-container"
+              >
+                <BillTableList
+                  :columns="productRankVxeColumns"
+                  :data-source="productRankData"
+                  :pagination="noPagination"
+                  row-key="rank"
+                  :show-toolbar="false"
+                  :selectable="false"
+                  :show-add="false"
+                  :show-search="false"
+                  :show-export="false"
+                  :show-batch-delete="false"
+                >
+                  <template #rankCell="{ record }">
+                    <a-tag
+                      v-if="record.rank <= 3"
+                      :color="getRankColor(record.rank)"
+                    >
+                      {{ record.rank }}
+                    </a-tag>
+                    <span v-else>{{ record.rank }}</span>
+                  </template>
+                  <template #trendCell="{ record }">
+                    <span :class="['trend-cell', { up: (record.trend ?? 0) > 0, down: (record.trend ?? 0) < 0, flat: (record.trend ?? 0) === 0 }]">
+                      <ArrowUpOutlined v-if="(record.trend ?? 0) > 0" />
+                      <ArrowDownOutlined v-if="(record.trend ?? 0) < 0" />
+                      <span v-if="(record.trend ?? 0) === 0">--</span>
+                      <span v-if="(record.trend ?? 0) !== 0">{{ Math.abs(record.trend ?? 0) }}%</span>
+                    </span>
+                  </template>
+                  <template #totalAmountCell="{ record }">
+                    <span class="amount-cell">¥{{ formatAmount(record.totalAmount) }}</span>
+                  </template>
+                  <template #marginCell="{ record }">
+                    <a-progress
+                      :percent="record.margin"
+                      :stroke-color="getMarginColor(record.margin)"
+                      size="small"
+                      :show-info="true"
+                      :format="(p: number) => `${p}%`"
+                    />
+                  </template>
+                </BillTableList>
+              </div>
+            </a-card>
+          </a-tab-pane>
+
+          <a-tab-pane
+            key="salesperson"
+            tab="销售人员分析"
+          >
             <a-row :gutter="16">
               <a-col :span="12">
-                <a-card title="销售趋势" size="small" :loading="chartLoading">
-                  <div ref="trendChartRef" class="chart-container"></div>
+                <a-card
+                  title="销售人员业绩"
+                  size="small"
+                  :loading="chartLoading"
+                >
+                  <div
+                    ref="salespersonChartRef"
+                    class="chart-container"
+                  />
                 </a-card>
               </a-col>
               <a-col :span="12">
-                <a-card title="销售渠道分布" size="small" :loading="chartLoading">
-                  <div ref="channelChartRef" class="chart-container"></div>
+                <a-card
+                  title="销售人员目标达成率"
+                  size="small"
+                  :loading="chartLoading"
+                >
+                  <div
+                    ref="targetChartRef"
+                    class="chart-container"
+                  />
                 </a-card>
               </a-col>
             </a-row>
-            <a-row :gutter="16" style="margin-top: 16px">
+            <a-card
+              title="销售人员业绩排行"
+              size="small"
+              style="margin-top: 16px"
+            >
+              <div
+                v-if="sectionErrors.salespersonRank"
+                class="section-error-banner"
+              >
+                <a-alert
+                  type="error"
+                  message="人员排行加载失败"
+                  description="系统异常，请重试"
+                  show-icon
+                  closable
+                  @close="clearSectionError('salespersonRank')"
+                >
+                  <template #action>
+                    <a-button
+                      size="small"
+                      type="primary"
+                      @click="retrySection('salespersonRank')"
+                    >
+                      <ReloadOutlined /> 重试
+                    </a-button>
+                  </template>
+                </a-alert>
+              </div>
+              <div
+                v-else-if="salespersonRankData.length === 0"
+                class="empty-table-placeholder"
+              >
+                <EmptyState
+                  title="暂无人员排行数据"
+                  description="当前筛选条件下没有人员排行数据"
+                  size="small"
+                  show-actions
+                  :show-add="false"
+                  :show-refresh="true"
+                  @refresh="loadData"
+                />
+              </div>
+              <div
+                v-else
+                class="ranking-table-container"
+              >
+                <BillTableList
+                  :columns="salespersonRankVxeColumns"
+                  :data-source="salespersonRankData"
+                  :pagination="noPagination"
+                  row-key="rank"
+                  :show-toolbar="false"
+                  :selectable="false"
+                  :show-add="false"
+                  :show-search="false"
+                  :show-export="false"
+                  :show-batch-delete="false"
+                >
+                  <template #rankCell="{ record }">
+                    <a-tag
+                      v-if="record.rank <= 3"
+                      :color="getRankColor(record.rank)"
+                    >
+                      {{ record.rank }}
+                    </a-tag>
+                    <span v-else>{{ record.rank }}</span>
+                  </template>
+                  <template #trendCell="{ record }">
+                    <span :class="['trend-cell', { up: (record.trend ?? 0) > 0, down: (record.trend ?? 0) < 0, flat: (record.trend ?? 0) === 0 }]">
+                      <ArrowUpOutlined v-if="(record.trend ?? 0) > 0" />
+                      <ArrowDownOutlined v-if="(record.trend ?? 0) < 0" />
+                      <span v-if="(record.trend ?? 0) === 0">--</span>
+                      <span v-if="(record.trend ?? 0) !== 0">{{ Math.abs(record.trend ?? 0) }}%</span>
+                    </span>
+                  </template>
+                  <template #totalAmountCell="{ record }">
+                    <span class="amount-cell">¥{{ formatAmount(record.totalAmount) }}</span>
+                  </template>
+                  <template #targetRateCell="{ record }">
+                    <a-progress
+                      :percent="record.targetRate"
+                      :stroke-color="getTargetColor(record.targetRate)"
+                      size="small"
+                      :show-info="true"
+                      :format="(p: number) => `${p}%`"
+                    />
+                  </template>
+                </BillTableList>
+              </div>
+            </a-card>
+          </a-tab-pane>
+
+          <a-tab-pane
+            key="region"
+            tab="区域分析"
+          >
+            <a-row :gutter="16">
               <a-col :span="12">
-                <a-card title="月度对比" size="small" :loading="chartLoading">
-                  <div ref="monthlyChartRef" class="chart-container"></div>
+                <a-card
+                  title="区域销售分布"
+                  size="small"
+                  :loading="chartLoading"
+                >
+                  <div
+                    ref="regionChartRef"
+                    class="chart-container"
+                  />
                 </a-card>
               </a-col>
               <a-col :span="12">
-                <a-card title="同比环比分析" size="small" :loading="chartLoading">
-                  <div ref="compareChartRef" class="chart-container"></div>
+                <a-card
+                  title="区域增长对比"
+                  size="small"
+                  :loading="chartLoading"
+                >
+                  <div
+                    ref="regionGrowthChartRef"
+                    class="chart-container"
+                  />
                 </a-card>
               </a-col>
             </a-row>
-          </template>
-        </a-tab-pane>
-
-        <a-tab-pane key="customer" tab="客户分析">
-          <a-row :gutter="16">
-            <a-col :span="8">
-              <a-card title="客户等级分布" size="small" :loading="chartLoading">
-                <div ref="customerLevelChartRef" class="chart-container"></div>
-              </a-card>
-            </a-col>
-            <a-col :span="8">
-              <a-card title="客户来源分析" size="small" :loading="chartLoading">
-                <div ref="customerSourceChartRef" class="chart-container"></div>
-              </a-card>
-            </a-col>
-            <a-col :span="8">
-              <a-card title="客户地区分布" size="small" :loading="chartLoading">
-                <div ref="customerRegionChartRef" class="chart-container"></div>
-              </a-card>
-            </a-col>
-          </a-row>
-          <a-card title="客户销售排行 TOP10" size="small" style="margin-top: 16px">
-            <div v-if="sectionErrors.customerRank" class="section-error-banner">
-              <a-alert type="error" message="客户排行加载失败" description="系统异常，请重试" show-icon closable @close="clearSectionError('customerRank')">
-                <template #action>
-                  <a-button size="small" type="primary" @click="retrySection('customerRank')"><ReloadOutlined /> 重试</a-button>
-                </template>
-              </a-alert>
-            </div>
-            <div v-else-if="customerRankData.length === 0" class="empty-table-placeholder">
-              <EmptyState title="暂无客户排行数据" description="当前筛选条件下没有客户排行数据" size="small" show-actions :show-add="false" :show-refresh="true" @refresh="loadData" />
-            </div>
-            <div v-else class="ranking-table-container">
-              <BillTableList
-                :columns="customerRankVxeColumns"
-                :data-source="customerRankData"
-                :pagination="noPagination"
-                row-key="rank"
-                :show-toolbar="false"
-                :selectable="false"
-                :show-add="false"
-                :show-search="false"
-                :show-export="false"
-                :show-batch-delete="false"
+            <a-card
+              title="区域销售明细"
+              size="small"
+              style="margin-top: 16px"
+            >
+              <div
+                v-if="sectionErrors.region"
+                class="section-error-banner"
               >
-                <template #rankCell="{ record }">
-                  <a-tag v-if="record.rank <= 3" :color="getRankColor(record.rank)">
-                    {{ record.rank }}
-                  </a-tag>
-                  <span v-else>{{ record.rank }}</span>
-                </template>
-                <template #customerTypeCell="{ record }">
-                  <StatusTag :status="record.customerType" :map="CUSTOMER_TYPE_MAP" />
-                </template>
-                <template #totalAmountCell="{ record }">
-                  <span class="amount-cell">¥{{ formatAmount(record.totalAmount) }}</span>
-                </template>
-                <template #growthCell="{ record }">
-                  <span :class="['growth-cell', { positive: record.growth > 0, negative: record.growth < 0 }]">
-                    <ArrowUpOutlined v-if="record.growth > 0" />
-                    <ArrowDownOutlined v-if="record.growth < 0" />
-                    {{ Math.abs(record.growth) }}%
-                  </span>
-                </template>
-              </BillTableList>
-            </div>
-          </a-card>
-        </a-tab-pane>
-
-        <a-tab-pane key="product" tab="产品分析">
-          <a-row :gutter="16">
-            <a-col :span="8">
-              <a-card title="产品类别销售" size="small" :loading="chartLoading">
-                <div ref="productCategoryChartRef" class="chart-container"></div>
-              </a-card>
-            </a-col>
-            <a-col :span="8">
-              <a-card title="产品销量分布" size="small" :loading="chartLoading">
-                <div ref="productVolumeChartRef" class="chart-container"></div>
-              </a-card>
-            </a-col>
-            <a-col :span="8">
-              <a-card title="产品毛利率分布" size="small" :loading="chartLoading">
-                <div ref="productMarginChartRef" class="chart-container"></div>
-              </a-card>
-            </a-col>
-          </a-row>
-          <a-card title="产品销售排行 TOP10" size="small" style="margin-top: 16px">
-            <div v-if="sectionErrors.productRank" class="section-error-banner">
-              <a-alert type="error" message="产品排行加载失败" description="系统异常，请重试" show-icon closable @close="clearSectionError('productRank')">
-                <template #action>
-                  <a-button size="small" type="primary" @click="retrySection('productRank')"><ReloadOutlined /> 重试</a-button>
-                </template>
-              </a-alert>
-            </div>
-            <div v-else-if="productRankData.length === 0" class="empty-table-placeholder">
-              <EmptyState title="暂无产品排行数据" description="当前筛选条件下没有产品排行数据" size="small" show-actions :show-add="false" :show-refresh="true" @refresh="loadData" />
-            </div>
-            <div v-else class="ranking-table-container">
-              <BillTableList
-                :columns="productRankVxeColumns"
-                :data-source="productRankData"
-                :pagination="noPagination"
-                row-key="rank"
-                :show-toolbar="false"
-                :selectable="false"
-                :show-add="false"
-                :show-search="false"
-                :show-export="false"
-                :show-batch-delete="false"
+                <a-alert
+                  type="error"
+                  message="区域数据加载失败"
+                  description="系统异常，请重试"
+                  show-icon
+                  closable
+                  @close="clearSectionError('region')"
+                >
+                  <template #action>
+                    <a-button
+                      size="small"
+                      type="primary"
+                      @click="retrySection('region')"
+                    >
+                      <ReloadOutlined /> 重试
+                    </a-button>
+                  </template>
+                </a-alert>
+              </div>
+              <div
+                v-else-if="regionData.length === 0"
+                class="empty-table-placeholder"
               >
-                <template #rankCell="{ record }">
-                  <a-tag v-if="record.rank <= 3" :color="getRankColor(record.rank)">
-                    {{ record.rank }}
-                  </a-tag>
-                  <span v-else>{{ record.rank }}</span>
-                </template>
-                <template #trendCell="{ record }">
-                  <span :class="['trend-cell', { up: (record.trend ?? 0) > 0, down: (record.trend ?? 0) < 0, flat: (record.trend ?? 0) === 0 }]">
-                    <ArrowUpOutlined v-if="(record.trend ?? 0) > 0" />
-                    <ArrowDownOutlined v-if="(record.trend ?? 0) < 0" />
-                    <span v-if="(record.trend ?? 0) === 0">--</span>
-                    <span v-if="(record.trend ?? 0) !== 0">{{ Math.abs(record.trend ?? 0) }}%</span>
-                  </span>
-                </template>
-                <template #totalAmountCell="{ record }">
-                  <span class="amount-cell">¥{{ formatAmount(record.totalAmount) }}</span>
-                </template>
-                <template #marginCell="{ record }">
-                  <a-progress
-                    :percent="record.margin"
-                    :stroke-color="getMarginColor(record.margin)"
-                    size="small"
-                    :show-info="true"
-                    :format="(p: number) => `${p}%`"
+                <EmptyState
+                  title="暂无区域数据"
+                  description="当前筛选条件下没有区域销售数据"
+                  size="small"
+                  show-actions
+                  :show-add="false"
+                  :show-refresh="true"
+                  @refresh="loadData"
+                />
+              </div>
+              <div
+                v-else
+                class="ranking-table-container"
+              >
+                <BillTableList
+                  :columns="regionVxeColumns"
+                  :data-source="regionData"
+                  :pagination="noPagination"
+                  row-key="name"
+                  :show-toolbar="false"
+                  :selectable="false"
+                  :show-add="false"
+                  :show-search="false"
+                  :show-export="false"
+                  :show-batch-delete="false"
+                >
+                  <template #totalAmountCell="{ record }">
+                    <span class="amount-cell">¥{{ formatAmount(record.totalAmount) }}</span>
+                  </template>
+                  <template #growthCell="{ record }">
+                    <span :class="['growth-cell', { positive: record.growth > 0, negative: record.growth < 0 }]">
+                      <ArrowUpOutlined v-if="record.growth > 0" />
+                      <ArrowDownOutlined v-if="record.growth < 0" />
+                      {{ Math.abs(record.growth) }}%
+                    </span>
+                  </template>
+                </BillTableList>
+              </div>
+            </a-card>
+          </a-tab-pane>
+
+          <a-tab-pane
+            key="time"
+            tab="时间分析"
+          >
+            <a-row :gutter="16">
+              <a-col :span="8">
+                <a-card
+                  title="每日销售趋势"
+                  size="small"
+                  :loading="chartLoading"
+                >
+                  <div
+                    ref="dailyChartRef"
+                    class="chart-container"
                   />
-                </template>
-              </BillTableList>
-            </div>
-          </a-card>
-        </a-tab-pane>
-
-        <a-tab-pane key="salesperson" tab="销售人员分析">
-          <a-row :gutter="16">
-            <a-col :span="12">
-              <a-card title="销售人员业绩" size="small" :loading="chartLoading">
-                <div ref="salespersonChartRef" class="chart-container"></div>
-              </a-card>
-            </a-col>
-            <a-col :span="12">
-              <a-card title="销售人员目标达成率" size="small" :loading="chartLoading">
-                <div ref="targetChartRef" class="chart-container"></div>
-              </a-card>
-            </a-col>
-          </a-row>
-          <a-card title="销售人员业绩排行" size="small" style="margin-top: 16px">
-            <div v-if="sectionErrors.salespersonRank" class="section-error-banner">
-              <a-alert type="error" message="人员排行加载失败" description="系统异常，请重试" show-icon closable @close="clearSectionError('salespersonRank')">
-                <template #action>
-                  <a-button size="small" type="primary" @click="retrySection('salespersonRank')"><ReloadOutlined /> 重试</a-button>
-                </template>
-              </a-alert>
-            </div>
-            <div v-else-if="salespersonRankData.length === 0" class="empty-table-placeholder">
-              <EmptyState title="暂无人员排行数据" description="当前筛选条件下没有人员排行数据" size="small" show-actions :show-add="false" :show-refresh="true" @refresh="loadData" />
-            </div>
-            <div v-else class="ranking-table-container">
-              <BillTableList
-                :columns="salespersonRankVxeColumns"
-                :data-source="salespersonRankData"
-                :pagination="noPagination"
-                row-key="rank"
-                :show-toolbar="false"
-                :selectable="false"
-                :show-add="false"
-                :show-search="false"
-                :show-export="false"
-                :show-batch-delete="false"
-              >
-                <template #rankCell="{ record }">
-                  <a-tag v-if="record.rank <= 3" :color="getRankColor(record.rank)">
-                    {{ record.rank }}
-                  </a-tag>
-                  <span v-else>{{ record.rank }}</span>
-                </template>
-                <template #trendCell="{ record }">
-                  <span :class="['trend-cell', { up: (record.trend ?? 0) > 0, down: (record.trend ?? 0) < 0, flat: (record.trend ?? 0) === 0 }]">
-                    <ArrowUpOutlined v-if="(record.trend ?? 0) > 0" />
-                    <ArrowDownOutlined v-if="(record.trend ?? 0) < 0" />
-                    <span v-if="(record.trend ?? 0) === 0">--</span>
-                    <span v-if="(record.trend ?? 0) !== 0">{{ Math.abs(record.trend ?? 0) }}%</span>
-                  </span>
-                </template>
-                <template #totalAmountCell="{ record }">
-                  <span class="amount-cell">¥{{ formatAmount(record.totalAmount) }}</span>
-                </template>
-                <template #targetRateCell="{ record }">
-                  <a-progress
-                    :percent="record.targetRate"
-                    :stroke-color="getTargetColor(record.targetRate)"
-                    size="small"
-                    :show-info="true"
-                    :format="(p: number) => `${p}%`"
+                </a-card>
+              </a-col>
+              <a-col :span="8">
+                <a-card
+                  title="每周销售对比"
+                  size="small"
+                  :loading="chartLoading"
+                >
+                  <div
+                    ref="weeklyChartRef"
+                    class="chart-container"
                   />
-                </template>
-              </BillTableList>
-            </div>
-          </a-card>
-        </a-tab-pane>
+                </a-card>
+              </a-col>
+              <a-col :span="8">
+                <a-card
+                  title="时段销售分布"
+                  size="small"
+                  :loading="chartLoading"
+                >
+                  <div
+                    ref="hourlyChartRef"
+                    class="chart-container"
+                  />
+                </a-card>
+              </a-col>
+            </a-row>
+          </a-tab-pane>
+        </a-tabs>
+      </div>
+      <!-- 新建分析对话框 -->
+      <FullScreenDetail
+        :visible="showCreateModal"
+        title="新建分析"
+        @close="showCreateModal = false"
+        @save="confirmCreate"
+      >
+        <a-input
+          v-model:value="newAnalysisName"
+          placeholder="请输入分析名称"
+          @press-enter="confirmCreate"
+        />
+      </FullScreenDetail>
 
-        <a-tab-pane key="region" tab="区域分析">
-          <a-row :gutter="16">
-            <a-col :span="12">
-              <a-card title="区域销售分布" size="small" :loading="chartLoading">
-                <div ref="regionChartRef" class="chart-container"></div>
-              </a-card>
-            </a-col>
-            <a-col :span="12">
-              <a-card title="区域增长对比" size="small" :loading="chartLoading">
-                <div ref="regionGrowthChartRef" class="chart-container"></div>
-              </a-card>
-            </a-col>
-          </a-row>
-          <a-card title="区域销售明细" size="small" style="margin-top: 16px">
-            <div v-if="sectionErrors.region" class="section-error-banner">
-              <a-alert type="error" message="区域数据加载失败" description="系统异常，请重试" show-icon closable @close="clearSectionError('region')">
-                <template #action>
-                  <a-button size="small" type="primary" @click="retrySection('region')"><ReloadOutlined /> 重试</a-button>
-                </template>
-              </a-alert>
-            </div>
-            <div v-else-if="regionData.length === 0" class="empty-table-placeholder">
-              <EmptyState title="暂无区域数据" description="当前筛选条件下没有区域销售数据" size="small" show-actions :show-add="false" :show-refresh="true" @refresh="loadData" />
-            </div>
-            <div v-else class="ranking-table-container">
-              <BillTableList
-                :columns="regionVxeColumns"
-                :data-source="regionData"
-                :pagination="noPagination"
-                row-key="name"
-                :show-toolbar="false"
-                :selectable="false"
-                :show-add="false"
-                :show-search="false"
-                :show-export="false"
-                :show-batch-delete="false"
-              >
-                <template #totalAmountCell="{ record }">
-                  <span class="amount-cell">¥{{ formatAmount(record.totalAmount) }}</span>
-                </template>
-                <template #growthCell="{ record }">
-                  <span :class="['growth-cell', { positive: record.growth > 0, negative: record.growth < 0 }]">
-                    <ArrowUpOutlined v-if="record.growth > 0" />
-                    <ArrowDownOutlined v-if="record.growth < 0" />
-                    {{ Math.abs(record.growth) }}%
-                  </span>
-                </template>
-              </BillTableList>
-            </div>
-          </a-card>
-        </a-tab-pane>
+      <!-- 导出报表对话框 -->
+      <a-modal
+        v-model:open="showExportModal"
+        title="导出报表"
+        ok-text="导出"
+        cancel-text="取消"
+        :confirm-loading="exportLoading"
+        @ok="confirmExportWithOptions"
+      >
+        <a-form layout="vertical">
+          <a-form-item label="导出格式">
+            <a-radio-group v-model:value="exportOptions.format">
+              <a-radio value="xlsx">
+                Excel (.xlsx)
+              </a-radio>
+              <a-radio value="csv">
+                CSV (.csv)
+              </a-radio>
+            </a-radio-group>
+          </a-form-item>
+          <a-form-item label="日期范围">
+            <a-range-picker
+              v-model:value="exportOptions.dateRange"
+              :placeholder="['默认使用当前筛选日期', '默认使用当前筛选日期']"
+              style="width: 100%"
+            />
+          </a-form-item>
+          <a-form-item label="包含标签页">
+            <a-checkbox-group v-model:value="exportOptions.includeTabs">
+              <a-checkbox value="overview">
+                销售概览
+              </a-checkbox>
+              <a-checkbox value="customer">
+                客户分析
+              </a-checkbox>
+              <a-checkbox value="product">
+                产品分析
+              </a-checkbox>
+              <a-checkbox value="salesperson">
+                销售人员分析
+              </a-checkbox>
+              <a-checkbox value="region">
+                区域分析
+              </a-checkbox>
+              <a-checkbox value="time">
+                时间分析
+              </a-checkbox>
+            </a-checkbox-group>
+          </a-form-item>
+        </a-form>
+      </a-modal>
 
-        <a-tab-pane key="time" tab="时间分析">
-          <a-row :gutter="16">
-            <a-col :span="8">
-              <a-card title="每日销售趋势" size="small" :loading="chartLoading">
-                <div ref="dailyChartRef" class="chart-container"></div>
-              </a-card>
-            </a-col>
-            <a-col :span="8">
-              <a-card title="每周销售对比" size="small" :loading="chartLoading">
-                <div ref="weeklyChartRef" class="chart-container"></div>
-              </a-card>
-            </a-col>
-            <a-col :span="8">
-              <a-card title="时段销售分布" size="small" :loading="chartLoading">
-                <div ref="hourlyChartRef" class="chart-container"></div>
-              </a-card>
-            </a-col>
-          </a-row>
-        </a-tab-pane>
-      </a-tabs>
-    </div>
-    <!-- 新建分析对话框 -->
-    <FullScreenDetail
-      :visible="showCreateModal"
-      title="新建分析"
-      @close="showCreateModal = false"
-      @save="confirmCreate"
-    >
-      <a-input
-        v-model:value="newAnalysisName"
-        placeholder="请输入分析名称"
-        @press-enter="confirmCreate"
-      />
-    </FullScreenDetail>
-
-    <!-- 导出报表对话框 -->
-    <a-modal
-      v-model:open="showExportModal"
-      title="导出报表"
-      ok-text="导出"
-      cancel-text="取消"
-      @ok="confirmExportWithOptions"
-      :confirm-loading="exportLoading"
-    >
-      <a-form layout="vertical">
-        <a-form-item label="导出格式">
-          <a-radio-group v-model:value="exportOptions.format">
-            <a-radio value="xlsx">Excel (.xlsx)</a-radio>
-            <a-radio value="csv">CSV (.csv)</a-radio>
-          </a-radio-group>
-        </a-form-item>
-        <a-form-item label="日期范围">
-          <a-range-picker
-            v-model:value="exportOptions.dateRange"
-            :placeholder="['默认使用当前筛选日期', '默认使用当前筛选日期']"
-            style="width: 100%"
+      <!-- 下钻明细抽屉 -->
+      <a-drawer
+        v-model:open="drillDownVisible"
+        :title="drillDownTitle"
+        placement="right"
+        width="560"
+        @close="drillDownVisible = false"
+      >
+        <template v-if="drillDownLoading">
+          <a-skeleton
+            active
+            :paragraph="{ rows: 6 }"
           />
-        </a-form-item>
-        <a-form-item label="包含标签页">
-          <a-checkbox-group v-model:value="exportOptions.includeTabs">
-            <a-checkbox value="overview">销售概览</a-checkbox>
-            <a-checkbox value="customer">客户分析</a-checkbox>
-            <a-checkbox value="product">产品分析</a-checkbox>
-            <a-checkbox value="salesperson">销售人员分析</a-checkbox>
-            <a-checkbox value="region">区域分析</a-checkbox>
-            <a-checkbox value="time">时间分析</a-checkbox>
-          </a-checkbox-group>
-        </a-form-item>
-      </a-form>
-    </a-modal>
-
-    <!-- 下钻明细抽屉 -->
-    <a-drawer
-      v-model:open="drillDownVisible"
-      :title="drillDownTitle"
-      placement="right"
-      width="560"
-      @close="drillDownVisible = false"
-    >
-      <template v-if="drillDownLoading">
-        <a-skeleton active :paragraph="{ rows: 6 }" />
-      </template>
-      <template v-else>
-        <BillTableList
-          v-if="drillDownData.length > 0"
-          :columns="drillDownColumns"
-          :data-source="drillDownData"
-          :pagination="noPagination"
-          row-key="productName"
-          :show-toolbar="false"
-          :selectable="false"
-          :show-add="false"
-          :show-search="false"
-          :show-export="false"
-          :show-batch-delete="false"
-        >
-          <template #drillAmountCell="{ record }">
-            <span class="amount-cell">¥{{ formatAmount(record.amount) }}</span>
-          </template>
-          <template #drillMarginCell="{ record }">
-            {{ record.margin?.toFixed?.(1) ?? 0 }}%
-          </template>
-        </BillTableList>
-        <EmptyState v-else title="暂无明细数据" description="当前筛选条件下没有明细数据" :show-add="false" />
-      </template>
-    </a-drawer>
-  </PageContainer>
+        </template>
+        <template v-else>
+          <BillTableList
+            v-if="drillDownData.length > 0"
+            :columns="drillDownColumns"
+            :data-source="drillDownData"
+            :pagination="noPagination"
+            row-key="productName"
+            :show-toolbar="false"
+            :selectable="false"
+            :show-add="false"
+            :show-search="false"
+            :show-export="false"
+            :show-batch-delete="false"
+          >
+            <template #drillAmountCell="{ record }">
+              <span class="amount-cell">¥{{ formatAmount(record.amount) }}</span>
+            </template>
+            <template #drillMarginCell="{ record }">
+              {{ record.margin?.toFixed?.(1) ?? 0 }}%
+            </template>
+          </BillTableList>
+          <EmptyState
+            v-else
+            title="暂无明细数据"
+            description="当前筛选条件下没有明细数据"
+            :show-add="false"
+          />
+        </template>
+      </a-drawer>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

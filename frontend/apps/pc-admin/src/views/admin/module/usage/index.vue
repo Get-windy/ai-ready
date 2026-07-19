@@ -4,35 +4,74 @@
       <div class="page-header">
         <div class="page-header-left">
           <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>
+              <router-link to="/">
+                首页
+              </router-link>
+            </a-breadcrumb-item>
             <a-breadcrumb-item>系统管理</a-breadcrumb-item>
             <a-breadcrumb-item>使用统计</a-breadcrumb-item>
           </a-breadcrumb>
-          <h2 class="page-header-title">使用统计</h2>
+          <h2 class="page-header-title">
+            使用统计
+          </h2>
         </div>
       </div>
     </template>
 
-    <a-row :gutter="16" style="margin-bottom:16px">
-      <a-col :span="6" v-for="stat in moduleStats" :key="stat.name">
-        <a-card :bordered="false" size="small">
-          <a-statistic :title="stat.name" :value="stat.count" :suffix="stat.unit || ''">
+    <a-row
+      :gutter="16"
+      style="margin-bottom:16px"
+    >
+      <a-col
+        v-for="stat in moduleStats"
+        :key="stat.name"
+        :span="6"
+      >
+        <a-card
+          :bordered="false"
+          size="small"
+        >
+          <a-statistic
+            :title="stat.name"
+            :value="stat.count"
+            :suffix="stat.unit || ''"
+          >
             <template #prefix>
-              <component :is="stat.icon" :style="{ color: stat.color }" />
+              <component
+                :is="stat.icon"
+                :style="{ color: stat.color }"
+              />
             </template>
           </a-statistic>
         </a-card>
       </a-col>
     </a-row>
 
-    <a-card :bordered="false" title="模块使用排行">
-      <a-table :data-source="list" :columns="columns" :loading="loading" row-key="id" :pagination="false" size="small">
+    <a-card
+      :bordered="false"
+      title="模块使用排行"
+    >
+      <a-table
+        :data-source="list"
+        :columns="columns"
+        :loading="loading"
+        row-key="id"
+        :pagination="false"
+        size="small"
+      >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'rank'">
-            <a-tag :color="record.rank <= 3 ? 'gold' : 'blue'">#{{ record.rank }}</a-tag>
+            <a-tag :color="record.rank <= 3 ? 'gold' : 'blue'">
+              #{{ record.rank }}
+            </a-tag>
           </template>
           <template v-if="column.key === 'usageRate'">
-            <a-progress :percent="record.usageRate" size="small" :status="record.usageRate > 80 ? 'exception' : 'active'" />
+            <a-progress
+              :percent="record.usageRate"
+              size="small"
+              :status="record.usageRate > 80 ? 'exception' : 'active'"
+            />
           </template>
         </template>
       </a-table>

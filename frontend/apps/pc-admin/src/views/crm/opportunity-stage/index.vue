@@ -1,15 +1,27 @@
 <template>
-  <PageContainer title="商机阶段" full-height>
+  <PageContainer
+    title="商机阶段"
+    full-height
+  >
     <template #headerExtra>
       <a-space :size="12">
         <span class="data-status">
           <a-badge :status="loading ? 'processing' : hasError ? 'error' : 'success'" />
-          <span v-if="lastUpdateTime" class="update-time">
+          <span
+            v-if="lastUpdateTime"
+            class="update-time"
+          >
             数据更新: {{ lastUpdateTime }}
           </span>
         </span>
-        <a-button size="small" :loading="loading" @click="fetchData">
-          <template #icon><ReloadOutlined /></template>
+        <a-button
+          size="small"
+          :loading="loading"
+          @click="fetchData"
+        >
+          <template #icon>
+            <ReloadOutlined />
+          </template>
           刷新
         </a-button>
       </a-space>
@@ -23,14 +35,21 @@
             placeholder="阶段名称"
             allow-clear
             style="width: 160px"
-            @pressEnter="handleSearch"
+            @press-enter="handleSearch"
           />
-          <a-button type="primary" @click="handleSearch">
-            <template #icon><SearchOutlined /></template>
+          <a-button
+            type="primary"
+            @click="handleSearch"
+          >
+            <template #icon>
+              <SearchOutlined />
+            </template>
             查询
           </a-button>
           <a-button @click="handleReset">
-            <template #icon><ClearOutlined /></template>
+            <template #icon>
+              <ClearOutlined />
+            </template>
             重置
           </a-button>
         </a-space>
@@ -100,7 +119,7 @@ async function fetchData() {
       pageSize: pagination.pageSize,
       stageName: searchParams.stageName || undefined
     }
-    const res = await request.get('/api/crm/opportunity-stage/page', { params })
+    const res = await request.get('/crm/opportunity-stage/page', { params })
     const result = res as any
     const data = result.data ?? result
     tableData.value = data?.records || []

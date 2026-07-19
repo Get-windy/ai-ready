@@ -39,4 +39,10 @@ public class SysTenantMenu {
      */
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
+
+    /**
+     * 删除标记（0=正常，1=已删除）
+     */
+    @TableLogic
+    private Integer deleted;
 }

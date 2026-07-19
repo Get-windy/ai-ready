@@ -75,7 +75,10 @@
           >
             搜索
           </a-button>
-          <a-button size="small" @click="handleReset">
+          <a-button
+            size="small"
+            @click="handleReset"
+          >
             重置
           </a-button>
           <a-button

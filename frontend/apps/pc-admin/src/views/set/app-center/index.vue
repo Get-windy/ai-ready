@@ -4,12 +4,32 @@
       <div class="content-card">
         <a-spin :spinning="loading">
           <a-row :gutter="[16, 16]">
-            <a-col v-for="app in appList" :key="app.id" :xs="24" :sm="12" :md="8" :lg="6">
-              <a-card hoverable class="app-card" @click="handleOpen(app)">
+            <a-col
+              v-for="app in appList"
+              :key="app.id"
+              :xs="24"
+              :sm="12"
+              :md="8"
+              :lg="6"
+            >
+              <a-card
+                hoverable
+                class="app-card"
+                @click="handleOpen(app)"
+              >
                 <template #cover>
-                  <div class="app-icon" :style="{ background: app.color || '#1890ff' }">
-                    <component :is="app.iconComputed" v-if="app.iconComputed" />
-                    <span v-else class="app-icon-text">{{ app.name?.charAt(0) }}</span>
+                  <div
+                    class="app-icon"
+                    :style="{ background: app.color || '#1890ff' }"
+                  >
+                    <component
+                      :is="app.iconComputed"
+                      v-if="app.iconComputed"
+                    />
+                    <span
+                      v-else
+                      class="app-icon-text"
+                    >{{ app.name?.charAt(0) }}</span>
                   </div>
                 </template>
                 <a-card-meta :title="app.name">
@@ -18,13 +38,23 @@
                   </template>
                 </a-card-meta>
                 <template #actions>
-                  <a-tag :color="app.enabled ? 'success' : 'default'">{{ app.enabled ? '已启用' : '未启用' }}</a-tag>
-                  <a-switch v-model:checked="app.enabled" size="small" @click.stop @change="(checked: boolean) => handleToggle(app, checked)" />
+                  <a-tag :color="app.enabled ? 'success' : 'default'">
+                    {{ app.enabled ? '已启用' : '未启用' }}
+                  </a-tag>
+                  <a-switch
+                    v-model:checked="app.enabled"
+                    size="small"
+                    @click.stop
+                    @change="(checked: boolean) => handleToggle(app, checked)"
+                  />
                 </template>
               </a-card>
             </a-col>
           </a-row>
-          <a-empty v-if="!loading && appList.length === 0" description="暂无可用应用" />
+          <a-empty
+            v-if="!loading && appList.length === 0"
+            description="暂无可用应用"
+          />
         </a-spin>
       </div>
     </PageContainer>

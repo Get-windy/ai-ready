@@ -4,173 +4,346 @@
       <div class="supplier-page-header">
         <div class="supplier-page-header-left">
           <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>
+              <router-link to="/">
+                首页
+              </router-link>
+            </a-breadcrumb-item>
             <a-breadcrumb-item>供应商管理</a-breadcrumb-item>
           </a-breadcrumb>
-          <h2 class="supplier-page-header-title">供应商管理</h2>
+          <h2 class="supplier-page-header-title">
+            供应商管理
+          </h2>
         </div>
         <div class="supplier-page-header-right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+          <span
+            v-if="lastUpdateTime"
+            class="update-time"
+          >更新于 {{ lastUpdateTime }}</span>
+          <span
+            v-if="autoRefreshCountdown > 0"
+            class="auto-refresh-badge"
+          >
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)">
-            <template #icon><ReloadOutlined /></template>
+          <a-button
+            size="small"
+            :loading="refreshLoading"
+            @click="debounceClick('refresh', fetchData)"
+          >
+            <template #icon>
+              <ReloadOutlined />
+            </template>
             刷新
           </a-button>
-<span class="shortcut-hints">
-                                                <span class="shortcut-hint"><kbd>Ctrl+R</kbd> 刷新</span>
-                                                <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
-                                                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-                                              </span>
+          <span class="shortcut-hints">
+            <span class="shortcut-hint"><kbd>Ctrl+R</kbd> 刷新</span>
+            <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+          </span>
         </div>
       </div>
-
     </template>
 
     <ErrorBoundary @reset="fetchData">
       <!-- 骨架加载 -->
-      <div v-if="loading && tableData.length === 0" class="skeleton-loading">
-        <a-skeleton :paragraph="{ rows: 3 }" active />
+      <div
+        v-if="loading && tableData.length === 0"
+        class="skeleton-loading"
+      >
+        <a-skeleton
+          :paragraph="{ rows: 3 }"
+          active
+        />
         <div style="height: 16px" />
-        <a-skeleton :paragraph="{ rows: 8 }" active />
+        <a-skeleton
+          :paragraph="{ rows: 8 }"
+          active
+        />
       </div>
 
       <!-- 统计卡片 -->
       <template v-if="!(loading && tableData.length === 0)">
-      <div class="stats-cards">
-        <a-row :gutter="16">
-          <a-col :span="6">
-            <div class="stat-card stat-card-blue">
-              <div class="stat-icon" style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);">
-                <TeamOutlined />
+        <div class="stats-cards">
+          <a-row :gutter="16">
+            <a-col :span="6">
+              <div class="stat-card stat-card-blue">
+                <div
+                  class="stat-icon"
+                  style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);"
+                >
+                  <TeamOutlined />
+                </div>
+                <div class="stat-content">
+                  <div class="stat-title">
+                    供应商总数
+                  </div>
+                  <div class="stat-value">
+                    {{ pagination.total }}
+                  </div>
+                  <div class="stat-desc">
+                    全部供应商
+                  </div>
+                </div>
               </div>
-              <div class="stat-content">
-                <div class="stat-title">供应商总数</div>
-                <div class="stat-value">{{ pagination.total }}</div>
-                <div class="stat-desc">全部供应商</div>
+            </a-col>
+            <a-col :span="6">
+              <div class="stat-card stat-card-green">
+                <div
+                  class="stat-icon"
+                  style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);"
+                >
+                  <CheckCircleOutlined />
+                </div>
+                <div class="stat-content">
+                  <div class="stat-title">
+                    合作中
+                  </div>
+                  <div class="stat-value">
+                    {{ statusCounts.active }}
+                  </div>
+                  <div class="stat-desc positive">
+                    正常合作
+                  </div>
+                </div>
               </div>
-            </div>
-          </a-col>
-          <a-col :span="6">
-            <div class="stat-card stat-card-green">
-              <div class="stat-icon" style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);">
-                <CheckCircleOutlined />
+            </a-col>
+            <a-col :span="6">
+              <div class="stat-card stat-card-orange">
+                <div
+                  class="stat-icon"
+                  style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);"
+                >
+                  <StarOutlined />
+                </div>
+                <div class="stat-content">
+                  <div class="stat-title">
+                    A级供应商
+                  </div>
+                  <div class="stat-value">
+                    {{ levelCounts.a }}
+                  </div>
+                  <div class="stat-desc">
+                    优质供应商
+                  </div>
+                </div>
               </div>
-              <div class="stat-content">
-                <div class="stat-title">合作中</div>
-                <div class="stat-value">{{ statusCounts.active }}</div>
-                <div class="stat-desc positive">正常合作</div>
+            </a-col>
+            <a-col :span="6">
+              <div class="stat-card stat-card-purple">
+                <div
+                  class="stat-icon"
+                  style="background: linear-gradient(135deg, #722ed1 0%, #531dab 100%);"
+                >
+                  <ShoppingOutlined />
+                </div>
+                <div class="stat-content">
+                  <div class="stat-title">
+                    采购金额
+                  </div>
+                  <div class="stat-value">
+                    ¥{{ formatAmount(totalPurchaseAmount) }}
+                  </div>
+                  <div class="stat-desc">
+                    累计采购
+                  </div>
+                </div>
               </div>
-            </div>
-          </a-col>
-          <a-col :span="6">
-            <div class="stat-card stat-card-orange">
-              <div class="stat-icon" style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);">
-                <StarOutlined />
-              </div>
-              <div class="stat-content">
-                <div class="stat-title">A级供应商</div>
-                <div class="stat-value">{{ levelCounts.a }}</div>
-                <div class="stat-desc">优质供应商</div>
-              </div>
-            </div>
-          </a-col>
-          <a-col :span="6">
-            <div class="stat-card stat-card-purple">
-              <div class="stat-icon" style="background: linear-gradient(135deg, #722ed1 0%, #531dab 100%);">
-                <ShoppingOutlined />
-              </div>
-              <div class="stat-content">
-                <div class="stat-title">采购金额</div>
-                <div class="stat-value">¥{{ formatAmount(totalPurchaseAmount) }}</div>
-                <div class="stat-desc">累计采购</div>
-              </div>
-            </div>
-          </a-col>
-        </a-row>
-      </div>
+            </a-col>
+          </a-row>
+        </div>
 
-      <a-tabs v-model:activeKey="activeTab" style="margin:0 24px">
-        <a-tab-pane key="all" tab="全部供应商" />
-        <a-tab-pane key="active" tab="合作中" />
-        <a-tab-pane key="inactive" tab="暂停合作" />
-      </a-tabs>
+        <a-tabs
+          v-model:active-key="activeTab"
+          style="margin:0 24px"
+        >
+          <a-tab-pane
+            key="all"
+            tab="全部供应商"
+          />
+          <a-tab-pane
+            key="active"
+            tab="合作中"
+          />
+          <a-tab-pane
+            key="inactive"
+            tab="暂停合作"
+          />
+        </a-tabs>
 
-      <BillTableList
-        ref="tableRef"
-        :columns="vxeColumns"
-        :data-source="tableDataSource"
-        :loading="loading"
-        :pagination="pagination"
-        :filter-fields="filterFields"
-        :show-summary="true"
-        :summary-data="summaryData"
-        :show-export="true"
-        :selectable="true"
-        :min-empty-rows="12"
-        add-text="新建供应商"
-        @add="handleAdd"
-        @refresh="fetchData"
-        @search="handleSearch"
-        @page-change="handlePageChange"
-        @sort-change="handleSortChange"
-        @filter-change="handleFilterChange"
-        <!-- selection-change: handler not defined (removed) -->
-        @cell-dblclick="handleView"
-        @export="handleExport"
-      >
-      <template #toolbar-actions>
-        </template>
+        <BillTableList
+          ref="tableRef"
+          :columns="vxeColumns"
+          :data-source="tableDataSource"
+          :loading="loading"
+          :pagination="pagination"
+          :filter-fields="filterFields"
+          :show-summary="true"
+          :summary-data="summaryData"
+          :show-export="true"
+          :selectable="true"
+          :min-empty-rows="12"
+          add-text="新建供应商"
+          <!--
+          selection-change:
+          handler
+          not
+          @add="handleAdd"
+          defined
+          @refresh="fetchData"
+          (removed)
+          @search="handleSearch"
+          --
+          @page-change="handlePageChange"
+          @sort-change="handleSortChange"
+          @filter-change="handleFilterChange"
+        >
+          @cell-dblclick="handleView"
+          @export="handleExport"
+          >
+          <template #toolbar-actions />
 
-        <template #empty>
-          <div class="table-empty">
-            <template v-if="hasError">
-              <WarningOutlined class="table-empty-icon" style="color: #faad14" />
-              <p class="table-empty-text">数据加载失败，请重试</p>
-              <a-button type="primary" size="small" @click="fetchData as any">
-                <template #icon><ReloadOutlined /></template>
-                重试
-              </a-button>
-            </template>
-            <template v-else>
-              <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-              <InboxOutlined v-else class="table-empty-icon" />
-              <p v-if="hasActiveFilters" class="table-empty-text">
-                没有符合条件的供应商，<a @click="handleResetFilters">清除筛选</a>
-              </p>
-              <p v-else class="table-empty-text">
-                暂无供应商数据
-              </p>
-              <div v-if="!hasActiveFilters" class="empty-state-wrapper">
-                <a-button type="primary" v-permission="'crm:supplier:create'" @click="handleAdd">
-                  <template #icon><PlusOutlined /></template>
-                  新建第一个供应商
+          <template #empty>
+            <div class="table-empty">
+              <template v-if="hasError">
+                <WarningOutlined
+                  class="table-empty-icon"
+                  style="color: #faad14"
+                />
+                <p class="table-empty-text">
+                  数据加载失败，请重试
+                </p>
+                <a-button
+                  type="primary"
+                  size="small"
+                  @click="fetchData as any"
+                >
+                  <template #icon>
+                    <ReloadOutlined />
+                  </template>
+                  重试
                 </a-button>
-              </div>
-            </template>
-          </div>
-        </template>
-
-        <template #action="{ record }">
-          <a-space :size="4">
-            <a-tooltip title="查看"><a-button type="link" size="small" v-permission="'crm:supplier:view'" @click="handleView(record)"><template #icon><EyeOutlined /></template></a-button></a-tooltip>
-            <a-tooltip title="编辑"><a-button type="link" size="small" v-permission="'crm:supplier:edit'" @click="handleEdit(record)"><template #icon><EditOutlined /></template></a-button></a-tooltip>
-            <a-tooltip title="产品"><a-button type="link" size="small" v-permission="'crm:supplier:products'" @click="handleProducts(record)"><template #icon><ShoppingOutlined /></template></a-button></a-tooltip>
-            <a-tooltip title="评估"><a-button type="link" size="small" v-permission="'crm:supplier:evaluate'" @click="handleEvaluate(record)"><template #icon><StarOutlined /></template></a-button></a-tooltip>
-            <a-dropdown>
-              <a-button type="link" size="small" @click.prevent><template #icon><MoreOutlined /></template></a-button>
-              <template #overlay>
-                <a-menu>
-                  <a-menu-item @click="handlePortal(record)">供应商门户</a-menu-item>
-                  <a-menu-item @click="handleContact(record)">联系记录</a-menu-item>
-                  <a-menu-item @click="handleDelete(record)" v-if="record.cooperationStatus === 2">删除</a-menu-item>
-                </a-menu>
               </template>
-            </a-dropdown>
-          </a-space>
-        </template>
-      </BillTableList>
+              <template v-else>
+                <SearchOutlined
+                  v-if="hasActiveFilters"
+                  class="table-empty-icon"
+                />
+                <InboxOutlined
+                  v-else
+                  class="table-empty-icon"
+                />
+                <p
+                  v-if="hasActiveFilters"
+                  class="table-empty-text"
+                >
+                  没有符合条件的供应商，<a @click="handleResetFilters">清除筛选</a>
+                </p>
+                <p
+                  v-else
+                  class="table-empty-text"
+                >
+                  暂无供应商数据
+                </p>
+                <div
+                  v-if="!hasActiveFilters"
+                  class="empty-state-wrapper"
+                >
+                  <a-button
+                    v-permission="'crm:supplier:create'"
+                    type="primary"
+                    @click="handleAdd"
+                  >
+                    <template #icon>
+                      <PlusOutlined />
+                    </template>
+                    新建第一个供应商
+                  </a-button>
+                </div>
+              </template>
+            </div>
+          </template>
+
+          <template #action="{ record }">
+            <a-space :size="4">
+              <a-tooltip title="查看">
+                <a-button
+                  v-permission="'crm:supplier:view'"
+                  type="link"
+                  size="small"
+                  @click="handleView(record)"
+                >
+                  <template #icon>
+                    <EyeOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip title="编辑">
+                <a-button
+                  v-permission="'crm:supplier:edit'"
+                  type="link"
+                  size="small"
+                  @click="handleEdit(record)"
+                >
+                  <template #icon>
+                    <EditOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip title="产品">
+                <a-button
+                  v-permission="'crm:supplier:products'"
+                  type="link"
+                  size="small"
+                  @click="handleProducts(record)"
+                >
+                  <template #icon>
+                    <ShoppingOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip title="评估">
+                <a-button
+                  v-permission="'crm:supplier:evaluate'"
+                  type="link"
+                  size="small"
+                  @click="handleEvaluate(record)"
+                >
+                  <template #icon>
+                    <StarOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <a-dropdown>
+                <a-button
+                  type="link"
+                  size="small"
+                  @click.prevent
+                >
+                  <template #icon>
+                    <MoreOutlined />
+                  </template>
+                </a-button>
+                <template #overlay>
+                  <a-menu>
+                    <a-menu-item @click="handlePortal(record)">
+                      供应商门户
+                    </a-menu-item>
+                    <a-menu-item @click="handleContact(record)">
+                      联系记录
+                    </a-menu-item>
+                    <a-menu-item
+                      v-if="record.cooperationStatus === 2"
+                      @click="handleDelete(record)"
+                    >
+                      删除
+                    </a-menu-item>
+                  </a-menu>
+                </template>
+              </a-dropdown>
+            </a-space>
+          </template>
+        </BillTableList>
       </template>
     </ErrorBoundary>
 
@@ -184,137 +357,528 @@
       @close="handleFormClose"
       @save-and-new="handleFormSaveAndNew"
     >
-      <a-form ref="formRef" :model="formData" :rules="formRules" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
+      <a-form
+        ref="formRef"
+        :model="formData"
+        :rules="formRules"
+        :label-col="{ span: 6 }"
+        :wrapper-col="{ span: 16 }"
+      >
         <a-row :gutter="24">
-          <a-col :span="12"><a-form-item label="供应商名称" name="supplierName" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }"><a-input v-model:value="formData.supplierName" placeholder="请输入供应商名称" size="small" /></a-form-item></a-col>
-          <a-col :span="12"><a-form-item label="供应商编码" name="supplierCode" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }"><a-input v-model:value="formData.supplierCode" placeholder="自动生成" disabled size="small" /></a-form-item></a-col>
+          <a-col :span="12">
+            <a-form-item
+              label="供应商名称"
+              name="supplierName"
+              :label-col="{ span: 8 }"
+              :wrapper-col="{ span: 16 }"
+            >
+              <a-input
+                v-model:value="formData.supplierName"
+                placeholder="请输入供应商名称"
+                size="small"
+              />
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item
+              label="供应商编码"
+              name="supplierCode"
+              :label-col="{ span: 8 }"
+              :wrapper-col="{ span: 16 }"
+            >
+              <a-input
+                v-model:value="formData.supplierCode"
+                placeholder="自动生成"
+                disabled
+                size="small"
+              />
+            </a-form-item>
+          </a-col>
         </a-row>
         <a-row :gutter="24">
-          <a-col :span="12"><a-form-item label="供应商类型" name="supplierType" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }">
-            <a-select v-model:value="formData.supplierType" placeholder="请选择供应商类型" size="small">
-              <a-select-option :value="1">原材料供应商</a-select-option>
-              <a-select-option :value="2">产品供应商</a-select-option>
-              <a-select-option :value="3">服务供应商</a-select-option>
-              <a-select-option :value="4">物流供应商</a-select-option>
-            </a-select>
-          </a-form-item></a-col>
-          <a-col :span="12"><a-form-item label="供应商等级" name="supplierLevel" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }">
-            <a-select v-model:value="formData.supplierLevel" placeholder="请选择供应商等级" size="small">
-              <a-select-option value="A">A级供应商</a-select-option>
-              <a-select-option value="B">B级供应商</a-select-option>
-              <a-select-option value="C">C级供应商</a-select-option>
-            </a-select>
-          </a-form-item></a-col>
+          <a-col :span="12">
+            <a-form-item
+              label="供应商类型"
+              name="supplierType"
+              :label-col="{ span: 8 }"
+              :wrapper-col="{ span: 16 }"
+            >
+              <a-select
+                v-model:value="formData.supplierType"
+                placeholder="请选择供应商类型"
+                size="small"
+              >
+                <a-select-option :value="1">
+                  原材料供应商
+                </a-select-option>
+                <a-select-option :value="2">
+                  产品供应商
+                </a-select-option>
+                <a-select-option :value="3">
+                  服务供应商
+                </a-select-option>
+                <a-select-option :value="4">
+                  物流供应商
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item
+              label="供应商等级"
+              name="supplierLevel"
+              :label-col="{ span: 8 }"
+              :wrapper-col="{ span: 16 }"
+            >
+              <a-select
+                v-model:value="formData.supplierLevel"
+                placeholder="请选择供应商等级"
+                size="small"
+              >
+                <a-select-option value="A">
+                  A级供应商
+                </a-select-option>
+                <a-select-option value="B">
+                  B级供应商
+                </a-select-option>
+                <a-select-option value="C">
+                  C级供应商
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+          </a-col>
         </a-row>
         <a-row :gutter="24">
-          <a-col :span="12"><a-form-item label="联系人" name="contactPerson" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }"><a-input v-model:value="formData.contactPerson" placeholder="请输入联系人" size="small" /></a-form-item></a-col>
-          <a-col :span="12"><a-form-item label="联系电话" name="contactPhone" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }"><a-input v-model:value="formData.contactPhone" placeholder="请输入联系电话" size="small" /></a-form-item></a-col>
+          <a-col :span="12">
+            <a-form-item
+              label="联系人"
+              name="contactPerson"
+              :label-col="{ span: 8 }"
+              :wrapper-col="{ span: 16 }"
+            >
+              <a-input
+                v-model:value="formData.contactPerson"
+                placeholder="请输入联系人"
+                size="small"
+              />
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item
+              label="联系电话"
+              name="contactPhone"
+              :label-col="{ span: 8 }"
+              :wrapper-col="{ span: 16 }"
+            >
+              <a-input
+                v-model:value="formData.contactPhone"
+                placeholder="请输入联系电话"
+                size="small"
+              />
+            </a-form-item>
+          </a-col>
         </a-row>
         <a-row :gutter="24">
-          <a-col :span="12"><a-form-item label="电子邮箱" name="email" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }"><a-input v-model:value="formData.email" placeholder="请输入电子邮箱" size="small" /></a-form-item></a-col>
-          <a-col :span="12"><a-form-item label="合作状态" name="cooperationStatus" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }">
-            <a-select v-model:value="formData.cooperationStatus" placeholder="请选择合作状态" size="small">
-              <a-select-option :value="1">合作中</a-select-option>
-              <a-select-option :value="2">暂停合作</a-select-option>
-            </a-select>
-          </a-form-item></a-col>
+          <a-col :span="12">
+            <a-form-item
+              label="电子邮箱"
+              name="email"
+              :label-col="{ span: 8 }"
+              :wrapper-col="{ span: 16 }"
+            >
+              <a-input
+                v-model:value="formData.email"
+                placeholder="请输入电子邮箱"
+                size="small"
+              />
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item
+              label="合作状态"
+              name="cooperationStatus"
+              :label-col="{ span: 8 }"
+              :wrapper-col="{ span: 16 }"
+            >
+              <a-select
+                v-model:value="formData.cooperationStatus"
+                placeholder="请选择合作状态"
+                size="small"
+              >
+                <a-select-option :value="1">
+                  合作中
+                </a-select-option>
+                <a-select-option :value="2">
+                  暂停合作
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+          </a-col>
         </a-row>
-        <a-form-item label="公司地址" name="address"><a-input v-model:value="formData.address" placeholder="请输入公司地址" size="small" /></a-form-item>
-        <a-form-item label="银行信息" name="bankInfo"><a-input v-model:value="formData.bankInfo" placeholder="请输入银行账户信息" size="small" /></a-form-item>
-        <a-form-item label="备注" name="remark"><a-textarea v-model:value="formData.remark" placeholder="请输入备注" :rows="2" size="small" /></a-form-item>
+        <a-form-item
+          label="公司地址"
+          name="address"
+        >
+          <a-input
+            v-model:value="formData.address"
+            placeholder="请输入公司地址"
+            size="small"
+          />
+        </a-form-item>
+        <a-form-item
+          label="银行信息"
+          name="bankInfo"
+        >
+          <a-input
+            v-model:value="formData.bankInfo"
+            placeholder="请输入银行账户信息"
+            size="small"
+          />
+        </a-form-item>
+        <a-form-item
+          label="备注"
+          name="remark"
+        >
+          <a-textarea
+            v-model:value="formData.remark"
+            placeholder="请输入备注"
+            :rows="2"
+            size="small"
+          />
+        </a-form-item>
       </a-form>
     </FullScreenDetail>
 
-    <a-drawer v-model:open="detailVisible" title="供应商详情" placement="right" width="80vw" :footer="null" @close="handleDetailClose">
+    <a-drawer
+      v-model:open="detailVisible"
+      title="供应商详情"
+      placement="right"
+      width="80vw"
+      :footer="null"
+      @close="handleDetailClose"
+    >
       <a-spin :spinning="detailLoading">
         <template v-if="detailError">
           <div class="table-empty">
-            <WarningOutlined class="table-empty-icon" style="color: #faad14" />
-            <p class="table-empty-text">详情数据加载失败</p>
-            <a-button type="primary" size="small" v-permission="'crm:supplier:detailrefresh'" @click="handleDetailRefresh">
-              <template #icon><ReloadOutlined /></template>
+            <WarningOutlined
+              class="table-empty-icon"
+              style="color: #faad14"
+            />
+            <p class="table-empty-text">
+              详情数据加载失败
+            </p>
+            <a-button
+              v-permission="'crm:supplier:detailrefresh'"
+              type="primary"
+              size="small"
+              @click="handleDetailRefresh"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
               重试
             </a-button>
           </div>
         </template>
         <template v-else-if="detailData.id">
-          <a-descriptions :column="2" bordered>
-            <a-descriptions-item label="供应商名称">{{ detailData.supplierName }}</a-descriptions-item>
-            <a-descriptions-item label="供应商编码">{{ detailData.supplierCode }}</a-descriptions-item>
-            <a-descriptions-item label="供应商类型">{{ detailData.supplierTypeLabel }}</a-descriptions-item>
-            <a-descriptions-item label="供应商等级"><a-tag :color="getLevelColor(detailData.supplierLevel)">{{ detailData.supplierLevel }}级</a-tag></a-descriptions-item>
-            <a-descriptions-item label="联系人">{{ detailData.contactPerson }}</a-descriptions-item>
-            <a-descriptions-item label="联系电话">{{ detailData.contactPhone }}</a-descriptions-item>
-            <a-descriptions-item label="电子邮箱">{{ detailData.email }}</a-descriptions-item>
-            <a-descriptions-item label="合作状态"><a-tag :color="getStatusColor(detailData.cooperationStatus)">{{ getStatusText(detailData.cooperationStatus) }}</a-tag></a-descriptions-item>
-            <a-descriptions-item label="公司地址" :span="2">{{ detailData.address }}</a-descriptions-item>
-            <a-descriptions-item label="银行信息">{{ detailData.bankInfo }}</a-descriptions-item>
+          <a-descriptions
+            :column="2"
+            bordered
+          >
+            <a-descriptions-item label="供应商名称">
+              {{ detailData.supplierName }}
+            </a-descriptions-item>
+            <a-descriptions-item label="供应商编码">
+              {{ detailData.supplierCode }}
+            </a-descriptions-item>
+            <a-descriptions-item label="供应商类型">
+              {{ detailData.supplierTypeLabel }}
+            </a-descriptions-item>
+            <a-descriptions-item label="供应商等级">
+              <a-tag :color="getLevelColor(detailData.supplierLevel)">
+                {{ detailData.supplierLevel }}级
+              </a-tag>
+            </a-descriptions-item>
+            <a-descriptions-item label="联系人">
+              {{ detailData.contactPerson }}
+            </a-descriptions-item>
+            <a-descriptions-item label="联系电话">
+              {{ detailData.contactPhone }}
+            </a-descriptions-item>
+            <a-descriptions-item label="电子邮箱">
+              {{ detailData.email }}
+            </a-descriptions-item>
+            <a-descriptions-item label="合作状态">
+              <a-tag :color="getStatusColor(detailData.cooperationStatus)">
+                {{ getStatusText(detailData.cooperationStatus) }}
+              </a-tag>
+            </a-descriptions-item>
+            <a-descriptions-item
+              label="公司地址"
+              :span="2"
+            >
+              {{ detailData.address }}
+            </a-descriptions-item>
+            <a-descriptions-item label="银行信息">
+              {{ detailData.bankInfo }}
+            </a-descriptions-item>
           </a-descriptions>
           <a-divider>业务统计</a-divider>
           <a-row :gutter="16">
-            <a-col :span="6"><a-statistic title="采购订单" :value="detailData.orderCount" suffix="单" /></a-col>
-            <a-col :span="6"><a-statistic title="采购金额" :value="detailData.purchaseAmount" :precision="2" prefix="¥" /></a-col>
-            <a-col :span="6"><a-statistic title="已付款" :value="detailData.paidAmount" :precision="2" prefix="¥" /></a-col>
-            <a-col :span="6"><a-statistic title="待付款" :value="detailData.payableAmount" :precision="2" prefix="¥" :value-style="{ color: '#f5222d' }" /></a-col>
+            <a-col :span="6">
+              <a-statistic
+                title="采购订单"
+                :value="detailData.orderCount"
+                suffix="单"
+              />
+            </a-col>
+            <a-col :span="6">
+              <a-statistic
+                title="采购金额"
+                :value="detailData.purchaseAmount"
+                :precision="2"
+                prefix="¥"
+              />
+            </a-col>
+            <a-col :span="6">
+              <a-statistic
+                title="已付款"
+                :value="detailData.paidAmount"
+                :precision="2"
+                prefix="¥"
+              />
+            </a-col>
+            <a-col :span="6">
+              <a-statistic
+                title="待付款"
+                :value="detailData.payableAmount"
+                :precision="2"
+                prefix="¥"
+                :value-style="{ color: '#f5222d' }"
+              />
+            </a-col>
           </a-row>
           <a-divider>供应商评估</a-divider>
           <a-row :gutter="16">
-            <a-col :span="6"><a-statistic title="质量评分" :value="detailData.qualityScore" suffix="分" /></a-col>
-            <a-col :span="6"><a-statistic title="交货评分" :value="detailData.deliveryScore" suffix="分" /></a-col>
-            <a-col :span="6"><a-statistic title="服务评分" :value="detailData.serviceScore" suffix="分" /></a-col>
-            <a-col :span="6"><a-statistic title="综合评分" :value="detailData.totalScore" suffix="分" :value-style="{ color: '#1890ff' }" /></a-col>
+            <a-col :span="6">
+              <a-statistic
+                title="质量评分"
+                :value="detailData.qualityScore"
+                suffix="分"
+              />
+            </a-col>
+            <a-col :span="6">
+              <a-statistic
+                title="交货评分"
+                :value="detailData.deliveryScore"
+                suffix="分"
+              />
+            </a-col>
+            <a-col :span="6">
+              <a-statistic
+                title="服务评分"
+                :value="detailData.serviceScore"
+                suffix="分"
+              />
+            </a-col>
+            <a-col :span="6">
+              <a-statistic
+                title="综合评分"
+                :value="detailData.totalScore"
+                suffix="分"
+                :value-style="{ color: '#1890ff' }"
+              />
+            </a-col>
           </a-row>
           <a-divider>最近采购订单</a-divider>
-          <BillTableList :columns="orderVxeColumns" :data-source="detailData.recentOrders" :pagination="false as any" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
-            <template #amountCell="{ record }"><span class="amount">¥{{ formatAmount(record.amount) }}</span></template>
-            <template #statusCell="{ record }"><a-tag :color="getOrderStatusColor(record.status)">{{ record.statusLabel }}</a-tag></template>
+          <BillTableList
+            :columns="orderVxeColumns"
+            :data-source="detailData.recentOrders"
+            :pagination="false as any"
+            :show-toolbar="false"
+            :selectable="false"
+            :show-add="false"
+            :show-search="false"
+            :show-export="false"
+            :show-batch-delete="false"
+          >
+            <template #amountCell="{ record }">
+              <span class="amount">¥{{ formatAmount(record.amount) }}</span>
+            </template>
+            <template #statusCell="{ record }">
+              <a-tag :color="getOrderStatusColor(record.status)">
+                {{ record.statusLabel }}
+              </a-tag>
+            </template>
           </BillTableList>
         </template>
       </a-spin>
     </a-drawer>
 
-    <a-modal v-model:open="productsModalVisible" :title="productsModalTitle" width="900px" :footer="null">
-      <BillTableList :columns="productsVxeColumns" :data-source="productsData" :pagination="false as any" row-key="id" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
-        <template #priceCell="{ record }"><span class="amount">¥{{ formatAmount(record.price) }}</span></template>
-        <template #statusCell="{ record }"><a-tag :color="record.status === '正常供应' ? 'green' : 'orange'">{{ record.status }}</a-tag></template>
+    <a-modal
+      v-model:open="productsModalVisible"
+      :title="productsModalTitle"
+      width="900px"
+      :footer="null"
+    >
+      <BillTableList
+        :columns="productsVxeColumns"
+        :data-source="productsData"
+        :pagination="false as any"
+        row-key="id"
+        :show-toolbar="false"
+        :selectable="false"
+        :show-add="false"
+        :show-search="false"
+        :show-export="false"
+        :show-batch-delete="false"
+      >
+        <template #priceCell="{ record }">
+          <span class="amount">¥{{ formatAmount(record.price) }}</span>
+        </template>
+        <template #statusCell="{ record }">
+          <a-tag :color="record.status === '正常供应' ? 'green' : 'orange'">
+            {{ record.status }}
+          </a-tag>
+        </template>
       </BillTableList>
     </a-modal>
 
-    <a-modal v-model:open="evaluateModalVisible" title="供应商评估" width="600px" @ok="handleEvaluateSubmit">
-      <a-form :model="evaluateForm" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
-        <a-form-item label="供应商名称"><a-input :value="evaluateForm.supplierName" disabled size="small" /></a-form-item>
-        <a-form-item label="质量评分" required>
-          <a-rate v-model:value="evaluateForm.qualityScore" :count="5" style="vertical-align:middle" />
+    <a-modal
+      v-model:open="evaluateModalVisible"
+      title="供应商评估"
+      width="600px"
+      @ok="handleEvaluateSubmit"
+    >
+      <a-form
+        :model="evaluateForm"
+        :label-col="{ span: 6 }"
+        :wrapper-col="{ span: 16 }"
+      >
+        <a-form-item label="供应商名称">
+          <a-input
+            :value="evaluateForm.supplierName"
+            disabled
+            size="small"
+          />
+        </a-form-item>
+        <a-form-item
+          label="质量评分"
+          required
+        >
+          <a-rate
+            v-model:value="evaluateForm.qualityScore"
+            :count="5"
+            style="vertical-align:middle"
+          />
           <span style="margin-left:8px;color:#999">{{ evaluateForm.qualityScore }} 分</span>
         </a-form-item>
-        <a-form-item label="交货评分" required>
-          <a-rate v-model:value="evaluateForm.deliveryScore" :count="5" style="vertical-align:middle" />
+        <a-form-item
+          label="交货评分"
+          required
+        >
+          <a-rate
+            v-model:value="evaluateForm.deliveryScore"
+            :count="5"
+            style="vertical-align:middle"
+          />
           <span style="margin-left:8px;color:#999">{{ evaluateForm.deliveryScore }} 分</span>
         </a-form-item>
-        <a-form-item label="服务评分" required>
-          <a-rate v-model:value="evaluateForm.serviceScore" :count="5" style="vertical-align:middle" />
+        <a-form-item
+          label="服务评分"
+          required
+        >
+          <a-rate
+            v-model:value="evaluateForm.serviceScore"
+            :count="5"
+            style="vertical-align:middle"
+          />
           <span style="margin-left:8px;color:#999">{{ evaluateForm.serviceScore }} 分</span>
         </a-form-item>
-        <a-form-item label="评价内容"><a-textarea v-model:value="evaluateForm.comment" placeholder="请输入评价内容" :rows="4" size="small" /></a-form-item>
+        <a-form-item label="评价内容">
+          <a-textarea
+            v-model:value="evaluateForm.comment"
+            placeholder="请输入评价内容"
+            :rows="4"
+            size="small"
+          />
+        </a-form-item>
       </a-form>
     </a-modal>
 
-    <a-modal v-model:open="portalModalVisible" :title="`供应商门户 - ${portalInfo.supplierName}`" width="550px" :footer="null">
-      <a-descriptions :column="1" bordered size="small">
-        <a-descriptions-item label="门户地址"><a-space><span>{{ portalInfo.portalUrl }}</span><a-button type="link" size="small" v-permission="'crm:supplier:copyportalurl'" @click="handleCopyPortalUrl"><template #icon><CopyOutlined /></template>复制</a-button></a-space></a-descriptions-item>
-        <a-descriptions-item label="登录账号">{{ portalInfo.account }}</a-descriptions-item>
-        <a-descriptions-item label="登录密码">{{ portalInfo.password }}</a-descriptions-item>
+    <a-modal
+      v-model:open="portalModalVisible"
+      :title="`供应商门户 - ${portalInfo.supplierName}`"
+      width="550px"
+      :footer="null"
+    >
+      <a-descriptions
+        :column="1"
+        bordered
+        size="small"
+      >
+        <a-descriptions-item label="门户地址">
+          <a-space>
+            <span>{{ portalInfo.portalUrl }}</span><a-button
+              v-permission="'crm:supplier:copyportalurl'"
+              type="link"
+              size="small"
+              @click="handleCopyPortalUrl"
+            >
+              <template #icon>
+                <CopyOutlined />
+              </template>复制
+            </a-button>
+          </a-space>
+        </a-descriptions-item>
+        <a-descriptions-item label="登录账号">
+          {{ portalInfo.account }}
+        </a-descriptions-item>
+        <a-descriptions-item label="登录密码">
+          {{ portalInfo.password }}
+        </a-descriptions-item>
       </a-descriptions>
       <a-divider />
       <a-space style="width:100%;justify-content:flex-end">
-        <a-button v-permission="'crm:supplier:resetportalpassword'" @click="handleResetPortalPassword">重置密码</a-button>
-        <a-button type="primary" v-permission="'crm:supplier:openportal'" @click="handleOpenPortal">打开门户</a-button>
+        <a-button
+          v-permission="'crm:supplier:resetportalpassword'"
+          @click="handleResetPortalPassword"
+        >
+          重置密码
+        </a-button>
+        <a-button
+          v-permission="'crm:supplier:openportal'"
+          type="primary"
+          @click="handleOpenPortal"
+        >
+          打开门户
+        </a-button>
       </a-space>
     </a-modal>
 
-    <a-modal v-model:open="contactsModalVisible" :title="contactsModalTitle" width="700px" :footer="null">
-      <BillTableList :columns="contactsVxeColumns" :data-source="contactsData" :pagination="false as any" row-key="id" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
-        <template #isPrimaryCell="{ record }"><a-tag :color="record.isPrimary === '是' ? 'blue' : 'default'">{{ record.isPrimary }}</a-tag></template>
+    <a-modal
+      v-model:open="contactsModalVisible"
+      :title="contactsModalTitle"
+      width="700px"
+      :footer="null"
+    >
+      <BillTableList
+        :columns="contactsVxeColumns"
+        :data-source="contactsData"
+        :pagination="false as any"
+        row-key="id"
+        :show-toolbar="false"
+        :selectable="false"
+        :show-add="false"
+        :show-search="false"
+        :show-export="false"
+        :show-batch-delete="false"
+      >
+        <template #isPrimaryCell="{ record }">
+          <a-tag :color="record.isPrimary === '是' ? 'blue' : 'default'">
+            {{ record.isPrimary }}
+          </a-tag>
+        </template>
       </BillTableList>
     </a-modal>
   </PageContainer>

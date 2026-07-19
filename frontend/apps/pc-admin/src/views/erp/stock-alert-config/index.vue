@@ -1,141 +1,315 @@
 <template>
-  <ErrorBoundary @reset="fetchData" @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="alert-config-header">
-        <div class="alert-config-header__left">
-          <span class="alert-config-header__breadcrumb">ERP / 库存管理 / 库存预警配置</span>
-          <h2 class="alert-config-header__title">库存预警配置</h2>
+  <ErrorBoundary
+    @reset="fetchData"
+    @error="handleError"
+  >
+    <PageContainer full-height>
+      <template #header>
+        <div class="alert-config-header">
+          <div class="alert-config-header__left">
+            <span class="alert-config-header__breadcrumb">ERP / 库存管理 / 库存预警配置</span>
+            <h2 class="alert-config-header__title">
+              库存预警配置
+            </h2>
+          </div>
+          <div class="alert-config-header__right">
+            <a-space :size="12">
+              <span
+                v-if="autoRefreshCountdown > 0"
+                class="auto-refresh-badge"
+              ><SyncOutlined /> {{ autoRefreshCountdown }}s</span>
+              <span class="data-status">
+                <a-badge :status="loading ? 'processing' : 'success'" />
+                <span
+                  v-if="lastUpdateTime"
+                  class="update-time"
+                >数据更新: {{ lastUpdateTime }}</span>
+              </span>
+              <span class="shortcut-hints">
+                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+              </span>
+              <a-button
+                size="small"
+                :loading="refreshLoading"
+                @click="debounceClick('refresh', fetchData)"
+              >
+                <template #icon>
+                  <ReloadOutlined />
+                </template>刷新
+              </a-button>
+            </a-space>
+          </div>
         </div>
-        <div class="alert-config-header__right">
-          <a-space :size="12">
-            <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge"><SyncOutlined /> {{ autoRefreshCountdown }}s</span>
-            <span class="data-status">
-              <a-badge :status="loading ? 'processing' : 'success'" />
-              <span v-if="lastUpdateTime" class="update-time">数据更新: {{ lastUpdateTime }}</span>
-            </span>
-            <span class="shortcut-hints">
-              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-            </span>
-            <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)">
-              <template #icon><ReloadOutlined /></template>刷新
+      </template>
+
+      <a-row
+        :gutter="16"
+        style="margin-bottom: 16px;"
+      >
+        <a-col :span="6">
+          <div class="summary-card">
+            <div
+              class="summary-icon"
+              style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);"
+            >
+              <AlertOutlined />
+            </div>
+            <div class="summary-content">
+              <div class="summary-title">
+                总配置数
+              </div><div class="summary-value">
+                {{ statistics.totalConfigs }}
+              </div>
+            </div>
+          </div>
+        </a-col>
+        <a-col :span="6">
+          <div class="summary-card">
+            <div
+              class="summary-icon"
+              style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);"
+            >
+              <CheckCircleOutlined />
+            </div>
+            <div class="summary-content">
+              <div class="summary-title">
+                已启用
+              </div><div class="summary-value">
+                {{ statistics.activeConfigs }}
+              </div>
+            </div>
+          </div>
+        </a-col>
+        <a-col :span="6">
+          <div class="summary-card">
+            <div
+              class="summary-icon"
+              style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);"
+            >
+              <ExclamationCircleOutlined />
+            </div>
+            <div class="summary-content">
+              <div class="summary-title">
+                低库存预警
+              </div><div class="summary-value warning">
+                {{ statistics.lowStockCount }}
+              </div>
+            </div>
+          </div>
+        </a-col>
+        <a-col :span="6">
+          <div class="summary-card highlight">
+            <div
+              class="summary-icon"
+              style="background: linear-gradient(135deg, #f5222d 0%, #cf1322 100%);"
+            >
+              <FireOutlined />
+            </div>
+            <div class="summary-content">
+              <div class="summary-title">
+                超储预警
+              </div><div class="summary-value warning">
+                {{ statistics.overStockCount }}
+              </div>
+            </div>
+          </div>
+        </a-col>
+      </a-row>
+
+      <BillTableList
+        ref="tableRef"
+        :columns="vxeColumns"
+        :data-source="tableData"
+        :loading="loading"
+        :pagination="pagination"
+        row-key="id"
+        :selectable="true"
+        :filter-fields="filterFields"
+        add-text="新建预警配置"
+        @add="handleCreate"
+        @search="handleSearch"
+        @filter-change="handleFilterChange"
+        @page-change="handlePageChange"
+        @selection-change="handleSelectionChange"
+      >
+        <template #toolbar-actions>
+          <a-button
+            v-permission="'erp:stock:checkalerts'"
+            size="small"
+            @click="handleCheckAlerts"
+          >
+            <BellOutlined /> 立即检查
+          </a-button>
+        </template>
+
+        <template #empty>
+          <div
+            v-if="hasError"
+            class="table-empty"
+          >
+            <WarningOutlined class="table-empty-icon" />
+            <p class="table-empty-text">
+              数据加载异常，请重试
+            </p>
+            <a-button
+              type="primary"
+              @click="fetchData"
+            >
+              <ReloadOutlined /> 重试
             </a-button>
+          </div>
+          <div
+            v-else
+            class="table-empty"
+          >
+            <BellOutlined class="table-empty-icon" />
+            <p class="table-empty-text">
+              暂无预警配置，点击右上角「新建预警配置」开始创建
+            </p>
+          </div>
+        </template>
+
+        <template #activeCell="{ record }">
+          <a-switch
+            :checked="record.active === 1"
+            size="small"
+            @change="(v: any) => handleToggleActive(record, v)"
+          />
+        </template>
+        <template #action="{ record }">
+          <a-space :size="4">
+            <a-button
+              v-permission="'erp:stock:edit'"
+              type="link"
+              size="small"
+              @click="handleEdit(record)"
+            >
+              编辑
+            </a-button>
+            <a-popconfirm
+              title="确认删除该预警配置？"
+              @confirm="handleDelete(record)"
+            >
+              <a-button
+                type="link"
+                size="small"
+                danger
+              >
+                删除
+              </a-button>
+            </a-popconfirm>
           </a-space>
-        </div>
-      </div>
-    </template>
+        </template>
+      </BillTableList>
 
-    <a-row :gutter="16" style="margin-bottom: 16px;">
-      <a-col :span="6">
-        <div class="summary-card">
-          <div class="summary-icon" style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);"><AlertOutlined /></div>
-          <div class="summary-content"><div class="summary-title">总配置数</div><div class="summary-value">{{ statistics.totalConfigs }}</div></div>
-        </div>
-      </a-col>
-      <a-col :span="6">
-        <div class="summary-card">
-          <div class="summary-icon" style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);"><CheckCircleOutlined /></div>
-          <div class="summary-content"><div class="summary-title">已启用</div><div class="summary-value">{{ statistics.activeConfigs }}</div></div>
-        </div>
-      </a-col>
-      <a-col :span="6">
-        <div class="summary-card">
-          <div class="summary-icon" style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);"><ExclamationCircleOutlined /></div>
-          <div class="summary-content"><div class="summary-title">低库存预警</div><div class="summary-value warning">{{ statistics.lowStockCount }}</div></div>
-        </div>
-      </a-col>
-      <a-col :span="6">
-        <div class="summary-card highlight">
-          <div class="summary-icon" style="background: linear-gradient(135deg, #f5222d 0%, #cf1322 100%);"><FireOutlined /></div>
-          <div class="summary-content"><div class="summary-title">超储预警</div><div class="summary-value warning">{{ statistics.overStockCount }}</div></div>
-        </div>
-      </a-col>
-    </a-row>
-
-    <BillTableList
-      ref="tableRef"
-      :columns="vxeColumns"
-      :data-source="tableData"
-      :loading="loading"
-      :pagination="pagination"
-      row-key="id"
-      :selectable="true"
-      :filter-fields="filterFields"
-      add-text="新建预警配置"
-      @add="handleCreate"
-      @search="handleSearch"
-      @filter-change="handleFilterChange"
-      @page-change="handlePageChange"
-      @selection-change="handleSelectionChange"
-    >
-      <template #toolbar-actions>
-        <a-button size="small" v-permission="'erp:stock:checkalerts'" @click="handleCheckAlerts"><BellOutlined /> 立即检查</a-button>
-      </template>
-
-      <template #empty>
-        <div v-if="hasError" class="table-empty">
-          <WarningOutlined class="table-empty-icon" />
-          <p class="table-empty-text">数据加载异常，请重试</p>
-          <a-button type="primary" @click="fetchData"><ReloadOutlined /> 重试</a-button>
-        </div>
-        <div v-else class="table-empty">
-          <BellOutlined class="table-empty-icon" />
-          <p class="table-empty-text">暂无预警配置，点击右上角「新建预警配置」开始创建</p>
-        </div>
-      </template>
-
-      <template #activeCell="{ record }">
-        <a-switch :checked="record.active === 1" size="small" @change="(v: any) => handleToggleActive(record, v)" />
-      </template>
-      <template #action="{ record }">
-        <a-space :size="4">
-          <a-button type="link" size="small" v-permission="'erp:stock:edit'" @click="handleEdit(record)">编辑</a-button>
-          <a-popconfirm title="确认删除该预警配置？" @confirm="handleDelete(record)">
-            <a-button type="link" size="small" danger>删除</a-button>
-          </a-popconfirm>
-        </a-space>
-      </template>
-    </BillTableList>
-
-    <!-- 编辑/新建弹窗 -->
-    <a-modal v-model:open="modalVisible" :title="editingId ? '编辑预警配置' : '新建预警配置'" @ok="handleSave" :confirm-loading="saving" width="600px" destroy-on-close>
-      <a-form :model="form" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }" layout="horizontal">
-        <a-form-item label="产品" required>
-          <a-select v-model:value="form.productId" show-search :filter-option="filterOption" placeholder="搜索选择产品" :disabled="!!editingId">
-            <a-select-option v-for="p in productOptions" :key="p.id" :value="p.id">[{{ p.productCode }}] {{ p.productName }}</a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item label="仓库" required>
-          <a-select v-model:value="form.warehouseId" placeholder="选择仓库" :disabled="!!editingId">
-            <a-select-option v-for="w in warehouseOptions" :key="w.id" :value="w.id">{{ w.warehouseName || w.name }}</a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item label="最低库存">
-          <a-input-number v-model:value="form.minStock" :min="0" style="width: 100%" placeholder="低于此值触发预警" />
-        </a-form-item>
-        <a-form-item label="最高库存">
-          <a-input-number v-model:value="form.maxStock" :min="0" style="width: 100%" placeholder="高于此值触发预警" />
-        </a-form-item>
-        <a-form-item label="安全库存">
-          <a-input-number v-model:value="form.safetyStock" :min="0" style="width: 100%" placeholder="建议补货点" />
-        </a-form-item>
-        <a-form-item label="预警类型">
-          <a-select v-model:value="form.alertType" placeholder="预警类型">
-            <a-select-option value="LOW_STOCK">低库存</a-select-option>
-            <a-select-option value="OVER_STOCK">超储</a-select-option>
-            <a-select-option value="BOTH">两者</a-select-option>
-            <a-select-option value="EXPIRY">保质期</a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item label="启用">
-          <a-switch v-model:checked="form.active" />
-        </a-form-item>
-        <a-form-item label="备注">
-          <a-textarea v-model:value="form.remark" :rows="2" />
-        </a-form-item>
-      </a-form>
-    </a-modal>
-  </PageContainer>
+      <!-- 编辑/新建弹窗 -->
+      <a-modal
+        v-model:open="modalVisible"
+        :title="editingId ? '编辑预警配置' : '新建预警配置'"
+        :confirm-loading="saving"
+        width="600px"
+        destroy-on-close
+        @ok="handleSave"
+      >
+        <a-form
+          :model="form"
+          :label-col="{ span: 6 }"
+          :wrapper-col="{ span: 16 }"
+          layout="horizontal"
+        >
+          <a-form-item
+            label="产品"
+            required
+          >
+            <a-select
+              v-model:value="form.productId"
+              show-search
+              :filter-option="filterOption"
+              placeholder="搜索选择产品"
+              :disabled="!!editingId"
+            >
+              <a-select-option
+                v-for="p in productOptions"
+                :key="p.id"
+                :value="p.id"
+              >
+                [{{ p.productCode }}] {{ p.productName }}
+              </a-select-option>
+            </a-select>
+          </a-form-item>
+          <a-form-item
+            label="仓库"
+            required
+          >
+            <a-select
+              v-model:value="form.warehouseId"
+              placeholder="选择仓库"
+              :disabled="!!editingId"
+            >
+              <a-select-option
+                v-for="w in warehouseOptions"
+                :key="w.id"
+                :value="w.id"
+              >
+                {{ w.warehouseName || w.name }}
+              </a-select-option>
+            </a-select>
+          </a-form-item>
+          <a-form-item label="最低库存">
+            <a-input-number
+              v-model:value="form.minStock"
+              :min="0"
+              style="width: 100%"
+              placeholder="低于此值触发预警"
+            />
+          </a-form-item>
+          <a-form-item label="最高库存">
+            <a-input-number
+              v-model:value="form.maxStock"
+              :min="0"
+              style="width: 100%"
+              placeholder="高于此值触发预警"
+            />
+          </a-form-item>
+          <a-form-item label="安全库存">
+            <a-input-number
+              v-model:value="form.safetyStock"
+              :min="0"
+              style="width: 100%"
+              placeholder="建议补货点"
+            />
+          </a-form-item>
+          <a-form-item label="预警类型">
+            <a-select
+              v-model:value="form.alertType"
+              placeholder="预警类型"
+            >
+              <a-select-option value="LOW_STOCK">
+                低库存
+              </a-select-option>
+              <a-select-option value="OVER_STOCK">
+                超储
+              </a-select-option>
+              <a-select-option value="BOTH">
+                两者
+              </a-select-option>
+              <a-select-option value="EXPIRY">
+                保质期
+              </a-select-option>
+            </a-select>
+          </a-form-item>
+          <a-form-item label="启用">
+            <a-switch v-model:checked="form.active" />
+          </a-form-item>
+          <a-form-item label="备注">
+            <a-textarea
+              v-model:value="form.remark"
+              :rows="2"
+            />
+          </a-form-item>
+        </a-form>
+      </a-modal>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

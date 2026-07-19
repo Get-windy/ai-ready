@@ -4,15 +4,27 @@
       <div class="page-header">
         <div class="page-header-left">
           <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>
+              <router-link to="/">
+                首页
+              </router-link>
+            </a-breadcrumb-item>
             <a-breadcrumb-item>系统管理</a-breadcrumb-item>
             <a-breadcrumb-item>服务状态</a-breadcrumb-item>
           </a-breadcrumb>
-          <h2 class="page-header-title">服务状态</h2>
+          <h2 class="page-header-title">
+            服务状态
+          </h2>
         </div>
         <div class="page-header-right">
-          <a-button size="small" @click="refreshAll" :loading="loading">
-            <template #icon><ReloadOutlined /></template>
+          <a-button
+            size="small"
+            :loading="loading"
+            @click="refreshAll"
+          >
+            <template #icon>
+              <ReloadOutlined />
+            </template>
             刷新
           </a-button>
         </div>
@@ -21,10 +33,15 @@
 
     <a-spin :spinning="loading">
       <!-- 综合健康状态 -->
-      <a-row :gutter="16" style="margin-bottom:16px">
+      <a-row
+        :gutter="16"
+        style="margin-bottom:16px"
+      >
         <a-col :span="24">
           <a-card :bordered="false">
-            <template #title>综合健康状态</template>
+            <template #title>
+              综合健康状态
+            </template>
             <template #extra>
               <a-tag :color="healthStatus === 'UP' ? 'green' : healthStatus === 'WARNING' ? 'orange' : 'red'">
                 {{ healthStatus === 'UP' ? '正常' : healthStatus === 'WARNING' ? '警告' : '异常' }}
@@ -32,20 +49,43 @@
             </template>
             <a-row :gutter="[16,16]">
               <a-col :span="6">
-                <a-statistic title="健康分数" :value="healthScore" suffix="分">
-                  <template #prefix><CheckCircleOutlined v-if="healthScore >= 90" style="color:#52c41a" /></template>
+                <a-statistic
+                  title="健康分数"
+                  :value="healthScore"
+                  suffix="分"
+                >
+                  <template #prefix>
+                    <CheckCircleOutlined
+                      v-if="healthScore >= 90"
+                      style="color:#52c41a"
+                    />
+                  </template>
                 </a-statistic>
               </a-col>
               <a-col :span="6">
-                <a-statistic title="服务名称" value="ai-ready-core-api" />
+                <a-statistic
+                  title="服务名称"
+                  value="ai-ready-core-api"
+                />
               </a-col>
               <a-col :span="6">
-                <a-statistic title="运行状态" value="运行中">
-                  <template #prefix><SyncOutlined spin style="color:#1890ff" /></template>
+                <a-statistic
+                  title="运行状态"
+                  value="运行中"
+                >
+                  <template #prefix>
+                    <SyncOutlined
+                      spin
+                      style="color:#1890ff"
+                    />
+                  </template>
                 </a-statistic>
               </a-col>
               <a-col :span="6">
-                <a-statistic title="服务时间" :value="currentTime" />
+                <a-statistic
+                  title="服务时间"
+                  :value="currentTime"
+                />
               </a-col>
             </a-row>
           </a-card>
@@ -53,16 +93,33 @@
       </a-row>
 
       <!-- 依赖服务状态 -->
-      <a-row :gutter="16" style="margin-bottom:16px">
+      <a-row
+        :gutter="16"
+        style="margin-bottom:16px"
+      >
         <a-col :span="24">
-          <a-card :bordered="false" title="依赖服务状态">
+          <a-card
+            :bordered="false"
+            title="依赖服务状态"
+          >
             <a-row :gutter="[16,16]">
-              <a-col :span="8" v-for="dep in dependencies" :key="dep.name">
-                <a-card size="small" :style="{ borderLeft: `3px solid ${dep.status === 'UP' ? '#52c41a' : '#ff4d4f'}` }">
+              <a-col
+                v-for="dep in dependencies"
+                :key="dep.name"
+                :span="8"
+              >
+                <a-card
+                  size="small"
+                  :style="{ borderLeft: `3px solid ${dep.status === 'UP' ? '#52c41a' : '#ff4d4f'}` }"
+                >
                   <a-row align="middle">
                     <a-col flex="auto">
-                      <div style="font-weight:500">{{ dep.name }}</div>
-                      <div style="font-size:12px;color:#999">{{ dep.status === 'UP' ? '正常运行' : '服务异常' }}</div>
+                      <div style="font-weight:500">
+                        {{ dep.name }}
+                      </div>
+                      <div style="font-size:12px;color:#999">
+                        {{ dep.status === 'UP' ? '正常运行' : '服务异常' }}
+                      </div>
                     </a-col>
                     <a-col>
                       <a-badge :status="dep.status === 'UP' ? 'success' : 'error'" />
@@ -76,21 +133,41 @@
       </a-row>
 
       <!-- JVM 状态 -->
-      <a-row :gutter="16" style="margin-bottom:16px">
+      <a-row
+        :gutter="16"
+        style="margin-bottom:16px"
+      >
         <a-col :span="24">
-          <a-card :bordered="false" title="JVM 运行状态">
+          <a-card
+            :bordered="false"
+            title="JVM 运行状态"
+          >
             <a-row :gutter="[16,16]">
               <a-col :span="6">
-                <a-statistic title="堆内存使用" :value="jvmHeapUsage" suffix="%" :value-style="{ color: jvmHeapUsage > 80 ? '#ff4d4f' : '#52c41a' }" />
+                <a-statistic
+                  title="堆内存使用"
+                  :value="jvmHeapUsage"
+                  suffix="%"
+                  :value-style="{ color: jvmHeapUsage > 80 ? '#ff4d4f' : '#52c41a' }"
+                />
               </a-col>
               <a-col :span="6">
-                <a-statistic title="已用堆内存" :value="formatBytes(jvmHeapUsed)" />
+                <a-statistic
+                  title="已用堆内存"
+                  :value="formatBytes(jvmHeapUsed)"
+                />
               </a-col>
               <a-col :span="6">
-                <a-statistic title="最大堆内存" :value="formatBytes(jvmHeapMax)" />
+                <a-statistic
+                  title="最大堆内存"
+                  :value="formatBytes(jvmHeapMax)"
+                />
               </a-col>
               <a-col :span="6">
-                <a-statistic title="线程数" :value="jvmThreadCount" />
+                <a-statistic
+                  title="线程数"
+                  :value="jvmThreadCount"
+                />
               </a-col>
             </a-row>
           </a-card>
@@ -100,14 +177,29 @@
       <!-- 磁盘状态 -->
       <a-row :gutter="16">
         <a-col :span="24">
-          <a-card :bordered="false" title="磁盘状态">
-            <a-table :data-source="disks" :columns="diskColumns" row-key="path" :pagination="false" size="small">
+          <a-card
+            :bordered="false"
+            title="磁盘状态"
+          >
+            <a-table
+              :data-source="disks"
+              :columns="diskColumns"
+              row-key="path"
+              :pagination="false"
+              size="small"
+            >
               <template #bodyCell="{ column, record }">
                 <template v-if="column.key === 'usagePercent'">
-                  <a-progress :percent="record.usagePercent" size="small" :status="record.usagePercent > 90 ? 'exception' : 'active'" />
+                  <a-progress
+                    :percent="record.usagePercent"
+                    size="small"
+                    :status="record.usagePercent > 90 ? 'exception' : 'active'"
+                  />
                 </template>
                 <template v-if="column.key === 'status'">
-                  <a-tag :color="record.status === 'UP' ? 'green' : 'red'">{{ record.status === 'UP' ? '正常' : '异常' }}</a-tag>
+                  <a-tag :color="record.status === 'UP' ? 'green' : 'red'">
+                    {{ record.status === 'UP' ? '正常' : '异常' }}
+                  </a-tag>
                 </template>
               </template>
             </a-table>

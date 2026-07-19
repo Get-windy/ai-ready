@@ -1,15 +1,27 @@
 <template>
-  <PageContainer title="合同审批" full-height>
+  <PageContainer
+    title="合同审批"
+    full-height
+  >
     <template #headerExtra>
       <a-space :size="12">
         <span class="data-status">
           <a-badge :status="loading ? 'processing' : hasError ? 'error' : 'success'" />
-          <span v-if="lastUpdateTime" class="update-time">
+          <span
+            v-if="lastUpdateTime"
+            class="update-time"
+          >
             数据更新: {{ lastUpdateTime }}
           </span>
         </span>
-        <a-button size="small" :loading="loading" @click="fetchData">
-          <template #icon><ReloadOutlined /></template>
+        <a-button
+          size="small"
+          :loading="loading"
+          @click="fetchData"
+        >
+          <template #icon>
+            <ReloadOutlined />
+          </template>
           刷新
         </a-button>
       </a-space>
@@ -23,25 +35,32 @@
             placeholder="合同编号"
             allow-clear
             style="width: 160px"
-            @pressEnter="handleSearch"
+            @press-enter="handleSearch"
           />
           <a-input
             v-model:value="searchParams.customerName"
             placeholder="客户名称"
             allow-clear
             style="width: 160px"
-            @pressEnter="handleSearch"
+            @press-enter="handleSearch"
           />
           <a-range-picker
             v-model:value="dateRange"
             style="width: 240px"
           />
-          <a-button type="primary" @click="handleSearch">
-            <template #icon><SearchOutlined /></template>
+          <a-button
+            type="primary"
+            @click="handleSearch"
+          >
+            <template #icon>
+              <SearchOutlined />
+            </template>
             查询
           </a-button>
           <a-button @click="handleReset">
-            <template #icon><ClearOutlined /></template>
+            <template #icon>
+              <ClearOutlined />
+            </template>
             重置
           </a-button>
         </a-space>
@@ -117,7 +136,7 @@ async function fetchData() {
       params.startDate = dateRange.value[0].format('YYYY-MM-DD')
       params.endDate = dateRange.value[1].format('YYYY-MM-DD')
     }
-    const res = await request.get('/api/crm/contract-approval/page', { params })
+    const res = await request.get('/crm/contract-approval/page', { params })
     const result = res as any
     const data = result.data ?? result
     tableData.value = data?.records || []

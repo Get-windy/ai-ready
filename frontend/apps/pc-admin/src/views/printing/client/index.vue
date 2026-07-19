@@ -4,180 +4,248 @@
       <div class="client-page-header">
         <div class="client-page-header-left">
           <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>
+              <router-link to="/">
+                首页
+              </router-link>
+            </a-breadcrumb-item>
             <a-breadcrumb-item>打印管理</a-breadcrumb-item>
             <a-breadcrumb-item>客户端管理</a-breadcrumb-item>
           </a-breadcrumb>
-          <h2 class="client-page-header-title">客户端管理</h2>
+          <h2 class="client-page-header-title">
+            客户端管理
+          </h2>
         </div>
         <div class="client-page-header-right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+          <span
+            v-if="lastUpdateTime"
+            class="update-time"
+          >更新于 {{ lastUpdateTime }}</span>
+          <span
+            v-if="autoRefreshCountdown > 0"
+            class="auto-refresh-badge"
+          >
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="loading" @click="debounceClick('refresh', fetchData)()">
-            <template #icon><ReloadOutlined /></template>
+          <a-button
+            size="small"
+            :loading="loading"
+            @click="debounceClick('refresh', fetchData)()"
+          >
+            <template #icon>
+              <ReloadOutlined />
+            </template>
             刷新
           </a-button>
-<span class="shortcut-hints">
-                                                <span class="shortcut-hint"><kbd>Ctrl+R</kbd> 刷新</span>
-                                                <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
-                                                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-                                              </span>
+          <span class="shortcut-hints">
+            <span class="shortcut-hint"><kbd>Ctrl+R</kbd> 刷新</span>
+            <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+          </span>
         </div>
       </div>
     </template>
 
     <ErrorBoundary>
-    <div class="client-management">
-      <!-- 统计卡片 -->
-      <div class="stat-cards">
-        <div class="stat-card stat-total">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ pagination.total }}</div>
-            <div class="stat-card-label">客户端总数</div>
+      <div class="client-management">
+        <!-- 统计卡片 -->
+        <div class="stat-cards">
+          <div class="stat-card stat-total">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ pagination.total }}
+              </div>
+              <div class="stat-card-label">
+                客户端总数
+              </div>
+            </div>
+            <DesktopOutlined class="stat-card-icon" />
           </div>
-          <DesktopOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-online">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ onlineCount }}</div>
-            <div class="stat-card-label">在线</div>
+          <div class="stat-card stat-online">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ onlineCount }}
+              </div>
+              <div class="stat-card-label">
+                在线
+              </div>
+            </div>
+            <CheckCircleOutlined class="stat-card-icon" />
           </div>
-          <CheckCircleOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-offline">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ offlineCount }}</div>
-            <div class="stat-card-label">离线</div>
+          <div class="stat-card stat-offline">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ offlineCount }}
+              </div>
+              <div class="stat-card-label">
+                离线
+              </div>
+            </div>
+            <MinusCircleOutlined class="stat-card-icon" />
           </div>
-          <MinusCircleOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-disabled">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ disabledCount }}</div>
-            <div class="stat-card-label">已禁用</div>
+          <div class="stat-card stat-disabled">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ disabledCount }}
+              </div>
+              <div class="stat-card-label">
+                已禁用
+              </div>
+            </div>
+            <StopOutlined class="stat-card-icon" />
           </div>
-          <StopOutlined class="stat-card-icon" />
         </div>
-      </div>
 
-      <!-- 客户端列表 -->
-      <BillTableList
-        ref="tableRef"
-        :columns="vxeColumns"
-        :data-source="tableDataSource"
-        :loading="loading"
-        :pagination="pagination"
-        :row-key="'clientId'"
-        :filter-fields="filterFields"
-        :show-search="false"
-        :selectable="true"
-        add-text="新增客户端"
-        :min-empty-rows="12"
-        @add="handleAdd"
-        @delete="handleDeleteConfirm"
-        @batch-delete="handleBatchDelete"
-        @refresh="debounceClick('refresh', fetchData)"
-        @page-change="handlePageChange"
-        @filter-change="handleFilterChange"
-        @selection-change="(_rows: any, ids: any) => { selectedRowKeys = ids as number[] }"
-      >
-        <template #statusCell="{ record }">
-          <a-tag :color="getStatusColor(record.status)">
-            <span class="status-dot" :class="`status-dot--${(record.status || '').toLowerCase()}`"></span>
-            {{ getStatusLabel(record.status) }}
-          </a-tag>
-        </template>
-
-        <template #lastHeartbeatCell="{ record }">
-          <span :title="record.lastHeartbeat || '-'">{{ formatRelativeTime(record.lastHeartbeat) }}</span>
-        </template>
-
-        <template #clientCodeCell="{ record }">
-          <span class="code-text">{{ record.clientCode }}</span>
-          <a-tooltip title="复制客户端编码">
-            <a-button
-              type="link"
-              size="small"
-              class="copy-btn"
- v-permission="'printing:client:copy'" @click="handleCopy(record.clientCode)"
-            >
-              <CopyOutlined />
-            </a-button>
-          </a-tooltip>
-        </template>
-
-        <template #authKeyCell="{ record }">
-          <span class="code-text masked">******</span>
-          <a-tooltip title="复制认证密钥">
-            <a-button
-              type="link"
-              size="small"
-              class="copy-btn"
- v-permission="'printing:client:copy'" @click="handleCopy(record.authKey)"
-            >
-              <CopyOutlined />
-            </a-button>
-          </a-tooltip>
-        </template>
-
-        <template #empty>
-          <a-empty v-if="!hasError" description="暂无客户端数据" />
-          <a-result v-else status="error" title="数据加载失败">
-            <template #extra>
-              <a-button type="primary" @click="debounceClick('refresh', fetchData)()">
-                <template #icon><ReloadOutlined /></template>
-                重新加载
-              </a-button>
-            </template>
-          </a-result>
-        </template>
-
-        <template #action="{ record }">
-          <a-space>
-            <a-button type="link" size="small" v-permission="'printing:client:resetkey'" @click="handleResetKey(record)">
-              重置密钥
-            </a-button>
-            <a-button type="link" size="small" danger v-permission="'printing:client:deleteconfirm'" @click="handleDeleteConfirm(record)">
-              删除
-            </a-button>
-          </a-space>
-        </template>
-      </BillTableList>
-
-      <!-- 注册客户端弹窗 -->
-      <FullScreenDetail
-        :visible="modalVisible"
-        :title="'注册客户端'"
-        :save-loading="modalLoading"
-        :show-save-and-new="true"
-        @save="handleModalOk"
-        @close="handleFormClose"
-        @save-and-new="handleFormSaveAndNew"
-      >
-        <a-form
-          ref="formRef"
-          :model="formState"
-          :rules="formRules"
-          :label-col="{ span: 6 }"
-          :wrapper-col="{ span: 16 }"
+        <!-- 客户端列表 -->
+        <BillTableList
+          ref="tableRef"
+          :columns="vxeColumns"
+          :data-source="tableDataSource"
+          :loading="loading"
+          :pagination="pagination"
+          :row-key="'clientId'"
+          :filter-fields="filterFields"
+          :show-search="false"
+          :selectable="true"
+          add-text="新增客户端"
+          :min-empty-rows="12"
+          @add="handleAdd"
+          @delete="handleDeleteConfirm"
+          @batch-delete="handleBatchDelete"
+          @refresh="debounceClick('refresh', fetchData)"
+          @page-change="handlePageChange"
+          @filter-change="handleFilterChange"
+          @selection-change="(_rows: any, ids: any) => { selectedRowKeys = ids as number[] }"
         >
-          <a-form-item label="客户端名称" name="clientName">
-            <a-input
-              v-model:value="formState.clientName"
-              placeholder="请输入客户端名称"
+          <template #statusCell="{ record }">
+            <a-tag :color="getStatusColor(record.status)">
+              <span
+                class="status-dot"
+                :class="`status-dot--${(record.status || '').toLowerCase()}`"
+              />
+              {{ getStatusLabel(record.status) }}
+            </a-tag>
+          </template>
+
+          <template #lastHeartbeatCell="{ record }">
+            <span :title="record.lastHeartbeat || '-'">{{ formatRelativeTime(record.lastHeartbeat) }}</span>
+          </template>
+
+          <template #clientCodeCell="{ record }">
+            <span class="code-text">{{ record.clientCode }}</span>
+            <a-tooltip title="复制客户端编码">
+              <a-button
+                v-permission="'printing:client:copy'"
+                type="link"
+                size="small"
+                class="copy-btn"
+                @click="handleCopy(record.clientCode)"
+              >
+                <CopyOutlined />
+              </a-button>
+            </a-tooltip>
+          </template>
+
+          <template #authKeyCell="{ record }">
+            <span class="code-text masked">******</span>
+            <a-tooltip title="复制认证密钥">
+              <a-button
+                v-permission="'printing:client:copy'"
+                type="link"
+                size="small"
+                class="copy-btn"
+                @click="handleCopy(record.authKey)"
+              >
+                <CopyOutlined />
+              </a-button>
+            </a-tooltip>
+          </template>
+
+          <template #empty>
+            <a-empty
+              v-if="!hasError"
+              description="暂无客户端数据"
             />
-          </a-form-item>
-          <a-form-item label="客户端版本" name="clientVersion">
-            <a-input
-              v-model:value="formState.clientVersion"
-              placeholder="可选，如 1.0.0"
-            />
-          </a-form-item>
-        </a-form>
-      </FullScreenDetail>
-    </div>
+            <a-result
+              v-else
+              status="error"
+              title="数据加载失败"
+            >
+              <template #extra>
+                <a-button
+                  type="primary"
+                  @click="debounceClick('refresh', fetchData)()"
+                >
+                  <template #icon>
+                    <ReloadOutlined />
+                  </template>
+                  重新加载
+                </a-button>
+              </template>
+            </a-result>
+          </template>
+
+          <template #action="{ record }">
+            <a-space>
+              <a-button
+                v-permission="'printing:client:resetkey'"
+                type="link"
+                size="small"
+                @click="handleResetKey(record)"
+              >
+                重置密钥
+              </a-button>
+              <a-button
+                v-permission="'printing:client:deleteconfirm'"
+                type="link"
+                size="small"
+                danger
+                @click="handleDeleteConfirm(record)"
+              >
+                删除
+              </a-button>
+            </a-space>
+          </template>
+        </BillTableList>
+
+        <!-- 注册客户端弹窗 -->
+        <FullScreenDetail
+          :visible="modalVisible"
+          :title="'注册客户端'"
+          :save-loading="modalLoading"
+          :show-save-and-new="true"
+          @save="handleModalOk"
+          @close="handleFormClose"
+          @save-and-new="handleFormSaveAndNew"
+        >
+          <a-form
+            ref="formRef"
+            :model="formState"
+            :rules="formRules"
+            :label-col="{ span: 6 }"
+            :wrapper-col="{ span: 16 }"
+          >
+            <a-form-item
+              label="客户端名称"
+              name="clientName"
+            >
+              <a-input
+                v-model:value="formState.clientName"
+                placeholder="请输入客户端名称"
+              />
+            </a-form-item>
+            <a-form-item
+              label="客户端版本"
+              name="clientVersion"
+            >
+              <a-input
+                v-model:value="formState.clientVersion"
+                placeholder="可选，如 1.0.0"
+              />
+            </a-form-item>
+          </a-form>
+        </FullScreenDetail>
+      </div>
     </ErrorBoundary>
   </PageContainer>
 </template>

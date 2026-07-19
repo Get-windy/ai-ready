@@ -5,10 +5,12 @@
       <a-button
         class="search-trigger"
         size="small"
-        @click="openSearch"
         aria-label="全局搜索"
+        @click="openSearch"
       >
-        <template #icon><SearchOutlined /></template>
+        <template #icon>
+          <SearchOutlined />
+        </template>
         <span class="search-trigger-text">搜索菜单和单据...</span>
         <span class="search-shortcut">Ctrl+K</span>
       </a-button>
@@ -34,7 +36,7 @@
             placeholder="搜索菜单、单据、客户、供应商..."
             @keydown="handleKeydown"
             @input="handleInput"
-          />
+          >
           <a-button
             v-if="keyword"
             type="text"
@@ -47,7 +49,10 @@
         </div>
 
         <!-- 最近浏览（默认显示） -->
-        <div v-if="!keyword" class="search-section">
+        <div
+          v-if="!keyword"
+          class="search-section"
+        >
           <div class="search-section-header">
             <span class="search-section-title">最近浏览</span>
             <a-button
@@ -59,7 +64,10 @@
               清除
             </a-button>
           </div>
-          <div v-if="recentStore.recentList.length === 0" class="search-empty-hint">
+          <div
+            v-if="recentStore.recentList.length === 0"
+            class="search-empty-hint"
+          >
             暂无浏览记录
           </div>
           <div
@@ -73,21 +81,36 @@
               <component :is="getTypeIcon(item.type)" />
             </div>
             <div class="result-item-content">
-              <div class="result-item-title">{{ item.title }}</div>
-              <div v-if="item.bizNo" class="result-item-desc">{{ item.bizNo }}</div>
+              <div class="result-item-title">
+                {{ item.title }}
+              </div>
+              <div
+                v-if="item.bizNo"
+                class="result-item-desc"
+              >
+                {{ item.bizNo }}
+              </div>
             </div>
-            <div class="result-item-time">{{ formatTime(item.timestamp) }}</div>
+            <div class="result-item-time">
+              {{ formatTime(item.timestamp) }}
+            </div>
           </div>
         </div>
 
         <!-- 搜索结果 -->
-        <div v-else class="search-section">
+        <div
+          v-else
+          class="search-section"
+        >
           <div class="search-section-header">
             <span class="search-section-title">
               搜索结果 ({{ filteredResults.length }})
             </span>
           </div>
-          <div v-if="filteredResults.length === 0" class="search-empty">
+          <div
+            v-if="filteredResults.length === 0"
+            class="search-empty"
+          >
             <SearchOutlined class="search-empty-icon" />
             <p>未找到 "{{ keyword }}" 相关内容</p>
           </div>
@@ -103,10 +126,19 @@
               <component :is="getTypeIcon(item.type)" />
             </div>
             <div class="result-item-content">
-              <div class="result-item-title" v-html="highlightText(item.title)"></div>
-              <div v-if="item.bizNo" class="result-item-desc" v-html="highlightText(item.bizNo)"></div>
+              <div
+                class="result-item-title"
+                v-html="highlightText(item.title)"
+              />
+              <div
+                v-if="item.bizNo"
+                class="result-item-desc"
+                v-html="highlightText(item.bizNo)"
+              />
             </div>
-            <div class="result-item-type">{{ getTypeLabel(item.type) }}</div>
+            <div class="result-item-type">
+              {{ getTypeLabel(item.type) }}
+            </div>
           </div>
         </div>
 

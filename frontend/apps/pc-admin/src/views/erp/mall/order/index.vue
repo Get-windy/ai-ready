@@ -1,130 +1,265 @@
 <template>
   <ErrorBoundary @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="page-header">
-        <a-breadcrumb>
-          <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-          <a-breadcrumb-item><router-link to="/mall">商城管理</router-link></a-breadcrumb-item>
-          <a-breadcrumb-item>订单管理</a-breadcrumb-item>
-        </a-breadcrumb>
-        <div class="page-header__right">
-          <span v-if="lastUpdateTime" class="page-header__update-time">更新于: {{ lastUpdateTime }}</span>
-          <a-space :size="8">
-            <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-              <SyncOutlined /> {{ autoRefreshCountdown }}s
-            </span>
-            <span class="shortcut-hints">
-              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-              <span class="shortcut-hint"><kbd>Ctrl</kbd>+<kbd>E</kbd> 导出</span>
-            </span>
-            <a-tooltip title="F5: 刷新 | Ctrl+E: 导出">
-              <a-button size="small" @click="debounceClick('refresh', fetchData)">
-                <template #icon><ReloadOutlined /></template>刷新
-              </a-button>
-            </a-tooltip>
-            <a-tooltip title="导出 (Ctrl+E)">
-              <a-button size="small" @click="debounceClick('export', handleExport)">
-                <template #icon><ExportOutlined /></template>导出
-              </a-button>
-            </a-tooltip>
-            <PrintButton :record="{ orderNo: '' }" business-type="mall_order" button-size="small" tooltip="打印" />
-          </a-space>
+    <PageContainer full-height>
+      <template #header>
+        <div class="page-header">
+          <a-breadcrumb>
+            <a-breadcrumb-item>
+              <router-link to="/">
+                首页
+              </router-link>
+            </a-breadcrumb-item>
+            <a-breadcrumb-item>
+              <router-link to="/mall">
+                商城管理
+              </router-link>
+            </a-breadcrumb-item>
+            <a-breadcrumb-item>订单管理</a-breadcrumb-item>
+          </a-breadcrumb>
+          <div class="page-header__right">
+            <span
+              v-if="lastUpdateTime"
+              class="page-header__update-time"
+            >更新于: {{ lastUpdateTime }}</span>
+            <a-space :size="8">
+              <span
+                v-if="autoRefreshCountdown > 0"
+                class="auto-refresh-badge"
+              >
+                <SyncOutlined /> {{ autoRefreshCountdown }}s
+              </span>
+              <span class="shortcut-hints">
+                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+                <span class="shortcut-hint"><kbd>Ctrl</kbd>+<kbd>E</kbd> 导出</span>
+              </span>
+              <a-tooltip title="F5: 刷新 | Ctrl+E: 导出">
+                <a-button
+                  size="small"
+                  @click="debounceClick('refresh', fetchData)"
+                >
+                  <template #icon>
+                    <ReloadOutlined />
+                  </template>刷新
+                </a-button>
+              </a-tooltip>
+              <a-tooltip title="导出 (Ctrl+E)">
+                <a-button
+                  size="small"
+                  @click="debounceClick('export', handleExport)"
+                >
+                  <template #icon>
+                    <ExportOutlined />
+                  </template>导出
+                </a-button>
+              </a-tooltip>
+              <PrintButton
+                :record="{ orderNo: '' }"
+                business-type="mall_order"
+                button-size="small"
+                tooltip="打印"
+              />
+            </a-space>
+          </div>
         </div>
-      </div>
-    </template>
+      </template>
 
-    <BillTableList
-      ref="tableRef"
-      :columns="vxeColumns"
-      :data-source="tableDataSource"
-      :loading="loading"
-      :pagination="pagination"
-      :row-key="'id'"
-      :filter-fields="filterFields"
-      :show-search="false"
-      @refresh="debounceClick('refresh', fetchData)"
-      @page-change="handlePageChange"
-      @filter-change="handleFilterChange"
-    >
-      <template #empty>
-        <a-empty v-if="!hasError" description="暂无订单数据" />
-        <a-result v-else status="error" title="数据加载失败">
-          <template #extra>
-            <a-button type="primary" @click="debounceClick('refresh', fetchData)">
-              <template #icon><ReloadOutlined /></template>重新加载
+      <BillTableList
+        ref="tableRef"
+        :columns="vxeColumns"
+        :data-source="tableDataSource"
+        :loading="loading"
+        :pagination="pagination"
+        :row-key="'id'"
+        :filter-fields="filterFields"
+        :show-search="false"
+        @refresh="debounceClick('refresh', fetchData)"
+        @page-change="handlePageChange"
+        @filter-change="handleFilterChange"
+      >
+        <template #empty>
+          <a-empty
+            v-if="!hasError"
+            description="暂无订单数据"
+          />
+          <a-result
+            v-else
+            status="error"
+            title="数据加载失败"
+          >
+            <template #extra>
+              <a-button
+                type="primary"
+                @click="debounceClick('refresh', fetchData)"
+              >
+                <template #icon>
+                  <ReloadOutlined />
+                </template>重新加载
+              </a-button>
+            </template>
+          </a-result>
+        </template>
+
+        <template #orderStatusCell="{ record }">
+          <a-tag
+            v-if="record.orderStatus === 'PENDING_PAYMENT'"
+            color="orange"
+          >
+            待付款
+          </a-tag>
+          <a-tag
+            v-else-if="record.orderStatus === 'PAID'"
+            color="blue"
+          >
+            已付款
+          </a-tag>
+          <a-tag
+            v-else-if="record.orderStatus === 'APPROVED'"
+            color="cyan"
+          >
+            已审核
+          </a-tag>
+          <a-tag
+            v-else-if="record.orderStatus === 'SHIPPED'"
+            color="purple"
+          >
+            已发货
+          </a-tag>
+          <a-tag
+            v-else-if="record.orderStatus === 'COMPLETED'"
+            color="green"
+          >
+            已完成
+          </a-tag>
+          <a-tag
+            v-else-if="record.orderStatus === 'CANCELLED'"
+            color="red"
+          >
+            已取消
+          </a-tag>
+          <a-tag
+            v-else-if="record.orderStatus === 'REJECTED'"
+            color="red"
+          >
+            已驳回
+          </a-tag>
+          <span v-else>{{ record.orderStatus }}</span>
+        </template>
+
+        <template #action="{ record }">
+          <a-space>
+            <a-button
+              type="link"
+              size="small"
+              @click="handleViewDetail(record)"
+            >
+              详情
             </a-button>
-          </template>
-        </a-result>
-      </template>
+            <template v-if="record.orderStatus === 'PAID'">
+              <a-button
+                v-permission="'erp:mall:order:approve'"
+                type="link"
+                size="small"
+                style="color: #52c41a"
+                @click="handleApprove(record)"
+              >
+                通过
+              </a-button>
+              <a-button
+                v-permission="'erp:mall:order:reject'"
+                type="link"
+                size="small"
+                danger
+                @click="handleReject(record)"
+              >
+                驳回
+              </a-button>
+            </template>
+          </a-space>
+        </template>
+      </BillTableList>
 
-      <template #orderStatusCell="{ record }">
-        <a-tag v-if="record.orderStatus === 'PENDING_PAYMENT'" color="orange">待付款</a-tag>
-        <a-tag v-else-if="record.orderStatus === 'PAID'" color="blue">已付款</a-tag>
-        <a-tag v-else-if="record.orderStatus === 'APPROVED'" color="cyan">已审核</a-tag>
-        <a-tag v-else-if="record.orderStatus === 'SHIPPED'" color="purple">已发货</a-tag>
-        <a-tag v-else-if="record.orderStatus === 'COMPLETED'" color="green">已完成</a-tag>
-        <a-tag v-else-if="record.orderStatus === 'CANCELLED'" color="red">已取消</a-tag>
-        <a-tag v-else-if="record.orderStatus === 'REJECTED'" color="red">已驳回</a-tag>
-        <span v-else>{{ record.orderStatus }}</span>
-      </template>
+      <!-- 订单详情弹窗 -->
+      <a-modal
+        v-model:open="detailVisible"
+        :title="'订单详情 - ' + (detailData?.orderNo || '')"
+        :footer="null"
+        width="720px"
+      >
+        <a-descriptions
+          v-if="detailData"
+          bordered
+          :column="2"
+          size="small"
+        >
+          <a-descriptions-item
+            label="订单编号"
+            :span="2"
+          >
+            {{ detailData.orderNo }}
+          </a-descriptions-item>
+          <a-descriptions-item label="客户名称">
+            {{ detailData.customerName }}
+          </a-descriptions-item>
+          <a-descriptions-item label="订单金额">
+            ¥{{ detailData.totalAmount }}
+          </a-descriptions-item>
+          <a-descriptions-item label="订单状态">
+            {{ statusLabel(detailData.orderStatus) }}
+          </a-descriptions-item>
+          <a-descriptions-item label="支付状态">
+            {{ detailData.paymentStatus }}
+          </a-descriptions-item>
+          <a-descriptions-item label="收货人">
+            {{ detailData.consignee }}
+          </a-descriptions-item>
+          <a-descriptions-item label="联系电话">
+            {{ detailData.phone }}
+          </a-descriptions-item>
+          <a-descriptions-item
+            label="收货地址"
+            :span="2"
+          >
+            {{ detailData.address }}
+          </a-descriptions-item>
+          <a-descriptions-item
+            label="下单时间"
+            :span="2"
+          >
+            {{ detailData.createTime }}
+          </a-descriptions-item>
+          <a-descriptions-item
+            label="备注"
+            :span="2"
+          >
+            {{ detailData.remark || '-' }}
+          </a-descriptions-item>
+        </a-descriptions>
 
-      <template #action="{ record }">
-        <a-space>
-          <a-button type="link" size="small" @click="handleViewDetail(record)">详情</a-button>
-          <template v-if="record.orderStatus === 'PAID'">
-            <a-button v-permission="'erp:mall:order:approve'" type="link" size="small" style="color: #52c41a" @click="handleApprove(record)">通过</a-button>
-            <a-button v-permission="'erp:mall:order:reject'" type="link" size="small" danger @click="handleReject(record)">驳回</a-button>
-          </template>
-        </a-space>
-      </template>
-    </BillTableList>
+        <a-divider>商品明细</a-divider>
+        <a-table
+          :data-source="detailData?.orderItems || []"
+          :columns="detailColumns"
+          :pagination="false as any"
+          size="small"
+          row-key="id"
+        />
+      </a-modal>
 
-    <!-- 订单详情弹窗 -->
-    <a-modal
-      v-model:open="detailVisible"
-      :title="'订单详情 - ' + (detailData?.orderNo || '')"
-      :footer="null"
-      width="720px"
-    >
-      <a-descriptions v-if="detailData" bordered :column="2" size="small">
-        <a-descriptions-item label="订单编号" :span="2">{{ detailData.orderNo }}</a-descriptions-item>
-        <a-descriptions-item label="客户名称">{{ detailData.customerName }}</a-descriptions-item>
-        <a-descriptions-item label="订单金额">¥{{ detailData.totalAmount }}</a-descriptions-item>
-        <a-descriptions-item label="订单状态">{{ statusLabel(detailData.orderStatus) }}</a-descriptions-item>
-        <a-descriptions-item label="支付状态">{{ detailData.paymentStatus }}</a-descriptions-item>
-        <a-descriptions-item label="收货人">{{ detailData.consignee }}</a-descriptions-item>
-        <a-descriptions-item label="联系电话">{{ detailData.phone }}</a-descriptions-item>
-        <a-descriptions-item label="收货地址" :span="2">{{ detailData.address }}</a-descriptions-item>
-        <a-descriptions-item label="下单时间" :span="2">{{ detailData.createTime }}</a-descriptions-item>
-        <a-descriptions-item label="备注" :span="2">{{ detailData.remark || '-' }}</a-descriptions-item>
-      </a-descriptions>
-
-      <a-divider>商品明细</a-divider>
-      <a-table
-        :data-source="detailData?.orderItems || []"
-        :columns="detailColumns"
-        :pagination="false as any"
-        size="small"
-        row-key="id"
-      />
-    </a-modal>
-
-    <!-- 驳回原因弹窗 -->
-    <a-modal
-      v-model:open="rejectModalVisible"
-      title="驳回原因"
-      :confirm-loading="rejectLoading"
-      @ok="handleRejectConfirm"
-    >
-      <a-textarea
-        v-model:value="rejectReason"
-        placeholder="请输入驳回原因"
-        :rows="3"
-        :maxlength="500"
-      />
-    </a-modal>
-  </PageContainer>
+      <!-- 驳回原因弹窗 -->
+      <a-modal
+        v-model:open="rejectModalVisible"
+        title="驳回原因"
+        :confirm-loading="rejectLoading"
+        @ok="handleRejectConfirm"
+      >
+        <a-textarea
+          v-model:value="rejectReason"
+          placeholder="请输入驳回原因"
+          :rows="3"
+          :maxlength="500"
+        />
+      </a-modal>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

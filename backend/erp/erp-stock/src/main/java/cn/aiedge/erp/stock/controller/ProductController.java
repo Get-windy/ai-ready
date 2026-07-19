@@ -2,6 +2,7 @@ package cn.aiedge.erp.stock.controller;
 
 import cn.aiedge.base.vo.Result;
 import cn.aiedge.erp.stock.dto.BatchPriceUpdateDTO;
+import cn.aiedge.erp.stock.dto.BatchStatusUpdateDTO;
 import cn.aiedge.erp.stock.dto.ProductFormDTO;
 import cn.aiedge.erp.stock.entity.Product;
 import cn.aiedge.erp.stock.entity.ProductRecommend;
@@ -54,10 +55,13 @@ public class ProductController {
             @RequestParam(required = false) String createTimeEnd,
             @RequestParam(required = false) Integer useCoupon,
             @RequestParam(required = false) Integer isStandardProduct,
+            @RequestParam(required = false) String productType,
+            @RequestParam(required = false) Integer mallShelfStatus,
             @RequestParam(defaultValue = "1") Integer pageNum,
             @RequestParam(defaultValue = "20") Integer pageSize) {
         return Result.ok(productService.getProductPage(categoryId, keyword, status, brand, industryCategory,
-                createTimeStart, createTimeEnd, useCoupon, isStandardProduct, pageNum, pageSize));
+                createTimeStart, createTimeEnd, useCoupon, isStandardProduct, productType, mallShelfStatus,
+                pageNum, pageSize));
     }
 
     @Operation(summary = "获取产品详情(含等级价格)")
@@ -135,8 +139,30 @@ public class ProductController {
     public Result<List<Product>> export(
             @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) String status) {
-        return Result.ok(productService.exportList(categoryId, keyword, status));
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String brand,
+            @RequestParam(required = false) String industryCategory,
+            @RequestParam(required = false) String createTimeStart,
+            @RequestParam(required = false) String createTimeEnd,
+            @RequestParam(required = false) Integer useCoupon,
+            @RequestParam(required = false) Integer isStandardProduct) {
+        return Result.ok(productService.exportList(categoryId, keyword, status,
+                brand, industryCategory, createTimeStart, createTimeEnd,
+                useCoupon, isStandardProduct));
+    }
+
+    @Operation(summary = "批量更新商品状态")
+    @SaCheckPermission("erp:product:status")
+    @PutMapping("/batch-status")
+    public Result<Boolean> batchUpdateStatus(@RequestBody BatchStatusUpdateDTO dto) {
+        return Result.ok(productService.batchUpdateStatus(dto.getIds(), dto.getStatus()));
+    }
+
+    @Operation(summary = "批量删除商品")
+    @SaCheckPermission("erp:product:delete")
+    @PutMapping("/batch-delete")
+    public Result<Boolean> batchDelete(@RequestBody Map<String, List<Long>> body) {
+        return Result.ok(productService.batchDelete(body.get("ids")));
     }
 
     @Operation(summary = "产品审批")
@@ -149,6 +175,20 @@ public class ProductController {
         product.setId(id);
         product.setApprovalStatus(action);
         return Result.ok(productService.updateById(product));
+    }
+
+    @Operation(summary = "获取行业类别选项(去重)")
+    @SaCheckPermission("erp:product:list")
+    @GetMapping("/industry-categories")
+    public Result<List<String>> getIndustryCategories() {
+        return Result.ok(productService.getDistinctIndustryCategories());
+    }
+
+    @Operation(summary = "获取品牌选项(去重)")
+    @SaCheckPermission("erp:product:list")
+    @GetMapping("/brands")
+    public Result<List<String>> getBrands() {
+        return Result.ok(productService.getDistinctBrands());
     }
 
     @Operation(summary = "批量创建商品(含单位+推荐)")

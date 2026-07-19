@@ -1,235 +1,369 @@
 <template>
   <ErrorBoundary @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="offset-page-header">
-        <div class="offset-page-header-left">
-          <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item>财务管理</a-breadcrumb-item>
-            <a-breadcrumb-item>往来对冲</a-breadcrumb-item>
-          </a-breadcrumb>
-          <h2 class="offset-page-header-title">往来对冲</h2>
+    <PageContainer full-height>
+      <template #header>
+        <div class="offset-page-header">
+          <div class="offset-page-header-left">
+            <a-breadcrumb>
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>财务管理</a-breadcrumb-item>
+              <a-breadcrumb-item>往来对冲</a-breadcrumb-item>
+            </a-breadcrumb>
+            <h2 class="offset-page-header-title">
+              往来对冲
+            </h2>
+          </div>
+          <div class="offset-page-header-right">
+            <span
+              v-if="lastUpdateTime"
+              class="update-time"
+            >更新于 {{ lastUpdateTime }}</span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            >
+              <SyncOutlined /> {{ autoRefreshCountdown }}s
+            </span>
+            <a-button
+              size="small"
+              :loading="refreshLoading"
+              @click="debounceClick('refresh', fetchData)"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
+              刷新
+            </a-button>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+              <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+            </span>
+          </div>
         </div>
-        <div class="offset-page-header-right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-            <SyncOutlined /> {{ autoRefreshCountdown }}s
-          </span>
-          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)">
-            <template #icon><ReloadOutlined /></template>
-            刷新
-          </a-button>
-          <span class="shortcut-hints">
-            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-            <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
-          </span>
-        </div>
-      </div>
-    </template>
+      </template>
 
-    <div class="finance-offset-page">
-      <!-- 统计卡片 -->
-      <div class="stat-cards">
-        <div class="stat-card stat-total">
-          <div class="stat-card-body">
-            <div class="stat-card-value">¥{{ formatAmount(stats.receivableAmount) }}</div>
-            <div class="stat-card-label">应收总额</div>
+      <div class="finance-offset-page">
+        <!-- 统计卡片 -->
+        <div class="stat-cards">
+          <div class="stat-card stat-total">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                ¥{{ formatAmount(stats.receivableAmount) }}
+              </div>
+              <div class="stat-card-label">
+                应收总额
+              </div>
+            </div>
+            <DollarOutlined class="stat-card-icon" />
           </div>
-          <DollarOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-written-off">
-          <div class="stat-card-body">
-            <div class="stat-card-value">¥{{ formatAmount(stats.payableAmount) }}</div>
-            <div class="stat-card-label">应付总额</div>
+          <div class="stat-card stat-written-off">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                ¥{{ formatAmount(stats.payableAmount) }}
+              </div>
+              <div class="stat-card-label">
+                应付总额
+              </div>
+            </div>
+            <DollarOutlined class="stat-card-icon" />
           </div>
-          <DollarOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-balance">
-          <div class="stat-card-body">
-            <div class="stat-card-value">¥{{ formatAmount(stats.offsetAmount) }}</div>
-            <div class="stat-card-label">对冲金额</div>
+          <div class="stat-card stat-balance">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                ¥{{ formatAmount(stats.offsetAmount) }}
+              </div>
+              <div class="stat-card-label">
+                对冲金额
+              </div>
+            </div>
+            <CheckCircleOutlined class="stat-card-icon" />
           </div>
-          <CheckCircleOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-count">
-          <div class="stat-card-body">
-            <div class="stat-card-value">¥{{ formatAmount(stats.balanceAmount) }}</div>
-            <div class="stat-card-label">余额</div>
+          <div class="stat-card stat-count">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                ¥{{ formatAmount(stats.balanceAmount) }}
+              </div>
+              <div class="stat-card-label">
+                余额
+              </div>
+            </div>
+            <ExclamationCircleOutlined class="stat-card-icon" />
           </div>
-          <ExclamationCircleOutlined class="stat-card-icon" />
         </div>
-      </div>
 
-      <BillTableList
-        ref="tableRef"
-        :min-empty-rows="12"
-        :columns="columns"
-        :data-source="tableData"
-        :loading="loading"
-        :pagination="pagination"
-        :row-key="'id'"
-        :filter-fields="filterFields"
-        :show-search="false"
-        export-permission="finance:offset:list"
-        :show-add="false"
-        :show-edit="false"
-        :show-delete="false"
-        :selectable="false"
-        @refresh="fetchData"
-        @cell-dblclick="handleView"
-        @page-change="handlePageChange"
-        @filter-change="handleFilterChange"
-      >
-        <template #toolbar-actions>
-          <a-button size="small" type="primary" v-permission="'finance:offset:create'" @click="debounceClick('add', handleAdd)">
-            <template #icon><PlusOutlined /></template>
-            新增对冲
-          </a-button>
-          <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
-            更新 {{ dayjs(lastUpdated).format('HH:mm') }}
-          </span>
-        </template>
-        <template #batch-actions>
+        <BillTableList
+          ref="tableRef"
+          :min-empty-rows="12"
+          :columns="columns"
+          :data-source="tableData"
+          :loading="loading"
+          :pagination="pagination"
+          :row-key="'id'"
+          :filter-fields="filterFields"
+          :show-search="false"
+          export-permission="finance:offset:list"
+          :show-add="false"
+          :show-edit="false"
+          :show-delete="false"
+          :selectable="false"
+          @refresh="fetchData"
+          @cell-dblclick="handleView"
+          @page-change="handlePageChange"
+          @filter-change="handleFilterChange"
+        >
+          <template #toolbar-actions>
+            <a-button
+              v-permission="'finance:offset:create'"
+              size="small"
+              type="primary"
+              @click="debounceClick('add', handleAdd)"
+            >
+              <template #icon>
+                <PlusOutlined />
+              </template>
+              新增对冲
+            </a-button>
+            <span
+              v-if="lastUpdated"
+              class="list-update-timestamp"
+              :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')"
+            >
+              更新 {{ dayjs(lastUpdated).format('HH:mm') }}
+            </span>
+          </template>
+          <template #batch-actions>
           <!-- 预留批量操作 -->
-        </template>
+          </template>
 
-        <template #empty>
-          <div class="table-empty">
-            <template v-if="hasError">
-              <WarningOutlined class="table-empty-icon" style="color: #faad14" />
-              <p class="table-empty-text">加载失败</p>
-              <a-button type="primary" size="small" @click="fetchData" class="table-empty-action">
-                <ReloadOutlined /> 重试
+          <template #empty>
+            <div class="table-empty">
+              <template v-if="hasError">
+                <WarningOutlined
+                  class="table-empty-icon"
+                  style="color: #faad14"
+                />
+                <p class="table-empty-text">
+                  加载失败
+                </p>
+                <a-button
+                  type="primary"
+                  size="small"
+                  class="table-empty-action"
+                  @click="fetchData"
+                >
+                  <ReloadOutlined /> 重试
+                </a-button>
+              </template>
+              <template v-else>
+                <SearchOutlined
+                  v-if="hasActiveFilters"
+                  class="table-empty-icon"
+                />
+                <InboxOutlined
+                  v-else
+                  class="table-empty-icon"
+                />
+                <p
+                  v-if="hasActiveFilters"
+                  class="table-empty-text"
+                >
+                  没有符合条件的对冲记录，<a @click="handleResetFilters">清除筛选</a>
+                </p>
+                <p
+                  v-else
+                  class="table-empty-text"
+                >
+                  暂无往来对冲数据
+                </p>
+              </template>
+            </div>
+          </template>
+
+          <template #statusCell="{ record }">
+            <a-tag :color="statusColorMap[record.status] || 'default'">
+              {{ statusLabelMap[record.status] || record.status }}
+            </a-tag>
+          </template>
+          <template #action="{ record }">
+            <a-space
+              :size="0"
+              class="action-cell-inner"
+            >
+              <PrintButton
+                template-type="offset"
+                :business-id="record.id"
+                business-type="offset"
+                button-text=""
+                button-size="small"
+                button-type="link"
+                tooltip="打印"
+              />
+              <a-button
+                v-permission="'finance:offset:view'"
+                type="link"
+                size="small"
+                @click="handleView(record)"
+              >
+                查看
               </a-button>
-            </template>
-            <template v-else>
-              <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-              <InboxOutlined v-else class="table-empty-icon" />
-              <p v-if="hasActiveFilters" class="table-empty-text">
-                没有符合条件的对冲记录，<a @click="handleResetFilters">清除筛选</a>
-              </p>
-              <p v-else class="table-empty-text">
-                暂无往来对冲数据
-              </p>
-            </template>
-          </div>
-        </template>
+              <a-button
+                v-if="record.status === 'draft'"
+                v-permission="'finance:offset:edit'"
+                type="link"
+                size="small"
+                @click="handleComplete(record)"
+              >
+                完成
+              </a-button>
+              <a-button
+                v-if="record.status === 'draft'"
+                v-permission="'finance:offset:delete'"
+                type="link"
+                size="small"
+                danger
+                @click="handleCancel(record)"
+              >
+                取消
+              </a-button>
+            </a-space>
+          </template>
+        </BillTableList>
 
-        <template #statusCell="{ record }">
-          <a-tag :color="statusColorMap[record.status] || 'default'">{{ statusLabelMap[record.status] || record.status }}</a-tag>
-        </template>
-        <template #action="{ record }">
-          <a-space :size="0" class="action-cell-inner">
-            <PrintButton
-              template-type="offset"
-              :business-id="record.id"
-              business-type="offset"
-              button-text=""
-              button-size="small"
-              button-type="link"
-              tooltip="打印"
-            />
-            <a-button type="link" size="small" v-permission="'finance:offset:view'" @click="handleView(record)">
-              查看
-            </a-button>
-            <a-button v-if="record.status === 'draft'" type="link" size="small" v-permission="'finance:offset:edit'" @click="handleComplete(record)">
-              完成
-            </a-button>
-            <a-button v-if="record.status === 'draft'" type="link" size="small" v-permission="'finance:offset:delete'" danger @click="handleCancel(record)">
-              取消
-            </a-button>
-          </a-space>
-        </template>
-      </BillTableList>
+        <!-- 新增对冲弹窗 -->
+        <FullScreenDetail
+          :visible="createVisible"
+          title="新增往来对冲"
+          :save-loading="createLoading"
+          :dirty="formDirty"
+          @save="handleCreateConfirm"
+          @close="handleCreateCancel"
+        >
+          <a-form layout="vertical">
+            <a-form-item
+              label="对方类型"
+              required
+            >
+              <a-radio-group v-model:value="createForm.partyType">
+                <a-radio value="customer">
+                  客户
+                </a-radio>
+                <a-radio value="supplier">
+                  供应商
+                </a-radio>
+              </a-radio-group>
+            </a-form-item>
+            <a-form-item
+              label="对方名称"
+              required
+            >
+              <a-select
+                v-model:value="createForm.partyId"
+                :options="partyOptions"
+                :loading="partyLoading"
+                show-search
+                :filter-option="(input: string, option: any) => option.label.toLowerCase().includes(input.toLowerCase())"
+                placeholder="请选择对方名称"
+                @change="handlePartyChange"
+              />
+            </a-form-item>
+            <a-descriptions
+              v-if="partyInfo"
+              :column="1"
+              bordered
+              size="small"
+            >
+              <a-descriptions-item label="应收金额">
+                ¥{{ formatAmount(partyInfo.receivableAmount) }}
+              </a-descriptions-item>
+              <a-descriptions-item label="应付金额">
+                ¥{{ formatAmount(partyInfo.payableAmount) }}
+              </a-descriptions-item>
+            </a-descriptions>
+            <a-form-item
+              label="对冲金额"
+              required
+              style="margin-top: 16px"
+            >
+              <a-input-number
+                v-model:value="createForm.offsetAmount"
+                :min="0.01"
+                :precision="2"
+                size="small"
+                style="width: 100%"
+                placeholder="请输入对冲金额"
+              />
+            </a-form-item>
+            <a-form-item label="对冲日期">
+              <a-date-picker
+                v-model:value="createForm.offsetDate"
+                size="small"
+                style="width: 100%"
+                placeholder="选择对冲日期"
+              />
+            </a-form-item>
+            <a-form-item label="备注">
+              <a-textarea
+                v-model:value="createForm.remark"
+                :rows="3"
+                size="small"
+                placeholder="请输入备注"
+              />
+            </a-form-item>
+          </a-form>
+        </FullScreenDetail>
 
-      <!-- 新增对冲弹窗 -->
-      <FullScreenDetail
-        :visible="createVisible"
-        title="新增往来对冲"
-        :save-loading="createLoading"
-        :dirty="formDirty"
-        @save="handleCreateConfirm"
-        @close="handleCreateCancel"
-      >
-        <a-form layout="vertical">
-          <a-form-item label="对方类型" required>
-            <a-radio-group v-model:value="createForm.partyType">
-              <a-radio value="customer">客户</a-radio>
-              <a-radio value="supplier">供应商</a-radio>
-            </a-radio-group>
-          </a-form-item>
-          <a-form-item label="对方名称" required>
-            <a-select
-              v-model:value="createForm.partyId"
-              :options="partyOptions"
-              :loading="partyLoading"
-              show-search
-              :filter-option="(input: string, option: any) => option.label.toLowerCase().includes(input.toLowerCase())"
-              placeholder="请选择对方名称"
-              @change="handlePartyChange"
-            />
-          </a-form-item>
-          <a-descriptions v-if="partyInfo" :column="1" bordered size="small">
+        <!-- 查看详情弹窗 -->
+        <FullScreenDetail
+          :visible="detailVisible"
+          :title="`对冲详情 - ${detailData?.offsetNo || ''}`"
+          @close="handleDetailClose"
+        >
+          <a-descriptions
+            v-if="detailData"
+            :column="1"
+            bordered
+            size="small"
+          >
+            <a-descriptions-item label="对冲单号">
+              {{ detailData.offsetNo }}
+            </a-descriptions-item>
+            <a-descriptions-item label="对方名称">
+              {{ detailData.partyName }}
+            </a-descriptions-item>
             <a-descriptions-item label="应收金额">
-              ¥{{ formatAmount(partyInfo.receivableAmount) }}
+              ¥{{ formatAmount(detailData.receivableAmount) }}
             </a-descriptions-item>
             <a-descriptions-item label="应付金额">
-              ¥{{ formatAmount(partyInfo.payableAmount) }}
+              ¥{{ formatAmount(detailData.payableAmount) }}
+            </a-descriptions-item>
+            <a-descriptions-item label="对冲金额">
+              ¥{{ formatAmount(detailData.offsetAmount) }}
+            </a-descriptions-item>
+            <a-descriptions-item label="余额">
+              ¥{{ formatAmount(detailData.balanceAmount) }}
+            </a-descriptions-item>
+            <a-descriptions-item label="对冲日期">
+              {{ detailData.offsetDate }}
+            </a-descriptions-item>
+            <a-descriptions-item label="状态">
+              <a-tag :color="statusColorMap[detailData.status] || 'default'">
+                {{ statusLabelMap[detailData.status] || detailData.status }}
+              </a-tag>
+            </a-descriptions-item>
+            <a-descriptions-item label="备注">
+              {{ detailData.remark || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item label="创建时间">
+              {{ detailData.createTime }}
             </a-descriptions-item>
           </a-descriptions>
-          <a-form-item label="对冲金额" required style="margin-top: 16px">
-            <a-input-number
-              v-model:value="createForm.offsetAmount"
-              :min="0.01"
-              :precision="2"
-              size="small"
-              style="width: 100%"
-              placeholder="请输入对冲金额"
-            />
-          </a-form-item>
-          <a-form-item label="对冲日期">
-            <a-date-picker
-              v-model:value="createForm.offsetDate"
-              size="small"
-              style="width: 100%"
-              placeholder="选择对冲日期"
-            />
-          </a-form-item>
-          <a-form-item label="备注">
-            <a-textarea
-              v-model:value="createForm.remark"
-              :rows="3"
-              size="small"
-              placeholder="请输入备注"
-            />
-          </a-form-item>
-        </a-form>
-      </FullScreenDetail>
-
-      <!-- 查看详情弹窗 -->
-      <FullScreenDetail
-        :visible="detailVisible"
-        :title="`对冲详情 - ${detailData?.offsetNo || ''}`"
-        @close="handleDetailClose"
-      >
-        <a-descriptions v-if="detailData" :column="1" bordered size="small">
-          <a-descriptions-item label="对冲单号">{{ detailData.offsetNo }}</a-descriptions-item>
-          <a-descriptions-item label="对方名称">{{ detailData.partyName }}</a-descriptions-item>
-          <a-descriptions-item label="应收金额">¥{{ formatAmount(detailData.receivableAmount) }}</a-descriptions-item>
-          <a-descriptions-item label="应付金额">¥{{ formatAmount(detailData.payableAmount) }}</a-descriptions-item>
-          <a-descriptions-item label="对冲金额">¥{{ formatAmount(detailData.offsetAmount) }}</a-descriptions-item>
-          <a-descriptions-item label="余额">¥{{ formatAmount(detailData.balanceAmount) }}</a-descriptions-item>
-          <a-descriptions-item label="对冲日期">{{ detailData.offsetDate }}</a-descriptions-item>
-          <a-descriptions-item label="状态">
-            <a-tag :color="statusColorMap[detailData.status] || 'default'">{{ statusLabelMap[detailData.status] || detailData.status }}</a-tag>
-          </a-descriptions-item>
-          <a-descriptions-item label="备注">{{ detailData.remark || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="创建时间">{{ detailData.createTime }}</a-descriptions-item>
-        </a-descriptions>
-      </FullScreenDetail>
-    </div>
-  </PageContainer>
+        </FullScreenDetail>
+      </div>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

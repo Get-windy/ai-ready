@@ -2,45 +2,106 @@
   <div class="balance-sheet">
     <!-- 统计卡片 -->
     <div class="summary-cards">
-      <div class="summary-card" style="--card-color: #1890ff;">
-        <div class="summary-card-title">资产总额</div>
-        <div class="summary-card-value">¥{{ formatAmount(balanceSheet.totalAssets) }}</div>
+      <div
+        class="summary-card"
+        style="--card-color: #1890ff;"
+      >
+        <div class="summary-card-title">
+          资产总额
+        </div>
+        <div class="summary-card-value">
+          ¥{{ formatAmount(balanceSheet.totalAssets) }}
+        </div>
       </div>
-      <div class="summary-card" style="--card-color: #faad14;">
-        <div class="summary-card-title">负债总额</div>
-        <div class="summary-card-value">¥{{ formatAmount(balanceSheet.totalLiabilities) }}</div>
+      <div
+        class="summary-card"
+        style="--card-color: #faad14;"
+      >
+        <div class="summary-card-title">
+          负债总额
+        </div>
+        <div class="summary-card-value">
+          ¥{{ formatAmount(balanceSheet.totalLiabilities) }}
+        </div>
       </div>
-      <div class="summary-card" style="--card-color: #52c41a;">
-        <div class="summary-card-title">所有者权益</div>
-        <div class="summary-card-value">¥{{ formatAmount(balanceSheet.equity) }}</div>
+      <div
+        class="summary-card"
+        style="--card-color: #52c41a;"
+      >
+        <div class="summary-card-title">
+          所有者权益
+        </div>
+        <div class="summary-card-value">
+          ¥{{ formatAmount(balanceSheet.equity) }}
+        </div>
       </div>
-      <div class="summary-card" style="--card-color: #722ed1;">
-        <div class="summary-card-title">资产负债率</div>
-        <div class="summary-card-value">{{ debtRatio }}%</div>
+      <div
+        class="summary-card"
+        style="--card-color: #722ed1;"
+      >
+        <div class="summary-card-title">
+          资产负债率
+        </div>
+        <div class="summary-card-value">
+          {{ debtRatio }}%
+        </div>
       </div>
     </div>
 
     <div class="filter-area">
       <a-form layout="inline">
         <a-form-item label="报表日期">
-          <a-month-picker v-model:value="queryParams.month" format="YYYY-MM" value-format="YYYY-MM" size="small" />
+          <a-month-picker
+            v-model:value="queryParams.month"
+            format="YYYY-MM"
+            value-format="YYYY-MM"
+            size="small"
+          />
         </a-form-item>
         <a-form-item>
-          <a-button type="primary" @click="handleGenerate" :loading="loading">生成报表</a-button>
-          <a-button style="margin-left: 8px" @click="handleExport">导出</a-button>
+          <a-button
+            type="primary"
+            :loading="loading"
+            @click="handleGenerate"
+          >
+            生成报表
+          </a-button>
+          <a-button
+            style="margin-left: 8px"
+            @click="handleExport"
+          >
+            导出
+          </a-button>
         </a-form-item>
       </a-form>
     </div>
 
     <a-card title="资产负债表">
-      <a-descriptions bordered :column="2">
-        <a-descriptions-item label="资产总额">¥{{ balanceSheet.totalAssets?.toFixed(2) }}</a-descriptions-item>
-        <a-descriptions-item label="负债总额">¥{{ balanceSheet.totalLiabilities?.toFixed(2) }}</a-descriptions-item>
-        <a-descriptions-item label="流动资产">¥{{ balanceSheet.currentAssets?.toFixed(2) }}</a-descriptions-item>
-        <a-descriptions-item label="流动负债">¥{{ balanceSheet.currentLiabilities?.toFixed(2) }}</a-descriptions-item>
-        <a-descriptions-item label="固定资产">¥{{ balanceSheet.fixedAssets?.toFixed(2) }}</a-descriptions-item>
-        <a-descriptions-item label="非流动负债">¥{{ balanceSheet.nonCurrentLiabilities?.toFixed(2) }}</a-descriptions-item>
-        <a-descriptions-item label="所有者权益">¥{{ balanceSheet.equity?.toFixed(2) }}</a-descriptions-item>
+      <a-descriptions
+        bordered
+        :column="2"
+      >
+        <a-descriptions-item label="资产总额">
+          ¥{{ balanceSheet.totalAssets?.toFixed(2) }}
+        </a-descriptions-item>
+        <a-descriptions-item label="负债总额">
+          ¥{{ balanceSheet.totalLiabilities?.toFixed(2) }}
+        </a-descriptions-item>
+        <a-descriptions-item label="流动资产">
+          ¥{{ balanceSheet.currentAssets?.toFixed(2) }}
+        </a-descriptions-item>
+        <a-descriptions-item label="流动负债">
+          ¥{{ balanceSheet.currentLiabilities?.toFixed(2) }}
+        </a-descriptions-item>
+        <a-descriptions-item label="固定资产">
+          ¥{{ balanceSheet.fixedAssets?.toFixed(2) }}
+        </a-descriptions-item>
+        <a-descriptions-item label="非流动负债">
+          ¥{{ balanceSheet.nonCurrentLiabilities?.toFixed(2) }}
+        </a-descriptions-item>
+        <a-descriptions-item label="所有者权益">
+          ¥{{ balanceSheet.equity?.toFixed(2) }}
+        </a-descriptions-item>
       </a-descriptions>
     </a-card>
   </div>

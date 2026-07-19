@@ -7,12 +7,21 @@ import com.baomidou.mybatisplus.extension.service.IService;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 public interface SaleOutboundService extends IService<SaleOutbound> {
 
     SaleOutbound getByOutboundNo(String outboundNo);
 
-    Page<SaleOutbound> pageList(String keyword, Long customerId, Long orderId, Long warehouseId, Integer status, int pageNum, int pageSize);
+    Page<SaleOutbound> pageList(String keyword, Long customerId, Long orderId, Long warehouseId, Integer status,
+                                String outboundNo, Long salesPersonId, String settlementStatus,
+                                String settlementMethod, String sourceOrder, String receiverName,
+                                String dateStart, String dateEnd, int pageNum, int pageSize);
+
+    Page<Map<String, Object>> pageDetail(String keyword, Long customerId, Long warehouseId, Integer status,
+                                          String outboundNo, Long productId, Long salesPersonId,
+                                          String settlementStatus, String sourceOrder,
+                                          String dateStart, String dateEnd, int pageNum, int pageSize);
 
     List<SaleOutbound> listByCustomerId(Long customerId);
 
@@ -66,4 +75,25 @@ public interface SaleOutboundService extends IService<SaleOutbound> {
      * 导出出库单列表
      */
     List<SaleOutbound> exportList(String keyword, Integer status);
+
+    /**
+     * 复制出库单（从已有出库单复制为草稿）
+     */
+    SaleOutbound copyOutbound(Long sourceId);
+
+    /**
+     * 批量导入出库单
+     */
+    int importOutbound(org.springframework.web.multipart.MultipartFile file);
+
+    /**
+     * 计算商品价格（前端选品时调用，对标Odoo pricelist / SAP条件定价）
+     *
+     * @param customerId 客户ID
+     * @param productId 商品ID
+     * @param quantity 数量
+     * @param unitPrice 手动输入单价（可选，null则自动计算）
+     * @return 计算结果（含最终价、各价格等级、折扣信息等）
+     */
+    Map<String, Object> calculateItemPrice(Long customerId, Long productId, BigDecimal quantity, BigDecimal unitPrice);
 }

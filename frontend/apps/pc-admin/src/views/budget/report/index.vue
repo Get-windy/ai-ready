@@ -1,140 +1,225 @@
 <template>
   <ErrorBoundary @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="report-page-header">
-        <div class="report-page-header-left">
-          <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item>预算报表</a-breadcrumb-item>
-          </a-breadcrumb>
-          <h2 class="report-page-header-title">预算报表</h2>
-        </div>
-        <div class="report-page-header-right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-            <SyncOutlined /> {{ autoRefreshCountdown }}s
-          </span>
-          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', loadAllData)">
-            <template #icon><ReloadOutlined /></template>
-            刷新
-          </a-button>
-          <span class="shortcut-hints">
-            <span class="shortcut-hint"><kbd>Ctrl+R</kbd> 刷新</span>
-            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-          </span>
-        </div>
-      </div>
-    </template>
-
-    <!-- 骨架屏 -->
-    <a-skeleton v-if="!lastUpdateTime && !hasError" active :paragraph="{ rows: 8 }" style="padding: 20px;" />
-
-    <div class="report-management">
-      <!-- KPI 卡片 -->
-      <div class="stat-cards">
-        <div class="stat-card stat-count">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ summary.totalBudgetCount || 0 }}</div>
-            <div class="stat-card-label">预算总数</div>
+    <PageContainer full-height>
+      <template #header>
+        <div class="report-page-header">
+          <div class="report-page-header-left">
+            <a-breadcrumb>
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>预算报表</a-breadcrumb-item>
+            </a-breadcrumb>
+            <h2 class="report-page-header-title">
+              预算报表
+            </h2>
           </div>
-          <FileTextOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-amount">
-          <div class="stat-card-body">
-            <div class="stat-card-value">¥{{ formatAmount(summary.totalBudgetAmount) }}</div>
-            <div class="stat-card-label">预算总额</div>
-          </div>
-          <DollarOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-used">
-          <div class="stat-card-body">
-            <div class="stat-card-value">¥{{ formatAmount(summary.totalUsedAmount) }}</div>
-            <div class="stat-card-label">已使用</div>
-          </div>
-          <PieChartOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-rate">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ (summary.executionRate || 0).toFixed(2) }}%</div>
-            <div class="stat-card-label">整体执行率</div>
-          </div>
-          <PercentageOutlined class="stat-card-icon" />
-        </div>
-      </div>
-
-      <a-card title="预算报表分析" class="filter-card">
-        <div class="search-area">
-          <a-form layout="inline">
-            <a-form-item label="年度">
-              <a-input-number v-model:value="fiscalYear" :min="2020" :max="2099" style="width: 120px" size="small" />
-            </a-form-item>
-            <a-form-item>
-              <a-button type="primary" @click="debounceClick('query', loadAllData)">查询</a-button>
-            </a-form-item>
-          </a-form>
-        </div>
-      </a-card>
-
-      <a-row :gutter="[16, 16]" class="mt-2">
-        <!-- 部门预算分布 -->
-        <a-col :span="12">
-          <a-card title="部门预算分布" class="chart-card">
-            <div ref="deptChartRef" style="height: 350px"></div>
-          </a-card>
-        </a-col>
-        <!-- 科目预算分布 -->
-        <a-col :span="12">
-          <a-card title="科目预算分布" class="chart-card">
-            <div ref="subjectChartRef" style="height: 350px"></div>
-          </a-card>
-        </a-col>
-      </a-row>
-
-      <a-row :gutter="[16, 16]" class="mt-2">
-        <!-- 月度趋势 -->
-        <a-col :span="24">
-          <a-card title="月度预算使用趋势" class="chart-card">
-            <div ref="trendChartRef" style="height: 350px"></div>
-          </a-card>
-        </a-col>
-      </a-row>
-
-      <a-row :gutter="[16, 16]" class="mt-2">
-        <!-- 差异分析表 -->
-        <a-col :span="24">
-          <a-card title="预算差异分析" class="table-card">
-            <BillTableList
-              :data-source="varianceData"
-              :columns="varianceVxeColumns"
-              :loading="varianceLoading"
-              :pagination="{ pageSize: 10 } as any"
-              row-key="budgetId"
-              :min-empty-rows="12"
-              :show-toolbar="false"
-              :selectable="false"
-              :show-add="false"
-              :show-search="false"
-              :show-export="false"
-              :show-batch-delete="false"
+          <div class="report-page-header-right">
+            <span
+              v-if="lastUpdateTime"
+              class="update-time"
+            >更新于 {{ lastUpdateTime }}</span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
             >
-              <template #varianceRateCell="{ record }">
-                <span :style="{ color: record.varianceRate > 0 ? '#ff4d4f' : record.varianceRate < 0 ? '#52c41a' : undefined }">
-                  {{ (record.varianceRate || 0).toFixed(2) }}%
-                </span>
+              <SyncOutlined /> {{ autoRefreshCountdown }}s
+            </span>
+            <a-button
+              size="small"
+              :loading="refreshLoading"
+              @click="debounceClick('refresh', loadAllData)"
+            >
+              <template #icon>
+                <ReloadOutlined />
               </template>
-              <template #empty>
-                <div class="empty-state-wrapper">
-                  <InboxOutlined style="font-size: 48px; color: #d9d9d9;" />
-                  <p style="color: #999; margin-top: 12px;">暂无差异分析数据</p>
-                </div>
-              </template>
-            </BillTableList>
-          </a-card>
-        </a-col>
-      </a-row>
-    </div>
-  </PageContainer>
+              刷新
+            </a-button>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>Ctrl+R</kbd> 刷新</span>
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            </span>
+          </div>
+        </div>
+      </template>
+
+      <!-- 骨架屏 -->
+      <a-skeleton
+        v-if="!lastUpdateTime && !hasError"
+        active
+        :paragraph="{ rows: 8 }"
+        style="padding: 20px;"
+      />
+
+      <div class="report-management">
+        <!-- KPI 卡片 -->
+        <div class="stat-cards">
+          <div class="stat-card stat-count">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ summary.totalBudgetCount || 0 }}
+              </div>
+              <div class="stat-card-label">
+                预算总数
+              </div>
+            </div>
+            <FileTextOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-amount">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                ¥{{ formatAmount(summary.totalBudgetAmount) }}
+              </div>
+              <div class="stat-card-label">
+                预算总额
+              </div>
+            </div>
+            <DollarOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-used">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                ¥{{ formatAmount(summary.totalUsedAmount) }}
+              </div>
+              <div class="stat-card-label">
+                已使用
+              </div>
+            </div>
+            <PieChartOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-rate">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ (summary.executionRate || 0).toFixed(2) }}%
+              </div>
+              <div class="stat-card-label">
+                整体执行率
+              </div>
+            </div>
+            <PercentageOutlined class="stat-card-icon" />
+          </div>
+        </div>
+
+        <a-card
+          title="预算报表分析"
+          class="filter-card"
+        >
+          <div class="search-area">
+            <a-form layout="inline">
+              <a-form-item label="年度">
+                <a-input-number
+                  v-model:value="fiscalYear"
+                  :min="2020"
+                  :max="2099"
+                  style="width: 120px"
+                  size="small"
+                />
+              </a-form-item>
+              <a-form-item>
+                <a-button
+                  type="primary"
+                  @click="debounceClick('query', loadAllData)"
+                >
+                  查询
+                </a-button>
+              </a-form-item>
+            </a-form>
+          </div>
+        </a-card>
+
+        <a-row
+          :gutter="[16, 16]"
+          class="mt-2"
+        >
+          <!-- 部门预算分布 -->
+          <a-col :span="12">
+            <a-card
+              title="部门预算分布"
+              class="chart-card"
+            >
+              <div
+                ref="deptChartRef"
+                style="height: 350px"
+              />
+            </a-card>
+          </a-col>
+          <!-- 科目预算分布 -->
+          <a-col :span="12">
+            <a-card
+              title="科目预算分布"
+              class="chart-card"
+            >
+              <div
+                ref="subjectChartRef"
+                style="height: 350px"
+              />
+            </a-card>
+          </a-col>
+        </a-row>
+
+        <a-row
+          :gutter="[16, 16]"
+          class="mt-2"
+        >
+          <!-- 月度趋势 -->
+          <a-col :span="24">
+            <a-card
+              title="月度预算使用趋势"
+              class="chart-card"
+            >
+              <div
+                ref="trendChartRef"
+                style="height: 350px"
+              />
+            </a-card>
+          </a-col>
+        </a-row>
+
+        <a-row
+          :gutter="[16, 16]"
+          class="mt-2"
+        >
+          <!-- 差异分析表 -->
+          <a-col :span="24">
+            <a-card
+              title="预算差异分析"
+              class="table-card"
+            >
+              <BillTableList
+                :data-source="varianceData"
+                :columns="varianceVxeColumns"
+                :loading="varianceLoading"
+                :pagination="{ pageSize: 10 } as any"
+                row-key="budgetId"
+                :min-empty-rows="12"
+                :show-toolbar="false"
+                :selectable="false"
+                :show-add="false"
+                :show-search="false"
+                :show-export="false"
+                :show-batch-delete="false"
+              >
+                <template #varianceRateCell="{ record }">
+                  <span :style="{ color: record.varianceRate > 0 ? '#ff4d4f' : record.varianceRate < 0 ? '#52c41a' : undefined }">
+                    {{ (record.varianceRate || 0).toFixed(2) }}%
+                  </span>
+                </template>
+                <template #empty>
+                  <div class="empty-state-wrapper">
+                    <InboxOutlined style="font-size: 48px; color: #d9d9d9;" />
+                    <p style="color: #999; margin-top: 12px;">
+                      暂无差异分析数据
+                    </p>
+                  </div>
+                </template>
+              </BillTableList>
+            </a-card>
+          </a-col>
+        </a-row>
+      </div>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

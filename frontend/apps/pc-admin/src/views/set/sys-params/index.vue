@@ -4,27 +4,60 @@
       <div class="search-area">
         <a-form layout="inline">
           <a-form-item label="配置类型">
-            <a-select v-model:value="queryForm.configType" placeholder="全部类型" allow-clear style="width: 140px" @change="handleSearch">
-              <a-select-option v-for="t in configTypes" :key="t.code" :value="t.code">{{ t.name }}</a-select-option>
+            <a-select
+              v-model:value="queryForm.configType"
+              placeholder="全部类型"
+              allow-clear
+              style="width: 140px"
+              @change="handleSearch"
+            >
+              <a-select-option
+                v-for="t in configTypes"
+                :key="t.code"
+                :value="t.code"
+              >
+                {{ t.name }}
+              </a-select-option>
             </a-select>
           </a-form-item>
           <a-form-item label="配置分组">
-            <a-select v-model:value="queryForm.configGroup" placeholder="全部分组" allow-clear style="width: 140px" @change="handleSearch">
-              <a-select-option v-for="g in configGroups" :key="g.code" :value="g.code">{{ g.name }}</a-select-option>
+            <a-select
+              v-model:value="queryForm.configGroup"
+              placeholder="全部分组"
+              allow-clear
+              style="width: 140px"
+              @change="handleSearch"
+            >
+              <a-select-option
+                v-for="g in configGroups"
+                :key="g.code"
+                :value="g.code"
+              >
+                {{ g.name }}
+              </a-select-option>
             </a-select>
           </a-form-item>
           <a-form-item>
             <a-space>
-              <a-button type="primary" @click="handleSearch">
-                <template #icon><SearchOutlined /></template>
+              <a-button
+                type="primary"
+                @click="handleSearch"
+              >
+                <template #icon>
+                  <SearchOutlined />
+                </template>
                 查询
               </a-button>
               <a-button @click="handleReset">
-                <template #icon><ClearOutlined /></template>
+                <template #icon>
+                  <ClearOutlined />
+                </template>
                 重置
               </a-button>
               <a-button @click="handleRefresh">
-                <template #icon><ReloadOutlined /></template>
+                <template #icon>
+                  <ReloadOutlined />
+                </template>
                 刷新缓存
               </a-button>
             </a-space>
@@ -32,12 +65,23 @@
         </a-form>
       </div>
       <div class="table-toolbar">
-        <a-button type="primary" @click="handleAdd">
-          <template #icon><PlusOutlined /></template>
+        <a-button
+          type="primary"
+          @click="handleAdd"
+        >
+          <template #icon>
+            <PlusOutlined />
+          </template>
           新增配置
         </a-button>
-        <a-button danger :disabled="!selectedKeys.length" @click="handleBatchDelete">
-          <template #icon><DeleteOutlined /></template>
+        <a-button
+          danger
+          :disabled="!selectedKeys.length"
+          @click="handleBatchDelete"
+        >
+          <template #icon>
+            <DeleteOutlined />
+          </template>
           批量删除
         </a-button>
       </div>
@@ -49,79 +93,157 @@
           :pagination="pagination"
           row-key="id"
           :row-selection="{ selectedRowKeys: selectedKeys, onChange: (keys: any[]) => selectedKeys = keys }"
-          @change="handleTableChange"
           size="small"
+          @change="handleTableChange"
         >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'configValue'">
               <span style="max-width: 200px; display: inline-block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ record.configValue }}</span>
             </template>
             <template v-if="column.key === 'enabled'">
-              <a-switch :checked="record.enabled" disabled size="small" />
+              <a-switch
+                :checked="record.enabled"
+                disabled
+                size="small"
+              />
             </template>
             <template v-if="column.key === 'systemConfig'">
-              <a-tag :color="record.systemConfig ? 'blue' : 'default'">{{ record.systemConfig ? '系统' : '自定义' }}</a-tag>
+              <a-tag :color="record.systemConfig ? 'blue' : 'default'">
+                {{ record.systemConfig ? '系统' : '自定义' }}
+              </a-tag>
             </template>
             <template v-if="column.key === 'action'">
-              <a-button type="link" size="small" @click="handleEdit(record)">编辑</a-button>
-              <a-button type="link" size="small" danger :disabled="record.systemConfig" @click="handleDelete(record)">删除</a-button>
+              <a-button
+                type="link"
+                size="small"
+                @click="handleEdit(record)"
+              >
+                编辑
+              </a-button>
+              <a-button
+                type="link"
+                size="small"
+                danger
+                :disabled="record.systemConfig"
+                @click="handleDelete(record)"
+              >
+                删除
+              </a-button>
             </template>
           </template>
         </a-table>
       </div>
     </PageContainer>
 
-    <a-modal v-model:open="editVisible" :title="editingId ? '编辑配置' : '新增配置'" width="600px" @ok="handleSave" :confirm-loading="saving">
-      <a-form :model="editForm" layout="vertical">
+    <a-modal
+      v-model:open="editVisible"
+      :title="editingId ? '编辑配置' : '新增配置'"
+      width="600px"
+      :confirm-loading="saving"
+      @ok="handleSave"
+    >
+      <a-form
+        :model="editForm"
+        layout="vertical"
+      >
         <a-row :gutter="16">
           <a-col :span="12">
-            <a-form-item label="配置键" required>
-              <a-input v-model:value="editForm.configKey" placeholder="请输入配置键" :disabled="!!editingId" />
+            <a-form-item
+              label="配置键"
+              required
+            >
+              <a-input
+                v-model:value="editForm.configKey"
+                placeholder="请输入配置键"
+                :disabled="!!editingId"
+              />
             </a-form-item>
           </a-col>
           <a-col :span="12">
-            <a-form-item label="配置名称" required>
-              <a-input v-model:value="editForm.configName" placeholder="请输入配置名称" />
+            <a-form-item
+              label="配置名称"
+              required
+            >
+              <a-input
+                v-model:value="editForm.configName"
+                placeholder="请输入配置名称"
+              />
             </a-form-item>
           </a-col>
         </a-row>
-        <a-form-item label="配置值" required>
-          <a-textarea v-model:value="editForm.configValue" :rows="3" placeholder="请输入配置值" />
+        <a-form-item
+          label="配置值"
+          required
+        >
+          <a-textarea
+            v-model:value="editForm.configValue"
+            :rows="3"
+            placeholder="请输入配置值"
+          />
         </a-form-item>
         <a-row :gutter="16">
           <a-col :span="8">
             <a-form-item label="配置类型">
               <a-select v-model:value="editForm.configType">
-                <a-select-option v-for="t in configTypes" :key="t.code" :value="t.code">{{ t.name }}</a-select-option>
+                <a-select-option
+                  v-for="t in configTypes"
+                  :key="t.code"
+                  :value="t.code"
+                >
+                  {{ t.name }}
+                </a-select-option>
               </a-select>
             </a-form-item>
           </a-col>
           <a-col :span="8">
             <a-form-item label="配置分组">
               <a-select v-model:value="editForm.configGroup">
-                <a-select-option v-for="g in configGroups" :key="g.code" :value="g.code">{{ g.name }}</a-select-option>
+                <a-select-option
+                  v-for="g in configGroups"
+                  :key="g.code"
+                  :value="g.code"
+                >
+                  {{ g.name }}
+                </a-select-option>
               </a-select>
             </a-form-item>
           </a-col>
           <a-col :span="8">
             <a-form-item label="值类型">
               <a-select v-model:value="editForm.valueType">
-                <a-select-option value="string">字符串</a-select-option>
-                <a-select-option value="number">数字</a-select-option>
-                <a-select-option value="boolean">布尔值</a-select-option>
-                <a-select-option value="json">JSON</a-select-option>
-                <a-select-option value="list">列表</a-select-option>
+                <a-select-option value="string">
+                  字符串
+                </a-select-option>
+                <a-select-option value="number">
+                  数字
+                </a-select-option>
+                <a-select-option value="boolean">
+                  布尔值
+                </a-select-option>
+                <a-select-option value="json">
+                  JSON
+                </a-select-option>
+                <a-select-option value="list">
+                  列表
+                </a-select-option>
               </a-select>
             </a-form-item>
           </a-col>
         </a-row>
         <a-form-item label="描述">
-          <a-textarea v-model:value="editForm.description" :rows="2" placeholder="请输入描述" />
+          <a-textarea
+            v-model:value="editForm.description"
+            :rows="2"
+            placeholder="请输入描述"
+          />
         </a-form-item>
         <a-row :gutter="16">
           <a-col :span="12">
             <a-form-item label="默认值">
-              <a-input v-model:value="editForm.defaultValue" placeholder="默认值" />
+              <a-input
+                v-model:value="editForm.defaultValue"
+                placeholder="默认值"
+              />
             </a-form-item>
           </a-col>
           <a-col :span="12">

@@ -1,228 +1,404 @@
 <template>
   <ErrorBoundary @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="page-header">
-        <div class="page-header__left">
-          <span class="page-header__breadcrumb">ERP / 费用管理 / 统计台账</span>
-          <h2 class="page-header__title">费用统计台账</h2>
-        </div>
-        <div class="page-header__right">
-          <span v-if="lastUpdateTime" class="page-header__update-time">更新于: {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-            <SyncOutlined /> {{ autoRefreshCountdown }}s
-          </span>
-          <a-space :size="12">
-            <span class="shortcut-hints">
-              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-              <span class="shortcut-hint"><kbd>Ctrl</kbd>+<kbd>E</kbd> 导出</span>
+    <PageContainer full-height>
+      <template #header>
+        <div class="page-header">
+          <div class="page-header__left">
+            <span class="page-header__breadcrumb">ERP / 费用管理 / 统计台账</span>
+            <h2 class="page-header__title">
+              费用统计台账
+            </h2>
+          </div>
+          <div class="page-header__right">
+            <span
+              v-if="lastUpdateTime"
+              class="page-header__update-time"
+            >更新于: {{ lastUpdateTime }}</span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            >
+              <SyncOutlined /> {{ autoRefreshCountdown }}s
             </span>
-            <a-tooltip title="开启后显示去年同期的同比数据" placement="bottom">
-              <a-switch v-model:checked="showComparison" size="small" checked-children="同比" un-checked-children="同比" />
-            </a-tooltip>
-            <PrintButton page-code="erp/expense/statistics" button-size="small" tooltip="打印" />
-            <a-tooltip title="导出 (Ctrl+E)">
-              <a-button v-permission="'erp:expense:statistics:list'" size="small" @click="debounceClick('export', handleExport)">
-                <template #icon><ExportOutlined /></template>
-              </a-button>
-            </a-tooltip>
-            <a-tooltip title="刷新数据 (F5)">
-              <a-button v-permission="'erp:expense:statistics:refresh'" size="small" :loading="summaryLoading || detailLoading" @click="debounceClick('refresh', handleRefresh)">
-                <ReloadOutlined /> 刷新
-              </a-button>
-            </a-tooltip>
-          </a-space>
+            <a-space :size="12">
+              <span class="shortcut-hints">
+                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+                <span class="shortcut-hint"><kbd>Ctrl</kbd>+<kbd>E</kbd> 导出</span>
+              </span>
+              <a-tooltip
+                title="开启后显示去年同期的同比数据"
+                placement="bottom"
+              >
+                <a-switch
+                  v-model:checked="showComparison"
+                  size="small"
+                  checked-children="同比"
+                  un-checked-children="同比"
+                />
+              </a-tooltip>
+              <PrintButton
+                page-code="erp/expense/statistics"
+                button-size="small"
+                tooltip="打印"
+              />
+              <a-tooltip title="导出 (Ctrl+E)">
+                <a-button
+                  v-permission="'erp:expense:statistics:list'"
+                  size="small"
+                  @click="debounceClick('export', handleExport)"
+                >
+                  <template #icon>
+                    <ExportOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip title="刷新数据 (F5)">
+                <a-button
+                  v-permission="'erp:expense:statistics:refresh'"
+                  size="small"
+                  :loading="summaryLoading || detailLoading"
+                  @click="debounceClick('refresh', handleRefresh)"
+                >
+                  <ReloadOutlined /> 刷新
+                </a-button>
+              </a-tooltip>
+            </a-space>
+          </div>
         </div>
-      </div>
-    </template>
+      </template>
 
-    <!-- 骨架加载 -->
-    <a-skeleton :loading="refreshLoading" active :paragraph="{ rows: 12 }">
-    </a-skeleton>
+      <!-- 骨架加载 -->
+      <a-skeleton
+        :loading="refreshLoading"
+        active
+        :paragraph="{ rows: 12 }"
+      />
 
-    <template v-if="!refreshLoading">
-    <!-- 6. 按区域错误提示 -->
-    <template v-if="sectionErrors.summary">
-      <a-alert
-        :message="sectionErrors.summary"
-        type="error"
-        closable
-        :after-close="() => { sectionErrors.summary = '' }"
-        style="margin-bottom: 12px"
-      >
-        <template #action>
-          <a-button size="small" type="primary" @click="fetchSummary(); sectionErrors.summary = ''">重试</a-button>
-        </template>
-      </a-alert>
-    </template>
-
-    <!-- 汇总卡片 -->
-    <a-row :gutter="[16, 16]" style="margin-bottom: 16px">
-      <a-col :xs="12" :sm="12" :md="6">
-        <a-card size="small" :bordered="true" :loading="summaryLoading">
-          <StatCard title="申请总数" :value="summary.totalApplyCount" :amount="summary.totalApplyAmount" color="#1890ff" />
-        </a-card>
-      </a-col>
-      <a-col :xs="12" :sm="12" :md="6">
-        <a-card size="small" :bordered="true" :loading="summaryLoading">
-          <StatCard title="已审批金额" :value="summary.approvedCount" :amount="summary.approvedAmount" color="#52c41a" />
-        </a-card>
-      </a-col>
-      <a-col :xs="12" :sm="12" :md="6">
-        <a-card size="small" :bordered="true" :loading="summaryLoading">
-          <StatCard title="已拒绝金额" :value="summary.rejectedCount" :amount="summary.rejectedAmount" color="#ff4d4f" />
-        </a-card>
-      </a-col>
-      <a-col :xs="12" :sm="12" :md="6">
-        <a-card size="small" :bordered="true" :loading="summaryLoading">
-          <StatCard title="已付款金额" :value="summary.paidCount" :amount="summary.paidAmount" color="#722ed1" />
-        </a-card>
-      </a-col>
-    </a-row>
-
-    <!-- 1. ECharts 可视化面板 -->
-    <a-row :gutter="[16, 16]" style="margin-bottom: 16px">
-      <a-col :xs="24" :sm="24" :md="14">
-        <a-card
-          title="月度趋势"
-          size="small"
-          :loading="chartLoading"
-          :bordered="true"
-        >
-          <template #extra>
-            <a-radio-group v-model:value="trendChartMode" size="small">
-              <a-radio-button value="line">折线图</a-radio-button>
-              <a-radio-button value="bar">柱状图</a-radio-button>
-            </a-radio-group>
-          </template>
-          <div ref="trendChartRef" class="chart-container"></div>
-        </a-card>
-      </a-col>
-      <a-col :xs="24" :sm="24" :md="10">
-        <a-card title="费用类型分布" size="small" :loading="chartLoading" :bordered="true">
-          <div ref="pieChartRef" class="chart-container chart-container--pie"></div>
-        </a-card>
-      </a-col>
-    </a-row>
-
-    <!-- 6. 图表区域错误提示 -->
-    <template v-if="sectionErrors.charts">
-      <a-alert
-        :message="sectionErrors.charts"
-        type="error"
-        closable
-        :after-close="() => { sectionErrors.charts = '' }"
-        style="margin-bottom: 12px"
-      >
-        <template #action>
-          <a-button size="small" type="primary" @click="initCharts(); sectionErrors.charts = ''">重试</a-button>
-        </template>
-      </a-alert>
-    </template>
-
-    <!-- 搜索栏 -->
-    <SearchBar
-      :fields="searchFields"
-      :loading="detailLoading"
-      :model-value="{ year: yearFilter, month: monthFilter, departmentId: departmentIdFilter, expenseType: expenseTypeFilter }"
-      @search="handleSearch"
-      @reset="handleReset"
-    />
-
-    <!-- 3. 同比数据指示 -->
-    <div v-if="showComparison" class="comparison-indicator">
-      <LineChartOutlined style="margin-right: 4px" />
-      同比对比已启用，表格底部将显示同比增长率
-    </div>
-
-    <!-- 图表区域 -->
-    <a-tabs v-model:activeKey="statTab" @change="handleTabChange" style="margin-top: 8px">
-      <a-tab-pane key="department" tab="按部门统计">
-        <!-- 6. 部门表格错误提示 -->
-        <template v-if="sectionErrors.department">
+      <template v-if="!refreshLoading">
+        <!-- 6. 按区域错误提示 -->
+        <template v-if="sectionErrors.summary">
           <a-alert
-            :message="sectionErrors.department"
+            :message="sectionErrors.summary"
             type="error"
             closable
-            :after-close="() => { sectionErrors.department = '' }"
-            style="margin-bottom: 8px"
+            :after-close="() => { sectionErrors.summary = '' }"
+            style="margin-bottom: 12px"
           >
             <template #action>
-              <a-button size="small" type="primary" @click="fetchData(); sectionErrors.department = ''">重试</a-button>
+              <a-button
+                size="small"
+                type="primary"
+                @click="fetchSummary(); sectionErrors.summary = ''"
+              >
+                重试
+              </a-button>
             </template>
           </a-alert>
         </template>
-        <BillTableList
-          :columns="deptColumns"
-          :data-source="deptData"
-          :loading="detailLoading"
-          :pagination="false as any"
-          :show-toolbar="false"
-          :show-summary="true"
-          :summary-data="deptSummaryData"
-          row-key="id"
+
+        <!-- 汇总卡片 -->
+        <a-row
+          :gutter="[16, 16]"
+          style="margin-bottom: 16px"
         >
-          <template #empty>
-            <EmptyState v-if="!detailLoading" title="暂无数据" description="暂无部门统计数据" size="small" :show-actions="false" />
-          </template>
-          <template #budgetCell="{ record }">
-            <template v-if="record.budgetUsageRate != null">
-              <StatusTag :status="getBudgetStatus(record.budgetUsageRate)" :map="BUDGET_STATUS" />
-              <span style="margin-left: 4px; font-size: 12px; color: #666;">{{ formatPercent(record.budgetUsageRate) }}</span>
-            </template>
-            <span v-else>-</span>
-          </template>
-          <template #growthCell="{ record }">
-            <span v-if="showComparison && deptGrowthRates[record.departmentName] != null" :class="growthClass(deptGrowthRates[record.departmentName])">
-              <ArrowUpOutlined v-if="deptGrowthRates[record.departmentName] > 0" />
-              <ArrowDownOutlined v-if="deptGrowthRates[record.departmentName] < 0" />
-              {{ Math.abs(deptGrowthRates[record.departmentName]).toFixed(1) }}%
-            </span>
-            <span v-else>-</span>
-          </template>
-        </BillTableList>
-      </a-tab-pane>
-      <a-tab-pane key="type" tab="按费用类型">
-        <!-- 6. 类型表格错误提示 -->
-        <template v-if="sectionErrors.type">
+          <a-col
+            :xs="12"
+            :sm="12"
+            :md="6"
+          >
+            <a-card
+              size="small"
+              :bordered="true"
+              :loading="summaryLoading"
+            >
+              <StatCard
+                title="申请总数"
+                :value="summary.totalApplyCount"
+                :amount="summary.totalApplyAmount"
+                color="#1890ff"
+              />
+            </a-card>
+          </a-col>
+          <a-col
+            :xs="12"
+            :sm="12"
+            :md="6"
+          >
+            <a-card
+              size="small"
+              :bordered="true"
+              :loading="summaryLoading"
+            >
+              <StatCard
+                title="已审批金额"
+                :value="summary.approvedCount"
+                :amount="summary.approvedAmount"
+                color="#52c41a"
+              />
+            </a-card>
+          </a-col>
+          <a-col
+            :xs="12"
+            :sm="12"
+            :md="6"
+          >
+            <a-card
+              size="small"
+              :bordered="true"
+              :loading="summaryLoading"
+            >
+              <StatCard
+                title="已拒绝金额"
+                :value="summary.rejectedCount"
+                :amount="summary.rejectedAmount"
+                color="#ff4d4f"
+              />
+            </a-card>
+          </a-col>
+          <a-col
+            :xs="12"
+            :sm="12"
+            :md="6"
+          >
+            <a-card
+              size="small"
+              :bordered="true"
+              :loading="summaryLoading"
+            >
+              <StatCard
+                title="已付款金额"
+                :value="summary.paidCount"
+                :amount="summary.paidAmount"
+                color="#722ed1"
+              />
+            </a-card>
+          </a-col>
+        </a-row>
+
+        <!-- 1. ECharts 可视化面板 -->
+        <a-row
+          :gutter="[16, 16]"
+          style="margin-bottom: 16px"
+        >
+          <a-col
+            :xs="24"
+            :sm="24"
+            :md="14"
+          >
+            <a-card
+              title="月度趋势"
+              size="small"
+              :loading="chartLoading"
+              :bordered="true"
+            >
+              <template #extra>
+                <a-radio-group
+                  v-model:value="trendChartMode"
+                  size="small"
+                >
+                  <a-radio-button value="line">
+                    折线图
+                  </a-radio-button>
+                  <a-radio-button value="bar">
+                    柱状图
+                  </a-radio-button>
+                </a-radio-group>
+              </template>
+              <div
+                ref="trendChartRef"
+                class="chart-container"
+              />
+            </a-card>
+          </a-col>
+          <a-col
+            :xs="24"
+            :sm="24"
+            :md="10"
+          >
+            <a-card
+              title="费用类型分布"
+              size="small"
+              :loading="chartLoading"
+              :bordered="true"
+            >
+              <div
+                ref="pieChartRef"
+                class="chart-container chart-container--pie"
+              />
+            </a-card>
+          </a-col>
+        </a-row>
+
+        <!-- 6. 图表区域错误提示 -->
+        <template v-if="sectionErrors.charts">
           <a-alert
-            :message="sectionErrors.type"
+            :message="sectionErrors.charts"
             type="error"
             closable
-            :after-close="() => { sectionErrors.type = '' }"
-            style="margin-bottom: 8px"
+            :after-close="() => { sectionErrors.charts = '' }"
+            style="margin-bottom: 12px"
           >
             <template #action>
-              <a-button size="small" type="primary" @click="fetchData(); sectionErrors.type = ''">重试</a-button>
+              <a-button
+                size="small"
+                type="primary"
+                @click="initCharts(); sectionErrors.charts = ''"
+              >
+                重试
+              </a-button>
             </template>
           </a-alert>
         </template>
-        <BillTableList
-          :columns="typeColumns"
-          :data-source="typeData"
+
+        <!-- 搜索栏 -->
+        <SearchBar
+          :fields="searchFields"
           :loading="detailLoading"
-          :pagination="false as any"
-          :show-toolbar="false"
-          :show-summary="true"
-          :summary-data="typeSummaryData"
-          row-key="id"
+          :model-value="{ year: yearFilter, month: monthFilter, departmentId: departmentIdFilter, expenseType: expenseTypeFilter }"
+          @search="handleSearch"
+          @reset="handleReset"
+        />
+
+        <!-- 3. 同比数据指示 -->
+        <div
+          v-if="showComparison"
+          class="comparison-indicator"
         >
-          <template #empty>
-            <EmptyState v-if="!detailLoading" title="暂无数据" description="暂无费用类型统计数据" size="small" :show-actions="false" />
-          </template>
-          <template #growthCell="{ record }">
-            <span v-if="showComparison && typeGrowthRates[record.expenseType] != null" :class="growthClass(typeGrowthRates[record.expenseType])">
-              <ArrowUpOutlined v-if="typeGrowthRates[record.expenseType] > 0" />
-              <ArrowDownOutlined v-if="typeGrowthRates[record.expenseType] < 0" />
-              {{ Math.abs(typeGrowthRates[record.expenseType]).toFixed(1) }}%
-            </span>
-            <span v-else>-</span>
-          </template>
-        </BillTableList>
-      </a-tab-pane>
-    </a-tabs>
-    </template>
-  </PageContainer>
+          <LineChartOutlined style="margin-right: 4px" />
+          同比对比已启用，表格底部将显示同比增长率
+        </div>
+
+        <!-- 图表区域 -->
+        <a-tabs
+          v-model:active-key="statTab"
+          style="margin-top: 8px"
+          @change="handleTabChange"
+        >
+          <a-tab-pane
+            key="department"
+            tab="按部门统计"
+          >
+            <!-- 6. 部门表格错误提示 -->
+            <template v-if="sectionErrors.department">
+              <a-alert
+                :message="sectionErrors.department"
+                type="error"
+                closable
+                :after-close="() => { sectionErrors.department = '' }"
+                style="margin-bottom: 8px"
+              >
+                <template #action>
+                  <a-button
+                    size="small"
+                    type="primary"
+                    @click="fetchData(); sectionErrors.department = ''"
+                  >
+                    重试
+                  </a-button>
+                </template>
+              </a-alert>
+            </template>
+            <BillTableList
+              :columns="deptColumns"
+              :data-source="deptData"
+              :loading="detailLoading"
+              :pagination="false as any"
+              :show-toolbar="false"
+              :show-summary="true"
+              :summary-data="deptSummaryData"
+              row-key="id"
+            >
+              <template #empty>
+                <EmptyState
+                  v-if="!detailLoading"
+                  title="暂无数据"
+                  description="暂无部门统计数据"
+                  size="small"
+                  :show-actions="false"
+                />
+              </template>
+              <template #budgetCell="{ record }">
+                <template v-if="record.budgetUsageRate != null">
+                  <StatusTag
+                    :status="getBudgetStatus(record.budgetUsageRate)"
+                    :map="BUDGET_STATUS"
+                  />
+                  <span style="margin-left: 4px; font-size: 12px; color: #666;">{{ formatPercent(record.budgetUsageRate) }}</span>
+                </template>
+                <span v-else>-</span>
+              </template>
+              <template #growthCell="{ record }">
+                <span
+                  v-if="showComparison && deptGrowthRates[record.departmentName] != null"
+                  :class="growthClass(deptGrowthRates[record.departmentName])"
+                >
+                  <ArrowUpOutlined v-if="deptGrowthRates[record.departmentName] > 0" />
+                  <ArrowDownOutlined v-if="deptGrowthRates[record.departmentName] < 0" />
+                  {{ Math.abs(deptGrowthRates[record.departmentName]).toFixed(1) }}%
+                </span>
+                <span v-else>-</span>
+              </template>
+            </BillTableList>
+          </a-tab-pane>
+          <a-tab-pane
+            key="type"
+            tab="按费用类型"
+          >
+            <!-- 6. 类型表格错误提示 -->
+            <template v-if="sectionErrors.type">
+              <a-alert
+                :message="sectionErrors.type"
+                type="error"
+                closable
+                :after-close="() => { sectionErrors.type = '' }"
+                style="margin-bottom: 8px"
+              >
+                <template #action>
+                  <a-button
+                    size="small"
+                    type="primary"
+                    @click="fetchData(); sectionErrors.type = ''"
+                  >
+                    重试
+                  </a-button>
+                </template>
+              </a-alert>
+            </template>
+            <BillTableList
+              :columns="typeColumns"
+              :data-source="typeData"
+              :loading="detailLoading"
+              :pagination="false as any"
+              :show-toolbar="false"
+              :show-summary="true"
+              :summary-data="typeSummaryData"
+              row-key="id"
+            >
+              <template #empty>
+                <EmptyState
+                  v-if="!detailLoading"
+                  title="暂无数据"
+                  description="暂无费用类型统计数据"
+                  size="small"
+                  :show-actions="false"
+                />
+              </template>
+              <template #growthCell="{ record }">
+                <span
+                  v-if="showComparison && typeGrowthRates[record.expenseType] != null"
+                  :class="growthClass(typeGrowthRates[record.expenseType])"
+                >
+                  <ArrowUpOutlined v-if="typeGrowthRates[record.expenseType] > 0" />
+                  <ArrowDownOutlined v-if="typeGrowthRates[record.expenseType] < 0" />
+                  {{ Math.abs(typeGrowthRates[record.expenseType]).toFixed(1) }}%
+                </span>
+                <span v-else>-</span>
+              </template>
+            </BillTableList>
+          </a-tab-pane>
+        </a-tabs>
+      </template>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

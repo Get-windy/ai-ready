@@ -1,147 +1,225 @@
 <template>
   <ErrorBoundary @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="depreciation-page-header">
-        <div class="depreciation-page-header-left">
-          <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item>固定资产</a-breadcrumb-item>
-            <a-breadcrumb-item>折旧记录</a-breadcrumb-item>
-          </a-breadcrumb>
-          <h2 class="depreciation-page-header-title">折旧记录</h2>
-        </div>
-        <div class="depreciation-page-header-right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-            <SyncOutlined /> {{ autoRefreshCountdown }}s
-          </span>
-          <PrintButton :record="{ type: 'depreciation' }" business-type="fixed_asset_depreciation" button-type="link" button-size="small" tooltip="打印折旧记录" />
-          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)()" v-permission="'erp:fixed-asset:depreciation:list'">
-            <template #icon><ReloadOutlined /></template>
-            刷新
-          </a-button>
-<span class="shortcut-hints">
-                                                <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
-                                                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-                                              </span>
-        </div>
-
-      </div>
-    </template>
-
-    <div class="depreciation-list-page">
-      <!-- 统计卡片 -->
-      <div class="stat-cards">
-        <div class="stat-card stat-total">
-          <div class="stat-card-body">
-            <div class="stat-card-value">¥{{ formatAmount(totalDepreciation) }}</div>
-            <div class="stat-card-label">累计折旧总额</div>
+    <PageContainer full-height>
+      <template #header>
+        <div class="depreciation-page-header">
+          <div class="depreciation-page-header-left">
+            <a-breadcrumb>
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>固定资产</a-breadcrumb-item>
+              <a-breadcrumb-item>折旧记录</a-breadcrumb-item>
+            </a-breadcrumb>
+            <h2 class="depreciation-page-header-title">
+              折旧记录
+            </h2>
           </div>
-          <CalculatorOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-period">
-          <div class="stat-card-body">
-            <div class="stat-card-value">¥{{ formatAmount(periodDepreciation) }}</div>
-            <div class="stat-card-label">本期折旧额</div>
-          </div>
-          <CalendarOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-count">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ pagination.total }}</div>
-            <div class="stat-card-label">折旧记录数</div>
-          </div>
-          <FileTextOutlined class="stat-card-icon" />
-        </div>
-      </div>
-
-      <BillTableList
-        ref="tableRef"
-        :columns="vxeColumns"
-        :data-source="tableDataSource"
-        :loading="loading"
-        :pagination="pagination"
-        :table-key="'fixed-asset-depreciation-list'"
-        :filter-fields="filterFields"
-        :show-export="true"
-        export-permission="erp:fixed-asset:depreciation:list"
-        :selectable="true"
-        :min-empty-rows="12"
-        @refresh="debounceClick('refresh', fetchData)()"
-        @cell-dblclick="handleViewAsset"
-        @search="handleSearch"
-        @page-change="handlePageChange"
-        @filter-change="handleFilterChange"
-        @export="handleExport"
-        @selection-change="handleSelectionChange"
-      >
-        <template #toolbar-actions>
-          <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
-            更新 {{ dayjs(lastUpdated).format('HH:mm') }}
-          </span>
-          <a-button type="primary" ghost @click="handleBatchCalculate" v-permission="'erp:fixed-asset:depreciation:calculate'">
-            <template #icon><CalculatorOutlined /></template>
-            批量计提折旧
-          </a-button>
-        </template>
-
-        <template #batch-actions="{ selectedRowKeys }: any">
-          <span class="batch-info">已选择 {{ selectedRowKeys.length }} 项</span>
-        </template>
-
-        <template #empty>
-          <div v-if="hasError" class="table-empty table-empty-error">
-            <WarningOutlined class="table-empty-icon table-empty-icon-error" />
-            <p class="table-empty-text">数据加载失败，请重试</p>
-            <a-button size="small" @click="fetchData">
-              <template #icon><ReloadOutlined /></template>
-              重试
+          <div class="depreciation-page-header-right">
+            <span
+              v-if="lastUpdateTime"
+              class="update-time"
+            >更新于 {{ lastUpdateTime }}</span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            >
+              <SyncOutlined /> {{ autoRefreshCountdown }}s
+            </span>
+            <PrintButton
+              :record="{ type: 'depreciation' }"
+              business-type="fixed_asset_depreciation"
+              button-type="link"
+              button-size="small"
+              tooltip="打印折旧记录"
+            />
+            <a-button
+              v-permission="'erp:fixed-asset:depreciation:list'"
+              size="small"
+              :loading="refreshLoading"
+              @click="debounceClick('refresh', fetchData)()"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
+              刷新
             </a-button>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            </span>
           </div>
-          <div v-else class="table-empty">
-            <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-            <InboxOutlined v-else class="table-empty-icon" />
-            <p v-if="hasActiveFilters" class="table-empty-text">
-              没有符合条件的折旧记录，<a @click="handleResetFilters">清除筛选</a>
-            </p>
-            <p v-else class="table-empty-text">
-              暂无折旧记录，点击「批量计提折旧」开始计提
-            </p>
-          </div>
-        </template>
+        </div>
+      </template>
 
-        <template #assetCodeCell="{ record }">
-          <a @click="handleViewAsset(record)" class="asset-code">{{ record.assetCode }}</a>
-        </template>
-        <template #assetNameCell="{ record }">
-          <a @click="handleViewAsset(record)" class="asset-name">{{ record.assetName }}</a>
-        </template>
-        <template #periodAmountCell="{ record }">
-          <span class="amount-cell depreciation">¥{{ formatAmount(record.periodAmount) }}</span>
-        </template>
-        <template #accumulatedDepreciationCell="{ record }">
-          <span class="amount-cell">¥{{ formatAmount(record.accumulatedDepreciation) }}</span>
-        </template>
-        <template #netValueCell="{ record }">
-          <span class="amount-cell success">¥{{ formatAmount(record.netValue) }}</span>
-        </template>
-        <template #assetOriginalValueCell="{ record }">
-          <span class="amount-cell">¥{{ formatAmount(record.assetOriginalValue) }}</span>
-        </template>
-        <template #statusCell="{ record }">
-          <a-tag :color="record.status === 'completed' ? 'green' : 'orange'">
-            {{ record.status === 'completed' ? '已完成' : '待处理' }}
-          </a-tag>
-        </template>
-        <template #actionCell="{ record }">
-          <a-space>
-            <a @click="handleViewAsset(record)">查看资产</a>
-          </a-space>
-        </template>
-      </BillTableList>
-    </div>
-  </PageContainer>
+      <div class="depreciation-list-page">
+        <!-- 统计卡片 -->
+        <div class="stat-cards">
+          <div class="stat-card stat-total">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                ¥{{ formatAmount(totalDepreciation) }}
+              </div>
+              <div class="stat-card-label">
+                累计折旧总额
+              </div>
+            </div>
+            <CalculatorOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-period">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                ¥{{ formatAmount(periodDepreciation) }}
+              </div>
+              <div class="stat-card-label">
+                本期折旧额
+              </div>
+            </div>
+            <CalendarOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-count">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ pagination.total }}
+              </div>
+              <div class="stat-card-label">
+                折旧记录数
+              </div>
+            </div>
+            <FileTextOutlined class="stat-card-icon" />
+          </div>
+        </div>
+
+        <BillTableList
+          ref="tableRef"
+          :columns="vxeColumns"
+          :data-source="tableDataSource"
+          :loading="loading"
+          :pagination="pagination"
+          :table-key="'fixed-asset-depreciation-list'"
+          :filter-fields="filterFields"
+          :show-export="true"
+          export-permission="erp:fixed-asset:depreciation:list"
+          :selectable="true"
+          :min-empty-rows="12"
+          @refresh="debounceClick('refresh', fetchData)()"
+          @cell-dblclick="handleViewAsset"
+          @search="handleSearch"
+          @page-change="handlePageChange"
+          @filter-change="handleFilterChange"
+          @export="handleExport"
+          @selection-change="handleSelectionChange"
+        >
+          <template #toolbar-actions>
+            <span
+              v-if="lastUpdated"
+              class="list-update-timestamp"
+              :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')"
+            >
+              更新 {{ dayjs(lastUpdated).format('HH:mm') }}
+            </span>
+            <a-button
+              v-permission="'erp:fixed-asset:depreciation:calculate'"
+              type="primary"
+              ghost
+              @click="handleBatchCalculate"
+            >
+              <template #icon>
+                <CalculatorOutlined />
+              </template>
+              批量计提折旧
+            </a-button>
+          </template>
+
+          <template #batch-actions="{ selectedRowKeys }: any">
+            <span class="batch-info">已选择 {{ selectedRowKeys.length }} 项</span>
+          </template>
+
+          <template #empty>
+            <div
+              v-if="hasError"
+              class="table-empty table-empty-error"
+            >
+              <WarningOutlined class="table-empty-icon table-empty-icon-error" />
+              <p class="table-empty-text">
+                数据加载失败，请重试
+              </p>
+              <a-button
+                size="small"
+                @click="fetchData"
+              >
+                <template #icon>
+                  <ReloadOutlined />
+                </template>
+                重试
+              </a-button>
+            </div>
+            <div
+              v-else
+              class="table-empty"
+            >
+              <SearchOutlined
+                v-if="hasActiveFilters"
+                class="table-empty-icon"
+              />
+              <InboxOutlined
+                v-else
+                class="table-empty-icon"
+              />
+              <p
+                v-if="hasActiveFilters"
+                class="table-empty-text"
+              >
+                没有符合条件的折旧记录，<a @click="handleResetFilters">清除筛选</a>
+              </p>
+              <p
+                v-else
+                class="table-empty-text"
+              >
+                暂无折旧记录，点击「批量计提折旧」开始计提
+              </p>
+            </div>
+          </template>
+
+          <template #assetCodeCell="{ record }">
+            <a
+              class="asset-code"
+              @click="handleViewAsset(record)"
+            >{{ record.assetCode }}</a>
+          </template>
+          <template #assetNameCell="{ record }">
+            <a
+              class="asset-name"
+              @click="handleViewAsset(record)"
+            >{{ record.assetName }}</a>
+          </template>
+          <template #periodAmountCell="{ record }">
+            <span class="amount-cell depreciation">¥{{ formatAmount(record.periodAmount) }}</span>
+          </template>
+          <template #accumulatedDepreciationCell="{ record }">
+            <span class="amount-cell">¥{{ formatAmount(record.accumulatedDepreciation) }}</span>
+          </template>
+          <template #netValueCell="{ record }">
+            <span class="amount-cell success">¥{{ formatAmount(record.netValue) }}</span>
+          </template>
+          <template #assetOriginalValueCell="{ record }">
+            <span class="amount-cell">¥{{ formatAmount(record.assetOriginalValue) }}</span>
+          </template>
+          <template #statusCell="{ record }">
+            <a-tag :color="record.status === 'completed' ? 'green' : 'orange'">
+              {{ record.status === 'completed' ? '已完成' : '待处理' }}
+            </a-tag>
+          </template>
+          <template #actionCell="{ record }">
+            <a-space>
+              <a @click="handleViewAsset(record)">查看资产</a>
+            </a-space>
+          </template>
+        </BillTableList>
+      </div>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

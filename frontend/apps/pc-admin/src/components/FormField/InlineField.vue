@@ -1,5 +1,9 @@
 <template>
-  <div class="inline-field" :class="widthClass" :style="widthStyle">
+  <div
+    class="inline-field"
+    :class="widthClass"
+    :style="widthStyle"
+  >
     <!-- 查看模式 -->
     <template v-if="viewMode">
       <span class="inline-view-text">{{ displayValue }}</span>
@@ -19,7 +23,11 @@
         @update:value="emitValue"
         @change="(val: any) => emit('change', val)"
       >
-        <a-select-option v-for="opt in options" :key="opt.value" :value="opt.value">
+        <a-select-option
+          v-for="opt in options"
+          :key="opt.value"
+          :value="opt.value"
+        >
           {{ opt.label }}
         </a-select-option>
       </a-select>
@@ -68,6 +76,11 @@
         style="flex:1"
         @update:value="emitValue"
       />
+      <!-- display 模式：纯文本展示，不可编辑 -->
+      <span
+        v-else-if="type === 'display'"
+        class="inline-view-text"
+      >{{ modelValue !== undefined && modelValue !== null && modelValue !== '' ? modelValue : '—' }}</span>
       <a-input
         v-else
         :value="modelValue"
@@ -80,7 +93,9 @@
       <!-- 搜索按钮 -->
       <a-button
         v-if="searchBtn"
-        type="link" size="small" class="inline-search-btn"
+        type="link"
+        size="small"
+        class="inline-search-btn"
         @click="emit('searchBtn')"
       >
         {{ searchBtn }}
@@ -96,7 +111,7 @@ defineOptions({ name: 'InlineField' })
 
 const props = withDefaults(defineProps<{
   /** 字段类型 */
-  type: 'select' | 'tree-select' | 'date' | 'number' | 'input' | 'textarea'
+  type: 'select' | 'tree-select' | 'date' | 'number' | 'input' | 'textarea' | 'display'
   /** 标签文本（显示在 placeholder 中） */
   label: string
   /** 当前值 */

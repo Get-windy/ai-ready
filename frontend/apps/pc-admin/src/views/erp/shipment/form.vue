@@ -21,10 +21,20 @@
       >
         <template #actionCell="{ index }">
           <a-space :size="2">
-            <a-button type="link" size="small" class="action-add-btn" @click="handleAddProduct">
+            <a-button
+              type="link"
+              size="small"
+              class="action-add-btn"
+              @click="handleAddProduct"
+            >
               <PlusCircleOutlined />
             </a-button>
-            <a-button type="link" size="small" class="action-del-btn" @click="handleRemoveProduct(index)">
+            <a-button
+              type="link"
+              size="small"
+              class="action-del-btn"
+              @click="handleRemoveProduct(index)"
+            >
               <MinusCircleOutlined />
             </a-button>
           </a-space>
@@ -41,7 +51,11 @@
               size="small"
               @change="(val: number) => handleProductChange(val, index)"
             >
-              <a-select-option v-for="p in optionRefs.products" :key="p.id" :value="p.id">
+              <a-select-option
+                v-for="p in optionRefs.products"
+                :key="p.id"
+                :value="p.id"
+              >
                 {{ p.name }}
               </a-select-option>
             </a-select>
@@ -50,7 +64,10 @@
         <template #summary>
           <div class="table-summary-row">
             <span class="summary-label">合计</span>
-            <span v-for="n in 10" :key="n"></span>
+            <span
+              v-for="n in 10"
+              :key="n"
+            />
             <span class="summary-red">{{ totalQuantity }}</span>
             <span class="summary-red">{{ totalAmount.toFixed(2) }}</span>
           </div>
@@ -63,11 +80,18 @@
       <div class="remark-section">
         <div class="remark-row">
           <span class="remark-label">单据备注</span>
-          <a-input v-model:value="formData.remark" size="small" class="remark-input" />
+          <a-input
+            v-model:value="formData.remark"
+            size="small"
+            class="remark-input"
+          />
         </div>
       </div>
       <div class="doc-info-row">
-        <span class="doc-info-item">制单人 <a-tag color="blue" size="small">{{ currentUserName || '系统' }}</a-tag></span>
+        <span class="doc-info-item">制单人 <a-tag
+          color="blue"
+          size="small"
+        >{{ currentUserName || '系统' }}</a-tag></span>
         <span class="doc-info-item">制单时间 {{ formatNow() }}</span>
       </div>
     </template>
@@ -163,7 +187,7 @@ const {
 })
 
 // 初始化发货单特有字段
-if (!('customerId' in formData)) Object.assign(formData, {
+if (!('customerId' in formData)) {Object.assign(formData, {
   customerId: undefined, customerName: '',
   warehouseId: undefined, warehouseName: '',
   handlerId: undefined, handlerName: '',
@@ -171,7 +195,7 @@ if (!('customerId' in formData)) Object.assign(formData, {
   receiverName: '', receiverPhone: '', shippingAddress: '',
   logisticsCompany: '', logisticsNo: '',
   remark: '',
-})
+})}
 
 // BillFormPage 配置
 

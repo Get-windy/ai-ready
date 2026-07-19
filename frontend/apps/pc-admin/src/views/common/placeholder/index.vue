@@ -6,7 +6,12 @@
       sub-title="该功能正在开发中，敬请期待"
     >
       <template #extra>
-        <a-button type="primary" @click="goBack">返回</a-button>
+        <a-button
+          type="primary"
+          @click="goBack"
+        >
+          返回
+        </a-button>
       </template>
     </a-result>
   </div>

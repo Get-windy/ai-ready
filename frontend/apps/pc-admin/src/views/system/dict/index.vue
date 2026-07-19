@@ -1,260 +1,382 @@
 <template>
   <ErrorBoundary @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="dict-page-header">
-        <div class="dict-page-header-left">
-          <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item>字典管理</a-breadcrumb-item>
-          </a-breadcrumb>
-          <h2 class="dict-page-header-title">字典管理</h2>
-        </div>
-        <div class="dict-page-header-right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-            <SyncOutlined /> {{ autoRefreshCountdown }}s
-          </span>
-          <span class="shortcut-hints">
-            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-            <span class="shortcut-hint"><kbd>Ctrl</kbd> + <kbd>N</kbd> 新增</span>
-          </span>
-          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchTypeData)()">
-            <template #icon><ReloadOutlined /></template>
-            刷新
-          </a-button>
-        </div>
-      </div>
-    </template>
-
-    <div class="dict-management">
-      <!-- 统计卡片 -->
-      <div class="stat-cards">
-        <div class="stat-card stat-total">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ typePagination.total }}</div>
-            <div class="stat-card-label">类型总数</div>
+    <PageContainer full-height>
+      <template #header>
+        <div class="dict-page-header">
+          <div class="dict-page-header-left">
+            <a-breadcrumb>
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>字典管理</a-breadcrumb-item>
+            </a-breadcrumb>
+            <h2 class="dict-page-header-title">
+              字典管理
+            </h2>
           </div>
-          <BookOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-items">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ totalItemCount }}</div>
-            <div class="stat-card-label">字典项总数</div>
-          </div>
-          <UnorderedListOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-enabled">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ enabledTypeCount }}</div>
-            <div class="stat-card-label">启用类型</div>
-          </div>
-          <CheckCircleOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-disabled">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ disabledTypeCount }}</div>
-            <div class="stat-card-label">停用类型</div>
-          </div>
-          <StopOutlined class="stat-card-icon" />
-        </div>
-      </div>
-
-      <a-skeleton active v-if="typeLoading && typeTableData.length === 0" :paragraph="{ rows: 8 }" style="padding: 24px;" />
-
-      <BillTableList
-        ref="tableRef"
-        :columns="vxeColumns"
-        :data-source="typeTableData"
-        :loading="typeLoading"
-        :pagination="typePagination"
-        :row-key="'id'"
-        :min-empty-rows="12"
-        :filter-fields="filterFields"
-        :show-search="false"
-        :show-add="false"
-        :show-edit="false"
-        :show-delete="false"
-        :show-batch-delete="false"
-        :selectable="false"
-        add-text="新增类型"
-        @add="handleAddType"
-        @refresh="debounceClick('refresh', fetchTypeData)"
-        @page-change="handleTypePageChange"
-        @filter-change="handleFilterChange"
-        @cell-dblclick="handleView"
-      >
-        <template #toolbar-actions>
-          <a-button type="primary" v-permission="'system:dict:create'" @click="handleAddType">
-            <template #icon><PlusOutlined /></template>
-            新增类型
-          </a-button>
-        </template>
-
-        <template #empty>
-          <a-empty v-if="!hasError" description="暂无数据" />
-          <a-result v-else status="error" title="数据加载失败">
-            <template #extra>
-              <a-button type="primary" @click="debounceClick('refresh', fetchTypeData)()">
-                <template #icon><ReloadOutlined /></template>
-                重新加载
-              </a-button>
-            </template>
-          </a-result>
-        </template>
-
-        <template #statusCell="{ record }">
-          <a-tag :color="record.status === 'ENABLED' ? 'success' : 'error'">
-            {{ record.status === 'ENABLED' ? '启用' : '停用' }}
-          </a-tag>
-        </template>
-
-        <template #action="{ record }">
-          <a-space>
-            <a-button type="link" size="small" v-permission="'system:dict:update'" @click="handleEditType(record)">
-              编辑
-            </a-button>
-            <a-button type="link" size="small" danger v-permission="'system:dict:delete'" @click="handleDeleteTypeConfirm(record)">
-              删除
-            </a-button>
-          </a-space>
-        </template>
-
-        <template #expandedRowRender="{ record }">
-          <div class="expanded-content">
-            <div class="expanded-header">
-              <span class="expanded-title">字典项列表</span>
-              <a-button type="primary" size="small" v-permission="'system:dict:create'" @click="handleAddItem(record)">
-                <template #icon><PlusOutlined /></template>
-                新增字典项
-              </a-button>
-            </div>
-            <BillTableList
-              :data-source="dictItemMap[record.id] || []"
-              :loading="itemLoadingMap[record.id]"
-              :pagination="false as any"
-              row-key="id"
-              :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false"
-              :show-export="false" :show-batch-delete="false"
-              :columns="itemColumns"
+          <div class="dict-page-header-right">
+            <span
+              v-if="lastUpdateTime"
+              class="update-time"
+            >更新于 {{ lastUpdateTime }}</span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
             >
-              <template #statusCell="{ record: itemRecord }">
-                <a-tag :color="itemRecord.status === 'ENABLED' ? 'success' : 'error'">
-                  {{ itemRecord.status === 'ENABLED' ? '启用' : '停用' }}
-                </a-tag>
+              <SyncOutlined /> {{ autoRefreshCountdown }}s
+            </span>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+              <span class="shortcut-hint"><kbd>Ctrl</kbd> + <kbd>N</kbd> 新增</span>
+            </span>
+            <a-button
+              size="small"
+              :loading="refreshLoading"
+              @click="debounceClick('refresh', fetchTypeData)()"
+            >
+              <template #icon>
+                <ReloadOutlined />
               </template>
-
-              <template #actionCell="{ record: itemRecord }">
-                <a-space>
-                  <a-button type="link" size="small" v-permission="'system:dict:update'" @click="handleEditItem(record, itemRecord)">
-                    编辑
-                  </a-button>
-                  <a-button type="link" size="small" danger v-permission="'system:dict:delete'" @click="handleDeleteItemConfirm(record, itemRecord)">
-                    删除
-                  </a-button>
-                </a-space>
-              </template>
-            </BillTableList>
+              刷新
+            </a-button>
           </div>
-        </template>
-      </BillTableList>
+        </div>
+      </template>
 
-      <!-- 字典类型表单弹窗 -->
-      <FullScreenDetail
-        :visible="typeModalVisible"
-        :title="typeModalTitle"
-        :dirty="typeFormDirty"
-        :save-loading="typeModalLoading"
-        :show-save-and-new="!isTypeEdit"
-        @save="handleTypeModalOk"
-        @close="handleTypeFormClose"
-        @save-and-new="handleTypeFormSaveAndNew"
-      >
-        <a-form
-          ref="typeFormRef"
-          :model="typeFormState"
-          :rules="typeFormRules"
-          :label-col="{ span: 6 }"
-          :wrapper-col="{ span: 16 }"
-        >
-          <a-form-item label="类型编码" name="dictCode">
-            <a-input
-              v-model:value="typeFormState.dictCode"
-              placeholder="请输入类型编码"
-              :disabled="isTypeEdit"
-            />
-          </a-form-item>
-          <a-form-item label="类型名称" name="dictName">
-            <a-input
-              v-model:value="typeFormState.dictName"
-              placeholder="请输入类型名称"
-            />
-          </a-form-item>
-          <a-form-item label="状态" name="status">
-            <a-radio-group v-model:value="typeFormState.status">
-              <a-radio value="ENABLED">启用</a-radio>
-              <a-radio value="DISABLED">停用</a-radio>
-            </a-radio-group>
-          </a-form-item>
-          <a-form-item label="备注" name="remark">
-            <a-textarea
-              v-model:value="typeFormState.remark"
-              placeholder="请输入备注"
-              :rows="3"
-            />
-          </a-form-item>
-        </a-form>
-      </FullScreenDetail>
+      <div class="dict-management">
+        <!-- 统计卡片 -->
+        <div class="stat-cards">
+          <div class="stat-card stat-total">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ typePagination.total }}
+              </div>
+              <div class="stat-card-label">
+                类型总数
+              </div>
+            </div>
+            <BookOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-items">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ totalItemCount }}
+              </div>
+              <div class="stat-card-label">
+                字典项总数
+              </div>
+            </div>
+            <UnorderedListOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-enabled">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ enabledTypeCount }}
+              </div>
+              <div class="stat-card-label">
+                启用类型
+              </div>
+            </div>
+            <CheckCircleOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-disabled">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ disabledTypeCount }}
+              </div>
+              <div class="stat-card-label">
+                停用类型
+              </div>
+            </div>
+            <StopOutlined class="stat-card-icon" />
+          </div>
+        </div>
 
-      <!-- 字典项表单弹窗 -->
-      <FullScreenDetail
-        :visible="itemModalVisible"
-        :title="itemModalTitle"
-        :dirty="itemFormDirty"
-        :save-loading="itemModalLoading"
-        :show-save-and-new="!isItemEdit"
-        @save="handleItemModalOk"
-        @close="handleItemFormClose"
-        @save-and-new="handleItemFormSaveAndNew"
-      >
-        <a-form
-          ref="itemFormRef"
-          :model="itemFormState"
-          :rules="itemFormRules"
-          :label-col="{ span: 6 }"
-          :wrapper-col="{ span: 16 }"
+        <a-skeleton
+          v-if="typeLoading && typeTableData.length === 0"
+          active
+          :paragraph="{ rows: 8 }"
+          style="padding: 24px;"
+        />
+
+        <BillTableList
+          ref="tableRef"
+          :columns="vxeColumns"
+          :data-source="typeTableData"
+          :loading="typeLoading"
+          :pagination="typePagination"
+          :row-key="'id'"
+          :min-empty-rows="12"
+          :filter-fields="filterFields"
+          :show-search="false"
+          :show-add="false"
+          :show-edit="false"
+          :show-delete="false"
+          :show-batch-delete="false"
+          :selectable="false"
+          add-text="新增类型"
+          @add="handleAddType"
+          @refresh="debounceClick('refresh', fetchTypeData)"
+          @page-change="handleTypePageChange"
+          @filter-change="handleFilterChange"
+          @cell-dblclick="handleView"
         >
-          <a-form-item label="字典项值" name="itemValue">
-            <a-input
-              v-model:value="itemFormState.itemValue"
-              placeholder="请输入字典项值"
+          <template #toolbar-actions>
+            <a-button
+              v-permission="'system:dict:create'"
+              type="primary"
+              @click="handleAddType"
+            >
+              <template #icon>
+                <PlusOutlined />
+              </template>
+              新增类型
+            </a-button>
+          </template>
+
+          <template #empty>
+            <a-empty
+              v-if="!hasError"
+              description="暂无数据"
             />
-          </a-form-item>
-          <a-form-item label="字典项文本" name="itemText">
-            <a-input
-              v-model:value="itemFormState.itemText"
-              placeholder="请输入字典项文本"
-            />
-          </a-form-item>
-          <a-form-item label="排序" name="sortOrder">
-            <a-input-number
-              v-model:value="itemFormState.sortOrder"
-              :min="0"
-              :max="9999"
-              style="width: 100%"
-              placeholder="请输入排序号"
-            />
-          </a-form-item>
-          <a-form-item label="状态" name="status">
-            <a-radio-group v-model:value="itemFormState.status">
-              <a-radio value="ENABLED">启用</a-radio>
-              <a-radio value="DISABLED">停用</a-radio>
-            </a-radio-group>
-          </a-form-item>
-        </a-form>
-      </FullScreenDetail>
-    </div>
-  </PageContainer>
+            <a-result
+              v-else
+              status="error"
+              title="数据加载失败"
+            >
+              <template #extra>
+                <a-button
+                  type="primary"
+                  @click="debounceClick('refresh', fetchTypeData)()"
+                >
+                  <template #icon>
+                    <ReloadOutlined />
+                  </template>
+                  重新加载
+                </a-button>
+              </template>
+            </a-result>
+          </template>
+
+          <template #statusCell="{ record }">
+            <a-tag :color="record.status === 'ENABLED' ? 'success' : 'error'">
+              {{ record.status === 'ENABLED' ? '启用' : '停用' }}
+            </a-tag>
+          </template>
+
+          <template #action="{ record }">
+            <a-space>
+              <a-button
+                v-permission="'system:dict:update'"
+                type="link"
+                size="small"
+                @click="handleEditType(record)"
+              >
+                编辑
+              </a-button>
+              <a-button
+                v-permission="'system:dict:delete'"
+                type="link"
+                size="small"
+                danger
+                @click="handleDeleteTypeConfirm(record)"
+              >
+                删除
+              </a-button>
+            </a-space>
+          </template>
+
+          <template #expandedRowRender="{ record }">
+            <div class="expanded-content">
+              <div class="expanded-header">
+                <span class="expanded-title">字典项列表</span>
+                <a-button
+                  v-permission="'system:dict:create'"
+                  type="primary"
+                  size="small"
+                  @click="handleAddItem(record)"
+                >
+                  <template #icon>
+                    <PlusOutlined />
+                  </template>
+                  新增字典项
+                </a-button>
+              </div>
+              <BillTableList
+                :data-source="dictItemMap[record.id] || []"
+                :loading="itemLoadingMap[record.id]"
+                :pagination="false as any"
+                row-key="id"
+                :show-toolbar="false"
+                :selectable="false"
+                :show-add="false"
+                :show-search="false"
+                :show-export="false"
+                :show-batch-delete="false"
+                :columns="itemColumns"
+              >
+                <template #statusCell="{ record: itemRecord }">
+                  <a-tag :color="itemRecord.status === 'ENABLED' ? 'success' : 'error'">
+                    {{ itemRecord.status === 'ENABLED' ? '启用' : '停用' }}
+                  </a-tag>
+                </template>
+
+                <template #actionCell="{ record: itemRecord }">
+                  <a-space>
+                    <a-button
+                      v-permission="'system:dict:update'"
+                      type="link"
+                      size="small"
+                      @click="handleEditItem(record, itemRecord)"
+                    >
+                      编辑
+                    </a-button>
+                    <a-button
+                      v-permission="'system:dict:delete'"
+                      type="link"
+                      size="small"
+                      danger
+                      @click="handleDeleteItemConfirm(record, itemRecord)"
+                    >
+                      删除
+                    </a-button>
+                  </a-space>
+                </template>
+              </BillTableList>
+            </div>
+          </template>
+        </BillTableList>
+
+        <!-- 字典类型表单弹窗 -->
+        <FullScreenDetail
+          :visible="typeModalVisible"
+          :title="typeModalTitle"
+          :dirty="typeFormDirty"
+          :save-loading="typeModalLoading"
+          :show-save-and-new="!isTypeEdit"
+          @save="handleTypeModalOk"
+          @close="handleTypeFormClose"
+          @save-and-new="handleTypeFormSaveAndNew"
+        >
+          <a-form
+            ref="typeFormRef"
+            :model="typeFormState"
+            :rules="typeFormRules"
+            :label-col="{ span: 6 }"
+            :wrapper-col="{ span: 16 }"
+          >
+            <a-form-item
+              label="类型编码"
+              name="dictCode"
+            >
+              <a-input
+                v-model:value="typeFormState.dictCode"
+                placeholder="请输入类型编码"
+                :disabled="isTypeEdit"
+              />
+            </a-form-item>
+            <a-form-item
+              label="类型名称"
+              name="dictName"
+            >
+              <a-input
+                v-model:value="typeFormState.dictName"
+                placeholder="请输入类型名称"
+              />
+            </a-form-item>
+            <a-form-item
+              label="状态"
+              name="status"
+            >
+              <a-radio-group v-model:value="typeFormState.status">
+                <a-radio value="ENABLED">
+                  启用
+                </a-radio>
+                <a-radio value="DISABLED">
+                  停用
+                </a-radio>
+              </a-radio-group>
+            </a-form-item>
+            <a-form-item
+              label="备注"
+              name="remark"
+            >
+              <a-textarea
+                v-model:value="typeFormState.remark"
+                placeholder="请输入备注"
+                :rows="3"
+              />
+            </a-form-item>
+          </a-form>
+        </FullScreenDetail>
+
+        <!-- 字典项表单弹窗 -->
+        <FullScreenDetail
+          :visible="itemModalVisible"
+          :title="itemModalTitle"
+          :dirty="itemFormDirty"
+          :save-loading="itemModalLoading"
+          :show-save-and-new="!isItemEdit"
+          @save="handleItemModalOk"
+          @close="handleItemFormClose"
+          @save-and-new="handleItemFormSaveAndNew"
+        >
+          <a-form
+            ref="itemFormRef"
+            :model="itemFormState"
+            :rules="itemFormRules"
+            :label-col="{ span: 6 }"
+            :wrapper-col="{ span: 16 }"
+          >
+            <a-form-item
+              label="字典项值"
+              name="itemValue"
+            >
+              <a-input
+                v-model:value="itemFormState.itemValue"
+                placeholder="请输入字典项值"
+              />
+            </a-form-item>
+            <a-form-item
+              label="字典项文本"
+              name="itemText"
+            >
+              <a-input
+                v-model:value="itemFormState.itemText"
+                placeholder="请输入字典项文本"
+              />
+            </a-form-item>
+            <a-form-item
+              label="排序"
+              name="sortOrder"
+            >
+              <a-input-number
+                v-model:value="itemFormState.sortOrder"
+                :min="0"
+                :max="9999"
+                style="width: 100%"
+                placeholder="请输入排序号"
+              />
+            </a-form-item>
+            <a-form-item
+              label="状态"
+              name="status"
+            >
+              <a-radio-group v-model:value="itemFormState.status">
+                <a-radio value="ENABLED">
+                  启用
+                </a-radio>
+                <a-radio value="DISABLED">
+                  停用
+                </a-radio>
+              </a-radio-group>
+            </a-form-item>
+          </a-form>
+        </FullScreenDetail>
+      </div>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

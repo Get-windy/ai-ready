@@ -20,6 +20,12 @@ export interface ColumnSetting {
   visible: boolean
   width: number
   fixed: 'left' | 'right' | ''
+  /** 显示名（全局配置可修改，覆盖title） */
+  displayName?: string
+  /** 回车跳转（配置后按回车焦点跳到下一行同列） */
+  enterJump?: boolean
+  /** 公式内容（简单表达式，如 {quantity} * {unitPrice}） */
+  formula?: string
 }
 
 /** 锁定列（不允许隐藏） */
@@ -32,7 +38,7 @@ export function isLockedColumn(key: string): boolean {
 export function useColumnConfig(columnDefs: any[], storageKey: string, fillMode?: boolean) {
   const showPanel = ref(false)
 
-  // 默认配置
+  // 默认配置（保留 enterJump/formula/displayName 初始值）
   const defaultSettings = computed<ColumnSetting[]>(() =>
     columnDefs.map(col => ({
       key: col.key,
@@ -40,6 +46,8 @@ export function useColumnConfig(columnDefs: any[], storageKey: string, fillMode?
       visible: col.defaultHidden ? false : true,
       width: col.width || 100,
       fixed: col.fixed || '',
+      enterJump: col.enterJump ?? false,
+      formula: col.formula ?? '',
     }))
   )
 
@@ -108,7 +116,7 @@ export function useColumnConfig(columnDefs: any[], storageKey: string, fillMode?
     }
   }
 
-  // 可见列（按设置顺序 + 过滤隐藏 + 应用运行时宽度/冻结）
+  // 可见列（按设置顺序 + 过滤隐藏 + 应用运行时宽度/冻结/显示名）
   const visibleColumns = computed<any[]>(() => {
     const cols = columnSettings
       .filter(s => s.visible)
@@ -117,6 +125,7 @@ export function useColumnConfig(columnDefs: any[], storageKey: string, fillMode?
         if (!def) return null
         return {
           ...def,
+          title: s.displayName || s.title || def.title,
           width: s.width,
           fixed: s.fixed || undefined,
         }

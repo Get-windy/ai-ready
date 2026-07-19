@@ -1,50 +1,166 @@
 <template>
   <div>
     <div class="panel-toolbar">
-      <a-button size="small" type="primary" @click="showAddModal"><PlusOutlined /> 添加地址</a-button>
+      <a-button
+        size="small"
+        type="primary"
+        @click="showAddModal"
+      >
+        <PlusOutlined /> 添加地址
+      </a-button>
     </div>
-    <vxe-table :data="list" border size="small" max-height="300" align="center">
-      <vxe-column type="seq" title="#" width="50" />
-      <vxe-column field="addressType" title="类型" width="80">
-        <template #default="{ row }">{{ typeLabel(row.addressType) }}</template>
-      </vxe-column>
-      <vxe-column field="detailAddress" title="详细地址" min-width="200" />
-      <vxe-column field="contactName" title="联系人" />
-      <vxe-column field="contactPhone" title="电话" />
-      <vxe-column field="isDefault" title="默认" width="60">
-        <template #default="{ row }"><a-tag v-if="row.isDefault" color="green">默认</a-tag></template>
-      </vxe-column>
-      <vxe-column title="操作" width="160">
+    <vxe-table
+      :data="list"
+      border
+      size="small"
+      max-height="300"
+      align="center"
+    >
+      <vxe-column
+        type="seq"
+        title="#"
+        width="50"
+      />
+      <vxe-column
+        field="addressType"
+        title="类型"
+        width="80"
+      >
         <template #default="{ row }">
-          <a-button type="link" size="small" @click="editRow(row)">编辑</a-button>
-          <a-button v-if="!row.isDefault" type="link" size="small" @click="handleSetDefault(row)">设默认</a-button>
-          <a-button type="link" size="small" danger @click="handleDelete(row.id)">删除</a-button>
+          {{ typeLabel(row.addressType) }}
+        </template>
+      </vxe-column>
+      <vxe-column
+        field="detailAddress"
+        title="详细地址"
+        min-width="200"
+      />
+      <vxe-column
+        field="contactName"
+        title="联系人"
+      />
+      <vxe-column
+        field="contactPhone"
+        title="电话"
+      />
+      <vxe-column
+        field="isDefault"
+        title="默认"
+        width="60"
+      >
+        <template #default="{ row }">
+          <a-tag
+            v-if="row.isDefault"
+            color="green"
+          >
+            默认
+          </a-tag>
+        </template>
+      </vxe-column>
+      <vxe-column
+        title="操作"
+        width="160"
+      >
+        <template #default="{ row }">
+          <a-button
+            type="link"
+            size="small"
+            @click="editRow(row)"
+          >
+            编辑
+          </a-button>
+          <a-button
+            v-if="!row.isDefault"
+            type="link"
+            size="small"
+            @click="handleSetDefault(row)"
+          >
+            设默认
+          </a-button>
+          <a-button
+            type="link"
+            size="small"
+            danger
+            @click="handleDelete(row.id)"
+          >
+            删除
+          </a-button>
         </template>
       </vxe-column>
     </vxe-table>
 
-    <a-modal v-model:open="modalVisible" :title="editingId ? '编辑地址' : '添加地址'" width="600px" @ok="handleSave">
-      <a-form :label-col="{ span: 5 }" :wrapper-col="{ span: 17 }">
+    <a-modal
+      v-model:open="modalVisible"
+      :title="editingId ? '编辑地址' : '添加地址'"
+      width="600px"
+      @ok="handleSave"
+    >
+      <a-form
+        :label-col="{ span: 5 }"
+        :wrapper-col="{ span: 17 }"
+      >
         <a-form-item label="地址类型">
-          <a-select v-model:value="form.addressType" size="small">
-            <a-select-option value="DELIVERY">发货地址</a-select-option>
-            <a-select-option value="BILLING">开票地址</a-select-option>
-            <a-select-option value="RECEIVING">收货地址</a-select-option>
-            <a-select-option value="RETURN">退货地址</a-select-option>
+          <a-select
+            v-model:value="form.addressType"
+            size="small"
+          >
+            <a-select-option value="DELIVERY">
+              发货地址
+            </a-select-option>
+            <a-select-option value="BILLING">
+              开票地址
+            </a-select-option>
+            <a-select-option value="RECEIVING">
+              收货地址
+            </a-select-option>
+            <a-select-option value="RETURN">
+              退货地址
+            </a-select-option>
           </a-select>
         </a-form-item>
         <a-form-item label="所在地区">
           <a-space>
-            <a-input v-model:value="form.province" placeholder="省" style="width:120px" size="small" />
-            <a-input v-model:value="form.city" placeholder="市" style="width:120px" size="small" />
-            <a-input v-model:value="form.district" placeholder="区" style="width:120px" size="small" />
+            <a-input
+              v-model:value="form.province"
+              placeholder="省"
+              style="width:120px"
+              size="small"
+            />
+            <a-input
+              v-model:value="form.city"
+              placeholder="市"
+              style="width:120px"
+              size="small"
+            />
+            <a-input
+              v-model:value="form.district"
+              placeholder="区"
+              style="width:120px"
+              size="small"
+            />
           </a-space>
         </a-form-item>
-        <a-form-item label="详细地址" required>
-          <a-input v-model:value="form.detailAddress" size="small" />
+        <a-form-item
+          label="详细地址"
+          required
+        >
+          <a-input
+            v-model:value="form.detailAddress"
+            size="small"
+          />
         </a-form-item>
-        <a-form-item label="联系人"><a-input v-model:value="form.contactName" size="small" /></a-form-item>
-        <a-form-item label="联系电话"><a-input v-model:value="form.contactPhone" size="small" /></a-form-item>
+        <a-form-item label="联系人">
+          <a-input
+            v-model:value="form.contactName"
+            size="small"
+          />
+        </a-form-item>
+        <a-form-item label="联系电话">
+          <a-input
+            v-model:value="form.contactPhone"
+            size="small"
+          />
+        </a-form-item>
       </a-form>
     </a-modal>
   </div>

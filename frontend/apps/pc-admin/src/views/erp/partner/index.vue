@@ -5,22 +5,40 @@
         <div class="page-header">
           <div class="page-header__left">
             <a-breadcrumb>
-              <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
               <a-breadcrumb-item>往来单位管理</a-breadcrumb-item>
             </a-breadcrumb>
-            <h2 class="page-header__title">往来单位管理</h2>
+            <h2 class="page-header__title">
+              往来单位管理
+            </h2>
           </div>
           <div class="page-header__right">
             <a-space :size="12">
               <span class="data-status">
                 <a-badge :status="loading ? 'processing' : 'success'" />
-                <span v-if="lastUpdateTime" class="update-time">数据更新: {{ lastUpdateTime }}</span>
+                <span
+                  v-if="lastUpdateTime"
+                  class="update-time"
+                >数据更新: {{ lastUpdateTime }}</span>
               </span>
-              <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+              <span
+                v-if="autoRefreshCountdown > 0"
+                class="auto-refresh-badge"
+              >
                 <SyncOutlined /> {{ autoRefreshCountdown }}s
               </span>
-              <a-button size="small" :loading="loading" @click="debounceClick('refresh', refreshAll)">
-                <template #icon><ReloadOutlined /></template>
+              <a-button
+                size="small"
+                :loading="loading"
+                @click="debounceClick('refresh', refreshAll)"
+              >
+                <template #icon>
+                  <ReloadOutlined />
+                </template>
                 刷新
               </a-button>
               <span class="shortcut-hints">
@@ -34,29 +52,72 @@
       </template>
 
       <!-- 统计卡片 -->
-      <a-row :gutter="12" style="margin-bottom: 12px;">
+      <a-row
+        :gutter="12"
+        style="margin-bottom: 12px;"
+      >
         <a-col :span="6">
-          <div class="stat-card" style="border-top: 3px solid #1890ff;">
-            <div class="stat-value" style="color:#1890ff">{{ loading ? '-' : statistics.total }}</div>
-            <div class="stat-label">单位总数</div>
+          <div
+            class="stat-card"
+            style="border-top: 3px solid #1890ff;"
+          >
+            <div
+              class="stat-value"
+              style="color:#1890ff"
+            >
+              {{ loading ? '-' : statistics.total }}
+            </div>
+            <div class="stat-label">
+              单位总数
+            </div>
           </div>
         </a-col>
         <a-col :span="6">
-          <div class="stat-card" style="border-top: 3px solid #52c41a;">
-            <div class="stat-value" style="color:#52c41a">{{ loading ? '-' : statistics.enabled }}</div>
-            <div class="stat-label">启用</div>
+          <div
+            class="stat-card"
+            style="border-top: 3px solid #52c41a;"
+          >
+            <div
+              class="stat-value"
+              style="color:#52c41a"
+            >
+              {{ loading ? '-' : statistics.enabled }}
+            </div>
+            <div class="stat-label">
+              启用
+            </div>
           </div>
         </a-col>
         <a-col :span="6">
-          <div class="stat-card" style="border-top: 3px solid #ff4d4f;">
-            <div class="stat-value" style="color:#ff4d4f">{{ loading ? '-' : statistics.disabled }}</div>
-            <div class="stat-label">停用</div>
+          <div
+            class="stat-card"
+            style="border-top: 3px solid #ff4d4f;"
+          >
+            <div
+              class="stat-value"
+              style="color:#ff4d4f"
+            >
+              {{ loading ? '-' : statistics.disabled }}
+            </div>
+            <div class="stat-label">
+              停用
+            </div>
           </div>
         </a-col>
         <a-col :span="6">
-          <div class="stat-card" style="border-top: 3px solid #722ed1;">
-            <div class="stat-value" style="color:#722ed1">¥{{ formatAmount(statistics.creditTotal) }}</div>
-            <div class="stat-label">总信用额度</div>
+          <div
+            class="stat-card"
+            style="border-top: 3px solid #722ed1;"
+          >
+            <div
+              class="stat-value"
+              style="color:#722ed1"
+            >
+              ¥{{ formatAmount(statistics.creditTotal) }}
+            </div>
+            <div class="stat-label">
+              总信用额度
+            </div>
           </div>
         </a-col>
       </a-row>
@@ -64,25 +125,37 @@
       <div class="partner-main">
         <!-- 左侧分类/标签 -->
         <div class="partner-sidebar">
-          <a-card size="small" title="单位类型" :body-style="{ padding: '8px' }">
+          <a-card
+            size="small"
+            title="单位类型"
+            :body-style="{ padding: '8px' }"
+          >
             <a-tree
               :tree-data="typeTreeData"
               :selected-keys="[selectedType]"
-              @select="onTypeSelect"
               block-node
+              @select="onTypeSelect"
             />
           </a-card>
           <a-divider style="margin: 8px 0" />
-          <a-card size="small" title="分类" :body-style="{ padding: '8px' }">
+          <a-card
+            size="small"
+            title="分类"
+            :body-style="{ padding: '8px' }"
+          >
             <a-tree
               v-if="categoryTree.length"
               :tree-data="categoryTree"
               :selected-keys="selectedCategoryId !== '0' ? [selectedCategoryId] : []"
               :field-names="{ children: 'children', title: 'categoryName', key: 'id' }"
-              @select="onCategorySelect"
               block-node
+              @select="onCategorySelect"
             />
-            <a-empty v-else description="暂无分类" :image="Empty.PRESENTED_IMAGE_SIMPLE" />
+            <a-empty
+              v-else
+              description="暂无分类"
+              :image="Empty.PRESENTED_IMAGE_SIMPLE"
+            />
           </a-card>
         </div>
 
@@ -96,8 +169,15 @@
               @reset="handleReset"
             />
             <a-space>
-              <a-button type="primary" size="small" v-permission="'erp:partner:create'" @click="router.push('/erp/partner/create')">
-                <template #icon><PlusOutlined /></template>
+              <a-button
+                v-permission="'erp:partner:create'"
+                type="primary"
+                size="small"
+                @click="router.push('/erp/partner/create')"
+              >
+                <template #icon>
+                  <PlusOutlined />
+                </template>
                 新增单位
               </a-button>
             </a-space>
@@ -121,23 +201,69 @@
             @selection-change="handleSelectionChange"
           >
             <template #empty>
-              <EmptyState v-if="hasError" image="error" title="数据加载异常" description="数据获取失败，请检查后重试" :show-add="false" size="small" @refresh="fetchPartners" />
-              <EmptyState v-else image="no-data" title="暂无往来单位" description="当前没有单位数据" add-text="新增单位" size="small" @refresh="fetchPartners" @add="() => router.push('/erp/partner/create')" />
+              <EmptyState
+                v-if="hasError"
+                image="error"
+                title="数据加载异常"
+                description="数据获取失败，请检查后重试"
+                :show-add="false"
+                size="small"
+                @refresh="fetchPartners"
+              />
+              <EmptyState
+                v-else
+                image="no-data"
+                title="暂无往来单位"
+                description="当前没有单位数据"
+                add-text="新增单位"
+                size="small"
+                @refresh="fetchPartners"
+                @add="() => router.push('/erp/partner/create')"
+              />
             </template>
             <template #typeCell="{ record }">
               <a-tag>{{ typeLabel(record.partnerType) }}</a-tag>
             </template>
             <template #statusCell="{ record }">
-              <StatusTag :status="record.status" :map="PARTNER_STATUS" />
+              <StatusTag
+                :status="record.status"
+                :map="PARTNER_STATUS"
+              />
             </template>
             <template #action="{ record }">
               <a-space :size="4">
-                <a-button type="link" size="small" @click="handleView(record)">查看</a-button>
-                <a-button type="link" size="small" v-permission="'erp:partner:edit'" @click="router.push(`/erp/partner/${record.id}`)">编辑</a-button>
-                <a-button type="link" size="small" v-permission="'erp:partner:toggle-status'" @click="handleToggleStatus(record)">
+                <a-button
+                  type="link"
+                  size="small"
+                  @click="handleView(record)"
+                >
+                  查看
+                </a-button>
+                <a-button
+                  v-permission="'erp:partner:edit'"
+                  type="link"
+                  size="small"
+                  @click="router.push(`/erp/partner/${record.id}`)"
+                >
+                  编辑
+                </a-button>
+                <a-button
+                  v-permission="'erp:partner:toggle-status'"
+                  type="link"
+                  size="small"
+                  @click="handleToggleStatus(record)"
+                >
                   {{ record.status === 'ENABLED' ? '停用' : '启用' }}
                 </a-button>
-                <a-button type="link" size="small" v-permission="'erp:partner:delete'" danger @click="handleDelete(record)">删除</a-button>
+                <a-button
+                  v-permission="'erp:partner:delete'"
+                  type="link"
+                  size="small"
+                  danger
+                  @click="handleDelete(record)"
+                >
+                  删除
+                </a-button>
               </a-space>
             </template>
           </BillTableList>
@@ -154,33 +280,80 @@
         destroy-on-close
       >
         <a-spin :spinning="detailLoading">
-          <a-descriptions bordered :column="2" size="small" v-if="detailData">
-            <a-descriptions-item label="编码">{{ detailData.partnerCode }}</a-descriptions-item>
-            <a-descriptions-item label="名称">{{ detailData.partnerName }}</a-descriptions-item>
-            <a-descriptions-item label="类型">{{ typeLabel(detailData.partnerType) }}</a-descriptions-item>
-            <a-descriptions-item label="分类">{{ detailData.categoryName || '-' }}</a-descriptions-item>
-            <a-descriptions-item label="等级">{{ detailData.gradeName || '-' }}</a-descriptions-item>
-            <a-descriptions-item label="状态">
-              <StatusTag :status="detailData.status" :map="PARTNER_STATUS" />
+          <a-descriptions
+            v-if="detailData"
+            bordered
+            :column="2"
+            size="small"
+          >
+            <a-descriptions-item label="编码">
+              {{ detailData.partnerCode }}
             </a-descriptions-item>
-            <a-descriptions-item label="联系人">{{ detailData.contactPerson || '-' }}</a-descriptions-item>
-            <a-descriptions-item label="联系电话">{{ detailData.contactPhone || '-' }}</a-descriptions-item>
-            <a-descriptions-item label="邮箱">{{ detailData.contactEmail || '-' }}</a-descriptions-item>
-            <a-descriptions-item label="地址">{{ detailData.province || '' }}{{ detailData.city || '' }}{{ detailData.district || '' }}{{ detailData.detailAddress || '' }}</a-descriptions-item>
-            <a-descriptions-item label="信用额度">¥{{ formatAmount(detailData.creditLimit) }}</a-descriptions-item>
+            <a-descriptions-item label="名称">
+              {{ detailData.partnerName }}
+            </a-descriptions-item>
+            <a-descriptions-item label="类型">
+              {{ typeLabel(detailData.partnerType) }}
+            </a-descriptions-item>
+            <a-descriptions-item label="分类">
+              {{ detailData.categoryName || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item label="等级">
+              {{ detailData.gradeName || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item label="状态">
+              <StatusTag
+                :status="detailData.status"
+                :map="PARTNER_STATUS"
+              />
+            </a-descriptions-item>
+            <a-descriptions-item label="联系人">
+              {{ detailData.contactPerson || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item label="联系电话">
+              {{ detailData.contactPhone || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item label="邮箱">
+              {{ detailData.contactEmail || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item label="地址">
+              {{ detailData.province || '' }}{{ detailData.city || '' }}{{ detailData.district || '' }}{{ detailData.detailAddress || '' }}
+            </a-descriptions-item>
+            <a-descriptions-item label="信用额度">
+              ¥{{ formatAmount(detailData.creditLimit) }}
+            </a-descriptions-item>
             <a-descriptions-item label="当前欠款">
               <span :style="{ color: detailData.currentBalance > 0 ? '#f5222d' : '#52c41a' }">
                 ¥{{ formatAmount(detailData.currentBalance) }}
               </span>
             </a-descriptions-item>
-            <a-descriptions-item label="社会信用代码">{{ detailData.unifiedSocialCode || '-' }}</a-descriptions-item>
-            <a-descriptions-item label="纳税人识别号">{{ detailData.taxId || '-' }}</a-descriptions-item>
-            <a-descriptions-item label="法人代表">{{ detailData.legalPerson || '-' }}</a-descriptions-item>
-            <a-descriptions-item label="结算方式">{{ detailData.settleType || '-' }}</a-descriptions-item>
-            <a-descriptions-item label="备注" :span="2">{{ detailData.remark || '-' }}</a-descriptions-item>
+            <a-descriptions-item label="社会信用代码">
+              {{ detailData.unifiedSocialCode || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item label="纳税人识别号">
+              {{ detailData.taxId || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item label="法人代表">
+              {{ detailData.legalPerson || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item label="结算方式">
+              {{ detailData.settleType || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item
+              label="备注"
+              :span="2"
+            >
+              {{ detailData.remark || '-' }}
+            </a-descriptions-item>
           </a-descriptions>
-          <a-empty v-if="!detailLoading && !detailData" description="未找到单位信息" />
-          <div v-if="detailData" style="margin-top: 16px; text-align: right;">
+          <a-empty
+            v-if="!detailLoading && !detailData"
+            description="未找到单位信息"
+          />
+          <div
+            v-if="detailData"
+            style="margin-top: 16px; text-align: right;"
+          >
             <PrintButton
               :business-id="detailData.id"
               business-type="PARTNER"

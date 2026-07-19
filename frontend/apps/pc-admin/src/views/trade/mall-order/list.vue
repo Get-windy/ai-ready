@@ -1,15 +1,26 @@
 <template>
   <ErrorBoundary @error="handleError">
-    <PageContainer title="商城订单" full-height>
+    <PageContainer
+      title="商城订单"
+      full-height
+    >
       <template #headerExtra>
         <a-space :size="12">
           <span class="data-status">
             <a-badge :status="loading ? 'processing' : (hasError ? 'error' : 'success')" />
-            <span v-if="lastUpdateTime" class="update-time">最后更新: {{ lastUpdateTime }}</span>
+            <span
+              v-if="lastUpdateTime"
+              class="update-time"
+            >最后更新: {{ lastUpdateTime }}</span>
           </span>
           <a-tooltip title="手动刷新">
-            <a-button size="small" @click="fetchData">
-              <template #icon><ReloadOutlined /></template>
+            <a-button
+              size="small"
+              @click="fetchData"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
             </a-button>
           </a-tooltip>
         </a-space>
@@ -18,54 +29,99 @@
       <div class="stat-cards">
         <div class="stat-card stat-pending-pay">
           <div class="stat-card-body">
-            <div class="stat-card-value">{{ stats.pendingPay }}</div>
-            <div class="stat-card-label">待付款</div>
+            <div class="stat-card-value">
+              {{ stats.pendingPay }}
+            </div>
+            <div class="stat-card-label">
+              待付款
+            </div>
           </div>
           <DollarOutlined class="stat-card-icon" />
         </div>
         <div class="stat-card stat-pending-ship">
           <div class="stat-card-body">
-            <div class="stat-card-value">{{ stats.pendingShip }}</div>
-            <div class="stat-card-label">待发货</div>
+            <div class="stat-card-value">
+              {{ stats.pendingShip }}
+            </div>
+            <div class="stat-card-label">
+              待发货
+            </div>
           </div>
           <ShoppingCartOutlined class="stat-card-icon" />
         </div>
         <div class="stat-card stat-shipped">
           <div class="stat-card-body">
-            <div class="stat-card-value">{{ stats.shipped }}</div>
-            <div class="stat-card-label">已发货</div>
+            <div class="stat-card-value">
+              {{ stats.shipped }}
+            </div>
+            <div class="stat-card-label">
+              已发货
+            </div>
           </div>
           <CarOutlined class="stat-card-icon" />
         </div>
         <div class="stat-card stat-total">
           <div class="stat-card-body">
-            <div class="stat-card-value">¥{{ formatAmount(stats.totalAmount) }}</div>
-            <div class="stat-card-label">交易总额</div>
+            <div class="stat-card-value">
+              ¥{{ formatAmount(stats.totalAmount) }}
+            </div>
+            <div class="stat-card-label">
+              交易总额
+            </div>
           </div>
           <BarChartOutlined class="stat-card-icon" />
         </div>
       </div>
 
       <div class="search-area">
-        <a-form layout="inline" :model="searchParams">
+        <a-form
+          layout="inline"
+          :model="searchParams"
+        >
           <a-form-item label="订单编号">
-            <a-input v-model:value="searchParams.orderNo" placeholder="请输入订单编号" allow-clear style="width: 180px" />
+            <a-input
+              v-model:value="searchParams.orderNo"
+              placeholder="请输入订单编号"
+              allow-clear
+              style="width: 180px"
+            />
           </a-form-item>
           <a-form-item label="订单状态">
-            <a-select v-model:value="searchParams.status" placeholder="请选择状态" allow-clear style="width: 150px">
-              <a-select-option v-for="[key, val] in Object.entries(ORDER_STATUS_MAP)" :key="key" :value="Number(key)">
-                <a-tag :color="val.color" style="margin-right: 4px">{{ val.text }}</a-tag>
+            <a-select
+              v-model:value="searchParams.status"
+              placeholder="请选择状态"
+              allow-clear
+              style="width: 150px"
+            >
+              <a-select-option
+                v-for="[key, val] in Object.entries(ORDER_STATUS_MAP)"
+                :key="key"
+                :value="Number(key)"
+              >
+                <a-tag
+                  :color="val.color"
+                  style="margin-right: 4px"
+                >
+                  {{ val.text }}
+                </a-tag>
               </a-select-option>
             </a-select>
           </a-form-item>
           <a-form-item>
             <a-space>
-              <a-button type="primary" @click="handleSearch">
-                <template #icon><SearchOutlined /></template>
+              <a-button
+                type="primary"
+                @click="handleSearch"
+              >
+                <template #icon>
+                  <SearchOutlined />
+                </template>
                 搜索
               </a-button>
               <a-button @click="handleReset">
-                <template #icon><ClearOutlined /></template>
+                <template #icon>
+                  <ClearOutlined />
+                </template>
                 重置
               </a-button>
             </a-space>
@@ -87,7 +143,11 @@
           @page-change="handlePageChange"
         >
           <template #orderNoCell="{ record }">
-            <a-button type="link" size="small" @click="handleView(record)">
+            <a-button
+              type="link"
+              size="small"
+              @click="handleView(record)"
+            >
               {{ record.orderNo }}
             </a-button>
           </template>
@@ -95,34 +155,85 @@
             <span class="currency-value">¥{{ formatAmount(record.totalAmount) }}</span>
           </template>
           <template #statusCell="{ record }">
-            <a-tag :color="getStatusColor(record.status)">{{ getStatusText(record.status) }}</a-tag>
+            <a-tag :color="getStatusColor(record.status)">
+              {{ getStatusText(record.status) }}
+            </a-tag>
           </template>
           <template #actionCell="{ record }">
             <a-space :size="4">
-              <a-button type="link" size="small" @click="handleView(record)">详情</a-button>
-              <a-button v-if="record.status === 0" type="link" size="small" @click="handleApprove(record)">审核</a-button>
-              <a-button v-if="record.status === 1" type="link" size="small" @click="handlePay(record)">支付</a-button>
+              <a-button
+                type="link"
+                size="small"
+                @click="handleView(record)"
+              >
+                详情
+              </a-button>
+              <a-button
+                v-if="record.status === 0"
+                type="link"
+                size="small"
+                @click="handleApprove(record)"
+              >
+                审核
+              </a-button>
+              <a-button
+                v-if="record.status === 1"
+                type="link"
+                size="small"
+                @click="handlePay(record)"
+              >
+                支付
+              </a-button>
             </a-space>
           </template>
         </BillTableList>
       </div>
 
-      <a-modal v-model:open="detailVisible" title="订单详情" width="800px" :footer="null" destroy-on-close>
+      <a-modal
+        v-model:open="detailVisible"
+        title="订单详情"
+        width="800px"
+        :footer="null"
+        destroy-on-close
+      >
         <a-spin :spinning="detailLoading">
-          <a-descriptions bordered :column="2" v-if="detailData">
-            <a-descriptions-item label="订单编号">{{ detailData.orderNo }}</a-descriptions-item>
-            <a-descriptions-item label="客户名称">{{ detailData.customerName }}</a-descriptions-item>
+          <a-descriptions
+            v-if="detailData"
+            bordered
+            :column="2"
+          >
+            <a-descriptions-item label="订单编号">
+              {{ detailData.orderNo }}
+            </a-descriptions-item>
+            <a-descriptions-item label="客户名称">
+              {{ detailData.customerName }}
+            </a-descriptions-item>
             <a-descriptions-item label="订单金额">
               <span class="currency-value">¥{{ formatAmount(detailData.totalAmount) }}</span>
             </a-descriptions-item>
             <a-descriptions-item label="订单状态">
-              <a-tag :color="getStatusColor(detailData.status)">{{ getStatusText(detailData.status) }}</a-tag>
+              <a-tag :color="getStatusColor(detailData.status)">
+                {{ getStatusText(detailData.status) }}
+              </a-tag>
             </a-descriptions-item>
-            <a-descriptions-item label="收货人">{{ detailData.consignee || '-' }}</a-descriptions-item>
-            <a-descriptions-item label="联系电话">{{ detailData.consigneePhone || '-' }}</a-descriptions-item>
-            <a-descriptions-item label="收货地址" :span="2">{{ detailData.shippingAddress || '-' }}</a-descriptions-item>
-            <a-descriptions-item label="创建时间">{{ detailData.createTime }}</a-descriptions-item>
-            <a-descriptions-item label="备注">{{ detailData.remark || '-' }}</a-descriptions-item>
+            <a-descriptions-item label="收货人">
+              {{ detailData.consignee || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item label="联系电话">
+              {{ detailData.consigneePhone || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item
+              label="收货地址"
+              :span="2"
+            >
+              {{ detailData.shippingAddress || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item label="创建时间">
+              {{ detailData.createTime }}
+            </a-descriptions-item>
+            <a-descriptions-item label="备注">
+              {{ detailData.remark || '-' }}
+            </a-descriptions-item>
           </a-descriptions>
         </a-spin>
       </a-modal>

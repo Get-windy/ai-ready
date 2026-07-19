@@ -1,264 +1,475 @@
 <template>
-  <ErrorBoundary @error="handleError"><PageContainer full-height>
-    <template #header>
-      <div class="workflow-page-header">
-        <div class="workflow-page-header-left">
-          <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item>任务管理</a-breadcrumb-item>
-          </a-breadcrumb>
-          <h2 class="workflow-page-header-title">任务管理</h2>
-        </div>
-        <div class="workflow-page-header-right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-            <SyncOutlined /> {{ autoRefreshCountdown }}s
-          </span>
-          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', handleQuery)()">
-            <template #icon><ReloadOutlined /></template>
-            刷新
-          </a-button>
-<span class="shortcut-hints">
-                                                <span class="shortcut-hint"><kbd>Ctrl+R</kbd> 刷新</span>
-                                                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-                                              </span>
-        </div>
-
-      </div>
-    </template>
-
-    <div class="workflow-tasks">
-      <!-- 统计卡片 -->
-      <div class="stat-cards">
-        <div class="stat-card stat-total">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ pagination.total }}</div>
-            <div class="stat-card-label">任务总数</div>
+  <ErrorBoundary @error="handleError">
+    <PageContainer full-height>
+      <template #header>
+        <div class="workflow-page-header">
+          <div class="workflow-page-header-left">
+            <a-breadcrumb>
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>任务管理</a-breadcrumb-item>
+            </a-breadcrumb>
+            <h2 class="workflow-page-header-title">
+              任务管理
+            </h2>
           </div>
-          <ScheduleOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-todo">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ todoCount }}</div>
-            <div class="stat-card-label">待办任务</div>
-          </div>
-          <ClockCircleOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-high">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ highPriorityCount }}</div>
-            <div class="stat-card-label">高优先级</div>
-          </div>
-          <FireOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-overdue">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ overdueCount }}</div>
-            <div class="stat-card-label">超时任务</div>
-          </div>
-          <WarningOutlined class="stat-card-icon" />
-        </div>
-      </div>
-
-    <a-card>
-      <template #title>
-        <a-tabs
-          v-model:active-key="activeTab"
-          @change="handleTabChange"
-        >
-          <a-tab-pane
-            key="todo"
-            tab="待办任务"
-          />
-          <a-tab-pane
-            key="done"
-            tab="已办任务"
-          />
-        </a-tabs>
-      </template>
-
-      <!-- 查询表单 -->
-      <a-form
-        :model="queryForm"
-        layout="inline"
-        class="query-form"
-      >
-        <a-form-item label="任务名称">
-          <a-input
-            v-model:value="queryForm.taskName"
-            placeholder="请输入任务名称"
-            allow-clear
-            size="small"
-          />
-        </a-form-item>
-        <a-form-item label="流程名称">
-          <a-input
-            v-model:value="queryForm.processName"
-            placeholder="请输入流程名称"
-            allow-clear
-            size="small"
-          />
-        </a-form-item>
-        <a-form-item label="优先级">
-          <a-select
-            v-model:value="queryForm.priority"
-            placeholder="请选择优先级"
-            allow-clear
-            size="small"
-            style="width: 100px"
-          >
-            <a-select-option value="high">高</a-select-option>
-            <a-select-option value="medium">中</a-select-option>
-            <a-select-option value="low">低</a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item label="创建时间">
-          <a-range-picker
-            v-model:value="queryForm.dateRange"
-            size="small"
-            value-format="YYYY-MM-DD"
-          />
-        </a-form-item>
-        <a-form-item>
-          <a-button type="primary" @click="handleQuery">查询</a-button>
-          <a-button style="margin-left: 8px" @click="handleReset">重置</a-button>
-        </a-form-item>
-      </a-form>
-
-      <!-- 数据表格 -->
-      <div class="table-wrapper">
-      <BillTableList
-        :columns="vxeColumns"
-        :data-source="tableData"
-        :loading="loading"
-        :pagination="pagination"
-        row-key="taskId"
-        :show-toolbar="false"
-        :selectable="false"
-        :show-add="false"
-        :show-search="false"
-        :show-export="false"
-        :show-batch-delete="false"
-        :min-empty-rows="12"
-        @cell-dblclick="handleView"
-        @page-change="handlePageChange"
-      >
-        <template #priorityCell="{ record }">
-          <a-tag :color="getPriorityColor(record.priority)">
-            {{ getPriorityLabel(record.priority) }}
-          </a-tag>
-        </template>
-        <template #action="{ record }">
-          <a-button v-permission="'workflow:task:view'" type="link" size="small" @click="handleViewDetail(record)">查看详情</a-button>
-          <a-button v-permission="'workflow:task:approve'" v-if="activeTab === 'todo'" type="link" size="small" @click="handleApprove(record)">审批</a-button>
-          <a-dropdown v-if="activeTab === 'todo'">
-            <a-button v-permission="'workflow:task:transfer'" type="link" size="small">
-              转办/委托 <DownOutlined />
+          <div class="workflow-page-header-right">
+            <span
+              v-if="lastUpdateTime"
+              class="update-time"
+            >更新于 {{ lastUpdateTime }}</span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            >
+              <SyncOutlined /> {{ autoRefreshCountdown }}s
+            </span>
+            <a-button
+              size="small"
+              :loading="refreshLoading"
+              @click="debounceClick('refresh', handleQuery)()"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
+              刷新
             </a-button>
-            <template #overlay>
-              <a-menu @click="(e) => handleTransfer(e.key as string, record)">
-                <a-menu-item key="transfer">转办</a-menu-item>
-                <a-menu-item key="delegate">委托</a-menu-item>
-              </a-menu>
-            </template>
-          </a-dropdown>
-        </template>
-        <template #empty>
-          <div class="table-empty">
-            <template v-if="hasError">
-              <WarningOutlined class="table-empty-icon" style="color: #faad14" />
-              <p class="table-empty-text">加载失败</p>
-              <a-button type="primary" size="small" @click="debounceClick('refresh', handleQuery)()" class="table-empty-action">
-                <ReloadOutlined /> 重试
-              </a-button>
-            </template>
-            <template v-else>
-              <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-              <InboxOutlined v-else class="table-empty-icon" />
-              <p v-if="hasActiveFilters" class="table-empty-text">
-                没有符合条件的任务记录，<a @click="handleReset">清除筛选</a>
-              </p>
-              <p v-else class="table-empty-text">暂无任务记录</p>
-            </template>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>Ctrl+R</kbd> 刷新</span>
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            </span>
           </div>
-        </template>
-      </BillTableList>
-      </div>
-    </a-card>
-
-    <!-- 详情对话框 -->
-    <a-drawer v-model:open="detailVisible" title="任务详情" placement="right" width="80vw" :footer="null">
-      <template #extra>
-        <a-button type="primary" size="small" @click="fetchDetail(detailRecord?.taskId)" :loading="detailLoading" :disabled="!detailRecord">
-          <template #icon><ReloadOutlined /></template>
-        </a-button>
+        </div>
       </template>
-      <a-skeleton active :loading="detailLoading" :paragraph="{ rows: 12 }">
-        <template v-if="detailData">
-          <a-descriptions bordered :column="2">
-            <a-descriptions-item label="任务ID">{{ detailData.taskId }}</a-descriptions-item>
-            <a-descriptions-item label="任务名称">{{ detailData.taskName }}</a-descriptions-item>
-            <a-descriptions-item label="流程名称">{{ detailData.processName }}</a-descriptions-item>
-            <a-descriptions-item label="优先级">
-              <a-tag :color="getPriorityColor(detailData.priority)">{{ getPriorityLabel(detailData.priority) }}</a-tag>
-            </a-descriptions-item>
-            <a-descriptions-item label="处理人">{{ detailData.assignee }}</a-descriptions-item>
-            <a-descriptions-item label="当前节点">{{ detailData.currentNode }}</a-descriptions-item>
-            <a-descriptions-item label="创建时间">{{ detailData.createTime }}</a-descriptions-item>
-            <a-descriptions-item label="截止时间">{{ detailData.dueTime }}</a-descriptions-item>
-            <a-descriptions-item label="任务描述" :span="2">{{ detailData.description }}</a-descriptions-item>
-            <a-descriptions-item label="业务数据" :span="2">
-              <pre>{{ detailData.businessData ? JSON.stringify(JSON.parse(detailData.businessData), null, 2) : '无' }}</pre>
-            </a-descriptions-item>
-          </a-descriptions>
-        </template>
-        <a-result v-else-if="detailError" status="warning" title="加载失败" :sub-title="detailError">
-          <template #extra>
-            <a-button type="primary" size="small" @click="fetchDetail(detailRecord?.taskId)">重试</a-button>
+
+      <div class="workflow-tasks">
+        <!-- 统计卡片 -->
+        <div class="stat-cards">
+          <div class="stat-card stat-total">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ pagination.total }}
+              </div>
+              <div class="stat-card-label">
+                任务总数
+              </div>
+            </div>
+            <ScheduleOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-todo">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ todoCount }}
+              </div>
+              <div class="stat-card-label">
+                待办任务
+              </div>
+            </div>
+            <ClockCircleOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-high">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ highPriorityCount }}
+              </div>
+              <div class="stat-card-label">
+                高优先级
+              </div>
+            </div>
+            <FireOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-overdue">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ overdueCount }}
+              </div>
+              <div class="stat-card-label">
+                超时任务
+              </div>
+            </div>
+            <WarningOutlined class="stat-card-icon" />
+          </div>
+        </div>
+
+        <a-card>
+          <template #title>
+            <a-tabs
+              v-model:active-key="activeTab"
+              @change="handleTabChange"
+            >
+              <a-tab-pane
+                key="todo"
+                tab="待办任务"
+              />
+              <a-tab-pane
+                key="done"
+                tab="已办任务"
+              />
+            </a-tabs>
           </template>
-        </a-result>
-      </a-skeleton>
-    </a-drawer>
 
-    <!-- 审批对话框 -->
-    <a-modal v-model:open="approveVisible" title="审批" :width="600" @ok="handleConfirmApprove" @cancel="handleCancelApprove">
-      <a-form :model="approveForm" :label-col="{ span: 4 }" :wrapper-col="{ span: 20 }">
-        <a-form-item label="审批意见">
-          <a-radio-group v-model:value="approveForm.approval">
-            <a-radio value="approve">同意</a-radio>
-            <a-radio value="reject">拒绝</a-radio>
-            <a-radio value="return">退回</a-radio>
-          </a-radio-group>
-        </a-form-item>
-        <a-form-item label="审批备注">
-          <a-textarea v-model:value="approveForm.comment" size="small" :rows="4" placeholder="请输入审批备注" />
-        </a-form-item>
-        <a-form-item v-if="approveForm.approval === 'return'" label="退回节点">
-          <a-select v-model:value="approveForm.returnNode" size="small" placeholder="请选择退回节点">
-            <a-select-option value="start">发起人</a-select-option>
-            <a-select-option value="previous">上一节点</a-select-option>
-          </a-select>
-        </a-form-item>
-      </a-form>
-    </a-modal>
+          <!-- 查询表单 -->
+          <a-form
+            :model="queryForm"
+            layout="inline"
+            class="query-form"
+          >
+            <a-form-item label="任务名称">
+              <a-input
+                v-model:value="queryForm.taskName"
+                placeholder="请输入任务名称"
+                allow-clear
+                size="small"
+              />
+            </a-form-item>
+            <a-form-item label="流程名称">
+              <a-input
+                v-model:value="queryForm.processName"
+                placeholder="请输入流程名称"
+                allow-clear
+                size="small"
+              />
+            </a-form-item>
+            <a-form-item label="优先级">
+              <a-select
+                v-model:value="queryForm.priority"
+                placeholder="请选择优先级"
+                allow-clear
+                size="small"
+                style="width: 100px"
+              >
+                <a-select-option value="high">
+                  高
+                </a-select-option>
+                <a-select-option value="medium">
+                  中
+                </a-select-option>
+                <a-select-option value="low">
+                  低
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+            <a-form-item label="创建时间">
+              <a-range-picker
+                v-model:value="queryForm.dateRange"
+                size="small"
+                value-format="YYYY-MM-DD"
+              />
+            </a-form-item>
+            <a-form-item>
+              <a-button
+                type="primary"
+                @click="handleQuery"
+              >
+                查询
+              </a-button>
+              <a-button
+                style="margin-left: 8px"
+                @click="handleReset"
+              >
+                重置
+              </a-button>
+            </a-form-item>
+          </a-form>
 
-    <!-- 转办/委托对话框 -->
-    <a-modal v-model:open="transferVisible" :title="transferDialogTitle" :width="500" @ok="handleConfirmTransfer" @cancel="handleCancelTransfer">
-      <a-form :model="transferForm" :label-col="{ span: 4 }" :wrapper-col="{ span: 20 }">
-        <a-form-item label="目标用户">
-          <a-select v-model:value="transferForm.targetUser" size="small" placeholder="请选择用户" show-search :filter-option="filterUserOption">
-            <a-select-option v-for="u in userList" :key="u.id" :value="u.id">
-              {{ u.nickname || u.username }}
-            </a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item label="备注">
-          <a-textarea v-model:value="transferForm.comment" size="small" :rows="4" placeholder="请输入备注" />
-        </a-form-item>
-      </a-form>
-    </a-modal>
-  </div>
-</PageContainer></ErrorBoundary>
+          <!-- 数据表格 -->
+          <div class="table-wrapper">
+            <BillTableList
+              :columns="vxeColumns"
+              :data-source="tableData"
+              :loading="loading"
+              :pagination="pagination"
+              row-key="taskId"
+              :show-toolbar="false"
+              :selectable="false"
+              :show-add="false"
+              :show-search="false"
+              :show-export="false"
+              :show-batch-delete="false"
+              :min-empty-rows="12"
+              @cell-dblclick="handleView"
+              @page-change="handlePageChange"
+            >
+              <template #priorityCell="{ record }">
+                <a-tag :color="getPriorityColor(record.priority)">
+                  {{ getPriorityLabel(record.priority) }}
+                </a-tag>
+              </template>
+              <template #action="{ record }">
+                <a-button
+                  v-permission="'workflow:task:view'"
+                  type="link"
+                  size="small"
+                  @click="handleViewDetail(record)"
+                >
+                  查看详情
+                </a-button>
+                <a-button
+                  v-if="activeTab === 'todo'"
+                  v-permission="'workflow:task:approve'"
+                  type="link"
+                  size="small"
+                  @click="handleApprove(record)"
+                >
+                  审批
+                </a-button>
+                <a-dropdown v-if="activeTab === 'todo'">
+                  <a-button
+                    v-permission="'workflow:task:transfer'"
+                    type="link"
+                    size="small"
+                  >
+                    转办/委托 <DownOutlined />
+                  </a-button>
+                  <template #overlay>
+                    <a-menu @click="(e) => handleTransfer(e.key as string, record)">
+                      <a-menu-item key="transfer">
+                        转办
+                      </a-menu-item>
+                      <a-menu-item key="delegate">
+                        委托
+                      </a-menu-item>
+                    </a-menu>
+                  </template>
+                </a-dropdown>
+              </template>
+              <template #empty>
+                <div class="table-empty">
+                  <template v-if="hasError">
+                    <WarningOutlined
+                      class="table-empty-icon"
+                      style="color: #faad14"
+                    />
+                    <p class="table-empty-text">
+                      加载失败
+                    </p>
+                    <a-button
+                      type="primary"
+                      size="small"
+                      class="table-empty-action"
+                      @click="debounceClick('refresh', handleQuery)()"
+                    >
+                      <ReloadOutlined /> 重试
+                    </a-button>
+                  </template>
+                  <template v-else>
+                    <SearchOutlined
+                      v-if="hasActiveFilters"
+                      class="table-empty-icon"
+                    />
+                    <InboxOutlined
+                      v-else
+                      class="table-empty-icon"
+                    />
+                    <p
+                      v-if="hasActiveFilters"
+                      class="table-empty-text"
+                    >
+                      没有符合条件的任务记录，<a @click="handleReset">清除筛选</a>
+                    </p>
+                    <p
+                      v-else
+                      class="table-empty-text"
+                    >
+                      暂无任务记录
+                    </p>
+                  </template>
+                </div>
+              </template>
+            </BillTableList>
+          </div>
+        </a-card>
+
+        <!-- 详情对话框 -->
+        <a-drawer
+          v-model:open="detailVisible"
+          title="任务详情"
+          placement="right"
+          width="80vw"
+          :footer="null"
+        >
+          <template #extra>
+            <a-button
+              type="primary"
+              size="small"
+              :loading="detailLoading"
+              :disabled="!detailRecord"
+              @click="fetchDetail(detailRecord?.taskId)"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
+            </a-button>
+          </template>
+          <a-skeleton
+            active
+            :loading="detailLoading"
+            :paragraph="{ rows: 12 }"
+          >
+            <template v-if="detailData">
+              <a-descriptions
+                bordered
+                :column="2"
+              >
+                <a-descriptions-item label="任务ID">
+                  {{ detailData.taskId }}
+                </a-descriptions-item>
+                <a-descriptions-item label="任务名称">
+                  {{ detailData.taskName }}
+                </a-descriptions-item>
+                <a-descriptions-item label="流程名称">
+                  {{ detailData.processName }}
+                </a-descriptions-item>
+                <a-descriptions-item label="优先级">
+                  <a-tag :color="getPriorityColor(detailData.priority)">
+                    {{ getPriorityLabel(detailData.priority) }}
+                  </a-tag>
+                </a-descriptions-item>
+                <a-descriptions-item label="处理人">
+                  {{ detailData.assignee }}
+                </a-descriptions-item>
+                <a-descriptions-item label="当前节点">
+                  {{ detailData.currentNode }}
+                </a-descriptions-item>
+                <a-descriptions-item label="创建时间">
+                  {{ detailData.createTime }}
+                </a-descriptions-item>
+                <a-descriptions-item label="截止时间">
+                  {{ detailData.dueTime }}
+                </a-descriptions-item>
+                <a-descriptions-item
+                  label="任务描述"
+                  :span="2"
+                >
+                  {{ detailData.description }}
+                </a-descriptions-item>
+                <a-descriptions-item
+                  label="业务数据"
+                  :span="2"
+                >
+                  <pre>{{ detailData.businessData ? JSON.stringify(JSON.parse(detailData.businessData), null, 2) : '无' }}</pre>
+                </a-descriptions-item>
+              </a-descriptions>
+            </template>
+            <a-result
+              v-else-if="detailError"
+              status="warning"
+              title="加载失败"
+              :sub-title="detailError"
+            >
+              <template #extra>
+                <a-button
+                  type="primary"
+                  size="small"
+                  @click="fetchDetail(detailRecord?.taskId)"
+                >
+                  重试
+                </a-button>
+              </template>
+            </a-result>
+          </a-skeleton>
+        </a-drawer>
+
+        <!-- 审批对话框 -->
+        <a-modal
+          v-model:open="approveVisible"
+          title="审批"
+          :width="600"
+          @ok="handleConfirmApprove"
+          @cancel="handleCancelApprove"
+        >
+          <a-form
+            :model="approveForm"
+            :label-col="{ span: 4 }"
+            :wrapper-col="{ span: 20 }"
+          >
+            <a-form-item label="审批意见">
+              <a-radio-group v-model:value="approveForm.approval">
+                <a-radio value="approve">
+                  同意
+                </a-radio>
+                <a-radio value="reject">
+                  拒绝
+                </a-radio>
+                <a-radio value="return">
+                  退回
+                </a-radio>
+              </a-radio-group>
+            </a-form-item>
+            <a-form-item label="审批备注">
+              <a-textarea
+                v-model:value="approveForm.comment"
+                size="small"
+                :rows="4"
+                placeholder="请输入审批备注"
+              />
+            </a-form-item>
+            <a-form-item
+              v-if="approveForm.approval === 'return'"
+              label="退回节点"
+            >
+              <a-select
+                v-model:value="approveForm.returnNode"
+                size="small"
+                placeholder="请选择退回节点"
+              >
+                <a-select-option value="start">
+                  发起人
+                </a-select-option>
+                <a-select-option value="previous">
+                  上一节点
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+          </a-form>
+        </a-modal>
+
+        <!-- 转办/委托对话框 -->
+        <a-modal
+          v-model:open="transferVisible"
+          :title="transferDialogTitle"
+          :width="500"
+          @ok="handleConfirmTransfer"
+          @cancel="handleCancelTransfer"
+        >
+          <a-form
+            :model="transferForm"
+            :label-col="{ span: 4 }"
+            :wrapper-col="{ span: 20 }"
+          >
+            <a-form-item label="目标用户">
+              <a-select
+                v-model:value="transferForm.targetUser"
+                size="small"
+                placeholder="请选择用户"
+                show-search
+                :filter-option="filterUserOption"
+              >
+                <a-select-option
+                  v-for="u in userList"
+                  :key="u.id"
+                  :value="u.id"
+                >
+                  {{ u.nickname || u.username }}
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+            <a-form-item label="备注">
+              <a-textarea
+                v-model:value="transferForm.comment"
+                size="small"
+                :rows="4"
+                placeholder="请输入备注"
+              />
+            </a-form-item>
+          </a-form>
+        </a-modal>
+      </div>
+    </PageContainer>
+  </ErrorBoundary>
 </template>
 
 <script setup lang="ts">

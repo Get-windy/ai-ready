@@ -1,26 +1,68 @@
 <template>
   <div>
     <div class="panel-toolbar">
-      <a-upload :before-upload="handleUpload" :show-upload-list="false" accept="image/*,.pdf,.doc,.docx">
-        <a-button v-permission="'erp:product:attachment-edit'" size="small" type="primary">
+      <a-upload
+        :before-upload="handleUpload"
+        :show-upload-list="false"
+        accept="image/*,.pdf,.doc,.docx"
+      >
+        <a-button
+          v-permission="'erp:product:attachment-edit'"
+          size="small"
+          type="primary"
+        >
           <UploadOutlined /> 上传附件
         </a-button>
       </a-upload>
     </div>
-    <vxe-table :data="list" border size="small" max-height="300" align="center">
-      <vxe-column type="seq" title="#" width="50" />
-      <vxe-column field="category" title="分类" width="80">
+    <vxe-table
+      :data="list"
+      border
+      size="small"
+      max-height="300"
+      align="center"
+    >
+      <vxe-column
+        type="seq"
+        title="#"
+        width="50"
+      />
+      <vxe-column
+        field="category"
+        title="分类"
+        width="80"
+      >
         <template #default="{ row }">
           <a-tag>{{ row.category === 'IMAGE' ? '图片' : row.category === 'DOC' ? '文档' : '其他' }}</a-tag>
         </template>
       </vxe-column>
-      <vxe-column field="fileName" title="文件名" />
-      <vxe-column field="fileSize" title="大小" width="100">
-        <template #default="{ row }">{{ formatSize(row.fileSize) }}</template>
-      </vxe-column>
-      <vxe-column title="操作" width="80">
+      <vxe-column
+        field="fileName"
+        title="文件名"
+      />
+      <vxe-column
+        field="fileSize"
+        title="大小"
+        width="100"
+      >
         <template #default="{ row }">
-          <a-button v-permission="'erp:product:attachment-edit'" type="link" size="small" danger @click="debounceClick('del_' + row.id, () => handleDelete(row.id))">删除</a-button>
+          {{ formatSize(row.fileSize) }}
+        </template>
+      </vxe-column>
+      <vxe-column
+        title="操作"
+        width="80"
+      >
+        <template #default="{ row }">
+          <a-button
+            v-permission="'erp:product:attachment-edit'"
+            type="link"
+            size="small"
+            danger
+            @click="debounceClick('del_' + row.id, () => handleDelete(row.id))"
+          >
+            删除
+          </a-button>
         </template>
       </vxe-column>
     </vxe-table>

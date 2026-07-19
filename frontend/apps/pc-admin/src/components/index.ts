@@ -21,6 +21,10 @@ export type PaginationConfig = {
 export { default as SearchBar } from './SearchBar/SearchBar.vue'
 export type { SearchField } from './SearchBar/SearchBar.vue'
 
+// 搜索字段网格组件
+export { default as SearchFieldsGrid } from './SearchFieldsGrid/SearchFieldsGrid.vue'
+export type { SearchFieldItem as SearchFieldsGridItem } from './SearchFieldsGrid/SearchFieldsGrid.vue'
+
 // UI组件
 export { default as EmptyState } from './EmptyState/EmptyState.vue'
 export { default as FullScreenDetail } from './FullScreenDetail/FullScreenDetail.vue'

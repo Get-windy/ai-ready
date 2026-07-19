@@ -1,94 +1,164 @@
 <template>
-  <ErrorBoundary @error="handleError"><PageContainer full-height>
-    <template #header>
-      <div class="page-header">
-        <div class="page-header__left">
-          <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item>DMS / 渠道管理</a-breadcrumb-item>
-          </a-breadcrumb>
-          <h2>渠道管理</h2>
+  <ErrorBoundary @error="handleError">
+    <PageContainer full-height>
+      <template #header>
+        <div class="page-header">
+          <div class="page-header__left">
+            <a-breadcrumb>
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>DMS / 渠道管理</a-breadcrumb-item>
+            </a-breadcrumb>
+            <h2>渠道管理</h2>
+          </div>
+          <div class="page-header__right">
+            <span
+              v-if="lastUpdateTime"
+              class="update-time"
+            >更新于 {{ lastUpdateTime }}</span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            ><SyncOutlined /> {{ autoRefreshCountdown }}s</span>
+            <a-button
+              size="small"
+              :loading="loading"
+              @click="wms.debounce('refresh', wms.fetchData)"
+            >
+              <ReloadOutlined /> 刷新
+            </a-button>
+            <a-button
+              type="primary"
+              size="small"
+              @click="handleAdd"
+            >
+              <PlusOutlined /> 新增渠道
+            </a-button>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+              <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+            </span>
+          </div>
         </div>
-        <div class="page-header__right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge"><SyncOutlined /> {{ autoRefreshCountdown }}s</span>
-          <a-button size="small" :loading="loading" @click="wms.debounce('refresh', wms.fetchData)">
-            <ReloadOutlined /> 刷新
-          </a-button>
-          <a-button type="primary" size="small" @click="handleAdd"><PlusOutlined /> 新增渠道</a-button>
-          <span class="shortcut-hints">
-            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-            <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
-          </span>
-        </div>
-      </div>
-    </template>
+      </template>
 
-    <template #filter>
-      <SearchBar :fields="searchFields" :loading="loading" @search="handleSearch" @reset="handleReset" />
-    </template>
-
-    <template #default>
-      <div class="page-body">
-        <div v-if="selectedRowKeys.length > 0" class="batch-bar no-print">
-          <span>已选择 {{ selectedRowKeys.length }} 项</span>
-          <a-button size="small" danger @click="handleBatchDelete">批量删除</a-button>
-          <a-button size="small" @click="selectedRowKeys = []">取消选择</a-button>
-        </div>
-        <SkeletonTable v-if="loading && dataList.length === 0" :columns="columns.length" :rows="8" />
-        <a-table
-          v-else
-          :dataSource="dataList"
-          :columns="columns"
+      <template #filter>
+        <SearchBar
+          :fields="searchFields"
           :loading="loading"
-          :pagination="pagination"
-          :rowSelection="rowSelection"
-          rowKey="id"
-          size="small"
-          bordered
-          @change="handleTableChange"
-        >
-          <template #emptyText>
-            <a-empty description="暂无渠道数据">
-              <a-space>
-                <a-button size="small" type="primary" @click="handleAdd">新增渠道</a-button>
-                <a-button size="small" @click="wms.fetchData">刷新</a-button>
-              </a-space>
-            </a-empty>
-          </template>
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.dataIndex === 'channelType'">
-              <a-tag :color="channelTypeMap[record.channelType]?.color || 'default'">
-                {{ channelTypeMap[record.channelType]?.text || record.channelType }}
-              </a-tag>
-            </template>
-            <template v-if="column.dataIndex === 'createTime'">
-              {{ formatDateTime(record.createTime) }}
-            </template>
-            <template v-if="column.dataIndex === 'status'">
-              <a-switch
-                :checked="record.status === 1"
-                :loading="(record as any)._statusLoading"
-                size="small"
-                @change="(checked: boolean) => handleStatusChange(record as any, checked)"
-              />
-            </template>
-            <template v-if="column.dataIndex === 'action'">
-              <a-space :size="4">
-                <a-tooltip title="编辑">
-                  <a-button v-permission="'dms:channel:edit'" type="link" size="small" @click="handleEdit(record as any)"><EditOutlined /></a-button>
-                </a-tooltip>
-                <a-tooltip title="删除">
-                  <a-button v-permission="'dms:channel:delete'" type="link" size="small" danger @click="wms.handleDelete(record as any, '确定要删除该渠道吗？')"><DeleteOutlined /></a-button>
-                </a-tooltip>
-              </a-space>
-            </template>
-          </template>
-        </a-table>
-      </div>
-    </template>
+          @search="handleSearch"
+          @reset="handleReset"
+        />
+      </template>
 
-  </PageContainer></ErrorBoundary>
+      <template #default>
+        <div class="page-body">
+          <div
+            v-if="selectedRowKeys.length > 0"
+            class="batch-bar no-print"
+          >
+            <span>已选择 {{ selectedRowKeys.length }} 项</span>
+            <a-button
+              size="small"
+              danger
+              @click="handleBatchDelete"
+            >
+              批量删除
+            </a-button>
+            <a-button
+              size="small"
+              @click="selectedRowKeys = []"
+            >
+              取消选择
+            </a-button>
+          </div>
+          <SkeletonTable
+            v-if="loading && dataList.length === 0"
+            :columns="columns.length"
+            :rows="8"
+          />
+          <a-table
+            v-else
+            :data-source="dataList"
+            :columns="columns"
+            :loading="loading"
+            :pagination="pagination"
+            :row-selection="rowSelection"
+            row-key="id"
+            size="small"
+            bordered
+            @change="handleTableChange"
+          >
+            <template #emptyText>
+              <a-empty description="暂无渠道数据">
+                <a-space>
+                  <a-button
+                    size="small"
+                    type="primary"
+                    @click="handleAdd"
+                  >
+                    新增渠道
+                  </a-button>
+                  <a-button
+                    size="small"
+                    @click="wms.fetchData"
+                  >
+                    刷新
+                  </a-button>
+                </a-space>
+              </a-empty>
+            </template>
+            <template #bodyCell="{ column, record }">
+              <template v-if="column.dataIndex === 'channelType'">
+                <a-tag :color="channelTypeMap[record.channelType]?.color || 'default'">
+                  {{ channelTypeMap[record.channelType]?.text || record.channelType }}
+                </a-tag>
+              </template>
+              <template v-if="column.dataIndex === 'createTime'">
+                {{ formatDateTime(record.createTime) }}
+              </template>
+              <template v-if="column.dataIndex === 'status'">
+                <a-switch
+                  :checked="record.status === 1"
+                  :loading="(record as any)._statusLoading"
+                  size="small"
+                  @change="(checked: boolean) => handleStatusChange(record as any, checked)"
+                />
+              </template>
+              <template v-if="column.dataIndex === 'action'">
+                <a-space :size="4">
+                  <a-tooltip title="编辑">
+                    <a-button
+                      v-permission="'dms:channel:edit'"
+                      type="link"
+                      size="small"
+                      @click="handleEdit(record as any)"
+                    >
+                      <EditOutlined />
+                    </a-button>
+                  </a-tooltip>
+                  <a-tooltip title="删除">
+                    <a-button
+                      v-permission="'dms:channel:delete'"
+                      type="link"
+                      size="small"
+                      danger
+                      @click="wms.handleDelete(record as any, '确定要删除该渠道吗？')"
+                    >
+                      <DeleteOutlined />
+                    </a-button>
+                  </a-tooltip>
+                </a-space>
+              </template>
+            </template>
+          </a-table>
+        </div>
+      </template>
+    </PageContainer>
+  </ErrorBoundary>
 
   <!-- 新增/编辑弹窗 -->
   <a-modal
@@ -99,38 +169,94 @@
     @ok="handleModalOk"
     @cancel="handleModalCancel"
   >
-    <a-form ref="formRef" :model="formState" :rules="formRules" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
+    <a-form
+      ref="formRef"
+      :model="formState"
+      :rules="formRules"
+      :label-col="{ span: 6 }"
+      :wrapper-col="{ span: 16 }"
+    >
       <a-row :gutter="16">
         <a-col :span="12">
-          <a-form-item label="渠道编码" name="channelCode">
-            <a-input v-model:value="formState.channelCode" size="small" placeholder="请输入渠道编码" :disabled="isEdit" />
+          <a-form-item
+            label="渠道编码"
+            name="channelCode"
+          >
+            <a-input
+              v-model:value="formState.channelCode"
+              size="small"
+              placeholder="请输入渠道编码"
+              :disabled="isEdit"
+            />
           </a-form-item>
         </a-col>
         <a-col :span="12">
-          <a-form-item label="渠道名称" name="channelName">
-            <a-input v-model:value="formState.channelName" size="small" placeholder="请输入渠道名称" />
+          <a-form-item
+            label="渠道名称"
+            name="channelName"
+          >
+            <a-input
+              v-model:value="formState.channelName"
+              size="small"
+              placeholder="请输入渠道名称"
+            />
           </a-form-item>
         </a-col>
       </a-row>
       <a-row :gutter="16">
         <a-col :span="12">
-          <a-form-item label="渠道类型" name="channelType">
-            <a-select v-model:value="formState.channelType" size="small" placeholder="请选择渠道类型">
-              <a-select-option :value="0">线上</a-select-option>
-              <a-select-option :value="1">线下</a-select-option>
-              <a-select-option :value="2">API</a-select-option>
-              <a-select-option :value="3">其他</a-select-option>
+          <a-form-item
+            label="渠道类型"
+            name="channelType"
+          >
+            <a-select
+              v-model:value="formState.channelType"
+              size="small"
+              placeholder="请选择渠道类型"
+            >
+              <a-select-option :value="0">
+                线上
+              </a-select-option>
+              <a-select-option :value="1">
+                线下
+              </a-select-option>
+              <a-select-option :value="2">
+                API
+              </a-select-option>
+              <a-select-option :value="3">
+                其他
+              </a-select-option>
             </a-select>
           </a-form-item>
         </a-col>
         <a-col :span="12">
-          <a-form-item label="优先级" name="priority">
-            <a-input-number v-model:value="formState.priority" :min="0" :max="999" size="small" style="width:100%" placeholder="优先级" />
+          <a-form-item
+            label="优先级"
+            name="priority"
+          >
+            <a-input-number
+              v-model:value="formState.priority"
+              :min="0"
+              :max="999"
+              size="small"
+              style="width:100%"
+              placeholder="优先级"
+            />
           </a-form-item>
         </a-col>
       </a-row>
-      <a-form-item label="备注" name="remark" :label-col="{ span: 3 }" :wrapper-col="{ span: 20 }">
-        <a-textarea v-model:value="formState.remark" :rows="2" size="small" placeholder="请输入备注" />
+      <a-form-item
+        label="备注"
+        name="remark"
+        :label-col="{ span: 3 }"
+        :wrapper-col="{ span: 20 }"
+      >
+        <a-textarea
+          v-model:value="formState.remark"
+          :rows="2"
+          size="small"
+          placeholder="请输入备注"
+        />
       </a-form-item>
     </a-form>
   </a-modal>
@@ -270,7 +396,7 @@ async function handleStatusChange(record: DmsChannel, checked: boolean) {
   } catch (err: any) {
     message.error(err?.message || '操作失败')
   } finally {
-    ;(record as any)._statusLoading = false
+    (record as any)._statusLoading = false
   }
 }
 

@@ -2,38 +2,78 @@
   <div class="page-container">
     <div class="page-header">
       <div class="page-header__left">
-        <h2 class="page-title">薪资发放</h2>
+        <h2 class="page-title">
+          薪资发放
+        </h2>
       </div>
       <div class="page-header__right">
-        <a-month-picker v-model:value="generateMonth" placeholder="选择月份" style="width: 140px; margin-right: 8px" />
-        <a-button type="primary" @click="handleGenerate">
-          <template #icon><PlusOutlined /></template>
+        <a-month-picker
+          v-model:value="generateMonth"
+          placeholder="选择月份"
+          style="width: 140px; margin-right: 8px"
+        />
+        <a-button
+          type="primary"
+          @click="handleGenerate"
+        >
+          <template #icon>
+            <PlusOutlined />
+          </template>
           生成薪资
         </a-button>
       </div>
     </div>
     <div class="page-container__body">
-      <a-card :bordered="false" class="search-card">
+      <a-card
+        :bordered="false"
+        class="search-card"
+      >
         <a-form layout="inline">
           <a-form-item label="发放月份">
-            <a-month-picker v-model:value="filterMonth" placeholder="选择月份" @change="() => { pagination.current = 1; loadData() }" allow-clear />
+            <a-month-picker
+              v-model:value="filterMonth"
+              placeholder="选择月份"
+              allow-clear
+              @change="() => { pagination.current = 1; loadData() }"
+            />
           </a-form-item>
           <a-form-item>
-            <a-button @click="filterMonth = null as any; pagination.current = 1; loadData()">重置</a-button>
+            <a-button @click="filterMonth = null as any; pagination.current = 1; loadData()">
+              重置
+            </a-button>
           </a-form-item>
         </a-form>
       </a-card>
-      <a-card :bordered="false" class="table-card">
-        <a-table :columns="columns" :data-source="tableData" :loading="loading" :pagination="pagination" row-key="id" @change="handleTableChange">
+      <a-card
+        :bordered="false"
+        class="table-card"
+      >
+        <a-table
+          :columns="columns"
+          :data-source="tableData"
+          :loading="loading"
+          :pagination="pagination"
+          row-key="id"
+          @change="handleTableChange"
+        >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'actualAmount'">
               <span style="color: #52c41a; font-weight: bold">¥{{ record.actualAmount }}</span>
             </template>
             <template v-if="column.key === 'status'">
-              <a-tag :color="record.status === 1 ? 'success' : 'warning'">{{ record.status === 1 ? '已发放' : '待发放' }}</a-tag>
+              <a-tag :color="record.status === 1 ? 'success' : 'warning'">
+                {{ record.status === 1 ? '已发放' : '待发放' }}
+              </a-tag>
             </template>
             <template v-if="column.key === 'action'">
-              <a-button type="link" size="small" v-if="record.status === 0" @click="handleConfirm(record)">确认发放</a-button>
+              <a-button
+                v-if="record.status === 0"
+                type="link"
+                size="small"
+                @click="handleConfirm(record)"
+              >
+                确认发放
+              </a-button>
             </template>
           </template>
         </a-table>

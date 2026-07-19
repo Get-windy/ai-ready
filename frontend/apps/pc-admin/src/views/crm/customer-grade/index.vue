@@ -1,15 +1,27 @@
 <template>
-  <PageContainer title="客户分级" full-height>
+  <PageContainer
+    title="客户分级"
+    full-height
+  >
     <template #headerExtra>
       <a-space :size="12">
         <span class="data-status">
           <a-badge :status="loading ? 'processing' : hasError ? 'error' : 'success'" />
-          <span v-if="lastUpdateTime" class="update-time">
+          <span
+            v-if="lastUpdateTime"
+            class="update-time"
+          >
             数据更新: {{ lastUpdateTime }}
           </span>
         </span>
-        <a-button size="small" :loading="loading" @click="fetchData">
-          <template #icon><ReloadOutlined /></template>
+        <a-button
+          size="small"
+          :loading="loading"
+          @click="fetchData"
+        >
+          <template #icon>
+            <ReloadOutlined />
+          </template>
           刷新
         </a-button>
       </a-space>
@@ -23,21 +35,28 @@
             placeholder="等级名称"
             allow-clear
             style="width: 160px"
-            @pressEnter="handleSearch"
+            @press-enter="handleSearch"
           />
           <a-input
             v-model:value="searchParams.customerName"
             placeholder="客户名称"
             allow-clear
             style="width: 160px"
-            @pressEnter="handleSearch"
+            @press-enter="handleSearch"
           />
-          <a-button type="primary" @click="handleSearch">
-            <template #icon><SearchOutlined /></template>
+          <a-button
+            type="primary"
+            @click="handleSearch"
+          >
+            <template #icon>
+              <SearchOutlined />
+            </template>
             查询
           </a-button>
           <a-button @click="handleReset">
-            <template #icon><ClearOutlined /></template>
+            <template #icon>
+              <ClearOutlined />
+            </template>
             重置
           </a-button>
         </a-space>
@@ -109,7 +128,7 @@ async function fetchData() {
       gradeName: searchParams.gradeName || undefined,
       customerName: searchParams.customerName || undefined
     }
-    const res = await request.get('/api/crm/customer-grade/page', { params })
+    const res = await request.get('/crm/customer-grade/page', { params })
     const result = res as any
     const data = result.data ?? result
     tableData.value = data?.records || []

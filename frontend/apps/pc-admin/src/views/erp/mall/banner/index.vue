@@ -1,141 +1,242 @@
 <template>
   <ErrorBoundary @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="page-header">
-        <a-breadcrumb>
-          <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-          <a-breadcrumb-item><router-link to="/mall">商城管理</router-link></a-breadcrumb-item>
-          <a-breadcrumb-item>轮播图管理</a-breadcrumb-item>
-        </a-breadcrumb>
-        <div class="page-header__right">
-          <span v-if="lastUpdateTime" class="page-header__update-time">更新于: {{ lastUpdateTime }}</span>
-          <a-space :size="8">
-            <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-              <SyncOutlined /> {{ autoRefreshCountdown }}s
-            </span>
-            <span class="shortcut-hints">
-              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-              <span class="shortcut-hint"><kbd>Ctrl</kbd>+<kbd>N</kbd> 新增</span>
-            </span>
-            <a-tooltip title="F5: 刷新 | Ctrl+N: 新增">
-              <a-button size="small" @click="debounceClick('refresh', fetchData)">
-                <template #icon><ReloadOutlined /></template>刷新
-              </a-button>
-            </a-tooltip>
-          </a-space>
+    <PageContainer full-height>
+      <template #header>
+        <div class="page-header">
+          <a-breadcrumb>
+            <a-breadcrumb-item>
+              <router-link to="/">
+                首页
+              </router-link>
+            </a-breadcrumb-item>
+            <a-breadcrumb-item>
+              <router-link to="/mall">
+                商城管理
+              </router-link>
+            </a-breadcrumb-item>
+            <a-breadcrumb-item>轮播图管理</a-breadcrumb-item>
+          </a-breadcrumb>
+          <div class="page-header__right">
+            <span
+              v-if="lastUpdateTime"
+              class="page-header__update-time"
+            >更新于: {{ lastUpdateTime }}</span>
+            <a-space :size="8">
+              <span
+                v-if="autoRefreshCountdown > 0"
+                class="auto-refresh-badge"
+              >
+                <SyncOutlined /> {{ autoRefreshCountdown }}s
+              </span>
+              <span class="shortcut-hints">
+                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+                <span class="shortcut-hint"><kbd>Ctrl</kbd>+<kbd>N</kbd> 新增</span>
+              </span>
+              <a-tooltip title="F5: 刷新 | Ctrl+N: 新增">
+                <a-button
+                  size="small"
+                  @click="debounceClick('refresh', fetchData)"
+                >
+                  <template #icon>
+                    <ReloadOutlined />
+                  </template>刷新
+                </a-button>
+              </a-tooltip>
+            </a-space>
+          </div>
         </div>
-      </div>
-    </template>
-
-    <BillTableList
-      ref="tableRef"
-      :columns="vxeColumns"
-      :data-source="tableDataSource"
-      :loading="loading"
-      :pagination="false as any"
-      :row-key="'id'"
-      :show-search="false"
-      add-text="新增轮播图"
-      @add="handleAdd"
-      @edit="handleEdit"
-      @delete="handleDelete"
-      @refresh="debounceClick('refresh', fetchData)"
-    >
-      <template #empty>
-        <a-empty v-if="!hasError" description="暂无轮播图" />
-        <a-result v-else status="error" title="数据加载失败">
-          <template #extra>
-            <a-button type="primary" @click="debounceClick('refresh', fetchData)">
-              <template #icon><ReloadOutlined /></template>重新加载
-            </a-button>
-          </template>
-        </a-result>
       </template>
 
-      <template #imageCell="{ record }">
-        <a-image
-          v-if="record.imageUrl"
-          :src="record.imageUrl"
-          :width="80"
-          :height="45"
-          style="object-fit: cover; border-radius: 4px; cursor: pointer;"
-          fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
-        />
-        <span v-else style="color: #ccc">无图片</span>
-      </template>
-
-      <template #statusCell="{ record }">
-        <a-switch
-          :checked="record.status === 1"
-          size="small"
-          @change="handleToggleStatus(record)"
-        />
-      </template>
-
-      <template #action="{ record }">
-        <a-space>
-          <a-button v-permission="'erp:mall:banner:edit'" type="link" size="small" @click="handleEdit(record)">编辑</a-button>
-          <a-button v-permission="'erp:mall:banner:delete'" type="link" size="small" danger @click="handleDelete(record)">删除</a-button>
-        </a-space>
-      </template>
-    </BillTableList>
-
-    <!-- 轮播图表单弹窗 -->
-    <FullScreenDetail
-      :visible="modalVisible"
-      :title="modalTitle"
-      :save-loading="modalLoading"
-      @save="handleModalOk"
-      @close="handleFormClose"
-    >
-      <a-form
-        ref="formRef"
-        :model="formState"
-        :label-col="{ span: 4 }"
-        :wrapper-col="{ span: 18 }"
-        :rules="formRules"
+      <BillTableList
+        ref="tableRef"
+        :columns="vxeColumns"
+        :data-source="tableDataSource"
+        :loading="loading"
+        :pagination="false as any"
+        :row-key="'id'"
+        :show-search="false"
+        add-text="新增轮播图"
+        @add="handleAdd"
+        @edit="handleEdit"
+        @delete="handleDelete"
+        @refresh="debounceClick('refresh', fetchData)"
       >
-        <a-form-item label="图片URL" name="imageUrl">
-          <a-input v-model:value="formState.imageUrl" placeholder="请输入图片URL" />
-        </a-form-item>
-        <a-form-item label="标题" name="title">
-          <a-input v-model:value="formState.title" placeholder="请输入标题" :maxlength="200" />
-        </a-form-item>
-        <a-row :gutter="24">
-          <a-col :span="12">
-            <a-form-item label="链接类型" name="linkType">
-              <a-select v-model:value="formState.linkType" placeholder="选择链接类型">
-                <a-select-option value="none">无链接</a-select-option>
-                <a-select-option value="product">商品</a-select-option>
-                <a-select-option value="category">分类</a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="链接目标" name="linkValue">
-              <a-input v-model:value="formState.linkValue" placeholder="商品ID/分类ID" />
-            </a-form-item>
-          </a-col>
-        </a-row>
-        <a-form-item label="跳转链接" name="linkUrl">
-          <a-input v-model:value="formState.linkUrl" placeholder="自定义跳转URL（可选）" />
-        </a-form-item>
-        <a-row :gutter="24">
-          <a-col :span="12">
-            <a-form-item label="排序" name="sortOrder">
-              <a-input-number v-model:value="formState.sortOrder" :min="0" :style="{ width: '100%' }" placeholder="数字越小越靠前" />
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="状态" name="status">
-              <a-switch v-model:checked="formState.status" :checked-value="1" :un-checked-value="0" />
-            </a-form-item>
-          </a-col>
-        </a-row>
-      </a-form>
-    </FullScreenDetail>
-  </PageContainer>
+        <template #empty>
+          <a-empty
+            v-if="!hasError"
+            description="暂无轮播图"
+          />
+          <a-result
+            v-else
+            status="error"
+            title="数据加载失败"
+          >
+            <template #extra>
+              <a-button
+                type="primary"
+                @click="debounceClick('refresh', fetchData)"
+              >
+                <template #icon>
+                  <ReloadOutlined />
+                </template>重新加载
+              </a-button>
+            </template>
+          </a-result>
+        </template>
+
+        <template #imageCell="{ record }">
+          <a-image
+            v-if="record.imageUrl"
+            :src="record.imageUrl"
+            :width="80"
+            :height="45"
+            style="object-fit: cover; border-radius: 4px; cursor: pointer;"
+            fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+          />
+          <span
+            v-else
+            style="color: #ccc"
+          >无图片</span>
+        </template>
+
+        <template #statusCell="{ record }">
+          <a-switch
+            :checked="record.status === 1"
+            size="small"
+            @change="handleToggleStatus(record)"
+          />
+        </template>
+
+        <template #action="{ record }">
+          <a-space>
+            <a-button
+              v-permission="'erp:mall:banner:edit'"
+              type="link"
+              size="small"
+              @click="handleEdit(record)"
+            >
+              编辑
+            </a-button>
+            <a-button
+              v-permission="'erp:mall:banner:delete'"
+              type="link"
+              size="small"
+              danger
+              @click="handleDelete(record)"
+            >
+              删除
+            </a-button>
+          </a-space>
+        </template>
+      </BillTableList>
+
+      <!-- 轮播图表单弹窗 -->
+      <FullScreenDetail
+        :visible="modalVisible"
+        :title="modalTitle"
+        :save-loading="modalLoading"
+        @save="handleModalOk"
+        @close="handleFormClose"
+      >
+        <a-form
+          ref="formRef"
+          :model="formState"
+          :label-col="{ span: 4 }"
+          :wrapper-col="{ span: 18 }"
+          :rules="formRules"
+        >
+          <a-form-item
+            label="图片URL"
+            name="imageUrl"
+          >
+            <a-input
+              v-model:value="formState.imageUrl"
+              placeholder="请输入图片URL"
+            />
+          </a-form-item>
+          <a-form-item
+            label="标题"
+            name="title"
+          >
+            <a-input
+              v-model:value="formState.title"
+              placeholder="请输入标题"
+              :maxlength="200"
+            />
+          </a-form-item>
+          <a-row :gutter="24">
+            <a-col :span="12">
+              <a-form-item
+                label="链接类型"
+                name="linkType"
+              >
+                <a-select
+                  v-model:value="formState.linkType"
+                  placeholder="选择链接类型"
+                >
+                  <a-select-option value="none">
+                    无链接
+                  </a-select-option>
+                  <a-select-option value="product">
+                    商品
+                  </a-select-option>
+                  <a-select-option value="category">
+                    分类
+                  </a-select-option>
+                </a-select>
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
+              <a-form-item
+                label="链接目标"
+                name="linkValue"
+              >
+                <a-input
+                  v-model:value="formState.linkValue"
+                  placeholder="商品ID/分类ID"
+                />
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <a-form-item
+            label="跳转链接"
+            name="linkUrl"
+          >
+            <a-input
+              v-model:value="formState.linkUrl"
+              placeholder="自定义跳转URL（可选）"
+            />
+          </a-form-item>
+          <a-row :gutter="24">
+            <a-col :span="12">
+              <a-form-item
+                label="排序"
+                name="sortOrder"
+              >
+                <a-input-number
+                  v-model:value="formState.sortOrder"
+                  :min="0"
+                  :style="{ width: '100%' }"
+                  placeholder="数字越小越靠前"
+                />
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
+              <a-form-item
+                label="状态"
+                name="status"
+              >
+                <a-switch
+                  v-model:checked="formState.status"
+                  :checked-value="1"
+                  :un-checked-value="0"
+                />
+              </a-form-item>
+            </a-col>
+          </a-row>
+        </a-form>
+      </FullScreenDetail>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

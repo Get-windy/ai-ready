@@ -2,27 +2,61 @@
   <div class="product-ranking">
     <!-- 统计卡片 -->
     <div class="summary-cards">
-      <div class="summary-card" style="--card-color: #1890ff;">
-        <div class="summary-card-title">商品总数</div>
-        <div class="summary-card-value">{{ summary.totalProducts }}</div>
+      <div
+        class="summary-card"
+        style="--card-color: #1890ff;"
+      >
+        <div class="summary-card-title">
+          商品总数
+        </div>
+        <div class="summary-card-value">
+          {{ summary.totalProducts }}
+        </div>
       </div>
-      <div class="summary-card" style="--card-color: #faad14;">
-        <div class="summary-card-title">销售总额</div>
-        <div class="summary-card-value">¥{{ formatAmount(summary.totalAmount) }}</div>
+      <div
+        class="summary-card"
+        style="--card-color: #faad14;"
+      >
+        <div class="summary-card-title">
+          销售总额
+        </div>
+        <div class="summary-card-value">
+          ¥{{ formatAmount(summary.totalAmount) }}
+        </div>
       </div>
-      <div class="summary-card" style="--card-color: #52c41a;">
-        <div class="summary-card-title">总销量</div>
-        <div class="summary-card-value">{{ summary.totalVolume }}</div>
+      <div
+        class="summary-card"
+        style="--card-color: #52c41a;"
+      >
+        <div class="summary-card-title">
+          总销量
+        </div>
+        <div class="summary-card-value">
+          {{ summary.totalVolume }}
+        </div>
       </div>
-      <div class="summary-card" style="--card-color: #722ed1;">
-        <div class="summary-card-title">平均毛利率</div>
-        <div class="summary-card-value">{{ summary.avgMargin }}%</div>
+      <div
+        class="summary-card"
+        style="--card-color: #722ed1;"
+      >
+        <div class="summary-card-title">
+          平均毛利率
+        </div>
+        <div class="summary-card-value">
+          {{ summary.avgMargin }}%
+        </div>
       </div>
     </div>
 
     <!-- 筛选区 -->
-    <a-collapse v-model:activeKey="filterExpanded" class="filter-collapse">
-      <a-collapse-panel key="1" header="筛选条件">
+    <a-collapse
+      v-model:active-key="filterExpanded"
+      class="filter-collapse"
+    >
+      <a-collapse-panel
+        key="1"
+        header="筛选条件"
+      >
         <a-row :gutter="16">
           <a-col :span="6">
             <a-form-item label="时间范围">
@@ -42,9 +76,15 @@
                 allow-clear
                 style="width: 100%"
               >
-                <a-select-option value="electronics">电子产品</a-select-option>
-                <a-select-option value="furniture">办公家具</a-select-option>
-                <a-select-option value="supplies">办公耗材</a-select-option>
+                <a-select-option value="electronics">
+                  电子产品
+                </a-select-option>
+                <a-select-option value="furniture">
+                  办公家具
+                </a-select-option>
+                <a-select-option value="supplies">
+                  办公耗材
+                </a-select-option>
               </a-select>
             </a-form-item>
           </a-col>
@@ -55,18 +95,37 @@
                 placeholder="全部"
                 style="width: 100%"
               >
-                <a-select-option :value="10">TOP 10</a-select-option>
-                <a-select-option :value="20">TOP 20</a-select-option>
-                <a-select-option :value="50">TOP 50</a-select-option>
+                <a-select-option :value="10">
+                  TOP 10
+                </a-select-option>
+                <a-select-option :value="20">
+                  TOP 20
+                </a-select-option>
+                <a-select-option :value="50">
+                  TOP 50
+                </a-select-option>
               </a-select>
             </a-form-item>
           </a-col>
-          <a-col :span="6" class="filter-actions">
+          <a-col
+            :span="6"
+            class="filter-actions"
+          >
             <a-space>
-              <a-button type="primary" :loading="loading" @click="handleQuery">查询</a-button>
-              <a-button @click="handleReset">重置</a-button>
+              <a-button
+                type="primary"
+                :loading="loading"
+                @click="handleQuery"
+              >
+                查询
+              </a-button>
+              <a-button @click="handleReset">
+                重置
+              </a-button>
               <a-button @click="handleExport">
-                <template #icon><ExportOutlined /></template>
+                <template #icon>
+                  <ExportOutlined />
+                </template>
                 导出
               </a-button>
             </a-space>
@@ -76,24 +135,41 @@
     </a-collapse>
 
     <!-- 排行表格 -->
-    <a-card title="商品销售排行榜" size="small">
+    <a-card
+      title="商品销售排行榜"
+      size="small"
+    >
       <template #extra>
         <a-space>
           <span class="total-info">共 {{ dataSource.length }} 个商品</span>
           <a-tooltip title="切换显示模式">
-            <a-switch v-model:checked="showChart" size="small">
-              <template #checkedChildren>图表</template>
-              <template #unCheckedChildren>列表</template>
+            <a-switch
+              v-model:checked="showChart"
+              size="small"
+            >
+              <template #checkedChildren>
+                图表
+              </template>
+              <template #unCheckedChildren>
+                列表
+              </template>
             </a-switch>
           </a-tooltip>
         </a-space>
       </template>
 
       <!-- 图表模式 -->
-      <div v-if="showChart" ref="chartRef" class="chart-container"></div>
+      <div
+        v-if="showChart"
+        ref="chartRef"
+        class="chart-container"
+      />
 
       <!-- 表格模式 -->
-      <div v-else class="table-container">
+      <div
+        v-else
+        class="table-container"
+      >
         <BillTableList
           :columns="vxeColumns"
           :data-source="dataSource"
@@ -108,13 +184,19 @@
           :show-batch-delete="false"
         >
           <template #rankCell="{ record }">
-            <a-tag :color="getRankColor(record.rank)" size="small">
+            <a-tag
+              :color="getRankColor(record.rank)"
+              size="small"
+            >
               TOP {{ record.rank }}
             </a-tag>
           </template>
           <template #nameCell="{ record }">
             <span>{{ record.name }}</span>
-            <span v-if="record.code" class="product-code">({{ record.code }})</span>
+            <span
+              v-if="record.code"
+              class="product-code"
+            >({{ record.code }})</span>
           </template>
           <template #totalAmountCell="{ record }">
             <span class="amount-cell">¥{{ formatAmount(record.totalAmount) }}</span>

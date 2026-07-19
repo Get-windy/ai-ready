@@ -1,25 +1,56 @@
 <template>
   <div class="page-container">
     <div class="page-header">
-      <h2 class="page-title">支付请求</h2>
+      <h2 class="page-title">
+        支付请求
+      </h2>
     </div>
     <div class="page-container__body">
-      <a-card :bordered="false" class="table-card">
-        <a-table :columns="columns" :data-source="tableData" :loading="loading" :pagination="pagination" row-key="id" @change="handleTableChange">
+      <a-card
+        :bordered="false"
+        class="table-card"
+      >
+        <a-table
+          :columns="columns"
+          :data-source="tableData"
+          :loading="loading"
+          :pagination="pagination"
+          row-key="id"
+          @change="handleTableChange"
+        >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'amount'">
               <span style="color: #52c41a; font-weight: bold">¥{{ record.amount }}</span>
             </template>
             <template v-if="column.key === 'channel'">
-              <a-tag :color="PAYMENT_CHANNEL_MAP[record.channel]?.color">{{ PAYMENT_CHANNEL_MAP[record.channel]?.name }}</a-tag>
+              <a-tag :color="PAYMENT_CHANNEL_MAP[record.channel]?.color">
+                {{ PAYMENT_CHANNEL_MAP[record.channel]?.name }}
+              </a-tag>
             </template>
             <template v-if="column.key === 'status'">
-              <a-tag :color="PAYMENT_STATUS_MAP[record.status]?.color">{{ PAYMENT_STATUS_MAP[record.status]?.text }}</a-tag>
+              <a-tag :color="PAYMENT_STATUS_MAP[record.status]?.color">
+                {{ PAYMENT_STATUS_MAP[record.status]?.text }}
+              </a-tag>
             </template>
             <template v-if="column.key === 'action'">
               <a-space>
-                <a-button type="link" size="small" v-if="record.status === 1 && (record.channel === 'CASH' || record.channel === 'BANK')" @click="showConfirmModal(record)">确认收款</a-button>
-                <a-button type="link" size="small" danger v-if="record.status === 0 || record.status === 1" @click="handleCancel(record)">取消</a-button>
+                <a-button
+                  v-if="record.status === 1 && (record.channel === 'CASH' || record.channel === 'BANK')"
+                  type="link"
+                  size="small"
+                  @click="showConfirmModal(record)"
+                >
+                  确认收款
+                </a-button>
+                <a-button
+                  v-if="record.status === 0 || record.status === 1"
+                  type="link"
+                  size="small"
+                  danger
+                  @click="handleCancel(record)"
+                >
+                  取消
+                </a-button>
               </a-space>
             </template>
           </template>
@@ -27,10 +58,20 @@
       </a-card>
     </div>
 
-    <a-modal v-model:open="confirmModalVisible" title="确认线下收款" @ok="handleConfirm">
-      <a-form :label-col="{ span: 4 }" :wrapper-col="{ span: 18 }">
+    <a-modal
+      v-model:open="confirmModalVisible"
+      title="确认线下收款"
+      @ok="handleConfirm"
+    >
+      <a-form
+        :label-col="{ span: 4 }"
+        :wrapper-col="{ span: 18 }"
+      >
         <a-form-item label="收款单号">
-          <a-input v-model:value="confirmForm.channelOrderNo" placeholder="请输入收款单号/流水号" />
+          <a-input
+            v-model:value="confirmForm.channelOrderNo"
+            placeholder="请输入收款单号/流水号"
+          />
         </a-form-item>
       </a-form>
     </a-modal>

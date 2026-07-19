@@ -5,16 +5,30 @@
         <div class="page-header">
           <div class="page-header-left">
             <a-breadcrumb>
-              <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
               <a-breadcrumb-item>设置</a-breadcrumb-item>
               <a-breadcrumb-item>外链同步</a-breadcrumb-item>
             </a-breadcrumb>
-            <h2 class="page-title">外链同步</h2>
-            <p class="page-desc">配置外部系统连接，管理字段映射规则</p>
+            <h2 class="page-title">
+              外链同步
+            </h2>
+            <p class="page-desc">
+              配置外部系统连接，管理字段映射规则
+            </p>
           </div>
           <div class="page-header-right">
-            <a-button size="small" :loading="refreshLoading" @click="handleRefresh">
-              <template #icon><ReloadOutlined /></template>
+            <a-button
+              size="small"
+              :loading="refreshLoading"
+              @click="handleRefresh"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
               刷新
             </a-button>
           </div>
@@ -22,23 +36,38 @@
       </template>
 
       <!-- 主Tab切换 -->
-      <a-tabs v-model:activeKey="mainTab" class="main-tabs">
-        <a-tab-pane key="config" tab="同步配置">
+      <a-tabs
+        v-model:active-key="mainTab"
+        class="main-tabs"
+      >
+        <a-tab-pane
+          key="config"
+          tab="同步配置"
+        >
           <div class="master-detail-layout">
             <!-- 左侧平台列表 -->
             <div class="sidebar">
               <div class="sidebar-header">
                 <span class="sidebar-title">已配置平台</span>
-                <a-button type="primary" size="small" @click="showCreateConfig">
-                  <template #icon><PlusOutlined /></template>
+                <a-button
+                  type="primary"
+                  size="small"
+                  @click="showCreateConfig"
+                >
+                  <template #icon>
+                    <PlusOutlined />
+                  </template>
                 </a-button>
               </div>
               <a-menu
-                v-model:selectedKeys="selectedConfigKeys"
+                v-model:selected-keys="selectedConfigKeys"
                 mode="inline"
                 @click="onConfigMenuClick"
               >
-                <a-menu-item v-for="cfg in configs" :key="cfg.id">
+                <a-menu-item
+                  v-for="cfg in configs"
+                  :key="cfg.id"
+                >
                   <div class="menu-item-content">
                     <CloudOutlined />
                     <span class="menu-item-text">{{ cfg.displayName || getSystemName(cfg.sourceType) }}</span>
@@ -46,41 +75,78 @@
                   </div>
                 </a-menu-item>
               </a-menu>
-              <a-empty v-if="configs.length === 0" description="暂无配置" />
+              <a-empty
+                v-if="configs.length === 0"
+                description="暂无配置"
+              />
             </div>
 
             <!-- 右侧配置详情 -->
             <div class="detail-panel">
-              <a-empty v-if="!selectedConfig" description="请在左侧选择一个平台" />
-              <div v-else class="config-detail">
+              <a-empty
+                v-if="!selectedConfig"
+                description="请在左侧选择一个平台"
+              />
+              <div
+                v-else
+                class="config-detail"
+              >
                 <div class="detail-header">
                   <h3>{{ selectedConfig.displayName || getSystemName(selectedConfig.sourceType) }}</h3>
                   <a-space>
-                    <a-button size="small" @click="editConfig(selectedConfig)">
-                      <template #icon><EditOutlined /></template>
+                    <a-button
+                      size="small"
+                      @click="editConfig(selectedConfig)"
+                    >
+                      <template #icon>
+                        <EditOutlined />
+                      </template>
                       编辑
                     </a-button>
-                    <a-button size="small" @click="testConnection(selectedConfig.id)">
-                      <template #icon><ApiOutlined /></template>
+                    <a-button
+                      size="small"
+                      @click="testConnection(selectedConfig.id)"
+                    >
+                      <template #icon>
+                        <ApiOutlined />
+                      </template>
                       测试连接
                     </a-button>
-                    <a-popconfirm title="确定删除此配置？" @confirm="deleteConfig(selectedConfig.id)">
-                      <a-button size="small" danger>
-                        <template #icon><DeleteOutlined /></template>
+                    <a-popconfirm
+                      title="确定删除此配置？"
+                      @confirm="deleteConfig(selectedConfig.id)"
+                    >
+                      <a-button
+                        size="small"
+                        danger
+                      >
+                        <template #icon>
+                          <DeleteOutlined />
+                        </template>
                         删除
                       </a-button>
                     </a-popconfirm>
                   </a-space>
                 </div>
-                <a-descriptions :column="2" bordered size="small">
-                  <a-descriptions-item label="系统类型">{{ selectedConfig.sourceType }}</a-descriptions-item>
+                <a-descriptions
+                  :column="2"
+                  bordered
+                  size="small"
+                >
+                  <a-descriptions-item label="系统类型">
+                    {{ selectedConfig.sourceType }}
+                  </a-descriptions-item>
                   <a-descriptions-item label="状态">
                     <a-tag :color="selectedConfig.status === 1 ? 'green' : 'default'">
                       {{ selectedConfig.status === 1 ? '已启用' : '已禁用' }}
                     </a-tag>
                   </a-descriptions-item>
-                  <a-descriptions-item label="登录账号">{{ selectedConfig.sourceUsername }}</a-descriptions-item>
-                  <a-descriptions-item label="API地址">{{ selectedConfig.baseUrl }}</a-descriptions-item>
+                  <a-descriptions-item label="登录账号">
+                    {{ selectedConfig.sourceUsername }}
+                  </a-descriptions-item>
+                  <a-descriptions-item label="API地址">
+                    {{ selectedConfig.baseUrl }}
+                  </a-descriptions-item>
                   <a-descriptions-item label="同步方向">
                     <a-tag :color="directionColor(selectedConfig.syncDirection)">
                       {{ directionLabel(selectedConfig.syncDirection) }}
@@ -91,22 +157,40 @@
                       {{ selectedConfig.syncMode === 'incremental' ? '增量同步' : '全量同步' }}
                     </a-tag>
                   </a-descriptions-item>
-                  <a-descriptions-item label="同步频率">{{ selectedConfig.syncCron || '未设置' }}</a-descriptions-item>
-                  <a-descriptions-item label="心跳间隔">{{ selectedConfig.heartbeatInterval ? selectedConfig.heartbeatInterval + '秒' : '未设置' }}</a-descriptions-item>
-                  <a-descriptions-item label="同步单据" :span="2">
+                  <a-descriptions-item label="同步频率">
+                    {{ selectedConfig.syncCron || '未设置' }}
+                  </a-descriptions-item>
+                  <a-descriptions-item label="心跳间隔">
+                    {{ selectedConfig.heartbeatInterval ? selectedConfig.heartbeatInterval + '秒' : '未设置' }}
+                  </a-descriptions-item>
+                  <a-descriptions-item
+                    label="同步单据"
+                    :span="2"
+                  >
                     {{ formatBillTypes(selectedConfig.billTypes) }}
                   </a-descriptions-item>
-                  <a-descriptions-item label="最后同步" :span="2">
+                  <a-descriptions-item
+                    label="最后同步"
+                    :span="2"
+                  >
                     {{ selectedConfig.lastSyncTime || '从未同步' }}
                   </a-descriptions-item>
-                  <a-descriptions-item label="备注" :span="2">{{ selectedConfig.remark || '无' }}</a-descriptions-item>
+                  <a-descriptions-item
+                    label="备注"
+                    :span="2"
+                  >
+                    {{ selectedConfig.remark || '无' }}
+                  </a-descriptions-item>
                 </a-descriptions>
               </div>
             </div>
           </div>
         </a-tab-pane>
 
-        <a-tab-pane key="mapping" tab="字段映射">
+        <a-tab-pane
+          key="mapping"
+          tab="字段映射"
+        >
           <div class="master-detail-layout">
             <!-- 左侧平台列表 -->
             <div class="sidebar">
@@ -114,151 +198,254 @@
                 <span class="sidebar-title">已配置平台</span>
               </div>
               <a-menu
-                v-model:selectedKeys="selectedMappingConfigKeys"
+                v-model:selected-keys="selectedMappingConfigKeys"
                 mode="inline"
                 @click="onMappingConfigMenuClick"
               >
-                <a-menu-item v-for="cfg in configs" :key="cfg.id">
+                <a-menu-item
+                  v-for="cfg in configs"
+                  :key="cfg.id"
+                >
                   <div class="menu-item-content">
                     <CloudOutlined />
                     <span class="menu-item-text">{{ cfg.displayName || getSystemName(cfg.sourceType) }}</span>
                   </div>
                 </a-menu-item>
               </a-menu>
-              <a-empty v-if="configs.length === 0" description="暂无配置" />
+              <a-empty
+                v-if="configs.length === 0"
+                description="暂无配置"
+              />
             </div>
 
             <!-- 右侧字段映射 -->
             <div class="detail-panel">
-              <a-empty v-if="!selectedMappingConfig" description="请在左侧选择一个平台" />
-              <div v-else class="mapping-detail">
+              <a-empty
+                v-if="!selectedMappingConfig"
+                description="请在左侧选择一个平台"
+              />
+              <div
+                v-else
+                class="mapping-detail"
+              >
                 <!-- 数据集合分类选择 -->
                 <div class="domain-selector">
                   <span class="domain-label">数据集合：</span>
-                  <a-radio-group v-model:value="selectedDomain" button-style="solid" size="small" @change="onDomainChange">
-                    <a-radio-button v-for="d in domainCategories" :key="d.key" :value="d.key">
+                  <a-radio-group
+                    v-model:value="selectedDomain"
+                    button-style="solid"
+                    size="small"
+                    @change="onDomainChange"
+                  >
+                    <a-radio-button
+                      v-for="d in domainCategories"
+                      :key="d.key"
+                      :value="d.key"
+                    >
                       {{ d.label }}
                     </a-radio-button>
                   </a-radio-group>
                 </div>
 
                 <!-- 单据类型子Tab -->
-                <a-tabs v-if="filteredBillTypes.length > 0" v-model:activeKey="selectedBillType" @change="loadFieldMappings" size="small">
-                  <a-tab-pane v-for="bt in filteredBillTypes" :key="bt" :tab="getBillTypeLabel(bt)" />
+                <a-tabs
+                  v-if="filteredBillTypes.length > 0"
+                  v-model:active-key="selectedBillType"
+                  size="small"
+                  @change="loadFieldMappings"
+                >
+                  <a-tab-pane
+                    v-for="bt in filteredBillTypes"
+                    :key="bt"
+                    :tab="getBillTypeLabel(bt)"
+                  />
                 </a-tabs>
-                <a-empty v-else description="该平台未配置此数据集合的单据类型" style="padding: 40px 0;">
+                <a-empty
+                  v-else
+                  description="该平台未配置此数据集合的单据类型"
+                  style="padding: 40px 0;"
+                >
                   <template #extra>
-                    <a-button size="small" @click="editConfig(selectedMappingConfig)">去配置单据类型</a-button>
+                    <a-button
+                      size="small"
+                      @click="editConfig(selectedMappingConfig)"
+                    >
+                      去配置单据类型
+                    </a-button>
                   </template>
                 </a-empty>
 
                 <template v-if="filteredBillTypes.length > 0">
-
-                <div class="mapping-toolbar">
-                  <a-space>
-                    <a-button size="small" @click="initFromTemplate" :loading="templateLoading">
-                      <template #icon><ThunderboltOutlined /></template>
-                      从模板初始化
-                    </a-button>
-                    <a-button size="small" type="primary" @click="showCreateMapping">
-                      <template #icon><PlusOutlined /></template>
-                      添加映射
-                    </a-button>
-                    <a-button size="small" :loading="mappingSaving" @click="batchSaveMappings">
-                      <template #icon><SaveOutlined /></template>
-                      保存
-                    </a-button>
-                  </a-space>
-                </div>
-
-                <a-table
-                  :columns="mappingColumns"
-                  :data-source="mappingRows"
-                  :pagination="false"
-                  :scroll="{ y: 500 }"
-                  size="small"
-                  row-key="id"
-                  :row-selection="{ selectedRowKeys: selectedMappingRows, onChange: onMappingRowSelect }"
-                >
-                  <template #bodyCell="{ column, record, index }">
-                    <template v-if="column.key === 'index'">
-                      {{ index + 1 }}
-                    </template>
-                    <template v-if="column.key === 'localField'">
-                      <a-select
-                        v-model:value="record.targetField"
+                  <div class="mapping-toolbar">
+                    <a-space>
+                      <a-button
                         size="small"
-                        style="width: 150px"
-                        show-search
-                        :filter-option="filterOption"
-                        @change="onLocalFieldChange(record)"
+                        :loading="templateLoading"
+                        @click="initFromTemplate"
                       >
-                        <a-select-option v-for="f in localFieldOptions" :key="f.value" :value="f.value">
-                          {{ f.label }} ({{ f.value }})
-                        </a-select-option>
-                      </a-select>
-                    </template>
-                    <template v-if="column.key === 'localLabel'">
-                      {{ record.targetLabel }}
-                    </template>
-                    <template v-if="column.key === 'externalField'">
-                      <a-select
-                        v-model:value="record.sourceField"
+                        <template #icon>
+                          <ThunderboltOutlined />
+                        </template>
+                        从模板初始化
+                      </a-button>
+                      <a-button
                         size="small"
-                        style="width: 150px"
-                        show-search
-                        :filter-option="filterOption"
-                        @change="onExternalFieldChange(record)"
+                        type="primary"
+                        @click="showCreateMapping"
                       >
-                        <a-select-option v-for="f in externalFieldOptions" :key="f.value" :value="f.value">
-                          {{ f.label }} ({{ f.value }})
-                        </a-select-option>
-                      </a-select>
-                    </template>
-                    <template v-if="column.key === 'externalLabel'">
-                      {{ record.sourceLabel }}
-                    </template>
-                    <template v-if="column.key === 'transformType'">
-                      <a-select v-model:value="record.transformType" size="small" style="width: 100px">
-                        <a-select-option value="direct">直接映射</a-select-option>
-                        <a-select-option value="enum">枚举转换</a-select-option>
-                        <a-select-option value="formula">公式</a-select-option>
-                        <a-select-option value="default">默认值</a-select-option>
-                      </a-select>
-                    </template>
-                    <template v-if="column.key === 'transformRule'">
-                      <a-input v-model:value="record.transformRule" size="small" placeholder="JSON" style="width: 120px" />
-                    </template>
-                    <template v-if="column.key === 'defaultValue'">
-                      <a-input v-model:value="record.defaultValue" size="small" style="width: 80px" />
-                    </template>
-                    <template v-if="column.key === 'required'">
-                      <a-checkbox v-model:checked="record.required" />
-                    </template>
-                    <template v-if="column.key === 'status'">
-                      <a-switch
-                        :checked="record.status === 1"
-                        @change="(checked: any) => toggleMappingStatus(record, checked as boolean)"
+                        <template #icon>
+                          <PlusOutlined />
+                        </template>
+                        添加映射
+                      </a-button>
+                      <a-button
                         size="small"
-                      />
+                        :loading="mappingSaving"
+                        @click="batchSaveMappings"
+                      >
+                        <template #icon>
+                          <SaveOutlined />
+                        </template>
+                        保存
+                      </a-button>
+                    </a-space>
+                  </div>
+
+                  <a-table
+                    :columns="mappingColumns"
+                    :data-source="mappingRows"
+                    :pagination="false"
+                    :scroll="{ y: 500 }"
+                    size="small"
+                    row-key="id"
+                    :row-selection="{ selectedRowKeys: selectedMappingRows, onChange: onMappingRowSelect }"
+                  >
+                    <template #bodyCell="{ column, record, index }">
+                      <template v-if="column.key === 'index'">
+                        {{ index + 1 }}
+                      </template>
+                      <template v-if="column.key === 'localField'">
+                        <a-select
+                          v-model:value="record.targetField"
+                          size="small"
+                          style="width: 150px"
+                          show-search
+                          :filter-option="filterOption"
+                          @change="onLocalFieldChange(record)"
+                        >
+                          <a-select-option
+                            v-for="f in localFieldOptions"
+                            :key="f.value"
+                            :value="f.value"
+                          >
+                            {{ f.label }} ({{ f.value }})
+                          </a-select-option>
+                        </a-select>
+                      </template>
+                      <template v-if="column.key === 'localLabel'">
+                        {{ record.targetLabel }}
+                      </template>
+                      <template v-if="column.key === 'externalField'">
+                        <a-select
+                          v-model:value="record.sourceField"
+                          size="small"
+                          style="width: 150px"
+                          show-search
+                          :filter-option="filterOption"
+                          @change="onExternalFieldChange(record)"
+                        >
+                          <a-select-option
+                            v-for="f in externalFieldOptions"
+                            :key="f.value"
+                            :value="f.value"
+                          >
+                            {{ f.label }} ({{ f.value }})
+                          </a-select-option>
+                        </a-select>
+                      </template>
+                      <template v-if="column.key === 'externalLabel'">
+                        {{ record.sourceLabel }}
+                      </template>
+                      <template v-if="column.key === 'transformType'">
+                        <a-select
+                          v-model:value="record.transformType"
+                          size="small"
+                          style="width: 100px"
+                        >
+                          <a-select-option value="direct">
+                            直接映射
+                          </a-select-option>
+                          <a-select-option value="enum">
+                            枚举转换
+                          </a-select-option>
+                          <a-select-option value="formula">
+                            公式
+                          </a-select-option>
+                          <a-select-option value="default">
+                            默认值
+                          </a-select-option>
+                        </a-select>
+                      </template>
+                      <template v-if="column.key === 'transformRule'">
+                        <a-input
+                          v-model:value="record.transformRule"
+                          size="small"
+                          placeholder="JSON"
+                          style="width: 120px"
+                        />
+                      </template>
+                      <template v-if="column.key === 'defaultValue'">
+                        <a-input
+                          v-model:value="record.defaultValue"
+                          size="small"
+                          style="width: 80px"
+                        />
+                      </template>
+                      <template v-if="column.key === 'required'">
+                        <a-checkbox v-model:checked="record.required" />
+                      </template>
+                      <template v-if="column.key === 'status'">
+                        <a-switch
+                          :checked="record.status === 1"
+                          size="small"
+                          @change="(checked: any) => toggleMappingStatus(record, checked as boolean)"
+                        />
+                      </template>
+                      <template v-if="column.key === 'action'">
+                        <a-space>
+                          <a-button
+                            type="link"
+                            size="small"
+                            @click="editMapping(record)"
+                          >
+                            编辑
+                          </a-button>
+                          <a-popconfirm
+                            title="确定删除？"
+                            @confirm="deleteMapping(record, index)"
+                          >
+                            <a-button
+                              type="link"
+                              danger
+                              size="small"
+                            >
+                              删除
+                            </a-button>
+                          </a-popconfirm>
+                        </a-space>
+                      </template>
                     </template>
-                    <template v-if="column.key === 'action'">
-                      <a-space>
-                        <a-button type="link" size="small" @click="editMapping(record)">编辑</a-button>
-                        <a-popconfirm title="确定删除？" @confirm="deleteMapping(record, index)">
-                          <a-button type="link" danger size="small">删除</a-button>
-                        </a-popconfirm>
-                      </a-space>
-                    </template>
-                  </template>
-                </a-table>
+                  </a-table>
                 </template>
               </div>
             </div>
           </div>
         </a-tab-pane>
 
-        <a-tab-pane key="history" tab="同步历史">
+        <a-tab-pane
+          key="history"
+          tab="同步历史"
+        >
           <div class="master-detail-layout">
             <!-- 左侧平台列表 -->
             <div class="sidebar">
@@ -266,28 +453,46 @@
                 <span class="sidebar-title">已配置平台</span>
               </div>
               <a-menu
-                v-model:selectedKeys="selectedHistoryConfigKeys"
+                v-model:selected-keys="selectedHistoryConfigKeys"
                 mode="inline"
                 @click="onHistoryConfigMenuClick"
               >
-                <a-menu-item v-for="cfg in configs" :key="cfg.id">
+                <a-menu-item
+                  v-for="cfg in configs"
+                  :key="cfg.id"
+                >
                   <div class="menu-item-content">
                     <CloudOutlined />
                     <span class="menu-item-text">{{ cfg.displayName || getSystemName(cfg.sourceType) }}</span>
                   </div>
                 </a-menu-item>
               </a-menu>
-              <a-empty v-if="configs.length === 0" description="暂无配置" />
+              <a-empty
+                v-if="configs.length === 0"
+                description="暂无配置"
+              />
             </div>
 
             <!-- 右侧同步历史 -->
             <div class="detail-panel">
-              <a-empty v-if="!selectedHistoryConfig" description="请在左侧选择一个平台查看同步历史" />
-              <div v-else class="history-detail">
+              <a-empty
+                v-if="!selectedHistoryConfig"
+                description="请在左侧选择一个平台查看同步历史"
+              />
+              <div
+                v-else
+                class="history-detail"
+              >
                 <div class="detail-header">
                   <h3>{{ selectedHistoryConfig.displayName || getSystemName(selectedHistoryConfig.sourceType) }} — 同步历史</h3>
-                  <a-button size="small" :loading="historyLoading" @click="loadSyncHistory">
-                    <template #icon><ReloadOutlined /></template>
+                  <a-button
+                    size="small"
+                    :loading="historyLoading"
+                    @click="loadSyncHistory"
+                  >
+                    <template #icon>
+                      <ReloadOutlined />
+                    </template>
                     刷新
                   </a-button>
                 </div>
@@ -327,7 +532,10 @@
                       </span>
                     </template>
                     <template v-if="column.key === 'errorMessage'">
-                      <a-tooltip v-if="record.errorMessage" :title="record.errorMessage">
+                      <a-tooltip
+                        v-if="record.errorMessage"
+                        :title="record.errorMessage"
+                      >
                         <span class="error-text">{{ record.errorMessage }}</span>
                       </a-tooltip>
                       <span v-else>-</span>
@@ -347,8 +555,17 @@
         width="600px"
         @close="closeConfigDrawer"
       >
-        <a-form ref="configFormRef" :model="configForm" :rules="configFormRules" layout="vertical">
-          <a-form-item label="导入系统" name="sourceType" required>
+        <a-form
+          ref="configFormRef"
+          :model="configForm"
+          :rules="configFormRules"
+          layout="vertical"
+        >
+          <a-form-item
+            label="导入系统"
+            name="sourceType"
+            required
+          >
             <a-select
               v-model:value="configForm.sourceType"
               placeholder="请选择外部系统"
@@ -356,14 +573,28 @@
               @change="onSourceChange"
             />
           </a-form-item>
-          <a-form-item label="显示名称" name="displayName">
-            <a-input v-model:value="configForm.displayName" placeholder="自定义显示名称" />
+          <a-form-item
+            label="显示名称"
+            name="displayName"
+          >
+            <a-input
+              v-model:value="configForm.displayName"
+              placeholder="自定义显示名称"
+            />
           </a-form-item>
           <a-divider>账号绑定</a-divider>
-          <a-form-item label="登录账号" name="sourceUsername" required>
+          <a-form-item
+            label="登录账号"
+            name="sourceUsername"
+            required
+          >
             <a-input v-model:value="configForm.sourceUsername" />
           </a-form-item>
-          <a-form-item label="登录密码" name="sourcePassword" required>
+          <a-form-item
+            label="登录密码"
+            name="sourcePassword"
+            required
+          >
             <a-input-password v-model:value="configForm.sourcePassword" />
           </a-form-item>
           <a-form-item label="API地址">
@@ -372,44 +603,79 @@
           <a-divider>同步设置</a-divider>
           <a-row :gutter="16">
             <a-col :span="12">
-              <a-form-item label="同步方向" name="syncDirection">
+              <a-form-item
+                label="同步方向"
+                name="syncDirection"
+              >
                 <a-radio-group v-model:value="configForm.syncDirection">
-                  <a-radio value="inbound">外部→系统</a-radio>
-                  <a-radio value="outbound">系统→外部</a-radio>
-                  <a-radio value="bidirectional">双向</a-radio>
+                  <a-radio value="inbound">
+                    外部→系统
+                  </a-radio>
+                  <a-radio value="outbound">
+                    系统→外部
+                  </a-radio>
+                  <a-radio value="bidirectional">
+                    双向
+                  </a-radio>
                 </a-radio-group>
               </a-form-item>
             </a-col>
             <a-col :span="12">
               <a-form-item label="同步方式">
                 <a-radio-group v-model:value="configForm.syncMode">
-                  <a-radio value="incremental">增量</a-radio>
-                  <a-radio value="full">全量</a-radio>
+                  <a-radio value="incremental">
+                    增量
+                  </a-radio>
+                  <a-radio value="full">
+                    全量
+                  </a-radio>
                 </a-radio-group>
               </a-form-item>
             </a-col>
           </a-row>
           <a-form-item label="同步频率(Cron)">
-            <a-input v-model:value="configForm.syncCron" placeholder="*/30 * * * *" />
+            <a-input
+              v-model:value="configForm.syncCron"
+              placeholder="*/30 * * * *"
+            />
           </a-form-item>
           <a-form-item label="心跳间隔(秒)">
-            <a-input-number v-model:value="configForm.heartbeatInterval" :min="60" style="width: 100%" />
+            <a-input-number
+              v-model:value="configForm.heartbeatInterval"
+              :min="60"
+              style="width: 100%"
+            />
           </a-form-item>
           <a-form-item label="同步单据类型">
             <a-checkbox-group v-model:value="selectedBillTypes">
-              <a-checkbox v-for="item in billTypeItems" :key="item.itemValue" :value="item.itemValue">
+              <a-checkbox
+                v-for="item in billTypeItems"
+                :key="item.itemValue"
+                :value="item.itemValue"
+              >
                 {{ item.itemText }}
               </a-checkbox>
             </a-checkbox-group>
           </a-form-item>
           <a-form-item label="备注">
-            <a-textarea v-model:value="configForm.remark" :rows="2" />
+            <a-textarea
+              v-model:value="configForm.remark"
+              :rows="2"
+            />
           </a-form-item>
         </a-form>
         <template #footer>
           <a-space>
-            <a-button @click="closeConfigDrawer">取消</a-button>
-            <a-button type="primary" :loading="configSaving" @click="saveConfig">保存</a-button>
+            <a-button @click="closeConfigDrawer">
+              取消
+            </a-button>
+            <a-button
+              type="primary"
+              :loading="configSaving"
+              @click="saveConfig"
+            >
+              保存
+            </a-button>
           </a-space>
         </template>
       </a-drawer>

@@ -1,278 +1,448 @@
 <template>
   <ErrorBoundary @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="pre-receipt-page-header">
-        <div class="pre-receipt-page-header-left">
-          <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item>财务管理</a-breadcrumb-item>
-            <a-breadcrumb-item>预收款管理</a-breadcrumb-item>
-          </a-breadcrumb>
-          <h2 class="pre-receipt-page-header-title">预收款管理</h2>
-        </div>
-        <div class="pre-receipt-page-header-right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-            <SyncOutlined /> {{ autoRefreshCountdown }}s
-          </span>
-          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)">
-            <template #icon><ReloadOutlined /></template>
-            刷新
-          </a-button>
-          <span class="shortcut-hints">
-            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-            <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
-          </span>
-        </div>
-      </div>
-    </template>
-
-    <div class="finance-pre-receipt-page">
-      <!-- 统计卡片 -->
-      <div class="stat-cards">
-        <div class="stat-card stat-total">
-          <div class="stat-card-body">
-            <div class="stat-card-value">¥{{ formatAmount(stats.totalAmount) }}</div>
-            <div class="stat-card-label">预收总额</div>
+    <PageContainer full-height>
+      <template #header>
+        <div class="pre-receipt-page-header">
+          <div class="pre-receipt-page-header-left">
+            <a-breadcrumb>
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>财务管理</a-breadcrumb-item>
+              <a-breadcrumb-item>预收款管理</a-breadcrumb-item>
+            </a-breadcrumb>
+            <h2 class="pre-receipt-page-header-title">
+              预收款管理
+            </h2>
           </div>
-          <DollarOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-used">
-          <div class="stat-card-body">
-            <div class="stat-card-value">¥{{ formatAmount(stats.usedAmount) }}</div>
-            <div class="stat-card-label">已使用金额</div>
-          </div>
-          <CheckCircleOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-balance">
-          <div class="stat-card-body">
-            <div class="stat-card-value">¥{{ formatAmount(stats.remainingAmount) }}</div>
-            <div class="stat-card-label">剩余金额</div>
-          </div>
-          <ExclamationCircleOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-count">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ pagination.total }}</div>
-            <div class="stat-card-label">笔数</div>
-          </div>
-          <FileTextOutlined class="stat-card-icon" />
-        </div>
-      </div>
-
-      <BillTableList
-        ref="tableRef"
-        :min-empty-rows="12"
-        :columns="columns"
-        :data-source="tableData"
-        :loading="loading"
-        :pagination="pagination"
-        :row-key="'id'"
-        :filter-fields="filterFields"
-        :show-search="false"
-        export-permission="finance:pre-receipt:list"
-        :show-add="true"
-        add-text="新增预收款"
-        :show-edit="false"
-        :show-delete="false"
-        :selectable="true"
-        @refresh="fetchData"
-        @add="handleAdd"
-        @cell-dblclick="handleView"
-        @page-change="handlePageChange"
-        @filter-change="handleFilterChange"
-        @selection-change="handleSelectionChange"
-      >
-        <template #toolbar-actions>
-          <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
-            更新 {{ dayjs(lastUpdated).format('HH:mm') }}
-          </span>
-        </template>
-        <template #batch-actions>
-          <!-- 预留批量操作 -->
-        </template>
-
-        <template #empty>
-          <div class="table-empty">
-            <template v-if="hasError">
-              <WarningOutlined class="table-empty-icon" style="color: #faad14" />
-              <p class="table-empty-text">加载失败</p>
-              <a-button type="primary" size="small" @click="fetchData" class="table-empty-action">
-                <ReloadOutlined /> 重试
-              </a-button>
-            </template>
-            <template v-else>
-              <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-              <InboxOutlined v-else class="table-empty-icon" />
-              <p v-if="hasActiveFilters" class="table-empty-text">
-                没有符合条件的预收款记录，<a @click="handleResetFilters">清除筛选</a>
-              </p>
-              <p v-else class="table-empty-text">
-                暂无预收款数据
-              </p>
-            </template>
-          </div>
-        </template>
-
-        <template #statusCell="{ record }">
-          <a-tag :color="statusColorMap[record.status] || 'default'">{{ statusLabelMap[record.status] || '未知' }}</a-tag>
-        </template>
-        <template #action="{ record }">
-          <a-space :size="0" class="action-cell-inner">
-            <PrintButton
-              template-type="pre_receipt"
-              :business-id="record.id"
-              business-type="pre_receipt"
-              button-text=""
-              button-size="small"
-              button-type="link"
-              tooltip="打印"
-            />
-            <a-tooltip title="查看">
-              <a-button type="link" size="small" v-permission="'finance:pre-receipt:view'" @click="handleView(record)">
-                <template #icon><EyeOutlined /></template>
-              </a-button>
-            </a-tooltip>
-            <a-tooltip :title="record.status !== 'received' ? '' : '转收款'">
-              <a-button type="link" size="small" v-permission="'finance:pre-receipt:offset'" :disabled="record.status !== 'received'" @click="handleOffsetToReceipt(record)">
-                <template #icon><SwapOutlined /></template>
-              </a-button>
-            </a-tooltip>
-            <a-tooltip :title="record.status !== 'received' ? '' : '没收'">
-              <a-button type="link" size="small" v-permission="'finance:pre-receipt:forfeit'" :disabled="record.status !== 'received'" @click="handleForfeit(record)">
-                <template #icon><StopOutlined /></template>
-              </a-button>
-            </a-tooltip>
-            <a-tooltip :title="record.status !== 'received' ? '' : '退款'">
-              <a-button type="link" size="small" v-permission="'finance:pre-receipt:refund'" :disabled="record.status !== 'received'" @click="handleRefund(record)">
-                <template #icon><RollbackOutlined /></template>
-              </a-button>
-            </a-tooltip>
-          </a-space>
-        </template>
-      </BillTableList>
-
-      <!-- 转收款弹窗 -->
-      <a-modal
-        :open="offsetVisible"
-        title="转收款"
-        :confirm-loading="offsetLoading"
-        @ok="handleOffsetConfirm"
-        @cancel="handleOffsetCancel"
-      >
-        <a-descriptions v-if="offsetTarget" :column="1" bordered size="small">
-          <a-descriptions-item label="客户名称">{{ offsetTarget.customerName }}</a-descriptions-item>
-          <a-descriptions-item label="预收单号">{{ offsetTarget.preReceiptNo }}</a-descriptions-item>
-          <a-descriptions-item label="预收金额">{{ formatAmount(offsetTarget.amount) }}</a-descriptions-item>
-          <a-descriptions-item label="已使用">{{ formatAmount(offsetTarget.usedAmount) }}</a-descriptions-item>
-          <a-descriptions-item label="剩余金额">{{ formatAmount(offsetTarget.remainingAmount) }}</a-descriptions-item>
-        </a-descriptions>
-        <a-form layout="vertical" style="margin-top: 16px">
-          <a-form-item label="收款金额" required>
-            <a-input-number
-              v-model:value="offsetAmount"
-              :min="0.01"
-              :max="offsetTarget?.remainingAmount || 0"
-              :precision="2"
+          <div class="pre-receipt-page-header-right">
+            <span
+              v-if="lastUpdateTime"
+              class="update-time"
+            >更新于 {{ lastUpdateTime }}</span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            >
+              <SyncOutlined /> {{ autoRefreshCountdown }}s
+            </span>
+            <a-button
               size="small"
-              style="width: 100%"
-              placeholder="请输入收款金额"
-            />
-          </a-form-item>
-        </a-form>
-      </a-modal>
+              :loading="refreshLoading"
+              @click="debounceClick('refresh', fetchData)"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
+              刷新
+            </a-button>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+              <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+            </span>
+          </div>
+        </div>
+      </template>
 
-      <!-- 没收弹窗 -->
-      <a-modal
-        :open="forfeitVisible"
-        title="没收预收款"
-        :confirm-loading="forfeitLoading"
-        @ok="handleForfeitConfirm"
-        @cancel="handleForfeitCancel"
-      >
-        <a-descriptions v-if="forfeitTarget" :column="1" bordered size="small">
-          <a-descriptions-item label="客户名称">{{ forfeitTarget.customerName }}</a-descriptions-item>
-          <a-descriptions-item label="预收单号">{{ forfeitTarget.preReceiptNo }}</a-descriptions-item>
-          <a-descriptions-item label="剩余金额">{{ formatAmount(forfeitTarget.remainingAmount) }}</a-descriptions-item>
-        </a-descriptions>
-        <a-form layout="vertical" style="margin-top: 16px">
-          <a-form-item label="没收原因" required>
-            <a-textarea
-              v-model:value="forfeitReason"
-              :rows="3"
-              placeholder="请输入没收原因"
-            />
-          </a-form-item>
-        </a-form>
-      </a-modal>
+      <div class="finance-pre-receipt-page">
+        <!-- 统计卡片 -->
+        <div class="stat-cards">
+          <div class="stat-card stat-total">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                ¥{{ formatAmount(stats.totalAmount) }}
+              </div>
+              <div class="stat-card-label">
+                预收总额
+              </div>
+            </div>
+            <DollarOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-used">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                ¥{{ formatAmount(stats.usedAmount) }}
+              </div>
+              <div class="stat-card-label">
+                已使用金额
+              </div>
+            </div>
+            <CheckCircleOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-balance">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                ¥{{ formatAmount(stats.remainingAmount) }}
+              </div>
+              <div class="stat-card-label">
+                剩余金额
+              </div>
+            </div>
+            <ExclamationCircleOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-count">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ pagination.total }}
+              </div>
+              <div class="stat-card-label">
+                笔数
+              </div>
+            </div>
+            <FileTextOutlined class="stat-card-icon" />
+          </div>
+        </div>
 
-      <!-- 退款弹窗 -->
-      <a-modal
-        :open="refundVisible"
-        title="预收款退款"
-        :confirm-loading="refundLoading"
-        @ok="handleRefundConfirm"
-        @cancel="handleRefundCancel"
-      >
-        <a-descriptions v-if="refundTarget" :column="1" bordered size="small">
-          <a-descriptions-item label="客户名称">{{ refundTarget.customerName }}</a-descriptions-item>
-          <a-descriptions-item label="预收单号">{{ refundTarget.preReceiptNo }}</a-descriptions-item>
-          <a-descriptions-item label="剩余金额">{{ formatAmount(refundTarget.remainingAmount) }}</a-descriptions-item>
-        </a-descriptions>
-        <a-form layout="vertical" style="margin-top: 16px">
-          <a-form-item label="退款原因" required>
-            <a-textarea
-              v-model:value="refundReason"
-              :rows="3"
-              placeholder="请输入退款原因"
-            />
-          </a-form-item>
-        </a-form>
-      </a-modal>
-
-      <!-- 新增预收款弹窗 -->
-      <FullScreenDetail
-        :visible="addVisible"
-        title="新增预收款"
-        :dirty="formDirty"
-        :save-loading="addLoading"
-        @save="handleAddConfirm"
-        @close="handleAddCancel"
-      >
-        <a-form
-          ref="addFormRef"
-          :model="addForm"
-          :rules="addFormRules"
-          :label-col="{ span: 6 }"
-          :wrapper-col="{ span: 16 }"
+        <BillTableList
+          ref="tableRef"
+          :min-empty-rows="12"
+          :columns="columns"
+          :data-source="tableData"
+          :loading="loading"
+          :pagination="pagination"
+          :row-key="'id'"
+          :filter-fields="filterFields"
+          :show-search="false"
+          export-permission="finance:pre-receipt:list"
+          :show-add="true"
+          add-text="新增预收款"
+          :show-edit="false"
+          :show-delete="false"
+          :selectable="true"
+          @refresh="fetchData"
+          @add="handleAdd"
+          @cell-dblclick="handleView"
+          @page-change="handlePageChange"
+          @filter-change="handleFilterChange"
+          @selection-change="handleSelectionChange"
         >
-          <a-form-item label="客户名称" name="customerName">
-            <a-input v-model:value="addForm.customerName" placeholder="请输入客户名称" />
-          </a-form-item>
-          <a-form-item label="预收金额" name="amount">
-            <a-input-number
-              v-model:value="addForm.amount"
-              :min="0.01"
-              :precision="2"
-              style="width: 100%"
-              placeholder="请输入预收金额"
-            />
-          </a-form-item>
-          <a-form-item label="收款日期" name="dueDate">
-            <a-date-picker
-              v-model:value="addForm.dueDate"
-              style="width: 100%"
-              placeholder="请选择收款日期"
-            />
-          </a-form-item>
-          <a-form-item label="备注" name="remark">
-            <a-textarea v-model:value="addForm.remark" :rows="3" placeholder="备注信息" />
-          </a-form-item>
-        </a-form>
-      </FullScreenDetail>
-    </div>
-  </PageContainer>
+          <template #toolbar-actions>
+            <span
+              v-if="lastUpdated"
+              class="list-update-timestamp"
+              :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')"
+            >
+              更新 {{ dayjs(lastUpdated).format('HH:mm') }}
+            </span>
+          </template>
+          <template #batch-actions>
+          <!-- 预留批量操作 -->
+          </template>
+
+          <template #empty>
+            <div class="table-empty">
+              <template v-if="hasError">
+                <WarningOutlined
+                  class="table-empty-icon"
+                  style="color: #faad14"
+                />
+                <p class="table-empty-text">
+                  加载失败
+                </p>
+                <a-button
+                  type="primary"
+                  size="small"
+                  class="table-empty-action"
+                  @click="fetchData"
+                >
+                  <ReloadOutlined /> 重试
+                </a-button>
+              </template>
+              <template v-else>
+                <SearchOutlined
+                  v-if="hasActiveFilters"
+                  class="table-empty-icon"
+                />
+                <InboxOutlined
+                  v-else
+                  class="table-empty-icon"
+                />
+                <p
+                  v-if="hasActiveFilters"
+                  class="table-empty-text"
+                >
+                  没有符合条件的预收款记录，<a @click="handleResetFilters">清除筛选</a>
+                </p>
+                <p
+                  v-else
+                  class="table-empty-text"
+                >
+                  暂无预收款数据
+                </p>
+              </template>
+            </div>
+          </template>
+
+          <template #statusCell="{ record }">
+            <a-tag :color="statusColorMap[record.status] || 'default'">
+              {{ statusLabelMap[record.status] || '未知' }}
+            </a-tag>
+          </template>
+          <template #action="{ record }">
+            <a-space
+              :size="0"
+              class="action-cell-inner"
+            >
+              <PrintButton
+                template-type="pre_receipt"
+                :business-id="record.id"
+                business-type="pre_receipt"
+                button-text=""
+                button-size="small"
+                button-type="link"
+                tooltip="打印"
+              />
+              <a-tooltip title="查看">
+                <a-button
+                  v-permission="'finance:pre-receipt:view'"
+                  type="link"
+                  size="small"
+                  @click="handleView(record)"
+                >
+                  <template #icon>
+                    <EyeOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip :title="record.status !== 'received' ? '' : '转收款'">
+                <a-button
+                  v-permission="'finance:pre-receipt:offset'"
+                  type="link"
+                  size="small"
+                  :disabled="record.status !== 'received'"
+                  @click="handleOffsetToReceipt(record)"
+                >
+                  <template #icon>
+                    <SwapOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip :title="record.status !== 'received' ? '' : '没收'">
+                <a-button
+                  v-permission="'finance:pre-receipt:forfeit'"
+                  type="link"
+                  size="small"
+                  :disabled="record.status !== 'received'"
+                  @click="handleForfeit(record)"
+                >
+                  <template #icon>
+                    <StopOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip :title="record.status !== 'received' ? '' : '退款'">
+                <a-button
+                  v-permission="'finance:pre-receipt:refund'"
+                  type="link"
+                  size="small"
+                  :disabled="record.status !== 'received'"
+                  @click="handleRefund(record)"
+                >
+                  <template #icon>
+                    <RollbackOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+            </a-space>
+          </template>
+        </BillTableList>
+
+        <!-- 转收款弹窗 -->
+        <a-modal
+          :open="offsetVisible"
+          title="转收款"
+          :confirm-loading="offsetLoading"
+          @ok="handleOffsetConfirm"
+          @cancel="handleOffsetCancel"
+        >
+          <a-descriptions
+            v-if="offsetTarget"
+            :column="1"
+            bordered
+            size="small"
+          >
+            <a-descriptions-item label="客户名称">
+              {{ offsetTarget.customerName }}
+            </a-descriptions-item>
+            <a-descriptions-item label="预收单号">
+              {{ offsetTarget.preReceiptNo }}
+            </a-descriptions-item>
+            <a-descriptions-item label="预收金额">
+              {{ formatAmount(offsetTarget.amount) }}
+            </a-descriptions-item>
+            <a-descriptions-item label="已使用">
+              {{ formatAmount(offsetTarget.usedAmount) }}
+            </a-descriptions-item>
+            <a-descriptions-item label="剩余金额">
+              {{ formatAmount(offsetTarget.remainingAmount) }}
+            </a-descriptions-item>
+          </a-descriptions>
+          <a-form
+            layout="vertical"
+            style="margin-top: 16px"
+          >
+            <a-form-item
+              label="收款金额"
+              required
+            >
+              <a-input-number
+                v-model:value="offsetAmount"
+                :min="0.01"
+                :max="offsetTarget?.remainingAmount || 0"
+                :precision="2"
+                size="small"
+                style="width: 100%"
+                placeholder="请输入收款金额"
+              />
+            </a-form-item>
+          </a-form>
+        </a-modal>
+
+        <!-- 没收弹窗 -->
+        <a-modal
+          :open="forfeitVisible"
+          title="没收预收款"
+          :confirm-loading="forfeitLoading"
+          @ok="handleForfeitConfirm"
+          @cancel="handleForfeitCancel"
+        >
+          <a-descriptions
+            v-if="forfeitTarget"
+            :column="1"
+            bordered
+            size="small"
+          >
+            <a-descriptions-item label="客户名称">
+              {{ forfeitTarget.customerName }}
+            </a-descriptions-item>
+            <a-descriptions-item label="预收单号">
+              {{ forfeitTarget.preReceiptNo }}
+            </a-descriptions-item>
+            <a-descriptions-item label="剩余金额">
+              {{ formatAmount(forfeitTarget.remainingAmount) }}
+            </a-descriptions-item>
+          </a-descriptions>
+          <a-form
+            layout="vertical"
+            style="margin-top: 16px"
+          >
+            <a-form-item
+              label="没收原因"
+              required
+            >
+              <a-textarea
+                v-model:value="forfeitReason"
+                :rows="3"
+                placeholder="请输入没收原因"
+              />
+            </a-form-item>
+          </a-form>
+        </a-modal>
+
+        <!-- 退款弹窗 -->
+        <a-modal
+          :open="refundVisible"
+          title="预收款退款"
+          :confirm-loading="refundLoading"
+          @ok="handleRefundConfirm"
+          @cancel="handleRefundCancel"
+        >
+          <a-descriptions
+            v-if="refundTarget"
+            :column="1"
+            bordered
+            size="small"
+          >
+            <a-descriptions-item label="客户名称">
+              {{ refundTarget.customerName }}
+            </a-descriptions-item>
+            <a-descriptions-item label="预收单号">
+              {{ refundTarget.preReceiptNo }}
+            </a-descriptions-item>
+            <a-descriptions-item label="剩余金额">
+              {{ formatAmount(refundTarget.remainingAmount) }}
+            </a-descriptions-item>
+          </a-descriptions>
+          <a-form
+            layout="vertical"
+            style="margin-top: 16px"
+          >
+            <a-form-item
+              label="退款原因"
+              required
+            >
+              <a-textarea
+                v-model:value="refundReason"
+                :rows="3"
+                placeholder="请输入退款原因"
+              />
+            </a-form-item>
+          </a-form>
+        </a-modal>
+
+        <!-- 新增预收款弹窗 -->
+        <FullScreenDetail
+          :visible="addVisible"
+          title="新增预收款"
+          :dirty="formDirty"
+          :save-loading="addLoading"
+          @save="handleAddConfirm"
+          @close="handleAddCancel"
+        >
+          <a-form
+            ref="addFormRef"
+            :model="addForm"
+            :rules="addFormRules"
+            :label-col="{ span: 6 }"
+            :wrapper-col="{ span: 16 }"
+          >
+            <a-form-item
+              label="客户名称"
+              name="customerName"
+            >
+              <a-input
+                v-model:value="addForm.customerName"
+                placeholder="请输入客户名称"
+              />
+            </a-form-item>
+            <a-form-item
+              label="预收金额"
+              name="amount"
+            >
+              <a-input-number
+                v-model:value="addForm.amount"
+                :min="0.01"
+                :precision="2"
+                style="width: 100%"
+                placeholder="请输入预收金额"
+              />
+            </a-form-item>
+            <a-form-item
+              label="收款日期"
+              name="dueDate"
+            >
+              <a-date-picker
+                v-model:value="addForm.dueDate"
+                style="width: 100%"
+                placeholder="请选择收款日期"
+              />
+            </a-form-item>
+            <a-form-item
+              label="备注"
+              name="remark"
+            >
+              <a-textarea
+                v-model:value="addForm.remark"
+                :rows="3"
+                placeholder="备注信息"
+              />
+            </a-form-item>
+          </a-form>
+        </FullScreenDetail>
+      </div>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

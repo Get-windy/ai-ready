@@ -8,39 +8,40 @@
         <result column="tenant_id" property="tenantId"/>
         <result column="menu_id" property="menuId"/>
         <result column="create_time" property="createTime"/>
+        <result column="deleted" property="deleted"/>
     </resultMap>
 
     <!-- 通用查询列 -->
     <sql id="BaseColumns">
-        id, tenant_id, menu_id, create_time
+        id, tenant_id, menu_id, create_time, deleted
     </sql>
 
     <!-- 根据租户ID查询已授权的菜单ID列表 -->
     <select id="selectMenuIdsByTenantId" resultType="long">
         SELECT menu_id
         FROM sys_tenant_menu
-        WHERE tenant_id = #{tenantId}
+        WHERE tenant_id = #{tenantId} AND deleted = 0
     </select>
 
     <!-- 批量插入租户菜单授权 -->
     <insert id="batchInsert">
-        INSERT INTO sys_tenant_menu (id, tenant_id, menu_id, create_time)
+        INSERT INTO sys_tenant_menu (id, tenant_id, menu_id, create_time, deleted)
         VALUES
         <foreach collection="list" item="item" separator=",">
-            (#{item.id}, #{item.tenantId}, #{item.menuId}, #{item.createTime})
+            (#{item.id}, #{item.tenantId}, #{item.menuId}, #{item.createTime}, 0)
         </foreach>
     </insert>
 
-    <!-- 根据租户ID删除所有授权 -->
-    <delete id="deleteByTenantId">
-        DELETE FROM sys_tenant_menu
-        WHERE tenant_id = #{tenantId}
-    </delete>
+    <!-- 根据租户ID软删除所有授权 -->
+    <update id="deleteByTenantId">
+        UPDATE sys_tenant_menu SET deleted = 1
+        WHERE tenant_id = #{tenantId} AND deleted = 0
+    </update>
 
-    <!-- 根据菜单ID删除所有关联 -->
-    <delete id="deleteByMenuId">
-        DELETE FROM sys_tenant_menu
-        WHERE menu_id = #{menuId}
-    </delete>
+    <!-- 根据菜单ID软删除所有关联 -->
+    <update id="deleteByMenuId">
+        UPDATE sys_tenant_menu SET deleted = 1
+        WHERE menu_id = #{menuId} AND deleted = 0
+    </update>
 
 </mapper>

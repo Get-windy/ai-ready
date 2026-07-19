@@ -19,6 +19,7 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,19 +36,49 @@ public class SaleOutboundController {
     private final SaleOutboundMapper saleOutboundMapper;
 
     @GetMapping("/page")
-    @Operation(summary = "分页查询出库单")
+    @Operation(summary = "分页查询出库单（按单据）")
     public Page<SaleOutboundVO> page(
             @Parameter(description = "关键词") @RequestParam(required = false) String keyword,
             @Parameter(description = "客户ID") @RequestParam(required = false) Long customerId,
             @Parameter(description = "订单ID") @RequestParam(required = false) Long orderId,
             @Parameter(description = "仓库ID") @RequestParam(required = false) Long warehouseId,
             @Parameter(description = "状态") @RequestParam(required = false) Integer status,
+            @Parameter(description = "出库单号") @RequestParam(required = false) String outboundNo,
+            @Parameter(description = "经手人ID") @RequestParam(required = false) Long salesPersonId,
+            @Parameter(description = "结算状态") @RequestParam(required = false) String settlementStatus,
+            @Parameter(description = "结款方式") @RequestParam(required = false) String settlementMethod,
+            @Parameter(description = "来源订单") @RequestParam(required = false) String sourceOrder,
+            @Parameter(description = "收货人") @RequestParam(required = false) String receiverName,
+            @Parameter(description = "开始日期") @RequestParam(required = false) String dateStart,
+            @Parameter(description = "结束日期") @RequestParam(required = false) String dateEnd,
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") int pageNum,
             @Parameter(description = "每页数量") @RequestParam(defaultValue = "10") int pageSize) {
-        Page<SaleOutbound> page = saleOutboundService.pageList(keyword, customerId, orderId, warehouseId, status, pageNum, pageSize);
+        Page<SaleOutbound> page = saleOutboundService.pageList(keyword, customerId, orderId, warehouseId, status,
+                outboundNo, salesPersonId, settlementStatus, settlementMethod, sourceOrder, receiverName,
+                dateStart, dateEnd, pageNum, pageSize);
         Page<SaleOutboundVO> voPage = new Page<>(pageNum, pageSize, page.getTotal());
         voPage.setRecords(page.getRecords().stream().map(this::convertToVO).collect(Collectors.toList()));
         return voPage;
+    }
+
+    @GetMapping("/page-detail")
+    @Operation(summary = "分页查询出库单明细（按明细）")
+    public Page<Map<String, Object>> pageDetail(
+            @Parameter(description = "关键词") @RequestParam(required = false) String keyword,
+            @Parameter(description = "客户ID") @RequestParam(required = false) Long customerId,
+            @Parameter(description = "仓库ID") @RequestParam(required = false) Long warehouseId,
+            @Parameter(description = "状态") @RequestParam(required = false) Integer status,
+            @Parameter(description = "出库单号") @RequestParam(required = false) String outboundNo,
+            @Parameter(description = "商品ID") @RequestParam(required = false) Long productId,
+            @Parameter(description = "经手人ID") @RequestParam(required = false) Long salesPersonId,
+            @Parameter(description = "结算状态") @RequestParam(required = false) String settlementStatus,
+            @Parameter(description = "来源订单") @RequestParam(required = false) String sourceOrder,
+            @Parameter(description = "开始日期") @RequestParam(required = false) String dateStart,
+            @Parameter(description = "结束日期") @RequestParam(required = false) String dateEnd,
+            @Parameter(description = "页码") @RequestParam(defaultValue = "1") int pageNum,
+            @Parameter(description = "每页数量") @RequestParam(defaultValue = "10") int pageSize) {
+        return saleOutboundService.pageDetail(keyword, customerId, warehouseId, status, outboundNo,
+                productId, salesPersonId, settlementStatus, sourceOrder, dateStart, dateEnd, pageNum, pageSize);
     }
 
     @GetMapping("/{id}")
@@ -89,14 +120,7 @@ public class SaleOutboundController {
         BeanUtils.copyProperties(dto, outbound);
         outbound.setTenantId(1L);
         outbound.setCreateBy(StpUtil.getLoginIdAsLong());
-        List<SaleOutboundItem> items = null;
-        if (dto.getItems() != null) {
-            items = dto.getItems().stream().map(itemDTO -> {
-                SaleOutboundItem item = new SaleOutboundItem();
-                BeanUtils.copyProperties(itemDTO, item);
-                return item;
-            }).collect(Collectors.toList());
-        }
+        List<SaleOutboundItem> items = mapItemsFromDTO(dto.getItems());
         SaleOutbound created = saleOutboundService.createOutbound(outbound, items);
         return convertToVO(created);
     }
@@ -113,14 +137,7 @@ public class SaleOutboundController {
     public SaleOutboundVO update(@PathVariable Long id, @RequestBody SaleOutboundCreateDTO dto) {
         SaleOutbound outbound = new SaleOutbound();
         BeanUtils.copyProperties(dto, outbound);
-        List<SaleOutboundItem> items = null;
-        if (dto.getItems() != null) {
-            items = dto.getItems().stream().map(itemDTO -> {
-                SaleOutboundItem item = new SaleOutboundItem();
-                BeanUtils.copyProperties(itemDTO, item);
-                return item;
-            }).collect(Collectors.toList());
-        }
+        List<SaleOutboundItem> items = mapItemsFromDTO(dto.getItems());
         SaleOutbound updated = saleOutboundService.updateOutbound(id, outbound, items);
         return convertToVO(updated);
     }
@@ -239,6 +256,16 @@ public class SaleOutboundController {
         saleOutboundService.removeItem(itemId);
     }
 
+    @GetMapping("/calculate-price")
+    @Operation(summary = "计算商品价格（前端选品时调用）")
+    public Map<String, Object> calculatePrice(
+            @RequestParam Long customerId,
+            @RequestParam Long productId,
+            @RequestParam(required = false) BigDecimal quantity,
+            @RequestParam(required = false) BigDecimal unitPrice) {
+        return saleOutboundService.calculateItemPrice(customerId, productId, quantity, unitPrice);
+    }
+
     @GetMapping("/statistics")
     @Operation(summary = "出库统计")
     public Map<String, Object> statistics() {
@@ -267,6 +294,62 @@ public class SaleOutboundController {
         return saleOutboundService.exportList(keyword, status);
     }
 
+    @PostMapping("/batch-print")
+    @Operation(summary = "批量打印出库单")
+    public List<SaleOutboundVO> batchPrint(@RequestBody List<Long> ids) {
+        return ids.stream().map(id -> {
+            SaleOutbound outbound = saleOutboundService.getById(id);
+            if (outbound != null) {
+                outbound.setPrintCount(outbound.getPrintCount() != null ? outbound.getPrintCount() + 1 : 1);
+                outbound.setPrintTime(java.time.LocalDateTime.now());
+                saleOutboundService.updateById(outbound);
+                return convertToVO(outbound);
+            }
+            return null;
+        }).filter(java.util.Objects::nonNull).collect(Collectors.toList());
+    }
+
+    @PostMapping("/{id}/print")
+    @Operation(summary = "打印后更新打印次数")
+    public SaleOutboundVO print(@PathVariable Long id) {
+        SaleOutbound outbound = saleOutboundService.getById(id);
+        if (outbound == null) {
+            throw new RuntimeException("出库单不存在");
+        }
+        outbound.setPrintCount(outbound.getPrintCount() != null ? outbound.getPrintCount() + 1 : 1);
+        outbound.setPrintTime(java.time.LocalDateTime.now());
+        saleOutboundService.updateById(outbound);
+        return convertToVO(outbound);
+    }
+
+    @PostMapping("/{id}/copy")
+    @Operation(summary = "复制出库单")
+    public SaleOutboundVO copy(@PathVariable Long id) {
+        SaleOutbound source = saleOutboundService.getById(id);
+        if (source == null) {
+            throw new RuntimeException("出库单不存在");
+        }
+        SaleOutbound copied = saleOutboundService.copyOutbound(id);
+        return convertToVO(copied);
+    }
+
+    @PostMapping("/import")
+    @Operation(summary = "批量导入出库单")
+    public Map<String, Object> importOutbound(@RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        Map<String, Object> result = new HashMap<>();
+        try {
+            int count = saleOutboundService.importOutbound(file);
+            result.put("success", true);
+            result.put("importedCount", count);
+            result.put("message", "成功导入 " + count + " 条记录");
+        } catch (Exception e) {
+            log.error("批量导入失败", e);
+            result.put("success", false);
+            result.put("message", "导入失败: " + e.getMessage());
+        }
+        return result;
+    }
+
     private SaleOutboundVO convertToVO(SaleOutbound outbound) {
         SaleOutboundVO vo = new SaleOutboundVO();
         BeanUtils.copyProperties(outbound, vo);
@@ -277,5 +360,39 @@ public class SaleOutboundController {
             }
         }
         return vo;
+    }
+
+    /** 将前端 DTO 列表映射为实体列表（处理字段名差异） */
+    private List<SaleOutboundItem> mapItemsFromDTO(List<SaleOutboundItemDTO> itemDTOs) {
+        if (itemDTOs == null) return null;
+        return itemDTOs.stream().map(itemDTO -> {
+            SaleOutboundItem item = new SaleOutboundItem();
+            BeanUtils.copyProperties(itemDTO, item);
+            // 前端字段名与实体字段名映射
+            // specification: 前端传 specification, 实体有 specification 和 productSpec 两个兼容字段
+            if (itemDTO.getSpecification() != null) {
+                item.setSpecification(itemDTO.getSpecification());
+                if (item.getProductSpec() == null) item.setProductSpec(itemDTO.getSpecification());
+            }
+            if (itemDTO.getProductSpec() != null && item.getSpecification() == null) {
+                item.setSpecification(itemDTO.getProductSpec());
+            }
+            // quantity → outboundQuantity + orderQuantity
+            if (itemDTO.getQuantity() != null) {
+                item.setQuantity(itemDTO.getQuantity());
+                item.setOutboundQuantity(itemDTO.getQuantity());
+                item.setOrderQuantity(itemDTO.getQuantity());
+            }
+            // amount → lineAmount
+            if (itemDTO.getAmount() != null) item.setLineAmount(itemDTO.getAmount());
+            // 日期字符串 → LocalDate
+            if (itemDTO.getExpiryDate() != null && item.getExpiryDate() == null) {
+                try { item.setExpiryDate(LocalDate.parse(itemDTO.getExpiryDate())); } catch (Exception ignored) {}
+            }
+            if (itemDTO.getLastSaleDate() != null && item.getLastSaleDate() == null) {
+                try { item.setLastSaleDate(LocalDate.parse(itemDTO.getLastSaleDate())); } catch (Exception ignored) {}
+            }
+            return item;
+        }).collect(Collectors.toList());
     }
 }

@@ -1,5 +1,7 @@
 package cn.aiedge.erp.purchase.purchasereturn.controller;
 
+import cn.aiedge.erp.purchase.purchasereturn.dto.PurchaseReturnDTO;
+import cn.aiedge.erp.purchase.purchasereturn.dto.PurchaseReturnItemDTO;
 import cn.aiedge.erp.purchase.purchasereturn.entity.PurchaseReturn;
 import cn.aiedge.erp.purchase.purchasereturn.entity.PurchaseReturnItem;
 import cn.aiedge.erp.purchase.purchasereturn.service.PurchaseReturnService;
@@ -9,9 +11,11 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Slf4j
 @RestController
@@ -53,8 +57,30 @@ public class PurchaseReturnController {
 
     @PostMapping
     @Operation(summary = "创建退货单")
-    public PurchaseReturn create(@RequestBody PurchaseReturn returnOrder, @RequestBody List<PurchaseReturnItem> items) {
+    // Ref: Odoo 18.0 Purchase Return - 前端统一发送 DTO，服务层拆分 header + items
+    public PurchaseReturn create(@RequestBody PurchaseReturnDTO dto) {
+        PurchaseReturn returnOrder = new PurchaseReturn();
+        BeanUtils.copyProperties(dto, returnOrder);
+        List<PurchaseReturnItem> items = dto.getItems().stream().map(itemDTO -> {
+            PurchaseReturnItem item = new PurchaseReturnItem();
+            BeanUtils.copyProperties(itemDTO, item);
+            return item;
+        }).collect(Collectors.toList());
         return purchaseReturnService.createReturn(returnOrder, items);
+    }
+
+    @PutMapping("/{id}")
+    @Operation(summary = "更新退货单")
+    public PurchaseReturn update(@PathVariable Long id, @RequestBody PurchaseReturnDTO dto) {
+        PurchaseReturn returnOrder = new PurchaseReturn();
+        BeanUtils.copyProperties(dto, returnOrder);
+        returnOrder.setId(id);
+        List<PurchaseReturnItem> items = dto.getItems().stream().map(itemDTO -> {
+            PurchaseReturnItem item = new PurchaseReturnItem();
+            BeanUtils.copyProperties(itemDTO, item);
+            return item;
+        }).collect(Collectors.toList());
+        return purchaseReturnService.updateReturn(id, returnOrder, items);
     }
 
     @PostMapping("/{id}/submit")

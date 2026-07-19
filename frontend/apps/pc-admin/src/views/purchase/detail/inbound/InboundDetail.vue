@@ -1,27 +1,75 @@
 <template>
   <DetailLayout
-    :breadcrumb-items="breadcrumbItems" :title="data?.inboundNo || ''"
-    :status="getStatusText(data?.status)" :status-type="getStatusType(data?.status)"
-    :tabs="tabs" :active-tab="activeTab" :loading="loading" :error="error"
-    :related-documents="relatedDocuments" :activity-logs="activityLogs"
-    @breadcrumb-click="handleBreadcrumbClick" @tab-change="handleTabChange"
-    @related-click="handleRelatedClick" @retry="fetchDetail"
+    :breadcrumb-items="breadcrumbItems"
+    :title="data?.inboundNo || ''"
+    :status="getStatusText(data?.status)"
+    :status-type="getStatusType(data?.status)"
+    :tabs="tabs"
+    :active-tab="activeTab"
+    :loading="loading"
+    :error="error"
+    :related-documents="relatedDocuments"
+    :activity-logs="activityLogs"
+    @breadcrumb-click="handleBreadcrumbClick"
+    @tab-change="handleTabChange"
+    @related-click="handleRelatedClick"
+    @retry="fetchDetail"
   >
-    <template #header-extra><a-tag v-if="data" color="blue">{{ data.supplierName }}</a-tag></template>
+    <template #header-extra>
+      <a-tag
+        v-if="data"
+        color="blue"
+      >
+        {{ data.supplierName }}
+      </a-tag>
+    </template>
     <template #actions>
-      <a-button v-if="data?.status === 0" type="primary" @click="handleApprove">审批入库</a-button>
-      <PrintButton template-type="inbound" :business-id="data?.id" business-type="purchase_inbound" button-text="打印" />
+      <a-button
+        v-if="data?.status === 0"
+        type="primary"
+        @click="handleApprove"
+      >
+        审批入库
+      </a-button>
+      <PrintButton
+        template-type="inbound"
+        :business-id="data?.id"
+        business-type="purchase_inbound"
+        button-text="打印"
+      />
     </template>
     <template #tab-basic>
-      <a-descriptions :column="2" bordered size="small">
-        <a-descriptions-item label="入库单号">{{ data?.inboundNo }}</a-descriptions-item>
-        <a-descriptions-item label="关联订单">{{ data?.orderNo || '-' }}</a-descriptions-item>
-        <a-descriptions-item label="供应商">{{ data?.supplierName }}</a-descriptions-item>
-        <a-descriptions-item label="入库日期">{{ data?.inboundDate }}</a-descriptions-item>
-        <a-descriptions-item label="金额">¥{{ data?.totalAmount?.toFixed(2) || '0.00' }}</a-descriptions-item>
-        <a-descriptions-item label="状态"><a-tag :color="getStatusColor(data?.status)">{{ getStatusText(data?.status) }}</a-tag></a-descriptions-item>
-        <a-descriptions-item label="创建人">{{ data?.creatorName || '-' }}</a-descriptions-item>
-        <a-descriptions-item label="创建时间">{{ data?.createTime }}</a-descriptions-item>
+      <a-descriptions
+        :column="2"
+        bordered
+        size="small"
+      >
+        <a-descriptions-item label="入库单号">
+          {{ data?.inboundNo }}
+        </a-descriptions-item>
+        <a-descriptions-item label="关联订单">
+          {{ data?.orderNo || '-' }}
+        </a-descriptions-item>
+        <a-descriptions-item label="供应商">
+          {{ data?.supplierName }}
+        </a-descriptions-item>
+        <a-descriptions-item label="入库日期">
+          {{ data?.inboundDate }}
+        </a-descriptions-item>
+        <a-descriptions-item label="金额">
+          ¥{{ data?.totalAmount?.toFixed(2) || '0.00' }}
+        </a-descriptions-item>
+        <a-descriptions-item label="状态">
+          <a-tag :color="getStatusColor(data?.status)">
+            {{ getStatusText(data?.status) }}
+          </a-tag>
+        </a-descriptions-item>
+        <a-descriptions-item label="创建人">
+          {{ data?.creatorName || '-' }}
+        </a-descriptions-item>
+        <a-descriptions-item label="创建时间">
+          {{ data?.createTime }}
+        </a-descriptions-item>
       </a-descriptions>
     </template>
     <template #tab-items>
@@ -41,7 +89,11 @@
           ¥{{ record.amount?.toFixed(2) }}
         </template>
       </BillTableList>
-      <a-empty v-if="!data?.items || (data as any).items.length === 0" description="暂无入库明细" style="margin-top: 16px" />
+      <a-empty
+        v-if="!data?.items || (data as any).items.length === 0"
+        description="暂无入库明细"
+        style="margin-top: 16px"
+      />
     </template>
   </DetailLayout>
 </template>

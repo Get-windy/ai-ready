@@ -4,15 +4,27 @@
       <div class="page-header">
         <div class="page-header-left">
           <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>
+              <router-link to="/">
+                首页
+              </router-link>
+            </a-breadcrumb-item>
             <a-breadcrumb-item>系统管理</a-breadcrumb-item>
             <a-breadcrumb-item>缓存管理</a-breadcrumb-item>
           </a-breadcrumb>
-          <h2 class="page-header-title">缓存管理</h2>
+          <h2 class="page-header-title">
+            缓存管理
+          </h2>
         </div>
         <div class="page-header-right">
-          <a-button size="small" @click="refreshAll" :loading="loading">
-            <template #icon><ReloadOutlined /></template>
+          <a-button
+            size="small"
+            :loading="loading"
+            @click="refreshAll"
+          >
+            <template #icon>
+              <ReloadOutlined />
+            </template>
             刷新
           </a-button>
         </div>
@@ -21,35 +33,65 @@
 
     <a-spin :spinning="loading">
       <!-- 缓存概览统计 -->
-      <a-row :gutter="16" style="margin-bottom:16px">
+      <a-row
+        :gutter="16"
+        style="margin-bottom:16px"
+      >
         <a-col :span="6">
           <a-card :bordered="false">
-            <a-statistic title="缓存总大小" :value="totalSize || '0 B'" />
+            <a-statistic
+              title="缓存总大小"
+              :value="totalSize || '0 B'"
+            />
           </a-card>
         </a-col>
         <a-col :span="6">
           <a-card :bordered="false">
-            <a-statistic title="缓存键数量" :value="totalKeys || 0" />
+            <a-statistic
+              title="缓存键数量"
+              :value="totalKeys || 0"
+            />
           </a-card>
         </a-col>
         <a-col :span="6">
           <a-card :bordered="false">
-            <a-statistic title="命中率" :value="hitRate || 0" suffix="%" :precision="1" :value-style="{ color: (hitRate || 0) > 80 ? '#52c41a' : '#faad14' }" />
+            <a-statistic
+              title="命中率"
+              :value="hitRate || 0"
+              suffix="%"
+              :precision="1"
+              :value-style="{ color: (hitRate || 0) > 80 ? '#52c41a' : '#faad14' }"
+            />
           </a-card>
         </a-col>
         <a-col :span="6">
           <a-card :bordered="false">
-            <a-statistic title="过期键" :value="expiredKeys || 0" :value-style="{ color: '#faad14' }" />
+            <a-statistic
+              title="过期键"
+              :value="expiredKeys || 0"
+              :value-style="{ color: '#faad14' }"
+            />
           </a-card>
         </a-col>
       </a-row>
 
       <!-- 缓存区域列表 -->
-      <a-card :bordered="false" title="缓存区域">
+      <a-card
+        :bordered="false"
+        title="缓存区域"
+      >
         <template #extra>
-          <a-popconfirm title="确定清空全部缓存?" @confirm="clearAllCache">
-            <a-button danger size="small">
-              <template #icon><DeleteOutlined /></template>
+          <a-popconfirm
+            title="确定清空全部缓存?"
+            @confirm="clearAllCache"
+          >
+            <a-button
+              danger
+              size="small"
+            >
+              <template #icon>
+                <DeleteOutlined />
+              </template>
               清空全部缓存
             </a-button>
           </a-popconfirm>
@@ -67,7 +109,10 @@
               <a-space>
                 <a @click="viewCacheKeys(record)">查看键</a>
                 <a-divider type="vertical" />
-                <a-popconfirm title="确定清空此缓存区域?" @confirm="clearRegion(record.name)">
+                <a-popconfirm
+                  title="确定清空此缓存区域?"
+                  @confirm="clearRegion(record.name)"
+                >
                   <a class="text-danger">清空</a>
                 </a-popconfirm>
               </a-space>
@@ -77,11 +122,25 @@
       </a-card>
 
       <!-- 缓存键列表弹窗 -->
-      <a-modal v-model:open="keysVisible" :title="`缓存键列表 - ${selectedRegion}`" width="640px" :footer="null">
-        <a-table :data-source="cacheKeys" :columns="keyColumns" row-key="key" :pagination="{ pageSize: 10 }" size="small">
+      <a-modal
+        v-model:open="keysVisible"
+        :title="`缓存键列表 - ${selectedRegion}`"
+        width="640px"
+        :footer="null"
+      >
+        <a-table
+          :data-source="cacheKeys"
+          :columns="keyColumns"
+          row-key="key"
+          :pagination="{ pageSize: 10 }"
+          size="small"
+        >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'action'">
-              <a-popconfirm title="确定删除此缓存键?" @confirm="deleteKey(selectedRegion, record.key)">
+              <a-popconfirm
+                title="确定删除此缓存键?"
+                @confirm="deleteKey(selectedRegion, record.key)"
+              >
                 <a class="text-danger">删除</a>
               </a-popconfirm>
             </template>

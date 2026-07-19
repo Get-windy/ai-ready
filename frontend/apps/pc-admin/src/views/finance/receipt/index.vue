@@ -1,273 +1,615 @@
 <template>
   <ErrorBoundary @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="rcpt-page-header">
-        <div class="rcpt-page-header-left">
-          <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item>财务管理</a-breadcrumb-item>
-            <a-breadcrumb-item>收款单管理</a-breadcrumb-item>
-          </a-breadcrumb>
-          <h2 class="rcpt-page-header-title">收款单管理</h2>
-        </div>
-        <div class="rcpt-page-header-right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-            <SyncOutlined /> {{ autoRefreshCountdown }}s
-          </span>
-          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)">
-            <template #icon><ReloadOutlined /></template>刷新
-          </a-button>
-          <span class="shortcut-hints">
-            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-            <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
-          </span>
-        </div>
-      </div>
-    </template>
-
-    <div class="finance-rcpt-page">
-      <div class="stat-cards">
-        <div class="stat-card stat-total">
-          <div class="stat-card-body">
-            <div class="stat-card-value">¥{{ formatAmount(stats.totalAmount) }}</div>
-            <div class="stat-card-label">收款总额</div>
+    <PageContainer full-height>
+      <template #header>
+        <div class="rcpt-page-header">
+          <div class="rcpt-page-header-left">
+            <a-breadcrumb>
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>财务管理</a-breadcrumb-item>
+              <a-breadcrumb-item>收款单管理</a-breadcrumb-item>
+            </a-breadcrumb>
+            <h2 class="rcpt-page-header-title">
+              收款单管理
+            </h2>
           </div>
-          <DollarOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-verified">
-          <div class="stat-card-body">
-            <div class="stat-card-value">¥{{ formatAmount(stats.verifiedAmount) }}</div>
-            <div class="stat-card-label">已核销</div>
+          <div class="rcpt-page-header-right">
+            <span
+              v-if="lastUpdateTime"
+              class="update-time"
+            >更新于 {{ lastUpdateTime }}</span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            >
+              <SyncOutlined /> {{ autoRefreshCountdown }}s
+            </span>
+            <a-button
+              size="small"
+              :loading="refreshLoading"
+              @click="debounceClick('refresh', fetchData)"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>刷新
+            </a-button>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+              <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+            </span>
           </div>
-          <CheckCircleOutlined class="stat-card-icon" />
         </div>
-        <div class="stat-card stat-pending">
-          <div class="stat-card-body">
-            <div class="stat-card-value">¥{{ formatAmount(stats.pendingAmount) }}</div>
-            <div class="stat-card-label">待核销</div>
+      </template>
+
+      <div class="finance-rcpt-page">
+        <div class="stat-cards">
+          <div class="stat-card stat-total">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                ¥{{ formatAmount(stats.totalAmount) }}
+              </div>
+              <div class="stat-card-label">
+                收款总额
+              </div>
+            </div>
+            <DollarOutlined class="stat-card-icon" />
           </div>
-          <ExclamationCircleOutlined class="stat-card-icon" />
+          <div class="stat-card stat-verified">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                ¥{{ formatAmount(stats.verifiedAmount) }}
+              </div>
+              <div class="stat-card-label">
+                已核销
+              </div>
+            </div>
+            <CheckCircleOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-pending">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                ¥{{ formatAmount(stats.pendingAmount) }}
+              </div>
+              <div class="stat-card-label">
+                待核销
+              </div>
+            </div>
+            <ExclamationCircleOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-count">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ pagination.total }}
+              </div>
+              <div class="stat-card-label">
+                笔数
+              </div>
+            </div>
+            <FileTextOutlined class="stat-card-icon" />
+          </div>
         </div>
-        <div class="stat-card stat-count">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ pagination.total }}</div>
-            <div class="stat-card-label">笔数</div>
-          </div>
-          <FileTextOutlined class="stat-card-icon" />
-        </div>
-      </div>
 
-      <BillTableList
-        ref="tableRef"
-        :min-empty-rows="12"
-        :columns="columns"
-        :data-source="tableData"
-        :loading="loading"
-        :pagination="pagination"
-        :row-key="'id'"
-        :filter-fields="filterFields"
-        :show-search="false"
-        export-permission="finance:receipt:list"
-        :show-add="false"
-        :show-edit="false"
-        :show-delete="false"
-        :selectable="true"
-        @refresh="fetchData"
-        @cell-dblclick="handleView"
-        @page-change="handlePageChange"
-        @filter-change="handleFilterChange"
-        @selection-change="handleSelectionChange"
-      >
-        <template #toolbar-actions>
-          <a-button type="primary" size="small" v-permission="'finance:receipt:create'" @click="debounceClick('add', handleAdd)">
-            <template #icon><PlusOutlined /></template>新增
-          </a-button>
-          <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
-            更新 {{ dayjs(lastUpdated).format('HH:mm') }}
-          </span>
-        </template>
+        <BillTableList
+          ref="tableRef"
+          :min-empty-rows="12"
+          :columns="columns"
+          :data-source="tableData"
+          :loading="loading"
+          :pagination="pagination"
+          :row-key="'id'"
+          :filter-fields="filterFields"
+          :show-search="false"
+          export-permission="finance:receipt:list"
+          :show-add="false"
+          :show-edit="false"
+          :show-delete="false"
+          :selectable="true"
+          @refresh="fetchData"
+          @cell-dblclick="handleView"
+          @page-change="handlePageChange"
+          @filter-change="handleFilterChange"
+          @selection-change="handleSelectionChange"
+        >
+          <template #toolbar-actions>
+            <a-button
+              v-permission="'finance:receipt:create'"
+              type="primary"
+              size="small"
+              @click="debounceClick('add', handleAdd)"
+            >
+              <template #icon>
+                <PlusOutlined />
+              </template>新增
+            </a-button>
+            <span
+              v-if="lastUpdated"
+              class="list-update-timestamp"
+              :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')"
+            >
+              更新 {{ dayjs(lastUpdated).format('HH:mm') }}
+            </span>
+          </template>
 
-        <template #empty>
-          <div class="table-empty">
-            <template v-if="hasError">
-              <WarningOutlined class="table-empty-icon" style="color: #faad14" />
-              <p class="table-empty-text">加载失败</p>
-              <a-button type="primary" size="small" @click="fetchData" class="table-empty-action"><ReloadOutlined /> 重试</a-button>
-            </template>
-            <template v-else>
-              <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-              <InboxOutlined v-else class="table-empty-icon" />
-              <p v-if="hasActiveFilters" class="table-empty-text">没有符合条件的收款单，<a @click="handleResetFilters">清除筛选</a></p>
-              <p v-else class="table-empty-text">暂无收款单数据</p>
-            </template>
-          </div>
-        </template>
+          <template #empty>
+            <div class="table-empty">
+              <template v-if="hasError">
+                <WarningOutlined
+                  class="table-empty-icon"
+                  style="color: #faad14"
+                />
+                <p class="table-empty-text">
+                  加载失败
+                </p>
+                <a-button
+                  type="primary"
+                  size="small"
+                  class="table-empty-action"
+                  @click="fetchData"
+                >
+                  <ReloadOutlined /> 重试
+                </a-button>
+              </template>
+              <template v-else>
+                <SearchOutlined
+                  v-if="hasActiveFilters"
+                  class="table-empty-icon"
+                />
+                <InboxOutlined
+                  v-else
+                  class="table-empty-icon"
+                />
+                <p
+                  v-if="hasActiveFilters"
+                  class="table-empty-text"
+                >
+                  没有符合条件的收款单，<a @click="handleResetFilters">清除筛选</a>
+                </p>
+                <p
+                  v-else
+                  class="table-empty-text"
+                >
+                  暂无收款单数据
+                </p>
+              </template>
+            </div>
+          </template>
 
-        <template #statusCell="{ record }">
-          <a-tag :color="statusColorMap[record.status] || 'default'">{{ statusLabelMap[record.status] || '未知' }}</a-tag>
-        </template>
-        <template #receiptTypeCell="{ record }">
-          <span>{{ receiptTypeLabelMap[record.sourceType] || record.sourceType || '其他' }}</span>
-        </template>
-        <template #action="{ record }">
-          <a-space :size="0" class="action-cell-inner">
-            <PrintButton
-              template-type="receipt"
-              :business-id="record.id"
-              business-type="receipt"
-              button-text=""
-              button-size="small"
-              button-type="link"
-              tooltip="打印"
-            />
-            <a-tooltip title="查看">
-              <a-button type="link" size="small" v-permission="'finance:receipt:view'" @click="handleView(record)">
-                <template #icon><EyeOutlined /></template>
-              </a-button>
-            </a-tooltip>
-            <a-tooltip v-if="record.status === 0" title="编辑">
-              <a-button type="link" size="small" v-permission="'finance:receipt:edit'" @click="handleEdit(record)">
-                <template #icon><EditOutlined /></template>
-              </a-button>
-            </a-tooltip>
-            <a-tooltip v-if="record.status === 0" title="提交审批">
-              <a-button type="link" size="small" v-permission="'finance:receipt:submit'" @click="handleSubmit(record)">
-                <template #icon><SendOutlined /></template>
-              </a-button>
-            </a-tooltip>
-            <a-tooltip v-if="record.status === 1" title="审批通过">
-              <a-button type="link" size="small" v-permission="'finance:receipt:approve'" @click="handleApprove(record)">
-                <template #icon><CheckOutlined /></template>
-              </a-button>
-            </a-tooltip>
-            <a-tooltip v-if="record.status === 2" title="完成收款">
-              <a-button type="link" size="small" v-permission="'finance:receipt:complete'" @click="handleComplete(record)">
-                <template #icon><FileDoneOutlined /></template>
-              </a-button>
-            </a-tooltip>
-            <a-tooltip v-if="record.status >= 0 && record.status < 5" title="取消">
-              <a-button type="link" size="small" v-permission="'finance:receipt:cancel'" danger @click="handleCancel(record)">
-                <template #icon><CloseOutlined /></template>
-              </a-button>
-            </a-tooltip>
-          </a-space>
-        </template>
-      </BillTableList>
+          <template #statusCell="{ record }">
+            <a-tag :color="statusColorMap[record.status] || 'default'">
+              {{ statusLabelMap[record.status] || '未知' }}
+            </a-tag>
+          </template>
+          <template #receiptTypeCell="{ record }">
+            <span>{{ receiptTypeLabelMap[record.sourceType] || record.sourceType || '其他' }}</span>
+          </template>
+          <template #action="{ record }">
+            <a-space
+              :size="0"
+              class="action-cell-inner"
+            >
+              <PrintButton
+                template-type="receipt"
+                :business-id="record.id"
+                business-type="receipt"
+                button-text=""
+                button-size="small"
+                button-type="link"
+                tooltip="打印"
+              />
+              <a-tooltip title="查看">
+                <a-button
+                  v-permission="'finance:receipt:view'"
+                  type="link"
+                  size="small"
+                  @click="handleView(record)"
+                >
+                  <template #icon>
+                    <EyeOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip
+                v-if="record.status === 0"
+                title="编辑"
+              >
+                <a-button
+                  v-permission="'finance:receipt:edit'"
+                  type="link"
+                  size="small"
+                  @click="handleEdit(record)"
+                >
+                  <template #icon>
+                    <EditOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip
+                v-if="record.status === 0"
+                title="提交审批"
+              >
+                <a-button
+                  v-permission="'finance:receipt:submit'"
+                  type="link"
+                  size="small"
+                  @click="handleSubmit(record)"
+                >
+                  <template #icon>
+                    <SendOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip
+                v-if="record.status === 1"
+                title="审批通过"
+              >
+                <a-button
+                  v-permission="'finance:receipt:approve'"
+                  type="link"
+                  size="small"
+                  @click="handleApprove(record)"
+                >
+                  <template #icon>
+                    <CheckOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip
+                v-if="record.status === 2"
+                title="完成收款"
+              >
+                <a-button
+                  v-permission="'finance:receipt:complete'"
+                  type="link"
+                  size="small"
+                  @click="handleComplete(record)"
+                >
+                  <template #icon>
+                    <FileDoneOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip
+                v-if="record.status >= 0 && record.status < 5"
+                title="取消"
+              >
+                <a-button
+                  v-permission="'finance:receipt:cancel'"
+                  type="link"
+                  size="small"
+                  danger
+                  @click="handleCancel(record)"
+                >
+                  <template #icon>
+                    <CloseOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+            </a-space>
+          </template>
+        </BillTableList>
 
-      <!-- 新增/编辑弹窗 -->
-      <FullScreenDetail
-        :visible="formVisible"
-        :title="isEditing ? '编辑收款单' : '新增收款单'"
-        :save-loading="formLoading"
-        :dirty="formDirty"
-        @save="handleFormSave"
-        @close="handleFormClose"
-      >
-        <a-form ref="formRef" :model="formState" :label-col="{ span: 4 }" :wrapper-col="{ span: 18 }" :rules="formRules">
-          <a-row :gutter="24">
-            <a-col :span="12">
-              <a-form-item label="客户名称" name="customerName" required>
-                <a-input v-model:value="formState.customerName" placeholder="请输入客户名称" />
-              </a-form-item>
-            </a-col>
-            <a-col :span="12">
-              <a-form-item label="收款金额" name="receiptAmount" required>
-                <a-input-number v-model:value="formState.receiptAmount" :min="0.01" :precision="2" style="width:100%" placeholder="请输入收款金额" />
-              </a-form-item>
-            </a-col>
-          </a-row>
-          <a-row :gutter="24">
-            <a-col :span="12">
-              <a-form-item label="收款方式" name="paymentMethod">
-                <a-select v-model:value="formState.paymentMethod" placeholder="选择收款方式">
-                  <a-select-option value="bank_transfer">银行转账</a-select-option>
-                  <a-select-option value="cash">现金</a-select-option>
-                  <a-select-option value="check">支票</a-select-option>
-                  <a-select-option value="wechat">微信</a-select-option>
-                  <a-select-option value="alipay">支付宝</a-select-option>
-                </a-select>
-              </a-form-item>
-            </a-col>
-            <a-col :span="12">
-              <a-form-item label="来源类型" name="sourceType">
-                <a-select v-model:value="formState.sourceType" placeholder="选择来源类型">
-                  <a-select-option value="SALE_ORDER">销售回款</a-select-option>
-                  <a-select-option value="PURCHASE_RETURN">采购退货退款</a-select-option>
-                  <a-select-option value="PRE_RECEIPT">预收转正</a-select-option>
-                  <a-select-option value="DEPOSIT">定金转正</a-select-option>
-                  <a-select-option value="ASSET_DISPOSAL">资产处置</a-select-option>
-                  <a-select-option value="EMPLOYEE_REFUND">员工退还</a-select-option>
-                  <a-select-option value="OTHER">其他收入</a-select-option>
-                </a-select>
-              </a-form-item>
-            </a-col>
-          </a-row>
-          <a-row :gutter="24">
-            <a-col :span="12">
-              <a-form-item label="收款日期" name="receiptDate">
-                <a-date-picker v-model:value="formState.receiptDate" style="width:100%" placeholder="选择收款日期" />
-              </a-form-item>
-            </a-col>
-            <a-col :span="12">
-              <a-form-item label="银行账号" name="bankAccount">
-                <a-input v-model:value="formState.bankAccount" placeholder="请输入银行账号" />
-              </a-form-item>
-            </a-col>
-          </a-row>
-          <a-form-item label="备注" name="remark">
-            <a-textarea v-model:value="formState.remark" :rows="3" placeholder="请输入备注" />
-          </a-form-item>
-        </a-form>
-      </FullScreenDetail>
+        <!-- 新增/编辑弹窗 -->
+        <FullScreenDetail
+          :visible="formVisible"
+          :title="isEditing ? '编辑收款单' : '新增收款单'"
+          :save-loading="formLoading"
+          :dirty="formDirty"
+          @save="handleFormSave"
+          @close="handleFormClose"
+        >
+          <a-form
+            ref="formRef"
+            :model="formState"
+            :label-col="{ span: 4 }"
+            :wrapper-col="{ span: 18 }"
+            :rules="formRules"
+          >
+            <a-row :gutter="24">
+              <a-col :span="12">
+                <a-form-item
+                  label="客户名称"
+                  name="customerName"
+                  required
+                >
+                  <a-input
+                    v-model:value="formState.customerName"
+                    placeholder="请输入客户名称"
+                  />
+                </a-form-item>
+              </a-col>
+              <a-col :span="12">
+                <a-form-item
+                  label="收款金额"
+                  name="receiptAmount"
+                  required
+                >
+                  <a-input-number
+                    v-model:value="formState.receiptAmount"
+                    :min="0.01"
+                    :precision="2"
+                    style="width:100%"
+                    placeholder="请输入收款金额"
+                  />
+                </a-form-item>
+              </a-col>
+            </a-row>
+            <a-row :gutter="24">
+              <a-col :span="12">
+                <a-form-item
+                  label="收款方式"
+                  name="paymentMethod"
+                >
+                  <a-select
+                    v-model:value="formState.paymentMethod"
+                    placeholder="选择收款方式"
+                  >
+                    <a-select-option value="bank_transfer">
+                      银行转账
+                    </a-select-option>
+                    <a-select-option value="cash">
+                      现金
+                    </a-select-option>
+                    <a-select-option value="check">
+                      支票
+                    </a-select-option>
+                    <a-select-option value="wechat">
+                      微信
+                    </a-select-option>
+                    <a-select-option value="alipay">
+                      支付宝
+                    </a-select-option>
+                  </a-select>
+                </a-form-item>
+              </a-col>
+              <a-col :span="12">
+                <a-form-item
+                  label="来源类型"
+                  name="sourceType"
+                >
+                  <a-select
+                    v-model:value="formState.sourceType"
+                    placeholder="选择来源类型"
+                  >
+                    <a-select-option value="SALE_ORDER">
+                      销售回款
+                    </a-select-option>
+                    <a-select-option value="PURCHASE_RETURN">
+                      采购退货退款
+                    </a-select-option>
+                    <a-select-option value="PRE_RECEIPT">
+                      预收转正
+                    </a-select-option>
+                    <a-select-option value="DEPOSIT">
+                      定金转正
+                    </a-select-option>
+                    <a-select-option value="ASSET_DISPOSAL">
+                      资产处置
+                    </a-select-option>
+                    <a-select-option value="EMPLOYEE_REFUND">
+                      员工退还
+                    </a-select-option>
+                    <a-select-option value="OTHER">
+                      其他收入
+                    </a-select-option>
+                  </a-select>
+                </a-form-item>
+              </a-col>
+            </a-row>
+            <a-row :gutter="24">
+              <a-col :span="12">
+                <a-form-item
+                  label="收款日期"
+                  name="receiptDate"
+                >
+                  <a-date-picker
+                    v-model:value="formState.receiptDate"
+                    style="width:100%"
+                    placeholder="选择收款日期"
+                  />
+                </a-form-item>
+              </a-col>
+              <a-col :span="12">
+                <a-form-item
+                  label="银行账号"
+                  name="bankAccount"
+                >
+                  <a-input
+                    v-model:value="formState.bankAccount"
+                    placeholder="请输入银行账号"
+                  />
+                </a-form-item>
+              </a-col>
+            </a-row>
+            <a-form-item
+              label="备注"
+              name="remark"
+            >
+              <a-textarea
+                v-model:value="formState.remark"
+                :rows="3"
+                placeholder="请输入备注"
+              />
+            </a-form-item>
+          </a-form>
+        </FullScreenDetail>
 
-      <!-- 查看详情弹窗 -->
-      <FullScreenDetail
-        :visible="detailVisible"
-        :title="`收款单详情 - ${detailData?.receiptNo || ''}`"
-        :footer="false"
-        @close="handleDetailClose"
-      >
-        <a-descriptions v-if="detailData" :column="2" bordered size="small">
-          <a-descriptions-item label="收款单号" :span="1">{{ detailData.receiptNo }}</a-descriptions-item>
-          <a-descriptions-item label="状态" :span="1">
-            <a-tag :color="statusColorMap[detailData.status]">{{ statusLabelMap[detailData.status] }}</a-tag>
-          </a-descriptions-item>
-          <a-descriptions-item label="客户名称" :span="1">{{ detailData.customerName }}</a-descriptions-item>
-          <a-descriptions-item label="收款金额" :span="1">¥{{ formatAmount(detailData.receiptAmount) }}</a-descriptions-item>
-          <a-descriptions-item label="已核销" :span="1">¥{{ formatAmount(detailData.verifiedAmount) }}</a-descriptions-item>
-          <a-descriptions-item label="待核销" :span="1">¥{{ formatAmount(detailData.pendingAmount) }}</a-descriptions-item>
-          <a-descriptions-item label="收款方式" :span="1">{{ detailData.paymentMethod || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="来源类型" :span="1">{{ receiptTypeLabelMap[detailData.sourceType] || detailData.sourceType || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="来源单号" :span="1">{{ detailData.sourceNo || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="收款日期" :span="1">{{ detailData.receiptDate }}</a-descriptions-item>
-          <a-descriptions-item label="银行账号" :span="1">{{ detailData.bankAccount || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="交易流水号" :span="1">{{ detailData.transactionNo || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="备注" :span="2">{{ detailData.remark || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="创建人" :span="1">{{ detailData.createBy || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="创建时间" :span="1">{{ detailData.createTime }}</a-descriptions-item>
-          <a-descriptions-item v-if="detailData.approvedBy" label="审批人" :span="1">{{ detailData.approvedBy }}</a-descriptions-item>
-          <a-descriptions-item v-if="detailData.approvedTime" label="审批时间" :span="1">{{ detailData.approvedTime }}</a-descriptions-item>
-          <a-descriptions-item v-if="detailData.completedBy" label="完成人" :span="1">{{ detailData.completedBy }}</a-descriptions-item>
-          <a-descriptions-item v-if="detailData.completedTime" label="完成时间" :span="1">{{ detailData.completedTime }}</a-descriptions-item>
-        </a-descriptions>
-      </FullScreenDetail>
-
-      <!-- 取消确认弹窗 -->
-      <a-modal :open="cancelVisible" title="取消收款单" :confirm-loading="cancelLoading" @ok="handleCancelConfirm" @cancel="cancelVisible = false">
-        <a-form layout="vertical">
-          <a-descriptions v-if="cancelTarget" :column="1" bordered size="small">
-            <a-descriptions-item label="收款单号">{{ cancelTarget.receiptNo }}</a-descriptions-item>
-            <a-descriptions-item label="金额">¥{{ formatAmount(cancelTarget.receiptAmount) }}</a-descriptions-item>
+        <!-- 查看详情弹窗 -->
+        <FullScreenDetail
+          :visible="detailVisible"
+          :title="`收款单详情 - ${detailData?.receiptNo || ''}`"
+          :footer="false"
+          @close="handleDetailClose"
+        >
+          <a-descriptions
+            v-if="detailData"
+            :column="2"
+            bordered
+            size="small"
+          >
+            <a-descriptions-item
+              label="收款单号"
+              :span="1"
+            >
+              {{ detailData.receiptNo }}
+            </a-descriptions-item>
+            <a-descriptions-item
+              label="状态"
+              :span="1"
+            >
+              <a-tag :color="statusColorMap[detailData.status]">
+                {{ statusLabelMap[detailData.status] }}
+              </a-tag>
+            </a-descriptions-item>
+            <a-descriptions-item
+              label="客户名称"
+              :span="1"
+            >
+              {{ detailData.customerName }}
+            </a-descriptions-item>
+            <a-descriptions-item
+              label="收款金额"
+              :span="1"
+            >
+              ¥{{ formatAmount(detailData.receiptAmount) }}
+            </a-descriptions-item>
+            <a-descriptions-item
+              label="已核销"
+              :span="1"
+            >
+              ¥{{ formatAmount(detailData.verifiedAmount) }}
+            </a-descriptions-item>
+            <a-descriptions-item
+              label="待核销"
+              :span="1"
+            >
+              ¥{{ formatAmount(detailData.pendingAmount) }}
+            </a-descriptions-item>
+            <a-descriptions-item
+              label="收款方式"
+              :span="1"
+            >
+              {{ detailData.paymentMethod || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item
+              label="来源类型"
+              :span="1"
+            >
+              {{ receiptTypeLabelMap[detailData.sourceType] || detailData.sourceType || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item
+              label="来源单号"
+              :span="1"
+            >
+              {{ detailData.sourceNo || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item
+              label="收款日期"
+              :span="1"
+            >
+              {{ detailData.receiptDate }}
+            </a-descriptions-item>
+            <a-descriptions-item
+              label="银行账号"
+              :span="1"
+            >
+              {{ detailData.bankAccount || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item
+              label="交易流水号"
+              :span="1"
+            >
+              {{ detailData.transactionNo || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item
+              label="备注"
+              :span="2"
+            >
+              {{ detailData.remark || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item
+              label="创建人"
+              :span="1"
+            >
+              {{ detailData.createBy || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item
+              label="创建时间"
+              :span="1"
+            >
+              {{ detailData.createTime }}
+            </a-descriptions-item>
+            <a-descriptions-item
+              v-if="detailData.approvedBy"
+              label="审批人"
+              :span="1"
+            >
+              {{ detailData.approvedBy }}
+            </a-descriptions-item>
+            <a-descriptions-item
+              v-if="detailData.approvedTime"
+              label="审批时间"
+              :span="1"
+            >
+              {{ detailData.approvedTime }}
+            </a-descriptions-item>
+            <a-descriptions-item
+              v-if="detailData.completedBy"
+              label="完成人"
+              :span="1"
+            >
+              {{ detailData.completedBy }}
+            </a-descriptions-item>
+            <a-descriptions-item
+              v-if="detailData.completedTime"
+              label="完成时间"
+              :span="1"
+            >
+              {{ detailData.completedTime }}
+            </a-descriptions-item>
           </a-descriptions>
-          <a-form-item label="取消原因" required style="margin-top:16px">
-            <a-textarea v-model:value="cancelReason" :rows="3" placeholder="请输入取消原因" />
-          </a-form-item>
-        </a-form>
-      </a-modal>
-    </div>
-  </PageContainer>
+        </FullScreenDetail>
+
+        <!-- 取消确认弹窗 -->
+        <a-modal
+          :open="cancelVisible"
+          title="取消收款单"
+          :confirm-loading="cancelLoading"
+          @ok="handleCancelConfirm"
+          @cancel="cancelVisible = false"
+        >
+          <a-form layout="vertical">
+            <a-descriptions
+              v-if="cancelTarget"
+              :column="1"
+              bordered
+              size="small"
+            >
+              <a-descriptions-item label="收款单号">
+                {{ cancelTarget.receiptNo }}
+              </a-descriptions-item>
+              <a-descriptions-item label="金额">
+                ¥{{ formatAmount(cancelTarget.receiptAmount) }}
+              </a-descriptions-item>
+            </a-descriptions>
+            <a-form-item
+              label="取消原因"
+              required
+              style="margin-top:16px"
+            >
+              <a-textarea
+                v-model:value="cancelReason"
+                :rows="3"
+                placeholder="请输入取消原因"
+              />
+            </a-form-item>
+          </a-form>
+        </a-modal>
+      </div>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

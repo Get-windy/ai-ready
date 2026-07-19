@@ -1,155 +1,332 @@
 <template>
   <ErrorBoundary @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="report-page-header">
-        <div class="report-page-header-left">
-          <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item>固定资产</a-breadcrumb-item>
-            <a-breadcrumb-item>报表统计</a-breadcrumb-item>
-          </a-breadcrumb>
-          <h2 class="report-page-header-title">报表统计</h2>
-        </div>
-        <div class="report-page-header-right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-            <SyncOutlined /> {{ autoRefreshCountdown }}s
-          </span>
-          <PrintButton :record="depreciationSummary" business-type="fixed_asset_report" button-type="link" button-size="small" tooltip="打印报表" />
-          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', handleRefresh)()" v-permission="'erp:fixed-asset:report:query'">
-            <template #icon><ReloadOutlined /></template>
-            刷新
-          </a-button>
+    <PageContainer full-height>
+      <template #header>
+        <div class="report-page-header">
+          <div class="report-page-header-left">
+            <a-breadcrumb>
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>固定资产</a-breadcrumb-item>
+              <a-breadcrumb-item>报表统计</a-breadcrumb-item>
+            </a-breadcrumb>
+            <h2 class="report-page-header-title">
+              报表统计
+            </h2>
+          </div>
+          <div class="report-page-header-right">
+            <span
+              v-if="lastUpdateTime"
+              class="update-time"
+            >更新于 {{ lastUpdateTime }}</span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            >
+              <SyncOutlined /> {{ autoRefreshCountdown }}s
+            </span>
+            <PrintButton
+              :record="depreciationSummary"
+              business-type="fixed_asset_report"
+              button-type="link"
+              button-size="small"
+              tooltip="打印报表"
+            />
+            <a-button
+              v-permission="'erp:fixed-asset:report:query'"
+              size="small"
+              :loading="refreshLoading"
+              @click="debounceClick('refresh', handleRefresh)()"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
+              刷新
+            </a-button>
 
-                <span class="shortcut-hints">
-                  <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-                </span>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            </span>
+          </div>
         </div>
-      </div>
-    </template>
-
-    <div class="report-page">
-      <!-- 错误态 -->
-      <template v-if="hasError && !loading">
-        <a-result status="error" title="加载失败" sub-title="获取报表数据时发生错误">
-          <template #extra>
-            <a-button size="small" type="primary" @click="handleRefresh">重新加载</a-button>
-          </template>
-        </a-result>
       </template>
 
-      <!-- 正常内容 -->
-      <template v-else>
-        <!-- Summary Cards -->
-        <div class="stat-cards">
-        <div class="stat-card stat-original" @click="activeTab = 'summary'">
-          <div class="stat-card-body">
-            <div class="stat-card-value">¥{{ formatAmount(depreciationSummary?.totalOriginalValue || 0) }}</div>
-            <div class="stat-card-label">资产原值</div>
+      <div class="report-page">
+        <!-- 错误态 -->
+        <template v-if="hasError && !loading">
+          <a-result
+            status="error"
+            title="加载失败"
+            sub-title="获取报表数据时发生错误"
+          >
+            <template #extra>
+              <a-button
+                size="small"
+                type="primary"
+                @click="handleRefresh"
+              >
+                重新加载
+              </a-button>
+            </template>
+          </a-result>
+        </template>
+
+        <!-- 正常内容 -->
+        <template v-else>
+          <!-- Summary Cards -->
+          <div class="stat-cards">
+            <div
+              class="stat-card stat-original"
+              @click="activeTab = 'summary'"
+            >
+              <div class="stat-card-body">
+                <div class="stat-card-value">
+                  ¥{{ formatAmount(depreciationSummary?.totalOriginalValue || 0) }}
+                </div>
+                <div class="stat-card-label">
+                  资产原值
+                </div>
+              </div>
+              <DollarOutlined class="stat-card-icon" />
+            </div>
+            <div
+              class="stat-card stat-depreciation"
+              @click="activeTab = 'summary'"
+            >
+              <div class="stat-card-body">
+                <div class="stat-card-value">
+                  ¥{{ formatAmount(depreciationSummary?.totalAccumulatedDepreciation || 0) }}
+                </div>
+                <div class="stat-card-label">
+                  累计折旧
+                </div>
+              </div>
+              <CalculatorOutlined class="stat-card-icon" />
+            </div>
+            <div
+              class="stat-card stat-net"
+              @click="activeTab = 'summary'"
+            >
+              <div class="stat-card-body">
+                <div class="stat-card-value">
+                  ¥{{ formatAmount(depreciationSummary?.totalNetValue || 0) }}
+                </div>
+                <div class="stat-card-label">
+                  资产净值
+                </div>
+              </div>
+              <LineChartOutlined class="stat-card-icon" />
+            </div>
+            <div
+              class="stat-card stat-count"
+              @click="activeTab = 'summary'"
+            >
+              <div class="stat-card-body">
+                <div class="stat-card-value">
+                  {{ depreciationSummary?.assetCount || 0 }}
+                </div>
+                <div class="stat-card-label">
+                  资产数量
+                </div>
+              </div>
+              <FileTextOutlined class="stat-card-icon" />
+            </div>
           </div>
-          <DollarOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-depreciation" @click="activeTab = 'summary'">
-          <div class="stat-card-body">
-            <div class="stat-card-value">¥{{ formatAmount(depreciationSummary?.totalAccumulatedDepreciation || 0) }}</div>
-            <div class="stat-card-label">累计折旧</div>
-          </div>
-          <CalculatorOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-net" @click="activeTab = 'summary'">
-          <div class="stat-card-body">
-            <div class="stat-card-value">¥{{ formatAmount(depreciationSummary?.totalNetValue || 0) }}</div>
-            <div class="stat-card-label">资产净值</div>
-          </div>
-          <LineChartOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-count" @click="activeTab = 'summary'">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ depreciationSummary?.assetCount || 0 }}</div>
-            <div class="stat-card-label">资产数量</div>
-          </div>
-          <FileTextOutlined class="stat-card-icon" />
-        </div>
+
+          <!-- Tabs -->
+          <a-card class="report-tabs-card">
+            <a-tabs v-model:active-key="activeTab">
+              <a-tab-pane
+                key="summary"
+                tab="折旧汇总"
+              >
+                <BillTableList
+                  :columns="depreciationVxeColumns"
+                  :data-source="monthlyData"
+                  :loading="loading"
+                  row-key="period"
+                  :pagination="false as any"
+                  :show-toolbar="false"
+                  :selectable="false"
+                  :show-add="false"
+                  :show-search="false"
+                  :show-export="false"
+:show-batch-delete="false"
+                >
+                  <template #empty>
+                    <div class="tab-empty">
+                      <InboxOutlined
+                        v-if="!loading"
+                        class="tab-empty-icon"
+                      />
+                      <p
+                        v-if="!loading"
+                        class="tab-empty-text"
+                      >
+                        暂无折旧汇总数据
+                      </p>
+                    </div>
+                  </template>
+                </BillTableList>
+              </a-tab-pane>
+
+              <a-tab-pane
+                key="ledger"
+                tab="资产台账"
+              >
+                <a-form
+                  layout="inline"
+                  style="margin-bottom: 16px"
+                >
+                  <a-form-item label="资产编码">
+                    <a-input
+                      v-model:value="ledgerParams.assetCode"
+                      placeholder="资产编码"
+                      allow-clear
+                      size="small"
+                    />
+                  </a-form-item>
+                  <a-form-item label="部门">
+                    <a-input
+                      v-model:value="ledgerParams.departmentId"
+                      placeholder="部门ID"
+                      allow-clear
+                      size="small"
+                    />
+                  </a-form-item>
+                  <a-form-item>
+                    <a-button
+                      v-permission="'erp:fixed-asset:report:query'"
+                      type="primary"
+                      @click="fetchLedger"
+                    >
+                      查询
+                    </a-button>
+                  </a-form-item>
+                </a-form>
+                <BillTableList
+                  :columns="ledgerVxeColumns"
+                  :data-source="ledgerData"
+                  :loading="ledgerLoading"
+                  row-key="assetCode"
+                  :pagination="{ pageSize: 10 } as any"
+                  :show-toolbar="false"
+                  :selectable="false"
+                  :show-add="false"
+                  :show-search="false"
+                  :show-export="false"
+:show-batch-delete="false"
+                />
+              </a-tab-pane>
+
+              <a-tab-pane
+                key="age"
+                tab="账龄分析"
+              >
+                <a-row
+                  :gutter="16"
+                  style="margin-bottom: 16px"
+                >
+                  <a-col :span="12">
+                    <a-card title="按账龄分布">
+                      <v-chart
+                        :option="ageChartOption"
+                        style="height: 350px"
+                        autoresize
+                      />
+                    </a-card>
+                  </a-col>
+                  <a-col :span="12">
+                    <a-card title="账龄明细">
+                      <BillTableList
+                        :columns="ageVxeColumns"
+                        :data-source="ageData"
+                        :loading="ageLoading"
+                        row-key="label"
+                        :pagination="false as any"
+                        :show-toolbar="false"
+                        :selectable="false"
+                        :show-add="false"
+                        :show-search="false"
+                        :show-export="false"
+:show-batch-delete="false"
+                      >
+                        <template #empty>
+                          <div class="tab-empty">
+                            <InboxOutlined
+                              v-if="!ageLoading"
+                              class="tab-empty-icon"
+                            />
+                            <p
+                              v-if="!ageLoading"
+                              class="tab-empty-text"
+                            >
+                              暂无账龄数据
+                            </p>
+                          </div>
+                        </template>
+                      </BillTableList>
+                    </a-card>
+                  </a-col>
+                </a-row>
+              </a-tab-pane>
+
+              <a-tab-pane
+                key="category"
+                tab="分类汇总"
+              >
+                <a-row :gutter="16">
+                  <a-col :span="12">
+                    <a-card title="分类资产分布">
+                      <v-chart
+                        :option="categoryChartOption"
+                        style="height: 350px"
+                        autoresize
+                      />
+                    </a-card>
+                  </a-col>
+                  <a-col :span="12">
+                    <a-card title="分类明细">
+                      <BillTableList
+                        :columns="categoryVxeColumns"
+                        :data-source="categoryData"
+                        :loading="categoryLoading"
+                        row-key="categoryId"
+                        :pagination="false as any"
+                        :show-toolbar="false"
+                        :selectable="false"
+                        :show-add="false"
+                        :show-search="false"
+                        :show-export="false"
+:show-batch-delete="false"
+                      >
+                        <template #empty>
+                          <div class="tab-empty">
+                            <InboxOutlined
+                              v-if="!categoryLoading"
+                              class="tab-empty-icon"
+                            />
+                            <p
+                              v-if="!categoryLoading"
+                              class="tab-empty-text"
+                            >
+                              暂无分类汇总数据
+                            </p>
+                          </div>
+                        </template>
+                      </BillTableList>
+                    </a-card>
+                  </a-col>
+                </a-row>
+              </a-tab-pane>
+            </a-tabs>
+          </a-card>
+        </template>
       </div>
-
-      <!-- Tabs -->
-      <a-card class="report-tabs-card">
-        <a-tabs v-model:activeKey="activeTab">
-          <a-tab-pane key="summary" tab="折旧汇总">
-            <BillTableList :columns="depreciationVxeColumns" :data-source="monthlyData" :loading="loading" row-key="period" :pagination="false as any" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
-              <template #empty>
-                <div class="tab-empty">
-                  <InboxOutlined v-if="!loading" class="tab-empty-icon" />
-                  <p v-if="!loading" class="tab-empty-text">暂无折旧汇总数据</p>
-                </div>
-              </template>
-            </BillTableList>
-          </a-tab-pane>
-
-          <a-tab-pane key="ledger" tab="资产台账">
-            <a-form layout="inline" style="margin-bottom: 16px">
-              <a-form-item label="资产编码">
-                <a-input v-model:value="ledgerParams.assetCode" placeholder="资产编码" allow-clear size="small" />
-              </a-form-item>
-              <a-form-item label="部门">
-                <a-input v-model:value="ledgerParams.departmentId" placeholder="部门ID" allow-clear size="small" />
-              </a-form-item>
-              <a-form-item>
-                <a-button type="primary" @click="fetchLedger" v-permission="'erp:fixed-asset:report:query'">查询</a-button>
-              </a-form-item>
-            </a-form>
-            <BillTableList :columns="ledgerVxeColumns" :data-source="ledgerData" :loading="ledgerLoading" row-key="assetCode" :pagination="{ pageSize: 10 } as any" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false" />
-          </a-tab-pane>
-
-          <a-tab-pane key="age" tab="账龄分析">
-            <a-row :gutter="16" style="margin-bottom: 16px">
-              <a-col :span="12">
-                <a-card title="按账龄分布">
-                  <v-chart :option="ageChartOption" style="height: 350px" autoresize />
-                </a-card>
-              </a-col>
-              <a-col :span="12">
-                <a-card title="账龄明细">
-                  <BillTableList :columns="ageVxeColumns" :data-source="ageData" :loading="ageLoading" row-key="label" :pagination="false as any" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
-              <template #empty>
-                <div class="tab-empty">
-                  <InboxOutlined v-if="!ageLoading" class="tab-empty-icon" />
-                  <p v-if="!ageLoading" class="tab-empty-text">暂无账龄数据</p>
-                </div>
-              </template>
-            </BillTableList>
-                </a-card>
-              </a-col>
-            </a-row>
-          </a-tab-pane>
-
-          <a-tab-pane key="category" tab="分类汇总">
-            <a-row :gutter="16">
-              <a-col :span="12">
-                <a-card title="分类资产分布">
-                  <v-chart :option="categoryChartOption" style="height: 350px" autoresize />
-                </a-card>
-              </a-col>
-              <a-col :span="12">
-                <a-card title="分类明细">
-                  <BillTableList :columns="categoryVxeColumns" :data-source="categoryData" :loading="categoryLoading" row-key="categoryId" :pagination="false as any" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
-              <template #empty>
-                <div class="tab-empty">
-                  <InboxOutlined v-if="!categoryLoading" class="tab-empty-icon" />
-                  <p v-if="!categoryLoading" class="tab-empty-text">暂无分类汇总数据</p>
-                </div>
-              </template>
-            </BillTableList>
-                </a-card>
-              </a-col>
-            </a-row>
-          </a-tab-pane>
-        </a-tabs>
-      </a-card>
-      </template>
-    </div>
-  </PageContainer>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

@@ -4,29 +4,45 @@
     <div class="stat-cards">
       <div class="stat-card stat-pending">
         <div class="stat-card-body">
-          <div class="stat-card-value">{{ stats.pendingCount }}</div>
-          <div class="stat-card-label">待提醒</div>
+          <div class="stat-card-value">
+            {{ stats.pendingCount }}
+          </div>
+          <div class="stat-card-label">
+            待提醒
+          </div>
         </div>
         <ClockCircleOutlined class="stat-card-icon" />
       </div>
       <div class="stat-card stat-reminded">
         <div class="stat-card-body">
-          <div class="stat-card-value">{{ stats.remindedCount }}</div>
-          <div class="stat-card-label">已提醒</div>
+          <div class="stat-card-value">
+            {{ stats.remindedCount }}
+          </div>
+          <div class="stat-card-label">
+            已提醒
+          </div>
         </div>
         <BellOutlined class="stat-card-icon" />
       </div>
       <div class="stat-card stat-collected">
         <div class="stat-card-body">
-          <div class="stat-card-value">{{ stats.collectedCount }}</div>
-          <div class="stat-card-label">已收款</div>
+          <div class="stat-card-value">
+            {{ stats.collectedCount }}
+          </div>
+          <div class="stat-card-label">
+            已收款
+          </div>
         </div>
         <CheckCircleOutlined class="stat-card-icon" />
       </div>
       <div class="stat-card stat-amount">
         <div class="stat-card-body">
-          <div class="stat-card-value">¥{{ formatAmount(stats.totalOverdueAmount) }}</div>
-          <div class="stat-card-label">逾期总额</div>
+          <div class="stat-card-value">
+            ¥{{ formatAmount(stats.totalOverdueAmount) }}
+          </div>
+          <div class="stat-card-label">
+            逾期总额
+          </div>
         </div>
         <DollarOutlined class="stat-card-icon" />
       </div>
@@ -84,13 +100,19 @@
     <!-- 操作按钮 -->
     <div class="action-area">
       <a-space>
-        <a-button v-permission="'finance:receivable:reminder'" @click="handleBatchRemind">
+        <a-button
+          v-permission="'finance:receivable:reminder'"
+          @click="handleBatchRemind"
+        >
           <template #icon>
             <BellOutlined />
           </template>
           批量提醒
         </a-button>
-        <a-button v-permission="'finance:receivable:export'" @click="handleExport">
+        <a-button
+          v-permission="'finance:receivable:export'"
+          @click="handleExport"
+        >
           <template #icon>
             <ExportOutlined />
           </template>
@@ -121,14 +143,26 @@
         <template #empty>
           <div class="table-empty">
             <template v-if="hasError">
-              <WarningOutlined class="table-empty-icon" style="color: #faad14" />
-              <p class="table-empty-text">加载失败</p>
-              <a-button type="primary" size="small" @click="fetchData" class="table-empty-action">
+              <WarningOutlined
+                class="table-empty-icon"
+                style="color: #faad14"
+              />
+              <p class="table-empty-text">
+                加载失败
+              </p>
+              <a-button
+                type="primary"
+                size="small"
+                class="table-empty-action"
+                @click="fetchData"
+              >
                 <ReloadOutlined /> 重试
               </a-button>
             </template>
             <template v-else>
-              <p class="table-empty-text">暂无数据</p>
+              <p class="table-empty-text">
+                暂无数据
+              </p>
             </template>
           </div>
         </template>
@@ -338,7 +372,7 @@ const handleSelectionChange = (rows: any[], ids: any[]) => {
 const fetchData = async () => {
   loading.value = true
   try {
-    const res = await request.get('/api/finance/collection-reminder/page', {
+    const res = await request.get('/finance/collection-reminder/page', {
       params: {
         ...queryParams,
         pageNum: pagination.current,

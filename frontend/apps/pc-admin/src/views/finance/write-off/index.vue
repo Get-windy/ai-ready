@@ -1,298 +1,449 @@
 <template>
   <ErrorBoundary @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="writeoff-page-header">
-        <div class="writeoff-page-header-left">
-          <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item>财务管理</a-breadcrumb-item>
-            <a-breadcrumb-item>收付款核销</a-breadcrumb-item>
-          </a-breadcrumb>
-          <h2 class="writeoff-page-header-title">收付款核销</h2>
-        </div>
-        <div class="writeoff-page-header-right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-            <SyncOutlined /> {{ autoRefreshCountdown }}s
-          </span>
-          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)">
-            <template #icon><ReloadOutlined /></template>
-            刷新
-          </a-button>
-          <span class="shortcut-hints">
-            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-          </span>
-        </div>
-      </div>
-    </template>
-
-    <div class="finance-writeoff-page">
-      <!-- 统计卡片 -->
-      <div class="stat-cards">
-        <div class="stat-card stat-total">
-          <div class="stat-card-body">
-            <div class="stat-card-value">¥{{ formatAmount(stats.totalAmount) }}</div>
-            <div class="stat-card-label">{{ activeTab === 'receipt' ? '收款' : '付款' }}总额</div>
+    <PageContainer full-height>
+      <template #header>
+        <div class="writeoff-page-header">
+          <div class="writeoff-page-header-left">
+            <a-breadcrumb>
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>财务管理</a-breadcrumb-item>
+              <a-breadcrumb-item>收付款核销</a-breadcrumb-item>
+            </a-breadcrumb>
+            <h2 class="writeoff-page-header-title">
+              收付款核销
+            </h2>
           </div>
-          <DollarOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-written-off">
-          <div class="stat-card-body">
-            <div class="stat-card-value">¥{{ formatAmount(stats.writtenOffAmount) }}</div>
-            <div class="stat-card-label">已核销</div>
-          </div>
-          <CheckCircleOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-balance">
-          <div class="stat-card-body">
-            <div class="stat-card-value">¥{{ formatAmount(stats.balanceAmount) }}</div>
-            <div class="stat-card-label">未核销</div>
-          </div>
-          <ExclamationCircleOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-count">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ pagination.total }}</div>
-            <div class="stat-card-label">{{ activeTab === 'receipt' ? '收款' : '付款' }}笔数</div>
-          </div>
-          <FileTextOutlined class="stat-card-icon" />
-        </div>
-      </div>
-
-      <a-tabs v-model:activeKey="activeTab" @change="handleTabChange">
-        <!-- 收款核销 -->
-        <a-tab-pane key="receipt" tab="收款核销">
-          <BillTableList
-            ref="tableRef"
-            :min-empty-rows="12"
-            :columns="receiptColumns"
-            :data-source="receiptTableData"
-            :loading="loading"
-            :pagination="pagination"
-            :row-key="'id'"
-            :filter-fields="receiptFilterFields"
-            :show-search="false"
-            export-permission="finance:writeoff:list"
-            :show-add="true"
-            :show-edit="false"
-            :show-delete="false"
-            add-text="新增核销"
-            :selectable="true"
-            @refresh="fetchData"
-            @add="handleAdd"
-            @cell-dblclick="handleView"
-            @page-change="handlePageChange"
-            @filter-change="handleFilterChange"
-            @selection-change="handleSelectionChange"
-          >
-            <template #toolbar-actions>
-              <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
-                更新 {{ dayjs(lastUpdated).format('HH:mm') }}
-              </span>
-            </template>
-            <template #batch-actions>
-              <!-- 预留批量操作 -->
-            </template>
-
-            <template #empty>
-              <div class="table-empty">
-                <template v-if="hasError">
-                  <WarningOutlined class="table-empty-icon" style="color: #faad14" />
-                  <p class="table-empty-text">加载失败</p>
-                  <a-button type="primary" size="small" @click="fetchData" class="table-empty-action">
-                    <ReloadOutlined /> 重试
-                  </a-button>
-                </template>
-                <template v-else>
-                  <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-                  <InboxOutlined v-else class="table-empty-icon" />
-                  <p v-if="hasActiveFilters" class="table-empty-text">
-                    没有符合条件的记录，<a @click="handleResetFilters">清除筛选</a>
-                  </p>
-                  <p v-else class="table-empty-text">
-                    暂无收款核销数据
-                  </p>
-                </template>
-              </div>
-            </template>
-
-            <template #receiptAction="{ record }">
-              <a-space :size="0" class="action-cell-inner">
-                <a-tooltip :title="(record.unwrittenOff || 0) <= 0 ? '已全额核销' : '核销'">
-                  <a-button type="link" size="small" v-permission="'finance:writeoff:edit'" :disabled="(record.unwrittenOff || 0) <= 0" @click="handleWriteOff(record, 'receipt')">
-                    <template #icon><CheckCircleOutlined /></template>
-                    核销
-                  </a-button>
-                </a-tooltip>
-                <PrintButton
-                  template-type="receipt"
-                  :business-id="record.id"
-                  business-type="receipt"
-                  button-text=""
-                />
-              </a-space>
-            </template>
-          </BillTableList>
-        </a-tab-pane>
-
-        <!-- 付款核销 -->
-        <a-tab-pane key="payment" tab="付款核销">
-          <BillTableList
-            ref="tableRef"
-            :columns="paymentColumns"
-            :data-source="paymentTableData"
-            :loading="loading"
-            :pagination="pagination"
-            :row-key="'id'"
-            :filter-fields="paymentFilterFields"
-            :show-search="false"
-            export-permission="finance:writeoff:list"
-            :show-add="true"
-            :show-edit="false"
-            :show-delete="false"
-            add-text="新增核销"
-            :selectable="true"
-            @refresh="fetchData"
-            @add="handleAdd"
-            @cell-dblclick="handleView"
-            @page-change="handlePageChange"
-            @filter-change="handleFilterChange"
-            @selection-change="handleSelectionChange"
-          >
-            <template #toolbar-actions>
-              <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
-                更新 {{ dayjs(lastUpdated).format('HH:mm') }}
-              </span>
-            </template>
-            <template #batch-actions>
-              <!-- 预留批量操作 -->
-            </template>
-
-            <template #empty>
-              <div class="table-empty">
-                <template v-if="hasError">
-                  <WarningOutlined class="table-empty-icon" style="color: #faad14" />
-                  <p class="table-empty-text">加载失败</p>
-                  <a-button type="primary" size="small" @click="fetchData" class="table-empty-action">
-                    <ReloadOutlined /> 重试
-                  </a-button>
-                </template>
-                <template v-else>
-                  <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-                  <InboxOutlined v-else class="table-empty-icon" />
-                  <p v-if="hasActiveFilters" class="table-empty-text">
-                    没有符合条件的记录，<a @click="handleResetFilters">清除筛选</a>
-                  </p>
-                  <p v-else class="table-empty-text">
-                    暂无付款核销数据
-                  </p>
-                </template>
-              </div>
-            </template>
-
-            <template #paymentAction="{ record }">
-              <a-space :size="0" class="action-cell-inner">
-                <a-tooltip :title="(record.unwrittenOff || 0) <= 0 ? '已全额核销' : '核销'">
-                  <a-button type="link" size="small" v-permission="'finance:writeoff:edit'" :disabled="(record.unwrittenOff || 0) <= 0" @click="handleWriteOff(record, 'payment')">
-                    <template #icon><CheckCircleOutlined /></template>
-                    核销
-                  </a-button>
-                </a-tooltip>
-                <PrintButton
-                  template-type="payment"
-                  :business-id="record.id"
-                  business-type="payment"
-                  button-text=""
-                />
-              </a-space>
-            </template>
-          </BillTableList>
-        </a-tab-pane>
-      </a-tabs>
-
-      <!-- 核销弹窗 -->
-      <FullScreenDetail
-        :visible="writeOffVisible"
-        :title="writeOffType === 'receipt' ? '收款核销' : '付款核销'"
-        :save-loading="writeOffLoading"
-        :dirty="writeOffFormDirty"
-        @save="handleWriteOffConfirm"
-        @close="handleWriteOffCancel"
-      >
-        <a-descriptions v-if="writeOffTarget" :column="1" bordered size="small">
-          <a-descriptions-item :label="writeOffType === 'receipt' ? '客户名称' : '供应商名称'">
-            {{ writeOffType === 'receipt' ? writeOffTarget.customerName : writeOffTarget.supplierName }}
-          </a-descriptions-item>
-          <a-descriptions-item :label="writeOffType === 'receipt' ? '收款单号' : '付款单号'">
-            {{ writeOffType === 'receipt' ? writeOffTarget.receiptNo : writeOffTarget.paymentNo }}
-          </a-descriptions-item>
-          <a-descriptions-item :label="writeOffType === 'receipt' ? '收款金额' : '付款金额'">
-            {{ formatAmount(writeOffTarget.amount) }}
-          </a-descriptions-item>
-          <a-descriptions-item label="已核销金额">
-            {{ formatAmount(writeOffTarget.writtenOff || 0) }}
-          </a-descriptions-item>
-          <a-descriptions-item label="未核销金额">
-            {{ formatAmount(writeOffTarget.unwrittenOff || 0) }}
-          </a-descriptions-item>
-        </a-descriptions>
-        <a-form layout="vertical" style="margin-top: 16px">
-          <a-form-item label="核销金额" required>
-            <a-input-number
-              v-model:value="writeOffAmount"
-              :min="0.01"
-              :max="writeOffTarget?.unwrittenOff || 0"
-              :precision="2"
+          <div class="writeoff-page-header-right">
+            <span
+              v-if="lastUpdateTime"
+              class="update-time"
+            >更新于 {{ lastUpdateTime }}</span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            >
+              <SyncOutlined /> {{ autoRefreshCountdown }}s
+            </span>
+            <a-button
               size="small"
-              style="width: 100%"
-              placeholder="请输入核销金额"
-            />
-          </a-form-item>
-        </a-form>
-      </FullScreenDetail>
+              :loading="refreshLoading"
+              @click="debounceClick('refresh', fetchData)"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
+              刷新
+            </a-button>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            </span>
+          </div>
+        </div>
+      </template>
 
-      <!-- 新增核销弹窗 -->
-      <FullScreenDetail
-        :visible="addVisible"
-        title="新增核销"
-        :dirty="addFormDirty"
-        :save-loading="addLoading"
-        @save="handleAddConfirm"
-        @close="handleAddCancel"
-      >
-        <a-form
-          ref="addFormRef"
-          :model="addForm"
-          :rules="addFormRules"
-          :label-col="{ span: 6 }"
-          :wrapper-col="{ span: 16 }"
+      <div class="finance-writeoff-page">
+        <!-- 统计卡片 -->
+        <div class="stat-cards">
+          <div class="stat-card stat-total">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                ¥{{ formatAmount(stats.totalAmount) }}
+              </div>
+              <div class="stat-card-label">
+                {{ activeTab === 'receipt' ? '收款' : '付款' }}总额
+              </div>
+            </div>
+            <DollarOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-written-off">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                ¥{{ formatAmount(stats.writtenOffAmount) }}
+              </div>
+              <div class="stat-card-label">
+                已核销
+              </div>
+            </div>
+            <CheckCircleOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-balance">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                ¥{{ formatAmount(stats.balanceAmount) }}
+              </div>
+              <div class="stat-card-label">
+                未核销
+              </div>
+            </div>
+            <ExclamationCircleOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-count">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ pagination.total }}
+              </div>
+              <div class="stat-card-label">
+                {{ activeTab === 'receipt' ? '收款' : '付款' }}笔数
+              </div>
+            </div>
+            <FileTextOutlined class="stat-card-icon" />
+          </div>
+        </div>
+
+        <a-tabs
+          v-model:active-key="activeTab"
+          @change="handleTabChange"
         >
-          <a-form-item label="核销类型" name="writeOffType">
-            <a-radio-group v-model:value="addForm.writeOffType">
-              <a-radio value="receipt">收款核销</a-radio>
-              <a-radio value="payment">付款核销</a-radio>
-            </a-radio-group>
-          </a-form-item>
-          <a-form-item label="客户/供应商" name="partyName">
-            <a-input v-model:value="addForm.partyName" placeholder="请输入客户或供应商名称" />
-          </a-form-item>
-          <a-form-item label="核销金额" name="amount">
-            <a-input-number
-              v-model:value="addForm.amount"
-              :min="0.01"
-              :precision="2"
-              style="width: 100%"
-              placeholder="请输入核销金额"
-            />
-          </a-form-item>
-          <a-form-item label="备注" name="remark">
-            <a-textarea v-model:value="addForm.remark" :rows="3" placeholder="备注信息" />
-          </a-form-item>
-        </a-form>
-      </FullScreenDetail>
-    </div>
-  </PageContainer>
+          <!-- 收款核销 -->
+          <a-tab-pane
+            key="receipt"
+            tab="收款核销"
+          >
+            <BillTableList
+              ref="tableRef"
+              :min-empty-rows="12"
+              :columns="receiptColumns"
+              :data-source="receiptTableData"
+              :loading="loading"
+              :pagination="pagination"
+              :row-key="'id'"
+              :filter-fields="receiptFilterFields"
+              :show-search="false"
+              export-permission="finance:writeoff:list"
+              :show-add="true"
+              :show-edit="false"
+              :show-delete="false"
+              add-text="新增核销"
+              :selectable="true"
+              @refresh="fetchData"
+              @add="handleAdd"
+              @cell-dblclick="handleView"
+              @page-change="handlePageChange"
+              @filter-change="handleFilterChange"
+              @selection-change="handleSelectionChange"
+            >
+              <template #toolbar-actions>
+                <span
+                  v-if="lastUpdated"
+                  class="list-update-timestamp"
+                  :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')"
+                >
+                  更新 {{ dayjs(lastUpdated).format('HH:mm') }}
+                </span>
+              </template>
+              <template #batch-actions>
+              <!-- 预留批量操作 -->
+              </template>
+
+              <template #empty>
+                <div class="table-empty">
+                  <template v-if="hasError">
+                    <WarningOutlined
+                      class="table-empty-icon"
+                      style="color: #faad14"
+                    />
+                    <p class="table-empty-text">
+                      加载失败
+                    </p>
+                    <a-button
+                      type="primary"
+                      size="small"
+                      class="table-empty-action"
+                      @click="fetchData"
+                    >
+                      <ReloadOutlined /> 重试
+                    </a-button>
+                  </template>
+                  <template v-else>
+                    <SearchOutlined
+                      v-if="hasActiveFilters"
+                      class="table-empty-icon"
+                    />
+                    <InboxOutlined
+                      v-else
+                      class="table-empty-icon"
+                    />
+                    <p
+                      v-if="hasActiveFilters"
+                      class="table-empty-text"
+                    >
+                      没有符合条件的记录，<a @click="handleResetFilters">清除筛选</a>
+                    </p>
+                    <p
+                      v-else
+                      class="table-empty-text"
+                    >
+                      暂无收款核销数据
+                    </p>
+                  </template>
+                </div>
+              </template>
+
+              <template #receiptAction="{ record }">
+                <a-space
+                  :size="0"
+                  class="action-cell-inner"
+                >
+                  <a-tooltip :title="(record.unwrittenOff || 0) <= 0 ? '已全额核销' : '核销'">
+                    <a-button
+                      v-permission="'finance:writeoff:edit'"
+                      type="link"
+                      size="small"
+                      :disabled="(record.unwrittenOff || 0) <= 0"
+                      @click="handleWriteOff(record, 'receipt')"
+                    >
+                      <template #icon>
+                        <CheckCircleOutlined />
+                      </template>
+                      核销
+                    </a-button>
+                  </a-tooltip>
+                  <PrintButton
+                    template-type="receipt"
+                    :business-id="record.id"
+                    business-type="receipt"
+                    button-text=""
+                  />
+                </a-space>
+              </template>
+            </BillTableList>
+          </a-tab-pane>
+
+          <!-- 付款核销 -->
+          <a-tab-pane
+            key="payment"
+            tab="付款核销"
+          >
+            <BillTableList
+              ref="tableRef"
+              :columns="paymentColumns"
+              :data-source="paymentTableData"
+              :loading="loading"
+              :pagination="pagination"
+              :row-key="'id'"
+              :filter-fields="paymentFilterFields"
+              :show-search="false"
+              export-permission="finance:writeoff:list"
+              :show-add="true"
+              :show-edit="false"
+              :show-delete="false"
+              add-text="新增核销"
+              :selectable="true"
+              @refresh="fetchData"
+              @add="handleAdd"
+              @cell-dblclick="handleView"
+              @page-change="handlePageChange"
+              @filter-change="handleFilterChange"
+              @selection-change="handleSelectionChange"
+            >
+              <template #toolbar-actions>
+                <span
+                  v-if="lastUpdated"
+                  class="list-update-timestamp"
+                  :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')"
+                >
+                  更新 {{ dayjs(lastUpdated).format('HH:mm') }}
+                </span>
+              </template>
+              <template #batch-actions>
+              <!-- 预留批量操作 -->
+              </template>
+
+              <template #empty>
+                <div class="table-empty">
+                  <template v-if="hasError">
+                    <WarningOutlined
+                      class="table-empty-icon"
+                      style="color: #faad14"
+                    />
+                    <p class="table-empty-text">
+                      加载失败
+                    </p>
+                    <a-button
+                      type="primary"
+                      size="small"
+                      class="table-empty-action"
+                      @click="fetchData"
+                    >
+                      <ReloadOutlined /> 重试
+                    </a-button>
+                  </template>
+                  <template v-else>
+                    <SearchOutlined
+                      v-if="hasActiveFilters"
+                      class="table-empty-icon"
+                    />
+                    <InboxOutlined
+                      v-else
+                      class="table-empty-icon"
+                    />
+                    <p
+                      v-if="hasActiveFilters"
+                      class="table-empty-text"
+                    >
+                      没有符合条件的记录，<a @click="handleResetFilters">清除筛选</a>
+                    </p>
+                    <p
+                      v-else
+                      class="table-empty-text"
+                    >
+                      暂无付款核销数据
+                    </p>
+                  </template>
+                </div>
+              </template>
+
+              <template #paymentAction="{ record }">
+                <a-space
+                  :size="0"
+                  class="action-cell-inner"
+                >
+                  <a-tooltip :title="(record.unwrittenOff || 0) <= 0 ? '已全额核销' : '核销'">
+                    <a-button
+                      v-permission="'finance:writeoff:edit'"
+                      type="link"
+                      size="small"
+                      :disabled="(record.unwrittenOff || 0) <= 0"
+                      @click="handleWriteOff(record, 'payment')"
+                    >
+                      <template #icon>
+                        <CheckCircleOutlined />
+                      </template>
+                      核销
+                    </a-button>
+                  </a-tooltip>
+                  <PrintButton
+                    template-type="payment"
+                    :business-id="record.id"
+                    business-type="payment"
+                    button-text=""
+                  />
+                </a-space>
+              </template>
+            </BillTableList>
+          </a-tab-pane>
+        </a-tabs>
+
+        <!-- 核销弹窗 -->
+        <FullScreenDetail
+          :visible="writeOffVisible"
+          :title="writeOffType === 'receipt' ? '收款核销' : '付款核销'"
+          :save-loading="writeOffLoading"
+          :dirty="writeOffFormDirty"
+          @save="handleWriteOffConfirm"
+          @close="handleWriteOffCancel"
+        >
+          <a-descriptions
+            v-if="writeOffTarget"
+            :column="1"
+            bordered
+            size="small"
+          >
+            <a-descriptions-item :label="writeOffType === 'receipt' ? '客户名称' : '供应商名称'">
+              {{ writeOffType === 'receipt' ? writeOffTarget.customerName : writeOffTarget.supplierName }}
+            </a-descriptions-item>
+            <a-descriptions-item :label="writeOffType === 'receipt' ? '收款单号' : '付款单号'">
+              {{ writeOffType === 'receipt' ? writeOffTarget.receiptNo : writeOffTarget.paymentNo }}
+            </a-descriptions-item>
+            <a-descriptions-item :label="writeOffType === 'receipt' ? '收款金额' : '付款金额'">
+              {{ formatAmount(writeOffTarget.amount) }}
+            </a-descriptions-item>
+            <a-descriptions-item label="已核销金额">
+              {{ formatAmount(writeOffTarget.writtenOff || 0) }}
+            </a-descriptions-item>
+            <a-descriptions-item label="未核销金额">
+              {{ formatAmount(writeOffTarget.unwrittenOff || 0) }}
+            </a-descriptions-item>
+          </a-descriptions>
+          <a-form
+            layout="vertical"
+            style="margin-top: 16px"
+          >
+            <a-form-item
+              label="核销金额"
+              required
+            >
+              <a-input-number
+                v-model:value="writeOffAmount"
+                :min="0.01"
+                :max="writeOffTarget?.unwrittenOff || 0"
+                :precision="2"
+                size="small"
+                style="width: 100%"
+                placeholder="请输入核销金额"
+              />
+            </a-form-item>
+          </a-form>
+        </FullScreenDetail>
+
+        <!-- 新增核销弹窗 -->
+        <FullScreenDetail
+          :visible="addVisible"
+          title="新增核销"
+          :dirty="addFormDirty"
+          :save-loading="addLoading"
+          @save="handleAddConfirm"
+          @close="handleAddCancel"
+        >
+          <a-form
+            ref="addFormRef"
+            :model="addForm"
+            :rules="addFormRules"
+            :label-col="{ span: 6 }"
+            :wrapper-col="{ span: 16 }"
+          >
+            <a-form-item
+              label="核销类型"
+              name="writeOffType"
+            >
+              <a-radio-group v-model:value="addForm.writeOffType">
+                <a-radio value="receipt">
+                  收款核销
+                </a-radio>
+                <a-radio value="payment">
+                  付款核销
+                </a-radio>
+              </a-radio-group>
+            </a-form-item>
+            <a-form-item
+              label="客户/供应商"
+              name="partyName"
+            >
+              <a-input
+                v-model:value="addForm.partyName"
+                placeholder="请输入客户或供应商名称"
+              />
+            </a-form-item>
+            <a-form-item
+              label="核销金额"
+              name="amount"
+            >
+              <a-input-number
+                v-model:value="addForm.amount"
+                :min="0.01"
+                :precision="2"
+                style="width: 100%"
+                placeholder="请输入核销金额"
+              />
+            </a-form-item>
+            <a-form-item
+              label="备注"
+              name="remark"
+            >
+              <a-textarea
+                v-model:value="addForm.remark"
+                :rows="3"
+                placeholder="备注信息"
+              />
+            </a-form-item>
+          </a-form>
+        </FullScreenDetail>
+      </div>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

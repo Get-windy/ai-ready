@@ -5,25 +5,39 @@
     :width="800"
     :footer="null"
     :closable="true"
-    :maskClosable="false"
-    wrapClassName="sale-order-form-config-wrap"
+    :mask-closable="false"
+    wrap-class-name="sale-order-form-config-wrap"
     @cancel="handleClose"
   >
-    <a-tabs v-model:activeKey="activeTab" class="config-tabs">
+    <a-tabs
+      v-model:active-key="activeTab"
+      class="config-tabs"
+    >
       <!-- ═══════════════════════════════════════
            Tab 1: 页面配置
            ═══════════════════════════════════════ -->
-      <a-tab-pane key="page" tab="页面配置">
-        <div class="tab-tip">勾选后自动保存，该设置对所有操作员生效</div>
+      <a-tab-pane
+        key="page"
+        tab="页面配置"
+      >
+        <div class="tab-tip">
+          勾选后自动保存，该设置对所有操作员生效
+        </div>
         <div class="page-config-table-wrap">
           <table class="page-config-table">
             <thead>
               <tr>
-                <th style="width: 50px;"></th>
-                <th style="width: 160px;">名称</th>
+                <th style="width: 50px;" />
+                <th style="width: 160px;">
+                  名称
+                </th>
                 <th>显示名</th>
-                <th style="width: 80px;">显示</th>
-                <th style="width: 100px;">回车键跳转</th>
+                <th style="width: 80px;">
+                  显示
+                </th>
+                <th style="width: 100px;">
+                  回车键跳转
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -32,8 +46,12 @@
                 :key="field.key"
                 :class="{ 'row-highlight': field.visible }"
               >
-                <td class="row-index">{{ index + 1 }}</td>
-                <td class="field-name">{{ field.label }}</td>
+                <td class="row-index">
+                  {{ index + 1 }}
+                </td>
+                <td class="field-name">
+                  {{ field.label }}
+                </td>
                 <td>
                   <a-input
                     v-model:value="field.displayName"
@@ -58,17 +76,31 @@
           </table>
         </div>
         <div class="tab-footer">
-          <a-button @click="handleResetPageConfig">恢复默认值</a-button>
-          <a-button type="primary" danger @click="handleClose" style="margin-left: 8px;">关闭</a-button>
+          <a-button @click="handleResetPageConfig">
+            恢复默认值
+          </a-button>
+          <a-button
+            type="primary"
+            danger
+            style="margin-left: 8px;"
+            @click="handleClose"
+          >
+            关闭
+          </a-button>
         </div>
       </a-tab-pane>
 
       <!-- ══════════════════════════════════════
            Tab 2: 录单默认值
            ═══════════════════════════════════════ -->
-      <a-tab-pane key="default" tab="录单默认值">
+      <a-tab-pane
+        key="default"
+        tab="录单默认值"
+      >
         <div class="default-value-section">
-          <h3 class="section-title">字段默认值设置</h3>
+          <h3 class="section-title">
+            字段默认值设置
+          </h3>
           <div class="default-field-list">
             <div
               v-for="df in defaultFields"
@@ -100,36 +132,70 @@
             </div>
           </div>
           <div class="default-priority-row">
-            <a-checkbox v-model:checked="defaultPriority" @change="handleDefaultChange">
+            <a-checkbox
+              v-model:checked="defaultPriority"
+              @change="handleDefaultChange"
+            >
               录单默认值优先
             </a-checkbox>
           </div>
         </div>
         <div class="tab-footer tab-footer-right">
-          <a-button @click="handleConfigDefault">配置</a-button>
+          <a-button @click="handleConfigDefault">
+            配置
+          </a-button>
         </div>
         <div class="tab-footer-bottom">
-          <a-button type="primary" danger @click="handleSaveDefault" style="margin-right: 8px;">保存</a-button>
-          <a-button @click="handleClose">取消</a-button>
+          <a-button
+            type="primary"
+            danger
+            style="margin-right: 8px;"
+            @click="handleSaveDefault"
+          >
+            保存
+          </a-button>
+          <a-button @click="handleClose">
+            取消
+          </a-button>
         </div>
       </a-tab-pane>
 
       <!-- ═══════════════════════════════════════
            Tab 3: 打印设置
            ═══════════════════════════════════════ -->
-      <a-tab-pane key="print" tab="打印设置">
-        <div class="tab-tip">打印配置设置后只针对当前操作员有效</div>
+      <a-tab-pane
+        key="print"
+        tab="打印设置"
+      >
+        <div class="tab-tip">
+          打印配置设置后只针对当前操作员有效
+        </div>
         <div class="print-settings">
-          <a-checkbox v-model:checked="printSettings.alwaysLastTemplate" @change="handlePrintChange">
+          <a-checkbox
+            v-model:checked="printSettings.alwaysLastTemplate"
+            @change="handlePrintChange"
+          >
             始终使用最后一次打印的模板，打印时不再选择
           </a-checkbox>
-          <a-checkbox v-model:checked="printSettings.printAfterSubmit" @change="handlePrintChange">
+          <a-checkbox
+            v-model:checked="printSettings.printAfterSubmit"
+            @change="handlePrintChange"
+          >
             提单后立即打印
           </a-checkbox>
         </div>
         <div class="tab-footer-bottom">
-          <a-button type="primary" danger @click="handleSavePrint" style="margin-right: 8px;">保存</a-button>
-          <a-button @click="handleClose">取消</a-button>
+          <a-button
+            type="primary"
+            danger
+            style="margin-right: 8px;"
+            @click="handleSavePrint"
+          >
+            保存
+          </a-button>
+          <a-button @click="handleClose">
+            取消
+          </a-button>
         </div>
       </a-tab-pane>
     </a-tabs>
@@ -152,15 +218,23 @@
       />
     </div>
     <div style="max-height: 300px; overflow-y: auto;">
-      <a-radio-group v-model:value="selectorSelectedId" style="width: 100%;">
+      <a-radio-group
+        v-model:value="selectorSelectedId"
+        style="width: 100%;"
+      >
         <div
           v-for="opt in filteredSelectorOptions"
           :key="opt.id"
           style="padding: 6px 8px; border-bottom: 1px solid #f0f0f0;"
         >
-          <a-radio :value="opt.id">{{ opt.name }}</a-radio>
+          <a-radio :value="opt.id">
+            {{ opt.name }}
+          </a-radio>
         </div>
-        <div v-if="!filteredSelectorOptions.length" style="text-align: center; color: #999; padding: 20px;">
+        <div
+          v-if="!filteredSelectorOptions.length"
+          style="text-align: center; color: #999; padding: 20px;"
+        >
           暂无数据
         </div>
       </a-radio-group>
@@ -175,11 +249,20 @@
     @ok="handleConfigDetailConfirm"
   >
     <a-form layout="vertical">
-      <a-form-item v-for="df in configDetailFields" :key="df.key" :label="df.label">
-        <a-input v-model:value="df.value" :placeholder="`输入${df.label}默认值`" />
+      <a-form-item
+        v-for="df in configDetailFields"
+        :key="df.key"
+        :label="df.label"
+      >
+        <a-input
+          v-model:value="df.value"
+          :placeholder="`输入${df.label}默认值`"
+        />
       </a-form-item>
       <a-form-item label="优先级">
-        <a-checkbox v-model:checked="configDetailPriority">录单默认值优先（覆盖上次输入）</a-checkbox>
+        <a-checkbox v-model:checked="configDetailPriority">
+          录单默认值优先（覆盖上次输入）
+        </a-checkbox>
       </a-form-item>
     </a-form>
   </a-modal>
@@ -231,31 +314,34 @@ const STORAGE_KEY_PAGE = 'sale-order-form-page-config'
 const STORAGE_KEY_DEFAULT = 'sale-order-form-default-config'
 const STORAGE_KEY_PRINT = 'sale-order-form-print-config'
 
-// ── 68 个页面字段默认数据 ──
+// ── 页面字段默认数据（key 必须与 form.vue 的 basicInfoFields/tabsConfig/summaryConfig 字段 key 完全一致）──
 const DEFAULT_PAGE_FIELDS: PageField[] = [
+  // ═══════════════════════════════════════════════
+  // 顶部基本信息（Basic Info）
+  // ═══════════════════════════════════════════════
+  // ── 第一行 ──
   { key: 'orderNo', label: '编号', displayName: '编号', visible: true, enterJump: false },
-  { key: 'customerName', label: '客户', displayName: '客户', visible: true, enterJump: true },
+  { key: 'customerId', label: '客户', displayName: '客户', visible: true, enterJump: true },
   { key: 'customerCode', label: '客户编号', displayName: '客户编号', visible: true, enterJump: false },
-  { key: 'bankName', label: '开户行', displayName: '开户行', visible: false, enterJump: false },
-  { key: 'bankAccount', label: '银行账号', displayName: '银行账号', visible: false, enterJump: false },
-  { key: 'taxNo', label: '税号', displayName: '税号', visible: false, enterJump: false },
-  { key: 'customerRemark', label: '客户备注', displayName: '客户备注', visible: false, enterJump: false },
-  { key: 'warehouseName', label: '发货仓库', displayName: '发货仓库', visible: true, enterJump: true },
-  { key: 'salespersonName', label: '经手人', displayName: '经手人', visible: true, enterJump: true },
-  { key: 'departmentName', label: '部门', displayName: '部门', visible: false, enterJump: false },
+  { key: 'warehouseId', label: '发货仓库', displayName: '发货仓库', visible: true, enterJump: true },
+  { key: 'salespersonId', label: '经手人', displayName: '经手人', visible: true, enterJump: true },
   { key: 'orderDate', label: '单据日期', displayName: '单据日期', visible: true, enterJump: true },
   { key: 'saleType', label: '销售类型', displayName: '销售类型', visible: true, enterJump: true },
+  // ── 第二行（扩展）──
+  { key: 'deptName', label: '部门', displayName: '部门', visible: false, enterJump: false },
+  { key: 'customerLevel', label: '客户级别', displayName: '客户级别', visible: false, enterJump: false },
+  { key: 'deliveryMethod', label: '配送方式', displayName: '配送方式', visible: true, enterJump: true },
+  { key: 'deliveryRoute', label: '配送线路', displayName: '配送线路', visible: false, enterJump: false },
   { key: 'receiverName', label: '收货人', displayName: '收货人', visible: false, enterJump: false },
   { key: 'receiverPhone', label: '联系电话', displayName: '联系电话', visible: false, enterJump: false },
   { key: 'receiverAddress', label: '收货地址', displayName: '收货地址', visible: false, enterJump: false },
-  { key: 'customerLevel', label: '客户级别', displayName: '客户级别', visible: false, enterJump: false },
-  { key: 'customField1Num', label: '自定义字段1(数字)', displayName: '自定义字段1(数字)', visible: false, enterJump: false },
-  { key: 'customField2Num', label: '自定义字段2(数字)', displayName: '自定义字段2(数字)', visible: false, enterJump: false },
-  { key: 'customField3Text', label: '自定义字段3(文本)', displayName: '自定义字段3(文本)', visible: false, enterJump: false },
-  { key: 'customField4Text', label: '自定义字段4(文本)', displayName: '自定义字段4(文本)', visible: false, enterJump: false },
-  { key: 'customField5Text', label: '自定义字段5(文本)', displayName: '自定义字段5(文本)', visible: false, enterJump: false },
-  { key: 'auditorName', label: '审核人', displayName: '审核人', visible: false, enterJump: false },
+  { key: 'settlementMethod', label: '结款方式', displayName: '结款方式', visible: false, enterJump: false },
   { key: 'summary', label: '摘要', displayName: '摘要', visible: false, enterJump: false },
+
+  // ═══════════════════════════════════════════════
+  // 底部 Tab — 收款信息
+  // ═══════════════════════════════════════════════
+  { key: 'paymentAccountId', label: '订单账户', displayName: '订单账户', visible: false, enterJump: false },
   { key: 'depositAccount', label: '订金账户', displayName: '订金账户', visible: false, enterJump: false },
   { key: 'depositAmount', label: '订金金额', displayName: '订金金额', visible: false, enterJump: false },
   { key: 'moreAccounts', label: '更多账户', displayName: '更多账户', visible: false, enterJump: false },
@@ -265,42 +351,82 @@ const DEFAULT_PAGE_FIELDS: PageField[] = [
   { key: 'creditLimit', label: '信用额度', displayName: '信用额度', visible: false, enterJump: false },
   { key: 'availableCredit', label: '可用额度', displayName: '可用额度', visible: false, enterJump: false },
   { key: 'prevDebt', label: '此前欠款', displayName: '此前欠款', visible: false, enterJump: false },
-  { key: 'collectionDate', label: '收款日', displayName: '收款日', visible: false, enterJump: false },
+  { key: 'paymentDate', label: '收款日', displayName: '收款日', visible: false, enterJump: false },
   { key: 'reconciliationDate', label: '对账日', displayName: '对账日', visible: false, enterJump: false },
-  { key: 'deliveryMethod', label: '配送方式', displayName: '配送方式', visible: true, enterJump: true },
-  { key: 'deliveryRoute', label: '配送线路', displayName: '配送线路', visible: false, enterJump: false },
+
+  // ═══════════════════════════════════════════════
+  // 底部 Tab — 物流信息
+  // ═══════════════════════════════════════════════
   { key: 'driverName', label: '司机', displayName: '司机', visible: false, enterJump: false },
+  { key: 'deliveryVehicle', label: '车辆', displayName: '车辆', visible: false, enterJump: false },
   { key: 'logisticsCompany', label: '物流公司', displayName: '物流公司', visible: false, enterJump: false },
-  { key: 'freightBearer', label: '运费承担方', displayName: '运费承担方', visible: false, enterJump: false },
+  { key: 'freightPayer', label: '运费承担方', displayName: '运费承担方', visible: false, enterJump: false },
   { key: 'shippingFee', label: '运费', displayName: '运费', visible: false, enterJump: false },
-  { key: 'trackingNo', label: '运单号', displayName: '运单号', visible: false, enterJump: false },
+  { key: 'waybillNo', label: '运单号', displayName: '运单号', visible: false, enterJump: false },
   { key: 'codAmount', label: '代收货款', displayName: '代收货款', visible: false, enterJump: false },
   { key: 'estimatedShipDate', label: '预计发货', displayName: '预计发货', visible: false, enterJump: false },
-  { key: 'contactPerson', label: '联系人', displayName: '联系人', visible: false, enterJump: false },
-  { key: 'contactPhone', label: '联系电话', displayName: '联系电话', visible: false, enterJump: false },
+  { key: 'contactName', label: '联系人(提货)', displayName: '联系人(提货)', visible: false, enterJump: false },
+  { key: 'contactPhone', label: '联系电话(提货)', displayName: '联系电话(提货)', visible: false, enterJump: false },
   { key: 'pickupAddress', label: '提货地址', displayName: '提货地址', visible: false, enterJump: false },
+
+  // ═══════════════════════════════════════════════
+  // 底部 Tab — 会员信息
+  // ═══════════════════════════════════════════════
   { key: 'memberCardNo', label: '会员卡号', displayName: '会员卡号', visible: false, enterJump: false },
+  { key: 'memberName', label: '会员姓名', displayName: '会员姓名', visible: false, enterJump: false },
   { key: 'prevPoints', label: '此前积分', displayName: '此前积分', visible: false, enterJump: false },
   { key: 'salePoints', label: '销售积分', displayName: '销售积分', visible: false, enterJump: false },
   { key: 'returnPoints', label: '退货积分', displayName: '退货积分', visible: false, enterJump: false },
-  { key: 'exchangePoints', label: '兑换积分', displayName: '兑换积分', visible: false, enterJump: false },
-  { key: 'usePoints', label: '使用积分', displayName: '使用积分', visible: false, enterJump: false },
+  { key: 'exchangePointsHeader', label: '兑换积分', displayName: '兑换积分', visible: false, enterJump: false },
+  { key: 'usedPointsHeader', label: '使用积分', displayName: '使用积分', visible: false, enterJump: false },
   { key: 'currentPoints', label: '当前积分', displayName: '当前积分', visible: false, enterJump: false },
+
+  // ═══════════════════════════════════════════════
+  // 底部 Tab — 扩展信息（银行/税务/自定义）
+  // ═══════════════════════════════════════════════
+  { key: 'bankName', label: '开户行', displayName: '开户行', visible: false, enterJump: false },
+  { key: 'bankAccount', label: '银行账号', displayName: '银行账号', visible: false, enterJump: false },
+  { key: 'taxNo', label: '税号', displayName: '税号', visible: false, enterJump: false },
+  { key: 'customerRemark', label: '客户备注', displayName: '客户备注', visible: false, enterJump: false },
+  { key: 'customerTicket', label: '客户一票通', displayName: '客户一票通', visible: false, enterJump: false },
+  { key: 'extNum1', label: '自定义字段1(数字)', displayName: '自定义字段1(数字)', visible: false, enterJump: false },
+  { key: 'extNum2', label: '自定义字段2(数字)', displayName: '自定义字段2(数字)', visible: false, enterJump: false },
+  { key: 'extText1', label: '自定义字段3(文本)', displayName: '自定义字段3(文本)', visible: false, enterJump: false },
+  { key: 'extText2', label: '自定义字段4(文本)', displayName: '自定义字段4(文本)', visible: false, enterJump: false },
+  { key: 'extText3', label: '自定义字段5(文本)', displayName: '自定义字段5(文本)', visible: false, enterJump: false },
+  { key: 'region', label: '区域', displayName: '区域', visible: false, enterJump: false },
+  { key: 'attachment', label: '附件', displayName: '附件', visible: false, enterJump: false },
+
+  // ═══════════════════════════════════════════════
+  // 备注区（底部 extra）
+  // ═══════════════════════════════════════════════
   { key: 'orderRemark', label: '单据备注', displayName: '单据备注', visible: true, enterJump: false },
   { key: 'buyerRemark', label: '买家备注', displayName: '买家备注', visible: false, enterJump: false },
-  { key: 'footerCustom1', label: '表尾自定义字段1', displayName: '表尾自定义字段1', visible: false, enterJump: false },
-  { key: 'footerCustom2', label: '表尾自定义字段2', displayName: '表尾自定义字段2', visible: false, enterJump: false },
+  { key: 'footerExtText1', label: '表尾自定义1', displayName: '表尾自定义1', visible: false, enterJump: false },
+  { key: 'footerExtText2', label: '表尾自定义2', displayName: '表尾自定义2', visible: false, enterJump: false },
+
+  // ═══════════════════════════════════════════════
+  // 单据信息（底栏自动字段）
+  // ═══════════════════════════════════════════════
+  { key: 'auditorName', label: '审核人', displayName: '审核人', visible: false, enterJump: false },
   { key: 'creatorName', label: '制单人', displayName: '制单人', visible: true, enterJump: false },
   { key: 'createTime', label: '制单时间', displayName: '制单时间', visible: true, enterJump: false },
   { key: 'printCount', label: '打印次数', displayName: '打印次数', visible: true, enterJump: false },
   { key: 'sourceOrder', label: '源单', displayName: '源单', visible: true, enterJump: false },
+
+  // ═══════════════════════════════════════════════
+  // 摘要面板（右侧统计指标）
+  // ═══════════════════════════════════════════════
   { key: 'saleQuantity', label: '销售数量', displayName: '销售数量', visible: true, enterJump: false },
   { key: 'returnQuantity', label: '退货数量', displayName: '退货数量', visible: false, enterJump: false },
   { key: 'productAmount', label: '商品金额', displayName: '商品金额', visible: true, enterJump: false },
   { key: 'promoDiscount', label: '促销优惠', displayName: '促销优惠', visible: false, enterJump: false },
   { key: 'discountAmount', label: '优惠金额', displayName: '优惠金额', visible: false, enterJump: false },
   { key: 'otherFee', label: '其他费用', displayName: '其他费用', visible: false, enterJump: false },
-  { key: 'orderAmount', label: '本单金额', displayName: '本单金额', visible: true, enterJump: false },
+  { key: 'billAmount', label: '本单金额', displayName: '本单金额', visible: true, enterJump: false },
+  { key: 'taxAmount', label: '税额', displayName: '税额', visible: true, enterJump: false },
+  { key: 'totalWeight', label: '总重量(kg)', displayName: '总重量(kg)', visible: false, enterJump: false },
+  { key: 'totalVolume', label: '总体积(m³)', displayName: '总体积(m³)', visible: false, enterJump: false },
 ]
 
 // ── 录单默认值字段 ─
@@ -574,22 +700,44 @@ onMounted(() => {
 }
 
 .config-tabs :deep(.ant-tabs-tab) {
-  padding: 8px 28px;
-  font-size: 14px;
-  border: 1px solid #d9d9d9;
-  border-radius: 4px 4px 0 0;
-  margin-right: 4px;
-  background: #fff;
-  transition: all 0.2s;
+  padding: 8px 28px !important;
+  font-size: 14px !important;
+  border: 1px solid #d9d9d9 !important;
+  border-radius: 4px 4px 0 0 !important;
+  margin-right: 4px !important;
+  margin-bottom: 0 !important;
+  background: #fafafa !important;
+  color: #595959 !important;
+  transition: all 0.2s !important;
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+.config-tabs :deep(.ant-tabs-tab:hover) {
+  color: #1890ff !important;
+  border-color: #1890ff !important;
 }
 
 .config-tabs :deep(.ant-tabs-tab-active) {
-  background: #1890ff;
-  border-color: #1890ff;
+  background: #1890ff !important;
+  border-color: #1890ff !important;
+  border-bottom-color: #1890ff !important;
+  z-index: 2 !important;
 }
 
 .config-tabs :deep(.ant-tabs-tab-active .ant-tabs-tab-btn) {
-  color: #fff;
+  color: #fff !important;
+  font-weight: 500 !important;
+}
+
+.config-tabs :deep(.ant-tabs-tab:not(.ant-tabs-tab-active) .ant-tabs-tab-btn) {
+  color: #595959 !important;
+}
+
+.config-tabs :deep(.ant-tabs-content-holder) {
+  border: 1px solid #d9d9d9;
+  border-top: none;
+  border-radius: 0 0 4px 4px;
 }
 
 .config-tabs :deep(.ant-tabs-ink-bar) {

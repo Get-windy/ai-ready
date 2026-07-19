@@ -4,15 +4,27 @@
       <div class="page-header">
         <div class="page-header-left">
           <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>
+              <router-link to="/">
+                首页
+              </router-link>
+            </a-breadcrumb-item>
             <a-breadcrumb-item>系统管理</a-breadcrumb-item>
             <a-breadcrumb-item>模块发布</a-breadcrumb-item>
           </a-breadcrumb>
-          <h2 class="page-header-title">模块发布</h2>
+          <h2 class="page-header-title">
+            模块发布
+          </h2>
         </div>
         <div class="page-header-right">
-          <a-button type="primary" size="small" @click="handleCreateRelease">
-            <template #icon><PlusOutlined /></template>
+          <a-button
+            type="primary"
+            size="small"
+            @click="handleCreateRelease"
+          >
+            <template #icon>
+              <PlusOutlined />
+            </template>
             新建发布
           </a-button>
         </div>
@@ -20,7 +32,14 @@
     </template>
 
     <a-card :bordered="false">
-      <a-table :data-source="list" :columns="columns" :loading="loading" row-key="id" :pagination="false" size="small">
+      <a-table
+        :data-source="list"
+        :columns="columns"
+        :loading="loading"
+        row-key="id"
+        :pagination="false"
+        size="small"
+      >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'status'">
             <a-tag :color="record.status === 'success' ? 'green' : record.status === 'pending' ? 'blue' : 'red'">
@@ -30,8 +49,15 @@
           <template v-if="column.key === 'action'">
             <a-space>
               <a @click="viewDetail(record)">详情</a>
-              <a-divider type="vertical" v-if="record.status === 'success'" />
-              <a-popconfirm title="确定回滚此版本?" @confirm="rollbackVersion(record)" v-if="record.status === 'success'">
+              <a-divider
+                v-if="record.status === 'success'"
+                type="vertical"
+              />
+              <a-popconfirm
+                v-if="record.status === 'success'"
+                title="确定回滚此版本?"
+                @confirm="rollbackVersion(record)"
+              >
                 <a>回滚</a>
               </a-popconfirm>
             </a-space>

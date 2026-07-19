@@ -25,29 +25,53 @@
       </a-tag>
 
         
-        <span class="shortcut-hints">
-          <span class="shortcut-hint"><kbd>Ctrl+R</kbd> 刷新</span>
-          <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-        </span>
-        </template>
+      <span class="shortcut-hints">
+        <span class="shortcut-hint"><kbd>Ctrl+R</kbd> 刷新</span>
+        <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+      </span>
+    </template>
 
     <template #actions>
-      <a-button type="primary" @click="handleEdit">编辑</a-button>
-      <a-button @click="handleEvaluate">绩效评估</a-button>
-      <a-button @click="handleAddPoints">增加积分</a-button>
-      <a-button @click="handleConsumePoints">消费积分</a-button>
+      <a-button
+        type="primary"
+        @click="handleEdit"
+      >
+        编辑
+      </a-button>
+      <a-button @click="handleEvaluate">
+        绩效评估
+      </a-button>
+      <a-button @click="handleAddPoints">
+        增加积分
+      </a-button>
+      <a-button @click="handleConsumePoints">
+        消费积分
+      </a-button>
     </template>
 
     <!-- 基本信息 Tab -->
     <template #tab-basic>
       <a-row :gutter="24">
         <a-col :span="12">
-          <a-descriptions :column="1" bordered size="small" title="基础信息">
-            <a-descriptions-item label="供应商编码">{{ supplier?.supplierCode }}</a-descriptions-item>
-            <a-descriptions-item label="供应商名称">{{ supplier?.supplierName }}</a-descriptions-item>
-            <a-descriptions-item label="简称">{{ supplier?.shortName || '-' }}</a-descriptions-item>
+          <a-descriptions
+            :column="1"
+            bordered
+            size="small"
+            title="基础信息"
+          >
+            <a-descriptions-item label="供应商编码">
+              {{ supplier?.supplierCode }}
+            </a-descriptions-item>
+            <a-descriptions-item label="供应商名称">
+              {{ supplier?.supplierName }}
+            </a-descriptions-item>
+            <a-descriptions-item label="简称">
+              {{ supplier?.shortName || '-' }}
+            </a-descriptions-item>
             <a-descriptions-item label="供应商等级">
-              <a-tag :color="getLevelColor(supplier?.supplierLevel)">{{ supplier?.supplierLevel }}级</a-tag>
+              <a-tag :color="getLevelColor(supplier?.supplierLevel)">
+                {{ supplier?.supplierLevel }}级
+              </a-tag>
             </a-descriptions-item>
             <a-descriptions-item label="合作状态">
               <a-tag :color="getStatusColor(supplier?.cooperationStatus)">
@@ -62,29 +86,73 @@
           </a-descriptions>
         </a-col>
         <a-col :span="12">
-          <a-descriptions :column="1" bordered size="small" title="联系信息">
-            <a-descriptions-item label="联系人">{{ supplier?.contactPerson || '-' }}</a-descriptions-item>
-            <a-descriptions-item label="联系电话">{{ supplier?.contactPhone || '-' }}</a-descriptions-item>
-            <a-descriptions-item label="邮箱">{{ supplier?.email || '-' }}</a-descriptions-item>
-            <a-descriptions-item label="地址">{{ supplier?.province }}{{ supplier?.city }} {{ supplier?.address || '-' }}</a-descriptions-item>
+          <a-descriptions
+            :column="1"
+            bordered
+            size="small"
+            title="联系信息"
+          >
+            <a-descriptions-item label="联系人">
+              {{ supplier?.contactPerson || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item label="联系电话">
+              {{ supplier?.contactPhone || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item label="邮箱">
+              {{ supplier?.email || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item label="地址">
+              {{ supplier?.province }}{{ supplier?.city }} {{ supplier?.address || '-' }}
+            </a-descriptions-item>
           </a-descriptions>
-          <a-descriptions :column="1" bordered size="small" title="财务信息" style="margin-top: 16px">
-            <a-descriptions-item label="开户银行">{{ supplier?.bankName || '-' }}</a-descriptions-item>
-            <a-descriptions-item label="银行账号">{{ supplier?.bankAccount || '-' }}</a-descriptions-item>
-            <a-descriptions-item label="税号">{{ supplier?.taxNumber || '-' }}</a-descriptions-item>
+          <a-descriptions
+            :column="1"
+            bordered
+            size="small"
+            title="财务信息"
+            style="margin-top: 16px"
+          >
+            <a-descriptions-item label="开户银行">
+              {{ supplier?.bankName || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item label="银行账号">
+              {{ supplier?.bankAccount || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item label="税号">
+              {{ supplier?.taxNumber || '-' }}
+            </a-descriptions-item>
           </a-descriptions>
         </a-col>
       </a-row>
-      <a-row :gutter="24" style="margin-top: 16px">
+      <a-row
+        :gutter="24"
+        style="margin-top: 16px"
+      >
         <a-col :span="24">
-          <a-descriptions :column="1" bordered size="small" title="评分信息">
+          <a-descriptions
+            :column="1"
+            bordered
+            size="small"
+            title="评分信息"
+          >
             <a-descriptions-item label="综合评分">
-              <a-rate :value="Math.round((supplier?.comprehensiveScore || 0) / 20)" disabled allow-half style="font-size: 16px" />
+              <a-rate
+                :value="Math.round((supplier?.comprehensiveScore || 0) / 20)"
+                disabled
+                allow-half
+                style="font-size: 16px"
+              />
               <span style="margin-left: 8px; font-weight: 600">{{ formatScore(supplier?.comprehensiveScore) }}</span>
             </a-descriptions-item>
-            <a-descriptions-item label="总积分">{{ supplier?.totalPoints || 0 }}</a-descriptions-item>
-            <a-descriptions-item label="创建时间">{{ supplier?.createTime || '-' }}</a-descriptions-item>
-            <a-descriptions-item label="备注">{{ supplier?.remark || '-' }}</a-descriptions-item>
+            <a-descriptions-item label="总积分">
+              {{ supplier?.totalPoints || 0 }}
+            </a-descriptions-item>
+            <a-descriptions-item label="创建时间">
+              {{ supplier?.createTime || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item label="备注">
+              {{ supplier?.remark || '-' }}
+            </a-descriptions-item>
           </a-descriptions>
         </a-col>
       </a-row>
@@ -105,7 +173,12 @@
         :show-batch-delete="false"
       >
         <template #comprehensiveScoreCell="{ record }">
-          <a-rate :value="Math.round(record.comprehensiveScore / 20)" disabled allow-half style="font-size: 12px" />
+          <a-rate
+            :value="Math.round(record.comprehensiveScore / 20)"
+            disabled
+            allow-half
+            style="font-size: 12px"
+          />
         </template>
       </BillTableList>
     </template>
@@ -165,20 +238,46 @@
     v-model:open="addPointsVisible"
     title="增加积分"
     width="460px"
+    :confirm-loading="addPointsSubmitting"
     @ok="handleAddPointsOk"
     @cancel="addPointsVisible = false"
-    :confirm-loading="addPointsSubmitting"
   >
-    <a-form :model="addPointsForm" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
-      <a-form-item label="当前积分">{{ supplier?.totalPoints ?? 0 }}</a-form-item>
-      <a-form-item label="增加积分" required>
-        <a-input-number v-model:value="addPointsForm.points" size="small" :min="1" style="width: 100%" placeholder="请输入增加积分数" />
+    <a-form
+      :model="addPointsForm"
+      :label-col="{ span: 6 }"
+      :wrapper-col="{ span: 16 }"
+    >
+      <a-form-item label="当前积分">
+        {{ supplier?.totalPoints ?? 0 }}
       </a-form-item>
-      <a-form-item label="原因" required>
-        <a-input v-model:value="addPointsForm.reason" size="small" placeholder="请输入积分增加原因" />
+      <a-form-item
+        label="增加积分"
+        required
+      >
+        <a-input-number
+          v-model:value="addPointsForm.points"
+          size="small"
+          :min="1"
+          style="width: 100%"
+          placeholder="请输入增加积分数"
+        />
+      </a-form-item>
+      <a-form-item
+        label="原因"
+        required
+      >
+        <a-input
+          v-model:value="addPointsForm.reason"
+          size="small"
+          placeholder="请输入积分增加原因"
+        />
       </a-form-item>
       <a-form-item label="日期">
-        <a-date-picker v-model:value="addPointsForm.date" size="small" style="width: 100%" />
+        <a-date-picker
+          v-model:value="addPointsForm.date"
+          size="small"
+          style="width: 100%"
+        />
       </a-form-item>
     </a-form>
   </a-modal>
@@ -187,20 +286,47 @@
     v-model:open="consumePointsVisible"
     title="消费积分"
     width="460px"
+    :confirm-loading="consumePointsSubmitting"
     @ok="handleConsumePointsOk"
     @cancel="consumePointsVisible = false"
-    :confirm-loading="consumePointsSubmitting"
   >
-    <a-form :model="consumePointsForm" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
-      <a-form-item label="当前积分">{{ supplier?.totalPoints ?? 0 }}</a-form-item>
-      <a-form-item label="消费积分" required>
-        <a-input-number v-model:value="consumePointsForm.points" size="small" :min="1" :max="supplier?.totalPoints ?? 0" style="width: 100%" placeholder="请输入消费积分数" />
+    <a-form
+      :model="consumePointsForm"
+      :label-col="{ span: 6 }"
+      :wrapper-col="{ span: 16 }"
+    >
+      <a-form-item label="当前积分">
+        {{ supplier?.totalPoints ?? 0 }}
       </a-form-item>
-      <a-form-item label="用途" required>
-        <a-input v-model:value="consumePointsForm.reason" size="small" placeholder="请输入积分消费用途" />
+      <a-form-item
+        label="消费积分"
+        required
+      >
+        <a-input-number
+          v-model:value="consumePointsForm.points"
+          size="small"
+          :min="1"
+          :max="supplier?.totalPoints ?? 0"
+          style="width: 100%"
+          placeholder="请输入消费积分数"
+        />
+      </a-form-item>
+      <a-form-item
+        label="用途"
+        required
+      >
+        <a-input
+          v-model:value="consumePointsForm.reason"
+          size="small"
+          placeholder="请输入积分消费用途"
+        />
       </a-form-item>
       <a-form-item label="日期">
-        <a-date-picker v-model:value="consumePointsForm.date" size="small" style="width: 100%" />
+        <a-date-picker
+          v-model:value="consumePointsForm.date"
+          size="small"
+          style="width: 100%"
+        />
       </a-form-item>
     </a-form>
   </a-modal>

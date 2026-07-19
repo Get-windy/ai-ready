@@ -4,17 +4,30 @@
       <div class="page-header">
         <div class="page-header-left">
           <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>
+              <router-link to="/">
+                首页
+              </router-link>
+            </a-breadcrumb-item>
             <a-breadcrumb-item>系统管理</a-breadcrumb-item>
             <a-breadcrumb-item>模块版本</a-breadcrumb-item>
           </a-breadcrumb>
-          <h2 class="page-header-title">模块版本</h2>
+          <h2 class="page-header-title">
+            模块版本
+          </h2>
         </div>
       </div>
     </template>
 
     <a-card :bordered="false">
-      <a-table :data-source="list" :columns="columns" :loading="loading" row-key="id" :pagination="false" size="small">
+      <a-table
+        :data-source="list"
+        :columns="columns"
+        :loading="loading"
+        row-key="id"
+        :pagination="false"
+        size="small"
+      >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'releaseStatus'">
             <a-tag :color="record.releaseStatus === 'released' ? 'green' : record.releaseStatus === 'beta' ? 'blue' : 'default'">
@@ -25,7 +38,10 @@
             <a-space>
               <a @click="viewDetail(record)">详情</a>
               <a-divider type="vertical" />
-              <a @click="handlePublish(record)" v-if="record.releaseStatus !== 'released'">发布</a>
+              <a
+                v-if="record.releaseStatus !== 'released'"
+                @click="handlePublish(record)"
+              >发布</a>
             </a-space>
           </template>
         </template>

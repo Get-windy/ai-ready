@@ -2,19 +2,47 @@
   <div>
     <div class="panel-toolbar">
       <a-space>
-        <a-select v-model:value="selectedIds" mode="multiple" placeholder="选择标签" style="min-width: 300px" size="small" :max-tag-count="5">
-          <a-select-option v-for="t in allTags" :key="t.id" :value="t.id">
-            <a-tag :color="t.tagColor || undefined">{{ t.tagName }}</a-tag>
+        <a-select
+          v-model:value="selectedIds"
+          mode="multiple"
+          placeholder="选择标签"
+          style="min-width: 300px"
+          size="small"
+          :max-tag-count="5"
+        >
+          <a-select-option
+            v-for="t in allTags"
+            :key="t.id"
+            :value="t.id"
+          >
+            <a-tag :color="t.tagColor || undefined">
+              {{ t.tagName }}
+            </a-tag>
           </a-select-option>
         </a-select>
-        <a-button size="small" type="primary" @click="handleSave">保存标签</a-button>
+        <a-button
+          size="small"
+          type="primary"
+          @click="handleSave"
+        >
+          保存标签
+        </a-button>
       </a-space>
     </div>
     <div class="current-tags">
-      <a-tag v-for="t in selectedTags" :key="t.id" :color="t.tagColor || undefined" closable @close="removeTag(t.id)">
+      <a-tag
+        v-for="t in selectedTags"
+        :key="t.id"
+        :color="t.tagColor || undefined"
+        closable
+        @close="removeTag(t.id)"
+      >
         {{ t.tagName }}
       </a-tag>
-      <span v-if="selectedTags.length === 0" style="color:#999">暂无标签</span>
+      <span
+        v-if="selectedTags.length === 0"
+        style="color:#999"
+      >暂无标签</span>
     </div>
   </div>
 </template>

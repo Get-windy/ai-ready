@@ -1,240 +1,406 @@
 <template>
   <ErrorBoundary @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="subject-page-header">
-        <div class="subject-page-header-left">
-          <a-breadcrumb class="subject-breadcrumb">
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item>财务管理</a-breadcrumb-item>
-            <a-breadcrumb-item>科目管理</a-breadcrumb-item>
-          </a-breadcrumb>
-          <h2 class="subject-page-header-title">科目管理</h2>
+    <PageContainer full-height>
+      <template #header>
+        <div class="subject-page-header">
+          <div class="subject-page-header-left">
+            <a-breadcrumb class="subject-breadcrumb">
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>财务管理</a-breadcrumb-item>
+              <a-breadcrumb-item>科目管理</a-breadcrumb-item>
+            </a-breadcrumb>
+            <h2 class="subject-page-header-title">
+              科目管理
+            </h2>
+          </div>
+          <div class="subject-page-header-right">
+            <span
+              v-if="lastUpdateTime"
+              class="update-time"
+            >更新于 {{ lastUpdateTime }}</span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            >
+              <SyncOutlined /> {{ autoRefreshCountdown }}s
+            </span>
+            <a-button
+              size="small"
+              :loading="refreshLoading"
+              @click="debounceClick('refresh', fetchTree)"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
+              刷新
+            </a-button>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+              <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+            </span>
+          </div>
         </div>
-        <div class="subject-page-header-right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-            <SyncOutlined /> {{ autoRefreshCountdown }}s
-          </span>
-          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchTree)">
-            <template #icon><ReloadOutlined /></template>
-            刷新
-          </a-button>
-          <span class="shortcut-hints">
-            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-            <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
-          </span>
-        </div>
-      </div>
-    </template>
-    <div class="finance-subject-page">
-    <!-- 统计卡片 -->
-    <div class="stat-cards">
-      <div class="stat-card stat-total">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ totalSubjectCount }}</div>
-          <div class="stat-card-label">科目总数</div>
-        </div>
-        <FileTextOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-asset">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ typeCounts[1] || 0 }}</div>
-          <div class="stat-card-label">资产类</div>
-        </div>
-        <FundOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-liability">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ typeCounts[2] || 0 }}</div>
-          <div class="stat-card-label">负债类</div>
-        </div>
-        <CreditCardOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-equity">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ typeCounts[3] || 0 }}</div>
-          <div class="stat-card-label">权益类</div>
-        </div>
-        <DollarOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-enabled">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ enabledCount }}</div>
-          <div class="stat-card-label">已启用</div>
-        </div>
-        <CheckCircleOutlined class="stat-card-icon" />
-      </div>
-    </div>
-
-    <!-- 类型过滤标签 -->
-    <a-card :bordered="false" class="filter-card">
-      <a-tabs v-model:activeKey="activeTypeTab" @change="handleTypeTabChange">
-        <a-tab-pane key="all" tab="全部" />
-        <a-tab-pane key="1" tab="资产类" />
-        <a-tab-pane key="2" tab="负债类" />
-        <a-tab-pane key="3" tab="权益类" />
-        <a-tab-pane key="4" tab="成本类" />
-        <a-tab-pane key="5" tab="损益类" />
-      </a-tabs>
-    </a-card>
-
-    <a-row :gutter="16" class="content-row">
-      <!-- 左: 科目树 -->
-      <a-col :span="8">
-        <a-card title="科目结构" :bordered="false" class="tree-card">
-          <template #extra>
-            <a-space>
-              <a-button type="primary" size="small" v-permission="'finance:subject:create'" @click="handleAddRoot">
-                <template #icon><PlusOutlined /></template>
-                新增一级
-              </a-button>
-              <a-button size="small" @click="fetchTree">
-                <template #icon><ReloadOutlined /></template>
-              </a-button>
-            </a-space>
-          </template>
-          <a-input-search
-            v-model:value="searchKeyword"
-            placeholder="搜索科目编码/名称"
-            style="margin-bottom: 12px"
-            size="small"
-          />
-          <a-spin :spinning="treeLoading">
-            <div class="tree-container">
-              <a-tree
-                v-if="filteredTree.length > 0"
-                :tree-data="filteredTree as any"
-                :field-names="{ title: 'subjectName', key: 'id', children: 'children' }"
-                :selected-keys="selectedKeys"
-                :default-expand-all="true"
-                :show-line="true"
-                @select="handleTreeSelect"
-              >
-                <template #title="{ subjectCode, subjectName, status }">
-                  <span :class="{ 'text-disabled': status === 0 }">
-                    {{ subjectCode }} - {{ subjectName }}
-                  </span>
-                </template>
-              </a-tree>
-              <a-empty v-else description="暂无科目" />
+      </template>
+      <div class="finance-subject-page">
+        <!-- 统计卡片 -->
+        <div class="stat-cards">
+          <div class="stat-card stat-total">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ totalSubjectCount }}
+              </div>
+              <div class="stat-card-label">
+                科目总数
+              </div>
             </div>
-          </a-spin>
+            <FileTextOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-asset">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ typeCounts[1] || 0 }}
+              </div>
+              <div class="stat-card-label">
+                资产类
+              </div>
+            </div>
+            <FundOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-liability">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ typeCounts[2] || 0 }}
+              </div>
+              <div class="stat-card-label">
+                负债类
+              </div>
+            </div>
+            <CreditCardOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-equity">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ typeCounts[3] || 0 }}
+              </div>
+              <div class="stat-card-label">
+                权益类
+              </div>
+            </div>
+            <DollarOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-enabled">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ enabledCount }}
+              </div>
+              <div class="stat-card-label">
+                已启用
+              </div>
+            </div>
+            <CheckCircleOutlined class="stat-card-icon" />
+          </div>
+        </div>
+
+        <!-- 类型过滤标签 -->
+        <a-card
+          :bordered="false"
+          class="filter-card"
+        >
+          <a-tabs
+            v-model:active-key="activeTypeTab"
+            @change="handleTypeTabChange"
+          >
+            <a-tab-pane
+              key="all"
+              tab="全部"
+            />
+            <a-tab-pane
+              key="1"
+              tab="资产类"
+            />
+            <a-tab-pane
+              key="2"
+              tab="负债类"
+            />
+            <a-tab-pane
+              key="3"
+              tab="权益类"
+            />
+            <a-tab-pane
+              key="4"
+              tab="成本类"
+            />
+            <a-tab-pane
+              key="5"
+              tab="损益类"
+            />
+          </a-tabs>
         </a-card>
-      </a-col>
 
-      <!-- 右: 详情/编辑 -->
-      <a-col :span="16">
-        <a-card :bordered="false" class="detail-card">
-          <template #title>
-            <span>科目详情</span>
-          </template>
+        <a-row
+          :gutter="16"
+          class="content-row"
+        >
+          <!-- 左: 科目树 -->
+          <a-col :span="8">
+            <a-card
+              title="科目结构"
+              :bordered="false"
+              class="tree-card"
+            >
+              <template #extra>
+                <a-space>
+                  <a-button
+                    v-permission="'finance:subject:create'"
+                    type="primary"
+                    size="small"
+                    @click="handleAddRoot"
+                  >
+                    <template #icon>
+                      <PlusOutlined />
+                    </template>
+                    新增一级
+                  </a-button>
+                  <a-button
+                    size="small"
+                    @click="fetchTree"
+                  >
+                    <template #icon>
+                      <ReloadOutlined />
+                    </template>
+                  </a-button>
+                </a-space>
+              </template>
+              <a-input-search
+                v-model:value="searchKeyword"
+                placeholder="搜索科目编码/名称"
+                style="margin-bottom: 12px"
+                size="small"
+              />
+              <a-spin :spinning="treeLoading">
+                <div class="tree-container">
+                  <a-tree
+                    v-if="filteredTree.length > 0"
+                    :tree-data="filteredTree as any"
+                    :field-names="{ title: 'subjectName', key: 'id', children: 'children' }"
+                    :selected-keys="selectedKeys"
+                    :default-expand-all="true"
+                    :show-line="true"
+                    @select="handleTreeSelect"
+                  >
+                    <template #title="{ subjectCode, subjectName, status }">
+                      <span :class="{ 'text-disabled': status === 0 }">
+                        {{ subjectCode }} - {{ subjectName }}
+                      </span>
+                    </template>
+                  </a-tree>
+                  <a-empty
+                    v-else
+                    description="暂无科目"
+                  />
+                </div>
+              </a-spin>
+            </a-card>
+          </a-col>
 
-          <template v-if="selectedSubject">
-            <a-descriptions :column="2" size="small" bordered>
-              <a-descriptions-item label="科目编码" :span="2">
-                <a-tag color="blue">{{ selectedSubject.subjectCode }}</a-tag>
-              </a-descriptions-item>
-              <a-descriptions-item label="科目名称" :span="2">
-                {{ selectedSubject.subjectName }}
-              </a-descriptions-item>
-              <a-descriptions-item label="科目类型">
-                <a-tag :color="typeColorMap[selectedSubject.subjectType] || 'default'">
-                  {{ typeLabelMap[selectedSubject.subjectType] || '未知' }}
-                </a-tag>
-              </a-descriptions-item>
-              <a-descriptions-item label="借贷方向">
-                {{ selectedSubject.direction === 1 ? '借方' : '贷方' }}
-              </a-descriptions-item>
-              <a-descriptions-item label="状态">
-                <a-switch
-                  :checked="selectedSubject.enabled"
+          <!-- 右: 详情/编辑 -->
+          <a-col :span="16">
+            <a-card
+              :bordered="false"
+              class="detail-card"
+            >
+              <template #title>
+                <span>科目详情</span>
+              </template>
+
+              <template v-if="selectedSubject">
+                <a-descriptions
+                  :column="2"
                   size="small"
-                  @change="handleToggleEnabled(selectedSubject)"
-                />
-              </a-descriptions-item>
-              <a-descriptions-item label="科目级别">
-                第 {{ selectedSubject.level }} 级
-              </a-descriptions-item>
-            </a-descriptions>
+                  bordered
+                >
+                  <a-descriptions-item
+                    label="科目编码"
+                    :span="2"
+                  >
+                    <a-tag color="blue">
+                      {{ selectedSubject.subjectCode }}
+                    </a-tag>
+                  </a-descriptions-item>
+                  <a-descriptions-item
+                    label="科目名称"
+                    :span="2"
+                  >
+                    {{ selectedSubject.subjectName }}
+                  </a-descriptions-item>
+                  <a-descriptions-item label="科目类型">
+                    <a-tag :color="typeColorMap[selectedSubject.subjectType] || 'default'">
+                      {{ typeLabelMap[selectedSubject.subjectType] || '未知' }}
+                    </a-tag>
+                  </a-descriptions-item>
+                  <a-descriptions-item label="借贷方向">
+                    {{ selectedSubject.direction === 1 ? '借方' : '贷方' }}
+                  </a-descriptions-item>
+                  <a-descriptions-item label="状态">
+                    <a-switch
+                      :checked="selectedSubject.enabled"
+                      size="small"
+                      @change="handleToggleEnabled(selectedSubject)"
+                    />
+                  </a-descriptions-item>
+                  <a-descriptions-item label="科目级别">
+                    第 {{ selectedSubject.level }} 级
+                  </a-descriptions-item>
+                </a-descriptions>
 
-            <a-space style="margin-top: 16px">
-              <a-button type="primary" size="small" v-permission="'finance:subject:edit'" @click="handleEdit(selectedSubject)">
-                <template #icon><EditOutlined /></template>
-                编辑
-              </a-button>
-              <a-button size="small" v-permission="'finance:subject:create'" @click="handleAddChild(selectedSubject)">
-                <template #icon><PlusOutlined /></template>
-                新增下级
-              </a-button>
-              <a-popconfirm title="确定删除该科目？" @confirm="handleDelete(selectedSubject)">
-                <a-button size="small" danger v-permission="'finance:subject:delete'">
-                  <template #icon><DeleteOutlined /></template>
-                  删除
-                </a-button>
-              </a-popconfirm>
-            </a-space>
-          </template>
-          <a-empty v-else description="请从左侧选择一个科目" />
+                <a-space style="margin-top: 16px">
+                  <a-button
+                    v-permission="'finance:subject:edit'"
+                    type="primary"
+                    size="small"
+                    @click="handleEdit(selectedSubject)"
+                  >
+                    <template #icon>
+                      <EditOutlined />
+                    </template>
+                    编辑
+                  </a-button>
+                  <a-button
+                    v-permission="'finance:subject:create'"
+                    size="small"
+                    @click="handleAddChild(selectedSubject)"
+                  >
+                    <template #icon>
+                      <PlusOutlined />
+                    </template>
+                    新增下级
+                  </a-button>
+                  <a-popconfirm
+                    title="确定删除该科目？"
+                    @confirm="handleDelete(selectedSubject)"
+                  >
+                    <a-button
+                      v-permission="'finance:subject:delete'"
+                      size="small"
+                      danger
+                    >
+                      <template #icon>
+                        <DeleteOutlined />
+                      </template>
+                      删除
+                    </a-button>
+                  </a-popconfirm>
+                </a-space>
+              </template>
+              <a-empty
+                v-else
+                description="请从左侧选择一个科目"
+              />
+            </a-card>
+          </a-col>
+        </a-row>
+
+        <!-- 科目列表（扁平表格） -->
+        <a-card
+          title="科目列表"
+          :bordered="false"
+          style="margin-top: 16px"
+        >
+          <a-table
+            :data-source="flattenedSubjects"
+            :columns="tableColumns"
+            :pagination="{ pageSize: 20 }"
+            size="small"
+            row-key="id"
+          />
         </a-card>
-      </a-col>
-    </a-row>
 
-    <!-- 科目列表（扁平表格） -->
-    <a-card title="科目列表" :bordered="false" style="margin-top: 16px">
-      <a-table
-        :data-source="flattenedSubjects"
-        :columns="tableColumns"
-        :pagination="{ pageSize: 20 }"
-        size="small"
-        row-key="id"
-      />
-    </a-card>
-
-    <!-- 科目编辑弹窗 -->
-    <FullScreenDetail
-      :visible="formVisible"
-      :title="isEditing ? '编辑科目' : '新增科目'"
-      :save-loading="formSubmitting"
-      :dirty="formDirty"
-      :show-save-and-new="!isEditing"
-      @save="handleFormSubmit"
-      @close="handleFormClose"
-      @save-and-new="handleFormSaveAndNew"
-    >
-      <a-form
-        ref="formRef"
-        :model="formState"
-        :rules="formRules"
-        :label-col="{ span: 6 }"
-        :wrapper-col="{ span: 16 }"
-        size="small"
-      >
-        <a-form-item label="科目编码" name="code">
-          <a-input v-model:value="formState.code" placeholder="如：1001" size="small" />
-        </a-form-item>
-        <a-form-item label="科目名称" name="name">
-          <a-input v-model:value="formState.name" placeholder="如：库存现金" size="small" />
-        </a-form-item>
-        <a-form-item label="科目类型" name="type">
-          <a-select v-model:value="formState.type" :options="typeOptions" placeholder="请选择类型" size="small" />
-        </a-form-item>
-        <a-form-item label="上级科目">
-          <a-input :value="formState.parentName" disabled placeholder="无（一级科目）" size="small" />
-        </a-form-item>
-        <a-form-item label="借贷方向" name="direction">
-          <a-radio-group v-model:value="formState.direction">
-            <a-radio :value="1">借方</a-radio>
-            <a-radio :value="2">贷方</a-radio>
-          </a-radio-group>
-        </a-form-item>
-        <a-form-item label="启用">
-          <a-switch v-model:checked="formState.enabled" checked-children="启用" un-checked-children="禁用" />
-        </a-form-item>
-      </a-form>
-    </FullScreenDetail>
-    </div>
-  </PageContainer>
+        <!-- 科目编辑弹窗 -->
+        <FullScreenDetail
+          :visible="formVisible"
+          :title="isEditing ? '编辑科目' : '新增科目'"
+          :save-loading="formSubmitting"
+          :dirty="formDirty"
+          :show-save-and-new="!isEditing"
+          @save="handleFormSubmit"
+          @close="handleFormClose"
+          @save-and-new="handleFormSaveAndNew"
+        >
+          <a-form
+            ref="formRef"
+            :model="formState"
+            :rules="formRules"
+            :label-col="{ span: 6 }"
+            :wrapper-col="{ span: 16 }"
+            size="small"
+          >
+            <a-form-item
+              label="科目编码"
+              name="code"
+            >
+              <a-input
+                v-model:value="formState.code"
+                placeholder="如：1001"
+                size="small"
+              />
+            </a-form-item>
+            <a-form-item
+              label="科目名称"
+              name="name"
+            >
+              <a-input
+                v-model:value="formState.name"
+                placeholder="如：库存现金"
+                size="small"
+              />
+            </a-form-item>
+            <a-form-item
+              label="科目类型"
+              name="type"
+            >
+              <a-select
+                v-model:value="formState.type"
+                :options="typeOptions"
+                placeholder="请选择类型"
+                size="small"
+              />
+            </a-form-item>
+            <a-form-item label="上级科目">
+              <a-input
+                :value="formState.parentName"
+                disabled
+                placeholder="无（一级科目）"
+                size="small"
+              />
+            </a-form-item>
+            <a-form-item
+              label="借贷方向"
+              name="direction"
+            >
+              <a-radio-group v-model:value="formState.direction">
+                <a-radio :value="1">
+                  借方
+                </a-radio>
+                <a-radio :value="2">
+                  贷方
+                </a-radio>
+              </a-radio-group>
+            </a-form-item>
+            <a-form-item label="启用">
+              <a-switch
+                v-model:checked="formState.enabled"
+                checked-children="启用"
+                un-checked-children="禁用"
+              />
+            </a-form-item>
+          </a-form>
+        </FullScreenDetail>
+      </div>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

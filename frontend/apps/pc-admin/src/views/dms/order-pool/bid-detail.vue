@@ -3,7 +3,9 @@
     <PageContainer>
       <template #header>
         <a-space>
-          <a-button @click="goBack">返回</a-button>
+          <a-button @click="goBack">
+            返回
+          </a-button>
           <span style="font-weight: bold;">
             竞标详情 - 任务 #{{ taskId }}
           </span>

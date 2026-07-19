@@ -8,13 +8,23 @@
         :class="{ active: activeKey === item.key }"
         @click="handleSelect(item.key)"
       >
-        <component :is="item.icon" class="menu-icon" />
+        <component
+          :is="item.icon"
+          class="menu-icon"
+        />
         <span class="menu-text">{{ item.label }}</span>
       </div>
     </div>
     <div class="sidebar-footer">
-      <a-button type="link" block size="small" @click="handleAdd">
-        <template #icon><PlusOutlined /></template>
+      <a-button
+        type="link"
+        block
+        size="small"
+        @click="handleAdd"
+      >
+        <template #icon>
+          <PlusOutlined />
+        </template>
         添加
       </a-button>
     </div>

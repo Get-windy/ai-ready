@@ -1,168 +1,198 @@
 <template>
   <ErrorBoundary>
     <div class="login-container">
-    <div class="login-background" aria-hidden="true">
-      <div class="background-shapes">
-        <div class="shape shape-1" />
-        <div class="shape shape-2" />
-        <div class="shape shape-3" />
-      </div>
-    </div>
-
-    <div class="login-wrapper">
-      <div class="login-box">
-        <div class="login-header">
-          <div class="logo">
-            <div class="logo-icon" aria-hidden="true">
-              <span class="logo-initials">AR</span>
-            </div>
-            <h1>企智连·AI-Ready</h1>
-          </div>
-          <p role="doc-subtitle">企业智能管理系统</p>
+      <div
+        class="login-background"
+        aria-hidden="true"
+      >
+        <div class="background-shapes">
+          <div class="shape shape-1" />
+          <div class="shape shape-2" />
+          <div class="shape shape-3" />
         </div>
+      </div>
+
+      <div class="login-wrapper">
+        <div class="login-box">
+          <div class="login-header">
+            <div class="logo">
+              <div
+                class="logo-icon"
+                aria-hidden="true"
+              >
+                <span class="logo-initials">AR</span>
+              </div>
+              <h1>企智连·AI-Ready</h1>
+            </div>
+            <p role="doc-subtitle">
+              企业智能管理系统
+            </p>
+          </div>
         
-        <a-form
-          ref="formRef"
-          :model="formState"
-          :rules="rules"
-          layout="vertical"
-          role="form"
-          :aria-label="t('login.title')"
-          @finish="handleSubmit"
-        >
-          <a-form-item name="tenantName" id="form-item-tenant">
-            <a-input
-              v-model:value="formState.tenantName"
-              size="large"
-              placeholder="请输入租户名称"
-              aria-required="true"
-              aria-label="租户名称"
-              @keyup.enter="focusNextInput('username')"
+          <a-form
+            ref="formRef"
+            :model="formState"
+            :rules="rules"
+            layout="vertical"
+            role="form"
+            :aria-label="t('login.title')"
+            @finish="handleSubmit"
+          >
+            <a-form-item
+              id="form-item-tenant"
+              name="tenantName"
             >
-              <template #prefix>
-                <ShopOutlined aria-hidden="true" />
-              </template>
-            </a-input>
-          </a-form-item>
-
-          <a-form-item name="username" id="form-item-username">
-            <a-input
-              v-model:value="formState.username"
-              size="large"
-              placeholder="请输入用户名"
-              aria-required="true"
-              :aria-describedby="formState.username ? '' : 'form-item-username-error'"
-              @keyup.enter="focusNextInput('password')"
-            >
-              <template #prefix>
-                <UserOutlined aria-hidden="true" />
-              </template>
-            </a-input>
-          </a-form-item>
-
-          <a-form-item name="password" id="form-item-password">
-            <a-input-password
-              ref="passwordInput"
-              v-model:value="formState.password"
-              size="large"
-              placeholder="请输入密码"
-              aria-required="true"
-              :aria-describedby="formState.password ? '' : 'form-item-password-error'"
-              @keyup.enter="focusNextInput('captcha')"
-            >
-              <template #prefix>
-                <LockOutlined aria-hidden="true" />
-              </template>
-            </a-input-password>
-          </a-form-item>
-
-          <!-- 验证码区域 -->
-          <a-form-item name="captcha" id="form-item-captcha">
-            <div class="captcha-container">
               <a-input
-                ref="captchaInput"
-                v-model:value="formState.captcha"
+                v-model:value="formState.tenantName"
                 size="large"
-                placeholder="请输入验证码"
-                class="captcha-input"
+                placeholder="请输入租户名称"
                 aria-required="true"
-                :aria-describedby="formState.captcha ? '' : 'form-item-captcha-error'"
+                aria-label="租户名称"
+                @keyup.enter="focusNextInput('username')"
               >
                 <template #prefix>
-                  <SafetyOutlined aria-hidden="true" />
+                  <ShopOutlined aria-hidden="true" />
                 </template>
               </a-input>
-              <div
-                class="captcha-image"
-                role="button"
-                aria-label="刷新验证码"
-                tabindex="0"
-                @click="refreshCaptcha"
-                @keydown.enter="refreshCaptcha"
-                @keydown.space.prevent="refreshCaptcha"
+            </a-form-item>
+
+            <a-form-item
+              id="form-item-username"
+              name="username"
+            >
+              <a-input
+                v-model:value="formState.username"
+                size="large"
+                placeholder="请输入用户名"
+                aria-required="true"
+                :aria-describedby="formState.username ? '' : 'form-item-username-error'"
+                @keyup.enter="focusNextInput('password')"
               >
-                <img
-                  v-if="captchaUrl"
-                  :src="captchaUrl"
-                  alt="验证码图片，点击刷新"
+                <template #prefix>
+                  <UserOutlined aria-hidden="true" />
+                </template>
+              </a-input>
+            </a-form-item>
+
+            <a-form-item
+              id="form-item-password"
+              name="password"
+            >
+              <a-input-password
+                ref="passwordInput"
+                v-model:value="formState.password"
+                size="large"
+                placeholder="请输入密码"
+                aria-required="true"
+                :aria-describedby="formState.password ? '' : 'form-item-password-error'"
+                @keyup.enter="focusNextInput('captcha')"
+              >
+                <template #prefix>
+                  <LockOutlined aria-hidden="true" />
+                </template>
+              </a-input-password>
+            </a-form-item>
+
+            <!-- 验证码区域 -->
+            <a-form-item
+              id="form-item-captcha"
+              name="captcha"
+            >
+              <div class="captcha-container">
+                <a-input
+                  ref="captchaInput"
+                  v-model:value="formState.captcha"
+                  size="large"
+                  placeholder="请输入验证码"
+                  class="captcha-input"
+                  aria-required="true"
+                  :aria-describedby="formState.captcha ? '' : 'form-item-captcha-error'"
                 >
+                  <template #prefix>
+                    <SafetyOutlined aria-hidden="true" />
+                  </template>
+                </a-input>
                 <div
-                  v-else
-                  class="captcha-loading"
-                  role="status"
-                  aria-label="验证码加载中"
+                  class="captcha-image"
+                  role="button"
+                  aria-label="刷新验证码"
+                  tabindex="0"
+                  @click="refreshCaptcha"
+                  @keydown.enter="refreshCaptcha"
+                  @keydown.space.prevent="refreshCaptcha"
                 >
-                  <LoadingOutlined aria-hidden="true" />
+                  <img
+                    v-if="captchaUrl"
+                    :src="captchaUrl"
+                    alt="验证码图片，点击刷新"
+                  >
+                  <div
+                    v-else
+                    class="captcha-loading"
+                    role="status"
+                    aria-label="验证码加载中"
+                  >
+                    <LoadingOutlined aria-hidden="true" />
+                  </div>
                 </div>
               </div>
+            </a-form-item>
+
+            <div class="login-options">
+              <a-checkbox v-model:checked="rememberMe">
+                <span class="remember-text">记住我</span>
+              </a-checkbox>
+              <a
+                class="forgot-password"
+                role="button"
+                aria-label="忘记密码"
+                tabindex="0"
+                @click="handleForgotPassword"
+                @keydown.enter="handleForgotPassword"
+              >忘记密码？</a>
             </div>
-          </a-form-item>
 
-          <div class="login-options">
-            <a-checkbox v-model:checked="rememberMe">
-              <span class="remember-text">记住我</span>
-            </a-checkbox>
-            <a
-              class="forgot-password"
-              role="button"
-              aria-label="忘记密码"
-              tabindex="0"
-              @click="handleForgotPassword"
-              @keydown.enter="handleForgotPassword"
-            >忘记密码？</a>
-          </div>
+            <a-form-item>
+              <a-button
+                type="primary"
+                html-type="submit"
+                size="large"
+                :loading="loading"
+                :aria-busy="loading"
+                block
+                class="login-button"
+              >
+                {{ loading ? '登录中...' : '登 录' }}
+              </a-button>
+            </a-form-item>
 
-          <a-form-item>
-            <a-button
-              type="primary"
-              html-type="submit"
-              size="large"
-              :loading="loading"
-              :aria-busy="loading"
-              block
-              class="login-button"
+            <div class="login-footer">
+              <span class="footer-text">还没有账号？</span>
+              <a-button
+                type="link"
+                :loading="registerLoading"
+                class="register-link"
+                @click="handleRegister"
+              >
+                立即注册
+              </a-button>
+            </div>
+            <div
+              class="login-footer"
+              style="margin-top: 4px;"
             >
-              {{ loading ? '登录中...' : '登 录' }}
-            </a-button>
-          </a-form-item>
-
-          <div class="login-footer">
-            <span class="footer-text">还没有账号？</span>
-            <a-button
-              type="link"
-              :loading="registerLoading"
-              class="register-link"
-              @click="handleRegister"
-            >立即注册</a-button>
-          </div>
-          <div class="login-footer" style="margin-top: 4px;">
-            <span class="footer-text">企业用户？</span>
-            <router-link to="/tenant-register" class="enterprise-link">企业注册</router-link>
-          </div>
-        </a-form>
+              <span class="footer-text">企业用户？</span>
+              <router-link
+                to="/tenant-register"
+                class="enterprise-link"
+              >
+                企业注册
+              </router-link>
+            </div>
+          </a-form>
+        </div>
       </div>
     </div>
-  </div>
   </ErrorBoundary>
 </template>
 

@@ -3,22 +3,42 @@
     <!-- 顶部操作栏 -->
     <div class="form-header">
       <div class="header-left">
-        <a-button size="small" @click="handleBack">
-          <template #icon><ArrowLeftOutlined /></template>
+        <a-button
+          size="small"
+          @click="handleBack"
+        >
+          <template #icon>
+            <ArrowLeftOutlined />
+          </template>
           返回
         </a-button>
         <span class="order-no">NO. {{ formData.exchangeNo || '待生成' }}</span>
       </div>
       <div class="header-center">
-        <h2 class="form-title">采购换货单</h2>
+        <h2 class="form-title">
+          采购换货单
+        </h2>
       </div>
       <div class="header-right">
-        <a-button size="small" :loading="saving" @click="handleSaveDraft">
-          <template #icon><SaveOutlined /></template>
+        <a-button
+          size="small"
+          :loading="saving"
+          @click="handleSaveDraft"
+        >
+          <template #icon>
+            <SaveOutlined />
+          </template>
           保存
         </a-button>
-        <a-button size="small" type="primary" :loading="saving" @click="handleSubmit">
-          <template #icon><SendOutlined /></template>
+        <a-button
+          size="small"
+          type="primary"
+          :loading="saving"
+          @click="handleSubmit"
+        >
+          <template #icon>
+            <SendOutlined />
+          </template>
           提交
         </a-button>
       </div>
@@ -28,11 +48,19 @@
     <div class="form-body">
       <!-- 基础信息 -->
       <div class="form-section">
-        <h3 class="section-title">基础信息</h3>
-        <a-form :label-col="{ span: 6 }" :wrapper-col="{ span: 18 }">
+        <h3 class="section-title">
+          基础信息
+        </h3>
+        <a-form
+          :label-col="{ span: 6 }"
+          :wrapper-col="{ span: 18 }"
+        >
           <a-row :gutter="16">
             <a-col :span="8">
-              <a-form-item label="原采购订单" required>
+              <a-form-item
+                label="原采购订单"
+                required
+              >
                 <a-select
                   v-model:value="formData.originalOrderId"
                   placeholder="请搜索选择原采购订单"
@@ -43,7 +71,11 @@
                   @search="handleOrderSearch"
                   @change="handleOrderChange"
                 >
-                  <a-select-option v-for="order in orderOptions" :key="order.id" :value="order.id">
+                  <a-select-option
+                    v-for="order in orderOptions"
+                    :key="order.id"
+                    :value="order.id"
+                  >
                     {{ order.orderNo }} - {{ order.supplierName }}
                   </a-select-option>
                 </a-select>
@@ -51,11 +83,18 @@
             </a-col>
             <a-col :span="8">
               <a-form-item label="供应商">
-                <a-input v-model:value="formData.supplierName" size="small" disabled />
+                <a-input
+                  v-model:value="formData.supplierName"
+                  size="small"
+                  disabled
+                />
               </a-form-item>
             </a-col>
             <a-col :span="8">
-              <a-form-item label="换货日期" required>
+              <a-form-item
+                label="换货日期"
+                required
+              >
                 <a-date-picker
                   v-model:value="formData.exchangeDate"
                   style="width: 100%"
@@ -68,17 +107,37 @@
           </a-row>
           <a-row :gutter="16">
             <a-col :span="8">
-              <a-form-item label="换货类型" required>
-                <a-select v-model:value="formData.exchangeType" placeholder="请选择换货类型" size="small">
-                  <a-select-option :value="1">质量问题</a-select-option>
-                  <a-select-option :value="2">规格不符</a-select-option>
-                  <a-select-option :value="3">数量错误</a-select-option>
-                  <a-select-option :value="4">其他</a-select-option>
+              <a-form-item
+                label="换货类型"
+                required
+              >
+                <a-select
+                  v-model:value="formData.exchangeType"
+                  placeholder="请选择换货类型"
+                  size="small"
+                >
+                  <a-select-option :value="1">
+                    质量问题
+                  </a-select-option>
+                  <a-select-option :value="2">
+                    规格不符
+                  </a-select-option>
+                  <a-select-option :value="3">
+                    数量错误
+                  </a-select-option>
+                  <a-select-option :value="4">
+                    其他
+                  </a-select-option>
                 </a-select>
               </a-form-item>
             </a-col>
             <a-col :span="16">
-              <a-form-item label="换货原因" required :label-col="{ span: 3 }" :wrapper-col="{ span: 21 }">
+              <a-form-item
+                label="换货原因"
+                required
+                :label-col="{ span: 3 }"
+                :wrapper-col="{ span: 21 }"
+              >
                 <a-textarea
                   v-model:value="formData.exchangeReason"
                   :rows="1"
@@ -93,7 +152,9 @@
 
       <!-- 换货商品明细 -->
       <div class="form-section">
-        <h3 class="section-title">换货商品明细</h3>
+        <h3 class="section-title">
+          换货商品明细
+        </h3>
         <BillDetailTable
           :columns="detailColumns"
           :data-source="formData.items"
@@ -122,14 +183,19 @@
             <span class="amount-text">¥{{ ((record.exchangeQuantity || 0) * (record.exchangePrice || 0)).toFixed(2) }}</span>
           </template>
         </BillDetailTable>
-        <div v-if="formData.items.length === 0" class="empty-tip">
+        <div
+          v-if="formData.items.length === 0"
+          class="empty-tip"
+        >
           请先选择原采购订单，系统将自动加载订单明细
         </div>
       </div>
 
       <!-- 备注 -->
       <div class="form-section">
-        <h3 class="section-title">备注</h3>
+        <h3 class="section-title">
+          备注
+        </h3>
         <a-textarea
           v-model:value="formData.remark"
           :rows="2"
@@ -148,13 +214,26 @@
         <span class="total-amount">¥{{ totalAmount.toFixed(2) }}</span>
       </div>
       <div class="footer-right">
-        <a-button size="large" :loading="saving" @click="handleSaveDraft">
-          <template #icon><SaveOutlined /></template>
+        <a-button
+          size="large"
+          :loading="saving"
+          @click="handleSaveDraft"
+        >
+          <template #icon>
+            <SaveOutlined />
+          </template>
           保存
           <span class="shortcut-hint">Ctrl+S</span>
         </a-button>
-        <a-button type="primary" size="large" :loading="saving" @click="handleSubmit">
-          <template #icon><SendOutlined /></template>
+        <a-button
+          type="primary"
+          size="large"
+          :loading="saving"
+          @click="handleSubmit"
+        >
+          <template #icon>
+            <SendOutlined />
+          </template>
           提交
           <span class="shortcut-hint">Ctrl+Enter</span>
         </a-button>

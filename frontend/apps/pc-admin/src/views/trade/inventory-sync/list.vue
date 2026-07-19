@@ -1,14 +1,28 @@
 <template>
   <div class="page-container">
     <div class="page-header">
-      <h2 class="page-title">库存同步</h2>
+      <h2 class="page-title">
+        库存同步
+      </h2>
     </div>
     <div class="page-container__body">
-      <a-card :bordered="false" class="table-card">
-        <a-table :columns="columns" :data-source="tableData" :loading="loading" :pagination="pagination" row-key="id" @change="handleTableChange">
+      <a-card
+        :bordered="false"
+        class="table-card"
+      >
+        <a-table
+          :columns="columns"
+          :data-source="tableData"
+          :loading="loading"
+          :pagination="pagination"
+          row-key="id"
+          @change="handleTableChange"
+        >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'channelCode'">
-              <a-tag :color="getChannelColor(record.channelCode)">{{ getChannelName(record.channelCode) }}</a-tag>
+              <a-tag :color="getChannelColor(record.channelCode)">
+                {{ getChannelName(record.channelCode) }}
+              </a-tag>
             </template>
             <template v-if="column.key === 'syncType'">
               <a-tag :color="record.syncType === 'PUSH' ? 'blue' : record.syncType === 'QUERY' ? 'green' : 'orange'">
@@ -16,7 +30,9 @@
               </a-tag>
             </template>
             <template v-if="column.key === 'syncStatus'">
-              <a-tag :color="record.syncStatus === 1 ? 'success' : 'error'">{{ record.syncStatus === 1 ? '成功' : '失败' }}</a-tag>
+              <a-tag :color="record.syncStatus === 1 ? 'success' : 'error'">
+                {{ record.syncStatus === 1 ? '成功' : '失败' }}
+              </a-tag>
             </template>
           </template>
         </a-table>

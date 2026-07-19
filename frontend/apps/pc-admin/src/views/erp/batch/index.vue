@@ -1,226 +1,477 @@
 <template>
-  <ErrorBoundary @error="handleError"><PageContainer full-height>
-    <template #header>
-      <div class="batch-page-header">
-        <div class="batch-page-header-inner">
-          <div>
-            <a-breadcrumb>
-              <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-              <a-breadcrumb-item>库存管理</a-breadcrumb-item>
-            </a-breadcrumb>
-            <div class="batch-tabs-wrapper">
-              <a-tabs v-model:activeKey="activeTab" @change="handleTabChange">
-                <a-tab-pane key="batch" tab="批次管理" />
-                <a-tab-pane key="serial" tab="序列号管理" />
-              </a-tabs>
+  <ErrorBoundary @error="handleError">
+    <PageContainer full-height>
+      <template #header>
+        <div class="batch-page-header">
+          <div class="batch-page-header-inner">
+            <div>
+              <a-breadcrumb>
+                <a-breadcrumb-item>
+                  <router-link to="/">
+                    首页
+                  </router-link>
+                </a-breadcrumb-item>
+                <a-breadcrumb-item>库存管理</a-breadcrumb-item>
+              </a-breadcrumb>
+              <div class="batch-tabs-wrapper">
+                <a-tabs
+                  v-model:active-key="activeTab"
+                  @change="handleTabChange"
+                >
+                  <a-tab-pane
+                    key="batch"
+                    tab="批次管理"
+                  />
+                  <a-tab-pane
+                    key="serial"
+                    tab="序列号管理"
+                  />
+                </a-tabs>
+              </div>
             </div>
-          </div>
-          <div class="batch-header-actions">
-            <span class="data-status">
-              <a-badge :status="loading ? 'processing' : 'success'" />
-              <span v-if="lastUpdateTime" class="update-time">数据更新: {{ lastUpdateTime }}</span>
-              <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-                <SyncOutlined /> {{ autoRefreshCountdown }}s
+            <div class="batch-header-actions">
+              <span class="data-status">
+                <a-badge :status="loading ? 'processing' : 'success'" />
+                <span
+                  v-if="lastUpdateTime"
+                  class="update-time"
+                >数据更新: {{ lastUpdateTime }}</span>
+                <span
+                  v-if="autoRefreshCountdown > 0"
+                  class="auto-refresh-badge"
+                >
+                  <SyncOutlined /> {{ autoRefreshCountdown }}s
+                </span>
               </span>
-            </span>
-            <a-button size="small" :loading="loading" @click="debounceClick('refresh', fetchData)">
-              <template #icon><ReloadOutlined /></template> 刷新
-            </a-button>
-            <a-button size="small" @click="debounceClick('export', handleExport)">
-              <template #icon><DownloadOutlined /></template> 导出
-            </a-button>
-            <!-- 快捷键提示 -->
-            <span class="shortcut-hints">
-              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-              <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
-              <span class="shortcut-hint"><kbd>Ctrl+E</kbd> 导出</span>
-            </span>
+              <a-button
+                size="small"
+                :loading="loading"
+                @click="debounceClick('refresh', fetchData)"
+              >
+                <template #icon>
+                  <ReloadOutlined />
+                </template> 刷新
+              </a-button>
+              <a-button
+                size="small"
+                @click="debounceClick('export', handleExport)"
+              >
+                <template #icon>
+                  <DownloadOutlined />
+                </template> 导出
+              </a-button>
+              <!-- 快捷键提示 -->
+              <span class="shortcut-hints">
+                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+                <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+                <span class="shortcut-hint"><kbd>Ctrl+E</kbd> 导出</span>
+              </span>
+            </div>
           </div>
         </div>
-      </div>
-    </template>
+      </template>
 
-    <template #filter>
-      <SearchBar
-        :fields="searchFields"
-        :loading="loading"
-        @search="handleSearch"
-        @reset="handleReset"
-      />
-    </template>
+      <template #filter>
+        <SearchBar
+          :fields="searchFields"
+          :loading="loading"
+          @search="handleSearch"
+          @reset="handleReset"
+        />
+      </template>
 
-    <template #default>
-      <div class="batch-body">
-        <!-- 统计卡片 -->
-        <a-row :gutter="12" style="margin-bottom: 12px;">
-          <a-col :span="6">
-            <div class="stat-card" style="border-top: 3px solid #1890ff;">
-              <div class="stat-value" style="color:#1890ff">{{ statistics.total }}</div>
-              <div class="stat-label">总批次数</div>
-            </div>
-          </a-col>
-          <a-col :span="6">
-            <div class="stat-card" style="border-top: 3px solid #52c41a;">
-              <div class="stat-value" style="color:#52c41a">{{ statistics.active }}</div>
-              <div class="stat-label">启用中</div>
-            </div>
-          </a-col>
-          <a-col :span="6">
-            <div class="stat-card" style="border-top: 3px solid #faad14;">
-              <div class="stat-value" style="color:#faad14">{{ statistics.quarantined }}</div>
-              <div class="stat-label">隔离</div>
-            </div>
-          </a-col>
-          <a-col :span="6">
-            <div class="stat-card" style="border-top: 3px solid #ff4d4f;">
-              <div class="stat-value" style="color:#ff4d4f">{{ statistics.expired }}</div>
-              <div class="stat-label">过期</div>
-            </div>
-          </a-col>
-        </a-row>
-
-        <!-- 操作按钮行 -->
-        <div class="action-bar">
-          <a-space>
-            <a-button type="primary" v-permission="'erp:batch:create'" @click="handleCreate">
-              <template #icon><PlusOutlined /></template>
-              新建批次
-            </a-button>
-            <a-button @click="debounceClick('refresh', fetchData)">
-              <template #icon><ReloadOutlined /></template>
-              刷新
-            </a-button>
-            <a-button v-if="hasSelected" v-permission="'erp:batch:update-status'" danger @click="handleBatchStatusChange">
-              <template #icon><SwapOutlined /></template>
-              批量状态变更 ({{ selectedIds.length }})
-            </a-button>
-          </a-space>
-          <span class="action-bar-hint">共 {{ pagination.total }} 条记录</span>
-        </div>
-
-        <!-- 临期预警（可折叠） -->
-        <a-collapse
-          v-if="expiringBatches.length > 0"
-          v-model:activeKey="expiryCollapseKey"
-          class="expiry-collapse"
-        >
-          <a-collapse-panel
-            key="expiry"
-            :header="`临期预警（${expiringBatches.length} 个批次将在 30 天内过期）`"
+      <template #default>
+        <div class="batch-body">
+          <!-- 统计卡片 -->
+          <a-row
+            :gutter="12"
+            style="margin-bottom: 12px;"
           >
-            <a-table
-              :dataSource="expiringBatches"
-              :columns="expiryColumns"
-              :pagination="false as any"
-              size="small"
-              :loading="expiryLoading"
-              row-key="id"
+            <a-col :span="6">
+              <div
+                class="stat-card"
+                style="border-top: 3px solid #1890ff;"
+              >
+                <div
+                  class="stat-value"
+                  style="color:#1890ff"
+                >
+                  {{ statistics.total }}
+                </div>
+                <div class="stat-label">
+                  总批次数
+                </div>
+              </div>
+            </a-col>
+            <a-col :span="6">
+              <div
+                class="stat-card"
+                style="border-top: 3px solid #52c41a;"
+              >
+                <div
+                  class="stat-value"
+                  style="color:#52c41a"
+                >
+                  {{ statistics.active }}
+                </div>
+                <div class="stat-label">
+                  启用中
+                </div>
+              </div>
+            </a-col>
+            <a-col :span="6">
+              <div
+                class="stat-card"
+                style="border-top: 3px solid #faad14;"
+              >
+                <div
+                  class="stat-value"
+                  style="color:#faad14"
+                >
+                  {{ statistics.quarantined }}
+                </div>
+                <div class="stat-label">
+                  隔离
+                </div>
+              </div>
+            </a-col>
+            <a-col :span="6">
+              <div
+                class="stat-card"
+                style="border-top: 3px solid #ff4d4f;"
+              >
+                <div
+                  class="stat-value"
+                  style="color:#ff4d4f"
+                >
+                  {{ statistics.expired }}
+                </div>
+                <div class="stat-label">
+                  过期
+                </div>
+              </div>
+            </a-col>
+          </a-row>
+
+          <!-- 操作按钮行 -->
+          <div class="action-bar">
+            <a-space>
+              <a-button
+                v-permission="'erp:batch:create'"
+                type="primary"
+                @click="handleCreate"
+              >
+                <template #icon>
+                  <PlusOutlined />
+                </template>
+                新建批次
+              </a-button>
+              <a-button @click="debounceClick('refresh', fetchData)">
+                <template #icon>
+                  <ReloadOutlined />
+                </template>
+                刷新
+              </a-button>
+              <a-button
+                v-if="hasSelected"
+                v-permission="'erp:batch:update-status'"
+                danger
+                @click="handleBatchStatusChange"
+              >
+                <template #icon>
+                  <SwapOutlined />
+                </template>
+                批量状态变更 ({{ selectedIds.length }})
+              </a-button>
+            </a-space>
+            <span class="action-bar-hint">共 {{ pagination.total }} 条记录</span>
+          </div>
+
+          <!-- 临期预警（可折叠） -->
+          <a-collapse
+            v-if="expiringBatches.length > 0"
+            v-model:active-key="expiryCollapseKey"
+            class="expiry-collapse"
+          >
+            <a-collapse-panel
+              key="expiry"
+              :header="`临期预警（${expiringBatches.length} 个批次将在 30 天内过期）`"
             >
-              <template #bodyCell="{ column, record }">
-                <template v-if="column.dataIndex === 'expirationDate'">
-                  <span :class="getExpiryClass(record)">{{ record.expirationDate || '-' }}</span>
+              <a-table
+                :data-source="expiringBatches"
+                :columns="expiryColumns"
+                :pagination="false as any"
+                size="small"
+                :loading="expiryLoading"
+                row-key="id"
+              >
+                <template #bodyCell="{ column, record }">
+                  <template v-if="column.dataIndex === 'expirationDate'">
+                    <span :class="getExpiryClass(record)">{{ record.expirationDate || '-' }}</span>
+                  </template>
+                  <template v-if="column.dataIndex === 'daysRemaining'">
+                    <span :class="getExpiryClass(record)">
+                      {{ getDaysRemaining(record) <= 0 ? '已过期' : `${getDaysRemaining(record)} 天` }}
+                    </span>
+                  </template>
+                  <template v-if="column.dataIndex === 'batchStatus'">
+                    <StatusTag
+                      :status="record.batchStatus"
+                      :map="BATCH_STATUS"
+                    />
+                  </template>
                 </template>
-                <template v-if="column.dataIndex === 'daysRemaining'">
-                  <span :class="getExpiryClass(record)">
-                    {{ getDaysRemaining(record) <= 0 ? '已过期' : `${getDaysRemaining(record)} 天` }}
-                  </span>
-                </template>
-                <template v-if="column.dataIndex === 'batchStatus'">
-                  <StatusTag :status="record.batchStatus" :map="BATCH_STATUS" />
-                </template>
-              </template>
-            </a-table>
-          </a-collapse-panel>
-        </a-collapse>
+              </a-table>
+            </a-collapse-panel>
+          </a-collapse>
 
-        <!-- 批次列表 -->
-        <div class="table-wrapper" ref="tableWrapperRef">
-          <vxe-table
-            ref="tableRef"
-            :data="tableData"
-            :loading="loading"
-            :height="tableHeight"
-            :row-config="{ keyField: 'id', height: 44 }"
-            :header-config="{ height: 40 }"
-            :column-config="{ minWidth: 80 }"
-            :checkbox-config="{ highlight: true, range: true }"
-            @checkbox-change="onSelectionChange"
-            @checkbox-all="onSelectionChange"
-            @cell-dblclick="({ row }) => handleDetail(row)"
+          <!-- 批次列表 -->
+          <div
+            ref="tableWrapperRef"
+            class="table-wrapper"
           >
-            <vxe-column type="checkbox" width="40" align="center" />
-            <vxe-column type="seq" title="#" width="44" align="center" />
-            <vxe-column field="batchNo" title="批次号" width="150" show-overflow="tooltip" sortable />
-            <vxe-column field="productCode" title="商品编码" width="120" show-overflow="tooltip" sortable />
-            <vxe-column field="productName" title="商品名称" width="150" show-overflow="tooltip" />
-            <vxe-column field="warehouseName" title="仓库" width="120" show-overflow="tooltip" />
-            <vxe-column field="totalQuantity" title="总数量" width="90" align="right" sortable />
-            <vxe-column field="availableQuantity" title="可用数量" width="90" align="right" sortable>
-              <template #default="{ row }">
-                <span :class="getQuantityClass(row)">{{ row.availableQuantity }}</span>
+            <vxe-table
+              ref="tableRef"
+              :data="tableData"
+              :loading="loading"
+              :height="tableHeight"
+              :row-config="{ keyField: 'id', height: 44 }"
+              :header-config="{ height: 40 }"
+              :column-config="{ minWidth: 80 }"
+              :checkbox-config="{ highlight: true, range: true }"
+              @checkbox-change="onSelectionChange"
+              @checkbox-all="onSelectionChange"
+              @cell-dblclick="({ row }) => handleDetail(row)"
+            >
+              <vxe-column
+                type="checkbox"
+                width="40"
+                align="center"
+              />
+              <vxe-column
+                type="seq"
+                title="#"
+                width="44"
+                align="center"
+              />
+              <vxe-column
+                field="batchNo"
+                title="批次号"
+                width="150"
+                show-overflow="tooltip"
+                sortable
+              />
+              <vxe-column
+                field="productCode"
+                title="商品编码"
+                width="120"
+                show-overflow="tooltip"
+                sortable
+              />
+              <vxe-column
+                field="productName"
+                title="商品名称"
+                width="150"
+                show-overflow="tooltip"
+              />
+              <vxe-column
+                field="warehouseName"
+                title="仓库"
+                width="120"
+                show-overflow="tooltip"
+              />
+              <vxe-column
+                field="totalQuantity"
+                title="总数量"
+                width="90"
+                align="right"
+                sortable
+              />
+              <vxe-column
+                field="availableQuantity"
+                title="可用数量"
+                width="90"
+                align="right"
+                sortable
+              >
+                <template #default="{ row }">
+                  <span :class="getQuantityClass(row)">{{ row.availableQuantity }}</span>
+                </template>
+              </vxe-column>
+              <vxe-column
+                field="productionDate"
+                title="生产日期"
+                width="105"
+                align="center"
+                sortable
+              >
+                <template #default="{ row }">
+                  {{ row.productionDate || '-' }}
+                </template>
+              </vxe-column>
+              <vxe-column
+                field="expirationDate"
+                title="到期日期"
+                width="105"
+                align="center"
+                sortable
+              >
+                <template #default="{ row }">
+                  <span :class="getExpiryClass(row)">{{ row.expirationDate || '-' }}</span>
+                </template>
+              </vxe-column>
+              <vxe-column
+                field="batchStatus"
+                title="批次状态"
+                width="100"
+                align="center"
+                sortable
+              >
+                <template #default="{ row }">
+                  <StatusTag
+                    :status="row.batchStatus"
+                    :map="BATCH_STATUS"
+                  />
+                </template>
+              </vxe-column>
+              <vxe-column
+                field="qualityStatus"
+                title="质量状态"
+                width="100"
+                align="center"
+              >
+                <template #default="{ row }">
+                  <StatusTag
+                    v-if="row.qualityStatus"
+                    :status="row.qualityStatus"
+                    :map="QUALITY_STATUS"
+                  />
+                  <span v-else>-</span>
+                </template>
+              </vxe-column>
+              <vxe-column
+                field="sourceType"
+                title="来源"
+                width="80"
+                align="center"
+              >
+                <template #default="{ row }">
+                  {{ sourceTypeLabel(row.sourceType) }}
+                </template>
+              </vxe-column>
+              <vxe-column
+                field="createdByName"
+                title="创建人"
+                width="100"
+                show-overflow="tooltip"
+              />
+              <vxe-column
+                field="createdAt"
+                title="创建时间"
+                width="165"
+                show-overflow="tooltip"
+                sortable
+              />
+              <vxe-column
+                title="操作"
+                width="350"
+                fixed="right"
+                align="left"
+              >
+                <template #default="{ row }">
+                  <a-space
+                    :size="4"
+                    wrap
+                  >
+                    <a-button
+                      type="link"
+                      size="small"
+                      @click="handleDetail(row)"
+                    >
+                      详情
+                    </a-button>
+                    <a-button
+                      v-permission="'erp:batch:inbound'"
+                      type="link"
+                      size="small"
+                      @click="handleInbound(row)"
+                    >
+                      入库
+                    </a-button>
+                    <a-button
+                      v-permission="'erp:batch:outbound'"
+                      type="link"
+                      size="small"
+                      @click="handleOutbound(row)"
+                    >
+                      出库
+                    </a-button>
+                    <a-button
+                      v-permission="'erp:batch:inspect'"
+                      type="link"
+                      size="small"
+                      @click="handleQualityInspection(row)"
+                    >
+                      质检
+                    </a-button>
+                    <a-button
+                      v-permission="'erp:batch:update-status'"
+                      type="link"
+                      size="small"
+                      @click="handleStatusChange(row)"
+                    >
+                      状态
+                    </a-button>
+                    <a-button
+                      v-permission="'erp:batch:delete'"
+                      type="link"
+                      size="small"
+                      danger
+                      @click="handleDelete(row)"
+                    >
+                      删除
+                    </a-button>
+                  </a-space>
+                </template>
+              </vxe-column>
+              <template #empty>
+                <EmptyState
+                  v-if="hasError"
+                  image="error"
+                  title="数据加载异常"
+                  description="数据获取失败，请刷新重试"
+                  :show-add="false"
+                  size="small"
+                  @refresh="fetchData"
+                />
+                <EmptyState
+                  v-else
+                  image="no-data"
+                  title="暂无批次数据"
+                  description="当前没有批次数据"
+                  add-text="新建批次"
+                  size="small"
+                  @refresh="fetchData"
+                  @add="handleCreate"
+                />
               </template>
-            </vxe-column>
-            <vxe-column field="productionDate" title="生产日期" width="105" align="center" sortable>
-              <template #default="{ row }">
-                {{ row.productionDate || '-' }}
-              </template>
-            </vxe-column>
-            <vxe-column field="expirationDate" title="到期日期" width="105" align="center" sortable>
-              <template #default="{ row }">
-                <span :class="getExpiryClass(row)">{{ row.expirationDate || '-' }}</span>
-              </template>
-            </vxe-column>
-            <vxe-column field="batchStatus" title="批次状态" width="100" align="center" sortable>
-              <template #default="{ row }">
-                <StatusTag :status="row.batchStatus" :map="BATCH_STATUS" />
-              </template>
-            </vxe-column>
-            <vxe-column field="qualityStatus" title="质量状态" width="100" align="center">
-              <template #default="{ row }">
-                <StatusTag v-if="row.qualityStatus" :status="row.qualityStatus" :map="QUALITY_STATUS" />
-                <span v-else>-</span>
-              </template>
-            </vxe-column>
-            <vxe-column field="sourceType" title="来源" width="80" align="center">
-              <template #default="{ row }">
-                {{ sourceTypeLabel(row.sourceType) }}
-              </template>
-            </vxe-column>
-            <vxe-column field="createdByName" title="创建人" width="100" show-overflow="tooltip" />
-            <vxe-column field="createdAt" title="创建时间" width="165" show-overflow="tooltip" sortable />
-            <vxe-column title="操作" width="350" fixed="right" align="left">
-              <template #default="{ row }">
-                <a-space :size="4" wrap>
-                  <a-button type="link" size="small" @click="handleDetail(row)">详情</a-button>
-                  <a-button type="link" size="small" v-permission="'erp:batch:inbound'" @click="handleInbound(row)">入库</a-button>
-                  <a-button type="link" size="small" v-permission="'erp:batch:outbound'" @click="handleOutbound(row)">出库</a-button>
-                  <a-button type="link" size="small" v-permission="'erp:batch:inspect'" @click="handleQualityInspection(row)">质检</a-button>
-                  <a-button type="link" size="small" v-permission="'erp:batch:update-status'" @click="handleStatusChange(row)">状态</a-button>
-                  <a-button type="link" size="small" v-permission="'erp:batch:delete'" danger @click="handleDelete(row)">删除</a-button>
-                </a-space>
-              </template>
-            </vxe-column>
-            <template #empty>
-              <EmptyState v-if="hasError" image="error" title="数据加载异常" description="数据获取失败，请刷新重试" :show-add="false" size="small" @refresh="fetchData" />
-              <EmptyState v-else image="no-data" title="暂无批次数据" description="当前没有批次数据" add-text="新建批次" size="small" @refresh="fetchData" @add="handleCreate" />
-            </template>
-          </vxe-table>
-        </div>
+            </vxe-table>
+          </div>
 
-        <!-- 分页 -->
-        <div class="pager-wrapper">
-          <vxe-pager
-            :current-page="pagination.current"
-            :page-size="pagination.pageSize"
-            :total="pagination.total"
-            :layouts="['PrevPage', 'JumpNumber', 'NextPage', 'FullJump', 'Sizes', 'Total']"
-            :page-sizes="[10, 20, 50, 100]"
-            @page-change="handlePageChange"
-          />
+          <!-- 分页 -->
+          <div class="pager-wrapper">
+            <vxe-pager
+              :current-page="pagination.current"
+              :page-size="pagination.pageSize"
+              :total="pagination.total"
+              :layouts="['PrevPage', 'JumpNumber', 'NextPage', 'FullJump', 'Sizes', 'Total']"
+              :page-sizes="[10, 20, 50, 100]"
+              @page-change="handlePageChange"
+            />
+          </div>
         </div>
-      </div>
-    </template>
-  </PageContainer>
+      </template>
+    </PageContainer>
   </ErrorBoundary>
 
   <!-- ════════════════════════════════════════════════ -->
@@ -233,22 +484,43 @@
     @close="handleCreateCancel"
     @save="handleCreateSubmit"
   >
-    <a-form ref="createFormRef" :model="createForm" :rules="createRules" layout="vertical">
+    <a-form
+      ref="createFormRef"
+      :model="createForm"
+      :rules="createRules"
+      layout="vertical"
+    >
       <a-row :gutter="16">
         <a-col :span="12">
-          <a-form-item label="批次号" name="batchNo">
-            <a-input size="small" v-model:value="createForm.batchNo" placeholder="请输入批次号" />
+          <a-form-item
+            label="批次号"
+            name="batchNo"
+          >
+            <a-input
+              v-model:value="createForm.batchNo"
+              size="small"
+              placeholder="请输入批次号"
+            />
           </a-form-item>
         </a-col>
         <a-col :span="12">
-          <a-form-item label="商品" name="productId">
+          <a-form-item
+            label="商品"
+            name="productId"
+          >
             <a-input
               v-model:value="createForm.productName"
               placeholder="请选择商品"
               readonly
             >
               <template #addonAfter>
-                <a-button type="link" size="small" @click="handleSelectProduct">选择</a-button>
+                <a-button
+                  type="link"
+                  size="small"
+                  @click="handleSelectProduct"
+                >
+                  选择
+                </a-button>
               </template>
             </a-input>
           </a-form-item>
@@ -257,42 +529,92 @@
       <a-row :gutter="16">
         <a-col :span="12">
           <a-form-item label="商品编码">
-            <a-input size="small" v-model:value="createForm.productCode" disabled />
+            <a-input
+              v-model:value="createForm.productCode"
+              size="small"
+              disabled
+            />
           </a-form-item>
         </a-col>
         <a-col :span="12">
-          <a-form-item label="总数量" name="totalQuantity">
-            <a-input-number v-model:value="createForm.totalQuantity" :min="0" :precision="0" style="width: 100%" placeholder="请输入数量" />
+          <a-form-item
+            label="总数量"
+            name="totalQuantity"
+          >
+            <a-input-number
+              v-model:value="createForm.totalQuantity"
+              :min="0"
+              :precision="0"
+              style="width: 100%"
+              placeholder="请输入数量"
+            />
           </a-form-item>
         </a-col>
       </a-row>
       <a-row :gutter="16">
         <a-col :span="12">
-          <a-form-item label="生产日期" name="productionDate">
-            <a-date-picker size="small" v-model:value="createForm.productionDate" style="width: 100%" value-format="YYYY-MM-DD" />
+          <a-form-item
+            label="生产日期"
+            name="productionDate"
+          >
+            <a-date-picker
+              v-model:value="createForm.productionDate"
+              size="small"
+              style="width: 100%"
+              value-format="YYYY-MM-DD"
+            />
           </a-form-item>
         </a-col>
         <a-col :span="12">
-          <a-form-item label="到期日期" name="expirationDate">
-            <a-date-picker size="small" v-model:value="createForm.expirationDate" style="width: 100%" value-format="YYYY-MM-DD" />
+          <a-form-item
+            label="到期日期"
+            name="expirationDate"
+          >
+            <a-date-picker
+              v-model:value="createForm.expirationDate"
+              size="small"
+              style="width: 100%"
+              value-format="YYYY-MM-DD"
+            />
           </a-form-item>
         </a-col>
       </a-row>
       <a-row :gutter="16">
         <a-col :span="12">
-          <a-form-item label="来源类型" name="sourceType">
-            <a-select size="small" v-model:value="createForm.sourceType" placeholder="请选择" allow-clear>
-              <a-select-option value="PURCHASE">采购入库</a-select-option>
-              <a-select-option value="PRODUCTION">生产入库</a-select-option>
-              <a-select-option value="TRANSFER">调拨入库</a-select-option>
-              <a-select-option value="RETURN">退货入库</a-select-option>
-              <a-select-option value="OTHER">其他</a-select-option>
+          <a-form-item
+            label="来源类型"
+            name="sourceType"
+          >
+            <a-select
+              v-model:value="createForm.sourceType"
+              size="small"
+              placeholder="请选择"
+              allow-clear
+            >
+              <a-select-option value="PURCHASE">
+                采购入库
+              </a-select-option>
+              <a-select-option value="PRODUCTION">
+                生产入库
+              </a-select-option>
+              <a-select-option value="TRANSFER">
+                调拨入库
+              </a-select-option>
+              <a-select-option value="RETURN">
+                退货入库
+              </a-select-option>
+              <a-select-option value="OTHER">
+                其他
+              </a-select-option>
             </a-select>
           </a-form-item>
         </a-col>
         <a-col :span="12">
           <a-form-item label="来源单号">
-            <a-input v-model:value="createForm.sourceRefNo" placeholder="请输入来源单号" />
+            <a-input
+              v-model:value="createForm.sourceRefNo"
+              placeholder="请输入来源单号"
+            />
           </a-form-item>
         </a-col>
       </a-row>
@@ -310,28 +632,72 @@
     @ok="handleInboundSubmit"
     @cancel="handleInboundCancel"
   >
-    <a-form ref="inboundFormRef" :model="inboundForm" :rules="inboundRules" layout="vertical">
-      <a-descriptions bordered size="small" :column="2" style="margin-bottom: 16px;">
-        <a-descriptions-item label="批次号" :span="2">{{ currentRecord?.batchNo }}</a-descriptions-item>
-        <a-descriptions-item label="商品编码">{{ currentRecord?.productCode }}</a-descriptions-item>
-        <a-descriptions-item label="商品名称">{{ currentRecord?.productName }}</a-descriptions-item>
+    <a-form
+      ref="inboundFormRef"
+      :model="inboundForm"
+      :rules="inboundRules"
+      layout="vertical"
+    >
+      <a-descriptions
+        bordered
+        size="small"
+        :column="2"
+        style="margin-bottom: 16px;"
+      >
+        <a-descriptions-item
+          label="批次号"
+          :span="2"
+        >
+          {{ currentRecord?.batchNo }}
+        </a-descriptions-item>
+        <a-descriptions-item label="商品编码">
+          {{ currentRecord?.productCode }}
+        </a-descriptions-item>
+        <a-descriptions-item label="商品名称">
+          {{ currentRecord?.productName }}
+        </a-descriptions-item>
       </a-descriptions>
-      <a-form-item label="仓库" name="warehouseId">
-        <a-select size="small" v-model:value="inboundForm.warehouseId" placeholder="请选择仓库" show-search :filter-option="filterWarehouseOption">
-          <a-select-option v-for="w in warehouseOptions" :key="w.id" :value="w.id">
+      <a-form-item
+        label="仓库"
+        name="warehouseId"
+      >
+        <a-select
+          v-model:value="inboundForm.warehouseId"
+          size="small"
+          placeholder="请选择仓库"
+          show-search
+          :filter-option="filterWarehouseOption"
+        >
+          <a-select-option
+            v-for="w in warehouseOptions"
+            :key="w.id"
+            :value="w.id"
+          >
             {{ w.warehouseName }}
           </a-select-option>
         </a-select>
       </a-form-item>
       <a-row :gutter="16">
         <a-col :span="12">
-          <a-form-item label="入库数量" name="quantity">
-            <a-input-number v-model:value="inboundForm.quantity" :min="1" :precision="0" style="width: 100%" placeholder="请输入数量" />
+          <a-form-item
+            label="入库数量"
+            name="quantity"
+          >
+            <a-input-number
+              v-model:value="inboundForm.quantity"
+              :min="1"
+              :precision="0"
+              style="width: 100%"
+              placeholder="请输入数量"
+            />
           </a-form-item>
         </a-col>
         <a-col :span="12">
           <a-form-item label="库位编号">
-            <a-input v-model:value="inboundForm.locationName" placeholder="库位编号（可选）" />
+            <a-input
+              v-model:value="inboundForm.locationName"
+              placeholder="库位编号（可选）"
+            />
           </a-form-item>
         </a-col>
       </a-row>
@@ -349,18 +715,40 @@
     @ok="handleOutboundSubmit"
     @cancel="handleOutboundCancel"
   >
-    <a-form ref="outboundFormRef" :model="outboundForm" :rules="outboundRules" layout="vertical">
-      <a-descriptions bordered size="small" :column="2" style="margin-bottom: 16px;">
-        <a-descriptions-item label="批次号" :span="2">{{ currentRecord?.batchNo }}</a-descriptions-item>
-        <a-descriptions-item label="商品编码">{{ currentRecord?.productCode }}</a-descriptions-item>
-        <a-descriptions-item label="商品名称">{{ currentRecord?.productName }}</a-descriptions-item>
+    <a-form
+      ref="outboundFormRef"
+      :model="outboundForm"
+      :rules="outboundRules"
+      layout="vertical"
+    >
+      <a-descriptions
+        bordered
+        size="small"
+        :column="2"
+        style="margin-bottom: 16px;"
+      >
+        <a-descriptions-item
+          label="批次号"
+          :span="2"
+        >
+          {{ currentRecord?.batchNo }}
+        </a-descriptions-item>
+        <a-descriptions-item label="商品编码">
+          {{ currentRecord?.productCode }}
+        </a-descriptions-item>
+        <a-descriptions-item label="商品名称">
+          {{ currentRecord?.productName }}
+        </a-descriptions-item>
         <a-descriptions-item label="可用数量">
           <span :class="getQuantityClass(currentRecord)">{{ currentRecord?.availableQuantity ?? 0 }}</span>
         </a-descriptions-item>
       </a-descriptions>
       <a-row :gutter="16">
         <a-col :span="12">
-          <a-form-item label="出库数量" name="quantity">
+          <a-form-item
+            label="出库数量"
+            name="quantity"
+          >
             <a-input-number
               v-model:value="outboundForm.quantity"
               :min="1"
@@ -373,7 +761,10 @@
         </a-col>
         <a-col :span="12">
           <a-form-item label="库位编号">
-            <a-input v-model:value="outboundForm.locationName" placeholder="库位编号（可选）" />
+            <a-input
+              v-model:value="outboundForm.locationName"
+              placeholder="库位编号（可选）"
+            />
           </a-form-item>
         </a-col>
       </a-row>
@@ -391,25 +782,66 @@
     @ok="handleInspectionSubmit"
     @cancel="handleInspectionCancel"
   >
-    <a-form ref="inspectionFormRef" :model="inspectionForm" :rules="inspectionRules" layout="vertical">
-      <a-descriptions bordered size="small" :column="2" style="margin-bottom: 16px;">
-        <a-descriptions-item label="批次号" :span="2">{{ currentRecord?.batchNo }}</a-descriptions-item>
-        <a-descriptions-item label="商品编码">{{ currentRecord?.productCode }}</a-descriptions-item>
-        <a-descriptions-item label="商品名称">{{ currentRecord?.productName }}</a-descriptions-item>
+    <a-form
+      ref="inspectionFormRef"
+      :model="inspectionForm"
+      :rules="inspectionRules"
+      layout="vertical"
+    >
+      <a-descriptions
+        bordered
+        size="small"
+        :column="2"
+        style="margin-bottom: 16px;"
+      >
+        <a-descriptions-item
+          label="批次号"
+          :span="2"
+        >
+          {{ currentRecord?.batchNo }}
+        </a-descriptions-item>
+        <a-descriptions-item label="商品编码">
+          {{ currentRecord?.productCode }}
+        </a-descriptions-item>
+        <a-descriptions-item label="商品名称">
+          {{ currentRecord?.productName }}
+        </a-descriptions-item>
         <a-descriptions-item label="当前质量状态">
-          <StatusTag v-if="currentRecord?.qualityStatus" :status="currentRecord.qualityStatus" :map="QUALITY_STATUS" />
+          <StatusTag
+            v-if="currentRecord?.qualityStatus"
+            :status="currentRecord.qualityStatus"
+            :map="QUALITY_STATUS"
+          />
           <span v-else>-</span>
         </a-descriptions-item>
       </a-descriptions>
-      <a-form-item label="质检结果" name="status">
-        <a-select v-model:value="inspectionForm.status" placeholder="请选择质检结果">
-          <a-select-option value="NORMAL">合格（NORMAL）</a-select-option>
-          <a-select-option value="QUARANTINED">隔离（QUARANTINED）</a-select-option>
-          <a-select-option value="DEFECTIVE">不合格（DEFECTIVE）</a-select-option>
+      <a-form-item
+        label="质检结果"
+        name="status"
+      >
+        <a-select
+          v-model:value="inspectionForm.status"
+          placeholder="请选择质检结果"
+        >
+          <a-select-option value="NORMAL">
+            合格（NORMAL）
+          </a-select-option>
+          <a-select-option value="QUARANTINED">
+            隔离（QUARANTINED）
+          </a-select-option>
+          <a-select-option value="DEFECTIVE">
+            不合格（DEFECTIVE）
+          </a-select-option>
         </a-select>
       </a-form-item>
-      <a-form-item label="质检员" name="inspectorName">
-        <a-input v-model:value="inspectionForm.inspectorName" placeholder="请输入质检员姓名" />
+      <a-form-item
+        label="质检员"
+        name="inspectorName"
+      >
+        <a-input
+          v-model:value="inspectionForm.inspectorName"
+          placeholder="请输入质检员姓名"
+        />
       </a-form-item>
     </a-form>
   </a-modal>
@@ -425,24 +857,74 @@
     @ok="handleStatusChangeSubmit"
     @cancel="handleStatusChangeCancel"
   >
-    <a-form ref="statusChangeFormRef" :model="statusChangeForm" :rules="statusChangeRules" layout="vertical">
-      <a-descriptions bordered size="small" :column="2" style="margin-bottom: 16px;">
-        <a-descriptions-item label="批次号" :span="2">{{ statusChangeForm.isBatch ? '（批量操作）' : currentRecord?.batchNo }}</a-descriptions-item>
-        <a-descriptions-item label="商品编码" v-if="!statusChangeForm.isBatch">{{ currentRecord?.productCode }}</a-descriptions-item>
-        <a-descriptions-item label="商品名称" v-if="!statusChangeForm.isBatch">{{ currentRecord?.productName }}</a-descriptions-item>
-        <a-descriptions-item label="当前状态" v-if="!statusChangeForm.isBatch">
-          <StatusTag :status="currentRecord?.batchStatus" :map="BATCH_STATUS" />
+    <a-form
+      ref="statusChangeFormRef"
+      :model="statusChangeForm"
+      :rules="statusChangeRules"
+      layout="vertical"
+    >
+      <a-descriptions
+        bordered
+        size="small"
+        :column="2"
+        style="margin-bottom: 16px;"
+      >
+        <a-descriptions-item
+          label="批次号"
+          :span="2"
+        >
+          {{ statusChangeForm.isBatch ? '（批量操作）' : currentRecord?.batchNo }}
         </a-descriptions-item>
-        <a-descriptions-item label="涉及批次" v-if="statusChangeForm.isBatch">
-          <a-tag color="blue">{{ selectedIds.length }} 个批次</a-tag>
+        <a-descriptions-item
+          v-if="!statusChangeForm.isBatch"
+          label="商品编码"
+        >
+          {{ currentRecord?.productCode }}
+        </a-descriptions-item>
+        <a-descriptions-item
+          v-if="!statusChangeForm.isBatch"
+          label="商品名称"
+        >
+          {{ currentRecord?.productName }}
+        </a-descriptions-item>
+        <a-descriptions-item
+          v-if="!statusChangeForm.isBatch"
+          label="当前状态"
+        >
+          <StatusTag
+            :status="currentRecord?.batchStatus"
+            :map="BATCH_STATUS"
+          />
+        </a-descriptions-item>
+        <a-descriptions-item
+          v-if="statusChangeForm.isBatch"
+          label="涉及批次"
+        >
+          <a-tag color="blue">
+            {{ selectedIds.length }} 个批次
+          </a-tag>
         </a-descriptions-item>
       </a-descriptions>
-      <a-form-item label="目标状态" name="newStatus">
-        <a-select v-model:value="statusChangeForm.newStatus" placeholder="请选择目标状态">
-          <a-select-option value="ACTIVE">启用（ACTIVE）</a-select-option>
-          <a-select-option value="QUARANTINED">隔离（QUARANTINED）</a-select-option>
-          <a-select-option value="EXPIRED">过期（EXPIRED）</a-select-option>
-          <a-select-option value="CANCELLED">取消（CANCELLED）</a-select-option>
+      <a-form-item
+        label="目标状态"
+        name="newStatus"
+      >
+        <a-select
+          v-model:value="statusChangeForm.newStatus"
+          placeholder="请选择目标状态"
+        >
+          <a-select-option value="ACTIVE">
+            启用（ACTIVE）
+          </a-select-option>
+          <a-select-option value="QUARANTINED">
+            隔离（QUARANTINED）
+          </a-select-option>
+          <a-select-option value="EXPIRED">
+            过期（EXPIRED）
+          </a-select-option>
+          <a-select-option value="CANCELLED">
+            取消（CANCELLED）
+          </a-select-option>
         </a-select>
       </a-form-item>
     </a-form>
@@ -458,39 +940,90 @@
     :footer="null"
   >
     <div style="text-align: right; margin-bottom: 12px;">
-      <PrintButton :record="detailData" business-type="BATCH" button-size="small" />
+      <PrintButton
+        :record="detailData"
+        business-type="BATCH"
+        button-size="small"
+      />
     </div>
     <a-spin :spinning="detailLoading">
       <template v-if="detailData">
-        <a-descriptions bordered :column="2" size="small">
-          <a-descriptions-item label="批次号" :span="2">{{ detailData.batchNo }}</a-descriptions-item>
-          <a-descriptions-item label="商品编码">{{ detailData.productCode }}</a-descriptions-item>
-          <a-descriptions-item label="商品名称">{{ detailData.productName }}</a-descriptions-item>
-          <a-descriptions-item label="规格">{{ detailData.specification || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="单位">{{ detailData.unit || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="总数量">{{ detailData.totalQuantity }}</a-descriptions-item>
-          <a-descriptions-item label="可用数量">{{ detailData.availableQuantity }}</a-descriptions-item>
-          <a-descriptions-item label="仓库">{{ detailData.warehouseName || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="生产日期">{{ detailData.productionDate || '-' }}</a-descriptions-item>
+        <a-descriptions
+          bordered
+          :column="2"
+          size="small"
+        >
+          <a-descriptions-item
+            label="批次号"
+            :span="2"
+          >
+            {{ detailData.batchNo }}
+          </a-descriptions-item>
+          <a-descriptions-item label="商品编码">
+            {{ detailData.productCode }}
+          </a-descriptions-item>
+          <a-descriptions-item label="商品名称">
+            {{ detailData.productName }}
+          </a-descriptions-item>
+          <a-descriptions-item label="规格">
+            {{ detailData.specification || '-' }}
+          </a-descriptions-item>
+          <a-descriptions-item label="单位">
+            {{ detailData.unit || '-' }}
+          </a-descriptions-item>
+          <a-descriptions-item label="总数量">
+            {{ detailData.totalQuantity }}
+          </a-descriptions-item>
+          <a-descriptions-item label="可用数量">
+            {{ detailData.availableQuantity }}
+          </a-descriptions-item>
+          <a-descriptions-item label="仓库">
+            {{ detailData.warehouseName || '-' }}
+          </a-descriptions-item>
+          <a-descriptions-item label="生产日期">
+            {{ detailData.productionDate || '-' }}
+          </a-descriptions-item>
           <a-descriptions-item label="到期日期">
             <span :class="getExpiryClass(detailData)">{{ detailData.expirationDate || '-' }}</span>
           </a-descriptions-item>
           <a-descriptions-item label="批次状态">
-            <StatusTag :status="detailData.batchStatus" :map="BATCH_STATUS" />
+            <StatusTag
+              :status="detailData.batchStatus"
+              :map="BATCH_STATUS"
+            />
           </a-descriptions-item>
           <a-descriptions-item label="质量状态">
-            <StatusTag v-if="detailData.qualityStatus" :status="detailData.qualityStatus" :map="QUALITY_STATUS" />
+            <StatusTag
+              v-if="detailData.qualityStatus"
+              :status="detailData.qualityStatus"
+              :map="QUALITY_STATUS"
+            />
             <span v-else>-</span>
           </a-descriptions-item>
-          <a-descriptions-item label="来源类型">{{ sourceTypeLabel(detailData.sourceType) }}</a-descriptions-item>
-          <a-descriptions-item label="来源单号">{{ detailData.sourceRefNo || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="质检员">{{ detailData.qualityInspectorName || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="质检日期">{{ detailData.qualityInspectionDate || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="创建人">{{ detailData.createdByName || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="创建时间">{{ detailData.createdAt || '-' }}</a-descriptions-item>
+          <a-descriptions-item label="来源类型">
+            {{ sourceTypeLabel(detailData.sourceType) }}
+          </a-descriptions-item>
+          <a-descriptions-item label="来源单号">
+            {{ detailData.sourceRefNo || '-' }}
+          </a-descriptions-item>
+          <a-descriptions-item label="质检员">
+            {{ detailData.qualityInspectorName || '-' }}
+          </a-descriptions-item>
+          <a-descriptions-item label="质检日期">
+            {{ detailData.qualityInspectionDate || '-' }}
+          </a-descriptions-item>
+          <a-descriptions-item label="创建人">
+            {{ detailData.createdByName || '-' }}
+          </a-descriptions-item>
+          <a-descriptions-item label="创建时间">
+            {{ detailData.createdAt || '-' }}
+          </a-descriptions-item>
         </a-descriptions>
       </template>
-      <a-empty v-else description="暂无数据" />
+      <a-empty
+        v-else
+        description="暂无数据"
+      />
     </a-spin>
   </a-modal>
 
@@ -511,7 +1044,7 @@
       @search="handleProductSearch"
     />
     <a-table
-      :dataSource="productOptions"
+      :data-source="productOptions"
       :columns="productColumns"
       :pagination="{ pageSize: 5, showSizeChanger: false }"
       :loading="productLoading"
@@ -520,7 +1053,13 @@
     >
       <template #bodyCell="{ column, record }">
         <template v-if="column.dataIndex === 'action'">
-          <a-button type="link" size="small" @click="selectProduct(record)">选择</a-button>
+          <a-button
+            type="link"
+            size="small"
+            @click="selectProduct(record)"
+          >
+            选择
+          </a-button>
         </template>
       </template>
     </a-table>

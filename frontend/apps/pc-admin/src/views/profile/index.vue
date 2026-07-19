@@ -4,23 +4,41 @@
       <div class="profile-page-header">
         <div class="profile-page-header-left">
           <a-breadcrumb class="profile-breadcrumb">
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>
+              <router-link to="/">
+                首页
+              </router-link>
+            </a-breadcrumb-item>
             <a-breadcrumb-item>个人设置</a-breadcrumb-item>
           </a-breadcrumb>
-          <h2 class="profile-page-header-title">个人设置</h2>
+          <h2 class="profile-page-header-title">
+            个人设置
+          </h2>
         </div>
         <div class="profile-page-header-right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+          <span
+            v-if="lastUpdateTime"
+            class="update-time"
+          >更新于 {{ lastUpdateTime }}</span>
+          <span
+            v-if="autoRefreshCountdown > 0"
+            class="auto-refresh-badge"
+          >
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchProfile)">
-            <template #icon><ReloadOutlined /></template>
+          <a-button
+            size="small"
+            :loading="refreshLoading"
+            @click="debounceClick('refresh', fetchProfile)"
+          >
+            <template #icon>
+              <ReloadOutlined />
+            </template>
             刷新
           </a-button>
-<span class="shortcut-hints">
-                                                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-                                              </span>
+          <span class="shortcut-hints">
+            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+          </span>
         </div>
       </div>
     </template>
@@ -28,213 +46,310 @@
     <ErrorBoundary>
       <div class="profile-page">
         <a-row :gutter="16">
-          <a-col :xs="24" :lg="8">
-            <a-card :bordered="false" class="profile-card">
-              <a-descriptions bordered :column="1" size="small">
+          <a-col
+            :xs="24"
+            :lg="8"
+          >
+            <a-card
+              :bordered="false"
+              class="profile-card"
+            >
+              <a-descriptions
+                bordered
+                :column="1"
+                size="small"
+              >
                 <a-descriptions-item label="用户名">
                   {{ userInfo.username || '-' }}
                 </a-descriptions-item>
                 <a-descriptions-item label="部门">
-                {{ userInfo.deptName || '未分配' }}
-              </a-descriptions-item>
-              <a-descriptions-item label="手机">
-                {{ userInfo.phone || '未设置' }}
-              </a-descriptions-item>
-              <a-descriptions-item label="邮箱">
-                {{ userInfo.email || '未设置' }}
-              </a-descriptions-item>
-            </a-descriptions>
+                  {{ userInfo.deptName || '未分配' }}
+                </a-descriptions-item>
+                <a-descriptions-item label="手机">
+                  {{ userInfo.phone || '未设置' }}
+                </a-descriptions-item>
+                <a-descriptions-item label="邮箱">
+                  {{ userInfo.email || '未设置' }}
+                </a-descriptions-item>
+              </a-descriptions>
 
-            <a-divider />
+              <a-divider />
 
-            <a-button block v-permission="'profile:view:openeditprofile'" @click="debounceClick('editProfile', handleOpenEditProfile)">
-              <template #icon><EditOutlined /></template>
-              编辑资料
-            </a-button>
-          </a-card>
-        </a-col>
+              <a-button
+                v-permission="'profile:view:openeditprofile'"
+                block
+                @click="debounceClick('editProfile', handleOpenEditProfile)"
+              >
+                <template #icon>
+                  <EditOutlined />
+                </template>
+                编辑资料
+              </a-button>
+            </a-card>
+          </a-col>
 
-        <!-- 右侧：设置区域 -->
-        <a-col :xs="24" :lg="16">
-          <!-- 修改密码 -->
-          <a-card :bordered="false" class="setting-card" title="修改密码">
-            <a-form
-              ref="passwordFormRef"
-              :model="passwordForm"
-              :rules="passwordRules"
-              :label-col="{ span: 6 }"
-              :wrapper-col="{ span: 14 }"
+          <!-- 右侧：设置区域 -->
+          <a-col
+            :xs="24"
+            :lg="16"
+          >
+            <!-- 修改密码 -->
+            <a-card
+              :bordered="false"
+              class="setting-card"
+              title="修改密码"
             >
-              <a-form-item label="当前密码" name="oldPassword">
-                <a-input-password size="small"
-                  v-model:value="passwordForm.oldPassword"
-                  placeholder="请输入当前密码"
-                />
-              </a-form-item>
-              <a-form-item label="新密码" name="newPassword">
-                <a-input-password size="small"
-                  v-model:value="passwordForm.newPassword"
-                  placeholder="请输入新密码"
-                />
-              </a-form-item>
-              <a-form-item label="确认密码" name="confirmPassword">
-                <a-input-password size="small"
-                  v-model:value="passwordForm.confirmPassword"
-                  placeholder="请再次输入新密码"
-                />
-              </a-form-item>
-              <a-form-item :wrapper-col="{ offset: 6, span: 14 }">
-                <a-button type="primary" :loading="passwordLoading" v-permission="'profile:view:changepassword'" @click="debounceClick('changePassword', handleChangePassword)">
-                  修改密码
-                </a-button>
-              </a-form-item>
-            </a-form>
-          </a-card>
-
-          <!-- 个人偏好 -->
-          <a-card :bordered="false" class="setting-card" title="个人偏好">
-            <a-form
-              :model="preferenceForm"
-              :label-col="{ span: 6 }"
-              :wrapper-col="{ span: 14 }"
-            >
-              <a-form-item label="语言">
-                <a-select
-                  v-model:value="preferenceForm.language"
-                  style="width: 100%"
-                  size="small"
-                  @change="handlePreferenceChange"
+              <a-form
+                ref="passwordFormRef"
+                :model="passwordForm"
+                :rules="passwordRules"
+                :label-col="{ span: 6 }"
+                :wrapper-col="{ span: 14 }"
+              >
+                <a-form-item
+                  label="当前密码"
+                  name="oldPassword"
                 >
-                  <a-select-option value="zh-CN">简体中文</a-select-option>
-                  <a-select-option value="en-US">English</a-select-option>
-                </a-select>
-              </a-form-item>
-              <a-form-item label="主题">
-                <a-radio-group
-                  v-model:value="preferenceForm.theme"
-                  @change="handlePreferenceChange"
-                >
-                  <a-radio-button value="light">
-                    <BulbOutlined /> 浅色
-                  </a-radio-button>
-                  <a-radio-button value="dark">
-                    <BulbFilled /> 深色
-                  </a-radio-button>
-                </a-radio-group>
-              </a-form-item>
-              <a-form-item label="布局模式">
-                <a-radio-group
-                  v-model:value="preferenceForm.layoutMode"
-                  @change="handlePreferenceChange"
-                >
-                  <a-radio-button value="side">侧边栏</a-radio-button>
-                  <a-radio-button value="top">顶部导航</a-radio-button>
-                  <a-radio-button value="mix">混合模式</a-radio-button>
-                </a-radio-group>
-              </a-form-item>
-              <a-form-item label="标签页">
-                <a-switch
-                  v-model:checked="preferenceForm.tagsView"
-                  checked-children="开"
-                  un-checked-children="关"
-                  @change="handlePreferenceChange"
-                />
-                <span style="margin-left: 8px; color: #999; font-size: 12px">
-                  开启后显示标签导航
-                </span>
-              </a-form-item>
-              <a-form-item label="固定头部">
-                <a-switch
-                  v-model:checked="preferenceForm.fixedHeader"
-                  checked-children="开"
-                  un-checked-children="关"
-                  @change="handlePreferenceChange"
-                />
-                <span style="margin-left: 8px; color: #999; font-size: 12px">
-                  开启后页面头部将在滚动时固定
-                </span>
-              </a-form-item>
-              <a-form-item label="侧边栏Logo">
-                <a-switch
-                  v-model:checked="preferenceForm.sidebarLogo"
-                  checked-children="开"
-                  un-checked-children="关"
-                  @change="handlePreferenceChange"
-                />
-                <span style="margin-left: 8px; color: #999; font-size: 12px">
-                  关闭后隐藏侧边栏Logo
-                </span>
-              </a-form-item>
-              <a-form-item label="主题色">
-                <a-space>
-                  <div
-                    v-for="color in presetColors"
-                    :key="color"
-                    class="color-block"
-                    :class="{ active: preferenceForm.primaryColor === color }"
-                    :style="{ backgroundColor: color }"
-                    @click="selectPrimaryColor(color)"
+                  <a-input-password
+                    v-model:value="passwordForm.oldPassword"
+                    size="small"
+                    placeholder="请输入当前密码"
                   />
-                  <a-input
-                    v-model:value="preferenceForm.primaryColor"
-                    style="width: 100px"
+                </a-form-item>
+                <a-form-item
+                  label="新密码"
+                  name="newPassword"
+                >
+                  <a-input-password
+                    v-model:value="passwordForm.newPassword"
+                    size="small"
+                    placeholder="请输入新密码"
+                  />
+                </a-form-item>
+                <a-form-item
+                  label="确认密码"
+                  name="confirmPassword"
+                >
+                  <a-input-password
+                    v-model:value="passwordForm.confirmPassword"
+                    size="small"
+                    placeholder="请再次输入新密码"
+                  />
+                </a-form-item>
+                <a-form-item :wrapper-col="{ offset: 6, span: 14 }">
+                  <a-button
+                    v-permission="'profile:view:changepassword'"
+                    type="primary"
+                    :loading="passwordLoading"
+                    @click="debounceClick('changePassword', handleChangePassword)"
+                  >
+                    修改密码
+                  </a-button>
+                </a-form-item>
+              </a-form>
+            </a-card>
+
+            <!-- 个人偏好 -->
+            <a-card
+              :bordered="false"
+              class="setting-card"
+              title="个人偏好"
+            >
+              <a-form
+                :model="preferenceForm"
+                :label-col="{ span: 6 }"
+                :wrapper-col="{ span: 14 }"
+              >
+                <a-form-item label="语言">
+                  <a-select
+                    v-model:value="preferenceForm.language"
+                    style="width: 100%"
                     size="small"
                     @change="handlePreferenceChange"
+                  >
+                    <a-select-option value="zh-CN">
+                      简体中文
+                    </a-select-option>
+                    <a-select-option value="en-US">
+                      English
+                    </a-select-option>
+                  </a-select>
+                </a-form-item>
+                <a-form-item label="主题">
+                  <a-radio-group
+                    v-model:value="preferenceForm.theme"
+                    @change="handlePreferenceChange"
+                  >
+                    <a-radio-button value="light">
+                      <BulbOutlined /> 浅色
+                    </a-radio-button>
+                    <a-radio-button value="dark">
+                      <BulbFilled /> 深色
+                    </a-radio-button>
+                  </a-radio-group>
+                </a-form-item>
+                <a-form-item label="布局模式">
+                  <a-radio-group
+                    v-model:value="preferenceForm.layoutMode"
+                    @change="handlePreferenceChange"
+                  >
+                    <a-radio-button value="side">
+                      侧边栏
+                    </a-radio-button>
+                    <a-radio-button value="top">
+                      顶部导航
+                    </a-radio-button>
+                    <a-radio-button value="mix">
+                      混合模式
+                    </a-radio-button>
+                  </a-radio-group>
+                </a-form-item>
+                <a-form-item label="标签页">
+                  <a-switch
+                    v-model:checked="preferenceForm.tagsView"
+                    checked-children="开"
+                    un-checked-children="关"
+                    @change="handlePreferenceChange"
                   />
-                </a-space>
-              </a-form-item>
-              <a-form-item :wrapper-col="{ offset: 6, span: 14 }">
-                <a-button type="primary" :loading="preferenceLoading" v-permission="'profile:view:savepreferences'" @click="debounceClick('savePreference', handleSavePreferences)">
-                  保存偏好设置
-                </a-button>
-              </a-form-item>
-            </a-form>
-          </a-card>
-        </a-col>
-      </a-row>
-    </div>
+                  <span style="margin-left: 8px; color: #999; font-size: 12px">
+                    开启后显示标签导航
+                  </span>
+                </a-form-item>
+                <a-form-item label="固定头部">
+                  <a-switch
+                    v-model:checked="preferenceForm.fixedHeader"
+                    checked-children="开"
+                    un-checked-children="关"
+                    @change="handlePreferenceChange"
+                  />
+                  <span style="margin-left: 8px; color: #999; font-size: 12px">
+                    开启后页面头部将在滚动时固定
+                  </span>
+                </a-form-item>
+                <a-form-item label="侧边栏Logo">
+                  <a-switch
+                    v-model:checked="preferenceForm.sidebarLogo"
+                    checked-children="开"
+                    un-checked-children="关"
+                    @change="handlePreferenceChange"
+                  />
+                  <span style="margin-left: 8px; color: #999; font-size: 12px">
+                    关闭后隐藏侧边栏Logo
+                  </span>
+                </a-form-item>
+                <a-form-item label="主题色">
+                  <a-space>
+                    <div
+                      v-for="color in presetColors"
+                      :key="color"
+                      class="color-block"
+                      :class="{ active: preferenceForm.primaryColor === color }"
+                      :style="{ backgroundColor: color }"
+                      @click="selectPrimaryColor(color)"
+                    />
+                    <a-input
+                      v-model:value="preferenceForm.primaryColor"
+                      style="width: 100px"
+                      size="small"
+                      @change="handlePreferenceChange"
+                    />
+                  </a-space>
+                </a-form-item>
+                <a-form-item :wrapper-col="{ offset: 6, span: 14 }">
+                  <a-button
+                    v-permission="'profile:view:savepreferences'"
+                    type="primary"
+                    :loading="preferenceLoading"
+                    @click="debounceClick('savePreference', handleSavePreferences)"
+                  >
+                    保存偏好设置
+                  </a-button>
+                </a-form-item>
+              </a-form>
+            </a-card>
+          </a-col>
+        </a-row>
+      </div>
 
-    <!-- 编辑个人资料弹窗 -->
-    <FullScreenDetail :visible="showEditProfile" title="编辑个人资料" :save-loading="profileSaving" @save="handleSaveProfile" @close="handleProfileClose">
-      <a-form
-        ref="profileFormRef"
-        :model="profileForm"
-        :rules="profileFormRules"
-        :label-col="{ span: 6 }"
-        :wrapper-col="{ span: 16 }"
+      <!-- 编辑个人资料弹窗 -->
+      <FullScreenDetail
+        :visible="showEditProfile"
+        title="编辑个人资料"
+        :save-loading="profileSaving"
+        @save="handleSaveProfile"
+        @close="handleProfileClose"
       >
-        <a-form-item label="头像">
-          <a-upload
-            v-model:file-list="avatarFileList"
-            list-type="picture-card"
-            :max-count="1"
-            :before-upload="handleBeforeUpload"
-            @remove="handleAvatarRemove"
+        <a-form
+          ref="profileFormRef"
+          :model="profileForm"
+          :rules="profileFormRules"
+          :label-col="{ span: 6 }"
+          :wrapper-col="{ span: 16 }"
+        >
+          <a-form-item label="头像">
+            <a-upload
+              v-model:file-list="avatarFileList"
+              list-type="picture-card"
+              :max-count="1"
+              :before-upload="handleBeforeUpload"
+              @remove="handleAvatarRemove"
+            >
+              <div v-if="avatarFileList.length < 1">
+                <PlusOutlined />
+                <div style="margin-top: 8px">
+                  上传
+                </div>
+              </div>
+            </a-upload>
+          </a-form-item>
+          <a-form-item
+            label="昵称"
+            name="nickname"
           >
-            <div v-if="avatarFileList.length < 1">
-              <PlusOutlined />
-              <div style="margin-top: 8px">上传</div>
-            </div>
-          </a-upload>
-        </a-form-item>
-        <a-form-item label="昵称" name="nickname">
-          <a-input v-model:value="profileForm.nickname" size="small" placeholder="请输入昵称" />
-        </a-form-item>
-        <a-form-item label="邮箱" name="email">
-          <a-input v-model:value="profileForm.email" size="small" placeholder="请输入邮箱" />
-        </a-form-item>
-        <a-form-item label="手机号" name="phone">
-          <a-input v-model:value="profileForm.phone" size="small" placeholder="请输入手机号" />
-        </a-form-item>
-        <a-form-item label="性别" name="gender">
-          <a-radio-group v-model:value="profileForm.gender">
-            <a-radio :value="0">未知</a-radio>
-            <a-radio :value="1">男</a-radio>
-            <a-radio :value="2">女</a-radio>
-          </a-radio-group>
-        </a-form-item>
-      </a-form>
-    </FullScreenDetail>
+            <a-input
+              v-model:value="profileForm.nickname"
+              size="small"
+              placeholder="请输入昵称"
+            />
+          </a-form-item>
+          <a-form-item
+            label="邮箱"
+            name="email"
+          >
+            <a-input
+              v-model:value="profileForm.email"
+              size="small"
+              placeholder="请输入邮箱"
+            />
+          </a-form-item>
+          <a-form-item
+            label="手机号"
+            name="phone"
+          >
+            <a-input
+              v-model:value="profileForm.phone"
+              size="small"
+              placeholder="请输入手机号"
+            />
+          </a-form-item>
+          <a-form-item
+            label="性别"
+            name="gender"
+          >
+            <a-radio-group v-model:value="profileForm.gender">
+              <a-radio :value="0">
+                未知
+              </a-radio>
+              <a-radio :value="1">
+                男
+              </a-radio>
+              <a-radio :value="2">
+                女
+              </a-radio>
+            </a-radio-group>
+          </a-form-item>
+        </a-form>
+      </FullScreenDetail>
     </ErrorBoundary>
   </PageContainer>
 </template>

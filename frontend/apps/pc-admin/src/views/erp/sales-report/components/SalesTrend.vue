@@ -1,8 +1,14 @@
 <template>
   <div class="sales-trend">
     <!-- 筛选区 -->
-    <a-collapse v-model:activeKey="filterExpanded" class="filter-collapse">
-      <a-collapse-panel key="1" header="筛选条件">
+    <a-collapse
+      v-model:active-key="filterExpanded"
+      class="filter-collapse"
+    >
+      <a-collapse-panel
+        key="1"
+        header="筛选条件"
+      >
         <a-row :gutter="16">
           <a-col :span="6">
             <a-form-item label="时间范围">
@@ -21,9 +27,15 @@
                 placeholder="按日"
                 style="width: 100%"
               >
-                <a-select-option value="daily">按日</a-select-option>
-                <a-select-option value="weekly">按周</a-select-option>
-                <a-select-option value="monthly">按月</a-select-option>
+                <a-select-option value="daily">
+                  按日
+                </a-select-option>
+                <a-select-option value="weekly">
+                  按周
+                </a-select-option>
+                <a-select-option value="monthly">
+                  按月
+                </a-select-option>
               </a-select>
             </a-form-item>
           </a-col>
@@ -34,17 +46,34 @@
                 placeholder="同比"
                 style="width: 100%"
               >
-                <a-select-option value="yoy">同比</a-select-option>
-                <a-select-option value="mom">环比</a-select-option>
+                <a-select-option value="yoy">
+                  同比
+                </a-select-option>
+                <a-select-option value="mom">
+                  环比
+                </a-select-option>
               </a-select>
             </a-form-item>
           </a-col>
-          <a-col :span="6" class="filter-actions">
+          <a-col
+            :span="6"
+            class="filter-actions"
+          >
             <a-space>
-              <a-button type="primary" :loading="loading" @click="handleQuery">查询</a-button>
-              <a-button @click="handleReset">重置</a-button>
+              <a-button
+                type="primary"
+                :loading="loading"
+                @click="handleQuery"
+              >
+                查询
+              </a-button>
+              <a-button @click="handleReset">
+                重置
+              </a-button>
               <a-button @click="handleExport">
-                <template #icon><ExportOutlined /></template>
+                <template #icon>
+                  <ExportOutlined />
+                </template>
                 导出
               </a-button>
             </a-space>
@@ -58,53 +87,91 @@
       <a-row :gutter="16">
         <a-col :span="6">
           <div class="stat-card">
-            <div class="stat-icon" style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);">
+            <div
+              class="stat-icon"
+              style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);"
+            >
               <ArrowUpOutlined />
             </div>
             <div class="stat-content">
-              <div class="stat-title">同比增长</div>
-              <div class="stat-value" :class="{ positive: stats.yoyGrowth >= 0, negative: stats.yoyGrowth < 0 }">
+              <div class="stat-title">
+                同比增长
+              </div>
+              <div
+                class="stat-value"
+                :class="{ positive: stats.yoyGrowth >= 0, negative: stats.yoyGrowth < 0 }"
+              >
                 {{ stats.yoyGrowth >= 0 ? '+' : '' }}{{ stats.yoyGrowth }}%
               </div>
-              <div class="stat-desc">与去年同期对比</div>
+              <div class="stat-desc">
+                与去年同期对比
+              </div>
             </div>
           </div>
         </a-col>
         <a-col :span="6">
           <div class="stat-card">
-            <div class="stat-icon" style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);">
+            <div
+              class="stat-icon"
+              style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);"
+            >
               <LineChartOutlined />
             </div>
             <div class="stat-content">
-              <div class="stat-title">环比增长</div>
-              <div class="stat-value" :class="{ positive: stats.momGrowth >= 0, negative: stats.momGrowth < 0 }">
+              <div class="stat-title">
+                环比增长
+              </div>
+              <div
+                class="stat-value"
+                :class="{ positive: stats.momGrowth >= 0, negative: stats.momGrowth < 0 }"
+              >
                 {{ stats.momGrowth >= 0 ? '+' : '' }}{{ stats.momGrowth }}%
               </div>
-              <div class="stat-desc">与上期对比</div>
+              <div class="stat-desc">
+                与上期对比
+              </div>
             </div>
           </div>
         </a-col>
         <a-col :span="6">
           <div class="stat-card">
-            <div class="stat-icon" style="background: linear-gradient(135deg, #722ed1 0%, #531dab 100%);">
+            <div
+              class="stat-icon"
+              style="background: linear-gradient(135deg, #722ed1 0%, #531dab 100%);"
+            >
               <DollarOutlined />
             </div>
             <div class="stat-content">
-              <div class="stat-title">本期销售</div>
-              <div class="stat-value">¥{{ formatAmount(stats.currentPeriod) }}</div>
-              <div class="stat-desc">{{ getPeriodDesc() }}</div>
+              <div class="stat-title">
+                本期销售
+              </div>
+              <div class="stat-value">
+                ¥{{ formatAmount(stats.currentPeriod) }}
+              </div>
+              <div class="stat-desc">
+                {{ getPeriodDesc() }}
+              </div>
             </div>
           </div>
         </a-col>
         <a-col :span="6">
           <div class="stat-card">
-            <div class="stat-icon" style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);">
+            <div
+              class="stat-icon"
+              style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);"
+            >
               <HistoryOutlined />
             </div>
             <div class="stat-content">
-              <div class="stat-title">上期销售</div>
-              <div class="stat-value">¥{{ formatAmount(stats.lastPeriod) }}</div>
-              <div class="stat-desc">对比基准</div>
+              <div class="stat-title">
+                上期销售
+              </div>
+              <div class="stat-value">
+                ¥{{ formatAmount(stats.lastPeriod) }}
+              </div>
+              <div class="stat-desc">
+                对比基准
+              </div>
             </div>
           </div>
         </a-col>
@@ -112,19 +179,40 @@
     </div>
 
     <!-- 销售趋势图表 -->
-    <a-card title="销售趋势" size="small" :loading="chartLoading">
+    <a-card
+      title="销售趋势"
+      size="small"
+      :loading="chartLoading"
+    >
       <template #extra>
-        <a-radio-group v-model:value="chartMode" size="small" @change="initChart">
-          <a-radio-button value="line">折线图</a-radio-button>
-          <a-radio-button value="bar">柱状图</a-radio-button>
-          <a-radio-button value="area">面积图</a-radio-button>
+        <a-radio-group
+          v-model:value="chartMode"
+          size="small"
+          @change="initChart"
+        >
+          <a-radio-button value="line">
+            折线图
+          </a-radio-button>
+          <a-radio-button value="bar">
+            柱状图
+          </a-radio-button>
+          <a-radio-button value="area">
+            面积图
+          </a-radio-button>
         </a-radio-group>
       </template>
-      <div ref="chartRef" class="chart-container"></div>
+      <div
+        ref="chartRef"
+        class="chart-container"
+      />
     </a-card>
 
     <!-- 趋势明细表格 -->
-    <a-card title="趋势明细" size="small" style="margin-top: 16px">
+    <a-card
+      title="趋势明细"
+      size="small"
+      style="margin-top: 16px"
+    >
       <div class="table-container">
         <BillTableList
           :columns="trendVxeColumns"

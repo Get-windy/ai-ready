@@ -12,13 +12,35 @@
       <template #extra>
         <a-space>
           <a-badge :status="loading ? 'processing' : 'success'" />
-          <a-button size="small" @click="fetchDetail"><template #icon><ReloadOutlined /></template></a-button>
+          <a-button
+            size="small"
+            @click="fetchDetail"
+          >
+            <template #icon>
+              <ReloadOutlined />
+            </template>
+          </a-button>
         </a-space>
       </template>
       <template #auditStatus="{ value }">
-        <a-tag v-if="value === 0" color="orange">待审核</a-tag>
-        <a-tag v-else-if="value === 1" color="green">已通过</a-tag>
-        <a-tag v-else-if="value === 2" color="red">已驳回</a-tag>
+        <a-tag
+          v-if="value === 0"
+          color="orange"
+        >
+          待审核
+        </a-tag>
+        <a-tag
+          v-else-if="value === 1"
+          color="green"
+        >
+          已通过
+        </a-tag>
+        <a-tag
+          v-else-if="value === 2"
+          color="red"
+        >
+          已驳回
+        </a-tag>
         <span v-else>未知</span>
       </template>
     </BillFormPage>

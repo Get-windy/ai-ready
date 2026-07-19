@@ -1,376 +1,632 @@
 <template>
   <ErrorBoundary @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="approval-header">
-        <div class="approval-header__left">
-          <span class="approval-header__breadcrumb">ERP / 定价管理 / 审批</span>
-          <h2 class="approval-header__title">价格审批</h2>
-        </div>
-        <div class="approval-header__right">
-          <a-space :size="12">
-            <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-              <SyncOutlined /> {{ autoRefreshCountdown }}s
-            </span>
-            <span class="data-status">
-              <a-badge :status="loading ? 'processing' : 'success'" />
-              <span v-if="lastUpdateTime" class="update-time">
-                数据更新: {{ lastUpdateTime }}
+    <PageContainer full-height>
+      <template #header>
+        <div class="approval-header">
+          <div class="approval-header__left">
+            <span class="approval-header__breadcrumb">ERP / 定价管理 / 审批</span>
+            <h2 class="approval-header__title">
+              价格审批
+            </h2>
+          </div>
+          <div class="approval-header__right">
+            <a-space :size="12">
+              <span
+                v-if="autoRefreshCountdown > 0"
+                class="auto-refresh-badge"
+              >
+                <SyncOutlined /> {{ autoRefreshCountdown }}s
               </span>
-            </span>
-            <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', loadData)">
-              <template #icon><ReloadOutlined /></template>
-              刷新
-            </a-button>
-            <span class="shortcut-hints">
-              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-              <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 申请</span>
-            </span>
-          </a-space>
-        </div>
-      </div>
-    </template>
-
-    <!-- 统计卡片 -->
-    <a-row :gutter="16" style="margin-bottom: 16px;">
-      <a-col :span="6">
-        <div class="summary-card">
-          <div class="summary-icon" style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);">
-            <FileTextOutlined />
-          </div>
-          <div class="summary-content">
-            <div class="summary-title">总申请数</div>
-            <div class="summary-value">{{ statistics.totalCount }}</div>
-          </div>
-        </div>
-      </a-col>
-      <a-col :span="6">
-        <div class="summary-card">
-          <div class="summary-icon" style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);">
-            <ClockCircleOutlined />
-          </div>
-          <div class="summary-content">
-            <div class="summary-title">待审批</div>
-            <div class="summary-value warning">{{ statistics.pendingCount }}</div>
+              <span class="data-status">
+                <a-badge :status="loading ? 'processing' : 'success'" />
+                <span
+                  v-if="lastUpdateTime"
+                  class="update-time"
+                >
+                  数据更新: {{ lastUpdateTime }}
+                </span>
+              </span>
+              <a-button
+                size="small"
+                :loading="refreshLoading"
+                @click="debounceClick('refresh', loadData)"
+              >
+                <template #icon>
+                  <ReloadOutlined />
+                </template>
+                刷新
+              </a-button>
+              <span class="shortcut-hints">
+                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+                <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 申请</span>
+              </span>
+            </a-space>
           </div>
         </div>
-      </a-col>
-      <a-col :span="6">
-        <div class="summary-card">
-          <div class="summary-icon" style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);">
-            <CheckCircleOutlined />
-          </div>
-          <div class="summary-content">
-            <div class="summary-title">已通过</div>
-            <div class="summary-value">{{ statistics.approvedCount }}</div>
-          </div>
-        </div>
-      </a-col>
-      <a-col :span="6">
-        <div class="summary-card highlight">
-          <div class="summary-icon" style="background: linear-gradient(135deg, #f5222d 0%, #cf1322 100%);">
-            <CloseCircleOutlined />
-          </div>
-          <div class="summary-content">
-            <div class="summary-title">已拒绝</div>
-            <div class="summary-value">{{ statistics.rejectedCount }}</div>
-          </div>
-        </div>
-      </a-col>
-    </a-row>
-
-    <a-card :bordered="false" style="flex: 1; overflow: hidden;" :bodyStyle="{ display: 'flex', flexDirection: 'column', height: 'calc(100% - 57px)' }">
-      <template #extra>
-        <a-button v-permission="'pricing:approval:create'" type="primary" @click="handleApply">
-          <template #icon><PlusOutlined /></template>
-          申请价格变更
-        </a-button>
       </template>
 
-      <a-tabs v-model:activeKey="activeTab" style="flex: 1; overflow: hidden;">
-        <a-tab-pane key="pending" tab="待审批">
-          <BillTableList
-            ref="pendingTableRef"
-            :columns="pendingVxeColumns"
-            :data-source="pendingList"
-            :loading="loading"
-            :pagination="pagination"
-            show-toolbar
-            :show-add="false"
-            :show-search="false"
-            :show-export="false"
-            :show-batch-delete="false"
-            :selectable="false"
-            @cell-dblclick="handleView"
-            @refresh="loadData"
-            @page-change="handlePageChange"
-          >
-            <template #empty>
-              <div v-if="hasError" class="table-empty">
-                <WarningOutlined class="table-empty-icon" />
-                <p class="table-empty-text">数据加载异常，请重试</p>
-                <a-button type="primary" @click="loadData"><ReloadOutlined /> 重试</a-button>
-              </div>
-            </template>
-            <template #priceChange="{ record }">
-              <div class="price-change">
-                <span class="old-price">原价: ¥{{ record.oldPrice }}</span>
-                <span class="new-price">新价: ¥{{ record.newPrice }}</span>
-                <span class="change" :class="record.priceChangeType">
-                  {{ record.priceChangeType === 'increase' ? '+' : '-' }}¥{{ record.priceChange }}
-                </span>
-              </div>
-            </template>
-            <template #statusCell="{ record }">
-              <StatusTag :status="record.status" :map="PRICE_APPROVAL_STATUS" />
-            </template>
-            <template #action="{ record }">
-              <a-space :size="4">
-                <a-button v-permission="'pricing:approval:approve'" size="small" type="primary" @click="handleApprove(record)">通过</a-button>
-                <a-button v-permission="'pricing:approval:reject'" size="small" danger @click="handleReject(record)">拒绝</a-button>
-                <a-button type="link" size="small" @click="handleView(record)">详情</a-button>
-              </a-space>
-            </template>
-          </BillTableList>
-        </a-tab-pane>
-        <a-tab-pane key="approved" tab="已通过">
-          <BillTableList
-            :columns="processedVxeColumns"
-            :data-source="approvedList"
-            :loading="loading"
-            :show-toolbar="false"
-            :selectable="false"
-            :pagination="false as any"
-            @cell-dblclick="handleView"
-          >
-            <template #empty>
-              <div v-if="hasError" class="table-empty">
-                <WarningOutlined class="table-empty-icon" />
-                <p class="table-empty-text">数据加载异常，请重试</p>
-                <a-button type="primary" @click="loadData"><ReloadOutlined /> 重试</a-button>
-              </div>
-            </template>
-            <template #priceChange="{ record }">
-              <div class="price-change">
-                <span class="old-price">原价: ¥{{ record.oldPrice }}</span>
-                <span class="new-price">新价: ¥{{ record.newPrice }}</span>
-                <span class="change" :class="record.priceChangeType">
-                  {{ record.priceChangeType === 'increase' ? '+' : '-' }}¥{{ record.priceChange }}
-                </span>
-              </div>
-            </template>
-            <template #statusCell="{ record }">
-              <StatusTag :status="record.status" :map="PRICE_APPROVAL_STATUS" />
-            </template>
-            <template #approverCell="{ record }">
-              {{ record.approverName }} / {{ formatDate(record.approveTime) }}
-            </template>
-          </BillTableList>
-        </a-tab-pane>
-        <a-tab-pane key="rejected" tab="已拒绝">
-          <BillTableList
-            :columns="processedVxeColumns"
-            :data-source="rejectedList"
-            :loading="loading"
-            :show-toolbar="false"
-            :selectable="false"
-            :pagination="false as any"
-            @cell-dblclick="handleView"
-          >
-            <template #empty>
-              <div v-if="hasError" class="table-empty">
-                <WarningOutlined class="table-empty-icon" />
-                <p class="table-empty-text">数据加载异常，请重试</p>
-                <a-button type="primary" @click="loadData"><ReloadOutlined /> 重试</a-button>
-              </div>
-            </template>
-            <template #priceChange="{ record }">
-              <div class="price-change">
-                <span class="old-price">原价: ¥{{ record.oldPrice }}</span>
-                <span class="new-price">新价: ¥{{ record.newPrice }}</span>
-                <span class="change" :class="record.priceChangeType">
-                  {{ record.priceChangeType === 'increase' ? '+' : '-' }}¥{{ record.priceChange }}
-                </span>
-              </div>
-            </template>
-            <template #statusCell="{ record }">
-              <StatusTag :status="record.status" :map="PRICE_APPROVAL_STATUS" />
-            </template>
-            <template #approverCell="{ record }">
-              {{ record.approverName }} / {{ formatDate(record.approveTime) }}
-            </template>
-          </BillTableList>
-        </a-tab-pane>
-        <a-tab-pane key="my" tab="我的申请">
-          <BillTableList
-            :columns="myVxeColumns"
-            :data-source="myList"
-            :loading="loading"
-            :show-toolbar="false"
-            :selectable="false"
-            :pagination="false as any"
-            @cell-dblclick="handleView"
-          >
-            <template #empty>
-              <div v-if="hasError" class="table-empty">
-                <WarningOutlined class="table-empty-icon" />
-                <p class="table-empty-text">数据加载异常，请重试</p>
-                <a-button type="primary" @click="loadData"><ReloadOutlined /> 重试</a-button>
-              </div>
-            </template>
-            <template #priceChange="{ record }">
-              <div class="price-change">
-                <span class="old-price">原价: ¥{{ record.oldPrice }}</span>
-                <span class="new-price">新价: ¥{{ record.newPrice }}</span>
-                <span class="change" :class="record.priceChangeType">
-                  {{ record.priceChangeType === 'increase' ? '+' : '-' }}¥{{ record.priceChange }}
-                </span>
-              </div>
-            </template>
-            <template #statusCell="{ record }">
-              <StatusTag :status="record.status" :map="PRICE_APPROVAL_STATUS" />
-            </template>
-          </BillTableList>
-        </a-tab-pane>
-      </a-tabs>
-    </a-card>
-
-    <a-modal
-      v-model:open="applyVisible"
-      title="申请价格变更"
-      width="600px"
-      :confirm-loading="submitLoading"
-      @ok="handleApplySubmit"
-      @cancel="applyVisible = false"
-    >
-      <a-form
-        ref="applyFormRef"
-        :model="applyForm"
-        :rules="applyRules"
-        :label-col="{ span: 6 }"
-        :wrapper-col="{ span: 16 }"
+      <!-- 统计卡片 -->
+      <a-row
+        :gutter="16"
+        style="margin-bottom: 16px;"
       >
-        <a-form-item label="产品" name="productId">
-          <a-select
-            size="small"
-            v-model:value="applyForm.productId"
-            placeholder="请选择产品"
-            show-search
-            :filter-option="filterOption"
+        <a-col :span="6">
+          <div class="summary-card">
+            <div
+              class="summary-icon"
+              style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);"
+            >
+              <FileTextOutlined />
+            </div>
+            <div class="summary-content">
+              <div class="summary-title">
+                总申请数
+              </div>
+              <div class="summary-value">
+                {{ statistics.totalCount }}
+              </div>
+            </div>
+          </div>
+        </a-col>
+        <a-col :span="6">
+          <div class="summary-card">
+            <div
+              class="summary-icon"
+              style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);"
+            >
+              <ClockCircleOutlined />
+            </div>
+            <div class="summary-content">
+              <div class="summary-title">
+                待审批
+              </div>
+              <div class="summary-value warning">
+                {{ statistics.pendingCount }}
+              </div>
+            </div>
+          </div>
+        </a-col>
+        <a-col :span="6">
+          <div class="summary-card">
+            <div
+              class="summary-icon"
+              style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);"
+            >
+              <CheckCircleOutlined />
+            </div>
+            <div class="summary-content">
+              <div class="summary-title">
+                已通过
+              </div>
+              <div class="summary-value">
+                {{ statistics.approvedCount }}
+              </div>
+            </div>
+          </div>
+        </a-col>
+        <a-col :span="6">
+          <div class="summary-card highlight">
+            <div
+              class="summary-icon"
+              style="background: linear-gradient(135deg, #f5222d 0%, #cf1322 100%);"
+            >
+              <CloseCircleOutlined />
+            </div>
+            <div class="summary-content">
+              <div class="summary-title">
+                已拒绝
+              </div>
+              <div class="summary-value">
+                {{ statistics.rejectedCount }}
+              </div>
+            </div>
+          </div>
+        </a-col>
+      </a-row>
+
+      <a-card
+        :bordered="false"
+        style="flex: 1; overflow: hidden;"
+        :body-style="{ display: 'flex', flexDirection: 'column', height: 'calc(100% - 57px)' }"
+      >
+        <template #extra>
+          <a-button
+            v-permission="'pricing:approval:create'"
+            type="primary"
+            @click="handleApply"
           >
-            <a-select-option v-for="p in productList" :key="p.id" :value="p.id">
-              {{ p.name }} ({{ p.code }})
-            </a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item label="客户" name="customerId">
-          <a-select
-            size="small"
-            v-model:value="applyForm.customerId"
-            placeholder="请选择客户(可选，不选则为通用价格)"
-            show-search
-            :filter-option="filterOption"
-            allow-clear
+            <template #icon>
+              <PlusOutlined />
+            </template>
+            申请价格变更
+          </a-button>
+        </template>
+
+        <a-tabs
+          v-model:active-key="activeTab"
+          style="flex: 1; overflow: hidden;"
+        >
+          <a-tab-pane
+            key="pending"
+            tab="待审批"
           >
-            <a-select-option v-for="c in customerList" :key="c.id" :value="c.id">
-              {{ c.name }}
-            </a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item label="当前价格">
-          <span class="current-price">¥{{ currentPrice }}</span>
-        </a-form-item>
-        <a-form-item label="新价格" name="newPrice">
-          <a-input-number size="small" v-model:value="applyForm.newPrice" :min="0" :precision="2" style="width: 100%" />
-        </a-form-item>
-        <a-form-item label="价格变动">
-          <span :class="{ increase: priceChangeType === 'increase', decrease: priceChangeType === 'decrease' }">
-            {{ priceChangeType === 'increase' ? '+' : '-' }}¥{{ priceChangeAmount }}
-          </span>
-        </a-form-item>
-        <a-form-item label="审批类型" name="approvalType">
-          <a-select size="small" v-model:value="applyForm.approvalType" placeholder="请选择审批类型">
-            <a-select-option value="price_adjustment">价格调整</a-select-option>
-            <a-select-option value="promotion">促销价格</a-select-option>
-            <a-select-option value="contract">合同价格</a-select-option>
-            <a-select-option value="discount">折扣价格</a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item label="生效时间">
-          <a-range-picker size="small" v-model:value="applyForm.effectiveRange" show-time />
-        </a-form-item>
-        <a-form-item label="申请原因" name="approvalReason">
-          <a-textarea size="small" v-model:value="applyForm.approvalReason" placeholder="请输入申请原因" :rows="3" />
-        </a-form-item>
-      </a-form>
-    </a-modal>
+            <BillTableList
+              ref="pendingTableRef"
+              :columns="pendingVxeColumns"
+              :data-source="pendingList"
+              :loading="loading"
+              :pagination="pagination"
+              show-toolbar
+              :show-add="false"
+              :show-search="false"
+              :show-export="false"
+              :show-batch-delete="false"
+              :selectable="false"
+              @cell-dblclick="handleView"
+              @refresh="loadData"
+              @page-change="handlePageChange"
+            >
+              <template #empty>
+                <div
+                  v-if="hasError"
+                  class="table-empty"
+                >
+                  <WarningOutlined class="table-empty-icon" />
+                  <p class="table-empty-text">
+                    数据加载异常，请重试
+                  </p>
+                  <a-button
+                    type="primary"
+                    @click="loadData"
+                  >
+                    <ReloadOutlined /> 重试
+                  </a-button>
+                </div>
+              </template>
+              <template #priceChange="{ record }">
+                <div class="price-change">
+                  <span class="old-price">原价: ¥{{ record.oldPrice }}</span>
+                  <span class="new-price">新价: ¥{{ record.newPrice }}</span>
+                  <span
+                    class="change"
+                    :class="record.priceChangeType"
+                  >
+                    {{ record.priceChangeType === 'increase' ? '+' : '-' }}¥{{ record.priceChange }}
+                  </span>
+                </div>
+              </template>
+              <template #statusCell="{ record }">
+                <StatusTag
+                  :status="record.status"
+                  :map="PRICE_APPROVAL_STATUS"
+                />
+              </template>
+              <template #action="{ record }">
+                <a-space :size="4">
+                  <a-button
+                    v-permission="'pricing:approval:approve'"
+                    size="small"
+                    type="primary"
+                    @click="handleApprove(record)"
+                  >
+                    通过
+                  </a-button>
+                  <a-button
+                    v-permission="'pricing:approval:reject'"
+                    size="small"
+                    danger
+                    @click="handleReject(record)"
+                  >
+                    拒绝
+                  </a-button>
+                  <a-button
+                    type="link"
+                    size="small"
+                    @click="handleView(record)"
+                  >
+                    详情
+                  </a-button>
+                </a-space>
+              </template>
+            </BillTableList>
+          </a-tab-pane>
+          <a-tab-pane
+            key="approved"
+            tab="已通过"
+          >
+            <BillTableList
+              :columns="processedVxeColumns"
+              :data-source="approvedList"
+              :loading="loading"
+              :show-toolbar="false"
+              :selectable="false"
+              :pagination="false as any"
+              @cell-dblclick="handleView"
+            >
+              <template #empty>
+                <div
+                  v-if="hasError"
+                  class="table-empty"
+                >
+                  <WarningOutlined class="table-empty-icon" />
+                  <p class="table-empty-text">
+                    数据加载异常，请重试
+                  </p>
+                  <a-button
+                    type="primary"
+                    @click="loadData"
+                  >
+                    <ReloadOutlined /> 重试
+                  </a-button>
+                </div>
+              </template>
+              <template #priceChange="{ record }">
+                <div class="price-change">
+                  <span class="old-price">原价: ¥{{ record.oldPrice }}</span>
+                  <span class="new-price">新价: ¥{{ record.newPrice }}</span>
+                  <span
+                    class="change"
+                    :class="record.priceChangeType"
+                  >
+                    {{ record.priceChangeType === 'increase' ? '+' : '-' }}¥{{ record.priceChange }}
+                  </span>
+                </div>
+              </template>
+              <template #statusCell="{ record }">
+                <StatusTag
+                  :status="record.status"
+                  :map="PRICE_APPROVAL_STATUS"
+                />
+              </template>
+              <template #approverCell="{ record }">
+                {{ record.approverName }} / {{ formatDate(record.approveTime) }}
+              </template>
+            </BillTableList>
+          </a-tab-pane>
+          <a-tab-pane
+            key="rejected"
+            tab="已拒绝"
+          >
+            <BillTableList
+              :columns="processedVxeColumns"
+              :data-source="rejectedList"
+              :loading="loading"
+              :show-toolbar="false"
+              :selectable="false"
+              :pagination="false as any"
+              @cell-dblclick="handleView"
+            >
+              <template #empty>
+                <div
+                  v-if="hasError"
+                  class="table-empty"
+                >
+                  <WarningOutlined class="table-empty-icon" />
+                  <p class="table-empty-text">
+                    数据加载异常，请重试
+                  </p>
+                  <a-button
+                    type="primary"
+                    @click="loadData"
+                  >
+                    <ReloadOutlined /> 重试
+                  </a-button>
+                </div>
+              </template>
+              <template #priceChange="{ record }">
+                <div class="price-change">
+                  <span class="old-price">原价: ¥{{ record.oldPrice }}</span>
+                  <span class="new-price">新价: ¥{{ record.newPrice }}</span>
+                  <span
+                    class="change"
+                    :class="record.priceChangeType"
+                  >
+                    {{ record.priceChangeType === 'increase' ? '+' : '-' }}¥{{ record.priceChange }}
+                  </span>
+                </div>
+              </template>
+              <template #statusCell="{ record }">
+                <StatusTag
+                  :status="record.status"
+                  :map="PRICE_APPROVAL_STATUS"
+                />
+              </template>
+              <template #approverCell="{ record }">
+                {{ record.approverName }} / {{ formatDate(record.approveTime) }}
+              </template>
+            </BillTableList>
+          </a-tab-pane>
+          <a-tab-pane
+            key="my"
+            tab="我的申请"
+          >
+            <BillTableList
+              :columns="myVxeColumns"
+              :data-source="myList"
+              :loading="loading"
+              :show-toolbar="false"
+              :selectable="false"
+              :pagination="false as any"
+              @cell-dblclick="handleView"
+            >
+              <template #empty>
+                <div
+                  v-if="hasError"
+                  class="table-empty"
+                >
+                  <WarningOutlined class="table-empty-icon" />
+                  <p class="table-empty-text">
+                    数据加载异常，请重试
+                  </p>
+                  <a-button
+                    type="primary"
+                    @click="loadData"
+                  >
+                    <ReloadOutlined /> 重试
+                  </a-button>
+                </div>
+              </template>
+              <template #priceChange="{ record }">
+                <div class="price-change">
+                  <span class="old-price">原价: ¥{{ record.oldPrice }}</span>
+                  <span class="new-price">新价: ¥{{ record.newPrice }}</span>
+                  <span
+                    class="change"
+                    :class="record.priceChangeType"
+                  >
+                    {{ record.priceChangeType === 'increase' ? '+' : '-' }}¥{{ record.priceChange }}
+                  </span>
+                </div>
+              </template>
+              <template #statusCell="{ record }">
+                <StatusTag
+                  :status="record.status"
+                  :map="PRICE_APPROVAL_STATUS"
+                />
+              </template>
+            </BillTableList>
+          </a-tab-pane>
+        </a-tabs>
+      </a-card>
 
-    <a-modal
-      v-model:open="approveVisible"
-      title="审批通过"
-      width="500px"
-      @ok="handleApproveConfirm"
-    >
-      <a-form :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
-        <a-form-item label="产品">
-          <span>{{ approveData.productName }}</span>
-        </a-form-item>
-        <a-form-item label="价格变更">
-          <span>¥{{ approveData.oldPrice }} → ¥{{ approveData.newPrice }}</span>
-        </a-form-item>
-        <a-form-item label="审批备注">
-          <a-textarea size="small" v-model:value="approveRemark" placeholder="请输入审批备注(可选)" :rows="2" />
-        </a-form-item>
-      </a-form>
-    </a-modal>
+      <a-modal
+        v-model:open="applyVisible"
+        title="申请价格变更"
+        width="600px"
+        :confirm-loading="submitLoading"
+        @ok="handleApplySubmit"
+        @cancel="applyVisible = false"
+      >
+        <a-form
+          ref="applyFormRef"
+          :model="applyForm"
+          :rules="applyRules"
+          :label-col="{ span: 6 }"
+          :wrapper-col="{ span: 16 }"
+        >
+          <a-form-item
+            label="产品"
+            name="productId"
+          >
+            <a-select
+              v-model:value="applyForm.productId"
+              size="small"
+              placeholder="请选择产品"
+              show-search
+              :filter-option="filterOption"
+            >
+              <a-select-option
+                v-for="p in productList"
+                :key="p.id"
+                :value="p.id"
+              >
+                {{ p.name }} ({{ p.code }})
+              </a-select-option>
+            </a-select>
+          </a-form-item>
+          <a-form-item
+            label="客户"
+            name="customerId"
+          >
+            <a-select
+              v-model:value="applyForm.customerId"
+              size="small"
+              placeholder="请选择客户(可选，不选则为通用价格)"
+              show-search
+              :filter-option="filterOption"
+              allow-clear
+            >
+              <a-select-option
+                v-for="c in customerList"
+                :key="c.id"
+                :value="c.id"
+              >
+                {{ c.name }}
+              </a-select-option>
+            </a-select>
+          </a-form-item>
+          <a-form-item label="当前价格">
+            <span class="current-price">¥{{ currentPrice }}</span>
+          </a-form-item>
+          <a-form-item
+            label="新价格"
+            name="newPrice"
+          >
+            <a-input-number
+              v-model:value="applyForm.newPrice"
+              size="small"
+              :min="0"
+              :precision="2"
+              style="width: 100%"
+            />
+          </a-form-item>
+          <a-form-item label="价格变动">
+            <span :class="{ increase: priceChangeType === 'increase', decrease: priceChangeType === 'decrease' }">
+              {{ priceChangeType === 'increase' ? '+' : '-' }}¥{{ priceChangeAmount }}
+            </span>
+          </a-form-item>
+          <a-form-item
+            label="审批类型"
+            name="approvalType"
+          >
+            <a-select
+              v-model:value="applyForm.approvalType"
+              size="small"
+              placeholder="请选择审批类型"
+            >
+              <a-select-option value="price_adjustment">
+                价格调整
+              </a-select-option>
+              <a-select-option value="promotion">
+                促销价格
+              </a-select-option>
+              <a-select-option value="contract">
+                合同价格
+              </a-select-option>
+              <a-select-option value="discount">
+                折扣价格
+              </a-select-option>
+            </a-select>
+          </a-form-item>
+          <a-form-item label="生效时间">
+            <a-range-picker
+              v-model:value="applyForm.effectiveRange"
+              size="small"
+              show-time
+            />
+          </a-form-item>
+          <a-form-item
+            label="申请原因"
+            name="approvalReason"
+          >
+            <a-textarea
+              v-model:value="applyForm.approvalReason"
+              size="small"
+              placeholder="请输入申请原因"
+              :rows="3"
+            />
+          </a-form-item>
+        </a-form>
+      </a-modal>
 
-    <a-modal
-      v-model:open="rejectVisible"
-      title="审批拒绝"
-      width="500px"
-      @ok="handleRejectConfirm"
-    >
-      <a-form :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
-        <a-form-item label="产品">
-          <span>{{ rejectData.productName }}</span>
-        </a-form-item>
-        <a-form-item label="价格变更">
-          <span>¥{{ rejectData.oldPrice }} → ¥{{ rejectData.newPrice }}</span>
-        </a-form-item>
-        <a-form-item label="拒绝原因">
-          <a-textarea size="small" v-model:value="rejectReason" placeholder="请输入拒绝原因" :rows="2" />
-        </a-form-item>
-      </a-form>
-    </a-modal>
+      <a-modal
+        v-model:open="approveVisible"
+        title="审批通过"
+        width="500px"
+        @ok="handleApproveConfirm"
+      >
+        <a-form
+          :label-col="{ span: 6 }"
+          :wrapper-col="{ span: 16 }"
+        >
+          <a-form-item label="产品">
+            <span>{{ approveData.productName }}</span>
+          </a-form-item>
+          <a-form-item label="价格变更">
+            <span>¥{{ approveData.oldPrice }} → ¥{{ approveData.newPrice }}</span>
+          </a-form-item>
+          <a-form-item label="审批备注">
+            <a-textarea
+              v-model:value="approveRemark"
+              size="small"
+              placeholder="请输入审批备注(可选)"
+              :rows="2"
+            />
+          </a-form-item>
+        </a-form>
+      </a-modal>
 
-    <a-drawer
-      v-model:open="detailVisible"
-      title="审批详情"
-      placement="right"
-      width="80vw"
-    >
-      <a-descriptions :column="2" bordered>
-        <a-descriptions-item label="产品名称">{{ detailData.productName }}</a-descriptions-item>
-        <a-descriptions-item label="产品编码">{{ detailData.productCode }}</a-descriptions-item>
-        <a-descriptions-item label="客户名称">{{ detailData.customerName || '通用价格' }}</a-descriptions-item>
-        <a-descriptions-item label="审批类型">{{ detailData.approvalTypeLabel }}</a-descriptions-item>
-        <a-descriptions-item label="原价格">¥{{ detailData.oldPrice }}</a-descriptions-item>
-        <a-descriptions-item label="新价格">¥{{ detailData.newPrice }}</a-descriptions-item>
-        <a-descriptions-item label="价格变动">
-          <span :class="detailData.priceChangeType">{{ detailData.priceChangeType === 'increase' ? '+' : '-' }}¥{{ detailData.priceChange }}</span>
-        </a-descriptions-item>
-        <a-descriptions-item label="审批状态">
-          <StatusTag :status="detailData.status" :map="PRICE_APPROVAL_STATUS" />
-        </a-descriptions-item>
-        <a-descriptions-item label="申请人">{{ detailData.applicantName }}</a-descriptions-item>
-        <a-descriptions-item label="申请时间">{{ formatDate(detailData.applyTime) }}</a-descriptions-item>
-        <a-descriptions-item label="审批人">{{ detailData.approverName || '-' }}</a-descriptions-item>
-        <a-descriptions-item label="审批时间">{{ formatDate(detailData.approveTime) || '-' }}</a-descriptions-item>
-        <a-descriptions-item label="申请原因" :span="2">{{ detailData.approvalReason }}</a-descriptions-item>
-        <a-descriptions-item label="审批备注" :span="2">{{ detailData.approveRemark || '-' }}</a-descriptions-item>
-      </a-descriptions>
-    </a-drawer>
-  </PageContainer>
+      <a-modal
+        v-model:open="rejectVisible"
+        title="审批拒绝"
+        width="500px"
+        @ok="handleRejectConfirm"
+      >
+        <a-form
+          :label-col="{ span: 6 }"
+          :wrapper-col="{ span: 16 }"
+        >
+          <a-form-item label="产品">
+            <span>{{ rejectData.productName }}</span>
+          </a-form-item>
+          <a-form-item label="价格变更">
+            <span>¥{{ rejectData.oldPrice }} → ¥{{ rejectData.newPrice }}</span>
+          </a-form-item>
+          <a-form-item label="拒绝原因">
+            <a-textarea
+              v-model:value="rejectReason"
+              size="small"
+              placeholder="请输入拒绝原因"
+              :rows="2"
+            />
+          </a-form-item>
+        </a-form>
+      </a-modal>
+
+      <a-drawer
+        v-model:open="detailVisible"
+        title="审批详情"
+        placement="right"
+        width="80vw"
+      >
+        <a-descriptions
+          :column="2"
+          bordered
+        >
+          <a-descriptions-item label="产品名称">
+            {{ detailData.productName }}
+          </a-descriptions-item>
+          <a-descriptions-item label="产品编码">
+            {{ detailData.productCode }}
+          </a-descriptions-item>
+          <a-descriptions-item label="客户名称">
+            {{ detailData.customerName || '通用价格' }}
+          </a-descriptions-item>
+          <a-descriptions-item label="审批类型">
+            {{ detailData.approvalTypeLabel }}
+          </a-descriptions-item>
+          <a-descriptions-item label="原价格">
+            ¥{{ detailData.oldPrice }}
+          </a-descriptions-item>
+          <a-descriptions-item label="新价格">
+            ¥{{ detailData.newPrice }}
+          </a-descriptions-item>
+          <a-descriptions-item label="价格变动">
+            <span :class="detailData.priceChangeType">{{ detailData.priceChangeType === 'increase' ? '+' : '-' }}¥{{ detailData.priceChange }}</span>
+          </a-descriptions-item>
+          <a-descriptions-item label="审批状态">
+            <StatusTag
+              :status="detailData.status"
+              :map="PRICE_APPROVAL_STATUS"
+            />
+          </a-descriptions-item>
+          <a-descriptions-item label="申请人">
+            {{ detailData.applicantName }}
+          </a-descriptions-item>
+          <a-descriptions-item label="申请时间">
+            {{ formatDate(detailData.applyTime) }}
+          </a-descriptions-item>
+          <a-descriptions-item label="审批人">
+            {{ detailData.approverName || '-' }}
+          </a-descriptions-item>
+          <a-descriptions-item label="审批时间">
+            {{ formatDate(detailData.approveTime) || '-' }}
+          </a-descriptions-item>
+          <a-descriptions-item
+            label="申请原因"
+            :span="2"
+          >
+            {{ detailData.approvalReason }}
+          </a-descriptions-item>
+          <a-descriptions-item
+            label="审批备注"
+            :span="2"
+          >
+            {{ detailData.approveRemark || '-' }}
+          </a-descriptions-item>
+        </a-descriptions>
+      </a-drawer>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

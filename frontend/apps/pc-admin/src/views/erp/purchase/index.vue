@@ -1,20 +1,37 @@
 <template>
   <ErrorBoundary @error="handleError">
-    <PageContainer title="采购订单管理" full-height>
+    <PageContainer
+      title="采购订单管理"
+      full-height
+    >
       <template #headerExtra>
         <a-space :size="12">
           <span class="data-status">
             <a-badge :status="loading ? 'processing' : (hasError ? 'error' : 'success')" />
-            <span v-if="lastUpdateTime" class="update-time">
+            <span
+              v-if="lastUpdateTime"
+              class="update-time"
+            >
               最后更新: {{ lastUpdateTime }}
             </span>
-            <span v-if="hasError" class="error-text">数据加载异常</span>
+            <span
+              v-if="hasError"
+              class="error-text"
+            >数据加载异常</span>
           </span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+          <span
+            v-if="autoRefreshCountdown > 0"
+            class="auto-refresh-badge"
+          >
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" @click="debounceClick('refresh', fetchData)">
-            <template #icon><ReloadOutlined /></template>
+          <a-button
+            size="small"
+            @click="debounceClick('refresh', fetchData)"
+          >
+            <template #icon>
+              <ReloadOutlined />
+            </template>
           </a-button>
           <span class="shortcut-hints">
             <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
@@ -37,29 +54,45 @@
       <div class="stat-cards">
         <div class="stat-card stat-draft">
           <div class="stat-card-body">
-            <div class="stat-card-value">{{ statDraft }}</div>
-            <div class="stat-card-label">草稿</div>
+            <div class="stat-card-value">
+              {{ statDraft }}
+            </div>
+            <div class="stat-card-label">
+              草稿
+            </div>
           </div>
           <FileOutlined class="stat-card-icon" />
         </div>
         <div class="stat-card stat-pending">
           <div class="stat-card-body">
-            <div class="stat-card-value">{{ statPending }}</div>
-            <div class="stat-card-label">待审批</div>
+            <div class="stat-card-value">
+              {{ statPending }}
+            </div>
+            <div class="stat-card-label">
+              待审批
+            </div>
           </div>
           <ClockCircleOutlined class="stat-card-icon" />
         </div>
         <div class="stat-card stat-completed">
           <div class="stat-card-body">
-            <div class="stat-card-value">{{ statCompleted }}</div>
-            <div class="stat-card-label">已完成</div>
+            <div class="stat-card-value">
+              {{ statCompleted }}
+            </div>
+            <div class="stat-card-label">
+              已完成
+            </div>
           </div>
           <CheckCircleOutlined class="stat-card-icon" />
         </div>
         <div class="stat-card stat-amount">
           <div class="stat-card-body">
-            <div class="stat-card-value">¥{{ formatAmount(statTotalAmount) }}</div>
-            <div class="stat-card-label">订单金额</div>
+            <div class="stat-card-value">
+              ¥{{ formatAmount(statTotalAmount) }}
+            </div>
+            <div class="stat-card-label">
+              订单金额
+            </div>
           </div>
           <DollarOutlined class="stat-card-icon" />
         </div>
@@ -88,28 +121,66 @@
       >
         <template #toolbar-actions>
           <a-tooltip title="导出">
-            <a-button v-permission="'purchase:order:export'" size="small" @click="debounceClick('export', handleExport)">
-              <template #icon><ExportOutlined /></template>
+            <a-button
+              v-permission="'purchase:order:export'"
+              size="small"
+              @click="debounceClick('export', handleExport)"
+            >
+              <template #icon>
+                <ExportOutlined />
+              </template>
             </a-button>
           </a-tooltip>
         </template>
 
         <template #empty>
-          <div v-if="hasError" class="table-empty">
+          <div
+            v-if="hasError"
+            class="table-empty"
+          >
             <WarningOutlined class="table-empty-icon" />
-            <p class="table-empty-text">数据加载异常，请重试</p>
-            <a-button type="primary" @click="fetchData"><ReloadOutlined /> 重试</a-button>
+            <p class="table-empty-text">
+              数据加载异常，请重试
+            </p>
+            <a-button
+              type="primary"
+              @click="fetchData"
+            >
+              <ReloadOutlined /> 重试
+            </a-button>
           </div>
-          <div v-else class="table-empty">
-            <InboxOutlined v-if="!hasActiveFilters" class="table-empty-icon" />
-            <SearchOutlined v-else class="table-empty-icon" />
-            <p v-if="!hasActiveFilters" class="table-empty-text">暂无采购单数据，点击右上角新建</p>
-            <p v-else class="table-empty-text">没有符合条件的采购单</p>
+          <div
+            v-else
+            class="table-empty"
+          >
+            <InboxOutlined
+              v-if="!hasActiveFilters"
+              class="table-empty-icon"
+            />
+            <SearchOutlined
+              v-else
+              class="table-empty-icon"
+            />
+            <p
+              v-if="!hasActiveFilters"
+              class="table-empty-text"
+            >
+              暂无采购单数据，点击右上角新建
+            </p>
+            <p
+              v-else
+              class="table-empty-text"
+            >
+              没有符合条件的采购单
+            </p>
           </div>
         </template>
 
         <template #statusCell="{ record }">
-          <StatusTag :status="record.status" :map="PURCHASE_ORDER_STATUS" />
+          <StatusTag
+            :status="record.status"
+            :map="PURCHASE_ORDER_STATUS"
+          />
         </template>
         <template #totalAmountCell="{ record }">
           <span class="amount-cell">¥{{ formatAmount(record.totalAmount) }}</span>
@@ -117,18 +188,60 @@
         <template #actionCell="{ record }">
           <a-space>
             <a-tooltip title="查看">
-              <a-button v-permission="'purchase:order:detail'" type="link" size="small" @click="handleView(record)">
-                <template #icon><EyeOutlined /></template>
+              <a-button
+                v-permission="'purchase:order:detail'"
+                type="link"
+                size="small"
+                @click="handleView(record)"
+              >
+                <template #icon>
+                  <EyeOutlined />
+                </template>
               </a-button>
             </a-tooltip>
-            <a-tooltip v-if="record.status === 0" title="提交审批">
-              <a-button v-permission="'purchase:order:submit'" type="link" size="small" @click="handleSubmit(record)">
-                <template #icon><SendOutlined /></template>
+            <a-tooltip
+              v-if="record.status === 0"
+              title="编辑"
+            >
+              <a-button
+                v-permission="'purchase:order:update'"
+                type="link"
+                size="small"
+                @click="handleEdit(record)"
+              >
+                <template #icon>
+                  <EditOutlined />
+                </template>
               </a-button>
             </a-tooltip>
-            <a-tooltip v-if="record.status === 1" title="审批通过">
-              <a-button v-permission="'purchase:order:approve'" type="link" size="small" @click="handleApprove(record)">
-                <template #icon><CheckCircleOutlined /></template>
+            <a-tooltip
+              v-if="record.status === 0"
+              title="提交审批"
+            >
+              <a-button
+                v-permission="'purchase:order:submit'"
+                type="link"
+                size="small"
+                @click="handleSubmit(record)"
+              >
+                <template #icon>
+                  <SendOutlined />
+                </template>
+              </a-button>
+            </a-tooltip>
+            <a-tooltip
+              v-if="record.status === 1"
+              title="审批通过"
+            >
+              <a-button
+                v-permission="'purchase:order:approve'"
+                type="link"
+                size="small"
+                @click="handleApprove(record)"
+              >
+                <template #icon>
+                  <CheckCircleOutlined />
+                </template>
               </a-button>
             </a-tooltip>
           </a-space>
@@ -144,23 +257,50 @@
       width="80vw"
     >
       <a-spin :spinning="detailLoading">
-        <a-descriptions bordered :column="2" v-if="detailData" size="small">
-          <a-descriptions-item label="采购单号">{{ detailData.orderNo }}</a-descriptions-item>
-          <a-descriptions-item label="供应商">{{ detailData.supplierName }}</a-descriptions-item>
-          <a-descriptions-item label="采购员">{{ detailData.purchaserName || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="仓库">{{ detailData.warehouseName || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="订单日期">{{ detailData.orderDate || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="预计到货">{{ detailData.expectedDate || '-' }}</a-descriptions-item>
+        <a-descriptions
+          v-if="detailData"
+          bordered
+          :column="2"
+          size="small"
+        >
+          <a-descriptions-item label="采购单号">
+            {{ detailData.orderNo }}
+          </a-descriptions-item>
+          <a-descriptions-item label="供应商">
+            {{ detailData.supplierName }}
+          </a-descriptions-item>
+          <a-descriptions-item label="采购员">
+            {{ detailData.purchaserName || '-' }}
+          </a-descriptions-item>
+          <a-descriptions-item label="仓库">
+            {{ detailData.warehouseName || '-' }}
+          </a-descriptions-item>
+          <a-descriptions-item label="订单日期">
+            {{ detailData.orderDate || '-' }}
+          </a-descriptions-item>
+          <a-descriptions-item label="预计到货">
+            {{ detailData.expectedDate || '-' }}
+          </a-descriptions-item>
           <a-descriptions-item label="订单金额">
             <span class="amount-cell">¥{{ formatAmount(detailData.totalAmount) }}</span>
           </a-descriptions-item>
           <a-descriptions-item label="状态">
-            <StatusTag :status="detailData.status" :map="PURCHASE_ORDER_STATUS" />
+            <StatusTag
+              :status="detailData.status"
+              :map="PURCHASE_ORDER_STATUS"
+            />
           </a-descriptions-item>
-          <a-descriptions-item label="备注" :span="2">{{ detailData.remark || '-' }}</a-descriptions-item>
+          <a-descriptions-item
+            label="备注"
+            :span="2"
+          >
+            {{ detailData.remark || '-' }}
+          </a-descriptions-item>
         </a-descriptions>
 
-        <h4 style="margin: 16px 0 8px;">订单明细</h4>
+        <h4 style="margin: 16px 0 8px;">
+          订单明细
+        </h4>
         <a-table
           :data-source="detailItems"
           :columns="detailItemColumns"
@@ -188,148 +328,40 @@
             button-size="small"
             button-type="default"
           />
-          <a-button @click="detailVisible = false">关闭</a-button>
-          <a-button v-if="detailData?.status === 0" v-permission="'purchase:order:submit'" type="primary" @click="handleSubmit(detailData)">
+          <a-button @click="detailVisible = false">
+            关闭
+          </a-button>
+          <a-button
+            v-if="detailData?.status === 0"
+            v-permission="'purchase:order:submit'"
+            type="primary"
+            @click="handleSubmit(detailData)"
+          >
             <SendOutlined /> 提交审批
           </a-button>
-          <a-button v-if="detailData?.status === 1" v-permission="'purchase:order:approve'" type="primary" @click="handleApprove(detailData)">
+          <a-button
+            v-if="detailData?.status === 1"
+            v-permission="'purchase:order:approve'"
+            type="primary"
+            @click="handleApprove(detailData)"
+          >
             <CheckCircleOutlined /> 审批通过
           </a-button>
         </div>
       </template>
     </a-drawer>
-
-    <!-- 新建采购单弹窗 -->
-    <a-modal
-      v-model:open="createVisible"
-      title="新建采购单"
-      width="800px"
-      :confirm-loading="createLoading"
-      @ok="handleCreateSubmit"
-      @cancel="handleCreateCancel"
-      :destroy-on-close="true"
-    >
-      <a-form ref="createFormRef" :model="createForm" :rules="createRules" layout="vertical">
-        <a-row :gutter="16">
-          <a-col :span="8">
-            <a-form-item label="供应商" name="supplierId">
-              <a-select
-                v-model:value="createForm.supplierId"
-                placeholder="选择供应商"
-                show-search
-                size="small"
-                :filter-option="false"
-                :options="supplierOptions"
-                :loading="supplierLoading"
-                @search="handleSupplierSearch"
-                @change="handleSupplierChange"
-                allow-clear
-              />
-            </a-form-item>
-          </a-col>
-          <a-col :span="8">
-            <a-form-item label="采购员" name="purchaserName">
-              <a-input v-model:value="createForm.purchaserName" placeholder="采购员姓名" size="small" />
-            </a-form-item>
-          </a-col>
-          <a-col :span="8">
-            <a-form-item label="仓库" name="warehouseId">
-              <a-select
-                v-model:value="createForm.warehouseId"
-                placeholder="选择仓库"
-                show-search
-                size="small"
-                :filter-option="filterOption"
-                :options="warehouseOptions"
-                @change="handleWarehouseChange"
-              />
-            </a-form-item>
-          </a-col>
-        </a-row>
-        <a-row :gutter="16">
-          <a-col :span="8">
-            <a-form-item label="订单日期" name="orderDate">
-              <a-date-picker v-model:value="createForm.orderDate" style="width: 100%" value-format="YYYY-MM-DD" size="small" />
-            </a-form-item>
-          </a-col>
-          <a-col :span="8">
-            <a-form-item label="预计到货">
-              <a-date-picker v-model:value="createForm.expectedDate" style="width: 100%" value-format="YYYY-MM-DD" size="small" />
-            </a-form-item>
-          </a-col>
-        </a-row>
-
-        <a-divider />
-        <div style="margin-bottom: 12px; font-weight: 600;">采购明细</div>
-        <a-button type="dashed" block style="margin-bottom: 12px;" @click="handleAddItem">
-          <PlusOutlined /> 添加产品
-        </a-button>
-        <a-table
-          :data-source="createForm.items"
-          :columns="createItemColumns"
-          :pagination="false as any"
-          row-key="tempId"
-          size="small"
-          bordered
-        >
-          <template #bodyCell="{ column, record, index }">
-            <template v-if="column.key === 'product'">
-              <a-select
-                v-model:value="record.productId"
-                placeholder="搜索选择产品"
-                style="width: 100%"
-                show-search
-                allow-clear
-                :filter-option="false"
-                :options="productOptions"
-                :loading="productLoading"
-                @search="(val: string) => handleProductSearch(val)"
-                @change="(val: number) => handleProductChange(val, index)"
-              >
-                <template #option="{ label, productCode, productSpec }">
-                  <div>
-                    <div>{{ label }}</div>
-                    <div style="font-size: 12px; color: #999;">
-                      {{ productCode }}{{ productSpec ? ` / ${productSpec}` : '' }}
-                    </div>
-                  </div>
-                </template>
-              </a-select>
-            </template>
-            <template v-else-if="column.key === 'quantity'">
-              <a-input-number v-model:value="record.quantity" :min="1" :precision="0" style="width: 100%" placeholder="数量" />
-            </template>
-            <template v-else-if="column.key === 'price'">
-              <a-input-number v-model:value="record.price" :min="0" :precision="2" style="width: 100%" placeholder="单价" />
-            </template>
-            <template v-else-if="column.key === 'amount'">
-              ¥{{ formatAmount((record.quantity || 0) * (record.price || 0)) }}
-            </template>
-            <template v-else-if="column.key === 'action'">
-              <a-button type="link" danger size="small" @click="handleRemoveItem(index)">
-                <DeleteOutlined />
-              </a-button>
-            </template>
-          </template>
-        </a-table>
-
-        <a-form-item label="备注" style="margin-top: 12px;">
-          <a-textarea v-model:value="createForm.remark" :rows="2" placeholder="备注信息" size="small" />
-        </a-form-item>
-      </a-form>
-    </a-modal>
   </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
-import { onBeforeRouteLeave } from 'vue-router'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import {
   ReloadOutlined, SyncOutlined, FileOutlined, ClockCircleOutlined,
   CheckCircleOutlined, DollarOutlined, WarningOutlined, InboxOutlined,
   SearchOutlined, EyeOutlined, SendOutlined, ExportOutlined,
-  PlusOutlined, DeleteOutlined
+  EditOutlined
 } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
@@ -391,6 +423,9 @@ const detailData = ref<PurchaseOrder | null>(null)
 const detailItems = ref<PurchaseOrderItem[]>([])
 const selectedRows = ref<PurchaseOrder[]>([])
 const currentRecord = ref<PurchaseOrder | null>(null)
+
+const route = useRoute()
+const router = useRouter()
 
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 let countdownTimer: ReturnType<typeof setInterval> | null = null
@@ -482,6 +517,10 @@ const fetchDetail = async (id: number) => {
 const handleView = (record: PurchaseOrder) => {
   detailVisible.value = true
   fetchDetail(record.id)
+}
+
+const handleEdit = (record: PurchaseOrder) => {
+  router.push({ path: `/purchase/order/${record.id}` })
 }
 
 // ── 状态操作 ──────────────────────────────────────────
@@ -585,208 +624,9 @@ const handleExport = async () => {
   }
 }
 
-// ── 新建表单 ──────────────────────────────────────────
-const createVisible = ref(false)
-const createLoading = ref(false)
-const createFormRef = ref()
-const supplierOptions = ref<any[]>([])
-const supplierLoading = ref(false)
-const warehouseOptions = ref<any[]>([])
-const productOptions = ref<any[]>([])
-const productLoading = ref(false)
-
-let tempIdCounter = 0
-function nextTempId() { return ++tempIdCounter }
-
-const createForm = reactive({
-  supplierId: undefined as number | undefined,
-  supplierName: '',
-  purchaserName: '',
-  warehouseId: undefined as number | undefined,
-  warehouseName: '',
-  orderDate: '',
-  expectedDate: '',
-  remark: '',
-  items: [] as any[]
-})
-
-// ── 表单脏数据追踪 ──────────────────────────────────
-const formDirty = ref(false)
-const originalFormJson = ref('')
-
-watch(createForm, () => {
-  formDirty.value = JSON.stringify(createForm) !== originalFormJson.value
-}, { deep: true })
-
-onBeforeRouteLeave((to, from) => {
-  if (formDirty.value) {
-    return new Promise<boolean>((resolve) => {
-      Modal.confirm({
-        title: '确认离开',
-        content: '当前表单有未保存的更改，确定要离开吗？',
-        okText: '离开',
-        cancelText: '取消',
-        onOk: () => { resolve(true) },
-        onCancel: () => { resolve(false) },
-      })
-    })
-  }
-  return true
-})
-
-const createRules: Record<string, any> = {
-  supplierId: [{ required: true, message: '请选择供应商' }],
-  orderDate: [{ required: true, message: '请选择订单日期' }],
-}
-
-const createItemColumns = [
-  { title: '产品', key: 'product', width: 250 },
-  { title: '数量', key: 'quantity', width: 100 },
-  { title: '单价', key: 'price', width: 120 },
-  { title: '小计', key: 'amount', width: 120 },
-  { title: '操作', key: 'action', width: 80 },
-]
-
-const filterOption = (input: string, option: any) => {
-  return option?.label?.toLowerCase()?.includes(input.toLowerCase())
-}
-
-const handleSupplierSearch = async (keyword: string) => {
-  supplierLoading.value = true
-  try {
-    const res = await request.get('/erp/md/customer/list', {
-      params: { partnerType: 'supplier', keyword, pageSize: 50 }
-    })
-    supplierOptions.value = (res.data?.records || res.data || []).map((s: any) => ({
-      value: s.id,
-      label: s.name || s.supplierName,
-    }))
-  } catch { /* ignore */ }
-  finally { supplierLoading.value = false }
-}
-
-const handleSupplierChange = (value: number) => {
-  const found = supplierOptions.value.find(s => s.value === value)
-  createForm.supplierName = found?.label || ''
-}
-
-const handleWarehouseChange = (value: number) => {
-  const found = warehouseOptions.value.find(w => w.value === value)
-  createForm.warehouseName = found?.label || ''
-}
-
-const loadWarehouseOptions = async () => {
-  try {
-    const res = await request.get('/erp/stock/warehouses')
-    const list = res.data || []
-    warehouseOptions.value = list.map((w: any) => ({ value: w.id, label: w.name || w.warehouseName }))
-  } catch { /* ignore */ }
-}
-
-const handleProductSearch = async (keyword: string) => {
-  if (!keyword) return
-  productLoading.value = true
-  try {
-    const res = await request.get('/erp/product/list', { params: { keyword, pageSize: 50 } })
-    productOptions.value = ((res.data?.records || res.data) || []).map((p: any) => ({
-      value: p.id,
-      label: p.name || p.productName,
-      productCode: p.code || p.productCode,
-      productSpec: p.spec || p.productSpec,
-      productUnit: p.unit || p.productUnit,
-    }))
-  } catch { /* ignore */ }
-  finally { productLoading.value = false }
-}
-
-const handleProductChange = (value: number, index: number) => {
-  const item = createForm.items[index]
-  if (!item || !value) return
-  const found = productOptions.value.find(p => p.value === value)
-  if (found) {
-    item.productId = found.value
-    item.productCode = found.productCode
-    item.productName = found.label
-    item.productSpec = found.productSpec
-    item.productUnit = found.productUnit
-  }
-}
-
-const handleAddItem = () => {
-  createForm.items.push({
-    tempId: nextTempId(),
-    productId: undefined,
-    productCode: '',
-    productName: '',
-    productSpec: '',
-    productUnit: '',
-    quantity: 1,
-    price: 0,
-  })
-}
-
-const handleRemoveItem = (index: number) => {
-  createForm.items.splice(index, 1)
-}
-
+// ── 新建 ──────────────────────────────────────────────
 const handleCreate = () => {
-  tempIdCounter = 0
-  createForm.supplierId = undefined
-  createForm.supplierName = ''
-  createForm.purchaserName = ''
-  createForm.warehouseId = undefined
-  createForm.warehouseName = ''
-  createForm.orderDate = new Date().toISOString().slice(0, 10)
-  createForm.expectedDate = ''
-  createForm.remark = ''
-  createForm.items = []
-  handleAddItem()
-  // 捕获初始表单快照，用于脏数据追踪
-  originalFormJson.value = JSON.stringify(createForm)
-  formDirty.value = false
-  createVisible.value = true
-}
-
-const handleCreateSubmit = async () => {
-  try {
-    await createFormRef.value?.validate()
-  } catch { return }
-  if (createForm.items.length === 0) {
-    message.warning('请至少添加一个采购产品')
-    return
-  }
-  createLoading.value = true
-  try {
-    const payload = {
-      supplierId: createForm.supplierId,
-      supplierName: createForm.supplierName,
-      purchaserName: createForm.purchaserName || undefined,
-      warehouseId: createForm.warehouseId,
-      warehouseName: createForm.warehouseName,
-      orderDate: createForm.orderDate,
-      expectedDate: createForm.expectedDate || undefined,
-      remark: createForm.remark || undefined,
-      items: createForm.items.map((item: any) => {
-        const { tempId, productUnit, productCode, productName, productSpec, ...rest } = item
-        return { ...rest, productCode: item.productCode, productName: item.productName, productSpec: item.productSpec }
-      })
-    }
-    await request.post('/erp/purchase/order', payload)
-    message.success('采购单创建成功')
-    createVisible.value = false
-    formDirty.value = false
-    fetchData()
-  } catch (error: any) {
-    console.warn('[采购管理] 创建失败', error)
-    message.error(error?.response?.data?.message || '创建失败')
-  } finally {
-    createLoading.value = false
-  }
-}
-
-const handleCreateCancel = () => {
-  createVisible.value = false
-  formDirty.value = false
+  router.push('/erp/purchase/form')
 }
 
 // ── 键盘快捷键 ──
@@ -803,8 +643,15 @@ function handleKeydown(e: KeyboardEvent) {
 }
 
 onMounted(() => {
-  loadWarehouseOptions()
   fetchData()
+
+  // 从URL查询参数中跳转到新增页（如从供应商页面跳转过来）
+  const query = route.query
+  if (query.supplierId) {
+    router.replace({ path: '/erp/purchase/form', query: { supplierId: query.supplierId, supplierName: query.supplierName } })
+    return
+  }
+
   autoRefreshCountdown.value = 30
   window.addEventListener('keydown', handleKeydown)
   refreshTimer = setInterval(() => { fetchData(); autoRefreshCountdown.value = 30 }, 30000)

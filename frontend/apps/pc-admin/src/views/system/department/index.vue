@@ -1,367 +1,437 @@
 <template>
   <ErrorBoundary @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="dept-page-header">
-        <div class="dept-page-header-left">
-          <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item>部门管理</a-breadcrumb-item>
-          </a-breadcrumb>
-          <h2 class="dept-page-header-title">部门管理</h2>
-        </div>
-        <div class="dept-page-header-right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-            <SyncOutlined /> {{ autoRefreshCountdown }}s
-          </span>
-          <span class="shortcut-hints">
-            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-            <span class="shortcut-hint"><kbd>Ctrl</kbd> + <kbd>N</kbd> 新增</span>
-          </span>
-          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchTreeData)()">
-            <template #icon><ReloadOutlined /></template>
-            刷新
-          </a-button>
-        </div>
-      </div>
-    </template>
-
-    <div class="department-management">
-      <!-- 统计卡片 -->
-      <div class="stat-cards">
-        <div class="stat-card stat-total">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ departmentCount }}</div>
-            <div class="stat-card-label">部门总数</div>
+    <PageContainer full-height>
+      <template #header>
+        <div class="dept-page-header">
+          <div class="dept-page-header-left">
+            <a-breadcrumb>
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>部门管理</a-breadcrumb-item>
+            </a-breadcrumb>
+            <h2 class="dept-page-header-title">
+              部门管理
+            </h2>
           </div>
-          <ApartmentOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-active">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ activeCount }}</div>
-            <div class="stat-card-label">正常部门</div>
-          </div>
-          <CheckCircleOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-disabled">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ disabledCount }}</div>
-            <div class="stat-card-label">停用部门</div>
-          </div>
-          <StopOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-leaders">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ leaderCount }}</div>
-            <div class="stat-card-label">有负责人</div>
-          </div>
-          <UserOutlined class="stat-card-icon" />
-        </div>
-      </div>
-
-    <!-- 顶部工具栏 -->
-    <a-card
-      class="toolbar-card"
-      :bordered="false"
-    >
-      <a-row
-        :gutter="16"
-        align="middle"
-      >
-        <a-col :span="16">
-          <a-space>
-            <a-input-search
-              v-model:value="searchKeyword"
-              placeholder="搜索部门名称..."
-              style="width: 300px"
-              allow-clear
-              @search="handleSearch"
-            />
-            <a-button @click="handleExpandAll">
-              <template #icon>
-                <ExpandOutlined />
-              </template>
-              展开全部
-            </a-button>
-            <a-button @click="handleCollapseAll">
-              <template #icon>
-                <CompressOutlined />
-              </template>
-              折叠全部
-            </a-button>
-          </a-space>
-        </a-col>
-        <a-col
-          :span="8"
-          style="text-align: right"
-        >
-          <a-space>
-            <a-button
-              type="primary"
-              :loading="submittingLoading"
-              v-permission="'department:create'"
-              @click="handleAddRoot"
+          <div class="dept-page-header-right">
+            <span
+              v-if="lastUpdateTime"
+              class="update-time"
+            >更新于 {{ lastUpdateTime }}</span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
             >
-              <template #icon>
-                <PlusOutlined />
-              </template>
-              新增根部门
-            </a-button>
-            <a-button @click="handleManagePersonnel">
-              <template #icon>
-                <TeamOutlined />
-              </template>
-              人员管理
-            </a-button>
-          </a-space>
-        </a-col>
-      </a-row>
-    </a-card>
-
-    <!-- 部门树 -->
-    <a-card
-      class="tree-card"
-      :bordered="false"
-    >
-      <a-skeleton active v-if="treeLoading && treeData.length === 0" :paragraph="{ rows: 8 }" style="padding: 24px;" />
-      <a-spin :spinning="treeLoading">
-        <a-tree
-          v-model:expanded-keys="expandedKeys"
-          v-model:selected-keys="selectedKeys"
-          :tree-data="(filteredTreeData as any)"
-          :field-names="{ children: 'children', title: 'departmentName', key: 'id' }"
-          show-line
-          draggable
-          block-node
-          @drop="handleDrop"
-          @select="handleSelect"
-          @rightClick="handleRightClick"
-        >
-          <template #title="{ departmentName, status, leaderName }">
-            <span class="tree-node-title">
-              <a-tag
-                v-if="status === 1"
-                color="error"
-                size="small"
-              >停用</a-tag>
-              {{ departmentName }}
-              <span
-                v-if="leaderName"
-                class="leader-name"
-              >({{ leaderName }})</span>
+              <SyncOutlined /> {{ autoRefreshCountdown }}s
             </span>
-          </template>
-
-          <template #switcherIcon="{ expanded }">
-            <DownOutlined v-if="expanded" />
-            <RightOutlined v-else />
-          </template>
-        </a-tree>
-
-        <a-empty
-          v-if="!filteredTreeData.length && !treeLoading && !hasError"
-          :description="searchKeyword ? '未找到匹配的部门' : '暂无部门数据'"
-        >
-          <template #extra v-if="!searchKeyword">
-            <a-button type="primary" size="small" v-permission="'department:create'" @click="handleAddRoot">
-              <template #icon><PlusOutlined /></template>
-              新增根部门
-            </a-button>
-          </template>
-        </a-empty>
-        <a-result v-else-if="!filteredTreeData.length && !treeLoading && hasError" status="error" title="数据加载失败">
-          <template #extra>
-            <a-button type="primary" @click="debounceClick('refresh', fetchTreeData)()">
-              <template #icon><ReloadOutlined /></template>
-              重新加载
-            </a-button>
-          </template>
-        </a-result>
-      </a-spin>
-    </a-card>
-
-    <!-- 部门列表表格 -->
-    <a-card class="table-card" :bordered="false">
-      <a-table
-        :data-source="flattenedDeptData"
-        :columns="tableColumns"
-        :pagination="{ pageSize: 20, showSizeChanger: true, showTotal: (total) => `共 ${total} 条` }"
-        size="small"
-        row-key="id"
-        :scroll="{ x: 800 }"
-      >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.dataIndex === 'status'">
-            <a-tag :color="record.status === 0 ? 'success' : 'error'">
-              {{ record.status === 0 ? '正常' : '停用' }}
-            </a-tag>
-          </template>
-        </template>
-      </a-table>
-    </a-card>
-
-    <!-- 部门表单弹窗 -->
-    <FullScreenDetail
-      :visible="modalVisible"
-      :title="modalTitle"
-      :dirty="formDirty"
-      :save-loading="submittingLoading"
-      :show-save-and-new="!isEdit"
-      @save="handleModalOk"
-      @close="handleFormClose"
-      @save-and-new="handleFormSaveAndNew"
-    >
-      <a-form
-        ref="formRef"
-        :model="formState"
-        :rules="formRules as any"
-        :label-col="{ span: 6 }"
-        :wrapper-col="{ span: 16 }"
-      >
-        <a-form-item
-          label="上级部门"
-          name="parentId"
-        >
-          <a-tree-select
-            v-model:value="formState.parentId"
-            :tree-data="parentTreeData"
-            :field-names="{ children: 'children', label: 'departmentName', value: 'id' }"
-            placeholder="请选择上级部门（不选择则为根部门）"
-            allow-clear
-            show-search
-            tree-default-expand-all
-            tree-node-filter-prop="departmentName"
-          />
-        </a-form-item>
-        <a-form-item
-          label="部门编码"
-          name="departmentCode"
-        >
-          <a-input
-            v-model:value="formState.departmentCode"
-            placeholder="请输入部门编码"
-            :disabled="isEdit"
-          />
-        </a-form-item>
-        <a-form-item
-          label="部门名称"
-          name="departmentName"
-        >
-          <a-input
-            v-model:value="formState.departmentName"
-            placeholder="请输入部门名称"
-          />
-        </a-form-item>
-        <a-form-item
-          label="负责人"
-          name="leaderId"
-        >
-          <a-select
-            v-model:value="formState.leaderId"
-            placeholder="请选择负责人"
-            size="small"
-            allow-clear
-            show-search
-            :filter-option="filterLeaderOption"
-          >
-            <a-select-option
-              v-for="leader in leaderList"
-              :key="leader.id"
-              :value="leader.id"
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+              <span class="shortcut-hint"><kbd>Ctrl</kbd> + <kbd>N</kbd> 新增</span>
+            </span>
+            <a-button
+              size="small"
+              :loading="refreshLoading"
+              @click="debounceClick('refresh', fetchTreeData)()"
             >
-              {{ leader.nickname || leader.username }}
-            </a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item
-          label="联系电话"
-          name="phone"
-        >
-          <a-input
-            v-model:value="formState.phone"
-            placeholder="请输入联系电话"
-          />
-        </a-form-item>
-        <a-form-item
-          label="邮箱"
-          name="email"
-        >
-          <a-input
-            v-model:value="formState.email"
-            placeholder="请输入邮箱"
-          />
-        </a-form-item>
-        <a-form-item
-          label="排序"
-          name="sort"
-        >
-          <a-input-number
-            v-model:value="formState.sort"
-            :min="0"
-            :max="9999"
-            style="width: 100%"
-          />
-        </a-form-item>
-        <a-form-item
-          label="描述"
-          name="description"
-        >
-          <a-textarea
-            v-model:value="formState.description"
-            :rows="4"
-            placeholder="请输入部门描述"
-          />
-        </a-form-item>
-        <a-form-item
-          label="状态"
-          name="status"
-        >
-          <a-radio-group v-model:value="formState.status">
-            <a-radio :value="0">
-              正常
-            </a-radio>
-            <a-radio :value="1">
-              停用
-            </a-radio>
-          </a-radio-group>
-        </a-form-item>
-      </a-form>
-    </FullScreenDetail>
-
-    <!-- 右键菜单 -->
-    <a-dropdown
-      v-model:open="contextMenuVisible"
-      :trigger="['contextmenu']"
-    >
-      <div class="context-menu-placeholder" />
-      <template #overlay>
-        <a-menu @click="handleContextMenuClick as any">
-          <a-menu-item key="add" v-permission="'department:create'">
-            <PlusOutlined /> 新增子部门
-          </a-menu-item>
-          <a-menu-item key="edit" v-permission="'department:edit'">
-            <EditOutlined /> 编辑部门
-          </a-menu-item>
-          <a-menu-item key="move">
-            <DragOutlined /> 移动部门
-          </a-menu-item>
-          <a-menu-divider />
-          <a-menu-item key="toggle-status" v-permission="'department:edit'">
-            <StopOutlined /> {{ contextMenuNode?.status === 0 ? '停用' : '启用' }}
-          </a-menu-item>
-          <a-menu-item
-            key="delete"
-            danger
-            v-permission="'department:delete'"
-          >
-            <DeleteOutlined /> 删除部门
-          </a-menu-item>
-        </a-menu>
+              <template #icon>
+                <ReloadOutlined />
+              </template>
+              刷新
+            </a-button>
+          </div>
+        </div>
       </template>
-    </a-dropdown>
-  </div>
-</PageContainer>
+
+      <div class="department-management">
+        <!-- 统计卡片 -->
+        <div class="stat-cards">
+          <div class="stat-card stat-total">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ departmentCount }}
+              </div>
+              <div class="stat-card-label">
+                部门总数
+              </div>
+            </div>
+            <ApartmentOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-active">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ activeCount }}
+              </div>
+              <div class="stat-card-label">
+                正常部门
+              </div>
+            </div>
+            <CheckCircleOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-disabled">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ disabledCount }}
+              </div>
+              <div class="stat-card-label">
+                停用部门
+              </div>
+            </div>
+            <StopOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-leaders">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ leaderCount }}
+              </div>
+              <div class="stat-card-label">
+                有负责人
+              </div>
+            </div>
+            <UserOutlined class="stat-card-icon" />
+          </div>
+        </div>
+
+        <!-- 顶部工具栏 -->
+        <a-card
+          class="toolbar-card"
+          :bordered="false"
+        >
+          <a-row
+            :gutter="16"
+            align="middle"
+          >
+            <a-col :span="16">
+              <a-space>
+                <a-input-search
+                  v-model:value="searchKeyword"
+                  placeholder="搜索部门名称..."
+                  style="width: 300px"
+                  allow-clear
+                  @search="handleSearch"
+                />
+                <a-button @click="handleExpandAll">
+                  <template #icon>
+                    <ExpandOutlined />
+                  </template>
+                  展开全部
+                </a-button>
+                <a-button @click="handleCollapseAll">
+                  <template #icon>
+                    <CompressOutlined />
+                  </template>
+                  折叠全部
+                </a-button>
+              </a-space>
+            </a-col>
+            <a-col
+              :span="8"
+              style="text-align: right"
+            >
+              <a-space>
+                <a-button
+                  v-permission="'department:create'"
+                  type="primary"
+                  :loading="submittingLoading"
+                  @click="handleAddRoot"
+                >
+                  <template #icon>
+                    <PlusOutlined />
+                  </template>
+                  新增根部门
+                </a-button>
+                <a-button @click="handleManagePersonnel">
+                  <template #icon>
+                    <TeamOutlined />
+                  </template>
+                  人员管理
+                </a-button>
+              </a-space>
+            </a-col>
+          </a-row>
+        </a-card>
+
+        <!-- 部门树 -->
+        <a-card
+          class="tree-card"
+          :bordered="false"
+        >
+          <a-skeleton
+            v-if="treeLoading && treeData.length === 0"
+            active
+            :paragraph="{ rows: 8 }"
+            style="padding: 24px;"
+          />
+          <a-spin :spinning="treeLoading">
+            <a-tree
+              v-model:expanded-keys="expandedKeys"
+              v-model:selected-keys="selectedKeys"
+              :tree-data="(filteredTreeData as any)"
+              :field-names="{ children: 'children', title: 'departmentName', key: 'id' }"
+              show-line
+              draggable
+              block-node
+              @drop="handleDrop"
+              @select="handleSelect"
+              @right-click="handleRightClick"
+            >
+              <template #title="{ departmentName, status, leaderName }">
+                <span class="tree-node-title">
+                  <a-tag
+                    v-if="status === 1"
+                    color="error"
+                    size="small"
+                  >停用</a-tag>
+                  {{ departmentName }}
+                  <span
+                    v-if="leaderName"
+                    class="leader-name"
+                  >({{ leaderName }})</span>
+                </span>
+              </template>
+
+              <template #switcherIcon="{ expanded }">
+                <DownOutlined v-if="expanded" />
+                <RightOutlined v-else />
+              </template>
+            </a-tree>
+
+            <a-empty
+              v-if="!filteredTreeData.length && !treeLoading && !hasError"
+              :description="searchKeyword ? '未找到匹配的部门' : '暂无部门数据'"
+            >
+              <template
+                v-if="!searchKeyword"
+                #extra
+              >
+                <a-button
+                  v-permission="'department:create'"
+                  type="primary"
+                  size="small"
+                  @click="handleAddRoot"
+                >
+                  <template #icon>
+                    <PlusOutlined />
+                  </template>
+                  新增根部门
+                </a-button>
+              </template>
+            </a-empty>
+            <a-result
+              v-else-if="!filteredTreeData.length && !treeLoading && hasError"
+              status="error"
+              title="数据加载失败"
+            >
+              <template #extra>
+                <a-button
+                  type="primary"
+                  @click="debounceClick('refresh', fetchTreeData)()"
+                >
+                  <template #icon>
+                    <ReloadOutlined />
+                  </template>
+                  重新加载
+                </a-button>
+              </template>
+            </a-result>
+          </a-spin>
+        </a-card>
+
+        <!-- 部门列表表格 -->
+        <a-card
+          class="table-card"
+          :bordered="false"
+        >
+          <a-table
+            :data-source="flattenedDeptData"
+            :columns="tableColumns"
+            :pagination="{ pageSize: 20, showSizeChanger: true, showTotal: (total) => `共 ${total} 条` }"
+            size="small"
+            row-key="id"
+            :scroll="{ x: 800 }"
+          >
+            <template #bodyCell="{ column, record }">
+              <template v-if="column.dataIndex === 'status'">
+                <a-tag :color="record.status === 0 ? 'success' : 'error'">
+                  {{ record.status === 0 ? '正常' : '停用' }}
+                </a-tag>
+              </template>
+            </template>
+          </a-table>
+        </a-card>
+
+        <!-- 部门表单弹窗 -->
+        <FullScreenDetail
+          :visible="modalVisible"
+          :title="modalTitle"
+          :dirty="formDirty"
+          :save-loading="submittingLoading"
+          :show-save-and-new="!isEdit"
+          @save="handleModalOk"
+          @close="handleFormClose"
+          @save-and-new="handleFormSaveAndNew"
+        >
+          <a-form
+            ref="formRef"
+            :model="formState"
+            :rules="formRules as any"
+            :label-col="{ span: 6 }"
+            :wrapper-col="{ span: 16 }"
+          >
+            <a-form-item
+              label="上级部门"
+              name="parentId"
+            >
+              <a-tree-select
+                v-model:value="formState.parentId"
+                :tree-data="parentTreeData"
+                :field-names="{ children: 'children', label: 'departmentName', value: 'id' }"
+                placeholder="请选择上级部门（不选择则为根部门）"
+                allow-clear
+                show-search
+                tree-default-expand-all
+                tree-node-filter-prop="departmentName"
+              />
+            </a-form-item>
+            <a-form-item
+              label="部门编码"
+              name="departmentCode"
+            >
+              <a-input
+                v-model:value="formState.departmentCode"
+                placeholder="请输入部门编码"
+                :disabled="isEdit"
+              />
+            </a-form-item>
+            <a-form-item
+              label="部门名称"
+              name="departmentName"
+            >
+              <a-input
+                v-model:value="formState.departmentName"
+                placeholder="请输入部门名称"
+              />
+            </a-form-item>
+            <a-form-item
+              label="负责人"
+              name="leaderId"
+            >
+              <a-select
+                v-model:value="formState.leaderId"
+                placeholder="请选择负责人"
+                size="small"
+                allow-clear
+                show-search
+                :filter-option="filterLeaderOption"
+              >
+                <a-select-option
+                  v-for="leader in leaderList"
+                  :key="leader.id"
+                  :value="leader.id"
+                >
+                  {{ leader.nickname || leader.username }}
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+            <a-form-item
+              label="联系电话"
+              name="phone"
+            >
+              <a-input
+                v-model:value="formState.phone"
+                placeholder="请输入联系电话"
+              />
+            </a-form-item>
+            <a-form-item
+              label="邮箱"
+              name="email"
+            >
+              <a-input
+                v-model:value="formState.email"
+                placeholder="请输入邮箱"
+              />
+            </a-form-item>
+            <a-form-item
+              label="排序"
+              name="sort"
+            >
+              <a-input-number
+                v-model:value="formState.sort"
+                :min="0"
+                :max="9999"
+                style="width: 100%"
+              />
+            </a-form-item>
+            <a-form-item
+              label="描述"
+              name="description"
+            >
+              <a-textarea
+                v-model:value="formState.description"
+                :rows="4"
+                placeholder="请输入部门描述"
+              />
+            </a-form-item>
+            <a-form-item
+              label="状态"
+              name="status"
+            >
+              <a-radio-group v-model:value="formState.status">
+                <a-radio :value="0">
+                  正常
+                </a-radio>
+                <a-radio :value="1">
+                  停用
+                </a-radio>
+              </a-radio-group>
+            </a-form-item>
+          </a-form>
+        </FullScreenDetail>
+
+        <!-- 右键菜单 -->
+        <a-dropdown
+          v-model:open="contextMenuVisible"
+          :trigger="['contextmenu']"
+        >
+          <div class="context-menu-placeholder" />
+          <template #overlay>
+            <a-menu @click="handleContextMenuClick as any">
+              <a-menu-item
+                key="add"
+                v-permission="'department:create'"
+              >
+                <PlusOutlined /> 新增子部门
+              </a-menu-item>
+              <a-menu-item
+                key="edit"
+                v-permission="'department:edit'"
+              >
+                <EditOutlined /> 编辑部门
+              </a-menu-item>
+              <a-menu-item key="move">
+                <DragOutlined /> 移动部门
+              </a-menu-item>
+              <a-menu-divider />
+              <a-menu-item
+                key="toggle-status"
+                v-permission="'department:edit'"
+              >
+                <StopOutlined /> {{ contextMenuNode?.status === 0 ? '停用' : '启用' }}
+              </a-menu-item>
+              <a-menu-item
+                key="delete"
+                v-permission="'department:delete'"
+                danger
+              >
+                <DeleteOutlined /> 删除部门
+              </a-menu-item>
+            </a-menu>
+          </template>
+        </a-dropdown>
+      </div>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

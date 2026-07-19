@@ -5,17 +5,33 @@
     :class="{ 'table-list-container--no-toolbar': !showToolbar }"
   >
     <!-- 顶部工具栏 -->
-    <div v-if="showToolbar" class="table-toolbar">
+    <div
+      v-if="showToolbar"
+      class="table-toolbar"
+    >
       <div class="toolbar-left">
         <slot name="toolbar-left">
           <a-space>
             <template v-if="showAdd">
-              <a-button v-if="addPermission" v-permission="addPermission" type="primary" @click="handleAdd">
-                <template #icon><PlusOutlined /></template>
+              <a-button
+                v-if="addPermission"
+                v-permission="addPermission"
+                type="primary"
+                @click="handleAdd"
+              >
+                <template #icon>
+                  <PlusOutlined />
+                </template>
                 {{ addText }}
               </a-button>
-              <a-button v-else type="primary" @click="handleAdd">
-                <template #icon><PlusOutlined /></template>
+              <a-button
+                v-else
+                type="primary"
+                @click="handleAdd"
+              >
+                <template #icon>
+                  <PlusOutlined />
+                </template>
                 {{ addText }}
               </a-button>
             </template>
@@ -33,7 +49,9 @@
                 size="small"
                 @click="showFilterPanel = !showFilterPanel"
               >
-                <template #icon><FilterOutlined /></template>
+                <template #icon>
+                  <FilterOutlined />
+                </template>
                 筛选
               </a-button>
             </a-tooltip>
@@ -50,7 +68,13 @@
                   <div class="column-settings">
                     <div class="column-settings-header">
                       <span>显示列</span>
-                      <a-button type="link" size="small" @click="resetColumnConfig">重置</a-button>
+                      <a-button
+                        type="link"
+                        size="small"
+                        @click="resetColumnConfig"
+                      >
+                        重置
+                      </a-button>
                     </div>
                     <div class="column-settings-list">
                       <div
@@ -74,7 +98,9 @@
                   </div>
                 </template>
                 <a-button size="small">
-                  <template #icon><SettingOutlined /></template>
+                  <template #icon>
+                    <SettingOutlined />
+                  </template>
                   列
                 </a-button>
               </a-popover>
@@ -82,15 +108,22 @@
 
             <!-- 视图保存 -->
             <a-tooltip title="保存当前视图">
-              <a-button size="small" @click="showSaveViewModal = true">
-                <template #icon><SaveOutlined /></template>
+              <a-button
+                size="small"
+                @click="showSaveViewModal = true"
+              >
+                <template #icon>
+                  <SaveOutlined />
+                </template>
               </a-button>
             </a-tooltip>
 
             <!-- 视图切换 -->
             <a-dropdown v-if="savedViews.length > 0">
               <a-button size="small">
-                <template #icon><AppstoreOutlined /></template>
+                <template #icon>
+                  <AppstoreOutlined />
+                </template>
                 视图
               </a-button>
               <template #overlay>
@@ -121,13 +154,26 @@
               @press-enter="handleSearch(searchKeyword)"
             />
             <a-tooltip title="刷新">
-              <a-button size="small" @click="handleRefresh">
-                <template #icon><ReloadOutlined /></template>
+              <a-button
+                size="small"
+                @click="handleRefresh"
+              >
+                <template #icon>
+                  <ReloadOutlined />
+                </template>
               </a-button>
             </a-tooltip>
-            <a-tooltip v-if="showExport" title="导出">
-              <a-button size="small" @click="handleExport">
-                <template #icon><ExportOutlined /></template>
+            <a-tooltip
+              v-if="showExport"
+              title="导出"
+            >
+              <a-button
+                size="small"
+                @click="handleExport"
+              >
+                <template #icon>
+                  <ExportOutlined />
+                </template>
               </a-button>
             </a-tooltip>
             <slot name="toolbar-extra" />
@@ -137,14 +183,21 @@
     </div>
 
     <!-- 筛选面板 -->
-    <div v-if="showFilterPanel" class="filter-panel">
+    <div
+      v-if="showFilterPanel"
+      class="filter-panel"
+    >
       <a-row :gutter="[12, 12]">
         <a-col
           v-for="filter in filterFields"
           :key="filter.key"
           :span="filter.span || 6"
         >
-          <a-form-item :label="filter.label" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }">
+          <a-form-item
+            :label="filter.label"
+            :label-col="{ span: 8 }"
+            :wrapper-col="{ span: 16 }"
+          >
             <!-- 文本输入 -->
             <a-input
               v-if="filter.type === 'input'"
@@ -182,29 +235,64 @@
             />
           </a-form-item>
         </a-col>
-        <a-col :span="6" class="filter-actions">
+        <a-col
+          :span="6"
+          class="filter-actions"
+        >
           <a-space>
-            <a-button type="primary" size="small" @click="handleFilterSubmit">查询</a-button>
-            <a-button size="small" @click="handleFilterReset">重置</a-button>
+            <a-button
+              type="primary"
+              size="small"
+              @click="handleFilterSubmit"
+            >
+              查询
+            </a-button>
+            <a-button
+              size="small"
+              @click="handleFilterReset"
+            >
+              重置
+            </a-button>
           </a-space>
         </a-col>
       </a-row>
     </div>
 
     <!-- 批量操作栏 -->
-    <div v-if="selectedRowKeys.length > 0" class="batch-bar">
+    <div
+      v-if="selectedRowKeys.length > 0"
+      class="batch-bar"
+    >
       <a-space>
         <span class="batch-info">已选择 {{ selectedRowKeys.length }} 项</span>
-        <a-button v-if="showBatchDelete" danger size="small" @click="handleBatchDelete">
-          <template #icon><DeleteOutlined /></template>
+        <a-button
+          v-if="showBatchDelete"
+          danger
+          size="small"
+          @click="handleBatchDelete"
+        >
+          <template #icon>
+            <DeleteOutlined />
+          </template>
           批量删除
         </a-button>
-        <a-button size="small" @click="handleBatchEdit">
-          <template #icon><EditOutlined /></template>
+        <a-button
+          size="small"
+          @click="handleBatchEdit"
+        >
+          <template #icon>
+            <EditOutlined />
+          </template>
           批量编辑
         </a-button>
         <slot name="batch-actions" />
-        <a-button type="link" size="small" @click="clearSelection">取消选择</a-button>
+        <a-button
+          type="link"
+          size="small"
+          @click="clearSelection"
+        >
+          取消选择
+        </a-button>
       </a-space>
     </div>
 
@@ -243,16 +331,38 @@
         <!-- 操作列 -->
         <template v-else-if="(column as any).type === 'action'">
           <div class="action-cell-inner">
-            <slot name="action" :record="record" :index="index">
+            <slot
+              name="action"
+              :record="record"
+              :index="index"
+            >
               <a-space :size="4">
-                <a-tooltip v-if="showView" title="查看">
-                  <a-button type="link" size="small" @click="handleView(record)">
-                    <template #icon><EyeOutlined /></template>
+                <a-tooltip
+                  v-if="showView"
+                  title="查看"
+                >
+                  <a-button
+                    type="link"
+                    size="small"
+                    @click="handleView(record)"
+                  >
+                    <template #icon>
+                      <EyeOutlined />
+                    </template>
                   </a-button>
                 </a-tooltip>
-                <a-tooltip v-if="showEdit" title="编辑">
-                  <a-button type="link" size="small" @click="handleEdit(record)">
-                    <template #icon><EditOutlined /></template>
+                <a-tooltip
+                  v-if="showEdit"
+                  title="编辑"
+                >
+                  <a-button
+                    type="link"
+                    size="small"
+                    @click="handleEdit(record)"
+                  >
+                    <template #icon>
+                      <EditOutlined />
+                    </template>
                   </a-button>
                 </a-tooltip>
                 <a-popconfirm
@@ -261,8 +371,14 @@
                   @confirm="handleDelete(record)"
                 >
                   <a-tooltip title="删除">
-                    <a-button type="link" size="small" danger>
-                      <template #icon><DeleteOutlined /></template>
+                    <a-button
+                      type="link"
+                      size="small"
+                      danger
+                    >
+                      <template #icon>
+                        <DeleteOutlined />
+                      </template>
                     </a-button>
                   </a-tooltip>
                 </a-popconfirm>
@@ -304,12 +420,18 @@
         </template>
         <!-- 链接列 -->
         <template v-else-if="(column as any).type === 'link'">
-          <a class="cell-link" @click="handleCellClick(record, column as any)">{{ record[(column as any).dataIndex] }}</a>
+          <a
+            class="cell-link"
+            @click="handleCellClick(record, column as any)"
+          >{{ record[(column as any).dataIndex] }}</a>
         </template>
       </template>
 
       <!-- 汇总行（集成在表格内部，固定在底部不参与滚动） -->
-      <template v-if="hasSummary || $slots.summary" #summary>
+      <template
+        v-if="hasSummary || $slots.summary"
+        #summary
+      >
         <tr class="table-summary-row">
           <template v-if="$slots.summary">
             <slot name="summary" />
@@ -331,15 +453,24 @@
         <slot name="empty">
           <a-empty :description="emptyText">
             <template #image>
-              <component :is="emptyIcon" v-if="emptyIcon" />
+              <component
+                :is="emptyIcon"
+                v-if="emptyIcon"
+              />
             </template>
           </a-empty>
         </slot>
       </template>
 
       <!-- 展开行 -->
-      <template v-if="$slots.expandedRowRender" #expandedRowRender="{ record }">
-        <slot name="expandedRowRender" :record="record" />
+      <template
+        v-if="$slots.expandedRowRender"
+        #expandedRowRender="{ record }"
+      >
+        <slot
+          name="expandedRowRender"
+          :record="record"
+        />
       </template>
     </a-table>
 
@@ -352,7 +483,10 @@
     >
       <a-form layout="vertical">
         <a-form-item label="视图名称">
-          <a-input v-model:value="newViewName" placeholder="输入视图名称..." />
+          <a-input
+            v-model:value="newViewName"
+            placeholder="输入视图名称..."
+          />
         </a-form-item>
         <a-form-item label="默认视图">
           <a-switch v-model:checked="newViewIsDefault" />

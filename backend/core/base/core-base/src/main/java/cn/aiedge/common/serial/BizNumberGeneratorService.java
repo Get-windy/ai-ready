@@ -129,6 +129,10 @@ public class BizNumberGeneratorService {
         return nextNumber("XSDD");
     }
 
+    public String nextPreOrderNo() {
+        return nextNumber("YDHD");
+    }
+
     /**
      * 便捷方法：生成采购单号（CGDD前缀，4位序列）
      */

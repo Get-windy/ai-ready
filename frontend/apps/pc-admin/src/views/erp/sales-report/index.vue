@@ -1,29 +1,56 @@
 <template>
   <ErrorBoundary @error="handleError">
-    <PageContainer title="销售报表" full-height>
+    <PageContainer
+      title="销售报表"
+      full-height
+    >
       <template #headerExtra>
         <a-space :size="12">
           <span class="data-status">
-            <StatusTag :status="dataFreshness" :map="DATA_FRESHNESS" />
-            <span v-if="lastUpdateTime" class="update-time">
+            <StatusTag
+              :status="dataFreshness"
+              :map="DATA_FRESHNESS"
+            />
+            <span
+              v-if="lastUpdateTime"
+              class="update-time"
+            >
               数据更新: {{ lastUpdateTime }}
             </span>
-            <span v-if="lastUpdateTimestamp && relativeTimeText" class="update-time relative-time">
+            <span
+              v-if="lastUpdateTimestamp && relativeTimeText"
+              class="update-time relative-time"
+            >
               上次更新: {{ relativeTimeText }}
             </span>
-            <span v-if="dataDelayWarning" class="delay-warning">
+            <span
+              v-if="dataDelayWarning"
+              class="delay-warning"
+            >
               <WarningOutlined /> 数据延迟
             </span>
-            <span v-if="autoRefreshEnabled && autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <span
+              v-if="autoRefreshEnabled && autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            >
               <SyncOutlined /> {{ autoRefreshCountdown }}s
             </span>
           </span>
           <a-tooltip title="自动刷新 (每30秒)">
-            <a-switch v-model:checked="autoRefreshEnabled" size="small" />
+            <a-switch
+              v-model:checked="autoRefreshEnabled"
+              size="small"
+            />
           </a-tooltip>
           <a-tooltip title="F5 刷新 | Ctrl+E 导出 | Ctrl+N 新建">
-            <a-button size="small" v-permission="'erp:sales:refresh'" @click="debounceClick('refresh', handleRefresh)">
-              <template #icon><ReloadOutlined /></template>
+            <a-button
+              v-permission="'erp:sales:refresh'"
+              size="small"
+              @click="debounceClick('refresh', handleRefresh)"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
               刷新
             </a-button>
           </a-tooltip>
@@ -33,16 +60,32 @@
             <span class="shortcut-hint"><kbd>Ctrl</kbd>+<kbd>E</kbd> 导出</span>
           </span>
           <a-tooltip title="Ctrl+N 新建报表">
-            <a-button size="small" v-permission="'erp:sales:create'" @click="debounceClick('create', handleCreate)">
-              <template #icon><PlusOutlined /></template>
+            <a-button
+              v-permission="'erp:sales:create'"
+              size="small"
+              @click="debounceClick('create', handleCreate)"
+            >
+              <template #icon>
+                <PlusOutlined />
+              </template>
               新建
             </a-button>
           </a-tooltip>
-          <a-button size="small" v-permission="'erp:sales:openexportmodal'" @click="handleOpenExportModal">
-            <template #icon><ExportOutlined /></template>
+          <a-button
+            v-permission="'erp:sales:openexportmodal'"
+            size="small"
+            @click="handleOpenExportModal"
+          >
+            <template #icon>
+              <ExportOutlined />
+            </template>
             导出
           </a-button>
-          <PrintButton page-code="erp/sales-report" button-size="small" tooltip="打印当前报表" />
+          <PrintButton
+            page-code="erp/sales-report"
+            button-size="small"
+            tooltip="打印当前报表"
+          />
         </a-space>
       </template>
 
@@ -51,10 +94,10 @@
         <SearchBar
           :fields="searchFields"
           :loading="loading"
-          @search="handleSearch"
-          @reset="handleResetFilter"
           :expandable="false"
           :show-result-count="false"
+          @search="handleSearch"
+          @reset="handleResetFilter"
         />
       </template>
 
@@ -62,26 +105,51 @@
       <div class="compare-toolbar">
         <a-space :size="16">
           <span class="toolbar-label">对比方式:</span>
-          <a-radio-group v-model:value="compareMode" size="small" @change="handleCompareModeChange">
-            <a-radio-button value="mom">环比</a-radio-button>
-            <a-radio-button value="yoy">同比</a-radio-button>
+          <a-radio-group
+            v-model:value="compareMode"
+            size="small"
+            @change="handleCompareModeChange"
+          >
+            <a-radio-button value="mom">
+              环比
+            </a-radio-button>
+            <a-radio-button value="yoy">
+              同比
+            </a-radio-button>
           </a-radio-group>
           <a-divider type="vertical" />
           <span class="toolbar-label">显示:</span>
-          <a-radio-group v-model:value="displayMode" size="small" @change="handleDisplayModeChange">
-            <a-radio-button value="absolute">绝对值</a-radio-button>
-            <a-radio-button value="growth">增长率</a-radio-button>
+          <a-radio-group
+            v-model:value="displayMode"
+            size="small"
+            @change="handleDisplayModeChange"
+          >
+            <a-radio-button value="absolute">
+              绝对值
+            </a-radio-button>
+            <a-radio-button value="growth">
+              增长率
+            </a-radio-button>
           </a-radio-group>
         </a-space>
-        <div v-if="activeCardFilter" class="active-filter-tip">
-          <a-tag closable @close="handleClearFilter">
+        <div
+          v-if="activeCardFilter"
+          class="active-filter-tip"
+        >
+          <a-tag
+            closable
+            @close="handleClearFilter"
+          >
             当前筛选: {{ filterLabelMap[activeCardFilter] || activeCardFilter }}
           </a-tag>
         </div>
       </div>
 
       <!-- 统计卡片 -->
-      <div class="summary-cards" style="padding: 16px 0;">
+      <div
+        class="summary-cards"
+        style="padding: 16px 0;"
+      >
         <a-row :gutter="16">
           <a-col :span="6">
             <div
@@ -89,25 +157,46 @@
               :class="{ clickable: true, active: activeCardFilter === 'amount' }"
               @click="handleCardClick('amount')"
             >
-              <div class="summary-icon" style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);">
+              <div
+                class="summary-icon"
+                style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);"
+              >
                 <DollarOutlined />
               </div>
               <div class="summary-content">
-                <div class="summary-title">本月销售额</div>
-                <div class="summary-value">¥{{ formatAmount(summary.monthAmount) }}</div>
+                <div class="summary-title">
+                  本月销售额
+                </div>
+                <div class="summary-value">
+                  ¥{{ formatAmount(summary.monthAmount) }}
+                </div>
                 <!-- 上期值对比 -->
-                <div v-if="summary.prevMonthAmount !== undefined" class="summary-prev">
+                <div
+                  v-if="summary.prevMonthAmount !== undefined"
+                  class="summary-prev"
+                >
                   上期: ¥{{ formatAmount(summary.prevMonthAmount) }}
                 </div>
                 <!-- 增长率 -->
-                <div v-if="currentGrowth.amount !== null" class="summary-change" :class="(currentGrowth.amount ?? 0) >= 0 ? 'positive' : 'negative'">
+                <div
+                  v-if="currentGrowth.amount !== null"
+                  class="summary-change"
+                  :class="(currentGrowth.amount ?? 0) >= 0 ? 'positive' : 'negative'"
+                >
                   <ArrowUpOutlined v-if="(currentGrowth.amount ?? 0) >= 0" />
                   <ArrowDownOutlined v-else />
                   {{ Math.abs(currentGrowth.amount ?? 0) }}%
                 </div>
                 <!-- 迷你趋势图 -->
-                <div v-if="summary.amountSparkline && summary.amountSparkline.length > 1" class="sparkline">
-                  <svg :width="sparklineWidth" :height="sparklineHeight" :viewBox="`0 0 ${sparklineWidth} ${sparklineHeight}`">
+                <div
+                  v-if="summary.amountSparkline && summary.amountSparkline.length > 1"
+                  class="sparkline"
+                >
+                  <svg
+                    :width="sparklineWidth"
+                    :height="sparklineHeight"
+                    :viewBox="`0 0 ${sparklineWidth} ${sparklineHeight}`"
+                  >
                     <polyline
                       :points="getSparklinePoints(summary.amountSparkline)"
                       :fill="(currentGrowth.amount ?? 0) >= 0 ? 'none' : 'none'"
@@ -127,22 +216,43 @@
               :class="{ clickable: true, active: activeCardFilter === 'orders' }"
               @click="handleCardClick('orders')"
             >
-              <div class="summary-icon" style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);">
+              <div
+                class="summary-icon"
+                style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);"
+              >
                 <ShoppingOutlined />
               </div>
               <div class="summary-content">
-                <div class="summary-title">本月订单数</div>
-                <div class="summary-value">{{ summary.monthOrders }}</div>
-                <div v-if="summary.prevMonthOrders !== undefined" class="summary-prev">
+                <div class="summary-title">
+                  本月订单数
+                </div>
+                <div class="summary-value">
+                  {{ summary.monthOrders }}
+                </div>
+                <div
+                  v-if="summary.prevMonthOrders !== undefined"
+                  class="summary-prev"
+                >
                   上期: {{ summary.prevMonthOrders }}
                 </div>
-                <div v-if="currentGrowth.orders !== null" class="summary-change" :class="(currentGrowth.orders ?? 0) >= 0 ? 'positive' : 'negative'">
+                <div
+                  v-if="currentGrowth.orders !== null"
+                  class="summary-change"
+                  :class="(currentGrowth.orders ?? 0) >= 0 ? 'positive' : 'negative'"
+                >
                   <ArrowUpOutlined v-if="(currentGrowth.orders ?? 0) >= 0" />
                   <ArrowDownOutlined v-else />
                   {{ Math.abs(currentGrowth.orders ?? 0) }}%
                 </div>
-                <div v-if="summary.ordersSparkline && summary.ordersSparkline.length > 1" class="sparkline">
-                  <svg :width="sparklineWidth" :height="sparklineHeight" :viewBox="`0 0 ${sparklineWidth} ${sparklineHeight}`">
+                <div
+                  v-if="summary.ordersSparkline && summary.ordersSparkline.length > 1"
+                  class="sparkline"
+                >
+                  <svg
+                    :width="sparklineWidth"
+                    :height="sparklineHeight"
+                    :viewBox="`0 0 ${sparklineWidth} ${sparklineHeight}`"
+                  >
                     <polyline
                       :points="getSparklinePoints(summary.ordersSparkline)"
                       fill="none"
@@ -162,16 +272,30 @@
               :class="{ clickable: true, active: activeCardFilter === 'customers' }"
               @click="handleCardClick('customers')"
             >
-              <div class="summary-icon" style="background: linear-gradient(135deg, #722ed1 0%, #531dab 100%);">
+              <div
+                class="summary-icon"
+                style="background: linear-gradient(135deg, #722ed1 0%, #531dab 100%);"
+              >
                 <TeamOutlined />
               </div>
               <div class="summary-content">
-                <div class="summary-title">活跃客户</div>
-                <div class="summary-value">{{ summary.activeCustomers }}</div>
-                <div v-if="summary.prevActiveCustomers !== undefined" class="summary-prev">
+                <div class="summary-title">
+                  活跃客户
+                </div>
+                <div class="summary-value">
+                  {{ summary.activeCustomers }}
+                </div>
+                <div
+                  v-if="summary.prevActiveCustomers !== undefined"
+                  class="summary-prev"
+                >
                   上期: {{ summary.prevActiveCustomers }}
                 </div>
-                <div v-if="currentGrowth.customers !== null" class="summary-change" :class="(currentGrowth.customers ?? 0) >= 0 ? 'positive' : 'negative'">
+                <div
+                  v-if="currentGrowth.customers !== null"
+                  class="summary-change"
+                  :class="(currentGrowth.customers ?? 0) >= 0 ? 'positive' : 'negative'"
+                >
                   <ArrowUpOutlined v-if="(currentGrowth.customers ?? 0) >= 0" />
                   <ArrowDownOutlined v-else />
                   {{ Math.abs(currentGrowth.customers ?? 0) }}%
@@ -185,12 +309,19 @@
               :class="{ clickable: true, active: activeCardFilter === 'growth' }"
               @click="handleCardClick('growth')"
             >
-              <div class="summary-icon" style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);">
+              <div
+                class="summary-icon"
+                style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);"
+              >
                 <RiseOutlined />
               </div>
               <div class="summary-content">
-                <div class="summary-title">{{ compareMode === 'yoy' ? '同比增长' : '环比增长' }}</div>
-                <div class="summary-value">{{ comparisonGrowthRate }}%</div>
+                <div class="summary-title">
+                  {{ compareMode === 'yoy' ? '同比增长' : '环比增长' }}
+                </div>
+                <div class="summary-value">
+                  {{ comparisonGrowthRate }}%
+                </div>
                 <div class="summary-prev-label">
                   {{ compareMode === 'yoy' ? '与去年同期对比' : '与上期对比' }}
                 </div>
@@ -201,7 +332,10 @@
       </div>
 
       <!-- 月度趋势柱状图 -->
-      <div v-if="trendDataCache.length > 1" class="trend-barchart">
+      <div
+        v-if="trendDataCache.length > 1"
+        class="trend-barchart"
+      >
         <div class="barchart-header">
           <span class="barchart-title">月度销售趋势</span>
           <span class="barchart-hint">近 {{ trendDataCache.length }} 个月</span>
@@ -212,7 +346,10 @@
             :key="index"
             class="barchart-bar-wrapper"
           >
-            <div class="barchart-bar" :style="{ height: getBarHeight(item.sales) }">
+            <div
+              class="barchart-bar"
+              :style="{ height: getBarHeight(item.sales) }"
+            >
               <span class="barchart-value">¥{{ formatCompactAmount(item.sales) }}</span>
             </div>
             <span class="barchart-label">{{ formatMonthLabel(item.date) }}</span>
@@ -221,7 +358,10 @@
       </div>
 
       <!-- 全局错误提示 -->
-      <div v-if="sectionErrors.summary" class="error-banner">
+      <div
+        v-if="sectionErrors.summary"
+        class="error-banner"
+      >
         <a-alert
           type="error"
           message="数据加载失败"
@@ -231,8 +371,15 @@
           @close="sectionErrors.summary = false"
         >
           <template #action>
-            <a-button size="small" type="primary" v-permission="'erp:sales:refresh'" @click="handleRefresh">
-              <template #icon><ReloadOutlined /></template>
+            <a-button
+              v-permission="'erp:sales:refresh'"
+              size="small"
+              type="primary"
+              @click="handleRefresh"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
               重试
             </a-button>
           </template>
@@ -240,7 +387,10 @@
       </div>
 
       <!-- 各分区错误提示 -->
-      <div v-if="hasSectionError" class="section-errors">
+      <div
+        v-if="hasSectionError"
+        class="section-errors"
+      >
         <a-alert
           v-if="sectionErrors.statistics"
           type="warning"
@@ -251,8 +401,14 @@
           @close="sectionErrors.statistics = false"
         >
           <template #action>
-            <a-button size="small" v-permission="'erp:sales:retrysection'" @click="handleRetrySection('statistics')">
-              <template #icon><ReloadOutlined /></template>
+            <a-button
+              v-permission="'erp:sales:retrysection'"
+              size="small"
+              @click="handleRetrySection('statistics')"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
               重试
             </a-button>
           </template>
@@ -267,8 +423,14 @@
           @close="sectionErrors.customer = false"
         >
           <template #action>
-            <a-button size="small" v-permission="'erp:sales:retrysection'" @click="handleRetrySection('customer')">
-              <template #icon><ReloadOutlined /></template>
+            <a-button
+              v-permission="'erp:sales:retrysection'"
+              size="small"
+              @click="handleRetrySection('customer')"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
               重试
             </a-button>
           </template>
@@ -283,8 +445,14 @@
           @close="sectionErrors.product = false"
         >
           <template #action>
-            <a-button size="small" v-permission="'erp:sales:retrysection'" @click="handleRetrySection('product')">
-              <template #icon><ReloadOutlined /></template>
+            <a-button
+              v-permission="'erp:sales:retrysection'"
+              size="small"
+              @click="handleRetrySection('product')"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
               重试
             </a-button>
           </template>
@@ -299,8 +467,14 @@
           @close="sectionErrors.trend = false"
         >
           <template #action>
-            <a-button size="small" v-permission="'erp:sales:retrysection'" @click="handleRetrySection('trend')">
-              <template #icon><ReloadOutlined /></template>
+            <a-button
+              v-permission="'erp:sales:retrysection'"
+              size="small"
+              @click="handleRetrySection('trend')"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
               重试
             </a-button>
           </template>
@@ -308,17 +482,33 @@
       </div>
 
       <div class="report-content">
-        <a-tabs v-model:activeKey="activeTab" type="card" size="small">
-          <a-tab-pane key="statistics" tab="销售统计">
+        <a-tabs
+          v-model:active-key="activeTab"
+          type="card"
+          size="small"
+        >
+          <a-tab-pane
+            key="statistics"
+            tab="销售统计"
+          >
             <SalesStatistics ref="statisticsRef" />
           </a-tab-pane>
-          <a-tab-pane key="customer" tab="客户排行">
+          <a-tab-pane
+            key="customer"
+            tab="客户排行"
+          >
             <CustomerRanking ref="customerRef" />
           </a-tab-pane>
-          <a-tab-pane key="product" tab="商品排行">
+          <a-tab-pane
+            key="product"
+            tab="商品排行"
+          >
             <ProductRanking ref="productRef" />
           </a-tab-pane>
-          <a-tab-pane key="trend" tab="销售趋势">
+          <a-tab-pane
+            key="trend"
+            tab="销售趋势"
+          >
             <SalesTrend ref="trendRef" />
           </a-tab-pane>
         </a-tabs>
@@ -350,15 +540,25 @@
         <a-form layout="vertical">
           <a-form-item label="导出格式">
             <a-radio-group v-model:value="exportFormat">
-              <a-radio-button value="xlsx">Excel (.xlsx)</a-radio-button>
-              <a-radio-button value="csv">CSV (.csv)</a-radio-button>
-              <a-radio-button value="pdf">PDF (.pdf)</a-radio-button>
+              <a-radio-button value="xlsx">
+                Excel (.xlsx)
+              </a-radio-button>
+              <a-radio-button value="csv">
+                CSV (.csv)
+              </a-radio-button>
+              <a-radio-button value="pdf">
+                PDF (.pdf)
+              </a-radio-button>
             </a-radio-group>
           </a-form-item>
           <a-form-item label="导出范围">
             <a-radio-group v-model:value="exportScope">
-              <a-radio-button value="current">当前统计数据</a-radio-button>
-              <a-radio-button value="all">全量数据</a-radio-button>
+              <a-radio-button value="current">
+                当前统计数据
+              </a-radio-button>
+              <a-radio-button value="all">
+                全量数据
+              </a-radio-button>
             </a-radio-group>
           </a-form-item>
           <a-form-item label="日期范围">
@@ -370,7 +570,9 @@
             />
           </a-form-item>
           <a-form-item v-if="exportScope === 'all'">
-            <a-checkbox v-model:checked="exportIncludeDetail">包含子模块明细数据</a-checkbox>
+            <a-checkbox v-model:checked="exportIncludeDetail">
+              包含子模块明细数据
+            </a-checkbox>
           </a-form-item>
         </a-form>
       </a-modal>
@@ -388,16 +590,42 @@
             <span>期间范围: {{ detailRange }}</span>
             <span>共 {{ detailData.length }} 条记录</span>
           </div>
-          <vxe-table :data="detailData" border size="small" max-height="500" :row-config="{ isHover: true }">
-            <vxe-column type="seq" title="#" width="50" />
-            <vxe-column field="period" title="期间" width="110" />
-            <vxe-column field="amount" title="金额" width="130">
+          <vxe-table
+            :data="detailData"
+            border
+            size="small"
+            max-height="500"
+            :row-config="{ isHover: true }"
+          >
+            <vxe-column
+              type="seq"
+              title="#"
+              width="50"
+            />
+            <vxe-column
+              field="period"
+              title="期间"
+              width="110"
+            />
+            <vxe-column
+              field="amount"
+              title="金额"
+              width="130"
+            >
               <template #default="{ row }">
                 ¥{{ formatAmount(row.amount) }}
               </template>
             </vxe-column>
-            <vxe-column field="quantity" title="数量" width="90" />
-            <vxe-column field="growthRate" title="增长率" width="110">
+            <vxe-column
+              field="quantity"
+              title="数量"
+              width="90"
+            />
+            <vxe-column
+              field="growthRate"
+              title="增长率"
+              width="110"
+            >
               <template #default="{ row }">
                 <span :class="(row.growthRate ?? 0) >= 0 ? 'text-positive' : 'text-negative'">
                   {{ row.growthRate != null ? `${row.growthRate >= 0 ? '+' : ''}${row.growthRate}%` : '-' }}
@@ -406,7 +634,12 @@
             </vxe-column>
           </vxe-table>
         </template>
-        <EmptyState v-else title="暂无明细数据" size="small" :show-actions="false" />
+        <EmptyState
+          v-else
+          title="暂无明细数据"
+          size="small"
+          :show-actions="false"
+        />
       </a-drawer>
     </PageContainer>
   </ErrorBoundary>

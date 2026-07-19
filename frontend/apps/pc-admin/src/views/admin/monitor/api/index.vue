@@ -4,15 +4,27 @@
       <div class="page-header">
         <div class="page-header-left">
           <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>
+              <router-link to="/">
+                首页
+              </router-link>
+            </a-breadcrumb-item>
             <a-breadcrumb-item>系统管理</a-breadcrumb-item>
             <a-breadcrumb-item>接口监控</a-breadcrumb-item>
           </a-breadcrumb>
-          <h2 class="page-header-title">接口监控</h2>
+          <h2 class="page-header-title">
+            接口监控
+          </h2>
         </div>
         <div class="page-header-right">
-          <a-button size="small" @click="refreshAll" :loading="loading">
-            <template #icon><ReloadOutlined /></template>
+          <a-button
+            size="small"
+            :loading="loading"
+            @click="refreshAll"
+          >
+            <template #icon>
+              <ReloadOutlined />
+            </template>
             刷新
           </a-button>
         </div>
@@ -21,48 +33,99 @@
 
     <a-spin :spinning="loading">
       <!-- 监控仪表盘汇总 -->
-      <a-row :gutter="16" style="margin-bottom:16px">
+      <a-row
+        :gutter="16"
+        style="margin-bottom:16px"
+      >
         <a-col :span="6">
           <a-card :bordered="false">
-            <a-statistic title="系统状态" value="正常" :value-style="{ color: '#52c41a' }">
-              <template #prefix><CheckCircleOutlined style="color:#52c41a" /></template>
+            <a-statistic
+              title="系统状态"
+              value="正常"
+              :value-style="{ color: '#52c41a' }"
+            >
+              <template #prefix>
+                <CheckCircleOutlined style="color:#52c41a" />
+              </template>
             </a-statistic>
-            <div class="stat-detail">CPU: {{ dashboardCpu }}% | 内存: {{ dashboardMem }}% | 磁盘: {{ dashboardDisk }}%</div>
+            <div class="stat-detail">
+              CPU: {{ dashboardCpu }}% | 内存: {{ dashboardMem }}% | 磁盘: {{ dashboardDisk }}%
+            </div>
           </a-card>
         </a-col>
         <a-col :span="6">
           <a-card :bordered="false">
-            <a-statistic title="服务健康" :value="servicesHealthy" suffix="/ {{ servicesTotal }}">
-              <template #prefix><CloudServerOutlined /></template>
+            <a-statistic
+              title="服务健康"
+              :value="servicesHealthy"
+              suffix="/ {{ servicesTotal }}"
+            >
+              <template #prefix>
+                <CloudServerOutlined />
+              </template>
             </a-statistic>
-            <div class="stat-detail">警告: {{ servicesWarning }} | 严重: {{ servicesCritical }}</div>
+            <div class="stat-detail">
+              警告: {{ servicesWarning }} | 严重: {{ servicesCritical }}
+            </div>
           </a-card>
         </a-col>
         <a-col :span="6">
           <a-card :bordered="false">
-            <a-statistic title="告警(24h)" :value="alertsTotal24h" :value-style="{ color: alertsUnacknowledged > 0 ? '#faad14' : '' }">
-              <template #prefix><AlertOutlined /></template>
+            <a-statistic
+              title="告警(24h)"
+              :value="alertsTotal24h"
+              :value-style="{ color: alertsUnacknowledged > 0 ? '#faad14' : '' }"
+            >
+              <template #prefix>
+                <AlertOutlined />
+              </template>
             </a-statistic>
-            <div class="stat-detail">未确认: {{ alertsUnacknowledged }} | 严重: {{ alertsCritical }}</div>
+            <div class="stat-detail">
+              未确认: {{ alertsUnacknowledged }} | 严重: {{ alertsCritical }}
+            </div>
           </a-card>
         </a-col>
         <a-col :span="6">
           <a-card :bordered="false">
-            <a-statistic title="性能" :value="avgResponseTime" suffix="ms">
-              <template #prefix><ThunderboltOutlined /></template>
+            <a-statistic
+              title="性能"
+              :value="avgResponseTime"
+              suffix="ms"
+            >
+              <template #prefix>
+                <ThunderboltOutlined />
+              </template>
             </a-statistic>
-            <div class="stat-detail">吞吐: {{ throughput }} | 错误率: {{ errorRate }}</div>
+            <div class="stat-detail">
+              吞吐: {{ throughput }} | 错误率: {{ errorRate }}
+            </div>
           </a-card>
         </a-col>
       </a-row>
 
       <!-- API端点列表 -->
-      <a-row :gutter="16" style="margin-bottom:16px">
+      <a-row
+        :gutter="16"
+        style="margin-bottom:16px"
+      >
         <a-col :span="24">
-          <a-card :bordered="false" title="API端点概览">
-            <a-collapse v-model:activeKey="activeApiKeys">
-              <a-collapse-panel v-for="(ep, key) in apiEndpoints" :key="key" :header="`${ep.basePath} - ${ep.description}`">
-                <a-table :data-source="ep.endpoints || []" :columns="apiColumns" row-key="path" :pagination="false" size="small" />
+          <a-card
+            :bordered="false"
+            title="API端点概览"
+          >
+            <a-collapse v-model:active-key="activeApiKeys">
+              <a-collapse-panel
+                v-for="(ep, key) in apiEndpoints"
+                :key="key"
+                :header="`${ep.basePath} - ${ep.description}`"
+              >
+                <a-table
+                  :data-source="ep.endpoints || []"
+                  :columns="apiColumns"
+                  row-key="path"
+                  :pagination="false"
+                  size="small"
+                />
               </a-collapse-panel>
             </a-collapse>
           </a-card>
@@ -72,19 +135,37 @@
       <!-- 24h告警历史 -->
       <a-row :gutter="16">
         <a-col :span="24">
-          <a-card :bordered="false" title="告警历史(24h)">
+          <a-card
+            :bordered="false"
+            title="告警历史(24h)"
+          >
             <a-row :gutter="16">
               <a-col :span="6">
-                <a-statistic title="告警总数" :value="alertsTotal24h" />
+                <a-statistic
+                  title="告警总数"
+                  :value="alertsTotal24h"
+                />
               </a-col>
               <a-col :span="6">
-                <a-statistic title="严重告警" :value="alertsCritical" :value-style="{ color: 'red' }" />
+                <a-statistic
+                  title="严重告警"
+                  :value="alertsCritical"
+                  :value-style="{ color: 'red' }"
+                />
               </a-col>
               <a-col :span="6">
-                <a-statistic title="警告" :value="alertsWarning" :value-style="{ color: '#faad14' }" />
+                <a-statistic
+                  title="警告"
+                  :value="alertsWarning"
+                  :value-style="{ color: '#faad14' }"
+                />
               </a-col>
               <a-col :span="6">
-                <a-statistic title="信息" :value="alertsInfo" :value-style="{ color: '#1890ff' }" />
+                <a-statistic
+                  title="信息"
+                  :value="alertsInfo"
+                  :value-style="{ color: '#1890ff' }"
+                />
               </a-col>
             </a-row>
           </a-card>

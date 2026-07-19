@@ -4,18 +4,40 @@
       <div class="search-area">
         <a-form layout="inline">
           <a-form-item label="日期范围">
-            <a-range-picker v-model:value="dateRange" style="width: 220px" />
+            <a-range-picker
+              v-model:value="dateRange"
+              style="width: 220px"
+            />
           </a-form-item>
           <a-form-item>
             <a-space>
-              <a-button type="primary" @click="handleSearch"><template #icon><SearchOutlined /></template>查询</a-button>
-              <a-button @click="handleReset"><template #icon><ClearOutlined /></template>重置</a-button>
+              <a-button
+                type="primary"
+                @click="handleSearch"
+              >
+                <template #icon>
+                  <SearchOutlined />
+                </template>查询
+              </a-button>
+              <a-button @click="handleReset">
+                <template #icon>
+                  <ClearOutlined />
+                </template>重置
+              </a-button>
             </a-space>
           </a-form-item>
         </a-form>
       </div>
       <div class="table-area">
-        <a-table :columns="columns" :data-source="tableData" :loading="loading" :pagination="pagination" row-key="id" @change="handleTableChange" size="small" />
+        <a-table
+          :columns="columns"
+          :data-source="tableData"
+          :loading="loading"
+          :pagination="pagination"
+          row-key="id"
+          size="small"
+          @change="handleTableChange"
+        />
       </div>
     </PageContainer>
   </ErrorBoundary>

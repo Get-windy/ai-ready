@@ -10,15 +10,33 @@
   >
     <!-- 搜索筛选区域 -->
     <div class="search-filter-area">
-      <a-form layout="inline" :model="searchParams">
+      <a-form
+        layout="inline"
+        :model="searchParams"
+      >
         <a-form-item label="商品编码">
-          <a-input v-model:value="searchParams.code" placeholder="请输入" allow-clear style="width: 120px" />
+          <a-input
+            v-model:value="searchParams.code"
+            placeholder="请输入"
+            allow-clear
+            style="width: 120px"
+          />
         </a-form-item>
         <a-form-item label="商品名称">
-          <a-input v-model:value="searchParams.name" placeholder="请输入" allow-clear style="width: 140px" />
+          <a-input
+            v-model:value="searchParams.name"
+            placeholder="请输入"
+            allow-clear
+            style="width: 140px"
+          />
         </a-form-item>
         <a-form-item label="条码">
-          <a-input v-model:value="searchParams.barcode" placeholder="请输入" allow-clear style="width: 120px" />
+          <a-input
+            v-model:value="searchParams.barcode"
+            placeholder="请输入"
+            allow-clear
+            style="width: 120px"
+          />
         </a-form-item>
         <a-form-item label="商品分类">
           <a-tree-select
@@ -32,12 +50,19 @@
         </a-form-item>
         <a-form-item>
           <a-space>
-            <a-button type="primary" @click="handleSearch">
-              <template #icon><SearchOutlined /></template>
+            <a-button
+              type="primary"
+              @click="handleSearch"
+            >
+              <template #icon>
+                <SearchOutlined />
+              </template>
               搜索
             </a-button>
             <a-button @click="handleReset">
-              <template #icon><ClearOutlined /></template>
+              <template #icon>
+                <ClearOutlined />
+              </template>
               重置
             </a-button>
           </a-space>
@@ -59,7 +84,11 @@
     >
       <template #bodyCell="{ column, record }">
         <template v-if="column.dataIndex === 'name'">
-          <a-button type="link" size="small" @click="handleQuickSelect(record)">
+          <a-button
+            type="link"
+            size="small"
+            @click="handleQuickSelect(record)"
+          >
             {{ record.name }}
           </a-button>
         </template>
@@ -72,11 +101,22 @@
     <!-- 底部选择信息 -->
     <div class="selection-info">
       <span class="selected-count">已选择 {{ selectedRows.length }} 个商品</span>
-      <div v-if="selectedRows.length > 0" class="selected-preview">
-        <a-tag v-for="item in selectedRows.slice(0, 5)" :key="item.id" closable @close="removeSelection(item)">
+      <div
+        v-if="selectedRows.length > 0"
+        class="selected-preview"
+      >
+        <a-tag
+          v-for="item in selectedRows.slice(0, 5)"
+          :key="item.id"
+          closable
+          @close="removeSelection(item)"
+        >
           {{ item.name }}
         </a-tag>
-        <span v-if="selectedRows.length > 5" class="more-count">+{{ selectedRows.length - 5 }}</span>
+        <span
+          v-if="selectedRows.length > 5"
+          class="more-count"
+        >+{{ selectedRows.length - 5 }}</span>
       </div>
     </div>
   </a-modal>

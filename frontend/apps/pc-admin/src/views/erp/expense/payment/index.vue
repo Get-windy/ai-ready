@@ -1,163 +1,394 @@
 <template>
   <ErrorBoundary @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="page-header">
-        <div class="page-header__left">
-          <span class="page-header__breadcrumb">ERP / 费用管理 / 付款确认</span>
-          <h2 class="page-header__title">付款确认</h2>
+    <PageContainer full-height>
+      <template #header>
+        <div class="page-header">
+          <div class="page-header__left">
+            <span class="page-header__breadcrumb">ERP / 费用管理 / 付款确认</span>
+            <h2 class="page-header__title">
+              付款确认
+            </h2>
+          </div>
+          <div class="page-header__right">
+            <span
+              v-if="lastUpdateTime"
+              class="page-header__update-time"
+            >更新于: {{ lastUpdateTime }}</span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            >
+              <SyncOutlined /> {{ autoRefreshCountdown }}s
+            </span>
+            <a-button
+              size="small"
+              @click="debounceClick('refresh', fetchData)"
+            >
+              <ReloadOutlined /> 刷新
+            </a-button>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+              <span class="shortcut-hint"><kbd>Ctrl</kbd>+<kbd>N</kbd> 新增</span>
+              <span class="shortcut-hint"><kbd>Ctrl</kbd>+<kbd>E</kbd> 导出</span>
+            </span>
+          </div>
         </div>
-        <div class="page-header__right">
-          <span v-if="lastUpdateTime" class="page-header__update-time">更新于: {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-            <SyncOutlined /> {{ autoRefreshCountdown }}s
-          </span>
-          <a-button size="small" @click="debounceClick('refresh', fetchData)">
-            <ReloadOutlined /> 刷新
+      </template>
+
+      <!-- 骨架加载 -->
+      <a-skeleton
+        :loading="refreshLoading"
+        active
+        :paragraph="{ rows: 8 }"
+      />
+
+      <template v-if="!refreshLoading">
+        <!-- 统计卡片 -->
+        <a-row
+          :gutter="16"
+          style="margin-bottom: 16px"
+        >
+          <a-col
+            :xs="12"
+            :sm="12"
+            :md="6"
+          >
+            <a-card
+              size="small"
+              :bordered="true"
+            >
+              <StatCard
+                title="待付款"
+                :value="stats.pendingCount"
+                :amount="stats.pendingAmount"
+                color="#faad14"
+              />
+            </a-card>
+          </a-col>
+          <a-col
+            :xs="12"
+            :sm="12"
+            :md="6"
+          >
+            <a-card
+              size="small"
+              :bordered="true"
+            >
+              <StatCard
+                title="已付款"
+                :value="stats.completedCount"
+                :amount="stats.completedAmount"
+                color="#52c41a"
+              />
+            </a-card>
+          </a-col>
+          <a-col
+            :xs="12"
+            :sm="12"
+            :md="6"
+          >
+            <a-card
+              size="small"
+              :bordered="true"
+            >
+              <StatCard
+                title="失败"
+                :value="stats.failedCount"
+                :amount="stats.failedAmount"
+                color="#ff4d4f"
+              />
+            </a-card>
+          </a-col>
+          <a-col
+            :xs="12"
+            :sm="12"
+            :md="6"
+          >
+            <a-card
+              size="small"
+              :bordered="true"
+            >
+              <StatCard
+                title="合计金额"
+                :value="stats.totalCount"
+                :amount="stats.totalAmount"
+                color="#1890ff"
+              />
+            </a-card>
+          </a-col>
+        </a-row>
+
+        <!-- 搜索栏 -->
+        <SearchBar
+          v-model="searchForm"
+          :fields="searchFields"
+          :loading="loading"
+          :expandable="false"
+          :show-result-count="true"
+          show-clear
+          :total="pagination.total"
+          @search="handleSearch"
+          @reset="handleReset"
+          @clear="handleClear"
+        />
+
+        <div class="toolbar">
+          <a-space>
+            <a-select
+              v-model:value="typeFilter"
+              placeholder="业务类型"
+              style="width: 120px"
+              size="small"
+              allow-clear
+              @change="fetchData"
+            >
+              <a-select-option value="">
+                全部
+              </a-select-option>
+              <a-select-option value="APPLICATION">
+                费用申请
+              </a-select-option>
+              <a-select-option value="REIMBURSEMENT">
+                费用报销
+              </a-select-option>
+            </a-select>
+            <a-select
+              v-model:value="statusFilter"
+              placeholder="状态"
+              style="width: 100px"
+              size="small"
+              allow-clear
+              @change="fetchData"
+            >
+              <a-select-option value="">
+                全部
+              </a-select-option>
+              <a-select-option value="PENDING">
+                待付款
+              </a-select-option>
+              <a-select-option value="COMPLETED">
+                已付款
+              </a-select-option>
+              <a-select-option value="FAILED">
+                失败
+              </a-select-option>
+              <a-select-option value="CANCELLED">
+                已取消
+              </a-select-option>
+            </a-select>
+            <a-tooltip title="导出">
+              <a-button
+                v-permission="'erp:expense:payment:list'"
+                size="small"
+                @click="debounceClick('export', handleExport)"
+              >
+                <template #icon>
+                  <ExportOutlined />
+                </template>
+              </a-button>
+            </a-tooltip>
+          </a-space>
+          <a-button
+            v-permission="'erp:expense:payment:create'"
+            type="primary"
+            size="small"
+            @click="showCreateModal"
+          >
+            <PlusOutlined /> 新增付款
           </a-button>
-          <span class="shortcut-hints">
-            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-            <span class="shortcut-hint"><kbd>Ctrl</kbd>+<kbd>N</kbd> 新增</span>
-            <span class="shortcut-hint"><kbd>Ctrl</kbd>+<kbd>E</kbd> 导出</span>
-          </span>
         </div>
-      </div>
-    </template>
 
-    <!-- 骨架加载 -->
-    <a-skeleton :loading="refreshLoading" active :paragraph="{ rows: 8 }">
-    </a-skeleton>
+        <BillTableList
+          ref="tableRef"
+          :columns="vxeColumns"
+          :data-source="dataList"
+          :loading="loading"
+          :pagination="pagination"
+          row-key="id"
+          :show-toolbar="false"
+          :show-add="false"
+          :show-search="false"
+          :min-empty-rows="12"
+          @page-change="onPageChange"
+        >
+          <template #empty>
+            <EmptyState
+              v-if="!loading"
+              title="暂无数据"
+              description="暂无付款记录"
+              size="small"
+              :show-actions="false"
+            />
+          </template>
+          <template #statusCell="{ record }">
+            <StatusTag
+              :status="record.status"
+              :map="EXPENSE_PAYMENT_STATUS"
+            />
+          </template>
+          <template #action="{ record }">
+            <a-space :size="4">
+              <PrintButton
+                :record="record"
+                :business-id="record.id"
+                business-type="expense_payment"
+                button-type="link"
+                button-size="small"
+                tooltip="打印"
+              />
+              <a-button
+                type="link"
+                size="small"
+                @click="viewDetail(record)"
+              >
+                查看
+              </a-button>
+              <a-button
+                v-if="record.status === 'PENDING'"
+                v-permission="'erp:expense:payment:confirm'"
+                type="primary"
+                size="small"
+                :loading="confirmingId === record.id"
+                @click="handleConfirm(record.id)"
+              >
+                确认付款
+              </a-button>
+              <a-button
+                v-if="record.status === 'PENDING'"
+                v-permission="'erp:expense:payment:cancel'"
+                type="link"
+                size="small"
+                danger
+                @click="confirmCancel(record.id)"
+              >
+                取消
+              </a-button>
+            </a-space>
+          </template>
+        </BillTableList>
 
-    <template v-if="!refreshLoading">
-    <!-- 统计卡片 -->
-    <a-row :gutter="16" style="margin-bottom: 16px">
-      <a-col :xs="12" :sm="12" :md="6">
-        <a-card size="small" :bordered="true">
-          <StatCard title="待付款" :value="stats.pendingCount" :amount="stats.pendingAmount" color="#faad14" />
-        </a-card>
-      </a-col>
-      <a-col :xs="12" :sm="12" :md="6">
-        <a-card size="small" :bordered="true">
-          <StatCard title="已付款" :value="stats.completedCount" :amount="stats.completedAmount" color="#52c41a" />
-        </a-card>
-      </a-col>
-      <a-col :xs="12" :sm="12" :md="6">
-        <a-card size="small" :bordered="true">
-          <StatCard title="失败" :value="stats.failedCount" :amount="stats.failedAmount" color="#ff4d4f" />
-        </a-card>
-      </a-col>
-      <a-col :xs="12" :sm="12" :md="6">
-        <a-card size="small" :bordered="true">
-          <StatCard title="合计金额" :value="stats.totalCount" :amount="stats.totalAmount" color="#1890ff" />
-        </a-card>
-      </a-col>
-    </a-row>
-
-    <!-- 搜索栏 -->
-    <SearchBar
-      :fields="searchFields"
-      :loading="loading"
-      v-model="searchForm"
-      :expandable="false"
-      :show-result-count="true"
-      show-clear
-      :total="pagination.total"
-      @search="handleSearch"
-      @reset="handleReset"
-      @clear="handleClear"
-    />
-
-    <div class="toolbar">
-      <a-space>
-        <a-select v-model:value="typeFilter" placeholder="业务类型" style="width: 120px" size="small" allow-clear @change="fetchData">
-          <a-select-option value="">全部</a-select-option>
-          <a-select-option value="APPLICATION">费用申请</a-select-option>
-          <a-select-option value="REIMBURSEMENT">费用报销</a-select-option>
-        </a-select>
-        <a-select v-model:value="statusFilter" placeholder="状态" style="width: 100px" size="small" allow-clear @change="fetchData">
-          <a-select-option value="">全部</a-select-option>
-          <a-select-option value="PENDING">待付款</a-select-option>
-          <a-select-option value="COMPLETED">已付款</a-select-option>
-          <a-select-option value="FAILED">失败</a-select-option>
-          <a-select-option value="CANCELLED">已取消</a-select-option>
-        </a-select>
-        <a-tooltip title="导出">
-          <a-button v-permission="'erp:expense:payment:list'" size="small" @click="debounceClick('export', handleExport)">
-            <template #icon><ExportOutlined /></template>
-          </a-button>
-        </a-tooltip>
-      </a-space>
-      <a-button v-permission="'erp:expense:payment:create'" type="primary" size="small" @click="showCreateModal">
-        <PlusOutlined /> 新增付款
-      </a-button>
-    </div>
-
-    <BillTableList
-      ref="tableRef"
-      :columns="vxeColumns"
-      :data-source="dataList"
-      :loading="loading"
-      :pagination="pagination"
-      row-key="id"
-      :show-toolbar="false"
-      :show-add="false"
-      :show-search="false"
-      :min-empty-rows="12"
-      @page-change="onPageChange"
-    >
-      <template #empty>
-        <EmptyState v-if="!loading" title="暂无数据" description="暂无付款记录" size="small" :show-actions="false" />
+        <!-- 新增付款弹窗 -->
+        <FullScreenDetail
+          :visible="createModalVisible"
+          title="新增付款"
+          :save-loading="createLoading"
+          @close="handleCreateCancel"
+          @save="handleCreateOk"
+        >
+          <a-form
+            ref="createFormRef"
+            :model="createForm"
+            :rules="createRules"
+            :label-col="{ span: 5 }"
+            :wrapper-col="{ span: 17 }"
+          >
+            <a-form-item
+              label="业务类型"
+              name="businessType"
+            >
+              <a-select
+                v-model:value="createForm.businessType"
+                size="small"
+                placeholder="请选择业务类型"
+                @change="handleBusinessTypeChange"
+              >
+                <a-select-option value="APPLICATION">
+                  费用申请
+                </a-select-option>
+                <a-select-option value="REIMBURSEMENT">
+                  费用报销
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+            <a-form-item
+              label="业务单据"
+              name="businessId"
+            >
+              <a-select
+                v-model:value="createForm.businessId"
+                size="small"
+                placeholder="请选择业务单据"
+                :options="businessOptions"
+                show-search
+                :filter-option="(input: string, option: any) => option.label?.includes(input)"
+                :loading="businessLoading"
+              />
+            </a-form-item>
+            <a-form-item
+              label="收款人"
+              name="payeeName"
+            >
+              <a-input
+                v-model:value="createForm.payeeName"
+                size="small"
+                placeholder="请输入收款人"
+              />
+            </a-form-item>
+            <a-form-item
+              label="付款金额"
+              name="paymentAmount"
+            >
+              <a-input-number
+                v-model:value="createForm.paymentAmount"
+                size="small"
+                :min="0.01"
+                :precision="2"
+                style="width: 100%"
+                placeholder="请输入付款金额"
+              />
+            </a-form-item>
+            <a-form-item
+              label="支付方式"
+              name="paymentMethod"
+            >
+              <a-select
+                v-model:value="createForm.paymentMethod"
+                size="small"
+                placeholder="请选择支付方式"
+              >
+                <a-select-option value="BANK_TRANSFER">
+                  银行转账
+                </a-select-option>
+                <a-select-option value="CASH">
+                  现金
+                </a-select-option>
+                <a-select-option value="CHECK">
+                  支票
+                </a-select-option>
+                <a-select-option value="ALIPAY">
+                  支付宝
+                </a-select-option>
+                <a-select-option value="WECHAT">
+                  微信
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+            <a-form-item
+              label="付款日期"
+              name="paymentDate"
+            >
+              <a-date-picker
+                v-model:value="createForm.paymentDate"
+                size="small"
+                style="width: 100%"
+                placeholder="请选择付款日期"
+              />
+            </a-form-item>
+            <a-form-item
+              label="备注"
+              name="remark"
+            >
+              <a-textarea
+                v-model:value="createForm.remark"
+                size="small"
+                :rows="2"
+                placeholder="备注信息（选填）"
+              />
+            </a-form-item>
+          </a-form>
+        </FullScreenDetail>
       </template>
-      <template #statusCell="{ record }">
-        <StatusTag :status="record.status" :map="EXPENSE_PAYMENT_STATUS" />
-      </template>
-      <template #action="{ record }">
-        <a-space :size="4">
-          <PrintButton :record="record" :business-id="record.id" business-type="expense_payment" button-type="link" button-size="small" tooltip="打印" />
-          <a-button type="link" size="small" @click="viewDetail(record)">查看</a-button>
-          <a-button v-if="record.status === 'PENDING'" v-permission="'erp:expense:payment:confirm'" type="primary" size="small" :loading="confirmingId === record.id" @click="handleConfirm(record.id)">确认付款</a-button>
-          <a-button v-if="record.status === 'PENDING'" v-permission="'erp:expense:payment:cancel'" type="link" size="small" danger @click="confirmCancel(record.id)">取消</a-button>
-        </a-space>
-      </template>
-    </BillTableList>
-
-    <!-- 新增付款弹窗 -->
-    <FullScreenDetail :visible="createModalVisible" title="新增付款" :save-loading="createLoading" @close="handleCreateCancel" @save="handleCreateOk">
-      <a-form ref="createFormRef" :model="createForm" :rules="createRules" :label-col="{ span: 5 }" :wrapper-col="{ span: 17 }">
-        <a-form-item label="业务类型" name="businessType">
-          <a-select v-model:value="createForm.businessType" size="small" placeholder="请选择业务类型" @change="handleBusinessTypeChange">
-            <a-select-option value="APPLICATION">费用申请</a-select-option>
-            <a-select-option value="REIMBURSEMENT">费用报销</a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item label="业务单据" name="businessId">
-          <a-select v-model:value="createForm.businessId" size="small" placeholder="请选择业务单据" :options="businessOptions" show-search :filter-option="(input: string, option: any) => option.label?.includes(input)" :loading="businessLoading" />
-        </a-form-item>
-        <a-form-item label="收款人" name="payeeName">
-          <a-input v-model:value="createForm.payeeName" size="small" placeholder="请输入收款人" />
-        </a-form-item>
-        <a-form-item label="付款金额" name="paymentAmount">
-          <a-input-number v-model:value="createForm.paymentAmount" size="small" :min="0.01" :precision="2" style="width: 100%" placeholder="请输入付款金额" />
-        </a-form-item>
-        <a-form-item label="支付方式" name="paymentMethod">
-          <a-select v-model:value="createForm.paymentMethod" size="small" placeholder="请选择支付方式">
-            <a-select-option value="BANK_TRANSFER">银行转账</a-select-option>
-            <a-select-option value="CASH">现金</a-select-option>
-            <a-select-option value="CHECK">支票</a-select-option>
-            <a-select-option value="ALIPAY">支付宝</a-select-option>
-            <a-select-option value="WECHAT">微信</a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item label="付款日期" name="paymentDate">
-          <a-date-picker v-model:value="createForm.paymentDate" size="small" style="width: 100%" placeholder="请选择付款日期" />
-        </a-form-item>
-        <a-form-item label="备注" name="remark">
-          <a-textarea v-model:value="createForm.remark" size="small" :rows="2" placeholder="备注信息（选填）" />
-        </a-form-item>
-      </a-form>
-    </FullScreenDetail>
-    </template>
-  </PageContainer>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

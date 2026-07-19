@@ -2,18 +2,34 @@
   <div class="page-container">
     <div class="page-header">
       <div class="page-header__left">
-        <h2 class="page-title">渠道配置</h2>
+        <h2 class="page-title">
+          渠道配置
+        </h2>
       </div>
       <div class="page-header__right">
-        <a-button type="primary" @click="showCreateModal">
-          <template #icon><PlusOutlined /></template>
+        <a-button
+          type="primary"
+          @click="showCreateModal"
+        >
+          <template #icon>
+            <PlusOutlined />
+          </template>
           新增渠道
         </a-button>
       </div>
     </div>
     <div class="page-container__body">
-      <a-card :bordered="false" class="table-card">
-        <a-table :columns="columns" :data-source="tableData" :loading="loading" :pagination="false" row-key="id">
+      <a-card
+        :bordered="false"
+        class="table-card"
+      >
+        <a-table
+          :columns="columns"
+          :data-source="tableData"
+          :loading="loading"
+          :pagination="false"
+          row-key="id"
+        >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'channelCode'">
               <a-tag :color="CHANNEL_CODE_MAP[record.channelCode]?.type === 'ECOMMERCE' ? 'blue' : CHANNEL_CODE_MAP[record.channelCode]?.type === 'SOCIAL' ? 'green' : 'orange'">
@@ -21,22 +37,50 @@
               </a-tag>
             </template>
             <template v-if="column.key === 'channelType'">
-              <a-tag :color="CHANNEL_TYPE_MAP[record.channelType]?.color">{{ CHANNEL_TYPE_MAP[record.channelType]?.name }}</a-tag>
+              <a-tag :color="CHANNEL_TYPE_MAP[record.channelType]?.color">
+                {{ CHANNEL_TYPE_MAP[record.channelType]?.name }}
+              </a-tag>
             </template>
             <template v-if="column.key === 'syncEnabled'">
-              <a-switch :checked="record.syncEnabled === 1" @change="(checked: boolean) => handleToggleSync(record, checked)" />
+              <a-switch
+                :checked="record.syncEnabled === 1"
+                @change="(checked: boolean) => handleToggleSync(record, checked)"
+              />
             </template>
             <template v-if="column.key === 'status'">
-              <a-tag :color="record.status === 1 ? 'success' : 'error'">{{ record.status === 1 ? '正常' : '禁用' }}</a-tag>
+              <a-tag :color="record.status === 1 ? 'success' : 'error'">
+                {{ record.status === 1 ? '正常' : '禁用' }}
+              </a-tag>
             </template>
             <template v-if="column.key === 'connected'">
-              <a-tag :color="record.accessToken ? 'success' : 'warning'">{{ record.accessToken ? '已连接' : '待配置' }}</a-tag>
+              <a-tag :color="record.accessToken ? 'success' : 'warning'">
+                {{ record.accessToken ? '已连接' : '待配置' }}
+              </a-tag>
             </template>
             <template v-if="column.key === 'action'">
               <a-space>
-                <a-button type="link" size="small" @click="showEditModal(record)">配置</a-button>
-                <a-button type="link" size="small" v-if="!record.accessToken" @click="handleInitialize(record)">初始化</a-button>
-                <a-button type="link" size="small" @click="handleSync(record)">同步</a-button>
+                <a-button
+                  type="link"
+                  size="small"
+                  @click="showEditModal(record)"
+                >
+                  配置
+                </a-button>
+                <a-button
+                  v-if="!record.accessToken"
+                  type="link"
+                  size="small"
+                  @click="handleInitialize(record)"
+                >
+                  初始化
+                </a-button>
+                <a-button
+                  type="link"
+                  size="small"
+                  @click="handleSync(record)"
+                >
+                  同步
+                </a-button>
               </a-space>
             </template>
           </template>
@@ -44,37 +88,86 @@
       </a-card>
     </div>
 
-    <a-modal v-model:open="modalVisible" :title="editingId ? '编辑渠道配置' : '新增渠道'" width="700px" @ok="handleSave">
-      <a-form :label-col="{ span: 4 }" :wrapper-col="{ span: 18 }">
+    <a-modal
+      v-model:open="modalVisible"
+      :title="editingId ? '编辑渠道配置' : '新增渠道'"
+      width="700px"
+      @ok="handleSave"
+    >
+      <a-form
+        :label-col="{ span: 4 }"
+        :wrapper-col="{ span: 18 }"
+      >
         <a-form-item label="渠道编码">
-          <a-select v-model:value="form.channelCode" placeholder="请选择渠道" :disabled="!!editingId">
-            <a-select-option value="TAOBAO">淘宝/天猫</a-select-option>
-            <a-select-option value="JD">京东</a-select-option>
-            <a-select-option value="PDD">拼多多</a-select-option>
-            <a-select-option value="DOUYIN">抖音</a-select-option>
-            <a-select-option value="WECHAT_MINI">微信小程序</a-select-option>
-            <a-select-option value="SELF_MALL">自有商城</a-select-option>
-            <a-select-option value="POS">POS终端</a-select-option>
-            <a-select-option value="ERP_API">ERP对接</a-select-option>
+          <a-select
+            v-model:value="form.channelCode"
+            placeholder="请选择渠道"
+            :disabled="!!editingId"
+          >
+            <a-select-option value="TAOBAO">
+              淘宝/天猫
+            </a-select-option>
+            <a-select-option value="JD">
+              京东
+            </a-select-option>
+            <a-select-option value="PDD">
+              拼多多
+            </a-select-option>
+            <a-select-option value="DOUYIN">
+              抖音
+            </a-select-option>
+            <a-select-option value="WECHAT_MINI">
+              微信小程序
+            </a-select-option>
+            <a-select-option value="SELF_MALL">
+              自有商城
+            </a-select-option>
+            <a-select-option value="POS">
+              POS终端
+            </a-select-option>
+            <a-select-option value="ERP_API">
+              ERP对接
+            </a-select-option>
           </a-select>
         </a-form-item>
         <a-form-item label="渠道名称">
-          <a-input v-model:value="form.channelName" placeholder="渠道名称" />
+          <a-input
+            v-model:value="form.channelName"
+            placeholder="渠道名称"
+          />
         </a-form-item>
         <a-form-item label="API端点">
-          <a-input v-model:value="form.apiEndpoint" placeholder="如: https://eco.taobao.com/router/rest" />
+          <a-input
+            v-model:value="form.apiEndpoint"
+            placeholder="如: https://eco.taobao.com/router/rest"
+          />
         </a-form-item>
         <a-form-item label="App ID">
-          <a-input v-model:value="form.appId" placeholder="应用ID" />
+          <a-input
+            v-model:value="form.appId"
+            placeholder="应用ID"
+          />
         </a-form-item>
         <a-form-item label="App Secret">
-          <a-input-password v-model:value="form.appSecret" placeholder="应用密钥" />
+          <a-input-password
+            v-model:value="form.appSecret"
+            placeholder="应用密钥"
+          />
         </a-form-item>
         <a-form-item label="同步间隔">
-          <a-input-number v-model:value="form.syncInterval" min="5" max="120" addon-after="分钟" />
+          <a-input-number
+            v-model:value="form.syncInterval"
+            min="5"
+            max="120"
+            addon-after="分钟"
+          />
         </a-form-item>
         <a-form-item label="扩展配置">
-          <a-textarea v-model:value="form.configJson" placeholder="JSON格式配置" :rows="3" />
+          <a-textarea
+            v-model:value="form.configJson"
+            placeholder="JSON格式配置"
+            :rows="3"
+          />
         </a-form-item>
       </a-form>
     </a-modal>

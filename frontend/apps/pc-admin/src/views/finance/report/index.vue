@@ -1,229 +1,348 @@
 <template>
   <ErrorBoundary @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="report-page-header">
-        <div class="report-page-header-left">
-          <a-breadcrumb class="report-breadcrumb">
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item>财务管理</a-breadcrumb-item>
-            <a-breadcrumb-item>财务报表</a-breadcrumb-item>
-          </a-breadcrumb>
-          <h2 class="report-page-header-title">财务报表</h2>
-        </div>
-        <div class="report-page-header-right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-            <SyncOutlined /> {{ autoRefreshCountdown }}s
-          </span>
-          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', handleGenerate)">
-            <template #icon><ReloadOutlined /></template>
-            刷新
-          </a-button>
-          <span class="shortcut-hints">
-            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-          </span>
-        </div>
-      </div>
-    </template>
-    <div class="finance-report-page">
-    <!-- 统计卡片 -->
-    <div class="stat-cards">
-      <div class="stat-card stat-trial" :class="{ 'stat-success': trialBalanceBalanced === true, 'stat-error': trialBalanceBalanced === false }">
-        <div class="stat-card-body">
-          <div class="stat-card-value">
-            <span v-if="trialBalanceBalanced === null">-</span>
-            <span v-else-if="trialBalanceBalanced">平衡</span>
-            <span v-else>不平衡</span>
+    <PageContainer full-height>
+      <template #header>
+        <div class="report-page-header">
+          <div class="report-page-header-left">
+            <a-breadcrumb class="report-breadcrumb">
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>财务管理</a-breadcrumb-item>
+              <a-breadcrumb-item>财务报表</a-breadcrumb-item>
+            </a-breadcrumb>
+            <h2 class="report-page-header-title">
+              财务报表
+            </h2>
           </div>
-          <div class="stat-card-label">试算平衡</div>
-        </div>
-        <CheckCircleOutlined v-if="trialBalanceBalanced" class="stat-card-icon" />
-        <CloseCircleOutlined v-else-if="trialBalanceBalanced === false" class="stat-card-icon" />
-        <LoadingOutlined v-else class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-balance" :class="{ 'stat-success': balanceSheetBalanced }">
-        <div class="stat-card-body">
-          <div class="stat-card-value">
-            <span v-if="balanceSheetBalanced">平衡</span>
-            <span v-else>待检查</span>
+          <div class="report-page-header-right">
+            <span
+              v-if="lastUpdateTime"
+              class="update-time"
+            >更新于 {{ lastUpdateTime }}</span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            >
+              <SyncOutlined /> {{ autoRefreshCountdown }}s
+            </span>
+            <a-button
+              size="small"
+              :loading="refreshLoading"
+              @click="debounceClick('refresh', handleGenerate)"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
+              刷新
+            </a-button>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            </span>
           </div>
-          <div class="stat-card-label">资产负债</div>
         </div>
-        <SyncOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-profit" :class="{ 'stat-profit-negative': incomeNetProfit && incomeNetProfit.current < 0 }">
-        <div class="stat-card-body">
-          <div class="stat-card-value">¥{{ formatAmount(incomeNetProfit?.current || 0) }}</div>
-          <div class="stat-card-label">本期净利润</div>
+      </template>
+      <div class="finance-report-page">
+        <!-- 统计卡片 -->
+        <div class="stat-cards">
+          <div
+            class="stat-card stat-trial"
+            :class="{ 'stat-success': trialBalanceBalanced === true, 'stat-error': trialBalanceBalanced === false }"
+          >
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                <span v-if="trialBalanceBalanced === null">-</span>
+                <span v-else-if="trialBalanceBalanced">平衡</span>
+                <span v-else>不平衡</span>
+              </div>
+              <div class="stat-card-label">
+                试算平衡
+              </div>
+            </div>
+            <CheckCircleOutlined
+              v-if="trialBalanceBalanced"
+              class="stat-card-icon"
+            />
+            <CloseCircleOutlined
+              v-else-if="trialBalanceBalanced === false"
+              class="stat-card-icon"
+            />
+            <LoadingOutlined
+              v-else
+              class="stat-card-icon"
+            />
+          </div>
+          <div
+            class="stat-card stat-balance"
+            :class="{ 'stat-success': balanceSheetBalanced }"
+          >
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                <span v-if="balanceSheetBalanced">平衡</span>
+                <span v-else>待检查</span>
+              </div>
+              <div class="stat-card-label">
+                资产负债
+              </div>
+            </div>
+            <SyncOutlined class="stat-card-icon" />
+          </div>
+          <div
+            class="stat-card stat-profit"
+            :class="{ 'stat-profit-negative': incomeNetProfit && incomeNetProfit.current < 0 }"
+          >
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                ¥{{ formatAmount(incomeNetProfit?.current || 0) }}
+              </div>
+              <div class="stat-card-label">
+                本期净利润
+              </div>
+            </div>
+            <RiseOutlined
+              v-if="incomeNetProfit && incomeNetProfit.current >= 0"
+              class="stat-card-icon"
+            />
+            <FallOutlined
+              v-else
+              class="stat-card-icon"
+            />
+          </div>
+          <div class="stat-card stat-cumulative">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                ¥{{ formatAmount(incomeNetProfit?.cumulative || 0) }}
+              </div>
+              <div class="stat-card-label">
+                累计净利润
+              </div>
+            </div>
+            <DollarOutlined class="stat-card-icon" />
+          </div>
         </div>
-        <RiseOutlined v-if="incomeNetProfit && incomeNetProfit.current >= 0" class="stat-card-icon" />
-        <FallOutlined v-else class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-cumulative">
-        <div class="stat-card-body">
-          <div class="stat-card-value">¥{{ formatAmount(incomeNetProfit?.cumulative || 0) }}</div>
-          <div class="stat-card-label">累计净利润</div>
+
+        <div class="report-filter-bar">
+          <a-form layout="inline">
+            <a-form-item label="年度">
+              <a-input-number
+                v-model:value="filterYear"
+                :min="2020"
+                :max="2099"
+                style="width: 100px"
+                size="small"
+              />
+            </a-form-item>
+            <a-form-item label="期间">
+              <a-select
+                v-model:value="filterPeriod"
+                style="width: 80px"
+                size="small"
+              >
+                <a-select-option
+                  v-for="p in 12"
+                  :key="p"
+                  :value="p"
+                >
+                  {{ p }}月
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+            <a-form-item>
+              <a-button
+                v-permission="'finance:report:view'"
+                type="primary"
+                size="small"
+                @click="handleGenerate"
+              >
+                <template #icon>
+                  <SearchOutlined />
+                </template>
+                生成
+              </a-button>
+            </a-form-item>
+          </a-form>
         </div>
-        <DollarOutlined class="stat-card-icon" />
+
+        <a-tabs
+          v-model:active-key="activeTab"
+          @change="handleTabChange"
+        >
+          <!-- 试算平衡表 -->
+          <a-tab-pane
+            key="trial-balance"
+            tab="试算平衡表"
+          >
+            <a-alert
+              v-if="trialBalanceBalanced !== null"
+              :type="trialBalanceBalanced ? 'success' : 'error'"
+              :message="trialBalanceBalanced ? '试算平衡 - 借贷相等' : '试算不平衡'"
+              show-icon
+              style="margin-bottom: 16px"
+            />
+            <BillTableList
+              :min-empty-rows="12"
+              :columns="trialBalanceColumns"
+              :data-source="trialBalanceData"
+              :loading="trialLoading"
+              :pagination="false as any"
+              :row-key="'id'"
+              :show-toolbar="false"
+              :show-search="false"
+              :show-add="false"
+              :show-edit="false"
+              :show-delete="false"
+              :show-export="false"
+              :selectable="true"
+              size="small"
+              @selection-change="handleSelectionChange"
+              @cell-dblclick="handleView"
+            >
+              <template #empty>
+                <div class="table-empty">
+                  <template v-if="hasError">
+                    <WarningOutlined
+                      class="table-empty-icon"
+                      style="color: #faad14"
+                    />
+                    <p class="table-empty-text">
+                      加载失败
+                    </p>
+                    <a-button
+                      type="primary"
+                      size="small"
+                      class="table-empty-action"
+                      @click="handleGenerate"
+                    >
+                      <ReloadOutlined /> 重试
+                    </a-button>
+                  </template>
+                  <template v-else>
+                    <InboxOutlined class="table-empty-icon" />
+                    <p class="table-empty-text">
+                      暂无数据
+                    </p>
+                  </template>
+                </div>
+              </template>
+            </BillTableList>
+          </a-tab-pane>
+
+          <!-- 资产负债表 -->
+          <a-tab-pane
+            key="balance-sheet"
+            tab="资产负债表"
+          >
+            <a-alert
+              :type="balanceSheetBalanced ? 'success' : 'warning'"
+              :message="balanceSheetBalanced ? '资产 = 负债 + 所有者权益' : '资产 不等于 负债 + 所有者权益'"
+              show-icon
+              style="margin-bottom: 16px"
+            />
+            <BillTableList
+              :columns="balanceSheetColumns"
+              :data-source="balanceSheetData"
+              :loading="bsLoading"
+              :pagination="false as any"
+              :row-key="'id'"
+              :show-toolbar="false"
+              :show-search="false"
+              :show-add="false"
+              :show-edit="false"
+              :show-delete="false"
+              :show-export="false"
+              :selectable="true"
+              size="small"
+              @selection-change="handleSelectionChange"
+              @cell-dblclick="handleView"
+            >
+              <template #empty>
+                <div class="table-empty">
+                  <template v-if="hasError">
+                    <WarningOutlined
+                      class="table-empty-icon"
+                      style="color: #faad14"
+                    />
+                    <p class="table-empty-text">
+                      加载失败
+                    </p>
+                    <a-button
+                      type="primary"
+                      size="small"
+                      class="table-empty-action"
+                      @click="handleGenerate"
+                    >
+                      <ReloadOutlined /> 重试
+                    </a-button>
+                  </template>
+                  <template v-else>
+                    <InboxOutlined class="table-empty-icon" />
+                    <p class="table-empty-text">
+                      暂无数据
+                    </p>
+                  </template>
+                </div>
+              </template>
+            </BillTableList>
+          </a-tab-pane>
+
+          <!-- 利润表 -->
+          <a-tab-pane
+            key="income-statement"
+            tab="利润表"
+          >
+            <BillTableList
+              :columns="incomeStatementColumns"
+              :data-source="incomeStatementData"
+              :loading="isLoading"
+              :pagination="false as any"
+              :row-key="'id'"
+              :show-toolbar="false"
+              :show-search="false"
+              :show-add="false"
+              :show-edit="false"
+              :show-delete="false"
+              :show-export="false"
+              :selectable="true"
+              :show-summary="!!incomeNetProfit"
+              :summary-data="incomeSummaryData"
+              size="small"
+              @selection-change="handleSelectionChange"
+              @cell-dblclick="handleView"
+            >
+              <template #empty>
+                <div class="table-empty">
+                  <template v-if="hasError">
+                    <WarningOutlined
+                      class="table-empty-icon"
+                      style="color: #faad14"
+                    />
+                    <p class="table-empty-text">
+                      加载失败
+                    </p>
+                    <a-button
+                      type="primary"
+                      size="small"
+                      class="table-empty-action"
+                      @click="handleGenerate"
+                    >
+                      <ReloadOutlined /> 重试
+                    </a-button>
+                  </template>
+                  <template v-else>
+                    <InboxOutlined class="table-empty-icon" />
+                    <p class="table-empty-text">
+                      暂无数据
+                    </p>
+                  </template>
+                </div>
+              </template>
+            </BillTableList>
+          </a-tab-pane>
+        </a-tabs>
       </div>
-    </div>
-
-    <div class="report-filter-bar">
-      <a-form layout="inline">
-        <a-form-item label="年度">
-          <a-input-number
-            v-model:value="filterYear"
-            :min="2020"
-            :max="2099"
-            style="width: 100px"
-            size="small"
-          />
-        </a-form-item>
-        <a-form-item label="期间">
-          <a-select v-model:value="filterPeriod" style="width: 80px" size="small">
-            <a-select-option v-for="p in 12" :key="p" :value="p">{{ p }}月</a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item>
-          <a-button v-permission="'finance:report:view'" type="primary" size="small" @click="handleGenerate">
-            <template #icon><SearchOutlined /></template>
-            生成
-          </a-button>
-        </a-form-item>
-      </a-form>
-    </div>
-
-    <a-tabs v-model:activeKey="activeTab" @change="handleTabChange">
-      <!-- 试算平衡表 -->
-      <a-tab-pane key="trial-balance" tab="试算平衡表">
-        <a-alert
-          v-if="trialBalanceBalanced !== null"
-          :type="trialBalanceBalanced ? 'success' : 'error'"
-          :message="trialBalanceBalanced ? '试算平衡 - 借贷相等' : '试算不平衡'"
-          show-icon
-          style="margin-bottom: 16px"
-        />
-        <BillTableList
-          :min-empty-rows="12"
-          :columns="trialBalanceColumns"
-          :data-source="trialBalanceData"
-          :loading="trialLoading"
-          :pagination="false as any"
-          :row-key="'id'"
-          :show-toolbar="false"
-          :show-search="false"
-          :show-add="false"
-          :show-edit="false"
-          :show-delete="false"
-          :show-export="false"
-          :selectable="true"
-          size="small"
-          @selection-change="handleSelectionChange"
-          @cell-dblclick="handleView"
-        >
-          <template #empty>
-            <div class="table-empty">
-              <template v-if="hasError">
-                <WarningOutlined class="table-empty-icon" style="color: #faad14" />
-                <p class="table-empty-text">加载失败</p>
-                <a-button type="primary" size="small" @click="handleGenerate" class="table-empty-action">
-                  <ReloadOutlined /> 重试
-                </a-button>
-              </template>
-              <template v-else>
-                <InboxOutlined class="table-empty-icon" />
-                <p class="table-empty-text">暂无数据</p>
-              </template>
-            </div>
-          </template>
-        </BillTableList>
-      </a-tab-pane>
-
-      <!-- 资产负债表 -->
-      <a-tab-pane key="balance-sheet" tab="资产负债表">
-        <a-alert
-          :type="balanceSheetBalanced ? 'success' : 'warning'"
-          :message="balanceSheetBalanced ? '资产 = 负债 + 所有者权益' : '资产 不等于 负债 + 所有者权益'"
-          show-icon
-          style="margin-bottom: 16px"
-        />
-        <BillTableList
-          :columns="balanceSheetColumns"
-          :data-source="balanceSheetData"
-          :loading="bsLoading"
-          :pagination="false as any"
-          :row-key="'id'"
-          :show-toolbar="false"
-          :show-search="false"
-          :show-add="false"
-          :show-edit="false"
-          :show-delete="false"
-          :show-export="false"
-          :selectable="true"
-          size="small"
-          @selection-change="handleSelectionChange"
-          @cell-dblclick="handleView"
-        >
-          <template #empty>
-            <div class="table-empty">
-              <template v-if="hasError">
-                <WarningOutlined class="table-empty-icon" style="color: #faad14" />
-                <p class="table-empty-text">加载失败</p>
-                <a-button type="primary" size="small" @click="handleGenerate" class="table-empty-action">
-                  <ReloadOutlined /> 重试
-                </a-button>
-              </template>
-              <template v-else>
-                <InboxOutlined class="table-empty-icon" />
-                <p class="table-empty-text">暂无数据</p>
-              </template>
-            </div>
-          </template>
-        </BillTableList>
-      </a-tab-pane>
-
-      <!-- 利润表 -->
-      <a-tab-pane key="income-statement" tab="利润表">
-        <BillTableList
-          :columns="incomeStatementColumns"
-          :data-source="incomeStatementData"
-          :loading="isLoading"
-          :pagination="false as any"
-          :row-key="'id'"
-          :show-toolbar="false"
-          :show-search="false"
-          :show-add="false"
-          :show-edit="false"
-          :show-delete="false"
-          :show-export="false"
-          :selectable="true"
-          :show-summary="!!incomeNetProfit"
-          :summary-data="incomeSummaryData"
-          size="small"
-          @selection-change="handleSelectionChange"
-          @cell-dblclick="handleView"
-        >
-          <template #empty>
-            <div class="table-empty">
-              <template v-if="hasError">
-                <WarningOutlined class="table-empty-icon" style="color: #faad14" />
-                <p class="table-empty-text">加载失败</p>
-                <a-button type="primary" size="small" @click="handleGenerate" class="table-empty-action">
-                  <ReloadOutlined /> 重试
-                </a-button>
-              </template>
-              <template v-else>
-                <InboxOutlined class="table-empty-icon" />
-                <p class="table-empty-text">暂无数据</p>
-              </template>
-            </div>
-          </template>
-        </BillTableList>
-      </a-tab-pane>
-    </a-tabs>
-    </div>
-  </PageContainer>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

@@ -4,194 +4,308 @@
       <div class="notification-page-header">
         <div class="notification-page-header-left">
           <a-breadcrumb class="notification-breadcrumb">
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>
+              <router-link to="/">
+                首页
+              </router-link>
+            </a-breadcrumb-item>
             <a-breadcrumb-item>通知中心</a-breadcrumb-item>
           </a-breadcrumb>
-          <h2 class="notification-page-header-title">通知中心</h2>
+          <h2 class="notification-page-header-title">
+            通知中心
+          </h2>
         </div>
         <div class="notification-page-header-right">
-          <span v-if="lastUpdated" class="update-time">更新于 {{ dayjs(lastUpdated).format('HH:mm:ss') }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+          <span
+            v-if="lastUpdated"
+            class="update-time"
+          >更新于 {{ dayjs(lastUpdated).format('HH:mm:ss') }}</span>
+          <span
+            v-if="autoRefreshCountdown > 0"
+            class="auto-refresh-badge"
+          >
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" v-permission="'notification:view:refresh'" @click="debounceClick('refresh', handleRefresh)">
-            <template #icon><ReloadOutlined /></template>
+          <a-button
+            v-permission="'notification:view:refresh'"
+            size="small"
+            :loading="refreshLoading"
+            @click="debounceClick('refresh', handleRefresh)"
+          >
+            <template #icon>
+              <ReloadOutlined />
+            </template>
             刷新
           </a-button>
-<span class="shortcut-hints">
-                                                <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
-                                                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-                                              </span>
+          <span class="shortcut-hints">
+            <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+          </span>
         </div>
       </div>
     </template>
 
     <ErrorBoundary>
-    <div class="notification-center">
-      <!-- 统计卡片骨架 -->
-      <template v-if="loading && tableData.length === 0">
-        <div class="stat-cards" style="margin-bottom: 16px;">
-          <a-card v-for="i in 4" :key="i" :bordered="false" class="stat-skeleton">
-            <a-skeleton active :paragraph="{ rows: 1 }" :title="{ width: '60%' }" />
-          </a-card>
-        </div>
-      </template>
-      <div v-else class="stat-cards">
-        <div class="stat-card stat-total">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ pagination.total }}</div>
-            <div class="stat-card-label">通知总数</div>
+      <div class="notification-center">
+        <!-- 统计卡片骨架 -->
+        <template v-if="loading && tableData.length === 0">
+          <div
+            class="stat-cards"
+            style="margin-bottom: 16px;"
+          >
+            <a-card
+              v-for="i in 4"
+              :key="i"
+              :bordered="false"
+              class="stat-skeleton"
+            >
+              <a-skeleton
+                active
+                :paragraph="{ rows: 1 }"
+                :title="{ width: '60%' }"
+              />
+            </a-card>
           </div>
-          <BellOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-unread">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ unreadCount }}</div>
-            <div class="stat-card-label">未读通知</div>
+        </template>
+        <div
+          v-else
+          class="stat-cards"
+        >
+          <div class="stat-card stat-total">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ pagination.total }}
+              </div>
+              <div class="stat-card-label">
+                通知总数
+              </div>
+            </div>
+            <BellOutlined class="stat-card-icon" />
           </div>
-          <ExclamationCircleOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-read">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ readCount }}</div>
-            <div class="stat-card-label">已读通知</div>
+          <div class="stat-card stat-unread">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ unreadCount }}
+              </div>
+              <div class="stat-card-label">
+                未读通知
+              </div>
+            </div>
+            <ExclamationCircleOutlined class="stat-card-icon" />
           </div>
-          <CheckCircleOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-system">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ systemCount }}</div>
-            <div class="stat-card-label">系统通知</div>
+          <div class="stat-card stat-read">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ readCount }}
+              </div>
+              <div class="stat-card-label">
+                已读通知
+              </div>
+            </div>
+            <CheckCircleOutlined class="stat-card-icon" />
           </div>
-          <InfoCircleOutlined class="stat-card-icon" />
+          <div class="stat-card stat-system">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ systemCount }}
+              </div>
+              <div class="stat-card-label">
+                系统通知
+              </div>
+            </div>
+            <InfoCircleOutlined class="stat-card-icon" />
+          </div>
         </div>
+
+        <BillTableList
+          ref="tableRef"
+          :columns="vxeColumns"
+          :data-source="tableData"
+          :loading="loading"
+          :pagination="pagination"
+          :filter-fields="filterFields"
+          :selectable="true"
+          :min-empty-rows="12"
+          @refresh="fetchData"
+          @search="handleSearch"
+          @page-change="handlePageChange"
+          @filter-change="handleFilterChange"
+          @selection-change="handleSelectionChange"
+        >
+          <template #toolbar-actions>
+            <a-badge
+              :count="unreadCount"
+              :overflow-count="99"
+            >
+              <BellOutlined
+                :style="{ fontSize: '20px', cursor: 'pointer' }"
+                @click="fetchUnreadCount"
+              />
+            </a-badge>
+            <a-button
+              v-permission="'notification:view:markallread'"
+              type="link"
+              @click="debounceClick('markAllRead', handleMarkAllRead)"
+            >
+              <template #icon>
+                <CheckCircleOutlined />
+              </template>
+              全部已读
+            </a-button>
+          </template>
+
+          <template #empty>
+            <a-empty
+              v-if="hasActiveFilters"
+              description="当前筛选条件下无匹配通知"
+            >
+              <template #image>
+                <SearchOutlined style="font-size: 48px; color: #faad14" />
+              </template>
+              <a-button
+                v-permission="'notification:view:resetfilters'"
+                @click="handleResetFilters"
+              >
+                清除筛选
+              </a-button>
+            </a-empty>
+            <a-empty
+              v-else
+              description="暂无通知消息"
+            >
+              <template #image>
+                <BellOutlined style="font-size: 48px; color: #d9d9d9" />
+              </template>
+            </a-empty>
+          </template>
+
+          <template #title="{ record }">
+            <a-space align="start">
+              <a-badge
+                :dot="record.readStatus === 0"
+                :offset="[-2, 2]"
+              >
+                <component
+                  :is="getTypeIcon(record.type)"
+                  :style="{ fontSize: '16px' }"
+                />
+              </a-badge>
+              <div>
+                <a
+                  :style="{ fontWeight: record.readStatus === 0 ? 'bold' : 'normal' }"
+                  class="notification-title"
+                  @click="handleDetail(record)"
+                >
+                  {{ record.title }}
+                </a>
+              </div>
+            </a-space>
+          </template>
+
+          <template #type="{ record }">
+            <a-tag :color="getTypeColor(record.type)">
+              {{ getTypeName(record.type) }}
+            </a-tag>
+          </template>
+
+          <template #readStatus="{ record }">
+            <a-badge
+              :status="record.readStatus === 0 ? 'processing' : 'default'"
+              :text="record.readStatus === 0 ? '未读' : '已读'"
+            />
+          </template>
+
+          <template #summary="{ record }">
+            <span class="summary-text">{{ record.summary || record.content?.substring(0, 80) }}</span>
+          </template>
+
+          <template #action="{ record }">
+            <a-space
+              :size="0"
+              class="action-cell-inner"
+            >
+              <a-tooltip
+                v-if="record.readStatus === 0"
+                title="标记已读"
+              >
+                <a-button
+                  v-permission="'notification:view:markread'"
+                  type="link"
+                  size="small"
+                  @click="handleMarkRead(record)"
+                >
+                  <template #icon>
+                    <CheckOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <a-dropdown trigger="click">
+                <a-button
+                  type="link"
+                  size="small"
+                  class="action-more-btn"
+                >
+                  <template #icon>
+                    <EllipsisOutlined />
+                  </template>
+                </a-button>
+                <template #overlay>
+                  <a-menu @click="({ key }) => handleActionMenuClick(key as string, record)">
+                    <a-menu-item
+                      v-if="record.readStatus === 0"
+                      key="mark_read"
+                    >
+                      <CheckOutlined /> 标记已读
+                    </a-menu-item>
+                    <a-menu-divider v-if="record.readStatus === 0" />
+                    <a-menu-item
+                      key="delete"
+                      danger
+                    >
+                      <DeleteOutlined /> 删除
+                    </a-menu-item>
+                  </a-menu>
+                </template>
+              </a-dropdown>
+            </a-space>
+          </template>
+        </BillTableList>
       </div>
 
-      <BillTableList
-        ref="tableRef"
-        :columns="vxeColumns"
-        :data-source="tableData"
-        :loading="loading"
-        :pagination="pagination"
-        :filter-fields="filterFields"
-        :selectable="true"
-        :min-empty-rows="12"
-        @refresh="fetchData"
-        @search="handleSearch"
-        @page-change="handlePageChange"
-        @filter-change="handleFilterChange"
-        @selection-change="handleSelectionChange"
+      <!-- 详情弹窗 -->
+      <a-modal
+        v-model:open="detailVisible"
+        :title="currentNotification?.title"
+        :footer="null"
+        width="600px"
       >
-        <template #toolbar-actions>
-          <a-badge :count="unreadCount" :overflow-count="99">
-            <BellOutlined :style="{ fontSize: '20px', cursor: 'pointer' }" @click="fetchUnreadCount" />
-          </a-badge>
-          <a-button type="link" v-permission="'notification:view:markallread'" @click="debounceClick('markAllRead', handleMarkAllRead)">
-            <template #icon><CheckCircleOutlined /></template>
-            全部已读
-          </a-button>
+        <template v-if="currentNotification">
+          <a-descriptions
+            :column="2"
+            bordered
+            size="small"
+          >
+            <a-descriptions-item label="类型">
+              <a-tag :color="getTypeColor(currentNotification.type)">
+                {{ getTypeName(currentNotification.type) }}
+              </a-tag>
+            </a-descriptions-item>
+            <a-descriptions-item label="发送时间">
+              {{ currentNotification.sendTime }}
+            </a-descriptions-item>
+            <a-descriptions-item label="状态">
+              <a-badge
+                :status="currentNotification.readStatus === 0 ? 'processing' : 'default'"
+                :text="currentNotification.readStatus === 0 ? '未读' : '已读'"
+              />
+            </a-descriptions-item>
+          </a-descriptions>
+          <a-divider />
+          <div class="notification-content">
+            {{ currentNotification.content || currentNotification.summary }}
+          </div>
         </template>
-
-        <template #empty>
-          <a-empty v-if="hasActiveFilters" description="当前筛选条件下无匹配通知">
-            <template #image><SearchOutlined style="font-size: 48px; color: #faad14" /></template>
-            <a-button v-permission="'notification:view:resetfilters'" @click="handleResetFilters">清除筛选</a-button>
-          </a-empty>
-          <a-empty v-else description="暂无通知消息">
-            <template #image><BellOutlined style="font-size: 48px; color: #d9d9d9" /></template>
-          </a-empty>
-        </template>
-
-        <template #title="{ record }">
-          <a-space align="start">
-            <a-badge :dot="record.readStatus === 0" :offset="[-2, 2]">
-              <component :is="getTypeIcon(record.type)" :style="{ fontSize: '16px' }" />
-            </a-badge>
-            <div>
-              <a
-                :style="{ fontWeight: record.readStatus === 0 ? 'bold' : 'normal' }"
-                @click="handleDetail(record)"
-                class="notification-title"
-              >
-                {{ record.title }}
-              </a>
-            </div>
-          </a-space>
-        </template>
-
-        <template #type="{ record }">
-          <a-tag :color="getTypeColor(record.type)">
-            {{ getTypeName(record.type) }}
-          </a-tag>
-        </template>
-
-        <template #readStatus="{ record }">
-          <a-badge
-            :status="record.readStatus === 0 ? 'processing' : 'default'"
-            :text="record.readStatus === 0 ? '未读' : '已读'"
-          />
-        </template>
-
-        <template #summary="{ record }">
-          <span class="summary-text">{{ record.summary || record.content?.substring(0, 80) }}</span>
-        </template>
-
-        <template #action="{ record }">
-          <a-space :size="0" class="action-cell-inner">
-            <a-tooltip v-if="record.readStatus === 0" title="标记已读">
-              <a-button type="link" size="small" v-permission="'notification:view:markread'" @click="handleMarkRead(record)">
-                <template #icon><CheckOutlined /></template>
-              </a-button>
-            </a-tooltip>
-            <a-dropdown trigger="click">
-              <a-button type="link" size="small" class="action-more-btn">
-                <template #icon><EllipsisOutlined /></template>
-              </a-button>
-              <template #overlay>
-                <a-menu @click="({ key }) => handleActionMenuClick(key as string, record)">
-                  <a-menu-item v-if="record.readStatus === 0" key="mark_read">
-                    <CheckOutlined /> 标记已读
-                  </a-menu-item>
-                  <a-menu-divider v-if="record.readStatus === 0" />
-                  <a-menu-item key="delete" danger>
-                    <DeleteOutlined /> 删除
-                  </a-menu-item>
-                </a-menu>
-              </template>
-            </a-dropdown>
-          </a-space>
-        </template>
-      </BillTableList>
-    </div>
-
-    <!-- 详情弹窗 -->
-    <a-modal
-      v-model:open="detailVisible"
-      :title="currentNotification?.title"
-      :footer="null"
-      width="600px"
-    >
-      <template v-if="currentNotification">
-        <a-descriptions :column="2" bordered size="small">
-          <a-descriptions-item label="类型">
-            <a-tag :color="getTypeColor(currentNotification.type)">
-              {{ getTypeName(currentNotification.type) }}
-            </a-tag>
-          </a-descriptions-item>
-          <a-descriptions-item label="发送时间">{{ currentNotification.sendTime }}</a-descriptions-item>
-          <a-descriptions-item label="状态">
-            <a-badge
-              :status="currentNotification.readStatus === 0 ? 'processing' : 'default'"
-              :text="currentNotification.readStatus === 0 ? '未读' : '已读'"
-            />
-          </a-descriptions-item>
-        </a-descriptions>
-        <a-divider />
-        <div class="notification-content">
-          {{ currentNotification.content || currentNotification.summary }}
-        </div>
-      </template>
-    </a-modal>
+      </a-modal>
     </ErrorBoundary>
   </PageContainer>
 </template>

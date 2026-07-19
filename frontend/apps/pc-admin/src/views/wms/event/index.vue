@@ -1,104 +1,206 @@
 <template>
-  <ErrorBoundary @error="handleError"><PageContainer full-height>
-    <template #header>
-      <div class="page-header">
-        <div class="page-header__left">
-          <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item>WMS / 事件监控</a-breadcrumb-item>
-          </a-breadcrumb>
-          <h2>事件监控</h2>
-        </div>
-        <div class="page-header__right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge"><SyncOutlined /> {{ autoRefreshCountdown }}s</span>
-          <a-button size="small" :loading="loading" @click="wms.debounce('refresh', wms.fetchData)">
-            <ReloadOutlined /> 刷新
-          </a-button>
-          <a-button v-permission="'wms:event:process'" size="small" @click="handleProcessPending">
-            <CaretRightOutlined /> 处理待发事件
-          </a-button>
-          <span class="shortcut-hints">
-            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-          </span>
-        </div>
-      </div>
-    </template>
-
-    <template #filter>
-      <SearchBar :fields="searchFields" :loading="loading" @search="handleSearch" @reset="handleReset" />
-    </template>
-
-    <template #default>
-      <div class="page-body">
-        <div class="stat-cards" style="margin-bottom: 12px;">
-          <div class="stat-card" style="border-top:3px solid #1890ff">
-            <div class="stat-value" style="color:#1890ff">{{ stats.total }}</div>
-            <div class="stat-label">事件总数</div>
+  <ErrorBoundary @error="handleError">
+    <PageContainer full-height>
+      <template #header>
+        <div class="page-header">
+          <div class="page-header__left">
+            <a-breadcrumb>
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>WMS / 事件监控</a-breadcrumb-item>
+            </a-breadcrumb>
+            <h2>事件监控</h2>
           </div>
-          <div class="stat-card" style="border-top:3px solid #faad14">
-            <div class="stat-value" style="color:#faad14">{{ stats.pending }}</div>
-            <div class="stat-label">待处理</div>
-          </div>
-          <div class="stat-card" style="border-top:3px solid #52c41a">
-            <div class="stat-value" style="color:#52c41a">{{ stats.completed }}</div>
-            <div class="stat-label">已处理</div>
-          </div>
-          <div class="stat-card" style="border-top:3px solid #ff4d4f">
-            <div class="stat-value" style="color:#ff4d4f">{{ stats.failed }}</div>
-            <div class="stat-label">失败</div>
+          <div class="page-header__right">
+            <span
+              v-if="lastUpdateTime"
+              class="update-time"
+            >更新于 {{ lastUpdateTime }}</span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            ><SyncOutlined /> {{ autoRefreshCountdown }}s</span>
+            <a-button
+              size="small"
+              :loading="loading"
+              @click="wms.debounce('refresh', wms.fetchData)"
+            >
+              <ReloadOutlined /> 刷新
+            </a-button>
+            <a-button
+              v-permission="'wms:event:process'"
+              size="small"
+              @click="handleProcessPending"
+            >
+              <CaretRightOutlined /> 处理待发事件
+            </a-button>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            </span>
           </div>
         </div>
+      </template>
 
-        <a-skeleton active :loading="loading && dataList.length === 0">
-        <a-table
-          :dataSource="dataList"
-          :columns="columns"
+      <template #filter>
+        <SearchBar
+          :fields="searchFields"
           :loading="loading"
-          :pagination="pagination"
-          rowKey="id"
-          size="small"
-          bordered
-          @change="handleTableChange"
-        >
-          <template #emptyText>
-            <div class="empty-state-wrapper">
-              <template v-if="hasError">
-                <WarningOutlined class="empty-state-icon" style="color: #faad14" />
-                <p class="empty-state-text">加载失败</p>
-                <a-button type="primary" size="small" @click="wms.debounce('refresh', wms.fetchData)" class="empty-state-action">
-                  <ReloadOutlined /> 重试
-                </a-button>
-              </template>
-              <template v-else>
-                <InboxOutlined class="empty-state-icon" />
-                <p class="empty-state-text">暂无事件记录</p>
-              </template>
+          @search="handleSearch"
+          @reset="handleReset"
+        />
+      </template>
+
+      <template #default>
+        <div class="page-body">
+          <div
+            class="stat-cards"
+            style="margin-bottom: 12px;"
+          >
+            <div
+              class="stat-card"
+              style="border-top:3px solid #1890ff"
+            >
+              <div
+                class="stat-value"
+                style="color:#1890ff"
+              >
+                {{ stats.total }}
+              </div>
+              <div class="stat-label">
+                事件总数
+              </div>
             </div>
-          </template>
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.dataIndex === 'status'">
-              <a-tag :color="statusMap[record.status]?.color || 'default'">{{ statusMap[record.status]?.text || record.status }}</a-tag>
-            </template>
-            <template v-if="column.dataIndex === 'payload'">
-              <span class="payload-preview">{{ truncate(record.payload, 60) }}</span>
-            </template>
-            <template v-if="column.dataIndex === 'action'">
-              <a-space :size="4">
-                <a-tooltip title="重试" v-if="record.status === 2 || record.status === 3">
-                  <a-button v-permission="'wms:event:retry'" type="link" size="small" @click="handleRetry(record as any)"><ReloadOutlined /></a-button>
-                </a-tooltip>
-                <a-tooltip title="查看详情">
-                  <a-button v-permission="'wms:event:view'" type="link" size="small" @click="handleView(record as any)"><EyeOutlined /></a-button>
-                </a-tooltip>
-              </a-space>
-            </template>
-          </template>
-        </a-table>
-        </a-skeleton>
-      </div>
-    </template>
-  </PageContainer></ErrorBoundary>
+            <div
+              class="stat-card"
+              style="border-top:3px solid #faad14"
+            >
+              <div
+                class="stat-value"
+                style="color:#faad14"
+              >
+                {{ stats.pending }}
+              </div>
+              <div class="stat-label">
+                待处理
+              </div>
+            </div>
+            <div
+              class="stat-card"
+              style="border-top:3px solid #52c41a"
+            >
+              <div
+                class="stat-value"
+                style="color:#52c41a"
+              >
+                {{ stats.completed }}
+              </div>
+              <div class="stat-label">
+                已处理
+              </div>
+            </div>
+            <div
+              class="stat-card"
+              style="border-top:3px solid #ff4d4f"
+            >
+              <div
+                class="stat-value"
+                style="color:#ff4d4f"
+              >
+                {{ stats.failed }}
+              </div>
+              <div class="stat-label">
+                失败
+              </div>
+            </div>
+          </div>
+
+          <a-skeleton
+            active
+            :loading="loading && dataList.length === 0"
+          >
+            <a-table
+              :data-source="dataList"
+              :columns="columns"
+              :loading="loading"
+              :pagination="pagination"
+              row-key="id"
+              size="small"
+              bordered
+              @change="handleTableChange"
+            >
+              <template #emptyText>
+                <div class="empty-state-wrapper">
+                  <template v-if="hasError">
+                    <WarningOutlined
+                      class="empty-state-icon"
+                      style="color: #faad14"
+                    />
+                    <p class="empty-state-text">
+                      加载失败
+                    </p>
+                    <a-button
+                      type="primary"
+                      size="small"
+                      class="empty-state-action"
+                      @click="wms.debounce('refresh', wms.fetchData)"
+                    >
+                      <ReloadOutlined /> 重试
+                    </a-button>
+                  </template>
+                  <template v-else>
+                    <InboxOutlined class="empty-state-icon" />
+                    <p class="empty-state-text">
+                      暂无事件记录
+                    </p>
+                  </template>
+                </div>
+              </template>
+              <template #bodyCell="{ column, record }">
+                <template v-if="column.dataIndex === 'status'">
+                  <a-tag :color="statusMap[record.status]?.color || 'default'">
+                    {{ statusMap[record.status]?.text || record.status }}
+                  </a-tag>
+                </template>
+                <template v-if="column.dataIndex === 'payload'">
+                  <span class="payload-preview">{{ truncate(record.payload, 60) }}</span>
+                </template>
+                <template v-if="column.dataIndex === 'action'">
+                  <a-space :size="4">
+                    <a-tooltip
+                      v-if="record.status === 2 || record.status === 3"
+                      title="重试"
+                    >
+                      <a-button
+                        v-permission="'wms:event:retry'"
+                        type="link"
+                        size="small"
+                        @click="handleRetry(record as any)"
+                      >
+                        <ReloadOutlined />
+                      </a-button>
+                    </a-tooltip>
+                    <a-tooltip title="查看详情">
+                      <a-button
+                        v-permission="'wms:event:view'"
+                        type="link"
+                        size="small"
+                        @click="handleView(record as any)"
+                      >
+                        <EyeOutlined />
+                      </a-button>
+                    </a-tooltip>
+                  </a-space>
+                </template>
+              </template>
+            </a-table>
+          </a-skeleton>
+        </div>
+      </template>
+    </PageContainer>
+  </ErrorBoundary>
 
   <!-- 事件详情弹窗 -->
   <a-modal
@@ -108,18 +210,42 @@
     :footer="null"
     @cancel="detailVisible = false"
   >
-    <a-descriptions v-if="detailData" bordered :column="2" size="small">
-      <a-descriptions-item label="事件ID">{{ detailData.id }}</a-descriptions-item>
-      <a-descriptions-item label="事件类型">{{ detailData.eventType }}</a-descriptions-item>
-      <a-descriptions-item label="事件Key">{{ detailData.eventKey }}</a-descriptions-item>
-      <a-descriptions-item label="状态">
-        <a-tag :color="statusMap[detailData.status]?.color || 'default'">{{ statusMap[detailData.status]?.text || detailData.status }}</a-tag>
+    <a-descriptions
+      v-if="detailData"
+      bordered
+      :column="2"
+      size="small"
+    >
+      <a-descriptions-item label="事件ID">
+        {{ detailData.id }}
       </a-descriptions-item>
-      <a-descriptions-item label="重试次数">{{ detailData.retryCount }} / {{ detailData.maxRetries }}</a-descriptions-item>
-      <a-descriptions-item label="最后错误">{{ detailData.lastError || '-' }}</a-descriptions-item>
-      <a-descriptions-item label="创建时间">{{ detailData.createTime }}</a-descriptions-item>
-      <a-descriptions-item label="更新时间">{{ detailData.updateTime }}</a-descriptions-item>
-      <a-descriptions-item label="消息体" :span="2">
+      <a-descriptions-item label="事件类型">
+        {{ detailData.eventType }}
+      </a-descriptions-item>
+      <a-descriptions-item label="事件Key">
+        {{ detailData.eventKey }}
+      </a-descriptions-item>
+      <a-descriptions-item label="状态">
+        <a-tag :color="statusMap[detailData.status]?.color || 'default'">
+          {{ statusMap[detailData.status]?.text || detailData.status }}
+        </a-tag>
+      </a-descriptions-item>
+      <a-descriptions-item label="重试次数">
+        {{ detailData.retryCount }} / {{ detailData.maxRetries }}
+      </a-descriptions-item>
+      <a-descriptions-item label="最后错误">
+        {{ detailData.lastError || '-' }}
+      </a-descriptions-item>
+      <a-descriptions-item label="创建时间">
+        {{ detailData.createTime }}
+      </a-descriptions-item>
+      <a-descriptions-item label="更新时间">
+        {{ detailData.updateTime }}
+      </a-descriptions-item>
+      <a-descriptions-item
+        label="消息体"
+        :span="2"
+      >
         <pre class="payload-json">{{ formatPayload(detailData.payload) }}</pre>
       </a-descriptions-item>
     </a-descriptions>

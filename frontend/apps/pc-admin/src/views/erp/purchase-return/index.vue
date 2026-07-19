@@ -5,24 +5,41 @@
         <div class="page-header">
           <div class="page-header__left">
             <a-breadcrumb>
-              <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
               <a-breadcrumb-item>采购管理</a-breadcrumb-item>
               <a-breadcrumb-item>采购退货</a-breadcrumb-item>
             </a-breadcrumb>
-            <h2 class="page-header__title">采购退货</h2>
+            <h2 class="page-header__title">
+              采购退货
+            </h2>
           </div>
           <div class="page-header__right">
             <a-space :size="12">
               <a-badge :status="loading ? 'processing' : 'success'" />
-              <a-button size="small" :loading="loading" @click="fetchData">
-                <template #icon><ReloadOutlined /></template>刷新
+              <a-button
+                size="small"
+                :loading="loading"
+                @click="fetchData"
+              >
+                <template #icon>
+                  <ReloadOutlined />
+                </template>刷新
               </a-button>
             </a-space>
           </div>
         </div>
       </template>
 
-      <SearchBar :fields="searchFields" :loading="loading" @search="handleSearch" @reset="handleReset" />
+      <SearchBar
+        :fields="searchFields"
+        :loading="loading"
+        @search="handleSearch"
+        @reset="handleReset"
+      />
 
       <BillTableList
         :columns="columns"
@@ -30,14 +47,33 @@
         :loading="loading"
         :pagination="pagination"
         row-key="id"
+        add-text="新建退货单"
+        add-permission="purchase:return:create"
+        @add="handleCreate"
         @page-change="handlePageChange"
       >
         <template #statusCell="{ record }">
-          <a-tag :color="statusMap[record.status]?.color">{{ statusMap[record.status]?.text }}</a-tag>
+          <a-tag :color="statusMap[record.status]?.color">
+            {{ statusMap[record.status]?.text }}
+          </a-tag>
         </template>
         <template #action="{ record }">
-          <a-space>
-            <a @click="handleView(record)">详情</a>
+          <a-space :size="0">
+            <a-button
+              type="link"
+              size="small"
+              @click="handleView(record)"
+            >
+              详情
+            </a-button>
+            <a-button
+              v-if="record.status === 0"
+              type="link"
+              size="small"
+              @click="handleEdit(record)"
+            >
+              <EditOutlined /> 编辑
+            </a-button>
           </a-space>
         </template>
       </BillTableList>
@@ -50,21 +86,51 @@
         :loading="detailLoading"
       >
         <template v-if="detailData">
-          <a-descriptions :column="2" bordered size="small">
-            <a-descriptions-item label="退货单号" :span="2">{{ detailData.returnNo }}</a-descriptions-item>
-            <a-descriptions-item label="源订单号" :span="2">{{ detailData.orderNo || '-' }}</a-descriptions-item>
-            <a-descriptions-item label="供应商" :span="2">{{ detailData.supplierName }}</a-descriptions-item>
-            <a-descriptions-item label="退货日期">{{ detailData.returnDate }}</a-descriptions-item>
+          <a-descriptions
+            :column="2"
+            bordered
+            size="small"
+          >
+            <a-descriptions-item
+              label="退货单号"
+              :span="2"
+            >
+              {{ detailData.returnNo }}
+            </a-descriptions-item>
+            <a-descriptions-item
+              label="源订单号"
+              :span="2"
+            >
+              {{ detailData.orderNo || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item
+              label="供应商"
+              :span="2"
+            >
+              {{ detailData.supplierName }}
+            </a-descriptions-item>
+            <a-descriptions-item label="退货日期">
+              {{ detailData.returnDate }}
+            </a-descriptions-item>
             <a-descriptions-item label="金额">
               <span style="color: #ff4d4f; font-weight: 600;">
                 {{ detailData.totalAmount != null ? `¥${detailData.totalAmount.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}` : '-' }}
               </span>
             </a-descriptions-item>
             <a-descriptions-item label="状态">
-              <a-tag :color="statusMap[detailData.status]?.color">{{ statusMap[detailData.status]?.text }}</a-tag>
+              <a-tag :color="statusMap[detailData.status]?.color">
+                {{ statusMap[detailData.status]?.text }}
+              </a-tag>
             </a-descriptions-item>
-            <a-descriptions-item label="制单人">{{ detailData.creatorName || '-' }}</a-descriptions-item>
-            <a-descriptions-item label="创建时间" :span="2">{{ detailData.createTime }}</a-descriptions-item>
+            <a-descriptions-item label="制单人">
+              {{ detailData.creatorName || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item
+              label="创建时间"
+              :span="2"
+            >
+              {{ detailData.createTime }}
+            </a-descriptions-item>
           </a-descriptions>
           <div style="margin-top: 16px;">
             <a-space>
@@ -73,13 +139,17 @@
                 type="primary"
                 size="small"
                 @click="handleApprove(detailData)"
-              >审核通过</a-button>
+              >
+                审核通过
+              </a-button>
               <a-button
                 v-if="detailData.status === 0"
                 danger
                 size="small"
                 @click="handleReject(detailData)"
-              >驳回</a-button>
+              >
+                驳回
+              </a-button>
             </a-space>
           </div>
         </template>
@@ -92,14 +162,17 @@
 defineOptions({ name: 'PurchaseReturnPage' })
 
 import { ref, reactive, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
-import { ReloadOutlined } from '@ant-design/icons-vue'
+import { ReloadOutlined, PlusOutlined, EditOutlined } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import SearchBar from '@/components/SearchBar/SearchBar.vue'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import { purchaseReturnApi } from '@/api/erp'
 import type { PurchaseReturn } from '@/api/erp'
+
+const router = useRouter()
 
 const loading = ref(false)
 const dataSource = ref<PurchaseReturn[]>([])
@@ -167,6 +240,15 @@ async function fetchData() {
   } finally {
     loading.value = false
   }
+}
+
+// ── 全屏表单导航 ──
+function handleCreate() {
+  router.push('/erp/purchase-return/form')
+}
+
+function handleEdit(record: PurchaseReturn) {
+  router.push(`/purchase/return/${record.id}`)
 }
 
 const detailVisible = ref(false)

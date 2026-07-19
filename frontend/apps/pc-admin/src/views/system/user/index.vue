@@ -1,204 +1,379 @@
 <template>
   <ErrorBoundary @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="user-page-header">
-        <div class="user-page-header-left">
-          <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item>用户管理</a-breadcrumb-item>
-          </a-breadcrumb>
-          <h2 class="user-page-header-title">用户管理</h2>
-        </div>
-        <div class="user-page-header-right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-            <SyncOutlined /> {{ autoRefreshCountdown }}s
-          </span>
-          <a-button size="small" :loading="refreshLoading" v-permission="'system:user:query'" @click="debounceClick('refresh', fetchData)">
-            <template #icon><ReloadOutlined /></template>
-            刷新
-          </a-button>
-          <span class="shortcut-hints">
-            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-            <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
-          </span>
-        </div>
-      </div>
-    </template>
-
-    <div class="user-management">
-      <!-- 统计卡片 -->
-      <div class="stat-cards">
-        <div class="stat-card stat-total">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ pagination.total }}</div>
-            <div class="stat-card-label">用户总数</div>
+    <PageContainer full-height>
+      <template #header>
+        <div class="user-page-header">
+          <div class="user-page-header-left">
+            <a-breadcrumb>
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>用户管理</a-breadcrumb-item>
+            </a-breadcrumb>
+            <h2 class="user-page-header-title">
+              用户管理
+            </h2>
           </div>
-          <TeamOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-active">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ activeCount }}</div>
-            <div class="stat-card-label">正常用户</div>
-          </div>
-          <CheckCircleOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-disabled">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ disabledCount }}</div>
-            <div class="stat-card-label">停用用户</div>
-          </div>
-          <StopOutlined class="stat-card-icon" />
-        </div>
-      </div>
-
-    <a-skeleton v-if="loading && tableDataSource.length === 0" active :paragraph="{ rows: 8 }" style="padding: 20px;" />
-    <BillTableList
-      v-else
-      ref="tableRef"
-      :columns="vxeColumns"
-      :data-source="tableDataSource"
-      :loading="loading"
-      :pagination="pagination"
-      :row-key="'id'"
-      :filter-fields="filterFields"
-      :show-search="false"
-      :selectable="true"
-      :min-empty-rows="12"
-      add-text="新增用户"
-      add-permission="system:user:create"
-      @add="handleAdd"
-      @edit="handleEdit"
-      @delete="handleDelete"
-      @batch-delete="handleBatchDelete"
-      @refresh="debounceClick('refresh', fetchData)"
-      @page-change="handlePageChange"
-      @filter-change="handleFilterChange"
-      @selection-change="(keys: any) => { (selectedRowKeys as any) = keys }"
-      @cell-dblclick="handleView"
-    >
-      <template #empty>
-        <div class="empty-state-wrapper">
-          <a-empty v-if="!hasError" description="暂无用户数据">
-            <template #image>
-              <TeamOutlined style="font-size: 48px; color: #d9d9d9;" />
-            </template>
-            <a-button type="primary" size="small" v-permission="'system:user:create'" @click="handleAdd">
-              <template #icon><PlusOutlined /></template>
-              新增第一个用户
+          <div class="user-page-header-right">
+            <span
+              v-if="lastUpdateTime"
+              class="update-time"
+            >更新于 {{ lastUpdateTime }}</span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            >
+              <SyncOutlined /> {{ autoRefreshCountdown }}s
+            </span>
+            <a-button
+              v-permission="'system:user:query'"
+              size="small"
+              :loading="refreshLoading"
+              @click="debounceClick('refresh', fetchData)"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
+              刷新
             </a-button>
-          </a-empty>
-          <a-result v-else status="error" title="数据加载失败">
-            <template #extra>
-              <a-button type="primary" @click="debounceClick('refresh', fetchData)">
-                <template #icon><ReloadOutlined /></template>
-                重新加载
-              </a-button>
-            </template>
-          </a-result>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+              <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+            </span>
+          </div>
         </div>
       </template>
 
-      <template #usernameCell="{ record }">
-        <a-space>
-          <a-avatar :src="record.avatar" :size="32">
-            {{ record.nickname?.charAt(0) || record.username?.charAt(0) }}
-          </a-avatar>
-          <div>
-            <div class="user-name">{{ record.username }}</div>
-            <div class="user-nickname">{{ record.nickname }}</div>
+      <div class="user-management">
+        <!-- 统计卡片 -->
+        <div class="stat-cards">
+          <div class="stat-card stat-total">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ pagination.total }}
+              </div>
+              <div class="stat-card-label">
+                用户总数
+              </div>
+            </div>
+            <TeamOutlined class="stat-card-icon" />
           </div>
-        </a-space>
-      </template>
-      <template #statusCell="{ record }">
-        <a-tag :color="record.status === 0 ? 'success' : 'warning'">
-          {{ record.status === 0 ? '正常' : '停用' }}
-        </a-tag>
-      </template>
-      <template #userTypeCell="{ record }">
-        <a-tag :color="getUserTypeColor(record.userType)">
-          {{ getUserTypeName(record.userType) }}
-        </a-tag>
-      </template>
-      <template #tenantNameCell="{ record }">
-        <span>{{ tenantMap[record.tenantId] || `租户${record.tenantId}` }}</span>
-      </template>
+          <div class="stat-card stat-active">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ activeCount }}
+              </div>
+              <div class="stat-card-label">
+                正常用户
+              </div>
+            </div>
+            <CheckCircleOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-disabled">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ disabledCount }}
+              </div>
+              <div class="stat-card-label">
+                停用用户
+              </div>
+            </div>
+            <StopOutlined class="stat-card-icon" />
+          </div>
+        </div>
 
-      <template #action="{ record }">
-        <a-space>
-          <a-button type="link" size="small" v-permission="'system:user:update'" @click="handleEdit(record)">编辑</a-button>
-          <a-button type="link" size="small" v-permission="'system:role:assign'" @click="handleAssignRole(record)">分配角色</a-button>
-          <a-dropdown>
-            <a-button type="link" size="small">更多<DownOutlined /></a-button>
-            <template #overlay>
-              <a-menu>
-                <a-menu-item v-permission="'system:user:update'" @click="handleResetPassword(record)">
-                  <KeyOutlined /> 重置密码
-                </a-menu-item>
-                <a-menu-item v-permission="'system:user:update'" @click="handleToggleStatus(record)">
-                  <StopOutlined /> {{ record.status === 0 ? '停用' : '启用' }}
-                </a-menu-item>
-                <a-menu-divider />
-                <a-menu-item danger v-permission="'system:user:delete'" @click="handleDelete(record)">
-                  <DeleteOutlined /> 删除
-                </a-menu-item>
-              </a-menu>
-            </template>
-          </a-dropdown>
-        </a-space>
-      </template>
-    </BillTableList>
+        <a-skeleton
+          v-if="loading && tableDataSource.length === 0"
+          active
+          :paragraph="{ rows: 8 }"
+          style="padding: 20px;"
+        />
+        <BillTableList
+          v-else
+          ref="tableRef"
+          :columns="vxeColumns"
+          :data-source="tableDataSource"
+          :loading="loading"
+          :pagination="pagination"
+          :row-key="'id'"
+          :filter-fields="filterFields"
+          :show-search="false"
+          :selectable="true"
+          :min-empty-rows="12"
+          add-text="新增用户"
+          add-permission="system:user:create"
+          @add="handleAdd"
+          @edit="handleEdit"
+          @delete="handleDelete"
+          @batch-delete="handleBatchDelete"
+          @refresh="debounceClick('refresh', fetchData)"
+          @page-change="handlePageChange"
+          @filter-change="handleFilterChange"
+          @selection-change="(keys: any) => { (selectedRowKeys as any) = keys }"
+          @cell-dblclick="handleView"
+        >
+          <template #empty>
+            <div class="empty-state-wrapper">
+              <a-empty
+                v-if="!hasError"
+                description="暂无用户数据"
+              >
+                <template #image>
+                  <TeamOutlined style="font-size: 48px; color: #d9d9d9;" />
+                </template>
+                <a-button
+                  v-permission="'system:user:create'"
+                  type="primary"
+                  size="small"
+                  @click="handleAdd"
+                >
+                  <template #icon>
+                    <PlusOutlined />
+                  </template>
+                  新增第一个用户
+                </a-button>
+              </a-empty>
+              <a-result
+                v-else
+                status="error"
+                title="数据加载失败"
+              >
+                <template #extra>
+                  <a-button
+                    type="primary"
+                    @click="debounceClick('refresh', fetchData)"
+                  >
+                    <template #icon>
+                      <ReloadOutlined />
+                    </template>
+                    重新加载
+                  </a-button>
+                </template>
+              </a-result>
+            </div>
+          </template>
 
-    <!-- 用户表单弹窗 -->
-    <FullScreenDetail :visible="modalVisible" :title="modalTitle" :save-loading="submittingLoading" :show-save-and-new="!isEdit" :dirty="formDirty" @save="handleModalOk" @close="handleFormClose" @save-and-new="handleFormSaveAndNew">
-      <a-form ref="formRef" :model="formState" :rules="formRules" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
-        <a-form-item label="用户名" name="username">
-          <a-input v-model:value="formState.username" placeholder="请输入用户名" :disabled="isEdit" />
-        </a-form-item>
-        <a-form-item label="昵称" name="nickname">
-          <a-input v-model:value="formState.nickname" placeholder="请输入昵称" />
-        </a-form-item>
-        <a-form-item v-if="!isEdit" label="密码" name="password">
-          <a-input-password v-model:value="formState.password" placeholder="请输入密码" />
-        </a-form-item>
-        <a-form-item label="邮箱" name="email">
-          <a-input v-model:value="formState.email" placeholder="请输入邮箱" />
-        </a-form-item>
-        <a-form-item label="手机号" name="phone">
-          <a-input v-model:value="formState.phone" placeholder="请输入手机号" />
-        </a-form-item>
-        <a-form-item label="性别" name="gender">
-          <a-radio-group v-model:value="formState.gender">
-            <a-radio :value="0">未知</a-radio>
-            <a-radio :value="1">男</a-radio>
-            <a-radio :value="2">女</a-radio>
-          </a-radio-group>
-        </a-form-item>
-        <a-form-item label="用户类型" name="userType">
-          <a-select v-model:value="formState.userType" size="small" placeholder="请选择用户类型">
-            <a-select-option
-              v-for="opt in userTypeOptions"
-              :key="opt.value"
-              :value="opt.value"
-            >{{ opt.label }}</a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item label="状态" name="status">
-          <a-radio-group v-model:value="formState.status">
-            <a-radio :value="0">正常</a-radio>
-            <a-radio :value="1">停用</a-radio>
-          </a-radio-group>
-        </a-form-item>
-      </a-form>
-    </FullScreenDetail>
+          <template #usernameCell="{ record }">
+            <a-space>
+              <a-avatar
+                :src="record.avatar"
+                :size="32"
+              >
+                {{ record.nickname?.charAt(0) || record.username?.charAt(0) }}
+              </a-avatar>
+              <div>
+                <div class="user-name">
+                  {{ record.username }}
+                </div>
+                <div class="user-nickname">
+                  {{ record.nickname }}
+                </div>
+              </div>
+            </a-space>
+          </template>
+          <template #statusCell="{ record }">
+            <a-tag :color="record.status === 0 ? 'success' : 'warning'">
+              {{ record.status === 0 ? '正常' : '停用' }}
+            </a-tag>
+          </template>
+          <template #userTypeCell="{ record }">
+            <a-tag :color="getUserTypeColor(record.userType)">
+              {{ getUserTypeName(record.userType) }}
+            </a-tag>
+          </template>
+          <template #tenantNameCell="{ record }">
+            <span>{{ tenantMap[record.tenantId] || `租户${record.tenantId}` }}</span>
+          </template>
 
-    <!-- 分配角色弹窗 -->
-    <a-modal v-model:open="roleModalVisible" title="分配角色" :confirm-loading="roleModalLoading" @ok="handleRoleModalOk">
-      <a-transfer v-model:target-keys="targetRoleKeys" :data-source="roleList" :titles="['可选角色', '已选角色']" :render="(item: any) => item.title" show-search :filter-option="filterRoleOption" />
-    </a-modal>
-  </div>
-</PageContainer>
+          <template #action="{ record }">
+            <a-space>
+              <a-button
+                v-permission="'system:user:update'"
+                type="link"
+                size="small"
+                @click="handleEdit(record)"
+              >
+                编辑
+              </a-button>
+              <a-button
+                v-permission="'system:role:assign'"
+                type="link"
+                size="small"
+                @click="handleAssignRole(record)"
+              >
+                分配角色
+              </a-button>
+              <a-dropdown>
+                <a-button
+                  type="link"
+                  size="small"
+                >
+                  更多<DownOutlined />
+                </a-button>
+                <template #overlay>
+                  <a-menu>
+                    <a-menu-item
+                      v-permission="'system:user:update'"
+                      @click="handleResetPassword(record)"
+                    >
+                      <KeyOutlined /> 重置密码
+                    </a-menu-item>
+                    <a-menu-item
+                      v-permission="'system:user:update'"
+                      @click="handleToggleStatus(record)"
+                    >
+                      <StopOutlined /> {{ record.status === 0 ? '停用' : '启用' }}
+                    </a-menu-item>
+                    <a-menu-divider />
+                    <a-menu-item
+                      v-permission="'system:user:delete'"
+                      danger
+                      @click="handleDelete(record)"
+                    >
+                      <DeleteOutlined /> 删除
+                    </a-menu-item>
+                  </a-menu>
+                </template>
+              </a-dropdown>
+            </a-space>
+          </template>
+        </BillTableList>
+
+        <!-- 用户表单弹窗 -->
+        <FullScreenDetail
+          :visible="modalVisible"
+          :title="modalTitle"
+          :save-loading="submittingLoading"
+          :show-save-and-new="!isEdit"
+          :dirty="formDirty"
+          @save="handleModalOk"
+          @close="handleFormClose"
+          @save-and-new="handleFormSaveAndNew"
+        >
+          <a-form
+            ref="formRef"
+            :model="formState"
+            :rules="formRules"
+            :label-col="{ span: 6 }"
+            :wrapper-col="{ span: 16 }"
+          >
+            <a-form-item
+              label="用户名"
+              name="username"
+            >
+              <a-input
+                v-model:value="formState.username"
+                placeholder="请输入用户名"
+                :disabled="isEdit"
+              />
+            </a-form-item>
+            <a-form-item
+              label="昵称"
+              name="nickname"
+            >
+              <a-input
+                v-model:value="formState.nickname"
+                placeholder="请输入昵称"
+              />
+            </a-form-item>
+            <a-form-item
+              v-if="!isEdit"
+              label="密码"
+              name="password"
+            >
+              <a-input-password
+                v-model:value="formState.password"
+                placeholder="请输入密码"
+              />
+            </a-form-item>
+            <a-form-item
+              label="邮箱"
+              name="email"
+            >
+              <a-input
+                v-model:value="formState.email"
+                placeholder="请输入邮箱"
+              />
+            </a-form-item>
+            <a-form-item
+              label="手机号"
+              name="phone"
+            >
+              <a-input
+                v-model:value="formState.phone"
+                placeholder="请输入手机号"
+              />
+            </a-form-item>
+            <a-form-item
+              label="性别"
+              name="gender"
+            >
+              <a-radio-group v-model:value="formState.gender">
+                <a-radio :value="0">
+                  未知
+                </a-radio>
+                <a-radio :value="1">
+                  男
+                </a-radio>
+                <a-radio :value="2">
+                  女
+                </a-radio>
+              </a-radio-group>
+            </a-form-item>
+            <a-form-item
+              label="用户类型"
+              name="userType"
+            >
+              <a-select
+                v-model:value="formState.userType"
+                size="small"
+                placeholder="请选择用户类型"
+              >
+                <a-select-option
+                  v-for="opt in userTypeOptions"
+                  :key="opt.value"
+                  :value="opt.value"
+                >
+                  {{ opt.label }}
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+            <a-form-item
+              label="状态"
+              name="status"
+            >
+              <a-radio-group v-model:value="formState.status">
+                <a-radio :value="0">
+                  正常
+                </a-radio>
+                <a-radio :value="1">
+                  停用
+                </a-radio>
+              </a-radio-group>
+            </a-form-item>
+          </a-form>
+        </FullScreenDetail>
+
+        <!-- 分配角色弹窗 -->
+        <a-modal
+          v-model:open="roleModalVisible"
+          title="分配角色"
+          :confirm-loading="roleModalLoading"
+          @ok="handleRoleModalOk"
+        >
+          <a-transfer
+            v-model:target-keys="targetRoleKeys"
+            :data-source="roleList"
+            :titles="['可选角色', '已选角色']"
+            :render="(item: any) => item.title"
+            show-search
+            :filter-option="filterRoleOption"
+          />
+        </a-modal>
+      </div>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 
@@ -457,7 +632,7 @@ const handleBatchDelete = (deleteKeys?: number[]) => {
         (list) => list.filter((item) => !idsToDelete.includes(item.id)),
         (originalList) => { tableData.value = originalList },
         () => userApi.batchDelete(idsToDelete),
-        async () => { for (const item of deletedItems) { try { const createData = { ...item, password: '123456' } as Record<string, any>; delete createData.id; await userApi.create(createData as any) } catch (err) { console.warn('[系统管理] 恢复用户失败', err) } }; await fetchData() },
+        async () => { for (const item of deletedItems) { try { const createData = { ...item, password: '123456' } as Record<string, any>; delete createData.id; await userApi.create(createData as any) } catch (err) { console.warn('[系统管理] 恢复用户失败', err) } } await fetchData() },
         '删除'
       )
       if (result) selectedRowKeys.value = []

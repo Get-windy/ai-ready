@@ -1,7 +1,10 @@
 <template>
   <div class="category-list-layout">
     <!-- Tab标签页（居中，深色背景） -->
-    <div v-if="tabs.length > 0" class="tab-bar">
+    <div
+      v-if="tabs.length > 0"
+      class="tab-bar"
+    >
       <div class="tab-items">
         <div
           v-for="tab in tabs"
@@ -39,12 +42,23 @@
               v-bind="getSearchProps(field)"
             />
           </div>
-          <a-button type="primary" size="small" class="btn-search" @click="$emit('search')">
+          <a-button
+            type="primary"
+            size="small"
+            class="btn-search"
+            @click="$emit('search')"
+          >
             查询
           </a-button>
         </div>
-        <div v-if="showHierarchyToggle" class="search-row second-row">
-          <a-checkbox :checked="showHierarchy" @change="(e: any) => $emit('hierarchy-change', e.target.checked)">
+        <div
+          v-if="showHierarchyToggle"
+          class="search-row second-row"
+        >
+          <a-checkbox
+            :checked="showHierarchy"
+            @change="(e: any) => $emit('hierarchy-change', e.target.checked)"
+          >
             显示层次结构
           </a-checkbox>
         </div>
@@ -54,14 +68,28 @@
     <!-- 内容行：左侧分类树 + 右侧表格 -->
     <div class="content-row">
       <!-- 左侧分类面板（直通页面底部） -->
-      <div v-if="!categoryCollapsed && showCategoryPanel" class="category-panel">
+      <div
+        v-if="!categoryCollapsed && showCategoryPanel"
+        class="category-panel"
+      >
         <div class="category-header">
           <span class="category-title">{{ categoryTitle }}</span>
           <div class="category-header-actions">
-            <a-button v-if="categoryEditable" type="link" size="small" @click="$emit('category-add')" title="新增分类">
+            <a-button
+              v-if="categoryEditable"
+              type="link"
+              size="small"
+              title="新增分类"
+              @click="$emit('category-add')"
+            >
               <PlusOutlined />
             </a-button>
-            <a-button type="link" size="small" @click="toggleCollapse" title="折叠分类树">
+            <a-button
+              type="link"
+              size="small"
+              title="折叠分类树"
+              @click="toggleCollapse"
+            >
               <MenuFoldOutlined />
             </a-button>
           </div>
@@ -70,9 +98,16 @@
           <a-spin :spinning="categoryLoading">
             <template v-if="categoryError">
               <div class="category-error">
-                <a-result status="warning" title="加载失败" sub-title="点击重试">
+                <a-result
+                  status="warning"
+                  title="加载失败"
+                  sub-title="点击重试"
+                >
                   <template #extra>
-                    <a-button size="small" @click="$emit('category-retry')">
+                    <a-button
+                      size="small"
+                      @click="$emit('category-retry')"
+                    >
                       <ReloadOutlined /> 重试
                     </a-button>
                   </template>
@@ -82,7 +117,9 @@
             <template v-else-if="!categoryLoading && categoryTreeData.length === 0">
               <div class="category-empty">
                 <InboxOutlined class="category-empty-icon" />
-                <p class="category-empty-text">暂无分类</p>
+                <p class="category-empty-text">
+                  暂无分类
+                </p>
               </div>
             </template>
             <a-tree
@@ -98,11 +135,20 @@
             >
               <template #title="{ categoryName, productCount }">
                 <span>{{ categoryName }}</span>
-                <span v-if="productCount !== undefined" class="cat-count">({{ productCount }})</span>
+                <span
+                  v-if="productCount !== undefined"
+                  class="cat-count"
+                >({{ productCount }})</span>
               </template>
               <template #icon="{ expanded }">
-                <FolderOpenOutlined v-if="expanded" style="color: #faad14" />
-                <FolderOutlined v-else style="color: #faad14" />
+                <FolderOpenOutlined
+                  v-if="expanded"
+                  style="color: #faad14"
+                />
+                <FolderOutlined
+                  v-else
+                  style="color: #faad14"
+                />
               </template>
             </a-tree>
           </a-spin>
@@ -115,8 +161,16 @@
       </div>
 
       <!-- 折叠状态：显示展开拉手 -->
-      <div v-else-if="categoryCollapsed && showCategoryPanel" class="category-collapse-bar">
-        <a-button type="text" class="collapse-toggle-btn" @click="toggleCollapse" title="展开分类树">
+      <div
+        v-else-if="categoryCollapsed && showCategoryPanel"
+        class="category-collapse-bar"
+      >
+        <a-button
+          type="text"
+          class="collapse-toggle-btn"
+          title="展开分类树"
+          @click="toggleCollapse"
+        >
           <MenuUnfoldOutlined />
         </a-button>
       </div>
@@ -127,7 +181,10 @@
           <slot name="table" />
         </div>
         <!-- 表格底部插槽（放分页器等） -->
-        <div v-if="showTableFooter && $slots['table-footer']" class="table-footer-section">
+        <div
+          v-if="showTableFooter && $slots['table-footer']"
+          class="table-footer-section"
+        >
           <slot name="table-footer" />
         </div>
       </div>

@@ -4,29 +4,45 @@
     <div class="stat-cards">
       <div class="stat-card stat-total">
         <div class="stat-card-body">
-          <div class="stat-card-value">¥{{ formatAmount(stats.totalAmount) }}</div>
-          <div class="stat-card-label">收款总额</div>
+          <div class="stat-card-value">
+            ¥{{ formatAmount(stats.totalAmount) }}
+          </div>
+          <div class="stat-card-label">
+            收款总额
+          </div>
         </div>
         <DollarOutlined class="stat-card-icon" />
       </div>
       <div class="stat-card stat-today">
         <div class="stat-card-body">
-          <div class="stat-card-value">¥{{ formatAmount(stats.todayAmount) }}</div>
-          <div class="stat-card-label">今日收款</div>
+          <div class="stat-card-value">
+            ¥{{ formatAmount(stats.todayAmount) }}
+          </div>
+          <div class="stat-card-label">
+            今日收款
+          </div>
         </div>
         <CalendarOutlined class="stat-card-icon" />
       </div>
       <div class="stat-card stat-count">
         <div class="stat-card-body">
-          <div class="stat-card-value">{{ stats.totalCount }}</div>
-          <div class="stat-card-label">收款笔数</div>
+          <div class="stat-card-value">
+            {{ stats.totalCount }}
+          </div>
+          <div class="stat-card-label">
+            收款笔数
+          </div>
         </div>
         <FileTextOutlined class="stat-card-icon" />
       </div>
       <div class="stat-card stat-avg">
         <div class="stat-card-body">
-          <div class="stat-card-value">¥{{ formatAmount(avgAmount) }}</div>
-          <div class="stat-card-label">平均金额</div>
+          <div class="stat-card-value">
+            ¥{{ formatAmount(avgAmount) }}
+          </div>
+          <div class="stat-card-label">
+            平均金额
+          </div>
         </div>
         <LineChartOutlined class="stat-card-icon" />
       </div>
@@ -105,7 +121,10 @@
           </template>
           新增收款
         </a-button>
-        <a-button v-permission="'finance:receivable:export'" @click="handleExport">
+        <a-button
+          v-permission="'finance:receivable:export'"
+          @click="handleExport"
+        >
           <template #icon>
             <ExportOutlined />
           </template>
@@ -135,14 +154,26 @@
         <template #empty>
           <div class="table-empty">
             <template v-if="hasError">
-              <WarningOutlined class="table-empty-icon" style="color: #faad14" />
-              <p class="table-empty-text">加载失败</p>
-              <a-button type="primary" size="small" @click="fetchData" class="table-empty-action">
+              <WarningOutlined
+                class="table-empty-icon"
+                style="color: #faad14"
+              />
+              <p class="table-empty-text">
+                加载失败
+              </p>
+              <a-button
+                type="primary"
+                size="small"
+                class="table-empty-action"
+                @click="fetchData"
+              >
                 <ReloadOutlined /> 重试
               </a-button>
             </template>
             <template v-else>
-              <p class="table-empty-text">暂无数据</p>
+              <p class="table-empty-text">
+                暂无数据
+              </p>
             </template>
           </div>
         </template>
@@ -162,7 +193,14 @@
             >
               查看
             </a-button>
-            <PrintButton :record="record" :business-id="record.id" business-type="payment_record" button-type="link" button-size="small" tooltip="打印" />
+            <PrintButton
+              :record="record"
+              :business-id="record.id"
+              business-type="payment_record"
+              button-type="link"
+              button-size="small"
+              tooltip="打印"
+            />
           </a-space>
         </template>
       </BillTableList>
@@ -174,20 +212,43 @@
       width="700px"
       :footer="null"
     >
-      <a-descriptions bordered :column="2" v-if="currentRecord">
-        <a-descriptions-item label="客户名称">{{ currentRecord.customerName }}</a-descriptions-item>
-        <a-descriptions-item label="订单号">{{ currentRecord.orderNo }}</a-descriptions-item>
-        <a-descriptions-item label="收款金额">¥{{ currentRecord.amount?.toFixed(2) }}</a-descriptions-item>
+      <a-descriptions
+        v-if="currentRecord"
+        bordered
+        :column="2"
+      >
+        <a-descriptions-item label="客户名称">
+          {{ currentRecord.customerName }}
+        </a-descriptions-item>
+        <a-descriptions-item label="订单号">
+          {{ currentRecord.orderNo }}
+        </a-descriptions-item>
+        <a-descriptions-item label="收款金额">
+          ¥{{ currentRecord.amount?.toFixed(2) }}
+        </a-descriptions-item>
         <a-descriptions-item label="收款方式">
           <a-tag>{{ getPaymentMethodText(currentRecord.paymentMethod) }}</a-tag>
         </a-descriptions-item>
-        <a-descriptions-item label="收款日期">{{ currentRecord.paymentDate }}</a-descriptions-item>
-        <a-descriptions-item label="操作人">{{ currentRecord.operator }}</a-descriptions-item>
-        <a-descriptions-item label="收款账户">{{ currentRecord.bankAccount || '-' }}</a-descriptions-item>
-        <a-descriptions-item label="备注" :span="2">{{ currentRecord.remark || '-' }}</a-descriptions-item>
+        <a-descriptions-item label="收款日期">
+          {{ currentRecord.paymentDate }}
+        </a-descriptions-item>
+        <a-descriptions-item label="操作人">
+          {{ currentRecord.operator }}
+        </a-descriptions-item>
+        <a-descriptions-item label="收款账户">
+          {{ currentRecord.bankAccount || '-' }}
+        </a-descriptions-item>
+        <a-descriptions-item
+          label="备注"
+          :span="2"
+        >
+          {{ currentRecord.remark || '-' }}
+        </a-descriptions-item>
       </a-descriptions>
       <div style="text-align: right; margin-top: 16px">
-        <a-button @click="detailVisible = false">关闭</a-button>
+        <a-button @click="detailVisible = false">
+          关闭
+        </a-button>
       </div>
     </a-modal>
   </div>
@@ -328,7 +389,7 @@ const handlePageChange = (page: number, size: number) => {
 const fetchData = async () => {
   loading.value = true
   try {
-    const res = await request.get('/api/finance/payment-record/page', {
+    const res = await request.get('/finance/payment-record/page', {
       params: {
         ...queryParams,
         pageNum: pagination.current,

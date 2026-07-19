@@ -4,28 +4,48 @@
       <div class="order-page-header">
         <div class="order-page-header-left">
           <a-breadcrumb class="order-page-breadcrumb">
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>
+              <router-link to="/">
+                首页
+              </router-link>
+            </a-breadcrumb-item>
             <a-breadcrumb-item>订单中心</a-breadcrumb-item>
           </a-breadcrumb>
-          <h2 class="order-page-header-title">订单中心</h2>
+          <h2 class="order-page-header-title">
+            订单中心
+          </h2>
         </div>
         <div class="order-page-header-right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+          <span
+            v-if="lastUpdateTime"
+            class="update-time"
+          >更新于 {{ lastUpdateTime }}</span>
+          <span
+            v-if="autoRefreshCountdown > 0"
+            class="auto-refresh-badge"
+          >
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', () => fetchData())">
-            <template #icon><ReloadOutlined /></template>
+          <a-button
+            size="small"
+            :loading="refreshLoading"
+            @click="debounceClick('refresh', () => fetchData())"
+          >
+            <template #icon>
+              <ReloadOutlined />
+            </template>
             刷新
           </a-button>
         </div>
-
       </div>
     </template>
 
     <!-- ── 顶栏操作区 ─────────────────────────── -->
     <template #actions>
-      <a-space wrap class="action-bar">
+      <a-space
+        wrap
+        class="action-bar"
+      >
         <!-- 快速日期筛选（带计数） -->
         <a-radio-group
           v-model:value="quickDateFilter"
@@ -35,19 +55,31 @@
         >
           <a-radio-button value="today">
             今天
-            <small v-if="dateCountMap.today > 0" class="filter-count">{{ dateCountMap.today }}</small>
+            <small
+              v-if="dateCountMap.today > 0"
+              class="filter-count"
+            >{{ dateCountMap.today }}</small>
           </a-radio-button>
           <a-radio-button value="week">
             本周
-            <small v-if="dateCountMap.week > 0" class="filter-count">{{ dateCountMap.week }}</small>
+            <small
+              v-if="dateCountMap.week > 0"
+              class="filter-count"
+            >{{ dateCountMap.week }}</small>
           </a-radio-button>
           <a-radio-button value="month">
             本月
-            <small v-if="dateCountMap.month > 0" class="filter-count">{{ dateCountMap.month }}</small>
+            <small
+              v-if="dateCountMap.month > 0"
+              class="filter-count"
+            >{{ dateCountMap.month }}</small>
           </a-radio-button>
           <a-radio-button value="all">
             全部
-            <small v-if="typeAndStatusFiltered.length > 0" class="filter-count">{{ typeAndStatusFiltered.length }}</small>
+            <small
+              v-if="typeAndStatusFiltered.length > 0"
+              class="filter-count"
+            >{{ typeAndStatusFiltered.length }}</small>
           </a-radio-button>
         </a-radio-group>
 
@@ -63,9 +95,15 @@
           @change="handleFilterTabChange"
           @clear="handleFilterTabClear"
         >
-          <a-select-option value="all">全部</a-select-option>
-          <a-select-option value="purchase">采购订单</a-select-option>
-          <a-select-option value="sales">销售订单</a-select-option>
+          <a-select-option value="all">
+            全部
+          </a-select-option>
+          <a-select-option value="purchase">
+            采购订单
+          </a-select-option>
+          <a-select-option value="sales">
+            销售订单
+          </a-select-option>
         </a-select>
 
         <!-- 状态筛选 -->
@@ -78,31 +116,56 @@
           @change="handleFilterStatusChange"
           @clear="handleFilterStatusChange"
         >
-          <a-select-option :value="0">草稿</a-select-option>
-          <a-select-option :value="1">待审批</a-select-option>
-          <a-select-option :value="2">已审批</a-select-option>
-          <a-select-option :value="3">已拒绝</a-select-option>
-          <a-select-option :value="4">执行中</a-select-option>
-          <a-select-option :value="5">已完成</a-select-option>
-          <a-select-option :value="6">已取消</a-select-option>
+          <a-select-option :value="0">
+            草稿
+          </a-select-option>
+          <a-select-option :value="1">
+            待审批
+          </a-select-option>
+          <a-select-option :value="2">
+            已审批
+          </a-select-option>
+          <a-select-option :value="3">
+            已拒绝
+          </a-select-option>
+          <a-select-option :value="4">
+            执行中
+          </a-select-option>
+          <a-select-option :value="5">
+            已完成
+          </a-select-option>
+          <a-select-option :value="6">
+            已取消
+          </a-select-option>
         </a-select>
 
         <a-divider type="vertical" />
 
         <!-- 列自定义 -->
         <a-dropdown trigger="click">
-          <a-button size="small" class="column-config-btn">
-            <template #icon><SettingOutlined /></template>
+          <a-button
+            size="small"
+            class="column-config-btn"
+          >
+            <template #icon>
+              <SettingOutlined />
+            </template>
             列
           </a-button>
           <template #overlay>
-            <a-menu class="column-menu" @click="handleColumnMenuClick">
-              <template v-for="col in columnDefs" :key="col.key">
+            <a-menu
+              class="column-menu"
+              @click="handleColumnMenuClick"
+            >
+              <template
+                v-for="col in columnDefs"
+                :key="col.key"
+              >
                 <a-menu-item
                   v-if="col.key !== 'action'"
+                  :key="col.key"
                   :disabled="col.key === 'orderNo'"
                   class="column-menu-item"
-                  :key="col.key"
                 >
                   <a-checkbox
                     :checked="visibleColumnKeys.includes(col.key)"
@@ -128,26 +191,35 @@
         <span class="selected-count-label">
           已选 <strong>{{ selectedRowKeys.length }}</strong> 项
         </span>
-        <span v-if="selectedTotalAmount > 0" class="selected-total-label">
+        <span
+          v-if="selectedTotalAmount > 0"
+          class="selected-total-label"
+        >
           金额合计 <strong class="selected-total-amount">¥{{ selectedTotalAmount.toFixed(2) }}</strong>
         </span>
         <a-divider type="vertical" />
         <a-button
+          v-permission="'order:center:batchdelete'"
           size="small"
           type="primary"
           danger
           :loading="batchDeleting"
- v-permission="'order:center:batchdelete'" @click="handleBatchDelete"
+          @click="handleBatchDelete"
         >
-          <template #icon><DeleteOutlined /></template>
+          <template #icon>
+            <DeleteOutlined />
+          </template>
           批量删除
         </a-button>
         <a-button
+          v-permission="'order:center:batchexport'"
           size="small"
           :loading="batchExporting"
- v-permission="'order:center:batchexport'" @click="handleBatchExport"
+          @click="handleBatchExport"
         >
-          <template #icon><DownloadOutlined /></template>
+          <template #icon>
+            <DownloadOutlined />
+          </template>
           批量导出
         </a-button>
       </a-space>
@@ -155,16 +227,34 @@
 
     <!-- ── 空数据引导 ─────────────────────────── -->
     <template #empty-actions>
-      <a-space direction="vertical" align="center" size="middle">
+      <a-space
+        direction="vertical"
+        align="center"
+        size="middle"
+      >
         <span style="color: #999; font-size: 14px;">
           {{ isEmptyDueToFilter ? '没有匹配的订单，请调整筛选条件' : '还没有订单，创建第一笔订单开始使用吧' }}
         </span>
-        <a-button v-if="!isEmptyDueToFilter" type="primary" size="large" v-permission="'order:center:createorder'" @click="handleCreateOrder">
-          <template #icon><PlusOutlined /></template>
+        <a-button
+          v-if="!isEmptyDueToFilter"
+          v-permission="'order:center:createorder'"
+          type="primary"
+          size="large"
+          @click="handleCreateOrder"
+        >
+          <template #icon>
+            <PlusOutlined />
+          </template>
           新建订单
         </a-button>
-        <a-button v-else size="large" @click="clearAllFilters">
-          <template #icon><ReloadOutlined /></template>
+        <a-button
+          v-else
+          size="large"
+          @click="clearAllFilters"
+        >
+          <template #icon>
+            <ReloadOutlined />
+          </template>
           清除筛选
         </a-button>
       </a-space>
@@ -173,246 +263,394 @@
     <!-- ── 列表内容 ───────────────────────────── -->
     <template #list-view>
       <ErrorBoundary>
-      <!-- 统计卡片（加载中显示骨架，避免旧数据闪烁） -->
-      <a-row :gutter="[16, 16]" class="stat-row">
-        <template v-if="loading && dataSource.length > 0">
-          <a-col :xs="12" :sm="12" :md="6" v-for="n in 4" :key="n">
-            <a-card size="small" class="stat-card">
-              <div class="stat-skeleton-inner">
-                <div class="stat-skeleton-title" />
-                <div class="stat-skeleton-value" />
-              </div>
-            </a-card>
-          </a-col>
-        </template>
-        <template v-else>
-          <a-col :xs="12" :sm="12" :md="6">
-            <div class="stat-card stat-card--primary">
-              <div class="stat-card-icon">
-                <FileTextOutlined />
-              </div>
-              <div class="stat-card-content">
-                <div class="stat-card-title">订单总数</div>
-                <div class="stat-card-value">{{ filteredTotal }}</div>
-              </div>
-            </div>
-          </a-col>
-          <a-col :xs="12" :sm="12" :md="6">
-            <div class="stat-card stat-card--blue">
-              <div class="stat-card-icon">
-                <ShoppingCartOutlined />
-              </div>
-              <div class="stat-card-content">
-                <div class="stat-card-title">采购订单</div>
-                <div class="stat-card-value">{{ purchaseCount }}</div>
-              </div>
-            </div>
-          </a-col>
-          <a-col :xs="12" :sm="12" :md="6">
-            <div class="stat-card stat-card--green">
-              <div class="stat-card-icon">
-                <RocketOutlined />
-              </div>
-              <div class="stat-card-content">
-                <div class="stat-card-title">销售订单</div>
-                <div class="stat-card-value">{{ salesCount }}</div>
-              </div>
-            </div>
-          </a-col>
-          <a-col :xs="12" :sm="12" :md="6">
-            <div class="stat-card stat-card--orange">
-              <div class="stat-card-icon">
-                <ClockCircleOutlined />
-              </div>
-              <div class="stat-card-content">
-                <div class="stat-card-title">待审批</div>
-                <div class="stat-card-value">{{ pendingCount }}</div>
-              </div>
-            </div>
-          </a-col>
-        </template>
-      </a-row>
-
-      <!-- 骨架屏（首次加载） -->
-      <div v-if="loading && dataSource.length === 0" class="skeleton-container">
-        <div class="skeleton-table">
-          <div v-for="n in 6" :key="n" class="skeleton-table-row">
-            <div class="skeleton-cell" style="width: 18%">&nbsp;</div>
-            <div class="skeleton-cell" style="width: 8%">&nbsp;</div>
-            <div class="skeleton-cell" style="width: 16%">&nbsp;</div>
-            <div class="skeleton-cell" style="width: 12%">&nbsp;</div>
-            <div class="skeleton-cell" style="width: 10%">&nbsp;</div>
-            <div class="skeleton-cell" style="width: 16%">&nbsp;</div>
-            <div class="skeleton-cell" style="width: 14%">&nbsp;</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 数据表格 -->
-      <div
-        v-show="!loading || dataSource.length > 0"
-        ref="tableContainerRef"
-        class="table-container"
-      >
-        <BillTableList
-          :columns="displayColumns"
-          :data-source="displayData"
-          row-key="_rowKey"
-          :pagination="false as any"
-          :loading="loading"
-          :show-toolbar="false"
-          :selectable="false"
-          :show-add="false"
-          :show-search="false"
-          :show-export="false"
-          :show-batch-delete="false"
-          @cell-dblclick="handleView"
+        <!-- 统计卡片（加载中显示骨架，避免旧数据闪烁） -->
+        <a-row
+          :gutter="[16, 16]"
+          class="stat-row"
         >
-          <template #orderTypeCell="{ record }">
-            <a-tag :color="record.orderType === 'purchase' ? 'blue' : 'green'" class="type-tag">
-              {{ record.orderType === 'purchase' ? '采购' : '销售' }}
-            </a-tag>
+          <template v-if="loading && dataSource.length > 0">
+            <a-col
+              v-for="n in 4"
+              :key="n"
+              :xs="12"
+              :sm="12"
+              :md="6"
+            >
+              <a-card
+                size="small"
+                class="stat-card"
+              >
+                <div class="stat-skeleton-inner">
+                  <div class="stat-skeleton-title" />
+                  <div class="stat-skeleton-value" />
+                </div>
+              </a-card>
+            </a-col>
           </template>
-
-          <template #orderStatusCell="{ record }">
-            <span class="status-badge">
-              <span
-                class="status-dot"
-                :style="{ backgroundColor: STATUS_COLORS[record.orderStatus] || '#999' }"
-              />
-              <span>{{ getStatusText(record.orderStatus) }}</span>
-            </span>
+          <template v-else>
+            <a-col
+              :xs="12"
+              :sm="12"
+              :md="6"
+            >
+              <div class="stat-card stat-card--primary">
+                <div class="stat-card-icon">
+                  <FileTextOutlined />
+                </div>
+                <div class="stat-card-content">
+                  <div class="stat-card-title">
+                    订单总数
+                  </div>
+                  <div class="stat-card-value">
+                    {{ filteredTotal }}
+                  </div>
+                </div>
+              </div>
+            </a-col>
+            <a-col
+              :xs="12"
+              :sm="12"
+              :md="6"
+            >
+              <div class="stat-card stat-card--blue">
+                <div class="stat-card-icon">
+                  <ShoppingCartOutlined />
+                </div>
+                <div class="stat-card-content">
+                  <div class="stat-card-title">
+                    采购订单
+                  </div>
+                  <div class="stat-card-value">
+                    {{ purchaseCount }}
+                  </div>
+                </div>
+              </div>
+            </a-col>
+            <a-col
+              :xs="12"
+              :sm="12"
+              :md="6"
+            >
+              <div class="stat-card stat-card--green">
+                <div class="stat-card-icon">
+                  <RocketOutlined />
+                </div>
+                <div class="stat-card-content">
+                  <div class="stat-card-title">
+                    销售订单
+                  </div>
+                  <div class="stat-card-value">
+                    {{ salesCount }}
+                  </div>
+                </div>
+              </div>
+            </a-col>
+            <a-col
+              :xs="12"
+              :sm="12"
+              :md="6"
+            >
+              <div class="stat-card stat-card--orange">
+                <div class="stat-card-icon">
+                  <ClockCircleOutlined />
+                </div>
+                <div class="stat-card-content">
+                  <div class="stat-card-title">
+                    待审批
+                  </div>
+                  <div class="stat-card-value">
+                    {{ pendingCount }}
+                  </div>
+                </div>
+              </div>
+            </a-col>
           </template>
+        </a-row>
 
-          <template #totalAmountCell="{ record }">
-            <span class="currency-value">
-              ¥{{ (record.totalAmount || 0).toFixed(2) }}
-            </span>
-          </template>
-
-          <template #partyNameCell="{ record }">
-            <span class="party-name" :title="record.customerName || record.supplierName || '-'">
-              {{ record.customerName || record.supplierName || '-' }}
-            </span>
-          </template>
-
-          <template #action="{ record }">
-            <a-space :size="0" class="action-cell">
-              <a-tooltip title="查看详情">
-                <a-button type="link" size="small" class="action-btn" v-permission="'order:center:view'" @click="handleView(record)">
-                  <template #icon><EyeOutlined /></template>
-                </a-button>
-              </a-tooltip>
-
-              <a-divider type="vertical" class="action-divider" />
-
-              <a-tooltip title="复制订单号">
-                <a-button type="link" size="small" class="action-btn" v-permission="'order:center:copyorderno'" @click="handleCopyOrderNo(record)">
-                  <template #icon><CopyOutlined /></template>
-                </a-button>
-              </a-tooltip>
-
-              <a-divider type="vertical" class="action-divider" />
-
-              <PrintButton
-                :record="record"
-                :business-id="record.id"
-                :business-type="record.orderType === 'purchase' ? 'purchase_order' : 'sale_order'"
-                button-type="link"
-                button-size="small"
-                tooltip="打印"
-              />
-
-              <template v-if="record.orderStatus === 0">
-                <a-divider type="vertical" class="action-divider" />
-                <a-tooltip title="提交审批">
-                  <a-button type="link" size="small" class="action-btn action-btn--submit" v-permission="'order:center:quicksubmit'" @click="handleQuickSubmit(record)">
-                    提交
-                  </a-button>
-                </a-tooltip>
-              </template>
-
-              <template v-else-if="record.orderStatus === 1">
-                <a-divider type="vertical" class="action-divider" />
-                <a-tooltip title="审批通过">
-                  <a-button type="link" size="small" class="action-btn action-btn--approve" v-permission="'order:center:quickapprove'" @click="handleQuickApprove(record)">
-                    审批
-                  </a-button>
-                </a-tooltip>
-              </template>
-
-              <template v-else-if="record.orderStatus === 2 || record.orderStatus === 4">
-                <a-divider type="vertical" class="action-divider" />
-                <a-tooltip title="取消订单">
-                  <a-button type="link" size="small" class="action-btn action-btn--cancel" v-permission="'order:center:quickcancel'" @click="handleQuickCancel(record)">
-                    取消
-                  </a-button>
-                </a-tooltip>
-              </template>
-            </a-space>
-          </template>
-        </BillTableList>
-
-        <!-- 分页 -->
-        <div class="pagination-wrapper">
-          <a-pagination
-            v-model:current="pagination.current"
-            :page-size="pagination.pageSize"
-            :total="filteredTotal"
-            :page-size-options="['10', '20', '50', '100']"
-            show-size-changer
-            show-quick-jumper
-            :show-total="(total: number) => `共 ${total} 条`"
-            @change="handlePageChange"
-          />
+        <!-- 骨架屏（首次加载） -->
+        <div
+          v-if="loading && dataSource.length === 0"
+          class="skeleton-container"
+        >
+          <div class="skeleton-table">
+            <div
+              v-for="n in 6"
+              :key="n"
+              class="skeleton-table-row"
+            >
+              <div
+                class="skeleton-cell"
+                style="width: 18%"
+              >
+&nbsp;
+              </div>
+              <div
+                class="skeleton-cell"
+                style="width: 8%"
+              >
+&nbsp;
+              </div>
+              <div
+                class="skeleton-cell"
+                style="width: 16%"
+              >
+&nbsp;
+              </div>
+              <div
+                class="skeleton-cell"
+                style="width: 12%"
+              >
+&nbsp;
+              </div>
+              <div
+                class="skeleton-cell"
+                style="width: 10%"
+              >
+&nbsp;
+              </div>
+              <div
+                class="skeleton-cell"
+                style="width: 16%"
+              >
+&nbsp;
+              </div>
+              <div
+                class="skeleton-cell"
+                style="width: 14%"
+              >
+&nbsp;
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
 
-  <!-- 新建订单类型选择 -->
-  <a-modal
-    v-model:open="createTypeModalVisible"
-    title="选择订单类型"
-    :footer="null"
-    :closable="true"
-    width="400px"
-    centered
-  >
-    <div class="create-order-picker">
-      <a-card
-        hoverable
-        class="create-type-card"
-        @click="navigateToCreate('purchase')"
-      >
-        <template #cover>
-          <div class="create-type-icon create-type-icon--purchase">
-            <ImportOutlined />
-          </div>
-        </template>
-        <a-card-meta title="采购订单">
-          <template #description>向供应商采购货物</template>
-        </a-card-meta>
-      </a-card>
-      <a-card
-        hoverable
-        class="create-type-card"
-        @click="navigateToCreate('sales')"
-      >
-        <template #cover>
-          <div class="create-type-icon create-type-icon--sales">
-            <ExportOutlined />
-          </div>
-        </template>
-        <a-card-meta title="销售订单">
-          <template #description>向客户销售货物</template>
-        </a-card-meta>
-      </a-card>
-    </div>
-  </a-modal>
+        <!-- 数据表格 -->
+        <div
+          v-show="!loading || dataSource.length > 0"
+          ref="tableContainerRef"
+          class="table-container"
+        >
+          <BillTableList
+            :columns="displayColumns"
+            :data-source="displayData"
+            row-key="_rowKey"
+            :pagination="false as any"
+            :loading="loading"
+            :show-toolbar="false"
+            :selectable="false"
+            :show-add="false"
+            :show-search="false"
+            :show-export="false"
+            :show-batch-delete="false"
+            @cell-dblclick="handleView"
+          >
+            <template #orderTypeCell="{ record }">
+              <a-tag
+                :color="record.orderType === 'purchase' ? 'blue' : 'green'"
+                class="type-tag"
+              >
+                {{ record.orderType === 'purchase' ? '采购' : '销售' }}
+              </a-tag>
+            </template>
 
-  <!-- 回到顶部 -->
-  <a-back-top :visibility-height="400" />
-  </ErrorBoundary>
-  </template>
+            <template #orderStatusCell="{ record }">
+              <span class="status-badge">
+                <span
+                  class="status-dot"
+                  :style="{ backgroundColor: STATUS_COLORS[record.orderStatus] || '#999' }"
+                />
+                <span>{{ getStatusText(record.orderStatus) }}</span>
+              </span>
+            </template>
+
+            <template #totalAmountCell="{ record }">
+              <span class="currency-value">
+                ¥{{ (record.totalAmount || 0).toFixed(2) }}
+              </span>
+            </template>
+
+            <template #partyNameCell="{ record }">
+              <span
+                class="party-name"
+                :title="record.customerName || record.supplierName || '-'"
+              >
+                {{ record.customerName || record.supplierName || '-' }}
+              </span>
+            </template>
+
+            <template #action="{ record }">
+              <a-space
+                :size="0"
+                class="action-cell"
+              >
+                <a-tooltip title="查看详情">
+                  <a-button
+                    v-permission="'order:center:view'"
+                    type="link"
+                    size="small"
+                    class="action-btn"
+                    @click="handleView(record)"
+                  >
+                    <template #icon>
+                      <EyeOutlined />
+                    </template>
+                  </a-button>
+                </a-tooltip>
+
+                <a-divider
+                  type="vertical"
+                  class="action-divider"
+                />
+
+                <a-tooltip title="复制订单号">
+                  <a-button
+                    v-permission="'order:center:copyorderno'"
+                    type="link"
+                    size="small"
+                    class="action-btn"
+                    @click="handleCopyOrderNo(record)"
+                  >
+                    <template #icon>
+                      <CopyOutlined />
+                    </template>
+                  </a-button>
+                </a-tooltip>
+
+                <a-divider
+                  type="vertical"
+                  class="action-divider"
+                />
+
+                <PrintButton
+                  :record="record"
+                  :business-id="record.id"
+                  :business-type="record.orderType === 'purchase' ? 'purchase_order' : 'sale_order'"
+                  button-type="link"
+                  button-size="small"
+                  tooltip="打印"
+                />
+
+                <template v-if="record.orderStatus === 0">
+                  <a-divider
+                    type="vertical"
+                    class="action-divider"
+                  />
+                  <a-tooltip title="提交审批">
+                    <a-button
+                      v-permission="'order:center:quicksubmit'"
+                      type="link"
+                      size="small"
+                      class="action-btn action-btn--submit"
+                      @click="handleQuickSubmit(record)"
+                    >
+                      提交
+                    </a-button>
+                  </a-tooltip>
+                </template>
+
+                <template v-else-if="record.orderStatus === 1">
+                  <a-divider
+                    type="vertical"
+                    class="action-divider"
+                  />
+                  <a-tooltip title="审批通过">
+                    <a-button
+                      v-permission="'order:center:quickapprove'"
+                      type="link"
+                      size="small"
+                      class="action-btn action-btn--approve"
+                      @click="handleQuickApprove(record)"
+                    >
+                      审批
+                    </a-button>
+                  </a-tooltip>
+                </template>
+
+                <template v-else-if="record.orderStatus === 2 || record.orderStatus === 4">
+                  <a-divider
+                    type="vertical"
+                    class="action-divider"
+                  />
+                  <a-tooltip title="取消订单">
+                    <a-button
+                      v-permission="'order:center:quickcancel'"
+                      type="link"
+                      size="small"
+                      class="action-btn action-btn--cancel"
+                      @click="handleQuickCancel(record)"
+                    >
+                      取消
+                    </a-button>
+                  </a-tooltip>
+                </template>
+              </a-space>
+            </template>
+          </BillTableList>
+
+          <!-- 分页 -->
+          <div class="pagination-wrapper">
+            <a-pagination
+              v-model:current="pagination.current"
+              :page-size="pagination.pageSize"
+              :total="filteredTotal"
+              :page-size-options="['10', '20', '50', '100']"
+              show-size-changer
+              show-quick-jumper
+              :show-total="(total: number) => `共 ${total} 条`"
+              @change="handlePageChange"
+            />
+          </div>
+        </div>
+
+        <!-- 新建订单类型选择 -->
+        <a-modal
+          v-model:open="createTypeModalVisible"
+          title="选择订单类型"
+          :footer="null"
+          :closable="true"
+          width="400px"
+          centered
+        >
+          <div class="create-order-picker">
+            <a-card
+              hoverable
+              class="create-type-card"
+              @click="navigateToCreate('purchase')"
+            >
+              <template #cover>
+                <div class="create-type-icon create-type-icon--purchase">
+                  <ImportOutlined />
+                </div>
+              </template>
+              <a-card-meta title="采购订单">
+                <template #description>
+                  向供应商采购货物
+                </template>
+              </a-card-meta>
+            </a-card>
+            <a-card
+              hoverable
+              class="create-type-card"
+              @click="navigateToCreate('sales')"
+            >
+              <template #cover>
+                <div class="create-type-icon create-type-icon--sales">
+                  <ExportOutlined />
+                </div>
+              </template>
+              <a-card-meta title="销售订单">
+                <template #description>
+                  向客户销售货物
+                </template>
+              </a-card-meta>
+            </a-card>
+          </div>
+        </a-modal>
+
+        <!-- 回到顶部 -->
+        <a-back-top :visibility-height="400" />
+      </ErrorBoundary>
+    </template>
   </PageContainer>
 </template>
 
@@ -1249,7 +1487,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  ;(window as any).removeEventListener('order-center:create', handleParentCreate)
+  (window as any).removeEventListener('order-center:create', handleParentCreate)
   ;(window as any).removeEventListener('order-center:refresh', _onRefresh)
   document.removeEventListener('keydown', handleKeydown)
   if (resizeObserver) resizeObserver.disconnect()

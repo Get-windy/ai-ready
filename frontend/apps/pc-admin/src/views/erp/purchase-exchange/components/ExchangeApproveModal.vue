@@ -6,30 +6,73 @@
     @close="handleCancel"
     @save="handleSubmit"
   >
-    <div v-if="record" class="approve-info">
-      <a-descriptions :column="2" bordered>
-        <a-descriptions-item label="换货单号">{{ record.exchangeNo }}</a-descriptions-item>
-        <a-descriptions-item label="原采购订单">{{ record.originalOrderNo }}</a-descriptions-item>
-        <a-descriptions-item label="供应商">{{ record.supplierName }}</a-descriptions-item>
-        <a-descriptions-item label="换货日期">{{ record.exchangeDate }}</a-descriptions-item>
-        <a-descriptions-item label="换货类型">{{ getExchangeTypeText(record.exchangeType) }}</a-descriptions-item>
-        <a-descriptions-item label="换货金额">¥{{ record.totalAmount?.toFixed(2) }}</a-descriptions-item>
-        <a-descriptions-item label="换货原因" :span="2">{{ record.exchangeReason }}</a-descriptions-item>
-        <a-descriptions-item label="备注" :span="2">{{ record.remark || '-' }}</a-descriptions-item>
+    <div
+      v-if="record"
+      class="approve-info"
+    >
+      <a-descriptions
+        :column="2"
+        bordered
+      >
+        <a-descriptions-item label="换货单号">
+          {{ record.exchangeNo }}
+        </a-descriptions-item>
+        <a-descriptions-item label="原采购订单">
+          {{ record.originalOrderNo }}
+        </a-descriptions-item>
+        <a-descriptions-item label="供应商">
+          {{ record.supplierName }}
+        </a-descriptions-item>
+        <a-descriptions-item label="换货日期">
+          {{ record.exchangeDate }}
+        </a-descriptions-item>
+        <a-descriptions-item label="换货类型">
+          {{ getExchangeTypeText(record.exchangeType) }}
+        </a-descriptions-item>
+        <a-descriptions-item label="换货金额">
+          ¥{{ record.totalAmount?.toFixed(2) }}
+        </a-descriptions-item>
+        <a-descriptions-item
+          label="换货原因"
+          :span="2"
+        >
+          {{ record.exchangeReason }}
+        </a-descriptions-item>
+        <a-descriptions-item
+          label="备注"
+          :span="2"
+        >
+          {{ record.remark || '-' }}
+        </a-descriptions-item>
       </a-descriptions>
     </div>
 
     <a-divider />
 
-    <a-form ref="formRef" :model="formData" :rules="formRules" layout="vertical">
-      <a-form-item label="审批结果" name="approved">
+    <a-form
+      ref="formRef"
+      :model="formData"
+      :rules="formRules"
+      layout="vertical"
+    >
+      <a-form-item
+        label="审批结果"
+        name="approved"
+      >
         <a-radio-group v-model:value="formData.approved">
-          <a-radio :value="true">通过</a-radio>
-          <a-radio :value="false">拒绝</a-radio>
+          <a-radio :value="true">
+            通过
+          </a-radio>
+          <a-radio :value="false">
+            拒绝
+          </a-radio>
         </a-radio-group>
       </a-form-item>
 
-      <a-form-item label="审批意见" name="remark">
+      <a-form-item
+        label="审批意见"
+        name="remark"
+      >
         <a-textarea
           v-model:value="formData.remark"
           :rows="4"

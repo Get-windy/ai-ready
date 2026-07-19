@@ -7,51 +7,117 @@
     @close="emit('update:open', false)"
   >
     <!-- 加载中 -->
-    <div v-if="loading" style="text-align: center; padding: 60px 0">
+    <div
+      v-if="loading"
+      style="text-align: center; padding: 60px 0"
+    >
       <a-spin />
     </div>
 
     <template v-else>
       <div style="text-align: right; margin-bottom: 12px;">
-        <PrintButton :business-id="Number(props.serialId)" business-type="SERIAL" button-size="small" />
+        <PrintButton
+          :business-id="Number(props.serialId)"
+          business-type="SERIAL"
+          button-size="small"
+        />
       </div>
       <!-- 基本信息 -->
-      <a-card title="基本信息" class="detail-card" :bordered="false">
-        <a-descriptions :column="2" size="small" bordered>
-          <a-descriptions-item label="序列号" :span="2">
-            <a-typography-text strong>{{ detail.serialNo }}</a-typography-text>
+      <a-card
+        title="基本信息"
+        class="detail-card"
+        :bordered="false"
+      >
+        <a-descriptions
+          :column="2"
+          size="small"
+          bordered
+        >
+          <a-descriptions-item
+            label="序列号"
+            :span="2"
+          >
+            <a-typography-text strong>
+              {{ detail.serialNo }}
+            </a-typography-text>
           </a-descriptions-item>
-          <a-descriptions-item label="产品编码">{{ detail.productCode }}</a-descriptions-item>
-          <a-descriptions-item label="产品名称">{{ detail.productName }}</a-descriptions-item>
-          <a-descriptions-item label="规格型号">{{ detail.specification || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="制造商">{{ detail.manufacturer || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="批次号">{{ detail.batchNo || '-' }}</a-descriptions-item>
+          <a-descriptions-item label="产品编码">
+            {{ detail.productCode }}
+          </a-descriptions-item>
+          <a-descriptions-item label="产品名称">
+            {{ detail.productName }}
+          </a-descriptions-item>
+          <a-descriptions-item label="规格型号">
+            {{ detail.specification || '-' }}
+          </a-descriptions-item>
+          <a-descriptions-item label="制造商">
+            {{ detail.manufacturer || '-' }}
+          </a-descriptions-item>
+          <a-descriptions-item label="批次号">
+            {{ detail.batchNo || '-' }}
+          </a-descriptions-item>
           <a-descriptions-item label="当前状态">
-            <a-tag :color="statusColor(detail.snStatus)">{{ statusLabel(detail.snStatus) }}</a-tag>
+            <a-tag :color="statusColor(detail.snStatus)">
+              {{ statusLabel(detail.snStatus) }}
+            </a-tag>
           </a-descriptions-item>
           <a-descriptions-item label="当前阶段">
-            <a-tag :color="stageColor(detail.snStage)">{{ stageLabel(detail.snStage) }}</a-tag>
+            <a-tag :color="stageColor(detail.snStage)">
+              {{ stageLabel(detail.snStage) }}
+            </a-tag>
           </a-descriptions-item>
-          <a-descriptions-item label="所在仓库">{{ detail.warehouseName || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="生产日期">{{ detail.manufacturingDate || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="创建时间">{{ detail.createdAt || '-' }}</a-descriptions-item>
+          <a-descriptions-item label="所在仓库">
+            {{ detail.warehouseName || '-' }}
+          </a-descriptions-item>
+          <a-descriptions-item label="生产日期">
+            {{ detail.manufacturingDate || '-' }}
+          </a-descriptions-item>
+          <a-descriptions-item label="创建时间">
+            {{ detail.createdAt || '-' }}
+          </a-descriptions-item>
         </a-descriptions>
       </a-card>
 
       <!-- 质保信息 -->
-      <a-card title="质保信息" class="detail-card" :bordered="false">
-        <a-descriptions :column="2" size="small" bordered>
+      <a-card
+        title="质保信息"
+        class="detail-card"
+        :bordered="false"
+      >
+        <a-descriptions
+          :column="2"
+          size="small"
+          bordered
+        >
           <a-descriptions-item label="质保期限">
             {{ detail.warrantyPeriod ? detail.warrantyPeriod + ' 个月' : '-' }}
           </a-descriptions-item>
-          <a-descriptions-item label="质保起始日">{{ detail.warrantyStartDate || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="质保到期日" :span="2">
-            <span v-if="detail.warrantyEndDate" :style="warrantyWarningStyle(detail.warrantyEndDate)">
+          <a-descriptions-item label="质保起始日">
+            {{ detail.warrantyStartDate || '-' }}
+          </a-descriptions-item>
+          <a-descriptions-item
+            label="质保到期日"
+            :span="2"
+          >
+            <span
+              v-if="detail.warrantyEndDate"
+              :style="warrantyWarningStyle(detail.warrantyEndDate)"
+            >
               {{ detail.warrantyEndDate }}
-              <a-tag v-if="isExpiringSoon(detail.warrantyEndDate)" color="red" size="small" style="margin-left: 8px">
+              <a-tag
+                v-if="isExpiringSoon(detail.warrantyEndDate)"
+                color="red"
+                size="small"
+                style="margin-left: 8px"
+              >
                 即将到期
               </a-tag>
-              <a-tag v-else-if="isExpired(detail.warrantyEndDate)" color="gray" size="small" style="margin-left: 8px">
+              <a-tag
+                v-else-if="isExpired(detail.warrantyEndDate)"
+                color="gray"
+                size="small"
+                style="margin-left: 8px"
+              >
                 已过期
               </a-tag>
             </span>
@@ -61,17 +127,38 @@
       </a-card>
 
       <!-- 关联订单 -->
-      <a-card title="关联信息" class="detail-card" :bordered="false">
-        <a-descriptions :column="2" size="small" bordered>
-          <a-descriptions-item label="销售单号">{{ detail.saleOrderNo || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="客户名称">{{ detail.customerName || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="客户编号">{{ detail.customerId || '-' }}</a-descriptions-item>
+      <a-card
+        title="关联信息"
+        class="detail-card"
+        :bordered="false"
+      >
+        <a-descriptions
+          :column="2"
+          size="small"
+          bordered
+        >
+          <a-descriptions-item label="销售单号">
+            {{ detail.saleOrderNo || '-' }}
+          </a-descriptions-item>
+          <a-descriptions-item label="客户名称">
+            {{ detail.customerName || '-' }}
+          </a-descriptions-item>
+          <a-descriptions-item label="客户编号">
+            {{ detail.customerId || '-' }}
+          </a-descriptions-item>
         </a-descriptions>
       </a-card>
 
       <!-- 全生命周期时间线 -->
-      <a-card title="生命周期追溯" class="detail-card" :bordered="false">
-        <div v-if="historyList.length === 0" style="text-align: center; padding: 24px 0">
+      <a-card
+        title="生命周期追溯"
+        class="detail-card"
+        :bordered="false"
+      >
+        <div
+          v-if="historyList.length === 0"
+          style="text-align: center; padding: 24px 0"
+        >
           <a-empty description="暂无历史记录" />
         </div>
         <a-timeline v-else>
@@ -81,17 +168,31 @@
             :color="item.color"
           >
             <template #dot>
-              <component :is="item.icon" v-if="item.icon" />
+              <component
+                :is="item.icon"
+                v-if="item.icon"
+              />
             </template>
             <div class="timeline-item">
               <div class="timeline-item__header">
-                <a-tag :color="item.tagColor" size="small">{{ item.title }}</a-tag>
+                <a-tag
+                  :color="item.tagColor"
+                  size="small"
+                >
+                  {{ item.title }}
+                </a-tag>
                 <span class="timeline-item__time">{{ item.time }}</span>
               </div>
-              <div v-if="item.description" class="timeline-item__desc">
+              <div
+                v-if="item.description"
+                class="timeline-item__desc"
+              >
                 {{ item.description }}
               </div>
-              <div v-if="item.extra" class="timeline-item__extra">
+              <div
+                v-if="item.extra"
+                class="timeline-item__extra"
+              >
                 {{ item.extra }}
               </div>
             </div>

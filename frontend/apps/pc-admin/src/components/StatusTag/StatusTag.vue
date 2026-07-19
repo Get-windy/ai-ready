@@ -1,5 +1,7 @@
 <template>
-  <a-tag :color="color">{{ text }}</a-tag>
+  <a-tag :color="color">
+    {{ text }}
+  </a-tag>
 </template>
 
 <script setup lang="ts">

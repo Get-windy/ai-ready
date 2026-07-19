@@ -1,253 +1,430 @@
 <template>
-  <PageContainer title="客户管理" full-height>
+  <PageContainer
+    title="客户管理"
+    full-height
+  >
     <template #headerExtra>
       <a-space :size="12">
         <span class="data-status">
           <a-badge :status="loading ? 'processing' : hasError ? 'error' : 'success'" />
-          <span v-if="lastUpdateTime" class="update-time">
+          <span
+            v-if="lastUpdateTime"
+            class="update-time"
+          >
             数据更新: {{ lastUpdateTime }}
           </span>
         </span>
-        <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+        <span
+          v-if="autoRefreshCountdown > 0"
+          class="auto-refresh-badge"
+        >
           <SyncOutlined /> {{ autoRefreshCountdown }}s
         </span>
-        <a-radio-group v-model:value="currentView" button-style="solid" size="small">
-          <a-radio-button value="list"><UnorderedListOutlined /> 列表</a-radio-button>
-          <a-radio-button value="kanban"><AppstoreOutlined /> 看板</a-radio-button>
+        <a-radio-group
+          v-model:value="currentView"
+          button-style="solid"
+          size="small"
+        >
+          <a-radio-button value="list">
+            <UnorderedListOutlined /> 列表
+          </a-radio-button>
+          <a-radio-button value="kanban">
+            <AppstoreOutlined /> 看板
+          </a-radio-button>
         </a-radio-group>
-        <a-button size="small" :loading="refreshLoading" v-permission="'crm:customer:refresh'" @click="debounceClick('refresh', handleRefresh)">
-          <template #icon><ReloadOutlined /></template>
+        <a-button
+          v-permission="'crm:customer:refresh'"
+          size="small"
+          :loading="refreshLoading"
+          @click="debounceClick('refresh', handleRefresh)"
+        >
+          <template #icon>
+            <ReloadOutlined />
+          </template>
           刷新
         </a-button>
-<span class="shortcut-hints">
-                                              <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
-                                              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-                                            </span>
+        <span class="shortcut-hints">
+          <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+          <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+        </span>
       </a-space>
     </template>
 
     <ErrorBoundary @reset="fetchData">
       <!-- 骨架加载 -->
-      <div v-if="loading && dataSource.length === 0" class="skeleton-loading">
-        <a-skeleton :paragraph="{ rows: 3 }" active />
+      <div
+        v-if="loading && dataSource.length === 0"
+        class="skeleton-loading"
+      >
+        <a-skeleton
+          :paragraph="{ rows: 3 }"
+          active
+        />
         <div style="height: 16px" />
-        <a-skeleton :paragraph="{ rows: 8 }" active />
+        <a-skeleton
+          :paragraph="{ rows: 8 }"
+          active
+        />
       </div>
 
       <!-- 列表视图 -->
       <template v-if="!(loading && dataSource.length === 0)">
-      <template v-if="currentView === 'list'">
-        <!-- 统计卡片 -->
-        <div class="stats-cards">
-          <a-row :gutter="16">
-            <a-col :span="6">
-              <div class="stat-card stat-card-purple">
-                <div class="stat-icon" style="background: linear-gradient(135deg, #ff4d4f 0%, #f5222d 100%);">
-                  <CrownOutlined />
+        <template v-if="currentView === 'list'">
+          <!-- 统计卡片 -->
+          <div class="stats-cards">
+            <a-row :gutter="16">
+              <a-col :span="6">
+                <div class="stat-card stat-card-purple">
+                  <div
+                    class="stat-icon"
+                    style="background: linear-gradient(135deg, #ff4d4f 0%, #f5222d 100%);"
+                  >
+                    <CrownOutlined />
+                  </div>
+                  <div class="stat-content">
+                    <div class="stat-title">
+                      VIP客户
+                    </div>
+                    <div class="stat-value">
+                      {{ levelCounts.vip }}
+                    </div>
+                    <div class="stat-desc">
+                      核心客户群
+                    </div>
+                  </div>
                 </div>
-                <div class="stat-content">
-                  <div class="stat-title">VIP客户</div>
-                  <div class="stat-value">{{ levelCounts.vip }}</div>
-                  <div class="stat-desc">核心客户群</div>
+              </a-col>
+              <a-col :span="6">
+                <div class="stat-card stat-card-orange">
+                  <div
+                    class="stat-icon"
+                    style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);"
+                  >
+                    <StarOutlined />
+                  </div>
+                  <div class="stat-content">
+                    <div class="stat-title">
+                      重要客户
+                    </div>
+                    <div class="stat-value">
+                      {{ levelCounts.important }}
+                    </div>
+                    <div class="stat-desc">
+                      重点跟进
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </a-col>
-            <a-col :span="6">
-              <div class="stat-card stat-card-orange">
-                <div class="stat-icon" style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);">
-                  <StarOutlined />
+              </a-col>
+              <a-col :span="6">
+                <div class="stat-card stat-card-blue">
+                  <div
+                    class="stat-icon"
+                    style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);"
+                  >
+                    <UserOutlined />
+                  </div>
+                  <div class="stat-content">
+                    <div class="stat-title">
+                      普通客户
+                    </div>
+                    <div class="stat-value">
+                      {{ levelCounts.normal }}
+                    </div>
+                    <div class="stat-desc">
+                      稳定合作
+                    </div>
+                  </div>
                 </div>
-                <div class="stat-content">
-                  <div class="stat-title">重要客户</div>
-                  <div class="stat-value">{{ levelCounts.important }}</div>
-                  <div class="stat-desc">重点跟进</div>
+              </a-col>
+              <a-col :span="6">
+                <div class="stat-card stat-card-green">
+                  <div
+                    class="stat-icon"
+                    style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);"
+                  >
+                    <UsergroupAddOutlined />
+                  </div>
+                  <div class="stat-content">
+                    <div class="stat-title">
+                      潜在客户
+                    </div>
+                    <div class="stat-value">
+                      {{ levelCounts.potential }}
+                    </div>
+                    <div class="stat-desc">
+                      待开发
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </a-col>
-            <a-col :span="6">
-              <div class="stat-card stat-card-blue">
-                <div class="stat-icon" style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);">
-                  <UserOutlined />
-                </div>
-                <div class="stat-content">
-                  <div class="stat-title">普通客户</div>
-                  <div class="stat-value">{{ levelCounts.normal }}</div>
-                  <div class="stat-desc">稳定合作</div>
-                </div>
-              </div>
-            </a-col>
-            <a-col :span="6">
-              <div class="stat-card stat-card-green">
-                <div class="stat-icon" style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);">
-                  <UsergroupAddOutlined />
-                </div>
-                <div class="stat-content">
-                  <div class="stat-title">潜在客户</div>
-                  <div class="stat-value">{{ levelCounts.potential }}</div>
-                  <div class="stat-desc">待开发</div>
-                </div>
-              </div>
-            </a-col>
-          </a-row>
-        </div>
+              </a-col>
+            </a-row>
+          </div>
 
-        <BillTableList
-          ref="tableRef"
-          :columns="vxeColumns"
-          :data-source="tableDataSource"
-          :loading="loading"
-          :pagination="pagination"
-          :filter-fields="filterFields"
-          :show-export="true"
-          :selectable="true"
-          :min-empty-rows="12"
-          add-text="新增客户"
-          @add="handleAdd"
-          @refresh="fetchData"
-          @search="handleSearch"
-          @page-change="handlePageChange"
-          @filter-change="handleFilterChange"
-          @selection-change="handleSelectionChange"
-          @cell-dblclick="handleView"
-          @export="handleExport"
-        >
-          <template #toolbar-actions>
-            <a-button size="small" v-permission="'crm:customer:import'" @click="handleImport">
-              <template #icon><ImportOutlined /></template>
-              导入
-            </a-button>
-          </template>
-
-          <template #batch-actions>
-            <a-button size="small" type="primary" ghost v-permission="'crm:customer:batchassign'" @click="handleBatchAssign">
-              <template #icon><TeamOutlined /></template>
-              批量分配
-            </a-button>
-          </template>
-
-          <template #empty>
-            <div class="table-empty">
-              <template v-if="hasError">
-                <WarningOutlined class="table-empty-icon" style="color: #faad14" />
-                <p class="table-empty-text">数据加载失败，请重试</p>
-                <a-button type="primary" size="small" @click="fetchData as any">
-                  <template #icon><ReloadOutlined /></template>
-                  重试
-                </a-button>
-              </template>
-              <template v-else>
-                <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-                <InboxOutlined v-else class="table-empty-icon" />
-                <p v-if="hasActiveFilters" class="table-empty-text">
-                  没有符合条件的客户，<a @click="handleResetFilters">清除筛选</a>
-                </p>
-                <p v-else class="table-empty-text">
-                  暂无客户数据
-                </p>
-                <div v-if="!hasActiveFilters" class="empty-state-wrapper">
-                  <a-button type="primary" v-permission="'crm:customer:create'" @click="handleAdd">
-                    <template #icon><PlusOutlined /></template>
-                    新增第一个客户
-                  </a-button>
-                </div>
-              </template>
-            </div>
-          </template>
-
-          <template #action="{ record }">
-            <a-space :size="4">
-              <a-tooltip title="查看详情">
-                <a-button type="link" size="small" v-permission="'crm:customer:view'" @click="handleView(record)">
-                  <template #icon><EyeOutlined /></template>
-                </a-button>
-              </a-tooltip>
-              <a-tooltip title="编辑">
-                <a-button type="link" size="small" v-permission="'crm:customer:edit'" @click="handleEdit(record)">
-                  <template #icon><EditOutlined /></template>
-                </a-button>
-              </a-tooltip>
-              <a-tooltip title="跟进">
-                <a-button type="link" size="small" v-permission="'crm:customer:follow'" @click="handleFollow(record)">
-                  <template #icon><MessageOutlined /></template>
-                </a-button>
-              </a-tooltip>
-              <a-dropdown trigger="click">
-                <a-button type="link" size="small" class="action-more-btn">
-                  <template #icon><MoreOutlined /></template>
-                </a-button>
-                <template #overlay>
-                  <a-menu @click="({ key }) => handleActionMenuClick(key as string, record)">
-                    <a-menu-item key="follows"><HistoryOutlined /> 跟进记录</a-menu-item>
-                    <a-menu-item key="orders"><FileTextOutlined /> 订单记录</a-menu-item>
-                    <a-menu-item key="contracts"><SolutionOutlined /> 合同记录</a-menu-item>
-                    <a-menu-divider />
-                    <a-menu-item key="delete" danger><DeleteOutlined /> 删除</a-menu-item>
-                  </a-menu>
-                </template>
-              </a-dropdown>
-            </a-space>
-          </template>
-        </BillTableList>
-      </template>
-
-      <!-- 看板视图 -->
-      <template v-if="currentView === 'kanban'">
-        <div class="kanban-container">
-          <div v-for="level in levelGroups" :key="level.value" class="kanban-column">
-            <div class="kanban-column-header">
-              <span class="kanban-column-title">
-                <a-tag :color="getLevelColor(level.value)" size="small">{{ level.label }}</a-tag>
-              </span>
-              <span class="kanban-column-count">{{ getCustomersByLevel(level.value).length }} 个</span>
-              <a-button type="link" size="small" v-permission="'crm:customer:addtolevel'" @click="handleAddToLevel(level.value)">
-                <template #icon><PlusOutlined /></template>
-              </a-button>
-            </div>
-            <div class="kanban-column-body">
-              <div
-                v-for="customer in getCustomersByLevel(level.value)"
-                :key="customer.id"
-                class="kanban-card"
-                @click="handleView(customer)"
+          <BillTableList
+            ref="tableRef"
+            :columns="vxeColumns"
+            :data-source="tableDataSource"
+            :loading="loading"
+            :pagination="pagination"
+            :filter-fields="filterFields"
+            :show-export="true"
+            :selectable="true"
+            :min-empty-rows="12"
+            add-text="新增客户"
+            @add="handleAdd"
+            @refresh="fetchData"
+            @search="handleSearch"
+            @page-change="handlePageChange"
+            @filter-change="handleFilterChange"
+            @selection-change="handleSelectionChange"
+            @cell-dblclick="handleView"
+            @export="handleExport"
+          >
+            <template #toolbar-actions>
+              <a-button
+                v-permission="'crm:customer:import'"
+                size="small"
+                @click="handleImport"
               >
-                <div class="kanban-card-header">
-                  <a-space>
-                    <a-avatar :style="{ backgroundColor: getLevelColor(customer.level) }" size="small">
-                      {{ customer.name?.charAt(0) }}
-                    </a-avatar>
-                    <span class="kanban-card-name">{{ customer.name }}</span>
-                  
+                <template #icon>
+                  <ImportOutlined />
+                </template>
+                导入
+              </a-button>
+            </template>
 
-          </a-space>
-                  <a-tag :color="customer.status === 0 ? 'success' : 'error'" size="small">
-                    {{ customer.status === 0 ? '正常' : '停用' }}
-                  </a-tag>
-                </div>
-                <div class="kanban-card-body">
-                  <div class="kanban-card-row">
-                    <span class="kanban-card-label"><UserOutlined /> 联系人:</span>
-                    <span class="kanban-card-value">{{ customer.contactPerson || '-' }}</span>
-                  </div>
-                  <div class="kanban-card-row">
-                    <span class="kanban-card-label"><PhoneOutlined /> 电话:</span>
-                    <span class="kanban-card-value">{{ customer.phone || '-' }}</span>
-                  </div>
-                  <div class="kanban-card-row">
-                    <span class="kanban-card-label"><HomeOutlined /> 行业:</span>
-                    <span class="kanban-card-value">{{ customer.industry || '-' }}</span>
-                  </div>
-                </div>
-                <div class="kanban-card-footer">
-                  <a-button type="link" size="small" @click.stop="handleFollow(customer)">
-                    <template #icon><MessageOutlined /></template>
-                    跟进
+            <template #batch-actions>
+              <a-button
+                v-permission="'crm:customer:batchassign'"
+                size="small"
+                type="primary"
+                ghost
+                @click="handleBatchAssign"
+              >
+                <template #icon>
+                  <TeamOutlined />
+                </template>
+                批量分配
+              </a-button>
+            </template>
+
+            <template #empty>
+              <div class="table-empty">
+                <template v-if="hasError">
+                  <WarningOutlined
+                    class="table-empty-icon"
+                    style="color: #faad14"
+                  />
+                  <p class="table-empty-text">
+                    数据加载失败，请重试
+                  </p>
+                  <a-button
+                    type="primary"
+                    size="small"
+                    @click="fetchData as any"
+                  >
+                    <template #icon>
+                      <ReloadOutlined />
+                    </template>
+                    重试
                   </a-button>
+                </template>
+                <template v-else>
+                  <SearchOutlined
+                    v-if="hasActiveFilters"
+                    class="table-empty-icon"
+                  />
+                  <InboxOutlined
+                    v-else
+                    class="table-empty-icon"
+                  />
+                  <p
+                    v-if="hasActiveFilters"
+                    class="table-empty-text"
+                  >
+                    没有符合条件的客户，<a @click="handleResetFilters">清除筛选</a>
+                  </p>
+                  <p
+                    v-else
+                    class="table-empty-text"
+                  >
+                    暂无客户数据
+                  </p>
+                  <div
+                    v-if="!hasActiveFilters"
+                    class="empty-state-wrapper"
+                  >
+                    <a-button
+                      v-permission="'crm:customer:create'"
+                      type="primary"
+                      @click="handleAdd"
+                    >
+                      <template #icon>
+                        <PlusOutlined />
+                      </template>
+                      新增第一个客户
+                    </a-button>
+                  </div>
+                </template>
+              </div>
+            </template>
+
+            <template #action="{ record }">
+              <a-space :size="4">
+                <a-tooltip title="查看详情">
+                  <a-button
+                    v-permission="'crm:customer:view'"
+                    type="link"
+                    size="small"
+                    @click="handleView(record)"
+                  >
+                    <template #icon>
+                      <EyeOutlined />
+                    </template>
+                  </a-button>
+                </a-tooltip>
+                <a-tooltip title="编辑">
+                  <a-button
+                    v-permission="'crm:customer:edit'"
+                    type="link"
+                    size="small"
+                    @click="handleEdit(record)"
+                  >
+                    <template #icon>
+                      <EditOutlined />
+                    </template>
+                  </a-button>
+                </a-tooltip>
+                <a-tooltip title="跟进">
+                  <a-button
+                    v-permission="'crm:customer:follow'"
+                    type="link"
+                    size="small"
+                    @click="handleFollow(record)"
+                  >
+                    <template #icon>
+                      <MessageOutlined />
+                    </template>
+                  </a-button>
+                </a-tooltip>
+                <a-dropdown trigger="click">
+                  <a-button
+                    type="link"
+                    size="small"
+                    class="action-more-btn"
+                  >
+                    <template #icon>
+                      <MoreOutlined />
+                    </template>
+                  </a-button>
+                  <template #overlay>
+                    <a-menu @click="({ key }) => handleActionMenuClick(key as string, record)">
+                      <a-menu-item key="follows">
+                        <HistoryOutlined /> 跟进记录
+                      </a-menu-item>
+                      <a-menu-item key="orders">
+                        <FileTextOutlined /> 订单记录
+                      </a-menu-item>
+                      <a-menu-item key="contracts">
+                        <SolutionOutlined /> 合同记录
+                      </a-menu-item>
+                      <a-menu-divider />
+                      <a-menu-item
+                        key="delete"
+                        danger
+                      >
+                        <DeleteOutlined /> 删除
+                      </a-menu-item>
+                    </a-menu>
+                  </template>
+                </a-dropdown>
+              </a-space>
+            </template>
+          </BillTableList>
+        </template>
+
+        <!-- 看板视图 -->
+        <template v-if="currentView === 'kanban'">
+          <div class="kanban-container">
+            <div
+              v-for="level in levelGroups"
+              :key="level.value"
+              class="kanban-column"
+            >
+              <div class="kanban-column-header">
+                <span class="kanban-column-title">
+                  <a-tag
+                    :color="getLevelColor(level.value)"
+                    size="small"
+                  >{{ level.label }}</a-tag>
+                </span>
+                <span class="kanban-column-count">{{ getCustomersByLevel(level.value).length }} 个</span>
+                <a-button
+                  v-permission="'crm:customer:addtolevel'"
+                  type="link"
+                  size="small"
+                  @click="handleAddToLevel(level.value)"
+                >
+                  <template #icon>
+                    <PlusOutlined />
+                  </template>
+                </a-button>
+              </div>
+              <div class="kanban-column-body">
+                <div
+                  v-for="customer in getCustomersByLevel(level.value)"
+                  :key="customer.id"
+                  class="kanban-card"
+                  @click="handleView(customer)"
+                >
+                  <div class="kanban-card-header">
+                    <a-space>
+                      <a-avatar
+                        :style="{ backgroundColor: getLevelColor(customer.level) }"
+                        size="small"
+                      >
+                        {{ customer.name?.charAt(0) }}
+                      </a-avatar>
+                      <span class="kanban-card-name">{{ customer.name }}</span>
+                    </a-space>
+                    <a-tag
+                      :color="customer.status === 0 ? 'success' : 'error'"
+                      size="small"
+                    >
+                      {{ customer.status === 0 ? '正常' : '停用' }}
+                    </a-tag>
+                  </div>
+                  <div class="kanban-card-body">
+                    <div class="kanban-card-row">
+                      <span class="kanban-card-label"><UserOutlined /> 联系人:</span>
+                      <span class="kanban-card-value">{{ customer.contactPerson || '-' }}</span>
+                    </div>
+                    <div class="kanban-card-row">
+                      <span class="kanban-card-label"><PhoneOutlined /> 电话:</span>
+                      <span class="kanban-card-value">{{ customer.phone || '-' }}</span>
+                    </div>
+                    <div class="kanban-card-row">
+                      <span class="kanban-card-label"><HomeOutlined /> 行业:</span>
+                      <span class="kanban-card-value">{{ customer.industry || '-' }}</span>
+                    </div>
+                  </div>
+                  <div class="kanban-card-footer">
+                    <a-button
+                      type="link"
+                      size="small"
+                      @click.stop="handleFollow(customer)"
+                    >
+                      <template #icon>
+                        <MessageOutlined />
+                      </template>
+                      跟进
+                    </a-button>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      </template>
+        </template>
       </template>
     </ErrorBoundary>
 
@@ -262,71 +439,172 @@
       @save="handleModalOk"
       @save-and-new="handleFormSaveAndNew"
     >
-      <a-form ref="formRef" :model="formState" :rules="formRules" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
+      <a-form
+        ref="formRef"
+        :model="formState"
+        :rules="formRules"
+        :label-col="{ span: 6 }"
+        :wrapper-col="{ span: 16 }"
+      >
         <a-row :gutter="16">
           <a-col :span="12">
-            <a-form-item label="客户名称" name="name">
-              <a-input v-model:value="formState.name" placeholder="请输入客户名称" size="small" />
+            <a-form-item
+              label="客户名称"
+              name="name"
+            >
+              <a-input
+                v-model:value="formState.name"
+                placeholder="请输入客户名称"
+                size="small"
+              />
             </a-form-item>
           </a-col>
           <a-col :span="12">
-            <a-form-item label="客户编码" name="code">
-              <a-input v-model:value="formState.code" placeholder="请输入客户编码" size="small" />
+            <a-form-item
+              label="客户编码"
+              name="code"
+            >
+              <a-input
+                v-model:value="formState.code"
+                placeholder="请输入客户编码"
+                size="small"
+              />
             </a-form-item>
           </a-col>
           <a-col :span="12">
-            <a-form-item label="联系人" name="contactPerson">
-              <a-input v-model:value="formState.contactPerson" placeholder="请输入联系人" size="small" />
+            <a-form-item
+              label="联系人"
+              name="contactPerson"
+            >
+              <a-input
+                v-model:value="formState.contactPerson"
+                placeholder="请输入联系人"
+                size="small"
+              />
             </a-form-item>
           </a-col>
           <a-col :span="12">
-            <a-form-item label="联系电话" name="phone">
-              <a-input v-model:value="formState.phone" placeholder="请输入联系电话" size="small" />
+            <a-form-item
+              label="联系电话"
+              name="phone"
+            >
+              <a-input
+                v-model:value="formState.phone"
+                placeholder="请输入联系电话"
+                size="small"
+              />
             </a-form-item>
           </a-col>
           <a-col :span="12">
-            <a-form-item label="邮箱" name="email">
-              <a-input v-model:value="formState.email" placeholder="请输入邮箱" size="small" />
+            <a-form-item
+              label="邮箱"
+              name="email"
+            >
+              <a-input
+                v-model:value="formState.email"
+                placeholder="请输入邮箱"
+                size="small"
+              />
             </a-form-item>
           </a-col>
           <a-col :span="12">
-            <a-form-item label="客户等级" name="level">
-              <a-select v-model:value="formState.level" placeholder="请选择等级" size="small">
-                <a-select-option :value="1">VIP客户</a-select-option>
-                <a-select-option :value="2">重要客户</a-select-option>
-                <a-select-option :value="3">普通客户</a-select-option>
-                <a-select-option :value="4">潜在客户</a-select-option>
+            <a-form-item
+              label="客户等级"
+              name="level"
+            >
+              <a-select
+                v-model:value="formState.level"
+                placeholder="请选择等级"
+                size="small"
+              >
+                <a-select-option :value="1">
+                  VIP客户
+                </a-select-option>
+                <a-select-option :value="2">
+                  重要客户
+                </a-select-option>
+                <a-select-option :value="3">
+                  普通客户
+                </a-select-option>
+                <a-select-option :value="4">
+                  潜在客户
+                </a-select-option>
               </a-select>
             </a-form-item>
           </a-col>
           <a-col :span="12">
-            <a-form-item label="行业" name="industry">
-              <a-select v-model:value="formState.industry" placeholder="请选择行业" size="small">
-                <a-select-option value="IT">IT/互联网</a-select-option>
-                <a-select-option value="制造业">制造业</a-select-option>
-                <a-select-option value="金融">金融</a-select-option>
-                <a-select-option value="零售">零售</a-select-option>
-                <a-select-option value="教育">教育</a-select-option>
-                <a-select-option value="其他">其他</a-select-option>
+            <a-form-item
+              label="行业"
+              name="industry"
+            >
+              <a-select
+                v-model:value="formState.industry"
+                placeholder="请选择行业"
+                size="small"
+              >
+                <a-select-option value="IT">
+                  IT/互联网
+                </a-select-option>
+                <a-select-option value="制造业">
+                  制造业
+                </a-select-option>
+                <a-select-option value="金融">
+                  金融
+                </a-select-option>
+                <a-select-option value="零售">
+                  零售
+                </a-select-option>
+                <a-select-option value="教育">
+                  教育
+                </a-select-option>
+                <a-select-option value="其他">
+                  其他
+                </a-select-option>
               </a-select>
             </a-form-item>
           </a-col>
           <a-col :span="12">
-            <a-form-item label="状态" name="status">
+            <a-form-item
+              label="状态"
+              name="status"
+            >
               <a-radio-group v-model:value="formState.status">
-                <a-radio :value="0">正常</a-radio>
-                <a-radio :value="1">停用</a-radio>
+                <a-radio :value="0">
+                  正常
+                </a-radio>
+                <a-radio :value="1">
+                  停用
+                </a-radio>
               </a-radio-group>
             </a-form-item>
           </a-col>
           <a-col :span="24">
-            <a-form-item label="地址" name="address" :label-col="{ span: 3 }" :wrapper-col="{ span: 20 }">
-              <a-input v-model:value="formState.address" placeholder="请输入地址" size="small" />
+            <a-form-item
+              label="地址"
+              name="address"
+              :label-col="{ span: 3 }"
+              :wrapper-col="{ span: 20 }"
+            >
+              <a-input
+                v-model:value="formState.address"
+                placeholder="请输入地址"
+                size="small"
+              />
             </a-form-item>
           </a-col>
           <a-col :span="24">
-            <a-form-item label="备注" name="description" :label-col="{ span: 3 }" :wrapper-col="{ span: 20 }">
-              <a-textarea v-model:value="formState.description" placeholder="请输入备注" :rows="3" size="small" />
+            <a-form-item
+              label="备注"
+              name="description"
+              :label-col="{ span: 3 }"
+              :wrapper-col="{ span: 20 }"
+            >
+              <a-textarea
+                v-model:value="formState.description"
+                placeholder="请输入备注"
+                :rows="3"
+                size="small"
+              />
             </a-form-item>
           </a-col>
         </a-row>
@@ -341,28 +619,71 @@
       width="600px"
       @ok="handleFollowModalOk"
     >
-      <a-form :model="followForm" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
-        <a-form-item label="跟进类型" required>
-          <a-select v-model:value="followForm.followType" placeholder="请选择跟进类型" size="small">
-            <a-select-option :value="1">电话</a-select-option>
-            <a-select-option :value="2">拜访</a-select-option>
-            <a-select-option :value="3">邮件</a-select-option>
-            <a-select-option :value="4">微信</a-select-option>
-            <a-select-option :value="5">其他</a-select-option>
+      <a-form
+        :model="followForm"
+        :label-col="{ span: 6 }"
+        :wrapper-col="{ span: 16 }"
+      >
+        <a-form-item
+          label="跟进类型"
+          required
+        >
+          <a-select
+            v-model:value="followForm.followType"
+            placeholder="请选择跟进类型"
+            size="small"
+          >
+            <a-select-option :value="1">
+              电话
+            </a-select-option>
+            <a-select-option :value="2">
+              拜访
+            </a-select-option>
+            <a-select-option :value="3">
+              邮件
+            </a-select-option>
+            <a-select-option :value="4">
+              微信
+            </a-select-option>
+            <a-select-option :value="5">
+              其他
+            </a-select-option>
           </a-select>
         </a-form-item>
-        <a-form-item label="跟进内容" required>
-          <a-textarea v-model:value="followForm.content" placeholder="请输入跟进内容" :rows="4" size="small" />
+        <a-form-item
+          label="跟进内容"
+          required
+        >
+          <a-textarea
+            v-model:value="followForm.content"
+            placeholder="请输入跟进内容"
+            :rows="4"
+            size="small"
+          />
         </a-form-item>
         <a-form-item label="跟进结果">
-          <a-select v-model:value="followForm.result" placeholder="请选择跟进结果" size="small">
-            <a-select-option :value="1">有意向</a-select-option>
-            <a-select-option :value="2">无意向</a-select-option>
-            <a-select-option :value="3">待跟进</a-select-option>
+          <a-select
+            v-model:value="followForm.result"
+            placeholder="请选择跟进结果"
+            size="small"
+          >
+            <a-select-option :value="1">
+              有意向
+            </a-select-option>
+            <a-select-option :value="2">
+              无意向
+            </a-select-option>
+            <a-select-option :value="3">
+              待跟进
+            </a-select-option>
           </a-select>
         </a-form-item>
         <a-form-item label="下次跟进时间">
-          <a-date-picker v-model:value="followForm.nextFollowTime" style="width: 100%" size="small" />
+          <a-date-picker
+            v-model:value="followForm.nextFollowTime"
+            style="width: 100%"
+            size="small"
+          />
         </a-form-item>
       </a-form>
     </a-modal>
@@ -376,7 +697,11 @@
       @ok="handleImportConfirm"
       @cancel="importVisible = false"
     >
-      <a-steps :current="importFileList.length > 0 ? 1 : 0" size="small" style="margin-bottom: 24px">
+      <a-steps
+        :current="importFileList.length > 0 ? 1 : 0"
+        size="small"
+        style="margin-bottom: 24px"
+      >
         <a-step title="上传文件" />
         <a-step title="字段映射" />
       </a-steps>
@@ -388,7 +713,9 @@
         @change="handleImportFileChange"
       >
         <a-button>
-          <template #icon><PlusOutlined /></template>
+          <template #icon>
+            <PlusOutlined />
+          </template>
           选择CSV文件
         </a-button>
       </a-upload>
@@ -405,14 +732,22 @@
         :show-batch-delete="false"
       >
         <template #csvFieldCell="{ record }">
-          <a-input v-model:value="record.csvField" placeholder="CSV列名" size="small" />
+          <a-input
+            v-model:value="record.csvField"
+            placeholder="CSV列名"
+            size="small"
+          />
         </template>
         <template #requiredCell="{ record }">
-          <a-tag :color="record.required ? 'red' : 'default'">{{ record.required ? '是' : '否' }}</a-tag>
+          <a-tag :color="record.required ? 'red' : 'default'">
+            {{ record.required ? '是' : '否' }}
+          </a-tag>
         </template>
-          <template #statusCell="{ record }">
-            <a-tag :color="record.status === 0 ? 'success' : 'error'">{{ record.status === 0 ? '正常' : '停用' }}</a-tag>
-          </template>
+        <template #statusCell="{ record }">
+          <a-tag :color="record.status === 0 ? 'success' : 'error'">
+            {{ record.status === 0 ? '正常' : '停用' }}
+          </a-tag>
+        </template>
       </BillTableList>
     </a-modal>
   </PageContainer>

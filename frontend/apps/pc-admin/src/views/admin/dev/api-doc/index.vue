@@ -4,15 +4,27 @@
       <div class="page-header">
         <div class="page-header-left">
           <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>
+              <router-link to="/">
+                首页
+              </router-link>
+            </a-breadcrumb-item>
             <a-breadcrumb-item>系统管理</a-breadcrumb-item>
             <a-breadcrumb-item>API文档</a-breadcrumb-item>
           </a-breadcrumb>
-          <h2 class="page-header-title">API文档</h2>
+          <h2 class="page-header-title">
+            API文档
+          </h2>
         </div>
         <div class="page-header-right">
-          <a-button size="small" @click="refreshAll" :loading="loading">
-            <template #icon><ReloadOutlined /></template>
+          <a-button
+            size="small"
+            :loading="loading"
+            @click="refreshAll"
+          >
+            <template #icon>
+              <ReloadOutlined />
+            </template>
             刷新
           </a-button>
         </div>
@@ -20,11 +32,27 @@
     </template>
 
     <a-card :bordered="false">
-      <template #title>接口文档</template>
+      <template #title>
+        接口文档
+      </template>
       <template #extra>
         <a-space>
-          <a-button size="small" type="primary" ghost @click="openSwagger">Swagger UI</a-button>
-          <a-button size="small" type="primary" ghost @click="openKnife4j">Knife4j</a-button>
+          <a-button
+            size="small"
+            type="primary"
+            ghost
+            @click="openSwagger"
+          >
+            Swagger UI
+          </a-button>
+          <a-button
+            size="small"
+            type="primary"
+            ghost
+            @click="openKnife4j"
+          >
+            Knife4j
+          </a-button>
         </a-space>
       </template>
 
@@ -38,12 +66,19 @@
             <p>可使用 Swagger UI 或 Knife4j 浏览和测试接口</p>
           </div>
           <a-space>
-            <a-button type="primary" @click="openSwagger">
-              <template #icon><FileTextOutlined /></template>
+            <a-button
+              type="primary"
+              @click="openSwagger"
+            >
+              <template #icon>
+                <FileTextOutlined />
+              </template>
               打开 Swagger UI
             </a-button>
             <a-button @click="openKnife4j">
-              <template #icon><FileTextOutlined /></template>
+              <template #icon>
+                <FileTextOutlined />
+              </template>
               打开 Knife4j
             </a-button>
           </a-space>
@@ -52,10 +87,19 @@
 
       <a-divider />
 
-      <a-table :data-source="modules" :columns="moduleColumns" row-key="name" :pagination="false" size="small">
+      <a-table
+        :data-source="modules"
+        :columns="moduleColumns"
+        row-key="name"
+        :pagination="false"
+        size="small"
+      >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'count'">
-            <a-badge :count="record.count" :overflow-count="999" />
+            <a-badge
+              :count="record.count"
+              :overflow-count="999"
+            />
           </template>
         </template>
       </a-table>

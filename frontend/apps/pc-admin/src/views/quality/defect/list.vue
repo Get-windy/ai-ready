@@ -1,45 +1,93 @@
 <template>
   <div class="page-container">
     <div class="page-header">
-      <h2 class="page-title">不合格处理</h2>
+      <h2 class="page-title">
+        不合格处理
+      </h2>
     </div>
     <div class="page-container__body">
-      <a-card :bordered="false" class="table-card">
-        <a-table :columns="columns" :data-source="tableData" :loading="loading" :pagination="pagination" row-key="id" @change="handleTableChange">
+      <a-card
+        :bordered="false"
+        class="table-card"
+      >
+        <a-table
+          :columns="columns"
+          :data-source="tableData"
+          :loading="loading"
+          :pagination="pagination"
+          row-key="id"
+          @change="handleTableChange"
+        >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'defectType'">
               <span>{{ DEFECT_TYPE_MAP[record.defectType]?.name || record.defectType }}</span>
             </template>
             <template v-if="column.key === 'handleType'">
-              <a-tag v-if="record.handleType" :color="HANDLE_TYPE_MAP[record.handleType]?.color">{{ HANDLE_TYPE_MAP[record.handleType]?.name }}</a-tag>
+              <a-tag
+                v-if="record.handleType"
+                :color="HANDLE_TYPE_MAP[record.handleType]?.color"
+              >
+                {{ HANDLE_TYPE_MAP[record.handleType]?.name }}
+              </a-tag>
               <span v-else>-</span>
             </template>
             <template v-if="column.key === 'status'">
-              <a-tag :color="record.status === 0 ? 'warning' : 'success'">{{ record.status === 0 ? '待处理' : '已处理' }}</a-tag>
+              <a-tag :color="record.status === 0 ? 'warning' : 'success'">
+                {{ record.status === 0 ? '待处理' : '已处理' }}
+              </a-tag>
             </template>
             <template v-if="column.key === 'action'">
-              <a-button type="link" size="small" v-if="record.status === 0" @click="showHandleModal(record)">处理</a-button>
+              <a-button
+                v-if="record.status === 0"
+                type="link"
+                size="small"
+                @click="showHandleModal(record)"
+              >
+                处理
+              </a-button>
             </template>
           </template>
         </a-table>
       </a-card>
     </div>
 
-    <a-modal v-model:open="handleModalVisible" title="处理不合格" @ok="handleProcess">
-      <a-form :label-col="{ span: 4 }" :wrapper-col="{ span: 18 }">
+    <a-modal
+      v-model:open="handleModalVisible"
+      title="处理不合格"
+      @ok="handleProcess"
+    >
+      <a-form
+        :label-col="{ span: 4 }"
+        :wrapper-col="{ span: 18 }"
+      >
         <a-form-item label="处理方式">
           <a-select v-model:value="handleForm.handleType">
-            <a-select-option value="RETURN">退货</a-select-option>
-            <a-select-option value="REWORK">返工</a-select-option>
-            <a-select-option value="SCRAP">报废</a-select-option>
-            <a-select-option value="SPECIAL_RELEASE">特采</a-select-option>
+            <a-select-option value="RETURN">
+              退货
+            </a-select-option>
+            <a-select-option value="REWORK">
+              返工
+            </a-select-option>
+            <a-select-option value="SCRAP">
+              报废
+            </a-select-option>
+            <a-select-option value="SPECIAL_RELEASE">
+              特采
+            </a-select-option>
           </a-select>
         </a-form-item>
         <a-form-item label="处理数量">
-          <a-input-number v-model:value="handleForm.handleQuantity" min="0" style="width: 100%" />
+          <a-input-number
+            v-model:value="handleForm.handleQuantity"
+            min="0"
+            style="width: 100%"
+          />
         </a-form-item>
         <a-form-item label="处理结果">
-          <a-textarea v-model:value="handleForm.handleResult" :rows="3" />
+          <a-textarea
+            v-model:value="handleForm.handleResult"
+            :rows="3"
+          />
         </a-form-item>
       </a-form>
     </a-modal>

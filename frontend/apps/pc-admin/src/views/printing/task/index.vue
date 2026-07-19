@@ -4,11 +4,17 @@
       <div class="task-page-header">
         <div class="task-page-header-left">
           <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>
+              <router-link to="/">
+                首页
+              </router-link>
+            </a-breadcrumb-item>
             <a-breadcrumb-item>打印管理</a-breadcrumb-item>
             <a-breadcrumb-item>打印任务</a-breadcrumb-item>
           </a-breadcrumb>
-          <h2 class="task-page-header-title">打印任务</h2>
+          <h2 class="task-page-header-title">
+            打印任务
+          </h2>
         </div>
         <div class="task-page-header-right">
           <a-tooltip title="开启后将每 30 秒自动刷新">
@@ -20,277 +26,450 @@
               style="margin-right: 8px"
             />
           </a-tooltip>
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshEnabled && autoRefreshCountdown > 0" class="auto-refresh-badge">
+          <span
+            v-if="lastUpdateTime"
+            class="update-time"
+          >更新于 {{ lastUpdateTime }}</span>
+          <span
+            v-if="autoRefreshEnabled && autoRefreshCountdown > 0"
+            class="auto-refresh-badge"
+          >
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)()">
-            <template #icon><ReloadOutlined /></template>
+          <a-button
+            size="small"
+            :loading="refreshLoading"
+            @click="debounceClick('refresh', fetchData)()"
+          >
+            <template #icon>
+              <ReloadOutlined />
+            </template>
             刷新
           </a-button>
-<span class="shortcut-hints">
-                                                <span class="shortcut-hint"><kbd>Ctrl+R</kbd> 刷新</span>
-                                                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-                                              </span>
-          <a-button type="primary" size="small" v-permission="'printing:task:openexecutechain'" @click="handleOpenExecuteChain">
-            <template #icon><SendOutlined /></template>
+          <span class="shortcut-hints">
+            <span class="shortcut-hint"><kbd>Ctrl+R</kbd> 刷新</span>
+            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+          </span>
+          <a-button
+            v-permission="'printing:task:openexecutechain'"
+            type="primary"
+            size="small"
+            @click="handleOpenExecuteChain"
+          >
+            <template #icon>
+              <SendOutlined />
+            </template>
             执行打印链
           </a-button>
         </div>
-
       </div>
     </template>
 
     <ErrorBoundary>
-    <div class="task-management">
-      <!-- 统计卡片 -->
-      <div class="stat-cards">
-        <div class="stat-card stat-total">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ pagination.total }}</div>
-            <div class="stat-card-label">任务总数</div>
+      <div class="task-management">
+        <!-- 统计卡片 -->
+        <div class="stat-cards">
+          <div class="stat-card stat-total">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ pagination.total }}
+              </div>
+              <div class="stat-card-label">
+                任务总数
+              </div>
+            </div>
+            <FileTextOutlined class="stat-card-icon" />
           </div>
-          <FileTextOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-pending">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ statusCounts.PENDING }}</div>
-            <div class="stat-card-label">待处理</div>
+          <div class="stat-card stat-pending">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ statusCounts.PENDING }}
+              </div>
+              <div class="stat-card-label">
+                待处理
+              </div>
+            </div>
+            <ClockCircleOutlined class="stat-card-icon" />
           </div>
-          <ClockCircleOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-queued">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ statusCounts.QUEUED }}</div>
-            <div class="stat-card-label">队列中</div>
+          <div class="stat-card stat-queued">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ statusCounts.QUEUED }}
+              </div>
+              <div class="stat-card-label">
+                队列中
+              </div>
+            </div>
+            <EllipsisOutlined class="stat-card-icon" />
           </div>
-          <EllipsisOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-printing">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ statusCounts.PRINTING }}</div>
-            <div class="stat-card-label">打印中</div>
+          <div class="stat-card stat-printing">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ statusCounts.PRINTING }}
+              </div>
+              <div class="stat-card-label">
+                打印中
+              </div>
+            </div>
+            <PrinterOutlined class="stat-card-icon" />
           </div>
-          <PrinterOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-completed">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ statusCounts.COMPLETED }}</div>
-            <div class="stat-card-label">已完成</div>
+          <div class="stat-card stat-completed">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ statusCounts.COMPLETED }}
+              </div>
+              <div class="stat-card-label">
+                已完成
+              </div>
+            </div>
+            <CheckCircleOutlined class="stat-card-icon" />
           </div>
-          <CheckCircleOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-failed">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ statusCounts.FAILED }}</div>
-            <div class="stat-card-label">失败</div>
+          <div class="stat-card stat-failed">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ statusCounts.FAILED }}
+              </div>
+              <div class="stat-card-label">
+                失败
+              </div>
+            </div>
+            <CloseCircleOutlined class="stat-card-icon" />
           </div>
-          <CloseCircleOutlined class="stat-card-icon" />
         </div>
-      </div>
 
-      <BillTableList
-        ref="tableRef"
-        :columns="vxeColumns"
-        :data-source="tableDataSource"
-        :loading="loading"
-        :pagination="pagination"
-        :row-key="'taskId'"
-        :filter-fields="filterFields"
-        :show-add="false"
-        :show-delete="false"
-        :show-batch-delete="false"
-        :selectable="false"
-        :min-empty-rows="12"
-        @refresh="debounceClick('refresh', fetchData)"
-        @page-change="handlePageChange"
-        @filter-change="handleFilterChange"
-      >
-        <template #toolbar-actions>
-          <a-select
-            v-model:value="filterForm.statusList"
-            mode="multiple"
-            placeholder="任务状态"
-            style="min-width: 180px"
-            size="small"
-            allow-clear
-            @change="handleStatusFilterChange"
-          >
-            <a-select-option value="PENDING">待处理</a-select-option>
-            <a-select-option value="QUEUED">队列中</a-select-option>
-            <a-select-option value="PRINTING">打印中</a-select-option>
-            <a-select-option value="COMPLETED">已完成</a-select-option>
-            <a-select-option value="FAILED">失败</a-select-option>
-            <a-select-option value="CANCELLED">已取消</a-select-option>
-          </a-select>
-        </template>
+        <BillTableList
+          ref="tableRef"
+          :columns="vxeColumns"
+          :data-source="tableDataSource"
+          :loading="loading"
+          :pagination="pagination"
+          :row-key="'taskId'"
+          :filter-fields="filterFields"
+          :show-add="false"
+          :show-delete="false"
+          :show-batch-delete="false"
+          :selectable="false"
+          :min-empty-rows="12"
+          @refresh="debounceClick('refresh', fetchData)"
+          @page-change="handlePageChange"
+          @filter-change="handleFilterChange"
+        >
+          <template #toolbar-actions>
+            <a-select
+              v-model:value="filterForm.statusList"
+              mode="multiple"
+              placeholder="任务状态"
+              style="min-width: 180px"
+              size="small"
+              allow-clear
+              @change="handleStatusFilterChange"
+            >
+              <a-select-option value="PENDING">
+                待处理
+              </a-select-option>
+              <a-select-option value="QUEUED">
+                队列中
+              </a-select-option>
+              <a-select-option value="PRINTING">
+                打印中
+              </a-select-option>
+              <a-select-option value="COMPLETED">
+                已完成
+              </a-select-option>
+              <a-select-option value="FAILED">
+                失败
+              </a-select-option>
+              <a-select-option value="CANCELLED">
+                已取消
+              </a-select-option>
+            </a-select>
+          </template>
 
-        <template #empty>
-          <a-empty v-if="!hasError" description="暂无打印任务" />
-          <a-result v-else status="error" title="数据加载失败">
-            <template #extra>
-              <a-button type="primary" @click="debounceClick('refresh', fetchData)()">
-                <template #icon><ReloadOutlined /></template>
-                重新加载
+          <template #empty>
+            <a-empty
+              v-if="!hasError"
+              description="暂无打印任务"
+            />
+            <a-result
+              v-else
+              status="error"
+              title="数据加载失败"
+            >
+              <template #extra>
+                <a-button
+                  type="primary"
+                  @click="debounceClick('refresh', fetchData)()"
+                >
+                  <template #icon>
+                    <ReloadOutlined />
+                  </template>
+                  重新加载
+                </a-button>
+              </template>
+            </a-result>
+          </template>
+
+          <template #statusCell="{ record }">
+            <a-tag :color="statusColorMap[record.status] || 'default'">
+              {{ statusLabelMap[record.status] || record.status }}
+            </a-tag>
+          </template>
+
+          <template #priorityCell="{ record }">
+            <a-tag :color="record.priority >= 5 ? 'red' : record.priority >= 3 ? 'orange' : 'default'">
+              {{ record.priority }}
+            </a-tag>
+          </template>
+
+          <template #documentTypeCell="{ record }">
+            <a-tag>{{ record.documentType || '-' }}</a-tag>
+          </template>
+
+          <template #action="{ record }">
+            <a-space>
+              <a-button
+                v-permission="'printing:task:viewdetail'"
+                type="link"
+                size="small"
+                @click="handleViewDetail(record)"
+              >
+                详情
               </a-button>
-            </template>
-          </a-result>
-        </template>
+              <a-button
+                v-if="record.status === 'PENDING' || record.status === 'QUEUED'"
+                v-permission="'printing:task:canceltask'"
+                type="link"
+                size="small"
+                danger
+                @click="handleCancelTask(record)"
+              >
+                取消
+              </a-button>
+              <a-button
+                v-if="record.screenshotId != null && record.screenshotStatus === 'PENDING'"
+                v-permission="'printing:task:confirmscreenshot'"
+                type="link"
+                size="small"
+                @click="handleConfirmScreenshot(record)"
+              >
+                确认截图
+              </a-button>
+              <a-button
+                v-if="record.screenshotStatus === 'FAILED'"
+                v-permission="'printing:task:retryscreenshot'"
+                type="link"
+                size="small"
+                @click="handleRetryScreenshot(record)"
+              >
+                重新截图
+              </a-button>
+            </a-space>
+          </template>
+        </BillTableList>
 
-        <template #statusCell="{ record }">
-          <a-tag :color="statusColorMap[record.status] || 'default'">
-            {{ statusLabelMap[record.status] || record.status }}
-          </a-tag>
-        </template>
-
-        <template #priorityCell="{ record }">
-          <a-tag :color="record.priority >= 5 ? 'red' : record.priority >= 3 ? 'orange' : 'default'">
-            {{ record.priority }}
-          </a-tag>
-        </template>
-
-        <template #documentTypeCell="{ record }">
-          <a-tag>{{ record.documentType || '-' }}</a-tag>
-        </template>
-
-        <template #action="{ record }">
-          <a-space>
-            <a-button type="link" size="small" v-permission="'printing:task:viewdetail'" @click="handleViewDetail(record)">
-              详情
-            </a-button>
-            <a-button
-              v-if="record.status === 'PENDING' || record.status === 'QUEUED'"
-              type="link"
+        <!-- 任务详情弹窗 -->
+        <a-modal
+          :open="detailVisible"
+          :title="`任务详情 - ${detailData?.taskCode || ''}`"
+          :footer="null"
+          :width="700 as any"
+          @cancel="handleDetailClose"
+        >
+          <a-spin :spinning="detailLoading">
+            <a-descriptions
+              v-if="detailData"
+              bordered
+              :column="2"
               size="small"
-              danger
- v-permission="'printing:task:canceltask'" @click="handleCancelTask(record)"
             >
-              取消
-            </a-button>
-            <a-button
-              v-if="record.screenshotId != null && record.screenshotStatus === 'PENDING'"
-              type="link"
-              size="small"
- v-permission="'printing:task:confirmscreenshot'" @click="handleConfirmScreenshot(record)"
-            >
-              确认截图
-            </a-button>
-            <a-button
-              v-if="record.screenshotStatus === 'FAILED'"
-              type="link"
-              size="small"
- v-permission="'printing:task:retryscreenshot'" @click="handleRetryScreenshot(record)"
-            >
-              重新截图
-            </a-button>
-          </a-space>
-        </template>
-      </BillTableList>
-
-      <!-- 任务详情弹窗 -->
-      <a-modal
-        :open="detailVisible"
-        :title="`任务详情 - ${detailData?.taskCode || ''}`"
-        :footer="null"
-        :width="700 as any"
-        @cancel="handleDetailClose"
-      >
-        <a-spin :spinning="detailLoading">
-          <a-descriptions bordered :column="2" size="small" v-if="detailData">
-            <a-descriptions-item label="任务编号" :span="2">
-              <a-typography-text copyable>{{ detailData.taskCode }}</a-typography-text>
-            </a-descriptions-item>
-            <a-descriptions-item label="状态" :span="1">
-              <a-tag :color="statusColorMap[detailData.status] || 'default'">
-                {{ statusLabelMap[detailData.status] || detailData.status }}
-              </a-tag>
-            </a-descriptions-item>
-            <a-descriptions-item label="优先级" :span="1">
-              <a-tag :color="detailData.priority >= 5 ? 'red' : detailData.priority >= 3 ? 'orange' : 'default'">
-                {{ detailData.priority }}
-              </a-tag>
-            </a-descriptions-item>
-            <a-descriptions-item label="单据类型" :span="1">{{ detailData.documentType || '-' }}</a-descriptions-item>
-            <a-descriptions-item label="单据编号" :span="1">{{ detailData.documentNo || '-' }}</a-descriptions-item>
-            <a-descriptions-item label="页面编码" :span="2">{{ detailData.pageCode || '-' }}</a-descriptions-item>
-            <a-descriptions-item label="打印链" :span="1">{{ detailData.chainName || '-' }}</a-descriptions-item>
-            <a-descriptions-item label="步骤顺序" :span="1">{{ detailData.stepOrder ?? '-' }}</a-descriptions-item>
-            <a-descriptions-item label="打印模板" :span="1">{{ detailData.templateName || '-' }}</a-descriptions-item>
-            <a-descriptions-item label="客户端" :span="1">{{ detailData.clientName || '-' }}</a-descriptions-item>
-            <a-descriptions-item label="打印机" :span="2">{{ detailData.printerName || '-' }}</a-descriptions-item>
-            <a-descriptions-item label="提交时间" :span="1">{{ detailData.submitTime || '-' }}</a-descriptions-item>
-            <a-descriptions-item label="开始时间" :span="1">{{ detailData.startTime || '-' }}</a-descriptions-item>
-            <a-descriptions-item label="完成时间" :span="2">{{ detailData.completeTime || '-' }}</a-descriptions-item>
-            <a-descriptions-item label="创建时间" :span="2">{{ detailData.createdAt || '-' }}</a-descriptions-item>
-            <a-descriptions-item v-if="detailData.errorMessage" label="错误信息" :span="2">
-              <a-alert
-                type="error"
-                :message="detailData.errorMessage"
-                banner
-                style="margin: 0"
-              />
-            </a-descriptions-item>
-          </a-descriptions>
+              <a-descriptions-item
+                label="任务编号"
+                :span="2"
+              >
+                <a-typography-text copyable>
+                  {{ detailData.taskCode }}
+                </a-typography-text>
+              </a-descriptions-item>
+              <a-descriptions-item
+                label="状态"
+                :span="1"
+              >
+                <a-tag :color="statusColorMap[detailData.status] || 'default'">
+                  {{ statusLabelMap[detailData.status] || detailData.status }}
+                </a-tag>
+              </a-descriptions-item>
+              <a-descriptions-item
+                label="优先级"
+                :span="1"
+              >
+                <a-tag :color="detailData.priority >= 5 ? 'red' : detailData.priority >= 3 ? 'orange' : 'default'">
+                  {{ detailData.priority }}
+                </a-tag>
+              </a-descriptions-item>
+              <a-descriptions-item
+                label="单据类型"
+                :span="1"
+              >
+                {{ detailData.documentType || '-' }}
+              </a-descriptions-item>
+              <a-descriptions-item
+                label="单据编号"
+                :span="1"
+              >
+                {{ detailData.documentNo || '-' }}
+              </a-descriptions-item>
+              <a-descriptions-item
+                label="页面编码"
+                :span="2"
+              >
+                {{ detailData.pageCode || '-' }}
+              </a-descriptions-item>
+              <a-descriptions-item
+                label="打印链"
+                :span="1"
+              >
+                {{ detailData.chainName || '-' }}
+              </a-descriptions-item>
+              <a-descriptions-item
+                label="步骤顺序"
+                :span="1"
+              >
+                {{ detailData.stepOrder ?? '-' }}
+              </a-descriptions-item>
+              <a-descriptions-item
+                label="打印模板"
+                :span="1"
+              >
+                {{ detailData.templateName || '-' }}
+              </a-descriptions-item>
+              <a-descriptions-item
+                label="客户端"
+                :span="1"
+              >
+                {{ detailData.clientName || '-' }}
+              </a-descriptions-item>
+              <a-descriptions-item
+                label="打印机"
+                :span="2"
+              >
+                {{ detailData.printerName || '-' }}
+              </a-descriptions-item>
+              <a-descriptions-item
+                label="提交时间"
+                :span="1"
+              >
+                {{ detailData.submitTime || '-' }}
+              </a-descriptions-item>
+              <a-descriptions-item
+                label="开始时间"
+                :span="1"
+              >
+                {{ detailData.startTime || '-' }}
+              </a-descriptions-item>
+              <a-descriptions-item
+                label="完成时间"
+                :span="2"
+              >
+                {{ detailData.completeTime || '-' }}
+              </a-descriptions-item>
+              <a-descriptions-item
+                label="创建时间"
+                :span="2"
+              >
+                {{ detailData.createdAt || '-' }}
+              </a-descriptions-item>
+              <a-descriptions-item
+                v-if="detailData.errorMessage"
+                label="错误信息"
+                :span="2"
+              >
+                <a-alert
+                  type="error"
+                  :message="detailData.errorMessage"
+                  banner
+                  style="margin: 0"
+                />
+              </a-descriptions-item>
+            </a-descriptions>
           </a-spin>
         </a-modal>
 
-      <!-- 执行打印链弹窗 -->
-      <a-modal
-        :open="executeVisible"
-        title="执行打印链"
-        :confirm-loading="executeLoading"
-        ok-text="执行"
-        @ok="handleExecuteChain"
-        @cancel="handleExecuteClose"
-      >
-        <a-form
-          ref="executeFormRef"
-          :model="executeForm"
-          :rules="executeFormRules"
-          :label-col="{ span: 6 }"
-          :wrapper-col="{ span: 16 }"
+        <!-- 执行打印链弹窗 -->
+        <a-modal
+          :open="executeVisible"
+          title="执行打印链"
+          :confirm-loading="executeLoading"
+          ok-text="执行"
+          @ok="handleExecuteChain"
+          @cancel="handleExecuteClose"
         >
-          <a-form-item label="打印链" name="chainId">
-            <a-select
-              v-model:value="executeForm.chainId"
-              placeholder="请选择打印链"
-              :loading="chainLoading"
-              show-search
-              option-filter-prop="label"
-              allow-clear
+          <a-form
+            ref="executeFormRef"
+            :model="executeForm"
+            :rules="executeFormRules"
+            :label-col="{ span: 6 }"
+            :wrapper-col="{ span: 16 }"
+          >
+            <a-form-item
+              label="打印链"
+              name="chainId"
             >
-              <a-select-option
-                v-for="chain in chainOptions"
-                :key="chain.chainId"
-                :value="chain.chainId"
-                :label="chain.chainName"
+              <a-select
+                v-model:value="executeForm.chainId"
+                placeholder="请选择打印链"
+                :loading="chainLoading"
+                show-search
+                option-filter-prop="label"
+                allow-clear
               >
-                {{ chain.chainName }}
-              </a-select-option>
-            </a-select>
-          </a-form-item>
-          <a-form-item label="数据 JSON" name="dataJson">
-            <a-textarea
-              v-model:value="executeForm.dataJson"
-              placeholder='请输入打印数据 JSON，例如：{"orderNo": "ORD20250101001"}'
-              :rows="6"
-            />
-          </a-form-item>
-          <a-form-item label="页面编码">
-            <a-input v-model:value="executeForm.pageCode" placeholder="可选" />
-          </a-form-item>
-          <a-form-item label="单据类型">
-            <a-input v-model:value="executeForm.documentType" placeholder="可选" />
-          </a-form-item>
-          <a-form-item label="单据编号">
-            <a-input v-model:value="executeForm.documentNo" placeholder="可选" />
-          </a-form-item>
-          <a-form-item label="单据 ID">
-            <a-input-number v-model:value="executeForm.documentId" placeholder="可选" style="width: 100%" />
-          </a-form-item>
-        </a-form>
-      </a-modal>
-    </div>
+                <a-select-option
+                  v-for="chain in chainOptions"
+                  :key="chain.chainId"
+                  :value="chain.chainId"
+                  :label="chain.chainName"
+                >
+                  {{ chain.chainName }}
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+            <a-form-item
+              label="数据 JSON"
+              name="dataJson"
+            >
+              <a-textarea
+                v-model:value="executeForm.dataJson"
+                placeholder="请输入打印数据 JSON，例如：{&quot;orderNo&quot;: &quot;ORD20250101001&quot;}"
+                :rows="6"
+              />
+            </a-form-item>
+            <a-form-item label="页面编码">
+              <a-input
+                v-model:value="executeForm.pageCode"
+                placeholder="可选"
+              />
+            </a-form-item>
+            <a-form-item label="单据类型">
+              <a-input
+                v-model:value="executeForm.documentType"
+                placeholder="可选"
+              />
+            </a-form-item>
+            <a-form-item label="单据编号">
+              <a-input
+                v-model:value="executeForm.documentNo"
+                placeholder="可选"
+              />
+            </a-form-item>
+            <a-form-item label="单据 ID">
+              <a-input-number
+                v-model:value="executeForm.documentId"
+                placeholder="可选"
+                style="width: 100%"
+              />
+            </a-form-item>
+          </a-form>
+        </a-modal>
+      </div>
     </ErrorBoundary>
   </PageContainer>
 </template>

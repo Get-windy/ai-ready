@@ -4,15 +4,27 @@
       <div class="page-header">
         <div class="page-header-left">
           <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>
+              <router-link to="/">
+                首页
+              </router-link>
+            </a-breadcrumb-item>
             <a-breadcrumb-item>系统管理</a-breadcrumb-item>
             <a-breadcrumb-item>安全策略</a-breadcrumb-item>
           </a-breadcrumb>
-          <h2 class="page-header-title">安全策略</h2>
+          <h2 class="page-header-title">
+            安全策略
+          </h2>
         </div>
         <div class="page-header-right">
-          <a-button type="primary" size="small" @click="saveAll">
-            <template #icon><SaveOutlined /></template>
+          <a-button
+            type="primary"
+            size="small"
+            @click="saveAll"
+          >
+            <template #icon>
+              <SaveOutlined />
+            </template>
             保存全部
           </a-button>
         </div>
@@ -21,13 +33,26 @@
 
     <a-row :gutter="16">
       <a-col :span="12">
-        <a-card :bordered="false" title="登录安全">
+        <a-card
+          :bordered="false"
+          title="登录安全"
+        >
           <a-form layout="vertical">
             <a-form-item label="登录失败锁定阈值">
-              <a-input-number v-model:value="loginPolicy.lockThreshold" :min="1" :max="20" style="width:120px" /> 次
+              <a-input-number
+                v-model:value="loginPolicy.lockThreshold"
+                :min="1"
+                :max="20"
+                style="width:120px"
+              /> 次
             </a-form-item>
             <a-form-item label="锁定时间">
-              <a-input-number v-model:value="loginPolicy.lockDuration" :min="1" :max="1440" style="width:120px" /> 分钟
+              <a-input-number
+                v-model:value="loginPolicy.lockDuration"
+                :min="1"
+                :max="1440"
+                style="width:120px"
+              /> 分钟
             </a-form-item>
             <a-form-item label="验证码">
               <a-switch v-model:checked="loginPolicy.captchaEnabled" /> 启用登录验证码
@@ -38,46 +63,94 @@
           </a-form>
         </a-card>
 
-        <a-card :bordered="false" title="密码策略" style="margin-top:16px">
+        <a-card
+          :bordered="false"
+          title="密码策略"
+          style="margin-top:16px"
+        >
           <a-form layout="vertical">
             <a-form-item label="最小长度">
-              <a-input-number v-model:value="passwordPolicy.minLength" :min="6" :max="32" style="width:120px" /> 位
+              <a-input-number
+                v-model:value="passwordPolicy.minLength"
+                :min="6"
+                :max="32"
+                style="width:120px"
+              /> 位
             </a-form-item>
             <a-form-item label="复杂度要求">
-              <a-checkbox v-model:checked="passwordPolicy.requireUpper">包含大写字母</a-checkbox><br />
-              <a-checkbox v-model:checked="passwordPolicy.requireLower">包含小写字母</a-checkbox><br />
-              <a-checkbox v-model:checked="passwordPolicy.requireDigit">包含数字</a-checkbox><br />
-              <a-checkbox v-model:checked="passwordPolicy.requireSpecial">包含特殊字符</a-checkbox>
+              <a-checkbox v-model:checked="passwordPolicy.requireUpper">
+                包含大写字母
+              </a-checkbox><br>
+              <a-checkbox v-model:checked="passwordPolicy.requireLower">
+                包含小写字母
+              </a-checkbox><br>
+              <a-checkbox v-model:checked="passwordPolicy.requireDigit">
+                包含数字
+              </a-checkbox><br>
+              <a-checkbox v-model:checked="passwordPolicy.requireSpecial">
+                包含特殊字符
+              </a-checkbox>
             </a-form-item>
             <a-form-item label="密码有效期">
-              <a-input-number v-model:value="passwordPolicy.expireDays" :min="0" :max="365" style="width:120px" /> 天（0=永不过期）
+              <a-input-number
+                v-model:value="passwordPolicy.expireDays"
+                :min="0"
+                :max="365"
+                style="width:120px"
+              /> 天（0=永不过期）
             </a-form-item>
           </a-form>
         </a-card>
       </a-col>
 
       <a-col :span="12">
-        <a-card :bordered="false" title="访问控制">
+        <a-card
+          :bordered="false"
+          title="访问控制"
+        >
           <a-form layout="vertical">
             <a-form-item label="会话超时时间">
-              <a-input-number v-model:value="accessPolicy.sessionTimeout" :min="5" :max="1440" style="width:120px" /> 分钟
+              <a-input-number
+                v-model:value="accessPolicy.sessionTimeout"
+                :min="5"
+                :max="1440"
+                style="width:120px"
+              /> 分钟
             </a-form-item>
             <a-form-item label="单设备登录">
               <a-switch v-model:checked="accessPolicy.singleDevice" /> 限制单设备登录
             </a-form-item>
             <a-form-item label="IP白名单">
-              <a-textarea v-model:value="accessPolicy.ipWhitelist" :rows="3" placeholder="每行一个IP地址或CIDR" />
+              <a-textarea
+                v-model:value="accessPolicy.ipWhitelist"
+                :rows="3"
+                placeholder="每行一个IP地址或CIDR"
+              />
             </a-form-item>
             <a-form-item label="接口访问频率限制">
-              <a-input-number v-model:value="accessPolicy.rateLimit" :min="10" :max="10000" style="width:120px" /> 次/分钟
+              <a-input-number
+                v-model:value="accessPolicy.rateLimit"
+                :min="10"
+                :max="10000"
+                style="width:120px"
+              /> 次/分钟
             </a-form-item>
           </a-form>
         </a-card>
 
-        <a-card :bordered="false" title="审计日志" style="margin-top:16px">
+        <a-card
+          :bordered="false"
+          title="审计日志"
+          style="margin-top:16px"
+        >
           <a-form layout="vertical">
             <a-form-item label="日志保留天数">
-              <a-input-number v-model:value="auditPolicy.retentionDays" :min="7" :max="730" style="width:120px" /> 天
+              <a-input-number
+                v-model:value="auditPolicy.retentionDays"
+                :min="7"
+                :max="730"
+                style="width:120px"
+              /> 天
             </a-form-item>
             <a-form-item label="敏感操作审计">
               <a-switch v-model:checked="auditPolicy.logSensitiveOps" /> 记录敏感操作日志

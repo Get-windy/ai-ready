@@ -4,222 +4,271 @@
       <div class="chain-page-header">
         <div class="chain-page-header-left">
           <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>
+              <router-link to="/">
+                首页
+              </router-link>
+            </a-breadcrumb-item>
             <a-breadcrumb-item>打印管理</a-breadcrumb-item>
             <a-breadcrumb-item>打印链管理</a-breadcrumb-item>
           </a-breadcrumb>
-          <h2 class="chain-page-header-title">打印链管理</h2>
+          <h2 class="chain-page-header-title">
+            打印链管理
+          </h2>
         </div>
         <div class="chain-page-header-right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+          <span
+            v-if="lastUpdateTime"
+            class="update-time"
+          >更新于 {{ lastUpdateTime }}</span>
+          <span
+            v-if="autoRefreshCountdown > 0"
+            class="auto-refresh-badge"
+          >
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)()">
-            <template #icon><ReloadOutlined /></template>
+          <a-button
+            size="small"
+            :loading="refreshLoading"
+            @click="debounceClick('refresh', fetchData)()"
+          >
+            <template #icon>
+              <ReloadOutlined />
+            </template>
             刷新
           </a-button>
-<span class="shortcut-hints">
-                                                <span class="shortcut-hint"><kbd>Ctrl+R</kbd> 刷新</span>
-                                                <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
-                                                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-                                              </span>
+          <span class="shortcut-hints">
+            <span class="shortcut-hint"><kbd>Ctrl+R</kbd> 刷新</span>
+            <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+          </span>
         </div>
       </div>
     </template>
 
     <ErrorBoundary>
-    <div class="chain-management">
-      <BillTableList
-        ref="tableRef"
-        :columns="vxeColumns"
-        :data-source="tableDataSource"
-        :loading="loading"
-        :pagination="pagination"
-        :row-key="'chainId'"
-        :filter-fields="filterFields"
-        :show-search="false"
-        :selectable="false"
-        add-text="新增打印链"
-        :min-empty-rows="12"
-        @add="handleAdd"
-        @edit="handleEdit"
-        @delete="handleDeleteConfirm"
-        @refresh="debounceClick('refresh', fetchData)"
-        @page-change="handlePageChange"
-        @filter-change="handleFilterChange"
-      >
-        <template #statusCell="{ record }">
-          <a-tag :color="record.status === 'ACTIVE' ? 'green' : 'red'">
-            {{ record.status === 'ACTIVE' ? '启用' : '禁用' }}
-          </a-tag>
-        </template>
-
-        <template #stepCountCell="{ record }">
-          {{ record.items?.length ?? '-' }}
-        </template>
-
-        <template #action="{ record }">
-          <a-space>
-            <a-button type="link" size="small" v-permission="'printing:chain:edit'" @click="handleEdit(record)">
-              编辑
-            </a-button>
-            <a-button
-              type="link"
-              size="small"
-              @click="debounceClick('toggle_' + record.chainId, () => handleToggleStatus(record))()"
-            >
-              {{ record.status === 'ACTIVE' ? '禁用' : '启用' }}
-            </a-button>
-            <a-button type="link" size="small" danger v-permission="'printing:chain:deleteconfirm'" @click="handleDeleteConfirm(record)">
-              删除
-            </a-button>
-          </a-space>
-        </template>
-      </BillTableList>
-
-      <!-- 创建/编辑表单 -->
-      <FullScreenDetail
-        :visible="modalVisible"
-        :title="modalTitle"
-        :save-loading="modalLoading"
-        :show-save-and-new="!isEdit"
-        @save="handleModalOk"
-        @close="handleFormClose"
-        @save-and-new="handleFormSaveAndNew"
-      >
-        <a-form
-          ref="formRef"
-          :model="formState"
-          :rules="formRules"
-          :label-col="{ span: 4 }"
-          :wrapper-col="{ span: 18 }"
+      <div class="chain-management">
+        <BillTableList
+          ref="tableRef"
+          :columns="vxeColumns"
+          :data-source="tableDataSource"
+          :loading="loading"
+          :pagination="pagination"
+          :row-key="'chainId'"
+          :filter-fields="filterFields"
+          :show-search="false"
+          :selectable="false"
+          add-text="新增打印链"
+          :min-empty-rows="12"
+          @add="handleAdd"
+          @edit="handleEdit"
+          @delete="handleDeleteConfirm"
+          @refresh="debounceClick('refresh', fetchData)"
+          @page-change="handlePageChange"
+          @filter-change="handleFilterChange"
         >
-          <a-form-item label="页面编码" name="pageCode">
-            <a-input
-              v-model:value="formState.pageCode"
-              placeholder="请输入页面编码"
-              :disabled="isEdit"
-            />
-          </a-form-item>
-          <a-form-item label="打印链名称" name="chainName">
-            <a-input
-              v-model:value="formState.chainName"
-              placeholder="请输入打印链名称"
-            />
-          </a-form-item>
-          <a-form-item label="描述" name="description">
-            <a-textarea
-              v-model:value="formState.description"
-              placeholder="请输入描述"
-              :rows="2"
-            />
-          </a-form-item>
-          <a-form-item label="排序号" name="sortOrder">
-            <a-input-number
-              v-model:value="formState.sortOrder"
-              :min="0"
-              placeholder="请输入排序号"
-              style="width: 200px"
-            />
-          </a-form-item>
+          <template #statusCell="{ record }">
+            <a-tag :color="record.status === 'ACTIVE' ? 'green' : 'red'">
+              {{ record.status === 'ACTIVE' ? '启用' : '禁用' }}
+            </a-tag>
+          </template>
 
-          <!-- 步骤编辑器 -->
-          <a-form-item label="打印步骤">
-            <div class="steps-editor">
-              <div class="steps-editor-header">
-                <span class="steps-editor-title">步骤列表（{{ formState.items.length }}/10）</span>
-                <a-button
-                  type="dashed"
-                  size="small"
-                  :disabled="formState.items.length >= 10"
-                  @click="addStep"
-                >
-                  <template #icon><PlusOutlined /></template>
-                  添加步骤
-                </a-button>
-              </div>
-              <a-table
-                v-if="formState.items.length > 0"
-                :data-source="formState.items"
-                :columns="stepColumns"
-                :pagination="false as any"
-                :row-key="'_key'"
+          <template #stepCountCell="{ record }">
+            {{ record.items?.length ?? '-' }}
+          </template>
+
+          <template #action="{ record }">
+            <a-space>
+              <a-button
+                v-permission="'printing:chain:edit'"
+                type="link"
                 size="small"
-                bordered
-                class="steps-table"
+                @click="handleEdit(record)"
               >
-                <template #bodyCell="{ column, record, index }">
-                  <template v-if="column.key === 'stepOrder'">
-                    {{ index + 1 }}
+                编辑
+              </a-button>
+              <a-button
+                type="link"
+                size="small"
+                @click="debounceClick('toggle_' + record.chainId, () => handleToggleStatus(record))()"
+              >
+                {{ record.status === 'ACTIVE' ? '禁用' : '启用' }}
+              </a-button>
+              <a-button
+                v-permission="'printing:chain:deleteconfirm'"
+                type="link"
+                size="small"
+                danger
+                @click="handleDeleteConfirm(record)"
+              >
+                删除
+              </a-button>
+            </a-space>
+          </template>
+        </BillTableList>
+
+        <!-- 创建/编辑表单 -->
+        <FullScreenDetail
+          :visible="modalVisible"
+          :title="modalTitle"
+          :save-loading="modalLoading"
+          :show-save-and-new="!isEdit"
+          @save="handleModalOk"
+          @close="handleFormClose"
+          @save-and-new="handleFormSaveAndNew"
+        >
+          <a-form
+            ref="formRef"
+            :model="formState"
+            :rules="formRules"
+            :label-col="{ span: 4 }"
+            :wrapper-col="{ span: 18 }"
+          >
+            <a-form-item
+              label="页面编码"
+              name="pageCode"
+            >
+              <a-input
+                v-model:value="formState.pageCode"
+                placeholder="请输入页面编码"
+                :disabled="isEdit"
+              />
+            </a-form-item>
+            <a-form-item
+              label="打印链名称"
+              name="chainName"
+            >
+              <a-input
+                v-model:value="formState.chainName"
+                placeholder="请输入打印链名称"
+              />
+            </a-form-item>
+            <a-form-item
+              label="描述"
+              name="description"
+            >
+              <a-textarea
+                v-model:value="formState.description"
+                placeholder="请输入描述"
+                :rows="2"
+              />
+            </a-form-item>
+            <a-form-item
+              label="排序号"
+              name="sortOrder"
+            >
+              <a-input-number
+                v-model:value="formState.sortOrder"
+                :min="0"
+                placeholder="请输入排序号"
+                style="width: 200px"
+              />
+            </a-form-item>
+
+            <!-- 步骤编辑器 -->
+            <a-form-item label="打印步骤">
+              <div class="steps-editor">
+                <div class="steps-editor-header">
+                  <span class="steps-editor-title">步骤列表（{{ formState.items.length }}/10）</span>
+                  <a-button
+                    type="dashed"
+                    size="small"
+                    :disabled="formState.items.length >= 10"
+                    @click="addStep"
+                  >
+                    <template #icon>
+                      <PlusOutlined />
+                    </template>
+                    添加步骤
+                  </a-button>
+                </div>
+                <a-table
+                  v-if="formState.items.length > 0"
+                  :data-source="formState.items"
+                  :columns="stepColumns"
+                  :pagination="false as any"
+                  :row-key="'_key'"
+                  size="small"
+                  bordered
+                  class="steps-table"
+                >
+                  <template #bodyCell="{ column, record, index }">
+                    <template v-if="column.key === 'stepOrder'">
+                      {{ index + 1 }}
+                    </template>
+                    <template v-else-if="column.key === 'templateId'">
+                      <a-select
+                        v-model:value="record.templateId"
+                        placeholder="请选择模板"
+                        style="width: 100%"
+                        :options="templateOptions"
+                        show-search
+                        option-filter-prop="label"
+                        @change="onStepTemplateChange(record as any)"
+                      />
+                    </template>
+                    <template v-else-if="column.key === 'clientId'">
+                      <a-select
+                        v-model:value="record.clientId"
+                        placeholder="请选择客户端"
+                        style="width: 100%"
+                        :options="clientOptions"
+                        show-search
+                        option-filter-prop="label"
+                        @change="onStepClientChange(record as any)"
+                      />
+                    </template>
+                    <template v-else-if="column.key === 'printerName'">
+                      <a-input
+                        v-model:value="record.printerName"
+                        placeholder="请输入打印机名称"
+                      />
+                    </template>
+                    <template v-else-if="column.key === 'screenshotMode'">
+                      <a-select
+                        v-model:value="record.screenshotMode"
+                        placeholder="请选择模式"
+                        style="width: 100%"
+                        :options="screenshotModeOptions"
+                        @change="onScreenshotModeChange(record as any)"
+                      />
+                    </template>
+                    <template v-else-if="column.key === 'screenshotConfirmTimeout'">
+                      <a-input-number
+                        v-if="record.screenshotMode === 'AUTO_CONFIRM'"
+                        v-model:value="record.screenshotConfirmTimeout"
+                        :min="1"
+                        :max="300"
+                        placeholder="超时(秒)"
+                        style="width: 100%"
+                      />
+                      <span
+                        v-else
+                        class="text-muted"
+                      >-</span>
+                    </template>
+                    <template v-else-if="column.key === 'action'">
+                      <a-button
+                        type="link"
+                        danger
+                        size="small"
+                        :disabled="formState.items.length <= 1"
+                        @click="removeStep(index)"
+                      >
+                        删除
+                      </a-button>
+                    </template>
                   </template>
-                  <template v-else-if="column.key === 'templateId'">
-                    <a-select
-                      v-model:value="record.templateId"
-                      placeholder="请选择模板"
-                      style="width: 100%"
-                      :options="templateOptions"
-                      show-search
-                      option-filter-prop="label"
-                      @change="onStepTemplateChange(record as any)"
-                    />
-                  </template>
-                  <template v-else-if="column.key === 'clientId'">
-                    <a-select
-                      v-model:value="record.clientId"
-                      placeholder="请选择客户端"
-                      style="width: 100%"
-                      :options="clientOptions"
-                      show-search
-                      option-filter-prop="label"
-                      @change="onStepClientChange(record as any)"
-                    />
-                  </template>
-                  <template v-else-if="column.key === 'printerName'">
-                    <a-input
-                      v-model:value="record.printerName"
-                      placeholder="请输入打印机名称"
-                    />
-                  </template>
-                  <template v-else-if="column.key === 'screenshotMode'">
-                    <a-select
-                      v-model:value="record.screenshotMode"
-                      placeholder="请选择模式"
-                      style="width: 100%"
-                      :options="screenshotModeOptions"
-                      @change="onScreenshotModeChange(record as any)"
-                    />
-                  </template>
-                  <template v-else-if="column.key === 'screenshotConfirmTimeout'">
-                    <a-input-number
-                      v-if="record.screenshotMode === 'AUTO_CONFIRM'"
-                      v-model:value="record.screenshotConfirmTimeout"
-                      :min="1"
-                      :max="300"
-                      placeholder="超时(秒)"
-                      style="width: 100%"
-                    />
-                    <span v-else class="text-muted">-</span>
-                  </template>
-                  <template v-else-if="column.key === 'action'">
-                    <a-button
-                      type="link"
-                      danger
-                      size="small"
-                      :disabled="formState.items.length <= 1"
-                      @click="removeStep(index)"
-                    >
-                      删除
-                    </a-button>
-                  </template>
-                </template>
-              </a-table>
-              <a-empty v-else description="暂无步骤，请点击「添加步骤」" />
-            </div>
-          </a-form-item>
-        </a-form>
-      </FullScreenDetail>
-    </div>
+                </a-table>
+                <a-empty
+                  v-else
+                  description="暂无步骤，请点击「添加步骤」"
+                />
+              </div>
+            </a-form-item>
+          </a-form>
+        </FullScreenDetail>
+      </div>
     </ErrorBoundary>
   </PageContainer>
 </template>

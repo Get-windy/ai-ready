@@ -90,6 +90,11 @@ public class Stock {
     private String unit;
 
     /**
+     * 单价
+     */
+    private BigDecimal unitPrice;
+
+    /**
      * 批次号（批次管理）
      */
     private String batchNo;
@@ -113,6 +118,11 @@ public class Stock {
      * SKU（SKU管理模式使用）
      */
     private String sku;
+
+    /**
+     * 是否为期初库存（0-否，1-是）
+     */
+    private Integer isInitial;
 
     /**
      * 供应商ID

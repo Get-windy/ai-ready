@@ -332,6 +332,190 @@ public class DatabaseInitializer implements CommandLineRunner {
             "create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP, update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP, " +
             "create_by BIGINT, update_by BIGINT");
 
+        // erp_sale_pre_order 预订货单主表（符合第三范式，只存订单级数据）
+        safeCreateTable("erp_sale_pre_order",
+            "id BIGINT PRIMARY KEY, " +
+            "tenant_id BIGINT NOT NULL DEFAULT 1, " +
+            "order_no VARCHAR(100) NOT NULL, " +
+            "customer_id BIGINT NOT NULL, " +
+            "customer_name VARCHAR(200) NOT NULL, " +
+            "customer_code VARCHAR(100), " +
+            "bank_name VARCHAR(200), " +
+            "bank_account VARCHAR(100), " +
+            "tax_no VARCHAR(100), " +
+            "warehouse_id BIGINT, " +
+            "warehouse_name VARCHAR(100), " +
+            "handler_id BIGINT, " +
+            "handler_name VARCHAR(100), " +
+            "dept_id BIGINT, " +
+            "dept_name VARCHAR(100), " +
+            "order_date DATE NOT NULL, " +
+            "sale_type INTEGER DEFAULT 0, " +
+            "receiver_name VARCHAR(100), " +
+            "receiver_phone VARCHAR(50), " +
+            "shipping_address VARCHAR(500), " +
+            "customer_level VARCHAR(50), " +
+            "status INTEGER NOT NULL DEFAULT 0, " +
+            "settlement_status INTEGER NOT NULL DEFAULT 0, " +
+            // 金额字段
+            "total_amount DECIMAL(18,2) DEFAULT 0, " +
+            "discounted_amount DECIMAL(18,2) DEFAULT 0, " +
+            "order_amount DECIMAL(18,2) DEFAULT 0, " +
+            // 预订金相关
+            "received_deposit DECIMAL(18,2) DEFAULT 0, " +
+            "unreceived_deposit DECIMAL(18,2) DEFAULT 0, " +
+            "deposit_balance DECIMAL(18,2) DEFAULT 0, " +
+            "deposit_account1 VARCHAR(200), " +
+            "deposit_account2 VARCHAR(200), " +
+            "deposit_account3 VARCHAR(200), " +
+            "deposit_account4 VARCHAR(200), " +
+            "deposit_amount DECIMAL(18,2) DEFAULT 0, " +
+            "credit_limit DECIMAL(18,2) DEFAULT 0, " +
+            "deposit_deadline DATE, " +
+            // 数量汇总
+            "pre_order_quantity DECIMAL(18,2) DEFAULT 0, " +
+            "ordered_quantity DECIMAL(18,2) DEFAULT 0, " +
+            "un_ordered_quantity DECIMAL(18,2) DEFAULT 0, " +
+            "shipped_quantity DECIMAL(18,2) DEFAULT 0, " +
+            "un_shipped_quantity DECIMAL(18,2) DEFAULT 0, " +
+            // 其他
+            "total_weight DECIMAL(18,2) DEFAULT 0, " +
+            "total_volume DECIMAL(18,2) DEFAULT 0, " +
+            "region VARCHAR(100), " +
+            "summary VARCHAR(500), " +
+            "remark VARCHAR(500), " +
+            "customer_remark VARCHAR(500), " +
+            "customer_ticket VARCHAR(200), " +
+            "attachment VARCHAR(500), " +
+            // 扩展字段
+            "ext_num1 DECIMAL(18,2), " +
+            "ext_num2 DECIMAL(18,2), " +
+            "ext_text1 VARCHAR(200), " +
+            "ext_text2 VARCHAR(200), " +
+            "ext_text3 VARCHAR(200), " +
+            "ext_info TEXT, " +
+            // 审计字段
+            "create_by BIGINT, " +
+            "creator_name VARCHAR(100), " +
+            "submit_by BIGINT, " +
+            "submitter_name VARCHAR(100), " +
+            "submit_time TIMESTAMP, " +
+            "approved_by BIGINT, " +
+            "auditor_name VARCHAR(100), " +
+            "approved_time TIMESTAMP, " +
+            "print_count INTEGER DEFAULT 0, " +
+            // 系统字段
+            "deleted INTEGER NOT NULL DEFAULT 0, " +
+            "version_no INTEGER NOT NULL DEFAULT 0, " +
+            "create_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, " +
+            "update_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, " +
+            "update_by BIGINT"
+        );
+
+        // 预订货单主表索引
+        safeCreateIndex("erp_sale_pre_order", "idx_pre_order_tenant", "tenant_id, deleted", false);
+        safeCreateIndex("erp_sale_pre_order", "uk_pre_order_no", "tenant_id, order_no", true);  // 唯一约束：同一租户下订单号唯一
+        safeCreateIndex("erp_sale_pre_order", "idx_pre_order_customer", "tenant_id, customer_id, order_date", false);
+        safeCreateIndex("erp_sale_pre_order", "idx_pre_order_status", "tenant_id, status, order_date", false);
+        safeCreateIndex("erp_sale_pre_order", "idx_pre_order_date", "tenant_id, order_date", false);
+        safeCreateIndex("erp_sale_pre_order", "idx_pre_order_handler", "tenant_id, handler_id, order_date", false);
+        safeCreateIndex("erp_sale_pre_order", "idx_pre_order_settlement", "tenant_id, settlement_status", false);
+        safeCreateIndex("erp_sale_pre_order", "idx_pre_order_deposit_deadline", "tenant_id, deposit_deadline", false);
+
+        // erp_sale_pre_order_item 预订货单明细表（符合第三范式，只存行项级数据）
+        safeCreateTable("erp_sale_pre_order_item",
+            "id BIGINT PRIMARY KEY, " +
+            "tenant_id BIGINT NOT NULL DEFAULT 1, " +
+            "order_id BIGINT NOT NULL, " +  // 外键关联主表
+            "line_no INTEGER NOT NULL, " +
+            // 商品信息
+            "product_id BIGINT NOT NULL, " +
+            "product_name VARCHAR(200) NOT NULL, " +
+            "product_code VARCHAR(100), " +
+            "barcode VARCHAR(100), " +
+            "image_url VARCHAR(500), " +
+            "specification VARCHAR(200), " +
+            "model VARCHAR(200), " +
+            "origin VARCHAR(200), " +
+            "brand VARCHAR(100), " +
+            // 单位和换算
+            "unit VARCHAR(50), " +
+            "small_unit VARCHAR(50), " +
+            "small_unit_quantity DECIMAL(18,2), " +
+            "conversion_relation VARCHAR(100), " +
+            "conversion_result DECIMAL(18,2), " +
+            // 库存相关
+            "region VARCHAR(100), " +
+            "location VARCHAR(100), " +
+            "available_stock DECIMAL(18,2) DEFAULT 0, " +
+            "available_stock_conversion DECIMAL(18,2) DEFAULT 0, " +
+            "book_stock DECIMAL(18,2) DEFAULT 0, " +
+            // 数量
+            "quantity DECIMAL(18,2) NOT NULL DEFAULT 0, " +
+            "piece_quantity DECIMAL(18,2), " +
+            "big_pack DECIMAL(18,2), " +
+            "mid_pack DECIMAL(18,2), " +
+            "small_pack DECIMAL(18,2), " +
+            "ordered_quantity DECIMAL(18,2) DEFAULT 0, " +
+            "un_ordered_quantity DECIMAL(18,2) DEFAULT 0, " +
+            "shipped_quantity DECIMAL(18,2) DEFAULT 0, " +
+            "un_shipped_quantity DECIMAL(18,2) DEFAULT 0, " +
+            "terminate_quantity DECIMAL(18,2) DEFAULT 0, " +
+            "terminate_amount DECIMAL(18,2) DEFAULT 0, " +
+            // 价格相关
+            "last_sale_date DATE, " +
+            "retail_price DECIMAL(18,2), " +
+            "wholesale_price DECIMAL(18,2), " +
+            "min_sale_price DECIMAL(18,2), " +
+            "unit_price DECIMAL(18,2) DEFAULT 0, " +
+            "amount DECIMAL(18,2) DEFAULT 0, " +
+            "small_unit_price DECIMAL(18,2), " +
+            "discount_rate DECIMAL(18,2) DEFAULT 0, " +
+            "discounted_price DECIMAL(18,2), " +
+            "discounted_amount DECIMAL(18,2), " +
+            // 成本相关
+            "cost_price DECIMAL(18,2), " +
+            "cost_amount DECIMAL(18,2), " +
+            "gross_profit DECIMAL(18,2), " +
+            // 体积重量
+            "volume DECIMAL(18,2), " +
+            "weight DECIMAL(18,2), " +
+            // 商品属性
+            "product_attribute VARCHAR(100), " +
+            "gift BOOLEAN NOT NULL DEFAULT FALSE, " +
+            "remark VARCHAR(500), " +
+            // 8个价格等级
+            "price_level1 DECIMAL(18,2), " +
+            "price_level2 DECIMAL(18,2), " +
+            "price_level3 DECIMAL(18,2), " +
+            "price_level4 DECIMAL(18,2), " +
+            "price_level5 DECIMAL(18,2), " +
+            "price_level6 DECIMAL(18,2), " +
+            "price_level7 DECIMAL(18,2), " +
+            "price_level8 DECIMAL(18,2), " +
+            // 扩展字段
+            "ext_num1 DECIMAL(18,2), " +
+            "ext_num2 DECIMAL(18,2), " +
+            "ext_num3 DECIMAL(18,2), " +
+            "ext_num4 DECIMAL(18,2), " +
+            "ext_num5 DECIMAL(18,2), " +
+            "ext_text1 VARCHAR(200), " +
+            "ext_text2 VARCHAR(200), " +
+            "ext_partner BIGINT, " +
+            "ext_staff BIGINT, " +
+            "ext_dept BIGINT, " +
+            // 系统字段
+            "deleted INTEGER NOT NULL DEFAULT 0, " +
+            "create_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, " +
+            "update_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, " +
+            "update_by BIGINT"
+        );
+
+        // 预订货单明细表索引
+        safeCreateIndex("erp_sale_pre_order_item", "idx_pre_order_item_tenant", "tenant_id, deleted", false);
+        safeCreateIndex("erp_sale_pre_order_item", "idx_pre_order_item_order", "order_id, line_no", false);
+        safeCreateIndex("erp_sale_pre_order_item", "idx_pre_order_item_product", "tenant_id, product_id", false);
+
         // batch_number
         safeCreateTable("batch_number", "id BIGINT PRIMARY KEY, batch_no VARCHAR(100), product_id BIGINT, " +
             "product_code VARCHAR(100), product_name VARCHAR(200), specification VARCHAR(100), " +
@@ -657,6 +841,32 @@ public class DatabaseInitializer implements CommandLineRunner {
             }
         } catch (Exception e) {
             log.warn("创建 {} 表失败: {}", tableName, e.getMessage());
+        }
+    }
+
+    /**
+     * 安全创建索引：如果索引不存在则创建
+     */
+    private void safeCreateIndex(String tableName, String indexName, String columns, boolean unique) {
+        try {
+            // 检查索引是否已存在
+            String checkSql = "SELECT COUNT(*) FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME = ? AND INDEX_NAME = ?";
+            Integer count = jdbcTemplate.queryForObject(checkSql, Integer.class, tableName, indexName);
+            if (count == null || count == 0) {
+                String uniqueStr = unique ? "UNIQUE " : "";
+                String sql = "CREATE " + uniqueStr + "INDEX IF NOT EXISTS " + indexName + " ON " + tableName + " (" + columns + ")";
+                jdbcTemplate.execute(sql);
+                log.info("创建索引 {} on {}", indexName, tableName);
+            }
+        } catch (Exception e) {
+            // H2 可能不支持 INFORMATION_SCHEMA.INDEXES，尝试直接创建
+            try {
+                String uniqueStr = unique ? "UNIQUE " : "";
+                String sql = "CREATE " + uniqueStr + "INDEX IF NOT EXISTS " + indexName + " ON " + tableName + " (" + columns + ")";
+                jdbcTemplate.execute(sql);
+            } catch (Exception ex) {
+                log.warn("创建索引 {} 失败: {}", indexName, ex.getMessage());
+            }
         }
     }
 
@@ -1136,8 +1346,7 @@ public class DatabaseInitializer implements CommandLineRunner {
         appendMenu(sql, 4022, 4000, "预订货单", "sales:pre-order", 1, "sales/pre-order/form", "sales/pre-order/index", "ScheduleOutlined", 22, 1, "sales/pre-order", "历史", 0);
         // ── 销售业务（displayMode=1 → "历史"标签按钮） ──
         appendMenu(sql, 4030, 4000, "零售单", "sales:retail", 1, "sales/retail/form", "sales/retail/index", "ShopOutlined", 30, 1, "sales/retail", "历史", 0);
-        appendMenu(sql, 4031, 4000, "销售出库单", "sales:shipment", 1, "sales/shipment/form", "sales/shipment/index", "SendOutlined", 31, 1, "sales/shipment", "历史", 0);
-        appendMenu(sql, 4034, 4000, "销售出库单", "erp:sale-outbound", 1, "erp/sale-outbound", "erp/sale-outbound/index", "SendOutlined", 34, 1, "erp/sale-outbound", "历史", 0);
+        appendMenu(sql, 4031, 4000, "销售出库单", "sales:outbound", 1, "sales/outbound/form", "sales/outbound/index", "SendOutlined", 31, 1, "sales/outbound", "历史", 0);
         appendMenu(sql, 4032, 4000, "销售退货单", "erp:return", 1, "sales/return/form", "sales/return/index", "RollbackOutlined", 32, 1, "sales/return", "历史", 0);
         appendMenu(sql, 4033, 4000, "销售换货单", "erp:purchase-exchange", 1, "sales/exchange/form", "sales/exchange/index", "SwapOutlined", 33, 1, "sales/exchange", "历史", 0);
         // ── 销售查询 ──

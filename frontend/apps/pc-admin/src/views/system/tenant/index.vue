@@ -1,396 +1,488 @@
 <template>
   <ErrorBoundary @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="tenant-page-header">
-        <div class="tenant-page-header-left">
-          <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item>租户管理</a-breadcrumb-item>
-          </a-breadcrumb>
-          <h2 class="tenant-page-header-title">租户管理</h2>
-        </div>
-        <div class="tenant-page-header-right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-            <SyncOutlined /> {{ autoRefreshCountdown }}s
-          </span>
-          <span class="shortcut-hints">
-            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-            <span class="shortcut-hint"><kbd>Ctrl</kbd> + <kbd>N</kbd> 新增</span>
-          </span>
-          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)">
-            <template #icon><ReloadOutlined /></template>
-            刷新
-          </a-button>
-        </div>
-      </div>
-    </template>
-
-    <div class="tenant-management">
-      <!-- 统计卡片 -->
-      <div class="stat-cards">
-        <div class="stat-card stat-total">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ pagination.total }}</div>
-            <div class="stat-card-label">租户总数</div>
+    <PageContainer full-height>
+      <template #header>
+        <div class="tenant-page-header">
+          <div class="tenant-page-header-left">
+            <a-breadcrumb>
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>租户管理</a-breadcrumb-item>
+            </a-breadcrumb>
+            <h2 class="tenant-page-header-title">
+              租户管理
+            </h2>
           </div>
-          <ShopOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-active">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ activeCount }}</div>
-            <div class="stat-card-label">正常租户</div>
-          </div>
-          <CheckCircleOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-disabled">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ disabledCount }}</div>
-            <div class="stat-card-label">停用租户</div>
-          </div>
-          <StopOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-users">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ totalUsers }}</div>
-            <div class="stat-card-label">用户总数</div>
-          </div>
-          <TeamOutlined class="stat-card-icon" />
-        </div>
-      </div>
-
-      <a-skeleton active v-if="loading && tableData.length === 0" :paragraph="{ rows: 8 }" style="padding: 24px;" />
-
-      <BillTableList
-        ref="tableRef"
-        :columns="vxeColumns"
-        :data-source="tableDataSource"
-        :loading="loading"
-        :pagination="pagination"
-        :row-key="'id'"
-        :min-empty-rows="12"
-        :filter-fields="filterFields"
-        :show-search="false"
-        :selectable="true"
-        add-text="新增租户"
-        add-permission="tenant:create"
-        edit-permission="tenant:update"
-        delete-permission="tenant:delete"
-        @add="handleAdd"
-        @edit="handleEdit"
-        @delete="handleDelete"
-        @batch-delete="handleBatchDelete"
-        @refresh="debounceClick('refresh', fetchData)"
-        @page-change="handlePageChange"
-        @filter-change="handleFilterChange"
-        @selection-change="(keys: any) => { (selectedRowKeys as any) = keys }"
-        @cell-dblclick="handleView"
-      >
-        <template #empty>
-          <a-empty v-if="!hasError" description="暂无数据" />
-          <a-result v-else status="error" title="数据加载失败">
-            <template #extra>
-              <a-button type="primary" @click="debounceClick('refresh', fetchData)">
-                <template #icon><ReloadOutlined /></template>
-                重新加载
-              </a-button>
-            </template>
-          </a-result>
-        </template>
-
-        <template #levelCell="{ record }">
-          <a-tag :color="record.level === 'enterprise' ? 'gold' : record.level === 'professional' ? 'blue' : 'default'" style="font-size: 11px; line-height: 18px; padding: 0 6px;">
-            {{ record.level === 'enterprise' ? '企业版' : record.level === 'professional' ? '专业版' : '基础版' }}
-          </a-tag>
-        </template>
-        <template #expireCell="{ record }">
-          <span v-if="record.expireDate" :style="{ color: isExpired(record.expireDate) ? '#ff4d4f' : undefined, fontWeight: isExpired(record.expireDate) ? 600 : undefined }">
-            {{ record.expireDate }}
-            <a-tag v-if="isExpired(record.expireDate)" color="red" style="font-size: 10px; line-height: 16px; padding: 0 4px;">已过期</a-tag>
-          </span>
-          <span v-else style="color: #999;">未设置</span>
-        </template>
-        <template #statusCell="{ record }">
-          <a-tag :color="record.status === 0 ? 'success' : 'error'">
-            {{ record.status === 0 ? '正常' : '停用' }}
-          </a-tag>
-        </template>
-
-        <template #action="{ record }">
-          <a-space>
-            <a-button
-              type="link"
-              size="small"
-              v-permission="'tenant:update'"
-              @click="handleEdit(record)"
+          <div class="tenant-page-header-right">
+            <span
+              v-if="lastUpdateTime"
+              class="update-time"
+            >更新于 {{ lastUpdateTime }}</span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
             >
-              编辑
-            </a-button>
+              <SyncOutlined /> {{ autoRefreshCountdown }}s
+            </span>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+              <span class="shortcut-hint"><kbd>Ctrl</kbd> + <kbd>N</kbd> 新增</span>
+            </span>
             <a-button
-              type="link"
               size="small"
-              v-permission="'tenant:config'"
-              @click="handleConfig(record)"
+              :loading="refreshLoading"
+              @click="debounceClick('refresh', fetchData)"
             >
-              配置
+              <template #icon>
+                <ReloadOutlined />
+              </template>
+              刷新
             </a-button>
-            <a-dropdown>
+          </div>
+        </div>
+      </template>
+
+      <div class="tenant-management">
+        <!-- 统计卡片 -->
+        <div class="stat-cards">
+          <div class="stat-card stat-total">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ pagination.total }}
+              </div>
+              <div class="stat-card-label">
+                租户总数
+              </div>
+            </div>
+            <ShopOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-active">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ activeCount }}
+              </div>
+              <div class="stat-card-label">
+                正常租户
+              </div>
+            </div>
+            <CheckCircleOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-disabled">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ disabledCount }}
+              </div>
+              <div class="stat-card-label">
+                停用租户
+              </div>
+            </div>
+            <StopOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-users">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ totalUsers }}
+              </div>
+              <div class="stat-card-label">
+                用户总数
+              </div>
+            </div>
+            <TeamOutlined class="stat-card-icon" />
+          </div>
+        </div>
+
+        <a-skeleton
+          v-if="loading && tableData.length === 0"
+          active
+          :paragraph="{ rows: 8 }"
+          style="padding: 24px;"
+        />
+
+        <BillTableList
+          ref="tableRef"
+          :columns="vxeColumns"
+          :data-source="tableDataSource"
+          :loading="loading"
+          :pagination="pagination"
+          :row-key="'id'"
+          :min-empty-rows="12"
+          :filter-fields="filterFields"
+          :show-search="false"
+          :selectable="true"
+          add-text="新增租户"
+          add-permission="tenant:create"
+          edit-permission="tenant:update"
+          delete-permission="tenant:delete"
+          @add="handleAdd"
+          @edit="handleEdit"
+          @delete="handleDelete"
+          @batch-delete="handleBatchDelete"
+          @refresh="debounceClick('refresh', fetchData)"
+          @page-change="handlePageChange"
+          @filter-change="handleFilterChange"
+          @selection-change="(keys: any) => { (selectedRowKeys as any) = keys }"
+          @cell-dblclick="handleView"
+        >
+          <template #empty>
+            <a-empty
+              v-if="!hasError"
+              description="暂无数据"
+            />
+            <a-result
+              v-else
+              status="error"
+              title="数据加载失败"
+            >
+              <template #extra>
+                <a-button
+                  type="primary"
+                  @click="debounceClick('refresh', fetchData)"
+                >
+                  <template #icon>
+                    <ReloadOutlined />
+                  </template>
+                  重新加载
+                </a-button>
+              </template>
+            </a-result>
+          </template>
+
+          <template #levelCell="{ record }">
+            <a-tag
+              :color="record.level === 'enterprise' ? 'gold' : record.level === 'professional' ? 'blue' : 'default'"
+              style="font-size: 11px; line-height: 18px; padding: 0 6px;"
+            >
+              {{ record.level === 'enterprise' ? '企业版' : record.level === 'professional' ? '专业版' : '基础版' }}
+            </a-tag>
+          </template>
+          <template #expireCell="{ record }">
+            <span
+              v-if="record.expireDate"
+              :style="{ color: isExpired(record.expireDate) ? '#ff4d4f' : undefined, fontWeight: isExpired(record.expireDate) ? 600 : undefined }"
+            >
+              {{ record.expireDate }}
+              <a-tag
+                v-if="isExpired(record.expireDate)"
+                color="red"
+                style="font-size: 10px; line-height: 16px; padding: 0 4px;"
+              >已过期</a-tag>
+            </span>
+            <span
+              v-else
+              style="color: #999;"
+            >未设置</span>
+          </template>
+          <template #statusCell="{ record }">
+            <a-tag :color="record.status === 0 ? 'success' : 'error'">
+              {{ record.status === 0 ? '正常' : '停用' }}
+            </a-tag>
+          </template>
+
+          <template #action="{ record }">
+            <a-space>
               <a-button
+                v-permission="'tenant:update'"
                 type="link"
                 size="small"
+                @click="handleEdit(record)"
               >
-                更多<DownOutlined />
+                编辑
               </a-button>
-              <template #overlay>
-                <a-menu>
-                  <a-menu-item @click="handleToggleStatus(record)" v-permission="'tenant:update'">
-                    <StopOutlined /> {{ record.status === 0 ? '停用' : '启用' }}
-                  </a-menu-item>
-                  <a-menu-divider />
-                  <a-menu-item
-                    danger
-                    @click="handleDelete(record)"
-                    v-permission="'tenant:delete'"
-                  >
-                    <DeleteOutlined /> 删除
-                  </a-menu-item>
-                </a-menu>
-              </template>
-            </a-dropdown>
-          </a-space>
-        </template>
-      </BillTableList>
-
-      <!-- 新增/编辑租户弹窗 -->
-      <FullScreenDetail :visible="modalVisible" :title="modalTitle" :dirty="formDirty" :save-loading="submittingLoading" :show-save-and-new="!isEdit" @save="handleModalOk" @close="handleFormClose" @save-and-new="handleFormSaveAndNew">
-        <a-form
-          ref="formRef"
-          :model="formState"
-          :rules="formRules"
-          :label-col="{ span: 6 }"
-          :wrapper-col="{ span: 16 }"
-        >
-          <a-row :gutter="16">
-            <a-col :span="12">
-              <a-form-item
-                label="租户编码"
-                name="tenantCode"
+              <a-button
+                v-permission="'tenant:config'"
+                type="link"
+                size="small"
+                @click="handleConfig(record)"
               >
-                <a-input
-                  v-model:value="formState.tenantCode"
-                  placeholder="请输入租户编码"
-                  :disabled="isEdit"
-                />
-              </a-form-item>
-            </a-col>
-            <a-col :span="12">
-              <a-form-item
-                label="租户名称"
-                name="tenantName"
-              >
-                <a-input
-                  v-model:value="formState.tenantName"
-                  placeholder="请输入租户名称"
-                />
-              </a-form-item>
-            </a-col>
-          </a-row>
-          <a-row :gutter="16">
-            <a-col :span="12">
-              <a-form-item
-                label="联系人"
-                name="contactName"
-              >
-                <a-input
-                  v-model:value="formState.contactName"
-                  placeholder="请输入联系人"
-                />
-              </a-form-item>
-            </a-col>
-            <a-col :span="12">
-              <a-form-item
-                label="联系电话"
-                name="contactPhone"
-              >
-                <a-input
-                  v-model:value="formState.contactPhone"
-                  placeholder="请输入联系电话"
-                />
-              </a-form-item>
-            </a-col>
-          </a-row>
-          <a-row :gutter="16">
-            <a-col :span="12">
-              <a-form-item
-                label="联系邮箱"
-                name="contactEmail"
-              >
-                <a-input
-                  v-model:value="formState.contactEmail"
-                  placeholder="请输入联系邮箱"
-                />
-              </a-form-item>
-            </a-col>
-            <a-col :span="12">
-              <a-form-item
-                label="最大用户数"
-                name="maxUsers"
-              >
-                <a-input-number
-                  v-model:value="formState.maxUsers"
-                  placeholder="请输入最大用户数"
-                  :min="1"
-                  style="width: 100%"
-                />
-              </a-form-item>
-            </a-col>
-          </a-row>
-          <a-form-item
-            label="地址"
-            name="address"
-          >
-            <a-input
-              v-model:value="formState.address"
-              placeholder="请输入地址"
-            />
-          </a-form-item>
-          <a-form-item
-            label="描述"
-            name="description"
-          >
-            <a-textarea
-              v-model:value="formState.description"
-              placeholder="请输入描述信息"
-              :rows="3"
-            />
-          </a-form-item>
-          <a-row :gutter="16">
-            <a-col :span="12">
-              <a-form-item
-                label="管理员ID"
-                name="adminUserId"
-              >
-                <a-input-number
-                  v-model:value="formState.adminUserId"
-                  placeholder="租户管理员用户ID"
-                  :min="1"
-                  style="width: 100%"
-                />
-              </a-form-item>
-            </a-col>
-            <a-col :span="12">
-              <a-form-item
-                label="租户等级"
-                name="level"
-              >
-                <a-select v-model:value="formState.level" placeholder="请选择租户等级" size="small">
-                  <a-select-option value="basic">基础版</a-select-option>
-                  <a-select-option value="professional">专业版</a-select-option>
-                  <a-select-option value="enterprise">企业版</a-select-option>
-                </a-select>
-              </a-form-item>
-            </a-col>
-          </a-row>
-          <a-row :gutter="16">
-            <a-col :span="12">
-              <a-form-item
-                label="过期日期"
-                name="expireDate"
-              >
-                <a-date-picker
-                  v-model:value="formState.expireDate"
+                配置
+              </a-button>
+              <a-dropdown>
+                <a-button
+                  type="link"
                   size="small"
-                  placeholder="请选择过期日期"
-                  style="width: 100%"
-                />
-              </a-form-item>
-            </a-col>
-            <a-col :span="12">
-              <a-form-item
-                label="状态"
-                name="status"
-              >
-                <a-radio-group v-model:value="formState.status">
-                  <a-radio :value="0">
-                    正常
-                  </a-radio>
-                  <a-radio :value="1">
-                    停用
-                  </a-radio>
-                </a-radio-group>
-              </a-form-item>
-            </a-col>
-          </a-row>
-        </a-form>
-      </FullScreenDetail>
+                >
+                  更多<DownOutlined />
+                </a-button>
+                <template #overlay>
+                  <a-menu>
+                    <a-menu-item
+                      v-permission="'tenant:update'"
+                      @click="handleToggleStatus(record)"
+                    >
+                      <StopOutlined /> {{ record.status === 0 ? '停用' : '启用' }}
+                    </a-menu-item>
+                    <a-menu-divider />
+                    <a-menu-item
+                      v-permission="'tenant:delete'"
+                      danger
+                      @click="handleDelete(record)"
+                    >
+                      <DeleteOutlined /> 删除
+                    </a-menu-item>
+                  </a-menu>
+                </template>
+              </a-dropdown>
+            </a-space>
+          </template>
+        </BillTableList>
 
-      <!-- 配置弹窗 -->
-      <FullScreenDetail :visible="configModalVisible" title="租户配置" :save-loading="configLoading" @save="handleConfigSave" @close="handleConfigClose">
-        <a-form
-          :model="configForm"
-          :label-col="{ span: 6 }"
-          :wrapper-col="{ span: 16 }"
+        <!-- 新增/编辑租户弹窗 -->
+        <FullScreenDetail
+          :visible="modalVisible"
+          :title="modalTitle"
+          :dirty="formDirty"
+          :save-loading="submittingLoading"
+          :show-save-and-new="!isEdit"
+          @save="handleModalOk"
+          @close="handleFormClose"
+          @save-and-new="handleFormSaveAndNew"
         >
-          <a-form-item label="Logo">
-            <a-input
-              v-model:value="configForm.logo"
-              placeholder="请输入 Logo 地址"
-            />
-          </a-form-item>
-          <a-form-item label="主题色">
-            <a-input
-              v-model:value="configForm.themeColor"
-              placeholder="请输入主题色（如 #1890ff）"
-            />
-            <div
-              v-if="configForm.themeColor"
-              class="color-preview"
-              :style="{ backgroundColor: configForm.themeColor }"
-            />
-          </a-form-item>
-          <a-form-item label="最大用户数">
-            <a-input-number
-              v-model:value="configForm.maxUsers"
-              placeholder="请输入最大用户数"
-              :min="1"
-              style="width: 100%"
-            />
-          </a-form-item>
-          <a-form-item label="过期日期">
-            <a-date-picker
-              v-model:value="configForm.expireDate"
-              size="small"
-              placeholder="请选择过期日期"
-              style="width: 100%"
-            />
-          </a-form-item>
-        </a-form>
-        <a-divider />
-        <a-descriptions
-          title="当前配置信息"
-          :column="1"
-          bordered
-          size="small"
+          <a-form
+            ref="formRef"
+            :model="formState"
+            :rules="formRules"
+            :label-col="{ span: 6 }"
+            :wrapper-col="{ span: 16 }"
+          >
+            <a-row :gutter="16">
+              <a-col :span="12">
+                <a-form-item
+                  label="租户编码"
+                  name="tenantCode"
+                >
+                  <a-input
+                    v-model:value="formState.tenantCode"
+                    placeholder="请输入租户编码"
+                    :disabled="isEdit"
+                  />
+                </a-form-item>
+              </a-col>
+              <a-col :span="12">
+                <a-form-item
+                  label="租户名称"
+                  name="tenantName"
+                >
+                  <a-input
+                    v-model:value="formState.tenantName"
+                    placeholder="请输入租户名称"
+                  />
+                </a-form-item>
+              </a-col>
+            </a-row>
+            <a-row :gutter="16">
+              <a-col :span="12">
+                <a-form-item
+                  label="联系人"
+                  name="contactName"
+                >
+                  <a-input
+                    v-model:value="formState.contactName"
+                    placeholder="请输入联系人"
+                  />
+                </a-form-item>
+              </a-col>
+              <a-col :span="12">
+                <a-form-item
+                  label="联系电话"
+                  name="contactPhone"
+                >
+                  <a-input
+                    v-model:value="formState.contactPhone"
+                    placeholder="请输入联系电话"
+                  />
+                </a-form-item>
+              </a-col>
+            </a-row>
+            <a-row :gutter="16">
+              <a-col :span="12">
+                <a-form-item
+                  label="联系邮箱"
+                  name="contactEmail"
+                >
+                  <a-input
+                    v-model:value="formState.contactEmail"
+                    placeholder="请输入联系邮箱"
+                  />
+                </a-form-item>
+              </a-col>
+              <a-col :span="12">
+                <a-form-item
+                  label="最大用户数"
+                  name="maxUsers"
+                >
+                  <a-input-number
+                    v-model:value="formState.maxUsers"
+                    placeholder="请输入最大用户数"
+                    :min="1"
+                    style="width: 100%"
+                  />
+                </a-form-item>
+              </a-col>
+            </a-row>
+            <a-form-item
+              label="地址"
+              name="address"
+            >
+              <a-input
+                v-model:value="formState.address"
+                placeholder="请输入地址"
+              />
+            </a-form-item>
+            <a-form-item
+              label="描述"
+              name="description"
+            >
+              <a-textarea
+                v-model:value="formState.description"
+                placeholder="请输入描述信息"
+                :rows="3"
+              />
+            </a-form-item>
+            <a-row :gutter="16">
+              <a-col :span="12">
+                <a-form-item
+                  label="管理员ID"
+                  name="adminUserId"
+                >
+                  <a-input-number
+                    v-model:value="formState.adminUserId"
+                    placeholder="租户管理员用户ID"
+                    :min="1"
+                    style="width: 100%"
+                  />
+                </a-form-item>
+              </a-col>
+              <a-col :span="12">
+                <a-form-item
+                  label="租户等级"
+                  name="level"
+                >
+                  <a-select
+                    v-model:value="formState.level"
+                    placeholder="请选择租户等级"
+                    size="small"
+                  >
+                    <a-select-option value="basic">
+                      基础版
+                    </a-select-option>
+                    <a-select-option value="professional">
+                      专业版
+                    </a-select-option>
+                    <a-select-option value="enterprise">
+                      企业版
+                    </a-select-option>
+                  </a-select>
+                </a-form-item>
+              </a-col>
+            </a-row>
+            <a-row :gutter="16">
+              <a-col :span="12">
+                <a-form-item
+                  label="过期日期"
+                  name="expireDate"
+                >
+                  <a-date-picker
+                    v-model:value="formState.expireDate"
+                    size="small"
+                    placeholder="请选择过期日期"
+                    style="width: 100%"
+                  />
+                </a-form-item>
+              </a-col>
+              <a-col :span="12">
+                <a-form-item
+                  label="状态"
+                  name="status"
+                >
+                  <a-radio-group v-model:value="formState.status">
+                    <a-radio :value="0">
+                      正常
+                    </a-radio>
+                    <a-radio :value="1">
+                      停用
+                    </a-radio>
+                  </a-radio-group>
+                </a-form-item>
+              </a-col>
+            </a-row>
+          </a-form>
+        </FullScreenDetail>
+
+        <!-- 配置弹窗 -->
+        <FullScreenDetail
+          :visible="configModalVisible"
+          title="租户配置"
+          :save-loading="configLoading"
+          @save="handleConfigSave"
+          @close="handleConfigClose"
         >
-          <a-descriptions-item label="租户编码">
-            {{ currentConfigTenant?.tenantCode }}
-          </a-descriptions-item>
-          <a-descriptions-item label="租户名称">
-            {{ currentConfigTenant?.tenantName }}
-          </a-descriptions-item>
-          <a-descriptions-item label="状态">
-            <a-tag :color="currentConfigTenant?.status === 0 ? 'success' : 'error'">
-              {{ currentConfigTenant?.status === 0 ? '正常' : '停用' }}
-            </a-tag>
-          </a-descriptions-item>
-          <a-descriptions-item label="创建时间">
-            {{ currentConfigTenant?.createTime }}
-          </a-descriptions-item>
-        </a-descriptions>
-      </FullScreenDetail>
-    </div>
-  </PageContainer>
+          <a-form
+            :model="configForm"
+            :label-col="{ span: 6 }"
+            :wrapper-col="{ span: 16 }"
+          >
+            <a-form-item label="Logo">
+              <a-input
+                v-model:value="configForm.logo"
+                placeholder="请输入 Logo 地址"
+              />
+            </a-form-item>
+            <a-form-item label="主题色">
+              <a-input
+                v-model:value="configForm.themeColor"
+                placeholder="请输入主题色（如 #1890ff）"
+              />
+              <div
+                v-if="configForm.themeColor"
+                class="color-preview"
+                :style="{ backgroundColor: configForm.themeColor }"
+              />
+            </a-form-item>
+            <a-form-item label="最大用户数">
+              <a-input-number
+                v-model:value="configForm.maxUsers"
+                placeholder="请输入最大用户数"
+                :min="1"
+                style="width: 100%"
+              />
+            </a-form-item>
+            <a-form-item label="过期日期">
+              <a-date-picker
+                v-model:value="configForm.expireDate"
+                size="small"
+                placeholder="请选择过期日期"
+                style="width: 100%"
+              />
+            </a-form-item>
+          </a-form>
+          <a-divider />
+          <a-descriptions
+            title="当前配置信息"
+            :column="1"
+            bordered
+            size="small"
+          >
+            <a-descriptions-item label="租户编码">
+              {{ currentConfigTenant?.tenantCode }}
+            </a-descriptions-item>
+            <a-descriptions-item label="租户名称">
+              {{ currentConfigTenant?.tenantName }}
+            </a-descriptions-item>
+            <a-descriptions-item label="状态">
+              <a-tag :color="currentConfigTenant?.status === 0 ? 'success' : 'error'">
+                {{ currentConfigTenant?.status === 0 ? '正常' : '停用' }}
+              </a-tag>
+            </a-descriptions-item>
+            <a-descriptions-item label="创建时间">
+              {{ currentConfigTenant?.createTime }}
+            </a-descriptions-item>
+          </a-descriptions>
+        </FullScreenDetail>
+      </div>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

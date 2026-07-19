@@ -3,13 +3,22 @@
     <PageContainer title="菜单配置">
       <div class="content-card">
         <div class="toolbar">
-          <a-button type="primary" @click="handleAdd">
-            <template #icon><PlusOutlined /></template>
+          <a-button
+            type="primary"
+            @click="handleAdd"
+          >
+            <template #icon>
+              <PlusOutlined />
+            </template>
             新增菜单
           </a-button>
-          <a-button @click="handleExpandAll">{{ expandAll ? '折叠全部' : '展开全部' }}</a-button>
+          <a-button @click="handleExpandAll">
+            {{ expandAll ? '折叠全部' : '展开全部' }}
+          </a-button>
           <a-button @click="handleRefresh">
-            <template #icon><ReloadOutlined /></template>
+            <template #icon>
+              <ReloadOutlined />
+            </template>
             刷新
           </a-button>
         </div>
@@ -34,15 +43,38 @@
                 </a-tag>
               </template>
               <template v-if="column.key === 'status'">
-                <a-tag :color="record.status === 0 ? 'success' : 'error'">{{ record.status === 0 ? '正常' : '停用' }}</a-tag>
+                <a-tag :color="record.status === 0 ? 'success' : 'error'">
+                  {{ record.status === 0 ? '正常' : '停用' }}
+                </a-tag>
               </template>
               <template v-if="column.key === 'visible'">
-                <a-tag :color="record.visible === 0 ? 'success' : 'warning'">{{ record.visible === 0 ? '显示' : '隐藏' }}</a-tag>
+                <a-tag :color="record.visible === 0 ? 'success' : 'warning'">
+                  {{ record.visible === 0 ? '显示' : '隐藏' }}
+                </a-tag>
               </template>
               <template v-if="column.key === 'action'">
-                <a-button type="link" size="small" @click="handleEdit(record)">编辑</a-button>
-                <a-button type="link" size="small" @click="handleAddChild(record)">添加子级</a-button>
-                <a-button type="link" size="small" danger @click="handleDelete(record)">删除</a-button>
+                <a-button
+                  type="link"
+                  size="small"
+                  @click="handleEdit(record)"
+                >
+                  编辑
+                </a-button>
+                <a-button
+                  type="link"
+                  size="small"
+                  @click="handleAddChild(record)"
+                >
+                  添加子级
+                </a-button>
+                <a-button
+                  type="link"
+                  size="small"
+                  danger
+                  @click="handleDelete(record)"
+                >
+                  删除
+                </a-button>
               </template>
             </template>
           </a-table>
@@ -50,8 +82,17 @@
       </div>
     </PageContainer>
 
-    <a-modal v-model:open="editVisible" :title="isEditing ? '编辑菜单' : '新增菜单'" width="600px" @ok="handleSave" :confirm-loading="saving">
-      <a-form :model="editForm" layout="vertical">
+    <a-modal
+      v-model:open="editVisible"
+      :title="isEditing ? '编辑菜单' : '新增菜单'"
+      width="600px"
+      :confirm-loading="saving"
+      @ok="handleSave"
+    >
+      <a-form
+        :model="editForm"
+        layout="vertical"
+      >
         <a-form-item label="上级菜单">
           <a-tree-select
             v-model:value="editForm.parentId"
@@ -64,54 +105,96 @@
         </a-form-item>
         <a-row :gutter="16">
           <a-col :span="12">
-            <a-form-item label="菜单名称" required>
-              <a-input v-model:value="editForm.menuName" placeholder="请输入菜单名称" />
+            <a-form-item
+              label="菜单名称"
+              required
+            >
+              <a-input
+                v-model:value="editForm.menuName"
+                placeholder="请输入菜单名称"
+              />
             </a-form-item>
           </a-col>
           <a-col :span="12">
-            <a-form-item label="菜单类型" required>
+            <a-form-item
+              label="菜单类型"
+              required
+            >
               <a-select v-model:value="editForm.menuType">
-                <a-select-option :value="0">目录</a-select-option>
-                <a-select-option :value="1">菜单</a-select-option>
-                <a-select-option :value="2">按钮</a-select-option>
+                <a-select-option :value="0">
+                  目录
+                </a-select-option>
+                <a-select-option :value="1">
+                  菜单
+                </a-select-option>
+                <a-select-option :value="2">
+                  按钮
+                </a-select-option>
               </a-select>
             </a-form-item>
           </a-col>
         </a-row>
         <a-form-item label="路由路径">
-          <a-input v-model:value="editForm.path" placeholder="请输入路由路径（如 set/sys-params）" />
+          <a-input
+            v-model:value="editForm.path"
+            placeholder="请输入路由路径（如 set/sys-params）"
+          />
         </a-form-item>
-        <a-form-item label="组件路径" v-if="editForm.menuType === 1">
-          <a-input v-model:value="editForm.component" placeholder="请输入组件路径（如 views/set/sys-params/index.vue）" />
+        <a-form-item
+          v-if="editForm.menuType === 1"
+          label="组件路径"
+        >
+          <a-input
+            v-model:value="editForm.component"
+            placeholder="请输入组件路径（如 views/set/sys-params/index.vue）"
+          />
         </a-form-item>
         <a-row :gutter="16">
           <a-col :span="8">
             <a-form-item label="排序">
-              <a-input-number v-model:value="editForm.sort" style="width: 100%" :min="0" />
+              <a-input-number
+                v-model:value="editForm.sort"
+                style="width: 100%"
+                :min="0"
+              />
             </a-form-item>
           </a-col>
           <a-col :span="8">
             <a-form-item label="状态">
               <a-select v-model:value="editForm.status">
-                <a-select-option :value="0">正常</a-select-option>
-                <a-select-option :value="1">停用</a-select-option>
+                <a-select-option :value="0">
+                  正常
+                </a-select-option>
+                <a-select-option :value="1">
+                  停用
+                </a-select-option>
               </a-select>
             </a-form-item>
           </a-col>
           <a-col :span="8">
             <a-form-item label="是否显示">
               <a-select v-model:value="editForm.visible">
-                <a-select-option :value="0">显示</a-select-option>
-                <a-select-option :value="1">隐藏</a-select-option>
+                <a-select-option :value="0">
+                  显示
+                </a-select-option>
+                <a-select-option :value="1">
+                  隐藏
+                </a-select-option>
               </a-select>
             </a-form-item>
           </a-col>
         </a-row>
         <a-form-item label="权限标识">
-          <a-input v-model:value="editForm.perms" placeholder="请输入权限标识（如 system:config:list）" />
+          <a-input
+            v-model:value="editForm.perms"
+            placeholder="请输入权限标识（如 system:config:list）"
+          />
         </a-form-item>
         <a-form-item label="图标">
-          <a-input v-model:value="editForm.icon" placeholder="请输入图标名称（如 SettingOutlined）" />
+          <a-input
+            v-model:value="editForm.icon"
+            placeholder="请输入图标名称（如 SettingOutlined）"
+          />
         </a-form-item>
       </a-form>
     </a-modal>

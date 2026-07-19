@@ -3,22 +3,40 @@
     <template #header>
       <div class="page-header">
         <a-breadcrumb>
-          <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-          <a-breadcrumb-item><router-link to="/erp/sale">销售管理</router-link></a-breadcrumb-item>
+          <a-breadcrumb-item>
+            <router-link to="/">
+              首页
+            </router-link>
+          </a-breadcrumb-item>
+          <a-breadcrumb-item>
+            <router-link to="/erp/sale">
+              销售管理
+            </router-link>
+          </a-breadcrumb-item>
           <a-breadcrumb-item>销售订单明细列配置</a-breadcrumb-item>
         </a-breadcrumb>
-        <h2 class="page-title">销售订单明细列配置</h2>
+        <h2 class="page-title">
+          销售订单明细列配置
+        </h2>
       </div>
     </template>
 
     <template #actions>
       <a-space>
-        <a-button type="primary" @click="handleSave" :loading="saving">
-          <template #icon><SaveOutlined /></template>
+        <a-button
+          type="primary"
+          :loading="saving"
+          @click="handleSave"
+        >
+          <template #icon>
+            <SaveOutlined />
+          </template>
           保存配置
         </a-button>
         <a-button @click="handleReset">
-          <template #icon><ReloadOutlined /></template>
+          <template #icon>
+            <ReloadOutlined />
+          </template>
           恢复默认
         </a-button>
       </a-space>
@@ -34,81 +52,97 @@
         />
       </div>
 
-    <div class="column-list">
-      <draggable
-        v-model="columnSettings"
-        handle=".drag-handle"
-        item-key="key"
-        class="draggable-list"
-        ghost-class="drag-ghost"
-        chosen-class="drag-chosen"
-        drag-class="dragging"
-        @change="onColumnSettingChange"
-      >
-        <template #item="{ element: setting, index }">
-          <div
-            class="column-item"
-            :class="{ 'locked-column': isLockedColumn(setting.key) }"
-          >
-            <div class="column-item-content">
-              <div class="drag-handle" v-if="!isLockedColumn(setting.key)">⠿</div>
-
-              <a-checkbox
-                v-model:checked="setting.visible"
-                :disabled="isLockedColumn(setting.key)"
-                @change="onColumnVisibilityChange"
-              >
-                <span class="column-title">{{ setting.title }}</span>
-              </a-checkbox>
-
-              <div class="column-controls">
-                <div class="control-group">
-                  <span class="control-label">冻结</span>
-                  <a-select
-                    v-model:value="setting.fixed"
-                    size="small"
-                    style="width: 100px;"
-                    :disabled="isLockedColumn(setting.key)"
-                    @change="onColumnSettingChange"
-                  >
-                    <a-select-option value="">不冻结</a-select-option>
-                    <a-select-option value="left">左侧冻结</a-select-option>
-                    <a-select-option value="right">右侧冻结</a-select-option>
-                  </a-select>
-                </div>
-
-                <div class="control-group">
-                  <span class="control-label">宽度</span>
-                  <a-input-number
-                    v-model:value="setting.width"
-                    size="small"
-                    :min="50"
-                    :max="500"
-                    style="width: 80px;"
-                    :disabled="isLockedColumn(setting.key)"
-                    @change="onColumnSettingChange"
-                  />
-                </div>
-
-                <a-button
+      <div class="column-list">
+        <draggable
+          v-model="columnSettings"
+          handle=".drag-handle"
+          item-key="key"
+          class="draggable-list"
+          ghost-class="drag-ghost"
+          chosen-class="drag-chosen"
+          drag-class="dragging"
+          @change="onColumnSettingChange"
+        >
+          <template #item="{ element: setting, index }">
+            <div
+              class="column-item"
+              :class="{ 'locked-column': isLockedColumn(setting.key) }"
+            >
+              <div class="column-item-content">
+                <div
                   v-if="!isLockedColumn(setting.key)"
-                  type="link"
-                  size="small"
-                  danger
-                  @click="removeColumn(index)"
+                  class="drag-handle"
                 >
-                  <template #icon><DeleteOutlined /></template>
-                </a-button>
+                  ⠿
+                </div>
+
+                <a-checkbox
+                  v-model:checked="setting.visible"
+                  :disabled="isLockedColumn(setting.key)"
+                  @change="onColumnVisibilityChange"
+                >
+                  <span class="column-title">{{ setting.title }}</span>
+                </a-checkbox>
+
+                <div class="column-controls">
+                  <div class="control-group">
+                    <span class="control-label">冻结</span>
+                    <a-select
+                      v-model:value="setting.fixed"
+                      size="small"
+                      style="width: 100px;"
+                      :disabled="isLockedColumn(setting.key)"
+                      @change="onColumnSettingChange"
+                    >
+                      <a-select-option value="">
+                        不冻结
+                      </a-select-option>
+                      <a-select-option value="left">
+                        左侧冻结
+                      </a-select-option>
+                      <a-select-option value="right">
+                        右侧冻结
+                      </a-select-option>
+                    </a-select>
+                  </div>
+
+                  <div class="control-group">
+                    <span class="control-label">宽度</span>
+                    <a-input-number
+                      v-model:value="setting.width"
+                      size="small"
+                      :min="50"
+                      :max="500"
+                      style="width: 80px;"
+                      :disabled="isLockedColumn(setting.key)"
+                      @change="onColumnSettingChange"
+                    />
+                  </div>
+
+                  <a-button
+                    v-if="!isLockedColumn(setting.key)"
+                    type="link"
+                    size="small"
+                    danger
+                    @click="removeColumn(index)"
+                  >
+                    <template #icon>
+                      <DeleteOutlined />
+                    </template>
+                  </a-button>
+                </div>
+              </div>
+
+              <div
+                v-if="isLockedColumn(setting.key)"
+                class="locked-indicator"
+              >
+                <LockOutlined />
               </div>
             </div>
-
-            <div v-if="isLockedColumn(setting.key)" class="locked-indicator">
-              <LockOutlined />
-            </div>
-          </div>
-        </template>
-      </draggable>
-    </div>
+          </template>
+        </draggable>
+      </div>
 
       <div class="column-management">
         <div class="management-header">
@@ -119,7 +153,9 @@
             size="small"
             style="width: 200px; margin-bottom: 12px;"
           >
-            <template #prefix><SearchOutlined /></template>
+            <template #prefix>
+              <SearchOutlined />
+            </template>
           </a-input>
         </div>
 
@@ -134,7 +170,10 @@
             <PlusCircleOutlined class="add-icon" />
           </div>
 
-          <div v-if="availableColumns.length === 0" class="no-available-columns">
+          <div
+            v-if="availableColumns.length === 0"
+            class="no-available-columns"
+          >
             没有可添加的列
           </div>
         </div>
@@ -165,7 +204,7 @@ const ALL_COLUMNS = [
   { key: 'rowNo', title: '行号', width: 60, fixed: 'left' as const },
   { key: 'action', title: '操作', width: 80, fixed: 'left' as const },
   { key: 'image', title: '图片', width: 80 },
-  { key: 'productName', title: '商品名称', width: 150 },
+  { key: 'productId', title: '商品名称', width: 150 },
   { key: 'itemCode', title: '货号', width: 100 },
   { key: 'preOrderNo', title: '预订货单编号', width: 120 },
   { key: 'smallUnitBarcode', title: '小单位条码', width: 120 },
@@ -185,7 +224,7 @@ const ALL_COLUMNS = [
   { key: 'expiryDate', title: '到期日期', width: 110 },
   { key: 'customField1', title: '单据自定义1(数字字段)', width: 140 },
   { key: 'customField2', title: '单据自定义2(数字字段)', width: 140 },
-  { key: 'pieceQuantity', title: '件散数量', width: 100 },
+  { key: 'quantity', title: '件散数量', width: 100 },
   { key: 'bigPack', title: '大包装', width: 80 },
   { key: 'midPack', title: '中包装', width: 80 },
   { key: 'smallPack', title: '小包装', width: 80 },
@@ -222,7 +261,7 @@ const ALL_COLUMNS = [
   { key: 'costPrice', title: '参考成本单价', width: 120 },
   { key: 'costAmount', title: '参考成本金额', width: 120 },
   { key: 'grossProfit', title: '参考毛利', width: 100 },
-  { key: 'discount', title: '折扣(%)', width: 80 },
+  { key: 'discountRate', title: '折扣(%)', width: 80 },
   { key: 'outRestaurant', title: '外围餐饮店', width: 120 },
   { key: 'discountedUnitPrice', title: '折后单价', width: 100 },
   { key: 'originalPrice', title: '折单原价', width: 100 },

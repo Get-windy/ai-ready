@@ -32,6 +32,7 @@
         <module>erp-budget</module>
         <module>erp-partner</module>
         <module>erp-pricing</module>
+        <module>erp-marketing</module>
     </modules>
     
     <properties>

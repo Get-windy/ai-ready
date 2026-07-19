@@ -13,14 +13,26 @@
       <template #empty>
         <div class="table-empty">
           <template v-if="hasError">
-            <WarningOutlined class="table-empty-icon" style="color: #faad14" />
-            <p class="table-empty-text">加载失败</p>
-            <a-button type="primary" size="small" @click="fetchData" class="table-empty-action">
+            <WarningOutlined
+              class="table-empty-icon"
+              style="color: #faad14"
+            />
+            <p class="table-empty-text">
+              加载失败
+            </p>
+            <a-button
+              type="primary"
+              size="small"
+              class="table-empty-action"
+              @click="fetchData"
+            >
               <ReloadOutlined /> 重试
             </a-button>
           </template>
           <template v-else>
-            <p class="table-empty-text">暂无数据</p>
+            <p class="table-empty-text">
+              暂无数据
+            </p>
           </template>
         </div>
       </template>

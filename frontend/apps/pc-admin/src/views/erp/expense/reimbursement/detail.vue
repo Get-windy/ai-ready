@@ -8,41 +8,85 @@
     @close="handleClose"
     @save="handleSave"
   >
-    <a-form ref="formRef" :model="form" :rules="rules" :label-col="{ span: 4 }" :wrapper-col="{ span: 18 }" size="small">
+    <a-form
+      ref="formRef"
+      :model="form"
+      :rules="rules"
+      :label-col="{ span: 4 }"
+      :wrapper-col="{ span: 18 }"
+      size="small"
+    >
       <a-divider>基本信息</a-divider>
       <a-row :gutter="24">
         <a-col :span="12">
-          <a-form-item label="报销标题" name="reimbursementTitle">
-            <a-input v-model:value="form.reimbursementTitle" :disabled="isView" placeholder="请输入报销标题" />
+          <a-form-item
+            label="报销标题"
+            name="reimbursementTitle"
+          >
+            <a-input
+              v-model:value="form.reimbursementTitle"
+              :disabled="isView"
+              placeholder="请输入报销标题"
+            />
           </a-form-item>
         </a-col>
         <a-col :span="12">
-          <a-form-item label="报销日期" name="reimbursementDate">
-            <a-date-picker v-model:value="form.reimbursementDate" :disabled="isView" style="width: 100%" />
+          <a-form-item
+            label="报销日期"
+            name="reimbursementDate"
+          >
+            <a-date-picker
+              v-model:value="form.reimbursementDate"
+              :disabled="isView"
+              style="width: 100%"
+            />
           </a-form-item>
         </a-col>
       </a-row>
       <a-row :gutter="24">
         <a-col :span="12">
           <a-form-item label="关联申请单">
-            <a-input v-model:value="form.applicationNo" :disabled="true" placeholder="可选关联费用申请" />
+            <a-input
+              v-model:value="form.applicationNo"
+              :disabled="true"
+              placeholder="可选关联费用申请"
+            />
           </a-form-item>
         </a-col>
         <a-col :span="12">
           <a-form-item label="部门">
-            <a-input v-model:value="form.departmentName" :disabled="true" />
+            <a-input
+              v-model:value="form.departmentName"
+              :disabled="true"
+            />
           </a-form-item>
         </a-col>
       </a-row>
       <a-form-item label="报销事由">
-        <a-textarea v-model:value="form.purpose" :disabled="isView" :rows="2" placeholder="请输入报销事由" />
+        <a-textarea
+          v-model:value="form.purpose"
+          :disabled="isView"
+          :rows="2"
+          placeholder="请输入报销事由"
+        />
       </a-form-item>
       <a-form-item label="详细说明">
-        <a-textarea v-model:value="form.description" :disabled="isView" :rows="3" placeholder="请输入详细说明" />
+        <a-textarea
+          v-model:value="form.description"
+          :disabled="isView"
+          :rows="3"
+          placeholder="请输入详细说明"
+        />
       </a-form-item>
 
       <a-divider>报销明细</a-divider>
-      <a-button v-if="!isView" size="small" type="dashed" style="width: 100%; margin-bottom: 12px" @click="addItem">
+      <a-button
+        v-if="!isView"
+        size="small"
+        type="dashed"
+        style="width: 100%; margin-bottom: 12px"
+        @click="addItem"
+      >
         <PlusOutlined /> 添加明细
       </a-button>
       <a-table
@@ -55,35 +99,87 @@
       >
         <template #bodyCell="{ column, record, index }">
           <template v-if="column.dataIndex === 'itemName'">
-            <a-input v-model:value="record.itemName" :disabled="isView" size="small" placeholder="项目名称" />
+            <a-input
+              v-model:value="record.itemName"
+              :disabled="isView"
+              size="small"
+              placeholder="项目名称"
+            />
           </template>
           <template v-else-if="column.dataIndex === 'amount'">
-            <a-input-number v-model:value="record.amount" :disabled="isView" size="small" style="width: 100%" :min="0" :precision="2" />
+            <a-input-number
+              v-model:value="record.amount"
+              :disabled="isView"
+              size="small"
+              style="width: 100%"
+              :min="0"
+              :precision="2"
+            />
           </template>
           <template v-else-if="column.dataIndex === 'expenseDate'">
-            <a-date-picker v-model:value="record.expenseDate" :disabled="isView" size="small" style="width: 100%" />
+            <a-date-picker
+              v-model:value="record.expenseDate"
+              :disabled="isView"
+              size="small"
+              style="width: 100%"
+            />
           </template>
           <template v-else-if="column.dataIndex === 'vendorName'">
-            <a-input v-model:value="record.vendorName" :disabled="isView" size="small" placeholder="收款方" />
+            <a-input
+              v-model:value="record.vendorName"
+              :disabled="isView"
+              size="small"
+              placeholder="收款方"
+            />
           </template>
           <template v-else-if="column.dataIndex === 'invoiceNumber'">
-            <a-input v-model:value="record.invoiceNumber" :disabled="isView" size="small" placeholder="发票号" />
+            <a-input
+              v-model:value="record.invoiceNumber"
+              :disabled="isView"
+              size="small"
+              placeholder="发票号"
+            />
           </template>
           <template v-else-if="column.dataIndex === '_action' && !isView">
-            <a-button type="link" size="small" danger @click="form.items.splice(index, 1)">删除</a-button>
+            <a-button
+              type="link"
+              size="small"
+              danger
+              @click="form.items.splice(index, 1)"
+            >
+              删除
+            </a-button>
           </template>
         </template>
       </a-table>
 
-      <a-divider v-if="!isView || (detailData?.approvalRecords?.length)">审批信息</a-divider>
-      <a-descriptions v-if="detailData" :column="2" size="small" bordered>
+      <a-divider v-if="!isView || (detailData?.approvalRecords?.length)">
+        审批信息
+      </a-divider>
+      <a-descriptions
+        v-if="detailData"
+        :column="2"
+        size="small"
+        bordered
+      >
         <a-descriptions-item label="状态">
-          <a-tag :color="statusColor(detailData.status)">{{ statusLabel(detailData.status) }}</a-tag>
+          <a-tag :color="statusColor(detailData.status)">
+            {{ statusLabel(detailData.status) }}
+          </a-tag>
         </a-descriptions-item>
-        <a-descriptions-item label="支付方式">{{ detailData.paymentMethod || '-' }}</a-descriptions-item>
-        <a-descriptions-item v-if="detailData.approvalRecords?.length" label="审批记录" :span="2">
+        <a-descriptions-item label="支付方式">
+          {{ detailData.paymentMethod || '-' }}
+        </a-descriptions-item>
+        <a-descriptions-item
+          v-if="detailData.approvalRecords?.length"
+          label="审批记录"
+          :span="2"
+        >
           <a-timeline>
-            <a-timeline-item v-for="r in detailData.approvalRecords" :key="r.id">
+            <a-timeline-item
+              v-for="r in detailData.approvalRecords"
+              :key="r.id"
+            >
               {{ r.approverName }} - {{ approvalActionLabel(r.approvalAction) }}: {{ r.approvalComment || '无意见' }}
               <br><small style="color: #999">{{ r.approvalTime }}</small>
             </a-timeline-item>

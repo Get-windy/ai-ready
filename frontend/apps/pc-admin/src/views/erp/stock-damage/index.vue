@@ -1,361 +1,664 @@
 <template>
-  <ErrorBoundary @reset="fetchData" @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="damage-header">
-        <div class="damage-header__left">
-          <span class="damage-header__breadcrumb">ERP / 库存管理 / 报损管理</span>
-          <h2 class="damage-header__title">报损管理</h2>
-        </div>
-        <div class="damage-header__right">
-          <a-space :size="12">
-            <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-              <SyncOutlined /> {{ autoRefreshCountdown }}s
-            </span>
-            <span class="data-status">
-              <a-badge :status="loading ? 'processing' : 'success'" />
-              <span v-if="lastUpdateTime" class="update-time">
-                数据更新: {{ lastUpdateTime }}
+  <ErrorBoundary
+    @reset="fetchData"
+    @error="handleError"
+  >
+    <PageContainer full-height>
+      <template #header>
+        <div class="damage-header">
+          <div class="damage-header__left">
+            <span class="damage-header__breadcrumb">ERP / 库存管理 / 报损管理</span>
+            <h2 class="damage-header__title">
+              报损管理
+            </h2>
+          </div>
+          <div class="damage-header__right">
+            <a-space :size="12">
+              <span
+                v-if="autoRefreshCountdown > 0"
+                class="auto-refresh-badge"
+              >
+                <SyncOutlined /> {{ autoRefreshCountdown }}s
               </span>
-            </span>
-            <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)">
-              <template #icon><ReloadOutlined /></template>
-              刷新
+              <span class="data-status">
+                <a-badge :status="loading ? 'processing' : 'success'" />
+                <span
+                  v-if="lastUpdateTime"
+                  class="update-time"
+                >
+                  数据更新: {{ lastUpdateTime }}
+                </span>
+              </span>
+              <a-button
+                size="small"
+                :loading="refreshLoading"
+                @click="debounceClick('refresh', fetchData)"
+              >
+                <template #icon>
+                  <ReloadOutlined />
+                </template>
+                刷新
+              </a-button>
+              <span class="shortcut-hints">
+                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+              </span>
+            </a-space>
+          </div>
+        </div>
+      </template>
+
+      <!-- 统计卡片 -->
+      <a-row
+        :gutter="16"
+        style="margin-bottom: 16px;"
+      >
+        <a-col :span="6">
+          <div class="summary-card">
+            <div
+              class="summary-icon"
+              style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);"
+            >
+              <FileTextOutlined />
+            </div>
+            <div class="summary-content">
+              <div class="summary-title">
+                报损单总数
+              </div>
+              <div class="summary-value">
+                {{ statistics.totalCount }}
+              </div>
+            </div>
+          </div>
+        </a-col>
+        <a-col :span="6">
+          <div class="summary-card">
+            <div
+              class="summary-icon"
+              style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);"
+            >
+              <ClockCircleOutlined />
+            </div>
+            <div class="summary-content">
+              <div class="summary-title">
+                待审批
+              </div>
+              <div class="summary-value warning">
+                {{ statistics.pendingCount }}
+              </div>
+            </div>
+          </div>
+        </a-col>
+        <a-col :span="6">
+          <div class="summary-card">
+            <div
+              class="summary-icon"
+              style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);"
+            >
+              <CheckCircleOutlined />
+            </div>
+            <div class="summary-content">
+              <div class="summary-title">
+                已出库
+              </div>
+              <div class="summary-value">
+                {{ statistics.completedCount }}
+              </div>
+            </div>
+          </div>
+        </a-col>
+        <a-col :span="6">
+          <div class="summary-card highlight">
+            <div
+              class="summary-icon"
+              style="background: linear-gradient(135deg, #f5222d 0%, #cf1322 100%);"
+            >
+              <DollarOutlined />
+            </div>
+            <div class="summary-content">
+              <div class="summary-title">
+                报损总金额
+              </div>
+              <div class="summary-value">
+                ¥{{ formatAmount(statistics.totalAmount) }}
+              </div>
+            </div>
+          </div>
+        </a-col>
+      </a-row>
+
+      <a-card
+        title="报损管理"
+        style="flex: 1; overflow: hidden;"
+        :body-style="{ display: 'flex', flexDirection: 'column', height: 'calc(100% - 57px)' }"
+      >
+        <!-- 搜索栏 -->
+        <SearchBar
+          :fields="searchFields"
+          :loading="loading"
+          @search="handleSearch"
+          @reset="handleReset"
+        />
+
+        <!-- 操作按钮 -->
+        <div class="action-area">
+          <a-space>
+            <a-button
+              v-permission="'stock:damage:create'"
+              type="primary"
+              @click="handleCreate"
+            >
+              <template #icon>
+                <PlusOutlined />
+              </template>
+              新建报损单
             </a-button>
-            <span class="shortcut-hints">
-              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-            </span>
           </a-space>
         </div>
-      </div>
-    </template>
 
-    <!-- 统计卡片 -->
-    <a-row :gutter="16" style="margin-bottom: 16px;">
-      <a-col :span="6">
-        <div class="summary-card">
-          <div class="summary-icon" style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);">
-            <FileTextOutlined />
-          </div>
-          <div class="summary-content">
-            <div class="summary-title">报损单总数</div>
-            <div class="summary-value">{{ statistics.totalCount }}</div>
-          </div>
-        </div>
-      </a-col>
-      <a-col :span="6">
-        <div class="summary-card">
-          <div class="summary-icon" style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);">
-            <ClockCircleOutlined />
-          </div>
-          <div class="summary-content">
-            <div class="summary-title">待审批</div>
-            <div class="summary-value warning">{{ statistics.pendingCount }}</div>
-          </div>
-        </div>
-      </a-col>
-      <a-col :span="6">
-        <div class="summary-card">
-          <div class="summary-icon" style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);">
-            <CheckCircleOutlined />
-          </div>
-          <div class="summary-content">
-            <div class="summary-title">已出库</div>
-            <div class="summary-value">{{ statistics.completedCount }}</div>
-          </div>
-        </div>
-      </a-col>
-      <a-col :span="6">
-        <div class="summary-card highlight">
-          <div class="summary-icon" style="background: linear-gradient(135deg, #f5222d 0%, #cf1322 100%);">
-            <DollarOutlined />
-          </div>
-          <div class="summary-content">
-            <div class="summary-title">报损总金额</div>
-            <div class="summary-value">¥{{ formatAmount(statistics.totalAmount) }}</div>
-          </div>
-        </div>
-      </a-col>
-    </a-row>
-
-    <a-card title="报损管理" style="flex: 1; overflow: hidden;" :bodyStyle="{ display: 'flex', flexDirection: 'column', height: 'calc(100% - 57px)' }">
-      <!-- 搜索栏 -->
-      <SearchBar
-        :fields="searchFields"
-        :loading="loading"
-        @search="handleSearch"
-        @reset="handleReset"
-      />
-
-      <!-- 操作按钮 -->
-      <div class="action-area">
-        <a-space>
-          <a-button v-permission="'stock:damage:create'" type="primary" @click="handleCreate">
-            <template #icon><PlusOutlined /></template>
-            新建报损单
-          </a-button>
-        </a-space>
-      </div>
-
-      <!-- 数据表格 -->
-      <BillTableList
-        ref="tableRef"
-        :columns="vxeColumns"
-        :data-source="tableData"
-        :loading="loading"
-        :pagination="pagination"
-        row-key="id"
-        :show-toolbar="false"
-        :selectable="false"
-        :show-add="false"
-        :show-search="false"
-        :show-export="false"
-        :show-batch-delete="false"
-        @cell-dblclick="handleView"
-        @page-change="handlePageChange"
-      >
-        <template #empty>
-          <EmptyState v-if="hasError" image="error" title="数据加载异常" description="数据获取失败，请检查后重试" :show-add="false" size="small" @refresh="fetchData" />
-          <EmptyState v-else image="no-data" title="暂无报损单" description="当前没有报损单数据" add-text="新建报损单" size="small" @refresh="fetchData" @add="handleCreate" />
-        </template>
-        <template #statusCell="{ record }">
-          <StatusTag :status="record.status" :map="DAMAGE_STATUS" />
-        </template>
-        <template #damageCauseCell="{ record }">
-          <a-tag>{{ record.damageCauseLabel || '-' }}</a-tag>
-        </template>
-        <template #totalAmountCell="{ record }">
-          ¥{{ record.totalAmount?.toFixed(2) }}
-        </template>
-        <template #action="{ record }">
-          <a-space :size="4">
-            <a-button type="link" size="small" @click="handleView(record)">查看</a-button>
-            <template v-if="record.status === 0">
-              <a-button type="link" size="small" @click="handleSubmitApproval(record)">提交</a-button>
-            </template>
-            <template v-else-if="record.status === 1">
-              <a-dropdown>
-                <a-button type="link" size="small">
-                  审批 <DownOutlined />
+        <!-- 数据表格 -->
+        <BillTableList
+          ref="tableRef"
+          :columns="vxeColumns"
+          :data-source="tableData"
+          :loading="loading"
+          :pagination="pagination"
+          row-key="id"
+          :show-toolbar="false"
+          :selectable="false"
+          :show-add="false"
+          :show-search="false"
+          :show-export="false"
+          :show-batch-delete="false"
+          @cell-dblclick="handleView"
+          @page-change="handlePageChange"
+        >
+          <template #empty>
+            <EmptyState
+              v-if="hasError"
+              image="error"
+              title="数据加载异常"
+              description="数据获取失败，请检查后重试"
+              :show-add="false"
+              size="small"
+              @refresh="fetchData"
+            />
+            <EmptyState
+              v-else
+              image="no-data"
+              title="暂无报损单"
+              description="当前没有报损单数据"
+              add-text="新建报损单"
+              size="small"
+              @refresh="fetchData"
+              @add="handleCreate"
+            />
+          </template>
+          <template #statusCell="{ record }">
+            <StatusTag
+              :status="record.status"
+              :map="DAMAGE_STATUS"
+            />
+          </template>
+          <template #damageCauseCell="{ record }">
+            <a-tag>{{ record.damageCauseLabel || '-' }}</a-tag>
+          </template>
+          <template #totalAmountCell="{ record }">
+            ¥{{ record.totalAmount?.toFixed(2) }}
+          </template>
+          <template #action="{ record }">
+            <a-space :size="4">
+              <a-button
+                type="link"
+                size="small"
+                @click="handleView(record)"
+              >
+                查看
+              </a-button>
+              <template v-if="record.status === 0">
+                <a-button
+                  type="link"
+                  size="small"
+                  @click="handleSubmitApproval(record)"
+                >
+                  提交
                 </a-button>
-                <template #overlay>
-                  <a-menu>
-                    <a-menu-item @click="handleApprove(record)">
-                      <CheckOutlined /> 审批通过
-                    </a-menu-item>
-                    <a-menu-item @click="handleReject(record)">
-                      <CloseOutlined /> 拒绝
-                    </a-menu-item>
-                  </a-menu>
+              </template>
+              <template v-else-if="record.status === 1">
+                <a-dropdown>
+                  <a-button
+                    type="link"
+                    size="small"
+                  >
+                    审批 <DownOutlined />
+                  </a-button>
+                  <template #overlay>
+                    <a-menu>
+                      <a-menu-item @click="handleApprove(record)">
+                        <CheckOutlined /> 审批通过
+                      </a-menu-item>
+                      <a-menu-item @click="handleReject(record)">
+                        <CloseOutlined /> 拒绝
+                      </a-menu-item>
+                    </a-menu>
+                  </template>
+                </a-dropdown>
+              </template>
+              <template v-else-if="record.status === 2">
+                <a-button
+                  type="link"
+                  size="small"
+                  @click="handleExecuteOutbound(record)"
+                >
+                  出库
+                </a-button>
+              </template>
+              <template v-else-if="record.status === 3">
+                <PrintButton
+                  template-type="stock_damage"
+                  :business-id="record.id"
+                  business-type="stock_damage"
+                  button-text="打印"
+                  button-size="small"
+                  @print-success="() => message.success(`报损单 ${record.damageNo} 打印成功`)"
+                  @print-error="(e: any) => message.error(`打印失败: ${e.message || '未知错误'}`)"
+                />
+              </template>
+              <template v-if="record.status === 0 || record.status === 2">
+                <a-button
+                  type="link"
+                  size="small"
+                  danger
+                  @click="handleCancel(record)"
+                >
+                  取消
+                </a-button>
+              </template>
+            </a-space>
+          </template>
+        </BillTableList>
+      </a-card>
+
+      <!-- 详情弹窗 -->
+      <a-drawer
+        v-model:open="detailVisible"
+        title="报损单详情"
+        placement="right"
+        width="80vw"
+      >
+        <a-spin :spinning="detailLoading">
+          <a-descriptions
+            v-if="detailData"
+            bordered
+            :column="2"
+          >
+            <a-descriptions-item label="报损单号">
+              {{ detailData.damageNo }}
+            </a-descriptions-item>
+            <a-descriptions-item label="仓库">
+              {{ detailData.warehouseName }}
+            </a-descriptions-item>
+            <a-descriptions-item label="库位">
+              {{ detailData.locationName || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item label="报损日期">
+              {{ detailData.damageDate || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item label="报损原因">
+              {{ detailData.damageCauseLabel || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item label="状态">
+              <StatusTag
+                :status="detailData.status"
+                :map="DAMAGE_STATUS"
+              />
+            </a-descriptions-item>
+            <a-descriptions-item label="报损总金额">
+              ¥{{ detailData.totalAmount?.toFixed(2) }}
+            </a-descriptions-item>
+            <a-descriptions-item label="申请人">
+              {{ detailData.applicantName || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item label="创建时间">
+              {{ detailData.createTime || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item
+              label="备注"
+              :span="2"
+            >
+              {{ detailData.remark || '-' }}
+            </a-descriptions-item>
+          </a-descriptions>
+
+          <!-- 商品明细 -->
+          <div
+            v-if="detailData?.items?.length"
+            style="margin-top: 16px;"
+          >
+            <h4 style="margin-bottom: 8px; font-weight: 600;">
+              报损明细
+            </h4>
+            <a-table
+              :data-source="detailData.items"
+              :columns="detailItemColumns"
+              :pagination="false as any"
+              size="small"
+              row-key="id"
+              bordered
+            >
+              <template #bodyCell="{ column, record }">
+                <template v-if="column.dataIndex === 'unitCost'">
+                  ¥{{ (record.unitCost || 0).toFixed(2) }}
                 </template>
-              </a-dropdown>
-            </template>
-            <template v-else-if="record.status === 2">
-              <a-button type="link" size="small" @click="handleExecuteOutbound(record)">出库</a-button>
-            </template>
-            <template v-else-if="record.status === 3">
+                <template v-else-if="column.dataIndex === 'amount'">
+                  ¥{{ ((record.quantity || 0) * (record.unitCost || 0)).toFixed(2) }}
+                </template>
+              </template>
+            </a-table>
+          </div>
+        </a-spin>
+
+        <template #footer>
+          <div style="text-align: right;">
+            <a-space>
+              <a-button @click="detailVisible = false">
+                关闭
+              </a-button>
+              <a-button
+                v-if="detailData?.status === 0"
+                @click="handleSubmitApproval(detailData)"
+              >
+                提交审批
+              </a-button>
+              <template v-if="detailData?.status === 1">
+                <a-button
+                  type="primary"
+                  @click="handleApprove(detailData)"
+                >
+                  审批通过
+                </a-button>
+                <a-button
+                  danger
+                  @click="handleReject(detailData)"
+                >
+                  拒绝
+                </a-button>
+              </template>
+              <a-button
+                v-if="detailData?.status === 2"
+                type="primary"
+                @click="handleExecuteOutbound(detailData)"
+              >
+                出库
+              </a-button>
               <PrintButton
+                v-if="detailData?.status >= 3"
                 template-type="stock_damage"
-                :business-id="record.id"
+                :business-id="detailData?.id"
                 business-type="stock_damage"
                 button-text="打印"
                 button-size="small"
-                @print-success="() => message.success(`报损单 ${record.damageNo} 打印成功`)"
+                @print-success="() => message.success(`报损单 ${detailData?.damageNo} 打印成功`)"
                 @print-error="(e: any) => message.error(`打印失败: ${e.message || '未知错误'}`)"
               />
-            </template>
-            <template v-if="record.status === 0 || record.status === 2">
-              <a-button type="link" size="small" danger @click="handleCancel(record)">取消</a-button>
-            </template>
-          </a-space>
+            </a-space>
+          </div>
         </template>
-      </BillTableList>
-    </a-card>
+      </a-drawer>
+    </PageContainer>
 
-    <!-- 详情弹窗 -->
-    <a-drawer v-model:open="detailVisible" title="报损单详情" placement="right" width="80vw">
-      <a-spin :spinning="detailLoading">
-        <a-descriptions bordered :column="2" v-if="detailData">
-          <a-descriptions-item label="报损单号">{{ detailData.damageNo }}</a-descriptions-item>
-          <a-descriptions-item label="仓库">{{ detailData.warehouseName }}</a-descriptions-item>
-          <a-descriptions-item label="库位">{{ detailData.locationName || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="报损日期">{{ detailData.damageDate || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="报损原因">{{ detailData.damageCauseLabel || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="状态">
-            <StatusTag :status="detailData.status" :map="DAMAGE_STATUS" />
-          </a-descriptions-item>
-          <a-descriptions-item label="报损总金额">¥{{ detailData.totalAmount?.toFixed(2) }}</a-descriptions-item>
-          <a-descriptions-item label="申请人">{{ detailData.applicantName || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="创建时间">{{ detailData.createTime || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="备注" :span="2">{{ detailData.remark || '-' }}</a-descriptions-item>
-        </a-descriptions>
-
-        <!-- 商品明细 -->
-        <div v-if="detailData?.items?.length" style="margin-top: 16px;">
-          <h4 style="margin-bottom: 8px; font-weight: 600;">报损明细</h4>
-          <a-table
-            :dataSource="detailData.items"
-            :columns="detailItemColumns"
-            :pagination="false as any"
-            size="small"
-            row-key="id"
-            bordered
-          >
-            <template #bodyCell="{ column, record }">
-              <template v-if="column.dataIndex === 'unitCost'">
-                ¥{{ (record.unitCost || 0).toFixed(2) }}
-              </template>
-              <template v-else-if="column.dataIndex === 'amount'">
-                ¥{{ ((record.quantity || 0) * (record.unitCost || 0)).toFixed(2) }}
-              </template>
-            </template>
-          </a-table>
-        </div>
-      </a-spin>
-
-      <template #footer>
-        <div style="text-align: right;">
-          <a-space>
-            <a-button @click="detailVisible = false">关闭</a-button>
-            <a-button v-if="detailData?.status === 0" @click="handleSubmitApproval(detailData)">提交审批</a-button>
-            <template v-if="detailData?.status === 1">
-              <a-button type="primary" @click="handleApprove(detailData)">审批通过</a-button>
-              <a-button danger @click="handleReject(detailData)">拒绝</a-button>
-            </template>
-            <a-button v-if="detailData?.status === 2" type="primary" @click="handleExecuteOutbound(detailData)">出库</a-button>
-            <PrintButton
-              v-if="detailData?.status >= 3"
-              template-type="stock_damage"
-              :business-id="detailData?.id"
-              business-type="stock_damage"
-              button-text="打印"
-              button-size="small"
-              @print-success="() => message.success(`报损单 ${detailData?.damageNo} 打印成功`)"
-              @print-error="(e: any) => message.error(`打印失败: ${e.message || '未知错误'}`)"
-            />
-          </a-space>
-        </div>
-      </template>
-    </a-drawer>
-  </PageContainer>
-
-  <!-- 新建报损单弹窗 -->
-  <a-modal
-    v-model:open="createVisible"
-    title="新建报损单"
-    width="900px"
-    :confirm-loading="createLoading"
-    @ok="handleCreateSubmit"
-    @cancel="handleCreateCancel"
-    destroy-on-close
-  >
-    <a-form ref="createFormRef" :model="createForm" :rules="createRules" layout="vertical">
-      <a-row :gutter="16">
-        <a-col :span="8">
-          <a-form-item label="报损日期" name="damageDate">
-            <a-date-picker v-model:value="createForm.damageDate" style="width: 100%" value-format="YYYY-MM-DD" />
-          </a-form-item>
-        </a-col>
-        <a-col :span="8">
-          <a-form-item label="仓库" name="warehouseId">
-            <a-select v-model:value="createForm.warehouseId" placeholder="请选择仓库" show-search :filter-option="filterOption" allow-clear>
-              <a-select-option v-for="w in warehouseOptions" :key="w.id" :value="w.id">{{ w.warehouseName }}</a-select-option>
-            </a-select>
-          </a-form-item>
-        </a-col>
-        <a-col :span="8">
-          <a-form-item label="库位" name="locationId">
-            <a-select v-model:value="createForm.locationId" placeholder="请选择库位" allow-clear>
-              <a-select-option v-for="l in locationOptions" :key="l.id" :value="l.id">{{ l.locationName }}</a-select-option>
-            </a-select>
-          </a-form-item>
-        </a-col>
-      </a-row>
-      <a-row :gutter="16">
-        <a-col :span="12">
-          <a-form-item label="报损原因" name="damageCause">
-            <a-select v-model:value="createForm.damageCause" placeholder="请选择报损原因">
-              <a-select-option :value="1">自然损耗</a-select-option>
-              <a-select-option :value="2">人为损坏</a-select-option>
-              <a-select-option :value="3">过期</a-select-option>
-              <a-select-option :value="4">质量异常</a-select-option>
-              <a-select-option :value="5">其他</a-select-option>
-            </a-select>
-          </a-form-item>
-        </a-col>
-        <a-col :span="12">
-          <a-form-item label="备注" name="remark">
-            <a-input v-model:value="createForm.remark" placeholder="备注信息" />
-          </a-form-item>
-        </a-col>
-      </a-row>
-
-      <!-- 报损明细 -->
-      <div class="sub-table-header">
-        <span class="sub-table-title">报损明细</span>
-        <a-button type="dashed" size="small" @click="addItem"><PlusOutlined /> 添加产品</a-button>
-      </div>
-      <a-table
-        :dataSource="createForm.items"
-        :columns="itemColumns"
-        :pagination="false as any"
-        size="small"
-        row-key="tempId"
-        style="margin-bottom: 12px;"
+    <!-- 新建报损单弹窗 -->
+    <a-modal
+      v-model:open="createVisible"
+      title="新建报损单"
+      width="900px"
+      :confirm-loading="createLoading"
+      destroy-on-close
+      @ok="handleCreateSubmit"
+      @cancel="handleCreateCancel"
+    >
+      <a-form
+        ref="createFormRef"
+        :model="createForm"
+        :rules="createRules"
+        layout="vertical"
       >
-        <template #bodyCell="{ column, record, index }">
-          <template v-if="column.dataIndex === 'productName'">
-            <a-input v-model:value="record.productName" placeholder="产品名称" style="width: 120px" />
-            <a-tooltip title="选择产品"><a-button size="small" type="link" @click="selectItemProduct(index)"><SearchOutlined /></a-button></a-tooltip>
+        <a-row :gutter="16">
+          <a-col :span="8">
+            <a-form-item
+              label="报损日期"
+              name="damageDate"
+            >
+              <a-date-picker
+                v-model:value="createForm.damageDate"
+                style="width: 100%"
+                value-format="YYYY-MM-DD"
+              />
+            </a-form-item>
+          </a-col>
+          <a-col :span="8">
+            <a-form-item
+              label="仓库"
+              name="warehouseId"
+            >
+              <a-select
+                v-model:value="createForm.warehouseId"
+                placeholder="请选择仓库"
+                show-search
+                :filter-option="filterOption"
+                allow-clear
+              >
+                <a-select-option
+                  v-for="w in warehouseOptions"
+                  :key="w.id"
+                  :value="w.id"
+                >
+                  {{ w.warehouseName }}
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+          </a-col>
+          <a-col :span="8">
+            <a-form-item
+              label="库位"
+              name="locationId"
+            >
+              <a-select
+                v-model:value="createForm.locationId"
+                placeholder="请选择库位"
+                allow-clear
+              >
+                <a-select-option
+                  v-for="l in locationOptions"
+                  :key="l.id"
+                  :value="l.id"
+                >
+                  {{ l.locationName }}
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+          </a-col>
+        </a-row>
+        <a-row :gutter="16">
+          <a-col :span="12">
+            <a-form-item
+              label="报损原因"
+              name="damageCause"
+            >
+              <a-select
+                v-model:value="createForm.damageCause"
+                placeholder="请选择报损原因"
+              >
+                <a-select-option :value="1">
+                  自然损耗
+                </a-select-option>
+                <a-select-option :value="2">
+                  人为损坏
+                </a-select-option>
+                <a-select-option :value="3">
+                  过期
+                </a-select-option>
+                <a-select-option :value="4">
+                  质量异常
+                </a-select-option>
+                <a-select-option :value="5">
+                  其他
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item
+              label="备注"
+              name="remark"
+            >
+              <a-input
+                v-model:value="createForm.remark"
+                placeholder="备注信息"
+              />
+            </a-form-item>
+          </a-col>
+        </a-row>
+
+        <!-- 报损明细 -->
+        <div class="sub-table-header">
+          <span class="sub-table-title">报损明细</span>
+          <a-button
+            type="dashed"
+            size="small"
+            @click="addItem"
+          >
+            <PlusOutlined /> 添加产品
+          </a-button>
+        </div>
+        <a-table
+          :data-source="createForm.items"
+          :columns="itemColumns"
+          :pagination="false as any"
+          size="small"
+          row-key="tempId"
+          style="margin-bottom: 12px;"
+        >
+          <template #bodyCell="{ column, record, index }">
+            <template v-if="column.dataIndex === 'productName'">
+              <a-input
+                v-model:value="record.productName"
+                placeholder="产品名称"
+                style="width: 120px"
+              />
+              <a-tooltip title="选择产品">
+                <a-button
+                  size="small"
+                  type="link"
+                  @click="selectItemProduct(index)"
+                >
+                  <SearchOutlined />
+                </a-button>
+              </a-tooltip>
+            </template>
+            <template v-else-if="column.dataIndex === 'specification'">
+              <a-input
+                v-model:value="record.specification"
+                placeholder="规格"
+                style="width: 80px"
+              />
+            </template>
+            <template v-else-if="column.dataIndex === 'quantity'">
+              <a-input-number
+                v-model:value="record.quantity"
+                :min="0"
+                :precision="0"
+                style="width: 80px"
+              />
+            </template>
+            <template v-else-if="column.dataIndex === 'unitCost'">
+              <a-input-number
+                v-model:value="record.unitCost"
+                :min="0"
+                :precision="2"
+                style="width: 100px"
+              />
+            </template>
+            <template v-else-if="column.dataIndex === 'batchNo'">
+              <a-input
+                v-model:value="record.batchNo"
+                placeholder="批号"
+                style="width: 120px"
+              />
+            </template>
+            <template v-else-if="column.dataIndex === 'action'">
+              <a-button
+                type="link"
+                danger
+                size="small"
+                @click="removeItem(index)"
+              >
+                <DeleteOutlined />
+              </a-button>
+            </template>
           </template>
-          <template v-else-if="column.dataIndex === 'specification'">
-            <a-input v-model:value="record.specification" placeholder="规格" style="width: 80px" />
-          </template>
-          <template v-else-if="column.dataIndex === 'quantity'">
-            <a-input-number v-model:value="record.quantity" :min="0" :precision="0" style="width: 80px" />
-          </template>
-          <template v-else-if="column.dataIndex === 'unitCost'">
-            <a-input-number v-model:value="record.unitCost" :min="0" :precision="2" style="width: 100px" />
-          </template>
-          <template v-else-if="column.dataIndex === 'batchNo'">
-            <a-input v-model:value="record.batchNo" placeholder="批号" style="width: 120px" />
-          </template>
-          <template v-else-if="column.dataIndex === 'action'">
-            <a-button type="link" danger size="small" @click="removeItem(index)"><DeleteOutlined /></a-button>
+        </a-table>
+      </a-form>
+    </a-modal>
+
+    <!-- 商品选择弹窗 -->
+    <a-modal
+      v-model:open="productPickerVisible"
+      title="选择产品"
+      width="640px"
+      :footer="null"
+      destroy-on-close
+    >
+      <a-input-search
+        v-model:value="productSearchKeyword"
+        placeholder="搜索产品编码/名称"
+        @search="loadProductOptions"
+      />
+      <a-table
+        :data-source="productOptions"
+        :columns="productPickerColumns"
+        :pagination="{ pageSize: 5 }"
+        :loading="productLoading"
+        size="small"
+        row-key="id"
+        style="margin-top: 12px;"
+      >
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.dataIndex === 'action'">
+            <a-button
+              type="primary"
+              size="small"
+              @click="pickProduct(record)"
+            >
+              选择
+            </a-button>
           </template>
         </template>
       </a-table>
-    </a-form>
-  </a-modal>
+    </a-modal>
 
-  <!-- 商品选择弹窗 -->
-  <a-modal v-model:open="productPickerVisible" title="选择产品" width="640px" :footer="null" destroy-on-close>
-    <a-input-search v-model:value="productSearchKeyword" placeholder="搜索产品编码/名称" @search="loadProductOptions" />
-    <a-table
-      :dataSource="productOptions"
-      :columns="productPickerColumns"
-      :pagination="{ pageSize: 5 }"
-      :loading="productLoading"
-      size="small"
-      row-key="id"
-      style="margin-top: 12px;"
+    <!-- 取消原因弹窗 -->
+    <a-modal
+      v-model:open="cancelModalVisible"
+      title="取消确认"
+      width="480px"
+      :confirm-loading="cancelLoading"
+      destroy-on-close
+      @ok="handleCancelConfirm"
+      @cancel="handleCancelClose"
     >
-      <template #bodyCell="{ column, record }">
-        <template v-if="column.dataIndex === 'action'">
-          <a-button type="primary" size="small" @click="pickProduct(record)">选择</a-button>
-        </template>
-      </template>
-    </a-table>
-  </a-modal>
-
-  <!-- 取消原因弹窗 -->
-  <a-modal v-model:open="cancelModalVisible" title="取消确认" width="480px" :confirm-loading="cancelLoading" @ok="handleCancelConfirm" @cancel="handleCancelClose" destroy-on-close>
-    <a-form layout="vertical">
-      <a-form-item label="取消原因" required>
-        <a-textarea v-model:value="cancelReason" :rows="3" placeholder="请输入取消原因（必填）" />
-      </a-form-item>
-    </a-form>
-  </a-modal>
+      <a-form layout="vertical">
+        <a-form-item
+          label="取消原因"
+          required
+        >
+          <a-textarea
+            v-model:value="cancelReason"
+            :rows="3"
+            placeholder="请输入取消原因（必填）"
+          />
+        </a-form-item>
+      </a-form>
+    </a-modal>
   </ErrorBoundary>
 </template>
 

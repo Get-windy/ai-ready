@@ -3,35 +3,63 @@
     <template #header>
       <div class="inquiry-header">
         <div class="inquiry-header__left">
-          <a-button type="text" class="inquiry-header__back" v-permission="'supplier:inquiry:back'" @click="handleBack">
-            <template #icon><LeftOutlined /></template>
+          <a-button
+            v-permission="'supplier:inquiry:back'"
+            type="text"
+            class="inquiry-header__back"
+            @click="handleBack"
+          >
+            <template #icon>
+              <LeftOutlined />
+            </template>
           </a-button>
-<span class="shortcut-hints">
-          <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
-          <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-        </span>
+          <span class="shortcut-hints">
+            <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+          </span>
           <div class="inquiry-header__titles">
             <span class="inquiry-header__breadcrumb">供应商 / 询价报价</span>
-            <h2 class="inquiry-header__title">供应商询价报价</h2>
+            <h2 class="inquiry-header__title">
+              供应商询价报价
+            </h2>
           </div>
         </div>
         <div class="inquiry-header__right">
           <a-space :size="12">
-            <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            >
               <SyncOutlined /> {{ autoRefreshCountdown }}s
             </span>
             <span class="data-status">
               <a-badge :status="loading ? 'processing' : 'success'" />
-              <span v-if="lastUpdateTime" class="update-time">
+              <span
+                v-if="lastUpdateTime"
+                class="update-time"
+              >
                 数据更新: {{ lastUpdateTime }}
               </span>
             </span>
-            <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', loadInquiries)()">
-              <template #icon><ReloadOutlined /></template>
+            <a-button
+              size="small"
+              :loading="refreshLoading"
+              @click="debounceClick('refresh', loadInquiries)()"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
               刷新
             </a-button>
-            <a-button type="primary" v-permission="'supplier:inquiry:createinquiry'" @click="handleCreateInquiry" :disabled="!supplierId">
-              <template #icon><PlusOutlined /></template>
+            <a-button
+              v-permission="'supplier:inquiry:createinquiry'"
+              type="primary"
+              :disabled="!supplierId"
+              @click="handleCreateInquiry"
+            >
+              <template #icon>
+                <PlusOutlined />
+              </template>
               发起询价
             </a-button>
           </a-space>
@@ -40,140 +68,245 @@
     </template>
 
     <ErrorBoundary>
-    <div class="page-content">
-    <!-- 统计卡片 -->
-    <div class="stat-cards">
-      <div class="stat-card stat-total">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ inquiries.length }}</div>
-          <div class="stat-card-label">询价总数</div>
-        </div>
-        <FileTextOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-pending">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ pendingCount }}</div>
-          <div class="stat-card-label">待报价</div>
-        </div>
-        <ClockCircleOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-quoted">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ quotedCount }}</div>
-          <div class="stat-card-label">已报价</div>
-        </div>
-        <CheckCircleOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-accepted">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ acceptedCount }}</div>
-          <div class="stat-card-label">已接受</div>
-        </div>
-        <CheckOutlined class="stat-card-icon" />
-      </div>
-    </div>
-
-    <a-card :bordered="false" v-if="supplier" style="margin-bottom: 16px">
-      <a-descriptions size="small" :column="4">
-        <a-descriptions-item label="供应商名称">{{ supplier.supplierName }}</a-descriptions-item>
-        <a-descriptions-item label="供应商编码">{{ supplier.supplierCode }}</a-descriptions-item>
-        <a-descriptions-item label="询价总数">{{ inquiries.length }}</a-descriptions-item>
-        <a-descriptions-item label="待报价">{{ pendingCount }}</a-descriptions-item>
-      </a-descriptions>
-    </a-card>
-
-    <a-card :bordered="false" class="table-card">
-      <BillTableList
-        ref="tableRef"
-        :columns="vxeColumns"
-        :data-source="inquiries"
-        :loading="loading"
-        :pagination="{ pageSize: 10, showSizeChanger: true, showTotal: (t: number) => `共 ${t} 条` } as any"
-        row-key="id"
-        :show-toolbar="false"
-        :selectable="false"
-        :show-add="false"
-        :show-search="false"
-        :show-export="false"
-        :show-batch-delete="false"
-        :min-empty-rows="12"
-        @cell-dblclick="handleView"
-      >
-        <template #inquiryStatusCell="{ record }">
-          <a-tag :color="getStatusColor(record.inquiryStatus)">{{ getStatusLabel(record.inquiryStatus) }}</a-tag>
-        </template>
-        <template #quotationStatusCell="{ record }">
-          <a-tag v-if="record.quotationStatus === 1" color="success">已报价</a-tag>
-          <a-tag v-else color="default">待报价</a-tag>
-        </template>
-        <template #quotationAmountCell="{ record }">
-          {{ record.quotationAmount ? `¥${record.quotationAmount.toLocaleString()}` : '-' }}
-        </template>
-        <template #action="{ record }">
-          <a-space>
-            <a-button
-              v-if="record.quotationStatus === 1"
-              size="small"
- v-permission="'supplier:inquiry:viewquotation'" @click="handleViewQuotation(record)"
-            >查看报价</a-button>
-            <a-button
-              v-if="record.quotationStatus === 1 && record.inquiryStatus === 1"
-              size="small"
-              type="primary"
- v-permission="'supplier:inquiry:acceptquotation'" @click="handleAcceptQuotation(record)"
-            >接受</a-button>
-            <a-button
-              v-if="record.quotationStatus === 1 && record.inquiryStatus === 1"
-              size="small"
-              danger
- v-permission="'supplier:inquiry:rejectquotation'" @click="handleRejectQuotation(record)"
-            >拒绝</a-button>
-          </a-space>
-        </template>
-        <template #empty>
-          <div class="table-empty">
-            <template v-if="hasError">
-              <WarningOutlined class="table-empty-icon" style="color: #faad14" />
-              <p class="table-empty-text">加载失败</p>
-              <a-button type="primary" size="small" @click="loadInquiries" class="table-empty-action">
-                <ReloadOutlined /> 重试
-              </a-button>
-            </template>
-            <template v-else-if="!supplierId">
-	              <InboxOutlined class="table-empty-icon" />
-	              <p class="table-empty-text">请先从供应商列表中选择供应商</p>
-	              <a-button type="primary" size="small" @click="handleBack" class="table-empty-action">前往供应商列表</a-button>
-	            </template>
-	            <template v-else>
-              <InboxOutlined class="table-empty-icon" />
-              <p class="table-empty-text">暂无询价报价记录</p>
-            </template>
+      <div class="page-content">
+        <!-- 统计卡片 -->
+        <div class="stat-cards">
+          <div class="stat-card stat-total">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ inquiries.length }}
+              </div>
+              <div class="stat-card-label">
+                询价总数
+              </div>
+            </div>
+            <FileTextOutlined class="stat-card-icon" />
           </div>
-        </template>
-      </BillTableList>
-    </a-card>
+          <div class="stat-card stat-pending">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ pendingCount }}
+              </div>
+              <div class="stat-card-label">
+                待报价
+              </div>
+            </div>
+            <ClockCircleOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-quoted">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ quotedCount }}
+              </div>
+              <div class="stat-card-label">
+                已报价
+              </div>
+            </div>
+            <CheckCircleOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-accepted">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ acceptedCount }}
+              </div>
+              <div class="stat-card-label">
+                已接受
+              </div>
+            </div>
+            <CheckOutlined class="stat-card-icon" />
+          </div>
+        </div>
 
-    <a-modal
-      v-model:open="showCreateModal"
-      title="发起询价"
-      @ok="submitInquiry"
-      :confirm-loading="submitLoading"
-    >
-      <a-form ref="formRef" :model="createForm" :rules="formRules" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
-        <a-form-item label="询价标题" name="inquiryTitle">
-          <a-input v-model:value="createForm.inquiryTitle" size="small" placeholder="请输入询价标题" />
-        </a-form-item>
-        <a-form-item label="截止日期" name="deadline">
-          <a-date-picker v-model:value="createForm.deadline" size="small" style="width: 100%" placeholder="选择截止日期" />
-        </a-form-item>
-        <a-form-item label="备注" name="remark">
-          <a-textarea v-model:value="createForm.remark" size="small" :rows="3" placeholder="请输入备注" />
-        </a-form-item>
-      </a-form>
-      </a-modal>
-    </div>
+        <a-card
+          v-if="supplier"
+          :bordered="false"
+          style="margin-bottom: 16px"
+        >
+          <a-descriptions
+            size="small"
+            :column="4"
+          >
+            <a-descriptions-item label="供应商名称">
+              {{ supplier.supplierName }}
+            </a-descriptions-item>
+            <a-descriptions-item label="供应商编码">
+              {{ supplier.supplierCode }}
+            </a-descriptions-item>
+            <a-descriptions-item label="询价总数">
+              {{ inquiries.length }}
+            </a-descriptions-item>
+            <a-descriptions-item label="待报价">
+              {{ pendingCount }}
+            </a-descriptions-item>
+          </a-descriptions>
+        </a-card>
+
+        <a-card
+          :bordered="false"
+          class="table-card"
+        >
+          <BillTableList
+            ref="tableRef"
+            :columns="vxeColumns"
+            :data-source="inquiries"
+            :loading="loading"
+            :pagination="{ pageSize: 10, showSizeChanger: true, showTotal: (t: number) => `共 ${t} 条` } as any"
+            row-key="id"
+            :show-toolbar="false"
+            :selectable="false"
+            :show-add="false"
+            :show-search="false"
+            :show-export="false"
+            :show-batch-delete="false"
+            :min-empty-rows="12"
+            @cell-dblclick="handleView"
+          >
+            <template #inquiryStatusCell="{ record }">
+              <a-tag :color="getStatusColor(record.inquiryStatus)">
+                {{ getStatusLabel(record.inquiryStatus) }}
+              </a-tag>
+            </template>
+            <template #quotationStatusCell="{ record }">
+              <a-tag
+                v-if="record.quotationStatus === 1"
+                color="success"
+              >
+                已报价
+              </a-tag>
+              <a-tag
+                v-else
+                color="default"
+              >
+                待报价
+              </a-tag>
+            </template>
+            <template #quotationAmountCell="{ record }">
+              {{ record.quotationAmount ? `¥${record.quotationAmount.toLocaleString()}` : '-' }}
+            </template>
+            <template #action="{ record }">
+              <a-space>
+                <a-button
+                  v-if="record.quotationStatus === 1"
+                  v-permission="'supplier:inquiry:viewquotation'"
+                  size="small"
+                  @click="handleViewQuotation(record)"
+                >
+                  查看报价
+                </a-button>
+                <a-button
+                  v-if="record.quotationStatus === 1 && record.inquiryStatus === 1"
+                  v-permission="'supplier:inquiry:acceptquotation'"
+                  size="small"
+                  type="primary"
+                  @click="handleAcceptQuotation(record)"
+                >
+                  接受
+                </a-button>
+                <a-button
+                  v-if="record.quotationStatus === 1 && record.inquiryStatus === 1"
+                  v-permission="'supplier:inquiry:rejectquotation'"
+                  size="small"
+                  danger
+                  @click="handleRejectQuotation(record)"
+                >
+                  拒绝
+                </a-button>
+              </a-space>
+            </template>
+            <template #empty>
+              <div class="table-empty">
+                <template v-if="hasError">
+                  <WarningOutlined
+                    class="table-empty-icon"
+                    style="color: #faad14"
+                  />
+                  <p class="table-empty-text">
+                    加载失败
+                  </p>
+                  <a-button
+                    type="primary"
+                    size="small"
+                    class="table-empty-action"
+                    @click="loadInquiries"
+                  >
+                    <ReloadOutlined /> 重试
+                  </a-button>
+                </template>
+                <template v-else-if="!supplierId">
+                  <InboxOutlined class="table-empty-icon" />
+                  <p class="table-empty-text">
+                    请先从供应商列表中选择供应商
+                  </p>
+                  <a-button
+                    type="primary"
+                    size="small"
+                    class="table-empty-action"
+                    @click="handleBack"
+                  >
+                    前往供应商列表
+                  </a-button>
+                </template>
+                <template v-else>
+                  <InboxOutlined class="table-empty-icon" />
+                  <p class="table-empty-text">
+                    暂无询价报价记录
+                  </p>
+                </template>
+              </div>
+            </template>
+          </BillTableList>
+        </a-card>
+
+        <a-modal
+          v-model:open="showCreateModal"
+          title="发起询价"
+          :confirm-loading="submitLoading"
+          @ok="submitInquiry"
+        >
+          <a-form
+            ref="formRef"
+            :model="createForm"
+            :rules="formRules"
+            :label-col="{ span: 6 }"
+            :wrapper-col="{ span: 16 }"
+          >
+            <a-form-item
+              label="询价标题"
+              name="inquiryTitle"
+            >
+              <a-input
+                v-model:value="createForm.inquiryTitle"
+                size="small"
+                placeholder="请输入询价标题"
+              />
+            </a-form-item>
+            <a-form-item
+              label="截止日期"
+              name="deadline"
+            >
+              <a-date-picker
+                v-model:value="createForm.deadline"
+                size="small"
+                style="width: 100%"
+                placeholder="选择截止日期"
+              />
+            </a-form-item>
+            <a-form-item
+              label="备注"
+              name="remark"
+            >
+              <a-textarea
+                v-model:value="createForm.remark"
+                size="small"
+                :rows="3"
+                placeholder="请输入备注"
+              />
+            </a-form-item>
+          </a-form>
+        </a-modal>
+      </div>
     </ErrorBoundary>
-</PageContainer>
+  </PageContainer>
 </template>
 
 <script setup lang="ts">
@@ -386,7 +519,7 @@ const handleAcceptQuotation = async (inquiry: InquiryRecord) => {
 }
 
 const handleRejectQuotation = async (inquiry: InquiryRecord) => {
-  let reason = ''
+  const reason = ''
   Modal.confirm({
     title: '拒绝报价',
     content: '请输入拒绝原因',

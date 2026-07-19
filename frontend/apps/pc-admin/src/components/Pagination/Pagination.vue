@@ -3,11 +3,14 @@
     <a-pagination
       v-model:current="currentPage"
       v-model:page-size="currentPageSize"
-      :total="total"
+      :total="numericTotal"
       :page-size-options="pageSizeOptions"
       :show-size-changer="true"
-      :show-quick-jumper="true"
-      :hide-on-single-page="hideOnSinglePage"
+      :show-quick-jumper="{ goButton: true }"
+      :show-total="(total) => `共 ${total} 条`"
+      :hide-on-single-page="false"
+      :show-less-items="false"
+      :simple="false"
       @change="onPageChange"
       @show-size-change="onPageSizeChange"
     >
@@ -15,14 +18,11 @@
         <span>{{ opt.value }}条/页</span>
       </template>
     </a-pagination>
-    <div class="pagination-info">
-      共 {{ total }} 条，每页显示 {{ pageSize }} 条
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { Pagination } from 'ant-design-vue'
 
 defineOptions({ name: 'StandardPagination' })
@@ -33,7 +33,7 @@ const props = withDefaults(defineProps<{
   /** 每页大小 */
   pageSize?: number
   /** 总条数 */
-  total?: number
+  total?: number | string
   /** 每页显示条数选项 */
   pageSizeOptions?: number[]
   /** 单页时是否隐藏分页器 */
@@ -45,6 +45,9 @@ const props = withDefaults(defineProps<{
   pageSizeOptions: () => [10, 20, 50, 100],
   hideOnSinglePage: false
 })
+
+/** total 可能是字符串(Long序列化)，转为数字 */
+const numericTotal = computed(() => Number(props.total) || 0)
 
 const emit = defineEmits<{
   'update:current': [number]

@@ -18,21 +18,38 @@
               style="width: 180px"
               allow-clear
             >
-              <a-select-option value="">全部</a-select-option>
-              <a-select-option value="待执行">待执行</a-select-option>
-              <a-select-option value="执行中">执行中</a-select-option>
-              <a-select-option value="已完成">已完成</a-select-option>
-              <a-select-option value="已失败">已失败</a-select-option>
+              <a-select-option value="">
+                全部
+              </a-select-option>
+              <a-select-option value="待执行">
+                待执行
+              </a-select-option>
+              <a-select-option value="执行中">
+                执行中
+              </a-select-option>
+              <a-select-option value="已完成">
+                已完成
+              </a-select-option>
+              <a-select-option value="已失败">
+                已失败
+              </a-select-option>
             </a-select>
           </a-form-item>
           <a-form-item>
             <a-space>
-              <a-button type="primary" @click="handleSearch">
-                <template #icon><SearchOutlined /></template>
+              <a-button
+                type="primary"
+                @click="handleSearch"
+              >
+                <template #icon>
+                  <SearchOutlined />
+                </template>
                 查询
               </a-button>
               <a-button @click="handleReset">
-                <template #icon><ClearOutlined /></template>
+                <template #icon>
+                  <ClearOutlined />
+                </template>
                 重置
               </a-button>
             </a-space>
@@ -41,12 +58,17 @@
       </div>
       <div class="table-area">
         <BillTableList
+          ref="tableRef"
           :columns="columns"
           :api-url="apiUrl"
           :params="searchParams"
-          ref="tableRef"
         />
-        <div v-if="lastUpdateTime" class="update-time">最后更新: {{ lastUpdateTime }}</div>
+        <div
+          v-if="lastUpdateTime"
+          class="update-time"
+        >
+          最后更新: {{ lastUpdateTime }}
+        </div>
       </div>
     </PageContainer>
   </ErrorBoundary>
@@ -62,7 +84,7 @@ import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import request from '@/utils/request'
 
 const tableRef = ref()
-const apiUrl = '/api/set/system-task/page'
+const apiUrl = '/set/system-task/page'
 
 const loading = ref(false)
 const hasError = ref(false)

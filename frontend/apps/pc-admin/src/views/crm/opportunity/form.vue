@@ -7,10 +7,19 @@
   >
     <template #footer>
       <div class="footer-right">
-        <a-button size="large" :loading="saving" @click="handleSave">
+        <a-button
+          size="large"
+          :loading="saving"
+          @click="handleSave"
+        >
           保存<span class="shortcut-hint">Ctrl+S</span>
         </a-button>
-        <a-button type="primary" size="large" :loading="saving" @click="handleSubmit">
+        <a-button
+          type="primary"
+          size="large"
+          :loading="saving"
+          @click="handleSubmit"
+        >
           提交<span class="shortcut-hint">Ctrl+Enter</span>
         </a-button>
       </div>

@@ -6,33 +6,59 @@
         <span class="order-no">NO. {{ header?.orderNo || '待生成' }}</span>
         <a-button
           v-if="header?.showAttachment"
-          type="link" size="small" class="attachment-btn"
+          type="link"
+          size="small"
+          class="attachment-btn"
         >
-          <template #icon><PaperClipOutlined /></template>
+          <template #icon>
+            <PaperClipOutlined />
+          </template>
           附件
         </a-button>
       </div>
       <div class="header-center">
-        <h2 class="bill-title">{{ header?.title || '' }}</h2>
+        <h2 class="bill-title">
+          {{ header?.title || '' }}
+        </h2>
       </div>
       <div class="header-right">
-        <template v-for="action in header?.actions" :key="action.key">
+        <template
+          v-for="action in header?.actions"
+          :key="action.key"
+        >
           <a-dropdown v-if="action.children?.length">
             <a-button size="small">
-              <template v-if="action.icon" #icon><component :is="action.icon" /></template>
+              <template
+                v-if="action.icon"
+                #icon
+              >
+                <component :is="action.icon" />
+              </template>
               {{ action.label }}
               <DownOutlined />
             </a-button>
             <template #overlay>
               <a-menu @click="(info: any) => emit('action', info.key, action.key)">
-                <a-menu-item v-for="child in action.children" :key="child.key">
+                <a-menu-item
+                  v-for="child in action.children"
+                  :key="child.key"
+                >
                   {{ child.label }}
                 </a-menu-item>
               </a-menu>
             </template>
           </a-dropdown>
-          <a-button v-else size="small" @click="emit('action', action.key)">
-            <template v-if="action.icon" #icon><component :is="action.icon" /></template>
+          <a-button
+            v-else
+            size="small"
+            @click="emit('action', action.key)"
+          >
+            <template
+              v-if="action.icon"
+              #icon
+            >
+              <component :is="action.icon" />
+            </template>
             {{ action.label }}
           </a-button>
         </template>
@@ -43,7 +69,10 @@
     <div class="bill-basic-info">
       <!-- 流式布局：inline模式，自动换行 -->
       <div class="info-flow">
-        <template v-for="field in basicInfoFields" :key="field.key">
+        <template
+          v-for="field in basicInfoFields"
+          :key="field.key"
+        >
           <!-- inlineLabel 模式：使用 InlineField -->
           <InlineField
             v-if="field.inlineLabel"
@@ -55,6 +84,7 @@
             :precision="field.precision"
             :min="field.min"
             :max="field.max"
+            :disabled="field.disabled"
             :loading="field.loading"
             :search-btn="field.searchBtn"
             :width="field.width"
@@ -76,6 +106,7 @@
             :precision="field.precision"
             :min="field.min"
             :max="field.max"
+            :disabled="field.disabled"
             :loading="field.loading"
             :search-btn="field.searchBtn"
             :width="field.width"
@@ -89,18 +120,41 @@
     </div>
 
     <!-- ═══ Zone 3: 明细表格（插槽，有内容时显示） ═══ -->
-    <div v-if="$slots['detail-table']" class="bill-table-section" :class="{ 'table-section-expanded': tableExpanded }">
-      <slot name="detail-table" :on-expand-change="handleTableExpand" />
+    <div
+      v-if="$slots['detail-table']"
+      class="bill-table-section"
+      :class="{ 'table-section-expanded': tableExpanded }"
+    >
+      <slot
+        name="detail-table"
+        :on-expand-change="handleTableExpand"
+      />
     </div>
 
     <!-- ═══ Zone 4: 底部面板（左标签页 + 右摘要） ═══ -->
-    <div v-if="showBottomPanel && !tableExpanded && (tabs?.length || summary?.length || $slots['bottom-extra'])" class="bill-bottom-panel">
+    <div
+      v-if="showBottomPanel && !tableExpanded && (tabs?.length || summary?.length || $slots['bottom-extra'])"
+      class="bill-bottom-panel"
+    >
       <div class="bottom-panel-inner">
         <div class="bottom-left">
-          <a-tabs v-if="tabs?.length" v-model:activeKey="activeTab" size="small" class="bottom-tabs">
-            <a-tab-pane v-for="tab in tabs" :key="tab.key" :tab="tab.tab">
+          <a-tabs
+            v-if="tabs?.length"
+            v-model:active-key="activeTab"
+            size="small"
+            class="bottom-tabs"
+          >
+            <a-tab-pane
+              v-for="tab in tabs"
+              :key="tab.key"
+              :tab="tab.tab"
+            >
               <div class="tab-content-row">
-                <div v-for="tf in tab.fields" :key="tf.key" class="tab-field">
+                <div
+                  v-for="tf in tab.fields"
+                  :key="tf.key"
+                  class="tab-field"
+                >
                   <label>{{ tf.label }}</label>
                   <div class="tab-field-input">
                     <!-- 查看模式 -->
@@ -119,7 +173,11 @@
                         style="flex:1"
                         @update:value="(val: any) => emit('update:modelValue', { ...modelValue, [tf.key]: val })"
                       >
-                        <a-select-option v-for="opt in tf.options" :key="opt.value" :value="opt.value">
+                        <a-select-option
+                          v-for="opt in tf.options"
+                          :key="opt.value"
+                          :value="opt.value"
+                        >
                           {{ opt.label }}
                         </a-select-option>
                       </a-select>
@@ -135,6 +193,16 @@
                         style="flex:1"
                         @update:value="(val: any) => emit('update:modelValue', { ...modelValue, [tf.key]: val })"
                       />
+                      <a-date-picker
+                        v-else-if="tf.type === 'date'"
+                        :value="(modelValue as any)[tf.key]"
+                        :placeholder="tf.placeholder || '请选择日期'"
+                        :disabled="tf.disabled"
+                        size="small"
+                        style="flex:1"
+                        value-format="YYYY-MM-DD"
+                        @update:value="(val: any) => emit('update:modelValue', { ...modelValue, [tf.key]: val })"
+                      />
                       <a-input
                         v-else
                         :value="(modelValue as any)[tf.key]"
@@ -146,7 +214,8 @@
                       />
                       <a-button
                         v-if="tf.suffixBtn"
-                        type="link" size="small"
+                        type="link"
+                        size="small"
                         :class="{ 'btn-clear': tf.suffixBtnDanger }"
                       >
                         {{ tf.suffixBtn }}
@@ -160,17 +229,36 @@
           <slot name="bottom-extra" />
         </div>
 
-        <div v-if="summary?.length" class="bill-summary-sidebar">
+        <div
+          v-if="summary?.length"
+          class="bill-summary-sidebar"
+        >
           <!-- 状态角标（仅首行有 statusLabel 时显示） -->
-          <div v-if="summary[0]?.statusLabel" class="sidebar-status-badge">
+          <div
+            v-if="summary[0]?.statusLabel"
+            class="sidebar-status-badge"
+          >
             {{ summary[0].statusLabel }}
           </div>
-          <template v-for="(row, idx) in summary" :key="idx">
-            <div v-if="row.divider" class="sidebar-divider" />
+          <template
+            v-for="(row, idx) in summary"
+            :key="idx"
+          >
+            <div
+              v-if="row.divider"
+              class="sidebar-divider"
+            />
             <div class="sidebar-row">
               <span class="sidebar-label">{{ row.label }}</span>
               <span class="sidebar-value">{{ row.value }}</span>
-              <a-button v-if="row.showMore" type="link" size="small" class="sidebar-more">···</a-button>
+              <a-button
+                v-if="row.showMore"
+                type="link"
+                size="small"
+                class="sidebar-more"
+              >
+                ···
+              </a-button>
             </div>
           </template>
         </div>
@@ -178,38 +266,50 @@
     </div>
 
     <!-- ═══ Zone 5: 页脚操作栏（查看模式/表格展开时隐藏） ═══ -->
-    <div v-if="!isViewMode && !tableExpanded" class="bill-footer">
+    <div
+      v-if="!isViewMode && !tableExpanded"
+      class="bill-footer"
+    >
       <slot name="footer">
-      <div class="footer-left">
-        <span class="footer-amount-label">{{ footer?.amountLabel || '本单金额' }}</span>
-        <span class="footer-amount-value" :class="{ 'amount-red': footer?.amountHighlight !== false }">
-          {{ footer?.amountValue || '¥0.00' }}
-        </span>
-      </div>
-      <div class="footer-right">
-        <a-button
-          v-if="footer?.draftBtnText"
-          size="large"
-          :loading="footer?.saving"
-          @click="emit('draft')"
-        >
-          {{ footer.draftBtnText }}
-          <br v-if="footer?.draftShortcut" />
-          <span v-if="footer?.draftShortcut" class="shortcut-hint">{{ footer.draftShortcut }}</span>
-        </a-button>
-        <a-button
-          v-if="footer?.primaryBtnText"
-          type="primary"
-          size="large"
-          :class="footer?.primaryBtnAudit ? 'btn-audit' : 'btn-submit'"
-          :loading="footer?.saving"
-          @click="emit('submit')"
-        >
-          {{ footer.primaryBtnText }}
-          <br v-if="footer?.primaryShortcut" />
-          <span v-if="footer?.primaryShortcut" class="shortcut-hint">{{ footer.primaryShortcut }}</span>
-        </a-button>
-      </div>
+        <div class="footer-left">
+          <span class="footer-amount-label">{{ footer?.amountLabel || '本单金额' }}</span>
+          <span
+            class="footer-amount-value"
+            :class="{ 'amount-red': footer?.amountHighlight !== false }"
+          >
+            {{ footer?.amountValue || '¥0.00' }}
+          </span>
+        </div>
+        <div class="footer-right">
+          <a-button
+            v-if="footer?.draftBtnText"
+            size="large"
+            :loading="footer?.saving"
+            @click="emit('draft')"
+          >
+            {{ footer.draftBtnText }}
+            <br v-if="footer?.draftShortcut">
+            <span
+              v-if="footer?.draftShortcut"
+              class="shortcut-hint"
+            >{{ footer.draftShortcut }}</span>
+          </a-button>
+          <a-button
+            v-if="footer?.primaryBtnText"
+            type="primary"
+            size="large"
+            :class="footer?.primaryBtnAudit ? 'btn-audit' : 'btn-submit'"
+            :loading="footer?.saving"
+            @click="emit('submit')"
+          >
+            {{ footer.primaryBtnText }}
+            <br v-if="footer?.primaryShortcut">
+            <span
+              v-if="footer?.primaryShortcut"
+              class="shortcut-hint"
+            >{{ footer.primaryShortcut }}</span>
+          </a-button>
+        </div>
       </slot>
     </div>
   </div>

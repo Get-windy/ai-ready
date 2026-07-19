@@ -1,180 +1,314 @@
 <template>
   <ErrorBoundary @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="sales-analysis-header">
-        <div class="sales-analysis-header-left">
-          <a-breadcrumb class="sales-analysis-breadcrumb">
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item>销售分析</a-breadcrumb-item>
-          </a-breadcrumb>
-          <h2 class="sales-analysis-header-title">销售分析</h2>
+    <PageContainer full-height>
+      <template #header>
+        <div class="sales-analysis-header">
+          <div class="sales-analysis-header-left">
+            <a-breadcrumb class="sales-analysis-breadcrumb">
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>销售分析</a-breadcrumb-item>
+            </a-breadcrumb>
+            <h2 class="sales-analysis-header-title">
+              销售分析
+            </h2>
+          </div>
+          <div class="sales-analysis-header-right">
+            <span
+              v-if="lastUpdateTime"
+              class="update-time"
+            >更新于 {{ lastUpdateTime }}</span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            >
+              <SyncOutlined /> {{ autoRefreshCountdown }}s
+            </span>
+            <a-button
+              size="small"
+              :loading="refreshLoading"
+              @click="debounceClick('refresh', handleRefresh)"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
+              刷新
+            </a-button>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            </span>
+          </div>
         </div>
-        <div class="sales-analysis-header-right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-            <SyncOutlined /> {{ autoRefreshCountdown }}s
-          </span>
-          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', handleRefresh)">
-            <template #icon><ReloadOutlined /></template>
-            刷新
-          </a-button>
-          <span class="shortcut-hints">
-            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-          </span>
-        </div>
+      </template>
+
+      <!-- 骨架加载 -->
+      <div
+        v-if="loading"
+        class="skeleton-loading"
+      >
+        <a-skeleton
+          :paragraph="{ rows: 2 }"
+          active
+        />
+        <div style="height: 16px" />
+        <a-row :gutter="16">
+          <a-col :span="6">
+            <a-card><a-skeleton active /></a-card>
+          </a-col>
+          <a-col :span="6">
+            <a-card><a-skeleton active /></a-card>
+          </a-col>
+          <a-col :span="6">
+            <a-card><a-skeleton active /></a-card>
+          </a-col>
+          <a-col :span="6">
+            <a-card><a-skeleton active /></a-card>
+          </a-col>
+        </a-row>
+        <div style="height: 16px" />
+        <a-skeleton
+          :paragraph="{ rows: 6 }"
+          active
+        />
       </div>
-    </template>
 
-    <!-- 骨架加载 -->
-    <div v-if="loading" class="skeleton-loading">
-      <a-skeleton :paragraph="{ rows: 2 }" active />
-      <div style="height: 16px" />
-      <a-row :gutter="16">
-        <a-col :span="6"><a-card><a-skeleton active /></a-card></a-col>
-        <a-col :span="6"><a-card><a-skeleton active /></a-card></a-col>
-        <a-col :span="6"><a-card><a-skeleton active /></a-card></a-col>
-        <a-col :span="6"><a-card><a-skeleton active /></a-card></a-col>
-      </a-row>
-      <div style="height: 16px" />
-      <a-skeleton :paragraph="{ rows: 6 }" active />
-    </div>
-
-    <template v-if="!loading">
-    <!-- 筛选条件 -->
-    <a-card size="small" class="filter-card">
-      <a-space wrap>
-        <a-date-picker v-model:value="dateRange[0]" picker="month" placeholder="开始月份" size="small" style="width: 140px" @change="handleFilterChange" />
-        <a-date-picker v-model:value="dateRange[1]" picker="month" placeholder="结束月份" size="small" style="width: 140px" @change="handleFilterChange" />
-        <a-select v-model:value="warehouseId" placeholder="选择仓库" allow-clear size="small" style="width: 160px" @change="handleFilterChange">
-          <a-select-option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.name }}</a-select-option>
-        </a-select>
-      </a-space>
-    </a-card>
-
-    <!-- KPI 卡片 -->
-    <a-row :gutter="16" class="stat-row">
-      <a-col :span="6">
-        <div class="stat-card stat-card--blue">
-          <div class="stat-card-icon"><DollarOutlined /></div>
-          <div class="stat-card-content">
-            <div class="stat-card-title">销售总额</div>
-            <div class="stat-card-value">{{ overview?.totalAmount ? formatAmount(overview.totalAmount) : '¥0.00' }}</div>
-          </div>
-        </div>
-      </a-col>
-      <a-col :span="6">
-        <div class="stat-card stat-card--green">
-          <div class="stat-card-icon"><FileTextOutlined /></div>
-          <div class="stat-card-content">
-            <div class="stat-card-title">订单总数</div>
-            <div class="stat-card-value">{{ overview?.orderCount || 0 }}</div>
-          </div>
-        </div>
-      </a-col>
-      <a-col :span="6">
-        <div class="stat-card stat-card--orange">
-          <div class="stat-card-icon"><BarChartOutlined /></div>
-          <div class="stat-card-content">
-            <div class="stat-card-title">平均客单价</div>
-            <div class="stat-card-value">{{ overview?.avgOrderAmount ? formatAmount(overview.avgOrderAmount) : '¥0.00' }}</div>
-          </div>
-        </div>
-      </a-col>
-      <a-col :span="6">
-        <div class="stat-card stat-card--purple">
-          <div class="stat-card-icon"><PercentageOutlined /></div>
-          <div class="stat-card-content">
-            <div class="stat-card-title">同比增长</div>
-            <div class="stat-card-value">{{ overview?.grossMargin ? (overview.grossMargin * 100).toFixed(1) + '%' : '0.0%' }}</div>
-          </div>
-        </div>
-      </a-col>
-    </a-row>
-
-    <!-- 图表区域 -->
-    <a-row :gutter="16" class="chart-row">
-      <a-col :span="16">
-        <a-card title="销售趋势" class="chart-card">
-          <div ref="trendChartRef" style="height: 280px"></div>
-          <div v-if="trendError" class="chart-empty chart-error" @click="loadTrend(buildParams())">
-            <WarningOutlined /> 趋势数据加载失败，点击重试
-          </div>
-          <div v-if="!trendData.length && !trendError" class="chart-empty">暂无趋势数据</div>
+      <template v-if="!loading">
+        <!-- 筛选条件 -->
+        <a-card
+          size="small"
+          class="filter-card"
+        >
+          <a-space wrap>
+            <a-date-picker
+              v-model:value="dateRange[0]"
+              picker="month"
+              placeholder="开始月份"
+              size="small"
+              style="width: 140px"
+              @change="handleFilterChange"
+            />
+            <a-date-picker
+              v-model:value="dateRange[1]"
+              picker="month"
+              placeholder="结束月份"
+              size="small"
+              style="width: 140px"
+              @change="handleFilterChange"
+            />
+            <a-select
+              v-model:value="warehouseId"
+              placeholder="选择仓库"
+              allow-clear
+              size="small"
+              style="width: 160px"
+              @change="handleFilterChange"
+            >
+              <a-select-option
+                v-for="w in warehouses"
+                :key="w.id"
+                :value="w.id"
+              >
+                {{ w.name }}
+              </a-select-option>
+            </a-select>
+          </a-space>
         </a-card>
-      </a-col>
-      <a-col :span="8">
-        <a-card title="渠道分布" class="chart-card">
-          <div ref="pieChartRef" style="height: 280px"></div>
-          <div v-if="channelError" class="chart-empty chart-error" @click="loadChannel(buildParams())">
-            <WarningOutlined /> 渠道数据加载失败，点击重试
-          </div>
-          <div v-if="!channelData.length && !channelError" class="chart-empty">暂无渠道数据</div>
-        </a-card>
-      </a-col>
-    </a-row>
 
-    <!-- 排行榜 -->
-    <a-row :gutter="16" class="rank-row">
-      <a-col :span="12">
-        <a-card title="客户排行 TOP10" class="rank-card">
-          <BillTableList
-            :data-source="customerRankData"
-            :columns="customerRankVxeCols"
-            :loading="rankLoading"
-            :pagination="false as any"
-            row-key="rank"
-            :show-toolbar="false"
-            :selectable="false"
-            :show-add="false"
-            :show-search="false"
-            :show-export="false"
-            :show-batch-delete="false"
-          >
-            <template #rankCell="{ record }">
-              <span :class="['rank-badge', record.rank <= 3 ? 'rank-top' : '']">{{ record.rank }}</span>
-            </template>
-            <template #totalAmountCell="{ record }">
-              <span class="amount-cell">{{ formatAmount(record.totalAmount) }}</span>
-            </template>
-            <template #growthCell="{ record }">
-              <span :style="{ color: record.growth >= 0 ? '#52c41a' : '#ff4d4f' }">
-                {{ record.growth >= 0 ? '+' : '' }}{{ (record.growth * 100).toFixed(1) }}%
-              </span>
-            </template>
-          </BillTableList>
-        </a-card>
-      </a-col>
-      <a-col :span="12">
-        <a-card title="产品排行 TOP10" class="rank-card">
-          <BillTableList
-            :data-source="productRankData"
-            :columns="productRankVxeCols"
-            :loading="rankLoading"
-            :pagination="false as any"
-            row-key="rank"
-            :show-toolbar="false"
-            :selectable="false"
-            :show-add="false"
-            :show-search="false"
-            :show-export="false"
-            :show-batch-delete="false"
-          >
-            <template #rankCell="{ record }">
-              <span :class="['rank-badge', record.rank <= 3 ? 'rank-top' : '']">{{ record.rank }}</span>
-            </template>
-            <template #totalAmountCell="{ record }">
-              <span class="amount-cell">{{ formatAmount(record.totalAmount) }}</span>
-            </template>
-            <template #marginCell="{ record }">
-              <span>{{ (record.margin * 100).toFixed(1) }}%</span>
-            </template>
-          </BillTableList>
-        </a-card>
-      </a-col>
-    </a-row>
-  </template>
-  </PageContainer>
+        <!-- KPI 卡片 -->
+        <a-row
+          :gutter="16"
+          class="stat-row"
+        >
+          <a-col :span="6">
+            <div class="stat-card stat-card--blue">
+              <div class="stat-card-icon">
+                <DollarOutlined />
+              </div>
+              <div class="stat-card-content">
+                <div class="stat-card-title">
+                  销售总额
+                </div>
+                <div class="stat-card-value">
+                  {{ overview?.totalAmount ? formatAmount(overview.totalAmount) : '¥0.00' }}
+                </div>
+              </div>
+            </div>
+          </a-col>
+          <a-col :span="6">
+            <div class="stat-card stat-card--green">
+              <div class="stat-card-icon">
+                <FileTextOutlined />
+              </div>
+              <div class="stat-card-content">
+                <div class="stat-card-title">
+                  订单总数
+                </div>
+                <div class="stat-card-value">
+                  {{ overview?.orderCount || 0 }}
+                </div>
+              </div>
+            </div>
+          </a-col>
+          <a-col :span="6">
+            <div class="stat-card stat-card--orange">
+              <div class="stat-card-icon">
+                <BarChartOutlined />
+              </div>
+              <div class="stat-card-content">
+                <div class="stat-card-title">
+                  平均客单价
+                </div>
+                <div class="stat-card-value">
+                  {{ overview?.avgOrderAmount ? formatAmount(overview.avgOrderAmount) : '¥0.00' }}
+                </div>
+              </div>
+            </div>
+          </a-col>
+          <a-col :span="6">
+            <div class="stat-card stat-card--purple">
+              <div class="stat-card-icon">
+                <PercentageOutlined />
+              </div>
+              <div class="stat-card-content">
+                <div class="stat-card-title">
+                  同比增长
+                </div>
+                <div class="stat-card-value">
+                  {{ overview?.grossMargin ? (overview.grossMargin * 100).toFixed(1) + '%' : '0.0%' }}
+                </div>
+              </div>
+            </div>
+          </a-col>
+        </a-row>
+
+        <!-- 图表区域 -->
+        <a-row
+          :gutter="16"
+          class="chart-row"
+        >
+          <a-col :span="16">
+            <a-card
+              title="销售趋势"
+              class="chart-card"
+            >
+              <div
+                ref="trendChartRef"
+                style="height: 280px"
+              />
+              <div
+                v-if="trendError"
+                class="chart-empty chart-error"
+                @click="loadTrend(buildParams())"
+              >
+                <WarningOutlined /> 趋势数据加载失败，点击重试
+              </div>
+              <div
+                v-if="!trendData.length && !trendError"
+                class="chart-empty"
+              >
+                暂无趋势数据
+              </div>
+            </a-card>
+          </a-col>
+          <a-col :span="8">
+            <a-card
+              title="渠道分布"
+              class="chart-card"
+            >
+              <div
+                ref="pieChartRef"
+                style="height: 280px"
+              />
+              <div
+                v-if="channelError"
+                class="chart-empty chart-error"
+                @click="loadChannel(buildParams())"
+              >
+                <WarningOutlined /> 渠道数据加载失败，点击重试
+              </div>
+              <div
+                v-if="!channelData.length && !channelError"
+                class="chart-empty"
+              >
+                暂无渠道数据
+              </div>
+            </a-card>
+          </a-col>
+        </a-row>
+
+        <!-- 排行榜 -->
+        <a-row
+          :gutter="16"
+          class="rank-row"
+        >
+          <a-col :span="12">
+            <a-card
+              title="客户排行 TOP10"
+              class="rank-card"
+            >
+              <BillTableList
+                :data-source="customerRankData"
+                :columns="customerRankVxeCols"
+                :loading="rankLoading"
+                :pagination="false as any"
+                row-key="rank"
+                :show-toolbar="false"
+                :selectable="false"
+                :show-add="false"
+                :show-search="false"
+                :show-export="false"
+                :show-batch-delete="false"
+              >
+                <template #rankCell="{ record }">
+                  <span :class="['rank-badge', record.rank <= 3 ? 'rank-top' : '']">{{ record.rank }}</span>
+                </template>
+                <template #totalAmountCell="{ record }">
+                  <span class="amount-cell">{{ formatAmount(record.totalAmount) }}</span>
+                </template>
+                <template #growthCell="{ record }">
+                  <span :style="{ color: record.growth >= 0 ? '#52c41a' : '#ff4d4f' }">
+                    {{ record.growth >= 0 ? '+' : '' }}{{ (record.growth * 100).toFixed(1) }}%
+                  </span>
+                </template>
+              </BillTableList>
+            </a-card>
+          </a-col>
+          <a-col :span="12">
+            <a-card
+              title="产品排行 TOP10"
+              class="rank-card"
+            >
+              <BillTableList
+                :data-source="productRankData"
+                :columns="productRankVxeCols"
+                :loading="rankLoading"
+                :pagination="false as any"
+                row-key="rank"
+                :show-toolbar="false"
+                :selectable="false"
+                :show-add="false"
+                :show-search="false"
+                :show-export="false"
+                :show-batch-delete="false"
+              >
+                <template #rankCell="{ record }">
+                  <span :class="['rank-badge', record.rank <= 3 ? 'rank-top' : '']">{{ record.rank }}</span>
+                </template>
+                <template #totalAmountCell="{ record }">
+                  <span class="amount-cell">{{ formatAmount(record.totalAmount) }}</span>
+                </template>
+                <template #marginCell="{ record }">
+                  <span>{{ (record.margin * 100).toFixed(1) }}%</span>
+                </template>
+              </BillTableList>
+            </a-card>
+          </a-col>
+        </a-row>
+      </template>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

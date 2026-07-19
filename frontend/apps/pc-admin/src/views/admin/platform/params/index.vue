@@ -4,17 +4,30 @@
       <div class="page-header">
         <div class="page-header-left">
           <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>
+              <router-link to="/">
+                首页
+              </router-link>
+            </a-breadcrumb-item>
             <a-breadcrumb-item>系统管理</a-breadcrumb-item>
             <a-breadcrumb-item>平台参数</a-breadcrumb-item>
           </a-breadcrumb>
-          <h2 class="page-header-title">平台参数</h2>
+          <h2 class="page-header-title">
+            平台参数
+          </h2>
         </div>
       </div>
     </template>
 
     <a-card :bordered="false">
-      <a-table :data-source="list" :columns="columns" :loading="loading" row-key="id" :pagination="false" size="small">
+      <a-table
+        :data-source="list"
+        :columns="columns"
+        :loading="loading"
+        row-key="id"
+        :pagination="false"
+        size="small"
+      >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'action'">
             <a @click="handleEdit(record)">编辑</a>
@@ -23,13 +36,28 @@
       </a-table>
     </a-card>
 
-    <a-modal v-model:open="editVisible" title="编辑参数" width="500px" @ok="handleSave" :confirm-loading="saving">
-      <a-form :model="editForm" layout="vertical">
+    <a-modal
+      v-model:open="editVisible"
+      title="编辑参数"
+      width="500px"
+      :confirm-loading="saving"
+      @ok="handleSave"
+    >
+      <a-form
+        :model="editForm"
+        layout="vertical"
+      >
         <a-form-item label="参数值">
-          <a-textarea v-model:value="editForm.paramValue" :rows="4" />
+          <a-textarea
+            v-model:value="editForm.paramValue"
+            :rows="4"
+          />
         </a-form-item>
         <a-form-item label="备注">
-          <a-textarea v-model:value="editForm.remark" :rows="2" />
+          <a-textarea
+            v-model:value="editForm.remark"
+            :rows="2"
+          />
         </a-form-item>
       </a-form>
     </a-modal>

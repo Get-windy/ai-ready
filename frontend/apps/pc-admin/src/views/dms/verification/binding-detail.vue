@@ -1,75 +1,149 @@
 <template>
-  <ErrorBoundary @error="handleError"><PageContainer full-height>
-    <template #header>
-      <div class="page-header">
-        <div class="page-header__left">
-          <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item><router-link to="/dms/verification">核验管理</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item>绑定详情</a-breadcrumb-item>
-          </a-breadcrumb>
-          <h2>绑定详情</h2>
+  <ErrorBoundary @error="handleError">
+    <PageContainer full-height>
+      <template #header>
+        <div class="page-header">
+          <div class="page-header__left">
+            <a-breadcrumb>
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>
+                <router-link to="/dms/verification">
+                  核验管理
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>绑定详情</a-breadcrumb-item>
+            </a-breadcrumb>
+            <h2>绑定详情</h2>
+          </div>
+          <div class="page-header__right">
+            <a-button
+              size="small"
+              :loading="loading"
+              @click="initData"
+            >
+              <ReloadOutlined /> 刷新
+            </a-button>
+            <a-button
+              size="small"
+              @click="goBack"
+            >
+              <ArrowLeftOutlined /> 返回
+            </a-button>
+          </div>
         </div>
-        <div class="page-header__right">
-          <a-button size="small" :loading="loading" @click="initData">
-            <ReloadOutlined /> 刷新
-          </a-button>
-          <a-button size="small" @click="goBack"><ArrowLeftOutlined /> 返回</a-button>
-        </div>
-      </div>
-    </template>
+      </template>
 
-    <template #default>
-      <div v-if="loading" class="loading-wrapper">
-        <a-spin size="large" />
-      </div>
-      <div v-else class="page-body">
-        <!-- 绑定信息 -->
-        <a-descriptions title="绑定信息" :column="2" bordered size="small" style="background:#fff;">
-          <a-descriptions-item label="骑手ID" :span="1">{{ bindingInfo.riderId || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="骑手姓名" :span="1">{{ bindingInfo.riderName || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="车辆ID" :span="1">{{ bindingInfo.vehicleId || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="车牌号" :span="1">{{ bindingInfo.plateNo || bindingInfo.vehiclePlate || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="绑定时间" :span="1">{{ bindingInfo.bindTime || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="交车时间" :span="1">{{ bindingInfo.handoverTime || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="状态" :span="1">
-            <a-tag :color="bindingInfo.status === 1 ? 'blue' : 'default'">
-              {{ bindingInfo.status === 1 ? '绑定中' : '已交车' }}
-            </a-tag>
-          </a-descriptions-item>
-          <a-descriptions-item label="备注" :span="1">{{ bindingInfo.remark || '-' }}</a-descriptions-item>
-        </a-descriptions>
-
-        <!-- 核验历史 -->
-        <h4 style="margin-top:20px; margin-bottom:12px; font-size:14px; font-weight:600; color:#303133;">核验历史</h4>
-        <a-table
-          :dataSource="verifyHistory"
-          :columns="verifyColumns"
-          :loading="verifyLoading"
-          rowKey="id"
-          size="small"
-          bordered
-          :pagination="false as any"
+      <template #default>
+        <div
+          v-if="loading"
+          class="loading-wrapper"
         >
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.dataIndex === 'verificationType'">
-              <a-tag :color="verifyTypeMap[record.verificationType]?.color || 'default'">
-                {{ verifyTypeMap[record.verificationType]?.text || record.verificationType }}
-              </a-tag>
-            </template>
-            <template v-if="column.dataIndex === 'result'">
-              <a-tag :color="record.result === 1 ? 'green' : 'red'">
-                {{ record.result === 1 ? '通过' : '不通过' }}
-              </a-tag>
-            </template>
-          </template>
-        </a-table>
-        <div v-if="!verifyLoading && (!verifyHistory || verifyHistory.length === 0)" class="empty-hint">
-          暂无核验记录
+          <a-spin size="large" />
         </div>
-      </div>
-    </template>
-  </PageContainer></ErrorBoundary>
+        <div
+          v-else
+          class="page-body"
+        >
+          <!-- 绑定信息 -->
+          <a-descriptions
+            title="绑定信息"
+            :column="2"
+            bordered
+            size="small"
+            style="background:#fff;"
+          >
+            <a-descriptions-item
+              label="骑手ID"
+              :span="1"
+            >
+              {{ bindingInfo.riderId || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item
+              label="骑手姓名"
+              :span="1"
+            >
+              {{ bindingInfo.riderName || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item
+              label="车辆ID"
+              :span="1"
+            >
+              {{ bindingInfo.vehicleId || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item
+              label="车牌号"
+              :span="1"
+            >
+              {{ bindingInfo.plateNo || bindingInfo.vehiclePlate || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item
+              label="绑定时间"
+              :span="1"
+            >
+              {{ bindingInfo.bindTime || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item
+              label="交车时间"
+              :span="1"
+            >
+              {{ bindingInfo.handoverTime || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item
+              label="状态"
+              :span="1"
+            >
+              <a-tag :color="bindingInfo.status === 1 ? 'blue' : 'default'">
+                {{ bindingInfo.status === 1 ? '绑定中' : '已交车' }}
+              </a-tag>
+            </a-descriptions-item>
+            <a-descriptions-item
+              label="备注"
+              :span="1"
+            >
+              {{ bindingInfo.remark || '-' }}
+            </a-descriptions-item>
+          </a-descriptions>
+
+          <!-- 核验历史 -->
+          <h4 style="margin-top:20px; margin-bottom:12px; font-size:14px; font-weight:600; color:#303133;">
+            核验历史
+          </h4>
+          <a-table
+            :data-source="verifyHistory"
+            :columns="verifyColumns"
+            :loading="verifyLoading"
+            row-key="id"
+            size="small"
+            bordered
+            :pagination="false as any"
+          >
+            <template #bodyCell="{ column, record }">
+              <template v-if="column.dataIndex === 'verificationType'">
+                <a-tag :color="verifyTypeMap[record.verificationType]?.color || 'default'">
+                  {{ verifyTypeMap[record.verificationType]?.text || record.verificationType }}
+                </a-tag>
+              </template>
+              <template v-if="column.dataIndex === 'result'">
+                <a-tag :color="record.result === 1 ? 'green' : 'red'">
+                  {{ record.result === 1 ? '通过' : '不通过' }}
+                </a-tag>
+              </template>
+            </template>
+          </a-table>
+          <div
+            v-if="!verifyLoading && (!verifyHistory || verifyHistory.length === 0)"
+            class="empty-hint"
+          >
+            暂无核验记录
+          </div>
+        </div>
+      </template>
+    </PageContainer>
+  </ErrorBoundary>
 </template>
 
 <script setup lang="ts">

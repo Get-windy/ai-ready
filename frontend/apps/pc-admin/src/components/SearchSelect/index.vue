@@ -1,5 +1,8 @@
 <template>
-  <div class="ss-search-select" ref="wrapperRef">
+  <div
+    ref="wrapperRef"
+    class="ss-search-select"
+  >
     <input
       type="text"
       :value="displayText"
@@ -9,7 +12,7 @@
       @focus="onFocus"
       @blur="onBlur"
       @keydown="onKeydown"
-    />
+    >
     <Teleport to="body">
       <ul
         v-if="showDropdown"
@@ -21,8 +24,13 @@
           :key="opt.value"
           :class="['ss-search-item', { highlighted: i === highlightIndex }]"
           @mousedown.prevent="selectOption(opt)"
-        >{{ opt.label }}</li>
-        <li v-if="filteredOptions.length === 0 && query.trim()" class="ss-search-item ss-no-result">
+        >
+          {{ opt.label }}
+        </li>
+        <li
+          v-if="filteredOptions.length === 0 && query.trim()"
+          class="ss-search-item ss-no-result"
+        >
           无匹配结果
         </li>
       </ul>

@@ -3,12 +3,19 @@
     <PageContainer title="审核设置">
       <div class="content-card">
         <div class="toolbar">
-          <a-button type="primary" @click="handleAdd">
-            <template #icon><PlusOutlined /></template>
+          <a-button
+            type="primary"
+            @click="handleAdd"
+          >
+            <template #icon>
+              <PlusOutlined />
+            </template>
             新增审核规则
           </a-button>
           <a-button @click="handleRefresh">
-            <template #icon><ReloadOutlined /></template>
+            <template #icon>
+              <ReloadOutlined />
+            </template>
             刷新
           </a-button>
         </div>
@@ -18,60 +25,135 @@
           :loading="loading"
           :pagination="pagination"
           row-key="id"
-          @change="handleTableChange"
           size="small"
+          @change="handleTableChange"
         >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'enabled'">
-              <a-switch v-model:checked="record.enabled" @change="(checked: boolean) => handleToggle(record, checked)" />
+              <a-switch
+                v-model:checked="record.enabled"
+                @change="(checked: boolean) => handleToggle(record, checked)"
+              />
             </template>
             <template v-if="column.key === 'action'">
-              <a-button type="link" size="small" @click="handleEdit(record)">编辑</a-button>
-              <a-button type="link" size="small" danger @click="handleDelete(record)">删除</a-button>
+              <a-button
+                type="link"
+                size="small"
+                @click="handleEdit(record)"
+              >
+                编辑
+              </a-button>
+              <a-button
+                type="link"
+                size="small"
+                danger
+                @click="handleDelete(record)"
+              >
+                删除
+              </a-button>
             </template>
           </template>
         </a-table>
       </div>
     </PageContainer>
 
-    <a-modal v-model:open="editVisible" :title="editingId ? '编辑审核规则' : '新增审核规则'" width="560px" @ok="handleSave" :confirm-loading="saving">
-      <a-form :model="editForm" layout="vertical">
-        <a-form-item label="规则名称" required>
-          <a-input v-model:value="editForm.ruleName" placeholder="请输入规则名称" />
+    <a-modal
+      v-model:open="editVisible"
+      :title="editingId ? '编辑审核规则' : '新增审核规则'"
+      width="560px"
+      :confirm-loading="saving"
+      @ok="handleSave"
+    >
+      <a-form
+        :model="editForm"
+        layout="vertical"
+      >
+        <a-form-item
+          label="规则名称"
+          required
+        >
+          <a-input
+            v-model:value="editForm.ruleName"
+            placeholder="请输入规则名称"
+          />
         </a-form-item>
-        <a-form-item label="单据类型" required>
-          <a-select v-model:value="editForm.billType" placeholder="请选择单据类型">
-            <a-select-option value="sale_order">销售订单</a-select-option>
-            <a-select-option value="purchase_order">采购订单</a-select-option>
-            <a-select-option value="sale_outbound">销售出库</a-select-option>
-            <a-select-option value="purchase_inbound">采购入库</a-select-option>
-            <a-select-option value="expense">费用报销</a-select-option>
+        <a-form-item
+          label="单据类型"
+          required
+        >
+          <a-select
+            v-model:value="editForm.billType"
+            placeholder="请选择单据类型"
+          >
+            <a-select-option value="sale_order">
+              销售订单
+            </a-select-option>
+            <a-select-option value="purchase_order">
+              采购订单
+            </a-select-option>
+            <a-select-option value="sale_outbound">
+              销售出库
+            </a-select-option>
+            <a-select-option value="purchase_inbound">
+              采购入库
+            </a-select-option>
+            <a-select-option value="expense">
+              费用报销
+            </a-select-option>
           </a-select>
         </a-form-item>
         <a-form-item label="审核模式">
           <a-radio-group v-model:value="editForm.approvalMode">
-            <a-radio value="single">单人审核</a-radio>
-            <a-radio value="multi">多人会签</a-radio>
-            <a-radio value="or">或签（任一通过）</a-radio>
+            <a-radio value="single">
+              单人审核
+            </a-radio>
+            <a-radio value="multi">
+              多人会签
+            </a-radio>
+            <a-radio value="or">
+              或签（任一通过）
+            </a-radio>
           </a-radio-group>
         </a-form-item>
         <a-form-item label="审核人">
-          <a-select v-model:value="editForm.approverIds" mode="multiple" placeholder="请选择审核人">
-            <a-select-option value="admin">系统管理员</a-select-option>
-            <a-select-option value="manager">部门经理</a-select-option>
-            <a-select-option value="finance">财务</a-select-option>
-            <a-select-option value="director">总监</a-select-option>
+          <a-select
+            v-model:value="editForm.approverIds"
+            mode="multiple"
+            placeholder="请选择审核人"
+          >
+            <a-select-option value="admin">
+              系统管理员
+            </a-select-option>
+            <a-select-option value="manager">
+              部门经理
+            </a-select-option>
+            <a-select-option value="finance">
+              财务
+            </a-select-option>
+            <a-select-option value="director">
+              总监
+            </a-select-option>
           </a-select>
         </a-form-item>
         <a-row :gutter="16">
           <a-col :span="12">
             <a-form-item label="金额下限（元）">
-              <a-input-number v-model:value="editForm.minAmount" style="width: 100%" :min="0" :precision="2" />
+              <a-input-number
+                v-model:value="editForm.minAmount"
+                style="width: 100%"
+                :min="0"
+                :precision="2"
+              />
             </a-form-item>
           </a-col>
           <a-col :span="12">
             <a-form-item label="金额上限（元）">
-              <a-input-number v-model:value="editForm.maxAmount" style="width: 100%" :min="0" :precision="2" />
+              <a-input-number
+                v-model:value="editForm.maxAmount"
+                style="width: 100%"
+                :min="0"
+                :precision="2"
+              />
             </a-form-item>
           </a-col>
         </a-row>
@@ -79,7 +161,11 @@
           <a-switch v-model:checked="editForm.enabled" />
         </a-form-item>
         <a-form-item label="备注">
-          <a-textarea v-model:value="editForm.remark" :rows="2" placeholder="备注" />
+          <a-textarea
+            v-model:value="editForm.remark"
+            :rows="2"
+            placeholder="备注"
+          />
         </a-form-item>
       </a-form>
     </a-modal>

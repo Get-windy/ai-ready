@@ -1,6 +1,8 @@
 <template>
   <div>
-    <div class="section-title">附件</div>
+    <div class="section-title">
+      附件
+    </div>
     <div class="attach-toolbar">
       <a-upload
         :before-upload="handleUpload"
@@ -8,44 +10,122 @@
         :accept="accept"
         :multiple="true"
       >
-        <a-button size="small" type="primary">
-          <template #icon><UploadOutlined /></template>
+        <a-button
+          size="small"
+          type="primary"
+        >
+          <template #icon>
+            <UploadOutlined />
+          </template>
           上传附件
         </a-button>
       </a-upload>
     </div>
 
-    <div v-if="list.length === 0" class="attach-empty">暂无附件</div>
-    <div v-else class="attach-list">
-      <div v-for="item in list" :key="item.id" class="attach-item">
+    <div
+      v-if="list.length === 0"
+      class="attach-empty"
+    >
+      暂无附件
+    </div>
+    <div
+      v-else
+      class="attach-list"
+    >
+      <div
+        v-for="item in list"
+        :key="item.id"
+        class="attach-item"
+      >
         <div class="attach-icon">
-          <FilePdfOutlined v-if="item.fileType?.includes('pdf')" style="color:#f5222d" />
-          <FileImageOutlined v-else-if="item.fileType?.startsWith('image')" style="color:#52c41a" />
-          <FileWordOutlined v-else-if="item.fileType?.includes('word') || item.fileType?.includes('document')" style="color:#1890ff" />
-          <FileWordOutlined v-else-if="item.fileName?.endsWith('.doc') || item.fileName?.endsWith('.docx')" style="color:#1890ff" />
-          <FileExcelOutlined v-else-if="item.fileType?.includes('sheet') || item.fileName?.endsWith('.xlsx') || item.fileName?.endsWith('.xls')" style="color:#52c41a" />
-          <FileOutlined v-else style="color:#8c8c8c" />
+          <FilePdfOutlined
+            v-if="item.fileType?.includes('pdf')"
+            style="color:#f5222d"
+          />
+          <FileImageOutlined
+            v-else-if="item.fileType?.startsWith('image')"
+            style="color:#52c41a"
+          />
+          <FileWordOutlined
+            v-else-if="item.fileType?.includes('word') || item.fileType?.includes('document')"
+            style="color:#1890ff"
+          />
+          <FileWordOutlined
+            v-else-if="item.fileName?.endsWith('.doc') || item.fileName?.endsWith('.docx')"
+            style="color:#1890ff"
+          />
+          <FileExcelOutlined
+            v-else-if="item.fileType?.includes('sheet') || item.fileName?.endsWith('.xlsx') || item.fileName?.endsWith('.xls')"
+            style="color:#52c41a"
+          />
+          <FileOutlined
+            v-else
+            style="color:#8c8c8c"
+          />
         </div>
         <div class="attach-info">
-          <div class="attach-name" :title="item.fileName">{{ item.fileName }}</div>
-          <div class="attach-meta">{{ formatSize(item.fileSize) }}</div>
+          <div
+            class="attach-name"
+            :title="item.fileName"
+          >
+            {{ item.fileName }}
+          </div>
+          <div class="attach-meta">
+            {{ formatSize(item.fileSize) }}
+          </div>
         </div>
         <div class="attach-actions">
-          <a-button type="link" size="small" @click="handlePreview(item)">预览</a-button>
-          <a-popconfirm title="确定删除此附件？" @confirm="handleDelete(item.id)">
-            <a-button type="link" size="small" danger>删除</a-button>
+          <a-button
+            type="link"
+            size="small"
+            @click="handlePreview(item)"
+          >
+            预览
+          </a-button>
+          <a-popconfirm
+            title="确定删除此附件？"
+            @confirm="handleDelete(item.id)"
+          >
+            <a-button
+              type="link"
+              size="small"
+              danger
+            >
+              删除
+            </a-button>
           </a-popconfirm>
         </div>
       </div>
     </div>
 
     <!-- 预览弹窗 -->
-    <a-modal v-model:open="previewVisible" :title="previewItem?.fileName || ''" width="600px" :footer="null">
-      <img v-if="previewItem?.fileType?.startsWith('image')" :src="previewItem.fileUrl" style="width:100%" />
-      <iframe v-else-if="previewItem?.fileType?.includes('pdf')" :src="previewItem.fileUrl" style="width:100%;height:500px" />
-      <div v-else style="text-align:center;padding:40px">
+    <a-modal
+      v-model:open="previewVisible"
+      :title="previewItem?.fileName || ''"
+      width="600px"
+      :footer="null"
+    >
+      <img
+        v-if="previewItem?.fileType?.startsWith('image')"
+        :src="previewItem.fileUrl"
+        style="width:100%"
+      >
+      <iframe
+        v-else-if="previewItem?.fileType?.includes('pdf')"
+        :src="previewItem.fileUrl"
+        style="width:100%;height:500px"
+      />
+      <div
+        v-else
+        style="text-align:center;padding:40px"
+      >
         <p>该文件类型不支持预览</p>
-        <a-button type="primary" @click="handleDownload(previewItem!)">下载</a-button>
+        <a-button
+          type="primary"
+          @click="handleDownload(previewItem!)"
+        >
+          下载
+        </a-button>
       </div>
     </a-modal>
   </div>

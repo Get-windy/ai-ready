@@ -2,21 +2,49 @@
   <div class="bank-reconciliation">
     <!-- 统计卡片 -->
     <div class="summary-cards">
-      <div class="summary-card" style="--card-color: #1890ff">
-        <div class="summary-card-title">总交易笔数</div>
-        <div class="summary-card-value">{{ summaryData.totalCount }}</div>
+      <div
+        class="summary-card"
+        style="--card-color: #1890ff"
+      >
+        <div class="summary-card-title">
+          总交易笔数
+        </div>
+        <div class="summary-card-value">
+          {{ summaryData.totalCount }}
+        </div>
       </div>
-      <div class="summary-card" style="--card-color: #faad14">
-        <div class="summary-card-title">总收入金额</div>
-        <div class="summary-card-value">¥{{ summaryData.totalIncome.toFixed(2) }}</div>
+      <div
+        class="summary-card"
+        style="--card-color: #faad14"
+      >
+        <div class="summary-card-title">
+          总收入金额
+        </div>
+        <div class="summary-card-value">
+          ¥{{ summaryData.totalIncome.toFixed(2) }}
+        </div>
       </div>
-      <div class="summary-card" style="--card-color: #52c41a">
-        <div class="summary-card-title">总支出金额</div>
-        <div class="summary-card-value">¥{{ summaryData.totalExpense.toFixed(2) }}</div>
+      <div
+        class="summary-card"
+        style="--card-color: #52c41a"
+      >
+        <div class="summary-card-title">
+          总支出金额
+        </div>
+        <div class="summary-card-value">
+          ¥{{ summaryData.totalExpense.toFixed(2) }}
+        </div>
       </div>
-      <div class="summary-card" style="--card-color: #722ed1">
-        <div class="summary-card-title">对账完成率</div>
-        <div class="summary-card-value">{{ summaryData.completionRate }}%</div>
+      <div
+        class="summary-card"
+        style="--card-color: #722ed1"
+      >
+        <div class="summary-card-title">
+          对账完成率
+        </div>
+        <div class="summary-card-value">
+          {{ summaryData.completionRate }}%
+        </div>
       </div>
     </div>
 
@@ -82,15 +110,27 @@
       <template #empty>
         <div class="table-empty">
           <template v-if="hasError">
-            <WarningOutlined class="table-empty-icon" style="color: #faad14" />
-            <p class="table-empty-text">加载失败</p>
-            <a-button type="primary" size="small" @click="loadMockData" class="table-empty-action">
+            <WarningOutlined
+              class="table-empty-icon"
+              style="color: #faad14"
+            />
+            <p class="table-empty-text">
+              加载失败
+            </p>
+            <a-button
+              type="primary"
+              size="small"
+              class="table-empty-action"
+              @click="loadMockData"
+            >
               <ReloadOutlined /> 重试
             </a-button>
           </template>
           <template v-else>
             <InboxOutlined class="table-empty-icon" />
-            <p class="table-empty-text">暂无数据</p>
+            <p class="table-empty-text">
+              暂无数据
+            </p>
           </template>
         </div>
       </template>

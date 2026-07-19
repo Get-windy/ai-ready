@@ -4,24 +4,49 @@
       <div class="shipment-page-header">
         <div class="shipment-page-header-left">
           <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>
+              <router-link to="/">
+                首页
+              </router-link>
+            </a-breadcrumb-item>
             <a-breadcrumb-item>发货管理</a-breadcrumb-item>
           </a-breadcrumb>
-          <h2 class="shipment-page-title">发货管理</h2>
+          <h2 class="shipment-page-title">
+            发货管理
+          </h2>
         </div>
         <div class="shipment-page-header-right">
-          <a-switch size="small" v-model:checked="autoRefreshEnabled" checked-children="自动" un-checked-children="手动" @change="handleAutoRefreshChange" />
+          <a-switch
+            v-model:checked="autoRefreshEnabled"
+            size="small"
+            checked-children="自动"
+            un-checked-children="手动"
+            @change="handleAutoRefreshChange"
+          />
           <span class="data-status">
             <a-badge :status="loading ? 'processing' : hasError ? 'error' : 'success'" />
-            <span v-if="lastUpdateTime" class="update-time">
+            <span
+              v-if="lastUpdateTime"
+              class="update-time"
+            >
               数据更新: {{ lastUpdateTime }}
             </span>
           </span>
-          <span v-if="autoRefreshEnabled && autoRefreshCountdown > 0" class="auto-refresh-badge">
+          <span
+            v-if="autoRefreshEnabled && autoRefreshCountdown > 0"
+            class="auto-refresh-badge"
+          >
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="loading" v-permission="'erp:shipment:refresh'" @click="handleRefresh">
-            <template #icon><ReloadOutlined /></template>
+          <a-button
+            v-permission="'erp:shipment:refresh'"
+            size="small"
+            :loading="loading"
+            @click="handleRefresh"
+          >
+            <template #icon>
+              <ReloadOutlined />
+            </template>
             刷新
           </a-button>
           <span class="shortcut-hints">
@@ -32,48 +57,79 @@
     </template>
 
     <!-- 统计卡片 -->
-    <a-row :gutter="16" style="margin-bottom: 16px;">
+    <a-row
+      :gutter="16"
+      style="margin-bottom: 16px;"
+    >
       <a-col :span="6">
         <div class="summary-card">
-          <div class="summary-icon" style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);">
+          <div
+            class="summary-icon"
+            style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);"
+          >
             <FileTextOutlined />
           </div>
           <div class="summary-content">
-            <div class="summary-title">出库单总数</div>
-            <div class="summary-value">{{ statusCounts.total }}</div>
+            <div class="summary-title">
+              出库单总数
+            </div>
+            <div class="summary-value">
+              {{ statusCounts.total }}
+            </div>
           </div>
         </div>
       </a-col>
       <a-col :span="6">
         <div class="summary-card">
-          <div class="summary-icon" style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);">
+          <div
+            class="summary-icon"
+            style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);"
+          >
             <ClockCircleOutlined />
           </div>
           <div class="summary-content">
-            <div class="summary-title">待审核</div>
-            <div class="summary-value warning">{{ statusCounts.pending }}</div>
+            <div class="summary-title">
+              待审核
+            </div>
+            <div class="summary-value warning">
+              {{ statusCounts.pending }}
+            </div>
           </div>
         </div>
       </a-col>
       <a-col :span="6">
         <div class="summary-card">
-          <div class="summary-icon" style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);">
+          <div
+            class="summary-icon"
+            style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);"
+          >
             <ExportOutlined />
           </div>
           <div class="summary-content">
-            <div class="summary-title">待出库</div>
-            <div class="summary-value">{{ statusCounts.processing }}</div>
+            <div class="summary-title">
+              待出库
+            </div>
+            <div class="summary-value">
+              {{ statusCounts.processing }}
+            </div>
           </div>
         </div>
       </a-col>
       <a-col :span="6">
         <div class="summary-card highlight">
-          <div class="summary-icon" style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);">
+          <div
+            class="summary-icon"
+            style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);"
+          >
             <CheckCircleOutlined />
           </div>
           <div class="summary-content">
-            <div class="summary-title">已完成</div>
-            <div class="summary-value">{{ statusCounts.completed }}</div>
+            <div class="summary-title">
+              已完成
+            </div>
+            <div class="summary-value">
+              {{ statusCounts.completed }}
+            </div>
           </div>
         </div>
       </a-col>
@@ -128,54 +184,112 @@
         </template>
 
         <template #empty>
-          <div v-if="hasError" class="table-empty">
+          <div
+            v-if="hasError"
+            class="table-empty"
+          >
             <WarningOutlined class="table-empty-icon" />
-            <p class="table-empty-text">数据加载异常，请重试</p>
-            <a-button type="primary" @click="() => fetchData()"><ReloadOutlined /> 重试</a-button>
+            <p class="table-empty-text">
+              数据加载异常，请重试
+            </p>
+            <a-button
+              type="primary"
+              @click="() => fetchData()"
+            >
+              <ReloadOutlined /> 重试
+            </a-button>
           </div>
-          <EmptyState v-else title="暂无数据" description="暂无出库单数据" size="small" :show-actions="false" />
+          <EmptyState
+            v-else
+            title="暂无数据"
+            description="暂无出库单数据"
+            size="small"
+            :show-actions="false"
+          />
         </template>
 
         <template #action="{ record }">
           <a-space>
             <a-tooltip title="查看详情">
-              <a-button type="link" size="small" v-permission="'erp:shipment:view'" @click="handleView(record)">
-                <template #icon><EyeOutlined /></template>
+              <a-button
+                v-permission="'erp:shipment:view'"
+                type="link"
+                size="small"
+                @click="handleView(record)"
+              >
+                <template #icon>
+                  <EyeOutlined />
+                </template>
               </a-button>
             </a-tooltip>
-            <a-tooltip v-if="record.status === 0" title="审核">
-              <a-button type="link" size="small" v-permission="'erp:shipment:approve'" @click="handleApprove(record)">
-                <template #icon><CheckCircleOutlined /></template>
+            <a-tooltip
+              v-if="record.status === 0"
+              title="审核"
+            >
+              <a-button
+                v-permission="'erp:shipment:approve'"
+                type="link"
+                size="small"
+                @click="handleApprove(record)"
+              >
+                <template #icon>
+                  <CheckCircleOutlined />
+                </template>
               </a-button>
             </a-tooltip>
-            <a-tooltip v-if="record.status === 1" title="出库">
-              <a-button type="link" size="small" v-permission="'erp:shipment:ship'" @click="handleShip(record)">
-                <template #icon><ExportOutlined /></template>
+            <a-tooltip
+              v-if="record.status === 1"
+              title="出库"
+            >
+              <a-button
+                v-permission="'erp:shipment:ship'"
+                type="link"
+                size="small"
+                @click="handleShip(record)"
+              >
+                <template #icon>
+                  <ExportOutlined />
+                </template>
               </a-button>
             </a-tooltip>
             <PrintButton
               v-if="record.status >= 2"
-              templateType="stock_out"
-              :businessId="record.id"
-              businessType="shipment"
-              buttonText="打印"
-              buttonSize="small"
+              template-type="stock_out"
+              :business-id="record.id"
+              business-type="shipment"
+              button-text="打印"
+              button-size="small"
               @print-success="handlePrintSuccess(record)"
               @print-error="handlePrintError"
             />
             <a-dropdown trigger="click">
-              <a-button type="link" size="small" class="action-more-btn">
-                <template #icon><EllipsisOutlined /></template>
+              <a-button
+                type="link"
+                size="small"
+                class="action-more-btn"
+              >
+                <template #icon>
+                  <EllipsisOutlined />
+                </template>
               </a-button>
               <template #overlay>
                 <a-menu @click="(e) => handleActionMenuClick(e.key, record)">
-                  <a-menu-item key="edit" v-if="record.status === 0">
+                  <a-menu-item
+                    v-if="record.status === 0"
+                    key="edit"
+                  >
                     <EditOutlined /> 编辑
                   </a-menu-item>
-                  <a-menu-item key="delete" v-if="record.status === 0">
+                  <a-menu-item
+                    v-if="record.status === 0"
+                    key="delete"
+                  >
                     <DeleteOutlined /> 删除
                   </a-menu-item>
-                  <a-menu-item key="tracking" v-if="record.status >= 2 && !record.trackingNo">
+                  <a-menu-item
+                    v-if="record.status >= 2 && !record.trackingNo"
+                    key="tracking"
+                  >
                     <NumberOutlined /> 填写物流单号
                   </a-menu-item>
                 </a-menu>
@@ -196,13 +310,30 @@
     >
       <template #extra>
         <a-space>
-          <a-button v-if="detailData?.status === 0 && !editMode" size="small" v-permission="'erp:shipment:startedit'" @click="handleStartEdit">编辑</a-button>
-          <PrintButton :business-id="detailData?.id" business-type="shipment" button-size="small" tooltip="打印" />
+          <a-button
+            v-if="detailData?.status === 0 && !editMode"
+            v-permission="'erp:shipment:startedit'"
+            size="small"
+            @click="handleStartEdit"
+          >
+            编辑
+          </a-button>
+          <PrintButton
+            :business-id="detailData?.id"
+            business-type="shipment"
+            button-size="small"
+            tooltip="打印"
+          />
         </a-space>
       </template>
 
       <a-spin :spinning="detailLoading">
-        <a-descriptions bordered :column="2" v-if="detailData" size="small">
+        <a-descriptions
+          v-if="detailData"
+          bordered
+          :column="2"
+          size="small"
+        >
           <a-descriptions-item label="出库单号">
             <span class="code-text">{{ detailData.shipmentNo }}</span>
           </a-descriptions-item>
@@ -212,7 +343,9 @@
           <a-descriptions-item label="客户名称">
             <span class="customer-name">{{ detailData.customerName }}</span>
           </a-descriptions-item>
-          <a-descriptions-item label="仓库">{{ detailData.warehouseName }}</a-descriptions-item>
+          <a-descriptions-item label="仓库">
+            {{ detailData.warehouseName }}
+          </a-descriptions-item>
           <a-descriptions-item label="出库类型">
             <span>{{ detailData.outboundTypeName || '-' }}</span>
           </a-descriptions-item>
@@ -220,12 +353,21 @@
             <span class="amount-cell">¥{{ formatAmount(detailData.totalAmount) }}</span>
           </a-descriptions-item>
           <a-descriptions-item label="状态">
-            <StatusTag :status="detailData.status" :map="SHIPMENT_STATUS" />
+            <StatusTag
+              :status="detailData.status"
+              :map="SHIPMENT_STATUS"
+            />
           </a-descriptions-item>
-          <a-descriptions-item label="出库日期">{{ detailData.shipmentDate }}</a-descriptions-item>
+          <a-descriptions-item label="出库日期">
+            {{ detailData.shipmentDate }}
+          </a-descriptions-item>
           <a-descriptions-item label="联系人">
             <template v-if="editMode">
-              <a-input v-model:value="editForm.contactName" size="small" placeholder="请输入联系人" />
+              <a-input
+                v-model:value="editForm.contactName"
+                size="small"
+                placeholder="请输入联系人"
+              />
             </template>
             <template v-else>
               <span>{{ detailData.contactName || '-' }}</span>
@@ -233,7 +375,11 @@
           </a-descriptions-item>
           <a-descriptions-item label="联系电话">
             <template v-if="editMode">
-              <a-input v-model:value="editForm.contactPhone" size="small" placeholder="请输入联系电话" />
+              <a-input
+                v-model:value="editForm.contactPhone"
+                size="small"
+                placeholder="请输入联系电话"
+              />
             </template>
             <template v-else>
               <span>{{ detailData.contactPhone || '-' }}</span>
@@ -247,7 +393,11 @@
           </a-descriptions-item>
           <a-descriptions-item label="收货人">
             <template v-if="editMode">
-              <a-input v-model:value="editForm.receiverName" size="small" placeholder="请输入收货人" />
+              <a-input
+                v-model:value="editForm.receiverName"
+                size="small"
+                placeholder="请输入收货人"
+              />
             </template>
             <template v-else>
               <span>{{ detailData.receiverName || '-' }}</span>
@@ -255,15 +405,26 @@
           </a-descriptions-item>
           <a-descriptions-item label="收货电话">
             <template v-if="editMode">
-              <a-input v-model:value="editForm.receiverPhone" size="small" placeholder="请输入收货电话" />
+              <a-input
+                v-model:value="editForm.receiverPhone"
+                size="small"
+                placeholder="请输入收货电话"
+              />
             </template>
             <template v-else>
               <span>{{ detailData.receiverPhone || '-' }}</span>
             </template>
           </a-descriptions-item>
-          <a-descriptions-item label="收货地址" :span="2">
+          <a-descriptions-item
+            label="收货地址"
+            :span="2"
+          >
             <template v-if="editMode">
-              <a-input v-model:value="editForm.shippingAddress" size="small" placeholder="请输入收货地址" />
+              <a-input
+                v-model:value="editForm.shippingAddress"
+                size="small"
+                placeholder="请输入收货地址"
+              />
             </template>
             <template v-else>
               <span>{{ detailData.shippingAddress || '-' }}</span>
@@ -271,21 +432,38 @@
           </a-descriptions-item>
           <a-descriptions-item label="物流单号">
             <span v-if="detailData.trackingNo">{{ detailData.trackingNo }}</span>
-            <span v-else class="empty-text">未填写</span>
+            <span
+              v-else
+              class="empty-text"
+            >未填写</span>
           </a-descriptions-item>
-          <a-descriptions-item label="操作人">{{ detailData.operator }}</a-descriptions-item>
-          <a-descriptions-item label="备注" :span="2">
+          <a-descriptions-item label="操作人">
+            {{ detailData.operator }}
+          </a-descriptions-item>
+          <a-descriptions-item
+            label="备注"
+            :span="2"
+          >
             <template v-if="editMode">
-              <a-textarea v-model:value="editForm.remark" :rows="2" placeholder="请输入备注" />
+              <a-textarea
+                v-model:value="editForm.remark"
+                :rows="2"
+                placeholder="请输入备注"
+              />
             </template>
             <template v-else>
               <span v-if="detailData.remark">{{ detailData.remark }}</span>
-              <span v-else class="empty-text">无</span>
+              <span
+                v-else
+                class="empty-text"
+              >无</span>
             </template>
           </a-descriptions-item>
         </a-descriptions>
 
-        <h4 style="margin: 16px 0 8px;">出库明细</h4>
+        <h4 style="margin: 16px 0 8px;">
+          出库明细
+        </h4>
         <a-table
           :data-source="detailDataItems"
           :columns="detailItemColumns"
@@ -305,22 +483,45 @@
       <template #footer>
         <div style="display: flex; justify-content: flex-end; gap: 8px;">
           <template v-if="editMode">
-            <a-button v-permission="'erp:shipment:canceledit'" @click="handleCancelEdit">取消</a-button>
-            <a-button type="primary" v-permission="'erp:shipment:saveedit'" @click="handleSaveEdit">保存</a-button>
+            <a-button
+              v-permission="'erp:shipment:canceledit'"
+              @click="handleCancelEdit"
+            >
+              取消
+            </a-button>
+            <a-button
+              v-permission="'erp:shipment:saveedit'"
+              type="primary"
+              @click="handleSaveEdit"
+            >
+              保存
+            </a-button>
           </template>
           <template v-else>
-            <a-button @click="detailVisible = false">关闭</a-button>
-            <a-button v-if="detailData?.status === 0" type="primary" v-permission="'erp:shipment:approve'" @click="handleApprove(detailData)">
+            <a-button @click="detailVisible = false">
+              关闭
+            </a-button>
+            <a-button
+              v-if="detailData?.status === 0"
+              v-permission="'erp:shipment:approve'"
+              type="primary"
+              @click="handleApprove(detailData)"
+            >
               审核
             </a-button>
-            <a-button v-if="detailData?.status === 1" type="primary" v-permission="'erp:shipment:ship'" @click="handleShip(detailData)">
+            <a-button
+              v-if="detailData?.status === 1"
+              v-permission="'erp:shipment:ship'"
+              type="primary"
+              @click="handleShip(detailData)"
+            >
               出库
             </a-button>
             <PrintButton
               v-if="detailData && detailData.status >= 2"
-              templateType="stock_out"
-              :businessId="detailData.id"
-              businessType="shipment"
+              template-type="stock_out"
+              :business-id="detailData.id"
+              business-type="shipment"
             />
           </template>
         </div>
@@ -336,15 +537,33 @@
     >
       <a-form layout="vertical">
         <a-form-item label="物流单号">
-          <a-input size="small" v-model:value="trackingForm.trackingNo" placeholder="请输入物流单号" />
+          <a-input
+            v-model:value="trackingForm.trackingNo"
+            size="small"
+            placeholder="请输入物流单号"
+          />
         </a-form-item>
         <a-form-item label="物流公司">
-          <a-select size="small" v-model:value="trackingForm.carrier" placeholder="请选择物流公司">
-            <a-select-option value="SF">顺丰速运</a-select-option>
-            <a-select-option value="EMS">EMS</a-select-option>
-            <a-select-option value="JD">京东物流</a-select-option>
-            <a-select-option value="YT">圆通速递</a-select-option>
-            <a-select-option value="ZT">中通快递</a-select-option>
+          <a-select
+            v-model:value="trackingForm.carrier"
+            size="small"
+            placeholder="请选择物流公司"
+          >
+            <a-select-option value="SF">
+              顺丰速运
+            </a-select-option>
+            <a-select-option value="EMS">
+              EMS
+            </a-select-option>
+            <a-select-option value="JD">
+              京东物流
+            </a-select-option>
+            <a-select-option value="YT">
+              圆通速递
+            </a-select-option>
+            <a-select-option value="ZT">
+              中通快递
+            </a-select-option>
           </a-select>
         </a-form-item>
       </a-form>
@@ -352,218 +571,299 @@
   </PageContainer>
 
 
-    <FullScreenDetail
-      :visible="createFormVisible"
-      title="新建出库单"
-      :save-loading="createFormSubmitting"
-      @close="handleCreateFormCancel"
-      @save="submitCreateForm"
+  <FullScreenDetail
+    :visible="createFormVisible"
+    title="新建出库单"
+    :save-loading="createFormSubmitting"
+    @close="handleCreateFormCancel"
+    @save="submitCreateForm"
+  >
+    <a-form
+      ref="createFormRef"
+      :model="createForm"
+      :rules="formRules"
+      layout="vertical"
     >
-      <a-form
-        ref="createFormRef"
-        :model="createForm"
-        :rules="formRules"
-        layout="vertical"
+      <!-- 基本信息 -->
+      <a-divider orientation="left">
+        基本信息
+      </a-divider>
+      <a-row :gutter="16">
+        <a-col :span="8">
+          <a-form-item
+            label="出库类型"
+            name="outboundType"
+            required
+          >
+            <a-select
+              v-model:value="createForm.outboundType"
+              placeholder="请选择出库类型"
+              allow-clear
+            >
+              <a-select-option :value="1">
+                销售出库
+              </a-select-option>
+              <a-select-option :value="2">
+                换货出库
+              </a-select-option>
+              <a-select-option :value="3">
+                调拨出库
+              </a-select-option>
+              <a-select-option :value="4">
+                其他出库
+              </a-select-option>
+            </a-select>
+          </a-form-item>
+        </a-col>
+        <a-col :span="8">
+          <a-form-item
+            label="出库日期"
+            name="outboundDate"
+            required
+          >
+            <a-date-picker
+              v-model:value="createForm.outboundDate"
+              style="width: 100%"
+              placeholder="请选择出库日期"
+            />
+          </a-form-item>
+        </a-col>
+        <a-col :span="8">
+          <a-form-item
+            label="仓库"
+            name="warehouseId"
+            required
+          >
+            <a-select
+              v-model:value="createForm.warehouseId"
+              placeholder="请选择仓库"
+              :options="warehouseOptions"
+              :loading="warehouseLoading"
+              allow-clear
+              show-search
+              option-filter-prop="label"
+              @change="handleWarehouseChange"
+            />
+          </a-form-item>
+        </a-col>
+      </a-row>
+
+      <!-- 客户信息 -->
+      <a-divider orientation="left">
+        客户信息
+      </a-divider>
+      <a-row :gutter="16">
+        <a-col :span="12">
+          <a-form-item
+            label="客户"
+            name="customerId"
+            required
+          >
+            <a-select
+              v-model:value="createForm.customerId"
+              placeholder="请选择客户"
+              :options="customerOptions"
+              :loading="customerLoading"
+              allow-clear
+              show-search
+              option-filter-prop="label"
+              @change="handleCustomerChange"
+            />
+          </a-form-item>
+        </a-col>
+        <a-col :span="12">
+          <a-form-item label="联系人">
+            <a-select
+              v-model:value="createForm.contactId"
+              placeholder="请选择联系人"
+              allow-clear
+              show-search
+              option-filter-prop="label"
+            >
+              <a-select-option
+                v-for="c in contactOptions"
+                :key="c.id"
+                :value="c.id"
+                :label="c.name"
+              >
+                {{ c.name }}{{ c.phone ? ` (${c.phone})` : '' }}
+              </a-select-option>
+            </a-select>
+          </a-form-item>
+        </a-col>
+      </a-row>
+
+      <!-- 人员信息 -->
+      <a-divider orientation="left">
+        人员信息
+      </a-divider>
+      <a-row :gutter="16">
+        <a-col :span="12">
+          <a-form-item label="销售人员">
+            <a-input
+              v-model:value="createForm.salesPersonName"
+              placeholder="销售人员姓名"
+            />
+          </a-form-item>
+        </a-col>
+        <a-col :span="12">
+          <a-form-item label="所属部门">
+            <a-input
+              v-model:value="createForm.departmentName"
+              placeholder="所属部门"
+            />
+          </a-form-item>
+        </a-col>
+      </a-row>
+
+      <!-- 收货信息 -->
+      <a-divider orientation="left">
+        收货信息
+      </a-divider>
+      <a-row :gutter="16">
+        <a-col :span="12">
+          <a-form-item label="收货地址">
+            <a-input
+              v-model:value="createForm.shippingAddress"
+              placeholder="请输入收货地址"
+            />
+          </a-form-item>
+        </a-col>
+        <a-col :span="6">
+          <a-form-item label="收货人">
+            <a-input
+              v-model:value="createForm.receiverName"
+              placeholder="请输入收货人"
+            />
+          </a-form-item>
+        </a-col>
+        <a-col :span="6">
+          <a-form-item label="收货电话">
+            <a-input
+              v-model:value="createForm.receiverPhone"
+              placeholder="请输入收货电话"
+            />
+          </a-form-item>
+        </a-col>
+      </a-row>
+
+      <!-- 出库明细 -->
+      <a-divider orientation="left">
+        出库明细
+      </a-divider>
+      <a-table
+        :data-source="createForm.items"
+        :columns="itemFormColumns"
+        :pagination="false as any"
+        row-key="tempId"
+        size="small"
+        bordered
       >
-        <!-- 基本信息 -->
-        <a-divider orientation="left">基本信息</a-divider>
-        <a-row :gutter="16">
-          <a-col :span="8">
-            <a-form-item label="出库类型" name="outboundType" required>
-              <a-select v-model:value="createForm.outboundType" placeholder="请选择出库类型" allow-clear>
-                <a-select-option :value="1">销售出库</a-select-option>
-                <a-select-option :value="2">换货出库</a-select-option>
-                <a-select-option :value="3">调拨出库</a-select-option>
-                <a-select-option :value="4">其他出库</a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col :span="8">
-            <a-form-item label="出库日期" name="outboundDate" required>
-              <a-date-picker v-model:value="createForm.outboundDate" style="width: 100%" placeholder="请选择出库日期" />
-            </a-form-item>
-          </a-col>
-          <a-col :span="8">
-            <a-form-item label="仓库" name="warehouseId" required>
-              <a-select
-                v-model:value="createForm.warehouseId"
-                placeholder="请选择仓库"
-                :options="warehouseOptions"
-                :loading="warehouseLoading"
-                allow-clear
-                show-search
-                option-filter-prop="label"
-                @change="handleWarehouseChange"
-              />
-            </a-form-item>
-          </a-col>
-        </a-row>
-
-        <!-- 客户信息 -->
-        <a-divider orientation="left">客户信息</a-divider>
-        <a-row :gutter="16">
-          <a-col :span="12">
-            <a-form-item label="客户" name="customerId" required>
-              <a-select
-                v-model:value="createForm.customerId"
-                placeholder="请选择客户"
-                :options="customerOptions"
-                :loading="customerLoading"
-                allow-clear
-                show-search
-                option-filter-prop="label"
-                @change="handleCustomerChange"
-              />
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="联系人">
-              <a-select
-                v-model:value="createForm.contactId"
-                placeholder="请选择联系人"
-                allow-clear
-                show-search
-                option-filter-prop="label"
-              >
-                <a-select-option
-                  v-for="c in contactOptions"
-                  :key="c.id"
-                  :value="c.id"
-                  :label="c.name"
-                >
-                  {{ c.name }}{{ c.phone ? ` (${c.phone})` : '' }}
-                </a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-        </a-row>
-
-        <!-- 人员信息 -->
-        <a-divider orientation="left">人员信息</a-divider>
-        <a-row :gutter="16">
-          <a-col :span="12">
-            <a-form-item label="销售人员">
-              <a-input v-model:value="createForm.salesPersonName" placeholder="销售人员姓名" />
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="所属部门">
-              <a-input v-model:value="createForm.departmentName" placeholder="所属部门" />
-            </a-form-item>
-          </a-col>
-        </a-row>
-
-        <!-- 收货信息 -->
-        <a-divider orientation="left">收货信息</a-divider>
-        <a-row :gutter="16">
-          <a-col :span="12">
-            <a-form-item label="收货地址">
-              <a-input v-model:value="createForm.shippingAddress" placeholder="请输入收货地址" />
-            </a-form-item>
-          </a-col>
-          <a-col :span="6">
-            <a-form-item label="收货人">
-              <a-input v-model:value="createForm.receiverName" placeholder="请输入收货人" />
-            </a-form-item>
-          </a-col>
-          <a-col :span="6">
-            <a-form-item label="收货电话">
-              <a-input v-model:value="createForm.receiverPhone" placeholder="请输入收货电话" />
-            </a-form-item>
-          </a-col>
-        </a-row>
-
-        <!-- 出库明细 -->
-        <a-divider orientation="left">出库明细</a-divider>
-        <a-table
-          :data-source="createForm.items"
-          :columns="itemFormColumns"
-          :pagination="false as any"
-          row-key="tempId"
-          size="small"
-          bordered
-        >
-          <template #bodyCell="{ column, record, index }">
-            <template v-if="column.key === 'product'">
-              <a-select
-                v-model:value="record.productId"
-                placeholder="搜索选择商品"
-                style="width: 100%"
-                show-search
-                allow-clear
-                :filter-option="false"
-                :options="productOptions"
-                :loading="productLoading"
-                @search="(val: any) => handleProductSearch(val)"
-                @change="(val) => handleProductChange(val, index)"
-              >
-                <template #option="{ label, productCode, productName, productSpec }">
-                  <div>
-                    <div>{{ productName || label }}</div>
-                    <div style="font-size: 12px; color: #999;">
-                      {{ productCode }}{{ productSpec ? ` / ${productSpec}` : '' }}
-                    </div>
+        <template #bodyCell="{ column, record, index }">
+          <template v-if="column.key === 'product'">
+            <a-select
+              v-model:value="record.productId"
+              placeholder="搜索选择商品"
+              style="width: 100%"
+              show-search
+              allow-clear
+              :filter-option="false"
+              :options="productOptions"
+              :loading="productLoading"
+              @search="(val: any) => handleProductSearch(val)"
+              @change="(val) => handleProductChange(val, index)"
+            >
+              <template #option="{ label, productCode, productName, productSpec }">
+                <div>
+                  <div>{{ productName || label }}</div>
+                  <div style="font-size: 12px; color: #999;">
+                    {{ productCode }}{{ productSpec ? ` / ${productSpec}` : '' }}
                   </div>
-                </template>
-              </a-select>
-            </template>
-            <template v-else-if="column.key === 'quantity'">
-              <a-input-number
-                v-model:value="record.orderQuantity"
-                :min="0"
-                :precision="0"
-                style="width: 100%"
-                placeholder="数量"
-              />
-            </template>
-            <template v-else-if="column.key === 'unitPrice'">
-              <a-input-number
-                v-model:value="record.unitPrice"
-                :min="0"
-                :precision="2"
-                style="width: 100%"
-                placeholder="单价"
-              />
-            </template>
-            <template v-else-if="column.key === 'remark'">
-              <a-input v-model:value="record.remark" placeholder="备注" style="width: 100%" />
-            </template>
-            <template v-else-if="column.key === 'action'">
-              <a-button
-                type="link"
-                danger
-                size="small"
- v-permission="'erp:shipment:removeitem'" @click="handleRemoveItem(index)"
-                :disabled="createForm.items.length <= 1"
-              >
-                <template #icon><MinusCircleOutlined /></template>
-                删除
-              </a-button>
-            </template>
+                </div>
+              </template>
+            </a-select>
           </template>
-        </a-table>
-        <a-button type="dashed" block style="margin-top: 8px;" v-permission="'erp:shipment:additem'" @click="handleAddItem">
-          <template #icon><PlusOutlined /></template>
-          添加商品行
-        </a-button>
+          <template v-else-if="column.key === 'quantity'">
+            <a-input-number
+              v-model:value="record.orderQuantity"
+              :min="0"
+              :precision="0"
+              style="width: 100%"
+              placeholder="数量"
+            />
+          </template>
+          <template v-else-if="column.key === 'unitPrice'">
+            <a-input-number
+              v-model:value="record.unitPrice"
+              :min="0"
+              :precision="2"
+              style="width: 100%"
+              placeholder="单价"
+            />
+          </template>
+          <template v-else-if="column.key === 'remark'">
+            <a-input
+              v-model:value="record.remark"
+              placeholder="备注"
+              style="width: 100%"
+            />
+          </template>
+          <template v-else-if="column.key === 'action'">
+            <a-button
+              v-permission="'erp:shipment:removeitem'"
+              type="link"
+              danger
+              size="small"
+              :disabled="createForm.items.length <= 1"
+              @click="handleRemoveItem(index)"
+            >
+              <template #icon>
+                <MinusCircleOutlined />
+              </template>
+              删除
+            </a-button>
+          </template>
+        </template>
+      </a-table>
+      <a-button
+        v-permission="'erp:shipment:additem'"
+        type="dashed"
+        block
+        style="margin-top: 8px;"
+        @click="handleAddItem"
+      >
+        <template #icon>
+          <PlusOutlined />
+        </template>
+        添加商品行
+      </a-button>
 
-        <!-- 备注 -->
-        <a-divider orientation="left">备注</a-divider>
-        <a-row :gutter="16">
-          <a-col :span="12">
-            <a-form-item label="备注">
-              <a-textarea v-model:value="createForm.remark" :rows="2" placeholder="备注信息" />
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="内部备注">
-              <a-textarea v-model:value="createForm.internalNote" :rows="2" placeholder="内部备注" />
-            </a-form-item>
-          </a-col>
-        </a-row>
-
-      </a-form>
-    </FullScreenDetail>
+      <!-- 备注 -->
+      <a-divider orientation="left">
+        备注
+      </a-divider>
+      <a-row :gutter="16">
+        <a-col :span="12">
+          <a-form-item label="备注">
+            <a-textarea
+              v-model:value="createForm.remark"
+              :rows="2"
+              placeholder="备注信息"
+            />
+          </a-form-item>
+        </a-col>
+        <a-col :span="12">
+          <a-form-item label="内部备注">
+            <a-textarea
+              v-model:value="createForm.internalNote"
+              :rows="2"
+              placeholder="内部备注"
+            />
+          </a-form-item>
+        </a-col>
+      </a-row>
+    </a-form>
+  </FullScreenDetail>
 </template>
 
 <script setup lang="ts">

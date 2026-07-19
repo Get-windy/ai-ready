@@ -1,34 +1,85 @@
 <template>
   <ErrorBoundary @error="handleError">
-    <PageContainer title="采购单据查询" full-height>
+    <PageContainer
+      title="采购单据查询"
+      full-height
+    >
       <template #headerExtra>
         <a-space :size="12">
           <a-badge :status="loading ? 'processing' : (hasError ? 'error' : 'success')" />
-          <span v-if="lastUpdateTime" class="update-time">最后更新: {{ lastUpdateTime }}</span>
-          <a-button size="small" @click="fetchData"><template #icon><ReloadOutlined /></template></a-button>
+          <span
+            v-if="lastUpdateTime"
+            class="update-time"
+          >最后更新: {{ lastUpdateTime }}</span>
+          <a-button
+            size="small"
+            @click="fetchData"
+          >
+            <template #icon>
+              <ReloadOutlined />
+            </template>
+          </a-button>
         </a-space>
       </template>
       <div class="search-area">
-        <a-form layout="inline" :model="searchParams">
+        <a-form
+          layout="inline"
+          :model="searchParams"
+        >
           <a-form-item label="单据编号">
-            <a-input v-model:value="searchParams.docNo" placeholder="请输入" allow-clear style="width: 160px" />
+            <a-input
+              v-model:value="searchParams.docNo"
+              placeholder="请输入"
+              allow-clear
+              style="width: 160px"
+            />
           </a-form-item>
           <a-form-item label="单据类型">
-            <a-select v-model:value="searchParams.docType" placeholder="请选择" allow-clear style="width: 140px">
-              <a-select-option value="">全部</a-select-option>
-              <a-select-option value="采购订单">采购订单</a-select-option>
-              <a-select-option value="入库单">入库单</a-select-option>
-              <a-select-option value="退货单">退货单</a-select-option>
-              <a-select-option value="换货单">换货单</a-select-option>
+            <a-select
+              v-model:value="searchParams.docType"
+              placeholder="请选择"
+              allow-clear
+              style="width: 140px"
+            >
+              <a-select-option value="">
+                全部
+              </a-select-option>
+              <a-select-option value="采购订单">
+                采购订单
+              </a-select-option>
+              <a-select-option value="入库单">
+                入库单
+              </a-select-option>
+              <a-select-option value="退货单">
+                退货单
+              </a-select-option>
+              <a-select-option value="换货单">
+                换货单
+              </a-select-option>
             </a-select>
           </a-form-item>
           <a-form-item label="日期范围">
-            <a-range-picker v-model:value="dateRange" @change="handleDateChange" style="width: 220px" />
+            <a-range-picker
+              v-model:value="dateRange"
+              style="width: 220px"
+              @change="handleDateChange"
+            />
           </a-form-item>
           <a-form-item>
             <a-space>
-              <a-button type="primary" @click="handleSearch"><template #icon><SearchOutlined /></template>查询</a-button>
-              <a-button @click="handleReset"><template #icon><ClearOutlined /></template>重置</a-button>
+              <a-button
+                type="primary"
+                @click="handleSearch"
+              >
+                <template #icon>
+                  <SearchOutlined />
+                </template>查询
+              </a-button>
+              <a-button @click="handleReset">
+                <template #icon>
+                  <ClearOutlined />
+                </template>重置
+              </a-button>
             </a-space>
           </a-form-item>
         </a-form>
@@ -39,7 +90,11 @@
           :data-source="tableData"
           :loading="loading"
           :pagination="billPagination"
-          :show-toolbar="false" :show-search="false" :show-add="false" :show-export="false" :show-batch-delete="false"
+          :show-toolbar="false"
+          :show-search="false"
+          :show-add="false"
+          :show-export="false"
+          :show-batch-delete="false"
           :selectable="false"
           row-key="id"
           @page-change="handlePageChange"
@@ -84,7 +139,7 @@ const handleDateChange = (dates: [Dayjs, Dayjs] | null) => {
 const fetchData = async () => {
   loading.value = true; hasError.value = false
   try {
-    const res: any = await request.get('/api/purchase/doc-query/page', {
+    const res: any = await request.get('/purchase/doc-query/page', {
       params: { page: pagination.current, size: pagination.pageSize, ...searchParams }
     })
     if (res) {

@@ -5,13 +5,23 @@
       <a-row :gutter="16">
         <a-col :span="6">
           <div class="stat-card">
-            <div class="stat-icon" style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);">
+            <div
+              class="stat-icon"
+              style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);"
+            >
               <DollarOutlined />
             </div>
             <div class="stat-content">
-              <div class="stat-title">销售总额</div>
-              <div class="stat-value">¥{{ formatAmount(stats.totalSales) }}</div>
-              <div class="stat-change positive" v-if="stats.salesGrowth">
+              <div class="stat-title">
+                销售总额
+              </div>
+              <div class="stat-value">
+                ¥{{ formatAmount(stats.totalSales) }}
+              </div>
+              <div
+                v-if="stats.salesGrowth"
+                class="stat-change positive"
+              >
                 <ArrowUpOutlined /> {{ stats.salesGrowth }}%
               </div>
             </div>
@@ -19,13 +29,23 @@
         </a-col>
         <a-col :span="6">
           <div class="stat-card">
-            <div class="stat-icon" style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);">
+            <div
+              class="stat-icon"
+              style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);"
+            >
               <ShoppingOutlined />
             </div>
             <div class="stat-content">
-              <div class="stat-title">订单数量</div>
-              <div class="stat-value">{{ stats.orderCount }} 单</div>
-              <div class="stat-change positive" v-if="stats.orderGrowth">
+              <div class="stat-title">
+                订单数量
+              </div>
+              <div class="stat-value">
+                {{ stats.orderCount }} 单
+              </div>
+              <div
+                v-if="stats.orderGrowth"
+                class="stat-change positive"
+              >
                 <ArrowUpOutlined /> {{ stats.orderGrowth }}%
               </div>
             </div>
@@ -33,13 +53,23 @@
         </a-col>
         <a-col :span="6">
           <div class="stat-card">
-            <div class="stat-icon" style="background: linear-gradient(135deg, #722ed1 0%, #531dab 100%);">
+            <div
+              class="stat-icon"
+              style="background: linear-gradient(135deg, #722ed1 0%, #531dab 100%);"
+            >
               <TeamOutlined />
             </div>
             <div class="stat-content">
-              <div class="stat-title">平均客单价</div>
-              <div class="stat-value">¥{{ formatAmount(stats.avgOrderValue) }}</div>
-              <div class="stat-change positive" v-if="stats.avgGrowth">
+              <div class="stat-title">
+                平均客单价
+              </div>
+              <div class="stat-value">
+                ¥{{ formatAmount(stats.avgOrderValue) }}
+              </div>
+              <div
+                v-if="stats.avgGrowth"
+                class="stat-change positive"
+              >
                 <ArrowUpOutlined /> {{ stats.avgGrowth }}%
               </div>
             </div>
@@ -47,13 +77,23 @@
         </a-col>
         <a-col :span="6">
           <div class="stat-card warning">
-            <div class="stat-icon" style="background: linear-gradient(135deg, #ff4d4f 0%, #f5222d 100%);">
+            <div
+              class="stat-icon"
+              style="background: linear-gradient(135deg, #ff4d4f 0%, #f5222d 100%);"
+            >
               <ReturnOutlined />
             </div>
             <div class="stat-content">
-              <div class="stat-title">退货金额</div>
-              <div class="stat-value">¥{{ formatAmount(stats.returnAmount) }}</div>
-              <div class="stat-change negative" v-if="stats.returnGrowth">
+              <div class="stat-title">
+                退货金额
+              </div>
+              <div class="stat-value">
+                ¥{{ formatAmount(stats.returnAmount) }}
+              </div>
+              <div
+                v-if="stats.returnGrowth"
+                class="stat-change negative"
+              >
                 <ArrowDownOutlined /> {{ Math.abs(stats.returnGrowth) }}%
               </div>
             </div>
@@ -63,8 +103,14 @@
     </div>
 
     <!-- 筛选区 -->
-    <a-collapse v-model:activeKey="filterExpanded" class="filter-collapse">
-      <a-collapse-panel key="1" header="筛选条件">
+    <a-collapse
+      v-model:active-key="filterExpanded"
+      class="filter-collapse"
+    >
+      <a-collapse-panel
+        key="1"
+        header="筛选条件"
+      >
         <a-row :gutter="16">
           <a-col :span="6">
             <a-form-item label="统计周期">
@@ -84,7 +130,11 @@
                 allow-clear
                 style="width: 100%"
               >
-                <a-select-option v-for="sp in salespersons" :key="sp.id" :value="sp.id">
+                <a-select-option
+                  v-for="sp in salespersons"
+                  :key="sp.id"
+                  :value="sp.id"
+                >
                   {{ sp.name }}
                 </a-select-option>
               </a-select>
@@ -98,16 +148,31 @@
                 allow-clear
                 style="width: 100%"
               >
-                <a-select-option v-for="wh in warehouses" :key="wh.id" :value="wh.id">
+                <a-select-option
+                  v-for="wh in warehouses"
+                  :key="wh.id"
+                  :value="wh.id"
+                >
                   {{ wh.name }}
                 </a-select-option>
               </a-select>
             </a-form-item>
           </a-col>
-          <a-col :span="6" class="filter-actions">
+          <a-col
+            :span="6"
+            class="filter-actions"
+          >
             <a-space>
-              <a-button type="primary" :loading="loading" @click="handleQuery">查询</a-button>
-              <a-button @click="handleReset">重置</a-button>
+              <a-button
+                type="primary"
+                :loading="loading"
+                @click="handleQuery"
+              >
+                查询
+              </a-button>
+              <a-button @click="handleReset">
+                重置
+              </a-button>
             </a-space>
           </a-col>
         </a-row>
@@ -115,18 +180,37 @@
     </a-collapse>
 
     <!-- 销售趋势图表 -->
-    <a-card title="销售趋势" size="small" :loading="chartLoading">
+    <a-card
+      title="销售趋势"
+      size="small"
+      :loading="chartLoading"
+    >
       <template #extra>
-        <a-radio-group v-model:value="chartType" size="small" @change="() => initChart()">
-          <a-radio-button value="bar">柱状图</a-radio-button>
-          <a-radio-button value="line">折线图</a-radio-button>
+        <a-radio-group
+          v-model:value="chartType"
+          size="small"
+          @change="() => initChart()"
+        >
+          <a-radio-button value="bar">
+            柱状图
+          </a-radio-button>
+          <a-radio-button value="line">
+            折线图
+          </a-radio-button>
         </a-radio-group>
       </template>
-      <div ref="chartRef" class="chart-container"></div>
+      <div
+        ref="chartRef"
+        class="chart-container"
+      />
     </a-card>
 
     <!-- 销售明细表格 -->
-    <a-card title="销售明细" size="small" style="margin-top: 16px">
+    <a-card
+      title="销售明细"
+      size="small"
+      style="margin-top: 16px"
+    >
       <div class="table-container">
         <BillTableList
           :columns="detailVxeColumns"

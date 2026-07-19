@@ -1,11 +1,21 @@
 <template>
   <ErrorBoundary @error="handleError">
-    <PageContainer title="购物车管理" full-height>
+    <PageContainer
+      title="购物车管理"
+      full-height
+    >
       <template #headerExtra>
         <a-space :size="12">
           <a-badge :status="loading ? 'processing' : (hasError ? 'error' : 'success')" />
           <span class="data-status">购物车商品总数: <b>{{ totalItems }}</b></span>
-          <a-button size="small" @click="fetchData"><template #icon><ReloadOutlined /></template></a-button>
+          <a-button
+            size="small"
+            @click="fetchData"
+          >
+            <template #icon>
+              <ReloadOutlined />
+            </template>
+          </a-button>
         </a-space>
       </template>
       <div class="table-area">
@@ -15,15 +25,28 @@
           :loading="loading"
           row-key="id"
           :pagination="false as any"
-          :show-toolbar="false" :show-search="false" :show-add="false" :show-export="false" :show-batch-delete="false"
+          :show-toolbar="false"
+          :show-search="false"
+          :show-add="false"
+          :show-export="false"
+          :show-batch-delete="false"
           :selectable="false"
         >
           <template #totalPriceCell="{ record }">
             <span class="currency-value">¥{{ formatAmount(record.totalPrice) }}</span>
           </template>
           <template #actionCell="{ record }">
-            <a-popconfirm title="确定删除该商品？" @confirm="handleDelete(record)">
-              <a-button type="link" size="small" danger>删除</a-button>
+            <a-popconfirm
+              title="确定删除该商品？"
+              @confirm="handleDelete(record)"
+            >
+              <a-button
+                type="link"
+                size="small"
+                danger
+              >
+                删除
+              </a-button>
             </a-popconfirm>
           </template>
         </BillTableList>

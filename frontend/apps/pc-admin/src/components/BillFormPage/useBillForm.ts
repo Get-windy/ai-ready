@@ -48,6 +48,8 @@ export interface UseBillFormOptions {
   transformPayload?: (formData: Record<string, any>, status: number) => any
   /** 后端序号接口路径（传入则异步获取真实序号，否则用随机演示序号） */
   codeApiPath?: string
+  /** 保存成功回调（清理dirty标记等） */
+  afterSave?: (status: number) => void
 }
 
 // ── Composable ──
@@ -64,6 +66,7 @@ export function useBillForm(options: UseBillFormOptions) {
     onFieldChange,
     transformPayload,
     codeApiPath,
+    afterSave,
   } = options
 
   const router = useRouter()
@@ -145,6 +148,19 @@ export function useBillForm(options: UseBillFormOptions) {
       const data = await api.getById(id)
       if (data) {
         Object.assign(formData, data)
+        // 兼容后端字段名映射（returnType → returnApplyType 等）
+        if (data.returnType !== undefined && formData.returnApplyType === undefined) {
+          formData.returnApplyType = data.returnType
+        }
+        // 兼容后端 approverId → approvedBy 映射
+        if (data.approvedBy !== undefined && formData.approverId === undefined) {
+          formData.approverId = data.approvedBy
+        }
+        // 兼容后端单据编号字段（outboundNo/inboundNo/returnNo → orderNo）
+        if (formData.orderNo === '' || formData.orderNo === undefined) {
+          const billNo = data.outboundNo || data.inboundNo || data.returnNo || data.receiptNo || data.transferNo || ''
+          if (billNo) formData.orderNo = billNo
+        }
         // 兼容后端返回 items 或 details 字段
         const rawItems = data.items || data.details || []
         if (rawItems.length) {
@@ -252,6 +268,7 @@ export function useBillForm(options: UseBillFormOptions) {
         await api.create(payload)
       }
       message.success(status === 0 ? '保存草稿成功' : '提交成功')
+      afterSave?.(status)
       if (redirectPath) router.push(redirectPath)
     } catch (err: any) {
       message.error(err?.message || '操作失败')

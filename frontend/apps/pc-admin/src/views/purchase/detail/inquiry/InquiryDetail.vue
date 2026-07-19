@@ -1,40 +1,113 @@
 <template>
   <DetailLayout
-    :breadcrumb-items="breadcrumbItems" :title="inquiry?.inquiryNo || ''"
-    :status="getStatusText(inquiry?.status)" :status-type="getStatusType(inquiry?.status)"
-    :tabs="tabs" :active-tab="activeTab" :loading="loading" :error="error"
-    :related-documents="relatedDocuments" :activity-logs="activityLogs"
-    @breadcrumb-click="handleBreadcrumbClick" @tab-change="handleTabChange"
-    @related-click="handleRelatedClick" @retry="fetchDetail"
+    :breadcrumb-items="breadcrumbItems"
+    :title="inquiry?.inquiryNo || ''"
+    :status="getStatusText(inquiry?.status)"
+    :status-type="getStatusType(inquiry?.status)"
+    :tabs="tabs"
+    :active-tab="activeTab"
+    :loading="loading"
+    :error="error"
+    :related-documents="relatedDocuments"
+    :activity-logs="activityLogs"
+    @breadcrumb-click="handleBreadcrumbClick"
+    @tab-change="handleTabChange"
+    @related-click="handleRelatedClick"
+    @retry="fetchDetail"
   >
     <template #header-extra>
-      <a-tag v-if="inquiry" color="blue">供应商: {{ inquiry.supplierName }}</a-tag>
+      <a-tag
+        v-if="inquiry"
+        color="blue"
+      >
+        供应商: {{ inquiry.supplierName }}
+      </a-tag>
     </template>
     <template #actions>
-      <a-button v-if="inquiry?.status === 0 && !isEditing" type="primary" @click="handleEdit">编辑</a-button>
-      <a-button v-if="inquiry?.status === 0 && !isEditing" @click="handleSend">发送询价</a-button>
-      <a-button v-if="isEditing" type="primary" @click="handleSave">保存</a-button>
-      <a-button v-if="isEditing" @click="handleCancelEdit">取消</a-button>
-      <PrintButton template-type="inquiry" :business-id="inquiry?.id" business-type="purchase_inquiry" button-text="打印" />
+      <a-button
+        v-if="inquiry?.status === 0 && !isEditing"
+        type="primary"
+        @click="handleEdit"
+      >
+        编辑
+      </a-button>
+      <a-button
+        v-if="inquiry?.status === 0 && !isEditing"
+        @click="handleSend"
+      >
+        发送询价
+      </a-button>
+      <a-button
+        v-if="isEditing"
+        type="primary"
+        @click="handleSave"
+      >
+        保存
+      </a-button>
+      <a-button
+        v-if="isEditing"
+        @click="handleCancelEdit"
+      >
+        取消
+      </a-button>
+      <PrintButton
+        template-type="inquiry"
+        :business-id="inquiry?.id"
+        business-type="purchase_inquiry"
+        button-text="打印"
+      />
     </template>
     <template #tab-basic>
-      <a-descriptions v-if="!isEditing" :column="2" bordered size="small">
-        <a-descriptions-item label="询价单号">{{ inquiry?.inquiryNo }}</a-descriptions-item>
-        <a-descriptions-item label="供应商">{{ inquiry?.supplierName }}</a-descriptions-item>
-        <a-descriptions-item label="询价日期">{{ inquiry?.inquiryDate }}</a-descriptions-item>
-        <a-descriptions-item label="状态"><a-tag :color="getStatusColor(inquiry?.status)">{{ getStatusText(inquiry?.status) }}</a-tag></a-descriptions-item>
-        <a-descriptions-item label="创建人">{{ inquiry?.creatorName || '-' }}</a-descriptions-item>
-        <a-descriptions-item label="创建时间">{{ inquiry?.createTime }}</a-descriptions-item>
+      <a-descriptions
+        v-if="!isEditing"
+        :column="2"
+        bordered
+        size="small"
+      >
+        <a-descriptions-item label="询价单号">
+          {{ inquiry?.inquiryNo }}
+        </a-descriptions-item>
+        <a-descriptions-item label="供应商">
+          {{ inquiry?.supplierName }}
+        </a-descriptions-item>
+        <a-descriptions-item label="询价日期">
+          {{ inquiry?.inquiryDate }}
+        </a-descriptions-item>
+        <a-descriptions-item label="状态">
+          <a-tag :color="getStatusColor(inquiry?.status)">
+            {{ getStatusText(inquiry?.status) }}
+          </a-tag>
+        </a-descriptions-item>
+        <a-descriptions-item label="创建人">
+          {{ inquiry?.creatorName || '-' }}
+        </a-descriptions-item>
+        <a-descriptions-item label="创建时间">
+          {{ inquiry?.createTime }}
+        </a-descriptions-item>
       </a-descriptions>
-      <a-form v-else :model="editForm" :label-col="{ span: 4 }" :wrapper-col="{ span: 18 }">
+      <a-form
+        v-else
+        :model="editForm"
+        :label-col="{ span: 4 }"
+        :wrapper-col="{ span: 18 }"
+      >
         <a-form-item label="询价单号">
-          <a-input v-model:value="editForm.inquiryNo" disabled />
+          <a-input
+            v-model:value="editForm.inquiryNo"
+            disabled
+          />
         </a-form-item>
-        <a-form-item label="供应商" required>
+        <a-form-item
+          label="供应商"
+          required
+        >
           <a-input v-model:value="editForm.supplierName" />
         </a-form-item>
         <a-form-item label="询价日期">
-          <a-date-picker v-model:value="editForm.inquiryDate" style="width: 100%" />
+          <a-date-picker
+            v-model:value="editForm.inquiryDate"
+            style="width: 100%"
+          />
         </a-form-item>
       </a-form>
     </template>
@@ -56,7 +129,11 @@
           ¥{{ record.amount?.toFixed(2) }}
         </template>
       </BillTableList>
-      <a-empty v-if="!inquiry?.items || (inquiry as any).items.length === 0" description="暂无询价明细" style="margin-top: 16px" />
+      <a-empty
+        v-if="!inquiry?.items || (inquiry as any).items.length === 0"
+        description="暂无询价明细"
+        style="margin-top: 16px"
+      />
     </template>
 
     <template #tab-quotations>
@@ -81,7 +158,11 @@
           </a-tag>
         </template>
       </BillTableList>
-      <a-empty v-if="!inquiry?.quotations || (inquiry as any).quotations.length === 0" description="暂无报价记录" style="margin-top: 16px" />
+      <a-empty
+        v-if="!inquiry?.quotations || (inquiry as any).quotations.length === 0"
+        description="暂无报价记录"
+        style="margin-top: 16px"
+      />
     </template>
   </DetailLayout>
 </template>

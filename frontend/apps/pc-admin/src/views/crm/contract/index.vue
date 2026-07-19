@@ -1,190 +1,359 @@
 <template>
-  <PageContainer title="合同管理" full-height>
+  <PageContainer
+    title="合同管理"
+    full-height
+  >
     <template #headerExtra>
       <a-space :size="12">
         <span class="data-status">
           <a-badge :status="loading ? 'processing' : hasError ? 'error' : 'success'" />
-          <span v-if="lastUpdateTime" class="update-time">
+          <span
+            v-if="lastUpdateTime"
+            class="update-time"
+          >
             数据更新: {{ lastUpdateTime }}
           </span>
         </span>
-        <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+        <span
+          v-if="autoRefreshCountdown > 0"
+          class="auto-refresh-badge"
+        >
           <SyncOutlined /> {{ autoRefreshCountdown }}s
         </span>
-        <a-button size="small" :loading="refreshLoading" v-permission="'crm:contract:refresh'" @click="debounceClick('refresh', handleRefresh)">
-          <template #icon><ReloadOutlined /></template>
+        <a-button
+          v-permission="'crm:contract:refresh'"
+          size="small"
+          :loading="refreshLoading"
+          @click="debounceClick('refresh', handleRefresh)"
+        >
+          <template #icon>
+            <ReloadOutlined />
+          </template>
           刷新
         </a-button>
-<span class="shortcut-hints">
-                                              <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
-                                              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-                                            </span>
+        <span class="shortcut-hints">
+          <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+          <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+        </span>
       </a-space>
     </template>
 
     <ErrorBoundary @reset="fetchData">
       <!-- 骨架加载 -->
-      <div v-if="loading && tableData.length === 0" class="skeleton-loading">
-        <a-skeleton :paragraph="{ rows: 3 }" active />
+      <div
+        v-if="loading && tableData.length === 0"
+        class="skeleton-loading"
+      >
+        <a-skeleton
+          :paragraph="{ rows: 3 }"
+          active
+        />
         <div style="height: 16px" />
-        <a-skeleton :paragraph="{ rows: 8 }" active />
+        <a-skeleton
+          :paragraph="{ rows: 8 }"
+          active
+        />
       </div>
 
       <!-- 统计卡片 -->
       <template v-if="!(loading && tableData.length === 0)">
-      <div class="stats-cards">
-        <a-row :gutter="16">
-          <a-col :span="6">
-            <div class="stat-card stat-card-orange">
-              <div class="stat-icon" style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);">
-                <FileTextOutlined />
+        <div class="stats-cards">
+          <a-row :gutter="16">
+            <a-col :span="6">
+              <div class="stat-card stat-card-orange">
+                <div
+                  class="stat-icon"
+                  style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);"
+                >
+                  <FileTextOutlined />
+                </div>
+                <div class="stat-content">
+                  <div class="stat-title">
+                    待审批
+                  </div>
+                  <div class="stat-value">
+                    {{ statusCounts.pending }}
+                  </div>
+                  <div class="stat-desc">
+                    需审批处理
+                  </div>
+                </div>
               </div>
-              <div class="stat-content">
-                <div class="stat-title">待审批</div>
-                <div class="stat-value">{{ statusCounts.pending }}</div>
-                <div class="stat-desc">需审批处理</div>
+            </a-col>
+            <a-col :span="6">
+              <div class="stat-card stat-card-blue">
+                <div
+                  class="stat-icon"
+                  style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);"
+                >
+                  <EditOutlined />
+                </div>
+                <div class="stat-content">
+                  <div class="stat-title">
+                    待签署
+                  </div>
+                  <div class="stat-value">
+                    {{ statusCounts.signing }}
+                  </div>
+                  <div class="stat-desc">
+                    等待签署
+                  </div>
+                </div>
               </div>
-            </div>
-          </a-col>
-          <a-col :span="6">
-            <div class="stat-card stat-card-blue">
-              <div class="stat-icon" style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);">
-                <EditOutlined />
+            </a-col>
+            <a-col :span="6">
+              <div class="stat-card stat-card-green">
+                <div
+                  class="stat-icon"
+                  style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);"
+                >
+                  <CheckCircleOutlined />
+                </div>
+                <div class="stat-content">
+                  <div class="stat-title">
+                    生效中
+                  </div>
+                  <div class="stat-value">
+                    {{ statusCounts.effective }}
+                  </div>
+                  <div class="stat-desc">
+                    正在执行
+                  </div>
+                </div>
               </div>
-              <div class="stat-content">
-                <div class="stat-title">待签署</div>
-                <div class="stat-value">{{ statusCounts.signing }}</div>
-                <div class="stat-desc">等待签署</div>
+            </a-col>
+            <a-col :span="6">
+              <div class="stat-card stat-card-purple">
+                <div
+                  class="stat-icon"
+                  style="background: linear-gradient(135deg, #722ed1 0%, #531dab 100%);"
+                >
+                  <DollarOutlined />
+                </div>
+                <div class="stat-content">
+                  <div class="stat-title">
+                    合同总额
+                  </div>
+                  <div class="stat-value">
+                    ¥{{ formatAmount(totalAmount) }}
+                  </div>
+                  <div class="stat-desc">
+                    本页合计
+                  </div>
+                </div>
               </div>
-            </div>
-          </a-col>
-          <a-col :span="6">
-            <div class="stat-card stat-card-green">
-              <div class="stat-icon" style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);">
+            </a-col>
+          </a-row>
+        </div>
+
+        <BillTableList
+          ref="tableRef"
+          :columns="vxeColumns"
+          :data-source="tableDataSource"
+          :loading="loading"
+          :pagination="pagination"
+          :filter-fields="filterFields"
+          :show-export="true"
+          :selectable="true"
+          :min-empty-rows="12"
+          add-text="新建合同"
+          @add="handleAdd"
+          @refresh="fetchData"
+          @search="handleSearch"
+          @page-change="handlePageChange"
+          @filter-change="handleFilterChange"
+          @selection-change="handleSelectionChange"
+          @cell-dblclick="handleView"
+          @export="handleExport"
+        >
+          <template #toolbar-actions>
+            <a-button
+              v-permission="'crm:contract:batchapprove'"
+              size="small"
+              @click="handleBatchApprove"
+            >
+              <template #icon>
                 <CheckCircleOutlined />
-              </div>
-              <div class="stat-content">
-                <div class="stat-title">生效中</div>
-                <div class="stat-value">{{ statusCounts.effective }}</div>
-                <div class="stat-desc">正在执行</div>
-              </div>
-            </div>
-          </a-col>
-          <a-col :span="6">
-            <div class="stat-card stat-card-purple">
-              <div class="stat-icon" style="background: linear-gradient(135deg, #722ed1 0%, #531dab 100%);">
-                <DollarOutlined />
-              </div>
-              <div class="stat-content">
-                <div class="stat-title">合同总额</div>
-                <div class="stat-value">¥{{ formatAmount(totalAmount) }}</div>
-                <div class="stat-desc">本页合计</div>
-              </div>
-            </div>
-          </a-col>
-        </a-row>
-      </div>
-
-      <BillTableList
-        ref="tableRef"
-        :columns="vxeColumns"
-        :data-source="tableDataSource"
-        :loading="loading"
-        :pagination="pagination"
-        :filter-fields="filterFields"
-        :show-export="true"
-        :selectable="true"
-        :min-empty-rows="12"
-        add-text="新建合同"
-        @add="handleAdd"
-        @refresh="fetchData"
-        @search="handleSearch"
-        @page-change="handlePageChange"
-        @filter-change="handleFilterChange"
-        @selection-change="handleSelectionChange"
-        @cell-dblclick="handleView"
-        @export="handleExport"
-      >
-        <template #toolbar-actions>
-          <a-button size="small" v-permission="'crm:contract:batchapprove'" @click="handleBatchApprove">
-            <template #icon><CheckCircleOutlined /></template>
-            批量审批
-          </a-button>
-        </template>
-
-        <template #empty>
-          <div class="table-empty">
-            <template v-if="hasError">
-              <WarningOutlined class="table-empty-icon" style="color: #faad14" />
-              <p class="table-empty-text">数据加载失败，请重试</p>
-              <a-button type="primary" size="small" @click="fetchData as any">
-                <template #icon><ReloadOutlined /></template>
-                重试
-              </a-button>
-            </template>
-            <template v-else>
-              <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-              <InboxOutlined v-else class="table-empty-icon" />
-              <p v-if="hasActiveFilters" class="table-empty-text">
-                没有符合条件的合同，<a @click="handleResetFilters">清除筛选</a>
-              </p>
-              <p v-else class="table-empty-text">
-                暂无合同数据
-              </p>
-              <div v-if="!hasActiveFilters" class="empty-state-wrapper">
-                <a-button type="primary" v-permission="'crm:contract:create'" @click="handleAdd">
-                  <template #icon><PlusOutlined /></template>
-                  新建第一个合同
-                </a-button>
-              </div>
-            </template>
-          </div>
-        </template>
-
-        <template #action="{ record }">
-          <a-space :size="4">
-            <a-tooltip title="查看详情">
-              <a-button type="link" size="small" v-permission="'crm:contract:view'" @click="handleView(record)">
-                <template #icon><EyeOutlined /></template>
-              </a-button>
-            </a-tooltip>
-            <PrintButton :record="record" :business-id="record.id" business-type="contract" button-type="link" button-size="small" tooltip="打印" />
-            <a-tooltip v-if="record.status === 0" title="编辑">
-              <a-button type="link" size="small" v-permission="'crm:contract:edit'" @click="handleEdit(record)">
-                <template #icon><EditOutlined /></template>
-              </a-button>
-            </a-tooltip>
-            <a-tooltip v-if="record.status === 1" title="审批">
-              <a-button type="link" size="small" v-permission="'crm:contract:approve'" @click="handleApprove(record)">
-                <template #icon><CheckCircleOutlined /></template>
-              </a-button>
-            </a-tooltip>
-            <a-tooltip v-if="record.status === 2" title="签订">
-              <a-button type="link" size="small" v-permission="'crm:contract:sign'" @click="handleSign(record)">
-                <template #icon><FileDoneOutlined /></template>
-              </a-button>
-            </a-tooltip>
-            <a-dropdown trigger="click">
-              <a-button type="link" size="small" class="action-more-btn">
-                <template #icon><MoreOutlined /></template>
-              </a-button>
-              <template #overlay>
-                <a-menu @click="({ key }) => handleActionMenuClick(key as string, record)">
-                  <a-menu-item key="download"><DownloadOutlined /> 下载合同</a-menu-item>
-                  <a-menu-item key="renew"><HistoryOutlined /> 续签申请</a-menu-item>
-                  <a-menu-item key="invoice"><FileTextOutlined /> 开票申请</a-menu-item>
-                  <a-menu-divider />
-                  <a-menu-item key="terminate" v-if="record.status >= 5" danger><StopOutlined /> 终止合同</a-menu-item>
-                  <a-menu-item key="delete" v-if="record.status === 0" danger><DeleteOutlined /> 删除</a-menu-item>
-                </a-menu>
               </template>
-            </a-dropdown>
-          </a-space>
-        </template>
-          <template #statusCell="{ record }">
-            <a-tag :color="getStatusColor(record.status)">{{ getStatusText(record.status) }}</a-tag>
+              批量审批
+            </a-button>
           </template>
-      </BillTableList>
+
+          <template #empty>
+            <div class="table-empty">
+              <template v-if="hasError">
+                <WarningOutlined
+                  class="table-empty-icon"
+                  style="color: #faad14"
+                />
+                <p class="table-empty-text">
+                  数据加载失败，请重试
+                </p>
+                <a-button
+                  type="primary"
+                  size="small"
+                  @click="fetchData as any"
+                >
+                  <template #icon>
+                    <ReloadOutlined />
+                  </template>
+                  重试
+                </a-button>
+              </template>
+              <template v-else>
+                <SearchOutlined
+                  v-if="hasActiveFilters"
+                  class="table-empty-icon"
+                />
+                <InboxOutlined
+                  v-else
+                  class="table-empty-icon"
+                />
+                <p
+                  v-if="hasActiveFilters"
+                  class="table-empty-text"
+                >
+                  没有符合条件的合同，<a @click="handleResetFilters">清除筛选</a>
+                </p>
+                <p
+                  v-else
+                  class="table-empty-text"
+                >
+                  暂无合同数据
+                </p>
+                <div
+                  v-if="!hasActiveFilters"
+                  class="empty-state-wrapper"
+                >
+                  <a-button
+                    v-permission="'crm:contract:create'"
+                    type="primary"
+                    @click="handleAdd"
+                  >
+                    <template #icon>
+                      <PlusOutlined />
+                    </template>
+                    新建第一个合同
+                  </a-button>
+                </div>
+              </template>
+            </div>
+          </template>
+
+          <template #action="{ record }">
+            <a-space :size="4">
+              <a-tooltip title="查看详情">
+                <a-button
+                  v-permission="'crm:contract:view'"
+                  type="link"
+                  size="small"
+                  @click="handleView(record)"
+                >
+                  <template #icon>
+                    <EyeOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <PrintButton
+                :record="record"
+                :business-id="record.id"
+                business-type="contract"
+                button-type="link"
+                button-size="small"
+                tooltip="打印"
+              />
+              <a-tooltip
+                v-if="record.status === 0"
+                title="编辑"
+              >
+                <a-button
+                  v-permission="'crm:contract:edit'"
+                  type="link"
+                  size="small"
+                  @click="handleEdit(record)"
+                >
+                  <template #icon>
+                    <EditOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip
+                v-if="record.status === 1"
+                title="审批"
+              >
+                <a-button
+                  v-permission="'crm:contract:approve'"
+                  type="link"
+                  size="small"
+                  @click="handleApprove(record)"
+                >
+                  <template #icon>
+                    <CheckCircleOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip
+                v-if="record.status === 2"
+                title="签订"
+              >
+                <a-button
+                  v-permission="'crm:contract:sign'"
+                  type="link"
+                  size="small"
+                  @click="handleSign(record)"
+                >
+                  <template #icon>
+                    <FileDoneOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <a-dropdown trigger="click">
+                <a-button
+                  type="link"
+                  size="small"
+                  class="action-more-btn"
+                >
+                  <template #icon>
+                    <MoreOutlined />
+                  </template>
+                </a-button>
+                <template #overlay>
+                  <a-menu @click="({ key }) => handleActionMenuClick(key as string, record)">
+                    <a-menu-item key="download">
+                      <DownloadOutlined /> 下载合同
+                    </a-menu-item>
+                    <a-menu-item key="renew">
+                      <HistoryOutlined /> 续签申请
+                    </a-menu-item>
+                    <a-menu-item key="invoice">
+                      <FileTextOutlined /> 开票申请
+                    </a-menu-item>
+                    <a-menu-divider />
+                    <a-menu-item
+                      v-if="record.status >= 5"
+                      key="terminate"
+                      danger
+                    >
+                      <StopOutlined /> 终止合同
+                    </a-menu-item>
+                    <a-menu-item
+                      v-if="record.status === 0"
+                      key="delete"
+                      danger
+                    >
+                      <DeleteOutlined /> 删除
+                    </a-menu-item>
+                  </a-menu>
+                </template>
+              </a-dropdown>
+            </a-space>
+          </template>
+          <template #statusCell="{ record }">
+            <a-tag :color="getStatusColor(record.status)">
+              {{ getStatusText(record.status) }}
+            </a-tag>
+          </template>
+        </BillTableList>
       </template>
     </ErrorBoundary>
 
@@ -199,78 +368,201 @@
       @close="handleFormClose"
       @save-and-new="handleFormSaveAndNew"
     >
-      <a-form ref="formRef" :model="formData" :rules="formRules" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
+      <a-form
+        ref="formRef"
+        :model="formData"
+        :rules="formRules"
+        :label-col="{ span: 6 }"
+        :wrapper-col="{ span: 16 }"
+      >
         <a-row :gutter="16">
           <a-col :span="12">
-            <a-form-item label="合同编号" name="contractNo">
-              <a-input v-model:value="formData.contractNo" placeholder="自动生成" disabled size="small" />
+            <a-form-item
+              label="合同编号"
+              name="contractNo"
+            >
+              <a-input
+                v-model:value="formData.contractNo"
+                placeholder="自动生成"
+                disabled
+                size="small"
+              />
             </a-form-item>
           </a-col>
           <a-col :span="12">
-            <a-form-item label="合同名称" name="contractName">
-              <a-input v-model:value="formData.contractName" placeholder="请输入合同名称" size="small" />
+            <a-form-item
+              label="合同名称"
+              name="contractName"
+            >
+              <a-input
+                v-model:value="formData.contractName"
+                placeholder="请输入合同名称"
+                size="small"
+              />
             </a-form-item>
           </a-col>
           <a-col :span="12">
-            <a-form-item label="合同类型" name="contractType">
-              <a-select v-model:value="formData.contractType" placeholder="请选择合同类型" size="small">
-                <a-select-option value="sales">销售合同</a-select-option>
-                <a-select-option value="purchase">采购合同</a-select-option>
-                <a-select-option value="service">服务合同</a-select-option>
-                <a-select-option value="lease">租赁合同</a-select-option>
+            <a-form-item
+              label="合同类型"
+              name="contractType"
+            >
+              <a-select
+                v-model:value="formData.contractType"
+                placeholder="请选择合同类型"
+                size="small"
+              >
+                <a-select-option value="sales">
+                  销售合同
+                </a-select-option>
+                <a-select-option value="purchase">
+                  采购合同
+                </a-select-option>
+                <a-select-option value="service">
+                  服务合同
+                </a-select-option>
+                <a-select-option value="lease">
+                  租赁合同
+                </a-select-option>
               </a-select>
             </a-form-item>
           </a-col>
           <a-col :span="12">
-            <a-form-item label="客户名称" name="customerId">
-              <a-select v-model:value="formData.customerId" placeholder="请选择客户" show-search :filter-option="filterOption" size="small">
-                <a-select-option v-for="c in customerList" :key="c.id" :value="c.id">{{ c.name }}</a-select-option>
+            <a-form-item
+              label="客户名称"
+              name="customerId"
+            >
+              <a-select
+                v-model:value="formData.customerId"
+                placeholder="请选择客户"
+                show-search
+                :filter-option="filterOption"
+                size="small"
+              >
+                <a-select-option
+                  v-for="c in customerList"
+                  :key="c.id"
+                  :value="c.id"
+                >
+                  {{ c.name }}
+                </a-select-option>
               </a-select>
             </a-form-item>
           </a-col>
           <a-col :span="12">
-            <a-form-item label="开始日期" name="startDate">
-              <a-date-picker v-model:value="formData.startDate" style="width: 100%" size="small" />
+            <a-form-item
+              label="开始日期"
+              name="startDate"
+            >
+              <a-date-picker
+                v-model:value="formData.startDate"
+                style="width: 100%"
+                size="small"
+              />
             </a-form-item>
           </a-col>
           <a-col :span="12">
-            <a-form-item label="结束日期" name="endDate">
-              <a-date-picker v-model:value="formData.endDate" style="width: 100%" size="small" />
+            <a-form-item
+              label="结束日期"
+              name="endDate"
+            >
+              <a-date-picker
+                v-model:value="formData.endDate"
+                style="width: 100%"
+                size="small"
+              />
             </a-form-item>
           </a-col>
           <a-col :span="12">
-            <a-form-item label="合同金额" name="contractAmount">
-              <a-input-number v-model:value="formData.contractAmount" :min="0" :precision="2" style="width: 100%" size="small" />
+            <a-form-item
+              label="合同金额"
+              name="contractAmount"
+            >
+              <a-input-number
+                v-model:value="formData.contractAmount"
+                :min="0"
+                :precision="2"
+                style="width: 100%"
+                size="small"
+              />
             </a-form-item>
           </a-col>
           <a-col :span="12">
-            <a-form-item label="付款方式" name="paymentMethod">
-              <a-select v-model:value="formData.paymentMethod" placeholder="请选择付款方式" size="small">
-                <a-select-option value="once">一次性付款</a-select-option>
-                <a-select-option value="installment">分期付款</a-select-option>
-                <a-select-option value="prepaid">预付款+尾款</a-select-option>
-                <a-select-option value="monthly">月结</a-select-option>
+            <a-form-item
+              label="付款方式"
+              name="paymentMethod"
+            >
+              <a-select
+                v-model:value="formData.paymentMethod"
+                placeholder="请选择付款方式"
+                size="small"
+              >
+                <a-select-option value="once">
+                  一次性付款
+                </a-select-option>
+                <a-select-option value="installment">
+                  分期付款
+                </a-select-option>
+                <a-select-option value="prepaid">
+                  预付款+尾款
+                </a-select-option>
+                <a-select-option value="monthly">
+                  月结
+                </a-select-option>
               </a-select>
             </a-form-item>
           </a-col>
           <a-col :span="12">
-            <a-form-item label="签订日期" name="signDate">
-              <a-date-picker v-model:value="formData.signDate" style="width: 100%" size="small" />
+            <a-form-item
+              label="签订日期"
+              name="signDate"
+            >
+              <a-date-picker
+                v-model:value="formData.signDate"
+                style="width: 100%"
+                size="small"
+              />
             </a-form-item>
           </a-col>
           <a-col :span="12">
-            <a-form-item label="签订人" name="signPerson">
-              <a-input v-model:value="formData.signPerson" placeholder="请输入签订人" size="small" />
+            <a-form-item
+              label="签订人"
+              name="signPerson"
+            >
+              <a-input
+                v-model:value="formData.signPerson"
+                placeholder="请输入签订人"
+                size="small"
+              />
             </a-form-item>
           </a-col>
           <a-col :span="24">
-            <a-form-item label="合同条款" name="terms" :label-col="{ span: 3 }" :wrapper-col="{ span: 20 }">
-              <a-textarea v-model:value="formData.terms" placeholder="请输入合同主要条款" :rows="3" size="small" />
+            <a-form-item
+              label="合同条款"
+              name="terms"
+              :label-col="{ span: 3 }"
+              :wrapper-col="{ span: 20 }"
+            >
+              <a-textarea
+                v-model:value="formData.terms"
+                placeholder="请输入合同主要条款"
+                :rows="3"
+                size="small"
+              />
             </a-form-item>
           </a-col>
           <a-col :span="24">
-            <a-form-item label="备注" name="remark" :label-col="{ span: 3 }" :wrapper-col="{ span: 20 }">
-              <a-textarea v-model:value="formData.remark" placeholder="请输入备注" :rows="2" size="small" />
+            <a-form-item
+              label="备注"
+              name="remark"
+              :label-col="{ span: 3 }"
+              :wrapper-col="{ span: 20 }"
+            >
+              <a-textarea
+                v-model:value="formData.remark"
+                placeholder="请输入备注"
+                :rows="2"
+                size="small"
+              />
             </a-form-item>
           </a-col>
         </a-row>
@@ -278,73 +570,182 @@
     </FullScreenDetail>
 
     <!-- 详情弹窗 -->
-    <a-drawer v-model:open="detailVisible" title="合同详情" placement="right" width="80vw" :footer="null" @close="handleDetailClose">
+    <a-drawer
+      v-model:open="detailVisible"
+      title="合同详情"
+      placement="right"
+      width="80vw"
+      :footer="null"
+      @close="handleDetailClose"
+    >
       <a-spin :spinning="detailLoading">
         <template v-if="detailError">
           <div class="table-empty">
-            <WarningOutlined class="table-empty-icon" style="color: #faad14" />
-            <p class="table-empty-text">详情数据加载失败</p>
-            <a-button type="primary" size="small" v-permission="'crm:contract:detailrefresh'" @click="handleDetailRefresh">
-              <template #icon><ReloadOutlined /></template>
+            <WarningOutlined
+              class="table-empty-icon"
+              style="color: #faad14"
+            />
+            <p class="table-empty-text">
+              详情数据加载失败
+            </p>
+            <a-button
+              v-permission="'crm:contract:detailrefresh'"
+              type="primary"
+              size="small"
+              @click="handleDetailRefresh"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
               重试
             </a-button>
           </div>
         </template>
         <template v-else-if="detailData.id">
-          <a-descriptions :column="2" bordered size="small">
+          <a-descriptions
+            :column="2"
+            bordered
+            size="small"
+          >
             <a-descriptions-item label="合同编号">
               <span class="contract-no">{{ detailData.contractNo }}</span>
             </a-descriptions-item>
-            <a-descriptions-item label="合同名称">{{ detailData.contractName }}</a-descriptions-item>
-            <a-descriptions-item label="合同类型">{{ detailData.contractTypeLabel }}</a-descriptions-item>
-            <a-descriptions-item label="客户名称">{{ detailData.customerName }}</a-descriptions-item>
-            <a-descriptions-item label="开始日期">{{ detailData.startDate }}</a-descriptions-item>
-            <a-descriptions-item label="结束日期">{{ detailData.endDate }}</a-descriptions-item>
+            <a-descriptions-item label="合同名称">
+              {{ detailData.contractName }}
+            </a-descriptions-item>
+            <a-descriptions-item label="合同类型">
+              {{ detailData.contractTypeLabel }}
+            </a-descriptions-item>
+            <a-descriptions-item label="客户名称">
+              {{ detailData.customerName }}
+            </a-descriptions-item>
+            <a-descriptions-item label="开始日期">
+              {{ detailData.startDate }}
+            </a-descriptions-item>
+            <a-descriptions-item label="结束日期">
+              {{ detailData.endDate }}
+            </a-descriptions-item>
             <a-descriptions-item label="合同金额">
               <span class="amount-cell">¥{{ formatAmount(detailData.contractAmount) }}</span>
             </a-descriptions-item>
-            <a-descriptions-item label="付款方式">{{ detailData.paymentMethodLabel }}</a-descriptions-item>
-            <a-descriptions-item label="签订日期">{{ detailData.signDate }}</a-descriptions-item>
-            <a-descriptions-item label="签订人">{{ detailData.signPerson }}</a-descriptions-item>
-            <a-descriptions-item label="合同状态">
-              <a-tag :color="getStatusColor(detailData.status)">{{ getStatusText(detailData.status) }}</a-tag>
+            <a-descriptions-item label="付款方式">
+              {{ detailData.paymentMethodLabel }}
             </a-descriptions-item>
-            <a-descriptions-item label="创建时间">{{ detailData.createTime }}</a-descriptions-item>
-            <a-descriptions-item label="合同条款" :span="2">{{ detailData.terms || '无' }}</a-descriptions-item>
-            <a-descriptions-item label="备注" :span="2">{{ detailData.remark || '无' }}</a-descriptions-item>
+            <a-descriptions-item label="签订日期">
+              {{ detailData.signDate }}
+            </a-descriptions-item>
+            <a-descriptions-item label="签订人">
+              {{ detailData.signPerson }}
+            </a-descriptions-item>
+            <a-descriptions-item label="合同状态">
+              <a-tag :color="getStatusColor(detailData.status)">
+                {{ getStatusText(detailData.status) }}
+              </a-tag>
+            </a-descriptions-item>
+            <a-descriptions-item label="创建时间">
+              {{ detailData.createTime }}
+            </a-descriptions-item>
+            <a-descriptions-item
+              label="合同条款"
+              :span="2"
+            >
+              {{ detailData.terms || '无' }}
+            </a-descriptions-item>
+            <a-descriptions-item
+              label="备注"
+              :span="2"
+            >
+              {{ detailData.remark || '无' }}
+            </a-descriptions-item>
           </a-descriptions>
 
           <a-divider>审批流程</a-divider>
-          <a-steps :current="detailData.currentStep" status="process" size="small">
-            <a-step title="提交申请" :description="detailData.creator" />
-            <a-step title="部门主管审批" :description="detailData.departmentApprover" />
-            <a-step title="财务审批" :description="detailData.financeApprover" />
-            <a-step title="总经理审批" :description="detailData.generalApprover" />
+          <a-steps
+            :current="detailData.currentStep"
+            status="process"
+            size="small"
+          >
+            <a-step
+              title="提交申请"
+              :description="detailData.creator"
+            />
+            <a-step
+              title="部门主管审批"
+              :description="detailData.departmentApprover"
+            />
+            <a-step
+              title="财务审批"
+              :description="detailData.financeApprover"
+            />
+            <a-step
+              title="总经理审批"
+              :description="detailData.generalApprover"
+            />
           </a-steps>
 
           <div class="detail-footer">
             <a-space>
-              <a-button type="primary" v-permission="'crm:contract:download'" @click="handleDownload"><DownloadOutlined /> 下载合同</a-button>
-              <a-button v-if="detailData.status >= 5" v-permission="'crm:contract:renewapply'" @click="handleRenewApply">续签申请</a-button>
-            
-
-          </a-space>
+              <a-button
+                v-permission="'crm:contract:download'"
+                type="primary"
+                @click="handleDownload"
+              >
+                <DownloadOutlined /> 下载合同
+              </a-button>
+              <a-button
+                v-if="detailData.status >= 5"
+                v-permission="'crm:contract:renewapply'"
+                @click="handleRenewApply"
+              >
+                续签申请
+              </a-button>
+            </a-space>
           </div>
         </template>
       </a-spin>
     </a-drawer>
 
     <!-- 签订弹窗 -->
-    <a-modal v-model:open="signModalVisible" title="合同签订" width="500px" :confirm-loading="signLoading" @ok="handleSignSubmit" @cancel="signModalVisible = false">
-      <a-form :model="signForm" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
+    <a-modal
+      v-model:open="signModalVisible"
+      title="合同签订"
+      width="500px"
+      :confirm-loading="signLoading"
+      @ok="handleSignSubmit"
+      @cancel="signModalVisible = false"
+    >
+      <a-form
+        :model="signForm"
+        :label-col="{ span: 6 }"
+        :wrapper-col="{ span: 16 }"
+      >
         <a-form-item label="合同名称">
-          <a-input :value="signForm.contractName" disabled size="small" />
+          <a-input
+            :value="signForm.contractName"
+            disabled
+            size="small"
+          />
         </a-form-item>
-        <a-form-item label="签订日期" required>
-          <a-date-picker v-model:value="signForm.signDate" style="width: 100%" placeholder="请选择签订日期" size="small" />
+        <a-form-item
+          label="签订日期"
+          required
+        >
+          <a-date-picker
+            v-model:value="signForm.signDate"
+            style="width: 100%"
+            placeholder="请选择签订日期"
+            size="small"
+          />
         </a-form-item>
-        <a-form-item label="签订人" required>
-          <a-input v-model:value="signForm.signPerson" placeholder="请输入签订人姓名" size="small" />
+        <a-form-item
+          label="签订人"
+          required
+        >
+          <a-input
+            v-model:value="signForm.signPerson"
+            placeholder="请输入签订人姓名"
+            size="small"
+          />
         </a-form-item>
       </a-form>
     </a-modal>

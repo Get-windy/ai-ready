@@ -4,32 +4,56 @@
       <div class="template-page-header">
         <div class="template-page-header-left">
           <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>
+              <router-link to="/">
+                首页
+              </router-link>
+            </a-breadcrumb-item>
             <a-breadcrumb-item>打印管理</a-breadcrumb-item>
             <a-breadcrumb-item>打印模板</a-breadcrumb-item>
           </a-breadcrumb>
-          <h2 class="template-page-header-title">打印模板</h2>
+          <h2 class="template-page-header-title">
+            打印模板
+          </h2>
         </div>
         <div class="template-page-header-right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+          <span
+            v-if="lastUpdateTime"
+            class="update-time"
+          >更新于 {{ lastUpdateTime }}</span>
+          <span
+            v-if="autoRefreshCountdown > 0"
+            class="auto-refresh-badge"
+          >
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)()">
-            <template #icon><ReloadOutlined /></template>
+          <a-button
+            size="small"
+            :loading="refreshLoading"
+            @click="debounceClick('refresh', fetchData)()"
+          >
+            <template #icon>
+              <ReloadOutlined />
+            </template>
             刷新
           </a-button>
-<span class="shortcut-hints">
-                                                <span class="shortcut-hint"><kbd>Ctrl+R</kbd> 刷新</span>
-                                                <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
-                                                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-                                              </span>
+          <span class="shortcut-hints">
+            <span class="shortcut-hint"><kbd>Ctrl+R</kbd> 刷新</span>
+            <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+          </span>
           <a-popconfirm
             title="将为本系统所有业务页面生成初始打印模板，是否继续？"
             @confirm="handleSeedTemplates"
           >
-            <a-button size="small" :loading="seeding" type="primary">
-              <template #icon><PrinterOutlined /></template>
+            <a-button
+              size="small"
+              :loading="seeding"
+              type="primary"
+            >
+              <template #icon>
+                <PrinterOutlined />
+              </template>
               初始化模板
             </a-button>
           </a-popconfirm>
@@ -38,196 +62,273 @@
     </template>
 
     <ErrorBoundary>
-    <div class="template-management">
-      <BillTableList
-        ref="tableRef"
-        :columns="vxeColumns"
-        :data-source="tableDataSource"
-        :loading="loading"
-        :pagination="pagination"
-        :row-key="'templateId'"
-        :filter-fields="filterFields"
-        :show-search="false"
-        :selectable="true"
-        add-text="新增模板"
-        :min-empty-rows="12"
-        @add="handleAdd"
-        @edit="handleEdit"
-        @delete="handleDeleteConfirm"
-        @batch-delete="handleBatchDelete"
-        @refresh="debounceClick('refresh', fetchData)"
-        @page-change="handlePageChange"
-        @filter-change="handleFilterChange"
-        @selection-change="(_rows: any, ids: any) => { selectedRowKeys = ids as number[] }"
-      >
-        <template #toolbar-actions>
-          <a-tooltip title="当前状态筛选已应用">
-            <span v-if="hasActiveFilter" class="active-filter-badge">
-              <FilterOutlined /> 筛选中
-            </span>
-          </a-tooltip>
-        </template>
-
-        <template #pageCodeCell="{ record }">
-          <a-tag color="blue">{{ record.pageCode }}</a-tag>
-        </template>
-
-        <template #statusCell="{ record }">
-          <a-tag :color="statusColorMap[record.status] || 'default'">
-            {{ statusLabelMap[record.status] || '未知' }}
-          </a-tag>
-        </template>
-
-        <template #action="{ record }">
-          <a-space>
-            <a-button type="link" size="small" v-permission="'printing:template:edit'" @click="handleEdit(record)">编辑</a-button>
-            <a-button
-              v-if="record.status === 0"
-              type="link"
-              size="small"
-              :style="{ color: '#52c41a' }"
- v-permission="'printing:template:publish'" @click="handlePublish(record)"
-            >发布</a-button>
-            <a-button type="link" size="small" v-permission="'printing:template:copy'" @click="handleCopy(record)">复制</a-button>
-            <a-button type="link" size="small" danger v-permission="'printing:template:deleteconfirm'" @click="handleDeleteConfirm(record)">删除</a-button>
-          </a-space>
-        </template>
-
-        <template #empty>
-          <a-empty v-if="!hasError" description="暂无模板数据" />
-          <a-result v-else status="error" title="数据加载失败">
-            <template #extra>
-              <a-button type="primary" @click="debounceClick('refresh', fetchData)()">
-                <template #icon><ReloadOutlined /></template>
-                重新加载
-              </a-button>
-            </template>
-          </a-result>
-        </template>
-      </BillTableList>
-
-      <!-- 模板表单弹窗 -->
-      <FullScreenDetail
-        :visible="modalVisible"
-        :title="modalTitle"
-        :save-loading="modalLoading"
-        :show-save-and-new="!isEdit"
-        @save="handleModalOk"
-        @close="handleFormClose"
-        @save-and-new="handleFormSaveAndNew"
-      >
-        <a-form
-          ref="formRef"
-          :model="formState"
-          :rules="formRules"
-          :label-col="{ span: 6 }"
-          :wrapper-col="{ span: 16 }"
+      <div class="template-management">
+        <BillTableList
+          ref="tableRef"
+          :columns="vxeColumns"
+          :data-source="tableDataSource"
+          :loading="loading"
+          :pagination="pagination"
+          :row-key="'templateId'"
+          :filter-fields="filterFields"
+          :show-search="false"
+          :selectable="true"
+          add-text="新增模板"
+          :min-empty-rows="12"
+          @add="handleAdd"
+          @edit="handleEdit"
+          @delete="handleDeleteConfirm"
+          @batch-delete="handleBatchDelete"
+          @refresh="debounceClick('refresh', fetchData)"
+          @page-change="handlePageChange"
+          @filter-change="handleFilterChange"
+          @selection-change="(_rows: any, ids: any) => { selectedRowKeys = ids as number[] }"
         >
-          <a-form-item label="模板名称" name="templateName">
-            <a-input
-              v-model:value="formState.templateName"
-              placeholder="请输入模板名称，如 出库单模板"
-            />
-          </a-form-item>
-
-          <a-form-item label="页面编码" name="pageCode">
-            <a-input
-              v-model:value="formState.pageCode"
-              placeholder="请输入页面编码，如 order.invoice"
-              :disabled="isEdit"
-            />
-          </a-form-item>
-
-          <a-form-item label="纸张大小" name="paperSize">
-            <a-select
-              v-model:value="formState.paperSize"
-              :options="paperSizeOptions"
-              @change="handlePaperSizeChange"
-            />
-          </a-form-item>
-
-          <template v-if="formState.paperSize === 'CUSTOM'">
-            <a-form-item label="纸张宽度(mm)" name="paperWidth">
-              <a-input-number
-                v-model:value="formState.paperWidth"
-                :min="1"
-                :max="2000"
-                :precision="0"
-                placeholder="宽度"
-                style="width: 100%"
-              />
-            </a-form-item>
-
-            <a-form-item label="纸张高度(mm)" name="paperHeight">
-              <a-input-number
-                v-model:value="formState.paperHeight"
-                :min="1"
-                :max="2000"
-                :precision="0"
-                placeholder="高度"
-                style="width: 100%"
-              />
-            </a-form-item>
+          <template #toolbar-actions>
+            <a-tooltip title="当前状态筛选已应用">
+              <span
+                v-if="hasActiveFilter"
+                class="active-filter-badge"
+              >
+                <FilterOutlined /> 筛选中
+              </span>
+            </a-tooltip>
           </template>
 
-          <a-divider>页面边距 (mm)</a-divider>
+          <template #pageCodeCell="{ record }">
+            <a-tag color="blue">
+              {{ record.pageCode }}
+            </a-tag>
+          </template>
 
-          <a-row :gutter="16">
-            <a-col :span="12">
-              <a-form-item label="上边距" name="marginTop" :label-col="{ span: 10 }" :wrapper-col="{ span: 14 }">
-                <a-input-number
-                  v-model:value="formState.marginTop"
-                  :min="0"
-                  :max="200"
-                  :precision="1"
-                  placeholder="0"
-                  style="width: 100%"
-                />
-              </a-form-item>
-            </a-col>
-            <a-col :span="12">
-              <a-form-item label="下边距" name="marginBottom" :label-col="{ span: 10 }" :wrapper-col="{ span: 14 }">
-                <a-input-number
-                  v-model:value="formState.marginBottom"
-                  :min="0"
-                  :max="200"
-                  :precision="1"
-                  placeholder="0"
-                  style="width: 100%"
-                />
-              </a-form-item>
-            </a-col>
-          </a-row>
+          <template #statusCell="{ record }">
+            <a-tag :color="statusColorMap[record.status] || 'default'">
+              {{ statusLabelMap[record.status] || '未知' }}
+            </a-tag>
+          </template>
 
-          <a-row :gutter="16">
-            <a-col :span="12">
-              <a-form-item label="左边距" name="marginLeft" :label-col="{ span: 10 }" :wrapper-col="{ span: 14 }">
+          <template #action="{ record }">
+            <a-space>
+              <a-button
+                v-permission="'printing:template:edit'"
+                type="link"
+                size="small"
+                @click="handleEdit(record)"
+              >
+                编辑
+              </a-button>
+              <a-button
+                v-if="record.status === 0"
+                v-permission="'printing:template:publish'"
+                type="link"
+                size="small"
+                :style="{ color: '#52c41a' }"
+                @click="handlePublish(record)"
+              >
+                发布
+              </a-button>
+              <a-button
+                v-permission="'printing:template:copy'"
+                type="link"
+                size="small"
+                @click="handleCopy(record)"
+              >
+                复制
+              </a-button>
+              <a-button
+                v-permission="'printing:template:deleteconfirm'"
+                type="link"
+                size="small"
+                danger
+                @click="handleDeleteConfirm(record)"
+              >
+                删除
+              </a-button>
+            </a-space>
+          </template>
+
+          <template #empty>
+            <a-empty
+              v-if="!hasError"
+              description="暂无模板数据"
+            />
+            <a-result
+              v-else
+              status="error"
+              title="数据加载失败"
+            >
+              <template #extra>
+                <a-button
+                  type="primary"
+                  @click="debounceClick('refresh', fetchData)()"
+                >
+                  <template #icon>
+                    <ReloadOutlined />
+                  </template>
+                  重新加载
+                </a-button>
+              </template>
+            </a-result>
+          </template>
+        </BillTableList>
+
+        <!-- 模板表单弹窗 -->
+        <FullScreenDetail
+          :visible="modalVisible"
+          :title="modalTitle"
+          :save-loading="modalLoading"
+          :show-save-and-new="!isEdit"
+          @save="handleModalOk"
+          @close="handleFormClose"
+          @save-and-new="handleFormSaveAndNew"
+        >
+          <a-form
+            ref="formRef"
+            :model="formState"
+            :rules="formRules"
+            :label-col="{ span: 6 }"
+            :wrapper-col="{ span: 16 }"
+          >
+            <a-form-item
+              label="模板名称"
+              name="templateName"
+            >
+              <a-input
+                v-model:value="formState.templateName"
+                placeholder="请输入模板名称，如 出库单模板"
+              />
+            </a-form-item>
+
+            <a-form-item
+              label="页面编码"
+              name="pageCode"
+            >
+              <a-input
+                v-model:value="formState.pageCode"
+                placeholder="请输入页面编码，如 order.invoice"
+                :disabled="isEdit"
+              />
+            </a-form-item>
+
+            <a-form-item
+              label="纸张大小"
+              name="paperSize"
+            >
+              <a-select
+                v-model:value="formState.paperSize"
+                :options="paperSizeOptions"
+                @change="handlePaperSizeChange"
+              />
+            </a-form-item>
+
+            <template v-if="formState.paperSize === 'CUSTOM'">
+              <a-form-item
+                label="纸张宽度(mm)"
+                name="paperWidth"
+              >
                 <a-input-number
-                  v-model:value="formState.marginLeft"
-                  :min="0"
-                  :max="200"
-                  :precision="1"
-                  placeholder="0"
+                  v-model:value="formState.paperWidth"
+                  :min="1"
+                  :max="2000"
+                  :precision="0"
+                  placeholder="宽度"
                   style="width: 100%"
                 />
               </a-form-item>
-            </a-col>
-            <a-col :span="12">
-              <a-form-item label="右边距" name="marginRight" :label-col="{ span: 10 }" :wrapper-col="{ span: 14 }">
+
+              <a-form-item
+                label="纸张高度(mm)"
+                name="paperHeight"
+              >
                 <a-input-number
-                  v-model:value="formState.marginRight"
-                  :min="0"
-                  :max="200"
-                  :precision="1"
-                  placeholder="0"
+                  v-model:value="formState.paperHeight"
+                  :min="1"
+                  :max="2000"
+                  :precision="0"
+                  placeholder="高度"
                   style="width: 100%"
                 />
               </a-form-item>
-            </a-col>
-          </a-row>
-        </a-form>
-      </FullScreenDetail>
-    </div>
+            </template>
+
+            <a-divider>页面边距 (mm)</a-divider>
+
+            <a-row :gutter="16">
+              <a-col :span="12">
+                <a-form-item
+                  label="上边距"
+                  name="marginTop"
+                  :label-col="{ span: 10 }"
+                  :wrapper-col="{ span: 14 }"
+                >
+                  <a-input-number
+                    v-model:value="formState.marginTop"
+                    :min="0"
+                    :max="200"
+                    :precision="1"
+                    placeholder="0"
+                    style="width: 100%"
+                  />
+                </a-form-item>
+              </a-col>
+              <a-col :span="12">
+                <a-form-item
+                  label="下边距"
+                  name="marginBottom"
+                  :label-col="{ span: 10 }"
+                  :wrapper-col="{ span: 14 }"
+                >
+                  <a-input-number
+                    v-model:value="formState.marginBottom"
+                    :min="0"
+                    :max="200"
+                    :precision="1"
+                    placeholder="0"
+                    style="width: 100%"
+                  />
+                </a-form-item>
+              </a-col>
+            </a-row>
+
+            <a-row :gutter="16">
+              <a-col :span="12">
+                <a-form-item
+                  label="左边距"
+                  name="marginLeft"
+                  :label-col="{ span: 10 }"
+                  :wrapper-col="{ span: 14 }"
+                >
+                  <a-input-number
+                    v-model:value="formState.marginLeft"
+                    :min="0"
+                    :max="200"
+                    :precision="1"
+                    placeholder="0"
+                    style="width: 100%"
+                  />
+                </a-form-item>
+              </a-col>
+              <a-col :span="12">
+                <a-form-item
+                  label="右边距"
+                  name="marginRight"
+                  :label-col="{ span: 10 }"
+                  :wrapper-col="{ span: 14 }"
+                >
+                  <a-input-number
+                    v-model:value="formState.marginRight"
+                    :min="0"
+                    :max="200"
+                    :precision="1"
+                    placeholder="0"
+                    style="width: 100%"
+                  />
+                </a-form-item>
+              </a-col>
+            </a-row>
+          </a-form>
+        </FullScreenDetail>
+      </div>
     </ErrorBoundary>
   </PageContainer>
 </template>

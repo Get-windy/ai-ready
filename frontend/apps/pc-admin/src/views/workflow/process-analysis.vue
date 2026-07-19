@@ -1,244 +1,299 @@
 <template>
-  <ErrorBoundary @error="handleError"><PageContainer full-height>
-    <template #header>
-      <div class="workflow-analysis-page-header">
-        <div class="workflow-analysis-page-header-left">
-          <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item>流程分析</a-breadcrumb-item>
-          </a-breadcrumb>
-          <h2 class="workflow-analysis-page-header-title">流程分析</h2>
+  <ErrorBoundary @error="handleError">
+    <PageContainer full-height>
+      <template #header>
+        <div class="workflow-analysis-page-header">
+          <div class="workflow-analysis-page-header-left">
+            <a-breadcrumb>
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>流程分析</a-breadcrumb-item>
+            </a-breadcrumb>
+            <h2 class="workflow-analysis-page-header-title">
+              流程分析
+            </h2>
+          </div>
+          <div class="workflow-analysis-page-header-right">
+            <span
+              v-if="lastUpdateTime"
+              class="update-time"
+            >更新于 {{ lastUpdateTime }}</span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            >
+              <SyncOutlined /> {{ autoRefreshCountdown }}s
+            </span>
+            <a-button
+              size="small"
+              :loading="refreshLoading"
+              @click="debounceClick('refresh', handleRefresh)()"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
+              刷新
+            </a-button>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>Ctrl+R</kbd> 刷新</span>
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            </span>
+          </div>
         </div>
-        <div class="workflow-analysis-page-header-right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-            <SyncOutlined /> {{ autoRefreshCountdown }}s
-          </span>
-          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', handleRefresh)()">
-            <template #icon><ReloadOutlined /></template>
-            刷新
-          </a-button>
-<span class="shortcut-hints">
-                                                <span class="shortcut-hint"><kbd>Ctrl+R</kbd> 刷新</span>
-                                                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-                                              </span>
-        </div>
+      </template>
 
+      <div class="page-content">
+        <div class="workflow-analysis">
+          <!-- 统计卡片 -->
+          <a-row :gutter="16">
+            <a-col
+              v-for="card in statisticCards"
+              :key="card.title"
+              :span="6"
+            >
+              <a-card>
+                <a-statistic
+                  :title="card.title"
+                  :value="card.value"
+                >
+                  <template #suffix>
+                    <span class="suffix">{{ card.suffix }}</span>
+                  </template>
+                </a-statistic>
+              </a-card>
+            </a-col>
+          </a-row>
+
+          <a-row
+            :gutter="16"
+            style="margin-top: 16px"
+          >
+            <!-- 流程耗时统计 -->
+            <a-col :span="12">
+              <a-card>
+                <template #title>
+                  <div class="card-header">
+                    <span>流程耗时统计</span>
+                    <a-button
+                      type="link"
+                      @click="handleRefresh"
+                    >
+                      刷新
+                    </a-button>
+                  </div>
+                </template>
+                <BillTableList
+                  :columns="processDurationVxeColumns"
+                  :data-source="processDurationData"
+                  :pagination="false as any"
+                  :show-toolbar="false"
+                  :selectable="false"
+                  :show-add="false"
+                  :show-search="false"
+                  :show-export="false"
+                  :show-batch-delete="false"
+                  :min-empty-rows="12"
+                >
+                  <template #empty>
+                    <div class="table-empty">
+                      <template v-if="hasError">
+                        <WarningOutlined
+                          class="table-empty-icon"
+                          style="color: #faad14"
+                        />
+                        <p class="table-empty-text">
+                          加载失败
+                        </p>
+                        <a-button
+                          type="primary"
+                          size="small"
+                          class="table-empty-action"
+                          @click="handleRefresh"
+                        >
+                          <ReloadOutlined /> 重试
+                        </a-button>
+                      </template>
+                      <template v-else>
+                        <InboxOutlined class="table-empty-icon" />
+                        <p class="table-empty-text">
+                          暂无数据
+                        </p>
+                      </template>
+                    </div>
+                  </template>
+                </BillTableList>
+              </a-card>
+            </a-col>
+
+            <!-- 节点耗时分析 -->
+            <a-col :span="12">
+              <a-card>
+                <template #title>
+                  <div class="card-header">
+                    <span>节点耗时分析</span>
+                    <a-select
+                      v-model:value="selectedProcess"
+                      placeholder="选择流程"
+                      size="small"
+                      style="width: 200px"
+                    >
+                      <a-select-option
+                        v-for="item in processOptions"
+                        :key="item.value"
+                        :value="item.value"
+                      >
+                        {{ item.label }}
+                      </a-select-option>
+                    </a-select>
+                  </div>
+                </template>
+                <BillTableList
+                  :columns="nodeDurationVxeColumns"
+                  :data-source="nodeDurationData"
+                  :pagination="false as any"
+                  :show-toolbar="false"
+                  :selectable="false"
+                  :show-add="false"
+                  :show-search="false"
+                  :show-export="false"
+                  :show-batch-delete="false"
+                  :min-empty-rows="12"
+                >
+                  <template #empty>
+                    <div class="table-empty">
+                      <template v-if="hasError">
+                        <WarningOutlined
+                          class="table-empty-icon"
+                          style="color: #faad14"
+                        />
+                        <p class="table-empty-text">
+                          加载失败
+                        </p>
+                        <a-button
+                          type="primary"
+                          size="small"
+                          class="table-empty-action"
+                          @click="handleRefresh"
+                        >
+                          <ReloadOutlined /> 重试
+                        </a-button>
+                      </template>
+                      <template v-else>
+                        <InboxOutlined class="table-empty-icon" />
+                        <p class="table-empty-text">
+                          暂无数据
+                        </p>
+                      </template>
+                    </div>
+                  </template>
+                </BillTableList>
+              </a-card>
+            </a-col>
+          </a-row>
+
+          <a-row
+            :gutter="16"
+            style="margin-top: 16px"
+          >
+            <!-- 审批效率报表 -->
+            <a-col :span="24">
+              <a-card>
+                <template #title>
+                  <div class="card-header">
+                    <span>审批效率报表</span>
+                    <a-range-picker
+                      v-model:value="reportDateRange"
+                      value-format="YYYY-MM-DD"
+                      size="small"
+                      @change="handleReportDateChange"
+                    />
+                  </div>
+                </template>
+                <BillTableList
+                  :columns="efficiencyVxeColumns"
+                  :data-source="efficiencyData"
+                  :pagination="false as any"
+                  :show-toolbar="false"
+                  :selectable="false"
+                  :show-add="false"
+                  :show-search="false"
+                  :show-export="false"
+                  :show-batch-delete="false"
+                  :min-empty-rows="12"
+                >
+                  <template #completionRateCell="{ record }">
+                    <a-progress
+                      :percent="record.completionRate"
+                      :stroke-color="getProgressColor(record.completionRate)"
+                    />
+                  </template>
+                  <template #efficiencyCell="{ record }">
+                    <a-rate
+                      v-model:value="record.efficiency"
+                      disabled
+                    />
+                  </template>
+                  <template #empty>
+                    <div class="table-empty">
+                      <template v-if="hasError">
+                        <WarningOutlined
+                          class="table-empty-icon"
+                          style="color: #faad14"
+                        />
+                        <p class="table-empty-text">
+                          加载失败
+                        </p>
+                        <a-button
+                          type="primary"
+                          size="small"
+                          class="table-empty-action"
+                          @click="handleRefresh"
+                        >
+                          <ReloadOutlined /> 重试
+                        </a-button>
+                      </template>
+                      <template v-else>
+                        <InboxOutlined class="table-empty-icon" />
+                        <p class="table-empty-text">
+                          暂无数据
+                        </p>
+                      </template>
+                    </div>
+                  </template>
+                </BillTableList>
+              </a-card>
+            </a-col>
+          </a-row>
+
+          <a-row
+            :gutter="16"
+            style="margin-top: 16px"
+          >
+            <!-- 流程趋势图 -->
+            <a-col :span="12">
+              <a-card title="流程实例趋势">
+                <div class="chart-container">
+                  <a-empty description="图表组件开发中..." />
+                </div>
+              </a-card>
+            </a-col>
+
+            <!-- 节点分布图 -->
+            <a-col :span="12">
+              <a-card title="节点任务分布">
+                <div class="chart-container">
+                  <a-empty description="图表组件开发中..." />
+                </div>
+              </a-card>
+            </a-col>
+          </a-row>
+        </div>
       </div>
-    </template>
-
-    <div class="page-content">
-    <div class="workflow-analysis">
-      <!-- 统计卡片 -->
-      <a-row :gutter="16">
-        <a-col
-          v-for="card in statisticCards"
-          :key="card.title"
-          :span="6"
-        >
-          <a-card>
-            <a-statistic
-              :title="card.title"
-              :value="card.value"
-            >
-              <template #suffix>
-                <span class="suffix">{{ card.suffix }}</span>
-              </template>
-            </a-statistic>
-          </a-card>
-        </a-col>
-      </a-row>
-
-      <a-row
-        :gutter="16"
-        style="margin-top: 16px"
-      >
-        <!-- 流程耗时统计 -->
-        <a-col :span="12">
-          <a-card>
-            <template #title>
-              <div class="card-header">
-                <span>流程耗时统计</span>
-                <a-button
-                  type="link"
-                  @click="handleRefresh"
-                >
-                  刷新
-                </a-button>
-              </div>
-            </template>
-            <BillTableList
-              :columns="processDurationVxeColumns"
-              :data-source="processDurationData"
-              :pagination="false as any"
-              :show-toolbar="false"
-              :selectable="false"
-              :show-add="false"
-              :show-search="false"
-              :show-export="false"
-              :show-batch-delete="false"
-              :min-empty-rows="12"
-            >
-              <template #empty>
-                <div class="table-empty">
-                  <template v-if="hasError">
-                    <WarningOutlined class="table-empty-icon" style="color: #faad14" />
-                    <p class="table-empty-text">加载失败</p>
-                    <a-button type="primary" size="small" @click="handleRefresh" class="table-empty-action">
-                      <ReloadOutlined /> 重试
-                    </a-button>
-                  </template>
-                  <template v-else>
-                    <InboxOutlined class="table-empty-icon" />
-                    <p class="table-empty-text">暂无数据</p>
-                  </template>
-                </div>
-              </template>
-            </BillTableList>
-          </a-card>
-        </a-col>
-
-        <!-- 节点耗时分析 -->
-        <a-col :span="12">
-          <a-card>
-            <template #title>
-              <div class="card-header">
-                <span>节点耗时分析</span>
-                <a-select
-                  v-model:value="selectedProcess"
-                  placeholder="选择流程"
-                  size="small"
-                  style="width: 200px"
-                >
-                  <a-select-option
-                    v-for="item in processOptions"
-                    :key="item.value"
-                    :value="item.value"
-                  >
-                    {{ item.label }}
-                  </a-select-option>
-                </a-select>
-              </div>
-            </template>
-            <BillTableList
-              :columns="nodeDurationVxeColumns"
-              :data-source="nodeDurationData"
-              :pagination="false as any"
-              :show-toolbar="false"
-              :selectable="false"
-              :show-add="false"
-              :show-search="false"
-              :show-export="false"
-              :show-batch-delete="false"
-              :min-empty-rows="12"
-            >
-              <template #empty>
-                <div class="table-empty">
-                  <template v-if="hasError">
-                    <WarningOutlined class="table-empty-icon" style="color: #faad14" />
-                    <p class="table-empty-text">加载失败</p>
-                    <a-button type="primary" size="small" @click="handleRefresh" class="table-empty-action">
-                      <ReloadOutlined /> 重试
-                    </a-button>
-                  </template>
-                  <template v-else>
-                    <InboxOutlined class="table-empty-icon" />
-                    <p class="table-empty-text">暂无数据</p>
-                  </template>
-                </div>
-              </template>
-            </BillTableList>
-          </a-card>
-        </a-col>
-      </a-row>
-
-      <a-row
-        :gutter="16"
-        style="margin-top: 16px"
-      >
-        <!-- 审批效率报表 -->
-        <a-col :span="24">
-          <a-card>
-            <template #title>
-              <div class="card-header">
-                <span>审批效率报表</span>
-                <a-range-picker
-                  v-model:value="reportDateRange"
-                  value-format="YYYY-MM-DD"
-                  size="small"
-                  @change="handleReportDateChange"
-                />
-              </div>
-            </template>
-            <BillTableList
-              :columns="efficiencyVxeColumns"
-              :data-source="efficiencyData"
-              :pagination="false as any"
-              :show-toolbar="false"
-              :selectable="false"
-              :show-add="false"
-              :show-search="false"
-              :show-export="false"
-              :show-batch-delete="false"
-              :min-empty-rows="12"
-            >
-              <template #completionRateCell="{ record }">
-                <a-progress
-                  :percent="record.completionRate"
-                  :stroke-color="getProgressColor(record.completionRate)"
-                />
-              </template>
-              <template #efficiencyCell="{ record }">
-                <a-rate
-                  v-model:value="record.efficiency"
-                  disabled
-                />
-              </template>
-              <template #empty>
-                <div class="table-empty">
-                  <template v-if="hasError">
-                    <WarningOutlined class="table-empty-icon" style="color: #faad14" />
-                    <p class="table-empty-text">加载失败</p>
-                    <a-button type="primary" size="small" @click="handleRefresh" class="table-empty-action">
-                      <ReloadOutlined /> 重试
-                    </a-button>
-                  </template>
-                  <template v-else>
-                    <InboxOutlined class="table-empty-icon" />
-                    <p class="table-empty-text">暂无数据</p>
-                  </template>
-                </div>
-              </template>
-            </BillTableList>
-          </a-card>
-        </a-col>
-      </a-row>
-
-      <a-row
-        :gutter="16"
-        style="margin-top: 16px"
-      >
-        <!-- 流程趋势图 -->
-        <a-col :span="12">
-          <a-card title="流程实例趋势">
-            <div class="chart-container">
-              <a-empty description="图表组件开发中..." />
-            </div>
-          </a-card>
-        </a-col>
-
-        <!-- 节点分布图 -->
-        <a-col :span="12">
-          <a-card title="节点任务分布">
-            <div class="chart-container">
-              <a-empty description="图表组件开发中..." />
-            </div>
-          </a-card>
-        </a-col>
-      </a-row>
-    </div>
-  </div>
-</PageContainer></ErrorBoundary>
+    </PageContainer>
+  </ErrorBoundary>
 </template>
 
 <script setup lang="ts">

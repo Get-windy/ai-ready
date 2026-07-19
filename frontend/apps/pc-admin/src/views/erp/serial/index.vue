@@ -5,27 +5,56 @@
         <div class="page-header">
           <div class="page-header__left">
             <a-breadcrumb>
-              <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
               <a-breadcrumb-item>序列号管理</a-breadcrumb-item>
             </a-breadcrumb>
-            <h2 class="page-header__title">序列号管理</h2>
+            <h2 class="page-header__title">
+              序列号管理
+            </h2>
           </div>
           <div class="page-header__right">
             <a-space :size="12">
-              <a-button size="small" @click="router.push('/erp/batch')">批次管理</a-button>
+              <a-button
+                size="small"
+                @click="router.push('/erp/batch')"
+              >
+                批次管理
+              </a-button>
               <span class="data-status">
                 <a-badge :status="loading ? 'processing' : 'success'" />
-                <span v-if="lastUpdateTime" class="update-time">数据更新: {{ lastUpdateTime }}</span>
-                <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+                <span
+                  v-if="lastUpdateTime"
+                  class="update-time"
+                >数据更新: {{ lastUpdateTime }}</span>
+                <span
+                  v-if="autoRefreshCountdown > 0"
+                  class="auto-refresh-badge"
+                >
                   <SyncOutlined /> {{ autoRefreshCountdown }}s
                 </span>
               </span>
-              <a-button size="small" :loading="loading" @click="debounceClick('refresh', fetchData)">
-                <template #icon><ReloadOutlined /></template>
+              <a-button
+                size="small"
+                :loading="loading"
+                @click="debounceClick('refresh', fetchData)"
+              >
+                <template #icon>
+                  <ReloadOutlined />
+                </template>
                 刷新
               </a-button>
-              <a-button size="small" v-permission="'erp:serial:export'" @click="debounceClick('export', handleExport)">
-                <template #icon><DownloadOutlined /></template>
+              <a-button
+                v-permission="'erp:serial:export'"
+                size="small"
+                @click="debounceClick('export', handleExport)"
+              >
+                <template #icon>
+                  <DownloadOutlined />
+                </template>
                 导出
               </a-button>
               <span class="shortcut-hints">
@@ -38,29 +67,72 @@
       </template>
 
       <!-- 统计卡片 -->
-      <a-row :gutter="12" style="margin-bottom: 12px;">
+      <a-row
+        :gutter="12"
+        style="margin-bottom: 12px;"
+      >
         <a-col :span="6">
-          <div class="stat-card" style="border-top: 3px solid #1890ff;">
-            <div class="stat-value" style="color:#1890ff">{{ statistics.total }}</div>
-            <div class="stat-label">总序列号</div>
+          <div
+            class="stat-card"
+            style="border-top: 3px solid #1890ff;"
+          >
+            <div
+              class="stat-value"
+              style="color:#1890ff"
+            >
+              {{ statistics.total }}
+            </div>
+            <div class="stat-label">
+              总序列号
+            </div>
           </div>
         </a-col>
         <a-col :span="6">
-          <div class="stat-card" style="border-top: 3px solid #52c41a;">
-            <div class="stat-value" style="color:#52c41a">{{ statistics.available }}</div>
-            <div class="stat-label">可用</div>
+          <div
+            class="stat-card"
+            style="border-top: 3px solid #52c41a;"
+          >
+            <div
+              class="stat-value"
+              style="color:#52c41a"
+            >
+              {{ statistics.available }}
+            </div>
+            <div class="stat-label">
+              可用
+            </div>
           </div>
         </a-col>
         <a-col :span="6">
-          <div class="stat-card" style="border-top: 3px solid #faad14;">
-            <div class="stat-value" style="color:#faad14">{{ statistics.inUse }}</div>
-            <div class="stat-label">使用中</div>
+          <div
+            class="stat-card"
+            style="border-top: 3px solid #faad14;"
+          >
+            <div
+              class="stat-value"
+              style="color:#faad14"
+            >
+              {{ statistics.inUse }}
+            </div>
+            <div class="stat-label">
+              使用中
+            </div>
           </div>
         </a-col>
         <a-col :span="6">
-          <div class="stat-card" style="border-top: 3px solid #ff4d4f;">
-            <div class="stat-value" style="color:#ff4d4f">{{ statistics.scrap }}</div>
-            <div class="stat-label">报废</div>
+          <div
+            class="stat-card"
+            style="border-top: 3px solid #ff4d4f;"
+          >
+            <div
+              class="stat-value"
+              style="color:#ff4d4f"
+            >
+              {{ statistics.scrap }}
+            </div>
+            <div class="stat-label">
+              报废
+            </div>
           </div>
         </a-col>
       </a-row>
@@ -87,43 +159,139 @@
           :row-config="{ keyField: 'id' }"
         >
           <template #empty>
-            <EmptyState v-if="loading" image="no-data" title="加载中..." description="" :show-actions="false" size="small" />
-            <EmptyState v-else image="no-data" title="暂无序列号" description="当前没有序列号数据" size="small" @refresh="fetchData" />
+            <EmptyState
+              v-if="loading"
+              image="no-data"
+              title="加载中..."
+              description=""
+              :show-actions="false"
+              size="small"
+            />
+            <EmptyState
+              v-else
+              image="no-data"
+              title="暂无序列号"
+              description="当前没有序列号数据"
+              size="small"
+              @refresh="fetchData"
+            />
           </template>
-          <vxe-column type="seq" title="#" width="50" />
-          <vxe-column field="serialNo" title="序列号" min-width="160" />
-          <vxe-column field="productCode" title="产品编码" width="120" />
-          <vxe-column field="productName" title="产品名称" min-width="140" />
-          <vxe-column field="snStatus" title="状态" width="80">
+          <vxe-column
+            type="seq"
+            title="#"
+            width="50"
+          />
+          <vxe-column
+            field="serialNo"
+            title="序列号"
+            min-width="160"
+          />
+          <vxe-column
+            field="productCode"
+            title="产品编码"
+            width="120"
+          />
+          <vxe-column
+            field="productName"
+            title="产品名称"
+            min-width="140"
+          />
+          <vxe-column
+            field="snStatus"
+            title="状态"
+            width="80"
+          >
             <template #default="{ row }">
-              <StatusTag :status="row.snStatus" :map="SERIAL_STATUS" />
+              <StatusTag
+                :status="row.snStatus"
+                :map="SERIAL_STATUS"
+              />
             </template>
           </vxe-column>
-          <vxe-column field="snStage" title="阶段" width="90">
+          <vxe-column
+            field="snStage"
+            title="阶段"
+            width="90"
+          >
             <template #default="{ row }">
-              <StatusTag :status="row.snStage" :map="SERIAL_STAGE" />
+              <StatusTag
+                :status="row.snStage"
+                :map="SERIAL_STAGE"
+              />
             </template>
           </vxe-column>
-          <vxe-column field="batchNo" title="批次号" width="130" />
-          <vxe-column field="warehouseName" title="仓库" width="120" />
-          <vxe-column field="warrantyEndDate" title="质保到期" width="110">
+          <vxe-column
+            field="batchNo"
+            title="批次号"
+            width="130"
+          />
+          <vxe-column
+            field="warehouseName"
+            title="仓库"
+            width="120"
+          />
+          <vxe-column
+            field="warrantyEndDate"
+            title="质保到期"
+            width="110"
+          >
             <template #default="{ row }">
-              <span v-if="row.warrantyEndDate" :style="warrantyWarningStyle(row.warrantyEndDate)">
+              <span
+                v-if="row.warrantyEndDate"
+                :style="warrantyWarningStyle(row.warrantyEndDate)"
+              >
                 {{ row.warrantyEndDate }}
               </span>
               <span v-else>-</span>
             </template>
           </vxe-column>
-          <vxe-column field="manufacturer" title="制造商" width="140">
-            <template #default="{ row }">{{ row.manufacturer || '-' }}</template>
+          <vxe-column
+            field="manufacturer"
+            title="制造商"
+            width="140"
+          >
+            <template #default="{ row }">
+              {{ row.manufacturer || '-' }}
+            </template>
           </vxe-column>
-          <vxe-column title="操作" width="220" fixed="right">
+          <vxe-column
+            title="操作"
+            width="220"
+            fixed="right"
+          >
             <template #default="{ row }">
               <a-space :size="4">
-                <a-button type="link" size="small" @click="showDetail(row.id)"><EyeOutlined /> 详情</a-button>
-                <a-button type="link" size="small" @click="showDetail(row.id)"><EditOutlined /> 追溯</a-button>
-                <PrintButton :record="row" :business-id="row.id" business-type="serial" button-type="link" button-size="small" tooltip="打印" />
-                <a-button type="link" size="small" v-permission="'erp:serial:delete'" danger @click="handleDelete(row)"><DeleteOutlined /> 删除</a-button>
+                <a-button
+                  type="link"
+                  size="small"
+                  @click="showDetail(row.id)"
+                >
+                  <EyeOutlined /> 详情
+                </a-button>
+                <a-button
+                  type="link"
+                  size="small"
+                  @click="showDetail(row.id)"
+                >
+                  <EditOutlined /> 追溯
+                </a-button>
+                <PrintButton
+                  :record="row"
+                  :business-id="row.id"
+                  business-type="serial"
+                  button-type="link"
+                  button-size="small"
+                  tooltip="打印"
+                />
+                <a-button
+                  v-permission="'erp:serial:delete'"
+                  type="link"
+                  size="small"
+                  danger
+                  @click="handleDelete(row)"
+                >
+                  <DeleteOutlined /> 删除
+                </a-button>
               </a-space>
             </template>
           </vxe-column>
@@ -145,7 +313,10 @@
       </a-card>
 
       <!-- 详情抽屉 -->
-      <SerialDetailDrawer v-model:open="detailVisible" :serial-id="selectedSerialId" />
+      <SerialDetailDrawer
+        v-model:open="detailVisible"
+        :serial-id="selectedSerialId"
+      />
     </PageContainer>
   </ErrorBoundary>
 </template>

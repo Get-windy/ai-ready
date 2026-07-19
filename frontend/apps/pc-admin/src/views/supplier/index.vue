@@ -1,282 +1,469 @@
 <template>
   <ErrorBoundary>
-  <PageContainer full-height>
-    <template #header>
-      <div class="supplier-header">
-        <div class="supplier-header-left">
-          <a-breadcrumb class="supplier-breadcrumb">
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item>供应商管理</a-breadcrumb-item>
-          </a-breadcrumb>
-          <h2 class="supplier-header-title">供应商管理</h2>
+    <PageContainer full-height>
+      <template #header>
+        <div class="supplier-header">
+          <div class="supplier-header-left">
+            <a-breadcrumb class="supplier-breadcrumb">
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>供应商管理</a-breadcrumb-item>
+            </a-breadcrumb>
+            <h2 class="supplier-header-title">
+              供应商管理
+            </h2>
+          </div>
+          <div class="supplier-header-right">
+            <a-space>
+              <a-button
+                v-permission.disabled="'supplier:add'"
+                type="primary"
+                title="快捷键 Ctrl+N"
+                @click="handleCreate"
+              >
+                <template #icon>
+                  <PlusOutlined />
+                </template>
+                新增供应商
+              </a-button>
+              <a-button
+                v-permission.disabled="'supplier:import'"
+                @click="handleImport"
+              >
+                导入
+              </a-button>
+              <a-button
+                v-permission.disabled="'supplier:export'"
+                @click="handleExport"
+              >
+                导出
+              </a-button>
+              <span
+                v-if="lastUpdated"
+                class="list-update-timestamp"
+                :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')"
+              >
+                <ReloadOutlined
+                  :spin="loading"
+                  style="margin-right: 4px; font-size: 11px; vertical-align: middle; cursor: pointer;"
+                  @click="handleRefresh"
+                />
+                {{ relativeTimeText }}
+                <template v-if="autoRefreshCountdown > 0">
+                  <span :class="{ 'countdown-warning': autoRefreshCountdown <= 5 }"> · {{ autoRefreshCountdown }}s 后刷新</span>
+                </template>
+              </span>
+            </a-space>
+          </div>
         </div>
-        <div class="supplier-header-right">
-          <a-space>
-        <a-button v-permission.disabled="'supplier:add'" type="primary" @click="handleCreate" title="快捷键 Ctrl+N">
-          <template #icon><PlusOutlined /></template>
-          新增供应商
-        </a-button>
-        <a-button v-permission.disabled="'supplier:import'" @click="handleImport">导入</a-button>
-        <a-button v-permission.disabled="'supplier:export'" @click="handleExport">导出</a-button>
-        <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
-          <ReloadOutlined :spin="loading" style="margin-right: 4px; font-size: 11px; vertical-align: middle; cursor: pointer;" @click="handleRefresh" />
-          {{ relativeTimeText }}
-          <template v-if="autoRefreshCountdown > 0">
-            <span :class="{ 'countdown-warning': autoRefreshCountdown <= 5 }"> · {{ autoRefreshCountdown }}s 后刷新</span>
-          </template>
-        </span>
-	      </a-space>
-        </div>
+      </template>
 
+      <!-- 搜索 -->
+      <template #filter>
+        <a-row
+          :gutter="[12, 12]"
+          align="middle"
+        >
+          <a-col :span="6">
+            <a-input
+              v-model:value="searchKeyword"
+              placeholder="搜索供应商编码 / 名称..."
+              allow-clear
+              size="small"
+              @press-enter="handleSearch"
+              @input="handleSearchInput"
+            >
+              <template #prefix>
+                <SearchOutlined />
+              </template>
+            </a-input>
+          </a-col>
+          <a-col :span="4">
+            <a-select
+              v-model:value="filters.supplierLevel"
+              placeholder="供应商等级"
+              allow-clear
+              style="width: 100%"
+              size="small"
+              @change="handleFilterChange"
+            >
+              <a-select-option value="A">
+                A级
+              </a-select-option>
+              <a-select-option value="B">
+                B级
+              </a-select-option>
+              <a-select-option value="C">
+                C级
+              </a-select-option>
+              <a-select-option value="D">
+                D级
+              </a-select-option>
+            </a-select>
+          </a-col>
+          <a-col :span="4">
+            <a-select
+              v-model:value="filters.cooperationStatus"
+              placeholder="合作状态"
+              allow-clear
+              style="width: 100%"
+              size="small"
+              @change="handleFilterChange"
+            >
+              <a-select-option :value="1">
+                正常合作
+              </a-select-option>
+              <a-select-option :value="2">
+                暂停合作
+              </a-select-option>
+              <a-select-option :value="3">
+                终止合作
+              </a-select-option>
+              <a-select-option :value="4">
+                潜在供应商
+              </a-select-option>
+            </a-select>
+          </a-col>
+          <a-col :span="4">
+            <a-space>
+              <a-button
+                type="primary"
+                @click="handleSearch"
+              >
+                查询
+              </a-button>
+              <a-button @click="handleReset">
+                重置
+              </a-button>
+            </a-space>
+          </a-col>
+          <a-col
+            :span="6"
+            style="text-align: right;"
+          >
+            <span style="color: #909399; font-size: 13px;">共 {{ pagination.total }} 条记录</span>
+          </a-col>
+        </a-row>
+      </template>
+
+      <!-- 统计卡片 -->
+      <template #headerContent>
+        <a-row
+          :gutter="12"
+          style="flex: 1;"
+        >
+          <a-col :span="6">
+            <div class="stat-card stat-card--blue">
+              <div class="stat-card-icon">
+                <TeamOutlined />
+              </div>
+              <div class="stat-card-content">
+                <div class="stat-card-title">
+                  供应商总数
+                </div>
+                <div class="stat-card-value">
+                  <span
+                    v-if="statLoading"
+                    class="stat-skeleton"
+                  />
+                  <template v-else>
+                    {{ statData.totalSuppliers }}
+                  </template>
+                </div>
+              </div>
+            </div>
+          </a-col>
+          <a-col :span="6">
+            <div class="stat-card stat-card--green">
+              <div class="stat-card-icon">
+                <StarOutlined />
+              </div>
+              <div class="stat-card-content">
+                <div class="stat-card-title">
+                  A级供应商
+                </div>
+                <div class="stat-card-value">
+                  <span
+                    v-if="statLoading"
+                    class="stat-skeleton"
+                  />
+                  <template v-else>
+                    {{ statData.levelACount }}
+                  </template>
+                </div>
+              </div>
+            </div>
+          </a-col>
+          <a-col :span="6">
+            <div class="stat-card stat-card--orange">
+              <div class="stat-card-icon">
+                <CheckCircleOutlined />
+              </div>
+              <div class="stat-card-content">
+                <div class="stat-card-title">
+                  正常合作
+                </div>
+                <div class="stat-card-value">
+                  <span
+                    v-if="statLoading"
+                    class="stat-skeleton"
+                  />
+                  <template v-else>
+                    {{ statData.activeCooperationCount }}
+                  </template>
+                </div>
+              </div>
+            </div>
+          </a-col>
+          <a-col :span="6">
+            <div class="stat-card stat-card--purple">
+              <div class="stat-card-icon">
+                <DesktopOutlined />
+              </div>
+              <div class="stat-card-content">
+                <div class="stat-card-title">
+                  门户已激活
+                </div>
+                <div class="stat-card-value">
+                  <span
+                    v-if="statLoading"
+                    class="stat-skeleton"
+                  />
+                  <template v-else>
+                    {{ statData.portalActivatedCount }}
+                  </template>
+                </div>
+              </div>
+            </div>
+          </a-col>
+        </a-row>
+      </template>
+
+      <div class="table-wrapper">
+        <!-- 错误提示 -->
+        <a-alert
+          v-if="fetchError"
+          message="数据加载失败"
+          description="无法获取供应商数据，请检查网络连接后重试"
+          type="error"
+          show-icon
+          closable
+          style="margin-bottom: 16px"
+          @close="fetchError = false"
+        >
+          <template #action>
+            <a-button
+              size="small"
+              type="primary"
+              @click="fetchData"
+            >
+              重试
+            </a-button>
+          </template>
+        </a-alert>
+
+        <!-- 表格 -->
+        <BillTableList
+          ref="tableRef"
+          :columns="vxeColumns"
+          :data-source="dataSource"
+          :loading="loading"
+          :pagination="pagination"
+          :show-search="false"
+          :show-add="false"
+          :selectable="true"
+          :show-export="false"
+          :show-summary="true"
+          :summary-data="summaryData"
+          :min-empty-rows="12"
+          @cell-dblclick="handleView"
+          @page-change="handlePageChange"
+          @selection-change="handleSelectionChange"
+        >
+          <template #batch-actions="{ selectedRows: rows }">
+            <a-button
+              v-permission.disabled="'supplier:delete'"
+              danger
+              size="small"
+              :loading="batchDeleting"
+              @click="handleBatchDelete"
+            >
+              <template #icon>
+                <DeleteOutlined />
+              </template>
+              批量删除 ({{ rows.length }})
+            </a-button>
+            <a-button
+              v-permission.disabled="'supplier:export'"
+              size="small"
+              @click="handleBatchExport"
+            >
+              <template #icon>
+                <ExportOutlined />
+              </template>
+              导出选中
+            </a-button>
+          </template>
+          <template #empty>
+            <div class="table-empty">
+              <template v-if="hasError">
+                <WarningOutlined
+                  class="table-empty-icon"
+                  style="color: #faad14"
+                />
+                <p class="table-empty-text">
+                  加载失败
+                </p>
+                <a-button
+                  type="primary"
+                  size="small"
+                  class="table-empty-action"
+                  @click="fetchData"
+                >
+                  <ReloadOutlined /> 重试
+                </a-button>
+              </template>
+              <template v-else>
+                <SearchOutlined
+                  v-if="hasActiveFilters"
+                  class="table-empty-icon"
+                />
+                <InboxOutlined
+                  v-else
+                  class="table-empty-icon"
+                />
+                <p
+                  v-if="hasActiveFilters"
+                  class="table-empty-text"
+                >
+                  没有符合条件的供应商记录，<a @click="handleResetFilters">清除筛选</a>
+                </p>
+                <p
+                  v-else
+                  class="table-empty-text"
+                >
+                  暂无供应商数据
+                </p>
+              </template>
+            </div>
+          </template>
+
+          <template #supplierLevel="{ record }">
+            <a-tag :color="getLevelColor(record.supplierLevel)">
+              {{ record.supplierLevel }}级
+            </a-tag>
+          </template>
+          <template #cooperationStatus="{ record }">
+            <a-tag :color="getStatusColor(record.cooperationStatus)">
+              {{ getStatusLabel(record.cooperationStatus) }}
+            </a-tag>
+          </template>
+          <template #portalStatus="{ record }">
+            <a-tag :color="record.portalStatus === 1 ? 'purple' : 'default'">
+              {{ getPortalStatusLabel(record.portalStatus) }}
+            </a-tag>
+          </template>
+          <template #comprehensiveScore="{ record }">
+            <a-rate
+              :value="Math.round(record.comprehensiveScore / 20)"
+              disabled
+              allow-half
+              style="font-size: 14px"
+            />
+          </template>
+          <template #action="{ record }">
+            <a-space
+              :size="0"
+              class="action-cell-inner"
+            >
+              <a-tooltip title="详情">
+                <a-button
+                  v-permission.disabled="'supplier:view'"
+                  type="link"
+                  size="small"
+                  @click="handleDetail(record)"
+                >
+                  <template #icon>
+                    <ProfileOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip title="绩效">
+                <a-button
+                  v-permission.disabled="'supplier:performance'"
+                  type="link"
+                  size="small"
+                  @click="handlePerformance(record)"
+                >
+                  <template #icon>
+                    <BarChartOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip title="编辑">
+                <a-button
+                  v-permission.disabled="'supplier:edit'"
+                  type="link"
+                  size="small"
+                  @click="handleEdit(record)"
+                >
+                  <template #icon>
+                    <EditOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <a-dropdown trigger="click">
+                <a-button
+                  type="link"
+                  size="small"
+                  class="action-more-btn"
+                >
+                  <template #icon>
+                    <EllipsisOutlined />
+                  </template>
+                </a-button>
+                <template #overlay>
+                  <a-menu @click="(info: any) => handleActionMenuClick(String(info.key), record)">
+                    <a-menu-item
+                      key="portal"
+                      v-permission.disabled="'supplier:portal'"
+                    >
+                      <DesktopOutlined /> 门户管理
+                    </a-menu-item>
+                    <a-menu-item
+                      v-if="record.portalStatus !== 1"
+                      key="activate_portal"
+                      v-permission.disabled="'supplier:portal'"
+                    >
+                      <CheckCircleOutlined /> 激活门户
+                    </a-menu-item>
+                    <a-menu-item
+                      v-else
+                      key="disable_portal"
+                      v-permission.disabled="'supplier:portal'"
+                      danger
+                    >
+                      <StopOutlined /> 禁用门户
+                    </a-menu-item>
+                    <a-menu-divider />
+                    <a-menu-item
+                      key="delete"
+                      v-permission.disabled="'supplier:delete'"
+                      danger
+                    >
+                      <DeleteOutlined /> 删除
+                    </a-menu-item>
+                  </a-menu>
+                </template>
+              </a-dropdown>
+            </a-space>
+          </template>
+        </BillTableList>
       </div>
-    </template>
-
-    <!-- 搜索 -->
-    <template #filter>
-      <a-row :gutter="[12, 12]" align="middle">
-        <a-col :span="6">
-          <a-input
-            v-model:value="searchKeyword"
-            placeholder="搜索供应商编码 / 名称..."
-            allow-clear
-            size="small"
-            @press-enter="handleSearch"
-            @input="handleSearchInput"
-          >
-            <template #prefix><SearchOutlined /></template>
-          </a-input>
-        </a-col>
-        <a-col :span="4">
-          <a-select
-            v-model:value="filters.supplierLevel"
-            placeholder="供应商等级"
-            allow-clear
-            style="width: 100%"
-            size="small"
-            @change="handleFilterChange"
-          >
-            <a-select-option value="A">A级</a-select-option>
-            <a-select-option value="B">B级</a-select-option>
-            <a-select-option value="C">C级</a-select-option>
-            <a-select-option value="D">D级</a-select-option>
-          </a-select>
-        </a-col>
-        <a-col :span="4">
-          <a-select
-            v-model:value="filters.cooperationStatus"
-            placeholder="合作状态"
-            allow-clear
-            style="width: 100%"
-            size="small"
-            @change="handleFilterChange"
-          >
-            <a-select-option :value="1">正常合作</a-select-option>
-            <a-select-option :value="2">暂停合作</a-select-option>
-            <a-select-option :value="3">终止合作</a-select-option>
-            <a-select-option :value="4">潜在供应商</a-select-option>
-          </a-select>
-        </a-col>
-        <a-col :span="4">
-          <a-space>
-            <a-button type="primary" @click="handleSearch">查询</a-button>
-            <a-button @click="handleReset">重置</a-button>
-          </a-space>
-        </a-col>
-        <a-col :span="6" style="text-align: right;">
-          <span style="color: #909399; font-size: 13px;">共 {{ pagination.total }} 条记录</span>
-        </a-col>
-      </a-row>
-    </template>
-
-    <!-- 统计卡片 -->
-    <template #headerContent>
-      <a-row :gutter="12" style="flex: 1;">
-        <a-col :span="6">
-          <div class="stat-card stat-card--blue">
-            <div class="stat-card-icon">
-              <TeamOutlined />
-            </div>
-            <div class="stat-card-content">
-              <div class="stat-card-title">供应商总数</div>
-              <div class="stat-card-value">
-                <span v-if="statLoading" class="stat-skeleton" />
-                <template v-else>{{ statData.totalSuppliers }}</template>
-              </div>
-            </div>
-          </div>
-        </a-col>
-        <a-col :span="6">
-          <div class="stat-card stat-card--green">
-            <div class="stat-card-icon">
-              <StarOutlined />
-            </div>
-            <div class="stat-card-content">
-              <div class="stat-card-title">A级供应商</div>
-              <div class="stat-card-value">
-                <span v-if="statLoading" class="stat-skeleton" />
-                <template v-else>{{ statData.levelACount }}</template>
-              </div>
-            </div>
-          </div>
-        </a-col>
-        <a-col :span="6">
-          <div class="stat-card stat-card--orange">
-            <div class="stat-card-icon">
-              <CheckCircleOutlined />
-            </div>
-            <div class="stat-card-content">
-              <div class="stat-card-title">正常合作</div>
-              <div class="stat-card-value">
-                <span v-if="statLoading" class="stat-skeleton" />
-                <template v-else>{{ statData.activeCooperationCount }}</template>
-              </div>
-            </div>
-          </div>
-        </a-col>
-        <a-col :span="6">
-          <div class="stat-card stat-card--purple">
-            <div class="stat-card-icon">
-              <DesktopOutlined />
-            </div>
-            <div class="stat-card-content">
-              <div class="stat-card-title">门户已激活</div>
-              <div class="stat-card-value">
-                <span v-if="statLoading" class="stat-skeleton" />
-                <template v-else>{{ statData.portalActivatedCount }}</template>
-              </div>
-            </div>
-          </div>
-        </a-col>
-      </a-row>
-    </template>
-
-    <div class="table-wrapper">
-    <!-- 错误提示 -->
-    <a-alert
-      v-if="fetchError"
-      message="数据加载失败"
-      description="无法获取供应商数据，请检查网络连接后重试"
-      type="error"
-      show-icon
-      closable
-      style="margin-bottom: 16px"
-      @close="fetchError = false"
-    >
-      <template #action>
-        <a-button size="small" type="primary" @click="fetchData">重试</a-button>
-      </template>
-    </a-alert>
-
-    <!-- 表格 -->
-    <BillTableList
-      ref="tableRef"
-      :columns="vxeColumns"
-      :data-source="dataSource"
-      :loading="loading"
-      :pagination="pagination"
-      :show-search="false"
-      :show-add="false"
-      :selectable="true"
-      :show-export="false"
-      :show-summary="true"
-      :summary-data="summaryData"
-      :min-empty-rows="12"
-      @cell-dblclick="handleView"
-      @page-change="handlePageChange"
-      @selection-change="handleSelectionChange"
-    >
-      <template #batch-actions="{ selectedRows: rows }">
-        <a-button v-permission.disabled="'supplier:delete'" danger size="small" :loading="batchDeleting" @click="handleBatchDelete">
-          <template #icon><DeleteOutlined /></template>
-          批量删除 ({{ rows.length }})
-        </a-button>
-        <a-button v-permission.disabled="'supplier:export'" size="small" @click="handleBatchExport">
-          <template #icon><ExportOutlined /></template>
-          导出选中
-        </a-button>
-      </template>
-      <template #empty>
-        <div class="table-empty">
-          <template v-if="hasError">
-            <WarningOutlined class="table-empty-icon" style="color: #faad14" />
-            <p class="table-empty-text">加载失败</p>
-            <a-button type="primary" size="small" @click="fetchData" class="table-empty-action">
-              <ReloadOutlined /> 重试
-            </a-button>
-          </template>
-          <template v-else>
-            <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-            <InboxOutlined v-else class="table-empty-icon" />
-            <p v-if="hasActiveFilters" class="table-empty-text">
-              没有符合条件的供应商记录，<a @click="handleResetFilters">清除筛选</a>
-            </p>
-            <p v-else class="table-empty-text">
-              暂无供应商数据
-            </p>
-          </template>
-        </div>
-      </template>
-
-      <template #supplierLevel="{ record }">
-        <a-tag :color="getLevelColor(record.supplierLevel)">{{ record.supplierLevel }}级</a-tag>
-      </template>
-      <template #cooperationStatus="{ record }">
-        <a-tag :color="getStatusColor(record.cooperationStatus)">
-          {{ getStatusLabel(record.cooperationStatus) }}
-        </a-tag>
-      </template>
-      <template #portalStatus="{ record }">
-        <a-tag :color="record.portalStatus === 1 ? 'purple' : 'default'">
-          {{ getPortalStatusLabel(record.portalStatus) }}
-        </a-tag>
-      </template>
-      <template #comprehensiveScore="{ record }">
-        <a-rate :value="Math.round(record.comprehensiveScore / 20)" disabled allow-half style="font-size: 14px" />
-      </template>
-      <template #action="{ record }">
-        <a-space :size="0" class="action-cell-inner">
-          <a-tooltip title="详情">
-            <a-button v-permission.disabled="'supplier:view'" type="link" size="small" @click="handleDetail(record)">
-              <template #icon><ProfileOutlined /></template>
-            </a-button>
-          </a-tooltip>
-          <a-tooltip title="绩效">
-            <a-button v-permission.disabled="'supplier:performance'" type="link" size="small" @click="handlePerformance(record)">
-              <template #icon><BarChartOutlined /></template>
-            </a-button>
-          </a-tooltip>
-          <a-tooltip title="编辑">
-            <a-button v-permission.disabled="'supplier:edit'" type="link" size="small" @click="handleEdit(record)">
-              <template #icon><EditOutlined /></template>
-            </a-button>
-          </a-tooltip>
-          <a-dropdown trigger="click">
-            <a-button type="link" size="small" class="action-more-btn">
-              <template #icon><EllipsisOutlined /></template>
-            </a-button>
-            <template #overlay>
-              <a-menu @click="(info: any) => handleActionMenuClick(String(info.key), record)">
-                <a-menu-item v-permission.disabled="'supplier:portal'" key="portal">
-                  <DesktopOutlined /> 门户管理
-                </a-menu-item>
-                <a-menu-item v-permission.disabled="'supplier:portal'" v-if="record.portalStatus !== 1" key="activate_portal">
-                  <CheckCircleOutlined /> 激活门户
-                </a-menu-item>
-                <a-menu-item v-permission.disabled="'supplier:portal'" v-else key="disable_portal" danger>
-                  <StopOutlined /> 禁用门户
-                </a-menu-item>
-                <a-menu-divider />
-                <a-menu-item v-permission.disabled="'supplier:delete'" key="delete" danger>
-                  <DeleteOutlined /> 删除
-                </a-menu-item>
-              </a-menu>
-            </template>
-          </a-dropdown>
-        </a-space>
-      </template>
-    </BillTableList>
-    </div>
-  </PageContainer>
+    </PageContainer>
   </ErrorBoundary>
 
   <!-- 门户管理弹窗 -->
@@ -289,15 +476,25 @@
     @cancel="portalModalVisible = false"
   >
     <template v-if="currentPortalSupplier">
-      <a-descriptions :column="1" bordered size="small">
-        <a-descriptions-item label="供应商名称">{{ currentPortalSupplier.supplierName }}</a-descriptions-item>
-        <a-descriptions-item label="供应商编码">{{ currentPortalSupplier.supplierCode }}</a-descriptions-item>
+      <a-descriptions
+        :column="1"
+        bordered
+        size="small"
+      >
+        <a-descriptions-item label="供应商名称">
+          {{ currentPortalSupplier.supplierName }}
+        </a-descriptions-item>
+        <a-descriptions-item label="供应商编码">
+          {{ currentPortalSupplier.supplierCode }}
+        </a-descriptions-item>
         <a-descriptions-item label="门户状态">
           <a-tag :color="currentPortalSupplier.portalStatus === 1 ? 'purple' : 'default'">
             {{ getPortalStatusLabel(currentPortalSupplier.portalStatus) }}
           </a-tag>
         </a-descriptions-item>
-        <a-descriptions-item label="门户账户ID">{{ currentPortalSupplier.portalAccountId || '-' }}</a-descriptions-item>
+        <a-descriptions-item label="门户账户ID">
+          {{ currentPortalSupplier.portalAccountId || '-' }}
+        </a-descriptions-item>
       </a-descriptions>
       <div style="margin-top: 24px; text-align: center;">
         <a-button
@@ -306,7 +503,9 @@
           :loading="portalLoading"
           @click="handleActivatePortal(currentPortalSupplier)"
         >
-          <template #icon><CheckCircleOutlined /></template>
+          <template #icon>
+            <CheckCircleOutlined />
+          </template>
           激活门户
         </a-button>
         <a-button
@@ -315,7 +514,9 @@
           :loading="portalLoading"
           @click="handleDisablePortal(currentPortalSupplier)"
         >
-          <template #icon><StopOutlined /></template>
+          <template #icon>
+            <StopOutlined />
+          </template>
           禁用门户
         </a-button>
       </div>
@@ -341,11 +542,18 @@
       <p class="ant-upload-drag-icon">
         <inbox-outlined />
       </p>
-      <p class="ant-upload-text">点击或拖拽文件到此区域上传</p>
-      <p class="ant-upload-hint">支持 .xlsx .xls .csv 格式文件</p>
+      <p class="ant-upload-text">
+        点击或拖拽文件到此区域上传
+      </p>
+      <p class="ant-upload-hint">
+        支持 .xlsx .xls .csv 格式文件
+      </p>
     </a-upload-dragger>
 
-    <div v-if="uploadFile" style="margin-top: 12px; padding: 8px 12px; background: #f6ffed; border: 1px solid #b7eb8f; border-radius: 4px;">
+    <div
+      v-if="uploadFile"
+      style="margin-top: 12px; padding: 8px 12px; background: #f6ffed; border: 1px solid #b7eb8f; border-radius: 4px;"
+    >
       已选择文件：{{ uploadFile.name }}
     </div>
 
@@ -362,10 +570,16 @@
       :show-batch-delete="false"
     >
       <template #csvFieldCell="{ record, index }">
-        <a-input v-model:value="importMapping[index].csvField" placeholder="请输入CSV文件中的列名" size="small" />
+        <a-input
+          v-model:value="importMapping[index].csvField"
+          placeholder="请输入CSV文件中的列名"
+          size="small"
+        />
       </template>
       <template #requiredCell="{ record }">
-        <a-tag :color="record.required ? 'red' : 'default'">{{ record.required ? '是' : '否' }}</a-tag>
+        <a-tag :color="record.required ? 'red' : 'default'">
+          {{ record.required ? '是' : '否' }}
+        </a-tag>
       </template>
     </BillTableList>
   </a-modal>

@@ -1,358 +1,576 @@
 <template>
   <ErrorBoundary @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="replenishment-page-header">
-        <div class="replenishment-page-header-left">
-          <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item>智能补货</a-breadcrumb-item>
-          </a-breadcrumb>
-          <h2 class="replenishment-page-title">智能补货建议</h2>
-        </div>
-        <div class="replenishment-page-header-right">
-          <span v-if="lastUpdateTime" class="page-header__update-time">更新于: {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-            <SyncOutlined /> {{ autoRefreshCountdown }}s
-          </span>
-          <span class="shortcut-hints">
-            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-          </span>
-          <a-button size="small" :loading="loading" v-permission="'erp:stock:refresh'" @click="handleRefresh">
-            <template #icon><ReloadOutlined /></template>
-            刷新
-          </a-button>
-        </div>
-      </div>
-    </template>
-
-    <!-- 统计卡片 -->
-    <a-row :gutter="16" style="margin-bottom: 16px;">
-      <a-col :span="6">
-        <div class="summary-card">
-          <div class="summary-icon" style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);">
-            <AlertOutlined />
+    <PageContainer full-height>
+      <template #header>
+        <div class="replenishment-page-header">
+          <div class="replenishment-page-header-left">
+            <a-breadcrumb>
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>智能补货</a-breadcrumb-item>
+            </a-breadcrumb>
+            <h2 class="replenishment-page-title">
+              智能补货建议
+            </h2>
           </div>
-          <div class="summary-content">
-            <div class="summary-title">待处理建议</div>
-            <div class="summary-value">{{ statistics.pendingCount }}</div>
-          </div>
-        </div>
-      </a-col>
-      <a-col :span="6">
-        <div class="summary-card">
-          <div class="summary-icon" style="background: linear-gradient(135deg, #f5222d 0%, #cf1322 100%);">
-            <FireOutlined />
-          </div>
-          <div class="summary-content">
-            <div class="summary-title">高优先级</div>
-            <div class="summary-value warning">{{ statistics.highPriorityCount }}</div>
+          <div class="replenishment-page-header-right">
+            <span
+              v-if="lastUpdateTime"
+              class="page-header__update-time"
+            >更新于: {{ lastUpdateTime }}</span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            >
+              <SyncOutlined /> {{ autoRefreshCountdown }}s
+            </span>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            </span>
+            <a-button
+              v-permission="'erp:stock:refresh'"
+              size="small"
+              :loading="loading"
+              @click="handleRefresh"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
+              刷新
+            </a-button>
           </div>
         </div>
-      </a-col>
-      <a-col :span="6">
-        <div class="summary-card">
-          <div class="summary-icon" style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);">
-            <CheckCircleOutlined />
-          </div>
-          <div class="summary-content">
-            <div class="summary-title">已生成采购</div>
-            <div class="summary-value">{{ statistics.processedCount }}</div>
-          </div>
-        </div>
-      </a-col>
-      <a-col :span="6">
-        <div class="summary-card highlight">
-          <div class="summary-icon" style="background: linear-gradient(135deg, #722ed1 0%, #531dab 100%);">
-            <DollarOutlined />
-          </div>
-          <div class="summary-content">
-            <div class="summary-title">预估采购成本</div>
-            <div class="summary-value">¥{{ formatAmount(statistics.estimatedCost) }}</div>
-          </div>
-        </div>
-      </a-col>
-    </a-row>
+      </template>
 
-    <a-card :bordered="false" style="flex: 1; overflow: hidden;" :bodyStyle="{ display: 'flex', flexDirection: 'column', height: 'calc(100% - 57px)' }">
-      <div class="page-header" style="margin-bottom: 16px;">
-        <h2 style="margin: 0;">智能补货建议</h2>
-        <a-space>
-          <a-button type="primary" @click="generateSuggestions">
-            <template #icon><ReloadOutlined /></template>
-            生成建议
-          </a-button>
-          <a-button @click="showReport">查看报告</a-button>
-        </a-space>
-      </div>
-
-      <a-alert type="info" show-icon style="margin-bottom: 16px">
-        <template #message>
-          系统根据库存水平、销售趋势、安全库存和采购周期自动计算补货建议。建议优先级越高表示补货紧迫程度越高。
-        </template>
-      </a-alert>
-
-      <a-tabs v-model:activeKey="activeTab" style="flex: 1; overflow: hidden;">
-        <a-tab-pane key="pending" tab="待处理">
-          <BillTableList
-            ref="pendingTableRef"
-            :columns="pendingVxeColumns"
-            :data-source="pendingSuggestions"
-            :loading="loading"
-            :pagination="pagination"
-            row-key="id"
-            :show-toolbar="false"
-            :selectable="false"
-            :show-add="false"
-            :show-search="false"
-            :show-export="false"
-            :show-batch-delete="false"
-            @cell-dblclick="handleViewDetail"
-            @page-change="handlePageChange"
-          >
-            <template #empty>
-              <div v-if="hasError" class="table-empty">
-                <WarningOutlined class="table-empty-icon" />
-                <p class="table-empty-text">数据加载异常，请重试</p>
-                <a-button type="primary" @click="loadSuggestions"><ReloadOutlined /> 重试</a-button>
-              </div>
-            </template>
-            <template #productCell="{ record }">
-              <div class="product-info">
-                <span class="product-name">{{ record.productName }}</span>
-                <span class="product-code">{{ record.productCode }}</span>
-              </div>
-            </template>
-            <template #stockCell="{ record }">
-              <div class="stock-info">
-                <div class="stock-row">
-                  <span class="stock-label">当前库存:</span>
-                  <span class="stock-value">{{ record.currentQty }}</span>
-                </div>
-                <div class="stock-row">
-                  <span class="stock-label">安全库存:</span>
-                  <span class="stock-value">{{ record.safetyStock }}</span>
-                </div>
-                <div class="stock-row danger">
-                  <span class="stock-label">缺口:</span>
-                  <span class="stock-value shortage">{{ record.shortageQty }}</span>
-                </div>
-              </div>
-            </template>
-            <template #analysisCell="{ record }">
-              <div class="analysis-info">
-                <div class="analysis-row">
-                  <span class="analysis-label">日均销量:</span>
-                  <span class="analysis-value">{{ record.avgDailySales }}件</span>
-                </div>
-                <div class="analysis-row">
-                  <span class="analysis-label">库存天数:</span>
-                  <span class="analysis-value" :class="{ danger: record.daysOfStock <= 3 }">{{ record.daysOfStock }}天</span>
-                </div>
-                <div class="analysis-row">
-                  <span class="analysis-label">采购周期:</span>
-                  <span class="analysis-value">{{ record.leadTime }}天</span>
-                </div>
-              </div>
-            </template>
-            <template #suggestedQtyCell="{ record }">
-              <span class="suggested-qty">建议采购 {{ record.suggestedQty }} 件</span>
-            </template>
-            <template #priorityCell="{ record }">
-              <a-progress :percent="record.priority" :stroke-color="getPriorityColor(record.priority)" :show-info="true" size="small" />
-            </template>
-            <template #estimatedArrivalCell="{ record }">
-              <span class="arrival-date">{{ formatDate(record.estimatedArrival) }}</span>
-            </template>
-            <template #action="{ record }">
-              <a-space>
-                <a-button size="small" type="primary" v-permission="'erp:stock:createorder'" @click="handleCreateOrder(record)">创建采购单</a-button>
-                <a-button size="small" v-permission="'erp:stock:ignore'" @click="handleIgnore(record)">忽略</a-button>
-                <a @click="handleViewDetail(record)">详情</a>
-              </a-space>
-            </template>
-          </BillTableList>
-        </a-tab-pane>
-        <a-tab-pane key="processed" tab="已处理">
-          <BillTableList
-            :columns="processedVxeColumns"
-            :data-source="processedSuggestions"
-            :loading="loading"
-            :pagination="false as any"
-            row-key="id"
-            :show-toolbar="false"
-            :selectable="false"
-            :show-add="false"
-            :show-search="false"
-            :show-export="false"
-            :show-batch-delete="false"
-            @cell-dblclick="handleViewDetail"
-          >
-            <template #empty>
-              <div v-if="hasError" class="table-empty">
-                <WarningOutlined class="table-empty-icon" />
-                <p class="table-empty-text">数据加载异常，请重试</p>
-                <a-button type="primary" @click="loadSuggestions"><ReloadOutlined /> 重试</a-button>
-              </div>
-            </template>
-            <template #statusCell="{ record }">
-              <a-tag color="green">已生成采购单</a-tag>
-            </template>
-            <template #purchaseOrderCell="{ record }">
-              <a @click="goPurchaseOrder(record.purchaseOrderId)">{{ record.purchaseOrderNo }}</a>
-            </template>
-          </BillTableList>
-        </a-tab-pane>
-        <a-tab-pane key="ignored" tab="已忽略">
-          <BillTableList
-            :columns="ignoredVxeColumns"
-            :data-source="ignoredSuggestions"
-            :loading="loading"
-            :pagination="false as any"
-            row-key="id"
-            :show-toolbar="false"
-            :selectable="false"
-            :show-add="false"
-            :show-search="false"
-            :show-export="false"
-            :show-batch-delete="false"
-            @cell-dblclick="handleViewDetail"
-          >
-            <template #empty>
-              <div v-if="hasError" class="table-empty">
-                <WarningOutlined class="table-empty-icon" />
-                <p class="table-empty-text">数据加载异常，请重试</p>
-                <a-button type="primary" @click="loadSuggestions"><ReloadOutlined /> 重试</a-button>
-              </div>
-            </template>
-            <template #statusCell="{ record }">
-              <a-tag color="default">已忽略</a-tag>
-            </template>
-            <template #ignoreReasonCell="{ record }">
-              <span class="ignore-reason">{{ record.ignoreReason }}</span>
-            </template>
-          </BillTableList>
-        </a-tab-pane>
-      </a-tabs>
-    </a-card>
-
-    <a-drawer
-      v-model:open="detailVisible"
-      title="补货建议详情"
-      placement="right"
-      width="80vw"
-      :footer="null"
-    >
-      <a-spin :spinning="detailLoading">
-      <a-descriptions :column="2" bordered>
-        <a-descriptions-item label="产品名称">{{ suggestionDetail.productName }}</a-descriptions-item>
-        <a-descriptions-item label="产品编码">{{ suggestionDetail.productCode }}</a-descriptions-item>
-        <a-descriptions-item label="当前库存">{{ suggestionDetail.currentQty }}</a-descriptions-item>
-        <a-descriptions-item label="安全库存">{{ suggestionDetail.safetyStock }}</a-descriptions-item>
-        <a-descriptions-item label="缺口数量">
-          <span class="shortage">{{ suggestionDetail.shortageQty }}</span>
-        </a-descriptions-item>
-        <a-descriptions-item label="建议采购量">
-          <span class="suggested">{{ suggestionDetail.suggestedQty }}</span>
-        </a-descriptions-item>
-        <a-descriptions-item label="日均销量">{{ suggestionDetail.avgDailySales }}件</a-descriptions-item>
-        <a-descriptions-item label="库存天数">
-          <span :class="{ danger: suggestionDetail.daysOfStock <= 3 }">{{ suggestionDetail.daysOfStock }}天</span>
-        </a-descriptions-item>
-        <a-descriptions-item label="采购周期">{{ suggestionDetail.leadTime }}天</a-descriptions-item>
-        <a-descriptions-item label="优先级">
-          <a-progress :percent="suggestionDetail.priority" :stroke-color="getPriorityColor(suggestionDetail.priority)" />
-        </a-descriptions-item>
-        <a-descriptions-item label="预计到货日期">{{ formatDate(suggestionDetail.estimatedArrival) }}</a-descriptions-item>
-        <a-descriptions-item label="建议原因" :span="2">{{ suggestionDetail.reason }}</a-descriptions-item>
-      </a-descriptions>
-
-      <a-divider>销售趋势分析</a-divider>
-      <div ref="salesTrendChartRef" class="chart-container"></div>
-      </a-spin>
-    </a-drawer>
-
-    <a-modal
-      v-model:open="ignoreVisible"
-      title="忽略补货建议"
-      width="500px"
-      @ok="confirmIgnore"
-    >
-      <a-form :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
-        <a-form-item label="产品名称">
-          <span>{{ ignoreData.productName }}</span>
-        </a-form-item>
-        <a-form-item label="建议采购量">
-          <span>{{ ignoreData.suggestedQty }}件</span>
-        </a-form-item>
-        <a-form-item label="忽略原因">
-          <a-textarea v-model:value="ignoreReason" placeholder="请输入忽略原因" :rows="3" />
-        </a-form-item>
-      </a-form>
-    </a-modal>
-
-    <a-modal
-      v-model:open="createOrderVisible"
-      title="创建采购订单"
-      width="600px"
-      @ok="confirmCreateOrder"
-    >
-      <a-form :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
-        <a-form-item label="产品名称">
-          <span>{{ createOrderData.productName }}</span>
-        </a-form-item>
-        <a-form-item label="建议采购量">
-          <span>{{ createOrderData.suggestedQty }}件</span>
-        </a-form-item>
-        <a-form-item label="供应商" name="supplierId">
-          <a-select size="small" v-model:value="selectedSupplierId" placeholder="请选择供应商" show-search :filter-option="filterOption">
-            <a-select-option v-for="supplier in supplierList" :key="supplier.id" :value="supplier.id">
-              {{ supplier.name }}
-            </a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item label="预计到货日期">
-          <span>{{ formatDate(createOrderData.estimatedArrival) }}</span>
-        </a-form-item>
-      </a-form>
-    </a-modal>
-
-    <a-modal
-      v-model:open="reportVisible"
-      title="补货建议报告"
-      width="800px"
-      :footer="null"
-    >
-      <a-row :gutter="16">
+      <!-- 统计卡片 -->
+      <a-row
+        :gutter="16"
+        style="margin-bottom: 16px;"
+      >
         <a-col :span="6">
-          <a-statistic title="建议总数" :value="report.totalSuggestions" />
+          <div class="summary-card">
+            <div
+              class="summary-icon"
+              style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);"
+            >
+              <AlertOutlined />
+            </div>
+            <div class="summary-content">
+              <div class="summary-title">
+                待处理建议
+              </div>
+              <div class="summary-value">
+                {{ statistics.pendingCount }}
+              </div>
+            </div>
+          </div>
         </a-col>
         <a-col :span="6">
-          <a-statistic title="高优先级" :value="report.highPriorityCount" :value-style="{ color: '#f5222d' }" />
+          <div class="summary-card">
+            <div
+              class="summary-icon"
+              style="background: linear-gradient(135deg, #f5222d 0%, #cf1322 100%);"
+            >
+              <FireOutlined />
+            </div>
+            <div class="summary-content">
+              <div class="summary-title">
+                高优先级
+              </div>
+              <div class="summary-value warning">
+                {{ statistics.highPriorityCount }}
+              </div>
+            </div>
+          </div>
         </a-col>
         <a-col :span="6">
-          <a-statistic title="中优先级" :value="report.mediumPriorityCount" :value-style="{ color: '#faad14' }" />
+          <div class="summary-card">
+            <div
+              class="summary-icon"
+              style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);"
+            >
+              <CheckCircleOutlined />
+            </div>
+            <div class="summary-content">
+              <div class="summary-title">
+                已生成采购
+              </div>
+              <div class="summary-value">
+                {{ statistics.processedCount }}
+              </div>
+            </div>
+          </div>
         </a-col>
         <a-col :span="6">
-          <a-statistic title="低优先级" :value="report.lowPriorityCount" />
+          <div class="summary-card highlight">
+            <div
+              class="summary-icon"
+              style="background: linear-gradient(135deg, #722ed1 0%, #531dab 100%);"
+            >
+              <DollarOutlined />
+            </div>
+            <div class="summary-content">
+              <div class="summary-title">
+                预估采购成本
+              </div>
+              <div class="summary-value">
+                ¥{{ formatAmount(statistics.estimatedCost) }}
+              </div>
+            </div>
+          </div>
         </a-col>
       </a-row>
-      <a-divider />
-      <a-row :gutter="16">
-        <a-col :span="8">
-          <a-statistic title="总缺口数量" :value="report.totalShortageQty" suffix="件" />
-        </a-col>
-        <a-col :span="8">
-          <a-statistic title="建议采购总量" :value="report.totalSuggestedQty" suffix="件" />
-        </a-col>
-        <a-col :span="8">
-          <a-statistic title="预估采购成本" :value="report.estimatedCost" :precision="2" prefix="¥" />
-        </a-col>
-      </a-row>
-      <a-divider>优先级分布</a-divider>
-      <div ref="priorityChartRef" class="chart-container"></div>
-    </a-modal>
-  </PageContainer>
+
+      <a-card
+        :bordered="false"
+        style="flex: 1; overflow: hidden;"
+        :body-style="{ display: 'flex', flexDirection: 'column', height: 'calc(100% - 57px)' }"
+      >
+        <div
+          class="page-header"
+          style="margin-bottom: 16px;"
+        >
+          <h2 style="margin: 0;">
+            智能补货建议
+          </h2>
+          <a-space>
+            <a-button
+              type="primary"
+              @click="generateSuggestions"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
+              生成建议
+            </a-button>
+            <a-button @click="showReport">
+              查看报告
+            </a-button>
+          </a-space>
+        </div>
+
+        <a-alert
+          type="info"
+          show-icon
+          style="margin-bottom: 16px"
+        >
+          <template #message>
+            系统根据库存水平、销售趋势、安全库存和采购周期自动计算补货建议。建议优先级越高表示补货紧迫程度越高。
+          </template>
+        </a-alert>
+
+        <a-tabs
+          v-model:active-key="activeTab"
+          style="flex: 1; overflow: hidden;"
+        >
+          <a-tab-pane
+            key="pending"
+            tab="待处理"
+          >
+            <BillTableList
+              ref="pendingTableRef"
+              :columns="pendingVxeColumns"
+              :data-source="pendingSuggestions"
+              :loading="loading"
+              :pagination="pagination"
+              row-key="id"
+              :show-toolbar="false"
+              :selectable="false"
+              :show-add="false"
+              :show-search="false"
+              :show-export="false"
+              :show-batch-delete="false"
+              @cell-dblclick="handleViewDetail"
+              @page-change="handlePageChange"
+            >
+              <template #empty>
+                <div
+                  v-if="hasError"
+                  class="table-empty"
+                >
+                  <WarningOutlined class="table-empty-icon" />
+                  <p class="table-empty-text">
+                    数据加载异常，请重试
+                  </p>
+                  <a-button
+                    type="primary"
+                    @click="loadSuggestions"
+                  >
+                    <ReloadOutlined /> 重试
+                  </a-button>
+                </div>
+              </template>
+              <template #productCell="{ record }">
+                <div class="product-info">
+                  <span class="product-name">{{ record.productName }}</span>
+                  <span class="product-code">{{ record.productCode }}</span>
+                </div>
+              </template>
+              <template #stockCell="{ record }">
+                <div class="stock-info">
+                  <div class="stock-row">
+                    <span class="stock-label">当前库存:</span>
+                    <span class="stock-value">{{ record.currentQty }}</span>
+                  </div>
+                  <div class="stock-row">
+                    <span class="stock-label">安全库存:</span>
+                    <span class="stock-value">{{ record.safetyStock }}</span>
+                  </div>
+                  <div class="stock-row danger">
+                    <span class="stock-label">缺口:</span>
+                    <span class="stock-value shortage">{{ record.shortageQty }}</span>
+                  </div>
+                </div>
+              </template>
+              <template #analysisCell="{ record }">
+                <div class="analysis-info">
+                  <div class="analysis-row">
+                    <span class="analysis-label">日均销量:</span>
+                    <span class="analysis-value">{{ record.avgDailySales }}件</span>
+                  </div>
+                  <div class="analysis-row">
+                    <span class="analysis-label">库存天数:</span>
+                    <span
+                      class="analysis-value"
+                      :class="{ danger: record.daysOfStock <= 3 }"
+                    >{{ record.daysOfStock }}天</span>
+                  </div>
+                  <div class="analysis-row">
+                    <span class="analysis-label">采购周期:</span>
+                    <span class="analysis-value">{{ record.leadTime }}天</span>
+                  </div>
+                </div>
+              </template>
+              <template #suggestedQtyCell="{ record }">
+                <span class="suggested-qty">建议采购 {{ record.suggestedQty }} 件</span>
+              </template>
+              <template #priorityCell="{ record }">
+                <a-progress
+                  :percent="record.priority"
+                  :stroke-color="getPriorityColor(record.priority)"
+                  :show-info="true"
+                  size="small"
+                />
+              </template>
+              <template #estimatedArrivalCell="{ record }">
+                <span class="arrival-date">{{ formatDate(record.estimatedArrival) }}</span>
+              </template>
+              <template #action="{ record }">
+                <a-space>
+                  <a-button
+                    v-permission="'erp:stock:createorder'"
+                    size="small"
+                    type="primary"
+                    @click="handleCreateOrder(record)"
+                  >
+                    创建采购单
+                  </a-button>
+                  <a-button
+                    v-permission="'erp:stock:ignore'"
+                    size="small"
+                    @click="handleIgnore(record)"
+                  >
+                    忽略
+                  </a-button>
+                  <a @click="handleViewDetail(record)">详情</a>
+                </a-space>
+              </template>
+            </BillTableList>
+          </a-tab-pane>
+          <a-tab-pane
+            key="processed"
+            tab="已处理"
+          >
+            <BillTableList
+              :columns="processedVxeColumns"
+              :data-source="processedSuggestions"
+              :loading="loading"
+              :pagination="false as any"
+              row-key="id"
+              :show-toolbar="false"
+              :selectable="false"
+              :show-add="false"
+              :show-search="false"
+              :show-export="false"
+              :show-batch-delete="false"
+              @cell-dblclick="handleViewDetail"
+            >
+              <template #empty>
+                <div
+                  v-if="hasError"
+                  class="table-empty"
+                >
+                  <WarningOutlined class="table-empty-icon" />
+                  <p class="table-empty-text">
+                    数据加载异常，请重试
+                  </p>
+                  <a-button
+                    type="primary"
+                    @click="loadSuggestions"
+                  >
+                    <ReloadOutlined /> 重试
+                  </a-button>
+                </div>
+              </template>
+              <template #statusCell="{ record }">
+                <a-tag color="green">
+                  已生成采购单
+                </a-tag>
+              </template>
+              <template #purchaseOrderCell="{ record }">
+                <a @click="goPurchaseOrder(record.purchaseOrderId)">{{ record.purchaseOrderNo }}</a>
+              </template>
+            </BillTableList>
+          </a-tab-pane>
+          <a-tab-pane
+            key="ignored"
+            tab="已忽略"
+          >
+            <BillTableList
+              :columns="ignoredVxeColumns"
+              :data-source="ignoredSuggestions"
+              :loading="loading"
+              :pagination="false as any"
+              row-key="id"
+              :show-toolbar="false"
+              :selectable="false"
+              :show-add="false"
+              :show-search="false"
+              :show-export="false"
+              :show-batch-delete="false"
+              @cell-dblclick="handleViewDetail"
+            >
+              <template #empty>
+                <div
+                  v-if="hasError"
+                  class="table-empty"
+                >
+                  <WarningOutlined class="table-empty-icon" />
+                  <p class="table-empty-text">
+                    数据加载异常，请重试
+                  </p>
+                  <a-button
+                    type="primary"
+                    @click="loadSuggestions"
+                  >
+                    <ReloadOutlined /> 重试
+                  </a-button>
+                </div>
+              </template>
+              <template #statusCell="{ record }">
+                <a-tag color="default">
+                  已忽略
+                </a-tag>
+              </template>
+              <template #ignoreReasonCell="{ record }">
+                <span class="ignore-reason">{{ record.ignoreReason }}</span>
+              </template>
+            </BillTableList>
+          </a-tab-pane>
+        </a-tabs>
+      </a-card>
+
+      <a-drawer
+        v-model:open="detailVisible"
+        title="补货建议详情"
+        placement="right"
+        width="80vw"
+        :footer="null"
+      >
+        <a-spin :spinning="detailLoading">
+          <a-descriptions
+            :column="2"
+            bordered
+          >
+            <a-descriptions-item label="产品名称">
+              {{ suggestionDetail.productName }}
+            </a-descriptions-item>
+            <a-descriptions-item label="产品编码">
+              {{ suggestionDetail.productCode }}
+            </a-descriptions-item>
+            <a-descriptions-item label="当前库存">
+              {{ suggestionDetail.currentQty }}
+            </a-descriptions-item>
+            <a-descriptions-item label="安全库存">
+              {{ suggestionDetail.safetyStock }}
+            </a-descriptions-item>
+            <a-descriptions-item label="缺口数量">
+              <span class="shortage">{{ suggestionDetail.shortageQty }}</span>
+            </a-descriptions-item>
+            <a-descriptions-item label="建议采购量">
+              <span class="suggested">{{ suggestionDetail.suggestedQty }}</span>
+            </a-descriptions-item>
+            <a-descriptions-item label="日均销量">
+              {{ suggestionDetail.avgDailySales }}件
+            </a-descriptions-item>
+            <a-descriptions-item label="库存天数">
+              <span :class="{ danger: suggestionDetail.daysOfStock <= 3 }">{{ suggestionDetail.daysOfStock }}天</span>
+            </a-descriptions-item>
+            <a-descriptions-item label="采购周期">
+              {{ suggestionDetail.leadTime }}天
+            </a-descriptions-item>
+            <a-descriptions-item label="优先级">
+              <a-progress
+                :percent="suggestionDetail.priority"
+                :stroke-color="getPriorityColor(suggestionDetail.priority)"
+              />
+            </a-descriptions-item>
+            <a-descriptions-item label="预计到货日期">
+              {{ formatDate(suggestionDetail.estimatedArrival) }}
+            </a-descriptions-item>
+            <a-descriptions-item
+              label="建议原因"
+              :span="2"
+            >
+              {{ suggestionDetail.reason }}
+            </a-descriptions-item>
+          </a-descriptions>
+
+          <a-divider>销售趋势分析</a-divider>
+          <div
+            ref="salesTrendChartRef"
+            class="chart-container"
+          />
+        </a-spin>
+      </a-drawer>
+
+      <a-modal
+        v-model:open="ignoreVisible"
+        title="忽略补货建议"
+        width="500px"
+        @ok="confirmIgnore"
+      >
+        <a-form
+          :label-col="{ span: 6 }"
+          :wrapper-col="{ span: 16 }"
+        >
+          <a-form-item label="产品名称">
+            <span>{{ ignoreData.productName }}</span>
+          </a-form-item>
+          <a-form-item label="建议采购量">
+            <span>{{ ignoreData.suggestedQty }}件</span>
+          </a-form-item>
+          <a-form-item label="忽略原因">
+            <a-textarea
+              v-model:value="ignoreReason"
+              placeholder="请输入忽略原因"
+              :rows="3"
+            />
+          </a-form-item>
+        </a-form>
+      </a-modal>
+
+      <a-modal
+        v-model:open="createOrderVisible"
+        title="创建采购订单"
+        width="600px"
+        @ok="confirmCreateOrder"
+      >
+        <a-form
+          :label-col="{ span: 6 }"
+          :wrapper-col="{ span: 16 }"
+        >
+          <a-form-item label="产品名称">
+            <span>{{ createOrderData.productName }}</span>
+          </a-form-item>
+          <a-form-item label="建议采购量">
+            <span>{{ createOrderData.suggestedQty }}件</span>
+          </a-form-item>
+          <a-form-item
+            label="供应商"
+            name="supplierId"
+          >
+            <a-select
+              v-model:value="selectedSupplierId"
+              size="small"
+              placeholder="请选择供应商"
+              show-search
+              :filter-option="filterOption"
+            >
+              <a-select-option
+                v-for="supplier in supplierList"
+                :key="supplier.id"
+                :value="supplier.id"
+              >
+                {{ supplier.name }}
+              </a-select-option>
+            </a-select>
+          </a-form-item>
+          <a-form-item label="预计到货日期">
+            <span>{{ formatDate(createOrderData.estimatedArrival) }}</span>
+          </a-form-item>
+        </a-form>
+      </a-modal>
+
+      <a-modal
+        v-model:open="reportVisible"
+        title="补货建议报告"
+        width="800px"
+        :footer="null"
+      >
+        <a-row :gutter="16">
+          <a-col :span="6">
+            <a-statistic
+              title="建议总数"
+              :value="report.totalSuggestions"
+            />
+          </a-col>
+          <a-col :span="6">
+            <a-statistic
+              title="高优先级"
+              :value="report.highPriorityCount"
+              :value-style="{ color: '#f5222d' }"
+            />
+          </a-col>
+          <a-col :span="6">
+            <a-statistic
+              title="中优先级"
+              :value="report.mediumPriorityCount"
+              :value-style="{ color: '#faad14' }"
+            />
+          </a-col>
+          <a-col :span="6">
+            <a-statistic
+              title="低优先级"
+              :value="report.lowPriorityCount"
+            />
+          </a-col>
+        </a-row>
+        <a-divider />
+        <a-row :gutter="16">
+          <a-col :span="8">
+            <a-statistic
+              title="总缺口数量"
+              :value="report.totalShortageQty"
+              suffix="件"
+            />
+          </a-col>
+          <a-col :span="8">
+            <a-statistic
+              title="建议采购总量"
+              :value="report.totalSuggestedQty"
+              suffix="件"
+            />
+          </a-col>
+          <a-col :span="8">
+            <a-statistic
+              title="预估采购成本"
+              :value="report.estimatedCost"
+              :precision="2"
+              prefix="¥"
+            />
+          </a-col>
+        </a-row>
+        <a-divider>优先级分布</a-divider>
+        <div
+          ref="priorityChartRef"
+          class="chart-container"
+        />
+      </a-modal>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

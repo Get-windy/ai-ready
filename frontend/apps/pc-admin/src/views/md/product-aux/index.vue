@@ -11,10 +11,18 @@
               allow-clear
               style="width: 180px"
             >
-              <a-select-option value="品牌">品牌</a-select-option>
-              <a-select-option value="产地">产地</a-select-option>
-              <a-select-option value="材质">材质</a-select-option>
-              <a-select-option value="颜色">颜色</a-select-option>
+              <a-select-option value="品牌">
+                品牌
+              </a-select-option>
+              <a-select-option value="产地">
+                产地
+              </a-select-option>
+              <a-select-option value="材质">
+                材质
+              </a-select-option>
+              <a-select-option value="颜色">
+                颜色
+              </a-select-option>
             </a-select>
           </div>
           <div class="search-item">
@@ -28,12 +36,19 @@
           </div>
           <div class="search-item">
             <a-space>
-              <a-button type="primary" @click="handleSearch">
-                <template #icon><SearchOutlined /></template>
+              <a-button
+                type="primary"
+                @click="handleSearch"
+              >
+                <template #icon>
+                  <SearchOutlined />
+                </template>
                 查询
               </a-button>
               <a-button @click="handleReset">
-                <template #icon><ClearOutlined /></template>
+                <template #icon>
+                  <ClearOutlined />
+                </template>
                 重置
               </a-button>
             </a-space>
@@ -41,10 +56,10 @@
         </div>
       </div>
       <BillTableList
+        ref="tableRef"
         :columns="columns"
         :api-url="apiUrl"
         :params="searchParams"
-        ref="tableRef"
       />
     </PageContainer>
   </ErrorBoundary>
@@ -60,7 +75,7 @@ import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import request from '@/utils/request'
 
 const tableRef = ref()
-const apiUrl = '/api/md/product-aux/page'
+const apiUrl = '/md/product-aux/page'
 
 const searchParams = reactive({
   auxType: undefined as string | undefined,

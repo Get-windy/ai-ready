@@ -5,23 +5,38 @@
         <div class="page-header">
           <div class="page-header__left">
             <a-breadcrumb>
-              <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
               <a-breadcrumb-item>财务管理</a-breadcrumb-item>
               <a-breadcrumb-item>费用申请</a-breadcrumb-item>
             </a-breadcrumb>
-            <h2 class="page-header__title">费用申请</h2>
+            <h2 class="page-header__title">
+              费用申请
+            </h2>
           </div>
           <div class="page-header__right">
             <a-badge :status="loading ? 'processing' : 'success'" />
-            <a-button size="small" :loading="loading" @click="fetchData">
-              <template #icon><ReloadOutlined /></template>刷新
+            <a-button
+              size="small"
+              :loading="loading"
+              @click="fetchData"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>刷新
             </a-button>
           </div>
         </div>
       </template>
 
       <div class="search-area">
-        <a-space :size="12" wrap>
+        <a-space
+          :size="12"
+          wrap
+        >
           <span class="search-item">
             <label>申请编号</label>
             <a-input
@@ -29,7 +44,7 @@
               placeholder="请输入申请编号"
               style="width: 160px"
               allow-clear
-              @pressEnter="handleSearch"
+              @press-enter="handleSearch"
             />
           </span>
           <span class="search-item">
@@ -39,7 +54,7 @@
               placeholder="请输入申请人"
               style="width: 140px"
               allow-clear
-              @pressEnter="handleSearch"
+              @press-enter="handleSearch"
             />
           </span>
           <span class="search-item">
@@ -50,11 +65,19 @@
               style="width: 260px"
             />
           </span>
-          <a-button type="primary" :loading="loading" @click="handleSearch">
-            <template #icon><SearchOutlined /></template>查询
+          <a-button
+            type="primary"
+            :loading="loading"
+            @click="handleSearch"
+          >
+            <template #icon>
+              <SearchOutlined />
+            </template>查询
           </a-button>
           <a-button @click="handleReset">
-            <template #icon><ClearOutlined /></template>重置
+            <template #icon>
+              <ClearOutlined />
+            </template>重置
           </a-button>
         </a-space>
       </div>
@@ -72,10 +95,15 @@
             <span class="amount-cell">{{ formatAmount(record.amount) }}</span>
           </template>
           <template #statusCell="{ record }">
-            <a-tag :color="statusMap[record.status]?.color">{{ statusMap[record.status]?.text || record.status }}</a-tag>
+            <a-tag :color="statusMap[record.status]?.color">
+              {{ statusMap[record.status]?.text || record.status }}
+            </a-tag>
           </template>
         </BillTableList>
-        <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
+        <span
+          v-if="lastUpdateTime"
+          class="update-time"
+        >更新于 {{ lastUpdateTime }}</span>
       </div>
     </PageContainer>
   </ErrorBoundary>
@@ -166,7 +194,7 @@ async function fetchData() {
       params.endDate = dateRange.value[1].format('YYYY-MM-DD')
     }
 
-    const res = await request.get('/api/finance/expense-apply/page', params) as any
+    const res = await request.get('/finance/expense-apply/page', params) as any
     tableData.value = res?.records || res?.data?.records || []
     pagination.total = res?.total || res?.data?.total || 0
     lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')

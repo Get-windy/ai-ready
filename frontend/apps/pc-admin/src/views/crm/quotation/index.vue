@@ -4,199 +4,356 @@
       <div class="quotation-page-header">
         <div class="quotation-page-header-left">
           <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>
+              <router-link to="/">
+                首页
+              </router-link>
+            </a-breadcrumb-item>
             <a-breadcrumb-item>报价管理</a-breadcrumb-item>
           </a-breadcrumb>
-          <h2 class="quotation-page-header-title">报价管理</h2>
+          <h2 class="quotation-page-header-title">
+            报价管理
+          </h2>
         </div>
         <div class="quotation-page-header-right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+          <span
+            v-if="lastUpdateTime"
+            class="update-time"
+          >更新于 {{ lastUpdateTime }}</span>
+          <span
+            v-if="autoRefreshCountdown > 0"
+            class="auto-refresh-badge"
+          >
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)">
-            <template #icon><ReloadOutlined /></template>
+          <a-button
+            size="small"
+            :loading="refreshLoading"
+            @click="debounceClick('refresh', fetchData)"
+          >
+            <template #icon>
+              <ReloadOutlined />
+            </template>
             刷新
           </a-button>
-<span class="shortcut-hints">
-                                                <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
-                                                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-                                              </span>
+          <span class="shortcut-hints">
+            <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+          </span>
         </div>
-
-          </div>
+      </div>
     </template>
 
     <ErrorBoundary @reset="fetchData">
       <!-- 骨架加载 -->
-      <div v-if="loading && tableData.length === 0" class="skeleton-loading">
-        <a-skeleton :paragraph="{ rows: 3 }" active />
+      <div
+        v-if="loading && tableData.length === 0"
+        class="skeleton-loading"
+      >
+        <a-skeleton
+          :paragraph="{ rows: 3 }"
+          active
+        />
         <div style="height: 16px" />
-        <a-skeleton :paragraph="{ rows: 8 }" active />
+        <a-skeleton
+          :paragraph="{ rows: 8 }"
+          active
+        />
       </div>
 
       <!-- 统计卡片 -->
       <template v-if="!(loading && tableData.length === 0)">
-      <div class="stats-cards">
-        <a-row :gutter="16">
-          <a-col :span="6">
-            <div class="stat-card stat-card-blue">
-              <div class="stat-icon" style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);">
-                <FileTextOutlined />
+        <div class="stats-cards">
+          <a-row :gutter="16">
+            <a-col :span="6">
+              <div class="stat-card stat-card-blue">
+                <div
+                  class="stat-icon"
+                  style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);"
+                >
+                  <FileTextOutlined />
+                </div>
+                <div class="stat-content">
+                  <div class="stat-title">
+                    报价总数
+                  </div>
+                  <div class="stat-value">
+                    {{ pagination.total }}
+                  </div>
+                  <div class="stat-desc">
+                    全部报价
+                  </div>
+                </div>
               </div>
-              <div class="stat-content">
-                <div class="stat-title">报价总数</div>
-                <div class="stat-value">{{ pagination.total }}</div>
-                <div class="stat-desc">全部报价</div>
+            </a-col>
+            <a-col :span="6">
+              <div class="stat-card stat-card-orange">
+                <div
+                  class="stat-icon"
+                  style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);"
+                >
+                  <SendOutlined />
+                </div>
+                <div class="stat-content">
+                  <div class="stat-title">
+                    已发送
+                  </div>
+                  <div class="stat-value">
+                    {{ statusCounts.sent }}
+                  </div>
+                  <div class="stat-desc">
+                    等待回复
+                  </div>
+                </div>
               </div>
-            </div>
-          </a-col>
-          <a-col :span="6">
-            <div class="stat-card stat-card-orange">
-              <div class="stat-icon" style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);">
+            </a-col>
+            <a-col :span="6">
+              <div class="stat-card stat-card-green">
+                <div
+                  class="stat-icon"
+                  style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);"
+                >
+                  <CheckCircleOutlined />
+                </div>
+                <div class="stat-content">
+                  <div class="stat-title">
+                    已接受
+                  </div>
+                  <div class="stat-value">
+                    {{ statusCounts.accepted }}
+                  </div>
+                  <div class="stat-desc positive">
+                    可转订单
+                  </div>
+                </div>
+              </div>
+            </a-col>
+            <a-col :span="6">
+              <div class="stat-card stat-card-purple">
+                <div
+                  class="stat-icon"
+                  style="background: linear-gradient(135deg, #722ed1 0%, #531dab 100%);"
+                >
+                  <DollarOutlined />
+                </div>
+                <div class="stat-content">
+                  <div class="stat-title">
+                    报价总额
+                  </div>
+                  <div class="stat-value">
+                    ¥{{ formatAmount(totalAmount) }}
+                  </div>
+                  <div class="stat-desc">
+                    本页合计
+                  </div>
+                </div>
+              </div>
+            </a-col>
+          </a-row>
+        </div>
+
+        <BillTableList
+          ref="tableRef"
+          :columns="vxeColumns"
+          :data-source="tableDataSource"
+          :loading="loading"
+          :pagination="pagination"
+          :filter-fields="filterFields"
+          :show-export="true"
+          :selectable="true"
+          :min-empty-rows="12"
+          add-text="新建报价"
+          @add="handleAdd"
+          @refresh="fetchData"
+          @search="handleSearch"
+          @page-change="handlePageChange"
+          @filter-change="handleFilterChange"
+          @selection-change="handleSelectionChange"
+          @cell-dblclick="handleView"
+          @export="handleExport"
+        >
+          <template #toolbar-actions>
+            <a-button
+              v-permission="'crm:quotation:batchsend'"
+              size="small"
+              @click="handleBatchSend"
+            >
+              <template #icon>
                 <SendOutlined />
-              </div>
-              <div class="stat-content">
-                <div class="stat-title">已发送</div>
-                <div class="stat-value">{{ statusCounts.sent }}</div>
-                <div class="stat-desc">等待回复</div>
-              </div>
-            </div>
-          </a-col>
-          <a-col :span="6">
-            <div class="stat-card stat-card-green">
-              <div class="stat-icon" style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);">
-                <CheckCircleOutlined />
-              </div>
-              <div class="stat-content">
-                <div class="stat-title">已接受</div>
-                <div class="stat-value">{{ statusCounts.accepted }}</div>
-                <div class="stat-desc positive">可转订单</div>
-              </div>
-            </div>
-          </a-col>
-          <a-col :span="6">
-            <div class="stat-card stat-card-purple">
-              <div class="stat-icon" style="background: linear-gradient(135deg, #722ed1 0%, #531dab 100%);">
-                <DollarOutlined />
-              </div>
-              <div class="stat-content">
-                <div class="stat-title">报价总额</div>
-                <div class="stat-value">¥{{ formatAmount(totalAmount) }}</div>
-                <div class="stat-desc">本页合计</div>
-              </div>
-            </div>
-          </a-col>
-        </a-row>
-      </div>
-
-      <BillTableList
-        ref="tableRef"
-        :columns="vxeColumns"
-        :data-source="tableDataSource"
-        :loading="loading"
-        :pagination="pagination"
-        :filter-fields="filterFields"
-        :show-export="true"
-        :selectable="true"
-        :min-empty-rows="12"
-        add-text="新建报价"
-        @add="handleAdd"
-        @refresh="fetchData"
-        @search="handleSearch"
-        @page-change="handlePageChange"
-        @filter-change="handleFilterChange"
-        @selection-change="handleSelectionChange"
-        @cell-dblclick="handleView"
-        @export="handleExport"
-      >
-        <template #toolbar-actions>
-          <a-button size="small" v-permission="'crm:quotation:batchsend'" @click="handleBatchSend">
-            <template #icon><SendOutlined /></template>
-            批量发送
-          </a-button>
-        </template>
-
-        <template #empty>
-          <div class="table-empty">
-            <template v-if="hasError">
-              <WarningOutlined class="table-empty-icon" style="color: #faad14" />
-              <p class="table-empty-text">数据加载失败，请重试</p>
-              <a-button type="primary" size="small" @click="fetchData as any">
-                <template #icon><ReloadOutlined /></template>
-                重试
-              </a-button>
-            </template>
-            <template v-else>
-              <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-              <InboxOutlined v-else class="table-empty-icon" />
-              <p v-if="hasActiveFilters" class="table-empty-text">
-                没有符合条件的报价，<a @click="handleResetFilters">清除筛选</a>
-              </p>
-              <p v-else class="table-empty-text">
-                暂无报价数据
-              </p>
-              <div v-if="!hasActiveFilters" class="empty-state-wrapper">
-                <a-button type="primary" v-permission="'crm:quotation:create'" @click="handleAdd">
-                  <template #icon><PlusOutlined /></template>
-                  新建第一个报价
-                </a-button>
-              </div>
-            </template>
-          </div>
-        </template>
-
-        <template #action="{ record }">
-          <a-space :size="4">
-            <a-tooltip title="查看详情">
-              <a-button type="link" size="small" v-permission="'crm:quotation:view'" @click="handleView(record)">
-                <template #icon><EyeOutlined /></template>
-              </a-button>
-            </a-tooltip>
-            <a-tooltip v-if="record.status === 'draft'" title="编辑">
-              <a-button type="link" size="small" v-permission="'crm:quotation:edit'" @click="handleEdit(record)">
-                <template #icon><EditOutlined /></template>
-              </a-button>
-            </a-tooltip>
-            <a-tooltip v-if="record.status === 'draft'" title="发送">
-              <a-button type="link" size="small" v-permission="'crm:quotation:send'" @click="handleSend(record)">
-                <template #icon><SendOutlined /></template>
-              </a-button>
-            </a-tooltip>
-            <a-tooltip v-if="record.status === 'accepted'" title="转订单">
-              <a-button type="link" size="small" v-permission="'crm:quotation:convert'" @click="handleConvert(record)">
-                <template #icon><FileProtectOutlined /></template>
-              </a-button>
-            </a-tooltip>
-            <PrintButton
-              template-type="quotation"
-              :business-id="record.id"
-              business-type="quotation"
-              button-text=""
-              button-size="small"
-              button-type="link"
-              tooltip="打印"
-            />
-            <a-dropdown trigger="click">
-              <a-button type="link" size="small" class="action-more-btn">
-                <template #icon><MoreOutlined /></template>
-              </a-button>
-              <template #overlay>
-                <a-menu @click="({ key }) => handleActionMenuClick(key as string, record)">
-                  <a-menu-item key="copy"><CopyOutlined /> 复制报价</a-menu-item>
-                  <a-menu-item key="download"><DownloadOutlined /> 下载PDF</a-menu-item>
-                  <a-menu-item key="history"><HistoryOutlined /> 版本历史</a-menu-item>
-                  <a-menu-divider />
-                  <a-menu-item key="delete" v-if="record.status === 'draft'" danger><DeleteOutlined /> 删除</a-menu-item>
-                </a-menu>
               </template>
-            </a-dropdown>
-          </a-space>
-        </template>
-          <template #statusCell="{ record }">
-            <a-tag :color="getStatusColor(record.status)">{{ getStatusText(record.status) }}</a-tag>
+              批量发送
+            </a-button>
           </template>
-      </BillTableList>
+
+          <template #empty>
+            <div class="table-empty">
+              <template v-if="hasError">
+                <WarningOutlined
+                  class="table-empty-icon"
+                  style="color: #faad14"
+                />
+                <p class="table-empty-text">
+                  数据加载失败，请重试
+                </p>
+                <a-button
+                  type="primary"
+                  size="small"
+                  @click="fetchData as any"
+                >
+                  <template #icon>
+                    <ReloadOutlined />
+                  </template>
+                  重试
+                </a-button>
+              </template>
+              <template v-else>
+                <SearchOutlined
+                  v-if="hasActiveFilters"
+                  class="table-empty-icon"
+                />
+                <InboxOutlined
+                  v-else
+                  class="table-empty-icon"
+                />
+                <p
+                  v-if="hasActiveFilters"
+                  class="table-empty-text"
+                >
+                  没有符合条件的报价，<a @click="handleResetFilters">清除筛选</a>
+                </p>
+                <p
+                  v-else
+                  class="table-empty-text"
+                >
+                  暂无报价数据
+                </p>
+                <div
+                  v-if="!hasActiveFilters"
+                  class="empty-state-wrapper"
+                >
+                  <a-button
+                    v-permission="'crm:quotation:create'"
+                    type="primary"
+                    @click="handleAdd"
+                  >
+                    <template #icon>
+                      <PlusOutlined />
+                    </template>
+                    新建第一个报价
+                  </a-button>
+                </div>
+              </template>
+            </div>
+          </template>
+
+          <template #action="{ record }">
+            <a-space :size="4">
+              <a-tooltip title="查看详情">
+                <a-button
+                  v-permission="'crm:quotation:view'"
+                  type="link"
+                  size="small"
+                  @click="handleView(record)"
+                >
+                  <template #icon>
+                    <EyeOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip
+                v-if="record.status === 'draft'"
+                title="编辑"
+              >
+                <a-button
+                  v-permission="'crm:quotation:edit'"
+                  type="link"
+                  size="small"
+                  @click="handleEdit(record)"
+                >
+                  <template #icon>
+                    <EditOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip
+                v-if="record.status === 'draft'"
+                title="发送"
+              >
+                <a-button
+                  v-permission="'crm:quotation:send'"
+                  type="link"
+                  size="small"
+                  @click="handleSend(record)"
+                >
+                  <template #icon>
+                    <SendOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip
+                v-if="record.status === 'accepted'"
+                title="转订单"
+              >
+                <a-button
+                  v-permission="'crm:quotation:convert'"
+                  type="link"
+                  size="small"
+                  @click="handleConvert(record)"
+                >
+                  <template #icon>
+                    <FileProtectOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <PrintButton
+                template-type="quotation"
+                :business-id="record.id"
+                business-type="quotation"
+                button-text=""
+                button-size="small"
+                button-type="link"
+                tooltip="打印"
+              />
+              <a-dropdown trigger="click">
+                <a-button
+                  type="link"
+                  size="small"
+                  class="action-more-btn"
+                >
+                  <template #icon>
+                    <MoreOutlined />
+                  </template>
+                </a-button>
+                <template #overlay>
+                  <a-menu @click="({ key }) => handleActionMenuClick(key as string, record)">
+                    <a-menu-item key="copy">
+                      <CopyOutlined /> 复制报价
+                    </a-menu-item>
+                    <a-menu-item key="download">
+                      <DownloadOutlined /> 下载PDF
+                    </a-menu-item>
+                    <a-menu-item key="history">
+                      <HistoryOutlined /> 版本历史
+                    </a-menu-item>
+                    <a-menu-divider />
+                    <a-menu-item
+                      v-if="record.status === 'draft'"
+                      key="delete"
+                      danger
+                    >
+                      <DeleteOutlined /> 删除
+                    </a-menu-item>
+                  </a-menu>
+                </template>
+              </a-dropdown>
+            </a-space>
+          </template>
+          <template #statusCell="{ record }">
+            <a-tag :color="getStatusColor(record.status)">
+              {{ getStatusText(record.status) }}
+            </a-tag>
+          </template>
+        </BillTableList>
       </template>
     </ErrorBoundary>
 
@@ -211,90 +368,238 @@
       @close="handleFormClose"
       @save-and-new="handleFormSaveAndNew"
     >
-      <a-form ref="formRef" :model="formData" :rules="formRules" :label-col="{ span: 4 }" :wrapper-col="{ span: 18 }">
+      <a-form
+        ref="formRef"
+        :model="formData"
+        :rules="formRules"
+        :label-col="{ span: 4 }"
+        :wrapper-col="{ span: 18 }"
+      >
         <a-row :gutter="24">
           <a-col :span="12">
-            <a-form-item label="报价单号" name="quotationNo" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }">
-              <a-input v-model:value="formData.quotationNo" placeholder="自动生成" disabled size="small" />
+            <a-form-item
+              label="报价单号"
+              name="quotationNo"
+              :label-col="{ span: 8 }"
+              :wrapper-col="{ span: 16 }"
+            >
+              <a-input
+                v-model:value="formData.quotationNo"
+                placeholder="自动生成"
+                disabled
+                size="small"
+              />
             </a-form-item>
           </a-col>
           <a-col :span="12">
-            <a-form-item label="报价日期" name="quotationDate" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }">
-              <a-date-picker v-model:value="formData.quotationDate" style="width: 100%" size="small" />
+            <a-form-item
+              label="报价日期"
+              name="quotationDate"
+              :label-col="{ span: 8 }"
+              :wrapper-col="{ span: 16 }"
+            >
+              <a-date-picker
+                v-model:value="formData.quotationDate"
+                style="width: 100%"
+                size="small"
+              />
             </a-form-item>
           </a-col>
           <a-col :span="12">
-            <a-form-item label="报价名称" name="quotationName" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }">
-              <a-input v-model:value="formData.quotationName" placeholder="请输入报价名称" size="small" />
+            <a-form-item
+              label="报价名称"
+              name="quotationName"
+              :label-col="{ span: 8 }"
+              :wrapper-col="{ span: 16 }"
+            >
+              <a-input
+                v-model:value="formData.quotationName"
+                placeholder="请输入报价名称"
+                size="small"
+              />
             </a-form-item>
           </a-col>
           <a-col :span="12">
-            <a-form-item label="有效期(天)" name="validDays" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }">
-              <a-input-number v-model:value="formData.validDays" :min="1" style="width: 100%" size="small" />
+            <a-form-item
+              label="有效期(天)"
+              name="validDays"
+              :label-col="{ span: 8 }"
+              :wrapper-col="{ span: 16 }"
+            >
+              <a-input-number
+                v-model:value="formData.validDays"
+                :min="1"
+                style="width: 100%"
+                size="small"
+              />
             </a-form-item>
           </a-col>
           <a-col :span="12">
-            <a-form-item label="客户名称" name="customerId" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }">
-              <a-select v-model:value="formData.customerId" placeholder="请选择客户" show-search :filter-option="filterOption" size="small">
-                <a-select-option v-for="c in customerList" :key="c.id" :value="c.id">{{ c.name }}</a-select-option>
+            <a-form-item
+              label="客户名称"
+              name="customerId"
+              :label-col="{ span: 8 }"
+              :wrapper-col="{ span: 16 }"
+            >
+              <a-select
+                v-model:value="formData.customerId"
+                placeholder="请选择客户"
+                show-search
+                :filter-option="filterOption"
+                size="small"
+              >
+                <a-select-option
+                  v-for="c in customerList"
+                  :key="c.id"
+                  :value="c.id"
+                >
+                  {{ c.name }}
+                </a-select-option>
               </a-select>
             </a-form-item>
           </a-col>
           <a-col :span="12">
-            <a-form-item label="币种" name="currency" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }">
-              <a-select v-model:value="formData.currency" placeholder="请选择币种" size="small">
-                <a-select-option value="CNY">人民币(CNY)</a-select-option>
-                <a-select-option value="USD">美元(USD)</a-select-option>
-                <a-select-option value="EUR">欧元(EUR)</a-select-option>
+            <a-form-item
+              label="币种"
+              name="currency"
+              :label-col="{ span: 8 }"
+              :wrapper-col="{ span: 16 }"
+            >
+              <a-select
+                v-model:value="formData.currency"
+                placeholder="请选择币种"
+                size="small"
+              >
+                <a-select-option value="CNY">
+                  人民币(CNY)
+                </a-select-option>
+                <a-select-option value="USD">
+                  美元(USD)
+                </a-select-option>
+                <a-select-option value="EUR">
+                  欧元(EUR)
+                </a-select-option>
               </a-select>
             </a-form-item>
           </a-col>
           <a-col :span="12">
-            <a-form-item label="联系人" name="contactPerson" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }">
-              <a-input v-model:value="formData.contactPerson" placeholder="请输入联系人" size="small" />
+            <a-form-item
+              label="联系人"
+              name="contactPerson"
+              :label-col="{ span: 8 }"
+              :wrapper-col="{ span: 16 }"
+            >
+              <a-input
+                v-model:value="formData.contactPerson"
+                placeholder="请输入联系人"
+                size="small"
+              />
             </a-form-item>
           </a-col>
           <a-col :span="12">
-            <a-form-item label="联系电话" name="contactPhone" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }">
-              <a-input v-model:value="formData.contactPhone" placeholder="请输入联系电话" size="small" />
+            <a-form-item
+              label="联系电话"
+              name="contactPhone"
+              :label-col="{ span: 8 }"
+              :wrapper-col="{ span: 16 }"
+            >
+              <a-input
+                v-model:value="formData.contactPhone"
+                placeholder="请输入联系电话"
+                size="small"
+              />
             </a-form-item>
           </a-col>
         </a-row>
 
         <a-divider>报价明细</a-divider>
-        <BillTableList :columns="itemVxeColumns" :data-source="formData.items" :pagination="false as any" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
+        <BillTableList
+          :columns="itemVxeColumns"
+          :data-source="formData.items"
+          :pagination="false as any"
+          :show-toolbar="false"
+          :selectable="false"
+          :show-add="false"
+          :show-search="false"
+          :show-export="false"
+          :show-batch-delete="false"
+        >
           <template #productNameCell="{ record }">
-            <a-input v-model:value="record.productName" placeholder="产品名称" size="small" />
+            <a-input
+              v-model:value="record.productName"
+              placeholder="产品名称"
+              size="small"
+            />
           </template>
           <template #specCell="{ record }">
-            <a-input v-model:value="record.spec" placeholder="规格型号" size="small" />
+            <a-input
+              v-model:value="record.spec"
+              placeholder="规格型号"
+              size="small"
+            />
           </template>
           <template #quantityCell="{ record }">
-            <a-input-number v-model:value="record.quantity" :min="1" style="width: 80px" size="small" />
+            <a-input-number
+              v-model:value="record.quantity"
+              :min="1"
+              style="width: 80px"
+              size="small"
+            />
           </template>
           <template #unitCell="{ record }">
-            <a-input v-model:value="record.unit" placeholder="单位" style="width: 60px" size="small" />
+            <a-input
+              v-model:value="record.unit"
+              placeholder="单位"
+              style="width: 60px"
+              size="small"
+            />
           </template>
           <template #priceCell="{ record }">
-            <a-input-number v-model:value="record.price" :min="0" :precision="2" style="width: 100px" size="small" />
+            <a-input-number
+              v-model:value="record.price"
+              :min="0"
+              :precision="2"
+              style="width: 100px"
+              size="small"
+            />
           </template>
           <template #discountCell="{ record }">
-            <a-input-number v-model:value="record.discount" :min="0" :max="100" style="width: 80px" size="small" />
+            <a-input-number
+              v-model:value="record.discount"
+              :min="0"
+              :max="100"
+              style="width: 80px"
+              size="small"
+            />
           </template>
           <template #subtotalCell="{ record }">
             <span class="amount-cell">¥{{ calcItemSubtotal(record) }}</span>
           </template>
           <template #action="{ index }">
-            <a @click="removeItem(index)" v-if="formData.items.length > 1" class="delete-link">删除</a>
+            <a
+              v-if="formData.items.length > 1"
+              class="delete-link"
+              @click="removeItem(index)"
+            >删除</a>
           </template>
         </BillTableList>
-        <a-button type="dashed" block @click="addItem" style="margin-top: 16px">
-          <template #icon><PlusOutlined /></template>
+        <a-button
+          type="dashed"
+          block
+          style="margin-top: 16px"
+          @click="addItem"
+        >
+          <template #icon>
+            <PlusOutlined />
+          </template>
           添加产品
         </a-button>
 
         <a-divider>费用汇总</a-divider>
-        <a-row :gutter="24" class="summary-row">
+        <a-row
+          :gutter="24"
+          class="summary-row"
+        >
           <a-col :span="8">
             <div class="summary-item">
               <span class="summary-label">产品金额</span>
@@ -315,52 +620,128 @@
           </a-col>
         </a-row>
 
-        <a-form-item label="报价条款" name="terms" style="margin-top: 16px">
-          <a-textarea v-model:value="formData.terms" placeholder="请输入报价条款" :rows="3" size="small" />
+        <a-form-item
+          label="报价条款"
+          name="terms"
+          style="margin-top: 16px"
+        >
+          <a-textarea
+            v-model:value="formData.terms"
+            placeholder="请输入报价条款"
+            :rows="3"
+            size="small"
+          />
         </a-form-item>
-        <a-form-item label="备注" name="remark">
-          <a-textarea v-model:value="formData.remark" placeholder="请输入备注" :rows="2" size="small" />
+        <a-form-item
+          label="备注"
+          name="remark"
+        >
+          <a-textarea
+            v-model:value="formData.remark"
+            placeholder="请输入备注"
+            :rows="2"
+            size="small"
+          />
         </a-form-item>
       </a-form>
     </FullScreenDetail>
 
     <!-- 详情弹窗 -->
-    <a-drawer v-model:open="detailVisible" title="报价详情" placement="right" width="80vw" :footer="null" @close="handleDetailClose">
+    <a-drawer
+      v-model:open="detailVisible"
+      title="报价详情"
+      placement="right"
+      width="80vw"
+      :footer="null"
+      @close="handleDetailClose"
+    >
       <a-spin :spinning="detailLoading">
         <template v-if="detailError">
           <div class="table-empty">
-            <WarningOutlined class="table-empty-icon" style="color: #faad14" />
-            <p class="table-empty-text">详情数据加载失败</p>
-            <a-button type="primary" size="small" v-permission="'crm:quotation:detailrefresh'" @click="handleDetailRefresh">
-              <template #icon><ReloadOutlined /></template>
+            <WarningOutlined
+              class="table-empty-icon"
+              style="color: #faad14"
+            />
+            <p class="table-empty-text">
+              详情数据加载失败
+            </p>
+            <a-button
+              v-permission="'crm:quotation:detailrefresh'"
+              type="primary"
+              size="small"
+              @click="handleDetailRefresh"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
               重试
             </a-button>
           </div>
         </template>
         <template v-else-if="detailData.id">
-          <a-descriptions :column="2" bordered size="small">
+          <a-descriptions
+            :column="2"
+            bordered
+            size="small"
+          >
             <a-descriptions-item label="报价单号">
               <span class="quotation-no">{{ detailData.quotationNo }}</span>
             </a-descriptions-item>
-            <a-descriptions-item label="报价名称">{{ detailData.quotationName }}</a-descriptions-item>
-            <a-descriptions-item label="客户名称">{{ detailData.customerName }}</a-descriptions-item>
-            <a-descriptions-item label="联系人">{{ detailData.contactPerson }}</a-descriptions-item>
-            <a-descriptions-item label="联系电话">{{ detailData.contactPhone }}</a-descriptions-item>
-            <a-descriptions-item label="报价日期">{{ detailData.quotationDate }}</a-descriptions-item>
-            <a-descriptions-item label="有效期">{{ detailData.validDays }}天</a-descriptions-item>
-            <a-descriptions-item label="币种">{{ detailData.currency }}</a-descriptions-item>
+            <a-descriptions-item label="报价名称">
+              {{ detailData.quotationName }}
+            </a-descriptions-item>
+            <a-descriptions-item label="客户名称">
+              {{ detailData.customerName }}
+            </a-descriptions-item>
+            <a-descriptions-item label="联系人">
+              {{ detailData.contactPerson }}
+            </a-descriptions-item>
+            <a-descriptions-item label="联系电话">
+              {{ detailData.contactPhone }}
+            </a-descriptions-item>
+            <a-descriptions-item label="报价日期">
+              {{ detailData.quotationDate }}
+            </a-descriptions-item>
+            <a-descriptions-item label="有效期">
+              {{ detailData.validDays }}天
+            </a-descriptions-item>
+            <a-descriptions-item label="币种">
+              {{ detailData.currency }}
+            </a-descriptions-item>
             <a-descriptions-item label="报价总额">
               <span class="amount-cell">¥{{ formatAmount(detailData.totalAmount) }}</span>
             </a-descriptions-item>
             <a-descriptions-item label="报价状态">
-              <a-tag :color="getStatusColor(detailData.status)">{{ getStatusText(detailData.status) }}</a-tag>
+              <a-tag :color="getStatusColor(detailData.status)">
+                {{ getStatusText(detailData.status) }}
+              </a-tag>
             </a-descriptions-item>
-            <a-descriptions-item label="报价条款" :span="2">{{ detailData.terms || '无' }}</a-descriptions-item>
-            <a-descriptions-item label="备注" :span="2">{{ detailData.remark || '无' }}</a-descriptions-item>
+            <a-descriptions-item
+              label="报价条款"
+              :span="2"
+            >
+              {{ detailData.terms || '无' }}
+            </a-descriptions-item>
+            <a-descriptions-item
+              label="备注"
+              :span="2"
+            >
+              {{ detailData.remark || '无' }}
+            </a-descriptions-item>
           </a-descriptions>
 
           <a-divider>报价明细</a-divider>
-          <BillTableList :columns="detailItemVxeColumns" :data-source="detailData.items" :pagination="false as any" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
+          <BillTableList
+            :columns="detailItemVxeColumns"
+            :data-source="detailData.items"
+            :pagination="false as any"
+            :show-toolbar="false"
+            :selectable="false"
+            :show-add="false"
+            :show-search="false"
+            :show-export="false"
+            :show-batch-delete="false"
+          >
             <template #subtotalCell="{ record }">
               <span class="amount-cell">¥{{ formatAmount(record.subtotal) }}</span>
             </template>
@@ -371,9 +752,28 @@
 
           <div class="detail-footer">
             <a-space>
-              <a-button type="primary" v-permission="'crm:quotation:downloadpdf'" @click="handleDownloadPDF"><DownloadOutlined /> 下载PDF</a-button>
-              <a-button v-if="detailData.status === 'accepted'" type="primary" v-permission="'crm:quotation:convertfromdetail'" @click="handleConvertFromDetail">转为订单</a-button>
-              <a-button v-if="detailData.status === 'draft'" v-permission="'crm:quotation:sendfromdetail'" @click="handleSendFromDetail"><SendOutlined /> 发送报价</a-button>
+              <a-button
+                v-permission="'crm:quotation:downloadpdf'"
+                type="primary"
+                @click="handleDownloadPDF"
+              >
+                <DownloadOutlined /> 下载PDF
+              </a-button>
+              <a-button
+                v-if="detailData.status === 'accepted'"
+                v-permission="'crm:quotation:convertfromdetail'"
+                type="primary"
+                @click="handleConvertFromDetail"
+              >
+                转为订单
+              </a-button>
+              <a-button
+                v-if="detailData.status === 'draft'"
+                v-permission="'crm:quotation:sendfromdetail'"
+                @click="handleSendFromDetail"
+              >
+                <SendOutlined /> 发送报价
+              </a-button>
             </a-space>
           </div>
         </template>

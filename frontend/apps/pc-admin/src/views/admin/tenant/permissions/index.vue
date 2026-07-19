@@ -4,13 +4,22 @@
       <div class="page-header">
         <div class="page-header-left">
           <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>
+              <router-link to="/">
+                首页
+              </router-link>
+            </a-breadcrumb-item>
             <a-breadcrumb-item>租户权限配置</a-breadcrumb-item>
           </a-breadcrumb>
-          <h2 class="page-header-title">租户权限配置</h2>
+          <h2 class="page-header-title">
+            租户权限配置
+          </h2>
         </div>
         <div class="page-header-right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
+          <span
+            v-if="lastUpdateTime"
+            class="update-time"
+          >更新于 {{ lastUpdateTime }}</span>
           <span class="shortcut-hints">
             <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
           </span>

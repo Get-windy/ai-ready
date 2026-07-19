@@ -3,8 +3,13 @@
     <PageContainer title="支付配置">
       <div class="content-card">
         <div class="toolbar">
-          <a-button type="primary" @click="handleAdd">
-            <template #icon><PlusOutlined /></template>
+          <a-button
+            type="primary"
+            @click="handleAdd"
+          >
+            <template #icon>
+              <PlusOutlined />
+            </template>
             新增配置
           </a-button>
         </div>
@@ -14,70 +19,142 @@
           :loading="loading"
           :pagination="pagination"
           row-key="id"
-          @change="handleTableChange"
           size="small"
+          @change="handleTableChange"
         >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'enabled'">
-              <a-switch v-model:checked="record.enabled" @change="(checked: boolean) => handleToggle(record, checked)" />
+              <a-switch
+                v-model:checked="record.enabled"
+                @change="(checked: boolean) => handleToggle(record, checked)"
+              />
             </template>
             <template v-if="column.key === 'configJson'">
-              <a-button type="link" size="small" @click="showConfigJson(record)">查看</a-button>
+              <a-button
+                type="link"
+                size="small"
+                @click="showConfigJson(record)"
+              >
+                查看
+              </a-button>
             </template>
             <template v-if="column.key === 'action'">
-              <a-button type="link" size="small" @click="handleEdit(record)">编辑</a-button>
-              <a-button type="link" size="small" danger @click="handleDelete(record)">删除</a-button>
+              <a-button
+                type="link"
+                size="small"
+                @click="handleEdit(record)"
+              >
+                编辑
+              </a-button>
+              <a-button
+                type="link"
+                size="small"
+                danger
+                @click="handleDelete(record)"
+              >
+                删除
+              </a-button>
             </template>
           </template>
         </a-table>
       </div>
     </PageContainer>
 
-    <a-modal v-model:open="editVisible" :title="editingId ? '编辑支付配置' : '新增支付配置'" width="600px" @ok="handleSave" :confirm-loading="saving">
-      <a-form :model="editForm" layout="vertical">
+    <a-modal
+      v-model:open="editVisible"
+      :title="editingId ? '编辑支付配置' : '新增支付配置'"
+      width="600px"
+      :confirm-loading="saving"
+      @ok="handleSave"
+    >
+      <a-form
+        :model="editForm"
+        layout="vertical"
+      >
         <a-row :gutter="16">
           <a-col :span="12">
-            <a-form-item label="支付方式" required>
-              <a-select v-model:value="editForm.paymentMethod" placeholder="请选择支付方式">
-                <a-select-option value="alipay">支付宝</a-select-option>
-                <a-select-option value="wechat">微信支付</a-select-option>
-                <a-select-option value="unionpay">银联支付</a-select-option>
-                <a-select-option value="bank_transfer">银行转账</a-select-option>
-                <a-select-option value="cash">现金</a-select-option>
+            <a-form-item
+              label="支付方式"
+              required
+            >
+              <a-select
+                v-model:value="editForm.paymentMethod"
+                placeholder="请选择支付方式"
+              >
+                <a-select-option value="alipay">
+                  支付宝
+                </a-select-option>
+                <a-select-option value="wechat">
+                  微信支付
+                </a-select-option>
+                <a-select-option value="unionpay">
+                  银联支付
+                </a-select-option>
+                <a-select-option value="bank_transfer">
+                  银行转账
+                </a-select-option>
+                <a-select-option value="cash">
+                  现金
+                </a-select-option>
               </a-select>
             </a-form-item>
           </a-col>
           <a-col :span="12">
             <a-form-item label="支付渠道">
-              <a-input v-model:value="editForm.channelName" placeholder="渠道名称" />
+              <a-input
+                v-model:value="editForm.channelName"
+                placeholder="渠道名称"
+              />
             </a-form-item>
           </a-col>
         </a-row>
-        <a-form-item label="APP ID / 商户号" required>
-          <a-input v-model:value="editForm.appId" placeholder="请输入APP ID或商户号" />
+        <a-form-item
+          label="APP ID / 商户号"
+          required
+        >
+          <a-input
+            v-model:value="editForm.appId"
+            placeholder="请输入APP ID或商户号"
+          />
         </a-form-item>
         <a-form-item label="API密钥">
-          <a-input-password v-model:value="editForm.apiSecret" placeholder="请输入API密钥" />
+          <a-input-password
+            v-model:value="editForm.apiSecret"
+            placeholder="请输入API密钥"
+          />
         </a-form-item>
         <a-row :gutter="16">
           <a-col :span="12">
             <a-form-item label="公钥/证书">
-              <a-input v-model:value="editForm.publicKey" placeholder="公钥或证书路径" />
+              <a-input
+                v-model:value="editForm.publicKey"
+                placeholder="公钥或证书路径"
+              />
             </a-form-item>
           </a-col>
           <a-col :span="12">
             <a-form-item label="私钥">
-              <a-input v-model:value="editForm.privateKey" placeholder="私钥或证书路径" />
+              <a-input
+                v-model:value="editForm.privateKey"
+                placeholder="私钥或证书路径"
+              />
             </a-form-item>
           </a-col>
         </a-row>
         <a-form-item label="异步通知URL">
-          <a-input v-model:value="editForm.notifyUrl" placeholder="http://..." />
+          <a-input
+            v-model:value="editForm.notifyUrl"
+            placeholder="http://..."
+          />
         </a-form-item>
         <a-row :gutter="16">
           <a-col :span="12">
             <a-form-item label="排序">
-              <a-input-number v-model:value="editForm.sort" style="width: 100%" :min="0" />
+              <a-input-number
+                v-model:value="editForm.sort"
+                style="width: 100%"
+                :min="0"
+              />
             </a-form-item>
           </a-col>
           <a-col :span="12">
@@ -87,12 +164,21 @@
           </a-col>
         </a-row>
         <a-form-item label="备注">
-          <a-textarea v-model:value="editForm.remark" :rows="2" placeholder="备注信息" />
+          <a-textarea
+            v-model:value="editForm.remark"
+            :rows="2"
+            placeholder="备注信息"
+          />
         </a-form-item>
       </a-form>
     </a-modal>
 
-    <a-modal v-model:open="jsonVisible" title="配置详情" width="600px" :footer="null">
+    <a-modal
+      v-model:open="jsonVisible"
+      title="配置详情"
+      width="600px"
+      :footer="null"
+    >
       <pre style="max-height: 400px; overflow: auto; background: #f5f5f5; padding: 12px; border-radius: 4px;">{{ currentJson }}</pre>
     </a-modal>
   </ErrorBoundary>

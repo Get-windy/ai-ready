@@ -1,312 +1,539 @@
 <template>
-  <ErrorBoundary @reset="fetchData" @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="stocktake-header">
-        <div class="stocktake-header__left">
-          <span class="stocktake-header__breadcrumb">ERP / 库存管理 / 库存盘点</span>
-          <h2 class="stocktake-header__title">库存盘点</h2>
-        </div>
-        <div class="stocktake-header__right">
-          <a-space :size="12">
-            <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-              <SyncOutlined /> {{ autoRefreshCountdown }}s
-            </span>
-            <span class="data-status">
-              <a-badge :status="loading ? 'processing' : 'success'" />
-              <span v-if="lastUpdateTime" class="update-time">
-                数据更新: {{ lastUpdateTime }}
-              </span>
-            </span>
-            <span class="shortcut-hints">
-              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-            </span>
-            <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)">
-              <template #icon><ReloadOutlined /></template>
-              刷新
-            </a-button>
-          </a-space>
-        </div>
-      </div>
-    </template>
-
-    <!-- 统计卡片 -->
-    <a-row :gutter="16" style="margin-bottom: 16px;">
-      <a-col :span="6">
-        <div class="summary-card">
-          <div class="summary-icon" style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);">
-            <FileTextOutlined />
-          </div>
-          <div class="summary-content">
-            <div class="summary-title">盘点单总数</div>
-            <div class="summary-value">{{ statistics.totalCount }}</div>
-          </div>
-        </div>
-      </a-col>
-      <a-col :span="6">
-        <div class="summary-card">
-          <div class="summary-icon" style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);">
-            <ClockCircleOutlined />
-          </div>
-          <div class="summary-content">
-            <div class="summary-title">待审核</div>
-            <div class="summary-value warning">{{ statistics.pendingCount }}</div>
-          </div>
-        </div>
-      </a-col>
-      <a-col :span="6">
-        <div class="summary-card">
-          <div class="summary-icon" style="background: linear-gradient(135deg, #722ed1 0%, #531dab 100%);">
-            <FormOutlined />
-          </div>
-          <div class="summary-content">
-            <div class="summary-title">盘点中</div>
-            <div class="summary-value">{{ statistics.processingCount }}</div>
-          </div>
-        </div>
-      </a-col>
-      <a-col :span="6">
-        <div class="summary-card highlight">
-          <div class="summary-icon" style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);">
-            <CheckOutlined />
-          </div>
-          <div class="summary-content">
-            <div class="summary-title">已完成</div>
-            <div class="summary-value">{{ statistics.completedCount }}</div>
-          </div>
-        </div>
-      </a-col>
-    </a-row>
-
-    <BillTableList
-      ref="tableRef"
-      :columns="vxeColumns"
-      :data-source="tableDataSource"
-      :loading="loading"
-      :pagination="pagination"
-      :row-key="'id'"
-      :filter-fields="filterFields"
-      :selectable="true"
-      add-text="新建盘点单"
-      style="flex: 1;"
-      @add="handleCreate"
-      @refresh="fetchData"
-      @search="handleSearch"
-      @page-change="handlePageChange"
-      @filter-change="handleFilterChange"
-      @selection-change="handleSelectionChange"
-      @cell-dblclick="handleView"
-    >
-      <template #toolbar-actions>
-        <span class="list-update-timestamp">最后更新：{{ dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss') }}</span>
-        <a-button size="small" v-permission="'erp:stock:export'" @click="handleExport">
-          <template #icon><DownloadOutlined /></template>
-          导出
-        </a-button>
-      </template>
-
-      <template #empty>
-        <div v-if="hasError" class="table-empty">
-          <WarningOutlined class="table-empty-icon" />
-          <p class="table-empty-text">数据加载异常，请重试</p>
-          <a-button type="primary" @click="fetchData"><ReloadOutlined /> 重试</a-button>
-        </div>
-        <div v-else class="table-empty">
-          <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-          <InboxOutlined v-else class="table-empty-icon" />
-          <p v-if="hasActiveFilters" class="table-empty-text">
-            没有符合条件的盘点单，<a @click="handleResetFilters">清除筛选</a>
-          </p>
-          <p v-else class="table-empty-text">
-            暂无盘点单数据，点击右上角「新建盘点单」开始创建
-          </p>
-        </div>
-      </template>
-
-      <template #action="{ record }">
-        <a-space>
-          <a-tooltip title="查看">
-            <a-button type="link" size="small" v-permission="'erp:stock:view'" @click="handleView(record)">
-              <template #icon><EyeOutlined /></template>
-            </a-button>
-          </a-tooltip>
-          <!-- 草稿 -> 编辑 -->
-          <a-tooltip v-if="record.status === 0" title="编辑">
-            <a-button type="link" size="small" v-permission="'erp:stock:view'" @click="handleView(record)">
-              <template #icon><EditOutlined /></template>
-            </a-button>
-          </a-tooltip>
-          <!-- 已审批 -> 开始盘点 -->
-          <a-tooltip v-if="record.status === 2" title="开始盘点">
-            <a-button type="link" size="small" @click="confirmStart(record)">
-              <template #icon><FormOutlined /></template>
-            </a-button>
-          </a-tooltip>
-          <!-- 进行中 -> 完成盘点 -->
-          <a-tooltip v-if="record.status === 5" title="完成盘点">
-            <a-button type="link" size="small" @click="confirmComplete(record)">
-              <template #icon><CheckOutlined /></template>
-            </a-button>
-          </a-tooltip>
-          <!-- 已完成有差异 -> 库存调整 -->
-          <a-tooltip v-if="record.status === 6 && record.diffItems > 0" title="库存调整">
-            <a-button type="link" size="small" @click="confirmAdjust(record)">
-              <template #icon><AuditOutlined /></template>
-            </a-button>
-          </a-tooltip>
-          <a-dropdown trigger="click">
-            <a-button type="link" size="small" class="action-more-btn">
-              <template #icon><EllipsisOutlined /></template>
-            </a-button>
-            <template #overlay>
-              <a-menu @click="(e) => handleActionMenuClick(e.key, record)">
-                <a-menu-item key="delete">
-                  <DeleteOutlined /> 删除
-                </a-menu-item>
-              </a-menu>
-            </template>
-          </a-dropdown>
-        </a-space>
-      </template>
-    </BillTableList>
-
-    <a-drawer
-      v-model:open="detailVisible"
-      title="盘点单详情"
-      placement="right"
-      width="80vw"
-    >
-      <a-spin :spinning="detailLoading">
-        <a-descriptions bordered :column="2" v-if="detailData">
-          <a-descriptions-item label="盘点单号">{{ detailData.checkNo || detailData.stocktakeNo }}</a-descriptions-item>
-          <a-descriptions-item label="仓库">{{ detailData.warehouseName }}</a-descriptions-item>
-          <a-descriptions-item label="盘点日期">{{ detailData.checkDate ? dayjs(detailData.checkDate).format('YYYY-MM-DD') : (detailData.stocktakeDate || '-') }}</a-descriptions-item>
-          <a-descriptions-item label="状态">
-            <StatusTag :status="detailData.status" :map="STOCKTAKE_STATUS_ORDER" />
-          </a-descriptions-item>
-          <a-descriptions-item label="盘点类型">
-            {{ detailData.checkType === 1 ? '全盘' : detailData.checkType === 2 ? '抽盘' : detailData.checkType === 3 ? '动态盘点' : '-' }}
-          </a-descriptions-item>
-          <a-descriptions-item label="操作人">{{ detailData.creatorName || detailData.operator || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="盘点人">{{ detailData.checkerName || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="监盘人">{{ detailData.supervisorName || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="系统数量">{{ detailData.totalBookQuantity ?? detailData.systemQuantity ?? '-' }}</a-descriptions-item>
-          <a-descriptions-item label="实际数量">{{ detailData.totalActualQuantity ?? detailData.actualQuantity ?? '-' }}</a-descriptions-item>
-          <a-descriptions-item label="差异">
-            <span :class="{ 'positive': (detailData.totalDiffQuantity ?? detailData.difference ?? 0) > 0, 'negative': (detailData.totalDiffQuantity ?? detailData.difference ?? 0) < 0 }">
-              {{ (detailData.totalDiffQuantity ?? detailData.difference ?? 0) > 0 ? '+' : '' }}{{ detailData.totalDiffQuantity ?? detailData.difference ?? 0 }}
-            </span>
-          </a-descriptions-item>
-          <a-descriptions-item label="差异项数">{{ detailData.diffItems ?? '-' }}</a-descriptions-item>
-          <a-descriptions-item label="备注" :span="2">{{ detailData.remark || '-' }}</a-descriptions-item>
-        </a-descriptions>
-        <template v-if="detailData">
-          <h4 style="margin: 16px 0 8px;">盘点明细</h4>
-          <a-table
-            :data-source="detailItems"
-            :columns="detailColumns"
-            :pagination="false as any"
-            size="small"
-            bordered
-            row-key="id"
-          />
-        </template>
-      </a-spin>
-      <template #footer v-if="detailData">
-        <a-space>
-          <a-button v-if="detailData.status === 0" v-permission="'erp:stock:edit'" @click="handleEdit(detailData)">
-            <template #icon><EditOutlined /></template>
-            编辑
-          </a-button>
-          <a-button v-if="detailData.status === 2" type="primary" @click="confirmStart(detailData)">
-            <template #icon><FormOutlined /></template>
-            开始盘点
-          </a-button>
-          <a-button v-if="detailData.status === 5" type="primary" @click="confirmComplete(detailData)">
-            <template #icon><CheckOutlined /></template>
-            完成盘点
-          </a-button>
-          <a-button v-if="detailData.status === 6 && detailData.diffItems > 0" type="primary" @click="confirmAdjust(detailData)">
-            <template #icon><AuditOutlined /></template>
-            库存调整
-          </a-button>
-          <PrintButton v-if="detailData.status >= 6" template-type="stocktake" :business-id="detailData.id" business-type="stocktake" button-text="打印" button-size="small" />
-        </a-space>
-      </template>
-    </a-drawer>
-  </PageContainer>
-
-  <!-- 新建盘点单弹窗 -->
-  <FullScreenDetail
-    :visible="createModalVisible"
-    title="新建盘点单"
-    :save-loading="submitLoading"
-    @close="handleCreateCancel"
-    @save="handleCreateSubmit"
+  <ErrorBoundary
+    @reset="fetchData"
+    @error="handleError"
   >
-    <a-form
-      ref="createFormRef"
-      :model="createForm"
-      :rules="formRules"
-      layout="vertical"
-    >
-      <a-form-item label="创建方式">
-        <a-radio-group v-model:value="createMode">
-          <a-radio value="blank">创建空白盘点单</a-radio>
-          <a-radio value="from-stock">从仓库库存生成明细</a-radio>
-        </a-radio-group>
-      </a-form-item>
+    <PageContainer full-height>
+      <template #header>
+        <div class="stocktake-header">
+          <div class="stocktake-header__left">
+            <span class="stocktake-header__breadcrumb">ERP / 库存管理 / 库存盘点</span>
+            <h2 class="stocktake-header__title">
+              库存盘点
+            </h2>
+          </div>
+          <div class="stocktake-header__right">
+            <a-space :size="12">
+              <span
+                v-if="autoRefreshCountdown > 0"
+                class="auto-refresh-badge"
+              >
+                <SyncOutlined /> {{ autoRefreshCountdown }}s
+              </span>
+              <span class="data-status">
+                <a-badge :status="loading ? 'processing' : 'success'" />
+                <span
+                  v-if="lastUpdateTime"
+                  class="update-time"
+                >
+                  数据更新: {{ lastUpdateTime }}
+                </span>
+              </span>
+              <span class="shortcut-hints">
+                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+              </span>
+              <a-button
+                size="small"
+                :loading="refreshLoading"
+                @click="debounceClick('refresh', fetchData)"
+              >
+                <template #icon>
+                  <ReloadOutlined />
+                </template>
+                刷新
+              </a-button>
+            </a-space>
+          </div>
+        </div>
+      </template>
 
-      <a-form-item label="仓库" name="warehouseId">
-        <a-select
-          v-model:value="createForm.warehouseId"
-          :options="warehouseOptions"
-          placeholder="请选择仓库"
-          show-search
-          :filter-option="(input, option) => option.label.toLowerCase().includes(input.toLowerCase())"
-          allow-clear
-        />
-      </a-form-item>
-
-      <a-form-item label="盘点日期" name="checkDate">
-        <a-date-picker
-          v-model:value="createForm.checkDate"
-          value-format="YYYY-MM-DD"
-          style="width: 100%"
-          placeholder="请选择盘点日期"
-        />
-      </a-form-item>
-
-      <a-form-item label="盘点类型" name="checkType">
-        <a-select
-          v-model:value="createForm.checkType"
-          placeholder="请选择盘点类型"
-          :options="[
-            { label: '全盘', value: 1 },
-            { label: '抽盘', value: 2 },
-            { label: '动态盘点', value: 3 },
-          ]"
-        />
-      </a-form-item>
-
-      <a-row :gutter="16">
-        <a-col :span="12">
-          <a-form-item label="盘点人" name="checkerName">
-            <a-input v-model:value="createForm.checkerName" placeholder="请输入盘点人姓名" />
-          </a-form-item>
+      <!-- 统计卡片 -->
+      <a-row
+        :gutter="16"
+        style="margin-bottom: 16px;"
+      >
+        <a-col :span="6">
+          <div class="summary-card">
+            <div
+              class="summary-icon"
+              style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);"
+            >
+              <FileTextOutlined />
+            </div>
+            <div class="summary-content">
+              <div class="summary-title">
+                盘点单总数
+              </div>
+              <div class="summary-value">
+                {{ statistics.totalCount }}
+              </div>
+            </div>
+          </div>
         </a-col>
-        <a-col :span="12">
-          <a-form-item label="监盘人" name="supervisorName">
-            <a-input v-model:value="createForm.supervisorName" placeholder="请输入监盘人姓名" />
-          </a-form-item>
+        <a-col :span="6">
+          <div class="summary-card">
+            <div
+              class="summary-icon"
+              style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);"
+            >
+              <ClockCircleOutlined />
+            </div>
+            <div class="summary-content">
+              <div class="summary-title">
+                待审核
+              </div>
+              <div class="summary-value warning">
+                {{ statistics.pendingCount }}
+              </div>
+            </div>
+          </div>
+        </a-col>
+        <a-col :span="6">
+          <div class="summary-card">
+            <div
+              class="summary-icon"
+              style="background: linear-gradient(135deg, #722ed1 0%, #531dab 100%);"
+            >
+              <FormOutlined />
+            </div>
+            <div class="summary-content">
+              <div class="summary-title">
+                盘点中
+              </div>
+              <div class="summary-value">
+                {{ statistics.processingCount }}
+              </div>
+            </div>
+          </div>
+        </a-col>
+        <a-col :span="6">
+          <div class="summary-card highlight">
+            <div
+              class="summary-icon"
+              style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);"
+            >
+              <CheckOutlined />
+            </div>
+            <div class="summary-content">
+              <div class="summary-title">
+                已完成
+              </div>
+              <div class="summary-value">
+                {{ statistics.completedCount }}
+              </div>
+            </div>
+          </div>
         </a-col>
       </a-row>
 
-      <a-form-item label="备注" name="remark">
-        <a-textarea v-model:value="createForm.remark" placeholder="请输入备注" :rows="3" />
-      </a-form-item>
-    </a-form>
-  </FullScreenDetail>
+      <BillTableList
+        ref="tableRef"
+        :columns="vxeColumns"
+        :data-source="tableDataSource"
+        :loading="loading"
+        :pagination="pagination"
+        :row-key="'id'"
+        :filter-fields="filterFields"
+        :selectable="true"
+        add-text="新建盘点单"
+        style="flex: 1;"
+        @add="handleCreate"
+        @refresh="fetchData"
+        @search="handleSearch"
+        @page-change="handlePageChange"
+        @filter-change="handleFilterChange"
+        @selection-change="handleSelectionChange"
+        @cell-dblclick="handleView"
+      >
+        <template #toolbar-actions>
+          <span class="list-update-timestamp">最后更新：{{ dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss') }}</span>
+          <a-button
+            v-permission="'erp:stock:export'"
+            size="small"
+            @click="handleExport"
+          >
+            <template #icon>
+              <DownloadOutlined />
+            </template>
+            导出
+          </a-button>
+        </template>
+
+        <template #empty>
+          <div
+            v-if="hasError"
+            class="table-empty"
+          >
+            <WarningOutlined class="table-empty-icon" />
+            <p class="table-empty-text">
+              数据加载异常，请重试
+            </p>
+            <a-button
+              type="primary"
+              @click="fetchData"
+            >
+              <ReloadOutlined /> 重试
+            </a-button>
+          </div>
+          <div
+            v-else
+            class="table-empty"
+          >
+            <SearchOutlined
+              v-if="hasActiveFilters"
+              class="table-empty-icon"
+            />
+            <InboxOutlined
+              v-else
+              class="table-empty-icon"
+            />
+            <p
+              v-if="hasActiveFilters"
+              class="table-empty-text"
+            >
+              没有符合条件的盘点单，<a @click="handleResetFilters">清除筛选</a>
+            </p>
+            <p
+              v-else
+              class="table-empty-text"
+            >
+              暂无盘点单数据，点击右上角「新建盘点单」开始创建
+            </p>
+          </div>
+        </template>
+
+        <template #action="{ record }">
+          <a-space>
+            <a-tooltip title="查看">
+              <a-button
+                v-permission="'erp:stock:view'"
+                type="link"
+                size="small"
+                @click="handleView(record)"
+              >
+                <template #icon>
+                  <EyeOutlined />
+                </template>
+              </a-button>
+            </a-tooltip>
+            <!-- 草稿 -> 编辑 -->
+            <a-tooltip
+              v-if="record.status === 0"
+              title="编辑"
+            >
+              <a-button
+                v-permission="'erp:stock:view'"
+                type="link"
+                size="small"
+                @click="handleView(record)"
+              >
+                <template #icon>
+                  <EditOutlined />
+                </template>
+              </a-button>
+            </a-tooltip>
+            <!-- 已审批 -> 开始盘点 -->
+            <a-tooltip
+              v-if="record.status === 2"
+              title="开始盘点"
+            >
+              <a-button
+                type="link"
+                size="small"
+                @click="confirmStart(record)"
+              >
+                <template #icon>
+                  <FormOutlined />
+                </template>
+              </a-button>
+            </a-tooltip>
+            <!-- 进行中 -> 完成盘点 -->
+            <a-tooltip
+              v-if="record.status === 5"
+              title="完成盘点"
+            >
+              <a-button
+                type="link"
+                size="small"
+                @click="confirmComplete(record)"
+              >
+                <template #icon>
+                  <CheckOutlined />
+                </template>
+              </a-button>
+            </a-tooltip>
+            <!-- 已完成有差异 -> 库存调整 -->
+            <a-tooltip
+              v-if="record.status === 6 && record.diffItems > 0"
+              title="库存调整"
+            >
+              <a-button
+                type="link"
+                size="small"
+                @click="confirmAdjust(record)"
+              >
+                <template #icon>
+                  <AuditOutlined />
+                </template>
+              </a-button>
+            </a-tooltip>
+            <a-dropdown trigger="click">
+              <a-button
+                type="link"
+                size="small"
+                class="action-more-btn"
+              >
+                <template #icon>
+                  <EllipsisOutlined />
+                </template>
+              </a-button>
+              <template #overlay>
+                <a-menu @click="(e) => handleActionMenuClick(e.key, record)">
+                  <a-menu-item key="delete">
+                    <DeleteOutlined /> 删除
+                  </a-menu-item>
+                </a-menu>
+              </template>
+            </a-dropdown>
+          </a-space>
+        </template>
+      </BillTableList>
+
+      <a-drawer
+        v-model:open="detailVisible"
+        title="盘点单详情"
+        placement="right"
+        width="80vw"
+      >
+        <a-spin :spinning="detailLoading">
+          <a-descriptions
+            v-if="detailData"
+            bordered
+            :column="2"
+          >
+            <a-descriptions-item label="盘点单号">
+              {{ detailData.checkNo || detailData.stocktakeNo }}
+            </a-descriptions-item>
+            <a-descriptions-item label="仓库">
+              {{ detailData.warehouseName }}
+            </a-descriptions-item>
+            <a-descriptions-item label="盘点日期">
+              {{ detailData.checkDate ? dayjs(detailData.checkDate).format('YYYY-MM-DD') : (detailData.stocktakeDate || '-') }}
+            </a-descriptions-item>
+            <a-descriptions-item label="状态">
+              <StatusTag
+                :status="detailData.status"
+                :map="STOCKTAKE_STATUS_ORDER"
+              />
+            </a-descriptions-item>
+            <a-descriptions-item label="盘点类型">
+              {{ detailData.checkType === 1 ? '全盘' : detailData.checkType === 2 ? '抽盘' : detailData.checkType === 3 ? '动态盘点' : '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item label="操作人">
+              {{ detailData.creatorName || detailData.operator || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item label="盘点人">
+              {{ detailData.checkerName || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item label="监盘人">
+              {{ detailData.supervisorName || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item label="系统数量">
+              {{ detailData.totalBookQuantity ?? detailData.systemQuantity ?? '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item label="实际数量">
+              {{ detailData.totalActualQuantity ?? detailData.actualQuantity ?? '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item label="差异">
+              <span :class="{ 'positive': (detailData.totalDiffQuantity ?? detailData.difference ?? 0) > 0, 'negative': (detailData.totalDiffQuantity ?? detailData.difference ?? 0) < 0 }">
+                {{ (detailData.totalDiffQuantity ?? detailData.difference ?? 0) > 0 ? '+' : '' }}{{ detailData.totalDiffQuantity ?? detailData.difference ?? 0 }}
+              </span>
+            </a-descriptions-item>
+            <a-descriptions-item label="差异项数">
+              {{ detailData.diffItems ?? '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item
+              label="备注"
+              :span="2"
+            >
+              {{ detailData.remark || '-' }}
+            </a-descriptions-item>
+          </a-descriptions>
+          <template v-if="detailData">
+            <h4 style="margin: 16px 0 8px;">
+              盘点明细
+            </h4>
+            <a-table
+              :data-source="detailItems"
+              :columns="detailColumns"
+              :pagination="false as any"
+              size="small"
+              bordered
+              row-key="id"
+            />
+          </template>
+        </a-spin>
+        <template
+          v-if="detailData"
+          #footer
+        >
+          <a-space>
+            <a-button
+              v-if="detailData.status === 0"
+              v-permission="'erp:stock:edit'"
+              @click="handleEdit(detailData)"
+            >
+              <template #icon>
+                <EditOutlined />
+              </template>
+              编辑
+            </a-button>
+            <a-button
+              v-if="detailData.status === 2"
+              type="primary"
+              @click="confirmStart(detailData)"
+            >
+              <template #icon>
+                <FormOutlined />
+              </template>
+              开始盘点
+            </a-button>
+            <a-button
+              v-if="detailData.status === 5"
+              type="primary"
+              @click="confirmComplete(detailData)"
+            >
+              <template #icon>
+                <CheckOutlined />
+              </template>
+              完成盘点
+            </a-button>
+            <a-button
+              v-if="detailData.status === 6 && detailData.diffItems > 0"
+              type="primary"
+              @click="confirmAdjust(detailData)"
+            >
+              <template #icon>
+                <AuditOutlined />
+              </template>
+              库存调整
+            </a-button>
+            <PrintButton
+              v-if="detailData.status >= 6"
+              template-type="stocktake"
+              :business-id="detailData.id"
+              business-type="stocktake"
+              button-text="打印"
+              button-size="small"
+            />
+          </a-space>
+        </template>
+      </a-drawer>
+    </PageContainer>
+
+    <!-- 新建盘点单弹窗 -->
+    <FullScreenDetail
+      :visible="createModalVisible"
+      title="新建盘点单"
+      :save-loading="submitLoading"
+      @close="handleCreateCancel"
+      @save="handleCreateSubmit"
+    >
+      <a-form
+        ref="createFormRef"
+        :model="createForm"
+        :rules="formRules"
+        layout="vertical"
+      >
+        <a-form-item label="创建方式">
+          <a-radio-group v-model:value="createMode">
+            <a-radio value="blank">
+              创建空白盘点单
+            </a-radio>
+            <a-radio value="from-stock">
+              从仓库库存生成明细
+            </a-radio>
+          </a-radio-group>
+        </a-form-item>
+
+        <a-form-item
+          label="仓库"
+          name="warehouseId"
+        >
+          <a-select
+            v-model:value="createForm.warehouseId"
+            :options="warehouseOptions"
+            placeholder="请选择仓库"
+            show-search
+            :filter-option="(input, option) => option.label.toLowerCase().includes(input.toLowerCase())"
+            allow-clear
+          />
+        </a-form-item>
+
+        <a-form-item
+          label="盘点日期"
+          name="checkDate"
+        >
+          <a-date-picker
+            v-model:value="createForm.checkDate"
+            value-format="YYYY-MM-DD"
+            style="width: 100%"
+            placeholder="请选择盘点日期"
+          />
+        </a-form-item>
+
+        <a-form-item
+          label="盘点类型"
+          name="checkType"
+        >
+          <a-select
+            v-model:value="createForm.checkType"
+            placeholder="请选择盘点类型"
+            :options="[
+              { label: '全盘', value: 1 },
+              { label: '抽盘', value: 2 },
+              { label: '动态盘点', value: 3 },
+            ]"
+          />
+        </a-form-item>
+
+        <a-row :gutter="16">
+          <a-col :span="12">
+            <a-form-item
+              label="盘点人"
+              name="checkerName"
+            >
+              <a-input
+                v-model:value="createForm.checkerName"
+                placeholder="请输入盘点人姓名"
+              />
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item
+              label="监盘人"
+              name="supervisorName"
+            >
+              <a-input
+                v-model:value="createForm.supervisorName"
+                placeholder="请输入监盘人姓名"
+              />
+            </a-form-item>
+          </a-col>
+        </a-row>
+
+        <a-form-item
+          label="备注"
+          name="remark"
+        >
+          <a-textarea
+            v-model:value="createForm.remark"
+            placeholder="请输入备注"
+            :rows="3"
+          />
+        </a-form-item>
+      </a-form>
+    </FullScreenDetail>
   </ErrorBoundary>
 </template>
 

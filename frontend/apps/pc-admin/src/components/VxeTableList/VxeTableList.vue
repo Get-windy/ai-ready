@@ -1,7 +1,13 @@
 <template>
-  <div ref="containerRef" class="vxe-table-list-container">
+  <div
+    ref="containerRef"
+    class="vxe-table-list-container"
+  >
     <!-- 顶部工具栏 -->
-    <div v-if="showToolbar" class="table-toolbar">
+    <div
+      v-if="showToolbar"
+      class="table-toolbar"
+    >
       <div class="toolbar-left">
         <a-space>
           <a-button
@@ -10,7 +16,9 @@
             type="primary"
             @click="debounceClick('add', () => emit('add'))"
           >
-            <template #icon><PlusOutlined /></template>
+            <template #icon>
+              <PlusOutlined />
+            </template>
             {{ addText }}
           </a-button>
           <slot name="toolbar-actions" />
@@ -24,13 +32,15 @@
               size="small"
               @click="showFilterPanel = !showFilterPanel"
             >
-              <template #icon><FilterOutlined /></template>
+              <template #icon>
+                <FilterOutlined />
+              </template>
               筛选
             </a-button>
           </a-tooltip>
           <a-input-search
-            ref="searchInputRef"
             v-if="showSearch"
+            ref="searchInputRef"
             v-model:value="searchKeyword"
             :placeholder="searchPlaceholder"
             style="width: 200px"
@@ -39,13 +49,26 @@
             @search="handleSearch"
           />
           <a-tooltip title="刷新 (F5)">
-            <a-button size="small" @click="debounceClick('refresh', () => emit('refresh'))">
-              <template #icon><ReloadOutlined /></template>
+            <a-button
+              size="small"
+              @click="debounceClick('refresh', () => emit('refresh'))"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
             </a-button>
           </a-tooltip>
-          <a-tooltip v-if="showExport && (!exportPermission || hasPermission(exportPermission))" title="导出">
-            <a-button size="small" @click="debounceClick('export', () => emit('export'))">
-              <template #icon><ExportOutlined /></template>
+          <a-tooltip
+            v-if="showExport && (!exportPermission || hasPermission(exportPermission))"
+            title="导出"
+          >
+            <a-button
+              size="small"
+              @click="debounceClick('export', () => emit('export'))"
+            >
+              <template #icon>
+                <ExportOutlined />
+              </template>
             </a-button>
           </a-tooltip>
         </a-space>
@@ -53,14 +76,21 @@
     </div>
 
     <!-- 筛选面板 -->
-    <div v-if="showFilterPanel" class="filter-panel">
+    <div
+      v-if="showFilterPanel"
+      class="filter-panel"
+    >
       <a-row :gutter="[12, 12]">
         <a-col
           v-for="filter in filterFields"
           :key="filter.key"
           :span="filter.span || 6"
         >
-          <a-form-item :label="filter.label" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }">
+          <a-form-item
+            :label="filter.label"
+            :label-col="{ span: 8 }"
+            :wrapper-col="{ span: 16 }"
+          >
             <a-input
               v-if="filter.type === 'input'"
               v-model:value="filterValues[filter.key]"
@@ -86,25 +116,58 @@
             />
           </a-form-item>
         </a-col>
-        <a-col :span="6" class="filter-actions">
+        <a-col
+          :span="6"
+          class="filter-actions"
+        >
           <a-space>
-            <a-button type="primary" size="small" @click="handleFilterSubmit">查询</a-button>
-            <a-button size="small" @click="handleFilterReset">重置</a-button>
+            <a-button
+              type="primary"
+              size="small"
+              @click="handleFilterSubmit"
+            >
+              查询
+            </a-button>
+            <a-button
+              size="small"
+              @click="handleFilterReset"
+            >
+              重置
+            </a-button>
           </a-space>
         </a-col>
       </a-row>
     </div>
 
     <!-- 批量操作栏 -->
-    <div v-if="realSelectedRows.length > 0" class="batch-bar">
+    <div
+      v-if="realSelectedRows.length > 0"
+      class="batch-bar"
+    >
       <a-space>
         <span class="batch-info">已选择 {{ realSelectedRows.length }} 项</span>
-        <a-button v-if="showBatchDelete && (!deletePermission || hasPermission(deletePermission))" danger size="small" @click="handleBatchDelete">
-          <template #icon><DeleteOutlined /></template>
+        <a-button
+          v-if="showBatchDelete && (!deletePermission || hasPermission(deletePermission))"
+          danger
+          size="small"
+          @click="handleBatchDelete"
+        >
+          <template #icon>
+            <DeleteOutlined />
+          </template>
           批量删除
         </a-button>
-        <slot name="batch-actions" :selected-rows="realSelectedRows" />
-        <a-button type="link" size="small" @click="clearSelection">取消选择</a-button>
+        <slot
+          name="batch-actions"
+          :selected-rows="realSelectedRows"
+        />
+        <a-button
+          type="link"
+          size="small"
+          @click="clearSelection"
+        >
+          取消选择
+        </a-button>
       </a-space>
     </div>
 
@@ -148,52 +211,100 @@
       >
         <!-- seq列和checkbox列：不添加自定义模板，让vxe-table自动处理 -->
         <!-- action列：渲染父组件的#action插槽（vxeColumns处理后的action列有slots.default='action_default'） -->
-        <template v-if="col.slots?.default === 'action_default' || col.type === 'action'" #default="{ row, $rowIndex }">
+        <template
+          v-if="col.slots?.default === 'action_default' || col.type === 'action'"
+          #default="{ row, $rowIndex }"
+        >
           <!-- 空行显示空白 -->
-          <span v-if="row.__empty_row"></span>
-          <slot v-else name="action" :record="row" :index="$rowIndex">
-            <span></span>
+          <span v-if="row.__empty_row" />
+          <slot
+            v-else
+            name="action"
+            :record="row"
+            :index="$rowIndex"
+          >
+            <span />
           </slot>
         </template>
         <!-- 有 slots 属性的列（非action列）：渲染父组件传入的插槽 -->
-        <template v-else-if="col.type !== 'seq' && col.type !== 'checkbox' && col.slots?.default" #default="{ row, $rowIndex }">
-          <slot :name="col.slots.default" :record="row" :index="$rowIndex">
+        <template
+          v-else-if="col.type !== 'seq' && col.type !== 'checkbox' && col.slots?.default"
+          #default="{ row, $rowIndex }"
+        >
+          <slot
+            :name="col.slots.default"
+            :record="row"
+            :index="$rowIndex"
+          >
             <!-- 空行显示空白，非空行显示默认值 -->
-            <span v-if="row.__empty_row"></span>
+            <span v-if="row.__empty_row" />
             <span v-else>{{ row[col.field] ?? '' }}</span>
           </slot>
         </template>
         <!-- 数值列右对齐 + 等宽数字（排除seq、checkbox和action） -->
-        <template v-else-if="col.type !== 'seq' && col.type !== 'checkbox' && col.type !== 'action' && col.align === 'right'" #default="{ row, column }">
+        <template
+          v-else-if="col.type !== 'seq' && col.type !== 'checkbox' && col.type !== 'action' && col.align === 'right'"
+          #default="{ row, column }"
+        >
           <!-- 空行显示空白 -->
-          <span v-if="row.__empty_row" class="cell-number"></span>
-          <span v-else class="cell-number">{{ row[col.field] ?? '' }}</span>
+          <span
+            v-if="row.__empty_row"
+            class="cell-number"
+          />
+          <span
+            v-else
+            class="cell-number"
+          >{{ row[col.field] ?? '' }}</span>
         </template>
         <!-- 有formatter的列：使用v-html渲染HTML内容，空行显示空白（排除seq、checkbox和action） -->
-        <template v-else-if="col.type !== 'seq' && col.type !== 'checkbox' && col.type !== 'action' && col.formatter" #default="{ row, column, $rowIndex }">
-          <span v-if="row.__empty_row"></span>
-          <span v-else v-html="col.formatter({ cellValue: row[col.field], row, $rowIndex, column })"></span>
+        <template
+          v-else-if="col.type !== 'seq' && col.type !== 'checkbox' && col.type !== 'action' && col.formatter"
+          #default="{ row, column, $rowIndex }"
+        >
+          <span v-if="row.__empty_row" />
+          <span
+            v-else
+            v-html="col.formatter({ cellValue: row[col.field], row, $rowIndex, column })"
+          />
         </template>
         <!-- 普通列：空行显示空白（排除seq、checkbox和action） -->
-        <template v-else-if="col.type !== 'seq' && col.type !== 'checkbox' && col.type !== 'action'" #default="{ row }">
-          <span v-if="row.__empty_row"></span>
+        <template
+          v-else-if="col.type !== 'seq' && col.type !== 'checkbox' && col.type !== 'action'"
+          #default="{ row }"
+        >
+          <span v-if="row.__empty_row" />
           <span v-else>{{ row[col.field] ?? '' }}</span>
         </template>
       </vxe-column>
 
       <!-- 自定义列插槽（兼容外部定义的方式） -->
-      <template v-for="slotName in customSlotColumns" :key="slotName" #[slotName]="{ row, $rowIndex }">
+      <template
+        v-for="slotName in customSlotColumns"
+        :key="slotName"
+        #[slotName]="{ row, $rowIndex }"
+      >
         <!-- 空行显示空白 -->
-        <span v-if="row.__empty_row"></span>
-        <slot v-else :name="slotName" :record="row" :index="$rowIndex">
-          <span></span>
+        <span v-if="row.__empty_row" />
+        <slot
+          v-else
+          :name="slotName"
+          :record="row"
+          :index="$rowIndex"
+        >
+          <span />
         </slot>
       </template>
 
       <!-- 全局 bodyCell 插槽（转发到 vxe-table） -->
       <template #[dynamicBodyCellSlot]="{ row, rowIndex, column, columnIndex }">
-        <slot name="bodyCell" :record="row" :index="rowIndex" :column="column" :column-index="columnIndex">
-          <span></span>
+        <slot
+          name="bodyCell"
+          :record="row"
+          :index="rowIndex"
+          :column="column"
+          :column-index="columnIndex"
+        >
+          <span />
         </slot>
       </template>
 
@@ -202,8 +313,16 @@
         <slot name="empty">
           <div class="table-empty">
             <InboxOutlined class="table-empty-icon" />
-            <p class="table-empty-text">暂无数据</p>
-            <a-button v-if="showAdd" type="link" size="small" @click="emit('add')" class="table-empty-action">
+            <p class="table-empty-text">
+              暂无数据
+            </p>
+            <a-button
+              v-if="showAdd"
+              type="link"
+              size="small"
+              class="table-empty-action"
+              @click="emit('add')"
+            >
               <PlusOutlined /> 立即创建
             </a-button>
           </div>
@@ -212,14 +331,17 @@
     </vxe-table>
 
     <!-- 分页 -->
-    <div v-if="pagination" class="table-pagination">
+    <div
+      v-if="pagination"
+      class="table-pagination"
+    >
       <a-pagination
         v-model:current="currentPage"
-        v-model:pageSize="pageSize"
+        v-model:page-size="pageSize"
         :total="paginationTotal"
         :show-size-changer="true"
         :show-quick-jumper="true"
-        :pageSizeOptions="['10', '20', '50', '100']"
+        :page-size-options="['10', '20', '50', '100']"
         :show-total="(total: number) => `共 ${total} 条`"
         size="small"
         @change="handlePageChange"

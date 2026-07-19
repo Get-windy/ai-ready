@@ -1,84 +1,192 @@
 <template>
   <div v-if="!embedded">
     <!-- 作为独立页面：含完整布局 -->
-    <ErrorBoundary @error="handleError"><PageContainer full-height>
-      <template #header>
-        <div class="page-header">
-          <div class="page-header__left">
-            <a-breadcrumb>
-              <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-              <a-breadcrumb-item><router-link to="/dms/vehicle">车辆管理</router-link></a-breadcrumb-item>
-              <a-breadcrumb-item>维保记录</a-breadcrumb-item>
-            </a-breadcrumb>
-            <h2>维保记录</h2>
+    <ErrorBoundary @error="handleError">
+      <PageContainer full-height>
+        <template #header>
+          <div class="page-header">
+            <div class="page-header__left">
+              <a-breadcrumb>
+                <a-breadcrumb-item>
+                  <router-link to="/">
+                    首页
+                  </router-link>
+                </a-breadcrumb-item>
+                <a-breadcrumb-item>
+                  <router-link to="/dms/vehicle">
+                    车辆管理
+                  </router-link>
+                </a-breadcrumb-item>
+                <a-breadcrumb-item>维保记录</a-breadcrumb-item>
+              </a-breadcrumb>
+              <h2>维保记录</h2>
+            </div>
+            <div class="page-header__right">
+              <span
+                v-if="lastUpdateTime"
+                class="update-time"
+              >更新于 {{ lastUpdateTime }}</span>
+              <a-button
+                size="small"
+                :loading="loading"
+                @click="wms.debounce('refresh', wms.fetchData)"
+              >
+                <ReloadOutlined /> 刷新
+              </a-button>
+              <a-button
+                type="primary"
+                size="small"
+                @click="handleAdd"
+              >
+                <PlusOutlined /> 新增记录
+              </a-button>
+            </div>
           </div>
-          <div class="page-header__right">
-            <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-            <a-button size="small" :loading="loading" @click="wms.debounce('refresh', wms.fetchData)">
-              <ReloadOutlined /> 刷新
-            </a-button>
-            <a-button type="primary" size="small" @click="handleAdd"><PlusOutlined /> 新增记录</a-button>
-          </div>
-        </div>
-      </template>
-      <template #filter>
-        <SearchBar :fields="searchFields" :loading="loading" @search="handleSearch" @reset="handleReset" />
-      </template>
-      <template #default>
-        <div class="page-body">
-          <a-table
-            :dataSource="dataList"
-            :columns="columns"
+        </template>
+        <template #filter>
+          <SearchBar
+            :fields="searchFields"
             :loading="loading"
-            :pagination="pagination"
-            rowKey="id"
-            size="small"
-            bordered
-            @change="handleTableChange"
-          >
-            <template #bodyCell="{ column, record }">
-              <template v-if="column.dataIndex === 'maintType'">
-                <a-tag :color="maintTypeMap[record.maintType]?.color || 'default'">
-                  {{ maintTypeMap[record.maintType]?.text || record.maintType }}
-                </a-tag>
+            @search="handleSearch"
+            @reset="handleReset"
+          />
+        </template>
+        <template #default>
+          <div class="page-body">
+            <a-table
+              :data-source="dataList"
+              :columns="columns"
+              :loading="loading"
+              :pagination="pagination"
+              row-key="id"
+              size="small"
+              bordered
+              @change="handleTableChange"
+            >
+              <template #bodyCell="{ column, record }">
+                <template v-if="column.dataIndex === 'maintType'">
+                  <a-tag :color="maintTypeMap[record.maintType]?.color || 'default'">
+                    {{ maintTypeMap[record.maintType]?.text || record.maintType }}
+                  </a-tag>
+                </template>
+                <template v-if="column.dataIndex === 'action'">
+                  <a-popconfirm
+                    title="确定删除该维保记录？"
+                    @confirm="handleDelete(record)"
+                  >
+                    <a-button
+                      type="link"
+                      size="small"
+                      danger
+                    >
+                      <DeleteOutlined />
+                    </a-button>
+                  </a-popconfirm>
+                </template>
               </template>
-              <template v-if="column.dataIndex === 'action'">
-                <a-popconfirm title="确定删除该维保记录？" @confirm="handleDelete(record)">
-                  <a-button type="link" size="small" danger><DeleteOutlined /></a-button>
-                </a-popconfirm>
-              </template>
-            </template>
-          </a-table>
-        </div>
-      </template>
-    </PageContainer></ErrorBoundary>
+            </a-table>
+          </div>
+        </template>
+      </PageContainer>
+    </ErrorBoundary>
 
     <!-- 新增弹窗 -->
-    <a-modal v-model:open="modalVisible" title="新增维保记录" width="640px" :confirm-loading="modalLoading" @ok="handleModalOk" @cancel="handleModalCancel">
-      <a-form ref="formRef" :model="formState" :rules="formRules" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
-        <a-form-item label="维保类型" name="maintType">
-          <a-select v-model:value="formState.maintType" size="small" placeholder="请选择维保类型">
-            <a-select-option :value="1">保养</a-select-option>
-            <a-select-option :value="2">维修</a-select-option>
-            <a-select-option :value="3">年检</a-select-option>
-            <a-select-option :value="4">保险</a-select-option>
-            <a-select-option :value="5">事故</a-select-option>
+    <a-modal
+      v-model:open="modalVisible"
+      title="新增维保记录"
+      width="640px"
+      :confirm-loading="modalLoading"
+      @ok="handleModalOk"
+      @cancel="handleModalCancel"
+    >
+      <a-form
+        ref="formRef"
+        :model="formState"
+        :rules="formRules"
+        :label-col="{ span: 6 }"
+        :wrapper-col="{ span: 16 }"
+      >
+        <a-form-item
+          label="维保类型"
+          name="maintType"
+        >
+          <a-select
+            v-model:value="formState.maintType"
+            size="small"
+            placeholder="请选择维保类型"
+          >
+            <a-select-option :value="1">
+              保养
+            </a-select-option>
+            <a-select-option :value="2">
+              维修
+            </a-select-option>
+            <a-select-option :value="3">
+              年检
+            </a-select-option>
+            <a-select-option :value="4">
+              保险
+            </a-select-option>
+            <a-select-option :value="5">
+              事故
+            </a-select-option>
           </a-select>
         </a-form-item>
-        <a-form-item label="维保日期" name="maintDate">
-          <a-date-picker v-model:value="formState.maintDate" size="small" style="width:100%" placeholder="选择日期" />
+        <a-form-item
+          label="维保日期"
+          name="maintDate"
+        >
+          <a-date-picker
+            v-model:value="formState.maintDate"
+            size="small"
+            style="width:100%"
+            placeholder="选择日期"
+          />
         </a-form-item>
-        <a-form-item label="维保内容" name="maintContent">
-          <a-textarea v-model:value="formState.maintContent" :rows="2" size="small" placeholder="请输入维保内容" />
+        <a-form-item
+          label="维保内容"
+          name="maintContent"
+        >
+          <a-textarea
+            v-model:value="formState.maintContent"
+            :rows="2"
+            size="small"
+            placeholder="请输入维保内容"
+          />
         </a-form-item>
-        <a-form-item label="维保费用" name="maintCost">
-          <a-input-number v-model:value="formState.maintCost" :min="0" size="small" style="width:100%" placeholder="请输入费用" />
+        <a-form-item
+          label="维保费用"
+          name="maintCost"
+        >
+          <a-input-number
+            v-model:value="formState.maintCost"
+            :min="0"
+            size="small"
+            style="width:100%"
+            placeholder="请输入费用"
+          />
         </a-form-item>
-        <a-form-item label="维保厂商" name="maintVendor">
-          <a-input v-model:value="formState.maintVendor" size="small" placeholder="请输入维保厂商" />
+        <a-form-item
+          label="维保厂商"
+          name="maintVendor"
+        >
+          <a-input
+            v-model:value="formState.maintVendor"
+            size="small"
+            placeholder="请输入维保厂商"
+          />
         </a-form-item>
-        <a-form-item label="维保后里程" name="afterMaintMileage">
-          <a-input-number v-model:value="formState.afterMaintMileage" :min="0" size="small" style="width:100%" placeholder="请输入维保后里程" />
+        <a-form-item
+          label="维保后里程"
+          name="afterMaintMileage"
+        >
+          <a-input-number
+            v-model:value="formState.afterMaintMileage"
+            :min="0"
+            size="small"
+            style="width:100%"
+            placeholder="请输入维保后里程"
+          />
         </a-form-item>
       </a-form>
     </a-modal>
@@ -88,13 +196,19 @@
   <div v-else>
     <div class="embedded-header">
       <h4>维保记录</h4>
-      <a-button type="primary" size="small" @click="handleAdd"><PlusOutlined /> 新增</a-button>
+      <a-button
+        type="primary"
+        size="small"
+        @click="handleAdd"
+      >
+        <PlusOutlined /> 新增
+      </a-button>
     </div>
     <a-table
-      :dataSource="dataList"
+      :data-source="dataList"
       :columns="embeddedColumns"
       :loading="loading"
-      rowKey="id"
+      row-key="id"
       size="small"
       bordered
       :pagination="false as any"
@@ -106,39 +220,119 @@
           </a-tag>
         </template>
         <template v-if="column.dataIndex === 'action'">
-          <a-popconfirm title="确定删除该维保记录？" @confirm="handleDelete(record)">
-            <a-button type="link" size="small" danger><DeleteOutlined /></a-button>
+          <a-popconfirm
+            title="确定删除该维保记录？"
+            @confirm="handleDelete(record)"
+          >
+            <a-button
+              type="link"
+              size="small"
+              danger
+            >
+              <DeleteOutlined />
+            </a-button>
           </a-popconfirm>
         </template>
       </template>
     </a-table>
 
     <!-- 新增弹窗（嵌入模式共用） -->
-    <a-modal v-model:open="modalVisible" title="新增维保记录" width="640px" :confirm-loading="modalLoading" @ok="handleModalOk" @cancel="handleModalCancel">
-      <a-form ref="formRef" :model="formState" :rules="formRules" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
-        <a-form-item label="维保类型" name="maintType">
-          <a-select v-model:value="formState.maintType" size="small" placeholder="请选择维保类型">
-            <a-select-option :value="1">保养</a-select-option>
-            <a-select-option :value="2">维修</a-select-option>
-            <a-select-option :value="3">年检</a-select-option>
-            <a-select-option :value="4">保险</a-select-option>
-            <a-select-option :value="5">事故</a-select-option>
+    <a-modal
+      v-model:open="modalVisible"
+      title="新增维保记录"
+      width="640px"
+      :confirm-loading="modalLoading"
+      @ok="handleModalOk"
+      @cancel="handleModalCancel"
+    >
+      <a-form
+        ref="formRef"
+        :model="formState"
+        :rules="formRules"
+        :label-col="{ span: 6 }"
+        :wrapper-col="{ span: 16 }"
+      >
+        <a-form-item
+          label="维保类型"
+          name="maintType"
+        >
+          <a-select
+            v-model:value="formState.maintType"
+            size="small"
+            placeholder="请选择维保类型"
+          >
+            <a-select-option :value="1">
+              保养
+            </a-select-option>
+            <a-select-option :value="2">
+              维修
+            </a-select-option>
+            <a-select-option :value="3">
+              年检
+            </a-select-option>
+            <a-select-option :value="4">
+              保险
+            </a-select-option>
+            <a-select-option :value="5">
+              事故
+            </a-select-option>
           </a-select>
         </a-form-item>
-        <a-form-item label="维保日期" name="maintDate">
-          <a-date-picker v-model:value="formState.maintDate" size="small" style="width:100%" placeholder="选择日期" />
+        <a-form-item
+          label="维保日期"
+          name="maintDate"
+        >
+          <a-date-picker
+            v-model:value="formState.maintDate"
+            size="small"
+            style="width:100%"
+            placeholder="选择日期"
+          />
         </a-form-item>
-        <a-form-item label="维保内容" name="maintContent">
-          <a-textarea v-model:value="formState.maintContent" :rows="2" size="small" placeholder="请输入维保内容" />
+        <a-form-item
+          label="维保内容"
+          name="maintContent"
+        >
+          <a-textarea
+            v-model:value="formState.maintContent"
+            :rows="2"
+            size="small"
+            placeholder="请输入维保内容"
+          />
         </a-form-item>
-        <a-form-item label="维保费用" name="maintCost">
-          <a-input-number v-model:value="formState.maintCost" :min="0" size="small" style="width:100%" placeholder="请输入费用" />
+        <a-form-item
+          label="维保费用"
+          name="maintCost"
+        >
+          <a-input-number
+            v-model:value="formState.maintCost"
+            :min="0"
+            size="small"
+            style="width:100%"
+            placeholder="请输入费用"
+          />
         </a-form-item>
-        <a-form-item label="维保厂商" name="maintVendor">
-          <a-input v-model:value="formState.maintVendor" size="small" placeholder="请输入维保厂商" />
+        <a-form-item
+          label="维保厂商"
+          name="maintVendor"
+        >
+          <a-input
+            v-model:value="formState.maintVendor"
+            size="small"
+            placeholder="请输入维保厂商"
+          />
         </a-form-item>
-        <a-form-item label="维保后里程" name="afterMaintMileage">
-          <a-input-number v-model:value="formState.afterMaintMileage" :min="0" size="small" style="width:100%" placeholder="请输入维保后里程" />
+        <a-form-item
+          label="维保后里程"
+          name="afterMaintMileage"
+        >
+          <a-input-number
+            v-model:value="formState.afterMaintMileage"
+            :min="0"
+            size="small"
+            style="width:100%"
+            placeholder="请输入维保后里程"
+          />
         </a-form-item>
       </a-form>
     </a-modal>

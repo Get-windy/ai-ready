@@ -1,361 +1,545 @@
 <template>
   <ErrorBoundary @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="voucher-header">
-        <div class="voucher-header-left">
-          <a-breadcrumb class="voucher-breadcrumb">
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item>财务管理</a-breadcrumb-item>
-            <a-breadcrumb-item>凭证管理</a-breadcrumb-item>
-          </a-breadcrumb>
-          <h2 class="voucher-header-title">凭证管理</h2>
-        </div>
-        <div class="voucher-header-right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-            <SyncOutlined /> {{ autoRefreshCountdown }}s
-          </span>
-          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)">
-            <template #icon><ReloadOutlined /></template>
-            刷新
-          </a-button>
-          <span class="shortcut-hints">
-            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-            <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
-          </span>
-        </div>
-      </div>
-    </template>
-
-    <div class="finance-voucher-page">
-      <!-- 统计卡片 -->
-      <div class="stat-cards">
-        <div class="stat-card stat-draft">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ statusCounts.draft }}</div>
-            <div class="stat-card-label">草稿凭证</div>
+    <PageContainer full-height>
+      <template #header>
+        <div class="voucher-header">
+          <div class="voucher-header-left">
+            <a-breadcrumb class="voucher-breadcrumb">
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>财务管理</a-breadcrumb-item>
+              <a-breadcrumb-item>凭证管理</a-breadcrumb-item>
+            </a-breadcrumb>
+            <h2 class="voucher-header-title">
+              凭证管理
+            </h2>
           </div>
-          <EditOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-audited">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ statusCounts.audited }}</div>
-            <div class="stat-card-label">待过账</div>
+          <div class="voucher-header-right">
+            <span
+              v-if="lastUpdateTime"
+              class="update-time"
+            >更新于 {{ lastUpdateTime }}</span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            >
+              <SyncOutlined /> {{ autoRefreshCountdown }}s
+            </span>
+            <a-button
+              size="small"
+              :loading="refreshLoading"
+              @click="debounceClick('refresh', fetchData)"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
+              刷新
+            </a-button>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+              <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+            </span>
           </div>
-          <CheckCircleOutlined class="stat-card-icon" />
         </div>
-        <div class="stat-card stat-posted">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ statusCounts.posted }}</div>
-            <div class="stat-card-label">已过账</div>
-          </div>
-          <SendOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-reversed">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ statusCounts.reversed }}</div>
-            <div class="stat-card-label">已冲销</div>
-          </div>
-          <RollbackOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-total">
-          <div class="stat-card-body">
-            <div class="stat-card-value">¥{{ formatAmount(totalDebit) }}</div>
-            <div class="stat-card-label">借方总额</div>
-          </div>
-          <DollarOutlined class="stat-card-icon" />
-        </div>
-      </div>
-
-          <BillTableList
-      ref="tableRef"
-      :min-empty-rows="12"
-      :columns="vxeColumns"
-      :data-source="tableData"
-      :loading="loading"
-      :pagination="pagination"
-      :filter-fields="filterFields"
-      :show-search="false"
-      :show-export="true"
-      :show-add="true"
-      :selectable="false"
-      add-text="新增凭证"
-      :show-edit="false"
-      :show-delete="false"
-      @add="handleAdd"
-      @refresh="fetchData"
-      @page-change="handlePageChange"
-      @filter-change="handleFilterChange"
-      @export="handleExport"
-      @cell-dblclick="handleView"
-    >
-      <template #toolbar-actions>
-        <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
-          更新 {{ dayjs(lastUpdated).format('HH:mm') }}
-        </span>
       </template>
 
-      <template #statusCell="{ record }">
-        <a-tag :color="statusColorMap[record.status] || 'default'">{{ statusLabelMap[record.status] || '未知' }}</a-tag>
-      </template>
-      <template #action="{ record }">
-        <a-space :size="4">
-          <a-tooltip title="查看详情">
-            <a-button v-permission="'finance:voucher:view'" type="link" size="small" @click="handleView(record)">
-              <template #icon><EyeOutlined /></template>
-            </a-button>
-          </a-tooltip>
-          <a-tooltip v-if="record.status === 'draft'" title="审核">
-            <a-button v-permission="'finance:voucher:audit'" type="link" size="small" @click="handleAudit(record)">
-              <template #icon><CheckCircleOutlined /></template>
-            </a-button>
-          </a-tooltip>
-          <a-tooltip v-if="record.status === 'audited'" title="过账">
-            <a-button v-permission="'finance:voucher:post'" type="link" size="small" @click="handlePost(record)">
-              <template #icon><SendOutlined /></template>
-            </a-button>
-          </a-tooltip>
-          <PrintButton :record="record" :business-id="record.id" business-type="voucher" button-type="link" button-size="small" tooltip="打印" />
-          <a-dropdown trigger="click">
-            <a-button type="link" size="small" class="action-more-btn">
-              <template #icon><EllipsisOutlined /></template>
-            </a-button>
-            <template #overlay>
-              <a-menu @click="({ key }: any) => handleActionMenuClick(key as string, record)">
-                <a-menu-item v-permission="'finance:voucher:audit'" v-if="record.status === 'draft'" key="audit">
-                  <CheckCircleOutlined /> 审核
-                </a-menu-item>
-                <a-menu-item v-permission="'finance:voucher:post'" v-if="record.status === 'audited'" key="post">
-                  <SendOutlined /> 过账
-                </a-menu-item>
-                <a-menu-item v-permission="'finance:voucher:reverse'" v-if="record.status === 'posted'" key="reverse">
-                  <RollbackOutlined /> 冲销
-                </a-menu-item>
-              </a-menu>
-            </template>
-          </a-dropdown>
-        </a-space>
-      </template>
-
-      <template #empty>
-        <div class="table-empty">
-          <template v-if="hasError">
-            <WarningOutlined class="table-empty-icon" style="color: #faad14" />
-            <p class="table-empty-text">加载失败</p>
-            <a-button type="primary" size="small" @click="fetchData" class="table-empty-action">
-              <ReloadOutlined /> 重试
-            </a-button>
-          </template>
-          <template v-else>
-            <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-            <InboxOutlined v-else class="table-empty-icon" />
-            <p v-if="hasActiveFilters" class="table-empty-text">
-              没有符合条件的凭证，<a @click="handleResetFilters">清除筛选</a>
-            </p>
-            <p v-else class="table-empty-text">
-              暂无凭证数据，点击右上角「新增凭证」开始创建
-            </p>
-          </template>
+      <div class="finance-voucher-page">
+        <!-- 统计卡片 -->
+        <div class="stat-cards">
+          <div class="stat-card stat-draft">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ statusCounts.draft }}
+              </div>
+              <div class="stat-card-label">
+                草稿凭证
+              </div>
+            </div>
+            <EditOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-audited">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ statusCounts.audited }}
+              </div>
+              <div class="stat-card-label">
+                待过账
+              </div>
+            </div>
+            <CheckCircleOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-posted">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ statusCounts.posted }}
+              </div>
+              <div class="stat-card-label">
+                已过账
+              </div>
+            </div>
+            <SendOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-reversed">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ statusCounts.reversed }}
+              </div>
+              <div class="stat-card-label">
+                已冲销
+              </div>
+            </div>
+            <RollbackOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-total">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                ¥{{ formatAmount(totalDebit) }}
+              </div>
+              <div class="stat-card-label">
+                借方总额
+              </div>
+            </div>
+            <DollarOutlined class="stat-card-icon" />
+          </div>
         </div>
-      </template>
-    </BillTableList>
 
-      <!-- 新增凭证弹窗 -->
-      <FullScreenDetail
-        :visible="addModalVisible"
-        title="新增凭证"
-        :save-loading="addModalLoading"
-        :show-save-and-new="true"
-        width="900px"
-        @save="handleAddModalOk"
-        @close="handleAddFormClose"
-        @save-and-new="handleAddFormSaveAndNew"
-      >
-        <a-form
-          ref="addFormRef"
-          :model="addForm"
-          :rules="addFormRules"
-          :label-col="{ span: 4 }"
-          :wrapper-col="{ span: 18 }"
+        <BillTableList
+          ref="tableRef"
+          :min-empty-rows="12"
+          :columns="vxeColumns"
+          :data-source="tableData"
+          :loading="loading"
+          :pagination="pagination"
+          :filter-fields="filterFields"
+          :show-search="false"
+          :show-export="true"
+          :show-add="true"
+          :selectable="false"
+          add-text="新增凭证"
+          :show-edit="false"
+          :show-delete="false"
+          @add="handleAdd"
+          @refresh="fetchData"
+          @page-change="handlePageChange"
+          @filter-change="handleFilterChange"
+          @export="handleExport"
+          @cell-dblclick="handleView"
         >
-          <a-row :gutter="16">
-            <a-col :span="12">
-              <a-form-item label="凭证日期" name="voucherDate">
-                <a-date-picker
-                  v-model:value="addForm.voucherDate"
-                  style="width: 100%"
-                  format="YYYY-MM-DD"
-                  placeholder="选择日期"
+          <template #toolbar-actions>
+            <span
+              v-if="lastUpdated"
+              class="list-update-timestamp"
+              :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')"
+            >
+              更新 {{ dayjs(lastUpdated).format('HH:mm') }}
+            </span>
+          </template>
+
+          <template #statusCell="{ record }">
+            <a-tag :color="statusColorMap[record.status] || 'default'">
+              {{ statusLabelMap[record.status] || '未知' }}
+            </a-tag>
+          </template>
+          <template #action="{ record }">
+            <a-space :size="4">
+              <a-tooltip title="查看详情">
+                <a-button
+                  v-permission="'finance:voucher:view'"
+                  type="link"
+                  size="small"
+                  @click="handleView(record)"
+                >
+                  <template #icon>
+                    <EyeOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip
+                v-if="record.status === 'draft'"
+                title="审核"
+              >
+                <a-button
+                  v-permission="'finance:voucher:audit'"
+                  type="link"
+                  size="small"
+                  @click="handleAudit(record)"
+                >
+                  <template #icon>
+                    <CheckCircleOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip
+                v-if="record.status === 'audited'"
+                title="过账"
+              >
+                <a-button
+                  v-permission="'finance:voucher:post'"
+                  type="link"
+                  size="small"
+                  @click="handlePost(record)"
+                >
+                  <template #icon>
+                    <SendOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <PrintButton
+                :record="record"
+                :business-id="record.id"
+                business-type="voucher"
+                button-type="link"
+                button-size="small"
+                tooltip="打印"
+              />
+              <a-dropdown trigger="click">
+                <a-button
+                  type="link"
+                  size="small"
+                  class="action-more-btn"
+                >
+                  <template #icon>
+                    <EllipsisOutlined />
+                  </template>
+                </a-button>
+                <template #overlay>
+                  <a-menu @click="({ key }: any) => handleActionMenuClick(key as string, record)">
+                    <a-menu-item
+                      v-if="record.status === 'draft'"
+                      key="audit"
+                      v-permission="'finance:voucher:audit'"
+                    >
+                      <CheckCircleOutlined /> 审核
+                    </a-menu-item>
+                    <a-menu-item
+                      v-if="record.status === 'audited'"
+                      key="post"
+                      v-permission="'finance:voucher:post'"
+                    >
+                      <SendOutlined /> 过账
+                    </a-menu-item>
+                    <a-menu-item
+                      v-if="record.status === 'posted'"
+                      key="reverse"
+                      v-permission="'finance:voucher:reverse'"
+                    >
+                      <RollbackOutlined /> 冲销
+                    </a-menu-item>
+                  </a-menu>
+                </template>
+              </a-dropdown>
+            </a-space>
+          </template>
+
+          <template #empty>
+            <div class="table-empty">
+              <template v-if="hasError">
+                <WarningOutlined
+                  class="table-empty-icon"
+                  style="color: #faad14"
+                />
+                <p class="table-empty-text">
+                  加载失败
+                </p>
+                <a-button
+                  type="primary"
+                  size="small"
+                  class="table-empty-action"
+                  @click="fetchData"
+                >
+                  <ReloadOutlined /> 重试
+                </a-button>
+              </template>
+              <template v-else>
+                <SearchOutlined
+                  v-if="hasActiveFilters"
+                  class="table-empty-icon"
+                />
+                <InboxOutlined
+                  v-else
+                  class="table-empty-icon"
+                />
+                <p
+                  v-if="hasActiveFilters"
+                  class="table-empty-text"
+                >
+                  没有符合条件的凭证，<a @click="handleResetFilters">清除筛选</a>
+                </p>
+                <p
+                  v-else
+                  class="table-empty-text"
+                >
+                  暂无凭证数据，点击右上角「新增凭证」开始创建
+                </p>
+              </template>
+            </div>
+          </template>
+        </BillTableList>
+
+        <!-- 新增凭证弹窗 -->
+        <FullScreenDetail
+          :visible="addModalVisible"
+          title="新增凭证"
+          :save-loading="addModalLoading"
+          :show-save-and-new="true"
+          width="900px"
+          @save="handleAddModalOk"
+          @close="handleAddFormClose"
+          @save-and-new="handleAddFormSaveAndNew"
+        >
+          <a-form
+            ref="addFormRef"
+            :model="addForm"
+            :rules="addFormRules"
+            :label-col="{ span: 4 }"
+            :wrapper-col="{ span: 18 }"
+          >
+            <a-row :gutter="16">
+              <a-col :span="12">
+                <a-form-item
+                  label="凭证日期"
+                  name="voucherDate"
+                >
+                  <a-date-picker
+                    v-model:value="addForm.voucherDate"
+                    style="width: 100%"
+                    format="YYYY-MM-DD"
+                    placeholder="选择日期"
+                    size="small"
+                  />
+                </a-form-item>
+              </a-col>
+              <a-col :span="12">
+                <a-form-item label="年度">
+                  <a-input
+                    :value="addForm.fiscalYear"
+                    disabled
+                    size="small"
+                  />
+                </a-form-item>
+              </a-col>
+            </a-row>
+          </a-form>
+
+          <a-divider orientation="left">
+            凭证分录
+          </a-divider>
+
+          <div class="entry-section">
+            <a-button
+              type="dashed"
+              block
+              style="margin-bottom: 12px"
+              @click="handleAddEntry"
+            >
+              <template #icon>
+                <PlusOutlined />
+              </template>
+              添加分录行
+            </a-button>
+
+            <BillTableList
+              :columns="entryColumns"
+              :data-source="addForm.entries"
+              :pagination="false as any"
+              row-key="tempId"
+              :show-toolbar="false"
+              :selectable="false"
+              :show-add="false"
+              :show-search="false"
+              :show-export="false"
+              :show-batch-delete="false"
+            >
+              <template #summaryCell="{ record }">
+                <a-input
+                  v-model:value="record.summary"
+                  placeholder="摘要"
                   size="small"
                 />
-              </a-form-item>
-            </a-col>
-            <a-col :span="12">
-              <a-form-item label="年度">
-                <a-input :value="addForm.fiscalYear" disabled size="small" />
-              </a-form-item>
-            </a-col>
-          </a-row>
-        </a-form>
-
-        <a-divider orientation="left">凭证分录</a-divider>
-
-        <div class="entry-section">
-          <a-button type="dashed" block @click="handleAddEntry" style="margin-bottom: 12px">
-            <template #icon><PlusOutlined /></template>
-            添加分录行
-          </a-button>
-
-          <BillTableList
-            :columns="entryColumns"
-            :data-source="addForm.entries"
-            :pagination="false as any"
-            row-key="tempId"
-            :show-toolbar="false"
-            :selectable="false"
-            :show-add="false"
-            :show-search="false"
-            :show-export="false"
-            :show-batch-delete="false"
-          >
-            <template #summaryCell="{ record }">
-              <a-input v-model:value="record.summary" placeholder="摘要" size="small" />
-            </template>
-            <template #subjectCell="{ record }">
-              <a-input v-model:value="record.subjectName" placeholder="科目名称" size="small" />
-            </template>
-            <template #debitAmountCell="{ record }">
-              <a-input-number
-                v-model:value="record.debitAmount"
-                :min="0"
-                :precision="2"
-                style="width: 100%"
-                size="small"
-                placeholder="0.00"
-              />
-            </template>
-            <template #creditAmountCell="{ record }">
-              <a-input-number
-                v-model:value="record.creditAmount"
-                :min="0"
-                :precision="2"
-                style="width: 100%"
-                size="small"
-                placeholder="0.00"
-              />
-            </template>
-            <template #actionCell="{ record, rowIndex }: any">
-              <a-button type="link" size="small" danger @click="handleRemoveEntry(rowIndex)">
-                <DeleteOutlined />
-              </a-button>
-            </template>
-            <template #footer>
-              <div class="voucher-summary-row">
-                <span class="voucher-summary-label">合计</span>
-                <span class="amount-cell debit">¥{{ getTotalDebit() }}</span>
-                <span class="amount-cell credit">¥{{ getTotalCredit() }}</span>
-              </div>
-            </template>
-          </BillTableList>
-        </div>
-      </FullScreenDetail>
-
-      <!-- 查看详情弹窗 -->
-      <a-modal
-        v-model:open="detailVisible"
-        title="凭证详情"
-        :footer="null"
-        width="900px"
-        centered
-      >
-        <template v-if="currentVoucher">
-          <a-descriptions :column="3" bordered size="small">
-            <a-descriptions-item label="凭证号">
-              <a-tag color="blue">{{ currentVoucher.voucherNo }}</a-tag>
-            </a-descriptions-item>
-            <a-descriptions-item label="日期">{{ currentVoucher.voucherDate }}</a-descriptions-item>
-            <a-descriptions-item label="状态">
-              <a-tag :color="statusColorMap[currentVoucher.status] || 'default'">
-                {{ statusLabelMap[currentVoucher.status] || '未知' }}
-              </a-tag>
-            </a-descriptions-item>
-            <a-descriptions-item label="年度">{{ currentVoucher.fiscalYear }}</a-descriptions-item>
-            <a-descriptions-item label="期间">{{ currentVoucher.fiscalPeriod }}月</a-descriptions-item>
-            <a-descriptions-item label="制单人">{{ currentVoucher.createdBy || '-' }}</a-descriptions-item>
-          </a-descriptions>
-
-          <p style="margin-top: 12px">
-            <strong>摘要：</strong>{{ currentVoucher.summary || currentVoucher.entries?.[0]?.summary || '-' }}
-          </p>
-
-          <a-divider>分录明细</a-divider>
-
-          <BillTableList
-            :columns="entryViewColumns"
-            :data-source="currentVoucher.entries || []"
-            :pagination="false as any"
-            row-key="id"
-            :show-toolbar="false"
-            :selectable="false"
-            :show-add="false"
-            :show-search="false"
-            :show-export="false"
-            :show-batch-delete="false"
-          >
-            <template #debitAmountCell="{ record }">
-              <span class="amount-cell debit">¥{{ formatAmount(record.debitAmount) }}</span>
-            </template>
-            <template #creditAmountCell="{ record }">
-              <span class="amount-cell credit">¥{{ formatAmount(record.creditAmount) }}</span>
-            </template>
-            <template #footer>
-              <div class="voucher-summary-row voucher-summary-row-view">
-                <span class="voucher-summary-label">合计</span>
-                <span class="amount-cell debit">¥{{ formatAmount(currentVoucher.debitTotal) }}</span>
-                <span class="amount-cell credit">¥{{ formatAmount(currentVoucher.creditTotal) }}</span>
-              </div>
-            </template>
-          </BillTableList>
-
-          <div class="detail-modal-footer">
-            <a-button v-if="currentVoucher.status === 'draft'" type="primary" @click="handleAudit(currentVoucher)">
-              审核
-            </a-button>
-            <a-button v-if="currentVoucher.status === 'audited'" type="primary" @click="handlePost(currentVoucher)">
-              过账
-            </a-button>
-            <a-button v-if="currentVoucher.status === 'posted'" type="primary" danger @click="handleReverse(currentVoucher)">
-              冲销
-            </a-button>
-            <PrintButton :business-id="currentVoucher.id" business-type="voucher" button-size="small" tooltip="打印" />
-            <a-button @click="detailVisible = false">关闭</a-button>
+              </template>
+              <template #subjectCell="{ record }">
+                <a-input
+                  v-model:value="record.subjectName"
+                  placeholder="科目名称"
+                  size="small"
+                />
+              </template>
+              <template #debitAmountCell="{ record }">
+                <a-input-number
+                  v-model:value="record.debitAmount"
+                  :min="0"
+                  :precision="2"
+                  style="width: 100%"
+                  size="small"
+                  placeholder="0.00"
+                />
+              </template>
+              <template #creditAmountCell="{ record }">
+                <a-input-number
+                  v-model:value="record.creditAmount"
+                  :min="0"
+                  :precision="2"
+                  style="width: 100%"
+                  size="small"
+                  placeholder="0.00"
+                />
+              </template>
+              <template #actionCell="{ record, rowIndex }: any">
+                <a-button
+                  type="link"
+                  size="small"
+                  danger
+                  @click="handleRemoveEntry(rowIndex)"
+                >
+                  <DeleteOutlined />
+                </a-button>
+              </template>
+              <template #footer>
+                <div class="voucher-summary-row">
+                  <span class="voucher-summary-label">合计</span>
+                  <span class="amount-cell debit">¥{{ getTotalDebit() }}</span>
+                  <span class="amount-cell credit">¥{{ getTotalCredit() }}</span>
+                </div>
+              </template>
+            </BillTableList>
           </div>
-        </template>
-      </a-modal>
+        </FullScreenDetail>
 
-      <!-- 冲销原因弹窗 -->
-      <a-modal
-        v-model:open="reverseModalVisible"
-        title="冲销凭证"
-        :confirm-loading="reverseLoading"
-        centered
-        @ok="handleReverseConfirm"
-        @cancel="reverseModalVisible = false"
-      >
-        <a-form layout="vertical">
-          <a-form-item label="冲销原因" required>
-            <a-textarea
-              v-model:value="reverseReason"
-              placeholder="请输入冲销原因"
-              :rows="3"
+        <!-- 查看详情弹窗 -->
+        <a-modal
+          v-model:open="detailVisible"
+          title="凭证详情"
+          :footer="null"
+          width="900px"
+          centered
+        >
+          <template v-if="currentVoucher">
+            <a-descriptions
+              :column="3"
+              bordered
               size="small"
-            />
-          </a-form-item>
-        </a-form>
-      </a-modal>
-    </div>
-  </PageContainer>
+            >
+              <a-descriptions-item label="凭证号">
+                <a-tag color="blue">
+                  {{ currentVoucher.voucherNo }}
+                </a-tag>
+              </a-descriptions-item>
+              <a-descriptions-item label="日期">
+                {{ currentVoucher.voucherDate }}
+              </a-descriptions-item>
+              <a-descriptions-item label="状态">
+                <a-tag :color="statusColorMap[currentVoucher.status] || 'default'">
+                  {{ statusLabelMap[currentVoucher.status] || '未知' }}
+                </a-tag>
+              </a-descriptions-item>
+              <a-descriptions-item label="年度">
+                {{ currentVoucher.fiscalYear }}
+              </a-descriptions-item>
+              <a-descriptions-item label="期间">
+                {{ currentVoucher.fiscalPeriod }}月
+              </a-descriptions-item>
+              <a-descriptions-item label="制单人">
+                {{ currentVoucher.createdBy || '-' }}
+              </a-descriptions-item>
+            </a-descriptions>
+
+            <p style="margin-top: 12px">
+              <strong>摘要：</strong>{{ currentVoucher.summary || currentVoucher.entries?.[0]?.summary || '-' }}
+            </p>
+
+            <a-divider>分录明细</a-divider>
+
+            <BillTableList
+              :columns="entryViewColumns"
+              :data-source="currentVoucher.entries || []"
+              :pagination="false as any"
+              row-key="id"
+              :show-toolbar="false"
+              :selectable="false"
+              :show-add="false"
+              :show-search="false"
+              :show-export="false"
+              :show-batch-delete="false"
+            >
+              <template #debitAmountCell="{ record }">
+                <span class="amount-cell debit">¥{{ formatAmount(record.debitAmount) }}</span>
+              </template>
+              <template #creditAmountCell="{ record }">
+                <span class="amount-cell credit">¥{{ formatAmount(record.creditAmount) }}</span>
+              </template>
+              <template #footer>
+                <div class="voucher-summary-row voucher-summary-row-view">
+                  <span class="voucher-summary-label">合计</span>
+                  <span class="amount-cell debit">¥{{ formatAmount(currentVoucher.debitTotal) }}</span>
+                  <span class="amount-cell credit">¥{{ formatAmount(currentVoucher.creditTotal) }}</span>
+                </div>
+              </template>
+            </BillTableList>
+
+            <div class="detail-modal-footer">
+              <a-button
+                v-if="currentVoucher.status === 'draft'"
+                type="primary"
+                @click="handleAudit(currentVoucher)"
+              >
+                审核
+              </a-button>
+              <a-button
+                v-if="currentVoucher.status === 'audited'"
+                type="primary"
+                @click="handlePost(currentVoucher)"
+              >
+                过账
+              </a-button>
+              <a-button
+                v-if="currentVoucher.status === 'posted'"
+                type="primary"
+                danger
+                @click="handleReverse(currentVoucher)"
+              >
+                冲销
+              </a-button>
+              <PrintButton
+                :business-id="currentVoucher.id"
+                business-type="voucher"
+                button-size="small"
+                tooltip="打印"
+              />
+              <a-button @click="detailVisible = false">
+                关闭
+              </a-button>
+            </div>
+          </template>
+        </a-modal>
+
+        <!-- 冲销原因弹窗 -->
+        <a-modal
+          v-model:open="reverseModalVisible"
+          title="冲销凭证"
+          :confirm-loading="reverseLoading"
+          centered
+          @ok="handleReverseConfirm"
+          @cancel="reverseModalVisible = false"
+        >
+          <a-form layout="vertical">
+            <a-form-item
+              label="冲销原因"
+              required
+            >
+              <a-textarea
+                v-model:value="reverseReason"
+                placeholder="请输入冲销原因"
+                :rows="3"
+                size="small"
+              />
+            </a-form-item>
+          </a-form>
+        </a-modal>
+      </div>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

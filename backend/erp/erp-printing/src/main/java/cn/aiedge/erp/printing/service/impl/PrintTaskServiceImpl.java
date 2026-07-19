@@ -232,16 +232,38 @@ public class PrintTaskServiceImpl implements PrintTaskService {
         LambdaQueryWrapper<PrintTask> wrapper = new LambdaQueryWrapper<>();
         wrapper.in(PrintTask::getStatus, TaskStatus.COMPLETED.getCode(), TaskStatus.FAILED.getCode(), TaskStatus.CANCELLED.getCode());
         if (startDate != null && !startDate.isEmpty()) {
-            wrapper.ge(PrintTask::getCompleteTime, LocalDate.parse(startDate).atStartOfDay());
+            wrapper.ge(PrintTask::getCompleteTime, parseLocalDateToStartOfDay(startDate));
         }
         if (endDate != null && !endDate.isEmpty()) {
-            wrapper.le(PrintTask::getCompleteTime, LocalDate.parse(endDate).atTime(LocalTime.MAX));
+            wrapper.le(PrintTask::getCompleteTime, parseLocalDateToEndOfDay(endDate));
         }
         if (documentType != null && !documentType.isEmpty()) {
             wrapper.eq(PrintTask::getDocumentType, documentType);
         }
         wrapper.orderByDesc(PrintTask::getCompleteTime);
         return taskMapper.selectPage(pageObj, wrapper);
+    }
+
+    private LocalDateTime parseLocalDateToStartOfDay(String dateString) {
+        if (dateString == null || dateString.isEmpty()) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(dateString).atStartOfDay();
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Invalid date format: " + dateString + ". Expected format: yyyy-MM-dd");
+        }
+    }
+
+    private LocalDateTime parseLocalDateToEndOfDay(String dateString) {
+        if (dateString == null || dateString.isEmpty()) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(dateString).atTime(LocalTime.MAX);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Invalid date format: " + dateString + ". Expected format: yyyy-MM-dd");
+        }
     }
 
     @Override

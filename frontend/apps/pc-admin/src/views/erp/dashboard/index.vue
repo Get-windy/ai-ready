@@ -1,98 +1,176 @@
 <template>
   <ErrorBoundary @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="erp-dashboard-header">
-        <div class="erp-dashboard-header-left">
-          <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item>ERP仪表盘</a-breadcrumb-item>
-          </a-breadcrumb>
-          <h2 class="erp-dashboard-title">ERP仪表盘</h2>
+    <PageContainer full-height>
+      <template #header>
+        <div class="erp-dashboard-header">
+          <div class="erp-dashboard-header-left">
+            <a-breadcrumb>
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>ERP仪表盘</a-breadcrumb-item>
+            </a-breadcrumb>
+            <h2 class="erp-dashboard-title">
+              ERP仪表盘
+            </h2>
+          </div>
+          <div class="erp-dashboard-header-right">
+            <span class="data-status">
+              <a-badge :status="loading ? 'processing' : 'success'" />
+              <span
+                v-if="lastUpdateTime"
+                class="update-time"
+              >数据更新: {{ lastUpdateTime }}</span>
+            </span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            >
+              <SyncOutlined /> {{ autoRefreshCountdown }}s
+            </span>
+            <a-button
+              size="small"
+              :loading="loading"
+              @click="debounceClick('refresh', loadData)"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
+              刷新
+            </a-button>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            </span>
+          </div>
         </div>
-        <div class="erp-dashboard-header-right">
-          <span class="data-status">
-            <a-badge :status="loading ? 'processing' : 'success'" />
-            <span v-if="lastUpdateTime" class="update-time">数据更新: {{ lastUpdateTime }}</span>
-          </span>
-          <span class="auto-refresh-badge" v-if="autoRefreshCountdown > 0">
-            <SyncOutlined /> {{ autoRefreshCountdown }}s
-          </span>
-          <a-button size="small" :loading="loading" @click="debounceClick('refresh', loadData)">
-            <template #icon><ReloadOutlined /></template>
-            刷新
-          </a-button>
-          <span class="shortcut-hints">
-            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-          </span>
-        </div>
-      </div>
-    </template>
+      </template>
 
-    <!-- KPI 统计卡片 -->
-    <a-row :gutter="12" style="margin-bottom: 16px;">
-      <a-col :span="4" v-for="kpi in kpiCards" :key="kpi.key">
-        <div class="kpi-card" :style="{ borderTop: `3px solid ${kpi.color}` }">
-          <div class="kpi-value" :style="{ color: kpi.color }">{{ loading ? '-' : kpi.value }}</div>
-          <div class="kpi-label">{{ kpi.label }}</div>
-          <div class="kpi-link" @click="navigateTo(kpi.path)">查看详情 →</div>
-        </div>
-      </a-col>
-    </a-row>
-
-    <a-row :gutter="12" style="flex: 1;">
-      <!-- 快捷入口 -->
-      <a-col :span="6">
-        <a-card title="快捷入口" :bordered="false" class="section-card">
-          <a-row :gutter="[8, 8]">
-            <a-col :span="12" v-for="entry in quickEntries" :key="entry.key">
-              <a-button class="quick-entry-btn" @click="navigateTo(entry.path)">
-                <component :is="entry.icon" /> {{ entry.label }}
-              </a-button>
-            </a-col>
-          </a-row>
-        </a-card>
-
-        <!-- 操作指引 -->
-        <a-card title="常用操作" :bordered="false" class="section-card" style="margin-top: 12px;">
-          <a-timeline>
-            <a-timeline-item v-for="tip in quickTips" :key="tip.text" :color="tip.color">
-              {{ tip.text }}
-            </a-timeline-item>
-          </a-timeline>
-        </a-card>
-      </a-col>
-
-      <!-- 待处理事项 -->
-      <a-col :span="18">
-        <a-card title="待处理事项" :bordered="false" class="section-card">
-          <a-table
-            :data-source="pendingItems"
-            :columns="pendingColumns"
-            :loading="loading"
-            :pagination="{ pageSize: 10, size: 'small', showTotal: (t) => `共 ${t} 条` }"
-            size="small"
-            row-key="id"
+      <!-- KPI 统计卡片 -->
+      <a-row
+        :gutter="12"
+        style="margin-bottom: 16px;"
+      >
+        <a-col
+          v-for="kpi in kpiCards"
+          :key="kpi.key"
+          :span="4"
+        >
+          <div
+            class="kpi-card"
+            :style="{ borderTop: `3px solid ${kpi.color}` }"
           >
-            <template #bodyCell="{ column, record }">
-              <template v-if="column.key === 'type'">
-                <a-tag :color="record.typeColor">{{ record.typeLabel }}</a-tag>
+            <div
+              class="kpi-value"
+              :style="{ color: kpi.color }"
+            >
+              {{ loading ? '-' : kpi.value }}
+            </div>
+            <div class="kpi-label">
+              {{ kpi.label }}
+            </div>
+            <div
+              class="kpi-link"
+              @click="navigateTo(kpi.path)"
+            >
+              查看详情 →
+            </div>
+          </div>
+        </a-col>
+      </a-row>
+
+      <a-row
+        :gutter="12"
+        style="flex: 1;"
+      >
+        <!-- 快捷入口 -->
+        <a-col :span="6">
+          <a-card
+            title="快捷入口"
+            :bordered="false"
+            class="section-card"
+          >
+            <a-row :gutter="[8, 8]">
+              <a-col
+                v-for="entry in quickEntries"
+                :key="entry.key"
+                :span="12"
+              >
+                <a-button
+                  class="quick-entry-btn"
+                  @click="navigateTo(entry.path)"
+                >
+                  <component :is="entry.icon" /> {{ entry.label }}
+                </a-button>
+              </a-col>
+            </a-row>
+          </a-card>
+
+          <!-- 操作指引 -->
+          <a-card
+            title="常用操作"
+            :bordered="false"
+            class="section-card"
+            style="margin-top: 12px;"
+          >
+            <a-timeline>
+              <a-timeline-item
+                v-for="tip in quickTips"
+                :key="tip.text"
+                :color="tip.color"
+              >
+                {{ tip.text }}
+              </a-timeline-item>
+            </a-timeline>
+          </a-card>
+        </a-col>
+
+        <!-- 待处理事项 -->
+        <a-col :span="18">
+          <a-card
+            title="待处理事项"
+            :bordered="false"
+            class="section-card"
+          >
+            <a-table
+              :data-source="pendingItems"
+              :columns="pendingColumns"
+              :loading="loading"
+              :pagination="{ pageSize: 10, size: 'small', showTotal: (t) => `共 ${t} 条` }"
+              size="small"
+              row-key="id"
+            >
+              <template #bodyCell="{ column, record }">
+                <template v-if="column.key === 'type'">
+                  <a-tag :color="record.typeColor">
+                    {{ record.typeLabel }}
+                  </a-tag>
+                </template>
+                <template v-else-if="column.key === 'status'">
+                  <StatusTag
+                    :status="record.status"
+                    :map="record.statusMap"
+                  />
+                </template>
+                <template v-else-if="column.key === 'action'">
+                  <a-button
+                    type="link"
+                    size="small"
+                    @click="navigateTo(record.path)"
+                  >
+                    查看
+                  </a-button>
+                </template>
               </template>
-              <template v-else-if="column.key === 'status'">
-                <StatusTag :status="record.status" :map="record.statusMap" />
+              <template #emptyText>
+                <a-empty description="暂无待处理事项" />
               </template>
-              <template v-else-if="column.key === 'action'">
-                <a-button type="link" size="small" @click="navigateTo(record.path)">查看</a-button>
-              </template>
-            </template>
-            <template #emptyText>
-              <a-empty description="暂无待处理事项" />
-            </template>
-          </a-table>
-        </a-card>
-      </a-col>
-    </a-row>
-  </PageContainer>
+            </a-table>
+          </a-card>
+        </a-col>
+      </a-row>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

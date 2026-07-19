@@ -1,361 +1,658 @@
 <template>
-  <ErrorBoundary @reset="fetchData" @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="stock-in-header">
-        <div class="stock-in-header__left">
-          <span class="stock-in-header__breadcrumb">ERP / 采购管理 / 入库管理</span>
-          <h2 class="stock-in-header__title">入库管理</h2>
-        </div>
-        <div class="stock-in-header__right">
-          <a-space :size="12">
-            <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-              <SyncOutlined /> {{ autoRefreshCountdown }}s
-            </span>
-            <span class="data-status">
-              <a-badge :status="loading ? 'processing' : 'success'" />
-              <span v-if="lastUpdateTime" class="update-time">
-                数据更新: {{ lastUpdateTime }}
+  <ErrorBoundary
+    @reset="fetchData"
+    @error="handleError"
+  >
+    <PageContainer full-height>
+      <template #header>
+        <div class="stock-in-header">
+          <div class="stock-in-header__left">
+            <span class="stock-in-header__breadcrumb">ERP / 采购管理 / 入库管理</span>
+            <h2 class="stock-in-header__title">
+              入库管理
+            </h2>
+          </div>
+          <div class="stock-in-header__right">
+            <a-space :size="12">
+              <span
+                v-if="autoRefreshCountdown > 0"
+                class="auto-refresh-badge"
+              >
+                <SyncOutlined /> {{ autoRefreshCountdown }}s
               </span>
-            </span>
-            <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)">
-              <template #icon><ReloadOutlined /></template>
-              刷新
-            </a-button>
-            <span class="shortcut-hints">
-              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-            </span>
-          </a-space>
-        </div>
-      </div>
-    </template>
-
-    <!-- 统计卡片 -->
-    <a-row :gutter="16" style="margin-bottom: 16px;">
-      <a-col :span="6">
-        <div class="summary-card">
-          <div class="summary-icon" style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);">
-            <FileTextOutlined />
+              <span class="data-status">
+                <a-badge :status="loading ? 'processing' : 'success'" />
+                <span
+                  v-if="lastUpdateTime"
+                  class="update-time"
+                >
+                  数据更新: {{ lastUpdateTime }}
+                </span>
+              </span>
+              <a-button
+                size="small"
+                :loading="refreshLoading"
+                @click="debounceClick('refresh', fetchData)"
+              >
+                <template #icon>
+                  <ReloadOutlined />
+                </template>
+                刷新
+              </a-button>
+              <span class="shortcut-hints">
+                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+              </span>
+            </a-space>
           </div>
-          <div class="summary-content">
-            <div class="summary-title">入库单总数</div>
-            <div class="summary-value">{{ statistics.totalCount }}</div>
-          </div>
-        </div>
-      </a-col>
-      <a-col :span="6">
-        <div class="summary-card">
-          <div class="summary-icon" style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);">
-            <ClockCircleOutlined />
-          </div>
-          <div class="summary-content">
-            <div class="summary-title">待审核</div>
-            <div class="summary-value warning">{{ statistics.pendingCount }}</div>
-          </div>
-        </div>
-      </a-col>
-      <a-col :span="6">
-        <div class="summary-card">
-          <div class="summary-icon" style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);">
-            <CheckCircleOutlined />
-          </div>
-          <div class="summary-content">
-            <div class="summary-title">已完成</div>
-            <div class="summary-value">{{ statistics.completedCount }}</div>
-          </div>
-        </div>
-      </a-col>
-      <a-col :span="6">
-        <div class="summary-card highlight">
-          <div class="summary-icon" style="background: linear-gradient(135deg, #722ed1 0%, #531dab 100%);">
-            <DollarOutlined />
-          </div>
-          <div class="summary-content">
-            <div class="summary-title">入库金额</div>
-            <div class="summary-value">¥{{ formatAmount(statistics.totalAmount) }}</div>
-          </div>
-        </div>
-      </a-col>
-    </a-row>
-
-    <a-card title="入库管理" style="flex: 1; overflow: hidden;" :bodyStyle="{ display: 'flex', flexDirection: 'column', height: 'calc(100% - 57px)' }">
-      <!-- 搜索栏 -->
-      <SearchBar
-        :fields="searchFields"
-        :loading="loading"
-        @search="handleSearch"
-        @reset="handleReset"
-      />
-
-      <!-- 操作按钮 -->
-      <div class="action-area">
-        <a-space>
-          <a-button v-permission="'stock:inbound:create'" type="primary" @click="handleCreate">
-            <template #icon><PlusOutlined /></template>
-            新建入库单
-          </a-button>
-          <a-button v-permission="'stock:inbound:export'" @click="debounceClick('export', handleExport)">
-            <template #icon><ExportOutlined /></template>
-            导出
-          </a-button>
-        </a-space>
-      </div>
-
-      <!-- 数据表格 -->
-      <BillTableList
-        ref="tableRef"
-        :columns="vxeColumns"
-        :data-source="tableData"
-        :loading="loading"
-        :pagination="pagination"
-        row-key="id"
-        :show-toolbar="false"
-        :selectable="false"
-        :show-add="false"
-        :show-search="false"
-        :show-export="false"
-        :show-batch-delete="false"
-        @cell-dblclick="handleView"
-        @page-change="handlePageChange"
-      >
-        <template #empty>
-          <EmptyState v-if="hasError" image="error" title="数据加载异常" description="数据获取失败，请检查后重试" :show-add="false" size="small" @refresh="fetchData" />
-          <EmptyState v-else image="no-data" title="暂无入库单" description="当前没有入库单数据" add-text="新建入库单" size="small" @refresh="fetchData" @add="handleCreate" />
-        </template>
-        <template #statusCell="{ record }">
-          <StatusTag :status="record.status" :map="INBOUND_STATUS" />
-        </template>
-        <template #totalAmountCell="{ record }">
-          ¥{{ record.totalAmount?.toFixed(2) }}
-        </template>
-        <template #action="{ record }">
-          <a-space>
-            <a @click="handleView(record)">查看</a>
-            <a v-if="record.status === 0" @click="handleApprove(record)">审核</a>
-            <a v-if="record.status === 1" @click="handleExecuteInbound(record)">入库</a>
-            <PrintButton
-              v-if="record.status >= 2"
-              templateType="stock_in"
-              :businessId="record.id"
-              businessType="stock_in"
-              buttonText="打印"
-              buttonSize="small"
-              @print-success="() => message.success(`入库单 ${record.inboundNo} 打印成功`)"
-              @print-error="(e: any) => message.error(`打印失败: ${e.message || '未知错误'}`)"
-            />
-          </a-space>
-        </template>
-      </BillTableList>
-    </a-card>
-
-    <!-- 详情弹窗 -->
-    <a-drawer v-model:open="detailVisible" title="入库单详情" placement="right" width="80vw">
-      <a-spin :spinning="detailLoading">
-        <a-descriptions bordered :column="2" v-if="detailData">
-          <a-descriptions-item label="入库单号">{{ detailData.inboundNo }}</a-descriptions-item>
-          <a-descriptions-item label="采购订单号">{{ detailData.purchaseOrderNo }}</a-descriptions-item>
-          <a-descriptions-item label="供应商">{{ detailData.supplierName }}</a-descriptions-item>
-          <a-descriptions-item label="仓库">{{ detailData.warehouseName }}</a-descriptions-item>
-          <a-descriptions-item label="入库金额">¥{{ detailData.totalAmount?.toFixed(2) }}</a-descriptions-item>
-          <a-descriptions-item label="状态">
-            <StatusTag :status="detailData.status" :map="INBOUND_STATUS" />
-          </a-descriptions-item>
-          <a-descriptions-item label="入库日期">{{ detailData.inboundDate || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="采购员">{{ detailData.purchaserName || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="部门">{{ detailData.departmentName || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="物流公司">{{ detailData.logisticsCompany || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="运单号">{{ detailData.trackingNumber || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="操作人">{{ detailData.operator || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="创建时间">{{ detailData.createTime || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="备注" :span="2">{{ detailData.remark || '-' }}</a-descriptions-item>
-        </a-descriptions>
-
-        <!-- 商品明细 -->
-        <div v-if="detailData?.items?.length" style="margin-top: 16px;">
-          <h4 style="margin-bottom: 8px; font-weight: 600;">商品明细</h4>
-          <a-table
-            :dataSource="detailData.items"
-            :columns="detailItemColumns"
-            :pagination="false as any"
-            size="small"
-            row-key="id"
-            bordered
-          >
-            <template #bodyCell="{ column, record }">
-              <template v-if="column.dataIndex === 'amount'">
-                ¥{{ ((record.orderQuantity || 0) * (record.unitPrice || 0)).toFixed(2) }}
-              </template>
-              <template v-else-if="column.dataIndex === 'unitPrice'">
-                ¥{{ (record.unitPrice || 0).toFixed(2) }}
-              </template>
-            </template>
-          </a-table>
-        </div>
-      </a-spin>
-
-      <template #footer>
-        <div style="text-align: right;">
-          <a-space>
-            <a-button @click="detailVisible = false">关闭</a-button>
-            <a-button v-if="detailData?.status === 0" type="primary" @click="handleApprove(detailData)">审核</a-button>
-            <a-button v-if="detailData?.status === 1" type="primary" @click="handleExecuteInbound(detailData)">入库</a-button>
-            <PrintButton
-              v-if="detailData?.status >= 2"
-              templateType="stock_in"
-              :businessId="detailData?.id"
-              businessType="stock_in"
-              buttonText="打印"
-              @print-success="() => message.success(`入库单 ${detailData?.inboundNo} 打印成功`)"
-              @print-error="(e: any) => message.error(`打印失败: ${e.message || '未知错误'}`)"
-            />
-          </a-space>
         </div>
       </template>
-    </a-drawer>
-  </PageContainer>
 
-  <!-- ════════════════════════════════════════════════════════════ -->
-  <!-- 新建入库单弹窗 -->
-  <!-- ════════════════════════════════════════════════════════════ -->
-  <FullScreenDetail
-    :visible="createVisible"
-    title="新建入库单"
-    :save-loading="createLoading"
-    @close="handleCreateCancel"
-    @save="handleCreateSubmit"
-  >
-    <a-form ref="createFormRef" :model="createForm" :rules="createRules" layout="vertical">
-      <a-row :gutter="16">
-        <a-col :span="8">
-          <a-form-item label="入库类型" name="inboundType">
-            <a-select v-model:value="createForm.inboundType" placeholder="入库类型">
-              <a-select-option :value="1">采购入库</a-select-option>
-              <a-select-option :value="2">采购退货</a-select-option>
-              <a-select-option :value="3">销售退货</a-select-option>
-              <a-select-option :value="4">调拨入库</a-select-option>
-              <a-select-option :value="5">其他</a-select-option>
-            </a-select>
-          </a-form-item>
-        </a-col>
-        <a-col :span="8">
-          <a-form-item label="入库日期" name="inboundDate">
-            <a-date-picker v-model:value="createForm.inboundDate" style="width: 100%" value-format="YYYY-MM-DD" />
-          </a-form-item>
-        </a-col>
-        <a-col :span="8">
-          <a-form-item label="仓库" name="warehouseId">
-            <a-select v-model:value="createForm.warehouseId" placeholder="选择仓库" show-search :filter-option="filterOption" @change="onWarehouseChange">
-              <a-select-option v-for="w in warehouseOptions" :key="w.id" :value="w.id">{{ w.warehouseName }}</a-select-option>
-            </a-select>
-          </a-form-item>
-        </a-col>
-      </a-row>
-      <a-row :gutter="16">
-        <a-col :span="8">
-          <a-form-item label="供应商" name="supplierName">
-            <a-select v-model:value="createForm.supplierId" placeholder="选择供应商" show-search :filter-option="filterOption" allow-clear @change="onSupplierChange">
-              <a-select-option v-for="s in supplierOptions" :key="s.id" :value="s.id">{{ s.name || s.supplierName }}</a-select-option>
-            </a-select>
-          </a-form-item>
-        </a-col>
-        <a-col :span="8">
-          <a-form-item label="采购员">
-            <a-input v-model:value="createForm.purchaserName" placeholder="采购员姓名" />
-          </a-form-item>
-        </a-col>
-        <a-col :span="8">
-          <a-form-item label="采购部门">
-            <a-input v-model:value="createForm.departmentName" placeholder="部门名称" />
-          </a-form-item>
-        </a-col>
-      </a-row>
-      <a-row :gutter="16">
-        <a-col :span="12">
-          <a-form-item label="物流公司">
-            <a-input v-model:value="createForm.logisticsCompany" placeholder="物流公司" />
-          </a-form-item>
-        </a-col>
-        <a-col :span="12">
-          <a-form-item label="运单号">
-            <a-input v-model:value="createForm.trackingNumber" placeholder="运单号" />
-          </a-form-item>
-        </a-col>
-      </a-row>
-
-      <!-- 入库明细 -->
-      <div class="sub-table-header">
-        <span class="sub-table-title">入库明细</span>
-        <a-button type="dashed" size="small" @click="addItem"><PlusOutlined /> 添加产品</a-button>
-      </div>
-      <a-table
-        :dataSource="createForm.items"
-        :columns="itemColumns"
-        :pagination="false as any"
-        size="small"
-        row-key="tempId"
-        style="margin-bottom: 12px;"
+      <!-- 统计卡片 -->
+      <a-row
+        :gutter="16"
+        style="margin-bottom: 16px;"
       >
-        <template #bodyCell="{ column, record, index }">
-          <template v-if="column.dataIndex === 'productName'">
-            <a-input v-model:value="record.productName" placeholder="产品名称" style="width: 120px" />
-            <a-tooltip title="选择产品"><a-button size="small" type="link" @click="selectItemProduct(index)"><SearchOutlined /></a-button></a-tooltip>
+        <a-col :span="6">
+          <div class="summary-card">
+            <div
+              class="summary-icon"
+              style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);"
+            >
+              <FileTextOutlined />
+            </div>
+            <div class="summary-content">
+              <div class="summary-title">
+                入库单总数
+              </div>
+              <div class="summary-value">
+                {{ statistics.totalCount }}
+              </div>
+            </div>
+          </div>
+        </a-col>
+        <a-col :span="6">
+          <div class="summary-card">
+            <div
+              class="summary-icon"
+              style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);"
+            >
+              <ClockCircleOutlined />
+            </div>
+            <div class="summary-content">
+              <div class="summary-title">
+                待审核
+              </div>
+              <div class="summary-value warning">
+                {{ statistics.pendingCount }}
+              </div>
+            </div>
+          </div>
+        </a-col>
+        <a-col :span="6">
+          <div class="summary-card">
+            <div
+              class="summary-icon"
+              style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);"
+            >
+              <CheckCircleOutlined />
+            </div>
+            <div class="summary-content">
+              <div class="summary-title">
+                已完成
+              </div>
+              <div class="summary-value">
+                {{ statistics.completedCount }}
+              </div>
+            </div>
+          </div>
+        </a-col>
+        <a-col :span="6">
+          <div class="summary-card highlight">
+            <div
+              class="summary-icon"
+              style="background: linear-gradient(135deg, #722ed1 0%, #531dab 100%);"
+            >
+              <DollarOutlined />
+            </div>
+            <div class="summary-content">
+              <div class="summary-title">
+                入库金额
+              </div>
+              <div class="summary-value">
+                ¥{{ formatAmount(statistics.totalAmount) }}
+              </div>
+            </div>
+          </div>
+        </a-col>
+      </a-row>
+
+      <a-card
+        title="入库管理"
+        style="flex: 1; overflow: hidden;"
+        :body-style="{ display: 'flex', flexDirection: 'column', height: 'calc(100% - 57px)' }"
+      >
+        <!-- 搜索栏 -->
+        <SearchBar
+          :fields="searchFields"
+          :loading="loading"
+          @search="handleSearch"
+          @reset="handleReset"
+        />
+
+        <!-- 操作按钮 -->
+        <div class="action-area">
+          <a-space>
+            <a-button
+              v-permission="'stock:inbound:create'"
+              type="primary"
+              @click="handleCreate"
+            >
+              <template #icon>
+                <PlusOutlined />
+              </template>
+              新建入库单
+            </a-button>
+            <a-button
+              v-permission="'stock:inbound:export'"
+              @click="debounceClick('export', handleExport)"
+            >
+              <template #icon>
+                <ExportOutlined />
+              </template>
+              导出
+            </a-button>
+          </a-space>
+        </div>
+
+        <!-- 数据表格 -->
+        <BillTableList
+          ref="tableRef"
+          :columns="vxeColumns"
+          :data-source="tableData"
+          :loading="loading"
+          :pagination="pagination"
+          row-key="id"
+          :show-toolbar="false"
+          :selectable="false"
+          :show-add="false"
+          :show-search="false"
+          :show-export="false"
+          :show-batch-delete="false"
+          @cell-dblclick="handleView"
+          @page-change="handlePageChange"
+        >
+          <template #empty>
+            <EmptyState
+              v-if="hasError"
+              image="error"
+              title="数据加载异常"
+              description="数据获取失败，请检查后重试"
+              :show-add="false"
+              size="small"
+              @refresh="fetchData"
+            />
+            <EmptyState
+              v-else
+              image="no-data"
+              title="暂无入库单"
+              description="当前没有入库单数据"
+              add-text="新建入库单"
+              size="small"
+              @refresh="fetchData"
+              @add="handleCreate"
+            />
           </template>
-          <template v-else-if="column.dataIndex === 'productSpec'">
-            <a-input v-model:value="record.productSpec" placeholder="规格" style="width: 80px" />
+          <template #statusCell="{ record }">
+            <StatusTag
+              :status="record.status"
+              :map="INBOUND_STATUS"
+            />
           </template>
-          <template v-else-if="column.dataIndex === 'orderQuantity'">
-            <a-input-number v-model:value="record.orderQuantity" :min="0" :precision="0" style="width: 80px" />
+          <template #totalAmountCell="{ record }">
+            ¥{{ record.totalAmount?.toFixed(2) }}
           </template>
-          <template v-else-if="column.dataIndex === 'unitPrice'">
-            <a-input-number v-model:value="record.unitPrice" :min="0" :precision="2" style="width: 100px" />
+          <template #action="{ record }">
+            <a-space>
+              <a @click="handleView(record)">查看</a>
+              <a
+                v-if="record.status === 0"
+                @click="handleEdit(record)"
+              >编辑</a>
+              <a
+                v-if="record.status === 0"
+                @click="handleApprove(record)"
+              >审核</a>
+              <a
+                v-if="record.status === 1"
+                @click="handleExecuteInbound(record)"
+              >入库</a>
+              <PrintButton
+                v-if="record.status >= 2"
+                template-type="stock_in"
+                :business-id="record.id"
+                business-type="stock_in"
+                button-text="打印"
+                button-size="small"
+                @print-success="() => message.success(`入库单 ${record.inboundNo} 打印成功`)"
+                @print-error="(e: any) => message.error(`打印失败: ${e.message || '未知错误'}`)"
+              />
+            </a-space>
           </template>
-          <template v-else-if="column.dataIndex === 'taxRate'">
-            <a-select v-model:value="record.taxRate" style="width: 80px">
-              <a-select-option :value="0">0%</a-select-option>
-              <a-select-option :value="0.03">3%</a-select-option>
-              <a-select-option :value="0.06">6%</a-select-option>
-              <a-select-option :value="0.09">9%</a-select-option>
-              <a-select-option :value="0.13">13%</a-select-option>
-            </a-select>
+        </BillTableList>
+      </a-card>
+
+      <!-- 详情弹窗 -->
+      <a-drawer
+        v-model:open="detailVisible"
+        title="入库单详情"
+        placement="right"
+        width="80vw"
+      >
+        <a-spin :spinning="detailLoading">
+          <a-descriptions
+            v-if="detailData"
+            bordered
+            :column="2"
+          >
+            <a-descriptions-item label="入库单号">
+              {{ detailData.inboundNo }}
+            </a-descriptions-item>
+            <a-descriptions-item label="采购订单号">
+              {{ detailData.purchaseOrderNo }}
+            </a-descriptions-item>
+            <a-descriptions-item label="供应商">
+              {{ detailData.supplierName }}
+            </a-descriptions-item>
+            <a-descriptions-item label="仓库">
+              {{ detailData.warehouseName }}
+            </a-descriptions-item>
+            <a-descriptions-item label="入库金额">
+              ¥{{ detailData.totalAmount?.toFixed(2) }}
+            </a-descriptions-item>
+            <a-descriptions-item label="状态">
+              <StatusTag
+                :status="detailData.status"
+                :map="INBOUND_STATUS"
+              />
+            </a-descriptions-item>
+            <a-descriptions-item label="入库日期">
+              {{ detailData.inboundDate || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item label="采购员">
+              {{ detailData.purchaserName || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item label="部门">
+              {{ detailData.departmentName || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item label="物流公司">
+              {{ detailData.logisticsCompany || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item label="运单号">
+              {{ detailData.trackingNumber || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item label="操作人">
+              {{ detailData.operator || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item label="创建时间">
+              {{ detailData.createTime || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item
+              label="备注"
+              :span="2"
+            >
+              {{ detailData.remark || '-' }}
+            </a-descriptions-item>
+          </a-descriptions>
+
+          <!-- 商品明细 -->
+          <div
+            v-if="detailData?.items?.length"
+            style="margin-top: 16px;"
+          >
+            <h4 style="margin-bottom: 8px; font-weight: 600;">
+              商品明细
+            </h4>
+            <a-table
+              :data-source="detailData.items"
+              :columns="detailItemColumns"
+              :pagination="false as any"
+              size="small"
+              row-key="id"
+              bordered
+            >
+              <template #bodyCell="{ column, record }">
+                <template v-if="column.dataIndex === 'amount'">
+                  ¥{{ ((record.orderQuantity || 0) * (record.unitPrice || 0)).toFixed(2) }}
+                </template>
+                <template v-else-if="column.dataIndex === 'unitPrice'">
+                  ¥{{ (record.unitPrice || 0).toFixed(2) }}
+                </template>
+              </template>
+            </a-table>
+          </div>
+        </a-spin>
+
+        <template #footer>
+          <div style="text-align: right;">
+            <a-space>
+              <a-button @click="detailVisible = false">
+                关闭
+              </a-button>
+              <a-button
+                v-if="detailData?.status === 0"
+                type="primary"
+                @click="handleApprove(detailData)"
+              >
+                审核
+              </a-button>
+              <a-button
+                v-if="detailData?.status === 1"
+                type="primary"
+                @click="handleExecuteInbound(detailData)"
+              >
+                入库
+              </a-button>
+              <PrintButton
+                v-if="detailData?.status >= 2"
+                template-type="stock_in"
+                :business-id="detailData?.id"
+                business-type="stock_in"
+                button-text="打印"
+                @print-success="() => message.success(`入库单 ${detailData?.inboundNo} 打印成功`)"
+                @print-error="(e: any) => message.error(`打印失败: ${e.message || '未知错误'}`)"
+              />
+            </a-space>
+          </div>
+        </template>
+      </a-drawer>
+    </PageContainer>
+
+    <!-- ════════════════════════════════════════════════════════════ -->
+    <!-- 新建入库单弹窗 -->
+    <!-- ════════════════════════════════════════════════════════════ -->
+    <FullScreenDetail
+      :visible="createVisible"
+      title="新建入库单"
+      :save-loading="createLoading"
+      @close="handleCreateCancel"
+      @save="handleCreateSubmit"
+    >
+      <a-form
+        ref="createFormRef"
+        :model="createForm"
+        :rules="createRules"
+        layout="vertical"
+      >
+        <a-row :gutter="16">
+          <a-col :span="8">
+            <a-form-item
+              label="入库类型"
+              name="inboundType"
+            >
+              <a-select
+                v-model:value="createForm.inboundType"
+                placeholder="入库类型"
+              >
+                <a-select-option :value="1">
+                  采购入库
+                </a-select-option>
+                <a-select-option :value="2">
+                  采购退货
+                </a-select-option>
+                <a-select-option :value="3">
+                  销售退货
+                </a-select-option>
+                <a-select-option :value="4">
+                  调拨入库
+                </a-select-option>
+                <a-select-option :value="5">
+                  其他
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+          </a-col>
+          <a-col :span="8">
+            <a-form-item
+              label="入库日期"
+              name="inboundDate"
+            >
+              <a-date-picker
+                v-model:value="createForm.inboundDate"
+                style="width: 100%"
+                value-format="YYYY-MM-DD"
+              />
+            </a-form-item>
+          </a-col>
+          <a-col :span="8">
+            <a-form-item
+              label="仓库"
+              name="warehouseId"
+            >
+              <a-select
+                v-model:value="createForm.warehouseId"
+                placeholder="选择仓库"
+                show-search
+                :filter-option="filterOption"
+                @change="onWarehouseChange"
+              >
+                <a-select-option
+                  v-for="w in warehouseOptions"
+                  :key="w.id"
+                  :value="w.id"
+                >
+                  {{ w.warehouseName }}
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+          </a-col>
+        </a-row>
+        <a-row :gutter="16">
+          <a-col :span="8">
+            <a-form-item
+              label="供应商"
+              name="supplierName"
+            >
+              <a-select
+                v-model:value="createForm.supplierId"
+                placeholder="选择供应商"
+                show-search
+                :filter-option="filterOption"
+                allow-clear
+                @change="onSupplierChange"
+              >
+                <a-select-option
+                  v-for="s in supplierOptions"
+                  :key="s.id"
+                  :value="s.id"
+                >
+                  {{ s.name || s.supplierName }}
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+          </a-col>
+          <a-col :span="8">
+            <a-form-item label="采购员">
+              <a-input
+                v-model:value="createForm.purchaserName"
+                placeholder="采购员姓名"
+              />
+            </a-form-item>
+          </a-col>
+          <a-col :span="8">
+            <a-form-item label="采购部门">
+              <a-input
+                v-model:value="createForm.departmentName"
+                placeholder="部门名称"
+              />
+            </a-form-item>
+          </a-col>
+        </a-row>
+        <a-row :gutter="16">
+          <a-col :span="12">
+            <a-form-item label="物流公司">
+              <a-input
+                v-model:value="createForm.logisticsCompany"
+                placeholder="物流公司"
+              />
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item label="运单号">
+              <a-input
+                v-model:value="createForm.trackingNumber"
+                placeholder="运单号"
+              />
+            </a-form-item>
+          </a-col>
+        </a-row>
+
+        <!-- 入库明细 -->
+        <div class="sub-table-header">
+          <span class="sub-table-title">入库明细</span>
+          <a-button
+            type="dashed"
+            size="small"
+            @click="addItem"
+          >
+            <PlusOutlined /> 添加产品
+          </a-button>
+        </div>
+        <a-table
+          :data-source="createForm.items"
+          :columns="itemColumns"
+          :pagination="false as any"
+          size="small"
+          row-key="tempId"
+          style="margin-bottom: 12px;"
+        >
+          <template #bodyCell="{ column, record, index }">
+            <template v-if="column.dataIndex === 'productName'">
+              <a-input
+                v-model:value="record.productName"
+                placeholder="产品名称"
+                style="width: 120px"
+              />
+              <a-tooltip title="选择产品">
+                <a-button
+                  size="small"
+                  type="link"
+                  @click="selectItemProduct(index)"
+                >
+                  <SearchOutlined />
+                </a-button>
+              </a-tooltip>
+            </template>
+            <template v-else-if="column.dataIndex === 'productSpec'">
+              <a-input
+                v-model:value="record.productSpec"
+                placeholder="规格"
+                style="width: 80px"
+              />
+            </template>
+            <template v-else-if="column.dataIndex === 'orderQuantity'">
+              <a-input-number
+                v-model:value="record.orderQuantity"
+                :min="0"
+                :precision="0"
+                style="width: 80px"
+              />
+            </template>
+            <template v-else-if="column.dataIndex === 'unitPrice'">
+              <a-input-number
+                v-model:value="record.unitPrice"
+                :min="0"
+                :precision="2"
+                style="width: 100px"
+              />
+            </template>
+            <template v-else-if="column.dataIndex === 'taxRate'">
+              <a-select
+                v-model:value="record.taxRate"
+                style="width: 80px"
+              >
+                <a-select-option :value="0">
+                  0%
+                </a-select-option>
+                <a-select-option :value="0.03">
+                  3%
+                </a-select-option>
+                <a-select-option :value="0.06">
+                  6%
+                </a-select-option>
+                <a-select-option :value="0.09">
+                  9%
+                </a-select-option>
+                <a-select-option :value="0.13">
+                  13%
+                </a-select-option>
+              </a-select>
+            </template>
+            <template v-else-if="column.dataIndex === 'action'">
+              <a-button
+                type="link"
+                danger
+                size="small"
+                @click="removeItem(index)"
+              >
+                <DeleteOutlined />
+              </a-button>
+            </template>
           </template>
-          <template v-else-if="column.dataIndex === 'action'">
-            <a-button type="link" danger size="small" @click="removeItem(index)"><DeleteOutlined /></a-button>
+        </a-table>
+
+        <a-form-item label="备注">
+          <a-textarea
+            v-model:value="createForm.remark"
+            :rows="2"
+            placeholder="备注信息"
+          />
+        </a-form-item>
+      </a-form>
+    </FullScreenDetail>
+
+    <!-- 商品选择弹窗 -->
+    <a-modal
+      v-model:open="productPickerVisible"
+      title="选择产品"
+      width="640px"
+      :footer="null"
+      destroy-on-close
+    >
+      <a-input-search
+        v-model:value="productSearchKeyword"
+        placeholder="搜索产品编码/名称"
+        @search="loadProductOptions"
+      />
+      <a-table
+        :data-source="productOptions"
+        :columns="productPickerColumns"
+        :pagination="{ pageSize: 5 }"
+        :loading="productLoading"
+        size="small"
+        row-key="id"
+        style="margin-top: 12px;"
+      >
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.dataIndex === 'action'">
+            <a-button
+              type="primary"
+              size="small"
+              @click="pickProduct(record)"
+            >
+              选择
+            </a-button>
           </template>
         </template>
       </a-table>
-
-      <a-form-item label="备注">
-        <a-textarea v-model:value="createForm.remark" :rows="2" placeholder="备注信息" />
-      </a-form-item>
-    </a-form>
-  </FullScreenDetail>
-
-  <!-- 商品选择弹窗 -->
-  <a-modal v-model:open="productPickerVisible" title="选择产品" width="640px" :footer="null" destroy-on-close>
-    <a-input-search v-model:value="productSearchKeyword" placeholder="搜索产品编码/名称" @search="loadProductOptions" />
-    <a-table
-      :dataSource="productOptions"
-      :columns="productPickerColumns"
-      :pagination="{ pageSize: 5 }"
-      :loading="productLoading"
-      size="small"
-      row-key="id"
-      style="margin-top: 12px;"
-    >
-      <template #bodyCell="{ column, record }">
-        <template v-if="column.dataIndex === 'action'">
-          <a-button type="primary" size="small" @click="pickProduct(record)">选择</a-button>
-        </template>
-      </template>
-    </a-table>
-  </a-modal>
+    </a-modal>
   </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
-import { PlusOutlined, ExportOutlined, ReloadOutlined, SyncOutlined, FileTextOutlined, ClockCircleOutlined, CheckCircleOutlined, DollarOutlined, WarningOutlined, SearchOutlined, DeleteOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, ExportOutlined, ReloadOutlined, SyncOutlined, FileTextOutlined, ClockCircleOutlined, CheckCircleOutlined, DollarOutlined, WarningOutlined, SearchOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import SearchBar from '@/components/SearchBar/SearchBar.vue'
@@ -419,6 +716,8 @@ function handleKeydown(e: KeyboardEvent) {
   if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleCreate(); return }
   if ((e.ctrlKey || e.metaKey) && e.key === 'e') { e.preventDefault(); debounceClick('export', handleExport); return }
 }
+
+const router = useRouter()
 
 const loading = ref(false)
 const hasError = ref(false)
@@ -678,7 +977,13 @@ async function loadSupplierOptions() {
   } catch { /* ignore */ }
 }
 
+function handleEdit(record: any) {
+  router.push(`/erp/stock-in/${record.id}`)
+}
+
 const handleCreate = () => {
+  router.push('/erp/stock-in/form')
+  return // 以下旧代码保留待清理
   tempIdCounter = 0
   createForm.inboundType = 1
   createForm.inboundDate = new Date().toISOString().slice(0, 10)

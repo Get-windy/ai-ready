@@ -1,28 +1,74 @@
 <template>
   <ErrorBoundary @error="handleError">
-    <PageContainer title="科目余额表" full-height>
+    <PageContainer
+      title="科目余额表"
+      full-height
+    >
       <template #headerExtra>
         <a-space :size="12">
           <a-badge :status="loading ? 'processing' : (hasError ? 'error' : 'success')" />
-          <span v-if="lastUpdateTime" class="update-time">最后更新: {{ lastUpdateTime }}</span>
-          <a-button size="small" @click="fetchData"><template #icon><ReloadOutlined /></template></a-button>
+          <span
+            v-if="lastUpdateTime"
+            class="update-time"
+          >最后更新: {{ lastUpdateTime }}</span>
+          <a-button
+            size="small"
+            @click="fetchData"
+          >
+            <template #icon>
+              <ReloadOutlined />
+            </template>
+          </a-button>
         </a-space>
       </template>
       <div class="search-area">
-        <a-form layout="inline" :model="searchParams">
+        <a-form
+          layout="inline"
+          :model="searchParams"
+        >
           <a-form-item label="科目代码">
-            <a-input v-model:value="searchParams.subjectCode" placeholder="请输入科目代码" allow-clear style="width: 160px" @pressEnter="handleSearch" />
+            <a-input
+              v-model:value="searchParams.subjectCode"
+              placeholder="请输入科目代码"
+              allow-clear
+              style="width: 160px"
+              @press-enter="handleSearch"
+            />
           </a-form-item>
           <a-form-item label="年度">
-            <a-input-number v-model:value="searchParams.year" placeholder="年度" :min="2020" :max="2099" style="width: 120px" />
+            <a-input-number
+              v-model:value="searchParams.year"
+              placeholder="年度"
+              :min="2020"
+              :max="2099"
+              style="width: 120px"
+            />
           </a-form-item>
           <a-form-item label="期间">
-            <a-input-number v-model:value="searchParams.period" placeholder="期间" :min="1" :max="12" style="width: 120px" />
+            <a-input-number
+              v-model:value="searchParams.period"
+              placeholder="期间"
+              :min="1"
+              :max="12"
+              style="width: 120px"
+            />
           </a-form-item>
           <a-form-item>
             <a-space>
-              <a-button type="primary" :loading="loading" @click="handleSearch"><template #icon><SearchOutlined /></template>查询</a-button>
-              <a-button @click="handleReset"><template #icon><ClearOutlined /></template>重置</a-button>
+              <a-button
+                type="primary"
+                :loading="loading"
+                @click="handleSearch"
+              >
+                <template #icon>
+                  <SearchOutlined />
+                </template>查询
+              </a-button>
+              <a-button @click="handleReset">
+                <template #icon>
+                  <ClearOutlined />
+                </template>重置
+              </a-button>
             </a-space>
           </a-form-item>
         </a-form>
@@ -33,7 +79,11 @@
           :data-source="tableData"
           :loading="loading"
           :pagination="billPagination"
-          :show-toolbar="false" :show-search="false" :show-add="false" :show-export="false" :show-batch-delete="false"
+          :show-toolbar="false"
+          :show-search="false"
+          :show-add="false"
+          :show-export="false"
+          :show-batch-delete="false"
           :selectable="false"
           row-key="id"
           @page-change="handlePageChange"
@@ -78,7 +128,7 @@ const columns = [
 const fetchData = async () => {
   loading.value = true; hasError.value = false
   try {
-    const res: any = await request.get('/api/finance/balance-sheet/page', {
+    const res: any = await request.get('/finance/balance-sheet/page', {
       params: { page: pagination.current, size: pagination.pageSize, ...searchParams }
     })
     if (res) {

@@ -1,17 +1,31 @@
 <template>
   <div class="page-container">
     <div class="page-header">
-      <h2 class="page-title">绩效管理</h2>
+      <h2 class="page-title">
+        绩效管理
+      </h2>
     </div>
     <div class="page-container__body">
-      <a-card :bordered="false" class="table-card">
-        <a-table :columns="columns" :data-source="tableData" :loading="loading" :pagination="pagination" row-key="id" @change="handleTableChange">
+      <a-card
+        :bordered="false"
+        class="table-card"
+      >
+        <a-table
+          :columns="columns"
+          :data-source="tableData"
+          :loading="loading"
+          :pagination="pagination"
+          row-key="id"
+          @change="handleTableChange"
+        >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'score'">
               <span style="font-weight: bold">{{ record.score }}</span>
             </template>
             <template v-if="column.key === 'level'">
-              <a-tag :color="PERFORMANCE_LEVEL_MAP[record.level]?.color">{{ PERFORMANCE_LEVEL_MAP[record.level]?.text }}</a-tag>
+              <a-tag :color="PERFORMANCE_LEVEL_MAP[record.level]?.color">
+                {{ PERFORMANCE_LEVEL_MAP[record.level]?.text }}
+              </a-tag>
             </template>
           </template>
         </a-table>

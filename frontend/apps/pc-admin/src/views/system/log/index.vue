@@ -1,170 +1,266 @@
 <template>
   <ErrorBoundary @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="log-page-header">
-        <div class="log-page-header-left">
-          <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item>操作日志</a-breadcrumb-item>
-          </a-breadcrumb>
-          <h2 class="log-page-header-title">操作日志</h2>
-        </div>
-        <div class="log-page-header-right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-            <SyncOutlined /> {{ autoRefreshCountdown }}s
-          </span>
-          <span class="shortcut-hints">
-            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-          </span>
-          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)()">
-            <template #icon><ReloadOutlined /></template>
-            刷新
-          </a-button>
-        </div>
-      </div>
-    </template>
-
-    <div class="log-management">
-      <!-- 统计卡片 -->
-      <div class="stat-cards">
-        <div class="stat-card stat-total">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ pagination.total }}</div>
-            <div class="stat-card-label">日志总数</div>
+    <PageContainer full-height>
+      <template #header>
+        <div class="log-page-header">
+          <div class="log-page-header-left">
+            <a-breadcrumb>
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>操作日志</a-breadcrumb-item>
+            </a-breadcrumb>
+            <h2 class="log-page-header-title">
+              操作日志
+            </h2>
           </div>
-          <FileTextOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-success">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ successCount }}</div>
-            <div class="stat-card-label">成功操作</div>
+          <div class="log-page-header-right">
+            <span
+              v-if="lastUpdateTime"
+              class="update-time"
+            >更新于 {{ lastUpdateTime }}</span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            >
+              <SyncOutlined /> {{ autoRefreshCountdown }}s
+            </span>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            </span>
+            <a-button
+              size="small"
+              :loading="refreshLoading"
+              @click="debounceClick('refresh', fetchData)()"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
+              刷新
+            </a-button>
           </div>
-          <CheckCircleOutlined class="stat-card-icon" />
         </div>
-        <div class="stat-card stat-error">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ errorCount }}</div>
-            <div class="stat-card-label">失败操作</div>
+      </template>
+
+      <div class="log-management">
+        <!-- 统计卡片 -->
+        <div class="stat-cards">
+          <div class="stat-card stat-total">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ pagination.total }}
+              </div>
+              <div class="stat-card-label">
+                日志总数
+              </div>
+            </div>
+            <FileTextOutlined class="stat-card-icon" />
           </div>
-          <CloseCircleOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-slow">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ slowCount }}</div>
-            <div class="stat-card-label">慢请求</div>
+          <div class="stat-card stat-success">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ successCount }}
+              </div>
+              <div class="stat-card-label">
+                成功操作
+              </div>
+            </div>
+            <CheckCircleOutlined class="stat-card-icon" />
           </div>
-          <ClockCircleOutlined class="stat-card-icon" />
+          <div class="stat-card stat-error">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ errorCount }}
+              </div>
+              <div class="stat-card-label">
+                失败操作
+              </div>
+            </div>
+            <CloseCircleOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-slow">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ slowCount }}
+              </div>
+              <div class="stat-card-label">
+                慢请求
+              </div>
+            </div>
+            <ClockCircleOutlined class="stat-card-icon" />
+          </div>
         </div>
-      </div>
 
-      <a-skeleton active v-if="loading && tableData.length === 0" :paragraph="{ rows: 8 }" style="padding: 24px;" />
+        <a-skeleton
+          v-if="loading && tableData.length === 0"
+          active
+          :paragraph="{ rows: 8 }"
+          style="padding: 24px;"
+        />
 
-      <BillTableList
-        ref="tableRef"
-        :columns="vxeColumns"
-        :data-source="tableDataSource"
-        :loading="loading"
-        :pagination="pagination"
-        :row-key="'id'"
-        :min-empty-rows="12"
-        :filter-fields="filterFields"
-        :show-search="false"
-        :show-add="false"
-        :show-edit="false"
-        :show-delete="false"
-        :show-batch-delete="false"
-        :show-export="true"
-        :selectable="false"
-        @refresh="debounceClick('refresh', fetchData)"
-        @page-change="handlePageChange"
-        @cell-dblclick="handleView"
-        @filter-change="handleFilterChange"
-        @export="handleExport"
-      >
-        <template #toolbar-actions>
-          <a-button danger v-permission="'log:audit:delete'" @click="handleClearLogs">
-            <template #icon><DeleteOutlined /></template>
-            清空日志
-          </a-button>
-        </template>
+        <BillTableList
+          ref="tableRef"
+          :columns="vxeColumns"
+          :data-source="tableDataSource"
+          :loading="loading"
+          :pagination="pagination"
+          :row-key="'id'"
+          :min-empty-rows="12"
+          :filter-fields="filterFields"
+          :show-search="false"
+          :show-add="false"
+          :show-edit="false"
+          :show-delete="false"
+          :show-batch-delete="false"
+          :show-export="true"
+          :selectable="false"
+          @refresh="debounceClick('refresh', fetchData)"
+          @page-change="handlePageChange"
+          @cell-dblclick="handleView"
+          @filter-change="handleFilterChange"
+          @export="handleExport"
+        >
+          <template #toolbar-actions>
+            <a-button
+              v-permission="'log:audit:delete'"
+              danger
+              @click="handleClearLogs"
+            >
+              <template #icon>
+                <DeleteOutlined />
+              </template>
+              清空日志
+            </a-button>
+          </template>
 
-        <template #statusCell="{ record }">
-          <a-tag :color="record.status === 0 ? 'success' : 'error'">
-            {{ record.status === 0 ? '成功' : '失败' }}
-          </a-tag>
-        </template>
-        <template #costTimeCell="{ record }">
-          <span v-if="record.costTime > 1000" style="color: #ff4d4f">
-            {{ record.costTime }}ms
-          </span>
-          <span v-else-if="record.costTime > 500" style="color: #faad14">
-            {{ record.costTime }}ms
-          </span>
-          <span v-else>
-            {{ record.costTime }}ms
-          </span>
-        </template>
-
-        <template #empty>
-          <a-empty v-if="!hasError" description="暂无数据" />
-          <a-result v-else status="error" title="数据加载失败">
-            <template #extra>
-              <a-button type="primary" @click="debounceClick('refresh', fetchData)()">
-                <template #icon><ReloadOutlined /></template>
-                重新加载
-              </a-button>
-            </template>
-          </a-result>
-        </template>
-
-        <template #action="{ record }">
-          <a-button type="link" size="small" @click="handleDetail(record)">
-            详情
-          </a-button>
-        </template>
-      </BillTableList>
-
-      <!-- 详情抽屉 -->
-      <a-drawer
-        v-model:open="detailVisible"
-        title="操作日志详情"
-        width="700px"
-        :destroy-on-close="true"
-      >
-        <a-descriptions :column="1" bordered size="small" v-if="currentLog">
-          <a-descriptions-item label="模块">{{ currentLog.module }}</a-descriptions-item>
-          <a-descriptions-item label="操作类型">{{ currentLog.operationType }}</a-descriptions-item>
-          <a-descriptions-item label="操作描述">{{ currentLog.description }}</a-descriptions-item>
-          <a-descriptions-item label="请求URL">{{ currentLog.requestUrl }}</a-descriptions-item>
-          <a-descriptions-item label="请求方法">
-            <a-tag :color="getMethodColor(currentLog.requestMethod)">
-              {{ currentLog.requestMethod }}
+          <template #statusCell="{ record }">
+            <a-tag :color="record.status === 0 ? 'success' : 'error'">
+              {{ record.status === 0 ? '成功' : '失败' }}
             </a-tag>
-          </a-descriptions-item>
-          <a-descriptions-item label="操作人">{{ currentLog.operatorName }}</a-descriptions-item>
-          <a-descriptions-item label="IP地址">{{ currentLog.ipAddress }}</a-descriptions-item>
-          <a-descriptions-item label="操作时间">{{ currentLog.operationTime }}</a-descriptions-item>
-          <a-descriptions-item label="耗时">{{ currentLog.costTime }}ms</a-descriptions-item>
-          <a-descriptions-item label="状态">
-            <a-tag :color="currentLog.status === 0 ? 'success' : 'error'">
-              {{ currentLog.status === 0 ? '成功' : '失败' }}
-            </a-tag>
-          </a-descriptions-item>
-        </a-descriptions>
-        <a-divider v-if="currentLog">请求/响应详情</a-divider>
-        <a-tabs v-if="currentLog">
-          <a-tab-pane key="request" tab="请求参数">
-            <pre class="json-content">{{ formatJson(currentLog.requestParams) }}</pre>
-          </a-tab-pane>
-          <a-tab-pane key="response" tab="响应结果">
-            <pre class="json-content">{{ formatJson(currentLog.responseResult) }}</pre>
-          </a-tab-pane>
-        </a-tabs>
-      </a-drawer>
-    </div>
-  </PageContainer>
+          </template>
+          <template #costTimeCell="{ record }">
+            <span
+              v-if="record.costTime > 1000"
+              style="color: #ff4d4f"
+            >
+              {{ record.costTime }}ms
+            </span>
+            <span
+              v-else-if="record.costTime > 500"
+              style="color: #faad14"
+            >
+              {{ record.costTime }}ms
+            </span>
+            <span v-else>
+              {{ record.costTime }}ms
+            </span>
+          </template>
+
+          <template #empty>
+            <a-empty
+              v-if="!hasError"
+              description="暂无数据"
+            />
+            <a-result
+              v-else
+              status="error"
+              title="数据加载失败"
+            >
+              <template #extra>
+                <a-button
+                  type="primary"
+                  @click="debounceClick('refresh', fetchData)()"
+                >
+                  <template #icon>
+                    <ReloadOutlined />
+                  </template>
+                  重新加载
+                </a-button>
+              </template>
+            </a-result>
+          </template>
+
+          <template #action="{ record }">
+            <a-button
+              type="link"
+              size="small"
+              @click="handleDetail(record)"
+            >
+              详情
+            </a-button>
+          </template>
+        </BillTableList>
+
+        <!-- 详情抽屉 -->
+        <a-drawer
+          v-model:open="detailVisible"
+          title="操作日志详情"
+          width="700px"
+          :destroy-on-close="true"
+        >
+          <a-descriptions
+            v-if="currentLog"
+            :column="1"
+            bordered
+            size="small"
+          >
+            <a-descriptions-item label="模块">
+              {{ currentLog.module }}
+            </a-descriptions-item>
+            <a-descriptions-item label="操作类型">
+              {{ currentLog.operationType }}
+            </a-descriptions-item>
+            <a-descriptions-item label="操作描述">
+              {{ currentLog.description }}
+            </a-descriptions-item>
+            <a-descriptions-item label="请求URL">
+              {{ currentLog.requestUrl }}
+            </a-descriptions-item>
+            <a-descriptions-item label="请求方法">
+              <a-tag :color="getMethodColor(currentLog.requestMethod)">
+                {{ currentLog.requestMethod }}
+              </a-tag>
+            </a-descriptions-item>
+            <a-descriptions-item label="操作人">
+              {{ currentLog.operatorName }}
+            </a-descriptions-item>
+            <a-descriptions-item label="IP地址">
+              {{ currentLog.ipAddress }}
+            </a-descriptions-item>
+            <a-descriptions-item label="操作时间">
+              {{ currentLog.operationTime }}
+            </a-descriptions-item>
+            <a-descriptions-item label="耗时">
+              {{ currentLog.costTime }}ms
+            </a-descriptions-item>
+            <a-descriptions-item label="状态">
+              <a-tag :color="currentLog.status === 0 ? 'success' : 'error'">
+                {{ currentLog.status === 0 ? '成功' : '失败' }}
+              </a-tag>
+            </a-descriptions-item>
+          </a-descriptions>
+          <a-divider v-if="currentLog">
+            请求/响应详情
+          </a-divider>
+          <a-tabs v-if="currentLog">
+            <a-tab-pane
+              key="request"
+              tab="请求参数"
+            >
+              <pre class="json-content">{{ formatJson(currentLog.requestParams) }}</pre>
+            </a-tab-pane>
+            <a-tab-pane
+              key="response"
+              tab="响应结果"
+            >
+              <pre class="json-content">{{ formatJson(currentLog.responseResult) }}</pre>
+            </a-tab-pane>
+          </a-tabs>
+        </a-drawer>
+      </div>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

@@ -73,13 +73,13 @@ export function useFormPersistence<T extends Record<string, any>>(
     if (opts.include && opts.include.length > 0) {
       for (const field of opts.include) {
         if ((data as Record<string, any>).hasOwnProperty(field)) {
-          ;(filtered as Record<string, any>)[field] = data[field]
+          (filtered as Record<string, any>)[field] = data[field]
         }
       }
     } else if (opts.exclude && opts.exclude.length > 0) {
       for (const key of Object.keys(data)) {
         if (!opts.exclude.includes(key)) {
-          ;(filtered as Record<string, any>)[key] = (data as Record<string, any>)[key]
+          (filtered as Record<string, any>)[key] = (data as Record<string, any>)[key]
         }
       }
     } else {

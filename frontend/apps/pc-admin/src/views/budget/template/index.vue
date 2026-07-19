@@ -1,222 +1,391 @@
 <template>
   <ErrorBoundary @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="template-page-header">
-        <div class="template-page-header-left">
-          <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item>预算模板</a-breadcrumb-item>
-          </a-breadcrumb>
-          <h2 class="template-page-header-title">预算模板</h2>
-        </div>
-        <div class="template-page-header-right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-            <SyncOutlined /> {{ autoRefreshCountdown }}s
-          </span>
-          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', loadData)">
-            <template #icon><ReloadOutlined /></template>
-            刷新
-          </a-button>
-          <span class="shortcut-hints">
-            <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
-            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-          </span>
-        </div>
-      </div>
-    </template>
-
-    <div class="template-management">
-      <!-- 统计卡片 -->
-      <div class="stat-cards">
-        <div class="stat-card stat-draft">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ draftCount }}</div>
-            <div class="stat-card-label">草稿</div>
+    <PageContainer full-height>
+      <template #header>
+        <div class="template-page-header">
+          <div class="template-page-header-left">
+            <a-breadcrumb>
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>预算模板</a-breadcrumb-item>
+            </a-breadcrumb>
+            <h2 class="template-page-header-title">
+              预算模板
+            </h2>
           </div>
-          <FileOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-published">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ publishedCount }}</div>
-            <div class="stat-card-label">已发布</div>
-          </div>
-          <SendOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-archived">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ archivedCount }}</div>
-            <div class="stat-card-label">已归档</div>
-          </div>
-          <FolderOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-amount">
-          <div class="stat-card-body">
-            <div class="stat-card-value">¥{{ formatAmount(totalAmount) }}</div>
-            <div class="stat-card-label">模板总额</div>
-          </div>
-          <DollarOutlined class="stat-card-icon" />
-        </div>
-      </div>
-
-      <!-- 骨架屏 -->
-      <a-skeleton v-if="loading && tableData.length === 0" active :paragraph="{ rows: 8 }" style="padding: 20px;" />
-
-      <BillTableList
-        ref="tableRef"
-        :columns="vxeColumns"
-        :data-source="tableData"
-        :loading="loading"
-        :pagination="pagination"
-        :row-key="'id'"
-        :filter-fields="filterFields"
-        :selectable="true"
-        :show-export="true"
-        :show-summary="true"
-        :summary-data="summaryData"
-        :min-empty-rows="12"
-        add-text="新建模板"
-        @add="handleAdd"
-        @cell-dblclick="handleView"
-        @refresh="loadData"
-        @search="handleSearch"
-        @export="handleExport"
-        @page-change="handlePageChange"
-        @filter-change="handleFilterChange"
-        @selection-change="handleSelectionChange"
-        @batch-delete="handleBatchDelete"
-      >
-        <template #batch-actions="{ selectedRows: rows }">
-          <a-button size="small" v-permission="'budget:plan:batchpublish'" @click="handleBatchPublish(rows)" :disabled="!canBatchPublish(rows)">
-            <template #icon><SendOutlined /></template>
-            批量发布
-          </a-button>
-        </template>
-        <template #empty>
-          <div v-if="hasError" class="table-empty table-empty-error">
-            <WarningOutlined class="table-empty-icon table-empty-icon-error" />
-            <p class="table-empty-text">数据加载失败，请重试</p>
-            <a-button size="small" @click="loadData">
-              <template #icon><ReloadOutlined /></template>
-              重试
+          <div class="template-page-header-right">
+            <span
+              v-if="lastUpdateTime"
+              class="update-time"
+            >更新于 {{ lastUpdateTime }}</span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            >
+              <SyncOutlined /> {{ autoRefreshCountdown }}s
+            </span>
+            <a-button
+              size="small"
+              :loading="refreshLoading"
+              @click="debounceClick('refresh', loadData)"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
+              刷新
             </a-button>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            </span>
           </div>
-          <div v-else class="table-empty">
-            <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-            <InboxOutlined v-else class="table-empty-icon" />
-            <p v-if="hasActiveFilters" class="table-empty-text">
-              没有符合条件的模板，<a @click="handleResetFilters">清除筛选</a>
-            </p>
-            <p v-else class="table-empty-text">
-              暂无预算模板，点击「新建模板」开始创建
-            </p>
-          </div>
-        </template>
+        </div>
+      </template>
 
-        <template #action="{ record }">
-            <a-space :size="0" class="action-cell-inner">
+      <div class="template-management">
+        <!-- 统计卡片 -->
+        <div class="stat-cards">
+          <div class="stat-card stat-draft">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ draftCount }}
+              </div>
+              <div class="stat-card-label">
+                草稿
+              </div>
+            </div>
+            <FileOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-published">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ publishedCount }}
+              </div>
+              <div class="stat-card-label">
+                已发布
+              </div>
+            </div>
+            <SendOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-archived">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ archivedCount }}
+              </div>
+              <div class="stat-card-label">
+                已归档
+              </div>
+            </div>
+            <FolderOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-amount">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                ¥{{ formatAmount(totalAmount) }}
+              </div>
+              <div class="stat-card-label">
+                模板总额
+              </div>
+            </div>
+            <DollarOutlined class="stat-card-icon" />
+          </div>
+        </div>
+
+        <!-- 骨架屏 -->
+        <a-skeleton
+          v-if="loading && tableData.length === 0"
+          active
+          :paragraph="{ rows: 8 }"
+          style="padding: 20px;"
+        />
+
+        <BillTableList
+          ref="tableRef"
+          :columns="vxeColumns"
+          :data-source="tableData"
+          :loading="loading"
+          :pagination="pagination"
+          :row-key="'id'"
+          :filter-fields="filterFields"
+          :selectable="true"
+          :show-export="true"
+          :show-summary="true"
+          :summary-data="summaryData"
+          :min-empty-rows="12"
+          add-text="新建模板"
+          @add="handleAdd"
+          @cell-dblclick="handleView"
+          @refresh="loadData"
+          @search="handleSearch"
+          @export="handleExport"
+          @page-change="handlePageChange"
+          @filter-change="handleFilterChange"
+          @selection-change="handleSelectionChange"
+          @batch-delete="handleBatchDelete"
+        >
+          <template #batch-actions="{ selectedRows: rows }">
+            <a-button
+              v-permission="'budget:plan:batchpublish'"
+              size="small"
+              :disabled="!canBatchPublish(rows)"
+              @click="handleBatchPublish(rows)"
+            >
+              <template #icon>
+                <SendOutlined />
+              </template>
+              批量发布
+            </a-button>
+          </template>
+          <template #empty>
+            <div
+              v-if="hasError"
+              class="table-empty table-empty-error"
+            >
+              <WarningOutlined class="table-empty-icon table-empty-icon-error" />
+              <p class="table-empty-text">
+                数据加载失败，请重试
+              </p>
+              <a-button
+                size="small"
+                @click="loadData"
+              >
+                <template #icon>
+                  <ReloadOutlined />
+                </template>
+                重试
+              </a-button>
+            </div>
+            <div
+              v-else
+              class="table-empty"
+            >
+              <SearchOutlined
+                v-if="hasActiveFilters"
+                class="table-empty-icon"
+              />
+              <InboxOutlined
+                v-else
+                class="table-empty-icon"
+              />
+              <p
+                v-if="hasActiveFilters"
+                class="table-empty-text"
+              >
+                没有符合条件的模板，<a @click="handleResetFilters">清除筛选</a>
+              </p>
+              <p
+                v-else
+                class="table-empty-text"
+              >
+                暂无预算模板，点击「新建模板」开始创建
+              </p>
+            </div>
+          </template>
+
+          <template #action="{ record }">
+            <a-space
+              :size="0"
+              class="action-cell-inner"
+            >
               <a-tooltip title="查看">
-                <a-button type="link" size="small" v-permission="'budget:plan:view'" @click="handleView(record)">
-                  <template #icon><EyeOutlined /></template>
+                <a-button
+                  v-permission="'budget:plan:view'"
+                  type="link"
+                  size="small"
+                  @click="handleView(record)"
+                >
+                  <template #icon>
+                    <EyeOutlined />
+                  </template>
                 </a-button>
               </a-tooltip>
-              <a-tooltip v-if="record.status === 'draft'" title="编辑">
-                <a-button type="link" size="small" v-permission="'budget:plan:edit'" @click="handleEdit(record)">
-                  <template #icon><EditOutlined /></template>
+              <a-tooltip
+                v-if="record.status === 'draft'"
+                title="编辑"
+              >
+                <a-button
+                  v-permission="'budget:plan:edit'"
+                  type="link"
+                  size="small"
+                  @click="handleEdit(record)"
+                >
+                  <template #icon>
+                    <EditOutlined />
+                  </template>
                 </a-button>
               </a-tooltip>
               <a-dropdown trigger="click">
-                <a-button type="link" size="small" class="action-more-btn">
-                  <template #icon><EllipsisOutlined /></template>
+                <a-button
+                  type="link"
+                  size="small"
+                  class="action-more-btn"
+                >
+                  <template #icon>
+                    <EllipsisOutlined />
+                  </template>
                 </a-button>
                 <template #overlay>
                   <a-menu @click="({ key }) => handleActionMenuClick(key as string, record)">
-                    <a-menu-item v-if="record.status === 'draft'" key="publish">
+                    <a-menu-item
+                      v-if="record.status === 'draft'"
+                      key="publish"
+                    >
                       <SendOutlined /> 发布
                     </a-menu-item>
                     <a-menu-divider v-if="record.status === 'draft'" />
-                    <a-menu-item v-if="record.status === 'draft'" key="delete" danger>
+                    <a-menu-item
+                      v-if="record.status === 'draft'"
+                      key="delete"
+                      danger
+                    >
                       <DeleteOutlined /> 删除
                     </a-menu-item>
                   </a-menu>
                 </template>
               </a-dropdown>
             </a-space>
-        </template>
-      </BillTableList>
-
-      <!-- 全屏详情抽屉（新建/编辑） -->
-      <FullScreenDetail
-        :visible="formVisible"
-        :title="isEdit ? '编辑模板' : '新建模板'"
-        :save-loading="submitLoading"
-        :show-save-and-new="!isEdit"
-        :dirty="formDirty"
-        @close="handleFormClose"
-        @save="handleFormSubmit"
-        @save-and-new="handleFormSaveAndNew"
-      >
-        <a-form :model="formData" :rules="formRules" ref="formRef" layout="vertical">
-          <a-row :gutter="16">
-            <a-col :span="8">
-              <a-form-item label="模板编码" name="templateCode">
-                <a-input v-model:value="formData.templateCode" placeholder="自动生成" :disabled="isEdit" size="small" />
-              </a-form-item>
-            </a-col>
-            <a-col :span="8">
-              <a-form-item label="模板名称" name="templateName">
-                <a-input v-model:value="formData.templateName" placeholder="请输入模板名称" size="small" />
-              </a-form-item>
-            </a-col>
-            <a-col :span="8">
-              <a-form-item label="财政年度" name="fiscalYear">
-                <a-input-number v-model:value="formData.fiscalYear" :min="2020" :max="2099" style="width: 100%" size="small" />
-              </a-form-item>
-            </a-col>
-          </a-row>
-          <a-form-item label="描述" name="description">
-            <a-textarea v-model:value="formData.description" :rows="2" placeholder="请输入模板描述" size="small" />
-          </a-form-item>
-        </a-form>
-
-        <a-divider>预算科目</a-divider>
-        <a-button type="dashed" @click="debounceClick('addItem', addItem)" style="width: 100%; margin-bottom: 12px">
-          <template #icon><PlusOutlined /></template>添加科目
-        </a-button>
-        <BillTableList
-          :data-source="formData.items"
-          :columns="itemVxeColumns"
-          :pagination="false as any"
-          row-key="rowKey"
-          :show-toolbar="false"
-          :selectable="false"
-          :show-add="false"
-          :show-search="false"
-          :show-export="false"
-          :show-batch-delete="false"
-        >
-          <template #subjectCodeCell="{ record }">
-            <a-input v-model:value="record.subjectCode" placeholder="科目编码" size="small" />
-          </template>
-          <template #subjectNameCell="{ record }">
-            <a-input v-model:value="record.subjectName" placeholder="科目名称" size="small" />
-          </template>
-          <template #budgetAmountCell="{ record }">
-            <a-input-number v-model:value="record.budgetAmount" :min="0" :precision="2" style="width: 100%" size="small" />
-          </template>
-          <template #sortOrderCell="{ record }">
-            <a-input-number v-model:value="record.sortOrder" :min="0" style="width: 60px" size="small" />
-          </template>
-          <template #action="{ index }">
-            <a-popconfirm title="确定删除？" @confirm="removeItem(index as number)">
-              <a class="danger">删除</a>
-            </a-popconfirm>
           </template>
         </BillTableList>
-      </FullScreenDetail>
-    </div>
-  </PageContainer>
+
+        <!-- 全屏详情抽屉（新建/编辑） -->
+        <FullScreenDetail
+          :visible="formVisible"
+          :title="isEdit ? '编辑模板' : '新建模板'"
+          :save-loading="submitLoading"
+          :show-save-and-new="!isEdit"
+          :dirty="formDirty"
+          @close="handleFormClose"
+          @save="handleFormSubmit"
+          @save-and-new="handleFormSaveAndNew"
+        >
+          <a-form
+            ref="formRef"
+            :model="formData"
+            :rules="formRules"
+            layout="vertical"
+          >
+            <a-row :gutter="16">
+              <a-col :span="8">
+                <a-form-item
+                  label="模板编码"
+                  name="templateCode"
+                >
+                  <a-input
+                    v-model:value="formData.templateCode"
+                    placeholder="自动生成"
+                    :disabled="isEdit"
+                    size="small"
+                  />
+                </a-form-item>
+              </a-col>
+              <a-col :span="8">
+                <a-form-item
+                  label="模板名称"
+                  name="templateName"
+                >
+                  <a-input
+                    v-model:value="formData.templateName"
+                    placeholder="请输入模板名称"
+                    size="small"
+                  />
+                </a-form-item>
+              </a-col>
+              <a-col :span="8">
+                <a-form-item
+                  label="财政年度"
+                  name="fiscalYear"
+                >
+                  <a-input-number
+                    v-model:value="formData.fiscalYear"
+                    :min="2020"
+                    :max="2099"
+                    style="width: 100%"
+                    size="small"
+                  />
+                </a-form-item>
+              </a-col>
+            </a-row>
+            <a-form-item
+              label="描述"
+              name="description"
+            >
+              <a-textarea
+                v-model:value="formData.description"
+                :rows="2"
+                placeholder="请输入模板描述"
+                size="small"
+              />
+            </a-form-item>
+          </a-form>
+
+          <a-divider>预算科目</a-divider>
+          <a-button
+            type="dashed"
+            style="width: 100%; margin-bottom: 12px"
+            @click="debounceClick('addItem', addItem)"
+          >
+            <template #icon>
+              <PlusOutlined />
+            </template>添加科目
+          </a-button>
+          <BillTableList
+            :data-source="formData.items"
+            :columns="itemVxeColumns"
+            :pagination="false as any"
+            row-key="rowKey"
+            :show-toolbar="false"
+            :selectable="false"
+            :show-add="false"
+            :show-search="false"
+            :show-export="false"
+            :show-batch-delete="false"
+          >
+            <template #subjectCodeCell="{ record }">
+              <a-input
+                v-model:value="record.subjectCode"
+                placeholder="科目编码"
+                size="small"
+              />
+            </template>
+            <template #subjectNameCell="{ record }">
+              <a-input
+                v-model:value="record.subjectName"
+                placeholder="科目名称"
+                size="small"
+              />
+            </template>
+            <template #budgetAmountCell="{ record }">
+              <a-input-number
+                v-model:value="record.budgetAmount"
+                :min="0"
+                :precision="2"
+                style="width: 100%"
+                size="small"
+              />
+            </template>
+            <template #sortOrderCell="{ record }">
+              <a-input-number
+                v-model:value="record.sortOrder"
+                :min="0"
+                style="width: 60px"
+                size="small"
+              />
+            </template>
+            <template #action="{ index }">
+              <a-popconfirm
+                title="确定删除？"
+                @confirm="removeItem(index as number)"
+              >
+                <a class="danger">删除</a>
+              </a-popconfirm>
+            </template>
+          </BillTableList>
+        </FullScreenDetail>
+      </div>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

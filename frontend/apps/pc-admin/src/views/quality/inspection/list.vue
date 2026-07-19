@@ -1,22 +1,50 @@
 <template>
   <div class="page-container">
     <div class="page-header">
-      <h2 class="page-title">检验记录</h2>
+      <h2 class="page-title">
+        检验记录
+      </h2>
     </div>
     <div class="page-container__body">
-      <a-card :bordered="false" class="table-card">
-        <a-table :columns="columns" :data-source="tableData" :loading="loading" :pagination="pagination" row-key="id" @change="handleTableChange">
+      <a-card
+        :bordered="false"
+        class="table-card"
+      >
+        <a-table
+          :columns="columns"
+          :data-source="tableData"
+          :loading="loading"
+          :pagination="pagination"
+          row-key="id"
+          @change="handleTableChange"
+        >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'quantity'">
               <span>{{ record.quantity }} / 抽检: {{ record.sampleQuantity }}</span>
             </template>
             <template v-if="column.key === 'inspectionResult'">
-              <a-tag :color="INSPECTION_RESULT_MAP[record.inspectionResult]?.color">{{ INSPECTION_RESULT_MAP[record.inspectionResult]?.text }}</a-tag>
+              <a-tag :color="INSPECTION_RESULT_MAP[record.inspectionResult]?.color">
+                {{ INSPECTION_RESULT_MAP[record.inspectionResult]?.text }}
+              </a-tag>
             </template>
             <template v-if="column.key === 'action'">
               <a-space>
-                <a-button type="link" size="small" v-if="record.inspectionResult === 'PENDING'" @click="showCompleteModal(record)">完成检验</a-button>
-                <a-button type="link" size="small" v-if="record.inspectionResult === 'FAIL'" @click="showDefectModal(record)">不合格处理</a-button>
+                <a-button
+                  v-if="record.inspectionResult === 'PENDING'"
+                  type="link"
+                  size="small"
+                  @click="showCompleteModal(record)"
+                >
+                  完成检验
+                </a-button>
+                <a-button
+                  v-if="record.inspectionResult === 'FAIL'"
+                  type="link"
+                  size="small"
+                  @click="showDefectModal(record)"
+                >
+                  不合格处理
+                </a-button>
               </a-space>
             </template>
           </template>
@@ -24,37 +52,76 @@
       </a-card>
     </div>
 
-    <a-modal v-model:open="completeModalVisible" title="完成检验" @ok="handleComplete">
-      <a-form :label-col="{ span: 4 }" :wrapper-col="{ span: 18 }">
+    <a-modal
+      v-model:open="completeModalVisible"
+      title="完成检验"
+      @ok="handleComplete"
+    >
+      <a-form
+        :label-col="{ span: 4 }"
+        :wrapper-col="{ span: 18 }"
+      >
         <a-form-item label="检验结果">
           <a-select v-model:value="completeForm.result">
-            <a-select-option value="PASS">合格</a-select-option>
-            <a-select-option value="FAIL">不合格</a-select-option>
+            <a-select-option value="PASS">
+              合格
+            </a-select-option>
+            <a-select-option value="FAIL">
+              不合格
+            </a-select-option>
           </a-select>
         </a-form-item>
         <a-form-item label="合格数量">
-          <a-input-number v-model:value="completeForm.passQuantity" min="0" style="width: 100%" />
+          <a-input-number
+            v-model:value="completeForm.passQuantity"
+            min="0"
+            style="width: 100%"
+          />
         </a-form-item>
         <a-form-item label="不合格数量">
-          <a-input-number v-model:value="completeForm.failQuantity" min="0" style="width: 100%" />
+          <a-input-number
+            v-model:value="completeForm.failQuantity"
+            min="0"
+            style="width: 100%"
+          />
         </a-form-item>
       </a-form>
     </a-modal>
 
-    <a-modal v-model:open="defectModalVisible" title="不合格处理" @ok="handleDefect">
-      <a-form :label-col="{ span: 4 }" :wrapper-col="{ span: 18 }">
+    <a-modal
+      v-model:open="defectModalVisible"
+      title="不合格处理"
+      @ok="handleDefect"
+    >
+      <a-form
+        :label-col="{ span: 4 }"
+        :wrapper-col="{ span: 18 }"
+      >
         <a-form-item label="缺陷类型">
           <a-select v-model:value="defectForm.defectType">
-            <a-select-option value="QUALITY">质量缺陷</a-select-option>
-            <a-select-option value="PACKAGING">包装缺陷</a-select-option>
-            <a-select-option value="LABELING">标签缺陷</a-select-option>
+            <a-select-option value="QUALITY">
+              质量缺陷
+            </a-select-option>
+            <a-select-option value="PACKAGING">
+              包装缺陷
+            </a-select-option>
+            <a-select-option value="LABELING">
+              标签缺陷
+            </a-select-option>
           </a-select>
         </a-form-item>
         <a-form-item label="缺陷描述">
-          <a-textarea v-model:value="defectForm.defectDesc" :rows="3" />
+          <a-textarea
+            v-model:value="defectForm.defectDesc"
+            :rows="3"
+          />
         </a-form-item>
         <a-form-item label="缺陷数量">
-          <a-input-number v-model:value="defectForm.defectQuantity" min="0" style="width: 100%" />
+          <a-input-number
+            v-model:value="defectForm.defectQuantity"
+            min="0"
+            style="width: 100%"
+          />
         </a-form-item>
       </a-form>
     </a-modal>

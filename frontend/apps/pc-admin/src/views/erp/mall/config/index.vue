@@ -1,134 +1,249 @@
 <template>
   <ErrorBoundary @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="page-header">
-        <a-breadcrumb>
-          <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-          <a-breadcrumb-item><router-link to="/mall">商城管理</router-link></a-breadcrumb-item>
-          <a-breadcrumb-item>商城配置</a-breadcrumb-item>
-        </a-breadcrumb>
-        <div class="page-header__right">
-          <span class="shortcut-hints">
-            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-          </span>
-          <span v-if="autoRefreshCountdown > 0" class="page-header__countdown"><SyncOutlined /> {{ autoRefreshCountdown }}s</span>
-          <span v-if="lastUpdateTime" class="page-header__update-time">更新于: {{ lastUpdateTime }}</span>
-        </div>
-      </div>
-    </template>
-
-    <div class="config-page">
-      <a-spin :spinning="loading">
-        <a-form
-          ref="formRef"
-          :model="formState"
-          :label-col="{ span: 4 }"
-          :wrapper-col="{ span: 16 }"
-          :rules="formRules"
-          label-align="right"
-        >
-          <a-card title="基础信息" :bordered="false" class="config-card">
-            <a-row :gutter="24">
-              <a-col :span="12">
-                <a-form-item label="商城名称" name="shopName">
-                  <a-input v-model:value="formState.shopName" placeholder="请输入商城名称" :maxlength="100" size="small" />
-                </a-form-item>
-              </a-col>
-              <a-col :span="12">
-                <a-form-item label="主题色" name="themeColor">
-                  <a-input v-model:value="formState.themeColor" placeholder="#1890ff" size="small">
-                    <template #prefix>
-                      <div class="color-preview" :style="{ backgroundColor: formState.themeColor || '#1890ff' }" />
-                    </template>
-                  </a-input>
-                </a-form-item>
-              </a-col>
-            </a-row>
-            <a-form-item label="商城描述" name="shopDesc">
-              <a-textarea v-model:value="formState.shopDesc" placeholder="请输入商城描述" :rows="3" :maxlength="500" size="small" />
-            </a-form-item>
-            <a-form-item label="商城LOGO" name="shopLogo">
-              <a-input v-model:value="formState.shopLogo" placeholder="请输入LOGO图片URL" size="small" />
-            </a-form-item>
-          </a-card>
-
-          <a-card title="交易设置" :bordered="false" class="config-card">
-            <a-row :gutter="24">
-              <a-col :span="12">
-                <a-form-item label="最小起订金额" name="minOrderAmount">
-                  <a-input-number
-                    v-model:value="formState.minOrderAmount"
-                    :min="0"
-                    :precision="2"
-                    :style="{ width: '100%' }"
-                    placeholder="0=不限制"
-                    size="small"
-                  />
-                </a-form-item>
-              </a-col>
-              <a-col :span="12">
-                <a-form-item label="免运费金额" name="freeShippingAmount">
-                  <a-input-number
-                    v-model:value="formState.freeShippingAmount"
-                    :min="0"
-                    :precision="2"
-                    :style="{ width: '100%' }"
-                    placeholder="0=不免运费"
-                    size="small"
-                  />
-                </a-form-item>
-              </a-col>
-            </a-row>
-            <a-row :gutter="24">
-              <a-col :span="12">
-                <a-form-item label="固定运费" name="freightAmount">
-                  <a-input-number
-                    v-model:value="formState.freightAmount"
-                    :min="0"
-                    :precision="2"
-                    :style="{ width: '100%' }"
-                    size="small"
-                  />
-                </a-form-item>
-              </a-col>
-              <a-col :span="12">
-                <a-form-item label="支付方式" name="paymentMethods">
-                  <a-select v-model:value="formState.paymentMethods" mode="multiple" placeholder="选择支付方式" size="small">
-                    <a-select-option value="offline">线下转账</a-select-option>
-                    <a-select-option value="wechat">微信支付</a-select-option>
-                    <a-select-option value="alipay">支付宝</a-select-option>
-                  </a-select>
-                  <div class="form-tip">逗号分隔的支付方式</div>
-                </a-form-item>
-              </a-col>
-            </a-row>
-          </a-card>
-
-          <a-card title="注册设置" :bordered="false" class="config-card">
-            <a-row :gutter="24">
-              <a-col :span="12">
-                <a-form-item label="开放注册" name="enableRegister">
-                  <a-switch v-model:checked="formState.enableRegister" :checked-value="1" :un-checked-value="0" />
-                </a-form-item>
-              </a-col>
-              <a-col :span="12">
-                <a-form-item label="自动审核" name="enableAutoAudit">
-                  <a-switch v-model:checked="formState.enableAutoAudit" :checked-value="1" :un-checked-value="0" />
-                  <div class="form-tip">开启后，新注册用户自动通过审核</div>
-                </a-form-item>
-              </a-col>
-            </a-row>
-          </a-card>
-
-          <div class="form-actions">
-            <a-button v-permission="'erp:mall:config:save'" type="primary" size="small" :loading="saveLoading" @click="debounceClick('save', handleSave)">保存配置</a-button>
-            <a-button size="small" @click="debounceClick('reset', handleReset)" :style="{ marginLeft: '12px' }">重置</a-button>
+    <PageContainer full-height>
+      <template #header>
+        <div class="page-header">
+          <a-breadcrumb>
+            <a-breadcrumb-item>
+              <router-link to="/">
+                首页
+              </router-link>
+            </a-breadcrumb-item>
+            <a-breadcrumb-item>
+              <router-link to="/mall">
+                商城管理
+              </router-link>
+            </a-breadcrumb-item>
+            <a-breadcrumb-item>商城配置</a-breadcrumb-item>
+          </a-breadcrumb>
+          <div class="page-header__right">
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            </span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="page-header__countdown"
+            ><SyncOutlined /> {{ autoRefreshCountdown }}s</span>
+            <span
+              v-if="lastUpdateTime"
+              class="page-header__update-time"
+            >更新于: {{ lastUpdateTime }}</span>
           </div>
-        </a-form>
-      </a-spin>
-    </div>
-  </PageContainer>
+        </div>
+      </template>
+
+      <div class="config-page">
+        <a-spin :spinning="loading">
+          <a-form
+            ref="formRef"
+            :model="formState"
+            :label-col="{ span: 4 }"
+            :wrapper-col="{ span: 16 }"
+            :rules="formRules"
+            label-align="right"
+          >
+            <a-card
+              title="基础信息"
+              :bordered="false"
+              class="config-card"
+            >
+              <a-row :gutter="24">
+                <a-col :span="12">
+                  <a-form-item
+                    label="商城名称"
+                    name="shopName"
+                  >
+                    <a-input
+                      v-model:value="formState.shopName"
+                      placeholder="请输入商城名称"
+                      :maxlength="100"
+                      size="small"
+                    />
+                  </a-form-item>
+                </a-col>
+                <a-col :span="12">
+                  <a-form-item
+                    label="主题色"
+                    name="themeColor"
+                  >
+                    <a-input
+                      v-model:value="formState.themeColor"
+                      placeholder="#1890ff"
+                      size="small"
+                    >
+                      <template #prefix>
+                        <div
+                          class="color-preview"
+                          :style="{ backgroundColor: formState.themeColor || '#1890ff' }"
+                        />
+                      </template>
+                    </a-input>
+                  </a-form-item>
+                </a-col>
+              </a-row>
+              <a-form-item
+                label="商城描述"
+                name="shopDesc"
+              >
+                <a-textarea
+                  v-model:value="formState.shopDesc"
+                  placeholder="请输入商城描述"
+                  :rows="3"
+                  :maxlength="500"
+                  size="small"
+                />
+              </a-form-item>
+              <a-form-item
+                label="商城LOGO"
+                name="shopLogo"
+              >
+                <a-input
+                  v-model:value="formState.shopLogo"
+                  placeholder="请输入LOGO图片URL"
+                  size="small"
+                />
+              </a-form-item>
+            </a-card>
+
+            <a-card
+              title="交易设置"
+              :bordered="false"
+              class="config-card"
+            >
+              <a-row :gutter="24">
+                <a-col :span="12">
+                  <a-form-item
+                    label="最小起订金额"
+                    name="minOrderAmount"
+                  >
+                    <a-input-number
+                      v-model:value="formState.minOrderAmount"
+                      :min="0"
+                      :precision="2"
+                      :style="{ width: '100%' }"
+                      placeholder="0=不限制"
+                      size="small"
+                    />
+                  </a-form-item>
+                </a-col>
+                <a-col :span="12">
+                  <a-form-item
+                    label="免运费金额"
+                    name="freeShippingAmount"
+                  >
+                    <a-input-number
+                      v-model:value="formState.freeShippingAmount"
+                      :min="0"
+                      :precision="2"
+                      :style="{ width: '100%' }"
+                      placeholder="0=不免运费"
+                      size="small"
+                    />
+                  </a-form-item>
+                </a-col>
+              </a-row>
+              <a-row :gutter="24">
+                <a-col :span="12">
+                  <a-form-item
+                    label="固定运费"
+                    name="freightAmount"
+                  >
+                    <a-input-number
+                      v-model:value="formState.freightAmount"
+                      :min="0"
+                      :precision="2"
+                      :style="{ width: '100%' }"
+                      size="small"
+                    />
+                  </a-form-item>
+                </a-col>
+                <a-col :span="12">
+                  <a-form-item
+                    label="支付方式"
+                    name="paymentMethods"
+                  >
+                    <a-select
+                      v-model:value="formState.paymentMethods"
+                      mode="multiple"
+                      placeholder="选择支付方式"
+                      size="small"
+                    >
+                      <a-select-option value="offline">
+                        线下转账
+                      </a-select-option>
+                      <a-select-option value="wechat">
+                        微信支付
+                      </a-select-option>
+                      <a-select-option value="alipay">
+                        支付宝
+                      </a-select-option>
+                    </a-select>
+                    <div class="form-tip">
+                      逗号分隔的支付方式
+                    </div>
+                  </a-form-item>
+                </a-col>
+              </a-row>
+            </a-card>
+
+            <a-card
+              title="注册设置"
+              :bordered="false"
+              class="config-card"
+            >
+              <a-row :gutter="24">
+                <a-col :span="12">
+                  <a-form-item
+                    label="开放注册"
+                    name="enableRegister"
+                  >
+                    <a-switch
+                      v-model:checked="formState.enableRegister"
+                      :checked-value="1"
+                      :un-checked-value="0"
+                    />
+                  </a-form-item>
+                </a-col>
+                <a-col :span="12">
+                  <a-form-item
+                    label="自动审核"
+                    name="enableAutoAudit"
+                  >
+                    <a-switch
+                      v-model:checked="formState.enableAutoAudit"
+                      :checked-value="1"
+                      :un-checked-value="0"
+                    />
+                    <div class="form-tip">
+                      开启后，新注册用户自动通过审核
+                    </div>
+                  </a-form-item>
+                </a-col>
+              </a-row>
+            </a-card>
+
+            <div class="form-actions">
+              <a-button
+                v-permission="'erp:mall:config:save'"
+                type="primary"
+                size="small"
+                :loading="saveLoading"
+                @click="debounceClick('save', handleSave)"
+              >
+                保存配置
+              </a-button>
+              <a-button
+                size="small"
+                :style="{ marginLeft: '12px' }"
+                @click="debounceClick('reset', handleReset)"
+              >
+                重置
+              </a-button>
+            </div>
+          </a-form>
+        </a-spin>
+      </div>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

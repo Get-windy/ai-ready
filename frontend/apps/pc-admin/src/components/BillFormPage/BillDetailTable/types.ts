@@ -6,7 +6,7 @@
  * 齿轮设置：列显示/隐藏、列宽调整、列顺序拖拽、前后冻结列。
  */
 
-export type DetailColumnType = 'select' | 'input' | 'number' | 'date' | 'slot' | 'rowNo' | 'action' | 'checkbox' | 'button'
+export type DetailColumnType = 'select' | 'input' | 'number' | 'date' | 'slot' | 'rowNo' | 'action' | 'checkbox' | 'button' | 'boolean'
 
 export interface DetailColumnOption {
   label: string
@@ -80,6 +80,8 @@ export interface DetailColumnConfig {
 export interface ColumnSetting {
   key: string
   title: string
+  /** 显示名（可自定义，默认同 title） */
+  displayName?: string
   visible: boolean
   width: number
   fixed: 'left' | 'right' | ''

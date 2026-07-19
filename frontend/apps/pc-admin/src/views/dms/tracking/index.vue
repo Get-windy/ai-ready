@@ -1,67 +1,92 @@
 <template>
-  <ErrorBoundary @error="handleError"><PageContainer full-height>
-    <template #header>
-      <div class="page-header">
-        <div class="page-header__left">
-          <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item>DMS / 轨迹追踪</a-breadcrumb-item>
-          </a-breadcrumb>
-          <h2>轨迹追踪</h2>
+  <ErrorBoundary @error="handleError">
+    <PageContainer full-height>
+      <template #header>
+        <div class="page-header">
+          <div class="page-header__left">
+            <a-breadcrumb>
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>DMS / 轨迹追踪</a-breadcrumb-item>
+            </a-breadcrumb>
+            <h2>轨迹追踪</h2>
+          </div>
+          <div class="page-header__right">
+            <span
+              v-if="lastUpdateTime"
+              class="update-time"
+            >更新于 {{ lastUpdateTime }}</span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            ><SyncOutlined /> {{ autoRefreshCountdown }}s</span>
+            <a-button
+              size="small"
+              :loading="loading"
+              @click="wms.debounce('refresh', wms.fetchData)"
+            >
+              <ReloadOutlined /> 刷新
+            </a-button>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            </span>
+          </div>
         </div>
-        <div class="page-header__right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge"><SyncOutlined /> {{ autoRefreshCountdown }}s</span>
-          <a-button size="small" :loading="loading" @click="wms.debounce('refresh', wms.fetchData)">
-            <ReloadOutlined /> 刷新
-          </a-button>
-          <span class="shortcut-hints">
-            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-          </span>
-        </div>
-      </div>
-    </template>
+      </template>
 
-    <template #filter>
-      <SearchBar :fields="searchFields" :loading="loading" @search="handleSearch" @reset="handleReset" />
-    </template>
-
-    <template #default>
-      <div class="page-body">
-        <SkeletonTable v-if="loading && dataList.length === 0" :columns="columns.length" :rows="8" />
-        <a-table
-          v-else
-          :dataSource="dataList"
-          :columns="columns"
+      <template #filter>
+        <SearchBar
+          :fields="searchFields"
           :loading="loading"
-          :pagination="pagination"
-          :locale="locale"
-          rowKey="id"
-          size="small"
-          bordered
-          @change="handleTableChange"
-        >
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.dataIndex === 'speed'">
-              {{ record.speed != null ? record.speed.toFixed(1) + ' km/h' : '-' }}
+          @search="handleSearch"
+          @reset="handleReset"
+        />
+      </template>
+
+      <template #default>
+        <div class="page-body">
+          <SkeletonTable
+            v-if="loading && dataList.length === 0"
+            :columns="columns.length"
+            :rows="8"
+          />
+          <a-table
+            v-else
+            :data-source="dataList"
+            :columns="columns"
+            :loading="loading"
+            :pagination="pagination"
+            :locale="locale"
+            row-key="id"
+            size="small"
+            bordered
+            @change="handleTableChange"
+          >
+            <template #bodyCell="{ column, record }">
+              <template v-if="column.dataIndex === 'speed'">
+                {{ record.speed != null ? record.speed.toFixed(1) + ' km/h' : '-' }}
+              </template>
+              <template v-if="column.dataIndex === 'direction'">
+                {{ formatDirection(record.direction) }}
+              </template>
+              <template v-if="column.dataIndex === 'reportTime'">
+                {{ formatDateTime(record.reportTime) }}
+              </template>
+              <template v-if="column.dataIndex === 'lat'">
+                {{ record.lat != null ? record.lat.toFixed(6) : '-' }}
+              </template>
+              <template v-if="column.dataIndex === 'lng'">
+                {{ record.lng != null ? record.lng.toFixed(6) : '-' }}
+              </template>
             </template>
-            <template v-if="column.dataIndex === 'direction'">
-              {{ formatDirection(record.direction) }}
-            </template>
-            <template v-if="column.dataIndex === 'reportTime'">
-              {{ formatDateTime(record.reportTime) }}
-            </template>
-            <template v-if="column.dataIndex === 'lat'">
-              {{ record.lat != null ? record.lat.toFixed(6) : '-' }}
-            </template>
-            <template v-if="column.dataIndex === 'lng'">
-              {{ record.lng != null ? record.lng.toFixed(6) : '-' }}
-            </template>
-          </template>
-        </a-table>
-      </div>
-    </template>
-  </PageContainer></ErrorBoundary>
+          </a-table>
+        </div>
+      </template>
+    </PageContainer>
+  </ErrorBoundary>
 </template>
 
 <script setup lang="ts">

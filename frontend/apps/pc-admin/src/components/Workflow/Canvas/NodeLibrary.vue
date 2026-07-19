@@ -14,7 +14,7 @@
 
     <div class="node-library-content">
       <a-collapse
-        v-model:activeKey="activeKeys"
+        v-model:active-key="activeKeys"
         :bordered="false"
         size="small"
       >
@@ -35,8 +35,12 @@
               {{ node.icon }}
             </div>
             <div class="library-node-info">
-              <div class="library-node-name">{{ node.name }}</div>
-              <div class="library-node-desc">{{ node.description }}</div>
+              <div class="library-node-name">
+                {{ node.name }}
+              </div>
+              <div class="library-node-desc">
+                {{ node.description }}
+              </div>
             </div>
           </div>
         </a-collapse-panel>
@@ -58,8 +62,12 @@
               {{ node.icon }}
             </div>
             <div class="library-node-info">
-              <div class="library-node-name">{{ node.name }}</div>
-              <div class="library-node-desc">{{ node.description }}</div>
+              <div class="library-node-name">
+                {{ node.name }}
+              </div>
+              <div class="library-node-desc">
+                {{ node.description }}
+              </div>
             </div>
           </div>
         </a-collapse-panel>
@@ -81,8 +89,12 @@
               {{ node.icon }}
             </div>
             <div class="library-node-info">
-              <div class="library-node-name">{{ node.name }}</div>
-              <div class="library-node-desc">{{ node.description }}</div>
+              <div class="library-node-name">
+                {{ node.name }}
+              </div>
+              <div class="library-node-desc">
+                {{ node.description }}
+              </div>
             </div>
           </div>
         </a-collapse-panel>
@@ -90,7 +102,10 @@
     </div>
 
     <div class="node-library-footer">
-      <a-space direction="vertical" style="width: 100%">
+      <a-space
+        direction="vertical"
+        style="width: 100%"
+      >
         <a-alert
           message="使用说明"
           description="拖拽节点到画布添加新节点"

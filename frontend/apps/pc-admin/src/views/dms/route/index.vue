@@ -3,63 +3,118 @@
     <PageContainer>
       <template #header>
         <div class="page-header">
-          <span></span>
+          <span />
           <span class="shortcut-hints">
             <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
           </span>
         </div>
       </template>
-      <a-tabs v-model:activeKey="activeTab">
+      <a-tabs v-model:active-key="activeTab">
         <!-- Route Planning -->
-        <a-tab-pane key="plan" tab="路线规划">
-          <a-card title="路线规划" style="max-width: 800px">
+        <a-tab-pane
+          key="plan"
+          tab="路线规划"
+        >
+          <a-card
+            title="路线规划"
+            style="max-width: 800px"
+          >
             <a-form layout="vertical">
-              <a-form-item label="起点地址" required>
-                <a-input v-model:value="planForm.origin.address" placeholder="请输入起点地址" />
+              <a-form-item
+                label="起点地址"
+                required
+              >
+                <a-input
+                  v-model:value="planForm.origin.address"
+                  placeholder="请输入起点地址"
+                />
               </a-form-item>
               <a-form-item label="起点纬度">
-                <a-input v-model:value="planForm.origin.lat" placeholder="起点纬度" />
+                <a-input
+                  v-model:value="planForm.origin.lat"
+                  placeholder="起点纬度"
+                />
               </a-form-item>
               <a-form-item label="起点经度">
-                <a-input v-model:value="planForm.origin.lng" placeholder="起点经度" />
+                <a-input
+                  v-model:value="planForm.origin.lng"
+                  placeholder="起点经度"
+                />
               </a-form-item>
 
               <a-divider>目的地</a-divider>
 
-              <div v-for="(dest, index) in planForm.destinations" :key="index" style="margin-bottom: 12px; border: 1px solid #f0f0f0; padding: 12px; border-radius: 6px;">
+              <div
+                v-for="(dest, index) in planForm.destinations"
+                :key="index"
+                style="margin-bottom: 12px; border: 1px solid #f0f0f0; padding: 12px; border-radius: 6px;"
+              >
                 <a-space style="margin-bottom: 8px;">
                   <strong>目的地 {{ index + 1 }}</strong>
-                  <a-button type="link" danger size="small" @click="removeDestination(index)" v-if="planForm.destinations.length > 1">
+                  <a-button
+                    v-if="planForm.destinations.length > 1"
+                    type="link"
+                    danger
+                    size="small"
+                    @click="removeDestination(index)"
+                  >
                     删除
                   </a-button>
                 </a-space>
                 <a-form-item :label="'地址 ' + (index + 1)">
-                  <a-input v-model:value="dest.address" placeholder="请输入地址" />
+                  <a-input
+                    v-model:value="dest.address"
+                    placeholder="请输入地址"
+                  />
                 </a-form-item>
                 <a-space>
                   <a-form-item label="纬度">
-                    <a-input v-model:value="dest.lat" placeholder="纬度" />
+                    <a-input
+                      v-model:value="dest.lat"
+                      placeholder="纬度"
+                    />
                   </a-form-item>
                   <a-form-item label="经度">
-                    <a-input v-model:value="dest.lng" placeholder="经度" />
+                    <a-input
+                      v-model:value="dest.lng"
+                      placeholder="经度"
+                    />
                   </a-form-item>
                 </a-space>
               </div>
 
-              <a-button type="dashed" block @click="addDestination" style="margin-bottom: 16px;">
+              <a-button
+                type="dashed"
+                block
+                style="margin-bottom: 16px;"
+                @click="addDestination"
+              >
                 + 添加目的地
               </a-button>
 
-              <a-button type="primary" @click="handlePlanRoute" :loading="planLoading" block>
+              <a-button
+                type="primary"
+                :loading="planLoading"
+                block
+                @click="handlePlanRoute"
+              >
                 规划路线
               </a-button>
             </a-form>
 
             <!-- Results -->
-            <a-card v-if="planResult.stops.length > 0" title="规划结果" style="margin-top: 16px">
+            <a-card
+              v-if="planResult.stops.length > 0"
+              title="规划结果"
+              style="margin-top: 16px"
+            >
               <a-descriptions :column="2">
-                <a-descriptions-item label="总距离">{{ planResult.total_distance }} km</a-descriptions-item>
-                <a-descriptions-item label="总步数">{{ planResult.steps?.length || 0 }} 段</a-descriptions-item>
+                <a-descriptions-item label="总距离">
+                  {{ planResult.total_distance }} km
+                </a-descriptions-item>
+                <a-descriptions-item label="总步数">
+                  {{ planResult.steps?.length || 0 }} 段
+                </a-descriptions-item>
               </a-descriptions>
               <a-table
                 :data-source="planResult.stops"
@@ -83,66 +138,157 @@
         </a-tab-pane>
 
         <!-- Geocode -->
-        <a-tab-pane key="geocode" tab="地址编码">
-          <a-card title="地址 → 经纬度" style="max-width: 600px">
+        <a-tab-pane
+          key="geocode"
+          tab="地址编码"
+        >
+          <a-card
+            title="地址 → 经纬度"
+            style="max-width: 600px"
+          >
             <a-form layout="vertical">
-              <a-form-item label="地址" required>
-                <a-input v-model:value="geocodeForm.address" placeholder="请输入地址" />
+              <a-form-item
+                label="地址"
+                required
+              >
+                <a-input
+                  v-model:value="geocodeForm.address"
+                  placeholder="请输入地址"
+                />
               </a-form-item>
-              <a-button type="primary" @click="handleGeocode" :loading="geocodeLoading">
+              <a-button
+                type="primary"
+                :loading="geocodeLoading"
+                @click="handleGeocode"
+              >
                 查询
               </a-button>
             </a-form>
-            <a-card v-if="geocodeResult" size="small" style="margin-top: 12px">
+            <a-card
+              v-if="geocodeResult"
+              size="small"
+              style="margin-top: 12px"
+            >
               <a-descriptions :column="1">
-                <a-descriptions-item label="纬度">{{ geocodeResult.lat }}</a-descriptions-item>
-                <a-descriptions-item label="经度">{{ geocodeResult.lng }}</a-descriptions-item>
-                <a-descriptions-item label="地址">{{ geocodeResult.address }}</a-descriptions-item>
+                <a-descriptions-item label="纬度">
+                  {{ geocodeResult.lat }}
+                </a-descriptions-item>
+                <a-descriptions-item label="经度">
+                  {{ geocodeResult.lng }}
+                </a-descriptions-item>
+                <a-descriptions-item label="地址">
+                  {{ geocodeResult.address }}
+                </a-descriptions-item>
               </a-descriptions>
             </a-card>
           </a-card>
         </a-tab-pane>
 
         <!-- Reverse Geocode -->
-        <a-tab-pane key="reverse" tab="逆编码">
-          <a-card title="经纬度 → 地址" style="max-width: 600px">
+        <a-tab-pane
+          key="reverse"
+          tab="逆编码"
+        >
+          <a-card
+            title="经纬度 → 地址"
+            style="max-width: 600px"
+          >
             <a-form layout="vertical">
-              <a-form-item label="纬度" required>
-                <a-input-number v-model:value="reverseForm.lat" style="width: 100%" :precision="6" />
+              <a-form-item
+                label="纬度"
+                required
+              >
+                <a-input-number
+                  v-model:value="reverseForm.lat"
+                  style="width: 100%"
+                  :precision="6"
+                />
               </a-form-item>
-              <a-form-item label="经度" required>
-                <a-input-number v-model:value="reverseForm.lng" style="width: 100%" :precision="6" />
+              <a-form-item
+                label="经度"
+                required
+              >
+                <a-input-number
+                  v-model:value="reverseForm.lng"
+                  style="width: 100%"
+                  :precision="6"
+                />
               </a-form-item>
-              <a-button type="primary" @click="handleReverseGeocode" :loading="reverseLoading">
+              <a-button
+                type="primary"
+                :loading="reverseLoading"
+                @click="handleReverseGeocode"
+              >
                 查询
               </a-button>
             </a-form>
-            <a-card v-if="reverseResult" size="small" style="margin-top: 12px">
+            <a-card
+              v-if="reverseResult"
+              size="small"
+              style="margin-top: 12px"
+            >
               <a-descriptions :column="1">
-                <a-descriptions-item label="地址">{{ reverseResult }}</a-descriptions-item>
+                <a-descriptions-item label="地址">
+                  {{ reverseResult }}
+                </a-descriptions-item>
               </a-descriptions>
             </a-card>
           </a-card>
         </a-tab-pane>
 
         <!-- Fence Check -->
-        <a-tab-pane key="fence" tab="围栏检查">
-          <a-card title="围栏检查" style="max-width: 600px">
+        <a-tab-pane
+          key="fence"
+          tab="围栏检查"
+        >
+          <a-card
+            title="围栏检查"
+            style="max-width: 600px"
+          >
             <a-form layout="vertical">
-              <a-form-item label="骑手纬度" required>
-                <a-input-number v-model:value="fenceForm.rider_lat" style="width: 100%" :precision="6" />
+              <a-form-item
+                label="骑手纬度"
+                required
+              >
+                <a-input-number
+                  v-model:value="fenceForm.rider_lat"
+                  style="width: 100%"
+                  :precision="6"
+                />
               </a-form-item>
-              <a-form-item label="骑手经度" required>
-                <a-input-number v-model:value="fenceForm.rider_lng" style="width: 100%" :precision="6" />
+              <a-form-item
+                label="骑手经度"
+                required
+              >
+                <a-input-number
+                  v-model:value="fenceForm.rider_lng"
+                  style="width: 100%"
+                  :precision="6"
+                />
               </a-form-item>
-              <a-form-item label="半径(米)" required>
-                <a-input-number v-model:value="fenceForm.radius" style="width: 100%" :min="1" />
+              <a-form-item
+                label="半径(米)"
+                required
+              >
+                <a-input-number
+                  v-model:value="fenceForm.radius"
+                  style="width: 100%"
+                  :min="1"
+                />
               </a-form-item>
-              <a-button type="primary" @click="handleFenceCheck" :loading="fenceLoading">
+              <a-button
+                type="primary"
+                :loading="fenceLoading"
+                @click="handleFenceCheck"
+              >
                 检查
               </a-button>
             </a-form>
-            <a-card v-if="fenceResult !== null" size="small" style="margin-top: 12px">
+            <a-card
+              v-if="fenceResult !== null"
+              size="small"
+              style="margin-top: 12px"
+            >
               <a-tag :color="fenceResult ? 'green' : 'red'">
                 {{ fenceResult ? '在围栏内' : '在围栏外' }}
               </a-tag>

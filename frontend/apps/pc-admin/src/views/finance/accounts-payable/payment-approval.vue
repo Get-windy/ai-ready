@@ -8,29 +8,45 @@
     <div class="stat-cards">
       <div class="stat-card stat-pending">
         <div class="stat-card-body">
-          <div class="stat-card-value">{{ stats.pendingCount }}</div>
-          <div class="stat-card-label">待审批</div>
+          <div class="stat-card-value">
+            {{ stats.pendingCount }}
+          </div>
+          <div class="stat-card-label">
+            待审批
+          </div>
         </div>
         <ClockCircleOutlined class="stat-card-icon" />
       </div>
       <div class="stat-card stat-approved">
         <div class="stat-card-body">
-          <div class="stat-card-value">{{ stats.approvedCount }}</div>
-          <div class="stat-card-label">已通过</div>
+          <div class="stat-card-value">
+            {{ stats.approvedCount }}
+          </div>
+          <div class="stat-card-label">
+            已通过
+          </div>
         </div>
         <CheckCircleOutlined class="stat-card-icon" />
       </div>
       <div class="stat-card stat-rejected">
         <div class="stat-card-body">
-          <div class="stat-card-value">{{ stats.rejectedCount }}</div>
-          <div class="stat-card-label">已拒绝</div>
+          <div class="stat-card-value">
+            {{ stats.rejectedCount }}
+          </div>
+          <div class="stat-card-label">
+            已拒绝
+          </div>
         </div>
         <CloseCircleOutlined class="stat-card-icon" />
       </div>
       <div class="stat-card stat-amount">
         <div class="stat-card-body">
-          <div class="stat-card-value">¥{{ formatAmount(stats.pendingAmount) }}</div>
-          <div class="stat-card-label">待审批金额</div>
+          <div class="stat-card-value">
+            ¥{{ formatAmount(stats.pendingAmount) }}
+          </div>
+          <div class="stat-card-label">
+            待审批金额
+          </div>
         </div>
         <DollarOutlined class="stat-card-icon" />
       </div>

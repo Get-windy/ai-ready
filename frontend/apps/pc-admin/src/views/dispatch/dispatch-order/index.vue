@@ -5,21 +5,45 @@
         <div class="search-row">
           <div class="search-item">
             <span class="search-label">单据编号</span>
-            <a-input v-model:value="searchParams.docNo" placeholder="请输入单据编号" allow-clear style="width: 180px" />
+            <a-input
+              v-model:value="searchParams.docNo"
+              placeholder="请输入单据编号"
+              allow-clear
+              style="width: 180px"
+            />
           </div>
           <div class="search-item">
             <span class="search-label">日期范围</span>
-            <a-range-picker v-model:value="dateRange" style="width: 240px" />
+            <a-range-picker
+              v-model:value="dateRange"
+              style="width: 240px"
+            />
           </div>
           <div class="search-item">
             <a-space>
-              <a-button type="primary" @click="handleSearch"><template #icon><SearchOutlined /></template>查询</a-button>
-              <a-button @click="handleReset"><template #icon><ClearOutlined /></template>重置</a-button>
+              <a-button
+                type="primary"
+                @click="handleSearch"
+              >
+                <template #icon>
+                  <SearchOutlined />
+                </template>查询
+              </a-button>
+              <a-button @click="handleReset">
+                <template #icon>
+                  <ClearOutlined />
+                </template>重置
+              </a-button>
             </a-space>
           </div>
         </div>
       </div>
-      <BillTableList :columns="columns" :api-url="apiUrl" :params="searchParams" ref="tableRef" />
+      <BillTableList
+        ref="tableRef"
+        :columns="columns"
+        :api-url="apiUrl"
+        :params="searchParams"
+      />
     </PageContainer>
   </ErrorBoundary>
 </template>
@@ -33,7 +57,7 @@ import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
 
 const tableRef = ref()
-const apiUrl = '/api/dispatch/dispatch-order/page'
+const apiUrl = '/dispatch/dispatch-order/page'
 const dateRange = ref<[Dayjs, Dayjs] | null>(null)
 const searchParams = reactive({ docNo: '', startDate: '', endDate: '' })
 

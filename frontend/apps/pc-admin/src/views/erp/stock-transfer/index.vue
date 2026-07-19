@@ -1,382 +1,657 @@
 <template>
-  <ErrorBoundary @reset="fetchData" @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="transfer-header">
-        <div class="transfer-header__left">
-          <span class="transfer-header__breadcrumb">ERP / 库存管理 / 库存调拨</span>
-          <h2 class="transfer-header__title">库存调拨</h2>
-        </div>
-        <div class="transfer-header__right">
-          <a-space :size="12">
-            <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-              <SyncOutlined /> {{ autoRefreshCountdown }}s
-            </span>
-            <span class="data-status">
-              <a-badge :status="loading ? 'processing' : 'success'" />
-              <span v-if="lastUpdateTime" class="update-time">
-                数据更新: {{ lastUpdateTime }}
-              </span>
-            </span>
-            <span class="shortcut-hints">
-              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-            </span>
-            <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)">
-              <template #icon><ReloadOutlined /></template>
-              刷新
-            </a-button>
-          </a-space>
-        </div>
-      </div>
-    </template>
-
-    <!-- 统计卡片 -->
-    <a-row :gutter="16" style="margin-bottom: 16px;">
-      <a-col :span="6">
-        <div class="summary-card">
-          <div class="summary-icon" style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);">
-            <SwapOutlined />
-          </div>
-          <div class="summary-content">
-            <div class="summary-title">调拨单总数</div>
-            <div class="summary-value">{{ statistics.totalCount }}</div>
-          </div>
-        </div>
-      </a-col>
-      <a-col :span="6">
-        <div class="summary-card">
-          <div class="summary-icon" style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);">
-            <ClockCircleOutlined />
-          </div>
-          <div class="summary-content">
-            <div class="summary-title">待审批</div>
-            <div class="summary-value warning">{{ statistics.pendingCount }}</div>
-          </div>
-        </div>
-      </a-col>
-      <a-col :span="6">
-        <div class="summary-card">
-          <div class="summary-icon" style="background: linear-gradient(135deg, #722ed1 0%, #531dab 100%);">
-            <AuditOutlined />
-          </div>
-          <div class="summary-content">
-            <div class="summary-title">已审批</div>
-            <div class="summary-value">{{ statistics.approvedCount }}</div>
-          </div>
-        </div>
-      </a-col>
-      <a-col :span="6">
-        <div class="summary-card highlight">
-          <div class="summary-icon" style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);">
-            <CheckCircleOutlined />
-          </div>
-          <div class="summary-content">
-            <div class="summary-title">已执行</div>
-            <div class="summary-value">{{ statistics.executedCount }}</div>
-          </div>
-        </div>
-      </a-col>
-    </a-row>
-
-    <BillTableList
-      ref="tableRef"
-      :columns="vxeColumns"
-      :data-source="tableDataSource"
-      :loading="loading"
-      :pagination="pagination"
-      :row-key="'id'"
-      :filter-fields="filterFields"
-      :selectable="true"
-      add-text="新建调拨单"
-      style="flex: 1;"
-      @add="handleCreate"
-      @refresh="fetchData"
-      @search="handleSearch"
-      @page-change="handlePageChange"
-      @filter-change="handleFilterChange"
-      @selection-change="handleSelectionChange"
-      @cell-dblclick="handleView"
-    >
-      <template #toolbar-actions>
-        <span class="list-update-timestamp">最后更新：{{ dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss') }}</span>
-        <a-button v-if="selectedIds.length > 0" size="small" danger v-permission="'erp:stock:batchdelete'" @click="handleBatchDelete">
-          <template #icon><DeleteOutlined /></template>
-          批量删除
-        </a-button>
-      </template>
-
-      <template #empty>
-        <div v-if="hasError" class="table-empty">
-          <WarningOutlined class="table-empty-icon" />
-          <p class="table-empty-text">数据加载异常，请重试</p>
-          <a-button type="primary" @click="fetchData"><ReloadOutlined /> 重试</a-button>
-        </div>
-        <div v-else class="table-empty">
-          <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-          <SwapOutlined v-else class="table-empty-icon" />
-          <p v-if="hasActiveFilters" class="table-empty-text">
-            没有符合条件的调拨单，<a @click="handleResetFilters">清除筛选</a>
-          </p>
-          <p v-else class="table-empty-text">
-            暂无调拨单数据，点击右上角「新建调拨单」开始创建
-          </p>
-        </div>
-      </template>
-
-      <template #statusCell="{ record }">
-        <StatusTag :status="record.status" :map="TRANSFER_STATUS" />
-      </template>
-
-      <template #totalAmountCell="{ record }">
-        ¥{{ (record.totalAmount || 0).toFixed(2) }}
-      </template>
-
-      <template #action="{ record }">
-        <a-space :size="4">
-          <a-tooltip title="查看">
-            <a-button type="link" size="small" v-permission="'erp:stock:view'" @click="handleView(record)">
-              <template #icon><EyeOutlined /></template>
-            </a-button>
-          </a-tooltip>
-          <!-- 草稿 -> 提交审批 -->
-          <a-tooltip v-if="record.status === 0" title="提交审批">
-            <a-button type="link" size="small" style="color: #1890ff;" v-permission="'erp:stock:submit'" @click="handleSubmit(record)">
-              <template #icon><SendOutlined /></template>
-            </a-button>
-          </a-tooltip>
-          <!-- 待审批 -> 审批/拒绝 -->
-          <template v-if="record.status === 1">
-            <a-tooltip title="审批通过">
-              <a-button type="link" size="small" style="color: #52c41a;" v-permission="'erp:stock:approve'" @click="handleApprove(record)">
-                <template #icon><CheckOutlined /></template>
-              </a-button>
-            </a-tooltip>
-            <a-tooltip title="拒绝">
-              <a-button type="link" size="small" style="color: #ff4d4f;" v-permission="'erp:stock:reject'" @click="handleReject(record)">
-                <template #icon><CloseOutlined /></template>
-              </a-button>
-            </a-tooltip>
-          </template>
-          <!-- 已审批 -> 执行调拨 -->
-          <a-tooltip v-if="record.status === 2" title="执行调拨">
-            <a-button type="link" size="small" style="color: #1890ff;" v-permission="'erp:stock:execute'" @click="handleExecute(record)">
-              <template #icon><AuditOutlined /></template>
-            </a-button>
-          </a-tooltip>
-          <!-- 已执行 -> 打印 -->
-          <PrintButton
-            v-if="record.status === 3"
-            template-type="stock_transfer"
-            :business-id="record.id"
-            business-type="stock_transfer"
-            button-size="small"
-            @print-success="() => message.success(`调拨单 ${record.transferNo} 打印成功`)"
-            @print-error="(e: any) => message.error(`打印失败: ${e.message || '未知错误'}`)"
-          />
-          <a-dropdown trigger="click">
-            <a-button type="link" size="small" class="action-more-btn">
-              <template #icon><EllipsisOutlined /></template>
-            </a-button>
-            <template #overlay>
-              <a-menu @click="(e) => handleActionMenuClick(String(e.key), record)">
-                <a-menu-item v-if="[0, 4, 5].includes(record.status)" key="delete">
-                  <DeleteOutlined /> 删除
-                </a-menu-item>
-              </a-menu>
-            </template>
-          </a-dropdown>
-        </a-space>
-      </template>
-    </BillTableList>
-
-    <!-- 详情抽屉 -->
-    <a-drawer
-      v-model:open="detailVisible"
-      title="调拨单详情"
-      placement="right"
-      width="80vw"
-    >
-      <a-spin :spinning="detailLoading">
-        <a-descriptions bordered :column="2" v-if="detailData">
-          <a-descriptions-item label="调拨单号">{{ detailData.transferNo }}</a-descriptions-item>
-          <a-descriptions-item label="状态">
-            <StatusTag :status="detailData.status" :map="TRANSFER_STATUS" />
-          </a-descriptions-item>
-          <a-descriptions-item label="调出仓库">{{ detailData.fromWarehouseName }}</a-descriptions-item>
-          <a-descriptions-item label="调入仓库">{{ detailData.toWarehouseName }}</a-descriptions-item>
-          <a-descriptions-item label="调拨数量">{{ detailData.totalQuantity ?? '-' }}</a-descriptions-item>
-          <a-descriptions-item label="调拨金额">¥{{ (detailData.totalAmount || 0).toFixed(2) }}</a-descriptions-item>
-          <a-descriptions-item label="申请人">{{ detailData.applicantName || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="创建时间">{{ detailData.createTime ? dayjs(detailData.createTime).format('YYYY-MM-DD HH:mm:ss') : '-' }}</a-descriptions-item>
-          <a-descriptions-item label="备注" :span="2">{{ detailData.remark || '-' }}</a-descriptions-item>
-        </a-descriptions>
-        <template v-if="detailData">
-          <h4 style="margin: 16px 0 8px;">调拨明细</h4>
-          <a-table
-            :data-source="detailItems"
-            :columns="detailItemColumns"
-            :pagination="false as any"
-            size="small"
-            bordered
-            row-key="id"
-          />
-        </template>
-      </a-spin>
-      <template #footer v-if="detailData">
-        <a-space>
-          <a-button @click="detailVisible = false">关闭</a-button>
-          <a-button v-if="detailData.status === 0" v-permission="'erp:stock:submit'" @click="handleSubmit(detailData)">
-            <template #icon><SendOutlined /></template>
-            提交审批
-          </a-button>
-          <template v-if="detailData.status === 1">
-            <a-button type="primary" v-permission="'erp:stock:approve'" @click="handleApprove(detailData)">
-              <template #icon><CheckOutlined /></template>
-              审批通过
-            </a-button>
-            <a-button danger v-permission="'erp:stock:reject'" @click="handleReject(detailData)">
-              <template #icon><CloseOutlined /></template>
-              拒绝
-            </a-button>
-          </template>
-          <a-button v-if="detailData.status === 2" type="primary" v-permission="'erp:stock:execute'" @click="handleExecute(detailData)">
-            <template #icon><AuditOutlined /></template>
-            执行调拨
-          </a-button>
-          <PrintButton
-            v-if="detailData.status >= 3"
-            template-type="stock_transfer"
-            :business-id="detailData.id"
-            business-type="stock_transfer"
-            button-text="打印"
-            button-size="small"
-          />
-        </a-space>
-      </template>
-    </a-drawer>
-  </PageContainer>
-
-  <!-- 新建调拨单弹窗 -->
-  <FullScreenDetail
-    :visible="createModalVisible"
-    title="新建调拨单"
-    :save-loading="submitLoading"
-    @close="handleCreateCancel"
-    @save="handleCreateSubmit"
+  <ErrorBoundary
+    @reset="fetchData"
+    @error="handleError"
   >
-    <a-form
-      ref="createFormRef"
-      :model="createForm"
-      :rules="formRules"
-      layout="vertical"
-    >
-      <a-row :gutter="16">
-        <a-col :span="12">
-          <a-form-item label="调出仓库" name="fromWarehouseId">
-            <a-select
-              v-model:value="createForm.fromWarehouseId"
-              placeholder="请选择调出仓库"
-              show-search
-              :filter-option="(input: string, option: any) => option.label?.toLowerCase().includes(input.toLowerCase())"
-              allow-clear
-              size="small"
+    <PageContainer full-height>
+      <template #header>
+        <div class="transfer-header">
+          <div class="transfer-header__left">
+            <span class="transfer-header__breadcrumb">ERP / 库存管理 / 库存调拨</span>
+            <h2 class="transfer-header__title">
+              库存调拨
+            </h2>
+          </div>
+          <div class="transfer-header__right">
+            <a-space :size="12">
+              <span
+                v-if="autoRefreshCountdown > 0"
+                class="auto-refresh-badge"
+              >
+                <SyncOutlined /> {{ autoRefreshCountdown }}s
+              </span>
+              <span class="data-status">
+                <a-badge :status="loading ? 'processing' : 'success'" />
+                <span
+                  v-if="lastUpdateTime"
+                  class="update-time"
+                >
+                  数据更新: {{ lastUpdateTime }}
+                </span>
+              </span>
+              <span class="shortcut-hints">
+                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+              </span>
+              <a-button
+                size="small"
+                :loading="refreshLoading"
+                @click="debounceClick('refresh', fetchData)"
+              >
+                <template #icon>
+                  <ReloadOutlined />
+                </template>
+                刷新
+              </a-button>
+            </a-space>
+          </div>
+        </div>
+      </template>
+
+      <!-- 统计卡片 -->
+      <a-row
+        :gutter="16"
+        style="margin-bottom: 16px;"
+      >
+        <a-col :span="6">
+          <div class="summary-card">
+            <div
+              class="summary-icon"
+              style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);"
             >
-              <a-select-option v-for="w in warehouseOptions" :key="w.value" :value="w.value">{{ w.label }}</a-select-option>
-            </a-select>
-          </a-form-item>
+              <SwapOutlined />
+            </div>
+            <div class="summary-content">
+              <div class="summary-title">
+                调拨单总数
+              </div>
+              <div class="summary-value">
+                {{ statistics.totalCount }}
+              </div>
+            </div>
+          </div>
         </a-col>
-        <a-col :span="12">
-          <a-form-item label="调入仓库" name="toWarehouseId">
-            <a-select
-              v-model:value="createForm.toWarehouseId"
-              placeholder="请选择调入仓库"
-              show-search
-              :filter-option="(input: string, option: any) => option.label?.toLowerCase().includes(input.toLowerCase())"
-              allow-clear
-              size="small"
+        <a-col :span="6">
+          <div class="summary-card">
+            <div
+              class="summary-icon"
+              style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);"
             >
-              <a-select-option v-for="w in warehouseOptions" :key="w.value" :value="w.value">{{ w.label }}</a-select-option>
-            </a-select>
-          </a-form-item>
+              <ClockCircleOutlined />
+            </div>
+            <div class="summary-content">
+              <div class="summary-title">
+                待审批
+              </div>
+              <div class="summary-value warning">
+                {{ statistics.pendingCount }}
+              </div>
+            </div>
+          </div>
+        </a-col>
+        <a-col :span="6">
+          <div class="summary-card">
+            <div
+              class="summary-icon"
+              style="background: linear-gradient(135deg, #722ed1 0%, #531dab 100%);"
+            >
+              <AuditOutlined />
+            </div>
+            <div class="summary-content">
+              <div class="summary-title">
+                已审批
+              </div>
+              <div class="summary-value">
+                {{ statistics.approvedCount }}
+              </div>
+            </div>
+          </div>
+        </a-col>
+        <a-col :span="6">
+          <div class="summary-card highlight">
+            <div
+              class="summary-icon"
+              style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);"
+            >
+              <CheckCircleOutlined />
+            </div>
+            <div class="summary-content">
+              <div class="summary-title">
+                已执行
+              </div>
+              <div class="summary-value">
+                {{ statistics.executedCount }}
+              </div>
+            </div>
+          </div>
         </a-col>
       </a-row>
-      <a-form-item label="备注" name="remark">
-        <a-textarea v-model:value="createForm.remark" placeholder="请输入备注" :rows="2" />
-      </a-form-item>
 
-      <div class="sub-table-header">
-        <span class="sub-table-title">调拨明细</span>
-        <a-button type="dashed" size="small" @click="addItem"><PlusOutlined /> 添加产品</a-button>
-      </div>
-      <a-table
-        :data-source="createForm.items"
-        :columns="itemColumns"
-        :pagination="false as any"
-        size="small"
-        row-key="tempId"
-        style="margin-bottom: 12px;"
+      <BillTableList
+        ref="tableRef"
+        :columns="vxeColumns"
+        :data-source="tableDataSource"
+        :loading="loading"
+        :pagination="pagination"
+        :row-key="'id'"
+        :filter-fields="filterFields"
+        :selectable="true"
+        add-text="新建调拨单"
+        style="flex: 1;"
+        @add="handleCreate"
+        @refresh="fetchData"
+        @search="handleSearch"
+        @page-change="handlePageChange"
+        @filter-change="handleFilterChange"
+        @selection-change="handleSelectionChange"
+        @cell-dblclick="handleView"
       >
-        <template #bodyCell="{ column, record, index }">
-          <template v-if="column.dataIndex === 'productName'">
-            <a-input v-model:value="record.productName" placeholder="产品名称" style="width: 130px" size="small" />
-            <a-tooltip title="选择产品"><a-button size="small" type="link" @click="selectItemProduct(index)"><SearchOutlined /></a-button></a-tooltip>
+        <template #toolbar-actions>
+          <span class="list-update-timestamp">最后更新：{{ dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss') }}</span>
+          <a-button
+            v-if="selectedIds.length > 0"
+            v-permission="'erp:stock:batchdelete'"
+            size="small"
+            danger
+            @click="handleBatchDelete"
+          >
+            <template #icon>
+              <DeleteOutlined />
+            </template>
+            批量删除
+          </a-button>
+        </template>
+
+        <template #empty>
+          <div
+            v-if="hasError"
+            class="table-empty"
+          >
+            <WarningOutlined class="table-empty-icon" />
+            <p class="table-empty-text">
+              数据加载异常，请重试
+            </p>
+            <a-button
+              type="primary"
+              @click="fetchData"
+            >
+              <ReloadOutlined /> 重试
+            </a-button>
+          </div>
+          <div
+            v-else
+            class="table-empty"
+          >
+            <SearchOutlined
+              v-if="hasActiveFilters"
+              class="table-empty-icon"
+            />
+            <SwapOutlined
+              v-else
+              class="table-empty-icon"
+            />
+            <p
+              v-if="hasActiveFilters"
+              class="table-empty-text"
+            >
+              没有符合条件的调拨单，<a @click="handleResetFilters">清除筛选</a>
+            </p>
+            <p
+              v-else
+              class="table-empty-text"
+            >
+              暂无调拨单数据，点击右上角「新建调拨单」开始创建
+            </p>
+          </div>
+        </template>
+
+        <template #statusCell="{ record }">
+          <StatusTag
+            :status="record.status"
+            :map="TRANSFER_STATUS"
+          />
+        </template>
+
+        <template #totalAmountCell="{ record }">
+          ¥{{ (record.totalAmount || 0).toFixed(2) }}
+        </template>
+
+        <template #action="{ record }">
+          <a-space :size="4">
+            <a-tooltip title="查看">
+              <a-button
+                v-permission="'erp:stock:view'"
+                type="link"
+                size="small"
+                @click="handleView(record)"
+              >
+                <template #icon>
+                  <EyeOutlined />
+                </template>
+              </a-button>
+            </a-tooltip>
+            <!-- 草稿 -> 提交审批 -->
+            <a-tooltip
+              v-if="record.status === 0"
+              title="提交审批"
+            >
+              <a-button
+                v-permission="'erp:stock:submit'"
+                type="link"
+                size="small"
+                style="color: #1890ff;"
+                @click="handleSubmit(record)"
+              >
+                <template #icon>
+                  <SendOutlined />
+                </template>
+              </a-button>
+            </a-tooltip>
+            <!-- 待审批 -> 审批/拒绝 -->
+            <template v-if="record.status === 1">
+              <a-tooltip title="审批通过">
+                <a-button
+                  v-permission="'erp:stock:approve'"
+                  type="link"
+                  size="small"
+                  style="color: #52c41a;"
+                  @click="handleApprove(record)"
+                >
+                  <template #icon>
+                    <CheckOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip title="拒绝">
+                <a-button
+                  v-permission="'erp:stock:reject'"
+                  type="link"
+                  size="small"
+                  style="color: #ff4d4f;"
+                  @click="handleReject(record)"
+                >
+                  <template #icon>
+                    <CloseOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+            </template>
+            <!-- 已审批 -> 执行调拨 -->
+            <a-tooltip
+              v-if="record.status === 2"
+              title="执行调拨"
+            >
+              <a-button
+                v-permission="'erp:stock:execute'"
+                type="link"
+                size="small"
+                style="color: #1890ff;"
+                @click="handleExecute(record)"
+              >
+                <template #icon>
+                  <AuditOutlined />
+                </template>
+              </a-button>
+            </a-tooltip>
+            <!-- 已执行 -> 打印 -->
+            <PrintButton
+              v-if="record.status === 3"
+              template-type="stock_transfer"
+              :business-id="record.id"
+              business-type="stock_transfer"
+              button-size="small"
+              @print-success="() => message.success(`调拨单 ${record.transferNo} 打印成功`)"
+              @print-error="(e: any) => message.error(`打印失败: ${e.message || '未知错误'}`)"
+            />
+            <a-dropdown trigger="click">
+              <a-button
+                type="link"
+                size="small"
+                class="action-more-btn"
+              >
+                <template #icon>
+                  <EllipsisOutlined />
+                </template>
+              </a-button>
+              <template #overlay>
+                <a-menu @click="(e) => handleActionMenuClick(String(e.key), record)">
+                  <a-menu-item
+                    v-if="[0, 4, 5].includes(record.status)"
+                    key="delete"
+                  >
+                    <DeleteOutlined /> 删除
+                  </a-menu-item>
+                </a-menu>
+              </template>
+            </a-dropdown>
+          </a-space>
+        </template>
+      </BillTableList>
+
+      <!-- 详情抽屉 -->
+      <a-drawer
+        v-model:open="detailVisible"
+        title="调拨单详情"
+        placement="right"
+        width="80vw"
+      >
+        <a-spin :spinning="detailLoading">
+          <a-descriptions
+            v-if="detailData"
+            bordered
+            :column="2"
+          >
+            <a-descriptions-item label="调拨单号">
+              {{ detailData.transferNo }}
+            </a-descriptions-item>
+            <a-descriptions-item label="状态">
+              <StatusTag
+                :status="detailData.status"
+                :map="TRANSFER_STATUS"
+              />
+            </a-descriptions-item>
+            <a-descriptions-item label="调出仓库">
+              {{ detailData.fromWarehouseName }}
+            </a-descriptions-item>
+            <a-descriptions-item label="调入仓库">
+              {{ detailData.toWarehouseName }}
+            </a-descriptions-item>
+            <a-descriptions-item label="调拨数量">
+              {{ detailData.totalQuantity ?? '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item label="调拨金额">
+              ¥{{ (detailData.totalAmount || 0).toFixed(2) }}
+            </a-descriptions-item>
+            <a-descriptions-item label="申请人">
+              {{ detailData.applicantName || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item label="创建时间">
+              {{ detailData.createTime ? dayjs(detailData.createTime).format('YYYY-MM-DD HH:mm:ss') : '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item
+              label="备注"
+              :span="2"
+            >
+              {{ detailData.remark || '-' }}
+            </a-descriptions-item>
+          </a-descriptions>
+          <template v-if="detailData">
+            <h4 style="margin: 16px 0 8px;">
+              调拨明细
+            </h4>
+            <a-table
+              :data-source="detailItems"
+              :columns="detailItemColumns"
+              :pagination="false as any"
+              size="small"
+              bordered
+              row-key="id"
+            />
           </template>
-          <template v-else-if="column.dataIndex === 'productCode'">
-            <a-input v-model:value="record.productCode" placeholder="编码" style="width: 90px" size="small" />
+        </a-spin>
+        <template
+          v-if="detailData"
+          #footer
+        >
+          <a-space>
+            <a-button @click="detailVisible = false">
+              关闭
+            </a-button>
+            <a-button
+              v-if="detailData.status === 0"
+              v-permission="'erp:stock:submit'"
+              @click="handleSubmit(detailData)"
+            >
+              <template #icon>
+                <SendOutlined />
+              </template>
+              提交审批
+            </a-button>
+            <template v-if="detailData.status === 1">
+              <a-button
+                v-permission="'erp:stock:approve'"
+                type="primary"
+                @click="handleApprove(detailData)"
+              >
+                <template #icon>
+                  <CheckOutlined />
+                </template>
+                审批通过
+              </a-button>
+              <a-button
+                v-permission="'erp:stock:reject'"
+                danger
+                @click="handleReject(detailData)"
+              >
+                <template #icon>
+                  <CloseOutlined />
+                </template>
+                拒绝
+              </a-button>
+            </template>
+            <a-button
+              v-if="detailData.status === 2"
+              v-permission="'erp:stock:execute'"
+              type="primary"
+              @click="handleExecute(detailData)"
+            >
+              <template #icon>
+                <AuditOutlined />
+              </template>
+              执行调拨
+            </a-button>
+            <PrintButton
+              v-if="detailData.status >= 3"
+              template-type="stock_transfer"
+              :business-id="detailData.id"
+              business-type="stock_transfer"
+              button-text="打印"
+              button-size="small"
+            />
+          </a-space>
+        </template>
+      </a-drawer>
+    </PageContainer>
+
+    <!-- 新建调拨单弹窗 -->
+    <FullScreenDetail
+      :visible="createModalVisible"
+      title="新建调拨单"
+      :save-loading="submitLoading"
+      @close="handleCreateCancel"
+      @save="handleCreateSubmit"
+    >
+      <a-form
+        ref="createFormRef"
+        :model="createForm"
+        :rules="formRules"
+        layout="vertical"
+      >
+        <a-row :gutter="16">
+          <a-col :span="12">
+            <a-form-item
+              label="调出仓库"
+              name="fromWarehouseId"
+            >
+              <a-select
+                v-model:value="createForm.fromWarehouseId"
+                placeholder="请选择调出仓库"
+                show-search
+                :filter-option="(input: string, option: any) => option.label?.toLowerCase().includes(input.toLowerCase())"
+                allow-clear
+                size="small"
+              >
+                <a-select-option
+                  v-for="w in warehouseOptions"
+                  :key="w.value"
+                  :value="w.value"
+                >
+                  {{ w.label }}
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item
+              label="调入仓库"
+              name="toWarehouseId"
+            >
+              <a-select
+                v-model:value="createForm.toWarehouseId"
+                placeholder="请选择调入仓库"
+                show-search
+                :filter-option="(input: string, option: any) => option.label?.toLowerCase().includes(input.toLowerCase())"
+                allow-clear
+                size="small"
+              >
+                <a-select-option
+                  v-for="w in warehouseOptions"
+                  :key="w.value"
+                  :value="w.value"
+                >
+                  {{ w.label }}
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+          </a-col>
+        </a-row>
+        <a-form-item
+          label="备注"
+          name="remark"
+        >
+          <a-textarea
+            v-model:value="createForm.remark"
+            placeholder="请输入备注"
+            :rows="2"
+          />
+        </a-form-item>
+
+        <div class="sub-table-header">
+          <span class="sub-table-title">调拨明细</span>
+          <a-button
+            type="dashed"
+            size="small"
+            @click="addItem"
+          >
+            <PlusOutlined /> 添加产品
+          </a-button>
+        </div>
+        <a-table
+          :data-source="createForm.items"
+          :columns="itemColumns"
+          :pagination="false as any"
+          size="small"
+          row-key="tempId"
+          style="margin-bottom: 12px;"
+        >
+          <template #bodyCell="{ column, record, index }">
+            <template v-if="column.dataIndex === 'productName'">
+              <a-input
+                v-model:value="record.productName"
+                placeholder="产品名称"
+                style="width: 130px"
+                size="small"
+              />
+              <a-tooltip title="选择产品">
+                <a-button
+                  size="small"
+                  type="link"
+                  @click="selectItemProduct(index)"
+                >
+                  <SearchOutlined />
+                </a-button>
+              </a-tooltip>
+            </template>
+            <template v-else-if="column.dataIndex === 'productCode'">
+              <a-input
+                v-model:value="record.productCode"
+                placeholder="编码"
+                style="width: 90px"
+                size="small"
+              />
+            </template>
+            <template v-else-if="column.dataIndex === 'specification'">
+              <span>{{ record.specification || '-' }}</span>
+            </template>
+            <template v-else-if="column.dataIndex === 'unit'">
+              <span>{{ record.unit || '-' }}</span>
+            </template>
+            <template v-else-if="column.dataIndex === 'quantity'">
+              <a-input-number
+                v-model:value="record.quantity"
+                :min="1"
+                :precision="0"
+                style="width: 80px"
+                size="small"
+              />
+            </template>
+            <template v-else-if="column.dataIndex === 'action'">
+              <a-button
+                type="link"
+                danger
+                size="small"
+                @click="removeItem(index)"
+              >
+                <DeleteOutlined />
+              </a-button>
+            </template>
           </template>
-          <template v-else-if="column.dataIndex === 'specification'">
-            <span>{{ record.specification || '-' }}</span>
-          </template>
-          <template v-else-if="column.dataIndex === 'unit'">
-            <span>{{ record.unit || '-' }}</span>
-          </template>
-          <template v-else-if="column.dataIndex === 'quantity'">
-            <a-input-number v-model:value="record.quantity" :min="1" :precision="0" style="width: 80px" size="small" />
-          </template>
-          <template v-else-if="column.dataIndex === 'action'">
-            <a-button type="link" danger size="small" @click="removeItem(index)"><DeleteOutlined /></a-button>
+        </a-table>
+      </a-form>
+    </FullScreenDetail>
+
+    <!-- 产品选择弹窗 -->
+    <a-modal
+      v-model:open="productPickerVisible"
+      title="选择产品"
+      width="640px"
+      :footer="null"
+      destroy-on-close
+    >
+      <a-input-search
+        v-model:value="productSearchKeyword"
+        placeholder="搜索产品编码/名称"
+        size="small"
+        @search="loadProductOptions"
+      />
+      <a-table
+        :data-source="productOptions"
+        :columns="productPickerColumns"
+        :pagination="{ pageSize: 5 }"
+        :loading="productLoading"
+        size="small"
+        row-key="id"
+        style="margin-top: 12px;"
+      >
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.dataIndex === 'action'">
+            <a-button
+              type="primary"
+              size="small"
+              @click="pickProduct(record)"
+            >
+              选择
+            </a-button>
           </template>
         </template>
       </a-table>
-    </a-form>
-  </FullScreenDetail>
+    </a-modal>
 
-  <!-- 产品选择弹窗 -->
-  <a-modal v-model:open="productPickerVisible" title="选择产品" width="640px" :footer="null" destroy-on-close>
-    <a-input-search v-model:value="productSearchKeyword" placeholder="搜索产品编码/名称" @search="loadProductOptions" size="small" />
-    <a-table
-      :data-source="productOptions"
-      :columns="productPickerColumns"
-      :pagination="{ pageSize: 5 }"
-      :loading="productLoading"
-      size="small"
-      row-key="id"
-      style="margin-top: 12px;"
+    <!-- 理由输入弹窗（拒绝） -->
+    <a-modal
+      v-model:open="reasonModalVisible"
+      :title="reasonModalTitle"
+      width="480px"
+      :confirm-loading="reasonLoading"
+      destroy-on-close
+      @ok="handleReasonConfirm"
+      @cancel="handleReasonCancel"
     >
-      <template #bodyCell="{ column, record }">
-        <template v-if="column.dataIndex === 'action'">
-          <a-button type="primary" size="small" @click="pickProduct(record)">选择</a-button>
-        </template>
-      </template>
-    </a-table>
-  </a-modal>
-
-  <!-- 理由输入弹窗（拒绝） -->
-  <a-modal
-    v-model:open="reasonModalVisible"
-    :title="reasonModalTitle"
-    width="480px"
-    :confirm-loading="reasonLoading"
-    @ok="handleReasonConfirm"
-    @cancel="handleReasonCancel"
-    destroy-on-close
-  >
-    <a-textarea
-      v-model:value="reasonText"
-      :placeholder="reasonPlaceholder"
-      :rows="4"
-    />
-  </a-modal>
+      <a-textarea
+        v-model:value="reasonText"
+        :placeholder="reasonPlaceholder"
+        :rows="4"
+      />
+    </a-modal>
   </ErrorBoundary>
 </template>
 

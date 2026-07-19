@@ -1,11 +1,20 @@
 <template>
   <transition name="slide-down">
-    <div v-if="!online" class="reconnect-banner" role="alert">
+    <div
+      v-if="!online"
+      class="reconnect-banner"
+      role="alert"
+    >
       <WifiOutlined class="reconnect-banner__icon" />
       <span class="reconnect-banner__text">
         网络连接已断开，正在尝试重新连接{{ retryCount > 0 ? `（第 ${retryCount} 次重试）` : '...' }}
       </span>
-      <a-button size="small" type="link" class="reconnect-banner__dismiss" @click="dismiss">
+      <a-button
+        size="small"
+        type="link"
+        class="reconnect-banner__dismiss"
+        @click="dismiss"
+      >
         忽略
       </a-button>
     </div>

@@ -13,13 +13,21 @@
     @retry="fetchVoucher"
   >
     <template #header-extra>
-      <a-tag v-if="voucher" :color="isBalanced ? 'green' : 'red'">
+      <a-tag
+        v-if="voucher"
+        :color="isBalanced ? 'green' : 'red'"
+      >
         {{ isBalanced ? '借贷平衡' : '借贷不平衡' }}
       </a-tag>
     </template>
 
     <template #actions>
-      <PrintButton :business-id="voucher?.id" business-type="voucher" button-size="small" tooltip="打印凭证" />
+      <PrintButton
+        :business-id="voucher?.id"
+        business-type="voucher"
+        button-size="small"
+        tooltip="打印凭证"
+      />
       <a-button
         v-if="voucher?.status === 'draft'"
         type="primary"
@@ -50,9 +58,15 @@
         <a-button>更多操作</a-button>
         <template #overlay>
           <a-menu>
-            <a-menu-item :disabled="voucher?.status !== 'draft'" @click="handleEdit">
+            <a-menu-item
+              :disabled="voucher?.status !== 'draft'"
+              @click="handleEdit"
+            >
               编辑
-              <span v-if="voucher?.status !== 'draft'" style="color: #999; font-size: 12px; margin-left: 4px">(仅草稿可编辑)</span>
+              <span
+                v-if="voucher?.status !== 'draft'"
+                style="color: #999; font-size: 12px; margin-left: 4px"
+              >(仅草稿可编辑)</span>
             </a-menu-item>
           </a-menu>
         </template>
@@ -61,22 +75,43 @@
 
     <!-- 基本信息 Tab -->
     <template #tab-basic>
-      <a-descriptions :column="4" bordered size="small">
+      <a-descriptions
+        :column="4"
+        bordered
+        size="small"
+      >
         <a-descriptions-item label="凭证号">
-          <a-tag color="blue">{{ voucher?.voucherNo }}</a-tag>
+          <a-tag color="blue">
+            {{ voucher?.voucherNo }}
+          </a-tag>
         </a-descriptions-item>
-        <a-descriptions-item label="日期">{{ voucher?.voucherDate }}</a-descriptions-item>
-        <a-descriptions-item label="年度">{{ voucher?.fiscalYear }}</a-descriptions-item>
-        <a-descriptions-item label="期间">{{ voucher?.fiscalPeriod }}月</a-descriptions-item>
+        <a-descriptions-item label="日期">
+          {{ voucher?.voucherDate }}
+        </a-descriptions-item>
+        <a-descriptions-item label="年度">
+          {{ voucher?.fiscalYear }}
+        </a-descriptions-item>
+        <a-descriptions-item label="期间">
+          {{ voucher?.fiscalPeriod }}月
+        </a-descriptions-item>
         <a-descriptions-item label="状态">
           <a-tag :color="statusColorMap[voucher?.status] || 'default'">
             {{ statusLabelMap[voucher?.status] || '未知' }}
           </a-tag>
         </a-descriptions-item>
-        <a-descriptions-item label="制单人">{{ voucher?.createdBy || '-' }}</a-descriptions-item>
-        <a-descriptions-item label="审核人">{{ voucher?.auditedBy || '-' }}</a-descriptions-item>
-        <a-descriptions-item label="过账人">{{ voucher?.postedBy || '-' }}</a-descriptions-item>
-        <a-descriptions-item label="摘要" :span="4">
+        <a-descriptions-item label="制单人">
+          {{ voucher?.createdBy || '-' }}
+        </a-descriptions-item>
+        <a-descriptions-item label="审核人">
+          {{ voucher?.auditedBy || '-' }}
+        </a-descriptions-item>
+        <a-descriptions-item label="过账人">
+          {{ voucher?.postedBy || '-' }}
+        </a-descriptions-item>
+        <a-descriptions-item
+          label="摘要"
+          :span="4"
+        >
           {{ voucher?.summary || (voucher?.entries?.[0]?.summary || '-') }}
         </a-descriptions-item>
       </a-descriptions>
@@ -109,7 +144,10 @@
           {{ formatAmount(record.creditAmount) }}
         </template>
       </BillTableList>
-      <div v-if="voucher" class="voucher-summary">
+      <div
+        v-if="voucher"
+        class="voucher-summary"
+      >
         <span class="voucher-summary-label">合计：</span>
         <span>借方：<strong>{{ formatAmount(voucher?.debitTotal) }}</strong></span>
         <span>贷方：<strong>{{ formatAmount(voucher?.creditTotal) }}</strong></span>
@@ -126,7 +164,10 @@
     @cancel="reverseModalVisible = false"
   >
     <a-form layout="vertical">
-      <a-form-item label="冲销原因" required>
+      <a-form-item
+        label="冲销原因"
+        required
+      >
         <a-textarea
           v-model:value="reverseReason"
           placeholder="请输入冲销原因"

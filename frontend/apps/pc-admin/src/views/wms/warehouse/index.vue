@@ -1,97 +1,168 @@
 <template>
-  <ErrorBoundary @error="handleError"><PageContainer full-height>
-    <template #header>
-      <div class="page-header">
-        <div class="page-header__left">
-          <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item>WMS / 仓库管理</a-breadcrumb-item>
-          </a-breadcrumb>
-          <h2>仓库管理</h2>
+  <ErrorBoundary @error="handleError">
+    <PageContainer full-height>
+      <template #header>
+        <div class="page-header">
+          <div class="page-header__left">
+            <a-breadcrumb>
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>WMS / 仓库管理</a-breadcrumb-item>
+            </a-breadcrumb>
+            <h2>仓库管理</h2>
+          </div>
+          <div class="page-header__right">
+            <span
+              v-if="lastUpdateTime"
+              class="update-time"
+            >更新于 {{ lastUpdateTime }}</span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            ><SyncOutlined /> {{ autoRefreshCountdown }}s</span>
+            <a-button
+              size="small"
+              :loading="loading"
+              @click="wms.debounce('refresh', wms.fetchData)"
+            >
+              <ReloadOutlined /> 刷新
+            </a-button>
+            <a-button
+              v-permission="'wms:warehouse:create'"
+              type="primary"
+              size="small"
+              @click="handleAdd"
+            >
+              <PlusOutlined /> 新增仓库
+            </a-button>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+              <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+            </span>
+          </div>
         </div>
-        <div class="page-header__right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge"><SyncOutlined /> {{ autoRefreshCountdown }}s</span>
-          <a-button size="small" :loading="loading" @click="wms.debounce('refresh', wms.fetchData)">
-            <ReloadOutlined /> 刷新
-          </a-button>
-          <a-button v-permission="'wms:warehouse:create'" type="primary" size="small" @click="handleAdd"><PlusOutlined /> 新增仓库</a-button>
-          <span class="shortcut-hints">
-            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-            <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
-          </span>
-        </div>
-      </div>
-    </template>
+      </template>
 
-    <template #filter>
-      <SearchBar :fields="searchFields" :loading="loading" @search="handleSearch" @reset="handleReset" />
-    </template>
-
-    <template #default>
-      <div class="page-body">
-        <a-skeleton active :loading="loading && dataList.length === 0">
-        <a-table
-          :dataSource="dataList"
-          :columns="columns"
+      <template #filter>
+        <SearchBar
+          :fields="searchFields"
           :loading="loading"
-          :pagination="pagination"
-          rowKey="id"
-          size="small"
-          bordered
-          @change="handleTableChange"
-        >
-          <template #emptyText>
-            <div class="empty-state-wrapper">
-              <template v-if="hasError">
-                <WarningOutlined class="empty-state-icon" style="color: #faad14" />
-                <p class="empty-state-text">加载失败</p>
-                <a-button type="primary" size="small" @click="wms.debounce('refresh', wms.fetchData)" class="empty-state-action">
-                  <ReloadOutlined /> 重试
-                </a-button>
+          @search="handleSearch"
+          @reset="handleReset"
+        />
+      </template>
+
+      <template #default>
+        <div class="page-body">
+          <a-skeleton
+            active
+            :loading="loading && dataList.length === 0"
+          >
+            <a-table
+              :data-source="dataList"
+              :columns="columns"
+              :loading="loading"
+              :pagination="pagination"
+              row-key="id"
+              size="small"
+              bordered
+              @change="handleTableChange"
+            >
+              <template #emptyText>
+                <div class="empty-state-wrapper">
+                  <template v-if="hasError">
+                    <WarningOutlined
+                      class="empty-state-icon"
+                      style="color: #faad14"
+                    />
+                    <p class="empty-state-text">
+                      加载失败
+                    </p>
+                    <a-button
+                      type="primary"
+                      size="small"
+                      class="empty-state-action"
+                      @click="wms.debounce('refresh', wms.fetchData)"
+                    >
+                      <ReloadOutlined /> 重试
+                    </a-button>
+                  </template>
+                  <template v-else>
+                    <InboxOutlined class="empty-state-icon" />
+                    <p class="empty-state-text">
+                      暂无数据
+                    </p>
+                    <a-button
+                      v-permission="'wms:warehouse:create'"
+                      type="primary"
+                      size="small"
+                      class="empty-state-action"
+                      @click="handleAdd"
+                    >
+                      <PlusOutlined /> 新增仓库
+                    </a-button>
+                  </template>
+                </div>
               </template>
-              <template v-else>
-                <InboxOutlined class="empty-state-icon" />
-                <p class="empty-state-text">暂无数据</p>
-                <a-button v-permission="'wms:warehouse:create'" type="primary" size="small" @click="handleAdd" class="empty-state-action">
-                  <PlusOutlined /> 新增仓库
-                </a-button>
+              <template #bodyCell="{ column, record }">
+                <template v-if="column.dataIndex === 'warehouseType'">
+                  <a-tag :color="warehouseTypeMap[record.warehouseType]?.color || 'default'">
+                    {{ warehouseTypeMap[record.warehouseType]?.text || record.warehouseType }}
+                  </a-tag>
+                </template>
+                <template v-if="column.dataIndex === 'isWmsEnabled'">
+                  <a-tag :color="record.isWmsEnabled === 1 ? 'green' : 'default'">
+                    {{ record.isWmsEnabled === 1 ? '已启用' : '未启用' }}
+                  </a-tag>
+                </template>
+                <template v-if="column.dataIndex === 'capacityRate'">
+                  <span>{{ computeRate(record.usedCapacity, record.totalCapacity) }}</span>
+                </template>
+                <template v-if="column.dataIndex === 'action'">
+                  <a-space :size="4">
+                    <a-tooltip title="查看">
+                      <a-button
+                        v-permission="'wms:warehouse:view'"
+                        type="link"
+                        size="small"
+                        @click="handleView(record as any)"
+                      >
+                        <EyeOutlined />
+                      </a-button>
+                    </a-tooltip>
+                    <a-tooltip title="编辑">
+                      <a-button
+                        v-permission="'wms:warehouse:edit'"
+                        type="link"
+                        size="small"
+                        @click="handleEdit(record as any)"
+                      >
+                        <EditOutlined />
+                      </a-button>
+                    </a-tooltip>
+                    <a-tooltip title="删除">
+                      <a-button
+                        v-permission="'wms:warehouse:delete'"
+                        type="link"
+                        size="small"
+                        danger
+                        @click="wms.handleDelete(record as any, '确定要删除该仓库吗？')"
+                      >
+                        <DeleteOutlined />
+                      </a-button>
+                    </a-tooltip>
+                  </a-space>
+                </template>
               </template>
-            </div>
-          </template>
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.dataIndex === 'warehouseType'">
-              <a-tag :color="warehouseTypeMap[record.warehouseType]?.color || 'default'">
-                {{ warehouseTypeMap[record.warehouseType]?.text || record.warehouseType }}
-              </a-tag>
-            </template>
-            <template v-if="column.dataIndex === 'isWmsEnabled'">
-              <a-tag :color="record.isWmsEnabled === 1 ? 'green' : 'default'">
-                {{ record.isWmsEnabled === 1 ? '已启用' : '未启用' }}
-              </a-tag>
-            </template>
-            <template v-if="column.dataIndex === 'capacityRate'">
-              <span>{{ computeRate(record.usedCapacity, record.totalCapacity) }}</span>
-            </template>
-            <template v-if="column.dataIndex === 'action'">
-              <a-space :size="4">
-                <a-tooltip title="查看">
-                  <a-button v-permission="'wms:warehouse:view'" type="link" size="small" @click="handleView(record as any)"><EyeOutlined /></a-button>
-                </a-tooltip>
-                <a-tooltip title="编辑">
-                  <a-button v-permission="'wms:warehouse:edit'" type="link" size="small" @click="handleEdit(record as any)"><EditOutlined /></a-button>
-                </a-tooltip>
-                <a-tooltip title="删除">
-                  <a-button v-permission="'wms:warehouse:delete'" type="link" size="small" danger @click="wms.handleDelete(record as any, '确定要删除该仓库吗？')"><DeleteOutlined /></a-button>
-                </a-tooltip>
-              </a-space>
-            </template>
-          </template>
-        </a-table>
-        </a-skeleton>
-      </div>
-    </template>
-  </PageContainer></ErrorBoundary>
+            </a-table>
+          </a-skeleton>
+        </div>
+      </template>
+    </PageContainer>
+  </ErrorBoundary>
 
   <!-- 新增/编辑弹窗 -->
   <a-modal
@@ -102,51 +173,123 @@
     @ok="handleModalOk"
     @cancel="handleModalCancel"
   >
-    <a-form ref="formRef" :model="formState" :rules="formRules" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
+    <a-form
+      ref="formRef"
+      :model="formState"
+      :rules="formRules"
+      :label-col="{ span: 6 }"
+      :wrapper-col="{ span: 16 }"
+    >
       <a-row :gutter="16">
         <a-col :span="12">
-          <a-form-item label="仓库编码" name="warehouseCode">
-            <a-input v-model:value="formState.warehouseCode" size="small" placeholder="请输入仓库编码" />
+          <a-form-item
+            label="仓库编码"
+            name="warehouseCode"
+          >
+            <a-input
+              v-model:value="formState.warehouseCode"
+              size="small"
+              placeholder="请输入仓库编码"
+            />
           </a-form-item>
         </a-col>
         <a-col :span="12">
-          <a-form-item label="仓库名称" name="warehouseName">
-            <a-input v-model:value="formState.warehouseName" size="small" placeholder="请输入仓库名称" />
+          <a-form-item
+            label="仓库名称"
+            name="warehouseName"
+          >
+            <a-input
+              v-model:value="formState.warehouseName"
+              size="small"
+              placeholder="请输入仓库名称"
+            />
           </a-form-item>
         </a-col>
       </a-row>
       <a-row :gutter="16">
         <a-col :span="12">
-          <a-form-item label="仓库类型" name="warehouseType">
-            <a-select v-model:value="formState.warehouseType" size="small" placeholder="请选择仓库类型">
-              <a-select-option :value="0">普通仓库</a-select-option>
-              <a-select-option :value="1">冷藏仓库</a-select-option>
-              <a-select-option :value="2">冷冻仓库</a-select-option>
-              <a-select-option :value="3">危险品仓库</a-select-option>
-              <a-select-option :value="4">虚拟仓库</a-select-option>
+          <a-form-item
+            label="仓库类型"
+            name="warehouseType"
+          >
+            <a-select
+              v-model:value="formState.warehouseType"
+              size="small"
+              placeholder="请选择仓库类型"
+            >
+              <a-select-option :value="0">
+                普通仓库
+              </a-select-option>
+              <a-select-option :value="1">
+                冷藏仓库
+              </a-select-option>
+              <a-select-option :value="2">
+                冷冻仓库
+              </a-select-option>
+              <a-select-option :value="3">
+                危险品仓库
+              </a-select-option>
+              <a-select-option :value="4">
+                虚拟仓库
+              </a-select-option>
             </a-select>
           </a-form-item>
         </a-col>
         <a-col :span="12">
-          <a-form-item label="WMS启用的" name="isWmsEnabled">
-            <a-switch v-model:checked="formState.isWmsEnabled" :checkedValue="1" :unCheckedValue="0" />
+          <a-form-item
+            label="WMS启用的"
+            name="isWmsEnabled"
+          >
+            <a-switch
+              v-model:checked="formState.isWmsEnabled"
+              :checked-value="1"
+              :un-checked-value="0"
+            />
           </a-form-item>
         </a-col>
       </a-row>
       <a-row :gutter="16">
         <a-col :span="12">
-          <a-form-item label="总容量" name="totalCapacity">
-            <a-input-number v-model:value="formState.totalCapacity" :min="0" size="small" style="width:100%" placeholder="总容量" />
+          <a-form-item
+            label="总容量"
+            name="totalCapacity"
+          >
+            <a-input-number
+              v-model:value="formState.totalCapacity"
+              :min="0"
+              size="small"
+              style="width:100%"
+              placeholder="总容量"
+            />
           </a-form-item>
         </a-col>
         <a-col :span="12">
-          <a-form-item label="已用容量" name="usedCapacity">
-            <a-input-number v-model:value="formState.usedCapacity" :min="0" size="small" style="width:100%" placeholder="已用容量" />
+          <a-form-item
+            label="已用容量"
+            name="usedCapacity"
+          >
+            <a-input-number
+              v-model:value="formState.usedCapacity"
+              :min="0"
+              size="small"
+              style="width:100%"
+              placeholder="已用容量"
+            />
           </a-form-item>
         </a-col>
       </a-row>
-      <a-form-item label="备注" name="remark" :label-col="{ span: 3 }" :wrapper-col="{ span: 20 }">
-        <a-textarea v-model:value="formState.remark" :rows="2" size="small" placeholder="请输入备注" />
+      <a-form-item
+        label="备注"
+        name="remark"
+        :label-col="{ span: 3 }"
+        :wrapper-col="{ span: 20 }"
+      >
+        <a-textarea
+          v-model:value="formState.remark"
+          :rows="2"
+          size="small"
+          placeholder="请输入备注"
+        />
       </a-form-item>
     </a-form>
   </a-modal>

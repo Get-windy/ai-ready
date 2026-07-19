@@ -9,22 +9,38 @@
       <template #headerCell="{ column }">
         <!-- rowNo 列：齿轮触发列配置 -->
         <template v-if="column.key === 'rowNo'">
-          <span class="cc-table-gear" @click="showPanel = true" title="列配置">
+          <span
+            class="cc-table-gear"
+            title="列配置"
+            @click="showPanel = true"
+          >
             <SettingOutlined />
           </span>
-          <slot name="headerCell" :column="column" />
+          <slot
+            name="headerCell"
+            :column="column"
+          />
         </template>
         <!-- 其他列：透传父组件的 headerCell -->
         <template v-else>
-          <slot name="headerCell" :column="column" />
+          <slot
+            name="headerCell"
+            :column="column"
+          />
         </template>
       </template>
       <!-- 透传其他具名插槽（空行 bodyCell 渲染空白） -->
-      <template v-for="slotName in passthroughSlots" :key="slotName" #[slotName]="slotProps">
-        <template v-if="slotName === 'bodyCell' && slotProps.record?._isEmptyRow">
-        </template>
+      <template
+        v-for="slotName in passthroughSlots"
+        :key="slotName"
+        #[slotName]="slotProps"
+      >
+        <template v-if="slotName === 'bodyCell' && slotProps.record?._isEmptyRow" />
         <template v-else>
-          <slot :name="slotName" v-bind="slotProps" />
+          <slot
+            :name="slotName"
+            v-bind="slotProps"
+          />
         </template>
       </template>
     </a-table>

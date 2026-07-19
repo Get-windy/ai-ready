@@ -2,18 +2,37 @@
   <div class="page-container">
     <div class="page-header">
       <div class="page-header__left">
-        <h2 class="page-title">支付对账</h2>
+        <h2 class="page-title">
+          支付对账
+        </h2>
       </div>
       <div class="page-header__right">
-        <a-button type="primary" @click="showExecuteModal">执行对账</a-button>
+        <a-button
+          type="primary"
+          @click="showExecuteModal"
+        >
+          执行对账
+        </a-button>
       </div>
     </div>
     <div class="page-container__body">
-      <a-card :bordered="false" class="table-card">
-        <a-table :columns="columns" :data-source="tableData" :loading="loading" :pagination="pagination" row-key="id" @change="handleTableChange">
+      <a-card
+        :bordered="false"
+        class="table-card"
+      >
+        <a-table
+          :columns="columns"
+          :data-source="tableData"
+          :loading="loading"
+          :pagination="pagination"
+          row-key="id"
+          @change="handleTableChange"
+        >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'channel'">
-              <a-tag :color="PAYMENT_CHANNEL_MAP[record.channel]?.color">{{ PAYMENT_CHANNEL_MAP[record.channel]?.name }}</a-tag>
+              <a-tag :color="PAYMENT_CHANNEL_MAP[record.channel]?.color">
+                {{ PAYMENT_CHANNEL_MAP[record.channel]?.name }}
+              </a-tag>
             </template>
             <template v-if="column.key === 'totalAmount'">
               <span style="font-weight: bold">¥{{ record.totalAmount }}</span>
@@ -22,41 +41,88 @@
               <span style="color: #52c41a; font-weight: bold">¥{{ record.successAmount }}</span>
             </template>
             <template v-if="column.key === 'diffAmount'">
-              <span v-if="record.diffAmount > 0" style="color: #f5222d; font-weight: bold">¥{{ record.diffAmount }}</span>
+              <span
+                v-if="record.diffAmount > 0"
+                style="color: #f5222d; font-weight: bold"
+              >¥{{ record.diffAmount }}</span>
               <span v-else>¥0</span>
             </template>
             <template v-if="column.key === 'status'">
-              <a-tag :color="RECON_STATUS_MAP[record.status]?.color">{{ RECON_STATUS_MAP[record.status]?.text }}</a-tag>
+              <a-tag :color="RECON_STATUS_MAP[record.status]?.color">
+                {{ RECON_STATUS_MAP[record.status]?.text }}
+              </a-tag>
             </template>
             <template v-if="column.key === 'action'">
-              <a-button type="link" size="small" v-if="record.status === 2" @click="showHandleModal(record)">处理差异</a-button>
+              <a-button
+                v-if="record.status === 2"
+                type="link"
+                size="small"
+                @click="showHandleModal(record)"
+              >
+                处理差异
+              </a-button>
             </template>
           </template>
         </a-table>
       </a-card>
     </div>
 
-    <a-modal v-model:open="executeModalVisible" title="执行日对账" @ok="handleExecute">
-      <a-form :label-col="{ span: 4 }" :wrapper-col="{ span: 18 }">
+    <a-modal
+      v-model:open="executeModalVisible"
+      title="执行日对账"
+      @ok="handleExecute"
+    >
+      <a-form
+        :label-col="{ span: 4 }"
+        :wrapper-col="{ span: 18 }"
+      >
         <a-form-item label="对账日期">
-          <a-date-picker v-model:value="executeForm.date" style="width: 100%" />
+          <a-date-picker
+            v-model:value="executeForm.date"
+            style="width: 100%"
+          />
         </a-form-item>
         <a-form-item label="渠道">
-          <a-select v-model:value="executeForm.channel" placeholder="全部渠道" allowClear>
-            <a-select-option value="ALIPAY">支付宝</a-select-option>
-            <a-select-option value="WECHAT">微信支付</a-select-option>
-            <a-select-option value="UNIONPAY">银联支付</a-select-option>
-            <a-select-option value="BANK">银行转账</a-select-option>
-            <a-select-option value="CASH">现金/线下</a-select-option>
+          <a-select
+            v-model:value="executeForm.channel"
+            placeholder="全部渠道"
+            allow-clear
+          >
+            <a-select-option value="ALIPAY">
+              支付宝
+            </a-select-option>
+            <a-select-option value="WECHAT">
+              微信支付
+            </a-select-option>
+            <a-select-option value="UNIONPAY">
+              银联支付
+            </a-select-option>
+            <a-select-option value="BANK">
+              银行转账
+            </a-select-option>
+            <a-select-option value="CASH">
+              现金/线下
+            </a-select-option>
           </a-select>
         </a-form-item>
       </a-form>
     </a-modal>
 
-    <a-modal v-model:open="handleModalVisible" title="处理差异" @ok="handleDifference">
-      <a-form :label-col="{ span: 4 }" :wrapper-col="{ span: 18 }">
+    <a-modal
+      v-model:open="handleModalVisible"
+      title="处理差异"
+      @ok="handleDifference"
+    >
+      <a-form
+        :label-col="{ span: 4 }"
+        :wrapper-col="{ span: 18 }"
+      >
         <a-form-item label="处理备注">
-          <a-textarea v-model:value="handleForm.remark" placeholder="请输入处理备注" :rows="3" />
+          <a-textarea
+            v-model:value="handleForm.remark"
+            placeholder="请输入处理备注"
+            :rows="3"
+          />
         </a-form-item>
       </a-form>
     </a-modal>

@@ -1,133 +1,256 @@
 <template>
   <ErrorBoundary @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="page-header">
-        <div class="page-header__left">
-          <span class="page-header__breadcrumb">ERP / 费用管理 / 费用报销</span>
-          <h2 class="page-header__title">费用报销</h2>
-        </div>
-        <div class="page-header__right">
-          <span v-if="lastUpdateTime" class="page-header__update-time">更新于: {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-            <SyncOutlined /> {{ autoRefreshCountdown }}s
-          </span>
-          <a-space :size="12">
-            <span class="shortcut-hints">
-              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-              <span class="shortcut-hint"><kbd>Ctrl</kbd>+<kbd>N</kbd> 新增</span>
-              <span class="shortcut-hint"><kbd>Ctrl</kbd>+<kbd>E</kbd> 导出</span>
+    <PageContainer full-height>
+      <template #header>
+        <div class="page-header">
+          <div class="page-header__left">
+            <span class="page-header__breadcrumb">ERP / 费用管理 / 费用报销</span>
+            <h2 class="page-header__title">
+              费用报销
+            </h2>
+          </div>
+          <div class="page-header__right">
+            <span
+              v-if="lastUpdateTime"
+              class="page-header__update-time"
+            >更新于: {{ lastUpdateTime }}</span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            >
+              <SyncOutlined /> {{ autoRefreshCountdown }}s
             </span>
-            <a-button size="small" @click="debounceClick('refresh', fetchData)">
-              <ReloadOutlined /> 刷新
-            </a-button>
-          </a-space>
-        </div>
-      </div>
-    </template>
-
-    <!-- 骨架加载 -->
-    <a-skeleton :loading="refreshLoading" active :paragraph="{ rows: 8 }">
-    </a-skeleton>
-
-    <template v-if="!refreshLoading">
-    <!-- 统计卡片 -->
-    <a-row :gutter="16" style="margin-bottom: 16px">
-      <a-col :xs="12" :sm="12" :md="6">
-        <a-card size="small">
-          <stat-card title="报销总数" :value="stats.totalCount" :amount="stats.totalAmount" color="#1890ff" />
-        </a-card>
-      </a-col>
-      <a-col :xs="12" :sm="12" :md="6">
-        <a-card size="small">
-          <stat-card title="待审批" :value="stats.pendingCount" :amount="stats.pendingAmount" color="#faad14" />
-        </a-card>
-      </a-col>
-      <a-col :xs="12" :sm="12" :md="6">
-        <a-card size="small">
-          <stat-card title="已通过" :value="stats.approvedCount" :amount="stats.approvedAmount" color="#52c41a" />
-        </a-card>
-      </a-col>
-      <a-col :xs="12" :sm="12" :md="6">
-        <a-card size="small">
-          <stat-card title="已拒绝" :value="stats.rejectedCount" :amount="stats.rejectedAmount" color="#ff4d4f" />
-        </a-card>
-      </a-col>
-    </a-row>
-
-    <div class="expense-layout">
-      <div class="expense-sidebar">
-        <div class="sidebar-section">
-          <div class="sidebar-title">筛选</div>
-          <a-menu
-            :selected-keys="[activeFilter]"
-            mode="inline"
-            @click="(e) => { activeFilter = String(e.key); pagination.current = 1; fetchData() }"
-          >
-            <a-menu-item key="all">全部报销</a-menu-item>
-            <a-menu-item key="DRAFT">草稿</a-menu-item>
-            <a-menu-item key="SUBMITTED">待审批</a-menu-item>
-            <a-menu-item key="APPROVED">已通过</a-menu-item>
-            <a-menu-item key="REJECTED">已拒绝</a-menu-item>
-          </a-menu>
-        </div>
-      </div>
-
-      <div class="expense-main">
-        <div class="expense-toolbar">
-          <a-space>
-            <SearchBar
-              :fields="searchFields"
-              :loading="loading"
-              @search="handleSearch"
-              @reset="handleReset"
-            />
-            <a-tooltip title="导出">
-              <a-button v-permission="'erp:expense:reimbursement:list'" size="small" @click="debounceClick('export', handleExport)">
-                <template #icon><ExportOutlined /></template>
+            <a-space :size="12">
+              <span class="shortcut-hints">
+                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+                <span class="shortcut-hint"><kbd>Ctrl</kbd>+<kbd>N</kbd> 新增</span>
+                <span class="shortcut-hint"><kbd>Ctrl</kbd>+<kbd>E</kbd> 导出</span>
+              </span>
+              <a-button
+                size="small"
+                @click="debounceClick('refresh', fetchData)"
+              >
+                <ReloadOutlined /> 刷新
               </a-button>
-            </a-tooltip>
-          </a-space>
-          <a-space>
-            <a-button v-permission="'erp:expense:reimbursement:create'" type="primary" size="small" @click="showCreate">
-              <PlusOutlined /> 新增报销
-            </a-button>
-          </a-space>
-        </div>
-
-        <BillTableList
-          ref="tableRef"
-          :columns="vxeColumns"
-          :data-source="dataList"
-          :loading="loading"
-          :pagination="pagination"
-          row-key="id"
-          :show-toolbar="false"
-          :show-add="false"
-          :show-search="false"
-          :min-empty-rows="12"
-          @page-change="onPageChange"
-        >
-          <template #statusCell="{ record }">
-            <StatusTag :status="record.status" :map="EXPENSE_REIMBURSEMENT_STATUS" />
-          </template>
-          <template #action="{ record }">
-            <a-space :size="4">
-              <PrintButton :record="record" :business-id="record.id" business-type="expense_reimbursement" button-type="link" button-size="small" tooltip="打印" />
-              <a-button type="link" size="small" @click="viewDetail(record.id)">查看</a-button>
-              <a-button v-if="record.status === 'DRAFT'" v-permission="'erp:expense:reimbursement:edit'" type="link" size="small" @click="editItem(record.id)">编辑</a-button>
-              <a-button v-if="record.status === 'DRAFT'" v-permission="'erp:expense:reimbursement:submit'" type="link" size="small" @click="handleSubmit(record.id)">提交</a-button>
-              <a-button v-if="record.status === 'DRAFT'" v-permission="'erp:expense:reimbursement:delete'" type="link" size="small" danger @click="confirmDelete(record.id)">删除</a-button>
             </a-space>
-          </template>
-          <template #empty>
-            <EmptyState v-if="!loading" title="暂无数据" description="暂无报销记录" size="small" :show-actions="false" />
-          </template>
-        </BillTableList>
-      </div>
-    </div>
-    </template>
-  </PageContainer>
+          </div>
+        </div>
+      </template>
+
+      <!-- 骨架加载 -->
+      <a-skeleton
+        :loading="refreshLoading"
+        active
+        :paragraph="{ rows: 8 }"
+      />
+
+      <template v-if="!refreshLoading">
+        <!-- 统计卡片 -->
+        <a-row
+          :gutter="16"
+          style="margin-bottom: 16px"
+        >
+          <a-col
+            :xs="12"
+            :sm="12"
+            :md="6"
+          >
+            <a-card size="small">
+              <stat-card
+                title="报销总数"
+                :value="stats.totalCount"
+                :amount="stats.totalAmount"
+                color="#1890ff"
+              />
+            </a-card>
+          </a-col>
+          <a-col
+            :xs="12"
+            :sm="12"
+            :md="6"
+          >
+            <a-card size="small">
+              <stat-card
+                title="待审批"
+                :value="stats.pendingCount"
+                :amount="stats.pendingAmount"
+                color="#faad14"
+              />
+            </a-card>
+          </a-col>
+          <a-col
+            :xs="12"
+            :sm="12"
+            :md="6"
+          >
+            <a-card size="small">
+              <stat-card
+                title="已通过"
+                :value="stats.approvedCount"
+                :amount="stats.approvedAmount"
+                color="#52c41a"
+              />
+            </a-card>
+          </a-col>
+          <a-col
+            :xs="12"
+            :sm="12"
+            :md="6"
+          >
+            <a-card size="small">
+              <stat-card
+                title="已拒绝"
+                :value="stats.rejectedCount"
+                :amount="stats.rejectedAmount"
+                color="#ff4d4f"
+              />
+            </a-card>
+          </a-col>
+        </a-row>
+
+        <div class="expense-layout">
+          <div class="expense-sidebar">
+            <div class="sidebar-section">
+              <div class="sidebar-title">
+                筛选
+              </div>
+              <a-menu
+                :selected-keys="[activeFilter]"
+                mode="inline"
+                @click="(e) => { activeFilter = String(e.key); pagination.current = 1; fetchData() }"
+              >
+                <a-menu-item key="all">
+                  全部报销
+                </a-menu-item>
+                <a-menu-item key="DRAFT">
+                  草稿
+                </a-menu-item>
+                <a-menu-item key="SUBMITTED">
+                  待审批
+                </a-menu-item>
+                <a-menu-item key="APPROVED">
+                  已通过
+                </a-menu-item>
+                <a-menu-item key="REJECTED">
+                  已拒绝
+                </a-menu-item>
+              </a-menu>
+            </div>
+          </div>
+
+          <div class="expense-main">
+            <div class="expense-toolbar">
+              <a-space>
+                <SearchBar
+                  :fields="searchFields"
+                  :loading="loading"
+                  @search="handleSearch"
+                  @reset="handleReset"
+                />
+                <a-tooltip title="导出">
+                  <a-button
+                    v-permission="'erp:expense:reimbursement:list'"
+                    size="small"
+                    @click="debounceClick('export', handleExport)"
+                  >
+                    <template #icon>
+                      <ExportOutlined />
+                    </template>
+                  </a-button>
+                </a-tooltip>
+              </a-space>
+              <a-space>
+                <a-button
+                  v-permission="'erp:expense:reimbursement:create'"
+                  type="primary"
+                  size="small"
+                  @click="showCreate"
+                >
+                  <PlusOutlined /> 新增报销
+                </a-button>
+              </a-space>
+            </div>
+
+            <BillTableList
+              ref="tableRef"
+              :columns="vxeColumns"
+              :data-source="dataList"
+              :loading="loading"
+              :pagination="pagination"
+              row-key="id"
+              :show-toolbar="false"
+              :show-add="false"
+              :show-search="false"
+              :min-empty-rows="12"
+              @page-change="onPageChange"
+            >
+              <template #statusCell="{ record }">
+                <StatusTag
+                  :status="record.status"
+                  :map="EXPENSE_REIMBURSEMENT_STATUS"
+                />
+              </template>
+              <template #action="{ record }">
+                <a-space :size="4">
+                  <PrintButton
+                    :record="record"
+                    :business-id="record.id"
+                    business-type="expense_reimbursement"
+                    button-type="link"
+                    button-size="small"
+                    tooltip="打印"
+                  />
+                  <a-button
+                    type="link"
+                    size="small"
+                    @click="viewDetail(record.id)"
+                  >
+                    查看
+                  </a-button>
+                  <a-button
+                    v-if="record.status === 'DRAFT'"
+                    v-permission="'erp:expense:reimbursement:edit'"
+                    type="link"
+                    size="small"
+                    @click="editItem(record.id)"
+                  >
+                    编辑
+                  </a-button>
+                  <a-button
+                    v-if="record.status === 'DRAFT'"
+                    v-permission="'erp:expense:reimbursement:submit'"
+                    type="link"
+                    size="small"
+                    @click="handleSubmit(record.id)"
+                  >
+                    提交
+                  </a-button>
+                  <a-button
+                    v-if="record.status === 'DRAFT'"
+                    v-permission="'erp:expense:reimbursement:delete'"
+                    type="link"
+                    size="small"
+                    danger
+                    @click="confirmDelete(record.id)"
+                  >
+                    删除
+                  </a-button>
+                </a-space>
+              </template>
+              <template #empty>
+                <EmptyState
+                  v-if="!loading"
+                  title="暂无数据"
+                  description="暂无报销记录"
+                  size="small"
+                  :show-actions="false"
+                />
+              </template>
+            </BillTableList>
+          </div>
+        </div>
+      </template>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

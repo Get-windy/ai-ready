@@ -1,0 +1,220 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.aiedge.erp.sale.preorder.mapper.SalePreOrderItemMapper">
+
+    <!-- 预订货单明细视图结果映射（JOIN主表） -->
+    <resultMap id="DetailResultMap" type="cn.aiedge.erp.sale.preorder.dto.SalePreOrderDetailDTO">
+        <!-- 明细表字段 -->
+        <id column="id" property="id"/>
+        <result column="tenant_id" property="tenantId"/>
+        <result column="order_id" property="orderId"/>
+        <result column="line_no" property="lineNo"/>
+
+        <result column="product_id" property="productId"/>
+        <result column="product_name" property="productName"/>
+        <result column="product_code" property="productCode"/>
+        <result column="barcode" property="barcode"/>
+        <result column="image_url" property="imageUrl"/>
+        <result column="specification" property="specification"/>
+        <result column="model" property="model"/>
+        <result column="origin" property="origin"/>
+        <result column="brand" property="brand"/>
+
+        <result column="unit" property="unit"/>
+        <result column="pricing_unit" property="pricingUnit"/>
+        <result column="small_unit" property="smallUnit"/>
+        <result column="small_unit_quantity" property="smallUnitQuantity"/>
+        <result column="conversion_relation" property="conversionRelation"/>
+        <result column="conversion_result" property="conversionResult"/>
+
+        <result column="region" property="region"/>
+        <result column="location" property="location"/>
+        <result column="available_stock" property="availableStock"/>
+        <result column="available_stock_conversion" property="availableStockConversion"/>
+        <result column="book_stock" property="bookStock"/>
+
+        <result column="quantity" property="quantity"/>
+        <result column="piece_quantity" property="pieceQuantity"/>
+        <result column="big_pack" property="bigPack"/>
+        <result column="mid_pack" property="midPack"/>
+        <result column="small_pack" property="smallPack"/>
+        <result column="ordered_quantity" property="orderedQuantity"/>
+        <result column="un_ordered_quantity" property="unOrderedQuantity"/>
+        <result column="shipped_quantity" property="shippedQuantity"/>
+        <result column="un_shipped_quantity" property="unShippedQuantity"/>
+        <result column="terminate_quantity" property="terminateQuantity"/>
+        <result column="terminate_amount" property="terminateAmount"/>
+
+        <result column="last_sale_date" property="lastSaleDate"/>
+        <result column="retail_price" property="retailPrice"/>
+        <result column="wholesale_price" property="wholesalePrice"/>
+        <result column="min_sale_price" property="minSalePrice"/>
+        <result column="unit_price" property="unitPrice"/>
+        <result column="amount" property="amount"/>
+        <result column="small_unit_price" property="smallUnitPrice"/>
+
+        <result column="discount_rate" property="discountRate"/>
+        <result column="discounted_price" property="discountedPrice"/>
+        <result column="discounted_amount" property="discountedAmount"/>
+
+        <result column="cost_price" property="costPrice"/>
+        <result column="cost_amount" property="costAmount"/>
+        <result column="gross_profit" property="grossProfit"/>
+
+        <result column="volume" property="volume"/>
+        <result column="weight" property="weight"/>
+
+        <result column="product_attribute" property="productAttribute"/>
+        <result column="gift" property="gift"/>
+        <result column="remark" property="remark"/>
+
+        <result column="price_level1" property="priceLevel1"/>
+        <result column="price_level2" property="priceLevel2"/>
+        <result column="price_level3" property="priceLevel3"/>
+        <result column="price_level4" property="priceLevel4"/>
+        <result column="price_level5" property="priceLevel5"/>
+        <result column="price_level6" property="priceLevel6"/>
+        <result column="price_level7" property="priceLevel7"/>
+        <result column="price_level8" property="priceLevel8"/>
+
+        <result column="ext_num1" property="extNum1"/>
+        <result column="ext_num2" property="extNum2"/>
+        <result column="ext_num3" property="extNum3"/>
+        <result column="ext_num4" property="extNum4"/>
+        <result column="ext_num5" property="extNum5"/>
+        <result column="ext_text1" property="extText1"/>
+        <result column="ext_text2" property="extText2"/>
+        <result column="ext_partner" property="extPartner"/>
+        <result column="ext_staff" property="extStaff"/>
+        <result column="ext_dept" property="extDept"/>
+
+        <!-- 主表字段（通过JOIN获取） -->
+        <result column="order_no" property="orderNo"/>
+        <result column="order_date" property="orderDate"/>
+        <result column="status" property="status"/>
+        <result column="customer_id" property="customerId"/>
+        <result column="customer_name" property="customerName"/>
+        <result column="customer_code" property="customerCode"/>
+        <result column="customer_level" property="customerLevel"/>
+        <result column="warehouse_id" property="warehouseId"/>
+        <result column="warehouse_name" property="warehouseName"/>
+        <result column="handler_id" property="handlerId"/>
+        <result column="handler_name" property="handlerName"/>
+        <result column="dept_name" property="deptName"/>
+        <result column="sale_type" property="saleType"/>
+        <result column="receiver_name" property="receiverName"/>
+        <result column="receiver_phone" property="receiverPhone"/>
+        <result column="shipping_address" property="shippingAddress"/>
+        <result column="customer_ticket" property="customerTicket"/>
+        <result column="customer_remark" property="customerRemark"/>
+        <result column="summary" property="summary"/>
+        <result column="attachment" property="attachment"/>
+        <result column="order_remark" property="orderRemark"/>
+        <result column="creator_name" property="creatorName"/>
+        <result column="auditor_name" property="auditorName"/>
+        <result column="submit_time" property="submitTime"/>
+
+        <result column="deleted" property="deleted"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <!-- 分页查询预订货单明细视图（JOIN主表） -->
+    <select id="selectDetailPage" resultMap="DetailResultMap">
+        SELECT
+            item.id, item.tenant_id, item.order_id, item.line_no,
+            item.product_id, item.product_name, item.product_code, item.barcode,
+            item.image_url, item.specification, item.model, item.origin, item.brand,
+            item.unit, item.pricing_unit, item.small_unit, item.small_unit_quantity,
+            item.conversion_relation, item.conversion_result,
+            item.region, item.location,
+            item.available_stock, item.available_stock_conversion, item.book_stock,
+            item.quantity, item.piece_quantity,
+            item.big_pack, item.mid_pack, item.small_pack,
+            item.ordered_quantity, item.un_ordered_quantity,
+            item.shipped_quantity, item.un_shipped_quantity,
+            item.terminate_quantity, item.terminate_amount,
+            item.last_sale_date, item.retail_price, item.wholesale_price, item.min_sale_price,
+            item.unit_price, item.amount, item.small_unit_price,
+            item.discount_rate, item.discounted_price, item.discounted_amount,
+            item.cost_price, item.cost_amount, item.gross_profit,
+            item.volume, item.weight,
+            item.product_attribute, item.gift, item.remark,
+            item.price_level1, item.price_level2, item.price_level3, item.price_level4,
+            item.price_level5, item.price_level6, item.price_level7, item.price_level8,
+            item.ext_num1, item.ext_num2, item.ext_num3, item.ext_num4, item.ext_num5,
+            item.ext_text1, item.ext_text2,
+            item.ext_partner, item.ext_staff, item.ext_dept,
+            item.deleted, item.create_time, item.update_time,
+            -- 主表字段
+            o.order_no, o.order_date, o.status,
+            o.customer_id, o.customer_name, o.customer_code, o.customer_level,
+            o.warehouse_id, o.warehouse_name,
+            o.handler_id, o.handler_name, o.dept_name,
+            o.sale_type, o.receiver_name, o.receiver_phone, o.shipping_address,
+            o.customer_ticket, o.customer_remark, o.summary, o.attachment,
+            o.remark AS order_remark,
+            o.creator_name, o.auditor_name, o.submit_time
+        FROM erp_sale_pre_order_item item
+        INNER JOIN erp_sale_pre_order o ON item.order_id = o.id AND o.deleted = 0
+        WHERE item.deleted = 0
+        <if test="keyword != null and keyword != ''">
+            AND (item.product_name LIKE CONCAT('%', #{keyword}, '%')
+                 OR item.product_code LIKE CONCAT('%', #{keyword}, '%')
+                 OR item.barcode LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="customerId != null">
+            AND o.customer_id = #{customerId}
+        </if>
+        <if test="customerName != null and customerName != ''">
+            AND o.customer_name LIKE CONCAT('%', #{customerName}, '%')
+        </if>
+        <if test="handlerName != null and handlerName != ''">
+            AND o.handler_name LIKE CONCAT('%', #{handlerName}, '%')
+        </if>
+        <if test="deptName != null and deptName != ''">
+            AND o.dept_name LIKE CONCAT('%', #{deptName}, '%')
+        </if>
+        <if test="orderNo != null and orderNo != ''">
+            AND o.order_no LIKE CONCAT('%', #{orderNo}, '%')
+        </if>
+        <if test="status != null and status.size() > 0">
+            AND o.status IN
+            <foreach collection="status" item="s" open="(" separator="," close=")">
+                #{s}
+            </foreach>
+        </if>
+        <if test="settlementStatus != null">
+            AND o.settlement_status = #{settlementStatus}
+        </if>
+        <if test="startDate != null and startDate != ''">
+            AND o.order_date &gt;= #{startDate}::date
+        </if>
+        <if test="endDate != null and endDate != ''">
+            AND o.order_date &lt;= #{endDate}::date
+        </if>
+        <if test="productAttribute != null and productAttribute != ''">
+            AND item.product_attribute = #{productAttribute}
+        </if>
+        <if test="gift != null">
+            AND item.gift = #{gift}
+        </if>
+        <if test="creatorName != null and creatorName != ''">
+            AND o.creator_name LIKE CONCAT('%', #{creatorName}, '%')
+        </if>
+        <if test="auditorName != null and auditorName != ''">
+            AND o.auditor_name LIKE CONCAT('%', #{auditorName}, '%')
+        </if>
+        <if test="saleType != null">
+            AND o.sale_type = #{saleType}
+        </if>
+        <if test="remark != null and remark != ''">
+            AND o.remark LIKE CONCAT('%', #{remark}, '%')
+        </if>
+        <if test="itemRemark != null and itemRemark != ''">
+            AND item.remark LIKE CONCAT('%', #{itemRemark}, '%')
+        </if>
+        ORDER BY o.order_date DESC, o.order_no DESC, item.line_no ASC
+    </select>
+
+</mapper>

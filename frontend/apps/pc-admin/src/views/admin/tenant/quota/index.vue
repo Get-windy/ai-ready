@@ -4,15 +4,27 @@
       <div class="page-header">
         <div class="page-header-left">
           <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>
+              <router-link to="/">
+                首页
+              </router-link>
+            </a-breadcrumb-item>
             <a-breadcrumb-item>系统管理</a-breadcrumb-item>
             <a-breadcrumb-item>配额管理</a-breadcrumb-item>
           </a-breadcrumb>
-          <h2 class="page-header-title">配额管理</h2>
+          <h2 class="page-header-title">
+            配额管理
+          </h2>
         </div>
         <div class="page-header-right">
-          <a-button type="primary" size="small" @click="openForm()">
-            <template #icon><PlusOutlined /></template>
+          <a-button
+            type="primary"
+            size="small"
+            @click="openForm()"
+          >
+            <template #icon>
+              <PlusOutlined />
+            </template>
             新增配额
           </a-button>
         </div>
@@ -20,16 +32,29 @@
     </template>
 
     <a-card :bordered="false">
-      <a-table :data-source="list" :columns="columns" :loading="loading" row-key="id" :pagination="false">
+      <a-table
+        :data-source="list"
+        :columns="columns"
+        :loading="loading"
+        row-key="id"
+        :pagination="false"
+      >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'usage'">
-            <a-progress :percent="calcUsagePercent(record)" :size="'small'" :status="calcUsagePercent(record) > 80 ? 'exception' : undefined" />
+            <a-progress
+              :percent="calcUsagePercent(record)"
+              :size="'small'"
+              :status="calcUsagePercent(record) > 80 ? 'exception' : undefined"
+            />
           </template>
           <template v-if="column.key === 'action'">
             <a-space>
               <a @click="openForm(record)">编辑</a>
               <a-divider type="vertical" />
-              <a-popconfirm title="确定删除?" @confirm="handleDelete(record)">
+              <a-popconfirm
+                title="确定删除?"
+                @confirm="handleDelete(record)"
+              >
                 <a class="text-danger">删除</a>
               </a-popconfirm>
             </a-space>
@@ -38,29 +63,70 @@
       </a-table>
     </a-card>
 
-    <a-modal v-model:open="formVisible" :title="editingId ? '编辑配额' : '新增配额'" @ok="handleSave" :confirm-loading="saving" destroy-on-close>
-      <a-form :model="form" layout="vertical">
-        <a-form-item label="租户名称" required>
-          <a-input v-model:value="form.tenantName" placeholder="请输入租户名称" />
+    <a-modal
+      v-model:open="formVisible"
+      :title="editingId ? '编辑配额' : '新增配额'"
+      :confirm-loading="saving"
+      destroy-on-close
+      @ok="handleSave"
+    >
+      <a-form
+        :model="form"
+        layout="vertical"
+      >
+        <a-form-item
+          label="租户名称"
+          required
+        >
+          <a-input
+            v-model:value="form.tenantName"
+            placeholder="请输入租户名称"
+          />
         </a-form-item>
-        <a-form-item label="租户编码" required>
-          <a-input v-model:value="form.tenantCode" placeholder="请输入租户编码" />
+        <a-form-item
+          label="租户编码"
+          required
+        >
+          <a-input
+            v-model:value="form.tenantCode"
+            placeholder="请输入租户编码"
+          />
         </a-form-item>
         <a-form-item label="最大用户数">
-          <a-input-number v-model:value="form.maxUsers" :min="1" style="width:100%" />
+          <a-input-number
+            v-model:value="form.maxUsers"
+            :min="1"
+            style="width:100%"
+          />
         </a-form-item>
         <a-form-item label="存储配额">
           <a-select v-model:value="form.maxStorage">
-            <a-select-option value="5GB">5GB</a-select-option>
-            <a-select-option value="10GB">10GB</a-select-option>
-            <a-select-option value="50GB">50GB</a-select-option>
-            <a-select-option value="100GB">100GB</a-select-option>
-            <a-select-option value="500GB">500GB</a-select-option>
-            <a-select-option value="1TB">1TB</a-select-option>
+            <a-select-option value="5GB">
+              5GB
+            </a-select-option>
+            <a-select-option value="10GB">
+              10GB
+            </a-select-option>
+            <a-select-option value="50GB">
+              50GB
+            </a-select-option>
+            <a-select-option value="100GB">
+              100GB
+            </a-select-option>
+            <a-select-option value="500GB">
+              500GB
+            </a-select-option>
+            <a-select-option value="1TB">
+              1TB
+            </a-select-option>
           </a-select>
         </a-form-item>
         <a-form-item label="API调用限制/月">
-          <a-input-number v-model:value="form.maxApiCalls" :min="0" style="width:100%" />
+          <a-input-number
+            v-model:value="form.maxApiCalls"
+            :min="0"
+            style="width:100%"
+          />
         </a-form-item>
       </a-form>
     </a-modal>

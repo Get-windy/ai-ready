@@ -1,353 +1,604 @@
 <template>
-  <ErrorBoundary @reset="fetchData" @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="assemble-header">
-        <div class="assemble-header__left">
-          <span class="assemble-header__breadcrumb">ERP / 库存管理 / 组装管理</span>
-          <h2 class="assemble-header__title">组装管理</h2>
-        </div>
-        <div class="assemble-header__right">
-          <a-space :size="12">
-            <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-              <SyncOutlined /> {{ autoRefreshCountdown }}s
-            </span>
-            <span class="data-status">
-              <a-badge :status="loading ? 'processing' : 'success'" />
-              <span v-if="lastUpdateTime" class="update-time">
-                数据更新: {{ lastUpdateTime }}
-              </span>
-            </span>
-            <span class="shortcut-hints">
-              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-            </span>
-            <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)">
-              <template #icon><ReloadOutlined /></template>
-              刷新
-            </a-button>
-          </a-space>
-        </div>
-      </div>
-    </template>
-
-    <!-- 统计卡片 -->
-    <a-row :gutter="16" style="margin-bottom: 16px;">
-      <a-col :span="6">
-        <div class="summary-card">
-          <div class="summary-icon" style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);">
-            <FileTextOutlined />
-          </div>
-          <div class="summary-content">
-            <div class="summary-title">组装单总数</div>
-            <div class="summary-value">{{ statistics.totalCount }}</div>
-          </div>
-        </div>
-      </a-col>
-      <a-col :span="6">
-        <div class="summary-card">
-          <div class="summary-icon" style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);">
-            <ClockCircleOutlined />
-          </div>
-          <div class="summary-content">
-            <div class="summary-title">待审批</div>
-            <div class="summary-value warning">{{ statistics.pendingCount }}</div>
-          </div>
-        </div>
-      </a-col>
-      <a-col :span="6">
-        <div class="summary-card">
-          <div class="summary-icon" style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);">
-            <CheckCircleOutlined />
-          </div>
-          <div class="summary-content">
-            <div class="summary-title">已完成</div>
-            <div class="summary-value">{{ statistics.completedCount }}</div>
-          </div>
-        </div>
-      </a-col>
-      <a-col :span="6">
-        <div class="summary-card highlight">
-          <div class="summary-icon" style="background: linear-gradient(135deg, #722ed1 0%, #531dab 100%);">
-            <DollarOutlined />
-          </div>
-          <div class="summary-content">
-            <div class="summary-title">费用总额</div>
-            <div class="summary-value">¥{{ (statistics.totalAmount || 0).toFixed(2) }}</div>
-          </div>
-        </div>
-      </a-col>
-    </a-row>
-
-    <BillTableList
-      ref="tableRef"
-      :columns="vxeColumns"
-      :data-source="tableData"
-      :loading="loading"
-      :pagination="pagination"
-      row-key="id"
-      :selectable="false"
-      :filter-fields="filterFields"
-      add-text="新建组装单"
-      style="flex: 1;"
-      @add="handleCreate"
-      @refresh="fetchData"
-      @search="handleSearch"
-      @page-change="handlePageChange"
-      @filter-change="handleFilterChange"
-      @cell-dblclick="handleView"
-    >
-      <template #toolbar-actions>
-        <span class="list-update-timestamp">最后更新：{{ dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss') }}</span>
-      </template>
-
-      <template #empty>
-        <div v-if="hasError" class="table-empty">
-          <WarningOutlined class="table-empty-icon" />
-          <p class="table-empty-text">数据加载异常，请重试</p>
-          <a-button type="primary" @click="fetchData"><ReloadOutlined /> 重试</a-button>
-        </div>
-        <div v-else class="table-empty">
-          <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-          <BuildOutlined v-else class="table-empty-icon" />
-          <p v-if="hasActiveFilters" class="table-empty-text">
-            没有符合条件的组装单，<a @click="handleResetFilters">清除筛选</a>
-          </p>
-          <p v-else class="table-empty-text">
-            暂无组装单数据，点击右上角「新建组装单」开始创建
-          </p>
-        </div>
-      </template>
-
-      <template #statusCell="{ record }">
-        <StatusTag :status="record.status" :map="ASSEMBLE_STATUS" />
-      </template>
-
-      <template #totalCostCell="{ record }">
-        ¥{{ (record.totalCost || 0).toFixed(2) }}
-      </template>
-
-      <template #action="{ record }">
-        <a-space :size="4">
-          <a-tooltip title="查看">
-            <a-button type="link" size="small" v-permission="'erp:stock:view'" @click="handleView(record)">
-              <template #icon><EyeOutlined /></template>
-            </a-button>
-          </a-tooltip>
-          <!-- 草稿 -> 提交 -->
-          <a-tooltip v-if="record.status === 0" title="提交审批">
-            <a-button type="link" size="small" style="color: #1890ff;" v-permission="'erp:stock:submitapproval'" @click="handleSubmitApproval(record)">
-              <template #icon><SendOutlined /></template>
-            </a-button>
-          </a-tooltip>
-          <!-- 待审批 -> 审批/拒绝 -->
-          <template v-if="record.status === 1">
-            <a-dropdown trigger="click">
-              <a-button type="link" size="small">
-                审批 <DownOutlined />
-              </a-button>
-              <template #overlay>
-                <a-menu>
-                  <a-menu-item @click="handleApprove(record)">
-                    <CheckOutlined /> 审批通过
-                  </a-menu-item>
-                  <a-menu-item @click="handleReject(record)">
-                    <CloseOutlined /> 拒绝
-                  </a-menu-item>
-                </a-menu>
-              </template>
-            </a-dropdown>
-          </template>
-          <!-- 已审核 -> 执行 -->
-          <a-tooltip v-if="record.status === 2" title="执行">
-            <a-button type="link" size="small" style="color: #52c41a;" v-permission="'erp:stock:execute'" @click="handleExecute(record)">
-              <template #icon><MinusCircleOutlined /></template>
-            </a-button>
-          </a-tooltip>
-          <!-- 已完成 -> 打印 -->
-          <PrintButton
-            v-if="record.status === 3"
-            template-type="stock_assemble"
-            :business-id="record.id"
-            business-type="stock_assemble"
-            button-size="small"
-            @print-success="() => message.success(`组装单 ${record.assembleNo} 打印成功`)"
-            @print-error="(e: any) => message.error(`打印失败: ${e.message || '未知错误'}`)"
-          />
-          <!-- 取消 -->
-          <a-tooltip v-if="record.status === 0 || record.status === 2" title="取消">
-            <a-button type="link" size="small" style="color: #ff4d4f;" v-permission="'erp:stock:cancel'" @click="handleCancel(record)">
-              <template #icon><CloseOutlined /></template>
-            </a-button>
-          </a-tooltip>
-        </a-space>
-      </template>
-    </BillTableList>
-
-    <!-- 详情抽屉 -->
-    <a-drawer v-model:open="detailVisible" title="组装单详情" placement="right" width="80vw">
-      <a-spin :spinning="detailLoading">
-        <a-descriptions bordered :column="2" v-if="detailData">
-          <a-descriptions-item label="组装单号">{{ detailData.assembleNo }}</a-descriptions-item>
-          <a-descriptions-item label="仓库">{{ detailData.warehouseName }}</a-descriptions-item>
-          <a-descriptions-item label="BOM编号">{{ detailData.bomNo || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="BOM名称">{{ detailData.bomName || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="成品编码">{{ detailData.productCode || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="成品名称">{{ detailData.productName || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="组装数量">{{ detailData.assembleQuantity ?? '-' }}</a-descriptions-item>
-          <a-descriptions-item label="组装费用">¥{{ (detailData.assembleFee || 0).toFixed(2) }}</a-descriptions-item>
-          <a-descriptions-item label="总成本">¥{{ (detailData.totalCost || 0).toFixed(2) }}</a-descriptions-item>
-          <a-descriptions-item label="状态">
-            <StatusTag :status="detailData.status" :map="ASSEMBLE_STATUS" />
-          </a-descriptions-item>
-          <a-descriptions-item label="创建时间">{{ detailData.createTime || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="备注" :span="2">{{ detailData.remark || '-' }}</a-descriptions-item>
-        </a-descriptions>
-
-        <template v-if="detailData">
-          <h4 style="margin: 16px 0 8px;">组装明细</h4>
-          <a-table
-            :data-source="detailItems"
-            :columns="detailItemColumns"
-            :pagination="false as any"
-            size="small"
-            bordered
-            row-key="id"
-          >
-            <template #bodyCell="{ column, record }">
-              <template v-if="column.dataIndex === 'unitCost' || column.dataIndex === 'cost'">
-                ¥{{ (record[column.dataIndex] || 0).toFixed(2) }}
-              </template>
-            </template>
-          </a-table>
-        </template>
-      </a-spin>
-
-      <template #footer v-if="detailData">
-        <a-space>
-          <a-button @click="detailVisible = false">关闭</a-button>
-          <a-button v-if="detailData.status === 0" v-permission="'erp:stock:submitapproval'" @click="handleSubmitApproval(detailData)">
-            <template #icon><SendOutlined /></template>
-            提交审批
-          </a-button>
-          <template v-if="detailData.status === 1">
-            <a-button type="primary" v-permission="'erp:stock:approve'" @click="handleApprove(detailData)">
-              <template #icon><CheckOutlined /></template>
-              审批通过
-            </a-button>
-            <a-button danger v-permission="'erp:stock:reject'" @click="handleReject(detailData)">
-              <template #icon><CloseOutlined /></template>
-              拒绝
-            </a-button>
-          </template>
-          <a-button v-if="detailData.status === 2" type="primary" v-permission="'erp:stock:execute'" @click="handleExecute(detailData)">
-            <template #icon><MinusCircleOutlined /></template>
-            执行
-          </a-button>
-          <PrintButton
-            v-if="detailData.status >= 3"
-            template-type="stock_assemble"
-            :business-id="detailData.id"
-            business-type="stock_assemble"
-            button-text="打印"
-            button-size="small"
-          />
-        </a-space>
-      </template>
-    </a-drawer>
-  </PageContainer>
-
-  <!-- 新建组装单弹窗 -->
-  <a-modal
-    v-model:open="createVisible"
-    title="新建组装单"
-    width="900px"
-    :confirm-loading="createLoading"
-    @ok="handleCreateSubmit"
-    @cancel="handleCreateCancel"
-    :mask-closable="false"
-    destroy-on-close
+  <ErrorBoundary
+    @reset="fetchData"
+    @error="handleError"
   >
-    <a-form ref="createFormRef" :model="createForm" :rules="createRules" layout="vertical">
-      <a-row :gutter="16">
-        <a-col :span="12">
-          <a-form-item label="选择BOM" name="bomId">
-            <a-select
-              v-model:value="createForm.bomId"
-              placeholder="请选择BOM"
-              show-search
-              :filter-option="filterOption"
-              allow-clear
-              size="small"
-              @change="handleBomChange"
-            >
-              <a-select-option v-for="b in bomOptions" :key="b.id" :value="b.id">
-                {{ b.bomNo }} - {{ b.bomName }}
-              </a-select-option>
-            </a-select>
-          </a-form-item>
-        </a-col>
-        <a-col :span="12">
-          <a-form-item label="仓库" name="warehouseId">
-            <a-select
-              v-model:value="createForm.warehouseId"
-              placeholder="请选择仓库"
-              show-search
-              :filter-option="filterOption"
-              allow-clear
-              size="small"
-            >
-              <a-select-option v-for="w in warehouseOptions" :key="w.id" :value="w.id">{{ w.warehouseName }}</a-select-option>
-            </a-select>
-          </a-form-item>
-        </a-col>
-      </a-row>
-      <a-row :gutter="16">
-        <a-col :span="8">
-          <a-form-item label="组装数量" name="assembleQuantity">
-            <a-input-number v-model:value="createForm.assembleQuantity" :min="1" :precision="0" style="width: 100%" placeholder="组装数量" size="small" />
-          </a-form-item>
-        </a-col>
-        <a-col :span="8">
-          <a-form-item label="组装费用" name="assembleFee">
-            <a-input-number v-model:value="createForm.assembleFee" :min="0" :precision="2" style="width: 100%" placeholder="组装费用" size="small" />
-          </a-form-item>
-        </a-col>
-        <a-col :span="8">
-          <a-form-item label="备注" name="remark">
-            <a-input v-model:value="createForm.remark" placeholder="备注信息" size="small" />
-          </a-form-item>
-        </a-col>
-      </a-row>
+    <PageContainer full-height>
+      <template #header>
+        <div class="assemble-header">
+          <div class="assemble-header__left">
+            <span class="assemble-header__breadcrumb">ERP / 库存管理 / 组装管理</span>
+            <h2 class="assemble-header__title">
+              组装管理
+            </h2>
+          </div>
+          <div class="assemble-header__right">
+            <a-space :size="12">
+              <span
+                v-if="autoRefreshCountdown > 0"
+                class="auto-refresh-badge"
+              >
+                <SyncOutlined /> {{ autoRefreshCountdown }}s
+              </span>
+              <span class="data-status">
+                <a-badge :status="loading ? 'processing' : 'success'" />
+                <span
+                  v-if="lastUpdateTime"
+                  class="update-time"
+                >
+                  数据更新: {{ lastUpdateTime }}
+                </span>
+              </span>
+              <span class="shortcut-hints">
+                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+              </span>
+              <a-button
+                size="small"
+                :loading="refreshLoading"
+                @click="debounceClick('refresh', fetchData)"
+              >
+                <template #icon>
+                  <ReloadOutlined />
+                </template>
+                刷新
+              </a-button>
+            </a-space>
+          </div>
+        </div>
+      </template>
 
-      <!-- 物料明细（根据BOM自动加载） -->
-      <div class="sub-table-header">
-        <span class="sub-table-title">物料明细</span>
-      </div>
-      <a-table
-        :data-source="createForm.items"
-        :columns="itemColumns"
-        :pagination="false as any"
-        size="small"
-        row-key="tempId"
-        style="margin-bottom: 12px;"
+      <!-- 统计卡片 -->
+      <a-row
+        :gutter="16"
+        style="margin-bottom: 16px;"
       >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.dataIndex === 'unitCost' || column.dataIndex === 'cost'">
-            ¥{{ (record[column.dataIndex] || 0).toFixed(2) }}
-          </template>
-        </template>
-      </a-table>
-    </a-form>
-  </a-modal>
+        <a-col :span="6">
+          <div class="summary-card">
+            <div
+              class="summary-icon"
+              style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);"
+            >
+              <FileTextOutlined />
+            </div>
+            <div class="summary-content">
+              <div class="summary-title">
+                组装单总数
+              </div>
+              <div class="summary-value">
+                {{ statistics.totalCount }}
+              </div>
+            </div>
+          </div>
+        </a-col>
+        <a-col :span="6">
+          <div class="summary-card">
+            <div
+              class="summary-icon"
+              style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);"
+            >
+              <ClockCircleOutlined />
+            </div>
+            <div class="summary-content">
+              <div class="summary-title">
+                待审批
+              </div>
+              <div class="summary-value warning">
+                {{ statistics.pendingCount }}
+              </div>
+            </div>
+          </div>
+        </a-col>
+        <a-col :span="6">
+          <div class="summary-card">
+            <div
+              class="summary-icon"
+              style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);"
+            >
+              <CheckCircleOutlined />
+            </div>
+            <div class="summary-content">
+              <div class="summary-title">
+                已完成
+              </div>
+              <div class="summary-value">
+                {{ statistics.completedCount }}
+              </div>
+            </div>
+          </div>
+        </a-col>
+        <a-col :span="6">
+          <div class="summary-card highlight">
+            <div
+              class="summary-icon"
+              style="background: linear-gradient(135deg, #722ed1 0%, #531dab 100%);"
+            >
+              <DollarOutlined />
+            </div>
+            <div class="summary-content">
+              <div class="summary-title">
+                费用总额
+              </div>
+              <div class="summary-value">
+                ¥{{ (statistics.totalAmount || 0).toFixed(2) }}
+              </div>
+            </div>
+          </div>
+        </a-col>
+      </a-row>
 
-  <!-- 取消原因弹窗 -->
-  <a-modal v-model:open="cancelModalVisible" title="取消确认" width="480px" :confirm-loading="cancelLoading" @ok="handleCancelConfirm" @cancel="handleCancelClose" destroy-on-close>
-    <a-form layout="vertical">
-      <a-form-item label="取消原因" required>
-        <a-textarea v-model:value="cancelReason" :rows="3" placeholder="请输入取消原因（必填）" />
-      </a-form-item>
-    </a-form>
-  </a-modal>
+      <BillTableList
+        ref="tableRef"
+        :columns="vxeColumns"
+        :data-source="tableData"
+        :loading="loading"
+        :pagination="pagination"
+        row-key="id"
+        :selectable="false"
+        :filter-fields="filterFields"
+        add-text="新建组装单"
+        style="flex: 1;"
+        @add="handleCreate"
+        @refresh="fetchData"
+        @search="handleSearch"
+        @page-change="handlePageChange"
+        @filter-change="handleFilterChange"
+        @cell-dblclick="handleView"
+      >
+        <template #toolbar-actions>
+          <span class="list-update-timestamp">最后更新：{{ dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss') }}</span>
+        </template>
+
+        <template #empty>
+          <div
+            v-if="hasError"
+            class="table-empty"
+          >
+            <WarningOutlined class="table-empty-icon" />
+            <p class="table-empty-text">
+              数据加载异常，请重试
+            </p>
+            <a-button
+              type="primary"
+              @click="fetchData"
+            >
+              <ReloadOutlined /> 重试
+            </a-button>
+          </div>
+          <div
+            v-else
+            class="table-empty"
+          >
+            <SearchOutlined
+              v-if="hasActiveFilters"
+              class="table-empty-icon"
+            />
+            <BuildOutlined
+              v-else
+              class="table-empty-icon"
+            />
+            <p
+              v-if="hasActiveFilters"
+              class="table-empty-text"
+            >
+              没有符合条件的组装单，<a @click="handleResetFilters">清除筛选</a>
+            </p>
+            <p
+              v-else
+              class="table-empty-text"
+            >
+              暂无组装单数据，点击右上角「新建组装单」开始创建
+            </p>
+          </div>
+        </template>
+
+        <template #statusCell="{ record }">
+          <StatusTag
+            :status="record.status"
+            :map="ASSEMBLE_STATUS"
+          />
+        </template>
+
+        <template #totalCostCell="{ record }">
+          ¥{{ (record.totalCost || 0).toFixed(2) }}
+        </template>
+
+        <template #action="{ record }">
+          <a-space :size="4">
+            <a-tooltip title="查看">
+              <a-button
+                v-permission="'erp:stock:view'"
+                type="link"
+                size="small"
+                @click="handleView(record)"
+              >
+                <template #icon>
+                  <EyeOutlined />
+                </template>
+              </a-button>
+            </a-tooltip>
+            <!-- 草稿 -> 提交 -->
+            <a-tooltip
+              v-if="record.status === 0"
+              title="提交审批"
+            >
+              <a-button
+                v-permission="'erp:stock:submitapproval'"
+                type="link"
+                size="small"
+                style="color: #1890ff;"
+                @click="handleSubmitApproval(record)"
+              >
+                <template #icon>
+                  <SendOutlined />
+                </template>
+              </a-button>
+            </a-tooltip>
+            <!-- 待审批 -> 审批/拒绝 -->
+            <template v-if="record.status === 1">
+              <a-dropdown trigger="click">
+                <a-button
+                  type="link"
+                  size="small"
+                >
+                  审批 <DownOutlined />
+                </a-button>
+                <template #overlay>
+                  <a-menu>
+                    <a-menu-item @click="handleApprove(record)">
+                      <CheckOutlined /> 审批通过
+                    </a-menu-item>
+                    <a-menu-item @click="handleReject(record)">
+                      <CloseOutlined /> 拒绝
+                    </a-menu-item>
+                  </a-menu>
+                </template>
+              </a-dropdown>
+            </template>
+            <!-- 已审核 -> 执行 -->
+            <a-tooltip
+              v-if="record.status === 2"
+              title="执行"
+            >
+              <a-button
+                v-permission="'erp:stock:execute'"
+                type="link"
+                size="small"
+                style="color: #52c41a;"
+                @click="handleExecute(record)"
+              >
+                <template #icon>
+                  <MinusCircleOutlined />
+                </template>
+              </a-button>
+            </a-tooltip>
+            <!-- 已完成 -> 打印 -->
+            <PrintButton
+              v-if="record.status === 3"
+              template-type="stock_assemble"
+              :business-id="record.id"
+              business-type="stock_assemble"
+              button-size="small"
+              @print-success="() => message.success(`组装单 ${record.assembleNo} 打印成功`)"
+              @print-error="(e: any) => message.error(`打印失败: ${e.message || '未知错误'}`)"
+            />
+            <!-- 取消 -->
+            <a-tooltip
+              v-if="record.status === 0 || record.status === 2"
+              title="取消"
+            >
+              <a-button
+                v-permission="'erp:stock:cancel'"
+                type="link"
+                size="small"
+                style="color: #ff4d4f;"
+                @click="handleCancel(record)"
+              >
+                <template #icon>
+                  <CloseOutlined />
+                </template>
+              </a-button>
+            </a-tooltip>
+          </a-space>
+        </template>
+      </BillTableList>
+
+      <!-- 详情抽屉 -->
+      <a-drawer
+        v-model:open="detailVisible"
+        title="组装单详情"
+        placement="right"
+        width="80vw"
+      >
+        <a-spin :spinning="detailLoading">
+          <a-descriptions
+            v-if="detailData"
+            bordered
+            :column="2"
+          >
+            <a-descriptions-item label="组装单号">
+              {{ detailData.assembleNo }}
+            </a-descriptions-item>
+            <a-descriptions-item label="仓库">
+              {{ detailData.warehouseName }}
+            </a-descriptions-item>
+            <a-descriptions-item label="BOM编号">
+              {{ detailData.bomNo || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item label="BOM名称">
+              {{ detailData.bomName || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item label="成品编码">
+              {{ detailData.productCode || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item label="成品名称">
+              {{ detailData.productName || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item label="组装数量">
+              {{ detailData.assembleQuantity ?? '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item label="组装费用">
+              ¥{{ (detailData.assembleFee || 0).toFixed(2) }}
+            </a-descriptions-item>
+            <a-descriptions-item label="总成本">
+              ¥{{ (detailData.totalCost || 0).toFixed(2) }}
+            </a-descriptions-item>
+            <a-descriptions-item label="状态">
+              <StatusTag
+                :status="detailData.status"
+                :map="ASSEMBLE_STATUS"
+              />
+            </a-descriptions-item>
+            <a-descriptions-item label="创建时间">
+              {{ detailData.createTime || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item
+              label="备注"
+              :span="2"
+            >
+              {{ detailData.remark || '-' }}
+            </a-descriptions-item>
+          </a-descriptions>
+
+          <template v-if="detailData">
+            <h4 style="margin: 16px 0 8px;">
+              组装明细
+            </h4>
+            <a-table
+              :data-source="detailItems"
+              :columns="detailItemColumns"
+              :pagination="false as any"
+              size="small"
+              bordered
+              row-key="id"
+            >
+              <template #bodyCell="{ column, record }">
+                <template v-if="column.dataIndex === 'unitCost' || column.dataIndex === 'cost'">
+                  ¥{{ (record[column.dataIndex] || 0).toFixed(2) }}
+                </template>
+              </template>
+            </a-table>
+          </template>
+        </a-spin>
+
+        <template
+          v-if="detailData"
+          #footer
+        >
+          <a-space>
+            <a-button @click="detailVisible = false">
+              关闭
+            </a-button>
+            <a-button
+              v-if="detailData.status === 0"
+              v-permission="'erp:stock:submitapproval'"
+              @click="handleSubmitApproval(detailData)"
+            >
+              <template #icon>
+                <SendOutlined />
+              </template>
+              提交审批
+            </a-button>
+            <template v-if="detailData.status === 1">
+              <a-button
+                v-permission="'erp:stock:approve'"
+                type="primary"
+                @click="handleApprove(detailData)"
+              >
+                <template #icon>
+                  <CheckOutlined />
+                </template>
+                审批通过
+              </a-button>
+              <a-button
+                v-permission="'erp:stock:reject'"
+                danger
+                @click="handleReject(detailData)"
+              >
+                <template #icon>
+                  <CloseOutlined />
+                </template>
+                拒绝
+              </a-button>
+            </template>
+            <a-button
+              v-if="detailData.status === 2"
+              v-permission="'erp:stock:execute'"
+              type="primary"
+              @click="handleExecute(detailData)"
+            >
+              <template #icon>
+                <MinusCircleOutlined />
+              </template>
+              执行
+            </a-button>
+            <PrintButton
+              v-if="detailData.status >= 3"
+              template-type="stock_assemble"
+              :business-id="detailData.id"
+              business-type="stock_assemble"
+              button-text="打印"
+              button-size="small"
+            />
+          </a-space>
+        </template>
+      </a-drawer>
+    </PageContainer>
+
+    <!-- 新建组装单弹窗 -->
+    <a-modal
+      v-model:open="createVisible"
+      title="新建组装单"
+      width="900px"
+      :confirm-loading="createLoading"
+      :mask-closable="false"
+      destroy-on-close
+      @ok="handleCreateSubmit"
+      @cancel="handleCreateCancel"
+    >
+      <a-form
+        ref="createFormRef"
+        :model="createForm"
+        :rules="createRules"
+        layout="vertical"
+      >
+        <a-row :gutter="16">
+          <a-col :span="12">
+            <a-form-item
+              label="选择BOM"
+              name="bomId"
+            >
+              <a-select
+                v-model:value="createForm.bomId"
+                placeholder="请选择BOM"
+                show-search
+                :filter-option="filterOption"
+                allow-clear
+                size="small"
+                @change="handleBomChange"
+              >
+                <a-select-option
+                  v-for="b in bomOptions"
+                  :key="b.id"
+                  :value="b.id"
+                >
+                  {{ b.bomNo }} - {{ b.bomName }}
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item
+              label="仓库"
+              name="warehouseId"
+            >
+              <a-select
+                v-model:value="createForm.warehouseId"
+                placeholder="请选择仓库"
+                show-search
+                :filter-option="filterOption"
+                allow-clear
+                size="small"
+              >
+                <a-select-option
+                  v-for="w in warehouseOptions"
+                  :key="w.id"
+                  :value="w.id"
+                >
+                  {{ w.warehouseName }}
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+          </a-col>
+        </a-row>
+        <a-row :gutter="16">
+          <a-col :span="8">
+            <a-form-item
+              label="组装数量"
+              name="assembleQuantity"
+            >
+              <a-input-number
+                v-model:value="createForm.assembleQuantity"
+                :min="1"
+                :precision="0"
+                style="width: 100%"
+                placeholder="组装数量"
+                size="small"
+              />
+            </a-form-item>
+          </a-col>
+          <a-col :span="8">
+            <a-form-item
+              label="组装费用"
+              name="assembleFee"
+            >
+              <a-input-number
+                v-model:value="createForm.assembleFee"
+                :min="0"
+                :precision="2"
+                style="width: 100%"
+                placeholder="组装费用"
+                size="small"
+              />
+            </a-form-item>
+          </a-col>
+          <a-col :span="8">
+            <a-form-item
+              label="备注"
+              name="remark"
+            >
+              <a-input
+                v-model:value="createForm.remark"
+                placeholder="备注信息"
+                size="small"
+              />
+            </a-form-item>
+          </a-col>
+        </a-row>
+
+        <!-- 物料明细（根据BOM自动加载） -->
+        <div class="sub-table-header">
+          <span class="sub-table-title">物料明细</span>
+        </div>
+        <a-table
+          :data-source="createForm.items"
+          :columns="itemColumns"
+          :pagination="false as any"
+          size="small"
+          row-key="tempId"
+          style="margin-bottom: 12px;"
+        >
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.dataIndex === 'unitCost' || column.dataIndex === 'cost'">
+              ¥{{ (record[column.dataIndex] || 0).toFixed(2) }}
+            </template>
+          </template>
+        </a-table>
+      </a-form>
+    </a-modal>
+
+    <!-- 取消原因弹窗 -->
+    <a-modal
+      v-model:open="cancelModalVisible"
+      title="取消确认"
+      width="480px"
+      :confirm-loading="cancelLoading"
+      destroy-on-close
+      @ok="handleCancelConfirm"
+      @cancel="handleCancelClose"
+    >
+      <a-form layout="vertical">
+        <a-form-item
+          label="取消原因"
+          required
+        >
+          <a-textarea
+            v-model:value="cancelReason"
+            :rows="3"
+            placeholder="请输入取消原因（必填）"
+          />
+        </a-form-item>
+      </a-form>
+    </a-modal>
   </ErrorBoundary>
 </template>
 

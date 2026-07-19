@@ -4,29 +4,45 @@
     <div class="stat-cards">
       <div class="stat-card stat-30">
         <div class="stat-card-body">
-          <div class="stat-card-value">¥{{ formatAmount(stats.aging30) }}</div>
-          <div class="stat-card-label">0-30天</div>
+          <div class="stat-card-value">
+            ¥{{ formatAmount(stats.aging30) }}
+          </div>
+          <div class="stat-card-label">
+            0-30天
+          </div>
         </div>
         <ClockCircleOutlined class="stat-card-icon" />
       </div>
       <div class="stat-card stat-60">
         <div class="stat-card-body">
-          <div class="stat-card-value">¥{{ formatAmount(stats.aging60) }}</div>
-          <div class="stat-card-label">31-60天</div>
+          <div class="stat-card-value">
+            ¥{{ formatAmount(stats.aging60) }}
+          </div>
+          <div class="stat-card-label">
+            31-60天
+          </div>
         </div>
         <WarningOutlined class="stat-card-icon" />
       </div>
       <div class="stat-card stat-90">
         <div class="stat-card-body">
-          <div class="stat-card-value">¥{{ formatAmount(stats.aging90) }}</div>
-          <div class="stat-card-label">61-90天</div>
+          <div class="stat-card-value">
+            ¥{{ formatAmount(stats.aging90) }}
+          </div>
+          <div class="stat-card-label">
+            61-90天
+          </div>
         </div>
         <ExclamationCircleOutlined class="stat-card-icon" />
       </div>
       <div class="stat-card stat-90plus">
         <div class="stat-card-body">
-          <div class="stat-card-value">¥{{ formatAmount(stats.aging90plus) }}</div>
-          <div class="stat-card-label">90天以上</div>
+          <div class="stat-card-value">
+            ¥{{ formatAmount(stats.aging90plus) }}
+          </div>
+          <div class="stat-card-label">
+            90天以上
+          </div>
         </div>
         <CloseCircleOutlined class="stat-card-icon" />
       </div>
@@ -103,14 +119,26 @@
           <template #empty>
             <div class="table-empty">
               <template v-if="hasError">
-                <WarningOutlined class="table-empty-icon" style="color: #faad14" />
-                <p class="table-empty-text">加载失败</p>
-                <a-button type="primary" size="small" @click="fetchData" class="table-empty-action">
+                <WarningOutlined
+                  class="table-empty-icon"
+                  style="color: #faad14"
+                />
+                <p class="table-empty-text">
+                  加载失败
+                </p>
+                <a-button
+                  type="primary"
+                  size="small"
+                  class="table-empty-action"
+                  @click="fetchData"
+                >
                   <ReloadOutlined /> 重试
                 </a-button>
               </template>
               <template v-else>
-                <p class="table-empty-text">暂无数据</p>
+                <p class="table-empty-text">
+                  暂无数据
+                </p>
               </template>
             </div>
           </template>
@@ -326,7 +354,7 @@ const handlePageChange = (page: number, size: number) => {
 const fetchData = async () => {
   loading.value = true
   try {
-    const res = await request.get('/api/finance/accounts-receivable/aging', {
+    const res = await request.get('/finance/accounts-receivable/aging', {
       params: {
         customerName: queryParams.customerName || undefined,
         endDate: queryParams.endDate || undefined,

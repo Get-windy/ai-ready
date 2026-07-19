@@ -1,171 +1,321 @@
 <template>
   <ErrorBoundary @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="category-page-header">
-        <div class="category-page-header-left">
-          <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item>固定资产</a-breadcrumb-item>
-            <a-breadcrumb-item>分类管理</a-breadcrumb-item>
-          </a-breadcrumb>
-          <h2 class="category-page-header-title">分类管理</h2>
-        </div>
-        <div class="category-page-header-right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-            <SyncOutlined /> {{ autoRefreshCountdown }}s
-          </span>
-          <PrintButton business-type="fixed_asset_category" button-type="link" button-size="small" tooltip="打印分类" />
-          <a-button type="primary" size="small" @click="showAddRootModal">
-            <template #icon><PlusOutlined /></template>
-            新增分类
-          </a-button>
-          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchTree)()" v-permission="'erp:fixed-asset:category:list'">
-            <template #icon><ReloadOutlined /></template>
-            刷新
-          </a-button>
-<span class="shortcut-hints">
-                                                <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
-                                                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-                                              </span>
-        </div>
-
-      </div>
-    </template>
-
-    <div class="category-list-page">
-      <!-- 错误态 -->
-      <template v-if="hasError && !refreshLoading">
-        <a-result status="error" title="加载失败" sub-title="获取分类数据时发生错误">
-          <template #extra>
-            <a-button size="small" type="primary" @click="fetchTree">重新加载</a-button>
-          </template>
-        </a-result>
-      </template>
-
-      <!-- 正常内容 -->
-      <template v-else>
-      <!-- 统计卡片 -->
-      <div class="stat-cards">
-        <div class="stat-card stat-total">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ treeData.length || 0 }}</div>
-            <div class="stat-card-label">分类总数</div>
+    <PageContainer full-height>
+      <template #header>
+        <div class="category-page-header">
+          <div class="category-page-header-left">
+            <a-breadcrumb>
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>固定资产</a-breadcrumb-item>
+              <a-breadcrumb-item>分类管理</a-breadcrumb-item>
+            </a-breadcrumb>
+            <h2 class="category-page-header-title">
+              分类管理
+            </h2>
           </div>
-          <FolderOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-root">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ rootCount }}</div>
-            <div class="stat-card-label">根分类数</div>
-          </div>
-          <ApartmentOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-depth">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ maxDepth }}</div>
-            <div class="stat-card-label">最大层级</div>
-          </div>
-          <ClusterOutlined class="stat-card-icon" />
-        </div>
-      </div>
-
-      <a-row :gutter="16" class="category-content">
-        <a-col :span="10">
-          <a-card title="分类树" class="category-card">
-            <template #extra>
-              <a-button type="primary" size="small" @click="showAddRootModal" v-permission="'erp:fixed-asset:category:create'">添加根分类</a-button>
-            </template>
-            <a-tree
-              v-if="treeData.length > 0"
-              :tree-data="treeData as any"
-              :default-expand-all="true"
-              @select="onSelect"
+          <div class="category-page-header-right">
+            <span
+              v-if="lastUpdateTime"
+              class="update-time"
+            >更新于 {{ lastUpdateTime }}</span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            >
+              <SyncOutlined /> {{ autoRefreshCountdown }}s
+            </span>
+            <PrintButton
+              business-type="fixed_asset_category"
+              button-type="link"
+              button-size="small"
+              tooltip="打印分类"
             />
-            <a-empty v-else description="暂无分类数据" />
-          </a-card>
-        </a-col>
-        <a-col :span="14">
-          <a-card :title="selectedCategory ? '分类详情' : '选择分类'" class="category-card">
-            <template v-if="selectedCategory">
-              <a-descriptions :column="1" bordered :label-style="{ fontWeight: 'bold' }">
-                <a-descriptions-item label="分类编码">{{ selectedCategory.categoryCode }}</a-descriptions-item>
-                <a-descriptions-item label="分类名称">{{ selectedCategory.categoryName }}</a-descriptions-item>
-                <a-descriptions-item label="排序">{{ selectedCategory.sortOrder }}</a-descriptions-item>
-                <a-descriptions-item label="默认折旧方法">{{ methodMap[selectedCategory.defaultDepreciationMethod] }}</a-descriptions-item>
-                <a-descriptions-item label="默认使用年限(月)">{{ selectedCategory.defaultUsefulLife }}</a-descriptions-item>
-                <a-descriptions-item label="描述">{{ selectedCategory.description }}</a-descriptions-item>
-              </a-descriptions>
-              <a-space style="margin-top: 16px">
-                <a-button type="primary" @click="showEditModal" v-permission="'erp:fixed-asset:category:update'">编辑</a-button>
-                <a-button @click="showAddChildModal" v-permission="'erp:fixed-asset:category:create'">添加子分类</a-button>
-                <a-popconfirm title="确认删除?" @confirm="handleDelete" v-permission="'erp:fixed-asset:category:delete'">
-                  <a-button danger>删除</a-button>
-                </a-popconfirm>
-              </a-space>
-            </template>
-            <a-empty v-else description="请在左侧选择一个分类" />
-          </a-card>
-        </a-col>
-      </a-row>
-
-      <!-- 分类列表表格 -->
-      <a-card title="分类列表" class="category-table-card">
-        <a-table
-          :data-source="flattenedCategories"
-          :columns="tableColumns"
-          :pagination="{ pageSize: 20, showSizeChanger: true, showTotal: (t: number) => `共 ${t} 条` }"
-          :row-key="'id'"
-          size="small"
-          bordered
-        >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.dataIndex === 'status'">
-            <a-tag :color="record.status === 0 ? 'success' : 'error'">{{ record.status === 0 ? '启用' : '停用' }}</a-tag>
-          </template>
-        </template>
-        </a-table>
-      </a-card>
-
-      <!-- Category Form Modal -->
-      <FullScreenDetail
-        :visible="modalVisible"
-        :title="modalTitle"
-        @save="handleModalOk"
-        :save-loading="modalLoading"
-        :show-save-and-new="!isEdit"
-        @close="handleFormClose"
-        @save-and-new="handleFormSaveAndNew"
-      >
-        <a-form :model="formData" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
-          <a-form-item label="分类编码">
-            <a-input v-model:value="formData.categoryCode" placeholder="分类编码" size="small" />
-          </a-form-item>
-          <a-form-item label="分类名称" required>
-            <a-input v-model:value="formData.categoryName" placeholder="分类名称" size="small" />
-          </a-form-item>
-          <a-form-item label="排序">
-            <a-input-number v-model:value="formData.sortOrder" :min="0" style="width: 100%" size="small" />
-          </a-form-item>
-          <a-form-item label="默认折旧方法">
-            <a-select v-model:value="formData.defaultDepreciationMethod" placeholder="选择折旧方法" size="small">
-              <a-select-option value="straight_line">直线法</a-select-option>
-              <a-select-option value="double_declining">双倍余额递减法</a-select-option>
-              <a-select-option value="sum_of_years">年数总和法</a-select-option>
-            </a-select>
-          </a-form-item>
-          <a-form-item label="默认使用年限(月)">
-            <a-input-number v-model:value="formData.defaultUsefulLife" :min="1" style="width: 100%" size="small" />
-          </a-form-item>
-          <a-form-item label="描述">
-            <a-textarea v-model:value="formData.description" :rows="2" size="small" />
-          </a-form-item>
-        </a-form>
-      </FullScreenDetail>
+            <a-button
+              type="primary"
+              size="small"
+              @click="showAddRootModal"
+            >
+              <template #icon>
+                <PlusOutlined />
+              </template>
+              新增分类
+            </a-button>
+            <a-button
+              v-permission="'erp:fixed-asset:category:list'"
+              size="small"
+              :loading="refreshLoading"
+              @click="debounceClick('refresh', fetchTree)()"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
+              刷新
+            </a-button>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            </span>
+          </div>
+        </div>
       </template>
-    </div>
-  </PageContainer>
+
+      <div class="category-list-page">
+        <!-- 错误态 -->
+        <template v-if="hasError && !refreshLoading">
+          <a-result
+            status="error"
+            title="加载失败"
+            sub-title="获取分类数据时发生错误"
+          >
+            <template #extra>
+              <a-button
+                size="small"
+                type="primary"
+                @click="fetchTree"
+              >
+                重新加载
+              </a-button>
+            </template>
+          </a-result>
+        </template>
+
+        <!-- 正常内容 -->
+        <template v-else>
+          <!-- 统计卡片 -->
+          <div class="stat-cards">
+            <div class="stat-card stat-total">
+              <div class="stat-card-body">
+                <div class="stat-card-value">
+                  {{ treeData.length || 0 }}
+                </div>
+                <div class="stat-card-label">
+                  分类总数
+                </div>
+              </div>
+              <FolderOutlined class="stat-card-icon" />
+            </div>
+            <div class="stat-card stat-root">
+              <div class="stat-card-body">
+                <div class="stat-card-value">
+                  {{ rootCount }}
+                </div>
+                <div class="stat-card-label">
+                  根分类数
+                </div>
+              </div>
+              <ApartmentOutlined class="stat-card-icon" />
+            </div>
+            <div class="stat-card stat-depth">
+              <div class="stat-card-body">
+                <div class="stat-card-value">
+                  {{ maxDepth }}
+                </div>
+                <div class="stat-card-label">
+                  最大层级
+                </div>
+              </div>
+              <ClusterOutlined class="stat-card-icon" />
+            </div>
+          </div>
+
+          <a-row
+            :gutter="16"
+            class="category-content"
+          >
+            <a-col :span="10">
+              <a-card
+                title="分类树"
+                class="category-card"
+              >
+                <template #extra>
+                  <a-button
+                    v-permission="'erp:fixed-asset:category:create'"
+                    type="primary"
+                    size="small"
+                    @click="showAddRootModal"
+                  >
+                    添加根分类
+                  </a-button>
+                </template>
+                <a-tree
+                  v-if="treeData.length > 0"
+                  :tree-data="treeData as any"
+                  :default-expand-all="true"
+                  @select="onSelect"
+                />
+                <a-empty
+                  v-else
+                  description="暂无分类数据"
+                />
+              </a-card>
+            </a-col>
+            <a-col :span="14">
+              <a-card
+                :title="selectedCategory ? '分类详情' : '选择分类'"
+                class="category-card"
+              >
+                <template v-if="selectedCategory">
+                  <a-descriptions
+                    :column="1"
+                    bordered
+                    :label-style="{ fontWeight: 'bold' }"
+                  >
+                    <a-descriptions-item label="分类编码">
+                      {{ selectedCategory.categoryCode }}
+                    </a-descriptions-item>
+                    <a-descriptions-item label="分类名称">
+                      {{ selectedCategory.categoryName }}
+                    </a-descriptions-item>
+                    <a-descriptions-item label="排序">
+                      {{ selectedCategory.sortOrder }}
+                    </a-descriptions-item>
+                    <a-descriptions-item label="默认折旧方法">
+                      {{ methodMap[selectedCategory.defaultDepreciationMethod] }}
+                    </a-descriptions-item>
+                    <a-descriptions-item label="默认使用年限(月)">
+                      {{ selectedCategory.defaultUsefulLife }}
+                    </a-descriptions-item>
+                    <a-descriptions-item label="描述">
+                      {{ selectedCategory.description }}
+                    </a-descriptions-item>
+                  </a-descriptions>
+                  <a-space style="margin-top: 16px">
+                    <a-button
+                      v-permission="'erp:fixed-asset:category:update'"
+                      type="primary"
+                      @click="showEditModal"
+                    >
+                      编辑
+                    </a-button>
+                    <a-button
+                      v-permission="'erp:fixed-asset:category:create'"
+                      @click="showAddChildModal"
+                    >
+                      添加子分类
+                    </a-button>
+                    <a-popconfirm
+                      v-permission="'erp:fixed-asset:category:delete'"
+                      title="确认删除?"
+                      @confirm="handleDelete"
+                    >
+                      <a-button danger>
+                        删除
+                      </a-button>
+                    </a-popconfirm>
+                  </a-space>
+                </template>
+                <a-empty
+                  v-else
+                  description="请在左侧选择一个分类"
+                />
+              </a-card>
+            </a-col>
+          </a-row>
+
+          <!-- 分类列表表格 -->
+          <a-card
+            title="分类列表"
+            class="category-table-card"
+          >
+            <a-table
+              :data-source="flattenedCategories"
+              :columns="tableColumns"
+              :pagination="{ pageSize: 20, showSizeChanger: true, showTotal: (t: number) => `共 ${t} 条` }"
+              :row-key="'id'"
+              size="small"
+              bordered
+            >
+              <template #bodyCell="{ column, record }">
+                <template v-if="column.dataIndex === 'status'">
+                  <a-tag :color="record.status === 0 ? 'success' : 'error'">
+                    {{ record.status === 0 ? '启用' : '停用' }}
+                  </a-tag>
+                </template>
+              </template>
+            </a-table>
+          </a-card>
+
+          <!-- Category Form Modal -->
+          <FullScreenDetail
+            :visible="modalVisible"
+            :title="modalTitle"
+            :save-loading="modalLoading"
+            :show-save-and-new="!isEdit"
+            @save="handleModalOk"
+            @close="handleFormClose"
+            @save-and-new="handleFormSaveAndNew"
+          >
+            <a-form
+              :model="formData"
+              :label-col="{ span: 6 }"
+              :wrapper-col="{ span: 16 }"
+            >
+              <a-form-item label="分类编码">
+                <a-input
+                  v-model:value="formData.categoryCode"
+                  placeholder="分类编码"
+                  size="small"
+                />
+              </a-form-item>
+              <a-form-item
+                label="分类名称"
+                required
+              >
+                <a-input
+                  v-model:value="formData.categoryName"
+                  placeholder="分类名称"
+                  size="small"
+                />
+              </a-form-item>
+              <a-form-item label="排序">
+                <a-input-number
+                  v-model:value="formData.sortOrder"
+                  :min="0"
+                  style="width: 100%"
+                  size="small"
+                />
+              </a-form-item>
+              <a-form-item label="默认折旧方法">
+                <a-select
+                  v-model:value="formData.defaultDepreciationMethod"
+                  placeholder="选择折旧方法"
+                  size="small"
+                >
+                  <a-select-option value="straight_line">
+                    直线法
+                  </a-select-option>
+                  <a-select-option value="double_declining">
+                    双倍余额递减法
+                  </a-select-option>
+                  <a-select-option value="sum_of_years">
+                    年数总和法
+                  </a-select-option>
+                </a-select>
+              </a-form-item>
+              <a-form-item label="默认使用年限(月)">
+                <a-input-number
+                  v-model:value="formData.defaultUsefulLife"
+                  :min="1"
+                  style="width: 100%"
+                  size="small"
+                />
+              </a-form-item>
+              <a-form-item label="描述">
+                <a-textarea
+                  v-model:value="formData.description"
+                  :rows="2"
+                  size="small"
+                />
+              </a-form-item>
+            </a-form>
+          </FullScreenDetail>
+        </template>
+      </div>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

@@ -1,264 +1,503 @@
 <template>
   <ErrorBoundary @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="permission-page-header">
-        <div class="permission-page-header-left">
-          <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item>权限配置</a-breadcrumb-item>
-          </a-breadcrumb>
-          <h2 class="permission-page-header-title">权限配置</h2>
-        </div>
-        <div class="permission-page-header-right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-            <SyncOutlined /> {{ autoRefreshCountdown }}s
-          </span>
-          <span class="shortcut-hints">
-            <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
-            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-          </span>
-          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchDefData)()">
-            <template #icon><ReloadOutlined /></template>
-            刷新
-          </a-button>
-          <a-button type="primary" size="small" v-permission="'system:permission:create'" @click="handleAddPermission">
-            <template #icon><PlusOutlined /></template>
-            新增权限
-          </a-button>
-          <a-button size="small" v-permission="'system:permission:create'" @click="showPermissionDefDrawer = true">
-            <template #icon><SettingOutlined /></template>
-            管理权限定义
-          </a-button>
-        </div>
-      </div>
-    </template>
-
-    <!-- 权限配置面板（通用组件） -->
-    <PermissionConfigPanel
-      :fetch-roles="fetchRoles"
-      :fetch-permission-tree="fetchPermissionTree"
-      :fetch-role-permissions="fetchRolePermissions"
-      :save-role-permissions="saveRolePermissions"
-      @save-success="onSaveSuccess"
-      @loaded="onPanelLoaded"
-    />
-
-    <!-- 权限列表表格 -->
-    <a-card title="权限列表" class="permission-table-card">
-      <a-table
-        :data-source="flattenedPermissions"
-        :columns="permissionTableColumns"
-        :pagination="{ pageSize: 20, showSizeChanger: true }"
-        :row-key="'id'"
-        size="small"
-        bordered
-      >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.dataIndex === 'permissionType'">
-            <a-tag :color="['blue','green','orange','purple'][record.permissionType] || 'default'">
-              {{ ['目录','菜单','按钮','API'][record.permissionType] || '未知' }}
-            </a-tag>
-          </template>
-          <template v-if="column.dataIndex === 'status'">
-            <a-tag :color="record.status === 0 ? 'success' : 'error'">{{ record.status === 0 ? '启用' : '停用' }}</a-tag>
-          </template>
-        </template>
-      </a-table>
-    </a-card>
-
-    <!-- 权限定义管理抽屉（系统级功能，保留在原页面） -->
-    <a-drawer
-      v-model:open="showPermissionDefDrawer"
-      title="权限定义管理"
-      placement="right"
-      width="80%"
-      :styles="{ body: { padding: 0, height: 'calc(100vh - 55px)', overflow: 'hidden' } }"
-    >
-      <div class="permission-def-drawer-body">
-        <!-- 统计卡片 -->
-        <div class="stat-cards">
-          <div class="stat-card stat-total">
-            <div class="stat-card-body">
-              <div class="stat-card-value">{{ permissionDefCount }}</div>
-              <div class="stat-card-label">权限总数</div>
-            </div>
-            <SafetyOutlined class="stat-card-icon" />
+    <PageContainer full-height>
+      <template #header>
+        <div class="permission-page-header">
+          <div class="permission-page-header-left">
+            <a-breadcrumb>
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>权限配置</a-breadcrumb-item>
+            </a-breadcrumb>
+            <h2 class="permission-page-header-title">
+              权限配置
+            </h2>
           </div>
-          <div class="stat-card stat-menu">
-            <div class="stat-card-body">
-              <div class="stat-card-value">{{ menuDefCount }}</div>
-              <div class="stat-card-label">菜单权限</div>
-            </div>
-            <MenuOutlined class="stat-card-icon" />
-          </div>
-          <div class="stat-card stat-button">
-            <div class="stat-card-body">
-              <div class="stat-card-value">{{ buttonDefCount }}</div>
-              <div class="stat-card-label">按钮权限</div>
-            </div>
-            <ControlOutlined class="stat-card-icon" />
-          </div>
-          <div class="stat-card stat-api">
-            <div class="stat-card-body">
-              <div class="stat-card-value">{{ apiDefCount }}</div>
-              <div class="stat-card-label">API权限</div>
-            </div>
-            <ApiOutlined class="stat-card-icon" />
-          </div>
-        </div>
-
-        <a-skeleton active v-if="defLoading && permissionDefData.length === 0" :paragraph="{ rows: 8 }" style="padding: 24px;" />
-
-        <BillTableList
-          ref="defTableRef"
-          :columns="defVxeColumns"
-          :data-source="permissionDefData"
-          :loading="defLoading"
-          :pagination="null as any"
-          row-key="id"
-          :min-empty-rows="12"
-          :filter-fields="defFilterFields"
-          :show-search="false"
-          :show-add="false"
-          :show-edit="false"
-          :show-delete="false"
-          :show-batch-delete="false"
-          :selectable="false"
-          @refresh="fetchDefData"
-          @filter-change="handleDefFilterChange"
-        >
-          <template #toolbar-actions>
-            <a-button type="primary" v-permission="'system:permission:create'" @click="handleDefAdd(null)">
-              <template #icon><PlusOutlined /></template>
-              新增顶级权限
-            </a-button>
-            <a-button @click="handleDefExpandAll">
-              <template #icon><ExpandOutlined /></template>
-              展开/折叠
-            </a-button>
-          </template>
-
-          <template #empty>
-            <a-empty v-if="!defHasError" description="暂无数据" />
-            <a-result v-else status="error" title="数据加载失败">
-              <template #extra>
-                <a-button type="primary" @click="fetchDefData">
-                  <template #icon><ReloadOutlined /></template>
-                  重新加载
-                </a-button>
+          <div class="permission-page-header-right">
+            <span
+              v-if="lastUpdateTime"
+              class="update-time"
+            >更新于 {{ lastUpdateTime }}</span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            >
+              <SyncOutlined /> {{ autoRefreshCountdown }}s
+            </span>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            </span>
+            <a-button
+              size="small"
+              :loading="refreshLoading"
+              @click="debounceClick('refresh', fetchDefData)()"
+            >
+              <template #icon>
+                <ReloadOutlined />
               </template>
-            </a-result>
-          </template>
+              刷新
+            </a-button>
+            <a-button
+              v-permission="'system:permission:create'"
+              type="primary"
+              size="small"
+              @click="handleAddPermission"
+            >
+              <template #icon>
+                <PlusOutlined />
+              </template>
+              新增权限
+            </a-button>
+            <a-button
+              v-permission="'system:permission:create'"
+              size="small"
+              @click="showPermissionDefDrawer = true"
+            >
+              <template #icon>
+                <SettingOutlined />
+              </template>
+              管理权限定义
+            </a-button>
+          </div>
+        </div>
+      </template>
 
-          <template #permissionNameCell="{ record }">
-            <a-space>
-              <component :is="getIcon(record.icon)" v-if="record.icon" />
-              <span>{{ record.permissionName }}</span>
-              <a-tag v-if="record.permissionType === 0" color="blue">目录</a-tag>
-              <a-tag v-else-if="record.permissionType === 1" color="green">菜单</a-tag>
-              <a-tag v-else-if="record.permissionType === 2" color="orange">按钮</a-tag>
-              <a-tag v-else-if="record.permissionType === 3" color="purple">API</a-tag>
-            </a-space>
-          </template>
-          <template #statusCell="{ record }">
-            <a-tag :color="record.status === 0 ? 'success' : 'error'">{{ record.status === 0 ? '启用' : '停用' }}</a-tag>
-          </template>
-          <template #visibleCell="{ record }">
-            <a-tag :color="record.visible === 1 ? 'success' : 'default'">{{ record.visible === 1 ? '显示' : '隐藏' }}</a-tag>
-          </template>
+      <!-- 权限配置面板（通用组件） -->
+      <PermissionConfigPanel
+        :fetch-roles="fetchRoles"
+        :fetch-permission-tree="fetchPermissionTree"
+        :fetch-role-permissions="fetchRolePermissions"
+        :save-role-permissions="saveRolePermissions"
+        @save-success="onSaveSuccess"
+        @loaded="onPanelLoaded"
+      />
 
-          <template #action="{ record }">
-            <a-space>
-              <a-button type="link" size="small" v-permission="'system:permission:create'" @click="handleDefAdd(record)">新增子权限</a-button>
-              <a-button type="link" size="small" v-permission="'system:permission:update'" @click="handleDefEdit(record)">编辑</a-button>
-              <a-button type="link" size="small" danger v-permission="'system:permission:delete'" @click="handleDefDelete(record)">删除</a-button>
-            </a-space>
-          </template>
-        </BillTableList>
-      </div>
-
-      <!-- 权限定义表单抽屉 -->
-      <a-drawer
-        v-model:open="defFormVisible"
-        :title="defIsEdit ? '编辑权限' : '新增权限'"
-        placement="right"
-        width="480px"
-        :footer-style="{ textAlign: 'right' }"
-        :closable="true"
-        @close="handleDefFormClose"
+      <!-- 权限列表表格 -->
+      <a-card
+        title="权限列表"
+        class="permission-table-card"
       >
-        <a-form ref="defFormRef" :model="defFormState" :rules="defFormRules" layout="vertical">
-          <a-form-item v-if="!defIsTopLevel" label="父级权限" name="parentId">
-            <a-tree-select
-              v-model:value="defFormState.parentId"
-              :tree-data="defParentTreeData"
-              placeholder="请选择父级权限"
-              :field-names="{ label: 'permissionName', value: 'id' }"
-              tree-default-expand-all
-            />
-          </a-form-item>
-          <a-form-item label="权限名称" name="permissionName">
-            <a-input v-model:value="defFormState.permissionName" placeholder="请输入权限名称" />
-          </a-form-item>
-          <a-form-item label="权限编码" name="permissionCode">
-            <a-input v-model:value="defFormState.permissionCode" placeholder="如：system:user:list" />
-          </a-form-item>
-          <a-form-item label="权限类型" name="permissionType">
-            <a-select v-model:value="defFormState.permissionType" placeholder="请选择权限类型" size="small">
-              <a-select-option :value="0">目录</a-select-option>
-              <a-select-option :value="1">菜单</a-select-option>
-              <a-select-option :value="2">按钮</a-select-option>
-              <a-select-option :value="3">API</a-select-option>
-            </a-select>
-          </a-form-item>
-          <a-form-item v-if="defFormState.permissionType <= 1" label="路由路径" name="path">
-            <a-input v-model:value="defFormState.path" placeholder="/system/user" />
-          </a-form-item>
-          <a-form-item v-if="defFormState.permissionType <= 1" label="组件路径" name="component">
-            <a-input v-model:value="defFormState.component" placeholder="@/views/system/user/index" />
-          </a-form-item>
-          <a-form-item v-if="defFormState.permissionType === 3" label="API路径" name="apiPath">
-            <a-input v-model:value="defFormState.apiPath" placeholder="/api/user/list" />
-          </a-form-item>
-          <a-form-item v-if="defFormState.permissionType === 3" label="请求方法" name="method">
-            <a-select v-model:value="defFormState.method" placeholder="请选择请求方法" size="small">
-              <a-select-option value="GET">GET</a-select-option>
-              <a-select-option value="POST">POST</a-select-option>
-              <a-select-option value="PUT">PUT</a-select-option>
-              <a-select-option value="DELETE">DELETE</a-select-option>
-              <a-select-option value="PATCH">PATCH</a-select-option>
-            </a-select>
-          </a-form-item>
-          <a-form-item v-if="defFormState.permissionType <= 1" label="图标" name="icon">
-            <a-input v-model:value="defFormState.icon" placeholder="UserOutlined" />
-          </a-form-item>
-          <a-form-item v-if="defFormState.permissionType <= 1" label="是否显示" name="visible">
-            <a-radio-group v-model:value="defFormState.visible">
-              <a-radio :value="1">显示</a-radio>
-              <a-radio :value="0">隐藏</a-radio>
-            </a-radio-group>
-          </a-form-item>
-          <a-form-item label="排序" name="sort">
-            <a-input-number v-model:value="defFormState.sort" :min="0" :max="9999" style="width: 100%" />
-          </a-form-item>
-          <a-form-item label="状态" name="status">
-            <a-radio-group v-model:value="defFormState.status">
-              <a-radio :value="0">启用</a-radio>
-              <a-radio :value="1">停用</a-radio>
-            </a-radio-group>
-          </a-form-item>
-        </a-form>
-        <template #footer>
-          <a-space>
-            <a-button @click="handleDefFormClose">取消</a-button>
-            <a-button type="primary" :loading="defFormLoading" @click="handleDefFormOk">保存</a-button>
-          </a-space>
-        </template>
+        <a-table
+          :data-source="flattenedPermissions"
+          :columns="permissionTableColumns"
+          :pagination="{ pageSize: 20, showSizeChanger: true }"
+          :row-key="'id'"
+          size="small"
+          bordered
+        >
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.dataIndex === 'permissionType'">
+              <a-tag :color="['blue','green','orange','purple'][record.permissionType] || 'default'">
+                {{ ['目录','菜单','按钮','API'][record.permissionType] || '未知' }}
+              </a-tag>
+            </template>
+            <template v-if="column.dataIndex === 'status'">
+              <a-tag :color="record.status === 0 ? 'success' : 'error'">
+                {{ record.status === 0 ? '启用' : '停用' }}
+              </a-tag>
+            </template>
+          </template>
+        </a-table>
+      </a-card>
+
+      <!-- 权限定义管理抽屉（系统级功能，保留在原页面） -->
+      <a-drawer
+        v-model:open="showPermissionDefDrawer"
+        title="权限定义管理"
+        placement="right"
+        width="80%"
+        :styles="{ body: { padding: 0, height: 'calc(100vh - 55px)', overflow: 'hidden' } }"
+      >
+        <div class="permission-def-drawer-body">
+          <!-- 统计卡片 -->
+          <div class="stat-cards">
+            <div class="stat-card stat-total">
+              <div class="stat-card-body">
+                <div class="stat-card-value">
+                  {{ permissionDefCount }}
+                </div>
+                <div class="stat-card-label">
+                  权限总数
+                </div>
+              </div>
+              <SafetyOutlined class="stat-card-icon" />
+            </div>
+            <div class="stat-card stat-menu">
+              <div class="stat-card-body">
+                <div class="stat-card-value">
+                  {{ menuDefCount }}
+                </div>
+                <div class="stat-card-label">
+                  菜单权限
+                </div>
+              </div>
+              <MenuOutlined class="stat-card-icon" />
+            </div>
+            <div class="stat-card stat-button">
+              <div class="stat-card-body">
+                <div class="stat-card-value">
+                  {{ buttonDefCount }}
+                </div>
+                <div class="stat-card-label">
+                  按钮权限
+                </div>
+              </div>
+              <ControlOutlined class="stat-card-icon" />
+            </div>
+            <div class="stat-card stat-api">
+              <div class="stat-card-body">
+                <div class="stat-card-value">
+                  {{ apiDefCount }}
+                </div>
+                <div class="stat-card-label">
+                  API权限
+                </div>
+              </div>
+              <ApiOutlined class="stat-card-icon" />
+            </div>
+          </div>
+
+          <a-skeleton
+            v-if="defLoading && permissionDefData.length === 0"
+            active
+            :paragraph="{ rows: 8 }"
+            style="padding: 24px;"
+          />
+
+          <BillTableList
+            ref="defTableRef"
+            :columns="defVxeColumns"
+            :data-source="permissionDefData"
+            :loading="defLoading"
+            :pagination="null as any"
+            row-key="id"
+            :min-empty-rows="12"
+            :filter-fields="defFilterFields"
+            :show-search="false"
+            :show-add="false"
+            :show-edit="false"
+            :show-delete="false"
+            :show-batch-delete="false"
+            :selectable="false"
+            @refresh="fetchDefData"
+            @filter-change="handleDefFilterChange"
+          >
+            <template #toolbar-actions>
+              <a-button
+                v-permission="'system:permission:create'"
+                type="primary"
+                @click="handleDefAdd(null)"
+              >
+                <template #icon>
+                  <PlusOutlined />
+                </template>
+                新增顶级权限
+              </a-button>
+              <a-button @click="handleDefExpandAll">
+                <template #icon>
+                  <ExpandOutlined />
+                </template>
+                展开/折叠
+              </a-button>
+            </template>
+
+            <template #empty>
+              <a-empty
+                v-if="!defHasError"
+                description="暂无数据"
+              />
+              <a-result
+                v-else
+                status="error"
+                title="数据加载失败"
+              >
+                <template #extra>
+                  <a-button
+                    type="primary"
+                    @click="fetchDefData"
+                  >
+                    <template #icon>
+                      <ReloadOutlined />
+                    </template>
+                    重新加载
+                  </a-button>
+                </template>
+              </a-result>
+            </template>
+
+            <template #permissionNameCell="{ record }">
+              <a-space>
+                <component
+                  :is="getIcon(record.icon)"
+                  v-if="record.icon"
+                />
+                <span>{{ record.permissionName }}</span>
+                <a-tag
+                  v-if="record.permissionType === 0"
+                  color="blue"
+                >
+                  目录
+                </a-tag>
+                <a-tag
+                  v-else-if="record.permissionType === 1"
+                  color="green"
+                >
+                  菜单
+                </a-tag>
+                <a-tag
+                  v-else-if="record.permissionType === 2"
+                  color="orange"
+                >
+                  按钮
+                </a-tag>
+                <a-tag
+                  v-else-if="record.permissionType === 3"
+                  color="purple"
+                >
+                  API
+                </a-tag>
+              </a-space>
+            </template>
+            <template #statusCell="{ record }">
+              <a-tag :color="record.status === 0 ? 'success' : 'error'">
+                {{ record.status === 0 ? '启用' : '停用' }}
+              </a-tag>
+            </template>
+            <template #visibleCell="{ record }">
+              <a-tag :color="record.visible === 1 ? 'success' : 'default'">
+                {{ record.visible === 1 ? '显示' : '隐藏' }}
+              </a-tag>
+            </template>
+
+            <template #action="{ record }">
+              <a-space>
+                <a-button
+                  v-permission="'system:permission:create'"
+                  type="link"
+                  size="small"
+                  @click="handleDefAdd(record)"
+                >
+                  新增子权限
+                </a-button>
+                <a-button
+                  v-permission="'system:permission:update'"
+                  type="link"
+                  size="small"
+                  @click="handleDefEdit(record)"
+                >
+                  编辑
+                </a-button>
+                <a-button
+                  v-permission="'system:permission:delete'"
+                  type="link"
+                  size="small"
+                  danger
+                  @click="handleDefDelete(record)"
+                >
+                  删除
+                </a-button>
+              </a-space>
+            </template>
+          </BillTableList>
+        </div>
+
+        <!-- 权限定义表单抽屉 -->
+        <a-drawer
+          v-model:open="defFormVisible"
+          :title="defIsEdit ? '编辑权限' : '新增权限'"
+          placement="right"
+          width="480px"
+          :footer-style="{ textAlign: 'right' }"
+          :closable="true"
+          @close="handleDefFormClose"
+        >
+          <a-form
+            ref="defFormRef"
+            :model="defFormState"
+            :rules="defFormRules"
+            layout="vertical"
+          >
+            <a-form-item
+              v-if="!defIsTopLevel"
+              label="父级权限"
+              name="parentId"
+            >
+              <a-tree-select
+                v-model:value="defFormState.parentId"
+                :tree-data="defParentTreeData"
+                placeholder="请选择父级权限"
+                :field-names="{ label: 'permissionName', value: 'id' }"
+                tree-default-expand-all
+              />
+            </a-form-item>
+            <a-form-item
+              label="权限名称"
+              name="permissionName"
+            >
+              <a-input
+                v-model:value="defFormState.permissionName"
+                placeholder="请输入权限名称"
+              />
+            </a-form-item>
+            <a-form-item
+              label="权限编码"
+              name="permissionCode"
+            >
+              <a-input
+                v-model:value="defFormState.permissionCode"
+                placeholder="如：system:user:list"
+              />
+            </a-form-item>
+            <a-form-item
+              label="权限类型"
+              name="permissionType"
+            >
+              <a-select
+                v-model:value="defFormState.permissionType"
+                placeholder="请选择权限类型"
+                size="small"
+              >
+                <a-select-option :value="0">
+                  目录
+                </a-select-option>
+                <a-select-option :value="1">
+                  菜单
+                </a-select-option>
+                <a-select-option :value="2">
+                  按钮
+                </a-select-option>
+                <a-select-option :value="3">
+                  API
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+            <a-form-item
+              v-if="defFormState.permissionType <= 1"
+              label="路由路径"
+              name="path"
+            >
+              <a-input
+                v-model:value="defFormState.path"
+                placeholder="/system/user"
+              />
+            </a-form-item>
+            <a-form-item
+              v-if="defFormState.permissionType <= 1"
+              label="组件路径"
+              name="component"
+            >
+              <a-input
+                v-model:value="defFormState.component"
+                placeholder="@/views/system/user/index"
+              />
+            </a-form-item>
+            <a-form-item
+              v-if="defFormState.permissionType === 3"
+              label="API路径"
+              name="apiPath"
+            >
+              <a-input
+                v-model:value="defFormState.apiPath"
+                placeholder="/api/user/list"
+              />
+            </a-form-item>
+            <a-form-item
+              v-if="defFormState.permissionType === 3"
+              label="请求方法"
+              name="method"
+            >
+              <a-select
+                v-model:value="defFormState.method"
+                placeholder="请选择请求方法"
+                size="small"
+              >
+                <a-select-option value="GET">
+                  GET
+                </a-select-option>
+                <a-select-option value="POST">
+                  POST
+                </a-select-option>
+                <a-select-option value="PUT">
+                  PUT
+                </a-select-option>
+                <a-select-option value="DELETE">
+                  DELETE
+                </a-select-option>
+                <a-select-option value="PATCH">
+                  PATCH
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+            <a-form-item
+              v-if="defFormState.permissionType <= 1"
+              label="图标"
+              name="icon"
+            >
+              <a-input
+                v-model:value="defFormState.icon"
+                placeholder="UserOutlined"
+              />
+            </a-form-item>
+            <a-form-item
+              v-if="defFormState.permissionType <= 1"
+              label="是否显示"
+              name="visible"
+            >
+              <a-radio-group v-model:value="defFormState.visible">
+                <a-radio :value="1">
+                  显示
+                </a-radio>
+                <a-radio :value="0">
+                  隐藏
+                </a-radio>
+              </a-radio-group>
+            </a-form-item>
+            <a-form-item
+              label="排序"
+              name="sort"
+            >
+              <a-input-number
+                v-model:value="defFormState.sort"
+                :min="0"
+                :max="9999"
+                style="width: 100%"
+              />
+            </a-form-item>
+            <a-form-item
+              label="状态"
+              name="status"
+            >
+              <a-radio-group v-model:value="defFormState.status">
+                <a-radio :value="0">
+                  启用
+                </a-radio>
+                <a-radio :value="1">
+                  停用
+                </a-radio>
+              </a-radio-group>
+            </a-form-item>
+          </a-form>
+          <template #footer>
+            <a-space>
+              <a-button @click="handleDefFormClose">
+                取消
+              </a-button>
+              <a-button
+                type="primary"
+                :loading="defFormLoading"
+                @click="handleDefFormOk"
+              >
+                保存
+              </a-button>
+            </a-space>
+          </template>
+        </a-drawer>
       </a-drawer>
-    </a-drawer>
-  </PageContainer>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

@@ -1,17 +1,34 @@
 <template>
-  <div class="bill-detail-table" :class="{ 'table-expanded': expanded }">
+  <div
+    class="bill-detail-table"
+    :class="{ 'table-expanded': expanded }"
+  >
     <!-- Loading 遮罩 -->
-    <div v-if="loading" class="table-loading-mask">
-      <span class="loading-spinner"></span>
+    <div
+      v-if="loading"
+      class="table-loading-mask"
+    >
+      <span class="loading-spinner" />
       <span>加载中...</span>
     </div>
     <!-- 表格容器 -->
-    <div class="spreadsheet-table" ref="tableContainerRef" :style="spreadsheetTableStyle">
+    <div
+      ref="tableContainerRef"
+      class="spreadsheet-table"
+      :style="spreadsheetTableStyle"
+    >
       <!-- 空数据提示（没有 minRows 时才显示） -->
-      <div v-if="!loading && dataSource.length === 0 && !minRows" class="table-empty-text">
+      <div
+        v-if="!loading && dataSource.length === 0 && !minRows"
+        class="table-empty-text"
+      >
         暂无数据
       </div>
-      <table v-else class="ss-grid" :style="gridTableStyle">
+      <table
+        v-else
+        class="ss-grid"
+        :style="gridTableStyle"
+      >
         <thead>
           <tr>
             <th
@@ -23,7 +40,11 @@
             >
               <!-- ═══ rowNo 列：内嵌齿轮设置图标 ═══ -->
               <template v-if="col.type === 'rowNo'">
-                <span class="th-settings-btn" @click.stop="showColPanel = true" title="配置">
+                <span
+                  class="th-settings-btn"
+                  title="配置"
+                  @click.stop="showColPanel = true"
+                >
                   <SettingOutlined />
                 </span>
               </template>
@@ -34,7 +55,7 @@
                   class="ss-checkbox ss-checkbox-header"
                   :checked="checkedRows.size === realDataCount && realDataCount > 0"
                   @change="(e) => checkAll((e.target as HTMLInputElement).checked)"
-                />
+                >
               </template>
               <!-- ═══ 商品名称列：内嵌扫描枪开关 ═══ -->
               <template v-else-if="col.showScanToggle">
@@ -42,17 +63,24 @@
                 <a-tooltip :title="scanEnabled ? '已开启扫描枪录入' : '扫描枪录入'">
                   <span class="th-scan-label">扫描枪录入</span>
                 </a-tooltip>
-                <a-switch v-model:checked="scanEnabled" size="small" class="th-scan-switch" />
+                <a-switch
+                  v-model:checked="scanEnabled"
+                  size="small"
+                  class="th-scan-switch"
+                />
                 <span
                   v-if="col.sortable"
                   class="th-sort-icon"
                   :class="getSortIconClass(col)"
-                  @click="toggleSort(col)"
                   :title="col.tooltip || '点击排序'"
+                  @click="toggleSort(col)"
                 >
                   <CaretUpOutlined v-if="sortState.key === col.key && sortState.order === 'asc'" />
                   <CaretDownOutlined v-else-if="sortState.key === col.key && sortState.order === 'desc'" />
-                  <span v-else class="sort-neutral"><CaretUpOutlined /><CaretDownOutlined /></span>
+                  <span
+                    v-else
+                    class="sort-neutral"
+                  ><CaretUpOutlined /><CaretDownOutlined /></span>
                 </span>
               </template>
               <!-- ═══ 普通列标题 ═══ -->
@@ -62,32 +90,41 @@
                   v-if="col.sortable"
                   class="th-sort-icon"
                   :class="getSortIconClass(col)"
-                  @click="toggleSort(col)"
                   :title="col.tooltip || '点击排序'"
+                  @click="toggleSort(col)"
                 >
                   <CaretUpOutlined v-if="sortState.key === col.key && sortState.order === 'asc'" />
                   <CaretDownOutlined v-else-if="sortState.key === col.key && sortState.order === 'desc'" />
-                  <span v-else class="sort-neutral"><CaretUpOutlined /><CaretDownOutlined /></span>
+                  <span
+                    v-else
+                    class="sort-neutral"
+                  ><CaretUpOutlined /><CaretDownOutlined /></span>
                 </span>
               </template>
             </th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(record, rowIndex) in displayRows" :key="record.id || rowIndex" class="ss-row" :class="{ 'ss-empty-row': record._isEmptyRow }">
+          <tr
+            v-for="(record, rowIndex) in displayRows"
+            :key="record.id || rowIndex"
+            class="ss-row"
+            :class="{ 'ss-empty-row': record._isEmptyRow }"
+          >
             <td
               v-for="col in visibleColumns"
               :key="col.key"
               :class="getCellClass(col)"
               :style="{ width: col.width ? col.width + 'px' : 'auto' }"
+              :data-col-key="col.key"
             >
               <!-- 填充列：空白 -->
               <template v-if="col.key === '__filler__'">
-                <span class="ss-empty-cell"></span>
+                <span class="ss-empty-cell" />
               </template>
               <!-- 空行（与填充列互斥） -->
               <template v-else-if="record._isEmptyRow">
-                <span class="ss-empty-cell"></span>
+                <span class="ss-empty-cell" />
               </template>
               <!-- 行号 -->
               <template v-else-if="col.type === 'rowNo'">
@@ -100,16 +137,24 @@
                   class="ss-checkbox"
                   :checked="isChecked(record, rowIndex)"
                   @change="(e) => handleCheckboxChange(record, rowIndex, (e.target as HTMLInputElement).checked)"
-                />
+                >
               </template>
               <!-- 操作列 -->
               <template v-else-if="col.type === 'action'">
-                <slot :name="col.slotName || 'actionCell'" :record="record" :index="rowIndex" :empty="false" />
+                <slot
+                  :name="col.slotName || 'actionCell'"
+                  :record="record"
+                  :index="rowIndex"
+                  :empty="false"
+                />
               </template>
               <!-- 按钮列 -->
               <template v-else-if="col.type === 'button'">
                 <div class="ss-button-cell">
-                  <template v-for="(btn, bi) in col.buttons" :key="bi">
+                  <template
+                    v-for="(btn, bi) in col.buttons"
+                    :key="bi"
+                  >
                     <a-button
                       :type="btn.type || 'link'"
                       :danger="btn.danger"
@@ -123,7 +168,16 @@
               </template>
               <!-- 自定义插槽列 -->
               <template v-else-if="col.type === 'slot'">
-                <slot :name="col.slotName || col.key + 'Cell'" :record="record" :index="rowIndex" :empty="false" />
+                <slot
+                  :name="col.slotName || col.key + 'Cell'"
+                  :record="record"
+                  :index="rowIndex"
+                  :empty="false"
+                />
+              </template>
+              <!-- boolean 类型：查看模式 -->
+              <template v-else-if="isViewMode && col.type === 'boolean'">
+                <span class="ss-cell-text ss-bool-display">{{ record[col.key] ? '✓' : '-' }}</span>
               </template>
               <!-- 查看模式 -->
               <template v-else-if="isViewMode">
@@ -137,9 +191,19 @@
                   :value="record[col.key] ?? ''"
                   class="ss-native-input ss-native-select"
                   @change="(e: Event) => updateCell(record, col.key, (e.target as HTMLSelectElement).value)"
+                  @keydown.enter.prevent="handleCellKeydown($event, record, col.key, rowIndex)"
                 >
-                  <option value="" disabled>{{ col.placeholder || '请选择' }}</option>
-                  <option v-for="opt in col.options" :key="opt.value" :value="opt.value">
+                  <option
+                    value=""
+                    disabled
+                  >
+                    {{ col.placeholder || '请选择' }}
+                  </option>
+                  <option
+                    v-for="opt in col.options"
+                    :key="opt.value"
+                    :value="opt.value"
+                  >
                     {{ opt.label }}
                   </option>
                 </select>
@@ -150,7 +214,8 @@
                   :value="record[col.key] || ''"
                   class="ss-native-input ss-native-date"
                   @change="(e: Event) => updateCell(record, col.key, (e.target as HTMLInputElement).value)"
-                />
+                  @keydown.enter.prevent="handleCellKeydown($event, record, col.key, rowIndex)"
+                >
                 <!-- number 类型 -->
                 <input
                   v-else-if="col.type === 'number'"
@@ -159,7 +224,8 @@
                   :step="getNumberStep(col)"
                   class="ss-native-input ss-native-number"
                   @input="(e: Event) => updateCell(record, col.key, parseNumber((e.target as HTMLInputElement).value, col))"
-                />
+                  @keydown.enter.prevent="handleCellKeydown($event, record, col.key, rowIndex)"
+                >
                 <!-- searchable input 类型（输入搜索 + 下拉） -->
                 <template v-else-if="col.searchable">
                   <SearchSelect
@@ -170,6 +236,15 @@
                     @open-select-modal="handleOpenSelectModal(record, rowIndex, col.key)"
                   />
                 </template>
+                <!-- boolean 类型：复选框 -->
+                <label v-else-if="col.type === 'boolean'" class="ss-bool-cell">
+                  <input
+                    type="checkbox"
+                    :checked="!!record[col.key]"
+                    class="ss-bool-checkbox"
+                    @change="(e: Event) => updateCell(record, col.key, (e.target as HTMLInputElement).checked)"
+                  >
+                </label>
                 <!-- input 类型（默认） -->
                 <input
                   v-else
@@ -178,7 +253,8 @@
                   :placeholder="col.placeholder || ''"
                   class="ss-native-input ss-native-text"
                   @input="(e: Event) => updateCell(record, col.key, (e.target as HTMLInputElement).value)"
-                />
+                  @keydown.enter.prevent="handleCellKeydown($event, record, col.key, rowIndex)"
+                >
               </template>
             </td>
           </tr>
@@ -193,7 +269,7 @@
               :style="{ width: col.width ? col.width + 'px' : 'auto' }"
             >
               <template v-if="col.key === '__filler__'">
-                <span></span>
+                <span />
               </template>
               <template v-else-if="col.type === 'rowNo'">
                 <span class="summary-total-label">合计</span>
@@ -208,63 +284,122 @@
 
       <!-- ═══ 底部展开/收起（在滚动容器内，sticky 到底部） ═══ -->
       <div class="detail-expand">
-        <a-button type="link" size="small" @click="toggleExpand">
+        <a-button
+          type="link"
+          size="small"
+          @click="toggleExpand"
+        >
           <FullscreenOutlined />
           {{ expanded ? '表格收起显示' : '表格展开显示' }}
         </a-button>
       </div>
     </div>
 
-    <!-- ═══ 列设置面板（Modal 形式） ═══ -->
+    <!-- ═══ 列设置面板（Modal 形式，含个人/全局标签页） ═══ -->
     <a-modal
       v-model:open="showColPanel"
       title="配置"
       :footer="null"
       :mask-closable="true"
       :closable="true"
-      width="600px"
+      width="680px"
       centered
     >
-      <div class="col-settings-panel-modal">
-        <div class="col-panel-body">
-          <div
-            v-for="(setting, si) in columnSettings"
-            :key="setting.key"
-            class="col-setting-row"
-            :class="{ 'col-setting-ghost': !setting.visible }"
-          >
-            <!-- 可见性复选框 -->
-            <a-checkbox v-model:checked="setting.visible" :disabled="isLockedColumn(setting.key)" @change="onColSettingChange" />
-            <!-- 列标题（可拖拽排序） -->
-            <span class="col-setting-title" draggable="true"
-              @dragstart="onDragStart(si)"
-              @dragover.prevent="onDragOver(si)"
-              @drop="onDrop(si)"
-            >
-              <span class="drag-handle">⠿</span>
-              {{ setting.title }}
-            </span>
-            <!-- 冻结选择 -->
-            <a-select v-model:value="setting.fixed" class="col-freeze-select" @change="onColSettingChange" size="small">
-              <a-select-option value="">不冻结</a-select-option>
-              <a-select-option value="left">冻结左侧</a-select-option>
-              <a-select-option value="right">冻结右侧</a-select-option>
-            </a-select>
-            <!-- 宽度调整 -->
-            <a-input-number
-              v-model:value="setting.width"
-              class="col-width-input"
-              :min="40"
-              :max="500"
-              @change="onColSettingChange"
-              size="small"
-            />
+      <a-tabs v-model:active-key="colConfigTab" class="col-config-tabs">
+        <!-- ── 个人配置 Tab ── -->
+        <a-tab-pane key="personal" tab="个人配置">
+          <div class="col-tab-tip">只对当前操作员有效，在全局配置内配置字段显示、排序</div>
+          <div class="col-settings-panel-modal">
+            <div class="col-panel-body">
+              <div
+                v-for="(setting, si) in columnSettings"
+                :key="setting.key"
+                class="col-setting-row"
+                :class="{ 'col-setting-ghost': !setting.visible }"
+              >
+                <span class="col-seq">{{ si + 1 }}</span>
+                <a-checkbox
+                  v-model:checked="setting.visible"
+                  :disabled="isLockedColumn(setting.key)"
+                  @change="onColSettingChange"
+                />
+                <span
+                  class="col-setting-title"
+                  draggable="true"
+                  @dragstart="onDragStart(si)"
+                  @dragover.prevent="onDragOver(si)"
+                  @drop="onDrop(si)"
+                >
+                  <span class="drag-handle">⠿</span>
+                  {{ setting.title }}
+                </span>
+                <span class="col-display-name">{{ setting.displayName || setting.title }}</span>
+                <a-input-number
+                  v-model:value="setting.width"
+                  class="col-width-input"
+                  :min="40"
+                  :max="500"
+                  size="small"
+                  @change="onColSettingChange"
+                />
+              </div>
+            </div>
+            <div class="col-panel-footer">
+              <a-button size="middle" @click="resetColumnSettings">恢复默认</a-button>
+            </div>
           </div>
-        </div>
-        <div class="col-panel-footer">
-          <a-button size="middle" @click="resetColumnSettings">恢复默认</a-button>
-        </div>
-      </div>
+        </a-tab-pane>
+
+        <!-- ── 全局配置 Tab ── -->
+        <a-tab-pane key="global" tab="全局配置">
+          <div class="col-tab-tip">系统级配置，无单据配置权限的操作员只能在已配置范围内进行操作</div>
+          <div class="col-settings-panel-modal">
+            <div class="col-panel-body">
+              <div
+                v-for="(setting, si) in globalSettings"
+                :key="setting.key"
+                class="col-setting-row"
+                :class="{ 'col-setting-ghost': !setting.visible }"
+              >
+                <span class="col-seq">{{ si + 1 }}</span>
+                <a-checkbox
+                  v-model:checked="setting.visible"
+                  :disabled="isLockedColumn(setting.key)"
+                  @change="onGlobalSettingChange"
+                />
+                <span
+                  class="col-setting-title"
+                  draggable="true"
+                  @dragstart="onDragStart(si)"
+                  @dragover.prevent="onDragOver(si)"
+                  @drop="onDrop(si)"
+                >
+                  <span class="drag-handle">⠿</span>
+                  {{ setting.title }}
+                </span>
+                <a-input
+                  v-model:value="setting.displayName"
+                  class="col-display-name-input"
+                  size="small"
+                  :placeholder="setting.title"
+                  @change="onGlobalSettingChange"
+                />
+                <a-input-number
+                  v-model:value="setting.width"
+                  class="col-width-input"
+                  :min="40"
+                  :max="500"
+                  size="small"
+                  @change="onGlobalSettingChange"
+                />
+              </div>
+            </div>
+            <div class="col-panel-footer">
+              <a-button size="middle" @click="resetColumnSettings">恢复默认</a-button>
+            </div>
+          </div>
+        </a-tab-pane>
+      </a-tabs>
     </a-modal>
 
 
@@ -284,7 +419,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, reactive, nextTick } from 'vue'
 import { SettingOutlined, FullscreenOutlined, CaretUpOutlined, CaretDownOutlined } from '@ant-design/icons-vue'
-import { Modal, Button, Checkbox, Select, InputNumber } from 'ant-design-vue'
+import { Modal, Button, Checkbox, Select, InputNumber, Input, Tabs } from 'ant-design-vue'
 import type { DetailColumnConfig, ColumnSetting } from './types'
 import SearchSelect from '@/components/SearchSelect/index.vue'
 import StandardPagination from '@/components/Pagination/Pagination.vue'
@@ -320,6 +455,10 @@ const props = withDefaults(defineProps<{
   total?: number
   /** 每页显示条数选项 */
   pageSizeOptions?: number[]
+  /** 回车跳转列（按回车跳转到下一行同列） */
+  enterJumpColumns?: string[]
+  /** 公式配置（{ 列key: 表达式 }，支持 {fieldName} 占位符） */
+  formulas?: Record<string, string>
 }>(), {
   viewMode: false,
   maxHeight: 0,
@@ -332,7 +471,9 @@ const props = withDefaults(defineProps<{
   current: 1,
   pageSize: 20,
   total: 0,
-  pageSizeOptions: () => [10, 20, 50, 100]
+  pageSizeOptions: () => [10, 20, 50, 100],
+  enterJumpColumns: () => [],
+  formulas: () => ({}),
 })
 
 const emit = defineEmits<{
@@ -412,7 +553,7 @@ const spreadsheetTableStyle = computed(() => {
 
 // ═══ 数据行（带空行填充和排序） ═══
 const displayRows = computed(() => {
-  let data = [...props.dataSource]
+  const data = [...props.dataSource]
 
   // 应用排序
   if (sortState.key && sortState.order) {
@@ -524,7 +665,8 @@ const defaultSettings = computed<ColumnSetting[]>(() =>
   props.columns.map(col => ({
     key: col.key,
     title: col.title,
-    visible: true, // 默认全部可见；rowNo/action 在面板中禁用手动隐藏
+    displayName: col.title,
+    visible: !col.defaultHidden,
     width: col.width || 100,
     fixed: col.fixed || '',
   }))
@@ -532,48 +674,77 @@ const defaultSettings = computed<ColumnSetting[]>(() =>
 
 const columnSettings = reactive<ColumnSetting[]>([...defaultSettings.value])
 
+// 列配置面板活动标签：个人配置 / 全局配置
+const colConfigTab = ref<'personal' | 'global'>('personal')
+
+// 全局配置（独立存储，显示名可编辑）
+const globalSettings = reactive<ColumnSetting[]>([...defaultSettings.value])
+
 // 从本地存储加载列配置
 const STORAGE_KEY = computed(() => props.storageKey || 'product-unit-columns-config')
-try {
-  const stored = localStorage.getItem(STORAGE_KEY.value)
-  if (stored) {
-    const parsed = JSON.parse(stored)
-    // 合并存储的配置与当前可用列
-    const mergedConfig = props.columns.map(col => {
-      const storedCol = parsed.find((sc: any) => sc.key === col.key)
-      return storedCol ? { ...col, ...storedCol } : { ...col, visible: true, fixed: col.fixed || '', width: col.width || 100 }
-    })
-    // 更新columnSettings
-    mergedConfig.forEach((col, index) => {
-      if (index < columnSettings.length) {
-        Object.assign(columnSettings[index], col)
-      } else {
-        columnSettings.push(col)
-      }
-    })
-    // 删除多余的配置
-    if (mergedConfig.length < columnSettings.length) {
-      columnSettings.splice(mergedConfig.length)
+const GLOBAL_STORAGE_KEY = computed(() => (props.storageKey || 'product-unit-columns-config') + '-global')
+
+function loadStoredSettings(storageKey: string, target: ColumnSetting[]) {
+  try {
+    const stored = localStorage.getItem(storageKey)
+    if (stored) {
+      const parsed = JSON.parse(stored)
+      const mergedConfig = props.columns.map(col => {
+        const storedCol = parsed.find((sc: any) => sc.key === col.key)
+        return storedCol
+          ? { key: col.key, title: col.title, displayName: storedCol.displayName || col.title, visible: storedCol.visible ?? !col.defaultHidden, width: storedCol.width || col.width || 100, fixed: storedCol.fixed || col.fixed || '' }
+          : { key: col.key, title: col.title, displayName: col.title, visible: !col.defaultHidden, width: col.width || 100, fixed: col.fixed || '' }
+      })
+      target.splice(0, target.length, ...mergedConfig)
     }
+  } catch (error) {
+    console.warn('加载列配置失败:', error)
   }
-} catch (error) {
-  console.warn('加载列配置失败:', error)
 }
+
+function saveStoredSettings(storageKey: string, settings: ColumnSetting[]) {
+  try {
+    localStorage.setItem(storageKey, JSON.stringify(settings))
+  } catch (error) {
+    console.warn('保存列配置失败:', error)
+  }
+}
+
+// 加载个人配置和全局配置
+loadStoredSettings(STORAGE_KEY.value, columnSettings)
+loadStoredSettings(GLOBAL_STORAGE_KEY.value, globalSettings)
 
 // 同步 columns 变化
 watch(() => props.columns, (newCols) => {
+  // 同步个人配置
   const existingMap = new Map(columnSettings.map(s => [s.key, s]))
   const newSettings = newCols.map(col => {
     const existing = existingMap.get(col.key)
     return {
       key: col.key,
       title: col.title,
-      visible: existing ? existing.visible : true, // 保留已有可见性，默认可见
+      displayName: existing?.displayName || col.title,
+      visible: existing ? existing.visible : !col.defaultHidden,
       width: existing ? existing.width : (col.width || 100),
       fixed: existing ? existing.fixed : (col.fixed || ''),
     }
   })
   columnSettings.splice(0, columnSettings.length, ...newSettings)
+
+  // 同步全局配置
+  const globalMap = new Map(globalSettings.map(s => [s.key, s]))
+  const newGlobalSettings = newCols.map(col => {
+    const existing = globalMap.get(col.key)
+    return {
+      key: col.key,
+      title: col.title,
+      displayName: existing?.displayName || col.title,
+      visible: existing ? existing.visible : !col.defaultHidden,
+      width: existing ? existing.width : (col.width || 100),
+      fixed: existing ? existing.fixed : (col.fixed || ''),
+    }
+  })
+  globalSettings.splice(0, globalSettings.length, ...newGlobalSettings)
 }, { deep: true })
 
 /** 可见列（过滤隐藏 + 按设置顺序 + 应用冻结 + 可选填充列） */
@@ -585,6 +756,8 @@ const visibleColumns = computed<DetailColumnConfig[]>(() => {
       const col = colMap.get(s.key)!
       return {
         ...col,
+        // 使用个人配置的 displayName（优先）或全局配置的 displayName
+        title: s.displayName || col.title,
         width: s.width,
         fixed: s.fixed as 'left' | 'right' | undefined,
       }
@@ -680,7 +853,64 @@ function parseNumber(val: string, col: DetailColumnConfig): number {
 // ══ 单元格更新 ═══
 function updateCell(record: any, fieldKey: string, value: any) {
   record[fieldKey] = value
+  // 公式计算：检查是否有公式引用了此字段
+  for (const [targetKey, formula] of Object.entries(props.formulas)) {
+    if (!formula) continue
+    const fieldRef = `{${fieldKey}}`
+    if (formula.includes(fieldRef)) {
+      const result = evaluateFormula(formula, record)
+      if (result !== null && result !== undefined) {
+        record[targetKey] = result
+      }
+    }
+  }
   emit('cellChange', record, fieldKey, value)
+}
+
+/** 简单表达式求值（支持数学运算和常用函数） */
+function evaluateFormula(formula: string, row: any): any {
+  try {
+    const expr = formula.replace(/\{(\w+)\}/g, (_, key) => {
+      const val = row[key]
+      return val === null || val === undefined || val === '' ? '0' : String(val)
+    })
+    // 安全求值：仅允许数字、运算符、括号和安全的数学函数
+    const safeFunctions = ['Math.round', 'Math.floor', 'Math.ceil', 'Math.abs', 'Math.max', 'Math.min', 'Math.pow', 'Math.sqrt']
+    let safeExpr = expr
+    safeFunctions.forEach(fn => {
+      const shortName = fn.split('.')[1]
+      safeExpr = safeExpr.replace(new RegExp(`\\b${shortName}\\b`, 'g'), fn)
+    })
+    if (/^[\d\s+\-*/.(),%<>=!&|?:a-zA-Z]+$/.test(safeExpr)) {
+      return new Function(`return (${safeExpr})`)()
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+/** 回车跳转处理 */
+function handleCellKeydown(e: KeyboardEvent, record: any, colKey: string, rowIndex: number) {
+  if (e.key === 'Enter' && props.enterJumpColumns.includes(colKey)) {
+    e.preventDefault()
+    const tableEl = tableContainerRef.value
+    if (!tableEl) return
+    const rows = tableEl.querySelectorAll('.ss-row')
+    // 从当前行之后开始查找下一个非空行
+    for (let i = rowIndex + 1; i < rows.length; i++) {
+      const nextRow = rows[i]
+      // 跳过空行
+      if (nextRow.classList.contains('ss-empty-row')) continue
+      const cell = nextRow.querySelector<HTMLElement>(`[data-col-key="${colKey}"]`)
+      if (cell) {
+        const input = cell.querySelector<HTMLElement>('input, select')
+        input?.focus()
+        input?.select?.()
+        break
+      }
+    }
+  }
 }
 
 // ═══ 打开选择弹窗 ═══
@@ -728,12 +958,23 @@ function isLockedColumn(key: string): boolean {
 
 // ═══ 列设置 ═══
 function onColSettingChange() {
-  // 触发响应式更新
   columnSettings.splice(0, 0) // force reactivity
+  saveStoredSettings(STORAGE_KEY.value, columnSettings)
+}
+
+function onGlobalSettingChange() {
+  globalSettings.splice(0, 0) // force reactivity
+  saveStoredSettings(GLOBAL_STORAGE_KEY.value, globalSettings)
 }
 
 function resetColumnSettings() {
-  columnSettings.splice(0, columnSettings.length, ...defaultSettings.value)
+  if (colConfigTab.value === 'personal') {
+    columnSettings.splice(0, columnSettings.length, ...defaultSettings.value)
+    saveStoredSettings(STORAGE_KEY.value, columnSettings)
+  } else {
+    globalSettings.splice(0, globalSettings.length, ...defaultSettings.value)
+    saveStoredSettings(GLOBAL_STORAGE_KEY.value, globalSettings)
+  }
 }
 
 // ═══ 拖拽排序 ═══
@@ -745,13 +986,20 @@ function onDragStart(index: number) {
 
 function onDragOver(index: number) {
   if (dragIndex === -1 || dragIndex === index) return
-  const item = columnSettings.splice(dragIndex, 1)[0]
-  columnSettings.splice(index, 0, item)
+  const target = colConfigTab.value === 'personal' ? columnSettings : globalSettings
+  const item = target.splice(dragIndex, 1)[0]
+  target.splice(index, 0, item)
   dragIndex = index
 }
 
 function onDrop(_index: number) {
   dragIndex = -1
+  // 保存拖拽后的顺序
+  if (colConfigTab.value === 'personal') {
+    saveStoredSettings(STORAGE_KEY.value, columnSettings)
+  } else {
+    saveStoredSettings(GLOBAL_STORAGE_KEY.value, globalSettings)
+  }
 }
 </script>
 
@@ -1095,6 +1343,27 @@ function onDrop(_index: number) {
   line-height: 28px;
 }
 
+/* boolean 类型：复选框单元格 */
+.ss-bool-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+.ss-bool-checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: #1890ff;
+}
+.ss-bool-display {
+  text-align: center;
+  font-weight: 600;
+  color: #52c41a;
+}
+
 /* ═══ 复选框样式 ═══ */
 .ss-checkbox {
   width: 14px;
@@ -1323,8 +1592,47 @@ function onDrop(_index: number) {
 
 /* 为Modal样式的列设置面板新增样式 */
 .col-settings-panel-modal {
-  max-height: 60vh;
+  max-height: 55vh;
   overflow-y: auto;
+}
+
+/* 列配置标签页样式 */
+.col-config-tabs :deep(.ant-tabs-nav) {
+  padding: 0 14px;
+  margin-bottom: 0;
+}
+.col-config-tabs :deep(.ant-tabs-content-holder) {
+  border: 1px solid #d9d9d9;
+  border-top: none;
+  border-radius: 0 0 4px 4px;
+}
+.col-tab-tip {
+  font-size: 12px;
+  color: #fa8c16;
+  padding: 8px 14px 4px;
+}
+.col-seq {
+  width: 24px;
+  text-align: center;
+  color: #8c8c8c;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+.col-display-name {
+  flex: 0 0 120px;
+  padding: 2px 6px;
+  font-size: 12px;
+  color: #595959;
+  background: #fafafa;
+  border-radius: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.col-display-name-input {
+  flex: 0 0 120px;
+  height: 24px;
+  font-size: 12px;
 }
 
 /* 分页器样式（继承自 ColumnConfigTable） */

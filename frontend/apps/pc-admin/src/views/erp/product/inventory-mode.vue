@@ -1,95 +1,156 @@
 <template>
-  <ErrorBoundary @error="handleError"><PageContainer full-height>
-    <template #header>
-      <div class="page-header">
-        <div class="page-header__left">
-          <span class="page-header__breadcrumb">系统设置 / 库存管理模式</span>
-          <h2 class="page-header__title">库存管理模式配置</h2>
-        </div>
-        <div class="page-header__right">
-          <a-space :size="12">
-            <span class="data-status">
-              <a-badge :status="loading ? 'processing' : 'success'" />
-              <span v-if="lastUpdateTime" class="update-time">数据更新: {{ lastUpdateTime }}</span>
-              <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-                <SyncOutlined /> {{ autoRefreshCountdown }}s
-              </span>
-            </span>
-            <a-button size="small" :loading="loading" @click="debounceClick('refresh', fetchMode)">
-              <ReloadOutlined /> 刷新
-            </a-button>
-          
-                <span class="shortcut-hints">
-                  <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+  <ErrorBoundary @error="handleError">
+    <PageContainer full-height>
+      <template #header>
+        <div class="page-header">
+          <div class="page-header__left">
+            <span class="page-header__breadcrumb">系统设置 / 库存管理模式</span>
+            <h2 class="page-header__title">
+              库存管理模式配置
+            </h2>
+          </div>
+          <div class="page-header__right">
+            <a-space :size="12">
+              <span class="data-status">
+                <a-badge :status="loading ? 'processing' : 'success'" />
+                <span
+                  v-if="lastUpdateTime"
+                  class="update-time"
+                >数据更新: {{ lastUpdateTime }}</span>
+                <span
+                  v-if="autoRefreshCountdown > 0"
+                  class="auto-refresh-badge"
+                >
+                  <SyncOutlined /> {{ autoRefreshCountdown }}s
                 </span>
-          </a-space>
+              </span>
+              <a-button
+                size="small"
+                :loading="loading"
+                @click="debounceClick('refresh', fetchMode)"
+              >
+                <ReloadOutlined /> 刷新
+              </a-button>
+          
+              <span class="shortcut-hints">
+                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+              </span>
+            </a-space>
+          </div>
         </div>
-      </div>
+      </template>
 
-        </template>
-
-    <a-row :gutter="24">
-      <a-col :span="16">
-        <!-- 当前模式 -->
-        <a-card title="当前配置" class="config-card">
-          <a-result v-if="!loading" :status="modeIcon" :title="`当前模式：${currentModeLabel}`">
-            <template #icon>
-              <component :is="modeIconComponent" :style="{ fontSize: '48px' }" />
-            </template>
-            <template #extra>
-              <a-space>
-                <a-select v-model:value="selectedMode" :options="modeOptions" style="width: 200px" size="small" />
-                <a-button v-permission="'erp:product:inventory-mode'" type="primary" size="small" :loading="saving" @click="handleSave">保存配置</a-button>
-              </a-space>
-            </template>
-            <p class="mode-description">{{ currentModeDescription }}</p>
-          </a-result>
-          <a-spin v-else />
-        </a-card>
-
-        <!-- 模式说明 -->
-        <a-card title="管理模式说明" class="config-card">
-          <a-table
-            :data-source="modeOptions"
-            :columns="modeColumns"
-            :pagination="false as any"
-            size="small"
-            row-key="value"
+      <a-row :gutter="24">
+        <a-col :span="16">
+          <!-- 当前模式 -->
+          <a-card
+            title="当前配置"
+            class="config-card"
           >
-            <template #bodyCell="{ column, record }">
-              <template v-if="column.key === 'icon'">
-                <CheckCircleOutlined v-if="record.value === selectedMode || record.value === currentMode" style="color: #52c41a;" />
-                <MinusOutlined v-else style="color: #d9d9d9;" />
+            <a-result
+              v-if="!loading"
+              :status="modeIcon"
+              :title="`当前模式：${currentModeLabel}`"
+            >
+              <template #icon>
+                <component
+                  :is="modeIconComponent"
+                  :style="{ fontSize: '48px' }"
+                />
               </template>
-            </template>
-          </a-table>
-        </a-card>
-      </a-col>
+              <template #extra>
+                <a-space>
+                  <a-select
+                    v-model:value="selectedMode"
+                    :options="modeOptions"
+                    style="width: 200px"
+                    size="small"
+                  />
+                  <a-button
+                    v-permission="'erp:product:inventory-mode'"
+                    type="primary"
+                    size="small"
+                    :loading="saving"
+                    @click="handleSave"
+                  >
+                    保存配置
+                  </a-button>
+                </a-space>
+              </template>
+              <p class="mode-description">
+                {{ currentModeDescription }}
+              </p>
+            </a-result>
+            <a-spin v-else />
+          </a-card>
 
-      <a-col :span="8">
-        <!-- 模式对产品/库存的影响 -->
-        <a-card title="模式影响范围" class="config-card">
-          <a-timeline>
-            <a-timeline-item color="blue">
-              <template #dot><AppstoreOutlined /></template>
-              <b>产品管理</b>
-              <p class="impact-detail">{{ productImpact }}</p>
-            </a-timeline-item>
-            <a-timeline-item color="green">
-              <template #dot><ContainerOutlined /></template>
-              <b>库存管理</b>
-              <p class="impact-detail">{{ stockImpact }}</p>
-            </a-timeline-item>
-            <a-timeline-item color="orange">
-              <template #dot><ShoppingCartOutlined /></template>
-              <b>采购/销售</b>
-              <p class="impact-detail">{{ orderImpact }}</p>
-            </a-timeline-item>
-          </a-timeline>
-        </a-card>
-      </a-col>
-    </a-row>
-  </PageContainer>
+          <!-- 模式说明 -->
+          <a-card
+            title="管理模式说明"
+            class="config-card"
+          >
+            <a-table
+              :data-source="modeOptions"
+              :columns="modeColumns"
+              :pagination="false as any"
+              size="small"
+              row-key="value"
+            >
+              <template #bodyCell="{ column, record }">
+                <template v-if="column.key === 'icon'">
+                  <CheckCircleOutlined
+                    v-if="record.value === selectedMode || record.value === currentMode"
+                    style="color: #52c41a;"
+                  />
+                  <MinusOutlined
+                    v-else
+                    style="color: #d9d9d9;"
+                  />
+                </template>
+              </template>
+            </a-table>
+          </a-card>
+        </a-col>
+
+        <a-col :span="8">
+          <!-- 模式对产品/库存的影响 -->
+          <a-card
+            title="模式影响范围"
+            class="config-card"
+          >
+            <a-timeline>
+              <a-timeline-item color="blue">
+                <template #dot>
+                  <AppstoreOutlined />
+                </template>
+                <b>产品管理</b>
+                <p class="impact-detail">
+                  {{ productImpact }}
+                </p>
+              </a-timeline-item>
+              <a-timeline-item color="green">
+                <template #dot>
+                  <ContainerOutlined />
+                </template>
+                <b>库存管理</b>
+                <p class="impact-detail">
+                  {{ stockImpact }}
+                </p>
+              </a-timeline-item>
+              <a-timeline-item color="orange">
+                <template #dot>
+                  <ShoppingCartOutlined />
+                </template>
+                <b>采购/销售</b>
+                <p class="impact-detail">
+                  {{ orderImpact }}
+                </p>
+              </a-timeline-item>
+            </a-timeline>
+          </a-card>
+        </a-col>
+      </a-row>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

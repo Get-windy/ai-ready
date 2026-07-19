@@ -1,196 +1,282 @@
 <template>
   <ErrorBoundary @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="config-page-header">
-        <div class="config-page-header-left">
-          <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item>系统配置</a-breadcrumb-item>
-          </a-breadcrumb>
-          <h2 class="config-page-header-title">系统配置</h2>
-        </div>
-        <div class="config-page-header-right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-            <SyncOutlined /> {{ autoRefreshCountdown }}s
-          </span>
-          <a-button size="small" :loading="refreshLoading" v-permission="'system:config:query'" @click="handleRefresh">
-            <template #icon><ReloadOutlined /></template>
-            刷新
-          </a-button>
-          <span class="shortcut-hints">
-            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-            <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
-          </span>
-        </div>
-      </div>
-    </template>
-
-    <div class="config-management">
-      <!-- 统计卡片 -->
-      <div class="stat-cards">
-        <div class="stat-card stat-total">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ pagination.total }}</div>
-            <div class="stat-card-label">配置总数</div>
+    <PageContainer full-height>
+      <template #header>
+        <div class="config-page-header">
+          <div class="config-page-header-left">
+            <a-breadcrumb>
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>系统配置</a-breadcrumb-item>
+            </a-breadcrumb>
+            <h2 class="config-page-header-title">
+              系统配置
+            </h2>
           </div>
-          <SettingOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-groups">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ groupCount }}</div>
-            <div class="stat-card-label">分组数量</div>
-          </div>
-          <FolderOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-sensitive">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ sensitiveCount }}</div>
-            <div class="stat-card-label">敏感配置</div>
-          </div>
-          <LockOutlined class="stat-card-icon" />
-        </div>
-      </div>
-
-      <a-skeleton v-if="loading && tableDataSource.length === 0" active :paragraph="{ rows: 8 }" style="padding: 20px;" />
-      <BillTableList v-else
-        ref="tableRef"
-        :columns="vxeColumns"
-        :data-source="tableDataSource"
-        :loading="loading"
-        :pagination="pagination"
-        :row-key="'id'"
-        :min-empty-rows="12"
-        :filter-fields="filterFields"
-        :show-search="false"
-        :selectable="true"
-        add-text="新增配置"
-        add-permission="system:config:create"
-        edit-permission="system:config:update"
-        delete-permission="system:config:delete"
-        @add="handleAdd"
-        @edit="handleEdit"
-        @delete="handleDeleteConfirm"
-        @batch-delete="handleBatchDelete"
-        @refresh="debounceClick('refresh', fetchData)"
-        @page-change="handlePageChange"
-        @filter-change="handleFilterChange"
-        @selection-change="(keys: any) => { (selectedRowKeys as any) = keys }"
-        @cell-dblclick="handleView"
-      >
-        <template #toolbar-actions>
-          <a-button @click="handleRefreshCache">
-            <template #icon><SyncOutlined /></template>
-            刷新缓存
-          </a-button>
-        </template>
-
-        <template #empty>
-          <div class="empty-state-wrapper">
-            <a-empty v-if="!hasError" description="暂无配置数据">
-              <template #image>
-                <SettingOutlined style="font-size: 48px; color: #d9d9d9;" />
-              </template>
-              <a-button type="primary" size="small" v-permission="'system:config:create'" @click="handleAdd">
-                <template #icon><PlusOutlined /></template>
-                新增第一个配置
-              </a-button>
-            </a-empty>
-            <a-result v-else status="error" title="数据加载失败">
-              <template #extra>
-                <a-button type="primary" @click="debounceClick('refresh', fetchData)()">
-                  <template #icon><ReloadOutlined /></template>
-                  重新加载
-                </a-button>
-              </template>
-            </a-result>
-          </div>
-        </template>
-
-        <template #configGroupCell="{ record }">
-          <a-tag color="blue">{{ record.configGroup }}</a-tag>
-        </template>
-        <template #configValueCell="{ record }">
-          <span
-            class="config-value"
-            :class="{ sensitive: isSensitiveKey(record.configKey) }"
-          >
-            {{ isSensitiveKey(record.configKey) ? '******' : record.configValue }}
-          </span>
-          <a-tooltip title="复制" v-if="!isSensitiveKey(record.configKey)">
-            <a-button
-              type="link"
-              size="small"
-              :style="{ padding: '0 4px' }"
-              @click="handleCopy(record.configValue)"
+          <div class="config-page-header-right">
+            <span
+              v-if="lastUpdateTime"
+              class="update-time"
+            >更新于 {{ lastUpdateTime }}</span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
             >
-              <CopyOutlined />
+              <SyncOutlined /> {{ autoRefreshCountdown }}s
+            </span>
+            <a-button
+              v-permission="'system:config:query'"
+              size="small"
+              :loading="refreshLoading"
+              @click="handleRefresh"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
+              刷新
             </a-button>
-          </a-tooltip>
-        </template>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+              <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+            </span>
+          </div>
+        </div>
+      </template>
 
-        <template #action="{ record }">
-          <a-space>
-            <a-button type="link" size="small" v-permission="'system:config:update'" @click="handleEdit(record)">
-              编辑
-            </a-button>
-            <a-button type="link" size="small" danger v-permission="'system:config:delete'" @click="handleDeleteConfirm(record)">
-              删除
-            </a-button>
-          </a-space>
-        </template>
-      </BillTableList>
+      <div class="config-management">
+        <!-- 统计卡片 -->
+        <div class="stat-cards">
+          <div class="stat-card stat-total">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ pagination.total }}
+              </div>
+              <div class="stat-card-label">
+                配置总数
+              </div>
+            </div>
+            <SettingOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-groups">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ groupCount }}
+              </div>
+              <div class="stat-card-label">
+                分组数量
+              </div>
+            </div>
+            <FolderOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-sensitive">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ sensitiveCount }}
+              </div>
+              <div class="stat-card-label">
+                敏感配置
+              </div>
+            </div>
+            <LockOutlined class="stat-card-icon" />
+          </div>
+        </div>
 
-      <!-- 配置表单弹窗 -->
-      <FullScreenDetail
-        :visible="modalVisible"
-        :title="modalTitle"
-        :save-loading="modalLoading"
-        :show-save-and-new="!isEdit"
-        :dirty="formDirty"
-        @save="handleModalOk"
-        @close="handleFormClose"
-        @save-and-new="handleFormSaveAndNew"
-      >
-        <a-form
-          ref="formRef"
-          :model="formState"
-          :rules="formRules"
-          :label-col="{ span: 6 }"
-          :wrapper-col="{ span: 16 }"
+        <a-skeleton
+          v-if="loading && tableDataSource.length === 0"
+          active
+          :paragraph="{ rows: 8 }"
+          style="padding: 20px;"
+        />
+        <BillTableList
+          v-else
+          ref="tableRef"
+          :columns="vxeColumns"
+          :data-source="tableDataSource"
+          :loading="loading"
+          :pagination="pagination"
+          :row-key="'id'"
+          :min-empty-rows="12"
+          :filter-fields="filterFields"
+          :show-search="false"
+          :selectable="true"
+          add-text="新增配置"
+          add-permission="system:config:create"
+          edit-permission="system:config:update"
+          delete-permission="system:config:delete"
+          @add="handleAdd"
+          @edit="handleEdit"
+          @delete="handleDeleteConfirm"
+          @batch-delete="handleBatchDelete"
+          @refresh="debounceClick('refresh', fetchData)"
+          @page-change="handlePageChange"
+          @filter-change="handleFilterChange"
+          @selection-change="(keys: any) => { (selectedRowKeys as any) = keys }"
+          @cell-dblclick="handleView"
         >
-          <a-form-item label="配置键" name="configKey">
-            <a-input
-              v-model:value="formState.configKey"
-              placeholder="请输入配置键，如 sys.upload.path"
-              :disabled="isEdit"
-            />
-          </a-form-item>
-          <a-form-item label="配置值" name="configValue">
-            <a-textarea
-              v-model:value="formState.configValue"
-              placeholder="请输入配置值"
-              :rows="4"
-            />
-          </a-form-item>
-          <a-form-item label="描述" name="description">
-            <a-textarea
-              v-model:value="formState.description"
-              placeholder="请输入配置描述"
-              :rows="2"
-            />
-          </a-form-item>
-          <a-form-item label="分组" name="configGroup">
-            <a-input
-              v-model:value="formState.configGroup"
-              placeholder="请输入分组名称，如 SYS/UPLOAD/EMAIL"
-            />
-          </a-form-item>
-        </a-form>
-      </FullScreenDetail>
-    </div>
-  </PageContainer>
+          <template #toolbar-actions>
+            <a-button @click="handleRefreshCache">
+              <template #icon>
+                <SyncOutlined />
+              </template>
+              刷新缓存
+            </a-button>
+          </template>
+
+          <template #empty>
+            <div class="empty-state-wrapper">
+              <a-empty
+                v-if="!hasError"
+                description="暂无配置数据"
+              >
+                <template #image>
+                  <SettingOutlined style="font-size: 48px; color: #d9d9d9;" />
+                </template>
+                <a-button
+                  v-permission="'system:config:create'"
+                  type="primary"
+                  size="small"
+                  @click="handleAdd"
+                >
+                  <template #icon>
+                    <PlusOutlined />
+                  </template>
+                  新增第一个配置
+                </a-button>
+              </a-empty>
+              <a-result
+                v-else
+                status="error"
+                title="数据加载失败"
+              >
+                <template #extra>
+                  <a-button
+                    type="primary"
+                    @click="debounceClick('refresh', fetchData)()"
+                  >
+                    <template #icon>
+                      <ReloadOutlined />
+                    </template>
+                    重新加载
+                  </a-button>
+                </template>
+              </a-result>
+            </div>
+          </template>
+
+          <template #configGroupCell="{ record }">
+            <a-tag color="blue">
+              {{ record.configGroup }}
+            </a-tag>
+          </template>
+          <template #configValueCell="{ record }">
+            <span
+              class="config-value"
+              :class="{ sensitive: isSensitiveKey(record.configKey) }"
+            >
+              {{ isSensitiveKey(record.configKey) ? '******' : record.configValue }}
+            </span>
+            <a-tooltip
+              v-if="!isSensitiveKey(record.configKey)"
+              title="复制"
+            >
+              <a-button
+                type="link"
+                size="small"
+                :style="{ padding: '0 4px' }"
+                @click="handleCopy(record.configValue)"
+              >
+                <CopyOutlined />
+              </a-button>
+            </a-tooltip>
+          </template>
+
+          <template #action="{ record }">
+            <a-space>
+              <a-button
+                v-permission="'system:config:update'"
+                type="link"
+                size="small"
+                @click="handleEdit(record)"
+              >
+                编辑
+              </a-button>
+              <a-button
+                v-permission="'system:config:delete'"
+                type="link"
+                size="small"
+                danger
+                @click="handleDeleteConfirm(record)"
+              >
+                删除
+              </a-button>
+            </a-space>
+          </template>
+        </BillTableList>
+
+        <!-- 配置表单弹窗 -->
+        <FullScreenDetail
+          :visible="modalVisible"
+          :title="modalTitle"
+          :save-loading="modalLoading"
+          :show-save-and-new="!isEdit"
+          :dirty="formDirty"
+          @save="handleModalOk"
+          @close="handleFormClose"
+          @save-and-new="handleFormSaveAndNew"
+        >
+          <a-form
+            ref="formRef"
+            :model="formState"
+            :rules="formRules"
+            :label-col="{ span: 6 }"
+            :wrapper-col="{ span: 16 }"
+          >
+            <a-form-item
+              label="配置键"
+              name="configKey"
+            >
+              <a-input
+                v-model:value="formState.configKey"
+                placeholder="请输入配置键，如 sys.upload.path"
+                :disabled="isEdit"
+              />
+            </a-form-item>
+            <a-form-item
+              label="配置值"
+              name="configValue"
+            >
+              <a-textarea
+                v-model:value="formState.configValue"
+                placeholder="请输入配置值"
+                :rows="4"
+              />
+            </a-form-item>
+            <a-form-item
+              label="描述"
+              name="description"
+            >
+              <a-textarea
+                v-model:value="formState.description"
+                placeholder="请输入配置描述"
+                :rows="2"
+              />
+            </a-form-item>
+            <a-form-item
+              label="分组"
+              name="configGroup"
+            >
+              <a-input
+                v-model:value="formState.configGroup"
+                placeholder="请输入分组名称，如 SYS/UPLOAD/EMAIL"
+              />
+            </a-form-item>
+          </a-form>
+        </FullScreenDetail>
+      </div>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

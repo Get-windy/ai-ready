@@ -1,135 +1,206 @@
 <template>
   <ErrorBoundary @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="reconciliation-page-header">
-        <div class="reconciliation-page-header-left">
-          <a-breadcrumb class="reconciliation-breadcrumb">
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item>财务管理</a-breadcrumb-item>
-            <a-breadcrumb-item>对账管理</a-breadcrumb-item>
-          </a-breadcrumb>
-          <h2 class="reconciliation-page-header-title">对账管理</h2>
+    <PageContainer full-height>
+      <template #header>
+        <div class="reconciliation-page-header">
+          <div class="reconciliation-page-header-left">
+            <a-breadcrumb class="reconciliation-breadcrumb">
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>财务管理</a-breadcrumb-item>
+              <a-breadcrumb-item>对账管理</a-breadcrumb-item>
+            </a-breadcrumb>
+            <h2 class="reconciliation-page-header-title">
+              对账管理
+            </h2>
+          </div>
+          <div class="reconciliation-page-header-right">
+            <span
+              v-if="lastUpdateTime"
+              class="update-time"
+            >更新于 {{ lastUpdateTime }}</span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            >
+              <SyncOutlined /> {{ autoRefreshCountdown }}s
+            </span>
+            <a-button
+              size="small"
+              :loading="refreshLoading"
+              @click="debounceClick('refresh', loadStats)"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
+              刷新
+            </a-button>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+              <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+            </span>
+            <a-button
+              type="primary"
+              size="small"
+              @click="handleAdd"
+            >
+              <template #icon>
+                <PlusOutlined />
+              </template>
+              新增对账
+            </a-button>
+          </div>
         </div>
-        <div class="reconciliation-page-header-right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-            <SyncOutlined /> {{ autoRefreshCountdown }}s
-          </span>
-          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', loadStats)">
-            <template #icon><ReloadOutlined /></template>
-            刷新
-          </a-button>
-          <span class="shortcut-hints">
-            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-            <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
-          </span>
-          <a-button type="primary" size="small" @click="handleAdd">
-            <template #icon><PlusOutlined /></template>
-            新增对账
-          </a-button>
+      </template>
+      <div class="reconciliation-page">
+        <!-- 统计卡片 -->
+        <div class="stat-cards">
+          <div class="stat-card stat-bank">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ stats.bankPending }}
+              </div>
+              <div class="stat-card-label">
+                待银行对账
+              </div>
+            </div>
+            <BankOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-customer">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ stats.customerPending }}
+              </div>
+              <div class="stat-card-label">
+                待客户对账
+              </div>
+            </div>
+            <UserOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-supplier">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ stats.supplierPending }}
+              </div>
+              <div class="stat-card-label">
+                待供应商对账
+              </div>
+            </div>
+            <TeamOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-difference">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ stats.differenceCount }}
+              </div>
+              <div class="stat-card-label">
+                差异待处理
+              </div>
+            </div>
+            <WarningOutlined class="stat-card-icon" />
+          </div>
         </div>
-      </div>
-    </template>
-    <div class="reconciliation-page">
-    <!-- 统计卡片 -->
-    <div class="stat-cards">
-      <div class="stat-card stat-bank">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ stats.bankPending }}</div>
-          <div class="stat-card-label">待银行对账</div>
-        </div>
-        <BankOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-customer">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ stats.customerPending }}</div>
-          <div class="stat-card-label">待客户对账</div>
-        </div>
-        <UserOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-supplier">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ stats.supplierPending }}</div>
-          <div class="stat-card-label">待供应商对账</div>
-        </div>
-        <TeamOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-difference">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ stats.differenceCount }}</div>
-          <div class="stat-card-label">差异待处理</div>
-        </div>
-        <WarningOutlined class="stat-card-icon" />
-      </div>
-    </div>
 
-    <a-card title="财务对账" :bordered="false">
-      <!-- Tab切换 -->
-      <a-tabs v-model:active-key="activeTab">
-        <a-tab-pane
-          key="bank"
-          tab="银行对账"
+        <a-card
+          title="财务对账"
+          :bordered="false"
         >
-          <BankReconciliation />
-        </a-tab-pane>
-        <a-tab-pane
-          key="customer"
-          tab="客户对账"
-        >
-          <CustomerReconciliation />
-        </a-tab-pane>
-        <a-tab-pane
-          key="supplier"
-          tab="供应商对账"
-        >
-          <SupplierReconciliation />
-        </a-tab-pane>
-        <a-tab-pane
-          key="difference"
-          tab="差异处理"
-        >
-          <DifferenceHandling />
-        </a-tab-pane>
-      </a-tabs>
-    </a-card>
+          <!-- Tab切换 -->
+          <a-tabs v-model:active-key="activeTab">
+            <a-tab-pane
+              key="bank"
+              tab="银行对账"
+            >
+              <BankReconciliation />
+            </a-tab-pane>
+            <a-tab-pane
+              key="customer"
+              tab="客户对账"
+            >
+              <CustomerReconciliation />
+            </a-tab-pane>
+            <a-tab-pane
+              key="supplier"
+              tab="供应商对账"
+            >
+              <SupplierReconciliation />
+            </a-tab-pane>
+            <a-tab-pane
+              key="difference"
+              tab="差异处理"
+            >
+              <DifferenceHandling />
+            </a-tab-pane>
+          </a-tabs>
+        </a-card>
 
-      <!-- 新增对账弹窗 -->
-      <FullScreenDetail
-        :visible="addVisible"
-        title="新增对账"
-        :dirty="addFormDirty"
-        :save-loading="addLoading"
-        @save="handleAddConfirm"
-        @close="handleAddCancel"
-      >
-        <a-form
-          ref="addFormRef"
-          :model="addForm"
-          :rules="addFormRules"
-          :label-col="{ span: 6 }"
-          :wrapper-col="{ span: 16 }"
+        <!-- 新增对账弹窗 -->
+        <FullScreenDetail
+          :visible="addVisible"
+          title="新增对账"
+          :dirty="addFormDirty"
+          :save-loading="addLoading"
+          @save="handleAddConfirm"
+          @close="handleAddCancel"
         >
-          <a-form-item label="对账类型" name="type">
-            <a-radio-group v-model:value="addForm.type">
-              <a-radio value="bank">银行对账</a-radio>
-              <a-radio value="customer">客户对账</a-radio>
-              <a-radio value="supplier">供应商对账</a-radio>
-            </a-radio-group>
-          </a-form-item>
-          <a-form-item label="对方名称" name="partyName">
-            <a-input v-model:value="addForm.partyName" placeholder="请输入银行/客户/供应商名称" />
-          </a-form-item>
-          <a-form-item label="对账期间" name="period">
-            <a-input v-model:value="addForm.period" placeholder="例如: 2026-06" />
-          </a-form-item>
-          <a-form-item label="备注" name="remark">
-            <a-textarea v-model:value="addForm.remark" :rows="3" placeholder="备注信息" />
-          </a-form-item>
-        </a-form>
-      </FullScreenDetail>
-    </div>
-  </PageContainer>
+          <a-form
+            ref="addFormRef"
+            :model="addForm"
+            :rules="addFormRules"
+            :label-col="{ span: 6 }"
+            :wrapper-col="{ span: 16 }"
+          >
+            <a-form-item
+              label="对账类型"
+              name="type"
+            >
+              <a-radio-group v-model:value="addForm.type">
+                <a-radio value="bank">
+                  银行对账
+                </a-radio>
+                <a-radio value="customer">
+                  客户对账
+                </a-radio>
+                <a-radio value="supplier">
+                  供应商对账
+                </a-radio>
+              </a-radio-group>
+            </a-form-item>
+            <a-form-item
+              label="对方名称"
+              name="partyName"
+            >
+              <a-input
+                v-model:value="addForm.partyName"
+                placeholder="请输入银行/客户/供应商名称"
+              />
+            </a-form-item>
+            <a-form-item
+              label="对账期间"
+              name="period"
+            >
+              <a-input
+                v-model:value="addForm.period"
+                placeholder="例如: 2026-06"
+              />
+            </a-form-item>
+            <a-form-item
+              label="备注"
+              name="remark"
+            >
+              <a-textarea
+                v-model:value="addForm.remark"
+                :rows="3"
+                placeholder="备注信息"
+              />
+            </a-form-item>
+          </a-form>
+        </FullScreenDetail>
+      </div>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

@@ -238,4 +238,8 @@ public class Product {
 
     @TableField(exist = false)
     private String gradeName;
+
+    /** 等级价格映射：key=等级编码(GRADE_1等)，value=价格 */
+    @TableField(exist = false)
+    private java.util.Map<String, java.math.BigDecimal> gradePriceMap;
 }

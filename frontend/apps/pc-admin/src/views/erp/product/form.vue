@@ -1,444 +1,891 @@
 <template>
   <ErrorBoundary @error="handleError">
-  <div class="product-create-fullscreen">
-    <!-- 固定顶栏 -->
-    <div class="create-header">
-      <div class="create-header__left">
-        <a-button type="text" @click="goBack">
-          <LeftOutlined /> 返回
-        </a-button>
-        <span class="create-title">{{ isEdit ? '编辑商品' : '新增商品' }}</span>
-        <span v-if="isEdit && productId" class="create-code">({{ form.productCode }})</span>
-      </div>
-      <div class="create-header__right">
-        <a-space>
-          <span class="shortcut-hints">
-            <span class="shortcut-hint"><kbd>Ctrl+S</kbd> 保存</span>
-          </span>
-          <a-button @click="goBack">取消</a-button>
-          <a-button type="primary" :loading="saving" @click="handleSave">
-            <SaveOutlined /> 保存
+    <div class="product-create-fullscreen">
+      <!-- 固定顶栏 -->
+      <div class="create-header">
+        <div class="create-header__left">
+          <a-button
+            type="text"
+            @click="goBack"
+          >
+            <LeftOutlined /> 返回
           </a-button>
-          <a-dropdown v-if="!isEdit">
-            <a-button type="primary" ghost :loading="saving">
-              <SaveOutlined /> 保存并新增
-              <DownOutlined />
+          <span class="create-title">{{ isEdit ? '编辑商品' : '新增商品' }}</span>
+          <span
+            v-if="isEdit && productId"
+            class="create-code"
+          >({{ form.productCode }})</span>
+        </div>
+        <div class="create-header__right">
+          <a-space>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>Ctrl+S</kbd> 保存</span>
+            </span>
+            <a-button @click="goBack">
+              取消
             </a-button>
-            <template #overlay>
-              <a-menu @click="handleSaveMenu">
-                <a-menu-item key="save">保存</a-menu-item>
-                <a-menu-item key="save_and_new">保存并新增</a-menu-item>
-              </a-menu>
-            </template>
-          </a-dropdown>
-        </a-space>
-      </div>
-    </div>
-
-    <!-- 可滚动内容区 -->
-    <div class="create-body">
-      <a-spin :spinning="loading">
-        <!-- 左侧竖向Tab导航 -->
-        <a-tabs v-model:activeKey="activeTab" tab-position="left" :tabBarStyle="{ width: '140px' }" class="create-tabs-left">
-          <!-- ==================== TAB 1: 基本信息 ==================== -->
-          <a-tab-pane key="basic" tab="基本信息">
-            <div class="tab-content">
-              <!-- 快速新增（仅新增模式显示） -->
-              <a-card v-if="!isEdit" class="create-card" size="small" :bordered="false">
-                <a-row :gutter="12" align="middle">
-                  <a-col><span class="field-label" style="white-space:nowrap;">快速新增</span></a-col>
-                  <a-col flex="auto">
-                    <a-input-search
-                      v-model:value="quickSearch"
-                      placeholder="输入产品编码/名称快速检索"
-                      enter-button="查询"
-                      size="small"
-                      @search="handleQuickSearch"
-                    />
-                  </a-col>
-                </a-row>
-              </a-card>
-
-              <!-- 商品特性 -->
-              <a-card title="商品特性（勾选即启用）" class="create-card" size="small" :bordered="false">
-                <a-checkbox :checked="form.isBatchExpiryManaged === 1" @change="(e: any) => form.isBatchExpiryManaged = e.target.checked ? 1 : 0">
-                  保质期/批次号
-                </a-checkbox>
-              </a-card>
-
-              <!-- 商品类型认定 -->
-              <a-card title="商品类型认定（标品表示小单位数量不允许有小数，且单位换算关系也不能出现小数，非标品则允许）" class="create-card" size="small" :bordered="false">
-                <a-radio-group v-model:value="form.isStandardProduct" :default-value="1">
-                  <a-radio :value="1">标品</a-radio>
-                  <a-radio :value="0">非标品</a-radio>
-                </a-radio-group>
-              </a-card>
-
-              <!-- 基础信息 -->
-              <a-card title="基础信息" class="create-card" size="small" :bordered="false">
-                <template #extra>
-                  <a-space>
-                    <a-checkbox :checked="form.useCoupon === 1" @change="(e: any) => form.useCoupon = e.target.checked ? 1 : 0">
-                      使用优惠券
-                    </a-checkbox>
-                    <a-button type="link" size="small" @click="showFieldConfig">商品字段及规则配置</a-button>
-                  </a-space>
-                </template>
-                <a-row :gutter="24">
-                  <a-col :span="8">
-                    <a-form-item label="商品名称" required>
-                      <a-input v-model:value="form.productName" placeholder="请输入商品名称" size="small" />
-                    </a-form-item>
-                  </a-col>
-                  <a-col :span="8">
-                    <a-form-item label="货号" required>
-                      <a-input v-model:value="form.productCodeAlias" placeholder="如: sp001" size="small" />
-                    </a-form-item>
-                  </a-col>
-                  <a-col :span="8">
-                    <a-form-item label="所属分类" required>
-                      <a-tree-select
-                        v-model:value="form.categoryId"
-                        :tree-data="categoryTree"
-                        :field-names="{ children: 'children', label: 'categoryName', value: 'id' }"
-                        placeholder="请选择分类"
-                        allow-clear
-                        size="small"
-                        style="width: 100%"
-                        :show-search="true"
-                        :filterTreeNode="(inputValue: string, node: any) => node.categoryName?.toLowerCase().includes(inputValue.toLowerCase())"
-                      />
-                    </a-form-item>
-                  </a-col>
-                  <a-col :span="8">
-                    <a-form-item label="保质期天数">
-                      <a-input-number v-model:value="form.shelfLifeDays" :min="0" style="width:100%" size="small" :disabled="form.isBatchExpiryManaged !== 1" />
-                      <span class="form-tip">天</span>
-                    </a-form-item>
-                  </a-col>
-                  <a-col :span="8">
-                    <a-form-item label="近效期天数">
-                      <a-input-number v-model:value="form.nearExpiryDays" :min="0" style="width:100%" size="small" :disabled="form.isBatchExpiryManaged !== 1" />
-                    </a-form-item>
-                  </a-col>
-                  <a-col :span="8">
-                    <a-form-item label="规格">
-                      <a-input v-model:value="form.spec" placeholder="如: 27寸 4K" size="small" />
-                    </a-form-item>
-                  </a-col>
-                  <a-col :span="8">
-                    <a-form-item label="型号">
-                      <a-input v-model:value="form.model" placeholder="如: XYZ-100" size="small" />
-                    </a-form-item>
-                  </a-col>
-                  <a-col :span="8">
-                    <a-form-item label="所属行业类别" required>
-                      <a-select v-model:value="form.industryCategory" placeholder="请选择行业类别" size="small" default-value="其他">
-                        <a-select-option value="餐饮">餐饮</a-select-option>
-                        <a-select-option value="食品">食品</a-select-option>
-                        <a-select-option value="日化">日化</a-select-option>
-                        <a-select-option value="电子">电子</a-select-option>
-                        <a-select-option value="服装">服装</a-select-option>
-                        <a-select-option value="其他">其他</a-select-option>
-                      </a-select>
-                    </a-form-item>
-                  </a-col>
-                  <a-col :span="8">
-                    <a-form-item label="产地">
-                      <a-input v-model:value="form.origin" placeholder="产地" size="small" />
-                    </a-form-item>
-                  </a-col>
-                  <a-col :span="8">
-                    <a-form-item label="品牌">
-                      <a-input v-model:value="form.brand" placeholder="请输入品牌" size="small" />
-                    </a-form-item>
-                  </a-col>
-                  <a-col :span="24">
-                    <a-form-item label="备注">
-                      <a-textarea v-model:value="form.remark" :rows="2" size="small" />
-                    </a-form-item>
-                  </a-col>
-                </a-row>
-              </a-card>
-
-              <!-- 商品单位 -->
-              <a-card title="商品单位" class="create-card" size="small" :bordered="false">
-                <template #extra>
-                  <a-space>
-                    <a-button type="primary" size="small" @click="showUnitGroupDialog">
-                      <ApartmentOutlined /> 选择单位组
-                    </a-button>
-                    <a-button type="link" size="small" @click="openGradeManage">
-                      <CrownOutlined /> 管理价格等级
-                    </a-button>
-                    <a-button size="small" @click="batchCalcPrice">
-                      <CalculatorOutlined /> 批量价格计算
-                    </a-button>
-                  </a-space>
-                </template>
-                <BillDetailTable
-                  :columns="unitColumns"
-                  :data-source="unitList"
-                  :min-rows="3"
-                  storage-key="product-unit-col-config"
-                  @cell-change="onUnitCellChange"
-                >
-                  <template #isBaseUnitCell="{ record }">
-                    <a-tag v-if="record.isBaseUnit" color="blue">基本单位</a-tag>
-                    <span v-else style="color:#999">换算单位</span>
-                  </template>
-                  <template #actionCell="{ record, index }">
-                    <a-button type="link" size="small" danger @click="removeUnitRow(index)" title="删除此行">
-                      <CloseOutlined />
-                    </a-button>
-                  </template>
-                </BillDetailTable>
-                <div class="unit-actions">
-                  <a-button size="small" type="dashed" @click="addSingleUnitRow">
-                    <PlusOutlined /> 新增行
-                  </a-button>
-                </div>
-
-                <a-divider style="margin: 12px 0;" />
-                <a-row :gutter="16">
-                  <a-col :span="8">
-                    <a-form-item label="销售常用单位" required>
-                      <a-select v-model:value="form.defaultSalesUnitId" placeholder="请选择" size="small" allow-clear>
-                        <a-select-option v-for="u in unitList" :key="u.id" :value="u.id" :disabled="!u.unitName">{{ u.unitName || '未命名' }}</a-select-option>
-                      </a-select>
-                    </a-form-item>
-                  </a-col>
-                  <a-col :span="8">
-                    <a-form-item label="采购常用单位" required>
-                      <a-select v-model:value="form.defaultPurchaseUnitId" placeholder="请选择" size="small" allow-clear>
-                        <a-select-option v-for="u in unitList" :key="u.id" :value="u.id" :disabled="!u.unitName">{{ u.unitName || '未命名' }}</a-select-option>
-                      </a-select>
-                    </a-form-item>
-                  </a-col>
-                  <a-col :span="8">
-                    <a-form-item label="库存单位" required>
-                      <a-select v-model:value="form.defaultStockUnitId" placeholder="请选择" size="small" allow-clear>
-                        <a-select-option v-for="u in unitList" :key="u.id" :value="u.id" :disabled="!u.unitName">{{ u.unitName || '未命名' }}</a-select-option>
-                      </a-select>
-                    </a-form-item>
-                  </a-col>
-                </a-row>
-              </a-card>
-
-              <!-- ═══ 选择单位组弹窗 ═══ -->
-              <a-modal
-                v-model:open="unitGroupModalVisible"
-                title="选择单位组"
-                width="480px"
-                @ok="applyUnitGroup"
+            <a-button
+              type="primary"
+              :loading="saving"
+              @click="handleSave"
+            >
+              <SaveOutlined /> 保存
+            </a-button>
+            <a-dropdown v-if="!isEdit">
+              <a-button
+                type="primary"
+                ghost
+                :loading="saving"
               >
-                <p style="color:#888;font-size:13px;margin-bottom:12px;">从单位字典中选择要添加的单位，已存在的单位不会重复添加。</p>
-                <a-checkbox-group v-model:value="selectedUnitDictIds" style="display:flex;flex-direction:column;gap:8px;">
-                  <a-checkbox
-                    v-for="dict in unitDictList"
-                    :key="dict.id"
-                    :value="dict.id"
+                <SaveOutlined /> 保存并新增
+                <DownOutlined />
+              </a-button>
+              <template #overlay>
+                <a-menu @click="handleSaveMenu">
+                  <a-menu-item key="save">
+                    保存
+                  </a-menu-item>
+                  <a-menu-item key="save_and_new">
+                    保存并新增
+                  </a-menu-item>
+                </a-menu>
+              </template>
+            </a-dropdown>
+          </a-space>
+        </div>
+      </div>
+
+      <!-- 可滚动内容区 -->
+      <div class="create-body">
+        <a-spin :spinning="loading">
+          <!-- 左侧竖向Tab导航 -->
+          <a-tabs
+            v-model:active-key="activeTab"
+            tab-position="left"
+            :tab-bar-style="{ width: '140px' }"
+            class="create-tabs-left"
+          >
+            <!-- ==================== TAB 1: 基本信息 ==================== -->
+            <a-tab-pane
+              key="basic"
+              tab="基本信息"
+            >
+              <div class="tab-content">
+                <!-- 快速新增（仅新增模式显示） -->
+                <a-card
+                  v-if="!isEdit"
+                  class="create-card"
+                  size="small"
+                  :bordered="false"
+                >
+                  <a-row
+                    :gutter="12"
+                    align="middle"
                   >
-                    {{ dict.unitName }}
-                    <span v-if="dict.conversionRate && dict.conversionRate !== 1" style="color:#999;font-size:12px;">(换算率: {{ dict.conversionRate }})</span>
+                    <a-col>
+                      <span
+                        class="field-label"
+                        style="white-space:nowrap;"
+                      >快速新增</span>
+                    </a-col>
+                    <a-col flex="auto">
+                      <a-input-search
+                        v-model:value="quickSearch"
+                        placeholder="输入产品编码/名称快速检索"
+                        enter-button="查询"
+                        size="small"
+                        @search="handleQuickSearch"
+                      />
+                    </a-col>
+                  </a-row>
+                </a-card>
+
+                <!-- 商品特性 -->
+                <a-card
+                  title="商品特性（勾选即启用）"
+                  class="create-card"
+                  size="small"
+                  :bordered="false"
+                >
+                  <a-checkbox
+                    :checked="form.isBatchExpiryManaged === 1"
+                    @change="(e: any) => form.isBatchExpiryManaged = e.target.checked ? 1 : 0"
+                  >
+                    保质期/批次号
                   </a-checkbox>
-                </a-checkbox-group>
-                <a-empty v-if="unitDictList.length === 0" description="单位字典暂无数据，请先在辅助资料中添加单位" />
-              </a-modal>
-            </div>
-          </a-tab-pane>
+                </a-card>
 
-          <!-- ==================== TAB 2: 商品图片 ==================== -->
-          <a-tab-pane key="images" tab="商品图片">
-            <div class="tab-content">
-              <!-- 商品图片（顺序上传） -->
-              <a-card title="商品图片" class="create-card" size="small" :bordered="false">
-                <template #extra>
-                  <span class="image-hint">说明：首图为主图，建议尺寸720×720，最多支持5张，大小不超过10M</span>
-                </template>
-                <div class="image-upload-area">
-                  <div v-for="(img, idx) in imageFileList" :key="img.url || idx" class="image-upload-item">
-                    <div class="image-upload-preview">
-                      <img :src="img.url" :alt="img.name" />
-                      <div class="image-upload-mask">
-                        <a-button size="small" danger @click="handleImageRemove(img)">删除</a-button>
-                      </div>
-                    </div>
-                    <div v-if="idx === 0" class="image-upload-main-tag">主图</div>
-                  </div>
-                  <div v-if="imageFileList.length < 5" class="image-upload-trigger" @click="triggerImageUpload">
-                    <UploadOutlined />
-                    <div class="trigger-text">点击上传图片</div>
-                  </div>
-                </div>
-                <input ref="imageInputRef" type="file" accept="image/*" style="display:none" @change="onImageFileSelected" />
-              </a-card>
+                <!-- 商品类型认定 -->
+                <a-card
+                  title="商品类型认定（标品表示小单位数量不允许有小数，且单位换算关系也不能出现小数，非标品则允许）"
+                  class="create-card"
+                  size="small"
+                  :bordered="false"
+                >
+                  <a-radio-group
+                    v-model:value="form.isStandardProduct"
+                    :default-value="1"
+                  >
+                    <a-radio :value="1">
+                      标品
+                    </a-radio>
+                    <a-radio :value="0">
+                      非标品
+                    </a-radio>
+                  </a-radio-group>
+                </a-card>
 
-              <!-- 主图视频 -->
-              <a-card title="主图视频" class="create-card" size="small" :bordered="false">
-                <template #extra>
-                  <span class="image-hint">说明：1. 格式：建议上传MP4格式，20M以内；2. 时长：建议一分钟以内的短视频；3. 内容：突出商品1-2个核心卖点。</span>
-                </template>
-                <div class="video-upload-area">
-                  <div v-if="form.videoUrl" class="video-upload-preview">
-                    <video :src="form.videoUrl" controls style="max-width: 320px; max-height: 240px;" />
-                  </div>
-                  <div v-else class="video-upload-trigger">
-                    <div class="video-icon-placeholder">
-                      <VideoCameraOutlined />
-                    </div>
-                  </div>
-                  <div class="video-upload-actions">
-                    <a-button size="small" @click="triggerVideoUpload">
-                      <UploadOutlined /> 上传
-                    </a-button>
-                    <a-button v-if="form.videoUrl" size="small" danger @click="handleVideoRemove">
-                      删除
-                    </a-button>
-                  </div>
-                </div>
-                <input ref="videoInputRef" type="file" accept="video/mp4" style="display:none" @change="onVideoFileSelected" />
-              </a-card>
-            </div>
-          </a-tab-pane>
-
-          <!-- ==================== TAB 3: 商城信息 ==================== -->
-          <a-tab-pane key="mall" tab="商城信息">
-            <div class="tab-content">
-              <!-- 商品上架 -->
-              <a-card title="商品上架" class="create-card" size="small" :bordered="false">
-                <a-checkbox v-model:checked="isMallShelf" @change="(e: any) => handleShelfChange(e.target.checked)">
-                  立即上架
-                </a-checkbox>
-              </a-card>
-
-              <!-- 商城信息 -->
-              <a-card title="商城信息" class="create-card" size="small" :bordered="false">
-                <a-row :gutter="24">
-                  <a-col :span="12">
-                    <a-form-item label="商城显示标题">
-                      <a-input v-model:value="form.mallDisplayTitle" placeholder="默认使用商品名称，可自定义" size="small" />
-                    </a-form-item>
-                  </a-col>
-                  <a-col :span="12">
-                    <a-form-item label="商品描述">
-                      <a-input v-model:value="form.mallDescription" placeholder="简短的商品描述" size="small" />
-                    </a-form-item>
-                  </a-col>
-                </a-row>
-              </a-card>
-
-              <!-- 商品标签 -->
-              <a-card title="商品标签" class="create-card" size="small" :bordered="false">
-                <template #extra>
-                  <span class="image-hint">商城首页标签商品显示位置与此处标签设置位置顺序相同</span>
-                </template>
-                <div class="tag-manage-area">
-                  <div class="tag-list">
-                    <div v-for="tag in tagOptions" :key="tag.id || tag.tagName" class="tag-item">
-                      <a-checkbox :checked="selectedTags.includes(tag.tagName)" @change="(e: any) => handleTagChange(tag.tagName, e.target.checked)">
-                        {{ tag.tagName }}
+                <!-- 基础信息 -->
+                <a-card
+                  title="基础信息"
+                  class="create-card"
+                  size="small"
+                  :bordered="false"
+                >
+                  <template #extra>
+                    <a-space>
+                      <a-checkbox
+                        :checked="form.useCoupon === 1"
+                        @change="(e: any) => form.useCoupon = e.target.checked ? 1 : 0"
+                      >
+                        使用优惠券
                       </a-checkbox>
-                      <a-button type="text" size="small" danger class="tag-delete-btn" @click="handleDeleteTag(tag)">
+                      <a-button
+                        type="link"
+                        size="small"
+                        @click="showFieldConfig"
+                      >
+                        商品字段及规则配置
+                      </a-button>
+                    </a-space>
+                  </template>
+                  <a-row :gutter="24">
+                    <a-col :span="8">
+                      <a-form-item
+                        label="商品名称"
+                        required
+                      >
+                        <a-input
+                          v-model:value="form.productName"
+                          placeholder="请输入商品名称"
+                          size="small"
+                        />
+                      </a-form-item>
+                    </a-col>
+                    <a-col :span="8">
+                      <a-form-item
+                        label="货号"
+                        required
+                      >
+                        <a-input
+                          v-model:value="form.productCodeAlias"
+                          placeholder="如: sp001"
+                          size="small"
+                        />
+                      </a-form-item>
+                    </a-col>
+                    <a-col :span="8">
+                      <a-form-item
+                        label="所属分类"
+                        required
+                      >
+                        <a-tree-select
+                          v-model:value="form.categoryId"
+                          :tree-data="categoryTree"
+                          :field-names="{ children: 'children', label: 'categoryName', value: 'id' }"
+                          placeholder="请选择分类"
+                          allow-clear
+                          size="small"
+                          style="width: 100%"
+                          :show-search="true"
+                          :filter-tree-node="(inputValue: string, node: any) => node.categoryName?.toLowerCase().includes(inputValue.toLowerCase())"
+                        />
+                      </a-form-item>
+                    </a-col>
+                    <a-col :span="8">
+                      <a-form-item label="保质期天数">
+                        <a-input-number
+                          v-model:value="form.shelfLifeDays"
+                          :min="0"
+                          style="width:100%"
+                          size="small"
+                          :disabled="form.isBatchExpiryManaged !== 1"
+                        />
+                        <span class="form-tip">天</span>
+                      </a-form-item>
+                    </a-col>
+                    <a-col :span="8">
+                      <a-form-item label="近效期天数">
+                        <a-input-number
+                          v-model:value="form.nearExpiryDays"
+                          :min="0"
+                          style="width:100%"
+                          size="small"
+                          :disabled="form.isBatchExpiryManaged !== 1"
+                        />
+                      </a-form-item>
+                    </a-col>
+                    <a-col :span="8">
+                      <a-form-item label="规格">
+                        <a-input
+                          v-model:value="form.spec"
+                          placeholder="如: 27寸 4K"
+                          size="small"
+                        />
+                      </a-form-item>
+                    </a-col>
+                    <a-col :span="8">
+                      <a-form-item label="型号">
+                        <a-input
+                          v-model:value="form.model"
+                          placeholder="如: XYZ-100"
+                          size="small"
+                        />
+                      </a-form-item>
+                    </a-col>
+                    <a-col :span="8">
+                      <a-form-item
+                        label="所属行业类别"
+                        required
+                      >
+                        <a-select
+                          v-model:value="form.industryCategory"
+                          placeholder="请选择行业类别"
+                          size="small"
+                          default-value="其他"
+                        >
+                          <a-select-option value="餐饮">
+                            餐饮
+                          </a-select-option>
+                          <a-select-option value="食品">
+                            食品
+                          </a-select-option>
+                          <a-select-option value="日化">
+                            日化
+                          </a-select-option>
+                          <a-select-option value="电子">
+                            电子
+                          </a-select-option>
+                          <a-select-option value="服装">
+                            服装
+                          </a-select-option>
+                          <a-select-option value="其他">
+                            其他
+                          </a-select-option>
+                        </a-select>
+                      </a-form-item>
+                    </a-col>
+                    <a-col :span="8">
+                      <a-form-item label="产地">
+                        <a-input
+                          v-model:value="form.origin"
+                          placeholder="产地"
+                          size="small"
+                        />
+                      </a-form-item>
+                    </a-col>
+                    <a-col :span="8">
+                      <a-form-item label="品牌">
+                        <a-input
+                          v-model:value="form.brand"
+                          placeholder="请输入品牌"
+                          size="small"
+                        />
+                      </a-form-item>
+                    </a-col>
+                    <a-col :span="24">
+                      <a-form-item label="备注">
+                        <a-textarea
+                          v-model:value="form.remark"
+                          :rows="2"
+                          size="small"
+                        />
+                      </a-form-item>
+                    </a-col>
+                  </a-row>
+                </a-card>
+
+                <!-- 商品单位 -->
+                <a-card
+                  title="商品单位"
+                  class="create-card"
+                  size="small"
+                  :bordered="false"
+                >
+                  <template #extra>
+                    <a-space>
+                      <a-button
+                        type="primary"
+                        size="small"
+                        @click="showUnitGroupDialog"
+                      >
+                        <ApartmentOutlined /> 选择单位组
+                      </a-button>
+                      <a-button
+                        type="link"
+                        size="small"
+                        @click="openGradeManage"
+                      >
+                        <CrownOutlined /> 管理价格等级
+                      </a-button>
+                      <a-button
+                        size="small"
+                        @click="batchCalcPrice"
+                      >
+                        <CalculatorOutlined /> 批量价格计算
+                      </a-button>
+                    </a-space>
+                  </template>
+                  <BillDetailTable
+                    :columns="unitColumns"
+                    :data-source="unitList"
+                    :min-rows="3"
+                    storage-key="product-unit-col-config"
+                    @cell-change="onUnitCellChange"
+                  >
+                    <template #isBaseUnitCell="{ record }">
+                      <a-tag
+                        v-if="record.isBaseUnit"
+                        color="blue"
+                      >
+                        基本单位
+                      </a-tag>
+                      <span
+                        v-else
+                        style="color:#999"
+                      >换算单位</span>
+                    </template>
+                    <template #actionCell="{ record, index }">
+                      <a-button
+                        type="link"
+                        size="small"
+                        danger
+                        title="删除此行"
+                        @click="removeUnitRow(index)"
+                      >
                         <CloseOutlined />
                       </a-button>
+                    </template>
+                  </BillDetailTable>
+                  <div class="unit-actions">
+                    <a-button
+                      size="small"
+                      type="dashed"
+                      @click="addSingleUnitRow"
+                    >
+                      <PlusOutlined /> 新增行
+                    </a-button>
+                  </div>
+
+                  <a-divider style="margin: 12px 0;" />
+                  <a-row :gutter="16">
+                    <a-col :span="8">
+                      <a-form-item
+                        label="销售常用单位"
+                        required
+                      >
+                        <a-select
+                          v-model:value="form.defaultSalesUnitId"
+                          placeholder="请选择"
+                          size="small"
+                          allow-clear
+                        >
+                          <a-select-option
+                            v-for="u in unitList"
+                            :key="u.id"
+                            :value="u.id"
+                            :disabled="!u.unitName"
+                          >
+                            {{ u.unitName || '未命名' }}
+                          </a-select-option>
+                        </a-select>
+                      </a-form-item>
+                    </a-col>
+                    <a-col :span="8">
+                      <a-form-item
+                        label="采购常用单位"
+                        required
+                      >
+                        <a-select
+                          v-model:value="form.defaultPurchaseUnitId"
+                          placeholder="请选择"
+                          size="small"
+                          allow-clear
+                        >
+                          <a-select-option
+                            v-for="u in unitList"
+                            :key="u.id"
+                            :value="u.id"
+                            :disabled="!u.unitName"
+                          >
+                            {{ u.unitName || '未命名' }}
+                          </a-select-option>
+                        </a-select>
+                      </a-form-item>
+                    </a-col>
+                    <a-col :span="8">
+                      <a-form-item
+                        label="库存单位"
+                        required
+                      >
+                        <a-select
+                          v-model:value="form.defaultStockUnitId"
+                          placeholder="请选择"
+                          size="small"
+                          allow-clear
+                        >
+                          <a-select-option
+                            v-for="u in unitList"
+                            :key="u.id"
+                            :value="u.id"
+                            :disabled="!u.unitName"
+                          >
+                            {{ u.unitName || '未命名' }}
+                          </a-select-option>
+                        </a-select>
+                      </a-form-item>
+                    </a-col>
+                  </a-row>
+                </a-card>
+
+                <!-- ═══ 选择单位组弹窗 ═══ -->
+                <a-modal
+                  v-model:open="unitGroupModalVisible"
+                  title="选择单位组"
+                  width="480px"
+                  @ok="applyUnitGroup"
+                >
+                  <p style="color:#888;font-size:13px;margin-bottom:12px;">
+                    从单位字典中选择要添加的单位，已存在的单位不会重复添加。
+                  </p>
+                  <a-checkbox-group
+                    v-model:value="selectedUnitDictIds"
+                    style="display:flex;flex-direction:column;gap:8px;"
+                  >
+                    <a-checkbox
+                      v-for="dict in unitDictList"
+                      :key="dict.id"
+                      :value="dict.id"
+                    >
+                      {{ dict.unitName }}
+                      <span
+                        v-if="dict.conversionRate && dict.conversionRate !== 1"
+                        style="color:#999;font-size:12px;"
+                      >(换算率: {{ dict.conversionRate }})</span>
+                    </a-checkbox>
+                  </a-checkbox-group>
+                  <a-empty
+                    v-if="unitDictList.length === 0"
+                    description="单位字典暂无数据，请先在辅助资料中添加单位"
+                  />
+                </a-modal>
+              </div>
+            </a-tab-pane>
+
+            <!-- ==================== TAB 2: 商品图片 ==================== -->
+            <a-tab-pane
+              key="images"
+              tab="商品图片"
+            >
+              <div class="tab-content">
+                <!-- 商品图片（顺序上传） -->
+                <a-card
+                  title="商品图片"
+                  class="create-card"
+                  size="small"
+                  :bordered="false"
+                >
+                  <template #extra>
+                    <span class="image-hint">说明：首图为主图，建议尺寸720×720，最多支持5张，大小不超过10M</span>
+                  </template>
+                  <div class="image-upload-area">
+                    <div
+                      v-for="(img, idx) in imageFileList"
+                      :key="img.url || idx"
+                      class="image-upload-item"
+                    >
+                      <div class="image-upload-preview">
+                        <img
+                          :src="img.url"
+                          :alt="img.name"
+                        >
+                        <div class="image-upload-mask">
+                          <a-button
+                            size="small"
+                            danger
+                            @click="handleImageRemove(img)"
+                          >
+                            删除
+                          </a-button>
+                        </div>
+                      </div>
+                      <div
+                        v-if="idx === 0"
+                        class="image-upload-main-tag"
+                      >
+                        主图
+                      </div>
                     </div>
-                    <!-- 新增标签 -->
-                    <div class="tag-add-row">
-                      <a-input
-                        v-model:value="newTagName"
-                        placeholder="输入新标签名称"
-                        size="small"
-                        style="width: 160px"
-                        @pressEnter="handleAddTag"
+                    <div
+                      v-if="imageFileList.length < 5"
+                      class="image-upload-trigger"
+                      @click="triggerImageUpload"
+                    >
+                      <UploadOutlined />
+                      <div class="trigger-text">
+                        点击上传图片
+                      </div>
+                    </div>
+                  </div>
+                  <input
+                    ref="imageInputRef"
+                    type="file"
+                    accept="image/*"
+                    style="display:none"
+                    @change="onImageFileSelected"
+                  >
+                </a-card>
+
+                <!-- 主图视频 -->
+                <a-card
+                  title="主图视频"
+                  class="create-card"
+                  size="small"
+                  :bordered="false"
+                >
+                  <template #extra>
+                    <span class="image-hint">说明：1. 格式：建议上传MP4格式，20M以内；2. 时长：建议一分钟以内的短视频；3. 内容：突出商品1-2个核心卖点。</span>
+                  </template>
+                  <div class="video-upload-area">
+                    <div
+                      v-if="form.videoUrl"
+                      class="video-upload-preview"
+                    >
+                      <video
+                        :src="form.videoUrl"
+                        controls
+                        style="max-width: 320px; max-height: 240px;"
                       />
-                      <a-button size="small" type="primary" @click="handleAddTag" :disabled="!newTagName.trim()">
-                        <PlusOutlined /> 添加
+                    </div>
+                    <div
+                      v-else
+                      class="video-upload-trigger"
+                    >
+                      <div class="video-icon-placeholder">
+                        <VideoCameraOutlined />
+                      </div>
+                    </div>
+                    <div class="video-upload-actions">
+                      <a-button
+                        size="small"
+                        @click="triggerVideoUpload"
+                      >
+                        <UploadOutlined /> 上传
+                      </a-button>
+                      <a-button
+                        v-if="form.videoUrl"
+                        size="small"
+                        danger
+                        @click="handleVideoRemove"
+                      >
+                        删除
                       </a-button>
                     </div>
                   </div>
-                </div>
-              </a-card>
+                  <input
+                    ref="videoInputRef"
+                    type="file"
+                    accept="video/mp4"
+                    style="display:none"
+                    @change="onVideoFileSelected"
+                  >
+                </a-card>
+              </div>
+            </a-tab-pane>
 
-              <!-- 其他设置 -->
-              <a-card title="其他" class="create-card" size="small" :bordered="false">
-                <a-row :gutter="24">
-                  <a-col :span="8">
-                    <a-form-item label="排序值">
-                      <a-input-number v-model:value="form.mallSortOrder" :min="0" style="width:100%" size="small" />
-                    </a-form-item>
-                  </a-col>
-                  <a-col :span="8">
-                    <a-form-item label="起订量">
-                      <a-input-number v-model:value="form.mallMinOrderQty" :min="0" style="width:100%" size="small" />
-                    </a-form-item>
-                  </a-col>
-                  <a-col :span="8">
-                    <a-form-item label="限购量">
-                      <a-input-number v-model:value="form.mallPurchaseLimit" :min="0" style="width:100%" size="small" />
-                      <span class="form-tip">0表示不限购</span>
-                    </a-form-item>
-                  </a-col>
-                </a-row>
-              </a-card>
+            <!-- ==================== TAB 3: 商城信息 ==================== -->
+            <a-tab-pane
+              key="mall"
+              tab="商城信息"
+            >
+              <div class="tab-content">
+                <!-- 商品上架 -->
+                <a-card
+                  title="商品上架"
+                  class="create-card"
+                  size="small"
+                  :bordered="false"
+                >
+                  <a-checkbox
+                    v-model:checked="isMallShelf"
+                    @change="(e: any) => handleShelfChange(e.target.checked)"
+                  >
+                    立即上架
+                  </a-checkbox>
+                </a-card>
 
-              <!-- 商品详情页图文编辑 -->
-              <a-card title="商品详情页图文编辑" class="create-card" size="small" :bordered="false">
-                <div class="rich-editor">
-                  <a-textarea v-model:value="form.richTextDetail" :rows="10" placeholder="请输入商品详情HTML内容" />
-                </div>
-              </a-card>
+                <!-- 商城信息 -->
+                <a-card
+                  title="商城信息"
+                  class="create-card"
+                  size="small"
+                  :bordered="false"
+                >
+                  <a-row :gutter="24">
+                    <a-col :span="12">
+                      <a-form-item label="商城显示标题">
+                        <a-input
+                          v-model:value="form.mallDisplayTitle"
+                          placeholder="默认使用商品名称，可自定义"
+                          size="small"
+                        />
+                      </a-form-item>
+                    </a-col>
+                    <a-col :span="12">
+                      <a-form-item label="商品描述">
+                        <a-input
+                          v-model:value="form.mallDescription"
+                          placeholder="简短的商品描述"
+                          size="small"
+                        />
+                      </a-form-item>
+                    </a-col>
+                  </a-row>
+                </a-card>
 
-              <!-- 推荐商品 -->
-              <a-card title="推荐商品" class="create-card" size="small" :bordered="false">
-                <template #extra>
-                  <span class="image-hint">温馨提示：1.关联商品最多添加12条 2.已经添加的关联商品将在商品详情页面的【相关推荐】模块做显示</span>
-                </template>
-                <vxe-table :data="recommendList" border size="small" max-height="350" align="center">
-                  <vxe-column type="seq" title="#" width="50" />
-                  <vxe-column title="操作" width="70">
-                    <template #default="{ row }">
-                      <a-button type="link" size="small" @click="openRecommendSelect(row)" title="选择商品">
-                        <PlusCircleOutlined />
-                      </a-button>
-                      <a-button type="link" size="small" danger @click="removeRecommend(row)" title="删除">
-                        <CloseCircleOutlined />
-                      </a-button>
-                    </template>
-                  </vxe-column>
-                  <vxe-column field="recommendProductName" title="商品名称" min-width="140" />
-                  <vxe-column field="recommendProductCode" title="货号" width="100" />
-                  <vxe-column field="recommendProductSpec" title="型号" width="100" />
-                  <vxe-column field="recommendProductSpec" title="规格" width="100" />
-                  <vxe-column field="recommendProductUnit" title="商品单位" width="80" />
-                  <vxe-column field="recommendProductOrigin" title="产地" width="100" />
-                  <vxe-column field="recommendProductBrand" title="品牌" width="100" />
-                  <vxe-column title="排序值" width="80">
-                    <template #default="{ row }">
-                      <a-input-number v-model:value="row.sortOrder" :min="1" size="small" style="width: 60px" />
-                    </template>
-                  </vxe-column>
-                </vxe-table>
-              </a-card>
-            </div>
-          </a-tab-pane>
-        </a-tabs>
-      </a-spin>
+                <!-- 商品标签 -->
+                <a-card
+                  title="商品标签"
+                  class="create-card"
+                  size="small"
+                  :bordered="false"
+                >
+                  <template #extra>
+                    <span class="image-hint">商城首页标签商品显示位置与此处标签设置位置顺序相同</span>
+                  </template>
+                  <div class="tag-manage-area">
+                    <div class="tag-list">
+                      <div
+                        v-for="tag in tagOptions"
+                        :key="tag.id || tag.tagName"
+                        class="tag-item"
+                      >
+                        <a-checkbox
+                          :checked="selectedTags.includes(tag.tagName)"
+                          @change="(e: any) => handleTagChange(tag.tagName, e.target.checked)"
+                        >
+                          {{ tag.tagName }}
+                        </a-checkbox>
+                        <a-button
+                          type="text"
+                          size="small"
+                          danger
+                          class="tag-delete-btn"
+                          @click="handleDeleteTag(tag)"
+                        >
+                          <CloseOutlined />
+                        </a-button>
+                      </div>
+                      <!-- 新增标签 -->
+                      <div class="tag-add-row">
+                        <a-input
+                          v-model:value="newTagName"
+                          placeholder="输入新标签名称"
+                          size="small"
+                          style="width: 160px"
+                          @press-enter="handleAddTag"
+                        />
+                        <a-button
+                          size="small"
+                          type="primary"
+                          :disabled="!newTagName.trim()"
+                          @click="handleAddTag"
+                        >
+                          <PlusOutlined /> 添加
+                        </a-button>
+                      </div>
+                    </div>
+                  </div>
+                </a-card>
+
+                <!-- 其他设置 -->
+                <a-card
+                  title="其他"
+                  class="create-card"
+                  size="small"
+                  :bordered="false"
+                >
+                  <a-row :gutter="24">
+                    <a-col :span="8">
+                      <a-form-item label="排序值">
+                        <a-input-number
+                          v-model:value="form.mallSortOrder"
+                          :min="0"
+                          style="width:100%"
+                          size="small"
+                        />
+                      </a-form-item>
+                    </a-col>
+                    <a-col :span="8">
+                      <a-form-item label="起订量">
+                        <a-input-number
+                          v-model:value="form.mallMinOrderQty"
+                          :min="0"
+                          style="width:100%"
+                          size="small"
+                        />
+                      </a-form-item>
+                    </a-col>
+                    <a-col :span="8">
+                      <a-form-item label="限购量">
+                        <a-input-number
+                          v-model:value="form.mallPurchaseLimit"
+                          :min="0"
+                          style="width:100%"
+                          size="small"
+                        />
+                        <span class="form-tip">0表示不限购</span>
+                      </a-form-item>
+                    </a-col>
+                  </a-row>
+                </a-card>
+
+                <!-- 商品详情页图文编辑 -->
+                <a-card
+                  title="商品详情页图文编辑"
+                  class="create-card"
+                  size="small"
+                  :bordered="false"
+                >
+                  <div class="rich-editor">
+                    <a-textarea
+                      v-model:value="form.richTextDetail"
+                      :rows="10"
+                      placeholder="请输入商品详情HTML内容"
+                    />
+                  </div>
+                </a-card>
+
+                <!-- 推荐商品 -->
+                <a-card
+                  title="推荐商品"
+                  class="create-card"
+                  size="small"
+                  :bordered="false"
+                >
+                  <template #extra>
+                    <span class="image-hint">温馨提示：1.关联商品最多添加12条 2.已经添加的关联商品将在商品详情页面的【相关推荐】模块做显示</span>
+                  </template>
+                  <vxe-table
+                    :data="recommendList"
+                    border
+                    size="small"
+                    max-height="350"
+                    align="center"
+                  >
+                    <vxe-column
+                      type="seq"
+                      title="#"
+                      width="50"
+                    />
+                    <vxe-column
+                      title="操作"
+                      width="70"
+                    >
+                      <template #default="{ row }">
+                        <a-button
+                          type="link"
+                          size="small"
+                          title="选择商品"
+                          @click="openRecommendSelect(row)"
+                        >
+                          <PlusCircleOutlined />
+                        </a-button>
+                        <a-button
+                          type="link"
+                          size="small"
+                          danger
+                          title="删除"
+                          @click="removeRecommend(row)"
+                        >
+                          <CloseCircleOutlined />
+                        </a-button>
+                      </template>
+                    </vxe-column>
+                    <vxe-column
+                      field="recommendProductName"
+                      title="商品名称"
+                      min-width="140"
+                    />
+                    <vxe-column
+                      field="recommendProductCode"
+                      title="货号"
+                      width="100"
+                    />
+                    <vxe-column
+                      field="recommendProductSpec"
+                      title="型号"
+                      width="100"
+                    />
+                    <vxe-column
+                      field="recommendProductSpec"
+                      title="规格"
+                      width="100"
+                    />
+                    <vxe-column
+                      field="recommendProductUnit"
+                      title="商品单位"
+                      width="80"
+                    />
+                    <vxe-column
+                      field="recommendProductOrigin"
+                      title="产地"
+                      width="100"
+                    />
+                    <vxe-column
+                      field="recommendProductBrand"
+                      title="品牌"
+                      width="100"
+                    />
+                    <vxe-column
+                      title="排序值"
+                      width="80"
+                    >
+                      <template #default="{ row }">
+                        <a-input-number
+                          v-model:value="row.sortOrder"
+                          :min="1"
+                          size="small"
+                          style="width: 60px"
+                        />
+                      </template>
+                    </vxe-column>
+                  </vxe-table>
+                </a-card>
+              </div>
+            </a-tab-pane>
+          </a-tabs>
+        </a-spin>
+      </div>
+
+      <!-- 推荐商品选择弹窗 -->
+      <a-modal
+        v-model:open="recommendModalVisible"
+        title="选择推荐商品"
+        width="700px"
+        @ok="confirmRecommend"
+      >
+        <a-table
+          :data-source="productOptions"
+          :columns="recommendProductColumns"
+          row-key="id"
+          :row-selection="{ type: 'radio', selectedRowKeys: recommendSelectedKeys, onChange: onRecommendSelectChange }"
+          :pagination="{ pageSize: 5 }"
+          size="small"
+          :scroll="{ y: 300 }"
+        />
+      </a-modal>
     </div>
-
-    <!-- 推荐商品选择弹窗 -->
-    <a-modal v-model:open="recommendModalVisible" title="选择推荐商品" width="700px" @ok="confirmRecommend">
-      <a-table
-        :data-source="productOptions"
-        :columns="recommendProductColumns"
-        row-key="id"
-        :row-selection="{ type: 'radio', selectedRowKeys: recommendSelectedKeys, onChange: onRecommendSelectChange }"
-        :pagination="{ pageSize: 5 }"
-        size="small"
-        :scroll="{ y: 300 }"
-      />
-    </a-modal>
-  </div>
   </ErrorBoundary>
 </template>
 

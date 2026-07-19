@@ -127,6 +127,9 @@ export interface Product {
   mallPurchaseLimit?: number
   richTextDetail?: string
   videoUrl?: string
+
+  /** 等级价格映射：key=等级编码(GRADE_1等)，value=价格 */
+  gradePriceMap?: Record<string, number>
 }
 
 export const productApi = {
@@ -138,6 +141,8 @@ export const productApi = {
     createTimeEnd?: string
     useCoupon?: number
     isStandardProduct?: number
+    productType?: string
+    mallShelfStatus?: number
   }): Promise<PageResult<Product>> {
     return request.get('/erp/product/page', params)
   },
@@ -159,13 +164,29 @@ export const productApi = {
   delete(id: number): Promise<boolean> {
     return request.delete(`/erp/product/${id}`)
   },
-  /** 批量更新产品价格 */
+  /** 批量更新商品价格 */
   batchUpdatePrices(items: { id: number; costPrice?: number; standardPrice?: number; wholesalePrice?: number }[]): Promise<boolean> {
     return request.put('/erp/product/batch-prices', { items })
+  },
+  /** 批量更新商品状态 */
+  batchUpdateStatus(ids: number[], status: string): Promise<boolean> {
+    return request.put('/erp/product/batch-status', { ids, status })
+  },
+  /** 批量删除商品 */
+  batchDelete(ids: number[]): Promise<boolean> {
+    return request.put('/erp/product/batch-delete', { ids })
   },
   /** 产品审批 */
   approval(id: number, action: string): Promise<boolean> {
     return request.put(`/erp/product/${id}/approval`, { action })
+  },
+  /** 获取行业类别选项 */
+  getIndustryCategories(): Promise<string[]> {
+    return request.get('/erp/product/industry-categories')
+  },
+  /** 获取品牌选项 */
+  getBrands(): Promise<string[]> {
+    return request.get('/erp/product/brands')
   }
 }
 
@@ -489,14 +510,6 @@ export interface ProductBrand {
   remark?: string
   sortOrder?: number
   status?: number
-}
-
-export interface PageResult<T> {
-  records: T[]
-  total: number
-  size: number
-  current: number
-  pages: number
 }
 
 export const productBrandApi = {

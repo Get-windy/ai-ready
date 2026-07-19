@@ -19,10 +19,20 @@
       >
         <template #actionCell="{ index }">
           <a-space :size="2">
-            <a-button type="link" size="small" class="action-add-btn" @click="handleAddProduct">
+            <a-button
+              type="link"
+              size="small"
+              class="action-add-btn"
+              @click="handleAddProduct"
+            >
               <PlusCircleOutlined />
             </a-button>
-            <a-button type="link" size="small" class="action-del-btn" @click="handleRemoveProduct(index)">
+            <a-button
+              type="link"
+              size="small"
+              class="action-del-btn"
+              @click="handleRemoveProduct(index)"
+            >
               <MinusCircleOutlined />
             </a-button>
           </a-space>
@@ -38,7 +48,11 @@
             size="small"
             @change="(val: number) => handleProductChange(val, index)"
           >
-            <a-select-option v-for="p in optionRefs.products" :key="p.id" :value="p.id">
+            <a-select-option
+              v-for="p in optionRefs.products"
+              :key="p.id"
+              :value="p.id"
+            >
               {{ p.name }}
             </a-select-option>
           </a-select>
@@ -98,11 +112,11 @@ const {
   }),
 })
 
-if (!('warehouseId' in formData)) Object.assign(formData, {
+if (!('warehouseId' in formData)) {Object.assign(formData, {
   warehouseId: undefined, handlerId: undefined, handlerName: '',
   date: '', shipType: 1, sourceOrderNo: '',
   receiverName: '', receiverPhone: '', receiverAddress: '', remark: '',
-})
+})}
 
 const headerConfig = computed<BillHeaderConfig>(() => ({
   title: '发货单', orderNo: formData.orderNo, showAttachment: true,

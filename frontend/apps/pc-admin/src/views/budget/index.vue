@@ -1,18 +1,33 @@
 <template>
-  <PageContainer title="预算管理" full-height>
+  <PageContainer
+    title="预算管理"
+    full-height
+  >
     <template #headerExtra>
       <a-space :size="12">
-        <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+        <span
+          v-if="autoRefreshCountdown > 0"
+          class="auto-refresh-badge"
+        >
           <SyncOutlined /> {{ autoRefreshCountdown }}s
         </span>
         <span class="data-status">
           <a-badge :status="loading ? 'processing' : 'success'" />
-          <span v-if="lastUpdateTime" class="update-time">
+          <span
+            v-if="lastUpdateTime"
+            class="update-time"
+          >
             数据更新: {{ lastUpdateTime }}
           </span>
         </span>
-        <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', loadData)">
-          <template #icon><ReloadOutlined /></template>
+        <a-button
+          size="small"
+          :loading="refreshLoading"
+          @click="debounceClick('refresh', loadData)"
+        >
+          <template #icon>
+            <ReloadOutlined />
+          </template>
           刷新
         </a-button>
         <span class="shortcut-hints">
@@ -23,36 +38,57 @@
     </template>
 
     <!-- 骨架屏 -->
-    <a-skeleton v-if="loading && recentAdjustments.length === 0 && !lastUpdateTime" active :paragraph="{ rows: 8 }" style="padding: 20px;" />
+    <a-skeleton
+      v-if="loading && recentAdjustments.length === 0 && !lastUpdateTime"
+      active
+      :paragraph="{ rows: 8 }"
+      style="padding: 20px;"
+    />
 
     <div class="budget-dashboard">
       <!-- KPI 卡片 -->
       <div class="stat-cards">
         <div class="stat-card stat-total">
           <div class="stat-card-body">
-            <div class="stat-card-value">¥{{ formatAmount(statistics.totalBudgetAmount) }}</div>
-            <div class="stat-card-label">预算总额</div>
+            <div class="stat-card-value">
+              ¥{{ formatAmount(statistics.totalBudgetAmount) }}
+            </div>
+            <div class="stat-card-label">
+              预算总额
+            </div>
           </div>
           <DollarOutlined class="stat-card-icon" />
         </div>
         <div class="stat-card stat-used">
           <div class="stat-card-body">
-            <div class="stat-card-value">¥{{ formatAmount(statistics.totalUsedAmount) }}</div>
-            <div class="stat-card-label">已使用金额</div>
+            <div class="stat-card-value">
+              ¥{{ formatAmount(statistics.totalUsedAmount) }}
+            </div>
+            <div class="stat-card-label">
+              已使用金额
+            </div>
           </div>
           <PieChartOutlined class="stat-card-icon" />
         </div>
         <div class="stat-card stat-remaining">
           <div class="stat-card-body">
-            <div class="stat-card-value">¥{{ formatAmount(statistics.totalRemainingAmount) }}</div>
-            <div class="stat-card-label">剩余金额</div>
+            <div class="stat-card-value">
+              ¥{{ formatAmount(statistics.totalRemainingAmount) }}
+            </div>
+            <div class="stat-card-label">
+              剩余金额
+            </div>
           </div>
           <WalletOutlined class="stat-card-icon" />
         </div>
         <div class="stat-card stat-rate">
           <div class="stat-card-body">
-            <div class="stat-card-value">{{ statistics.executionRate?.toFixed(2) || '0.00' }}%</div>
-            <div class="stat-card-label">执行率</div>
+            <div class="stat-card-value">
+              {{ statistics.executionRate?.toFixed(2) || '0.00' }}%
+            </div>
+            <div class="stat-card-label">
+              执行率
+            </div>
           </div>
           <PercentageOutlined class="stat-card-icon" />
         </div>
@@ -61,22 +97,40 @@
       <a-row :gutter="[16, 16]">
         <!-- 执行率图表 -->
         <a-col :span="16">
-          <a-card title="预算执行趋势" class="chart-card">
-            <div ref="trendChartRef" style="height: 350px"></div>
+          <a-card
+            title="预算执行趋势"
+            class="chart-card"
+          >
+            <div
+              ref="trendChartRef"
+              style="height: 350px"
+            />
           </a-card>
         </a-col>
         <!-- 状态分布 -->
         <a-col :span="8">
-          <a-card title="预算状态分布" class="chart-card">
-            <div ref="statusChartRef" style="height: 350px"></div>
+          <a-card
+            title="预算状态分布"
+            class="chart-card"
+          >
+            <div
+              ref="statusChartRef"
+              style="height: 350px"
+            />
           </a-card>
         </a-col>
       </a-row>
 
-      <a-row :gutter="[16, 16]" class="mt-4">
+      <a-row
+        :gutter="[16, 16]"
+        class="mt-4"
+      >
         <!-- 近期调整 -->
         <a-col :span="16">
-          <a-card title="近期预算调整" class="table-card">
+          <a-card
+            title="近期预算调整"
+            class="table-card"
+          >
             <BillTableList
               :data-source="recentAdjustments"
               :columns="adjustmentVxeColumns"
@@ -92,7 +146,9 @@
               :min-empty-rows="12"
             >
               <template #statusCell="{ record }">
-                <a-tag :color="adjustmentStatusColor(record.status)">{{ adjustmentStatusText(record.status) }}</a-tag>
+                <a-tag :color="adjustmentStatusColor(record.status)">
+                  {{ adjustmentStatusText(record.status) }}
+                </a-tag>
               </template>
               <template #amountCell="{ record }">
                 <span class="amount-cell">¥{{ formatAmount(record.amount) }}</span>
@@ -105,7 +161,9 @@
               <template #empty>
                 <div class="empty-state-wrapper">
                   <InboxOutlined style="font-size: 48px; color: #d9d9d9;" />
-                  <p style="color: #999; margin-top: 12px;">暂无近期调整记录</p>
+                  <p style="color: #999; margin-top: 12px;">
+                    暂无近期调整记录
+                  </p>
                 </div>
               </template>
             </BillTableList>
@@ -113,22 +171,55 @@
         </a-col>
         <!-- 快捷操作 -->
         <a-col :span="8">
-          <a-card title="快捷操作" class="quick-actions-card">
-            <a-space direction="vertical" style="width: 100%">
-              <a-button type="primary" block @click="$router.push('/budget/template')">
-                <template #icon><FileTextOutlined /></template>
+          <a-card
+            title="快捷操作"
+            class="quick-actions-card"
+          >
+            <a-space
+              direction="vertical"
+              style="width: 100%"
+            >
+              <a-button
+                type="primary"
+                block
+                @click="$router.push('/budget/template')"
+              >
+                <template #icon>
+                  <FileTextOutlined />
+                </template>
                 预算模板管理
               </a-button>
-              <a-button type="primary" ghost block @click="$router.push('/budget/annual')">
-                <template #icon><CalendarOutlined /></template>
+              <a-button
+                type="primary"
+                ghost
+                block
+                @click="$router.push('/budget/annual')"
+              >
+                <template #icon>
+                  <CalendarOutlined />
+                </template>
                 年度预算管理
               </a-button>
-              <a-button type="primary" ghost block @click="$router.push('/budget/adjustment')">
-                <template #icon><EditOutlined /></template>
+              <a-button
+                type="primary"
+                ghost
+                block
+                @click="$router.push('/budget/adjustment')"
+              >
+                <template #icon>
+                  <EditOutlined />
+                </template>
                 预算调整管理
               </a-button>
-              <a-button type="primary" ghost block @click="$router.push('/budget/report')">
-                <template #icon><BarChartOutlined /></template>
+              <a-button
+                type="primary"
+                ghost
+                block
+                @click="$router.push('/budget/report')"
+              >
+                <template #icon>
+                  <BarChartOutlined />
+                </template>
                 预算报表分析
               </a-button>
             </a-space>

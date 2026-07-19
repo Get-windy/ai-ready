@@ -1,69 +1,106 @@
 <template>
-  <ErrorBoundary @error="handleError"><PageContainer full-height>
-    <template #header>
-      <div class="page-header">
-        <div class="page-header__left">
-          <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item>DMS / 系统配置</a-breadcrumb-item>
-          </a-breadcrumb>
-          <h2>系统配置</h2>
+  <ErrorBoundary @error="handleError">
+    <PageContainer full-height>
+      <template #header>
+        <div class="page-header">
+          <div class="page-header__left">
+            <a-breadcrumb>
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>DMS / 系统配置</a-breadcrumb-item>
+            </a-breadcrumb>
+            <h2>系统配置</h2>
+          </div>
+          <div class="page-header__right">
+            <span
+              v-if="lastUpdateTime"
+              class="update-time"
+            >更新于 {{ lastUpdateTime }}</span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            ><SyncOutlined /> {{ autoRefreshCountdown }}s</span>
+            <a-button
+              size="small"
+              :loading="loading"
+              @click="wms.debounce('refresh', wms.fetchData)"
+            >
+              <ReloadOutlined /> 刷新
+            </a-button>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            </span>
+          </div>
         </div>
-        <div class="page-header__right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge"><SyncOutlined /> {{ autoRefreshCountdown }}s</span>
-          <a-button size="small" :loading="loading" @click="wms.debounce('refresh', wms.fetchData)">
-            <ReloadOutlined /> 刷新
-          </a-button>
-          <span class="shortcut-hints">
-            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-          </span>
-        </div>
-      </div>
-    </template>
+      </template>
 
-    <template #filter>
-      <SearchBar :fields="searchFields" :loading="loading" @search="handleSearch" @reset="handleReset" />
-    </template>
-
-    <template #default>
-      <div class="page-body">
-        <SkeletonTable v-if="loading && dataList.length === 0" :columns="columns.length" :rows="8" />
-        <a-table
-          v-else
-          :dataSource="dataList"
-          :columns="columns"
+      <template #filter>
+        <SearchBar
+          :fields="searchFields"
           :loading="loading"
-          :pagination="pagination"
-          rowKey="id"
-          size="small"
-          bordered
-          @change="handleTableChange"
-        >
-          <template #emptyText>
-            <a-empty description="暂无系统配置">
-              <a-button size="small" @click="wms.fetchData">刷新</a-button>
-            </a-empty>
-          </template>
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.dataIndex === 'configValue'">
-              <span class="config-value-text">{{ record.configValue }}</span>
+          @search="handleSearch"
+          @reset="handleReset"
+        />
+      </template>
+
+      <template #default>
+        <div class="page-body">
+          <SkeletonTable
+            v-if="loading && dataList.length === 0"
+            :columns="columns.length"
+            :rows="8"
+          />
+          <a-table
+            v-else
+            :data-source="dataList"
+            :columns="columns"
+            :loading="loading"
+            :pagination="pagination"
+            row-key="id"
+            size="small"
+            bordered
+            @change="handleTableChange"
+          >
+            <template #emptyText>
+              <a-empty description="暂无系统配置">
+                <a-button
+                  size="small"
+                  @click="wms.fetchData"
+                >
+                  刷新
+                </a-button>
+              </a-empty>
             </template>
-            <template v-if="column.dataIndex === 'createTime'">
-              {{ formatDateTime(record.createTime) }}
+            <template #bodyCell="{ column, record }">
+              <template v-if="column.dataIndex === 'configValue'">
+                <span class="config-value-text">{{ record.configValue }}</span>
+              </template>
+              <template v-if="column.dataIndex === 'createTime'">
+                {{ formatDateTime(record.createTime) }}
+              </template>
+              <template v-if="column.dataIndex === 'action'">
+                <a-space :size="4">
+                  <a-tooltip title="编辑">
+                    <a-button
+                      v-permission="'dms:config:edit'"
+                      type="link"
+                      size="small"
+                      @click="handleEdit(record as any)"
+                    >
+                      <EditOutlined />
+                    </a-button>
+                  </a-tooltip>
+                </a-space>
+              </template>
             </template>
-            <template v-if="column.dataIndex === 'action'">
-              <a-space :size="4">
-                <a-tooltip title="编辑">
-                  <a-button v-permission="'dms:config:edit'" type="link" size="small" @click="handleEdit(record as any)"><EditOutlined /></a-button>
-                </a-tooltip>
-              </a-space>
-            </template>
-          </template>
-        </a-table>
-      </div>
-    </template>
-  </PageContainer></ErrorBoundary>
+          </a-table>
+        </div>
+      </template>
+    </PageContainer>
+  </ErrorBoundary>
 
   <!-- 编辑配置弹窗 -->
   <a-modal
@@ -74,18 +111,53 @@
     @ok="handleModalOk"
     @cancel="handleModalCancel"
   >
-    <a-form ref="formRef" :model="formState" :rules="formRules" :label-col="{ span: 4 }" :wrapper-col="{ span: 18 }">
-      <a-form-item label="配置键" name="configKey">
-        <a-input v-model:value="formState.configKey" size="small" disabled />
+    <a-form
+      ref="formRef"
+      :model="formState"
+      :rules="formRules"
+      :label-col="{ span: 4 }"
+      :wrapper-col="{ span: 18 }"
+    >
+      <a-form-item
+        label="配置键"
+        name="configKey"
+      >
+        <a-input
+          v-model:value="formState.configKey"
+          size="small"
+          disabled
+        />
       </a-form-item>
-      <a-form-item label="配置值" name="configValue">
-        <a-textarea v-model:value="formState.configValue" :rows="4" size="small" placeholder="请输入配置值" />
+      <a-form-item
+        label="配置值"
+        name="configValue"
+      >
+        <a-textarea
+          v-model:value="formState.configValue"
+          :rows="4"
+          size="small"
+          placeholder="请输入配置值"
+        />
       </a-form-item>
-      <a-form-item label="描述" name="configDesc">
-        <a-input v-model:value="formState.configDesc" size="small" disabled />
+      <a-form-item
+        label="描述"
+        name="configDesc"
+      >
+        <a-input
+          v-model:value="formState.configDesc"
+          size="small"
+          disabled
+        />
       </a-form-item>
-      <a-form-item label="作用域" name="scope">
-        <a-input v-model:value="formState.scope" size="small" disabled />
+      <a-form-item
+        label="作用域"
+        name="scope"
+      >
+        <a-input
+          v-model:value="formState.scope"
+          size="small"
+          disabled
+        />
       </a-form-item>
     </a-form>
   </a-modal>

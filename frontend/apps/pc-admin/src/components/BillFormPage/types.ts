@@ -31,7 +31,7 @@ export interface BillHeaderConfig {
 }
 
 // ── 基本信息字段 ──
-export type FieldType = 'select' | 'input' | 'date' | 'number' | 'textarea'
+export type FieldType = 'select' | 'input' | 'date' | 'number' | 'textarea' | 'display'
 
 export interface BasicInfoFieldOption {
   label: string
@@ -71,10 +71,12 @@ export interface BasicInfoField {
   row?: number
   /** 内嵌标签模式：true 时隐藏外部 label，将 label 显示在 placeholder 中 */
   inlineLabel?: boolean
+  /** 是否禁用 */
+  disabled?: boolean
 }
 
 // ── 底部标签页字段 ──
-export type TabFieldType = 'select' | 'input' | 'number'
+export type TabFieldType = 'select' | 'input' | 'number' | 'date' | 'textarea'
 
 export interface TabField {
   /** 字段唯一 key */
@@ -99,6 +101,16 @@ export interface TabField {
   min?: number
   /** 最大值（type=number 时使用） */
   max?: number
+  /** 字段宽度（px） */
+  width?: number
+  /** 是否只读 */
+  readonly?: boolean
+  /** 搜索按钮文本（如 "+Q"） */
+  searchBtn?: string
+  /** 是否内联标签样式 */
+  inlineLabel?: boolean
+  /** 加载状态 */
+  loading?: boolean
 }
 
 export interface BillTabConfig {

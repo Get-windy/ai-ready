@@ -25,7 +25,11 @@
           @update:value="emitValue"
           @change="(val: any) => emit('change', val)"
         >
-          <a-select-option v-for="opt in options" :key="opt.value" :value="opt.value">
+          <a-select-option
+            v-for="opt in options"
+            :key="opt.value"
+            :value="opt.value"
+          >
             {{ opt.label }}
           </a-select-option>
         </a-select>
@@ -74,6 +78,11 @@
           style="flex:1"
           @update:value="emitValue"
         />
+        <!-- display 模式：纯文本展示，不可编辑 -->
+        <span
+          v-else-if="type === 'display'"
+          class="label-view-text"
+        >{{ modelValue !== undefined && modelValue !== null && modelValue !== '' ? modelValue : '—' }}</span>
         <a-input
           v-else
           :value="modelValue"
@@ -86,7 +95,9 @@
         <!-- 搜索按钮 -->
         <a-button
           v-if="searchBtn"
-          type="link" size="small" class="label-search-btn"
+          type="link"
+          size="small"
+          class="label-search-btn"
           @click="emit('searchBtn')"
         >
           {{ searchBtn }}
@@ -103,7 +114,7 @@ defineOptions({ name: 'LabelField' })
 
 const props = withDefaults(defineProps<{
   /** 字段类型 */
-  type: 'select' | 'tree-select' | 'date' | 'number' | 'input' | 'textarea'
+  type: 'select' | 'tree-select' | 'date' | 'number' | 'input' | 'textarea' | 'display'
   /** 标签文本（显示在外部） */
   label: string
   /** 是否必填 */

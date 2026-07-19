@@ -20,19 +20,32 @@
               allow-clear
               style="width: 180px"
             >
-              <a-select-option value="微信">微信</a-select-option>
-              <a-select-option value="支付宝">支付宝</a-select-option>
-              <a-select-option value="抖音">抖音</a-select-option>
+              <a-select-option value="微信">
+                微信
+              </a-select-option>
+              <a-select-option value="支付宝">
+                支付宝
+              </a-select-option>
+              <a-select-option value="抖音">
+                抖音
+              </a-select-option>
             </a-select>
           </div>
           <div class="search-item">
             <a-space>
-              <a-button type="primary" @click="handleSearch">
-                <template #icon><SearchOutlined /></template>
+              <a-button
+                type="primary"
+                @click="handleSearch"
+              >
+                <template #icon>
+                  <SearchOutlined />
+                </template>
                 查询
               </a-button>
               <a-button @click="handleReset">
-                <template #icon><ClearOutlined /></template>
+                <template #icon>
+                  <ClearOutlined />
+                </template>
                 重置
               </a-button>
             </a-space>
@@ -40,10 +53,10 @@
         </div>
       </div>
       <BillTableList
+        ref="tableRef"
         :columns="columns"
         :api-url="apiUrl"
         :params="searchParams"
-        ref="tableRef"
       />
     </PageContainer>
   </ErrorBoundary>
@@ -59,7 +72,7 @@ import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import request from '@/utils/request'
 
 const tableRef = ref()
-const apiUrl = '/api/md/linked-account/page'
+const apiUrl = '/md/linked-account/page'
 
 const searchParams = reactive({
   accountName: '',

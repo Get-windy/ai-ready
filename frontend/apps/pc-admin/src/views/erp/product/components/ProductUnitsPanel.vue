@@ -1,43 +1,119 @@
 <template>
   <div>
     <div class="panel-toolbar">
-      <a-button v-permission="'erp:product:unit-edit'" size="small" type="primary" @click="debounceClick('add', showAddModal)">
+      <a-button
+        v-permission="'erp:product:unit-edit'"
+        size="small"
+        type="primary"
+        @click="debounceClick('add', showAddModal)"
+      >
         <PlusOutlined /> 添加单位
       </a-button>
     </div>
-    <vxe-table :data="list" border size="small" max-height="300" align="center">
-      <vxe-column type="seq" title="#" width="50" />
-      <vxe-column field="unitName" title="单位名称" />
-      <vxe-column field="conversionRate" title="换算率">
-        <template #default="{ row }">{{ row.isBaseUnit ? '基本单位' : row.conversionRate }}</template>
-      </vxe-column>
-      <vxe-column field="isBaseUnit" title="是否默认">
+    <vxe-table
+      :data="list"
+      border
+      size="small"
+      max-height="300"
+      align="center"
+    >
+      <vxe-column
+        type="seq"
+        title="#"
+        width="50"
+      />
+      <vxe-column
+        field="unitName"
+        title="单位名称"
+      />
+      <vxe-column
+        field="conversionRate"
+        title="换算率"
+      >
         <template #default="{ row }">
-          <a-tag v-if="row.isBaseUnit" color="green">默认</a-tag>
+          {{ row.isBaseUnit ? '基本单位' : row.conversionRate }}
         </template>
       </vxe-column>
-      <vxe-column field="barcode" title="条码" />
-      <vxe-column title="操作" width="120">
+      <vxe-column
+        field="isBaseUnit"
+        title="是否默认"
+      >
         <template #default="{ row }">
-          <a-button v-permission="'erp:product:unit-edit'" type="link" size="small" @click="debounceClick('edit_' + row.id, () => editRow(row))">编辑</a-button>
-          <a-button v-permission="'erp:product:unit-edit'" type="link" size="small" danger @click="debounceClick('del_' + row.id, () => handleDelete(row.id))">删除</a-button>
+          <a-tag
+            v-if="row.isBaseUnit"
+            color="green"
+          >
+            默认
+          </a-tag>
+        </template>
+      </vxe-column>
+      <vxe-column
+        field="barcode"
+        title="条码"
+      />
+      <vxe-column
+        title="操作"
+        width="120"
+      >
+        <template #default="{ row }">
+          <a-button
+            v-permission="'erp:product:unit-edit'"
+            type="link"
+            size="small"
+            @click="debounceClick('edit_' + row.id, () => editRow(row))"
+          >
+            编辑
+          </a-button>
+          <a-button
+            v-permission="'erp:product:unit-edit'"
+            type="link"
+            size="small"
+            danger
+            @click="debounceClick('del_' + row.id, () => handleDelete(row.id))"
+          >
+            删除
+          </a-button>
         </template>
       </vxe-column>
     </vxe-table>
 
-    <a-modal v-model:open="modalVisible" :title="editingId ? '编辑单位' : '添加单位'" width="500px" @ok="debounceClick('modalOk', handleSave)">
-      <a-form :label-col="{ span: 5 }" :wrapper-col="{ span: 17 }">
-        <a-form-item label="单位名称" required>
-          <a-input v-model:value="form.unitName" placeholder="箱/包/盒" size="small" />
+    <a-modal
+      v-model:open="modalVisible"
+      :title="editingId ? '编辑单位' : '添加单位'"
+      width="500px"
+      @ok="debounceClick('modalOk', handleSave)"
+    >
+      <a-form
+        :label-col="{ span: 5 }"
+        :wrapper-col="{ span: 17 }"
+      >
+        <a-form-item
+          label="单位名称"
+          required
+        >
+          <a-input
+            v-model:value="form.unitName"
+            placeholder="箱/包/盒"
+            size="small"
+          />
         </a-form-item>
         <a-form-item label="换算率">
-          <a-input-number v-model:value="form.conversionRate" :precision="6" :min="0.000001" style="width:100%" size="small" />
+          <a-input-number
+            v-model:value="form.conversionRate"
+            :precision="6"
+            :min="0.000001"
+            style="width:100%"
+            size="small"
+          />
         </a-form-item>
         <a-form-item label="是否基本单位">
           <a-switch v-model:checked="form.isBaseUnit" />
         </a-form-item>
         <a-form-item label="条码">
-          <a-input v-model:value="form.barcode" size="small" />
+          <a-input
+            v-model:value="form.barcode"
+            size="small"
+          />
         </a-form-item>
       </a-form>
     </a-modal>

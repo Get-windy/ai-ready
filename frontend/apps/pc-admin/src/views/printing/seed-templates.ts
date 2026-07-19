@@ -1235,7 +1235,7 @@ function generateDefaultTemplate(spec: TemplateSpec): string {
 
   if (!isListStyle && spec.fields.length > 0) {
     // 表单布局 - 两列
-    let fieldStartY = 37
+    const fieldStartY = 37
     const labelW = 28
     const valueW = 62
     const colGap = 5

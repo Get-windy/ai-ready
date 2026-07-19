@@ -1,6 +1,9 @@
 <template>
   <div class="register-container">
-    <div class="register-background" aria-hidden="true">
+    <div
+      class="register-background"
+      aria-hidden="true"
+    >
       <div class="background-shapes">
         <div class="shape shape-1" />
         <div class="shape shape-2" />
@@ -9,7 +12,10 @@
     </div>
 
     <div class="register-wrapper">
-      <a-card class="register-card" :bordered="false">
+      <a-card
+        class="register-card"
+        :bordered="false"
+      >
         <template #title>
           <div class="register-header">
             <h2>企业租户注册</h2>
@@ -17,83 +23,180 @@
           </div>
         </template>
 
-        <a-steps :current="currentStep" size="small" class="steps">
+        <a-steps
+          :current="currentStep"
+          size="small"
+          class="steps"
+        >
           <a-step title="企业信息" />
           <a-step title="管理员账号" />
           <a-step title="提交审核" />
         </a-steps>
 
         <!-- 步骤 1：企业信息 -->
-        <div v-show="currentStep === 0" class="step-content">
+        <div
+          v-show="currentStep === 0"
+          class="step-content"
+        >
           <a-form
             ref="formRef1"
             :model="formState"
             :rules="rules1"
             layout="vertical"
           >
-            <a-form-item label="企业名称" name="tenantName">
-              <a-input v-model:value="formState.tenantName" placeholder="请输入企业名称" size="large" />
+            <a-form-item
+              label="企业名称"
+              name="tenantName"
+            >
+              <a-input
+                v-model:value="formState.tenantName"
+                placeholder="请输入企业名称"
+                size="large"
+              />
             </a-form-item>
 
-            <a-form-item label="企业编码" name="tenantCode">
-              <a-input v-model:value="formState.tenantCode" placeholder="英文/数字，用于唯一标识" size="large" />
+            <a-form-item
+              label="企业编码"
+              name="tenantCode"
+            >
+              <a-input
+                v-model:value="formState.tenantCode"
+                placeholder="英文/数字，用于唯一标识"
+                size="large"
+              />
             </a-form-item>
 
-            <a-form-item label="联系人" name="contactPerson">
-              <a-input v-model:value="formState.contactPerson" placeholder="请输入联系人姓名" size="large" />
+            <a-form-item
+              label="联系人"
+              name="contactPerson"
+            >
+              <a-input
+                v-model:value="formState.contactPerson"
+                placeholder="请输入联系人姓名"
+                size="large"
+              />
             </a-form-item>
 
-            <a-form-item label="联系电话" name="contactPhone">
-              <a-input v-model:value="formState.contactPhone" placeholder="请输入手机号码" size="large" />
+            <a-form-item
+              label="联系电话"
+              name="contactPhone"
+            >
+              <a-input
+                v-model:value="formState.contactPhone"
+                placeholder="请输入手机号码"
+                size="large"
+              />
             </a-form-item>
 
-            <a-form-item label="联系邮箱" name="contactEmail">
-              <a-input v-model:value="formState.contactEmail" placeholder="请输入邮箱地址" size="large" />
+            <a-form-item
+              label="联系邮箱"
+              name="contactEmail"
+            >
+              <a-input
+                v-model:value="formState.contactEmail"
+                placeholder="请输入邮箱地址"
+                size="large"
+              />
             </a-form-item>
           </a-form>
         </div>
 
         <!-- 步骤 2：管理员账号 -->
-        <div v-show="currentStep === 1" class="step-content">
+        <div
+          v-show="currentStep === 1"
+          class="step-content"
+        >
           <a-form
             ref="formRef2"
             :model="formState"
             :rules="rules2"
             layout="vertical"
           >
-            <a-form-item label="管理员用户名" name="adminUsername">
-              <a-input v-model:value="formState.adminUsername" placeholder="3-20 位字母/数字" size="large" />
+            <a-form-item
+              label="管理员用户名"
+              name="adminUsername"
+            >
+              <a-input
+                v-model:value="formState.adminUsername"
+                placeholder="3-20 位字母/数字"
+                size="large"
+              />
             </a-form-item>
 
-            <a-form-item label="管理员邮箱" name="adminEmail">
-              <a-input v-model:value="formState.adminEmail" placeholder="用于接收通知和找回密码" size="large" />
+            <a-form-item
+              label="管理员邮箱"
+              name="adminEmail"
+            >
+              <a-input
+                v-model:value="formState.adminEmail"
+                placeholder="用于接收通知和找回密码"
+                size="large"
+              />
             </a-form-item>
 
-            <a-form-item label="登录密码" name="adminPassword">
-              <a-input-password v-model:value="formState.adminPassword" placeholder="至少 6 位" size="large" />
+            <a-form-item
+              label="登录密码"
+              name="adminPassword"
+            >
+              <a-input-password
+                v-model:value="formState.adminPassword"
+                placeholder="至少 6 位"
+                size="large"
+              />
             </a-form-item>
 
-            <a-form-item label="确认密码" name="confirmPassword">
-              <a-input-password v-model:value="formState.confirmPassword" placeholder="请再次输入密码" size="large" />
+            <a-form-item
+              label="确认密码"
+              name="confirmPassword"
+            >
+              <a-input-password
+                v-model:value="formState.confirmPassword"
+                placeholder="请再次输入密码"
+                size="large"
+              />
             </a-form-item>
           </a-form>
         </div>
 
         <!-- 步骤 3：提交审核 -->
-        <div v-show="currentStep === 2" class="step-content">
-          <a-result status="info" title="确认注册信息">
+        <div
+          v-show="currentStep === 2"
+          class="step-content"
+        >
+          <a-result
+            status="info"
+            title="确认注册信息"
+          >
             <template #subTitle>
               <p>请确认以下信息无误后提交，我们将尽快审核</p>
             </template>
             <template #extra>
-              <a-descriptions :column="1" bordered size="small">
-                <a-descriptions-item label="企业名称">{{ formState.tenantName }}</a-descriptions-item>
-                <a-descriptions-item label="企业编码">{{ formState.tenantCode }}</a-descriptions-item>
-                <a-descriptions-item label="联系人">{{ formState.contactPerson }}</a-descriptions-item>
-                <a-descriptions-item label="联系电话">{{ formState.contactPhone }}</a-descriptions-item>
-                <a-descriptions-item label="联系邮箱">{{ formState.contactEmail }}</a-descriptions-item>
-                <a-descriptions-item label="管理员">{{ formState.adminUsername }}</a-descriptions-item>
-                <a-descriptions-item label="管理员邮箱">{{ formState.adminEmail }}</a-descriptions-item>
+              <a-descriptions
+                :column="1"
+                bordered
+                size="small"
+              >
+                <a-descriptions-item label="企业名称">
+                  {{ formState.tenantName }}
+                </a-descriptions-item>
+                <a-descriptions-item label="企业编码">
+                  {{ formState.tenantCode }}
+                </a-descriptions-item>
+                <a-descriptions-item label="联系人">
+                  {{ formState.contactPerson }}
+                </a-descriptions-item>
+                <a-descriptions-item label="联系电话">
+                  {{ formState.contactPhone }}
+                </a-descriptions-item>
+                <a-descriptions-item label="联系邮箱">
+                  {{ formState.contactEmail }}
+                </a-descriptions-item>
+                <a-descriptions-item label="管理员">
+                  {{ formState.adminUsername }}
+                </a-descriptions-item>
+                <a-descriptions-item label="管理员邮箱">
+                  {{ formState.adminEmail }}
+                </a-descriptions-item>
               </a-descriptions>
             </template>
           </a-result>
@@ -101,27 +204,45 @@
 
         <!-- 按钮组 -->
         <div class="step-actions">
-          <a-button v-if="currentStep > 0 && !submitted" @click="prevStep">
+          <a-button
+            v-if="currentStep > 0 && !submitted"
+            @click="prevStep"
+          >
             上一步
           </a-button>
           <div style="flex: 1" />
-          <a-button v-if="currentStep < 2 && !submitted" type="primary" @click="nextStep">
+          <a-button
+            v-if="currentStep < 2 && !submitted"
+            type="primary"
+            @click="nextStep"
+          >
             下一步
           </a-button>
-          <a-button v-if="currentStep === 2 && !submitted" type="primary" :loading="submitting" @click="handleSubmit">
+          <a-button
+            v-if="currentStep === 2 && !submitted"
+            type="primary"
+            :loading="submitting"
+            @click="handleSubmit"
+          >
             提交审核
           </a-button>
         </div>
 
         <!-- 提交成功 -->
-        <div v-if="submitted" class="step-content">
+        <div
+          v-if="submitted"
+          class="step-content"
+        >
           <a-result
             status="success"
             title="注册申请已提交"
             :sub-title="`${formState.tenantName} 的注册申请已成功提交，请等待管理员审核。审核结果将发送至 ${formState.contactEmail}`"
           >
             <template #extra>
-              <a-button type="primary" @click="goToLogin">
+              <a-button
+                type="primary"
+                @click="goToLogin"
+              >
                 返回登录
               </a-button>
             </template>
@@ -130,7 +251,9 @@
 
         <div class="register-footer">
           已有账号？
-          <router-link to="/login">立即登录</router-link>
+          <router-link to="/login">
+            立即登录
+          </router-link>
         </div>
       </a-card>
     </div>

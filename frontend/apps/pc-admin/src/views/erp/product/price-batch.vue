@@ -1,61 +1,114 @@
 <template>
-  <ErrorBoundary @error="handleError"><PageContainer full-height>
-    <template #header>
-      <div class="page-header">
-        <div class="page-header__left">
-          <span class="page-header__breadcrumb">ERP / 基础资料 / 批量价格管理</span>
-          <h2 class="page-header__title">批量价格管理</h2>
-        </div>
-        <div class="page-header__right">
-          <a-space :size="12">
-            <span class="data-status">
-              <a-badge :status="loading ? 'processing' : 'success'" />
-              <span v-if="lastUpdateTime" class="update-time">数据更新: {{ lastUpdateTime }}</span>
-              <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-                <SyncOutlined /> {{ autoRefreshCountdown }}s
-              </span>
-            </span>
-            <a-button size="small" :loading="loading" @click="debounceClick('refresh', fetchProducts)">
-              <ReloadOutlined /> 刷新
-            </a-button>
-          
-                <span class="shortcut-hints">
-                  <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+  <ErrorBoundary @error="handleError">
+    <PageContainer full-height>
+      <template #header>
+        <div class="page-header">
+          <div class="page-header__left">
+            <span class="page-header__breadcrumb">ERP / 基础资料 / 批量价格管理</span>
+            <h2 class="page-header__title">
+              批量价格管理
+            </h2>
+          </div>
+          <div class="page-header__right">
+            <a-space :size="12">
+              <span class="data-status">
+                <a-badge :status="loading ? 'processing' : 'success'" />
+                <span
+                  v-if="lastUpdateTime"
+                  class="update-time"
+                >数据更新: {{ lastUpdateTime }}</span>
+                <span
+                  v-if="autoRefreshCountdown > 0"
+                  class="auto-refresh-badge"
+                >
+                  <SyncOutlined /> {{ autoRefreshCountdown }}s
                 </span>
-          </a-space>
+              </span>
+              <a-button
+                size="small"
+                :loading="loading"
+                @click="debounceClick('refresh', fetchProducts)"
+              >
+                <ReloadOutlined /> 刷新
+              </a-button>
+          
+              <span class="shortcut-hints">
+                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+              </span>
+            </a-space>
+          </div>
         </div>
-      </div>
 
         <a-space>
-          <a-button v-permission="'erp:product:batch-price'" v-if="!formulaCollapsed" type="primary" size="small" :disabled="selectedKeys.length === 0" @click.stop="applyFormula">
+          <a-button
+            v-if="!formulaCollapsed"
+            v-permission="'erp:product:batch-price'"
+            type="primary"
+            size="small"
+            :disabled="selectedKeys.length === 0"
+            @click.stop="applyFormula"
+          >
             <CheckOutlined /> 应用到选中行 ({{ selectedKeys.length }})
           </a-button>
-          <CaretDownOutlined :class="{ 'rotate-180': formulaCollapsed }" style="transition: transform 0.2s;" />
+          <CaretDownOutlined
+            :class="{ 'rotate-180': formulaCollapsed }"
+            style="transition: transform 0.2s;"
+          />
         </a-space>
       </template>
 
       <!-- PageContainer 默认插槽内容 -->
-      <div v-show="!formulaCollapsed" class="formula-body">
-        <a-row :gutter="16" align="middle">
+      <div
+        v-show="!formulaCollapsed"
+        class="formula-body"
+      >
+        <a-row
+          :gutter="16"
+          align="middle"
+        >
           <a-col :span="4">
             <div class="formula-field">
               <label>基础价格</label>
-              <a-select v-model:value="formula.baseField" size="small" @change="clearPreview">
-                <a-select-option value="costPrice">成本价</a-select-option>
-                <a-select-option value="standardPrice">标准售价</a-select-option>
-                <a-select-option value="wholesalePrice">批发价</a-select-option>
-                <a-select-option value="fixed">固定值</a-select-option>
+              <a-select
+                v-model:value="formula.baseField"
+                size="small"
+                @change="clearPreview"
+              >
+                <a-select-option value="costPrice">
+                  成本价
+                </a-select-option>
+                <a-select-option value="standardPrice">
+                  标准售价
+                </a-select-option>
+                <a-select-option value="wholesalePrice">
+                  批发价
+                </a-select-option>
+                <a-select-option value="fixed">
+                  固定值
+                </a-select-option>
               </a-select>
             </div>
           </a-col>
           <a-col :span="2">
             <div class="formula-field">
               <label>运算符</label>
-              <a-select v-model:value="formula.operator" size="small" @change="clearPreview">
-                <a-select-option value="multiply">× (乘)</a-select-option>
-                <a-select-option value="divide">÷ (除)</a-select-option>
-                <a-select-option value="add">+ (加)</a-select-option>
-                <a-select-option value="subtract">- (减)</a-select-option>
+              <a-select
+                v-model:value="formula.operator"
+                size="small"
+                @change="clearPreview"
+              >
+                <a-select-option value="multiply">
+                  × (乘)
+                </a-select-option>
+                <a-select-option value="divide">
+                  ÷ (除)
+                </a-select-option>
+                <a-select-option value="add">
+                  + (加)
+                </a-select-option>
+                <a-select-option value="subtract">
+                  - (减)
+                </a-select-option>
               </a-select>
             </div>
           </a-col>
@@ -75,12 +128,26 @@
           <a-col :span="4">
             <div class="formula-field">
               <label>取整规则</label>
-              <a-select v-model:value="formula.rounding" size="small" @change="clearPreview">
-                <a-select-option value="round">四舍五入(2位)</a-select-option>
-                <a-select-option value="ceil">向上取整</a-select-option>
-                <a-select-option value="floor">向下取整</a-select-option>
-                <a-select-option value="roundTo05">取5或0</a-select-option>
-                <a-select-option value="roundToHalf">取0.5</a-select-option>
+              <a-select
+                v-model:value="formula.rounding"
+                size="small"
+                @change="clearPreview"
+              >
+                <a-select-option value="round">
+                  四舍五入(2位)
+                </a-select-option>
+                <a-select-option value="ceil">
+                  向上取整
+                </a-select-option>
+                <a-select-option value="floor">
+                  向下取整
+                </a-select-option>
+                <a-select-option value="roundTo05">
+                  取5或0
+                </a-select-option>
+                <a-select-option value="roundToHalf">
+                  取0.5
+                </a-select-option>
               </a-select>
             </div>
           </a-col>
@@ -88,8 +155,18 @@
             <div class="formula-field">
               <label>应用到</label>
               <a-space>
-                <a-checkbox v-model:checked="formula.targetStandard" @change="clearPreview">标准售价</a-checkbox>
-                <a-checkbox v-model:checked="formula.targetWholesale" @change="clearPreview">批发价</a-checkbox>
+                <a-checkbox
+                  v-model:checked="formula.targetStandard"
+                  @change="clearPreview"
+                >
+                  标准售价
+                </a-checkbox>
+                <a-checkbox
+                  v-model:checked="formula.targetWholesale"
+                  @change="clearPreview"
+                >
+                  批发价
+                </a-checkbox>
               </a-space>
             </div>
           </a-col>
@@ -97,27 +174,46 @@
             <div class="formula-field">
               <label>&nbsp;</label>
               <a-space>
-                <a-button size="small" @click="previewFormula">
+                <a-button
+                  size="small"
+                  @click="previewFormula"
+                >
                   <EyeOutlined /> 预览
                 </a-button>
-                <a-button size="small" @click="resetFormula">重置</a-button>
+                <a-button
+                  size="small"
+                  @click="resetFormula"
+                >
+                  重置
+                </a-button>
               </a-space>
             </div>
           </a-col>
           <a-col :span="4">
             <div class="formula-field">
               <label>公式预览</label>
-              <div class="formula-expr">{{ formulaExpression }}</div>
+              <div class="formula-expr">
+                {{ formulaExpression }}
+              </div>
             </div>
           </a-col>
         </a-row>
 
         <!-- 预览结果 -->
-        <div v-if="previewResults.length > 0" class="preview-section">
+        <div
+          v-if="previewResults.length > 0"
+          class="preview-section"
+        >
           <a-divider style="margin: 8px 0;" />
           <div class="preview-header">
             <span><FileTextOutlined /> 预览结果（前10条）</span>
-            <a-button type="link" size="small" @click="clearPreview">关闭预览</a-button>
+            <a-button
+              type="link"
+              size="small"
+              @click="clearPreview"
+            >
+              关闭预览
+            </a-button>
           </div>
           <div class="preview-table-wrapper">
             <table class="preview-table">
@@ -126,17 +222,36 @@
                   <th>产品编码</th>
                   <th>产品名称</th>
                   <th>基础值</th>
-                  <th v-if="formula.targetStandard">→ 标准售价</th>
-                  <th v-if="formula.targetWholesale">→ 批发价</th>
+                  <th v-if="formula.targetStandard">
+                    → 标准售价
+                  </th>
+                  <th v-if="formula.targetWholesale">
+                    → 批发价
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="item in previewResults" :key="item.id">
+                <tr
+                  v-for="item in previewResults"
+                  :key="item.id"
+                >
                   <td>{{ item.productCode }}</td>
                   <td>{{ item.productName }}</td>
-                  <td class="cell-number">{{ formatPrice(item.baseValue) }}</td>
-                  <td v-if="formula.targetStandard" class="cell-number cell-new">{{ formatPrice(item.newStandardPrice) }}</td>
-                  <td v-if="formula.targetWholesale" class="cell-number cell-new">{{ formatPrice(item.newWholesalePrice) }}</td>
+                  <td class="cell-number">
+                    {{ formatPrice(item.baseValue) }}
+                  </td>
+                  <td
+                    v-if="formula.targetStandard"
+                    class="cell-number cell-new"
+                  >
+                    {{ formatPrice(item.newStandardPrice) }}
+                  </td>
+                  <td
+                    v-if="formula.targetWholesale"
+                    class="cell-number cell-new"
+                  >
+                    {{ formatPrice(item.newWholesalePrice) }}
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -144,133 +259,213 @@
         </div>
       </div>
 
-    <!-- ==================== 查询栏 ==================== -->
-    <div class="search-bar">
-      <a-space>
-        <a-input-search
-          v-model:value="searchKeyword"
-          placeholder="编码/名称/规格"
-          style="width: 220px"
-          size="small"
-          allow-clear
-          @search="handleSearch"
-        />
-        <a-select
-          v-model:value="statusFilter"
-          placeholder="状态"
-          style="width: 100px"
-          size="small"
-          allow-clear
-          @change="fetchProducts"
-        >
-          <a-select-option value="">全部</a-select-option>
-          <a-select-option value="ENABLED">启用</a-select-option>
-          <a-select-option value="DISABLED">停用</a-select-option>
-        </a-select>
-      </a-space>
-      <a-space>
-        <a-button v-permission="'erp:product:batch-price'" size="small" @click="handleBatchSave" :loading="saving" :disabled="selectedKeys.length === 0" type="primary">
-          <SaveOutlined /> 批量保存 ({{ selectedKeys.length }})
-        </a-button>
-        <a-button size="small" @click="router.push('/erp/product')">
-          <ArrowLeftOutlined /> 返回产品列表
-        </a-button>
-      </a-space>
-    </div>
-
-    <!-- ==================== 产品表格 ==================== -->
-    <div ref="tableContainerRef" class="table-wrapper">
-      <vxe-table
-        ref="tableRef"
-        :data="products"
-        :loading="loading"
-        :height="tableHeight"
-        :row-config="{ keyField: 'id', isHover: true }"
-        :checkbox-config="{ highlight: true, range: true, labelField: 'productCode' }"
-        border
-        auto-resize
-        stripe
-        show-header-overflow="title"
-        show-overflow="title"
-        @checkbox-change="handleCheckboxChange"
-        @checkbox-all="handleCheckboxAll"
-      >
-        <vxe-column type="checkbox" width="50" />
-        <vxe-column field="productCode" title="产品编码" width="120" />
-        <vxe-column field="productName" title="产品名称" width="150" min-width="120" />
-        <vxe-column field="categoryName" title="分类" width="100" />
-        <vxe-column field="costPrice" title="成本价" width="110" align="right">
-          <template #default="{ row }">
-            <a-input-number
-              v-model:value="row.costPrice"
-              :precision="2"
-              :min="0"
-              size="small"
-              style="width: 100%"
-            />
-          </template>
-        </vxe-column>
-        <vxe-column field="standardPrice" title="标准售价" width="120" align="right">
-          <template #default="{ row }">
-            <a-input-number
-              v-model:value="row.standardPrice"
-              :precision="2"
-              :min="0"
-              size="small"
-              style="width: 100%"
-            />
-          </template>
-        </vxe-column>
-        <vxe-column field="wholesalePrice" title="批发价" width="120" align="right">
-          <template #default="{ row }">
-            <a-input-number
-              v-model:value="row.wholesalePrice"
-              :precision="2"
-              :min="0"
-              size="small"
-              style="width: 100%"
-            />
-          </template>
-        </vxe-column>
-        <vxe-column field="unit" title="单位" width="60" align="center" />
-        <vxe-column field="status" title="状态" width="80" align="center">
-          <template #default="{ row }">
-            <a-tag :color="row.status === 'ENABLED' ? 'green' : 'red'">
-              {{ row.status === 'ENABLED' ? '启用' : '停用' }}
-            </a-tag>
-          </template>
-        </vxe-column>
-        <vxe-column title="操作" width="80" fixed="right">
-          <template #default="{ row }">
-            <a-button v-permission="'erp:product:edit'" type="link" size="small" @click="debounceClick('edit_' + row.id, () => router.push(`/erp/product/form/${row.id}`))">编辑</a-button>
-          </template>
-        </vxe-column>
-      </vxe-table>
-    </div>
-
-    <!-- 分页 -->
-    <div class="pagination-bar">
-      <div class="pagination-info">
-        <template v-if="selectedKeys.length > 0">
-          <a-badge :count="selectedKeys.length" style="margin-right: 8px;" />
-          <span>已选择 <b>{{ selectedKeys.length }}</b> 项</span>
-          <a-divider type="vertical" />
-          <a-button type="link" size="small" @click="clearSelection">取消选择</a-button>
-        </template>
+      <!-- ==================== 查询栏 ==================== -->
+      <div class="search-bar">
+        <a-space>
+          <a-input-search
+            v-model:value="searchKeyword"
+            placeholder="编码/名称/规格"
+            style="width: 220px"
+            size="small"
+            allow-clear
+            @search="handleSearch"
+          />
+          <a-select
+            v-model:value="statusFilter"
+            placeholder="状态"
+            style="width: 100px"
+            size="small"
+            allow-clear
+            @change="fetchProducts"
+          >
+            <a-select-option value="">
+              全部
+            </a-select-option>
+            <a-select-option value="ENABLED">
+              启用
+            </a-select-option>
+            <a-select-option value="DISABLED">
+              停用
+            </a-select-option>
+          </a-select>
+        </a-space>
+        <a-space>
+          <a-button
+            v-permission="'erp:product:batch-price'"
+            size="small"
+            :loading="saving"
+            :disabled="selectedKeys.length === 0"
+            type="primary"
+            @click="handleBatchSave"
+          >
+            <SaveOutlined /> 批量保存 ({{ selectedKeys.length }})
+          </a-button>
+          <a-button
+            size="small"
+            @click="router.push('/erp/product')"
+          >
+            <ArrowLeftOutlined /> 返回产品列表
+          </a-button>
+        </a-space>
       </div>
-      <a-pagination
-        v-model:current="pagination.current"
-        v-model:pageSize="pagination.pageSize"
-        :total="pagination.total"
-        :show-size-changer="true"
-        :show-quick-jumper="true"
-        :page-size-options="['10', '20', '50', '100']"
-        :show-total="(total: number) => `共 ${total} 条`"
-        size="small"
-        @change="onPageChange"
-      />
-    </div>
-  </PageContainer>
+
+      <!-- ==================== 产品表格 ==================== -->
+      <div
+        ref="tableContainerRef"
+        class="table-wrapper"
+      >
+        <vxe-table
+          ref="tableRef"
+          :data="products"
+          :loading="loading"
+          :height="tableHeight"
+          :row-config="{ keyField: 'id', isHover: true }"
+          :checkbox-config="{ highlight: true, range: true, labelField: 'productCode' }"
+          border
+          auto-resize
+          stripe
+          show-header-overflow="title"
+          show-overflow="title"
+          @checkbox-change="handleCheckboxChange"
+          @checkbox-all="handleCheckboxAll"
+        >
+          <vxe-column
+            type="checkbox"
+            width="50"
+          />
+          <vxe-column
+            field="productCode"
+            title="产品编码"
+            width="120"
+          />
+          <vxe-column
+            field="productName"
+            title="产品名称"
+            width="150"
+            min-width="120"
+          />
+          <vxe-column
+            field="categoryName"
+            title="分类"
+            width="100"
+          />
+          <vxe-column
+            field="costPrice"
+            title="成本价"
+            width="110"
+            align="right"
+          >
+            <template #default="{ row }">
+              <a-input-number
+                v-model:value="row.costPrice"
+                :precision="2"
+                :min="0"
+                size="small"
+                style="width: 100%"
+              />
+            </template>
+          </vxe-column>
+          <vxe-column
+            field="standardPrice"
+            title="标准售价"
+            width="120"
+            align="right"
+          >
+            <template #default="{ row }">
+              <a-input-number
+                v-model:value="row.standardPrice"
+                :precision="2"
+                :min="0"
+                size="small"
+                style="width: 100%"
+              />
+            </template>
+          </vxe-column>
+          <vxe-column
+            field="wholesalePrice"
+            title="批发价"
+            width="120"
+            align="right"
+          >
+            <template #default="{ row }">
+              <a-input-number
+                v-model:value="row.wholesalePrice"
+                :precision="2"
+                :min="0"
+                size="small"
+                style="width: 100%"
+              />
+            </template>
+          </vxe-column>
+          <vxe-column
+            field="unit"
+            title="单位"
+            width="60"
+            align="center"
+          />
+          <vxe-column
+            field="status"
+            title="状态"
+            width="80"
+            align="center"
+          >
+            <template #default="{ row }">
+              <a-tag :color="row.status === 'ENABLED' ? 'green' : 'red'">
+                {{ row.status === 'ENABLED' ? '启用' : '停用' }}
+              </a-tag>
+            </template>
+          </vxe-column>
+          <vxe-column
+            title="操作"
+            width="80"
+            fixed="right"
+          >
+            <template #default="{ row }">
+              <a-button
+                v-permission="'erp:product:edit'"
+                type="link"
+                size="small"
+                @click="debounceClick('edit_' + row.id, () => router.push(`/erp/product/form/${row.id}`))"
+              >
+                编辑
+              </a-button>
+            </template>
+          </vxe-column>
+        </vxe-table>
+      </div>
+
+      <!-- 分页 -->
+      <div class="pagination-bar">
+        <div class="pagination-info">
+          <template v-if="selectedKeys.length > 0">
+            <a-badge
+              :count="selectedKeys.length"
+              style="margin-right: 8px;"
+            />
+            <span>已选择 <b>{{ selectedKeys.length }}</b> 项</span>
+            <a-divider type="vertical" />
+            <a-button
+              type="link"
+              size="small"
+              @click="clearSelection"
+            >
+              取消选择
+            </a-button>
+          </template>
+        </div>
+        <a-pagination
+          v-model:current="pagination.current"
+          v-model:page-size="pagination.pageSize"
+          :total="pagination.total"
+          :show-size-changer="true"
+          :show-quick-jumper="true"
+          :page-size-options="['10', '20', '50', '100']"
+          :show-total="(total: number) => `共 ${total} 条`"
+          size="small"
+          @change="onPageChange"
+        />
+      </div>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

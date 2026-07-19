@@ -20,19 +20,32 @@
               allow-clear
               style="width: 180px"
             >
-              <a-select-option value="主图">主图</a-select-option>
-              <a-select-option value="详情图">详情图</a-select-option>
-              <a-select-option value="缩略图">缩略图</a-select-option>
+              <a-select-option value="主图">
+                主图
+              </a-select-option>
+              <a-select-option value="详情图">
+                详情图
+              </a-select-option>
+              <a-select-option value="缩略图">
+                缩略图
+              </a-select-option>
             </a-select>
           </div>
           <div class="search-item">
             <a-space>
-              <a-button type="primary" @click="handleSearch">
-                <template #icon><SearchOutlined /></template>
+              <a-button
+                type="primary"
+                @click="handleSearch"
+              >
+                <template #icon>
+                  <SearchOutlined />
+                </template>
                 查询
               </a-button>
               <a-button @click="handleReset">
-                <template #icon><ClearOutlined /></template>
+                <template #icon>
+                  <ClearOutlined />
+                </template>
                 重置
               </a-button>
             </a-space>
@@ -40,10 +53,10 @@
         </div>
       </div>
       <BillTableList
+        ref="tableRef"
         :columns="columns"
         :api-url="apiUrl"
         :params="searchParams"
-        ref="tableRef"
       />
     </PageContainer>
   </ErrorBoundary>
@@ -59,7 +72,7 @@ import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import request from '@/utils/request'
 
 const tableRef = ref()
-const apiUrl = '/api/md/image/page'
+const apiUrl = '/md/image/page'
 
 const searchParams = reactive({
   productName: '',

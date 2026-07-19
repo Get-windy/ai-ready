@@ -9,7 +9,10 @@
             @reset="handleReset"
           />
           <div class="page-header__right">
-            <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge"><SyncOutlined /> {{ autoRefreshCountdown }}s</span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            ><SyncOutlined /> {{ autoRefreshCountdown }}s</span>
             <span class="shortcut-hints">
               <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
             </span>
@@ -17,7 +20,11 @@
         </div>
       </template>
 
-      <SkeletonTable v-if="loading && tableData.length === 0" :columns="columns.length" :rows="8" />
+      <SkeletonTable
+        v-if="loading && tableData.length === 0"
+        :columns="columns.length"
+        :rows="8"
+      />
       <a-table
         v-else
         :data-source="tableData"
@@ -29,7 +36,12 @@
       >
         <template #emptyText>
           <a-empty description="暂无订单数据">
-            <a-button size="small" @click="wms.fetchData">刷新</a-button>
+            <a-button
+              size="small"
+              @click="wms.fetchData"
+            >
+              刷新
+            </a-button>
           </a-empty>
         </template>
         <template #bodyCell="{ column, record }">
@@ -52,7 +64,12 @@
           <!-- actions -->
           <template v-if="column.key === 'actions'">
             <a-space>
-              <a-button v-permission="'dms:order-pool:view'" type="link" size="small" @click="handleViewEntries(record)">
+              <a-button
+                v-permission="'dms:order-pool:view'"
+                type="link"
+                size="small"
+                @click="handleViewEntries(record)"
+              >
                 查看竞标
               </a-button>
               <a-button
@@ -60,8 +77,8 @@
                 v-permission="'dms:order-pool:assign'"
                 type="link"
                 size="small"
-                @click="handleForceAssign(record)"
                 danger
+                @click="handleForceAssign(record)"
               >
                 强制分配
               </a-button>

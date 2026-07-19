@@ -1,163 +1,254 @@
 <template>
   <ErrorBoundary @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="tenant-approval-page-header">
-        <div class="tenant-approval-page-header-left">
-          <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item>租户注册审批</a-breadcrumb-item>
-          </a-breadcrumb>
-          <h2 class="tenant-approval-page-header-title">租户注册审批</h2>
-        </div>
-        <div class="tenant-approval-page-header-right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-            <SyncOutlined /> {{ autoRefreshCountdown }}s
-          </span>
-          <span class="shortcut-hints">
-            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-          </span>
-          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchList)()">
-            <template #icon><ReloadOutlined /></template>
-            刷新
-          </a-button>
-        </div>
-      </div>
-    </template>
-
-    <div class="tenant-approval-page-body">
-      <!-- 统计卡片 -->
-      <div class="stat-cards">
-        <div class="stat-card stat-total">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ pendingList.length }}</div>
-            <div class="stat-card-label">待审核</div>
+    <PageContainer full-height>
+      <template #header>
+        <div class="tenant-approval-page-header">
+          <div class="tenant-approval-page-header-left">
+            <a-breadcrumb>
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>租户注册审批</a-breadcrumb-item>
+            </a-breadcrumb>
+            <h2 class="tenant-approval-page-header-title">
+              租户注册审批
+            </h2>
           </div>
-          <ClockCircleOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-approved">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ approvedCount }}</div>
-            <div class="stat-card-label">已通过</div>
-          </div>
-          <CheckCircleOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-rejected">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ rejectedCount }}</div>
-            <div class="stat-card-label">已驳回</div>
-          </div>
-          <CloseCircleOutlined class="stat-card-icon" />
-        </div>
-      </div>
-
-      <a-card>
-        <template #title>
-          <div class="card-header">
-            <span>待审核列表</span>
-            <a-badge :count="pendingList.length" :overflow-count="99">
-              <a-tag color="orange">待审核</a-tag>
-            </a-badge>
-          </div>
-        </template>
-
-        <!-- 骨架加载 -->
-        <a-skeleton active v-if="loading" :paragraph="{ rows: 6 }" style="padding: 24px;" />
-
-        <!-- 错误状态 -->
-        <a-result v-else-if="hasError" status="error" title="数据加载失败">
-          <template #extra>
-            <a-button type="primary" @click="debounceClick('refresh', fetchList)()">
-              <template #icon><ReloadOutlined /></template>
-              重新加载
-            </a-button>
-          </template>
-        </a-result>
-
-        <!-- 无数据 -->
-        <a-empty v-else-if="pendingList.length === 0" description="暂无待审核的租户注册申请">
-          <template #extra>
-            <a-button type="primary" @click="debounceClick('refresh', fetchList)()">刷新</a-button>
-          </template>
-        </a-empty>
-
-        <!-- 审核列表 -->
-        <a-list v-else :data-source="pendingList" item-layout="vertical" size="large">
-          <template #renderItem="{ item, index }">
-            <a-list-item>
-              <a-list-item-meta>
-                <template #title>
-                  <div class="item-title">
-                    <span>{{ item.tenantName }}</span>
-                    <a-tag color="blue">{{ item.tenantCode }}</a-tag>
-                  </div>
-                </template>
-                <template #description>
-                  <a-descriptions :column="2" size="small">
-                    <a-descriptions-item label="联系人">{{ item.contactPerson }}</a-descriptions-item>
-                    <a-descriptions-item label="联系电话">{{ item.contactPhone }}</a-descriptions-item>
-                    <a-descriptions-item label="邮箱">{{ item.contactEmail }}</a-descriptions-item>
-                    <a-descriptions-item label="申请时间">{{ item.createTime }}</a-descriptions-item>
-                  </a-descriptions>
-                </template>
-              </a-list-item-meta>
-              <template #actions>
-                <a-button type="primary" ghost size="small" v-permission="'system:tenant:approve'" @click="handleApprove(item)">
-                  <template #icon><CheckOutlined /></template>
-                  通过
-                </a-button>
-                <a-button danger ghost size="small" v-permission="'system:tenant:reject'" @click="handleReject(item)">
-                  <template #icon><CloseOutlined /></template>
-                  驳回
-                </a-button>
+          <div class="tenant-approval-page-header-right">
+            <span
+              v-if="lastUpdateTime"
+              class="update-time"
+            >更新于 {{ lastUpdateTime }}</span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            >
+              <SyncOutlined /> {{ autoRefreshCountdown }}s
+            </span>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            </span>
+            <a-button
+              size="small"
+              :loading="refreshLoading"
+              @click="debounceClick('refresh', fetchList)()"
+            >
+              <template #icon>
+                <ReloadOutlined />
               </template>
-            </a-list-item>
+              刷新
+            </a-button>
+          </div>
+        </div>
+      </template>
+
+      <div class="tenant-approval-page-body">
+        <!-- 统计卡片 -->
+        <div class="stat-cards">
+          <div class="stat-card stat-total">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ pendingList.length }}
+              </div>
+              <div class="stat-card-label">
+                待审核
+              </div>
+            </div>
+            <ClockCircleOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-approved">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ approvedCount }}
+              </div>
+              <div class="stat-card-label">
+                已通过
+              </div>
+            </div>
+            <CheckCircleOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-rejected">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ rejectedCount }}
+              </div>
+              <div class="stat-card-label">
+                已驳回
+              </div>
+            </div>
+            <CloseCircleOutlined class="stat-card-icon" />
+          </div>
+        </div>
+
+        <a-card>
+          <template #title>
+            <div class="card-header">
+              <span>待审核列表</span>
+              <a-badge
+                :count="pendingList.length"
+                :overflow-count="99"
+              >
+                <a-tag color="orange">
+                  待审核
+                </a-tag>
+              </a-badge>
+            </div>
           </template>
-        </a-list>
-      </a-card>
 
-      <!-- 通过审批确认 -->
-      <a-modal
-        v-model:open="approveModalVisible"
-        title="确认通过审批"
-        @ok="confirmApprove"
-        :confirm-loading="approving"
-      >
-        <p>确认通过 <strong>{{ currentItem?.tenantName }}</strong> 的注册申请？</p>
-        <p style="color: #666; font-size: 13px">
-          通过后将自动创建管理员账号并初始化租户环境。
-        </p>
-        <a-textarea
-          v-model:value="approveRemark"
-          placeholder="备注（可选）"
-          :rows="3"
-        />
-      </a-modal>
+          <!-- 骨架加载 -->
+          <a-skeleton
+            v-if="loading"
+            active
+            :paragraph="{ rows: 6 }"
+            style="padding: 24px;"
+          />
 
-      <!-- 驳回确认 -->
-      <a-modal
-        v-model:open="rejectModalVisible"
-        title="驳回注册申请"
-        @ok="confirmReject"
-        :confirm-loading="rejecting"
-        :ok-button-props="{ danger: true }"
-      >
-        <p>确认驳回 <strong>{{ currentItem?.tenantName }}</strong> 的注册申请？</p>
-        <a-form-item
-          label="驳回原因"
-          :validate-status="rejectReasonError ? 'error' : undefined"
-          :help="rejectReasonError"
+          <!-- 错误状态 -->
+          <a-result
+            v-else-if="hasError"
+            status="error"
+            title="数据加载失败"
+          >
+            <template #extra>
+              <a-button
+                type="primary"
+                @click="debounceClick('refresh', fetchList)()"
+              >
+                <template #icon>
+                  <ReloadOutlined />
+                </template>
+                重新加载
+              </a-button>
+            </template>
+          </a-result>
+
+          <!-- 无数据 -->
+          <a-empty
+            v-else-if="pendingList.length === 0"
+            description="暂无待审核的租户注册申请"
+          >
+            <template #extra>
+              <a-button
+                type="primary"
+                @click="debounceClick('refresh', fetchList)()"
+              >
+                刷新
+              </a-button>
+            </template>
+          </a-empty>
+
+          <!-- 审核列表 -->
+          <a-list
+            v-else
+            :data-source="pendingList"
+            item-layout="vertical"
+            size="large"
+          >
+            <template #renderItem="{ item, index }">
+              <a-list-item>
+                <a-list-item-meta>
+                  <template #title>
+                    <div class="item-title">
+                      <span>{{ item.tenantName }}</span>
+                      <a-tag color="blue">
+                        {{ item.tenantCode }}
+                      </a-tag>
+                    </div>
+                  </template>
+                  <template #description>
+                    <a-descriptions
+                      :column="2"
+                      size="small"
+                    >
+                      <a-descriptions-item label="联系人">
+                        {{ item.contactPerson }}
+                      </a-descriptions-item>
+                      <a-descriptions-item label="联系电话">
+                        {{ item.contactPhone }}
+                      </a-descriptions-item>
+                      <a-descriptions-item label="邮箱">
+                        {{ item.contactEmail }}
+                      </a-descriptions-item>
+                      <a-descriptions-item label="申请时间">
+                        {{ item.createTime }}
+                      </a-descriptions-item>
+                    </a-descriptions>
+                  </template>
+                </a-list-item-meta>
+                <template #actions>
+                  <a-button
+                    v-permission="'system:tenant:approve'"
+                    type="primary"
+                    ghost
+                    size="small"
+                    @click="handleApprove(item)"
+                  >
+                    <template #icon>
+                      <CheckOutlined />
+                    </template>
+                    通过
+                  </a-button>
+                  <a-button
+                    v-permission="'system:tenant:reject'"
+                    danger
+                    ghost
+                    size="small"
+                    @click="handleReject(item)"
+                  >
+                    <template #icon>
+                      <CloseOutlined />
+                    </template>
+                    驳回
+                  </a-button>
+                </template>
+              </a-list-item>
+            </template>
+          </a-list>
+        </a-card>
+
+        <!-- 通过审批确认 -->
+        <a-modal
+          v-model:open="approveModalVisible"
+          title="确认通过审批"
+          :confirm-loading="approving"
+          @ok="confirmApprove"
         >
+          <p>确认通过 <strong>{{ currentItem?.tenantName }}</strong> 的注册申请？</p>
+          <p style="color: #666; font-size: 13px">
+            通过后将自动创建管理员账号并初始化租户环境。
+          </p>
           <a-textarea
-            v-model:value="rejectReason"
-            placeholder="请填写驳回原因（必填）"
+            v-model:value="approveRemark"
+            placeholder="备注（可选）"
             :rows="3"
           />
-        </a-form-item>
-      </a-modal>
-    </div>
-  </PageContainer>
+        </a-modal>
+
+        <!-- 驳回确认 -->
+        <a-modal
+          v-model:open="rejectModalVisible"
+          title="驳回注册申请"
+          :confirm-loading="rejecting"
+          :ok-button-props="{ danger: true }"
+          @ok="confirmReject"
+        >
+          <p>确认驳回 <strong>{{ currentItem?.tenantName }}</strong> 的注册申请？</p>
+          <a-form-item
+            label="驳回原因"
+            :validate-status="rejectReasonError ? 'error' : undefined"
+            :help="rejectReasonError"
+          >
+            <a-textarea
+              v-model:value="rejectReason"
+              placeholder="请填写驳回原因（必填）"
+              :rows="3"
+            />
+          </a-form-item>
+        </a-modal>
+      </div>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

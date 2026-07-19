@@ -1,217 +1,363 @@
 <template>
   <ErrorBoundary @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="transfer-page-header">
-        <div class="transfer-page-header-left">
-          <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item>固定资产</a-breadcrumb-item>
-            <a-breadcrumb-item>转移管理</a-breadcrumb-item>
-          </a-breadcrumb>
-          <h2 class="transfer-page-header-title">转移管理</h2>
-        </div>
-        <div class="transfer-page-header-right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-            <SyncOutlined /> {{ autoRefreshCountdown }}s
-          </span>
-          <PrintButton business-type="fixed_asset_transfer" button-type="link" button-size="small" tooltip="打印转移记录" />
-          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)()" v-permission="'erp:fixed-asset:transfer:list'">
-            <template #icon><ReloadOutlined /></template>
-            刷新
-          </a-button>
-<span class="shortcut-hints">
-                                                <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
-                                                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-                                              </span>
-        </div>
-
-      </div>
-    </template>
-
-    <div class="transfer-list-page">
-      <!-- 统计卡片 -->
-      <div class="stat-cards">
-        <div class="stat-card stat-draft">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ statusCounts.draft }}</div>
-            <div class="stat-card-label">待审批</div>
+    <PageContainer full-height>
+      <template #header>
+        <div class="transfer-page-header">
+          <div class="transfer-page-header-left">
+            <a-breadcrumb>
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>固定资产</a-breadcrumb-item>
+              <a-breadcrumb-item>转移管理</a-breadcrumb-item>
+            </a-breadcrumb>
+            <h2 class="transfer-page-header-title">
+              转移管理
+            </h2>
           </div>
-          <ClockCircleOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-approved">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ statusCounts.approved }}</div>
-            <div class="stat-card-label">已通过</div>
-          </div>
-          <CheckCircleOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-completed">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ statusCounts.completed }}</div>
-            <div class="stat-card-label">已完成</div>
-          </div>
-          <SwapOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-count">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ pagination.total }}</div>
-            <div class="stat-card-label">转移记录数</div>
-          </div>
-          <FileTextOutlined class="stat-card-icon" />
-        </div>
-      </div>
-
-      <BillTableList
-        ref="tableRef"
-        :columns="vxeColumns"
-        :data-source="tableDataSource"
-        :loading="loading"
-        :pagination="pagination"
-        :table-key="'fixed-asset-transfer-list'"
-        :filter-fields="filterFields"
-        :selectable="true"
-        add-text="新增转移"
-        add-permission="erp:fixed-asset:transfer:create"
-        delete-permission="erp:fixed-asset:transfer:delete"
-        @add="showCreateModal"
-        @cell-dblclick="viewDetail"
-        @edit="editRecord"
-        @delete="handleDelete"
-        :min-empty-rows="12"
-        @refresh="debounceClick('refresh', fetchData)"
-        @search="handleSearch"
-        @page-change="handlePageChange"
-        @filter-change="handleFilterChange"
-        @selection-change="handleSelectionChange"
-      >
-        <template #toolbar-actions>
-          <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
-            更新 {{ dayjs(lastUpdated).format('HH:mm') }}
-          </span>
-        </template>
-        <template #batch-actions="{ selectedRowKeys }: any">
-          <span class="batch-info">已选择 {{ selectedRowKeys.length }} 项</span>
-        </template>
-        <template #empty>
-          <div v-if="hasError" class="table-empty table-empty-error">
-            <WarningOutlined class="table-empty-icon table-empty-icon-error" />
-            <p class="table-empty-text">数据加载失败，请重试</p>
-            <a-button size="small" @click="debounceClick('refresh', fetchData)()">
-              <template #icon><ReloadOutlined /></template>
-              重试
-            </a-button>
-          </div>
-          <div v-else class="table-empty">
-            <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-            <InboxOutlined v-else class="table-empty-icon" />
-            <p v-if="hasActiveFilters" class="table-empty-text">
-              没有符合条件的转移记录，<a @click="handleResetFilters">清除筛选</a>
-            </p>
-            <p v-else class="table-empty-text">
-              暂无转移记录，点击右上角「新增转移」开始创建
-            </p>
-          </div>
-        </template>
-        <template #action="{ record }">
-          <a-space :size="4">
-            <a-tooltip title="查看详情">
-              <a-button type="link" size="small" @click="viewDetail(record)">
-                <template #icon><EyeOutlined /></template>
-              </a-button>
-            </a-tooltip>
-            <a-tooltip v-if="record.status === 'draft'" title="编辑">
-              <a-button type="link" size="small" @click="editRecord(record)" v-permission="'erp:fixed-asset:transfer:update'">
-                <template #icon><EditOutlined /></template>
-              </a-button>
-            </a-tooltip>
+          <div class="transfer-page-header-right">
+            <span
+              v-if="lastUpdateTime"
+              class="update-time"
+            >更新于 {{ lastUpdateTime }}</span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            >
+              <SyncOutlined /> {{ autoRefreshCountdown }}s
+            </span>
             <PrintButton
-              template-type="transfer"
-              :business-id="record.id"
               business-type="fixed_asset_transfer"
-              button-text=""
-              button-size="small"
               button-type="link"
-              tooltip="打印"
+              button-size="small"
+              tooltip="打印转移记录"
             />
-            <a-dropdown trigger="click">
-              <a-button type="link" size="small" class="action-more-btn">
-                <template #icon><EllipsisOutlined /></template>
-              </a-button>
-              <template #overlay>
-                <a-menu @click="({ key }: any) => handleActionMenuClick(key as string, record)">
-                  <a-menu-item v-if="record.status === 'draft'" key="approve" v-permission="'erp:fixed-asset:transfer:approve'">
-                    <CheckCircleOutlined /> 审批通过
-                  </a-menu-item>
-                  <a-menu-item v-if="record.status === 'draft'" key="reject" v-permission="'erp:fixed-asset:transfer:approve'">
-                    <CloseCircleOutlined /> 审批拒绝
-                  </a-menu-item>
-                  <a-menu-divider />
-                  <a-menu-item v-if="record.status === 'draft'" key="delete" danger>
-                    <DeleteOutlined /> 删除
-                  </a-menu-item>
-                </a-menu>
+            <a-button
+              v-permission="'erp:fixed-asset:transfer:list'"
+              size="small"
+              :loading="refreshLoading"
+              @click="debounceClick('refresh', fetchData)()"
+            >
+              <template #icon>
+                <ReloadOutlined />
               </template>
-            </a-dropdown>
-          </a-space>
-        </template>
-      </BillTableList>
+              刷新
+            </a-button>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            </span>
+          </div>
+        </div>
+      </template>
 
-      <!-- Create/Edit Modal -->
-      <FullScreenDetail
-        :visible="modalVisible"
-        :title="isEdit ? '编辑转移申请' : '新增转移申请'"
-        :save-loading="modalLoading"
-        :show-save-and-new="!isEdit"
-        @save="handleModalOk"
-        @close="handleFormClose"
-        @save-and-new="handleFormSaveAndNew"
-      >
-        <a-form :model="formData" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
-          <a-form-item label="资产ID" required>
-            <a-input-number v-model:value="formData.assetId" :min="1" style="width: 100%" size="small" />
-          </a-form-item>
-          <a-form-item label="资产编码">
-            <a-input v-model:value="formData.assetCode" placeholder="资产编码" size="small" />
-          </a-form-item>
-          <a-form-item label="资产名称">
-            <a-input v-model:value="formData.assetName" placeholder="资产名称" size="small" />
-          </a-form-item>
-          <a-row :gutter="16">
-            <a-col :span="12">
-              <a-form-item label="调出部门">
-                <a-input v-model:value="formData.fromDepartmentName" placeholder="调出部门" size="small" />
-              </a-form-item>
-            </a-col>
-            <a-col :span="12">
-              <a-form-item label="调入部门">
-                <a-input v-model:value="formData.toDepartmentName" placeholder="调入部门" size="small" />
-              </a-form-item>
-            </a-col>
-          </a-row>
-          <a-row :gutter="16">
-            <a-col :span="12">
-              <a-form-item label="调出保管人">
-                <a-input v-model:value="formData.fromCustodianName" placeholder="调出保管人" size="small" />
-              </a-form-item>
-            </a-col>
-            <a-col :span="12">
-              <a-form-item label="调入保管人">
-                <a-input v-model:value="formData.toCustodianName" placeholder="调入保管人" size="small" />
-              </a-form-item>
-            </a-col>
-          </a-row>
-          <a-form-item label="转移日期">
-            <a-date-picker v-model:value="formData.transferDate" style="width: 100%" size="small" />
-          </a-form-item>
-          <a-form-item label="转移原因">
-            <a-textarea v-model:value="formData.reason" :rows="2" size="small" />
-          </a-form-item>
-        </a-form>
-      </FullScreenDetail>
-    </div>
-  </PageContainer>
+      <div class="transfer-list-page">
+        <!-- 统计卡片 -->
+        <div class="stat-cards">
+          <div class="stat-card stat-draft">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ statusCounts.draft }}
+              </div>
+              <div class="stat-card-label">
+                待审批
+              </div>
+            </div>
+            <ClockCircleOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-approved">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ statusCounts.approved }}
+              </div>
+              <div class="stat-card-label">
+                已通过
+              </div>
+            </div>
+            <CheckCircleOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-completed">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ statusCounts.completed }}
+              </div>
+              <div class="stat-card-label">
+                已完成
+              </div>
+            </div>
+            <SwapOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-count">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ pagination.total }}
+              </div>
+              <div class="stat-card-label">
+                转移记录数
+              </div>
+            </div>
+            <FileTextOutlined class="stat-card-icon" />
+          </div>
+        </div>
+
+        <BillTableList
+          ref="tableRef"
+          :columns="vxeColumns"
+          :data-source="tableDataSource"
+          :loading="loading"
+          :pagination="pagination"
+          :table-key="'fixed-asset-transfer-list'"
+          :filter-fields="filterFields"
+          :selectable="true"
+          add-text="新增转移"
+          add-permission="erp:fixed-asset:transfer:create"
+          delete-permission="erp:fixed-asset:transfer:delete"
+          :min-empty-rows="12"
+          @add="showCreateModal"
+          @cell-dblclick="viewDetail"
+          @edit="editRecord"
+          @delete="handleDelete"
+          @refresh="debounceClick('refresh', fetchData)"
+          @search="handleSearch"
+          @page-change="handlePageChange"
+          @filter-change="handleFilterChange"
+          @selection-change="handleSelectionChange"
+        >
+          <template #toolbar-actions>
+            <span
+              v-if="lastUpdated"
+              class="list-update-timestamp"
+              :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')"
+            >
+              更新 {{ dayjs(lastUpdated).format('HH:mm') }}
+            </span>
+          </template>
+          <template #batch-actions="{ selectedRowKeys }: any">
+            <span class="batch-info">已选择 {{ selectedRowKeys.length }} 项</span>
+          </template>
+          <template #empty>
+            <div
+              v-if="hasError"
+              class="table-empty table-empty-error"
+            >
+              <WarningOutlined class="table-empty-icon table-empty-icon-error" />
+              <p class="table-empty-text">
+                数据加载失败，请重试
+              </p>
+              <a-button
+                size="small"
+                @click="debounceClick('refresh', fetchData)()"
+              >
+                <template #icon>
+                  <ReloadOutlined />
+                </template>
+                重试
+              </a-button>
+            </div>
+            <div
+              v-else
+              class="table-empty"
+            >
+              <SearchOutlined
+                v-if="hasActiveFilters"
+                class="table-empty-icon"
+              />
+              <InboxOutlined
+                v-else
+                class="table-empty-icon"
+              />
+              <p
+                v-if="hasActiveFilters"
+                class="table-empty-text"
+              >
+                没有符合条件的转移记录，<a @click="handleResetFilters">清除筛选</a>
+              </p>
+              <p
+                v-else
+                class="table-empty-text"
+              >
+                暂无转移记录，点击右上角「新增转移」开始创建
+              </p>
+            </div>
+          </template>
+          <template #action="{ record }">
+            <a-space :size="4">
+              <a-tooltip title="查看详情">
+                <a-button
+                  type="link"
+                  size="small"
+                  @click="viewDetail(record)"
+                >
+                  <template #icon>
+                    <EyeOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip
+                v-if="record.status === 'draft'"
+                title="编辑"
+              >
+                <a-button
+                  v-permission="'erp:fixed-asset:transfer:update'"
+                  type="link"
+                  size="small"
+                  @click="editRecord(record)"
+                >
+                  <template #icon>
+                    <EditOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <PrintButton
+                template-type="transfer"
+                :business-id="record.id"
+                business-type="fixed_asset_transfer"
+                button-text=""
+                button-size="small"
+                button-type="link"
+                tooltip="打印"
+              />
+              <a-dropdown trigger="click">
+                <a-button
+                  type="link"
+                  size="small"
+                  class="action-more-btn"
+                >
+                  <template #icon>
+                    <EllipsisOutlined />
+                  </template>
+                </a-button>
+                <template #overlay>
+                  <a-menu @click="({ key }: any) => handleActionMenuClick(key as string, record)">
+                    <a-menu-item
+                      v-if="record.status === 'draft'"
+                      key="approve"
+                      v-permission="'erp:fixed-asset:transfer:approve'"
+                    >
+                      <CheckCircleOutlined /> 审批通过
+                    </a-menu-item>
+                    <a-menu-item
+                      v-if="record.status === 'draft'"
+                      key="reject"
+                      v-permission="'erp:fixed-asset:transfer:approve'"
+                    >
+                      <CloseCircleOutlined /> 审批拒绝
+                    </a-menu-item>
+                    <a-menu-divider />
+                    <a-menu-item
+                      v-if="record.status === 'draft'"
+                      key="delete"
+                      danger
+                    >
+                      <DeleteOutlined /> 删除
+                    </a-menu-item>
+                  </a-menu>
+                </template>
+              </a-dropdown>
+            </a-space>
+          </template>
+        </BillTableList>
+
+        <!-- Create/Edit Modal -->
+        <FullScreenDetail
+          :visible="modalVisible"
+          :title="isEdit ? '编辑转移申请' : '新增转移申请'"
+          :save-loading="modalLoading"
+          :show-save-and-new="!isEdit"
+          @save="handleModalOk"
+          @close="handleFormClose"
+          @save-and-new="handleFormSaveAndNew"
+        >
+          <a-form
+            :model="formData"
+            :label-col="{ span: 6 }"
+            :wrapper-col="{ span: 16 }"
+          >
+            <a-form-item
+              label="资产ID"
+              required
+            >
+              <a-input-number
+                v-model:value="formData.assetId"
+                :min="1"
+                style="width: 100%"
+                size="small"
+              />
+            </a-form-item>
+            <a-form-item label="资产编码">
+              <a-input
+                v-model:value="formData.assetCode"
+                placeholder="资产编码"
+                size="small"
+              />
+            </a-form-item>
+            <a-form-item label="资产名称">
+              <a-input
+                v-model:value="formData.assetName"
+                placeholder="资产名称"
+                size="small"
+              />
+            </a-form-item>
+            <a-row :gutter="16">
+              <a-col :span="12">
+                <a-form-item label="调出部门">
+                  <a-input
+                    v-model:value="formData.fromDepartmentName"
+                    placeholder="调出部门"
+                    size="small"
+                  />
+                </a-form-item>
+              </a-col>
+              <a-col :span="12">
+                <a-form-item label="调入部门">
+                  <a-input
+                    v-model:value="formData.toDepartmentName"
+                    placeholder="调入部门"
+                    size="small"
+                  />
+                </a-form-item>
+              </a-col>
+            </a-row>
+            <a-row :gutter="16">
+              <a-col :span="12">
+                <a-form-item label="调出保管人">
+                  <a-input
+                    v-model:value="formData.fromCustodianName"
+                    placeholder="调出保管人"
+                    size="small"
+                  />
+                </a-form-item>
+              </a-col>
+              <a-col :span="12">
+                <a-form-item label="调入保管人">
+                  <a-input
+                    v-model:value="formData.toCustodianName"
+                    placeholder="调入保管人"
+                    size="small"
+                  />
+                </a-form-item>
+              </a-col>
+            </a-row>
+            <a-form-item label="转移日期">
+              <a-date-picker
+                v-model:value="formData.transferDate"
+                style="width: 100%"
+                size="small"
+              />
+            </a-form-item>
+            <a-form-item label="转移原因">
+              <a-textarea
+                v-model:value="formData.reason"
+                :rows="2"
+                size="small"
+              />
+            </a-form-item>
+          </a-form>
+        </FullScreenDetail>
+      </div>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

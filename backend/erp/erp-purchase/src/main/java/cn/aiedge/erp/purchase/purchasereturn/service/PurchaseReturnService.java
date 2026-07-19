@@ -21,6 +21,8 @@ public interface PurchaseReturnService extends IService<PurchaseReturn> {
 
     PurchaseReturn createReturn(PurchaseReturn returnOrder, List<PurchaseReturnItem> items);
 
+    PurchaseReturn updateReturn(Long id, PurchaseReturn returnOrder, List<PurchaseReturnItem> items);
+
     PurchaseReturn submitForApproval(Long returnId);
 
     PurchaseReturn approve(Long returnId, Long approverId, String note);

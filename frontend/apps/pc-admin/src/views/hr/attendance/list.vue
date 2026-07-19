@@ -1,14 +1,28 @@
 <template>
   <div class="page-container">
     <div class="page-header">
-      <h2 class="page-title">考勤管理</h2>
+      <h2 class="page-title">
+        考勤管理
+      </h2>
     </div>
     <div class="page-container__body">
-      <a-card :bordered="false" class="table-card">
-        <a-table :columns="columns" :data-source="tableData" :loading="loading" :pagination="pagination" row-key="id" @change="handleTableChange">
+      <a-card
+        :bordered="false"
+        class="table-card"
+      >
+        <a-table
+          :columns="columns"
+          :data-source="tableData"
+          :loading="loading"
+          :pagination="pagination"
+          row-key="id"
+          @change="handleTableChange"
+        >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'status'">
-              <a-tag :color="ATTENDANCE_STATUS_MAP[record.status]?.color">{{ ATTENDANCE_STATUS_MAP[record.status]?.text }}</a-tag>
+              <a-tag :color="ATTENDANCE_STATUS_MAP[record.status]?.color">
+                {{ ATTENDANCE_STATUS_MAP[record.status]?.text }}
+              </a-tag>
             </template>
           </template>
         </a-table>

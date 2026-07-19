@@ -1,20 +1,36 @@
 <template>
   <div class="page-container">
     <div class="page-header">
-      <h2 class="page-title">支付记录</h2>
+      <h2 class="page-title">
+        支付记录
+      </h2>
     </div>
     <div class="page-container__body">
-      <a-card :bordered="false" class="table-card">
-        <a-table :columns="columns" :data-source="tableData" :loading="loading" :pagination="pagination" row-key="id" @change="handleTableChange">
+      <a-card
+        :bordered="false"
+        class="table-card"
+      >
+        <a-table
+          :columns="columns"
+          :data-source="tableData"
+          :loading="loading"
+          :pagination="pagination"
+          row-key="id"
+          @change="handleTableChange"
+        >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'amount'">
               <span style="color: #52c41a; font-weight: bold">¥{{ record.amount }}</span>
             </template>
             <template v-if="column.key === 'channel'">
-              <a-tag :color="PAYMENT_CHANNEL_MAP[record.channel]?.color">{{ PAYMENT_CHANNEL_MAP[record.channel]?.name }}</a-tag>
+              <a-tag :color="PAYMENT_CHANNEL_MAP[record.channel]?.color">
+                {{ PAYMENT_CHANNEL_MAP[record.channel]?.name }}
+              </a-tag>
             </template>
             <template v-if="column.key === 'status'">
-              <a-tag :color="record.status === 2 ? 'success' : 'error'">{{ record.status === 2 ? '成功' : '失败' }}</a-tag>
+              <a-tag :color="record.status === 2 ? 'success' : 'error'">
+                {{ record.status === 2 ? '成功' : '失败' }}
+              </a-tag>
             </template>
           </template>
         </a-table>

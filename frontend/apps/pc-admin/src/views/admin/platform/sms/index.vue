@@ -4,25 +4,42 @@
       <div class="page-header">
         <div class="page-header-left">
           <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>
+              <router-link to="/">
+                首页
+              </router-link>
+            </a-breadcrumb-item>
             <a-breadcrumb-item>系统管理</a-breadcrumb-item>
             <a-breadcrumb-item>短信配置</a-breadcrumb-item>
           </a-breadcrumb>
-          <h2 class="page-header-title">短信配置</h2>
+          <h2 class="page-header-title">
+            短信配置
+          </h2>
         </div>
       </div>
     </template>
 
     <a-row :gutter="16">
       <a-col :span="12">
-        <a-card :bordered="false" title="短信服务商">
+        <a-card
+          :bordered="false"
+          title="短信服务商"
+        >
           <a-form layout="vertical">
             <a-form-item label="服务商">
               <a-select v-model:value="config.provider">
-                <a-select-option value="aliyun">阿里云短信</a-select-option>
-                <a-select-option value="tencent">腾讯云短信</a-select-option>
-                <a-select-option value="huawei">华为云短信</a-select-option>
-                <a-select-option value="qiniu">七牛云短信</a-select-option>
+                <a-select-option value="aliyun">
+                  阿里云短信
+                </a-select-option>
+                <a-select-option value="tencent">
+                  腾讯云短信
+                </a-select-option>
+                <a-select-option value="huawei">
+                  华为云短信
+                </a-select-option>
+                <a-select-option value="qiniu">
+                  七牛云短信
+                </a-select-option>
               </a-select>
             </a-form-item>
             <a-form-item label="AccessKey">
@@ -32,18 +49,40 @@
               <a-input-password v-model:value="config.accessSecret" />
             </a-form-item>
             <a-form-item label="短信签名">
-              <a-input v-model:value="config.signName" placeholder="短信签名" />
+              <a-input
+                v-model:value="config.signName"
+                placeholder="短信签名"
+              />
             </a-form-item>
             <a-form-item>
-              <a-button type="primary" @click="saveConfig">保存配置</a-button>
-              <a-button @click="testSms" style="margin-left:8px">测试短信</a-button>
+              <a-button
+                type="primary"
+                @click="saveConfig"
+              >
+                保存配置
+              </a-button>
+              <a-button
+                style="margin-left:8px"
+                @click="testSms"
+              >
+                测试短信
+              </a-button>
             </a-form-item>
           </a-form>
         </a-card>
       </a-col>
       <a-col :span="12">
-        <a-card :bordered="false" title="短信模板">
-          <a-table :data-source="templates" :columns="tmplColumns" row-key="id" :pagination="false" size="small">
+        <a-card
+          :bordered="false"
+          title="短信模板"
+        >
+          <a-table
+            :data-source="templates"
+            :columns="tmplColumns"
+            row-key="id"
+            :pagination="false"
+            size="small"
+          >
             <template #bodyCell="{ column, record }">
               <template v-if="column.key === 'action'">
                 <a @click="editTemplate(record)">编辑</a>
@@ -52,16 +91,31 @@
           </a-table>
         </a-card>
 
-        <a-card :bordered="false" title="发送统计" style="margin-top:16px">
+        <a-card
+          :bordered="false"
+          title="发送统计"
+          style="margin-top:16px"
+        >
           <a-row :gutter="16">
             <a-col :span="8">
-              <a-statistic title="今日发送" :value="stats.todayCount" />
+              <a-statistic
+                title="今日发送"
+                :value="stats.todayCount"
+              />
             </a-col>
             <a-col :span="8">
-              <a-statistic title="本月发送" :value="stats.monthCount" />
+              <a-statistic
+                title="本月发送"
+                :value="stats.monthCount"
+              />
             </a-col>
             <a-col :span="8">
-              <a-statistic title="成功率" :value="stats.successRate" suffix="%" :value-style="{ color: stats.successRate > 95 ? '#52c41a' : '#faad14' }" />
+              <a-statistic
+                title="成功率"
+                :value="stats.successRate"
+                suffix="%"
+                :value-style="{ color: stats.successRate > 95 ? '#52c41a' : '#faad14' }"
+              />
             </a-col>
           </a-row>
         </a-card>

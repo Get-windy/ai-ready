@@ -1,101 +1,189 @@
 <template>
-  <ErrorBoundary @error="handleError"><PageContainer full-height>
-    <template #header>
-      <div class="page-header">
-        <div class="page-header__left">
-          <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item>WMS / 库存查询</a-breadcrumb-item>
-          </a-breadcrumb>
-          <h2>库存查询</h2>
-        </div>
-        <div class="page-header__right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge"><SyncOutlined /> {{ autoRefreshCountdown }}s</span>
-          <a-button size="small" :loading="loading" @click="wms.debounce('refresh', wms.fetchData)">
-            <ReloadOutlined /> 刷新
-          </a-button>
-          <span class="shortcut-hints">
-            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-          </span>
-        </div>
-      </div>
-    </template>
-
-    <template #filter>
-      <SearchBar :fields="searchFields" :loading="loading" @search="handleSearch" @reset="handleReset" />
-    </template>
-
-    <template #default>
-      <div class="page-body">
-        <div class="stat-cards" style="margin-bottom: 12px;">
-          <div class="stat-card" style="border-top:3px solid #1890ff">
-            <div class="stat-value" style="color:#1890ff">{{ stats.totalQty }}</div>
-            <div class="stat-label">总库存量</div>
+  <ErrorBoundary @error="handleError">
+    <PageContainer full-height>
+      <template #header>
+        <div class="page-header">
+          <div class="page-header__left">
+            <a-breadcrumb>
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>WMS / 库存查询</a-breadcrumb-item>
+            </a-breadcrumb>
+            <h2>库存查询</h2>
           </div>
-          <div class="stat-card" style="border-top:3px solid #52c41a">
-            <div class="stat-value" style="color:#52c41a">{{ stats.availableQty }}</div>
-            <div class="stat-label">可用库存</div>
-          </div>
-          <div class="stat-card" style="border-top:3px solid #faad14">
-            <div class="stat-value" style="color:#faad14">{{ stats.frozenQty }}</div>
-            <div class="stat-label">冻结库存</div>
-          </div>
-          <div class="stat-card" style="border-top:3px solid #722ed1">
-            <div class="stat-value" style="color:#722ed1">{{ pagination.total }}</div>
-            <div class="stat-label">SKU种类</div>
+          <div class="page-header__right">
+            <span
+              v-if="lastUpdateTime"
+              class="update-time"
+            >更新于 {{ lastUpdateTime }}</span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            ><SyncOutlined /> {{ autoRefreshCountdown }}s</span>
+            <a-button
+              size="small"
+              :loading="loading"
+              @click="wms.debounce('refresh', wms.fetchData)"
+            >
+              <ReloadOutlined /> 刷新
+            </a-button>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            </span>
           </div>
         </div>
+      </template>
 
-        <a-skeleton active :loading="loading && dataList.length === 0">
-        <a-table
-          :dataSource="dataList"
-          :columns="columns"
+      <template #filter>
+        <SearchBar
+          :fields="searchFields"
           :loading="loading"
-          :pagination="pagination"
-          rowKey="id"
-          size="small"
-          bordered
-          @change="handleTableChange"
-        >
-          <template #emptyText>
-            <div class="empty-state-wrapper">
-              <template v-if="hasError">
-                <WarningOutlined class="empty-state-icon" style="color: #faad14" />
-                <p class="empty-state-text">加载失败</p>
-                <a-button type="primary" size="small" @click="wms.debounce('refresh', wms.fetchData)" class="empty-state-action">
-                  <ReloadOutlined /> 重试
-                </a-button>
-              </template>
-              <template v-else>
-                <InboxOutlined class="empty-state-icon" />
-                <p class="empty-state-text">暂无库存数据</p>
-              </template>
+          @search="handleSearch"
+          @reset="handleReset"
+        />
+      </template>
+
+      <template #default>
+        <div class="page-body">
+          <div
+            class="stat-cards"
+            style="margin-bottom: 12px;"
+          >
+            <div
+              class="stat-card"
+              style="border-top:3px solid #1890ff"
+            >
+              <div
+                class="stat-value"
+                style="color:#1890ff"
+              >
+                {{ stats.totalQty }}
+              </div>
+              <div class="stat-label">
+                总库存量
+              </div>
             </div>
-          </template>
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.dataIndex === 'quantity'">
-              <span class="qty-cell">{{ record.quantity || 0 }}</span>
-            </template>
-            <template v-if="column.dataIndex === 'availableQty'">
-              <span :style="{ color: (record.availableQty || 0) <= 0 ? '#ff4d4f' : '#52c41a', fontWeight: 600 }">
-                {{ record.availableQty || 0 }}
-              </span>
-            </template>
-            <template v-if="column.dataIndex === 'frozenQty'">
-              <span class="qty-cell frozen">{{ record.frozenQty || 0 }}</span>
-            </template>
-            <template v-if="column.dataIndex === 'action'">
-              <a-space :size="4">
-                <a-tooltip title="查看日志"><a-button v-permission="'wms:inventory:view-log'" type="link" size="small" @click="handleViewLog(record as any)"><HistoryOutlined /></a-button></a-tooltip>
-              </a-space>
-            </template>
-          </template>
-        </a-table>
-        </a-skeleton>
-      </div>
-    </template>
-  </PageContainer></ErrorBoundary>
+            <div
+              class="stat-card"
+              style="border-top:3px solid #52c41a"
+            >
+              <div
+                class="stat-value"
+                style="color:#52c41a"
+              >
+                {{ stats.availableQty }}
+              </div>
+              <div class="stat-label">
+                可用库存
+              </div>
+            </div>
+            <div
+              class="stat-card"
+              style="border-top:3px solid #faad14"
+            >
+              <div
+                class="stat-value"
+                style="color:#faad14"
+              >
+                {{ stats.frozenQty }}
+              </div>
+              <div class="stat-label">
+                冻结库存
+              </div>
+            </div>
+            <div
+              class="stat-card"
+              style="border-top:3px solid #722ed1"
+            >
+              <div
+                class="stat-value"
+                style="color:#722ed1"
+              >
+                {{ pagination.total }}
+              </div>
+              <div class="stat-label">
+                SKU种类
+              </div>
+            </div>
+          </div>
+
+          <a-skeleton
+            active
+            :loading="loading && dataList.length === 0"
+          >
+            <a-table
+              :data-source="dataList"
+              :columns="columns"
+              :loading="loading"
+              :pagination="pagination"
+              row-key="id"
+              size="small"
+              bordered
+              @change="handleTableChange"
+            >
+              <template #emptyText>
+                <div class="empty-state-wrapper">
+                  <template v-if="hasError">
+                    <WarningOutlined
+                      class="empty-state-icon"
+                      style="color: #faad14"
+                    />
+                    <p class="empty-state-text">
+                      加载失败
+                    </p>
+                    <a-button
+                      type="primary"
+                      size="small"
+                      class="empty-state-action"
+                      @click="wms.debounce('refresh', wms.fetchData)"
+                    >
+                      <ReloadOutlined /> 重试
+                    </a-button>
+                  </template>
+                  <template v-else>
+                    <InboxOutlined class="empty-state-icon" />
+                    <p class="empty-state-text">
+                      暂无库存数据
+                    </p>
+                  </template>
+                </div>
+              </template>
+              <template #bodyCell="{ column, record }">
+                <template v-if="column.dataIndex === 'quantity'">
+                  <span class="qty-cell">{{ record.quantity || 0 }}</span>
+                </template>
+                <template v-if="column.dataIndex === 'availableQty'">
+                  <span :style="{ color: (record.availableQty || 0) <= 0 ? '#ff4d4f' : '#52c41a', fontWeight: 600 }">
+                    {{ record.availableQty || 0 }}
+                  </span>
+                </template>
+                <template v-if="column.dataIndex === 'frozenQty'">
+                  <span class="qty-cell frozen">{{ record.frozenQty || 0 }}</span>
+                </template>
+                <template v-if="column.dataIndex === 'action'">
+                  <a-space :size="4">
+                    <a-tooltip title="查看日志">
+                      <a-button
+                        v-permission="'wms:inventory:view-log'"
+                        type="link"
+                        size="small"
+                        @click="handleViewLog(record as any)"
+                      >
+                        <HistoryOutlined />
+                      </a-button>
+                    </a-tooltip>
+                  </a-space>
+                </template>
+              </template>
+            </a-table>
+          </a-skeleton>
+        </div>
+      </template>
+    </PageContainer>
+  </ErrorBoundary>
 
   <!-- 库存日志弹窗 -->
   <a-modal
@@ -106,12 +194,12 @@
     @cancel="logVisible = false"
   >
     <a-table
-      :dataSource="logData"
+      :data-source="logData"
       :columns="logColumns"
       :loading="logLoading"
       :pagination="false as any"
       size="small"
-      rowKey="id"
+      row-key="id"
     >
       <template #bodyCell="{ column, record }">
         <template v-if="column.dataIndex === 'changeQty'">

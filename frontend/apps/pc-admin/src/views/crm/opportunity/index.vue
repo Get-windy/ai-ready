@@ -4,312 +4,588 @@
       <div class="opportunity-page-header">
         <div class="opportunity-page-header-left">
           <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>
+              <router-link to="/">
+                首页
+              </router-link>
+            </a-breadcrumb-item>
             <a-breadcrumb-item>商机管理</a-breadcrumb-item>
           </a-breadcrumb>
-          <h2 class="opportunity-page-header-title">商机管理</h2>
+          <h2 class="opportunity-page-header-title">
+            商机管理
+          </h2>
         </div>
         <div class="opportunity-page-header-right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+          <span
+            v-if="lastUpdateTime"
+            class="update-time"
+          >更新于 {{ lastUpdateTime }}</span>
+          <span
+            v-if="autoRefreshCountdown > 0"
+            class="auto-refresh-badge"
+          >
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-radio-group v-model:value="activeTab" button-style="solid" size="small">
-            <a-radio-button value="pipeline"><AppstoreOutlined /> 管道</a-radio-button>
-            <a-radio-button value="list"><UnorderedListOutlined /> 列表</a-radio-button>
-            <a-radio-button value="statistics"><BarChartOutlined /> 统计</a-radio-button>
+          <a-radio-group
+            v-model:value="activeTab"
+            button-style="solid"
+            size="small"
+          >
+            <a-radio-button value="pipeline">
+              <AppstoreOutlined /> 管道
+            </a-radio-button>
+            <a-radio-button value="list">
+              <UnorderedListOutlined /> 列表
+            </a-radio-button>
+            <a-radio-button value="statistics">
+              <BarChartOutlined /> 统计
+            </a-radio-button>
           </a-radio-group>
-          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)">
-            <template #icon><ReloadOutlined /></template>
+          <a-button
+            size="small"
+            :loading="refreshLoading"
+            @click="debounceClick('refresh', fetchData)"
+          >
+            <template #icon>
+              <ReloadOutlined />
+            </template>
             刷新
           </a-button>
-<span class="shortcut-hints">
-                                                <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
-                                                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-                                              </span>
+          <span class="shortcut-hints">
+            <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+          </span>
         </div>
-
-          </div>
+      </div>
     </template>
 
     <ErrorBoundary @reset="fetchData">
       <!-- 骨架加载 -->
-      <div v-if="loading && tableData.length === 0" class="skeleton-loading">
-        <a-skeleton :paragraph="{ rows: 3 }" active />
+      <div
+        v-if="loading && tableData.length === 0"
+        class="skeleton-loading"
+      >
+        <a-skeleton
+          :paragraph="{ rows: 3 }"
+          active
+        />
         <div style="height: 16px" />
-        <a-skeleton :paragraph="{ rows: 8 }" active />
+        <a-skeleton
+          :paragraph="{ rows: 8 }"
+          active
+        />
       </div>
 
       <!-- 统计卡片 -->
       <template v-if="!(loading && tableData.length === 0)">
-      <div class="stats-cards">
-        <a-row :gutter="16">
-          <a-col :span="6">
-            <div class="stat-card stat-card-blue">
-              <div class="stat-icon" style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);">
-                <FundOutlined />
-              </div>
-              <div class="stat-content">
-                <div class="stat-title">商机总数</div>
-                <div class="stat-value">{{ statistics.total }}</div>
-                <div class="stat-desc">全部商机</div>
-              </div>
-            </div>
-          </a-col>
-          <a-col :span="6">
-            <div class="stat-card stat-card-orange">
-              <div class="stat-icon" style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);">
-                <DollarOutlined />
-              </div>
-              <div class="stat-content">
-                <div class="stat-title">预计金额</div>
-                <div class="stat-value">¥{{ formatAmount(statistics.totalAmount) }}</div>
-                <div class="stat-desc">预估成交总额</div>
-              </div>
-            </div>
-          </a-col>
-          <a-col :span="6">
-            <div class="stat-card stat-card-green">
-              <div class="stat-icon" style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);">
-                <CheckCircleOutlined />
-              </div>
-              <div class="stat-content">
-                <div class="stat-title">成交金额</div>
-                <div class="stat-value">¥{{ formatAmount(statistics.wonAmount) }}</div>
-                <div class="stat-desc positive">已实际成交</div>
-              </div>
-            </div>
-          </a-col>
-          <a-col :span="6">
-            <div class="stat-card stat-card-purple">
-              <div class="stat-icon" style="background: linear-gradient(135deg, #722ed1 0%, #531dab 100%);">
-                <PercentageOutlined />
-              </div>
-              <div class="stat-content">
-                <div class="stat-title">成交率</div>
-                <div class="stat-value">{{ statistics.winRate }}%</div>
-                <div class="stat-desc">整体转化率</div>
-              </div>
-            </div>
-          </a-col>
-        </a-row>
-      </div>
-
-      <!-- 筛选区 -->
-      <a-collapse v-model:activeKey="filterExpanded" class="filter-collapse">
-        <a-collapse-panel key="1" header="筛选条件">
+        <div class="stats-cards">
           <a-row :gutter="16">
-            <a-col :span="4">
-              <a-form-item label="商机名称">
-                <a-input v-model:value="searchForm.name" placeholder="请输入" allow-clear size="small" />
-              </a-form-item>
+            <a-col :span="6">
+              <div class="stat-card stat-card-blue">
+                <div
+                  class="stat-icon"
+                  style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);"
+                >
+                  <FundOutlined />
+                </div>
+                <div class="stat-content">
+                  <div class="stat-title">
+                    商机总数
+                  </div>
+                  <div class="stat-value">
+                    {{ statistics.total }}
+                  </div>
+                  <div class="stat-desc">
+                    全部商机
+                  </div>
+                </div>
+              </div>
             </a-col>
-            <a-col :span="4">
-              <a-form-item label="客户名称">
-                <a-input v-model:value="searchForm.customerName" placeholder="请输入" allow-clear size="small" />
-              </a-form-item>
+            <a-col :span="6">
+              <div class="stat-card stat-card-orange">
+                <div
+                  class="stat-icon"
+                  style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);"
+                >
+                  <DollarOutlined />
+                </div>
+                <div class="stat-content">
+                  <div class="stat-title">
+                    预计金额
+                  </div>
+                  <div class="stat-value">
+                    ¥{{ formatAmount(statistics.totalAmount) }}
+                  </div>
+                  <div class="stat-desc">
+                    预估成交总额
+                  </div>
+                </div>
+              </div>
             </a-col>
-            <a-col :span="4">
-              <a-form-item label="商机阶段">
-                <a-select v-model:value="searchForm.stage" placeholder="全部阶段" allow-clear style="width: 100%" size="small">
-                  <a-select-option v-for="s in pipelineStages" :key="s.key" :value="s.key">{{ s.name }}</a-select-option>
-                </a-select>
-              </a-form-item>
+            <a-col :span="6">
+              <div class="stat-card stat-card-green">
+                <div
+                  class="stat-icon"
+                  style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);"
+                >
+                  <CheckCircleOutlined />
+                </div>
+                <div class="stat-content">
+                  <div class="stat-title">
+                    成交金额
+                  </div>
+                  <div class="stat-value">
+                    ¥{{ formatAmount(statistics.wonAmount) }}
+                  </div>
+                  <div class="stat-desc positive">
+                    已实际成交
+                  </div>
+                </div>
+              </div>
             </a-col>
-            <a-col :span="4">
-              <a-form-item label="负责人">
-                <a-select v-model:value="searchForm.ownerId" placeholder="全部负责人" allow-clear show-search :filter-option="filterOption" style="width: 100%" size="small">
-                  <a-select-option v-for="u in userList" :key="u.id" :value="u.id">{{ u.name }}</a-select-option>
-                </a-select>
-              </a-form-item>
-            </a-col>
-            <a-col :span="4">
-              <a-form-item label="预计金额">
-                <a-space>
-                  <a-input-number v-model:value="searchForm.minAmount" placeholder="最小" style="width: 90px" size="small" />
-                  <span>-</span>
-                  <a-input-number v-model:value="searchForm.maxAmount" placeholder="最大" style="width: 90px" size="small" />
-                </a-space>
-              </a-form-item>
-            </a-col>
-            <a-col :span="4" class="filter-actions">
-              <a-space>
-                <a-button type="primary" :loading="loading" v-permission="'crm:opportunity:search'" @click="handleSearch">查询</a-button>
-                <a-button v-permission="'crm:opportunity:reset'" @click="handleReset">重置</a-button>
-              </a-space>
+            <a-col :span="6">
+              <div class="stat-card stat-card-purple">
+                <div
+                  class="stat-icon"
+                  style="background: linear-gradient(135deg, #722ed1 0%, #531dab 100%);"
+                >
+                  <PercentageOutlined />
+                </div>
+                <div class="stat-content">
+                  <div class="stat-title">
+                    成交率
+                  </div>
+                  <div class="stat-value">
+                    {{ statistics.winRate }}%
+                  </div>
+                  <div class="stat-desc">
+                    整体转化率
+                  </div>
+                </div>
+              </div>
             </a-col>
           </a-row>
-        </a-collapse-panel>
-      </a-collapse>
+        </div>
 
-      <!-- 管道视图 -->
-      <template v-if="activeTab === 'pipeline'">
-        <div class="pipeline-container">
-          <div class="pipeline-stage" v-for="stage in pipelineStages.filter(s => s.key !== 'won' && s.key !== 'lost')" :key="stage.key">
-            <div class="stage-header" :style="{ borderBottomColor: stage.color }">
-              <a-space>
-                <span class="stage-name">{{ stage.name }}</span>
-                <a-badge :count="getStageCount(stage.key)" :overflow-count="99" :number-style="{ backgroundColor: stage.color }" />
-              </a-space>
-              <span class="stage-amount">¥{{ formatAmount(getStageAmount(stage.key)) }}</span>
-            </div>
-            <div class="stage-cards">
-              <div
-                v-for="opp in getStageOpportunities(stage.key)"
-                :key="opp.id"
-                class="opportunity-card"
-                @click="handleView(opp)"
+        <!-- 筛选区 -->
+        <a-collapse
+          v-model:active-key="filterExpanded"
+          class="filter-collapse"
+        >
+          <a-collapse-panel
+            key="1"
+            header="筛选条件"
+          >
+            <a-row :gutter="16">
+              <a-col :span="4">
+                <a-form-item label="商机名称">
+                  <a-input
+                    v-model:value="searchForm.name"
+                    placeholder="请输入"
+                    allow-clear
+                    size="small"
+                  />
+                </a-form-item>
+              </a-col>
+              <a-col :span="4">
+                <a-form-item label="客户名称">
+                  <a-input
+                    v-model:value="searchForm.customerName"
+                    placeholder="请输入"
+                    allow-clear
+                    size="small"
+                  />
+                </a-form-item>
+              </a-col>
+              <a-col :span="4">
+                <a-form-item label="商机阶段">
+                  <a-select
+                    v-model:value="searchForm.stage"
+                    placeholder="全部阶段"
+                    allow-clear
+                    style="width: 100%"
+                    size="small"
+                  >
+                    <a-select-option
+                      v-for="s in pipelineStages"
+                      :key="s.key"
+                      :value="s.key"
+                    >
+                      {{ s.name }}
+                    </a-select-option>
+                  </a-select>
+                </a-form-item>
+              </a-col>
+              <a-col :span="4">
+                <a-form-item label="负责人">
+                  <a-select
+                    v-model:value="searchForm.ownerId"
+                    placeholder="全部负责人"
+                    allow-clear
+                    show-search
+                    :filter-option="filterOption"
+                    style="width: 100%"
+                    size="small"
+                  >
+                    <a-select-option
+                      v-for="u in userList"
+                      :key="u.id"
+                      :value="u.id"
+                    >
+                      {{ u.name }}
+                    </a-select-option>
+                  </a-select>
+                </a-form-item>
+              </a-col>
+              <a-col :span="4">
+                <a-form-item label="预计金额">
+                  <a-space>
+                    <a-input-number
+                      v-model:value="searchForm.minAmount"
+                      placeholder="最小"
+                      style="width: 90px"
+                      size="small"
+                    />
+                    <span>-</span>
+                    <a-input-number
+                      v-model:value="searchForm.maxAmount"
+                      placeholder="最大"
+                      style="width: 90px"
+                      size="small"
+                    />
+                  </a-space>
+                </a-form-item>
+              </a-col>
+              <a-col
+                :span="4"
+                class="filter-actions"
               >
-                <div class="card-header">
-                  <span class="card-title">{{ opp.name }}</span>
-                  <a-tag :color="getPriorityColor(opp.priority)" size="small">{{ getPriorityText(opp.priority) }}</a-tag>
-                </div>
-                <div class="card-body">
-                  <div class="card-row">
-                    <span class="label"><UserOutlined /> 客户:</span>
-                    <span class="value">{{ opp.customerName }}</span>
-                  </div>
-                  <div class="card-row">
-                    <span class="label"><DollarOutlined /> 金额:</span>
-                    <span class="value amount">¥{{ formatAmount(opp.expectedAmount) }}</span>
-                  </div>
-                  <div class="card-row">
-                    <span class="label"><TeamOutlined /> 负责人:</span>
-                    <span class="value">{{ opp.ownerName }}</span>
-                  </div>
-                </div>
-                <div class="card-footer">
-                  <span class="close-date"><CalendarOutlined /> {{ opp.expectedCloseDate }}</span>
-                  <div class="card-actions">
-                    <a-button size="small" type="link" @click.stop="handleEdit(opp)">编辑</a-button>
-                    <a-button size="small" type="link" @click.stop="handleMove(opp)">移动</a-button>
-                  </div>
-                </div>
+                <a-space>
+                  <a-button
+                    v-permission="'crm:opportunity:search'"
+                    type="primary"
+                    :loading="loading"
+                    @click="handleSearch"
+                  >
+                    查询
+                  </a-button>
+                  <a-button
+                    v-permission="'crm:opportunity:reset'"
+                    @click="handleReset"
+                  >
+                    重置
+                  </a-button>
+                </a-space>
+              </a-col>
+            </a-row>
+          </a-collapse-panel>
+        </a-collapse>
+
+        <!-- 管道视图 -->
+        <template v-if="activeTab === 'pipeline'">
+          <div class="pipeline-container">
+            <div
+              v-for="stage in pipelineStages.filter(s => s.key !== 'won' && s.key !== 'lost')"
+              :key="stage.key"
+              class="pipeline-stage"
+            >
+              <div
+                class="stage-header"
+                :style="{ borderBottomColor: stage.color }"
+              >
+                <a-space>
+                  <span class="stage-name">{{ stage.name }}</span>
+                  <a-badge
+                    :count="getStageCount(stage.key)"
+                    :overflow-count="99"
+                    :number-style="{ backgroundColor: stage.color }"
+                  />
+                </a-space>
+                <span class="stage-amount">¥{{ formatAmount(getStageAmount(stage.key)) }}</span>
               </div>
-              <div v-if="getStageOpportunities(stage.key).length === 0" class="empty-stage">
-                <InboxOutlined class="empty-icon" />
-                <span>暂无商机</span>
+              <div class="stage-cards">
+                <div
+                  v-for="opp in getStageOpportunities(stage.key)"
+                  :key="opp.id"
+                  class="opportunity-card"
+                  @click="handleView(opp)"
+                >
+                  <div class="card-header">
+                    <span class="card-title">{{ opp.name }}</span>
+                    <a-tag
+                      :color="getPriorityColor(opp.priority)"
+                      size="small"
+                    >
+                      {{ getPriorityText(opp.priority) }}
+                    </a-tag>
+                  </div>
+                  <div class="card-body">
+                    <div class="card-row">
+                      <span class="label"><UserOutlined /> 客户:</span>
+                      <span class="value">{{ opp.customerName }}</span>
+                    </div>
+                    <div class="card-row">
+                      <span class="label"><DollarOutlined /> 金额:</span>
+                      <span class="value amount">¥{{ formatAmount(opp.expectedAmount) }}</span>
+                    </div>
+                    <div class="card-row">
+                      <span class="label"><TeamOutlined /> 负责人:</span>
+                      <span class="value">{{ opp.ownerName }}</span>
+                    </div>
+                  </div>
+                  <div class="card-footer">
+                    <span class="close-date"><CalendarOutlined /> {{ opp.expectedCloseDate }}</span>
+                    <div class="card-actions">
+                      <a-button
+                        size="small"
+                        type="link"
+                        @click.stop="handleEdit(opp)"
+                      >
+                        编辑
+                      </a-button>
+                      <a-button
+                        size="small"
+                        type="link"
+                        @click.stop="handleMove(opp)"
+                      >
+                        移动
+                      </a-button>
+                    </div>
+                  </div>
+                </div>
+                <div
+                  v-if="getStageOpportunities(stage.key).length === 0"
+                  class="empty-stage"
+                >
+                  <InboxOutlined class="empty-icon" />
+                  <span>暂无商机</span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </template>
+        </template>
 
-      <!-- 列表视图 -->
-      <template v-if="activeTab === 'list'">
-        <BillTableList
-          ref="tableRef"
-          :columns="vxeColumns"
-          :data-source="tableDataSource"
-          :loading="loading"
-          :pagination="pagination"
-          :filter-fields="filterFields"
-          :show-export="true"
-          :selectable="true"
-          :min-empty-rows="12"
-          add-text="新建商机"
-          @add="handleAdd"
-          @refresh="fetchData"
-          @page-change="handlePageChange"
-          @filter-change="handleFilterChange"
-          @selection-change="handleSelectionChange"
-          @cell-dblclick="handleView"
-          @export="handleExport"
-        >
-          <template #empty>
-            <div class="table-empty">
-              <template v-if="hasError">
-                <WarningOutlined class="table-empty-icon" style="color: #faad14" />
-                <p class="table-empty-text">数据加载失败，请重试</p>
-                <a-button type="primary" size="small" @click="fetchData as any">
-                  <template #icon><ReloadOutlined /></template>
-                  重试
-                </a-button>
-              </template>
-              <template v-else>
-                <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-                <InboxOutlined v-else class="table-empty-icon" />
-                <p v-if="hasActiveFilters" class="table-empty-text">
-                  没有符合条件的商机，<a @click="handleResetFilters">清除筛选</a>
-                </p>
-                <p v-else class="table-empty-text">
-                  暂无商机数据
-                </p>
-                <div v-if="!hasActiveFilters" class="empty-state-wrapper">
-                  <a-button type="primary" v-permission="'crm:opportunity:create'" @click="handleAdd">
-                    <template #icon><PlusOutlined /></template>
-                    新建第一个商机
+        <!-- 列表视图 -->
+        <template v-if="activeTab === 'list'">
+          <BillTableList
+            ref="tableRef"
+            :columns="vxeColumns"
+            :data-source="tableDataSource"
+            :loading="loading"
+            :pagination="pagination"
+            :filter-fields="filterFields"
+            :show-export="true"
+            :selectable="true"
+            :min-empty-rows="12"
+            add-text="新建商机"
+            @add="handleAdd"
+            @refresh="fetchData"
+            @page-change="handlePageChange"
+            @filter-change="handleFilterChange"
+            @selection-change="handleSelectionChange"
+            @cell-dblclick="handleView"
+            @export="handleExport"
+          >
+            <template #empty>
+              <div class="table-empty">
+                <template v-if="hasError">
+                  <WarningOutlined
+                    class="table-empty-icon"
+                    style="color: #faad14"
+                  />
+                  <p class="table-empty-text">
+                    数据加载失败，请重试
+                  </p>
+                  <a-button
+                    type="primary"
+                    size="small"
+                    @click="fetchData as any"
+                  >
+                    <template #icon>
+                      <ReloadOutlined />
+                    </template>
+                    重试
                   </a-button>
-                </div>
-              </template>
-            </div>
-          </template>
-
-          <template #action="{ record }">
-            <a-space :size="4">
-              <a-tooltip title="查看详情">
-                <a-button type="link" size="small" v-permission="'crm:opportunity:view'" @click="handleView(record)">
-                  <template #icon><EyeOutlined /></template>
-                </a-button>
-              </a-tooltip>
-              <a-tooltip title="编辑">
-                <a-button type="link" size="small" v-permission="'crm:opportunity:edit'" @click="handleEdit(record)">
-                  <template #icon><EditOutlined /></template>
-                </a-button>
-              </a-tooltip>
-              <a-tooltip title="移动阶段">
-                <a-button type="link" size="small" v-permission="'crm:opportunity:move'" @click="handleMove(record)">
-                  <template #icon><SwapRightOutlined /></template>
-                </a-button>
-              </a-tooltip>
-              <a-tooltip v-if="record.stage === 'closing'" title="转订单">
-                <a-button type="link" size="small" v-permission="'crm:opportunity:convert'" @click="handleConvert(record)">
-                  <template #icon><FileProtectOutlined /></template>
-                </a-button>
-              </a-tooltip>
-              <a-dropdown trigger="click">
-                <a-button type="link" size="small" class="action-more-btn">
-                  <template #icon><MoreOutlined /></template>
-                </a-button>
-                <template #overlay>
-                  <a-menu @click="({ key }) => handleActionMenuClick(key as string, record)">
-                    <a-menu-item key="follow"><MessageOutlined /> 添加跟进</a-menu-item>
-                    <a-menu-item key="quotation"><FileTextOutlined /> 创建报价</a-menu-item>
-                    <a-menu-divider />
-                    <a-menu-item key="close" danger><StopOutlined /> 关闭商机</a-menu-item>
-                  </a-menu>
                 </template>
-              </a-dropdown>
-            </a-space>
-          </template>
-        </BillTableList>
-      </template>
-
-      <!-- 统计分析 -->
-      <template v-if="activeTab === 'statistics'">
-        <a-row :gutter="16">
-          <a-col :span="12">
-            <a-card title="阶段分布" size="small" :loading="chartLoading">
-              <div ref="stageChartRef" class="chart-container"></div>
-            </a-card>
-          </a-col>
-          <a-col :span="12">
-            <a-card title="金额趋势" size="small" :loading="chartLoading">
-              <div ref="trendChartRef" class="chart-container"></div>
-            </a-card>
-          </a-col>
-        </a-row>
-        <a-card title="阶段详情统计" size="small" style="margin-top: 16px">
-          <BillTableList :columns="stageStatsVxeColumns" :data-source="stageStatsData" :pagination="false as any" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
-            <template #amountCell="{ record }">
-              <span class="amount-cell">¥{{ formatAmount(record.amount) }}</span>
+                <template v-else>
+                  <SearchOutlined
+                    v-if="hasActiveFilters"
+                    class="table-empty-icon"
+                  />
+                  <InboxOutlined
+                    v-else
+                    class="table-empty-icon"
+                  />
+                  <p
+                    v-if="hasActiveFilters"
+                    class="table-empty-text"
+                  >
+                    没有符合条件的商机，<a @click="handleResetFilters">清除筛选</a>
+                  </p>
+                  <p
+                    v-else
+                    class="table-empty-text"
+                  >
+                    暂无商机数据
+                  </p>
+                  <div
+                    v-if="!hasActiveFilters"
+                    class="empty-state-wrapper"
+                  >
+                    <a-button
+                      v-permission="'crm:opportunity:create'"
+                      type="primary"
+                      @click="handleAdd"
+                    >
+                      <template #icon>
+                        <PlusOutlined />
+                      </template>
+                      新建第一个商机
+                    </a-button>
+                  </div>
+                </template>
+              </div>
             </template>
-            <template #avgAmountCell="{ record }">
-              <span class="amount-cell">¥{{ formatAmount(record.avgAmount) }}</span>
+
+            <template #action="{ record }">
+              <a-space :size="4">
+                <a-tooltip title="查看详情">
+                  <a-button
+                    v-permission="'crm:opportunity:view'"
+                    type="link"
+                    size="small"
+                    @click="handleView(record)"
+                  >
+                    <template #icon>
+                      <EyeOutlined />
+                    </template>
+                  </a-button>
+                </a-tooltip>
+                <a-tooltip title="编辑">
+                  <a-button
+                    v-permission="'crm:opportunity:edit'"
+                    type="link"
+                    size="small"
+                    @click="handleEdit(record)"
+                  >
+                    <template #icon>
+                      <EditOutlined />
+                    </template>
+                  </a-button>
+                </a-tooltip>
+                <a-tooltip title="移动阶段">
+                  <a-button
+                    v-permission="'crm:opportunity:move'"
+                    type="link"
+                    size="small"
+                    @click="handleMove(record)"
+                  >
+                    <template #icon>
+                      <SwapRightOutlined />
+                    </template>
+                  </a-button>
+                </a-tooltip>
+                <a-tooltip
+                  v-if="record.stage === 'closing'"
+                  title="转订单"
+                >
+                  <a-button
+                    v-permission="'crm:opportunity:convert'"
+                    type="link"
+                    size="small"
+                    @click="handleConvert(record)"
+                  >
+                    <template #icon>
+                      <FileProtectOutlined />
+                    </template>
+                  </a-button>
+                </a-tooltip>
+                <a-dropdown trigger="click">
+                  <a-button
+                    type="link"
+                    size="small"
+                    class="action-more-btn"
+                  >
+                    <template #icon>
+                      <MoreOutlined />
+                    </template>
+                  </a-button>
+                  <template #overlay>
+                    <a-menu @click="({ key }) => handleActionMenuClick(key as string, record)">
+                      <a-menu-item key="follow">
+                        <MessageOutlined /> 添加跟进
+                      </a-menu-item>
+                      <a-menu-item key="quotation">
+                        <FileTextOutlined /> 创建报价
+                      </a-menu-item>
+                      <a-menu-divider />
+                      <a-menu-item
+                        key="close"
+                        danger
+                      >
+                        <StopOutlined /> 关闭商机
+                      </a-menu-item>
+                    </a-menu>
+                  </template>
+                </a-dropdown>
+              </a-space>
             </template>
           </BillTableList>
-        </a-card>
-      </template>
+        </template>
+
+        <!-- 统计分析 -->
+        <template v-if="activeTab === 'statistics'">
+          <a-row :gutter="16">
+            <a-col :span="12">
+              <a-card
+                title="阶段分布"
+                size="small"
+                :loading="chartLoading"
+              >
+                <div
+                  ref="stageChartRef"
+                  class="chart-container"
+                />
+              </a-card>
+            </a-col>
+            <a-col :span="12">
+              <a-card
+                title="金额趋势"
+                size="small"
+                :loading="chartLoading"
+              >
+                <div
+                  ref="trendChartRef"
+                  class="chart-container"
+                />
+              </a-card>
+            </a-col>
+          </a-row>
+          <a-card
+            title="阶段详情统计"
+            size="small"
+            style="margin-top: 16px"
+          >
+            <BillTableList
+              :columns="stageStatsVxeColumns"
+              :data-source="stageStatsData"
+              :pagination="false as any"
+              :show-toolbar="false"
+              :selectable="false"
+              :show-add="false"
+              :show-search="false"
+              :show-export="false"
+              :show-batch-delete="false"
+            >
+              <template #amountCell="{ record }">
+                <span class="amount-cell">¥{{ formatAmount(record.amount) }}</span>
+              </template>
+              <template #avgAmountCell="{ record }">
+                <span class="amount-cell">¥{{ formatAmount(record.avgAmount) }}</span>
+              </template>
+            </BillTableList>
+          </a-card>
+        </template>
       </template>
     </ErrorBoundary>
 
@@ -324,77 +600,205 @@
       @close="handleFormClose"
       @save-and-new="handleFormSaveAndNew"
     >
-      <a-form ref="formRef" :model="formData" :rules="formRules" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
+      <a-form
+        ref="formRef"
+        :model="formData"
+        :rules="formRules"
+        :label-col="{ span: 6 }"
+        :wrapper-col="{ span: 16 }"
+      >
         <a-row :gutter="16">
           <a-col :span="12">
-            <a-form-item label="商机名称" name="name">
-              <a-input v-model:value="formData.name" placeholder="请输入商机名称" size="small" />
+            <a-form-item
+              label="商机名称"
+              name="name"
+            >
+              <a-input
+                v-model:value="formData.name"
+                placeholder="请输入商机名称"
+                size="small"
+              />
             </a-form-item>
           </a-col>
           <a-col :span="12">
-            <a-form-item label="客户名称" name="customerId">
-              <a-select v-model:value="formData.customerId" placeholder="请选择客户" show-search :filter-option="filterOption" size="small">
-                <a-select-option v-for="c in customerList" :key="c.id" :value="c.id">{{ c.name }}</a-select-option>
+            <a-form-item
+              label="客户名称"
+              name="customerId"
+            >
+              <a-select
+                v-model:value="formData.customerId"
+                placeholder="请选择客户"
+                show-search
+                :filter-option="filterOption"
+                size="small"
+              >
+                <a-select-option
+                  v-for="c in customerList"
+                  :key="c.id"
+                  :value="c.id"
+                >
+                  {{ c.name }}
+                </a-select-option>
               </a-select>
             </a-form-item>
           </a-col>
           <a-col :span="12">
-            <a-form-item label="商机阶段" name="stage">
-              <a-select v-model:value="formData.stage" placeholder="请选择商机阶段" size="small">
-                <a-select-option value="lead">线索</a-select-option>
-                <a-select-option value="qualification">资格确认</a-select-option>
-                <a-select-option value="proposal">方案报价</a-select-option>
-                <a-select-option value="negotiation">商务谈判</a-select-option>
-                <a-select-option value="closing">成交阶段</a-select-option>
+            <a-form-item
+              label="商机阶段"
+              name="stage"
+            >
+              <a-select
+                v-model:value="formData.stage"
+                placeholder="请选择商机阶段"
+                size="small"
+              >
+                <a-select-option value="lead">
+                  线索
+                </a-select-option>
+                <a-select-option value="qualification">
+                  资格确认
+                </a-select-option>
+                <a-select-option value="proposal">
+                  方案报价
+                </a-select-option>
+                <a-select-option value="negotiation">
+                  商务谈判
+                </a-select-option>
+                <a-select-option value="closing">
+                  成交阶段
+                </a-select-option>
               </a-select>
             </a-form-item>
           </a-col>
           <a-col :span="12">
-            <a-form-item label="预计金额" name="expectedAmount">
-              <a-input-number v-model:value="formData.expectedAmount" :min="0" :precision="2" style="width: 100%" size="small" />
+            <a-form-item
+              label="预计金额"
+              name="expectedAmount"
+            >
+              <a-input-number
+                v-model:value="formData.expectedAmount"
+                :min="0"
+                :precision="2"
+                style="width: 100%"
+                size="small"
+              />
             </a-form-item>
           </a-col>
           <a-col :span="24">
-            <a-form-item label="成交概率" name="winProbability" :label-col="{ span: 3 }" :wrapper-col="{ span: 20 }">
-              <a-slider v-model:value="formData.winProbability" :min="0" :max="100" :marks="{ 0: '0%', 25: '25%', 50: '50%', 75: '75%', 100: '100%' }" />
+            <a-form-item
+              label="成交概率"
+              name="winProbability"
+              :label-col="{ span: 3 }"
+              :wrapper-col="{ span: 20 }"
+            >
+              <a-slider
+                v-model:value="formData.winProbability"
+                :min="0"
+                :max="100"
+                :marks="{ 0: '0%', 25: '25%', 50: '50%', 75: '75%', 100: '100%' }"
+              />
             </a-form-item>
           </a-col>
           <a-col :span="12">
-            <a-form-item label="优先级" name="priority">
-              <a-select v-model:value="formData.priority" placeholder="请选择优先级" size="small">
-                <a-select-option value="high">高</a-select-option>
-                <a-select-option value="medium">中</a-select-option>
-                <a-select-option value="low">低</a-select-option>
+            <a-form-item
+              label="优先级"
+              name="priority"
+            >
+              <a-select
+                v-model:value="formData.priority"
+                placeholder="请选择优先级"
+                size="small"
+              >
+                <a-select-option value="high">
+                  高
+                </a-select-option>
+                <a-select-option value="medium">
+                  中
+                </a-select-option>
+                <a-select-option value="low">
+                  低
+                </a-select-option>
               </a-select>
             </a-form-item>
           </a-col>
           <a-col :span="12">
-            <a-form-item label="负责人" name="ownerId">
-              <a-select v-model:value="formData.ownerId" placeholder="请选择负责人" show-search :filter-option="filterOption" size="small">
-                <a-select-option v-for="u in userList" :key="u.id" :value="u.id">{{ u.name }}</a-select-option>
+            <a-form-item
+              label="负责人"
+              name="ownerId"
+            >
+              <a-select
+                v-model:value="formData.ownerId"
+                placeholder="请选择负责人"
+                show-search
+                :filter-option="filterOption"
+                size="small"
+              >
+                <a-select-option
+                  v-for="u in userList"
+                  :key="u.id"
+                  :value="u.id"
+                >
+                  {{ u.name }}
+                </a-select-option>
               </a-select>
             </a-form-item>
           </a-col>
           <a-col :span="12">
-            <a-form-item label="预计成交日期" name="expectedCloseDate">
-              <a-date-picker v-model:value="formData.expectedCloseDate" style="width: 100%" size="small" />
+            <a-form-item
+              label="预计成交日期"
+              name="expectedCloseDate"
+            >
+              <a-date-picker
+                v-model:value="formData.expectedCloseDate"
+                style="width: 100%"
+                size="small"
+              />
             </a-form-item>
           </a-col>
           <a-col :span="12">
-            <a-form-item label="商机来源" name="source">
-              <a-select v-model:value="formData.source" placeholder="请选择商机来源" size="small">
-                <a-select-option value="website">网站</a-select-option>
-                <a-select-option value="referral">客户转介</a-select-option>
-                <a-select-option value="marketing">营销活动</a-select-option>
-                <a-select-option value="cold_call">电话营销</a-select-option>
-                <a-select-option value="exhibition">展会</a-select-option>
-                <a-select-option value="other">其他</a-select-option>
+            <a-form-item
+              label="商机来源"
+              name="source"
+            >
+              <a-select
+                v-model:value="formData.source"
+                placeholder="请选择商机来源"
+                size="small"
+              >
+                <a-select-option value="website">
+                  网站
+                </a-select-option>
+                <a-select-option value="referral">
+                  客户转介
+                </a-select-option>
+                <a-select-option value="marketing">
+                  营销活动
+                </a-select-option>
+                <a-select-option value="cold_call">
+                  电话营销
+                </a-select-option>
+                <a-select-option value="exhibition">
+                  展会
+                </a-select-option>
+                <a-select-option value="other">
+                  其他
+                </a-select-option>
               </a-select>
             </a-form-item>
           </a-col>
           <a-col :span="24">
-            <a-form-item label="备注" name="remark" :label-col="{ span: 3 }" :wrapper-col="{ span: 20 }">
-              <a-textarea v-model:value="formData.remark" placeholder="请输入备注" :rows="3" size="small" />
+            <a-form-item
+              label="备注"
+              name="remark"
+              :label-col="{ span: 3 }"
+              :wrapper-col="{ span: 20 }"
+            >
+              <a-textarea
+                v-model:value="formData.remark"
+                placeholder="请输入备注"
+                :rows="3"
+                size="small"
+              />
             </a-form-item>
           </a-col>
         </a-row>
@@ -402,61 +806,128 @@
     </FullScreenDetail>
 
     <!-- 详情弹窗 -->
-    <a-drawer v-model:open="detailVisible" title="商机详情" placement="right" width="80vw" :footer="null" @close="handleDetailClose">
+    <a-drawer
+      v-model:open="detailVisible"
+      title="商机详情"
+      placement="right"
+      width="80vw"
+      :footer="null"
+      @close="handleDetailClose"
+    >
       <a-spin :spinning="detailLoading">
         <template v-if="detailError">
           <div class="table-empty">
-            <WarningOutlined class="table-empty-icon" style="color: #faad14" />
-            <p class="table-empty-text">详情数据加载失败</p>
-            <a-button type="primary" size="small" v-permission="'crm:opportunity:detailrefresh'" @click="handleDetailRefresh">
-              <template #icon><ReloadOutlined /></template>
+            <WarningOutlined
+              class="table-empty-icon"
+              style="color: #faad14"
+            />
+            <p class="table-empty-text">
+              详情数据加载失败
+            </p>
+            <a-button
+              v-permission="'crm:opportunity:detailrefresh'"
+              type="primary"
+              size="small"
+              @click="handleDetailRefresh"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
               重试
             </a-button>
           </div>
         </template>
         <template v-else-if="detailData.id">
-          <a-descriptions :column="2" bordered size="small">
+          <a-descriptions
+            :column="2"
+            bordered
+            size="small"
+          >
             <a-descriptions-item label="商机名称">
               <span class="opp-name">{{ detailData.name }}</span>
             </a-descriptions-item>
             <a-descriptions-item label="商机阶段">
-              <a-tag :color="getStageColor(detailData.stage)">{{ detailData.stageLabel }}</a-tag>
+              <a-tag :color="getStageColor(detailData.stage)">
+                {{ detailData.stageLabel }}
+              </a-tag>
             </a-descriptions-item>
-            <a-descriptions-item label="客户名称">{{ detailData.customerName }}</a-descriptions-item>
-            <a-descriptions-item label="负责人">{{ detailData.ownerName }}</a-descriptions-item>
+            <a-descriptions-item label="客户名称">
+              {{ detailData.customerName }}
+            </a-descriptions-item>
+            <a-descriptions-item label="负责人">
+              {{ detailData.ownerName }}
+            </a-descriptions-item>
             <a-descriptions-item label="预计金额">
               <span class="amount-cell">¥{{ formatAmount(detailData.expectedAmount) }}</span>
             </a-descriptions-item>
             <a-descriptions-item label="成交概率">
-              <a-progress :percent="detailData.winProbability" size="small" />
+              <a-progress
+                :percent="detailData.winProbability"
+                size="small"
+              />
             </a-descriptions-item>
             <a-descriptions-item label="优先级">
-              <a-tag :color="getPriorityColor(detailData.priority)">{{ getPriorityText(detailData.priority) }}</a-tag>
+              <a-tag :color="getPriorityColor(detailData.priority)">
+                {{ getPriorityText(detailData.priority) }}
+              </a-tag>
             </a-descriptions-item>
-            <a-descriptions-item label="商机来源">{{ detailData.sourceLabel }}</a-descriptions-item>
-            <a-descriptions-item label="预计成交日期">{{ detailData.expectedCloseDate }}</a-descriptions-item>
-            <a-descriptions-item label="创建时间">{{ detailData.createTime }}</a-descriptions-item>
-            <a-descriptions-item label="备注" :span="2">{{ detailData.remark || '无' }}</a-descriptions-item>
+            <a-descriptions-item label="商机来源">
+              {{ detailData.sourceLabel }}
+            </a-descriptions-item>
+            <a-descriptions-item label="预计成交日期">
+              {{ detailData.expectedCloseDate }}
+            </a-descriptions-item>
+            <a-descriptions-item label="创建时间">
+              {{ detailData.createTime }}
+            </a-descriptions-item>
+            <a-descriptions-item
+              label="备注"
+              :span="2"
+            >
+              {{ detailData.remark || '无' }}
+            </a-descriptions-item>
           </a-descriptions>
 
           <a-divider>商机跟进记录</a-divider>
           <a-timeline>
-            <a-timeline-item v-for="r in detailData.followRecords" :key="r.id" :color="r.type === 'stage_change' ? 'blue' : 'green'">
+            <a-timeline-item
+              v-for="r in detailData.followRecords"
+              :key="r.id"
+              :color="r.type === 'stage_change' ? 'blue' : 'green'"
+            >
               <div class="timeline-content">
-                <div class="timeline-title">{{ r.title }}</div>
-                <div class="timeline-desc">{{ r.content }}</div>
-                <div class="timeline-time">{{ r.createTime }} - {{ r.userName }}</div>
+                <div class="timeline-title">
+                  {{ r.title }}
+                </div>
+                <div class="timeline-desc">
+                  {{ r.content }}
+                </div>
+                <div class="timeline-time">
+                  {{ r.createTime }} - {{ r.userName }}
+                </div>
               </div>
             </a-timeline-item>
           </a-timeline>
 
           <a-divider>关联报价单</a-divider>
-          <BillTableList :columns="quotationVxeColumns" :data-source="detailData.quotations" :pagination="false as any" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
+          <BillTableList
+            :columns="quotationVxeColumns"
+            :data-source="detailData.quotations"
+            :pagination="false as any"
+            :show-toolbar="false"
+            :selectable="false"
+            :show-add="false"
+            :show-search="false"
+            :show-export="false"
+            :show-batch-delete="false"
+          >
             <template #totalAmountCell="{ record }">
               <span class="amount-cell">¥{{ formatAmount(record.totalAmount) }}</span>
             </template>
             <template #statusCell="{ record }">
-              <a-tag :color="getQuotationStatusColor(record.status)">{{ record.statusLabel }}</a-tag>
+              <a-tag :color="getQuotationStatusColor(record.status)">
+                {{ record.statusLabel }}
+              </a-tag>
             </template>
           </BillTableList>
         </template>
@@ -464,18 +935,44 @@
     </a-drawer>
 
     <!-- 移动阶段弹窗 -->
-    <a-modal v-model:open="moveVisible" title="移动商机阶段" width="500px" :confirm-loading="moveLoading" @ok="handleMoveConfirm">
-      <a-form :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
+    <a-modal
+      v-model:open="moveVisible"
+      title="移动商机阶段"
+      width="500px"
+      :confirm-loading="moveLoading"
+      @ok="handleMoveConfirm"
+    >
+      <a-form
+        :label-col="{ span: 6 }"
+        :wrapper-col="{ span: 16 }"
+      >
         <a-form-item label="当前阶段">
-          <a-tag :color="getStageColor(moveData.currentStage)">{{ getStageText(moveData.currentStage) }}</a-tag>
+          <a-tag :color="getStageColor(moveData.currentStage)">
+            {{ getStageText(moveData.currentStage) }}
+          </a-tag>
         </a-form-item>
         <a-form-item label="目标阶段">
-          <a-select v-model:value="moveData.targetStage" placeholder="请选择目标阶段" size="small">
-            <a-select-option v-for="s in pipelineStages" :key="s.key" :value="s.key">{{ s.name }}</a-select-option>
+          <a-select
+            v-model:value="moveData.targetStage"
+            placeholder="请选择目标阶段"
+            size="small"
+          >
+            <a-select-option
+              v-for="s in pipelineStages"
+              :key="s.key"
+              :value="s.key"
+            >
+              {{ s.name }}
+            </a-select-option>
           </a-select>
         </a-form-item>
         <a-form-item label="移动原因">
-          <a-textarea v-model:value="moveData.reason" placeholder="请输入移动原因" :rows="3" size="small" />
+          <a-textarea
+            v-model:value="moveData.reason"
+            placeholder="请输入移动原因"
+            :rows="3"
+            size="small"
+          />
         </a-form-item>
       </a-form>
     </a-modal>

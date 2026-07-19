@@ -1,279 +1,449 @@
 <template>
   <ErrorBoundary @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="pre-payment-page-header">
-        <div class="pre-payment-page-header-left">
-          <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item>财务管理</a-breadcrumb-item>
-            <a-breadcrumb-item>预付款管理</a-breadcrumb-item>
-          </a-breadcrumb>
-          <h2 class="pre-payment-page-header-title">预付款管理</h2>
-        </div>
-        <div class="pre-payment-page-header-right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-            <SyncOutlined /> {{ autoRefreshCountdown }}s
-          </span>
-          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)">
-            <template #icon><ReloadOutlined /></template>
-            刷新
-          </a-button>
-          <span class="shortcut-hints">
-            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-            <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
-          </span>
-        </div>
-      </div>
-    </template>
-
-    <div class="finance-pre-payment-page">
-      <!-- 统计卡片 -->
-      <div class="stat-cards">
-        <div class="stat-card stat-total">
-          <div class="stat-card-body">
-            <div class="stat-card-value">¥{{ formatAmount(stats.totalAmount) }}</div>
-            <div class="stat-card-label">预付总额</div>
+    <PageContainer full-height>
+      <template #header>
+        <div class="pre-payment-page-header">
+          <div class="pre-payment-page-header-left">
+            <a-breadcrumb>
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>财务管理</a-breadcrumb-item>
+              <a-breadcrumb-item>预付款管理</a-breadcrumb-item>
+            </a-breadcrumb>
+            <h2 class="pre-payment-page-header-title">
+              预付款管理
+            </h2>
           </div>
-          <DollarOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-used">
-          <div class="stat-card-body">
-            <div class="stat-card-value">¥{{ formatAmount(stats.usedAmount) }}</div>
-            <div class="stat-card-label">已使用金额</div>
-          </div>
-          <CheckCircleOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-balance">
-          <div class="stat-card-body">
-            <div class="stat-card-value">¥{{ formatAmount(stats.remainingAmount) }}</div>
-            <div class="stat-card-label">剩余金额</div>
-          </div>
-          <ExclamationCircleOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-count">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ pagination.total }}</div>
-            <div class="stat-card-label">笔数</div>
-          </div>
-          <FileTextOutlined class="stat-card-icon" />
-        </div>
-      </div>
-
-      <BillTableList
-        ref="tableRef"
-        :min-empty-rows="12"
-        :columns="columns"
-        :data-source="tableData"
-        :loading="loading"
-        :pagination="pagination"
-        :row-key="'id'"
-        :filter-fields="filterFields"
-        :show-search="false"
-        export-permission="finance:pre-payment:list"
-        :show-add="true"
-        add-text="新增预付款"
-        add-permission="finance:pre-payment:create"
-        :show-edit="false"
-        :show-delete="false"
-        :selectable="true"
-        @refresh="fetchData"
-        @add="handleAdd"
-        @cell-dblclick="handleView"
-        @page-change="handlePageChange"
-        @filter-change="handleFilterChange"
-        @selection-change="handleSelectionChange"
-      >
-        <template #toolbar-actions>
-          <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
-            更新 {{ dayjs(lastUpdated).format('HH:mm') }}
-          </span>
-        </template>
-        <template #batch-actions>
-          <!-- 预留批量操作 -->
-        </template>
-
-        <template #empty>
-          <div class="table-empty">
-            <template v-if="hasError">
-              <WarningOutlined class="table-empty-icon" style="color: #faad14" />
-              <p class="table-empty-text">加载失败</p>
-              <a-button type="primary" size="small" @click="fetchData" class="table-empty-action">
-                <ReloadOutlined /> 重试
-              </a-button>
-            </template>
-            <template v-else>
-              <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-              <InboxOutlined v-else class="table-empty-icon" />
-              <p v-if="hasActiveFilters" class="table-empty-text">
-                没有符合条件的预付款记录，<a @click="handleResetFilters">清除筛选</a>
-              </p>
-              <p v-else class="table-empty-text">
-                暂无预付款数据
-              </p>
-            </template>
-          </div>
-        </template>
-
-        <template #statusCell="{ record }">
-          <a-tag :color="statusColorMap[record.status] || 'default'">{{ statusLabelMap[record.status] || '未知' }}</a-tag>
-        </template>
-        <template #action="{ record }">
-          <a-space :size="0" class="action-cell-inner">
-            <PrintButton
-              template-type="pre_payment"
-              :business-id="record.id"
-              business-type="pre_payment"
-              button-text=""
-              button-size="small"
-              button-type="link"
-              tooltip="打印"
-            />
-            <a-tooltip title="查看">
-              <a-button type="link" size="small" v-permission="'finance:pre-payment:view'" @click="handleView(record)">
-                <template #icon><EyeOutlined /></template>
-              </a-button>
-            </a-tooltip>
-            <a-tooltip :title="record.status !== 'paid' ? '' : '转付款'">
-              <a-button type="link" size="small" v-permission="'finance:pre-payment:offset'" :disabled="record.status !== 'paid'" @click="handleOffsetToPayment(record)">
-                <template #icon><SwapOutlined /></template>
-              </a-button>
-            </a-tooltip>
-            <a-tooltip :title="record.status !== 'paid' ? '' : '收回'">
-              <a-button type="link" size="small" v-permission="'finance:pre-payment:recover'" :disabled="record.status !== 'paid'" @click="handleRecover(record)">
-                <template #icon><RollbackOutlined /></template>
-              </a-button>
-            </a-tooltip>
-            <a-tooltip :title="record.status !== 'paid' ? '' : '退款'">
-              <a-button type="link" size="small" v-permission="'finance:pre-payment:refund'" :disabled="record.status !== 'paid'" @click="handleRefund(record)">
-                <template #icon><CloseCircleOutlined /></template>
-              </a-button>
-            </a-tooltip>
-          </a-space>
-        </template>
-      </BillTableList>
-
-      <!-- 转付款弹窗 -->
-      <a-modal
-        :open="offsetVisible"
-        title="转付款"
-        :confirm-loading="offsetLoading"
-        @ok="handleOffsetConfirm"
-        @cancel="handleOffsetCancel"
-      >
-        <a-descriptions v-if="offsetTarget" :column="1" bordered size="small">
-          <a-descriptions-item label="供应商名称">{{ offsetTarget.supplierName }}</a-descriptions-item>
-          <a-descriptions-item label="预付单号">{{ offsetTarget.prePaymentNo }}</a-descriptions-item>
-          <a-descriptions-item label="预付金额">{{ formatAmount(offsetTarget.amount) }}</a-descriptions-item>
-          <a-descriptions-item label="已使用">{{ formatAmount(offsetTarget.usedAmount) }}</a-descriptions-item>
-          <a-descriptions-item label="剩余金额">{{ formatAmount(offsetTarget.remainingAmount) }}</a-descriptions-item>
-        </a-descriptions>
-        <a-form layout="vertical" style="margin-top: 16px">
-          <a-form-item label="付款金额" required>
-            <a-input-number
-              v-model:value="offsetAmount"
-              :min="0.01"
-              :max="offsetTarget?.remainingAmount || 0"
-              :precision="2"
+          <div class="pre-payment-page-header-right">
+            <span
+              v-if="lastUpdateTime"
+              class="update-time"
+            >更新于 {{ lastUpdateTime }}</span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            >
+              <SyncOutlined /> {{ autoRefreshCountdown }}s
+            </span>
+            <a-button
               size="small"
-              style="width: 100%"
-              placeholder="请输入付款金额"
-            />
-          </a-form-item>
-        </a-form>
-      </a-modal>
+              :loading="refreshLoading"
+              @click="debounceClick('refresh', fetchData)"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
+              刷新
+            </a-button>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+              <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+            </span>
+          </div>
+        </div>
+      </template>
 
-      <!-- 收回弹窗 -->
-      <a-modal
-        :open="recoverVisible"
-        title="收回预付款"
-        :confirm-loading="recoverLoading"
-        @ok="handleRecoverConfirm"
-        @cancel="handleRecoverCancel"
-      >
-        <a-descriptions v-if="recoverTarget" :column="1" bordered size="small">
-          <a-descriptions-item label="供应商名称">{{ recoverTarget.supplierName }}</a-descriptions-item>
-          <a-descriptions-item label="预付单号">{{ recoverTarget.prePaymentNo }}</a-descriptions-item>
-          <a-descriptions-item label="剩余金额">{{ formatAmount(recoverTarget.remainingAmount) }}</a-descriptions-item>
-        </a-descriptions>
-        <a-form layout="vertical" style="margin-top: 16px">
-          <a-form-item label="收回原因" required>
-            <a-textarea
-              v-model:value="recoverReason"
-              :rows="3"
-              placeholder="请输入收回原因"
-            />
-          </a-form-item>
-        </a-form>
-      </a-modal>
+      <div class="finance-pre-payment-page">
+        <!-- 统计卡片 -->
+        <div class="stat-cards">
+          <div class="stat-card stat-total">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                ¥{{ formatAmount(stats.totalAmount) }}
+              </div>
+              <div class="stat-card-label">
+                预付总额
+              </div>
+            </div>
+            <DollarOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-used">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                ¥{{ formatAmount(stats.usedAmount) }}
+              </div>
+              <div class="stat-card-label">
+                已使用金额
+              </div>
+            </div>
+            <CheckCircleOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-balance">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                ¥{{ formatAmount(stats.remainingAmount) }}
+              </div>
+              <div class="stat-card-label">
+                剩余金额
+              </div>
+            </div>
+            <ExclamationCircleOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-count">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ pagination.total }}
+              </div>
+              <div class="stat-card-label">
+                笔数
+              </div>
+            </div>
+            <FileTextOutlined class="stat-card-icon" />
+          </div>
+        </div>
 
-      <!-- 退款弹窗 -->
-      <a-modal
-        :open="refundVisible"
-        title="预付款退款"
-        :confirm-loading="refundLoading"
-        @ok="handleRefundConfirm"
-        @cancel="handleRefundCancel"
-      >
-        <a-descriptions v-if="refundTarget" :column="1" bordered size="small">
-          <a-descriptions-item label="供应商名称">{{ refundTarget.supplierName }}</a-descriptions-item>
-          <a-descriptions-item label="预付单号">{{ refundTarget.prePaymentNo }}</a-descriptions-item>
-          <a-descriptions-item label="剩余金额">{{ formatAmount(refundTarget.remainingAmount) }}</a-descriptions-item>
-        </a-descriptions>
-        <a-form layout="vertical" style="margin-top: 16px">
-          <a-form-item label="退款原因" required>
-            <a-textarea
-              v-model:value="refundReason"
-              :rows="3"
-              placeholder="请输入退款原因"
-            />
-          </a-form-item>
-        </a-form>
-      </a-modal>
-
-      <!-- 新增预付款弹窗 -->
-      <FullScreenDetail
-        :visible="addVisible"
-        title="新增预付款"
-        :dirty="formDirty"
-        :save-loading="addLoading"
-        @save="handleAddConfirm"
-        @close="handleAddCancel"
-      >
-        <a-form
-          ref="addFormRef"
-          :model="addForm"
-          :rules="addFormRules"
-          :label-col="{ span: 6 }"
-          :wrapper-col="{ span: 16 }"
+        <BillTableList
+          ref="tableRef"
+          :min-empty-rows="12"
+          :columns="columns"
+          :data-source="tableData"
+          :loading="loading"
+          :pagination="pagination"
+          :row-key="'id'"
+          :filter-fields="filterFields"
+          :show-search="false"
+          export-permission="finance:pre-payment:list"
+          :show-add="true"
+          add-text="新增预付款"
+          add-permission="finance:pre-payment:create"
+          :show-edit="false"
+          :show-delete="false"
+          :selectable="true"
+          @refresh="fetchData"
+          @add="handleAdd"
+          @cell-dblclick="handleView"
+          @page-change="handlePageChange"
+          @filter-change="handleFilterChange"
+          @selection-change="handleSelectionChange"
         >
-          <a-form-item label="供应商名称" name="supplierName">
-            <a-input v-model:value="addForm.supplierName" placeholder="请输入供应商名称" />
-          </a-form-item>
-          <a-form-item label="金额" name="amount">
-            <a-input-number
-              v-model:value="addForm.amount"
-              :min="0.01"
-              :precision="2"
-              style="width: 100%"
-              placeholder="请输入金额"
-            />
-          </a-form-item>
-          <a-form-item label="付款日期" name="dueDate">
-            <a-date-picker
-              v-model:value="addForm.dueDate"
-              style="width: 100%"
-              placeholder="请选择付款日期"
-            />
-          </a-form-item>
-          <a-form-item label="备注" name="remark">
-            <a-textarea v-model:value="addForm.remark" :rows="3" placeholder="备注信息" />
-          </a-form-item>
-        </a-form>
-      </FullScreenDetail>
-    </div>
-  </PageContainer>
+          <template #toolbar-actions>
+            <span
+              v-if="lastUpdated"
+              class="list-update-timestamp"
+              :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')"
+            >
+              更新 {{ dayjs(lastUpdated).format('HH:mm') }}
+            </span>
+          </template>
+          <template #batch-actions>
+          <!-- 预留批量操作 -->
+          </template>
+
+          <template #empty>
+            <div class="table-empty">
+              <template v-if="hasError">
+                <WarningOutlined
+                  class="table-empty-icon"
+                  style="color: #faad14"
+                />
+                <p class="table-empty-text">
+                  加载失败
+                </p>
+                <a-button
+                  type="primary"
+                  size="small"
+                  class="table-empty-action"
+                  @click="fetchData"
+                >
+                  <ReloadOutlined /> 重试
+                </a-button>
+              </template>
+              <template v-else>
+                <SearchOutlined
+                  v-if="hasActiveFilters"
+                  class="table-empty-icon"
+                />
+                <InboxOutlined
+                  v-else
+                  class="table-empty-icon"
+                />
+                <p
+                  v-if="hasActiveFilters"
+                  class="table-empty-text"
+                >
+                  没有符合条件的预付款记录，<a @click="handleResetFilters">清除筛选</a>
+                </p>
+                <p
+                  v-else
+                  class="table-empty-text"
+                >
+                  暂无预付款数据
+                </p>
+              </template>
+            </div>
+          </template>
+
+          <template #statusCell="{ record }">
+            <a-tag :color="statusColorMap[record.status] || 'default'">
+              {{ statusLabelMap[record.status] || '未知' }}
+            </a-tag>
+          </template>
+          <template #action="{ record }">
+            <a-space
+              :size="0"
+              class="action-cell-inner"
+            >
+              <PrintButton
+                template-type="pre_payment"
+                :business-id="record.id"
+                business-type="pre_payment"
+                button-text=""
+                button-size="small"
+                button-type="link"
+                tooltip="打印"
+              />
+              <a-tooltip title="查看">
+                <a-button
+                  v-permission="'finance:pre-payment:view'"
+                  type="link"
+                  size="small"
+                  @click="handleView(record)"
+                >
+                  <template #icon>
+                    <EyeOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip :title="record.status !== 'paid' ? '' : '转付款'">
+                <a-button
+                  v-permission="'finance:pre-payment:offset'"
+                  type="link"
+                  size="small"
+                  :disabled="record.status !== 'paid'"
+                  @click="handleOffsetToPayment(record)"
+                >
+                  <template #icon>
+                    <SwapOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip :title="record.status !== 'paid' ? '' : '收回'">
+                <a-button
+                  v-permission="'finance:pre-payment:recover'"
+                  type="link"
+                  size="small"
+                  :disabled="record.status !== 'paid'"
+                  @click="handleRecover(record)"
+                >
+                  <template #icon>
+                    <RollbackOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip :title="record.status !== 'paid' ? '' : '退款'">
+                <a-button
+                  v-permission="'finance:pre-payment:refund'"
+                  type="link"
+                  size="small"
+                  :disabled="record.status !== 'paid'"
+                  @click="handleRefund(record)"
+                >
+                  <template #icon>
+                    <CloseCircleOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+            </a-space>
+          </template>
+        </BillTableList>
+
+        <!-- 转付款弹窗 -->
+        <a-modal
+          :open="offsetVisible"
+          title="转付款"
+          :confirm-loading="offsetLoading"
+          @ok="handleOffsetConfirm"
+          @cancel="handleOffsetCancel"
+        >
+          <a-descriptions
+            v-if="offsetTarget"
+            :column="1"
+            bordered
+            size="small"
+          >
+            <a-descriptions-item label="供应商名称">
+              {{ offsetTarget.supplierName }}
+            </a-descriptions-item>
+            <a-descriptions-item label="预付单号">
+              {{ offsetTarget.prePaymentNo }}
+            </a-descriptions-item>
+            <a-descriptions-item label="预付金额">
+              {{ formatAmount(offsetTarget.amount) }}
+            </a-descriptions-item>
+            <a-descriptions-item label="已使用">
+              {{ formatAmount(offsetTarget.usedAmount) }}
+            </a-descriptions-item>
+            <a-descriptions-item label="剩余金额">
+              {{ formatAmount(offsetTarget.remainingAmount) }}
+            </a-descriptions-item>
+          </a-descriptions>
+          <a-form
+            layout="vertical"
+            style="margin-top: 16px"
+          >
+            <a-form-item
+              label="付款金额"
+              required
+            >
+              <a-input-number
+                v-model:value="offsetAmount"
+                :min="0.01"
+                :max="offsetTarget?.remainingAmount || 0"
+                :precision="2"
+                size="small"
+                style="width: 100%"
+                placeholder="请输入付款金额"
+              />
+            </a-form-item>
+          </a-form>
+        </a-modal>
+
+        <!-- 收回弹窗 -->
+        <a-modal
+          :open="recoverVisible"
+          title="收回预付款"
+          :confirm-loading="recoverLoading"
+          @ok="handleRecoverConfirm"
+          @cancel="handleRecoverCancel"
+        >
+          <a-descriptions
+            v-if="recoverTarget"
+            :column="1"
+            bordered
+            size="small"
+          >
+            <a-descriptions-item label="供应商名称">
+              {{ recoverTarget.supplierName }}
+            </a-descriptions-item>
+            <a-descriptions-item label="预付单号">
+              {{ recoverTarget.prePaymentNo }}
+            </a-descriptions-item>
+            <a-descriptions-item label="剩余金额">
+              {{ formatAmount(recoverTarget.remainingAmount) }}
+            </a-descriptions-item>
+          </a-descriptions>
+          <a-form
+            layout="vertical"
+            style="margin-top: 16px"
+          >
+            <a-form-item
+              label="收回原因"
+              required
+            >
+              <a-textarea
+                v-model:value="recoverReason"
+                :rows="3"
+                placeholder="请输入收回原因"
+              />
+            </a-form-item>
+          </a-form>
+        </a-modal>
+
+        <!-- 退款弹窗 -->
+        <a-modal
+          :open="refundVisible"
+          title="预付款退款"
+          :confirm-loading="refundLoading"
+          @ok="handleRefundConfirm"
+          @cancel="handleRefundCancel"
+        >
+          <a-descriptions
+            v-if="refundTarget"
+            :column="1"
+            bordered
+            size="small"
+          >
+            <a-descriptions-item label="供应商名称">
+              {{ refundTarget.supplierName }}
+            </a-descriptions-item>
+            <a-descriptions-item label="预付单号">
+              {{ refundTarget.prePaymentNo }}
+            </a-descriptions-item>
+            <a-descriptions-item label="剩余金额">
+              {{ formatAmount(refundTarget.remainingAmount) }}
+            </a-descriptions-item>
+          </a-descriptions>
+          <a-form
+            layout="vertical"
+            style="margin-top: 16px"
+          >
+            <a-form-item
+              label="退款原因"
+              required
+            >
+              <a-textarea
+                v-model:value="refundReason"
+                :rows="3"
+                placeholder="请输入退款原因"
+              />
+            </a-form-item>
+          </a-form>
+        </a-modal>
+
+        <!-- 新增预付款弹窗 -->
+        <FullScreenDetail
+          :visible="addVisible"
+          title="新增预付款"
+          :dirty="formDirty"
+          :save-loading="addLoading"
+          @save="handleAddConfirm"
+          @close="handleAddCancel"
+        >
+          <a-form
+            ref="addFormRef"
+            :model="addForm"
+            :rules="addFormRules"
+            :label-col="{ span: 6 }"
+            :wrapper-col="{ span: 16 }"
+          >
+            <a-form-item
+              label="供应商名称"
+              name="supplierName"
+            >
+              <a-input
+                v-model:value="addForm.supplierName"
+                placeholder="请输入供应商名称"
+              />
+            </a-form-item>
+            <a-form-item
+              label="金额"
+              name="amount"
+            >
+              <a-input-number
+                v-model:value="addForm.amount"
+                :min="0.01"
+                :precision="2"
+                style="width: 100%"
+                placeholder="请输入金额"
+              />
+            </a-form-item>
+            <a-form-item
+              label="付款日期"
+              name="dueDate"
+            >
+              <a-date-picker
+                v-model:value="addForm.dueDate"
+                style="width: 100%"
+                placeholder="请选择付款日期"
+              />
+            </a-form-item>
+            <a-form-item
+              label="备注"
+              name="remark"
+            >
+              <a-textarea
+                v-model:value="addForm.remark"
+                :rows="3"
+                placeholder="备注信息"
+              />
+            </a-form-item>
+          </a-form>
+        </FullScreenDetail>
+      </div>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

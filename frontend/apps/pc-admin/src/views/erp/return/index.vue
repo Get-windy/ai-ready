@@ -1,397 +1,617 @@
 <template>
-  <ErrorBoundary @reset="fetchData" @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="return-page-header">
-        <div class="return-page-header-left">
-          <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item>退货管理</a-breadcrumb-item>
-          </a-breadcrumb>
-          <h2 class="return-page-title">退货管理</h2>
+  <ErrorBoundary
+    @reset="fetchData"
+    @error="handleError"
+  >
+    <PageContainer full-height>
+      <template #header>
+        <div class="return-page-header">
+          <div class="return-page-header-left">
+            <a-breadcrumb>
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>退货管理</a-breadcrumb-item>
+            </a-breadcrumb>
+            <h2 class="return-page-title">
+              退货管理
+            </h2>
+          </div>
+          <div class="return-page-header-right">
+            <span class="data-status">
+              <a-badge
+                :count="statistics.pendingCount"
+                :overflow-count="999"
+                :number-style="{ backgroundColor: '#faad14', fontSize: 11, padding: '0 6px', minWidth: 18, height: 18, lineHeight: '18px' }"
+              >
+                <span style="padding: 0 4px; font-size: 13px; color: #606266;">待处理</span>
+              </a-badge>
+            </span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            >
+              <SyncOutlined /> {{ autoRefreshCountdown }}s
+            </span>
+            <a-button
+              size="small"
+              :loading="refreshLoading"
+              @click="debounceClick('refresh', handleRefresh)"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
+              刷新
+            </a-button>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+              <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+              <span class="shortcut-hint"><kbd>Ctrl+E</kbd> 导出</span>
+            </span>
+          </div>
         </div>
-        <div class="return-page-header-right">
-          <span class="data-status">
-            <a-badge :count="statistics.pendingCount" :overflow-count="999" :number-style="{ backgroundColor: '#faad14', fontSize: 11, padding: '0 6px', minWidth: 18, height: 18, lineHeight: '18px' }">
-              <span style="padding: 0 4px; font-size: 13px; color: #606266;">待处理</span>
-            </a-badge>
-          </span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-            <SyncOutlined /> {{ autoRefreshCountdown }}s
-          </span>
-          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', handleRefresh)">
-            <template #icon><ReloadOutlined /></template>
-            刷新
+      </template>
+
+      <!-- 统计卡片 -->
+      <a-row
+        :gutter="16"
+        style="margin-bottom: 16px;"
+      >
+        <a-col :span="6">
+          <div class="summary-card">
+            <div
+              class="summary-icon"
+              style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);"
+            >
+              <FileTextOutlined />
+            </div>
+            <div class="summary-content">
+              <div class="summary-title">
+                退货单总数
+              </div>
+              <div class="summary-value">
+                {{ statistics.totalCount }}
+              </div>
+            </div>
+          </div>
+        </a-col>
+        <a-col :span="6">
+          <div class="summary-card">
+            <div
+              class="summary-icon"
+              style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);"
+            >
+              <ClockCircleOutlined />
+            </div>
+            <div class="summary-content">
+              <div class="summary-title">
+                待审核
+              </div>
+              <div class="summary-value warning">
+                {{ statistics.pendingCount }}
+              </div>
+            </div>
+          </div>
+        </a-col>
+        <a-col :span="6">
+          <div class="summary-card">
+            <div
+              class="summary-icon"
+              style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);"
+            >
+              <CheckCircleOutlined />
+            </div>
+            <div class="summary-content">
+              <div class="summary-title">
+                已退款
+              </div>
+              <div class="summary-value">
+                {{ statistics.refundedCount }}
+              </div>
+            </div>
+          </div>
+        </a-col>
+        <a-col :span="6">
+          <div class="summary-card highlight">
+            <div
+              class="summary-icon"
+              style="background: linear-gradient(135deg, #f5222d 0%, #cf1322 100%);"
+            >
+              <DollarOutlined />
+            </div>
+            <div class="summary-content">
+              <div class="summary-title">
+                退货金额
+              </div>
+              <div class="summary-value">
+                ¥{{ formatAmount(statistics.totalAmount) }}
+              </div>
+            </div>
+          </div>
+        </a-col>
+      </a-row>
+
+      <!-- 搜索栏 -->
+      <SearchBar
+        :fields="searchFields"
+        :loading="loading"
+        @search="handleSearch"
+        @reset="handleReset"
+      />
+
+      <BillTableList
+        ref="tableRef"
+        :columns="vxeColumns"
+        :data-source="tableDataSource"
+        :loading="loading"
+        :pagination="pagination"
+        :row-key="'id'"
+        :filter-fields="filterFields"
+        :selectable="true"
+        :show-export="true"
+        add-text="新建退货申请"
+        style="flex: 1;"
+        @add="handleCreate"
+        @refresh="fetchData"
+        @export="handleExport"
+        @search="(val: any) => handleSearch(val ? { keyword: val } : undefined)"
+        @page-change="handlePageChange"
+        @filter-change="handleFilterChange"
+        @selection-change="handleSelectionChange"
+        @cell-dblclick="handleView"
+      >
+        <template #toolbar-actions>
+          <span class="list-update-timestamp">最后更新：{{ dayjs(lastUpdateTime).format('YYYY-MM-DD HH:mm:ss') }}</span>
+        </template>
+
+        <template #emptyText>
+          <EmptyState
+            v-if="hasError"
+            image="error"
+            title="数据加载异常"
+            description="数据获取失败，请检查后重试"
+            :show-add="false"
+            size="small"
+            @refresh="fetchData"
+          />
+          <EmptyState
+            v-else-if="hasActiveFilters"
+            image="no-data"
+            title="没有符合条件的退货单"
+            description="请尝试修改筛选条件"
+            :show-add="false"
+            size="small"
+            @refresh="fetchData"
+          />
+          <EmptyState
+            v-else
+            image="no-data"
+            title="暂无退货单"
+            description="当前没有退货单数据"
+            add-text="新建退货申请"
+            size="small"
+            @refresh="fetchData"
+            @add="handleCreate"
+          />
+        </template>
+
+        <template #action="{ record }">
+          <a-space>
+            <a-tooltip title="查看">
+              <a-button
+                type="link"
+                size="small"
+                @click="handleView(record)"
+              >
+                <template #icon>
+                  <EyeOutlined />
+                </template>
+              </a-button>
+            </a-tooltip>
+            <a-tooltip
+              v-if="record.status === 0"
+              title="审核"
+            >
+              <a-button
+                v-permission="'erp:return:approve'"
+                type="link"
+                size="small"
+                @click="handleApprove(record)"
+              >
+                <template #icon>
+                  <CheckCircleOutlined />
+                </template>
+              </a-button>
+            </a-tooltip>
+            <a-tooltip
+              v-if="record.status === 1"
+              title="入库"
+            >
+              <a-button
+                v-permission="'erp:return:receive'"
+                type="link"
+                size="small"
+                @click="handleReceive(record)"
+              >
+                <template #icon>
+                  <DownloadOutlined />
+                </template>
+              </a-button>
+            </a-tooltip>
+            <a-tooltip
+              v-if="record.status === 2"
+              title="退款"
+            >
+              <a-button
+                v-permission="'erp:return:refund'"
+                type="link"
+                size="small"
+                @click="handleRefund(record)"
+              >
+                <template #icon>
+                  <RollbackOutlined />
+                </template>
+              </a-button>
+            </a-tooltip>
+            <a-dropdown trigger="click">
+              <a-button
+                type="link"
+                size="small"
+                class="action-more-btn"
+              >
+                <template #icon>
+                  <EllipsisOutlined />
+                </template>
+              </a-button>
+              <template #overlay>
+                <a-menu @click="(e) => handleActionMenuClick(String(e.key), record)">
+                  <a-menu-item key="delete">
+                    <DeleteOutlined /> 删除
+                  </a-menu-item>
+                </a-menu>
+              </template>
+            </a-dropdown>
+          </a-space>
+        </template>
+      </BillTableList>
+
+      <a-drawer
+        v-model:open="detailVisible"
+        title="退货单详情"
+        placement="right"
+        width="80vw"
+      >
+        <a-spin :spinning="detailLoading">
+          <template v-if="detailData">
+            <a-descriptions
+              bordered
+              :column="2"
+            >
+              <a-descriptions-item label="退货单号">
+                {{ detailData.returnNo }}
+              </a-descriptions-item>
+              <a-descriptions-item label="销售订单">
+                {{ detailData.orderNo }}
+              </a-descriptions-item>
+              <a-descriptions-item label="客户名称">
+                {{ detailData.customerName }}
+              </a-descriptions-item>
+              <a-descriptions-item label="退货金额">
+                ¥{{ detailData.returnAmount?.toFixed(2) }}
+              </a-descriptions-item>
+              <a-descriptions-item
+                label="退货原因"
+                :span="2"
+              >
+                {{ detailData.returnReason }}
+              </a-descriptions-item>
+              <a-descriptions-item label="状态">
+                <StatusTag
+                  :status="detailData.status"
+                  :map="RETURN_STATUS"
+                />
+              </a-descriptions-item>
+              <a-descriptions-item label="退货日期">
+                {{ detailData.returnDate }}
+              </a-descriptions-item>
+              <a-descriptions-item label="操作人">
+                {{ detailData.operator }}
+              </a-descriptions-item>
+              <a-descriptions-item
+                label="备注"
+                :span="2"
+              >
+                {{ detailData.remark || '-' }}
+              </a-descriptions-item>
+            </a-descriptions>
+
+            <!-- 退货明细表格 -->
+            <a-divider style="margin-top: 24px;" />
+            <div style="margin-bottom: 12px; font-weight: 600; font-size: 15px;">
+              退货明细
+            </div>
+            <a-table
+              :data-source="detailData.items || []"
+              :columns="detailItemColumns"
+              :pagination="false as any"
+              row-key="productCode"
+              size="small"
+              bordered
+            >
+              <template #bodyCell="{ column, record }">
+                <template v-if="column.key === 'subtotal'">
+                  ¥{{ ((record.returnQuantity || 0) * (record.unitPrice || 0)).toFixed(2) }}
+                </template>
+              </template>
+              <template #emptyText>
+                <a-empty description="暂无明细数据" />
+              </template>
+            </a-table>
+          </template>
+        </a-spin>
+
+        <template #footer>
+          <div style="display: flex; justify-content: flex-end; gap: 8px;">
+            <a-button @click="detailVisible = false">
+              关闭
+            </a-button>
+            <a-button
+              v-if="detailData?.status === 0"
+              type="primary"
+              @click="handleApprove(detailData)"
+            >
+              <template #icon>
+                <CheckCircleOutlined />
+              </template>
+              审核
+            </a-button>
+            <a-button
+              v-if="detailData?.status === 1"
+              type="primary"
+              @click="handleReceive(detailData)"
+            >
+              <template #icon>
+                <DownloadOutlined />
+              </template>
+              入库
+            </a-button>
+            <a-button
+              v-if="detailData?.status === 2"
+              type="primary"
+              @click="handleRefund(detailData)"
+            >
+              <template #icon>
+                <RollbackOutlined />
+              </template>
+              退款
+            </a-button>
+            <PrintButton
+              v-if="detailData && detailData.status >= 3"
+              :record="detailData"
+            />
+          </div>
+        </template>
+      </a-drawer>
+
+      <!-- 新建退货申请弹窗 -->
+      <FullScreenDetail
+        :visible="createVisible"
+        title="新建退货申请"
+        :save-loading="createLoading"
+        @close="handleCreateCancel"
+        @save="handleCreateSubmit"
+      >
+        <a-form
+          ref="createFormRef"
+          :model="createForm"
+          :rules="createRules"
+          layout="vertical"
+        >
+          <a-row :gutter="16">
+            <a-col :span="12">
+              <a-form-item
+                label="客户"
+                name="customerId"
+              >
+                <a-select
+                  v-model:value="createForm.customerId"
+                  show-search
+                  :filter-option="false"
+                  placeholder="请搜索选择客户"
+                  :options="customerOptions"
+                  :field-names="{ value: 'id', label: 'name' }"
+                  :loading="customerLoading"
+                  allow-clear
+                  style="width: 100%"
+                  @search="handleCustomerSearch"
+                  @change="handleCustomerChange"
+                />
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
+              <a-form-item
+                label="关联销售订单"
+                name="saleOrderNo"
+              >
+                <a-input
+                  v-model:value="createForm.saleOrderNo"
+                  placeholder="请输入销售订单号（可选）"
+                />
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <a-row :gutter="16">
+            <a-col :span="12">
+              <a-form-item
+                label="退货类型"
+                name="returnType"
+              >
+                <a-select
+                  v-model:value="createForm.returnType"
+                  placeholder="请选择退货类型"
+                >
+                  <a-select-option :value="1">
+                    质量不良
+                  </a-select-option>
+                  <a-select-option :value="2">
+                    数量不符
+                  </a-select-option>
+                  <a-select-option :value="3">
+                    交期延误
+                  </a-select-option>
+                  <a-select-option :value="4">
+                    其他
+                  </a-select-option>
+                </a-select>
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
+              <a-form-item
+                label="退货原因"
+                name="reason"
+              >
+                <a-input
+                  v-model:value="createForm.reason"
+                  placeholder="请输入退货原因"
+                />
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <a-row :gutter="16">
+            <a-col :span="12">
+              <a-form-item
+                label="退货日期"
+                name="returnDate"
+              >
+                <a-date-picker
+                  v-model:value="createForm.returnDate"
+                  style="width: 100%"
+                  value-format="YYYY-MM-DD"
+                />
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <a-form-item
+            label="备注"
+            name="remark"
+          >
+            <a-textarea
+              v-model:value="createForm.remark"
+              :rows="2"
+              placeholder="请输入备注"
+            />
+          </a-form-item>
+
+          <a-divider />
+          <div style="margin-bottom: 12px; font-weight: 600;">
+            退货明细
+          </div>
+          <a-button
+            type="dashed"
+            block
+            style="margin-bottom: 12px;"
+            @click="handleAddItem"
+          >
+            <PlusOutlined /> 添加商品
           </a-button>
-          <span class="shortcut-hints">
-            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-            <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
-            <span class="shortcut-hint"><kbd>Ctrl+E</kbd> 导出</span>
-          </span>
-        </div>
-      </div>
-    </template>
-
-    <!-- 统计卡片 -->
-    <a-row :gutter="16" style="margin-bottom: 16px;">
-      <a-col :span="6">
-        <div class="summary-card">
-          <div class="summary-icon" style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);">
-            <FileTextOutlined />
-          </div>
-          <div class="summary-content">
-            <div class="summary-title">退货单总数</div>
-            <div class="summary-value">{{ statistics.totalCount }}</div>
-          </div>
-        </div>
-      </a-col>
-      <a-col :span="6">
-        <div class="summary-card">
-          <div class="summary-icon" style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);">
-            <ClockCircleOutlined />
-          </div>
-          <div class="summary-content">
-            <div class="summary-title">待审核</div>
-            <div class="summary-value warning">{{ statistics.pendingCount }}</div>
-          </div>
-        </div>
-      </a-col>
-      <a-col :span="6">
-        <div class="summary-card">
-          <div class="summary-icon" style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);">
-            <CheckCircleOutlined />
-          </div>
-          <div class="summary-content">
-            <div class="summary-title">已退款</div>
-            <div class="summary-value">{{ statistics.refundedCount }}</div>
-          </div>
-        </div>
-      </a-col>
-      <a-col :span="6">
-        <div class="summary-card highlight">
-          <div class="summary-icon" style="background: linear-gradient(135deg, #f5222d 0%, #cf1322 100%);">
-            <DollarOutlined />
-          </div>
-          <div class="summary-content">
-            <div class="summary-title">退货金额</div>
-            <div class="summary-value">¥{{ formatAmount(statistics.totalAmount) }}</div>
-          </div>
-        </div>
-      </a-col>
-    </a-row>
-
-    <!-- 搜索栏 -->
-    <SearchBar
-      :fields="searchFields"
-      :loading="loading"
-      @search="handleSearch"
-      @reset="handleReset"
-    />
-
-    <BillTableList
-      ref="tableRef"
-      :columns="vxeColumns"
-      :data-source="tableDataSource"
-      :loading="loading"
-      :pagination="pagination"
-      :row-key="'id'"
-      :filter-fields="filterFields"
-      :selectable="true"
-      :show-export="true"
-      add-text="新建退货申请"
-      style="flex: 1;"
-      @add="handleCreate"
-      @refresh="fetchData"
-      @export="handleExport"
-      @search="(val: any) => handleSearch(val ? { keyword: val } : undefined)"
-      @page-change="handlePageChange"
-      @filter-change="handleFilterChange"
-      @selection-change="handleSelectionChange"
-      @cell-dblclick="handleView"
-    >
-      <template #toolbar-actions>
-        <span class="list-update-timestamp">最后更新：{{ dayjs(lastUpdateTime).format('YYYY-MM-DD HH:mm:ss') }}</span>
-      </template>
-
-      <template #emptyText>
-        <EmptyState v-if="hasError" image="error" title="数据加载异常" description="数据获取失败，请检查后重试" :show-add="false" size="small" @refresh="fetchData" />
-        <EmptyState v-else-if="hasActiveFilters" image="no-data" title="没有符合条件的退货单" description="请尝试修改筛选条件" :show-add="false" size="small" @refresh="fetchData" />
-        <EmptyState v-else image="no-data" title="暂无退货单" description="当前没有退货单数据" add-text="新建退货申请" size="small" @refresh="fetchData" @add="handleCreate" />
-      </template>
-
-      <template #action="{ record }">
-        <a-space>
-          <a-tooltip title="查看">
-            <a-button type="link" size="small" @click="handleView(record)">
-              <template #icon><EyeOutlined /></template>
-            </a-button>
-          </a-tooltip>
-          <a-tooltip v-if="record.status === 0" title="审核">
-            <a-button type="link" size="small" v-permission="'erp:return:approve'" @click="handleApprove(record)">
-              <template #icon><CheckCircleOutlined /></template>
-            </a-button>
-          </a-tooltip>
-          <a-tooltip v-if="record.status === 1" title="入库">
-            <a-button type="link" size="small" v-permission="'erp:return:receive'" @click="handleReceive(record)">
-              <template #icon><DownloadOutlined /></template>
-            </a-button>
-          </a-tooltip>
-          <a-tooltip v-if="record.status === 2" title="退款">
-            <a-button type="link" size="small" v-permission="'erp:return:refund'" @click="handleRefund(record)">
-              <template #icon><RollbackOutlined /></template>
-            </a-button>
-          </a-tooltip>
-          <a-dropdown trigger="click">
-            <a-button type="link" size="small" class="action-more-btn">
-              <template #icon><EllipsisOutlined /></template>
-            </a-button>
-            <template #overlay>
-              <a-menu @click="(e) => handleActionMenuClick(String(e.key), record)">
-                <a-menu-item key="delete">
-                  <DeleteOutlined /> 删除
-                </a-menu-item>
-              </a-menu>
-            </template>
-          </a-dropdown>
-        </a-space>
-      </template>
-    </BillTableList>
-
-    <a-drawer
-      v-model:open="detailVisible"
-      title="退货单详情"
-      placement="right"
-      width="80vw"
-    >
-      <a-spin :spinning="detailLoading">
-        <template v-if="detailData">
-          <a-descriptions bordered :column="2">
-            <a-descriptions-item label="退货单号">{{ detailData.returnNo }}</a-descriptions-item>
-            <a-descriptions-item label="销售订单">{{ detailData.orderNo }}</a-descriptions-item>
-            <a-descriptions-item label="客户名称">{{ detailData.customerName }}</a-descriptions-item>
-            <a-descriptions-item label="退货金额">¥{{ detailData.returnAmount?.toFixed(2) }}</a-descriptions-item>
-            <a-descriptions-item label="退货原因" :span="2">{{ detailData.returnReason }}</a-descriptions-item>
-            <a-descriptions-item label="状态">
-              <StatusTag :status="detailData.status" :map="RETURN_STATUS" />
-            </a-descriptions-item>
-            <a-descriptions-item label="退货日期">{{ detailData.returnDate }}</a-descriptions-item>
-            <a-descriptions-item label="操作人">{{ detailData.operator }}</a-descriptions-item>
-            <a-descriptions-item label="备注" :span="2">{{ detailData.remark || '-' }}</a-descriptions-item>
-          </a-descriptions>
-
-          <!-- 退货明细表格 -->
-          <a-divider style="margin-top: 24px;" />
-          <div style="margin-bottom: 12px; font-weight: 600; font-size: 15px;">退货明细</div>
           <a-table
-            :data-source="detailData.items || []"
-            :columns="detailItemColumns"
+            :data-source="createForm.items"
+            :columns="itemColumns"
             :pagination="false as any"
-            row-key="productCode"
+            row-key="tempId"
             size="small"
             bordered
           >
-            <template #bodyCell="{ column, record }">
-              <template v-if="column.key === 'subtotal'">
-                ¥{{ ((record.returnQuantity || 0) * (record.unitPrice || 0)).toFixed(2) }}
+            <template #bodyCell="{ column, record, index }">
+              <template v-if="column.key === 'productName'">
+                {{ record.productName }}
+              </template>
+              <template v-if="column.key === 'productCode'">
+                {{ record.productCode }}
+              </template>
+              <template v-if="column.key === 'returnQuantity'">
+                <a-input-number
+                  v-model:value="record.returnQuantity"
+                  :min="0.01"
+                  :precision="2"
+                  style="width: 100%"
+                  placeholder="数量"
+                />
+              </template>
+              <template v-if="column.key === 'unitPrice'">
+                <a-input-number
+                  v-model:value="record.unitPrice"
+                  :min="0"
+                  :precision="2"
+                  style="width: 100%"
+                  placeholder="单价"
+                />
+              </template>
+              <template v-if="column.key === 'reason'">
+                <a-input
+                  v-model:value="record.reason"
+                  placeholder="退货原因"
+                  style="width: 100%"
+                />
+              </template>
+              <template v-if="column.key === 'action'">
+                <a-button
+                  type="link"
+                  danger
+                  size="small"
+                  @click="handleRemoveItem(index)"
+                >
+                  <DeleteOutlined />
+                </a-button>
               </template>
             </template>
             <template #emptyText>
-              <a-empty description="暂无明细数据" />
+              <a-empty description="请点击上方按钮添加商品" />
             </template>
           </a-table>
-        </template>
-      </a-spin>
+        </a-form>
+      </FullScreenDetail>
 
-      <template #footer>
-        <div style="display: flex; justify-content: flex-end; gap: 8px;">
-          <a-button @click="detailVisible = false">关闭</a-button>
-          <a-button
-            v-if="detailData?.status === 0"
-            type="primary"
-            @click="handleApprove(detailData)"
-          >
-            <template #icon><CheckCircleOutlined /></template>
-            审核
-          </a-button>
-          <a-button
-            v-if="detailData?.status === 1"
-            type="primary"
-            @click="handleReceive(detailData)"
-          >
-            <template #icon><DownloadOutlined /></template>
-            入库
-          </a-button>
-          <a-button
-            v-if="detailData?.status === 2"
-            type="primary"
-            @click="handleRefund(detailData)"
-          >
-            <template #icon><RollbackOutlined /></template>
-            退款
-          </a-button>
-          <PrintButton v-if="detailData && detailData.status >= 3" :record="detailData" />
-        </div>
-      </template>
-    </a-drawer>
-
-    <!-- 新建退货申请弹窗 -->
-    <FullScreenDetail
-      :visible="createVisible"
-      title="新建退货申请"
-      :save-loading="createLoading"
-      @close="handleCreateCancel"
-      @save="handleCreateSubmit"
-    >
-      <a-form
-        ref="createFormRef"
-        :model="createForm"
-        :rules="createRules"
-        layout="vertical"
+      <!-- 商品选择弹窗 -->
+      <a-modal
+        v-model:open="productPickerVisible"
+        title="选择商品"
+        width="600px"
+        :footer="null"
+        :destroy-on-close="true"
       >
-        <a-row :gutter="16">
-          <a-col :span="12">
-            <a-form-item label="客户" name="customerId">
-              <a-select
-                v-model:value="createForm.customerId"
-                show-search
-                :filter-option="false"
-                placeholder="请搜索选择客户"
-                :options="customerOptions"
-                :field-names="{ value: 'id', label: 'name' }"
-                @search="handleCustomerSearch"
-                @change="handleCustomerChange"
-                :loading="customerLoading"
-                allow-clear
-                style="width: 100%"
-              />
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="关联销售订单" name="saleOrderNo">
-              <a-input v-model:value="createForm.saleOrderNo" placeholder="请输入销售订单号（可选）" />
-            </a-form-item>
-          </a-col>
-        </a-row>
-        <a-row :gutter="16">
-          <a-col :span="12">
-            <a-form-item label="退货类型" name="returnType">
-              <a-select v-model:value="createForm.returnType" placeholder="请选择退货类型">
-                <a-select-option :value="1">质量不良</a-select-option>
-                <a-select-option :value="2">数量不符</a-select-option>
-                <a-select-option :value="3">交期延误</a-select-option>
-                <a-select-option :value="4">其他</a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="退货原因" name="reason">
-              <a-input v-model:value="createForm.reason" placeholder="请输入退货原因" />
-            </a-form-item>
-          </a-col>
-        </a-row>
-        <a-row :gutter="16">
-          <a-col :span="12">
-            <a-form-item label="退货日期" name="returnDate">
-              <a-date-picker v-model:value="createForm.returnDate" style="width: 100%" value-format="YYYY-MM-DD" />
-            </a-form-item>
-          </a-col>
-        </a-row>
-        <a-form-item label="备注" name="remark">
-          <a-textarea v-model:value="createForm.remark" :rows="2" placeholder="请输入备注" />
-        </a-form-item>
-
-        <a-divider />
-        <div style="margin-bottom: 12px; font-weight: 600;">退货明细</div>
-        <a-button type="dashed" block style="margin-bottom: 12px;" @click="handleAddItem">
-          <PlusOutlined /> 添加商品
-        </a-button>
+        <a-input-search
+          v-model:value="productPickerKeyword"
+          placeholder="搜索商品编码/名称"
+          style="margin-bottom: 12px;"
+          @search="fetchProducts"
+        />
         <a-table
-          :data-source="createForm.items"
-          :columns="itemColumns"
-          :pagination="false as any"
-          row-key="tempId"
+          :data-source="productOptions"
+          :columns="productPickerColumns"
+          :pagination="{ pageSize: 10, size: 'small' }"
+          :loading="productLoading"
+          row-key="id"
           size="small"
           bordered
         >
-          <template #bodyCell="{ column, record, index }">
-            <template v-if="column.key === 'productName'">
-              {{ record.productName }}
-            </template>
-            <template v-if="column.key === 'productCode'">
-              {{ record.productCode }}
-            </template>
-            <template v-if="column.key === 'returnQuantity'">
-              <a-input-number
-                v-model:value="record.returnQuantity"
-                :min="0.01"
-                :precision="2"
-                style="width: 100%"
-                placeholder="数量"
-              />
-            </template>
-            <template v-if="column.key === 'unitPrice'">
-              <a-input-number
-                v-model:value="record.unitPrice"
-                :min="0"
-                :precision="2"
-                style="width: 100%"
-                placeholder="单价"
-              />
-            </template>
-            <template v-if="column.key === 'reason'">
-              <a-input v-model:value="record.reason" placeholder="退货原因" style="width: 100%" />
-            </template>
+          <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'action'">
-              <a-button type="link" danger size="small" @click="handleRemoveItem(index)">
-                <DeleteOutlined />
+              <a-button
+                type="primary"
+                size="small"
+                :disabled="createForm.items.some(item => item.productId === record.id)"
+                @click="handleSelectProduct(record)"
+              >
+                选择
               </a-button>
             </template>
           </template>
-          <template #emptyText>
-            <a-empty description="请点击上方按钮添加商品" />
-          </template>
         </a-table>
-      </a-form>
-    </FullScreenDetail>
-
-    <!-- 商品选择弹窗 -->
-    <a-modal
-      v-model:open="productPickerVisible"
-      title="选择商品"
-      width="600px"
-      :footer="null"
-      :destroy-on-close="true"
-    >
-      <a-input-search
-        v-model:value="productPickerKeyword"
-        placeholder="搜索商品编码/名称"
-        @search="fetchProducts"
-        style="margin-bottom: 12px;"
-      />
-      <a-table
-        :data-source="productOptions"
-        :columns="productPickerColumns"
-        :pagination="{ pageSize: 10, size: 'small' }"
-        :loading="productLoading"
-        row-key="id"
-        size="small"
-        bordered
-      >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'action'">
-            <a-button
-              type="primary"
-              size="small"
-              @click="handleSelectProduct(record)"
-              :disabled="createForm.items.some(item => item.productId === record.id)"
-            >
-              选择
-            </a-button>
-          </template>
-        </template>
-      </a-table>
-    </a-modal>
-  </PageContainer>
+      </a-modal>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

@@ -4,19 +4,38 @@
       <div class="page-header">
         <div class="page-header-left">
           <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>
+              <router-link to="/">
+                首页
+              </router-link>
+            </a-breadcrumb-item>
             <a-breadcrumb-item>系统管理</a-breadcrumb-item>
             <a-breadcrumb-item>连接管理</a-breadcrumb-item>
           </a-breadcrumb>
-          <h2 class="page-header-title">连接管理</h2>
+          <h2 class="page-header-title">
+            连接管理
+          </h2>
         </div>
         <div class="page-header-right">
-          <a-button type="primary" size="small" @click="showCreateForm = true">
-            <template #icon><PlusOutlined /></template>
+          <a-button
+            type="primary"
+            size="small"
+            @click="showCreateForm = true"
+          >
+            <template #icon>
+              <PlusOutlined />
+            </template>
             新增连接
           </a-button>
-          <a-button size="small" @click="fetchData" :loading="loading" style="margin-left:8px">
-            <template #icon><ReloadOutlined /></template>
+          <a-button
+            size="small"
+            :loading="loading"
+            style="margin-left:8px"
+            @click="fetchData"
+          >
+            <template #icon>
+              <ReloadOutlined />
+            </template>
             刷新
           </a-button>
         </div>
@@ -35,8 +54,10 @@
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'status'">
-            <a-badge :status="record.status === 'connected' ? 'success' : 'error'"
-              :text="record.status === 'connected' ? '已连接' : '断开'" />
+            <a-badge
+              :status="record.status === 'connected' ? 'success' : 'error'"
+              :text="record.status === 'connected' ? '已连接' : '断开'"
+            />
           </template>
           <template v-if="column.key === 'action'">
             <a-space>
@@ -44,7 +65,10 @@
               <a-divider type="vertical" />
               <a @click="editConnection(record)">编辑</a>
               <a-divider type="vertical" />
-              <a-popconfirm title="确定删除此连接?" @confirm="deleteConnection(record)">
+              <a-popconfirm
+                title="确定删除此连接?"
+                @confirm="deleteConnection(record)"
+              >
                 <a class="text-danger">删除</a>
               </a-popconfirm>
             </a-space>
@@ -54,37 +78,86 @@
     </a-card>
 
     <!-- 新增/编辑连接弹窗 -->
-    <a-modal v-model:open="showCreateForm" :title="editRecord ? '编辑连接' : '新增连接'" width="560px" @ok="handleSave" :confirm-loading="saving">
-      <a-form :model="form" layout="vertical">
-        <a-form-item label="连接名称" required>
-          <a-input v-model:value="form.name" placeholder="输入连接名称" />
+    <a-modal
+      v-model:open="showCreateForm"
+      :title="editRecord ? '编辑连接' : '新增连接'"
+      width="560px"
+      :confirm-loading="saving"
+      @ok="handleSave"
+    >
+      <a-form
+        :model="form"
+        layout="vertical"
+      >
+        <a-form-item
+          label="连接名称"
+          required
+        >
+          <a-input
+            v-model:value="form.name"
+            placeholder="输入连接名称"
+          />
         </a-form-item>
-        <a-form-item label="数据库类型" required>
+        <a-form-item
+          label="数据库类型"
+          required
+        >
           <a-select v-model:value="form.dbType">
-            <a-select-option value="MySQL">MySQL</a-select-option>
-            <a-select-option value="PostgreSQL">PostgreSQL</a-select-option>
-            <a-select-option value="Oracle">Oracle</a-select-option>
-            <a-select-option value="SQLServer">SQL Server</a-select-option>
+            <a-select-option value="MySQL">
+              MySQL
+            </a-select-option>
+            <a-select-option value="PostgreSQL">
+              PostgreSQL
+            </a-select-option>
+            <a-select-option value="Oracle">
+              Oracle
+            </a-select-option>
+            <a-select-option value="SQLServer">
+              SQL Server
+            </a-select-option>
           </a-select>
         </a-form-item>
         <a-row :gutter="16">
           <a-col :span="12">
-            <a-form-item label="主机地址" required>
-              <a-input v-model:value="form.host" placeholder="localhost" />
+            <a-form-item
+              label="主机地址"
+              required
+            >
+              <a-input
+                v-model:value="form.host"
+                placeholder="localhost"
+              />
             </a-form-item>
           </a-col>
           <a-col :span="12">
-            <a-form-item label="端口" required>
-              <a-input-number v-model:value="form.port" style="width:100%" :min="1" :max="65535" />
+            <a-form-item
+              label="端口"
+              required
+            >
+              <a-input-number
+                v-model:value="form.port"
+                style="width:100%"
+                :min="1"
+                :max="65535"
+              />
             </a-form-item>
           </a-col>
         </a-row>
-        <a-form-item label="数据库名" required>
-          <a-input v-model:value="form.database" placeholder="输入数据库名" />
+        <a-form-item
+          label="数据库名"
+          required
+        >
+          <a-input
+            v-model:value="form.database"
+            placeholder="输入数据库名"
+          />
         </a-form-item>
         <a-row :gutter="16">
           <a-col :span="12">
-            <a-form-item label="用户名" required>
+            <a-form-item
+              label="用户名"
+              required
+            >
               <a-input v-model:value="form.username" />
             </a-form-item>
           </a-col>

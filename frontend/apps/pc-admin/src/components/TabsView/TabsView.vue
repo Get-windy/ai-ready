@@ -1,6 +1,12 @@
 <template>
-  <div class="tabs-view" @contextmenu.prevent="handleContextMenu">
-    <div ref="tabsScrollRef" class="tabs-scroll">
+  <div
+    class="tabs-view"
+    @contextmenu.prevent="handleContextMenu"
+  >
+    <div
+      ref="tabsScrollRef"
+      class="tabs-scroll"
+    >
       <div
         v-for="tab in tabsStore.tabs"
         :key="tab.path"
@@ -10,14 +16,20 @@
           pinned: tab.pinned,
           dirty: tab.dirty
         }"
+        draggable="false"
         @click="switchTab(tab)"
         @mouseup.middle="handleMiddleClick(tab)"
-        draggable="false"
       >
-        <LoadingOutlined v-if="tab.loading" class="tab-loading" />
+        <LoadingOutlined
+          v-if="tab.loading"
+          class="tab-loading"
+        />
         <div class="tab-title">
           <span class="tab-title-text">{{ tab.title }}</span>
-          <span v-if="tab.dirty" class="tab-dirty-dot">●</span>
+          <span
+            v-if="tab.dirty"
+            class="tab-dirty-dot"
+          >●</span>
         </div>
         <CloseOutlined
           v-if="!tab.pinned"

@@ -1,104 +1,192 @@
 <template>
-  <ErrorBoundary @error="handleError"><PageContainer full-height>
-    <template #header>
-      <div class="page-header">
-        <div class="page-header__left">
-          <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item>DMS / 车辆管理</a-breadcrumb-item>
-          </a-breadcrumb>
-          <h2>车辆管理</h2>
+  <ErrorBoundary @error="handleError">
+    <PageContainer full-height>
+      <template #header>
+        <div class="page-header">
+          <div class="page-header__left">
+            <a-breadcrumb>
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>DMS / 车辆管理</a-breadcrumb-item>
+            </a-breadcrumb>
+            <h2>车辆管理</h2>
+          </div>
+          <div class="page-header__right">
+            <span
+              v-if="lastUpdateTime"
+              class="update-time"
+            >更新于 {{ lastUpdateTime }}</span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            ><SyncOutlined /> {{ autoRefreshCountdown }}s</span>
+            <a-button
+              size="small"
+              :loading="loading"
+              @click="wms.debounce('refresh', wms.fetchData)"
+            >
+              <ReloadOutlined /> 刷新
+            </a-button>
+            <a-button
+              type="primary"
+              size="small"
+              @click="handleAdd"
+            >
+              <PlusOutlined /> 新增车辆
+            </a-button>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+              <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+            </span>
+          </div>
         </div>
-        <div class="page-header__right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge"><SyncOutlined /> {{ autoRefreshCountdown }}s</span>
-          <a-button size="small" :loading="loading" @click="wms.debounce('refresh', wms.fetchData)">
-            <ReloadOutlined /> 刷新
-          </a-button>
-          <a-button type="primary" size="small" @click="handleAdd"><PlusOutlined /> 新增车辆</a-button>
-          <span class="shortcut-hints">
-            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-            <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
-          </span>
-        </div>
-      </div>
-    </template>
+      </template>
 
-    <template #filter>
-      <SearchBar :fields="searchFields" :loading="loading" @search="handleSearch" @reset="handleReset" />
-    </template>
-
-    <template #default>
-      <div class="page-body">
-        <div v-if="selectedRowKeys.length > 0" class="batch-bar no-print">
-          <span>已选择 {{ selectedRowKeys.length }} 项</span>
-          <a-button size="small" danger @click="handleBatchDelete">批量删除</a-button>
-          <a-button size="small" @click="selectedRowKeys = []">取消选择</a-button>
-        </div>
-        <SkeletonTable v-if="loading && dataList.length === 0" :columns="columns.length" :rows="8" />
-        <a-table
-          v-else
-          :dataSource="dataList"
-          :columns="columns"
+      <template #filter>
+        <SearchBar
+          :fields="searchFields"
           :loading="loading"
-          :pagination="pagination"
-          :rowSelection="rowSelection"
-          rowKey="id"
-          size="small"
-          bordered
-          @change="handleTableChange"
-        >
-          <template #emptyText>
-            <a-empty description="暂无车辆数据">
-              <a-space>
-                <a-button size="small" type="primary" @click="handleAdd">新增车辆</a-button>
-                <a-button size="small" @click="wms.fetchData">刷新</a-button>
-              </a-space>
-            </a-empty>
-          </template>
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.dataIndex === 'vehicleType'">
-              <a-tag :color="vehicleTypeMap[record.vehicleType]?.color || 'default'">
-                {{ vehicleTypeMap[record.vehicleType]?.text || record.vehicleType }}
-              </a-tag>
-            </template>
-            <template v-if="column.dataIndex === 'status'">
-              <a-tag :color="statusMap[record.status]?.color || 'default'">
-                {{ statusMap[record.status]?.text || record.status }}
-              </a-tag>
-            </template>
-            <template v-if="column.dataIndex === 'insuranceExpireDate'">
-              <a-tag :color="getInsuranceExpireInfo(record.insuranceExpireDate)?.color || 'default'">
-                {{ getInsuranceExpireInfo(record.insuranceExpireDate)?.text || record.insuranceExpireDate || '-' }}
-              </a-tag>
-            </template>
-            <template v-if="column.dataIndex === 'action'">
-              <a-space :size="2">
-                <a-tooltip title="查看详情">
-                  <a-button v-permission="'dms:vehicle:view'" type="link" size="small" @click="handleView(record as any)"><EyeOutlined /></a-button>
-                </a-tooltip>
-                <a-tooltip title="编辑">
-                  <a-button v-permission="'dms:vehicle:edit'" type="link" size="small" @click="handleEdit(record as any)"><EditOutlined /></a-button>
-                </a-tooltip>
-                <a-dropdown>
-                  <a-button type="link" size="small">
-                    更多 <DownOutlined style="font-size:10px;" />
+          @search="handleSearch"
+          @reset="handleReset"
+        />
+      </template>
+
+      <template #default>
+        <div class="page-body">
+          <div
+            v-if="selectedRowKeys.length > 0"
+            class="batch-bar no-print"
+          >
+            <span>已选择 {{ selectedRowKeys.length }} 项</span>
+            <a-button
+              size="small"
+              danger
+              @click="handleBatchDelete"
+            >
+              批量删除
+            </a-button>
+            <a-button
+              size="small"
+              @click="selectedRowKeys = []"
+            >
+              取消选择
+            </a-button>
+          </div>
+          <SkeletonTable
+            v-if="loading && dataList.length === 0"
+            :columns="columns.length"
+            :rows="8"
+          />
+          <a-table
+            v-else
+            :data-source="dataList"
+            :columns="columns"
+            :loading="loading"
+            :pagination="pagination"
+            :row-selection="rowSelection"
+            row-key="id"
+            size="small"
+            bordered
+            @change="handleTableChange"
+          >
+            <template #emptyText>
+              <a-empty description="暂无车辆数据">
+                <a-space>
+                  <a-button
+                    size="small"
+                    type="primary"
+                    @click="handleAdd"
+                  >
+                    新增车辆
                   </a-button>
-                  <template #overlay>
-                    <a-menu @click="({ key }) => handleMoreAction(key as string, record as any)">
-                      <a-menu-item v-permission="'dms:vehicle:status'" key="status"><SyncOutlined /> 状态变更</a-menu-item>
-                      <a-menu-item v-permission="'dms:vehicle:bind-rider'" key="bindRider"><TeamOutlined /> 绑定骑手</a-menu-item>
-                      <a-menu-item v-permission="'dms:vehicle:maintenance'" key="maintenance"><ToolOutlined /> 维保记录</a-menu-item>
-                    </a-menu>
-                  </template>
-                </a-dropdown>
-              </a-space>
+                  <a-button
+                    size="small"
+                    @click="wms.fetchData"
+                  >
+                    刷新
+                  </a-button>
+                </a-space>
+              </a-empty>
             </template>
-          </template>
-        </a-table>
-      </div>
-    </template>
-  </PageContainer></ErrorBoundary>
+            <template #bodyCell="{ column, record }">
+              <template v-if="column.dataIndex === 'vehicleType'">
+                <a-tag :color="vehicleTypeMap[record.vehicleType]?.color || 'default'">
+                  {{ vehicleTypeMap[record.vehicleType]?.text || record.vehicleType }}
+                </a-tag>
+              </template>
+              <template v-if="column.dataIndex === 'status'">
+                <a-tag :color="statusMap[record.status]?.color || 'default'">
+                  {{ statusMap[record.status]?.text || record.status }}
+                </a-tag>
+              </template>
+              <template v-if="column.dataIndex === 'insuranceExpireDate'">
+                <a-tag :color="getInsuranceExpireInfo(record.insuranceExpireDate)?.color || 'default'">
+                  {{ getInsuranceExpireInfo(record.insuranceExpireDate)?.text || record.insuranceExpireDate || '-' }}
+                </a-tag>
+              </template>
+              <template v-if="column.dataIndex === 'action'">
+                <a-space :size="2">
+                  <a-tooltip title="查看详情">
+                    <a-button
+                      v-permission="'dms:vehicle:view'"
+                      type="link"
+                      size="small"
+                      @click="handleView(record as any)"
+                    >
+                      <EyeOutlined />
+                    </a-button>
+                  </a-tooltip>
+                  <a-tooltip title="编辑">
+                    <a-button
+                      v-permission="'dms:vehicle:edit'"
+                      type="link"
+                      size="small"
+                      @click="handleEdit(record as any)"
+                    >
+                      <EditOutlined />
+                    </a-button>
+                  </a-tooltip>
+                  <a-dropdown>
+                    <a-button
+                      type="link"
+                      size="small"
+                    >
+                      更多 <DownOutlined style="font-size:10px;" />
+                    </a-button>
+                    <template #overlay>
+                      <a-menu @click="({ key }) => handleMoreAction(key as string, record as any)">
+                        <a-menu-item
+                          key="status"
+                          v-permission="'dms:vehicle:status'"
+                        >
+                          <SyncOutlined /> 状态变更
+                        </a-menu-item>
+                        <a-menu-item
+                          key="bindRider"
+                          v-permission="'dms:vehicle:bind-rider'"
+                        >
+                          <TeamOutlined /> 绑定骑手
+                        </a-menu-item>
+                        <a-menu-item
+                          key="maintenance"
+                          v-permission="'dms:vehicle:maintenance'"
+                        >
+                          <ToolOutlined /> 维保记录
+                        </a-menu-item>
+                      </a-menu>
+                    </template>
+                  </a-dropdown>
+                </a-space>
+              </template>
+            </template>
+          </a-table>
+        </div>
+      </template>
+    </PageContainer>
+  </ErrorBoundary>
 
   <!-- 新增/编辑弹窗 -->
   <a-modal
@@ -109,109 +197,260 @@
     @ok="handleModalOk"
     @cancel="handleModalCancel"
   >
-    <a-form ref="formRef" :model="formState" :rules="formRules" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
+    <a-form
+      ref="formRef"
+      :model="formState"
+      :rules="formRules"
+      :label-col="{ span: 6 }"
+      :wrapper-col="{ span: 16 }"
+    >
       <a-row :gutter="16">
         <a-col :span="12">
-          <a-form-item label="车牌号" name="plateNo">
-            <a-input v-model:value="formState.plateNo" size="small" placeholder="请输入车牌号" />
+          <a-form-item
+            label="车牌号"
+            name="plateNo"
+          >
+            <a-input
+              v-model:value="formState.plateNo"
+              size="small"
+              placeholder="请输入车牌号"
+            />
           </a-form-item>
         </a-col>
         <a-col :span="12">
-          <a-form-item label="车辆类型" name="vehicleType">
-            <a-select v-model:value="formState.vehicleType" size="small" placeholder="请选择车辆类型">
-              <a-select-option v-for="(text, val) in vehicleTypeOptions" :key="val" :value="Number(val)">{{ text }}</a-select-option>
+          <a-form-item
+            label="车辆类型"
+            name="vehicleType"
+          >
+            <a-select
+              v-model:value="formState.vehicleType"
+              size="small"
+              placeholder="请选择车辆类型"
+            >
+              <a-select-option
+                v-for="(text, val) in vehicleTypeOptions"
+                :key="val"
+                :value="Number(val)"
+              >
+                {{ text }}
+              </a-select-option>
             </a-select>
           </a-form-item>
         </a-col>
       </a-row>
       <a-row :gutter="16">
         <a-col :span="12">
-          <a-form-item label="品牌" name="brand">
-            <a-input v-model:value="formState.brand" size="small" placeholder="请输入品牌" />
+          <a-form-item
+            label="品牌"
+            name="brand"
+          >
+            <a-input
+              v-model:value="formState.brand"
+              size="small"
+              placeholder="请输入品牌"
+            />
           </a-form-item>
         </a-col>
         <a-col :span="12">
-          <a-form-item label="型号" name="model">
-            <a-input v-model:value="formState.model" size="small" placeholder="请输入型号" />
+          <a-form-item
+            label="型号"
+            name="model"
+          >
+            <a-input
+              v-model:value="formState.model"
+              size="small"
+              placeholder="请输入型号"
+            />
           </a-form-item>
         </a-col>
       </a-row>
       <a-row :gutter="16">
         <a-col :span="12">
-          <a-form-item label="颜色" name="color">
-            <a-input v-model:value="formState.color" size="small" placeholder="请输入颜色" />
+          <a-form-item
+            label="颜色"
+            name="color"
+          >
+            <a-input
+              v-model:value="formState.color"
+              size="small"
+              placeholder="请输入颜色"
+            />
           </a-form-item>
         </a-col>
         <a-col :span="12">
-          <a-form-item label="VIN" name="vin">
-            <a-input v-model:value="formState.vin" size="small" placeholder="请输入车架号" />
+          <a-form-item
+            label="VIN"
+            name="vin"
+          >
+            <a-input
+              v-model:value="formState.vin"
+              size="small"
+              placeholder="请输入车架号"
+            />
           </a-form-item>
         </a-col>
       </a-row>
       <a-row :gutter="16">
         <a-col :span="12">
-          <a-form-item label="发动机号" name="engineNo">
-            <a-input v-model:value="formState.engineNo" size="small" placeholder="请输入发动机号" />
+          <a-form-item
+            label="发动机号"
+            name="engineNo"
+          >
+            <a-input
+              v-model:value="formState.engineNo"
+              size="small"
+              placeholder="请输入发动机号"
+            />
           </a-form-item>
         </a-col>
         <a-col :span="12">
-          <a-form-item label="所属性质" name="ownershipType">
-            <a-select v-model:value="formState.ownershipType" size="small" placeholder="请选择所属性质">
-              <a-select-option v-for="(text, val) in ownershipMap" :key="val" :value="Number(val)">{{ text }}</a-select-option>
+          <a-form-item
+            label="所属性质"
+            name="ownershipType"
+          >
+            <a-select
+              v-model:value="formState.ownershipType"
+              size="small"
+              placeholder="请选择所属性质"
+            >
+              <a-select-option
+                v-for="(text, val) in ownershipMap"
+                :key="val"
+                :value="Number(val)"
+              >
+                {{ text }}
+              </a-select-option>
             </a-select>
           </a-form-item>
         </a-col>
       </a-row>
       <a-row :gutter="16">
         <a-col :span="12">
-          <a-form-item label="核定载重(kg)" name="ratedLoad">
-            <a-input-number v-model:value="formState.ratedLoad" :min="0" size="small" style="width:100%" placeholder="请输入核定载重" />
+          <a-form-item
+            label="核定载重(kg)"
+            name="ratedLoad"
+          >
+            <a-input-number
+              v-model:value="formState.ratedLoad"
+              :min="0"
+              size="small"
+              style="width:100%"
+              placeholder="请输入核定载重"
+            />
           </a-form-item>
         </a-col>
         <a-col :span="12">
-          <a-form-item label="核定载客" name="ratedPassenger">
-            <a-input-number v-model:value="formState.ratedPassenger" :min="0" size="small" style="width:100%" placeholder="请输入核定载客" />
+          <a-form-item
+            label="核定载客"
+            name="ratedPassenger"
+          >
+            <a-input-number
+              v-model:value="formState.ratedPassenger"
+              :min="0"
+              size="small"
+              style="width:100%"
+              placeholder="请输入核定载客"
+            />
           </a-form-item>
         </a-col>
       </a-row>
       <a-row :gutter="16">
         <a-col :span="12">
-          <a-form-item label="货箱容积(m³)" name="cargoVolume">
-            <a-input-number v-model:value="formState.cargoVolume" :min="0" size="small" style="width:100%" placeholder="请输入货箱容积" />
+          <a-form-item
+            label="货箱容积(m³)"
+            name="cargoVolume"
+          >
+            <a-input-number
+              v-model:value="formState.cargoVolume"
+              :min="0"
+              size="small"
+              style="width:100%"
+              placeholder="请输入货箱容积"
+            />
           </a-form-item>
         </a-col>
         <a-col :span="12">
-          <a-form-item label="所属部门" name="department">
-            <a-input v-model:value="formState.department" size="small" placeholder="请输入所属部门" />
+          <a-form-item
+            label="所属部门"
+            name="department"
+          >
+            <a-input
+              v-model:value="formState.department"
+              size="small"
+              placeholder="请输入所属部门"
+            />
           </a-form-item>
         </a-col>
       </a-row>
       <a-row :gutter="16">
         <a-col :span="12">
-          <a-form-item label="注册日期" name="registerDate">
-            <a-date-picker v-model:value="formState.registerDate" size="small" style="width:100%" placeholder="选择注册日期" />
+          <a-form-item
+            label="注册日期"
+            name="registerDate"
+          >
+            <a-date-picker
+              v-model:value="formState.registerDate"
+              size="small"
+              style="width:100%"
+              placeholder="选择注册日期"
+            />
           </a-form-item>
         </a-col>
         <a-col :span="12">
-          <a-form-item label="保养间隔(km)" name="maintenanceIntervalKm">
-            <a-input-number v-model:value="formState.maintenanceIntervalKm" :min="0" size="small" style="width:100%" placeholder="请输入保养间隔" />
+          <a-form-item
+            label="保养间隔(km)"
+            name="maintenanceIntervalKm"
+          >
+            <a-input-number
+              v-model:value="formState.maintenanceIntervalKm"
+              :min="0"
+              size="small"
+              style="width:100%"
+              placeholder="请输入保养间隔"
+            />
           </a-form-item>
         </a-col>
       </a-row>
       <a-row :gutter="16">
         <a-col :span="12">
-          <a-form-item label="保险到期日" name="insuranceExpireDate">
-            <a-date-picker v-model:value="formState.insuranceExpireDate" size="small" style="width:100%" placeholder="选择保险到期日" />
+          <a-form-item
+            label="保险到期日"
+            name="insuranceExpireDate"
+          >
+            <a-date-picker
+              v-model:value="formState.insuranceExpireDate"
+              size="small"
+              style="width:100%"
+              placeholder="选择保险到期日"
+            />
           </a-form-item>
         </a-col>
         <a-col :span="12">
-          <a-form-item label="年检到期日" name="inspectionExpireDate">
-            <a-date-picker v-model:value="formState.inspectionExpireDate" size="small" style="width:100%" placeholder="选择年检到期日" />
+          <a-form-item
+            label="年检到期日"
+            name="inspectionExpireDate"
+          >
+            <a-date-picker
+              v-model:value="formState.inspectionExpireDate"
+              size="small"
+              style="width:100%"
+              placeholder="选择年检到期日"
+            />
           </a-form-item>
         </a-col>
       </a-row>
-      <a-form-item label="备注" name="remark" :label-col="{ span: 3 }" :wrapper-col="{ span: 20 }">
-        <a-textarea v-model:value="formState.remark" :rows="2" size="small" placeholder="请输入备注" />
+      <a-form-item
+        label="备注"
+        name="remark"
+        :label-col="{ span: 3 }"
+        :wrapper-col="{ span: 20 }"
+      >
+        <a-textarea
+          v-model:value="formState.remark"
+          :rows="2"
+          size="small"
+          placeholder="请输入备注"
+        />
       </a-form-item>
     </a-form>
   </a-modal>
@@ -225,12 +464,34 @@
     @ok="handleBindRiderOk"
     @cancel="handleBindRiderCancel"
   >
-    <a-form ref="bindFormRef" :model="bindFormState" :rules="bindFormRules" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
-      <a-form-item label="骑手ID" name="riderId">
-        <a-input-number v-model:value="bindFormState.riderId" :min="1" size="small" style="width:100%" placeholder="请输入骑手ID" />
+    <a-form
+      ref="bindFormRef"
+      :model="bindFormState"
+      :rules="bindFormRules"
+      :label-col="{ span: 6 }"
+      :wrapper-col="{ span: 16 }"
+    >
+      <a-form-item
+        label="骑手ID"
+        name="riderId"
+      >
+        <a-input-number
+          v-model:value="bindFormState.riderId"
+          :min="1"
+          size="small"
+          style="width:100%"
+          placeholder="请输入骑手ID"
+        />
       </a-form-item>
-      <a-form-item label="骑手姓名" name="riderName">
-        <a-input v-model:value="bindFormState.riderName" size="small" placeholder="请输入骑手姓名" />
+      <a-form-item
+        label="骑手姓名"
+        name="riderName"
+      >
+        <a-input
+          v-model:value="bindFormState.riderName"
+          size="small"
+          placeholder="请输入骑手姓名"
+        />
       </a-form-item>
     </a-form>
   </a-modal>
@@ -244,13 +505,27 @@
     @ok="handleStatusOk"
     @cancel="statusModalVisible = false"
   >
-    <a-form :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
+    <a-form
+      :label-col="{ span: 6 }"
+      :wrapper-col="{ span: 16 }"
+    >
       <a-form-item label="当前状态">
-        <a-tag :color="statusMap[statusModalRecord?.status]?.color">{{ statusMap[statusModalRecord?.status]?.text }}</a-tag>
+        <a-tag :color="statusMap[statusModalRecord?.status]?.color">
+          {{ statusMap[statusModalRecord?.status]?.text }}
+        </a-tag>
       </a-form-item>
       <a-form-item label="变更至">
-        <a-select v-model:value="statusTargetValue" size="small">
-          <a-select-option v-for="(item, key) in statusMap" :key="key" :value="Number(key)">{{ item.text }}</a-select-option>
+        <a-select
+          v-model:value="statusTargetValue"
+          size="small"
+        >
+          <a-select-option
+            v-for="(item, key) in statusMap"
+            :key="key"
+            :value="Number(key)"
+          >
+            {{ item.text }}
+          </a-select-option>
         </a-select>
       </a-form-item>
     </a-form>

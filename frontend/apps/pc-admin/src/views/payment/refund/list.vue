@@ -1,22 +1,51 @@
 <template>
   <div class="page-container">
     <div class="page-header">
-      <h2 class="page-title">退款管理</h2>
+      <h2 class="page-title">
+        退款管理
+      </h2>
     </div>
     <div class="page-container__body">
-      <a-card :bordered="false" class="table-card">
-        <a-table :columns="columns" :data-source="tableData" :loading="loading" :pagination="pagination" row-key="id" @change="handleTableChange">
+      <a-card
+        :bordered="false"
+        class="table-card"
+      >
+        <a-table
+          :columns="columns"
+          :data-source="tableData"
+          :loading="loading"
+          :pagination="pagination"
+          row-key="id"
+          @change="handleTableChange"
+        >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'amount'">
               <span style="color: #f5222d; font-weight: bold">¥{{ record.amount }}</span>
             </template>
             <template v-if="column.key === 'status'">
-              <a-tag :color="REFUND_STATUS_MAP[record.status]?.color">{{ REFUND_STATUS_MAP[record.status]?.text }}</a-tag>
+              <a-tag :color="REFUND_STATUS_MAP[record.status]?.color">
+                {{ REFUND_STATUS_MAP[record.status]?.text }}
+              </a-tag>
             </template>
             <template v-if="column.key === 'action'">
               <a-space>
-                <a-button type="link" size="small" v-if="record.status === 0" @click="handleApprove(record, true)">批准</a-button>
-                <a-button type="link" size="small" danger v-if="record.status === 0" @click="handleApprove(record, false)">拒绝</a-button>
+                <a-button
+                  v-if="record.status === 0"
+                  type="link"
+                  size="small"
+                  @click="handleApprove(record, true)"
+                >
+                  批准
+                </a-button>
+                <a-button
+                  v-if="record.status === 0"
+                  type="link"
+                  size="small"
+                  danger
+                  @click="handleApprove(record, false)"
+                >
+                  拒绝
+                </a-button>
               </a-space>
             </template>
           </template>

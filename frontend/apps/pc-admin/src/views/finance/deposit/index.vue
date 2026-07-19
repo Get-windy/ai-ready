@@ -1,213 +1,332 @@
 <template>
   <ErrorBoundary @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="deposit-page-header">
-        <div class="deposit-page-header-left">
-          <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item>财务管理</a-breadcrumb-item>
-            <a-breadcrumb-item>双向定金/押金</a-breadcrumb-item>
-          </a-breadcrumb>
-          <h2 class="deposit-page-header-title">双向定金/押金</h2>
+    <PageContainer full-height>
+      <template #header>
+        <div class="deposit-page-header">
+          <div class="deposit-page-header-left">
+            <a-breadcrumb>
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>财务管理</a-breadcrumb-item>
+              <a-breadcrumb-item>双向定金/押金</a-breadcrumb-item>
+            </a-breadcrumb>
+            <h2 class="deposit-page-header-title">
+              双向定金/押金
+            </h2>
+          </div>
+          <div class="deposit-page-header-right">
+            <span
+              v-if="lastUpdateTime"
+              class="update-time"
+            >更新于 {{ lastUpdateTime }}</span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            >
+              <SyncOutlined /> {{ autoRefreshCountdown }}s
+            </span>
+            <a-button
+              size="small"
+              :loading="refreshLoading"
+              @click="debounceClick('refresh', fetchData)"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
+              刷新
+            </a-button>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+              <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+            </span>
+          </div>
         </div>
-        <div class="deposit-page-header-right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-            <SyncOutlined /> {{ autoRefreshCountdown }}s
-          </span>
-          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)">
-            <template #icon><ReloadOutlined /></template>
-            刷新
-          </a-button>
-          <span class="shortcut-hints">
-            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-            <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
-          </span>
-        </div>
-      </div>
-    </template>
+      </template>
 
-    <div class="finance-deposit-page">
-      <!-- 统计卡片 -->
-      <div class="stat-cards">
-        <div class="stat-card stat-total">
-          <div class="stat-card-body">
-            <div class="stat-card-value">¥{{ formatAmount(stats.totalAmount) }}</div>
-            <div class="stat-card-label">定金总额</div>
-          </div>
-          <DollarOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-written-off">
-          <div class="stat-card-body">
-            <div class="stat-card-value">¥{{ formatAmount(stats.usedAmount) }}</div>
-            <div class="stat-card-label">已使用金额</div>
-          </div>
-          <CheckCircleOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-balance">
-          <div class="stat-card-body">
-            <div class="stat-card-value">¥{{ formatAmount(stats.remainingAmount) }}</div>
-            <div class="stat-card-label">剩余金额</div>
-          </div>
-          <ExclamationCircleOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-count">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ pagination.total }}</div>
-            <div class="stat-card-label">笔数</div>
-          </div>
-          <FileTextOutlined class="stat-card-icon" />
-        </div>
-      </div>
-
-      <a-tabs v-model:activeKey="activeTab" @change="handleTabChange">
-        <!-- 客户定金 -->
-        <a-tab-pane key="customer" tab="客户定金">
-          <BillTableList
-            ref="tableRef"
-            :min-empty-rows="12"
-            :columns="customerColumns"
-            :data-source="customerTableData"
-            :loading="loading"
-            :pagination="pagination"
-            :row-key="'id'"
-            :filter-fields="customerFilterFields"
-            :show-search="false"
-            export-permission="finance:deposit:list"
-            :show-add="true" add-text="新增定金" @add="handleAdd"
-            :show-edit="false"
-            :show-delete="false"
-            :selectable="true"
-            @refresh="fetchData"
-            @cell-dblclick="handleView"
-            @page-change="handlePageChange"
-            @filter-change="handleFilterChange"
-            @selection-change="handleSelectionChange"
-          >
-            <template #toolbar-actions>
-              <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
-                更新 {{ dayjs(lastUpdated).format('HH:mm') }}
-              </span>
-            </template>
-            <template #batch-actions>
-              <!-- 预留批量操作 -->
-            </template>
-
-            <template #empty>
-              <div class="table-empty">
-                <template v-if="hasError">
-                  <WarningOutlined class="table-empty-icon" style="color: #faad14" />
-                  <p class="table-empty-text">加载失败</p>
-                  <a-button type="primary" size="small" @click="fetchData" class="table-empty-action">
-                    <ReloadOutlined /> 重试
-                  </a-button>
-                </template>
-                <template v-else>
-                  <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-                  <InboxOutlined v-else class="table-empty-icon" />
-                  <p v-if="hasActiveFilters" class="table-empty-text">
-                    没有符合条件的记录，<a @click="handleResetFilters">清除筛选</a>
-                  </p>
-                  <p v-else class="table-empty-text">
-                    暂无客户定金数据
-                  </p>
-                </template>
+      <div class="finance-deposit-page">
+        <!-- 统计卡片 -->
+        <div class="stat-cards">
+          <div class="stat-card stat-total">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                ¥{{ formatAmount(stats.totalAmount) }}
               </div>
-            </template>
-
-            <template #customerStatusCell="{ record }">
-              <a-tag :color="customerStatusColorMap[record.status] || 'default'">{{ customerStatusLabelMap[record.status] || '未知' }}</a-tag>
-            </template>
-            <template #action="{ record }">
-              <a-space :size="0" class="action-cell-inner">
-                <a-button type="link" size="small" v-permission="'finance:deposit:view'" @click="handleView(record)">
-                  查看
-                </a-button>
-                <PrintButton
-                  template-type="pre_receipt"
-                  :business-id="record.id"
-                  business-type="pre_receipt"
-                  button-text=""
-                />
-              </a-space>
-            </template>
-          </BillTableList>
-        </a-tab-pane>
-
-        <!-- 供应商押金 -->
-        <a-tab-pane key="supplier" tab="供应商押金">
-          <BillTableList
-            ref="tableRef"
-            :columns="supplierColumns"
-            :data-source="supplierTableData"
-            :loading="loading"
-            :pagination="pagination"
-            :row-key="'id'"
-            :filter-fields="supplierFilterFields"
-            :show-search="false"
-            export-permission="finance:deposit:list"
-            :show-add="true" add-text="新增押金" @add="handleAdd"
-            :show-edit="false"
-            :show-delete="false"
-            :selectable="true"
-            @refresh="fetchData"
-            @cell-dblclick="handleView"
-            @page-change="handlePageChange"
-            @filter-change="handleFilterChange"
-            @selection-change="handleSelectionChange"
-          >
-            <template #toolbar-actions>
-              <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
-                更新 {{ dayjs(lastUpdated).format('HH:mm') }}
-              </span>
-            </template>
-            <template #batch-actions>
-              <!-- 预留批量操作 -->
-            </template>
-
-            <template #empty>
-              <div class="table-empty">
-                <template v-if="hasError">
-                  <WarningOutlined class="table-empty-icon" style="color: #faad14" />
-                  <p class="table-empty-text">加载失败</p>
-                  <a-button type="primary" size="small" @click="fetchData" class="table-empty-action">
-                    <ReloadOutlined /> 重试
-                  </a-button>
-                </template>
-                <template v-else>
-                  <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-                  <InboxOutlined v-else class="table-empty-icon" />
-                  <p v-if="hasActiveFilters" class="table-empty-text">
-                    没有符合条件的记录，<a @click="handleResetFilters">清除筛选</a>
-                  </p>
-                  <p v-else class="table-empty-text">
-                    暂无供应商押金数据
-                  </p>
-                </template>
+              <div class="stat-card-label">
+                定金总额
               </div>
-            </template>
+            </div>
+            <DollarOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-written-off">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                ¥{{ formatAmount(stats.usedAmount) }}
+              </div>
+              <div class="stat-card-label">
+                已使用金额
+              </div>
+            </div>
+            <CheckCircleOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-balance">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                ¥{{ formatAmount(stats.remainingAmount) }}
+              </div>
+              <div class="stat-card-label">
+                剩余金额
+              </div>
+            </div>
+            <ExclamationCircleOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-count">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ pagination.total }}
+              </div>
+              <div class="stat-card-label">
+                笔数
+              </div>
+            </div>
+            <FileTextOutlined class="stat-card-icon" />
+          </div>
+        </div>
 
-            <template #supplierStatusCell="{ record }">
-              <a-tag :color="supplierStatusColorMap[record.status] || 'default'">{{ supplierStatusLabelMap[record.status] || '未知' }}</a-tag>
-            </template>
-            <template #action="{ record }">
-              <a-space :size="0" class="action-cell-inner">
-                <a-button type="link" size="small" v-permission="'finance:deposit:view'" @click="handleView(record)">
-                  查看
-                </a-button>
-                <PrintButton
-                  template-type="pre_payment"
-                  :business-id="record.id"
-                  business-type="pre_payment"
-                  button-text=""
-                />
-              </a-space>
-            </template>
-          </BillTableList>
-        </a-tab-pane>
-      </a-tabs>
-    </div>
+        <a-tabs
+          v-model:active-key="activeTab"
+          @change="handleTabChange"
+        >
+          <!-- 客户定金 -->
+          <a-tab-pane
+            key="customer"
+            tab="客户定金"
+          >
+            <BillTableList
+              ref="tableRef"
+              :min-empty-rows="12"
+              :columns="customerColumns"
+              :data-source="customerTableData"
+              :loading="loading"
+              :pagination="pagination"
+              :row-key="'id'"
+              :filter-fields="customerFilterFields"
+              :show-search="false"
+              export-permission="finance:deposit:list"
+              :show-add="true"
+              add-text="新增定金"
+              :show-edit="false"
+              :show-delete="false"
+              :selectable="true"
+              @add="handleAdd"
+              @refresh="fetchData"
+              @cell-dblclick="handleView"
+              @page-change="handlePageChange"
+              @filter-change="handleFilterChange"
+              @selection-change="handleSelectionChange"
+            >
+              <template #toolbar-actions>
+                <span
+                  v-if="lastUpdated"
+                  class="list-update-timestamp"
+                  :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')"
+                >
+                  更新 {{ dayjs(lastUpdated).format('HH:mm') }}
+                </span>
+              </template>
+              <template #batch-actions>
+              <!-- 预留批量操作 -->
+              </template>
+
+              <template #empty>
+                <div class="table-empty">
+                  <template v-if="hasError">
+                    <WarningOutlined
+                      class="table-empty-icon"
+                      style="color: #faad14"
+                    />
+                    <p class="table-empty-text">
+                      加载失败
+                    </p>
+                    <a-button
+                      type="primary"
+                      size="small"
+                      class="table-empty-action"
+                      @click="fetchData"
+                    >
+                      <ReloadOutlined /> 重试
+                    </a-button>
+                  </template>
+                  <template v-else>
+                    <SearchOutlined
+                      v-if="hasActiveFilters"
+                      class="table-empty-icon"
+                    />
+                    <InboxOutlined
+                      v-else
+                      class="table-empty-icon"
+                    />
+                    <p
+                      v-if="hasActiveFilters"
+                      class="table-empty-text"
+                    >
+                      没有符合条件的记录，<a @click="handleResetFilters">清除筛选</a>
+                    </p>
+                    <p
+                      v-else
+                      class="table-empty-text"
+                    >
+                      暂无客户定金数据
+                    </p>
+                  </template>
+                </div>
+              </template>
+
+              <template #customerStatusCell="{ record }">
+                <a-tag :color="customerStatusColorMap[record.status] || 'default'">
+                  {{ customerStatusLabelMap[record.status] || '未知' }}
+                </a-tag>
+              </template>
+              <template #action="{ record }">
+                <a-space
+                  :size="0"
+                  class="action-cell-inner"
+                >
+                  <a-button
+                    v-permission="'finance:deposit:view'"
+                    type="link"
+                    size="small"
+                    @click="handleView(record)"
+                  >
+                    查看
+                  </a-button>
+                  <PrintButton
+                    template-type="pre_receipt"
+                    :business-id="record.id"
+                    business-type="pre_receipt"
+                    button-text=""
+                  />
+                </a-space>
+              </template>
+            </BillTableList>
+          </a-tab-pane>
+
+          <!-- 供应商押金 -->
+          <a-tab-pane
+            key="supplier"
+            tab="供应商押金"
+          >
+            <BillTableList
+              ref="tableRef"
+              :columns="supplierColumns"
+              :data-source="supplierTableData"
+              :loading="loading"
+              :pagination="pagination"
+              :row-key="'id'"
+              :filter-fields="supplierFilterFields"
+              :show-search="false"
+              export-permission="finance:deposit:list"
+              :show-add="true"
+              add-text="新增押金"
+              :show-edit="false"
+              :show-delete="false"
+              :selectable="true"
+              @add="handleAdd"
+              @refresh="fetchData"
+              @cell-dblclick="handleView"
+              @page-change="handlePageChange"
+              @filter-change="handleFilterChange"
+              @selection-change="handleSelectionChange"
+            >
+              <template #toolbar-actions>
+                <span
+                  v-if="lastUpdated"
+                  class="list-update-timestamp"
+                  :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')"
+                >
+                  更新 {{ dayjs(lastUpdated).format('HH:mm') }}
+                </span>
+              </template>
+              <template #batch-actions>
+              <!-- 预留批量操作 -->
+              </template>
+
+              <template #empty>
+                <div class="table-empty">
+                  <template v-if="hasError">
+                    <WarningOutlined
+                      class="table-empty-icon"
+                      style="color: #faad14"
+                    />
+                    <p class="table-empty-text">
+                      加载失败
+                    </p>
+                    <a-button
+                      type="primary"
+                      size="small"
+                      class="table-empty-action"
+                      @click="fetchData"
+                    >
+                      <ReloadOutlined /> 重试
+                    </a-button>
+                  </template>
+                  <template v-else>
+                    <SearchOutlined
+                      v-if="hasActiveFilters"
+                      class="table-empty-icon"
+                    />
+                    <InboxOutlined
+                      v-else
+                      class="table-empty-icon"
+                    />
+                    <p
+                      v-if="hasActiveFilters"
+                      class="table-empty-text"
+                    >
+                      没有符合条件的记录，<a @click="handleResetFilters">清除筛选</a>
+                    </p>
+                    <p
+                      v-else
+                      class="table-empty-text"
+                    >
+                      暂无供应商押金数据
+                    </p>
+                  </template>
+                </div>
+              </template>
+
+              <template #supplierStatusCell="{ record }">
+                <a-tag :color="supplierStatusColorMap[record.status] || 'default'">
+                  {{ supplierStatusLabelMap[record.status] || '未知' }}
+                </a-tag>
+              </template>
+              <template #action="{ record }">
+                <a-space
+                  :size="0"
+                  class="action-cell-inner"
+                >
+                  <a-button
+                    v-permission="'finance:deposit:view'"
+                    type="link"
+                    size="small"
+                    @click="handleView(record)"
+                  >
+                    查看
+                  </a-button>
+                  <PrintButton
+                    template-type="pre_payment"
+                    :business-id="record.id"
+                    business-type="pre_payment"
+                    button-text=""
+                  />
+                </a-space>
+              </template>
+            </BillTableList>
+          </a-tab-pane>
+        </a-tabs>
+      </div>
 
       <!-- 新增 FullScreenDetail -->
       <FullScreenDetail
@@ -217,25 +336,59 @@
         @close="handleAddCancel"
         @save="handleAddConfirm"
       >
-        <a-form ref="addFormRef" :model="addForm" :rules="formRules" layout="vertical">
-          <a-form-item label="类型" name="depositType">
+        <a-form
+          ref="addFormRef"
+          :model="addForm"
+          :rules="formRules"
+          layout="vertical"
+        >
+          <a-form-item
+            label="类型"
+            name="depositType"
+          >
             <a-radio-group v-model:value="addForm.depositType">
-              <a-radio value="customer">客户定金</a-radio>
-              <a-radio value="supplier">供应商押金</a-radio>
+              <a-radio value="customer">
+                客户定金
+              </a-radio>
+              <a-radio value="supplier">
+                供应商押金
+              </a-radio>
             </a-radio-group>
           </a-form-item>
-          <a-form-item label="客户/供应商名称" name="name">
-            <a-input v-model:value="addForm.name" placeholder="请输入客户或供应商名称" />
+          <a-form-item
+            label="客户/供应商名称"
+            name="name"
+          >
+            <a-input
+              v-model:value="addForm.name"
+              placeholder="请输入客户或供应商名称"
+            />
           </a-form-item>
-          <a-form-item label="金额" name="amount">
-            <a-input-number v-model:value="addForm.amount" :min="0" :precision="2" style="width: 100%" placeholder="请输入金额" />
+          <a-form-item
+            label="金额"
+            name="amount"
+          >
+            <a-input-number
+              v-model:value="addForm.amount"
+              :min="0"
+              :precision="2"
+              style="width: 100%"
+              placeholder="请输入金额"
+            />
           </a-form-item>
-          <a-form-item label="备注" name="remark">
-            <a-textarea v-model:value="addForm.remark" :rows="3" placeholder="备注信息（可选）" />
+          <a-form-item
+            label="备注"
+            name="remark"
+          >
+            <a-textarea
+              v-model:value="addForm.remark"
+              :rows="3"
+              placeholder="备注信息（可选）"
+            />
           </a-form-item>
         </a-form>
       </FullScreenDetail>
-  </PageContainer>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

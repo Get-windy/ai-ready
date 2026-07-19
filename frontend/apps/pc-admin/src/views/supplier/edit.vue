@@ -1,141 +1,294 @@
 <template>
   <ErrorBoundary>
-  <PageContainer title="编辑供应商">
-    <template #headerExtra>
-      <a-button @click="handleCancel">返回</a-button>
+    <PageContainer title="编辑供应商">
+      <template #headerExtra>
+        <a-button @click="handleCancel">
+          返回
+        </a-button>
 
         <span class="shortcut-hints">
           <span class="shortcut-hint"><kbd>Ctrl+R</kbd> 刷新</span>
           <span class="shortcut-hint"><kbd>Ctrl+Enter</kbd> 保存</span>
           <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
         </span>
-        </template>
+      </template>
 
-    <a-spin :spinning="loading">
-      <a-form
-        ref="formRef"
-        :model="form"
-        :rules="formRules"
-        layout="vertical"
-        hide-required-mark
-        :scroll-to-first-error="true"
-      >
-        <a-card title="基本信息" style="margin-bottom: 16px">
-          <a-row :gutter="24">
-            <a-col :span="8">
-              <a-form-item label="供应商编码" name="supplierCode">
-                <a-input size="small" v-model:value="form.supplierCode" disabled />
-              </a-form-item>
-            </a-col>
-            <a-col :span="8">
-              <a-form-item label="供应商名称" name="supplierName">
-                <a-input size="small" v-model:value="form.supplierName" placeholder="请输入供应商名称" />
-              </a-form-item>
-            </a-col>
-            <a-col :span="8">
-              <a-form-item label="简称" name="shortName">
-                <a-input size="small" v-model:value="form.shortName" placeholder="请输入简称" />
-              </a-form-item>
-            </a-col>
-            <a-col :span="8">
-              <a-form-item label="供应商类型" name="supplierType">
-                <a-select size="small" v-model:value="form.supplierType">
-                  <a-select-option v-for="item in typeOptions" :key="item.value" :value="item.value">{{ item.label }}</a-select-option>
-                </a-select>
-              </a-form-item>
-            </a-col>
-            <a-col :span="8">
-              <a-form-item label="供应商等级" name="supplierLevel">
-                <a-select size="small" v-model:value="form.supplierLevel">
-                  <a-select-option v-for="level in levelOptions" :key="level" :value="level">{{ level }}级</a-select-option>
-                </a-select>
-              </a-form-item>
-            </a-col>
-            <a-col :span="8">
-              <a-form-item label="合作状态" name="cooperationStatus">
-                <a-select size="small" v-model:value="form.cooperationStatus">
-                  <a-select-option v-for="item in statusOptions" :key="item.value" :value="item.value">{{ item.label }}</a-select-option>
-                </a-select>
-              </a-form-item>
-            </a-col>
-          </a-row>
-        </a-card>
+      <a-spin :spinning="loading">
+        <a-form
+          ref="formRef"
+          :model="form"
+          :rules="formRules"
+          layout="vertical"
+          hide-required-mark
+          :scroll-to-first-error="true"
+        >
+          <a-card
+            title="基本信息"
+            style="margin-bottom: 16px"
+          >
+            <a-row :gutter="24">
+              <a-col :span="8">
+                <a-form-item
+                  label="供应商编码"
+                  name="supplierCode"
+                >
+                  <a-input
+                    v-model:value="form.supplierCode"
+                    size="small"
+                    disabled
+                  />
+                </a-form-item>
+              </a-col>
+              <a-col :span="8">
+                <a-form-item
+                  label="供应商名称"
+                  name="supplierName"
+                >
+                  <a-input
+                    v-model:value="form.supplierName"
+                    size="small"
+                    placeholder="请输入供应商名称"
+                  />
+                </a-form-item>
+              </a-col>
+              <a-col :span="8">
+                <a-form-item
+                  label="简称"
+                  name="shortName"
+                >
+                  <a-input
+                    v-model:value="form.shortName"
+                    size="small"
+                    placeholder="请输入简称"
+                  />
+                </a-form-item>
+              </a-col>
+              <a-col :span="8">
+                <a-form-item
+                  label="供应商类型"
+                  name="supplierType"
+                >
+                  <a-select
+                    v-model:value="form.supplierType"
+                    size="small"
+                  >
+                    <a-select-option
+                      v-for="item in typeOptions"
+                      :key="item.value"
+                      :value="item.value"
+                    >
+                      {{ item.label }}
+                    </a-select-option>
+                  </a-select>
+                </a-form-item>
+              </a-col>
+              <a-col :span="8">
+                <a-form-item
+                  label="供应商等级"
+                  name="supplierLevel"
+                >
+                  <a-select
+                    v-model:value="form.supplierLevel"
+                    size="small"
+                  >
+                    <a-select-option
+                      v-for="level in levelOptions"
+                      :key="level"
+                      :value="level"
+                    >
+                      {{ level }}级
+                    </a-select-option>
+                  </a-select>
+                </a-form-item>
+              </a-col>
+              <a-col :span="8">
+                <a-form-item
+                  label="合作状态"
+                  name="cooperationStatus"
+                >
+                  <a-select
+                    v-model:value="form.cooperationStatus"
+                    size="small"
+                  >
+                    <a-select-option
+                      v-for="item in statusOptions"
+                      :key="item.value"
+                      :value="item.value"
+                    >
+                      {{ item.label }}
+                    </a-select-option>
+                  </a-select>
+                </a-form-item>
+              </a-col>
+            </a-row>
+          </a-card>
 
-        <a-card title="联系信息" style="margin-bottom: 16px">
-          <a-row :gutter="24">
-            <a-col :span="8">
-              <a-form-item label="联系人" name="contactPerson">
-                <a-input size="small" v-model:value="form.contactPerson" placeholder="请输入联系人姓名" />
-              </a-form-item>
-            </a-col>
-            <a-col :span="8">
-              <a-form-item label="联系电话" name="contactPhone">
-                <a-input size="small" v-model:value="form.contactPhone" placeholder="请输入联系电话" />
-              </a-form-item>
-            </a-col>
-            <a-col :span="8">
-              <a-form-item label="邮箱" name="email">
-                <a-input size="small" v-model:value="form.email" placeholder="请输入邮箱" />
-              </a-form-item>
-            </a-col>
-            <a-col :span="8">
-              <a-form-item label="省份" name="province">
-                <a-input size="small" v-model:value="form.province" placeholder="请输入省份" />
-              </a-form-item>
-            </a-col>
-            <a-col :span="8">
-              <a-form-item label="城市" name="city">
-                <a-input size="small" v-model:value="form.city" placeholder="请输入城市" />
-              </a-form-item>
-            </a-col>
-            <a-col :span="8">
-              <a-form-item label="详细地址" name="address">
-                <a-input size="small" v-model:value="form.address" placeholder="请输入详细地址" />
-              </a-form-item>
-            </a-col>
-          </a-row>
-        </a-card>
+          <a-card
+            title="联系信息"
+            style="margin-bottom: 16px"
+          >
+            <a-row :gutter="24">
+              <a-col :span="8">
+                <a-form-item
+                  label="联系人"
+                  name="contactPerson"
+                >
+                  <a-input
+                    v-model:value="form.contactPerson"
+                    size="small"
+                    placeholder="请输入联系人姓名"
+                  />
+                </a-form-item>
+              </a-col>
+              <a-col :span="8">
+                <a-form-item
+                  label="联系电话"
+                  name="contactPhone"
+                >
+                  <a-input
+                    v-model:value="form.contactPhone"
+                    size="small"
+                    placeholder="请输入联系电话"
+                  />
+                </a-form-item>
+              </a-col>
+              <a-col :span="8">
+                <a-form-item
+                  label="邮箱"
+                  name="email"
+                >
+                  <a-input
+                    v-model:value="form.email"
+                    size="small"
+                    placeholder="请输入邮箱"
+                  />
+                </a-form-item>
+              </a-col>
+              <a-col :span="8">
+                <a-form-item
+                  label="省份"
+                  name="province"
+                >
+                  <a-input
+                    v-model:value="form.province"
+                    size="small"
+                    placeholder="请输入省份"
+                  />
+                </a-form-item>
+              </a-col>
+              <a-col :span="8">
+                <a-form-item
+                  label="城市"
+                  name="city"
+                >
+                  <a-input
+                    v-model:value="form.city"
+                    size="small"
+                    placeholder="请输入城市"
+                  />
+                </a-form-item>
+              </a-col>
+              <a-col :span="8">
+                <a-form-item
+                  label="详细地址"
+                  name="address"
+                >
+                  <a-input
+                    v-model:value="form.address"
+                    size="small"
+                    placeholder="请输入详细地址"
+                  />
+                </a-form-item>
+              </a-col>
+            </a-row>
+          </a-card>
 
-        <a-card title="财务信息" style="margin-bottom: 16px">
-          <a-row :gutter="24">
-            <a-col :span="8">
-              <a-form-item label="开户银行" name="bankName">
-                <a-input size="small" v-model:value="form.bankName" placeholder="请输入开户银行" />
-              </a-form-item>
-            </a-col>
-            <a-col :span="8">
-              <a-form-item label="银行账号" name="bankAccount">
-                <a-input size="small" v-model:value="form.bankAccount" placeholder="请输入银行账号" />
-              </a-form-item>
-            </a-col>
-            <a-col :span="8">
-              <a-form-item label="税号" name="taxNumber">
-                <a-input size="small" v-model:value="form.taxNumber" placeholder="请输入纳税人识别号" />
-              </a-form-item>
-            </a-col>
-          </a-row>
-        </a-card>
+          <a-card
+            title="财务信息"
+            style="margin-bottom: 16px"
+          >
+            <a-row :gutter="24">
+              <a-col :span="8">
+                <a-form-item
+                  label="开户银行"
+                  name="bankName"
+                >
+                  <a-input
+                    v-model:value="form.bankName"
+                    size="small"
+                    placeholder="请输入开户银行"
+                  />
+                </a-form-item>
+              </a-col>
+              <a-col :span="8">
+                <a-form-item
+                  label="银行账号"
+                  name="bankAccount"
+                >
+                  <a-input
+                    v-model:value="form.bankAccount"
+                    size="small"
+                    placeholder="请输入银行账号"
+                  />
+                </a-form-item>
+              </a-col>
+              <a-col :span="8">
+                <a-form-item
+                  label="税号"
+                  name="taxNumber"
+                >
+                  <a-input
+                    v-model:value="form.taxNumber"
+                    size="small"
+                    placeholder="请输入纳税人识别号"
+                  />
+                </a-form-item>
+              </a-col>
+            </a-row>
+          </a-card>
 
-        <a-card title="其他信息">
-          <a-form-item label="备注" name="remark">
-            <a-textarea size="small" v-model:value="form.remark" placeholder="请输入备注信息" :rows="3" />
-          </a-form-item>
-        </a-card>
+          <a-card title="其他信息">
+            <a-form-item
+              label="备注"
+              name="remark"
+            >
+              <a-textarea
+                v-model:value="form.remark"
+                size="small"
+                placeholder="请输入备注信息"
+                :rows="3"
+              />
+            </a-form-item>
+          </a-card>
 
-        <div class="form-footer">
-          <a-space>
-            <a-button @click="handleReset" :disabled="!formDirty">重置</a-button>
-            <a-button @click="handleCancel">取消</a-button>
-            <a-button v-permission.disabled="'supplier:edit'" type="primary" :loading="saving" @click="handleSubmit">
-              <template #icon><SaveOutlined /></template>
-              保存
-            </a-button>
-            <span class="submit-hint">Ctrl + Enter</span>
-          </a-space>
-        </div>
-      </a-form>
-    </a-spin>
-  </PageContainer>
+          <div class="form-footer">
+            <a-space>
+              <a-button
+                :disabled="!formDirty"
+                @click="handleReset"
+              >
+                重置
+              </a-button>
+              <a-button @click="handleCancel">
+                取消
+              </a-button>
+              <a-button
+                v-permission.disabled="'supplier:edit'"
+                type="primary"
+                :loading="saving"
+                @click="handleSubmit"
+              >
+                <template #icon>
+                  <SaveOutlined />
+                </template>
+                保存
+              </a-button>
+              <span class="submit-hint">Ctrl + Enter</span>
+            </a-space>
+          </div>
+        </a-form>
+      </a-spin>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

@@ -1,12 +1,18 @@
 <template>
   <slot v-if="hasAccess" />
-  <slot v-else name="noPermission">
+  <slot
+    v-else
+    name="noPermission"
+  >
     <template v-if="mode === 'hide'">
       <!-- 完全隐藏 -->
     </template>
     <template v-else>
       <!-- 禁用态 -->
-      <span class="permission-disabled-wrapper" :title="tooltip">
+      <span
+        class="permission-disabled-wrapper"
+        :title="tooltip"
+      >
         <slot name="disabled" />
       </span>
     </template>

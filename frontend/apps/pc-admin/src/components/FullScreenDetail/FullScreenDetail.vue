@@ -1,5 +1,9 @@
 <template>
-  <div v-if="visible" class="fullscreen-detail-overlay" @click.self="handleClose">
+  <div
+    v-if="visible"
+    class="fullscreen-detail-overlay"
+    @click.self="handleClose"
+  >
     <div class="fullscreen-detail">
       <!-- 顶部标题栏 -->
       <div class="detail-header">
@@ -7,9 +11,19 @@
           <span class="detail-title">{{ title }}</span>
         </div>
         <div class="detail-header-right">
-          <a-tooltip title="关闭 (Esc)" placement="right" :mouse-enter-delay="0.5">
-            <a-button size="small" class="detail-close-btn" @click="handleClose">
-              <template #icon><CloseOutlined /></template>
+          <a-tooltip
+            title="关闭 (Esc)"
+            placement="right"
+            :mouse-enter-delay="0.5"
+          >
+            <a-button
+              size="small"
+              class="detail-close-btn"
+              @click="handleClose"
+            >
+              <template #icon>
+                <CloseOutlined />
+              </template>
             </a-button>
           </a-tooltip>
         </div>
@@ -21,17 +35,34 @@
       </div>
 
       <!-- 底部固定操作栏 -->
-      <div v-if="showFooter" class="detail-footer">
+      <div
+        v-if="showFooter"
+        class="detail-footer"
+      >
         <a-space>
-          <a-button :loading="saveLoading" type="primary" @click="handleSave">
-            <template #icon><SaveOutlined /></template>
+          <a-button
+            :loading="saveLoading"
+            type="primary"
+            @click="handleSave"
+          >
+            <template #icon>
+              <SaveOutlined />
+            </template>
             保存
           </a-button>
-          <a-button v-if="showSaveAndNew" :loading="saveLoading" @click="handleSaveAndNew">
-            <template #icon><PlusOutlined /></template>
+          <a-button
+            v-if="showSaveAndNew"
+            :loading="saveLoading"
+            @click="handleSaveAndNew"
+          >
+            <template #icon>
+              <PlusOutlined />
+            </template>
             保存并新增
           </a-button>
-          <a-button @click="handleClose">关闭</a-button>
+          <a-button @click="handleClose">
+            关闭
+          </a-button>
         </a-space>
       </div>
     </div>

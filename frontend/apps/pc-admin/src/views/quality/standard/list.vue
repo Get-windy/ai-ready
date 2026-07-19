@@ -2,29 +2,63 @@
   <div class="page-container">
     <div class="page-header">
       <div class="page-header__left">
-        <h2 class="page-title">质检标准</h2>
+        <h2 class="page-title">
+          质检标准
+        </h2>
       </div>
       <div class="page-header__right">
-        <a-button type="primary" @click="showCreateModal">
-          <template #icon><PlusOutlined /></template>
+        <a-button
+          type="primary"
+          @click="showCreateModal"
+        >
+          <template #icon>
+            <PlusOutlined />
+          </template>
           新增标准
         </a-button>
       </div>
     </div>
     <div class="page-container__body">
-      <a-card :bordered="false" class="table-card">
-        <a-table :columns="columns" :data-source="tableData" :loading="loading" :pagination="pagination" row-key="id" @change="handleTableChange">
+      <a-card
+        :bordered="false"
+        class="table-card"
+      >
+        <a-table
+          :columns="columns"
+          :data-source="tableData"
+          :loading="loading"
+          :pagination="pagination"
+          row-key="id"
+          @change="handleTableChange"
+        >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'inspectionType'">
-              <a-tag :color="INSPECTION_TYPE_MAP[record.inspectionType]?.color">{{ INSPECTION_TYPE_MAP[record.inspectionType]?.name }}</a-tag>
+              <a-tag :color="INSPECTION_TYPE_MAP[record.inspectionType]?.color">
+                {{ INSPECTION_TYPE_MAP[record.inspectionType]?.name }}
+              </a-tag>
             </template>
             <template v-if="column.key === 'status'">
-              <a-tag :color="record.status === 1 ? 'success' : 'error'">{{ record.status === 1 ? '启用' : '禁用' }}</a-tag>
+              <a-tag :color="record.status === 1 ? 'success' : 'error'">
+                {{ record.status === 1 ? '启用' : '禁用' }}
+              </a-tag>
             </template>
             <template v-if="column.key === 'action'">
               <a-space>
-                <a-button type="link" size="small" @click="showEditModal(record)">编辑</a-button>
-                <a-button type="link" size="small" danger @click="handleDelete(record)">删除</a-button>
+                <a-button
+                  type="link"
+                  size="small"
+                  @click="showEditModal(record)"
+                >
+                  编辑
+                </a-button>
+                <a-button
+                  type="link"
+                  size="small"
+                  danger
+                  @click="handleDelete(record)"
+                >
+                  删除
+                </a-button>
               </a-space>
             </template>
           </template>
@@ -32,29 +66,73 @@
       </a-card>
     </div>
 
-    <a-modal v-model:open="modalVisible" :title="editingId ? '编辑标准' : '新增标准'" width="600px" @ok="handleSave">
-      <a-form :label-col="{ span: 4 }" :wrapper-col="{ span: 18 }">
+    <a-modal
+      v-model:open="modalVisible"
+      :title="editingId ? '编辑标准' : '新增标准'"
+      width="600px"
+      @ok="handleSave"
+    >
+      <a-form
+        :label-col="{ span: 4 }"
+        :wrapper-col="{ span: 18 }"
+      >
         <a-form-item label="标准编码">
-          <a-input v-model:value="form.standardCode" placeholder="请输入标准编码" :disabled="!!editingId" />
+          <a-input
+            v-model:value="form.standardCode"
+            placeholder="请输入标准编码"
+            :disabled="!!editingId"
+          />
         </a-form-item>
-        <a-form-item label="标准名称" required>
-          <a-input v-model:value="form.standardName" placeholder="请输入标准名称" />
+        <a-form-item
+          label="标准名称"
+          required
+        >
+          <a-input
+            v-model:value="form.standardName"
+            placeholder="请输入标准名称"
+          />
         </a-form-item>
-        <a-form-item label="检验类型" required>
-          <a-select v-model:value="form.inspectionType" placeholder="请选择检验类型">
-            <a-select-option value="INBOUND">入库检验</a-select-option>
-            <a-select-option value="OUTBOUND">出库检验</a-select-option>
-            <a-select-option value="PROCESS">过程检验</a-select-option>
+        <a-form-item
+          label="检验类型"
+          required
+        >
+          <a-select
+            v-model:value="form.inspectionType"
+            placeholder="请选择检验类型"
+          >
+            <a-select-option value="INBOUND">
+              入库检验
+            </a-select-option>
+            <a-select-option value="OUTBOUND">
+              出库检验
+            </a-select-option>
+            <a-select-option value="PROCESS">
+              过程检验
+            </a-select-option>
           </a-select>
         </a-form-item>
         <a-form-item label="抽检比例">
-          <a-input-number v-model:value="form.sampleRate" min="0" max="100" style="width: 100%" />
+          <a-input-number
+            v-model:value="form.sampleRate"
+            min="0"
+            max="100"
+            style="width: 100%"
+          />
         </a-form-item>
         <a-form-item label="合格阈值">
-          <a-input-number v-model:value="form.passThreshold" min="0" max="100" style="width: 100%" />
+          <a-input-number
+            v-model:value="form.passThreshold"
+            min="0"
+            max="100"
+            style="width: 100%"
+          />
         </a-form-item>
         <a-form-item label="描述">
-          <a-textarea v-model:value="form.description" placeholder="请输入描述" :rows="3" />
+          <a-textarea
+            v-model:value="form.description"
+            placeholder="请输入描述"
+            :rows="3"
+          />
         </a-form-item>
       </a-form>
     </a-modal>

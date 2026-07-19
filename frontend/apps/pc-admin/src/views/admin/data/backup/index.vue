@@ -4,19 +4,38 @@
       <div class="page-header">
         <div class="page-header-left">
           <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>
+              <router-link to="/">
+                首页
+              </router-link>
+            </a-breadcrumb-item>
             <a-breadcrumb-item>系统管理</a-breadcrumb-item>
             <a-breadcrumb-item>备份管理</a-breadcrumb-item>
           </a-breadcrumb>
-          <h2 class="page-header-title">备份管理</h2>
+          <h2 class="page-header-title">
+            备份管理
+          </h2>
         </div>
         <div class="page-header-right">
-          <a-button type="primary" size="small" @click="handleCreateBackup">
-            <template #icon><CloudUploadOutlined /></template>
+          <a-button
+            type="primary"
+            size="small"
+            @click="handleCreateBackup"
+          >
+            <template #icon>
+              <CloudUploadOutlined />
+            </template>
             创建备份
           </a-button>
-          <a-button size="small" @click="fetchData" :loading="loading" style="margin-left:8px">
-            <template #icon><ReloadOutlined /></template>
+          <a-button
+            size="small"
+            :loading="loading"
+            style="margin-left:8px"
+            @click="fetchData"
+          >
+            <template #icon>
+              <ReloadOutlined />
+            </template>
             刷新
           </a-button>
         </div>
@@ -24,37 +43,73 @@
     </template>
 
     <!-- 备份策略配置 -->
-    <a-row :gutter="16" style="margin-bottom:16px">
+    <a-row
+      :gutter="16"
+      style="margin-bottom:16px"
+    >
       <a-col :span="16">
-        <a-card :bordered="false" title="备份策略">
+        <a-card
+          :bordered="false"
+          title="备份策略"
+        >
           <a-form layout="inline">
             <a-form-item label="自动备份">
               <a-switch v-model:checked="autoBackup" />
             </a-form-item>
             <a-form-item label="备份周期">
-              <a-select v-model:value="backupCycle" style="width:120px" :disabled="!autoBackup">
-                <a-select-option value="daily">每日</a-select-option>
-                <a-select-option value="weekly">每周</a-select-option>
-                <a-select-option value="monthly">每月</a-select-option>
+              <a-select
+                v-model:value="backupCycle"
+                style="width:120px"
+                :disabled="!autoBackup"
+              >
+                <a-select-option value="daily">
+                  每日
+                </a-select-option>
+                <a-select-option value="weekly">
+                  每周
+                </a-select-option>
+                <a-select-option value="monthly">
+                  每月
+                </a-select-option>
               </a-select>
             </a-form-item>
             <a-form-item label="保留份数">
-              <a-input-number v-model:value="retentionCount" :min="1" :max="365" :disabled="!autoBackup" />
+              <a-input-number
+                v-model:value="retentionCount"
+                :min="1"
+                :max="365"
+                :disabled="!autoBackup"
+              />
             </a-form-item>
             <a-form-item>
-              <a-button type="primary" size="small" @click="saveStrategy">保存策略</a-button>
+              <a-button
+                type="primary"
+                size="small"
+                @click="saveStrategy"
+              >
+                保存策略
+              </a-button>
             </a-form-item>
           </a-form>
         </a-card>
       </a-col>
       <a-col :span="8">
-        <a-card :bordered="false" title="存储概览">
+        <a-card
+          :bordered="false"
+          title="存储概览"
+        >
           <a-row :gutter="8">
             <a-col :span="12">
-              <a-statistic title="备份总大小" :value="storageStats.totalSize" />
+              <a-statistic
+                title="备份总大小"
+                :value="storageStats.totalSize"
+              />
             </a-col>
             <a-col :span="12">
-              <a-statistic title="可用空间" :value="storageStats.freeSize" />
+              <a-statistic
+                title="可用空间"
+                :value="storageStats.freeSize"
+              />
             </a-col>
           </a-row>
         </a-card>
@@ -62,7 +117,10 @@
     </a-row>
 
     <!-- 备份列表 -->
-    <a-card :bordered="false" title="备份记录">
+    <a-card
+      :bordered="false"
+      title="备份记录"
+    >
       <a-table
         :data-source="list"
         :columns="columns"
@@ -83,12 +141,28 @@
           </template>
           <template v-if="column.key === 'action'">
             <a-space>
-              <a-button size="small" type="link" @click="downloadBackup(record)" :disabled="record.status !== 'completed'">
-                <template #icon><DownloadOutlined /></template>
+              <a-button
+                size="small"
+                type="link"
+                :disabled="record.status !== 'completed'"
+                @click="downloadBackup(record)"
+              >
+                <template #icon>
+                  <DownloadOutlined />
+                </template>
               </a-button>
-              <a-popconfirm title="确定删除此备份?" @confirm="deleteBackup(record)">
-                <a-button size="small" type="link" danger>
-                  <template #icon><DeleteOutlined /></template>
+              <a-popconfirm
+                title="确定删除此备份?"
+                @confirm="deleteBackup(record)"
+              >
+                <a-button
+                  size="small"
+                  type="link"
+                  danger
+                >
+                  <template #icon>
+                    <DeleteOutlined />
+                  </template>
                 </a-button>
               </a-popconfirm>
             </a-space>

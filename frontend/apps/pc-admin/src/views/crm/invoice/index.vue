@@ -4,162 +4,350 @@
       <div class="invoice-page-header">
         <div class="invoice-page-header-left">
           <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>
+              <router-link to="/">
+                首页
+              </router-link>
+            </a-breadcrumb-item>
             <a-breadcrumb-item>发票管理</a-breadcrumb-item>
           </a-breadcrumb>
-          <h2 class="invoice-page-header-title">发票管理</h2>
+          <h2 class="invoice-page-header-title">
+            发票管理
+          </h2>
         </div>
         <div class="invoice-page-header-right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+          <span
+            v-if="lastUpdateTime"
+            class="update-time"
+          >更新于 {{ lastUpdateTime }}</span>
+          <span
+            v-if="autoRefreshCountdown > 0"
+            class="auto-refresh-badge"
+          >
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)">
-            <template #icon><ReloadOutlined /></template>
+          <a-button
+            size="small"
+            :loading="refreshLoading"
+            @click="debounceClick('refresh', fetchData)"
+          >
+            <template #icon>
+              <ReloadOutlined />
+            </template>
             刷新
           </a-button>
         </div>
       </div>
     </template>
 
-    <ErrorBoundary @error="handleError" @reset="fetchData">
+    <ErrorBoundary
+      @error="handleError"
+      @reset="fetchData"
+    >
       <!-- 骨架加载 -->
-      <div v-if="loading && tableData.length === 0" class="skeleton-loading">
-        <a-skeleton :paragraph="{ rows: 3 }" active />
+      <div
+        v-if="loading && tableData.length === 0"
+        class="skeleton-loading"
+      >
+        <a-skeleton
+          :paragraph="{ rows: 3 }"
+          active
+        />
         <div style="height: 16px" />
-        <a-skeleton :paragraph="{ rows: 8 }" active />
+        <a-skeleton
+          :paragraph="{ rows: 8 }"
+          active
+        />
       </div>
 
       <!-- 统计卡片 -->
       <template v-if="!(loading && tableData.length === 0)">
-      <div class="stats-cards">
-        <a-row :gutter="16">
-          <a-col :span="6">
-            <div class="stat-card stat-card-blue">
-              <div class="stat-icon" style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);">
-                <FileTextOutlined />
+        <div class="stats-cards">
+          <a-row :gutter="16">
+            <a-col :span="6">
+              <div class="stat-card stat-card-blue">
+                <div
+                  class="stat-icon"
+                  style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);"
+                >
+                  <FileTextOutlined />
+                </div>
+                <div class="stat-content">
+                  <div class="stat-title">
+                    发票总数
+                  </div>
+                  <div class="stat-value">
+                    {{ pagination.total }}
+                  </div>
+                  <div class="stat-desc">
+                    全部发票
+                  </div>
+                </div>
               </div>
-              <div class="stat-content">
-                <div class="stat-title">发票总数</div>
-                <div class="stat-value">{{ pagination.total }}</div>
-                <div class="stat-desc">全部发票</div>
+            </a-col>
+            <a-col :span="6">
+              <div class="stat-card stat-card-orange">
+                <div
+                  class="stat-icon"
+                  style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);"
+                >
+                  <SendOutlined />
+                </div>
+                <div class="stat-content">
+                  <div class="stat-title">
+                    已开具
+                  </div>
+                  <div class="stat-value">
+                    {{ statusCounts.issued }}
+                  </div>
+                  <div class="stat-desc">
+                    已开具发票
+                  </div>
+                </div>
               </div>
-            </div>
-          </a-col>
-          <a-col :span="6">
-            <div class="stat-card stat-card-orange">
-              <div class="stat-icon" style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);">
-                <SendOutlined />
+            </a-col>
+            <a-col :span="6">
+              <div class="stat-card stat-card-green">
+                <div
+                  class="stat-icon"
+                  style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);"
+                >
+                  <CheckCircleOutlined />
+                </div>
+                <div class="stat-content">
+                  <div class="stat-title">
+                    已收到
+                  </div>
+                  <div class="stat-value">
+                    {{ statusCounts.received }}
+                  </div>
+                  <div class="stat-desc positive">
+                    已确认收票
+                  </div>
+                </div>
               </div>
-              <div class="stat-content">
-                <div class="stat-title">已开具</div>
-                <div class="stat-value">{{ statusCounts.issued }}</div>
-                <div class="stat-desc">已开具发票</div>
+            </a-col>
+            <a-col :span="6">
+              <div class="stat-card stat-card-purple">
+                <div
+                  class="stat-icon"
+                  style="background: linear-gradient(135deg, #722ed1 0%, #531dab 100%);"
+                >
+                  <DollarOutlined />
+                </div>
+                <div class="stat-content">
+                  <div class="stat-title">
+                    金额合计
+                  </div>
+                  <div class="stat-value">
+                    ¥{{ formatAmount(tableTotalAmount) }}
+                  </div>
+                  <div class="stat-desc">
+                    本页合计
+                  </div>
+                </div>
               </div>
-            </div>
-          </a-col>
-          <a-col :span="6">
-            <div class="stat-card stat-card-green">
-              <div class="stat-icon" style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);">
-                <CheckCircleOutlined />
-              </div>
-              <div class="stat-content">
-                <div class="stat-title">已收到</div>
-                <div class="stat-value">{{ statusCounts.received }}</div>
-                <div class="stat-desc positive">已确认收票</div>
-              </div>
-            </div>
-          </a-col>
-          <a-col :span="6">
-            <div class="stat-card stat-card-purple">
-              <div class="stat-icon" style="background: linear-gradient(135deg, #722ed1 0%, #531dab 100%);">
-                <DollarOutlined />
-              </div>
-              <div class="stat-content">
-                <div class="stat-title">金额合计</div>
-                <div class="stat-value">¥{{ formatAmount(tableTotalAmount) }}</div>
-                <div class="stat-desc">本页合计</div>
-              </div>
-            </div>
-          </a-col>
-        </a-row>
-      </div>
+            </a-col>
+          </a-row>
+        </div>
 
-      <a-tabs v-model:activeKey="activeTab" style="margin-bottom: 0">
-        <a-tab-pane key="all" tab="全部发票" />
-        <a-tab-pane key="sales" tab="销售发票" />
-        <a-tab-pane key="purchase" tab="采购发票" />
-      </a-tabs>
+        <a-tabs
+          v-model:active-key="activeTab"
+          style="margin-bottom: 0"
+        >
+          <a-tab-pane
+            key="all"
+            tab="全部发票"
+          />
+          <a-tab-pane
+            key="sales"
+            tab="销售发票"
+          />
+          <a-tab-pane
+            key="purchase"
+            tab="采购发票"
+          />
+        </a-tabs>
 
-      <BillTableList
-        ref="tableRef"
-        :columns="vxeColumns"
-        :data-source="tableDataSource"
-        :loading="loading"
-        :pagination="pagination"
-        :filter-fields="filterFields"
-        :show-summary="true"
-        :summary-data="summaryData"
-        :show-export="true"
-        :selectable="true"
-        :min-empty-rows="12"
-        add-text="新建发票"
-        @add="handleAdd"
-        @refresh="fetchData"
-        @search="handleSearch"
-        @page-change="handlePageChange"
-        @sort-change="handleSortChange"
-        @filter-change="handleFilterChange"
-        @selection-change="handleSelectionChange"
-        @cell-dblclick="handleView"
-        @export="handleExport"
-      >
-      <template #toolbar-actions>
-        </template>
+        <BillTableList
+          ref="tableRef"
+          :columns="vxeColumns"
+          :data-source="tableDataSource"
+          :loading="loading"
+          :pagination="pagination"
+          :filter-fields="filterFields"
+          :show-summary="true"
+          :summary-data="summaryData"
+          :show-export="true"
+          :selectable="true"
+          :min-empty-rows="12"
+          add-text="新建发票"
+          @add="handleAdd"
+          @refresh="fetchData"
+          @search="handleSearch"
+          @page-change="handlePageChange"
+          @sort-change="handleSortChange"
+          @filter-change="handleFilterChange"
+          @selection-change="handleSelectionChange"
+          @cell-dblclick="handleView"
+          @export="handleExport"
+        >
+          <template #toolbar-actions />
 
-        <template #empty>
-          <div class="table-empty">
-            <template v-if="hasError">
-              <WarningOutlined class="table-empty-icon" style="color: #faad14" />
-              <p class="table-empty-text">数据加载失败，请重试</p>
-              <a-button type="primary" size="small" @click="fetchData as any">
-                <template #icon><ReloadOutlined /></template>
-                重试
-              </a-button>
-            </template>
-            <template v-else>
-              <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-              <InboxOutlined v-else class="table-empty-icon" />
-              <p v-if="hasActiveFilters" class="table-empty-text">
-                没有符合条件的发票，<a @click="handleResetFilters">清除筛选</a>
-              </p>
-              <p v-else class="table-empty-text">
-                暂无发票数据
-              </p>
-              <div v-if="!hasActiveFilters" class="empty-state-wrapper">
-                <a-button type="primary" v-permission="'crm:invoice:create'" @click="handleAdd">
-                  <template #icon><PlusOutlined /></template>
-                  新建第一张发票
+          <template #empty>
+            <div class="table-empty">
+              <template v-if="hasError">
+                <WarningOutlined
+                  class="table-empty-icon"
+                  style="color: #faad14"
+                />
+                <p class="table-empty-text">
+                  数据加载失败，请重试
+                </p>
+                <a-button
+                  type="primary"
+                  size="small"
+                  @click="fetchData as any"
+                >
+                  <template #icon>
+                    <ReloadOutlined />
+                  </template>
+                  重试
                 </a-button>
-              </div>
-            </template>
-          </div>
-        </template>
-
-        <template #action="{ record }">
-          <a-space :size="4">
-            <a-tooltip title="查看"><a-button type="link" size="small" v-permission="'crm:invoice:view'" @click="handleView(record)"><template #icon><EyeOutlined /></template></a-button></a-tooltip>
-            <a-tooltip v-if="record.status === 'draft'" title="编辑"><a-button type="link" size="small" v-permission="'crm:invoice:edit'" @click="handleEdit(record)"><template #icon><EditOutlined /></template></a-button></a-tooltip>
-            <a-tooltip v-if="record.status === 'draft'" title="开具"><a-button type="link" size="small" v-permission="'crm:invoice:issue'" @click="handleIssue(record)"><template #icon><FileProtectOutlined /></template></a-button></a-tooltip>
-            <a-tooltip v-if="record.status === 'issued'" title="发送"><a-button type="link" size="small" v-permission="'crm:invoice:send'" @click="handleSend(record)"><template #icon><SendOutlined /></template></a-button></a-tooltip>
-            <PrintButton v-if="record.status === 'issued'" template-type="invoice" :business-id="record.id" business-type="invoice" button-text="" button-size="small" @print-success="handlePrintSuccess(record)" @print-error="handlePrintError" />
-            <a-tooltip v-if="record.status === 'issued'" title="作废"><a-button type="link" danger size="small" v-permission="'crm:invoice:cancelconfirm'" @click="handleCancelConfirm(record)"><template #icon><DeleteOutlined /></template></a-button></a-tooltip>
-          </a-space>
-        </template>
-          <template #statusCell="{ record }">
-            <a-tag :color="getStatusColor(record.status)">{{ getStatusText(record.status) }}</a-tag>
+              </template>
+              <template v-else>
+                <SearchOutlined
+                  v-if="hasActiveFilters"
+                  class="table-empty-icon"
+                />
+                <InboxOutlined
+                  v-else
+                  class="table-empty-icon"
+                />
+                <p
+                  v-if="hasActiveFilters"
+                  class="table-empty-text"
+                >
+                  没有符合条件的发票，<a @click="handleResetFilters">清除筛选</a>
+                </p>
+                <p
+                  v-else
+                  class="table-empty-text"
+                >
+                  暂无发票数据
+                </p>
+                <div
+                  v-if="!hasActiveFilters"
+                  class="empty-state-wrapper"
+                >
+                  <a-button
+                    v-permission="'crm:invoice:create'"
+                    type="primary"
+                    @click="handleAdd"
+                  >
+                    <template #icon>
+                      <PlusOutlined />
+                    </template>
+                    新建第一张发票
+                  </a-button>
+                </div>
+              </template>
+            </div>
           </template>
-      </BillTableList>
+
+          <template #action="{ record }">
+            <a-space :size="4">
+              <a-tooltip title="查看">
+                <a-button
+                  v-permission="'crm:invoice:view'"
+                  type="link"
+                  size="small"
+                  @click="handleView(record)"
+                >
+                  <template #icon>
+                    <EyeOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip
+                v-if="record.status === 'draft'"
+                title="编辑"
+              >
+                <a-button
+                  v-permission="'crm:invoice:edit'"
+                  type="link"
+                  size="small"
+                  @click="handleEdit(record)"
+                >
+                  <template #icon>
+                    <EditOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip
+                v-if="record.status === 'draft'"
+                title="开具"
+              >
+                <a-button
+                  v-permission="'crm:invoice:issue'"
+                  type="link"
+                  size="small"
+                  @click="handleIssue(record)"
+                >
+                  <template #icon>
+                    <FileProtectOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip
+                v-if="record.status === 'issued'"
+                title="发送"
+              >
+                <a-button
+                  v-permission="'crm:invoice:send'"
+                  type="link"
+                  size="small"
+                  @click="handleSend(record)"
+                >
+                  <template #icon>
+                    <SendOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <PrintButton
+                v-if="record.status === 'issued'"
+                template-type="invoice"
+                :business-id="record.id"
+                business-type="invoice"
+                button-text=""
+                button-size="small"
+                @print-success="handlePrintSuccess(record)"
+                @print-error="handlePrintError"
+              />
+              <a-tooltip
+                v-if="record.status === 'issued'"
+                title="作废"
+              >
+                <a-button
+                  v-permission="'crm:invoice:cancelconfirm'"
+                  type="link"
+                  danger
+                  size="small"
+                  @click="handleCancelConfirm(record)"
+                >
+                  <template #icon>
+                    <DeleteOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+            </a-space>
+          </template>
+          <template #statusCell="{ record }">
+            <a-tag :color="getStatusColor(record.status)">
+              {{ getStatusText(record.status) }}
+            </a-tag>
+          </template>
+        </BillTableList>
       </template>
     </ErrorBoundary>
 
@@ -173,68 +361,251 @@
       @close="handleFormClose"
       @save-and-new="handleFormSaveAndNew"
     >
-      <a-form ref="formRef" :model="formData" :rules="formRules" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
-        <a-form-item label="发票号码" name="invoiceNo"><a-input v-model:value="formData.invoiceNo" placeholder="请输入发票号码" size="small" /></a-form-item>
-        <a-form-item label="发票类型" name="invoiceType">
-          <a-select v-model:value="formData.invoiceType" placeholder="请选择发票类型" size="small">
-            <a-select-option value="special">增值税专用发票</a-select-option>
-            <a-select-option value="normal">增值税普通发票</a-select-option>
-            <a-select-option value="electronic">电子发票</a-select-option>
+      <a-form
+        ref="formRef"
+        :model="formData"
+        :rules="formRules"
+        :label-col="{ span: 6 }"
+        :wrapper-col="{ span: 16 }"
+      >
+        <a-form-item
+          label="发票号码"
+          name="invoiceNo"
+        >
+          <a-input
+            v-model:value="formData.invoiceNo"
+            placeholder="请输入发票号码"
+            size="small"
+          />
+        </a-form-item>
+        <a-form-item
+          label="发票类型"
+          name="invoiceType"
+        >
+          <a-select
+            v-model:value="formData.invoiceType"
+            placeholder="请选择发票类型"
+            size="small"
+          >
+            <a-select-option value="special">
+              增值税专用发票
+            </a-select-option>
+            <a-select-option value="normal">
+              增值税普通发票
+            </a-select-option>
+            <a-select-option value="electronic">
+              电子发票
+            </a-select-option>
           </a-select>
         </a-form-item>
-        <a-form-item label="开票日期" name="invoiceDate"><a-date-picker v-model:value="formData.invoiceDate" style="width:100%" size="small" /></a-form-item>
-        <a-form-item label="客户名称" name="customerId">
-          <a-select v-model:value="formData.customerId" placeholder="请选择客户" show-search :filter-option="filterOption" size="small">
-            <a-select-option v-for="c in customerList" :key="c.id" :value="c.id">{{ c.name }}</a-select-option>
+        <a-form-item
+          label="开票日期"
+          name="invoiceDate"
+        >
+          <a-date-picker
+            v-model:value="formData.invoiceDate"
+            style="width:100%"
+            size="small"
+          />
+        </a-form-item>
+        <a-form-item
+          label="客户名称"
+          name="customerId"
+        >
+          <a-select
+            v-model:value="formData.customerId"
+            placeholder="请选择客户"
+            show-search
+            :filter-option="filterOption"
+            size="small"
+          >
+            <a-select-option
+              v-for="c in customerList"
+              :key="c.id"
+              :value="c.id"
+            >
+              {{ c.name }}
+            </a-select-option>
           </a-select>
         </a-form-item>
-        <a-form-item label="发票金额" name="amount"><a-input-number v-model:value="formData.amount" :min="0" :precision="2" style="width:100%" size="small" /></a-form-item>
-        <a-form-item label="税率" name="taxRate">
-          <a-select v-model:value="formData.taxRate" placeholder="请选择税率" size="small">
-            <a-select-option value="13">13%</a-select-option>
-            <a-select-option value="9">9%</a-select-option>
-            <a-select-option value="6">6%</a-select-option>
-            <a-select-option value="3">3%</a-select-option>
-            <a-select-option value="0">0%</a-select-option>
+        <a-form-item
+          label="发票金额"
+          name="amount"
+        >
+          <a-input-number
+            v-model:value="formData.amount"
+            :min="0"
+            :precision="2"
+            style="width:100%"
+            size="small"
+          />
+        </a-form-item>
+        <a-form-item
+          label="税率"
+          name="taxRate"
+        >
+          <a-select
+            v-model:value="formData.taxRate"
+            placeholder="请选择税率"
+            size="small"
+          >
+            <a-select-option value="13">
+              13%
+            </a-select-option>
+            <a-select-option value="9">
+              9%
+            </a-select-option>
+            <a-select-option value="6">
+              6%
+            </a-select-option>
+            <a-select-option value="3">
+              3%
+            </a-select-option>
+            <a-select-option value="0">
+              0%
+            </a-select-option>
           </a-select>
         </a-form-item>
-        <a-form-item label="税额"><a-input-number :value="formTaxAmount" :precision="2" disabled style="width:100%" size="small" /></a-form-item>
-        <a-form-item label="价税合计"><a-input-number :value="formTotalAmount" :precision="2" disabled style="width:100%" size="small" /></a-form-item>
-        <a-form-item label="关联订单" name="relatedOrders">
-          <a-select v-model:value="formData.relatedOrders" mode="multiple" placeholder="请选择关联订单" size="small">
-            <a-select-option v-for="o in orderList" :key="o.id" :value="o.id">{{ o.orderNo }} - ¥{{ o.amount }}</a-select-option>
+        <a-form-item label="税额">
+          <a-input-number
+            :value="formTaxAmount"
+            :precision="2"
+            disabled
+            style="width:100%"
+            size="small"
+          />
+        </a-form-item>
+        <a-form-item label="价税合计">
+          <a-input-number
+            :value="formTotalAmount"
+            :precision="2"
+            disabled
+            style="width:100%"
+            size="small"
+          />
+        </a-form-item>
+        <a-form-item
+          label="关联订单"
+          name="relatedOrders"
+        >
+          <a-select
+            v-model:value="formData.relatedOrders"
+            mode="multiple"
+            placeholder="请选择关联订单"
+            size="small"
+          >
+            <a-select-option
+              v-for="o in orderList"
+              :key="o.id"
+              :value="o.id"
+            >
+              {{ o.orderNo }} - ¥{{ o.amount }}
+            </a-select-option>
           </a-select>
         </a-form-item>
-        <a-form-item label="备注" name="remark"><a-textarea v-model:value="formData.remark" placeholder="请输入备注" :rows="2" size="small" /></a-form-item>
+        <a-form-item
+          label="备注"
+          name="remark"
+        >
+          <a-textarea
+            v-model:value="formData.remark"
+            placeholder="请输入备注"
+            :rows="2"
+            size="small"
+          />
+        </a-form-item>
       </a-form>
     </FullScreenDetail>
 
-    <a-drawer v-model:open="detailVisible" title="发票详情" placement="right" width="80vw" :footer="null" @close="handleDetailClose">
+    <a-drawer
+      v-model:open="detailVisible"
+      title="发票详情"
+      placement="right"
+      width="80vw"
+      :footer="null"
+      @close="handleDetailClose"
+    >
       <a-spin :spinning="detailLoading">
         <template v-if="detailError">
           <div class="table-empty">
-            <WarningOutlined class="table-empty-icon" style="color: #faad14" />
-            <p class="table-empty-text">详情数据加载失败</p>
-            <a-button type="primary" size="small" v-permission="'crm:invoice:detailrefresh'" @click="handleDetailRefresh">
-              <template #icon><ReloadOutlined /></template>
+            <WarningOutlined
+              class="table-empty-icon"
+              style="color: #faad14"
+            />
+            <p class="table-empty-text">
+              详情数据加载失败
+            </p>
+            <a-button
+              v-permission="'crm:invoice:detailrefresh'"
+              type="primary"
+              size="small"
+              @click="handleDetailRefresh"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
               重试
             </a-button>
           </div>
         </template>
         <template v-else-if="detailData.id">
-          <a-descriptions :column="2" bordered>
-            <a-descriptions-item label="发票号码">{{ detailData.invoiceNo }}</a-descriptions-item>
-            <a-descriptions-item label="发票类型"><a-tag :color="getInvoiceTypeColor(detailData.invoiceType)">{{ detailData.invoiceTypeLabel }}</a-tag></a-descriptions-item>
-            <a-descriptions-item label="客户名称">{{ detailData.customerName }}</a-descriptions-item>
-            <a-descriptions-item label="开票日期">{{ detailData.invoiceDate }}</a-descriptions-item>
-            <a-descriptions-item label="发票金额"><span class="amount">¥{{ formatAmount(detailData.amount) }}</span></a-descriptions-item>
-            <a-descriptions-item label="税率">{{ detailData.taxRate }}%</a-descriptions-item>
-            <a-descriptions-item label="税额">¥{{ formatAmount(detailData.taxAmount) }}</a-descriptions-item>
-            <a-descriptions-item label="价税合计"><span class="amount total">¥{{ formatAmount(detailData.totalAmount) }}</span></a-descriptions-item>
-            <a-descriptions-item label="发票状态"><a-tag :color="getStatusColor(detailData.status)">{{ getStatusText(detailData.status) }}</a-tag></a-descriptions-item>
-            <a-descriptions-item label="开票人">{{ detailData.issuer }}</a-descriptions-item>
-            <a-descriptions-item label="关联订单" :span="2"><a-space><a-tag v-for="o in detailData.relatedOrders" :key="o">{{ o }}</a-tag></a-space></a-descriptions-item>
-            <a-descriptions-item label="备注" :span="2">{{ detailData.remark }}</a-descriptions-item>
+          <a-descriptions
+            :column="2"
+            bordered
+          >
+            <a-descriptions-item label="发票号码">
+              {{ detailData.invoiceNo }}
+            </a-descriptions-item>
+            <a-descriptions-item label="发票类型">
+              <a-tag :color="getInvoiceTypeColor(detailData.invoiceType)">
+                {{ detailData.invoiceTypeLabel }}
+              </a-tag>
+            </a-descriptions-item>
+            <a-descriptions-item label="客户名称">
+              {{ detailData.customerName }}
+            </a-descriptions-item>
+            <a-descriptions-item label="开票日期">
+              {{ detailData.invoiceDate }}
+            </a-descriptions-item>
+            <a-descriptions-item label="发票金额">
+              <span class="amount">¥{{ formatAmount(detailData.amount) }}</span>
+            </a-descriptions-item>
+            <a-descriptions-item label="税率">
+              {{ detailData.taxRate }}%
+            </a-descriptions-item>
+            <a-descriptions-item label="税额">
+              ¥{{ formatAmount(detailData.taxAmount) }}
+            </a-descriptions-item>
+            <a-descriptions-item label="价税合计">
+              <span class="amount total">¥{{ formatAmount(detailData.totalAmount) }}</span>
+            </a-descriptions-item>
+            <a-descriptions-item label="发票状态">
+              <a-tag :color="getStatusColor(detailData.status)">
+                {{ getStatusText(detailData.status) }}
+              </a-tag>
+            </a-descriptions-item>
+            <a-descriptions-item label="开票人">
+              {{ detailData.issuer }}
+            </a-descriptions-item>
+            <a-descriptions-item
+              label="关联订单"
+              :span="2"
+            >
+              <a-space>
+                <a-tag
+                  v-for="o in detailData.relatedOrders"
+                  :key="o"
+                >
+                  {{ o }}
+                </a-tag>
+              </a-space>
+            </a-descriptions-item>
+            <a-descriptions-item
+              label="备注"
+              :span="2"
+            >
+              {{ detailData.remark }}
+            </a-descriptions-item>
           </a-descriptions>
         </template>
       </a-spin>

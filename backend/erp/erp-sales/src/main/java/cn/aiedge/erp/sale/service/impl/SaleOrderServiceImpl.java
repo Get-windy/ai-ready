@@ -1,22 +1,29 @@
 package cn.aiedge.erp.sale.service.impl;
 
 import cn.aiedge.common.exception.BusinessException;
-import cn.aiedge.erp.sale.dto.SaleOrderDTO;
-import cn.aiedge.erp.sale.dto.SaleOrderItemDTO;
-import cn.aiedge.erp.sale.entity.SaleOrder;
-import cn.aiedge.erp.sale.entity.SaleOrderItem;
-import cn.aiedge.erp.sale.mapper.SaleOrderMapper;
-import cn.aiedge.erp.sale.mapper.SaleOrderItemMapper;
-import cn.aiedge.erp.sale.service.ISaleOrderService;
-import cn.aiedge.erp.stock.service.StockService;
-import cn.aiedge.erp.party.service.CustomerGradeService;
+import cn.aiedge.common.serial.BizNumberGeneratorService;
+import cn.aiedge.erp.pricing.service.PriceEngineService;
+import cn.aiedge.erp.pricing.strategy.entity.PriceCalculationRequest;
+import cn.aiedge.erp.pricing.strategy.entity.PriceCalculationResult;
 import cn.aiedge.erp.party.entity.CustomerGrade;
+import cn.aiedge.erp.party.service.CustomerGradeService;
+import cn.aiedge.erp.party.service.PartyGradeRelationService;
+import cn.aiedge.erp.sale.dto.SaleOrderDTO;
+import cn.aiedge.erp.sale.dto.SaleOrderDetailDTO;
+import cn.aiedge.erp.sale.dto.SaleOrderItemDTO;
+import cn.aiedge.erp.sale.dto.SaleOrderListDTO;
+import cn.aiedge.erp.sale.entity.*;
+import cn.aiedge.erp.sale.mapper.*;
+import cn.aiedge.erp.sale.service.ISaleOrderService;
+import cn.aiedge.erp.party.entity.Party;
+import cn.aiedge.erp.party.mapper.PartyMapper;
+import cn.aiedge.erp.payment.mapper.PreReceiptMapper;
 import cn.aiedge.erp.stock.entity.Product;
 import cn.aiedge.erp.stock.service.ProductService;
 import cn.aiedge.erp.stock.service.ProductUnitService;
-import cn.aiedge.erp.party.service.PartyGradeRelationService;
+import cn.aiedge.erp.stock.entity.Stock;
+import cn.aiedge.erp.stock.service.StockService;
 import cn.dev33.satoken.stp.StpUtil;
-import cn.hutool.core.util.IdUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -26,24 +33,17 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.web.multipart.MultipartFile;
+
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
-
-// 导入价格引擎相关类
-import cn.aiedge.erp.pricing.service.PriceEngineService;
-import cn.aiedge.erp.pricing.strategy.entity.PriceCalculationRequest;
-import cn.aiedge.erp.pricing.strategy.entity.PriceCalculationResult;
-import cn.aiedge.erp.pricing.strategy.entity.PricingStrategy;
-import cn.aiedge.common.serial.BizNumberGeneratorService;
 
 @Slf4j
 @Service
@@ -54,80 +54,79 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
     private final SaleOrderMapper orderMapper;
     private final SaleOrderItemMapper itemMapper;
     private final StockService stockService;
-
-    // 注入价格引擎服务
     private final PriceEngineService priceEngineService;
     private final CustomerGradeService customerGradeService;
     private final ProductService productService;
     private final ProductUnitService productUnitService;
     private final PartyGradeRelationService partyGradeRelationService;
-
-    // 注入业务编号生成服务
     private final BizNumberGeneratorService bizNumberGeneratorService;
 
+    // 子表 Mapper
+    private final SaleOrderPartnerSnapshotMapper partnerSnapshotMapper;
+    private final SaleOrderDeliveryAddressMapper deliveryAddressMapper;
+    private final SaleOrderSettlementMapper settlementMapper;
+    private final SaleOrderLogisticsMapper logisticsMapper;
+    private final SaleOrderDepositMapper depositMapper;
+    private final SaleOrderPointsJournalMapper pointsJournalMapper;
+    private final SaleOrderAuditTrailMapper auditTrailMapper;
+    private final SaleOrderExtInfoMapper extInfoMapper;
+
+    /** 往来单位Mapper */
+    private final PartyMapper partyMapper;
+
+    /** 预收款/订金Mapper */
+    private final PreReceiptMapper preReceiptMapper;
+
+    // ═══════════════════════════════════════════
+    // 基础 CRUD
+    // ═══════════════════════════════════════════
+
     @Override
-    public Page<SaleOrderDTO> pageOrders(Page<SaleOrder> page, Long tenantId, String orderNo,
-                                          Long customerId, Integer status, String startDate, String endDate) {
-        LambdaQueryWrapper<SaleOrder> wrapper = new LambdaQueryWrapper<>();
-
-        // 转换日期字符串为 LocalDate，避免 PostgreSQL 类型不匹配
-        LocalDate startLocalDate = null;
-        LocalDate endLocalDate = null;
-        if (startDate != null && !startDate.isEmpty()) {
-            try {
-                startLocalDate = LocalDate.parse(startDate);
-            } catch (Exception e) {
-                log.warn("无法解析startDate: {}", startDate);
-            }
-        }
-        if (endDate != null && !endDate.isEmpty()) {
-            try {
-                endLocalDate = LocalDate.parse(endDate);
-            } catch (Exception e) {
-                log.warn("无法解析endDate: {}", endDate);
-            }
-        }
-
-        wrapper.eq(SaleOrder::getTenantId, tenantId)
-               .like(orderNo != null && !orderNo.isEmpty(), SaleOrder::getOrderNo, orderNo)
-               .eq(customerId != null, SaleOrder::getCustomerId, customerId)
-               .eq(status != null, SaleOrder::getStatus, status)
-               .ge(startLocalDate != null, SaleOrder::getOrderDate, startLocalDate)
-               .le(endLocalDate != null, SaleOrder::getOrderDate, endLocalDate)
-               .orderByDesc(SaleOrder::getCreateTime);
+    public Page<SaleOrderListDTO> pageOrders(Page<SaleOrder> page, Long tenantId, String orderNo,
+                                              Long customerId, Integer status, String startDate, String endDate) {
+        LambdaQueryWrapper<SaleOrder> wrapper = buildQueryWrapper(tenantId, Map.of(
+                "orderNo", orderNo != null ? orderNo : "",
+                "customerId", customerId, "status", status,
+                "startDate", startDate != null ? startDate : "",
+                "endDate", endDate != null ? endDate : ""
+        ));
+        wrapper.orderByDesc(SaleOrder::getCreateTime);
 
         Page<SaleOrder> result = page(page, wrapper);
 
-        Page<SaleOrderDTO> dtoPage = new Page<>();
-        dtoPage.setRecords(result.getRecords().stream().map(this::convertToDTO).collect(Collectors.toList()));
+        // 批量查询往来单位名称
+        Set<Long> customerIds = result.getRecords().stream()
+                .map(SaleOrder::getCustomerId).filter(Objects::nonNull).collect(Collectors.toSet());
+        Map<Long, String> customerNameMap = batchGetCustomerNames(customerIds);
+
+        Page<SaleOrderListDTO> dtoPage = new Page<>();
+        dtoPage.setRecords(result.getRecords().stream().map(o -> {
+            SaleOrderListDTO dto = convertToListDTO(o);
+            dto.setCustomerName(customerNameMap.getOrDefault(o.getCustomerId(), ""));
+            return dto;
+        }).collect(Collectors.toList()));
         dtoPage.setCurrent(result.getCurrent());
         dtoPage.setSize(result.getSize());
         dtoPage.setTotal(result.getTotal());
-
         return dtoPage;
     }
 
     @Override
-    public List<SaleOrder> exportList(String keyword, Long customerId, Integer status) {
-        LambdaQueryWrapper<SaleOrder> wrapper = new LambdaQueryWrapper<>();
-        wrapper.like(keyword != null && !keyword.isEmpty(), SaleOrder::getOrderNo, keyword)
-               .eq(customerId != null, SaleOrder::getCustomerId, customerId)
-               .eq(status != null, SaleOrder::getStatus, status)
-               .orderByDesc(SaleOrder::getCreateTime);
-        return list(wrapper);
-    }
-
-    @Override
-    public SaleOrderDTO getOrderDetail(Long id) {
+    public SaleOrderDetailDTO getOrderDetail(Long id) {
         SaleOrder order = getById(id);
         if (order == null) return null;
 
-        SaleOrderDTO dto = convertToDTO(order);
+        SaleOrderDetailDTO dto = new SaleOrderDetailDTO();
+        BeanUtils.copyProperties(order, dto);
+        dto.setId(order.getId().toString());
+        dto.setStatusName(getStatusName(order.getStatus()));
+
+        // 加载子表数据
+        loadSubTableData(id, dto);
+
+        // 加载明细
         List<SaleOrderItem> items = itemMapper.selectByOrderId(id);
-
-        // 丰富订单明细，填充JOIN字段
         enrichOrderItems(items);
-
         dto.setItems(items.stream().map(this::convertItemToDTO).collect(Collectors.toList()));
 
         return dto;
@@ -136,35 +135,110 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Long createOrder(SaleOrderDTO dto) {
-        // 生成订单号
         if (dto.getOrderNo() == null || dto.getOrderNo().isEmpty()) {
             dto.setOrderNo(generateOrderNo());
         }
 
-        // 根据客户ID获取客户等级
-        String customerGradeCode = getCustomerGradeCode(dto.getCustomerId());
-        String customerGradeName = getCustomerGradeName(dto.getCustomerId());
-
-        // 设置客户等级信息到订单
-        dto.setCustomerGradeCode(customerGradeCode);
-        dto.setCustomerGradeName(customerGradeName);
-
-        // 计算订单总金额（通过明细实时计算）
         calculateAmount(dto);
 
-        SaleOrder order = new SaleOrder();
-        BeanUtils.copyProperties(dto, order);
-        order.setStatus(0); // 草稿
-        order.setReceivedAmount(BigDecimal.ZERO);
-        order.setCreateTime(LocalDateTime.now());
+        // 信用额度校验 & 填充信用快照
+        BigDecimal creditLimit = BigDecimal.ZERO;
+        BigDecimal availableCredit = BigDecimal.ZERO;
+        BigDecimal prevDebt = BigDecimal.ZERO;
+        if (dto.getCustomerId() != null && dto.getBillAmount() != null && dto.getBillAmount().compareTo(BigDecimal.ZERO) > 0) {
+            Party party = partyMapper.selectById(dto.getCustomerId());
+            if (party != null && party.getCreditLimit() != null && party.getCreditLimit().compareTo(BigDecimal.ZERO) > 0) {
+                prevDebt = party.getCurrentDebt() != null ? party.getCurrentDebt() : BigDecimal.ZERO;
+                creditLimit = party.getCreditLimit();
+                availableCredit = creditLimit.subtract(prevDebt).max(BigDecimal.ZERO);
+                if (dto.getBillAmount().compareTo(availableCredit) > 0) {
+                    throw BusinessException.badRequest(String.format(
+                            "客户「%s」信用额度不足：额度 %.2f，已欠款 %.2f，可用 %.2f，本单金额 %.2f",
+                            party.getPartyName(), creditLimit, prevDebt, availableCredit, dto.getBillAmount()));
+                }
+            }
+        }
 
+        // 保存主表 (只保存核心字段)
+        SaleOrder order = new SaleOrder();
+        order.setTenantId(dto.getTenantId());
+        order.setOrderNo(dto.getOrderNo());
+        order.setOrderDate(dto.getOrderDate() != null ? dto.getOrderDate() : LocalDate.now());
+        order.setSaleType(dto.getSaleType() != null ? dto.getSaleType() : 1);
+        order.setStatus(0);
+        order.setCustomerId(dto.getCustomerId());
+        order.setWarehouseId(dto.getWarehouseId());
+        order.setSalesmanId(dto.getSalesmanId());
+        order.setDeptId(dto.getDeptId());
+        order.setProductAmount(dto.getProductAmount());
+        order.setDiscountAmount(dto.getDiscountAmount());
+        order.setBillAmount(dto.getBillAmount());
+        order.setSettledAmount(BigDecimal.ZERO);
+        order.setReceivedAmount(BigDecimal.ZERO);
+        order.setTotalQuantity(dto.getTotalQuantity());
+        order.setExpectedShipTime(dto.getExpectedShipTime());
+        order.setSupplementType(dto.getSupplementType());
+        order.setGenerationMethod(dto.getGenerationMethod());
+        order.setSourceOrder(dto.getSourceOrder());
+        order.setOrderSource(dto.getOrderSource());
+        order.setRemark(dto.getRemark());
+        order.setOriginalOrderId(dto.getOriginalOrderId());
+        order.setOriginalOrderNo(dto.getOriginalOrderNo());
+        // 冗余字段同步
+        order.setBookkeepingTime(LocalDateTime.now());
+        order.setCreatorName(getCurrentUserName());
+        order.setPrintCount(0);
+        // 客户快照冗余
+        if (dto.getCustomerId() != null) {
+            try {
+                Party party = partyMapper.selectById(dto.getCustomerId());
+                if (party != null) {
+                    order.setCustomerName(party.getPartyName());
+                    order.setCustomerCode(party.getPartyCode());
+                }
+            } catch (Exception e) {
+                log.warn("加载客户信息失败: customerId={}", dto.getCustomerId());
+            }
+        }
+        // 收货/备注等扩展字段
+        if (dto.getBuyerRemark() != null) order.setBuyerRemark(dto.getBuyerRemark());
+        if (dto.getOrderRemark() != null) order.setOrderRemark(dto.getOrderRemark());
+        if (dto.getReceiverName() != null) order.setReceiverName(dto.getReceiverName());
+        if (dto.getReceiverPhone() != null) order.setReceiverPhone(dto.getReceiverPhone());
+        if (dto.getShippingAddress() != null) order.setShippingAddress(dto.getShippingAddress());
+        if (dto.getLogisticsCompany() != null) order.setLogisticsCompany(dto.getLogisticsCompany());
+        if (dto.getFreightPayer() != null) order.setFreightPayer(dto.getFreightPayer());
+        if (dto.getWaybillNo() != null) order.setWaybillNo(dto.getWaybillNo());
+        if (dto.getDeliveryMethod() != null) order.setDeliveryMethod(dto.getDeliveryMethod());
+        if (dto.getDeliveryRoute() != null) order.setDeliveryRoute(dto.getDeliveryRoute());
+        if (dto.getDeliveryRouteId() != null) order.setDeliveryRouteId(dto.getDeliveryRouteId());
+        if (dto.getSettlementMethod() != null) order.setSettlementMethod(dto.getSettlementMethod());
+        if (dto.getRegion() != null) order.setRegion(dto.getRegion());
+        if (dto.getSummary() != null) order.setSummary(dto.getSummary());
+        if (dto.getAttachment() != null) order.setAttachment(dto.getAttachment());
+        if (dto.getShippingFee() != null) order.setShippingFee(dto.getShippingFee());
+        // 信用额度快照
+        order.setCreditLimit(creditLimit);
+        order.setAvailableCredit(availableCredit);
+        order.setPrevDebt(prevDebt);
+        // 自定义字段
+        if (dto.getExtNum1() != null) order.setExtNum1(dto.getExtNum1());
+        if (dto.getExtNum2() != null) order.setExtNum2(dto.getExtNum2());
+        if (dto.getExtText1() != null) order.setExtText1(dto.getExtText1());
+        if (dto.getExtText2() != null) order.setExtText2(dto.getExtText2());
+        if (dto.getExtText3() != null) order.setExtText3(dto.getExtText3());
+        if (dto.getFooterExtText1() != null) order.setFooterExtText1(dto.getFooterExtText1());
+        if (dto.getFooterExtText2() != null) order.setFooterExtText2(dto.getFooterExtText2());
         save(order);
+
+        // 保存子表
+        saveSubTables(order.getId(), dto);
 
         // 保存明细
         if (dto.getItems() != null) {
             int lineNo = 1;
             for (SaleOrderItemDTO itemDTO : dto.getItems()) {
-                SaleOrderItem item = createOrderItem(itemDTO, order.getId(), dto.getCustomerId());
+                SaleOrderItem item = createOrderItem(itemDTO, order.getId(), dto.getCustomerId(), dto.getWarehouseId());
                 item.setLineNo(lineNo++);
                 itemMapper.insert(item);
             }
@@ -179,31 +253,64 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
     public void updateOrder(SaleOrderDTO dto) {
         SaleOrder order = getById(dto.getId());
         if (order == null) throw BusinessException.notFound("订单不存在");
-
         if (order.getStatus() > 1) throw BusinessException.badRequest("只有草稿和待审批状态的订单可以修改");
 
-        // 根据客户ID获取客户等级
-        String customerGradeCode = getCustomerGradeCode(dto.getCustomerId());
-        String customerGradeName = getCustomerGradeName(dto.getCustomerId());
-
-        // 设置客户等级信息到订单
-        dto.setCustomerGradeCode(customerGradeCode);
-        dto.setCustomerGradeName(customerGradeName);
-
         calculateAmount(dto);
-        BeanUtils.copyProperties(dto, order);
-        order.setUpdateTime(LocalDateTime.now());
+
+        // 信用额度校验（更新时重新校验）
+        if (dto.getCustomerId() != null && dto.getBillAmount() != null && dto.getBillAmount().compareTo(BigDecimal.ZERO) > 0) {
+            Party party = partyMapper.selectById(dto.getCustomerId());
+            if (party != null && party.getCreditLimit() != null && party.getCreditLimit().compareTo(BigDecimal.ZERO) > 0) {
+                BigDecimal currentDebt = party.getCurrentDebt() != null ? party.getCurrentDebt() : BigDecimal.ZERO;
+                BigDecimal availableCredit = party.getCreditLimit().subtract(currentDebt).max(BigDecimal.ZERO);
+                if (dto.getBillAmount().compareTo(availableCredit) > 0) {
+                    throw BusinessException.badRequest(String.format(
+                            "客户「%s」信用额度不足：额度 %.2f，已欠款 %.2f，可用 %.2f，本单金额 %.2f",
+                            party.getPartyName(), party.getCreditLimit(), currentDebt, availableCredit, dto.getBillAmount()));
+                }
+                order.setCreditLimit(party.getCreditLimit());
+                order.setAvailableCredit(availableCredit);
+                order.setPrevDebt(currentDebt);
+            }
+        }
+
+        // 更新主表
+        order.setOrderDate(dto.getOrderDate());
+        order.setCustomerId(dto.getCustomerId());
+        order.setWarehouseId(dto.getWarehouseId());
+        order.setSalesmanId(dto.getSalesmanId());
+        order.setDeptId(dto.getDeptId());
+        order.setProductAmount(dto.getProductAmount());
+        order.setDiscountAmount(dto.getDiscountAmount());
+        order.setBillAmount(dto.getBillAmount());
+        order.setTotalQuantity(dto.getTotalQuantity());
+        order.setRemark(dto.getRemark());
+        if (dto.getBuyerRemark() != null) order.setBuyerRemark(dto.getBuyerRemark());
+        if (dto.getOrderRemark() != null) order.setOrderRemark(dto.getOrderRemark());
+        if (dto.getReceiverName() != null) order.setReceiverName(dto.getReceiverName());
+        if (dto.getReceiverPhone() != null) order.setReceiverPhone(dto.getReceiverPhone());
+        if (dto.getShippingAddress() != null) order.setShippingAddress(dto.getShippingAddress());
+        if (dto.getLogisticsCompany() != null) order.setLogisticsCompany(dto.getLogisticsCompany());
+        if (dto.getFreightPayer() != null) order.setFreightPayer(dto.getFreightPayer());
+        if (dto.getDeliveryMethod() != null) order.setDeliveryMethod(dto.getDeliveryMethod());
+        if (dto.getDeliveryRoute() != null) order.setDeliveryRoute(dto.getDeliveryRoute());
+        if (dto.getSettlementMethod() != null) order.setSettlementMethod(dto.getSettlementMethod());
+        if (dto.getRegion() != null) order.setRegion(dto.getRegion());
+        if (dto.getSummary() != null) order.setSummary(dto.getSummary());
+        if (dto.getShippingFee() != null) order.setShippingFee(dto.getShippingFee());
         updateById(order);
 
-        // 删除原明细
+        // 更新子表 (先删后增)
+        deleteSubTables(order.getId());
+        saveSubTables(order.getId(), dto);
+
+        // 更新明细
         List<SaleOrderItem> oldItems = itemMapper.selectByOrderId(dto.getId());
         oldItems.forEach(item -> itemMapper.deleteById(item.getId()));
-
-        // 保存新明细
         if (dto.getItems() != null) {
             int lineNo = 1;
             for (SaleOrderItemDTO itemDTO : dto.getItems()) {
-                SaleOrderItem item = createOrderItem(itemDTO, order.getId(), dto.getCustomerId());
+                SaleOrderItem item = createOrderItem(itemDTO, order.getId(), dto.getCustomerId(), dto.getWarehouseId());
                 item.setLineNo(lineNo++);
                 itemMapper.insert(item);
             }
@@ -219,13 +326,16 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
         if (order == null) throw BusinessException.notFound("订单不存在");
         if (order.getStatus() > 1) throw BusinessException.badRequest("只有草稿和待审批状态的订单可以删除");
 
-        // 删除明细
+        deleteSubTables(id);
         List<SaleOrderItem> items = itemMapper.selectByOrderId(id);
         items.forEach(item -> itemMapper.deleteById(item.getId()));
-
         removeById(id);
         log.info("删除销售订单: orderId={}", id);
     }
+
+    // ═══════════════════════════════════════════
+    // 审批/状态流转
+    // ═══════════════════════════════════════════
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -234,7 +344,15 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
         if (order == null) throw BusinessException.notFound("订单不存在");
         if (order.getStatus() != 0) throw BusinessException.badRequest("只有草稿状态的订单可以提交审批");
 
-        orderMapper.updateStatus(id, 1); // 待审批
+        // 更新状态 + 提交人信息
+        order.setStatus(1);
+        order.setSubmitTime(LocalDateTime.now());
+        order.setSubmitterId(StpUtil.getLoginIdAsLong());
+        order.setSubmitterName(getCurrentUserName());
+        updateById(order);
+
+        // 记录审核流水
+        saveAuditTrail(id, "SUBMIT", StpUtil.getLoginIdAsLong(), getCurrentUserName(), null);
         log.info("提交销售订单审批: orderId={}", id);
     }
 
@@ -245,7 +363,37 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
         if (order == null) throw BusinessException.notFound("订单不存在");
         if (order.getStatus() != 1) throw BusinessException.badRequest("订单不是待审批状态");
 
-        orderMapper.updateStatus(id, 2); // 已审批
+        // 审批通过前校验库存可用性并冻结
+        List<String> stockShortages = checkAndFreezeStock(order);
+        if (!stockShortages.isEmpty()) {
+            throw BusinessException.badRequest("库存不足，无法审批通过：\n" + String.join("\n", stockShortages));
+        }
+
+        // 更新状态 + 审核人信息
+        order.setStatus(2);
+        order.setAuditorId(auditorId);
+        order.setAuditorName(getCurrentUserName());
+        order.setAuditTime(LocalDateTime.now());
+        updateById(order);
+
+        // 审核通过后增加客户欠款
+        if (order.getCustomerId() != null && order.getBillAmount() != null && order.getBillAmount().compareTo(BigDecimal.ZERO) > 0) {
+            try {
+                Party party = partyMapper.selectById(order.getCustomerId());
+                if (party != null) {
+                    BigDecimal currentDebt = party.getCurrentDebt() != null ? party.getCurrentDebt() : BigDecimal.ZERO;
+                    party.setCurrentDebt(currentDebt.add(order.getBillAmount()));
+                    partyMapper.updateById(party);
+                    log.info("审核通过增加客户欠款: customerId={}, {} + {} = {}",
+                            order.getCustomerId(), currentDebt, order.getBillAmount(), currentDebt.add(order.getBillAmount()));
+                }
+            } catch (Exception e) {
+                log.warn("更新客户欠款失败: customerId={}", order.getCustomerId(), e);
+            }
+        }
+
+        // 记录审核流水
+        saveAuditTrail(id, "APPROVE", auditorId, getCurrentUserName(), null);
         log.info("销售订单审批通过: orderId={}, auditorId={}", id, auditorId);
     }
 
@@ -256,10 +404,15 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
         if (order == null) throw BusinessException.notFound("订单不存在");
         if (order.getStatus() != 1) throw BusinessException.badRequest("订单不是待审批状态");
 
-        orderMapper.updateStatus(id, 0); // 退回草稿
-        order.setRemark(reason);
+        // 拒绝回退到草稿
+        order.setStatus(0);
+        order.setAuditorId(auditorId);
+        order.setAuditorName(getCurrentUserName());
+        order.setAuditTime(LocalDateTime.now());
         updateById(order);
-        log.info("销售订单审批拒绝: orderId={}, auditorId={}, reason={}", id, auditorId, reason);
+
+        saveAuditTrail(id, "REJECT", auditorId, getCurrentUserName(), reason);
+        log.info("销售订单审批拒绝: orderId={}", id);
     }
 
     @Override
@@ -269,10 +422,33 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
         if (order == null) throw BusinessException.notFound("订单不存在");
         if (order.getStatus() >= 4) throw BusinessException.badRequest("已完成的订单不能取消");
 
-        orderMapper.updateStatus(id, 5); // 取消
-        order.setRemark(reason);
-        updateById(order);
-        log.info("取消销售订单: orderId={}, reason={}", id, reason);
+        // 如果已审核通过（status >= 2），取消时需要解冻库存
+        if (order.getStatus() != null && order.getStatus() >= 2) {
+            unfreezeOrderStock(order);
+        }
+
+        // 如果已审核通过（status >= 2），取消时需要减少客户欠款
+        if (order.getStatus() != null && order.getStatus() >= 2
+                && order.getCustomerId() != null && order.getBillAmount() != null) {
+            try {
+                Party party = partyMapper.selectById(order.getCustomerId());
+                if (party != null) {
+                    BigDecimal currentDebt = party.getCurrentDebt() != null ? party.getCurrentDebt() : BigDecimal.ZERO;
+                    BigDecimal newDebt = currentDebt.subtract(order.getBillAmount()).max(BigDecimal.ZERO);
+                    party.setCurrentDebt(newDebt);
+                    partyMapper.updateById(party);
+                    log.info("取消订单减少客户欠款: customerId={}, {} - {} = {}",
+                            order.getCustomerId(), currentDebt, order.getBillAmount(), newDebt);
+                }
+            } catch (Exception e) {
+                log.warn("取消订单更新欠款失败: customerId={}", order.getCustomerId(), e);
+            }
+        }
+
+        orderMapper.updateStatus(id, 6);
+
+        saveAuditTrail(id, "CANCEL", StpUtil.getLoginIdAsLong(), getCurrentUserName(), reason);
+        log.info("取消销售订单: orderId={}", id);
     }
 
     @Override
@@ -284,31 +460,38 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
             throw BusinessException.badRequest("订单状态不允许出库");
 
         List<SaleOrderItem> items = itemMapper.selectByOrderId(id);
-
+        BigDecimal totalShipped = BigDecimal.ZERO;
+        BigDecimal totalQty = BigDecimal.ZERO;
         for (SaleOrderItem item : items) {
-            Long productId = item.getProductId();
-            BigDecimal quantity = item.getQuantity();
-
+            // 先解冻（审批时已冻结），再扣减：净效果为总库存减少、冻结归零
             try {
-                boolean success = stockService.decreaseStock(productId, warehouseId, quantity);
-                if (!success) {
-                    log.warn("库存扣减失败: productId={}, warehouseId={}, quantity={}", productId, warehouseId, quantity);
-                }
+                stockService.unfreezeStock(item.getProductId(), warehouseId, item.getQuantity());
+                stockService.decreaseStock(item.getProductId(), warehouseId, item.getQuantity());
             } catch (Exception e) {
-                log.error("库存扣减异常: productId={}, warehouseId={}, quantity={}", productId, warehouseId, quantity, e);
+                log.error("库存扣减异常: productId={}", item.getProductId(), e);
             }
+            itemMapper.updateShippedQuantity(item.getId(), item.getQuantity());
+            BigDecimal qty = item.getQuantity() != null ? item.getQuantity() : BigDecimal.ZERO;
+            totalQty = totalQty.add(qty);
+            totalShipped = totalShipped.add(qty);
         }
 
-        for (SaleOrderItem item : items) {
-            itemMapper.addShippedQuantity(item.getId(), item.getQuantity());
+        // 更新主表数量汇总
+        order.setShippedQuantity(order.getShippedQuantity() != null ? order.getShippedQuantity().add(totalShipped) : totalShipped);
+        order.setUnshippedQuantity(totalQty.subtract(order.getShippedQuantity() != null ? order.getShippedQuantity() : BigDecimal.ZERO));
+        if (order.getUnshippedQuantity().compareTo(BigDecimal.ZERO) < 0) {
+            order.setUnshippedQuantity(BigDecimal.ZERO);
         }
 
-        boolean allShipped = items.stream()
-                .allMatch(item -> item.getShippedQuantity().add(item.getQuantity())
-                        .compareTo(item.getQuantity()) >= 0);
-
-        orderMapper.updateStatus(id, allShipped ? 4 : 3);
-        log.info("确认销售订单出库: orderId={}, warehouseId={}", id, warehouseId);
+        List<SaleOrderItem> updatedItems = itemMapper.selectByOrderId(id);
+        boolean allShipped = updatedItems.stream().allMatch(item -> {
+            BigDecimal shipped = item.getShippedQuantityDetail() != null ? item.getShippedQuantityDetail() : BigDecimal.ZERO;
+            BigDecimal qty = item.getQuantity() != null ? item.getQuantity() : BigDecimal.ZERO;
+            return shipped.compareTo(qty) >= 0;
+        });
+        order.setStatus(allShipped ? 4 : 3);
+        updateById(order);
+        log.info("确认销售订单出库: orderId={}, allShipped={}", id, allShipped);
     }
 
     @Override
@@ -316,318 +499,1592 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
     public void recordPayment(Long id, BigDecimal amount) {
         SaleOrder order = getById(id);
         if (order == null) throw BusinessException.notFound("订单不存在");
-
         orderMapper.addReceivedAmount(id, amount);
+        // 同步更新客户欠款（收款减少欠款）
+        if (order.getCustomerId() != null && amount != null && amount.compareTo(BigDecimal.ZERO) > 0) {
+            try {
+                Party party = partyMapper.selectById(order.getCustomerId());
+                if (party != null) {
+                    BigDecimal currentDebt = party.getCurrentDebt() != null ? party.getCurrentDebt() : BigDecimal.ZERO;
+                    BigDecimal newDebt = currentDebt.subtract(amount).max(BigDecimal.ZERO);
+                    party.setCurrentDebt(newDebt);
+                    partyMapper.updateById(party);
+                    log.info("更新客户欠款: customerId={}, {} - {} = {}", order.getCustomerId(), currentDebt, amount, newDebt);
+                }
+            } catch (Exception e) {
+                log.warn("更新客户欠款失败: customerId={}", order.getCustomerId(), e);
+            }
+        }
         log.info("记录销售订单收款: orderId={}, amount={}", id, amount);
     }
 
     @Override
-    public List<SaleOrderDTO> getPendingOrders(Long tenantId) {
+    public List<SaleOrderListDTO> getPendingOrders(Long tenantId) {
         List<SaleOrder> orders = orderMapper.selectPendingOrders(tenantId);
-        return orders.stream().map(this::convertToDTO).collect(Collectors.toList());
+        Set<Long> customerIds = orders.stream().map(SaleOrder::getCustomerId).filter(Objects::nonNull).collect(Collectors.toSet());
+        Map<Long, String> nameMap = batchGetCustomerNames(customerIds);
+        return orders.stream().map(o -> {
+            SaleOrderListDTO dto = convertToListDTO(o);
+            dto.setCustomerName(nameMap.getOrDefault(o.getCustomerId(), ""));
+            return dto;
+        }).collect(Collectors.toList());
     }
 
     @Override
     public String generateOrderNo() {
-        // 获取当前用户语言偏好，如果没有则默认使用中文
-        String userLocale = getUserLocaleOrDefault();
-        if ("en_US".equalsIgnoreCase(userLocale) || "en".equalsIgnoreCase(userLocale)) {
-            return bizNumberGeneratorService.nextNumber("SO", 1L, userLocale);
-        } else {
-            // 默认使用中文拼音前缀
-            return bizNumberGeneratorService.nextSaleOrderNo();
-        }
+        return bizNumberGeneratorService.nextSaleOrderNo();
     }
 
-    /**
-     * 获取当前用户语言偏好，默认为中文
-     */
-    private String getUserLocaleOrDefault() {
-        // 在实际实现中，这里应该获取当前登录用户信息并查询其语言偏好
-        // 临时实现：目前返回中文默认值，后续可以根据实际情况完善
-        try {
-            // 检查用户是否已登录
-            if (StpUtil.isLogin()) {
-                // 实际应用中，这里应该通过用户服务查询用户语言偏好
-                // 例如：userService.getUserLanguagePreference(StpUtil.getLoginIdAsLong())
-
-                // 暂时返回中文作为默认值，实际应用中可从用户配置或系统配置中获取
-                return "zh_CN";
-            }
-        } catch (Exception e) {
-            log.warn("获取用户语言偏好失败，使用默认值: {}", e.getMessage());
-        }
-        return "zh_CN"; // 默认中文
-    }
-
-    /**
-     * 计算订单总金额（通过明细实时计算）
-     */
     @Override
     public void calculateAmount(SaleOrderDTO dto) {
-        if (dto.getItems() == null || dto.getItems().isEmpty()) {
-            // 注意：根据重构计划，表头不再存储合计金额字段
-            // 这些字段将通过明细实时计算，不存储在表头
-            return;
-        }
+        if (dto.getItems() == null || dto.getItems().isEmpty()) return;
 
         BigDecimal totalAmount = BigDecimal.ZERO;
-        BigDecimal totalTax = BigDecimal.ZERO;
+        BigDecimal totalQty = BigDecimal.ZERO;
 
         for (SaleOrderItemDTO item : dto.getItems()) {
-            // 使用计算得出的价格
             BigDecimal qty = item.getQuantity() != null ? item.getQuantity() : BigDecimal.ZERO;
-            BigDecimal price = item.getCalculatedPrice() != null ? item.getCalculatedPrice() : item.getUnitPrice();
+            BigDecimal price = item.getCalculatedPrice() != null ? item.getCalculatedPrice() :
+                    (item.getUnitPrice() != null ? item.getUnitPrice() : BigDecimal.ZERO);
             BigDecimal taxRate = item.getTaxRate() != null ? item.getTaxRate() : BigDecimal.ZERO;
 
-            BigDecimal amount = qty.multiply(price);
+            BigDecimal amount = qty.multiply(price).setScale(2, RoundingMode.HALF_UP);
             BigDecimal tax = amount.multiply(taxRate).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
 
-            // 更新项目金额
             item.setAmount(amount);
             item.setTaxAmount(tax);
             item.setAmountWithTax(amount.add(tax));
 
             totalAmount = totalAmount.add(amount);
-            totalTax = totalTax.add(tax);
+            totalQty = totalQty.add(qty);
         }
 
-        // 注意：根据重构计划，表头不再存储合计金额字段
-        // totalAmount, taxAmount, totalAmountWithTax 现在只在DTO层面计算用于展示
+        dto.setProductAmount(totalAmount);
+        dto.setTotalQuantity(totalQty);
+
+        BigDecimal otherFee = dto.getOtherFee() != null ? dto.getOtherFee() : BigDecimal.ZERO;
+        BigDecimal discountAmt = dto.getDiscountAmount() != null ? dto.getDiscountAmount() : BigDecimal.ZERO;
+        BigDecimal shippingFee = dto.getShippingFee() != null ? dto.getShippingFee() : BigDecimal.ZERO;
+        BigDecimal promoDiscount = dto.getPromoDiscount() != null ? dto.getPromoDiscount() : BigDecimal.ZERO;
+        BigDecimal couponAmount = dto.getCouponAmount() != null ? dto.getCouponAmount() : BigDecimal.ZERO;
+        BigDecimal directDiscount = dto.getDirectDiscount() != null ? dto.getDirectDiscount() : BigDecimal.ZERO;
+
+        dto.setBillAmount(totalAmount.add(otherFee).subtract(discountAmt)
+                .subtract(promoDiscount).subtract(couponAmount).subtract(directDiscount).add(shippingFee));
     }
 
     @Override
     public Map<String, Object> getOrderStats(Long tenantId) {
         Map<String, Object> stats = new HashMap<>();
-
-        // 待处理订单数量（已审批待出库 + 部分出库）
-        int pendingProcessCount = orderMapper.countPendingProcess(tenantId);
-
-        // 待审核订单数量（待审批状态）
-        int pendingApprovalCount = orderMapper.countPendingApproval(tenantId);
-
-        // 今日新增订单数量
-        int todayOrderCount = orderMapper.countTodayOrders(tenantId);
-
-        // 本月新增订单数量
-        int monthOrderCount = orderMapper.countMonthOrders(tenantId);
-
-        stats.put("pendingProcessCount", pendingProcessCount);
-        stats.put("pendingApprovalCount", pendingApprovalCount);
-        stats.put("todayOrderCount", todayOrderCount);
-        stats.put("monthOrderCount", monthOrderCount);
-
-        log.info("获取销售订单统计: tenantId={}, pendingProcess={}, pendingApproval={}, today={}, month={}",
-                tenantId, pendingProcessCount, pendingApprovalCount, todayOrderCount, monthOrderCount);
+        stats.put("pendingProcessCount", orderMapper.countPendingProcess(tenantId));
+        stats.put("pendingApprovalCount", orderMapper.countPendingApproval(tenantId));
+        stats.put("todayOrderCount", orderMapper.countTodayOrders(tenantId));
+        stats.put("monthOrderCount", orderMapper.countMonthOrders(tenantId));
         return stats;
     }
 
-    /**
-     * 创建订单明细项（集成价格引擎）
-     */
-    private SaleOrderItem createOrderItem(SaleOrderItemDTO itemDTO, Long orderId, Long customerId) {
-        SaleOrderItem item = new SaleOrderItem();
-        BeanUtils.copyProperties(itemDTO, item);
+    // ═══════════════════════════════════════════
+    // 订单处理中心 - 多tab查询
+    // ═══════════════════════════════════════════
 
-        item.setOrderId(orderId);
-        item.setShippedQuantity(BigDecimal.ZERO);
-        item.setCreateTime(LocalDateTime.now());
+    @Override
+    public Page<SaleOrderListDTO> orderCenterPageByDoc(Page<SaleOrder> page, Long tenantId, Map<String, Object> filters) {
+        LambdaQueryWrapper<SaleOrder> wrapper = buildOrderCenterWrapper(tenantId, filters);
+        wrapper.orderByDesc(SaleOrder::getOrderDate).orderByDesc(SaleOrder::getCreateTime);
 
-        // 根据客户等级和产品ID，通过价格引擎计算价格
-        PriceCalculationRequest priceRequest = new PriceCalculationRequest();
-        priceRequest.setCustomerId(customerId.toString());
-        priceRequest.setProductId(itemDTO.getProductId().toString());
-        priceRequest.setQuantity(itemDTO.getQuantity() != null ? itemDTO.getQuantity().intValue() : 1);
-        priceRequest.setCustomerLevel(getCustomerGradeCode(customerId)); // 使用客户等级代码
-        priceRequest.setCalculationTime(LocalDateTime.now()); // 当前计算时间
+        Page<SaleOrder> result = page(page, wrapper);
+        Set<Long> customerIds = result.getRecords().stream().map(SaleOrder::getCustomerId).filter(Objects::nonNull).collect(Collectors.toSet());
+        Map<Long, String> nameMap = batchGetCustomerNames(customerIds);
 
-        // 设置产品相关信息以供价格引擎计算
-        Product product = productService.getById(itemDTO.getProductId());
-        if (product != null) {
-            priceRequest.setProductName(product.getProductName());
-            priceRequest.setBasePrice(product.getStandardPrice()); // 使用产品标准价
-        }
+        Page<SaleOrderListDTO> dtoPage = new Page<>();
+        dtoPage.setRecords(result.getRecords().stream().map(o -> {
+            SaleOrderListDTO dto = convertToListDTO(o);
+            dto.setCustomerName(nameMap.getOrDefault(o.getCustomerId(), ""));
+            return dto;
+        }).collect(Collectors.toList()));
+        dtoPage.setCurrent(result.getCurrent());
+        dtoPage.setSize(result.getSize());
+        dtoPage.setTotal(result.getTotal());
+        return dtoPage;
+    }
 
-        // 调用价格引擎计算价格
-        PriceCalculationResult priceResult = priceEngineService.calculatePrice(priceRequest);
+    @Override
+    public List<Map<String, Object>> orderCenterGroupByDate(Long tenantId, Map<String, Object> filters) {
+        List<SaleOrder> orders = list(buildOrderCenterWrapper(tenantId, filters));
+        Map<LocalDate, List<SaleOrder>> grouped = orders.stream().collect(Collectors.groupingBy(SaleOrder::getOrderDate));
 
-        // 设置价格快照字段
-        item.setCalculatedPrice(priceResult.getFinalPrice() != null ? priceResult.getFinalPrice() : item.getUnitPrice());
-        item.setPriceSource(priceResult.getCalculationExplanation() != null ? priceResult.getCalculationExplanation() : "Default");
-        item.setCustomerGradeCode(getCustomerGradeCode(customerId));
-        item.setCustomerGradeName(getCustomerGradeName(customerId));
+        List<Map<String, Object>> result = new ArrayList<>();
+        grouped.forEach((date, dayOrders) -> {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("orderDay", date.toString());
+            row.put("totalOrders", dayOrders.size());
+            row.put("totalAmount", dayOrders.stream().map(o -> o.getBillAmount() != null ? o.getBillAmount() : BigDecimal.ZERO).reduce(BigDecimal.ZERO, BigDecimal::add));
+            row.put("pendingReviewCount", dayOrders.stream().filter(o -> o.getStatus() != null && o.getStatus() == 1).count());
+            row.put("pendingOutboundCount", dayOrders.stream().filter(o -> o.getStatus() != null && o.getStatus() == 2).count());
+            row.put("pendingShipCount", dayOrders.stream().filter(o -> o.getStatus() != null && (o.getStatus() == 2 || o.getStatus() == 3)).count());
+            row.put("outboundCount", dayOrders.stream().filter(o -> o.getStatus() != null && (o.getStatus() == 3 || o.getStatus() == 4 || o.getStatus() == 5)).count());
+            row.put("shippedCount", dayOrders.stream().filter(o -> o.getStatus() != null && o.getStatus() == 4).count());
+            row.put("completedCount", dayOrders.stream().filter(o -> o.getStatus() != null && o.getStatus() == 5).count());
+            result.add(row);
+        });
+        result.sort((a, b) -> b.get("orderDay").toString().compareTo(a.get("orderDay").toString()));
+        return result;
+    }
 
-        // 从计算结果中获取或推导价格等级代码
-        // 如果价格策略中包含价格等级信息，可以从AppliedStrategy中获取
-        if (priceResult.getAppliedStrategies() != null && !priceResult.getAppliedStrategies().isEmpty()) {
-            // 尝试从应用的策略中获取价格等级信息
-            for (var strategy : priceResult.getAppliedStrategies()) {
-                if (strategy.getStrategyName() != null && strategy.getStrategyName().toLowerCase().contains("grade")) {
-                    item.setPriceGradeCode(strategy.getStrategyId()); // 使用策略ID作为价格等级代码
-                    break;
-                }
-            }
-        }
-        // 如果仍然没有价格等级代码，可以基于客户等级推导
-        if (item.getPriceGradeCode() == null || item.getPriceGradeCode().isEmpty()) {
-            item.setPriceGradeCode("PG_" + (getCustomerGradeCode(customerId) != null ? getCustomerGradeCode(customerId) : "DEFAULT"));
-        }
+    @Override
+    public List<Map<String, Object>> orderCenterGroupByRoute(Long tenantId, Map<String, Object> filters) {
+        List<SaleOrder> orders = list(buildOrderCenterWrapper(tenantId, filters));
+        Set<Long> orderIds = orders.stream().map(SaleOrder::getId).collect(Collectors.toSet());
 
-        // 设置折扣信息
-        if (priceResult.getDiscountDetails() != null && !priceResult.getDiscountDetails().isEmpty()) {
-            // 将折扣详情转为字符串存储
-            StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < priceResult.getDiscountDetails().size(); i++) {
-                if (i > 0) sb.append(", ");
-                var detail = priceResult.getDiscountDetails().get(i);
-                sb.append(detail.getRuleName()).append(": ").append(detail.getDiscountAmount());
-            }
-            item.setDiscountApplied(sb.toString());
+        // 批量查询物流信息获取配送线路
+        final Map<Long, String> routeMap;
+        if (!orderIds.isEmpty()) {
+            List<SaleOrderLogistics> logisticsList = logisticsMapper.selectList(
+                    new LambdaQueryWrapper<SaleOrderLogistics>().in(SaleOrderLogistics::getOrderId, orderIds));
+            routeMap = logisticsList.stream().collect(Collectors.toMap(
+                    SaleOrderLogistics::getOrderId,
+                    l -> l.getDeliveryRoute() != null ? l.getDeliveryRoute() : "无线路",
+                    (a, b) -> a));
         } else {
-            item.setDiscountApplied("No discounts applied");
+            routeMap = java.util.Collections.emptyMap();
         }
 
-        // 使用价格引擎计算出的价格
-        item.setUnitPrice(priceResult.getFinalPrice() != null ? priceResult.getFinalPrice() : item.getUnitPrice());
+        Map<String, List<SaleOrder>> grouped = orders.stream()
+                .collect(Collectors.groupingBy(o -> routeMap.getOrDefault(o.getId(), "无线路")));
 
-        // 设置成本价（从产品信息或库存成本获取）
-        if (product != null) {
-            item.setCostPrice(product.getCostPrice());
-        }
-
-        item.setAmount(item.getQuantity().multiply(item.getUnitPrice()));
-
-        return item;
+        List<Map<String, Object>> result = new ArrayList<>();
+        grouped.forEach((route, routeOrders) -> {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("deliveryRoute", route);
+            row.put("totalOrders", routeOrders.size());
+            row.put("totalAmount", routeOrders.stream().map(o -> o.getBillAmount() != null ? o.getBillAmount() : BigDecimal.ZERO).reduce(BigDecimal.ZERO, BigDecimal::add));
+            row.put("pendingReviewCount", routeOrders.stream().filter(o -> o.getStatus() != null && o.getStatus() == 1).count());
+            row.put("pendingOutboundCount", routeOrders.stream().filter(o -> o.getStatus() != null && o.getStatus() == 2).count());
+            row.put("pendingShipCount", routeOrders.stream().filter(o -> o.getStatus() != null && (o.getStatus() == 2 || o.getStatus() == 3)).count());
+            row.put("outboundCount", routeOrders.stream().filter(o -> o.getStatus() != null && (o.getStatus() == 3 || o.getStatus() == 4 || o.getStatus() == 5)).count());
+            row.put("shippedCount", routeOrders.stream().filter(o -> o.getStatus() != null && o.getStatus() == 4).count());
+            row.put("completedCount", routeOrders.stream().filter(o -> o.getStatus() != null && o.getStatus() == 5).count());
+            result.add(row);
+        });
+        return result;
     }
 
-    /**
-     * 获取客户等级代码
-     * 通过 PartyGradeRelationService 从 biz_party_grade_relation 表获取客户等级
-     */
-    private String getCustomerGradeCode(Long customerId) {
-        if (customerId == null) return null;
+    @Override
+    public List<Map<String, Object>> orderCenterGroupByCustomer(Page<?> page, Long tenantId, Map<String, Object> filters) {
+        List<SaleOrder> orders = list(buildOrderCenterWrapper(tenantId, filters));
+        Map<Long, List<SaleOrder>> grouped = orders.stream().collect(Collectors.groupingBy(SaleOrder::getCustomerId));
 
-        try {
-            Long gradeId = partyGradeRelationService.getCurrentGradeId(customerId);
-            if (gradeId != null) {
-                CustomerGrade customerGrade = customerGradeService.getById(gradeId);
-                if (customerGrade != null) {
-                    return customerGrade.getGradeCode();
+        Set<Long> customerIds = grouped.keySet();
+        Map<Long, String> nameMap = batchGetCustomerNames(customerIds);
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        grouped.forEach((custId, custOrders) -> {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("customerId", custId);
+            row.put("customerName", nameMap.getOrDefault(custId, ""));
+            row.put("totalOrders", custOrders.size());
+            row.put("totalAmount", custOrders.stream().map(o -> o.getBillAmount() != null ? o.getBillAmount() : BigDecimal.ZERO).reduce(BigDecimal.ZERO, BigDecimal::add));
+            row.put("pendingReviewCount", custOrders.stream().filter(o -> o.getStatus() != null && o.getStatus() == 1).count());
+            row.put("pendingOutboundCount", custOrders.stream().filter(o -> o.getStatus() != null && o.getStatus() == 2).count());
+            row.put("pendingShipCount", custOrders.stream().filter(o -> o.getStatus() != null && (o.getStatus() == 2 || o.getStatus() == 3)).count());
+            row.put("outboundCount", custOrders.stream().filter(o -> o.getStatus() != null && (o.getStatus() == 3 || o.getStatus() == 4 || o.getStatus() == 5)).count());
+            row.put("shippedCount", custOrders.stream().filter(o -> o.getStatus() != null && o.getStatus() == 4).count());
+            row.put("completedCount", custOrders.stream().filter(o -> o.getStatus() != null && o.getStatus() == 5).count());
+            result.add(row);
+        });
+        result.sort((a, b) -> Long.compare((long) b.get("totalOrders"), (long) a.get("totalOrders")));
+        return result;
+    }
+
+    @Override
+    public Page<SaleOrderListDTO> orderCenterFulfillmentPage(Page<SaleOrder> page, Long tenantId, Map<String, Object> filters) {
+        LambdaQueryWrapper<SaleOrder> wrapper = buildOrderCenterWrapper(tenantId, filters);
+        wrapper.isNotNull(SaleOrder::getOriginalOrderId);
+        wrapper.orderByDesc(SaleOrder::getOrderDate);
+
+        Page<SaleOrder> result = page(page, wrapper);
+        Set<Long> customerIds = result.getRecords().stream().map(SaleOrder::getCustomerId).filter(Objects::nonNull).collect(Collectors.toSet());
+        Map<Long, String> nameMap = batchGetCustomerNames(customerIds);
+
+        Page<SaleOrderListDTO> dtoPage = new Page<>();
+        dtoPage.setRecords(result.getRecords().stream().map(o -> {
+            SaleOrderListDTO dto = convertToListDTO(o);
+            dto.setCustomerName(nameMap.getOrDefault(o.getCustomerId(), ""));
+            return dto;
+        }).collect(Collectors.toList()));
+        dtoPage.setCurrent(result.getCurrent());
+        dtoPage.setSize(result.getSize());
+        dtoPage.setTotal(result.getTotal());
+        return dtoPage;
+    }
+
+    @Override
+    public Map<String, Object> orderCenterFulfillmentOverview(Long tenantId, Map<String, Object> filters) {
+        List<SaleOrder> orders = list(buildOrderCenterWrapper(tenantId, filters));
+        Map<String, Object> overview = new LinkedHashMap<>();
+        overview.put("totalOrders", (long) orders.size());
+        overview.put("pendingOutboundCount", orders.stream().filter(o -> o.getStatus() != null && (o.getStatus() == 2 || o.getStatus() == 3)).count());
+        overview.put("outboundCount", orders.stream().filter(o -> o.getStatus() != null && (o.getStatus() == 4 || o.getStatus() == 5)).count());
+        // 已完成订单的营收汇总
+        BigDecimal fulfilledRevenue = orders.stream()
+                .filter(o -> o.getStatus() != null && (o.getStatus() == 4 || o.getStatus() == 5))
+                .map(o -> o.getBillAmount() != null ? o.getBillAmount() : BigDecimal.ZERO)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        overview.put("fulfilledRevenue", fulfilledRevenue);
+        return overview;
+    }
+
+    @Override
+    public Map<String, Object> orderCenterStats(Long tenantId, Map<String, Object> filters) {
+        Map<String, Object> stats = new LinkedHashMap<>();
+
+        // 总数
+        LambdaQueryWrapper<SaleOrder> base = buildOrderCenterWrapper(tenantId, filters);
+        stats.put("totalOrders", count(base));
+
+        // 待出库 (status = 2 待发货)
+        LambdaQueryWrapper<SaleOrder> w2 = buildOrderCenterWrapper(tenantId, filters);
+        w2.eq(SaleOrder::getStatus, 2);
+        stats.put("pendingOutbound", count(w2));
+
+        // 待发货 (status = 2 或 3)
+        LambdaQueryWrapper<SaleOrder> wPending = buildOrderCenterWrapper(tenantId, filters);
+        wPending.in(SaleOrder::getStatus, 2, 3);
+        stats.put("pendingShip", count(wPending));
+
+        // 已出库 (status >= 3 部分发货/发货完成/交易完成)
+        LambdaQueryWrapper<SaleOrder> w3 = buildOrderCenterWrapper(tenantId, filters);
+        w3.in(SaleOrder::getStatus, 3, 4, 5);
+        stats.put("outboundCount", count(w3));
+
+        // 发货完成 (status = 4)
+        LambdaQueryWrapper<SaleOrder> w4 = buildOrderCenterWrapper(tenantId, filters);
+        w4.eq(SaleOrder::getStatus, 4);
+        stats.put("shippedCount", count(w4));
+
+        // 交易完成 (status = 5)
+        LambdaQueryWrapper<SaleOrder> w5 = buildOrderCenterWrapper(tenantId, filters);
+        w5.eq(SaleOrder::getStatus, 5);
+        stats.put("completedCount", count(w5));
+
+        return stats;
+    }
+
+    @Override
+    public Page<SaleOrderListDTO> pendingReviewPage(Page<SaleOrder> page, Long tenantId, Map<String, Object> filters) {
+        LambdaQueryWrapper<SaleOrder> wrapper = buildOrderCenterWrapper(tenantId, filters);
+        wrapper.eq(SaleOrder::getStatus, 1);
+        wrapper.orderByDesc(SaleOrder::getCreateTime);
+
+        Page<SaleOrder> result = page(page, wrapper);
+        Set<Long> customerIds = result.getRecords().stream().map(SaleOrder::getCustomerId).filter(Objects::nonNull).collect(Collectors.toSet());
+        Map<Long, String> nameMap = batchGetCustomerNames(customerIds);
+
+        Page<SaleOrderListDTO> dtoPage = new Page<>();
+        dtoPage.setRecords(result.getRecords().stream().map(o -> {
+            SaleOrderListDTO dto = convertToListDTO(o);
+            dto.setCustomerName(nameMap.getOrDefault(o.getCustomerId(), ""));
+            return dto;
+        }).collect(Collectors.toList()));
+        dtoPage.setCurrent(result.getCurrent());
+        dtoPage.setSize(result.getSize());
+        dtoPage.setTotal(result.getTotal());
+        return dtoPage;
+    }
+
+    @Override
+    public Page<SaleOrderListDTO> pickingShippingPage(Page<SaleOrder> page, Long tenantId, Map<String, Object> filters) {
+        LambdaQueryWrapper<SaleOrder> wrapper = buildOrderCenterWrapper(tenantId, filters);
+        wrapper.in(SaleOrder::getStatus, 2, 3);
+        wrapper.orderByDesc(SaleOrder::getOrderDate);
+
+        Page<SaleOrder> result = page(page, wrapper);
+        Set<Long> customerIds = result.getRecords().stream().map(SaleOrder::getCustomerId).filter(Objects::nonNull).collect(Collectors.toSet());
+        Map<Long, String> nameMap = batchGetCustomerNames(customerIds);
+
+        Page<SaleOrderListDTO> dtoPage = new Page<>();
+        dtoPage.setRecords(result.getRecords().stream().map(o -> {
+            SaleOrderListDTO dto = convertToListDTO(o);
+            dto.setCustomerName(nameMap.getOrDefault(o.getCustomerId(), ""));
+            return dto;
+        }).collect(Collectors.toList()));
+        dtoPage.setCurrent(result.getCurrent());
+        dtoPage.setSize(result.getSize());
+        dtoPage.setTotal(result.getTotal());
+        return dtoPage;
+    }
+
+    @Override
+    public List<SaleOrderListDTO> exportList(String keyword, Long customerId, Integer status) {
+        LambdaQueryWrapper<SaleOrder> wrapper = new LambdaQueryWrapper<>();
+        wrapper.like(keyword != null && !keyword.isEmpty(), SaleOrder::getOrderNo, keyword)
+               .eq(customerId != null, SaleOrder::getCustomerId, customerId)
+               .eq(status != null, SaleOrder::getStatus, status)
+               .orderByDesc(SaleOrder::getCreateTime);
+        List<SaleOrder> orders = list(wrapper);
+        Set<Long> customerIds = orders.stream().map(SaleOrder::getCustomerId).filter(Objects::nonNull).collect(Collectors.toSet());
+        Map<Long, String> nameMap = batchGetCustomerNames(customerIds);
+        return orders.stream().map(o -> {
+            SaleOrderListDTO dto = convertToListDTO(o);
+            dto.setCustomerName(nameMap.getOrDefault(o.getCustomerId(), ""));
+            return dto;
+        }).collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void batchImport(MultipartFile file) throws Exception {
+        String originalFilename = file.getOriginalFilename();
+        if (originalFilename == null || (!originalFilename.endsWith(".xlsx") && !originalFilename.endsWith(".xls"))) {
+            throw new IllegalArgumentException("仅支持 .xlsx / .xls 格式的 Excel 文件");
+        }
+
+        Long tenantId = getCurrentTenantId();
+        if (tenantId == null) throw BusinessException.badRequest("无法获取租户信息");
+
+        try (Workbook workbook = WorkbookFactory.create(file.getInputStream())) {
+            Sheet sheet = workbook.getSheetAt(0);
+            if (sheet == null) throw new IllegalArgumentException("Excel 文件中没有工作表");
+
+            int rowCount = sheet.getLastRowNum();
+            if (rowCount < 1) throw new IllegalArgumentException("Excel 文件没有数据行（至少需要表头+1行数据）");
+
+            // 解析表头
+            Row headerRow = sheet.getRow(0);
+            Map<Integer, String> headers = new HashMap<>();
+            for (int i = 0; i < headerRow.getLastCellNum(); i++) {
+                Cell cell = headerRow.getCell(i);
+                if (cell != null) {
+                    String header = getCellStringValue(cell);
+                    if (!header.isEmpty()) {
+                        headers.put(i, header);
+                    }
                 }
             }
 
-            CustomerGrade defaultGrade = customerGradeService.getDefaultGrade();
-            return defaultGrade != null ? defaultGrade.getGradeCode() : "DEFAULT";
-        } catch (Exception e) {
-            log.warn("获取客户等级信息失败，使用默认等级: customerId={}, error={}", customerId, e.getMessage());
-            return "DEFAULT";
-        }
-    }
+            if (headers.isEmpty()) throw new IllegalArgumentException("Excel 文件缺少表头行");
 
-    /**
-     * 获取客户等级名称
-     * 通过 PartyGradeRelationService 从 biz_party_grade_relation 表获取客户等级
-     */
-    private String getCustomerGradeName(Long customerId) {
-        if (customerId == null) return null;
+            // 按单据编号分组行数据（第一列默认为单据编号）
+            Map<String, List<Map<String, Object>>> orderGroups = new LinkedHashMap<>();
+            int successCount = 0;
+            int failCount = 0;
+            StringBuilder errorMsg = new StringBuilder();
 
-        try {
-            Long gradeId = partyGradeRelationService.getCurrentGradeId(customerId);
-            if (gradeId != null) {
-                CustomerGrade customerGrade = customerGradeService.getById(gradeId);
-                if (customerGrade != null) {
-                    return customerGrade.getGradeName();
+            for (int i = 1; i <= rowCount; i++) {
+                Row row = sheet.getRow(i);
+                if (row == null) continue;
+
+                Map<String, Object> rowData = new HashMap<>();
+                for (Map.Entry<Integer, String> entry : headers.entrySet()) {
+                    rowData.put(entry.getValue(), getCellStringValue(row.getCell(entry.getKey())));
                 }
+
+                String orderNo = rowData.getOrDefault("单据编号", rowData.getOrDefault("orderNo", "")).toString();
+                if (orderNo.isEmpty()) {
+                    failCount++;
+                    errorMsg.append("第").append(i + 1).append("行缺少单据编号\n");
+                    continue;
+                }
+
+                orderGroups.computeIfAbsent(orderNo, k -> new ArrayList<>()).add(rowData);
+                successCount++;
             }
 
-            CustomerGrade defaultGrade = customerGradeService.getDefaultGrade();
-            return defaultGrade != null ? defaultGrade.getGradeName() : "默认等级";
+            if (orderGroups.isEmpty()) {
+                throw new IllegalArgumentException("没有可导入的有效数据");
+            }
+
+            // 创建订单
+            int orderCount = 0;
+            for (Map.Entry<String, List<Map<String, Object>>> group : orderGroups.entrySet()) {
+                String orderNo = group.getKey();
+                List<Map<String, Object>> rows = group.getValue();
+
+                // 查找或创建订单
+                SaleOrder order = findOrCreateOrder(orderNo, tenantId);
+                orderCount++;
+
+                // 创建订单明细
+                for (Map<String, Object> rowData : rows) {
+                    SaleOrderItem item = new SaleOrderItem();
+                    item.setOrderId(order.getId());
+                    item.setProductName(getString(rowData, "productName", "商品名称"));
+                    item.setProductCode(getString(rowData, "productCode", "商品编码"));
+                    item.setBarcode(getString(rowData, "barcode", "条码"));
+                    item.setUnit(getString(rowData, "unit", "单位"));
+                    item.setSpecification(getString(rowData, "specification", "规格"));
+
+                    BigDecimal quantity = getBigDecimal(rowData, "quantity", "数量");
+                    item.setQuantity(quantity);
+                    BigDecimal price = getBigDecimal(rowData, "price", "单价");
+                    item.setUnitPrice(price);
+                    if (quantity != null && price != null) {
+                        item.setAmount(quantity.multiply(price).setScale(2, RoundingMode.HALF_UP));
+                    }
+                    item.setLineNo(rows.indexOf(rowData) + 1);
+                    item.setCreateTime(LocalDateTime.now());
+                    itemMapper.insert(item);
+                }
+
+                // 重新计算订单金额
+                recalculateOrderAmount(order.getId());
+            }
+
+            log.info("批量导入完成: 创建{}个订单, {}条明细, 失败{}条", orderCount, successCount, failCount);
+            if (errorMsg.length() > 0) {
+                throw BusinessException.badRequest("导入部分完成：" + successCount + "条成功，" + failCount + "条失败。\n" + errorMsg);
+            }
+
+        } catch (BusinessException e) {
+            throw e;
         } catch (Exception e) {
-            log.warn("获取客户等级信息失败，使用默认等级: customerId={}, error={}", customerId, e.getMessage());
-            return "默认等级";
+            log.error("批量导入异常", e);
+            throw new RuntimeException("导入失败: " + e.getMessage(), e);
         }
     }
 
-    /**
-     * 丰富订单明细（填充JOIN字段）
-     */
-    private void enrichOrderItems(List<SaleOrderItem> items) {
-        if (items == null || items.isEmpty()) {
-            return;
-        }
+    /** 查找或创建导入订单 */
+    private SaleOrder findOrCreateOrder(String orderNo, Long tenantId) {
+        LambdaQueryWrapper<SaleOrder> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(SaleOrder::getOrderNo, orderNo);
+        SaleOrder existing = getOne(wrapper, false);
+        if (existing != null) return existing;
 
-        // 获取所有产品ID
-        Set<Long> productIds = items.stream()
-            .map(SaleOrderItem::getProductId)
-            .collect(Collectors.toSet());
+        SaleOrder order = new SaleOrder();
+        order.setTenantId(tenantId);
+        order.setOrderNo(orderNo);
+        order.setOrderDate(LocalDate.now());
+        order.setSaleType(1);
+        order.setStatus(0);
+        order.setGenerationMethod("导入");
+        order.setProductAmount(BigDecimal.ZERO);
+        order.setDiscountAmount(BigDecimal.ZERO);
+        order.setBillAmount(BigDecimal.ZERO);
+        order.setTotalQuantity(BigDecimal.ZERO);
+        order.setPrintCount(0);
+        order.setCreatorName("导入");
+        save(order);
+        return order;
+    }
 
-        if (productIds.isEmpty()) {
-            return;
-        }
+    /** 重新计算订单金额 */
+    private void recalculateOrderAmount(Long orderId) {
+        List<SaleOrderItem> items = itemMapper.selectByOrderId(orderId);
+        BigDecimal totalAmount = BigDecimal.ZERO;
+        BigDecimal totalQty = BigDecimal.ZERO;
 
-        // 批量获取产品信息
-        List<Product> productList = productService.listByIds(productIds);
-
-        // 将产品列表转换为Map，便于查找
-        Map<Long, Product> productMap = new HashMap<>();
-        for (Product product : productList) {
-            if (product != null && product.getId() != null) {
-                productMap.put(product.getId(), product);
-            }
-        }
-
-        // 填充JOIN字段
         for (SaleOrderItem item : items) {
-            Product product = productMap.get(item.getProductId());
-            if (product != null) {
-                item.setImage(product.getImageUrl());
-                item.setBarcode(product.getBarcode());
-                item.setSmallUnitBarcode(product.getBarcode());
-                item.setOrigin(product.getOrigin());
-                item.setBrand(product.getBrand());
-                item.setShelfLife(product.getShelfLifeDays() != null ? product.getShelfLifeDays().toString() : null);
-                item.setRetailPrice(product.getRetailPrice());
-                item.setWholesalePrice(product.getWholesalePrice());
-                item.setUnit(product.getUnit());
-                // 注意：lineAttribute字段在Product实体中不存在，跳过设置
-                item.setVolume(product.getVolume());
-                item.setWeight(product.getWeight());
-            }
+            BigDecimal qty = item.getQuantity() != null ? item.getQuantity() : BigDecimal.ZERO;
+            BigDecimal amt = item.getAmount() != null ? item.getAmount() : BigDecimal.ZERO;
+            totalQty = totalQty.add(qty);
+            totalAmount = totalAmount.add(amt);
+        }
 
-            // 计算字段
-            item.setCostAmount(item.getQuantity().multiply(item.getCostPrice()));
-            item.setGrossProfit(item.getAmount().subtract(item.getCostAmount()));
-            item.setTaxAmount(item.getAmount().multiply(item.getTaxRate()).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP));
-            item.setDiscountedUnitPrice(item.getUnitPrice().multiply(BigDecimal.ONE.subtract(item.getDiscountRate().divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP))));
-            item.setDiscountedAmount(item.getAmount().multiply(BigDecimal.ONE.subtract(item.getDiscountRate().divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP))));
+        SaleOrder order = getById(orderId);
+        if (order != null) {
+            order.setProductAmount(totalAmount);
+            order.setBillAmount(totalAmount);
+            order.setTotalQuantity(totalQty);
+            updateById(order);
         }
     }
 
-    private SaleOrderDTO convertToDTO(SaleOrder order) {
-        if (order == null) return null;
-        SaleOrderDTO dto = new SaleOrderDTO();
-        BeanUtils.copyProperties(order, dto);
+    @Override
+    public void incrementPrintCount(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) return;
+        for (Long id : ids) {
+            orderMapper.incrementPrintCount(id);
+        }
+    }
+
+    @Override
+    public Map<String, Object> getCustomerCreditInfo(Long customerId) {
+        Map<String, Object> result = new HashMap<>();
+        result.put("customerId", customerId);
+        if (customerId == null) {
+            result.put("creditLimit", BigDecimal.ZERO);
+            result.put("currentDebt", BigDecimal.ZERO);
+            result.put("availableCredit", BigDecimal.ZERO);
+            return result;
+        }
+        Party party = partyMapper.selectById(customerId);
+        if (party == null) {
+            result.put("creditLimit", BigDecimal.ZERO);
+            result.put("currentDebt", BigDecimal.ZERO);
+            result.put("availableCredit", BigDecimal.ZERO);
+            return result;
+        }
+        BigDecimal creditLimit = party.getCreditLimit() != null ? party.getCreditLimit() : BigDecimal.ZERO;
+        BigDecimal currentDebt = party.getCurrentDebt() != null ? party.getCurrentDebt() : BigDecimal.ZERO;
+        BigDecimal availableCredit = creditLimit.subtract(currentDebt).max(BigDecimal.ZERO);
+        result.put("creditLimit", creditLimit);
+        result.put("currentDebt", currentDebt);
+        result.put("availableCredit", availableCredit);
+        result.put("customerName", party.getPartyName());
+        return result;
+    }
+
+    @Override
+    public List<Map<String, Object>> getCustomerDepositBalance(Long customerId) {
+        if (customerId == null) return Collections.emptyList();
+        try {
+            List<cn.aiedge.erp.payment.entity.PreReceipt> receipts = preReceiptMapper.selectByCustomerId(customerId);
+            if (receipts == null || receipts.isEmpty()) return Collections.emptyList();
+            return receipts.stream().filter(r -> r.getRemainingAmount() != null
+                    && r.getRemainingAmount().compareTo(BigDecimal.ZERO) > 0).map(r -> {
+                Map<String, Object> item = new HashMap<>();
+                item.put("accountName", r.getPreReceiptNo() + " - " + (r.getDepositType() != null ? r.getDepositType() : "订金"));
+                item.put("amount", r.getRemainingAmount());
+                item.put("receiptDate", r.getReceiptDate() != null ? r.getReceiptDate().toString() : "");
+                return item;
+            }).collect(Collectors.toList());
+        } catch (Exception e) {
+            log.warn("查询客户订金余额失败: customerId={}", customerId, e);
+            return Collections.emptyList();
+        }
+    }
+
+    @Override
+    public LambdaQueryWrapper<SaleOrder> buildQueryWrapper(Long tenantId, Map<String, Object> filters) {
+        LambdaQueryWrapper<SaleOrder> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(SaleOrder::getTenantId, tenantId);
+
+        String orderNo = filters.get("orderNo") != null ? filters.get("orderNo").toString() : null;
+        if (orderNo != null && !orderNo.isEmpty()) wrapper.like(SaleOrder::getOrderNo, orderNo);
+
+        if (filters.get("customerId") != null) wrapper.eq(SaleOrder::getCustomerId, filters.get("customerId"));
+        if (filters.get("status") != null) wrapper.eq(SaleOrder::getStatus, filters.get("status"));
+
+        String startDate = filters.get("startDate") != null ? filters.get("startDate").toString() : null;
+        String endDate = filters.get("endDate") != null ? filters.get("endDate").toString() : null;
+        if (startDate != null && !startDate.isEmpty()) {
+            try { wrapper.ge(SaleOrder::getOrderDate, LocalDate.parse(startDate)); } catch (Exception ignored) {}
+        }
+        if (endDate != null && !endDate.isEmpty()) {
+            try { wrapper.le(SaleOrder::getOrderDate, LocalDate.parse(endDate)); } catch (Exception ignored) {}
+        }
+
+        return wrapper;
+    }
+
+    // ═══════════════════════════════════════════
+    // 子表操作
+    // ═══════════════════════════════════════════
+
+    private void saveSubTables(Long orderId, SaleOrderDTO dto) {
+        // 1. 往来单位快照
+        if (dto.getPartnerInfo() != null) {
+            SaleOrderPartnerSnapshot snapshot = new SaleOrderPartnerSnapshot();
+            snapshot.setOrderId(orderId);
+            BeanUtils.copyProperties(dto.getPartnerInfo(), snapshot);
+            partnerSnapshotMapper.insert(snapshot);
+        }
+
+        // 2. 收货地址
+        if (dto.getDeliveryAddresses() != null) {
+            int seq = 0;
+            for (SaleOrderDTO.AddressInfo addr : dto.getDeliveryAddresses()) {
+                SaleOrderDeliveryAddress entity = new SaleOrderDeliveryAddress();
+                entity.setOrderId(orderId);
+                BeanUtils.copyProperties(addr, entity);
+                entity.setSequence(seq++);
+                deliveryAddressMapper.insert(entity);
+            }
+        }
+
+        // 3. 结算信息
+        if (dto.getSettlementInfo() != null) {
+            SaleOrderSettlement settlement = new SaleOrderSettlement();
+            settlement.setOrderId(orderId);
+            BeanUtils.copyProperties(dto.getSettlementInfo(), settlement);
+            settlementMapper.insert(settlement);
+        }
+
+        // 4. 物流信息
+        if (dto.getLogisticsInfoList() != null) {
+            for (SaleOrderDTO.LogisticsInfo logistics : dto.getLogisticsInfoList()) {
+                SaleOrderLogistics entity = new SaleOrderLogistics();
+                entity.setOrderId(orderId);
+                BeanUtils.copyProperties(logistics, entity);
+                logisticsMapper.insert(entity);
+            }
+        }
+
+        // 5. 订金账户
+        if (dto.getDeposits() != null) {
+            int seq = 0;
+            for (SaleOrderDTO.DepositInfo deposit : dto.getDeposits()) {
+                SaleOrderDeposit entity = new SaleOrderDeposit();
+                entity.setOrderId(orderId);
+                BeanUtils.copyProperties(deposit, entity);
+                entity.setSequence(seq++);
+                depositMapper.insert(entity);
+            }
+        }
+
+        // 6. 会员积分
+        if (dto.getMemberInfo() != null) {
+            SaleOrderPointsJournal journal = new SaleOrderPointsJournal();
+            journal.setOrderId(orderId);
+            BeanUtils.copyProperties(dto.getMemberInfo(), journal);
+            pointsJournalMapper.insert(journal);
+        }
+
+        // 7. 扩展信息
+        if (dto.getExtInfoData() != null) {
+            SaleOrderExtInfo extInfo = new SaleOrderExtInfo();
+            extInfo.setOrderId(orderId);
+            BeanUtils.copyProperties(dto.getExtInfoData(), extInfo);
+            extInfoMapper.insert(extInfo);
+        }
+    }
+
+    private void deleteSubTables(Long orderId) {
+        partnerSnapshotMapper.delete(new LambdaQueryWrapper<SaleOrderPartnerSnapshot>()
+                .eq(SaleOrderPartnerSnapshot::getOrderId, orderId));
+        deliveryAddressMapper.delete(new LambdaQueryWrapper<SaleOrderDeliveryAddress>()
+                .eq(SaleOrderDeliveryAddress::getOrderId, orderId));
+        settlementMapper.delete(new LambdaQueryWrapper<SaleOrderSettlement>()
+                .eq(SaleOrderSettlement::getOrderId, orderId));
+        logisticsMapper.delete(new LambdaQueryWrapper<SaleOrderLogistics>()
+                .eq(SaleOrderLogistics::getOrderId, orderId));
+        depositMapper.delete(new LambdaQueryWrapper<SaleOrderDeposit>()
+                .eq(SaleOrderDeposit::getOrderId, orderId));
+        pointsJournalMapper.delete(new LambdaQueryWrapper<SaleOrderPointsJournal>()
+                .eq(SaleOrderPointsJournal::getOrderId, orderId));
+        extInfoMapper.delete(new LambdaQueryWrapper<SaleOrderExtInfo>()
+                .eq(SaleOrderExtInfo::getOrderId, orderId));
+    }
+
+    private void loadSubTableData(Long orderId, SaleOrderDetailDTO dto) {
+        // 1. 往来单位快照
+        SaleOrderPartnerSnapshot snapshot = partnerSnapshotMapper.selectByOrderId(orderId);
+        if (snapshot != null) {
+            SaleOrderDetailDTO.PartnerSnapshotDTO ps = new SaleOrderDetailDTO.PartnerSnapshotDTO();
+            BeanUtils.copyProperties(snapshot, ps);
+            dto.setPartnerSnapshot(ps);
+        }
+
+        // 2. 收货地址
+        List<SaleOrderDeliveryAddress> addresses = deliveryAddressMapper.selectByOrderId(orderId);
+        dto.setDeliveryAddresses(addresses.stream().map(a -> {
+            SaleOrderDetailDTO.DeliveryAddressDTO d = new SaleOrderDetailDTO.DeliveryAddressDTO();
+            BeanUtils.copyProperties(a, d);
+            return d;
+        }).collect(Collectors.toList()));
+
+        // 3. 结算信息
+        SaleOrderSettlement settlement = settlementMapper.selectByOrderId(orderId);
+        if (settlement != null) {
+            SaleOrderDetailDTO.SettlementDTO s = new SaleOrderDetailDTO.SettlementDTO();
+            BeanUtils.copyProperties(settlement, s);
+            dto.setSettlement(s);
+        }
+
+        // 4. 物流信息
+        List<SaleOrderLogistics> logistics = logisticsMapper.selectByOrderId(orderId);
+        dto.setLogisticsList(logistics.stream().map(l -> {
+            SaleOrderDetailDTO.LogisticsDTO ld = new SaleOrderDetailDTO.LogisticsDTO();
+            BeanUtils.copyProperties(l, ld);
+            return ld;
+        }).collect(Collectors.toList()));
+
+        // 5. 订金
+        List<SaleOrderDeposit> deposits = depositMapper.selectByOrderId(orderId);
+        dto.setDeposits(deposits.stream().map(d -> {
+            SaleOrderDetailDTO.DepositDTO dd = new SaleOrderDetailDTO.DepositDTO();
+            BeanUtils.copyProperties(d, dd);
+            return dd;
+        }).collect(Collectors.toList()));
+
+        // 6. 积分
+        SaleOrderPointsJournal points = pointsJournalMapper.selectByOrderId(orderId);
+        if (points != null) {
+            SaleOrderDetailDTO.PointsJournalDTO pj = new SaleOrderDetailDTO.PointsJournalDTO();
+            BeanUtils.copyProperties(points, pj);
+            dto.setPointsJournal(pj);
+        }
+
+        // 7. 审核流水
+        List<SaleOrderAuditTrail> audits = auditTrailMapper.selectByOrderId(orderId);
+        dto.setAuditTrails(audits.stream().map(a -> {
+            SaleOrderDetailDTO.AuditTrailDTO at = new SaleOrderDetailDTO.AuditTrailDTO();
+            BeanUtils.copyProperties(a, at);
+            return at;
+        }).collect(Collectors.toList()));
+
+        // 8. 扩展信息
+        SaleOrderExtInfo extInfo = extInfoMapper.selectByOrderId(orderId);
+        if (extInfo != null) {
+            SaleOrderDetailDTO.ExtInfoDTO ei = new SaleOrderDetailDTO.ExtInfoDTO();
+            BeanUtils.copyProperties(extInfo, ei);
+            dto.setExtInfo(ei);
+        }
+    }
+
+    private void saveAuditTrail(Long orderId, String action, Long operatorId, String operatorName, String remark) {
+        SaleOrderAuditTrail trail = new SaleOrderAuditTrail();
+        trail.setOrderId(orderId);
+        trail.setAction(action);
+        trail.setOperatorId(operatorId);
+        trail.setOperatorName(operatorName);
+        trail.setActionTime(LocalDateTime.now());
+        trail.setRemark(remark);
+        auditTrailMapper.insert(trail);
+    }
+
+    // ═══════════════════════════════════════════
+    // 辅助方法
+    // ═══════════════════════════════════════════
+
+    private LambdaQueryWrapper<SaleOrder> buildOrderCenterWrapper(Long tenantId, Map<String, Object> filters) {
+        LambdaQueryWrapper<SaleOrder> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(SaleOrder::getTenantId, tenantId);
+
+        // 日期范围
+        String startDate = filters.get("startDate") != null ? filters.get("startDate").toString() : null;
+        String endDate = filters.get("endDate") != null ? filters.get("endDate").toString() : null;
+        if (startDate != null && !startDate.isEmpty()) {
+            try { wrapper.ge(SaleOrder::getOrderDate, LocalDate.parse(startDate)); } catch (Exception ignored) {}
+        }
+        if (endDate != null && !endDate.isEmpty()) {
+            try { wrapper.le(SaleOrder::getOrderDate, LocalDate.parse(endDate)); } catch (Exception ignored) {}
+        }
+
+        // 单据编号
+        String orderNo = filters.get("orderNo") != null ? filters.get("orderNo").toString() : null;
+        if (orderNo != null && !orderNo.isEmpty()) {
+            wrapper.like(SaleOrder::getOrderNo, orderNo);
+        }
+
+        // 客户ID/名称
+        if (filters.get("customerId") != null) wrapper.eq(SaleOrder::getCustomerId, filters.get("customerId"));
+        String customerName = filters.get("customerName") != null ? filters.get("customerName").toString() : null;
+        if (customerName != null && !customerName.isEmpty()) {
+            wrapper.like(SaleOrder::getCustomerName, customerName);
+        }
+
+        // 经手人ID/名称
+        if (filters.get("salesmanId") != null) wrapper.eq(SaleOrder::getSalesmanId, filters.get("salesmanId"));
+        String salesmanName = filters.get("salesmanName") != null ? filters.get("salesmanName").toString() : null;
+        if (salesmanName != null && !salesmanName.isEmpty()) {
+            wrapper.like(SaleOrder::getSalesmanName, salesmanName);
+        }
+
+        // 仓库ID/名称
+        if (filters.get("warehouseId") != null) wrapper.eq(SaleOrder::getWarehouseId, filters.get("warehouseId"));
+        String warehouseName = filters.get("warehouseName") != null ? filters.get("warehouseName").toString() : null;
+        if (warehouseName != null && !warehouseName.isEmpty()) {
+            wrapper.like(SaleOrder::getWarehouseName, warehouseName);
+        }
+
+        // 部门ID/名称
+        if (filters.get("deptId") != null) wrapper.eq(SaleOrder::getDeptId, filters.get("deptId"));
+        String deptName = filters.get("deptName") != null ? filters.get("deptName").toString() : null;
+        if (deptName != null && !deptName.isEmpty()) {
+            wrapper.like(SaleOrder::getDeptName, deptName);
+        }
+
+        // 单据状态
+        if (filters.get("status") != null && !filters.get("status").toString().isEmpty()) {
+            wrapper.eq(SaleOrder::getStatus, filters.get("status"));
+        }
+
+        // 结款方式
+        String settlementMethod = filters.get("settlementMethod") != null ? filters.get("settlementMethod").toString() : null;
+        if (settlementMethod != null && !settlementMethod.isEmpty()) {
+            wrapper.eq(SaleOrder::getSettlementMethod, settlementMethod);
+        }
+
+        // 补单类型
+        String supplementType = filters.get("supplementType") != null ? filters.get("supplementType").toString() : null;
+        if (supplementType != null && !supplementType.isEmpty()) {
+            wrapper.eq(SaleOrder::getSupplementType, supplementType);
+        }
+
+        // 配送线路
+        String deliveryRoute = filters.get("deliveryRoute") != null ? filters.get("deliveryRoute").toString() : null;
+        if (deliveryRoute != null && !deliveryRoute.isEmpty()) {
+            wrapper.like(SaleOrder::getDeliveryRoute, deliveryRoute);
+        }
+
+        // 推广人名称
+        String promoterName = filters.get("promoterName") != null ? filters.get("promoterName").toString() : null;
+        if (promoterName != null && !promoterName.isEmpty()) {
+            wrapper.like(SaleOrder::getPromoterName, promoterName);
+        }
+
+        // 区域
+        String region = filters.get("region") != null ? filters.get("region").toString() : null;
+        if (region != null && !region.isEmpty()) {
+            wrapper.like(SaleOrder::getRegion, region);
+        }
+
+        // 商品名称(通过明细子表关联查询)
+        String productName = filters.get("productName") != null ? filters.get("productName").toString() : null;
+        if (productName != null && !productName.isEmpty()) {
+            wrapper.inSql(SaleOrder::getId,
+                    "SELECT DISTINCT order_id FROM erp_sale_order_item WHERE product_name LIKE '%" + productName.replace("'", "''") + "%'");
+        }
+
+        // 单据备注
+        String orderRemark = filters.get("orderRemark") != null ? filters.get("orderRemark").toString() : null;
+        if (orderRemark != null && !orderRemark.isEmpty()) {
+            wrapper.like(SaleOrder::getOrderRemark, orderRemark);
+        }
+
+        // 产生方式
+        String generationMethod = filters.get("generationMethod") != null ? filters.get("generationMethod").toString() : null;
+        if (generationMethod != null && !generationMethod.isEmpty()) {
+            wrapper.eq(SaleOrder::getGenerationMethod, generationMethod);
+        }
+
+        // 商品品牌
+        String productBrand = filters.get("productBrand") != null ? filters.get("productBrand").toString() : null;
+        if (productBrand != null && !productBrand.isEmpty()) {
+            wrapper.like(SaleOrder::getProductBrand, productBrand);
+        }
+
+        // 所属行业类别
+        String industryCategory = filters.get("industryCategory") != null ? filters.get("industryCategory").toString() : null;
+        if (industryCategory != null && !industryCategory.isEmpty()) {
+            wrapper.like(SaleOrder::getIndustryCategory, industryCategory);
+        }
+
+        // 制单人
+        String creatorName = filters.get("creatorName") != null ? filters.get("creatorName").toString() : null;
+        if (creatorName != null && !creatorName.isEmpty()) {
+            wrapper.like(SaleOrder::getCreatorName, creatorName);
+        }
+
+        // 审核人
+        String auditorName = filters.get("auditorName") != null ? filters.get("auditorName").toString() : null;
+        if (auditorName != null && !auditorName.isEmpty()) {
+            wrapper.like(SaleOrder::getAuditorName, auditorName);
+        }
+
+        // 提交人
+        String submitterName = filters.get("submitterName") != null ? filters.get("submitterName").toString() : null;
+        if (submitterName != null && !submitterName.isEmpty()) {
+            wrapper.like(SaleOrder::getSubmitterName, submitterName);
+        }
+
+        // 配送方式
+        String deliveryMethod = filters.get("deliveryMethod") != null ? filters.get("deliveryMethod").toString() : null;
+        if (deliveryMethod != null && !deliveryMethod.isEmpty()) {
+            wrapper.eq(SaleOrder::getDeliveryMethod, deliveryMethod);
+        }
+
+        // 配送司机
+        String driverName = filters.get("driverName") != null ? filters.get("driverName").toString() : null;
+        if (driverName != null && !driverName.isEmpty()) {
+            wrapper.like(SaleOrder::getDriverName, driverName);
+        }
+
+        // 配送车辆
+        String deliveryVehicle = filters.get("deliveryVehicle") != null ? filters.get("deliveryVehicle").toString() : null;
+        if (deliveryVehicle != null && !deliveryVehicle.isEmpty()) {
+            wrapper.like(SaleOrder::getDeliveryVehicle, deliveryVehicle);
+        }
+
+        // 收货人
+        String receiverName = filters.get("receiverName") != null ? filters.get("receiverName").toString() : null;
+        if (receiverName != null && !receiverName.isEmpty()) {
+            wrapper.like(SaleOrder::getReceiverName, receiverName);
+        }
+
+        // 联系电话
+        String receiverPhone = filters.get("receiverPhone") != null ? filters.get("receiverPhone").toString() : null;
+        if (receiverPhone != null && !receiverPhone.isEmpty()) {
+            wrapper.like(SaleOrder::getReceiverPhone, receiverPhone);
+        }
+
+        // 物流公司
+        String logisticsCompany = filters.get("logisticsCompany") != null ? filters.get("logisticsCompany").toString() : null;
+        if (logisticsCompany != null && !logisticsCompany.isEmpty()) {
+            wrapper.like(SaleOrder::getLogisticsCompany, logisticsCompany);
+        }
+
+        // 运单号
+        String waybillNo = filters.get("waybillNo") != null ? filters.get("waybillNo").toString() : null;
+        if (waybillNo != null && !waybillNo.isEmpty()) {
+            wrapper.like(SaleOrder::getWaybillNo, waybillNo);
+        }
+
+        // 销售类型
+        if (filters.get("saleType") != null) {
+            wrapper.eq(SaleOrder::getSaleType, filters.get("saleType"));
+        }
+
+        // 表头自定义字段
+        if (filters.get("extNum1") != null) wrapper.eq(SaleOrder::getExtNum1, filters.get("extNum1"));
+        if (filters.get("extNum2") != null) wrapper.eq(SaleOrder::getExtNum2, filters.get("extNum2"));
+        if (filters.get("extText1") != null && !filters.get("extText1").toString().isEmpty()) wrapper.like(SaleOrder::getExtText1, filters.get("extText1").toString());
+        if (filters.get("extText2") != null && !filters.get("extText2").toString().isEmpty()) wrapper.like(SaleOrder::getExtText2, filters.get("extText2").toString());
+        if (filters.get("extText3") != null && !filters.get("extText3").toString().isEmpty()) wrapper.like(SaleOrder::getExtText3, filters.get("extText3").toString());
+        if (filters.get("footerExtText1") != null && !filters.get("footerExtText1").toString().isEmpty()) wrapper.like(SaleOrder::getFooterExtText1, filters.get("footerExtText1").toString());
+        if (filters.get("footerExtText2") != null && !filters.get("footerExtText2").toString().isEmpty()) wrapper.like(SaleOrder::getFooterExtText2, filters.get("footerExtText2").toString());
+
+        // 发货日期范围
+        String shipDateStart = filters.get("shipDateStart") != null ? filters.get("shipDateStart").toString() : null;
+        String shipDateEnd = filters.get("shipDateEnd") != null ? filters.get("shipDateEnd").toString() : null;
+        if (shipDateStart != null && !shipDateStart.isEmpty()) {
+            try { wrapper.ge(SaleOrder::getExpectedShipTime, LocalDate.parse(shipDateStart).atStartOfDay()); } catch (Exception ignored) {}
+        }
+        if (shipDateEnd != null && !shipDateEnd.isEmpty()) {
+            try { wrapper.le(SaleOrder::getExpectedShipTime, LocalDate.parse(shipDateEnd).plusDays(1).atStartOfDay()); } catch (Exception ignored) {}
+        }
+
+        // 本单金额范围（兼容 billAmountMin/Max 和 minAmount/maxAmount 两种参数名）
+        String billAmountMin = filters.get("billAmountMin") != null ? filters.get("billAmountMin").toString()
+                : (filters.get("minAmount") != null ? filters.get("minAmount").toString() : null);
+        String billAmountMax = filters.get("billAmountMax") != null ? filters.get("billAmountMax").toString()
+                : (filters.get("maxAmount") != null ? filters.get("maxAmount").toString() : null);
+        if (billAmountMin != null && !billAmountMin.isEmpty()) {
+            try { wrapper.ge(SaleOrder::getBillAmount, new BigDecimal(billAmountMin)); } catch (Exception ignored) {}
+        }
+        if (billAmountMax != null && !billAmountMax.isEmpty()) {
+            try { wrapper.le(SaleOrder::getBillAmount, new BigDecimal(billAmountMax)); } catch (Exception ignored) {}
+        }
+
+        // 订单来源
+        if (filters.get("orderSource") != null && !filters.get("orderSource").toString().isEmpty()) {
+            try { wrapper.eq(SaleOrder::getOrderSource, Integer.parseInt(filters.get("orderSource").toString())); } catch (Exception ignored) {}
+        }
+
+        // 商品行属性（通过明细子表 line_attribute 字段查询）
+        String itemProperty = filters.get("itemProperty") != null ? filters.get("itemProperty").toString() : null;
+        if (itemProperty != null && !itemProperty.isEmpty()) {
+            wrapper.inSql(SaleOrder::getId,
+                    "SELECT DISTINCT order_id FROM erp_sale_order_item WHERE line_attribute LIKE '%" + itemProperty.replace("'", "''") + "%'");
+        }
+
+        // 收货地址
+        String shippingAddress = filters.get("shippingAddress") != null ? filters.get("shippingAddress").toString() : null;
+        if (shippingAddress != null && !shippingAddress.isEmpty()) {
+            wrapper.like(SaleOrder::getShippingAddress, shippingAddress);
+        }
+
+        // 买家备注
+        String buyerRemark = filters.get("buyerRemark") != null ? filters.get("buyerRemark").toString() : null;
+        if (buyerRemark != null && !buyerRemark.isEmpty()) {
+            wrapper.like(SaleOrder::getBuyerRemark, buyerRemark);
+        }
+
+        // 摘要
+        String summary = filters.get("summary") != null ? filters.get("summary").toString() : null;
+        if (summary != null && !summary.isEmpty()) {
+            wrapper.like(SaleOrder::getSummary, summary);
+        }
+
+        // 打印次数
+        if (filters.get("printCount") != null && !filters.get("printCount").toString().isEmpty()) {
+            try { wrapper.eq(SaleOrder::getPrintCount, Integer.parseInt(filters.get("printCount").toString())); } catch (Exception ignored) {}
+        }
+
+        // 提交时间范围
+        String submitTimeStart = filters.get("submitTimeStart") != null ? filters.get("submitTimeStart").toString() : null;
+        String submitTimeEnd = filters.get("submitTimeEnd") != null ? filters.get("submitTimeEnd").toString() : null;
+        // 兼容 submitTime 单值（作为起始日期）
+        if (submitTimeStart == null && filters.get("submitTime") != null && !filters.get("submitTime").toString().isEmpty()) {
+            submitTimeStart = filters.get("submitTime").toString();
+        }
+        if (submitTimeStart != null && !submitTimeStart.isEmpty()) {
+            try { wrapper.ge(SaleOrder::getSubmitTime, LocalDateTime.parse(submitTimeStart + "T00:00:00")); } catch (Exception ignored) {}
+        }
+        if (submitTimeEnd != null && !submitTimeEnd.isEmpty()) {
+            try { wrapper.le(SaleOrder::getSubmitTime, LocalDateTime.parse(submitTimeEnd + "T23:59:59")); } catch (Exception ignored) {}
+        }
+
+        // 审核时间范围
+        String auditTimeStart = filters.get("auditTimeStart") != null ? filters.get("auditTimeStart").toString() : null;
+        String auditTimeEnd = filters.get("auditTimeEnd") != null ? filters.get("auditTimeEnd").toString() : null;
+        if (auditTimeStart == null && filters.get("auditTime") != null && !filters.get("auditTime").toString().isEmpty()) {
+            auditTimeStart = filters.get("auditTime").toString();
+        }
+        if (auditTimeStart != null && !auditTimeStart.isEmpty()) {
+            try { wrapper.ge(SaleOrder::getAuditTime, LocalDateTime.parse(auditTimeStart + "T00:00:00")); } catch (Exception ignored) {}
+        }
+        if (auditTimeEnd != null && !auditTimeEnd.isEmpty()) {
+            try { wrapper.le(SaleOrder::getAuditTime, LocalDateTime.parse(auditTimeEnd + "T23:59:59")); } catch (Exception ignored) {}
+        }
+
+        // 第三方单号
+        String thirdPartyOrderNo = filters.get("thirdPartyOrderNo") != null ? filters.get("thirdPartyOrderNo").toString() : null;
+        if (thirdPartyOrderNo != null && !thirdPartyOrderNo.isEmpty()) {
+            wrapper.like(SaleOrder::getThirdPartyOrderNo, thirdPartyOrderNo);
+        }
+
+        // 明细备注
+        String detailRemark = filters.get("detailRemark") != null ? filters.get("detailRemark").toString() : null;
+        if (detailRemark != null && !detailRemark.isEmpty()) {
+            wrapper.inSql(SaleOrder::getId,
+                    "SELECT DISTINCT order_id FROM erp_sale_order_item WHERE remark LIKE '%" + detailRemark.replace("'", "''") + "%'");
+        }
+
+        // 自定义字段 extText4 / extText5
+        String extText4 = filters.get("extText4") != null ? filters.get("extText4").toString() : null;
+        if (extText4 != null && !extText4.isEmpty()) {
+            wrapper.like(SaleOrder::getExtText4, extText4);
+        }
+        String extText5 = filters.get("extText5") != null ? filters.get("extText5").toString() : null;
+        if (extText5 != null && !extText5.isEmpty()) {
+            wrapper.like(SaleOrder::getExtText5, extText5);
+        }
+
+        // 客户一票通
+        String customerTicket = filters.get("customerTicket") != null ? filters.get("customerTicket").toString() : null;
+        if (customerTicket != null && !customerTicket.isEmpty()) {
+            wrapper.eq(SaleOrder::getCustomerTicket, customerTicket);
+        }
+
+        // 客户备注
+        String customerRemark = filters.get("customerRemark") != null ? filters.get("customerRemark").toString() : null;
+        if (customerRemark != null && !customerRemark.isEmpty()) {
+            wrapper.like(SaleOrder::getCustomerRemark, customerRemark);
+        }
+
+        // 商品金额范围
+        String productAmountMin = filters.get("productAmountMin") != null ? filters.get("productAmountMin").toString()
+                : (filters.get("productAmount") != null ? filters.get("productAmount").toString() : null);
+        if (productAmountMin != null && !productAmountMin.isEmpty()) {
+            try { wrapper.ge(SaleOrder::getProductAmount, new BigDecimal(productAmountMin)); } catch (Exception ignored) {}
+        }
+
+        // 优惠券
+        if (filters.get("couponAmount") != null && !filters.get("couponAmount").toString().isEmpty()) {
+            try { wrapper.eq(SaleOrder::getCouponAmount, new BigDecimal(filters.get("couponAmount").toString())); } catch (Exception ignored) {}
+        }
+
+        // 直接优惠
+        if (filters.get("directDiscount") != null && !filters.get("directDiscount").toString().isEmpty()) {
+            try { wrapper.eq(SaleOrder::getDirectDiscount, new BigDecimal(filters.get("directDiscount").toString())); } catch (Exception ignored) {}
+        }
+
+        // 是否赠品（通过明细子表 gift 字段查询）
+        String isGift = filters.get("isGift") != null ? filters.get("isGift").toString() : null;
+        if (isGift != null && !isGift.isEmpty()) {
+            boolean giftVal = "1".equals(isGift) || "true".equalsIgnoreCase(isGift);
+            wrapper.inSql(SaleOrder::getId,
+                    "SELECT DISTINCT order_id FROM erp_sale_order_item WHERE gift = " + (giftVal ? "true" : "false"));
+        }
+
+        // 补单状态（fulfillment tab 专用）
+        String supplementStatus = filters.get("supplementStatus") != null ? filters.get("supplementStatus").toString() : null;
+        if (supplementStatus != null && !supplementStatus.isEmpty()) {
+            wrapper.like(SaleOrder::getSupplementStatus, supplementStatus);
+        }
+
+        // 订单未补金额（fulfillment tab 专用）
+        String remainingUnshippedAmount = filters.get("remainingUnshippedAmount") != null ? filters.get("remainingUnshippedAmount").toString() : null;
+        if (remainingUnshippedAmount != null && !remainingUnshippedAmount.isEmpty()) {
+            try { wrapper.eq(SaleOrder::getRemainingUnshippedAmount, new BigDecimal(remainingUnshippedAmount)); } catch (Exception ignored) {}
+        }
+
+        // 仅显示已选中（前端传入选中的订单ID列表）
+        String showSelected = filters.get("showSelected") != null ? filters.get("showSelected").toString() : null;
+        if ("true".equals(showSelected) && filters.get("selectedIds") != null) {
+            String selectedIds = filters.get("selectedIds").toString();
+            if (!selectedIds.isEmpty()) {
+                List<Long> idList = java.util.Arrays.stream(selectedIds.split(","))
+                        .map(String::trim).filter(s -> !s.isEmpty())
+                        .map(Long::valueOf).collect(java.util.stream.Collectors.toList());
+                if (!idList.isEmpty()) {
+                    wrapper.in(SaleOrder::getId, idList);
+                }
+            }
+        }
+
+        // 不显示有关联审核中退货申请单的单据
+        String hideReturnRelated = filters.get("hideReturnRelated") != null ? filters.get("hideReturnRelated").toString() : null;
+        if ("true".equals(hideReturnRelated)) {
+            wrapper.notInSql(SaleOrder::getId,
+                    "SELECT source_order_id FROM erp_sale_return WHERE status = 1 AND source_order_id IS NOT NULL AND deleted = 0");
+        }
+
+        return wrapper;
+    }
+
+    private SaleOrderListDTO convertToListDTO(SaleOrder order) {
+        SaleOrderListDTO dto = new SaleOrderListDTO();
+        dto.setId(order.getId().toString());
+        dto.setOrderNo(order.getOrderNo());
+        dto.setOrderDate(order.getOrderDate());
+        dto.setSaleType(order.getSaleType());
+        dto.setStatus(order.getStatus());
         dto.setStatusName(getStatusName(order.getStatus()));
+        // 客户信息
+        dto.setCustomerId(order.getCustomerId());
+        dto.setCustomerName(order.getCustomerName());
+        dto.setCustomerCode(order.getCustomerCode());
+        dto.setCustomerLevel(order.getCustomerLevel());
+        dto.setCustomerRemark(order.getCustomerRemark());
+        dto.setCustomerTicket(order.getCustomerTicket());
+        // 经手人/部门
+        dto.setSalesmanId(order.getSalesmanId());
+        dto.setSalesmanName(order.getSalesmanName());
+        dto.setDeptName(order.getDeptName());
+        // 仓库
+        dto.setWarehouseId(order.getWarehouseId());
+        dto.setWarehouseName(order.getWarehouseName());
+        // 收货信息
+        dto.setReceiverName(order.getReceiverName());
+        dto.setReceiverPhone(order.getReceiverPhone());
+        dto.setShippingAddress(order.getShippingAddress());
+        // 推广人
+        dto.setPromoterId(order.getPromoterId());
+        dto.setPromoterName(order.getPromoterName());
+        // 金额
+        dto.setProductAmount(order.getProductAmount());
+        dto.setDiscountAmount(order.getDiscountAmount());
+        dto.setBillAmount(order.getBillAmount());
+        dto.setSettledAmount(order.getSettledAmount());
+        dto.setReceivedAmount(order.getReceivedAmount());
+        dto.setPromoDiscount(order.getPromoDiscount());
+        dto.setCouponAmount(order.getCouponAmount());
+        dto.setDirectDiscount(order.getDirectDiscount());
+        dto.setOtherFee(order.getOtherFee());
+        // 结算状态（由 receivedAmount 与 billAmount 计算得出）
+        BigDecimal received = order.getReceivedAmount();
+        BigDecimal settled = order.getSettledAmount();
+        BigDecimal bill = order.getBillAmount();
+        // 取已收款和已结金额的较大值作为实际结算金额
+        BigDecimal effectiveAmount = BigDecimal.ZERO;
+        if (received != null && received.compareTo(effectiveAmount) > 0) effectiveAmount = received;
+        if (settled != null && settled.compareTo(effectiveAmount) > 0) effectiveAmount = settled;
+        if (bill != null && bill.compareTo(BigDecimal.ZERO) > 0) {
+            if (effectiveAmount.compareTo(BigDecimal.ZERO) == 0) {
+                dto.setSettlementStatus("未结算");
+            } else if (effectiveAmount.compareTo(bill) >= 0) {
+                dto.setSettlementStatus("已结算");
+            } else {
+                dto.setSettlementStatus("部分结算");
+            }
+        } else {
+            dto.setSettlementStatus("未结算");
+        }
+        // 运费
+        dto.setFreightPayer(order.getFreightPayer());
+        dto.setShippingFee(order.getShippingFee());
+        // 数量
+        dto.setTotalQuantity(order.getTotalQuantity());
+        dto.setShippedQuantity(order.getShippedQuantity());
+        dto.setUnshippedQuantity(order.getUnshippedQuantity());
+        dto.setReturnQuantity(order.getReturnQuantity());
+        dto.setReturnAmount(order.getReturnAmount());
+        // 物理汇总
+        dto.setTotalWeight(order.getTotalWeight());
+        dto.setTotalVolume(order.getTotalVolume());
+        // 物流
+        dto.setLogisticsCompany(order.getLogisticsCompany());
+        dto.setWaybillNo(order.getWaybillNo());
+        // 订金账户
+        dto.setDepositAccount1(order.getDepositAccount1());
+        dto.setDepositAccount2(order.getDepositAccount2());
+        dto.setDepositAccount3(order.getDepositAccount3());
+        dto.setDepositAccount4(order.getDepositAccount4());
+        // 区域/销售类型/配送方式
+        dto.setRegion(order.getRegion());
+        dto.setDeliveryMethod(order.getDeliveryMethod());
+        // 备注
+        dto.setBuyerRemark(order.getBuyerRemark());
+        dto.setOrderRemark(order.getOrderRemark());
+        dto.setSummary(order.getSummary());
+        // 附件
+        dto.setAttachment(order.getAttachment());
+        // 自定义字段
+        dto.setExtNum1(order.getExtNum1());
+        dto.setExtNum2(order.getExtNum2());
+        dto.setExtText1(order.getExtText1());
+        dto.setExtText2(order.getExtText2());
+        dto.setExtText3(order.getExtText3());
+        dto.setFooterExtText1(order.getFooterExtText1());
+        dto.setFooterExtText2(order.getFooterExtText2());
+        // 提交/审核/制单
+        dto.setSubmitTime(order.getSubmitTime());
+        dto.setGenerationMethod(order.getGenerationMethod());
+        dto.setBookkeepingTime(order.getBookkeepingTime());
+        dto.setCreatorName(order.getCreatorName());
+        dto.setSubmitterName(order.getSubmitterName());
+        dto.setAuditorName(order.getAuditorName());
+        dto.setAuditTime(order.getAuditTime());
+        dto.setPrintCount(order.getPrintCount());
+        // 第三方/来源
+        dto.setThirdPartyOrderNo(order.getThirdPartyOrderNo());
+        dto.setSourceOrder(order.getSourceOrder());
+        // 结款方式
+        dto.setSettlementMethod(order.getSettlementMethod());
+        // 预计发货时间
+        dto.setExpectedShipTime(order.getExpectedShipTime());
+        // 履约相关
+        dto.setOriginalOrderNo(order.getOriginalOrderNo());
+        dto.setShippedOrderNo(order.getShippedOrderNo());
+        dto.setSupplementStatus(order.getSupplementStatus());
+        dto.setOriginalAmount(order.getOriginalAmount());
+        dto.setRemainingUnshippedAmount(order.getRemainingUnshippedAmount());
+        dto.setOriginalDiscount(order.getOriginalDiscount());
+        dto.setOriginalItemCount(order.getOriginalItemCount());
+        dto.setUnshippedItemCount(order.getUnshippedItemCount());
+        dto.setOriginalQuantity(order.getOriginalQuantity());
+        dto.setUnshippedQuantityItems(order.getUnshippedQuantityItems());
+        // 拣货/发货
+        dto.setPickingWarehouse(order.getPickingWarehouse());
+        dto.setCollectionLocation(order.getCollectionLocation());
+        dto.setPickupAddress(order.getPickupAddress());
+        // 时间
+        dto.setCreateTime(order.getCreateTime());
+        dto.setUpdateTime(order.getUpdateTime());
+
+        // 业务扩展字段
+        dto.setProductBrand(order.getProductBrand());
+        dto.setIndustryCategory(order.getIndustryCategory());
+
         return dto;
     }
 
     private SaleOrderItemDTO convertItemToDTO(SaleOrderItem item) {
-        if (item == null) return null;
         SaleOrderItemDTO dto = new SaleOrderItemDTO();
         BeanUtils.copyProperties(item, dto);
         return dto;
     }
 
-    private String getStatusName(Integer status) {
-        if (status == null) return "未知";
-        switch (status) {
-            case 0: return "草稿";
-            case 1: return "待审批";
-            case 2: return "已审批";
-            case 3: return "部分出库";
-            case 4: return "完成";
-            case 5: return "取消";
-            default: return "未知";
+    private Map<Long, String> batchGetCustomerNames(Set<Long> customerIds) {
+        if (customerIds == null || customerIds.isEmpty()) return Collections.emptyMap();
+        try {
+            List<Party> parties = partyMapper.selectBatchIds(customerIds);
+            return parties.stream()
+                    .filter(p -> p != null && p.getId() != null)
+                    .collect(Collectors.toMap(
+                            Party::getId,
+                            p -> p.getPartyName() != null ? p.getPartyName() : "",
+                            (a, b) -> a));
+        } catch (Exception e) {
+            log.warn("批量查询客户名称失败", e);
+            return Collections.emptyMap();
         }
     }
+
+    private SaleOrderItem createOrderItem(SaleOrderItemDTO itemDTO, Long orderId, Long customerId, Long warehouseId) {
+        SaleOrderItem item = new SaleOrderItem();
+        BeanUtils.copyProperties(itemDTO, item);
+        item.setOrderId(orderId);
+        item.setShippedQuantity(BigDecimal.ZERO);
+        item.setCreateTime(LocalDateTime.now());
+
+        // 查询当前可用库存，填充到明细行（供前端查看）
+        if (item.getProductId() != null && warehouseId != null) {
+            try {
+                Stock stock = stockService.getStockDetail(item.getProductId(), warehouseId);
+                if (stock != null) {
+                    item.setAvailableStock(stock.getAvailableQuantity());
+                    item.setBookStock(stock.getQuantity());
+                }
+            } catch (Exception e) {
+                log.warn("查询库存可用量失败: productId={}, warehouseId={}", item.getProductId(), warehouseId, e);
+            }
+        }
+
+        // 价格引擎
+        PriceCalculationRequest priceRequest = new PriceCalculationRequest();
+        priceRequest.setCustomerId(customerId != null ? customerId.toString() : "");
+        priceRequest.setProductId(itemDTO.getProductId() != null ? itemDTO.getProductId().toString() : "");
+        priceRequest.setQuantity(itemDTO.getQuantity() != null ? itemDTO.getQuantity().intValue() : 1);
+        priceRequest.setCustomerLevel(getCustomerGradeCode(customerId));
+        priceRequest.setCalculationTime(LocalDateTime.now());
+
+        Product product = itemDTO.getProductId() != null ? productService.getById(itemDTO.getProductId()) : null;
+        if (product != null) {
+            priceRequest.setProductName(product.getProductName());
+            priceRequest.setBasePrice(product.getStandardPrice());
+        }
+
+        PriceCalculationResult priceResult = priceEngineService.calculatePrice(priceRequest);
+        item.setCalculatedPrice(priceResult.getFinalPrice() != null ? priceResult.getFinalPrice() : item.getUnitPrice());
+        item.setPriceSource(priceResult.getCalculationExplanation() != null ? priceResult.getCalculationExplanation() : "Default");
+        item.setCustomerGradeCode(getCustomerGradeCode(customerId));
+        item.setCustomerGradeName(getCustomerGradeName(customerId));
+
+        if (item.getPriceGradeCode() == null || item.getPriceGradeCode().isEmpty()) {
+            item.setPriceGradeCode("PG_" + (getCustomerGradeCode(customerId) != null ? getCustomerGradeCode(customerId) : "DEFAULT"));
+        }
+
+        item.setUnitPrice(priceResult.getFinalPrice() != null ? priceResult.getFinalPrice() : item.getUnitPrice());
+        if (product != null) {
+            item.setCostPrice(product.getCostPrice());
+        }
+        if (item.getQuantity() != null && item.getUnitPrice() != null) {
+            item.setAmount(item.getQuantity().multiply(item.getUnitPrice()));
+        }
+
+        return item;
+    }
+
+    private void enrichOrderItems(List<SaleOrderItem> items) {
+        if (items == null || items.isEmpty()) return;
+        Set<Long> productIds = items.stream().map(SaleOrderItem::getProductId).filter(Objects::nonNull).collect(Collectors.toSet());
+        if (productIds.isEmpty()) return;
+
+        List<Product> productList = productService.listByIds(productIds);
+        Map<Long, Product> productMap = productList.stream()
+                .filter(p -> p != null && p.getId() != null)
+                .collect(Collectors.toMap(Product::getId, p -> p, (a, b) -> a));
+
+        for (SaleOrderItem item : items) {
+            Product product = productMap.get(item.getProductId());
+            if (product != null) {
+                item.setImage(product.getImageUrl());
+                item.setBarcode(product.getBarcode());
+                item.setUnit(product.getUnit());
+            }
+        }
+    }
+
+    private String getCustomerGradeCode(Long customerId) {
+        if (customerId == null) return null;
+        try {
+            Long gradeId = partyGradeRelationService.getCurrentGradeId(customerId);
+            if (gradeId != null) {
+                CustomerGrade grade = customerGradeService.getById(gradeId);
+                if (grade != null) return grade.getGradeCode();
+            }
+            CustomerGrade defaultGrade = customerGradeService.getDefaultGrade();
+            return defaultGrade != null ? defaultGrade.getGradeCode() : "DEFAULT";
+        } catch (Exception e) {
+            log.warn("获取客户等级信息失败: customerId={}", customerId);
+            return "DEFAULT";
+        }
+    }
+
+    private String getCustomerGradeName(Long customerId) {
+        if (customerId == null) return null;
+        try {
+            Long gradeId = partyGradeRelationService.getCurrentGradeId(customerId);
+            if (gradeId != null) {
+                CustomerGrade grade = customerGradeService.getById(gradeId);
+                if (grade != null) return grade.getGradeName();
+            }
+            CustomerGrade defaultGrade = customerGradeService.getDefaultGrade();
+            return defaultGrade != null ? defaultGrade.getGradeName() : "默认等级";
+        } catch (Exception e) {
+            log.warn("获取客户等级名称失败: customerId={}", customerId);
+            return "默认等级";
+        }
+    }
+
+    private String getStatusName(Integer status) {
+        if (status == null) return "未知";
+        return switch (status) {
+            case 0 -> "草稿";
+            case 1 -> "待审核";
+            case 2 -> "待发货";
+            case 3 -> "部分发货";
+            case 4 -> "发货完成";
+            case 5 -> "交易完成";
+            case 6 -> "已取消";
+            default -> "未知";
+        };
+    }
+
+    private String getCurrentUserName() {
+        try {
+            if (StpUtil.isLogin()) {
+                return StpUtil.getSession().get("username", "系统").toString();
+            }
+        } catch (Exception ignored) {}
+        return "系统";
+    }
+
+    // ═══════════════════════════════════════════
+    // 库存校验 & 冻结/解冻
+    // ═══════════════════════════════════════════
+
+    /**
+     * 校验订单的库存可用性并冻结库存（审批通过时调用）
+     * @return 库存不足的商品说明列表（空列表表示全部充足且已冻结）
+     */
+    private List<String> checkAndFreezeStock(SaleOrder order) {
+        List<String> insufficientItems = new ArrayList<>();
+        Long warehouseId = order.getWarehouseId();
+        if (warehouseId == null) {
+            log.warn("订单未指定仓库，跳过库存校验: orderId={}", order.getId());
+            return insufficientItems;
+        }
+
+        List<SaleOrderItem> items = itemMapper.selectByOrderId(order.getId());
+        if (items == null || items.isEmpty()) return insufficientItems;
+
+        // 第一遍：校验全部商品库存是否充足
+        for (SaleOrderItem item : items) {
+            if (item.getProductId() == null || item.getQuantity() == null
+                    || item.getQuantity().compareTo(BigDecimal.ZERO) <= 0) continue;
+
+            Stock stock = stockService.getStockDetail(item.getProductId(), warehouseId);
+            BigDecimal available = stock != null ? stock.getAvailableQuantity() : BigDecimal.ZERO;
+
+            if (available.compareTo(item.getQuantity()) < 0) {
+                insufficientItems.add(String.format(
+                        "商品「%s」(编码:%s) 可用库存 %.2f %s，需要 %.2f %s",
+                        item.getProductName() != null ? item.getProductName() : "",
+                        item.getProductCode() != null ? item.getProductCode() : "",
+                        available,
+                        item.getUnit() != null ? item.getUnit() : "个",
+                        item.getQuantity(),
+                        item.getUnit() != null ? item.getUnit() : "个"));
+            }
+        }
+
+        // 全部充足才执行冻结
+        if (insufficientItems.isEmpty()) {
+            for (SaleOrderItem item : items) {
+                if (item.getProductId() == null || item.getQuantity() == null
+                        || item.getQuantity().compareTo(BigDecimal.ZERO) <= 0) continue;
+
+                boolean frozen = stockService.freezeStock(item.getProductId(), warehouseId, item.getQuantity());
+                if (!frozen) {
+                    log.warn("库存冻结失败: productId={}, warehouseId={}, quantity={}",
+                            item.getProductId(), warehouseId, item.getQuantity());
+                }
+            }
+            log.info("订单库存冻结完成: orderId={}, warehouseId={}", order.getId(), warehouseId);
+        }
+
+        return insufficientItems;
+    }
+
+    /**
+     * 解冻订单占用的库存（取消已审批订单时调用）
+     */
+    private void unfreezeOrderStock(SaleOrder order) {
+        Long warehouseId = order.getWarehouseId();
+        if (warehouseId == null) return;
+
+        List<SaleOrderItem> items = itemMapper.selectByOrderId(order.getId());
+        if (items == null || items.isEmpty()) return;
+
+        for (SaleOrderItem item : items) {
+            if (item.getProductId() == null || item.getQuantity() == null
+                    || item.getQuantity().compareTo(BigDecimal.ZERO) <= 0) continue;
+            try {
+                stockService.unfreezeStock(item.getProductId(), warehouseId, item.getQuantity());
+            } catch (Exception e) {
+                log.warn("库存解冻失败: productId={}, warehouseId={}, quantity={}",
+                        item.getProductId(), warehouseId, item.getQuantity(), e);
+            }
+        }
+        log.info("订单库存解冻完成: orderId={}, warehouseId={}", order.getId(), warehouseId);
+    }
+
+    // ═══════════════════════════════════════════
+    // 批量导入辅助方法
+    // ═══════════════════════════════════════════
+
+    private String getCellStringValue(Cell cell) {
+        if (cell == null) return "";
+        return switch (cell.getCellType()) {
+            case STRING -> cell.getStringCellValue().trim();
+            case NUMERIC -> {
+                if (DateUtil.isCellDateFormatted(cell)) {
+                    yield cell.getLocalDateTimeCellValue().toLocalDate().toString();
+                }
+                double num = cell.getNumericCellValue();
+                if (num == (long) num) yield String.valueOf((long) num);
+                yield String.valueOf(num);
+            }
+            case BOOLEAN -> String.valueOf(cell.getBooleanCellValue());
+            default -> "";
+        };
+    }
+
+    private String getString(Map<String, Object> rowData, String key, String fallbackKey) {
+        Object val = rowData.get(key);
+        if (val == null || val.toString().isEmpty()) val = rowData.get(fallbackKey);
+        return val != null ? val.toString() : null;
+    }
+
+    private BigDecimal getBigDecimal(Map<String, Object> rowData, String key, String fallbackKey) {
+        Object val = rowData.get(key);
+        if (val == null) val = rowData.get(fallbackKey);
+        if (val == null) return null;
+        try {
+            return new BigDecimal(val.toString().replace(",", ""));
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private Long getCurrentTenantId() {
+        try {
+            if (StpUtil.isLogin()) {
+                Object tenantId = StpUtil.getSession().get("tenantId");
+                if (tenantId != null) return Long.valueOf(tenantId.toString());
+            }
+        } catch (Exception ignored) {}
+        return null;
+    }
+
+    // ═══════════════════════════════════════════
+    // 商品汇总 (productSummary)
+    // ═══════════════════════════════════════════
+
+    @Override
+    public List<Map<String, Object>> productSummary(Long tenantId, Map<String, Object> filters) {
+        // 获取符合条件的订单ID列表
+        LambdaQueryWrapper<SaleOrder> orderWrapper = buildOrderCenterWrapper(tenantId, filters);
+        List<SaleOrder> orders = list(orderWrapper);
+        if (orders.isEmpty()) return Collections.emptyList();
+
+        Set<Long> orderIds = orders.stream().map(SaleOrder::getId).collect(Collectors.toSet());
+
+        // 按商品维度聚合明细
+        List<SaleOrderItem> allItems = itemMapper.selectList(
+                new LambdaQueryWrapper<SaleOrderItem>().in(SaleOrderItem::getOrderId, orderIds));
+
+        // 按商品分组汇总
+        Map<Long, List<SaleOrderItem>> groupedByProduct = allItems.stream()
+                .filter(i -> i.getProductId() != null)
+                .collect(Collectors.groupingBy(SaleOrderItem::getProductId));
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        groupedByProduct.forEach((productId, items) -> {
+            SaleOrderItem first = items.get(0);
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("productId", productId);
+            row.put("productName", first.getProductName());
+            row.put("productCode", first.getProductCode());
+            row.put("specification", first.getSpecification());
+            row.put("unit", first.getUnit());
+            BigDecimal totalQty = items.stream()
+                    .map(i -> i.getQuantity() != null ? i.getQuantity() : BigDecimal.ZERO)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            row.put("totalQuantity", totalQty.setScale(2, RoundingMode.HALF_UP));
+            BigDecimal totalAmount = items.stream()
+                    .map(i -> i.getAmount() != null ? i.getAmount() : BigDecimal.ZERO)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            row.put("totalAmount", totalAmount.setScale(2, RoundingMode.HALF_UP));
+            row.put("orderCount", items.stream().map(SaleOrderItem::getOrderId).distinct().count());
+            result.add(row);
+        });
+
+        result.sort((a, b) -> ((BigDecimal) b.get("totalAmount")).compareTo((BigDecimal) a.get("totalAmount")));
+        return result;
+    }
+
+    // ═══════════════════════════════════════════
+    // 批量更新物流备注
+    // ═══════════════════════════════════════════
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void batchUpdateLogisticsRemark(List<Long> ids, String remark) {
+        if (ids == null || ids.isEmpty()) return;
+        for (Long id : ids) {
+            SaleOrder order = getById(id);
+            if (order != null) {
+                order.setOrderRemark(remark);
+                updateById(order);
+            }
+        }
+        log.info("批量更新物流备注: ids={}, remark={}", ids.size(), remark);
+    }
+
 }

@@ -1,6 +1,14 @@
 <template>
-  <div class="skeleton-form" aria-busy="true" aria-label="表单加载中">
-    <div v-for="i in fields" :key="i" class="skeleton-form__field">
+  <div
+    class="skeleton-form"
+    aria-busy="true"
+    aria-label="表单加载中"
+  >
+    <div
+      v-for="i in fields"
+      :key="i"
+      class="skeleton-form__field"
+    >
       <!-- Label 占位 -->
       <div class="skeleton-bar skeleton-form__label" />
       <!-- Input 占位 -->

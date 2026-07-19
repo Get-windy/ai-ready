@@ -1,142 +1,202 @@
 <template>
-  <ErrorBoundary @error="handleError"><PageContainer full-height>
-    <template #header>
-      <div class="page-header">
-        <div class="page-header__left">
-          <span class="page-header__breadcrumb">产品管理 / 价格等级管理</span>
-          <h2 class="page-header__title">价格等级管理</h2>
+  <ErrorBoundary @error="handleError">
+    <PageContainer full-height>
+      <template #header>
+        <div class="page-header">
+          <div class="page-header__left">
+            <span class="page-header__breadcrumb">产品管理 / 价格等级管理</span>
+            <h2 class="page-header__title">
+              价格等级管理
+            </h2>
+          </div>
+          <div class="page-header__right">
+            <a-space :size="12">
+              <a-button
+                size="small"
+                :loading="loading"
+                @click="loadGrades"
+              >
+                <ReloadOutlined /> 刷新
+              </a-button>
+              <a-button
+                type="primary"
+                size="small"
+                @click="handleAdd"
+              >
+                <PlusOutlined /> 新增等级
+              </a-button>
+            </a-space>
+          </div>
         </div>
-        <div class="page-header__right">
-          <a-space :size="12">
-            <a-button size="small" :loading="loading" @click="loadGrades">
-              <ReloadOutlined /> 刷新
-            </a-button>
-            <a-button type="primary" size="small" @click="handleAdd">
-              <PlusOutlined /> 新增等级
-            </a-button>
-          </a-space>
-        </div>
-      </div>
-    </template>
+      </template>
 
-    <!-- 说明卡片 -->
-    <a-card size="small" class="info-card" style="margin-bottom: 16px;">
-      <a-alert type="info" show-icon>
-        <template #message>
-          <span>价格等级用于为不同客户类型设置不同的销售价格。系统默认提供8个等级，您可以自定义等级名称（昵称）。等级名称将在产品多单位价格配置和客户等级管理中显示。</span>
-        </template>
-      </a-alert>
-    </a-card>
-
-    <!-- 等级列表 -->
-    <a-card title="等级列表" size="small">
-      <a-spin :spinning="loading">
-        <a-table
-          :data-source="grades"
-          :columns="columns"
-          :pagination="false"
-          row-key="id"
-          size="small"
+      <!-- 说明卡片 -->
+      <a-card
+        size="small"
+        class="info-card"
+        style="margin-bottom: 16px;"
+      >
+        <a-alert
+          type="info"
+          show-icon
         >
-          <template #bodyCell="{ column, record, index }">
-            <template v-if="column.key === 'sortOrder'">
-              <span class="sort-num">{{ record.sortOrder }}</span>
-            </template>
-            <template v-if="column.key === 'gradeName'">
-              <div class="grade-name-cell">
-                <template v-if="editingId === record.id">
-                  <a-input
-                    v-model:value="editingName"
-                    size="small"
-                    style="width: 200px"
-                    :maxlength="20"
-                    @pressEnter="handleSaveEdit(record)"
-                    @keyup.escape="cancelEdit"
-                  />
-                  <a-space>
-                    <a-button type="link" size="small" @click="handleSaveEdit(record)">
-                      <CheckOutlined />
+          <template #message>
+            <span>价格等级用于为不同客户类型设置不同的销售价格。系统默认提供8个等级，您可以自定义等级名称（昵称）。等级名称将在产品多单位价格配置和客户等级管理中显示。</span>
+          </template>
+        </a-alert>
+      </a-card>
+
+      <!-- 等级列表 -->
+      <a-card
+        title="等级列表"
+        size="small"
+      >
+        <a-spin :spinning="loading">
+          <a-table
+            :data-source="grades"
+            :columns="columns"
+            :pagination="false"
+            row-key="id"
+            size="small"
+          >
+            <template #bodyCell="{ column, record, index }">
+              <template v-if="column.key === 'sortOrder'">
+                <span class="sort-num">{{ record.sortOrder }}</span>
+              </template>
+              <template v-if="column.key === 'gradeName'">
+                <div class="grade-name-cell">
+                  <template v-if="editingId === record.id">
+                    <a-input
+                      v-model:value="editingName"
+                      size="small"
+                      style="width: 200px"
+                      :maxlength="20"
+                      @press-enter="handleSaveEdit(record)"
+                      @keyup.escape="cancelEdit"
+                    />
+                    <a-space>
+                      <a-button
+                        type="link"
+                        size="small"
+                        @click="handleSaveEdit(record)"
+                      >
+                        <CheckOutlined />
+                      </a-button>
+                      <a-button
+                        type="link"
+                        size="small"
+                        danger
+                        @click="cancelEdit"
+                      >
+                        <CloseOutlined />
+                      </a-button>
+                    </a-space>
+                  </template>
+                  <template v-else>
+                    <span class="grade-name">{{ record.gradeName }}</span>
+                    <a-button
+                      type="link"
+                      size="small"
+                      class="edit-btn"
+                      @click="startEdit(record)"
+                    >
+                      <EditOutlined />
                     </a-button>
-                    <a-button type="link" size="small" danger @click="cancelEdit">
-                      <CloseOutlined />
-                    </a-button>
-                  </a-space>
-                </template>
-                <template v-else>
-                  <span class="grade-name">{{ record.gradeName }}</span>
+                  </template>
+                </div>
+              </template>
+              <template v-if="column.key === 'status'">
+                <a-switch
+                  :checked="record.status === 1"
+                  checked-children="启用"
+                  un-checked-children="停用"
+                  :loading="record._saving"
+                  @change="(val: boolean) => handleToggleStatus(record, val)"
+                />
+              </template>
+              <template v-if="column.key === 'actions'">
+                <a-space>
                   <a-button
                     type="link"
                     size="small"
-                    class="edit-btn"
-                    @click="startEdit(record)"
+                    :disabled="index === 0"
+                    @click="handleMoveUp(record, index)"
                   >
-                    <EditOutlined />
+                    上移
                   </a-button>
-                </template>
-              </div>
+                  <a-button
+                    type="link"
+                    size="small"
+                    :disabled="index === grades.length - 1"
+                    @click="handleMoveDown(record, index)"
+                  >
+                    下移
+                  </a-button>
+                  <a-popconfirm
+                    title="确定删除该等级吗？"
+                    ok-text="确定"
+                    cancel-text="取消"
+                    @confirm="handleDelete(record)"
+                  >
+                    <a-button
+                      type="link"
+                      size="small"
+                      danger
+                    >
+                      删除
+                    </a-button>
+                  </a-popconfirm>
+                </a-space>
+              </template>
             </template>
-            <template v-if="column.key === 'status'">
-              <a-switch
-                :checked="record.status === 1"
-                checked-children="启用"
-                un-checked-children="停用"
-                :loading="record._saving"
-                @change="(val: boolean) => handleToggleStatus(record, val)"
-              />
-            </template>
-            <template v-if="column.key === 'actions'">
-              <a-space>
-                <a-button
-                  type="link"
-                  size="small"
-                  :disabled="index === 0"
-                  @click="handleMoveUp(record, index)"
-                >上移</a-button>
-                <a-button
-                  type="link"
-                  size="small"
-                  :disabled="index === grades.length - 1"
-                  @click="handleMoveDown(record, index)"
-                >下移</a-button>
-                <a-popconfirm
-                  title="确定删除该等级吗？"
-                  ok-text="确定"
-                  cancel-text="取消"
-                  @confirm="handleDelete(record)"
-                >
-                  <a-button type="link" size="small" danger>删除</a-button>
-                </a-popconfirm>
-              </a-space>
-            </template>
-          </template>
-        </a-table>
-      </a-spin>
-    </a-card>
+          </a-table>
+        </a-spin>
+      </a-card>
 
-    <!-- 新增等级弹窗 -->
-    <a-modal
-      v-model:open="addModalVisible"
-      title="新增价格等级"
-      :confirm-loading="addLoading"
-      @ok="handleAddConfirm"
-      @cancel="addModalVisible = false"
-    >
-      <a-form layout="vertical">
-        <a-form-item label="等级名称" required>
-          <a-input v-model:value="newGrade.gradeName" placeholder="例如：VIP客户" :maxlength="20" />
-        </a-form-item>
-        <a-form-item label="等级编码">
-          <a-input v-model:value="newGrade.gradeCode" placeholder="可选，留空自动生成" :maxlength="30" />
-        </a-form-item>
-        <a-form-item label="排序号">
-          <a-input-number v-model:value="newGrade.sortOrder" :min="1" :max="99" style="width: 100%" />
-        </a-form-item>
-        <a-form-item label="备注">
-          <a-textarea v-model:value="newGrade.remark" :rows="2" :maxlength="100" />
-        </a-form-item>
-      </a-form>
-    </a-modal>
-  </PageContainer>
+      <!-- 新增等级弹窗 -->
+      <a-modal
+        v-model:open="addModalVisible"
+        title="新增价格等级"
+        :confirm-loading="addLoading"
+        @ok="handleAddConfirm"
+        @cancel="addModalVisible = false"
+      >
+        <a-form layout="vertical">
+          <a-form-item
+            label="等级名称"
+            required
+          >
+            <a-input
+              v-model:value="newGrade.gradeName"
+              placeholder="例如：VIP客户"
+              :maxlength="20"
+            />
+          </a-form-item>
+          <a-form-item label="等级编码">
+            <a-input
+              v-model:value="newGrade.gradeCode"
+              placeholder="可选，留空自动生成"
+              :maxlength="30"
+            />
+          </a-form-item>
+          <a-form-item label="排序号">
+            <a-input-number
+              v-model:value="newGrade.sortOrder"
+              :min="1"
+              :max="99"
+              style="width: 100%"
+            />
+          </a-form-item>
+          <a-form-item label="备注">
+            <a-textarea
+              v-model:value="newGrade.remark"
+              :rows="2"
+              :maxlength="100"
+            />
+          </a-form-item>
+        </a-form>
+      </a-modal>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

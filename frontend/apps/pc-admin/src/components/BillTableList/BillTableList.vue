@@ -1,7 +1,13 @@
 <template>
-  <div ref="containerRef" class="bill-table-list-container">
+  <div
+    ref="containerRef"
+    class="bill-table-list-container"
+  >
     <!-- 顶部工具栏 -->
-    <div v-if="showToolbar" class="table-toolbar">
+    <div
+      v-if="showToolbar"
+      class="table-toolbar"
+    >
       <div class="toolbar-left">
         <a-space>
           <a-button
@@ -10,7 +16,9 @@
             type="primary"
             @click="debounceClick('add', () => emit('add'))"
           >
-            <template #icon><PlusOutlined /></template>
+            <template #icon>
+              <PlusOutlined />
+            </template>
             {{ addText }}
           </a-button>
           <slot name="toolbar-actions" />
@@ -24,13 +32,15 @@
               size="small"
               @click="showFilterPanel = !showFilterPanel"
             >
-              <template #icon><FilterOutlined /></template>
+              <template #icon>
+                <FilterOutlined />
+              </template>
               筛选
             </a-button>
           </a-tooltip>
           <a-input-search
-            ref="searchInputRef"
             v-if="showSearch"
+            ref="searchInputRef"
             v-model:value="searchKeyword"
             :placeholder="searchPlaceholder"
             style="width: 200px"
@@ -39,13 +49,26 @@
             @search="handleSearch"
           />
           <a-tooltip title="刷新 (F5)">
-            <a-button size="small" @click="debounceClick('refresh', () => emit('refresh'))">
-              <template #icon><ReloadOutlined /></template>
+            <a-button
+              size="small"
+              @click="debounceClick('refresh', () => emit('refresh'))"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
             </a-button>
           </a-tooltip>
-          <a-tooltip v-if="showExport && (!exportPermission || hasPermission(exportPermission))" title="导出">
-            <a-button size="small" @click="debounceClick('export', () => emit('export'))">
-              <template #icon><ExportOutlined /></template>
+          <a-tooltip
+            v-if="showExport && (!exportPermission || hasPermission(exportPermission))"
+            title="导出"
+          >
+            <a-button
+              size="small"
+              @click="debounceClick('export', () => emit('export'))"
+            >
+              <template #icon>
+                <ExportOutlined />
+              </template>
             </a-button>
           </a-tooltip>
         </a-space>
@@ -53,14 +76,21 @@
     </div>
 
     <!-- 筛选面板 -->
-    <div v-if="showFilterPanel" class="filter-panel">
+    <div
+      v-if="showFilterPanel"
+      class="filter-panel"
+    >
       <a-row :gutter="[12, 12]">
         <a-col
           v-for="filter in filterFields"
           :key="filter.key"
           :span="filter.span || 6"
         >
-          <a-form-item :label="filter.label" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }">
+          <a-form-item
+            :label="filter.label"
+            :label-col="{ span: 8 }"
+            :wrapper-col="{ span: 16 }"
+          >
             <a-input
               v-if="filter.type === 'input'"
               v-model:value="filterValues[filter.key]"
@@ -86,25 +116,58 @@
             />
           </a-form-item>
         </a-col>
-        <a-col :span="6" class="filter-actions">
+        <a-col
+          :span="6"
+          class="filter-actions"
+        >
           <a-space>
-            <a-button type="primary" size="small" @click="handleFilterSubmit">查询</a-button>
-            <a-button size="small" @click="handleFilterReset">重置</a-button>
+            <a-button
+              type="primary"
+              size="small"
+              @click="handleFilterSubmit"
+            >
+              查询
+            </a-button>
+            <a-button
+              size="small"
+              @click="handleFilterReset"
+            >
+              重置
+            </a-button>
           </a-space>
         </a-col>
       </a-row>
     </div>
 
     <!-- 批量操作栏 -->
-    <div v-if="selectedRecords.length > 0" class="batch-bar">
+    <div
+      v-if="selectedRecords.length > 0"
+      class="batch-bar"
+    >
       <a-space>
         <span class="batch-info">已选择 {{ selectedRecords.length }} 项</span>
-        <a-button v-if="showBatchDelete && (!deletePermission || hasPermission(deletePermission))" danger size="small" @click="handleBatchDelete">
-          <template #icon><DeleteOutlined /></template>
+        <a-button
+          v-if="showBatchDelete && (!deletePermission || hasPermission(deletePermission))"
+          danger
+          size="small"
+          @click="handleBatchDelete"
+        >
+          <template #icon>
+            <DeleteOutlined />
+          </template>
           批量删除
         </a-button>
-        <slot name="batch-actions" :selected-rows="selectedRecords" />
-        <a-button type="link" size="small" @click="clearSelection">取消选择</a-button>
+        <slot
+          name="batch-actions"
+          :selected-rows="selectedRecords"
+        />
+        <a-button
+          type="link"
+          size="small"
+          @click="clearSelection"
+        >
+          取消选择
+        </a-button>
       </a-space>
     </div>
 
@@ -122,20 +185,29 @@
       @sort-change="handleSortChange"
     >
       <!-- 透传所有插槽 -->
-      <template v-for="(_, name) in $slots" #[name]="slotData">
-        <slot :name="name" v-bind="slotData || {}" />
+      <template
+        v-for="(_, name) in $slots"
+        #[name]="slotData"
+      >
+        <slot
+          :name="name"
+          v-bind="slotData || {}"
+        />
       </template>
     </BillDetailTable>
 
     <!-- 分页 -->
-    <div v-if="pagination" class="table-pagination">
+    <div
+      v-if="pagination"
+      class="table-pagination"
+    >
       <a-pagination
         v-model:current="currentPage"
-        v-model:pageSize="pageSize"
+        v-model:page-size="pageSize"
         :total="paginationTotal"
         :show-size-changer="true"
         :show-quick-jumper="true"
-        :pageSizeOptions="['10', '20', '50', '100']"
+        :page-size-options="['10', '20', '50', '100']"
         :show-total="(total: number) => `共 ${total} 条`"
         size="small"
         @change="handlePageChange"
@@ -261,7 +333,7 @@ const filterValues = reactive<Record<string, any>>({})
 // 分页
 const currentPage = ref((props.pagination as any)?.current || 1)
 const pageSize = ref((props.pagination as any)?.pageSize || 20)
-const paginationTotal = ref((props.pagination as any)?.total || 0)
+const paginationTotal = ref(Number((props.pagination as any)?.total) || 0)
 
 // 表格高度
 const tableHeight = ref(Math.max(300, typeof window !== 'undefined' ? window.innerHeight - 280 : 400))
@@ -351,7 +423,7 @@ watch(() => props.pagination, (val) => {
   if (val && typeof val === 'object') {
     currentPage.value = val.current || 1
     pageSize.value = val.pageSize || 20
-    paginationTotal.value = val.total || 0
+    paginationTotal.value = Number(val.total) || 0
   }
 }, { deep: true })
 

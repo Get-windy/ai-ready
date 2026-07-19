@@ -5,23 +5,38 @@
         <div class="page-header">
           <div class="page-header__left">
             <a-breadcrumb>
-              <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
               <a-breadcrumb-item>财务管理</a-breadcrumb-item>
               <a-breadcrumb-item>资产负债表</a-breadcrumb-item>
             </a-breadcrumb>
-            <h2 class="page-header__title">资产负债表</h2>
+            <h2 class="page-header__title">
+              资产负债表
+            </h2>
           </div>
           <div class="page-header__right">
             <a-badge :status="loading ? 'processing' : 'success'" />
-            <a-button size="small" :loading="loading" @click="fetchData">
-              <template #icon><ReloadOutlined /></template>刷新
+            <a-button
+              size="small"
+              :loading="loading"
+              @click="fetchData"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>刷新
             </a-button>
           </div>
         </div>
       </template>
 
       <div class="search-area">
-        <a-space :size="12" wrap>
+        <a-space
+          :size="12"
+          wrap
+        >
           <span class="search-item">
             <label>年度</label>
             <a-input-number
@@ -30,7 +45,7 @@
               :min="2000"
               :max="2099"
               style="width: 120px"
-              @pressEnter="handleSearch"
+              @press-enter="handleSearch"
             />
           </span>
           <span class="search-item">
@@ -41,14 +56,22 @@
               :min="1"
               :max="12"
               style="width: 120px"
-              @pressEnter="handleSearch"
+              @press-enter="handleSearch"
             />
           </span>
-          <a-button type="primary" :loading="loading" @click="handleSearch">
-            <template #icon><SearchOutlined /></template>查询
+          <a-button
+            type="primary"
+            :loading="loading"
+            @click="handleSearch"
+          >
+            <template #icon>
+              <SearchOutlined />
+            </template>查询
           </a-button>
           <a-button @click="handleReset">
-            <template #icon><ClearOutlined /></template>重置
+            <template #icon>
+              <ClearOutlined />
+            </template>重置
           </a-button>
         </a-space>
       </div>
@@ -69,7 +92,10 @@
             <span class="amount-cell">{{ formatAmount(record.yearStartBalance) }}</span>
           </template>
         </BillTableList>
-        <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
+        <span
+          v-if="lastUpdateTime"
+          class="update-time"
+        >更新于 {{ lastUpdateTime }}</span>
       </div>
     </PageContainer>
   </ErrorBoundary>
@@ -147,7 +173,7 @@ async function fetchData() {
     if (searchParams.year) params.year = searchParams.year
     if (searchParams.period) params.period = searchParams.period
 
-    const res = await request.get('/api/finance/balance-report/page', params) as any
+    const res = await request.get('/finance/balance-report/page', params) as any
     tableData.value = res?.records || res?.data?.records || []
     pagination.total = res?.total || res?.data?.total || 0
     lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')

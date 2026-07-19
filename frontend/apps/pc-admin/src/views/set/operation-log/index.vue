@@ -2,84 +2,201 @@
   <div class="page-container">
     <div class="page-header">
       <div class="page-header__left">
-        <h2 class="page-title">操作日志</h2>
+        <h2 class="page-title">
+          操作日志
+        </h2>
       </div>
       <div class="page-header__right">
         <a-button @click="handleExport">
-          <template #icon><DownloadOutlined /></template>
+          <template #icon>
+            <DownloadOutlined />
+          </template>
           导出
         </a-button>
-        <a-button danger @click="handleClear">
-          <template #icon><DeleteOutlined /></template>
+        <a-button
+          danger
+          @click="handleClear"
+        >
+          <template #icon>
+            <DeleteOutlined />
+          </template>
           清空
         </a-button>
       </div>
     </div>
     <div class="page-container__body">
-      <a-card :bordered="false" class="search-card">
+      <a-card
+        :bordered="false"
+        class="search-card"
+      >
         <a-form layout="inline">
           <a-form-item label="模块">
-            <a-select v-model:value="queryForm.module" placeholder="全部模块" allow-clear style="width: 140px" @change="handleSearch">
-              <a-select-option v-for="m in modules" :key="m" :value="m">{{ m }}</a-select-option>
+            <a-select
+              v-model:value="queryForm.module"
+              placeholder="全部模块"
+              allow-clear
+              style="width: 140px"
+              @change="handleSearch"
+            >
+              <a-select-option
+                v-for="m in modules"
+                :key="m"
+                :value="m"
+              >
+                {{ m }}
+              </a-select-option>
             </a-select>
           </a-form-item>
           <a-form-item label="操作类型">
-            <a-select v-model:value="queryForm.operationType" placeholder="全部类型" allow-clear style="width: 140px" @change="handleSearch">
-              <a-select-option v-for="t in operationTypes" :key="t" :value="t">{{ t }}</a-select-option>
+            <a-select
+              v-model:value="queryForm.operationType"
+              placeholder="全部类型"
+              allow-clear
+              style="width: 140px"
+              @change="handleSearch"
+            >
+              <a-select-option
+                v-for="t in operationTypes"
+                :key="t"
+                :value="t"
+              >
+                {{ t }}
+              </a-select-option>
             </a-select>
           </a-form-item>
           <a-form-item label="操作人">
-            <a-input v-model:value="queryForm.operatorName" placeholder="请输入操作人" allow-clear style="width: 140px" />
+            <a-input
+              v-model:value="queryForm.operatorName"
+              placeholder="请输入操作人"
+              allow-clear
+              style="width: 140px"
+            />
           </a-form-item>
           <a-form-item label="日期范围">
-            <a-range-picker v-model:value="dateRange" @change="handleSearch" />
+            <a-range-picker
+              v-model:value="dateRange"
+              @change="handleSearch"
+            />
           </a-form-item>
           <a-form-item>
-            <a-button type="primary" @click="handleSearch">查询</a-button>
-            <a-button style="margin-left: 8px" @click="handleReset">重置</a-button>
+            <a-button
+              type="primary"
+              @click="handleSearch"
+            >
+              查询
+            </a-button>
+            <a-button
+              style="margin-left: 8px"
+              @click="handleReset"
+            >
+              重置
+            </a-button>
           </a-form-item>
         </a-form>
       </a-card>
-      <a-card :bordered="false" class="table-card">
+      <a-card
+        :bordered="false"
+        class="table-card"
+      >
         <a-table
           :columns="columns"
           :data-source="tableData"
           :loading="loading"
           :pagination="pagination"
           row-key="id"
-          @change="handleTableChange"
           size="small"
+          @change="handleTableChange"
         >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'status'">
-              <a-tag :color="record.status === 0 ? 'success' : 'error'">{{ record.status === 0 ? '成功' : '失败' }}</a-tag>
+              <a-tag :color="record.status === 0 ? 'success' : 'error'">
+                {{ record.status === 0 ? '成功' : '失败' }}
+              </a-tag>
             </template>
             <template v-if="column.key === 'costTime'">
               <span>{{ record.costTime }}ms</span>
             </template>
             <template v-if="column.key === 'action'">
-              <a-button type="link" size="small" @click="showDetail(record)">详情</a-button>
+              <a-button
+                type="link"
+                size="small"
+                @click="showDetail(record)"
+              >
+                详情
+              </a-button>
             </template>
           </template>
         </a-table>
       </a-card>
     </div>
 
-    <a-modal v-model:open="detailVisible" title="操作详情" width="700px" :footer="null">
-      <a-descriptions :column="2" bordered size="small">
-        <a-descriptions-item label="操作编号" :span="2">{{ currentDetail?.id }}</a-descriptions-item>
-        <a-descriptions-item label="模块">{{ currentDetail?.module }}</a-descriptions-item>
-        <a-descriptions-item label="操作类型">{{ currentDetail?.operationType }}</a-descriptions-item>
-        <a-descriptions-item label="操作描述" :span="2">{{ currentDetail?.description }}</a-descriptions-item>
-        <a-descriptions-item label="操作人">{{ currentDetail?.operatorName }}</a-descriptions-item>
-        <a-descriptions-item label="操作时间">{{ currentDetail?.operationTime }}</a-descriptions-item>
-        <a-descriptions-item label="IP地址">{{ currentDetail?.ipAddress }}</a-descriptions-item>
-        <a-descriptions-item label="请求方法">{{ currentDetail?.requestMethod }}</a-descriptions-item>
-        <a-descriptions-item label="请求URL" :span="2">{{ currentDetail?.requestUrl }}</a-descriptions-item>
-        <a-descriptions-item label="耗时">{{ currentDetail?.costTime }}ms</a-descriptions-item>
-        <a-descriptions-item label="状态"><a-tag :color="currentDetail?.status === 0 ? 'success' : 'error'">{{ currentDetail?.status === 0 ? '成功' : '失败' }}</a-tag></a-descriptions-item>
-        <a-descriptions-item label="请求参数" :span="2"><pre style="max-height: 200px; overflow: auto; white-space: pre-wrap;">{{ currentDetail?.requestParams || '-' }}</pre></a-descriptions-item>
-        <a-descriptions-item label="响应结果" :span="2"><pre style="max-height: 200px; overflow: auto; white-space: pre-wrap;">{{ currentDetail?.responseResult || '-' }}</pre></a-descriptions-item>
+    <a-modal
+      v-model:open="detailVisible"
+      title="操作详情"
+      width="700px"
+      :footer="null"
+    >
+      <a-descriptions
+        :column="2"
+        bordered
+        size="small"
+      >
+        <a-descriptions-item
+          label="操作编号"
+          :span="2"
+        >
+          {{ currentDetail?.id }}
+        </a-descriptions-item>
+        <a-descriptions-item label="模块">
+          {{ currentDetail?.module }}
+        </a-descriptions-item>
+        <a-descriptions-item label="操作类型">
+          {{ currentDetail?.operationType }}
+        </a-descriptions-item>
+        <a-descriptions-item
+          label="操作描述"
+          :span="2"
+        >
+          {{ currentDetail?.description }}
+        </a-descriptions-item>
+        <a-descriptions-item label="操作人">
+          {{ currentDetail?.operatorName }}
+        </a-descriptions-item>
+        <a-descriptions-item label="操作时间">
+          {{ currentDetail?.operationTime }}
+        </a-descriptions-item>
+        <a-descriptions-item label="IP地址">
+          {{ currentDetail?.ipAddress }}
+        </a-descriptions-item>
+        <a-descriptions-item label="请求方法">
+          {{ currentDetail?.requestMethod }}
+        </a-descriptions-item>
+        <a-descriptions-item
+          label="请求URL"
+          :span="2"
+        >
+          {{ currentDetail?.requestUrl }}
+        </a-descriptions-item>
+        <a-descriptions-item label="耗时">
+          {{ currentDetail?.costTime }}ms
+        </a-descriptions-item>
+        <a-descriptions-item label="状态">
+          <a-tag :color="currentDetail?.status === 0 ? 'success' : 'error'">
+            {{ currentDetail?.status === 0 ? '成功' : '失败' }}
+          </a-tag>
+        </a-descriptions-item>
+        <a-descriptions-item
+          label="请求参数"
+          :span="2"
+        >
+          <pre style="max-height: 200px; overflow: auto; white-space: pre-wrap;">{{ currentDetail?.requestParams || '-' }}</pre>
+        </a-descriptions-item>
+        <a-descriptions-item
+          label="响应结果"
+          :span="2"
+        >
+          <pre style="max-height: 200px; overflow: auto; white-space: pre-wrap;">{{ currentDetail?.responseResult || '-' }}</pre>
+        </a-descriptions-item>
       </a-descriptions>
     </a-modal>
   </div>

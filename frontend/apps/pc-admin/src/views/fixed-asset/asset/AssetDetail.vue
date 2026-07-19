@@ -1,137 +1,263 @@
 <template>
   <ErrorBoundary @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="page-header">
-        <div class="page-header__left">
-          <span class="page-header__breadcrumb">ERP / 固定资产 / 资产详情</span>
-          <h2 class="page-header__title">{{ assetData?.assetName || '资产详情' }}</h2>
-        </div>
-        <div class="page-header__right">
-          <a-space :size="8">
-            <span v-if="lastUpdated" style="font-size: 12px; color: #999">更新于 {{ lastUpdated }}</span>
-            <a-tag v-if="assetData" :color="statusColor">{{ statusLabel }}</a-tag>
-            <PrintButton :record="assetData" business-type="fixed_asset" button-type="link" button-size="small" tooltip="打印" />
-            <a-button v-permission="'erp:fixed-asset:asset:depreciate'" size="small" type="primary" @click="debounceClick('depreciate', handleDepreciate)" :loading="depreciateLoading">计提折旧</a-button>
-            <a-button size="small" @click="goBack">返回</a-button>
+    <PageContainer full-height>
+      <template #header>
+        <div class="page-header">
+          <div class="page-header__left">
+            <span class="page-header__breadcrumb">ERP / 固定资产 / 资产详情</span>
+            <h2 class="page-header__title">
+              {{ assetData?.assetName || '资产详情' }}
+            </h2>
+          </div>
+          <div class="page-header__right">
+            <a-space :size="8">
+              <span
+                v-if="lastUpdated"
+                style="font-size: 12px; color: #999"
+              >更新于 {{ lastUpdated }}</span>
+              <a-tag
+                v-if="assetData"
+                :color="statusColor"
+              >
+                {{ statusLabel }}
+              </a-tag>
+              <PrintButton
+                :record="assetData"
+                business-type="fixed_asset"
+                button-type="link"
+                button-size="small"
+                tooltip="打印"
+              />
+              <a-button
+                v-permission="'erp:fixed-asset:asset:depreciate'"
+                size="small"
+                type="primary"
+                :loading="depreciateLoading"
+                @click="debounceClick('depreciate', handleDepreciate)"
+              >
+                计提折旧
+              </a-button>
+              <a-button
+                size="small"
+                @click="goBack"
+              >
+                返回
+              </a-button>
           
-                <span class="shortcut-hints">
-                  <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-                </span>
-          </a-space>
+              <span class="shortcut-hints">
+                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+              </span>
+            </a-space>
+          </div>
         </div>
-      </div>
+      </template>
 
-        </template>
-
-    <!-- 加载态 -->
-    <template v-if="loading && !assetData">
-      <a-card size="small" style="margin-bottom: 12px">
-        <a-skeleton active :paragraph="{ rows: 6 }" />
-      </a-card>
-    </template>
-
-    <!-- 错误态 -->
-    <template v-else-if="hasError">
-      <a-result status="error" title="加载失败" sub-title="获取资产详情时发生错误">
-        <template #extra>
-          <a-button size="small" type="primary" @click="fetchData">重新加载</a-button>
-        </template>
-      </a-result>
-    </template>
-
-    <!-- 空数据 -->
-    <template v-else-if="!assetData">
-      <a-result status="404" title="资产不存在" sub-title="未找到该资产或已被删除">
-        <template #extra>
-          <a-button size="small" type="primary" @click="goBack">返回列表</a-button>
-        </template>
-      </a-result>
-    </template>
-
-    <!-- 正常内容 -->
-    <template v-else>
-      <div style="overflow-y: auto; height: 100%; padding-right: 4px">
-        <a-card size="small" title="基本信息" style="margin-bottom: 12px">
-          <a-descriptions :column="3" bordered size="small" :label-style="{ fontWeight: 600, background: '#fafafa', width: 120 }" :content-style="{ background: '#fff' }">
-            <a-descriptions-item label="资产编码">{{ assetData.assetCode }}</a-descriptions-item>
-            <a-descriptions-item label="资产名称">{{ assetData.assetName }}</a-descriptions-item>
-            <a-descriptions-item label="分类">{{ assetData.categoryName || '-' }}</a-descriptions-item>
-            <a-descriptions-item label="购置日期">{{ assetData.purchaseDate || '-' }}</a-descriptions-item>
-            <a-descriptions-item label="原值">{{ formatAmount(assetData.originalValue) }}</a-descriptions-item>
-            <a-descriptions-item label="净值">{{ formatAmount(assetData.netValue) }}</a-descriptions-item>
-            <a-descriptions-item label="折旧方法">{{ methodMap[assetData.depreciationMethod] || '-' }}</a-descriptions-item>
-            <a-descriptions-item label="使用年限(月)">{{ assetData.usefulLife ?? '-' }}</a-descriptions-item>
-            <a-descriptions-item label="残值">{{ formatAmount(assetData.salvageValue) }}</a-descriptions-item>
-            <a-descriptions-item label="残值率">{{ assetData.salvageRate ?? 0 }}%</a-descriptions-item>
-            <a-descriptions-item label="月折旧额">{{ formatAmount(assetData.monthlyDepreciation) }}</a-descriptions-item>
-            <a-descriptions-item label="累计折旧">{{ formatAmount(assetData.accumulatedDepreciation) }}</a-descriptions-item>
-            <a-descriptions-item label="状态">{{ statusMap[assetData.status] || assetData.status }}</a-descriptions-item>
-            <a-descriptions-item label="使用状态">{{ useStatusMap[assetData.useStatus] || assetData.useStatus }}</a-descriptions-item>
-            <a-descriptions-item label="部门">{{ assetData.departmentName || '-' }}</a-descriptions-item>
-            <a-descriptions-item label="保管人">{{ assetData.custodianName || '-' }}</a-descriptions-item>
-            <a-descriptions-item label="存放地点">{{ assetData.location || '-' }}</a-descriptions-item>
-            <a-descriptions-item label="规格型号">{{ assetData.specification || '-' }}</a-descriptions-item>
-            <a-descriptions-item label="品牌">{{ assetData.brand || '-' }}</a-descriptions-item>
-            <a-descriptions-item label="供应商">{{ assetData.supplierName || '-' }}</a-descriptions-item>
-            <a-descriptions-item label="发票号">{{ assetData.invoiceNo || '-' }}</a-descriptions-item>
-            <a-descriptions-item label="保修到期">{{ assetData.warrantyEndDate || '-' }}</a-descriptions-item>
-            <a-descriptions-item label="备注" :span="3">{{ assetData.remark || '-' }}</a-descriptions-item>
-          </a-descriptions>
+      <!-- 加载态 -->
+      <template v-if="loading && !assetData">
+        <a-card
+          size="small"
+          style="margin-bottom: 12px"
+        >
+          <a-skeleton
+            active
+            :paragraph="{ rows: 6 }"
+          />
         </a-card>
+      </template>
 
-        <a-card size="small">
-          <a-tabs v-model:activeKey="detailTab" size="small">
-            <a-tab-pane key="depreciation" tab="折旧历史" :disabled="depreciationLoading">
-              <BillTableList
-                :columns="depreciationVxeColumns"
-                :data-source="depreciationData"
-                :loading="depreciationLoading"
-                row-key="id"
-                :pagination="false as any"
-                :show-toolbar="false"
-                :selectable="false"
-                :show-add="false"
-                :show-search="false"
-                :show-export="false"
-                :show-batch-delete="false"
-              />
-            </a-tab-pane>
-            <a-tab-pane key="transfer" tab="转移记录">
-              <BillTableList
-                :columns="transferVxeColumns"
-                :data-source="transferData"
-                :loading="transferLoading"
-                row-key="id"
-                :pagination="false as any"
-                :show-toolbar="false"
-                :selectable="false"
-                :show-add="false"
-                :show-search="false"
-                :show-export="false"
-                :show-batch-delete="false"
-              />
-            </a-tab-pane>
-            <a-tab-pane key="disposal" tab="处置信息">
-              <BillTableList
-                :columns="disposalVxeColumns"
-                :data-source="disposalData"
-                :loading="disposalLoading"
-                row-key="id"
-                :pagination="false as any"
-                :show-toolbar="false"
-                :selectable="false"
-                :show-add="false"
-                :show-search="false"
-                :show-export="false"
-                :show-batch-delete="false"
-              />
-            </a-tab-pane>
-          </a-tabs>
-        </a-card>
-      </div>
-    </template>
-  </PageContainer>
+      <!-- 错误态 -->
+      <template v-else-if="hasError">
+        <a-result
+          status="error"
+          title="加载失败"
+          sub-title="获取资产详情时发生错误"
+        >
+          <template #extra>
+            <a-button
+              size="small"
+              type="primary"
+              @click="fetchData"
+            >
+              重新加载
+            </a-button>
+          </template>
+        </a-result>
+      </template>
+
+      <!-- 空数据 -->
+      <template v-else-if="!assetData">
+        <a-result
+          status="404"
+          title="资产不存在"
+          sub-title="未找到该资产或已被删除"
+        >
+          <template #extra>
+            <a-button
+              size="small"
+              type="primary"
+              @click="goBack"
+            >
+              返回列表
+            </a-button>
+          </template>
+        </a-result>
+      </template>
+
+      <!-- 正常内容 -->
+      <template v-else>
+        <div style="overflow-y: auto; height: 100%; padding-right: 4px">
+          <a-card
+            size="small"
+            title="基本信息"
+            style="margin-bottom: 12px"
+          >
+            <a-descriptions
+              :column="3"
+              bordered
+              size="small"
+              :label-style="{ fontWeight: 600, background: '#fafafa', width: 120 }"
+              :content-style="{ background: '#fff' }"
+            >
+              <a-descriptions-item label="资产编码">
+                {{ assetData.assetCode }}
+              </a-descriptions-item>
+              <a-descriptions-item label="资产名称">
+                {{ assetData.assetName }}
+              </a-descriptions-item>
+              <a-descriptions-item label="分类">
+                {{ assetData.categoryName || '-' }}
+              </a-descriptions-item>
+              <a-descriptions-item label="购置日期">
+                {{ assetData.purchaseDate || '-' }}
+              </a-descriptions-item>
+              <a-descriptions-item label="原值">
+                {{ formatAmount(assetData.originalValue) }}
+              </a-descriptions-item>
+              <a-descriptions-item label="净值">
+                {{ formatAmount(assetData.netValue) }}
+              </a-descriptions-item>
+              <a-descriptions-item label="折旧方法">
+                {{ methodMap[assetData.depreciationMethod] || '-' }}
+              </a-descriptions-item>
+              <a-descriptions-item label="使用年限(月)">
+                {{ assetData.usefulLife ?? '-' }}
+              </a-descriptions-item>
+              <a-descriptions-item label="残值">
+                {{ formatAmount(assetData.salvageValue) }}
+              </a-descriptions-item>
+              <a-descriptions-item label="残值率">
+                {{ assetData.salvageRate ?? 0 }}%
+              </a-descriptions-item>
+              <a-descriptions-item label="月折旧额">
+                {{ formatAmount(assetData.monthlyDepreciation) }}
+              </a-descriptions-item>
+              <a-descriptions-item label="累计折旧">
+                {{ formatAmount(assetData.accumulatedDepreciation) }}
+              </a-descriptions-item>
+              <a-descriptions-item label="状态">
+                {{ statusMap[assetData.status] || assetData.status }}
+              </a-descriptions-item>
+              <a-descriptions-item label="使用状态">
+                {{ useStatusMap[assetData.useStatus] || assetData.useStatus }}
+              </a-descriptions-item>
+              <a-descriptions-item label="部门">
+                {{ assetData.departmentName || '-' }}
+              </a-descriptions-item>
+              <a-descriptions-item label="保管人">
+                {{ assetData.custodianName || '-' }}
+              </a-descriptions-item>
+              <a-descriptions-item label="存放地点">
+                {{ assetData.location || '-' }}
+              </a-descriptions-item>
+              <a-descriptions-item label="规格型号">
+                {{ assetData.specification || '-' }}
+              </a-descriptions-item>
+              <a-descriptions-item label="品牌">
+                {{ assetData.brand || '-' }}
+              </a-descriptions-item>
+              <a-descriptions-item label="供应商">
+                {{ assetData.supplierName || '-' }}
+              </a-descriptions-item>
+              <a-descriptions-item label="发票号">
+                {{ assetData.invoiceNo || '-' }}
+              </a-descriptions-item>
+              <a-descriptions-item label="保修到期">
+                {{ assetData.warrantyEndDate || '-' }}
+              </a-descriptions-item>
+              <a-descriptions-item
+                label="备注"
+                :span="3"
+              >
+                {{ assetData.remark || '-' }}
+              </a-descriptions-item>
+            </a-descriptions>
+          </a-card>
+
+          <a-card size="small">
+            <a-tabs
+              v-model:active-key="detailTab"
+              size="small"
+            >
+              <a-tab-pane
+                key="depreciation"
+                tab="折旧历史"
+                :disabled="depreciationLoading"
+              >
+                <BillTableList
+                  :columns="depreciationVxeColumns"
+                  :data-source="depreciationData"
+                  :loading="depreciationLoading"
+                  row-key="id"
+                  :pagination="false as any"
+                  :show-toolbar="false"
+                  :selectable="false"
+                  :show-add="false"
+                  :show-search="false"
+                  :show-export="false"
+                  :show-batch-delete="false"
+                />
+              </a-tab-pane>
+              <a-tab-pane
+                key="transfer"
+                tab="转移记录"
+              >
+                <BillTableList
+                  :columns="transferVxeColumns"
+                  :data-source="transferData"
+                  :loading="transferLoading"
+                  row-key="id"
+                  :pagination="false as any"
+                  :show-toolbar="false"
+                  :selectable="false"
+                  :show-add="false"
+                  :show-search="false"
+                  :show-export="false"
+                  :show-batch-delete="false"
+                />
+              </a-tab-pane>
+              <a-tab-pane
+                key="disposal"
+                tab="处置信息"
+              >
+                <BillTableList
+                  :columns="disposalVxeColumns"
+                  :data-source="disposalData"
+                  :loading="disposalLoading"
+                  row-key="id"
+                  :pagination="false as any"
+                  :show-toolbar="false"
+                  :selectable="false"
+                  :show-add="false"
+                  :show-search="false"
+                  :show-export="false"
+                  :show-batch-delete="false"
+                />
+              </a-tab-pane>
+            </a-tabs>
+          </a-card>
+        </div>
+      </template>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

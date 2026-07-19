@@ -1,162 +1,261 @@
 <template>
   <ErrorBoundary @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="capital-flow-page-header">
-        <div class="capital-flow-page-header-left">
-          <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item>财务管理</a-breadcrumb-item>
-            <a-breadcrumb-item>资金流水台账</a-breadcrumb-item>
-          </a-breadcrumb>
-          <h2 class="capital-flow-page-header-title">资金流水台账</h2>
-        </div>
-        <div class="capital-flow-page-header-right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-            <SyncOutlined /> {{ autoRefreshCountdown }}s
-          </span>
-          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)">
-            <template #icon><ReloadOutlined /></template>
-            刷新
-          </a-button>
-          <a-button v-permission="'finance:capital-flow:export'" size="small" @click="handleExport">
-            <template #icon><DownloadOutlined /></template>
-            导出
-          </a-button>
-          <span class="shortcut-hints">
-            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-          </span>
-        </div>
-      </div>
-    </template>
-
-    <div class="finance-capital-flow-page">
-      <!-- 统计卡片 -->
-      <div class="stat-cards">
-        <div class="stat-card stat-total">
-          <div class="stat-card-body">
-            <div class="stat-card-value">¥{{ formatAmount(stats.inflowAmount) }}</div>
-            <div class="stat-card-label">流入总额</div>
+    <PageContainer full-height>
+      <template #header>
+        <div class="capital-flow-page-header">
+          <div class="capital-flow-page-header-left">
+            <a-breadcrumb>
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>财务管理</a-breadcrumb-item>
+              <a-breadcrumb-item>资金流水台账</a-breadcrumb-item>
+            </a-breadcrumb>
+            <h2 class="capital-flow-page-header-title">
+              资金流水台账
+            </h2>
           </div>
-          <ArrowDownOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-written-off">
-          <div class="stat-card-body">
-            <div class="stat-card-value">¥{{ formatAmount(stats.outflowAmount) }}</div>
-            <div class="stat-card-label">流出总额</div>
-          </div>
-          <ArrowUpOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-balance">
-          <div class="stat-card-body">
-            <div class="stat-card-value">¥{{ formatAmount(stats.netFlow) }}</div>
-            <div class="stat-card-label">净流量</div>
-          </div>
-          <SwapOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-count">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ stats.totalCount }}</div>
-            <div class="stat-card-label">笔数</div>
-          </div>
-          <FileTextOutlined class="stat-card-icon" />
-        </div>
-      </div>
-
-      <BillTableList
-        ref="tableRef"
-        :min-empty-rows="12"
-        :columns="columns"
-        :data-source="tableData"
-        :loading="loading"
-        :pagination="pagination"
-        :row-key="'id'"
-        :filter-fields="filterFields"
-        :show-search="false"
-        export-permission="finance:capital-flow:list"
-        :show-add="false"
-        :show-edit="false"
-        :show-delete="false"
-        :selectable="false"
-        @refresh="fetchData"
-        @page-change="handlePageChange"
-        @filter-change="handleFilterChange"
-      >
-        <template #toolbar-actions>
-          <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
-            更新 {{ dayjs(lastUpdated).format('HH:mm') }}
-          </span>
-        </template>
-        <template #batch-actions>
-          <!-- 预留批量操作 -->
-        </template>
-
-        <template #empty>
-          <div class="table-empty">
-            <template v-if="hasError">
-              <WarningOutlined class="table-empty-icon" style="color: #faad14" />
-              <p class="table-empty-text">加载失败</p>
-              <a-button type="primary" size="small" @click="fetchData" class="table-empty-action">
-                <ReloadOutlined /> 重试
-              </a-button>
-            </template>
-            <template v-else>
-              <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-              <InboxOutlined v-else class="table-empty-icon" />
-              <p v-if="hasActiveFilters" class="table-empty-text">
-                没有符合条件的资金流水，<a @click="handleResetFilters">清除筛选</a>
-              </p>
-              <p v-else class="table-empty-text">
-                暂无资金流水数据
-              </p>
-            </template>
-          </div>
-        </template>
-
-        <template #flowTypeCell="{ record }">
-          <span>{{ flowTypeLabelMap[record.flowType] || record.flowType }}</span>
-        </template>
-        <template #directionCell="{ record }">
-          <a-tag :color="record.direction === 'IN' ? 'success' : 'error'">
-            {{ record.direction === 'IN' ? '流入' : '流出' }}
-          </a-tag>
-        </template>
-        <template #action="{ record }">
-          <a-space :size="0" class="action-cell-inner">
-            <a-button v-permission="'finance:capital-flow:view'" type="link" size="small" @click="handleView(record)">
-              查看
+          <div class="capital-flow-page-header-right">
+            <span
+              v-if="lastUpdateTime"
+              class="update-time"
+            >更新于 {{ lastUpdateTime }}</span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            >
+              <SyncOutlined /> {{ autoRefreshCountdown }}s
+            </span>
+            <a-button
+              size="small"
+              :loading="refreshLoading"
+              @click="debounceClick('refresh', fetchData)"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
+              刷新
             </a-button>
-          </a-space>
-        </template>
-      </BillTableList>
+            <a-button
+              v-permission="'finance:capital-flow:export'"
+              size="small"
+              @click="handleExport"
+            >
+              <template #icon>
+                <DownloadOutlined />
+              </template>
+              导出
+            </a-button>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            </span>
+          </div>
+        </div>
+      </template>
 
-      <!-- 查看详情弹窗 -->
-      <FullScreenDetail
-        :visible="detailVisible"
-        :title="`流水详情 - ${detailData?.flowNo || ''}`"
-        @close="handleDetailClose"
-      >
-        <a-descriptions v-if="detailData" :column="1" bordered size="small">
-          <a-descriptions-item label="流水号">{{ detailData.flowNo }}</a-descriptions-item>
-          <a-descriptions-item label="业务类型">{{ flowTypeLabelMap[detailData.flowType] || detailData.flowType }}</a-descriptions-item>
-          <a-descriptions-item label="方向">
-            <a-tag :color="detailData.direction === 'IN' ? 'success' : 'error'">
-              {{ detailData.direction === 'IN' ? '流入' : '流出' }}
+      <div class="finance-capital-flow-page">
+        <!-- 统计卡片 -->
+        <div class="stat-cards">
+          <div class="stat-card stat-total">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                ¥{{ formatAmount(stats.inflowAmount) }}
+              </div>
+              <div class="stat-card-label">
+                流入总额
+              </div>
+            </div>
+            <ArrowDownOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-written-off">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                ¥{{ formatAmount(stats.outflowAmount) }}
+              </div>
+              <div class="stat-card-label">
+                流出总额
+              </div>
+            </div>
+            <ArrowUpOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-balance">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                ¥{{ formatAmount(stats.netFlow) }}
+              </div>
+              <div class="stat-card-label">
+                净流量
+              </div>
+            </div>
+            <SwapOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-count">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ stats.totalCount }}
+              </div>
+              <div class="stat-card-label">
+                笔数
+              </div>
+            </div>
+            <FileTextOutlined class="stat-card-icon" />
+          </div>
+        </div>
+
+        <BillTableList
+          ref="tableRef"
+          :min-empty-rows="12"
+          :columns="columns"
+          :data-source="tableData"
+          :loading="loading"
+          :pagination="pagination"
+          :row-key="'id'"
+          :filter-fields="filterFields"
+          :show-search="false"
+          export-permission="finance:capital-flow:list"
+          :show-add="false"
+          :show-edit="false"
+          :show-delete="false"
+          :selectable="false"
+          @refresh="fetchData"
+          @page-change="handlePageChange"
+          @filter-change="handleFilterChange"
+        >
+          <template #toolbar-actions>
+            <span
+              v-if="lastUpdated"
+              class="list-update-timestamp"
+              :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')"
+            >
+              更新 {{ dayjs(lastUpdated).format('HH:mm') }}
+            </span>
+          </template>
+          <template #batch-actions>
+          <!-- 预留批量操作 -->
+          </template>
+
+          <template #empty>
+            <div class="table-empty">
+              <template v-if="hasError">
+                <WarningOutlined
+                  class="table-empty-icon"
+                  style="color: #faad14"
+                />
+                <p class="table-empty-text">
+                  加载失败
+                </p>
+                <a-button
+                  type="primary"
+                  size="small"
+                  class="table-empty-action"
+                  @click="fetchData"
+                >
+                  <ReloadOutlined /> 重试
+                </a-button>
+              </template>
+              <template v-else>
+                <SearchOutlined
+                  v-if="hasActiveFilters"
+                  class="table-empty-icon"
+                />
+                <InboxOutlined
+                  v-else
+                  class="table-empty-icon"
+                />
+                <p
+                  v-if="hasActiveFilters"
+                  class="table-empty-text"
+                >
+                  没有符合条件的资金流水，<a @click="handleResetFilters">清除筛选</a>
+                </p>
+                <p
+                  v-else
+                  class="table-empty-text"
+                >
+                  暂无资金流水数据
+                </p>
+              </template>
+            </div>
+          </template>
+
+          <template #flowTypeCell="{ record }">
+            <span>{{ flowTypeLabelMap[record.flowType] || record.flowType }}</span>
+          </template>
+          <template #directionCell="{ record }">
+            <a-tag :color="record.direction === 'IN' ? 'success' : 'error'">
+              {{ record.direction === 'IN' ? '流入' : '流出' }}
             </a-tag>
-          </a-descriptions-item>
-          <a-descriptions-item label="金额">¥{{ formatAmount(detailData.amount) }}</a-descriptions-item>
-          <a-descriptions-item label="余额">¥{{ formatAmount(detailData.balance) }}</a-descriptions-item>
-          <a-descriptions-item label="对方名称">{{ detailData.partyName }}</a-descriptions-item>
-          <a-descriptions-item label="发生日期">{{ detailData.occurDate }}</a-descriptions-item>
-          <a-descriptions-item label="付款方式">{{ detailData.paymentMethod || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="交易号">{{ detailData.transactionNo || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="备注">{{ detailData.remark || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="创建时间">{{ detailData.createTime }}</a-descriptions-item>
-        </a-descriptions>
-      </FullScreenDetail>
-    </div>
-  </PageContainer>
+          </template>
+          <template #action="{ record }">
+            <a-space
+              :size="0"
+              class="action-cell-inner"
+            >
+              <a-button
+                v-permission="'finance:capital-flow:view'"
+                type="link"
+                size="small"
+                @click="handleView(record)"
+              >
+                查看
+              </a-button>
+            </a-space>
+          </template>
+        </BillTableList>
+
+        <!-- 查看详情弹窗 -->
+        <FullScreenDetail
+          :visible="detailVisible"
+          :title="`流水详情 - ${detailData?.flowNo || ''}`"
+          @close="handleDetailClose"
+        >
+          <a-descriptions
+            v-if="detailData"
+            :column="1"
+            bordered
+            size="small"
+          >
+            <a-descriptions-item label="流水号">
+              {{ detailData.flowNo }}
+            </a-descriptions-item>
+            <a-descriptions-item label="业务类型">
+              {{ flowTypeLabelMap[detailData.flowType] || detailData.flowType }}
+            </a-descriptions-item>
+            <a-descriptions-item label="方向">
+              <a-tag :color="detailData.direction === 'IN' ? 'success' : 'error'">
+                {{ detailData.direction === 'IN' ? '流入' : '流出' }}
+              </a-tag>
+            </a-descriptions-item>
+            <a-descriptions-item label="金额">
+              ¥{{ formatAmount(detailData.amount) }}
+            </a-descriptions-item>
+            <a-descriptions-item label="余额">
+              ¥{{ formatAmount(detailData.balance) }}
+            </a-descriptions-item>
+            <a-descriptions-item label="对方名称">
+              {{ detailData.partyName }}
+            </a-descriptions-item>
+            <a-descriptions-item label="发生日期">
+              {{ detailData.occurDate }}
+            </a-descriptions-item>
+            <a-descriptions-item label="付款方式">
+              {{ detailData.paymentMethod || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item label="交易号">
+              {{ detailData.transactionNo || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item label="备注">
+              {{ detailData.remark || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item label="创建时间">
+              {{ detailData.createTime }}
+            </a-descriptions-item>
+          </a-descriptions>
+        </FullScreenDetail>
+      </div>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

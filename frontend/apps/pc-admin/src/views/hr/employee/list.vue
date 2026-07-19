@@ -2,37 +2,75 @@
   <div class="page-container">
     <div class="page-header">
       <div class="page-header__left">
-        <h2 class="page-title">员工管理</h2>
+        <h2 class="page-title">
+          员工管理
+        </h2>
       </div>
       <div class="page-header__right">
-        <a-button type="primary" @click="showCreateModal">
-          <template #icon><PlusOutlined /></template>
+        <a-button
+          type="primary"
+          @click="showCreateModal"
+        >
+          <template #icon>
+            <PlusOutlined />
+          </template>
           新增员工
         </a-button>
       </div>
     </div>
 
     <div class="page-container__body">
-      <a-card :bordered="false" class="search-card">
+      <a-card
+        :bordered="false"
+        class="search-card"
+      >
         <a-form layout="inline">
           <a-form-item label="员工姓名">
-            <a-input v-model:value="searchForm.employeeName" placeholder="请输入员工姓名" allow-clear />
+            <a-input
+              v-model:value="searchForm.employeeName"
+              placeholder="请输入员工姓名"
+              allow-clear
+            />
           </a-form-item>
           <a-form-item label="状态">
-            <a-select v-model:value="searchForm.status" placeholder="请选择状态" allow-clear style="width: 120px">
-              <a-select-option :value="1">在职</a-select-option>
-              <a-select-option :value="2">试用</a-select-option>
-              <a-select-option :value="0">离职</a-select-option>
+            <a-select
+              v-model:value="searchForm.status"
+              placeholder="请选择状态"
+              allow-clear
+              style="width: 120px"
+            >
+              <a-select-option :value="1">
+                在职
+              </a-select-option>
+              <a-select-option :value="2">
+                试用
+              </a-select-option>
+              <a-select-option :value="0">
+                离职
+              </a-select-option>
             </a-select>
           </a-form-item>
           <a-form-item>
-            <a-button type="primary" @click="handleSearch">查询</a-button>
-            <a-button style="margin-left: 8px" @click="handleReset">重置</a-button>
+            <a-button
+              type="primary"
+              @click="handleSearch"
+            >
+              查询
+            </a-button>
+            <a-button
+              style="margin-left: 8px"
+              @click="handleReset"
+            >
+              重置
+            </a-button>
           </a-form-item>
         </a-form>
       </a-card>
 
-      <a-card :bordered="false" class="table-card">
+      <a-card
+        :bordered="false"
+        class="table-card"
+      >
         <a-table
           :columns="columns"
           :data-source="tableData"
@@ -55,10 +93,37 @@
             </template>
             <template v-if="column.key === 'action'">
               <a-space>
-                <a-button type="link" size="small" @click="showEditModal(record)">编辑</a-button>
-                <a-button type="link" size="small" @click="showContracts(record)">合同</a-button>
-                <a-button type="link" size="small" v-if="record.status === 2" @click="handleRegularize(record)">转正</a-button>
-                <a-button type="link" size="small" danger v-if="record.status === 1" @click="handleResign(record)">离职</a-button>
+                <a-button
+                  type="link"
+                  size="small"
+                  @click="showEditModal(record)"
+                >
+                  编辑
+                </a-button>
+                <a-button
+                  type="link"
+                  size="small"
+                  @click="showContracts(record)"
+                >
+                  合同
+                </a-button>
+                <a-button
+                  v-if="record.status === 2"
+                  type="link"
+                  size="small"
+                  @click="handleRegularize(record)"
+                >
+                  转正
+                </a-button>
+                <a-button
+                  v-if="record.status === 1"
+                  type="link"
+                  size="small"
+                  danger
+                  @click="handleResign(record)"
+                >
+                  离职
+                </a-button>
               </a-space>
             </template>
           </template>
@@ -73,82 +138,146 @@
       width="700px"
       @ok="handleSave"
     >
-      <a-form :label-col="{ span: 4 }" :wrapper-col="{ span: 18 }">
+      <a-form
+        :label-col="{ span: 4 }"
+        :wrapper-col="{ span: 18 }"
+      >
         <a-row :gutter="16">
           <a-col :span="12">
             <a-form-item label="员工编号">
-              <a-input v-model:value="form.employeeNo" placeholder="请输入员工编号" :disabled="!!editingId" />
+              <a-input
+                v-model:value="form.employeeNo"
+                placeholder="请输入员工编号"
+                :disabled="!!editingId"
+              />
             </a-form-item>
           </a-col>
           <a-col :span="12">
-            <a-form-item label="员工姓名" required>
-              <a-input v-model:value="form.employeeName" placeholder="请输入员工姓名" />
+            <a-form-item
+              label="员工姓名"
+              required
+            >
+              <a-input
+                v-model:value="form.employeeName"
+                placeholder="请输入员工姓名"
+              />
             </a-form-item>
           </a-col>
         </a-row>
         <a-row :gutter="16">
           <a-col :span="12">
             <a-form-item label="性别">
-              <a-select v-model:value="form.gender" placeholder="请选择性别">
-                <a-select-option :value="1">男</a-select-option>
-                <a-select-option :value="2">女</a-select-option>
+              <a-select
+                v-model:value="form.gender"
+                placeholder="请选择性别"
+              >
+                <a-select-option :value="1">
+                  男
+                </a-select-option>
+                <a-select-option :value="2">
+                  女
+                </a-select-option>
               </a-select>
             </a-form-item>
           </a-col>
           <a-col :span="12">
             <a-form-item label="出生日期">
-              <a-date-picker v-model:value="form.birthDate" placeholder="请选择出生日期" />
+              <a-date-picker
+                v-model:value="form.birthDate"
+                placeholder="请选择出生日期"
+              />
             </a-form-item>
           </a-col>
         </a-row>
         <a-row :gutter="16">
           <a-col :span="12">
             <a-form-item label="手机号">
-              <a-input v-model:value="form.phone" placeholder="请输入手机号" />
+              <a-input
+                v-model:value="form.phone"
+                placeholder="请输入手机号"
+              />
             </a-form-item>
           </a-col>
           <a-col :span="12">
             <a-form-item label="邮箱">
-              <a-input v-model:value="form.email" placeholder="请输入邮箱" />
+              <a-input
+                v-model:value="form.email"
+                placeholder="请输入邮箱"
+              />
             </a-form-item>
           </a-col>
         </a-row>
         <a-row :gutter="16">
           <a-col :span="12">
             <a-form-item label="身份证号">
-              <a-input v-model:value="form.idCard" placeholder="请输入身份证号" />
+              <a-input
+                v-model:value="form.idCard"
+                placeholder="请输入身份证号"
+              />
             </a-form-item>
           </a-col>
           <a-col :span="12">
             <a-form-item label="学历">
-              <a-select v-model:value="form.education" placeholder="请选择学历">
-                <a-select-option :value="4">大专</a-select-option>
-                <a-select-option :value="5">本科</a-select-option>
-                <a-select-option :value="6">硕士</a-select-option>
-                <a-select-option :value="7">博士</a-select-option>
+              <a-select
+                v-model:value="form.education"
+                placeholder="请选择学历"
+              >
+                <a-select-option :value="4">
+                  大专
+                </a-select-option>
+                <a-select-option :value="5">
+                  本科
+                </a-select-option>
+                <a-select-option :value="6">
+                  硕士
+                </a-select-option>
+                <a-select-option :value="7">
+                  博士
+                </a-select-option>
               </a-select>
             </a-form-item>
           </a-col>
         </a-row>
         <a-row :gutter="16">
           <a-col :span="12">
-            <a-form-item label="入职日期" required>
-              <a-date-picker v-model:value="form.hireDate" placeholder="请选择入职日期" />
+            <a-form-item
+              label="入职日期"
+              required
+            >
+              <a-date-picker
+                v-model:value="form.hireDate"
+                placeholder="请选择入职日期"
+              />
             </a-form-item>
           </a-col>
           <a-col :span="12">
             <a-form-item label="员工类型">
-              <a-select v-model:value="form.employeeType" placeholder="请选择员工类型">
-                <a-select-option :value="1">全职</a-select-option>
-                <a-select-option :value="2">兼职</a-select-option>
-                <a-select-option :value="3">实习</a-select-option>
-                <a-select-option :value="4">外包</a-select-option>
+              <a-select
+                v-model:value="form.employeeType"
+                placeholder="请选择员工类型"
+              >
+                <a-select-option :value="1">
+                  全职
+                </a-select-option>
+                <a-select-option :value="2">
+                  兼职
+                </a-select-option>
+                <a-select-option :value="3">
+                  实习
+                </a-select-option>
+                <a-select-option :value="4">
+                  外包
+                </a-select-option>
               </a-select>
             </a-form-item>
           </a-col>
         </a-row>
         <a-form-item label="备注">
-          <a-textarea v-model:value="form.remark" placeholder="请输入备注" :rows="2" />
+          <a-textarea
+            v-model:value="form.remark"
+            placeholder="请输入备注"
+            :rows="2"
+          />
         </a-form-item>
       </a-form>
     </a-modal>
@@ -168,27 +297,55 @@
         row-key="id"
         size="small"
       >
-        <a-table-column title="合同编号" data-index="contractNo" :width="140" />
-        <a-table-column title="合同名称" data-index="contractName" />
-        <a-table-column title="合同类型" :width="100">
+        <a-table-column
+          title="合同编号"
+          data-index="contractNo"
+          :width="140"
+        />
+        <a-table-column
+          title="合同名称"
+          data-index="contractName"
+        />
+        <a-table-column
+          title="合同类型"
+          :width="100"
+        >
           <template #default="{ record }">
             {{ CONTRACT_TYPE_MAP[record.contractType] || record.contractType }}
           </template>
         </a-table-column>
-        <a-table-column title="开始日期" data-index="startDate" :width="100" />
-        <a-table-column title="结束日期" data-index="endDate" :width="100" />
-        <a-table-column title="约定薪资" data-index="salaryAmount" :width="100">
+        <a-table-column
+          title="开始日期"
+          data-index="startDate"
+          :width="100"
+        />
+        <a-table-column
+          title="结束日期"
+          data-index="endDate"
+          :width="100"
+        />
+        <a-table-column
+          title="约定薪资"
+          data-index="salaryAmount"
+          :width="100"
+        >
           <template #default="{ record }">
             ¥{{ record.salaryAmount?.toFixed(2) ?? '-' }}
           </template>
         </a-table-column>
-        <a-table-column title="状态" :width="70">
+        <a-table-column
+          title="状态"
+          :width="70"
+        >
           <template #default="{ record }">
             {{ CONTRACT_STATUS_MAP[record.status] || record.status }}
           </template>
         </a-table-column>
       </a-table>
-      <div v-if="!contractsList.length" style="text-align:center;padding:24px;color:#999;">
+      <div
+        v-if="!contractsList.length"
+        style="text-align:center;padding:24px;color:#999;"
+      >
         暂无合同记录
       </div>
     </a-modal>

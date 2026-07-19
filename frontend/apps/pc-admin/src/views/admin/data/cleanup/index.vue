@@ -4,29 +4,57 @@
       <div class="page-header">
         <div class="page-header-left">
           <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>
+              <router-link to="/">
+                首页
+              </router-link>
+            </a-breadcrumb-item>
             <a-breadcrumb-item>系统管理</a-breadcrumb-item>
             <a-breadcrumb-item>清理规则</a-breadcrumb-item>
           </a-breadcrumb>
-          <h2 class="page-header-title">清理规则</h2>
+          <h2 class="page-header-title">
+            清理规则
+          </h2>
         </div>
         <div class="page-header-right">
-          <a-button type="primary" size="small" @click="handleCreate">
-            <template #icon><PlusOutlined /></template>
+          <a-button
+            type="primary"
+            size="small"
+            @click="handleCreate"
+          >
+            <template #icon>
+              <PlusOutlined />
+            </template>
             新增规则
           </a-button>
-          <a-button size="small" @click="fetchData" :loading="loading" style="margin-left:8px">
-            <template #icon><ReloadOutlined /></template>
+          <a-button
+            size="small"
+            :loading="loading"
+            style="margin-left:8px"
+            @click="fetchData"
+          >
+            <template #icon>
+              <ReloadOutlined />
+            </template>
             刷新
           </a-button>
         </div>
       </div>
     </template>
 
-    <a-card :bordered="false" title="数据清理规则">
+    <a-card
+      :bordered="false"
+      title="数据清理规则"
+    >
       <template #extra>
-        <a-button size="small" @click="handleCleanNow" :loading="cleaning">
-          <template #icon><ClearOutlined /></template>
+        <a-button
+          size="small"
+          :loading="cleaning"
+          @click="handleCleanNow"
+        >
+          <template #icon>
+            <ClearOutlined />
+          </template>
           立即清理
         </a-button>
       </template>
@@ -41,13 +69,20 @@
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'enabled'">
-            <a-switch v-model:checked="record.enabled" size="small" @change="toggleRule(record)" />
+            <a-switch
+              v-model:checked="record.enabled"
+              size="small"
+              @change="toggleRule(record)"
+            />
           </template>
           <template v-if="column.key === 'action'">
             <a-space>
               <a @click="editRule(record)">编辑</a>
               <a-divider type="vertical" />
-              <a-popconfirm title="确定删除此规则?" @confirm="deleteRule(record)">
+              <a-popconfirm
+                title="确定删除此规则?"
+                @confirm="deleteRule(record)"
+              >
                 <a class="text-danger">删除</a>
               </a-popconfirm>
             </a-space>
@@ -57,7 +92,11 @@
     </a-card>
 
     <!-- 清理执行日志 -->
-    <a-card :bordered="false" title="清理执行日志" style="margin-top:16px">
+    <a-card
+      :bordered="false"
+      title="清理执行日志"
+      style="margin-top:16px"
+    >
       <a-table
         :data-source="cleanLogs"
         :columns="logColumns"
@@ -67,16 +106,80 @@
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'status'">
-            <a-tag :color="record.status === 'success' ? 'green' : 'red'">{{ record.status === 'success' ? '成功' : '失败' }}</a-tag>
+            <a-tag :color="record.status === 'success' ? 'green' : 'red'">
+              {{ record.status === 'success' ? '成功' : '失败' }}
+            </a-tag>
           </template>
         </template>
       </a-table>
     </a-card>
+
+    <!-- 新增/编辑清理规则弹窗 -->
+    <a-modal
+      v-model:open="modalVisible"
+      :title="editingRecord ? '编辑清理规则' : '新增清理规则'"
+      :confirm-loading="modalLoading"
+      :width="520"
+      @ok="handleModalOk"
+      @cancel="modalVisible = false"
+    >
+      <a-form
+        :label-col="{ span: 6 }"
+        :wrapper-col="{ span: 16 }"
+        style="margin-top: 16px"
+      >
+        <a-form-item
+          label="规则名称"
+          required
+        >
+          <a-input
+            v-model:value="modalForm.ruleName"
+            placeholder="请输入规则名称"
+          />
+        </a-form-item>
+        <a-form-item
+          label="目标数据表"
+          required
+        >
+          <a-input
+            v-model:value="modalForm.targetTable"
+            placeholder="如: sys_operation_log"
+          />
+        </a-form-item>
+        <a-form-item label="条件列">
+          <a-input
+            v-model:value="modalForm.conditionColumn"
+            placeholder="如: create_time"
+          />
+        </a-form-item>
+        <a-form-item label="保留天数">
+          <a-input-number
+            v-model:value="modalForm.retentionDays"
+            :min="1"
+            style="width: 100%"
+            placeholder="超过天数的数据将被清理"
+          />
+        </a-form-item>
+        <a-form-item label="Cron表达式">
+          <a-input
+            v-model:value="modalForm.cronExpression"
+            placeholder="如: 0 0 3 * * ?"
+          />
+        </a-form-item>
+        <a-form-item label="描述">
+          <a-textarea
+            v-model:value="modalForm.description"
+            :rows="2"
+            placeholder="规则描述"
+          />
+        </a-form-item>
+      </a-form>
+    </a-modal>
   </PageContainer>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined, ReloadOutlined, ClearOutlined } from '@ant-design/icons-vue'
 import request from '@/utils/request'
@@ -85,6 +188,12 @@ const loading = ref(false)
 const cleaning = ref(false)
 const list = ref<any[]>([])
 const cleanLogs = ref<any[]>([])
+
+// ── 弹窗状态 ──
+const modalVisible = ref(false)
+const modalLoading = ref(false)
+const editingRecord = ref<any>(null)
+const modalForm = reactive<Record<string, any>>({})
 
 const columns = [
   { title: '规则名称', dataIndex: 'name', key: 'name', minWidth: 160 },
@@ -106,11 +215,38 @@ const logColumns = [
 ]
 
 function handleCreate() {
-  message.info('新增清理规则功能开发中')
+  editingRecord.value = null
+  Object.keys(modalForm).forEach(k => delete modalForm[k])
+  modalForm.retentionDays = 90
+  modalForm.status = 'running'
+  modalVisible.value = true
 }
 
 function editRule(record: any) {
-  message.info('编辑清理规则: ' + record.name)
+  editingRecord.value = record
+  Object.assign(modalForm, { ...record })
+  modalVisible.value = true
+}
+
+async function handleModalOk() {
+  if (!modalForm.ruleName?.trim()) { message.warning('请输入规则名称'); return }
+  if (!modalForm.targetTable?.trim()) { message.warning('请输入目标数据表'); return }
+  modalLoading.value = true
+  try {
+    if (editingRecord.value) {
+      await request.put('/data-source/cleanup/' + editingRecord.value.id, modalForm)
+      message.success('更新成功')
+    } else {
+      await request.post('/data-source/cleanup/', modalForm)
+      message.success('创建成功')
+    }
+    modalVisible.value = false
+    fetchData()
+  } catch (e: any) {
+    message.error(e.message || '操作失败')
+  } finally {
+    modalLoading.value = false
+  }
 }
 
 async function toggleRule(record: any) {

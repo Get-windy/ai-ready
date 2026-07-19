@@ -1,159 +1,298 @@
 <template>
   <ErrorBoundary @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="purchase-exchange-header">
-        <div class="purchase-exchange-header__left">
-          <span class="purchase-exchange-header__breadcrumb">ERP / 采购管理 / 采购换货</span>
-          <h2 class="purchase-exchange-header__title">采购换货管理</h2>
-        </div>
-        <div class="purchase-exchange-header__right">
-          <a-space :size="12">
-            <a-switch size="small" v-model:checked="autoRefreshEnabled" checked-children="自动" un-checked-children="手动" @change="handleAutoRefreshChange" />
-            <span v-if="autoRefreshEnabled && autoRefreshCountdown > 0" class="auto-refresh-badge">
-              <SyncOutlined /> {{ autoRefreshCountdown }}s
-            </span>
-            <span class="data-status">
-              <a-badge :status="loading ? 'processing' : 'success'" />
-              <span v-if="lastUpdateTime" class="update-time">
-                数据更新: {{ lastUpdateTime }}
+    <PageContainer full-height>
+      <template #header>
+        <div class="purchase-exchange-header">
+          <div class="purchase-exchange-header__left">
+            <span class="purchase-exchange-header__breadcrumb">ERP / 采购管理 / 采购换货</span>
+            <h2 class="purchase-exchange-header__title">
+              采购换货管理
+            </h2>
+          </div>
+          <div class="purchase-exchange-header__right">
+            <a-space :size="12">
+              <a-switch
+                v-model:checked="autoRefreshEnabled"
+                size="small"
+                checked-children="自动"
+                un-checked-children="手动"
+                @change="handleAutoRefreshChange"
+              />
+              <span
+                v-if="autoRefreshEnabled && autoRefreshCountdown > 0"
+                class="auto-refresh-badge"
+              >
+                <SyncOutlined /> {{ autoRefreshCountdown }}s
               </span>
-            </span>
-            <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)">
-              <template #icon><ReloadOutlined /></template>
-              刷新
-            </a-button>
-            <span class="shortcut-hints">
-              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-            </span>
-          </a-space>
+              <span class="data-status">
+                <a-badge :status="loading ? 'processing' : 'success'" />
+                <span
+                  v-if="lastUpdateTime"
+                  class="update-time"
+                >
+                  数据更新: {{ lastUpdateTime }}
+                </span>
+              </span>
+              <a-button
+                size="small"
+                :loading="refreshLoading"
+                @click="debounceClick('refresh', fetchData)"
+              >
+                <template #icon>
+                  <ReloadOutlined />
+                </template>
+                刷新
+              </a-button>
+              <span class="shortcut-hints">
+                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+              </span>
+            </a-space>
+          </div>
         </div>
-      </div>
-    </template>
+      </template>
 
-    <!-- 统计卡片 -->
-    <a-row :gutter="16" style="margin-bottom: 16px;">
-      <a-col :span="6">
-        <div class="summary-card">
-          <div class="summary-icon" style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);">
-            <FileTextOutlined />
-          </div>
-          <div class="summary-content">
-            <div class="summary-title">换货单总数</div>
-            <div class="summary-value">{{ statistics.totalCount }}</div>
-          </div>
-        </div>
-      </a-col>
-      <a-col :span="6">
-        <div class="summary-card">
-          <div class="summary-icon" style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);">
-            <ClockCircleOutlined />
-          </div>
-          <div class="summary-content">
-            <div class="summary-title">待审批</div>
-            <div class="summary-value warning">{{ statistics.pendingCount }}</div>
-          </div>
-        </div>
-      </a-col>
-      <a-col :span="6">
-        <div class="summary-card">
-          <div class="summary-icon" style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);">
-            <CheckCircleOutlined />
-          </div>
-          <div class="summary-content">
-            <div class="summary-title">已完成</div>
-            <div class="summary-value">{{ statistics.completedCount }}</div>
-          </div>
-        </div>
-      </a-col>
-      <a-col :span="6">
-        <div class="summary-card highlight">
-          <div class="summary-icon" style="background: linear-gradient(135deg, #722ed1 0%, #531dab 100%);">
-            <DollarOutlined />
-          </div>
-          <div class="summary-content">
-            <div class="summary-title">换货金额</div>
-            <div class="summary-value">¥{{ formatAmount(statistics.totalAmount) }}</div>
-          </div>
-        </div>
-      </a-col>
-    </a-row>
-
-    <a-card title="采购换货管理" style="flex: 1; overflow: hidden;" :bodyStyle="{ display: 'flex', flexDirection: 'column', height: 'calc(100% - 57px)' }">
-      <!-- 搜索栏 -->
-      <SearchBar
-        :fields="searchFields"
-        :loading="loading"
-        @search="handleSearch"
-        @reset="handleReset"
-      />
-
-      <!-- 操作按钮 -->
-      <div class="action-area">
-        <a-space>
-          <a-button v-permission="'purchase:exchange:create'" type="primary" @click="handleCreate">
-            <template #icon><PlusOutlined /></template>新建换货单
-          </a-button>
-          <a-button v-permission="'purchase:exchange:export'" @click="debounceClick('export', handleExport)">
-            <template #icon><ExportOutlined /></template>导出
-          </a-button>
-        </a-space>
-      </div>
-
-      <!-- 数据表格 -->
-      <BillTableList
-        ref="tableRef"
-        :columns="vxeColumns"
-        :data-source="dataSource"
-        :loading="loading"
-        :pagination="pagination"
-        row-key="id"
-        :show-toolbar="false"
-        :selectable="false"
-        :show-add="false"
-        :show-search="false"
-        :show-export="false"
-        :show-batch-delete="false"
-        @cell-dblclick="handleView"
-        @page-change="handlePageChange"
+      <!-- 统计卡片 -->
+      <a-row
+        :gutter="16"
+        style="margin-bottom: 16px;"
       >
-        <template #empty>
-          <div v-if="hasError" class="table-empty">
-            <WarningOutlined class="table-empty-icon" />
-            <p class="table-empty-text">数据加载异常，请重试</p>
-            <a-button type="primary" @click="fetchData"><ReloadOutlined /> 重试</a-button>
+        <a-col :span="6">
+          <div class="summary-card">
+            <div
+              class="summary-icon"
+              style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);"
+            >
+              <FileTextOutlined />
+            </div>
+            <div class="summary-content">
+              <div class="summary-title">
+                换货单总数
+              </div>
+              <div class="summary-value">
+                {{ statistics.totalCount }}
+              </div>
+            </div>
           </div>
-          <EmptyState v-else title="暂无数据" description="暂无采购换货数据" size="small" :show-actions="false" />
-        </template>
-        <template #statusCell="{ record }">
-          <StatusTag :status="record.status" :map="RETURN_EXCHANGE_STATUS" />
-        </template>
-        <template #exchangeTypeCell="{ record }">{{ getExchangeTypeText(record.exchangeType) }}</template>
-        <template #totalAmountCell="{ record }">¥{{ record.totalAmount?.toFixed(2) }}</template>
-        <template #action="{ record }">
-          <a-space>
-            <a-button type="link" size="small" @click="handleView(record)">查看</a-button>
-            <a-button v-if="record.status === ExchangeStatus.DRAFT" type="link" size="small" @click="handleEdit(record)">编辑</a-button>
-            <a-button v-if="record.status === ExchangeStatus.DRAFT" type="link" size="small" @click="handleSubmit(record)">提交</a-button>
-            <a-button v-if="record.status === ExchangeStatus.PENDING_APPROVAL" type="link" size="small" @click="handleApprove(record)">审批</a-button>
-            <a-button type="link" size="small" @click="handleTrack(record)">跟踪</a-button>
-            <PrintButton
-              v-if="record.status === ExchangeStatus.COMPLETED || record.status === ExchangeStatus.APPROVED"
-              :record="record"
-              business-type="PURCHASE_EXCHANGE"
-              button-text="打印"
-              button-size="small"
-            />
-            <a-button type="link" size="small" danger @click="handleDelete(record)">删除</a-button>
-          </a-space>
-        </template>
-      </BillTableList>
-    </a-card>
+        </a-col>
+        <a-col :span="6">
+          <div class="summary-card">
+            <div
+              class="summary-icon"
+              style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);"
+            >
+              <ClockCircleOutlined />
+            </div>
+            <div class="summary-content">
+              <div class="summary-title">
+                待审批
+              </div>
+              <div class="summary-value warning">
+                {{ statistics.pendingCount }}
+              </div>
+            </div>
+          </div>
+        </a-col>
+        <a-col :span="6">
+          <div class="summary-card">
+            <div
+              class="summary-icon"
+              style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);"
+            >
+              <CheckCircleOutlined />
+            </div>
+            <div class="summary-content">
+              <div class="summary-title">
+                已完成
+              </div>
+              <div class="summary-value">
+                {{ statistics.completedCount }}
+              </div>
+            </div>
+          </div>
+        </a-col>
+        <a-col :span="6">
+          <div class="summary-card highlight">
+            <div
+              class="summary-icon"
+              style="background: linear-gradient(135deg, #722ed1 0%, #531dab 100%);"
+            >
+              <DollarOutlined />
+            </div>
+            <div class="summary-content">
+              <div class="summary-title">
+                换货金额
+              </div>
+              <div class="summary-value">
+                ¥{{ formatAmount(statistics.totalAmount) }}
+              </div>
+            </div>
+          </div>
+        </a-col>
+      </a-row>
 
-    <ExchangeApproveModal v-model:open="approveModalVisible" :record="currentRecord" @success="handleApproveSuccess" />
-    <ExchangeDetailModal v-model:open="detailModalVisible" :record="currentRecord" />
-    <ExchangeTrackModal v-model:open="trackModalVisible" :record="currentRecord" />
-  </PageContainer>
+      <a-card
+        title="采购换货管理"
+        style="flex: 1; overflow: hidden;"
+        :body-style="{ display: 'flex', flexDirection: 'column', height: 'calc(100% - 57px)' }"
+      >
+        <!-- 搜索栏 -->
+        <SearchBar
+          :fields="searchFields"
+          :loading="loading"
+          @search="handleSearch"
+          @reset="handleReset"
+        />
+
+        <!-- 操作按钮 -->
+        <div class="action-area">
+          <a-space>
+            <a-button
+              v-permission="'purchase:exchange:create'"
+              type="primary"
+              @click="handleCreate"
+            >
+              <template #icon>
+                <PlusOutlined />
+              </template>新建换货单
+            </a-button>
+            <a-button
+              v-permission="'purchase:exchange:export'"
+              @click="debounceClick('export', handleExport)"
+            >
+              <template #icon>
+                <ExportOutlined />
+              </template>导出
+            </a-button>
+          </a-space>
+        </div>
+
+        <!-- 数据表格 -->
+        <BillTableList
+          ref="tableRef"
+          :columns="vxeColumns"
+          :data-source="dataSource"
+          :loading="loading"
+          :pagination="pagination"
+          row-key="id"
+          :show-toolbar="false"
+          :selectable="false"
+          :show-add="false"
+          :show-search="false"
+          :show-export="false"
+          :show-batch-delete="false"
+          @cell-dblclick="handleView"
+          @page-change="handlePageChange"
+        >
+          <template #empty>
+            <div
+              v-if="hasError"
+              class="table-empty"
+            >
+              <WarningOutlined class="table-empty-icon" />
+              <p class="table-empty-text">
+                数据加载异常，请重试
+              </p>
+              <a-button
+                type="primary"
+                @click="fetchData"
+              >
+                <ReloadOutlined /> 重试
+              </a-button>
+            </div>
+            <EmptyState
+              v-else
+              title="暂无数据"
+              description="暂无采购换货数据"
+              size="small"
+              :show-actions="false"
+            />
+          </template>
+          <template #statusCell="{ record }">
+            <StatusTag
+              :status="record.status"
+              :map="RETURN_EXCHANGE_STATUS"
+            />
+          </template>
+          <template #exchangeTypeCell="{ record }">
+            {{ getExchangeTypeText(record.exchangeType) }}
+          </template>
+          <template #totalAmountCell="{ record }">
+            ¥{{ record.totalAmount?.toFixed(2) }}
+          </template>
+          <template #action="{ record }">
+            <a-space>
+              <a-button
+                type="link"
+                size="small"
+                @click="handleView(record)"
+              >
+                查看
+              </a-button>
+              <a-button
+                v-if="record.status === ExchangeStatus.DRAFT"
+                type="link"
+                size="small"
+                @click="handleEdit(record)"
+              >
+                编辑
+              </a-button>
+              <a-button
+                v-if="record.status === ExchangeStatus.DRAFT"
+                type="link"
+                size="small"
+                @click="handleSubmit(record)"
+              >
+                提交
+              </a-button>
+              <a-button
+                v-if="record.status === ExchangeStatus.PENDING_APPROVAL"
+                type="link"
+                size="small"
+                @click="handleApprove(record)"
+              >
+                审批
+              </a-button>
+              <a-button
+                type="link"
+                size="small"
+                @click="handleTrack(record)"
+              >
+                跟踪
+              </a-button>
+              <PrintButton
+                v-if="record.status === ExchangeStatus.COMPLETED || record.status === ExchangeStatus.APPROVED"
+                :record="record"
+                business-type="PURCHASE_EXCHANGE"
+                button-text="打印"
+                button-size="small"
+              />
+              <a-button
+                type="link"
+                size="small"
+                danger
+                @click="handleDelete(record)"
+              >
+                删除
+              </a-button>
+            </a-space>
+          </template>
+        </BillTableList>
+      </a-card>
+
+      <ExchangeApproveModal
+        v-model:open="approveModalVisible"
+        :record="currentRecord"
+        @success="handleApproveSuccess"
+      />
+      <ExchangeDetailModal
+        v-model:open="detailModalVisible"
+        :record="currentRecord"
+      />
+      <ExchangeTrackModal
+        v-model:open="trackModalVisible"
+        :record="currentRecord"
+      />
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

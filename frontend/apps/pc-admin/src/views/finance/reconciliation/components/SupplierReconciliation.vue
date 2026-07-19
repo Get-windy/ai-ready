@@ -2,21 +2,49 @@
   <div class="supplier-reconciliation">
     <!-- 统计卡片 -->
     <div class="summary-cards">
-      <div class="summary-card" style="--card-color: #1890ff">
-        <div class="summary-card-title">对账供应商数</div>
-        <div class="summary-card-value">{{ summaryData.supplierCount }}</div>
+      <div
+        class="summary-card"
+        style="--card-color: #1890ff"
+      >
+        <div class="summary-card-title">
+          对账供应商数
+        </div>
+        <div class="summary-card-value">
+          {{ summaryData.supplierCount }}
+        </div>
       </div>
-      <div class="summary-card" style="--card-color: #faad14">
-        <div class="summary-card-title">应付总额</div>
-        <div class="summary-card-value">¥{{ summaryData.totalPayable.toFixed(2) }}</div>
+      <div
+        class="summary-card"
+        style="--card-color: #faad14"
+      >
+        <div class="summary-card-title">
+          应付总额
+        </div>
+        <div class="summary-card-value">
+          ¥{{ summaryData.totalPayable.toFixed(2) }}
+        </div>
       </div>
-      <div class="summary-card" style="--card-color: #52c41a">
-        <div class="summary-card-title">已对账金额</div>
-        <div class="summary-card-value">¥{{ summaryData.reconciledAmount.toFixed(2) }}</div>
+      <div
+        class="summary-card"
+        style="--card-color: #52c41a"
+      >
+        <div class="summary-card-title">
+          已对账金额
+        </div>
+        <div class="summary-card-value">
+          ¥{{ summaryData.reconciledAmount.toFixed(2) }}
+        </div>
       </div>
-      <div class="summary-card" style="--card-color: #722ed1">
-        <div class="summary-card-title">差异金额</div>
-        <div class="summary-card-value">¥{{ summaryData.differenceAmount.toFixed(2) }}</div>
+      <div
+        class="summary-card"
+        style="--card-color: #722ed1"
+      >
+        <div class="summary-card-title">
+          差异金额
+        </div>
+        <div class="summary-card-value">
+          ¥{{ summaryData.differenceAmount.toFixed(2) }}
+        </div>
       </div>
     </div>
 
@@ -58,15 +86,27 @@
       <template #empty>
         <div class="table-empty">
           <template v-if="hasError">
-            <WarningOutlined class="table-empty-icon" style="color: #faad14" />
-            <p class="table-empty-text">加载失败</p>
-            <a-button type="primary" size="small" @click="loadMockData" class="table-empty-action">
+            <WarningOutlined
+              class="table-empty-icon"
+              style="color: #faad14"
+            />
+            <p class="table-empty-text">
+              加载失败
+            </p>
+            <a-button
+              type="primary"
+              size="small"
+              class="table-empty-action"
+              @click="loadMockData"
+            >
               <ReloadOutlined /> 重试
             </a-button>
           </template>
           <template v-else>
             <InboxOutlined class="table-empty-icon" />
-            <p class="table-empty-text">暂无数据</p>
+            <p class="table-empty-text">
+              暂无数据
+            </p>
           </template>
         </div>
       </template>

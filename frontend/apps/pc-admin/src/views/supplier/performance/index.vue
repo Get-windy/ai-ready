@@ -3,35 +3,62 @@
     <template #header>
       <div class="performance-header">
         <div class="performance-header__left">
-          <a-button type="text" class="performance-header__back" v-permission="'supplier:performance:back'" @click="handleBack">
-            <template #icon><LeftOutlined /></template>
+          <a-button
+            v-permission="'supplier:performance:back'"
+            type="text"
+            class="performance-header__back"
+            @click="handleBack"
+          >
+            <template #icon>
+              <LeftOutlined />
+            </template>
           </a-button>
-<span class="shortcut-hints">
-          <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
-          <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-        </span>
+          <span class="shortcut-hints">
+            <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+          </span>
           <div class="performance-header__titles">
             <span class="performance-header__breadcrumb">供应商 / 绩效评估</span>
-            <h2 class="performance-header__title">供应商绩效评估</h2>
+            <h2 class="performance-header__title">
+              供应商绩效评估
+            </h2>
           </div>
         </div>
         <div class="performance-header__right">
           <a-space :size="12">
-            <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            >
               <SyncOutlined /> {{ autoRefreshCountdown }}s
             </span>
             <span class="data-status">
               <a-badge :status="loading ? 'processing' : 'success'" />
-              <span v-if="lastUpdateTime" class="update-time">
+              <span
+                v-if="lastUpdateTime"
+                class="update-time"
+              >
                 数据更新: {{ lastUpdateTime }}
               </span>
             </span>
-            <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', loadPerformances)()">
-              <template #icon><ReloadOutlined /></template>
+            <a-button
+              size="small"
+              :loading="refreshLoading"
+              @click="debounceClick('refresh', loadPerformances)()"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
               刷新
             </a-button>
-            <a-button type="primary" v-permission="'supplier:performance:evaluate'" @click="handleEvaluate">
-              <template #icon><PlusOutlined /></template>
+            <a-button
+              v-permission="'supplier:performance:evaluate'"
+              type="primary"
+              @click="handleEvaluate"
+            >
+              <template #icon>
+                <PlusOutlined />
+              </template>
               新增评估
             </a-button>
           </a-space>
@@ -40,154 +67,283 @@
     </template>
 
     <ErrorBoundary>
-    <div class="page-content">
-    <!-- 统计卡片 -->
-    <div class="stat-cards">
-      <div class="stat-card stat-quality">
-        <div class="stat-card-body">
-          <div class="stat-card-value" :style="{ color: getScoreColor(avgScores.quality) }">{{ avgScores.quality.toFixed(1) }}</div>
-          <div class="stat-card-label">质量评分</div>
-        </div>
-        <SafetyOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-delivery">
-        <div class="stat-card-body">
-          <div class="stat-card-value" :style="{ color: getScoreColor(avgScores.delivery) }">{{ avgScores.delivery.toFixed(1) }}</div>
-          <div class="stat-card-label">交付评分</div>
-        </div>
-        <ClockCircleOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-price">
-        <div class="stat-card-body">
-          <div class="stat-card-value" :style="{ color: getScoreColor(avgScores.price) }">{{ avgScores.price.toFixed(1) }}</div>
-          <div class="stat-card-label">价格评分</div>
-        </div>
-        <DollarOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-service">
-        <div class="stat-card-body">
-          <div class="stat-card-value" :style="{ color: getScoreColor(avgScores.service) }">{{ avgScores.service.toFixed(1) }}</div>
-          <div class="stat-card-label">服务评分</div>
-        </div>
-        <SmileOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-comprehensive">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ avgScores.comprehensive.toFixed(1) }}</div>
-          <div class="stat-card-label">综合评分</div>
-        </div>
-        <StarOutlined class="stat-card-icon" />
-      </div>
-    </div>
-
-    <a-card :bordered="false" v-if="supplier" style="margin-bottom: 16px">
-      <a-descriptions size="small" :column="4">
-        <a-descriptions-item label="供应商名称">{{ supplier.supplierName }}</a-descriptions-item>
-        <a-descriptions-item label="供应商编码">{{ supplier.supplierCode }}</a-descriptions-item>
-        <a-descriptions-item label="供应商等级">
-          <a-tag :color="getLevelColor(supplier.supplierLevel)">{{ supplier.supplierLevel }}级</a-tag>
-        </a-descriptions-item>
-        <a-descriptions-item label="综合评分">
-          <span :style="{ color: getScoreColor(supplier.comprehensiveScore), fontWeight: 600 }">
-            {{ formatScore(supplier.comprehensiveScore) }}
-          </span>
-        </a-descriptions-item>
-      </a-descriptions>
-    </a-card>
-
-    <a-card :bordered="false" class="table-card">
-      <BillTableList
-        ref="tableRef"
-        :columns="vxeColumns"
-        :data-source="performances"
-        :loading="loading"
-        :pagination="{ pageSize: 10, showSizeChanger: true, showTotal: (t: number) => `共 ${t} 条` } as any"
-        row-key="id"
-        :show-toolbar="false"
-        :selectable="false"
-        :show-add="false"
-        :show-search="false"
-        :show-export="false"
-        :show-batch-delete="false"
-        :min-empty-rows="12"
-        @cell-dblclick="handleView"
-      >
-        <template #periodTypeCell="{ record }">
-          {{ periodTypeLabel(record.periodType) }}
-        </template>
-        <template #qualityScoreCell="{ record }">
-          <span :style="{ color: getScoreColor(record.qualityScore) }">{{ formatScore(record.qualityScore) }}</span>
-        </template>
-        <template #deliveryScoreCell="{ record }">
-          <span :style="{ color: getScoreColor(record.deliveryScore) }">{{ formatScore(record.deliveryScore) }}</span>
-        </template>
-        <template #priceScoreCell="{ record }">
-          <span :style="{ color: getScoreColor(record.priceScore) }">{{ formatScore(record.priceScore) }}</span>
-        </template>
-        <template #serviceScoreCell="{ record }">
-          <span :style="{ color: getScoreColor(record.serviceScore) }">{{ formatScore(record.serviceScore) }}</span>
-        </template>
-        <template #comprehensiveScoreCell="{ record }">
-          <span :style="{ color: getScoreColor(record.comprehensiveScore), fontWeight: 600 }">{{ formatScore(record.comprehensiveScore) }}</span>
-        </template>
-        <template #empty>
-          <div class="table-empty">
-            <template v-if="hasError">
-              <WarningOutlined class="table-empty-icon" style="color: #faad14" />
-              <p class="table-empty-text">加载失败</p>
-              <a-button type="primary" size="small" @click="loadPerformances" class="table-empty-action">
-                <ReloadOutlined /> 重试
-              </a-button>
-            </template>
-            <template v-else-if="!supplierIdNum || supplierIdNum === null">
-              <InboxOutlined class="table-empty-icon" />
-              <p class="table-empty-text">请先从供应商列表中选择供应商</p>
-              <a-button type="primary" size="small" @click="handleBack" class="table-empty-action">前往供应商列表</a-button>
-            </template>
-            <template v-else>
-              <InboxOutlined class="table-empty-icon" />
-              <p class="table-empty-text">暂无绩效评估记录</p>
-            </template>
+      <div class="page-content">
+        <!-- 统计卡片 -->
+        <div class="stat-cards">
+          <div class="stat-card stat-quality">
+            <div class="stat-card-body">
+              <div
+                class="stat-card-value"
+                :style="{ color: getScoreColor(avgScores.quality) }"
+              >
+                {{ avgScores.quality.toFixed(1) }}
+              </div>
+              <div class="stat-card-label">
+                质量评分
+              </div>
+            </div>
+            <SafetyOutlined class="stat-card-icon" />
           </div>
-        </template>
-      </BillTableList>
-    </a-card>
+          <div class="stat-card stat-delivery">
+            <div class="stat-card-body">
+              <div
+                class="stat-card-value"
+                :style="{ color: getScoreColor(avgScores.delivery) }"
+              >
+                {{ avgScores.delivery.toFixed(1) }}
+              </div>
+              <div class="stat-card-label">
+                交付评分
+              </div>
+            </div>
+            <ClockCircleOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-price">
+            <div class="stat-card-body">
+              <div
+                class="stat-card-value"
+                :style="{ color: getScoreColor(avgScores.price) }"
+              >
+                {{ avgScores.price.toFixed(1) }}
+              </div>
+              <div class="stat-card-label">
+                价格评分
+              </div>
+            </div>
+            <DollarOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-service">
+            <div class="stat-card-body">
+              <div
+                class="stat-card-value"
+                :style="{ color: getScoreColor(avgScores.service) }"
+              >
+                {{ avgScores.service.toFixed(1) }}
+              </div>
+              <div class="stat-card-label">
+                服务评分
+              </div>
+            </div>
+            <SmileOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-comprehensive">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ avgScores.comprehensive.toFixed(1) }}
+              </div>
+              <div class="stat-card-label">
+                综合评分
+              </div>
+            </div>
+            <StarOutlined class="stat-card-icon" />
+          </div>
+        </div>
 
-    <a-modal
-      v-model:open="showEvaluateModal"
-      title="新增绩效评估"
-      @ok="submitEvaluate"
-      :confirm-loading="submitLoading"
-    >
-      <a-form ref="formRef" :model="evaluateForm" :rules="formRules" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
-        <a-form-item label="评估周期" name="period">
-          <a-input v-model:value="evaluateForm.period" size="small" placeholder="如: 2024-01" />
-        </a-form-item>
-        <a-form-item label="周期类型" name="periodType">
-          <a-select v-model:value="evaluateForm.periodType" size="small">
-            <a-select-option v-for="opt in periodTypeOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item label="质量评分" name="qualityScore">
-          <a-slider v-model:value="evaluateForm.qualityScore" :min="0" :max="100" />
-        </a-form-item>
-        <a-form-item label="交付评分" name="deliveryScore">
-          <a-slider v-model:value="evaluateForm.deliveryScore" :min="0" :max="100" />
-        </a-form-item>
-        <a-form-item label="价格评分" name="priceScore">
-          <a-slider v-model:value="evaluateForm.priceScore" :min="0" :max="100" />
-        </a-form-item>
-        <a-form-item label="服务评分" name="serviceScore">
-          <a-slider v-model:value="evaluateForm.serviceScore" :min="0" :max="100" />
-        </a-form-item>
-        <a-form-item label="备注" name="remark">
-          <a-textarea v-model:value="evaluateForm.remark" size="small" :rows="2" />
-        </a-form-item>
-      </a-form>
-    </a-modal>
-  </div>
-  </ErrorBoundary>
-</PageContainer>
+        <a-card
+          v-if="supplier"
+          :bordered="false"
+          style="margin-bottom: 16px"
+        >
+          <a-descriptions
+            size="small"
+            :column="4"
+          >
+            <a-descriptions-item label="供应商名称">
+              {{ supplier.supplierName }}
+            </a-descriptions-item>
+            <a-descriptions-item label="供应商编码">
+              {{ supplier.supplierCode }}
+            </a-descriptions-item>
+            <a-descriptions-item label="供应商等级">
+              <a-tag :color="getLevelColor(supplier.supplierLevel)">
+                {{ supplier.supplierLevel }}级
+              </a-tag>
+            </a-descriptions-item>
+            <a-descriptions-item label="综合评分">
+              <span :style="{ color: getScoreColor(supplier.comprehensiveScore), fontWeight: 600 }">
+                {{ formatScore(supplier.comprehensiveScore) }}
+              </span>
+            </a-descriptions-item>
+          </a-descriptions>
+        </a-card>
+
+        <a-card
+          :bordered="false"
+          class="table-card"
+        >
+          <BillTableList
+            ref="tableRef"
+            :columns="vxeColumns"
+            :data-source="performances"
+            :loading="loading"
+            :pagination="{ pageSize: 10, showSizeChanger: true, showTotal: (t: number) => `共 ${t} 条` } as any"
+            row-key="id"
+            :show-toolbar="false"
+            :selectable="false"
+            :show-add="false"
+            :show-search="false"
+            :show-export="false"
+            :show-batch-delete="false"
+            :min-empty-rows="12"
+            @cell-dblclick="handleView"
+          >
+            <template #periodTypeCell="{ record }">
+              {{ periodTypeLabel(record.periodType) }}
+            </template>
+            <template #qualityScoreCell="{ record }">
+              <span :style="{ color: getScoreColor(record.qualityScore) }">{{ formatScore(record.qualityScore) }}</span>
+            </template>
+            <template #deliveryScoreCell="{ record }">
+              <span :style="{ color: getScoreColor(record.deliveryScore) }">{{ formatScore(record.deliveryScore) }}</span>
+            </template>
+            <template #priceScoreCell="{ record }">
+              <span :style="{ color: getScoreColor(record.priceScore) }">{{ formatScore(record.priceScore) }}</span>
+            </template>
+            <template #serviceScoreCell="{ record }">
+              <span :style="{ color: getScoreColor(record.serviceScore) }">{{ formatScore(record.serviceScore) }}</span>
+            </template>
+            <template #comprehensiveScoreCell="{ record }">
+              <span :style="{ color: getScoreColor(record.comprehensiveScore), fontWeight: 600 }">{{ formatScore(record.comprehensiveScore) }}</span>
+            </template>
+            <template #empty>
+              <div class="table-empty">
+                <template v-if="hasError">
+                  <WarningOutlined
+                    class="table-empty-icon"
+                    style="color: #faad14"
+                  />
+                  <p class="table-empty-text">
+                    加载失败
+                  </p>
+                  <a-button
+                    type="primary"
+                    size="small"
+                    class="table-empty-action"
+                    @click="loadPerformances"
+                  >
+                    <ReloadOutlined /> 重试
+                  </a-button>
+                </template>
+                <template v-else-if="!supplierIdNum || supplierIdNum === null">
+                  <InboxOutlined class="table-empty-icon" />
+                  <p class="table-empty-text">
+                    请先从供应商列表中选择供应商
+                  </p>
+                  <a-button
+                    type="primary"
+                    size="small"
+                    class="table-empty-action"
+                    @click="handleBack"
+                  >
+                    前往供应商列表
+                  </a-button>
+                </template>
+                <template v-else>
+                  <InboxOutlined class="table-empty-icon" />
+                  <p class="table-empty-text">
+                    暂无绩效评估记录
+                  </p>
+                </template>
+              </div>
+            </template>
+          </BillTableList>
+        </a-card>
+
+        <a-modal
+          v-model:open="showEvaluateModal"
+          title="新增绩效评估"
+          :confirm-loading="submitLoading"
+          @ok="submitEvaluate"
+        >
+          <a-form
+            ref="formRef"
+            :model="evaluateForm"
+            :rules="formRules"
+            :label-col="{ span: 6 }"
+            :wrapper-col="{ span: 16 }"
+          >
+            <a-form-item
+              label="评估周期"
+              name="period"
+            >
+              <a-input
+                v-model:value="evaluateForm.period"
+                size="small"
+                placeholder="如: 2024-01"
+              />
+            </a-form-item>
+            <a-form-item
+              label="周期类型"
+              name="periodType"
+            >
+              <a-select
+                v-model:value="evaluateForm.periodType"
+                size="small"
+              >
+                <a-select-option
+                  v-for="opt in periodTypeOptions"
+                  :key="opt.value"
+                  :value="opt.value"
+                >
+                  {{ opt.label }}
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+            <a-form-item
+              label="质量评分"
+              name="qualityScore"
+            >
+              <a-slider
+                v-model:value="evaluateForm.qualityScore"
+                :min="0"
+                :max="100"
+              />
+            </a-form-item>
+            <a-form-item
+              label="交付评分"
+              name="deliveryScore"
+            >
+              <a-slider
+                v-model:value="evaluateForm.deliveryScore"
+                :min="0"
+                :max="100"
+              />
+            </a-form-item>
+            <a-form-item
+              label="价格评分"
+              name="priceScore"
+            >
+              <a-slider
+                v-model:value="evaluateForm.priceScore"
+                :min="0"
+                :max="100"
+              />
+            </a-form-item>
+            <a-form-item
+              label="服务评分"
+              name="serviceScore"
+            >
+              <a-slider
+                v-model:value="evaluateForm.serviceScore"
+                :min="0"
+                :max="100"
+              />
+            </a-form-item>
+            <a-form-item
+              label="备注"
+              name="remark"
+            >
+              <a-textarea
+                v-model:value="evaluateForm.remark"
+                size="small"
+                :rows="2"
+              />
+            </a-form-item>
+          </a-form>
+        </a-modal>
+      </div>
+    </ErrorBoundary>
+  </PageContainer>
 </template>
 
 <script setup lang="ts">

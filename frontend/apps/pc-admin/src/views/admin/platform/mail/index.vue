@@ -4,48 +4,93 @@
       <div class="page-header">
         <div class="page-header-left">
           <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>
+              <router-link to="/">
+                首页
+              </router-link>
+            </a-breadcrumb-item>
             <a-breadcrumb-item>系统管理</a-breadcrumb-item>
             <a-breadcrumb-item>邮件配置</a-breadcrumb-item>
           </a-breadcrumb>
-          <h2 class="page-header-title">邮件配置</h2>
+          <h2 class="page-header-title">
+            邮件配置
+          </h2>
         </div>
       </div>
     </template>
 
     <a-row :gutter="16">
       <a-col :span="12">
-        <a-card :bordered="false" title="SMTP 配置">
+        <a-card
+          :bordered="false"
+          title="SMTP 配置"
+        >
           <a-form layout="vertical">
             <a-form-item label="SMTP服务器">
-              <a-input v-model:value="smtp.host" placeholder="smtp.example.com" />
+              <a-input
+                v-model:value="smtp.host"
+                placeholder="smtp.example.com"
+              />
             </a-form-item>
             <a-form-item label="端口">
-              <a-input-number v-model:value="smtp.port" :min="1" :max="65535" style="width:100%" />
+              <a-input-number
+                v-model:value="smtp.port"
+                :min="1"
+                :max="65535"
+                style="width:100%"
+              />
             </a-form-item>
             <a-form-item label="加密方式">
               <a-select v-model:value="smtp.encryption">
-                <a-select-option value="none">无</a-select-option>
-                <a-select-option value="ssl">SSL</a-select-option>
-                <a-select-option value="tls">TLS</a-select-option>
+                <a-select-option value="none">
+                  无
+                </a-select-option>
+                <a-select-option value="ssl">
+                  SSL
+                </a-select-option>
+                <a-select-option value="tls">
+                  TLS
+                </a-select-option>
               </a-select>
             </a-form-item>
             <a-form-item label="邮箱地址">
-              <a-input v-model:value="smtp.username" placeholder="noreply@example.com" />
+              <a-input
+                v-model:value="smtp.username"
+                placeholder="noreply@example.com"
+              />
             </a-form-item>
             <a-form-item label="密码/授权码">
               <a-input-password v-model:value="smtp.password" />
             </a-form-item>
             <a-form-item>
-              <a-button type="primary" @click="saveSmtp">保存配置</a-button>
-              <a-button @click="testConnection" style="margin-left:8px">测试连接</a-button>
+              <a-button
+                type="primary"
+                @click="saveSmtp"
+              >
+                保存配置
+              </a-button>
+              <a-button
+                style="margin-left:8px"
+                @click="testConnection"
+              >
+                测试连接
+              </a-button>
             </a-form-item>
           </a-form>
         </a-card>
       </a-col>
       <a-col :span="12">
-        <a-card :bordered="false" title="邮件模板">
-          <a-table :data-source="templates" :columns="tmplColumns" row-key="id" :pagination="false" size="small">
+        <a-card
+          :bordered="false"
+          title="邮件模板"
+        >
+          <a-table
+            :data-source="templates"
+            :columns="tmplColumns"
+            row-key="id"
+            :pagination="false"
+            size="small"
+          >
             <template #bodyCell="{ column, record }">
               <template v-if="column.key === 'action'">
                 <a @click="editTemplate(record)">编辑</a>

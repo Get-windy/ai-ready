@@ -9,7 +9,10 @@
             @reset="handleReset"
           />
           <div class="page-header__right">
-            <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge"><SyncOutlined /> {{ autoRefreshCountdown }}s</span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            ><SyncOutlined /> {{ autoRefreshCountdown }}s</span>
             <span class="shortcut-hints">
               <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
             </span>
@@ -17,25 +20,47 @@
         </div>
       </template>
 
-      <div v-if="selectedRowKeys.length > 0" class="batch-bar no-print">
+      <div
+        v-if="selectedRowKeys.length > 0"
+        class="batch-bar no-print"
+      >
         <span>已选择 {{ selectedRowKeys.length }} 项</span>
-        <a-button size="small" @click="handleBatchCancel">批量取消</a-button>
-        <a-button size="small" @click="selectedRowKeys = []">取消选择</a-button>
+        <a-button
+          size="small"
+          @click="handleBatchCancel"
+        >
+          批量取消
+        </a-button>
+        <a-button
+          size="small"
+          @click="selectedRowKeys = []"
+        >
+          取消选择
+        </a-button>
       </div>
-      <SkeletonTable v-if="loading && tableData.length === 0" :columns="columns.length" :rows="8" />
+      <SkeletonTable
+        v-if="loading && tableData.length === 0"
+        :columns="columns.length"
+        :rows="8"
+      />
       <a-table
         v-else
         :data-source="tableData"
         :columns="columns"
         :loading="loading"
         :pagination="pagination"
-        :rowSelection="rowSelection"
+        :row-selection="rowSelection"
         row-key="id"
         @change="handleTableChange"
       >
         <template #emptyText>
           <a-empty description="暂无调度数据">
-            <a-button size="small" @click="wms.fetchData">刷新</a-button>
+            <a-button
+              size="small"
+              @click="wms.fetchData"
+            >
+              刷新
+            </a-button>
           </a-empty>
         </template>
         <template #bodyCell="{ column, record }">
@@ -54,7 +79,14 @@
           <!-- actions -->
           <template v-if="column.key === 'actions'">
             <a-space>
-              <a-button v-permission="'dms:dispatch:view'" type="link" size="small" @click="handleView(record)">查看</a-button>
+              <a-button
+                v-permission="'dms:dispatch:view'"
+                type="link"
+                size="small"
+                @click="handleView(record)"
+              >
+                查看
+              </a-button>
               <a-button
                 v-if="record.status === 0"
                 v-permission="'dms:dispatch:assign'"
@@ -82,14 +114,20 @@
       <a-modal
         v-model:open="assignDialogVisible"
         title="手动分配骑手"
-        @ok="confirmManualAssign"
         :confirm-loading="assignLoading"
+        @ok="confirmManualAssign"
       >
         <a-form layout="vertical">
           <a-form-item label="任务编号">
-            <a-input :value="currentTask?.task_no" disabled />
+            <a-input
+              :value="currentTask?.task_no"
+              disabled
+            />
           </a-form-item>
-          <a-form-item label="选择骑手" required>
+          <a-form-item
+            label="选择骑手"
+            required
+          >
             <a-select
               v-model:value="selectedRiderId"
               placeholder="请选择骑手"

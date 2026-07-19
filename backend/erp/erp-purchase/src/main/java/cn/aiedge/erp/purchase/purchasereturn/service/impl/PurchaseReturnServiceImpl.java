@@ -95,6 +95,43 @@ public class PurchaseReturnServiceImpl extends ServiceImpl<PurchaseReturnMapper,
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    public PurchaseReturn updateReturn(Long id, PurchaseReturn returnOrder, List<PurchaseReturnItem> items) {
+        PurchaseReturn existing = this.getById(id);
+        if (existing == null) {
+            throw new RuntimeException("退货单不存在");
+        }
+        if (existing.getStatus() != 0) {
+            throw new RuntimeException("只有草稿状态的退货单可以编辑");
+        }
+        returnOrder.setId(id);
+        returnOrder.setCreateTime(existing.getCreateTime());
+        returnOrder.setCreateBy(existing.getCreateBy());
+        returnOrder.setReturnNo(existing.getReturnNo());
+        returnOrder.setStatus(0);
+        this.updateById(returnOrder);
+
+        // 更新明细：删除旧明细，插入新明细
+        purchaseReturnItemMapper.delete(
+                new LambdaQueryWrapper<PurchaseReturnItem>()
+                        .eq(PurchaseReturnItem::getReturnId, id)
+        );
+        if (items != null && !items.isEmpty()) {
+            Long tenantId = StpUtil.getLoginIdAsLong();
+            for (PurchaseReturnItem item : items) {
+                item.setId(null);
+                item.setTenantId(tenantId);
+                item.setReturnId(id);
+                item.setCreateTime(LocalDateTime.now());
+                purchaseReturnItemMapper.insert(item);
+            }
+        }
+
+        calculateTotals(id);
+        return this.getById(id);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public PurchaseReturn submitForApproval(Long returnId) {
         PurchaseReturn returnOrder = this.getById(returnId);
         if (returnOrder == null) {

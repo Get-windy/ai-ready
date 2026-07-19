@@ -4,11 +4,17 @@
       <div class="page-header">
         <div class="page-header-left">
           <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>
+              <router-link to="/">
+                首页
+              </router-link>
+            </a-breadcrumb-item>
             <a-breadcrumb-item>系统管理</a-breadcrumb-item>
             <a-breadcrumb-item>租户审批</a-breadcrumb-item>
           </a-breadcrumb>
-          <h2 class="page-header-title">租户审批</h2>
+          <h2 class="page-header-title">
+            租户审批
+          </h2>
         </div>
       </div>
     </template>
@@ -23,12 +29,27 @@
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'status'">
-            <a-tag color="orange">待审批</a-tag>
+            <a-tag color="orange">
+              待审批
+            </a-tag>
           </template>
           <template v-if="column.key === 'action'">
             <a-space>
-              <a-button type="link" size="small" @click="handleApprove(record)">通过</a-button>
-              <a-button type="link" danger size="small" @click="handleReject(record)">驳回</a-button>
+              <a-button
+                type="link"
+                size="small"
+                @click="handleApprove(record)"
+              >
+                通过
+              </a-button>
+              <a-button
+                type="link"
+                danger
+                size="small"
+                @click="handleReject(record)"
+              >
+                驳回
+              </a-button>
             </a-space>
           </template>
         </template>

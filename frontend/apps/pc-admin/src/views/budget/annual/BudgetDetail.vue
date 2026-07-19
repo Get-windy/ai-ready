@@ -1,197 +1,336 @@
 <template>
   <ErrorBoundary @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="detail-page-header">
-        <div class="detail-page-header-left">
-          <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item><router-link to="/budget/annual">年度预算</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item>预算详情</a-breadcrumb-item>
-          </a-breadcrumb>
-          <h2 class="detail-page-header-title">{{ budget?.budgetNo ? `预算详情 - ${budget.budgetNo}` : '预算详情' }}</h2>
-        </div>
-        <div class="detail-page-header-right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-            <SyncOutlined /> {{ autoRefreshCountdown }}s
-          </span>
-          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', loadData)">
-            <template #icon><ReloadOutlined /></template>
-            刷新
-          </a-button>
-          <span class="shortcut-hints">
-            <span class="shortcut-hint"><kbd>Ctrl+R</kbd> 刷新</span>
-            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-          </span>
-          <a-button size="small" @click="router.push('/budget/annual')">
-            <template #icon><ArrowLeftOutlined /></template>
-            返回
-          </a-button>
-        </div>
-      </div>
-    </template>
-
-    <div class="budget-detail-body">
-      <!-- 错误状态 -->
-      <div v-if="hasError" class="detail-error-state">
-        <WarningOutlined class="detail-error-icon" />
-        <p class="detail-error-text">数据加载失败，请重试</p>
-        <a-button type="primary" @click="loadData">重新加载</a-button>
-      </div>
-
-      <template v-else>
-        <!-- 统计卡片 -->
-        <div class="stat-cards">
-          <div class="stat-card stat-total">
-            <div class="stat-card-body">
-              <div class="stat-card-value">¥{{ formatAmount(budget?.totalAmount) }}</div>
-              <div class="stat-card-label">预算总额</div>
-            </div>
-            <FundOutlined class="stat-card-icon" />
+    <PageContainer full-height>
+      <template #header>
+        <div class="detail-page-header">
+          <div class="detail-page-header-left">
+            <a-breadcrumb>
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>
+                <router-link to="/budget/annual">
+                  年度预算
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>预算详情</a-breadcrumb-item>
+            </a-breadcrumb>
+            <h2 class="detail-page-header-title">
+              {{ budget?.budgetNo ? `预算详情 - ${budget.budgetNo}` : '预算详情' }}
+            </h2>
           </div>
-          <div class="stat-card stat-used">
-            <div class="stat-card-body">
-              <div class="stat-card-value">¥{{ formatAmount(budget?.totalUsedAmount) }}</div>
-              <div class="stat-card-label">已使用</div>
-            </div>
-            <ShoppingOutlined class="stat-card-icon" />
-          </div>
-          <div class="stat-card stat-remaining">
-            <div class="stat-card-body">
-              <div class="stat-card-value">¥{{ formatAmount(budget?.totalRemainingAmount) }}</div>
-              <div class="stat-card-label">剩余预算</div>
-            </div>
-            <WalletOutlined class="stat-card-icon" />
-          </div>
-          <div class="stat-card stat-rate">
-            <div class="stat-card-body">
-              <div class="stat-card-value">{{ (budget?.executionRate || 0).toFixed(1) }}%</div>
-              <div class="stat-card-label">执行率</div>
-            </div>
-            <LineChartOutlined class="stat-card-icon" />
+          <div class="detail-page-header-right">
+            <span
+              v-if="lastUpdateTime"
+              class="update-time"
+            >更新于 {{ lastUpdateTime }}</span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            >
+              <SyncOutlined /> {{ autoRefreshCountdown }}s
+            </span>
+            <a-button
+              size="small"
+              :loading="refreshLoading"
+              @click="debounceClick('refresh', loadData)"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
+              刷新
+            </a-button>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>Ctrl+R</kbd> 刷新</span>
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            </span>
+            <a-button
+              size="small"
+              @click="router.push('/budget/annual')"
+            >
+              <template #icon>
+                <ArrowLeftOutlined />
+              </template>
+              返回
+            </a-button>
           </div>
         </div>
-
-        <!-- 操作栏 -->
-        <div class="detail-actions">
-          <a-space>
-            <a-button v-if="budget?.status === 'draft'" size="small" @click="debounceClick('edit', handleEdit)">
-              <template #icon><EditOutlined /></template>
-              编辑
-            </a-button>
-            <a-button v-if="budget?.status === 'draft'" type="primary" size="small" @click="debounceClick('submit', handleSubmit)">
-              提交审批
-            </a-button>
-            <a-button v-if="budget?.status === 'submitted'" type="primary" size="small" @click="debounceClick('approve', handleApprove)">
-              审批通过
-            </a-button>
-            <a-button v-if="budget?.status === 'submitted'" danger size="small" @click="debounceClick('reject', handleReject)">
-              拒绝
-            </a-button>
-            <a-button v-if="budget?.status === 'executing'" size="small" @click="debounceClick('close', handleClose)">
-              关闭
-            </a-button>
-          </a-space>
-        </div>
-
-        <!-- 基本信息 -->
-        <a-card title="基本信息" class="detail-section-card">
-          <a-descriptions :column="{ xs: 1, sm: 2, md: 4 }" bordered size="small">
-            <a-descriptions-item label="预算单号">{{ budget?.budgetNo }}</a-descriptions-item>
-            <a-descriptions-item label="年度">{{ budget?.fiscalYear }}</a-descriptions-item>
-            <a-descriptions-item label="部门">{{ budget?.departmentName }}</a-descriptions-item>
-            <a-descriptions-item label="状态">
-              <a-tag :color="statusColor(budget?.status)">{{ statusText(budget?.status) }}</a-tag>
-            </a-descriptions-item>
-            <a-descriptions-item label="预算总额">¥{{ budget?.totalAmount?.toFixed(2) }}</a-descriptions-item>
-            <a-descriptions-item label="已使用">¥{{ budget?.totalUsedAmount?.toFixed(2) }}</a-descriptions-item>
-            <a-descriptions-item label="剩余">¥{{ budget?.totalRemainingAmount?.toFixed(2) }}</a-descriptions-item>
-            <a-descriptions-item label="执行率">{{ budget?.executionRate?.toFixed(2) }}%</a-descriptions-item>
-            <a-descriptions-item label="已审批金额">¥{{ budget?.totalApprovedAmount?.toFixed(2) }}</a-descriptions-item>
-            <a-descriptions-item label="模板">{{ budget?.templateName || '-' }}</a-descriptions-item>
-            <a-descriptions-item label="创建人">{{ budget?.createdBy }}</a-descriptions-item>
-            <a-descriptions-item label="创建时间">{{ budget?.createdAt }}</a-descriptions-item>
-            <a-descriptions-item label="描述" :span="{ xs: 1, sm: 2, md: 4 } as any">{{ budget?.description || '-' }}</a-descriptions-item>
-            <a-descriptions-item label="备注" :span="{ xs: 1, sm: 2, md: 4 } as any">{{ budget?.remark || '-' }}</a-descriptions-item>
-          </a-descriptions>
-        </a-card>
-
-        <!-- 科目明细 -->
-        <a-card title="预算科目明细" class="detail-section-card">
-          <BillTableList
-            :data-source="budgetItems"
-            :columns="itemVxeColumns"
-            :loading="itemLoading"
-            :pagination="false as any"
-            row-key="id"
-            :show-toolbar="false"
-            :selectable="false"
-            :show-add="false"
-            :show-search="false"
-            :show-export="false"
-            :show-batch-delete="false"
-          />
-        </a-card>
-
-        <!-- 执行记录 + 调整历史 -->
-        <a-row :gutter="[16, 16]">
-          <a-col :xs="24" :md="12">
-            <a-card title="执行记录" class="detail-section-card">
-              <a-timeline v-if="executionLogs.length > 0">
-                <a-timeline-item
-                  v-for="log in executionLogs"
-                  :key="log.id"
-                  :color="log.executionType === 'consume' ? 'red' : log.executionType === 'freeze' ? 'blue' : log.executionType === 'unfreeze' ? 'orange' : 'green'"
-                >
-                  <template #label>
-                    <small>{{ log.executionDate }}</small>
-                  </template>
-                  <div>{{ log.description }}</div>
-                  <div v-if="log.amount">
-                    <strong>金额: ¥{{ log.amount?.toFixed(2) }}</strong>
-                  </div>
-                  <div>
-                    <small>类型: {{ log.executionType }} | 来源: {{ log.sourceType }} {{ log.sourceNo }}</small>
-                  </div>
-                </a-timeline-item>
-              </a-timeline>
-              <a-empty v-else description="暂无执行记录" />
-            </a-card>
-          </a-col>
-          <a-col :xs="24" :md="12">
-            <a-card title="调整历史" class="detail-section-card">
-              <BillTableList
-                :data-source="adjustments"
-                :columns="adjustVxeColumns"
-                :loading="adjLoading"
-                :pagination="false as any"
-                row-key="id"
-                :show-toolbar="false"
-                :selectable="false"
-                :show-add="false"
-                :show-search="false"
-                :show-export="false"
-                :show-batch-delete="false"
-              >
-                <template #adjustmentTypeCell="{ record }">
-                  <a-tag :color="record.adjustmentType === 'increase' ? 'green' : record.adjustmentType === 'decrease' ? 'red' : 'blue'">
-                    {{ record.adjustmentType === 'increase' ? '增加' : record.adjustmentType === 'decrease' ? '减少' : '调剂' }}
-                  </a-tag>
-                </template>
-                <template #amountCell="{ record }">
-                  ¥{{ record.amount?.toFixed(2) }}
-                </template>
-                <template #statusCell="{ record }">
-                  <a-tag :color="adjStatusColor(record.status)">{{ adjStatusText(record.status) }}</a-tag>
-                </template>
-              </BillTableList>
-            </a-card>
-          </a-col>
-        </a-row>
       </template>
-    </div>
-  </PageContainer>
+
+      <div class="budget-detail-body">
+        <!-- 错误状态 -->
+        <div
+          v-if="hasError"
+          class="detail-error-state"
+        >
+          <WarningOutlined class="detail-error-icon" />
+          <p class="detail-error-text">
+            数据加载失败，请重试
+          </p>
+          <a-button
+            type="primary"
+            @click="loadData"
+          >
+            重新加载
+          </a-button>
+        </div>
+
+        <template v-else>
+          <!-- 统计卡片 -->
+          <div class="stat-cards">
+            <div class="stat-card stat-total">
+              <div class="stat-card-body">
+                <div class="stat-card-value">
+                  ¥{{ formatAmount(budget?.totalAmount) }}
+                </div>
+                <div class="stat-card-label">
+                  预算总额
+                </div>
+              </div>
+              <FundOutlined class="stat-card-icon" />
+            </div>
+            <div class="stat-card stat-used">
+              <div class="stat-card-body">
+                <div class="stat-card-value">
+                  ¥{{ formatAmount(budget?.totalUsedAmount) }}
+                </div>
+                <div class="stat-card-label">
+                  已使用
+                </div>
+              </div>
+              <ShoppingOutlined class="stat-card-icon" />
+            </div>
+            <div class="stat-card stat-remaining">
+              <div class="stat-card-body">
+                <div class="stat-card-value">
+                  ¥{{ formatAmount(budget?.totalRemainingAmount) }}
+                </div>
+                <div class="stat-card-label">
+                  剩余预算
+                </div>
+              </div>
+              <WalletOutlined class="stat-card-icon" />
+            </div>
+            <div class="stat-card stat-rate">
+              <div class="stat-card-body">
+                <div class="stat-card-value">
+                  {{ (budget?.executionRate || 0).toFixed(1) }}%
+                </div>
+                <div class="stat-card-label">
+                  执行率
+                </div>
+              </div>
+              <LineChartOutlined class="stat-card-icon" />
+            </div>
+          </div>
+
+          <!-- 操作栏 -->
+          <div class="detail-actions">
+            <a-space>
+              <a-button
+                v-if="budget?.status === 'draft'"
+                size="small"
+                @click="debounceClick('edit', handleEdit)"
+              >
+                <template #icon>
+                  <EditOutlined />
+                </template>
+                编辑
+              </a-button>
+              <a-button
+                v-if="budget?.status === 'draft'"
+                type="primary"
+                size="small"
+                @click="debounceClick('submit', handleSubmit)"
+              >
+                提交审批
+              </a-button>
+              <a-button
+                v-if="budget?.status === 'submitted'"
+                type="primary"
+                size="small"
+                @click="debounceClick('approve', handleApprove)"
+              >
+                审批通过
+              </a-button>
+              <a-button
+                v-if="budget?.status === 'submitted'"
+                danger
+                size="small"
+                @click="debounceClick('reject', handleReject)"
+              >
+                拒绝
+              </a-button>
+              <a-button
+                v-if="budget?.status === 'executing'"
+                size="small"
+                @click="debounceClick('close', handleClose)"
+              >
+                关闭
+              </a-button>
+            </a-space>
+          </div>
+
+          <!-- 基本信息 -->
+          <a-card
+            title="基本信息"
+            class="detail-section-card"
+          >
+            <a-descriptions
+              :column="{ xs: 1, sm: 2, md: 4 }"
+              bordered
+              size="small"
+            >
+              <a-descriptions-item label="预算单号">
+                {{ budget?.budgetNo }}
+              </a-descriptions-item>
+              <a-descriptions-item label="年度">
+                {{ budget?.fiscalYear }}
+              </a-descriptions-item>
+              <a-descriptions-item label="部门">
+                {{ budget?.departmentName }}
+              </a-descriptions-item>
+              <a-descriptions-item label="状态">
+                <a-tag :color="statusColor(budget?.status)">
+                  {{ statusText(budget?.status) }}
+                </a-tag>
+              </a-descriptions-item>
+              <a-descriptions-item label="预算总额">
+                ¥{{ budget?.totalAmount?.toFixed(2) }}
+              </a-descriptions-item>
+              <a-descriptions-item label="已使用">
+                ¥{{ budget?.totalUsedAmount?.toFixed(2) }}
+              </a-descriptions-item>
+              <a-descriptions-item label="剩余">
+                ¥{{ budget?.totalRemainingAmount?.toFixed(2) }}
+              </a-descriptions-item>
+              <a-descriptions-item label="执行率">
+                {{ budget?.executionRate?.toFixed(2) }}%
+              </a-descriptions-item>
+              <a-descriptions-item label="已审批金额">
+                ¥{{ budget?.totalApprovedAmount?.toFixed(2) }}
+              </a-descriptions-item>
+              <a-descriptions-item label="模板">
+                {{ budget?.templateName || '-' }}
+              </a-descriptions-item>
+              <a-descriptions-item label="创建人">
+                {{ budget?.createdBy }}
+              </a-descriptions-item>
+              <a-descriptions-item label="创建时间">
+                {{ budget?.createdAt }}
+              </a-descriptions-item>
+              <a-descriptions-item
+                label="描述"
+                :span="{ xs: 1, sm: 2, md: 4 } as any"
+              >
+                {{ budget?.description || '-' }}
+              </a-descriptions-item>
+              <a-descriptions-item
+                label="备注"
+                :span="{ xs: 1, sm: 2, md: 4 } as any"
+              >
+                {{ budget?.remark || '-' }}
+              </a-descriptions-item>
+            </a-descriptions>
+          </a-card>
+
+          <!-- 科目明细 -->
+          <a-card
+            title="预算科目明细"
+            class="detail-section-card"
+          >
+            <BillTableList
+              :data-source="budgetItems"
+              :columns="itemVxeColumns"
+              :loading="itemLoading"
+              :pagination="false as any"
+              row-key="id"
+              :show-toolbar="false"
+              :selectable="false"
+              :show-add="false"
+              :show-search="false"
+              :show-export="false"
+              :show-batch-delete="false"
+            />
+          </a-card>
+
+          <!-- 执行记录 + 调整历史 -->
+          <a-row :gutter="[16, 16]">
+            <a-col
+              :xs="24"
+              :md="12"
+            >
+              <a-card
+                title="执行记录"
+                class="detail-section-card"
+              >
+                <a-timeline v-if="executionLogs.length > 0">
+                  <a-timeline-item
+                    v-for="log in executionLogs"
+                    :key="log.id"
+                    :color="log.executionType === 'consume' ? 'red' : log.executionType === 'freeze' ? 'blue' : log.executionType === 'unfreeze' ? 'orange' : 'green'"
+                  >
+                    <template #label>
+                      <small>{{ log.executionDate }}</small>
+                    </template>
+                    <div>{{ log.description }}</div>
+                    <div v-if="log.amount">
+                      <strong>金额: ¥{{ log.amount?.toFixed(2) }}</strong>
+                    </div>
+                    <div>
+                      <small>类型: {{ log.executionType }} | 来源: {{ log.sourceType }} {{ log.sourceNo }}</small>
+                    </div>
+                  </a-timeline-item>
+                </a-timeline>
+                <a-empty
+                  v-else
+                  description="暂无执行记录"
+                />
+              </a-card>
+            </a-col>
+            <a-col
+              :xs="24"
+              :md="12"
+            >
+              <a-card
+                title="调整历史"
+                class="detail-section-card"
+              >
+                <BillTableList
+                  :data-source="adjustments"
+                  :columns="adjustVxeColumns"
+                  :loading="adjLoading"
+                  :pagination="false as any"
+                  row-key="id"
+                  :show-toolbar="false"
+                  :selectable="false"
+                  :show-add="false"
+                  :show-search="false"
+                  :show-export="false"
+                  :show-batch-delete="false"
+                >
+                  <template #adjustmentTypeCell="{ record }">
+                    <a-tag :color="record.adjustmentType === 'increase' ? 'green' : record.adjustmentType === 'decrease' ? 'red' : 'blue'">
+                      {{ record.adjustmentType === 'increase' ? '增加' : record.adjustmentType === 'decrease' ? '减少' : '调剂' }}
+                    </a-tag>
+                  </template>
+                  <template #amountCell="{ record }">
+                    ¥{{ record.amount?.toFixed(2) }}
+                  </template>
+                  <template #statusCell="{ record }">
+                    <a-tag :color="adjStatusColor(record.status)">
+                      {{ adjStatusText(record.status) }}
+                    </a-tag>
+                  </template>
+                </BillTableList>
+              </a-card>
+            </a-col>
+          </a-row>
+        </template>
+      </div>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

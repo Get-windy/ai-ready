@@ -4,204 +4,372 @@
       <div class="lead-page-header">
         <div class="lead-page-header-left">
           <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>
+              <router-link to="/">
+                首页
+              </router-link>
+            </a-breadcrumb-item>
             <a-breadcrumb-item>线索管理</a-breadcrumb-item>
           </a-breadcrumb>
-          <h2 class="lead-page-header-title">线索管理</h2>
+          <h2 class="lead-page-header-title">
+            线索管理
+          </h2>
         </div>
         <div class="lead-page-header-right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+          <span
+            v-if="lastUpdateTime"
+            class="update-time"
+          >更新于 {{ lastUpdateTime }}</span>
+          <span
+            v-if="autoRefreshCountdown > 0"
+            class="auto-refresh-badge"
+          >
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)">
-            <template #icon><ReloadOutlined /></template>
+          <a-button
+            size="small"
+            :loading="refreshLoading"
+            @click="debounceClick('refresh', fetchData)"
+          >
+            <template #icon>
+              <ReloadOutlined />
+            </template>
             刷新
           </a-button>
-<span class="shortcut-hints">
-                                                <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
-                                                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-                                              </span>
+          <span class="shortcut-hints">
+            <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+          </span>
         </div>
-
-          </div>
+      </div>
     </template>
 
     <ErrorBoundary @reset="fetchData">
       <!-- 骨架加载 -->
-      <div v-if="loading && dataSource.length === 0" class="skeleton-loading">
-        <a-skeleton :paragraph="{ rows: 3 }" active />
+      <div
+        v-if="loading && dataSource.length === 0"
+        class="skeleton-loading"
+      >
+        <a-skeleton
+          :paragraph="{ rows: 3 }"
+          active
+        />
         <div style="height: 16px" />
-        <a-skeleton :paragraph="{ rows: 8 }" active />
+        <a-skeleton
+          :paragraph="{ rows: 8 }"
+          active
+        />
       </div>
 
       <!-- 统计卡片 -->
       <template v-if="!(loading && dataSource.length === 0)">
-      <div class="stats-cards">
-        <a-row :gutter="16">
-          <a-col :span="6">
-            <div class="stat-card stat-card-blue">
-              <div class="stat-icon" style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);">
-                <FileAddOutlined />
+        <div class="stats-cards">
+          <a-row :gutter="16">
+            <a-col :span="6">
+              <div class="stat-card stat-card-blue">
+                <div
+                  class="stat-icon"
+                  style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);"
+                >
+                  <FileAddOutlined />
+                </div>
+                <div class="stat-content">
+                  <div class="stat-title">
+                    新线索
+                  </div>
+                  <div class="stat-value">
+                    {{ statusCounts.new }}
+                  </div>
+                  <div class="stat-desc">
+                    待分配跟进
+                  </div>
+                </div>
               </div>
-              <div class="stat-content">
-                <div class="stat-title">新线索</div>
-                <div class="stat-value">{{ statusCounts.new }}</div>
-                <div class="stat-desc">待分配跟进</div>
+            </a-col>
+            <a-col :span="6">
+              <div class="stat-card stat-card-orange">
+                <div
+                  class="stat-icon"
+                  style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);"
+                >
+                  <SyncOutlined />
+                </div>
+                <div class="stat-content">
+                  <div class="stat-title">
+                    跟进中
+                  </div>
+                  <div class="stat-value">
+                    {{ statusCounts.following }}
+                  </div>
+                  <div class="stat-desc">
+                    正在跟进
+                  </div>
+                </div>
               </div>
-            </div>
-          </a-col>
-          <a-col :span="6">
-            <div class="stat-card stat-card-orange">
-              <div class="stat-icon" style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);">
-                <SyncOutlined />
+            </a-col>
+            <a-col :span="6">
+              <div class="stat-card stat-card-green">
+                <div
+                  class="stat-icon"
+                  style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);"
+                >
+                  <CheckCircleOutlined />
+                </div>
+                <div class="stat-content">
+                  <div class="stat-title">
+                    已转化
+                  </div>
+                  <div class="stat-value">
+                    {{ statusCounts.converted }}
+                  </div>
+                  <div class="stat-desc">
+                    成功转化客户
+                  </div>
+                </div>
               </div>
-              <div class="stat-content">
-                <div class="stat-title">跟进中</div>
-                <div class="stat-value">{{ statusCounts.following }}</div>
-                <div class="stat-desc">正在跟进</div>
+            </a-col>
+            <a-col :span="6">
+              <div class="stat-card stat-card-purple">
+                <div
+                  class="stat-icon"
+                  style="background: linear-gradient(135deg, #722ed1 0%, #531dab 100%);"
+                >
+                  <StarOutlined />
+                </div>
+                <div class="stat-content">
+                  <div class="stat-title">
+                    高分线索
+                  </div>
+                  <div class="stat-value">
+                    {{ statusCounts.highScore }}
+                  </div>
+                  <div class="stat-desc">
+                    评分≥80
+                  </div>
+                </div>
               </div>
-            </div>
-          </a-col>
-          <a-col :span="6">
-            <div class="stat-card stat-card-green">
-              <div class="stat-icon" style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);">
-                <CheckCircleOutlined />
-              </div>
-              <div class="stat-content">
-                <div class="stat-title">已转化</div>
-                <div class="stat-value">{{ statusCounts.converted }}</div>
-                <div class="stat-desc">成功转化客户</div>
-              </div>
-            </div>
-          </a-col>
-          <a-col :span="6">
-            <div class="stat-card stat-card-purple">
-              <div class="stat-icon" style="background: linear-gradient(135deg, #722ed1 0%, #531dab 100%);">
-                <StarOutlined />
-              </div>
-              <div class="stat-content">
-                <div class="stat-title">高分线索</div>
-                <div class="stat-value">{{ statusCounts.highScore }}</div>
-                <div class="stat-desc">评分≥80</div>
-              </div>
-            </div>
-          </a-col>
-        </a-row>
-      </div>
+            </a-col>
+          </a-row>
+        </div>
 
-      <BillTableList
-        ref="tableRef"
-        :columns="vxeColumns"
-        :data-source="tableDataSource"
-        :loading="loading"
-        :pagination="pagination"
-        :filter-fields="filterFields"
-        :show-export="true"
-        :selectable="true"
-        :min-empty-rows="12"
-        add-text="新建线索"
-        @add="handleAdd"
-        @refresh="fetchData"
-        @search="handleSearch"
-        @page-change="handlePageChange"
-        @filter-change="handleFilterChange"
-        @selection-change="handleSelectionChange"
-        @cell-dblclick="handleView"
-        @export="handleExport"
-      >
-        <template #toolbar-actions>
-          <a-button size="small" v-permission="'crm:lead:batchassign'" @click="handleBatchAssign">
-            <template #icon><TeamOutlined /></template>
-            批量分配
-          </a-button>
-          <a-button size="small" v-permission="'crm:lead:import'" @click="handleImport">
-            <template #icon><ImportOutlined /></template>
-            导入线索
-          </a-button>
-        </template>
-
-        <template #batch-actions>
-          <a-button size="small" type="primary" ghost v-permission="'crm:lead:batchassign'" @click="handleBatchAssign">
-            <template #icon><TeamOutlined /></template>
-            批量分配
-          </a-button>
-          <a-button size="small" v-permission="'crm:lead:batchconvert'" @click="handleBatchConvert">
-            <template #icon><SwapRightOutlined /></template>
-            批量转化
-          </a-button>
-        </template>
-
-        <template #empty>
-          <div class="table-empty">
-            <template v-if="hasError">
-              <WarningOutlined class="table-empty-icon" style="color: #faad14" />
-              <p class="table-empty-text">数据加载失败，请重试</p>
-              <a-button type="primary" size="small" @click="fetchData as any">
-                <template #icon><ReloadOutlined /></template>
-                重试
-              </a-button>
-            </template>
-            <template v-else>
-              <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-              <InboxOutlined v-else class="table-empty-icon" />
-              <p v-if="hasActiveFilters" class="table-empty-text">
-                没有符合条件的线索，<a @click="handleResetFilters">清除筛选</a>
-              </p>
-              <p v-else class="table-empty-text">
-                暂无线索数据
-              </p>
-              <div v-if="!hasActiveFilters" class="empty-state-wrapper">
-                <a-button type="primary" v-permission="'crm:lead:create'" @click="handleAdd">
-                  <template #icon><PlusOutlined /></template>
-                  新建第一个线索
-                </a-button>
-              </div>
-            </template>
-          </div>
-        </template>
-
-        <template #action="{ record }">
-          <a-space :size="4">
-            <a-tooltip title="查看详情">
-              <a-button type="link" size="small" v-permission="'crm:lead:view'" @click="handleView(record)">
-                <template #icon><EyeOutlined /></template>
-              </a-button>
-            </a-tooltip>
-            <a-tooltip title="编辑">
-              <a-button type="link" size="small" v-permission="'crm:lead:edit'" @click="handleEdit(record)">
-                <template #icon><EditOutlined /></template>
-              </a-button>
-            </a-tooltip>
-            <a-tooltip title="分配">
-              <a-button type="link" size="small" v-permission="'crm:lead:assign'" @click="handleAssign(record)">
-                <template #icon><TeamOutlined /></template>
-              </a-button>
-            </a-tooltip>
-            <a-tooltip v-if="record.status < 2" title="转化为客户">
-              <a-button type="link" size="small" v-permission="'crm:lead:convert'" @click="handleConvert(record)">
-                <template #icon><SwapRightOutlined /></template>
-              </a-button>
-            </a-tooltip>
-            <a-dropdown trigger="click">
-              <a-button type="link" size="small" class="action-more-btn">
-                <template #icon><MoreOutlined /></template>
-              </a-button>
-              <template #overlay>
-                <a-menu @click="({ key }) => handleActionMenuClick(key as string, record)">
-                  <a-menu-item key="follow"><MessageOutlined /> 添加跟进</a-menu-item>
-                  <a-menu-item key="history"><HistoryOutlined /> 跟进记录</a-menu-item>
-                  <a-menu-divider />
-                  <a-menu-item key="delete" danger><DeleteOutlined /> 删除</a-menu-item>
-                </a-menu>
+        <BillTableList
+          ref="tableRef"
+          :columns="vxeColumns"
+          :data-source="tableDataSource"
+          :loading="loading"
+          :pagination="pagination"
+          :filter-fields="filterFields"
+          :show-export="true"
+          :selectable="true"
+          :min-empty-rows="12"
+          add-text="新建线索"
+          @add="handleAdd"
+          @refresh="fetchData"
+          @search="handleSearch"
+          @page-change="handlePageChange"
+          @filter-change="handleFilterChange"
+          @selection-change="handleSelectionChange"
+          @cell-dblclick="handleView"
+          @export="handleExport"
+        >
+          <template #toolbar-actions>
+            <a-button
+              v-permission="'crm:lead:batchassign'"
+              size="small"
+              @click="handleBatchAssign"
+            >
+              <template #icon>
+                <TeamOutlined />
               </template>
-            </a-dropdown>
-          </a-space>
-        </template>
-          <template #statusCell="{ record }">
-            <a-tag :color="getStatusColor(record.status)">{{ getStatusText(record.status) }}</a-tag>
+              批量分配
+            </a-button>
+            <a-button
+              v-permission="'crm:lead:import'"
+              size="small"
+              @click="handleImport"
+            >
+              <template #icon>
+                <ImportOutlined />
+              </template>
+              导入线索
+            </a-button>
           </template>
-      </BillTableList>
+
+          <template #batch-actions>
+            <a-button
+              v-permission="'crm:lead:batchassign'"
+              size="small"
+              type="primary"
+              ghost
+              @click="handleBatchAssign"
+            >
+              <template #icon>
+                <TeamOutlined />
+              </template>
+              批量分配
+            </a-button>
+            <a-button
+              v-permission="'crm:lead:batchconvert'"
+              size="small"
+              @click="handleBatchConvert"
+            >
+              <template #icon>
+                <SwapRightOutlined />
+              </template>
+              批量转化
+            </a-button>
+          </template>
+
+          <template #empty>
+            <div class="table-empty">
+              <template v-if="hasError">
+                <WarningOutlined
+                  class="table-empty-icon"
+                  style="color: #faad14"
+                />
+                <p class="table-empty-text">
+                  数据加载失败，请重试
+                </p>
+                <a-button
+                  type="primary"
+                  size="small"
+                  @click="fetchData as any"
+                >
+                  <template #icon>
+                    <ReloadOutlined />
+                  </template>
+                  重试
+                </a-button>
+              </template>
+              <template v-else>
+                <SearchOutlined
+                  v-if="hasActiveFilters"
+                  class="table-empty-icon"
+                />
+                <InboxOutlined
+                  v-else
+                  class="table-empty-icon"
+                />
+                <p
+                  v-if="hasActiveFilters"
+                  class="table-empty-text"
+                >
+                  没有符合条件的线索，<a @click="handleResetFilters">清除筛选</a>
+                </p>
+                <p
+                  v-else
+                  class="table-empty-text"
+                >
+                  暂无线索数据
+                </p>
+                <div
+                  v-if="!hasActiveFilters"
+                  class="empty-state-wrapper"
+                >
+                  <a-button
+                    v-permission="'crm:lead:create'"
+                    type="primary"
+                    @click="handleAdd"
+                  >
+                    <template #icon>
+                      <PlusOutlined />
+                    </template>
+                    新建第一个线索
+                  </a-button>
+                </div>
+              </template>
+            </div>
+          </template>
+
+          <template #action="{ record }">
+            <a-space :size="4">
+              <a-tooltip title="查看详情">
+                <a-button
+                  v-permission="'crm:lead:view'"
+                  type="link"
+                  size="small"
+                  @click="handleView(record)"
+                >
+                  <template #icon>
+                    <EyeOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip title="编辑">
+                <a-button
+                  v-permission="'crm:lead:edit'"
+                  type="link"
+                  size="small"
+                  @click="handleEdit(record)"
+                >
+                  <template #icon>
+                    <EditOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip title="分配">
+                <a-button
+                  v-permission="'crm:lead:assign'"
+                  type="link"
+                  size="small"
+                  @click="handleAssign(record)"
+                >
+                  <template #icon>
+                    <TeamOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip
+                v-if="record.status < 2"
+                title="转化为客户"
+              >
+                <a-button
+                  v-permission="'crm:lead:convert'"
+                  type="link"
+                  size="small"
+                  @click="handleConvert(record)"
+                >
+                  <template #icon>
+                    <SwapRightOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <a-dropdown trigger="click">
+                <a-button
+                  type="link"
+                  size="small"
+                  class="action-more-btn"
+                >
+                  <template #icon>
+                    <MoreOutlined />
+                  </template>
+                </a-button>
+                <template #overlay>
+                  <a-menu @click="({ key }) => handleActionMenuClick(key as string, record)">
+                    <a-menu-item key="follow">
+                      <MessageOutlined /> 添加跟进
+                    </a-menu-item>
+                    <a-menu-item key="history">
+                      <HistoryOutlined /> 跟进记录
+                    </a-menu-item>
+                    <a-menu-divider />
+                    <a-menu-item
+                      key="delete"
+                      danger
+                    >
+                      <DeleteOutlined /> 删除
+                    </a-menu-item>
+                  </a-menu>
+                </template>
+              </a-dropdown>
+            </a-space>
+          </template>
+          <template #statusCell="{ record }">
+            <a-tag :color="getStatusColor(record.status)">
+              {{ getStatusText(record.status) }}
+            </a-tag>
+          </template>
+        </BillTableList>
       </template>
     </ErrorBoundary>
 
@@ -216,58 +384,143 @@
       @close="handleFormClose"
       @save-and-new="handleFormSaveAndNew"
     >
-      <a-form ref="formRef" :model="formState" :rules="formRules" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
+      <a-form
+        ref="formRef"
+        :model="formState"
+        :rules="formRules"
+        :label-col="{ span: 6 }"
+        :wrapper-col="{ span: 16 }"
+      >
         <a-row :gutter="16">
           <a-col :span="12">
-            <a-form-item label="线索名称" name="name">
-              <a-input v-model:value="formState.name" placeholder="请输入线索名称" size="small" />
+            <a-form-item
+              label="线索名称"
+              name="name"
+            >
+              <a-input
+                v-model:value="formState.name"
+                placeholder="请输入线索名称"
+                size="small"
+              />
             </a-form-item>
           </a-col>
           <a-col :span="12">
-            <a-form-item label="公司名称" name="companyName">
-              <a-input v-model:value="formState.companyName" placeholder="请输入公司名称" size="small" />
+            <a-form-item
+              label="公司名称"
+              name="companyName"
+            >
+              <a-input
+                v-model:value="formState.companyName"
+                placeholder="请输入公司名称"
+                size="small"
+              />
             </a-form-item>
           </a-col>
           <a-col :span="12">
-            <a-form-item label="联系人" name="contactName">
-              <a-input v-model:value="formState.contactName" placeholder="请输入联系人" size="small" />
+            <a-form-item
+              label="联系人"
+              name="contactName"
+            >
+              <a-input
+                v-model:value="formState.contactName"
+                placeholder="请输入联系人"
+                size="small"
+              />
             </a-form-item>
           </a-col>
           <a-col :span="12">
-            <a-form-item label="联系电话" name="phone">
-              <a-input v-model:value="formState.phone" placeholder="请输入联系电话" size="small" />
+            <a-form-item
+              label="联系电话"
+              name="phone"
+            >
+              <a-input
+                v-model:value="formState.phone"
+                placeholder="请输入联系电话"
+                size="small"
+              />
             </a-form-item>
           </a-col>
           <a-col :span="12">
-            <a-form-item label="手机号码" name="mobile">
-              <a-input v-model:value="formState.mobile" placeholder="请输入手机号码" size="small" />
+            <a-form-item
+              label="手机号码"
+              name="mobile"
+            >
+              <a-input
+                v-model:value="formState.mobile"
+                placeholder="请输入手机号码"
+                size="small"
+              />
             </a-form-item>
           </a-col>
           <a-col :span="12">
-            <a-form-item label="邮箱" name="email">
-              <a-input v-model:value="formState.email" placeholder="请输入邮箱" size="small" />
+            <a-form-item
+              label="邮箱"
+              name="email"
+            >
+              <a-input
+                v-model:value="formState.email"
+                placeholder="请输入邮箱"
+                size="small"
+              />
             </a-form-item>
           </a-col>
           <a-col :span="12">
-            <a-form-item label="来源渠道" name="source">
-              <a-select v-model:value="formState.source" placeholder="请选择来源渠道" size="small">
-                <a-select-option value="website">官网咨询</a-select-option>
-                <a-select-option value="weixin">微信公众号</a-select-option>
-                <a-select-option value="email">邮件咨询</a-select-option>
-                <a-select-option value="phone">电话咨询</a-select-option>
-                <a-select-option value="social">社交媒体</a-select-option>
-                <a-select-option value="other">其他</a-select-option>
+            <a-form-item
+              label="来源渠道"
+              name="source"
+            >
+              <a-select
+                v-model:value="formState.source"
+                placeholder="请选择来源渠道"
+                size="small"
+              >
+                <a-select-option value="website">
+                  官网咨询
+                </a-select-option>
+                <a-select-option value="weixin">
+                  微信公众号
+                </a-select-option>
+                <a-select-option value="email">
+                  邮件咨询
+                </a-select-option>
+                <a-select-option value="phone">
+                  电话咨询
+                </a-select-option>
+                <a-select-option value="social">
+                  社交媒体
+                </a-select-option>
+                <a-select-option value="other">
+                  其他
+                </a-select-option>
               </a-select>
             </a-form-item>
           </a-col>
           <a-col :span="12">
-            <a-form-item label="评分" name="score">
-              <a-slider v-model:value="formState.score" :min="0" :max="100" :marks="{ 0: '0', 50: '50', 80: '80', 100: '100' }" />
+            <a-form-item
+              label="评分"
+              name="score"
+            >
+              <a-slider
+                v-model:value="formState.score"
+                :min="0"
+                :max="100"
+                :marks="{ 0: '0', 50: '50', 80: '80', 100: '100' }"
+              />
             </a-form-item>
           </a-col>
           <a-col :span="24">
-            <a-form-item label="备注" name="remark" :label-col="{ span: 3 }" :wrapper-col="{ span: 20 }">
-              <a-textarea v-model:value="formState.remark" placeholder="请输入备注" :rows="3" size="small" />
+            <a-form-item
+              label="备注"
+              name="remark"
+              :label-col="{ span: 3 }"
+              :wrapper-col="{ span: 20 }"
+            >
+              <a-textarea
+                v-model:value="formState.remark"
+                placeholder="请输入备注"
+                :rows="3"
+                size="small"
+              />
             </a-form-item>
           </a-col>
         </a-row>
@@ -284,14 +537,27 @@
     >
       <a-form layout="vertical">
         <a-form-item label="选择销售人员">
-          <a-select v-model:value="assignForm.userId" placeholder="请选择销售人员" size="small">
-            <a-select-option v-for="user in salesUsers" :key="user.id" :value="user.id">
+          <a-select
+            v-model:value="assignForm.userId"
+            placeholder="请选择销售人员"
+            size="small"
+          >
+            <a-select-option
+              v-for="user in salesUsers"
+              :key="user.id"
+              :value="user.id"
+            >
               {{ user.name }}
             </a-select-option>
           </a-select>
         </a-form-item>
         <a-form-item label="备注">
-          <a-textarea v-model:value="assignForm.remark" placeholder="分配备注" :rows="2" size="small" />
+          <a-textarea
+            v-model:value="assignForm.remark"
+            placeholder="分配备注"
+            :rows="2"
+            size="small"
+          />
         </a-form-item>
       </a-form>
     </a-modal>
@@ -304,14 +570,35 @@
       width="500px"
       @ok="handleConvertConfirm"
     >
-      <a-alert message="将线索转化为客户" type="info" style="margin-bottom: 16px" />
-      <a-descriptions bordered :column="2" size="small" v-if="currentLead">
-        <a-descriptions-item label="线索名称">{{ currentLead.name }}</a-descriptions-item>
-        <a-descriptions-item label="公司">{{ currentLead.companyName }}</a-descriptions-item>
-        <a-descriptions-item label="联系人">{{ currentLead.contactName }}</a-descriptions-item>
-        <a-descriptions-item label="电话">{{ currentLead.phone }}</a-descriptions-item>
-        <a-descriptions-item label="来源">{{ sourceTextMap[currentLead.source] }}</a-descriptions-item>
-        <a-descriptions-item label="评分">{{ currentLead.score }}</a-descriptions-item>
+      <a-alert
+        message="将线索转化为客户"
+        type="info"
+        style="margin-bottom: 16px"
+      />
+      <a-descriptions
+        v-if="currentLead"
+        bordered
+        :column="2"
+        size="small"
+      >
+        <a-descriptions-item label="线索名称">
+          {{ currentLead.name }}
+        </a-descriptions-item>
+        <a-descriptions-item label="公司">
+          {{ currentLead.companyName }}
+        </a-descriptions-item>
+        <a-descriptions-item label="联系人">
+          {{ currentLead.contactName }}
+        </a-descriptions-item>
+        <a-descriptions-item label="电话">
+          {{ currentLead.phone }}
+        </a-descriptions-item>
+        <a-descriptions-item label="来源">
+          {{ sourceTextMap[currentLead.source] }}
+        </a-descriptions-item>
+        <a-descriptions-item label="评分">
+          {{ currentLead.score }}
+        </a-descriptions-item>
       </a-descriptions>
     </a-modal>
   </PageContainer>

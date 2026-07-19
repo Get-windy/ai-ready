@@ -1,9 +1,9 @@
 <template>
   <div class="enhanced-search">
     <a-form
+      ref="searchFormRef"
       layout="inline"
       :model="formState"
-      ref="searchFormRef"
     >
       <!-- 基础搜索 -->
       <a-form-item label="订单号">
@@ -41,8 +41,8 @@
       <a-form-item>
         <a-button
           type="link"
-          @click="toggleAdvancedSearch"
           size="small"
+          @click="toggleAdvancedSearch"
         >
           {{ showAdvanced ? '收起高级搜索' : '展开高级搜索' }}
         </a-button>
@@ -53,8 +53,8 @@
         <a-space>
           <a-button
             type="primary"
-            @click="handleSearch"
             :loading="loading"
+            @click="handleSearch"
           >
             查询
           </a-button>
@@ -67,12 +67,15 @@
     
     <!-- 高级搜索区域 -->
     <a-collapse
-      v-model:activeKey="collapseActiveKeys"
+      v-if="showAdvanced"
+      v-model:active-key="collapseActiveKeys"
       :bordered="false"
       class="advanced-search-collapse"
-      v-if="showAdvanced"
     >
-      <a-collapse-panel key="advanced" header="高级搜索">
+      <a-collapse-panel
+        key="advanced"
+        header="高级搜索"
+      >
         <a-form
           layout="vertical"
           :model="formState"
@@ -157,14 +160,14 @@
                 <a-space>
                   <a-button
                     type="primary"
-                    @click="handleSaveSearch"
                     size="small"
+                    @click="handleSaveSearch"
                   >
                     保存搜索条件
                   </a-button>
                   <a-button
-                    @click="handleLoadSearch"
                     size="small"
+                    @click="handleLoadSearch"
                   >
                     加载已保存
                   </a-button>
@@ -177,15 +180,20 @@
     </a-collapse>
     
     <!-- 搜索历史 -->
-    <div class="search-history" v-if="searchHistory.length > 0">
-      <a-divider orientation="left">最近搜索</a-divider>
+    <div
+      v-if="searchHistory.length > 0"
+      class="search-history"
+    >
+      <a-divider orientation="left">
+        最近搜索
+      </a-divider>
       <a-space wrap>
         <a-tag
           v-for="(item, index) in searchHistory"
           :key="index"
           color="blue"
-          @click="handleHistoryClick(item)"
           class="history-tag"
+          @click="handleHistoryClick(item)"
         >
           {{ item.name }}
         </a-tag>
@@ -198,13 +206,18 @@
       title="选择搜索条件"
       @ok="handleLoadSearchOk"
     >
-      <a-radio-group v-model:value="selectedSearchTimestamp" style="width: 100%">
+      <a-radio-group
+        v-model:value="selectedSearchTimestamp"
+        style="width: 100%"
+      >
         <div
           v-for="item in searchHistory"
           :key="item.timestamp"
           class="history-item"
         >
-          <a-radio :value="item.timestamp">{{ item.name }}</a-radio>
+          <a-radio :value="item.timestamp">
+            {{ item.name }}
+          </a-radio>
         </div>
       </a-radio-group>
     </a-modal>

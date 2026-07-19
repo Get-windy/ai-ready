@@ -1,25 +1,56 @@
 <template>
   <ErrorBoundary @error="handleError">
-    <PageContainer title="零售收银" full-height>
+    <PageContainer
+      title="零售收银"
+      full-height
+    >
       <template #headerExtra>
         <a-space>
           <a-badge :status="loading ? 'processing' : 'success'" />
-          <a-tooltip title="刷新"><a-button size="small" @click="fetchData"><template #icon><ReloadOutlined /></template></a-button></a-tooltip>
+          <a-tooltip title="刷新">
+            <a-button
+              size="small"
+              @click="fetchData"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
+            </a-button>
+          </a-tooltip>
         </a-space>
       </template>
       <div class="pos-layout">
         <div class="pos-main">
           <div class="search-bar">
-            <a-input-search v-model:value="searchText" placeholder="搜索商品（编码/名称/条码）" enter-button @search="handleSearch" />
+            <a-input-search
+              v-model:value="searchText"
+              placeholder="搜索商品（编码/名称/条码）"
+              enter-button
+              @search="handleSearch"
+            />
           </div>
           <a-spin :spinning="loading">
             <div class="product-grid">
-              <div v-for="p in productList" :key="p.id" class="product-card" @click="handleAddToCart(p)">
-                <div class="product-name">{{ p.productName || p.name }}</div>
-                <div class="product-price">¥{{ formatAmount(p.salePrice || p.price) }}</div>
-                <div class="product-stock">库存: {{ p.stock || p.quantity || 0 }}</div>
+              <div
+                v-for="p in productList"
+                :key="p.id"
+                class="product-card"
+                @click="handleAddToCart(p)"
+              >
+                <div class="product-name">
+                  {{ p.productName || p.name }}
+                </div>
+                <div class="product-price">
+                  ¥{{ formatAmount(p.salePrice || p.price) }}
+                </div>
+                <div class="product-stock">
+                  库存: {{ p.stock || p.quantity || 0 }}
+                </div>
               </div>
-              <a-empty v-if="!loading && productList.length === 0" description="暂无商品数据" />
+              <a-empty
+                v-if="!loading && productList.length === 0"
+                description="暂无商品数据"
+              />
             </div>
           </a-spin>
         </div>
@@ -27,27 +58,59 @@
           <div class="cart-header">
             <h3>购物车</h3>
             <span class="cart-count">{{ cartItems.length }} 项</span>
-            <a-button type="link" size="small" danger @click="handleClearCart">清空</a-button>
+            <a-button
+              type="link"
+              size="small"
+              danger
+              @click="handleClearCart"
+            >
+              清空
+            </a-button>
           </div>
           <div class="cart-list">
-            <div v-for="(item, index) in cartItems" :key="item.productId || index" class="cart-item">
+            <div
+              v-for="(item, index) in cartItems"
+              :key="item.productId || index"
+              class="cart-item"
+            >
               <div class="cart-item-info">
-                <div class="cart-item-name">{{ item.productName }}</div>
+                <div class="cart-item-name">
+                  {{ item.productName }}
+                </div>
                 <div class="cart-item-meta">
                   ¥{{ formatAmount(item.price) }} x {{ item.quantity }}
                 </div>
               </div>
-              <div class="cart-item-amount">¥{{ formatAmount(item.price * item.quantity) }}</div>
-              <a-button type="link" size="small" danger @click="cartItems.splice(index, 1)">×</a-button>
+              <div class="cart-item-amount">
+                ¥{{ formatAmount(item.price * item.quantity) }}
+              </div>
+              <a-button
+                type="link"
+                size="small"
+                danger
+                @click="cartItems.splice(index, 1)"
+              >
+                ×
+              </a-button>
             </div>
-            <a-empty v-if="cartItems.length === 0" description="请添加商品" />
+            <a-empty
+              v-if="cartItems.length === 0"
+              description="请添加商品"
+            />
           </div>
           <div class="cart-footer">
             <div class="cart-total">
               <span>合计:</span>
               <span class="total-amount">¥{{ formatAmount(cartTotal) }}</span>
             </div>
-            <a-button type="primary" block :disabled="cartItems.length === 0" @click="handleCheckout">结算</a-button>
+            <a-button
+              type="primary"
+              block
+              :disabled="cartItems.length === 0"
+              @click="handleCheckout"
+            >
+              结算
+            </a-button>
           </div>
         </div>
       </div>

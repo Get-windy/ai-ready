@@ -1,151 +1,220 @@
 <template>
-  <ErrorBoundary @error="handleError"><PageContainer>
-    <template #header>
-      <div class="page-header">
-        <div class="page-header__left">
-          <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item>DMS / 仪表盘</a-breadcrumb-item>
-          </a-breadcrumb>
-          <h2>DMS 仪表盘</h2>
+  <ErrorBoundary @error="handleError">
+    <PageContainer>
+      <template #header>
+        <div class="page-header">
+          <div class="page-header__left">
+            <a-breadcrumb>
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>DMS / 仪表盘</a-breadcrumb-item>
+            </a-breadcrumb>
+            <h2>DMS 仪表盘</h2>
+          </div>
+          <div class="page-header__right">
+            <span
+              v-if="lastUpdateTime"
+              class="update-time"
+            >更新于 {{ lastUpdateTime }}</span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            ><SyncOutlined /> {{ autoRefreshCountdown }}s</span>
+            <a-button
+              size="small"
+              :loading="loading"
+              @click="debounceClick('refresh', initData)"
+            >
+              <ReloadOutlined /> 刷新
+            </a-button>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            </span>
+          </div>
         </div>
-        <div class="page-header__right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge"><SyncOutlined /> {{ autoRefreshCountdown }}s</span>
-          <a-button size="small" :loading="loading" @click="debounceClick('refresh', initData)">
-            <ReloadOutlined /> 刷新
-          </a-button>
-          <span class="shortcut-hints">
-            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-          </span>
+      </template>
+
+      <template #default>
+        <div class="dashboard-body">
+          <!-- 统计卡片 -->
+          <a-row :gutter="[16, 16]">
+            <a-col :span="6">
+              <div class="stat-card-wrapper">
+                <StatCard
+                  title="车辆总数"
+                  :value="stats.totalVehicles ?? '-'"
+                  color="#1890ff"
+                />
+              </div>
+            </a-col>
+            <a-col :span="6">
+              <div class="stat-card-wrapper">
+                <StatCard
+                  title="活跃骑手"
+                  :value="stats.activeRiders ?? '-'"
+                  color="#52c41a"
+                />
+              </div>
+            </a-col>
+            <a-col :span="6">
+              <div class="stat-card-wrapper">
+                <StatCard
+                  title="待处理任务"
+                  :value="stats.pendingTasks ?? '-'"
+                  color="#faad14"
+                />
+              </div>
+            </a-col>
+            <a-col :span="6">
+              <div class="stat-card-wrapper">
+                <StatCard
+                  title="今日配送"
+                  :value="stats.todayDeliveries ?? '-'"
+                  color="#722ed1"
+                />
+              </div>
+            </a-col>
+          </a-row>
+
+          <!-- 活跃数据卡片 -->
+          <a-row
+            :gutter="[16, 16]"
+            style="margin-top: 16px;"
+          >
+            <!-- 活跃绑定 -->
+            <a-col :span="12">
+              <div class="section-card">
+                <div class="section-card__header">
+                  <h3>活跃绑定</h3>
+                  <a-button
+                    type="link"
+                    size="small"
+                    @click="refreshActiveBindings"
+                  >
+                    刷新
+                  </a-button>
+                </div>
+                <SkeletonTable
+                  v-if="bindingsLoading && activeBindings.length === 0"
+                  :columns="bindingColumns.length"
+                  :rows="4"
+                />
+                <a-table
+                  v-else
+                  :data-source="activeBindings"
+                  :columns="bindingColumns"
+                  :loading="bindingsLoading"
+                  row-key="id"
+                  size="small"
+                  bordered
+                  :pagination="false as any"
+                >
+                  <template #bodyCell="{ column, record }">
+                    <template v-if="column.dataIndex === 'status'">
+                      <a-tag :color="record.status === 1 ? 'blue' : 'green'">
+                        {{ record.status === 1 ? '绑定中' : '已交车' }}
+                      </a-tag>
+                    </template>
+                  </template>
+                </a-table>
+                <div
+                  v-if="!bindingsLoading && (!activeBindings || activeBindings.length === 0)"
+                  class="empty-hint"
+                >
+                  暂无活跃绑定
+                </div>
+              </div>
+            </a-col>
+
+            <!-- 待处理预警 -->
+            <a-col :span="12">
+              <div class="section-card">
+                <div class="section-card__header">
+                  <h3>待处理预警</h3>
+                  <a-button
+                    type="link"
+                    size="small"
+                    @click="refreshPendingAlerts"
+                  >
+                    刷新
+                  </a-button>
+                </div>
+                <a-table
+                  :data-source="pendingAlerts"
+                  :columns="alertColumns"
+                  :loading="alertsLoading"
+                  row-key="id"
+                  size="small"
+                  bordered
+                  :pagination="false as any"
+                  :locale="locale"
+                >
+                  <template #bodyCell="{ column, record }">
+                    <template v-if="column.dataIndex === 'alertType'">
+                      <a-tag :color="alertTypeTagMap[record.alertType]?.color || 'default'">
+                        {{ alertTypeTagMap[record.alertType]?.text || record.alertType }}
+                      </a-tag>
+                    </template>
+                    <template v-if="column.dataIndex === 'alertLevel'">
+                      <a-tag :color="alertLevelMap[record.alertLevel]?.color || 'default'">
+                        {{ alertLevelMap[record.alertLevel]?.text || record.alertLevel }}
+                      </a-tag>
+                    </template>
+                  </template>
+                </a-table>
+                <div
+                  v-if="!alertsLoading && (!pendingAlerts || pendingAlerts.length === 0)"
+                  class="empty-hint"
+                >
+                  暂无待处理预警
+                </div>
+              </div>
+            </a-col>
+          </a-row>
+
+          <!-- 任务状态汇总 -->
+          <a-row
+            :gutter="[16, 16]"
+            style="margin-top: 16px;"
+          >
+            <a-col :span="12">
+              <div class="section-card">
+                <div class="section-card__header">
+                  <h3>任务状态汇总</h3>
+                  <a-button
+                    type="link"
+                    size="small"
+                    @click="refreshTaskSummary"
+                  >
+                    刷新
+                  </a-button>
+                </div>
+                <a-table
+                  :data-source="taskSummary"
+                  :columns="taskSummaryColumns"
+                  :loading="taskSummaryLoading"
+                  row-key="id"
+                  size="small"
+                  bordered
+                  :pagination="false as any"
+                  :locale="locale"
+                />
+                <div
+                  v-if="!taskSummaryLoading && (!taskSummary || taskSummary.length === 0)"
+                  class="empty-hint"
+                >
+                  暂无任务数据
+                </div>
+              </div>
+            </a-col>
+          </a-row>
         </div>
-      </div>
-    </template>
-
-    <template #default>
-      <div class="dashboard-body">
-        <!-- 统计卡片 -->
-        <a-row :gutter="[16, 16]">
-          <a-col :span="6">
-            <div class="stat-card-wrapper">
-              <StatCard title="车辆总数" :value="stats.totalVehicles ?? '-'" color="#1890ff" />
-            </div>
-          </a-col>
-          <a-col :span="6">
-            <div class="stat-card-wrapper">
-              <StatCard title="活跃骑手" :value="stats.activeRiders ?? '-'" color="#52c41a" />
-            </div>
-          </a-col>
-          <a-col :span="6">
-            <div class="stat-card-wrapper">
-              <StatCard title="待处理任务" :value="stats.pendingTasks ?? '-'" color="#faad14" />
-            </div>
-          </a-col>
-          <a-col :span="6">
-            <div class="stat-card-wrapper">
-              <StatCard title="今日配送" :value="stats.todayDeliveries ?? '-'" color="#722ed1" />
-            </div>
-          </a-col>
-        </a-row>
-
-        <!-- 活跃数据卡片 -->
-        <a-row :gutter="[16, 16]" style="margin-top: 16px;">
-          <!-- 活跃绑定 -->
-          <a-col :span="12">
-            <div class="section-card">
-              <div class="section-card__header">
-                <h3>活跃绑定</h3>
-                <a-button type="link" size="small" @click="refreshActiveBindings">刷新</a-button>
-              </div>
-              <SkeletonTable v-if="bindingsLoading && activeBindings.length === 0" :columns="bindingColumns.length" :rows="4" />
-              <a-table
-                v-else
-                :dataSource="activeBindings"
-                :columns="bindingColumns"
-                :loading="bindingsLoading"
-                rowKey="id"
-                size="small"
-                bordered
-                :pagination="false as any"
-              >
-                <template #bodyCell="{ column, record }">
-                  <template v-if="column.dataIndex === 'status'">
-                    <a-tag :color="record.status === 1 ? 'blue' : 'green'">
-                      {{ record.status === 1 ? '绑定中' : '已交车' }}
-                    </a-tag>
-                  </template>
-                </template>
-              </a-table>
-              <div v-if="!bindingsLoading && (!activeBindings || activeBindings.length === 0)" class="empty-hint">
-                暂无活跃绑定
-              </div>
-            </div>
-          </a-col>
-
-          <!-- 待处理预警 -->
-          <a-col :span="12">
-            <div class="section-card">
-              <div class="section-card__header">
-                <h3>待处理预警</h3>
-                <a-button type="link" size="small" @click="refreshPendingAlerts">刷新</a-button>
-              </div>
-              <a-table
-                :dataSource="pendingAlerts"
-                :columns="alertColumns"
-                :loading="alertsLoading"
-                rowKey="id"
-                size="small"
-                bordered
-                :pagination="false as any"
-                :locale="locale"
-              >
-                <template #bodyCell="{ column, record }">
-                  <template v-if="column.dataIndex === 'alertType'">
-                    <a-tag :color="alertTypeTagMap[record.alertType]?.color || 'default'">
-                      {{ alertTypeTagMap[record.alertType]?.text || record.alertType }}
-                    </a-tag>
-                  </template>
-                  <template v-if="column.dataIndex === 'alertLevel'">
-                    <a-tag :color="alertLevelMap[record.alertLevel]?.color || 'default'">
-                      {{ alertLevelMap[record.alertLevel]?.text || record.alertLevel }}
-                    </a-tag>
-                  </template>
-                </template>
-              </a-table>
-              <div v-if="!alertsLoading && (!pendingAlerts || pendingAlerts.length === 0)" class="empty-hint">
-                暂无待处理预警
-              </div>
-            </div>
-          </a-col>
-        </a-row>
-
-        <!-- 任务状态汇总 -->
-        <a-row :gutter="[16, 16]" style="margin-top: 16px;">
-          <a-col :span="12">
-            <div class="section-card">
-              <div class="section-card__header">
-                <h3>任务状态汇总</h3>
-                <a-button type="link" size="small" @click="refreshTaskSummary">刷新</a-button>
-              </div>
-              <a-table
-                :dataSource="taskSummary"
-                :columns="taskSummaryColumns"
-                :loading="taskSummaryLoading"
-                rowKey="id"
-                size="small"
-                bordered
-                :pagination="false as any"
-                :locale="locale"
-              />
-              <div v-if="!taskSummaryLoading && (!taskSummary || taskSummary.length === 0)" class="empty-hint">
-                暂无任务数据
-              </div>
-            </div>
-          </a-col>
-        </a-row>
-      </div>
-    </template>
-  </PageContainer></ErrorBoundary>
+      </template>
+    </PageContainer>
+  </ErrorBoundary>
 </template>
 
 <script setup lang="ts">

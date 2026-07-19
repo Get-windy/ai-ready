@@ -20,10 +20,20 @@
       >
         <template #actionCell="{ index }">
           <a-space :size="2">
-            <a-button type="link" size="small" class="action-add-btn" @click="addStocktakeRow">
+            <a-button
+              type="link"
+              size="small"
+              class="action-add-btn"
+              @click="addStocktakeRow"
+            >
               <PlusCircleOutlined />
             </a-button>
-            <a-button type="link" size="small" class="action-del-btn" @click="handleRemoveProduct(index)">
+            <a-button
+              type="link"
+              size="small"
+              class="action-del-btn"
+              @click="handleRemoveProduct(index)"
+            >
               <MinusCircleOutlined />
             </a-button>
           </a-space>
@@ -40,17 +50,23 @@
               size="small"
               @change="(val: number) => handleProductChange(val, index)"
             >
-              <a-select-option v-for="p in optionRefs.products" :key="p.id" :value="p.id">
+              <a-select-option
+                v-for="p in optionRefs.products"
+                :key="p.id"
+                :value="p.id"
+              >
                 {{ p.name }}
               </a-select-option>
             </a-select>
           </div>
         </template>
         <template #diffCell="{ record }">
-          <span :class="{
-            'diff-positive': ((record.actualQuantity ?? 0) - (record.bookQuantity ?? 0)) > 0,
-            'diff-negative': ((record.actualQuantity ?? 0) - (record.bookQuantity ?? 0)) < 0,
-          }">
+          <span
+            :class="{
+              'diff-positive': ((record.actualQuantity ?? 0) - (record.bookQuantity ?? 0)) > 0,
+              'diff-negative': ((record.actualQuantity ?? 0) - (record.bookQuantity ?? 0)) < 0,
+            }"
+          >
             {{ ((record.actualQuantity ?? 0) - (record.bookQuantity ?? 0)).toFixed(2) }}
           </span>
         </template>
@@ -62,7 +78,11 @@
       <div class="remark-section">
         <div class="remark-row">
           <span class="remark-label">备注</span>
-          <a-input v-model:value="formData.remark" size="small" class="remark-input" />
+          <a-input
+            v-model:value="formData.remark"
+            size="small"
+            class="remark-input"
+          />
         </div>
       </div>
     </template>
@@ -110,12 +130,12 @@ const {
 })
 
 // 初始化盘点单特有字段
-if (!('warehouseId' in formData)) Object.assign(formData, {
+if (!('warehouseId' in formData)) {Object.assign(formData, {
   warehouseId: undefined, warehouseName: '',
   handlerId: undefined, handlerName: '',
   date: '', checkType: 1,
   remark: '',
-})
+})}
 
 // 盘点专用：添加行
 function addStocktakeRow() {

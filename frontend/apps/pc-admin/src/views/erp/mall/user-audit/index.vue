@@ -1,99 +1,163 @@
 <template>
   <ErrorBoundary @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="page-header">
-        <a-breadcrumb>
-          <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-          <a-breadcrumb-item><router-link to="/mall">商城管理</router-link></a-breadcrumb-item>
-          <a-breadcrumb-item>用户审核</a-breadcrumb-item>
-        </a-breadcrumb>
-        <div class="page-header__right">
-          <span v-if="lastUpdateTime" class="page-header__update-time">更新于: {{ lastUpdateTime }}</span>
-          <a-space :size="8">
-            <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-              <SyncOutlined /> {{ autoRefreshCountdown }}s
-            </span>
-            <span class="shortcut-hints">
-              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-            </span>
-            <a-tooltip title="F5: 刷新">
-              <a-button size="small" @click="debounceClick('refresh', fetchData)">
-                <template #icon><ReloadOutlined /></template>刷新
-              </a-button>
-            </a-tooltip>
-          </a-space>
+    <PageContainer full-height>
+      <template #header>
+        <div class="page-header">
+          <a-breadcrumb>
+            <a-breadcrumb-item>
+              <router-link to="/">
+                首页
+              </router-link>
+            </a-breadcrumb-item>
+            <a-breadcrumb-item>
+              <router-link to="/mall">
+                商城管理
+              </router-link>
+            </a-breadcrumb-item>
+            <a-breadcrumb-item>用户审核</a-breadcrumb-item>
+          </a-breadcrumb>
+          <div class="page-header__right">
+            <span
+              v-if="lastUpdateTime"
+              class="page-header__update-time"
+            >更新于: {{ lastUpdateTime }}</span>
+            <a-space :size="8">
+              <span
+                v-if="autoRefreshCountdown > 0"
+                class="auto-refresh-badge"
+              >
+                <SyncOutlined /> {{ autoRefreshCountdown }}s
+              </span>
+              <span class="shortcut-hints">
+                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+              </span>
+              <a-tooltip title="F5: 刷新">
+                <a-button
+                  size="small"
+                  @click="debounceClick('refresh', fetchData)"
+                >
+                  <template #icon>
+                    <ReloadOutlined />
+                  </template>刷新
+                </a-button>
+              </a-tooltip>
+            </a-space>
+          </div>
         </div>
-      </div>
-    </template>
-
-    <BillTableList
-      ref="tableRef"
-      :columns="vxeColumns"
-      :data-source="tableDataSource"
-      :loading="loading"
-      :pagination="pagination"
-      :row-key="'id'"
-      :filter-fields="filterFields"
-      :show-search="false"
-      @refresh="debounceClick('refresh', fetchData)"
-      @page-change="handlePageChange"
-      @filter-change="handleFilterChange"
-    >
-      <template #empty>
-        <a-empty v-if="!hasError" description="暂无数据" />
-        <a-result v-else status="error" title="数据加载失败">
-          <template #extra>
-            <a-button type="primary" @click="debounceClick('refresh', fetchData)">
-              <template #icon><ReloadOutlined /></template>重新加载
-            </a-button>
-          </template>
-        </a-result>
       </template>
 
-      <template #auditStatusCell="{ record }">
-        <a-tag v-if="record.auditStatus === 0" color="orange">待审核</a-tag>
-        <a-tag v-else-if="record.auditStatus === 1" color="green">已通过</a-tag>
-        <a-tag v-else-if="record.auditStatus === 2" color="red">已驳回</a-tag>
-        <span v-else>{{ record.auditStatus }}</span>
-      </template>
+      <BillTableList
+        ref="tableRef"
+        :columns="vxeColumns"
+        :data-source="tableDataSource"
+        :loading="loading"
+        :pagination="pagination"
+        :row-key="'id'"
+        :filter-fields="filterFields"
+        :show-search="false"
+        @refresh="debounceClick('refresh', fetchData)"
+        @page-change="handlePageChange"
+        @filter-change="handleFilterChange"
+      >
+        <template #empty>
+          <a-empty
+            v-if="!hasError"
+            description="暂无数据"
+          />
+          <a-result
+            v-else
+            status="error"
+            title="数据加载失败"
+          >
+            <template #extra>
+              <a-button
+                type="primary"
+                @click="debounceClick('refresh', fetchData)"
+              >
+                <template #icon>
+                  <ReloadOutlined />
+                </template>重新加载
+              </a-button>
+            </template>
+          </a-result>
+        </template>
 
-      <template #statusCell="{ record }">
-        <a-switch
-          :checked="record.status === 1"
-          size="small"
-          @change="handleToggleStatus(record)"
+        <template #auditStatusCell="{ record }">
+          <a-tag
+            v-if="record.auditStatus === 0"
+            color="orange"
+          >
+            待审核
+          </a-tag>
+          <a-tag
+            v-else-if="record.auditStatus === 1"
+            color="green"
+          >
+            已通过
+          </a-tag>
+          <a-tag
+            v-else-if="record.auditStatus === 2"
+            color="red"
+          >
+            已驳回
+          </a-tag>
+          <span v-else>{{ record.auditStatus }}</span>
+        </template>
+
+        <template #statusCell="{ record }">
+          <a-switch
+            :checked="record.status === 1"
+            size="small"
+            @change="handleToggleStatus(record)"
+          />
+        </template>
+
+        <template #action="{ record }">
+          <a-space>
+            <template v-if="record.auditStatus === 0">
+              <a-button
+                v-permission="'erp:mall:user:approve'"
+                type="link"
+                size="small"
+                @click="handleApprove(record)"
+              >
+                通过
+              </a-button>
+              <a-button
+                v-permission="'erp:mall:user:reject'"
+                type="link"
+                size="small"
+                danger
+                @click="handleReject(record)"
+              >
+                驳回
+              </a-button>
+            </template>
+            <span
+              v-else
+              style="color: #999; font-size: 12px;"
+            >
+              {{ record.auditStatus === 1 ? '已审核' : '已驳回' }}
+            </span>
+          </a-space>
+        </template>
+      </BillTableList>
+
+      <!-- 驳回原因弹窗 -->
+      <a-modal
+        v-model:open="rejectModalVisible"
+        title="驳回原因"
+        :confirm-loading="rejectLoading"
+        @ok="handleRejectConfirm"
+      >
+        <a-textarea
+          v-model:value="rejectReason"
+          placeholder="请输入驳回原因"
+          :rows="3"
+          :maxlength="500"
         />
-      </template>
-
-      <template #action="{ record }">
-        <a-space>
-          <template v-if="record.auditStatus === 0">
-            <a-button v-permission="'erp:mall:user:approve'" type="link" size="small" @click="handleApprove(record)">通过</a-button>
-            <a-button v-permission="'erp:mall:user:reject'" type="link" size="small" danger @click="handleReject(record)">驳回</a-button>
-          </template>
-          <span v-else style="color: #999; font-size: 12px;">
-            {{ record.auditStatus === 1 ? '已审核' : '已驳回' }}
-          </span>
-        </a-space>
-      </template>
-    </BillTableList>
-
-    <!-- 驳回原因弹窗 -->
-    <a-modal
-      v-model:open="rejectModalVisible"
-      title="驳回原因"
-      :confirm-loading="rejectLoading"
-      @ok="handleRejectConfirm"
-    >
-      <a-textarea
-        v-model:value="rejectReason"
-        placeholder="请输入驳回原因"
-        :rows="3"
-        :maxlength="500"
-      />
-    </a-modal>
-  </PageContainer>
+      </a-modal>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

@@ -7,6 +7,8 @@ import cn.aiedge.erp.sale.saleexchange.mapper.ExchangeApprovalRecordMapper;
 import cn.aiedge.erp.sale.saleexchange.mapper.SaleExchangeItemMapper;
 import cn.aiedge.erp.sale.saleexchange.mapper.SaleExchangeMapper;
 import cn.aiedge.erp.sale.saleexchange.service.SaleExchangeService;
+import cn.aiedge.erp.sale.service.ISaleExchangeService;
+import cn.aiedge.erp.stock.service.StockService;
 import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.util.IdUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -23,13 +25,16 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 @Service
-public class SaleExchangeServiceImpl extends ServiceImpl<SaleExchangeMapper, SaleExchange> implements SaleExchangeService {
+public class SaleExchangeServiceImpl extends ServiceImpl<SaleExchangeMapper, SaleExchange> implements SaleExchangeService, ISaleExchangeService {
 
     @Autowired
     private SaleExchangeItemMapper saleExchangeItemMapper;
 
     @Autowired
     private ExchangeApprovalRecordMapper exchangeApprovalRecordMapper;
+
+    @Autowired
+    private StockService stockService;
 
     @Override
     public Page<SaleExchange> pageList(String keyword, Long customerId, Integer status, Integer exchangeType,
@@ -113,14 +118,15 @@ public class SaleExchangeServiceImpl extends ServiceImpl<SaleExchangeMapper, Sal
         exchange.setTenantId(loginId);
         exchange.setExchangeNo(generateExchangeNo());
         exchange.setStatus(0);
-        exchange.setCreatedBy(loginId);
-        exchange.setCreatedByName(loginName);
+        exchange.setCreatorId(loginId);
+        exchange.setCreatorName(loginName);
         exchange.setCreateTime(LocalDateTime.now());
         this.save(exchange);
 
         if (items != null && !items.isEmpty()) {
             for (SaleExchangeItem item : items) {
                 item.setExchangeId(exchange.getId());
+                item.setTenantId(loginId);
                 saleExchangeItemMapper.insert(item);
             }
         }
@@ -349,12 +355,46 @@ public class SaleExchangeServiceImpl extends ServiceImpl<SaleExchangeMapper, Sal
     public void calculateTotals(Long exchangeId) {
         List<SaleExchangeItem> items = getItems(exchangeId);
 
-        BigDecimal totalAmount = items.stream()
-                .map(i -> i.getExchangeQuantity().multiply(i.getExchangePrice() != null ? i.getExchangePrice() : BigDecimal.ZERO))
+        // 计算入库和出库数量合计
+        BigDecimal inQuantityTotal = items.stream()
+                .filter(i -> i.getWarehouseType() != null && i.getWarehouseType() == 1)
+                .map(i -> i.getQuantity() != null ? i.getQuantity() : BigDecimal.ZERO)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal outQuantityTotal = items.stream()
+                .filter(i -> i.getWarehouseType() != null && i.getWarehouseType() == 2)
+                .map(i -> i.getQuantity() != null ? i.getQuantity() : BigDecimal.ZERO)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // 计算金额合计
+        BigDecimal productAmount = items.stream()
+                .map(i -> {
+                    BigDecimal qty = i.getQuantity() != null ? i.getQuantity() : BigDecimal.ZERO;
+                    BigDecimal price = i.getUnitPrice() != null ? i.getUnitPrice() : BigDecimal.ZERO;
+                    return qty.multiply(price);
+                })
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal discountAmount = items.stream()
+                .map(i -> i.getDiscountAmount() != null ? i.getDiscountAmount() : BigDecimal.ZERO)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal totalWeight = items.stream()
+                .map(i -> i.getWeight() != null ? i.getWeight() : BigDecimal.ZERO)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal totalVolume = items.stream()
+                .map(i -> i.getVolume() != null ? i.getVolume() : BigDecimal.ZERO)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         SaleExchange exchange = this.getById(exchangeId);
-        exchange.setTotalAmount(totalAmount);
+        exchange.setInQuantityTotal(inQuantityTotal);
+        exchange.setOutQuantityTotal(outQuantityTotal);
+        exchange.setProductAmount(productAmount);
+        exchange.setDiscountAmount(discountAmount);
+        exchange.setTotalAmount(productAmount.subtract(discountAmount));
+        exchange.setTotalWeight(totalWeight);
+        exchange.setTotalVolume(totalVolume);
         exchange.setUpdateTime(LocalDateTime.now());
         this.updateById(exchange);
     }
@@ -369,5 +409,234 @@ public class SaleExchangeServiceImpl extends ServiceImpl<SaleExchangeMapper, Sal
         record.setRemark(remark);
         record.setCreateTime(LocalDateTime.now());
         exchangeApprovalRecordMapper.insert(record);
+    }
+
+    @Override
+    public Page<SaleExchange> pageListExtended(Map<String, Object> params, int pageNum, int pageSize) {
+        LambdaQueryWrapper<SaleExchange> wrapper = new LambdaQueryWrapper<>();
+
+        // 日期范围
+        String startDate = (String) params.get("startDate");
+        String endDate = (String) params.get("endDate");
+        LocalDateTime startDateTime = null;
+        LocalDateTime endDateTime = null;
+        if (startDate != null && !startDate.isEmpty()) {
+            try {
+                startDateTime = LocalDate.parse(startDate).atStartOfDay();
+            } catch (Exception e) {
+                // ignore
+            }
+        }
+        if (endDate != null && !endDate.isEmpty()) {
+            try {
+                endDateTime = LocalDate.parse(endDate).atTime(23, 59, 59);
+            } catch (Exception e) {
+                // ignore
+            }
+        }
+
+        // 关键词（单据编号）
+        String keyword = (String) params.get("keyword");
+        if (keyword != null && !keyword.isEmpty()) {
+            wrapper.like(SaleExchange::getExchangeNo, keyword);
+        }
+
+        // 客户名称
+        String customerName = (String) params.get("customerName");
+        if (customerName != null && !customerName.isEmpty()) {
+            wrapper.like(SaleExchange::getCustomerName, customerName);
+        }
+
+        // 经手人
+        String handlerName = (String) params.get("handlerName");
+        if (handlerName != null && !handlerName.isEmpty()) {
+            wrapper.like(SaleExchange::getHandlerName, handlerName);
+        }
+
+        // 部门
+        String deptName = (String) params.get("deptName");
+        if (deptName != null && !deptName.isEmpty()) {
+            wrapper.like(SaleExchange::getDeptName, deptName);
+        }
+
+        // 入库仓库
+        String inWarehouseName = (String) params.get("inWarehouseName");
+        if (inWarehouseName != null && !inWarehouseName.isEmpty()) {
+            wrapper.like(SaleExchange::getInWarehouseName, inWarehouseName);
+        }
+
+        // 出库仓库
+        String outWarehouseName = (String) params.get("outWarehouseName");
+        if (outWarehouseName != null && !outWarehouseName.isEmpty()) {
+            wrapper.like(SaleExchange::getOutWarehouseName, outWarehouseName);
+        }
+
+        // 制单人
+        String creatorName = (String) params.get("creatorName");
+        if (creatorName != null && !creatorName.isEmpty()) {
+            wrapper.like(SaleExchange::getCreatorName, creatorName);
+        }
+
+        // 记账人
+        String bookkeeperName = (String) params.get("bookkeeperName");
+        if (bookkeeperName != null && !bookkeeperName.isEmpty()) {
+            wrapper.like(SaleExchange::getBookkeeperName, bookkeeperName);
+        }
+
+        // 单据状态
+        Integer status = (Integer) params.get("status");
+        if (status != null) {
+            wrapper.eq(SaleExchange::getStatus, status);
+        }
+
+        // 结算状态
+        String settleStatus = (String) params.get("settleStatus");
+        if (settleStatus != null && !settleStatus.isEmpty()) {
+            wrapper.eq(SaleExchange::getSettleStatus, settleStatus);
+        }
+
+        // 销售类型
+        String salesType = (String) params.get("salesType");
+        if (salesType != null && !salesType.isEmpty()) {
+            wrapper.eq(SaleExchange::getSalesType, salesType);
+        }
+
+        // 日期范围过滤
+        wrapper.ge(startDateTime != null, SaleExchange::getExchangeDate, startDateTime);
+        wrapper.le(endDateTime != null, SaleExchange::getExchangeDate, endDateTime);
+        wrapper.orderByDesc(SaleExchange::getCreateTime);
+
+        return this.page(new Page<>(pageNum, pageSize), wrapper);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int batchApprove(List<Long> ids, Long approverId, String approvedByName) {
+        int count = 0;
+        for (Long id : ids) {
+            try {
+                SaleExchange exchange = this.getById(id);
+                if (exchange != null && exchange.getStatus() == 1) {
+                    exchange.setStatus(2);
+                    exchange.setApprovedBy(approverId);
+                    exchange.setApprovedByName(approvedByName);
+                    exchange.setApprovedTime(LocalDateTime.now());
+                    exchange.setUpdateTime(LocalDateTime.now());
+                    this.updateById(exchange);
+                    saveApprovalRecord(id, "approve", "批量审批通过", null);
+                    count++;
+                }
+            } catch (Exception e) {
+                // 单条失败不影响其他
+            }
+        }
+        return count;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void print(Long id) {
+        SaleExchange exchange = this.getById(id);
+        if (exchange == null) {
+            throw new RuntimeException("换货单不存在");
+        }
+        Integer printCount = exchange.getPrintCount();
+        exchange.setPrintCount(printCount == null ? 1 : printCount + 1);
+        exchange.setUpdateTime(LocalDateTime.now());
+        this.updateById(exchange);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void batchPrint(List<Long> ids) {
+        for (Long id : ids) {
+            try {
+                print(id);
+            } catch (Exception e) {
+                // 单条失败不影响其他
+            }
+        }
+    }
+
+    @Override
+    public List<SaleExchangeItem> getItemsByWarehouseType(Long exchangeId, Integer warehouseType) {
+        return saleExchangeItemMapper.selectList(
+                new LambdaQueryWrapper<SaleExchangeItem>()
+                        .eq(SaleExchangeItem::getExchangeId, exchangeId)
+                        .eq(SaleExchangeItem::getWarehouseType, warehouseType)
+                        .orderByAsc(SaleExchangeItem::getId)
+        );
+    }
+
+    /**
+     * 处理库存变更（审核通过时调用）
+     * 换入仓库增加库存，换出仓库减少库存
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void processInventoryChange(Long exchangeId) {
+        SaleExchange exchange = this.getById(exchangeId);
+        if (exchange == null) {
+            throw new RuntimeException("换货单不存在");
+        }
+
+        List<SaleExchangeItem> items = getItems(exchangeId);
+
+        // 处理换入仓库（增加库存）
+        items.stream()
+                .filter(item -> item.getWarehouseType() != null && item.getWarehouseType() == 1)
+                .forEach(item -> {
+                    boolean ok = stockService.increaseStock(
+                            item.getProductId(), exchange.getInWarehouseId(), item.getQuantity());
+                    if (!ok) {
+                        throw new RuntimeException("换入仓库库存增加失败，商品ID: " + item.getProductId());
+                    }
+                });
+
+        // 处理换出仓库（减少库存）
+        items.stream()
+                .filter(item -> item.getWarehouseType() != null && item.getWarehouseType() == 2)
+                .forEach(item -> {
+                    boolean ok = stockService.decreaseStock(
+                            item.getProductId(), exchange.getOutWarehouseId(), item.getQuantity());
+                    if (!ok) {
+                        throw new RuntimeException("换出仓库库存不足，商品ID: " + item.getProductId());
+                    }
+                });
+    }
+
+    /**
+     * 回滚库存变更（取消/反审核时调用）
+     * 换入仓库减少库存，换出仓库增加库存
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void rollbackInventoryChange(Long exchangeId) {
+        SaleExchange exchange = this.getById(exchangeId);
+        if (exchange == null) {
+            throw new RuntimeException("换货单不存在");
+        }
+
+        List<SaleExchangeItem> items = getItems(exchangeId);
+
+        // 回滚换入仓库（减少库存）
+        items.stream()
+                .filter(item -> item.getWarehouseType() != null && item.getWarehouseType() == 1)
+                .forEach(item -> {
+                    boolean ok = stockService.decreaseStock(
+                            item.getProductId(), exchange.getInWarehouseId(), item.getQuantity());
+                    if (!ok) {
+                        throw new RuntimeException("换入仓库库存回滚失败，商品ID: " + item.getProductId());
+                    }
+                });
+
+        // 回滚换出仓库（增加库存）
+        items.stream()
+                .filter(item -> item.getWarehouseType() != null && item.getWarehouseType() == 2)
+                .forEach(item -> {
+                    boolean ok = stockService.increaseStock(
+                            item.getProductId(), exchange.getOutWarehouseId(), item.getQuantity());
+                    if (!ok) {
+                        throw new RuntimeException("换出仓库库存回滚失败，商品ID: " + item.getProductId());
+                    }
+                });
     }
 }

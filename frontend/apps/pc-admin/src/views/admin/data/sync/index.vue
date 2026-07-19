@@ -4,31 +4,59 @@
       <div class="page-header">
         <div class="page-header-left">
           <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>
+              <router-link to="/">
+                首页
+              </router-link>
+            </a-breadcrumb-item>
             <a-breadcrumb-item>系统管理</a-breadcrumb-item>
             <a-breadcrumb-item>同步任务</a-breadcrumb-item>
           </a-breadcrumb>
-          <h2 class="page-header-title">同步任务</h2>
+          <h2 class="page-header-title">
+            同步任务
+          </h2>
         </div>
         <div class="page-header-right">
-          <a-button type="primary" size="small" @click="handleCreate">
-            <template #icon><PlusOutlined /></template>
+          <a-button
+            type="primary"
+            size="small"
+            @click="handleCreate"
+          >
+            <template #icon>
+              <PlusOutlined />
+            </template>
             新增任务
           </a-button>
-          <a-button size="small" @click="fetchData" :loading="loading" style="margin-left:8px">
-            <template #icon><ReloadOutlined /></template>
+          <a-button
+            size="small"
+            :loading="loading"
+            style="margin-left:8px"
+            @click="fetchData"
+          >
+            <template #icon>
+              <ReloadOutlined />
+            </template>
             刷新
           </a-button>
         </div>
       </div>
     </template>
 
-    <a-card :bordered="false" title="同步任务列表">
+    <a-card
+      :bordered="false"
+      title="同步任务列表"
+    >
       <template #extra>
         <a-space>
-          <a-tag color="green">运行中: {{ runningCount }}</a-tag>
-          <a-tag color="default">已停止: {{ stoppedCount }}</a-tag>
-          <a-tag color="red">异常: {{ errorCount }}</a-tag>
+          <a-tag color="green">
+            运行中: {{ runningCount }}
+          </a-tag>
+          <a-tag color="default">
+            已停止: {{ stoppedCount }}
+          </a-tag>
+          <a-tag color="red">
+            异常: {{ errorCount }}
+          </a-tag>
         </a-space>
       </template>
 
@@ -50,16 +78,28 @@
           </template>
           <template v-if="column.key === 'lastRun'">
             <span v-if="record.lastRun">{{ record.lastRun }}</span>
-            <span v-else style="color:#999">-</span>
+            <span
+              v-else
+              style="color:#999"
+            >-</span>
           </template>
           <template v-if="column.key === 'action'">
             <a-space>
-              <a v-if="record.status === 'running'" @click="toggleTask(record)">停止</a>
-              <a v-else @click="toggleTask(record)">启动</a>
+              <a
+                v-if="record.status === 'running'"
+                @click="toggleTask(record)"
+              >停止</a>
+              <a
+                v-else
+                @click="toggleTask(record)"
+              >启动</a>
               <a-divider type="vertical" />
               <a @click="editTask(record)">编辑</a>
               <a-divider type="vertical" />
-              <a-popconfirm title="确定删除此任务?" @confirm="deleteTask(record)">
+              <a-popconfirm
+                title="确定删除此任务?"
+                @confirm="deleteTask(record)"
+              >
                 <a class="text-danger">删除</a>
               </a-popconfirm>
             </a-space>
@@ -67,6 +107,72 @@
         </template>
       </a-table>
     </a-card>
+
+    <!-- 新增/编辑同步任务弹窗 -->
+    <a-modal
+      v-model:open="modalVisible"
+      :title="editingRecord ? '编辑同步任务' : '新增同步任务'"
+      :confirm-loading="modalLoading"
+      :width="520"
+      @ok="handleModalOk"
+      @cancel="modalVisible = false"
+    >
+      <a-form
+        :label-col="{ span: 6 }"
+        :wrapper-col="{ span: 16 }"
+        style="margin-top: 16px"
+      >
+        <a-form-item
+          label="任务名称"
+          required
+        >
+          <a-input
+            v-model:value="modalForm.taskName"
+            placeholder="请输入任务名称"
+          />
+        </a-form-item>
+        <a-form-item label="源数据源ID">
+          <a-input-number
+            v-model:value="modalForm.sourceId"
+            style="width: 100%"
+            placeholder="源数据源ID"
+          />
+        </a-form-item>
+        <a-form-item label="目标数据源ID">
+          <a-input-number
+            v-model:value="modalForm.targetId"
+            style="width: 100%"
+            placeholder="目标数据源ID"
+          />
+        </a-form-item>
+        <a-form-item label="同步方式">
+          <a-select
+            v-model:value="modalForm.syncType"
+            placeholder="请选择"
+          >
+            <a-select-option value="full">
+              全量同步
+            </a-select-option>
+            <a-select-option value="incremental">
+              增量同步
+            </a-select-option>
+          </a-select>
+        </a-form-item>
+        <a-form-item label="Cron表达式">
+          <a-input
+            v-model:value="modalForm.cronExpression"
+            placeholder="如: 0 0 2 * * ?"
+          />
+        </a-form-item>
+        <a-form-item label="描述">
+          <a-textarea
+            v-model:value="modalForm.description"
+            :rows="2"
+            placeholder="任务描述"
+          />
+        </a-form-item>
+      </a-form>
+    </a-modal>
   </PageContainer>
 </template>
 
@@ -81,6 +187,12 @@ const list = ref<any[]>([])
 const runningCount = computed(() => list.value.filter((l: any) => l.status === 'running').length)
 const stoppedCount = computed(() => list.value.filter((l: any) => l.status === 'stopped' || l.status === 'paused').length)
 const errorCount = computed(() => list.value.filter((l: any) => l.status === 'error').length)
+
+// ── 弹窗状态 ──
+const modalVisible = ref(false)
+const modalLoading = ref(false)
+const editingRecord = ref<any>(null)
+const modalForm = reactive<Record<string, any>>({})
 
 const pagination = reactive({
   current: 1,
@@ -108,11 +220,36 @@ function handleTableChange(pag: any) {
 }
 
 function handleCreate() {
-  message.info('新增同步任务功能开发中')
+  editingRecord.value = null
+  Object.keys(modalForm).forEach(k => delete modalForm[k])
+  modalForm.syncType = 'incremental'
+  modalVisible.value = true
 }
 
 function editTask(record: any) {
-  message.info('编辑同步任务: ' + record.name)
+  editingRecord.value = record
+  Object.assign(modalForm, { ...record })
+  modalVisible.value = true
+}
+
+async function handleModalOk() {
+  if (!modalForm.taskName?.trim()) { message.warning('请输入任务名称'); return }
+  modalLoading.value = true
+  try {
+    if (editingRecord.value) {
+      await request.put('/data-source/sync/' + editingRecord.value.id, modalForm)
+      message.success('更新成功')
+    } else {
+      await request.post('/data-source/sync/', modalForm)
+      message.success('创建成功')
+    }
+    modalVisible.value = false
+    fetchData()
+  } catch (e: any) {
+    message.error(e.message || '操作失败')
+  } finally {
+    modalLoading.value = false
+  }
 }
 
 async function toggleTask(record: any) {

@@ -50,9 +50,16 @@ export const optionsApi = {
     return request.get('/user/list', { role })
   },
 
-  /** 获取客户下拉列表 */
+  /** 获取客户下拉列表（来源：ERP往来单位 biz_party） */
   getCustomers(): Promise<OptionItem[]> {
-    return request.get('/customer/list')
+    return request.get('/erp/md/customer/list', { pageSize: 200 }).then((res: any) => {
+      const list = res?.data || res || []
+      return list.map((p: any) => ({
+        id: p.id,
+        name: p.partnerName || p.partyName || '',
+        code: p.partnerCode || p.partyCode || '',
+      }))
+    })
   },
 
   /** 获取字典选项（如付款方式、币种等） */

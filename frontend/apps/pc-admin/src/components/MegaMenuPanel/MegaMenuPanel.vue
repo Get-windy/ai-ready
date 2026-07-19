@@ -13,11 +13,18 @@
         class="mega-menu-column"
       >
         <div class="mega-menu-column-header">
-          <component :is="getIcon(column.icon)" v-if="column.icon" class="column-header-icon" />
+          <component
+            :is="getIcon(column.icon)"
+            v-if="column.icon"
+            class="column-header-icon"
+          />
           <span>{{ column.menuName }}</span>
         </div>
         <div class="mega-menu-column-items">
-          <template v-for="item in column.children" :key="item.id">
+          <template
+            v-for="item in column.children"
+            :key="item.id"
+          >
             <!-- displayGroup=1: 子分组标题 -->
             <div
               v-if="item.displayGroup === 1"
@@ -191,11 +198,10 @@ function hasPermission(item: MenuInfo): boolean {
   return userStore.hasPermission(item.menuCode)
 }
 
-/** 导航到菜单路由 — 添加标签时主按钮跳列表页，历史/列表标签跳表单页 */
+/** 导航到菜单路由 — 添加标签时主按钮跳列表页(path)，历史/列表标签跳表单页(path) */
 function navigateTo(item: MenuInfo) {
-  // 添加标签：主按钮跳 listPath（列表页）；历史/列表标签：主按钮跳 path（表单页）
-  const isAdd = item.tagLabel === '添加'
-  const target = isAdd ? item.listPath : item.path
+  // 两种标签的主按钮都跳 path：添加标签 path=index(列表页)，历史标签 path=form(表单页)
+  const target = item.path
   if (target) {
     const path = target.startsWith('/') ? target : '/' + target
     emit('navigate')
@@ -203,11 +209,10 @@ function navigateTo(item: MenuInfo) {
   }
 }
 
-/** 导航到双入口标签页 — 添加标签时标签按钮跳表单页，历史/列表标签跳列表页 */
+/** 导航到双入口标签页 — 添加标签时标签按钮跳表单页(listPath)，历史/列表标签跳列表页(listPath) */
 function navigateToList(item: MenuInfo) {
-  // 添加标签：标签按钮跳 path（表单页）；历史/列表标签：标签按钮跳 listPath（列表页）
-  const isAdd = item.tagLabel === '添加'
-  const target = isAdd ? item.path : item.listPath
+  // 两种标签的标签按钮都跳 listPath：添加标签 listPath=form(表单页)，历史标签 listPath=index(列表页)
+  const target = item.listPath
   if (target) {
     const path = target.startsWith('/') ? target : '/' + target
     emit('navigate')

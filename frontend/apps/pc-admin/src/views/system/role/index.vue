@@ -1,190 +1,410 @@
 <template>
   <ErrorBoundary @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="role-page-header">
-        <div class="role-page-header-left">
-          <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item>角色管理</a-breadcrumb-item>
-          </a-breadcrumb>
-          <h2 class="role-page-header-title">角色管理</h2>
-        </div>
-        <div class="role-page-header-right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-            <SyncOutlined /> {{ autoRefreshCountdown }}s
-          </span>
-          <span class="shortcut-hints">
-            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-            <span class="shortcut-hint"><kbd>Ctrl</kbd> + <kbd>N</kbd> 新增</span>
-          </span>
-          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)">
-            <template #icon><ReloadOutlined /></template>
-            刷新
-          </a-button>
-        </div>
-      </div>
-    </template>
-
-    <div class="role-management">
-      <!-- 统计卡片 -->
-      <div class="stat-cards">
-        <div class="stat-card stat-total">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ pagination.total }}</div>
-            <div class="stat-card-label">角色总数</div>
+    <PageContainer full-height>
+      <template #header>
+        <div class="role-page-header">
+          <div class="role-page-header-left">
+            <a-breadcrumb>
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>角色管理</a-breadcrumb-item>
+            </a-breadcrumb>
+            <h2 class="role-page-header-title">
+              角色管理
+            </h2>
           </div>
-          <SafetyOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-active">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ activeCount }}</div>
-            <div class="stat-card-label">启用角色</div>
+          <div class="role-page-header-right">
+            <span
+              v-if="lastUpdateTime"
+              class="update-time"
+            >更新于 {{ lastUpdateTime }}</span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            >
+              <SyncOutlined /> {{ autoRefreshCountdown }}s
+            </span>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+              <span class="shortcut-hint"><kbd>Ctrl</kbd> + <kbd>N</kbd> 新增</span>
+            </span>
+            <a-button
+              size="small"
+              :loading="refreshLoading"
+              @click="debounceClick('refresh', fetchData)"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
+              刷新
+            </a-button>
           </div>
-          <CheckCircleOutlined class="stat-card-icon" />
         </div>
-        <div class="stat-card stat-disabled">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ disabledCount }}</div>
-            <div class="stat-card-label">停用角色</div>
+      </template>
+
+      <div class="role-management">
+        <!-- 统计卡片 -->
+        <div class="stat-cards">
+          <div class="stat-card stat-total">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ pagination.total }}
+              </div>
+              <div class="stat-card-label">
+                角色总数
+              </div>
+            </div>
+            <SafetyOutlined class="stat-card-icon" />
           </div>
-          <StopOutlined class="stat-card-icon" />
+          <div class="stat-card stat-active">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ activeCount }}
+              </div>
+              <div class="stat-card-label">
+                启用角色
+              </div>
+            </div>
+            <CheckCircleOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-disabled">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ disabledCount }}
+              </div>
+              <div class="stat-card-label">
+                停用角色
+              </div>
+            </div>
+            <StopOutlined class="stat-card-icon" />
+          </div>
         </div>
-      </div>
 
-      <a-skeleton active v-if="loading && tableData.length === 0" :paragraph="{ rows: 8 }" style="padding: 24px;" />
+        <a-skeleton
+          v-if="loading && tableData.length === 0"
+          active
+          :paragraph="{ rows: 8 }"
+          style="padding: 24px;"
+        />
 
-    <BillTableList
-      ref="tableRef"
-      :columns="vxeColumns"
-      :data-source="tableDataSource"
-      :loading="loading"
-      :pagination="pagination"
-      :row-key="'id'"
-      :min-empty-rows="12"
-      :filter-fields="filterFields"
-      :show-search="false"
-      :selectable="false"
-      add-text="新增角色"
-      add-permission="system:role:create"
-      @add="handleAdd"
-      @edit="handleEdit"
-      @delete="handleDeleteConfirm"
-      @refresh="debounceClick('refresh', fetchData)"
-      @page-change="handlePageChange"
-      @filter-change="handleFilterChange"
-      @cell-dblclick="handleView"
-    >
-      <template #empty>
-      <a-empty v-if="!hasError" description="暂无数据" />
-      <a-result v-else status="error" title="数据加载失败">
-        <template #extra>
-          <a-button type="primary" @click="debounceClick('refresh', fetchData)">
-            <template #icon><ReloadOutlined /></template>
-            重新加载
-          </a-button>
-        </template>
-      </a-result>
-    </template>
-
-    <template #roleNameCell="{ record }">
-        <a-space>
-          <a-tag :color="getRoleTypeColor(record.roleType)">
-            {{ getRoleTypeName(record.roleType) }}
-          </a-tag>
-          <span>{{ record.roleName }}</span>
-        </a-space>
-      </template>
-      <template #scopeCell="{ record }">
-        <a-tag :color="record.scope === 'PLATFORM' ? 'purple' : 'blue'">
-          {{ record.scope === 'PLATFORM' ? '平台级' : '租户级' }}
-        </a-tag>
-      </template>
-      <template #statusCell="{ record }">
-        <a-switch :checked="record.status === 0" checked-children="启用" un-checked-children="停用" @change="(checked: string | boolean) => { if (typeof checked === 'boolean') handleStatusChange(record, checked) }" />
-      </template>
-
-      <template #action="{ record }">
-        <a-space>
-          <a-button type="link" size="small" v-permission="'system:role:update'" @click="handleEdit(record)">编辑</a-button>
-          <a-button type="link" size="small" v-permission="'system:permission:assign'" @click="handlePermission(record)">权限</a-button>
-          <a-button type="link" size="small" v-permission="'system:role:update'" @click="handleMenu(record)">菜单</a-button>
-          <a-button type="link" size="small" v-permission="'system:role:update'" @click="handleBillType(record)">单据权限</a-button>
-          <a-button type="link" size="small" danger v-permission="'system:role:delete'" @click="handleDeleteConfirm(record)">删除</a-button>
-        </a-space>
-      </template>
-    </BillTableList>
-
-    <!-- 角色表单弹窗 -->
-    <FullScreenDetail :visible="modalVisible" :title="modalTitle" :dirty="formDirty" :save-loading="submittingLoading" :show-save-and-new="!isEdit" @save="handleModalOk" @close="handleFormClose" @save-and-new="handleFormSaveAndNew">
-      <a-form ref="formRef" :model="formState" :rules="formRules" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
-        <a-form-item label="角色名称" name="roleName">
-          <a-input v-model:value="formState.roleName" placeholder="请输入角色名称" />
-        </a-form-item>
-        <a-form-item label="角色编码" name="roleCode">
-          <a-input v-model:value="formState.roleCode" placeholder="请输入角色编码" :disabled="isEdit" />
-        </a-form-item>
-        <a-form-item label="角色类型" name="roleType">
-          <a-select v-model:value="formState.roleType" size="small" placeholder="请选择角色类型">
-            <a-select-option
-              v-for="opt in roleTypeOptions"
-              :key="opt.value"
-              :value="opt.value"
-            >{{ opt.label }}</a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item label="作用域" name="scope">
-          <a-select v-model:value="formState.scope" size="small" placeholder="请选择作用域">
-            <a-select-option value="TENANT">租户级</a-select-option>
-            <a-select-option value="PLATFORM">平台级</a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item label="排序" name="sort">
-          <a-input-number v-model:value="formState.sort" :min="0" style="width: 100%" />
-        </a-form-item>
-        <a-form-item label="状态" name="status">
-          <a-radio-group v-model:value="formState.status">
-            <a-radio :value="0">正常</a-radio>
-            <a-radio :value="1">停用</a-radio>
-          </a-radio-group>
-        </a-form-item>
-        <a-form-item label="备注" name="remark">
-          <a-textarea v-model:value="formState.remark" placeholder="请输入备注" :rows="3" />
-        </a-form-item>
-      </a-form>
-    </FullScreenDetail>
-
-    <!-- 权限配置弹窗 -->
-    <a-modal v-model:open="permissionModalVisible" title="配置权限" width="500px" :confirm-loading="permissionLoading" @ok="handlePermissionOk">
-      <a-alert message="勾选需要分配给该角色的权限" type="info" show-icon style="margin-bottom: 16px" />
-      <a-tree v-model:checked-keys="checkedPermissionKeys" :tree-data="permissionTree" checkable :default-expand-all="true" :selectable="false" />
-    </a-modal>
-
-    <!-- 菜单配置弹窗 -->
-    <a-modal v-model:open="menuModalVisible" title="配置菜单" width="500px" :confirm-loading="menuLoading" @ok="handleMenuOk">
-      <a-alert message="勾选需要分配给该角色的菜单" type="info" show-icon style="margin-bottom: 16px" />
-      <a-tree v-model:checked-keys="checkedMenuKeys" :tree-data="menuTree" checkable :default-expand-all="true" :selectable="false" />
-    </a-modal>
-
-    <!-- 单据类型权限配置弹窗 -->
-    <a-modal v-model:open="billTypeModalVisible" title="配置单据类型权限" width="550px" :confirm-loading="billTypeLoading" @ok="handleBillTypeOk">
-      <a-alert message="设置角色对每种单据类型的操作权限级别" type="info" show-icon style="margin-bottom: 16px" />
-      <a-table :data-source="billTypeData" :columns="billTypeColumns" :pagination="false as any" size="small" bordered>
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'level'">
-            <a-select v-model:value="record.permissionLevel" style="width: 120px" size="small">
-              <a-select-option :value="0">无权限</a-select-option>
-              <a-select-option :value="1">查看</a-select-option>
-              <a-select-option :value="2">编辑</a-select-option>
-              <a-select-option :value="3">审核</a-select-option>
-            </a-select>
+        <BillTableList
+          ref="tableRef"
+          :columns="vxeColumns"
+          :data-source="tableDataSource"
+          :loading="loading"
+          :pagination="pagination"
+          :row-key="'id'"
+          :min-empty-rows="12"
+          :filter-fields="filterFields"
+          :show-search="false"
+          :selectable="false"
+          add-text="新增角色"
+          add-permission="system:role:create"
+          @add="handleAdd"
+          @edit="handleEdit"
+          @delete="handleDeleteConfirm"
+          @refresh="debounceClick('refresh', fetchData)"
+          @page-change="handlePageChange"
+          @filter-change="handleFilterChange"
+          @cell-dblclick="handleView"
+        >
+          <template #empty>
+            <a-empty
+              v-if="!hasError"
+              description="暂无数据"
+            />
+            <a-result
+              v-else
+              status="error"
+              title="数据加载失败"
+            >
+              <template #extra>
+                <a-button
+                  type="primary"
+                  @click="debounceClick('refresh', fetchData)"
+                >
+                  <template #icon>
+                    <ReloadOutlined />
+                  </template>
+                  重新加载
+                </a-button>
+              </template>
+            </a-result>
           </template>
-        </template>
-      </a-table>
-    </a-modal>
-  </div>
-</PageContainer>
+
+          <template #roleNameCell="{ record }">
+            <a-space>
+              <a-tag :color="getRoleTypeColor(record.roleType)">
+                {{ getRoleTypeName(record.roleType) }}
+              </a-tag>
+              <span>{{ record.roleName }}</span>
+            </a-space>
+          </template>
+          <template #scopeCell="{ record }">
+            <a-tag :color="record.scope === 'PLATFORM' ? 'purple' : 'blue'">
+              {{ record.scope === 'PLATFORM' ? '平台级' : '租户级' }}
+            </a-tag>
+          </template>
+          <template #statusCell="{ record }">
+            <a-switch
+              :checked="record.status === 0"
+              checked-children="启用"
+              un-checked-children="停用"
+              @change="(checked: string | boolean) => { if (typeof checked === 'boolean') handleStatusChange(record, checked) }"
+            />
+          </template>
+
+          <template #action="{ record }">
+            <a-space>
+              <a-button
+                v-permission="'system:role:update'"
+                type="link"
+                size="small"
+                @click="handleEdit(record)"
+              >
+                编辑
+              </a-button>
+              <a-button
+                v-permission="'system:permission:assign'"
+                type="link"
+                size="small"
+                @click="handlePermission(record)"
+              >
+                权限
+              </a-button>
+              <a-button
+                v-permission="'system:role:update'"
+                type="link"
+                size="small"
+                @click="handleMenu(record)"
+              >
+                菜单
+              </a-button>
+              <a-button
+                v-permission="'system:role:update'"
+                type="link"
+                size="small"
+                @click="handleBillType(record)"
+              >
+                单据权限
+              </a-button>
+              <a-button
+                v-permission="'system:role:delete'"
+                type="link"
+                size="small"
+                danger
+                @click="handleDeleteConfirm(record)"
+              >
+                删除
+              </a-button>
+            </a-space>
+          </template>
+        </BillTableList>
+
+        <!-- 角色表单弹窗 -->
+        <FullScreenDetail
+          :visible="modalVisible"
+          :title="modalTitle"
+          :dirty="formDirty"
+          :save-loading="submittingLoading"
+          :show-save-and-new="!isEdit"
+          @save="handleModalOk"
+          @close="handleFormClose"
+          @save-and-new="handleFormSaveAndNew"
+        >
+          <a-form
+            ref="formRef"
+            :model="formState"
+            :rules="formRules"
+            :label-col="{ span: 6 }"
+            :wrapper-col="{ span: 16 }"
+          >
+            <a-form-item
+              label="角色名称"
+              name="roleName"
+            >
+              <a-input
+                v-model:value="formState.roleName"
+                placeholder="请输入角色名称"
+              />
+            </a-form-item>
+            <a-form-item
+              label="角色编码"
+              name="roleCode"
+            >
+              <a-input
+                v-model:value="formState.roleCode"
+                placeholder="请输入角色编码"
+                :disabled="isEdit"
+              />
+            </a-form-item>
+            <a-form-item
+              label="角色类型"
+              name="roleType"
+            >
+              <a-select
+                v-model:value="formState.roleType"
+                size="small"
+                placeholder="请选择角色类型"
+              >
+                <a-select-option
+                  v-for="opt in roleTypeOptions"
+                  :key="opt.value"
+                  :value="opt.value"
+                >
+                  {{ opt.label }}
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+            <a-form-item
+              label="作用域"
+              name="scope"
+            >
+              <a-select
+                v-model:value="formState.scope"
+                size="small"
+                placeholder="请选择作用域"
+              >
+                <a-select-option value="TENANT">
+                  租户级
+                </a-select-option>
+                <a-select-option value="PLATFORM">
+                  平台级
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+            <a-form-item
+              label="排序"
+              name="sort"
+            >
+              <a-input-number
+                v-model:value="formState.sort"
+                :min="0"
+                style="width: 100%"
+              />
+            </a-form-item>
+            <a-form-item
+              label="状态"
+              name="status"
+            >
+              <a-radio-group v-model:value="formState.status">
+                <a-radio :value="0">
+                  正常
+                </a-radio>
+                <a-radio :value="1">
+                  停用
+                </a-radio>
+              </a-radio-group>
+            </a-form-item>
+            <a-form-item
+              label="备注"
+              name="remark"
+            >
+              <a-textarea
+                v-model:value="formState.remark"
+                placeholder="请输入备注"
+                :rows="3"
+              />
+            </a-form-item>
+          </a-form>
+        </FullScreenDetail>
+
+        <!-- 权限配置弹窗 -->
+        <a-modal
+          v-model:open="permissionModalVisible"
+          title="配置权限"
+          width="500px"
+          :confirm-loading="permissionLoading"
+          @ok="handlePermissionOk"
+        >
+          <a-alert
+            message="勾选需要分配给该角色的权限"
+            type="info"
+            show-icon
+            style="margin-bottom: 16px"
+          />
+          <a-tree
+            v-model:checked-keys="checkedPermissionKeys"
+            :tree-data="permissionTree"
+            checkable
+            :default-expand-all="true"
+            :selectable="false"
+          />
+        </a-modal>
+
+        <!-- 菜单配置弹窗 -->
+        <a-modal
+          v-model:open="menuModalVisible"
+          title="配置菜单"
+          width="500px"
+          :confirm-loading="menuLoading"
+          @ok="handleMenuOk"
+        >
+          <a-alert
+            message="勾选需要分配给该角色的菜单"
+            type="info"
+            show-icon
+            style="margin-bottom: 16px"
+          />
+          <a-tree
+            v-model:checked-keys="checkedMenuKeys"
+            :tree-data="menuTree"
+            checkable
+            :default-expand-all="true"
+            :selectable="false"
+          />
+        </a-modal>
+
+        <!-- 单据类型权限配置弹窗 -->
+        <a-modal
+          v-model:open="billTypeModalVisible"
+          title="配置单据类型权限"
+          width="550px"
+          :confirm-loading="billTypeLoading"
+          @ok="handleBillTypeOk"
+        >
+          <a-alert
+            message="设置角色对每种单据类型的操作权限级别"
+            type="info"
+            show-icon
+            style="margin-bottom: 16px"
+          />
+          <a-table
+            :data-source="billTypeData"
+            :columns="billTypeColumns"
+            :pagination="false as any"
+            size="small"
+            bordered
+          >
+            <template #bodyCell="{ column, record }">
+              <template v-if="column.key === 'level'">
+                <a-select
+                  v-model:value="record.permissionLevel"
+                  style="width: 120px"
+                  size="small"
+                >
+                  <a-select-option :value="0">
+                    无权限
+                  </a-select-option>
+                  <a-select-option :value="1">
+                    查看
+                  </a-select-option>
+                  <a-select-option :value="2">
+                    编辑
+                  </a-select-option>
+                  <a-select-option :value="3">
+                    审核
+                  </a-select-option>
+                </a-select>
+              </template>
+            </template>
+          </a-table>
+        </a-modal>
+      </div>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

@@ -2,18 +2,28 @@
   <div class="page-container">
     <div class="page-header">
       <div class="page-header__left">
-        <h2 class="page-title">岗位管理</h2>
+        <h2 class="page-title">
+          岗位管理
+        </h2>
       </div>
       <div class="page-header__right">
-        <a-button type="primary" @click="showCreateModal">
-          <template #icon><PlusOutlined /></template>
+        <a-button
+          type="primary"
+          @click="showCreateModal"
+        >
+          <template #icon>
+            <PlusOutlined />
+          </template>
           新增岗位
         </a-button>
       </div>
     </div>
 
     <div class="page-container__body">
-      <a-card :bordered="false" class="table-card">
+      <a-card
+        :bordered="false"
+        class="table-card"
+      >
         <a-table
           :columns="columns"
           :data-source="tableData"
@@ -33,8 +43,21 @@
             </template>
             <template v-if="column.key === 'action'">
               <a-space>
-                <a-button type="link" size="small" @click="showEditModal(record)">编辑</a-button>
-                <a-button type="link" size="small" danger @click="handleDelete(record)">删除</a-button>
+                <a-button
+                  type="link"
+                  size="small"
+                  @click="showEditModal(record)"
+                >
+                  编辑
+                </a-button>
+                <a-button
+                  type="link"
+                  size="small"
+                  danger
+                  @click="handleDelete(record)"
+                >
+                  删除
+                </a-button>
               </a-space>
             </template>
           </template>
@@ -42,27 +65,64 @@
       </a-card>
     </div>
 
-    <a-modal v-model:open="modalVisible" :title="editingId ? '编辑岗位' : '新增岗位'" width="500px" @ok="handleSave">
-      <a-form :label-col="{ span: 4 }" :wrapper-col="{ span: 18 }">
+    <a-modal
+      v-model:open="modalVisible"
+      :title="editingId ? '编辑岗位' : '新增岗位'"
+      width="500px"
+      @ok="handleSave"
+    >
+      <a-form
+        :label-col="{ span: 4 }"
+        :wrapper-col="{ span: 18 }"
+      >
         <a-form-item label="岗位编码">
-          <a-input v-model:value="form.positionCode" placeholder="请输入岗位编码" :disabled="!!editingId" />
+          <a-input
+            v-model:value="form.positionCode"
+            placeholder="请输入岗位编码"
+            :disabled="!!editingId"
+          />
         </a-form-item>
-        <a-form-item label="岗位名称" required>
-          <a-input v-model:value="form.positionName" placeholder="请输入岗位名称" />
+        <a-form-item
+          label="岗位名称"
+          required
+        >
+          <a-input
+            v-model:value="form.positionName"
+            placeholder="请输入岗位名称"
+          />
         </a-form-item>
         <a-form-item label="岗位级别">
-          <a-select v-model:value="form.positionLevel" placeholder="请选择岗位级别">
-            <a-select-option :value="1">高管</a-select-option>
-            <a-select-option :value="2">中层</a-select-option>
-            <a-select-option :value="3">基层</a-select-option>
-            <a-select-option :value="4">普通</a-select-option>
+          <a-select
+            v-model:value="form.positionLevel"
+            placeholder="请选择岗位级别"
+          >
+            <a-select-option :value="1">
+              高管
+            </a-select-option>
+            <a-select-option :value="2">
+              中层
+            </a-select-option>
+            <a-select-option :value="3">
+              基层
+            </a-select-option>
+            <a-select-option :value="4">
+              普通
+            </a-select-option>
           </a-select>
         </a-form-item>
         <a-form-item label="编制人数">
-          <a-input-number v-model:value="form.quotaCount" min="1" max="100" />
+          <a-input-number
+            v-model:value="form.quotaCount"
+            min="1"
+            max="100"
+          />
         </a-form-item>
         <a-form-item label="岗位职责">
-          <a-textarea v-model:value="form.responsibility" placeholder="请输入岗位职责" :rows="3" />
+          <a-textarea
+            v-model:value="form.responsibility"
+            placeholder="请输入岗位职责"
+            :rows="3"
+          />
         </a-form-item>
       </a-form>
     </a-modal>

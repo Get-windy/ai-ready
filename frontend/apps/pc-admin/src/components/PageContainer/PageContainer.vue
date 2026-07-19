@@ -11,9 +11,17 @@
 
     <!-- 顶部区域：面包屑/标题 -->
     <slot name="header">
-      <div v-if="title || $slots.headerContent" class="page-container__header">
+      <div
+        v-if="title || $slots.headerContent"
+        class="page-container__header"
+      >
         <div class="page-container__header-left">
-          <h2 v-if="title" class="page-container__title">{{ title }}</h2>
+          <h2
+            v-if="title"
+            class="page-container__title"
+          >
+            {{ title }}
+          </h2>
           <slot name="headerContent" />
         </div>
         <div class="page-container__header-right">
@@ -23,7 +31,10 @@
     </slot>
 
     <!-- 搜索/筛选区 -->
-    <div v-if="$slots.filter" class="page-container__filter">
+    <div
+      v-if="$slots.filter"
+      class="page-container__filter"
+    >
       <slot name="filter" />
     </div>
 
@@ -33,7 +44,10 @@
     </div>
 
     <!-- 底部区域：分页等 -->
-    <div v-if="$slots.footer" class="page-container__footer">
+    <div
+      v-if="$slots.footer"
+      class="page-container__footer"
+    >
       <slot name="footer" />
     </div>
   </div>

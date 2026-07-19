@@ -1,303 +1,490 @@
 <template>
   <ErrorBoundary @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="accounts-payable-header">
-        <div class="accounts-payable-header-left">
-          <a-breadcrumb class="accounts-payable-breadcrumb">
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item>财务管理</a-breadcrumb-item>
-            <a-breadcrumb-item>应付账款</a-breadcrumb-item>
-          </a-breadcrumb>
-          <h2 class="accounts-payable-header-title">应付账款</h2>
-        </div>
-        <div class="accounts-payable-header-right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-            <SyncOutlined /> {{ autoRefreshCountdown }}s
-          </span>
-          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)">
-            <template #icon><ReloadOutlined /></template>
-            刷新
-          </a-button>
-          <span class="shortcut-hints">
-            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-            <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
-          </span>
-        </div>
-      </div>
-    </template>
-
-    <div class="accounts-payable-page">
-      <!-- 统计卡片 -->
-      <div class="stat-cards">
-        <div class="stat-card stat-total">
-          <div class="stat-card-body">
-            <div class="stat-card-value">¥{{ formatAmount(stats.totalAmount) }}</div>
-            <div class="stat-card-label">应付总额</div>
+    <PageContainer full-height>
+      <template #header>
+        <div class="accounts-payable-header">
+          <div class="accounts-payable-header-left">
+            <a-breadcrumb class="accounts-payable-breadcrumb">
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>财务管理</a-breadcrumb-item>
+              <a-breadcrumb-item>应付账款</a-breadcrumb-item>
+            </a-breadcrumb>
+            <h2 class="accounts-payable-header-title">
+              应付账款
+            </h2>
           </div>
-          <DollarOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-paid">
-          <div class="stat-card-body">
-            <div class="stat-card-value">¥{{ formatAmount(stats.paidAmount) }}</div>
-            <div class="stat-card-label">已付金额</div>
-          </div>
-          <CheckCircleOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-unpaid">
-          <div class="stat-card-body">
-            <div class="stat-card-value">¥{{ formatAmount(stats.unpaidAmount) }}</div>
-            <div class="stat-card-label">未付金额</div>
-          </div>
-          <ExclamationCircleOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-count">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ pagination.total }}</div>
-            <div class="stat-card-label">应付笔数</div>
-          </div>
-          <FileTextOutlined class="stat-card-icon" />
-        </div>
-      </div>
-
-      <BillTableList
-        ref="tableRef"
-        :min-empty-rows="12"
-        :columns="columns"
-        :data-source="dataSource"
-        :loading="loading"
-        :pagination="pagination"
-        :row-key="'id'"
-        :filter-fields="filterFields"
-        :show-search="false"
-        :show-export="true"
-        :selectable="true"
-        add-text="新增应付"
-        add-permission="finance:payable:create"
-        export-permission="finance:payable:export"
-        @add="handleAdd"
-        @refresh="fetchData"
-        @cell-dblclick="handleView"
-        @page-change="handlePageChange"
-        @filter-change="handleFilterChange"
-        @export="handleExport"
-        @selection-change="handleSelectionChange"
-      >
-        <template #toolbar-actions>
-          <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
-            更新 {{ dayjs(lastUpdated).format('HH:mm') }}
-          </span>
-        </template>
-
-        <template #batch-actions>
-          <!-- batch actions placeholder -->
-        </template>
-
-        <template #empty>
-          <div class="table-empty">
-            <template v-if="hasError">
-              <WarningOutlined class="table-empty-icon" style="color: #faad14" />
-              <p class="table-empty-text">加载失败</p>
-              <a-button type="primary" size="small" @click="debounceClick('refresh', fetchData)" class="table-empty-action">
-                <ReloadOutlined /> 重试
-              </a-button>
-            </template>
-            <template v-else>
-              <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-              <InboxOutlined v-else class="table-empty-icon" />
-              <p v-if="hasActiveFilters" class="table-empty-text">
-                没有符合条件的应付记录，<a @click="handleResetFilters">清除筛选</a>
-              </p>
-              <p v-else class="table-empty-text">
-                暂无应付账款数据，点击右上角「新增应付」开始创建
-              </p>
-            </template>
-          </div>
-        </template>
-
-        <template #statusCell="{ record }">
-          <a-tag :color="getStatusColor(record.status)">{{ getStatusText(record.status) }}</a-tag>
-        </template>
-        <template #action="{ record }">
-          <a-space :size="4">
-            <a-tooltip title="查看详情">
-              <a-button type="link" size="small" v-permission="'finance:payable:view'" @click="handleView(record)">
-                <template #icon><EyeOutlined /></template>
-              </a-button>
-            </a-tooltip>
-            <PrintButton :record="record" :business-id="record.id" business-type="payable" button-type="link" button-size="small" tooltip="打印" />
-            <a-tooltip v-if="record.status !== 2" title="付款">
-              <a-button type="link" size="small" v-permission="'finance:payable:payment'" @click="handlePayment(record)">
-                <template #icon><DollarOutlined /></template>
-              </a-button>
-            </a-tooltip>
-            <a-dropdown trigger="click">
-              <a-button type="link" size="small" class="action-more-btn">
-                <template #icon><EllipsisOutlined /></template>
-              </a-button>
-              <template #overlay>
-                <a-menu @click="({ key }: any) => handleActionMenuClick(key as string, record)">
-                  <a-menu-item key="paymentHistory">
-                    <HistoryOutlined /> 付款记录
-                  </a-menu-item>
-                  <a-menu-item key="reminder">
-                    <BellOutlined /> 提醒付款
-                  </a-menu-item>
-                </a-menu>
-              </template>
-            </a-dropdown>
-          </a-space>
-        </template>
-      </BillTableList>
-
-      <!-- 详情弹窗 -->
-      <FullScreenDetail
-        :visible="detailVisible"
-        title="应付账款详情"
-        @close="detailVisible = false"
-      >
-        <a-descriptions bordered :column="2" v-if="currentRecord">
-          <a-descriptions-item label="供应商名称">
-            <a @click="handleViewSupplier(currentRecord)">{{ currentRecord.supplierName }}</a>
-          </a-descriptions-item>
-          <a-descriptions-item label="订单号">
-            <a @click="handleViewOrder(currentRecord)">{{ currentRecord.orderNo }}</a>
-          </a-descriptions-item>
-          <a-descriptions-item label="应付金额">
-            <span class="amount-cell">¥{{ formatAmount(currentRecord.amount) }}</span>
-          </a-descriptions-item>
-          <a-descriptions-item label="已付金额">
-            <span class="amount-cell success">¥{{ formatAmount(currentRecord.paidAmount) }}</span>
-          </a-descriptions-item>
-          <a-descriptions-item label="未付金额">
-            <span class="amount-cell warning">¥{{ formatAmount(currentRecord.unpaidAmount) }}</span>
-          </a-descriptions-item>
-          <a-descriptions-item label="状态">
-            <a-tag :color="getStatusColor(currentRecord.status)">{{ getStatusText(currentRecord.status) }}</a-tag>
-          </a-descriptions-item>
-          <a-descriptions-item label="到期日期">
-            <span :class="{ 'overdue': isOverdue(currentRecord.dueDate, currentRecord.status) }">
-              {{ currentRecord.dueDate }}
+          <div class="accounts-payable-header-right">
+            <span
+              v-if="lastUpdateTime"
+              class="update-time"
+            >更新于 {{ lastUpdateTime }}</span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            >
+              <SyncOutlined /> {{ autoRefreshCountdown }}s
             </span>
-          </a-descriptions-item>
-          <a-descriptions-item label="创建时间">{{ currentRecord.createTime || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="备注" :span="2">{{ currentRecord.remark || '-' }}</a-descriptions-item>
-        </a-descriptions>
+            <a-button
+              size="small"
+              :loading="refreshLoading"
+              @click="debounceClick('refresh', fetchData)"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
+              刷新
+            </a-button>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+              <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+            </span>
+          </div>
+        </div>
+      </template>
 
-        <!-- 付款记录 -->
-        <div class="detail-payment-section">
-          <div class="detail-payment-title">付款记录</div>
-          <BillTableList
-            :columns="paymentColumns"
-            :data-source="paymentRecords"
-            :pagination="false as any"
-            row-key="id"
-            :show-toolbar="false"
-            :selectable="false"
-            :show-add="false"
-            :show-search="false"
-            :show-export="false"
-            :show-batch-delete="false"
+      <div class="accounts-payable-page">
+        <!-- 统计卡片 -->
+        <div class="stat-cards">
+          <div class="stat-card stat-total">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                ¥{{ formatAmount(stats.totalAmount) }}
+              </div>
+              <div class="stat-card-label">
+                应付总额
+              </div>
+            </div>
+            <DollarOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-paid">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                ¥{{ formatAmount(stats.paidAmount) }}
+              </div>
+              <div class="stat-card-label">
+                已付金额
+              </div>
+            </div>
+            <CheckCircleOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-unpaid">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                ¥{{ formatAmount(stats.unpaidAmount) }}
+              </div>
+              <div class="stat-card-label">
+                未付金额
+              </div>
+            </div>
+            <ExclamationCircleOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-count">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ pagination.total }}
+              </div>
+              <div class="stat-card-label">
+                应付笔数
+              </div>
+            </div>
+            <FileTextOutlined class="stat-card-icon" />
+          </div>
+        </div>
+
+        <BillTableList
+          ref="tableRef"
+          :min-empty-rows="12"
+          :columns="columns"
+          :data-source="dataSource"
+          :loading="loading"
+          :pagination="pagination"
+          :row-key="'id'"
+          :filter-fields="filterFields"
+          :show-search="false"
+          :show-export="true"
+          :selectable="true"
+          add-text="新增应付"
+          add-permission="finance:payable:create"
+          export-permission="finance:payable:export"
+          @add="handleAdd"
+          @refresh="fetchData"
+          @cell-dblclick="handleView"
+          @page-change="handlePageChange"
+          @filter-change="handleFilterChange"
+          @export="handleExport"
+          @selection-change="handleSelectionChange"
+        >
+          <template #toolbar-actions>
+            <span
+              v-if="lastUpdated"
+              class="list-update-timestamp"
+              :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')"
+            >
+              更新 {{ dayjs(lastUpdated).format('HH:mm') }}
+            </span>
+          </template>
+
+          <template #batch-actions>
+          <!-- batch actions placeholder -->
+          </template>
+
+          <template #empty>
+            <div class="table-empty">
+              <template v-if="hasError">
+                <WarningOutlined
+                  class="table-empty-icon"
+                  style="color: #faad14"
+                />
+                <p class="table-empty-text">
+                  加载失败
+                </p>
+                <a-button
+                  type="primary"
+                  size="small"
+                  class="table-empty-action"
+                  @click="debounceClick('refresh', fetchData)"
+                >
+                  <ReloadOutlined /> 重试
+                </a-button>
+              </template>
+              <template v-else>
+                <SearchOutlined
+                  v-if="hasActiveFilters"
+                  class="table-empty-icon"
+                />
+                <InboxOutlined
+                  v-else
+                  class="table-empty-icon"
+                />
+                <p
+                  v-if="hasActiveFilters"
+                  class="table-empty-text"
+                >
+                  没有符合条件的应付记录，<a @click="handleResetFilters">清除筛选</a>
+                </p>
+                <p
+                  v-else
+                  class="table-empty-text"
+                >
+                  暂无应付账款数据，点击右上角「新增应付」开始创建
+                </p>
+              </template>
+            </div>
+          </template>
+
+          <template #statusCell="{ record }">
+            <a-tag :color="getStatusColor(record.status)">
+              {{ getStatusText(record.status) }}
+            </a-tag>
+          </template>
+          <template #action="{ record }">
+            <a-space :size="4">
+              <a-tooltip title="查看详情">
+                <a-button
+                  v-permission="'finance:payable:view'"
+                  type="link"
+                  size="small"
+                  @click="handleView(record)"
+                >
+                  <template #icon>
+                    <EyeOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <PrintButton
+                :record="record"
+                :business-id="record.id"
+                business-type="payable"
+                button-type="link"
+                button-size="small"
+                tooltip="打印"
+              />
+              <a-tooltip
+                v-if="record.status !== 2"
+                title="付款"
+              >
+                <a-button
+                  v-permission="'finance:payable:payment'"
+                  type="link"
+                  size="small"
+                  @click="handlePayment(record)"
+                >
+                  <template #icon>
+                    <DollarOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <a-dropdown trigger="click">
+                <a-button
+                  type="link"
+                  size="small"
+                  class="action-more-btn"
+                >
+                  <template #icon>
+                    <EllipsisOutlined />
+                  </template>
+                </a-button>
+                <template #overlay>
+                  <a-menu @click="({ key }: any) => handleActionMenuClick(key as string, record)">
+                    <a-menu-item key="paymentHistory">
+                      <HistoryOutlined /> 付款记录
+                    </a-menu-item>
+                    <a-menu-item key="reminder">
+                      <BellOutlined /> 提醒付款
+                    </a-menu-item>
+                  </a-menu>
+                </template>
+              </a-dropdown>
+            </a-space>
+          </template>
+        </BillTableList>
+
+        <!-- 详情弹窗 -->
+        <FullScreenDetail
+          :visible="detailVisible"
+          title="应付账款详情"
+          @close="detailVisible = false"
+        >
+          <a-descriptions
+            v-if="currentRecord"
+            bordered
+            :column="2"
           >
-            <template #amountCell="{ record }">
-              <span class="amount-cell">¥{{ formatAmount(record.amount) }}</span>
-            </template>
-          </BillTableList>
-        </div>
-
-        <div style="margin-top:16px;text-align:right">
-          <a-button v-if="currentRecord?.status !== 2" type="primary" v-permission="'finance:payable:payment'" @click="handlePayment(currentRecord)">
-            <template #icon><DollarOutlined /></template>
-            付款
-          </a-button>
-        </div>
-      </FullScreenDetail>
-
-      <!-- 新增应付 -->
-      <FullScreenDetail
-        :visible="addModalVisible"
-        title="新增应付账款"
-        :save-loading="addSubmitting"
-        :dirty="addFormDirty"
-        show-save-and-new
-        @save="handleAddConfirm(false)"
-        @save-and-new="handleAddConfirm(true)"
-        @close="handleAddCancel"
-      >
-        <a-form ref="addFormRef" :model="addFormState" :rules="addFormRules" :label-col="{ span: 5 }" :wrapper-col="{ span: 19 }">
-          <a-form-item label="供应商" name="supplierId">
-            <a-select
-              v-model:value="addFormState.supplierId"
-              placeholder="请选择供应商"
-              size="small"
-              show-search
-              :filter-option="(input: string, option: any) => option.children?.toLowerCase().includes(input.toLowerCase())"
+            <a-descriptions-item label="供应商名称">
+              <a @click="handleViewSupplier(currentRecord)">{{ currentRecord.supplierName }}</a>
+            </a-descriptions-item>
+            <a-descriptions-item label="订单号">
+              <a @click="handleViewOrder(currentRecord)">{{ currentRecord.orderNo }}</a>
+            </a-descriptions-item>
+            <a-descriptions-item label="应付金额">
+              <span class="amount-cell">¥{{ formatAmount(currentRecord.amount) }}</span>
+            </a-descriptions-item>
+            <a-descriptions-item label="已付金额">
+              <span class="amount-cell success">¥{{ formatAmount(currentRecord.paidAmount) }}</span>
+            </a-descriptions-item>
+            <a-descriptions-item label="未付金额">
+              <span class="amount-cell warning">¥{{ formatAmount(currentRecord.unpaidAmount) }}</span>
+            </a-descriptions-item>
+            <a-descriptions-item label="状态">
+              <a-tag :color="getStatusColor(currentRecord.status)">
+                {{ getStatusText(currentRecord.status) }}
+              </a-tag>
+            </a-descriptions-item>
+            <a-descriptions-item label="到期日期">
+              <span :class="{ 'overdue': isOverdue(currentRecord.dueDate, currentRecord.status) }">
+                {{ currentRecord.dueDate }}
+              </span>
+            </a-descriptions-item>
+            <a-descriptions-item label="创建时间">
+              {{ currentRecord.createTime || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item
+              label="备注"
+              :span="2"
             >
-              <a-select-option v-for="s in supplierOptions" :key="s.id" :value="s.id">{{ s.name }}</a-select-option>
-            </a-select>
-          </a-form-item>
-          <a-form-item label="应付金额" name="amount">
-            <a-input-number v-model:value="addFormState.amount" :min="0" :precision="2" size="small" style="width:100%">
-              <template #addonBefore>¥</template>
-            </a-input-number>
-          </a-form-item>
-          <a-form-item label="到期日期" name="dueDate">
-            <a-date-picker v-model:value="addFormState.dueDate" size="small" style="width:100%" />
-          </a-form-item>
-          <a-form-item label="订单号" name="orderNo">
-            <a-input v-model:value="addFormState.orderNo" placeholder="关联订单号（可选）" size="small" />
-          </a-form-item>
-          <a-form-item label="备注" name="remark">
-            <a-textarea v-model:value="addFormState.remark" placeholder="备注信息" :rows="3" />
-          </a-form-item>
-        </a-form>
-      </FullScreenDetail>
+              {{ currentRecord.remark || '-' }}
+            </a-descriptions-item>
+          </a-descriptions>
 
-      <!-- 付款弹窗 -->
-      <FullScreenDetail
-        :visible="paymentModalVisible"
-        title="付款"
-        :save-loading="paymentSubmitting"
-        @save="handlePaymentConfirm"
-        @close="paymentModalVisible = false"
-      >
-        <a-form :label-col="{ span: 5 }" :wrapper-col="{ span: 19 }">
-          <a-form-item label="供应商">
-            <span>{{ paymentRecord?.supplierName }}</span>
-          </a-form-item>
-          <a-form-item label="未付金额">
-            <span class="amount-cell warning">¥{{ formatAmount(paymentRecord?.unpaidAmount) }}</span>
-          </a-form-item>
-          <a-form-item label="付款金额" required>
-            <a-input-number
-              v-model:value="paymentAmount"
-              :min="0"
-              :max="paymentRecord?.unpaidAmount"
-              :precision="2"
-              size="small"
-              style="width: 100%"
+          <!-- 付款记录 -->
+          <div class="detail-payment-section">
+            <div class="detail-payment-title">
+              付款记录
+            </div>
+            <BillTableList
+              :columns="paymentColumns"
+              :data-source="paymentRecords"
+              :pagination="false as any"
+              row-key="id"
+              :show-toolbar="false"
+              :selectable="false"
+              :show-add="false"
+              :show-search="false"
+              :show-export="false"
+              :show-batch-delete="false"
             >
-              <template #addonBefore>¥</template>
-            </a-input-number>
-          </a-form-item>
-          <a-form-item label="付款方式">
-            <a-select v-model:value="paymentMethod" placeholder="选择付款方式" size="small">
-              <a-select-option :value="1">银行转账</a-select-option>
-              <a-select-option :value="2">现金</a-select-option>
-              <a-select-option :value="3">承兑汇票</a-select-option>
-            </a-select>
-          </a-form-item>
-          <a-form-item label="付款日期">
-            <a-date-picker v-model:value="paymentDate" size="small" style="width: 100%" />
-          </a-form-item>
-          <a-form-item label="备注">
-            <a-input v-model:value="paymentRemark" placeholder="备注信息" size="small" />
-          </a-form-item>
-        </a-form>
-      </FullScreenDetail>
-    </div>
-  </PageContainer>
+              <template #amountCell="{ record }">
+                <span class="amount-cell">¥{{ formatAmount(record.amount) }}</span>
+              </template>
+            </BillTableList>
+          </div>
+
+          <div style="margin-top:16px;text-align:right">
+            <a-button
+              v-if="currentRecord?.status !== 2"
+              v-permission="'finance:payable:payment'"
+              type="primary"
+              @click="handlePayment(currentRecord)"
+            >
+              <template #icon>
+                <DollarOutlined />
+              </template>
+              付款
+            </a-button>
+          </div>
+        </FullScreenDetail>
+
+        <!-- 新增应付 -->
+        <FullScreenDetail
+          :visible="addModalVisible"
+          title="新增应付账款"
+          :save-loading="addSubmitting"
+          :dirty="addFormDirty"
+          show-save-and-new
+          @save="handleAddConfirm(false)"
+          @save-and-new="handleAddConfirm(true)"
+          @close="handleAddCancel"
+        >
+          <a-form
+            ref="addFormRef"
+            :model="addFormState"
+            :rules="addFormRules"
+            :label-col="{ span: 5 }"
+            :wrapper-col="{ span: 19 }"
+          >
+            <a-form-item
+              label="供应商"
+              name="supplierId"
+            >
+              <a-select
+                v-model:value="addFormState.supplierId"
+                placeholder="请选择供应商"
+                size="small"
+                show-search
+                :filter-option="(input: string, option: any) => option.children?.toLowerCase().includes(input.toLowerCase())"
+              >
+                <a-select-option
+                  v-for="s in supplierOptions"
+                  :key="s.id"
+                  :value="s.id"
+                >
+                  {{ s.name }}
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+            <a-form-item
+              label="应付金额"
+              name="amount"
+            >
+              <a-input-number
+                v-model:value="addFormState.amount"
+                :min="0"
+                :precision="2"
+                size="small"
+                style="width:100%"
+              >
+                <template #addonBefore>
+                  ¥
+                </template>
+              </a-input-number>
+            </a-form-item>
+            <a-form-item
+              label="到期日期"
+              name="dueDate"
+            >
+              <a-date-picker
+                v-model:value="addFormState.dueDate"
+                size="small"
+                style="width:100%"
+              />
+            </a-form-item>
+            <a-form-item
+              label="订单号"
+              name="orderNo"
+            >
+              <a-input
+                v-model:value="addFormState.orderNo"
+                placeholder="关联订单号（可选）"
+                size="small"
+              />
+            </a-form-item>
+            <a-form-item
+              label="备注"
+              name="remark"
+            >
+              <a-textarea
+                v-model:value="addFormState.remark"
+                placeholder="备注信息"
+                :rows="3"
+              />
+            </a-form-item>
+          </a-form>
+        </FullScreenDetail>
+
+        <!-- 付款弹窗 -->
+        <FullScreenDetail
+          :visible="paymentModalVisible"
+          title="付款"
+          :save-loading="paymentSubmitting"
+          @save="handlePaymentConfirm"
+          @close="paymentModalVisible = false"
+        >
+          <a-form
+            :label-col="{ span: 5 }"
+            :wrapper-col="{ span: 19 }"
+          >
+            <a-form-item label="供应商">
+              <span>{{ paymentRecord?.supplierName }}</span>
+            </a-form-item>
+            <a-form-item label="未付金额">
+              <span class="amount-cell warning">¥{{ formatAmount(paymentRecord?.unpaidAmount) }}</span>
+            </a-form-item>
+            <a-form-item
+              label="付款金额"
+              required
+            >
+              <a-input-number
+                v-model:value="paymentAmount"
+                :min="0"
+                :max="paymentRecord?.unpaidAmount"
+                :precision="2"
+                size="small"
+                style="width: 100%"
+              >
+                <template #addonBefore>
+                  ¥
+                </template>
+              </a-input-number>
+            </a-form-item>
+            <a-form-item label="付款方式">
+              <a-select
+                v-model:value="paymentMethod"
+                placeholder="选择付款方式"
+                size="small"
+              >
+                <a-select-option :value="1">
+                  银行转账
+                </a-select-option>
+                <a-select-option :value="2">
+                  现金
+                </a-select-option>
+                <a-select-option :value="3">
+                  承兑汇票
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+            <a-form-item label="付款日期">
+              <a-date-picker
+                v-model:value="paymentDate"
+                size="small"
+                style="width: 100%"
+              />
+            </a-form-item>
+            <a-form-item label="备注">
+              <a-input
+                v-model:value="paymentRemark"
+                placeholder="备注信息"
+                size="small"
+              />
+            </a-form-item>
+          </a-form>
+        </FullScreenDetail>
+      </div>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

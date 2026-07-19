@@ -19,10 +19,20 @@
       >
         <template #actionCell="{ index }">
           <a-space :size="2">
-            <a-button type="link" size="small" class="action-add-btn" @click="handleAddProduct">
+            <a-button
+              type="link"
+              size="small"
+              class="action-add-btn"
+              @click="handleAddProduct"
+            >
               <PlusCircleOutlined />
             </a-button>
-            <a-button type="link" size="small" class="action-del-btn" @click="handleRemoveProduct(index)">
+            <a-button
+              type="link"
+              size="small"
+              class="action-del-btn"
+              @click="handleRemoveProduct(index)"
+            >
               <MinusCircleOutlined />
             </a-button>
           </a-space>
@@ -74,10 +84,10 @@ const {
   }),
 })
 
-if (!('warehouseId' in formData)) Object.assign(formData, {
+if (!('warehouseId' in formData)) {Object.assign(formData, {
   warehouseId: undefined, handlerId: undefined, handlerName: '',
   date: '', waveType: 1, remark: '',
-})
+})}
 
 const headerConfig = computed<BillHeaderConfig>(() => ({
   title: '波次单', orderNo: formData.orderNo, showAttachment: true,

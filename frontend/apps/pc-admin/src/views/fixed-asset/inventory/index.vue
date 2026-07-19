@@ -1,266 +1,443 @@
 <template>
   <ErrorBoundary @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="inventory-page-header">
-        <div class="inventory-page-header-left">
-          <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item>固定资产</a-breadcrumb-item>
-            <a-breadcrumb-item>盘点管理</a-breadcrumb-item>
-          </a-breadcrumb>
-          <h2 class="inventory-page-header-title">盘点管理</h2>
-        </div>
-        <div class="inventory-page-header-right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-            <SyncOutlined /> {{ autoRefreshCountdown }}s
-          </span>
-          <PrintButton business-type="fixed_asset_inventory" button-type="link" button-size="small" tooltip="打印盘点记录" />
-          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)()" v-permission="'erp:fixed-asset:inventory:list'">
-            <template #icon><ReloadOutlined /></template>
-            刷新
-          </a-button>
-<span class="shortcut-hints">
-                                                <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
-                                                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-                                              </span>
-        </div>
-
-      </div>
-    </template>
-
-    <div class="inventory-list-page">
-      <!-- 统计卡片 -->
-      <div class="stat-cards">
-        <div class="stat-card stat-pending">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ statusCounts.pending }}</div>
-            <div class="stat-card-label">待盘点</div>
+    <PageContainer full-height>
+      <template #header>
+        <div class="inventory-page-header">
+          <div class="inventory-page-header-left">
+            <a-breadcrumb>
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>固定资产</a-breadcrumb-item>
+              <a-breadcrumb-item>盘点管理</a-breadcrumb-item>
+            </a-breadcrumb>
+            <h2 class="inventory-page-header-title">
+              盘点管理
+            </h2>
           </div>
-          <ClockCircleOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-completed">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ statusCounts.completed }}</div>
-            <div class="stat-card-label">已完成</div>
-          </div>
-          <CheckCircleOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-mismatch">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ resultCounts.mismatch }}</div>
-            <div class="stat-card-label">差异记录</div>
-          </div>
-          <ExclamationCircleOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-count">
-          <div class="stat-card-body">
-            <div class="stat-card-value">{{ pagination.total }}</div>
-            <div class="stat-card-label">盘点记录数</div>
-          </div>
-          <FileTextOutlined class="stat-card-icon" />
-        </div>
-      </div>
-
-      <BillTableList
-        ref="tableRef"
-        :columns="vxeColumns"
-        :data-source="tableDataSource"
-        :loading="loading"
-        :pagination="pagination"
-        :table-key="'fixed-asset-inventory-list'"
-        :filter-fields="filterFields"
-        :selectable="true"
-        add-text="新增盘点"
-        add-permission="erp:fixed-asset:inventory:create"
-        delete-permission="erp:fixed-asset:inventory:delete"
-        @add="showCreateModal"
-        @edit="editRecord"
-        @cell-dblclick="viewDetail"
-        :min-empty-rows="12"
-        @refresh="debounceClick('refresh', fetchData)"
-        @search="handleSearch"
-        @page-change="handlePageChange"
-        @filter-change="handleFilterChange"
-        @selection-change="handleSelectionChange"
-      >
-        <template #toolbar-actions>
-          <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
-            更新 {{ dayjs(lastUpdated).format('HH:mm') }}
-          </span>
-        </template>
-        <template #batch-actions="{ selectedRowKeys }: any">
-          <span class="batch-info">已选择 {{ selectedRowKeys.length }} 项</span>
-        </template>
-        <template #empty>
-          <div v-if="hasError" class="table-empty table-empty-error">
-            <WarningOutlined class="table-empty-icon table-empty-icon-error" />
-            <p class="table-empty-text">数据加载失败，请重试</p>
-            <a-button size="small" @click="debounceClick('refresh', fetchData)()">
-              <template #icon><ReloadOutlined /></template>
-              重试
-            </a-button>
-          </div>
-          <div v-else class="table-empty">
-            <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-            <InboxOutlined v-else class="table-empty-icon" />
-            <p v-if="hasActiveFilters" class="table-empty-text">
-              没有符合条件的盘点记录，<a @click="handleResetFilters">清除筛选</a>
-            </p>
-            <p v-else class="table-empty-text">
-              暂无盘点记录，点击右上角「新增盘点」开始创建
-            </p>
-          </div>
-        </template>
-        <template #inventoryNoCell="{ record }">
-          <a @click="viewDetail(record)" class="inventory-no">{{ record.inventoryNo }}</a>
-        </template>
-        <template #statusCell="{ record }">
-          <a-tag :color="record.status === 'completed' ? 'green' : 'orange'">
-            {{ record.status === 'completed' ? '已完成' : '待盘点' }}
-          </a-tag>
-        </template>
-        <template #checkResultCell="{ record }">
-          <a-tag :color="resultColorMap[record.checkResult]">
-            {{ resultMap[record.checkResult] || record.checkResult }}
-          </a-tag>
-        </template>
-
-        <template #action="{ record }">
-          <a-space :size="4">
-            <a-tooltip title="查看详情">
-              <a-button type="link" size="small" @click="viewDetail(record)">
-                <template #icon><EyeOutlined /></template>
-              </a-button>
-            </a-tooltip>
-            <a-tooltip v-if="record.status === 'pending'" title="编辑">
-              <a-button type="link" size="small" @click="editRecord(record)" v-permission="'erp:fixed-asset:inventory:update'">
-                <template #icon><EditOutlined /></template>
-              </a-button>
-            </a-tooltip>
+          <div class="inventory-page-header-right">
+            <span
+              v-if="lastUpdateTime"
+              class="update-time"
+            >更新于 {{ lastUpdateTime }}</span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            >
+              <SyncOutlined /> {{ autoRefreshCountdown }}s
+            </span>
             <PrintButton
-              template-type="inventory"
-              :business-id="record.id"
               business-type="fixed_asset_inventory"
-              button-text=""
-              button-size="small"
               button-type="link"
-              tooltip="打印"
+              button-size="small"
+              tooltip="打印盘点记录"
             />
-            <a-dropdown trigger="click">
-              <a-button type="link" size="small" class="action-more-btn">
-                <template #icon><EllipsisOutlined /></template>
-              </a-button>
-              <template #overlay>
-                <a-menu @click="({ key }: any) => handleActionMenuClick(key as string, record)">
-                  <a-menu-item v-if="record.status === 'pending'" key="complete" v-permission="'erp:fixed-asset:inventory:update'">
-                    <CheckCircleOutlined /> 完成盘点
-                  </a-menu-item>
-                </a-menu>
+            <a-button
+              v-permission="'erp:fixed-asset:inventory:list'"
+              size="small"
+              :loading="refreshLoading"
+              @click="debounceClick('refresh', fetchData)()"
+            >
+              <template #icon>
+                <ReloadOutlined />
               </template>
-            </a-dropdown>
-          </a-space>
-        </template>
-      </BillTableList>
+              刷新
+            </a-button>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            </span>
+          </div>
+        </div>
+      </template>
 
-      <!-- Create/Edit Modal -->
-      <FullScreenDetail
-        :visible="modalVisible"
-        :title="isEdit ? '编辑盘点记录' : '新增盘点记录'"
-        :save-loading="modalLoading"
-        :show-save-and-new="!isEdit"
-        @save="handleModalOk"
-        @close="handleFormClose"
-        @save-and-new="handleFormSaveAndNew"
-      >
-        <a-form :model="formData" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
-          <a-form-item label="资产ID" required>
-            <a-input-number v-model:value="formData.assetId" :min="1" style="width: 100%" size="small" />
-          </a-form-item>
-          <a-row :gutter="16">
-            <a-col :span="12">
-              <a-form-item label="资产编码">
-                <a-input v-model:value="formData.assetCode" placeholder="资产编码" size="small" />
-              </a-form-item>
-            </a-col>
-            <a-col :span="12">
-              <a-form-item label="资产名称">
-                <a-input v-model:value="formData.assetName" placeholder="资产名称" size="small" />
-              </a-form-item>
-            </a-col>
-          </a-row>
-          <a-row :gutter="16">
-            <a-col :span="12">
-              <a-form-item label="盘点日期">
-                <a-date-picker v-model:value="formData.inventoryDate" style="width: 100%" size="small" />
-              </a-form-item>
-            </a-col>
-            <a-col :span="12">
-              <a-form-item label="部门">
-                <a-input v-model:value="formData.departmentName" placeholder="部门名称" size="small" />
-              </a-form-item>
-            </a-col>
-          </a-row>
-          <a-row :gutter="16">
-            <a-col :span="12">
-              <a-form-item label="预期位置">
-                <a-input v-model:value="formData.expectedLocation" placeholder="预期位置" size="small" />
-              </a-form-item>
-            </a-col>
-            <a-col :span="12">
-              <a-form-item label="实际位置">
-                <a-input v-model:value="formData.actualLocation" placeholder="实际位置" size="small" />
-              </a-form-item>
-            </a-col>
-          </a-row>
-          <a-row :gutter="16">
-            <a-col :span="12">
-              <a-form-item label="预期状态">
-                <a-select v-model:value="formData.expectedStatus" placeholder="预期状态" size="small">
-                  <a-select-option value="in_use">使用中</a-select-option>
-                  <a-select-option value="idle">闲置</a-select-option>
-                  <a-select-option value="maintenance">维修中</a-select-option>
-                </a-select>
-              </a-form-item>
-            </a-col>
-            <a-col :span="12">
-              <a-form-item label="实际状态">
-                <a-select v-model:value="formData.actualStatus" placeholder="实际状态" size="small">
-                  <a-select-option value="in_use">使用中</a-select-option>
-                  <a-select-option value="idle">闲置</a-select-option>
-                  <a-select-option value="maintenance">维修中</a-select-option>
-                </a-select>
-              </a-form-item>
-            </a-col>
-          </a-row>
-          <a-row :gutter="16">
-            <a-col :span="12">
-              <a-form-item label="预期保管人">
-                <a-input v-model:value="formData.expectedCustodian" placeholder="预期保管人" size="small" />
-              </a-form-item>
-            </a-col>
-            <a-col :span="12">
-              <a-form-item label="实际保管人">
-                <a-input v-model:value="formData.actualCustodian" placeholder="实际保管人" size="small" />
-              </a-form-item>
-            </a-col>
-          </a-row>
-          <a-form-item label="盘点结果">
-            <a-select v-model:value="formData.checkResult" placeholder="选择结果" size="small">
-              <a-select-option value="consistent">一致</a-select-option>
-              <a-select-option value="mismatch">不符</a-select-option>
-              <a-select-option value="missing">盘亏</a-select-option>
-              <a-select-option value="surplus">盘盈</a-select-option>
-            </a-select>
-          </a-form-item>
-          <a-form-item label="备注">
-            <a-textarea v-model:value="formData.remark" :rows="2" size="small" />
-          </a-form-item>
-        </a-form>
-      </FullScreenDetail>
-    </div>
-  </PageContainer>
+      <div class="inventory-list-page">
+        <!-- 统计卡片 -->
+        <div class="stat-cards">
+          <div class="stat-card stat-pending">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ statusCounts.pending }}
+              </div>
+              <div class="stat-card-label">
+                待盘点
+              </div>
+            </div>
+            <ClockCircleOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-completed">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ statusCounts.completed }}
+              </div>
+              <div class="stat-card-label">
+                已完成
+              </div>
+            </div>
+            <CheckCircleOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-mismatch">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ resultCounts.mismatch }}
+              </div>
+              <div class="stat-card-label">
+                差异记录
+              </div>
+            </div>
+            <ExclamationCircleOutlined class="stat-card-icon" />
+          </div>
+          <div class="stat-card stat-count">
+            <div class="stat-card-body">
+              <div class="stat-card-value">
+                {{ pagination.total }}
+              </div>
+              <div class="stat-card-label">
+                盘点记录数
+              </div>
+            </div>
+            <FileTextOutlined class="stat-card-icon" />
+          </div>
+        </div>
+
+        <BillTableList
+          ref="tableRef"
+          :columns="vxeColumns"
+          :data-source="tableDataSource"
+          :loading="loading"
+          :pagination="pagination"
+          :table-key="'fixed-asset-inventory-list'"
+          :filter-fields="filterFields"
+          :selectable="true"
+          add-text="新增盘点"
+          add-permission="erp:fixed-asset:inventory:create"
+          delete-permission="erp:fixed-asset:inventory:delete"
+          :min-empty-rows="12"
+          @add="showCreateModal"
+          @edit="editRecord"
+          @cell-dblclick="viewDetail"
+          @refresh="debounceClick('refresh', fetchData)"
+          @search="handleSearch"
+          @page-change="handlePageChange"
+          @filter-change="handleFilterChange"
+          @selection-change="handleSelectionChange"
+        >
+          <template #toolbar-actions>
+            <span
+              v-if="lastUpdated"
+              class="list-update-timestamp"
+              :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')"
+            >
+              更新 {{ dayjs(lastUpdated).format('HH:mm') }}
+            </span>
+          </template>
+          <template #batch-actions="{ selectedRowKeys }: any">
+            <span class="batch-info">已选择 {{ selectedRowKeys.length }} 项</span>
+          </template>
+          <template #empty>
+            <div
+              v-if="hasError"
+              class="table-empty table-empty-error"
+            >
+              <WarningOutlined class="table-empty-icon table-empty-icon-error" />
+              <p class="table-empty-text">
+                数据加载失败，请重试
+              </p>
+              <a-button
+                size="small"
+                @click="debounceClick('refresh', fetchData)()"
+              >
+                <template #icon>
+                  <ReloadOutlined />
+                </template>
+                重试
+              </a-button>
+            </div>
+            <div
+              v-else
+              class="table-empty"
+            >
+              <SearchOutlined
+                v-if="hasActiveFilters"
+                class="table-empty-icon"
+              />
+              <InboxOutlined
+                v-else
+                class="table-empty-icon"
+              />
+              <p
+                v-if="hasActiveFilters"
+                class="table-empty-text"
+              >
+                没有符合条件的盘点记录，<a @click="handleResetFilters">清除筛选</a>
+              </p>
+              <p
+                v-else
+                class="table-empty-text"
+              >
+                暂无盘点记录，点击右上角「新增盘点」开始创建
+              </p>
+            </div>
+          </template>
+          <template #inventoryNoCell="{ record }">
+            <a
+              class="inventory-no"
+              @click="viewDetail(record)"
+            >{{ record.inventoryNo }}</a>
+          </template>
+          <template #statusCell="{ record }">
+            <a-tag :color="record.status === 'completed' ? 'green' : 'orange'">
+              {{ record.status === 'completed' ? '已完成' : '待盘点' }}
+            </a-tag>
+          </template>
+          <template #checkResultCell="{ record }">
+            <a-tag :color="resultColorMap[record.checkResult]">
+              {{ resultMap[record.checkResult] || record.checkResult }}
+            </a-tag>
+          </template>
+
+          <template #action="{ record }">
+            <a-space :size="4">
+              <a-tooltip title="查看详情">
+                <a-button
+                  type="link"
+                  size="small"
+                  @click="viewDetail(record)"
+                >
+                  <template #icon>
+                    <EyeOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip
+                v-if="record.status === 'pending'"
+                title="编辑"
+              >
+                <a-button
+                  v-permission="'erp:fixed-asset:inventory:update'"
+                  type="link"
+                  size="small"
+                  @click="editRecord(record)"
+                >
+                  <template #icon>
+                    <EditOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <PrintButton
+                template-type="inventory"
+                :business-id="record.id"
+                business-type="fixed_asset_inventory"
+                button-text=""
+                button-size="small"
+                button-type="link"
+                tooltip="打印"
+              />
+              <a-dropdown trigger="click">
+                <a-button
+                  type="link"
+                  size="small"
+                  class="action-more-btn"
+                >
+                  <template #icon>
+                    <EllipsisOutlined />
+                  </template>
+                </a-button>
+                <template #overlay>
+                  <a-menu @click="({ key }: any) => handleActionMenuClick(key as string, record)">
+                    <a-menu-item
+                      v-if="record.status === 'pending'"
+                      key="complete"
+                      v-permission="'erp:fixed-asset:inventory:update'"
+                    >
+                      <CheckCircleOutlined /> 完成盘点
+                    </a-menu-item>
+                  </a-menu>
+                </template>
+              </a-dropdown>
+            </a-space>
+          </template>
+        </BillTableList>
+
+        <!-- Create/Edit Modal -->
+        <FullScreenDetail
+          :visible="modalVisible"
+          :title="isEdit ? '编辑盘点记录' : '新增盘点记录'"
+          :save-loading="modalLoading"
+          :show-save-and-new="!isEdit"
+          @save="handleModalOk"
+          @close="handleFormClose"
+          @save-and-new="handleFormSaveAndNew"
+        >
+          <a-form
+            :model="formData"
+            :label-col="{ span: 6 }"
+            :wrapper-col="{ span: 16 }"
+          >
+            <a-form-item
+              label="资产ID"
+              required
+            >
+              <a-input-number
+                v-model:value="formData.assetId"
+                :min="1"
+                style="width: 100%"
+                size="small"
+              />
+            </a-form-item>
+            <a-row :gutter="16">
+              <a-col :span="12">
+                <a-form-item label="资产编码">
+                  <a-input
+                    v-model:value="formData.assetCode"
+                    placeholder="资产编码"
+                    size="small"
+                  />
+                </a-form-item>
+              </a-col>
+              <a-col :span="12">
+                <a-form-item label="资产名称">
+                  <a-input
+                    v-model:value="formData.assetName"
+                    placeholder="资产名称"
+                    size="small"
+                  />
+                </a-form-item>
+              </a-col>
+            </a-row>
+            <a-row :gutter="16">
+              <a-col :span="12">
+                <a-form-item label="盘点日期">
+                  <a-date-picker
+                    v-model:value="formData.inventoryDate"
+                    style="width: 100%"
+                    size="small"
+                  />
+                </a-form-item>
+              </a-col>
+              <a-col :span="12">
+                <a-form-item label="部门">
+                  <a-input
+                    v-model:value="formData.departmentName"
+                    placeholder="部门名称"
+                    size="small"
+                  />
+                </a-form-item>
+              </a-col>
+            </a-row>
+            <a-row :gutter="16">
+              <a-col :span="12">
+                <a-form-item label="预期位置">
+                  <a-input
+                    v-model:value="formData.expectedLocation"
+                    placeholder="预期位置"
+                    size="small"
+                  />
+                </a-form-item>
+              </a-col>
+              <a-col :span="12">
+                <a-form-item label="实际位置">
+                  <a-input
+                    v-model:value="formData.actualLocation"
+                    placeholder="实际位置"
+                    size="small"
+                  />
+                </a-form-item>
+              </a-col>
+            </a-row>
+            <a-row :gutter="16">
+              <a-col :span="12">
+                <a-form-item label="预期状态">
+                  <a-select
+                    v-model:value="formData.expectedStatus"
+                    placeholder="预期状态"
+                    size="small"
+                  >
+                    <a-select-option value="in_use">
+                      使用中
+                    </a-select-option>
+                    <a-select-option value="idle">
+                      闲置
+                    </a-select-option>
+                    <a-select-option value="maintenance">
+                      维修中
+                    </a-select-option>
+                  </a-select>
+                </a-form-item>
+              </a-col>
+              <a-col :span="12">
+                <a-form-item label="实际状态">
+                  <a-select
+                    v-model:value="formData.actualStatus"
+                    placeholder="实际状态"
+                    size="small"
+                  >
+                    <a-select-option value="in_use">
+                      使用中
+                    </a-select-option>
+                    <a-select-option value="idle">
+                      闲置
+                    </a-select-option>
+                    <a-select-option value="maintenance">
+                      维修中
+                    </a-select-option>
+                  </a-select>
+                </a-form-item>
+              </a-col>
+            </a-row>
+            <a-row :gutter="16">
+              <a-col :span="12">
+                <a-form-item label="预期保管人">
+                  <a-input
+                    v-model:value="formData.expectedCustodian"
+                    placeholder="预期保管人"
+                    size="small"
+                  />
+                </a-form-item>
+              </a-col>
+              <a-col :span="12">
+                <a-form-item label="实际保管人">
+                  <a-input
+                    v-model:value="formData.actualCustodian"
+                    placeholder="实际保管人"
+                    size="small"
+                  />
+                </a-form-item>
+              </a-col>
+            </a-row>
+            <a-form-item label="盘点结果">
+              <a-select
+                v-model:value="formData.checkResult"
+                placeholder="选择结果"
+                size="small"
+              >
+                <a-select-option value="consistent">
+                  一致
+                </a-select-option>
+                <a-select-option value="mismatch">
+                  不符
+                </a-select-option>
+                <a-select-option value="missing">
+                  盘亏
+                </a-select-option>
+                <a-select-option value="surplus">
+                  盘盈
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+            <a-form-item label="备注">
+              <a-textarea
+                v-model:value="formData.remark"
+                :rows="2"
+                size="small"
+              />
+            </a-form-item>
+          </a-form>
+        </FullScreenDetail>
+      </div>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

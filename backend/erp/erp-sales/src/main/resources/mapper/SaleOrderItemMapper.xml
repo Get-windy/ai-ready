@@ -133,10 +133,17 @@
         ORDER BY line_no
     </select>
 
-    <!-- 更新已出库数量 -->
+    <!-- 更新已出库数量（增量） -->
     <update id="addShippedQuantity">
         UPDATE erp_sale_order_item
         SET shipped_quantity = shipped_quantity + #{quantity}
+        WHERE id = #{id}
+    </update>
+
+    <!-- 设置已出库数量（全量） -->
+    <update id="updateShippedQuantity">
+        UPDATE erp_sale_order_item
+        SET shipped_quantity = #{quantity}
         WHERE id = #{id}
     </update>
 

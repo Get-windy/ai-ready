@@ -8,7 +8,10 @@
     <!-- 标题区域 -->
     <div class="skeleton-card__header">
       <div class="skeleton-bar skeleton-card__title" />
-      <div v-if="showExtra" class="skeleton-bar skeleton-card__extra" />
+      <div
+        v-if="showExtra"
+        class="skeleton-bar skeleton-card__extra"
+      />
     </div>
 
     <!-- 数值/内容区域 -->
@@ -17,14 +20,24 @@
         class="skeleton-bar skeleton-card__value"
         :style="{ height: hasChart ? '32px' : '36px' }"
       />
-      <div v-if="showSuffix" class="skeleton-bar skeleton-card__suffix" />
+      <div
+        v-if="showSuffix"
+        class="skeleton-bar skeleton-card__suffix"
+      />
     </div>
 
     <!-- 图表占位区域 -->
-    <div v-if="hasChart" class="skeleton-card__chart">
+    <div
+      v-if="hasChart"
+      class="skeleton-card__chart"
+    >
       <div class="skeleton-card__chart-area">
         <!-- 模拟折线图 -->
-        <svg class="skeleton-card__chart-svg" viewBox="0 0 400 120" preserveAspectRatio="none">
+        <svg
+          class="skeleton-card__chart-svg"
+          viewBox="0 0 400 120"
+          preserveAspectRatio="none"
+        >
           <polyline
             points="0,80 60,60 120,90 180,30 240,50 300,20 360,45 400,35"
             fill="none"
@@ -35,7 +48,12 @@
       </div>
       <!-- X 轴标签占位 -->
       <div class="skeleton-card__chart-labels">
-        <div v-for="i in 5" :key="i" class="skeleton-bar" style="width: 28px; height: 10px" />
+        <div
+          v-for="i in 5"
+          :key="i"
+          class="skeleton-bar"
+          style="width: 28px; height: 10px"
+        />
       </div>
     </div>
   </div>

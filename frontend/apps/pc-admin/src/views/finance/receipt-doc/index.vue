@@ -5,24 +5,41 @@
         <div class="page-header">
           <div class="page-header__left">
             <a-breadcrumb>
-              <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
               <a-breadcrumb-item>财务管理</a-breadcrumb-item>
               <a-breadcrumb-item>收款单</a-breadcrumb-item>
             </a-breadcrumb>
-            <h2 class="page-header__title">收款单</h2>
+            <h2 class="page-header__title">
+              收款单
+            </h2>
           </div>
           <div class="page-header__right">
             <a-space :size="12">
               <a-badge :status="loading ? 'processing' : 'success'" />
-              <a-button size="small" :loading="loading" @click="fetchData">
-                <template #icon><ReloadOutlined /></template>刷新
+              <a-button
+                size="small"
+                :loading="loading"
+                @click="fetchData"
+              >
+                <template #icon>
+                  <ReloadOutlined />
+                </template>刷新
               </a-button>
             </a-space>
           </div>
         </div>
       </template>
 
-      <SearchBar :fields="searchFields" :loading="loading" @search="handleSearch" @reset="handleReset" />
+      <SearchBar
+        :fields="searchFields"
+        :loading="loading"
+        @search="handleSearch"
+        @reset="handleReset"
+      />
 
       <BillTableList
         :columns="columns"
@@ -33,7 +50,9 @@
         @page-change="handlePageChange"
       >
         <template #statusCell="{ record }">
-          <a-tag :color="statusMap[record.status]?.color">{{ statusMap[record.status]?.text || record.status }}</a-tag>
+          <a-tag :color="statusMap[record.status]?.color">
+            {{ statusMap[record.status]?.text || record.status }}
+          </a-tag>
         </template>
         <template #action="{ record }">
           <a @click="handleView(record)">详情</a>

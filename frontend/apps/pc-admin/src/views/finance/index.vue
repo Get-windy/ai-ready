@@ -1,159 +1,264 @@
 <template>
   <ErrorBoundary @error="handleError">
-  <PageContainer full-height>
-    <template #header>
-      <div class="finance-header">
-        <div class="finance-header-left">
-          <a-breadcrumb class="finance-breadcrumb">
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item>财务管理</a-breadcrumb-item>
-          </a-breadcrumb>
-          <h2 class="finance-header-title">财务管理</h2>
+    <PageContainer full-height>
+      <template #header>
+        <div class="finance-header">
+          <div class="finance-header-left">
+            <a-breadcrumb class="finance-breadcrumb">
+              <a-breadcrumb-item>
+                <router-link to="/">
+                  首页
+                </router-link>
+              </a-breadcrumb-item>
+              <a-breadcrumb-item>财务管理</a-breadcrumb-item>
+            </a-breadcrumb>
+            <h2 class="finance-header-title">
+              财务管理
+            </h2>
+          </div>
+          <div class="finance-header-right">
+            <span
+              v-if="lastUpdateTime"
+              class="update-time"
+            >更新于 {{ lastUpdateTime }}</span>
+            <span
+              v-if="autoRefreshCountdown > 0"
+              class="auto-refresh-badge"
+            >
+              <SyncOutlined /> {{ autoRefreshCountdown }}s
+            </span>
+            <a-button
+              size="small"
+              :loading="refreshLoading"
+              @click="debounceClick('refresh', loadDashboard)"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
+              刷新
+            </a-button>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            </span>
+          </div>
         </div>
-        <div class="finance-header-right">
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-            <SyncOutlined /> {{ autoRefreshCountdown }}s
-          </span>
-          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', loadDashboard)">
-            <template #icon><ReloadOutlined /></template>
-            刷新
-          </a-button>
-          <span class="shortcut-hints">
-            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-          </span>
-        </div>
-      </div>
-    </template>
+      </template>
 
-    <div class="finance-dashboard">
-      <!-- KPI 卡片 -->
-      <div class="kpi-cards">
-        <div class="kpi-card kpi-assets">
-          <div class="kpi-card-content">
-            <div class="kpi-card-value">
-              <span class="kpi-prefix">¥</span>
-              <span class="kpi-number">{{ formatAmount(dashboardData.totalAssets) }}</span>
+      <div class="finance-dashboard">
+        <!-- KPI 卡片 -->
+        <div class="kpi-cards">
+          <div class="kpi-card kpi-assets">
+            <div class="kpi-card-content">
+              <div class="kpi-card-value">
+                <span class="kpi-prefix">¥</span>
+                <span class="kpi-number">{{ formatAmount(dashboardData.totalAssets) }}</span>
+              </div>
+              <div class="kpi-card-label">
+                总资产
+              </div>
             </div>
-            <div class="kpi-card-label">总资产</div>
+            <FundOutlined class="kpi-card-icon" />
           </div>
-          <FundOutlined class="kpi-card-icon" />
-        </div>
-        <div class="kpi-card kpi-liabilities">
-          <div class="kpi-card-content">
-            <div class="kpi-card-value">
-              <span class="kpi-prefix">¥</span>
-              <span class="kpi-number">{{ formatAmount(dashboardData.totalLiabilities) }}</span>
+          <div class="kpi-card kpi-liabilities">
+            <div class="kpi-card-content">
+              <div class="kpi-card-value">
+                <span class="kpi-prefix">¥</span>
+                <span class="kpi-number">{{ formatAmount(dashboardData.totalLiabilities) }}</span>
+              </div>
+              <div class="kpi-card-label">
+                总负债
+              </div>
             </div>
-            <div class="kpi-card-label">总负债</div>
+            <CreditCardOutlined class="kpi-card-icon" />
           </div>
-          <CreditCardOutlined class="kpi-card-icon" />
-        </div>
-        <div class="kpi-card kpi-income">
-          <div class="kpi-card-content">
-            <div class="kpi-card-value">
-              <span class="kpi-prefix">¥</span>
-              <span class="kpi-number">{{ formatAmount(dashboardData.monthlyIncome) }}</span>
+          <div class="kpi-card kpi-income">
+            <div class="kpi-card-content">
+              <div class="kpi-card-value">
+                <span class="kpi-prefix">¥</span>
+                <span class="kpi-number">{{ formatAmount(dashboardData.monthlyIncome) }}</span>
+              </div>
+              <div class="kpi-card-label">
+                本月收入
+              </div>
             </div>
-            <div class="kpi-card-label">本月收入</div>
+            <RiseOutlined class="kpi-card-icon" />
           </div>
-          <RiseOutlined class="kpi-card-icon" />
-        </div>
-        <div class="kpi-card kpi-expense">
-          <div class="kpi-card-content">
-            <div class="kpi-card-value">
-              <span class="kpi-prefix">¥</span>
-              <span class="kpi-number">{{ formatAmount(dashboardData.monthlyExpense) }}</span>
+          <div class="kpi-card kpi-expense">
+            <div class="kpi-card-content">
+              <div class="kpi-card-value">
+                <span class="kpi-prefix">¥</span>
+                <span class="kpi-number">{{ formatAmount(dashboardData.monthlyExpense) }}</span>
+              </div>
+              <div class="kpi-card-label">
+                本月费用
+              </div>
             </div>
-            <div class="kpi-card-label">本月费用</div>
+            <FallOutlined class="kpi-card-icon" />
           </div>
-          <FallOutlined class="kpi-card-icon" />
-        </div>
-        <div class="kpi-card kpi-profit" :class="{ 'profit-negative': dashboardData.netProfit < 0 }">
-          <div class="kpi-card-content">
-            <div class="kpi-card-value">
-              <span class="kpi-prefix">¥</span>
-              <span class="kpi-number">{{ formatAmount(dashboardData.netProfit) }}</span>
+          <div
+            class="kpi-card kpi-profit"
+            :class="{ 'profit-negative': dashboardData.netProfit < 0 }"
+          >
+            <div class="kpi-card-content">
+              <div class="kpi-card-value">
+                <span class="kpi-prefix">¥</span>
+                <span class="kpi-number">{{ formatAmount(dashboardData.netProfit) }}</span>
+              </div>
+              <div class="kpi-card-label">
+                净利润
+              </div>
             </div>
-            <div class="kpi-card-label">净利润</div>
+            <DollarOutlined class="kpi-card-icon" />
           </div>
-          <DollarOutlined class="kpi-card-icon" />
         </div>
-      </div>
 
-      <!-- 快速入口 -->
-      <div class="quick-links-section">
-        <div class="quick-links-title">快速入口</div>
-        <div class="quick-links-grid">
-          <div class="quick-link-card" @click="navigateTo('subject')">
-            <FileTextOutlined class="quick-link-icon subject-icon" />
-            <div class="quick-link-text">
-              <div class="quick-link-title">科目管理</div>
-              <div class="quick-link-desc">管理会计科目体系</div>
-            </div>
+        <!-- 快速入口 -->
+        <div class="quick-links-section">
+          <div class="quick-links-title">
+            快速入口
           </div>
-          <div class="quick-link-card" @click="navigateTo('voucher')">
-            <FileTextOutlined class="quick-link-icon voucher-icon" />
-            <div class="quick-link-text">
-              <div class="quick-link-title">凭证管理</div>
-              <div class="quick-link-desc">录入和审核会计凭证</div>
+          <div class="quick-links-grid">
+            <div
+              class="quick-link-card"
+              @click="navigateTo('subject')"
+            >
+              <FileTextOutlined class="quick-link-icon subject-icon" />
+              <div class="quick-link-text">
+                <div class="quick-link-title">
+                  科目管理
+                </div>
+                <div class="quick-link-desc">
+                  管理会计科目体系
+                </div>
+              </div>
             </div>
-          </div>
-          <div class="quick-link-card" @click="navigateTo('receivable')">
-            <DollarOutlined class="quick-link-icon receivable-icon" />
-            <div class="quick-link-text">
-              <div class="quick-link-title">应收账款</div>
-              <div class="quick-link-desc">管理客户应收款项</div>
+            <div
+              class="quick-link-card"
+              @click="navigateTo('voucher')"
+            >
+              <FileTextOutlined class="quick-link-icon voucher-icon" />
+              <div class="quick-link-text">
+                <div class="quick-link-title">
+                  凭证管理
+                </div>
+                <div class="quick-link-desc">
+                  录入和审核会计凭证
+                </div>
+              </div>
             </div>
-          </div>
-          <div class="quick-link-card" @click="navigateTo('payable')">
-            <DollarOutlined class="quick-link-icon payable-icon" />
-            <div class="quick-link-text">
-              <div class="quick-link-title">应付账款</div>
-              <div class="quick-link-desc">管理供应商应付款项</div>
+            <div
+              class="quick-link-card"
+              @click="navigateTo('receivable')"
+            >
+              <DollarOutlined class="quick-link-icon receivable-icon" />
+              <div class="quick-link-text">
+                <div class="quick-link-title">
+                  应收账款
+                </div>
+                <div class="quick-link-desc">
+                  管理客户应收款项
+                </div>
+              </div>
             </div>
-          </div>
-          <div class="quick-link-card" @click="navigateTo('report')">
-            <BarChartOutlined class="quick-link-icon report-icon" />
-            <div class="quick-link-text">
-              <div class="quick-link-title">财务报表</div>
-              <div class="quick-link-desc">查看财务报表分析</div>
+            <div
+              class="quick-link-card"
+              @click="navigateTo('payable')"
+            >
+              <DollarOutlined class="quick-link-icon payable-icon" />
+              <div class="quick-link-text">
+                <div class="quick-link-title">
+                  应付账款
+                </div>
+                <div class="quick-link-desc">
+                  管理供应商应付款项
+                </div>
+              </div>
             </div>
-          </div>
-          <div class="quick-link-card" @click="navigateTo('reconciliation')">
-            <CheckSquareOutlined class="quick-link-icon reconciliation-icon" />
-            <div class="quick-link-text">
-              <div class="quick-link-title">对账管理</div>
-              <div class="quick-link-desc">银行及往来对账</div>
+            <div
+              class="quick-link-card"
+              @click="navigateTo('report')"
+            >
+              <BarChartOutlined class="quick-link-icon report-icon" />
+              <div class="quick-link-text">
+                <div class="quick-link-title">
+                  财务报表
+                </div>
+                <div class="quick-link-desc">
+                  查看财务报表分析
+                </div>
+              </div>
+            </div>
+            <div
+              class="quick-link-card"
+              @click="navigateTo('reconciliation')"
+            >
+              <CheckSquareOutlined class="quick-link-icon reconciliation-icon" />
+              <div class="quick-link-text">
+                <div class="quick-link-title">
+                  对账管理
+                </div>
+                <div class="quick-link-desc">
+                  银行及往来对账
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- 待办事项 -->
-      <div class="todo-section">
-        <div class="todo-title">待办事项</div>
-        <div class="todo-grid">
-          <div class="todo-card todo-unaudited" @click="navigateTo('voucher')">
-            <div class="todo-count">{{ todoCounts.unaudited }}</div>
-            <div class="todo-label">待审核凭证</div>
+        <!-- 待办事项 -->
+        <div class="todo-section">
+          <div class="todo-title">
+            待办事项
           </div>
-          <div class="todo-card todo-unposted" @click="navigateTo('voucher')">
-            <div class="todo-count">{{ todoCounts.unposted }}</div>
-            <div class="todo-label">待过账凭证</div>
-          </div>
-          <div class="todo-card todo-overdue-receivable" @click="navigateTo('receivable')">
-            <div class="todo-count todo-warning">{{ todoCounts.overdueReceivable }}</div>
-            <div class="todo-label">逾期应收</div>
-          </div>
-          <div class="todo-card todo-overdue-payable" @click="navigateTo('payable')">
-            <div class="todo-count todo-danger">{{ todoCounts.overduePayable }}</div>
-            <div class="todo-label">逾期应付</div>
+          <div class="todo-grid">
+            <div
+              class="todo-card todo-unaudited"
+              @click="navigateTo('voucher')"
+            >
+              <div class="todo-count">
+                {{ todoCounts.unaudited }}
+              </div>
+              <div class="todo-label">
+                待审核凭证
+              </div>
+            </div>
+            <div
+              class="todo-card todo-unposted"
+              @click="navigateTo('voucher')"
+            >
+              <div class="todo-count">
+                {{ todoCounts.unposted }}
+              </div>
+              <div class="todo-label">
+                待过账凭证
+              </div>
+            </div>
+            <div
+              class="todo-card todo-overdue-receivable"
+              @click="navigateTo('receivable')"
+            >
+              <div class="todo-count todo-warning">
+                {{ todoCounts.overdueReceivable }}
+              </div>
+              <div class="todo-label">
+                逾期应收
+              </div>
+            </div>
+            <div
+              class="todo-card todo-overdue-payable"
+              @click="navigateTo('payable')"
+            >
+              <div class="todo-count todo-danger">
+                {{ todoCounts.overduePayable }}
+              </div>
+              <div class="todo-label">
+                逾期应付
+              </div>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  </PageContainer>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 

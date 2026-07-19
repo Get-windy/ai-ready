@@ -7,7 +7,9 @@
       type="dashed"
       @click="visible = true"
     >
-      <template #icon><PlusOutlined /></template>
+      <template #icon>
+        <PlusOutlined />
+      </template>
       {{ buttonText || '选择产品' }}
     </a-button>
 
@@ -35,12 +37,24 @@
         <div class="product-option">
           <div class="product-option-main">
             <span class="product-name">{{ item.productName || item.name }}</span>
-            <span v-if="item.productCode" class="product-code">{{ item.productCode }}</span>
+            <span
+              v-if="item.productCode"
+              class="product-code"
+            >{{ item.productCode }}</span>
           </div>
           <div class="product-option-meta">
-            <span v-if="item.spec" class="product-spec">{{ item.spec }}</span>
-            <span v-if="showStock" class="product-stock">库存: {{ item.stock ?? '-' }}</span>
-            <span v-if="showPrice && item.salePrice" class="product-price">¥{{ item.salePrice }}</span>
+            <span
+              v-if="item.spec"
+              class="product-spec"
+            >{{ item.spec }}</span>
+            <span
+              v-if="showStock"
+              class="product-stock"
+            >库存: {{ item.stock ?? '-' }}</span>
+            <span
+              v-if="showPrice && item.salePrice"
+              class="product-price"
+            >¥{{ item.salePrice }}</span>
           </div>
         </div>
       </a-select-option>
@@ -95,10 +109,19 @@
         </a-table>
 
         <!-- 已选产品 -->
-        <div v-if="selectedProducts.length > 0" class="selected-products">
+        <div
+          v-if="selectedProducts.length > 0"
+          class="selected-products"
+        >
           <div class="selected-products-header">
             <span>已选 {{ selectedProducts.length }} 项</span>
-            <a-button type="link" size="small" @click="selectedProducts = []">清空</a-button>
+            <a-button
+              type="link"
+              size="small"
+              @click="selectedProducts = []"
+            >
+              清空
+            </a-button>
           </div>
           <a-table
             :data-source="selectedProducts"
@@ -117,7 +140,12 @@
                 />
               </template>
               <template v-if="column.key === 'action'">
-                <a-button type="link" danger size="small" @click="selectedProducts.splice(index, 1)">
+                <a-button
+                  type="link"
+                  danger
+                  size="small"
+                  @click="selectedProducts.splice(index, 1)"
+                >
                   移除
                 </a-button>
               </template>
@@ -127,8 +155,14 @@
 
         <!-- 操作按钮 -->
         <div class="selector-footer">
-          <a-button @click="visible = false">取消</a-button>
-          <a-button type="primary" :disabled="selectedProducts.length === 0" @click="handleConfirm">
+          <a-button @click="visible = false">
+            取消
+          </a-button>
+          <a-button
+            type="primary"
+            :disabled="selectedProducts.length === 0"
+            @click="handleConfirm"
+          >
             确认选择 ({{ selectedProducts.length }})
           </a-button>
         </div>

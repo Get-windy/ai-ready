@@ -1,0 +1,30 @@
+{
+  "name": "项目初始化",
+  "description": "初始化新项目的基本结构",
+  "steps": [
+    {
+      "name": "创建目录结构",
+      "description": "创建基本目录结构",
+      "type": "bash",
+      "content": "mkdir -p src/components src/utils src/services src/types docs tests"
+    },
+    {
+      "name": "创建配置文件",
+      "description": "创建项目配置文件",
+      "type": "prompt",
+      "content": "请为新项目创建基本的配置文件，包括 tsconfig.json、package.json、README.md 等。确保配置符合项目类型。",
+      "dependsOn": [
+        "创建目录结构"
+      ]
+    },
+    {
+      "name": "初始化 Git",
+      "description": "初始化 Git 仓库",
+      "type": "bash",
+      "content": "git init && git add . && git commit -m \"项目初始化\"",
+      "dependsOn": [
+        "创建配置文件"
+      ]
+    }
+  ]
+}

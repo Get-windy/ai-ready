@@ -1,5 +1,9 @@
 <template>
-  <div class="skeleton-table" aria-busy="true" aria-label="表格数据加载中">
+  <div
+    class="skeleton-table"
+    aria-busy="true"
+    aria-label="表格数据加载中"
+  >
     <!-- 表头区域 -->
     <div class="skeleton-table__header">
       <div
@@ -11,7 +15,11 @@
     </div>
     <!-- 数据行区域 -->
     <div class="skeleton-table__body">
-      <div v-for="row in rows" :key="row" class="skeleton-table__row">
+      <div
+        v-for="row in rows"
+        :key="row"
+        class="skeleton-table__row"
+      >
         <div
           v-for="col in columns"
           :key="'c-' + col"
@@ -22,8 +30,14 @@
     </div>
     <!-- 分页区域 -->
     <div class="skeleton-table__pagination">
-      <div class="skeleton-bar" style="width: 120px; height: 14px" />
-      <div class="skeleton-bar" style="width: 200px; height: 14px" />
+      <div
+        class="skeleton-bar"
+        style="width: 120px; height: 14px"
+      />
+      <div
+        class="skeleton-bar"
+        style="width: 200px; height: 14px"
+      />
     </div>
   </div>
 </template>

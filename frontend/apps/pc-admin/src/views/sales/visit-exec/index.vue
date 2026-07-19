@@ -1,25 +1,61 @@
 <template>
   <ErrorBoundary @error="handleError">
-    <PageContainer title="拜访执行" full-height>
+    <PageContainer
+      title="拜访执行"
+      full-height
+    >
       <template #headerExtra>
         <a-space :size="12">
           <a-badge :status="loading ? 'processing' : (hasError ? 'error' : 'success')" />
-          <span v-if="lastUpdateTime" class="update-time">最后更新: {{ lastUpdateTime }}</span>
-          <a-button size="small" @click="fetchData"><template #icon><ReloadOutlined /></template></a-button>
+          <span
+            v-if="lastUpdateTime"
+            class="update-time"
+          >最后更新: {{ lastUpdateTime }}</span>
+          <a-button
+            size="small"
+            @click="fetchData"
+          >
+            <template #icon>
+              <ReloadOutlined />
+            </template>
+          </a-button>
         </a-space>
       </template>
       <div class="search-area">
-        <a-form layout="inline" :model="searchParams">
+        <a-form
+          layout="inline"
+          :model="searchParams"
+        >
           <a-form-item label="业务员">
-            <a-input v-model:value="searchParams.name" placeholder="请输入" allow-clear style="width: 160px" />
+            <a-input
+              v-model:value="searchParams.name"
+              placeholder="请输入"
+              allow-clear
+              style="width: 160px"
+            />
           </a-form-item>
           <a-form-item label="拜访日期">
-            <a-range-picker v-model:value="dateRange" @change="handleDateChange" style="width: 220px" />
+            <a-range-picker
+              v-model:value="dateRange"
+              style="width: 220px"
+              @change="handleDateChange"
+            />
           </a-form-item>
           <a-form-item>
             <a-space>
-              <a-button type="primary" @click="handleSearch"><template #icon><SearchOutlined /></template>查询</a-button>
-              <a-button @click="handleReset"><template #icon><ClearOutlined /></template>重置</a-button>
+              <a-button
+                type="primary"
+                @click="handleSearch"
+              >
+                <template #icon>
+                  <SearchOutlined />
+                </template>查询
+              </a-button>
+              <a-button @click="handleReset">
+                <template #icon>
+                  <ClearOutlined />
+                </template>重置
+              </a-button>
             </a-space>
           </a-form-item>
         </a-form>
@@ -30,7 +66,11 @@
           :data-source="tableData"
           :loading="loading"
           :pagination="billPagination"
-          :show-toolbar="false" :show-search="false" :show-add="false" :show-export="false" :show-batch-delete="false"
+          :show-toolbar="false"
+          :show-search="false"
+          :show-add="false"
+          :show-export="false"
+          :show-batch-delete="false"
           :selectable="false"
           row-key="id"
           @page-change="handlePageChange"
@@ -76,7 +116,7 @@ const handleDateChange = (dates: [Dayjs, Dayjs] | null) => {
 const fetchData = async () => {
   loading.value = true; hasError.value = false
   try {
-    const res: any = await request.get('/api/sales/visit-exec/page', {
+    const res: any = await request.get('/sales/visit-exec/page', {
       params: { page: pagination.current, size: pagination.pageSize, ...searchParams }
     })
     if (res) {
