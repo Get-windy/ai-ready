@@ -44,7 +44,7 @@
     
     <properties>
         <!-- 项目版本号，统一管理，所有子模块通过 ${revision} 引用 -->
-        <revision>0.3.7</revision>
+        <revision>0.3.8</revision>
 
         <java.version>17</java.version>
         <maven.compiler.source>17</maven.compiler.source>
@@ -298,6 +298,31 @@
             <dependency>
                 <groupId>cn.aiedge.erp</groupId>
                 <artifactId>erp-budget</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>cn.aiedge.erp</groupId>
+                <artifactId>erp-fixed-asset</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>cn.aiedge</groupId>
+                <artifactId>hr-base</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>cn.aiedge.erp</groupId>
+                <artifactId>erp-marketing</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>cn.aiedge</groupId>
+                <artifactId>core-payment</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>cn.aiedge</groupId>
+                <artifactId>core-platform</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
