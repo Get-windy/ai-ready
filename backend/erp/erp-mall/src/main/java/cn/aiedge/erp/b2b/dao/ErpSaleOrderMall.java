@@ -31,7 +31,7 @@ public class ErpSaleOrderMall implements Serializable {
 
     private LocalDateTime orderDate;
 
-    /** 订单状态: 0草稿,1待审批,2已审批,3部分出库,4完成,5取消 */
+    /** 订单状态: 0草稿,1待审批,2已审批,3部分出库,4完成,5交易完成,6已取消 */
     private Integer status;
 
     /** 订单来源: 2=企业客户商城 3=个人会员商城 */

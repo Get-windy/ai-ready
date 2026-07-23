@@ -1,5 +1,6 @@
 package cn.aiedge.erp.purchase.inbound.controller;
 
+import cn.aiedge.common.result.ApiResponse;
 import cn.aiedge.erp.purchase.inbound.dto.PurchaseInboundCreateDTO;
 import cn.aiedge.erp.purchase.inbound.dto.PurchaseInboundItemDTO;
 import cn.aiedge.erp.purchase.inbound.dto.PurchaseInboundVO;
@@ -235,7 +236,7 @@ public class PurchaseInboundController {
 
     @GetMapping("/statistics")
     @Operation(summary = "入库统计")
-    public Map<String, Object> statistics() {
+    public ApiResponse<Map<String, Object>> statistics() {
         Map<String, Object> stats = new HashMap<>();
         for (InboundStatus status : InboundStatus.values()) {
             stats.put(status.getDesc(), purchaseInboundService.lambdaQuery()
@@ -244,7 +245,7 @@ public class PurchaseInboundController {
                     .count());
         }
         stats.put("totalInboundAmount", purchaseInboundMapper.sumInboundAmount(1L));
-        return stats;
+        return ApiResponse.ok(stats);
     }
 
     private PurchaseInboundVO convertToVO(PurchaseInbound inbound) {

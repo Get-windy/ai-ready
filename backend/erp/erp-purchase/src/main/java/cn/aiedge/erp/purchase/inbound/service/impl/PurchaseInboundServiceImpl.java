@@ -6,6 +6,8 @@ import cn.aiedge.erp.purchase.inbound.enums.InboundStatus;
 import cn.aiedge.erp.purchase.inbound.mapper.PurchaseInboundItemMapper;
 import cn.aiedge.erp.purchase.inbound.mapper.PurchaseInboundMapper;
 import cn.aiedge.erp.purchase.inbound.service.PurchaseInboundService;
+import cn.aiedge.erp.purchase.service.integration.PurchaseAccountingService;
+import cn.aiedge.erp.stock.service.StockService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -27,6 +29,8 @@ import java.util.List;
 public class PurchaseInboundServiceImpl extends ServiceImpl<PurchaseInboundMapper, PurchaseInbound> implements PurchaseInboundService {
 
     private final PurchaseInboundItemMapper inboundItemMapper;
+    private final StockService stockService;
+    private final PurchaseAccountingService purchaseAccountingService;
 
     @Override
     public PurchaseInbound getByInboundNo(String inboundNo) {
@@ -305,6 +309,22 @@ public class PurchaseInboundServiceImpl extends ServiceImpl<PurchaseInboundMappe
         inbound.setWarehouseConfirmedTime(LocalDateTime.now());
         updateById(inbound);
         updateStock(inboundId);
+
+        // 业财直调：收货入库完成产生应付及库存凭证（对标Odoo bill on receipt）
+        BigDecimal payableAmount = inbound.getTotalAmountWithTax() != null
+                ? inbound.getTotalAmountWithTax()
+                : (inbound.getTotalAmount() != null ? inbound.getTotalAmount() : BigDecimal.ZERO);
+        if (inbound.getSupplierId() != null && payableAmount.compareTo(BigDecimal.ZERO) > 0) {
+            try {
+                purchaseAccountingService.createPayableOnReceipt(
+                        inbound.getId(), inbound.getInboundNo(),
+                        String.valueOf(inbound.getSupplierId()), inbound.getSupplierName(),
+                        payableAmount);
+            } catch (Exception e) {
+                log.error("采购收货自动记账失败，入库单ID={}, 原因={}", inboundId, e.getMessage(), e);
+                // 记账失败不影响入库确认
+            }
+        }
         return inbound;
     }
 
@@ -334,6 +354,10 @@ public class PurchaseInboundServiceImpl extends ServiceImpl<PurchaseInboundMappe
         }
         if (inbound.getStatus() == InboundStatus.COMPLETED.getCode()) {
             throw new RuntimeException("已完成的入库单不能取消");
+        }
+        // 已确认入库的单据库存已回写，取消前必须先回冲，避免库存虚增
+        if (inbound.getStatus() >= InboundStatus.WAREHOUSE_CONFIRMED.getCode()) {
+            reverseStock(inboundId);
         }
         inbound.setStatus(InboundStatus.CANCELLED.getCode());
         inbound.setRemark(reason);
@@ -422,10 +446,41 @@ public class PurchaseInboundServiceImpl extends ServiceImpl<PurchaseInboundMappe
     public void updateStock(Long inboundId) {
         List<PurchaseInboundItem> items = getItems(inboundId);
         PurchaseInbound inbound = getById(inboundId);
+        Long warehouseId = inbound.getWarehouseId();
+        if (warehouseId == null) {
+            throw new RuntimeException("入库单未指定仓库，无法回写库存");
+        }
         for (PurchaseInboundItem item : items) {
-            if (item.getInboundQuantity().compareTo(BigDecimal.ZERO) > 0) {
-                log.info("更新库存: 产品ID={}, 仓库ID={}, 入库数量={}", 
-                        item.getProductId(), inbound.getWarehouseId(), item.getInboundQuantity());
+            BigDecimal qty = item.getInboundQuantity();
+            if (qty != null && qty.compareTo(BigDecimal.ZERO) > 0 && item.getProductId() != null) {
+                boolean success = stockService.increaseStock(item.getProductId(), warehouseId, qty);
+                if (!success) {
+                    throw new RuntimeException("库存回写失败: 产品ID=" + item.getProductId()
+                            + ", 仓库ID=" + warehouseId + ", 数量=" + qty);
+                }
+                log.info("采购入库回写库存成功: 入库单ID={}, 产品ID={}, 仓库ID={}, 数量={}",
+                        inboundId, item.getProductId(), warehouseId, qty);
+            }
+        }
+    }
+
+    /**
+     * 取消已入库单据时的库存回冲（按已入库数量扣减）
+     */
+    private void reverseStock(Long inboundId) {
+        List<PurchaseInboundItem> items = getItems(inboundId);
+        PurchaseInbound inbound = getById(inboundId);
+        Long warehouseId = inbound.getWarehouseId();
+        for (PurchaseInboundItem item : items) {
+            BigDecimal qty = item.getInboundQuantity();
+            if (qty != null && qty.compareTo(BigDecimal.ZERO) > 0 && item.getProductId() != null && warehouseId != null) {
+                boolean success = stockService.decreaseStock(item.getProductId(), warehouseId, qty);
+                if (!success) {
+                    throw new RuntimeException("库存回冲失败（可能被后续出库占用，请先核查库存）: 产品ID="
+                            + item.getProductId() + ", 仓库ID=" + warehouseId + ", 数量=" + qty);
+                }
+                log.info("采购入库取消回冲库存: 入库单ID={}, 产品ID={}, 仓库ID={}, 数量={}",
+                        inboundId, item.getProductId(), warehouseId, qty);
             }
         }
     }

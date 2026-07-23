@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
 import java.util.List;
 
@@ -25,4 +26,6 @@ public interface PurchaseInboundItemMapper extends BaseMapper<PurchaseInboundIte
 
     @Select("SELECT SUM(line_total) FROM erp_purchase_inbound_item WHERE inbound_id = #{inboundId} AND deleted = 0")
     java.math.BigDecimal sumLineTotalByInboundId(@Param("inboundId") Long inboundId);
+    @Update("UPDATE erp_purchase_inbound_item SET unit_cost = unit_cost + #{allocatedCost} WHERE id = #{id} AND deleted = 0")
+    int updateInboundItemCost(@Param("id") Long id, @Param("allocatedCost") java.math.BigDecimal allocatedCost);
 }

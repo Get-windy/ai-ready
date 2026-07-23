@@ -24,6 +24,11 @@
             <groupId>cn.aiedge</groupId>
             <artifactId>core-base</artifactId>
         </dependency>
+        <!-- ERP 库存模块（WMS 库存变动同步镜像到仓库级汇总账 erp_stock） -->
+        <dependency>
+            <groupId>cn.aiedge.erp</groupId>
+            <artifactId>erp-stock</artifactId>
+        </dependency>
 
         <!-- Spring Boot -->
         <dependency>

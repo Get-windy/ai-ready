@@ -1,86 +1,343 @@
 <template>
-  <BillFormPage
-    v-model="formData"
-    :header="{ title: '费用单' }"
-    :basic-info-fields="fields"
-    :show-bottom-panel="false"
-  >
-    <template #footer>
-      <div class="footer-right">
-        <a-button
-          size="large"
-          :loading="saving"
-          @click="handleSave"
-        >
-          保存<span class="shortcut-hint">Ctrl+S</span>
-        </a-button>
-        <a-button
-          type="primary"
-          size="large"
-          :loading="saving"
-          @click="handleSubmit"
-        >
-          提交<span class="shortcut-hint">Ctrl+Enter</span>
-        </a-button>
+  <ErrorBoundary>
+    <PageContainer title="费用单">
+      <!-- ========== 单据头 ========== -->
+      <div class="panel">
+        <div class="panel-title">
+          单据头
+          <a-tag v-if="form.id" :color="statusColor(form.status)" class="panel-tag">{{ statusText(form.status) }}</a-tag>
+        </div>
+        <a-form layout="inline" class="header-form">
+          <a-form-item label="费用单号">
+            <a-input v-model:value="form.expenseNo" style="width: 180px" placeholder="自动生成" disabled />
+          </a-form-item>
+          <a-form-item label="费用类型" required>
+            <a-select v-model:value="form.expenseType" style="width: 180px" placeholder="请选择费用类型"
+              :options="expenseTypeOptions" :disabled="!editable" />
+          </a-form-item>
+          <a-form-item label="部门">
+            <a-select v-model:value="form.department" style="width: 150px" placeholder="选择部门"
+              :options="departmentOptions" :disabled="!editable" />
+          </a-form-item>
+          <a-form-item label="费用日期">
+            <a-date-picker v-model:value="form.expenseDate" value-format="YYYY-MM-DD" style="width: 150px" :disabled="!editable" />
+          </a-form-item>
+          <a-form-item label="申请人" required>
+            <a-input v-model:value="form.applicantName" style="width: 130px" placeholder="申请人姓名" :disabled="!editable" />
+          </a-form-item>
+          <a-form-item label="费用说明">
+            <a-input v-model:value="form.expenseTitle" style="width: 260px" placeholder="费用事由说明" :disabled="!editable" />
+          </a-form-item>
+        </a-form>
       </div>
-    </template>
-  </BillFormPage>
+
+      <!-- ========== 费用金额区 ========== -->
+      <div class="panel">
+        <div class="panel-title">费用金额</div>
+        <a-form layout="inline" class="header-form">
+          <a-form-item label="费用金额" required>
+            <a-input-number v-model:value="form.amount" :min="0" :precision="2"
+              style="width: 180px" placeholder="输入费用金额" :disabled="!editable" />
+          </a-form-item>
+          <a-form-item label="支付方式">
+            <a-select v-model:value="form.paymentMethod" style="width: 160px" placeholder="选择支付方式"
+              :options="methodOptions" :loading="methodLoading" :disabled="!editable" @change="handleMethodChange" />
+          </a-form-item>
+          <template v-if="form.paymentMethod === 'BANK' || form.paymentMethod === 'CHECK'">
+            <a-form-item label="开户银行">
+              <a-input v-model:value="form.bankName" style="width: 150px" :disabled="!editable" />
+            </a-form-item>
+            <a-form-item label="银行账号">
+              <a-input v-model:value="form.bankAccount" style="width: 170px" :disabled="!editable" />
+            </a-form-item>
+          </template>
+          <template v-if="form.paymentMethod === 'CHECK'">
+            <a-form-item label="支票号">
+              <a-input v-model:value="form.checkNo" style="width: 150px" :disabled="!editable" />
+            </a-form-item>
+          </template>
+          <template v-if="form.paymentMethod === 'WECHAT' || form.paymentMethod === 'ALIPAY'">
+            <a-form-item label="交易号">
+              <a-input v-model:value="form.transactionNo" style="width: 200px" :disabled="!editable" />
+            </a-form-item>
+          </template>
+        </a-form>
+      </div>
+
+      <!-- ========== 操作按钮 ========== -->
+      <div class="panel btn-row">
+        <a-space wrap>
+          <a-button v-if="editable" type="primary" :loading="saving" @click="handleSave">保存草稿</a-button>
+          <a-button v-if="form.status === 0" type="primary" ghost :loading="submitting" @click="handleSubmit">提交审批</a-button>
+          <template v-if="form.id">
+            <a-button v-if="form.status === 1" type="primary" ghost :loading="acting" @click="handleApprove">审批通过</a-button>
+            <a-button v-if="form.status === 1" :loading="acting" @click="handleReject">驳回</a-button>
+            <a-button v-if="form.status === 2" type="primary" ghost :loading="acting" @click="handleComplete">完成报销</a-button>
+            <a-button v-if="[1, 2].includes(form.status)" :loading="acting" @click="handleCancel">取消单据</a-button>
+          </template>
+          <a-button @click="router.push('/finance/expense-doc')">返回列表</a-button>
+        </a-space>
+      </div>
+
+      <!-- ========== 备注 ========== -->
+      <div class="panel">
+        <div class="panel-title">备注</div>
+        <a-textarea v-model:value="form.remark" :rows="2" placeholder="单据备注" :disabled="!editable" style="max-width: 600px" />
+      </div>
+    </PageContainer>
+  </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
-import BillFormPage from '@/components/BillFormPage/index.vue'
-import { useBasicForm } from '@/components/BillFormPage/useBasicForm'
+import { ref, reactive, computed, onMounted } from 'vue'
+import { message, Modal } from 'ant-design-vue'
+import { useRouter, useRoute } from 'vue-router'
+import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import { request } from '@/utils/request'
+import { paymentMethodApi } from '@/api/payment/md'
 
-const api = {
+defineOptions({ name: 'ExpenseDocForm' })
+
+const router = useRouter()
+const route = useRoute()
+
+// ========== 状态字典 ==========
+const EXPENSE_STATUS_MAP: Record<number, { text: string; color: string }> = {
+  0: { text: '草稿', color: 'default' },
+  1: { text: '待审批', color: 'orange' },
+  2: { text: '已审批', color: 'blue' },
+  3: { text: '已拒绝', color: 'red' },
+  4: { text: '已报销', color: 'green' },
+  8: { text: '已取消', color: 'red' },
+}
+function statusText(s: number) { return EXPENSE_STATUS_MAP[s]?.text || '未知' }
+function statusColor(s: number) { return EXPENSE_STATUS_MAP[s]?.color || 'default' }
+
+const expenseTypeOptions = [
+  { label: '办公费', value: '办公费' },
+  { label: '差旅费', value: '差旅费' },
+  { label: '运输费', value: '运输费' },
+  { label: '仓储费', value: '仓储费' },
+  { label: '通讯费', value: '通讯费' },
+  { label: '业务招待费', value: '业务招待费' },
+  { label: '培训费', value: '培训费' },
+  { label: '维修费', value: '维修费' },
+  { label: '其他', value: '其他' },
+]
+
+const departmentOptions = [
+  { label: '销售部', value: '销售部' },
+  { label: '采购部', value: '采购部' },
+  { label: '仓储部', value: '仓储部' },
+  { label: '财务部', value: '财务部' },
+  { label: '行政部', value: '行政部' },
+  { label: '技术部', value: '技术部' },
+  { label: '人事部', value: '人事部' },
+]
+
+// ========== 表单 ==========
+const editable = computed(() => !form.id || form.status === 0)
+
+const emptyForm = () => ({
+  id: 0,
+  expenseNo: '',
+  expenseType: undefined as string | undefined,
+  expenseTitle: '',
+  department: undefined as string | undefined,
+  expenseDate: new Date().toISOString().slice(0, 10),
+  amount: 0,
+  applicantName: '',
+  paymentMethod: undefined as string | undefined,
+  bankName: '',
+  bankAccount: '',
+  checkNo: '',
+  transactionNo: '',
+  remark: '',
+  status: 0,
+})
+
+const form = reactive(emptyForm())
+const saving = ref(false)
+const submitting = ref(false)
+const acting = ref(false)
+
+// ========== 支付方式选项（从 md_payment_method 档案读取） ==========
+const methodOptions = ref<{ label: string; value: string }[]>([])
+const methodLoading = ref(false)
+async function loadMethods() {
+  methodLoading.value = true
+  try {
+    const res: any = await paymentMethodApi.list()
+    const list: any[] = Array.isArray(res) ? res : res?.data || []
+    methodOptions.value = list.map((m: any) => ({ label: `[${m.methodCode}] ${m.methodName}`, value: m.methodCode }))
+  } catch { methodOptions.value = [] }
+  finally { methodLoading.value = false }
+}
+function handleMethodChange(_val: string) {
+  form.bankName = ''
+  form.bankAccount = ''
+  form.checkNo = ''
+  form.transactionNo = ''
+}
+
+// ========== API ==========
+const expenseApi = {
   create: (data: any) => request.post('/finance/expense-doc', data),
   update: (id: number, data: any) => request.put(`/finance/expense-doc/${id}`, data),
   getById: (id: number) => request.get(`/finance/expense-doc/${id}`),
+  submit: (id: number) => request.post(`/finance/expense-doc/${id}/submit`),
+  approve: (id: number) => request.post(`/finance/expense-doc/${id}/approve`),
+  reject: (id: number, reason: string) => request.post(`/finance/expense-doc/${id}/reject`, null, { params: { reason } }),
+  complete: (id: number) => request.post(`/finance/expense-doc/${id}/complete`),
+  cancel: (id: number, reason: string) => request.post(`/finance/expense-doc/${id}/cancel`, null, { params: { reason } }),
 }
 
-const { fields, formData, saving, handleSave, handleSubmit } = useBasicForm({
-  api,
-  redirectPath: '/finance/expense-doc',
-  fields: [
-    { key: 'expenseNo', label: '费用单号', type: 'input' },
-    {
-      key: 'department',
-      label: '部门',
-      type: 'select',
-      options: [
-        { label: '销售部', value: '销售部' },
-        { label: '采购部', value: '采购部' },
-        { label: '仓储部', value: '仓储部' },
-        { label: '财务部', value: '财务部' },
-        { label: '行政部', value: '行政部' },
-      ],
-    },
-    { key: 'expenseDate', label: '费用日期', type: 'date', required: true },
-    { key: 'amount', label: '费用金额', type: 'number', precision: 2, required: true },
-    {
-      key: 'expenseType',
-      label: '费用类型',
-      type: 'select',
-      options: [
-        { label: '办公费', value: '办公费' },
-        { label: '差旅费', value: '差旅费' },
-        { label: '运输费', value: '运输费' },
-        { label: '仓储费', value: '仓储费' },
-        { label: '其他', value: '其他' },
-      ],
-    },
-    { key: 'applicantName', label: '申请人', type: 'input', required: true },
-    {
-      key: 'status',
-      label: '状态',
-      type: 'select',
-      options: [
-        { label: '待审批', value: '待审批' },
-        { label: '已审批', value: '已审批' },
-        { label: '已报销', value: '已报销' },
-      ],
-    },
-    { key: 'remark', label: '备注', type: 'textarea', width: 'wide' },
-  ],
+// ========== 操作 ==========
+async function handleSave() {
+  saving.value = true
+  try {
+    const payload = buildPayload()
+    if (form.id) {
+      await expenseApi.update(form.id, payload)
+      message.success('保存成功')
+    } else {
+      await expenseApi.create(payload)
+      message.success('创建成功')
+    }
+    router.push('/finance/expense-doc')
+  } catch (e: any) { message.error(e?.data?.message || '保存失败') }
+  finally { saving.value = false }
+}
+
+async function handleSubmit() {
+  if (!form.expenseType) { message.warning('请选择费用类型'); return }
+  if (!form.amount || form.amount <= 0) { message.warning('请输入费用金额'); return }
+  if (!form.applicantName) { message.warning('请输入申请人'); return }
+  submitting.value = true
+  try {
+    if (form.id) {
+      await expenseApi.submit(form.id)
+    } else {
+      const payload = buildPayload()
+      const res: any = await expenseApi.create(payload)
+      if (res?.id) await expenseApi.submit(res.id)
+    }
+    message.success('已提交审批')
+    router.push('/finance/expense-doc')
+  } catch (e: any) { message.error(e?.data?.message || '提交失败') }
+  finally { submitting.value = false }
+}
+
+async function handleApprove() {
+  Modal.confirm({
+    title: '审批通过', content: '确认审批通过该费用单？',
+    onOk: async () => {
+      acting.value = true
+      try { await expenseApi.approve(form.id); message.success('已审批通过'); loadForm(form.id) }
+      catch (e: any) { message.error(e?.data?.message || '审批失败') }
+      finally { acting.value = false }
+    }
+  })
+}
+
+async function handleReject() {
+  Modal.confirm({
+    title: '驳回', content: '确认驳回该费用单？',
+    onOk: async () => {
+      acting.value = true
+      try { await expenseApi.reject(form.id, '驳回'); message.success('已驳回'); loadForm(form.id) }
+      catch (e: any) { message.error(e?.data?.message || '驳回失败') }
+      finally { acting.value = false }
+    }
+  })
+}
+
+async function handleComplete() {
+  Modal.confirm({
+    title: '完成报销', content: '确认该费用已报销完成？',
+    onOk: async () => {
+      acting.value = true
+      try { await expenseApi.complete(form.id); message.success('报销完成'); loadForm(form.id) }
+      catch (e: any) { message.error(e?.data?.message || '操作失败') }
+      finally { acting.value = false }
+    }
+  })
+}
+
+async function handleCancel() {
+  Modal.confirm({
+    title: '取消单据', content: '确认取消该费用单？',
+    onOk: async () => {
+      acting.value = true
+      try { await expenseApi.cancel(form.id, '手动取消'); message.success('已取消'); loadForm(form.id) }
+      catch (e: any) { message.error(e?.data?.message || '取消失败') }
+      finally { acting.value = false }
+    }
+  })
+}
+
+function buildPayload() {
+  return {
+    expenseType: form.expenseType,
+    expenseTitle: form.expenseTitle || undefined,
+    department: form.department || undefined,
+    expenseDate: form.expenseDate,
+    amount: form.amount,
+    applicantName: form.applicantName,
+    paymentMethod: form.paymentMethod,
+    bankName: form.bankName || undefined,
+    bankAccount: form.bankAccount || undefined,
+    checkNo: form.checkNo || undefined,
+    transactionNo: form.transactionNo || undefined,
+    remark: form.remark || undefined,
+  }
+}
+
+async function loadForm(id: number) {
+  try {
+    const res: any = await expenseApi.getById(id)
+    if (res) {
+      Object.assign(form, {
+        id: res.id,
+        expenseNo: res.expenseNo || '',
+        expenseType: res.expenseType,
+        expenseTitle: res.expenseTitle || '',
+        department: res.department,
+        expenseDate: res.expenseDate || new Date().toISOString().slice(0, 10),
+        amount: res.amount || 0,
+        applicantName: res.applicantName || '',
+        paymentMethod: res.paymentMethod,
+        bankName: res.bankName || '',
+        bankAccount: res.bankAccount || '',
+        checkNo: res.checkNo || '',
+        transactionNo: res.transactionNo || '',
+        remark: res.remark || '',
+        status: res.status ?? 0,
+      })
+    }
+  } catch (e) { console.warn('[费用单] 加载失败', e) }
+}
+
+onMounted(async () => {
+  await loadMethods()
+  const editId = route.query.id ? Number(route.query.id) : undefined
+  if (editId) await loadForm(editId)
 })
 </script>
+
+<style scoped>
+.panel { background: #fff; padding: 16px 20px; border-radius: 8px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+.panel-title { font-size: 15px; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+.panel-subtitle { font-size: 13px; font-weight: 400; color: #666; }
+.panel-tag { margin-left: auto; }
+.header-form { display: flex; flex-wrap: wrap; gap: 0; }
+.header-form .ant-form-item { margin-bottom: 12px; }
+.btn-row { display: flex; justify-content: flex-start; }
+.panel-summary { display: flex; gap: 40px; padding: 16px 24px; }
+.summary-row { display: flex; flex-direction: column; gap: 4px; }
+.summary-label { font-size: 13px; color: #999; }
+.summary-value { font-size: 20px; font-weight: 700; color: #333; }
+.text-danger { color: #f5222d; }
+.table-empty-hint { text-align: center; padding: 24px; color: #999; font-size: 14px; }
+</style>

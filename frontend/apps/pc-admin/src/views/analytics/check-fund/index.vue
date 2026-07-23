@@ -1,86 +1,88 @@
 <template>
-  <ErrorBoundary>
-    <PageContainer title="查资金">
-      <div class="search-area">
-        <a-form layout="inline">
-          <a-form-item label="日期范围">
-            <a-range-picker
-              v-model:value="dateRange"
-              style="width: 220px"
-            />
-          </a-form-item>
-          <a-form-item>
-            <a-space>
-              <a-button
-                type="primary"
-                @click="handleSearch"
-              >
-                <template #icon>
-                  <SearchOutlined />
-                </template>查询
-              </a-button>
-              <a-button @click="handleReset">
-                <template #icon>
-                  <ClearOutlined />
-                </template>重置
-              </a-button>
-            </a-space>
-          </a-form-item>
-        </a-form>
-      </div>
-      <div class="table-area">
-        <a-table
-          :columns="columns"
-          :data-source="tableData"
-          :loading="loading"
-          :pagination="pagination"
-          row-key="id"
-          size="small"
-          @change="handleTableChange"
-        />
-      </div>
-    </PageContainer>
-  </ErrorBoundary>
+  <ARReportPage
+    title="查资金"
+    :query-fields="queryFields"
+    :columns="columns"
+    :fetcher="fetcher"
+    page-param-style="pageNum"
+    export-file-name="查资金"
+    row-key="id"
+  >
+    <template #bodyCell="{ column, text }">
+      <template v-if="column.dataIndex === 'direction'">
+        <a-tag :color="text === 'IN' ? 'green' : 'red'">
+          {{ text === 'IN' ? '收入' : '支出' }}
+        </a-tag>
+      </template>
+      <template v-else-if="column.dataIndex === 'flowType'">
+        {{ FLOW_TYPE_MAP[text] || text || '-' }}
+      </template>
+      <template v-else-if="['amount', 'balance'].includes(column.dataIndex as string)">
+        {{ formatMoney(text) }}
+      </template>
+    </template>
+  </ARReportPage>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
-import { SearchOutlined, ClearOutlined } from '@ant-design/icons-vue'
-import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import PageContainer from '@/components/PageContainer/PageContainer.vue'
-import request from '@/utils/request'
+import ARReportPage from '@/components/ARReportPage/ARReportPage.vue'
+import type { ReportQueryField } from '@/components/ARReportPage/types'
+import { capitalFlowApi } from '@/api/analytics'
 
-const loading = ref(false)
-const tableData = ref<any[]>([])
-const dateRange = ref(null)
-const pagination = reactive({ current: 1, pageSize: 20, total: 0, showSizeChanger: true, showTotal: (t) => `共 ${t} 条` })
-
-const columns: any[] = [
-  { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
-  { title: '名称', dataIndex: 'name', key: 'name', width: 150 },
-  { title: '描述', dataIndex: 'description', key: 'description', ellipsis: true },
-  { title: '状态', dataIndex: 'status', key: 'status', width: 80 },
-  { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 160 }
-]
-
-async function loadData() {
-  loading.value = true
-  try {
-    const result = await request.get('/analytics/check-fund/page', { pageNum: pagination.current, pageSize: pagination.pageSize })
-    if (result?.records) { tableData.value = result.records; pagination.total = result.total }
-    else if (Array.isArray(result)) { tableData.value = result; pagination.total = result.length }
-  } catch (e) { tableData.value = [] }
-  finally { loading.value = false }
+// ═══ 流水类型（与后端 CapitalFlowServiceImpl setFlowType 一致） ═══
+const FLOW_TYPE_MAP: Record<string, string> = {
+  RECEIPT: '收款',
+  PAYMENT: '付款',
+  PRE_RECEIPT: '预收',
+  PRE_PAYMENT: '预付',
+  OFFSET: '核销',
+  PRE_RECEIPT_REFUND: '预收退还',
+  PRE_RECEIPT_FORFEIT: '预收没收',
+  PRE_PAYMENT_REFUND: '预付退还',
+  PRE_PAYMENT_RECOVER: '预付收回'
 }
 
-function handleSearch() { pagination.current = 1; loadData() }
-function handleReset() { dateRange.value = null; pagination.current = 1; loadData() }
-function handleTableChange(p) { pagination.current = p.current; pagination.pageSize = p.pageSize; loadData() }
+const queryFields: ReportQueryField[] = [
+  {
+    key: 'flowType',
+    type: 'select',
+    label: '流水类型',
+    placeholder: '全部类型',
+    options: Object.entries(FLOW_TYPE_MAP).map(([value, label]) => ({ label, value }))
+  },
+  {
+    key: 'direction',
+    type: 'select',
+    label: '方向',
+    placeholder: '全部方向',
+    options: [
+      { label: '收入', value: 'IN' },
+      { label: '支出', value: 'OUT' }
+    ]
+  },
+  { key: 'occurDateRange', type: 'date-range', label: '发生日期' }
+]
 
-onMounted(loadData)
+// ═══ 表格列 ═══
+const columns: any[] = [
+  { title: '流水号', dataIndex: 'flowNo', key: 'flowNo', width: 170 },
+  { title: '类型', dataIndex: 'flowType', key: 'flowType', width: 100 },
+  { title: '方向', dataIndex: 'direction', key: 'direction', width: 80 },
+  { title: '金额', dataIndex: 'amount', key: 'amount', width: 120, align: 'right' },
+  { title: '余额', dataIndex: 'balance', key: 'balance', width: 120, align: 'right' },
+  { title: '往来单位', dataIndex: 'partyName', key: 'partyName', width: 160, ellipsis: true },
+  { title: '来源单号', dataIndex: 'refNo', key: 'refNo', width: 160 },
+  { title: '发生时间', dataIndex: 'occurDate', key: 'occurDate', width: 160 },
+  { title: '备注', dataIndex: 'remark', key: 'remark', ellipsis: true }
+]
+
+function formatMoney(val: number | null | undefined): string {
+  if (val === null || val === undefined || isNaN(Number(val))) return '-'
+  return Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+// ═══ 数据请求 ═══
+function fetcher(params: Record<string, any>) {
+  return capitalFlowApi.getPage(params)
+}
 </script>
-
-<style scoped>
-.search-area { background: #fff; padding: 16px 20px; border-radius: 8px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-.table-area { background: #fff; padding: 16px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-</style>

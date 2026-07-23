@@ -308,6 +308,11 @@
                   v-for="opp in getStageOpportunities(stage.key)"
                   :key="opp.id"
                   class="opportunity-card"
+                  draggable="true"
+                  @dragstart="handleDragStart($event, opp, stage.key)"
+                  @dragover.prevent
+                  @dragenter.prevent
+                  @drop="handleDrop($event, stage.key)"
                   @click="handleView(opp)"
                 >
                   <div class="card-header">
@@ -1405,6 +1410,41 @@ function handleMoveConfirm() {
   }, 500)
 }
 
+// ═══ 拖拽移动阶段 ═══
+const dragData = ref<{ opp: any; sourceStage: string } | null>(null)
+
+function handleDragStart(event: DragEvent, opp: any, sourceStage: string) {
+  dragData.value = { opp, sourceStage }
+  event.dataTransfer?.setData('text/plain', opp.id.toString())
+  event.dataTransfer!.effectAllowed = 'move'
+  const el = event.target as HTMLElement
+  el.style.opacity = '0.5'
+  setTimeout(() => { el.style.opacity = '' }, 0)
+}
+
+function handleDrop(event: DragEvent, targetStage: string) {
+  if (!dragData.value) return
+  const { opp, sourceStage } = dragData.value
+  if (sourceStage === targetStage) return
+  Modal.confirm({
+    title: '移动商机阶段',
+    content: `将"${opp.name}"从"${getStageText(sourceStage)}"移动到"${getStageText(targetStage)}"?`,
+    okText: '确认移动',
+    cancelText: '取消',
+    centered: true,
+    onOk: async () => {
+      try {
+        await opportunityApi.updateStage(opp.id, targetStage)
+        message.success('商机阶段已更新')
+        fetchData()
+      } catch (e: any) {
+        message.error(e?.message || '移动失败')
+      }
+    }
+  })
+  dragData.value = null
+}
+
 function handleConvert(record: any) {
   Modal.confirm({
     title: '确认转订单',
@@ -1744,6 +1784,10 @@ defineExpose({ handleQuery: fetchData })
   gap: 8px;
 }
 
+.pipeline-stage.drag-over {
+  border: 2px dashed #1890ff;
+  background: #e6f7ff;
+}
 .empty-stage {
   display: flex;
   flex-direction: column;

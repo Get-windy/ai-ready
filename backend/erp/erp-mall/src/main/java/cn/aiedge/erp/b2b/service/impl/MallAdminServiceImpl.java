@@ -255,7 +255,7 @@ public class MallAdminServiceImpl implements MallAdminService {
             case "SHIPPED":         return 3;
             case "COMPLETED":       return 4;
             case "CANCELLED":
-            case "REJECTED":        return 5;
+            case "REJECTED":        return 6;  // 已取消（erp_sale_order 规范：5=交易完成 6=已取消）
             default:                return 0;
         }
     }

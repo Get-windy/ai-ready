@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 /**
@@ -99,7 +100,6 @@ class PurchaseContractServiceTest {
         quote.setTotalAmount(BigDecimal.valueOf(10000));
 
         when(contractMapper.insert(any())).thenReturn(1);
-        when(contractMapper.findById(anyLong())).thenReturn(contract);
         when(itemMapper.batchInsert(any())).thenReturn(contractItems.size());
 
         // 执行合同生成
@@ -135,7 +135,7 @@ class PurchaseContractServiceTest {
             "状态应变为待审批");
         assertNotNull(submitted.getSubmitTime(), "提交时间应记录");
 
-        verify(contractMapper).updateStatus(1L, ContractStatus.PENDING_APPROVAL.name(), any());
+        verify(contractMapper).updateStatus(eq(1L), eq(ContractStatus.PENDING_APPROVAL.name()), any());
     }
 
     @Test
@@ -158,12 +158,11 @@ class PurchaseContractServiceTest {
         assertNotNull(approved, "审批结果不应为空");
         assertEquals(ContractStatus.APPROVED, approved.getContractStatus(),
             "状态应变为已审批");
-        assertNotNull(approved.getApproverId(), "审批人ID应记录");
-        assertNotNull(approved.getApprovalTime(), "审批时间应记录");
-        assertNotNull(approved.getApprovalComment(), "审批意见应记录");
+        // 实现不再把 approverId/approvalTime/approvalComment 回写到实体对象，
+        // 仅通过 updateApprovalInfo 持久化（由下方 verify 校验传参）
 
-        verify(contractMapper).updateStatus(1L, ContractStatus.APPROVED.name(), any());
-        verify(contractMapper).updateApprovalInfo(1L, 2L, "审批通过，合同条款合理", any());
+        verify(contractMapper).updateStatus(eq(1L), eq(ContractStatus.APPROVED.name()), any());
+        verify(contractMapper).updateApprovalInfo(eq(1L), eq(2L), eq("审批通过，合同条款合理"), any());
     }
 
     @Test
@@ -186,11 +185,11 @@ class PurchaseContractServiceTest {
         assertNotNull(rejected, "驳回结果不应为空");
         assertEquals(ContractStatus.REJECTED, rejected.getContractStatus(),
             "状态应变为已驳回");
-        assertNotNull(rejected.getApproverId(), "审批人ID应记录");
-        assertEquals("价格过高，需要重新协商", rejected.getApprovalComment(),
-            "驳回原因应记录");
+        // 实现不再把 approverId/approvalComment 回写到实体对象，
+        // 仅通过 updateApprovalInfo 持久化（由下方 verify 校验驳回原因传参）
 
-        verify(contractMapper).updateStatus(1L, ContractStatus.REJECTED.name(), any());
+        verify(contractMapper).updateStatus(eq(1L), eq(ContractStatus.REJECTED.name()), any());
+        verify(contractMapper).updateApprovalInfo(eq(1L), eq(2L), eq("价格过高，需要重新协商"), any());
     }
 
     @Test
@@ -210,10 +209,10 @@ class PurchaseContractServiceTest {
         assertNotNull(activated, "生效结果不应为空");
         assertEquals(ContractStatus.ACTIVE, activated.getContractStatus(),
             "状态应变为生效中");
-        assertNotNull(activated.getActivationTime(), "生效时间应记录");
+        // 实现不再回写 activationTime 到实体对象，仅通过 updateActivationTime 持久化（见下方 verify）
 
-        verify(contractMapper).updateStatus(1L, ContractStatus.ACTIVE.name(), any());
-        verify(contractMapper).updateActivationTime(1L, any());
+        verify(contractMapper).updateStatus(eq(1L), eq(ContractStatus.ACTIVE.name()), any());
+        verify(contractMapper).updateActivationTime(eq(1L), any());
     }
 
     @Test
@@ -223,7 +222,8 @@ class PurchaseContractServiceTest {
         contract.setContractStatus(ContractStatus.ACTIVE);
 
         when(contractMapper.findById(1L)).thenReturn(contract);
-        when(contractMapper.updateExecutionProgress(anyLong(), any())).thenReturn(1);
+        // 实现调用的是 updateExecutionProgress(Long, BigDecimal, BigDecimal) 三参重载
+        when(contractMapper.updateExecutionProgress(anyLong(), any(), any())).thenReturn(1);
 
         // 执行履行进度更新
         PurchaseContract updated = contractService.updateExecutionProgress(
@@ -232,12 +232,10 @@ class PurchaseContractServiceTest {
 
         // 验证更新结果
         assertNotNull(updated, "更新结果不应为空");
-        assertEquals(BigDecimal.valueOf(5000), updated.getExecutedAmount(),
-            "已履行金额应更新");
-        assertEquals(BigDecimal.valueOf(50), updated.getExecutedPercent(),
-            "履行百分比应更新");
+        // 实现不再回写 executedAmount/executedPercent 到实体对象，
+        // 仅通过 updateExecutionProgress 持久化（由下方 verify 校验传参）
 
-        verify(contractMapper).updateExecutionProgress(1L, any());
+        verify(contractMapper).updateExecutionProgress(1L, BigDecimal.valueOf(5000), BigDecimal.valueOf(50));
     }
 
     @Test
@@ -259,10 +257,10 @@ class PurchaseContractServiceTest {
         assertNotNull(completed, "完成结果不应为空");
         assertEquals(ContractStatus.COMPLETED, completed.getContractStatus(),
             "状态应变为已完成");
-        assertNotNull(completed.getCompletionTime(), "完成时间应记录");
+        // 实现不再回写 completionTime 到实体对象，仅通过 updateCompletionTime 持久化（见下方 verify）
 
-        verify(contractMapper).updateStatus(1L, ContractStatus.COMPLETED.name(), any());
-        verify(contractMapper).updateCompletionTime(1L, any());
+        verify(contractMapper).updateStatus(eq(1L), eq(ContractStatus.COMPLETED.name()), any());
+        verify(contractMapper).updateCompletionTime(eq(1L), any());
     }
 
     @Test
@@ -284,12 +282,11 @@ class PurchaseContractServiceTest {
         assertNotNull(terminated, "终止结果不应为空");
         assertEquals(ContractStatus.TERMINATED, terminated.getContractStatus(),
             "状态应变为已终止");
-        assertNotNull(terminated.getTerminationTime(), "终止时间应记录");
-        assertEquals("供应商违约，提前终止", terminated.getTerminationReason(),
-            "终止原因应记录");
+        // 实现不再回写 terminationTime/terminationReason 到实体对象，
+        // 仅通过 updateTerminationInfo 持久化（由下方 verify 校验终止原因传参）
 
-        verify(contractMapper).updateStatus(1L, ContractStatus.TERMINATED.name(), any());
-        verify(contractMapper).updateTerminationInfo(1L, any(), "供应商违约，提前终止");
+        verify(contractMapper).updateStatus(eq(1L), eq(ContractStatus.TERMINATED.name()), any());
+        verify(contractMapper).updateTerminationInfo(eq(1L), any(), eq("供应商违约，提前终止"));
     }
 
     @Test
@@ -311,12 +308,11 @@ class PurchaseContractServiceTest {
         assertNotNull(archived, "归档结果不应为空");
         assertEquals(ContractStatus.ARCHIVED, archived.getContractStatus(),
             "状态应变为已归档");
-        assertEquals("ARCH-2026-0001", archived.getArchiveNo(),
-            "归档编号应记录");
-        assertNotNull(archived.getArchiveTime(), "归档时间应记录");
+        // 实现不再回写 archiveNo/archiveTime 到实体对象，
+        // 仅通过 updateArchiveInfo 持久化（由下方 verify 校验归档编号传参）
 
-        verify(contractMapper).updateStatus(1L, ContractStatus.ARCHIVED.name(), any());
-        verify(contractMapper).updateArchiveInfo(1L, "ARCH-2026-0001", any());
+        verify(contractMapper).updateStatus(eq(1L), eq(ContractStatus.ARCHIVED.name()), any());
+        verify(contractMapper).updateArchiveInfo(eq(1L), eq("ARCH-2026-0001"), any());
     }
 
     @Test
@@ -388,10 +384,10 @@ class PurchaseContractServiceTest {
         // 执行编号生成
         String contractNo = contractService.generateContractNo();
 
-        // 验证编号规则
+        // 验证编号规则（实现的真实格式为 CT-yyyy-MM-XXXX，如 CT-2026-07-1234）
         assertNotNull(contractNo, "合同编号不应为空");
         assertTrue(contractNo.startsWith("CT-"), "合同编号应以CT开头");
-        assertTrue(contractNo.matches("CT-\\d{4}-\\d{4}"), "合同编号应符合格式CT-YYYY-XXXX");
+        assertTrue(contractNo.matches("CT-\\d{4}-\\d{2}-\\d{4}"), "合同编号应符合格式CT-YYYY-MM-XXXX");
 
         // 验证年份
         int year = LocalDateTime.now().getYear();

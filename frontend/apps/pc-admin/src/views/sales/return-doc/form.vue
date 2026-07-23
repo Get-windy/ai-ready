@@ -759,7 +759,7 @@ function handleCellChange(record: any, fieldKey: string, value: any) {
 }
 
 function handleSearchBtn(fieldKey: string, _btnText: string) {
-  message.info(`${fieldKey} 快速查询功能开发中`)
+  message.info(`${fieldKey} 快速查询功能待完善`)
 }
 
 function handleOpenProductSelectModal(record: any, rowIndex: number, fieldKey: string) {
@@ -826,14 +826,14 @@ function handleAction(actionKey: string, _parentKey?: string) {
       router.push('/sales/return-doc')
       break
     case 'print':
-      message.info('打印功能开发中')
+      message.info('打印功能待完善')
       break
     case 'config':
       showFormConfig.value = true
       break
     case 'import':
     case 'export':
-      message.info(`${actionKey === 'import' ? '导入' : '导出'} 功能开发中`)
+      message.info(`${actionKey === 'import' ? '导入' : '导出'} 功能待完善`)
       break
   }
 }

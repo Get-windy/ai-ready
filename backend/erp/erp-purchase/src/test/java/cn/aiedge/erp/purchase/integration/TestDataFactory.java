@@ -201,18 +201,25 @@ public class TestDataFactory {
     }
 
     /**
-     * 创建采购订单DTO
+     * 创建采购订单DTO（主表 + 供应商快照子表）
      */
     public static PurchaseOrderDTO createPurchaseOrder(Long contractId) {
-        PurchaseOrderDTO order = new PurchaseOrderDTO();
-        order.setContractId(contractId);
+        PurchaseOrderDTO dto = new PurchaseOrderDTO();
+
+        PurchaseOrder order = new PurchaseOrder();
         order.setOrderNo("PO-" + System.currentTimeMillis());
         order.setOrderDate(LocalDateTime.now());
-        order.setSupplierCode("SUP-001");
-        order.setSupplierName("供应商A");
-        order.setTotalAmount(new BigDecimal("25000.00"));
-        order.setStatus(OrderStatus.DRAFT);
-        
-        return order;
+        order.setSupplierId(1L);
+        order.setSourceBillNo(contractId != null ? "CONTRACT-" + contractId : null);
+        order.setBillAmount(new BigDecimal("25000.00"));
+        order.setStatus(0);
+        dto.setOrder(order);
+
+        PurchaseOrderPartnerSnapshot snapshot = new PurchaseOrderPartnerSnapshot();
+        snapshot.setSupplierCode("SUP-001");
+        snapshot.setSupplierName("供应商A");
+        dto.setPartnerSnapshot(snapshot);
+
+        return dto;
     }
 }

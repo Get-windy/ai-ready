@@ -1,5 +1,6 @@
 package cn.aiedge.erp.invoice.controller;
 
+import cn.aiedge.base.vo.Result;
 import cn.aiedge.erp.invoice.model.entity.Invoice;
 import cn.aiedge.erp.invoice.model.entity.InvoiceApplication;
 import cn.aiedge.erp.invoice.model.enums.InvoiceStatus;
@@ -72,9 +73,9 @@ public class InvoiceController {
      * @return 发票分页
      */
     @GetMapping("/page")
-    public ResponseEntity<Page<Invoice>> getInvoicesPage(Pageable pageable) {
+    public Result<Page<Invoice>> getInvoicesPage(Pageable pageable) {
         Page<Invoice> invoices = invoiceService.getInvoices(pageable);
-        return ResponseEntity.ok(invoices);
+        return Result.ok(invoices);
     }
 
     /**
@@ -133,11 +134,11 @@ public class InvoiceController {
      * @return 发票列表
      */
     @GetMapping("/date-range")
-    public ResponseEntity<List<Invoice>> getInvoicesByDateRange(
+    public Result<List<Invoice>> getInvoicesByDateRange(
             @RequestParam LocalDate startDate,
             @RequestParam LocalDate endDate) {
         List<Invoice> invoices = invoiceService.getInvoicesByDateRange(startDate, endDate);
-        return ResponseEntity.ok(invoices);
+        return Result.ok(invoices);
     }
 
     /**
@@ -362,16 +363,16 @@ public class InvoiceController {
     /**
      * 获取发票统计信息
      *
-     * @param startDate 开始日期
-     * @param endDate 结束日期
+     * @param startDate 开始日期（可空，空=全量）
+     * @param endDate 结束日期（可空，空=全量）
      * @return 统计信息
      */
     @GetMapping("/statistics")
-    public ResponseEntity<InvoiceService.InvoiceStatistics> getInvoiceStatistics(
-            @RequestParam LocalDate startDate,
-            @RequestParam LocalDate endDate) {
+    public Result<InvoiceService.InvoiceStatistics> getInvoiceStatistics(
+            @RequestParam(required = false) LocalDate startDate,
+            @RequestParam(required = false) LocalDate endDate) {
         InvoiceService.InvoiceStatistics statistics = invoiceService.getInvoiceStatistics(startDate, endDate);
-        return ResponseEntity.ok(statistics);
+        return Result.ok(statistics);
     }
 
     /**

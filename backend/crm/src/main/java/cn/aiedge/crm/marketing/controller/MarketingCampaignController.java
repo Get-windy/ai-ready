@@ -1,5 +1,6 @@
 package cn.aiedge.crm.marketing.controller;
 
+import cn.aiedge.base.vo.Result;
 import cn.aiedge.crm.marketing.dto.CampaignCreateDTO;
 import cn.aiedge.crm.marketing.dto.CampaignVO;
 import cn.aiedge.crm.marketing.entity.MarketingCampaign;
@@ -234,7 +235,7 @@ public class MarketingCampaignController {
 
     @GetMapping("/statistics")
     @Operation(summary = "营销活动统计")
-    public Map<String, Object> statistics() {
+    public Result<Map<String, Object>> statistics() {
         Map<String, Object> stats = new HashMap<>();
         for (CampaignStatus status : CampaignStatus.values()) {
             stats.put(status.getDesc(), campaignService.lambdaQuery()
@@ -260,7 +261,7 @@ public class MarketingCampaignController {
         stats.put("totalBudget", totalBudget);
         stats.put("totalActualCost", totalActualCost);
         stats.put("totalActualRevenue", totalActualRevenue);
-        return stats;
+        return Result.ok(stats);
     }
 
     private CampaignVO convertToVO(MarketingCampaign campaign) {

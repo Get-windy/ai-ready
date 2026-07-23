@@ -15,6 +15,7 @@ import cn.aiedge.erp.finance.service.VoucherService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -38,8 +39,11 @@ public class BusinessAccountingServiceImpl implements BusinessAccountingService 
     private final PayableService payableService;
     private final AccountSubjectMapper accountSubjectMapper;
 
+    // 业财集成入口统一使用 REQUIRES_NEW：记账在独立事务中提交/回滚，
+    // 既不因记账失败污染调用方事务（调用方均为 catch-and-continue），
+    // 也保持与原 HTTP 内调时代一致的"记账独立提交"语义
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
     public VoucherDTO createVoucherFromBusiness(BusinessAccountingRequest request) {
         if (request.getItems() == null || request.getItems().isEmpty()) {
             throw BusinessException.badRequest("记账明细项不能为空");
@@ -101,7 +105,7 @@ public class BusinessAccountingServiceImpl implements BusinessAccountingService 
     }
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
     public ReceivableDTO createReceivableFromBusiness(BusinessAccountingRequest request) {
         ReceivableDTO dto = new ReceivableDTO();
         dto.setSourceType(request.getSourceType());
@@ -123,7 +127,7 @@ public class BusinessAccountingServiceImpl implements BusinessAccountingService 
     }
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
     public PayableDTO createPayableFromBusiness(BusinessAccountingRequest request) {
         PayableDTO dto = new PayableDTO();
         dto.setSourceType(request.getSourceType());

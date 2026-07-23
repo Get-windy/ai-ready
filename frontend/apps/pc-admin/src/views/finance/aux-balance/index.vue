@@ -1,178 +1,80 @@
 <template>
-  <ErrorBoundary @error="handleError">
-    <PageContainer
-      title="辅助核算余额表"
-      full-height
-    >
-      <template #headerExtra>
-        <a-space :size="12">
-          <a-badge :status="loading ? 'processing' : (hasError ? 'error' : 'success')" />
-          <span
-            v-if="lastUpdateTime"
-            class="update-time"
-          >最后更新: {{ lastUpdateTime }}</span>
-          <a-button
-            size="small"
-            @click="fetchData"
-          >
-            <template #icon>
-              <ReloadOutlined />
-            </template>
-          </a-button>
-        </a-space>
+  <ARReportPage
+    title="辅助核算余额表"
+    :query-fields="queryFields"
+    :columns="columns"
+    :fetcher="fetcher"
+    export-file-name="辅助核算余额表"
+    :row-key="(record: any) => `${record.partnerType}-${record.partnerId}`"
+  >
+    <template #bodyCell="{ column, text }">
+      <template v-if="column.dataIndex === 'partnerType'">
+        <a-tag :color="text === 'customer' ? 'blue' : 'purple'">
+          {{ text === 'customer' ? '客户' : text === 'supplier' ? '供应商' : text }}
+        </a-tag>
       </template>
-      <div class="search-area">
-        <a-form
-          layout="inline"
-          :model="searchParams"
-        >
-          <a-form-item label="辅助类型">
-            <a-select
-              v-model:value="searchParams.auxType"
-              placeholder="请选择辅助类型"
-              allow-clear
-              style="width: 140px"
-            >
-              <a-select-option value="客户">
-                客户
-              </a-select-option>
-              <a-select-option value="供应商">
-                供应商
-              </a-select-option>
-              <a-select-option value="部门">
-                部门
-              </a-select-option>
-              <a-select-option value="职员">
-                职员
-              </a-select-option>
-            </a-select>
-          </a-form-item>
-          <a-form-item label="辅助名称">
-            <a-input
-              v-model:value="searchParams.auxName"
-              placeholder="请输入辅助名称"
-              allow-clear
-              style="width: 160px"
-              @press-enter="handleSearch"
-            />
-          </a-form-item>
-          <a-form-item label="年度">
-            <a-input-number
-              v-model:value="searchParams.year"
-              placeholder="年度"
-              :min="2020"
-              :max="2099"
-              style="width: 120px"
-            />
-          </a-form-item>
-          <a-form-item label="期间">
-            <a-input-number
-              v-model:value="searchParams.period"
-              placeholder="期间"
-              :min="1"
-              :max="12"
-              style="width: 120px"
-            />
-          </a-form-item>
-          <a-form-item>
-            <a-space>
-              <a-button
-                type="primary"
-                :loading="loading"
-                @click="handleSearch"
-              >
-                <template #icon>
-                  <SearchOutlined />
-                </template>查询
-              </a-button>
-              <a-button @click="handleReset">
-                <template #icon>
-                  <ClearOutlined />
-                </template>重置
-              </a-button>
-            </a-space>
-          </a-form-item>
-        </a-form>
-      </div>
-      <div class="table-area">
-        <BillTableList
-          :columns="columns"
-          :data-source="tableData"
-          :loading="loading"
-          :pagination="billPagination"
-          :show-toolbar="false"
-          :show-search="false"
-          :show-add="false"
-          :show-export="false"
-          :show-batch-delete="false"
-          :selectable="false"
-          row-key="id"
-          @page-change="handlePageChange"
-        />
-      </div>
-    </PageContainer>
-  </ErrorBoundary>
+      <template v-else-if="MONEY_FIELDS.includes(column.dataIndex as string)">
+        {{ formatMoney(text) }}
+      </template>
+    </template>
+  </ARReportPage>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
-import type { Dayjs } from 'dayjs'
-import { ReloadOutlined, SearchOutlined, ClearOutlined } from '@ant-design/icons-vue'
-import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import PageContainer from '@/components/PageContainer/PageContainer.vue'
-import BillTableList from '@/components/BillTableList/BillTableList.vue'
-import request from '@/utils/request'
+import ARReportPage from '@/components/ARReportPage/ARReportPage.vue'
+import type { ReportQueryField } from '@/components/ARReportPage/types'
+import { partnerBalanceApi } from '@/api/finance'
 
-const loading = ref(false)
-const hasError = ref(false)
-const tableData = ref<any[]>([])
-const lastUpdateTime = ref('')
+const MONEY_FIELDS = ['receivableBalance', 'payableBalance', 'preReceiptBalance', 'prePaymentBalance', 'netBalance']
 
-const searchParams = reactive({
-  auxType: undefined as string | undefined,
-  auxName: '',
-  year: undefined as number | undefined,
-  period: undefined as number | undefined,
-})
-
-const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
-const billPagination = computed(() => ({ current: pagination.current, pageSize: pagination.pageSize, total: pagination.total }))
-
-const columns = [
-  { title: '辅助类型', field: 'auxType', key: 'auxType', width: 100 },
-  { title: '辅助编码', field: 'auxCode', key: 'auxCode', width: 100 },
-  { title: '辅助名称', field: 'auxName', key: 'auxName', width: 180 },
-  { title: '期初余额', field: 'openBalance', key: 'openBalance', width: 140, align: 'right' },
-  { title: '本期借方', field: 'debitAmount', key: 'debitAmount', width: 140, align: 'right' },
-  { title: '本期贷方', field: 'creditAmount', key: 'creditAmount', width: 140, align: 'right' },
-  { title: '期末余额', field: 'closeBalance', key: 'closeBalance', width: 140, align: 'right' },
+const queryFields: ReportQueryField[] = [
+  {
+    key: 'partnerType',
+    type: 'select',
+    label: '单位类型',
+    placeholder: '全部',
+    options: [
+      { label: '客户', value: 'customer' },
+      { label: '供应商', value: 'supplier' }
+    ],
+    width: 140
+  },
+  { key: 'keyword', type: 'input', label: '关键字', placeholder: '名称或编号', width: 180 },
+  {
+    key: 'onlyNonZero',
+    type: 'select',
+    label: '余额过滤',
+    placeholder: '全部',
+    options: [
+      { label: '仅显示余额非零', value: '1' },
+      { label: '显示全部', value: '0' }
+    ],
+    width: 160
+  }
 ]
 
-const fetchData = async () => {
-  loading.value = true; hasError.value = false
-  try {
-    const res: any = await request.get('/finance/aux-balance/page', {
-      params: { page: pagination.current, size: pagination.pageSize, ...searchParams }
-    })
-    if (res) {
-      const data = res.data || res
-      tableData.value = data.records || data.content || data.list || []
-      pagination.total = data.total || 0
-      lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
-    }
-  } catch (e: any) { hasError.value = true; console.warn('[辅助核算余额表] 获取失败', e)
-  } finally { loading.value = false }
+// ═══ 表格列（与后端 PartnerBalanceDTO 字段一致） ═══
+const columns: any[] = [
+  { title: '单位类型', dataIndex: 'partnerType', key: 'partnerType', width: 90, align: 'center' },
+  { title: '往来单位', dataIndex: 'partnerName', key: 'partnerName', width: 180, ellipsis: true },
+  { title: '应收余额', dataIndex: 'receivableBalance', key: 'receivableBalance', width: 120, align: 'right' },
+  { title: '应付余额', dataIndex: 'payableBalance', key: 'payableBalance', width: 120, align: 'right' },
+  { title: '预收余额', dataIndex: 'preReceiptBalance', key: 'preReceiptBalance', width: 120, align: 'right' },
+  { title: '预付余额', dataIndex: 'prePaymentBalance', key: 'prePaymentBalance', width: 120, align: 'right' },
+  { title: '净余额', dataIndex: 'netBalance', key: 'netBalance', width: 120, align: 'right' },
+  { title: '最后业务日期', dataIndex: 'lastBizDate', key: 'lastBizDate', width: 120 }
+]
+
+function formatMoney(val: number | null | undefined): string {
+  if (val === null || val === undefined || isNaN(Number(val))) return '-'
+  return Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-const handleSearch = () => { pagination.current = 1; fetchData() }
-const handleReset = () => { searchParams.auxType = undefined; searchParams.auxName = ''; searchParams.year = undefined; searchParams.period = undefined; pagination.current = 1; fetchData() }
-const handlePageChange = (page: number, pageSize: number) => { pagination.current = page; pagination.pageSize = pageSize; fetchData() }
-const handleError = (e: Error) => { hasError.value = true; console.error(e) }
-onMounted(fetchData)
+// ═══ 数据请求：往来余额表分页（/erp/finance/partner-balance/page，page/size 风格） ═══
+function fetcher(params: Record<string, any>) {
+  return partnerBalanceApi.getPage({
+    ...params,
+    onlyNonZero: params.onlyNonZero === '1'
+  })
+}
 </script>
-
-<style scoped>
-.search-area { background: #fff; padding: 16px 20px; border-radius: 8px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-.table-area { background: #fff; padding: 16px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-.update-time { font-size: 12px; color: #999; }
-</style>

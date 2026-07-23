@@ -1,86 +1,107 @@
 <template>
-  <ErrorBoundary>
-    <PageContainer title="库存明细">
-      <div class="search-area">
-        <a-form layout="inline">
-          <a-form-item label="日期范围">
-            <a-range-picker
-              v-model:value="dateRange"
-              style="width: 220px"
-            />
-          </a-form-item>
-          <a-form-item>
-            <a-space>
-              <a-button
-                type="primary"
-                @click="handleSearch"
-              >
-                <template #icon>
-                  <SearchOutlined />
-                </template>查询
-              </a-button>
-              <a-button @click="handleReset">
-                <template #icon>
-                  <ClearOutlined />
-                </template>重置
-              </a-button>
-            </a-space>
-          </a-form-item>
-        </a-form>
-      </div>
-      <div class="table-area">
-        <a-table
-          :columns="columns"
-          :data-source="tableData"
-          :loading="loading"
-          :pagination="pagination"
-          row-key="id"
-          size="small"
-          @change="handleTableChange"
-        />
-      </div>
-    </PageContainer>
-  </ErrorBoundary>
+  <ARReportPage
+    title="库存明细"
+    :query-fields="queryFields"
+    :columns="columns"
+    :fetcher="fetcher"
+    page-param-style="pageNum"
+    export-file-name="库存明细"
+    :row-key="(record: any) => `${record.docNo}-${record.productId}-${record.moveTime}`"
+  >
+    <template #bodyCell="{ column, text }">
+      <template v-if="column.dataIndex === 'qty'">
+        <span :style="{ color: Number(text) >= 0 ? '#52c41a' : '#f5222d' }">
+          {{ Number(text) >= 0 ? '+' : '' }}{{ formatNumber(text) }}
+        </span>
+      </template>
+      <template v-else-if="['balanceAfter'].includes(column.dataIndex as string)">
+        {{ formatNumber(text) }}
+      </template>
+      <template v-else-if="['unitCost', 'amount'].includes(column.dataIndex as string)">
+        {{ formatMoney(text) }}
+      </template>
+    </template>
+  </ARReportPage>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
-import { SearchOutlined, ClearOutlined } from '@ant-design/icons-vue'
-import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import PageContainer from '@/components/PageContainer/PageContainer.vue'
-import request from '@/utils/request'
+import { ref, computed, onMounted } from 'vue'
+import ARReportPage from '@/components/ARReportPage/ARReportPage.vue'
+import type { ReportQueryField } from '@/components/ARReportPage/types'
+import { stockReportApi, stockApi } from '@/api/analytics'
 
-const loading = ref(false)
-const tableData = ref<any[]>([])
-const dateRange = ref(null)
-const pagination = reactive({ current: 1, pageSize: 20, total: 0, showSizeChanger: true, showTotal: (t) => `共 ${t} 条` })
-
-const columns: any[] = [
-  { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
-  { title: '名称', dataIndex: 'name', key: 'name', width: 150 },
-  { title: '描述', dataIndex: 'description', key: 'description', ellipsis: true },
-  { title: '状态', dataIndex: 'status', key: 'status', width: 80 },
-  { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 160 }
+// ═══ 单据类型（与后端 StockReportController flow/page docType 一致） ═══
+const DOC_TYPE_OPTIONS = [
+  { label: '采购入库', value: 'PURCHASE_IN' },
+  { label: '销售出库', value: 'SALE_OUT' },
+  { label: '调拨入库', value: 'TRANSFER_IN' },
+  { label: '调拨出库', value: 'TRANSFER_OUT' },
+  { label: '报溢入库', value: 'OVERFLOW_IN' },
+  { label: '报损出库', value: 'DAMAGE_OUT' },
+  { label: '盘点调整', value: 'CHECK_ADJUST' }
 ]
 
-async function loadData() {
-  loading.value = true
-  try {
-    const result = await request.get('/analytics/stock-detail/page', { pageNum: pagination.current, pageSize: pagination.pageSize })
-    if (result?.records) { tableData.value = result.records; pagination.total = result.total }
-    else if (Array.isArray(result)) { tableData.value = result; pagination.total = result.length }
-  } catch (e) { tableData.value = [] }
-  finally { loading.value = false }
+// ═══ 仓库下拉选项 ═══
+const warehouseOptions = ref<{ label: string; value: number }[]>([])
+
+const queryFields = computed<ReportQueryField[]>(() => [
+  { key: 'productId', type: 'input', label: '商品ID', placeholder: '商品ID', width: 140 },
+  {
+    key: 'warehouseId',
+    type: 'select',
+    label: '仓库',
+    placeholder: '全部仓库',
+    options: warehouseOptions.value
+  },
+  {
+    key: 'docType',
+    type: 'select',
+    label: '单据类型',
+    placeholder: '全部类型',
+    options: DOC_TYPE_OPTIONS
+  },
+  { key: 'moveDateRange', type: 'date-range', label: '变动日期' }
+])
+
+// ═══ 表格列 ═══
+const columns: any[] = [
+  { title: '变动时间', dataIndex: 'moveTime', key: 'moveTime', width: 160 },
+  { title: '单据类型', dataIndex: 'docTypeName', key: 'docTypeName', width: 100 },
+  { title: '单号', dataIndex: 'docNo', key: 'docNo', width: 160 },
+  { title: '商品编码', dataIndex: 'productCode', key: 'productCode', width: 120 },
+  { title: '商品名称', dataIndex: 'productName', key: 'productName', width: 170, ellipsis: true },
+  { title: '仓库', dataIndex: 'warehouseName', key: 'warehouseName', width: 110 },
+  { title: '变动数量', dataIndex: 'qty', key: 'qty', width: 100, align: 'right' },
+  { title: '单位成本', dataIndex: 'unitCost', key: 'unitCost', width: 100, align: 'right' },
+  { title: '变动金额', dataIndex: 'amount', key: 'amount', width: 110, align: 'right' },
+  { title: '变动后结存', dataIndex: 'balanceAfter', key: 'balanceAfter', width: 110, align: 'right' },
+  { title: '操作人', dataIndex: 'operatorName', key: 'operatorName', width: 90 }
+]
+
+function formatNumber(val: number | null | undefined): string {
+  if (val === null || val === undefined || isNaN(Number(val))) return '-'
+  return Number(val).toLocaleString('zh-CN')
 }
 
-function handleSearch() { pagination.current = 1; loadData() }
-function handleReset() { dateRange.value = null; pagination.current = 1; loadData() }
-function handleTableChange(p) { pagination.current = p.current; pagination.pageSize = p.pageSize; loadData() }
+function formatMoney(val: number | null | undefined): string {
+  if (val === null || val === undefined || isNaN(Number(val))) return '-'
+  return Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
 
-onMounted(loadData)
+// ═══ 数据请求 ═══
+function fetcher(params: Record<string, any>) {
+  return stockReportApi.flowPage(params)
+}
+
+onMounted(async () => {
+  try {
+    const list: any = await stockApi.getWarehouses()
+    warehouseOptions.value = (Array.isArray(list) ? list : []).map((w: any) => ({
+      label: w.warehouseName,
+      value: w.id
+    }))
+  } catch (e) {
+    console.warn('[库存明细] 仓库列表获取失败', e)
+  }
+})
 </script>
-
-<style scoped>
-.search-area { background: #fff; padding: 16px 20px; border-radius: 8px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-.table-area { background: #fff; padding: 16px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-</style>

@@ -1,86 +1,56 @@
 <template>
-  <ErrorBoundary>
-    <PageContainer title="业务员提成">
-      <div class="search-area">
-        <a-form layout="inline">
-          <a-form-item label="日期范围">
-            <a-range-picker
-              v-model:value="dateRange"
-              style="width: 220px"
-            />
-          </a-form-item>
-          <a-form-item>
-            <a-space>
-              <a-button
-                type="primary"
-                @click="handleSearch"
-              >
-                <template #icon>
-                  <SearchOutlined />
-                </template>查询
-              </a-button>
-              <a-button @click="handleReset">
-                <template #icon>
-                  <ClearOutlined />
-                </template>重置
-              </a-button>
-            </a-space>
-          </a-form-item>
-        </a-form>
-      </div>
-      <div class="table-area">
-        <a-table
-          :columns="columns"
-          :data-source="tableData"
-          :loading="loading"
-          :pagination="pagination"
-          row-key="id"
-          size="small"
-          @change="handleTableChange"
-        />
-      </div>
-    </PageContainer>
-  </ErrorBoundary>
+  <ARReportPage
+    title="业务员提成"
+    :query-fields="queryFields"
+    :columns="columns"
+    :fetcher="fetcher"
+    export-file-name="业务员提成"
+    row-key="referrerId"
+  >
+    <template #bodyCell="{ column, text }">
+      <template v-if="['orderCount', 'recordCount', 'settledCount', 'unsettledCount'].includes(column.dataIndex as string)">
+        {{ formatNumber(text) }}
+      </template>
+      <template v-else-if="['totalOrderAmount', 'totalCommissionAmount', 'settledCommissionAmount', 'unsettledCommissionAmount'].includes(column.dataIndex as string)">
+        {{ formatMoney(text) }}
+      </template>
+    </template>
+  </ARReportPage>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
-import { SearchOutlined, ClearOutlined } from '@ant-design/icons-vue'
-import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import PageContainer from '@/components/PageContainer/PageContainer.vue'
-import request from '@/utils/request'
+import ARReportPage from '@/components/ARReportPage/ARReportPage.vue'
+import type { ReportQueryField } from '@/components/ARReportPage/types'
+import { commissionApi } from '@/api/analytics'
 
-const loading = ref(false)
-const tableData = ref<any[]>([])
-const dateRange = ref(null)
-const pagination = reactive({ current: 1, pageSize: 20, total: 0, showSizeChanger: true, showTotal: (t) => `共 ${t} 条` })
-
-const columns: any[] = [
-  { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
-  { title: '名称', dataIndex: 'name', key: 'name', width: 150 },
-  { title: '描述', dataIndex: 'description', key: 'description', ellipsis: true },
-  { title: '状态', dataIndex: 'status', key: 'status', width: 80 },
-  { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 160 }
+const queryFields: ReportQueryField[] = [
+  { key: 'keyword', type: 'input', label: '关键字', placeholder: '业务员名称', width: 180 },
+  { key: 'commissionDateRange', type: 'date-range', label: '提成日期' }
 ]
 
-async function loadData() {
-  loading.value = true
-  try {
-    const result = await request.get('/analytics/staff-commission/page', { pageNum: pagination.current, pageSize: pagination.pageSize })
-    if (result?.records) { tableData.value = result.records; pagination.total = result.total }
-    else if (Array.isArray(result)) { tableData.value = result; pagination.total = result.length }
-  } catch (e) { tableData.value = [] }
-  finally { loading.value = false }
+// ═══ 表格列 ═══
+const columns: any[] = [
+  { title: '业务员', dataIndex: 'staffName', key: 'staffName', width: 130 },
+  { title: '提成记录数', dataIndex: 'recordCount', key: 'recordCount', width: 110, align: 'right' },
+  { title: '成单数', dataIndex: 'orderCount', key: 'orderCount', width: 90, align: 'right' },
+  { title: '订单金额合计', dataIndex: 'totalOrderAmount', key: 'totalOrderAmount', width: 130, align: 'right' },
+  { title: '提成金额合计', dataIndex: 'totalCommissionAmount', key: 'totalCommissionAmount', width: 130, align: 'right' },
+  { title: '已结提成', dataIndex: 'settledCommissionAmount', key: 'settledCommissionAmount', width: 120, align: 'right' },
+  { title: '未结提成', dataIndex: 'unsettledCommissionAmount', key: 'unsettledCommissionAmount', width: 120, align: 'right' }
+]
+
+function formatNumber(val: number | null | undefined): string {
+  if (val === null || val === undefined || isNaN(Number(val))) return '-'
+  return Number(val).toLocaleString('zh-CN')
 }
 
-function handleSearch() { pagination.current = 1; loadData() }
-function handleReset() { dateRange.value = null; pagination.current = 1; loadData() }
-function handleTableChange(p) { pagination.current = p.current; pagination.pageSize = p.pageSize; loadData() }
+function formatMoney(val: number | null | undefined): string {
+  if (val === null || val === undefined || isNaN(Number(val))) return '-'
+  return Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
 
-onMounted(loadData)
+// ═══ 数据请求 ═══
+function fetcher(params: Record<string, any>) {
+  return commissionApi.staffSummaryPage(params)
+}
 </script>
-
-<style scoped>
-.search-area { background: #fff; padding: 16px 20px; border-radius: 8px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-.table-area { background: #fff; padding: 16px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-</style>

@@ -1,151 +1,110 @@
 <template>
-  <ErrorBoundary @error="handleError">
-    <PageContainer
-      title="采购明细查询"
-      full-height
-    >
-      <template #headerExtra>
-        <a-space :size="12">
-          <a-badge :status="loading ? 'processing' : (hasError ? 'error' : 'success')" />
-          <span
-            v-if="lastUpdateTime"
-            class="update-time"
-          >最后更新: {{ lastUpdateTime }}</span>
-          <a-button
-            size="small"
-            @click="fetchData"
-          >
-            <template #icon>
-              <ReloadOutlined />
-            </template>
-          </a-button>
-        </a-space>
+  <ARReportPage
+    title="采购明细查询"
+    :query-fields="queryFields"
+    :columns="columns"
+    :fetcher="fetcher"
+    export-file-name="采购明细查询"
+    row-key="itemId"
+  >
+    <template #bodyCell="{ column, text }">
+      <template v-if="column.dataIndex === 'status'">
+        <a-tag :color="STATUS_MAP[text as number]?.color">
+          {{ STATUS_MAP[text as number]?.label || text }}
+        </a-tag>
       </template>
-      <div class="search-area">
-        <a-form
-          layout="inline"
-          :model="searchParams"
-        >
-          <a-form-item label="产品名称">
-            <a-input
-              v-model:value="searchParams.productName"
-              placeholder="请输入"
-              allow-clear
-              style="width: 160px"
-            />
-          </a-form-item>
-          <a-form-item label="供应商名称">
-            <a-input
-              v-model:value="searchParams.supplierName"
-              placeholder="请输入"
-              allow-clear
-              style="width: 160px"
-            />
-          </a-form-item>
-          <a-form-item label="日期范围">
-            <a-range-picker
-              v-model:value="dateRange"
-              style="width: 220px"
-              @change="handleDateChange"
-            />
-          </a-form-item>
-          <a-form-item>
-            <a-space>
-              <a-button
-                type="primary"
-                @click="handleSearch"
-              >
-                <template #icon>
-                  <SearchOutlined />
-                </template>查询
-              </a-button>
-              <a-button @click="handleReset">
-                <template #icon>
-                  <ClearOutlined />
-                </template>重置
-              </a-button>
-            </a-space>
-          </a-form-item>
-        </a-form>
-      </div>
-      <div class="table-area">
-        <BillTableList
-          :columns="columns"
-          :data-source="tableData"
-          :loading="loading"
-          :pagination="billPagination"
-          :show-toolbar="false"
-          :show-search="false"
-          :show-add="false"
-          :show-export="false"
-          :show-batch-delete="false"
-          :selectable="false"
-          row-key="id"
-          @page-change="handlePageChange"
-        />
-      </div>
-    </PageContainer>
-  </ErrorBoundary>
+      <template v-else-if="MONEY_COLUMNS.includes(column.dataIndex as string)">
+        {{ formatMoney(text) }}
+      </template>
+      <template v-else-if="QTY_COLUMNS.includes(column.dataIndex as string)">
+        {{ formatQty(text) }}
+      </template>
+      <template v-else-if="column.dataIndex === 'orderDate'">
+        {{ formatDateTime(text) }}
+      </template>
+    </template>
+  </ARReportPage>
 </template>
+
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
-import type { Dayjs } from 'dayjs'
-import { ReloadOutlined, SearchOutlined, ClearOutlined } from '@ant-design/icons-vue'
-import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import PageContainer from '@/components/PageContainer/PageContainer.vue'
-import BillTableList from '@/components/BillTableList/BillTableList.vue'
-import request from '@/utils/request'
+import ARReportPage from '@/components/ARReportPage/ARReportPage.vue'
+import type { ReportQueryField } from '@/components/ARReportPage/types'
+import { purchaseDocQueryApi } from '@/api/purchase'
 
-const loading = ref(false)
-const hasError = ref(false)
-const tableData = ref<any[]>([])
-const lastUpdateTime = ref('')
+// ═══ 单据状态（与后端 OrderStatus 枚举一致） ═══
+const STATUS_MAP: Record<number, { label: string; color: string }> = {
+  0: { label: '草稿', color: 'default' },
+  1: { label: '待审批', color: 'orange' },
+  2: { label: '已审批', color: 'blue' },
+  3: { label: '已下达', color: 'blue' },
+  4: { label: '执行中', color: 'blue' },
+  5: { label: '部分入库', color: 'cyan' },
+  6: { label: '已完成', color: 'green' },
+  7: { label: '已取消', color: 'red' }
+}
 
-const searchParams = reactive({ productName: '', supplierName: '', startDate: '', endDate: '' })
-const dateRange = ref<[Dayjs, Dayjs] | null>(null)
-const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
-const billPagination = computed(() => ({ current: pagination.current, pageSize: pagination.pageSize, total: pagination.total }))
+const MONEY_COLUMNS = ['unitPrice', 'amount', 'discountedUnitPrice', 'discountedAmount']
+const QTY_COLUMNS = ['quantity', 'receivedQuantity', 'unreceiveQuantity']
 
-const columns = [
-  { title: '单据编号', field: 'docNo', key: 'docNo', width: 160 },
-  { title: '单据类型', field: 'docType', key: 'docType', width: 100 },
-  { title: '产品编码', field: 'productCode', key: 'productCode', width: 120 },
-  { title: '产品名称', field: 'productName', key: 'productName', width: 180 },
-  { title: '数量', field: 'quantity', key: 'quantity', width: 100, align: 'right' },
-  { title: '单价', field: 'unitPrice', key: 'unitPrice', width: 100, align: 'right' },
-  { title: '金额', field: 'amount', key: 'amount', width: 120, align: 'right' },
-  { title: '日期', field: 'docDate', key: 'docDate', width: 120 },
+const queryFields: ReportQueryField[] = [
+  { key: 'orderNo', type: 'input', label: '单据编号', placeholder: '单据编号', width: 170 },
+  { key: 'productName', type: 'input', label: '商品', placeholder: '商品名称', width: 160 },
+  { key: 'supplierName', type: 'input', label: '供应商', placeholder: '供应商名称', width: 160 },
+  {
+    key: 'status',
+    type: 'select',
+    label: '单据状态',
+    placeholder: '全部状态',
+    options: Object.entries(STATUS_MAP).map(([value, v]) => ({ label: v.label, value: Number(value) }))
+  },
+  { key: 'dateRange', type: 'date-range', label: '单据日期' }
 ]
 
-const handleDateChange = (dates: [Dayjs, Dayjs] | null) => {
-  if (dates?.length === 2) { searchParams.startDate = dates[0]?.format('YYYY-MM-DD') || ''; searchParams.endDate = dates[1]?.format('YYYY-MM-DD') || '' }
-  else { searchParams.startDate = ''; searchParams.endDate = '' }
+// ═══ 表格列（后端 PurchaseDetailListDTO 59列取常用） ═══
+const columns: any[] = [
+  { title: '单据日期', dataIndex: 'orderDate', key: 'orderDate', width: 110 },
+  { title: '单据编号', dataIndex: 'orderNo', key: 'orderNo', width: 160 },
+  { title: '状态', dataIndex: 'status', key: 'status', width: 90 },
+  { title: '供应商', dataIndex: 'supplierName', key: 'supplierName', width: 150, ellipsis: true },
+  { title: '商品名称', dataIndex: 'productName', key: 'productName', width: 160, ellipsis: true },
+  { title: '货号', dataIndex: 'itemCode', key: 'itemCode', width: 110 },
+  { title: '规格', dataIndex: 'specification', key: 'specification', width: 100, ellipsis: true },
+  { title: '品牌', dataIndex: 'brand', key: 'brand', width: 90 },
+  { title: '单位', dataIndex: 'unit', key: 'unit', width: 60 },
+  { title: '订货数量', dataIndex: 'quantity', key: 'quantity', width: 100, align: 'right' },
+  { title: '已收数量', dataIndex: 'receivedQuantity', key: 'receivedQuantity', width: 100, align: 'right' },
+  { title: '未收数量', dataIndex: 'unreceiveQuantity', key: 'unreceiveQuantity', width: 100, align: 'right' },
+  { title: '单价', dataIndex: 'unitPrice', key: 'unitPrice', width: 100, align: 'right' },
+  { title: '金额', dataIndex: 'amount', key: 'amount', width: 110, align: 'right' },
+  { title: '优惠后单价', dataIndex: 'discountedUnitPrice', key: 'discountedUnitPrice', width: 110, align: 'right' },
+  { title: '优惠后金额', dataIndex: 'discountedAmount', key: 'discountedAmount', width: 110, align: 'right' },
+  { title: '仓库', dataIndex: 'warehouseName', key: 'warehouseName', width: 100 },
+  { title: '经手人', dataIndex: 'purchaserName', key: 'purchaserName', width: 90 }
+]
+
+function formatMoney(val: number | null | undefined): string {
+  if (val === null || val === undefined || isNaN(Number(val))) return '-'
+  return Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-const fetchData = async () => {
-  loading.value = true; hasError.value = false
-  try {
-    const res: any = await request.get('/purchase/detail-query/page', {
-      params: { page: pagination.current, size: pagination.pageSize, ...searchParams }
-    })
-    if (res) {
-      const data = res.data || res
-      tableData.value = data.records || data.content || data.list || []
-      pagination.total = data.total || 0
-      lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
-    }
-  } catch (e: any) { hasError.value = true; console.warn('[采购明细查询] 获取失败', e)
-  } finally { loading.value = false }
+function formatQty(val: number | null | undefined): string {
+  if (val === null || val === undefined || isNaN(Number(val))) return '-'
+  return Number(val).toLocaleString('zh-CN', { maximumFractionDigits: 2 })
 }
 
-const handleSearch = () => { pagination.current = 1; fetchData() }
-const handleReset = () => { searchParams.productName = ''; searchParams.supplierName = ''; searchParams.startDate = ''; searchParams.endDate = ''; dateRange.value = null; pagination.current = 1; fetchData() }
-const handlePageChange = (page: number, pageSize: number) => { pagination.current = page; pagination.pageSize = pageSize; fetchData() }
-const handleError = (e: Error) => { hasError.value = true; console.error(e) }
-onMounted(fetchData)
+function formatDateTime(val: string | null | undefined): string {
+  return val ? String(val).slice(0, 10) : '-'
+}
+
+// ═══ 数据请求（page/size → 后端 current/size；日期 → LocalDateTime ISO 格式） ═══
+function fetcher(params: Record<string, any>) {
+  const { page, size, startDate, endDate, ...rest } = params
+  return purchaseDocQueryApi.detailPage({
+    ...rest,
+    current: page,
+    size,
+    dateStart: startDate ? `${startDate}T00:00:00` : undefined,
+    dateEnd: endDate ? `${endDate}T23:59:59` : undefined
+  })
+}
 </script>
-<style scoped>
-.search-area { background: #fff; padding: 16px 20px; border-radius: 8px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-.table-area { background: #fff; padding: 16px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-.update-time { font-size: 12px; color: #999; }
-</style>

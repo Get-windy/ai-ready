@@ -5,9 +5,11 @@ import cn.aiedge.erp.purchase.enums.QuoteStatus;
 import cn.aiedge.erp.purchase.service.PurchaseQuoteService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -31,6 +33,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * @author team-member
  * @date 2026-04-29
  */
+@AutoConfigureMockMvc(addFilters = false)
 @WebMvcTest(PurchaseQuoteController.class)
 @DisplayName("采购报价管理控制器测试")
 public class PurchaseQuoteControllerTest {

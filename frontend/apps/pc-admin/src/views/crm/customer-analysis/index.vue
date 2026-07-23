@@ -1,210 +1,190 @@
 <template>
-  <PageContainer
-    title="客户分析"
-    full-height
-  >
-    <template #headerExtra>
-      <a-space :size="12">
-        <span class="data-status">
-          <a-badge :status="loading ? 'processing' : hasError ? 'error' : 'success'" />
-          <span
-            v-if="lastUpdateTime"
-            class="update-time"
-          >
-            数据更新: {{ lastUpdateTime }}
-          </span>
-        </span>
-        <a-button
-          size="small"
-          :loading="loading"
-          @click="fetchData"
-        >
-          <template #icon>
-            <ReloadOutlined />
-          </template>
-          刷新
-        </a-button>
-      </a-space>
-    </template>
+  <PageContainer title="客户分析">
+    <a-alert
+      type="info"
+      show-icon
+      class="page-alert"
+      message="数据口径说明"
+      description="后端暂无客户统计专用接口，本页由客户全量列表（/customer/export）实时聚合：来源/等级分布与近12个月新增趋势均为真实数据。"
+    />
 
-    <ErrorBoundary @reset="fetchData">
-      <div class="search-area">
-        <a-space wrap>
-          <a-select
-            v-model:value="searchParams.customerCategory"
-            placeholder="客户分类"
-            allow-clear
-            style="width: 130px"
-          >
-            <a-select-option value="">
-              全部
-            </a-select-option>
-            <a-select-option value="新客户">
-              新客户
-            </a-select-option>
-            <a-select-option value="老客户">
-              老客户
-            </a-select-option>
-            <a-select-option value="VIP">
-              VIP
-            </a-select-option>
-          </a-select>
-          <a-range-picker
-            v-model:value="dateRange"
-            style="width: 240px"
-          />
-          <a-button
-            type="primary"
-            @click="handleSearch"
-          >
-            <template #icon>
-              <SearchOutlined />
-            </template>
-            查询
-          </a-button>
-          <a-button @click="handleReset">
-            <template #icon>
-              <ClearOutlined />
-            </template>
-            重置
-          </a-button>
-        </a-space>
-      </div>
+    <ARStatCards
+      :items="statCards"
+      :loading="loading"
+    />
 
-      <div class="table-area">
-        <BillTableList
-          :columns="columns"
-          :data-source="tableData"
-          :loading="loading"
-          :pagination="billPagination"
-          :show-add="false"
-          :show-search="false"
-          :show-export="true"
-          :selectable="false"
-          :min-empty-rows="10"
-          @refresh="fetchData"
-          @page-change="handlePageChange"
-          @export="handleExport"
-        />
-      </div>
-    </ErrorBoundary>
+    <div class="chart-grid">
+      <ARReportChart
+        title="客户来源分布"
+        :option="sourceOption"
+        :loading="loading"
+        :height="320"
+        empty-text="暂无客户数据"
+      />
+      <ARReportChart
+        title="客户等级分布"
+        :option="levelOption"
+        :loading="loading"
+        :height="320"
+        empty-text="暂无客户数据"
+      />
+      <ARReportChart
+        title="近12个月新增客户趋势"
+        :option="trendOption"
+        :loading="loading"
+        :height="320"
+        empty-text="暂无客户数据"
+      />
+    </div>
   </PageContainer>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
-import type { Dayjs } from 'dayjs'
-import { ReloadOutlined, SearchOutlined, ClearOutlined } from '@ant-design/icons-vue'
-import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
+import { ref, computed, onMounted } from 'vue'
+import dayjs from 'dayjs'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
-import BillTableList from '@/components/BillTableList/BillTableList.vue'
-import request from '@/utils/request'
+import ARStatCards from '@/components/ARStatCards/ARStatCards.vue'
+import ARReportChart from '@/components/ARReportChart/ARReportChart.vue'
+import type { StatCardItem } from '@/components/ARReportPage/types'
+import { crmCustomerApi, type CrmCustomer } from '@/api/crm'
+
+// ═══ 等级/来源映射（后端为数值码，未提供枚举接口，按既有页面惯例映射） ═══
+const LEVEL_TEXT: Record<number, string> = { 1: 'VIP客户', 2: '重要客户', 3: '普通客户', 4: '潜在客户' }
+const LEVEL_COLORS = ['#faad14', '#fa8c16', '#1677ff', '#8c8c8c']
+const SOURCE_TEXT: Record<number, string> = { 1: '电话营销', 2: '网络推广', 3: '客户介绍', 4: '展会活动', 5: '其他' }
 
 const loading = ref(false)
-const hasError = ref(false)
-const tableData = ref<any[]>([])
-const lastUpdateTime = ref('')
+const customers = ref<CrmCustomer[]>([])
 
-const searchParams = reactive({
-  customerCategory: ''
+// ═══ 统计卡片 ═══
+const statCards = computed<StatCardItem[]>(() => {
+  const list = customers.value
+  const active = list.filter(c => c.status === 1).length
+  const monthKey = dayjs().format('YYYY-MM')
+  const newThisMonth = list.filter(c => c.createdAt && dayjs(c.createdAt).format('YYYY-MM') === monthKey).length
+  const totalTrade = list.reduce((acc, c) => acc + (Number(c.tradeAmount) || 0), 0)
+  return [
+    { label: '客户总数', value: list.length, suffix: '家' },
+    { label: '正常客户', value: active, suffix: '家', valueStyle: { color: '#52c41a' } },
+    { label: '本月新增', value: newThisMonth, suffix: '家', valueStyle: { color: '#1677ff' } },
+    { label: '累计交易额', value: totalTrade, precision: 2, prefix: '¥' }
+  ]
 })
-const dateRange = ref<[Dayjs, Dayjs] | null>(null)
 
-const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
-const billPagination = computed(() => ({
-  current: pagination.current,
-  pageSize: pagination.pageSize,
-  total: pagination.total
-}))
+// ═══ 来源分布（饼图） ═══
+const sourceOption = computed(() => {
+  const counter = new Map<string, number>()
+  for (const c of customers.value) {
+    const key = c.customerSource
+      ? (SOURCE_TEXT[c.customerSource] || `来源${c.customerSource}`)
+      : '未知'
+    counter.set(key, (counter.get(key) || 0) + 1)
+  }
+  const data = [...counter.entries()].map(([name, value]) => ({ name, value }))
+  return {
+    tooltip: { trigger: 'item' as const, formatter: '{b}：{c} 家（{d}%）' },
+    legend: { bottom: 0 },
+    series: [
+      {
+        type: 'pie',
+        radius: ['40%', '65%'],
+        center: ['50%', '45%'],
+        label: { formatter: '{b} {c}' },
+        data
+      }
+    ]
+  }
+})
 
-const columns = [
-  { field: 'customerCategory', title: '客户分类', width: 100 },
-  { field: 'customerCount', title: '客户数量', width: 100, align: 'right' as const },
-  { field: 'dealAmount', title: '成交金额', width: 140, align: 'right' as const },
-  { field: 'avgPrice', title: '平均客单价', width: 140, align: 'right' as const },
-  { field: 'repurchaseRate', title: '复购率', width: 100, align: 'right' as const },
-  { field: 'activeRate', title: '活跃率', width: 100, align: 'right' as const }
-]
+// ═══ 等级分布（柱状图） ═══
+const levelOption = computed(() => {
+  const list = customers.value
+  const keys = [1, 2, 3, 4]
+  const hasData = list.some(c => c.customerLevel)
+  return {
+    tooltip: { trigger: 'axis' as const },
+    grid: { left: 40, right: 16, top: 24, bottom: 28 },
+    xAxis: {
+      type: 'category' as const,
+      data: keys.map(k => LEVEL_TEXT[k])
+    },
+    yAxis: { type: 'value' as const, minInterval: 1 },
+    series: [
+      {
+        type: 'bar',
+        barWidth: 40,
+        label: { show: true, position: 'top' },
+        data: hasData
+          ? keys.map((k, i) => ({
+            value: list.filter(c => c.customerLevel === k).length,
+            itemStyle: { color: LEVEL_COLORS[i] }
+          }))
+          : [] // 无等级数据时走组件空态
+      }
+    ]
+  }
+})
 
-async function fetchData() {
+// ═══ 新增趋势（近12个月折线） ═══
+const trendOption = computed(() => {
+  const months: string[] = []
+  for (let i = 11; i >= 0; i--) {
+    months.push(dayjs().subtract(i, 'month').format('YYYY-MM'))
+  }
+  const counter = new Map<string, number>(months.map(m => [m, 0]))
+  for (const c of customers.value) {
+    if (!c.createdAt) continue
+    const m = dayjs(c.createdAt).format('YYYY-MM')
+    if (counter.has(m)) counter.set(m, (counter.get(m) || 0) + 1)
+  }
+  const hasData = [...counter.values()].some(v => v > 0)
+  return {
+    tooltip: { trigger: 'axis' as const },
+    grid: { left: 40, right: 16, top: 24, bottom: 28 },
+    xAxis: {
+      type: 'category' as const,
+      data: months.map(m => dayjs(m).format('YY/MM'))
+    },
+    yAxis: { type: 'value' as const, minInterval: 1 },
+    series: [
+      {
+        type: 'line',
+        smooth: true,
+        areaStyle: { opacity: 0.15 },
+        itemStyle: { color: '#1677ff' },
+        data: hasData ? months.map(m => counter.get(m) || 0) : [] // 无数据时走组件空态
+      }
+    ]
+  }
+})
+
+// ═══ 数据加载（/customer/export 裸 List 全量，前端聚合） ═══
+async function loadData() {
   loading.value = true
-  hasError.value = false
   try {
-    const params: Record<string, any> = {
-      pageNum: pagination.current,
-      pageSize: pagination.pageSize,
-      customerCategory: searchParams.customerCategory || undefined
-    }
-    if (dateRange.value) {
-      params.startDate = dateRange.value[0].format('YYYY-MM-DD')
-      params.endDate = dateRange.value[1].format('YYYY-MM-DD')
-    }
-    const res = await request.get('/crm/customer-analysis/page', { params })
-    const result = res as any
-    const data = result.data ?? result
-    tableData.value = data?.records || []
-    pagination.total = data?.total || 0
-    lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
-  } catch (err) {
-    hasError.value = true
-    console.warn('[客户分析] 加载数据失败', err)
-    tableData.value = []
-    pagination.total = 0
+    const list = await crmCustomerApi.exportList()
+    customers.value = Array.isArray(list) ? list : []
+  } catch (e) {
+    customers.value = []
+    console.warn('[客户分析] 客户数据获取失败', e)
   } finally {
     loading.value = false
   }
 }
 
-function handleSearch() {
-  pagination.current = 1
-  fetchData()
-}
-
-function handleReset() {
-  searchParams.customerCategory = ''
-  dateRange.value = null
-  pagination.current = 1
-  fetchData()
-}
-
-function handlePageChange(page: number, size: number) {
-  pagination.current = page
-  pagination.pageSize = size
-  fetchData()
-}
-
-function handleExport() {
-  console.log('导出客户分析数据')
-}
-
 onMounted(() => {
-  fetchData()
+  loadData()
 })
 </script>
 
 <style scoped>
-.search-area {
-  padding: 12px 16px;
-  background: #fff;
-  border-radius: 6px;
-  margin-bottom: 12px;
+.page-alert {
+  margin-bottom: 16px;
 }
 
-.table-area {
-  flex: 1;
-  min-height: 0;
-}
-
-.update-time {
-  color: #999;
-  font-size: 12px;
-}
-
-.data-status {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: #666;
+.chart-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: 16px;
 }
 </style>

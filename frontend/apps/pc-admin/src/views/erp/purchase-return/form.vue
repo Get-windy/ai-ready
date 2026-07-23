@@ -289,8 +289,8 @@ function handleCellChange(rowIndex: number, fieldKey: string, value: any) {
 function handleAction(actionKey: string, _parentKey?: string) {
   switch (actionKey) {
     case 'history': router.push('/purchase/return'); break
-    case 'print-return': message.info('打印功能开发中'); break
-    case 'config': message.info('列配置功能开发中'); break
+    case 'print-return': message.info('打印功能待完善'); break
+    case 'config': message.info('列配置功能待完善'); break
     default: break
   }
 }

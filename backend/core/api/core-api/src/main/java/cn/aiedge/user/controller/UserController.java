@@ -45,7 +45,7 @@ public class UserController {
     @PostMapping
     public ApiResponse<Long> create(@Valid @RequestBody UserCreateRequest request) {
         Long userId = userService.create(request);
-        return ApiResponse.ok(userId, "创建成功");
+        return ApiResponse.ok("创建成功", userId);
     }
 
     @Operation(summary = "更新用户")

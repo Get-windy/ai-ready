@@ -9,7 +9,9 @@ import cn.aiedge.erp.fixedasset.repository.FixedAssetDepreciationRepository;
 import cn.aiedge.erp.fixedasset.repository.FixedAssetRepository;
 import cn.aiedge.erp.fixedasset.service.FixedAssetDepreciationService;
 import cn.aiedge.erp.fixedasset.service.depreciation.DepreciationContext;
+import cn.aiedge.erp.fixedasset.service.integration.FixedAssetAccountingService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -29,6 +31,7 @@ import java.util.Map;
 /**
  * 固定资产折旧服务实现
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class FixedAssetDepreciationServiceImpl implements FixedAssetDepreciationService {
@@ -36,6 +39,7 @@ public class FixedAssetDepreciationServiceImpl implements FixedAssetDepreciation
     private final FixedAssetDepreciationRepository depreciationRepository;
     private final FixedAssetRepository fixedAssetRepository;
     private final DepreciationContext depreciationContext;
+    private final FixedAssetAccountingService fixedAssetAccountingService;
 
     @Override
     public FixedAssetDepreciationDTO getById(Long id) {
@@ -69,6 +73,14 @@ public class FixedAssetDepreciationServiceImpl implements FixedAssetDepreciation
         List<FixedAssetDepreciationDTO> results = new ArrayList<>();
 
         for (FixedAsset asset : activeAssets) {
+            // 防重复计提：本期间已有计提完成记录则跳过（同时防止重复生成折旧凭证）
+            boolean alreadyDepreciated = depreciationRepository
+                .findByAssetIdAndPeriodOrderByCreatedAtAsc(asset.getId(), period)
+                .stream().anyMatch(d -> "completed".equals(d.getStatus()));
+            if (alreadyDepreciated) {
+                log.info("资产本期已计提折旧，跳过: assetId={}, period={}", asset.getId(), period);
+                continue;
+            }
             try {
                 Map<String, BigDecimal> result = depreciationContext.calculateDepreciation(asset);
 
@@ -91,6 +103,20 @@ public class FixedAssetDepreciationServiceImpl implements FixedAssetDepreciation
                 asset.setMonthlyDepreciation(result.get("periodAmount"));
                 asset.setUpdatedBy(String.valueOf(SecurityUtils.getCurrentUserId()));
                 fixedAssetRepository.save(asset);
+
+                // 业财直调：计提成功生成折旧凭证（失败不阻断计提结果，仅记录日志）
+                BigDecimal periodAmount = result.get("periodAmount");
+                if (periodAmount != null && periodAmount.compareTo(BigDecimal.ZERO) > 0) {
+                    try {
+                        String voucherNo = fixedAssetAccountingService.postDepreciationVoucher(
+                            asset.getId(), asset.getAssetCode(), asset.getAssetName(), periodAmount,
+                            depreciation.getDepreciationDate().getYear(),
+                            depreciation.getDepreciationDate().getMonthValue());
+                        depreciation.setRemark("折旧凭证: " + voucherNo);
+                    } catch (Exception e) {
+                        log.error("折旧凭证生成失败: assetId={}, period={}, 原因={}", asset.getId(), period, e.getMessage(), e);
+                    }
+                }
 
                 results.add(toDTO(depreciation));
             } catch (Exception e) {

@@ -31,50 +31,13 @@
       </div>
     </template>
 
-    <a-card :bordered="false">
-      <!-- 统计顶部 -->
-      <a-row
-        :gutter="16"
-        style="margin-bottom:16px"
-      >
-        <a-col :span="6">
-          <a-card size="small">
-            <a-statistic
-              title="慢查询总数"
-              :value="stats.total"
-            />
-          </a-card>
-        </a-col>
-        <a-col :span="6">
-          <a-card size="small">
-            <a-statistic
-              title="平均耗时"
-              :value="stats.avgDuration"
-              suffix="ms"
-            />
-          </a-card>
-        </a-col>
-        <a-col :span="6">
-          <a-card size="small">
-            <a-statistic
-              title="最长耗时"
-              :value="stats.maxDuration"
-              suffix="ms"
-              :value-style="{ color: '#ff4d4f' }"
-            />
-          </a-card>
-        </a-col>
-        <a-col :span="6">
-          <a-card size="small">
-            <a-statistic
-              title="查询超时"
-              :value="stats.timeoutCount"
-              :value-style="{ color: '#faad14' }"
-            />
-          </a-card>
-        </a-col>
-      </a-row>
+    <!-- 统计卡片（基于当前数据源过滤后的全量数据计算） -->
+    <ARStatCards
+      :items="statCards"
+      :loading="loading"
+    />
 
+    <a-card :bordered="false">
       <!-- 搜索 -->
       <a-form
         layout="inline"
@@ -84,56 +47,49 @@
           <a-select
             v-model:value="query.threshold"
             style="width:120px"
+            @change="handleFilterChange"
           >
-            <a-select-option value="100">
+            <a-select-option :value="0">
+              全部
+            </a-select-option>
+            <a-select-option :value="100">
               >100ms
             </a-select-option>
-            <a-select-option value="500">
+            <a-select-option :value="500">
               >500ms
             </a-select-option>
-            <a-select-option value="1000">
+            <a-select-option :value="1000">
               >1s
             </a-select-option>
-            <a-select-option value="5000">
+            <a-select-option :value="5000">
               >5s
             </a-select-option>
           </a-select>
         </a-form-item>
         <a-form-item label="数据源">
           <a-select
-            v-model:value="query.dataSource"
-            placeholder="全部"
-            style="width:160px"
+            v-model:value="query.dataSourceId"
+            placeholder="全部数据源"
+            style="width:200px"
             allow-clear
+            @change="fetchData"
           >
             <a-select-option
               v-for="ds in dataSources"
-              :key="ds"
-              :value="ds"
+              :key="ds.id"
+              :value="ds.id"
             >
-              {{ ds }}
+              {{ ds.name }}
             </a-select-option>
           </a-select>
-        </a-form-item>
-        <a-form-item>
-          <a-button
-            type="primary"
-            size="small"
-            @click="fetchData"
-          >
-            <template #icon>
-              <SearchOutlined />
-            </template>
-            查询
-          </a-button>
         </a-form-item>
       </a-form>
 
       <a-divider />
 
-      <!-- 慢查询列表 -->
+      <!-- 慢查询列表（全量拉取后按阈值前端过滤、前端分页） -->
       <a-table
-        :data-source="list"
+        :data-source="pagedList"
         :columns="columns"
         :loading="loading"
         row-key="id"
@@ -142,13 +98,16 @@
         @change="handleTableChange"
       >
         <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'duration'">
-            <a-tag :color="record.duration > 5000 ? 'red' : record.duration > 1000 ? 'orange' : 'blue'">
-              {{ record.duration }}ms
+          <template v-if="column.key === 'queryTimeMs'">
+            <a-tag :color="record.queryTimeMs > 5000 ? 'red' : record.queryTimeMs > 1000 ? 'orange' : 'blue'">
+              {{ formatNumber(record.queryTimeMs) }}ms
             </a-tag>
           </template>
+          <template v-if="column.key === 'rowsSent'">
+            {{ formatNumber(record.rowsSent) }}
+          </template>
           <template v-if="column.key === 'action'">
-            <a @click="showDetail(record)">详情</a>
+            <a @click="showDetail(record as SlowQueryItem)">详情</a>
           </template>
         </template>
       </a-table>
@@ -167,22 +126,31 @@
         bordered
       >
         <a-descriptions-item label="SQL语句">
-          <pre style="max-height:300px;overflow:auto;background:#f5f5f5;padding:8px;border-radius:4px;font-size:12px">{{ detailItem?.sql }}</pre>
+          <pre style="max-height:300px;overflow:auto;background:#f5f5f5;padding:8px;border-radius:4px;font-size:12px">{{ detailItem?.queryText }}</pre>
         </a-descriptions-item>
         <a-descriptions-item label="执行耗时">
-          {{ detailItem?.duration }}ms
+          {{ formatNumber(detailItem?.queryTimeMs) }}ms
         </a-descriptions-item>
-        <a-descriptions-item label="数据源">
-          {{ detailItem?.dataSource }}
+        <a-descriptions-item label="锁等待耗时">
+          {{ formatNumber(detailItem?.lockTimeMs) }}ms
+        </a-descriptions-item>
+        <a-descriptions-item label="数据库">
+          {{ detailItem?.databaseName || '-' }}
         </a-descriptions-item>
         <a-descriptions-item label="执行时间">
-          {{ detailItem?.executedAt }}
+          {{ detailItem?.queryTime || '-' }}
+        </a-descriptions-item>
+        <a-descriptions-item label="扫描行数">
+          {{ formatNumber(detailItem?.rowsExamined) }}
         </a-descriptions-item>
         <a-descriptions-item label="返回行数">
-          {{ detailItem?.rows }}
+          {{ formatNumber(detailItem?.rowsSent) }}
         </a-descriptions-item>
         <a-descriptions-item label="用户">
-          {{ detailItem?.userName }}
+          {{ detailItem?.userName || '-' }}
+        </a-descriptions-item>
+        <a-descriptions-item label="主机信息">
+          {{ detailItem?.hostInfo || '-' }}
         </a-descriptions-item>
       </a-descriptions>
     </a-modal>
@@ -190,53 +158,88 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
-import { ReloadOutlined, SearchOutlined } from '@ant-design/icons-vue'
-import request from '@/utils/request'
+import { ref, reactive, computed, onMounted } from 'vue'
+import { ReloadOutlined } from '@ant-design/icons-vue'
+import ARStatCards from '@/components/ARStatCards/ARStatCards.vue'
+import type { StatCardItem } from '@/components/ARReportPage/types'
+import { slowQueryApi, dataSourceApi, type SlowQueryItem, type DataSourceItem } from '@/api/admin'
 
 const loading = ref(false)
-const list = ref<any[]>([])
+// 全量记录（后端 /export 返回过滤后全量，阈值过滤与分页在前端进行）
+const allRows = ref<SlowQueryItem[]>([])
+const dataSources = ref<DataSourceItem[]>([])
 const detailVisible = ref(false)
-const detailItem = ref<any>({})
-const dataSources = ref<string[]>(['核心数据库', '业务数据库', '日志数据库'])
+const detailItem = ref<SlowQueryItem | null>(null)
 
 const query = reactive({
-  threshold: '1000',
-  dataSource: undefined as string | undefined,
+  threshold: 1000,
+  dataSourceId: undefined as number | undefined,
 })
 
-const stats = reactive({
-  total: 0,
-  avgDuration: 0,
-  maxDuration: 0,
-  timeoutCount: 0,
-})
-
-const pagination = reactive({
+const paginationState = reactive({
   current: 1,
   pageSize: 20,
-  total: 0,
+})
+
+// ═══ 阈值过滤 + 前端分页 ═══
+const filteredList = computed(() =>
+  allRows.value.filter(r => (Number(r.queryTimeMs) || 0) > query.threshold)
+)
+
+// total 由阈值过滤后的数据集派生，过滤条件变化时自动同步
+const pagination = computed(() => ({
+  current: paginationState.current,
+  pageSize: paginationState.pageSize,
+  total: filteredList.value.length,
   showSizeChanger: true,
   showTotal: (t: number) => `共 ${t} 条`,
+}))
+
+const pagedList = computed(() => {
+  const start = (paginationState.current - 1) * paginationState.pageSize
+  return filteredList.value.slice(start, start + paginationState.pageSize)
 })
 
 const columns = [
-  { title: 'SQL语句', dataIndex: 'sql', key: 'sql', ellipsis: true, minWidth: 300 },
-  { title: '耗时', dataIndex: 'duration', key: 'duration', width: 100, sorter: true },
-  { title: '数据源', dataIndex: 'dataSource', key: 'dataSource', width: 130 },
-  { title: '执行时间', dataIndex: 'executedAt', key: 'executedAt', width: 170 },
-  { title: '返回行', dataIndex: 'rows', key: 'rows', width: 80 },
+  { title: 'SQL语句', dataIndex: 'queryText', key: 'queryText', ellipsis: true, minWidth: 300 },
+  { title: '耗时', dataIndex: 'queryTimeMs', key: 'queryTimeMs', width: 110 },
+  { title: '数据库', dataIndex: 'databaseName', key: 'databaseName', width: 130 },
+  { title: '执行时间', dataIndex: 'queryTime', key: 'queryTime', width: 170 },
+  { title: '返回行', dataIndex: 'rowsSent', key: 'rowsSent', width: 90, align: 'right' as const },
   { title: '操作用户', dataIndex: 'userName', key: 'userName', width: 120 },
   { title: '操作', key: 'action', width: 60 },
 ]
 
-function handleTableChange(pag: any) {
-  pagination.current = pag.current
-  pagination.pageSize = pag.pageSize
-  fetchData()
+// ═══ 统计卡片（基于阈值过滤后的数据集） ═══
+const statCards = computed<StatCardItem[]>(() => {
+  const durations = filteredList.value.map(r => Number(r.queryTimeMs) || 0)
+  const total = durations.length
+  const avg = total ? Math.round(durations.reduce((a, b) => a + b, 0) / total) : 0
+  const max = total ? Math.max(...durations) : 0
+  const over5s = durations.filter(d => d > 5000).length
+  return [
+    { label: '慢查询总数', value: total, suffix: '条' },
+    { label: '平均耗时', value: avg, suffix: 'ms' },
+    { label: '最长耗时', value: max, suffix: 'ms', valueStyle: { color: '#ff4d4f' } },
+    { label: '超过5s', value: over5s, suffix: '条', valueStyle: { color: '#faad14' } },
+  ]
+})
+
+function formatNumber(val: number | null | undefined): string {
+  if (val === null || val === undefined || isNaN(Number(val))) return '-'
+  return Number(val).toLocaleString('zh-CN')
 }
 
-function showDetail(record: any) {
+function handleFilterChange() {
+  paginationState.current = 1
+}
+
+function handleTableChange(pag: any) {
+  paginationState.current = pag.current
+  paginationState.pageSize = pag.pageSize
+}
+
+function showDetail(record: SlowQueryItem) {
   detailItem.value = record
   detailVisible.value = true
 }
@@ -244,36 +247,29 @@ function showDetail(record: any) {
 async function fetchData() {
   loading.value = true
   try {
-    const res = await request.get('/data-source/slow-query/list', {
-      params: { page: pagination.current, pageSize: pagination.pageSize }
-    })
-    const records = res?.records || []
-    list.value = records.map((r: any) => ({
-      id: r.id,
-      sql: r.queryText || '',
-      duration: r.queryTimeMs || 0,
-      dataSource: r.databaseName || (r.dataSourceId ? '数据源#' + r.dataSourceId : ''),
-      executedAt: r.queryTime || r.createTime || '',
-      rows: r.rowsSent || 0,
-      userName: r.userName || '',
-    }))
-    pagination.total = res?.total || 0
-    const durations = list.value.map((r: any) => r.duration).filter((d: number) => d > 0)
-    stats.total = pagination.total
-    stats.avgDuration = durations.length ? Math.round(durations.reduce((a: number, b: number) => a + b, 0) / durations.length) : 0
-    stats.maxDuration = durations.length ? Math.max(...durations) : 0
-    stats.timeoutCount = durations.filter((d: number) => d > 5000).length || durations.filter((d: number) => d > 1000).length
+    const res = await slowQueryApi.exportAll(query.dataSourceId)
+    allRows.value = res?.records || []
+    paginationState.current = 1
   } catch {
-    list.value = []
-    pagination.total = 0
-    stats.total = 0
-    stats.avgDuration = 0
-    stats.maxDuration = 0
-    stats.timeoutCount = 0
+    allRows.value = []
   } finally {
     loading.value = false
   }
 }
 
-onMounted(fetchData)
+onMounted(async () => {
+  fetchData()
+  try {
+    const res = await dataSourceApi.page({ page: 1, pageSize: 100 })
+    dataSources.value = res?.records || []
+  } catch (e) {
+    console.warn('[慢查询] 数据源列表获取失败', e)
+  }
+})
 </script>
+
+<style scoped>
+.search-form {
+  row-gap: 8px;
+}
+</style>

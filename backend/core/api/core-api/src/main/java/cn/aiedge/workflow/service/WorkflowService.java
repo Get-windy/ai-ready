@@ -37,6 +37,26 @@ public interface WorkflowService {
      */
     boolean deleteWorkflowDefinition(String definitionId, Long tenantId);
 
+    /**
+     * 更新流程定义（含节点，版本+1）
+     */
+    WorkflowDefinition updateWorkflowDefinition(String definitionId, WorkflowDefinition definition, Long tenantId);
+
+    /**
+     * 发布流程定义
+     */
+    boolean publishWorkflowDefinition(String definitionId, Long tenantId);
+
+    /**
+     * 停用流程定义
+     */
+    boolean disableWorkflowDefinition(String definitionId, Long tenantId);
+
+    /**
+     * 统计引用指定定义的流程实例数
+     */
+    long countDefinitionInstances(String definitionId);
+
     // ==================== 流程实例管理 ====================
 
     /**
@@ -69,6 +89,23 @@ public interface WorkflowService {
      * 取消流程
      */
     boolean cancelWorkflow(String instanceId, Long userId, String reason);
+
+    /**
+     * 按业务单据取消全部在途（审批中/已挂起）实例——防重场景使用：
+     * 同一 businessType+businessId 重新发起审批前调用，避免堆积多条进行中实例。
+     * 与 {@link #cancelWorkflow} 不同，本方法不校验申请人（由门面侧系统调用）。
+     *
+     * @return 实际取消的实例数
+     */
+    int cancelInFlightByBusiness(String businessType, Long businessId, Long operatorId, String reason);
+
+    /**
+     * 查询业务单据的在途实例（approving/suspended，取最新一条）——第三期影子转正式：
+     * 单据审批端点据此判断是否由引擎驱动审批。
+     *
+     * @return 含 instanceId 与 currentTaskId（无待办任务时为 null）的 Map；无在途实例返回 null
+     */
+    Map<String, Object> findInFlightByBusiness(String businessType, Long businessId);
 
     // ==================== 审批操作 ====================
 
@@ -128,6 +165,12 @@ public interface WorkflowService {
      */
     Map<String, Object> pageTasks(String tab, Long userId, int pageNum, int pageSize, Long tenantId);
 
+    /**
+     * 分页查询任务（带任务名/流程名过滤）
+     */
+    Map<String, Object> pageTasks(String tab, Long userId, int pageNum, int pageSize, Long tenantId,
+                                  String taskName, String processName);
+
     // ==================== 流程监控 ====================
 
     /**
@@ -139,4 +182,38 @@ public interface WorkflowService {
      * 流程干预（终止/挂起/恢复）
      */
     boolean interveneInstance(String instanceId, String action, Long userId);
+
+    // ==================== 任务级操作（task-management 页面） ====================
+
+    /**
+     * 获取流程实例详情（监控页，含审批记录与业务数据）
+     */
+    Map<String, Object> getInstanceDetail(String instanceId);
+
+    /**
+     * 获取任务详情（含所属流程与业务数据）
+     */
+    Map<String, Object> getTaskDetail(String taskId);
+
+    /**
+     * 按任务审批（action: approve/reject/return）
+     */
+    boolean approveTask(String taskId, Long userId, String action, String comment, String returnNode);
+
+    /**
+     * 按任务转交
+     */
+    boolean transferTask(String taskId, Long userId, Long targetUserId, String comment);
+
+    // ==================== 流程分析（process-analysis 页面） ====================
+
+    /**
+     * 流程分析汇总（状态分布/流程耗时/节点耗时，基于真实数据聚合）
+     */
+    Map<String, Object> getAnalysisSummary(Long tenantId);
+
+    /**
+     * 审批效率报表（按日聚合，日期格式 YYYY-MM-DD，闭区间）
+     */
+    Map<String, Object> getAnalysisReport(String startDate, String endDate, Long tenantId);
 }

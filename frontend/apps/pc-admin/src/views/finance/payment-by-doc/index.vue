@@ -1,79 +1,75 @@
 <template>
-  <ErrorBoundary>
-    <PageContainer title="按单付款">
-      <div class="search-area">
-        <a-form layout="inline">
-          <a-form-item>
-            <a-space>
-              <a-button
-                type="primary"
-                @click="handleSearch"
-              >
-                <template #icon>
-                  <SearchOutlined />
-                </template>查询
-              </a-button>
-              <a-button @click="handleReset">
-                <template #icon>
-                  <ClearOutlined />
-                </template>重置
-              </a-button>
-            </a-space>
-          </a-form-item>
-        </a-form>
-      </div>
-      <div class="table-area">
-        <a-table
-          :columns="columns"
-          :data-source="tableData"
-          :loading="loading"
-          :pagination="pagination"
-          row-key="id"
-          size="small"
-          @change="handleTableChange"
-        />
-      </div>
-    </PageContainer>
-  </ErrorBoundary>
+  <ARReportPage
+    title="按单付款"
+    :query-fields="queryFields"
+    :columns="columns"
+    :fetcher="fetcher"
+    page-param-style="pageNum"
+    export-file-name="按单付款"
+    row-key="id"
+  >
+    <template #bodyCell="{ column, text }">
+      <template v-if="column.dataIndex === 'status'">
+        <a-tag :color="STATUS_MAP[text]?.color || 'default'">
+          {{ STATUS_MAP[text]?.label || text }}
+        </a-tag>
+      </template>
+      <template v-else-if="['paymentAmount', 'verifiedAmount', 'pendingAmount'].includes(column.dataIndex as string)">
+        {{ formatMoney(text) }}
+      </template>
+    </template>
+  </ARReportPage>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
-import { SearchOutlined, ClearOutlined } from '@ant-design/icons-vue'
-import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import PageContainer from '@/components/PageContainer/PageContainer.vue'
-import request from '@/utils/request'
+import ARReportPage from '@/components/ARReportPage/ARReportPage.vue'
+import type { ReportQueryField } from '@/components/ARReportPage/types'
+import { paymentApi } from '@/api/finance'
 
-const loading = ref(false)
-const tableData = ref<any[]>([])
-const pagination = reactive({ current: 1, pageSize: 20, total: 0, showSizeChanger: true, showTotal: (t) => `共 ${t} 条` })
+// ═══ 付款单状态（与后端 PaymentStatus 一致） ═══
+const STATUS_MAP: Record<number, { label: string; color: string }> = {
+  [-1]: { label: '已取消', color: 'red' },
+  0: { label: '草稿', color: 'default' },
+  1: { label: '待审批', color: 'orange' },
+  2: { label: '已审批', color: 'blue' },
+  3: { label: '核销中', color: 'orange' },
+  4: { label: '已核销', color: 'green' },
+  5: { label: '已完成', color: 'green' }
+}
 
+const queryFields: ReportQueryField[] = [
+  { key: 'keyword', type: 'input', label: '关键字', placeholder: '付款单号/供应商', width: 180 },
+  {
+    key: 'status',
+    type: 'select',
+    label: '状态',
+    placeholder: '全部状态',
+    options: Object.entries(STATUS_MAP).map(([value, v]) => ({ label: v.label, value: Number(value) })),
+    width: 140
+  }
+]
+
+// ═══ 表格列（与后端 PaymentVO 字段一致） ═══
 const columns: any[] = [
-  { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
-  { title: '名称', dataIndex: 'name', key: 'name' },
-  { title: '描述', dataIndex: 'description', key: 'description', ellipsis: true },
-  { title: '状态', dataIndex: 'status', key: 'status', width: 80 },
+  { title: '付款单号', dataIndex: 'paymentNo', key: 'paymentNo', width: 170 },
+  { title: '供应商', dataIndex: 'supplierName', key: 'supplierName', width: 150, ellipsis: true },
+  { title: '订单号', dataIndex: 'orderNo', key: 'orderNo', width: 160 },
+  { title: '付款金额', dataIndex: 'paymentAmount', key: 'paymentAmount', width: 120, align: 'right' },
+  { title: '已核销', dataIndex: 'verifiedAmount', key: 'verifiedAmount', width: 110, align: 'right' },
+  { title: '待核销', dataIndex: 'pendingAmount', key: 'pendingAmount', width: 110, align: 'right' },
+  { title: '付款日期', dataIndex: 'paymentDate', key: 'paymentDate', width: 110 },
+  { title: '支付方式', dataIndex: 'paymentMethod', key: 'paymentMethod', width: 100 },
+  { title: '状态', dataIndex: 'status', key: 'status', width: 90, align: 'center' },
   { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 160 }
 ]
 
-async function loadData() {
-  loading.value = true
-  try {
-    const result = await request.get('/finance/payment-by-doc/page', { pageNum: pagination.current, pageSize: pagination.pageSize })
-    if (result?.records) { tableData.value = result.records; pagination.total = result.total }
-    else if (Array.isArray(result)) { tableData.value = result; pagination.total = result.length }
-  } catch (e) { tableData.value = [] }
-  finally { loading.value = false }
+function formatMoney(val: number | null | undefined): string {
+  if (val === null || val === undefined || isNaN(Number(val))) return '-'
+  return Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-function handleSearch() { pagination.current = 1; loadData() }
-function handleReset() { pagination.current = 1; loadData() }
-function handleTableChange(p) { pagination.current = p.current; pagination.pageSize = p.pageSize; loadData() }
-
-onMounted(loadData)
+// ═══ 数据请求：付款单分页（/erp/payment/page，pageNum/pageSize 风格） ═══
+function fetcher(params: Record<string, any>) {
+  return paymentApi.getPage(params)
+}
 </script>
-
-<style scoped>
-.search-area { background: #fff; padding: 16px 20px; border-radius: 8px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-.table-area { background: #fff; padding: 16px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-</style>

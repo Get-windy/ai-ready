@@ -539,7 +539,7 @@ const searchParams = reactive({
   warehouseName: '',
   productName: '',
   itemRemark: '',
-  status: undefined as number | undefined,
+  status: undefined as number | '' | undefined,
   generateType: '',
   settleStatus: '',
   salesType: '',
@@ -564,7 +564,7 @@ const searchParams = reactive({
   contactAddress: '',
   auditTime: undefined as string | undefined,
   // 按明细tab 新增查询条件
-  isGift: undefined as boolean | undefined,
+  isGift: undefined as any,
 })
 
 // ═══ 分页 ═══

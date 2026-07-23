@@ -15,6 +15,8 @@ public interface MoveService {
     boolean saveDetail(WmsMoveDetail detail);
     boolean updateDetail(WmsMoveDetail detail);
     List<WmsMoveDetail> listByTaskId(Long taskId);
+    // 明细整体保存（先删后插，仅待处理状态可操作）
+    void saveDetails(Long taskId, List<WmsMoveDetail> details);
     void startMove(Long taskId, Long userId, String userName);
     void executeMove(Long taskId, Long userId, String userName);
 }

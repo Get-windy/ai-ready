@@ -2,7 +2,7 @@
  * ERP 统一 API 模块
  * 涵盖采购/销售/库存各子模块的 API 接口
  */
-import request, { type ApiResponse } from '@/utils/request'
+import request, { type ApiResponse, type PageResponse } from '@/utils/request'
 
 // ── 通用类型 ──────────────────────────────────────────
 export interface PageQuery {
@@ -42,16 +42,50 @@ export interface PurchaseInbound {
   id: number; inboundNo: string; orderNo?: string; supplierName: string
   inboundDate: string; status: number; totalAmount?: number; creatorName?: string; createTime: string
 }
+/** 采购入库明细（对应后端 PurchaseInboundItem） */
+export interface PurchaseInboundItem {
+  id?: number; inboundId?: number; lineNo?: number
+  productId: number; productCode?: string; productName?: string
+  productSpec?: string; productUnit?: string
+  orderItemId?: number; orderQuantity?: number; inboundQuantity?: number; pendingQuantity?: number
+  unitPrice?: number; unitCost?: number; lineAmount?: number
+  taxRate?: number; taxAmount?: number; lineTotal?: number
+  batchNo?: string; productionDate?: string; validityDate?: string
+  qualityStatus?: string; qualityNote?: string; remark?: string
+}
+/** 采购入库单创建/更新载荷（对应后端 PurchaseInboundCreateDTO） */
+export interface PurchaseInboundPayload {
+  orderId?: number; orderNo?: string
+  supplierId?: number; supplierName?: string
+  contractId?: number; contractNo?: string
+  inboundDate?: string; inboundType?: number
+  warehouseId?: number; warehouseName?: string
+  purchaserId?: number; purchaserName?: string
+  departmentId?: number; departmentName?: string
+  trackingNumber?: string; logisticsCompany?: string
+  remark?: string; internalNote?: string
+  items?: Partial<PurchaseInboundItem>[]
+}
 export const inboundApi = {
   page(params: PageQuery): Promise<PageResult<PurchaseInbound>> {
     return request.get('/erp/purchase/inbound/page', params)
   },
   getById(id: number) { return request.get(`/erp/purchase/inbound/${id}`) },
-  create(data: any) { return request.post('/erp/purchase/inbound', data) },
-  update(id: number, data: any) { return request.put(`/erp/purchase/inbound/${id}`, data) },
+  getItems(id: number): Promise<PurchaseInboundItem[]> { return request.get(`/erp/purchase/inbound/${id}/items`) },
+  listByOrder(orderId: number) { return request.get(`/erp/purchase/inbound/order/${orderId}`) },
+  create(data: PurchaseInboundPayload) { return request.post('/erp/purchase/inbound', data) },
+  createFromOrder(orderId: number) { return request.post(`/erp/purchase/inbound/from-order/${orderId}`) },
+  update(id: number, data: PurchaseInboundPayload) { return request.put(`/erp/purchase/inbound/${id}`, data) },
   delete(id: number) { return request.delete(`/erp/purchase/inbound/${id}`) },
-  approve(id: number) { return request.post(`/erp/purchase/inbound/${id}/approve`) },
+  submit(id: number) { return request.post(`/erp/purchase/inbound/${id}/submit`) },
+  approve(id: number, note?: string) { return request.post(`/erp/purchase/inbound/${id}/approve`, null, { params: { note } }) },
+  reject(id: number, reason: string) { return request.post(`/erp/purchase/inbound/${id}/reject`, null, { params: { reason } }) },
+  receive(id: number) { return request.post(`/erp/purchase/inbound/${id}/receive`) },
+  qualityCheck(id: number, result: string) { return request.post(`/erp/purchase/inbound/${id}/quality-check`, null, { params: { result } }) },
   confirmWarehouse(id: number) { return request.post(`/erp/purchase/inbound/${id}/warehouse-confirm`) },
+  complete(id: number) { return request.post(`/erp/purchase/inbound/${id}/complete`) },
+  cancel(id: number, reason: string) { return request.post(`/erp/purchase/inbound/${id}/cancel`, null, { params: { reason } }) },
+  statistics() { return request.get('/erp/purchase/inbound/statistics') },
 }
 
 // ── 采购退货 ──────────────────────────────────────────
@@ -437,7 +471,7 @@ export const quotationApi = {
   update(id: number, data: any) { return request.put(`/crm/quotation/${id}`, data) },
   delete(id: number) { return request.delete(`/crm/quotation/${id}`) },
   send(id: number) { return request.post(`/crm/quotation/${id}/send`) },
-  convertToOrder(id: number) { return request.post(`/crm/quotation/${id}/convert-to-order`) },
+  convertToOrder(id: number) { return request.post(`/crm/quotation/${id}/convert`) },
 }
 
 // ── 销售换货 ──────────────────────────────────────────
@@ -1013,36 +1047,51 @@ export const stockAlertConfigApi = {
 }
 
 // ── BOM管理 ──────────────────────────────────────────
+/** BOM明细（对应后端 StockBomItem 实体） */
 export interface StockBomItem {
-  id: number
-  bomId: number
+  id?: number
+  bomId?: number
   productId: number
-  productName: string
-  unit: string
+  productCode?: string
+  productName?: string
+  productSpec?: string
+  productUnit?: string
   quantity: number
-  unitConsumption: number
-  lossRate?: number
-  sequence: number
+  unitCost?: number
+  cost?: number
   remark?: string
-  // Add other properties as needed
 }
 
+/** BOM主表（对应后端 StockBom 实体） */
 export interface StockBom {
   id: number
   bomNo: string
   bomName: string
   productId: number
+  productCode?: string
   productName: string
-  unit: string
+  productSpec?: string
+  productUnit?: string
+  outputQuantity?: number
+  totalCost?: number
+  bomType?: number
   status: number
-  version: string
-  revision?: number
   effectiveDate?: string
   expireDate?: string
   remark?: string
-  items: StockBomItem[]
+  items?: StockBomItem[]
   createTime: string
   updateTime: string
+}
+
+/** BOM创建/更新载荷（对应后端 StockBomController.CreateBomRequest） */
+export interface StockBomPayload {
+  bomName: string
+  productId: number
+  bomType?: number
+  outputQuantity?: number
+  remark?: string
+  items: Partial<StockBomItem>[]
 }
 
 export const stockBomApi = {
@@ -1055,10 +1104,10 @@ export const stockBomApi = {
   getItems(bomId: number): Promise<ApiResponse<StockBomItem[]>> {
     return request.get(`/erp/stock/bom/${bomId}/items`)
   },
-  create(data: StockBom): Promise<ApiResponse<StockBom>> {
+  create(data: StockBomPayload): Promise<ApiResponse<StockBom>> {
     return request.post('/erp/stock/bom', data)
   },
-  update(id: number, data: StockBom): Promise<ApiResponse<StockBom>> {
+  update(id: number, data: StockBomPayload): Promise<ApiResponse<StockBom>> {
     return request.put(`/erp/stock/bom/${id}`, data)
   },
   delete(id: number): Promise<ApiResponse<void>> {
@@ -1124,6 +1173,52 @@ export const stockInApi = {
   delete(id: number) { return request.delete(`/erp/stock-in/${id}`) },
   submit(id: number) { return request.post(`/erp/stock-in/${id}/submit`) },
   approve(id: number) { return request.post(`/erp/stock-in/${id}/approve`) },
+}
+
+// ── 其他出库单（库存出库：领用/赠送/样品/盘亏/其他） ──
+export interface StockOutOrder {
+  id: number; stockOutNo: string; stockOutType: number; stockOutTypeName?: string
+  warehouseId: number; warehouseName: string; handlerId?: number; handlerName?: string
+  stockOutDate: string; status: number; totalQuantity?: number; totalAmount?: number
+  summary?: string; remark?: string; creatorName?: string; createTime: string; items?: any[]
+}
+export const stockOutApi = {
+  getPage(params: PageQuery): Promise<PageResult<StockOutOrder>> {
+    return request.get('/erp/stock/out/page', params)
+  },
+  getById(id: number) { return request.get(`/erp/stock/out/${id}`) },
+  create(data: any) { return request.post('/erp/stock/out', data) },
+  update(id: number, data: any) { return request.put(`/erp/stock/out/${id}`, data) },
+  delete(id: number) { return request.delete(`/erp/stock/out/${id}`) },
+  submit(id: number) { return request.post(`/erp/stock/out/${id}/submit`) },
+  approve(id: number, note?: string) { return request.post(`/erp/stock/out/${id}/approve`, null, { params: { note } }) },
+  reject(id: number, reason: string) { return request.post(`/erp/stock/out/${id}/reject`, null, { params: { reason } }) },
+  complete(id: number) { return request.post(`/erp/stock/out/${id}/complete`) },
+  cancel(id: number, reason?: string) { return request.post(`/erp/stock/out/${id}/cancel`, null, { params: { reason } }) },
+  getItems(id: number) { return request.get(`/erp/stock/out/${id}/items`) },
+}
+
+// ── 其他入库单（库存入库：盘盈/获赠/退货入库/其他） ──
+export interface WarehouseStockInOrder {
+  id: number; stockInNo: string; stockInType: number; stockInTypeName?: string
+  warehouseId: number; warehouseName: string; handlerId?: number; handlerName?: string
+  stockInDate: string; status: number; totalQuantity?: number; totalAmount?: number
+  summary?: string; remark?: string; creatorName?: string; createTime: string; items?: any[]
+}
+export const warehouseStockInApi = {
+  getPage(params: PageQuery): Promise<PageResult<WarehouseStockInOrder>> {
+    return request.get('/erp/stock/in/page', params)
+  },
+  getById(id: number) { return request.get(`/erp/stock/in/${id}`) },
+  create(data: any) { return request.post('/erp/stock/in', data) },
+  update(id: number, data: any) { return request.put(`/erp/stock/in/${id}`, data) },
+  delete(id: number) { return request.delete(`/erp/stock/in/${id}`) },
+  submit(id: number) { return request.post(`/erp/stock/in/${id}/submit`) },
+  approve(id: number, note?: string) { return request.post(`/erp/stock/in/${id}/approve`, null, { params: { note } }) },
+  reject(id: number, reason: string) { return request.post(`/erp/stock/in/${id}/reject`, null, { params: { reason } }) },
+  complete(id: number) { return request.post(`/erp/stock/in/${id}/complete`) },
+  cancel(id: number, reason?: string) { return request.post(`/erp/stock/in/${id}/cancel`, null, { params: { reason } }) },
+  getItems(id: number) { return request.get(`/erp/stock/in/${id}/items`) },
 }
 
 // ── 库存盘点 ──────────────────────────────────────────
@@ -1286,6 +1381,16 @@ export const saleStatsApi = {
   get(): Promise<ApiResponse<SaleStats>> { return request.get('/erp/sale/order/stats') }
 }
 
+/** 订单处理中心统计卡片（对应后端 /center/stats 返回字段） */
+export interface OrderCenterStats {
+  totalOrders: number
+  pendingOutbound: number
+  pendingShip: number
+  outboundCount: number
+  shippedCount: number
+  completedCount: number
+}
+
 export const saleOrderApi = {
   getPage(params: any): Promise<PageResult<SaleOrder>> { return request.get('/erp/sale/order/page', params) },
   getById(id: number) { return request.get(`/erp/sale/order/${id}`) },
@@ -1330,6 +1435,78 @@ export const saleOrderApi = {
     formData.append('file', file)
     return request.post('/erp/sale/order/import', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
   },
+  /** 客户信用额度 */
+  getCustomerCredit(customerId: number) { return request.get(`/erp/sale/order/customer-credit/${customerId}`) },
+  /** 客户订金余额 */
+  getCustomerDeposits(customerId: number) { return request.get(`/erp/sale/order/customer-deposits/${customerId}`) },
+  /** 库存查询 */
+  getStockDetail(productId: number, warehouseId: number) { return request.get(`/erp/stock/${productId}/${warehouseId}`) },
+  /** 商品汇总 */
+  productSummary(params: any) { return request.get('/erp/sale/order/product-summary', params) },
+  /** 批量更新物流备注 */
+  batchLogisticsRemark(ids: number[], remark: string) { return request.post('/erp/sale/order/batch-logistics-remark', { ids, remark }) },
+}
+
+// ── 销售价格跟踪（/api/sales/price-track） ─────────────
+// 后端 SalesPriceTrackController 复用销售明细查询，返回裸 Page<Map>，
+// 拦截器对 { records, total } 透传不拆包；行字段取 buildRowMap 的常用列
+
+/** 销售价格跟踪查询条件（与后端 SalesDetailQueryDTO 常用字段对齐） */
+export interface SalesPriceTrackQuery {
+  current?: number
+  size?: number
+  /** 开始日期 yyyy-MM-dd */
+  startDate?: string
+  /** 结束日期 yyyy-MM-dd */
+  endDate?: string
+  /** 商品名称（明细级模糊） */
+  productName?: string
+  /** 货号 */
+  productCode?: string
+  /** 客户名称 */
+  customerName?: string
+  /** 单据编号 */
+  documentNo?: string
+  /** 最低价 */
+  minPrice?: number
+  /** 最高价 */
+  maxPrice?: number
+}
+
+/** 销售价格跟踪行（后端 buildRowMap 常用列，明细级：每行=一条出库明细） */
+export interface SalesPriceTrackItem {
+  docDate: string
+  docNo: string
+  docType: string
+  warehouseName: string
+  customerName: string
+  customerCode: string
+  productName: string
+  productCode: string
+  barcode: string
+  specification: string
+  model: string
+  origin: string
+  brand: string
+  salesQuantity: number
+  unitPrice: number
+  discountedPrice: number
+  discountRate: number
+  amount: number
+  wholesalePrice: number
+  retailPrice: number
+  minSalePrice: number
+  costPrice: number
+  grossProfit: number
+  handlerName: string
+  createTime: string
+}
+
+export const salesPriceTrackApi = {
+  /** 分页查询销售价格跟踪（明细级，按单据日期倒序） */
+  page(params?: SalesPriceTrackQuery): Promise<PageResponse<SalesPriceTrackItem>> {
+    return request.get('/sales/price-track/page', params)
+  }
 }
 
 // ── 采购订单 ──────────────────────────────────────────
@@ -1505,6 +1682,33 @@ export const memberApi = {
       const list = res?.data || res || []
       return list.find((p: any) => p.partyCode === 'WALKIN' || p.party_code === 'WALKIN') || null
     })
+  },
+  /** 会员分页列表 */
+  list(params: { pageNum?: number; pageSize?: number; keyword?: string }): Promise<PageResult<any>> {
+    return request.get('/erp/party/page', params)
+  },
+  /** 会员分页查询 */
+  page(params: { pageNum?: number; pageSize?: number; keyword?: string }): Promise<PageResult<any>> {
+    return request.get('/erp/party/page', params)
+  },
+  /** 根据ID获取会员 */
+  getById(id: number): Promise<any> {
+    return request.get(`/erp/party/${id}`)
+  },
+  /** 新增会员 */
+  create(data: Partial<any>): Promise<any> {
+    return request.post('/erp/party', data)
+  },
+  /** 更新会员 */
+  update(id: number, data: Partial<any>): Promise<any> {
+    return request.put(`/erp/party/${id}`, data)
+  },
+  /** 调整积分（支持对象参数或独立参数） */
+  adjustPoints(idOrPayload: number | { memberId: number; points: number; reason?: string }, points?: number, reason?: string): Promise<any> {
+    if (typeof idOrPayload === 'object') {
+      return request.post(`/erp/party/${idOrPayload.memberId}/adjust-points`, null, { params: { points: idOrPayload.points, reason: idOrPayload.reason } })
+    }
+    return request.post(`/erp/party/${idOrPayload}/adjust-points`, null, { params: { points, reason } })
   },
 }
 

@@ -1,86 +1,76 @@
 <template>
-  <ErrorBoundary>
-    <PageContainer title="往来余额表">
-      <div class="search-area">
-        <a-form layout="inline">
-          <a-form-item label="日期范围">
-            <a-range-picker
-              v-model:value="dateRange"
-              style="width: 220px"
-            />
-          </a-form-item>
-          <a-form-item>
-            <a-space>
-              <a-button
-                type="primary"
-                @click="handleSearch"
-              >
-                <template #icon>
-                  <SearchOutlined />
-                </template>查询
-              </a-button>
-              <a-button @click="handleReset">
-                <template #icon>
-                  <ClearOutlined />
-                </template>重置
-              </a-button>
-            </a-space>
-          </a-form-item>
-        </a-form>
-      </div>
-      <div class="table-area">
-        <a-table
-          :columns="columns"
-          :data-source="tableData"
-          :loading="loading"
-          :pagination="pagination"
-          row-key="id"
-          size="small"
-          @change="handleTableChange"
+  <ARReportPage
+    ref="reportRef"
+    title="往来余额表"
+    :query-fields="queryFields"
+    :columns="columns"
+    :fetcher="fetcher"
+    export-file-name="往来余额表"
+    :row-key="(record: any) => `${record.partnerType}-${record.partnerId}`"
+  >
+    <template #extra-fields>
+      <a-form-item label="仅非零余额">
+        <a-switch
+          v-model:checked="onlyNonZero"
+          @change="reportRef?.reload()"
         />
-      </div>
-    </PageContainer>
-  </ErrorBoundary>
+      </a-form-item>
+    </template>
+    <template #bodyCell="{ column, text }">
+      <template v-if="column.dataIndex === 'partnerType'">
+        <a-tag :color="text === 'customer' ? 'blue' : 'purple'">
+          {{ text === 'customer' ? '客户' : text === 'supplier' ? '供应商' : text }}
+        </a-tag>
+      </template>
+      <template v-else-if="['receivableBalance', 'payableBalance', 'preReceiptBalance', 'prePaymentBalance', 'netBalance'].includes(column.dataIndex as string)">
+        {{ formatMoney(text) }}
+      </template>
+    </template>
+  </ARReportPage>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
-import { SearchOutlined, ClearOutlined } from '@ant-design/icons-vue'
-import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import PageContainer from '@/components/PageContainer/PageContainer.vue'
-import request from '@/utils/request'
+import { ref } from 'vue'
+import ARReportPage from '@/components/ARReportPage/ARReportPage.vue'
+import type { ReportQueryField } from '@/components/ARReportPage/types'
+import { financeAnalyticsApi } from '@/api/analytics'
 
-const loading = ref(false)
-const tableData = ref<any[]>([])
-const dateRange = ref(null)
-const pagination = reactive({ current: 1, pageSize: 20, total: 0, showSizeChanger: true, showTotal: (t) => `共 ${t} 条` })
+const reportRef = ref<InstanceType<typeof ARReportPage>>()
+const onlyNonZero = ref(false)
 
-const columns: any[] = [
-  { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
-  { title: '名称', dataIndex: 'name', key: 'name', width: 150 },
-  { title: '描述', dataIndex: 'description', key: 'description', ellipsis: true },
-  { title: '状态', dataIndex: 'status', key: 'status', width: 80 },
-  { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 160 }
+const queryFields: ReportQueryField[] = [
+  {
+    key: 'partnerType',
+    type: 'select',
+    label: '单位类型',
+    placeholder: '全部',
+    options: [
+      { label: '客户', value: 'customer' },
+      { label: '供应商', value: 'supplier' }
+    ]
+  },
+  { key: 'keyword', type: 'input', label: '关键字', placeholder: '单位名称/ID', width: 180 }
 ]
 
-async function loadData() {
-  loading.value = true
-  try {
-    const result = await request.get('/analytics/ar-balance-sheet/page', { pageNum: pagination.current, pageSize: pagination.pageSize })
-    if (result?.records) { tableData.value = result.records; pagination.total = result.total }
-    else if (Array.isArray(result)) { tableData.value = result; pagination.total = result.length }
-  } catch (e) { tableData.value = [] }
-  finally { loading.value = false }
+// ═══ 表格列 ═══
+const columns: any[] = [
+  { title: '往来单位', dataIndex: 'partnerName', key: 'partnerName', width: 180, ellipsis: true },
+  { title: '类型', dataIndex: 'partnerType', key: 'partnerType', width: 90 },
+  { title: '应收余额', dataIndex: 'receivableBalance', key: 'receivableBalance', width: 120, align: 'right' },
+  { title: '应付余额', dataIndex: 'payableBalance', key: 'payableBalance', width: 120, align: 'right' },
+  { title: '预收余额', dataIndex: 'preReceiptBalance', key: 'preReceiptBalance', width: 120, align: 'right' },
+  { title: '预付余额', dataIndex: 'prePaymentBalance', key: 'prePaymentBalance', width: 120, align: 'right' },
+  { title: '净余额', dataIndex: 'netBalance', key: 'netBalance', width: 120, align: 'right' },
+  { title: '最后业务日期', dataIndex: 'lastBizDate', key: 'lastBizDate', width: 120 }
+]
+
+function formatMoney(val: number | null | undefined): string {
+  if (val === null || val === undefined || isNaN(Number(val))) return '-'
+  return Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-function handleSearch() { pagination.current = 1; loadData() }
-function handleReset() { dateRange.value = null; pagination.current = 1; loadData() }
-function handleTableChange(p) { pagination.current = p.current; pagination.pageSize = p.pageSize; loadData() }
-
-onMounted(loadData)
+// ═══ 数据请求 ═══
+function fetcher(params: Record<string, any>) {
+  return financeAnalyticsApi.partnerBalancePage({ ...params, onlyNonZero: onlyNonZero.value })
+}
 </script>
-
-<style scoped>
-.search-area { background: #fff; padding: 16px 20px; border-radius: 8px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-.table-area { background: #fff; padding: 16px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-</style>

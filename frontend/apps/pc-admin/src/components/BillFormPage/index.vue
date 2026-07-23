@@ -143,6 +143,7 @@
             v-model:active-key="activeTab"
             size="small"
             class="bottom-tabs"
+            @change="(key: string) => emit('tabChange', key)"
           >
             <a-tab-pane
               v-for="tab in tabs"
@@ -371,6 +372,7 @@ const emit = defineEmits<{
   'searchBtn': [fieldKey: string, btnText: string]
   'draft': []
   'submit': []
+  'tabChange': [tabKey: string]
 }>()
 
 const activeTab = ref(props.tabs?.[0]?.key || '')

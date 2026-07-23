@@ -1,5 +1,6 @@
 package cn.aiedge.wms.inventory.service.impl;
 
+import cn.aiedge.erp.stock.service.StockService;
 import cn.aiedge.wms.entity.WmsInventory;
 import cn.aiedge.wms.entity.WmsInventoryLog;
 import cn.aiedge.wms.enums.InventoryChangeType;
@@ -19,6 +20,24 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * WMS 库存服务（库位级明细账 wms_inventory + wms_inventory_log）。
+ *
+ * <p><b>双库存轨镜像决策</b>：系统存在两套库存账——本轨（WMS 域，库位级明细）与
+ * erp_stock（ERP 域，仓库级汇总，由 erp-stock 模块维护）。为消除两账漂移，
+ * increase/decrease 在本轨更新成功后，于同一事务内将增量按 (productId, warehouseId)
+ * 镜像到 erp_stock（库位/批次维度在 ERP 轨丢弃）。</p>
+ *
+ * <ul>
+ *   <li>increase 镜像失败（返回 false）时抛异常回滚，保持两轨一致，不允许只成功一轨；</li>
+ *   <li>decrease 镜像返回 false 时<b>不阻断</b>本轨作业：历史漂移已导致 erp_stock 存量
+ *       可能小于 WMS 轨，若强制回滚会让历史数据问题卡死仓库现场作业；此处仅记 error
+ *       日志（含 productId/warehouseId/应扣量）作为后续对账线索，事务继续提交。</li>
+ * </ul>
+ *
+ * <p>freeze/unfreeze/move 不改变仓库级总量（冻结是可用量内部转移、移库仅库位间转移），
+ * 故不镜像。</p>
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -26,13 +45,17 @@ public class InventoryServiceImpl implements InventoryService {
 
     private final WmsInventoryMapper inventoryMapper;
     private final WmsInventoryLogMapper inventoryLogMapper;
+    private final StockService stockService;
 
     @Override
     public WmsInventory getByUniqueKey(Long productId, Long warehouseId, Long locationId, String batchNo) {
         LambdaQueryWrapper<WmsInventory> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(WmsInventory::getProductId, productId);
         wrapper.eq(WmsInventory::getWarehouseId, warehouseId);
-        wrapper.eq(WmsInventory::getLocationId, locationId);
+        // null 视为仓库级库存（无库位/无批次），显式匹配 IS NULL，避免 "= null" 永不命中导致重复插行
+        wrapper.isNull(locationId == null, WmsInventory::getLocationId);
+        wrapper.eq(locationId != null, WmsInventory::getLocationId, locationId);
+        wrapper.isNull(batchNo == null, WmsInventory::getBatchNo);
         wrapper.eq(batchNo != null, WmsInventory::getBatchNo, batchNo);
         return inventoryMapper.selectOne(wrapper);
     }
@@ -130,6 +153,14 @@ public class InventoryServiceImpl implements InventoryService {
                 beforeQty, inventory.getQuantity(),
                 beforeAvailable, inventory.getAvailableQuantity(),
                 sourceType, sourceId, sourceNo, operatorId, operatorName);
+
+        // 镜像增量到 ERP 轨仓库级汇总账 erp_stock（同事务；库位/批次维度丢弃）。
+        // 返回 false 视为两轨不一致，抛异常回滚，不允许只成功一轨。
+        if (!stockService.increaseStock(productId, warehouseId, quantity)) {
+            throw new WmsBusinessException(
+                    String.format("ERP轨库存镜像失败(increaseStock返回false): productId=%d, warehouseId=%d, quantity=%s",
+                            productId, warehouseId, quantity));
+        }
     }
 
     @Override
@@ -165,6 +196,14 @@ public class InventoryServiceImpl implements InventoryService {
                 beforeQty, inventory.getQuantity(),
                 beforeAvailable, inventory.getAvailableQuantity(),
                 sourceType, sourceId, sourceNo, operatorId, operatorName);
+
+        // 镜像扣减到 ERP 轨仓库级汇总账 erp_stock（同事务；库位/批次维度丢弃）。
+        // 返回 false 表示 ERP 轨存量不足（历史漂移所致），不回滚本轨——避免历史漂移
+        // 卡死仓库现场作业；记 error 日志留作后续对账线索，事务继续提交。
+        if (!stockService.decreaseStock(productId, warehouseId, quantity)) {
+            log.error("ERP轨库存镜像扣减失败(decreaseStock返回false，疑为历史漂移): productId={}, warehouseId={}, 应扣量={}, traceId={}",
+                    productId, warehouseId, quantity, traceId);
+        }
     }
 
     @Override
@@ -352,7 +391,10 @@ public class InventoryServiceImpl implements InventoryService {
         LambdaQueryWrapper<WmsInventory> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(WmsInventory::getProductId, productId);
         wrapper.eq(WmsInventory::getWarehouseId, warehouseId);
-        wrapper.eq(WmsInventory::getLocationId, locationId);
+        // null 视为仓库级库存（无库位/无批次），显式匹配 IS NULL，避免 "= null" 永不命中导致重复插行
+        wrapper.isNull(locationId == null, WmsInventory::getLocationId);
+        wrapper.eq(locationId != null, WmsInventory::getLocationId, locationId);
+        wrapper.isNull(batchNo == null, WmsInventory::getBatchNo);
         wrapper.eq(batchNo != null, WmsInventory::getBatchNo, batchNo);
         wrapper.last("FOR UPDATE");
         return inventoryMapper.selectOne(wrapper);

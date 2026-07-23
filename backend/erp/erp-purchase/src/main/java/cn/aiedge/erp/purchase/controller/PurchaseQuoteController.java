@@ -3,6 +3,8 @@ package cn.aiedge.erp.purchase.controller;
 import cn.aiedge.erp.purchase.entity.PurchaseSupplierQuote;
 import cn.aiedge.erp.purchase.entity.PurchaseQuoteItem;
 import cn.aiedge.erp.purchase.service.PurchaseQuoteService;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,6 +20,7 @@ import java.util.Map;
 public class PurchaseQuoteController {
 
     private final PurchaseQuoteService quoteService;
+    private final ObjectMapper objectMapper;
 
     /**
      * 提交报价
@@ -25,8 +28,9 @@ public class PurchaseQuoteController {
     @PostMapping
     public ResponseEntity<PurchaseSupplierQuote> submitQuote(
             @RequestBody Map<String, Object> request) {
-        PurchaseSupplierQuote quote = (PurchaseSupplierQuote) request.get("quote");
-        List<PurchaseQuoteItem> items = (List<PurchaseQuoteItem>) request.get("items");
+        PurchaseSupplierQuote quote = objectMapper.convertValue(request.get("quote"), PurchaseSupplierQuote.class);
+        List<PurchaseQuoteItem> items = objectMapper.convertValue(request.get("items"),
+                new TypeReference<List<PurchaseQuoteItem>>() {});
         PurchaseSupplierQuote submitted = quoteService.submitQuote(quote, items);
         return ResponseEntity.ok(submitted);
     }

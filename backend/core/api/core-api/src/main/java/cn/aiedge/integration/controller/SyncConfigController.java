@@ -65,7 +65,7 @@ public class SyncConfigController {
     public ResponseEntity<ApiResponse<SyncDataSourceConfig>> getConfig(@PathVariable Long id) {
         SyncDataSourceConfig config = syncConfigService.getConfig(id);
         if (config == null) {
-            return ResponseEntity.ok(ApiResponse.success(null));
+            return ResponseEntity.ok(ApiResponse.success((SyncDataSourceConfig) null));
         }
         return ResponseEntity.ok(ApiResponse.success(config));
     }

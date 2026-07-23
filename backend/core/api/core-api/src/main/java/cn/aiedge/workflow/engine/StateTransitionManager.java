@@ -28,10 +28,12 @@ public class StateTransitionManager {
         // 初始化状态转移规则
         TRANSITIONS.put("draft", new HashSet<>(Arrays.asList("pending", "cancelled")));
         TRANSITIONS.put("pending", new HashSet<>(Arrays.asList("approving", "cancelled")));
-        TRANSITIONS.put("approving", new HashSet<>(Arrays.asList("approved", "rejected", "cancelled", "withdrawn")));
+        TRANSITIONS.put("approving", new HashSet<>(Arrays.asList("approved", "rejected", "cancelled", "withdrawn", "suspended", "terminated")));
         TRANSITIONS.put("approved", new HashSet<>(Arrays.asList("completed", "cancelled")));
         TRANSITIONS.put("rejected", new HashSet<>(Arrays.asList("resubmit", "cancelled")));
         TRANSITIONS.put("withdrawn", new HashSet<>(Arrays.asList("resubmit", "cancelled")));
+        TRANSITIONS.put("suspended", new HashSet<>(Arrays.asList("approving", "terminated", "cancelled")));
+        TRANSITIONS.put("terminated", Collections.emptySet());
         TRANSITIONS.put("completed", Collections.emptySet());
         TRANSITIONS.put("cancelled", Collections.emptySet());
     }
@@ -110,7 +112,7 @@ public class StateTransitionManager {
      * @return 是否是终态
      */
     public boolean isFinalState(String status) {
-        return "completed".equals(status) || "cancelled".equals(status);
+        return "completed".equals(status) || "cancelled".equals(status) || "terminated".equals(status);
     }
 
     /**
@@ -158,6 +160,8 @@ public class StateTransitionManager {
             case "rejected" -> "已拒绝";
             case "cancelled" -> "已取消";
             case "withdrawn" -> "已撤回";
+            case "suspended" -> "已挂起";
+            case "terminated" -> "已终止";
             case "completed" -> "已完成";
             case "resubmit" -> "重新提交";
             default -> status;

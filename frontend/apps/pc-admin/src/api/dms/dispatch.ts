@@ -1,51 +1,31 @@
 /**
- * DMS 调度管理 API 模块
+ * DMS 智能调度 API 模块
+ * 后端: DispatchController (/api/dms/dispatch)
  */
 import request from '@/utils/request'
-
-// ── 调度 ──────────────────────────────────────────
-export interface DmsDispatchOrder {
-  id: number
-  orderNo: string
-  riderId: number
-  riderName: string
-  riderPhone: string
-  status: number
-  dispatchTime: string
-  completeTime: string
-  remark: string
-  createTime: string
-}
-
-export interface DmsDispatchCandidate {
-  riderId: number
-  riderName: string
-  phone: string
-  distance: number
-  ratingScore: number
-  totalOrders: number
-  online: boolean
-}
-
-export interface DmsDispatchRequest {
-  orderId: number
-  riderId: number
-  remark?: string
-}
+import type { DmsRider } from './rider'
 
 export const dispatchApi = {
-  /** 自动调度 */
-  autoDispatch(data: { orderId: number; strategy?: string }) { return request.post('/dms/dispatch/auto', data) },
+  /** 自动调度（对待分配任务批量派单，无请求体） */
+  autoDispatch() { return request.post('/dms/dispatch/auto') },
 
-  /** 指派骑手 */
-  assign(data: DmsDispatchRequest) { return request.post('/dms/dispatch/assign', data) },
+  /** 手动指派骑手 */
+  assign(taskId: number, riderId: number) {
+    return request.post(`/dms/dispatch/${taskId}/assign`, null, { params: { riderId } })
+  },
 
-  /** 重新指派 */
-  reassign(data: DmsDispatchRequest) { return request.post('/dms/dispatch/reassign', data) },
+  /** 改派任务 */
+  reassign(taskId: number, fromRiderId: number, toRiderId: number) {
+    return request.post(`/dms/dispatch/${taskId}/reassign`, null, { params: { fromRiderId, toRiderId } })
+  },
 
   /** 获取候选骑手列表 */
-  candidates(params: { orderId: number; lng?: number; lat?: number }) { return request.get('/dms/dispatch/candidates', { params }) },
+  candidates(taskId: number): Promise<DmsRider[]> {
+    return request.get('/dms/dispatch/candidates', { params: { taskId } })
+  },
 
-  /** 电子围栏检测 */
-  fenceCheck(data: { riderId: number; lng: number; lat: number; fenceId?: number }) { return request.post('/dms/dispatch/fence/check', data) },
+  /** 电子围栏校验（骑手是否在任务配送围栏内） */
+  fenceCheck(taskId: number, riderId: number): Promise<boolean> {
+    return request.post(`/dms/dispatch/${taskId}/fence-check`, null, { params: { riderId } })
+  },
 }

@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.aiedge.erp.purchase.mapper.PurchaseOrderMapper">
+
+    <!-- ============================================================ -->
+    <!-- 按单据Tab查询：主表+子表JOIN，一次性返回39列+名称解析           -->
+    <!-- ============================================================ -->
+    <select id="selectDocListWithNames" resultType="cn.aiedge.erp.purchase.dto.PurchaseOrderListDTO">
+        SELECT
+            o.id,
+            o.order_date,
+            o.order_no,
+            o.source_bill_no,
+            o.status,
+            o.product_amount,
+            o.discount_amount,
+            o.bill_amount,
+            o.settled_amount,
+            o.total_quantity,
+            o.expected_receive_time,
+            o.submit_time,
+            o.remark,
+            o.create_time,
+            COALESCE(o.received_amount, 0) AS received_quantity,
+            GREATEST(COALESCE(o.total_quantity, 0) - COALESCE(o.received_amount, 0), 0) AS unreceive_quantity,
+
+            /* 名称解析 */
+            w.warehouse_name AS warehouse_name,
+            u_purchaser.nickname AS purchaser_name,
+            d.dept_name AS dept_name,
+            u_creator.nickname AS create_by_name,
+            u_submitter.nickname AS submitter_name,
+
+            /* 供应商快照 */
+            ps.supplier_name,
+            ps.supplier_code,
+            ps.contact_name,
+            ps.contact_phone,
+            ps.contact_address,
+            ps.supplier_remark,
+
+            /* 扩展信息 */
+            ei.summary,
+            ei.attachment,
+            ei.ext_num_1,
+            ei.ext_num_2,
+            ei.ext_text_1,
+            ei.ext_text_2,
+            ei.ext_text_3,
+            ei.print_count,
+
+            /* 聚合：weight/volume来自明细表 */
+            COALESCE(item_agg.total_weight, 0) AS weight,
+            COALESCE(item_agg.total_volume, 0) AS volume,
+
+            /* 聚合：退货数量/金额来自退货明细表 */
+            COALESCE(ret_agg.return_qty, 0) AS return_quantity,
+            COALESCE(ret_agg.return_amt, 0) AS return_amount,
+
+            /* 其他费用来自结算表 */
+            COALESCE(st.other_expense, 0) AS other_expense,
+
+            /* 审核人：取最近一次审批动作的操作人 */
+            (SELECT at2.operator_name
+             FROM erp_purchase_order_audit_trail at2
+             WHERE at2.order_id = o.id
+               AND at2.action = 'approve'
+             ORDER BY at2.operate_time DESC
+             LIMIT 1) AS auditor_name
+
+        FROM erp_purchase_order o
+
+        /* 名称解析JOIN */
+        LEFT JOIN erp_warehouse w ON w.id = o.warehouse_id AND w.deleted = 0
+        LEFT JOIN sys_user u_purchaser ON u_purchaser.id = o.purchaser_id AND u_purchaser.deleted = 0
+        LEFT JOIN sys_dept d ON d.id = o.dept_id AND d.deleted = 0
+        LEFT JOIN sys_user u_creator ON u_creator.id = o.create_by AND u_creator.deleted = 0
+        LEFT JOIN sys_user u_submitter ON u_submitter.id = o.submitter_id AND u_submitter.deleted = 0
+
+        /* 子表JOIN */
+        LEFT JOIN erp_purchase_order_partner_snapshot ps ON ps.order_id = o.id
+        LEFT JOIN erp_purchase_order_ext_info ei ON ei.order_id = o.id
+        LEFT JOIN erp_purchase_order_settlement st ON st.order_id = o.id
+
+        /* 聚合子查询 */
+        LEFT JOIN (
+            SELECT order_id,
+                   SUM(COALESCE(weight, 0)) AS total_weight,
+                   SUM(COALESCE(volume, 0)) AS total_volume
+            FROM erp_purchase_order_item
+            GROUP BY order_id
+        ) item_agg ON item_agg.order_id = o.id
+        LEFT JOIN (
+            SELECT ri.purchase_order_id,
+                   SUM(COALESCE(ri.return_quantity, 0)) AS return_qty,
+                   SUM(COALESCE(ri.line_amount, 0)) AS return_amt
+            FROM erp_purchase_return_item ri
+            INNER JOIN erp_purchase_return r ON r.id = ri.return_id AND r.deleted = 0
+            GROUP BY ri.purchase_order_id
+        ) ret_agg ON ret_agg.purchase_order_id = o.id
+
+        ${ew.customSqlSegment}
+    </select>
+
+    <!-- ============================================================ -->
+    <!-- 按明细Tab查询：明细+主表JOIN，返回59列+名称解析                -->
+    <!-- 以明细行为主表，每条记录是一个明细行                             -->
+    <!-- ============================================================ -->
+    <select id="selectDetailListWithNames" resultType="cn.aiedge.erp.purchase.dto.PurchaseDetailListDTO">
+        SELECT
+            /* 明细ID和订单ID */
+            i.id AS item_id,
+            i.order_id,
+
+            /* 单据级字段 */
+            o.order_date,
+            o.order_no,
+            o.status,
+            o.submit_time,
+            o.create_time,
+            o.remark,
+
+            /* 名称解析 */
+            w.warehouse_name AS warehouse_name,
+            u_purchaser.nickname AS purchaser_name,
+            d.dept_name AS dept_name,
+            u_creator.nickname AS create_by_name,
+
+            /* 供应商快照 */
+            ps.supplier_name,
+            ps.supplier_code,
+            ps.contact_name,
+            ps.contact_phone,
+            ps.contact_address,
+            ps.supplier_remark,
+
+            /* 扩展信息 */
+            ei.summary,
+            ei.attachment,
+            ei.print_count,
+
+            /* 明细级字段 */
+            i.product_name,
+            i.item_code,
+            i.barcode,
+            i.specification,
+            i.model,
+            i.origin,
+            i.brand,
+            i.custom_field_1,
+            i.custom_field_2,
+            i.custom_field_3,
+            i.custom_field_4,
+            i.custom_field_5,
+            i.custom_field_6,
+            i.custom_field_7,
+            i.custom_field_8,
+            i.custom_field_9,
+            i.custom_field_10,
+            i.unit,
+            i.small_unit,
+            i.small_unit_quantity,
+            i.conversion_relation,
+            i.big_pack,
+            i.mid_pack,
+            i.small_pack,
+            i.quantity,
+            i.received_quantity,
+            GREATEST(COALESCE(i.quantity, 0) - COALESCE(i.received_quantity, 0), 0) AS unreceive_quantity,
+            i.terminated_quantity,
+            i.terminated_amount,
+            i.unit_price,
+            i.small_unit_price,
+            i.amount,
+            i.discount_rate,
+            i.discounted_unit_price,
+            i.discounted_amount,
+            i.weight,
+            i.volume,
+            i.remark AS item_remark,
+
+            /* 审核人 */
+            (SELECT at2.operator_name
+             FROM erp_purchase_order_audit_trail at2
+             WHERE at2.order_id = o.id
+               AND at2.action = 'approve'
+             ORDER BY at2.operate_time DESC
+             LIMIT 1) AS auditor_name
+
+        FROM erp_purchase_order_item i
+
+        INNER JOIN erp_purchase_order o ON o.id = i.order_id AND o.deleted = 0
+
+        /* 名称解析JOIN */
+        LEFT JOIN erp_warehouse w ON w.id = o.warehouse_id AND w.deleted = 0
+        LEFT JOIN sys_user u_purchaser ON u_purchaser.id = o.purchaser_id AND u_purchaser.deleted = 0
+        LEFT JOIN sys_dept d ON d.id = o.dept_id AND d.deleted = 0
+        LEFT JOIN sys_user u_creator ON u_creator.id = o.create_by AND u_creator.deleted = 0
+
+        /* 子表JOIN */
+        LEFT JOIN erp_purchase_order_partner_snapshot ps ON ps.order_id = o.id
+        LEFT JOIN erp_purchase_order_ext_info ei ON ei.order_id = o.id
+
+        ${ew.customSqlSegment}
+
+        ORDER BY i.order_id ASC, i.line_no ASC
+    </select>
+
+</mapper>

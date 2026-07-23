@@ -11,6 +11,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -38,7 +39,7 @@ class PurchaseInquiryServiceTest {
         inquiry.setCreatedBy(1L);
 
         when(inquiryMapper.insert(any())).thenReturn(1);
-        when(inquiryMapper.findById(any())).thenReturn(inquiry);
+        // 实现的 createInquiry 不调用 findById，直接返回入参实体，无需 stub findById
 
         PurchaseInquiry created = inquiryService.createInquiry(inquiry);
         
@@ -61,7 +62,7 @@ class PurchaseInquiryServiceTest {
         
         assertEquals(InquiryStatus.PUBLISHED, published.getStatus());
         assertNotNull(published.getPublishDate());
-        verify(inquiryMapper).updateStatus(1L, InquiryStatus.PUBLISHED.name(), any());
+        verify(inquiryMapper).updateStatus(eq(1L), eq(InquiryStatus.PUBLISHED.name()), any());
     }
 
     @Test

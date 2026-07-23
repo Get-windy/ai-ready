@@ -42,7 +42,15 @@ public class MyBatisPlusConfig {
         "sys_login_log",          // 登录日志表
         "flyway_schema_history",  // Flyway迁移历史表
         "sys_print_chain_item",   // 打印链路项（无tenant_id列）
-        "sys_screenshot_task"     // 截图任务（无tenant_id列）
+        "sys_screenshot_task",    // 截图任务（无tenant_id列）
+        "dms_event_outbox",       // DMS事件发件箱（无tenant_id列）
+        // 工作流四表：多租户拦截属 P1 未实现项（见 AGENTS.md 核心差距），
+        // 现阶段由 WorkflowServiceImpl 按 X-Tenant-Id 显式过滤；自动注入会使
+        // 启动种子判重（tenant_id = null 永不匹配）与空租户会话下的可见性失效
+        "workflow_definition",
+        "workflow_node",
+        "workflow_instance",
+        "workflow_task"
     ));
 
     /** 临时租户ID（ThreadLocal）- 用于登录等未认证场景 */
@@ -100,7 +108,8 @@ public class MyBatisPlusConfig {
         interceptor.addInnerInterceptor(new OptimisticLockerInnerInterceptor());
 
         // 全局租户隔离插件 — 自动为 SELECT/INSERT/UPDATE/DELETE 注入 tenant_id 过滤
-        interceptor.addInnerInterceptor(new TenantLineInnerInterceptor(new TenantLineHandler() {
+        // 使用增强版：租户不可解析（无会话线程）时跳过处理，不再注入字面量 tenant_id=null
+        interceptor.addInnerInterceptor(new AiReadyTenantLineInnerInterceptor(new TenantLineHandler() {
             @Override
             public Expression getTenantId() {
                 Long tenantId = getCurrentTenantIdValue();
@@ -151,7 +160,13 @@ public class MyBatisPlusConfig {
                 if (metaObject.hasSetter("tenantId")) {
                     Long tenantId = getCurrentTenantIdValue();
                     if (tenantId != null) {
-                        metaObject.setValue("tenantId", tenantId);
+                        // 兼容 String 类型 tenantId 的实体（如 erp-finance 域），按字段类型赋值避免类型不匹配
+                        Class<?> tenantIdType = metaObject.getGetterType("tenantId");
+                        if (String.class.isAssignableFrom(tenantIdType)) {
+                            metaObject.setValue("tenantId", String.valueOf(tenantId));
+                        } else {
+                            metaObject.setValue("tenantId", tenantId);
+                        }
                     }
                 }
             }

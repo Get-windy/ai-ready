@@ -161,7 +161,7 @@ export function useColumnConfig(columnDefs: any[], storageKey: string, fillMode?
   function onDrop() { dragIndex = -1 }
 
   // 统一处理拖拽结束事件
-  function handleColumnDrag({ from, to }: { from: number; to: number }) {
+  function handleColumnDrag(from: number, to: number) {
     onDragStart(from)
     onDragOver(to)
     onDrop()

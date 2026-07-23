@@ -24,6 +24,11 @@ public interface ReceivableService {
     ReceivableDTO getById(Long id);
 
     /**
+     * 按来源单据判断是否已存在应收（业财集成防重复记账）
+     */
+    boolean existsBySource(String sourceType, Long sourceId);
+
+    /**
      * 分页查询应收账款
      */
     IPage<ReceivableDTO> list(String customerId, String status, Page<ReceivableDTO> page);

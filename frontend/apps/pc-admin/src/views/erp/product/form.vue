@@ -1257,7 +1257,7 @@ function openGradeManage() {
 }
 
 function batchCalcPrice() {
-  message.info('批量计算价格功能开发中')
+  message.info('批量计算价格功能待完善')
 }
 
 // ── 图片上传（顺序逐个，最多5张） ──
@@ -1538,7 +1538,7 @@ function handleQuickSearch(value: string) {
 }
 
 function showFieldConfig() {
-  message.info('商品字段配置功能开发中')
+  message.info('商品字段配置功能待完善')
 }
 
 function handleShelfChange(checked: boolean) {

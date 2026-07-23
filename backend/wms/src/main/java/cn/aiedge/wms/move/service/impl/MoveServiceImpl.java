@@ -14,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Slf4j
@@ -89,6 +90,37 @@ public class MoveServiceImpl implements MoveService {
         wrapper.eq(WmsMoveDetail::getTaskId, taskId);
         wrapper.orderByAsc(WmsMoveDetail::getLineNo);
         return detailMapper.selectList(wrapper);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void saveDetails(Long taskId, List<WmsMoveDetail> details) {
+        WmsMoveTask task = taskMapper.selectById(taskId);
+        if (task == null) throw WmsBusinessException.taskNotFound(taskId, "移库");
+        if (task.getStatus() != WmsTaskStatus.PENDING) {
+            throw WmsBusinessException.invalidStatus(task.getTaskNo(), task.getStatus(), WmsTaskStatus.PENDING);
+        }
+        // 先删后插（逻辑删除旧明细）
+        LambdaQueryWrapper<WmsMoveDetail> delWrapper = new LambdaQueryWrapper<>();
+        delWrapper.eq(WmsMoveDetail::getTaskId, taskId);
+        detailMapper.delete(delWrapper);
+        int lineNo = 1;
+        BigDecimal totalQuantity = BigDecimal.ZERO;
+        for (WmsMoveDetail detail : details) {
+            detail.setId(null);
+            detail.setTaskId(taskId);
+            detail.setLineNo(lineNo++);
+            if (detail.getStatus() == null) detail.setStatus(0);
+            detailMapper.insert(detail);
+            if (detail.getQuantity() != null) {
+                totalQuantity = totalQuantity.add(detail.getQuantity());
+            }
+        }
+        // 回写头表明细数/合计量
+        task.setTotalItems(details.size());
+        task.setTotalQuantity(totalQuantity);
+        taskMapper.updateById(task);
+        log.info("移库明细保存: taskId={}, items={}, totalQuantity={}", taskId, details.size(), totalQuantity);
     }
 
     @Override

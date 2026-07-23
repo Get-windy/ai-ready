@@ -28,6 +28,8 @@ public interface PickService {
     boolean updateDetail(WmsPickDetail detail);
     WmsPickDetail getDetailById(Long id);
     List<WmsPickDetail> listByTaskId(Long taskId);
+    // 明细整体保存（先删后插，仅待处理状态可操作）
+    void saveDetails(Long taskId, List<WmsPickDetail> details);
     // 操作
     void startPick(Long taskId, Long userId, String userName);
     void confirmPickItem(Long detailId, BigDecimal pickedQuantity);

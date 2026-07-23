@@ -17,7 +17,7 @@ import java.time.LocalDateTime;
  * 业务指标定义实体
  */
 @Entity
-@Table(name = "erp_business_metric")
+@Table(name = "erp_metric_def")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -28,7 +28,7 @@ public class BusinessMetric {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     
-    @Column(name = "metric_code", nullable = false, unique = true, length = 64)
+    @Column(name = "metric_code", nullable = false, length = 64)
     private String metricCode;
     
     @Column(name = "metric_name", nullable = false, length = 128)

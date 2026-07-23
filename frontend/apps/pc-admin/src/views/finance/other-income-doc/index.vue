@@ -57,7 +57,7 @@ import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
 
 const tableRef = ref()
-const apiUrl = '/finance/other-income-doc/page'
+const apiUrl = '/erp/finance/other-income-doc/page'
 const dateRange = ref<[Dayjs, Dayjs] | null>(null)
 const searchParams = reactive({ docNo: '', startDate: '', endDate: '' })
 

@@ -89,3 +89,205 @@ export const purchaseOrderApi = {
     return request.get('/erp/purchase/order/export', params, { responseType: 'blob' })
   }
 }
+
+// ═══════════════════════════════════════════
+// 采购单据/明细查询
+// 后端：PurchaseDocQueryController / PurchaseDetailQueryController
+// 响应 ApiResponse<Page<T>>，拦截器 code===200 解包后为 { records, total, current, size }
+// 注意：分页参数为 current/size；dateStart/dateEnd 为 LocalDateTime（ISO 格式）
+// ═══════════════════════════════════════════
+
+/** 采购单据状态（与后端 OrderStatus 枚举一致） */
+export enum PurchaseDocStatus {
+  DRAFT = 0,
+  PENDING_APPROVAL = 1,
+  APPROVED = 2,
+  ISSUED = 3,
+  IN_PROGRESS = 4,
+  PARTIAL_RECEIVED = 5,
+  COMPLETED = 6,
+  CANCELLED = 7,
+}
+
+/** 采购单据查询条件（与后端 PurchaseDocQueryDTO 对齐） */
+export interface PurchaseDocQueryParams {
+  current?: number
+  size?: number
+  /** 单据日期起（ISO 日期时间，如 2026-07-01T00:00:00） */
+  dateStart?: string
+  /** 单据日期止（ISO 日期时间） */
+  dateEnd?: string
+  orderNo?: string
+  supplierName?: string
+  purchaserName?: string
+  deptName?: string
+  createByName?: string
+  warehouseName?: string
+  status?: number
+  remark?: string
+  submitterName?: string
+  auditorName?: string
+  extText1?: string
+  extText2?: string
+  extText3?: string
+}
+
+/** 采购单据查询行（与后端 PurchaseOrderListDTO 对齐，39列取常用） */
+export interface PurchaseDocItem {
+  id: number
+  orderDate: string
+  orderNo: string
+  sourceBillNo: string
+  status: number
+  warehouseName: string
+  supplierName: string
+  supplierCode: string
+  contactName: string
+  contactPhone: string
+  purchaserName: string
+  deptName: string
+  productAmount: number
+  discountAmount: number
+  otherExpense: number
+  billAmount: number
+  settledAmount: number
+  expectedReceiveTime: string
+  totalQuantity: number
+  receivedQuantity: number
+  unreceiveQuantity: number
+  returnQuantity: number
+  returnAmount: number
+  remark: string
+  summary: string
+  submitTime: string
+  createByName: string
+  submitterName: string
+  auditorName: string
+  printCount: number
+}
+
+/** 采购明细查询条件（与后端 PurchaseDetailQueryDTO 对齐） */
+export interface PurchaseDetailQueryParams {
+  current?: number
+  size?: number
+  dateStart?: string
+  dateEnd?: string
+  orderNo?: string
+  productName?: string
+  supplierName?: string
+  purchaserName?: string
+  deptName?: string
+  createByName?: string
+  auditorName?: string
+  status?: number
+  warehouseName?: string
+  priceStatus?: number
+  remark?: string
+  itemRemark?: string
+  isGift?: number
+}
+
+/** 采购明细查询行（与后端 PurchaseDetailListDTO 对齐，59列取常用） */
+export interface PurchaseDetailItem {
+  itemId: number
+  orderId: number
+  orderDate: string
+  orderNo: string
+  status: number
+  warehouseName: string
+  supplierName: string
+  supplierCode: string
+  purchaserName: string
+  deptName: string
+  productName: string
+  itemCode: string
+  barcode: string
+  specification: string
+  model: string
+  origin: string
+  brand: string
+  unit: string
+  quantity: number
+  receivedQuantity: number
+  unreceiveQuantity: number
+  unitPrice: number
+  amount: number
+  discountRate: number
+  discountedUnitPrice: number
+  discountedAmount: number
+  itemRemark: string
+  remark: string
+  createByName: string
+  auditorName: string
+  createTime: string
+  submitTime: string
+  printCount: number
+}
+
+export const purchaseDocQueryApi = {
+  /** 按单据Tab分页查询 */
+  docPage(params?: PurchaseDocQueryParams): Promise<PageResponse<PurchaseDocItem>> {
+    return request.get('/erp/purchase/order/doc-query/page', params)
+  },
+  /** 按明细Tab分页查询 */
+  detailPage(params?: PurchaseDetailQueryParams): Promise<PageResponse<PurchaseDetailItem>> {
+    return request.get('/erp/purchase/order/detail-query/page', params)
+  }
+}
+
+// ═══════════════════════════════════════════
+// 智能补货（/erp/stock/replenishment）
+// 后端 StockReplenishmentController 返回裸 ResponseEntity<Page>，
+// 拦截器对 { records, total } 透传不拆包
+// ═══════════════════════════════════════════
+
+/** 补货建议优先级 */
+export type ReplenishPriority = 'HIGH' | 'MEDIUM' | 'LOW'
+/** 补货建议状态：PENDING 待处理 / ORDERED 已转采购订单 / IGNORED 已忽略 */
+export type ReplenishStatus = 'PENDING' | 'ORDERED' | 'IGNORED'
+
+/** 补货建议行（与后端 StockReplenishment 实体对齐） */
+export interface StockReplenishmentItem {
+  id: number
+  productCode: string
+  productName: string
+  productSpec: string
+  productUnit: string
+  warehouseId: number
+  warehouseName: string
+  currentQty: number
+  safetyStock: number
+  shortageQty: number
+  avgDailySales: number
+  daysOfStock: number
+  leadTime: number
+  suggestedQty: number
+  priority: ReplenishPriority
+  reason: string
+  status: ReplenishStatus
+  supplierId: number
+  supplierName: string
+  createdOrderNo: string
+  remark: string
+  createTime: string
+  updateTime: string
+}
+
+export const replenishmentApi = {
+  /** 补货建议分页（keyword/priority/status + pageNum/pageSize） */
+  page(params?: { keyword?: string; priority?: string; status?: string; pageNum?: number; pageSize?: number }): Promise<PageResponse<StockReplenishmentItem>> {
+    return request.get('/erp/stock/replenishment/list', params)
+  },
+  /** 扫描库存生成补货建议，返回本次生成的建议列表 */
+  generate(): Promise<StockReplenishmentItem[]> {
+    return request.post('/erp/stock/replenishment/generate')
+  },
+  /** 根据补货建议创建采购订单（supplierId 可选，缺省用建议上的供应商） */
+  createOrder(id: number, supplierId?: number): Promise<StockReplenishmentItem> {
+    return request.post(`/erp/stock/replenishment/${id}/create-order`, supplierId !== null && supplierId !== undefined ? { supplierId } : {})
+  },
+  /** 忽略补货建议 */
+  ignore(id: number, reason?: string): Promise<StockReplenishmentItem> {
+    return request.put(`/erp/stock/replenishment/${id}/ignore`, null, { params: { reason } })
+  }
+}

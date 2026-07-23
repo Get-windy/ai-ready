@@ -3,11 +3,11 @@ package cn.aiedge.erp.sale.controller;
 import cn.aiedge.erp.sale.dto.UnifiedSalesDocQueryDTO;
 import cn.aiedge.erp.sale.dto.UnifiedSalesDocumentDTO;
 import cn.aiedge.erp.sale.entity.SaleOrder;
-import cn.aiedge.erp.sale.entity.SaleOutbound;
+import cn.aiedge.erp.sale.outbound.entity.SaleOutbound;
 import cn.aiedge.erp.sale.returnDoc.entity.SaleReturnDoc;
 import cn.aiedge.erp.sale.saleexchange.entity.SaleExchange;
 import cn.aiedge.erp.sale.service.ISaleOrderService;
-import cn.aiedge.erp.sale.service.ISaleOutboundService;
+import cn.aiedge.erp.sale.outbound.service.SaleOutboundService;
 import cn.aiedge.erp.sale.service.ISaleReturnDocService;
 import cn.aiedge.erp.sale.service.ISaleExchangeService;
 import cn.aiedge.erp.sale.service.UnifiedSalesDocQueryService;
@@ -34,7 +34,7 @@ public class SalesDocQueryController {
     private ISaleOrderService saleOrderService;
 
     @Autowired
-    private ISaleOutboundService saleOutboundService;
+    private SaleOutboundService saleOutboundService;
 
     @Autowired
     private ISaleReturnDocService saleReturnDocService;

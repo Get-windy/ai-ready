@@ -123,8 +123,10 @@ service.interceptors.request.use(
     }
 
     // 添加 tenantId 请求头（从 localStorage 或默认值获取）
+    // 同时发送 tenantId 与 X-Tenant-Id 两种头，兼容后端两种读取方式
     const tenantId = localStorage.getItem('tenantId') || '1'
     config.headers.tenantId = tenantId
+    config.headers['X-Tenant-Id'] = tenantId
 
     // 请求开始：启动进度条
     NProgress.start()
@@ -193,8 +195,11 @@ service.interceptors.response.use(
     // ── 标准 wrapper 响应处理 ──────────────────────────
     const { code, message: msg, data } = resData
 
-    if (code === 200) {
-      return data as any
+    // 成功判定：数字 200 / 字符串 "200"（expense/budget 域字符串 code）/ success===true（admin/datax 域 Map 响应）
+    const isOk = code === 200 || (code as unknown) === '200' || (code === undefined && (resData as any).success === true)
+    if (isOk) {
+      // Map 型响应（无 data 字段）整体返回，包装型返回 data
+      return (data !== undefined ? data : resData) as any
     }
 
     // 业务错误：401 → Token 刷新 或 被踢下线

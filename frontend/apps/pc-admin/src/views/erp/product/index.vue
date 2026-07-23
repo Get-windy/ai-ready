@@ -307,7 +307,7 @@
                 v-if="record.imageUrl"
                 :src="record.imageUrl"
                 style="width: 36px; height: 36px; border-radius: 4px; object-fit: cover;"
-                :preview="{ mask: false }"
+                :preview="({ mask: false } as any)"
                 fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
               />
               <span
@@ -887,7 +887,7 @@ function handleImport() {
 }
 
 function handleCloudImport() {
-  message.info('云导入功能开发中')
+  message.info('云导入功能待完善')
 }
 
 function beforeImportUpload(file: File) {

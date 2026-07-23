@@ -26,12 +26,9 @@ public class TestDataFactory {
         order.setOrderNo("PO-TEST-001");
         order.setTenantId(1L);
         order.setSupplierId(100L);
-        order.setSupplierName("测试供应商有限公司");
         order.setOrderDate(LocalDateTime.now());
-        order.setDeliveryDate(LocalDateTime.now().plusDays(7));
-        order.setTotalAmount(new BigDecimal("50000.00"));
-        order.setTaxAmount(new BigDecimal("6500.00"));
-        order.setTotalAmountWithTax(new BigDecimal("56500.00"));
+        order.setExpectedReceiveTime(LocalDateTime.now().plusDays(7));
+        order.setBillAmount(new BigDecimal("50000.00"));
         order.setStatus(0);
         order.setCreateBy(1L);
         order.setCreateTime(LocalDateTime.now());
@@ -139,9 +136,7 @@ public class TestDataFactory {
     public static PurchaseOrder createLargeAmountOrder() {
         PurchaseOrder order = createPurchaseOrder();
         order.setOrderNo("PO-LARGE-001");
-        order.setTotalAmount(new BigDecimal("9999999.99"));
-        order.setTaxAmount(new BigDecimal("1299999.99"));
-        order.setTotalAmountWithTax(new BigDecimal("11299999.98"));
+        order.setBillAmount(new BigDecimal("9999999.99"));
         return order;
     }
 
@@ -151,7 +146,7 @@ public class TestDataFactory {
     public static PurchaseOrder createLongDeliveryOrder() {
         PurchaseOrder order = createPurchaseOrder();
         order.setOrderNo("PO-LONG-001");
-        order.setDeliveryDate(LocalDateTime.now().plusMonths(6));
+        order.setExpectedReceiveTime(LocalDateTime.now().plusMonths(6));
         return order;
     }
 
@@ -161,9 +156,7 @@ public class TestDataFactory {
     public static PurchaseOrder createZeroAmountOrder() {
         PurchaseOrder order = createPurchaseOrder();
         order.setOrderNo("PO-ZERO-001");
-        order.setTotalAmount(BigDecimal.ZERO);
-        order.setTaxAmount(BigDecimal.ZERO);
-        order.setTotalAmountWithTax(BigDecimal.ZERO);
+        order.setBillAmount(BigDecimal.ZERO);
         return order;
     }
 }

@@ -1,6 +1,7 @@
 package cn.aiedge.wms.controller;
 
 import cn.aiedge.base.vo.Result;
+import cn.aiedge.wms.controller.dto.DetailSaveRequest;
 import cn.aiedge.wms.entity.WmsPickDetail;
 import cn.aiedge.wms.entity.WmsPickTask;
 import cn.aiedge.wms.entity.WmsPickWave;
@@ -166,5 +167,13 @@ public class PickController {
     @GetMapping("/detail/list/{taskId}")
     public Result<List<WmsPickDetail>> listDetails(@PathVariable @NotNull Long taskId) {
         return Result.ok(pickService.listByTaskId(taskId));
+    }
+
+    @Operation(summary = "保存拣货明细（整体替换，先删后插）")
+    @PostMapping("/detail/save")
+    public Result<String> saveDetails(@Valid @RequestBody DetailSaveRequest<WmsPickDetail> request) {
+        pickService.saveDetails(request.getTaskId(), request.getDetails());
+        log.info("保存拣货明细: taskId={}, items={}", request.getTaskId(), request.getDetails().size());
+        return Result.ok("保存成功");
     }
 }

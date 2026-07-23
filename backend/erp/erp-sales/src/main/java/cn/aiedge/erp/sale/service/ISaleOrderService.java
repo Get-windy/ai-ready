@@ -43,6 +43,12 @@ public interface ISaleOrderService extends IService<SaleOrder> {
     /** 审批通过 */
     void approve(Long id, Long auditorId);
 
+    /**
+     * 审批通过（显式指定终审人姓名）：工作流回调等无 Sa-Token 会话的线程使用，
+     * 避免 getCurrentUserName() 落"系统"；auditorName 为空时回退当前会话用户名
+     */
+    void approve(Long id, Long auditorId, String auditorName);
+
     /** 审批拒绝 */
     void reject(Long id, Long auditorId, String reason);
 

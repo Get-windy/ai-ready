@@ -71,14 +71,14 @@
                       size="small"
                       style="width: 200px"
                       :maxlength="20"
-                      @press-enter="handleSaveEdit(record)"
+                      @press-enter="handleSaveEdit(record as GradeRow)"
                       @keyup.escape="cancelEdit"
                     />
                     <a-space>
                       <a-button
                         type="link"
                         size="small"
-                        @click="handleSaveEdit(record)"
+                        @click="handleSaveEdit(record as GradeRow)"
                       >
                         <CheckOutlined />
                       </a-button>
@@ -98,7 +98,7 @@
                       type="link"
                       size="small"
                       class="edit-btn"
-                      @click="startEdit(record)"
+                      @click="startEdit(record as GradeRow)"
                     >
                       <EditOutlined />
                     </a-button>
@@ -111,7 +111,7 @@
                   checked-children="启用"
                   un-checked-children="停用"
                   :loading="record._saving"
-                  @change="(val: boolean) => handleToggleStatus(record, val)"
+                  @change="(val: boolean) => handleToggleStatus(record as GradeRow, val)"
                 />
               </template>
               <template v-if="column.key === 'actions'">
@@ -120,7 +120,7 @@
                     type="link"
                     size="small"
                     :disabled="index === 0"
-                    @click="handleMoveUp(record, index)"
+                    @click="handleMoveUp(record as GradeRow, index)"
                   >
                     上移
                   </a-button>
@@ -128,7 +128,7 @@
                     type="link"
                     size="small"
                     :disabled="index === grades.length - 1"
-                    @click="handleMoveDown(record, index)"
+                    @click="handleMoveDown(record as GradeRow, index)"
                   >
                     下移
                   </a-button>
@@ -136,7 +136,7 @@
                     title="确定删除该等级吗？"
                     ok-text="确定"
                     cancel-text="取消"
-                    @confirm="handleDelete(record)"
+                    @confirm="handleDelete(record as GradeRow)"
                   >
                     <a-button
                       type="link"
@@ -213,7 +213,8 @@ import { productGradeApi, type ProductGrade } from '@/api/erp/product'
 function handleError(err: any) { console.warn('[等级管理] ErrorBoundary:', err) }
 
 const loading = ref(false)
-const grades = ref<(ProductGrade & { _saving?: boolean })[]>([])
+type GradeRow = ProductGrade & { _saving?: boolean }
+const grades = ref<GradeRow[]>([])
 
 const columns = [
   { title: '序号', key: 'sortOrder', width: 70, align: 'center' as const },

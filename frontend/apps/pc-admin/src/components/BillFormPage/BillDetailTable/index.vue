@@ -658,6 +658,7 @@ function getCheckedRecords(): any[] {
 // 暴露方法给父组件
 defineExpose({
   getCheckedRecords,
+  openColumnConfig: () => { showColPanel.value = true },
 })
 
 // ═══ 列设置（运行时） ═══
@@ -904,7 +905,7 @@ function handleCellKeydown(e: KeyboardEvent, record: any, colKey: string, rowInd
       if (nextRow.classList.contains('ss-empty-row')) continue
       const cell = nextRow.querySelector<HTMLElement>(`[data-col-key="${colKey}"]`)
       if (cell) {
-        const input = cell.querySelector<HTMLElement>('input, select')
+        const input = cell.querySelector<HTMLInputElement>('input, select')
         input?.focus()
         input?.select?.()
         break

@@ -3,6 +3,7 @@ package cn.aiedge.wms.check.service.impl;
 import cn.aiedge.wms.entity.WmsCheckTask;
 import cn.aiedge.wms.entity.WmsCheckResult;
 import cn.aiedge.wms.enums.WmsTaskStatus;
+import cn.aiedge.wms.exception.WmsBusinessException;
 import cn.aiedge.wms.check.mapper.WmsCheckTaskMapper;
 import cn.aiedge.wms.check.mapper.WmsCheckResultMapper;
 import cn.aiedge.wms.check.service.CheckService;
@@ -92,6 +93,32 @@ public class CheckServiceImpl implements CheckService {
         wrapper.eq(WmsCheckResult::getTaskId, taskId);
         wrapper.orderByAsc(WmsCheckResult::getLineNo);
         return resultMapper.selectList(wrapper);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void saveDetails(Long taskId, List<WmsCheckResult> details) {
+        WmsCheckTask task = taskMapper.selectById(taskId);
+        if (task == null) throw WmsBusinessException.taskNotFound(taskId, "盘点");
+        if (task.getStatus() != WmsTaskStatus.PENDING) {
+            throw WmsBusinessException.invalidStatus(task.getTaskNo(), task.getStatus(), WmsTaskStatus.PENDING);
+        }
+        // 先删后插（逻辑删除旧明细）
+        LambdaQueryWrapper<WmsCheckResult> delWrapper = new LambdaQueryWrapper<>();
+        delWrapper.eq(WmsCheckResult::getTaskId, taskId);
+        resultMapper.delete(delWrapper);
+        int lineNo = 1;
+        for (WmsCheckResult detail : details) {
+            detail.setId(null);
+            detail.setTaskId(taskId);
+            detail.setLineNo(lineNo++);
+            if (detail.getCheckStatus() == null) detail.setCheckStatus(0);
+            resultMapper.insert(detail);
+        }
+        // 回写头表盘点项数
+        task.setTotalItems(details.size());
+        taskMapper.updateById(task);
+        log.info("盘点明细保存: taskId={}, items={}", taskId, details.size());
     }
 
     @Override

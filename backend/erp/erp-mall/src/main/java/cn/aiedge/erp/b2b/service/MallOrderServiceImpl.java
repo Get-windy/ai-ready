@@ -74,8 +74,8 @@ public class MallOrderServiceImpl implements MallOrderService {
             case "APPROVED":        return 2;  // 已审批
             case "SHIPPED":         return 3;  // 部分出库
             case "COMPLETED":       return 4;  // 完成
-            case "CANCELLED":       return 5;  // 取消
-            case "REJECTED":        return 5;  // 取消
+            case "CANCELLED":       return 6;  // 已取消（erp_sale_order 规范：5=交易完成 6=已取消）
+            case "REJECTED":        return 6;  // 已取消（同上）
             default:                return 0;
         }
     }
@@ -102,7 +102,8 @@ public class MallOrderServiceImpl implements MallOrderService {
             case 2:  return "APPROVED";
             case 3:  return "SHIPPED";
             case 4:  return "COMPLETED";
-            case 5:  return "CANCELLED";
+            case 5:  return "COMPLETED";  // 交易完成（erp 规范口径）
+            case 6:  return "CANCELLED";
             default: return "PENDING_PAYMENT";
         }
     }

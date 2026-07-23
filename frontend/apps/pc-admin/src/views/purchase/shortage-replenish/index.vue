@@ -1,149 +1,178 @@
 <template>
-  <ErrorBoundary @error="handleError">
-    <PageContainer
-      title="缺货补货"
-      full-height
-    >
-      <template #headerExtra>
-        <a-space :size="12">
-          <a-badge :status="loading ? 'processing' : (hasError ? 'error' : 'success')" />
-          <span
-            v-if="lastUpdateTime"
-            class="update-time"
-          >最后更新: {{ lastUpdateTime }}</span>
-          <a-button
-            size="small"
-            @click="fetchData"
-          >
-            <template #icon>
-              <ReloadOutlined />
-            </template>
-          </a-button>
-        </a-space>
-      </template>
-      <div class="search-area">
-        <a-form
-          layout="inline"
-          :model="searchParams"
+  <ARReportPage
+    ref="reportRef"
+    title="缺货补货"
+    :query-fields="queryFields"
+    :columns="columns"
+    :fetcher="fetcher"
+    :enable-row-selection="true"
+    :stat-cards="statCards"
+    export-file-name="缺货补货"
+    row-key="id"
+    empty-text="暂无缺货商品（当前库存均大于 0）"
+    @loaded="handleLoaded"
+    @selection-change="handleSelectionChange"
+  >
+    <template #header-extra>
+      <a-space :size="8">
+        <a-button
+          type="primary"
+          :disabled="selectedRows.length === 0"
+          @click="handleBatchCreateOrder"
         >
-          <a-form-item label="产品编码">
-            <a-input
-              v-model:value="searchParams.productCode"
-              placeholder="请输入"
-              allow-clear
-              style="width: 160px"
-            />
-          </a-form-item>
-          <a-form-item label="产品名称">
-            <a-input
-              v-model:value="searchParams.productName"
-              placeholder="请输入"
-              allow-clear
-              style="width: 160px"
-            />
-          </a-form-item>
-          <a-form-item label="日期范围">
-            <a-range-picker
-              v-model:value="dateRange"
-              style="width: 220px"
-              @change="handleDateChange"
-            />
-          </a-form-item>
-          <a-form-item>
-            <a-space>
-              <a-button
-                type="primary"
-                @click="handleSearch"
-              >
-                <template #icon>
-                  <SearchOutlined />
-                </template>查询
-              </a-button>
-              <a-button @click="handleReset">
-                <template #icon>
-                  <ClearOutlined />
-                </template>重置
-              </a-button>
-            </a-space>
-          </a-form-item>
-        </a-form>
-      </div>
-      <div class="table-area">
-        <BillTableList
-          :columns="columns"
-          :data-source="tableData"
-          :loading="loading"
-          :pagination="billPagination"
-          :show-toolbar="false"
-          :show-search="false"
-          :show-add="false"
-          :show-export="false"
-          :show-batch-delete="false"
-          :selectable="false"
-          row-key="id"
-          @page-change="handlePageChange"
-        />
-      </div>
-    </PageContainer>
-  </ErrorBoundary>
+          <template #icon>
+            <ShoppingCartOutlined />
+          </template>生成采购订单({{ selectedRows.length }})
+        </a-button>
+        <a-button
+          type="primary"
+          :loading="generating"
+          @click="handleGenerate"
+        >
+          <template #icon>
+            <ThunderboltOutlined />
+          </template>生成补货建议
+        </a-button>
+      </a-space>
+    </template>
+    <template #bodyCell="{ column, text, record }">
+      <template v-if="column.dataIndex === 'quantity'">
+        <span class="qty-zero">{{ formatQty(text) }}</span>
+      </template>
+      <template v-else-if="column.key === 'shortageQty'">
+        {{ formatQty(Math.max((Number(record.safetyStock) || 0) - (Number(record.quantity) || 0), 0)) }}
+      </template>
+      <template v-else-if="['availableQuantity', 'frozenQuantity', 'safetyStock'].includes(column.dataIndex as string)">
+        {{ formatQty(text) }}
+      </template>
+      <template v-else-if="column.dataIndex === 'unitPrice'">
+        {{ formatMoney(text) }}
+      </template>
+    </template>
+  </ARReportPage>
 </template>
+
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
-import type { Dayjs } from 'dayjs'
-import { ReloadOutlined, SearchOutlined, ClearOutlined } from '@ant-design/icons-vue'
-import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import PageContainer from '@/components/PageContainer/PageContainer.vue'
-import BillTableList from '@/components/BillTableList/BillTableList.vue'
-import request from '@/utils/request'
+import { ref, computed } from 'vue'
+import { message } from 'ant-design-vue'
+import { ThunderboltOutlined, ShoppingCartOutlined } from '@ant-design/icons-vue'
+import { useRouter } from 'vue-router'
+import ARReportPage from '@/components/ARReportPage/ARReportPage.vue'
+import type { ReportFetchResult, ReportQueryField, StatCardItem } from '@/components/ARReportPage/types'
+import { stockReportApi } from '@/api/analytics'
+import type { StockAlertItem } from '@/api/analytics'
+import { replenishmentApi } from '@/api/purchase'
 
-const loading = ref(false)
-const hasError = ref(false)
-const tableData = ref<any[]>([])
-const lastUpdateTime = ref('')
+const router = useRouter()
 
-const searchParams = reactive({ productCode: '', productName: '', startDate: '', endDate: '' })
-const dateRange = ref<[Dayjs, Dayjs] | null>(null)
-const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
-const billPagination = computed(() => ({ current: pagination.current, pageSize: pagination.pageSize, total: pagination.total }))
-
-const columns = [
-  { title: '产品编码', field: 'productCode', key: 'productCode', width: 120 },
-  { title: '产品名称', field: 'productName', key: 'productName', width: 180 },
-  { title: '缺货数量', field: 'shortageQty', key: 'shortageQty', width: 100, align: 'right' },
-  { title: '当前库存', field: 'currentStock', key: 'currentStock', width: 100, align: 'right' },
-  { title: '建议补货量', field: 'suggestQty', key: 'suggestQty', width: 100, align: 'right' },
-  { title: '最近日期', field: 'lastDate', key: 'lastDate', width: 120 },
+const queryFields: ReportQueryField[] = [
+  { key: 'keyword', type: 'input', label: '关键字', placeholder: '商品编码/名称' }
 ]
 
-const handleDateChange = (dates: [Dayjs, Dayjs] | null) => {
-  if (dates?.length === 2) { searchParams.startDate = dates[0]?.format('YYYY-MM-DD') || ''; searchParams.endDate = dates[1]?.format('YYYY-MM-DD') || '' }
-  else { searchParams.startDate = ''; searchParams.endDate = '' }
+// ═══ 表格列 ═══
+const columns: any[] = [
+  { title: '商品编码', dataIndex: 'productCode', key: 'productCode', width: 120 },
+  { title: '商品名称', dataIndex: 'productName', key: 'productName', width: 180, ellipsis: true },
+  { title: '仓库', dataIndex: 'warehouseName', key: 'warehouseName', width: 110 },
+  { title: '当前库存', dataIndex: 'quantity', key: 'quantity', width: 100, align: 'right' },
+  { title: '可用数量', dataIndex: 'availableQuantity', key: 'availableQuantity', width: 100, align: 'right' },
+  { title: '冻结数量', dataIndex: 'frozenQuantity', key: 'frozenQuantity', width: 100, align: 'right' },
+  { title: '安全库存', dataIndex: 'safetyStock', key: 'safetyStock', width: 100, align: 'right' },
+  { title: '补货缺口', key: 'shortageQty', width: 100, align: 'right' },
+  { title: '单位', dataIndex: 'unit', key: 'unit', width: 70 },
+  { title: '成本价', dataIndex: 'unitPrice', key: 'unitPrice', width: 110, align: 'right' },
+  { title: '供应商', dataIndex: 'supplierName', key: 'supplierName', width: 140, ellipsis: true }
+]
+
+function formatQty(val: number | null | undefined): string {
+  if (val === null || val === undefined || isNaN(Number(val))) return '-'
+  return Number(val).toLocaleString('zh-CN', { maximumFractionDigits: 2 })
 }
 
-const fetchData = async () => {
-  loading.value = true; hasError.value = false
-  try {
-    const res: any = await request.get('/purchase/shortage-replenish/page', {
-      params: { page: pagination.current, size: pagination.pageSize, ...searchParams }
-    })
-    if (res) {
-      const data = res.data || res
-      tableData.value = data.records || data.content || data.list || []
-      pagination.total = data.total || 0
-      lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
+function formatMoney(val: number | null | undefined): string {
+  if (val === null || val === undefined || isNaN(Number(val))) return '-'
+  return Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+// ═══ 数据请求（/erp/stock/alert 实时预警，缺货口径 = 当前库存 <= 0，前端过滤） ═══
+async function fetcher(params: Record<string, any>) {
+  const list = await stockReportApi.alertList()
+  const keyword = String(params.keyword || '').trim().toLowerCase()
+  let rows = (Array.isArray(list) ? list : []).filter(r => Number(r.quantity) <= 0)
+  if (keyword) {
+    rows = rows.filter(r =>
+      String(r.productCode || '').toLowerCase().includes(keyword) ||
+      String(r.productName || '').toLowerCase().includes(keyword)
+    )
+  }
+  return rows
+}
+
+// ═══ 统计卡片 ═══
+const shortageRows = ref<StockAlertItem[]>([])
+
+function handleLoaded(result: ReportFetchResult) {
+  shortageRows.value = (result.list || []) as StockAlertItem[]
+}
+
+const statCards = computed<StatCardItem[]>(() => {
+  const rows = shortageRows.value
+  const totalShortage = rows.reduce(
+    (acc, r) => acc + Math.max((Number(r.safetyStock) || 0) - (Number(r.quantity) || 0), 0), 0)
+  return [
+    { label: '缺货商品数', value: rows.length, suffix: '个', valueStyle: { color: '#f5222d' } },
+    { label: '补货缺口合计', value: totalShortage, precision: 0, suffix: '件' },
+    {
+      label: '涉及仓库数',
+      value: new Set(rows.map(r => r.warehouseId)).size,
+      suffix: '个'
     }
-  } catch (e: any) { hasError.value = true; console.warn('[缺货补货] 获取失败', e)
-  } finally { loading.value = false }
+  ]
+})
+
+// ═══ 一键生成补货建议 ═══
+const reportRef = ref<InstanceType<typeof ARReportPage> | null>(null)
+const generating = ref(false)
+
+// ═══ 批量选择 ═══
+const selectedRows = ref<any[]>([])
+
+function handleSelectionChange(_keys: (string | number)[], rows: any[]) {
+  selectedRows.value = rows
 }
 
-const handleSearch = () => { pagination.current = 1; fetchData() }
-const handleReset = () => { searchParams.productCode = ''; searchParams.productName = ''; searchParams.startDate = ''; searchParams.endDate = ''; dateRange.value = null; pagination.current = 1; fetchData() }
-const handlePageChange = (page: number, pageSize: number) => { pagination.current = page; pagination.pageSize = pageSize; fetchData() }
-const handleError = (e: Error) => { hasError.value = true; console.error(e) }
-onMounted(fetchData)
+async function handleGenerate() {
+  generating.value = true
+  try {
+    const list = await replenishmentApi.generate()
+    message.success(`已生成 ${Array.isArray(list) ? list.length : 0} 条补货建议，请前往「智能补货」页处理`)
+  } catch (e) {
+    console.warn('[缺货补货] 生成补货建议失败', e)
+  } finally {
+    generating.value = false
+  }
+}
+
+// ═══ 批量生成采购订单：先生成补货建议，再跳转至智能补货页处理 ═══
+async function handleBatchCreateOrder() {
+  generating.value = true
+  try {
+    const list = await replenishmentApi.generate()
+    const count = Array.isArray(list) ? list.length : 0
+    message.success(`已生成 ${count} 条补货建议，即将跳转至「智能补货」页处理`)
+    router.push('/purchase/smart-replenish')
+  } catch (e) {
+    console.warn('[缺货补货] 生成补货建议失败', e)
+    message.error('生成补货建议失败')
+  } finally {
+    generating.value = false
+  }
+}
 </script>
+
 <style scoped>
-.search-area { background: #fff; padding: 16px 20px; border-radius: 8px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-.table-area { background: #fff; padding: 16px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-.update-time { font-size: 12px; color: #999; }
+.qty-zero {
+  color: #f5222d;
+  font-weight: 600;
+}
 </style>

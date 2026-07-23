@@ -56,7 +56,7 @@ public abstract class BaseEntity implements Serializable {
      * 租户ID (多租户支持)
      */
     @TableField("tenant_id")
-    private String tenantId;
+    private Long tenantId;
 
     /**
      * 备注

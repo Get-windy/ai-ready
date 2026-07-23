@@ -1,149 +1,86 @@
 <template>
-  <ErrorBoundary @error="handleError">
-    <PageContainer
-      title="发货查询"
-      full-height
-    >
-      <template #headerExtra>
-        <a-space :size="12">
-          <a-badge :status="loading ? 'processing' : (hasError ? 'error' : 'success')" />
-          <span
-            v-if="lastUpdateTime"
-            class="update-time"
-          >最后更新: {{ lastUpdateTime }}</span>
-          <a-button
-            size="small"
-            @click="fetchData"
-          >
-            <template #icon>
-              <ReloadOutlined />
-            </template>
-          </a-button>
-        </a-space>
+  <ARReportPage
+    title="发货查询"
+    :query-fields="queryFields"
+    :columns="columns"
+    :fetcher="fetcher"
+    page-param-style="pageNum"
+    export-file-name="发货查询"
+    row-key="id"
+  >
+    <template #bodyCell="{ column, record }">
+      <template v-if="column.dataIndex === 'status'">
+        <a-tag :color="STATUS_MAP[record.status]?.color || 'default'">
+          {{ record.statusDesc || STATUS_MAP[record.status]?.label || '-' }}
+        </a-tag>
       </template>
-      <div class="search-area">
-        <a-form
-          layout="inline"
-          :model="searchParams"
-        >
-          <a-form-item label="发货单号">
-            <a-input
-              v-model:value="searchParams.shipNo"
-              placeholder="请输入"
-              allow-clear
-              style="width: 160px"
-            />
-          </a-form-item>
-          <a-form-item label="客户名称">
-            <a-input
-              v-model:value="searchParams.customerName"
-              placeholder="请输入"
-              allow-clear
-              style="width: 160px"
-            />
-          </a-form-item>
-          <a-form-item label="日期范围">
-            <a-range-picker
-              v-model:value="dateRange"
-              style="width: 220px"
-              @change="handleDateChange"
-            />
-          </a-form-item>
-          <a-form-item>
-            <a-space>
-              <a-button
-                type="primary"
-                @click="handleSearch"
-              >
-                <template #icon>
-                  <SearchOutlined />
-                </template>查询
-              </a-button>
-              <a-button @click="handleReset">
-                <template #icon>
-                  <ClearOutlined />
-                </template>重置
-              </a-button>
-            </a-space>
-          </a-form-item>
-        </a-form>
-      </div>
-      <div class="table-area">
-        <BillTableList
-          :columns="columns"
-          :data-source="tableData"
-          :loading="loading"
-          :pagination="billPagination"
-          :show-toolbar="false"
-          :show-search="false"
-          :show-add="false"
-          :show-export="false"
-          :show-batch-delete="false"
-          :selectable="false"
-          row-key="id"
-          @page-change="handlePageChange"
-        />
-      </div>
-    </PageContainer>
-  </ErrorBoundary>
+      <template v-else-if="column.dataIndex === 'totalAmount'">
+        {{ formatMoney(record.totalAmount) }}
+      </template>
+      <template v-else-if="column.dataIndex === 'totalQuantity'">
+        {{ record.totalQuantity != null ? Number(record.totalQuantity).toLocaleString('zh-CN') : '-' }}
+      </template>
+    </template>
+  </ARReportPage>
 </template>
+
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
-import type { Dayjs } from 'dayjs'
-import { ReloadOutlined, SearchOutlined, ClearOutlined } from '@ant-design/icons-vue'
-import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import PageContainer from '@/components/PageContainer/PageContainer.vue'
-import BillTableList from '@/components/BillTableList/BillTableList.vue'
-import request from '@/utils/request'
+import ARReportPage from '@/components/ARReportPage/ARReportPage.vue'
+import type { ReportQueryField } from '@/components/ARReportPage/types'
+import { outboundApi } from '@/api/erp'
 
-const loading = ref(false)
-const hasError = ref(false)
-const tableData = ref<any[]>([])
-const lastUpdateTime = ref('')
+// ═══ 出库单状态（与后端 OutboundStatus 枚举一致） ═══
+const STATUS_MAP: Record<number, { label: string; color: string }> = {
+  0: { label: '草稿', color: 'default' },
+  1: { label: '待审批', color: 'orange' },
+  2: { label: '已审批', color: 'blue' },
+  3: { label: '待拣货', color: 'orange' },
+  4: { label: '拣货中', color: 'processing' },
+  5: { label: '已拣货', color: 'cyan' },
+  6: { label: '待打包', color: 'orange' },
+  7: { label: '打包中', color: 'processing' },
+  8: { label: '已打包', color: 'orange' },
+  9: { label: '待发货', color: 'geekblue' },
+  10: { label: '已发货', color: 'blue' },
+  11: { label: '已完成', color: 'green' },
+  12: { label: '已取消', color: 'red' }
+}
 
-const searchParams = reactive({ shipNo: '', customerName: '', startDate: '', endDate: '' })
-const dateRange = ref<[Dayjs, Dayjs] | null>(null)
-const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
-const billPagination = computed(() => ({ current: pagination.current, pageSize: pagination.pageSize, total: pagination.total }))
-
-const columns = [
-  { title: '发货单号', field: 'shipNo', key: 'shipNo', width: 160 },
-  { title: '客户名称', field: 'customerName', key: 'customerName', width: 160 },
-  { title: '发货金额', field: 'amount', key: 'amount', width: 120, align: 'right' },
-  { title: '物流公司', field: 'logisticsCompany', key: 'logisticsCompany', width: 140 },
-  { title: '状态', field: 'status', key: 'status', width: 100 },
-  { title: '创建时间', field: 'createTime', key: 'createTime', width: 170 },
+const queryFields: ReportQueryField[] = [
+  { key: 'outboundNo', type: 'input', label: '发货单号', placeholder: '出库单号', width: 160 },
+  { key: 'keyword', type: 'input', label: '关键字', placeholder: '客户/单号/收货人', width: 180 },
+  {
+    key: 'status',
+    type: 'select',
+    label: '状态',
+    placeholder: '全部状态',
+    options: Object.entries(STATUS_MAP).map(([value, v]) => ({ label: v.label, value: Number(value) }))
+  },
+  { key: 'outboundDateRange', type: 'date-range', label: '出库日期', startKey: 'dateStart', endKey: 'dateEnd' }
 ]
 
-const handleDateChange = (dates: [Dayjs, Dayjs] | null) => {
-  if (dates?.length === 2) { searchParams.startDate = dates[0]?.format('YYYY-MM-DD') || ''; searchParams.endDate = dates[1]?.format('YYYY-MM-DD') || '' }
-  else { searchParams.startDate = ''; searchParams.endDate = '' }
+// ═══ 表格列 ═══
+const columns: any[] = [
+  { title: '发货单号', dataIndex: 'outboundNo', key: 'outboundNo', width: 160 },
+  { title: '来源订单', dataIndex: 'orderNo', key: 'orderNo', width: 150 },
+  { title: '客户', dataIndex: 'customerName', key: 'customerName', width: 140, ellipsis: true },
+  { title: '数量', dataIndex: 'totalQuantity', key: 'totalQuantity', width: 90, align: 'right' },
+  { title: '发货金额', dataIndex: 'totalAmount', key: 'totalAmount', width: 110, align: 'right' },
+  { title: '物流公司', dataIndex: 'logisticsCompany', key: 'logisticsCompany', width: 120, ellipsis: true },
+  { title: '物流单号', dataIndex: 'trackingNumber', key: 'trackingNumber', width: 140, ellipsis: true },
+  { title: '司机', dataIndex: 'deliveryDriver', key: 'deliveryDriver', width: 90 },
+  { title: '状态', dataIndex: 'status', key: 'status', width: 90 },
+  { title: '发货时间', dataIndex: 'shippedTime', key: 'shippedTime', width: 160 },
+  { title: '出库日期', dataIndex: 'outboundDate', key: 'outboundDate', width: 110 }
+]
+
+function formatMoney(val: number | null | undefined): string {
+  if (val === null || val === undefined || isNaN(Number(val))) return '-'
+  return Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-const fetchData = async () => {
-  loading.value = true; hasError.value = false
-  try {
-    const res: any = await request.get('/dispatch/ship-query/page', {
-      params: { page: pagination.current, size: pagination.pageSize, ...searchParams }
-    })
-    if (res) {
-      const data = res.data || res
-      tableData.value = data.records || data.content || data.list || []
-      pagination.total = data.total || 0
-      lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
-    }
-  } catch (e: any) { hasError.value = true; console.warn('[发货查询] 获取失败', e)
-  } finally { loading.value = false }
+// ═══ 数据请求（销售出库单） ═══
+function fetcher(params: Record<string, any>) {
+  return outboundApi.page(params)
 }
-
-const handleSearch = () => { pagination.current = 1; fetchData() }
-const handleReset = () => { searchParams.shipNo = ''; searchParams.customerName = ''; searchParams.startDate = ''; searchParams.endDate = ''; dateRange.value = null; pagination.current = 1; fetchData() }
-const handlePageChange = (page: number, pageSize: number) => { pagination.current = page; pagination.pageSize = pageSize; fetchData() }
-const handleError = (e: Error) => { hasError.value = true; console.error(e) }
-onMounted(fetchData)
 </script>
-<style scoped>
-.search-area { background: #fff; padding: 16px 20px; border-radius: 8px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-.table-area { background: #fff; padding: 16px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-.update-time { font-size: 12px; color: #999; }
-</style>

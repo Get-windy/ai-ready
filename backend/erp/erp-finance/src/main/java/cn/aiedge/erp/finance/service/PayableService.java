@@ -24,6 +24,11 @@ public interface PayableService {
     PayableDTO getById(Long id);
 
     /**
+     * 按来源单据判断是否已存在应付（业财集成防重复记账）
+     */
+    boolean existsBySource(String sourceType, Long sourceId);
+
+    /**
      * 分页查询应付账款
      */
     IPage<PayableDTO> list(String supplierId, String status, Page<PayableDTO> page);

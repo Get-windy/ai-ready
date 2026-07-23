@@ -1,6 +1,7 @@
 package cn.aiedge.wms.controller;
 
 import cn.aiedge.base.vo.Result;
+import cn.aiedge.wms.controller.dto.DetailSaveRequest;
 import cn.aiedge.wms.entity.WmsCheckResult;
 import cn.aiedge.wms.entity.WmsCheckTask;
 import cn.aiedge.wms.check.service.CheckService;
@@ -98,5 +99,13 @@ public class CheckController {
     @GetMapping("/results/{taskId}")
     public Result<List<WmsCheckResult>> results(@PathVariable @NotNull Long taskId) {
         return Result.ok(checkService.listByTaskId(taskId));
+    }
+
+    @Operation(summary = "保存盘点明细（整体替换，先删后插）")
+    @PostMapping("/detail/save")
+    public Result<String> saveDetails(@Valid @RequestBody DetailSaveRequest<WmsCheckResult> request) {
+        checkService.saveDetails(request.getTaskId(), request.getDetails());
+        log.info("保存盘点明细: taskId={}, items={}", request.getTaskId(), request.getDetails().size());
+        return Result.ok("保存成功");
     }
 }

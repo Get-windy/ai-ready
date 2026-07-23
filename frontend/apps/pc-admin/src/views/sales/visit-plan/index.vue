@@ -1,142 +1,387 @@
 <template>
-  <ErrorBoundary @error="handleError">
-    <PageContainer
+  <div>
+    <ARReportPage
+      ref="reportRef"
       title="拜访规划"
-      full-height
+      :query-fields="queryFields"
+      :columns="columns"
+      :fetcher="fetcher"
+      export-file-name="拜访规划"
+      row-key="id"
+      empty-text="暂无拜访计划数据"
     >
-      <template #headerExtra>
-        <a-space :size="12">
-          <a-badge :status="loading ? 'processing' : (hasError ? 'error' : 'success')" />
-          <span
-            v-if="lastUpdateTime"
-            class="update-time"
-          >最后更新: {{ lastUpdateTime }}</span>
-          <a-button
-            size="small"
-            @click="fetchData"
-          >
-            <template #icon>
-              <ReloadOutlined />
-            </template>
-          </a-button>
-        </a-space>
-      </template>
-      <div class="search-area">
-        <a-form
-          layout="inline"
-          :model="searchParams"
+      <template #header-extra>
+        <a-button
+          type="primary"
+          @click="openCreate"
         >
-          <a-form-item label="业务员">
-            <a-input
-              v-model:value="searchParams.name"
-              placeholder="请输入"
-              allow-clear
-              style="width: 160px"
-            />
-          </a-form-item>
-          <a-form-item label="拜访日期">
-            <a-range-picker
-              v-model:value="dateRange"
-              style="width: 220px"
-              @change="handleDateChange"
-            />
-          </a-form-item>
-          <a-form-item>
-            <a-space>
+          <template #icon>
+            <PlusOutlined />
+          </template>新建计划
+        </a-button>
+      </template>
+      <template #bodyCell="{ column, record, text }">
+        <template v-if="column.dataIndex === 'status'">
+          <a-tag :color="STATUS_MAP[text]?.color || 'default'">
+            {{ STATUS_MAP[text]?.label || '-' }}
+          </a-tag>
+        </template>
+        <template v-else-if="column.dataIndex === 'planDate'">
+          <span :class="{ 'overdue-plan': isOverdue(record) }">
+            {{ text || '-' }}
+          </span>
+        </template>
+        <template v-else-if="column.dataIndex === 'action'">
+          <a-space>
+            <a-button
+              type="link"
+              size="small"
+              @click="openEdit(record)"
+            >
+              编辑
+            </a-button>
+            <a-popconfirm
+              v-if="record.status === 0 || record.status === 1"
+              title="确认取消该拜访计划？"
+              ok-text="取消计划"
+              cancel-text="返回"
+              @confirm="handleCancel(record)"
+            >
               <a-button
-                type="primary"
-                @click="handleSearch"
+                type="link"
+                size="small"
               >
-                <template #icon>
-                  <SearchOutlined />
-                </template>查询
+                取消计划
               </a-button>
-              <a-button @click="handleReset">
-                <template #icon>
-                  <ClearOutlined />
-                </template>重置
+            </a-popconfirm>
+            <a-popconfirm
+              title="确认删除该拜访计划？"
+              ok-text="删除"
+              cancel-text="取消"
+              @confirm="handleDelete(record)"
+            >
+              <a-button
+                type="link"
+                size="small"
+                danger
+              >
+                删除
               </a-button>
-            </a-space>
-          </a-form-item>
-        </a-form>
-      </div>
-      <div class="table-area">
-        <BillTableList
-          :columns="columns"
-          :data-source="tableData"
-          :loading="loading"
-          :pagination="billPagination"
-          :show-toolbar="false"
-          :show-search="false"
-          :show-add="false"
-          :show-export="false"
-          :show-batch-delete="false"
-          :selectable="false"
-          row-key="id"
-          @page-change="handlePageChange"
-        />
-      </div>
-    </PageContainer>
-  </ErrorBoundary>
+            </a-popconfirm>
+          </a-space>
+        </template>
+      </template>
+    </ARReportPage>
+
+    <a-modal
+      v-model:open="modalOpen"
+      :title="editingId ? '编辑拜访计划' : '新建拜访计划'"
+      :confirm-loading="saving"
+      width="560px"
+      @ok="handleSave"
+    >
+      <a-form
+        ref="formRef"
+        :model="form"
+        :rules="rules"
+        :label-col="{ span: 6 }"
+        :wrapper-col="{ span: 16 }"
+      >
+        <a-form-item
+          label="客户"
+          name="customerId"
+        >
+          <a-select
+            v-model:value="form.customerId"
+            placeholder="请选择客户"
+            show-search
+            option-filter-prop="label"
+            :options="customerOptions"
+          />
+        </a-form-item>
+        <a-form-item
+          label="负责人"
+          name="salesPersonId"
+        >
+          <a-select
+            v-model:value="form.salesPersonId"
+            placeholder="请选择负责人"
+            show-search
+            option-filter-prop="label"
+            :options="salesPersonOptions"
+          />
+        </a-form-item>
+        <a-form-item
+          label="计划日期"
+          name="planDate"
+        >
+          <a-date-picker
+            v-model:value="form.planDate"
+            value-format="YYYY-MM-DD"
+            style="width: 100%"
+            placeholder="请选择计划拜访日期"
+          />
+        </a-form-item>
+        <a-form-item
+          label="计划时间"
+          name="planTime"
+        >
+          <a-input
+            v-model:value="form.planTime"
+            placeholder="如 10:00-11:00（选填）"
+          />
+        </a-form-item>
+        <a-form-item
+          label="拜访目的"
+          name="purpose"
+        >
+          <a-input
+            v-model:value="form.purpose"
+            placeholder="请输入拜访目的"
+          />
+        </a-form-item>
+        <a-form-item
+          label="拜访地址"
+          name="address"
+        >
+          <a-input
+            v-model:value="form.address"
+            placeholder="请输入拜访地址（选填）"
+          />
+        </a-form-item>
+        <a-form-item
+          label="备注"
+          name="remark"
+        >
+          <a-textarea
+            v-model:value="form.remark"
+            :rows="2"
+            placeholder="请输入备注（选填）"
+          />
+        </a-form-item>
+      </a-form>
+    </a-modal>
+  </div>
 </template>
+
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
-import type { Dayjs } from 'dayjs'
-import { ReloadOutlined, SearchOutlined, ClearOutlined } from '@ant-design/icons-vue'
-import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import PageContainer from '@/components/PageContainer/PageContainer.vue'
-import BillTableList from '@/components/BillTableList/BillTableList.vue'
-import request from '@/utils/request'
+import dayjs from 'dayjs'
+import { message } from 'ant-design-vue'
+import { PlusOutlined } from '@ant-design/icons-vue'
+import ARReportPage from '@/components/ARReportPage/ARReportPage.vue'
+import type { ReportQueryField } from '@/components/ARReportPage/types'
+import { visitPlanApi, crmCustomerApi, type VisitPlan } from '@/api/crm'
+import { userApi } from '@/api/user'
 
-const loading = ref(false)
-const hasError = ref(false)
-const tableData = ref<any[]>([])
-const lastUpdateTime = ref('')
+// ═══ 计划状态（0待执行 1执行中 2已完成 3已取消，与后端 VisitPlan 一致） ═══
+const STATUS_MAP: Record<number, { label: string; color: string }> = {
+  0: { label: '待执行', color: 'orange' },
+  1: { label: '执行中', color: 'blue' },
+  2: { label: '已完成', color: 'green' },
+  3: { label: '已取消', color: 'red' }
+}
+const statusOptions = Object.entries(STATUS_MAP).map(([value, v]) => ({
+  label: v.label,
+  value: Number(value)
+}))
 
-const searchParams = reactive({ name: '', startDate: '', endDate: '' })
-const dateRange = ref<[Dayjs, Dayjs] | null>(null)
-const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
-const billPagination = computed(() => ({ current: pagination.current, pageSize: pagination.pageSize, total: pagination.total }))
+function isOverdue(record: VisitPlan): boolean {
+  return !!record.planDate && (record.status === 0 || record.status === 1) &&
+    dayjs(record.planDate).isBefore(dayjs(), 'day')
+}
 
-const columns = [
-  { title: '计划编号', field: 'planNo', key: 'planNo', width: 160 },
-  { title: '业务员', field: 'salesmanName', key: 'salesmanName', width: 120 },
-  { title: '客户名称', field: 'customerName', key: 'customerName', width: 160 },
-  { title: '计划拜访日期', field: 'planDate', key: 'planDate', width: 120 },
-  { title: '拜访目的', field: 'purpose', key: 'purpose', width: 140 },
-  { title: '状态', field: 'status', key: 'status', width: 100 },
-  { title: '创建时间', field: 'createTime', key: 'createTime', width: 170 },
+// ═══ 下拉选项 ═══
+const customerOptions = ref<{ label: string; value: number }[]>([])
+const salesPersonOptions = ref<{ label: string; value: number }[]>([])
+
+const queryFields = computed<ReportQueryField[]>(() => [
+  {
+    key: 'customerId',
+    type: 'select',
+    label: '客户',
+    placeholder: '全部客户',
+    width: 220,
+    options: customerOptions.value
+  },
+  {
+    key: 'salesPersonId',
+    type: 'select',
+    label: '负责人',
+    placeholder: '全部负责人',
+    width: 180,
+    options: salesPersonOptions.value
+  },
+  {
+    key: 'status',
+    type: 'select',
+    label: '状态',
+    placeholder: '全部状态',
+    width: 140,
+    options: statusOptions
+  },
+  {
+    key: 'planDateRange',
+    type: 'date-range',
+    label: '计划日期',
+    startKey: 'planDateStart',
+    endKey: 'planDateEnd',
+    width: 240
+  }
+])
+
+// ═══ 表格列 ═══
+const columns: any[] = [
+  { title: '计划编号', dataIndex: 'planNo', key: 'planNo', width: 150 },
+  { title: '客户', dataIndex: 'customerName', key: 'customerName', width: 170, ellipsis: true },
+  { title: '负责人', dataIndex: 'salesPersonName', key: 'salesPersonName', width: 100 },
+  { title: '计划日期', dataIndex: 'planDate', key: 'planDate', width: 110 },
+  { title: '计划时间', dataIndex: 'planTime', key: 'planTime', width: 110 },
+  { title: '拜访目的', dataIndex: 'purpose', key: 'purpose', ellipsis: true },
+  { title: '拜访地址', dataIndex: 'address', key: 'address', ellipsis: true },
+  { title: '状态', dataIndex: 'status', key: 'status', width: 90 },
+  { title: '备注', dataIndex: 'remark', key: 'remark', ellipsis: true },
+  { title: '操作', dataIndex: 'action', key: 'action', width: 190, fixed: 'right' }
 ]
 
-const handleDateChange = (dates: [Dayjs, Dayjs] | null) => {
-  if (dates?.length === 2) { searchParams.startDate = dates[0]?.format('YYYY-MM-DD') || ''; searchParams.endDate = dates[1]?.format('YYYY-MM-DD') || '' }
-  else { searchParams.startDate = ''; searchParams.endDate = '' }
+// ═══ 数据请求（GET /api/crm/visit/plan/page，page/size 风格） ═══
+function fetcher(params: Record<string, any>) {
+  return visitPlanApi.page(params)
 }
 
-const fetchData = async () => {
-  loading.value = true; hasError.value = false
+// ═══ 新建/编辑弹窗 ═══
+const reportRef = ref<InstanceType<typeof ARReportPage> | null>(null)
+const formRef = ref()
+const modalOpen = ref(false)
+const saving = ref(false)
+const editingId = ref<number | null>(null)
+
+const emptyForm = () => ({
+  customerId: undefined as number | undefined,
+  salesPersonId: undefined as number | undefined,
+  planDate: undefined as string | undefined,
+  planTime: '',
+  purpose: '',
+  address: '',
+  remark: ''
+})
+const form = reactive(emptyForm())
+
+const rules: Record<string, any> = {
+  customerId: [{ required: true, message: '请选择客户', trigger: 'change' }],
+  salesPersonId: [{ required: true, message: '请选择负责人', trigger: 'change' }],
+  planDate: [{ required: true, message: '请选择计划日期', trigger: 'change' }],
+  purpose: [{ required: true, message: '请输入拜访目的', trigger: 'blur' }]
+}
+
+function resetForm(data?: Partial<VisitPlan>) {
+  Object.assign(form, emptyForm(), data || {})
+}
+
+function openCreate() {
+  editingId.value = null
+  resetForm()
+  modalOpen.value = true
+}
+
+function openEdit(record: VisitPlan) {
+  editingId.value = record.id
+  resetForm({
+    customerId: record.customerId,
+    salesPersonId: record.salesPersonId,
+    planDate: record.planDate,
+    planTime: record.planTime || '',
+    purpose: record.purpose || '',
+    address: record.address || '',
+    remark: record.remark || ''
+  })
+  modalOpen.value = true
+}
+
+/** 后端按实体原样保存，名称字段由前端按选中项回填 */
+function resolveNames() {
+  const customer = customerOptions.value.find(o => o.value === form.customerId)
+  const salesPerson = salesPersonOptions.value.find(o => o.value === form.salesPersonId)
+  return {
+    customerName: customer?.label,
+    salesPersonName: salesPerson?.label
+  }
+}
+
+async function handleSave() {
   try {
-    const res: any = await request.get('/sales/visit-plan/page', {
-      params: { page: pagination.current, size: pagination.pageSize, ...searchParams }
-    })
-    if (res) {
-      const data = res.data || res
-      tableData.value = data.records || data.content || data.list || []
-      pagination.total = data.total || 0
-      lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
+    await formRef.value?.validate()
+  } catch {
+    return
+  }
+  saving.value = true
+  try {
+    const payload = { ...form, ...resolveNames() }
+    if (editingId.value) {
+      await visitPlanApi.update(editingId.value, payload)
+      message.success('拜访计划更新成功')
+    } else {
+      await visitPlanApi.create(payload)
+      message.success('拜访计划创建成功')
     }
-  } catch (e: any) { hasError.value = true; console.warn('[拜访规划] 获取失败', e)
-  } finally { loading.value = false }
+    modalOpen.value = false
+    reportRef.value?.reload()
+  } catch (e) {
+    console.warn('[拜访规划] 保存失败', e)
+    message.error((e as Error)?.message || '保存失败')
+  } finally {
+    saving.value = false
+  }
 }
 
-const handleSearch = () => { pagination.current = 1; fetchData() }
-const handleReset = () => { searchParams.name = ''; searchParams.startDate = ''; searchParams.endDate = ''; dateRange.value = null; pagination.current = 1; fetchData() }
-const handlePageChange = (page: number, pageSize: number) => { pagination.current = page; pagination.pageSize = pageSize; fetchData() }
-const handleError = (e: Error) => { hasError.value = true; console.error(e) }
-onMounted(fetchData)
+async function handleCancel(record: VisitPlan) {
+  try {
+    await visitPlanApi.cancel(record.id)
+    message.success('计划已取消')
+    reportRef.value?.reload()
+  } catch (e) {
+    console.warn('[拜访规划] 取消失败', e)
+    message.error((e as Error)?.message || '取消失败')
+  }
+}
+
+async function handleDelete(record: VisitPlan) {
+  try {
+    await visitPlanApi.remove(record.id)
+    message.success('删除成功')
+    reportRef.value?.reload()
+  } catch (e) {
+    console.warn('[拜访规划] 删除失败', e)
+    message.error((e as Error)?.message || '删除失败')
+  }
+}
+
+// ═══ 下拉数据加载 ═══
+onMounted(async () => {
+  try {
+    const list = await crmCustomerApi.dropdown()
+    customerOptions.value = (Array.isArray(list) ? list : []).map(c => ({
+      label: c.name,
+      value: c.id
+    }))
+  } catch (e) {
+    console.warn('[拜访规划] 客户下拉获取失败', e)
+  }
+  try {
+    const res: any = await userApi.getPage({ pageNum: 1, pageSize: 200 })
+    const list = res?.records || res?.data?.records || []
+    salesPersonOptions.value = list.map((u: any) => ({
+      label: u.nickname || u.username,
+      value: u.id
+    }))
+  } catch (e) {
+    console.warn('[拜访规划] 负责人下拉获取失败', e)
+  }
+})
 </script>
+
 <style scoped>
-.search-area { background: #fff; padding: 16px 20px; border-radius: 8px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-.table-area { background: #fff; padding: 16px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-.update-time { font-size: 12px; color: #999; }
+.overdue-plan {
+  color: #ff4d4f;
+}
 </style>

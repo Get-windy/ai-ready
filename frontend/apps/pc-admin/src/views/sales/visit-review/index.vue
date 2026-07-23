@@ -1,142 +1,140 @@
 <template>
-  <ErrorBoundary @error="handleError">
-    <PageContainer
+  <div>
+    <ARReportPage
       title="拜访检视"
-      full-height
+      :stat-cards="statCards"
+      :query-fields="queryFields"
+      :columns="columns"
+      :fetcher="fetcher"
+      :normalize-response="normalizeResponse"
+      export-file-name="拜访检视"
+      row-key="id"
+      empty-text="暂无拜访检视数据"
+      @loaded="handleLoaded"
     >
-      <template #headerExtra>
-        <a-space :size="12">
-          <a-badge :status="loading ? 'processing' : (hasError ? 'error' : 'success')" />
-          <span
-            v-if="lastUpdateTime"
-            class="update-time"
-          >最后更新: {{ lastUpdateTime }}</span>
-          <a-button
-            size="small"
-            @click="fetchData"
-          >
-            <template #icon>
-              <ReloadOutlined />
-            </template>
-          </a-button>
-        </a-space>
+      <template #bodyCell="{ column, text }">
+        <template v-if="column.dataIndex === 'visitType'">
+          <a-tag :color="VISIT_TYPE_MAP[text]?.color || 'default'">
+            {{ VISIT_TYPE_MAP[text]?.label || '-' }}
+          </a-tag>
+        </template>
+        <template v-else-if="column.dataIndex === 'result'">
+          <a-tag :color="RESULT_MAP[text]?.color || 'default'">
+            {{ RESULT_MAP[text]?.label || '-' }}
+          </a-tag>
+        </template>
+        <template v-else-if="column.dataIndex === 'visitTime'">
+          {{ formatTime(text) }}
+        </template>
       </template>
-      <div class="search-area">
-        <a-form
-          layout="inline"
-          :model="searchParams"
-        >
-          <a-form-item label="业务员">
-            <a-input
-              v-model:value="searchParams.name"
-              placeholder="请输入"
-              allow-clear
-              style="width: 160px"
-            />
-          </a-form-item>
-          <a-form-item label="检视日期">
-            <a-range-picker
-              v-model:value="dateRange"
-              style="width: 220px"
-              @change="handleDateChange"
-            />
-          </a-form-item>
-          <a-form-item>
-            <a-space>
-              <a-button
-                type="primary"
-                @click="handleSearch"
-              >
-                <template #icon>
-                  <SearchOutlined />
-                </template>查询
-              </a-button>
-              <a-button @click="handleReset">
-                <template #icon>
-                  <ClearOutlined />
-                </template>重置
-              </a-button>
-            </a-space>
-          </a-form-item>
-        </a-form>
-      </div>
-      <div class="table-area">
-        <BillTableList
-          :columns="columns"
-          :data-source="tableData"
-          :loading="loading"
-          :pagination="billPagination"
-          :show-toolbar="false"
-          :show-search="false"
-          :show-add="false"
-          :show-export="false"
-          :show-batch-delete="false"
-          :selectable="false"
-          row-key="id"
-          @page-change="handlePageChange"
-        />
-      </div>
-    </PageContainer>
-  </ErrorBoundary>
+    </ARReportPage>
+  </div>
 </template>
+
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
-import type { Dayjs } from 'dayjs'
-import { ReloadOutlined, SearchOutlined, ClearOutlined } from '@ant-design/icons-vue'
-import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import PageContainer from '@/components/PageContainer/PageContainer.vue'
-import BillTableList from '@/components/BillTableList/BillTableList.vue'
-import request from '@/utils/request'
+import { ref, computed, onMounted } from 'vue'
+import dayjs from 'dayjs'
+import ARReportPage from '@/components/ARReportPage/ARReportPage.vue'
+import type { ReportFetchResult, ReportQueryField, StatCardItem } from '@/components/ARReportPage/types'
+import {
+  visitReviewApi,
+  type VisitReviewResponse, type VisitReviewSummary, type VisitStatsSummary
+} from '@/api/crm'
 
-const loading = ref(false)
-const hasError = ref(false)
-const tableData = ref<any[]>([])
-const lastUpdateTime = ref('')
+// ═══ 拜访方式/结果（与后端 VisitRecord 注释一致） ═══
+const VISIT_TYPE_MAP: Record<number, { label: string; color: string }> = {
+  1: { label: '上门', color: 'blue' },
+  2: { label: '电话', color: 'cyan' },
+  3: { label: '其他', color: 'default' }
+}
+const RESULT_MAP: Record<number, { label: string; color: string }> = {
+  1: { label: '有意向', color: 'green' },
+  2: { label: '一般', color: 'orange' },
+  3: { label: '无意向', color: 'red' }
+}
+const resultOptions = Object.entries(RESULT_MAP).map(([value, v]) => ({
+  label: v.label,
+  value: Number(value)
+}))
 
-const searchParams = reactive({ name: '', startDate: '', endDate: '' })
-const dateRange = ref<[Dayjs, Dayjs] | null>(null)
-const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
-const billPagination = computed(() => ({ current: pagination.current, pageSize: pagination.pageSize, total: pagination.total }))
+function formatTime(val: string | undefined): string {
+  return val ? dayjs(val).format('YYYY-MM-DD HH:mm') : '-'
+}
 
-const columns = [
-  { title: '检视编号', field: 'reviewNo', key: 'reviewNo', width: 160 },
-  { title: '业务员', field: 'salesmanName', key: 'salesmanName', width: 120 },
-  { title: '客户名称', field: 'customerName', key: 'customerName', width: 160 },
-  { title: '检视日期', field: 'reviewDate', key: 'reviewDate', width: 120 },
-  { title: '检视意见', field: 'reviewComment', key: 'reviewComment', width: 180 },
-  { title: '状态', field: 'status', key: 'status', width: 100 },
-  { title: '创建时间', field: 'createTime', key: 'createTime', width: 170 },
+// ═══ 统计卡片（/api/crm/visit/stats/summary + review/page 结果分布） ═══
+const stats = ref<VisitStatsSummary | null>(null)
+const reviewSummary = ref<VisitReviewSummary | null>(null)
+
+const statCards = computed<StatCardItem[]>(() => [
+  { label: '今日拜访', value: stats.value?.todayCount ?? 0, suffix: '次' },
+  { label: '本周拜访', value: stats.value?.weekCount ?? 0, suffix: '次' },
+  { label: '计划覆盖率', value: Number(stats.value?.coverage ?? 0), precision: 2, suffix: '%' },
+  { label: '拜访总数', value: reviewSummary.value?.total ?? 0, suffix: '次' },
+  { label: '有意向', value: reviewSummary.value?.interested ?? 0, suffix: '次', valueStyle: { color: '#52c41a' } },
+  { label: '一般', value: reviewSummary.value?.normal ?? 0, suffix: '次', valueStyle: { color: '#faad14' } },
+  { label: '无意向', value: reviewSummary.value?.noIntention ?? 0, suffix: '次', valueStyle: { color: '#ff4d4f' } }
+])
+
+// ═══ 查询字段（按结果 + 拜访日期筛选） ═══
+const queryFields: ReportQueryField[] = [
+  {
+    key: 'result',
+    type: 'select',
+    label: '拜访结果',
+    placeholder: '全部结果',
+    width: 140,
+    options: resultOptions
+  },
+  {
+    key: 'visitDateRange',
+    type: 'date-range',
+    label: '拜访日期',
+    startKey: 'visitDateStart',
+    endKey: 'visitDateEnd',
+    width: 240
+  }
 ]
 
-const handleDateChange = (dates: [Dayjs, Dayjs] | null) => {
-  if (dates?.length === 2) { searchParams.startDate = dates[0]?.format('YYYY-MM-DD') || ''; searchParams.endDate = dates[1]?.format('YYYY-MM-DD') || '' }
-  else { searchParams.startDate = ''; searchParams.endDate = '' }
+// ═══ 表格列 ═══
+const columns: any[] = [
+  { title: '客户', dataIndex: 'customerName', key: 'customerName', width: 170, ellipsis: true },
+  { title: '负责人', dataIndex: 'salesPersonName', key: 'salesPersonName', width: 100 },
+  { title: '拜访方式', dataIndex: 'visitType', key: 'visitType', width: 90 },
+  { title: '打卡时间', dataIndex: 'visitTime', key: 'visitTime', width: 130 },
+  { title: '拜访地点', dataIndex: 'location', key: 'location', ellipsis: true },
+  { title: '拜访内容', dataIndex: 'content', key: 'content', ellipsis: true },
+  { title: '拜访结果', dataIndex: 'result', key: 'result', width: 90 },
+  { title: '下一步行动', dataIndex: 'nextAction', key: 'nextAction', width: 150, ellipsis: true },
+  { title: '下次拜访', dataIndex: 'nextVisitDate', key: 'nextVisitDate', width: 110 }
+]
+
+// ═══ 数据请求（GET /api/crm/visit/review/page，裸 Map：summary+byDate+page） ═══
+function fetcher(params: Record<string, any>) {
+  return visitReviewApi.reviewPage(params)
 }
 
-const fetchData = async () => {
-  loading.value = true; hasError.value = false
+function normalizeResponse(res: VisitReviewResponse): ReportFetchResult {
+  const page = res?.page
+  return {
+    list: page?.records || [],
+    total: Number(page?.total) || 0,
+    raw: res
+  }
+}
+
+/** 列表加载完成后同步结果分布，并刷新顶部统计 */
+function handleLoaded(result: ReportFetchResult) {
+  reviewSummary.value = (result.raw as VisitReviewResponse)?.summary || null
+  loadStats()
+}
+
+async function loadStats() {
   try {
-    const res: any = await request.get('/sales/visit-review/page', {
-      params: { page: pagination.current, size: pagination.pageSize, ...searchParams }
-    })
-    if (res) {
-      const data = res.data || res
-      tableData.value = data.records || data.content || data.list || []
-      pagination.total = data.total || 0
-      lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
-    }
-  } catch (e: any) { hasError.value = true; console.warn('[拜访检视] 获取失败', e)
-  } finally { loading.value = false }
+    stats.value = await visitReviewApi.statsSummary()
+  } catch (e) {
+    console.warn('[拜访检视] 统计汇总获取失败', e)
+  }
 }
 
-const handleSearch = () => { pagination.current = 1; fetchData() }
-const handleReset = () => { searchParams.name = ''; searchParams.startDate = ''; searchParams.endDate = ''; dateRange.value = null; pagination.current = 1; fetchData() }
-const handlePageChange = (page: number, pageSize: number) => { pagination.current = page; pagination.pageSize = pageSize; fetchData() }
-const handleError = (e: Error) => { hasError.value = true; console.error(e) }
-onMounted(fetchData)
+onMounted(loadStats)
 </script>
-<style scoped>
-.search-area { background: #fff; padding: 16px 20px; border-radius: 8px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-.table-area { background: #fff; padding: 16px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-.update-time { font-size: 12px; color: #999; }
-</style>

@@ -1,82 +1,20 @@
 <template>
-  <ErrorBoundary @error="handleError">
-    <PageContainer
-      title="费用统计"
-      full-height
-    >
-      <template #headerExtra>
-        <a-space :size="12">
-          <a-badge :status="loading ? 'processing' : (hasError ? 'error' : 'success')" />
-          <span
-            v-if="lastUpdateTime"
-            class="update-time"
-          >最后更新: {{ lastUpdateTime }}</span>
-          <a-button
-            size="small"
-            @click="fetchData"
-          >
-            <template #icon>
-              <ReloadOutlined />
-            </template>
-          </a-button>
-        </a-space>
-      </template>
+  <ErrorBoundary>
+    <PageContainer title="费用统计">
+      <!-- ═══ 查询区 ═══ -->
       <div class="search-area">
-        <a-form
-          layout="inline"
-          :model="searchParams"
-        >
-          <a-form-item label="费用类型">
-            <a-select
-              v-model:value="searchParams.expenseType"
-              placeholder="请选择费用类型"
-              allow-clear
-              style="width: 140px"
-            >
-              <a-select-option value="">
-                全部
-              </a-select-option>
-              <a-select-option value="差旅费">
-                差旅费
-              </a-select-option>
-              <a-select-option value="办公费">
-                办公费
-              </a-select-option>
-              <a-select-option value="招待费">
-                招待费
-              </a-select-option>
-              <a-select-option value="交通费">
-                交通费
-              </a-select-option>
-              <a-select-option value="其他">
-                其他
-              </a-select-option>
-            </a-select>
-          </a-form-item>
-          <a-form-item label="年度">
-            <a-input-number
-              v-model:value="searchParams.year"
-              placeholder="年度"
-              :min="2020"
-              :max="2099"
-              style="width: 120px"
-            />
-          </a-form-item>
-          <a-form-item label="部门">
-            <a-input
-              v-model:value="searchParams.deptName"
-              placeholder="请输入部门"
-              allow-clear
-              style="width: 140px"
-              @press-enter="handleSearch"
+        <a-form layout="inline">
+          <a-form-item label="申请日期">
+            <a-range-picker
+              v-model:value="dateRange"
+              style="width: 240px"
             />
           </a-form-item>
           <a-form-item>
             <a-space>
               <a-button
                 type="primary"
-                :loading="loading"
-                @click="handleSearch"
+                @click="loadData"
               >
                 <template #icon>
                   <SearchOutlined />
@@ -91,108 +29,201 @@
           </a-form-item>
         </a-form>
       </div>
+
+      <!-- ═══ 统计卡片 ═══ -->
+      <ARStatCards
+        :items="statCards"
+        :loading="loading"
+      />
+
+      <!-- ═══ 图表区 ═══ -->
+      <a-row
+        :gutter="16"
+        class="chart-row"
+      >
+        <a-col :span="12">
+          <div class="chart-area">
+            <ARReportChart
+              title="按费用类型"
+              :option="typeChartOption"
+              :loading="loading"
+              :height="320"
+            />
+          </div>
+        </a-col>
+        <a-col :span="12">
+          <div class="chart-area">
+            <ARReportChart
+              title="按部门"
+              :option="deptChartOption"
+              :loading="loading"
+              :height="320"
+            />
+          </div>
+        </a-col>
+      </a-row>
+
+      <!-- ═══ 部门费用明细表 ═══ -->
       <div class="table-area">
-        <BillTableList
+        <div class="table-title">
+          部门费用明细
+        </div>
+        <a-table
           :columns="columns"
-          :data-source="tableData"
+          :data-source="deptTableData"
           :loading="loading"
-          :pagination="billPagination"
-          :show-toolbar="false"
-          :show-search="false"
-          :show-add="false"
-          :show-export="false"
-          :show-batch-delete="false"
-          :selectable="false"
-          row-key="id"
-          @page-change="handlePageChange"
+          :pagination="false"
+          row-key="departmentName"
+          size="small"
         >
-          <template #totalAmountCell="{ record }">
-            <span class="amount-cell">{{ formatAmount(record.totalAmount) }}</span>
+          <template #bodyCell="{ column, text }">
+            <template v-if="column.dataIndex === 'amount'">
+              {{ formatMoney(text) }}
+            </template>
+            <template v-else-if="column.dataIndex === 'ratio'">
+              {{ text }}%
+            </template>
           </template>
-          <template #avgAmountCell="{ record }">
-            <span class="amount-cell">{{ formatAmount(record.avgAmount) }}</span>
-          </template>
-          <template #yoyRateCell="{ record }">
-            <span :class="record.yoyRate > 0 ? 'trend-up' : record.yoyRate < 0 ? 'trend-down' : ''">
-              {{ formatPercent(record.yoyRate) }}
-            </span>
-          </template>
-        </BillTableList>
+        </a-table>
       </div>
     </PageContainer>
   </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import type { Dayjs } from 'dayjs'
-import { ReloadOutlined, SearchOutlined, ClearOutlined } from '@ant-design/icons-vue'
+import { SearchOutlined, ClearOutlined } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
-import BillTableList from '@/components/BillTableList/BillTableList.vue'
-import request from '@/utils/request'
+import ARStatCards from '@/components/ARStatCards/ARStatCards.vue'
+import ARReportChart from '@/components/ARReportChart/ARReportChart.vue'
+import type { StatCardItem } from '@/components/ARReportPage/types'
+import { expenseStatsApi } from '@/api/finance'
 
 const loading = ref(false)
-const hasError = ref(false)
-const tableData = ref<any[]>([])
-const lastUpdateTime = ref('')
+const dateRange = ref<[Dayjs, Dayjs] | null>(null)
+const summary = ref<Record<string, any>>({})
 
-const searchParams = reactive({
-  expenseType: undefined as string | undefined,
-  year: undefined as number | undefined,
-  deptName: '',
+function buildParams() {
+  const params: Record<string, any> = {}
+  if (dateRange.value?.[0]) params.startDate = dateRange.value[0].format('YYYY-MM-DD')
+  if (dateRange.value?.[1]) params.endDate = dateRange.value[1].format('YYYY-MM-DD')
+  return params
+}
+
+// ═══ 统计卡片（键与后端 getExpenseStatistics 一致） ═══
+const statCards = computed<StatCardItem[]>(() => {
+  if (!Object.keys(summary.value).length) return []
+  return [
+    { label: '费用总额', value: Number(summary.value.totalAmount) || 0, precision: 2, prefix: '¥' },
+    { label: '已审批金额', value: Number(summary.value.approvedAmount) || 0, precision: 2, prefix: '¥' },
+    { label: '待审批金额', value: Number(summary.value.pendingAmount) || 0, precision: 2, prefix: '¥' },
+    { label: '已拒绝金额', value: Number(summary.value.rejectedAmount) || 0, precision: 2, prefix: '¥' },
+    { label: '单据数', value: Number(summary.value.expenseCount) || 0, suffix: '单' },
+    { label: '平均单额', value: Number(summary.value.averageAmount) || 0, precision: 2, prefix: '¥' }
+  ]
 })
 
-const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
-const billPagination = computed(() => ({ current: pagination.current, pageSize: pagination.pageSize, total: pagination.total }))
+// ═══ 图表：类型饼图 / 部门柱状图（byType/byDepartment 为 {名称: 金额} 映射） ═══
+function mapToPairs(map: Record<string, number> | undefined): Array<{ name: string; value: number }> {
+  return Object.entries(map || {}).map(([name, value]) => ({ name, value: Number(value) || 0 }))
+}
 
-const columns = [
-  { title: '费用类型', field: 'expenseType', key: 'expenseType', width: 120 },
-  { title: '部门', field: 'deptName', key: 'deptName', width: 140 },
-  { title: '笔数', field: 'count', key: 'count', width: 80, align: 'right' },
-  { title: '总金额', field: 'totalAmount', key: 'totalAmount', width: 140, align: 'right', slotName: 'totalAmountCell' },
-  { title: '平均金额', field: 'avgAmount', key: 'avgAmount', width: 120, align: 'right', slotName: 'avgAmountCell' },
-  { title: '同比', field: 'yoyRate', key: 'yoyRate', width: 100, align: 'right', slotName: 'yoyRateCell' },
+const typeChartOption = computed(() => ({
+  tooltip: { trigger: 'item', formatter: '{b}: ¥{c} ({d}%)' },
+  legend: { bottom: 0 },
+  series: [
+    {
+      name: '费用类型',
+      type: 'pie',
+      radius: ['40%', '65%'],
+      center: ['50%', '46%'],
+      data: mapToPairs(summary.value.byType)
+    }
+  ]
+}))
+
+const deptPairs = computed(() => mapToPairs(summary.value.byDepartment))
+
+const deptChartOption = computed(() => ({
+  tooltip: { trigger: 'axis' },
+  grid: { left: 90, right: 24, top: 32, bottom: 60 },
+  xAxis: { type: 'category', data: deptPairs.value.map(p => p.name), axisLabel: { rotate: 30 } },
+  yAxis: { type: 'value' },
+  series: [{ name: '费用金额', type: 'bar', data: deptPairs.value.map(p => p.value) }]
+}))
+
+// ═══ 部门明细表 ═══
+const columns: any[] = [
+  { title: '部门', dataIndex: 'departmentName', key: 'departmentName' },
+  { title: '费用金额', dataIndex: 'amount', key: 'amount', width: 180, align: 'right' },
+  { title: '占比', dataIndex: 'ratio', key: 'ratio', width: 120, align: 'right' }
 ]
 
-function formatAmount(val: number | null | undefined): string {
-  if (val === null || val === undefined) return '0.00'
+const deptTableData = computed(() => {
+  const total = Number(summary.value.totalAmount) || 0
+  return deptPairs.value.map(p => ({
+    departmentName: p.name,
+    amount: p.value,
+    ratio: total > 0 ? ((p.value / total) * 100).toFixed(1) : '0.0'
+  }))
+})
+
+function formatMoney(val: number | null | undefined): string {
+  if (val === null || val === undefined || isNaN(Number(val))) return '-'
   return Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-function formatPercent(val: number | null | undefined): string {
-  if (val === null || val === undefined) return '-'
-  return (val * 100).toFixed(2) + '%'
-}
-
-const fetchData = async () => {
-  loading.value = true; hasError.value = false
+// ═══ 数据请求：费用统计汇总（/erp/expense/statistics/summary） ═══
+async function loadData() {
+  loading.value = true
   try {
-    const res: any = await request.get('/finance/expense-stats/page', {
-      params: { page: pagination.current, size: pagination.pageSize, ...searchParams }
-    })
-    if (res) {
-      const data = res.data || res
-      tableData.value = data.records || data.content || data.list || []
-      pagination.total = data.total || 0
-      lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
-    }
-  } catch (e: any) { hasError.value = true; console.warn('[费用统计] 获取失败', e)
-  } finally { loading.value = false }
+    const res: any = await expenseStatsApi.getSummary(buildParams())
+    summary.value = res && typeof res === 'object' ? res : {}
+  } catch (e) {
+    summary.value = {}
+    console.warn('[费用统计] 获取失败', e)
+  } finally {
+    loading.value = false
+  }
 }
 
-const handleSearch = () => { pagination.current = 1; fetchData() }
-const handleReset = () => { searchParams.expenseType = undefined; searchParams.year = undefined; searchParams.deptName = ''; pagination.current = 1; fetchData() }
-const handlePageChange = (page: number, pageSize: number) => { pagination.current = page; pagination.pageSize = pageSize; fetchData() }
-const handleError = (e: Error) => { hasError.value = true; console.error(e) }
-onMounted(fetchData)
+function handleReset() {
+  dateRange.value = null
+  loadData()
+}
+
+onMounted(loadData)
 </script>
 
 <style scoped>
-.search-area { background: #fff; padding: 16px 20px; border-radius: 8px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-.table-area { background: #fff; padding: 16px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-.update-time { font-size: 12px; color: #999; }
-.amount-cell { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-variant-numeric: tabular-nums; font-weight: 500; }
-.trend-up { color: #f5222d; }
-.trend-down { color: #52c41a; }
+.search-area {
+  background: #fff;
+  padding: 16px 20px 0;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+.chart-row {
+  margin-top: 16px;
+}
+.chart-area {
+  background: #fff;
+  padding: 16px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+.table-area {
+  background: #fff;
+  padding: 16px;
+  border-radius: 8px;
+  margin-top: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+.table-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
 </style>

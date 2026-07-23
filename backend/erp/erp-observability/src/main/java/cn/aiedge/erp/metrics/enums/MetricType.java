@@ -11,7 +11,8 @@ public enum MetricType {
     INVENTORY("inventory", "库存指标"),
     USER("user", "用户指标"),
     SALES("sales", "销售指标"),
-    FINANCE("finance", "财务指标");
+    FINANCE("finance", "财务指标"),
+    PURCHASE("purchase", "采购指标");
     
     private final String code;
     private final String description;

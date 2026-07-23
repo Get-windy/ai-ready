@@ -1,33 +1,29 @@
 package cn.aiedge.erp.sale.service.integration;
 
-import cn.aiedge.common.exception.BusinessException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import cn.aiedge.erp.finance.dto.BusinessAccountingRequest;
+import cn.aiedge.erp.finance.dto.ReceivableDTO;
+import cn.aiedge.erp.finance.dto.VoucherDTO;
+import cn.aiedge.erp.finance.service.BusinessAccountingService;
+import cn.aiedge.erp.finance.service.ReceivableService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
 
 /**
  * 销售模块记账集成服务
- * 调用财务模块的BusinessAccountingController创建会计凭证
+ * 直接调用财务模块的 {@link BusinessAccountingService} 创建应收与会计凭证
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class SalesAccountingService {
 
-    private final RestTemplate restTemplate;
-    private final ObjectMapper objectMapper;
-
-    /** Finance service base URL */
-    private static final String FINANCE_BASE_URL = "http://localhost:8095";
+    private final BusinessAccountingService businessAccountingService;
+    private final ReceivableService receivableService;
 
     /**
      * 发货时创建应收和收入凭证
@@ -42,68 +38,54 @@ public class SalesAccountingService {
      */
     public void createReceivableOnShipment(Long shipmentId, String shipmentNo, String customerId,
                                            String customerName, BigDecimal amount) {
+        // 防重复记账：同一发货单已产生应收则整体跳过（应收与凭证一并跳过）
+        if (receivableService.existsBySource("SALE_SHIPMENT", shipmentId)) {
+            log.warn("发货单已存在应收记录，跳过重复记账: shipmentId={}, shipmentNo={}", shipmentId, shipmentNo);
+            return;
+        }
         log.info("创建销售应收及凭证: shipmentNo={}, customerId={}, amount={}", shipmentNo, customerId, amount);
 
-        // 1. Create receivable via finance integration API
-        Map<String, Object> receivableRequest = new HashMap<>();
-        receivableRequest.put("sourceType", "SALE_SHIPMENT");
-        receivableRequest.put("sourceId", shipmentId);
-        receivableRequest.put("sourceNo", shipmentNo);
-        receivableRequest.put("customerId", customerId);
-        receivableRequest.put("customerName", customerName);
-        receivableRequest.put("amount", amount);
-        receivableRequest.put("dueDate", LocalDate.now().plusDays(30).toString());
-        receivableRequest.put("summary", "销售发货 - " + shipmentNo);
+        // 1. Create receivable via finance integration service
+        BusinessAccountingRequest receivableRequest = new BusinessAccountingRequest();
+        receivableRequest.setSourceType("SALE_SHIPMENT");
+        receivableRequest.setSourceId(shipmentId);
+        receivableRequest.setSourceNo(shipmentNo);
+        receivableRequest.setCustomerId(customerId);
+        receivableRequest.setCustomerName(customerName);
+        receivableRequest.setAmount(amount);
+        receivableRequest.setDueDate(LocalDate.now().plusDays(30));
+        receivableRequest.setSummary("销售发货 - " + shipmentNo);
 
-        JsonNode receivableResult = callFinanceApi("/api/erp/finance/integration/receivable", receivableRequest);
-        log.info("应收创建成功: {}", receivableResult);
+        ReceivableDTO receivableResult = businessAccountingService.createReceivableFromBusiness(receivableRequest);
+        log.info("应收创建成功: receivableId={}", receivableResult.getId());
 
-        // 2. Create voucher via finance integration API
-        Map<String, Object> voucherRequest = new HashMap<>();
-        voucherRequest.put("sourceType", "SALE_SHIPMENT");
-        voucherRequest.put("sourceId", shipmentId);
-        voucherRequest.put("sourceNo", shipmentNo);
-        voucherRequest.put("customerId", customerId);
-        voucherRequest.put("customerName", customerName);
-        voucherRequest.put("amount", amount);
-        voucherRequest.put("summary", "销售出库凭证 - " + shipmentNo);
-        voucherRequest.put("voucherDate", LocalDate.now().toString());
+        // 2. Create voucher via finance integration service
+        BusinessAccountingRequest voucherRequest = new BusinessAccountingRequest();
+        voucherRequest.setSourceType("SALE_SHIPMENT");
+        voucherRequest.setSourceId(shipmentId);
+        voucherRequest.setSourceNo(shipmentNo);
+        voucherRequest.setCustomerId(customerId);
+        voucherRequest.setCustomerName(customerName);
+        voucherRequest.setAmount(amount);
+        voucherRequest.setSummary("销售出库凭证 - " + shipmentNo);
+        voucherRequest.setVoucherDate(LocalDate.now());
 
         // Accounting entries: Dr. AR, Cr. Revenue
-        Map<String, Object> debitEntry = new HashMap<>();
-        debitEntry.put("summary", "销售出库");
-        debitEntry.put("subjectCode", "1122");  // 应收账款
-        debitEntry.put("debitAmount", amount);
-        debitEntry.put("creditAmount", BigDecimal.ZERO);
+        BusinessAccountingRequest.AccountingRequestItem debitEntry = new BusinessAccountingRequest.AccountingRequestItem();
+        debitEntry.setSummary("销售出库");
+        debitEntry.setSubjectCode("1122");  // 应收账款
+        debitEntry.setDebitAmount(amount);
+        debitEntry.setCreditAmount(BigDecimal.ZERO);
 
-        Map<String, Object> creditEntry = new HashMap<>();
-        creditEntry.put("summary", "确认收入");
-        creditEntry.put("subjectCode", "6001");  // 主营业务收入
-        creditEntry.put("debitAmount", BigDecimal.ZERO);
-        creditEntry.put("creditAmount", amount);
+        BusinessAccountingRequest.AccountingRequestItem creditEntry = new BusinessAccountingRequest.AccountingRequestItem();
+        creditEntry.setSummary("确认收入");
+        creditEntry.setSubjectCode("6001");  // 主营业务收入
+        creditEntry.setDebitAmount(BigDecimal.ZERO);
+        creditEntry.setCreditAmount(amount);
 
-        voucherRequest.put("items", new Map[]{debitEntry, creditEntry});
+        voucherRequest.setItems(List.of(debitEntry, creditEntry));
 
-        JsonNode voucherResult = callFinanceApi("/api/erp/finance/integration/voucher", voucherRequest);
-        log.info("凭证创建成功: {}", voucherResult);
-    }
-
-    /**
-     * 调用财务模块API
-     */
-    private JsonNode callFinanceApi(String path, Object request) {
-        String url = FINANCE_BASE_URL + path;
-        try {
-            ResponseEntity<JsonNode> response = restTemplate.postForEntity(url, request, JsonNode.class);
-            JsonNode body = response.getBody();
-            if (body != null && body.has("code") && body.get("code").asInt() == 200) {
-                return body.get("data");
-            }
-            String errMsg = body != null ? body.path("message").asText("Unknown error") : "No response";
-            throw BusinessException.badRequest("Finance API error: " + errMsg + " (path=" + path + ")");
-        } catch (Exception e) {
-            log.error("调用财务模块API失败: path={}", path, e);
-            throw BusinessException.badRequest("调用财务模块API失败: " + e.getMessage());
-        }
+        VoucherDTO voucherResult = businessAccountingService.createVoucherFromBusiness(voucherRequest);
+        log.info("凭证创建成功: voucherNo={}", voucherResult.getVoucherNo());
     }
 }

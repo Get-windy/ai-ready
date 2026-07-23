@@ -15,6 +15,8 @@ public interface PutawayService {
     boolean saveDetail(WmsPutawayDetail detail);
     boolean updateDetail(WmsPutawayDetail detail);
     List<WmsPutawayDetail> listByTaskId(Long taskId);
+    // 明细整体保存（先删后插，仅待处理状态可操作）
+    void saveDetails(Long taskId, List<WmsPutawayDetail> details);
     void startPutaway(Long taskId, Long userId, String userName);
     void confirmPutaway(Long taskId, Long userId, String userName);
 }

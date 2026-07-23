@@ -111,6 +111,74 @@ export const workflowTaskApi = {
   }
 }
 
+// ── 审批流程定义（core-api /api/workflow，set/audit-config 审核设置页使用） ──
+// 注意：上方 workflowDefinitionApi 对应 core-base 的 /workflow 前缀控制器，
+// 前端经 /api 代理访问不到；本组端点来自 core-api WorkflowController（已确认注册可达）。
+// 后端当前仅暴露：列表 / 详情 / 新建，无更新、停用、删除端点。
+
+export interface ApprovalFlowNode {
+  nodeId?: string
+  nodeName: string
+  nodeType?: string
+  approverType?: string
+  approverIds?: string[]
+  approveMode?: string
+  timeoutHours?: number
+  timeoutAction?: string
+  nextNodeId?: string
+  conditionExpression?: string
+}
+
+export interface ApprovalFlowDefinition {
+  definitionId: string
+  name: string
+  code: string
+  type: string
+  description?: string
+  version: number
+  nodes?: ApprovalFlowNode[]
+  enabled: boolean
+  createTime?: string
+  updateTime?: string
+}
+
+export const APPROVAL_FLOW_TYPE_MAP: Record<string, { label: string; color: string }> = {
+  order: { label: '订单审批', color: 'blue' },
+  purchase: { label: '采购审批', color: 'purple' },
+  expense: { label: '报销审批', color: 'orange' },
+  leave: { label: '请假审批', color: 'green' },
+  finance: { label: '财务审批', color: 'cyan' },
+  custom: { label: '自定义流程', color: 'default' }
+}
+
+export const APPROVER_TYPE_MAP: Record<string, string> = {
+  user: '指定用户',
+  role: '指定角色',
+  dept_leader: '部门负责人',
+  applicant_self: '申请人本人'
+}
+
+export const APPROVE_MODE_MAP: Record<string, string> = {
+  single: '单人审批',
+  or: '或签（任一通过）',
+  and: '会签（全部通过）'
+}
+
+export const approvalFlowApi = {
+  /** 流程定义列表（可按类型过滤），返回 { definitions, total } */
+  list(type?: string): Promise<{ definitions: ApprovalFlowDefinition[]; total: number }> {
+    return request.get('/workflow/definitions', type ? { type } : {})
+  },
+  /** 流程定义详情 */
+  getById(definitionId: string): Promise<ApprovalFlowDefinition> {
+    return request.get(`/workflow/definitions/${definitionId}`)
+  },
+  /** 新建流程定义 */
+  create(data: Partial<ApprovalFlowDefinition>): Promise<ApprovalFlowDefinition> {
+    return request.post('/workflow/definitions', data)
+  }
+}
+
 // ── 流程类型枚举 ──
 
 export const PROCESS_TYPE_MAP: Record<number, string> = {

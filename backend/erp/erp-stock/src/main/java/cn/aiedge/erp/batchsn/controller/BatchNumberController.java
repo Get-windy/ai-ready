@@ -69,10 +69,13 @@ public class BatchNumberController {
         // 使用 service 的分页方法
         List<BatchNumber> list = batchNumberService.listBatches(
             request.getBatchNo(), request.getProductCode(), request.getStatus(),
-            request.getSourceType(), request.getPage(), request.getSize()
+            request.getSourceType(), request.getWarehouseId(), request.getPage(), request.getSize()
         );
         page.setRecords(list);
-        page.setTotal(list.size());
+        page.setTotal(batchNumberService.countBatches(
+            request.getBatchNo(), request.getProductCode(), request.getStatus(),
+            request.getSourceType(), request.getWarehouseId()
+        ));
         return ResponseEntity.ok(BatchApiResponse.success(page));
     }
 
@@ -113,7 +116,7 @@ public class BatchNumberController {
         }
         List<BatchNumber> batches = batchNumberService.listBatches(
             request.getBatchNo(), request.getProductCode(), request.getStatus(),
-            request.getSourceType(), request.getPage(), request.getSize()
+            request.getSourceType(), request.getWarehouseId(), request.getPage(), request.getSize()
         );
         cacheManager.setListCache(queryHash, batches);
         log.debug("批次列表查询成功: count={}", batches.size());
@@ -355,7 +358,7 @@ public class BatchNumberController {
         log.info("批次数据导出请求: {}", request);
         List<BatchNumber> batches = batchNumberService.listBatches(
             request.getBatchNo(), request.getProductCode(), request.getStatus(),
-            request.getSourceType(), 1, Integer.MAX_VALUE
+            request.getSourceType(), request.getWarehouseId(), 1, Integer.MAX_VALUE
         );
         log.info("批次导出完成: count={}", batches.size());
         return ResponseEntity.ok(BatchApiResponse.success(batches));

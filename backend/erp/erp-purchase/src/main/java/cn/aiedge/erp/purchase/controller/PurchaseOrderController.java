@@ -1,31 +1,31 @@
 package cn.aiedge.erp.purchase.controller;
 
 import cn.aiedge.common.result.ApiResponse;
-import cn.aiedge.common.result.PageResult;
+import cn.aiedge.erp.purchase.dto.PurchaseOrderDTO;
 import cn.aiedge.erp.purchase.entity.PurchaseOrder;
 import cn.aiedge.erp.purchase.entity.PurchaseOrderItem;
 import cn.aiedge.erp.purchase.mapper.PurchaseOrderItemMapper;
 import cn.aiedge.erp.purchase.service.PurchaseOrderService;
-import java.time.LocalDate;
-import java.util.Map;
 import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.dev33.satoken.annotation.SaCheckPermission;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Map;
+import org.springframework.web.multipart.MultipartFile;
+
 /**
  * 采购订单控制器
- * 
+ *
  * @author AI-Ready Team
  * @since 1.0.0
  */
-@Tag(name = "采购订单管理", description = "采购订单CRUD接口")
+@Tag(name = "采购订单管理", description = "采购订单CRUD+审批+查询接口")
 @RestController
 @RequestMapping("/api/erp/purchase/order")
 @RequiredArgsConstructor
@@ -35,26 +35,36 @@ public class PurchaseOrderController {
     private final PurchaseOrderItemMapper purchaseOrderItemMapper;
 
     /**
-     * 创建采购订单
+     * 创建采购订单（含子表）
      */
     @Operation(summary = "创建采购订单")
     @PostMapping
     @SaCheckPermission("purchase:order:create")
-    public ApiResponse<Long> createOrder(@RequestBody @Valid PurchaseOrder order) {
-        Long orderId = purchaseOrderService.createOrder(order);
+    public ApiResponse<Long> createOrder(@RequestBody PurchaseOrderDTO dto) {
+        Long orderId = purchaseOrderService.createOrder(dto);
         return ApiResponse.ok("创建成功", orderId);
     }
 
     /**
-     * 更新采购订单
+     * 更新采购订单（含子表）
      */
     @Operation(summary = "更新采购订单")
     @PutMapping("/{id}")
     @SaCheckPermission("purchase:order:update")
-    public ApiResponse<Void> updateOrder(@PathVariable Long id, @RequestBody PurchaseOrder order) {
-        order.setId(id);
-        purchaseOrderService.updateOrder(order);
+    public ApiResponse<Void> updateOrder(@PathVariable Long id, @RequestBody PurchaseOrderDTO dto) {
+        purchaseOrderService.updateOrder(id, dto);
         return ApiResponse.ok("更新成功", null);
+    }
+
+    /**
+     * 获取采购订单详情（含所有子表）
+     */
+    @Operation(summary = "获取采购订单详情")
+    @GetMapping("/{id}")
+    @SaCheckPermission("purchase:order:detail")
+    public ApiResponse<PurchaseOrderDTO> getOrderDetail(@PathVariable Long id) {
+        PurchaseOrderDTO dto = purchaseOrderService.getOrderDetail(id);
+        return ApiResponse.ok(dto);
     }
 
     /**
@@ -124,32 +134,16 @@ public class PurchaseOrderController {
     }
 
     /**
-     * 分页查询
+     * 生成下一单据号
      */
-    @Operation(summary = "分页查询采购订单")
-    @GetMapping("/page")
-    @SaCheckPermission("purchase:order:list")
-    public ApiResponse<PageResult<PurchaseOrder>> pageOrders(
-            @RequestParam(defaultValue = "1") Long current,
-            @RequestParam(defaultValue = "10") Long size,
-            @RequestParam(required = false) Long tenantId,
-            @RequestParam(required = false) String orderNo,
-            @RequestParam(required = false) Long supplierId,
-            @RequestParam(required = false) Integer status) {
-        Page<PurchaseOrder> page = new Page<>(current, size);
-        Page<PurchaseOrder> result = purchaseOrderService.pageOrders(page, tenantId, orderNo, supplierId, status);
-        return ApiResponse.ok(PageResult.of(result.getRecords(), result.getTotal(), result.getCurrent(), result.getSize()));
-    }
-
-    /**
-     * 获取订单详情
-     */
-    @Operation(summary = "获取采购订单详情")
-    @GetMapping("/{id}")
-    @SaCheckPermission("purchase:order:detail")
-    public ApiResponse<PurchaseOrder> getOrderDetail(@PathVariable Long id) {
-        PurchaseOrder order = purchaseOrderService.getOrderDetail(id);
-        return ApiResponse.ok(order);
+    @Operation(summary = "生成下一单据号")
+    @GetMapping("/next-no")
+    @SaCheckLogin
+    public ApiResponse<String> getNextOrderNo(
+            @Parameter(description = "日期(yyyy-MM-dd)") @RequestParam(required = false) String date) {
+        LocalDate localDate = date != null ? LocalDate.parse(date) : LocalDate.now();
+        String orderNo = purchaseOrderService.generateNextOrderNo(localDate);
+        return ApiResponse.ok(orderNo);
     }
 
     /**
@@ -159,19 +153,8 @@ public class PurchaseOrderController {
     @GetMapping("/{id}/items")
     @SaCheckPermission("purchase:order:detail")
     public ApiResponse<List<PurchaseOrderItem>> getOrderItems(@PathVariable Long id) {
-        List<PurchaseOrderItem> items = purchaseOrderItemMapper.findByOrderId(id);
+        List<PurchaseOrderItem> items = purchaseOrderItemMapper.selectByOrderId(id);
         return ApiResponse.ok(items);
-    }
-
-    /**
-     * 批量删除采购订单
-     */
-    @Operation(summary = "批量删除采购订单")
-    @DeleteMapping("/batch")
-    @SaCheckPermission("purchase:order:delete")
-    public ApiResponse<String> batchDeleteOrder(@RequestBody List<Long> ids) {
-        purchaseOrderService.removeBatchByIds(ids);
-        return ApiResponse.ok("批量删除成功");
     }
 
     /**
@@ -190,14 +173,28 @@ public class PurchaseOrderController {
     }
 
     /**
-     * 获取采购统计概览
+     * 批量导入采购订单
      */
-    @Operation(summary = "获取采购统计概览")
-    @GetMapping("/stats")
-    public ApiResponse<Map<String, Object>> getPurchaseStats(
-            @Parameter(description = "租户ID") @RequestParam(required = false) Long tenantId) {
-        LocalDate now = LocalDate.now();
-        Map<String, Object> stats = purchaseOrderService.getPurchaseStatistics(tenantId, now.withDayOfMonth(1), now);
-        return ApiResponse.ok(stats);
+    @Operation(summary = "批量导入采购订单")
+    @PostMapping("/import")
+    @SaCheckPermission("purchase:order:create")
+    public ApiResponse<Map<String, Integer>> importOrders(@RequestParam("file") MultipartFile file) {
+        int count = purchaseOrderService.importOrders(file);
+        return ApiResponse.ok(Map.of("count", count));
+    }
+
+    /**
+     * 批量打印
+     */
+    @Operation(summary = "批量打印采购订单")
+    @PostMapping("/batch-print")
+    @SaCheckPermission("purchase:order:list")
+    public ApiResponse<Void> batchPrint(@RequestBody Map<String, Object> params) {
+        @SuppressWarnings("unchecked")
+        List<Number> rawIds = (List<Number>) params.get("ids");
+        List<Long> ids = rawIds != null ? rawIds.stream().map(Number::longValue).toList() : List.of();
+        String template = params.get("template") != null ? params.get("template").toString() : "default";
+        purchaseOrderService.batchPrint(ids, template);
+        return ApiResponse.ok("打印完成", null);
     }
 }

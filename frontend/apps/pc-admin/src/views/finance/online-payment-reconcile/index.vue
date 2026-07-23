@@ -1,79 +1,81 @@
 <template>
-  <ErrorBoundary>
-    <PageContainer title="在线支付对账">
-      <div class="search-area">
-        <a-form layout="inline">
-          <a-form-item>
-            <a-space>
-              <a-button
-                type="primary"
-                @click="handleSearch"
-              >
-                <template #icon>
-                  <SearchOutlined />
-                </template>查询
-              </a-button>
-              <a-button @click="handleReset">
-                <template #icon>
-                  <ClearOutlined />
-                </template>重置
-              </a-button>
-            </a-space>
-          </a-form-item>
-        </a-form>
-      </div>
-      <div class="table-area">
-        <a-table
-          :columns="columns"
-          :data-source="tableData"
-          :loading="loading"
-          :pagination="pagination"
-          row-key="id"
-          size="small"
-          @change="handleTableChange"
-        />
-      </div>
-    </PageContainer>
-  </ErrorBoundary>
+  <div>
+    <a-alert
+      type="warning"
+      show-icon
+      class="gap-alert"
+      message="后端暂未提供在线支付对账专用端点（无支付渠道对账 Controller），当前展示资金流水（含支付方式与交易流水号）用于人工对账；自动对账能力需后端补建后接入。"
+    />
+    <ARReportPage
+      title="在线支付对账"
+      :query-fields="queryFields"
+      :columns="columns"
+      :fetcher="fetcher"
+      page-param-style="pageNum"
+      export-file-name="在线支付对账"
+      row-key="id"
+    >
+      <template #bodyCell="{ column, text }">
+        <template v-if="column.dataIndex === 'direction'">
+          <a-tag :color="text === 'IN' ? 'green' : 'red'">
+            {{ text === 'IN' ? '收入' : text === 'OUT' ? '支出' : text }}
+          </a-tag>
+        </template>
+        <template v-else-if="['amount', 'balance'].includes(column.dataIndex as string)">
+          {{ formatMoney(text) }}
+        </template>
+      </template>
+    </ARReportPage>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
-import { SearchOutlined, ClearOutlined } from '@ant-design/icons-vue'
-import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import PageContainer from '@/components/PageContainer/PageContainer.vue'
-import request from '@/utils/request'
+import ARReportPage from '@/components/ARReportPage/ARReportPage.vue'
+import type { ReportQueryField } from '@/components/ARReportPage/types'
+import { capitalFlowApi } from '@/api/finance'
 
-const loading = ref(false)
-const tableData = ref<any[]>([])
-const pagination = reactive({ current: 1, pageSize: 20, total: 0, showSizeChanger: true, showTotal: (t) => `共 ${t} 条` })
-
-const columns: any[] = [
-  { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
-  { title: '名称', dataIndex: 'name', key: 'name' },
-  { title: '描述', dataIndex: 'description', key: 'description', ellipsis: true },
-  { title: '状态', dataIndex: 'status', key: 'status', width: 80 },
-  { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 160 }
+const queryFields: ReportQueryField[] = [
+  {
+    key: 'direction',
+    type: 'select',
+    label: '收支方向',
+    placeholder: '全部',
+    options: [
+      { label: '收入', value: 'IN' },
+      { label: '支出', value: 'OUT' }
+    ],
+    width: 120
+  },
+  { key: 'occurDateRange', type: 'date-range', label: '发生日期' }
 ]
 
-async function loadData() {
-  loading.value = true
-  try {
-    const result = await request.get('/finance/online-payment-reconcile/page', { pageNum: pagination.current, pageSize: pagination.pageSize })
-    if (result?.records) { tableData.value = result.records; pagination.total = result.total }
-    else if (Array.isArray(result)) { tableData.value = result; pagination.total = result.length }
-  } catch (e) { tableData.value = [] }
-  finally { loading.value = false }
+// ═══ 表格列（与后端 CapitalFlowDTO 字段一致） ═══
+const columns: any[] = [
+  { title: '流水号', dataIndex: 'flowNo', key: 'flowNo', width: 170 },
+  { title: '方向', dataIndex: 'direction', key: 'direction', width: 80, align: 'center' },
+  { title: '金额', dataIndex: 'amount', key: 'amount', width: 130, align: 'right' },
+  { title: '账户余额', dataIndex: 'balance', key: 'balance', width: 130, align: 'right' },
+  { title: '往来单位', dataIndex: 'partyName', key: 'partyName', width: 150, ellipsis: true },
+  { title: '业务类型', dataIndex: 'businessType', key: 'businessType', width: 110 },
+  { title: '支付方式', dataIndex: 'paymentMethod', key: 'paymentMethod', width: 110 },
+  { title: '交易流水号', dataIndex: 'transactionNo', key: 'transactionNo', width: 180, ellipsis: true },
+  { title: '关联单号', dataIndex: 'refNo', key: 'refNo', width: 160 },
+  { title: '发生日期', dataIndex: 'occurDate', key: 'occurDate', width: 110 }
+]
+
+function formatMoney(val: number | null | undefined): string {
+  if (val === null || val === undefined || isNaN(Number(val))) return '-'
+  return Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-function handleSearch() { pagination.current = 1; loadData() }
-function handleReset() { pagination.current = 1; loadData() }
-function handleTableChange(p) { pagination.current = p.current; pagination.pageSize = p.pageSize; loadData() }
-
-onMounted(loadData)
+// ═══ 数据请求：资金流水分页（/erp/capital-flow/page，pageNum/pageSize 风格） ═══
+function fetcher(params: Record<string, any>) {
+  return capitalFlowApi.getPage(params)
+}
 </script>
 
 <style scoped>
-.search-area { background: #fff; padding: 16px 20px; border-radius: 8px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-.table-area { background: #fff; padding: 16px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+.gap-alert {
+  margin-bottom: 16px;
+}
 </style>

@@ -398,7 +398,14 @@ public class InvoiceServiceImpl implements InvoiceService {
 
     @Override
     public InvoiceStatistics getInvoiceStatistics(LocalDate startDate, LocalDate endDate) {
-        List<Invoice> invoices = getInvoicesByDateRange(startDate, endDate);
+        List<Invoice> invoices;
+        if (startDate == null && endDate == null) {
+            invoices = getAllInvoices();
+        } else {
+            invoices = getInvoicesByDateRange(
+                    startDate != null ? startDate : LocalDate.of(1970, 1, 1),
+                    endDate != null ? endDate : LocalDate.now());
+        }
         InvoiceStatistics statistics = new InvoiceStatistics();
         for (Invoice invoice : invoices) {
             statistics.addInvoice(invoice);

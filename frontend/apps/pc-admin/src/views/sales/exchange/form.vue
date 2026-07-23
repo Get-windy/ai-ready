@@ -556,7 +556,7 @@ const footerConfig = computed<BillFooterConfig>(() => ({
 const inWarehouseColumns = computed<DetailColumnConfig[]>(() => [
   { key: 'rowNo', title: '', type: 'rowNo', width: 40, fixed: 'left' },
   { key: 'action', title: '操作', type: 'action', slotName: 'actionCell', width: 50, fixed: 'left' },
-  { key: 'image', title: '图片', type: 'image', width: 60 },
+  { key: 'image', title: '图片', type: 'input', width: 60 },
   {
     key: 'productId', title: '商品名称', type: 'input', searchable: true,
     options: optionRefs.products.map((p: any) => ({
@@ -638,7 +638,7 @@ const inWarehouseColumns = computed<DetailColumnConfig[]>(() => [
 const outWarehouseColumns = computed<DetailColumnConfig[]>(() => [
   { key: 'rowNo', title: '', type: 'rowNo', width: 40, fixed: 'left' },
   { key: 'action', title: '操作', type: 'action', slotName: 'actionCell', width: 50, fixed: 'left' },
-  { key: 'image', title: '图片', type: 'image', width: 60 },
+  { key: 'image', title: '图片', type: 'input', width: 60 },
   {
     key: 'productId', title: '商品名称', type: 'input', searchable: true,
     options: optionRefs.products.map((p: any) => ({
@@ -849,7 +849,7 @@ function handleFieldChange(fieldKey: string, val: any) {
 }
 
 function handleSearchBtn(fieldKey: string, _btnText: string) {
-  message.info(`${fieldKey} 快速查询功能开发中`)
+  message.info(`${fieldKey} 快速查询功能待完善`)
 }
 
 // ═══ 产品选择弹窗确认 ═══
@@ -920,7 +920,7 @@ onMounted(async () => {
   const id = route.query.id as string
   if (id) {
     try {
-      const res = await saleExchangeApi.getById(id)
+      const res = await saleExchangeApi.getById(Number(id))
       if (res) {
         // 回填主表字段
         Object.keys(res).forEach(key => {

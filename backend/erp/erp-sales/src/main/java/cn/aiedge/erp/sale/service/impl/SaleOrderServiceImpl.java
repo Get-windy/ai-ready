@@ -1,5 +1,6 @@
 package cn.aiedge.erp.sale.service.impl;
 
+import cn.aiedge.base.workflow.facade.ApprovalFacade;
 import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.common.serial.BizNumberGeneratorService;
 import cn.aiedge.erp.pricing.service.PriceEngineService;
@@ -30,6 +31,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -76,6 +78,9 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
 
     /** 预收款/订金Mapper */
     private final PreReceiptMapper preReceiptMapper;
+
+    /** 审批门面（影子模式）：core-api 有引擎实现时可选注入，无实现时保持原行为 */
+    private final ObjectProvider<ApprovalFacade> approvalFacadeProvider;
 
     // ═══════════════════════════════════════════
     // 基础 CRUD
@@ -353,15 +358,45 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
 
         // 记录审核流水
         saveAuditTrail(id, "SUBMIT", StpUtil.getLoginIdAsLong(), getCurrentUserName(), null);
+
+        // 影子模式：并行发起工作流引擎实例（不回写单据状态；无引擎/失败仅记日志不阻断）
+        startShadowApproval(order);
+
         log.info("提交销售订单审批: orderId={}", id);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void approve(Long id, Long auditorId) {
+        approve(id, auditorId, getCurrentUserName());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void approve(Long id, Long auditorId, String auditorName) {
+        // 工作流回调线程无 Sa-Token 会话，getCurrentUserName() 会落"系统"：
+        // 调用方显式传入的终审人姓名优先，缺省回退当前会话用户名
+        String resolvedAuditorName = (auditorName != null && !auditorName.isBlank())
+                ? auditorName : getCurrentUserName();
         SaleOrder order = getById(id);
         if (order == null) throw BusinessException.notFound("订单不存在");
         if (order.getStatus() != 1) throw BusinessException.badRequest("订单不是待审批状态");
+
+        // 第三期（影子转正式）：存在在途引擎实例时由引擎驱动审批，终态经回调回写单据。
+        // 走引擎前先做与直接审批一致的前置校验（库存可用性，仅校验不冻结——
+        // 冻结由回调里的 approve 完成），校验失败则不发起引擎审批。
+        ApprovalFacade.InFlightInstance inFlight = findInFlightApproval(id);
+        if (inFlight != null) {
+            List<String> shortages = checkStockAvailability(order);
+            if (!shortages.isEmpty()) {
+                throw BusinessException.badRequest("库存不足，无法审批通过：\n" + String.join("\n", shortages));
+            }
+            if (driveEngineApproval(inFlight, "approve", auditorId, null)) {
+                log.info("销售订单审批经引擎驱动(终态由回调回写): orderId={}, instanceId={}", id, inFlight.getInstanceId());
+                return;
+            }
+            log.warn("引擎驱动审批失败，回退直接审批: orderId={}, instanceId={}", id, inFlight.getInstanceId());
+        }
 
         // 审批通过前校验库存可用性并冻结
         List<String> stockShortages = checkAndFreezeStock(order);
@@ -372,7 +407,7 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
         // 更新状态 + 审核人信息
         order.setStatus(2);
         order.setAuditorId(auditorId);
-        order.setAuditorName(getCurrentUserName());
+        order.setAuditorName(resolvedAuditorName);
         order.setAuditTime(LocalDateTime.now());
         updateById(order);
 
@@ -393,7 +428,7 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
         }
 
         // 记录审核流水
-        saveAuditTrail(id, "APPROVE", auditorId, getCurrentUserName(), null);
+        saveAuditTrail(id, "APPROVE", auditorId, resolvedAuditorName, null);
         log.info("销售订单审批通过: orderId={}, auditorId={}", id, auditorId);
     }
 
@@ -403,6 +438,13 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
         SaleOrder order = getById(id);
         if (order == null) throw BusinessException.notFound("订单不存在");
         if (order.getStatus() != 1) throw BusinessException.badRequest("订单不是待审批状态");
+
+        // 第三期（影子转正式）：存在在途引擎实例时由引擎驱动驳回（终态由回调回写）
+        ApprovalFacade.InFlightInstance inFlight = findInFlightApproval(id);
+        if (inFlight != null && driveEngineApproval(inFlight, "reject", auditorId, reason)) {
+            log.info("销售订单驳回经引擎驱动(终态由回调回写): orderId={}, instanceId={}", id, inFlight.getInstanceId());
+            return;
+        }
 
         // 拒绝回退到草稿
         order.setStatus(0);
@@ -1233,6 +1275,66 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
         auditTrailMapper.insert(trail);
     }
 
+    /**
+     * 第三期（影子转正式）：查询单据的在途引擎实例。
+     * 无引擎实现/无在途实例/查询异常均返回 null（降级为直接翻转），不阻断业务。
+     *
+     * 防循环：引擎回调到达时实例已是终态（非在途），本方法返回 null，
+     * 被回调复用的 approve/reject 自然回退为直接翻转，不会再次驱动引擎。
+     */
+    private ApprovalFacade.InFlightInstance findInFlightApproval(Long orderId) {
+        try {
+            // Spring 环境必然注入 ObjectProvider；判空仅为兼容手工构造的单元测试
+            ApprovalFacade facade = approvalFacadeProvider == null ? null : approvalFacadeProvider.getIfAvailable();
+            return facade == null ? null : facade.findInFlightInstance("sale_order", orderId);
+        } catch (Exception e) {
+            log.warn("查询在途审批实例失败(降级为无引擎): orderId={}, error={}", orderId, e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 驱动在途实例审批：成功返回 true（终态由回调回写单据），失败返回 false 由调用方回退直接翻转
+     */
+    private boolean driveEngineApproval(ApprovalFacade.InFlightInstance inFlight, String action,
+                                        Long operatorId, String comment) {
+        try {
+            ApprovalFacade facade = approvalFacadeProvider == null ? null : approvalFacadeProvider.getIfAvailable();
+            return facade != null && facade.driveApproval(inFlight, action, operatorId, comment);
+        } catch (Exception e) {
+            log.warn("引擎驱动审批异常: instanceId={}, action={}, error={}",
+                    inFlight.getInstanceId(), action, e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * 影子模式发起工作流实例：引擎实例并行可见于工作流待办页，不回写单据 status。
+     * instanceId 追加在审核流水 remark 中（不新增列）。无引擎实现或发起失败时不阻断业务。
+     */
+    private void startShadowApproval(SaleOrder order) {
+        try {
+            // Spring 环境必然注入 ObjectProvider；判空仅为兼容手工构造的单元测试
+            ApprovalFacade facade = approvalFacadeProvider == null ? null : approvalFacadeProvider.getIfAvailable();
+            if (facade == null) {
+                return;
+            }
+            Map<String, Object> businessData = new HashMap<>();
+            businessData.put("orderNo", order.getOrderNo());
+            businessData.put("amount", order.getBillAmount());
+            businessData.put("customerId", order.getCustomerId());
+            businessData.put("customerName", order.getCustomerName());
+            String instanceId = facade.startApproval("order_approval", "sale_order", order.getId(),
+                    order.getOrderNo(), businessData, order.getSubmitterId(), order.getSubmitterName());
+            if (instanceId != null) {
+                saveAuditTrail(order.getId(), "WORKFLOW", order.getSubmitterId(), order.getSubmitterName(),
+                        "影子工作流实例已发起: instanceId=" + instanceId);
+            }
+        } catch (Exception e) {
+            log.warn("发起销售订单影子工作流失败(不阻断): orderId={}, error={}", order.getId(), e.getMessage());
+        }
+    }
+
     // ═══════════════════════════════════════════
     // 辅助方法
     // ═══════════════════════════════════════════
@@ -1899,10 +2001,10 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
     // ═══════════════════════════════════════════
 
     /**
-     * 校验订单的库存可用性并冻结库存（审批通过时调用）
-     * @return 库存不足的商品说明列表（空列表表示全部充足且已冻结）
+     * 校验订单的库存可用性（仅校验不冻结）
+     * @return 库存不足的商品说明列表（空列表表示全部充足）
      */
-    private List<String> checkAndFreezeStock(SaleOrder order) {
+    private List<String> checkStockAvailability(SaleOrder order) {
         List<String> insufficientItems = new ArrayList<>();
         Long warehouseId = order.getWarehouseId();
         if (warehouseId == null) {
@@ -1913,7 +2015,6 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
         List<SaleOrderItem> items = itemMapper.selectByOrderId(order.getId());
         if (items == null || items.isEmpty()) return insufficientItems;
 
-        // 第一遍：校验全部商品库存是否充足
         for (SaleOrderItem item : items) {
             if (item.getProductId() == null || item.getQuantity() == null
                     || item.getQuantity().compareTo(BigDecimal.ZERO) <= 0) continue;
@@ -1932,20 +2033,33 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
                         item.getUnit() != null ? item.getUnit() : "个"));
             }
         }
+        return insufficientItems;
+    }
+
+    /**
+     * 校验订单的库存可用性并冻结库存（审批通过时调用）
+     * @return 库存不足的商品说明列表（空列表表示全部充足且已冻结）
+     */
+    private List<String> checkAndFreezeStock(SaleOrder order) {
+        List<String> insufficientItems = checkStockAvailability(order);
 
         // 全部充足才执行冻结
-        if (insufficientItems.isEmpty()) {
-            for (SaleOrderItem item : items) {
-                if (item.getProductId() == null || item.getQuantity() == null
-                        || item.getQuantity().compareTo(BigDecimal.ZERO) <= 0) continue;
+        if (insufficientItems.isEmpty() && order.getWarehouseId() != null) {
+            Long warehouseId = order.getWarehouseId();
+            List<SaleOrderItem> items = itemMapper.selectByOrderId(order.getId());
+            if (items != null) {
+                for (SaleOrderItem item : items) {
+                    if (item.getProductId() == null || item.getQuantity() == null
+                            || item.getQuantity().compareTo(BigDecimal.ZERO) <= 0) continue;
 
-                boolean frozen = stockService.freezeStock(item.getProductId(), warehouseId, item.getQuantity());
-                if (!frozen) {
-                    log.warn("库存冻结失败: productId={}, warehouseId={}, quantity={}",
-                            item.getProductId(), warehouseId, item.getQuantity());
+                    boolean frozen = stockService.freezeStock(item.getProductId(), warehouseId, item.getQuantity());
+                    if (!frozen) {
+                        log.warn("库存冻结失败: productId={}, warehouseId={}, quantity={}",
+                                item.getProductId(), warehouseId, item.getQuantity());
+                    }
                 }
+                log.info("订单库存冻结完成: orderId={}, warehouseId={}", order.getId(), warehouseId);
             }
-            log.info("订单库存冻结完成: orderId={}, warehouseId={}", order.getId(), warehouseId);
         }
 
         return insufficientItems;

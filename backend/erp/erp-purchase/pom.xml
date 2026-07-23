@@ -17,6 +17,17 @@
       <groupId>cn.aiedge</groupId>
       <artifactId>core-base</artifactId>
     </dependency>
+    <!-- ERP 库存模块（采购入库回写库存） -->
+    <dependency>
+      <groupId>cn.aiedge.erp</groupId>
+      <artifactId>erp-stock</artifactId>
+    </dependency>
+    <!-- 财务凭证服务依赖（记账凭证自动生成） -->
+    <dependency>
+      <groupId>cn.aiedge.erp</groupId>
+      <artifactId>erp-finance</artifactId>
+      <version>${project.version}</version>
+    </dependency>
     <!-- Spring Boot Starter -->
     <dependency>
       <groupId>org.springframework.boot</groupId>

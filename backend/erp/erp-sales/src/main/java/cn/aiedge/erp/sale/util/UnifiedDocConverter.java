@@ -2,7 +2,7 @@ package cn.aiedge.erp.sale.util;
 
 import cn.aiedge.erp.sale.dto.UnifiedSalesDocumentDTO;
 import cn.aiedge.erp.sale.entity.SaleOrder;
-import cn.aiedge.erp.sale.entity.SaleOutbound;
+import cn.aiedge.erp.sale.outbound.entity.SaleOutbound;
 import cn.aiedge.erp.sale.returnDoc.entity.SaleReturnDoc;
 import cn.aiedge.erp.sale.saleexchange.entity.SaleExchange;
 
@@ -208,6 +208,8 @@ public class UnifiedDocConverter {
 
     /**
      * 将销售出库单转换为统一销售单据DTO
+     * <p>基于现行实体 {@link cn.aiedge.erp.sale.outbound.entity.SaleOutbound}（表 erp_sale_outbound），
+     * 新实体没有的字段统一置 null。</p>
      *
      * @param outbound 销售出库单
      * @param docType 单据类型标识
@@ -218,139 +220,139 @@ public class UnifiedDocConverter {
 
         // 基础字段映射
         dto.setId(outbound.getId());
-        dto.setDocumentDate(outbound.getDocumentDate());           // 1单据日期
-        dto.setDocumentNo(outbound.getDocumentNo());              // 2单据编号
-        dto.setDocumentType(docType);                             // 3单据类型
-        dto.setInboundWarehouse(outbound.getInboundWarehouse());   // 4入库仓库
-        dto.setOutboundWarehouse(outbound.getOutboundWarehouse()); // 5出库仓库
-        dto.setCustomerName(outbound.getCustomerName());          // 6客户
-        dto.setCustomerCode(outbound.getCustomerCode());          // 7客户编号
-        dto.setCustomerLevel(outbound.getCustomerLevel());        // 8客户级别
-        dto.setReceiverName(outbound.getReceiverName());          // 9收货人
-        dto.setReceiverPhone(outbound.getReceiverPhone());        // 10联系电话
-        dto.setShippingAddress(outbound.getShippingAddress());    // 11收货地址
-        dto.setExtNum1(outbound.getExtNum1());                   // 12表头自定义字段1(数字)
-        dto.setExtNum2(outbound.getExtNum2());                   // 13表头自定义字段2(数字)
-        dto.setExtText1(outbound.getExtText1());                 // 14表头自定义字段3(文本)
-        dto.setExtText2(outbound.getExtText2());                 // 15表头自定义字段4(文本)
-        dto.setExtText3(outbound.getExtText3());                 // 16表头自定义字段5(文本)
-        dto.setBuyerRemark(outbound.getBuyerRemark());           // 17买家备注
-        dto.setCustomerRemark(outbound.getCustomerRemark());     // 18客户备注
-        dto.setSourceOrder(outbound.getSourceOrder());           // 19来源订单
-        dto.setSourceOrderDate(outbound.getSourceOrderDate());   // 20来源订单日期
+        dto.setDocumentDate(outbound.getOutboundDate() != null ? outbound.getOutboundDate().atStartOfDay() : null); // 1单据日期 → outboundDate(LocalDate)转LocalDateTime
+        dto.setDocumentNo(outbound.getOutboundNo());           // 2单据编号 → outboundNo
+        dto.setDocumentType(docType);                          // 3单据类型
+        dto.setInboundWarehouse(null);                         // 4入库仓库 - 新实体无此字段
+        dto.setOutboundWarehouse(outbound.getWarehouseName()); // 5出库仓库 → warehouseName
+        dto.setCustomerName(outbound.getCustomerName());       // 6客户
+        dto.setCustomerCode(outbound.getCustomerCode());       // 7客户编号
+        dto.setCustomerLevel(outbound.getCustomerLevel());     // 8客户级别
+        dto.setReceiverName(outbound.getReceiverName());       // 9收货人
+        dto.setReceiverPhone(outbound.getReceiverPhone());     // 10联系电话
+        dto.setShippingAddress(outbound.getShippingAddress()); // 11收货地址
+        dto.setExtNum1(outbound.getExtNum1());                 // 12表头自定义字段1(数字)
+        dto.setExtNum2(outbound.getExtNum2());                 // 13表头自定义字段2(数字)
+        dto.setExtText1(outbound.getExtText1());               // 14表头自定义字段3(文本)
+        dto.setExtText2(outbound.getExtText2());               // 15表头自定义字段4(文本)
+        dto.setExtText3(outbound.getExtText3());               // 16表头自定义字段5(文本)
+        dto.setBuyerRemark(outbound.getBuyerRemark());         // 17买家备注
+        dto.setCustomerRemark(outbound.getCustomerRemark());   // 18客户备注
+        dto.setSourceOrder(outbound.getOrderNo());             // 19来源订单 → orderNo
+        dto.setSourceOrderDate(null);                          // 20来源订单日期 - 新实体无此字段
         dto.setLogisticsCompany(outbound.getLogisticsCompany()); // 21物流公司
-        dto.setTrackingNumber(outbound.getTrackingNumber());     // 22运单号
-        dto.setRegion(outbound.getRegion());                     // 23区域
+        dto.setTrackingNumber(outbound.getTrackingNumber());   // 22运单号
+        dto.setRegion(outbound.getRegion());                   // 23区域
         dto.setGenerationMethod(outbound.getGenerationMethod()); // 24产生方式
-        dto.setHandlerName(outbound.getHandlerName());           // 25经手人
-        dto.setDepartmentName(outbound.getDepartmentName());     // 26部门
+        dto.setHandlerName(outbound.getSalesPersonName());     // 25经手人 → salesPersonName
+        dto.setDepartmentName(outbound.getDepartmentName());   // 26部门
         dto.setSettlementStatus(outbound.getSettlementStatus()); // 27结算状态
-        dto.setSalesQuantity(outbound.getSalesQuantity());       // 28销售数量
-        dto.setAmount(outbound.getAmount());                     // 29金额
-        dto.setDiscountedAmount(outbound.getDiscountedAmount()); // 30折后金额
-        dto.setSalesRevenue(outbound.getSalesRevenue());         // 31销售收入
-        dto.setFreightPayer(outbound.getFreightPayer());         // 32运费承担方
-        dto.setFreight(outbound.getFreight());                   // 33运费
-        dto.setOtherFee(outbound.getOtherFee());                 // 34其它费用
-        dto.setRoundingAmount(outbound.getRoundingAmount());     // 35抹零金额
-        dto.setTotalAmount(outbound.getTotalAmount());           // 36本单金额
-        dto.setPromoDiscount(outbound.getPromoDiscount());       // 37促销优惠
-        dto.setCouponAmount(outbound.getCouponAmount());         // 38优惠券优惠
-        dto.setDirectDiscount(outbound.getDirectDiscount());     // 39直接优惠
-        dto.setPointsDeduction(outbound.getPointsDeduction());   // 40积分抵扣
-        dto.setCostAmount(outbound.getCostAmount());             // 41成本金额
-        dto.setGrossProfit(outbound.getGrossProfit());           // 42毛利
-        dto.setSalesType(outbound.getSalesType());               // 43销售类型
-        dto.setRemark(outbound.getRemark());                     // 44单据备注
-        dto.setSummary(outbound.getSummary());                   // 45摘要
-        dto.setAttachment(outbound.getAttachment());             // 46附件
-        dto.setBookkeeperName(outbound.getBookkeeperName());     // 47记账人
-        dto.setCreatorName(outbound.getCreatorName());           // 48制单人
-        dto.setBookkeepingTime(outbound.getBookkeepingTime());   // 49记账时间
-        dto.setCreateTime(outbound.getCreateTime());             // 50制单时间
-        dto.setPrintCount(outbound.getPrintCount());             // 51打印次数
+        dto.setSalesQuantity(outbound.getTotalQuantity());     // 28销售数量 → totalQuantity
+        dto.setAmount(outbound.getTotalAmount());              // 29金额 → totalAmount
+        dto.setDiscountedAmount(null);                         // 30折后金额 - 新实体无此字段
+        dto.setSalesRevenue(null);                             // 31销售收入 - 新实体无此字段
+        dto.setFreightPayer(outbound.getFreightPayer());       // 32运费承担方
+        dto.setFreight(outbound.getFreight());                 // 33运费
+        dto.setOtherFee(outbound.getOtherFee());               // 34其它费用
+        dto.setRoundingAmount(outbound.getRoundingAmount());   // 35抹零金额
+        dto.setTotalAmount(outbound.getTotalAmount());         // 36本单金额
+        dto.setPromoDiscount(outbound.getPromoDiscount());     // 37促销优惠
+        dto.setCouponAmount(outbound.getCouponAmount());       // 38优惠券优惠
+        dto.setDirectDiscount(outbound.getDirectDiscount());   // 39直接优惠
+        dto.setPointsDeduction(outbound.getMemberUsedPoints()); // 40积分抵扣 → memberUsedPoints
+        dto.setCostAmount(null);                               // 41成本金额 - 新实体表头无此字段
+        dto.setGrossProfit(null);                              // 42毛利 - 新实体表头无此字段
+        dto.setSalesType(outbound.getOutboundType() != null ? String.valueOf(outbound.getOutboundType()) : null); // 43销售类型 → outboundType(Integer)
+        dto.setRemark(outbound.getRemark());                   // 44单据备注
+        dto.setSummary(outbound.getSummary());                 // 45摘要
+        dto.setAttachment(null);                               // 46附件 - 新实体无此字段
+        dto.setBookkeeperName(outbound.getBookkeeperName());   // 47记账人
+        dto.setCreatorName(outbound.getCreatorName());         // 48制单人
+        dto.setBookkeepingTime(outbound.getBookkeepingTime()); // 49记账时间
+        dto.setCreateTime(outbound.getCreateTime());           // 50制单时间
+        dto.setPrintCount(outbound.getPrintCount());           // 51打印次数
 
-        // 其他字段映射
+        // 其他字段映射（仅映射新实体中存在的字段，不存在的设为null）
         dto.setStatus(outbound.getStatus());
         dto.setWarehouseId(outbound.getWarehouseId());
         dto.setCustomerId(outbound.getCustomerId());
-        dto.setHandlerId(outbound.getHandlerId());
+        dto.setHandlerId(outbound.getSalesPersonId());         // → salesPersonId
         dto.setDepartmentId(outbound.getDepartmentId());
         dto.setSettlementMethod(outbound.getSettlementMethod());
-        dto.setSourceOrderType(outbound.getSourceOrderType());
-        dto.setOrderAmount(outbound.getOrderAmount());
-        dto.setPaidAmount(outbound.getPaidAmount());
-        dto.setPendingAmount(outbound.getPendingAmount());
-        dto.setAdvanceReceived(outbound.getAdvanceReceived());
-        dto.setFavorableAmount(outbound.getFavorableAmount());
+        dto.setSourceOrderType(null);                          // 新实体无此字段
+        dto.setOrderAmount(null);                              // 新实体无此字段
+        dto.setPaidAmount(outbound.getSettledAmount());        // → settledAmount
+        dto.setPendingAmount(null);                            // 新实体无此字段
+        dto.setAdvanceReceived(null);                          // 新实体无此字段（表无 advance 列）
+        dto.setFavorableAmount(null);                          // 新实体无此字段
         dto.setCodAmount(outbound.getCodAmount());
-        dto.setCodStatus(outbound.getCodStatus());
+        dto.setCodStatus(null);                                // 新实体无此字段
         dto.setDeliveryMethod(outbound.getDeliveryMethod());
         dto.setDeliveryDriver(outbound.getDeliveryDriver());
         dto.setLogisticsBranch(outbound.getLogisticsBranch());
-        dto.setExpectedShipmentTime(outbound.getExpectedShipmentTime());
-        dto.setActualShipmentTime(outbound.getActualShipmentTime());
-        dto.setReceiptTime(outbound.getReceiptTime());
-        dto.setApproverName(outbound.getApproverName());
+        dto.setExpectedShipmentTime(outbound.getExpectedShipTime()); // → expectedShipTime
+        dto.setActualShipmentTime(outbound.getActualShipTime());     // → actualShipTime
+        dto.setReceiptTime(null);                              // 新实体无此字段
+        dto.setApproverName(outbound.getAuditorName());        // → auditorName
         dto.setApprovedTime(outbound.getApprovedTime());
         dto.setCompletedTime(outbound.getCompletedTime());
-        dto.setClosedTime(outbound.getClosedTime());
-        dto.setCancelledTime(outbound.getCancelledTime());
-        dto.setCancelReason(outbound.getCancelReason());
-        dto.setCompletedBy(outbound.getCompletedBy());
-        dto.setClosedBy(outbound.getClosedBy());
-        dto.setCancelledBy(outbound.getCancelledBy());
-        dto.setSource(outbound.getSource());
-        dto.setPriority(outbound.getPriority());
-        dto.setBusinessType(outbound.getBusinessType());
-        dto.setProjectId(outbound.getProjectId());
-        dto.setProjectName(outbound.getProjectName());
-        dto.setContractId(outbound.getContractId());
-        dto.setContractNo(outbound.getContractNo());
-        dto.setTaxRate(outbound.getTaxRate());
-        dto.setTaxIncludedAmount(outbound.getTaxIncludedAmount());
-        dto.setTaxExcludedAmount(outbound.getTaxExcludedAmount());
-        dto.setTaxAmount(outbound.getTaxAmount());
-        dto.setCurrency(outbound.getCurrency());
-        dto.setExchangeRate(outbound.getExchangeRate());
-        dto.setForeignCurrencyAmount(outbound.getForeignCurrencyAmount());
-        dto.setPaymentTerms(outbound.getPaymentTerms());
-        dto.setPaymentDueDate(outbound.getPaymentDueDate());
-        dto.setInvoiceNo(outbound.getInvoiceNo());
-        dto.setInvoiceDate(outbound.getInvoiceDate());
-        dto.setInvoiceStatus(outbound.getInvoiceStatus());
-        dto.setInvoiceType(outbound.getInvoiceType());
-        dto.setInvoiceTitle(outbound.getInvoiceTitle());
-        dto.setTaxRegistrationNo(outbound.getTaxRegistrationNo());
-        dto.setInvoicerName(outbound.getInvoicerName());
-        dto.setInvoiceTime(outbound.getInvoiceTime());
-        dto.setRemark2(outbound.getRemark2());
-        dto.setRemark3(outbound.getRemark3());
-        dto.setCustomField1(outbound.getCustomField1());
-        dto.setCustomField2(outbound.getCustomField2());
-        dto.setCustomField3(outbound.getCustomField3());
-        dto.setCustomField4(outbound.getCustomField4());
-        dto.setCustomField5(outbound.getCustomField5());
-        dto.setCustomNumField1(outbound.getCustomNumField1());
-        dto.setCustomNumField2(outbound.getCustomNumField2());
-        dto.setCustomNumField3(outbound.getCustomNumField3());
-        dto.setCustomNumField4(outbound.getCustomNumField4());
-        dto.setCustomNumField5(outbound.getCustomNumField5());
-        dto.setCustomDateField1(outbound.getCustomDateField1());
-        dto.setCustomDateField2(outbound.getCustomDateField2());
-        dto.setCustomDateField3(outbound.getCustomDateField3());
-        dto.setCustomDateField4(outbound.getCustomDateField4());
-        dto.setCustomDateField5(outbound.getCustomDateField5());
-        dto.setCustomBoolField1(outbound.getCustomBoolField1());
-        dto.setCustomBoolField2(outbound.getCustomBoolField2());
-        dto.setCustomBoolField3(outbound.getCustomBoolField3());
-        dto.setCustomBoolField4(outbound.getCustomBoolField4());
-        dto.setCustomBoolField5(outbound.getCustomBoolField5());
-        dto.setCustomObjField1(outbound.getCustomObjField1());
-        dto.setCustomObjField2(outbound.getCustomObjField2());
-        dto.setCustomObjField3(outbound.getCustomObjField3());
-        dto.setCustomObjField4(outbound.getCustomObjField4());
-        dto.setCustomObjField5(outbound.getCustomObjField5());
+        dto.setClosedTime(null);                               // 新实体无此字段
+        dto.setCancelledTime(null);                            // 新实体无此字段
+        dto.setCancelReason(null);                             // 新实体无此字段
+        dto.setCompletedBy(outbound.getCompletedBy() != null ? String.valueOf(outbound.getCompletedBy()) : null); // Long → String
+        dto.setClosedBy(null);                                 // 新实体无此字段
+        dto.setCancelledBy(null);                              // 新实体无此字段
+        dto.setSource(null);                                   // 新实体无此字段
+        dto.setPriority(null);                                 // 新实体无此字段
+        dto.setBusinessType(null);                             // 新实体无此字段
+        dto.setProjectId(null);                                // 新实体无此字段
+        dto.setProjectName(null);                              // 新实体无此字段
+        dto.setContractId(null);                               // 新实体无此字段
+        dto.setContractNo(null);                               // 新实体无此字段
+        dto.setTaxRate(null);                                  // 新实体表头无此字段
+        dto.setTaxIncludedAmount(null);                        // 新实体无此字段
+        dto.setTaxExcludedAmount(null);                        // 新实体无此字段
+        dto.setTaxAmount(null);                                // 新实体无此字段
+        dto.setCurrency(null);                                 // 新实体无此字段
+        dto.setExchangeRate(null);                             // 新实体无此字段
+        dto.setForeignCurrencyAmount(null);                    // 新实体无此字段
+        dto.setPaymentTerms(null);                             // 新实体无此字段
+        dto.setPaymentDueDate(null);                           // 新实体无此字段
+        dto.setInvoiceNo(null);                                // 新实体无此字段
+        dto.setInvoiceDate(null);                              // 新实体无此字段
+        dto.setInvoiceStatus(null);                            // 新实体无此字段
+        dto.setInvoiceType(null);                              // 新实体无此字段
+        dto.setInvoiceTitle(null);                             // 新实体无此字段
+        dto.setTaxRegistrationNo(outbound.getTaxNo());         // → taxNo
+        dto.setInvoicerName(null);                             // 新实体无此字段
+        dto.setInvoiceTime(null);                              // 新实体无此字段
+        dto.setRemark2(null);                                  // 新实体无此字段
+        dto.setRemark3(null);                                  // 新实体无此字段
+        dto.setCustomField1(null);                             // 新实体无此字段
+        dto.setCustomField2(null);
+        dto.setCustomField3(null);
+        dto.setCustomField4(null);
+        dto.setCustomField5(null);
+        dto.setCustomNumField1(null);                          // 新实体无此字段
+        dto.setCustomNumField2(null);
+        dto.setCustomNumField3(null);
+        dto.setCustomNumField4(null);
+        dto.setCustomNumField5(null);
+        dto.setCustomDateField1(null);                         // 新实体无此字段
+        dto.setCustomDateField2(null);
+        dto.setCustomDateField3(null);
+        dto.setCustomDateField4(null);
+        dto.setCustomDateField5(null);
+        dto.setCustomBoolField1(null);                         // 新实体无此字段
+        dto.setCustomBoolField2(null);
+        dto.setCustomBoolField3(null);
+        dto.setCustomBoolField4(null);
+        dto.setCustomBoolField5(null);
+        dto.setCustomObjField1(null);                          // 新实体无此字段
+        dto.setCustomObjField2(null);
+        dto.setCustomObjField3(null);
+        dto.setCustomObjField4(null);
+        dto.setCustomObjField5(null);
 
         return dto;
     }

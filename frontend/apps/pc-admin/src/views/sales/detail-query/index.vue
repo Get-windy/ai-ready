@@ -446,11 +446,11 @@ const queryFieldsConfig = ref([
 
 // ═══ 页面配置：功能按钮 ═══
 const functionButtonConfig = ref([
-  { key: 'search', label: '查询', visible: true, disabled: true },
-  { key: 'reset', label: '重置', visible: true, disabled: true },
-  { key: 'more', label: '更多条件', visible: true, disabled: false },
-  { key: 'refresh', label: '刷新', visible: true, disabled: false },
-  { key: 'export', label: '导出', visible: true, disabled: false },
+  { key: 'search', label: '查询', enabled: false },
+  { key: 'reset', label: '重置', enabled: false },
+  { key: 'more', label: '更多条件', enabled: true },
+  { key: 'refresh', label: '刷新', enabled: true },
+  { key: 'export', label: '导出', enabled: true },
 ])
 
 // ═══ 96列表格定义 ═══

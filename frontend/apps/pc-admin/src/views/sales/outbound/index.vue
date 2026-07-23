@@ -1323,11 +1323,11 @@ function handleProductSummary() {
     const params: any = { pageNum: 1, pageSize: 9999 }
     if (searchParams.outboundNo) params.outboundNo = searchParams.outboundNo
     if (searchParams.status !== undefined && searchParams.status !== '') params.status = searchParams.status
-    if (searchParams.dateStart) params.dateStart = searchParams.dateStart
-    if (searchParams.dateEnd) params.dateEnd = searchParams.dateEnd
-    if (searchParams.customerId) params.customerId = searchParams.customerId
+    if (searchParams.startDate) params.dateStart = searchParams.startDate
+    if (searchParams.endDate) params.dateEnd = searchParams.endDate
+    if (searchParams.customerName) params.customerName = searchParams.customerName
 
-    outboundApi.getPage(params).then((res: any) => {
+    outboundApi.page(params).then((res: any) => {
       const records = res?.records || []
       if (records.length === 0) {
         message.info('当前查询条件下无数据')

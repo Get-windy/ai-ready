@@ -631,7 +631,7 @@ const ALL_SPECS: TemplateSpec[] = [
     ],
   },
   {
-    pageCodes: ['finance/accounts-receivable', 'erp/finance/accounts-receivable'],
+    pageCodes: ['finance/receivable', 'erp/finance/receivable'],
     name: '应收列表_默认模板',
     businessType: 'receivable',
     docTitle: '应收账款列表',
@@ -649,7 +649,7 @@ const ALL_SPECS: TemplateSpec[] = [
     ],
   },
   {
-    pageCodes: ['finance/accounts-payable', 'erp/finance/accounts-payable'],
+    pageCodes: ['finance/payable', 'erp/finance/payable'],
     name: '应付列表_默认模板',
     businessType: 'payable',
     docTitle: '应付账款列表',
@@ -664,21 +664,6 @@ const ALL_SPECS: TemplateSpec[] = [
       { header: '已付金额', field: 'paidAmount', width: 20 },
       { header: '未付金额', field: 'balanceAmount', width: 20 },
       { header: '到期日', field: 'dueDate', width: 20 },
-    ],
-  },
-  {
-    pageCodes: ['finance/accounts-receivable/payment-record', 'erp/finance/accounts-receivable/payment-record'],
-    name: '收款记录_默认模板',
-    businessType: 'payment_record',
-    docTitle: '收款记录',
-    docNoField: 'receiptNo',
-    fields: [
-      { label: '收款日期', field: 'receiptDate' },
-      { label: '客户名称', field: 'customerName' },
-      { label: '收款金额', field: 'amount' },
-      { label: '收款方式', field: 'paymentMethod' },
-      { label: '关联应收单', field: 'receivableNo' },
-      { label: '备注', field: 'remark' },
     ],
   },
 

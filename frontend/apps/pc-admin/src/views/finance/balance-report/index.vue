@@ -1,251 +1,208 @@
 <template>
-  <ErrorBoundary @error="handleError">
-    <PageContainer full-height>
-      <template #header>
-        <div class="page-header">
-          <div class="page-header__left">
-            <a-breadcrumb>
-              <a-breadcrumb-item>
-                <router-link to="/">
-                  首页
-                </router-link>
-              </a-breadcrumb-item>
-              <a-breadcrumb-item>财务管理</a-breadcrumb-item>
-              <a-breadcrumb-item>资产负债表</a-breadcrumb-item>
-            </a-breadcrumb>
-            <h2 class="page-header__title">
-              资产负债表
-            </h2>
-          </div>
-          <div class="page-header__right">
-            <a-badge :status="loading ? 'processing' : 'success'" />
+  <ErrorBoundary>
+    <PageContainer title="资产负债表">
+      <!-- ═══ 查询区 ═══ -->
+      <div class="search-area">
+        <a-form layout="inline">
+          <a-form-item label="会计年度">
+            <a-select
+              v-model:value="fiscalYear"
+              :options="YEAR_OPTIONS"
+              style="width: 140px"
+            />
+          </a-form-item>
+          <a-form-item label="会计期间">
+            <a-select
+              v-model:value="fiscalPeriod"
+              :options="PERIOD_OPTIONS"
+              style="width: 140px"
+            />
+          </a-form-item>
+          <a-form-item>
             <a-button
-              size="small"
-              :loading="loading"
-              @click="fetchData"
+              type="primary"
+              @click="loadData"
             >
               <template #icon>
-                <ReloadOutlined />
-              </template>刷新
+                <SearchOutlined />
+              </template>查询
             </a-button>
-          </div>
-        </div>
-      </template>
-
-      <div class="search-area">
-        <a-space
-          :size="12"
-          wrap
-        >
-          <span class="search-item">
-            <label>年度</label>
-            <a-input-number
-              v-model:value="searchParams.year"
-              placeholder="请输入年度"
-              :min="2000"
-              :max="2099"
-              style="width: 120px"
-              @press-enter="handleSearch"
-            />
-          </span>
-          <span class="search-item">
-            <label>期间</label>
-            <a-input-number
-              v-model:value="searchParams.period"
-              placeholder="请输入期间"
-              :min="1"
-              :max="12"
-              style="width: 120px"
-              @press-enter="handleSearch"
-            />
-          </span>
-          <a-button
-            type="primary"
-            :loading="loading"
-            @click="handleSearch"
-          >
-            <template #icon>
-              <SearchOutlined />
-            </template>查询
-          </a-button>
-          <a-button @click="handleReset">
-            <template #icon>
-              <ClearOutlined />
-            </template>重置
-          </a-button>
-        </a-space>
+          </a-form-item>
+        </a-form>
       </div>
 
+      <!-- ═══ 统计卡片 ═══ -->
+      <ARStatCards
+        :items="statCards"
+        :loading="loading"
+      />
+
+      <!-- ═══ 图表 ═══ -->
+      <div class="chart-area">
+        <ARReportChart
+          title="资产 / 负债 / 所有者权益"
+          :option="chartOption"
+          :loading="loading"
+          :height="320"
+        />
+      </div>
+
+      <!-- ═══ 表格区 ═══ -->
       <div class="table-area">
-        <BillTableList
+        <a-table
           :columns="columns"
           :data-source="tableData"
           :loading="loading"
-          :pagination="billPagination"
-          row-key="id"
-          @page-change="handlePageChange"
+          :pagination="false"
+          row-key="itemCode"
+          size="small"
         >
-          <template #endBalanceCell="{ record }">
-            <span class="amount-cell">{{ formatAmount(record.endBalance) }}</span>
+          <template #bodyCell="{ column, record, text }">
+            <template v-if="column.dataIndex === 'itemName'">
+              <span :style="{ paddingLeft: ((record.level || 1) - 1) * 16 + 'px', fontWeight: record.level === 1 ? 600 : 400 }">
+                {{ text }}
+              </span>
+            </template>
+            <template v-else-if="column.dataIndex === 'type'">
+              <a-tag :color="TYPE_MAP[text]?.color || 'default'">
+                {{ TYPE_MAP[text]?.label || text }}
+              </a-tag>
+            </template>
+            <template v-else-if="['endBalance', 'beginBalance'].includes(column.dataIndex as string)">
+              {{ formatMoney(text) }}
+            </template>
           </template>
-          <template #yearStartBalanceCell="{ record }">
-            <span class="amount-cell">{{ formatAmount(record.yearStartBalance) }}</span>
-          </template>
-        </BillTableList>
-        <span
-          v-if="lastUpdateTime"
-          class="update-time"
-        >更新于 {{ lastUpdateTime }}</span>
+        </a-table>
       </div>
     </PageContainer>
   </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
-defineOptions({ name: 'FinanceBalanceReportPage' })
-
-import { ref, reactive, computed, onMounted } from 'vue'
-import type { Dayjs } from 'dayjs'
-import { message } from 'ant-design-vue'
-import { ReloadOutlined, SearchOutlined, ClearOutlined } from '@ant-design/icons-vue'
+import { ref, computed, onMounted } from 'vue'
+import { SearchOutlined } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
-import BillTableList from '@/components/BillTableList/BillTableList.vue'
-import request from '@/utils/request'
+import ARStatCards from '@/components/ARStatCards/ARStatCards.vue'
+import ARReportChart from '@/components/ARReportChart/ARReportChart.vue'
+import type { StatCardItem } from '@/components/ARReportPage/types'
+import { reportApi } from '@/api/finance'
 
-const loading = ref(false)
-const hasError = ref(false)
-const tableData = ref<any[]>([])
-const lastUpdateTime = ref('')
-
-const searchParams = reactive({
-  year: new Date().getFullYear(),
-  period: undefined as number | undefined,
+// ═══ 会计期间 ═══
+const currentYear = new Date().getFullYear()
+const YEAR_OPTIONS = [0, 1, 2, 3].map(i => {
+  const y = currentYear - i
+  return { label: `${y}年`, value: y }
 })
+const PERIOD_OPTIONS = Array.from({ length: 12 }, (_, i) => ({ label: `第${i + 1}期`, value: i + 1 }))
+const fiscalYear = ref(currentYear)
+const fiscalPeriod = ref(new Date().getMonth() + 1)
 
-const dateRange = ref<[Dayjs, Dayjs] | null>(null)
+const TYPE_MAP: Record<string, { label: string; color: string }> = {
+  asset: { label: '资产', color: 'blue' },
+  liability: { label: '负债', color: 'orange' },
+  equity: { label: '权益', color: 'green' }
+}
 
-const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
-const billPagination = computed(() => ({
-  current: pagination.current,
-  pageSize: pagination.pageSize,
-  total: pagination.total,
-}))
+// ═══ 数据 ═══
+const loading = ref(false)
+const tableData = ref<any[]>([])
 
-const columns = [
-  { title: '资产项目', dataIndex: 'itemName', key: 'itemName', width: 200 },
-  { title: '行次', dataIndex: 'lineNo', key: 'lineNo', width: 60 },
-  { title: '期末余额', dataIndex: 'endBalance', key: 'endBalance', width: 140, align: 'right' as const, slotName: 'endBalanceCell' },
-  { title: '年初余额', dataIndex: 'yearStartBalance', key: 'yearStartBalance', width: 140, align: 'right' as const, slotName: 'yearStartBalanceCell' },
+const columns: any[] = [
+  { title: '项目编码', dataIndex: 'itemCode', key: 'itemCode', width: 120 },
+  { title: '项目名称', dataIndex: 'itemName', key: 'itemName' },
+  { title: '类别', dataIndex: 'type', key: 'type', width: 90, align: 'center' },
+  { title: '期末余额', dataIndex: 'endBalance', key: 'endBalance', width: 160, align: 'right' },
+  { title: '年初余额', dataIndex: 'beginBalance', key: 'beginBalance', width: 160, align: 'right' }
 ]
 
-function formatAmount(val: number | null | undefined): string {
-  if (val === null || val === undefined) return '0.00'
+function formatMoney(val: number | null | undefined): string {
+  if (val === null || val === undefined || isNaN(Number(val))) return '-'
   return Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-function handleSearch() {
-  pagination.current = 1
-  fetchData()
+// ═══ 汇总卡片 ═══
+function sumByType(type: string, field: 'endBalance' | 'beginBalance'): number {
+  return tableData.value
+    .filter(r => r.type === type)
+    .reduce((acc, r) => acc + (Number(r[field]) || 0), 0)
 }
 
-function handleReset() {
-  searchParams.year = new Date().getFullYear()
-  searchParams.period = undefined
-  dateRange.value = null
-  pagination.current = 1
-  fetchData()
-}
+const statCards = computed<StatCardItem[]>(() => {
+  if (!tableData.value.length) return []
+  const asset = sumByType('asset', 'endBalance')
+  const liability = sumByType('liability', 'endBalance')
+  const equity = sumByType('equity', 'endBalance')
+  return [
+    { label: '资产总计', value: asset, precision: 2, prefix: '¥' },
+    { label: '负债总计', value: liability, precision: 2, prefix: '¥' },
+    { label: '所有者权益总计', value: equity, precision: 2, prefix: '¥' },
+    {
+      label: '资产 - 负债 - 权益 校验',
+      value: asset - liability - equity,
+      precision: 2,
+      prefix: '¥',
+      valueStyle: { color: Math.abs(asset - liability - equity) < 0.01 ? '#52c41a' : '#f5222d' }
+    }
+  ]
+})
 
-function handlePageChange(page: number, pageSize: number) {
-  pagination.current = page
-  pagination.pageSize = pageSize
-  fetchData()
-}
+// ═══ 图表 ═══
+const chartOption = computed(() => {
+  const types: Array<{ key: string; name: string }> = [
+    { key: 'asset', name: '资产' },
+    { key: 'liability', name: '负债' },
+    { key: 'equity', name: '所有者权益' }
+  ]
+  return {
+    tooltip: { trigger: 'axis' },
+    legend: { data: ['期末余额', '年初余额'] },
+    grid: { left: 80, right: 24, top: 48, bottom: 32 },
+    xAxis: { type: 'category', data: types.map(t => t.name) },
+    yAxis: { type: 'value' },
+    series: [
+      { name: '期末余额', type: 'bar', data: types.map(t => sumByType(t.key, 'endBalance')) },
+      { name: '年初余额', type: 'bar', data: types.map(t => sumByType(t.key, 'beginBalance')) }
+    ]
+  }
+})
 
-async function fetchData() {
+// ═══ 数据请求：资产负债表 v2 ═══
+async function loadData() {
   loading.value = true
   try {
-    const params: Record<string, any> = {
-      page: pagination.current,
-      pageSize: pagination.pageSize,
-    }
-    if (searchParams.year) params.year = searchParams.year
-    if (searchParams.period) params.period = searchParams.period
-
-    const res = await request.get('/finance/balance-report/page', params) as any
-    tableData.value = res?.records || res?.data?.records || []
-    pagination.total = res?.total || res?.data?.total || 0
-    lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
-    hasError.value = false
-  } catch (error: any) {
-    message.error('获取资产负债表数据失败')
-    console.warn('[资产负债表] 加载失败:', error?.message)
-    hasError.value = true
+    const res: any = await reportApi.getBalanceSheet({ fiscalYear: fiscalYear.value, fiscalPeriod: fiscalPeriod.value })
+    tableData.value = Array.isArray(res) ? res : []
+  } catch (e) {
+    tableData.value = []
+    console.warn('[资产负债表] 获取失败', e)
   } finally {
     loading.value = false
   }
 }
 
-function handleError(error: any) {
-  console.warn('[资产负债表] 页面异常', error)
-}
-
-onMounted(() => fetchData())
+onMounted(loadData)
 </script>
 
 <style scoped>
-.page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.page-header__left {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.page-header__title {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 600;
-}
-.page-header__right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
 .search-area {
-  padding: 12px 16px;
   background: #fff;
-  border-radius: 6px;
-  margin-bottom: 12px;
+  padding: 16px 20px 0;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
-.search-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-.search-item label {
-  font-size: 13px;
-  color: #606266;
-  white-space: nowrap;
+.chart-area {
+  background: #fff;
+  padding: 16px;
+  border-radius: 8px;
+  margin: 16px 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 .table-area {
-  flex: 1;
-  min-height: 0;
-  position: relative;
-}
-.update-time {
-  position: absolute;
-  bottom: 8px;
-  right: 16px;
-  font-size: 12px;
-  color: #999;
-}
-.amount-cell {
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-  font-variant-numeric: tabular-nums;
-  font-weight: 500;
+  background: #fff;
+  padding: 16px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 </style>

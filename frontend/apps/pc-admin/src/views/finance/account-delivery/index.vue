@@ -1,149 +1,85 @@
 <template>
-  <ErrorBoundary @error="handleError">
-    <PageContainer
-      title="账款交账"
-      full-height
-    >
-      <template #headerExtra>
-        <a-space :size="12">
-          <a-badge :status="loading ? 'processing' : (hasError ? 'error' : 'success')" />
-          <span
-            v-if="lastUpdateTime"
-            class="update-time"
-          >最后更新: {{ lastUpdateTime }}</span>
-          <a-button
-            size="small"
-            @click="fetchData"
-          >
-            <template #icon>
-              <ReloadOutlined />
-            </template>
-          </a-button>
-        </a-space>
+  <ARReportPage
+    title="账款交账"
+    :query-fields="queryFields"
+    :columns="columns"
+    :fetcher="fetcher"
+    :stat-cards="statCards"
+    export-file-name="账款交账"
+    :row-key="(record: any) => record.groupKey"
+    empty-text="所选范围内暂无回款记录"
+    @loaded="handleLoaded"
+  >
+    <template #bodyCell="{ column, text }">
+      <template v-if="['totalAmount', 'cashAmount', 'bankAmount', 'otherAmount'].includes(column.dataIndex as string)">
+        {{ formatMoney(text) }}
       </template>
-      <div class="search-area">
-        <a-form
-          layout="inline"
-          :model="searchParams"
-        >
-          <a-form-item label="交账单号">
-            <a-input
-              v-model:value="searchParams.docNo"
-              placeholder="请输入"
-              allow-clear
-              style="width: 160px"
-            />
-          </a-form-item>
-          <a-form-item label="业务员">
-            <a-input
-              v-model:value="searchParams.salesmanName"
-              placeholder="请输入"
-              allow-clear
-              style="width: 160px"
-            />
-          </a-form-item>
-          <a-form-item label="日期范围">
-            <a-range-picker
-              v-model:value="dateRange"
-              style="width: 220px"
-              @change="handleDateChange"
-            />
-          </a-form-item>
-          <a-form-item>
-            <a-space>
-              <a-button
-                type="primary"
-                @click="handleSearch"
-              >
-                <template #icon>
-                  <SearchOutlined />
-                </template>查询
-              </a-button>
-              <a-button @click="handleReset">
-                <template #icon>
-                  <ClearOutlined />
-                </template>重置
-              </a-button>
-            </a-space>
-          </a-form-item>
-        </a-form>
-      </div>
-      <div class="table-area">
-        <BillTableList
-          :columns="columns"
-          :data-source="tableData"
-          :loading="loading"
-          :pagination="billPagination"
-          :show-toolbar="false"
-          :show-search="false"
-          :show-add="false"
-          :show-export="false"
-          :show-batch-delete="false"
-          :selectable="false"
-          row-key="id"
-          @page-change="handlePageChange"
-        />
-      </div>
-    </PageContainer>
-  </ErrorBoundary>
+    </template>
+  </ARReportPage>
 </template>
+
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
-import type { Dayjs } from 'dayjs'
-import { ReloadOutlined, SearchOutlined, ClearOutlined } from '@ant-design/icons-vue'
-import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import PageContainer from '@/components/PageContainer/PageContainer.vue'
-import BillTableList from '@/components/BillTableList/BillTableList.vue'
-import request from '@/utils/request'
+import { ref, computed } from 'vue'
+import ARReportPage from '@/components/ARReportPage/ARReportPage.vue'
+import type { ReportQueryField, StatCardItem, ReportFetchResult } from '@/components/ARReportPage/types'
+import { collectionStatsApi } from '@/api/finance'
 
-const loading = ref(false)
-const hasError = ref(false)
-const tableData = ref<any[]>([])
-const lastUpdateTime = ref('')
-
-const searchParams = reactive({ docNo: '', salesmanName: '', startDate: '', endDate: '' })
-const dateRange = ref<[Dayjs, Dayjs] | null>(null)
-const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
-const billPagination = computed(() => ({ current: pagination.current, pageSize: pagination.pageSize, total: pagination.total }))
-
-const columns = [
-  { title: '交账单号', field: 'docNo', key: 'docNo', width: 160 },
-  { title: '业务员', field: 'salesmanName', key: 'salesmanName', width: 100 },
-  { title: '交账金额', field: 'amount', key: 'amount', width: 120, align: 'right' },
-  { title: '交账方式', field: 'deliveryMethod', key: 'deliveryMethod', width: 100 },
-  { title: '状态', field: 'status', key: 'status', width: 100 },
-  { title: '创建时间', field: 'createTime', key: 'createTime', width: 170 },
+// ═══ 分组维度（与后端 CollectionStatsController groupBy 一致） ═══
+const queryFields: ReportQueryField[] = [
+  {
+    key: 'groupBy',
+    type: 'select',
+    label: '交账维度',
+    placeholder: '默认按日',
+    options: [
+      { label: '按日', value: 'day' },
+      { label: '按周', value: 'week' },
+      { label: '按月', value: 'month' },
+      { label: '按业务员', value: 'staff' },
+      { label: '按客户', value: 'customer' }
+    ],
+    width: 140
+  },
+  { key: 'receiptDateRange', type: 'date-range', label: '收款日期' }
 ]
 
-const handleDateChange = (dates: [Dayjs, Dayjs] | null) => {
-  if (dates?.length === 2) { searchParams.startDate = dates[0]?.format('YYYY-MM-DD') || ''; searchParams.endDate = dates[1]?.format('YYYY-MM-DD') || '' }
-  else { searchParams.startDate = ''; searchParams.endDate = '' }
+// ═══ 表格列（与后端 CollectionStatsDTO.Detail 字段一致） ═══
+const columns: any[] = [
+  { title: '分组', dataIndex: 'groupKey', key: 'groupKey', width: 140 },
+  { title: '名称', dataIndex: 'groupName', key: 'groupName', width: 180, ellipsis: true },
+  { title: '收款笔数', dataIndex: 'receiptCount', key: 'receiptCount', width: 100, align: 'right' },
+  { title: '收款总额', dataIndex: 'totalAmount', key: 'totalAmount', width: 140, align: 'right' },
+  { title: '现金', dataIndex: 'cashAmount', key: 'cashAmount', width: 130, align: 'right' },
+  { title: '银行', dataIndex: 'bankAmount', key: 'bankAmount', width: 130, align: 'right' },
+  { title: '其他方式', dataIndex: 'otherAmount', key: 'otherAmount', width: 130, align: 'right' }
+]
+
+function formatMoney(val: number | null | undefined): string {
+  if (val === null || val === undefined || isNaN(Number(val))) return '-'
+  return Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-const fetchData = async () => {
-  loading.value = true; hasError.value = false
-  try {
-    const res: any = await request.get('/finance/account-delivery/page', {
-      params: { page: pagination.current, size: pagination.pageSize, ...searchParams }
-    })
-    if (res) {
-      const data = res.data || res
-      tableData.value = data.records || data.content || data.list || []
-      pagination.total = data.total || 0
-      lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
-    }
-  } catch (e: any) { hasError.value = true; console.warn('[账款交账] 获取失败', e)
-  } finally { loading.value = false }
+// ═══ 汇总卡片（取自响应 summary 段） ═══
+const summary = ref<Record<string, any>>({})
+const statCards = computed<StatCardItem[]>(() => {
+  if (!Object.keys(summary.value).length) return []
+  return [
+    { label: '收款笔数', value: Number(summary.value.receiptCount) || 0, suffix: '笔' },
+    { label: '收款总额', value: Number(summary.value.totalAmount) || 0, precision: 2, prefix: '¥' },
+    { label: '现金', value: Number(summary.value.cashAmount) || 0, precision: 2, prefix: '¥' },
+    { label: '银行', value: Number(summary.value.bankAmount) || 0, precision: 2, prefix: '¥' },
+    { label: '其他方式', value: Number(summary.value.otherAmount) || 0, precision: 2, prefix: '¥' }
+  ]
+})
+
+function handleLoaded(result: ReportFetchResult) {
+  summary.value = result.raw?.summary || {}
 }
 
-const handleSearch = () => { pagination.current = 1; fetchData() }
-const handleReset = () => { searchParams.docNo = ''; searchParams.salesmanName = ''; searchParams.startDate = ''; searchParams.endDate = ''; dateRange.value = null; pagination.current = 1; fetchData() }
-const handlePageChange = (page: number, pageSize: number) => { pagination.current = page; pagination.pageSize = pageSize; fetchData() }
-const handleError = (e: Error) => { hasError.value = true; console.error(e) }
-onMounted(fetchData)
+// ═══ 数据请求：回款统计（/erp/finance/collection-stats，汇总 + 分组明细） ═══
+async function fetcher(params: Record<string, any>) {
+  const res: any = await collectionStatsApi.getStats(params)
+  const details = Array.isArray(res?.details) ? res.details : []
+  return { records: details, total: details.length, summary: res?.summary || {} }
+}
 </script>
-<style scoped>
-.search-area { background: #fff; padding: 16px 20px; border-radius: 8px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-.table-area { background: #fff; padding: 16px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-.update-time { font-size: 12px; color: #999; }
-</style>

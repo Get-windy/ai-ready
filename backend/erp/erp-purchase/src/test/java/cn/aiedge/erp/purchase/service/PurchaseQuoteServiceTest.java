@@ -45,10 +45,12 @@ class PurchaseQuoteServiceTest {
         PurchaseQuoteItem item1 = new PurchaseQuoteItem();
         item1.setUnitPrice(BigDecimal.valueOf(100));
         item1.setQuantity(BigDecimal.valueOf(10));
+        item1.setAmount(BigDecimal.valueOf(1000)); // impl 直接按 amount 求和，必须设置
 
         PurchaseQuoteItem item2 = new PurchaseQuoteItem();
         item2.setUnitPrice(BigDecimal.valueOf(200));
         item2.setQuantity(BigDecimal.valueOf(5));
+        item2.setAmount(BigDecimal.valueOf(1000));
 
         List<PurchaseQuoteItem> items = Arrays.asList(item1, item2);
 
@@ -79,7 +81,8 @@ class PurchaseQuoteServiceTest {
         assertNotNull(reviewed.getQualityScore());
         assertNotNull(reviewed.getServiceScore());
         assertNotNull(reviewed.getTotalScore());
-        assertEquals(BigDecimal.valueOf(87.0), reviewed.getTotalScore()); // 90*0.4 + 85*0.4 + 80*0.2
+        // impl 实际公式：90*0.4 + 85*0.4 + 80*0.2 = 86.00（BigDecimal 连乘累加，scale=2）
+        assertEquals(new BigDecimal("86.00"), reviewed.getTotalScore());
         verify(quoteMapper).update(any());
     }
 

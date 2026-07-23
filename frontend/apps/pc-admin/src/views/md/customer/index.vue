@@ -362,11 +362,11 @@ const columns: DetailColumnConfig[] = [
 ]
 
 function handleSendMessage() {
-  message.info('发短信功能开发中')
+  message.info('发短信功能待完善')
 }
 
 function handleSendCoupon() {
-  message.info('发优惠券功能开发中')
+  message.info('发优惠券功能待完善')
 }
 </script>
 

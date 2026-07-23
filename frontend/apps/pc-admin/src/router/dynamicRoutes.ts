@@ -67,12 +67,6 @@ const componentMap: Record<string, () => Promise<any>> = {
   'crm/quotation/index': () => import('@/views/crm/quotation/index.vue'),
   'crm/supplier/index': () => import('@/views/crm/supplier/index.vue'),
   'dashboard/index': () => import('@/views/dashboard/index.vue'),
-  'finance/accounts-payable/index': () => import('@/views/finance/accounts-payable/index.vue'),
-  'finance/accounts-payable/payment-approval': () => import('@/views/finance/accounts-payable/payment-approval.vue'),
-  'finance/accounts-receivable/aging-analysis': () => import('@/views/finance/accounts-receivable/aging-analysis.vue'),
-  'finance/accounts-receivable/collection-reminder': () => import('@/views/finance/accounts-receivable/collection-reminder.vue'),
-  'finance/accounts-receivable/index': () => import('@/views/finance/accounts-receivable/index.vue'),
-  'finance/accounts-receivable/payment-record': () => import('@/views/finance/accounts-receivable/payment-record.vue'),
   'finance/index': () => import('@/views/finance/index.vue'),
   'finance/reconciliation/index': () => import('@/views/finance/reconciliation/index.vue'),
   'finance/reports/index': () => import('@/views/finance/reports/index.vue'),
@@ -120,6 +114,9 @@ const componentMap: Record<string, () => Promise<any>> = {
   'system/tenant-approval/index': () => import('@/views/system/tenant-approval/index.vue'),
   'system/data-import/index': () => import('@/views/system/data-import/index.vue'),
   'workflow/instance-monitor': () => import('@/views/workflow/instance-monitor.vue'),
+  // 流程定义（菜单801 /workflow/definition）与流程设计（菜单80610 set/workflow-designer）共用流程设计器
+  'workflow/definition': () => import('@/views/workflow/designer/index.vue'),
+  'set/workflow-designer': () => import('@/views/workflow/designer/index.vue'),
   'workflow/process-analysis': () => import('@/views/workflow/process-analysis.vue'),
   'workflow/task-management': () => import('@/views/workflow/task-management.vue'),
 
@@ -168,7 +165,9 @@ const componentMap: Record<string, () => Promise<any>> = {
   'erp/stock-bom/form': () => import('@/views/erp/stock-bom/form.vue'),
   'erp/stock-out/form': () => import('@/views/erp/stock-out/form.vue'),
   'erp/stock-assemble/index': () => import('@/views/erp/stock-assemble/index.vue'),
+  'erp/stock-assemble/form': () => import('@/views/erp/stock-assemble/form.vue'),
   'erp/stock-split/index': () => import('@/views/erp/stock-split/index.vue'),
+  'erp/stock-split/form': () => import('@/views/erp/stock-split/form.vue'),
 
   // ── WMS 仓储管理模块 ──
   'wms/warehouse/index': () => import('@/views/wms/warehouse/index.vue'),
@@ -277,8 +276,6 @@ const componentMap: Record<string, () => Promise<any>> = {
   'erp/return/form': () => import('@/views/erp/return/form.vue'),
   'erp/stock-in/form': () => import('@/views/erp/stock-in/form.vue'),
   'erp/stocktake/form': () => import('@/views/erp/stocktake/form.vue'),
-  'erp/purchase/form': () => import('@/views/erp/purchase/form.vue'),
-  'erp/purchase-return/form': () => import('@/views/erp/purchase-return/form.vue'),
 
   // ── displayMode=1 表单页路由（Phase 2 WMS 仓储执行） ──
   'wms/receipt/form': () => import('@/views/wms/receipt/form.vue'),
@@ -479,11 +476,19 @@ const componentMap: Record<string, () => Promise<any>> = {
 
   // ── HR 人力资源模块 ──
   'hr/employee/list': () => import('@/views/hr/employee/list.vue'),
+  'hr/employee/index': () => import('@/views/hr/employee/index.vue'),
+  'hr/employee/form': () => import('@/views/hr/employee/form.vue'),
   'hr/attendance/list': () => import('@/views/hr/attendance/list.vue'),
+  'hr/attendance/index': () => import('@/views/hr/attendance/index.vue'),
   'hr/leave/list': () => import('@/views/hr/leave/list.vue'),
+  'hr/leave/index': () => import('@/views/hr/leave/index.vue'),
   'hr/salary/list': () => import('@/views/hr/salary/list.vue'),
+  'hr/salary/index': () => import('@/views/hr/salary/index.vue'),
+  'hr/salary/form': () => import('@/views/hr/salary/form.vue'),
   'hr/performance/list': () => import('@/views/hr/performance/list.vue'),
+  'hr/performance/index': () => import('@/views/hr/performance/index.vue'),
   'hr/organization/position-list': () => import('@/views/hr/organization/position-list.vue'),
+  'hr/organization/index': () => import('@/views/hr/organization/index.vue'),
 
   // ── Trade 交易模块 ──
   'trade/pos/index': () => import('@/views/trade/pos/index.vue'),
@@ -512,6 +517,7 @@ const componentMap: Record<string, () => Promise<any>> = {
   'md/product-price/index': () => import('@/views/md/product-price/index.vue'),
   'md/product-aux': () => import('@/views/md/product-aux/index.vue'),
   'md/product-aux/index': () => import('@/views/md/product-aux/index.vue'),
+  'md/product-aux/form': () => import('@/views/md/product-aux/form.vue'),
   'md/product-supplement': () => import('@/views/md/product-supplement/index.vue'),
   'md/product-supplement/index': () => import('@/views/md/product-supplement/index.vue'),
   'md/image': () => import('@/views/md/image/index.vue'),
@@ -554,6 +560,7 @@ const componentMap: Record<string, () => Promise<any>> = {
   'set/menu-config/index': () => import('@/views/set/menu-config/index.vue'),
   'set/audit-config': () => import('@/views/set/audit-config/index.vue'),
   'set/audit-config/index': () => import('@/views/set/audit-config/index.vue'),
+  'set/audit-config/form': () => import('@/views/set/audit-config/form.vue'),
   'set/payment-config': () => import('@/views/set/payment-config/index.vue'),
   'set/payment-config/index': () => import('@/views/set/payment-config/index.vue'),
   'set/app-center': () => import('@/views/set/app-center/index.vue'),
@@ -647,6 +654,16 @@ const componentMap: Record<string, () => Promise<any>> = {
   'mall/keyword-bank': () => import('@/views/mall/keyword-bank/index.vue'),
   'mall/keyword-bank/index': () => import('@/views/mall/keyword-bank/index.vue'),
 
+  // ── Trade 交易模块（新增页面） ──
+  'trade/mall-return': () => import('@/views/trade/mall-return/index.vue'),
+  'trade/mall-return/index': () => import('@/views/trade/mall-return/index.vue'),
+
+  // ── Member 会员模块 ──
+  'member/profile': () => import('@/views/member/profile/index.vue'),
+  'member/profile/index': () => import('@/views/member/profile/index.vue'),
+  'member/points-history': () => import('@/views/member/points-history/index.vue'),
+  'member/points-history/index': () => import('@/views/member/points-history/index.vue'),
+
   // ── Analytics 分析模块 ──
   'analytics/pending-approval': () => import('@/views/analytics/pending-approval/index.vue'),
   'analytics/pending-approval/index': () => import('@/views/analytics/pending-approval/index.vue'),
@@ -732,8 +749,19 @@ const componentMap: Record<string, () => Promise<any>> = {
   'wh/shipping-order/form': () => import('@/views/wh/shipping-order/form/index.vue'),
   'wh/move-order/form': () => import('@/views/wh/move-order/form/index.vue'),
   'wh/inventory-order/form': () => import('@/views/wh/inventory-order/form/index.vue'),
+  'wh/production-template/form': () => import('@/views/wh/production-template/form/index.vue'),
+  'wh/production-template/index': () => import('@/views/wh/production-template/index.vue'),
   'wh/borrow-query': () => import('@/views/wh/borrow-query/index.vue'),
   'wh/borrow-query/index': () => import('@/views/wh/borrow-query/index.vue'),
+  // ── WMS 8 作业单列表页（批次 0.1 新增） ──
+  'wh/borrow-in/index': () => import('@/views/wh/borrow-in/index.vue'),
+  'wh/borrow-out/index': () => import('@/views/wh/borrow-out/index.vue'),
+  'wh/receiving-order/index': () => import('@/views/wh/receiving-order/index.vue'),
+  'wh/putaway-order/index': () => import('@/views/wh/putaway-order/index.vue'),
+  'wh/picking-order/index': () => import('@/views/wh/picking-order/index.vue'),
+  'wh/shipping-order/index': () => import('@/views/wh/shipping-order/index.vue'),
+  'wh/move-order/index': () => import('@/views/wh/move-order/index.vue'),
+  'wh/inventory-order/index': () => import('@/views/wh/inventory-order/index.vue'),
 
   // ── 订单中心 / 财务 ──
   'sales/order-center': () => import('@/views/sales/order-center/index.vue'),
@@ -810,11 +838,6 @@ const routeBillTypeMap: Record<string, string> = {
   // ── 收款单 (801) ──
   'finance/receivable': '801',
   'finance/receivable/index': '801',
-  'finance/accounts-receivable': '801',
-  'finance/accounts-receivable/index': '801',
-  'finance/accounts-receivable/payment-record': '801',
-  'finance/accounts-receivable/collection-reminder': '801',
-  'finance/accounts-receivable/aging-analysis': '801',
   'finance/pre-receipt': '801',
   'finance/pre-receipt/index': '801',
   'finance/deposit': '801',
@@ -826,9 +849,6 @@ const routeBillTypeMap: Record<string, string> = {
   // ── 付款单 (802) ──
   'finance/payable': '802',
   'finance/payable/index': '802',
-  'finance/accounts-payable': '802',
-  'finance/accounts-payable/index': '802',
-  'finance/accounts-payable/payment-approval': '802',
   'finance/pre-payment': '802',
   'finance/pre-payment/index': '802',
   'erp/finance/payable': '802',
@@ -1565,6 +1585,49 @@ function getRequiredRoutes(): RouteRecordRaw[] {
       name: 'PreOrderCreate',
       component: () => import('@/views/sales/pre-order/form.vue'),
       meta: { title: '新增预订货单', icon: 'FileTextOutlined', keepAlive: false, requiresAuth: true, hidden: true, billType: '604' }
+    },
+    // ═══ 生产模块表单路由 ═══
+    {
+      path: 'wh/production-template',
+      name: 'ProductionTemplate',
+      component: () => import('@/views/wh/production-template/index.vue'),
+      meta: { title: '生产模板', icon: 'DeploymentUnitOutlined', keepAlive: true, requiresAuth: true, hidden: true }
+    },
+    {
+      path: 'wh/production-template/form',
+      name: 'ProductionTemplateForm',
+      component: () => import('@/views/wh/production-template/form/index.vue'),
+      meta: { title: '新增生产模板', icon: 'DeploymentUnitOutlined', keepAlive: false, requiresAuth: true, hidden: true }
+    },
+    {
+      path: 'wh/production-template/form/:id',
+      name: 'ProductionTemplateFormEdit',
+      component: () => import('@/views/wh/production-template/form/index.vue'),
+      meta: { title: '编辑生产模板', icon: 'DeploymentUnitOutlined', keepAlive: false, requiresAuth: true, hidden: true }
+    },
+    {
+      path: 'erp/stock-assemble/form',
+      name: 'StockAssembleForm',
+      component: () => import('@/views/erp/stock-assemble/form.vue'),
+      meta: { title: '新增组装单', icon: 'BuildOutlined', keepAlive: false, requiresAuth: true, hidden: true, billType: '601' }
+    },
+    {
+      path: 'erp/stock-assemble/form/:id',
+      name: 'StockAssembleFormEdit',
+      component: () => import('@/views/erp/stock-assemble/form.vue'),
+      meta: { title: '编辑组装单', icon: 'BuildOutlined', keepAlive: false, requiresAuth: true, hidden: true, billType: '601' }
+    },
+    {
+      path: 'erp/stock-split/form',
+      name: 'StockSplitForm',
+      component: () => import('@/views/erp/stock-split/form.vue'),
+      meta: { title: '新增拆分单', icon: 'ScissorOutlined', keepAlive: false, requiresAuth: true, hidden: true, billType: '601' }
+    },
+    {
+      path: 'erp/stock-split/form/:id',
+      name: 'StockSplitFormEdit',
+      component: () => import('@/views/erp/stock-split/form.vue'),
+      meta: { title: '编辑拆分单', icon: 'ScissorOutlined', keepAlive: false, requiresAuth: true, hidden: true, billType: '601' }
     },
   ]
 }

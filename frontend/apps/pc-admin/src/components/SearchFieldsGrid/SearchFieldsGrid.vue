@@ -18,8 +18,8 @@
           <!-- 输入框 -->
           <a-input
             v-if="field.type === 'input'"
-            :value="values[field.key]"
-            :placeholder="field.placeholder || field.label"
+            :value="(values[field.key] as any)"
+            :placeholder="typeof field.placeholder === 'string' ? field.placeholder : field.label"
             size="small"
             @input="handleInput(field.key, $event)"
             @press-enter="emitSearch"
@@ -46,10 +46,10 @@
           <!-- 日期范围 -->
           <a-range-picker
             v-else-if="field.type === 'dateRange'"
-            :value="values[field.key]"
+            :value="(values[field.key] as any)"
             size="small"
             style="width: 100%"
-            :placeholder="field.placeholder || ['开始日期', '结束日期']"
+            :placeholder="(Array.isArray(field.placeholder) ? field.placeholder : ['开始日期', '结束日期']) as [string, string]"
             @change="handleFieldChange(field.key, $event)"
           />
         </div>

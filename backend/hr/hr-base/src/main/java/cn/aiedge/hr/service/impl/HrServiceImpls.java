@@ -8,7 +8,7 @@ import cn.aiedge.hr.attendance.HrLeaveRequest;
 import cn.aiedge.hr.salary.HrSalaryStructure;
 import cn.aiedge.hr.salary.HrSalaryPayment;
 import cn.aiedge.hr.performance.HrPerformance;
-import cn.aiedge.hr.*;
+import cn.aiedge.hr.mapper.*;
 import cn.aiedge.hr.service.*;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;

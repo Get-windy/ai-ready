@@ -1,142 +1,75 @@
 <template>
-  <ErrorBoundary @error="handleError">
-    <PageContainer
+  <div>
+    <a-alert
+      type="warning"
+      show-icon
+      class="gap-alert"
+      message="后端暂未提供总账专用端点（无 LedgerController），当前以试算平衡口径展示各科目期初/本期/期末借贷汇总；逐笔凭证明细请见「明细账」页。"
+    />
+    <ARReportPage
       title="总账"
-      full-height
-    >
-      <template #headerExtra>
-        <a-space :size="12">
-          <a-badge :status="loading ? 'processing' : (hasError ? 'error' : 'success')" />
-          <span
-            v-if="lastUpdateTime"
-            class="update-time"
-          >最后更新: {{ lastUpdateTime }}</span>
-          <a-button
-            size="small"
-            @click="fetchData"
-          >
-            <template #icon>
-              <ReloadOutlined />
-            </template>
-          </a-button>
-        </a-space>
-      </template>
-      <div class="search-area">
-        <a-form
-          layout="inline"
-          :model="searchParams"
-        >
-          <a-form-item label="科目代码">
-            <a-input
-              v-model:value="searchParams.subjectCode"
-              placeholder="请输入"
-              allow-clear
-              style="width: 160px"
-            />
-          </a-form-item>
-          <a-form-item label="日期范围">
-            <a-range-picker
-              v-model:value="dateRange"
-              style="width: 220px"
-              @change="handleDateChange"
-            />
-          </a-form-item>
-          <a-form-item>
-            <a-space>
-              <a-button
-                type="primary"
-                @click="handleSearch"
-              >
-                <template #icon>
-                  <SearchOutlined />
-                </template>查询
-              </a-button>
-              <a-button @click="handleReset">
-                <template #icon>
-                  <ClearOutlined />
-                </template>重置
-              </a-button>
-            </a-space>
-          </a-form-item>
-        </a-form>
-      </div>
-      <div class="table-area">
-        <BillTableList
-          :columns="columns"
-          :data-source="tableData"
-          :loading="loading"
-          :pagination="billPagination"
-          :show-toolbar="false"
-          :show-search="false"
-          :show-add="false"
-          :show-export="false"
-          :show-batch-delete="false"
-          :selectable="false"
-          row-key="id"
-          @page-change="handlePageChange"
-        />
-      </div>
-    </PageContainer>
-  </ErrorBoundary>
+      :query-fields="queryFields"
+      :columns="columns"
+      :fetcher="fetcher"
+      export-file-name="总账"
+      :row-key="(record: any) => record.subjectCode"
+    />
+  </div>
 </template>
+
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
-import type { Dayjs } from 'dayjs'
-import { ReloadOutlined, SearchOutlined, ClearOutlined } from '@ant-design/icons-vue'
-import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import PageContainer from '@/components/PageContainer/PageContainer.vue'
-import BillTableList from '@/components/BillTableList/BillTableList.vue'
-import request from '@/utils/request'
+import ARReportPage from '@/components/ARReportPage/ARReportPage.vue'
+import type { ReportQueryField } from '@/components/ARReportPage/types'
+import { reportApi } from '@/api/finance'
 
-const loading = ref(false)
-const hasError = ref(false)
-const tableData = ref<any[]>([])
-const lastUpdateTime = ref('')
+// ═══ 会计期间选项 ═══
+const currentYear = new Date().getFullYear()
+const currentPeriod = new Date().getMonth() + 1
+const YEAR_OPTIONS = [0, 1, 2, 3].map(i => {
+  const y = currentYear - i
+  return { label: `${y}年`, value: y }
+})
+const PERIOD_OPTIONS = Array.from({ length: 12 }, (_, i) => ({ label: `第${i + 1}期`, value: i + 1 }))
 
-const searchParams = reactive({ subjectCode: '', startDate: '', endDate: '' })
-const dateRange = ref<[Dayjs, Dayjs] | null>(null)
-const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
-const billPagination = computed(() => ({ current: pagination.current, pageSize: pagination.pageSize, total: pagination.total }))
-
-const columns = [
-  { title: '日期', field: 'accDate', key: 'accDate', width: 120 },
-  { title: '凭证号', field: 'voucherNo', key: 'voucherNo', width: 100 },
-  { title: '科目代码', field: 'subjectCode', key: 'subjectCode', width: 100 },
-  { title: '科目名称', field: 'subjectName', key: 'subjectName', width: 180 },
-  { title: '借方金额', field: 'debitAmount', key: 'debitAmount', width: 120, align: 'right' },
-  { title: '贷方金额', field: 'creditAmount', key: 'creditAmount', width: 120, align: 'right' },
-  { title: '余额', field: 'balance', key: 'balance', width: 120, align: 'right' },
+const queryFields: ReportQueryField[] = [
+  { key: 'fiscalYear', type: 'select', label: '会计年度', placeholder: `默认${currentYear}年`, options: YEAR_OPTIONS, width: 140 },
+  { key: 'fiscalPeriod', type: 'select', label: '会计期间', placeholder: `默认第${currentPeriod}期`, options: PERIOD_OPTIONS, width: 140 },
+  { key: 'subjectCode', type: 'input', label: '科目代码', placeholder: '按科目代码过滤', width: 160 }
 ]
 
-const handleDateChange = (dates: [Dayjs, Dayjs] | null) => {
-  if (dates?.length === 2) { searchParams.startDate = dates[0]?.format('YYYY-MM-DD') || ''; searchParams.endDate = dates[1]?.format('YYYY-MM-DD') || '' }
-  else { searchParams.startDate = ''; searchParams.endDate = '' }
+// ═══ 表格列（与后端 TrialBalanceDTO 字段一致） ═══
+const moneyRender = ({ text }: { text: number }) => formatMoney(text)
+const columns: any[] = [
+  { title: '科目代码', dataIndex: 'subjectCode', key: 'subjectCode', width: 110 },
+  { title: '科目名称', dataIndex: 'subjectName', key: 'subjectName', width: 200, ellipsis: true },
+  { title: '期初借方', dataIndex: 'openingDebit', key: 'openingDebit', width: 130, align: 'right', customRender: moneyRender },
+  { title: '期初贷方', dataIndex: 'openingCredit', key: 'openingCredit', width: 130, align: 'right', customRender: moneyRender },
+  { title: '本期借方', dataIndex: 'periodDebit', key: 'periodDebit', width: 130, align: 'right', customRender: moneyRender },
+  { title: '本期贷方', dataIndex: 'periodCredit', key: 'periodCredit', width: 130, align: 'right', customRender: moneyRender },
+  { title: '期末借方', dataIndex: 'closingDebit', key: 'closingDebit', width: 130, align: 'right', customRender: moneyRender },
+  { title: '期末贷方', dataIndex: 'closingCredit', key: 'closingCredit', width: 130, align: 'right', customRender: moneyRender }
+]
+
+function formatMoney(val: number | null | undefined): string {
+  if (val === null || val === undefined || isNaN(Number(val))) return '-'
+  return Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-const fetchData = async () => {
-  loading.value = true; hasError.value = false
-  try {
-    const res: any = await request.get('/finance/general-ledger/page', {
-      params: { page: pagination.current, size: pagination.pageSize, ...searchParams }
-    })
-    if (res) {
-      const data = res.data || res
-      tableData.value = data.records || data.content || data.list || []
-      pagination.total = data.total || 0
-      lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
-    }
-  } catch (e: any) { hasError.value = true; console.warn('[总账] 获取失败', e)
-  } finally { loading.value = false }
+// ═══ 数据请求：试算平衡（总账科目汇总口径），科目代码前端过滤 ═══
+async function fetcher(params: Record<string, any>) {
+  const fiscalYear = params.fiscalYear ?? currentYear
+  const fiscalPeriod = params.fiscalPeriod ?? currentPeriod
+  const res: any = await reportApi.getTrialBalance({ fiscalYear, fiscalPeriod })
+  let list: any[] = Array.isArray(res) ? res : []
+  if (params.subjectCode) {
+    list = list.filter(item => String(item.subjectCode || '').includes(String(params.subjectCode)))
+  }
+  return { records: list, total: list.length }
 }
-
-const handleSearch = () => { pagination.current = 1; fetchData() }
-const handleReset = () => { searchParams.subjectCode = ''; searchParams.startDate = ''; searchParams.endDate = ''; dateRange.value = null; pagination.current = 1; fetchData() }
-const handlePageChange = (page: number, pageSize: number) => { pagination.current = page; pagination.pageSize = pageSize; fetchData() }
-const handleError = (e: Error) => { hasError.value = true; console.error(e) }
-onMounted(fetchData)
 </script>
+
 <style scoped>
-.search-area { background: #fff; padding: 16px 20px; border-radius: 8px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-.table-area { background: #fff; padding: 16px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-.update-time { font-size: 12px; color: #999; }
+.gap-alert {
+  margin-bottom: 16px;
+}
 </style>

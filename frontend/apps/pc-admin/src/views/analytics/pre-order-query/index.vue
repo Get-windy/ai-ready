@@ -1,86 +1,85 @@
 <template>
-  <ErrorBoundary>
-    <PageContainer title="预订货查询">
-      <div class="search-area">
-        <a-form layout="inline">
-          <a-form-item label="日期范围">
-            <a-range-picker
-              v-model:value="dateRange"
-              style="width: 220px"
-            />
-          </a-form-item>
-          <a-form-item>
-            <a-space>
-              <a-button
-                type="primary"
-                @click="handleSearch"
-              >
-                <template #icon>
-                  <SearchOutlined />
-                </template>查询
-              </a-button>
-              <a-button @click="handleReset">
-                <template #icon>
-                  <ClearOutlined />
-                </template>重置
-              </a-button>
-            </a-space>
-          </a-form-item>
-        </a-form>
-      </div>
-      <div class="table-area">
-        <a-table
-          :columns="columns"
-          :data-source="tableData"
-          :loading="loading"
-          :pagination="pagination"
-          row-key="id"
-          size="small"
-          @change="handleTableChange"
-        />
-      </div>
-    </PageContainer>
-  </ErrorBoundary>
+  <ARReportPage
+    title="预订货查询"
+    :query-fields="queryFields"
+    :columns="columns"
+    :fetcher="fetcher"
+    page-param-style="pageNum"
+    export-file-name="预订货查询"
+    row-key="id"
+  >
+    <template #bodyCell="{ column, text }">
+      <template v-if="column.dataIndex === 'status'">
+        <a-tag :color="STATUS_MAP[text]?.color || 'default'">
+          {{ STATUS_MAP[text]?.label || '未知' }}
+        </a-tag>
+      </template>
+      <template v-else-if="['quantity', 'orderedQuantity', 'unOrderedQuantity'].includes(column.dataIndex as string)">
+        {{ formatNumber(text) }}
+      </template>
+      <template v-else-if="['unitPrice', 'amount'].includes(column.dataIndex as string)">
+        {{ formatMoney(text) }}
+      </template>
+    </template>
+  </ARReportPage>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
-import { SearchOutlined, ClearOutlined } from '@ant-design/icons-vue'
-import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import PageContainer from '@/components/PageContainer/PageContainer.vue'
-import request from '@/utils/request'
+import ARReportPage from '@/components/ARReportPage/ARReportPage.vue'
+import type { ReportQueryField } from '@/components/ARReportPage/types'
+import { preOrderApi } from '@/api/analytics'
 
-const loading = ref(false)
-const tableData = ref<any[]>([])
-const dateRange = ref(null)
-const pagination = reactive({ current: 1, pageSize: 20, total: 0, showSizeChanger: true, showTotal: (t) => `共 ${t} 条` })
-
-const columns: any[] = [
-  { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
-  { title: '名称', dataIndex: 'name', key: 'name', width: 150 },
-  { title: '描述', dataIndex: 'description', key: 'description', ellipsis: true },
-  { title: '状态', dataIndex: 'status', key: 'status', width: 80 },
-  { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 160 }
-]
-
-async function loadData() {
-  loading.value = true
-  try {
-    const result = await request.get('/analytics/pre-order-query/page', { pageNum: pagination.current, pageSize: pagination.pageSize })
-    if (result?.records) { tableData.value = result.records; pagination.total = result.total }
-    else if (Array.isArray(result)) { tableData.value = result; pagination.total = result.length }
-  } catch (e) { tableData.value = [] }
-  finally { loading.value = false }
+// ═══ 预订单状态（与预订货列表页 STATUS_MAP 一致） ═══
+const STATUS_MAP: Record<number, { label: string; color: string }> = {
+  0: { label: '草稿', color: 'default' },
+  1: { label: '审核中', color: 'processing' },
+  2: { label: '待订货', color: 'orange' },
+  3: { label: '部分订货', color: 'blue' },
+  4: { label: '已订货', color: 'cyan' },
+  5: { label: '已完成', color: 'green' },
+  [-1]: { label: '已取消', color: 'red' }
 }
 
-function handleSearch() { pagination.current = 1; loadData() }
-function handleReset() { dateRange.value = null; pagination.current = 1; loadData() }
-function handleTableChange(p) { pagination.current = p.current; pagination.pageSize = p.pageSize; loadData() }
+const queryFields: ReportQueryField[] = [
+  { key: 'keyword', type: 'input', label: '关键字', placeholder: '单号/客户/商品', width: 200 },
+  {
+    key: 'status',
+    type: 'select',
+    label: '状态',
+    placeholder: '全部状态',
+    options: Object.entries(STATUS_MAP).map(([value, v]) => ({ label: v.label, value }))
+  },
+  { key: 'orderDateRange', type: 'date-range', label: '单据日期' }
+]
 
-onMounted(loadData)
+// ═══ 表格列（明细级：每商品行一条） ═══
+const columns: any[] = [
+  { title: '单号', dataIndex: 'orderNo', key: 'orderNo', width: 160 },
+  { title: '单据日期', dataIndex: 'orderDate', key: 'orderDate', width: 110 },
+  { title: '客户', dataIndex: 'customerName', key: 'customerName', width: 150, ellipsis: true },
+  { title: '商品编码', dataIndex: 'productCode', key: 'productCode', width: 120 },
+  { title: '商品名称', dataIndex: 'productName', key: 'productName', width: 180, ellipsis: true },
+  { title: '单位', dataIndex: 'unit', key: 'unit', width: 70 },
+  { title: '预订数量', dataIndex: 'quantity', key: 'quantity', width: 100, align: 'right' },
+  { title: '已订货数量', dataIndex: 'orderedQuantity', key: 'orderedQuantity', width: 100, align: 'right' },
+  { title: '未订货数量', dataIndex: 'unOrderedQuantity', key: 'unOrderedQuantity', width: 100, align: 'right' },
+  { title: '单价', dataIndex: 'unitPrice', key: 'unitPrice', width: 100, align: 'right' },
+  { title: '金额', dataIndex: 'amount', key: 'amount', width: 110, align: 'right' },
+  { title: '状态', dataIndex: 'status', key: 'status', width: 90 }
+]
+
+function formatNumber(val: number | null | undefined): string {
+  if (val === null || val === undefined || isNaN(Number(val))) return '-'
+  return Number(val).toLocaleString('zh-CN')
+}
+
+function formatMoney(val: number | null | undefined): string {
+  if (val === null || val === undefined || isNaN(Number(val))) return '-'
+  return Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+// ═══ 数据请求（按明细分页，含商品行） ═══
+function fetcher(params: Record<string, any>) {
+  return preOrderApi.pageDetail(params)
+}
 </script>
-
-<style scoped>
-.search-area { background: #fff; padding: 16px 20px; border-radius: 8px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-.table-area { background: #fff; padding: 16px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-</style>

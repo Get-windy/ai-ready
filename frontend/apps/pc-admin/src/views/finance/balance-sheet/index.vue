@@ -1,155 +1,83 @@
 <template>
-  <ErrorBoundary @error="handleError">
-    <PageContainer
-      title="科目余额表"
-      full-height
-    >
-      <template #headerExtra>
-        <a-space :size="12">
-          <a-badge :status="loading ? 'processing' : (hasError ? 'error' : 'success')" />
-          <span
-            v-if="lastUpdateTime"
-            class="update-time"
-          >最后更新: {{ lastUpdateTime }}</span>
-          <a-button
-            size="small"
-            @click="fetchData"
-          >
-            <template #icon>
-              <ReloadOutlined />
-            </template>
-          </a-button>
-        </a-space>
-      </template>
-      <div class="search-area">
-        <a-form
-          layout="inline"
-          :model="searchParams"
-        >
-          <a-form-item label="科目代码">
-            <a-input
-              v-model:value="searchParams.subjectCode"
-              placeholder="请输入科目代码"
-              allow-clear
-              style="width: 160px"
-              @press-enter="handleSearch"
-            />
-          </a-form-item>
-          <a-form-item label="年度">
-            <a-input-number
-              v-model:value="searchParams.year"
-              placeholder="年度"
-              :min="2020"
-              :max="2099"
-              style="width: 120px"
-            />
-          </a-form-item>
-          <a-form-item label="期间">
-            <a-input-number
-              v-model:value="searchParams.period"
-              placeholder="期间"
-              :min="1"
-              :max="12"
-              style="width: 120px"
-            />
-          </a-form-item>
-          <a-form-item>
-            <a-space>
-              <a-button
-                type="primary"
-                :loading="loading"
-                @click="handleSearch"
-              >
-                <template #icon>
-                  <SearchOutlined />
-                </template>查询
-              </a-button>
-              <a-button @click="handleReset">
-                <template #icon>
-                  <ClearOutlined />
-                </template>重置
-              </a-button>
-            </a-space>
-          </a-form-item>
-        </a-form>
-      </div>
-      <div class="table-area">
-        <BillTableList
-          :columns="columns"
-          :data-source="tableData"
-          :loading="loading"
-          :pagination="billPagination"
-          :show-toolbar="false"
-          :show-search="false"
-          :show-add="false"
-          :show-export="false"
-          :show-batch-delete="false"
-          :selectable="false"
-          row-key="id"
-          @page-change="handlePageChange"
-        />
-      </div>
-    </PageContainer>
-  </ErrorBoundary>
+  <ARReportPage
+    title="科目余额表"
+    :query-fields="queryFields"
+    :columns="columns"
+    :fetcher="fetcher"
+    :stat-cards="statCards"
+    export-file-name="科目余额表"
+    :row-key="(record: any) => record.subjectCode"
+    @loaded="handleLoaded"
+  />
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
-import type { Dayjs } from 'dayjs'
-import { ReloadOutlined, SearchOutlined, ClearOutlined } from '@ant-design/icons-vue'
-import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import PageContainer from '@/components/PageContainer/PageContainer.vue'
-import BillTableList from '@/components/BillTableList/BillTableList.vue'
-import request from '@/utils/request'
+import { ref, computed } from 'vue'
+import ARReportPage from '@/components/ARReportPage/ARReportPage.vue'
+import type { ReportQueryField, StatCardItem, ReportFetchResult } from '@/components/ARReportPage/types'
+import { reportApi } from '@/api/finance'
 
-const loading = ref(false)
-const hasError = ref(false)
-const tableData = ref<any[]>([])
-const lastUpdateTime = ref('')
-
-const searchParams = reactive({
-  subjectCode: '',
-  year: undefined as number | undefined,
-  period: undefined as number | undefined,
+// ═══ 会计期间选项 ═══
+const currentYear = new Date().getFullYear()
+const currentPeriod = new Date().getMonth() + 1
+const YEAR_OPTIONS = [0, 1, 2, 3].map(i => {
+  const y = currentYear - i
+  return { label: `${y}年`, value: y }
 })
+const PERIOD_OPTIONS = Array.from({ length: 12 }, (_, i) => ({ label: `第${i + 1}期`, value: i + 1 }))
 
-const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
-const billPagination = computed(() => ({ current: pagination.current, pageSize: pagination.pageSize, total: pagination.total }))
-
-const columns = [
-  { title: '科目代码', field: 'subjectCode', key: 'subjectCode', width: 100 },
-  { title: '科目名称', field: 'subjectName', key: 'subjectName', width: 200 },
-  { title: '期初余额', field: 'openBalance', key: 'openBalance', width: 140, align: 'right' },
-  { title: '本期借方', field: 'debitAmount', key: 'debitAmount', width: 140, align: 'right' },
-  { title: '本期贷方', field: 'creditAmount', key: 'creditAmount', width: 140, align: 'right' },
-  { title: '期末余额', field: 'closeBalance', key: 'closeBalance', width: 140, align: 'right' },
+const queryFields: ReportQueryField[] = [
+  { key: 'fiscalYear', type: 'select', label: '会计年度', placeholder: `默认${currentYear}年`, options: YEAR_OPTIONS, width: 140 },
+  { key: 'fiscalPeriod', type: 'select', label: '会计期间', placeholder: `默认第${currentPeriod}期`, options: PERIOD_OPTIONS, width: 140 },
+  { key: 'subjectCode', type: 'input', label: '科目代码', placeholder: '按科目代码过滤', width: 160 }
 ]
 
-const fetchData = async () => {
-  loading.value = true; hasError.value = false
-  try {
-    const res: any = await request.get('/finance/balance-sheet/page', {
-      params: { page: pagination.current, size: pagination.pageSize, ...searchParams }
-    })
-    if (res) {
-      const data = res.data || res
-      tableData.value = data.records || data.content || data.list || []
-      pagination.total = data.total || 0
-      lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
-    }
-  } catch (e: any) { hasError.value = true; console.warn('[科目余额表] 获取失败', e)
-  } finally { loading.value = false }
+// ═══ 表格列（与后端 TrialBalanceDTO 字段一致） ═══
+const moneyRender = ({ text }: { text: number }) => formatMoney(text)
+const columns: any[] = [
+  { title: '科目代码', dataIndex: 'subjectCode', key: 'subjectCode', width: 110 },
+  { title: '科目名称', dataIndex: 'subjectName', key: 'subjectName', width: 200, ellipsis: true },
+  { title: '期初借方', dataIndex: 'openingDebit', key: 'openingDebit', width: 130, align: 'right', customRender: moneyRender },
+  { title: '期初贷方', dataIndex: 'openingCredit', key: 'openingCredit', width: 130, align: 'right', customRender: moneyRender },
+  { title: '本期借方', dataIndex: 'periodDebit', key: 'periodDebit', width: 130, align: 'right', customRender: moneyRender },
+  { title: '本期贷方', dataIndex: 'periodCredit', key: 'periodCredit', width: 130, align: 'right', customRender: moneyRender },
+  { title: '期末借方', dataIndex: 'closingDebit', key: 'closingDebit', width: 130, align: 'right', customRender: moneyRender },
+  { title: '期末贷方', dataIndex: 'closingCredit', key: 'closingCredit', width: 130, align: 'right', customRender: moneyRender }
+]
+
+function formatMoney(val: number | null | undefined): string {
+  if (val === null || val === undefined || isNaN(Number(val))) return '-'
+  return Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-const handleSearch = () => { pagination.current = 1; fetchData() }
-const handleReset = () => { searchParams.subjectCode = ''; searchParams.year = undefined; searchParams.period = undefined; pagination.current = 1; fetchData() }
-const handlePageChange = (page: number, pageSize: number) => { pagination.current = page; pagination.pageSize = pageSize; fetchData() }
-const handleError = (e: Error) => { hasError.value = true; console.error(e) }
-onMounted(fetchData)
-</script>
+// ═══ 汇总卡片（借贷合计校验平衡） ═══
+const loadedList = ref<any[]>([])
+const statCards = computed<StatCardItem[]>(() => {
+  const sum = (field: string) => loadedList.value.reduce((acc, r) => acc + (Number(r[field]) || 0), 0)
+  if (!loadedList.value.length) return []
+  return [
+    { label: '期初借方合计', value: sum('openingDebit'), precision: 2, prefix: '¥' },
+    { label: '期初贷方合计', value: sum('openingCredit'), precision: 2, prefix: '¥' },
+    { label: '本期借方合计', value: sum('periodDebit'), precision: 2, prefix: '¥' },
+    { label: '本期贷方合计', value: sum('periodCredit'), precision: 2, prefix: '¥' },
+    { label: '期末借方合计', value: sum('closingDebit'), precision: 2, prefix: '¥' },
+    { label: '期末贷方合计', value: sum('closingCredit'), precision: 2, prefix: '¥' }
+  ]
+})
 
-<style scoped>
-.search-area { background: #fff; padding: 16px 20px; border-radius: 8px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-.table-area { background: #fff; padding: 16px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-.update-time { font-size: 12px; color: #999; }
-</style>
+function handleLoaded(result: ReportFetchResult) {
+  loadedList.value = result.list
+}
+
+// ═══ 数据请求：试算平衡表 v2（科目余额口径） ═══
+async function fetcher(params: Record<string, any>) {
+  const fiscalYear = params.fiscalYear ?? currentYear
+  const fiscalPeriod = params.fiscalPeriod ?? currentPeriod
+  const res: any = await reportApi.getTrialBalance({ fiscalYear, fiscalPeriod })
+  let list: any[] = Array.isArray(res) ? res : []
+  if (params.subjectCode) {
+    list = list.filter(item => String(item.subjectCode || '').includes(String(params.subjectCode)))
+  }
+  return { records: list, total: list.length }
+}
+</script>

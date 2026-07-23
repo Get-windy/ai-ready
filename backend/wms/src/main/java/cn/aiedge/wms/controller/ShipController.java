@@ -1,6 +1,7 @@
 package cn.aiedge.wms.controller;
 
 import cn.aiedge.base.vo.Result;
+import cn.aiedge.wms.controller.dto.DetailSaveRequest;
 import cn.aiedge.wms.entity.WmsShipDetail;
 import cn.aiedge.wms.entity.WmsShipTask;
 import cn.aiedge.wms.ship.service.ShipService;
@@ -98,5 +99,13 @@ public class ShipController {
     @GetMapping("/details/{shipId}")
     public Result<List<WmsShipDetail>> details(@PathVariable @NotNull Long shipId) {
         return Result.ok(shipService.listByShipId(shipId));
+    }
+
+    @Operation(summary = "保存发货明细（整体替换，先删后插）")
+    @PostMapping("/detail/save")
+    public Result<String> saveDetails(@Valid @RequestBody DetailSaveRequest<WmsShipDetail> request) {
+        shipService.saveDetails(request.getTaskId(), request.getDetails());
+        log.info("保存发货明细: shipId={}, items={}", request.getTaskId(), request.getDetails().size());
+        return Result.ok("保存成功");
     }
 }

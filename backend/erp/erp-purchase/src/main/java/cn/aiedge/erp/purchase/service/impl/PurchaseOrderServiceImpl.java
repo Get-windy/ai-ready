@@ -1,11 +1,10 @@
 package cn.aiedge.erp.purchase.service.impl;
 
+import cn.aiedge.base.workflow.facade.ApprovalFacade;
 import cn.aiedge.common.exception.BusinessException;
-import cn.aiedge.erp.purchase.entity.PurchaseContract;
-import cn.aiedge.erp.purchase.entity.PurchaseOrder;
-import cn.aiedge.erp.purchase.entity.PurchaseOrderItem;
-import cn.aiedge.erp.purchase.mapper.PurchaseOrderMapper;
-import cn.aiedge.erp.purchase.mapper.PurchaseOrderItemMapper;
+import cn.aiedge.erp.purchase.dto.PurchaseOrderDTO;
+import cn.aiedge.erp.purchase.entity.*;
+import cn.aiedge.erp.purchase.mapper.*;
 import cn.aiedge.erp.purchase.service.PurchaseOrderService;
 import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -14,14 +13,19 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.*;
+import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @RequiredArgsConstructor
@@ -29,42 +33,107 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         implements PurchaseOrderService {
 
     private static final Logger logger = LoggerFactory.getLogger(PurchaseOrderServiceImpl.class);
+
     private final PurchaseOrderItemMapper orderItemMapper;
+    private final PurchaseOrderPartnerSnapshotMapper partnerSnapshotMapper;
+    private final PurchaseOrderSettlementMapper settlementMapper;
+    private final PurchaseOrderLogisticsMapper logisticsMapper;
+    private final PurchaseOrderDepositMapper depositMapper;
+    private final PurchaseOrderAuditTrailMapper auditTrailMapper;
+    private final PurchaseOrderExtInfoMapper extInfoMapper;
+
+    /** 审批门面（影子模式）：core-api 有引擎实现时可选注入，无实现时保持原行为 */
+    private final ObjectProvider<ApprovalFacade> approvalFacadeProvider;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Long createOrder(PurchaseOrder order) {
-        order.setOrderNo(generateOrderNo());
+    public Long createOrder(PurchaseOrderDTO dto) {
+        PurchaseOrder order = dto.getOrder();
+        if (order == null) {
+            throw BusinessException.badRequest("订单主表数据不能为空");
+        }
+
+        // 生成单据编号
+        order.setOrderNo(generateNextOrderNo(LocalDate.now()));
         order.setStatus(0);
-        order.setPaidAmount(BigDecimal.ZERO);
-        order.setReceivedAmount(BigDecimal.ZERO);
-        order.setFulfillmentPercent(BigDecimal.ZERO);
         order.setCreateTime(LocalDateTime.now());
         order.setUpdateTime(LocalDateTime.now());
         order.setCreateBy(StpUtil.getLoginIdAsLong());
-        
-        calculateOrderAmount(order);
-        
+
+        // 计算金额
+        calculateOrderAmount(dto);
+
+        // 保存主表
         save(order);
-        logger.info("创建采购订单成功: orderId={}, orderNo={}", order.getId(), order.getOrderNo());
-        return order.getId();
+        Long orderId = order.getId();
+
+        // 保存子表
+        saveSubTables(orderId, dto);
+
+        logger.info("创建采购订单成功: orderId={}, orderNo={}", orderId, order.getOrderNo());
+        return orderId;
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void updateOrder(PurchaseOrder order) {
-        PurchaseOrder existing = getById(order.getId());
+    public void updateOrder(Long id, PurchaseOrderDTO dto) {
+        PurchaseOrder existing = getById(id);
         if (existing == null) {
             throw BusinessException.notFound("订单不存在");
         }
         if (existing.getStatus() > 1) {
             throw BusinessException.badRequest("订单已审批，无法修改");
         }
-        
+
+        PurchaseOrder order = dto.getOrder();
+        order.setId(id);
         order.setUpdateTime(LocalDateTime.now());
         order.setUpdateBy(StpUtil.getLoginIdAsLong());
+
+        calculateOrderAmount(dto);
         updateById(order);
-        logger.info("更新采购订单成功: orderId={}", order.getId());
+
+        // 更新子表
+        updateSubTables(id, dto);
+
+        logger.info("更新采购订单成功: orderId={}", id);
+    }
+
+    @Override
+    public PurchaseOrderDTO getOrderDetail(Long id) {
+        PurchaseOrder order = getById(id);
+        if (order == null) {
+            throw BusinessException.notFound("订单不存在");
+        }
+
+        PurchaseOrderDTO dto = new PurchaseOrderDTO();
+        dto.setOrder(order);
+
+        // 查询子表
+        LambdaQueryWrapper<PurchaseOrderPartnerSnapshot> psWrapper = new LambdaQueryWrapper<>();
+        psWrapper.eq(PurchaseOrderPartnerSnapshot::getOrderId, id);
+        dto.setPartnerSnapshot(partnerSnapshotMapper.selectOne(psWrapper));
+
+        LambdaQueryWrapper<PurchaseOrderSettlement> stWrapper = new LambdaQueryWrapper<>();
+        stWrapper.eq(PurchaseOrderSettlement::getOrderId, id);
+        dto.setSettlement(settlementMapper.selectOne(stWrapper));
+
+        LambdaQueryWrapper<PurchaseOrderLogistics> lgWrapper = new LambdaQueryWrapper<>();
+        lgWrapper.eq(PurchaseOrderLogistics::getOrderId, id);
+        dto.setLogisticsList(logisticsMapper.selectList(lgWrapper));
+
+        LambdaQueryWrapper<PurchaseOrderDeposit> dpWrapper = new LambdaQueryWrapper<>();
+        dpWrapper.eq(PurchaseOrderDeposit::getOrderId, id)
+                 .orderByAsc(PurchaseOrderDeposit::getSequenceNo);
+        dto.setDeposits(depositMapper.selectList(dpWrapper));
+
+        LambdaQueryWrapper<PurchaseOrderExtInfo> eiWrapper = new LambdaQueryWrapper<>();
+        eiWrapper.eq(PurchaseOrderExtInfo::getOrderId, id);
+        dto.setExtInfo(extInfoMapper.selectOne(eiWrapper));
+
+        dto.setItems(orderItemMapper.selectByOrderId(id));
+
+        return dto;
     }
 
     @Override
@@ -77,7 +146,9 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         if (existing.getStatus() > 1) {
             throw BusinessException.badRequest("订单已审批，无法删除");
         }
-        
+
+        // 删除子表
+        deleteSubTables(orderId);
         removeById(orderId);
         logger.info("删除采购订单成功: orderId={}", orderId);
     }
@@ -92,16 +163,31 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         if (order.getStatus() != 0) {
             throw BusinessException.badRequest("只有草稿状态的订单才能提交审批");
         }
-        
+
         order.setStatus(1);
+        order.setSubmitterId(StpUtil.getLoginIdAsLong());
+        order.setSubmitTime(LocalDateTime.now());
         order.setUpdateTime(LocalDateTime.now());
         updateById(order);
+
+        // 记录审核流水
+        saveAuditTrail(orderId, "submit", "提交审批");
+
+        // 影子模式：并行发起工作流引擎实例（不回写单据状态；无引擎/失败仅记日志不阻断）
+        startShadowApproval(order);
+
         logger.info("提交采购订单审批: orderId={}", orderId);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void approve(Long orderId) {
+        approve(orderId, currentUserIdOrNull(), null);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void approve(Long orderId, Long auditorId, String auditorName) {
         PurchaseOrder order = getById(orderId);
         if (order == null) {
             throw BusinessException.notFound("订单不存在");
@@ -109,12 +195,20 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         if (order.getStatus() != 1) {
             throw BusinessException.badRequest("订单不在待审批状态");
         }
-        
+
+        // 第三期（影子转正式）：存在在途引擎实例时由引擎驱动审批，
+        // 终态经 ApprovalCallback 回调本方法完成回写，此处不再直接翻转
+        if (tryDriveEngineApproval(orderId, "approve", null)) {
+            return;
+        }
+
         order.setStatus(2);
-        order.setApprovalUserId(StpUtil.getLoginIdAsLong());
-        order.setApprovalTime(LocalDateTime.now());
+        order.setApprovalStatus(1);
         order.setUpdateTime(LocalDateTime.now());
         updateById(order);
+
+        // 工作流回调线程无会话：终审人由回调显式传入，写入审核流水
+        saveAuditTrail(orderId, "approve", "审批通过", auditorId, auditorName);
         logger.info("审批通过采购订单: orderId={}", orderId);
     }
 
@@ -125,11 +219,17 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         if (order == null) {
             throw BusinessException.notFound("订单不存在");
         }
-        
+
+        // 第三期（影子转正式）：存在在途引擎实例时由引擎驱动驳回（终态由回调回写）
+        if (tryDriveEngineApproval(orderId, "reject", reason)) {
+            return;
+        }
+
         order.setStatus(0);
-        order.setRemark(order.getRemark() + " [审批拒绝: " + reason + "]");
         order.setUpdateTime(LocalDateTime.now());
         updateById(order);
+
+        saveAuditTrail(orderId, "reject", "审批拒绝: " + reason);
         logger.info("审批拒绝采购订单: orderId={}, reason={}", orderId, reason);
     }
 
@@ -141,357 +241,15 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
             throw BusinessException.notFound("订单不存在");
         }
         if (order.getStatus() >= 3) {
-            throw BusinessException.badRequest("订单已开始入库，无法取消");
+            throw BusinessException.badRequest("订单已开始履行，无法取消");
         }
-        
+
         order.setStatus(4);
-        order.setCancellationFlag(1);
-        order.setRemark(order.getRemark() + " [取消原因: " + reason + "]");
         order.setUpdateTime(LocalDateTime.now());
         updateById(order);
+
+        saveAuditTrail(orderId, "cancel", "取消原因: " + reason);
         logger.info("取消采购订单: orderId={}, reason={}", orderId, reason);
-    }
-
-    @Override
-    public Page<PurchaseOrder> pageOrders(Page<PurchaseOrder> page, Long tenantId,
-                                          String orderNo, Long supplierId, Integer status) {
-        LambdaQueryWrapper<PurchaseOrder> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(PurchaseOrder::getTenantId, tenantId)
-                .like(orderNo != null, PurchaseOrder::getOrderNo, orderNo)
-                .eq(supplierId != null, PurchaseOrder::getSupplierId, supplierId)
-                .eq(status != null, PurchaseOrder::getStatus, status)
-                .orderByDesc(PurchaseOrder::getCreateTime);
-        return page(page, wrapper);
-    }
-
-    @Override
-    public List<PurchaseOrder> exportOrders(Long tenantId, String orderNo, Long supplierId, Integer status) {
-        LambdaQueryWrapper<PurchaseOrder> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(PurchaseOrder::getTenantId, tenantId)
-                .like(orderNo != null, PurchaseOrder::getOrderNo, orderNo)
-                .eq(supplierId != null, PurchaseOrder::getSupplierId, supplierId)
-                .eq(status != null, PurchaseOrder::getStatus, status)
-                .orderByDesc(PurchaseOrder::getCreateTime);
-        return list(wrapper);
-    }
-
-    @Override
-    public PurchaseOrder getOrderDetail(Long orderId) {
-        PurchaseOrder order = getById(orderId);
-        if (order == null) {
-            throw BusinessException.notFound("订单不存在");
-        }
-        return order;
-    }
-
-    @Override
-    public List<Object> getOrderItems(Long orderId) {
-        return Collections.singletonList(orderItemMapper.findByOrderId(orderId));
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public PurchaseOrder submitOrder(Long orderId) {
-        PurchaseOrder order = getById(orderId);
-        if (order == null) {
-            throw BusinessException.notFound("订单不存在");
-        }
-        if (order.getStatus() != 0) {
-            throw BusinessException.badRequest("只有草稿状态的订单才能提交");
-        }
-        
-        order.setStatus(1);
-        order.setUpdateTime(LocalDateTime.now());
-        updateById(order);
-        logger.info("提交采购订单: orderId={}", orderId);
-        return order;
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public PurchaseOrder approveOrder(Long orderId, Long approverId, String comment) {
-        PurchaseOrder order = getById(orderId);
-        if (order == null) {
-            throw BusinessException.notFound("订单不存在");
-        }
-        if (order.getStatus() != 1) {
-            throw BusinessException.badRequest("订单不在待审批状态");
-        }
-        
-        order.setStatus(2);
-        order.setApprovalUserId(approverId);
-        order.setApprovalTime(LocalDateTime.now());
-        order.setRemark(order.getRemark() + " [审批意见: " + comment + "]");
-        order.setUpdateTime(LocalDateTime.now());
-        updateById(order);
-        logger.info("审批采购订单: orderId={}, approverId={}, comment={}", orderId, approverId, comment);
-        return order;
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public PurchaseOrder issueOrder(Long orderId) {
-        PurchaseOrder order = getById(orderId);
-        if (order == null) {
-            throw BusinessException.notFound("订单不存在");
-        }
-        if (order.getStatus() != 2) {
-            throw BusinessException.badRequest("订单未审批，无法下达");
-        }
-        
-        order.setStatus(3);
-        order.setUpdateTime(LocalDateTime.now());
-        updateById(order);
-        logger.info("下达采购订单: orderId={}", orderId);
-        return order;
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public PurchaseOrder generateOrderFromContract(PurchaseContract contract, List<PurchaseOrderItem> items) {
-        PurchaseOrder order = new PurchaseOrder();
-        order.setContractId(contract.getId());
-        order.setSupplierId(contract.getSupplierId());
-        order.setSupplierName(contract.getSupplierName());
-        order.setTotalAmount(contract.getTotalAmount());
-        order.setOrderNo(generateOrderNo());
-        order.setStatus(0);
-        order.setCreateTime(LocalDateTime.now());
-        order.setUpdateTime(LocalDateTime.now());
-        save(order);
-
-        if (items != null && !items.isEmpty()) {
-            items.forEach(item -> item.setOrderId(order.getId()));
-            orderItemMapper.batchInsert(items);
-        }
-
-        logger.info("从合同生成采购订单: orderId={}, contractId={}", order.getId(), contract.getId());
-        return order;
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public PurchaseOrder startFulfillment(Long orderId) {
-        PurchaseOrder order = getById(orderId);
-        if (order == null) {
-            throw BusinessException.notFound("订单不存在");
-        }
-        if (order.getStatus() != 3) {
-            throw BusinessException.badRequest("订单未下达，无法开始履行");
-        }
-        
-        order.setStatus(5);
-        order.setUpdateTime(LocalDateTime.now());
-        updateById(order);
-        logger.info("开始履行采购订单: orderId={}", orderId);
-        return order;
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public PurchaseOrder updateFulfillmentProgress(Long orderId, BigDecimal receivedAmount, BigDecimal fulfillmentPercent) {
-        PurchaseOrder order = getById(orderId);
-        if (order == null) {
-            throw BusinessException.notFound("订单不存在");
-        }
-        
-        order.setReceivedAmount(receivedAmount);
-        order.setFulfillmentPercent(fulfillmentPercent);
-        order.setUpdateTime(LocalDateTime.now());
-        updateById(order);
-        logger.info("更新履行进度: orderId={}, receivedAmount={}, fulfillmentPercent={}", 
-                orderId, receivedAmount, fulfillmentPercent);
-        return order;
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public PurchaseOrder completeOrder(Long orderId) {
-        PurchaseOrder order = getById(orderId);
-        if (order == null) {
-            throw BusinessException.notFound("订单不存在");
-        }
-        
-        order.setStatus(6);
-        order.setClosedFlag(1);
-        order.setUpdateTime(LocalDateTime.now());
-        updateById(order);
-        logger.info("完成采购订单: orderId={}", orderId);
-        return order;
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void confirmBySupplier(Long orderId) {
-        PurchaseOrder order = getById(orderId);
-        if (order == null) {
-            throw BusinessException.notFound("订单不存在");
-        }
-        if (order.getStatus() != 2 && order.getStatus() != 3) {
-            throw BusinessException.badRequest("只有已审批或已下达的订单才能进行供应商确认");
-        }
-        
-        order.setSupplierConfirmed(true);
-        order.setSupplierConfirmTime(LocalDateTime.now());
-        order.setUpdateTime(LocalDateTime.now());
-        updateById(order);
-        logger.info("供应商确认订单: orderId={}", orderId);
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void shipOrder(Long orderId, String trackingNumber, LocalDateTime estimatedArrivalTime) {
-        PurchaseOrder order = getById(orderId);
-        if (order == null) {
-            throw BusinessException.notFound("订单不存在");
-        }
-        if (!Boolean.TRUE.equals(order.getSupplierConfirmed())) {
-            throw BusinessException.badRequest("订单未经过供应商确认，无法发货");
-        }
-        
-        order.setShipped(true);
-        order.setTrackingNumber(trackingNumber);
-        order.setEstimatedArrivalTime(estimatedArrivalTime);
-        order.setShipTime(LocalDateTime.now());
-        order.setUpdateTime(LocalDateTime.now());
-        updateById(order);
-        logger.info("发货通知: orderId={}, trackingNumber={}", orderId, trackingNumber);
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void receiveOrder(Long orderId, BigDecimal receivedQuantity, String qualityCheckResult) {
-        PurchaseOrder order = getById(orderId);
-        if (order == null) {
-            throw BusinessException.notFound("订单不存在");
-        }
-        if (!Boolean.TRUE.equals(order.getShipped())) {
-            throw BusinessException.badRequest("订单未发货，无法收货");
-        }
-        
-        order.setReceived(true);
-        order.setReceivedQuantity(receivedQuantity);
-        order.setQualityCheckResult(qualityCheckResult);
-        order.setReceiveTime(LocalDateTime.now());
-        order.setUpdateTime(LocalDateTime.now());
-        
-        BigDecimal totalQuantity = order.getTotalQuantity();
-        if (totalQuantity != null && receivedQuantity.compareTo(totalQuantity) < 0) {
-            order.setStatus(5);
-        } else {
-            order.setStatus(6);
-        }
-        
-        updateById(order);
-        logger.info("收货确认: orderId={}, receivedQuantity={}, qualityCheckResult={}", 
-                orderId, receivedQuantity, qualityCheckResult);
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void submitInvoice(Long orderId, String invoiceNumber, BigDecimal invoiceAmount, LocalDate invoiceDate) {
-        PurchaseOrder order = getById(orderId);
-        if (order == null) {
-            throw BusinessException.notFound("订单不存在");
-        }
-        if (!Boolean.TRUE.equals(order.getReceived())) {
-            throw BusinessException.badRequest("订单未收货，无法提交发票");
-        }
-        
-        order.setInvoiceStatus(1);
-        order.setInvoiceNumber(invoiceNumber);
-        order.setInvoiceAmount(invoiceAmount);
-        order.setInvoiceDate(invoiceDate.atStartOfDay());
-        order.setUpdateTime(LocalDateTime.now());
-        updateById(order);
-        logger.info("发票提交: orderId={}, invoiceNumber={}, invoiceAmount={}", 
-                orderId, invoiceNumber, invoiceAmount);
-    }
-
-    @Override
-    public List<PurchaseOrder> getPendingApprovalOrders() {
-        LambdaQueryWrapper<PurchaseOrder> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(PurchaseOrder::getStatus, 1)
-                .orderByDesc(PurchaseOrder::getCreateTime);
-        return list(wrapper);
-    }
-
-    @Override
-    public Map<String, Object> getPurchaseStatistics(Long tenantId, LocalDate startDate, LocalDate endDate) {
-        Map<String, Object> statistics = new HashMap<>();
-        
-        LambdaQueryWrapper<PurchaseOrder> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(PurchaseOrder::getTenantId, tenantId)
-                .ge(startDate != null, PurchaseOrder::getCreateTime, startDate.atStartOfDay())
-                .le(endDate != null, PurchaseOrder::getCreateTime, endDate.atTime(23, 59, 59));
-        
-        long totalOrders = count(wrapper);
-        statistics.put("totalOrders", totalOrders);
-        
-        wrapper.clear();
-        wrapper.eq(PurchaseOrder::getTenantId, tenantId)
-                .ge(startDate != null, PurchaseOrder::getCreateTime, startDate.atStartOfDay())
-                .le(endDate != null, PurchaseOrder::getCreateTime, endDate.atTime(23, 59, 59));
-        List<PurchaseOrder> orders = list(wrapper);
-        BigDecimal totalAmount = orders.stream()
-                .map(PurchaseOrder::getTotalAmount)
-                .filter(Objects::nonNull)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        statistics.put("totalAmount", totalAmount);
-        
-        for (int i = 0; i <= 6; i++) {
-            wrapper.clear();
-            wrapper.eq(PurchaseOrder::getTenantId, tenantId)
-                    .eq(PurchaseOrder::getStatus, i)
-                    .ge(startDate != null, PurchaseOrder::getCreateTime, startDate.atStartOfDay())
-                    .le(endDate != null, PurchaseOrder::getCreateTime, endDate.atTime(23, 59, 59));
-            long count = count(wrapper);
-            statistics.put("status_" + i, count);
-        }
-        
-        return statistics;
-    }
-
-    @Override
-    public List<Map<String, Object>> generatePurchaseReport(Long tenantId, LocalDate startDate, LocalDate endDate) {
-        List<Map<String, Object>> report = new ArrayList<>();
-        
-        LambdaQueryWrapper<PurchaseOrder> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(PurchaseOrder::getTenantId, tenantId)
-                .ge(startDate != null, PurchaseOrder::getCreateTime, startDate.atStartOfDay())
-                .le(endDate != null, PurchaseOrder::getCreateTime, endDate.atTime(23, 59, 59))
-                .orderByDesc(PurchaseOrder::getCreateTime);
-        
-        List<PurchaseOrder> orders = list(wrapper);
-        for (PurchaseOrder order : orders) {
-            Map<String, Object> record = new HashMap<>();
-            record.put("orderId", order.getId());
-            record.put("orderNo", order.getOrderNo());
-            record.put("supplierName", order.getSupplierName());
-            record.put("totalAmount", order.getTotalAmount());
-            record.put("status", getStatusDescription(order.getStatus()));
-            record.put("createTime", order.getCreateTime());
-            record.put("approvalTime", order.getApprovalTime());
-            
-            report.add(record);
-        }
-        
-        return report;
-    }
-
-    private String generateOrderNo() {
-        return "PO" + System.currentTimeMillis();
-    }
-
-    private void calculateOrderAmount(PurchaseOrder order) {
-        if (order.getTotalAmount() == null) {
-            order.setTotalAmount(BigDecimal.ZERO);
-            order.setTaxAmount(BigDecimal.ZERO);
-            order.setTotalAmountWithTax(BigDecimal.ZERO);
-        } else {
-            BigDecimal taxAmount = order.getTaxAmount() != null ? order.getTaxAmount() : BigDecimal.ZERO;
-            order.setTotalAmountWithTax(order.getTotalAmount().add(taxAmount));
-        }
     }
 
     @Override
@@ -508,25 +266,411 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
                 continue;
             }
             order.setStatus(2);
-            order.setApprovalUserId(StpUtil.getLoginIdAsLong());
-            order.setApprovalTime(LocalDateTime.now());
+            order.setApprovalStatus(1);
             order.setUpdateTime(LocalDateTime.now());
             updateById(order);
-            logger.info("批量审批通过采购订单: orderId={}", orderId);
+            saveAuditTrail(orderId, "approve", "批量审批通过");
+        }
+        logger.info("批量审批通过采购订单: count={}", orderIds.size());
+    }
+
+    @Override
+    public String generateNextOrderNo(LocalDate date) {
+        String dateStr = date.format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+        String prefix = "CG" + dateStr;
+        String pattern = prefix + "%";
+
+        LambdaQueryWrapper<PurchaseOrder> wrapper = new LambdaQueryWrapper<>();
+        wrapper.likeRight(PurchaseOrder::getOrderNo, prefix)
+               .orderByDesc(PurchaseOrder::getOrderNo)
+               .last("LIMIT 1");
+        PurchaseOrder lastOrder = getOne(wrapper);
+
+        int seq = 1;
+        if (lastOrder != null && lastOrder.getOrderNo() != null) {
+            String lastNo = lastOrder.getOrderNo();
+            String seqStr = lastNo.substring(prefix.length());
+            try {
+                seq = Integer.parseInt(seqStr) + 1;
+            } catch (NumberFormatException e) {
+                seq = 1;
+            }
+        }
+
+        return prefix + String.format("%04d", seq);
+    }
+
+    @Override
+    public List<PurchaseOrder> exportOrders(Long tenantId, String orderNo, Long supplierId, Integer status) {
+        LambdaQueryWrapper<PurchaseOrder> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(tenantId != null, PurchaseOrder::getTenantId, tenantId)
+               .like(orderNo != null, PurchaseOrder::getOrderNo, orderNo)
+               .eq(supplierId != null, PurchaseOrder::getSupplierId, supplierId)
+               .eq(status != null, PurchaseOrder::getStatus, status)
+               .orderByDesc(PurchaseOrder::getCreateTime);
+        return list(wrapper);
+    }
+
+    // ═══ 私有方法 ═══
+
+    private void saveSubTables(Long orderId, PurchaseOrderDTO dto) {
+        if (dto.getPartnerSnapshot() != null) {
+            dto.getPartnerSnapshot().setId(null).setOrderId(orderId);
+            partnerSnapshotMapper.insert(dto.getPartnerSnapshot());
+        }
+        if (dto.getSettlement() != null) {
+            dto.getSettlement().setId(null).setOrderId(orderId);
+            settlementMapper.insert(dto.getSettlement());
+        }
+        if (dto.getExtInfo() != null) {
+            dto.getExtInfo().setId(null).setOrderId(orderId);
+            extInfoMapper.insert(dto.getExtInfo());
+        }
+        if (dto.getLogisticsList() != null) {
+            for (PurchaseOrderLogistics lg : dto.getLogisticsList()) {
+                lg.setId(null).setOrderId(orderId);
+                logisticsMapper.insert(lg);
+            }
+        }
+        if (dto.getDeposits() != null) {
+            for (PurchaseOrderDeposit dp : dto.getDeposits()) {
+                dp.setId(null).setOrderId(orderId);
+                depositMapper.insert(dp);
+            }
+        }
+        if (dto.getItems() != null) {
+            int lineNo = 1;
+            for (PurchaseOrderItem item : dto.getItems()) {
+                item.setId(null).setOrderId(orderId).setLineNo(lineNo++);
+                orderItemMapper.insert(item);
+            }
         }
     }
 
-    private String getStatusDescription(Integer status) {
-        if (status == null) return "未知";
-        switch (status) {
-            case 0: return "草稿";
-            case 1: return "待审批";
-            case 2: return "已审批";
-            case 3: return "已下达";
-            case 4: return "已取消";
-            case 5: return "履行中";
-            case 6: return "已完成";
-            default: return "未知";
+    private void updateSubTables(Long orderId, PurchaseOrderDTO dto) {
+        // 1:1 子表：查到则更新，否则新增
+        upsertPartnerSnapshot(orderId, dto.getPartnerSnapshot());
+        upsertSettlement(orderId, dto.getSettlement());
+        upsertExtInfo(orderId, dto.getExtInfo());
+
+        // 1:N 子表：先删后插
+        if (dto.getLogisticsList() != null) {
+            LambdaQueryWrapper<PurchaseOrderLogistics> lgDel = new LambdaQueryWrapper<>();
+            lgDel.eq(PurchaseOrderLogistics::getOrderId, orderId);
+            logisticsMapper.delete(lgDel);
+            for (PurchaseOrderLogistics lg : dto.getLogisticsList()) {
+                lg.setId(null).setOrderId(orderId);
+                logisticsMapper.insert(lg);
+            }
         }
+        if (dto.getDeposits() != null) {
+            LambdaQueryWrapper<PurchaseOrderDeposit> dpDel = new LambdaQueryWrapper<>();
+            dpDel.eq(PurchaseOrderDeposit::getOrderId, orderId);
+            depositMapper.delete(dpDel);
+            for (PurchaseOrderDeposit dp : dto.getDeposits()) {
+                dp.setId(null).setOrderId(orderId);
+                depositMapper.insert(dp);
+            }
+        }
+        // 明细：先删后插
+        if (dto.getItems() != null) {
+            LambdaQueryWrapper<PurchaseOrderItem> itemDel = new LambdaQueryWrapper<>();
+            itemDel.eq(PurchaseOrderItem::getOrderId, orderId);
+            orderItemMapper.delete(itemDel);
+            int lineNo = 1;
+            for (PurchaseOrderItem item : dto.getItems()) {
+                item.setId(null).setOrderId(orderId).setLineNo(lineNo++);
+                orderItemMapper.insert(item);
+            }
+        }
+    }
+
+    private void deleteSubTables(Long orderId) {
+        LambdaQueryWrapper<PurchaseOrderPartnerSnapshot> psDel = new LambdaQueryWrapper<>();
+        psDel.eq(PurchaseOrderPartnerSnapshot::getOrderId, orderId);
+        partnerSnapshotMapper.delete(psDel);
+
+        LambdaQueryWrapper<PurchaseOrderSettlement> stDel = new LambdaQueryWrapper<>();
+        stDel.eq(PurchaseOrderSettlement::getOrderId, orderId);
+        settlementMapper.delete(stDel);
+
+        LambdaQueryWrapper<PurchaseOrderLogistics> lgDel = new LambdaQueryWrapper<>();
+        lgDel.eq(PurchaseOrderLogistics::getOrderId, orderId);
+        logisticsMapper.delete(lgDel);
+
+        LambdaQueryWrapper<PurchaseOrderDeposit> dpDel = new LambdaQueryWrapper<>();
+        dpDel.eq(PurchaseOrderDeposit::getOrderId, orderId);
+        depositMapper.delete(dpDel);
+
+        LambdaQueryWrapper<PurchaseOrderAuditTrail> atDel = new LambdaQueryWrapper<>();
+        atDel.eq(PurchaseOrderAuditTrail::getOrderId, orderId);
+        auditTrailMapper.delete(atDel);
+
+        LambdaQueryWrapper<PurchaseOrderExtInfo> eiDel = new LambdaQueryWrapper<>();
+        eiDel.eq(PurchaseOrderExtInfo::getOrderId, orderId);
+        extInfoMapper.delete(eiDel);
+
+        LambdaQueryWrapper<PurchaseOrderItem> itemDel = new LambdaQueryWrapper<>();
+        itemDel.eq(PurchaseOrderItem::getOrderId, orderId);
+        orderItemMapper.delete(itemDel);
+    }
+
+    private void upsertPartnerSnapshot(Long orderId, PurchaseOrderPartnerSnapshot snapshot) {
+        if (snapshot == null) return;
+        LambdaQueryWrapper<PurchaseOrderPartnerSnapshot> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(PurchaseOrderPartnerSnapshot::getOrderId, orderId);
+        PurchaseOrderPartnerSnapshot existing = partnerSnapshotMapper.selectOne(wrapper);
+        if (existing != null) {
+            snapshot.setId(existing.getId()).setOrderId(orderId);
+            partnerSnapshotMapper.updateById(snapshot);
+        } else {
+            snapshot.setId(null).setOrderId(orderId);
+            partnerSnapshotMapper.insert(snapshot);
+        }
+    }
+
+    private void upsertSettlement(Long orderId, PurchaseOrderSettlement settlement) {
+        if (settlement == null) return;
+        LambdaQueryWrapper<PurchaseOrderSettlement> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(PurchaseOrderSettlement::getOrderId, orderId);
+        PurchaseOrderSettlement existing = settlementMapper.selectOne(wrapper);
+        if (existing != null) {
+            settlement.setId(existing.getId()).setOrderId(orderId);
+            settlementMapper.updateById(settlement);
+        } else {
+            settlement.setId(null).setOrderId(orderId);
+            settlementMapper.insert(settlement);
+        }
+    }
+
+    private void upsertExtInfo(Long orderId, PurchaseOrderExtInfo extInfo) {
+        if (extInfo == null) return;
+        LambdaQueryWrapper<PurchaseOrderExtInfo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(PurchaseOrderExtInfo::getOrderId, orderId);
+        PurchaseOrderExtInfo existing = extInfoMapper.selectOne(wrapper);
+        if (existing != null) {
+            extInfo.setId(existing.getId()).setOrderId(orderId);
+            extInfoMapper.updateById(extInfo);
+        } else {
+            extInfo.setId(null).setOrderId(orderId);
+            extInfoMapper.insert(extInfo);
+        }
+    }
+
+    private void saveAuditTrail(Long orderId, String action, String comment) {
+        saveAuditTrail(orderId, action, comment, currentUserIdOrNull(), null);
+    }
+
+    /**
+     * 记录审核流水（显式指定操作人）：工作流回调等无会话线程由调用方传入终审人，
+     * 避免 operator 落空；Web 请求线程走 3 参版本按当前登录人入账
+     */
+    private void saveAuditTrail(Long orderId, String action, String comment, Long operatorId, String operatorName) {
+        PurchaseOrderAuditTrail trail = new PurchaseOrderAuditTrail();
+        trail.setOrderId(orderId);
+        trail.setAction(action);
+        trail.setOperatorId(operatorId);
+        trail.setOperatorName(operatorName);
+        trail.setComment(comment);
+        trail.setOperateTime(LocalDateTime.now());
+        trail.setCreateTime(LocalDateTime.now());
+        auditTrailMapper.insert(trail);
+    }
+
+    /**
+     * 安全解析当前登录人：Web 请求线程返回登录用户ID；工作流回调等异步线程
+     * 无 Sa-Token 会话时返回 null（getLoginIdAsLong 在无会话时会抛异常）。
+     */
+    private Long currentUserIdOrNull() {
+        try {
+            return StpUtil.getLoginIdAsLong();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * 第三期（影子转正式）：存在在途引擎实例时由引擎驱动审批（approve/reject），
+     * 引擎到达终态后经 ApprovalCallbackDispatcher 回调本服务的 approve/reject 回写单据，
+     * 调用方不再直接翻转状态。
+     *
+     * 防循环：引擎回调到达时实例已是终态（非在途），findInFlightInstance 返回 null，
+     * 自然回退为直接翻转——同一方法被回调复用也不会再次驱动引擎。
+     *
+     * @return true=已由引擎受理（状态回写交给回调）；false=无在途实例/引擎不可用/驱动失败，
+     *         调用方回退现有的直接翻转逻辑
+     */
+    private boolean tryDriveEngineApproval(Long orderId, String action, String comment) {
+        try {
+            // Spring 环境必然注入 ObjectProvider；判空仅为兼容手工构造的单元测试
+            ApprovalFacade facade = approvalFacadeProvider == null ? null : approvalFacadeProvider.getIfAvailable();
+            if (facade == null) {
+                return false;
+            }
+            ApprovalFacade.InFlightInstance inFlight = facade.findInFlightInstance("purchase_order", orderId);
+            if (inFlight == null) {
+                return false;
+            }
+            boolean driven = facade.driveApproval(inFlight, action, StpUtil.getLoginIdAsLong(), comment);
+            if (driven) {
+                logger.info("采购订单审批经引擎驱动(终态由回调回写): orderId={}, action={}, instanceId={}",
+                        orderId, action, inFlight.getInstanceId());
+            } else {
+                logger.warn("引擎驱动审批失败，回退直接翻转: orderId={}, action={}, instanceId={}",
+                        orderId, action, inFlight.getInstanceId());
+            }
+            return driven;
+        } catch (Exception e) {
+            logger.warn("引擎驱动审批异常，回退直接翻转: orderId={}, action={}, error={}",
+                    orderId, action, e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * 影子模式发起工作流实例：引擎实例并行可见于工作流待办页，不回写单据 status。
+     * instanceId 追加在审核流水 comment 中（不新增列）。无引擎实现或发起失败时不阻断业务。
+     */
+    private void startShadowApproval(PurchaseOrder order) {
+        try {
+            // Spring 环境必然注入 ObjectProvider；判空仅为兼容手工构造的单元测试
+            ApprovalFacade facade = approvalFacadeProvider == null ? null : approvalFacadeProvider.getIfAvailable();
+            if (facade == null) {
+                return;
+            }
+            Map<String, Object> businessData = new HashMap<>();
+            businessData.put("orderNo", order.getOrderNo());
+            businessData.put("amount", order.getBillAmount());
+            businessData.put("supplierId", order.getSupplierId());
+            LambdaQueryWrapper<PurchaseOrderPartnerSnapshot> psWrapper = new LambdaQueryWrapper<>();
+            psWrapper.eq(PurchaseOrderPartnerSnapshot::getOrderId, order.getId());
+            PurchaseOrderPartnerSnapshot snapshot = partnerSnapshotMapper.selectOne(psWrapper);
+            if (snapshot != null && snapshot.getSupplierName() != null) {
+                businessData.put("supplierName", snapshot.getSupplierName());
+            }
+            String instanceId = facade.startApproval("order_approval", "purchase_order", order.getId(),
+                    order.getOrderNo(), businessData, StpUtil.getLoginIdAsLong(), null);
+            if (instanceId != null) {
+                saveAuditTrail(order.getId(), "workflow", "影子工作流实例已发起: instanceId=" + instanceId);
+            }
+        } catch (Exception e) {
+            logger.warn("发起采购订单影子工作流失败(不阻断): orderId={}, error={}", order.getId(), e.getMessage());
+        }
+    }
+
+    private void calculateOrderAmount(PurchaseOrderDTO dto) {
+        PurchaseOrder order = dto.getOrder();
+        List<PurchaseOrderItem> items = dto.getItems();
+        if (items == null || items.isEmpty()) {
+            if (order.getProductAmount() == null) {
+                order.setProductAmount(BigDecimal.ZERO);
+            }
+            if (order.getDiscountAmount() == null) {
+                order.setDiscountAmount(BigDecimal.ZERO);
+            }
+            if (order.getBillAmount() == null) {
+                order.setBillAmount(BigDecimal.ZERO);
+            }
+            return;
+        }
+
+        BigDecimal productAmount = BigDecimal.ZERO;
+        BigDecimal totalQuantity = BigDecimal.ZERO;
+        for (PurchaseOrderItem item : items) {
+            BigDecimal qty = item.getQuantity() != null ? item.getQuantity() : BigDecimal.ZERO;
+            BigDecimal price = item.getUnitPrice() != null ? item.getUnitPrice() : BigDecimal.ZERO;
+            BigDecimal amount = qty.multiply(price);
+            item.setAmount(amount);
+            productAmount = productAmount.add(amount);
+            totalQuantity = totalQuantity.add(qty);
+        }
+
+        order.setProductAmount(productAmount);
+        order.setTotalQuantity(totalQuantity);
+
+        BigDecimal discount = order.getDiscountAmount() != null ? order.getDiscountAmount() : BigDecimal.ZERO;
+        BigDecimal otherExpense = BigDecimal.ZERO;
+        if (dto.getSettlement() != null && dto.getSettlement().getOtherExpense() != null) {
+            otherExpense = dto.getSettlement().getOtherExpense();
+        }
+        order.setBillAmount(productAmount.subtract(discount).add(otherExpense));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int importOrders(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new BusinessException("导入文件不能为空");
+        }
+        // XLSX 解析：通过 Apache POI 读取并批量创建订单
+        int count = 0;
+        try (var inputStream = file.getInputStream()) {
+            var workbook = new org.apache.poi.xssf.usermodel.XSSFWorkbook(inputStream);
+            var sheet = workbook.getSheetAt(0);
+            for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+                var row = sheet.getRow(i);
+                if (row == null) continue;
+                PurchaseOrderDTO dto = new PurchaseOrderDTO();
+                PurchaseOrder order = new PurchaseOrder();
+                order.setOrderDate(LocalDateTime.now());
+                order.setStatus(0);
+                order.setPurchaseType(0);
+                // 读取 Excel 列: 0=供应商名, 1=仓库名, 2=商品名, 3=数量, 4=单价
+                var supplierCell = row.getCell(0);
+                var warehouseCell = row.getCell(1);
+                var productCell = row.getCell(2);
+                var qtyCell = row.getCell(3);
+                var priceCell = row.getCell(4);
+                if (productCell == null) continue;
+
+                if (dto.getPartnerSnapshot() == null) {
+                    dto.setPartnerSnapshot(new cn.aiedge.erp.purchase.entity.PurchaseOrderPartnerSnapshot());
+                }
+                if (supplierCell != null) dto.getPartnerSnapshot().setSupplierName(supplierCell.getStringCellValue());
+                if (warehouseCell != null) order.setWarehouseId(0L);
+
+                PurchaseOrderItem item = new PurchaseOrderItem();
+                item.setProductName(productCell.getStringCellValue());
+                item.setQuantity(qtyCell != null ? BigDecimal.valueOf(qtyCell.getNumericCellValue()) : BigDecimal.ZERO);
+                item.setUnitPrice(priceCell != null ? BigDecimal.valueOf(priceCell.getNumericCellValue()) : BigDecimal.ZERO);
+                item.setAmount(item.getQuantity().multiply(item.getUnitPrice()));
+                item.setLineNo(1);
+
+                dto.setOrder(order);
+                dto.setItems(List.of(item));
+                try {
+                    createOrder(dto);
+                    count++;
+                } catch (Exception e) {
+                    logger.warn("导入第{}行失败: {}", i, e.getMessage());
+                }
+            }
+            workbook.close();
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new BusinessException("导入文件解析失败: " + e.getMessage());
+        }
+        return count;
+    }
+
+    @Override
+    public void batchPrint(List<Long> orderIds, String template) {
+        if (orderIds == null || orderIds.isEmpty()) {
+            throw new BusinessException("请选择要打印的订单");
+        }
+        // 更新打印次数
+        for (Long orderId : orderIds) {
+            PurchaseOrder order = baseMapper.selectById(orderId);
+            if (order == null) continue;
+            var extInfo = extInfoMapper.selectOne(
+                new LambdaQueryWrapper<PurchaseOrderExtInfo>()
+                    .eq(PurchaseOrderExtInfo::getOrderId, orderId));
+            if (extInfo != null) {
+                extInfo.setPrintCount((extInfo.getPrintCount() != null ? extInfo.getPrintCount() : 0) + 1);
+                extInfoMapper.updateById(extInfo);
+            }
+        }
+        logger.info("批量打印 {} 条订单，模板: {}", orderIds.size(), template);
     }
 }

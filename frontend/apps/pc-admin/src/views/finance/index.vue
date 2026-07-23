@@ -310,8 +310,8 @@ const navigateTo = (page: string) => {
   const routes: Record<string, string> = {
     subject: '/erp/finance/subject',
     voucher: '/erp/finance/voucher',
-    receivable: '/erp/finance/accounts-receivable',
-    payable: '/erp/finance/accounts-payable',
+    receivable: '/finance/receivable',
+    payable: '/finance/payable',
     report: '/erp/finance/reports',
     reconciliation: '/erp/finance/reconciliation'
   }

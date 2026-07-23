@@ -16,6 +16,8 @@ public interface ShipService {
     boolean saveDetail(WmsShipDetail detail);
     boolean updateDetail(WmsShipDetail detail);
     List<WmsShipDetail> listByShipId(Long shipId);
+    // 明细整体保存（先删后插，仅待处理状态可操作）
+    void saveDetails(Long shipId, List<WmsShipDetail> details);
     void startShip(Long taskId, Long userId, String userName);
     void scanItem(Long detailId, BigDecimal scannedQuantity);
     void confirmShip(Long taskId);

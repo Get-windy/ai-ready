@@ -1,150 +1,105 @@
 <template>
-  <ErrorBoundary @error="handleError">
-    <PageContainer
-      title="配送查询"
-      full-height
-    >
-      <template #headerExtra>
-        <a-space :size="12">
-          <a-badge :status="loading ? 'processing' : (hasError ? 'error' : 'success')" />
-          <span
-            v-if="lastUpdateTime"
-            class="update-time"
-          >最后更新: {{ lastUpdateTime }}</span>
-          <a-button
-            size="small"
-            @click="fetchData"
-          >
-            <template #icon>
-              <ReloadOutlined />
-            </template>
-          </a-button>
-        </a-space>
+  <ARReportPage
+    title="配送查询"
+    :query-fields="queryFields"
+    :columns="columns"
+    :fetcher="fetcher"
+    export-file-name="配送查询"
+    row-key="id"
+  >
+    <template #bodyCell="{ column, record }">
+      <template v-if="column.dataIndex === 'status'">
+        <a-tag :color="STATUS_MAP[record.status]?.color || 'default'">
+          {{ STATUS_MAP[record.status]?.label || `状态${record.status}` }}
+        </a-tag>
       </template>
-      <div class="search-area">
-        <a-form
-          layout="inline"
-          :model="searchParams"
-        >
-          <a-form-item label="配送单号">
-            <a-input
-              v-model:value="searchParams.dispatchNo"
-              placeholder="请输入"
-              allow-clear
-              style="width: 160px"
-            />
-          </a-form-item>
-          <a-form-item label="线路名称">
-            <a-input
-              v-model:value="searchParams.routeName"
-              placeholder="请输入"
-              allow-clear
-              style="width: 160px"
-            />
-          </a-form-item>
-          <a-form-item label="日期范围">
-            <a-range-picker
-              v-model:value="dateRange"
-              style="width: 220px"
-              @change="handleDateChange"
-            />
-          </a-form-item>
-          <a-form-item>
-            <a-space>
-              <a-button
-                type="primary"
-                @click="handleSearch"
-              >
-                <template #icon>
-                  <SearchOutlined />
-                </template>查询
-              </a-button>
-              <a-button @click="handleReset">
-                <template #icon>
-                  <ClearOutlined />
-                </template>重置
-              </a-button>
-            </a-space>
-          </a-form-item>
-        </a-form>
-      </div>
-      <div class="table-area">
-        <BillTableList
-          :columns="columns"
-          :data-source="tableData"
-          :loading="loading"
-          :pagination="billPagination"
-          :show-toolbar="false"
-          :show-search="false"
-          :show-add="false"
-          :show-export="false"
-          :show-batch-delete="false"
-          :selectable="false"
-          row-key="id"
-          @page-change="handlePageChange"
-        />
-      </div>
-    </PageContainer>
-  </ErrorBoundary>
+      <template v-else-if="column.dataIndex === 'orderType'">
+        <a-tag :color="ORDER_TYPE_MAP[record.orderType]?.color || 'default'">
+          {{ ORDER_TYPE_MAP[record.orderType]?.label || '-' }}
+        </a-tag>
+      </template>
+      <template v-else-if="column.dataIndex === 'priority'">
+        <a-tag :color="PRIORITY_MAP[record.priority]?.color || 'default'">
+          {{ PRIORITY_MAP[record.priority]?.label || '普通' }}
+        </a-tag>
+      </template>
+      <template v-else-if="['goodsAmount', 'deliveryFee', 'collectOnDelivery'].includes(column.dataIndex as string)">
+        {{ formatMoney(record[column.dataIndex as string]) }}
+      </template>
+      <template v-else-if="column.dataIndex === 'totalQuantity'">
+        {{ record.totalQuantity != null ? Number(record.totalQuantity).toLocaleString('zh-CN') : '-' }}
+      </template>
+    </template>
+  </ARReportPage>
 </template>
+
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
-import type { Dayjs } from 'dayjs'
-import { ReloadOutlined, SearchOutlined, ClearOutlined } from '@ant-design/icons-vue'
-import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import PageContainer from '@/components/PageContainer/PageContainer.vue'
-import BillTableList from '@/components/BillTableList/BillTableList.vue'
-import request from '@/utils/request'
+import ARReportPage from '@/components/ARReportPage/ARReportPage.vue'
+import type { ReportQueryField } from '@/components/ARReportPage/types'
+import { taskApi } from '@/api/dms/task'
 
-const loading = ref(false)
-const hasError = ref(false)
-const tableData = ref<any[]>([])
-const lastUpdateTime = ref('')
+// ═══ 任务状态（与后端 TaskStatusEnum 一致） ═══
+const STATUS_MAP: Record<number, { label: string; color: string }> = {
+  0: { label: '待分配', color: 'orange' },
+  1: { label: '已分配', color: 'blue' },
+  2: { label: '已接单', color: 'cyan' },
+  3: { label: '取货中', color: 'processing' },
+  4: { label: '配送中', color: 'processing' },
+  5: { label: '已签收', color: 'geekblue' },
+  6: { label: '已完成', color: 'green' },
+  7: { label: '已取消', color: 'red' },
+  8: { label: '异常', color: 'magenta' }
+}
 
-const searchParams = reactive({ dispatchNo: '', routeName: '', startDate: '', endDate: '' })
-const dateRange = ref<[Dayjs, Dayjs] | null>(null)
-const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
-const billPagination = computed(() => ({ current: pagination.current, pageSize: pagination.pageSize, total: pagination.total }))
+const ORDER_TYPE_MAP: Record<number, { label: string; color: string }> = {
+  1: { label: '销售配送', color: 'blue' },
+  2: { label: '调拨', color: 'purple' },
+  3: { label: '退货', color: 'orange' }
+}
 
-const columns = [
-  { title: '配送单号', field: 'dispatchNo', key: 'dispatchNo', width: 160 },
-  { title: '线路名称', field: 'routeName', key: 'routeName', width: 140 },
-  { title: '配送员', field: 'driverName', key: 'driverName', width: 100 },
-  { title: '客户数量', field: 'customerCount', key: 'customerCount', width: 80, align: 'right' },
-  { title: '配送金额', field: 'amount', key: 'amount', width: 120, align: 'right' },
-  { title: '状态', field: 'status', key: 'status', width: 100 },
-  { title: '创建时间', field: 'createTime', key: 'createTime', width: 170 },
+const PRIORITY_MAP: Record<number, { label: string; color: string }> = {
+  1: { label: '普通', color: 'default' },
+  2: { label: '紧急', color: 'orange' },
+  3: { label: '加急', color: 'red' }
+}
+
+const queryFields: ReportQueryField[] = [
+  { key: 'orderNo', type: 'input', label: '订单号', placeholder: '关联订单号', width: 160 },
+  {
+    key: 'status',
+    type: 'select',
+    label: '状态',
+    placeholder: '全部状态',
+    options: Object.entries(STATUS_MAP).map(([value, v]) => ({ label: v.label, value: Number(value) }))
+  },
+  { key: 'riderId', type: 'input', label: '骑手ID', placeholder: '骑手ID', width: 120 }
 ]
 
-const handleDateChange = (dates: [Dayjs, Dayjs] | null) => {
-  if (dates?.length === 2) { searchParams.startDate = dates[0]?.format('YYYY-MM-DD') || ''; searchParams.endDate = dates[1]?.format('YYYY-MM-DD') || '' }
-  else { searchParams.startDate = ''; searchParams.endDate = '' }
+// ═══ 表格列 ═══
+const columns: any[] = [
+  { title: '任务编号', dataIndex: 'taskNo', key: 'taskNo', width: 160 },
+  { title: '订单号', dataIndex: 'orderNo', key: 'orderNo', width: 150 },
+  { title: '类型', dataIndex: 'orderType', key: 'orderType', width: 100 },
+  { title: '客户', dataIndex: 'customerName', key: 'customerName', width: 130, ellipsis: true },
+  { title: '联系电话', dataIndex: 'customerPhone', key: 'customerPhone', width: 120 },
+  { title: '骑手ID', dataIndex: 'riderId', key: 'riderId', width: 80, align: 'center' },
+  { title: '数量', dataIndex: 'totalQuantity', key: 'totalQuantity', width: 90, align: 'right' },
+  { title: '货品金额', dataIndex: 'goodsAmount', key: 'goodsAmount', width: 110, align: 'right' },
+  { title: '配送费', dataIndex: 'deliveryFee', key: 'deliveryFee', width: 100, align: 'right' },
+  { title: '代收货款', dataIndex: 'collectOnDelivery', key: 'collectOnDelivery', width: 110, align: 'right' },
+  { title: '优先级', dataIndex: 'priority', key: 'priority', width: 80 },
+  { title: '状态', dataIndex: 'status', key: 'status', width: 90 },
+  { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 160 }
+]
+
+function formatMoney(val: number | null | undefined): string {
+  if (val === null || val === undefined || isNaN(Number(val))) return '-'
+  return Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-const fetchData = async () => {
-  loading.value = true; hasError.value = false
-  try {
-    const res: any = await request.get('/dispatch/query/page', {
-      params: { page: pagination.current, size: pagination.pageSize, ...searchParams }
-    })
-    if (res) {
-      const data = res.data || res
-      tableData.value = data.records || data.content || data.list || []
-      pagination.total = data.total || 0
-      lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
-    }
-  } catch (e: any) { hasError.value = true; console.warn('[配送查询] 获取失败', e)
-  } finally { loading.value = false }
+// ═══ 数据请求（DMS 配送任务，后端分页参数为 current/size） ═══
+function fetcher(params: Record<string, any>) {
+  const { page, size, ...rest } = params
+  return taskApi.page({ current: page, size, ...rest })
 }
-
-const handleSearch = () => { pagination.current = 1; fetchData() }
-const handleReset = () => { searchParams.dispatchNo = ''; searchParams.routeName = ''; searchParams.startDate = ''; searchParams.endDate = ''; dateRange.value = null; pagination.current = 1; fetchData() }
-const handlePageChange = (page: number, pageSize: number) => { pagination.current = page; pagination.pageSize = pageSize; fetchData() }
-const handleError = (e: Error) => { hasError.value = true; console.error(e) }
-onMounted(fetchData)
 </script>
-<style scoped>
-.search-area { background: #fff; padding: 16px 20px; border-radius: 8px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-.table-area { background: #fff; padding: 16px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-.update-time { font-size: 12px; color: #999; }
-</style>

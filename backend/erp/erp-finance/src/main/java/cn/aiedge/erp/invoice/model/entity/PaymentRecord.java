@@ -16,7 +16,7 @@ import java.time.LocalDateTime;
  * 存储付款信息，用于与发票进行匹配
  */
 @Entity
-@Table(name = "payment_record")
+@Table(name = "invoice_payment_record")
 @Data
 @EqualsAndHashCode(callSuper = false)
 public class PaymentRecord extends BaseEntity {

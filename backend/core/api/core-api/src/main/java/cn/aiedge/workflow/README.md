@@ -43,9 +43,13 @@ cn.aiedge.workflow
 | 类型 | 说明 |
 |------|------|
 | user | 指定用户 |
-| role | 指定角色 |
-| dept | 指定部门 |
-| leader | 直接上级 |
+| role | 指定角色（sys_role.role_code → sys_user_role） |
+| dept | 指定部门（暂未实现，落占位任务） |
+| leader | 流程发起者所在部门的负责人 |
+| dept_leader | 节点配置部门的负责人（approverIds 填部门ID） |
+
+leader/dept_leader 的负责人取值：sys_dept.leader（字符串）按 用户ID(纯数字) → username → real_name
+顺序解析 sys_user；部门 leader 为空或解析失败时沿 parent 链向上找，全链无果落占位任务。
 
 ## 审批方式
 

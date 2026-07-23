@@ -152,7 +152,7 @@
                       {{ levelCounts.potential }}
                     </div>
                     <div class="stat-desc">
-                      待开发
+                      规划中
                     </div>
                   </div>
                 </div>

@@ -157,7 +157,7 @@ public class ProfileController {
             sysUserService.updateUser(user);
         }
 
-        return ApiResponse.ok(avatarUrl, "上传成功");
+        return ApiResponse.ok("上传成功", avatarUrl);
     }
 
     private Map<String, Object> parseExtInfo(String extInfo) {

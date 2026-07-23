@@ -11,6 +11,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.RequiredArgsConstructor;
+import java.util.concurrent.ThreadLocalRandom;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -370,12 +371,39 @@ public class QuotationServiceImpl extends ServiceImpl<QuotationMapper, Quotation
         if (quotation.getStatus() != QuotationStatus.ACCEPTED.getCode()) {
             throw BusinessException.badRequest("只有已接受状态的报价单可以转订单");
         }
+
+        // 先创建销售订单（如失败则事务整体回滚，报价状态不受影响）
+        createSaleOrder(quotation);
+
+        // 创建成功后再更新报价为已转换状态
         quotation.setStatus(QuotationStatus.CONVERTED.getCode());
         quotation.setConvertedBy(quotation.getCreateBy());
         quotation.setConvertedTime(LocalDateTime.now());
         updateById(quotation);
+
+        log.info("报价单 {} 已转为销售订单，orderNo={}", quotation.getQuotationNo(), quotation.getOrderNo());
         return quotation;
     }
+
+    private void createSaleOrder(Quotation quotation) {
+        // 用 Java 生成单一订单 ID，避免 NEXTVAL/CURRVAL 关联问题
+        long orderId = (System.currentTimeMillis() << 10 | ThreadLocalRandom.current().nextInt(1024));
+        String orderNo = "QO" + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd")) + String.format("%04d", orderId % 10000);
+
+        // 插入订单头
+        baseMapper.insertSaleOrderRaw(orderId, orderNo, quotation);
+        // 插入明细行
+        List<QuotationItem> items = quotationItemMapper.selectList(
+            new LambdaQueryWrapper<QuotationItem>()
+                .eq(QuotationItem::getQuotationId, quotation.getId())
+                .eq(QuotationItem::getDeleted, 0)
+        );
+        for (int i = 0; i < items.size(); i++) {
+            QuotationItem item = items.get(i);
+            baseMapper.insertSaleOrderItem((System.currentTimeMillis() << 10 | ThreadLocalRandom.current().nextInt(1024)), orderId, i + 1, item);
+        }
+    }
+
 
     @Override
     @Transactional(rollbackFor = Exception.class)

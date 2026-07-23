@@ -13,6 +13,7 @@ import cn.aiedge.erp.stock.entity.Product;
 import cn.aiedge.erp.stock.entity.Stock;
 import cn.aiedge.erp.stock.mapper.ProductMapper;
 import cn.aiedge.erp.stock.mapper.StockMapper;
+import cn.aiedge.erp.stock.service.StockService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
@@ -40,6 +41,7 @@ public class RetailOrderServiceImpl extends ServiceImpl<RetailOrderMapper, Retai
     private final PartyMapper partyMapper;
     private final ProductMapper productMapper;
     private final StockMapper stockMapper;
+    private final StockService stockService;
 
     @Override
     public IPage<RetailOrder> pageByDoc(Page<RetailOrder> page, RetailQueryDTO query) {
@@ -222,6 +224,10 @@ public class RetailOrderServiceImpl extends ServiceImpl<RetailOrderMapper, Retai
     @Override
     @Transactional(rollbackFor = Exception.class)
     public RetailOrder saveWithItems(RetailOrder order, List<RetailOrderItem> items) {
+        // 生成零售单号（LS+日期+4位流水）
+        if (!StringUtils.hasText(order.getRetailNo())) {
+            order.setRetailNo(generateRetailNo());
+        }
         // 填充快照字段
         buildSnapshots(order, items);
         // 计算商品总金额
@@ -244,6 +250,17 @@ public class RetailOrderServiceImpl extends ServiceImpl<RetailOrderMapper, Retai
             }
         }
         return order;
+    }
+
+    /**
+     * 生成零售单号：LS + yyyyMMdd + 4位当日流水
+     */
+    private String generateRetailNo() {
+        String prefix = "LS" + LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd"));
+        Long count = lambdaQuery()
+                .likeRight(RetailOrder::getRetailNo, prefix)
+                .count();
+        return prefix + String.format("%04d", count + 1);
     }
 
     @Override
@@ -343,6 +360,35 @@ public class RetailOrderServiceImpl extends ServiceImpl<RetailOrderMapper, Retai
         order.setSettlementStatus("SETTLED");
         order.setCompletedTime(LocalDateTime.now());
         updateById(order);
+
+        // 库存处理（同事务，异常时整体回滚）
+        // NORMAL 正常销售：扣减库存（库存不足抛异常）；RETURN 退货：回补库存（数量取绝对值口径）
+        if (order.getWarehouseId() != null) {
+            boolean isReturn = "RETURN".equals(order.getSaleType());
+            List<RetailOrderItem> items = listItemsByOrderId(orderId);
+            for (RetailOrderItem item : items) {
+                if (item.getProductId() == null || item.getQuantity() == null
+                        || item.getQuantity().compareTo(BigDecimal.ZERO) == 0) {
+                    continue;
+                }
+                BigDecimal quantity = item.getQuantity().abs();
+                if (isReturn) {
+                    boolean success = stockService.increaseStock(item.getProductId(), order.getWarehouseId(), quantity);
+                    if (!success) {
+                        throw new RuntimeException(String.format("退货库存回补失败，结算失败: 商品ID=%d，需回补%s",
+                                item.getProductId(), quantity));
+                    }
+                } else {
+                    boolean success = stockService.decreaseStock(item.getProductId(), order.getWarehouseId(), quantity);
+                    if (!success) {
+                        throw new RuntimeException(String.format("库存不足，结算失败: 商品ID=%d，需扣减%s",
+                                item.getProductId(), quantity));
+                    }
+                }
+            }
+        } else {
+            log.warn("零售单 {} 未指定仓库，跳过库存处理", orderId);
+        }
 
         return order;
     }

@@ -13,6 +13,12 @@
               v-if="autoRefreshCountdown > 0"
               class="auto-refresh-badge"
             ><SyncOutlined /> {{ autoRefreshCountdown }}s</span>
+            <a-button size="small" @click="router.push('/dms/order-pool')">
+              订单大厅
+            </a-button>
+            <a-button size="small" @click="router.push('/dms/dispatch-task')">
+              调度任务
+            </a-button>
             <span class="shortcut-hints">
               <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
             </span>
@@ -105,6 +111,14 @@
               >
                 手动分配
               </a-button>
+              <a-button
+                v-if="record.riderId && record.status >= 2 && record.status <= 4"
+                type="link"
+                size="small"
+                @click="goTracking(record)"
+              >
+                轨迹
+              </a-button>
             </a-space>
           </template>
         </template>
@@ -151,6 +165,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { request } from '@/utils/request'
 import { useWmsTable } from '@/composables/useWmsTable'
@@ -159,6 +174,8 @@ import SearchBar from '@/components/SearchBar/SearchBar.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import SkeletonTable from '@/components/Skeleton/SkeletonTable.vue'
 import { SyncOutlined } from '@ant-design/icons-vue'
+
+const router = useRouter()
 
 function handleError(err: any) { console.warn('[DMS调度]', err) }
 
@@ -259,8 +276,11 @@ const handleReset = () => {
 }
 
 const handleView = (record: any) => {
-  // navigate to detail or open drawer
-  message.info(`查看任务: ${record.task_no}`)
+  message.info(`任务: ${record.task_no}, 客户: ${record.customer_name}, 配送费: ¥${record.delivery_fee}`)
+}
+
+const goTracking = (record: any) => {
+  router.push({ path: '/dms/realtime-tracking', query: { riderId: record.riderId } })
 }
 
 function handleTableChange(pag: any) {

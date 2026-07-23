@@ -49,6 +49,7 @@ export interface ProductGrade {
   gradeLevel: number
   sortOrder: number
   status: number
+  remark?: string
 }
 
 export const productGradeApi = {
@@ -281,16 +282,16 @@ export interface ProductUnit {
 }
 
 export const productUnitApi = {
-  getByProduct(productId: string): Promise<ProductUnit[]> {
+  getByProduct(productId: number): Promise<ProductUnit[]> {
     return request.get(`/erp/product/units/${productId}`)
   },
   create(data: Partial<ProductUnit>): Promise<boolean> {
     return request.post('/erp/product/units', data)
   },
-  update(id: string, data: Partial<ProductUnit>): Promise<boolean> {
+  update(id: number, data: Partial<ProductUnit>): Promise<boolean> {
     return request.put(`/erp/product/units/${id}`, data)
   },
-  delete(id: string): Promise<boolean> {
+  delete(id: number): Promise<boolean> {
     return request.delete(`/erp/product/units/${id}`)
   }
 }

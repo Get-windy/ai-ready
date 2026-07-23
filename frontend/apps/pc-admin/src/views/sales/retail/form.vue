@@ -945,7 +945,7 @@ const footerConfig = computed<BillFooterConfig>(() => ({
 // 明细表格列配置
 // ══════════════════════════════════════
 
-const detailColumns = computed(() => { return [
+const detailColumns = computed<DetailColumnConfig[]>(() => { return ([
   { key: 'rowNo', title: '', type: 'rowNo', width: 40, fixed: 'left' },
   { key: 'action', title: '操作', type: 'action', slotName: 'actionCell', width: 50, fixed: 'left' },
   // 图片列
@@ -1040,7 +1040,7 @@ const detailColumns = computed(() => { return [
   { key: 'extNum6', title: '单据自定义6b(数字)', type: 'number', width: 110, precision: 2 },
   { key: 'extNum7', title: '单据自定义7b(数字)', type: 'number', width: 110, precision: 2 },
   // 简易模式下隐藏的列key列表
-].filter((col: any) => {
+] satisfies DetailColumnConfig[]).filter((col) => {
   if (!simpleMode.value) return true
   const hiddenKeys = [
     'productAttribute', 'availableStockConverted', 'bookStock',
@@ -1430,7 +1430,7 @@ function handleAction(actionKey: string, _parentKey?: string) {
       handleCopyOrder()
       break
     case 'export':
-      message.info('导出功能即将上线')
+      message.info('导出功能待启用')
       break
   }
 }

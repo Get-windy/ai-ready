@@ -1,6 +1,7 @@
 package cn.aiedge.wms.controller;
 
 import cn.aiedge.base.vo.Result;
+import cn.aiedge.wms.controller.dto.DetailSaveRequest;
 import cn.aiedge.wms.entity.WmsMoveDetail;
 import cn.aiedge.wms.entity.WmsMoveTask;
 import cn.aiedge.wms.move.service.MoveService;
@@ -90,5 +91,13 @@ public class MoveController {
     public Result<List<WmsMoveDetail>> details(
             @PathVariable @NotNull(message = "任务ID不能为空") Long taskId) {
         return Result.ok(moveService.listByTaskId(taskId));
+    }
+
+    @Operation(summary = "保存移库明细（整体替换，先删后插）")
+    @PostMapping("/detail/save")
+    public Result<String> saveDetails(@Valid @RequestBody DetailSaveRequest<WmsMoveDetail> request) {
+        moveService.saveDetails(request.getTaskId(), request.getDetails());
+        log.info("保存移库明细: taskId={}, items={}", request.getTaskId(), request.getDetails().size());
+        return Result.ok("保存成功");
     }
 }

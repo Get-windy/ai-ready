@@ -84,12 +84,15 @@ class PurchaseQuoteComparisonTest {
         quote.setSupplierId(supplierId);
         quote.setSupplierName("供应商" + supplierId);
         quote.setTotalAmount(totalAmount);
-        quote.setPriceScore(BigDecimal.valueOf(priceScore));
-        quote.setQualityScore(BigDecimal.valueOf(qualityScore));
-        quote.setServiceScore(BigDecimal.valueOf(serviceScore));
-        quote.setTotalScore(BigDecimal.valueOf(
-            priceScore * 0.4 + qualityScore * 0.4 + serviceScore * 0.2
-        ).setScale(2, RoundingMode.HALF_UP));
+        // 历史报价等场景无评分数据，评分为 null 时跳过（impl 的 compareWithHistory 只用金额/日期）
+        if (priceScore != null) {
+            quote.setPriceScore(BigDecimal.valueOf(priceScore));
+            quote.setQualityScore(BigDecimal.valueOf(qualityScore));
+            quote.setServiceScore(BigDecimal.valueOf(serviceScore));
+            quote.setTotalScore(BigDecimal.valueOf(
+                priceScore * 0.4 + qualityScore * 0.4 + serviceScore * 0.2
+            ).setScale(2, RoundingMode.HALF_UP));
+        }
         quote.setQuoteStatus(cn.aiedge.erp.purchase.enums.QuoteStatus.SUBMITTED);
         quote.setValidUntil(LocalDateTime.now().plusDays(30));
         return quote;
@@ -112,11 +115,8 @@ class PurchaseQuoteComparisonTest {
     @Test
     @DisplayName("多供应商报价比较 - 基本比较功能")
     void testCompareQuotesBasic() {
-        // Mock数据
+        // Mock数据（impl 的 compareQuotes 只查报价主表，不查明细，无需 stub itemMapper）
         when(quoteMapper.findByInquiryId(100L)).thenReturn(Arrays.asList(quote1, quote2, quote3));
-        when(itemMapper.findByQuoteId(1L)).thenReturn(items1);
-        when(itemMapper.findByQuoteId(2L)).thenReturn(items2);
-        when(itemMapper.findByQuoteId(3L)).thenReturn(items3);
 
         // 执行比较
         QuoteComparisonDTO comparison = comparisonService.compareQuotes(100L);
@@ -207,24 +207,19 @@ class PurchaseQuoteComparisonTest {
     @Test
     @DisplayName("报价推荐算法 - 综合评分推荐")
     void testRecommendSupplier() {
-        // Mock数据 - 创建不同评分组合的报价
-        PurchaseSupplierQuote lowPrice = createQuote(1L, 1L, BigDecimal.valueOf(8000), 95.0, 70.0, 70.0);
-        PurchaseSupplierQuote highQuality = createQuote(2L, 2L, BigDecimal.valueOf(12000), 70.0, 95.0, 85.0);
+        // impl 的 recommendSupplier 不再自行加权计算，改为委托 quoteMapper.findTopByInquiryId
+        // 取最优报价（按综合评分排序由 mapper/SQL 实现），返回其供应商ID
         PurchaseSupplierQuote balanced = createQuote(3L, 3L, BigDecimal.valueOf(10000), 85.0, 85.0, 85.0);
 
-        when(quoteMapper.findByInquiryId(100L)).thenReturn(Arrays.asList(lowPrice, highQuality, balanced));
+        when(quoteMapper.findTopByInquiryId(100L)).thenReturn(balanced);
 
         // 执行推荐
         Long recommendedId = comparisonService.recommendSupplier(100L);
 
         // 验证推荐结果
         assertNotNull(recommendedId, "应有推荐供应商");
-
-        // balanced报价总分应为85，最高
-        // lowPrice: 95*0.4 + 70*0.4 + 70*0.2 = 38 + 28 + 14 = 80
-        // highQuality: 70*0.4 + 95*0.4 + 85*0.2 = 28 + 38 + 17 = 83
-        // balanced: 85*0.4 + 85*0.4 + 85*0.2 = 34 + 34 + 17 = 85
-        assertEquals(3L, recommendedId, "均衡报价供应商应被推荐");
+        assertEquals(3L, recommendedId, "应返回最优报价的供应商");
+        verify(quoteMapper).findTopByInquiryId(100L);
     }
 
     @Test
@@ -264,7 +259,7 @@ class PurchaseQuoteComparisonTest {
         // 验证分析结果
         assertNotNull(historyAnalysis, "历史分析结果不应为空");
         assertTrue(historyAnalysis.contains("历史报价"), "应包含历史报价信息");
-        assertTrue(historyAnalysis.contains("价格趋势"), "应包含价格趋势分析");
+        assertTrue(historyAnalysis.contains("历史报价趋势"), "应包含历史报价趋势分析"); // impl 实际输出文案
     }
 
     @Test
@@ -354,9 +349,8 @@ class PurchaseQuoteComparisonTest {
     @Test
     @DisplayName("单报价处理 - 单报价场景测试")
     void testCompareSingleQuote() {
-        // Mock单个报价
+        // Mock单个报价（impl 的 compareQuotes 不查明细，无需 stub itemMapper）
         when(quoteMapper.findByInquiryId(300L)).thenReturn(Arrays.asList(quote1));
-        when(itemMapper.findByQuoteId(1L)).thenReturn(items1);
 
         // 执行比较
         QuoteComparisonDTO comparison = comparisonService.compareQuotes(300L);

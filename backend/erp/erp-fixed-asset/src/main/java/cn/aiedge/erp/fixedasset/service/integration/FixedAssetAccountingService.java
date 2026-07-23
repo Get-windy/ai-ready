@@ -1,33 +1,26 @@
 package cn.aiedge.erp.fixedasset.service.integration;
 
-import cn.aiedge.common.exception.BusinessException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import cn.aiedge.erp.finance.dto.BusinessAccountingRequest;
+import cn.aiedge.erp.finance.dto.VoucherDTO;
+import cn.aiedge.erp.finance.service.BusinessAccountingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
 
 /**
  * 固定资产模块记账集成服务
- * 调用财务模块的BusinessAccountingController创建折旧凭证
+ * 直接调用财务模块的 {@link BusinessAccountingService} 创建折旧凭证
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class FixedAssetAccountingService {
 
-    private final RestTemplate restTemplate;
-    private final ObjectMapper objectMapper;
-
-    /** Finance service base URL */
-    private static final String FINANCE_BASE_URL = "http://localhost:8095";
+    private final BusinessAccountingService businessAccountingService;
 
     /**
      * 计提折旧时创建凭证
@@ -47,52 +40,32 @@ public class FixedAssetAccountingService {
         log.info("创建折旧凭证: assetCode={}, amount={}, period={}-{}",
                 assetCode, amount, fiscalYear, fiscalPeriod);
 
-        Map<String, Object> voucherRequest = new HashMap<>();
-        voucherRequest.put("sourceType", "FIXED_ASSET_DEPRECIATION");
-        voucherRequest.put("sourceId", assetId);
-        voucherRequest.put("sourceNo", assetCode);
-        voucherRequest.put("amount", amount);
-        voucherRequest.put("summary", "计提折旧 - " + assetName + "(" + assetCode + ")");
-        voucherRequest.put("voucherDate", LocalDate.now().toString());
+        BusinessAccountingRequest voucherRequest = new BusinessAccountingRequest();
+        voucherRequest.setSourceType("FIXED_ASSET_DEPRECIATION");
+        voucherRequest.setSourceId(assetId);
+        voucherRequest.setSourceNo(assetCode);
+        voucherRequest.setAmount(amount);
+        voucherRequest.setSummary("计提折旧 - " + assetName + "(" + assetCode + ")");
+        voucherRequest.setVoucherDate(LocalDate.now());
 
         // Accounting entries: Dr. Expense (折旧费), Cr. Accumulated Depreciation
-        Map<String, Object> debitEntry = new HashMap<>();
-        debitEntry.put("summary", "计提折旧费用");
-        debitEntry.put("subjectCode", "6604");  // 折旧费
-        debitEntry.put("debitAmount", amount);
-        debitEntry.put("creditAmount", BigDecimal.ZERO);
+        BusinessAccountingRequest.AccountingRequestItem debitEntry = new BusinessAccountingRequest.AccountingRequestItem();
+        debitEntry.setSummary("计提折旧费用");
+        debitEntry.setSubjectCode("6604");  // 折旧费
+        debitEntry.setDebitAmount(amount);
+        debitEntry.setCreditAmount(BigDecimal.ZERO);
 
-        Map<String, Object> creditEntry = new HashMap<>();
-        creditEntry.put("summary", "累计折旧");
-        creditEntry.put("subjectCode", "1602");  // 累计折旧
-        creditEntry.put("debitAmount", BigDecimal.ZERO);
-        creditEntry.put("creditAmount", amount);
+        BusinessAccountingRequest.AccountingRequestItem creditEntry = new BusinessAccountingRequest.AccountingRequestItem();
+        creditEntry.setSummary("累计折旧");
+        creditEntry.setSubjectCode("1602");  // 累计折旧
+        creditEntry.setDebitAmount(BigDecimal.ZERO);
+        creditEntry.setCreditAmount(amount);
 
-        voucherRequest.put("items", new Map[]{debitEntry, creditEntry});
+        voucherRequest.setItems(List.of(debitEntry, creditEntry));
 
-        JsonNode result = callFinanceApi("/api/erp/finance/integration/voucher", voucherRequest);
-        JsonNode voucherNo = result.get("voucherNo");
-        String voucherNoStr = voucherNo != null ? voucherNo.asText() : "";
-        log.info("折旧凭证创建成功: voucherNo={}", voucherNoStr);
-        return voucherNoStr;
-    }
-
-    /**
-     * 调用财务模块API
-     */
-    private JsonNode callFinanceApi(String path, Object request) {
-        String url = FINANCE_BASE_URL + path;
-        try {
-            ResponseEntity<JsonNode> response = restTemplate.postForEntity(url, request, JsonNode.class);
-            JsonNode body = response.getBody();
-            if (body != null && body.has("code") && body.get("code").asInt() == 200) {
-                return body.get("data");
-            }
-            String errMsg = body != null ? body.path("message").asText("Unknown error") : "No response";
-            throw BusinessException.badRequest("Finance API error: " + errMsg + " (path=" + path + ")");
-        } catch (Exception e) {
-            log.error("调用财务模块API失败: path={}", path, e);
-            throw BusinessException.badRequest("调用财务模块API失败: " + e.getMessage());
-        }
+        VoucherDTO result = businessAccountingService.createVoucherFromBusiness(voucherRequest);
+        String voucherNo = result.getVoucherNo() != null ? result.getVoucherNo() : "";
+        log.info("折旧凭证创建成功: voucherNo={}", voucherNo);
+        return voucherNo;
     }
 }

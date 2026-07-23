@@ -1,75 +1,297 @@
 <template>
-  <ErrorBoundary>
-    <PageContainer title="仓库规划">
-      <div class="search-area">
-        <a-form layout="inline">
-          <a-form-item>
-            <a-space>
+  <div>
+    <ARReportPage
+      ref="reportRef"
+      title="仓库规划"
+      :query-fields="queryFields"
+      :columns="columns"
+      :fetcher="fetcher"
+      export-file-name="仓库规划"
+      row-key="id"
+    >
+      <template #header-extra>
+        <a-button
+          type="primary"
+          @click="openCreate"
+        >
+          <template #icon>
+            <PlusOutlined />
+          </template>新增仓库
+        </a-button>
+      </template>
+      <template #bodyCell="{ column, record, text }">
+        <template v-if="column.dataIndex === 'warehouseType'">
+          <a-tag :color="WAREHOUSE_TYPE_MAP[text]?.color">
+            {{ WAREHOUSE_TYPE_MAP[text]?.label || text || '-' }}
+          </a-tag>
+        </template>
+        <template v-else-if="column.dataIndex === 'isWmsEnabled'">
+          <a-tag :color="text === 1 ? 'green' : 'default'">
+            {{ text === 1 ? '已启用' : '已停用' }}
+          </a-tag>
+        </template>
+        <template v-else-if="['totalCapacity', 'usedCapacity'].includes(column.dataIndex as string)">
+          {{ formatNumber(text) }}
+        </template>
+        <template v-else-if="column.dataIndex === 'action'">
+          <a-space>
+            <a-button
+              type="link"
+              size="small"
+              @click="openEdit(record)"
+            >
+              编辑
+            </a-button>
+            <a-button
+              type="link"
+              size="small"
+              @click="toggleWms(record)"
+            >
+              {{ record.isWmsEnabled === 1 ? '停用' : '启用' }}
+            </a-button>
+            <a-popconfirm
+              title="确认删除该仓库？"
+              ok-text="删除"
+              cancel-text="取消"
+              @confirm="handleDelete(record)"
+            >
               <a-button
-                type="primary"
-                @click="handleSearch"
+                type="link"
+                size="small"
+                danger
               >
-                <template #icon>
-                  <SearchOutlined />
-                </template>查询
+                删除
               </a-button>
-              <a-button @click="handleReset">
-                <template #icon>
-                  <ClearOutlined />
-                </template>重置
-              </a-button>
-            </a-space>
-          </a-form-item>
-        </a-form>
-      </div>
-      <div class="table-area">
-        <a-table
-          :columns="columns"
-          :data-source="tableData"
-          :loading="loading"
-          :pagination="pagination"
-          row-key="id"
-          size="small"
-          @change="handleTableChange"
-        />
-      </div>
-    </PageContainer>
-  </ErrorBoundary>
+            </a-popconfirm>
+          </a-space>
+        </template>
+      </template>
+    </ARReportPage>
+
+    <a-modal
+      v-model:open="modalOpen"
+      :title="editingId ? '编辑仓库' : '新增仓库'"
+      :confirm-loading="saving"
+      width="560px"
+      @ok="handleSave"
+    >
+      <a-form
+        ref="formRef"
+        :model="form"
+        :rules="rules"
+        :label-col="{ span: 6 }"
+        :wrapper-col="{ span: 16 }"
+      >
+        <a-form-item
+          label="仓库编码"
+          name="warehouseCode"
+        >
+          <a-input
+            v-model:value="form.warehouseCode"
+            placeholder="请输入仓库编码"
+            :disabled="!!editingId"
+          />
+        </a-form-item>
+        <a-form-item
+          label="仓库名称"
+          name="warehouseName"
+        >
+          <a-input
+            v-model:value="form.warehouseName"
+            placeholder="请输入仓库名称"
+          />
+        </a-form-item>
+        <a-form-item
+          label="仓库类型"
+          name="warehouseType"
+        >
+          <a-select
+            v-model:value="form.warehouseType"
+            placeholder="请选择仓库类型"
+            :options="warehouseTypeOptions"
+          />
+        </a-form-item>
+        <a-form-item
+          label="总容量(m³)"
+          name="totalCapacity"
+        >
+          <a-input-number
+            v-model:value="form.totalCapacity"
+            :min="0"
+            :precision="2"
+            style="width: 100%"
+            placeholder="请输入总容量"
+          />
+        </a-form-item>
+        <a-form-item
+          label="启用WMS"
+          name="isWmsEnabled"
+        >
+          <a-switch
+            :checked="form.isWmsEnabled === 1"
+            @change="(v: any) => (form.isWmsEnabled = v ? 1 : 0)"
+          />
+        </a-form-item>
+        <a-form-item
+          label="备注"
+          name="remark"
+        >
+          <a-textarea
+            v-model:value="form.remark"
+            :rows="2"
+            placeholder="请输入备注"
+          />
+        </a-form-item>
+      </a-form>
+    </a-modal>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
-import { SearchOutlined, ClearOutlined } from '@ant-design/icons-vue'
-import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import PageContainer from '@/components/PageContainer/PageContainer.vue'
-import request from '@/utils/request'
+import { ref, reactive } from 'vue'
+import { message } from 'ant-design-vue'
+import { PlusOutlined } from '@ant-design/icons-vue'
+import ARReportPage from '@/components/ARReportPage/ARReportPage.vue'
+import type { ReportQueryField } from '@/components/ARReportPage/types'
+import { warehouseApi, type WmsWarehouse } from '@/api/wms/warehouse'
 
-const loading = ref(false)
-const tableData = ref<any[]>([])
-const pagination = reactive({ current: 1, pageSize: 20, total: 0, showSizeChanger: true, showTotal: (t) => `共 ${t} 条` })
-const columns = [
-  { title: 'ID', dataIndex: 'id', width: 60 },
-  { title: '单号', dataIndex: 'docNo', width: 160 },
-  { title: '名称', dataIndex: 'name', width: 150 },
-  { title: '状态', dataIndex: 'status', width: 80 },
-  { title: '创建时间', dataIndex: 'createTime', width: 160 },
+// ═══ 仓库类型（与后端 WmsWarehouse.warehouseType 注释一致） ═══
+const WAREHOUSE_TYPE_MAP: Record<number, { label: string; color: string }> = {
+  1: { label: '普通仓', color: 'blue' },
+  2: { label: '冷库', color: 'cyan' },
+  3: { label: '危险品仓', color: 'red' },
+  4: { label: '保税仓', color: 'purple' }
+}
+
+const warehouseTypeOptions = Object.entries(WAREHOUSE_TYPE_MAP).map(([value, v]) => ({
+  label: v.label,
+  value: Number(value)
+}))
+
+const queryFields: ReportQueryField[] = [
+  { key: 'warehouseName', type: 'input', label: '仓库名称', placeholder: '仓库名称', width: 180 },
+  { key: 'warehouseCode', type: 'input', label: '仓库编码', placeholder: '仓库编码', width: 180 },
+  {
+    key: 'warehouseType',
+    type: 'select',
+    label: '仓库类型',
+    placeholder: '全部类型',
+    options: warehouseTypeOptions
+  }
 ]
 
-async function loadData() {
-  loading.value = true
-  try {
-    const r = await request.get('/md/warehouse-plan/list', { pageNum: pagination.current, pageSize: pagination.pageSize })
-    if (r?.records) { tableData.value = r.records; pagination.total = r.total }
-    else if (Array.isArray(r)) { tableData.value = r; pagination.total = r.length }
-  } catch (e) { tableData.value = [] }
-  finally { loading.value = false }
+const columns: any[] = [
+  { title: '仓库编码', dataIndex: 'warehouseCode', key: 'warehouseCode', width: 120 },
+  { title: '仓库名称', dataIndex: 'warehouseName', key: 'warehouseName', width: 160, ellipsis: true },
+  { title: '类型', dataIndex: 'warehouseType', key: 'warehouseType', width: 100 },
+  { title: '库区数', dataIndex: 'zoneCount', key: 'zoneCount', width: 80, align: 'right' },
+  { title: '货位数', dataIndex: 'locationCount', key: 'locationCount', width: 80, align: 'right' },
+  { title: '总容量(m³)', dataIndex: 'totalCapacity', key: 'totalCapacity', width: 110, align: 'right' },
+  { title: '已用容量', dataIndex: 'usedCapacity', key: 'usedCapacity', width: 100, align: 'right' },
+  { title: 'WMS状态', dataIndex: 'isWmsEnabled', key: 'isWmsEnabled', width: 90 },
+  { title: '备注', dataIndex: 'remark', key: 'remark', ellipsis: true },
+  { title: '操作', dataIndex: 'action', key: 'action', width: 170, fixed: 'right' }
+]
+
+function formatNumber(val: number | null | undefined): string {
+  if (val === null || val === undefined || isNaN(Number(val))) return '-'
+  return Number(val).toLocaleString('zh-CN')
 }
-function handleSearch() { pagination.current = 1; loadData() }
-function handleReset() { pagination.current = 1; loadData() }
-function handleTableChange(p) { pagination.current = p.current; pagination.pageSize = p.pageSize; loadData() }
-onMounted(loadData)
+
+// ═══ 数据请求（后端 Page 绑定 current/size，此处做参数映射） ═══
+function fetcher(params: Record<string, any>) {
+  const { page, ...rest } = params
+  return warehouseApi.page({ ...rest, current: page })
+}
+
+// ═══ 新增/编辑弹窗 ═══
+const reportRef = ref<InstanceType<typeof ARReportPage> | null>(null)
+const formRef = ref()
+const modalOpen = ref(false)
+const saving = ref(false)
+const editingId = ref<number | null>(null)
+
+const emptyForm = () => ({
+  warehouseCode: '',
+  warehouseName: '',
+  warehouseType: 1 as number,
+  totalCapacity: undefined as number | undefined,
+  isWmsEnabled: 1 as number,
+  remark: ''
+})
+const form = reactive(emptyForm())
+
+const rules: Record<string, any> = {
+  warehouseCode: [{ required: true, message: '请输入仓库编码', trigger: 'blur' }],
+  warehouseName: [{ required: true, message: '请输入仓库名称', trigger: 'blur' }],
+  warehouseType: [{ required: true, message: '请选择仓库类型', trigger: 'change' }]
+}
+
+function resetForm(data?: Partial<WmsWarehouse>) {
+  Object.assign(form, emptyForm(), data || {})
+}
+
+function openCreate() {
+  editingId.value = null
+  resetForm()
+  modalOpen.value = true
+}
+
+function openEdit(record: any) {
+  editingId.value = record.id
+  resetForm({
+    warehouseCode: record.warehouseCode,
+    warehouseName: record.warehouseName,
+    warehouseType: record.warehouseType ?? 1,
+    totalCapacity: record.totalCapacity,
+    isWmsEnabled: record.isWmsEnabled ?? 1,
+    remark: record.remark
+  })
+  modalOpen.value = true
+}
+
+async function handleSave() {
+  try {
+    await formRef.value?.validate()
+  } catch {
+    return
+  }
+  saving.value = true
+  try {
+    if (editingId.value) {
+      await warehouseApi.update({ id: editingId.value, ...form })
+      message.success('仓库更新成功')
+    } else {
+      await warehouseApi.save({ ...form })
+      message.success('仓库创建成功')
+    }
+    modalOpen.value = false
+    reportRef.value?.reload()
+  } catch (e) {
+    console.warn('[仓库规划] 保存失败', e)
+  } finally {
+    saving.value = false
+  }
+}
+
+async function toggleWms(record: any) {
+  const target = record.isWmsEnabled === 1 ? 0 : 1
+  try {
+    await warehouseApi.update({ ...record, isWmsEnabled: target })
+    message.success(target === 1 ? '已启用WMS管理' : '已停用WMS管理')
+    reportRef.value?.reload()
+  } catch (e) {
+    console.warn('[仓库规划] 状态切换失败', e)
+  }
+}
+
+async function handleDelete(record: any) {
+  try {
+    await warehouseApi.remove(record.id)
+    message.success('删除成功')
+    reportRef.value?.reload()
+  } catch (e) {
+    console.warn('[仓库规划] 删除失败', e)
+  }
+}
 </script>
-<style scoped>
-.search-area { background: #fff; padding: 16px 20px; border-radius: 8px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-.table-area { background: #fff; padding: 16px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-</style>

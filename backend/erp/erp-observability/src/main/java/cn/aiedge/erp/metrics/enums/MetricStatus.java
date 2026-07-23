@@ -9,7 +9,8 @@ import lombok.Getter;
 public enum MetricStatus {
     ACTIVE("active", "活跃"),
     INACTIVE("inactive", "停用"),
-    DEPRECATED("deprecated", "已废弃");
+    DEPRECATED("deprecated", "已废弃"),
+    NORMAL("normal", "历史数据-正常");
     
     private final String code;
     private final String description;

@@ -74,11 +74,25 @@ public class DatabaseInitializer implements CommandLineRunner {
             log.warn("fixErpPurchaseOrderColumns 失败: {}", e.getMessage());
         }
 
-        // 补充 erp_stock 缺失的列（实体有27个字段，基础表只有11列）
+        // 补充 erp_stock 缺失的列（实体有29个字段，基础表只有11列）
         try {
             fixErpStockMissingColumns();
         } catch (Exception e) {
             log.warn("fixErpStockMissingColumns 失败: {}", e.getMessage());
+        }
+
+        // 补充 erp_sale_order 缺失的列（实体有130个字段，基础表只有26列）
+        try {
+            fixErpSaleOrderMissingColumns();
+        } catch (Exception e) {
+            log.warn("fixErpSaleOrderMissingColumns 失败: {}", e.getMessage());
+        }
+
+        // 补充 erp_sale_outbound 缺失的列（实体有123个字段，基础表只有29列）
+        try {
+            fixErpSaleOutboundMissingColumns();
+        } catch (Exception e) {
+            log.warn("fixErpSaleOutboundMissingColumns 失败: {}", e.getMessage());
         }
 
         // 补充 batch_number 缺失的列
@@ -186,7 +200,7 @@ public class DatabaseInitializer implements CommandLineRunner {
     }
 
     /**
-     * 修复 erp_stock 表缺失的列（DatabaseInitializer 创建的基础表只有11列，实体有27个字段）
+     * 修复 erp_stock 表缺失的列（DatabaseInitializer 创建的基础表只有11列，实体有29个字段）
      */
     private void fixErpStockMissingColumns() {
         String[][] extraCols = {
@@ -196,9 +210,13 @@ public class DatabaseInitializer implements CommandLineRunner {
             {"min_stock",           "DECIMAL(18,2) DEFAULT 0"},
             {"max_stock",           "DECIMAL(18,2) DEFAULT 0"},
             {"unit",                "VARCHAR(50)"},
+            {"unit_price",          "DECIMAL(18,4) DEFAULT 0"},
             {"batch_no",            "VARCHAR(100)"},
             {"production_date",     "TIMESTAMP"},
             {"validity_date",       "TIMESTAMP"},
+            {"serial_no",           "VARCHAR(100)"},
+            {"sku",                 "VARCHAR(100)"},
+            {"is_initial",          "INTEGER DEFAULT 0"},
             {"supplier_id",         "BIGINT"},
             {"supplier_name",       "VARCHAR(200)"},
             {"remark",              "TEXT"},
@@ -225,6 +243,233 @@ public class DatabaseInitializer implements CommandLineRunner {
             "create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP, " +
             "update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP, " +
             "create_by BIGINT, update_by BIGINT, version_no INT DEFAULT 0");
+    }
+
+    /**
+     * 修复 erp_sale_order 表缺失的列（基础建表语句只有26列，SaleOrder 实体有130个字段）
+     * 仅列出建表语句之外的列；已存在的列由 columnExists 检查跳过，幂等安全
+     */
+    private void fixErpSaleOrderMissingColumns() {
+        String[][] extraCols = {
+            {"sale_type",                    "INTEGER DEFAULT 0"},
+            {"product_amount",               "DECIMAL(18,2) DEFAULT 0"},
+            {"discount_amount",              "DECIMAL(18,2) DEFAULT 0"},
+            {"bill_amount",                  "DECIMAL(18,2) DEFAULT 0"},
+            {"settled_amount",               "DECIMAL(18,2) DEFAULT 0"},
+            {"total_quantity",               "DECIMAL(18,2) DEFAULT 0"},
+            {"expected_ship_time",           "TIMESTAMP"},
+            {"supplement_type",              "VARCHAR(50)"},
+            {"generation_method",            "VARCHAR(50)"},
+            {"source_order",                 "VARCHAR(200)"},
+            {"order_source",                 "INTEGER"},
+            {"buyer_remark",                 "VARCHAR(500)"},
+            {"order_remark",                 "VARCHAR(500)"},
+            {"original_order_id",            "BIGINT"},
+            {"original_order_no",            "VARCHAR(100)"},
+            {"customer_code",                "VARCHAR(100)"},
+            {"customer_level",               "VARCHAR(100)"},
+            {"customer_remark",              "VARCHAR(1000)"},
+            {"customer_ticket",              "VARCHAR(20)"},
+            {"bank_name",                    "VARCHAR(200)"},
+            {"bank_account",                 "VARCHAR(100)"},
+            {"tax_no",                       "VARCHAR(100)"},
+            {"warehouse_name",               "VARCHAR(200)"},
+            {"dept_name",                    "VARCHAR(200)"},
+            {"promoter_id",                  "BIGINT"},
+            {"promoter_name",                "VARCHAR(100)"},
+            {"contact_name",                 "VARCHAR(100)"},
+            {"contact_phone",                "VARCHAR(50)"},
+            {"pickup_address",               "VARCHAR(500)"},
+            {"settlement_method",            "VARCHAR(50)"},
+            {"delivery_method",              "VARCHAR(50)"},
+            {"delivery_route",               "VARCHAR(200)"},
+            {"delivery_route_id",            "BIGINT"},
+            {"driver_id",                    "BIGINT"},
+            {"driver_name",                  "VARCHAR(100)"},
+            {"delivery_vehicle",             "VARCHAR(50)"},
+            {"freight_payer",                "VARCHAR(50)"},
+            {"shipping_fee",                 "DECIMAL(18,4) DEFAULT 0"},
+            {"logistics_company",            "VARCHAR(200)"},
+            {"waybill_no",                   "VARCHAR(200)"},
+            {"cod_amount",                   "DECIMAL(18,2) DEFAULT 0"},
+            {"promo_discount",               "DECIMAL(18,2) DEFAULT 0"},
+            {"coupon_amount",                "DECIMAL(18,2) DEFAULT 0"},
+            {"direct_discount",              "DECIMAL(18,2) DEFAULT 0"},
+            {"other_fee",                    "DECIMAL(18,2) DEFAULT 0"},
+            {"deposit_account",              "VARCHAR(100)"},
+            {"deposit_amount",               "DECIMAL(18,2) DEFAULT 0"},
+            {"prev_advance",                 "DECIMAL(18,2) DEFAULT 0"},
+            {"advance_balance",              "DECIMAL(18,2) DEFAULT 0"},
+            {"deposit_account1",             "VARCHAR(100)"},
+            {"deposit_account2",             "VARCHAR(100)"},
+            {"deposit_account3",             "VARCHAR(100)"},
+            {"deposit_account4",             "VARCHAR(100)"},
+            {"credit_limit",                 "DECIMAL(18,2) DEFAULT 0"},
+            {"available_credit",             "DECIMAL(18,2) DEFAULT 0"},
+            {"prev_debt",                    "DECIMAL(18,2) DEFAULT 0"},
+            {"payment_date",                 "DATE"},
+            {"reconciliation_date",          "DATE"},
+            {"member_card_no",               "VARCHAR(100)"},
+            {"member_name",                  "VARCHAR(100)"},
+            {"member_discount",              "INTEGER"},
+            {"prev_points",                  "DECIMAL(18,2) DEFAULT 0"},
+            {"sale_points",                  "DECIMAL(18,2) DEFAULT 0"},
+            {"return_points",                "DECIMAL(18,2) DEFAULT 0"},
+            {"exchange_points",              "DECIMAL(18,2) DEFAULT 0"},
+            {"used_points",                  "DECIMAL(18,2) DEFAULT 0"},
+            {"current_points",               "DECIMAL(18,2) DEFAULT 0"},
+            {"shipped_quantity",             "DECIMAL(18,2) DEFAULT 0"},
+            {"unshipped_quantity",           "DECIMAL(18,2) DEFAULT 0"},
+            {"return_quantity",              "DECIMAL(18,2) DEFAULT 0"},
+            {"return_amount",                "DECIMAL(18,2) DEFAULT 0"},
+            {"total_weight",                 "DECIMAL(18,4) DEFAULT 0"},
+            {"total_volume",                 "DECIMAL(18,6) DEFAULT 0"},
+            {"summary",                      "VARCHAR(500)"},
+            {"region",                       "VARCHAR(200)"},
+            {"attachment",                   "TEXT"},
+            {"ext_num1",                     "DECIMAL(18,2)"},
+            {"ext_num2",                     "DECIMAL(18,2)"},
+            {"ext_text1",                    "VARCHAR(500)"},
+            {"ext_text2",                    "VARCHAR(500)"},
+            {"ext_text3",                    "VARCHAR(500)"},
+            {"ext_text4",                    "VARCHAR(500)"},
+            {"ext_text5",                    "VARCHAR(500)"},
+            {"footer_ext_text1",             "VARCHAR(500)"},
+            {"footer_ext_text2",             "VARCHAR(500)"},
+            {"auditor_id",                   "BIGINT"},
+            {"auditor_name",                 "VARCHAR(100)"},
+            {"audit_time",                   "TIMESTAMP"},
+            {"submitter_id",                 "BIGINT"},
+            {"submitter_name",               "VARCHAR(100)"},
+            {"submit_time",                  "TIMESTAMP"},
+            {"print_count",                  "INTEGER DEFAULT 0"},
+            {"bookkeeping_time",             "TIMESTAMP"},
+            {"creator_name",                 "VARCHAR(100)"},
+            {"third_party_order_no",         "VARCHAR(200)"},
+            {"product_brand",                "VARCHAR(200)"},
+            {"industry_category",            "VARCHAR(200)"},
+            {"supplement_status",            "VARCHAR(50)"},
+            {"shipped_order_no",             "VARCHAR(100)"},
+            {"original_amount",              "DECIMAL(18,2) DEFAULT 0"},
+            {"remaining_unshipped_amount",   "DECIMAL(18,2) DEFAULT 0"},
+            {"original_discount",            "DECIMAL(18,2) DEFAULT 0"},
+            {"original_item_count",          "INTEGER DEFAULT 0"},
+            {"unshipped_item_count",         "INTEGER DEFAULT 0"},
+            {"original_quantity",            "DECIMAL(18,2) DEFAULT 0"},
+            {"unshipped_quantity_items",     "DECIMAL(18,2) DEFAULT 0"},
+            {"fulfillment_rate",             "DECIMAL(8,2) DEFAULT 0"},
+            {"picking_warehouse",            "VARCHAR(200)"},
+            {"collection_location",          "VARCHAR(200)"},
+        };
+        for (String[] col : extraCols) {
+            safeAddColumn("erp_sale_order", col[0], col[1]);
+        }
+    }
+
+    /**
+     * 修复 erp_sale_outbound 表缺失的列（基础建表语句只有29列，SaleOutbound 实体有123个字段）
+     * 仅列出建表语句之外的列；已存在的列由 columnExists 检查跳过，幂等安全
+     */
+    private void fixErpSaleOutboundMissingColumns() {
+        String[][] extraCols = {
+            {"generation_method",            "VARCHAR(100)"},
+            {"summary",                      "VARCHAR(500)"},
+            {"customer_code",                "VARCHAR(100)"},
+            {"customer_level",               "VARCHAR(50)"},
+            {"customer_remark",              "VARCHAR(500)"},
+            {"bank_name",                    "VARCHAR(200)"},
+            {"bank_account",                 "VARCHAR(100)"},
+            {"tax_no",                       "VARCHAR(100)"},
+            {"location",                     "VARCHAR(200)"},
+            {"region",                       "VARCHAR(100)"},
+            {"promo_discount",               "DECIMAL(18,2) DEFAULT 0"},
+            {"coupon_amount",                "DECIMAL(18,2) DEFAULT 0"},
+            {"direct_discount",              "DECIMAL(18,2) DEFAULT 0"},
+            {"other_fee",                    "DECIMAL(18,2) DEFAULT 0"},
+            {"rounding_amount",              "DECIMAL(18,2) DEFAULT 0"},
+            {"total_weight",                 "DECIMAL(18,4) DEFAULT 0"},
+            {"total_volume",                 "DECIMAL(18,4) DEFAULT 0"},
+            {"return_quantity",              "DECIMAL(18,2) DEFAULT 0"},
+            {"return_amount",                "DECIMAL(18,2) DEFAULT 0"},
+            {"box_count",                    "INTEGER DEFAULT 0"},
+            {"settlement_method",            "VARCHAR(50)"},
+            {"settled_amount",               "DECIMAL(18,2) DEFAULT 0"},
+            {"settlement_status",            "VARCHAR(50)"},
+            {"advance_payment_amount",       "DECIMAL(18,2) DEFAULT 0"},
+            {"prev_advance_payment",         "DECIMAL(18,2) DEFAULT 0"},
+            {"used_advance_payment",         "DECIMAL(18,2) DEFAULT 0"},
+            {"order_deposit",                "DECIMAL(18,2) DEFAULT 0"},
+            {"available_advance_payment",    "DECIMAL(18,2) DEFAULT 0"},
+            {"advance_payment_balance",      "DECIMAL(18,2) DEFAULT 0"},
+            {"credit_limit",                 "DECIMAL(18,2) DEFAULT 0"},
+            {"available_credit",             "DECIMAL(18,2) DEFAULT 0"},
+            {"prev_arrears",                 "DECIMAL(18,2) DEFAULT 0"},
+            {"current_arrears",              "DECIMAL(18,2) DEFAULT 0"},
+            {"arrears_balance",              "DECIMAL(18,2) DEFAULT 0"},
+            {"payment_account1",             "VARCHAR(200)"},
+            {"payment_account2",             "VARCHAR(200)"},
+            {"payment_account3",             "VARCHAR(200)"},
+            {"payment_account4",             "VARCHAR(200)"},
+            {"delivery_method",              "VARCHAR(100)"},
+            {"logistics_company",            "VARCHAR(200)"},
+            {"logistics_branch",             "VARCHAR(200)"},
+            {"freight_payer",                "VARCHAR(100)"},
+            {"freight",                      "DECIMAL(18,2) DEFAULT 0"},
+            {"tracking_number",              "VARCHAR(200)"},
+            {"waybill_no",                   "VARCHAR(200)"},
+            {"cod_amount",                   "DECIMAL(18,2) DEFAULT 0"},
+            {"delivery_order_no",            "VARCHAR(100)"},
+            {"delivery_driver",              "VARCHAR(100)"},
+            {"expected_ship_time",           "TIMESTAMP"},
+            {"actual_ship_time",             "TIMESTAMP"},
+            {"picking_by",                   "BIGINT"},
+            {"picking_time",                 "TIMESTAMP"},
+            {"packing_by",                   "BIGINT"},
+            {"packing_time",                 "TIMESTAMP"},
+            {"shipped_by",                   "BIGINT"},
+            {"shipped_time",                 "TIMESTAMP"},
+            {"approved_by",                  "BIGINT"},
+            {"approved_time",                "TIMESTAMP"},
+            {"approved_note",                "VARCHAR(500)"},
+            {"completed_by",                 "BIGINT"},
+            {"completed_time",               "TIMESTAMP"},
+            {"member_card_no",               "VARCHAR(100)"},
+            {"prev_points",                  "DECIMAL(18,2) DEFAULT 0"},
+            {"member_generated_points",      "DECIMAL(18,2) DEFAULT 0"},
+            {"member_exchange_points",       "DECIMAL(18,2) DEFAULT 0"},
+            {"member_used_points",           "DECIMAL(18,2) DEFAULT 0"},
+            {"current_points",               "DECIMAL(18,2) DEFAULT 0"},
+            {"payment_date",                 "DATE"},
+            {"reconciliation_date",          "DATE"},
+            {"internal_note",                "VARCHAR(500)"},
+            {"buyer_remark",                 "VARCHAR(500)"},
+            {"bookkeeper_name",              "VARCHAR(100)"},
+            {"creator_name",                 "VARCHAR(100)"},
+            {"auditor_name",                 "VARCHAR(100)"},
+            {"print_count",                  "INTEGER DEFAULT 0"},
+            {"bookkeeping_time",             "TIMESTAMP"},
+            {"print_time",                   "TIMESTAMP"},
+            {"ext_num1",                     "DECIMAL(18,2)"},
+            {"ext_num2",                     "DECIMAL(18,2)"},
+            {"ext_num3",                     "DECIMAL(18,2)"},
+            {"ext_num4",                     "DECIMAL(18,2)"},
+            {"ext_num5",                     "DECIMAL(18,2)"},
+            {"ext_text1",                    "VARCHAR(500)"},
+            {"ext_text2",                    "VARCHAR(500)"},
+            {"ext_text3",                    "VARCHAR(500)"},
+            {"ext_text4",                    "VARCHAR(500)"},
+            {"ext_text5",                    "VARCHAR(500)"},
+            {"ext_partner",                  "BIGINT"},
+            {"ext_staff",                    "BIGINT"},
+            {"ext_dept",                     "BIGINT"},
+            {"footer_ext_text1",             "VARCHAR(500)"},
+            {"footer_ext_text2",             "VARCHAR(500)"},
+            {"ext_info",                     "TEXT"},
+            {"version_no",                   "INTEGER DEFAULT 0"},
+        };
+        for (String[] col : extraCols) {
+            safeAddColumn("erp_sale_outbound", col[0], col[1]);
+        }
     }
 
     /**
@@ -1078,27 +1323,6 @@ public class DatabaseInitializer implements CommandLineRunner {
                 safeAddColumn("erp_supplier", colName, colDef.substring(colName.length()).trim());
             }
         }
-
-        // === fin_payable 字段（带修复类型逻辑） ===
-        String[][] finPayableColumns = {
-            {"supplier_name",        "VARCHAR(500) DEFAULT NULL"},
-            {"contract_id",          "BIGINT DEFAULT NULL"},
-            {"contract_no",          "VARCHAR(200) DEFAULT NULL"},
-            {"original_amount",      "DECIMAL(18,2) DEFAULT 0"},
-            {"paid_amount",          "DECIMAL(18,2) DEFAULT 0"},
-            {"remaining_amount",     "DECIMAL(18,2) DEFAULT 0"},
-            {"bill_date",            "DATE DEFAULT NULL"},
-            {"due_date",             "DATE DEFAULT NULL"},
-            {"overdue_days",         "INTEGER DEFAULT 0"},
-            {"deleted",              "INTEGER DEFAULT 0"},
-        };
-        for (String[] col : finPayableColumns) {
-            safeAddColumn("fin_payable", col[0], col[1]);
-        }
-
-        // 修复 fin_payable.create_by/update_by 类型
-        fixFinPayableColumnType("create_by");
-        fixFinPayableColumnType("update_by");
     }
 
     /**
@@ -1144,22 +1368,6 @@ public class DatabaseInitializer implements CommandLineRunner {
         } catch (Exception e) {
             log.warn("检查表是否存在时出错: {}", e.getMessage());
             return false;
-        }
-    }
-
-    /**
-     * 修复 fin_payable 表字段类型：实体中为 String(VARCHAR)，但数据库为 bigint
-     */
-    private void fixFinPayableColumnType(String columnName) {
-        try {
-            String checkSql = "SELECT data_type FROM information_schema.columns WHERE table_name = 'fin_payable' AND column_name = '" + columnName + "'";
-            String dataType = jdbcTemplate.queryForObject(checkSql, String.class);
-            if ("bigint".equals(dataType) || "integer".equals(dataType)) {
-                log.info("修复 fin_payable.{} 字段类型: {} → VARCHAR(64)", columnName, dataType);
-                jdbcTemplate.execute("ALTER TABLE fin_payable ALTER COLUMN " + columnName + " TYPE VARCHAR(64)");
-            }
-        } catch (Exception e) {
-            log.warn("修复 fin_payable.{} 字段类型失败: {}", columnName, e.getMessage());
         }
     }
 

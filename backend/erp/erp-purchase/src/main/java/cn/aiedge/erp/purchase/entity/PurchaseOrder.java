@@ -8,8 +8,17 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * 采购订单实体（遵循金蝶K3标准）
- * 
+ * 采购订单主表实体（≤25 核心字段）
+ * 对标 Odoo/SAP/金蝶/用友 生产级 ERP 规范
+ *
+ * 子表分离:
+ * - 供应商快照: erp_purchase_order_partner_snapshot (1:1)
+ * - 结算信息: erp_purchase_order_settlement (1:1)
+ * - 物流信息: erp_purchase_order_logistics (1:N)
+ * - 订金账户: erp_purchase_order_deposit (1:N)
+ * - 审核流水: erp_purchase_order_audit_trail (1:N)
+ * - 扩展信息: erp_purchase_order_ext_info (1:1)
+ *
  * @author AI-Ready Team
  * @since 1.0.0
  */
@@ -18,47 +27,82 @@ import java.time.LocalDateTime;
 @TableName("erp_purchase_order")
 public class PurchaseOrder {
 
+    /** 订单ID（主键） */
     @TableId(type = IdType.ASSIGN_ID)
     private Long id;
 
+    /** 租户ID */
     private Long tenantId;
 
+    /** 单据编号 */
     private String orderNo;
 
-    private Long supplierId;
-
-    private String supplierName;
-
+    /** 单据日期 */
     private LocalDateTime orderDate;
 
-    private LocalDateTime deliveryDate;
-
-    private BigDecimal totalAmount;
-
-    private BigDecimal taxAmount;
-
-    private BigDecimal discountAmount;
-
-    private BigDecimal paidAmount;
-
+    /** 单据状态（0草稿/1待审批/2已审批/3已下达/4已取消/5履行中/6已完成） */
     private Integer status;
 
-    private Integer approvalStatus;
+    // ═══ 外键关联 ═══
+    /** 供应商ID */
+    private Long supplierId;
 
-    private Long approvalUserId;
-
-    private LocalDateTime approvalTime;
-
+    /** 仓库ID */
     private Long warehouseId;
 
-    private String paymentMethod;
+    /** 经手人ID */
+    private Long purchaserId;
 
-    private Integer paymentStatus;
+    /** 部门ID */
+    private Long deptId;
 
-    private Integer deliveryStatus;
+    // ═══ 金额汇总 ═══
+    /** 商品金额 */
+    private BigDecimal productAmount;
 
+    /** 直接优惠金额 */
+    private BigDecimal discountAmount;
+
+    /** 本单金额 */
+    private BigDecimal billAmount;
+
+    /** 已结金额 */
+    private BigDecimal settledAmount;
+
+    // ═══ 数量汇总 ═══
+    /** 订货总数量 */
+    private BigDecimal totalQuantity;
+
+    /** 已收金额 */
+    private BigDecimal receivedAmount;
+
+    // ═══ 业务信息 ═══
+    /** 预计到货时间 */
+    private LocalDateTime expectedReceiveTime;
+
+    /** 采购类型（1正常/2紧急/3样品） */
+    private Integer purchaseType;
+
+    /** 源单编号 */
+    private String sourceBillNo;
+
+    /** 单据备注 */
     private String remark;
 
+    // ═══ 审批快照 ═══
+    /** 审批状态 */
+    private Integer approvalStatus;
+
+    /** 当前审核级别 */
+    private Integer curCheckLevel;
+
+    /** 提交人ID */
+    private Long submitterId;
+
+    /** 提交时间 */
+    private LocalDateTime submitTime;
+
+    // ═══ 系统字段 ═══
     @TableLogic
     private Integer deleted;
 
@@ -73,113 +117,4 @@ public class PurchaseOrder {
 
     @TableField(fill = FieldFill.INSERT_UPDATE)
     private Long updateBy;
-
-    private Long purchaserId;
-
-    private String purchaserName;
-
-    private Long deptId;
-
-    private Long currencyId;
-
-    private BigDecimal exchangeRate;
-
-    private BigDecimal totalAmountWithTax;
-
-    private BigDecimal totalQuantity;
-
-    private BigDecimal receivedAmount;
-
-    private BigDecimal fulfillmentPercent;
-
-    private Long contractId;
-
-    private Integer sourceType;
-
-    private Long sourceId;
-
-    private String sourceBillNo;
-
-    private Integer childrenFlag;
-
-    private String saleOrderNo;
-
-    private Long multiCheckLevel1;
-
-    private Long multiCheckLevel2;
-
-    private Long multiCheckLevel3;
-
-    private Long multiCheckLevel4;
-
-    private Long multiCheckLevel5;
-
-    private Long multiCheckLevel6;
-
-    private LocalDateTime multiCheckDate1;
-
-    private LocalDateTime multiCheckDate2;
-
-    private LocalDateTime multiCheckDate3;
-
-    private LocalDateTime multiCheckDate4;
-
-    private LocalDateTime multiCheckDate5;
-
-    private LocalDateTime multiCheckDate6;
-
-    private Integer curCheckLevel;
-
-    private Integer closedFlag;
-
-    private Integer cancellationFlag;
-
-    private Integer tranStatus;
-
-    private Integer orderAffirm;
-
-    private Long paymentMethodId;
-
-    private String requireProvide;
-
-    private String cashDiscount;
-
-    private LocalDateTime settleDate;
-
-    private Long settleMethodId;
-
-    private String deliveryAddress;
-
-    private LocalDateTime lastModifyDate;
-
-    private Boolean supplierConfirmed;
-
-    private LocalDateTime supplierConfirmTime;
-
-    private Boolean shipped;
-
-    private LocalDateTime shipTime;
-
-    private String trackingNumber;
-
-    private LocalDateTime estimatedArrivalTime;
-
-    private Boolean received;
-
-    private LocalDateTime receiveTime;
-
-    private BigDecimal receivedQuantity;
-
-    private String qualityCheckResult;
-
-    private Integer invoiceStatus;
-
-    private String invoiceNumber;
-
-    private BigDecimal invoiceAmount;
-
-    private LocalDateTime invoiceDate;
-
-    @TableField(typeHandler = com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler.class)
-    private String extInfo;
 }

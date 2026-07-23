@@ -3,6 +3,7 @@ package cn.aiedge.wms.ship.service.impl;
 import cn.aiedge.wms.entity.WmsShipTask;
 import cn.aiedge.wms.entity.WmsShipDetail;
 import cn.aiedge.wms.enums.WmsTaskStatus;
+import cn.aiedge.wms.exception.WmsBusinessException;
 import cn.aiedge.wms.ship.mapper.WmsShipTaskMapper;
 import cn.aiedge.wms.ship.mapper.WmsShipDetailMapper;
 import cn.aiedge.wms.ship.service.ShipService;
@@ -93,6 +94,37 @@ public class ShipServiceImpl implements ShipService {
         wrapper.eq(WmsShipDetail::getShipId, shipId);
         wrapper.orderByAsc(WmsShipDetail::getLineNo);
         return detailMapper.selectList(wrapper);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void saveDetails(Long shipId, List<WmsShipDetail> details) {
+        WmsShipTask task = taskMapper.selectById(shipId);
+        if (task == null) throw WmsBusinessException.taskNotFound(shipId, "发货");
+        if (task.getStatus() != WmsTaskStatus.PENDING) {
+            throw WmsBusinessException.invalidStatus(task.getTaskNo(), task.getStatus(), WmsTaskStatus.PENDING);
+        }
+        // 先删后插（逻辑删除旧明细）
+        LambdaQueryWrapper<WmsShipDetail> delWrapper = new LambdaQueryWrapper<>();
+        delWrapper.eq(WmsShipDetail::getShipId, shipId);
+        detailMapper.delete(delWrapper);
+        int lineNo = 1;
+        BigDecimal totalQuantity = BigDecimal.ZERO;
+        for (WmsShipDetail detail : details) {
+            detail.setId(null);
+            detail.setShipId(shipId);
+            detail.setLineNo(lineNo++);
+            if (detail.getStatus() == null) detail.setStatus(0);
+            detailMapper.insert(detail);
+            if (detail.getExpectedQuantity() != null) {
+                totalQuantity = totalQuantity.add(detail.getExpectedQuantity());
+            }
+        }
+        // 回写头表明细数/合计量
+        task.setTotalItems(details.size());
+        task.setTotalQuantity(totalQuantity);
+        taskMapper.updateById(task);
+        log.info("发货明细保存: shipId={}, items={}, totalQuantity={}", shipId, details.size(), totalQuantity);
     }
 
     @Override

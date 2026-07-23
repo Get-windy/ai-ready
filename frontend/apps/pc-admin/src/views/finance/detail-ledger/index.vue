@@ -1,142 +1,95 @@
 <template>
-  <ErrorBoundary @error="handleError">
-    <PageContainer
+  <div>
+    <a-alert
+      type="warning"
+      show-icon
+      class="gap-alert"
+      message="后端暂未提供明细账逐笔端点（无 LedgerController），当前展示所选会计期间内的记账凭证列表作为最近真实数据视图。"
+    />
+    <ARReportPage
       title="明细账"
-      full-height
+      :query-fields="queryFields"
+      :columns="columns"
+      :fetcher="fetcher"
+      export-file-name="明细账"
+      row-key="id"
     >
-      <template #headerExtra>
-        <a-space :size="12">
-          <a-badge :status="loading ? 'processing' : (hasError ? 'error' : 'success')" />
-          <span
-            v-if="lastUpdateTime"
-            class="update-time"
-          >最后更新: {{ lastUpdateTime }}</span>
-          <a-button
-            size="small"
-            @click="fetchData"
-          >
-            <template #icon>
-              <ReloadOutlined />
-            </template>
-          </a-button>
-        </a-space>
+      <template #bodyCell="{ column, text }">
+        <template v-if="column.dataIndex === 'status'">
+          <a-tag :color="STATUS_MAP[text]?.color || 'default'">
+            {{ STATUS_MAP[text]?.label || text }}
+          </a-tag>
+        </template>
+        <template v-else-if="['totalDebit', 'totalCredit'].includes(column.dataIndex as string)">
+          {{ formatMoney(text) }}
+        </template>
       </template>
-      <div class="search-area">
-        <a-form
-          layout="inline"
-          :model="searchParams"
-        >
-          <a-form-item label="科目代码">
-            <a-input
-              v-model:value="searchParams.subjectCode"
-              placeholder="请输入"
-              allow-clear
-              style="width: 160px"
-            />
-          </a-form-item>
-          <a-form-item label="日期范围">
-            <a-range-picker
-              v-model:value="dateRange"
-              style="width: 220px"
-              @change="handleDateChange"
-            />
-          </a-form-item>
-          <a-form-item>
-            <a-space>
-              <a-button
-                type="primary"
-                @click="handleSearch"
-              >
-                <template #icon>
-                  <SearchOutlined />
-                </template>查询
-              </a-button>
-              <a-button @click="handleReset">
-                <template #icon>
-                  <ClearOutlined />
-                </template>重置
-              </a-button>
-            </a-space>
-          </a-form-item>
-        </a-form>
-      </div>
-      <div class="table-area">
-        <BillTableList
-          :columns="columns"
-          :data-source="tableData"
-          :loading="loading"
-          :pagination="billPagination"
-          :show-toolbar="false"
-          :show-search="false"
-          :show-add="false"
-          :show-export="false"
-          :show-batch-delete="false"
-          :selectable="false"
-          row-key="id"
-          @page-change="handlePageChange"
-        />
-      </div>
-    </PageContainer>
-  </ErrorBoundary>
+    </ARReportPage>
+  </div>
 </template>
+
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
-import type { Dayjs } from 'dayjs'
-import { ReloadOutlined, SearchOutlined, ClearOutlined } from '@ant-design/icons-vue'
-import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import PageContainer from '@/components/PageContainer/PageContainer.vue'
-import BillTableList from '@/components/BillTableList/BillTableList.vue'
-import request from '@/utils/request'
+import ARReportPage from '@/components/ARReportPage/ARReportPage.vue'
+import type { ReportQueryField } from '@/components/ARReportPage/types'
+import { voucherApi } from '@/api/finance'
 
-const loading = ref(false)
-const hasError = ref(false)
-const tableData = ref<any[]>([])
-const lastUpdateTime = ref('')
+// ═══ 凭证状态（与后端 Voucher.status 一致：draft/audited/posted） ═══
+const STATUS_MAP: Record<string, { label: string; color: string }> = {
+  draft: { label: '草稿', color: 'default' },
+  audited: { label: '已审核', color: 'orange' },
+  posted: { label: '已过账', color: 'green' },
+  reversed: { label: '已冲销', color: 'red' }
+}
 
-const searchParams = reactive({ subjectCode: '', startDate: '', endDate: '' })
-const dateRange = ref<[Dayjs, Dayjs] | null>(null)
-const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
-const billPagination = computed(() => ({ current: pagination.current, pageSize: pagination.pageSize, total: pagination.total }))
+// ═══ 会计期间选项 ═══
+const currentYear = new Date().getFullYear()
+const currentPeriod = new Date().getMonth() + 1
+const YEAR_OPTIONS = [0, 1, 2, 3].map(i => {
+  const y = currentYear - i
+  return { label: `${y}年`, value: y }
+})
+const PERIOD_OPTIONS = Array.from({ length: 12 }, (_, i) => ({ label: `第${i + 1}期`, value: i + 1 }))
 
-const columns = [
-  { title: '日期', field: 'accDate', key: 'accDate', width: 120 },
-  { title: '凭证号', field: 'voucherNo', key: 'voucherNo', width: 100 },
-  { title: '摘要', field: 'summary', key: 'summary', width: 200 },
-  { title: '科目代码', field: 'subjectCode', key: 'subjectCode', width: 100 },
-  { title: '借方金额', field: 'debitAmount', key: 'debitAmount', width: 120, align: 'right' },
-  { title: '贷方金额', field: 'creditAmount', key: 'creditAmount', width: 120, align: 'right' },
-  { title: '余额', field: 'balance', key: 'balance', width: 120, align: 'right' },
+const queryFields: ReportQueryField[] = [
+  { key: 'fiscalYear', type: 'select', label: '会计年度', placeholder: '全部年度', options: YEAR_OPTIONS, width: 140 },
+  { key: 'fiscalPeriod', type: 'select', label: '会计期间', placeholder: '全部期间', options: PERIOD_OPTIONS, width: 140 },
+  {
+    key: 'status',
+    type: 'select',
+    label: '状态',
+    placeholder: '全部状态',
+    options: Object.entries(STATUS_MAP).map(([value, v]) => ({ label: v.label, value })),
+    width: 140
+  }
 ]
 
-const handleDateChange = (dates: [Dayjs, Dayjs] | null) => {
-  if (dates?.length === 2) { searchParams.startDate = dates[0]?.format('YYYY-MM-DD') || ''; searchParams.endDate = dates[1]?.format('YYYY-MM-DD') || '' }
-  else { searchParams.startDate = ''; searchParams.endDate = '' }
+// ═══ 表格列（与后端 VoucherDTO 字段一致） ═══
+const columns: any[] = [
+  { title: '凭证号', dataIndex: 'voucherNo', key: 'voucherNo', width: 130 },
+  { title: '凭证日期', dataIndex: 'voucherDate', key: 'voucherDate', width: 110 },
+  { title: '会计年度', dataIndex: 'fiscalYear', key: 'fiscalYear', width: 90, align: 'center' },
+  { title: '会计期间', dataIndex: 'fiscalPeriod', key: 'fiscalPeriod', width: 90, align: 'center' },
+  { title: '借方合计', dataIndex: 'totalDebit', key: 'totalDebit', width: 130, align: 'right' },
+  { title: '贷方合计', dataIndex: 'totalCredit', key: 'totalCredit', width: 130, align: 'right' },
+  { title: '状态', dataIndex: 'status', key: 'status', width: 90, align: 'center' },
+  { title: '制单人', dataIndex: 'prepBy', key: 'prepBy', width: 100 },
+  { title: '审核人', dataIndex: 'auditBy', key: 'auditBy', width: 100 },
+  { title: '备注', dataIndex: 'remark', key: 'remark', ellipsis: true }
+]
+
+function formatMoney(val: number | null | undefined): string {
+  if (val === null || val === undefined || isNaN(Number(val))) return '-'
+  return Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-const fetchData = async () => {
-  loading.value = true; hasError.value = false
-  try {
-    const res: any = await request.get('/finance/detail-ledger/page', {
-      params: { page: pagination.current, size: pagination.pageSize, ...searchParams }
-    })
-    if (res) {
-      const data = res.data || res
-      tableData.value = data.records || data.content || data.list || []
-      pagination.total = data.total || 0
-      lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
-    }
-  } catch (e: any) { hasError.value = true; console.warn('[明细账] 获取失败', e)
-  } finally { loading.value = false }
+// ═══ 数据请求：凭证分页列表（/erp/finance/voucher/list，page/size 风格） ═══
+function fetcher(params: Record<string, any>) {
+  return voucherApi.getPage(params)
 }
-
-const handleSearch = () => { pagination.current = 1; fetchData() }
-const handleReset = () => { searchParams.subjectCode = ''; searchParams.startDate = ''; searchParams.endDate = ''; dateRange.value = null; pagination.current = 1; fetchData() }
-const handlePageChange = (page: number, pageSize: number) => { pagination.current = page; pagination.pageSize = pageSize; fetchData() }
-const handleError = (e: Error) => { hasError.value = true; console.error(e) }
-onMounted(fetchData)
 </script>
+
 <style scoped>
-.search-area { background: #fff; padding: 16px 20px; border-radius: 8px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-.table-area { background: #fff; padding: 16px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-.update-time { font-size: 12px; color: #999; }
+.gap-alert {
+  margin-bottom: 16px;
+}
 </style>

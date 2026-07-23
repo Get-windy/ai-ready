@@ -1,86 +1,106 @@
 <template>
-  <ErrorBoundary>
-    <PageContainer title="待审批单据">
-      <div class="search-area">
-        <a-form layout="inline">
-          <a-form-item label="日期范围">
-            <a-range-picker
-              v-model:value="dateRange"
-              style="width: 220px"
-            />
-          </a-form-item>
-          <a-form-item>
-            <a-space>
-              <a-button
-                type="primary"
-                @click="handleSearch"
-              >
-                <template #icon>
-                  <SearchOutlined />
-                </template>查询
-              </a-button>
-              <a-button @click="handleReset">
-                <template #icon>
-                  <ClearOutlined />
-                </template>重置
-              </a-button>
-            </a-space>
-          </a-form-item>
-        </a-form>
-      </div>
-      <div class="table-area">
-        <a-table
-          :columns="columns"
-          :data-source="tableData"
-          :loading="loading"
-          :pagination="pagination"
-          row-key="id"
-          size="small"
-          @change="handleTableChange"
-        />
-      </div>
-    </PageContainer>
-  </ErrorBoundary>
+  <ARReportPage
+    title="待审批单据"
+    :query-fields="queryFields"
+    :columns="columns"
+    :fetcher="fetcher"
+    :stat-cards="statCards"
+    export-file-name="待审批单据"
+    :row-key="(record: any) => `${record.docTypeCode}-${record.docNo}`"
+    @loaded="onLoaded"
+  >
+    <template #bodyCell="{ column, text }">
+      <template v-if="column.dataIndex === 'statusText'">
+        <a-tag :color="statusColor(text)">
+          {{ text }}
+        </a-tag>
+      </template>
+      <template v-else-if="column.dataIndex === 'amount'">
+        {{ formatMoney(text) }}
+      </template>
+    </template>
+  </ARReportPage>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
-import { SearchOutlined, ClearOutlined } from '@ant-design/icons-vue'
-import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import PageContainer from '@/components/PageContainer/PageContainer.vue'
-import request from '@/utils/request'
+import { ref, computed } from 'vue'
+import ARReportPage from '@/components/ARReportPage/ARReportPage.vue'
+import type { ReportQueryField, ReportFetchResult, StatCardItem } from '@/components/ARReportPage/types'
+import { docQueryApi } from '@/api/analytics'
+import type { PendingDocSummaryItem } from '@/api/analytics'
 
-const loading = ref(false)
-const tableData = ref<any[]>([])
-const dateRange = ref(null)
-const pagination = reactive({ current: 1, pageSize: 20, total: 0, showSizeChanger: true, showTotal: (t) => `共 ${t} 条` })
-
-const columns: any[] = [
-  { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
-  { title: '名称', dataIndex: 'name', key: 'name', width: 150 },
-  { title: '描述', dataIndex: 'description', key: 'description', ellipsis: true },
-  { title: '状态', dataIndex: 'status', key: 'status', width: 80 },
-  { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 160 }
+// ═══ 单据类型（与后端 DocQueryService 13 个分支一致） ═══
+const DOC_TYPE_OPTIONS = [
+  { label: '销售订单', value: 'SALE_ORDER' },
+  { label: '销售出库单', value: 'SALE_OUTBOUND' },
+  { label: '销售退货单', value: 'SALE_RETURN' },
+  { label: '销售预订单', value: 'SALE_PRE_ORDER' },
+  { label: '采购订单', value: 'PURCHASE_ORDER' },
+  { label: '采购入库单', value: 'PURCHASE_INBOUND' },
+  { label: '采购退货单', value: 'PURCHASE_RETURN' },
+  { label: '收款单', value: 'RECEIPT' },
+  { label: '付款单', value: 'PAYMENT' },
+  { label: '调拨单', value: 'STOCK_TRANSFER' },
+  { label: '报损单', value: 'STOCK_DAMAGE' },
+  { label: '报溢单', value: 'STOCK_OVERFLOW' },
+  { label: '费用申请单', value: 'EXPENSE' }
 ]
 
-async function loadData() {
-  loading.value = true
-  try {
-    const result = await request.get('/analytics/pending-approval/page', { pageNum: pagination.current, pageSize: pagination.pageSize })
-    if (result?.records) { tableData.value = result.records; pagination.total = result.total }
-    else if (Array.isArray(result)) { tableData.value = result; pagination.total = result.length }
-  } catch (e) { tableData.value = [] }
-  finally { loading.value = false }
+const queryFields: ReportQueryField[] = [
+  { key: 'docType', type: 'select', label: '单据类型', placeholder: '全部单据', options: DOC_TYPE_OPTIONS },
+  { key: 'docNo', type: 'input', label: '单号', placeholder: '单据编号', width: 180 },
+  { key: 'partnerName', type: 'input', label: '往来单位', placeholder: '客户/供应商', width: 180 },
+  { key: 'bizDateRange', type: 'date-range', label: '业务日期' }
+]
+
+// ═══ 表格列 ═══
+const columns: any[] = [
+  { title: '单据类型', dataIndex: 'docType', key: 'docType', width: 110 },
+  { title: '单号', dataIndex: 'docNo', key: 'docNo', width: 160 },
+  { title: '业务日期', dataIndex: 'bizDate', key: 'bizDate', width: 160 },
+  { title: '往来单位', dataIndex: 'partnerName', key: 'partnerName', width: 160, ellipsis: true },
+  { title: '金额', dataIndex: 'amount', key: 'amount', width: 120, align: 'right' },
+  { title: '状态', dataIndex: 'statusText', key: 'statusText', width: 100 },
+  { title: '操作人', dataIndex: 'createBy', key: 'createBy', width: 100 }
+]
+
+// ═══ 状态着色 ═══
+function statusColor(statusText: string): string {
+  if (!statusText) return 'default'
+  if (statusText.includes('完成') || statusText.includes('已审核')) return 'green'
+  if (statusText.includes('待')) return 'orange'
+  if (statusText.includes('取消') || statusText.includes('作废')) return 'red'
+  if (statusText.includes('草稿')) return 'default'
+  return 'blue'
 }
 
-function handleSearch() { pagination.current = 1; loadData() }
-function handleReset() { dateRange.value = null; pagination.current = 1; loadData() }
-function handleTableChange(p) { pagination.current = p.current; pagination.pageSize = p.pageSize; loadData() }
+function formatMoney(val: number | null | undefined): string {
+  if (val === null || val === undefined || isNaN(Number(val))) return '-'
+  return Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
 
-onMounted(loadData)
+// ═══ 数据请求 ═══
+function fetcher(params: Record<string, any>) {
+  return docQueryApi.pendingDocsPage(params)
+}
+
+// ═══ 待审批计数卡片（loaded 后从响应 summary 映射，13 类单据） ═══
+const summaryList = ref<PendingDocSummaryItem[]>([])
+
+const statCards = computed<StatCardItem[]>(() => {
+  const total = summaryList.value.reduce((acc, s) => acc + (Number(s.count) || 0), 0)
+  return [
+    { label: '待审批总数', value: total, suffix: '单' },
+    ...summaryList.value.map(s => ({
+      label: s.docType,
+      value: Number(s.count) || 0,
+      suffix: '单'
+    }))
+  ]
+})
+
+function onLoaded(result: ReportFetchResult) {
+  const summary = result.raw?.summary
+  summaryList.value = Array.isArray(summary) ? summary : []
+}
 </script>
-
-<style scoped>
-.search-area { background: #fff; padding: 16px 20px; border-radius: 8px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-.table-area { background: #fff; padding: 16px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-</style>

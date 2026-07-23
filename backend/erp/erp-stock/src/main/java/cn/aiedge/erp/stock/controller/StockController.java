@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -111,10 +112,14 @@ public class StockController {
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") Integer pageNum,
             @Parameter(description = "每页大小") @RequestParam(defaultValue = "20") Integer pageSize,
             @Parameter(description = "产品ID") @RequestParam(required = false) Long productId,
-            @Parameter(description = "仓库ID") @RequestParam(required = false) Long warehouseId) {
+            @Parameter(description = "仓库ID") @RequestParam(required = false) Long warehouseId,
+            @Parameter(description = "关键词（产品编码/名称）") @RequestParam(required = false) String keyword) {
         QueryWrapper<Stock> wrapper = new QueryWrapper<Stock>().eq("deleted", 0);
         if (productId != null) wrapper.eq("product_id", productId);
         if (warehouseId != null) wrapper.eq("warehouse_id", warehouseId);
+        if (StringUtils.hasText(keyword)) {
+            wrapper.and(w -> w.like("product_code", keyword).or().like("product_name", keyword));
+        }
         wrapper.orderByDesc("create_time");
         return Result.ok(stockService.page(new Page<>(pageNum, pageSize), wrapper));
     }

@@ -32,8 +32,20 @@ public interface BatchNumberService extends IService<BatchNumber> {
         String productCode,
         String status,
         String sourceType,
+        Long warehouseId,
         int page,
         int size
+    );
+    
+    /**
+     * 统计批次数量（与列表查询条件一致）
+     */
+    long countBatches(
+        String batchNo,
+        String productCode,
+        String status,
+        String sourceType,
+        Long warehouseId
     );
     
     /**

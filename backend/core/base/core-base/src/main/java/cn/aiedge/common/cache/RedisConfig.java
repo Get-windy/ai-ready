@@ -1,5 +1,9 @@
 package cn.aiedge.common.cache;
 
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -32,17 +36,22 @@ public class RedisConfig {
     public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory factory) {
         RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(factory);
-        
+
         // Key使用String序列化器
         StringRedisSerializer keySerializer = new StringRedisSerializer();
-        // Value使用JSON序列化器
-        GenericJackson2JsonRedisSerializer valueSerializer = new GenericJackson2JsonRedisSerializer();
-        
+        // Value使用JSON序列化器（注册 JavaTimeModule 支持 LocalDateTime 等 JSR310 类型，
+        // 并保留默认多态类型信息以支持实体反序列化）
+        ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.registerModule(new JavaTimeModule());
+        objectMapper.activateDefaultTyping(LaissezFaireSubTypeValidator.instance,
+                ObjectMapper.DefaultTyping.NON_FINAL, JsonTypeInfo.As.PROPERTY);
+        GenericJackson2JsonRedisSerializer valueSerializer = new GenericJackson2JsonRedisSerializer(objectMapper);
+
         template.setKeySerializer(keySerializer);
         template.setValueSerializer(valueSerializer);
         template.setHashKeySerializer(keySerializer);
         template.setHashValueSerializer(valueSerializer);
-        
+
         template.afterPropertiesSet();
         log.info("RedisTemplate配置完成");
         return template;

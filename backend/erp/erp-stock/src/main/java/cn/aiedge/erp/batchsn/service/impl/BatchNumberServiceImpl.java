@@ -72,7 +72,22 @@ public class BatchNumberServiceImpl extends ServiceImpl<BatchNumberMapper, Batch
 
     @Override
     public List<BatchNumber> listBatches(String batchNo, String productCode, String status,
-                                          String sourceType, int page, int size) {
+                                          String sourceType, Long warehouseId, int page, int size) {
+        LambdaQueryWrapper<BatchNumber> wrapper = buildQueryWrapper(batchNo, productCode, status, sourceType, warehouseId);
+        wrapper.orderByDesc(BatchNumber::getCreatedAt);
+        wrapper.last("LIMIT " + size + " OFFSET " + ((page - 1) * size));
+        return batchNumberMapper.selectList(wrapper);
+    }
+
+    @Override
+    public long countBatches(String batchNo, String productCode, String status,
+                             String sourceType, Long warehouseId) {
+        LambdaQueryWrapper<BatchNumber> wrapper = buildQueryWrapper(batchNo, productCode, status, sourceType, warehouseId);
+        return batchNumberMapper.selectCount(wrapper);
+    }
+
+    private LambdaQueryWrapper<BatchNumber> buildQueryWrapper(String batchNo, String productCode, String status,
+                                                              String sourceType, Long warehouseId) {
         LambdaQueryWrapper<BatchNumber> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(BatchNumber::getIsDeleted, 0);
         if (StringUtils.hasText(batchNo)) {
@@ -87,9 +102,10 @@ public class BatchNumberServiceImpl extends ServiceImpl<BatchNumberMapper, Batch
         if (StringUtils.hasText(sourceType)) {
             wrapper.eq(BatchNumber::getSourceType, sourceType);
         }
-        wrapper.orderByDesc(BatchNumber::getCreatedAt);
-        wrapper.last("LIMIT " + size + " OFFSET " + ((page - 1) * size));
-        return batchNumberMapper.selectList(wrapper);
+        if (warehouseId != null) {
+            wrapper.eq(BatchNumber::getWarehouseId, warehouseId);
+        }
+        return wrapper;
     }
 
     @Override

@@ -1,35 +1,49 @@
 package cn.aiedge.erp.payment.service.integration;
 
-import cn.aiedge.common.exception.BusinessException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
+import cn.aiedge.erp.finance.dto.BusinessAccountingRequest;
+import cn.aiedge.erp.finance.dto.VoucherDTO;
+import cn.aiedge.erp.finance.service.BusinessAccountingService;
+import cn.aiedge.erp.finance.service.PayableService;
+import cn.aiedge.erp.finance.service.ReceivableService;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
+
+import static org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW;
 
 /**
  * 收付款模块记账集成服务
- * 调用财务模块的BusinessAccountingController创建收付款凭证并核销应收/应付
+ * 直接调用财务模块的 {@link BusinessAccountingService} 创建收付款凭证，
+ * 并调用 ReceivableService/PayableService 核销应收/应付
+ *
+ * 事务语义：凭证创建（网关方法已声明 REQUIRES_NEW）与核销（此处 TransactionTemplate
+ * REQUIRES_NEW）均在独立事务中提交，失败只回滚自身，不污染调用方的
+ * catch-and-continue 主流程事务，与原 HTTP 内调时代语义一致。
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class PaymentAccountingService {
 
-    private final RestTemplate restTemplate;
-    private final ObjectMapper objectMapper;
+    private final BusinessAccountingService businessAccountingService;
+    private final ReceivableService receivableService;
+    private final PayableService payableService;
+    private final TransactionTemplate writeOffTxTemplate;
 
-    @org.springframework.beans.factory.annotation.Value("${erp.finance.api-base-url:http://localhost:8095}")
-    private String financeBaseUrl;
+    public PaymentAccountingService(BusinessAccountingService businessAccountingService,
+                                    ReceivableService receivableService,
+                                    PayableService payableService,
+                                    PlatformTransactionManager transactionManager) {
+        this.businessAccountingService = businessAccountingService;
+        this.receivableService = receivableService;
+        this.payableService = payableService;
+        this.writeOffTxTemplate = new TransactionTemplate(transactionManager);
+        this.writeOffTxTemplate.setPropagationBehavior(PROPAGATION_REQUIRES_NEW);
+    }
 
     /**
      * 付款时创建付款凭证并核销应付账款
@@ -48,39 +62,37 @@ public class PaymentAccountingService {
         log.info("创建付款凭证: paymentNo={}, amount={}", paymentNo, amount);
 
         // 1. Create payment voucher
-        Map<String, Object> voucherRequest = new HashMap<>();
-        voucherRequest.put("sourceType", "PAYMENT");
-        voucherRequest.put("sourceId", paymentId);
-        voucherRequest.put("sourceNo", paymentNo);
-        voucherRequest.put("supplierId", supplierId);
-        voucherRequest.put("supplierName", supplierName);
-        voucherRequest.put("amount", amount);
-        voucherRequest.put("summary", "付款 - " + paymentNo);
-        voucherRequest.put("voucherDate", LocalDate.now().toString());
+        BusinessAccountingRequest voucherRequest = new BusinessAccountingRequest();
+        voucherRequest.setSourceType("PAYMENT");
+        voucherRequest.setSourceId(paymentId);
+        voucherRequest.setSourceNo(paymentNo);
+        voucherRequest.setSupplierId(supplierId);
+        voucherRequest.setSupplierName(supplierName);
+        voucherRequest.setAmount(amount);
+        voucherRequest.setSummary("付款 - " + paymentNo);
+        voucherRequest.setVoucherDate(LocalDate.now());
 
         // Accounting entries: Dr. AP, Cr. Bank Deposit
-        Map<String, Object> debitEntry = new HashMap<>();
-        debitEntry.put("summary", "支付应付账款");
-        debitEntry.put("subjectCode", "2202");  // 应付账款
-        debitEntry.put("debitAmount", amount);
-        debitEntry.put("creditAmount", BigDecimal.ZERO);
+        BusinessAccountingRequest.AccountingRequestItem debitEntry = new BusinessAccountingRequest.AccountingRequestItem();
+        debitEntry.setSummary("支付应付账款");
+        debitEntry.setSubjectCode("2202");  // 应付账款
+        debitEntry.setDebitAmount(amount);
+        debitEntry.setCreditAmount(BigDecimal.ZERO);
 
-        Map<String, Object> creditEntry = new HashMap<>();
-        creditEntry.put("summary", "银行存款");
-        creditEntry.put("subjectCode", "1002");  // 银行存款
-        creditEntry.put("debitAmount", BigDecimal.ZERO);
-        creditEntry.put("creditAmount", amount);
+        BusinessAccountingRequest.AccountingRequestItem creditEntry = new BusinessAccountingRequest.AccountingRequestItem();
+        creditEntry.setSummary("银行存款");
+        creditEntry.setSubjectCode("1002");  // 银行存款
+        creditEntry.setDebitAmount(BigDecimal.ZERO);
+        creditEntry.setCreditAmount(amount);
 
-        voucherRequest.put("items", new Map[]{debitEntry, creditEntry});
+        voucherRequest.setItems(List.of(debitEntry, creditEntry));
 
-        JsonNode voucherResult = callFinanceApi("/api/erp/finance/integration/voucher", voucherRequest);
-        log.info("付款凭证创建成功: {}", voucherResult);
+        VoucherDTO voucherResult = businessAccountingService.createVoucherFromBusiness(voucherRequest);
+        log.info("付款凭证创建成功: voucherNo={}", voucherResult.getVoucherNo());
 
-        // 2. Write off the AP (PUT request)
+        // 2. Write off the AP (独立事务)
         if (payableId != null) {
-            Map<String, Object> writeOffRequest = new HashMap<>();
-            writeOffRequest.put("amount", amount);
-            callFinanceApiPut("/api/erp/finance/payable/" + payableId + "/write-off", writeOffRequest);
+            writeOffTxTemplate.executeWithoutResult(tx -> payableService.writeOff(payableId, amount));
             log.info("应付核销成功: payableId={}", payableId);
         }
     }
@@ -102,79 +114,38 @@ public class PaymentAccountingService {
         log.info("创建收款凭证: receiptNo={}, amount={}", receiptNo, amount);
 
         // 1. Create receipt voucher
-        Map<String, Object> voucherRequest = new HashMap<>();
-        voucherRequest.put("sourceType", "RECEIPT");
-        voucherRequest.put("sourceId", receiptId);
-        voucherRequest.put("sourceNo", receiptNo);
-        voucherRequest.put("customerId", customerId);
-        voucherRequest.put("customerName", customerName);
-        voucherRequest.put("amount", amount);
-        voucherRequest.put("summary", "收款 - " + receiptNo);
-        voucherRequest.put("voucherDate", LocalDate.now().toString());
+        BusinessAccountingRequest voucherRequest = new BusinessAccountingRequest();
+        voucherRequest.setSourceType("RECEIPT");
+        voucherRequest.setSourceId(receiptId);
+        voucherRequest.setSourceNo(receiptNo);
+        voucherRequest.setCustomerId(customerId);
+        voucherRequest.setCustomerName(customerName);
+        voucherRequest.setAmount(amount);
+        voucherRequest.setSummary("收款 - " + receiptNo);
+        voucherRequest.setVoucherDate(LocalDate.now());
 
         // Accounting entries: Dr. Bank Deposit, Cr. AR
-        Map<String, Object> debitEntry = new HashMap<>();
-        debitEntry.put("summary", "银行存款");
-        debitEntry.put("subjectCode", "1002");  // 银行存款
-        debitEntry.put("debitAmount", amount);
-        debitEntry.put("creditAmount", BigDecimal.ZERO);
+        BusinessAccountingRequest.AccountingRequestItem debitEntry = new BusinessAccountingRequest.AccountingRequestItem();
+        debitEntry.setSummary("银行存款");
+        debitEntry.setSubjectCode("1002");  // 银行存款
+        debitEntry.setDebitAmount(amount);
+        debitEntry.setCreditAmount(BigDecimal.ZERO);
 
-        Map<String, Object> creditEntry = new HashMap<>();
-        creditEntry.put("summary", "收回账款");
-        creditEntry.put("subjectCode", "1122");  // 应收账款
-        creditEntry.put("debitAmount", BigDecimal.ZERO);
-        creditEntry.put("creditAmount", amount);
+        BusinessAccountingRequest.AccountingRequestItem creditEntry = new BusinessAccountingRequest.AccountingRequestItem();
+        creditEntry.setSummary("收回账款");
+        creditEntry.setSubjectCode("1122");  // 应收账款
+        creditEntry.setDebitAmount(BigDecimal.ZERO);
+        creditEntry.setCreditAmount(amount);
 
-        voucherRequest.put("items", new Map[]{debitEntry, creditEntry});
+        voucherRequest.setItems(List.of(debitEntry, creditEntry));
 
-        JsonNode voucherResult = callFinanceApi("/api/erp/finance/integration/voucher", voucherRequest);
-        log.info("收款凭证创建成功: {}", voucherResult);
+        VoucherDTO voucherResult = businessAccountingService.createVoucherFromBusiness(voucherRequest);
+        log.info("收款凭证创建成功: voucherNo={}", voucherResult.getVoucherNo());
 
-        // 2. Write off the AR (PUT request)
+        // 2. Write off the AR (独立事务)
         if (receivableId != null) {
-            Map<String, Object> writeOffRequest = new HashMap<>();
-            writeOffRequest.put("amount", amount);
-            callFinanceApiPut("/api/erp/finance/receivable/" + receivableId + "/write-off", writeOffRequest);
+            writeOffTxTemplate.executeWithoutResult(tx -> receivableService.writeOff(receivableId, amount));
             log.info("应收核销成功: receivableId={}", receivableId);
-        }
-    }
-
-    /**
-     * 调用财务模块API (POST)
-     */
-    private JsonNode callFinanceApi(String path, Object request) {
-        String url = financeBaseUrl + path;
-        try {
-            ResponseEntity<JsonNode> response = restTemplate.postForEntity(url, request, JsonNode.class);
-            JsonNode body = response.getBody();
-            if (body != null && body.has("code") && body.get("code").asInt() == 200) {
-                return body.get("data");
-            }
-            String errMsg = body != null ? body.path("message").asText("Unknown error") : "No response";
-            throw BusinessException.badRequest("Finance API error: " + errMsg + " (path=" + path + ")");
-        } catch (Exception e) {
-            log.error("调用财务模块API失败: path={}", path, e);
-            throw BusinessException.badRequest("调用财务模块API失败: " + e.getMessage());
-        }
-    }
-
-    /**
-     * 调用财务模块API (PUT)
-     */
-    private JsonNode callFinanceApiPut(String path, Object request) {
-        String url = financeBaseUrl + path;
-        try {
-            HttpEntity<Object> entity = new HttpEntity<>(request);
-            ResponseEntity<JsonNode> response = restTemplate.exchange(url, HttpMethod.PUT, entity, JsonNode.class);
-            JsonNode body = response.getBody();
-            if (body != null && body.has("code") && body.get("code").asInt() == 200) {
-                return body.get("data");
-            }
-            String errMsg = body != null ? body.path("message").asText("Unknown error") : "No response";
-            throw BusinessException.badRequest("Finance API error: " + errMsg + " (path=" + path + ")");
-        } catch (Exception e) {
-            log.error("调用财务模块API失败: path={}", path, e);
-            throw BusinessException.badRequest("调用财务模块API失败: " + e.getMessage());
         }
     }
 }

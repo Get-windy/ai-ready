@@ -186,6 +186,14 @@
             >
               编辑
             </a-button>
+            <a-button
+              v-if="record.currentQty != null && record.currentQty < (record.safetyStock || record.minStock)"
+              type="link"
+              size="small"
+              @click="goReplenish(record)"
+            >
+              补货
+            </a-button>
             <a-popconfirm
               title="确认删除该预警配置？"
               @confirm="handleDelete(record)"
@@ -315,12 +323,15 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import { ReloadOutlined, SyncOutlined, AlertOutlined, CheckCircleOutlined, ExclamationCircleOutlined, FireOutlined, BellOutlined, WarningOutlined } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import request from '@/utils/request'
+
+const router = useRouter()
 
 function handleError(err: any) { hasError.value = true; console.warn('[预警配置]', err) }
 
@@ -456,6 +467,10 @@ const handleToggleActive = async (record: any, active: boolean) => {
 const handleDelete = async (record: any) => {
   try { await request.delete(`/erp/stock-alert-config/${record.id}`); message.success('删除成功'); fetchData() }
   catch { message.error('删除失败') }
+}
+
+const goReplenish = (record: any) => {
+  router.push({ path: '/erp/stock/replenishment', query: { productId: record.productId, productName: record.productName } })
 }
 
 const handleCheckAlerts = async () => {

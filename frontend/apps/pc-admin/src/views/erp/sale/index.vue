@@ -1280,7 +1280,7 @@ async function confirmPrint() {
 
 async function doPrint(ids: number[], template: string) {
   try {
-    await request.post('/erp/sale/order/batch-print', ids)
+    await saleOrderApi.batchPrint(ids)
     saveLastPrintTemplate(template)
     message.success(`已打印 ${ids.length} 条订单（模板: ${template}）`)
     fetchData()
@@ -1410,13 +1410,11 @@ async function handleFileChange(e: Event) {
   const file = input.files?.[0]
   if (!file) return
 
-  const formData = new FormData()
-  formData.append('file', file)
   importLoading.value = true
 
   try {
-    const res: any = await saleOrderApi.import?.(formData) || await importSaleOrders(formData)
-    message.success(`导入成功: ${res?.data?.count || 0} 条`)
+    const res: any = await saleOrderApi.batchImport(file)
+    message.success(`导入成功: ${res?.count ?? res?.data?.count ?? 0} 条`)
     fetchData()
   } catch (e: any) {
     message.error(e?.response?.data?.message || '导入失败，请检查文件格式')
@@ -1425,15 +1423,6 @@ async function handleFileChange(e: Event) {
     // 重置input，允许再次选择同一文件
     input.value = ''
   }
-}
-
-async function importSaleOrders(formData: FormData): Promise<any> {
-  // 若saleOrderApi没有import方法，使用通用上传
-  return await fetch('/api/erp/sale/order/import', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${userStore.token}` },
-    body: formData,
-  }).then(r => r.json())
 }
 
 async function fetchData() {
@@ -1574,7 +1563,7 @@ async function confirmPayment() {
     return
   }
   try {
-    await saleOrderApi.recordPayment(paymentRecordId.value, paymentAmount.value)
+    await saleOrderApi.payment(Number(paymentRecordId.value), paymentAmount.value)
     message.success('收款成功')
     paymentRecordVisible.value = false
     fetchData()
@@ -1585,7 +1574,7 @@ async function confirmPayment() {
 
 async function handlePrint(record: any) {
   try {
-    await request.post('/erp/sale/order/batch-print', [Number(record.id)])
+    await saleOrderApi.batchPrint([Number(record.id)])
     message.success(`订单 ${record.orderNo} 打印成功`)
     fetchData()
   } catch (e: any) {

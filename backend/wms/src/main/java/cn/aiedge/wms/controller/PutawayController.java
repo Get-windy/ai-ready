@@ -1,6 +1,7 @@
 package cn.aiedge.wms.controller;
 
 import cn.aiedge.base.vo.Result;
+import cn.aiedge.wms.controller.dto.DetailSaveRequest;
 import cn.aiedge.wms.entity.WmsPutawayDetail;
 import cn.aiedge.wms.entity.WmsPutawayTask;
 import cn.aiedge.wms.putaway.service.PutawayService;
@@ -92,5 +93,13 @@ public class PutawayController {
     public Result<List<WmsPutawayDetail>> details(
             @PathVariable @NotNull(message = "任务ID不能为空") Long taskId) {
         return Result.ok(putawayService.listByTaskId(taskId));
+    }
+
+    @Operation(summary = "保存上架明细（整体替换，先删后插）")
+    @PostMapping("/detail/save")
+    public Result<String> saveDetails(@Valid @RequestBody DetailSaveRequest<WmsPutawayDetail> request) {
+        putawayService.saveDetails(request.getTaskId(), request.getDetails());
+        log.info("保存上架明细: taskId={}, items={}", request.getTaskId(), request.getDetails().size());
+        return Result.ok("保存成功");
     }
 }

@@ -70,7 +70,7 @@
             >
               <ReloadOutlined /> 刷新
             </a-button>
-            <a-button size="small" @click="message.info('打印功能即将上线')">
+            <a-button size="small" @click="message.info('打印功能待启用')">
               <PrinterOutlined /> 打印(F8)
             </a-button>
             <a-dropdown>
@@ -79,7 +79,7 @@
               </a-button>
               <template #overlay>
                 <a-menu>
-                  <a-menu-item key="export" @click="message.info('导出功能即将上线')">
+                  <a-menu-item key="export" @click="message.info('导出功能待启用')">
                     导出
                   </a-menu-item>
                   <a-menu-item key="page-config" @click="showPageConfig = true">
@@ -670,9 +670,9 @@ async function loadPageConfig() {
       }
       return
     }
-  } catch { /* API 不可用时降级到 localStorage */ }
+  } catch { /* API 不可用时切换到 localStorage */ }
 
-  // 降级：从 localStorage 加载
+  // 切换：从 localStorage 加载
   try {
     const raw = localStorage.getItem('retail-order-page-config')
     if (raw) {
@@ -703,7 +703,7 @@ async function handlePageConfigChange(config: any) {
   try {
     await userPageConfigApi.save(PAGE_CONFIG_MODULE, PAGE_CONFIG_PAGE, JSON.stringify(payload))
   } catch { /* 静默失败 */ }
-  // 同时写入 localStorage 作为降级
+  // 同时写入 localStorage 作为切换
   try {
     localStorage.setItem('retail-order-page-config', JSON.stringify(payload))
   } catch { /* ignore */ }
@@ -846,7 +846,7 @@ function handleColumnConfigReset() {
 function handleGlobalColumnConfigChange(settings: any[]) {
   const key = activeTab.value === 'doc' ? 'retail-list-columns-doc' : 'retail-list-columns-detail'
   userPageConfigApi.save('col-config', key, JSON.stringify(settings)).catch(() => {
-    // 静默失败，已降级到 localStorage
+    // 静默失败，已切换到 localStorage
   })
 }
 

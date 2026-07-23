@@ -1,189 +1,282 @@
 <template>
-  <PageContainer
-    title="商机阶段"
-    full-height
-  >
-    <template #headerExtra>
-      <a-space :size="12">
-        <span class="data-status">
-          <a-badge :status="loading ? 'processing' : hasError ? 'error' : 'success'" />
-          <span
-            v-if="lastUpdateTime"
-            class="update-time"
-          >
-            数据更新: {{ lastUpdateTime }}
-          </span>
-        </span>
-        <a-button
-          size="small"
-          :loading="loading"
-          @click="fetchData"
-        >
-          <template #icon>
-            <ReloadOutlined />
-          </template>
-          刷新
-        </a-button>
-      </a-space>
-    </template>
-
-    <ErrorBoundary @reset="fetchData">
-      <div class="search-area">
-        <a-space wrap>
-          <a-input
-            v-model:value="searchParams.stageName"
-            placeholder="阶段名称"
-            allow-clear
-            style="width: 160px"
-            @press-enter="handleSearch"
+  <div>
+    <ARReportPage
+      ref="reportRef"
+      title="商机阶段"
+      :query-fields="queryFields"
+      :columns="columns"
+      :fetcher="fetcher"
+      page-param-style="pageNum"
+      export-file-name="商机阶段"
+      row-key="id"
+    >
+      <template #bodyCell="{ column, text, record }">
+        <template v-if="column.dataIndex === 'opportunityStage'">
+          <a-tag :color="stageColor(text)">
+            {{ stageText(record) }}
+          </a-tag>
+        </template>
+        <template v-else-if="column.dataIndex === 'probability'">
+          <a-progress
+            :percent="text || 0"
+            size="small"
+            :stroke-color="text >= 70 ? '#52c41a' : '#1890ff'"
           />
-          <a-button
-            type="primary"
-            @click="handleSearch"
-          >
-            <template #icon>
-              <SearchOutlined />
-            </template>
-            查询
-          </a-button>
-          <a-button @click="handleReset">
-            <template #icon>
-              <ClearOutlined />
-            </template>
-            重置
-          </a-button>
-        </a-space>
-      </div>
+        </template>
+        <template v-else-if="column.dataIndex === 'status'">
+          <a-tag :color="oppStatusColor(text)">
+            {{ oppStatusText(record) }}
+          </a-tag>
+        </template>
+        <template v-else-if="['estimatedAmount', 'actualAmount'].includes(column.dataIndex as string)">
+          {{ formatMoney(text) }}
+        </template>
+        <template v-else-if="column.key === 'action'">
+          <a-space :size="4">
+            <a-button
+              type="link"
+              size="small"
+              :disabled="!isActive(record) || (record.opportunityStage ?? 0) >= 5"
+              @click="handleAdvance(record)"
+            >
+              推进
+            </a-button>
+            <a-button
+              type="link"
+              size="small"
+              :disabled="!isActive(record)"
+              @click="openWinModal(record)"
+            >
+              赢单
+            </a-button>
+            <a-button
+              type="link"
+              size="small"
+              danger
+              :disabled="!isActive(record)"
+              @click="openLoseModal(record)"
+            >
+              输单
+            </a-button>
+          </a-space>
+        </template>
+      </template>
+    </ARReportPage>
 
-      <div class="table-area">
-        <BillTableList
-          :columns="columns"
-          :data-source="tableData"
-          :loading="loading"
-          :pagination="billPagination"
-          :show-add="false"
-          :show-search="false"
-          :show-export="true"
-          :selectable="false"
-          :min-empty-rows="10"
-          @refresh="fetchData"
-          @page-change="handlePageChange"
-          @export="handleExport"
-        />
-      </div>
-    </ErrorBoundary>
-  </PageContainer>
+    <!-- ═══ 赢单弹窗 ═══ -->
+    <a-modal
+      v-model:open="winModalVisible"
+      title="商机赢单"
+      :confirm-loading="actionSaving"
+      ok-text="确定赢单"
+      cancel-text="取消"
+      @ok="handleWin"
+    >
+      <a-form
+        :label-col="{ span: 6 }"
+        :wrapper-col="{ span: 16 }"
+      >
+        <a-form-item label="商机">
+          <span>{{ currentOpp?.opportunityName }}</span>
+        </a-form-item>
+        <a-form-item
+          label="成交金额"
+          required
+        >
+          <a-input-number
+            v-model:value="winAmount"
+            :min="0"
+            :precision="2"
+            style="width: 100%"
+            placeholder="请输入实际成交金额"
+          />
+        </a-form-item>
+      </a-form>
+    </a-modal>
+
+    <!-- ═══ 输单弹窗 ═══ -->
+    <a-modal
+      v-model:open="loseModalVisible"
+      title="商机输单"
+      :confirm-loading="actionSaving"
+      ok-text="确定输单"
+      ok-type="danger"
+      cancel-text="取消"
+      @ok="handleLose"
+    >
+      <a-form
+        :label-col="{ span: 6 }"
+        :wrapper-col="{ span: 16 }"
+      >
+        <a-form-item label="商机">
+          <span>{{ currentOpp?.opportunityName }}</span>
+        </a-form-item>
+        <a-form-item
+          label="输单原因"
+          required
+        >
+          <a-textarea
+            v-model:value="loseReason"
+            :rows="3"
+            placeholder="请输入输单原因"
+          />
+        </a-form-item>
+      </a-form>
+    </a-modal>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
-import type { Dayjs } from 'dayjs'
-import { ReloadOutlined, SearchOutlined, ClearOutlined } from '@ant-design/icons-vue'
-import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import PageContainer from '@/components/PageContainer/PageContainer.vue'
-import BillTableList from '@/components/BillTableList/BillTableList.vue'
-import request from '@/utils/request'
+import { ref } from 'vue'
+import { message, Modal } from 'ant-design-vue'
+import ARReportPage from '@/components/ARReportPage/ARReportPage.vue'
+import type { ReportQueryField } from '@/components/ARReportPage/types'
+import { opportunityApi, opportunityStageApi, type OpportunityRecord } from '@/api/crm'
 
-const loading = ref(false)
-const hasError = ref(false)
-const tableData = ref<any[]>([])
-const lastUpdateTime = ref('')
+// ═══ 商机阶段/状态（与后端 CustomerOpportunityServiceImpl 一致） ═══
+const STAGE_OPTIONS = [
+  { label: '初步接触', value: 1 },
+  { label: '需求确认', value: 2 },
+  { label: '方案报价', value: 3 },
+  { label: '商务谈判', value: 4 },
+  { label: '成交', value: 5 }
+]
+const STAGE_TEXT: Record<number, string> = { 1: '初步接触', 2: '需求确认', 3: '方案报价', 4: '商务谈判', 5: '成交' }
+const STAGE_COLOR: Record<number, string> = { 1: 'default', 2: 'blue', 3: 'cyan', 4: 'purple', 5: 'green' }
+const OPP_STATUS_OPTIONS = [
+  { label: '跟进中', value: 1 },
+  { label: '赢单', value: 2 },
+  { label: '输单', value: 3 }
+]
+const OPP_STATUS_TEXT: Record<number, string> = { 1: '跟进中', 2: '赢单', 3: '输单' }
+const OPP_STATUS_COLOR: Record<number, string> = { 1: 'orange', 2: 'green', 3: 'red' }
 
-const searchParams = reactive({
-  stageName: ''
-})
-const dateRange = ref<[Dayjs, Dayjs] | null>(null)
+function stageText(record: any): string {
+  return record.opportunityStageDesc || STAGE_TEXT[record.opportunityStage ?? -1] || '未知'
+}
+function stageColor(v: number | undefined): string {
+  return (v && STAGE_COLOR[v]) || 'default'
+}
+function oppStatusText(record: any): string {
+  return record.statusDesc || OPP_STATUS_TEXT[record.status ?? 1] || '跟进中'
+}
+function oppStatusColor(v: number | undefined): string {
+  return OPP_STATUS_COLOR[v ?? 1] || 'default'
+}
+function isActive(record: any): boolean {
+  return record.status !== 2 && record.status !== 3
+}
 
-const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
-const billPagination = computed(() => ({
-  current: pagination.current,
-  pageSize: pagination.pageSize,
-  total: pagination.total
-}))
-
-const columns = [
-  { field: 'stageCode', title: '阶段代码', width: 100 },
-  { field: 'stageName', title: '阶段名称', width: 140 },
-  { field: 'winRate', title: '赢率', width: 100, align: 'right' as const },
-  { field: 'sort', title: '排序', width: 80 },
-  { field: 'description', title: '描述', width: 240 },
-  { field: 'status', title: '状态', width: 100 }
+const queryFields: ReportQueryField[] = [
+  { key: 'keyword', type: 'input', label: '关键字', placeholder: '商机名称/客户', width: 200 },
+  { key: 'opportunityStage', type: 'select', label: '阶段', placeholder: '全部阶段', options: STAGE_OPTIONS },
+  { key: 'status', type: 'select', label: '状态', placeholder: '全部状态', options: OPP_STATUS_OPTIONS }
 ]
 
-async function fetchData() {
-  loading.value = true
-  hasError.value = false
-  try {
-    const params: Record<string, any> = {
-      pageNum: pagination.current,
-      pageSize: pagination.pageSize,
-      stageName: searchParams.stageName || undefined
+// ═══ 表格列 ═══
+const columns: any[] = [
+  { title: '商机编号', dataIndex: 'opportunityCode', key: 'opportunityCode', width: 150 },
+  { title: '商机名称', dataIndex: 'opportunityName', key: 'opportunityName', width: 170, ellipsis: true },
+  { title: '客户', dataIndex: 'customerName', key: 'customerName', width: 150, ellipsis: true },
+  { title: '阶段', dataIndex: 'opportunityStage', key: 'opportunityStage', width: 100 },
+  { title: '赢单概率', dataIndex: 'probability', key: 'probability', width: 120 },
+  { title: '预计金额', dataIndex: 'estimatedAmount', key: 'estimatedAmount', width: 110, align: 'right' },
+  { title: '成交金额', dataIndex: 'actualAmount', key: 'actualAmount', width: 110, align: 'right' },
+  { title: '预计成交日', dataIndex: 'expectedCloseDate', key: 'expectedCloseDate', width: 110 },
+  { title: '状态', dataIndex: 'status', key: 'status', width: 90 },
+  { title: '负责人', dataIndex: 'salesPersonName', key: 'salesPersonName', width: 100 },
+  { title: '操作', key: 'action', width: 170, fixed: 'right' }
+]
+
+function formatMoney(val: number | null | undefined): string {
+  if (val === null || val === undefined || isNaN(Number(val))) return '-'
+  return Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+// ═══ 数据请求 ═══
+const reportRef = ref<InstanceType<typeof ARReportPage>>()
+
+function fetcher(params: Record<string, any>) {
+  return opportunityApi.page(params)
+}
+
+// ═══ 阶段操作 ═══
+const actionSaving = ref(false)
+const currentOpp = ref<OpportunityRecord | null>(null)
+
+function handleAdvance(record: any) {
+  Modal.confirm({
+    title: '推进商机阶段',
+    content: `确定将商机「${record.opportunityName}」推进到下一阶段（${STAGE_TEXT[(record.opportunityStage ?? 0) + 1]}）吗？`,
+    okText: '确定',
+    cancelText: '取消',
+    onOk: async () => {
+      try {
+        await opportunityStageApi.advance(record.id)
+        message.success('商机阶段已推进')
+        reportRef.value?.reload()
+      } catch (e: any) {
+        message.error(e?.message || '推进失败')
+      }
     }
-    const res = await request.get('/crm/opportunity-stage/page', { params })
-    const result = res as any
-    const data = result.data ?? result
-    tableData.value = data?.records || []
-    pagination.total = data?.total || 0
-    lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
-  } catch (err) {
-    hasError.value = true
-    console.warn('[商机阶段] 加载数据失败', err)
-    tableData.value = []
-    pagination.total = 0
+  })
+}
+
+// ── 赢单 ──
+const winModalVisible = ref(false)
+const winAmount = ref<number>()
+
+function openWinModal(record: any) {
+  currentOpp.value = record
+  winAmount.value = record.estimatedAmount ? Number(record.estimatedAmount) : undefined
+  winModalVisible.value = true
+}
+
+async function handleWin() {
+  if (!currentOpp.value) return
+  if (winAmount.value === undefined || winAmount.value === null) {
+    message.warning('请输入成交金额')
+    return
+  }
+  actionSaving.value = true
+  try {
+    await opportunityStageApi.win(currentOpp.value.id, winAmount.value)
+    message.success('已标记为赢单')
+    winModalVisible.value = false
+    reportRef.value?.reload()
+  } catch (e: any) {
+    message.error(e?.message || '操作失败')
   } finally {
-    loading.value = false
+    actionSaving.value = false
   }
 }
 
-function handleSearch() {
-  pagination.current = 1
-  fetchData()
+// ── 输单 ──
+const loseModalVisible = ref(false)
+const loseReason = ref('')
+
+function openLoseModal(record: any) {
+  currentOpp.value = record
+  loseReason.value = ''
+  loseModalVisible.value = true
 }
 
-function handleReset() {
-  searchParams.stageName = ''
-  pagination.current = 1
-  fetchData()
+async function handleLose() {
+  if (!currentOpp.value) return
+  if (!loseReason.value.trim()) {
+    message.warning('请输入输单原因')
+    return
+  }
+  actionSaving.value = true
+  try {
+    await opportunityStageApi.lose(currentOpp.value.id, loseReason.value.trim())
+    message.success('已标记为输单')
+    loseModalVisible.value = false
+    reportRef.value?.reload()
+  } catch (e: any) {
+    message.error(e?.message || '操作失败')
+  } finally {
+    actionSaving.value = false
+  }
 }
-
-function handlePageChange(page: number, size: number) {
-  pagination.current = page
-  pagination.pageSize = size
-  fetchData()
-}
-
-function handleExport() {
-  console.log('导出商机阶段数据')
-}
-
-onMounted(() => {
-  fetchData()
-})
 </script>
-
-<style scoped>
-.search-area {
-  padding: 12px 16px;
-  background: #fff;
-  border-radius: 6px;
-  margin-bottom: 12px;
-}
-
-.table-area {
-  flex: 1;
-  min-height: 0;
-}
-
-.update-time {
-  color: #999;
-  font-size: 12px;
-}
-
-.data-status {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: #666;
-}
-</style>

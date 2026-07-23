@@ -64,6 +64,16 @@ public class PayableServiceImpl implements PayableService {
     }
 
     @Override
+    public boolean existsBySource(String sourceType, Long sourceId) {
+        if (sourceType == null || sourceId == null) {
+            return false;
+        }
+        return payableMapper.selectCount(new LambdaQueryWrapper<Payable>()
+                .eq(Payable::getSourceType, sourceType)
+                .eq(Payable::getSourceId, sourceId)) > 0;
+    }
+
+    @Override
     public IPage<PayableDTO> list(String supplierId, String status, Page<PayableDTO> page) {
         LambdaQueryWrapper<Payable> wrapper = new LambdaQueryWrapper<>();
         if (StringUtils.hasText(supplierId)) {

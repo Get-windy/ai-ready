@@ -55,12 +55,12 @@ public class PermissionAuditAspect {
     @Pointcut("execution(* cn.aiedge.base.controller.SysRoleController.*(..))")
     public void roleOperations() {}
 
-    /** 新版角色管理操作（core-api 模块） */
-    @Pointcut("execution(* cn.aiedge.role.controller.RoleController.*(..))")
+    /** 新版角色管理操作（core-api 模块，通配符避免类不存在时启动失败） */
+    @Pointcut("execution(* cn.aiedge..role.controller.RoleController.*(..))")
     public void newRoleOperations() {}
 
-    /** 旧版权限管理操作（PermissionControllerExt） */
-    @Pointcut("execution(* cn.aiedge.permission.controller.PermissionControllerExt.*(..))")
+    /** 权限管理操作（base 模块 SysPermissionController，接管原 PermissionControllerExt 的审计覆盖） */
+    @Pointcut("execution(* cn.aiedge.base.controller.SysPermissionController.*(..))")
     public void permissionOperations() {}
 
     /** 旧版权限管理操作（PermissionController - 含授权 API） */

@@ -20,6 +20,8 @@ public interface ReceiptService {
     boolean updateDetail(WmsReceiptDetail detail);
     WmsReceiptDetail getDetailById(Long id);
     List<WmsReceiptDetail> listByTaskId(Long taskId);
+    // 明细整体保存（先删后插，仅待处理状态可操作）
+    void saveDetails(Long taskId, List<WmsReceiptDetail> details);
     // 操作
     void startReceipt(Long taskId, Long userId, String userName);
     void confirmReceipt(Long taskId, Long userId, String userName);

@@ -131,8 +131,8 @@
           >
             <a-input
               v-if="field.type === 'input'"
-              v-model:value="searchValues[field.key]"
-              :placeholder="field.placeholder || field.label"
+              v-model:value="(searchValues[field.key] as any)"
+              :placeholder="typeof field.placeholder === 'string' ? field.placeholder : field.label"
               size="small"
               @press-enter="emitSearch"
             >
@@ -143,7 +143,7 @@
             <div v-else-if="field.type === 'select'" class="search-select-wrap">
               <span class="search-select-label">{{ field.label }}</span>
               <a-select
-                v-model:value="searchValues[field.key]"
+                v-model:value="(searchValues[field.key] as any)"
                 size="small"
                 allow-clear
                 :options="field.options"
@@ -151,10 +151,10 @@
             </div>
             <a-range-picker
               v-else-if="field.type === 'dateRange'"
-              v-model:value="searchValues[field.key]"
+              v-model:value="(searchValues[field.key] as any)"
               size="small"
               style="width: 100%"
-              :placeholder="field.placeholder || ['开始日期', '结束日期']"
+              :placeholder="(Array.isArray(field.placeholder) ? field.placeholder : ['开始日期', '结束日期']) as [string, string]"
             />
           </div>
         </template>
@@ -336,7 +336,7 @@ import { ref, computed } from 'vue'
 import {
   DownOutlined, SearchOutlined, ReloadOutlined, PlusOutlined,
   PrinterOutlined, BarChartOutlined, CheckOutlined,
-  DeleteOutlined, ExportOutlined, UpOutlined,
+  DeleteOutlined, ExportOutlined, UpOutlined, SettingOutlined,
 } from '@ant-design/icons-vue'
 import dayjs, { type Dayjs } from 'dayjs'
 import type {
@@ -492,7 +492,7 @@ function formattedStat(valueKey: string): string | number {
 
 const iconMap: Record<string, any> = {
   PlusOutlined, PrinterOutlined, BarChartOutlined, CheckOutlined,
-  DeleteOutlined, ExportOutlined, ReloadOutlined,
+  DeleteOutlined, ExportOutlined, ReloadOutlined, SettingOutlined,
 }
 
 function iconComponent(name?: string): any {

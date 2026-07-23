@@ -83,24 +83,32 @@ const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
 const searchFields = [
   { name: 'keyword', label: '关键字', type: 'input' as const, placeholder: '收款单号/客户' },
   { name: 'status', label: '状态', type: 'select' as const, options: [
-    { label: '待确认', value: '待确认' },
-    { label: '已确认', value: '已确认' },
-    { label: '已入账', value: '已入账' },
+    { label: '草稿', value: 0 },
+    { label: '待审批', value: 1 },
+    { label: '已审批', value: 2 },
+    { label: '已完成', value: 7 },
   ]},
 ]
 
-const statusMap: Record<string, { text: string; color: string }> = {
-  '待确认': { text: '待确认', color: 'orange' },
-  '已确认': { text: '已确认', color: 'blue' },
-  '已入账': { text: '已入账', color: 'green' },
+// 后端 ReceiptStatus: 0-草稿 1-待审批 2-已审批 3-已拒绝 4-待核销 5-核销中 6-已核销 7-已完成 8-已取消
+const statusMap: Record<number, { text: string; color: string }> = {
+  0: { text: '草稿', color: 'default' },
+  1: { text: '待审批', color: 'orange' },
+  2: { text: '已审批', color: 'blue' },
+  3: { text: '已拒绝', color: 'red' },
+  4: { text: '待核销', color: 'purple' },
+  5: { text: '核销中', color: 'cyan' },
+  6: { text: '已核销', color: 'geekblue' },
+  7: { text: '已完成', color: 'green' },
+  8: { text: '已取消', color: 'default' },
 }
 
 const columns = [
   { title: '收款单号', dataIndex: 'receiptNo', key: 'receiptNo', width: 160 },
   { title: '客户名称', dataIndex: 'customerName', key: 'customerName', width: 150 },
   { title: '收款日期', dataIndex: 'receiptDate', key: 'receiptDate', width: 110 },
-  { title: '收款金额', dataIndex: 'amount', key: 'amount', width: 120 },
-  { title: '收款方式', dataIndex: 'receiptMethod', key: 'receiptMethod', width: 100 },
+  { title: '收款金额', dataIndex: 'receiptAmount', key: 'receiptAmount', width: 120 },
+  { title: '收款方式', dataIndex: 'paymentMethod', key: 'paymentMethod', width: 100 },
   { title: '状态', dataIndex: 'status', key: 'status', width: 90 },
   { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 160 },
   { title: '操作', type: 'action', width: 80, fixed: 'right' },
@@ -129,9 +137,9 @@ function handlePageChange(page: number, pageSize: number) {
 async function fetchData() {
   loading.value = true
   try {
-    const res = await request.get('/finance/receipt-doc/page', {
+    const res = await request.get('/erp/receipt/page', {
       ...queryParams.value,
-      page: pagination.current,
+      pageNum: pagination.current,
       pageSize: pagination.pageSize,
     }) as any
     dataSource.value = res?.records || res?.data?.records || []

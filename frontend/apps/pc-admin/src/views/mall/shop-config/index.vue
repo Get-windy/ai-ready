@@ -1,79 +1,218 @@
 <template>
   <ErrorBoundary>
     <PageContainer title="店铺设置">
-      <div class="search-area">
-        <a-form layout="inline">
-          <a-form-item>
-            <a-space>
-              <a-button
-                type="primary"
-                @click="handleSearch"
+      <a-card
+        :bordered="false"
+        class="config-card"
+      >
+        <a-spin :spinning="loading">
+          <a-form
+            :label-col="{ span: 6 }"
+            :wrapper-col="{ span: 14 }"
+          >
+            <a-form-item
+              label="商城名称"
+              required
+            >
+              <a-input
+                v-model:value="form.shopName"
+                :maxlength="50"
+                placeholder="展示在买家端顶部的商城名称"
+              />
+            </a-form-item>
+            <a-form-item label="商城LOGO">
+              <a-input
+                v-model:value="form.shopLogo"
+                placeholder="LOGO图片URL"
+              />
+              <div
+                v-if="form.shopLogo"
+                class="logo-preview"
               >
-                <template #icon>
-                  <SearchOutlined />
-                </template>查询
-              </a-button>
-              <a-button @click="handleReset">
-                <template #icon>
-                  <ClearOutlined />
-                </template>重置
-              </a-button>
-            </a-space>
-          </a-form-item>
-        </a-form>
-      </div>
-      <div class="table-area">
-        <a-table
-          :columns="columns"
-          :data-source="tableData"
-          :loading="loading"
-          :pagination="pagination"
-          row-key="id"
-          size="small"
-          @change="handleTableChange"
-        />
-      </div>
+                <a-image
+                  :src="form.shopLogo"
+                  :height="48"
+                  style="border-radius: 4px"
+                />
+              </div>
+            </a-form-item>
+            <a-form-item label="商城描述">
+              <a-textarea
+                v-model:value="form.shopDesc"
+                :rows="3"
+                :maxlength="200"
+                placeholder="商城简介，展示在买家端"
+              />
+            </a-form-item>
+            <a-form-item label="主题色">
+              <div class="theme-color-row">
+                <input
+                  v-model="form.themeColor"
+                  type="color"
+                  class="color-picker"
+                >
+                <a-input
+                  v-model:value="form.themeColor"
+                  style="width: 140px"
+                  placeholder="#1890ff"
+                />
+              </div>
+            </a-form-item>
+            <a-form-item label="页面模板">
+              <a-select
+                v-model:value="form.templateId"
+                allow-clear
+                placeholder="选择买家端页面模板"
+                :options="templateOptions"
+                :loading="templateLoading"
+              />
+              <div class="form-tip">
+                模板列表来自后端「页面模板」配置
+              </div>
+            </a-form-item>
+            <a-form-item :wrapper-col="{ offset: 6, span: 14 }">
+              <a-space>
+                <a-button
+                  type="primary"
+                  :loading="saving"
+                  @click="handleSave"
+                >
+                  保存设置
+                </a-button>
+                <a-button @click="loadConfig">
+                  重置
+                </a-button>
+              </a-space>
+            </a-form-item>
+          </a-form>
+        </a-spin>
+      </a-card>
     </PageContainer>
   </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
-import { SearchOutlined, ClearOutlined } from '@ant-design/icons-vue'
+import { ref, reactive, computed, onMounted } from 'vue'
+import { message } from 'ant-design-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
-import request from '@/utils/request'
+import { shopConfigApi, shopTemplateApi, type ShopConfig, type ShopTemplate } from '@/api/erp/mall'
+
+defineOptions({ name: 'MallShopConfig' })
 
 const loading = ref(false)
-const tableData = ref<any[]>([])
-const pagination = reactive({ current: 1, pageSize: 20, total: 0, showSizeChanger: true, showTotal: (t) => `共 ${t} 条` })
+const saving = ref(false)
+const templateLoading = ref(false)
+const configId = ref<number | undefined>(undefined)
+const templates = ref<ShopTemplate[]>([])
 
-const columns: any[] = [
-  { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
-  { title: '名称', dataIndex: 'name', key: 'name' },
-  { title: '描述', dataIndex: 'description', key: 'description', ellipsis: true },
-  { title: '状态', dataIndex: 'status', key: 'status', width: 80 },
-  { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 160 }
-]
+const form = reactive({
+  shopName: '',
+  shopLogo: '',
+  shopDesc: '',
+  themeColor: '#1890ff',
+  templateId: undefined as number | undefined
+})
 
-async function loadData() {
+// 完整配置缓存：保存时合并，避免覆盖其他设置页维护的字段
+let fullConfig: ShopConfig | null = null
+
+const templateOptions = computed(() =>
+  templates.value.map(t => ({
+    label: t.isDefault === 1 ? `${t.templateName}（默认）` : t.templateName,
+    value: t.id
+  }))
+)
+
+async function loadConfig() {
   loading.value = true
   try {
-    const result = await request.get('/mall/shop-config/list', { pageNum: pagination.current, pageSize: pagination.pageSize })
-    if (result?.records) { tableData.value = result.records; pagination.total = result.total }
-    else if (Array.isArray(result)) { tableData.value = result; pagination.total = result.length }
-  } catch (e) { tableData.value = [] }
-  finally { loading.value = false }
+    const res: any = await shopConfigApi.get()
+    const cfg: ShopConfig | null = res?.data ?? res ?? null
+    fullConfig = cfg
+    configId.value = cfg?.id
+    form.shopName = cfg?.shopName || ''
+    form.shopLogo = cfg?.shopLogo || ''
+    form.shopDesc = cfg?.shopDesc || ''
+    form.themeColor = cfg?.themeColor || '#1890ff'
+    form.templateId = cfg?.templateId
+  } catch (e) {
+    console.warn('[店铺设置] 商城配置获取失败', e)
+  } finally {
+    loading.value = false
+  }
 }
 
-function handleSearch() { pagination.current = 1; loadData() }
-function handleReset() { pagination.current = 1; loadData() }
-function handleTableChange(p) { pagination.current = p.current; pagination.pageSize = p.pageSize; loadData() }
+async function loadTemplates() {
+  templateLoading.value = true
+  try {
+    const res: any = await shopTemplateApi.list()
+    templates.value = Array.isArray(res) ? res : (res?.data ?? [])
+  } catch (e) {
+    console.warn('[店铺设置] 模板列表获取失败', e)
+  } finally {
+    templateLoading.value = false
+  }
+}
 
-onMounted(loadData)
+async function handleSave() {
+  if (!form.shopName.trim()) {
+    message.warning('请输入商城名称')
+    return
+  }
+  saving.value = true
+  try {
+    const payload: ShopConfig = {
+      ...(fullConfig || {}),
+      id: configId.value,
+      shopName: form.shopName.trim(),
+      shopLogo: form.shopLogo,
+      shopDesc: form.shopDesc,
+      themeColor: form.themeColor,
+      templateId: form.templateId
+    }
+    await shopConfigApi.update(payload)
+    message.success('店铺设置已保存')
+    loadConfig()
+  } catch (e) {
+    console.warn('[店铺设置] 保存失败', e)
+  } finally {
+    saving.value = false
+  }
+}
+
+onMounted(() => {
+  loadConfig()
+  loadTemplates()
+})
 </script>
 
 <style scoped>
-.search-area { background: #fff; padding: 16px 20px; border-radius: 8px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-.table-area { background: #fff; padding: 16px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+.config-card {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+.form-tip {
+  font-size: 12px;
+  color: #909399;
+  line-height: 1.5;
+}
+.theme-color-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.color-picker {
+  width: 40px;
+  height: 32px;
+  padding: 2px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  cursor: pointer;
+  background: #fff;
+}
+.logo-preview {
+  margin-top: 8px;
+}
 </style>

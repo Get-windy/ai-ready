@@ -176,7 +176,7 @@ import BillFormPage from '@/components/BillFormPage/index.vue'
 import BillDetailTable from '@/components/BillFormPage/BillDetailTable/index.vue'
 import ProductSelectModal from '@/components/ProductSelectModal/index.vue'
 import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTable/types'
-import type { BillHeaderConfig, BasicInfoField, BillTabConfig, SummaryRow, BillFooterConfig } from '@/components/BillFormPage/types'
+import type { BillHeaderConfig, BasicInfoField, BillTabConfig, TabField, SummaryRow, BillFooterConfig } from '@/components/BillFormPage/types'
 import { useBillForm } from '@/components/BillFormPage/useBillForm'
 import { saleOrderApi } from '@/api/erp'
 import optionsApi from '@/api/options'
@@ -633,7 +633,7 @@ const allBasicInfoFields = computed<BasicInfoField[]>(() => [
   // 第三行：系统字段
   { key: 'auditorName', label: '审核人', type: 'input', inlineLabel: true, width: 160, disabled: true },
   { key: 'creatorName', label: '制单人', type: 'input', inlineLabel: true, width: 160, disabled: true },
-  { key: 'bookkeepingTime', label: '制单时间', type: 'datetime', inlineLabel: true, width: 210, disabled: true },
+  { key: 'bookkeepingTime', label: '制单时间', type: 'input', inlineLabel: true, width: 210, disabled: true },
   { key: 'printCount', label: '打印次数', type: 'number', inlineLabel: true, width: 160, disabled: true },
   { key: 'sourceOrder', label: '源单', type: 'input', inlineLabel: true, width: 160, disabled: true },
 ])
@@ -644,7 +644,7 @@ const basicInfoFields = computed<BasicInfoField[]>(() =>
 // ── 底部标签页配置 ── 过滤掉被配置隐藏的字段
 const tabsConfig = computed<BillTabConfig[]>(() => [
   // ═══ Tab 1: 收款 ═══
-  { key: 'payment', tab: '收款', fields: [
+  { key: 'payment', tab: '收款', fields: ([
     { key: 'paymentAccountId', label: '订单账户', type: 'select', placeholder: '请选择', options: accountOptions.value.map((a: any) => ({ label: a.name, value: a.id })), suffixBtn: '+Q' },
     { key: 'moreAccounts', label: '更多账户', type: 'input', disabled: true, suffixBtn: '···' },
     { key: 'useAdvancePayment', label: '使用预订货款', type: 'number', disabled: true, suffixBtn: '···', precision: 2 },
@@ -658,9 +658,9 @@ const tabsConfig = computed<BillTabConfig[]>(() => [
     { key: 'paymentDate', label: '收款日', type: 'date' },
     { key: 'reconciliationDate', label: '对账日', type: 'date' },
     { key: 'settlementMethod', label: '结款方式', type: 'select', options: [{ label: '现结', value: '现结' }, { label: '月结', value: '月结' }, { label: '预收', value: '预收' }, { label: '货到付款', value: '货到付款' }] },
-  ].filter(f => isFieldVisible(f.key)) },
+  ] satisfies TabField[]).filter(f => isFieldVisible(f.key)) },
   // ═══ Tab 2: 物流信息 ═══
-  { key: 'logistics', tab: '物流信息', fields: [
+  { key: 'logistics', tab: '物流信息', fields: ([
     { key: 'deliveryMethod', label: '配送方式', type: 'select', options: [{ label: '自提', value: '自提' }, { label: '送货上门', value: '送货上门' }, { label: '物流配送', value: '物流配送' }, { label: '快递', value: '快递' }] },
     { key: 'deliveryRoute', label: '配送线路', type: 'input', placeholder: '请输入配送线路' },
     { key: 'driverName', label: '司机', type: 'input', placeholder: '请输入司机姓名' },
@@ -674,9 +674,9 @@ const tabsConfig = computed<BillTabConfig[]>(() => [
     { key: 'contactName', label: '联系人', type: 'input', placeholder: '请输入联系人' },
     { key: 'contactPhone', label: '联系电话(提货)', type: 'input', placeholder: '请输入联系电话' },
     { key: 'pickupAddress', label: '提货地址', type: 'input', placeholder: '请输入提货地址' },
-  ].filter(f => isFieldVisible(f.key)) },
+  ] satisfies TabField[]).filter(f => isFieldVisible(f.key)) },
   // ═══ Tab 3: 会员信息 ═══
-  { key: 'member', tab: '会员信息', fields: [
+  { key: 'member', tab: '会员信息', fields: ([
     { key: 'memberCardNo', label: '会员卡号', type: 'input', placeholder: '请输入会员卡号' },
     { key: 'memberName', label: '会员姓名', type: 'input', placeholder: '请输入会员姓名' },
     { key: 'prevPoints', label: '此前积分', type: 'number', disabled: true, precision: 2 },
@@ -685,9 +685,9 @@ const tabsConfig = computed<BillTabConfig[]>(() => [
     { key: 'exchangePointsHeader', label: '兑换积分', type: 'number', disabled: true, precision: 2 },
     { key: 'usedPointsHeader', label: '使用积分', type: 'number', disabled: true, precision: 2 },
     { key: 'currentPoints', label: '当前积分', type: 'number', disabled: true, precision: 2 },
-  ].filter(f => isFieldVisible(f.key)) },
+  ] satisfies TabField[]).filter(f => isFieldVisible(f.key)) },
   // ═══ Tab 4: 扩展信息 ═══
-  { key: 'extended', tab: '扩展信息', fields: [
+  { key: 'extended', tab: '扩展信息', fields: ([
     { key: 'bankName', label: '开户行', type: 'input', placeholder: '请输入开户行' },
     { key: 'bankAccount', label: '银行账号', type: 'input', placeholder: '请输入银行账号' },
     { key: 'taxNo', label: '税号', type: 'input', placeholder: '请输入税号' },
@@ -700,7 +700,7 @@ const tabsConfig = computed<BillTabConfig[]>(() => [
     { key: 'extText3', label: '自定义字段5(文本)', type: 'input' },
     { key: 'region', label: '区域', type: 'input', placeholder: '请输入区域' },
     { key: 'attachment', label: '附件', type: 'input', placeholder: '附件路径' },
-  ].filter(f => isFieldVisible(f.key)) },
+  ] satisfies TabField[]).filter(f => isFieldVisible(f.key)) },
 ])
 
 // ── 摘要面板 ── 过滤掉被配置隐藏的字段
@@ -961,7 +961,7 @@ function handleCellChange(record: any, fieldKey: string, value: any) {
 }
 
 function handleSearchBtn(fieldKey: string, _btnText: string) {
-  message.info(`${fieldKey} 快速查询功能开发中`)
+  message.info(`${fieldKey} 快速查询功能待完善`)
 }
 
 /**
@@ -1060,7 +1060,7 @@ function handleAction(actionKey: string, _parentKey?: string) {
     case 'import':
     case 'copy-order':
     case 'export':
-      message.info(`${actionKey} 功能开发中`)
+      message.info(`${actionKey} 功能待完善`)
       break
     case 'config':
       showFormConfig.value = true

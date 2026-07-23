@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.aiedge.erp.purchase.mapper.PurchaseOrderItemMapper">
+
+    <select id="selectByOrderId" resultType="cn.aiedge.erp.purchase.entity.PurchaseOrderItem">
+        SELECT * FROM erp_purchase_order_item
+        WHERE order_id = #{orderId}
+        ORDER BY line_no ASC
+    </select>
+
+    <update id="addReceivedQuantity">
+        UPDATE erp_purchase_order_item
+        SET received_quantity = COALESCE(received_quantity, 0) + #{quantity},
+            update_time = NOW()
+        WHERE id = #{id}
+    </update>
+
+</mapper>

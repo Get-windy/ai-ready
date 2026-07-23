@@ -65,6 +65,16 @@ public class ReceivableServiceImpl implements ReceivableService {
     }
 
     @Override
+    public boolean existsBySource(String sourceType, Long sourceId) {
+        if (sourceType == null || sourceId == null) {
+            return false;
+        }
+        return receivableMapper.selectCount(new LambdaQueryWrapper<Receivable>()
+                .eq(Receivable::getSourceType, sourceType)
+                .eq(Receivable::getSourceId, sourceId)) > 0;
+    }
+
+    @Override
     public IPage<ReceivableDTO> list(String customerId, String status, Page<ReceivableDTO> page) {
         LambdaQueryWrapper<Receivable> wrapper = new LambdaQueryWrapper<>();
         if (StringUtils.hasText(customerId)) {

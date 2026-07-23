@@ -20,7 +20,7 @@
           <a-button
             type="primary"
             size="small"
-            @click="handleCreate"
+            @click="openCreate"
           >
             <template #icon>
               <PlusOutlined />
@@ -46,69 +46,44 @@
       :bordered="false"
       title="数据清理规则"
     >
-      <template #extra>
-        <a-button
-          size="small"
-          :loading="cleaning"
-          @click="handleCleanNow"
-        >
-          <template #icon>
-            <ClearOutlined />
-          </template>
-          立即清理
-        </a-button>
-      </template>
-
       <a-table
-        :data-source="list"
+        :data-source="pagedList"
         :columns="columns"
         :loading="loading"
         row-key="id"
-        :pagination="false"
+        :pagination="pagination"
         size="small"
+        @change="handleTableChange"
       >
         <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'enabled'">
+          <template v-if="column.key === 'retentionDays'">
+            {{ formatNumber(record.retentionDays) }} 天
+          </template>
+          <template v-if="column.key === 'status'">
             <a-switch
-              v-model:checked="record.enabled"
+              :checked="record.status === 'running'"
               size="small"
-              @change="toggleRule(record)"
+              @change="(checked: boolean) => toggleRule(record as CleanupRuleItem, checked)"
             />
           </template>
           <template v-if="column.key === 'action'">
             <a-space>
-              <a @click="editRule(record)">编辑</a>
+              <a-popconfirm
+                title="立即按此规则清理数据?"
+                @confirm="executeRule(record as CleanupRuleItem)"
+              >
+                <a>执行</a>
+              </a-popconfirm>
+              <a-divider type="vertical" />
+              <a @click="openEdit(record as CleanupRuleItem)">编辑</a>
               <a-divider type="vertical" />
               <a-popconfirm
                 title="确定删除此规则?"
-                @confirm="deleteRule(record)"
+                @confirm="deleteRule(record as CleanupRuleItem)"
               >
                 <a class="text-danger">删除</a>
               </a-popconfirm>
             </a-space>
-          </template>
-        </template>
-      </a-table>
-    </a-card>
-
-    <!-- 清理执行日志 -->
-    <a-card
-      :bordered="false"
-      title="清理执行日志"
-      style="margin-top:16px"
-    >
-      <a-table
-        :data-source="cleanLogs"
-        :columns="logColumns"
-        row-key="id"
-        :pagination="{ pageSize: 5 }"
-        size="small"
-      >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'status'">
-            <a-tag :color="record.status === 'success' ? 'green' : 'red'">
-              {{ record.status === 'success' ? '成功' : '失败' }}
-            </a-tag>
           </template>
         </template>
       </a-table>
@@ -179,52 +154,79 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
-import { PlusOutlined, ReloadOutlined, ClearOutlined } from '@ant-design/icons-vue'
-import request from '@/utils/request'
+import { PlusOutlined, ReloadOutlined } from '@ant-design/icons-vue'
+import { cleanupRuleApi, type CleanupRuleItem } from '@/api/admin'
 
 const loading = ref(false)
-const cleaning = ref(false)
-const list = ref<any[]>([])
-const cleanLogs = ref<any[]>([])
+const allRows = ref<CleanupRuleItem[]>([])
 
 // ── 弹窗状态 ──
 const modalVisible = ref(false)
 const modalLoading = ref(false)
-const editingRecord = ref<any>(null)
-const modalForm = reactive<Record<string, any>>({})
+const editingRecord = ref<CleanupRuleItem | null>(null)
+const modalForm = reactive<Partial<CleanupRuleItem>>({})
+
+const paginationState = reactive({ current: 1, pageSize: 20 })
+
+const pagination = computed(() => ({
+  current: paginationState.current,
+  pageSize: paginationState.pageSize,
+  total: allRows.value.length,
+  showSizeChanger: true,
+  showTotal: (t: number) => `共 ${t} 条`,
+}))
+
+const pagedList = computed(() => {
+  const start = (paginationState.current - 1) * paginationState.pageSize
+  return allRows.value.slice(start, start + paginationState.pageSize)
+})
 
 const columns = [
-  { title: '规则名称', dataIndex: 'name', key: 'name', minWidth: 160 },
-  { title: '数据表', dataIndex: 'tableName', key: 'tableName', width: 150 },
-  { title: '清理条件', dataIndex: 'condition', key: 'condition', width: 200 },
-  { title: '保留天数', dataIndex: 'retentionDays', key: 'retentionDays', width: 100 },
-  { title: '执行周期', dataIndex: 'schedule', key: 'schedule', width: 120 },
-  { title: '上次执行', dataIndex: 'lastRun', key: 'lastRun', width: 170 },
-  { title: '启用', dataIndex: 'enabled', key: 'enabled', width: 60 },
-  { title: '操作', key: 'action', width: 140 },
+  { title: '规则名称', dataIndex: 'ruleName', key: 'ruleName', minWidth: 160, ellipsis: true },
+  { title: '数据表', dataIndex: 'targetTable', key: 'targetTable', width: 160 },
+  { title: '条件列', dataIndex: 'conditionColumn', key: 'conditionColumn', width: 130 },
+  { title: '保留天数', dataIndex: 'retentionDays', key: 'retentionDays', width: 100, align: 'right' as const },
+  { title: '执行周期', dataIndex: 'cronExpression', key: 'cronExpression', width: 130 },
+  { title: '更新时间', dataIndex: 'updateTime', key: 'updateTime', width: 170 },
+  { title: '启用', dataIndex: 'status', key: 'status', width: 70 },
+  { title: '操作', key: 'action', width: 180 },
 ]
 
-const logColumns = [
-  { title: '规则名称', dataIndex: 'ruleName', key: 'ruleName', minWidth: 160 },
-  { title: '清理数据量', dataIndex: 'cleanedCount', key: 'cleanedCount', width: 120 },
-  { title: '执行耗时', dataIndex: 'duration', key: 'duration', width: 100 },
-  { title: '状态', dataIndex: 'status', key: 'status', width: 80 },
-  { title: '执行时间', dataIndex: 'executedAt', key: 'executedAt', width: 170 },
-]
+function formatNumber(val: number | null | undefined): string {
+  if (val === null || val === undefined || isNaN(Number(val))) return '-'
+  return Number(val).toLocaleString('zh-CN')
+}
 
-function handleCreate() {
+function handleTableChange(pag: any) {
+  paginationState.current = pag.current
+  paginationState.pageSize = pag.pageSize
+}
+
+function resetModalForm() {
+  Object.keys(modalForm).forEach(k => delete (modalForm as Record<string, any>)[k])
+}
+
+function openCreate() {
   editingRecord.value = null
-  Object.keys(modalForm).forEach(k => delete modalForm[k])
+  resetModalForm()
   modalForm.retentionDays = 90
-  modalForm.status = 'running'
   modalVisible.value = true
 }
 
-function editRule(record: any) {
+function openEdit(record: CleanupRuleItem) {
   editingRecord.value = record
-  Object.assign(modalForm, { ...record })
+  resetModalForm()
+  Object.assign(modalForm, {
+    ruleName: record.ruleName,
+    targetTable: record.targetTable,
+    conditionColumn: record.conditionColumn,
+    retentionDays: record.retentionDays,
+    cronExpression: record.cronExpression,
+    description: record.description,
+    status: record.status,
+  })
   modalVisible.value = true
 }
 
@@ -234,92 +236,71 @@ async function handleModalOk() {
   modalLoading.value = true
   try {
     if (editingRecord.value) {
-      await request.put('/data-source/cleanup/' + editingRecord.value.id, modalForm)
+      await cleanupRuleApi.update(editingRecord.value.id, modalForm)
       message.success('更新成功')
     } else {
-      await request.post('/data-source/cleanup/', modalForm)
+      await cleanupRuleApi.create(modalForm)
       message.success('创建成功')
     }
     modalVisible.value = false
     fetchData()
   } catch (e: any) {
-    message.error(e.message || '操作失败')
+    message.error(e?.message || '操作失败')
   } finally {
     modalLoading.value = false
   }
 }
 
-async function toggleRule(record: any) {
+async function toggleRule(record: CleanupRuleItem, checked: boolean) {
+  const nextStatus = checked ? 'running' : 'paused'
   try {
-    await request.put('/data-source/cleanup/' + record.id, {
-      status: record.enabled ? 'running' : 'paused'
-    })
-    message.success(record.enabled ? '规则已启用' : '规则已停用')
-  } catch {
-    message.error('操作失败')
+    // 后端无独立启停端点，用整体更新切换 status
+    await cleanupRuleApi.update(record.id, { ...record, status: nextStatus })
+    record.status = nextStatus
+    message.success(checked ? '规则已启用' : '规则已停用')
+  } catch (e: any) {
+    message.error(e?.message || '操作失败')
   }
 }
 
-async function deleteRule(record: any) {
+async function executeRule(record: CleanupRuleItem) {
   try {
-    await request.delete('/data-source/cleanup/' + record.id)
-    message.success('清理规则已删除')
-  } catch {
-    message.error('删除失败')
+    await cleanupRuleApi.execute(record.id)
+    message.success('清理任务已触发执行')
+  } catch (e: any) {
+    message.error(e?.message || '清理执行失败')
   }
   fetchData()
 }
 
-async function handleCleanNow() {
-  cleaning.value = true
-  const enabledRule = list.value.find((r: any) => r.enabled)
-  if (enabledRule) {
-    try {
-      await request.post('/data-source/cleanup/' + enabledRule.id + '/execute')
-      message.success('数据清理完成')
-    } catch {
-      message.error('清理执行失败')
-    }
-  } else {
-    message.warning('没有启用的清理规则')
-  }
-  cleaning.value = false
-  fetchCleanLogs()
-}
-
-async function fetchCleanLogs() {
+async function deleteRule(record: CleanupRuleItem) {
   try {
-    const res = await request.get('/data-source/cleanup/logs', { params: { page: 1, pageSize: 10 } })
-    cleanLogs.value = res?.records || []
-  } catch {
-    cleanLogs.value = []
+    await cleanupRuleApi.remove(record.id)
+    message.success('清理规则已删除')
+  } catch (e: any) {
+    message.error(e?.message || '删除失败')
   }
+  fetchData()
 }
 
 async function fetchData() {
   loading.value = true
   try {
-    const res = await request.get('/data-source/cleanup/list', {
-      params: { page: 1, pageSize: 50 }
-    })
-    const records = res?.records || []
-    list.value = records.map((r: any) => ({
-      id: r.id,
-      name: r.ruleName || '',
-      tableName: r.targetTable || '',
-      condition: r.conditionColumn || '',
-      retentionDays: r.retentionDays || 0,
-      schedule: r.cronExpression || '',
-      lastRun: r.updateTime || '',
-      enabled: r.status === 'running',
-    }))
+    // 后端为内存分页，拉全量（上限1000条）做前端分页
+    const res = await cleanupRuleApi.page({ page: 1, pageSize: 1000 })
+    allRows.value = res?.records || []
   } catch {
-    list.value = []
+    allRows.value = []
   } finally {
-    fetchCleanLogs()
     loading.value = false
   }
 }
 
 onMounted(fetchData)
 </script>
+
+<style scoped>
+.text-danger {
+  color: #ff4d4f;
+}
+</style>

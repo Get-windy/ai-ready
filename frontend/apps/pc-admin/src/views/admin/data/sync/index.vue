@@ -20,7 +20,7 @@
           <a-button
             type="primary"
             size="small"
-            @click="handleCreate"
+            @click="openCreate"
           >
             <template #icon>
               <PlusOutlined />
@@ -49,19 +49,19 @@
       <template #extra>
         <a-space>
           <a-tag color="green">
-            运行中: {{ runningCount }}
+            运行中: {{ statusCounts.running }}
+          </a-tag>
+          <a-tag color="orange">
+            已暂停: {{ statusCounts.paused }}
           </a-tag>
           <a-tag color="default">
-            已停止: {{ stoppedCount }}
-          </a-tag>
-          <a-tag color="red">
-            异常: {{ errorCount }}
+            已停止: {{ statusCounts.stopped }}
           </a-tag>
         </a-space>
       </template>
 
       <a-table
-        :data-source="list"
+        :data-source="pagedList"
         :columns="columns"
         :loading="loading"
         row-key="id"
@@ -70,14 +70,25 @@
         @change="handleTableChange"
       >
         <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'sourceId'">
+            {{ dataSourceName(record.sourceId) }}
+          </template>
+          <template v-if="column.key === 'targetId'">
+            {{ dataSourceName(record.targetId) }}
+          </template>
+          <template v-if="column.key === 'syncType'">
+            <a-tag :color="record.syncType === 'full' ? 'blue' : 'cyan'">
+              {{ record.syncType === 'full' ? '全量同步' : record.syncType === 'incremental' ? '增量同步' : record.syncType }}
+            </a-tag>
+          </template>
           <template v-if="column.key === 'status'">
             <a-badge
-              :status="record.status === 'running' ? 'processing' : record.status === 'stopped' ? 'default' : 'error'"
-              :text="{ running: '运行中', stopped: '已停止', error: '异常' }[record.status] || record.status"
+              :status="STATUS_MAP[record.status]?.badge || 'default'"
+              :text="STATUS_MAP[record.status]?.label || record.status"
             />
           </template>
-          <template v-if="column.key === 'lastRun'">
-            <span v-if="record.lastRun">{{ record.lastRun }}</span>
+          <template v-if="column.key === 'lastSyncTime'">
+            <span v-if="record.lastSyncTime">{{ record.lastSyncTime }}</span>
             <span
               v-else
               style="color:#999"
@@ -85,20 +96,15 @@
           </template>
           <template v-if="column.key === 'action'">
             <a-space>
-              <a
-                v-if="record.status === 'running'"
-                @click="toggleTask(record)"
-              >停止</a>
-              <a
-                v-else
-                @click="toggleTask(record)"
-              >启动</a>
+              <a @click="executeTask(record as SyncTaskItem)">执行</a>
               <a-divider type="vertical" />
-              <a @click="editTask(record)">编辑</a>
+              <a @click="toggleTask(record as SyncTaskItem)">{{ record.status === 'running' ? '暂停' : '启用' }}</a>
+              <a-divider type="vertical" />
+              <a @click="openEdit(record as SyncTaskItem)">编辑</a>
               <a-divider type="vertical" />
               <a-popconfirm
                 title="确定删除此任务?"
-                @confirm="deleteTask(record)"
+                @confirm="deleteTask(record as SyncTaskItem)"
               >
                 <a class="text-danger">删除</a>
               </a-popconfirm>
@@ -131,19 +137,39 @@
             placeholder="请输入任务名称"
           />
         </a-form-item>
-        <a-form-item label="源数据源ID">
-          <a-input-number
+        <a-form-item
+          label="源数据源"
+          required
+        >
+          <a-select
             v-model:value="modalForm.sourceId"
-            style="width: 100%"
-            placeholder="源数据源ID"
-          />
+            placeholder="请选择源数据源"
+          >
+            <a-select-option
+              v-for="ds in dataSources"
+              :key="ds.id"
+              :value="ds.id"
+            >
+              {{ ds.name }}（{{ ds.databaseName }}）
+            </a-select-option>
+          </a-select>
         </a-form-item>
-        <a-form-item label="目标数据源ID">
-          <a-input-number
+        <a-form-item
+          label="目标数据源"
+          required
+        >
+          <a-select
             v-model:value="modalForm.targetId"
-            style="width: 100%"
-            placeholder="目标数据源ID"
-          />
+            placeholder="请选择目标数据源"
+          >
+            <a-select-option
+              v-for="ds in dataSources"
+              :key="ds.id"
+              :value="ds.id"
+            >
+              {{ ds.name }}（{{ ds.databaseName }}）
+            </a-select-option>
+          </a-select>
         </a-form-item>
         <a-form-item label="同步方式">
           <a-select
@@ -180,98 +206,143 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons-vue'
-import request from '@/utils/request'
+import { syncTaskApi, dataSourceApi, type SyncTaskItem, type DataSourceItem } from '@/api/admin'
+
+// 任务状态（与后端 SyncTask.status 一致：running/paused/stopped）
+const STATUS_MAP: Record<string, { label: string; badge: 'default' | 'error' | 'warning' | 'success' | 'processing' }> = {
+  running: { label: '运行中', badge: 'processing' },
+  paused: { label: '已暂停', badge: 'warning' },
+  stopped: { label: '已停止', badge: 'default' }
+}
 
 const loading = ref(false)
-const list = ref<any[]>([])
-const runningCount = computed(() => list.value.filter((l: any) => l.status === 'running').length)
-const stoppedCount = computed(() => list.value.filter((l: any) => l.status === 'stopped' || l.status === 'paused').length)
-const errorCount = computed(() => list.value.filter((l: any) => l.status === 'error').length)
+const allRows = ref<SyncTaskItem[]>([])
+const dataSources = ref<DataSourceItem[]>([])
+
+const statusCounts = computed(() => ({
+  running: allRows.value.filter(r => r.status === 'running').length,
+  paused: allRows.value.filter(r => r.status === 'paused').length,
+  stopped: allRows.value.filter(r => r.status === 'stopped').length,
+}))
 
 // ── 弹窗状态 ──
 const modalVisible = ref(false)
 const modalLoading = ref(false)
-const editingRecord = ref<any>(null)
-const modalForm = reactive<Record<string, any>>({})
+const editingRecord = ref<SyncTaskItem | null>(null)
+const modalForm = reactive<Partial<SyncTaskItem>>({})
 
-const pagination = reactive({
-  current: 1,
-  pageSize: 20,
-  total: 0,
+const paginationState = reactive({ current: 1, pageSize: 20 })
+
+const pagination = computed(() => ({
+  current: paginationState.current,
+  pageSize: paginationState.pageSize,
+  total: allRows.value.length,
   showSizeChanger: true,
   showTotal: (t: number) => `共 ${t} 条`,
+}))
+
+const pagedList = computed(() => {
+  const start = (paginationState.current - 1) * paginationState.pageSize
+  return allRows.value.slice(start, start + paginationState.pageSize)
 })
 
 const columns = [
-  { title: '任务名称', dataIndex: 'name', key: 'name', minWidth: 160 },
-  { title: '源数据库', dataIndex: 'sourceDb', key: 'sourceDb', width: 130 },
-  { title: '目标数据库', dataIndex: 'targetDb', key: 'targetDb', width: 130 },
-  { title: '同步方式', dataIndex: 'syncMode', key: 'syncMode', width: 100 },
-  { title: '同步周期', dataIndex: 'cron', key: 'cron', width: 120 },
-  { title: '状态', dataIndex: 'status', key: 'status', width: 80 },
-  { title: '上次执行', dataIndex: 'lastRun', key: 'lastRun', width: 170 },
-  { title: '操作', key: 'action', width: 180 },
+  { title: '任务名称', dataIndex: 'taskName', key: 'taskName', minWidth: 160, ellipsis: true },
+  { title: '源数据源', dataIndex: 'sourceId', key: 'sourceId', width: 140 },
+  { title: '目标数据源', dataIndex: 'targetId', key: 'targetId', width: 140 },
+  { title: '同步方式', dataIndex: 'syncType', key: 'syncType', width: 100 },
+  { title: 'Cron表达式', dataIndex: 'cronExpression', key: 'cronExpression', width: 130 },
+  { title: '状态', dataIndex: 'status', key: 'status', width: 90 },
+  { title: '上次执行', dataIndex: 'lastSyncTime', key: 'lastSyncTime', width: 170 },
+  { title: '操作', key: 'action', width: 220 },
 ]
 
-function handleTableChange(pag: any) {
-  pagination.current = pag.current
-  pagination.pageSize = pag.pageSize
-  fetchData()
+function dataSourceName(id: number): string {
+  const ds = dataSources.value.find(d => d.id === id)
+  return ds ? ds.name : (id ? `数据源#${id}` : '-')
 }
 
-function handleCreate() {
+function handleTableChange(pag: any) {
+  paginationState.current = pag.current
+  paginationState.pageSize = pag.pageSize
+}
+
+function resetModalForm() {
+  Object.keys(modalForm).forEach(k => delete (modalForm as Record<string, any>)[k])
+}
+
+function openCreate() {
   editingRecord.value = null
-  Object.keys(modalForm).forEach(k => delete modalForm[k])
+  resetModalForm()
   modalForm.syncType = 'incremental'
   modalVisible.value = true
 }
 
-function editTask(record: any) {
+function openEdit(record: SyncTaskItem) {
   editingRecord.value = record
-  Object.assign(modalForm, { ...record })
+  resetModalForm()
+  Object.assign(modalForm, {
+    taskName: record.taskName,
+    sourceId: record.sourceId,
+    targetId: record.targetId,
+    syncType: record.syncType,
+    cronExpression: record.cronExpression,
+    description: record.description,
+    status: record.status,
+  })
   modalVisible.value = true
 }
 
 async function handleModalOk() {
   if (!modalForm.taskName?.trim()) { message.warning('请输入任务名称'); return }
+  if (!modalForm.sourceId) { message.warning('请选择源数据源'); return }
+  if (!modalForm.targetId) { message.warning('请选择目标数据源'); return }
   modalLoading.value = true
   try {
     if (editingRecord.value) {
-      await request.put('/data-source/sync/' + editingRecord.value.id, modalForm)
+      await syncTaskApi.update(editingRecord.value.id, modalForm)
       message.success('更新成功')
     } else {
-      await request.post('/data-source/sync/', modalForm)
+      await syncTaskApi.create(modalForm)
       message.success('创建成功')
     }
     modalVisible.value = false
     fetchData()
   } catch (e: any) {
-    message.error(e.message || '操作失败')
+    message.error(e?.message || '操作失败')
   } finally {
     modalLoading.value = false
   }
 }
 
-async function toggleTask(record: any) {
+async function executeTask(record: SyncTaskItem) {
   try {
-    if (record.status !== 'running') {
-      await request.post('/data-source/sync/' + record.id + '/execute')
-      message.success('任务已触发执行')
-    } else {
-      message.info('任务正在运行中')
-    }
-  } catch {
-    message.error('任务操作失败')
+    await syncTaskApi.execute(record.id)
+    message.success('同步任务已触发执行')
+  } catch (e: any) {
+    message.error(e?.message || '触发执行失败')
   }
   fetchData()
 }
 
-async function deleteTask(record: any) {
+async function toggleTask(record: SyncTaskItem) {
+  const nextStatus = record.status === 'running' ? 'paused' : 'running'
   try {
-    await request.delete('/data-source/sync/' + record.id)
+    // 后端无独立启停端点，用整体更新切换 status
+    await syncTaskApi.update(record.id, { ...record, status: nextStatus })
+    message.success(nextStatus === 'running' ? '任务已启用' : '任务已暂停')
+  } catch (e: any) {
+    message.error(e?.message || '操作失败')
+  }
+  fetchData()
+}
+
+async function deleteTask(record: SyncTaskItem) {
+  try {
+    await syncTaskApi.remove(record.id)
     message.success('同步任务已删除')
-  } catch {
-    message.error('删除同步任务失败')
+  } catch (e: any) {
+    message.error(e?.message || '删除同步任务失败')
   }
   fetchData()
 }
@@ -279,28 +350,29 @@ async function deleteTask(record: any) {
 async function fetchData() {
   loading.value = true
   try {
-    const res = await request.get('/data-source/sync/list', {
-      params: { page: pagination.current, pageSize: pagination.pageSize }
-    })
-    const records = res?.records || []
-    list.value = records.map((r: any) => ({
-      id: r.id,
-      name: r.taskName || '',
-      sourceDb: r.sourceName || (r.sourceId ? '数据源#' + r.sourceId : ''),
-      targetDb: r.targetName || (r.targetId ? '数据源#' + r.targetId : ''),
-      syncMode: r.syncType === 'full' ? '全量同步' : r.syncType === 'incremental' ? '增量同步' : r.syncType || '',
-      cron: r.cronExpression || '',
-      status: r.status,
-      lastRun: r.lastSyncTime || '',
-    }))
-    pagination.total = res?.total || 0
+    // 后端为内存分页且无状态统计端点，拉全量（上限1000条）用于状态计数 + 前端分页
+    const res = await syncTaskApi.page({ page: 1, pageSize: 1000 })
+    allRows.value = res?.records || []
   } catch {
-    list.value = []
-    pagination.total = 0
+    allRows.value = []
   } finally {
     loading.value = false
   }
 }
 
-onMounted(fetchData)
+onMounted(async () => {
+  fetchData()
+  try {
+    const res = await dataSourceApi.page({ page: 1, pageSize: 100 })
+    dataSources.value = res?.records || []
+  } catch (e) {
+    console.warn('[同步任务] 数据源列表获取失败', e)
+  }
+})
 </script>
+
+<style scoped>
+.text-danger {
+  color: #ff4d4f;
+}
+</style>

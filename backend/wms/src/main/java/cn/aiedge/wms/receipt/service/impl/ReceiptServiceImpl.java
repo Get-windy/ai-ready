@@ -14,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -122,6 +123,37 @@ public class ReceiptServiceImpl implements ReceiptService {
         wrapper.eq(WmsReceiptDetail::getTaskId, taskId);
         wrapper.orderByAsc(WmsReceiptDetail::getLineNo);
         return detailMapper.selectList(wrapper);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void saveDetails(Long taskId, List<WmsReceiptDetail> details) {
+        WmsReceiptTask task = taskMapper.selectById(taskId);
+        if (task == null) throw WmsBusinessException.taskNotFound(taskId, "收货");
+        if (task.getStatus() != WmsTaskStatus.PENDING) {
+            throw WmsBusinessException.invalidStatus(task.getTaskNo(), task.getStatus(), WmsTaskStatus.PENDING);
+        }
+        // 先删后插（逻辑删除旧明细）
+        LambdaQueryWrapper<WmsReceiptDetail> delWrapper = new LambdaQueryWrapper<>();
+        delWrapper.eq(WmsReceiptDetail::getTaskId, taskId);
+        detailMapper.delete(delWrapper);
+        int lineNo = 1;
+        BigDecimal totalQuantity = BigDecimal.ZERO;
+        for (WmsReceiptDetail detail : details) {
+            detail.setId(null);
+            detail.setTaskId(taskId);
+            detail.setLineNo(lineNo++);
+            if (detail.getStatus() == null) detail.setStatus(0);
+            detailMapper.insert(detail);
+            if (detail.getExpectedQuantity() != null) {
+                totalQuantity = totalQuantity.add(detail.getExpectedQuantity());
+            }
+        }
+        // 回写头表明细数/合计量
+        task.setTotalItems(details.size());
+        task.setTotalQuantity(totalQuantity);
+        taskMapper.updateById(task);
+        log.info("收货明细保存: taskId={}, items={}, totalQuantity={}", taskId, details.size(), totalQuantity);
     }
 
     @Override

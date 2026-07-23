@@ -1,325 +1,404 @@
 <template>
   <ErrorBoundary>
     <PageContainer title="支付配置">
+      <a-alert
+        type="warning"
+        show-icon
+        class="tip-alert"
+        message="支付渠道列表来自后端 /api/payment/channels 实时数据；渠道参数（商户号、密钥、回调地址）后端暂无专用配置接口，暂存至系统参数（/api/config，configGroup=payment）。"
+      />
+
+      <!-- 支付渠道 -->
       <div class="content-card">
-        <div class="toolbar">
-          <a-button
-            type="primary"
-            @click="handleAdd"
-          >
-            <template #icon>
-              <PlusOutlined />
-            </template>
-            新增配置
-          </a-button>
+        <div class="section-header">
+          <span class="section-title">支付渠道</span>
+          <div class="section-actions">
+            <span class="amount-label">按交易金额筛选（元）</span>
+            <a-input-number
+              v-model:value="queryAmount"
+              :min="0.01"
+              :precision="2"
+              style="width: 140px"
+            />
+            <a-button
+              type="primary"
+              @click="loadChannels"
+            >
+              <template #icon>
+                <ReloadOutlined />
+              </template>
+              查询可用渠道
+            </a-button>
+          </div>
         </div>
         <a-table
-          :columns="columns"
-          :data-source="tableData"
-          :loading="loading"
-          :pagination="pagination"
-          row-key="id"
+          :columns="channelColumns"
+          :data-source="channelList"
+          :loading="channelLoading"
+          :pagination="false"
+          row-key="code"
           size="small"
-          @change="handleTableChange"
         >
           <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'enabled'">
-              <a-switch
-                v-model:checked="record.enabled"
-                @change="(checked: boolean) => handleToggle(record, checked)"
-              />
+            <template v-if="column.key === 'name'">
+              <a-tag :color="channelTag(record.code).color">
+                {{ record.name || channelTag(record.code).name }}
+              </a-tag>
             </template>
-            <template v-if="column.key === 'configJson'">
-              <a-button
-                type="link"
-                size="small"
-                @click="showConfigJson(record)"
-              >
-                查看
-              </a-button>
+            <template v-else-if="column.key === 'limit'">
+              {{ formatMoney(record.minAmount) }} ~ {{ formatMoney(record.maxAmount) }}
             </template>
-            <template v-if="column.key === 'action'">
+            <template v-else-if="column.key === 'available'">
+              <a-tag :color="record.available ? 'success' : 'default'">
+                {{ record.available ? '可用' : '不可用' }}
+              </a-tag>
+            </template>
+            <template v-else-if="column.key === 'action'">
               <a-button
                 type="link"
                 size="small"
-                @click="handleEdit(record)"
+                @click="openParamDrawer(record)"
               >
-                编辑
-              </a-button>
-              <a-button
-                type="link"
-                size="small"
-                danger
-                @click="handleDelete(record)"
-              >
-                删除
+                参数配置
               </a-button>
             </template>
           </template>
         </a-table>
       </div>
+
+      <!-- 支付单据 -->
+      <div class="content-card">
+        <a-tabs v-model:activeKey="activeTab">
+          <a-tab-pane
+            key="request"
+            tab="支付请求"
+          >
+            <a-table
+              :columns="requestColumns"
+              :data-source="requestData"
+              :loading="requestLoading"
+              :pagination="requestPagination"
+              row-key="id"
+              size="small"
+              @change="handleRequestTableChange"
+            >
+              <template #bodyCell="{ column, record, text }">
+                <template v-if="column.key === 'amount'">
+                  {{ formatMoney(text) }}
+                </template>
+                <template v-else-if="column.key === 'channel'">
+                  <a-tag :color="channelTag(text).color">
+                    {{ channelTag(text).name }}
+                  </a-tag>
+                </template>
+                <template v-else-if="column.key === 'status'">
+                  <a-tag :color="statusTag(text).color">
+                    {{ statusTag(text).text }}
+                  </a-tag>
+                </template>
+                <template v-else-if="column.key === 'createTime'">
+                  {{ formatTime(text) }}
+                </template>
+              </template>
+            </a-table>
+          </a-tab-pane>
+          <a-tab-pane
+            key="record"
+            tab="支付记录"
+          >
+            <a-table
+              :columns="recordColumns"
+              :data-source="recordData"
+              :loading="recordLoading"
+              :pagination="recordPagination"
+              row-key="id"
+              size="small"
+              @change="handleRecordTableChange"
+            >
+              <template #bodyCell="{ column, record, text }">
+                <template v-if="column.key === 'amount'">
+                  {{ formatMoney(text) }}
+                </template>
+                <template v-else-if="column.key === 'channel'">
+                  <a-tag :color="channelTag(text).color">
+                    {{ channelTag(text).name }}
+                  </a-tag>
+                </template>
+                <template v-else-if="column.key === 'status'">
+                  <a-tag :color="statusTag(text).color">
+                    {{ statusTag(text).text }}
+                  </a-tag>
+                </template>
+                <template v-else-if="column.key === 'createTime'">
+                  {{ formatTime(text) }}
+                </template>
+              </template>
+            </a-table>
+          </a-tab-pane>
+        </a-tabs>
+      </div>
     </PageContainer>
 
-    <a-modal
-      v-model:open="editVisible"
-      :title="editingId ? '编辑支付配置' : '新增支付配置'"
-      width="600px"
-      :confirm-loading="saving"
-      @ok="handleSave"
+    <!-- 渠道参数配置抽屉 -->
+    <a-drawer
+      v-model:open="paramVisible"
+      :title="`渠道参数配置 - ${currentChannel?.name || currentChannel?.code || ''}`"
+      width="480px"
     >
-      <a-form
-        :model="editForm"
-        layout="vertical"
-      >
-        <a-row :gutter="16">
-          <a-col :span="12">
-            <a-form-item
-              label="支付方式"
-              required
-            >
-              <a-select
-                v-model:value="editForm.paymentMethod"
-                placeholder="请选择支付方式"
-              >
-                <a-select-option value="alipay">
-                  支付宝
-                </a-select-option>
-                <a-select-option value="wechat">
-                  微信支付
-                </a-select-option>
-                <a-select-option value="unionpay">
-                  银联支付
-                </a-select-option>
-                <a-select-option value="bank_transfer">
-                  银行转账
-                </a-select-option>
-                <a-select-option value="cash">
-                  现金
-                </a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="支付渠道">
-              <a-input
-                v-model:value="editForm.channelName"
-                placeholder="渠道名称"
-              />
-            </a-form-item>
-          </a-col>
-        </a-row>
-        <a-form-item
-          label="APP ID / 商户号"
-          required
+      <a-spin :spinning="paramLoading">
+        <a-form
+          :model="paramForm"
+          layout="vertical"
         >
-          <a-input
-            v-model:value="editForm.appId"
-            placeholder="请输入APP ID或商户号"
-          />
-        </a-form-item>
-        <a-form-item label="API密钥">
-          <a-input-password
-            v-model:value="editForm.apiSecret"
-            placeholder="请输入API密钥"
-          />
-        </a-form-item>
-        <a-row :gutter="16">
-          <a-col :span="12">
-            <a-form-item label="公钥/证书">
-              <a-input
-                v-model:value="editForm.publicKey"
-                placeholder="公钥或证书路径"
-              />
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="私钥">
-              <a-input
-                v-model:value="editForm.privateKey"
-                placeholder="私钥或证书路径"
-              />
-            </a-form-item>
-          </a-col>
-        </a-row>
-        <a-form-item label="异步通知URL">
-          <a-input
-            v-model:value="editForm.notifyUrl"
-            placeholder="http://..."
-          />
-        </a-form-item>
-        <a-row :gutter="16">
-          <a-col :span="12">
-            <a-form-item label="排序">
-              <a-input-number
-                v-model:value="editForm.sort"
-                style="width: 100%"
-                :min="0"
-              />
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="是否启用">
-              <a-switch v-model:checked="editForm.enabled" />
-            </a-form-item>
-          </a-col>
-        </a-row>
-        <a-form-item label="备注">
-          <a-textarea
-            v-model:value="editForm.remark"
-            :rows="2"
-            placeholder="备注信息"
-          />
-        </a-form-item>
-      </a-form>
-    </a-modal>
-
-    <a-modal
-      v-model:open="jsonVisible"
-      title="配置详情"
-      width="600px"
-      :footer="null"
-    >
-      <pre style="max-height: 400px; overflow: auto; background: #f5f5f5; padding: 12px; border-radius: 4px;">{{ currentJson }}</pre>
-    </a-modal>
+          <a-form-item label="APP ID">
+            <a-input
+              v-model:value="paramForm.appId"
+              placeholder="渠道分配的 APP ID"
+            />
+          </a-form-item>
+          <a-form-item label="商户号">
+            <a-input
+              v-model:value="paramForm.merchantNo"
+              placeholder="商户号 / MCH ID"
+            />
+          </a-form-item>
+          <a-form-item label="API 密钥">
+            <a-input-password
+              v-model:value="paramForm.appSecret"
+              placeholder="API 密钥 / API Secret"
+            />
+          </a-form-item>
+          <a-form-item label="异步通知 URL">
+            <a-input
+              v-model:value="paramForm.notifyUrl"
+              placeholder="https://..."
+            />
+          </a-form-item>
+          <a-form-item label="是否启用">
+            <a-switch v-model:checked="paramForm.enabled" />
+          </a-form-item>
+          <a-button
+            type="primary"
+            block
+            :loading="paramSaving"
+            @click="saveParam"
+          >
+            保存参数
+          </a-button>
+        </a-form>
+      </a-spin>
+    </a-drawer>
   </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
-import { message, Modal } from 'ant-design-vue'
-import { PlusOutlined } from '@ant-design/icons-vue'
+import { message } from 'ant-design-vue'
+import { ReloadOutlined } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
-import request from '@/utils/request'
+import {
+  paymentApi,
+  paymentChannelConfigApi,
+  PAYMENT_CHANNEL_MAP,
+  PAYMENT_STATUS_MAP,
+  type ChannelInfo,
+  type PaymentRequest,
+  type PaymentRecord,
+  type PaymentChannelParam
+} from '@/api/payment'
 
-const loading = ref(false)
-const saving = ref(false)
-const tableData = ref<any[]>([])
-const pagination = reactive({ current: 1, pageSize: 20, total: 0, showSizeChanger: true })
-const editVisible = ref(false)
-const editingId = ref<number | null>(null)
-const jsonVisible = ref(false)
-const currentJson = ref('')
+// ═══ 支付渠道 ═══
+const channelLoading = ref(false)
+const channelList = ref<ChannelInfo[]>([])
+const queryAmount = ref<number>(1)
 
-const editForm = reactive<any>({
-  paymentMethod: undefined,
-  channelName: '',
-  appId: '',
-  apiSecret: '',
-  publicKey: '',
-  privateKey: '',
-  notifyUrl: '',
-  sort: 0,
-  enabled: true,
-  remark: ''
-})
-
-const columns: any[] = [
-  { title: '支付方式', dataIndex: 'paymentMethod', key: 'paymentMethod', width: 100 },
-  { title: '渠道名称', dataIndex: 'channelName', key: 'channelName', width: 120 },
-  { title: 'APP ID', dataIndex: 'appId', key: 'appId', width: 180, ellipsis: true },
-  { title: '排序', dataIndex: 'sort', key: 'sort', width: 60 },
-  { title: '是否启用', dataIndex: 'enabled', key: 'enabled', width: 80 },
-  { title: '更新时间', dataIndex: 'updateTime', key: 'updateTime', width: 160 },
-  { title: '操作', key: 'action', width: 120, fixed: 'right' }
+const channelColumns: any[] = [
+  { title: '渠道编码', dataIndex: 'code', key: 'code', width: 120 },
+  { title: '渠道名称', dataIndex: 'name', key: 'name', width: 140 },
+  { title: '单笔限额（元）', key: 'limit', width: 200 },
+  { title: '状态', dataIndex: 'available', key: 'available', width: 100 },
+  { title: '操作', key: 'action', width: 110, fixed: 'right' }
 ]
 
-async function loadData() {
-  loading.value = true
+function channelTag(code: string): { name: string; color: string } {
+  return PAYMENT_CHANNEL_MAP[String(code).toUpperCase()] || { name: code || '-', color: 'default' }
+}
+
+async function loadChannels() {
+  channelLoading.value = true
   try {
-    const result = await request.get('/payment/config/page', {
-      pageNum: pagination.current,
-      pageSize: pagination.pageSize
-    })
-    if (result && result.records) {
-      tableData.value = result.records
-      pagination.total = result.total
-    } else if (Array.isArray(result)) {
-      tableData.value = result
-      pagination.total = result.length
+    const res: any = await paymentApi.getChannels(queryAmount.value || 1)
+    channelList.value = Array.isArray(res) ? res : res?.data || []
+  } catch (e) {
+    console.warn('[支付配置] 渠道列表获取失败', e)
+  } finally {
+    channelLoading.value = false
+  }
+}
+
+// ═══ 渠道参数配置 ═══
+const paramVisible = ref(false)
+const paramLoading = ref(false)
+const paramSaving = ref(false)
+const currentChannel = ref<ChannelInfo | null>(null)
+
+const paramForm = reactive<Required<PaymentChannelParam>>({
+  appId: '',
+  merchantNo: '',
+  appSecret: '',
+  notifyUrl: '',
+  enabled: true
+})
+
+async function openParamDrawer(record: any) {
+  const channel = record as ChannelInfo
+  currentChannel.value = channel
+  paramForm.appId = ''
+  paramForm.merchantNo = ''
+  paramForm.appSecret = ''
+  paramForm.notifyUrl = ''
+  paramForm.enabled = true
+  paramVisible.value = true
+  paramLoading.value = true
+  try {
+    const saved = await paymentChannelConfigApi.load(record.code)
+    if (saved) {
+      paramForm.appId = saved.appId || ''
+      paramForm.merchantNo = saved.merchantNo || ''
+      paramForm.appSecret = saved.appSecret || ''
+      paramForm.notifyUrl = saved.notifyUrl || ''
+      paramForm.enabled = saved.enabled !== false
     }
   } catch (e) {
-    // 静默失败
+    console.warn('[支付配置] 渠道参数读取失败', e)
   } finally {
-    loading.value = false
+    paramLoading.value = false
   }
 }
 
-function handleTableChange(p: any) { pagination.current = p.current; pagination.pageSize = p.pageSize; loadData() }
-
-function handleAdd() {
-  editingId.value = null
-  editForm.paymentMethod = undefined
-  editForm.channelName = ''
-  editForm.appId = ''
-  editForm.apiSecret = ''
-  editForm.publicKey = ''
-  editForm.privateKey = ''
-  editForm.notifyUrl = ''
-  editForm.sort = 0
-  editForm.enabled = true
-  editForm.remark = ''
-  editVisible.value = true
-}
-
-function handleEdit(record: any) {
-  editingId.value = record.id
-  Object.assign(editForm, record)
-  editVisible.value = true
-}
-
-function showConfigJson(record: any) {
-  currentJson.value = JSON.stringify(record, null, 2)
-  jsonVisible.value = true
-}
-
-async function handleSave() {
-  if (!editForm.paymentMethod) {
-    message.warning('请选择支付方式')
-    return
-  }
-  saving.value = true
+async function saveParam() {
+  if (!currentChannel.value) return
+  paramSaving.value = true
   try {
-    if (editingId.value) {
-      await request.put(`/payment/config/${editingId.value}`, editForm)
+    const ok = await paymentChannelConfigApi.save(currentChannel.value.code, { ...paramForm })
+    if (ok) {
+      message.success('保存成功')
+      paramVisible.value = false
     } else {
-      await request.post('/payment/config', editForm)
+      message.error('保存失败，请检查系统参数权限')
     }
-    message.success('保存成功')
-    editVisible.value = false
-    loadData()
-  } catch (e) {
-    message.error('保存失败')
   } finally {
-    saving.value = false
+    paramSaving.value = false
   }
 }
 
-async function handleToggle(record: any, checked: boolean) {
+// ═══ 支付请求 / 支付记录 ═══
+const activeTab = ref('request')
+const requestLoading = ref(false)
+const recordLoading = ref(false)
+const requestData = ref<PaymentRequest[]>([])
+const recordData = ref<PaymentRecord[]>([])
+const requestPagination = reactive({ current: 1, pageSize: 10, total: 0, showSizeChanger: true, showTotal: (t: number) => `共 ${t} 条` })
+const recordPagination = reactive({ current: 1, pageSize: 10, total: 0, showSizeChanger: true, showTotal: (t: number) => `共 ${t} 条` })
+
+const requestColumns: any[] = [
+  { title: '业务单号', dataIndex: 'bizNo', key: 'bizNo', width: 170, ellipsis: true },
+  { title: '业务类型', dataIndex: 'bizType', key: 'bizType', width: 110 },
+  { title: '金额（元）', dataIndex: 'amount', key: 'amount', width: 120, align: 'right' },
+  { title: '支付渠道', dataIndex: 'channel', key: 'channel', width: 110 },
+  { title: '状态', dataIndex: 'status', key: 'status', width: 100 },
+  { title: '渠道交易号', dataIndex: 'channelTradeNo', key: 'channelTradeNo', width: 170, ellipsis: true },
+  { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 170 }
+]
+
+const recordColumns: any[] = [
+  { title: '记录ID', dataIndex: 'id', key: 'id', width: 90 },
+  { title: '渠道订单号', dataIndex: 'channelOrderNo', key: 'channelOrderNo', width: 180, ellipsis: true },
+  { title: '渠道交易号', dataIndex: 'channelTradeNo', key: 'channelTradeNo', width: 180, ellipsis: true },
+  { title: '支付渠道', dataIndex: 'channel', key: 'channel', width: 110 },
+  { title: '金额（元）', dataIndex: 'amount', key: 'amount', width: 120, align: 'right' },
+  { title: '状态', dataIndex: 'status', key: 'status', width: 100 },
+  { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 170 }
+]
+
+function statusTag(status: number): { text: string; color: string } {
+  return PAYMENT_STATUS_MAP[status] || { text: String(status ?? '-'), color: 'default' }
+}
+
+function formatMoney(val: number | null | undefined): string {
+  if (val === null || val === undefined || isNaN(Number(val))) return '-'
+  return Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+function formatTime(val: string | null | undefined): string {
+  if (!val) return '-'
+  return String(val).replace('T', ' ').slice(0, 19)
+}
+
+function unwrapPage(res: any): { records: any[]; total: number } {
+  const page = res?.data ?? res
+  return { records: page?.records || [], total: Number(page?.total) || 0 }
+}
+
+async function loadRequests() {
+  requestLoading.value = true
   try {
-    await request.put(`/payment/config/${record.id}`, { ...record, enabled: checked })
+    const res: any = await paymentApi.pageRequest({
+      pageNum: requestPagination.current,
+      pageSize: requestPagination.pageSize
+    })
+    const page = unwrapPage(res)
+    requestData.value = page.records
+    requestPagination.total = page.total
   } catch (e) {
-    message.error('操作失败')
+    console.warn('[支付配置] 支付请求获取失败', e)
+  } finally {
+    requestLoading.value = false
   }
 }
 
-function handleDelete(record: any) {
-  Modal.confirm({
-    title: '确认删除',
-    content: `确定要删除支付配置 "${record.paymentMethod}" 吗？`,
-    okType: 'danger',
-    onOk: async () => {
-      await request.delete(`/payment/config/${record.id}`)
-      message.success('删除成功')
-      loadData()
-    }
-  })
+async function loadRecords() {
+  recordLoading.value = true
+  try {
+    const res: any = await paymentApi.pageRecord({
+      pageNum: recordPagination.current,
+      pageSize: recordPagination.pageSize
+    })
+    const page = unwrapPage(res)
+    recordData.value = page.records
+    recordPagination.total = page.total
+  } catch (e) {
+    console.warn('[支付配置] 支付记录获取失败', e)
+  } finally {
+    recordLoading.value = false
+  }
 }
 
-onMounted(loadData)
+function handleRequestTableChange(p: any) {
+  requestPagination.current = p.current
+  requestPagination.pageSize = p.pageSize
+  loadRequests()
+}
+
+function handleRecordTableChange(p: any) {
+  recordPagination.current = p.current
+  recordPagination.pageSize = p.pageSize
+  loadRecords()
+}
+
+onMounted(() => {
+  loadChannels()
+  loadRequests()
+  loadRecords()
+})
 </script>
 
 <style scoped>
-.content-card { background: #fff; padding: 16px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-.toolbar { margin-bottom: 16px; display: flex; gap: 8px; }
+.tip-alert { margin-bottom: 12px; }
+.content-card { background: #fff; padding: 16px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.08); margin-bottom: 16px; }
+.section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
+.section-title { font-size: 15px; font-weight: 600; }
+.section-actions { display: flex; align-items: center; gap: 8px; }
+.amount-label { color: #666; font-size: 13px; }
 </style>

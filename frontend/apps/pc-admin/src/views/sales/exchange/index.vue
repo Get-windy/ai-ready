@@ -432,8 +432,8 @@ async function fetchData() {
 
     const res = await saleExchangeApi.page(params)
     if (res) {
-      tableData.value = res.records || res.data?.records || []
-      pagination.total = res.total || res.data?.total || 0
+      tableData.value = res.records || []
+      pagination.total = res.total || 0
     }
   } catch (error: any) {
     hasError.value = true

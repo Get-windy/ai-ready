@@ -3,11 +3,11 @@ package cn.aiedge.erp.sale.service.impl;
 import cn.aiedge.erp.sale.dto.UnifiedSalesDocQueryDTO;
 import cn.aiedge.erp.sale.dto.UnifiedSalesDocumentDTO;
 import cn.aiedge.erp.sale.entity.SaleOrder;
-import cn.aiedge.erp.sale.entity.SaleOutbound;
+import cn.aiedge.erp.sale.outbound.entity.SaleOutbound;
 import cn.aiedge.erp.sale.returnDoc.entity.SaleReturnDoc;
 import cn.aiedge.erp.sale.saleexchange.entity.SaleExchange;
 import cn.aiedge.erp.sale.service.ISaleOrderService;
-import cn.aiedge.erp.sale.service.ISaleOutboundService;
+import cn.aiedge.erp.sale.outbound.service.SaleOutboundService;
 import cn.aiedge.erp.sale.service.ISaleReturnDocService;
 import cn.aiedge.erp.sale.service.ISaleExchangeService;
 import cn.aiedge.erp.sale.service.UnifiedSalesDocQueryService;
@@ -34,7 +34,7 @@ public class UnifiedSalesDocQueryServiceImpl implements UnifiedSalesDocQueryServ
     private ISaleOrderService saleOrderService;
 
     @Autowired
-    private ISaleOutboundService saleOutboundService;
+    private SaleOutboundService saleOutboundService;
 
     @Autowired
     private ISaleReturnDocService saleReturnDocService;
@@ -416,25 +416,7 @@ public class UnifiedSalesDocQueryServiceImpl implements UnifiedSalesDocQueryServ
             wrapper.like("document_no", queryDTO.getDocumentNo());
         }
 
-        // 日期范围查询 - 根据dateType选择不同的日期字段
-        // 注：各单据类型需要在自己的build方法中追加特定日期字段过滤
-        // SaleOrder使用order_date，其他使用document_date
-        String dateType = queryDTO.getDateType();
-        if (dateType != null && !dateType.isEmpty()) {
-            String dateColumn = resolveDateColumn(dateType);
-            if (queryDTO.getStartDate() != null && !queryDTO.getStartDate().isEmpty()) {
-                java.sql.Timestamp startTs = toTimestamp(queryDTO.getStartDate());
-                if (startTs != null) {
-                    wrapper.ge(dateColumn, startTs);
-                }
-            }
-            if (queryDTO.getEndDate() != null && !queryDTO.getEndDate().isEmpty()) {
-                java.sql.Timestamp endTs = toTimestamp(queryDTO.getEndDate());
-                if (endTs != null) {
-                    wrapper.le(dateColumn, endTs);
-                }
-            }
-        }
+        // 日期范围由各单据类型的build方法自行处理（SaleOrder→order_date，其他→document_date）
 
         // 收货人查询
         if (queryDTO.getReceiverName() != null && !queryDTO.getReceiverName().isEmpty()) {

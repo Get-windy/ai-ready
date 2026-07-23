@@ -275,8 +275,8 @@ public interface InvoiceService {
     /**
      * 获取发票统计信息
      * 
-     * @param startDate 开始日期
-     * @param endDate 结束日期
+     * @param startDate 开始日期（可空，空=全量）
+     * @param endDate 结束日期（可空，空=全量）
      * @return 统计信息
      */
     InvoiceStatistics getInvoiceStatistics(LocalDate startDate, LocalDate endDate);

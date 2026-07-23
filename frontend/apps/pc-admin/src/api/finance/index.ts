@@ -1,120 +1,6 @@
 import request, { type ApiResponse, type PageResponse } from '@/utils/request'
 
 /**
- * 应收账款
- */
-export interface AccountsReceivable {
-  id: number
-  customerName: string
-  orderNo: string
-  amount: number
-  paidAmount: number
-  unpaidAmount: number
-  status: number
-  dueDate: string
-  remark: string
-}
-
-/**
- * 应付账款
- */
-export interface AccountsPayable {
-  id: number
-  supplierName: string
-  orderNo: string
-  amount: number
-  paidAmount: number
-  unpaidAmount: number
-  status: number
-  dueDate: string
-  remark: string
-}
-
-/**
- * 收款记录
- */
-export interface PaymentRecord {
-  id: number
-  customerName: string
-  orderNo: string
-  amount: number
-  paymentMethod: string
-  paymentDate: string
-  operator: string
-  remark: string
-}
-
-/**
- * 付款记录
- */
-export interface PaymentRecordPayable {
-  id: number
-  supplierName: string
-  orderNo: string
-  amount: number
-  paymentMethod: string
-  paymentDate: string
-  operator: string
-  remark: string
-}
-
-/**
- * 查询参数
- */
-export interface FinanceQuery {
-  tenantId?: number
-  customerName?: string
-  supplierName?: string
-  orderNo?: string
-  status?: number
-  startDate?: string
-  endDate?: string
-  pageNum?: number
-  pageSize?: number
-}
-
-/**
- * 应收账款API
- * @deprecated 路径不匹配后端, 请使用 receivableApi
- */
-export const accountsReceivableApi = {
-  /**
-   * 分页查询应收账款
-   */
-  getPage(params: FinanceQuery): Promise<ApiResponse<PageResponse<AccountsReceivable>>> {
-    return request.get('/erp/finance/accounts-receivable/page', params)
-  },
-
-  /**
-   * 创建应收账款
-   */
-  create(data: Partial<AccountsReceivable>): Promise<ApiResponse<boolean>> {
-    return request.post('/erp/finance/accounts-receivable', data)
-  },
-
-  /**
-   * 更新应收账款
-   */
-  update(id: number, data: Partial<AccountsReceivable>): Promise<ApiResponse<boolean>> {
-    return request.put(`/erp/finance/accounts-receivable/${id}`, data)
-  },
-
-  /**
-   * 删除应收账款
-   */
-  delete(id: number): Promise<ApiResponse<boolean>> {
-    return request.delete(`/erp/finance/accounts-receivable/${id}`)
-  },
-
-  /**
-   * 收款
-   */
-  payment(id: number, amount: number, method: string): Promise<ApiResponse<boolean>> {
-    return request.post(`/erp/finance/accounts-receivable/${id}/payment`, null, { params: { amount, method } })
-  }
-}
-
-/**
  * 应收账款（旧版，与receivable页面兼容，使用/erp/finance/receivable/接口）
  */
 export const receivableApi = {
@@ -124,54 +10,6 @@ export const receivableApi = {
   create: (data: any) => request.post('/erp/finance/receivable', data),
   writeOff: (id: number, amount: number) => request.put(`/erp/finance/receivable/${id}/write-off`, { amount }),
   markBadDebt: (id: number) => request.put(`/erp/finance/receivable/${id}/bad-debt`)
-}
-
-/**
- * 应付账款API
- * @deprecated 路径不匹配后端, 请使用 payableApi
- */
-export const accountsPayableApi = {
-  /**
-   * 分页查询应付账款
-   */
-  getPage(params: FinanceQuery): Promise<ApiResponse<PageResponse<AccountsPayable>>> {
-    return request.get('/erp/finance/accounts-payable/page', params)
-  },
-
-  /**
-   * 创建应付账款
-   */
-  create(data: Partial<AccountsPayable>): Promise<ApiResponse<boolean>> {
-    return request.post('/erp/finance/accounts-payable', data)
-  },
-
-  /**
-   * 更新应付账款
-   */
-  update(id: number, data: Partial<AccountsPayable>): Promise<ApiResponse<boolean>> {
-    return request.put(`/erp/finance/accounts-payable/${id}`, data)
-  },
-
-  /**
-   * 删除应付账款
-   */
-  delete(id: number): Promise<ApiResponse<boolean>> {
-    return request.delete(`/erp/finance/accounts-payable/${id}`)
-  },
-
-  /**
-   * 付款
-   */
-  payment(id: number, amount: number, method: string): Promise<ApiResponse<boolean>> {
-    return request.post(`/erp/finance/accounts-payable/${id}/payment`, null, { params: { amount, method } })
-  },
-
-  /**
-   * 付款审批
-   */
-  approve(id: number, approved: boolean, comment?: string): Promise<ApiResponse<boolean>> {
-    return request.post(`/erp/finance/accounts-payable/${id}/approve`, null, { params: { approved, comment } })
-  }
 }
 
 /**
@@ -224,118 +62,91 @@ export const reportApi = {
 
 /**
  * 财务对账API
- * 后端控制器: core-api @RequestMapping("/api/finance/reconciliation")
+ * 后端控制器: erp-finance ReconciliationController @RequestMapping("/api/erp/finance/reconciliation")
  */
 export const reconciliationApi = {
   /**
    * 获取对账统计数据
    */
   getStats(): Promise<ApiResponse<any>> {
-    return request.get('/finance/reconciliation/stats')
+    return request.get('/erp/finance/reconciliation/stats')
   },
 
   /**
    * 创建对账记录
    */
   create(params: any): Promise<ApiResponse<number>> {
-    return request.post('/finance/reconciliation/create', params)
+    return request.post('/erp/finance/reconciliation/create', params)
   },
 
   /**
    * 更新对账记录
    */
   update(params: any): Promise<ApiResponse<void>> {
-    return request.put('/finance/reconciliation/update', params)
+    return request.put('/erp/finance/reconciliation/update', params)
   },
 
   /**
    * 根据ID获取对账记录详情
    */
   getById(id: number): Promise<ApiResponse<any>> {
-    return request.get(`/finance/reconciliation/${id}`)
+    return request.get(`/erp/finance/reconciliation/${id}`)
   },
 
   /**
    * 删除对账记录
    */
   delete(id: number): Promise<ApiResponse<void>> {
-    return request.delete(`/finance/reconciliation/${id}`)
+    return request.delete(`/erp/finance/reconciliation/${id}`)
   },
 
   /**
    * 分页查询对账记录
    */
   page(params: any): Promise<ApiResponse<any>> {
-    return request.post('/finance/reconciliation/list', params)
+    return request.post('/erp/finance/reconciliation/list', params)
   },
 
   /**
    * 执行对账
    */
   reconcile(id: number): Promise<ApiResponse<void>> {
-    return request.post(`/finance/reconciliation/reconcile/${id}`)
+    return request.post(`/erp/finance/reconciliation/reconcile/${id}`)
   },
 
   /**
    * 处理差异
    */
   handleDifference(id: number, reason: string): Promise<ApiResponse<void>> {
-    return request.post(`/finance/reconciliation/handle-difference/${id}`, null, { params: { differenceReason: reason } })
+    return request.post(`/erp/finance/reconciliation/handle-difference/${id}`, null, { params: { differenceReason: reason } })
   },
 
   /**
    * 批量删除对账记录
    */
   deleteBatch(ids: number[]): Promise<ApiResponse<void>> {
-    return request.delete('/finance/reconciliation/batch', { data: ids })
+    return request.delete('/erp/finance/reconciliation/batch', { data: ids })
   },
 
   /**
    * 导出对账记录列表
    */
   exportList(params: any): Promise<ApiResponse<any[]>> {
-    return request.get('/finance/reconciliation/export', { params })
+    return request.get('/erp/finance/reconciliation/export', { params })
   },
 
   // ── 以下为旧版API，兼容现有组件 ──
   /** @deprecated 使用 create() 或 page() */
   bankReconciliation(params: any): Promise<ApiResponse<any>> {
-    return request.post('/finance/reconciliation/create', params)
+    return request.post('/erp/finance/reconciliation/create', params)
   },
   /** @deprecated 使用 page() */
   customerReconciliation(params: any): Promise<ApiResponse<any>> {
-    return request.post('/finance/reconciliation/list', params)
+    return request.post('/erp/finance/reconciliation/list', params)
   },
   /** @deprecated 使用 page() */
   supplierReconciliation(params: any): Promise<ApiResponse<any>> {
-    return request.post('/finance/reconciliation/list', params)
-  }
-}
-
-/**
- * 财务报表API (v1)
- * @deprecated 路径不匹配后端, 请使用 reportApi v2
- */
-export const financialReportsApi = {
-  /**
-   * 资产负债表
-   */
-  getBalanceSheet(month: string): Promise<ApiResponse<any>> {
-    return request.get('/erp/finance/reports/balance-sheet', { month })
-  },
-
-  /**
-   * 利润表
-   */
-  getProfitStatement(month: string): Promise<ApiResponse<any>> {
-    return request.get('/erp/finance/reports/profit-statement', { month })
-  },
-
-  /**
-   * 现金流量表
-   */
-  getCashFlowStatement(month: string): Promise<ApiResponse<any>> {
-    return request.get('/erp/finance/reports/cash-flow', { month })
+    return request.post('/erp/finance/reconciliation/list', params)
   }
 }
 
@@ -580,6 +391,12 @@ export const receiptApi = {
   writeOff(id: number, amount: number): Promise<ApiResponse<any>> {
     return request.post(`/erp/receipt/${id}/write-off`, { amount })
   },
+  /**
+   * 完成核销（收款确认）
+   */
+  completeVerify(id: number): Promise<ApiResponse<any>> {
+    return request.post(`/erp/receipt/${id}/complete-verify`)
+  },
   getStatistics(): Promise<ApiResponse<any>> {
     return request.get('/erp/receipt/statistics')
   }
@@ -621,6 +438,12 @@ export const paymentApi = {
    */
   writeOff(id: number, amount: number): Promise<ApiResponse<any>> {
     return request.post(`/erp/payment/${id}/write-off`, { amount })
+  },
+  /**
+   * 完成核销（付款确认）
+   */
+  completeVerify(id: number): Promise<ApiResponse<any>> {
+    return request.post(`/erp/payment/${id}/complete-verify`)
   },
   getStatistics(): Promise<ApiResponse<any>> {
     return request.get('/erp/payment/statistics')
@@ -723,11 +546,146 @@ export const depositConditionApi = {
   }
 }
 
+/**
+ * 往来余额表（辅助核算余额）API
+ * 后端: PartnerBalanceController /api/erp/finance/partner-balance
+ */
+export const partnerBalanceApi = {
+  getPage: (params: any) => request.get('/erp/finance/partner-balance/page', params)
+}
+
+/**
+ * 回款统计（账款交账）API
+ * 后端: CollectionStatsController /api/erp/finance/collection-stats
+ */
+export const collectionStatsApi = {
+  getStats: (params: any) => request.get('/erp/finance/collection-stats', params)
+}
+
+/**
+ * 费用审批 API
+ * 后端: ExpenseApprovalController /api/erp/expense/approval
+ */
+export const expenseApprovalApi = {
+  getPending: (params?: any) => request.get('/erp/expense/approval/pending', params),
+  process: (data: {
+    applicationId: number
+    action: 'APPROVE' | 'REJECT'
+    comment?: string
+    approverId?: string
+    approverName?: string
+  }) => request.post('/erp/expense/approval/process', data),
+  getRecords: (params: any) => request.get('/erp/expense/approval/records', params)
+}
+
+/**
+ * 费用统计 API
+ * 后端: ExpenseController /api/erp/expense/statistics/*
+ */
+export const expenseStatsApi = {
+  getSummary: (params: any) => request.get('/erp/expense/statistics/summary', params),
+  getByDepartment: (params: any) => request.get('/erp/expense/statistics/by-department', params),
+  getByType: (params: any) => request.get('/erp/expense/statistics/by-type', params)
+}
+
+/**
+ * 会计期间
+ * 后端: AccountingPeriodController /api/erp/finance/period
+ */
+export interface AccountingPeriod {
+  id: number
+  periodYear: number
+  periodMonth: number
+  /** 期间编码，格式 yyyy-MM，如 2026-07 */
+  periodCode: string
+  startDate: string
+  endDate: string
+  /** 状态：1-开启 0-关闭（已月结） */
+  status: number
+  closedBy?: string
+  closedTime?: string
+  remark?: string
+}
+
+/**
+ * 月结检查项
+ */
+export interface MonthClosingCheckItem {
+  checkCode: string
+  checkName: string
+  passed: boolean
+  /** 检查明细（未过账凭证阻断时含凭证号列表） */
+  detail?: string
+}
+
+/**
+ * 月结执行结果
+ */
+export interface MonthClosingResult {
+  periodCode: string
+  /** 是否全部检查通过（通过则期间已关闭） */
+  success: boolean
+  message: string
+  checks: MonthClosingCheckItem[]
+  closedBy?: string
+  closedTime?: string
+}
+
+/**
+ * 月结操作日志
+ */
+export interface MonthClosingLog {
+  id: number
+  periodCode: string
+  /** 操作类型：close-月结 reopen-反月结 */
+  action: string
+  operatorId?: string
+  operatorName?: string
+  /** 月结检查结果快照（JSON字符串） */
+  checkResult?: string
+  createTime: string
+}
+
+/**
+ * 会计期间 API
+ * 后端: AccountingPeriodController /api/erp/finance/period
+ */
+export const accountingPeriodApi = {
+  /** 分页查询会计期间 */
+  getPage: (params: { periodYear?: number; status?: number; page?: number; size?: number }) =>
+    request.get('/erp/finance/period/page', params),
+  /** 查询会计期间列表（不分页，按期间编码升序） */
+  getList: (params?: { periodYear?: number }) =>
+    request.get('/erp/finance/period/list', params),
+  /** 新增会计期间（后端 @PostMapping("/")，需带尾部斜杠） */
+  create: (data: { periodYear: number; periodMonth: number; remark?: string }) =>
+    request.post('/erp/finance/period/', data),
+  /** 启用/停用会计期间：1-开启 0-关闭 */
+  updateStatus: (id: number, status: number) =>
+    request.put(`/erp/finance/period/${id}/status`, null, { params: { status } })
+}
+
+/**
+ * 总账月结 API
+ * 后端: MonthClosingController /api/erp/finance/month-closing
+ */
+export const monthClosingApi = {
+  /** 执行月结（先跑检查项，全部通过则关闭期间） */
+  execute: (periodCode: string): Promise<MonthClosingResult> =>
+    request.post('/erp/finance/month-closing/execute', null, { params: { periodCode } }),
+  /** 反月结（重新开启期间） */
+  reopen: (periodCode: string): Promise<MonthClosingResult> =>
+    request.post('/erp/finance/month-closing/reopen', null, { params: { periodCode } }),
+  /** 查询期间月结状态 */
+  getStatus: (periodCode: string) =>
+    request.get('/erp/finance/month-closing/status', { periodCode }),
+  /** 分页查询月结日志 */
+  getLogsPage: (params: { periodCode?: string; page?: number; size?: number }) =>
+    request.get('/erp/finance/month-closing/logs/page', params)
+}
+
 export default {
-  accountsReceivableApi,
-  accountsPayableApi,
   reconciliationApi,
-  financialReportsApi,
   preReceiptApi,
   prePaymentApi,
   receiptApi,
@@ -740,5 +698,11 @@ export default {
   voucherApi,
   reportApi,
   receivableApi,
-  payableApi
+  payableApi,
+  partnerBalanceApi,
+  collectionStatsApi,
+  expenseApprovalApi,
+  expenseStatsApi,
+  accountingPeriodApi,
+  monthClosingApi
 }

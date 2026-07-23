@@ -1,616 +1,466 @@
 <template>
   <ErrorBoundary @error="handleError">
-    <PageContainer
-      title="采购订单管理"
-      full-height
-    >
-      <template #headerExtra>
-        <a-space :size="12">
-          <span class="data-status">
-            <a-badge :status="loading ? 'processing' : (hasError ? 'error' : 'success')" />
-            <span
-              v-if="lastUpdateTime"
-              class="update-time"
-            >
-              最后更新: {{ lastUpdateTime }}
-            </span>
-            <span
-              v-if="hasError"
-              class="error-text"
-            >数据加载异常</span>
-          </span>
-          <span
-            v-if="autoRefreshCountdown > 0"
-            class="auto-refresh-badge"
-          >
-            <SyncOutlined /> {{ autoRefreshCountdown }}s
-          </span>
-          <a-button
-            size="small"
-            @click="debounceClick('refresh', fetchData)"
-          >
-            <template #icon>
-              <ReloadOutlined />
-            </template>
-          </a-button>
-          <span class="shortcut-hints">
-            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-            <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
-            <span class="shortcut-hint"><kbd>Ctrl+E</kbd> 导出</span>
-          </span>
-        </a-space>
-      </template>
-
-      <template #filter>
-        <SearchBar
-          :fields="searchFields"
-          :loading="loading"
-          @search="handleSearch"
-          @reset="handleReset"
-        />
-      </template>
-
-      <!-- 统计卡片 -->
-      <div class="stat-cards">
-        <div class="stat-card stat-draft">
-          <div class="stat-card-body">
-            <div class="stat-card-value">
-              {{ statDraft }}
-            </div>
-            <div class="stat-card-label">
-              草稿
-            </div>
-          </div>
-          <FileOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-pending">
-          <div class="stat-card-body">
-            <div class="stat-card-value">
-              {{ statPending }}
-            </div>
-            <div class="stat-card-label">
-              待审批
-            </div>
-          </div>
-          <ClockCircleOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-completed">
-          <div class="stat-card-body">
-            <div class="stat-card-value">
-              {{ statCompleted }}
-            </div>
-            <div class="stat-card-label">
-              已完成
-            </div>
-          </div>
-          <CheckCircleOutlined class="stat-card-icon" />
-        </div>
-        <div class="stat-card stat-amount">
-          <div class="stat-card-body">
-            <div class="stat-card-value">
-              ¥{{ formatAmount(statTotalAmount) }}
-            </div>
-            <div class="stat-card-label">
-              订单金额
-            </div>
-          </div>
-          <DollarOutlined class="stat-card-icon" />
-        </div>
-      </div>
-
-      <!-- 表格 -->
-      <BillTableList
-        ref="tableRef"
-        table-key="purchase-order-list"
-        :columns="vxeColumns"
-        :data-source="tableData"
-        :loading="loading"
-        :pagination="pagination"
-        :row-key="'id'"
-        :filter-fields="filterFields"
-        :selectable="true"
-        add-text="新建采购单"
-        add-permission="purchase:order:create"
-        @add="handleCreate"
-        @refresh="fetchData"
+    <PageContainer full-height>
+      <DocCenterLayout
+        v-model:active-main-tab="mainTab"
+        v-model:active-sub-tab="subTab"
+        v-model:date-shortcut="dateShortcut"
+        v-model:date-range="dateRange"
+        v-model:search-values="searchForm"
+        v-model:page-current="paginationConfig.current"
+        v-model:page-size="paginationConfig.pageSize"
+        :main-tabs="mainTabs"
+        :sub-tabs="subTabs"
+        :search-config="searchConfig"
+        :search-checkbox-config="searchCheckboxConfig"
+        :hidden-field-keys="hiddenSearchFieldKeys"
+        :stat-card-config="statCardConfig"
+        :toolbar-config="toolbarConfig"
+        :show-pagination="true"
+        :page-total="paginationConfig.total"
+        :stats-data="stats"
         @search="handleSearch"
+        @refresh="fetchData"
+        @toolbar-action="handleToolbarAction"
         @page-change="handlePageChange"
-        @filter-change="handleFilterChange"
-        @selection-change="handleSelectionChange"
-        @cell-dblclick="handleView"
       >
-        <template #toolbar-actions>
-          <a-tooltip title="导出">
-            <a-button
-              v-permission="'purchase:order:export'"
-              size="small"
-              @click="debounceClick('export', handleExport)"
-            >
-              <template #icon>
-                <ExportOutlined />
-              </template>
-            </a-button>
-          </a-tooltip>
-        </template>
-
-        <template #empty>
-          <div
-            v-if="hasError"
-            class="table-empty"
+        <template #table>
+          <BillDetailTable
+            :columns="activeColumns"
+            :data-source="activeTableData"
+            :loading="loading"
+            :view-mode="true"
+            :storage-key="storageKey"
+            style="height: 100%"
           >
-            <WarningOutlined class="table-empty-icon" />
-            <p class="table-empty-text">
-              数据加载异常，请重试
-            </p>
-            <a-button
-              type="primary"
-              @click="fetchData"
-            >
-              <ReloadOutlined /> 重试
-            </a-button>
-          </div>
-          <div
-            v-else
-            class="table-empty"
-          >
-            <InboxOutlined
-              v-if="!hasActiveFilters"
-              class="table-empty-icon"
-            />
-            <SearchOutlined
-              v-else
-              class="table-empty-icon"
-            />
-            <p
-              v-if="!hasActiveFilters"
-              class="table-empty-text"
-            >
-              暂无采购单数据，点击右上角新建
-            </p>
-            <p
-              v-else
-              class="table-empty-text"
-            >
-              没有符合条件的采购单
-            </p>
-          </div>
-        </template>
-
-        <template #statusCell="{ record }">
-          <StatusTag
-            :status="record.status"
-            :map="PURCHASE_ORDER_STATUS"
-          />
-        </template>
-        <template #totalAmountCell="{ record }">
-          <span class="amount-cell">¥{{ formatAmount(record.totalAmount) }}</span>
-        </template>
-        <template #actionCell="{ record }">
-          <a-space>
-            <a-tooltip title="查看">
-              <a-button
-                v-permission="'purchase:order:detail'"
-                type="link"
-                size="small"
-                @click="handleView(record)"
-              >
-                <template #icon>
-                  <EyeOutlined />
-                </template>
-              </a-button>
-            </a-tooltip>
-            <a-tooltip
-              v-if="record.status === 0"
-              title="编辑"
-            >
-              <a-button
-                v-permission="'purchase:order:update'"
-                type="link"
-                size="small"
-                @click="handleEdit(record)"
-              >
-                <template #icon>
-                  <EditOutlined />
-                </template>
-              </a-button>
-            </a-tooltip>
-            <a-tooltip
-              v-if="record.status === 0"
-              title="提交审批"
-            >
-              <a-button
-                v-permission="'purchase:order:submit'"
-                type="link"
-                size="small"
-                @click="handleSubmit(record)"
-              >
-                <template #icon>
-                  <SendOutlined />
-                </template>
-              </a-button>
-            </a-tooltip>
-            <a-tooltip
-              v-if="record.status === 1"
-              title="审批通过"
-            >
-              <a-button
-                v-permission="'purchase:order:approve'"
-                type="link"
-                size="small"
-                @click="handleApprove(record)"
-              >
-                <template #icon>
-                  <CheckCircleOutlined />
-                </template>
-              </a-button>
-            </a-tooltip>
-          </a-space>
-        </template>
-      </BillTableList>
-    </PageContainer>
-
-    <!-- 详情弹窗 -->
-    <a-drawer
-      v-model:open="detailVisible"
-      title="采购单详情"
-      placement="right"
-      width="80vw"
-    >
-      <a-spin :spinning="detailLoading">
-        <a-descriptions
-          v-if="detailData"
-          bordered
-          :column="2"
-          size="small"
-        >
-          <a-descriptions-item label="采购单号">
-            {{ detailData.orderNo }}
-          </a-descriptions-item>
-          <a-descriptions-item label="供应商">
-            {{ detailData.supplierName }}
-          </a-descriptions-item>
-          <a-descriptions-item label="采购员">
-            {{ detailData.purchaserName || '-' }}
-          </a-descriptions-item>
-          <a-descriptions-item label="仓库">
-            {{ detailData.warehouseName || '-' }}
-          </a-descriptions-item>
-          <a-descriptions-item label="订单日期">
-            {{ detailData.orderDate || '-' }}
-          </a-descriptions-item>
-          <a-descriptions-item label="预计到货">
-            {{ detailData.expectedDate || '-' }}
-          </a-descriptions-item>
-          <a-descriptions-item label="订单金额">
-            <span class="amount-cell">¥{{ formatAmount(detailData.totalAmount) }}</span>
-          </a-descriptions-item>
-          <a-descriptions-item label="状态">
-            <StatusTag
-              :status="detailData.status"
-              :map="PURCHASE_ORDER_STATUS"
-            />
-          </a-descriptions-item>
-          <a-descriptions-item
-            label="备注"
-            :span="2"
-          >
-            {{ detailData.remark || '-' }}
-          </a-descriptions-item>
-        </a-descriptions>
-
-        <h4 style="margin: 16px 0 8px;">
-          订单明细
-        </h4>
-        <a-table
-          :data-source="detailItems"
-          :columns="detailItemColumns"
-          :pagination="false as any"
-          size="small"
-          bordered
-          row-key="id"
-        >
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.dataIndex === 'amount'">
-              <span class="amount-cell">¥{{ formatAmount(record.amount || record.quantity * record.price) }}</span>
+            <template #actionCell="{ record }">
+              <a-space :size="4">
+                <a-button type="link" size="small" @click="goDetail(record)">查看</a-button>
+                <a-button v-if="record.status === 0" type="link" size="small" @click="goEdit(record)">编辑</a-button>
+                <a-button v-if="record.status === 0" type="link" size="small" @click="handleSubmit(record)">提交</a-button>
+                <a-button v-if="record.status === 1" type="link" size="small" @click="handleApprove(record)">审批</a-button>
+              </a-space>
             </template>
-          </template>
-        </a-table>
-      </a-spin>
+            <template #orderNoCell="{ record }">
+              <a-button type="link" size="small" @click="goDetail(record)">{{ record.orderNo }}</a-button>
+            </template>
+            <template #statusCell="{ record }">
+              <a-tag :color="getStatusColor(record.status)">{{ getStatusText(record.status) }}</a-tag>
+            </template>
+          </BillDetailTable>
+        </template>
+      </DocCenterLayout>
 
-      <template #footer>
-        <div style="display: flex; justify-content: flex-end; gap: 8px;">
-          <PrintButton
-            v-if="detailData"
-            :business-id="detailData.id"
-            :record="detailData"
-            business-type="purchase"
-            button-text="打印"
-            button-size="small"
-            button-type="default"
-          />
-          <a-button @click="detailVisible = false">
-            关闭
-          </a-button>
-          <a-button
-            v-if="detailData?.status === 0"
-            v-permission="'purchase:order:submit'"
-            type="primary"
-            @click="handleSubmit(detailData)"
-          >
-            <SendOutlined /> 提交审批
-          </a-button>
-          <a-button
-            v-if="detailData?.status === 1"
-            v-permission="'purchase:order:approve'"
-            type="primary"
-            @click="handleApprove(detailData)"
-          >
-            <CheckCircleOutlined /> 审批通过
-          </a-button>
+      <!-- 页面配置弹窗 -->
+      <PageConfigPanel
+        :open="showPageConfig"
+        :storage-key="'purchase-order-page-config'"
+        @update:open="showPageConfig = $event"
+      />
+
+      <!-- 批量打印弹窗 -->
+      <a-modal
+        v-model:open="showPrintDialog"
+        title="批量打印"
+        :width="400"
+        @ok="confirmPrint"
+      >
+        <div style="padding: 16px 0;">
+          <div style="margin-bottom: 8px;">打印模板：</div>
+          <a-select v-model:value="printTemplate" style="width: 100%;">
+            <a-select-option value="default">标准模板</a-select-option>
+            <a-select-option value="simple">简化模板</a-select-option>
+            <a-select-option value="detailed">详细模板</a-select-option>
+          </a-select>
         </div>
-      </template>
-    </a-drawer>
+      </a-modal>
+
+      <!-- 批量导入隐藏文件输入 -->
+      <input ref="fileInputRef" type="file" accept=".xlsx,.xls" style="display:none" @change="handleImportFileChange" />
+    </PageContainer>
   </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
-import {
-  ReloadOutlined, SyncOutlined, FileOutlined, ClockCircleOutlined,
-  CheckCircleOutlined, DollarOutlined, WarningOutlined, InboxOutlined,
-  SearchOutlined, EyeOutlined, SendOutlined, ExportOutlined,
-  EditOutlined
-} from '@ant-design/icons-vue'
+import dayjs, { type Dayjs } from 'dayjs'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import BillTableList from '@/components/BillTableList/BillTableList.vue'
+import DocCenterLayout from '@/components/DocCenterLayout/DocCenterLayout.vue'
+import BillDetailTable from '@/components/BillFormPage/BillDetailTable/index.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
-import SearchBar from '@/components/SearchBar/SearchBar.vue'
-import PrintButton from '@/components/business/print-button/PrintButton.vue'
-import StatusTag from '@/components/StatusTag/StatusTag.vue'
+import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
 import { PURCHASE_ORDER_STATUS } from '@/utils/statusConfig'
 import request from '@/utils/request'
+import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTable/types'
+import type {
+  SearchConfigMap, SearchCheckboxConfigMap,
+  StatCardConfigMap, ToolbarConfigMap,
+} from '@/components/DocCenterLayout/types'
 
-// ── 防抖工具 ──────────────────────────────────────────
-const debounceMap = new Map<string, number>()
-function debounceClick(key: string, fn: () => void, delay = 300) {
-  const now = Date.now()
-  const last = debounceMap.get(key) || 0
-  if (now - last < delay) return
-  debounceMap.set(key, now)
-  fn()
-}
-
-// ── 类型 ──────────────────────────────────────────────
-interface PurchaseOrder {
-  id: number
-  orderNo: string
-  supplierId: number
-  supplierName: string
-  purchaserName: string
-  warehouseId: number
-  warehouseName: string
-  orderDate: string
-  expectedDate: string
-  totalAmount: number
-  status: number
-  remark: string
-  items?: PurchaseOrderItem[]
-}
-
-interface PurchaseOrderItem {
-  id: number
-  productId: number
-  productCode: string
-  productName: string
-  productSpec: string
-  quantity: number
-  price: number
-  amount: number
-}
-
-// ── 状态 ──────────────────────────────────────────────
-const loading = ref(false)
-const hasError = ref(false)
-const lastUpdateTime = ref('')
-const autoRefreshCountdown = ref(0)
-const tableData = ref<PurchaseOrder[]>([])
-const tableRef = ref()
-const detailVisible = ref(false)
-const detailLoading = ref(false)
-const detailData = ref<PurchaseOrder | null>(null)
-const detailItems = ref<PurchaseOrderItem[]>([])
-const selectedRows = ref<PurchaseOrder[]>([])
-const currentRecord = ref<PurchaseOrder | null>(null)
-
-const route = useRoute()
+defineOptions({ name: 'PurchaseOrderList' })
 const router = useRouter()
 
-let refreshTimer: ReturnType<typeof setInterval> | null = null
-let countdownTimer: ReturnType<typeof setInterval> | null = null
+// ═══ Tab 状态 ═══
+const mainTab = ref('all')
+const subTab = ref('byDoc')
+const dateShortcut = ref('month')
+const dateRange = ref<[Dayjs, Dayjs] | null>([dayjs().startOf('month'), dayjs()])
 
-// ── 统计 ──────────────────────────────────────────────
-const statDraft = ref(0)
-const statPending = ref(0)
-const statCompleted = ref(0)
-const statTotalAmount = ref(0)
-
-const formatAmount = (amount: number) => {
-  return amount?.toLocaleString?.('zh-CN', { minimumFractionDigits: 2 }) || '0.00'
-}
-
-// ── 搜索 ──────────────────────────────────────────────
-const searchFields = [
-  { key: 'orderNo', label: '采购单号', type: 'input', placeholder: '请输入采购单号' },
-  { key: 'supplierName', label: '供应商', type: 'input', placeholder: '请输入供应商名称' },
-  { key: 'status', label: '状态', type: 'select', options: [
-    { label: '草稿', value: 0 },
-    { label: '待审批', value: 1 },
-    { label: '已审批', value: 2 },
-    { label: '已完成', value: 4 },
-  ]},
-] as any[]
-
-const searchForm = reactive<Record<string, any>>({})
-
-const pagination = reactive({
-  current: 1, pageSize: 20, total: 0,
-  showSizeChanger: true, showQuickJumper: true,
-  showTotal: (total: number) => `共 ${total} 条`
-})
-
-const hasActiveFilters = computed(() => {
-  return Object.values(searchForm).some(v => v !== undefined && v !== null && v !== '')
-})
-
-const filterFields = computed(() => [
-  { key: 'orderNo', label: '采购单号', type: 'input' as const, placeholder: '请输入采购单号' },
-  { key: 'supplierName', label: '供应商', type: 'input' as const, placeholder: '请输入供应商名称' },
-  { key: 'status', label: '状态', type: 'select' as const, options: [
-    { label: '草稿', value: 0 },
-    { label: '待审批', value: 1 },
-    { label: '已审批', value: 2 },
-    { label: '已完成', value: 4 },
-  ]},
-])
-
-const vxeColumns: any = computed(() => [
-  { field: 'orderNo', title: '采购单号', width: 160 },
-  { field: 'supplierName', title: '供应商', width: 150 },
-  { field: 'purchaserName', title: '采购员', width: 100 },
-  { field: 'totalAmount', title: '金额', width: 130, align: 'right' },
-  { field: 'status', title: '状态', width: 100, align: 'center' },
-  { field: 'orderDate', title: '订单日期', width: 120 },
-  { field: 'createTime', title: '创建时间', width: 150 },
-  { type: 'action', title: '操作', width: 150, fixed: 'right' },
-])
-
-// ── 详情 ──────────────────────────────────────────────
-const detailItemColumns: any = [
-  { title: '产品编码', dataIndex: 'productCode', width: 120 },
-  { title: '产品名称', dataIndex: 'productName', width: 200 },
-  { title: '规格', dataIndex: 'productSpec', width: 100 },
-  { title: '数量', dataIndex: 'quantity', width: 80, align: 'right' },
-  { title: '单价', dataIndex: 'price', width: 100, align: 'right' },
-  { title: '小计', dataIndex: 'amount', width: 120, align: 'right' },
+const mainTabs = [{ key: 'all', label: '全部' }]
+const subTabs = [
+  { key: 'byDoc', label: '按单据' },
+  { key: 'byDetail', label: '按明细' },
 ]
 
-const fetchDetail = async (id: number) => {
-  detailLoading.value = true
-  detailItems.value = []
-  try {
-    const [orderRes, itemsRes] = await Promise.all([
-      request.get(`/erp/purchase/order/${id}`),
-      request.get(`/erp/purchase/order/${id}/items`).catch(() => ({ data: [] })),
-    ])
-    detailData.value = orderRes.data || null
-    detailItems.value = itemsRes.data || []
-  } catch (err) {
-    console.warn('[采购管理] 获取详情失败', err)
-    detailData.value = tableData.value.find(item => item.id === id) || null
-  } finally {
-    detailLoading.value = false
-  }
+// ═══ 搜索 ═══
+const searchForm = reactive<Record<string, any>>({})
+
+// 按单据Tab搜索字段（17个）
+const byDocSearchFields: SearchConfigMap = {
+  'all.byDoc': [
+    { key: 'orderNo', label: '单据编号', type: 'input' },
+    { key: 'supplierName', label: '供应商', type: 'input' },
+    { key: 'purchaserName', label: '经手人', type: 'input' },
+    { key: 'deptName', label: '部门', type: 'input' },
+    { key: 'createByName', label: '制单人', type: 'input' },
+    { key: 'warehouseName', label: '仓库', type: 'input' },
+    { key: 'status', label: '单据状态', type: 'select', options: [
+      { label: '草稿', value: 0 }, { label: '待审批', value: 1 },
+      { label: '已审批', value: 2 }, { label: '已下达', value: 3 },
+      { label: '已取消', value: 4 }, { label: '已完成', value: 6 },
+    ]},
+    { key: 'remark', label: '单据备注', type: 'input' },
+    { key: 'submitterName', label: '提交人', type: 'input' },
+    { key: 'auditorName', label: '审核人', type: 'input' },
+    { key: 'extNum1Start', label: '自定义字段1(数字)', type: 'input' },
+    { key: 'extNum2Start', label: '自定义字段2(数字)', type: 'input' },
+    { key: 'extText1', label: '自定义字段3(文本)', type: 'input' },
+    { key: 'extText2', label: '自定义字段4(文本)', type: 'input' },
+    { key: 'extText3', label: '自定义字段5(文本)', type: 'input' },
+    { key: 'printCountStart', label: '打印次数', type: 'input' },
+  ],
 }
 
-const handleView = (record: PurchaseOrder) => {
-  detailVisible.value = true
-  fetchDetail(record.id)
+// 按明细Tab搜索字段（13个）
+const byDetailSearchFields: SearchConfigMap = {
+  'all.byDetail': [
+    { key: 'orderNo', label: '单据编号', type: 'input' },
+    { key: 'productName', label: '商品', type: 'input' },
+    { key: 'supplierName', label: '供应商', type: 'input' },
+    { key: 'purchaserName', label: '经手人', type: 'input' },
+    { key: 'deptName', label: '部门', type: 'input' },
+    { key: 'createByName', label: '制单人', type: 'input' },
+    { key: 'auditorName', label: '审核人', type: 'input' },
+    { key: 'warehouseName', label: '仓库', type: 'input' },
+    { key: 'priceStatus', label: '单价状态', type: 'select', options: [
+      { label: '有单价', value: 1 }, { label: '无单价', value: 0 },
+    ]},
+    { key: 'remark', label: '单据备注', type: 'input' },
+    { key: 'itemRemark', label: '明细备注', type: 'input' },
+    { key: 'isGift', label: '是否赠品', type: 'select', options: [
+      { label: '是', value: 1 }, { label: '否', value: 0 },
+    ]},
+    { key: 'status', label: '单据状态', type: 'select', options: [
+      { label: '草稿', value: 0 }, { label: '待审批', value: 1 },
+      { label: '已审批', value: 2 }, { label: '已下达', value: 3 },
+      { label: '已取消', value: 4 }, { label: '已完成', value: 6 },
+    ]},
+  ],
 }
 
-const handleEdit = (record: PurchaseOrder) => {
-  router.push({ path: `/purchase/order/${record.id}` })
+const searchConfig: SearchConfigMap = {
+  'all.byDoc': byDocSearchFields['all.byDoc'],
+  'all.byDetail': byDetailSearchFields['all.byDetail'],
 }
 
-// ── 状态操作 ──────────────────────────────────────────
-const handleSubmit = (record: PurchaseOrder) => {
-  Modal.confirm({
-    title: '提交审批',
-    content: `确认提交采购单 ${record.orderNo} 进行审批吗？`,
-    okText: '确认提交',
-    cancelText: '取消',
-    onOk: async () => {
-      try {
-        await request.post(`/erp/purchase/order/${record.id}/submit`)
-        message.success('已提交审批')
-        fetchData()
-        if (detailVisible.value && detailData.value?.id === record.id) detailVisible.value = false
-      } catch (error) {
-        console.warn('[采购管理] 提交失败', error)
-        message.error('提交失败')
-      }
-    }
-  })
+// 搜索复选框配置
+const searchCheckboxConfig: SearchCheckboxConfigMap = {
+  'all.byDoc': [
+    { key: 'hideCancelled', label: '不显示已取消的单据' },
+    { key: 'showSelected', label: '仅显示已选中' },
+  ],
+  'all.byDetail': [
+    { key: 'hideCancelled', label: '不显示已取消的单据' },
+    { key: 'showSelected', label: '仅显示已选中' },
+  ],
 }
 
-const handleApprove = (record: PurchaseOrder) => {
-  Modal.confirm({
-    title: '审批确认',
-    content: `确认审批通过采购单 ${record.orderNo} 吗？`,
-    okText: '确认审批',
-    cancelText: '取消',
-    onOk: async () => {
-      try {
-        await request.post(`/erp/purchase/order/${record.id}/approve`)
-        message.success('审批通过')
-        fetchData()
-        if (detailVisible.value && detailData.value?.id === record.id) detailVisible.value = false
-      } catch (error) {
-        console.warn('[采购管理] 审批失败', error)
-        message.error('审批失败')
-      }
-    }
-  })
+// 搜索字段隐藏配置（由 PageConfigPanel 控制，从 localStorage 加载）
+const hiddenSearchFieldKeys = ref<string[]>([])
+
+// ═══ 统计卡片 ═══
+const stats = ref<Record<string, number>>({
+  draft: 0, pending: 0, approved: 0, completed: 0, totalAmount: 0,
+})
+
+const statCardConfig: StatCardConfigMap = {
+  'all.byDoc': [
+    { label: '草稿', valueKey: 'draft', color: '#d9d9d9' },
+    { label: '待审批', valueKey: 'pending', color: '#faad14' },
+    { label: '已审批', valueKey: 'approved', color: '#1890ff' },
+    { label: '已完成', valueKey: 'completed', color: '#52c41a' },
+    { label: '订单金额', valueKey: 'totalAmount', color: '#722ed1' },
+  ],
+  'all.byDetail': [
+    { label: '草稿', valueKey: 'draft', color: '#d9d9d9' },
+    { label: '待审批', valueKey: 'pending', color: '#faad14' },
+    { label: '已审批', valueKey: 'approved', color: '#1890ff' },
+    { label: '已完成', valueKey: 'completed', color: '#52c41a' },
+    { label: '订单金额', valueKey: 'totalAmount', color: '#722ed1' },
+  ],
 }
 
-// ── 数据加载 ──────────────────────────────────────────
+// ═══ 工具栏 ═══
+const toolbarConfig: ToolbarConfigMap = {
+  'all.byDoc': [
+    { key: 'add', label: '新增', type: 'primary' },
+    { key: 'refresh', label: '刷新' },
+    { key: 'batchImport', label: '批量导入' },
+    { key: 'batchPrint', label: '批量打印' },
+    { key: 'printF8', label: '打印(F8)' },
+    { key: 'export', label: '导出' },
+    { key: 'pageConfig', label: '配置', icon: 'SettingsOutlined', visibleFor: () => true },
+  ],
+  'all.byDetail': [
+    { key: 'add', label: '新增', type: 'primary' },
+    { key: 'refresh', label: '刷新' },
+    { key: 'printF8', label: '打印(F8)' },
+    { key: 'export', label: '导出' },
+    { key: 'pageConfig', label: '配置', icon: 'SettingsOutlined', visibleFor: () => true },
+  ],
+}
+
+// ═══ 按单据 Tab 表格列（39 列） ═══
+const byDocColumns: DetailColumnConfig[] = [
+  { key: 'orderDate', title: '单据日期', width: 110 },
+  { key: 'orderNo', title: '单据编号', width: 150, slotName: 'orderNoCell' },
+  { key: 'sourceBillNo', title: '源单', width: 130 },
+  { key: 'status', title: '单据状态', width: 90, slotName: 'statusCell' },
+  { key: 'warehouseName', title: '仓库', width: 120 },
+  { key: 'supplierName', title: '供应商名称', width: 180 },
+  { key: 'supplierCode', title: '供应商编号', width: 110 },
+  { key: 'contactName', title: '联系人', width: 90 },
+  { key: 'contactPhone', title: '联系电话', width: 120 },
+  { key: 'contactAddress', title: '联系地址', width: 180 },
+  { key: 'supplierRemark', title: '供应商备注', width: 150 },
+  { key: 'purchaserName', title: '经手人', width: 90 },
+  { key: 'deptName', title: '部门', width: 100 },
+  { key: 'productAmount', title: '商品金额', width: 110, align: 'right' },
+  { key: 'discountAmount', title: '直接优惠', width: 100, align: 'right' },
+  { key: 'otherExpense', title: '其他费用', width: 100, align: 'right' },
+  { key: 'billAmount', title: '本单金额', width: 110, align: 'right' },
+  { key: 'settledAmount', title: '已结金额', width: 110, align: 'right' },
+  { key: 'expectedReceiveTime', title: '预计收货时间', width: 130 },
+  { key: 'totalQuantity', title: '订货数量', width: 100, align: 'right' },
+  { key: 'receivedQuantity', title: '已收数量', width: 100, align: 'right' },
+  { key: 'unreceiveQuantity', title: '未收数量', width: 100, align: 'right' },
+  { key: 'returnQuantity', title: '退货数量', width: 100, align: 'right' },
+  { key: 'returnAmount', title: '退货金额', width: 100, align: 'right' },
+  { key: 'weight', title: '重量(kg)', width: 90, align: 'right' },
+  { key: 'volume', title: '体积(m³)', width: 90, align: 'right' },
+  { key: 'remark', title: '单据备注', width: 150 },
+  { key: 'summary', title: '摘要', width: 130 },
+  { key: 'attachment', title: '附件', width: 70 },
+  { key: 'extNum1', title: '自定义字段1(数字)', width: 120 },
+  { key: 'extNum2', title: '自定义字段2(数字)', width: 120 },
+  { key: 'extText1', title: '自定义字段3(文本)', width: 120 },
+  { key: 'extText2', title: '自定义字段4(文本)', width: 120 },
+  { key: 'extText3', title: '自定义字段5(文本)', width: 120 },
+  { key: 'submitTime', title: '提交时间', width: 130 },
+  { key: 'createByName', title: '制单人', width: 90 },
+  { key: 'submitterName', title: '提交人', width: 90 },
+  { key: 'auditorName', title: '审核人', width: 90 },
+  { key: 'printCount', title: '打印次数', width: 90 },
+]
+
+// ═══ 按明细 Tab 表格列（59 列） ═══
+const byDetailColumns: DetailColumnConfig[] = [
+  { key: 'orderDate', title: '单据日期', width: 110 },
+  { key: 'orderNo', title: '单据编号', width: 150, slotName: 'orderNoCell' },
+  { key: 'status', title: '单据状态', width: 90, slotName: 'statusCell' },
+  { key: 'warehouseName', title: '仓库', width: 120 },
+  { key: 'supplierName', title: '供应商名称', width: 180 },
+  { key: 'supplierCode', title: '供应商编号', width: 110 },
+  { key: 'contactName', title: '联系人', width: 90 },
+  { key: 'contactPhone', title: '联系电话', width: 120 },
+  { key: 'contactAddress', title: '联系地址', width: 180 },
+  { key: 'supplierRemark', title: '供应商备注', width: 150 },
+  { key: 'purchaserName', title: '经手人', width: 90 },
+  { key: 'deptName', title: '部门', width: 100 },
+  { key: 'productName', title: '商品名称', width: 200 },
+  { key: 'itemCode', title: '货号', width: 100 },
+  { key: 'barcode', title: '条码', width: 120 },
+  { key: 'specification', title: '规格', width: 100 },
+  { key: 'model', title: '型号', width: 100 },
+  { key: 'origin', title: '产地', width: 100 },
+  { key: 'brand', title: '品牌', width: 80 },
+  { key: 'customField1', title: '表体自定义1(数字)', width: 120 },
+  { key: 'customField2', title: '表体自定义2(数字)', width: 120 },
+  { key: 'customField3', title: '表体自定义3(数字)', width: 120 },
+  { key: 'customField4', title: '表体自定义4(文本)', width: 120 },
+  { key: 'customField5', title: '表体自定义5(文本)', width: 120 },
+  { key: 'customField6', title: '表体自定义6(数字)', width: 120 },
+  { key: 'customField7', title: '表体自定义7(数字)', width: 120 },
+  { key: 'customField8', title: '表体自定义8(往来单位)', width: 130 },
+  { key: 'customField9', title: '表体自定义9(职员)', width: 120 },
+  { key: 'customField10', title: '表体自定义10(部门)', width: 120 },
+  { key: 'unit', title: '单位', width: 70 },
+  { key: 'smallUnit', title: '小单位', width: 70 },
+  { key: 'smallUnitQuantity', title: '小单位数量', width: 100, align: 'right' },
+  { key: 'conversionRelation', title: '换算关系', width: 100 },
+  { key: 'convertedQuantity', title: '换算结果', width: 100, align: 'right' },
+  { key: 'bigPack', title: '大包装', width: 80, align: 'right' },
+  { key: 'midPack', title: '中包装', width: 80, align: 'right' },
+  { key: 'smallPack', title: '小包装', width: 80, align: 'right' },
+  { key: 'quantity', title: '订货数量', width: 90, align: 'right' },
+  { key: 'receivedQuantity', title: '已收数量', width: 90, align: 'right' },
+  { key: 'unreceiveQuantity', title: '未收数量', width: 90, align: 'right' },
+  { key: 'terminatedQuantity', title: '终止数量', width: 90, align: 'right' },
+  { key: 'terminatedAmount', title: '终止金额', width: 100, align: 'right' },
+  { key: 'unitPrice', title: '单价', width: 100, align: 'right' },
+  { key: 'smallUnitPrice', title: '小单位单价', width: 110, align: 'right' },
+  { key: 'amount', title: '金额', width: 100, align: 'right' },
+  { key: 'discountRate', title: '优惠折扣(%)', width: 100, align: 'right' },
+  { key: 'discountedUnitPrice', title: '优惠后单价', width: 110, align: 'right' },
+  { key: 'discountedAmount', title: '优惠后金额', width: 110, align: 'right' },
+  { key: 'weight', title: '重量(kg)', width: 90, align: 'right' },
+  { key: 'volume', title: '体积(m³)', width: 90, align: 'right' },
+  { key: 'itemRemark', title: '明细备注', width: 150 },
+  { key: 'remark', title: '单据备注', width: 150 },
+  { key: 'summary', title: '摘要', width: 130 },
+  { key: 'attachment', title: '附件', width: 70 },
+  { key: 'createByName', title: '制单人', width: 90 },
+  { key: 'auditorName', title: '审核人', width: 90 },
+  { key: 'createTime', title: '制单时间', width: 130 },
+  { key: 'submitTime', title: '提交时间', width: 130 },
+  { key: 'printCount', title: '打印次数', width: 90 },
+  { key: 'action', title: '操作', width: 120, fixed: 'right', slotName: 'actionCell' },
+]
+
+const activeColumns = computed(() => subTab.value === 'byDoc' ? byDocColumns : byDetailColumns)
+const storageKey = computed(() => subTab.value === 'byDoc' ? 'purchase-order-byDoc' : 'purchase-order-byDetail')
+
+// ═══ 分页 ═══
+const paginationConfig = reactive({ current: 1, pageSize: 20, total: 0 })
+
+// ═══ 数据 ═══
+const loading = ref(false)
+const tableData = ref<any[]>([])
+const activeTableData = computed(() => tableData.value)
+
+// ═══ 数据加载 ═══
 const fetchData = async () => {
-  hasError.value = false
   loading.value = true
   try {
-    const params: Record<string, any> = {
-      ...searchForm,
-      pageNum: pagination.current,
-      pageSize: pagination.pageSize,
+    const params: Record<string, any> = { ...searchForm, current: paginationConfig.current, size: paginationConfig.pageSize }
+    if (dateRange.value) {
+      params.dateStart = dateRange.value[0].format('YYYY-MM-DD')
+      params.dateEnd = dateRange.value[1].format('YYYY-MM-DD')
     }
-    Object.keys(params).forEach(k => { if (params[k] === undefined || params[k] === '') delete params[k] })
+    Object.keys(params).forEach(k => { if (params[k] === undefined || params[k] === null || params[k] === '') delete params[k] })
 
-    const res = await request.get('/erp/purchase/order/page', { params })
-    const data = res.data || res
-    tableData.value = data?.records || []
-    pagination.total = data?.total || 0
+    if (subTab.value === 'byDoc') {
+      const res = await request.get('/erp/purchase/order/doc-query/page', { params })
+      const data = res.data || res
+      tableData.value = data?.records || []
+      paginationConfig.total = data?.total || 0
+    } else {
+      const res = await request.get('/erp/purchase/order/detail-query/page', { params })
+      const data = res.data || res
+      tableData.value = data?.records || []
+      paginationConfig.total = data?.total || 0
+    }
 
-    // 统计（精确总数来自 pagination.total，状态分布为当前页数据）
-    statDraft.value = tableData.value.filter(r => r.status === 0).length
-    statPending.value = tableData.value.filter(r => r.status === 1).length
-    statCompleted.value = tableData.value.filter(r => r.status >= 4).length
-    statTotalAmount.value = tableData.value.reduce((s, r) => s + (r.totalAmount || 0), 0)
-    // 当有专用统计接口时请替换此实现
+    // 更新统计
+    stats.value.draft = tableData.value.filter((r: any) => r.status === 0).length
+    stats.value.pending = tableData.value.filter((r: any) => r.status === 1).length
+    stats.value.approved = tableData.value.filter((r: any) => r.status === 2).length
+    stats.value.completed = tableData.value.filter((r: any) => r.status >= 4).length
+    stats.value.totalAmount = tableData.value.reduce((s: number, r: any) => s + (r.billAmount || r.amount || 0), 0)
   } catch (error) {
-    hasError.value = true
-    console.warn('[采购管理] 获取数据失败', error)
+    console.warn('[采购订单] 获取数据失败', error)
     message.error('获取数据失败')
   } finally {
     loading.value = false
-    lastUpdateTime.value = new Date().toLocaleString('zh-CN')
   }
 }
 
-const handleSearch = () => { pagination.current = 1; fetchData() }
-const handleReset = () => { Object.keys(searchForm).forEach(k => searchForm[k] = undefined); handleSearch() }
-const handlePageChange = (page: number, size: number) => { pagination.current = page; pagination.pageSize = size; fetchData() }
-function handleFilterChange(filters: Record<string, any>) { Object.assign(searchForm, filters); pagination.current = 1; fetchData() }
-function handleSelectionChange(rows: PurchaseOrder[], ids: number[]) { selectedRows.value = rows }
-function handleError(err: any) { hasError.value = true; console.warn('[采购管理] ErrorBoundary:', err) }
+const handleSearch = () => { paginationConfig.current = 1; fetchData() }
+const handlePageChange = (page: number, size: number) => { paginationConfig.current = page; paginationConfig.pageSize = size; fetchData() }
 
-// ── 导出 ──────────────────────────────────────────────
+// Tab 切换
+watch(subTab, () => { handleSearch() })
+
+// ═══ 页面配置/打印/导入 ═══
+const showPageConfig = ref(false)
+const showPrintDialog = ref(false)
+const printTemplate = ref('default')
+const fileInputRef = ref<HTMLInputElement | null>(null)
+const importLoading = ref(false)
+
+// ═══ 工具栏操作 ═══
+const handleToolbarAction = (action: string) => {
+  switch (action) {
+    case 'add': router.push('/erp/purchase/form'); break
+    case 'refresh': fetchData(); break
+    case 'batchImport': fileInputRef.value?.click(); break
+    case 'batchPrint': handleBatchPrint(); break
+    case 'printF8': handleBatchPrint(); break
+    case 'export': handleExport(); break
+    case 'pageConfig': showPageConfig.value = true; break
+  }
+}
+
+function handleBatchPrint() {
+  printTemplate.value = loadLastPrintTemplate()
+  showPrintDialog.value = true
+}
+
+function loadLastPrintTemplate(): string {
+  try { return localStorage.getItem('purchase-order-last-print-template') || 'default' }
+  catch { return 'default' }
+}
+
+function saveLastPrintTemplate(template: string) {
+  try { localStorage.setItem('purchase-order-last-print-template', template) } catch {}
+}
+
+async function confirmPrint() {
+  try {
+    await request.post('/erp/purchase/order/batch-print', { template: printTemplate.value })
+    saveLastPrintTemplate(printTemplate.value)
+    message.success(`已发送打印（模板: ${printTemplate.value}）`)
+    showPrintDialog.value = false
+    fetchData()
+  } catch {
+    message.error('打印失败')
+  }
+}
+
+async function handleImportFileChange(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  const fd = new FormData()
+  fd.append('file', file)
+  importLoading.value = true
+  try {
+    const res: any = await request.post('/erp/purchase/order/import', fd)
+    message.success(`导入成功: ${res?.data?.count || 0} 条`)
+    fetchData()
+  } catch {
+    message.error('导入失败，请检查文件格式')
+  } finally {
+    importLoading.value = false
+    input.value = ''
+  }
+}
+
 const handleExport = async () => {
   try {
-    const blob = await request.get('/erp/purchase/order/export', {
-      params: { ...searchForm },
-      responseType: 'blob'
-    })
+    const blob = await request.get('/erp/purchase/order/export', { params: { ...searchForm }, responseType: 'blob' })
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -618,200 +468,75 @@ const handleExport = async () => {
     a.click()
     window.URL.revokeObjectURL(url)
     message.success('导出成功')
-  } catch (error) {
-    console.warn('[采购管理] 导出失败', error)
-    message.error('导出失败')
-  }
+  } catch { message.error('导出失败') }
 }
 
-// ── 新建 ──────────────────────────────────────────────
-const handleCreate = () => {
-  router.push('/erp/purchase/form')
+// ═══ 行操作 ═══
+const goDetail = (record: any) => { router.push(`/erp/purchase/form?id=${record.orderId || record.id}`) }
+const goEdit = (record: any) => { router.push(`/erp/purchase/form?id=${record.orderId || record.id}`) }
+
+const handleSubmit = (record: any) => {
+  Modal.confirm({
+    title: '提交审批', content: `确认提交采购单 ${record.orderNo} 进行审批吗？`,
+    okText: '确认提交', cancelText: '取消',
+    onOk: async () => {
+      try {
+        await request.post(`/erp/purchase/order/${record.orderId || record.id}/submit`)
+        message.success('已提交审批'); fetchData()
+      } catch { message.error('提交失败') }
+    },
+  })
 }
 
-// ── 键盘快捷键 ──
+const handleApprove = (record: any) => {
+  Modal.confirm({
+    title: '审批确认', content: `确认审批通过采购单 ${record.orderNo} 吗？`,
+    okText: '确认审批', cancelText: '取消',
+    onOk: async () => {
+      try {
+        await request.post(`/erp/purchase/order/${record.orderId || record.id}/approve`)
+        message.success('审批通过'); fetchData()
+      } catch { message.error('审批失败') }
+    },
+  })
+}
+
+// ═══ 状态辅助 ═══
+const getStatusColor = (status: number) => {
+  const map: Record<number, string> = { 0: 'default', 1: 'orange', 2: 'blue', 3: 'blue', 4: 'red', 5: 'processing', 6: 'green' }
+  return map[status] || 'default'
+}
+const getStatusText = (status: number) => {
+  const map: Record<number, string> = { 0: '草稿', 1: '待审批', 2: '已审批', 3: '已下达', 4: '已取消', 5: '履行中', 6: '已完成' }
+  return map[status] || '未知'
+}
+
+const handleError = (err: any) => { console.warn('[采购订单] ErrorBoundary:', err) }
+
+// ═══ 键盘快捷键 ═══
 function handleKeydown(e: KeyboardEvent) {
-  if (e.key === 'F5' && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)) {
-    e.preventDefault(); debounceClick('refresh', fetchData); return
-  }
-  if ((e.ctrlKey || e.metaKey) && e.key === 'n' && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)) {
-    e.preventDefault(); handleCreate(); return
-  }
-  if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
-    e.preventDefault(); debounceClick('export', handleExport); return
-  }
+  if (e.key === 'F5') { e.preventDefault(); fetchData() }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); router.push('/erp/purchase/form') }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'e') { e.preventDefault(); handleExport() }
 }
 
 onMounted(() => {
   fetchData()
-
-  // 从URL查询参数中跳转到新增页（如从供应商页面跳转过来）
-  const query = route.query
-  if (query.supplierId) {
-    router.replace({ path: '/erp/purchase/form', query: { supplierId: query.supplierId, supplierName: query.supplierName } })
-    return
-  }
-
-  autoRefreshCountdown.value = 30
   window.addEventListener('keydown', handleKeydown)
-  refreshTimer = setInterval(() => { fetchData(); autoRefreshCountdown.value = 30 }, 30000)
-  countdownTimer = setInterval(() => { if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value-- }, 1000)
+  // 初始化搜索字段隐藏配置（从localStorage加载，由PageConfigPanel控制）
+  try {
+    const raw = localStorage.getItem('purchase-order-page-config')
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (parsed?.queryFields && Array.isArray(parsed.queryFields)) {
+        hiddenSearchFieldKeys.value = parsed.queryFields
+          .filter((f: any) => f.visible === false)
+          .map((f: any) => f.key)
+      }
+    }
+  } catch { /* ignore */ }
 })
-
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown)
-  if (refreshTimer) clearInterval(refreshTimer)
-  if (countdownTimer) clearInterval(countdownTimer)
 })
 </script>
-
-<style scoped>
-.stat-cards {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.stat-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px;
-  border-radius: 8px;
-  background: #fff;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
-
-.stat-card-body {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.stat-card-value {
-  font-size: 24px;
-  font-weight: 700;
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, 'Courier New', monospace;
-  font-variant-numeric: tabular-nums;
-}
-
-.stat-card-label {
-  font-size: 13px;
-  color: #666;
-}
-
-.stat-card-icon {
-  font-size: 32px;
-  opacity: 0.3;
-}
-
-.stat-draft { border-left: 3px solid #d9d9d9; }
-.stat-draft .stat-card-value { color: #666; }
-.stat-pending { border-left: 3px solid #faad14; }
-.stat-pending .stat-card-value { color: #faad14; }
-.stat-completed { border-left: 3px solid #52c41a; }
-.stat-completed .stat-card-value { color: #52c41a; }
-.stat-amount { border-left: 3px solid #722ed1; }
-.stat-amount .stat-card-value { color: #722ed1; }
-
-.data-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.update-time {
-  font-size: 12px;
-  color: #999;
-  white-space: nowrap;
-}
-
-.error-text {
-  color: #ff4d4f;
-  font-size: 12px;
-}
-
-.auto-refresh-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: #52c41a;
-}
-
-.amount-cell {
-  color: #ff4d4f;
-  font-weight: 600;
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, 'Courier New', monospace;
-}
-
-.table-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 48px 0;
-}
-
-.table-empty-icon {
-  font-size: 48px;
-  color: #d9d9d9;
-  margin-bottom: 12px;
-}
-
-.table-empty-text {
-  color: #999;
-  margin-bottom: 16px;
-}
-
-/* ── 快捷键提示 ──────────────────────── */
-.shortcut-hints {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: #909399;
-  user-select: none;
-}
-.shortcut-hint {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  padding: 1px 4px;
-  border-radius: 3px;
-  background: #f5f7fa;
-}
-.shortcut-hint kbd {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 3px;
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-  font-size: 11px;
-  color: #606266;
-  background: #fff;
-  border: 1px solid #d0d5dd;
-  border-radius: 3px;
-  box-shadow: 0 1px 0 #d0d5dd;
-  line-height: 18px;
-}
-
-/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
-:deep(.ant-input-sm),
-:deep(.ant-input-number-sm),
-:deep(.ant-select-single.ant-select-sm .ant-select-selector),
-:deep(.ant-picker-small),
-:deep(.ant-btn-sm) {
-  height: 28px;
-  line-height: 28px;
-}
-:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
-  line-height: 26px;
-}
-:deep(.ant-input-number-sm input) {
-  height: 26px;
-}
-
-</style>

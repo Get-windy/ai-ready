@@ -1439,8 +1439,8 @@ const exportReport = async (format: 'xlsx' | 'csv', tabs: string[]) => {
     window.URL.revokeObjectURL(url)
     message.success('导出成功')
   } catch (error: unknown) {
-    console.warn('[销售分析] 导出失败，降级为前端 JSON 导出', error)
-    // 降级：前端生成 JSON 文件
+    console.warn('[销售分析] 导出失败，回退为前端 JSON 导出', error)
+    // 回退：前端生成 JSON 文件
     try {
       const data = {
         导出时间: new Date().toLocaleString('zh-CN'),
@@ -1470,9 +1470,9 @@ const exportReport = async (format: 'xlsx' | 'csv', tabs: string[]) => {
       fallbackA.download = `销售分析报表_${dayjs().format('YYYYMMDD')}.json`
       fallbackA.click()
       window.URL.revokeObjectURL(fallbackUrl)
-      message.warning('后端导出不可用，已降级为 JSON 导出')
+      message.warning('后端导出不可用，已回退为 JSON 导出')
     } catch (fallbackErr) {
-      console.warn('[销售分析] 降级导出也失败', fallbackErr)
+      console.warn('[销售分析] 回退导出也失败', fallbackErr)
       message.error('导出失败')
     }
   } finally {

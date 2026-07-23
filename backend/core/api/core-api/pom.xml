@@ -84,17 +84,35 @@
             <groupId>cn.aiedge.erp</groupId>
             <artifactId>erp-observability</artifactId>
         </dependency>
-        <!-- ERP 固定资产模块（排除，使用 core-api 占位 Controller） -->
-        <!--
+        <!-- ERP 固定资产模块 -->
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
             <artifactId>erp-fixed-asset</artifactId>
         </dependency>
-        -->
         <!-- ERP 预算管理模块 -->
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
             <artifactId>erp-budget</artifactId>
+        </dependency>
+        <!-- HR 人力资源模块 -->
+        <dependency>
+            <groupId>cn.aiedge</groupId>
+            <artifactId>hr-base</artifactId>
+        </dependency>
+        <!-- ERP 营销模块（优惠券/会员卡/提成） -->
+        <dependency>
+            <groupId>cn.aiedge.erp</groupId>
+            <artifactId>erp-marketing</artifactId>
+        </dependency>
+        <!-- 支付结算基础设施 -->
+        <dependency>
+            <groupId>cn.aiedge</groupId>
+            <artifactId>core-payment</artifactId>
+        </dependency>
+        <!-- 平台级功能（自动化规则/自定义字段/看板） -->
+        <dependency>
+            <groupId>cn.aiedge</groupId>
+            <artifactId>core-platform</artifactId>
         </dependency>
         <!-- ERP 订货商城模块 -->
         <dependency>

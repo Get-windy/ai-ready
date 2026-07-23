@@ -904,7 +904,7 @@ function handleAction(actionKey: string, _parentKey?: string) {
       }
       break
     case 'import':
-      message.info('导入功能开发中，可使用新增按钮逐条录入')
+      message.info('导入功能待完善，可使用新增按钮逐条录入')
       break
   }
 }

@@ -1,223 +1,282 @@
 <template>
-  <PageContainer
-    title="客户跟进"
-    full-height
-  >
-    <template #headerExtra>
-      <a-space :size="12">
-        <span class="data-status">
-          <a-badge :status="loading ? 'processing' : hasError ? 'error' : 'success'" />
-          <span
-            v-if="lastUpdateTime"
-            class="update-time"
-          >
-            数据更新: {{ lastUpdateTime }}
-          </span>
-        </span>
+  <div>
+    <ARReportPage
+      ref="reportRef"
+      title="客户跟进"
+      :query-fields="queryFields"
+      :columns="columns"
+      :fetcher="fetcher"
+      page-param-style="pageNum"
+      export-file-name="客户跟进"
+      row-key="id"
+    >
+      <template #header-extra>
         <a-button
+          type="primary"
           size="small"
-          :loading="loading"
-          @click="fetchData"
+          @click="openCreate"
         >
           <template #icon>
-            <ReloadOutlined />
-          </template>
-          刷新
+            <PlusOutlined />
+          </template>新建跟进
         </a-button>
-      </a-space>
-    </template>
+      </template>
+      <template #bodyCell="{ column, text }">
+        <template v-if="column.dataIndex === 'followUpType'">
+          <a-tag :color="followUpTypeColor(text)">
+            {{ followUpTypeText(text) }}
+          </a-tag>
+        </template>
+        <template v-else-if="column.dataIndex === 'followUpResult'">
+          <a-tag :color="followUpResultColor(text)">
+            {{ followUpResultText(text) }}
+          </a-tag>
+        </template>
+      </template>
+    </ARReportPage>
 
-    <ErrorBoundary @reset="fetchData">
-      <div class="search-area">
-        <a-space wrap>
-          <a-input
-            v-model:value="searchParams.customerName"
-            placeholder="客户名称"
-            allow-clear
-            style="width: 160px"
-            @press-enter="handleSearch"
-          />
+    <!-- ═══ 新建跟进弹窗 ═══ -->
+    <a-modal
+      v-model:open="createVisible"
+      title="新建跟进记录"
+      :confirm-loading="createLoading"
+      ok-text="保存"
+      cancel-text="取消"
+      @ok="handleCreate"
+    >
+      <a-form
+        :label-col="{ span: 6 }"
+        :wrapper-col="{ span: 16 }"
+      >
+        <a-form-item
+          label="客户"
+          required
+        >
           <a-select
-            v-model:value="searchParams.followType"
-            placeholder="跟进类型"
-            allow-clear
-            style="width: 120px"
-          >
-            <a-select-option value="">
-              全部
-            </a-select-option>
-            <a-select-option value="电话">
-              电话
-            </a-select-option>
-            <a-select-option value="拜访">
-              拜访
-            </a-select-option>
-            <a-select-option value="微信">
-              微信
-            </a-select-option>
-            <a-select-option value="邮件">
-              邮件
-            </a-select-option>
-          </a-select>
-          <a-range-picker
-            v-model:value="dateRange"
-            style="width: 240px"
+            v-model:value="createForm.customerId"
+            placeholder="请选择客户"
+            show-search
+            :filter-option="filterCustomerOption"
+            :options="customerOptions"
           />
-          <a-button
-            type="primary"
-            @click="handleSearch"
-          >
-            <template #icon>
-              <SearchOutlined />
-            </template>
-            查询
-          </a-button>
-          <a-button @click="handleReset">
-            <template #icon>
-              <ClearOutlined />
-            </template>
-            重置
-          </a-button>
-        </a-space>
-      </div>
-
-      <div class="table-area">
-        <BillTableList
-          :columns="columns"
-          :data-source="tableData"
-          :loading="loading"
-          :pagination="billPagination"
-          :show-add="false"
-          :show-search="false"
-          :show-export="true"
-          :selectable="false"
-          :min-empty-rows="10"
-          @refresh="fetchData"
-          @page-change="handlePageChange"
-          @export="handleExport"
-        />
-      </div>
-    </ErrorBoundary>
-  </PageContainer>
+        </a-form-item>
+        <a-form-item
+          label="跟进类型"
+          required
+        >
+          <a-select
+            v-model:value="createForm.followUpType"
+            placeholder="请选择跟进类型"
+            :options="FOLLOW_UP_TYPE_OPTIONS"
+          />
+        </a-form-item>
+        <a-form-item label="联系人">
+          <a-input
+            v-model:value="createForm.contactName"
+            placeholder="联系人姓名"
+          />
+        </a-form-item>
+        <a-form-item label="联系电话">
+          <a-input
+            v-model:value="createForm.contactPhone"
+            placeholder="联系电话"
+          />
+        </a-form-item>
+        <a-form-item label="跟进日期">
+          <a-date-picker
+            v-model:value="createForm.followUpDate"
+            style="width: 100%"
+            value-format="YYYY-MM-DD"
+          />
+        </a-form-item>
+        <a-form-item
+          label="跟进内容"
+          required
+        >
+          <a-textarea
+            v-model:value="createForm.content"
+            placeholder="请输入跟进内容"
+            :rows="3"
+          />
+        </a-form-item>
+        <a-form-item label="跟进结果">
+          <a-select
+            v-model:value="createForm.followUpResult"
+            placeholder="请选择跟进结果"
+            :options="FOLLOW_UP_RESULT_OPTIONS"
+            allow-clear
+          />
+        </a-form-item>
+        <a-form-item label="下一步行动">
+          <a-input
+            v-model:value="createForm.nextAction"
+            placeholder="下一步行动计划"
+          />
+        </a-form-item>
+        <a-form-item label="下次跟进">
+          <a-date-picker
+            v-model:value="createForm.nextFollowUpDate"
+            style="width: 100%"
+            value-format="YYYY-MM-DD"
+          />
+        </a-form-item>
+      </a-form>
+    </a-modal>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
-import type { Dayjs } from 'dayjs'
-import { ReloadOutlined, SearchOutlined, ClearOutlined } from '@ant-design/icons-vue'
-import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import PageContainer from '@/components/PageContainer/PageContainer.vue'
-import BillTableList from '@/components/BillTableList/BillTableList.vue'
-import request from '@/utils/request'
+import { message } from 'ant-design-vue'
+import { PlusOutlined } from '@ant-design/icons-vue'
+import ARReportPage from '@/components/ARReportPage/ARReportPage.vue'
+import type { ReportQueryField } from '@/components/ARReportPage/types'
+import { followUpApi, crmCustomerApi, type FollowUpRecord } from '@/api/crm'
 
-const loading = ref(false)
-const hasError = ref(false)
-const tableData = ref<any[]>([])
-const lastUpdateTime = ref('')
+// ═══ 跟进类型/结果（与现有客户页保持一致） ═══
+const FOLLOW_UP_TYPE_OPTIONS = [
+  { label: '电话', value: 1 },
+  { label: '拜访', value: 2 },
+  { label: '邮件', value: 3 },
+  { label: '微信', value: 4 },
+  { label: '其他', value: 5 }
+]
+const FOLLOW_UP_RESULT_OPTIONS = [
+  { label: '有意向', value: 1 },
+  { label: '无意向', value: 2 },
+  { label: '待跟进', value: 3 }
+]
+const TYPE_TEXT: Record<number, string> = { 1: '电话', 2: '拜访', 3: '邮件', 4: '微信', 5: '其他' }
+const TYPE_COLOR: Record<number, string> = { 1: 'blue', 2: 'green', 3: 'purple', 4: 'cyan', 5: 'default' }
+const RESULT_TEXT: Record<number, string> = { 1: '有意向', 2: '无意向', 3: '待跟进' }
+const RESULT_COLOR: Record<number, string> = { 1: 'green', 2: 'red', 3: 'orange' }
 
-const searchParams = reactive({
-  customerName: '',
-  followType: ''
-})
-const dateRange = ref<[Dayjs, Dayjs] | null>(null)
+function followUpTypeText(v: number | undefined): string {
+  return (v && TYPE_TEXT[v]) || '-'
+}
+function followUpTypeColor(v: number | undefined): string {
+  return (v && TYPE_COLOR[v]) || 'default'
+}
+function followUpResultText(v: number | undefined): string {
+  return (v && RESULT_TEXT[v]) || '-'
+}
+function followUpResultColor(v: number | undefined): string {
+  return (v && RESULT_COLOR[v]) || 'default'
+}
 
-const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
-const billPagination = computed(() => ({
-  current: pagination.current,
-  pageSize: pagination.pageSize,
-  total: pagination.total
-}))
+// ═══ 客户下拉（/api/customer/dropdown） ═══
+const customerOptions = ref<{ label: string; value: number }[]>([])
 
-const columns = [
-  { field: 'customerName', title: '客户名称', width: 160 },
-  { field: 'followerName', title: '跟进人', width: 100 },
-  { field: 'followType', title: '跟进方式', width: 80 },
-  { field: 'followContent', title: '跟进内容', width: 240 },
-  { field: 'followDate', title: '跟进日期', width: 120 },
-  { field: 'nextFollowDate', title: '下次跟进', width: 120 }
+function filterCustomerOption(input: string, option: any): boolean {
+  return String(option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+}
+
+// ═══ 查询区（后端 /crm/followUp/page 仅支持 customerId 等精确条件） ═══
+const queryFields = computed<ReportQueryField[]>(() => [
+  {
+    key: 'customerId',
+    type: 'select',
+    label: '客户',
+    placeholder: '全部客户',
+    width: 220,
+    options: customerOptions.value
+  }
+])
+
+// ═══ 表格列 ═══
+const columns: any[] = [
+  { title: '跟进单号', dataIndex: 'followUpCode', key: 'followUpCode', width: 150 },
+  { title: '客户', dataIndex: 'customerName', key: 'customerName', width: 160, ellipsis: true },
+  { title: '类型', dataIndex: 'followUpType', key: 'followUpType', width: 80 },
+  { title: '联系人', dataIndex: 'contactName', key: 'contactName', width: 100 },
+  { title: '跟进日期', dataIndex: 'followUpDate', key: 'followUpDate', width: 110 },
+  { title: '跟进内容', dataIndex: 'content', key: 'content', ellipsis: true },
+  { title: '跟进结果', dataIndex: 'followUpResult', key: 'followUpResult', width: 90 },
+  { title: '下次跟进', dataIndex: 'nextFollowUpDate', key: 'nextFollowUpDate', width: 110 },
+  { title: '跟进人', dataIndex: 'salesPersonName', key: 'salesPersonName', width: 100 }
 ]
 
-async function fetchData() {
-  loading.value = true
-  hasError.value = false
+// ═══ 数据请求 ═══
+const reportRef = ref<InstanceType<typeof ARReportPage>>()
+
+function fetcher(params: Record<string, any>) {
+  return followUpApi.page(params)
+}
+
+// ═══ 新建跟进 ═══
+const createVisible = ref(false)
+const createLoading = ref(false)
+const createForm = reactive({
+  customerId: undefined as number | undefined,
+  followUpType: 1,
+  contactName: '',
+  contactPhone: '',
+  followUpDate: undefined as string | undefined,
+  content: '',
+  followUpResult: undefined as number | undefined,
+  nextAction: '',
+  nextFollowUpDate: undefined as string | undefined
+})
+
+function openCreate() {
+  createForm.customerId = undefined
+  createForm.followUpType = 1
+  createForm.contactName = ''
+  createForm.contactPhone = ''
+  createForm.followUpDate = undefined
+  createForm.content = ''
+  createForm.followUpResult = undefined
+  createForm.nextAction = ''
+  createForm.nextFollowUpDate = undefined
+  createVisible.value = true
+}
+
+async function handleCreate() {
+  if (!createForm.customerId) {
+    message.warning('请选择客户')
+    return
+  }
+  if (!createForm.content.trim()) {
+    message.warning('请输入跟进内容')
+    return
+  }
+  const customer = customerOptions.value.find(o => o.value === createForm.customerId)
+  const payload: Partial<FollowUpRecord> = {
+    customerId: createForm.customerId,
+    customerName: customer?.label,
+    followUpType: createForm.followUpType,
+    followUpTypeDesc: TYPE_TEXT[createForm.followUpType],
+    contactName: createForm.contactName || undefined,
+    contactPhone: createForm.contactPhone || undefined,
+    followUpDate: createForm.followUpDate,
+    content: createForm.content.trim(),
+    followUpResult: createForm.followUpResult,
+    followUpResultDesc: createForm.followUpResult ? RESULT_TEXT[createForm.followUpResult] : undefined,
+    nextAction: createForm.nextAction || undefined,
+    nextFollowUpDate: createForm.nextFollowUpDate
+  }
+  createLoading.value = true
   try {
-    const params: Record<string, any> = {
-      pageNum: pagination.current,
-      pageSize: pagination.pageSize,
-      customerName: searchParams.customerName || undefined,
-      followType: searchParams.followType || undefined
-    }
-    if (dateRange.value) {
-      params.startDate = dateRange.value[0].format('YYYY-MM-DD')
-      params.endDate = dateRange.value[1].format('YYYY-MM-DD')
-    }
-    const res = await request.get('/crm/customer-follow/page', { params })
-    const result = res as any
-    const data = result.data ?? result
-    tableData.value = data?.records || []
-    pagination.total = data?.total || 0
-    lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
-  } catch (err) {
-    hasError.value = true
-    console.warn('[客户跟进] 加载数据失败', err)
-    tableData.value = []
-    pagination.total = 0
+    await followUpApi.create(payload)
+    message.success('跟进记录已保存')
+    createVisible.value = false
+    reportRef.value?.reload()
+  } catch (e: any) {
+    message.error(e?.message || '保存失败')
   } finally {
-    loading.value = false
+    createLoading.value = false
   }
 }
 
-function handleSearch() {
-  pagination.current = 1
-  fetchData()
-}
-
-function handleReset() {
-  searchParams.customerName = ''
-  searchParams.followType = ''
-  dateRange.value = null
-  pagination.current = 1
-  fetchData()
-}
-
-function handlePageChange(page: number, size: number) {
-  pagination.current = page
-  pagination.pageSize = size
-  fetchData()
-}
-
-function handleExport() {
-  console.log('导出客户跟进数据')
-}
-
-onMounted(() => {
-  fetchData()
+onMounted(async () => {
+  try {
+    const list = await crmCustomerApi.dropdown()
+    customerOptions.value = (Array.isArray(list) ? list : []).map(c => ({
+      label: c.name,
+      value: c.id
+    }))
+  } catch (e) {
+    console.warn('[客户跟进] 客户下拉获取失败', e)
+  }
 })
 </script>
-
-<style scoped>
-.search-area {
-  padding: 12px 16px;
-  background: #fff;
-  border-radius: 6px;
-  margin-bottom: 12px;
-}
-
-.table-area {
-  flex: 1;
-  min-height: 0;
-}
-
-.update-time {
-  color: #999;
-  font-size: 12px;
-}
-
-.data-status {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: #666;
-}
-</style>

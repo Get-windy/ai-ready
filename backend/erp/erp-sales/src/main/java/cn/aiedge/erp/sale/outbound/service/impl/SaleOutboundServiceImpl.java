@@ -17,6 +17,7 @@ import cn.aiedge.erp.sale.outbound.mapper.SaleOutboundItemMapper;
 import cn.aiedge.erp.sale.outbound.mapper.SaleOutboundMapper;
 import cn.aiedge.erp.sale.outbound.service.SaleOutboundService;
 import cn.aiedge.erp.sale.service.ISaleOrderService;
+import cn.aiedge.erp.sale.service.integration.SalesAccountingService;
 import cn.aiedge.erp.stock.service.StockService;
 import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -58,6 +59,7 @@ public class SaleOutboundServiceImpl extends ServiceImpl<SaleOutboundMapper, Sal
     private final PriceEngineService priceEngineService;
     private final CustomerCreditService customerCreditService;
     private final VoucherService voucherService;
+    private final SalesAccountingService salesAccountingService;
 
     @Override
     public SaleOutbound getByOutboundNo(String outboundNo) {
@@ -1065,6 +1067,19 @@ public class SaleOutboundServiceImpl extends ServiceImpl<SaleOutboundMapper, Sal
         } catch (Exception e) {
             log.error("自动生成会计凭证失败，出库单ID={}, 原因={}", outboundId, e.getMessage(), e);
             // 凭证生成失败不影响出库单完成状态
+        }
+
+        // 业财直调：发货完成产生应收及收入凭证（对标Odoo invoice on delivery）
+        if (outbound.getCustomerId() != null && totalAmount.compareTo(BigDecimal.ZERO) > 0) {
+            try {
+                salesAccountingService.createReceivableOnShipment(
+                        outbound.getId(), outbound.getOutboundNo(),
+                        String.valueOf(outbound.getCustomerId()), outbound.getCustomerName(),
+                        totalAmount);
+            } catch (Exception e) {
+                log.error("销售发货自动记账失败，出库单ID={}, 原因={}", outboundId, e.getMessage(), e);
+                // 记账失败不影响出库单完成状态
+            }
         }
 
         // 更新客户信用欠款（对标Odoo/SAP信用管理）

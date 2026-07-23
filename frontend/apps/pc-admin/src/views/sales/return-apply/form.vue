@@ -590,7 +590,7 @@ const footerConfig = computed<BillFooterConfig>(() => ({
 const allDetailColumns = computed<DetailColumnConfig[]>(() => [
   { key: 'rowNo', title: '', type: 'rowNo', width: 40, fixed: 'left' },
   { key: 'action', title: '操作', type: 'action', slotName: 'actionCell', width: 50, fixed: 'left' },
-  { key: 'imageUrl', title: '图片', type: 'image', width: 60 },
+  { key: 'imageUrl', title: '图片', type: 'input', width: 60 },
   { key: 'productId', title: '商品名称', type: 'input', searchable: true,
     options: optionRefs.products.map((p: any) => ({
       label: p.name,
@@ -867,11 +867,11 @@ function handleSearchBtn(fieldKey: string, _btnText: string) {
     } else if (generateType === '销售出库') {
       router.push(`/sales/outbound/form/${sourceOrderId}`)
     } else {
-      message.info(`源单类型：${generateType || '未知'}，暂不支持跳转`)
+      message.info(`源单类型：${generateType || '未知'}，暂不可用跳转`)
     }
     return
   }
-  message.info(`${fieldKey} 快速查询功能开发中`)
+  message.info(`${fieldKey} 快速查询功能待完善`)
 }
 
 // ═══ 产品选择弹窗 ══
@@ -928,7 +928,7 @@ async function handleAction(actionKey: string, _parentKey?: string) {
           message.info('请选择打印模板')
         }
       } catch {
-        message.info('打印功能开发中')
+        message.info('打印功能待完善')
       }
       break
     case 'config':
@@ -936,7 +936,7 @@ async function handleAction(actionKey: string, _parentKey?: string) {
       break
     case 'import':
     case 'export':
-      message.info(`${actionKey === 'import' ? '导入' : '导出'} 功能开发中`)
+      message.info(`${actionKey === 'import' ? '导入' : '导出'} 功能待完善`)
       break
     // ── 工作流操作 ──
     case 'submit':
@@ -998,7 +998,7 @@ function handleFormConfigChange(config: any) {
   // 深度合并：仅更新用户实际在配置面板中修改的字段
   // 保留 DEFAULT_FIELD_VISIBLE_MAP 未显式配置的默认值
   if (config.pageFields) {
-    const incomingMap = new Map(config.pageFields.map((f: any) => [f.key, f.visible]))
+    const incomingMap = new Map<string, boolean>(config.pageFields.map((f: any) => [f.key, f.visible] as [string, boolean]))
     const currentMap = new Map(formFieldVisibility.value.map(f => [f.key, f.visible]))
     // 合并：传入的配置覆盖现有值，但仅覆盖传入的字段
     incomingMap.forEach((visible, key) => currentMap.set(key, visible))

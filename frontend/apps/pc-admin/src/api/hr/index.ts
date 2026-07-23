@@ -77,6 +77,9 @@ export const hrEmployeeApi = {
   update(id: number, data: Partial<HrEmployee>): Promise<boolean> {
     return request.put(`/hr/employees/${id}`, data)
   },
+  delete(id: number): Promise<boolean> {
+    return request.delete(`/hr/employees/${id}`)
+  },
   updateStatus(id: number, status: number): Promise<boolean> {
     return request.put(`/hr/employees/${id}/status`, null, { params: { status } })
   },
@@ -140,6 +143,7 @@ export const hrAttendanceApi = {
 export interface HrLeaveRequest {
   id: number
   employeeId: number
+  employeeName?: string
   leaveType: string
   startDate: string
   endDate: string
@@ -187,6 +191,7 @@ export interface HrSalaryStructure {
 export interface HrSalaryPayment {
   id: number
   employeeId: number
+  employeeName?: string
   paymentMonth: string
   baseAmount: number
   performanceAmount: number

@@ -20,7 +20,7 @@
           <a-button
             type="primary"
             size="small"
-            @click="handleCreateBackup"
+            @click="openCreate"
           >
             <template #icon>
               <CloudUploadOutlined />
@@ -42,87 +42,44 @@
       </div>
     </template>
 
-    <!-- 备份策略配置 -->
-    <a-row
-      :gutter="16"
+    <a-alert
+      type="info"
+      show-icon
       style="margin-bottom:16px"
-    >
-      <a-col :span="16">
-        <a-card
-          :bordered="false"
-          title="备份策略"
-        >
-          <a-form layout="inline">
-            <a-form-item label="自动备份">
-              <a-switch v-model:checked="autoBackup" />
-            </a-form-item>
-            <a-form-item label="备份周期">
-              <a-select
-                v-model:value="backupCycle"
-                style="width:120px"
-                :disabled="!autoBackup"
-              >
-                <a-select-option value="daily">
-                  每日
-                </a-select-option>
-                <a-select-option value="weekly">
-                  每周
-                </a-select-option>
-                <a-select-option value="monthly">
-                  每月
-                </a-select-option>
-              </a-select>
-            </a-form-item>
-            <a-form-item label="保留份数">
-              <a-input-number
-                v-model:value="retentionCount"
-                :min="1"
-                :max="365"
-                :disabled="!autoBackup"
-              />
-            </a-form-item>
-            <a-form-item>
-              <a-button
-                type="primary"
-                size="small"
-                @click="saveStrategy"
-              >
-                保存策略
-              </a-button>
-            </a-form-item>
-          </a-form>
-        </a-card>
-      </a-col>
-      <a-col :span="8">
-        <a-card
-          :bordered="false"
-          title="存储概览"
-        >
-          <a-row :gutter="8">
-            <a-col :span="12">
-              <a-statistic
-                title="备份总大小"
-                :value="storageStats.totalSize"
-              />
-            </a-col>
-            <a-col :span="12">
-              <a-statistic
-                title="可用空间"
-                :value="storageStats.freeSize"
-              />
-            </a-col>
-          </a-row>
-        </a-card>
-      </a-col>
-    </a-row>
+      message="自动备份策略配置与备份文件下载功能需后端补全对应端点，当前支持手动创建备份、恢复与删除。"
+    />
 
-    <!-- 备份列表 -->
+    <!-- 统计卡片（基于当前数据源过滤后的全量记录计算） -->
+    <ARStatCards
+      :items="statCards"
+      :loading="loading"
+    />
+
     <a-card
       :bordered="false"
       title="备份记录"
     >
+      <template #extra>
+        <a-select
+          v-model:value="query.dataSourceId"
+          placeholder="全部数据源"
+          style="width:200px"
+          allow-clear
+          size="small"
+          @change="fetchData"
+        >
+          <a-select-option
+            v-for="ds in dataSources"
+            :key="ds.id"
+            :value="ds.id"
+          >
+            {{ ds.name }}
+          </a-select-option>
+        </a-select>
+      </template>
+
       <a-table
-        :data-source="list"
+        :data-source="pagedList"
         :columns="columns"
         :loading="loading"
         row-key="id"
@@ -131,122 +88,224 @@
         @change="handleTableChange"
       >
         <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'status'">
-            <a-tag :color="record.status === 'completed' ? 'green' : record.status === 'running' ? 'blue' : 'red'">
-              {{ { completed: '已完成', running: '进行中', failed: '失败', pending: '等待中' }[record.status] || record.status }}
+          <template v-if="column.key === 'backupType'">
+            <a-tag :color="record.backupType === 'full' ? 'blue' : 'cyan'">
+              {{ record.backupType === 'full' ? '全量备份' : record.backupType === 'incremental' ? '增量备份' : record.backupType }}
             </a-tag>
           </template>
-          <template v-if="column.key === 'size'">
-            {{ formatSize(record.size) }}
+          <template v-if="column.key === 'dataSourceId'">
+            {{ dataSourceName(record.dataSourceId) }}
+          </template>
+          <template v-if="column.key === 'fileSize'">
+            {{ formatSize(record.fileSize) }}
+          </template>
+          <template v-if="column.key === 'status'">
+            <a-tag :color="STATUS_MAP[record.status]?.color || 'default'">
+              {{ STATUS_MAP[record.status]?.label || record.status }}
+            </a-tag>
           </template>
           <template v-if="column.key === 'action'">
             <a-space>
-              <a-button
-                size="small"
-                type="link"
-                :disabled="record.status !== 'completed'"
-                @click="downloadBackup(record)"
-              >
-                <template #icon>
-                  <DownloadOutlined />
-                </template>
-              </a-button>
               <a-popconfirm
-                title="确定删除此备份?"
-                @confirm="deleteBackup(record)"
+                title="恢复将覆盖目标库当前数据，确定继续?"
+                ok-text="确定恢复"
+                cancel-text="取消"
+                @confirm="restoreBackup(record as BackupRecordItem)"
               >
-                <a-button
-                  size="small"
-                  type="link"
-                  danger
-                >
-                  <template #icon>
-                    <DeleteOutlined />
-                  </template>
-                </a-button>
+                <a :class="{ 'text-disabled': record.status !== 'success' }">恢复</a>
+              </a-popconfirm>
+              <a-divider type="vertical" />
+              <a-popconfirm
+                title="确定删除此备份记录?"
+                @confirm="deleteBackup(record as BackupRecordItem)"
+              >
+                <a class="text-danger">删除</a>
               </a-popconfirm>
             </a-space>
           </template>
         </template>
       </a-table>
     </a-card>
+
+    <!-- 创建备份弹窗 -->
+    <a-modal
+      v-model:open="createVisible"
+      title="创建备份"
+      width="480px"
+      :confirm-loading="creating"
+      @ok="handleCreate"
+    >
+      <a-form layout="vertical">
+        <a-form-item
+          label="数据源"
+          required
+        >
+          <a-select
+            v-model:value="createForm.dataSourceId"
+            placeholder="选择要备份的数据源"
+          >
+            <a-select-option
+              v-for="ds in dataSources"
+              :key="ds.id"
+              :value="ds.id"
+            >
+              {{ ds.name }}（{{ ds.dbType }} · {{ ds.databaseName }}）
+            </a-select-option>
+          </a-select>
+        </a-form-item>
+        <a-form-item label="备份名称">
+          <a-input
+            v-model:value="createForm.backupName"
+            placeholder="留空则由系统自动生成"
+          />
+        </a-form-item>
+        <a-form-item label="备份类型">
+          <a-select v-model:value="createForm.backupType">
+            <a-select-option value="full">
+              全量备份
+            </a-select-option>
+            <a-select-option value="incremental">
+              增量备份
+            </a-select-option>
+          </a-select>
+        </a-form-item>
+      </a-form>
+    </a-modal>
   </PageContainer>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
-import { ReloadOutlined, CloudUploadOutlined, DownloadOutlined, DeleteOutlined } from '@ant-design/icons-vue'
-import request from '@/utils/request'
+import { ReloadOutlined, CloudUploadOutlined } from '@ant-design/icons-vue'
+import ARStatCards from '@/components/ARStatCards/ARStatCards.vue'
+import type { StatCardItem } from '@/components/ARReportPage/types'
+import { backupApi, dataSourceApi, type BackupRecordItem, type DataSourceItem } from '@/api/admin'
+
+// 备份状态（与后端 BackupRecord.status 一致：running/success/failed）
+const STATUS_MAP: Record<string, { label: string; color: string }> = {
+  success: { label: '成功', color: 'green' },
+  running: { label: '进行中', color: 'blue' },
+  failed: { label: '失败', color: 'red' }
+}
 
 const loading = ref(false)
-const list = ref<any[]>([])
-const autoBackup = ref(true)
-const backupCycle = ref('daily')
-const retentionCount = ref(30)
+const creating = ref(false)
+const createVisible = ref(false)
+const allRows = ref<BackupRecordItem[]>([])
+const dataSources = ref<DataSourceItem[]>([])
 
-const storageStats = reactive({
-  totalSize: '0 GB',
-  freeSize: '0 GB',
+const query = reactive({
+  dataSourceId: undefined as number | undefined,
 })
 
-const pagination = reactive({
-  current: 1,
-  pageSize: 20,
-  total: 0,
+const createForm = reactive({
+  dataSourceId: undefined as number | undefined,
+  backupName: '',
+  backupType: 'full',
+})
+
+const paginationState = reactive({ current: 1, pageSize: 20 })
+
+const pagination = computed(() => ({
+  current: paginationState.current,
+  pageSize: paginationState.pageSize,
+  total: allRows.value.length,
   showSizeChanger: true,
   showTotal: (t: number) => `共 ${t} 条`,
+}))
+
+const pagedList = computed(() => {
+  const start = (paginationState.current - 1) * paginationState.pageSize
+  return allRows.value.slice(start, start + paginationState.pageSize)
+})
+
+const statCards = computed<StatCardItem[]>(() => {
+  const rows = allRows.value
+  const totalSize = rows.reduce((s, r) => s + (Number(r.fileSize) || 0), 0)
+  const failed = rows.filter(r => r.status === 'failed').length
+  const latest = rows.map(r => r.startTime || r.createTime || '').filter(Boolean).sort().pop()
+  return [
+    { label: '备份总数', value: rows.length, suffix: '份' },
+    { label: '备份总大小', value: formatSize(totalSize) },
+    { label: '失败备份', value: failed, suffix: '份', valueStyle: failed ? { color: '#ff4d4f' } : undefined },
+    { label: '最近备份时间', value: latest || '-' },
+  ]
 })
 
 const columns = [
-  { title: '备份名称', dataIndex: 'name', key: 'name', minWidth: 180 },
-  { title: '数据库', dataIndex: 'database', key: 'database', width: 130 },
-  { title: '备份类型', dataIndex: 'type', key: 'type', width: 100 },
-  { title: '大小', dataIndex: 'size', key: 'size', width: 100 },
-  { title: '状态', dataIndex: 'status', key: 'status', width: 100 },
-  { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 170 },
-  { title: '操作', key: 'action', width: 100 },
+  { title: '备份名称', dataIndex: 'backupName', key: 'backupName', minWidth: 180, ellipsis: true },
+  { title: '数据源', dataIndex: 'dataSourceId', key: 'dataSourceId', width: 150 },
+  { title: '备份类型', dataIndex: 'backupType', key: 'backupType', width: 100 },
+  { title: '大小', dataIndex: 'fileSize', key: 'fileSize', width: 100, align: 'right' as const },
+  { title: '状态', dataIndex: 'status', key: 'status', width: 90 },
+  { title: '开始时间', dataIndex: 'startTime', key: 'startTime', width: 170 },
+  { title: '操作', key: 'action', width: 120 },
 ]
 
-function formatSize(bytes: number): string {
-  if (bytes === 0) return '0 B'
+function formatSize(bytes: number | null | undefined): string {
+  const n = Number(bytes)
+  if (!n || isNaN(n) || n <= 0) return '0 B'
   const units = ['B', 'KB', 'MB', 'GB', 'TB']
   let i = 0
-  let size = bytes
+  let size = n
   while (size >= 1024 && i < units.length - 1) { size /= 1024; i++ }
   return size.toFixed(2) + ' ' + units[i]
 }
 
+function dataSourceName(id: number): string {
+  const ds = dataSources.value.find(d => d.id === id)
+  return ds ? ds.name : `数据源#${id}`
+}
+
 function handleTableChange(pag: any) {
-  pagination.current = pag.current
-  pagination.pageSize = pag.pageSize
-  fetchData()
+  paginationState.current = pag.current
+  paginationState.pageSize = pag.pageSize
 }
 
-function saveStrategy() {
-  message.success('备份策略已保存')
+function openCreate() {
+  createForm.dataSourceId = dataSources.value[0]?.id
+  createForm.backupName = ''
+  createForm.backupType = 'full'
+  createVisible.value = true
 }
 
-async function handleCreateBackup() {
+async function handleCreate() {
+  if (!createForm.dataSourceId) { message.warning('请选择数据源'); return }
+  creating.value = true
   try {
-    await request.post('/data-source/backup/create', { dataSourceId: 1, backupType: 'full' })
-    message.success('备份创建完成')
-  } catch {
-    message.error('创建备份失败')
+    await backupApi.create({
+      dataSourceId: createForm.dataSourceId,
+      backupName: createForm.backupName || undefined,
+      backupType: createForm.backupType,
+    })
+    message.success('备份任务已创建')
+    createVisible.value = false
+    fetchData()
+  } catch (e: any) {
+    message.error(e?.message || '创建备份失败')
+  } finally {
+    creating.value = false
+  }
+}
+
+async function restoreBackup(record: BackupRecordItem) {
+  if (record.status !== 'success') return
+  try {
+    await backupApi.restore(record.id)
+    message.success('恢复操作已启动')
+  } catch (e: any) {
+    message.error(e?.message || '恢复失败')
   }
   fetchData()
 }
 
-function downloadBackup(record: any) {
-  message.success('备份下载中: ' + record.name)
-}
-
-async function deleteBackup(record: any) {
+async function deleteBackup(record: BackupRecordItem) {
   try {
-    await request.delete('/data-source/backup/' + record.id)
+    await backupApi.remove(record.id)
     message.success('备份已删除')
-  } catch {
-    message.error('删除备份失败')
+  } catch (e: any) {
+    message.error(e?.message || '删除备份失败')
   }
   fetchData()
 }
@@ -254,29 +313,34 @@ async function deleteBackup(record: any) {
 async function fetchData() {
   loading.value = true
   try {
-    const res = await request.get('/data-source/backup/list', {
-      params: { page: pagination.current, pageSize: pagination.pageSize }
-    })
-    const records = res?.records || []
-    list.value = records.map((r: any) => ({
-      id: r.id,
-      name: r.backupName || '',
-      database: r.databaseName || (r.dataSourceId ? '数据源#' + r.dataSourceId : ''),
-      type: r.backupType === 'full' ? '全量备份' : r.backupType === 'incremental' ? '增量备份' : r.backupType || '',
-      size: r.fileSize || 0,
-      status: r.status,
-      createdAt: r.startTime || r.createTime || '',
-    }))
-    pagination.total = res?.total || 0
-    storageStats.totalSize = list.value.reduce((s: number, r: any) => s + (typeof r.size === 'number' ? r.size : 0), 0) + ' B'
-    storageStats.freeSize = '128.3 GB'
+    // 后端无统计端点且为内存分页，拉全量（上限1000条）用于统计卡片 + 前端分页
+    const res = await backupApi.page({ dataSourceId: query.dataSourceId, page: 1, pageSize: 1000 })
+    allRows.value = res?.records || []
+    paginationState.current = 1
   } catch {
-    list.value = []
-    pagination.total = 0
+    allRows.value = []
   } finally {
     loading.value = false
   }
 }
 
-onMounted(fetchData)
+onMounted(async () => {
+  fetchData()
+  try {
+    const res = await dataSourceApi.page({ page: 1, pageSize: 100 })
+    dataSources.value = res?.records || []
+  } catch (e) {
+    console.warn('[备份管理] 数据源列表获取失败', e)
+  }
+})
 </script>
+
+<style scoped>
+.text-danger {
+  color: #ff4d4f;
+}
+.text-disabled {
+  color: #bbb;
+  pointer-events: none;
+}
+</style>

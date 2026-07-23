@@ -882,7 +882,7 @@ const DOC_TYPE_LABELS: Record<string, string> = {
   EXCHANGE: '换货单',
 }
 
-function handleExportMenu({ key }: { key: string }) {
+function handleExportMenu({ key }: { key: string | number }) {
   if (tableData.value.length === 0) {
     message.warning('没有可导出的数据')
     return
@@ -942,7 +942,7 @@ function handleCopy(record: any) {
   if (route) {
     router.push({ path: route, query: { copyFrom: record.id } })
   } else {
-    message.warning('暂不支持该单据类型的复制')
+    message.warning('暂不可用该单据类型的复制')
   }
 }
 

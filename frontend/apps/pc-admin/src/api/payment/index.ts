@@ -27,6 +27,53 @@ export const REFUND_STATUS_MAP: Record<number, { text: string; color: string }> 
   3: { text: '已拒绝', color: 'error' }
 }
 
+// ── 支付渠道参数配置 ──
+// 后端无支付渠道参数专用 CRUD 端点（core-payment 仅提供渠道查询/支付请求/记录），
+// 渠道参数（商户号、密钥、回调地址等）以 JSON 形式暂存系统参数：
+// configGroup = payment，configKey = payment.channel.{channelCode 小写}
+
+export interface PaymentChannelParam {
+  appId?: string
+  merchantNo?: string
+  appSecret?: string
+  notifyUrl?: string
+  enabled?: boolean
+}
+
+const channelParamKey = (channelCode: string) => `payment.channel.${channelCode.toLowerCase()}`
+
+export const paymentChannelConfigApi = {
+  /** 读取渠道参数（经 /api/config/list?configGroup=payment，无记录时返回 null） */
+  async load(channelCode: string): Promise<PaymentChannelParam | null> {
+    const res: any = await request.get('/config/list', { configGroup: 'payment' })
+    const records: any[] = res?.records || []
+    const hit = records.find((r: any) => r.configKey === channelParamKey(channelCode))
+    if (!hit?.configValue) return null
+    try {
+      return JSON.parse(hit.configValue) as PaymentChannelParam
+    } catch {
+      return null
+    }
+  },
+
+  /**
+   * 保存渠道参数。后端写接口 /api/config/save-value 返回 { success, message }（无 code 字段），
+   * 响应拦截器会将其误判为失败并reject，因此保存后重新读取校验是否真实写入。
+   */
+  async save(channelCode: string, data: PaymentChannelParam): Promise<boolean> {
+    try {
+      await request.post('/config/save-value', {
+        configKey: channelParamKey(channelCode),
+        configValue: JSON.stringify(data)
+      })
+      return true
+    } catch {
+      const loaded = await paymentChannelConfigApi.load(channelCode)
+      return loaded !== null
+    }
+  }
+}
+
 // 对账状态枚举
 export const RECON_STATUS_MAP: Record<number, { text: string; color: string }> = {
   0: { text: '待对账', color: 'warning' },
@@ -153,6 +200,10 @@ export const paymentApi = {
   confirmOffline: (id: number, channelOrderNo: string) =>
     request.post<Result<void>>(`/api/payment/request/${id}/confirm`, null, { params: { channelOrderNo } }),
 
+  // 确认支付
+  confirmPayment: (id: number, params: { method?: string; remark?: string; channelOrderNo?: string }) =>
+    request.post<Result<void>>(`/api/payment/request/${id}/confirm`, params),
+
   // 分页查询支付记录
   pageRecord: (params: { pageNum: number; pageSize: number; channel?: string }) =>
     request.get<Result<PageResult<PaymentRecord>>>('/api/payment/record/page', { params }),
@@ -200,8 +251,8 @@ export const reconciliationApi = {
     request.get<Result<PaymentReconciliation>>(`/api/reconciliation/${id}`),
 
   // 处理差异
-  handleDifference: (id: number, remark: string) =>
-    request.post<Result<void>>(`/api/reconciliation/${id}/handle`, null, { params: { remark } }),
+  handleDifference: (id: number, params: { method: string; remark: string }) =>
+    request.post<Result<void>>(`/api/reconciliation/${id}/handle`, params),
 
   // 获取待对账日期列表
   getPendingDates: (channel?: string) =>

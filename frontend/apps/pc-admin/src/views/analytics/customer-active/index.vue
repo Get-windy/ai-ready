@@ -1,86 +1,69 @@
 <template>
-  <ErrorBoundary>
-    <PageContainer title="客户活跃分析">
-      <div class="search-area">
-        <a-form layout="inline">
-          <a-form-item label="日期范围">
-            <a-range-picker
-              v-model:value="dateRange"
-              style="width: 220px"
-            />
-          </a-form-item>
-          <a-form-item>
-            <a-space>
-              <a-button
-                type="primary"
-                @click="handleSearch"
-              >
-                <template #icon>
-                  <SearchOutlined />
-                </template>查询
-              </a-button>
-              <a-button @click="handleReset">
-                <template #icon>
-                  <ClearOutlined />
-                </template>重置
-              </a-button>
-            </a-space>
-          </a-form-item>
-        </a-form>
-      </div>
-      <div class="table-area">
-        <a-table
-          :columns="columns"
-          :data-source="tableData"
-          :loading="loading"
-          :pagination="pagination"
-          row-key="id"
-          size="small"
-          @change="handleTableChange"
-        />
-      </div>
-    </PageContainer>
-  </ErrorBoundary>
+  <ARReportPage
+    title="客户活跃分析"
+    :query-fields="queryFields"
+    :columns="columns"
+    :fetcher="fetcher"
+    export-file-name="客户活跃分析"
+    row-key="customerId"
+  >
+    <template #bodyCell="{ column, text }">
+      <template v-if="column.dataIndex === 'activityLevel'">
+        <a-tag :color="ACTIVITY_COLOR[text] || 'default'">
+          {{ text || '-' }}
+        </a-tag>
+      </template>
+      <template v-else-if="['recentOrderCount', 'totalOrderCount', 'followCount'].includes(column.dataIndex as string)">
+        {{ formatNumber(text) }}
+      </template>
+      <template v-else-if="['recentOrderAmount', 'totalOrderAmount'].includes(column.dataIndex as string)">
+        {{ formatMoney(text) }}
+      </template>
+    </template>
+  </ARReportPage>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
-import { SearchOutlined, ClearOutlined } from '@ant-design/icons-vue'
-import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import PageContainer from '@/components/PageContainer/PageContainer.vue'
-import request from '@/utils/request'
+import ARReportPage from '@/components/ARReportPage/ARReportPage.vue'
+import type { ReportQueryField } from '@/components/ARReportPage/types'
+import { saleAnalyticsApi } from '@/api/analytics'
 
-const loading = ref(false)
-const tableData = ref<any[]>([])
-const dateRange = ref(null)
-const pagination = reactive({ current: 1, pageSize: 20, total: 0, showSizeChanger: true, showTotal: (t) => `共 ${t} 条` })
-
-const columns: any[] = [
-  { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
-  { title: '名称', dataIndex: 'name', key: 'name', width: 150 },
-  { title: '描述', dataIndex: 'description', key: 'description', ellipsis: true },
-  { title: '状态', dataIndex: 'status', key: 'status', width: 80 },
-  { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 160 }
-]
-
-async function loadData() {
-  loading.value = true
-  try {
-    const result = await request.get('/analytics/customer-active/page', { pageNum: pagination.current, pageSize: pagination.pageSize })
-    if (result?.records) { tableData.value = result.records; pagination.total = result.total }
-    else if (Array.isArray(result)) { tableData.value = result; pagination.total = result.length }
-  } catch (e) { tableData.value = [] }
-  finally { loading.value = false }
+// ═══ 活跃度分层着色（后端返回 活跃/一般/沉默） ═══
+const ACTIVITY_COLOR: Record<string, string> = {
+  活跃: 'green',
+  一般: 'orange',
+  沉默: 'default'
 }
 
-function handleSearch() { pagination.current = 1; loadData() }
-function handleReset() { dateRange.value = null; pagination.current = 1; loadData() }
-function handleTableChange(p) { pagination.current = p.current; pagination.pageSize = p.pageSize; loadData() }
+const queryFields: ReportQueryField[] = [
+  { key: 'keyword', type: 'input', label: '关键字', placeholder: '客户名称', width: 180 },
+  { key: 'days', type: 'input', label: '统计天数', placeholder: '默认 30 天', width: 120 }
+]
 
-onMounted(loadData)
+// ═══ 表格列 ═══
+const columns: any[] = [
+  { title: '客户', dataIndex: 'customerName', key: 'customerName', width: 170, ellipsis: true },
+  { title: '近N天单数', dataIndex: 'recentOrderCount', key: 'recentOrderCount', width: 100, align: 'right' },
+  { title: '近N天金额', dataIndex: 'recentOrderAmount', key: 'recentOrderAmount', width: 120, align: 'right' },
+  { title: '最近下单时间', dataIndex: 'lastOrderTime', key: 'lastOrderTime', width: 160 },
+  { title: '历史单数', dataIndex: 'totalOrderCount', key: 'totalOrderCount', width: 90, align: 'right' },
+  { title: '历史总额', dataIndex: 'totalOrderAmount', key: 'totalOrderAmount', width: 120, align: 'right' },
+  { title: '跟进次数', dataIndex: 'followCount', key: 'followCount', width: 90, align: 'right' },
+  { title: '活跃度', dataIndex: 'activityLevel', key: 'activityLevel', width: 90 }
+]
+
+function formatNumber(val: number | null | undefined): string {
+  if (val === null || val === undefined || isNaN(Number(val))) return '-'
+  return Number(val).toLocaleString('zh-CN')
+}
+
+function formatMoney(val: number | null | undefined): string {
+  if (val === null || val === undefined || isNaN(Number(val))) return '-'
+  return Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+// ═══ 数据请求（统计天数默认 30） ═══
+function fetcher(params: Record<string, any>) {
+  return saleAnalyticsApi.customerActivePage({ days: 30, ...params })
+}
 </script>
-
-<style scoped>
-.search-area { background: #fff; padding: 16px 20px; border-radius: 8px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-.table-area { background: #fff; padding: 16px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-</style>
