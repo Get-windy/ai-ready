@@ -658,13 +658,13 @@ const basicInfoFields = computed<BasicInfoField[]>(() => [
     searchBtn: '+Q', loading: loadingOptions.value,
   },
   {
-    key: 'warehouseId', label: '入库仓库', type: 'select', required: true,
+    key: 'warehouseId', label: '仓库', type: 'select', required: true,
     inlineLabel: true, width: 210,
     options: optionRefs.warehouses.map((w: any) => ({ label: w.name, value: w.id })),
     searchBtn: '+Q', loading: loadingOptions.value,
   },
   {
-    key: 'purchaserId', label: '采购员', type: 'select', required: true,
+    key: 'purchaserId', label: '经手人', type: 'select', required: true,
     inlineLabel: true, width: 210,
     options: optionRefs.users.map((u: any) => ({ label: u.name, value: u.id })),
     searchBtn: '+Q', loading: loadingOptions.value,
@@ -686,6 +686,17 @@ const basicInfoFields = computed<BasicInfoField[]>(() => [
   { key: 'trackingNumber', label: '运单号', type: 'input', inlineLabel: true, width: 210 },
   { key: 'createTime', label: '制单时间', type: 'input', inlineLabel: true, width: 210, disabled: true },
   { key: 'approveTime', label: '审批时间', type: 'input', inlineLabel: true, width: 210, disabled: true },
+  // 付款区（对标系统字段）
+  { key: 'paymentAccountId', label: '付款账户', type: 'select', inlineLabel: true, width: 210, options: (optionRefs.accounts || []).map((a: any) => ({ label: a.name, value: a.id })) },
+  { key: 'paymentAmount', label: '付款金额', type: 'number', inlineLabel: true, width: 150, precision: 2, suffixBtn: '全' },
+  { key: 'moreAccounts', label: '更多账户', type: 'input', inlineLabel: true, width: 130, disabled: true },
+  { key: 'prevPrepaid', label: '此前预付', type: 'number', inlineLabel: true, width: 120, disabled: true, precision: 2 },
+  { key: 'usePrepaid', label: '使用预付款', type: 'number', inlineLabel: true, width: 130, precision: 2 },
+  { key: 'prevDebt', label: '此前欠款', type: 'number', inlineLabel: true, width: 120, disabled: true, precision: 2 },
+  { key: 'otherExpense', label: '其他费用', type: 'number', inlineLabel: true, width: 120, precision: 2 },
+  { key: 'sourceBillNo', label: '源单', type: 'input', inlineLabel: true, width: 160 },
+  { key: 'remark', label: '单据备注', type: 'input', inlineLabel: true, width: 300 },
+  { key: 'printCount', label: '打印次数', type: 'display', inlineLabel: true, width: 90 },
 ])
 
 // ════════════════════════════════════════════
@@ -739,9 +750,12 @@ const detailColumns: DetailColumnConfig[] = [
   // ── 单位 ──
   { key: 'unit', title: '计价单位', type: 'input', width: 80 },
   { key: 'smallUnit', title: '小单位', type: 'input', width: 70, defaultHidden: true },
+  { key: 'smallUnitPrice', title: '小单位单价', type: 'number', width: 100, precision: 2, defaultHidden: true },
+  { key: 'smallUnitQuantity', title: '小单位数量', type: 'number', width: 100, precision: 2, defaultHidden: true },
 
   // ── 批次/生产日期/保质期（入库时必须） ──
   { key: 'batchNo', title: '批次号', type: 'input', width: 120, placeholder: '请输入批次号' },
+  { key: 'batchCode', title: '批次条码', type: 'input', width: 120, defaultHidden: true },
   { key: 'productionDate', title: '生产日期', type: 'date', width: 110 },
   { key: 'expiryDate', title: '到期日期', type: 'date', width: 110 },
   { key: 'shelfLife', title: '保质期(天)', type: 'input', width: 100, defaultHidden: true },
@@ -749,8 +763,15 @@ const detailColumns: DetailColumnConfig[] = [
   // ── 货位 ──
   { key: 'location', title: '货位', type: 'input', width: 100, placeholder: '如A-01-01' },
 
+  // ── 库存 ──
+  { key: 'availableStock', title: '可用库存', type: 'number', width: 100, precision: 2, readonly: true },
+  { key: 'availableStockConverted', title: '可用库存换算结果', type: 'number', width: 140, precision: 2, readonly: true, defaultHidden: true },
+  { key: 'bookStock', title: '账面库存', type: 'number', width: 100, precision: 2, readonly: true, defaultHidden: true },
+
   // ── 数量/包装 ──
   { key: 'quantity', title: '入库数量', type: 'number', width: 100, precision: 2 },
+  { key: 'conversionRelation', title: '换算关系', type: 'input', width: 100, defaultHidden: true },
+  { key: 'pieceQuantity', title: '件散数量', type: 'number', width: 90, precision: 2 },
   { key: 'bigPack', title: '大包装', type: 'number', width: 80, defaultHidden: true },
   { key: 'midPack', title: '中包装', type: 'number', width: 80, defaultHidden: true },
   { key: 'smallPack', title: '小包装', type: 'number', width: 80, defaultHidden: true },
@@ -758,9 +779,15 @@ const detailColumns: DetailColumnConfig[] = [
   // ── 价格 ──
   { key: 'unitPrice', title: '单价', type: 'number', width: 100, precision: 2 },
   { key: 'amount', title: '金额', type: 'number', width: 110, precision: 2, readonly: true },
+  { key: 'discountPercent', title: '优惠折扣(%)', type: 'number', width: 110, precision: 2, defaultHidden: true },
+  { key: 'favorableUnitPrice', title: '惠后单价', type: 'number', width: 100, precision: 2, defaultHidden: true },
+  { key: 'favorableAmount', title: '优惠后金额', type: 'number', width: 110, precision: 2, readonly: true, defaultHidden: true },
   { key: 'taxRate', title: '税率%', type: 'number', width: 80, precision: 1, min: 0, max: 100 },
   { key: 'costPrice', title: '成本单价', type: 'number', width: 100, precision: 2 },
   { key: 'costAmount', title: '成本金额', type: 'number', width: 100, precision: 2, readonly: true },
+  { key: 'latestPurchaseDate', title: '最近采购日期', type: 'date', width: 120, readonly: true, defaultHidden: true },
+  { key: 'retailPrice', title: '零售价', type: 'number', width: 90, precision: 2, defaultHidden: true },
+  { key: 'wholesalePrice', title: '批发价', type: 'number', width: 90, precision: 2, defaultHidden: true },
 
   // ── 物理属性 ──
   { key: 'weight', title: '重量(kg)', type: 'number', width: 90, precision: 4, defaultHidden: true },
@@ -771,10 +798,12 @@ const detailColumns: DetailColumnConfig[] = [
   { key: 'qualityStatus', title: '质检状态', type: 'input', width: 80, readonly: true, defaultHidden: true },
   { key: 'qualityNote', title: '质检说明', type: 'input', width: 120, readonly: true, defaultHidden: true },
 
-  // ── 自定义字段 ──
-  { key: 'customField1', title: '自定义1(数字)', type: 'number', width: 120, precision: 2, defaultHidden: true },
-  { key: 'customField2', title: '自定义2(文本)', type: 'input', width: 120, defaultHidden: true },
-  { key: 'customField3', title: '自定义3(文本)', type: 'input', width: 120, defaultHidden: true },
+  // ── 单据自定义字段 ──
+  { key: 'customField1', title: '单据自定义1(数字)', type: 'number', width: 140, precision: 2, defaultHidden: true },
+  { key: 'customField2', title: '单据自定义2(数字)', type: 'number', width: 140, precision: 2, defaultHidden: true },
+  { key: 'customField3', title: '单据自定义3(数字)', type: 'number', width: 140, precision: 2, defaultHidden: true },
+  { key: 'customField4', title: '单据自定义4(文本)', type: 'input', width: 140, defaultHidden: true },
+  { key: 'customField5', title: '单据自定义5(文本)', type: 'input', width: 140, defaultHidden: true },
 
   // ── 备注 ──
   { key: 'remark', title: '备注', type: 'input', width: 150 },

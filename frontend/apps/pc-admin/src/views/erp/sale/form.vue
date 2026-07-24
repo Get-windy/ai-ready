@@ -643,21 +643,20 @@ const basicInfoFields = computed<BasicInfoField[]>(() =>
 
 // ── 底部标签页配置 ── 过滤掉被配置隐藏的字段
 const tabsConfig = computed<BillTabConfig[]>(() => [
-  // ═══ Tab 1: 收款 ═══
+  // ═══ Tab 1: 收款（对标系统字段顺序） ═══
   { key: 'payment', tab: '收款', fields: ([
-    { key: 'paymentAccountId', label: '订单账户', type: 'select', placeholder: '请选择', options: accountOptions.value.map((a: any) => ({ label: a.name, value: a.id })), suffixBtn: '+Q' },
+    { key: 'depositAccountId', label: '订金账户', type: 'select', placeholder: '请选择', options: accountOptions.value.map((a: any) => ({ label: a.name, value: a.id })), suffixBtn: '+Q' },
+    { key: 'depositAmount', label: '订金金额', type: 'number', placeholder: '0.00', precision: 2, suffixBtn: '全' },
     { key: 'moreAccounts', label: '更多账户', type: 'input', disabled: true, suffixBtn: '···' },
+    { key: 'depositBalance', label: '订金余额', type: 'number', disabled: true, precision: 2 },
     { key: 'useAdvancePayment', label: '使用预订货款', type: 'number', disabled: true, suffixBtn: '···', precision: 2 },
     { key: 'prevAdvance', label: '此前预收', type: 'number', disabled: true, precision: 2 },
+    { key: 'usePreReceipt', label: '使用预收款', type: 'number', placeholder: '0.00', precision: 2 },
     { key: 'advanceBalance', label: '预收余额', type: 'number', disabled: true, precision: 2 },
-    { key: 'depositAccount', label: '订金账户', type: 'input', placeholder: '订金账户' },
-    { key: 'depositAmount', label: '订金金额', type: 'number', placeholder: '0.00', precision: 2 },
-    { key: 'creditLimit', label: '信用额度', type: 'number', disabled: true, precision: 2 },
-    { key: 'availableCredit', label: '可用额度', type: 'number', disabled: true, precision: 2 },
-    { key: 'prevDebt', label: '此前欠款', type: 'number', disabled: true, precision: 2 },
-    { key: 'paymentDate', label: '收款日', type: 'date' },
-    { key: 'reconciliationDate', label: '对账日', type: 'date' },
-    { key: 'settlementMethod', label: '结款方式', type: 'select', options: [{ label: '现结', value: '现结' }, { label: '月结', value: '月结' }, { label: '预收', value: '预收' }, { label: '货到付款', value: '货到付款' }] },
+    { key: 'currentDebt', label: '本次欠款', type: 'number', disabled: true, precision: 2 },
+    { key: 'debtBalance', label: '欠款余额', type: 'number', disabled: true, precision: 2 },
+    { key: 'unsettledAmount', label: '本单未结金额', type: 'number', disabled: true, precision: 2 },
+    { key: 'paymentMethod', label: '付款方式', type: 'select', placeholder: '请选择', options: [{ label: '现金', value: '现金' }, { label: '银行转账', value: '银行转账' }, { label: '微信', value: '微信' }, { label: '支付宝', value: '支付宝' }, { label: '支票', value: '支票' }] },
   ] satisfies TabField[]).filter(f => isFieldVisible(f.key)) },
   // ═══ Tab 2: 物流信息 ═══
   { key: 'logistics', tab: '物流信息', fields: ([

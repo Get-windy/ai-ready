@@ -160,11 +160,13 @@
 
         <template #action="{ record }">
           <a-space :size="4">
-            <a-tooltip title="转化向导">
-              <a-button v-if="record.status !== 2 && record.status !== 3" type="link" size="small" @click="openConvertWizard(record)">
-                <template #icon><SwapRightOutlined /></template>转化
-              </a-button>
-            </a-tooltip>
+            <template v-if="record.status !== 2 && record.status !== 3">
+              <a-tooltip title="转化向导">
+                <a-button type="link" size="small" @click="openConvertWizard(record)">
+                  <template #icon><SwapRightOutlined /></template>转化
+                </a-button>
+              </a-tooltip>
+            </template>
             <a-tag v-else color="green">已转化</a-tag>
           </a-space>
         </template>

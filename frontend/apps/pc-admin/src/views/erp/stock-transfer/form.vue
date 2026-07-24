@@ -115,8 +115,12 @@ const {
   redirectPath: '/erp/stock-transfer',
   optionTypes: ['warehouses', 'users', 'products'],
   productDefaults: {
-    itemCode: '', specification: '', unit: '',
-    quantity: 0,
+    itemCode: '', barcode: '', specification: '', unit: '',
+    availableStock: 0, batchCode: '', productionDate: '', shelfLife: '', expiryDate: '',
+    quantity: 0, conversionRelation: '', pieceQuantity: 0,
+    bigPack: 0, midPack: 0, smallPack: 0,
+    costPrice: 0, costAmount: 0, transferPrice: 0, transferAmount: 0, transferDiff: 0,
+    remark: '',
   },
 })
 
@@ -137,8 +141,21 @@ function handleProductChange(val: number, index: number) {
   if (p && formData.products[index]) {
     const row = formData.products[index]
     row.itemCode = p.code || ''
+    row.barcode = p.barcode || ''
     row.specification = p.specification || ''
     row.unit = p.unit || ''
+    row.availableStock = p.stock ?? 0
+    row.batchCode = p.batchCode || ''
+    row.conversionRelation = p.conversionRelation || ''
+    row.pieceQuantity = p.pieceQuantity ?? 0
+    row.bigPack = p.bigPack ?? 0
+    row.midPack = p.midPack ?? 0
+    row.smallPack = p.smallPack ?? 0
+    row.costPrice = p.costPrice || 0
+    row.costAmount = (row.quantity || 0) * (row.costPrice || 0)
+    row.transferPrice = p.transferPrice || p.costPrice || 0
+    row.transferAmount = (row.quantity || 0) * (row.transferPrice || 0)
+    row.transferDiff = row.transferAmount - row.costAmount
   }
 }
 
@@ -161,12 +178,17 @@ const toWarehouseOptions = computed(() =>
   }))
 )
 
-// 调拨单：调出仓库 + 调入仓库（用两个下拉字段）
+// 调拨单：调出仓库 + 调入仓库 + 调拨方式
+const transferModeOptions = [
+  { label: '同价调拨', value: 1 },
+  { label: '异价调拨', value: 2 },
+]
 const basicInfoFields = computed<BasicInfoField[]>(() => [
   { key: 'fromWarehouseId', label: '调出仓库', type: 'select', required: true, placeholder: '请选择调出仓库', options: fromWarehouseOptions.value, searchBtn: '+Q', loading: loadingOptions.value },
   { key: 'toWarehouseId', label: '调入仓库', type: 'select', required: true, placeholder: '请选择调入仓库', options: toWarehouseOptions.value, searchBtn: '+Q', loading: loadingOptions.value },
   { key: 'handlerId', label: '经手人', type: 'select', required: true, placeholder: '请选择经手人', options: (optionRefs.users || []).map((u: any) => ({ label: u.name, value: u.id })), searchBtn: '+Q', loading: loadingOptions.value },
   { key: 'date', label: '调拨日期', type: 'date', required: true },
+  { key: 'transferMode', label: '调拨方式', type: 'select', options: transferModeOptions, defaultValue: 1 },
 ])
 
 const footerConfig = computed<BillFooterConfig>(() => ({
@@ -180,15 +202,32 @@ const footerConfig = computed<BillFooterConfig>(() => ({
   saving: saving.value,
 }))
 
-// 明细列配置
+// 明细列配置（对标23列）
 const detailColumns: DetailColumnConfig[] = [
   { key: 'rowNo', title: '', type: 'rowNo', width: 40, fixed: 'left' },
   { key: 'action', title: '操作', type: 'action', slotName: 'actionCell', width: 70, fixed: 'left' },
   { key: 'productId', title: '商品名称', type: 'slot', slotName: 'productCell', width: 200 },
   { key: 'itemCode', title: '货号', type: 'input', width: 100 },
+  { key: 'barcode', title: '条码', type: 'input', width: 110 },
   { key: 'specification', title: '规格', type: 'input', width: 100 },
-  { key: 'unit', title: '单位', type: 'input', width: 80 },
-  { key: 'quantity', title: '调拨数量', type: 'number', width: 100, precision: 0 },
+  { key: 'unit', title: '计价单位', type: 'input', width: 80 },
+  { key: 'availableStock', title: '可用库存', type: 'number', width: 90, precision: 2, readonly: true },
+  { key: 'batchCode', title: '批次条码', type: 'input', width: 120 },
+  { key: 'productionDate', title: '生产日期', type: 'input', width: 110 },
+  { key: 'shelfLife', title: '保质期', type: 'input', width: 80 },
+  { key: 'expiryDate', title: '到期日期', type: 'input', width: 110 },
+  { key: 'quantity', title: '数量', type: 'number', width: 90, precision: 2 },
+  { key: 'conversionRelation', title: '换算关系', type: 'input', width: 90 },
+  { key: 'pieceQuantity', title: '件散数量', type: 'number', width: 90, precision: 2 },
+  { key: 'bigPack', title: '大包装', type: 'number', width: 80, precision: 2 },
+  { key: 'midPack', title: '中包装', type: 'number', width: 80, precision: 2 },
+  { key: 'smallPack', title: '小包装', type: 'number', width: 80, precision: 2 },
+  { key: 'costPrice', title: '成本单价', type: 'number', width: 100, precision: 2 },
+  { key: 'costAmount', title: '成本金额', type: 'number', width: 110, precision: 2, readonly: true },
+  { key: 'transferPrice', title: '调拨单价', type: 'number', width: 100, precision: 2 },
+  { key: 'transferAmount', title: '调拨金额', type: 'number', width: 110, precision: 2, readonly: true },
+  { key: 'transferDiff', title: '调拨差额', type: 'number', width: 100, precision: 2, readonly: true },
+  { key: 'remark', title: '备注', type: 'input', width: 150 },
 ]
 
 function handleCellChange(_record: any, _fieldKey: string, _value: any) {}

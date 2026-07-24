@@ -99,8 +99,8 @@
             </template>
           </template>
         </a-table>
-      </a-spin>
-    </a-drawer>
+      </template>
+    </a-spin>
   </a-drawer>
 
   <!-- 积分调整弹窗 -->

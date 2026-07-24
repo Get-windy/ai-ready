@@ -267,9 +267,21 @@ const {
           ...d,
           id: d.id || `detail-${i}`,
           itemCode: d.productCode || '',
+          barcode: d.barcode || '',
           specification: d.productSpec || d.specification || '',
+          location: d.location || '',
           unit: d.productUnit || d.unit || '',
+          availableStock: d.availableStock ?? 0,
+          batchCode: d.batchCode || '',
+          productionDate: d.productionDate || '',
+          shelfLife: d.shelfLife || '',
+          expiryDate: d.expiryDate || '',
           quantity: d.quantity ?? d.outboundQuantity ?? 0,
+          conversionRelation: d.conversionRelation || '',
+          pieceQuantity: d.pieceQuantity ?? 0,
+          bigPack: d.bigPack ?? 0,
+          midPack: d.midPack ?? 0,
+          smallPack: d.smallPack ?? 0,
           unitPrice: d.unitPrice || 0,
           amount: (d.quantity ?? 0) * (d.unitPrice || 0),
         })),
@@ -277,8 +289,9 @@ const {
     },
   },
   redirectPath: '/erp/stock-out',
-  optionTypes: ['warehouses', 'users', 'products'],
+  optionTypes: ['warehouses', 'users', 'products', 'partners'],
   fields: [
+    { key: 'partnerId', label: '往来单位', type: 'select' },
     { key: 'stockOutType', label: '出库类型', type: 'select', required: true },
     { key: 'warehouseId', label: '出库仓库', type: 'select', required: true },
     { key: 'handlerId', label: '经手人', type: 'select', required: true },
@@ -286,8 +299,11 @@ const {
     { key: 'summary', label: '摘要', type: 'input' },
   ],
   productDefaults: {
-    itemCode: '', specification: '', unit: '',
-    quantity: 0, unitPrice: 0, amount: 0, remark: '',
+    itemCode: '', barcode: '', specification: '', location: '', unit: '',
+    availableStock: 0, batchCode: '', productionDate: '', shelfLife: '', expiryDate: '',
+    quantity: 0, conversionRelation: '', pieceQuantity: 0,
+    bigPack: 0, midPack: 0, smallPack: 0,
+    unitPrice: 0, amount: 0, remark: '',
   },
   onFieldChange: (fieldKey, val, fd) => {
     if (fieldKey === 'warehouseId') {
@@ -302,6 +318,7 @@ const {
   transformPayload: (fd, status) => ({
     status,
     stockOutType: fd.stockOutType ?? 5,
+    partnerId: fd.partnerId || undefined,
     warehouseId: fd.warehouseId,
     warehouseName: fd.warehouseName,
     handlerId: fd.handlerId,
@@ -317,7 +334,18 @@ const {
       productName: p.productName,
       productSpec: p.specification,
       productUnit: p.unit,
+      barcode: p.barcode || undefined,
+      location: p.location || undefined,
+      batchCode: p.batchCode || undefined,
+      productionDate: p.productionDate || undefined,
+      shelfLife: p.shelfLife || undefined,
+      expiryDate: p.expiryDate || undefined,
       quantity: p.quantity,
+      conversionRelation: p.conversionRelation || undefined,
+      pieceQuantity: p.pieceQuantity || 0,
+      bigPack: p.bigPack || 0,
+      midPack: p.midPack || 0,
+      smallPack: p.smallPack || 0,
       unitPrice: p.unitPrice,
       amount: (p.quantity || 0) * (p.unitPrice || 0),
       remark: p.remark || undefined,
@@ -351,6 +379,9 @@ const headerConfig = computed<BillHeaderConfig>(() => ({
 // ── 基本信息字段 ──
 const basicInfoFields = computed<BasicInfoField[]>(() => [
   { key: 'orderNo', label: '编号', type: 'input', inlineLabel: true, width: 210, disabled: true },
+  { key: 'partnerId', label: '往来单位', type: 'select', inlineLabel: true, width: 210,
+    options: optionRefs.partners?.map((p: any) => ({ label: p.name, value: p.id })) || [],
+    searchBtn: '+Q', loading: loadingOptions.value },
   { key: 'stockOutType', label: '出库类型', type: 'select', required: true, inlineLabel: true, width: 210,
     options: STOCK_OUT_TYPE_OPTIONS },
   { key: 'warehouseId', label: '出库仓库', type: 'select', required: true, inlineLabel: true, width: 210,
@@ -387,9 +418,21 @@ const detailColumns: DetailColumnConfig[] = [
   { key: 'action', title: '操作', type: 'action', slotName: 'actionCell', width: 60, fixed: 'left' },
   { key: 'productName', title: '商品名称', type: 'slot', slotName: 'productCell', width: 220 },
   { key: 'itemCode', title: '货号', type: 'input', width: 110 },
+  { key: 'barcode', title: '条码', type: 'input', width: 110 },
   { key: 'specification', title: '规格', type: 'input', width: 100 },
-  { key: 'unit', title: '单位', type: 'input', width: 80 },
+  { key: 'location', title: '货位', type: 'input', width: 90 },
+  { key: 'unit', title: '计价单位', type: 'input', width: 80 },
+  { key: 'availableStock', title: '可用库存', type: 'number', width: 90, precision: 2, readonly: true },
+  { key: 'batchCode', title: '批次条码', type: 'input', width: 120 },
+  { key: 'productionDate', title: '生产日期', type: 'input', width: 110 },
+  { key: 'shelfLife', title: '保质期', type: 'input', width: 80 },
+  { key: 'expiryDate', title: '到期日期', type: 'input', width: 110 },
   { key: 'quantity', title: '数量', type: 'number', width: 90, precision: 2 },
+  { key: 'conversionRelation', title: '换算关系', type: 'input', width: 90 },
+  { key: 'pieceQuantity', title: '件散数量', type: 'number', width: 90, precision: 2 },
+  { key: 'bigPack', title: '大包装', type: 'number', width: 80, precision: 2 },
+  { key: 'midPack', title: '中包装', type: 'number', width: 80, precision: 2 },
+  { key: 'smallPack', title: '小包装', type: 'number', width: 80, precision: 2 },
   { key: 'unitPrice', title: '单价', type: 'number', width: 100, precision: 2 },
   { key: 'amount', title: '金额', type: 'number', width: 110, precision: 2, readonly: true },
   { key: 'remark', title: '备注', type: 'input', width: 150 },
@@ -407,8 +450,17 @@ function handleProductChange(val: number, index: number) {
   if (p && formData.products[index]) {
     const row = formData.products[index]
     row.itemCode = p.code || ''
+    row.barcode = p.barcode || ''
     row.specification = p.specification || ''
+    row.location = p.location || ''
     row.unit = p.unit || ''
+    row.availableStock = p.stock ?? 0
+    row.batchCode = p.batchCode || ''
+    row.conversionRelation = p.conversionRelation || ''
+    row.pieceQuantity = p.pieceQuantity ?? 0
+    row.bigPack = p.bigPack ?? 0
+    row.midPack = p.midPack ?? 0
+    row.smallPack = p.smallPack ?? 0
     row.unitPrice = p.salePrice || 0
     row.amount = (row.quantity || 0) * (row.unitPrice || 0)
   }

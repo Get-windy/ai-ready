@@ -123,8 +123,10 @@ const {
   redirectPath: '/erp/stock-damage',
   optionTypes: ['warehouses', 'users', 'products'],
   productDefaults: {
-    itemCode: '', specification: '', unit: '',
-    quantity: 0, unitCost: 0, batchNo: '',
+    itemCode: '', barcode: '', specification: '', location: '', unit: '',
+    batchCode: '', productionDate: '', shelfLife: '', expiryDate: '',
+    quantity: 0, bigPack: 0, midPack: 0, smallPack: 0,
+    unitCost: 0, remark: '',
   },
 })
 
@@ -145,8 +147,14 @@ function handleProductChange(val: number, index: number) {
   if (p && formData.products[index]) {
     const row = formData.products[index]
     row.itemCode = p.code || ''
+    row.barcode = p.barcode || ''
     row.specification = p.specification || ''
+    row.location = p.location || ''
     row.unit = p.unit || ''
+    row.batchCode = p.batchCode || ''
+    row.bigPack = p.bigPack ?? 0
+    row.midPack = p.midPack ?? 0
+    row.smallPack = p.smallPack ?? 0
     row.unitCost = p.purchasePrice || 0
   }
 }
@@ -182,11 +190,19 @@ const detailColumns: DetailColumnConfig[] = [
   { key: 'action', title: '操作', type: 'action', slotName: 'actionCell', width: 70, fixed: 'left' },
   { key: 'productId', title: '商品名称', type: 'slot', slotName: 'productCell', width: 200 },
   { key: 'itemCode', title: '货号', type: 'input', width: 100 },
+  { key: 'barcode', title: '条码', type: 'input', width: 110 },
   { key: 'specification', title: '规格', type: 'input', width: 100 },
-  { key: 'unit', title: '单位', type: 'input', width: 80 },
+  { key: 'location', title: '货位', type: 'input', width: 90 },
+  { key: 'unit', title: '计价单位', type: 'input', width: 80 },
+  { key: 'batchCode', title: '批次条码', type: 'input', width: 120 },
+  { key: 'productionDate', title: '生产日期', type: 'input', width: 110 },
+  { key: 'shelfLife', title: '保质期', type: 'input', width: 80 },
+  { key: 'expiryDate', title: '到期日期', type: 'input', width: 110 },
   { key: 'quantity', title: '报损数量', type: 'number', width: 100, precision: 0 },
-  { key: 'unitCost', title: '单位成本', type: 'number', width: 100, precision: 2 },
-  { key: 'batchNo', title: '批号', type: 'input', width: 120 },
+  { key: 'bigPack', title: '大包装', type: 'number', width: 80, precision: 2 },
+  { key: 'midPack', title: '中包装', type: 'number', width: 80, precision: 2 },
+  { key: 'smallPack', title: '小包装', type: 'number', width: 80, precision: 2 },
+  { key: 'remark', title: '备注', type: 'input', width: 150 },
 ]
 
 function handleCellChange(_record: any, _fieldKey: string, _value: any) {}

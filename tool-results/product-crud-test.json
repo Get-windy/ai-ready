@@ -1,8 +1,0 @@
-{
-  "page": "产品管理",
-  "actions": {
-    "newBtn": true,
-    "newUrl": "http://localhost:5656/dashboard",
-    "deleteBtn": false
-  }
-}

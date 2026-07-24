@@ -139,8 +139,11 @@ const {
   redirectPath: '/erp/stock-cost-adjust',
   optionTypes: ['warehouses', 'users', 'products'],
   productDefaults: {
-    itemCode: '', specification: '', unit: '',
-    currentQuantity: 0, oldCost: 0, newCost: 0,
+    itemCode: '', barcode: '', specification: '', location: '', unit: '',
+    conversionRelation: '', conversionResult: '',
+    wholesalePrice: 0, retailPrice: 0,
+    currentQuantity: 0, oldCost: 0, newCost: 0, adjustAmount: 0,
+    remark: '',
   },
 })
 
@@ -162,9 +165,15 @@ function handleProductChange(val: number, index: number) {
   if (p && formData.products[index]) {
     const row = formData.products[index]
     row.itemCode = p.code || ''
+    row.barcode = p.barcode || ''
     row.specification = p.specification || ''
+    row.location = p.location || ''
     row.unit = p.unit || ''
+    row.conversionRelation = p.conversionRelation || ''
+    row.wholesalePrice = p.wholesalePrice || 0
+    row.retailPrice = p.retailPrice || 0
     row.oldCost = p.purchasePrice || 0
+    row.currentQuantity = p.stock ?? 0
   }
 }
 
@@ -200,12 +209,19 @@ const detailColumns: DetailColumnConfig[] = [
   { key: 'action', title: '操作', type: 'action', slotName: 'actionCell', width: 70, fixed: 'left' },
   { key: 'productId', title: '商品名称', type: 'slot', slotName: 'productCell', width: 200 },
   { key: 'itemCode', title: '货号', type: 'input', width: 100 },
+  { key: 'barcode', title: '条码', type: 'input', width: 110 },
   { key: 'specification', title: '规格', type: 'input', width: 100 },
-  { key: 'unit', title: '单位', type: 'input', width: 80 },
-  { key: 'currentQuantity', title: '当前库存', type: 'number', width: 100, precision: 0 },
-  { key: 'oldCost', title: '原成本价', type: 'number', width: 100, precision: 2 },
-  { key: 'newCost', title: '新成本价', type: 'number', width: 100, precision: 2 },
-  { key: 'diffCost', title: '价差', type: 'slot', slotName: 'diffCell', width: 100 },
+  { key: 'location', title: '货位', type: 'input', width: 90 },
+  { key: 'unit', title: '计价单位', type: 'input', width: 80 },
+  { key: 'conversionRelation', title: '换算关系', type: 'input', width: 90 },
+  { key: 'conversionResult', title: '换算结果', type: 'input', width: 90 },
+  { key: 'wholesalePrice', title: '批发价', type: 'number', width: 100, precision: 2 },
+  { key: 'retailPrice', title: '零售价', type: 'number', width: 100, precision: 2 },
+  { key: 'currentQuantity', title: '库存数量', type: 'number', width: 100, precision: 0 },
+  { key: 'oldCost', title: '调前成本价', type: 'number', width: 100, precision: 2 },
+  { key: 'newCost', title: '调后成本价', type: 'number', width: 100, precision: 2 },
+  { key: 'adjustAmount', title: '调整金额', type: 'number', width: 100, precision: 2 },
+  { key: 'remark', title: '备注', type: 'input', width: 150 },
 ]
 
 function handleCellChange(_record: any, _fieldKey: string, _value: any) {}

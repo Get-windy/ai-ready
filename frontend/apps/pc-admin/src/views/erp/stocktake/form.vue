@@ -124,8 +124,10 @@ const {
   redirectPath: '/erp/stocktake',
   optionTypes: ['warehouses', 'users', 'products'],
   productDefaults: {
-    itemCode: '', specification: '', unit: '',
-    bookQuantity: 0, actualQuantity: 0,
+    itemCode: '', barcode: '', specification: '', location: '', unit: '',
+    batchCode: '', productionDate: '', shelfLife: '', expiryDate: '',
+    bookQuantity: 0, actualQuantity: 0, diffQuantity: 0, diffAmount: 0,
+    remark: '',
   },
 })
 
@@ -158,8 +160,12 @@ function handleProductChange(val: number, index: number) {
   if (p && formData.products[index]) {
     const row = formData.products[index]
     row.itemCode = p.code || ''
+    row.barcode = p.barcode || ''
     row.specification = p.specification || ''
+    row.location = p.location || ''
     row.unit = p.unit || ''
+    row.batchCode = p.batchCode || ''
+    row.bookQuantity = p.stock ?? 0
   }
 }
 
@@ -199,11 +205,18 @@ const detailColumns: DetailColumnConfig[] = [
   { key: 'action', title: '操作', type: 'action', slotName: 'actionCell', width: 70, fixed: 'left' },
   { key: 'productId', title: '商品名称', type: 'slot', slotName: 'productCell', width: 200 },
   { key: 'itemCode', title: '货号', type: 'input', width: 100 },
+  { key: 'barcode', title: '条码', type: 'input', width: 110 },
   { key: 'specification', title: '规格', type: 'input', width: 100 },
-  { key: 'unit', title: '单位', type: 'input', width: 80 },
-  { key: 'bookQuantity', title: '账面数量', type: 'number', width: 100, precision: 2, readonly: true },
-  { key: 'actualQuantity', title: '实盘数量', type: 'number', width: 100, precision: 2 },
-  { key: 'diffQuantity', title: '差异', type: 'slot', slotName: 'diffCell', width: 100 },
+  { key: 'location', title: '货位', type: 'input', width: 90 },
+  { key: 'unit', title: '计价单位', type: 'input', width: 80 },
+  { key: 'batchCode', title: '批次条码', type: 'input', width: 120 },
+  { key: 'productionDate', title: '生产日期', type: 'input', width: 110 },
+  { key: 'shelfLife', title: '保质期', type: 'input', width: 80 },
+  { key: 'expiryDate', title: '到期日期', type: 'input', width: 110 },
+  { key: 'bookQuantity', title: '账面库存', type: 'number', width: 100, precision: 2, readonly: true },
+  { key: 'actualQuantity', title: '盘点数量', type: 'number', width: 100, precision: 2 },
+  { key: 'diffQuantity', title: '盈亏数量', type: 'slot', slotName: 'diffCell', width: 100 },
+  { key: 'diffAmount', title: '盈亏金额', type: 'number', width: 100, precision: 2 },
   { key: 'remark', title: '备注', type: 'input', width: 200 },
 ]
 

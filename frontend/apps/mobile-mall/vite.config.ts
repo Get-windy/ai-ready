@@ -26,8 +26,12 @@ function buildServiceWorker(): Plugin {
 
       try {
         // 查找本地 esbuild 安装路径
-        const esbuildPath = resolve(__dirname, '../../node_modules/.bin/esbuild')
-        const esbuildCmd = fs.existsSync(esbuildPath) ? `"${esbuildPath}"` : 'npx esbuild'
+        const esbuildPaths = [
+          resolve(__dirname, '../../node_modules/.bin/esbuild'),
+          resolve(__dirname, '../../node_modules/.pnpm/@esbuild+win32-x64@0.21.5/node_modules/@esbuild/win32-x64/esbuild.exe'),
+        ]
+        const esbuildPath = esbuildPaths.find(p => fs.existsSync(p))
+        const esbuildCmd = esbuildPath ? `"${esbuildPath}"` : 'npx esbuild'
 
         execSync(
           [

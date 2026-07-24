@@ -386,13 +386,16 @@ const basicInfoFields = computed<BasicInfoField[]>(() => [
   // 审核/摘要
   { key: 'auditorName', label: '审核人', type: 'display', width: 120 },
   { key: 'summary', label: '摘要', type: 'input', width: 300 },
-  // 付款区
-  { key: 'depositAccount1', label: '订金账户1', type: 'input', width: 160 },
-  { key: 'depositAmount1', label: '订金金额1', type: 'number', width: 130, precision: 2 },
-  { key: 'moreAccounts', label: '更多账户', type: 'input', width: 130 },
-  { key: 'prevPrepaid', label: '此前预付', type: 'number', width: 120, precision: 2 },
-  { key: 'prepaidBalance', label: '预付余额', type: 'number', width: 120, precision: 2 },
-  { key: 'prevDebt', label: '此前欠款', type: 'number', width: 120, precision: 2 },
+  // 付款区（对标系统字段顺序）
+  { key: 'depositAccount1', label: '订金账户1', type: 'select', width: 160, options: (optionRefs.accounts || []).map((a: any) => ({ label: a.name, value: a.id })) },
+  { key: 'depositAmount1', label: '订金金额1', type: 'number', width: 130, precision: 2, suffixBtn: '全' },
+  { key: 'moreAccounts', label: '更多账户', type: 'input', width: 130, disabled: true },
+  { key: 'depositBalance', label: '订金余额', type: 'number', width: 120, disabled: true, precision: 2 },
+  { key: 'prevPrepaid', label: '此前预付', type: 'number', width: 120, disabled: true, precision: 2 },
+  { key: 'usePrepaid', label: '使用预付款', type: 'number', width: 120, precision: 2 },
+  { key: 'prevDebt', label: '此前欠款', type: 'number', width: 120, disabled: true, precision: 2 },
+  { key: 'currentDebt', label: '本次欠款', type: 'number', width: 120, disabled: true, precision: 2 },
+  { key: 'otherExpense', label: '其他费用', type: 'number', width: 120, precision: 2 },
   // 业务信息
   { key: 'expectedReceiveDate', label: '预计到货', type: 'date', width: 150 },
   { key: 'paymentTerm', label: '付款期限', type: 'input', width: 150 },
