@@ -100,5 +100,24 @@ public class PurchaseInboundVO {
 
     private Long updateBy;
 
+    private LocalDateTime postTime;
+    private Integer settleStatus;
+    private BigDecimal settledAmount;
+    private BigDecimal discountAmount;
+    private BigDecimal fee;
+    private BigDecimal weight;
+    private BigDecimal volume;
+    private String summary;
+    private BigDecimal extNum1;
+    private BigDecimal extNum2;
+    private String extText1;
+    private String extText2;
+    private String extText3;
+    private String createByName;
+    private String posterName;
+    private String approvedByName;
+    private String attachment;
+    private Integer printCount;
+
     private List<?> items;
 }

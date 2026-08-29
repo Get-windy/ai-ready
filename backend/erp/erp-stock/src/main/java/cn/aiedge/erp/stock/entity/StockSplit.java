@@ -25,6 +25,25 @@ public class StockSplit {
 
     private String warehouseName;
 
+    /** 原料入库仓库 */
+    private Long inWarehouseId;
+
+    private String inWarehouseName;
+
+    /** 成品出库仓库 */
+    private Long outWarehouseId;
+
+    private String outWarehouseName;
+
+    /** 经手人 */
+    private String handlerName;
+
+    /** 打印次数 */
+    private Integer printCount;
+
+    /** 打印记录 */
+    private String printRecords;
+
     private Long bomId;
 
     private String bomNo;

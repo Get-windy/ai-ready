@@ -72,3 +72,16 @@ system:
 password:
   policy:
     max-age-days: 90
+
+# Actuator 可观测性端点（Prometheus 指标导出）
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when_authorized
+  metrics:
+    tags:
+      application: ai-ready

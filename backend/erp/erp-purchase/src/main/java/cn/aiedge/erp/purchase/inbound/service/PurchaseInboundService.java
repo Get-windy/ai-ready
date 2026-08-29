@@ -1,5 +1,6 @@
 package cn.aiedge.erp.purchase.inbound.service;
 
+import cn.aiedge.erp.purchase.inbound.dto.PurchaseInboundQuery;
 import cn.aiedge.erp.purchase.inbound.entity.PurchaseInbound;
 import cn.aiedge.erp.purchase.inbound.entity.PurchaseInboundItem;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -14,6 +15,8 @@ public interface PurchaseInboundService extends IService<PurchaseInbound> {
 
     Page<PurchaseInbound> pageList(String keyword, Long supplierId, Long orderId, Long warehouseId, Integer status, int pageNum, int pageSize);
 
+    Page<PurchaseInbound> pageList(PurchaseInboundQuery query);
+
     List<PurchaseInbound> exportList(String keyword, Long supplierId, Long orderId, Long warehouseId, Integer status);
 
     List<PurchaseInbound> listBySupplierId(Long supplierId);
@@ -21,6 +24,10 @@ public interface PurchaseInboundService extends IService<PurchaseInbound> {
     List<PurchaseInbound> listByOrderId(Long orderId);
 
     String generateInboundNo();
+
+    int importOrders(org.springframework.web.multipart.MultipartFile file);
+
+    void batchPrint(List<Long> ids, String template);
 
     PurchaseInbound createInbound(PurchaseInbound inbound, List<PurchaseInboundItem> items);
 

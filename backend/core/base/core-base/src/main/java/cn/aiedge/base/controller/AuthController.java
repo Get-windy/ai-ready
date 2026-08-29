@@ -8,6 +8,7 @@ import cn.aiedge.base.mapper.TenantMapper;
 import cn.aiedge.base.service.SysLoginLogService;
 import cn.aiedge.base.service.SysUserService;
 import cn.aiedge.base.vo.Result;
+import cn.aiedge.common.ratelimit.RateLimit;
 import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.util.IdUtil;
@@ -160,6 +161,7 @@ public class AuthController {
      * 用户登录
      */
     @Operation(summary = "用户登录", description = "账号密码登录，返回Token")
+    @RateLimit(key = "auth:login", type = RateLimit.LimitType.IP, qps = 1, capacity = 10, message = "登录尝试过于频繁，请稍后再试")
     @PostMapping("/login")
     public Result<Map<String, Object>> login(
             @Valid @RequestBody AuthDTO.Login dto,

@@ -654,6 +654,7 @@ import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTab
 import type { BillHeaderConfig, BasicInfoField, SummaryRow, BillFooterConfig } from '@/components/BillFormPage/types'
 import { useBillForm } from '@/components/BillFormPage/useBillForm'
 import { retailOrderApi, memberApi } from '@/api/erp'
+import { PRODUCT_RETAIL_DEFAULTS } from '@/utils/productDefaults'
 import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
@@ -744,12 +745,7 @@ const {
   },
   redirectPath: '/sales/retail',
   optionTypes: ['warehouses', 'users', 'products'],
-  productDefaults: {
-    itemCode: '', barcode: '', unit: '',
-    batchCode: '', productionDate: '', shelfLife: '', expiryDate: '',
-    bigPack: 0, midPack: 0, smallPack: 0,
-    unitPrice: 0, scanMode: false, quantity: 0,
-  },
+  productDefaults: PRODUCT_RETAIL_DEFAULTS,
   transformPayload: (fd, status) => ({
     ...fd,
     status: status ?? 1,

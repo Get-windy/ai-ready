@@ -286,3 +286,121 @@ export const PERFORMANCE_LEVEL_MAP: Record<string, { text: string; color: string
   C: { text: '待改进', color: 'warning' },
   D: { text: '不合格', color: 'error' }
 }
+
+// ── 招聘管理 ──
+
+export interface HrRecruitment {
+  id: number
+  positionId: number
+  positionName: string
+  deptId: number
+  deptName: string
+  headcount: number
+  channel: string
+  urgency: number
+  status: number
+  requiredEducation: number
+  requiredExperience: string
+  salaryMin: number
+  salaryMax: number
+  description: string
+  requirements: string
+  publisherId: number
+  publisherName: string
+  publishDate: string
+  expireDate: string
+  applicantCount: number
+  hiredCount: number
+  remark: string
+  createTime: string
+}
+
+export interface HrCandidate {
+  id: number
+  recruitmentId: number
+  name: string
+  gender: number
+  phone: string
+  email: string
+  birthDate: string
+  education: number
+  school: string
+  major: string
+  experience: string
+  currentCompany: string
+  currentPosition: string
+  expectedSalary: number
+  source: string
+  resumeUrl: string
+  status: number
+  interviewerId: number
+  interviewerName: string
+  interviewTime: string
+  interviewComment: string
+  rating: number
+  remark: string
+  createTime: string
+}
+
+export const getRecruitmentPage = (params: any) =>
+  request.get('/hr/recruitment/page', { params })
+
+export const getRecruitmentDetail = (id: number) =>
+  request.get(`/hr/recruitment/${id}`)
+
+export const createRecruitment = (data: Partial<HrRecruitment>) =>
+  request.post('/hr/recruitment', data)
+
+export const updateRecruitment = (id: number, data: Partial<HrRecruitment>) =>
+  request.put(`/hr/recruitment/${id}`, data)
+
+export const deleteRecruitment = (id: number) =>
+  request.delete(`/hr/recruitment/${id}`)
+
+export const updateRecruitmentStatus = (id: number, status: number) =>
+  request.put(`/hr/recruitment/${id}/status`, { status })
+
+export const getCandidatePage = (params: any) =>
+  request.get('/hr/candidate/page', { params })
+
+export const getCandidateDetail = (id: number) =>
+  request.get(`/hr/candidate/${id}`)
+
+export const createCandidate = (data: Partial<HrCandidate>) =>
+  request.post('/hr/candidate', data)
+
+export const updateCandidate = (id: number, data: Partial<HrCandidate>) =>
+  request.put(`/hr/candidate/${id}`, data)
+
+export const updateCandidateStatus = (id: number, status: number) =>
+  request.put(`/hr/candidate/${id}/status`, { status })
+
+export const recordInterview = (id: number, data: { interviewComment?: string; rating?: number }) =>
+  request.put(`/hr/candidate/${id}/interview`, data)
+
+export const RECRUITMENT_STATUS_MAP: Record<number, { text: string; color: string }> = {
+  0: { text: '待审批', color: 'default' },
+  1: { text: '招聘中', color: 'success' },
+  2: { text: '已暂停', color: 'warning' },
+  3: { text: '已完成', color: 'processing' },
+  4: { text: '已关闭', color: 'error' },
+}
+
+export const CANDIDATE_STATUS_MAP: Record<number, { text: string; color: string }> = {
+  0: { text: '简历筛选', color: 'default' },
+  1: { text: '初试', color: 'processing' },
+  2: { text: '复试', color: 'processing' },
+  3: { text: '终面', color: 'processing' },
+  4: { text: '待录用', color: 'warning' },
+  5: { text: '已录用', color: 'success' },
+  6: { text: '已拒绝', color: 'error' },
+  7: { text: '已入职', color: 'success' },
+}
+
+export const RECRUITMENT_CHANNEL_MAP: Record<string, string> = {
+  ONLINE: '网络招聘',
+  HEADHUNTER: '猎头',
+  REFERRAL: '内部推荐',
+  CAMPUS: '校园招聘',
+  OTHER: '其他',
+}

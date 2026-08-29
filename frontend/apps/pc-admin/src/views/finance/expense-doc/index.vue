@@ -95,15 +95,16 @@ const statusMap: Record<string, { text: string; color: string }> = {
   '已报销': { text: '已报销', color: 'green' },
 }
 
+// ═══ 对标列（费用单：操作、费用编号、费用名称、金额、备注） ═══
 const columns = [
-  { title: '费用单号', dataIndex: 'expenseNo', key: 'expenseNo', width: 160 },
-  { title: '部门', dataIndex: 'department', key: 'department', width: 100 },
-  { title: '费用日期', dataIndex: 'expenseDate', key: 'expenseDate', width: 110 },
-  { title: '费用金额', dataIndex: 'amount', key: 'amount', width: 120 },
-  { title: '费用类型', dataIndex: 'expenseType', key: 'expenseType', width: 100 },
+  { title: '费用编号', dataIndex: 'applicationCode', key: 'applicationCode', width: 160 },
+  { title: '费用名称', dataIndex: 'expenseTypeDesc', key: 'expenseTypeDesc', width: 140 },
+  { title: '部门', dataIndex: 'departmentName', key: 'departmentName', width: 100 },
+  { title: '费用日期', dataIndex: 'applyDate', key: 'applyDate', width: 110 },
+  { title: '金额', dataIndex: 'totalAmount', key: 'totalAmount', width: 120, align: 'right' },
   { title: '申请人', dataIndex: 'applicantName', key: 'applicantName', width: 100 },
-  { title: '状态', dataIndex: 'status', key: 'status', width: 90 },
-  { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 160 },
+  { title: '状态', dataIndex: 'statusDesc', key: 'statusDesc', width: 90 },
+  { title: '备注', dataIndex: 'purpose', key: 'purpose', ellipsis: true },
   { title: '操作', type: 'action', width: 80, fixed: 'right' },
 ]
 
@@ -130,13 +131,14 @@ function handlePageChange(page: number, pageSize: number) {
 async function fetchData() {
   loading.value = true
   try {
-    const res = await request.get('/finance/expense-doc/page', {
+    const res = await request.get('/erp/expense/application/page', {
       ...queryParams.value,
-      page: pagination.current,
+      pageNum: pagination.current,
       pageSize: pagination.pageSize,
     }) as any
-    dataSource.value = res?.records || res?.data?.records || []
-    pagination.total = res?.total || res?.data?.total || 0
+    const records = res?.records || res?.data?.records || res?.data?.list || []
+    dataSource.value = records
+    pagination.total = res?.total || res?.data?.total || records.length
   } catch (error: any) {
     message.error('获取费用单列表失败')
     console.warn('[费用单] 加载失败:', error?.message)

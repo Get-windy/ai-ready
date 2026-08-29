@@ -1,8 +1,8 @@
 package cn.aiedge.base.service.impl;
 
-import cn.aiedge.base.entity.Permission;
-import cn.aiedge.base.entity.Role;
-import cn.aiedge.base.entity.User;
+import cn.aiedge.base.entity.SysPermission;
+import cn.aiedge.base.entity.SysRole;
+import cn.aiedge.base.entity.SysUser;
 import cn.aiedge.base.entity.SysUserRole;
 import cn.aiedge.base.mapper.PermissionMapper;
 import cn.aiedge.base.mapper.RoleMapper;
@@ -46,7 +46,7 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 @Primary
-public class UserServiceOptimizedImpl extends ServiceImpl<UserMapper, User> implements UserService {
+public class UserServiceOptimizedImpl extends ServiceImpl<UserMapper, SysUser> implements UserService {
 
     @Autowired
     private UserMapper userMapper;
@@ -67,14 +67,14 @@ public class UserServiceOptimizedImpl extends ServiceImpl<UserMapper, User> impl
     private RedisTemplate<String, Object> redisTemplate;
 
     // 本地缓存 - 用户基础信息（高频读取）
-    private final Cache<String, User> userLocalCache = Caffeine.newBuilder()
+    private final Cache<String, SysUser> userLocalCache = Caffeine.newBuilder()
             .maximumSize(10000)
             .expireAfterWrite(5, TimeUnit.MINUTES)
             .recordStats()
             .build();
 
     // 本地缓存 - 用户角色（高频读取）
-    private final Cache<Long, List<Role>> userRoleLocalCache = Caffeine.newBuilder()
+    private final Cache<Long, List<SysRole>> userRoleLocalCache = Caffeine.newBuilder()
             .maximumSize(5000)
             .expireAfterWrite(10, TimeUnit.MINUTES)
             .recordStats()
@@ -89,37 +89,37 @@ public class UserServiceOptimizedImpl extends ServiceImpl<UserMapper, User> impl
     @Override
     public PageResult<UserVO> pageList(UserQueryRequest request) {
         // 优化：使用覆盖索引查询，避免回表
-        LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
+        LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
         
         // 构建查询条件 - 优先使用索引字段
         if (StringUtils.hasText(request.getUsername())) {
-            wrapper.like(User::getUsername, request.getUsername());
+            wrapper.like(SysUser::getUsername, request.getUsername());
         }
         if (StringUtils.hasText(request.getRealName())) {
-            wrapper.like(User::getRealName, request.getRealName());
+            wrapper.like(SysUser::getRealName, request.getRealName());
         }
         if (StringUtils.hasText(request.getPhone())) {
-            wrapper.eq(User::getPhone, request.getPhone());
+            wrapper.eq(SysUser::getPhone, request.getPhone());
         }
         if (StringUtils.hasText(request.getEmail())) {
-            wrapper.eq(User::getEmail, request.getEmail());
+            wrapper.eq(SysUser::getEmail, request.getEmail());
         }
         if (request.getStatus() != null) {
-            wrapper.eq(User::getStatus, request.getStatus());
+            wrapper.eq(SysUser::getStatus, request.getStatus());
         }
         if (request.getDeptId() != null) {
-            wrapper.eq(User::getDeptId, request.getDeptId());
+            wrapper.eq(SysUser::getDeptId, request.getDeptId());
         }
         
         // 优化：使用索引排序
-        wrapper.orderByDesc(User::getCreateTime);
+        wrapper.orderByDesc(SysUser::getCreateTime);
 
-        Page<User> page = new Page<>(request.getPageNum(), request.getPageSize());
-        Page<User> result = page(page, wrapper);
+        Page<SysUser> page = new Page<>(request.getPageNum(), request.getPageSize());
+        Page<SysUser> result = page(page, wrapper);
 
         // 优化：批量查询角色信息，避免N+1问题
         List<Long> userIds = result.getRecords().stream()
-                .map(User::getId)
+                .map(SysUser::getId)
                 .collect(Collectors.toList());
         
         // 批量获取用户角色映射
@@ -138,14 +138,14 @@ public class UserServiceOptimizedImpl extends ServiceImpl<UserMapper, User> impl
     public UserVO getDetail(Long id) {
         String cacheKey = USER_CACHE_KEY_PREFIX + id;
         
-        User user = userLocalCache.getIfPresent(String.valueOf(id));
+        SysUser user = userLocalCache.getIfPresent(String.valueOf(id));
         if (user != null) {
             log.debug("User {} hit local cache", id);
             return buildUserVOWithCache(user);
         }
         
         if (redisTemplate != null) {
-            user = (User) redisTemplate.opsForValue().get(cacheKey);
+            user = (SysUser) redisTemplate.opsForValue().get(cacheKey);
             if (user != null) {
                 log.debug("User {} hit redis cache", id);
                 userLocalCache.put(String.valueOf(id), user);
@@ -169,14 +169,14 @@ public class UserServiceOptimizedImpl extends ServiceImpl<UserMapper, User> impl
     /**
      * 从缓存构建UserVO
      */
-    private UserVO buildUserVOWithCache(User user) {
+    private UserVO buildUserVOWithCache(SysUser user) {
         UserVO vo = convertToVO(user);
         
         // 从缓存获取角色
         Long userId = user.getId();
-        List<Role> roles = getUserRolesFromCache(userId);
+        List<SysRole> roles = getUserRolesFromCache(userId);
         vo.setRoles(roles.stream().map(this::convertToRoleVO).collect(Collectors.toList()));
-        vo.setRoleIds(roles.stream().map(Role::getId).collect(Collectors.toList()));
+        vo.setRoleIds(roles.stream().map(SysRole::getId).collect(Collectors.toList()));
         
         return vo;
     }
@@ -184,15 +184,15 @@ public class UserServiceOptimizedImpl extends ServiceImpl<UserMapper, User> impl
     /**
      * 从缓存获取用户角色
      */
-    private List<Role> getUserRolesFromCache(Long userId) {
-        List<Role> roles = userRoleLocalCache.getIfPresent(userId);
+    private List<SysRole> getUserRolesFromCache(Long userId) {
+        List<SysRole> roles = userRoleLocalCache.getIfPresent(userId);
         if (roles != null) {
             return roles;
         }
-        
+
         if (redisTemplate != null) {
             String cacheKey = USER_ROLES_CACHE_KEY_PREFIX + userId;
-            roles = (List<Role>) redisTemplate.opsForValue().get(cacheKey);
+            roles = (List<SysRole>) redisTemplate.opsForValue().get(cacheKey);
             if (roles != null) {
                 userRoleLocalCache.put(userId, roles);
                 return roles;
@@ -217,7 +217,7 @@ public class UserServiceOptimizedImpl extends ServiceImpl<UserMapper, User> impl
         validateUserUniqueness(request.getUsername(), request.getPhone(), request.getEmail());
 
         // 创建用户
-        User user = new User();
+        SysUser user = new SysUser();
         BeanUtils.copyProperties(request, user);
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setIsSuperAdmin(false);
@@ -241,14 +241,14 @@ public class UserServiceOptimizedImpl extends ServiceImpl<UserMapper, User> impl
      */
     private void validateUserUniqueness(String username, String phone, String email) {
         // 使用单个查询检查多个条件
-        LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(User::getUsername, username)
-               .or().eq(StringUtils.hasText(phone), User::getPhone, phone)
-               .or().eq(StringUtils.hasText(email), User::getEmail, email);
+        LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(SysUser::getUsername, username)
+               .or().eq(StringUtils.hasText(phone), SysUser::getPhone, phone)
+               .or().eq(StringUtils.hasText(email), SysUser::getEmail, email);
         
-        List<User> existingUsers = list(wrapper);
+        List<SysUser> existingUsers = list(wrapper);
         
-        for (User existing : existingUsers) {
+        for (SysUser existing : existingUsers) {
             if (existing.getUsername().equals(username)) {
                 throw BusinessException.badRequest("用户名已存在");
             }
@@ -264,7 +264,7 @@ public class UserServiceOptimizedImpl extends ServiceImpl<UserMapper, User> impl
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void update(UserUpdateRequest request) {
-        User user = getById(request.getId());
+        SysUser user = getById(request.getId());
         if (user == null) {
             throw BusinessException.notFound("用户不存在");
         }
@@ -300,7 +300,7 @@ public class UserServiceOptimizedImpl extends ServiceImpl<UserMapper, User> impl
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long id) {
-        User user = getById(id);
+        SysUser user = getById(id);
         if (user == null) {
             throw BusinessException.notFound("用户不存在");
         }
@@ -323,7 +323,7 @@ public class UserServiceOptimizedImpl extends ServiceImpl<UserMapper, User> impl
 
     @Override
     public void updateStatus(Long id, Integer status) {
-        User user = getById(id);
+        SysUser user = getById(id);
         if (user == null) {
             throw BusinessException.notFound("用户不存在");
         }
@@ -341,7 +341,7 @@ public class UserServiceOptimizedImpl extends ServiceImpl<UserMapper, User> impl
 
     @Override
     public void changePassword(Long id, String oldPassword, String newPassword) {
-        User user = getById(id);
+        SysUser user = getById(id);
         if (user == null) {
             throw BusinessException.notFound("用户不存在");
         }
@@ -359,7 +359,7 @@ public class UserServiceOptimizedImpl extends ServiceImpl<UserMapper, User> impl
 
     @Override
     public void resetPassword(Long id, String newPassword) {
-        User user = getById(id);
+        SysUser user = getById(id);
         if (user == null) {
             throw BusinessException.notFound("用户不存在");
         }
@@ -380,8 +380,8 @@ public class UserServiceOptimizedImpl extends ServiceImpl<UserMapper, User> impl
         
         // 检查是否包含超级管理员
         long superAdminCount = lambdaQuery()
-                .in(User::getId, ids)
-                .eq(User::getIsSuperAdmin, true)
+                .in(SysUser::getId, ids)
+                .eq(SysUser::getIsSuperAdmin, true)
                 .count();
         
         if (superAdminCount > 0) {
@@ -450,18 +450,18 @@ public class UserServiceOptimizedImpl extends ServiceImpl<UserMapper, User> impl
     }
 
     @Override
-    public User getByUsername(String username) {
+    public SysUser getByUsername(String username) {
         // 优化：使用本地缓存
         return userLocalCache.get(username, k -> userMapper.selectByUsername(k));
     }
 
     @Override
-    public User getByPhone(String phone) {
+    public SysUser getByPhone(String phone) {
         return userMapper.selectByPhone(phone);
     }
 
     @Override
-    public User getByEmail(String email) {
+    public SysUser getByEmail(String email) {
         return userMapper.selectByEmail(email);
     }
 
@@ -475,9 +475,9 @@ public class UserServiceOptimizedImpl extends ServiceImpl<UserMapper, User> impl
 
     @Override
     public List<String> getRoleCodes(Long userId) {
-        List<Role> roles = getUserRolesFromCache(userId);
+        List<SysRole> roles = getUserRolesFromCache(userId);
         return roles.stream()
-                .map(Role::getRoleCode)
+                .map(SysRole::getRoleCode)
                 .collect(Collectors.toList());
     }
 
@@ -492,9 +492,9 @@ public class UserServiceOptimizedImpl extends ServiceImpl<UserMapper, User> impl
             }
         }
         
-        List<Permission> perms = permissionMapper.selectByUserId(userId);
+        List<SysPermission> perms = permissionMapper.selectByUserId(userId);
         List<String> permissions = perms.stream()
-                .map(Permission::getPermissionCode)
+                .map(SysPermission::getPermissionCode)
                 .collect(Collectors.toList());
         
         if (redisTemplate != null) {
@@ -508,7 +508,7 @@ public class UserServiceOptimizedImpl extends ServiceImpl<UserMapper, User> impl
     /**
      * 转换为VO（带批量角色信息）
      */
-    private UserVO convertToVOWithRoles(User user, List<SysUserRole> allUserRoles) {
+    private UserVO convertToVOWithRoles(SysUser user, List<SysUserRole> allUserRoles) {
         UserVO vo = new UserVO();
         BeanUtils.copyProperties(user, vo);
         
@@ -525,7 +525,7 @@ public class UserServiceOptimizedImpl extends ServiceImpl<UserMapper, User> impl
     /**
      * 转换为VO
      */
-    private UserVO convertToVO(User user) {
+    private UserVO convertToVO(SysUser user) {
         UserVO vo = new UserVO();
         BeanUtils.copyProperties(user, vo);
         return vo;
@@ -534,7 +534,7 @@ public class UserServiceOptimizedImpl extends ServiceImpl<UserMapper, User> impl
     /**
      * 转换为角色VO
      */
-    private cn.aiedge.common.dto.user.RoleVO convertToRoleVO(Role role) {
+    private cn.aiedge.common.dto.user.RoleVO convertToRoleVO(SysRole role) {
         cn.aiedge.common.dto.user.RoleVO vo = new cn.aiedge.common.dto.user.RoleVO();
         BeanUtils.copyProperties(role, vo);
         return vo;

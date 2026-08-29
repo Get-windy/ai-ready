@@ -4,7 +4,7 @@ import cn.aiedge.base.annotation.DataScope;
 import cn.aiedge.base.context.DataScopeContextHolder;
 import cn.aiedge.base.entity.SysDataScope;
 import cn.aiedge.base.entity.SysDept;
-import cn.aiedge.base.entity.User;
+import cn.aiedge.base.entity.SysUser;
 import cn.aiedge.base.mapper.SysDeptMapper;
 import cn.aiedge.base.mapper.SysUserRoleMapper;
 import cn.aiedge.base.service.SysDataScopeService;
@@ -71,7 +71,7 @@ public class DataScopeAspect {
             }
 
             // 获取用户信息
-            User user = userService.getById(userId);
+            SysUser user = userService.getById(userId);
             if (user == null) {
                 DataScopeContextHolder.setDataScopeEnabled(false);
                 return;
@@ -161,7 +161,7 @@ public class DataScopeAspect {
     /**
      * 根据数据权限类型构建SQL条件
      */
-    private String buildSqlCondition(String scopeType, User user, DataScope annotation) {
+    private String buildSqlCondition(String scopeType, SysUser user, DataScope annotation) {
         switch (scopeType) {
             case "ALL":
                 return null;
@@ -179,7 +179,7 @@ public class DataScopeAspect {
     /**
      * 构建部门条件：dept_id = currentDeptId
      */
-    private String buildDeptCondition(User user, DataScope annotation) {
+    private String buildDeptCondition(SysUser user, DataScope annotation) {
         if (user.getDeptId() == null) {
             return null;
         }
@@ -194,7 +194,7 @@ public class DataScopeAspect {
     /**
      * 构建部门及子部门条件：dept_id IN (childDeptIds)
      */
-    private String buildDeptAndChildCondition(User user, DataScope annotation) {
+    private String buildDeptAndChildCondition(SysUser user, DataScope annotation) {
         if (user.getDeptId() == null) {
             return null;
         }
@@ -223,7 +223,7 @@ public class DataScopeAspect {
     /**
      * 构建本人数据条件：create_by = currentUserId
      */
-    private String buildSelfCondition(User user, DataScope annotation) {
+    private String buildSelfCondition(SysUser user, DataScope annotation) {
         String userAlias = annotation.userAlias();
         String createByField = annotation.createByField();
         if (!userAlias.isEmpty()) {
@@ -235,7 +235,7 @@ public class DataScopeAspect {
     /**
      * 构建自定义SQL条件
      */
-    private String buildCustomSqlCondition(SysDataScope scope, User user, DataScope annotation) {
+    private String buildCustomSqlCondition(SysDataScope scope, SysUser user, DataScope annotation) {
         String ruleType = scope.getRuleType();
         if ("CUSTOM_SQL".equals(ruleType) && scope.getCustomSql() != null) {
             return scope.getCustomSql();

@@ -25,8 +25,8 @@
 | 以销定购 | purchase/sales-driven | ✅ | |
 | 采购订单 | purchase/order/form | ✅ | |
 | 采购入库单 | purchase/inbound/form | ✅ | |
-| 采购退货单 | ➖ | ➖ | 我方无独立菜单（退货在订单内？） |
-| 采购换货单 | ➖ | ➖ | 我方无 |
+| 采购退货单 | purchase/return/form | ✅ | 路由 purchase/return/form + API /erp/purchase/return（含 approve/reject） |
+| 采购换货单 | purchase/exchange/form | ✅ | 路由 purchase/exchange/form + API /erp/purchase/exchange（含 submit/approve/complete） |
 | 采购费用分摊 | purchase/cost-sharing/form | ✅ | 表单已实现，后端缺口 |
 | 采购单据查询 | purchase/doc-query | ✅ | |
 | 采购明细查询 | purchase/detail-query | ✅ | |
@@ -139,3 +139,21 @@
 | 费用类型 | md/expense-type | ✅ | |
 | 其他收入 | md/other-income | ✅ | |
 | 会计科目 | md/accounting-subject | ✅ | |
+
+## 我方独有双入口页面（ql361 无对标，2026-08-15 核对）
+
+以下双入口菜单（sys_menu display_mode=1）在 ql361 对标系统**无对应页面**，为我方独有扩展功能，开发文档见 `ql361对标/wms/`、`ql361对标/crm/`（基于我方实现 + 数据库双入口配置，非对标）：
+
+| 菜单ID | 菜单 | 域 | 类型 | 说明 |
+|--------|------|-----|------|------|
+| 80012 | 收货单 | WMS | 历史 | wms/receive/form ↔ wh/receiving-order/index |
+| 80013 | 上架单 | WMS | 历史 | wms/putaway/form ↔ wh/putaway-order/index |
+| 80014 | 拣货单 | WMS | 历史 | wms/pick/form ↔ wh/picking-order/index |
+| 80015 | 发货单 | WMS | 历史 | wms/ship/form ↔ wh/shipping-order/index |
+| 80016 | 移库单 | WMS | 历史 | wms/move/form ↔ wh/move-order/index |
+| 70330 | 报价单 | CRM | 历史 | crm/quotation/form ↔ crm/quotation/index |
+| 70350 | 发票 | CRM | 历史 | crm/invoice/form ↔ crm/invoice/index |
+| 80200 | 客户 | CRM | 添加 | crm/customer/index ↔ crm/customer/form |
+| 80210 | 线索 | CRM | 添加 | crm/lead/index ↔ crm/lead/form |
+| 80220 | 商机 | CRM | 添加 | crm/opportunity/index ↔ crm/opportunity/form |
+| 80230 | 合同 | CRM | 添加 | crm/contract/index ↔ crm/contract/form |

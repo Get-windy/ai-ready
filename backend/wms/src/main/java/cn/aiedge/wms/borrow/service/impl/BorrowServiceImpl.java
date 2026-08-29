@@ -27,6 +27,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Slf4j
@@ -199,6 +200,37 @@ public class BorrowServiceImpl implements BorrowService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    public List<Map<String, Object>> aggregateByProduct(Integer direction, String partnerName,
+                                                        String productName, String dateStart, String dateEnd) {
+        List<Map<String, Object>> raw = itemMapper.aggregateByProduct(direction, partnerName, productName, dateStart, dateEnd);
+        // PostgreSQL 不加引号别名会转小写，统一转驼峰供前端使用
+        List<Map<String, Object>> result = new java.util.ArrayList<>(raw.size());
+        for (Map<String, Object> row : raw) {
+            Map<String, Object> camel = new java.util.LinkedHashMap<>(row.size());
+            for (Map.Entry<String, Object> e : row.entrySet()) {
+                camel.put(toCamelCase(e.getKey()), e.getValue());
+            }
+            result.add(camel);
+        }
+        return result;
+    }
+
+    private String toCamelCase(String snake) {
+        StringBuilder sb = new StringBuilder();
+        boolean upper = false;
+        for (char c : snake.toCharArray()) {
+            if (c == '_') {
+                upper = true;
+            } else if (upper) {
+                sb.append(Character.toUpperCase(c));
+                upper = false;
+            } else {
+                sb.append(c);
+            }
+        }
+        return sb.toString();
+    }
+
     public WmsBorrowReturn returnOrder(BorrowReturnRequest request) {
         WmsBorrowOrder order = getOrThrow(request.getOrderId());
         if (order.getStatus() != STATUS_APPROVED && order.getStatus() != STATUS_PARTIAL_RETURNED) {

@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 /**
  * 凭证明细行实体
@@ -84,4 +85,16 @@ public class VoucherItem extends BaseEntity {
      */
     @TableField(exist = false)
     private Voucher voucher;
+
+    /**
+     * 凭证编号（联查 finance_voucher 带入，非数据库字段）
+     */
+    @TableField(exist = false)
+    private String voucherNo;
+
+    /**
+     * 凭证日期（联查 finance_voucher 带入，非数据库字段）
+     */
+    @TableField(exist = false)
+    private LocalDate voucherDate;
 }

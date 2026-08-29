@@ -133,10 +133,6 @@ const componentMap: Record<string, () => Promise<any>> = {
   'erp/stock/index': () => import('@/views/erp/stock/index.vue'),
   'erp/sales-analysis/index': () => import('@/views/erp/sales-analysis/index.vue'),
   'erp/sales-report/index': () => import('@/views/erp/sales-report/index.vue'),
-  'erp/purchase-exchange/index': () => import('@/views/erp/purchase-exchange/index.vue'),
-  'erp/purchase-exchange/form': () => import('@/views/erp/purchase-exchange/form.vue'),
-  'erp/purchase-return/index': () => import('@/views/erp/purchase-return/index.vue'),
-  'erp/purchase-return/form': () => import('@/views/erp/purchase-return/form.vue'),
   'erp/stock-in/index': () => import('@/views/erp/stock-in/index.vue'),
   'erp/stock-out/index': () => import('@/views/erp/stock-transfer/index.vue'),
   'erp/stock/replenishment/index': () => import('@/views/erp/stock/replenishment/index.vue'),
@@ -150,6 +146,8 @@ const componentMap: Record<string, () => Promise<any>> = {
   'erp/dashboard/index': () => import('@/views/erp/dashboard/index.vue'),
   'erp/purchase/index': () => import('@/views/erp/purchase/index.vue'),
   'erp/purchase/form': () => import('@/views/erp/purchase/form.vue'),
+  'erp/purchase-contract/index': () => import('@/views/erp/purchase-contract/index.vue'),
+  'erp/purchase-contract/form': () => import('@/views/erp/purchase-contract/form.vue'),
   'erp/batch/index': () => import('@/views/erp/batch/index.vue'),
   'erp/serial/index': () => import('@/views/erp/serial/index.vue'),
   'erp/serial/detail': () => import('@/views/erp/serial/detail.vue'),
@@ -377,6 +375,12 @@ const componentMap: Record<string, () => Promise<any>> = {
   'purchase/inbound': () => import('@/views/purchase/inbound/index.vue'),
   'purchase/inbound/index': () => import('@/views/purchase/inbound/index.vue'),
   'purchase/inbound/form': () => import('@/views/purchase/inbound/form.vue'),
+  'purchase/return': () => import('@/views/purchase/return/index.vue'),
+  'purchase/return/index': () => import('@/views/purchase/return/index.vue'),
+  'purchase/return/form': () => import('@/views/purchase/return/form.vue'),
+  'purchase/exchange': () => import('@/views/purchase/exchange/index.vue'),
+  'purchase/exchange/index': () => import('@/views/purchase/exchange/index.vue'),
+  'purchase/exchange/form': () => import('@/views/purchase/exchange/form.vue'),
   'purchase/cost-sharing': () => import('@/views/purchase/cost-sharing/index.vue'),
   'purchase/cost-sharing/index': () => import('@/views/purchase/cost-sharing/index.vue'),
   'purchase/cost-sharing/form': () => import('@/views/purchase/cost-sharing/form.vue'),
@@ -487,6 +491,7 @@ const componentMap: Record<string, () => Promise<any>> = {
   'hr/salary/form': () => import('@/views/hr/salary/form.vue'),
   'hr/performance/list': () => import('@/views/hr/performance/list.vue'),
   'hr/performance/index': () => import('@/views/hr/performance/index.vue'),
+  'hr/recruitment/list': () => import('@/views/hr/recruitment/list.vue'),
   'hr/organization/position-list': () => import('@/views/hr/organization/position-list.vue'),
   'hr/organization/index': () => import('@/views/hr/organization/index.vue'),
 
@@ -503,6 +508,7 @@ const componentMap: Record<string, () => Promise<any>> = {
   'quality/inspection/list': () => import('@/views/quality/inspection/list.vue'),
   'quality/standard/list': () => import('@/views/quality/standard/list.vue'),
   'quality/defect/list': () => import('@/views/quality/defect/list.vue'),
+  'quality/certificate/list': () => import('@/views/quality/certificate/list.vue'),
 
   // ── Payment 支付模块 ──
   'payment/request/list': () => import('@/views/payment/request/list.vue'),
@@ -744,6 +750,9 @@ const componentMap: Record<string, () => Promise<any>> = {
   'wh/borrow-in/form': () => import('@/views/wh/borrow-in/form/index.vue'),
   'wh/borrow-out/form': () => import('@/views/wh/borrow-out/form/index.vue'),
   'wh/receiving-order/form': () => import('@/views/wh/receiving-order/form/index.vue'),
+  'wms/receive/form': () => import('@/views/wh/receiving-order/form/index.vue'),
+  'wms/receive': () => import('@/views/wh/receiving-order/index.vue'),
+  'wms/receive/index': () => import('@/views/wh/receiving-order/index.vue'),
   'wh/putaway-order/form': () => import('@/views/wh/putaway-order/form/index.vue'),
   'wh/picking-order/form': () => import('@/views/wh/picking-order/form/index.vue'),
   'wh/shipping-order/form': () => import('@/views/wh/shipping-order/form/index.vue'),
@@ -767,6 +776,10 @@ const componentMap: Record<string, () => Promise<any>> = {
   'sales/order-center': () => import('@/views/sales/order-center/index.vue'),
   'sales/order-center/index': () => import('@/views/sales/order-center/index.vue'),
   'finance/cash-transfer/form': () => import('@/views/finance/cash-transfer/form/index.vue'),
+
+  // ── 辅助核算 ──
+  'finance/auxiliary/index': () => import('@/views/finance/auxiliary/index.vue'),
+  'finance/auxiliary': () => import('@/views/finance/auxiliary/index.vue'),
 
   // ── 资料管理 (MD) ──
   'md/warehouse-plan': () => import('@/views/md/warehouse-plan/index.vue'),
@@ -822,7 +835,7 @@ const routeBillTypeMap: Record<string, string> = {
   'erp/stock-split': '601',
   'erp/stock-alert-config': '601',
   'erp/stock-replenishment': '601',
-  'erp/purchase-exchange': '601',
+  'purchase/exchange': '601',
   'erp/return': '601',
   'sales/outbound': '601',
 
@@ -833,7 +846,6 @@ const routeBillTypeMap: Record<string, string> = {
   'purchase/inquiry': '504',
   'purchase/inbound': '504',
   'purchase/return': '504',
-  'erp/purchase-return': '504',
 
   // ── 收款单 (801) ──
   'finance/receivable': '801',
@@ -1220,6 +1232,12 @@ function getRequiredRoutes(): RouteRecordRaw[] {
       meta: { title: '价格等级管理', icon: 'CrownOutlined', keepAlive: false, requiresAuth: true, hidden: true }
     },
     {
+      path: 'erp/purchase/form',
+      name: 'ErpPurchaseFormCreate',
+      component: () => import('@/views/erp/purchase/form.vue'),
+      meta: { title: '采购订单', icon: 'FileTextOutlined', keepAlive: false, requiresAuth: true, hidden: true, billType: '504' }
+    },
+    {
       path: 'purchase/order/:id',
       name: 'PurchaseOrderDetail',
       component: () => import('@/views/erp/purchase/form.vue'),
@@ -1240,7 +1258,7 @@ function getRequiredRoutes(): RouteRecordRaw[] {
     {
       path: 'purchase/return/:id',
       name: 'PurchaseReturnDetail',
-      component: () => import('@/views/erp/purchase-return/form.vue'),
+      component: () => import('@/views/purchase/return/form.vue'),
       meta: { title: '采购退货单详情', icon: 'FileTextOutlined', keepAlive: false, requiresAuth: true, hidden: true, billType: '504' }
     },
     {
@@ -1455,16 +1473,16 @@ function getRequiredRoutes(): RouteRecordRaw[] {
       meta: { title: '采购管理', icon: 'ShoppingCartOutlined', keepAlive: true, requiresAuth: true, billType: '504' }
     },
     {
+      path: 'erp/purchase-contract',
+      name: 'ErpPurchaseContract',
+      component: () => import('@/views/erp/purchase-contract/index.vue'),
+      meta: { title: '采购合同', icon: 'FileTextOutlined', keepAlive: true, requiresAuth: true, hidden: true, billType: '504' }
+    },
+    {
       path: 'erp/purchase/inquiry',
       name: 'ErpPurchaseInquiry',
       component: () => import('@/views/erp/purchase/index.vue'),
       meta: { title: '采购询价', icon: 'SearchOutlined', keepAlive: true, requiresAuth: true, billType: '504' }
-    },
-    {
-      path: 'erp/purchase-exchange',
-      name: 'ErpPurchaseExchange',
-      component: () => import('@/views/erp/purchase-exchange/index.vue'),
-      meta: { title: '采购换货', icon: 'SwapOutlined', keepAlive: true, requiresAuth: true, billType: '504' }
     },
     {
       path: 'erp/sales-analysis',
@@ -1527,12 +1545,6 @@ function getRequiredRoutes(): RouteRecordRaw[] {
       name: 'ErpStockBom',
       component: () => import('@/views/erp/stock-bom/index.vue'),
       meta: { title: 'BOM管理', icon: 'DeploymentUnitOutlined', keepAlive: true, requiresAuth: true, hidden: true, billType: '601' }
-    },
-    {
-      path: 'erp/purchase-return',
-      name: 'ErpPurchaseReturn',
-      component: () => import('@/views/erp/purchase-return/index.vue'),
-      meta: { title: '采购退货', icon: 'RollbackOutlined', keepAlive: true, requiresAuth: true, hidden: true, billType: '504' }
     },
     // ═══ 销售出库单/退货申请/零售单 的 form 路由已迁移到数据库动态管理（display_mode=1）═══
     // 仅保留 :id 详情页路由（编辑模式，由列表页跳转，无对应菜单项）
@@ -1660,7 +1672,6 @@ function getFallbackRoutes(): RouteRecordRaw[] {
         { path: 'purchase', name: 'Purchase', component: () => import('@/views/erp/purchase/index.vue'), meta: { title: '采购订单', icon: 'ShoppingCartOutlined', keepAlive: true, requiresAuth: true, billType: '504' } },
         { path: 'erp/purchase', name: 'ErpPurchase', component: () => import('@/views/erp/purchase/index.vue'), meta: { title: '采购管理(ERP)', icon: 'ShoppingCartOutlined', keepAlive: true, requiresAuth: true, billType: '504', hidden: true } },
         { path: 'erp/stock-in', name: 'ErpStockIn', component: () => import('@/views/erp/stock-in/index.vue'), meta: { title: '入库管理', icon: 'InboxOutlined', keepAlive: true, requiresAuth: true, billType: '601' } },
-        { path: 'erp/purchase-exchange', name: 'ErpPurchaseExchange', component: () => import('@/views/erp/purchase-exchange/index.vue'), meta: { title: '采购换货', icon: 'SwapOutlined', keepAlive: true, requiresAuth: true, billType: '601' } },
         // ── 仓储作业 ──
         { path: 'erp/stock', name: 'ErpStock', component: () => import('@/views/erp/stock/index.vue'), meta: { title: '库存管理(ERP)', icon: 'ContainerOutlined', keepAlive: true, requiresAuth: true, billType: '601' } },
         { path: 'erp/stocktake', name: 'ErpStocktake', component: () => import('@/views/erp/stocktake/index.vue'), meta: { title: '库存盘点', icon: 'CheckSquareOutlined', keepAlive: true, requiresAuth: true, billType: '601' } },
@@ -1707,7 +1718,7 @@ function getFallbackRoutes(): RouteRecordRaw[] {
 
 const MODULE_ROUTE_MAP: Record<string, string[]> = {
   'sale': ['sale', 'erp/sale', 'erp/sales-analysis', 'erp/sales-report', 'sales/outbound', 'sales/pre-order'],
-  'purchase': ['purchase', 'erp/purchase', 'erp/purchase-exchange'],
+  'purchase': ['purchase', 'erp/purchase', 'purchase/exchange', 'purchase/return'],
   'warehouse': ['stock', 'erp/stock', 'erp/stock-in', 'erp/stocktake', 'erp/return', 'erp/shipment', 'erp/batch', 'erp/serial'],
   'finance': ['finance', 'erp/finance'],
   'customer': ['crm/customer', 'crm/contract', 'crm/lead', 'crm/opportunity', 'crm/quotation', 'crm/invoice'],

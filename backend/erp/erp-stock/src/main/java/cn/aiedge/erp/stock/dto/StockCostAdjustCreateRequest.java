@@ -15,6 +15,8 @@ public class StockCostAdjustCreateRequest {
 
     private Long warehouseId;
 
+    private Long handlerId;
+
     private String warehouseName;
 
     private String reasonType;

@@ -1,16 +1,31 @@
 <template>
   <ErrorBoundary @error="handleError">
-    <PageContainer
-      title="销售明细查询"
-      full-height
+    <CategoryListLayout
+      :show-category-panel="true"
+      :category-tree-data="categoryTreeData"
+      :category-loading="categoryLoading"
+      :category-title="'商品分类'"
+      :category-editable="false"
+      :show-table-footer="true"
+      @category-select="handleCategorySelect"
     >
-      <template #headerExtra>
+      <template #toolbar-left>
+        <div class="query-scheme-wrap" style="display:inline-flex; align-items:center; gap:4px; margin-right:8px;">
+          <a-select v-model:value="queryScheme" style="width:140px" size="small" placeholder="--查询方案--">
+            <a-select-option value="">--查询方案--</a-select-option>
+          </a-select>
+          <a-button type="link" size="small"><PlusOutlined /></a-button>
+        </div>
+        <a-space :size="4">
+          <a-button v-for="q in quickDates" :key="q.key" :type="quickDate === q.key ? 'primary' : 'default'" size="small" @click="setQuickDate(q.key)">{{ q.label }}</a-button>
+        </a-space>
+      </template>
+
+      <template #toolbar-right>
         <a-space :size="12">
-          <a-tooltip title="页面配置">
-            <a-button size="small" @click="showPageConfig = true">
-              <template #icon><SettingOutlined /></template>
-            </a-button>
-          </a-tooltip>
+          <a-button size="small" @click="showPageConfig = true">
+            <template #icon><SettingOutlined /></template>
+          </a-button>
           <a-badge :status="loading ? 'processing' : (hasError ? 'error' : 'success')" />
           <span v-if="lastUpdateTime" class="update-time">最后更新: {{ lastUpdateTime }}</span>
           <a-button size="small" @click="fetchData">
@@ -20,6 +35,7 @@
       </template>
 
       <!-- ═══ 搜索区域 ═══ -->
+      <template #search-fields>
       <div class="search-area">
         <div class="search-container" :data-expanded="showMoreConditions || null">
         <div class="search-grid" ref="gridRef">
@@ -270,21 +286,16 @@
         </div>
         </div>
       </div>
+      </template>
 
-      <!-- ═══ 表格区域 ═══ -->
-      <div class="table-area">
-        <div class="table-toolbar">
-          <a-tooltip title="列配置">
-            <a-button size="small" @click="showColumnConfig = true">
-              <template #icon><TableOutlined /></template>
-            </a-button>
-          </a-tooltip>
-        </div>
+      <!-- ═══ 数据表格 ═══ -->
+      <template #table>
         <BillTableList
           :columns="visibleColumns"
           :data-source="tableData"
           :loading="loading"
           :pagination="billPagination"
+          :summary-columns="tableFooterColumns"
           :show-toolbar="false"
           :show-search="false"
           :show-add="false"
@@ -294,9 +305,16 @@
           row-key="id"
           :scroll="{ x: 8000 }"
           @page-change="handlePageChange"
-        />
-      </div>
-    </PageContainer>
+        >
+          <template #actionCell="{ record }">
+            <a-space :size="0">
+              <a-button type="link" size="small" style="padding:0 4px;" @click="viewBatch(record)">批次号</a-button>
+              <a-button type="link" size="small" style="padding:0 4px;" @click="viewItemRemark(record)">明细备注</a-button>
+            </a-space>
+          </template>
+        </BillTableList>
+      </template>
+    </CategoryListLayout>
 
     <!-- ═══ 页面配置弹窗 ═══ -->
     <PageConfigPanel
@@ -324,18 +342,20 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import type { Dayjs } from 'dayjs'
+import dayjs from 'dayjs'
 import {
   ReloadOutlined, SearchOutlined, ClearOutlined,
-  DownOutlined, UpOutlined, SettingOutlined, TableOutlined
+  DownOutlined, UpOutlined, SettingOutlined, PlusOutlined
 } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayout.vue'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
 import ColumnConfigPanel from '@/components/ColumnConfigPanel/index.vue'
 import { useColumnConfig, isLockedColumn } from '@/composables/useColumnConfig'
 import { useAutoGridSpan } from '@/composables/useAutoGridSpan'
 import request from '@/utils/request'
+import { productCategoryApi } from '@/api/erp/product'
 
 const loading = ref(false)
 const hasError = ref(false)
@@ -455,6 +475,10 @@ const functionButtonConfig = ref([
 
 // ═══ 96列表格定义 ═══
 const columns = [
+  // 序号列
+  { title: '', key: 'rowNo', type: 'rowNo', width: 40, fixed: 'left' as const },
+  // 操作列
+  { title: '操作', key: 'action', type: 'action', width: 120, fixed: 'right' as const, slotName: 'actionCell' },
   // 表头字段 1-27
   { title: '单据日期', field: 'docDate', key: 'docDate', width: 120 },
   { title: '单据编号', field: 'docNo', key: 'docNo', width: 160 },
@@ -616,6 +640,7 @@ const fetchData = async () => {
     const apiParams: Record<string, any> = {
       current: pagination.current,
       size: pagination.pageSize,
+      ...(selectedCategoryId.value ? { categoryId: selectedCategoryId.value } : {}),
       ...searchParams,
     }
     // 清理空值参数
@@ -721,7 +746,90 @@ const handleError = (e: Error) => {
   console.error(e)
 }
 
-onMounted(fetchData)
+// ═══ 商品分类树 ═══
+const categoryTreeData = ref<any[]>([])
+const categoryLoading = ref(false)
+const categoryExpandedKeys = ref<(string | number)[]>([])
+const selectedCategoryId = ref<string | number>('')
+
+async function loadCategoryTree() {
+  categoryLoading.value = true
+  try {
+    const tree = await productCategoryApi.getTree()
+    categoryTreeData.value = tree || []
+    if (categoryTreeData.value.length > 0) {
+      categoryExpandedKeys.value = [categoryTreeData.value[0].id]
+    }
+  } catch {
+    categoryTreeData.value = []
+  } finally {
+    categoryLoading.value = false
+  }
+}
+
+function handleCategorySelect(keys: any[]) {
+  selectedCategoryId.value = keys?.[0] ?? ''
+  pagination.current = 1
+  fetchData()
+}
+
+function handleCategoryExpand(keys: (string | number)[]) {
+  categoryExpandedKeys.value = keys
+}
+
+// ═══ 查询方案 + 快捷日期 ═══
+const queryScheme = ref('')
+const quickDate = ref('')
+const quickDates = [
+  { key: 'yesterday', label: '昨日' },
+  { key: 'today', label: '今日' },
+  { key: 'week', label: '本周' },
+  { key: 'lastWeek', label: '近一周' },
+  { key: 'month', label: '本月' },
+  { key: 'lastMonth', label: '上月' },
+  { key: 'last3Month', label: '近三月' },
+  { key: 'year', label: '本年' },
+]
+
+function setQuickDate(key: string) {
+  quickDate.value = key
+  const now = dayjs()
+  let start: Dayjs, end: Dayjs
+  switch (key) {
+    case 'yesterday': start = now.subtract(1, 'day'); end = now.subtract(1, 'day'); break
+    case 'today': start = now; end = now; break
+    case 'week': start = now.startOf('week'); end = now; break
+    case 'lastWeek': start = now.subtract(7, 'day'); end = now; break
+    case 'month': start = now.startOf('month'); end = now; break
+    case 'lastMonth': start = now.subtract(1, 'month').startOf('month'); end = now.subtract(1, 'month').endOf('month'); break
+    case 'last3Month': start = now.subtract(3, 'month'); end = now; break
+    case 'year': start = now.startOf('year'); end = now; break
+    default: start = now.subtract(7, 'day'); end = now
+  }
+  documentDateRange.value = [start, end]
+  pagination.current = 1
+  fetchData()
+}
+
+// ═══ 底部合计 ═══
+const tableFooterColumns = computed(() => {
+  const total = tableData.value.reduce((s: number, r: any) => s + (r.amount || 0), 0)
+  return total ? [{ label: '合计', value: total.toFixed(2) }] : []
+})
+
+// ═══ 操作列：批次号 / 明细备注 ═══
+function viewBatch(record: any) {
+  console.warn('查看批次号', record)
+}
+
+function viewItemRemark(record: any) {
+  console.warn('查看明细备注', record)
+}
+
+onMounted(() => {
+  fetchData()
+  loadCategoryTree()
+})
 </script>
 
 <style scoped>
@@ -770,7 +878,7 @@ onMounted(fetchData)
 .search-more-toggle :deep(.ant-btn) {
   font-size: 13px;
 }
-.table-area { background: #fff; padding: 16px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+.table-area { flex: 1; min-height: 0; display: flex; flex-direction: row; gap: 12px; align-items: stretch; background: #fff; padding: 16px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
 .table-toolbar { display: flex; justify-content: flex-end; margin-bottom: 8px; }
 .update-time { font-size: 12px; color: #999; }
 </style>

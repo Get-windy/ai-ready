@@ -16,4 +16,9 @@ public interface SalesDetailQueryService {
      * @return 分页结果
      */
     Page<Map<String, Object>> pageDetail(SalesDetailQueryDTO queryDTO);
+
+    /**
+     * 最近成交价聚合（对标：商品×往来单位最近成交价，含条码/规格/型号/产地/最后修改时间）
+     */
+    Page<Map<String, Object>> pageRecentPriceAgg(SalesDetailQueryDTO queryDTO);
 }

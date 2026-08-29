@@ -2,6 +2,7 @@ package cn.aiedge.base.config;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -9,8 +10,11 @@ import org.springframework.stereotype.Component;
 /**
  * XXL-Job执行器自动注册配置
  * 在应用启动完成后，确保执行器能够正确连接到调度中心
+ *
+ * 仅在 xxl.job.enabled=true 时启用，避免未部署 xxl-job-admin 时输出误导性日志。
  */
 @Component
+@ConditionalOnProperty(prefix = "xxl.job", name = "enabled", havingValue = "true")
 public class XxlJobAutoRegistryConfig {
 
     private static final Logger logger = LoggerFactory.getLogger(XxlJobAutoRegistryConfig.class);

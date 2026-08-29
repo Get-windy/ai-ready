@@ -248,10 +248,24 @@ const detailColumns: DetailColumnConfig[] = [
   { key: 'action', title: '操作', type: 'action', slotName: 'actionCell', width: 70, fixed: 'left' },
   { key: 'productId', title: '商品名称', type: 'slot', slotName: 'productCell', width: 200 },
   { key: 'itemCode', title: '货号', type: 'input', width: 100 },
+  { key: 'location', title: '货位', type: 'input', width: 80 },
+  { key: 'barcode', title: '条码', type: 'input', width: 120 },
   { key: 'specification', title: '规格', type: 'input', width: 100 },
   { key: 'unit', title: '计价单位', type: 'input', width: 80 },
+  { key: 'availableStock', title: '可用库存', type: 'number', width: 90, precision: 2 },
+  { key: 'batchCode', title: '批次条码', type: 'input', width: 120 },
+  { key: 'productionDate', title: '生产日期', type: 'date', width: 110 },
+  { key: 'shelfLife', title: '保质期', type: 'input', width: 70 },
+  { key: 'expiryDate', title: '到期日期', type: 'date', width: 110 },
   { key: 'quantity', title: '退货数量', type: 'number', width: 100, precision: 2 },
+  { key: 'pieceQuantity', title: '件散数量', type: 'number', width: 90, precision: 2 },
+  { key: 'bigPack', title: '大包装', type: 'number', width: 70, precision: 0 },
+  { key: 'midPack', title: '中包装', type: 'number', width: 70, precision: 0 },
+  { key: 'smallPack', title: '小包装', type: 'number', width: 70, precision: 0 },
   { key: 'unitPrice', title: '单价', type: 'number', width: 100, precision: 2 },
+  { key: 'amount', title: '金额', type: 'number', width: 100, precision: 2, readonly: true },
+  { key: 'productAttribute', title: '商品行属性', type: 'input', width: 90 },
+  { key: 'gift', title: '赠品', type: 'boolean', width: 60 },
   { key: 'reason', title: '退货原因', type: 'input', width: 150 },
   { key: 'remark', title: '备注', type: 'input', width: 150 },
 ]
@@ -264,9 +278,22 @@ function handleProductChange(val: number, index: number) {
   if (p && formData.products[index]) {
     const row = formData.products[index]
     row.itemCode = p.code || ''
+    row.barcode = p.barcode || ''
     row.specification = p.specification || ''
     row.unit = p.unit || ''
+    row.location = p.location || ''
+    row.availableStock = p.stock ?? 0
+    row.batchCode = p.batchCode || ''
+    row.productionDate = p.productionDate || ''
+    row.shelfLife = p.shelfLife || ''
+    row.expiryDate = p.expiryDate || ''
+    row.pieceQuantity = p.pieceQuantity ?? 0
+    row.bigPack = p.bigPack ?? 0
+    row.midPack = p.midPack ?? 0
+    row.smallPack = p.smallPack ?? 0
     row.unitPrice = p.salePrice || p.price || 0
+    row.amount = (row.quantity || 0) * (row.unitPrice || 0)
+    row.productAttribute = p.productAttribute || ''
   }
 }
 

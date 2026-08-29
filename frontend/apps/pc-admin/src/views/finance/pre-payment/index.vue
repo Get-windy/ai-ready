@@ -535,8 +535,11 @@ const columns = computed(() => [
   { title: '金额', field: 'amount', width: 120, align: 'right', formatter: ({ cellValue }: any) => cellValue ? `¥${formatAmount(cellValue)}` : '-' },
   { title: '已使用', field: 'usedAmount', width: 120, align: 'right', formatter: ({ cellValue }: any) => cellValue ? `¥${formatAmount(cellValue)}` : '-' },
   { title: '剩余金额', field: 'remainingAmount', width: 120, align: 'right', formatter: ({ cellValue }: any) => cellValue ? `¥${formatAmount(cellValue)}` : '-' },
+  { title: '付款账户编号', field: 'bankAccount', width: 130 },
+  { title: '付款账户', field: 'bankName', width: 130 },
   { title: '付款日期', field: 'paymentDate', width: 110 },
   { title: '状态', field: 'status', width: 100, align: 'center', slotName: 'statusCell' },
+  { title: '备注', field: 'remark', ellipsis: true },
   { title: '操作', type: 'action', width: 160, fixed: 'right' }
 ])
 

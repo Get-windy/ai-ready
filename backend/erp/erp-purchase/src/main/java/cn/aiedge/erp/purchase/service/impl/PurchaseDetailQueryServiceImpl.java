@@ -37,12 +37,15 @@ public class PurchaseDetailQueryServiceImpl implements PurchaseDetailQueryServic
         QueryWrapper<cn.aiedge.erp.purchase.entity.PurchaseOrder> wrapper = new QueryWrapper<>();
 
         // === 单据级过滤条件 ===
-        // 日期范围
+        // 日期范围（结束日期必须转为 LocalDateTime，否则 JDBC 参数化为 varchar 导致类型不匹配）
         wrapper.ge(query.getDateStart() != null, "o.order_date", parseDateStart(query.getDateStart()))
-               .le(query.getDateEnd() != null, "o.order_date", query.getDateEnd());
+               .le(query.getDateEnd() != null, "o.order_date", parseDateEnd(query.getDateEnd()));
 
         // 单据编号
         wrapper.like(query.getOrderNo() != null, "o.order_no", query.getOrderNo());
+
+        // 来源订单(源单编号)
+        wrapper.like(query.getSourceBillNo() != null, "o.source_bill_no", query.getSourceBillNo());
 
         // 单据状态
         wrapper.eq(query.getStatus() != null, "o.status", query.getStatus());

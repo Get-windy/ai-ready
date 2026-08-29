@@ -601,7 +601,7 @@ const FORM_COMPONENT_NAMES: Record<string, string> = {
   '/erp/return/form': 'ReturnForm',
   '/erp/shipment/form': 'ShipmentForm',
   '/erp/sale-outbound/form': 'SaleOutboundForm',
-  '/erp/purchase-exchange/form': 'PurchaseExchangeForm',
+  '/purchase/exchange/form': 'PurchaseExchangeForm',
   '/erp/product/form': 'ProductForm',
 }
 

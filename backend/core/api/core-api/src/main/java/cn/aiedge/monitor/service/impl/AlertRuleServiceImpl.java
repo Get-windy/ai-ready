@@ -5,9 +5,14 @@ import cn.aiedge.monitor.mapper.AlertRuleMapper;
 import cn.aiedge.monitor.model.AlertHistory;
 import cn.aiedge.monitor.model.AlertRule;
 import cn.aiedge.monitor.service.AlertRuleService;
+import cn.aiedge.webhook.dto.WebhookPayload;
+import cn.aiedge.webhook.entity.Webhook;
+import cn.aiedge.webhook.service.WebhookService;
+import cn.hutool.core.util.IdUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -21,6 +26,13 @@ public class AlertRuleServiceImpl implements AlertRuleService {
 
     private final AlertRuleMapper alertRuleMapper;
     private final AlertHistoryMapper alertHistoryMapper;
+
+    /**
+     * 真实的Webhook服务，可选注入。
+     * 未加载 core-notification 模块或未配置时该字段为 null，此时退回日志模拟通知。
+     */
+    @Autowired(required = false)
+    private WebhookService webhookService;
 
     @Override
     public AlertRule createRule(AlertRule rule) {
@@ -190,10 +202,55 @@ public class AlertRuleServiceImpl implements AlertRuleService {
                 log.info("[SMS] Sending alert to {}: {}", rule.getNotifyTargets(), message);
                 break;
             case "webhook":
-                log.info("[WEBHOOK] Sending alert to {}: {}", rule.getNotifyTargets(), message);
+                sendWebhookNotification(rule, alert);
                 break;
             default:
                 log.info("[{}] Sending alert to {}: {}", notifyType, rule.getNotifyTargets(), message);
+        }
+    }
+
+    /**
+     * 发送Webhook告警通知。
+     * 当存在真实的 WebhookService 且规则配置了目标URL时，通过 webhook 服务实际发送；
+     * 否则退回原来的日志模拟通知。
+     */
+    private void sendWebhookNotification(AlertRule rule, Map<String, Object> alert) {
+        String targets = rule.getNotifyTargets();
+        String message = (String) alert.get("message");
+
+        if (webhookService == null || targets == null || targets.trim().isEmpty()) {
+            log.info("[WEBHOOK] Sending alert to {}: {}", targets, message);
+            return;
+        }
+
+        for (String url : targets.split("[,;\\s]+")) {
+            if (url.trim().isEmpty()) {
+                continue;
+            }
+            Webhook webhook = new Webhook();
+            webhook.setWebhookCode("ALERT" + IdUtil.fastSimpleUUID().substring(0, 8));
+            webhook.setWebhookName("alert-" + rule.getRuleName());
+            webhook.setTargetUrl(url.trim());
+            webhook.setMethod("POST");
+            webhook.setActive(true);
+            webhook.setTimeout(10000);
+            webhook.setMaxRetry(0);
+            webhook.setRetryCount(0);
+
+            WebhookPayload payload = new WebhookPayload();
+            payload.setWebhookCode(webhook.getWebhookCode());
+            payload.setModelName("sys_alert_rule");
+            payload.setTriggerEvent("alert");
+            payload.setRecordId(rule.getId());
+            payload.setData(alert);
+            payload.setTimestamp(LocalDateTime.now());
+
+            try {
+                webhookService.executeWebhook(webhook, payload);
+                log.info("[WEBHOOK] Alert sent to {}: {}", url.trim(), message);
+            } catch (Exception e) {
+                log.error("[WEBHOOK] Failed to send alert to {}: {}", url.trim(), message, e);
+            }
         }
     }
 }

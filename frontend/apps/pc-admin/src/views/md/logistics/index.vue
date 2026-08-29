@@ -150,6 +150,7 @@ const columns: DetailColumnConfig[] = [
     },
   },
   { key: 'remark', title: '备注', type: 'input', width: 150 },
+  { key: 'address', title: '地址', type: 'input', width: 200 },
   { key: 'status', title: '状态', type: 'slot', slotName: 'statusCell', width: 80 },
 ]
 </script>

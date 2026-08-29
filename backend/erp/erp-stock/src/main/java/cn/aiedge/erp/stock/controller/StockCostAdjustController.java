@@ -61,6 +61,7 @@ public class StockCostAdjustController {
         adjust.setAdjustType(request.getAdjustType());
         adjust.setAdjustDate(request.getAdjustDate());
         adjust.setWarehouseId(request.getWarehouseId());
+        adjust.setApplicantId(request.getHandlerId());
         adjust.setWarehouseName(request.getWarehouseName());
         adjust.setReasonType(request.getReasonType());
         adjust.setReasonDesc(request.getReasonDesc());

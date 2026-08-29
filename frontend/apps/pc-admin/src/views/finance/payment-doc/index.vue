@@ -104,13 +104,21 @@ const statusMap: Record<number, { text: string; color: string }> = {
 }
 
 const columns = [
-  { title: '付款单号', dataIndex: 'paymentNo', key: 'paymentNo', width: 160 },
-  { title: '供应商名称', dataIndex: 'supplierName', key: 'supplierName', width: 150 },
-  { title: '付款日期', dataIndex: 'paymentDate', key: 'paymentDate', width: 110 },
-  { title: '付款金额', dataIndex: 'paymentAmount', key: 'paymentAmount', width: 120 },
-  { title: '付款方式', dataIndex: 'paymentMethod', key: 'paymentMethod', width: 100 },
+  { title: '单据编号', dataIndex: 'paymentNo', key: 'paymentNo', width: 160 },
+  { title: '单据日期', dataIndex: 'paymentDate', key: 'paymentDate', width: 110 },
+  { title: '单据类型', dataIndex: 'paymentType', key: 'paymentType', width: 90 },
+  { title: '往来单位', dataIndex: 'supplierName', key: 'supplierName', width: 150 },
+  { title: '结算单位', dataIndex: 'supplierName', key: 'settleUnit', width: 150 },
+  { title: '结算方式', dataIndex: 'paymentMethod', key: 'paymentMethod', width: 100 },
+  { title: '本单金额', dataIndex: 'paymentAmount', key: 'paymentAmount', width: 120, align: 'right' },
+  { title: '已结算', dataIndex: 'verifiedAmount', key: 'verifiedAmount', width: 120, align: 'right' },
+  { title: '待审金额', dataIndex: 'pendingAmount', key: 'pendingAmount', width: 120, align: 'right' },
+  { title: '未结算', dataIndex: 'unsettledAmount', key: 'unsettledAmount', width: 120, align: 'right' },
+  { title: '来源订单', dataIndex: 'orderNo', key: 'orderNo', width: 140 },
+  { title: '经手人', dataIndex: 'purchaserName', key: 'purchaserName', width: 100 },
+  { title: '部门', dataIndex: 'departmentName', key: 'departmentName', width: 100 },
   { title: '状态', dataIndex: 'status', key: 'status', width: 90 },
-  { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 160 },
+  { title: '单据备注', dataIndex: 'remark', key: 'remark', ellipsis: true },
   { title: '操作', type: 'action', width: 80, fixed: 'right' },
 ]
 
@@ -142,7 +150,12 @@ async function fetchData() {
       pageNum: pagination.current,
       pageSize: pagination.pageSize,
     }) as any
-    dataSource.value = res?.records || res?.data?.records || []
+    const records = res?.records || res?.data?.records || []
+    // 未结算 = 本单金额 - 已结算
+    records.forEach((r: any) => {
+      r.unsettledAmount = Number(r.paymentAmount || 0) - Number(r.verifiedAmount || 0)
+    })
+    dataSource.value = records
     pagination.total = res?.total || res?.data?.total || 0
   } catch (error: any) {
     message.error('获取付款单列表失败')

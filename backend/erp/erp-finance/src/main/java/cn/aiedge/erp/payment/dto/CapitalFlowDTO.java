@@ -67,6 +67,15 @@ public class CapitalFlowDTO {
     @Schema(description = "备注")
     private String remark;
 
+    @Schema(description = "对账标记: 0-未对账 1-已对账")
+    private Integer reconcileFlag;
+
+    @Schema(description = "对账人")
+    private String reconcileBy;
+
+    @Schema(description = "对账时间")
+    private LocalDateTime reconcileAt;
+
     @Schema(description = "创建时间")
     private LocalDateTime createTime;
 }

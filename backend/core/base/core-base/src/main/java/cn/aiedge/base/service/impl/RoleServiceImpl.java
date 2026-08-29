@@ -35,7 +35,7 @@ import java.util.stream.Collectors;
 @Service
 @Primary
 @RequiredArgsConstructor
-public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements RoleService {
+public class RoleServiceImpl extends ServiceImpl<RoleMapper, SysRole> implements RoleService {
 
     private final RoleMapper roleMapper;
     private final PermissionMapper permissionMapper;
@@ -47,31 +47,31 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements Ro
 
     @Override
     public PageResult<RoleDetailVO> pageList(RoleQueryRequest request) {
-        LambdaQueryWrapper<Role> wrapper = new LambdaQueryWrapper<>();
+        LambdaQueryWrapper<SysRole> wrapper = new LambdaQueryWrapper<>();
 
         // 根据当前用户上下文自动过滤 scope
         String currentScope = resolveCurrentScope();
         if (currentScope != null) {
-            wrapper.eq(Role::getScope, currentScope);
+            wrapper.eq(SysRole::getScope, currentScope);
         } else if (StringUtils.hasText(request.getScope())) {
-            wrapper.eq(Role::getScope, request.getScope());
+            wrapper.eq(SysRole::getScope, request.getScope());
         }
 
         // 租户隔离：租户用户只能看到自己的角色
         Long tenantId = SecurityUtils.getCurrentTenantId();
         if (tenantId != null) {
-            wrapper.eq(Role::getTenantId, tenantId);
+            wrapper.eq(SysRole::getTenantId, tenantId);
         }
 
-        wrapper.like(StringUtils.hasText(request.getRoleCode()), Role::getRoleCode, request.getRoleCode())
-               .like(StringUtils.hasText(request.getRoleName()), Role::getRoleName, request.getRoleName())
-               .eq(StringUtils.hasText(request.getRoleType()), Role::getRoleType, request.getRoleType())
-               .eq(request.getStatus() != null, Role::getStatus, request.getStatus())
-               .orderByAsc(Role::getSort)
-               .orderByDesc(Role::getCreateTime);
+        wrapper.like(StringUtils.hasText(request.getRoleCode()), SysRole::getRoleCode, request.getRoleCode())
+               .like(StringUtils.hasText(request.getRoleName()), SysRole::getRoleName, request.getRoleName())
+               .eq(StringUtils.hasText(request.getRoleType()), SysRole::getRoleType, convertRoleType(request.getRoleType()))
+               .eq(request.getStatus() != null, SysRole::getStatus, request.getStatus())
+               .orderByAsc(SysRole::getSort)
+               .orderByDesc(SysRole::getCreateTime);
 
-        Page<Role> page = new Page<>(request.getPageNum(), request.getPageSize());
-        Page<Role> result = page(page, wrapper);
+        Page<SysRole> page = new Page<>(request.getPageNum(), request.getPageSize());
+        Page<SysRole> result = page(page, wrapper);
 
         List<RoleDetailVO> voList = result.getRecords().stream()
                 .map(this::convertToVO)
@@ -82,9 +82,9 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements Ro
 
     @Override
     public List<RoleDetailVO> listAll(String scope) {
-        LambdaQueryWrapper<Role> wrapper = new LambdaQueryWrapper<Role>()
-                .eq(Role::getStatus, 1)
-                .orderByAsc(Role::getSort);
+        LambdaQueryWrapper<SysRole> wrapper = new LambdaQueryWrapper<SysRole>()
+                .eq(SysRole::getStatus, 1)
+                .orderByAsc(SysRole::getSort);
 
         // 优先使用显式传入的 scope，否则根据用户上下文自动推断
         String effectiveScope = scope;
@@ -92,18 +92,18 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements Ro
             effectiveScope = resolveCurrentScope();
         }
         if (effectiveScope != null) {
-            wrapper.eq(Role::getScope, effectiveScope);
+            wrapper.eq(SysRole::getScope, effectiveScope);
         }
 
         // 租户隔离：TENANT 作用域的角色按租户过滤
         if ("TENANT".equals(effectiveScope)) {
             Long tenantId = SecurityUtils.getCurrentTenantId();
             if (tenantId != null) {
-                wrapper.eq(Role::getTenantId, tenantId);
+                wrapper.eq(SysRole::getTenantId, tenantId);
             }
         }
 
-        List<Role> roles = list(wrapper);
+        List<SysRole> roles = list(wrapper);
 
         return roles.stream()
                 .map(this::convertToVO)
@@ -112,7 +112,7 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements Ro
 
     @Override
     public RoleDetailVO getDetail(Long id) {
-        Role role = getById(id);
+        SysRole role = getById(id);
         if (role == null) {
             throw BusinessException.notFound("角色不存在");
         }
@@ -120,9 +120,9 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements Ro
         RoleDetailVO vo = convertToVO(role);
         
         // 查询角色权限
-        List<Permission> permissions = permissionMapper.selectByRoleId(id);
+        List<SysPermission> permissions = permissionMapper.selectByRoleId(id);
         vo.setPermissions(permissions.stream().map(this::convertToPermissionVO).collect(Collectors.toList()));
-        vo.setPermissionIds(permissions.stream().map(Permission::getId).collect(Collectors.toList()));
+        vo.setPermissionIds(permissions.stream().map(SysPermission::getId).collect(Collectors.toList()));
         
         return vo;
     }
@@ -142,8 +142,10 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements Ro
             throw BusinessException.forbidden("租户用户无权创建平台级角色");
         }
 
-        Role role = new Role();
-        BeanUtils.copyProperties(request, role);
+        SysRole role = new SysRole();
+        // roleType 由 String(admin/user) 转为 Integer(0/1)，需单独转换，故排除自动拷贝
+        BeanUtils.copyProperties(request, role, "roleType");
+        role.setRoleType(convertRoleType(request.getRoleType()));
 
         // 自动设置 scope：如果未指定，根据当前用户上下文推断
         if (role.getScope() == null) {
@@ -157,12 +159,12 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements Ro
         }
 
         save(role);
-        
+
         // 分配权限
         if (!CollectionUtils.isEmpty(request.getPermissionIds())) {
             assignPermissions(role.getId(), request.getPermissionIds());
         }
-        
+
         log.info("创建角色成功: {}", role.getRoleCode());
         return role.getId();
     }
@@ -170,7 +172,7 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements Ro
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void update(RoleUpdateRequest request) {
-        Role role = getById(request.getId());
+        SysRole role = getById(request.getId());
         if (role == null) {
             throw BusinessException.notFound("角色不存在");
         }
@@ -181,7 +183,11 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements Ro
             throw BusinessException.forbidden("租户用户无权将角色作用域设置为平台级");
         }
 
-        BeanUtils.copyProperties(request, role);
+        // roleType 由 String(admin/user) 转为 Integer(0/1)，需单独转换，故排除自动拷贝
+        BeanUtils.copyProperties(request, role, "roleType");
+        if (request.getRoleType() != null) {
+            role.setRoleType(convertRoleType(request.getRoleType()));
+        }
         updateById(role);
         
         // 更新权限
@@ -195,7 +201,7 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements Ro
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long id) {
-        Role role = getById(id);
+        SysRole role = getById(id);
         if (role == null) {
             throw BusinessException.notFound("角色不存在");
         }
@@ -252,7 +258,7 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements Ro
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void updateStatus(Long id, Integer status) {
-        Role role = getById(id);
+        SysRole role = getById(id);
         if (role == null) {
             throw BusinessException.notFound("角色不存在");
         }
@@ -266,7 +272,7 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements Ro
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void assignPermissions(Long roleId, List<Long> permissionIds) {
-        Role role = getById(roleId);
+        SysRole role = getById(roleId);
         String roleName = (role != null) ? role.getRoleName() : String.valueOf(roleId);
 
         // 获取当前已有权限 ID（用于后续 diff 计算）
@@ -318,7 +324,7 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements Ro
     /**
      * 记录权限变更审计日志
      */
-    private void recordPermissionAuditLog(Role role, String roleName,
+    private void recordPermissionAuditLog(SysRole role, String roleName,
                                            List<Long> oldPermissionIds, List<Long> newPermissionIds) {
         Set<Long> oldSet = new HashSet<>(oldPermissionIds != null ? oldPermissionIds : Collections.emptyList());
         Set<Long> newSet = new HashSet<>(newPermissionIds != null ? newPermissionIds : Collections.emptyList());
@@ -361,12 +367,12 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements Ro
     }
 
     @Override
-    public Role getByRoleCode(String roleCode) {
+    public SysRole getByRoleCode(String roleCode) {
         return roleMapper.selectByRoleCode(roleCode);
     }
 
     @Override
-    public List<Role> getByUserId(Long userId) {
+    public List<SysRole> getByUserId(Long userId) {
         return roleMapper.selectByUserId(userId);
     }
 
@@ -396,18 +402,55 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements Ro
     /**
      * 转换为VO
      */
-    private RoleDetailVO convertToVO(Role role) {
+    private RoleDetailVO convertToVO(SysRole role) {
         RoleDetailVO vo = new RoleDetailVO();
         BeanUtils.copyProperties(role, vo);
         return vo;
     }
 
     /**
+     * 角色类型转换：String("admin"/"user"/"0"/"1") → Integer(0-系统角色 1-自定义角色)
+     */
+    private Integer convertRoleType(String roleType) {
+        if (roleType == null || roleType.isBlank()) {
+            return null;
+        }
+        return switch (roleType.trim()) {
+            case "admin" -> 0;
+            case "user" -> 1;
+            default -> {
+                try {
+                    yield Integer.valueOf(roleType.trim());
+                } catch (NumberFormatException e) {
+                    yield null;
+                }
+            }
+        };
+    }
+
+    /**
      * 转换为权限VO
      */
-    private PermissionVO convertToPermissionVO(Permission permission) {
+    private PermissionVO convertToPermissionVO(SysPermission permission) {
         PermissionVO vo = new PermissionVO();
         BeanUtils.copyProperties(permission, vo);
+        vo.setPermissionType(convertPermissionType(permission.getPermissionType()));
         return vo;
+    }
+
+    /**
+     * 转换权限类型数值为字符串
+     * 1-菜单、2-按钮、3-API
+     */
+    private String convertPermissionType(Integer permissionType) {
+        if (permissionType == null) {
+            return null;
+        }
+        return switch (permissionType) {
+            case 1 -> "menu";
+            case 2 -> "button";
+            case 3 -> "api";
+            default -> null;
+        };
     }
 }

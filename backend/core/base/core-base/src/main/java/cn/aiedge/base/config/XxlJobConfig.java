@@ -4,6 +4,7 @@ import com.xxl.job.core.executor.impl.XxlJobSpringExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -11,8 +12,13 @@ import org.springframework.context.annotation.Configuration;
  * xxl-job config
  *
  * @author xuxueli 2017-04-28
+ *
+ * 注意：默认不创建 XxlJobSpringExecutor，避免在未部署 xxl-job-admin 时
+ * 其内部注册线程每30秒向 admin 发起 /api/registry 请求并产生 404 日志噪音。
+ * 仅在显式配置 xxl.job.enabled=true 且 admin 地址正确时才启用。
  */
 @Configuration
+@ConditionalOnProperty(prefix = "xxl.job", name = "enabled", havingValue = "true")
 public class XxlJobConfig {
     private Logger logger = LoggerFactory.getLogger(XxlJobConfig.class);
 

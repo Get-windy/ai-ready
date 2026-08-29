@@ -1,7 +1,7 @@
 package cn.aiedge.common.ratelimit;
 
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.data.redis.core.script.RedisScript;
 
@@ -23,7 +23,7 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 public class TokenBucketLimiter {
 
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final StringRedisTemplate redisTemplate;
     private final RedisScript<Long> rateLimitScript;
     
     private static final String KEY_PREFIX = "rate_limit:";
@@ -58,7 +58,7 @@ public class TokenBucketLimiter {
         "\n" +
         "return allowed";
 
-    public TokenBucketLimiter(RedisTemplate<String, Object> redisTemplate) {
+    public TokenBucketLimiter(StringRedisTemplate redisTemplate) {
         this.redisTemplate = redisTemplate;
         this.rateLimitScript = new DefaultRedisScript<>(SCRIPT, Long.class);
     }
@@ -160,7 +160,10 @@ public class TokenBucketLimiter {
         
         try {
             Object tokens = redisTemplate.opsForHash().get(fullKey, "tokens");
-            return tokens != null ? ((Number) tokens).longValue() : capacity;
+            if (tokens == null) {
+                return capacity;
+            }
+            return tokens instanceof Number ? ((Number) tokens).longValue() : Long.parseLong(tokens.toString());
         } catch (Exception e) {
             log.error("获取令牌数异常: key={}", key, e);
             return capacity;

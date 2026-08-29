@@ -178,7 +178,6 @@
       :data-source="tableData"
       :loading="loading"
       :view-mode="true"
-      :max-height="tableHeight"
       :min-rows="minEmptyRows"
       @checkbox-change="handleCheckboxChange"
       @checkbox-all="handleCheckboxAll"
@@ -334,9 +333,6 @@ const filterValues = reactive<Record<string, any>>({})
 const currentPage = ref((props.pagination as any)?.current || 1)
 const pageSize = ref((props.pagination as any)?.pageSize || 20)
 const paginationTotal = ref(Number((props.pagination as any)?.total) || 0)
-
-// 表格高度
-const tableHeight = ref(Math.max(300, typeof window !== 'undefined' ? window.innerHeight - 280 : 400))
 
 // 处理数据（添加空行）
 const tableData = computed(() => props.dataSource)

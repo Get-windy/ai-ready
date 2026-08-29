@@ -167,9 +167,9 @@ const headerConfig = computed<BillHeaderConfig>(() => ({
 }))
 
 const basicInfoFields = computed<BasicInfoField[]>(() => [
-  { key: 'warehouseId', label: '仓库', type: 'select', required: true, placeholder: '请选择仓库', options: (optionRefs.warehouses || []).map((w: any) => ({ label: w.name, value: w.id })), searchBtn: '+Q', loading: loadingOptions.value },
+  { key: 'warehouseId', label: '出库仓库', type: 'select', required: true, placeholder: '请选择出库仓库', options: (optionRefs.warehouses || []).map((w: any) => ({ label: w.name, value: w.id })), searchBtn: '+Q', loading: loadingOptions.value },
   { key: 'handlerId', label: '经手人', type: 'select', required: true, placeholder: '请选择经手人', options: (optionRefs.users || []).map((u: any) => ({ label: u.name, value: u.id })), searchBtn: '+Q', loading: loadingOptions.value },
-  { key: 'date', label: '报损日期', type: 'date', required: true },
+  { key: 'date', label: '单据日期', type: 'date', required: true },
   { key: 'damageCause', label: '报损原因', type: 'select', required: true, options: DAMAGE_CAUSE_OPTIONS },
 ])
 

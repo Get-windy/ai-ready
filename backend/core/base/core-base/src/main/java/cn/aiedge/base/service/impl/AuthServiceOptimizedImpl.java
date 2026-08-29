@@ -1,7 +1,7 @@
 package cn.aiedge.base.service.impl;
 
 import cn.aiedge.base.entity.SysTenant;
-import cn.aiedge.base.entity.User;
+import cn.aiedge.base.entity.SysUser;
 import cn.aiedge.base.mapper.TenantMapper;
 import cn.aiedge.base.service.AuthService;
 import cn.aiedge.base.service.UserService;
@@ -69,7 +69,7 @@ public class AuthServiceOptimizedImpl implements AuthService {
         checkAccountLock(username);
         checkLoginRateLimit(username, clientIp);
         
-        User user = userService.getByUsername(username);
+        SysUser user = userService.getByUsername(username);
         if (user == null) {
             recordLoginFail(username, clientIp);
             throw BusinessException.badRequest("用户名或密码错误");
@@ -198,7 +198,7 @@ public class AuthServiceOptimizedImpl implements AuthService {
         log.info("登录成功: userId={}, username={}, ip={}", userId, username, clientIp);
     }
 
-    private LoginVO buildLoginResponse(User user, String tokenValue, long tokenTimeout) {
+    private LoginVO buildLoginResponse(SysUser user, String tokenValue, long tokenTimeout) {
         LoginVO vo = new LoginVO();
         vo.setAccessToken(tokenValue);
         vo.setExpiresIn(tokenTimeout);
@@ -243,7 +243,7 @@ public class AuthServiceOptimizedImpl implements AuthService {
         }
 
         Long userId = StpUtil.getLoginIdAsLong();
-        User user = userService.getById(userId);
+        SysUser user = userService.getById(userId);
         if (user == null) {
             throw BusinessException.notFound("用户不存在");
         }

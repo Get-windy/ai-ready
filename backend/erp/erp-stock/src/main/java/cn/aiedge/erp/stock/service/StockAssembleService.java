@@ -13,6 +13,8 @@ public interface StockAssembleService extends IService<StockAssemble> {
 
     StockAssemble createAssemble(StockAssemble assemble, List<StockAssembleItem> items);
 
+    StockAssemble updateAssemble(Long id, StockAssemble assemble, List<StockAssembleItem> items);
+
     StockAssemble getItems(Long assembleId);
 
     List<StockAssembleItem> getItemList(Long assembleId);

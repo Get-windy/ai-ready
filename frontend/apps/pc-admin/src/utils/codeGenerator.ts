@@ -140,8 +140,15 @@ export async function generateCodeAsync(prefix: string, apiPath: string): Promis
   const { default: request } = await import('@/utils/request')
   try {
     const res = await request.get(apiPath, { params: { prefix, date: getTodayStr() } })
-    const seq = res?.seq ?? res?.data?.seq ?? 1
-    return generateCode(prefix, seq)
+    // 后端接口直接返回完整编号字符串（如 /erp/purchase/order/next-no）时直接使用，
+    // 避免将其误当作 { seq } 结构而把 seq 降级为 1
+    if (typeof res === 'string' && res) return res
+    if (res && typeof res === 'object') {
+      if (typeof (res as any).data === 'string' && (res as any).data) return (res as any).data
+      const seq = (res as any)?.seq ?? (res as any)?.data?.seq ?? 1
+      return generateCode(prefix, seq)
+    }
+    return generateCode(prefix, 1)
   } catch {
     // 后端不可用时降级为自增序列
     return generateCode(prefix, getNextDemoSeq())

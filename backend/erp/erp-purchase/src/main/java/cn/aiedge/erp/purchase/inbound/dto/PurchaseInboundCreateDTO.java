@@ -45,5 +45,21 @@ public class PurchaseInboundCreateDTO {
 
     private String internalNote;
 
+    private String summary;
+
+    private BigDecimal extNum1;
+
+    private BigDecimal extNum2;
+
+    private String extText1;
+
+    private String extText2;
+
+    private String extText3;
+
+    private BigDecimal discountAmount;
+
+    private BigDecimal fee;
+
     private List<PurchaseInboundItemDTO> items;
 }

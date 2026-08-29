@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Slf4j
@@ -29,6 +30,9 @@ public class StockTransferController {
     public static class CreateTransferRequest {
         private Long fromWarehouseId;
         private Long toWarehouseId;
+        private Long handlerId;
+        private LocalDate billDate;
+        private Integer transferMode;
         private String remark;
         private List<StockTransferItem> items;
     }
@@ -68,6 +72,9 @@ public class StockTransferController {
         transfer.setTenantId(1L);
         transfer.setFromWarehouseId(request.getFromWarehouseId());
         transfer.setToWarehouseId(request.getToWarehouseId());
+        transfer.setTransferType(request.getTransferMode() != null ? request.getTransferMode() : 1);
+        transfer.setBillDate(request.getBillDate());
+        transfer.setApplicantId(request.getHandlerId());
         transfer.setRemark(request.getRemark());
         transfer.setCreateBy(StpUtil.getLoginIdAsLong());
         return Result.ok(transferService.createTransfer(transfer, request.getItems()));

@@ -122,6 +122,39 @@ const {
     costPrice: 0, costAmount: 0, transferPrice: 0, transferAmount: 0, transferDiff: 0,
     remark: '',
   },
+  transformPayload: (data: Record<string, any>, _status: number) => ({
+    fromWarehouseId: data.fromWarehouseId,
+    toWarehouseId: data.toWarehouseId,
+    handlerId: data.handlerId,
+    billDate: data.date,
+    transferMode: data.transferMode,
+    remark: data.remark,
+    items: (data.products || []).map((p: any) => ({
+      productId: p.productId,
+      productCode: p.itemCode || p.productCode,
+      productName: p.productName,
+      productSpec: p.specification,
+      productUnit: p.unit,
+      quantity: p.quantity,
+      unitCost: p.costPrice,
+      unitPrice: p.transferPrice,
+      lineAmount: p.costAmount,
+      batchNo: p.batchCode,
+      productionDate: p.productionDate,
+      validityDate: p.expiryDate,
+      barcode: p.barcode,
+      shelfLife: p.shelfLife,
+      conversionRelation: p.conversionRelation,
+      pieceQuantity: p.pieceQuantity,
+      bigPack: p.bigPack,
+      midPack: p.midPack,
+      smallPack: p.smallPack,
+      transferPrice: p.transferPrice,
+      transferAmount: p.transferAmount,
+      transferDiff: p.transferDiff,
+      remark: p.remark,
+    })),
+  }),
 })
 
 // 初始化调拨单特有字段
@@ -184,10 +217,10 @@ const transferModeOptions = [
   { label: '异价调拨', value: 2 },
 ]
 const basicInfoFields = computed<BasicInfoField[]>(() => [
-  { key: 'fromWarehouseId', label: '调出仓库', type: 'select', required: true, placeholder: '请选择调出仓库', options: fromWarehouseOptions.value, searchBtn: '+Q', loading: loadingOptions.value },
-  { key: 'toWarehouseId', label: '调入仓库', type: 'select', required: true, placeholder: '请选择调入仓库', options: toWarehouseOptions.value, searchBtn: '+Q', loading: loadingOptions.value },
+  { key: 'fromWarehouseId', label: '出库仓库', type: 'select', required: true, placeholder: '请选择出库仓库', options: fromWarehouseOptions.value, searchBtn: '+Q', loading: loadingOptions.value },
+  { key: 'toWarehouseId', label: '入库仓库', type: 'select', required: true, placeholder: '请选择入库仓库', options: toWarehouseOptions.value, searchBtn: '+Q', loading: loadingOptions.value },
   { key: 'handlerId', label: '经手人', type: 'select', required: true, placeholder: '请选择经手人', options: (optionRefs.users || []).map((u: any) => ({ label: u.name, value: u.id })), searchBtn: '+Q', loading: loadingOptions.value },
-  { key: 'date', label: '调拨日期', type: 'date', required: true },
+  { key: 'date', label: '单据日期', type: 'date', required: true },
   { key: 'transferMode', label: '调拨方式', type: 'select', options: transferModeOptions, defaultValue: 1 },
 ])
 

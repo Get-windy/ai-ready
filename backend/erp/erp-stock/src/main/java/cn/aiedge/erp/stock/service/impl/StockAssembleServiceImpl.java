@@ -58,9 +58,19 @@ public class StockAssembleServiceImpl extends ServiceImpl<StockAssembleMapper, S
         assemble.setAssembleNo(generateAssembleNo());
         assemble.setStatus(0);
         assemble.setApplicantId(userId);
+        assemble.setApplicantName(getLoginName());
         assemble.setApplyTime(LocalDateTime.now());
         assemble.setCreateBy(userId);
         assemble.setCreateTime(LocalDateTime.now());
+        if (assemble.getAssembleDate() == null) {
+            assemble.setAssembleDate(LocalDateTime.now());
+        }
+        if (assemble.getInWarehouseId() == null) {
+            assemble.setInWarehouseId(assemble.getWarehouseId());
+        }
+        if (assemble.getOutWarehouseId() == null) {
+            assemble.setOutWarehouseId(assemble.getWarehouseId());
+        }
         this.save(assemble);
 
         if (items != null && !items.isEmpty()) {
@@ -88,6 +98,76 @@ public class StockAssembleServiceImpl extends ServiceImpl<StockAssembleMapper, S
         }
 
         return assemble;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public StockAssemble updateAssemble(Long id, StockAssemble assemble, List<StockAssembleItem> items) {
+        StockAssemble existing = this.getById(id);
+        if (existing == null) {
+            throw BusinessException.notFound("组装单不存在");
+        }
+        if (existing.getStatus() != 0) {
+            throw BusinessException.badRequest("只有草稿状态的组装单可以修改");
+        }
+        assemble.setId(id);
+        assemble.setTenantId(existing.getTenantId());
+        assemble.setAssembleNo(existing.getAssembleNo());
+        assemble.setStatus(0);
+        assemble.setApplicantId(existing.getApplicantId());
+        assemble.setApplyTime(existing.getApplyTime());
+        assemble.setCreateBy(existing.getCreateBy());
+        assemble.setCreateTime(existing.getCreateTime());
+        if (assemble.getAssembleDate() == null) {
+            assemble.setAssembleDate(existing.getAssembleDate());
+        }
+        if (assemble.getInWarehouseId() == null) {
+            assemble.setInWarehouseId(existing.getInWarehouseId() != null ? existing.getInWarehouseId() : existing.getWarehouseId());
+        }
+        if (assemble.getOutWarehouseId() == null) {
+            assemble.setOutWarehouseId(existing.getOutWarehouseId() != null ? existing.getOutWarehouseId() : existing.getWarehouseId());
+        }
+        this.updateById(assemble);
+
+        // 重建明细
+        stockAssembleItemMapper.delete(
+                new LambdaQueryWrapper<StockAssembleItem>().eq(StockAssembleItem::getAssembleId, id)
+        );
+        if (items != null && !items.isEmpty()) {
+            BigDecimal subTotalCost = BigDecimal.ZERO;
+            for (StockAssembleItem item : items) {
+                item.setId(null);
+                item.setAssembleId(id);
+                if (item.getQuantity() == null) {
+                    item.setQuantity(BigDecimal.ONE);
+                }
+                if (item.getUnitCost() == null) {
+                    item.setUnitCost(BigDecimal.ZERO);
+                }
+                item.setCost(item.getQuantity().multiply(item.getUnitCost()));
+                item.setCreateTime(LocalDateTime.now());
+                stockAssembleItemMapper.insert(item);
+                subTotalCost = subTotalCost.add(item.getCost());
+            }
+            assemble.setSubTotalCost(subTotalCost);
+            assemble.setTotalItems(items.size());
+            if (assemble.getAssembleFee() == null) {
+                assemble.setAssembleFee(BigDecimal.ZERO);
+            }
+            assemble.setTotalCost(subTotalCost.add(assemble.getAssembleFee()));
+            this.updateById(assemble);
+        }
+
+        return assemble;
+    }
+
+    private String getLoginName() {
+        try {
+            Object name = StpUtil.getSession().get("name");
+            return name != null ? name.toString() : "";
+        } catch (Exception e) {
+            return "";
+        }
     }
 
     @Override
@@ -173,42 +253,56 @@ public class StockAssembleServiceImpl extends ServiceImpl<StockAssembleMapper, S
 
         Long userId = StpUtil.getLoginIdAsLong();
 
-        // Decrease stock for each sub-item
+        // 原料出库仓库（兼容旧数据：无双仓库时回退到 warehouse_id）
+        Long materialWarehouseId = assemble.getOutWarehouseId() != null
+                ? assemble.getOutWarehouseId()
+                : assemble.getWarehouseId();
+        // 成品入库仓库
+        Long productWarehouseId = assemble.getInWarehouseId() != null
+                ? assemble.getInWarehouseId()
+                : assemble.getWarehouseId();
+
+        // Decrease stock for each sub-item from 原料仓库
         List<StockAssembleItem> items = getItemList(id);
         for (StockAssembleItem item : items) {
             Stock stock = stockMapper.selectOne(
                     new LambdaQueryWrapper<Stock>()
-                            .eq(Stock::getWarehouseId, assemble.getWarehouseId())
+                            .eq(Stock::getWarehouseId, materialWarehouseId)
                             .eq(Stock::getProductId, item.getProductId())
             );
             if (stock == null) {
                 throw BusinessException.badRequest("子件产品「" + item.getProductName() + "」库存不足，无法执行组装");
             }
-            BigDecimal neededQuantity = item.getQuantity().multiply(assemble.getAssembleQuantity());
+            BigDecimal neededQuantity = item.getQuantity();
             if (stock.getQuantity().compareTo(neededQuantity) < 0) {
                 throw BusinessException.badRequest("子件产品「" + item.getProductName() + "」库存不足，需要" +
                         neededQuantity + "，当前库存" + stock.getQuantity());
             }
             stock.setQuantity(stock.getQuantity().subtract(neededQuantity));
+            stock.setAvailableQuantity(stock.getAvailableQuantity().subtract(neededQuantity));
             stock.setUpdateTime(LocalDateTime.now());
             stock.setUpdateBy(userId);
             stockMapper.updateById(stock);
         }
 
-        // Increase stock for the assembled product
+        // Increase stock for the assembled product in 成品仓库
         Stock productStock = stockMapper.selectOne(
                 new LambdaQueryWrapper<Stock>()
-                        .eq(Stock::getWarehouseId, assemble.getWarehouseId())
+                        .eq(Stock::getWarehouseId, productWarehouseId)
                         .eq(Stock::getProductId, assemble.getProductId())
         );
         BigDecimal outputQty = assemble.getOutputQuantity() != null
                 ? assemble.getOutputQuantity()
                 : assemble.getAssembleQuantity();
+        if (outputQty == null) {
+            outputQty = BigDecimal.ONE;
+        }
         if (productStock == null) {
             productStock = new Stock();
             productStock.setTenantId(assemble.getTenantId());
-            productStock.setWarehouseId(assemble.getWarehouseId());
-            productStock.setWarehouseName(assemble.getWarehouseName());
+            productStock.setWarehouseId(productWarehouseId);
+            productStock.setWarehouseName(assemble.getInWarehouseName() != null
+                    ? assemble.getInWarehouseName() : assemble.getWarehouseName());
             productStock.setProductId(assemble.getProductId());
             productStock.setProductCode(assemble.getProductCode());
             productStock.setProductName(assemble.getProductName());

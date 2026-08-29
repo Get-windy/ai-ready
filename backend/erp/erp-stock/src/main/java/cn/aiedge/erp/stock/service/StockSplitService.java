@@ -13,6 +13,8 @@ public interface StockSplitService extends IService<StockSplit> {
 
     StockSplit createSplit(StockSplit split, List<StockSplitItem> items);
 
+    StockSplit updateSplit(Long id, StockSplit split, List<StockSplitItem> items);
+
     StockSplit getItems(Long splitId);
 
     List<StockSplitItem> getItemList(Long splitId);

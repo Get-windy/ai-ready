@@ -1,0 +1,6 @@
+[
+  { "domain": "仓储", "group": "其他出入库", "item": "调拨单", "hasList": false },
+  { "domain": "仓储", "group": "盘点", "item": "报损单", "hasList": false },
+  { "domain": "仓储", "group": "盘点", "item": "报溢单", "hasList": false },
+  { "domain": "仓储", "group": "盘点", "item": "成本调价单", "hasList": false }
+]

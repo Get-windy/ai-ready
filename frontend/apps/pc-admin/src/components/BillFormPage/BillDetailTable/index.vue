@@ -207,15 +207,18 @@
                     {{ opt.label }}
                   </option>
                 </select>
-                <!-- date 类型 -->
-                <input
-                  v-else-if="col.type === 'date'"
-                  type="date"
-                  :value="record[col.key] || ''"
-                  class="ss-native-input ss-native-date"
-                  @change="(e: Event) => updateCell(record, col.key, (e.target as HTMLInputElement).value)"
-                  @keydown.enter.prevent="handleCellKeydown($event, record, col.key, rowIndex)"
-                >
+                <!-- date 类型：无数据时渲染空白，不显示原生日期控件占位 -->
+                <template v-else-if="col.type === 'date'">
+                  <input
+                    v-if="record[col.key]"
+                    type="date"
+                    :value="record[col.key]"
+                    class="ss-native-input ss-native-date"
+                    @change="(e: Event) => updateCell(record, col.key, (e.target as HTMLInputElement).value)"
+                    @keydown.enter.prevent="handleCellKeydown($event, record, col.key, rowIndex)"
+                  >
+                  <span v-else class="ss-date-empty"></span>
+                </template>
                 <!-- number 类型 -->
                 <input
                   v-else-if="col.type === 'number'"
@@ -1303,6 +1306,13 @@ function onDrop(_index: number) {
 
 .ss-native-date {
   cursor: pointer;
+}
+
+/* 无数据日期单元格：纯空白占位（无内容、无占位符、无日期图标） */
+.ss-date-empty {
+  display: inline-block;
+  min-width: 100px;
+  min-height: 22px;
 }
 
 /* ─── 数字单元格右对齐 ─── */

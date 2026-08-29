@@ -2,49 +2,17 @@
   <div class="difference-handling">
     <!-- 统计卡片 -->
     <div class="summary-cards">
-      <div
-        class="summary-card"
-        style="--card-color: #1890ff"
-      >
-        <div class="summary-card-title">
-          差异总数
-        </div>
-        <div class="summary-card-value">
-          {{ summaryData.totalCount }}
-        </div>
+      <div class="summary-card" style="--card-color: #722ed1">
+        <div class="summary-card-title">差异待处理</div>
+        <div class="summary-card-value">{{ summaryData.differenceCount }}</div>
       </div>
-      <div
-        class="summary-card"
-        style="--card-color: #faad14"
-      >
-        <div class="summary-card-title">
-          待处理差异
-        </div>
-        <div class="summary-card-value">
-          {{ summaryData.pendingCount }}
-        </div>
+      <div class="summary-card" style="--card-color: #1890ff">
+        <div class="summary-card-title">差异记录总数</div>
+        <div class="summary-card-value">{{ summaryData.totalCount }}</div>
       </div>
-      <div
-        class="summary-card"
-        style="--card-color: #52c41a"
-      >
-        <div class="summary-card-title">
-          已处理差异
-        </div>
-        <div class="summary-card-value">
-          {{ summaryData.processedCount }}
-        </div>
-      </div>
-      <div
-        class="summary-card"
-        style="--card-color: #722ed1"
-      >
-        <div class="summary-card-title">
-          差异总金额
-        </div>
-        <div class="summary-card-value">
-          ¥{{ summaryData.totalAmount.toFixed(2) }}
-        </div>
+      <div class="summary-card" style="--card-color: #faad14">
+        <div class="summary-card-title">本页差异合计</div>
+        <div class="summary-card-value">¥{{ summaryData.pageDifference.toFixed(2) }}</div>
       </div>
     </div>
 
@@ -60,88 +28,52 @@
       :show-search="false"
       :show-export="false"
       :show-batch-delete="false"
-      @cell-dblclick="handleView"
+      @page-change="handlePageChange"
     >
-      <template #empty>
-        <div class="table-empty">
-          <template v-if="hasError">
-            <WarningOutlined
-              class="table-empty-icon"
-              style="color: #faad14"
-            />
-            <p class="table-empty-text">
-              加载失败
-            </p>
-            <a-button
-              type="primary"
-              size="small"
-              class="table-empty-action"
-              @click="loadMockData"
-            >
-              <ReloadOutlined /> 重试
-            </a-button>
-          </template>
-          <template v-else>
-            <InboxOutlined class="table-empty-icon" />
-            <p class="table-empty-text">
-              暂无数据
-            </p>
-          </template>
-        </div>
+      <template #typeCell="{ record }">
+        <a-tag>{{ getTypeText(record.reconciliationType) }}</a-tag>
       </template>
-      <template #amountCell="{ record }">
-        <span>¥{{ record.amount?.toFixed(2) }}</span>
+      <template #differenceCell="{ record }">
+        <span style="color: #f5222d">¥{{ fmt(record.difference) }}</span>
       </template>
-      <template #statusCell="{ record }">
-        <a-tag :color="getStatusColor(record.status)">
-          {{ getStatusText(record.status) }}
-        </a-tag>
+      <template #reasonCell="{ record }">
+        <span :title="record.differenceReason">{{ record.differenceReason || '—' }}</span>
       </template>
       <template #actionCell="{ record }">
-        <a-space>
-          <a-button
-            type="link"
-            size="small"
-            @click="handleAdjust(record)"
-          >
-            调整
-          </a-button>
-          <a-button
-            type="link"
-            size="small"
-            @click="handleIgnore(record)"
-          >
-            忽略
-          </a-button>
-        </a-space>
+        <a-button
+          type="link"
+          size="small"
+          @click="handleResolve(record)"
+        >
+          处理
+        </a-button>
       </template>
     </BillTableList>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
-import { message } from 'ant-design-vue'
-import { WarningOutlined, ReloadOutlined, InboxOutlined } from '@ant-design/icons-vue'
+import { message, Modal } from 'ant-design-vue'
+import { reconciliationApi } from '@/api/finance'
 
-interface DifferenceRecord {
+interface DiffRecord {
   id: number
-  type: string
-  description: string
-  amount: number
-  status: number
+  reconciliationNo: string
+  reconciliationType: string
+  targetName: string
+  difference: number | null
+  differenceReason: string
 }
 
 const loading = ref(false)
-const hasError = ref(false)
-const dataSource = ref<DifferenceRecord[]>([])
+const dataSource = ref<DiffRecord[]>([])
 
 const summaryData = reactive({
-  totalCount: 18,
-  pendingCount: 5,
-  processedCount: 13,
-  totalAmount: 12500.00
+  differenceCount: 0,
+  totalCount: 0,
+  pageDifference: 0
 })
 
 const pagination = reactive({
@@ -151,74 +83,96 @@ const pagination = reactive({
 })
 
 const columns = [
-  { field: 'type', title: '差异类型' },
-  { field: 'description', title: '描述' },
-  { field: 'amount', title: '金额', slotName: 'amountCell' },
-  { field: 'status', title: '状态', slotName: 'statusCell' },
-  { field: 'action', title: '操作', width: 150, slotName: 'actionCell' }
+  { field: 'reconciliationNo', title: '对账编号', width: 160 },
+  { field: 'reconciliationType', title: '类型', width: 100, slotName: 'typeCell' },
+  { field: 'targetName', title: '对方名称', minWidth: 140 },
+  { field: 'difference', title: '差异金额', width: 120, align: 'right', slotName: 'differenceCell' },
+  { field: 'differenceReason', title: '差异原因', minWidth: 160, slotName: 'reasonCell' },
+  { field: 'action', title: '操作', width: 80, fixed: 'right', slotName: 'actionCell' }
 ]
 
-const getStatusColor = (status: number) => {
-  const colors: Record<number, string> = {
-    0: 'warning',
-    1: 'processing',
-    2: 'success'
+const getTypeText = (type: string) => {
+  const texts: Record<string, string> = { BANK: '银行', CUSTOMER: '客户', SUPPLIER: '供应商' }
+  return texts[type] || type || '未知'
+}
+
+const fmt = (v: number | null | undefined) => {
+  if (v === null || v === undefined) return '0.00'
+  return Number(v).toFixed(2)
+}
+
+async function loadStats() {
+  try {
+    const res: any = await reconciliationApi.getStats()
+    if (res) {
+      summaryData.differenceCount = Number(res.differenceCount || 0)
+    }
+  } catch (err) {
+    console.warn('[差异处理] 获取统计失败', err)
   }
-  return colors[status] || 'default'
 }
 
-const getStatusText = (status: number) => {
-  const texts: Record<number, string> = {
-    0: '待处理',
-    1: '处理中',
-    2: '已处理'
-  }
-  return texts[status] || '未知'
-}
-
-const handleAdjust = (record: DifferenceRecord) => {
-  message.info(`调整差异: ${record.description}`)
-}
-
-const handleView = (record: DifferenceRecord) => {
-  message.info(`查看差异: ${record.description}`)
-}
-
-const handleIgnore = (record: DifferenceRecord) => {
-  message.success(`已忽略差异: ${record.description}`)
-}
-
-loading.value = true
-hasError.value = false
-function loadMockData() {
-  setTimeout(() => {
-    dataSource.value = [
-      {
-        id: 1,
-        type: '金额不一致',
-        description: '系统与银行流水金额不符',
-        amount: 100,
-        status: 0
-      }
-    ]
+async function loadData() {
+  loading.value = true
+  try {
+    const res: any = await reconciliationApi.page({
+      status: 2,
+      pageNum: pagination.current,
+      pageSize: pagination.pageSize
+    })
+    const records = (res?.records || []) as DiffRecord[]
+    dataSource.value = records
+    pagination.total = Number(res?.total || 0)
+    summaryData.totalCount = pagination.total
+    summaryData.pageDifference = records.reduce((sum, r) => sum + Number(r.difference || 0), 0)
+  } catch (err) {
+    console.warn('[差异处理] 加载失败', err)
+    message.error('加载差异记录失败')
+    dataSource.value = []
+  } finally {
     loading.value = false
-  }, 500)
+  }
 }
-loadMockData()
 
-function handleParentCreate() { handleAdd() }
-function handleAdd() {
-  message.info('创建功能由父组件触发')
+function handlePageChange(page: number, pageSize: number) {
+  pagination.current = page
+  pagination.pageSize = pageSize
+  loadData()
+}
+
+function handleResolve(record: DiffRecord) {
+  Modal.confirm({
+    title: '处理差异',
+    content: `确认处理差异记录 ${record.reconciliationNo}（${record.targetName}）？处理后将标记为已对账。`,
+    okText: '确认处理',
+    cancelText: '取消',
+    onOk: async () => {
+      try {
+        await reconciliationApi.handleDifference(record.id, record.differenceReason || '人工处理')
+        message.success('差异已处理')
+        loadData()
+        loadStats()
+      } catch (err: any) {
+        message.error(err?.message || '处理失败')
+      }
+    }
+  })
+}
+
+function handleParentCreate() {
+  loadData()
 }
 
 onMounted(() => {
+  loadStats()
+  loadData()
   window.addEventListener('finance:create', handleParentCreate)
-  window.addEventListener('finance:refresh', loadMockData)
+  window.addEventListener('finance:refresh', loadData)
 })
 
 onUnmounted(() => {
   window.removeEventListener('finance:create', handleParentCreate)
-  window.removeEventListener('finance:refresh', loadMockData)
+  window.removeEventListener('finance:refresh', loadData)
 })
 
 defineExpose({})
@@ -239,7 +193,6 @@ defineExpose({})
   min-height: 0;
 }
 
-/* 统计卡片样式 */
 .summary-cards {
   display: flex;
   gap: 16px;
@@ -268,7 +221,4 @@ defineExpose({})
   font-weight: 600;
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
 }
-
-/* 网格边框样式 */
-
 </style>

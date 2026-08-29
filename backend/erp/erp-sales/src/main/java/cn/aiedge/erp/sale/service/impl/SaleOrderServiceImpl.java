@@ -82,6 +82,9 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
     /** 审批门面（影子模式）：core-api 有引擎实现时可选注入，无实现时保持原行为 */
     private final ObjectProvider<ApprovalFacade> approvalFacadeProvider;
 
+    /** 出库 Service（延迟注入避免循环依赖）：确认出库时生成销售出库单 */
+    private final ObjectProvider<cn.aiedge.erp.sale.outbound.service.SaleOutboundService> outboundServiceProvider;
+
     // ═══════════════════════════════════════════
     // 基础 CRUD
     // ═══════════════════════════════════════════
@@ -533,6 +536,18 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
         });
         order.setStatus(allShipped ? 4 : 3);
         updateById(order);
+
+        // 生成销售出库单（业务闭环：出库查询/价格跟踪数据来源）
+        try {
+            cn.aiedge.erp.sale.outbound.service.SaleOutboundService outboundService = outboundServiceProvider.getIfAvailable();
+            if (outboundService != null) {
+                outboundService.createFromOrder(id);
+                log.info("销售出库单已生成: orderId={}", id);
+            }
+        } catch (Exception e) {
+            log.error("销售出库单生成失败: orderId={}", id, e);
+        }
+
         log.info("确认销售订单出库: orderId={}, allShipped={}", id, allShipped);
     }
 

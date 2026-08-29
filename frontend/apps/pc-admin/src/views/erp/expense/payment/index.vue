@@ -120,7 +120,8 @@
 
         <!-- 搜索栏 -->
         <SearchBar
-          v-model="searchForm"
+          :model-value="searchForm"
+          @update:model-value="(v: any) => Object.assign(searchForm, v)"
           :fields="searchFields"
           :loading="loading"
           :expandable="false"

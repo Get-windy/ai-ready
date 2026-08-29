@@ -169,6 +169,122 @@ export interface StockAlertItem {
   unitPrice: number
 }
 
+/** 库存预警补货行（/erp/stock/alert-replenish/page，按商品×仓库一行，25列） */
+export interface StockAlertReplenishItem {
+  id: string
+  warehouseId: number
+  warehouseCode: string
+  warehouseName: string
+  productId: number
+  productName: string
+  /** 货号（优先 product_code_alias，无则回退 product_code） */
+  productCode: string
+  brand: string
+  weight: number | null
+  volume: number | null
+  taste: string
+  model: string
+  barcode: string
+  specification: string
+  origin: string
+  unit: string
+  /** 预警类型：缺货/下限预警/超储/正常 */
+  alertType: string
+  /** 缺货数量 = 库存上限 + 待发货 - 账面库存 - 待收货 */
+  shortageQty: number
+  maxStock: number
+  minStock: number
+  remark: string
+  pendingQty: number
+  bookQty: number
+  inTransitQty: number
+  lastPurchaseDate: string
+  lastSupplierName: string
+  lastPurchasePrice: number
+}
+
+/** 缺货补货行（按商品×仓库一行，16列） */
+export interface ShortageReplenishItem {
+  /** 行主键（productId-warehouseId 组合） */
+  id: string
+  warehouseId: number
+  warehouseName: string
+  productId: number
+  image: string
+  productName: string
+  /** 商品货号 */
+  productCode: string
+  specification: string
+  model: string
+  origin: string
+  brand: string
+  unit: string
+  /** 订单数量 */
+  orderQty: number
+  /** 价税合计 */
+  amountWithTax: number
+  /** 已发货数量 */
+  shippedQty: number
+  /** 待发货数量 */
+  unshippedQty: number
+  /** 待收货数量 */
+  inTransitQty: number
+  /** 账面库存 */
+  bookQty: number
+  /** 缺货数量 */
+  shortageQty: number
+  remark: string
+  supplierName: string
+}
+
+/** 智能补货行（每商品一行，25列） */
+export interface SmartReplenishItem {
+  /** 行主键（productId） */
+  id: string
+  productId: number
+  image: string
+  productName: string
+  /** 货号（优先 product_code_alias，无则回退 product_code） */
+  productCode: string
+  unit: string
+  barcode: string
+  model: string
+  origin: string
+  brand: string
+  remark: string
+  specification: string
+  /** 销售数量（区间内销售订单明细汇总） */
+  salesQty: number
+  /** 销售金额 */
+  salesAmount: number
+  /** 采购金额 */
+  purchaseAmount: number
+  /** 日均销量 = 销售数量 / 区间天数 */
+  avgDailySales: number
+  /** 备货天数 */
+  stockDays: number
+  /** 待收货数量（采购在途） */
+  inTransitQty: number
+  /** 待发货数量（销售出库未发货） */
+  pendingShipQty: number
+  /** 采购数量 */
+  purchaseQty: number
+  /** 账面库存 */
+  bookQty: number
+  /** 账面库存换算结果 */
+  bookQtyConverted: number
+  /** 计划采购数量 = 备货天数×日均销量+待发货-待收货-账面库存 */
+  planPurchaseQty: number
+  /** 可用库存 */
+  availableQty: number
+  /** 可用库存换算结果 */
+  availableQtyConverted: number
+  /** 最近销售日期 */
+  lastSaleDate: string
+  /** 最近进货日期 */
+  lastPurchaseDate: string
+}
+
 export const stockReportApi = {
   /** 进销存汇总分页（期初/入库/出库/结存） */
   invSummaryPage(params?: StockReportPageParams) {
@@ -185,6 +301,54 @@ export const stockReportApi = {
   /** 库存预警商品列表（现存量 <= 安全库存，非分页） */
   alertList(): Promise<StockAlertItem[]> {
     return request.get('/erp/stock/alert')
+  },
+  /** 库存预警补货分页（按商品×仓库一行，25列；支持仓库/关键字/品牌/供应商/备注/只显示下限预警/分类树） */
+  alertReplenishPage(params?: {
+    pageNum?: number
+    pageSize?: number
+    warehouseId?: number
+    keyword?: string
+    brand?: string
+    supplierName?: string
+    remark?: string
+    onlyLowStock?: boolean
+    categoryId?: number
+  }): Promise<{ records: StockAlertReplenishItem[]; total: number }> {
+    return request.get('/erp/stock/alert-replenish/page', params)
+  },
+  /** 缺货补货分页（按商品×仓库一行，16列；支持日期/商品/仓库/客户/供应商/经手人/单据状态/订单来源/缺货数量口径/仅显示缺货/分类树） */
+  shortageReplenishPage(params?: {
+    pageNum?: number
+    pageSize?: number
+    orderStatus?: number
+    startDate?: string
+    endDate?: string
+    customerId?: number
+    salesmanId?: number
+    warehouseId?: number
+    orderSource?: number
+    productKeyword?: string
+    supplierName?: string
+    categoryId?: number
+    shortageMode?: number
+    onlyShortage?: boolean
+  }): Promise<{ records: ShortageReplenishItem[]; total: number }> {
+    return request.get('/erp/stock/shortage-replenish/page', params)
+  },
+  /** 智能补货分页（每商品一行，25列；支持销售日期/备货天数/商品/仓库/供应商/分类树/计划采购数量下限） */
+  smartReplenishPage(params?: {
+    pageNum?: number
+    pageSize?: number
+    startDate?: string
+    endDate?: string
+    stockDays?: number
+    warehouseId?: number
+    productKeyword?: string
+    supplierName?: string
+    categoryId?: number
+    minPlanQty?: number
+  }): Promise<{ records: SmartReplenishItem[]; total: number }> {
+    return request.get('/erp/stock/smart-replenish/page', params)
   }
 }
 

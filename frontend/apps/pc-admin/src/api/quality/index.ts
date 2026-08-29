@@ -124,6 +124,43 @@ export const qualityInspectionApi = {
     request.get<Result<QualityInspection[]>>('/api/quality/inspection/pending', { params: { bizType } })
 }
 
+// 质量证书类型
+export interface QualityCertificate {
+  id: number
+  tenantId: number
+  certificateNo: string
+  certificateType: string
+  productName: string
+  productCode: string
+  batchNo: string
+  supplierName: string
+  inspectionDate: string
+  issueDate: string
+  expiryDate: string
+  result: string
+  inspectorId: number
+  inspectorName: string
+  certificateUrl: string
+  remark: string
+  status: number
+  createTime: string
+}
+
+// 检验结论枚举
+export const CERTIFICATE_RESULT_MAP: Record<string, { text: string; color: string }> = {
+  QUALIFIED: { text: '合格', color: 'success' },
+  UNQUALIFIED: { text: '不合格', color: 'error' },
+  CONDITIONAL: { text: '有条件放行', color: 'warning' }
+}
+
+// 证书类型枚举
+export const CERTIFICATE_TYPE_MAP: Record<string, { name: string; color: string }> = {
+  COA: { name: 'COA 分析证书', color: 'blue' },
+  COC: { name: 'COC 合格证书', color: 'green' },
+  ISO: { name: 'ISO 认证', color: 'purple' },
+  OTHER: { name: '其他', color: 'default' }
+}
+
 // 不合格处理 API
 export const qualityDefectHandleApi = {
   create: (params: { inspectionId: number; defectType: string; defectDesc: string; defectQuantity: number }) =>
@@ -140,4 +177,22 @@ export const qualityDefectHandleApi = {
 
   listPending: () =>
     request.get<Result<QualityDefectHandle[]>>('/api/quality/defect/pending')
+}
+
+// 质量证书 API
+export const qualityCertificateApi = {
+  create: (certificate: QualityCertificate) =>
+    request.post<Result<QualityCertificate>>('/api/quality/certificate', certificate),
+
+  update: (id: number, certificate: QualityCertificate) =>
+    request.put<Result<QualityCertificate>>(`/api/quality/certificate/${id}`, certificate),
+
+  delete: (id: number) =>
+    request.delete<Result<void>>(`/api/quality/certificate/${id}`),
+
+  page: (params: { pageNum: number; pageSize: number; productName?: string; batchNo?: string; result?: string; startDate?: string; endDate?: string }) =>
+    request.get<Result<PageResult<QualityCertificate>>>('/api/quality/certificate/page', { params }),
+
+  get: (id: number) =>
+    request.get<Result<QualityCertificate>>(`/api/quality/certificate/${id}`)
 }

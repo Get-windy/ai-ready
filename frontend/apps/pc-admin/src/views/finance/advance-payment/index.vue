@@ -66,18 +66,22 @@ import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
 
 const tableRef = ref()
-const apiUrl = '/finance/advance-payment/page'
+const apiUrl = '/erp/pre-payment/page'
 const dateRange = ref<[Dayjs, Dayjs] | null>(null)
 const searchParams = reactive({ docNo: '', supplierName: '', startDate: '', endDate: '' })
 
+// ═══ 对标列（预付款单：操作、付款账户编号、付款账户、付款金额、备注；叠加单据信息列） ═══
 const columns = [
-  { title: '单据编号', dataIndex: 'docNo', width: 160 },
+  { title: '单据编号', dataIndex: 'prePaymentNo', width: 160 },
   { title: '供应商', dataIndex: 'supplierName', width: 160 },
   { title: '付款金额', dataIndex: 'amount', width: 120, align: 'right' },
+  { title: '付款账户编号', dataIndex: 'bankAccount', width: 130 },
+  { title: '付款账户', dataIndex: 'bankName', width: 130 },
   { title: '付款方式', dataIndex: 'paymentMethod', width: 100 },
   { title: '制单人', dataIndex: 'creatorName', width: 100 },
   { title: '单据状态', dataIndex: 'status', width: 100 },
   { title: '制单日期', dataIndex: 'createTime', width: 170 },
+  { title: '备注', dataIndex: 'remark', ellipsis: true },
 ]
 
 const handleSearch = () => {

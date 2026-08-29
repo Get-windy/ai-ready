@@ -168,9 +168,9 @@ const headerConfig = computed<BillHeaderConfig>(() => ({
 }))
 
 const basicInfoFields = computed<BasicInfoField[]>(() => [
-  { key: 'warehouseId', label: '仓库', type: 'select', required: true, placeholder: '请选择仓库', options: (optionRefs.warehouses || []).map((w: any) => ({ label: w.name, value: w.id })), searchBtn: '+Q', loading: loadingOptions.value },
+  { key: 'warehouseId', label: '入库仓库', type: 'select', required: true, placeholder: '请选择入库仓库', options: (optionRefs.warehouses || []).map((w: any) => ({ label: w.name, value: w.id })), searchBtn: '+Q', loading: loadingOptions.value },
   { key: 'handlerId', label: '经手人', type: 'select', required: true, placeholder: '请选择经手人', options: (optionRefs.users || []).map((u: any) => ({ label: u.name, value: u.id })), searchBtn: '+Q', loading: loadingOptions.value },
-  { key: 'date', label: '报溢日期', type: 'date', required: true },
+  { key: 'date', label: '单据日期', type: 'date', required: true },
   { key: 'sourceType', label: '报溢来源', type: 'select', required: true, options: SOURCE_TYPE_OPTIONS },
 ])
 
@@ -201,6 +201,7 @@ const detailColumns: DetailColumnConfig[] = [
   { key: 'expiryDate', title: '到期日期', type: 'input', width: 110 },
   { key: 'quantity', title: '报溢数量', type: 'number', width: 100, precision: 0 },
   { key: 'conversionRelation', title: '换算关系', type: 'input', width: 90 },
+  { key: 'pieceQuantity', title: '件散数量', type: 'number', width: 90, precision: 2 },
   { key: 'overflowPrice', title: '报溢单价', type: 'number', width: 100, precision: 2 },
   { key: 'overflowAmount', title: '报溢金额', type: 'number', width: 110, precision: 2, readonly: true },
   { key: 'bigPack', title: '大包装', type: 'number', width: 80, precision: 2 },

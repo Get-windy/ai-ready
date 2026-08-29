@@ -604,6 +604,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { useRouter } from 'vue-router'
 import dayjs from 'dayjs'
 import { message, Modal } from 'ant-design-vue'
 import {
@@ -619,6 +620,8 @@ import StatusTag from '@/components/StatusTag/StatusTag.vue'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
 import request from '@/utils/request'
 import { ASSEMBLE_STATUS } from '@/utils/statusConfig'
+
+const router = useRouter()
 
 // ── 类型定义 ──────────────────────────────────────────
 interface AssembleItem {
@@ -880,15 +883,8 @@ async function handleBomChange(value: number) {
 }
 
 const handleCreate = () => {
-  tempIdCounter = 0
-  createForm.bomId = undefined
-  createForm.warehouseId = undefined
-  createForm.assembleQuantity = 1
-  createForm.assembleFee = 0
-  createForm.remark = ''
-  createForm.items = []
-  createVisible.value = true
-  nextTick(() => createFormRef.value?.resetFields?.())
+  // 深度复刻：新建跳转双明细表并排表单页（成品详情入库表 + 原料详情出库表）
+  router.push('/erp/stock-assemble/form')
 }
 
 const handleCreateSubmit = async () => {
@@ -957,8 +953,8 @@ const fetchDetail = async (id: number) => {
 }
 
 const handleView = (record: any) => {
-  detailVisible.value = true
-  fetchDetail(record.id)
+  // 深度复刻：查看跳转双表并排表单页（含审批/执行操作）
+  router.push(`/erp/stock-assemble/form/${record.id}`)
 }
 
 // ════════════════════════════════════════════════════════════════

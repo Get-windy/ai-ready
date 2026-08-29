@@ -1000,8 +1000,8 @@ const handleCreateSubmit = async () => {
         productId: item.productId,
         productCode: item.productCode,
         productName: item.productName,
-        specification: item.specification || undefined,
-        unit: item.unit || undefined,
+        productSpec: item.specification || undefined,
+        productUnit: item.unit || undefined,
         quantity: item.quantity,
         unitCost: item.unitCost
       }))

@@ -40,10 +40,11 @@ public class StockBomController {
     public Result<Page<StockBom>> page(
             @Parameter(description = "关键词") @RequestParam(required = false) String keyword,
             @Parameter(description = "产品ID") @RequestParam(required = false) Long productId,
+            @Parameter(description = "类型 1-组装 2-拆卸") @RequestParam(required = false) Integer bomType,
             @Parameter(description = "状态") @RequestParam(required = false) Integer status,
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") int pageNum,
             @Parameter(description = "每页数量") @RequestParam(defaultValue = "10") int pageSize) {
-        return Result.ok(bomService.pageList(keyword, productId, status, pageNum, pageSize));
+        return Result.ok(bomService.pageList(keyword, productId, bomType, status, pageNum, pageSize));
     }
 
     @GetMapping("/{id}")

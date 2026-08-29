@@ -14,6 +14,8 @@ public interface PurchaseExchangeService extends IService<PurchaseExchange> {
     Page<PurchaseExchange> pageList(String keyword, Long supplierId, Integer status, Integer exchangeType,
                                     String startDate, String endDate, int pageNum, int pageSize);
 
+    Page<PurchaseExchange> pageListExtended(Map<String, Object> params, int pageNum, int pageSize);
+
     List<PurchaseExchange> exportList(String keyword, Long supplierId, Integer status, Integer exchangeType,
                                       String startDate, String endDate);
 
@@ -32,6 +34,10 @@ public interface PurchaseExchangeService extends IService<PurchaseExchange> {
     PurchaseExchange cancel(Long id, String reason);
 
     PurchaseExchange complete(Long id);
+
+    void print(Long id);
+
+    void batchPrint(List<Long> ids);
 
     List<PurchaseExchangeItem> getItems(Long exchangeId);
 

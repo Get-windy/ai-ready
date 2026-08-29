@@ -63,4 +63,8 @@ public interface BorrowService {
 
     /** 生成单号：JJ（借进）/JC（借出）+ yyyyMMdd + 3位流水 */
     String generateOrderNo(Integer direction);
+
+    /** 借进借出商品台账聚合查询（按 商品×往来单位 分组） */
+    java.util.List<java.util.Map<String, Object>> aggregateByProduct(Integer direction, String partnerName,
+                                                                     String productName, String dateStart, String dateEnd);
 }

@@ -107,7 +107,7 @@ public class UserController {
     @Operation(summary = "导出用户")
     @SaCheckPermission("system:user:export")
     @GetMapping("/export")
-    public ApiResponse<List<cn.aiedge.base.entity.User>> export() {
+    public ApiResponse<List<cn.aiedge.base.entity.SysUser>> export() {
         return ApiResponse.ok(userService.list());
     }
 

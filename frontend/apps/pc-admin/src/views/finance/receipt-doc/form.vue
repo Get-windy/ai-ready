@@ -1,6 +1,17 @@
 <template>
   <ErrorBoundary>
     <PageContainer title="收款单">
+      <!-- ═══ 表头操作按钮（对标：无结算收款单核销/打印F8/导出） ═══ -->
+      <div class="panel header-actions">
+        <a-space :size="8">
+          <a-button size="small" :disabled="!editable" @click="handleNoSettlementVerify">
+            无结算收款单核销({{ noSettlementCount }})
+          </a-button>
+          <a-button size="small" @click="handlePrint">打印(F8)</a-button>
+          <a-button size="small" @click="handleExport">导出</a-button>
+        </a-space>
+      </div>
+
       <!-- ═══ 单据头 ═══ -->
       <div class="panel">
         <div class="panel-title">
@@ -35,13 +46,31 @@
         </a-form>
       </div>
 
-      <!-- ═══ 收款金额区 ═══ -->
+      <!-- ═══ 收款金额区（对标：此前应收/应收余额/预收余额/优惠金额/多收金额） ═══ -->
       <div class="panel">
         <div class="panel-title">收款金额</div>
         <a-form layout="inline" class="header-form">
+          <a-form-item label="此前应收">
+            <a-input-number v-model:value="form.prevReceivable" :precision="2" style="width: 110px" disabled />
+          </a-form-item>
+          <a-form-item label="应收余额">
+            <a-input-number v-model:value="form.receivableBalance" :precision="2" style="width: 110px" disabled />
+          </a-form-item>
+          <a-form-item label="预收余额">
+            <a-input-number v-model:value="form.prepaidBalance" :precision="2" style="width: 110px" disabled />
+          </a-form-item>
           <a-form-item label="收款金额" required>
             <a-input-number v-model:value="form.receiptAmount" :min="0" :precision="2"
-              style="width: 180px" placeholder="输入收款金额" :disabled="!editable" @change="handleAmountChange" />
+              style="width: 140px" placeholder="输入收款金额" :disabled="!editable" @change="handleAmountChange" />
+          </a-form-item>
+          <a-form-item label="使用预收款">
+            <a-input-number v-model:value="form.usePrepaid" :min="0" :precision="2" style="width: 110px" :disabled="!editable" @change="handleAmountChange" />
+          </a-form-item>
+          <a-form-item label="优惠金额">
+            <a-input-number v-model:value="form.discountAmount" :min="0" :precision="2" style="width: 110px" :disabled="!editable" @change="handleAmountChange" />
+          </a-form-item>
+          <a-form-item label="多收金额">
+            <a-input-number v-model:value="form.overpayAmount" :min="0" :precision="2" style="width: 110px" disabled />
           </a-form-item>
           <a-form-item label="支付方式">
             <a-select v-model:value="form.paymentMethod" style="width: 160px" placeholder="选择支付方式"
@@ -151,7 +180,8 @@ import { message, Modal } from 'ant-design-vue'
 import { useRouter, useRoute } from 'vue-router'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
-import { receiptApi } from '@/api/finance'
+import { receiptApi, receivableApi } from '@/api/finance'
+import request from '@/utils/request'
 import { paymentMethodApi } from '@/api/payment/md'
 import { customerApi } from '@/api/customer'
 
@@ -203,6 +233,13 @@ const emptyForm = () => ({
   receiptAmount: 0,
   verifiedAmount: 0,
   pendingAmount: 0,
+  // 对标表头字段：此前应收/应收余额/预收余额/优惠金额/多收金额/使用预收款
+  prevReceivable: 0,
+  receivableBalance: 0,
+  prepaidBalance: 0,
+  discountAmount: 0,
+  overpayAmount: 0,
+  usePrepaid: 0,
   paymentMethod: undefined as string | undefined,
   bankName: '',
   bankAccount: '',
@@ -287,10 +324,11 @@ async function loadReceivables(customerId: number) {
   receivableLoading.value = true
   selectedReceivables.value = new Set()
   try {
-    const res: any = await receiptApi.getPage({ customerId, pageNum: 1, pageSize: 500 })
-    const list = res?.records || []
+    // 核销明细数据源=应收来源单据（finance_receivable），而非收款单历史
+    const res: any = await receivableApi.getPage({ customerId: String(customerId), page: 1, size: 500 })
+    const list: any[] = res?.records || res?.list || []
     customerReceivables.value = list
-      .filter((r: any) => r.status < 7 && (r.pendingAmount || r.remainingAmount) > 0)
+      .filter((r: any) => r.status !== 'written_off' && r.status !== 'bad_debt' && Number(r.remainingAmount) > 0)
       .map((r: any) => ({ ...r, _verifyAmount: 0 }))
   } catch {
     customerReceivables.value = []
@@ -314,6 +352,38 @@ function recalcWriteOff() {
   const total = writeOffTotal.value
   form.verifiedAmount = total
   form.pendingAmount = (form.receiptAmount || 0) - total
+}
+
+// ═══ 表头操作（对标：无结算收款单核销/打印/导出） ═══
+const noSettlementCount = ref(0)
+
+async function handleNoSettlementVerify() {
+  if (!form.customerId) {
+    message.warning('请先选择客户')
+    return
+  }
+  // 加载客户全部应收单（含无结算的），刷新核销明细
+  await loadReceivables(form.customerId)
+  message.info('已加载无结算收款单核销列表，请勾选本次核销')
+}
+
+function handlePrint() {
+  message.info('打印(F8)待对接打印模板')
+}
+
+async function handleExport() {
+  try {
+    const blob = await request.get('/erp/receipt/export', { params: { receiptNo: form.receiptNo, customerId: form.customerId }, responseType: 'blob' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `收款单_${new Date().toISOString().slice(0, 10)}.xlsx`
+    a.click()
+    window.URL.revokeObjectURL(url)
+    message.success('导出成功')
+  } catch {
+    message.error('导出失败')
+  }
 }
 
 // ═══ 操作 ═══
@@ -426,6 +496,18 @@ async function handleCancel() {
 }
 
 function buildPayload() {
+  const selectedItems = customerReceivables.value
+    .filter((r: any) => selectedReceivables.value.has(r.id))
+    .map((r: any) => ({
+      orderId: r.sourceType === 'sale_order' ? r.sourceId : undefined,
+      orderNo: r.sourceNo || undefined,
+      invoiceId: r.sourceType === 'invoice' ? r.sourceId : undefined,
+      invoiceNo: r.invoiceNo || undefined,
+      orderAmount: r.totalAmount,
+      invoiceAmount: r.sourceType === 'invoice' ? r.totalAmount : undefined,
+      pendingAmount: r.remainingAmount,
+      verifyAmount: Number(r._verifyAmount) || 0,
+    }))
   return {
     receiptType: form.receiptType,
     customerId: form.customerId,
@@ -441,6 +523,8 @@ function buildPayload() {
     departmentName: form.departmentName || undefined,
     sourceNo: form.sourceNo || undefined,
     remark: form.remark || undefined,
+    // 核销明细落库：打通 ReceiptCreateDTO.items → ReceiptItem
+    items: selectedItems.length > 0 ? selectedItems : undefined,
   }
 }
 
@@ -492,6 +576,7 @@ onMounted(async () => {
 .panel-title { font-size: 15px; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
 .panel-subtitle { font-size: 13px; font-weight: 400; color: #666; }
 .panel-tag { margin-left: auto; }
+.header-actions { padding: 12px 16px; margin-bottom: 0; }
 .header-form { display: flex; flex-wrap: wrap; gap: 0; }
 .header-form .ant-form-item { margin-bottom: 12px; }
 .btn-row { display: flex; justify-content: flex-start; }

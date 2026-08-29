@@ -30,6 +30,7 @@ public class StockOverflowController {
     public static class CreateOverflowRequest {
         private LocalDate overflowDate;
         private Long warehouseId;
+        private Long handlerId;
         private Long locationId;
         private String sourceType;
         private String remark;
@@ -68,6 +69,7 @@ public class StockOverflowController {
         overflow.setTenantId(1L);
         overflow.setOverflowDate(request.getOverflowDate());
         overflow.setWarehouseId(request.getWarehouseId());
+        overflow.setApplicantId(request.getHandlerId());
         overflow.setLocationId(request.getLocationId());
         overflow.setSourceType(request.getSourceType());
         overflow.setRemark(request.getRemark());

@@ -174,6 +174,7 @@ import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTab
 import type { BillHeaderConfig, BasicInfoField, BillTabConfig, SummaryRow, BillFooterConfig } from '@/components/BillFormPage/types'
 import { useBillForm } from '@/components/BillFormPage/useBillForm'
 import { saleReturnDocApi } from '@/api/erp'
+import { PRODUCT_SALES_DEFAULTS } from '@/utils/productDefaults'
 import optionsApi from '@/api/options'
 import { useUserStore } from '@/stores/user'
 
@@ -289,14 +290,7 @@ const {
   },
   redirectPath: '/sales/return-doc',
   optionTypes: ['customers', 'warehouses', 'users', 'products'],
-  productDefaults: {
-    itemCode: '', barcode: '', specification: '',
-    unit: '', batchCode: '',
-    conversionRelation: '', pieceQuantity: 0,
-    bigPack: 0, midPack: 0, smallPack: 0,
-    unitPrice: 0, taxRate: 13, scanMode: false,
-    exchangeGift: '', exchangePoints: 0,
-  },
+  productDefaults: PRODUCT_SALES_DEFAULTS,
   onFieldChange: (fieldKey, val, fd) => {
     if (fieldKey === 'customerId') {
       const c = optionRefs.customers.find((x: any) => x.id === val)

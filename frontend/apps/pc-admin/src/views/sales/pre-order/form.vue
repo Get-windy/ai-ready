@@ -174,6 +174,7 @@ import type { BillHeaderConfig, BasicInfoField, BillTabConfig, SummaryRow, BillF
 import { useBillForm } from '@/components/BillFormPage/useBillForm'
 import { useColumnConfig, isLockedColumn } from '@/composables/useColumnConfig'
 import { preOrderApi } from '@/api/erp'
+import { PRODUCT_EXTEND_DEFAULTS } from '@/utils/productDefaults'
 import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
@@ -241,27 +242,7 @@ const {
   api: { create: preOrderApi.create, update: preOrderApi.update, getById: preOrderApi.getById },
   redirectPath: '/sales/pre-order',
   optionTypes: ['customers', 'warehouses', 'users', 'products'],
-  productDefaults: {
-    itemCode: '', barcode: '', specification: '', model: '', origin: '', brand: '',
-    unit: '', batchCode: '', pricingUnit: '', smallUnit: '', smallUnitQuantity: 0,
-    conversionRelation: '', conversionResult: 0,
-    region: '', location: '',
-    unitPrice: 0, taxRate: 0, scanMode: false,
-    retailPrice: 0, wholesalePrice: 0, minSalePrice: 0,
-    bigPack: 0, midPack: 0, smallPack: 0, pieceQuantity: 0,
-    availableStock: 0, availableStockConversion: 0, bookStock: 0,
-    productAttribute: '', gift: false,
-    costPrice: 0, costAmount: 0, grossProfit: 0,
-    volume: 0, weight: 0,
-    discountRate: 0, discountedPrice: 0, discountedAmount: 0,
-    smallUnitPrice: 0, lastSaleDate: '',
-    priceLevel1: 0, priceLevel2: 0, priceLevel3: 0, priceLevel4: 0,
-    priceLevel5: 0, priceLevel6: 0, priceLevel7: 0, priceLevel8: 0,
-    extNum1: 0, extNum2: 0, extNum3: 0, extText1: '', extText2: '',
-    extNum4: 0, extNum5: 0, extPartner: undefined, extStaff: undefined, extDept: undefined,
-    imageUrl: '',
-    orderedQuantity: 0, shippedQuantity: 0, remark: '',
-  },
+  productDefaults: PRODUCT_EXTEND_DEFAULTS,
   onFieldChange: (fieldKey, val, fd) => {
     if (fieldKey === 'customerId') {
       const c = optionRefs.customers.find((x: any) => x.id === val)

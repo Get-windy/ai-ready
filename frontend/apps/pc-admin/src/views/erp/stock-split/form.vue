@@ -3,11 +3,12 @@
     @reset="fetchDetail"
     @error="handleError"
   >
-    <PageContainer title="拆分单">
+    <PageContainer title="拆卸单">
       <!-- ═══ 单据信息面板 ═══ -->
       <div class="panel">
         <div class="panel-title">
-          单据信息
+          <span v-if="formData.splitNo">NO. {{ formData.splitNo }}</span>
+          <span v-else>拆卸单</span>
           <a-tag
             v-if="formData.id"
             :color="ASSEMBLE_STATUS[formData.status ?? 0]?.color || 'default'"
@@ -21,162 +22,153 @@
           class="header-form"
           :model="formData"
         >
-          <a-form-item label="拆分单号">
-            <a-input
-              v-model:value="formData.splitNo"
-              style="width: 180px"
-              placeholder="自动生成"
-              :disabled="!isNew"
-            />
-          </a-form-item>
           <a-form-item
-            label="选择BOM模板"
+            label="成品仓库"
             required
           >
             <a-select
-              v-model:value="formData.bomId"
-              style="width: 300px"
-              placeholder="请选择拆分BOM模板"
-              show-search
-              :filter-option="filterOption"
-              :options="bomTemplateOptions"
-              :loading="bomLoading"
-              :disabled="!editable"
-              @change="handleBomChange"
-            />
-          </a-form-item>
-          <a-form-item
-            label="源产品"
-            required
-          >
-            <a-input
-              v-model:value="formData.productName"
-              style="width: 200px"
-              placeholder="选择BOM后自动填充"
-              disabled
-            />
-          </a-form-item>
-          <a-form-item
-            label="仓库"
-            required
-          >
-            <a-select
-              v-model:value="formData.warehouseId"
-              style="width: 200px"
-              placeholder="请选择仓库"
+              v-model:value="formData.outWarehouseId"
+              style="width: 170px"
+              placeholder="请选择成品仓库"
               show-search
               :filter-option="filterOption"
               :options="warehouseOptions"
               :loading="warehouseLoading"
               :disabled="!editable"
+              @change="(val: any) => setWarehouseName('out', val)"
             />
           </a-form-item>
-          <a-form-item label="拆分数量">
-            <a-input-number
-              v-model:value="formData.splitQuantity"
-              :min="1"
-              :precision="0"
-              style="width: 100px"
+          <a-form-item
+            label="原料仓库"
+            required
+          >
+            <a-select
+              v-model:value="formData.inWarehouseId"
+              style="width: 170px"
+              placeholder="请选择原料仓库"
+              show-search
+              :filter-option="filterOption"
+              :options="warehouseOptions"
+              :loading="warehouseLoading"
               :disabled="!editable"
-              @change="handleQuantityChange"
+              @change="(val: any) => setWarehouseName('in', val)"
             />
           </a-form-item>
-          <a-form-item label="拆分费用">
-            <a-input-number
-              v-model:value="formData.splitFee"
-              :min="0"
-              :precision="2"
-              style="width: 120px"
-              :disabled="!editable"
-            />
-          </a-form-item>
-          <a-form-item label="备注">
+          <a-form-item
+            label="经手人"
+            required
+          >
             <a-input
-              v-model:value="formData.remark"
-              style="width: 260px"
-              placeholder="备注"
+              v-model:value="formData.handlerName"
+              style="width: 110px"
+              placeholder="经手人"
               :disabled="!editable"
+            />
+          </a-form-item>
+          <a-form-item
+            label="单据日期"
+            required
+          >
+            <a-date-picker
+              v-model:value="formData.splitDate"
+              style="width: 130px"
+              value-format="YYYY-MM-DD"
+              :disabled="!editable"
+            />
+          </a-form-item>
+          <a-form-item
+            label="选择BOM模板"
+            v-if="editable"
+          >
+            <a-select
+              v-model:value="formData.bomId"
+              style="width: 220px"
+              placeholder="选择BOM模板带出明细"
+              show-search
+              :filter-option="filterOption"
+              :options="bomTemplateOptions"
+              :loading="bomLoading"
+              allow-clear
+              @change="handleBomChange"
             />
           </a-form-item>
         </a-form>
       </div>
 
-      <!-- ═══ 源产品信息面板 ═══ -->
+      <!-- ═══ 成品详情(出库)表 ═══ -->
       <div class="panel">
         <div class="panel-title">
-          源产品信息
+          成品详情(出库)
+          <a-tag
+            v-if="formData.availableStock !== undefined"
+            :color="formData.availableStock >= formData.splitQuantity ? 'success' : 'error'"
+          >
+            成品库存: {{ formData.availableStock }} ({{ formData.availableStock >= formData.splitQuantity ? '充足' : '不足' }})
+          </a-tag>
         </div>
-        <a-descriptions
-          v-if="formData.productId"
-          size="small"
-          :column="4"
-          bordered
-        >
-          <a-descriptions-item label="产品名称">
-            {{ formData.productName || '-' }}
-          </a-descriptions-item>
-          <a-descriptions-item label="产品编码">
-            {{ formData.productCode || '-' }}
-          </a-descriptions-item>
-          <a-descriptions-item label="规格">
-            {{ formData.productSpec || '-' }}
-          </a-descriptions-item>
-          <a-descriptions-item label="单位">
-            {{ formData.productUnit || '-' }}
-          </a-descriptions-item>
-          <a-descriptions-item label="拆分基数">
-            {{ formData.splitBaseQty ?? 1 }}
-          </a-descriptions-item>
-          <a-descriptions-item label="BOM版本">
-            {{ formData.bomVersion || '-' }}
-          </a-descriptions-item>
-          <a-descriptions-item label="当前库存">
-            <a-tag
-              v-if="formData.availableStock !== undefined"
-              :color="formData.availableStock >= (formData.splitQuantity || 1) ? 'success' : 'error'"
-            >
-              {{ formData.availableStock }} ({{ formData.availableStock >= (formData.splitQuantity || 1) ? '充足' : '不足' }})
-            </a-tag>
-            <span v-else>-</span>
-          </a-descriptions-item>
-        </a-descriptions>
-        <div v-else class="empty-hint">
-          请先选择BOM模板
+        <EditableBillGrid
+          ref="productGridRef"
+          :rows="formData.productRows"
+          :columns="gridColumns"
+          :readonly="!editable"
+          :show-add="editable"
+          @add-row="addProductRow"
+          @remove-row="removeRow('productRows', $event)"
+        />
+        <div class="summary-line">
+          <span>成品数量合计: <b>{{ sumQty(formData.productRows).toFixed(2) }}</b></span>
+          <span>成品出库成本: <b>¥{{ productCostTotal.toFixed(2) }}</b></span>
         </div>
       </div>
 
-      <!-- ═══ 拆分产出明细面板 ═══ -->
+      <!-- ═══ 原料详情(入库)表 ═══ -->
       <div class="panel">
         <div class="panel-title">
-          拆分产出明细
+          原料详情(入库)
+          <a-tag
+            v-if="formData.id"
+            color="blue"
+          >成品出库+原料入库同单</a-tag>
         </div>
-        <a-table
-          :columns="itemColumns"
-          :data-source="formData.items"
-          :loading="itemLoading"
-          :pagination="false"
-          row-key="_key"
-          size="small"
-          bordered
-        >
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'index'">
-              {{ formData.items.indexOf(record) + 1 }}
-            </template>
-            <template v-if="column.key === 'cost' || column.key === 'unitCost'">
-              ¥{{ (record[column.key] || 0).toFixed(2) }}
-            </template>
-            <template v-if="column.key === 'outputQty'">
-              {{ (record.outputQty ?? 0).toFixed(2) }}
-            </template>
-          </template>
-        </a-table>
+        <EditableBillGrid
+          ref="materialGridRef"
+          :rows="formData.materialRows"
+          :columns="gridColumns"
+          :readonly="!editable"
+          :show-add="editable"
+          @add-row="addMaterialRow"
+          @remove-row="removeRow('materialRows', $event)"
+        />
+        <div class="summary-line">
+          <span>原料种类: <b>{{ formData.materialRows.length }}</b></span>
+          <span>原料入库成本合计: <b>¥{{ materialCostTotal.toFixed(2) }}</b></span>
+        </div>
+      </div>
 
-        <!-- 汇总行 -->
-        <div class="summary-row">
-          <span>产出种类: <b>{{ formData.items.filter((i: any) => i.productId != null).length }}</b></span>
-          <span>产出总成本: <b style="color: #1890ff;">¥{{ totalCost.toFixed(2) }}</b></span>
-        </div>
+      <!-- ═══ 备注区 ═══ -->
+      <div class="panel">
+        <div class="panel-title">单据备注</div>
+        <a-textarea
+          v-model:value="formData.remark"
+          :rows="2"
+          placeholder="单据备注"
+          :disabled="!editable"
+          style="max-width: 720px"
+        />
+      </div>
+
+      <!-- ═══ 单据信息行 ═══ -->
+      <div class="panel doc-info-row">
+        <span>制单人: <b>{{ formData.applicantName || currentUserName || '-' }}</b></span>
+        <span>制单时间: <b>{{ formData.createTime || '-' }}</b></span>
+        <span>打印次数: <b>{{ formData.printCount ?? 0 }}</b></span>
+        <span>打印记录: <b>{{ formData.printRecords || '无' }}</b></span>
+      </div>
+
+      <!-- ═══ 本单金额 ═══ -->
+      <div class="total-bar">
+        <span class="total-label">本单金额</span>
+        <span class="total-value">¥{{ totalCost.toFixed(2) }}</span>
       </div>
 
       <!-- ═══ 操作按钮 ═══ -->
@@ -184,24 +176,22 @@
         <a-space>
           <template v-if="isNew || editable">
             <a-button
-              v-if="!formData.id"
               type="primary"
               :loading="saving"
               @click="handleSaveDraft"
             >
-              保存草稿
+              保存草稿 <span class="shortcut">Ctrl+S</span>
             </a-button>
             <a-button
               type="primary"
               :loading="submitting"
               @click="handleSubmit"
             >
-              提交审批
+              记帐 <span class="shortcut">Ctrl+Enter</span>
             </a-button>
           </template>
 
           <template v-if="!isNew">
-            <!-- 待审批 -> 审批/拒绝 -->
             <template v-if="formData.status === 1">
               <a-button
                 type="primary"
@@ -218,7 +208,6 @@
                 拒绝
               </a-button>
             </template>
-            <!-- 已审核 -> 执行 -->
             <a-button
               v-if="formData.status === 2"
               type="primary"
@@ -239,11 +228,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import EditableBillGrid from '@/components/business/EditableBillGrid/EditableBillGrid.vue'
+import { useUserStore } from '@/stores/user'
 import request from '@/utils/request'
 import { ASSEMBLE_STATUS } from '@/utils/statusConfig'
 
@@ -251,9 +242,11 @@ defineOptions({ name: 'StockSplitForm' })
 
 const router = useRouter()
 const route = useRoute()
+const userStore = useUserStore()
 const idParam = computed(() => route.params.id as string)
 const isNew = computed(() => !idParam.value || idParam.value === 'new')
 const editable = computed(() => isNew.value || formData.status === 0)
+const currentUserName = computed(() => userStore.nickname || userStore.username || '')
 
 // ── 选项数据 ──────────────────────────────────────────
 const bomTemplateOptions = ref<any[]>([])
@@ -264,7 +257,7 @@ const warehouseLoading = ref(false)
 async function loadBomTemplates() {
   bomLoading.value = true
   try {
-    const res = await request.get('/wh/production-template/page', { params: { pageSize: 500, bomType: 2, status: 1 } })
+    const res = await request.get('/erp/stock/bom/page', { params: { pageSize: 500, bomType: 2, status: 1 } })
     const data = res?.data || res
     const records = data?.records || (Array.isArray(data) ? data : [])
     bomTemplateOptions.value = records.map((b: any) => ({
@@ -292,9 +285,17 @@ async function loadWarehouses() {
     warehouseOptions.value = (Array.isArray(list) ? list : []).map((w: any) => ({
       label: w.warehouseName,
       value: w.id,
+      warehouseName: w.warehouseName,
     }))
   } catch { warehouseOptions.value = [] }
   finally { warehouseLoading.value = false }
+}
+
+function setWarehouseName(kind: 'in' | 'out', id: any) {
+  const opt = warehouseOptions.value.find((w: any) => w.value === id)
+  const name = opt?.warehouseName || ''
+  if (kind === 'in') formData.inWarehouseName = name
+  else formData.outWarehouseName = name
 }
 
 // ── 表单数据 ──────────────────────────────────────────
@@ -305,37 +306,42 @@ const formData = reactive({
   id: undefined as number | undefined,
   splitNo: '',
   bomId: undefined as number | undefined,
-  warehouseId: undefined as number | undefined,
-  splitQuantity: 1,
-  splitFee: 0,
+  inWarehouseId: undefined as number | undefined,
+  inWarehouseName: '',
+  outWarehouseId: undefined as number | undefined,
+  outWarehouseName: '',
+  handlerName: '',
+  splitDate: '',
   remark: '',
   status: 0,
-  // 源产品快照
-  productId: undefined as number | undefined,
-  productCode: '',
-  productName: '',
-  productSpec: '',
-  productUnit: '',
-  splitBaseQty: 1,
-  bomVersion: '',
-  // 源产品库存
-  availableStock: undefined as number | undefined,
-  // 产出明细
-  items: [] as any[],
+  applicantName: '',
   createTime: '',
+  printCount: 0,
+  printRecords: '',
+  splitQuantity: 1,
+  availableStock: undefined as number | undefined,
+  productRows: [] as any[],
+  materialRows: [] as any[],
 })
 
-const itemColumns = [
-  { title: '序号', key: 'index', width: 50 },
-  { title: '产出物料', dataIndex: 'productName', key: 'productName', width: 180 },
-  { title: '规格型号', dataIndex: 'productSpec', key: 'productSpec', width: 100 },
-  { title: '单位', dataIndex: 'productUnit', key: 'productUnit', width: 60 },
-  { title: '产出数量', key: 'outputQty', width: 80 },
-  { title: '单位成本', dataIndex: 'unitCost', key: 'unitCost', width: 100 },
-  { title: '物料成本', key: 'cost', width: 100 }
+// 成品/原料通用网格列（对标 15 列）
+const gridColumns = [
+  { title: '商品名称', key: 'productName', width: 170, editable: true },
+  { title: '货号', key: 'productCode', width: 100, editable: true },
+  { title: '货位', key: 'location', width: 80, editable: true },
+  { title: '条码', key: 'barcode', width: 120, editable: true },
+  { title: '计价单位', key: 'unit', width: 70, editable: true },
+  { title: '批次条码', key: 'batchNo', width: 110, editable: true },
+  { title: '生产日期', key: 'produceDate', width: 105, editable: true },
+  { title: '保质期', key: 'shelfLife', width: 80, editable: true },
+  { title: '到期日期', key: 'expireDate', width: 105, editable: true },
+  { title: '数量', key: 'quantity', width: 90, editable: true, valueType: 'number' },
+  { title: '件散数量', key: 'pieceQty', width: 90, editable: true, valueType: 'number' },
+  { title: '成本单价', key: 'unitCost', width: 100, editable: true, valueType: 'money' },
+  { title: '成本金额', key: 'cost', width: 110, valueType: 'money' },
+  { title: '备注', key: 'remark', width: 120, editable: true },
 ]
 
-const itemLoading = ref(false)
 const saving = ref(false)
 const submitting = ref(false)
 const approving = ref(false)
@@ -343,82 +349,112 @@ const rejecting = ref(false)
 const executing = ref(false)
 
 // ── 计算属性 ──────────────────────────────────────────
-const totalCost = computed(() =>
-  formData.items.reduce((s: number, item: any) => s + ((item.unitCost || 0) * (item.outputQty || 0)), 0) + (formData.splitFee || 0)
+const productCostTotal = computed(() =>
+  formData.productRows.reduce((s: number, row: any) => s + ((row.unitCost || 0) * (row.quantity || 0)), 0)
 )
+const materialCostTotal = computed(() =>
+  formData.materialRows.reduce((s: number, row: any) => s + ((row.unitCost || 0) * (row.quantity || 0)), 0)
+)
+const totalCost = computed(() => productCostTotal.value)
+
+function sumQty(rows: any[]) {
+  return rows.reduce((s: number, r: any) => s + (Number(r.quantity) || 0), 0)
+}
+
+function emptyRow(partial: Record<string, any> = {}) {
+  return {
+    _key: nextKey(),
+    productId: undefined as number | undefined,
+    productCode: '',
+    productName: '',
+    location: '',
+    barcode: '',
+    unit: '',
+    batchNo: '',
+    produceDate: '',
+    shelfLife: '',
+    expireDate: '',
+    quantity: 1,
+    pieceQty: 0,
+    unitCost: 0,
+    cost: 0,
+    remark: '',
+    availableStock: undefined as number | undefined,
+    ...partial,
+  }
+}
+
+function addProductRow() {
+  if (!editable.value) return
+  formData.productRows.push(emptyRow())
+}
+function addMaterialRow() {
+  if (!editable.value) return
+  formData.materialRows.push(emptyRow())
+}
+function removeRow(kind: 'productRows' | 'materialRows', index: number) {
+  if (!editable.value) return
+  formData[kind].splice(index, 1)
+  recalcRows()
+}
+
+function rowCost(row: any) {
+  row.cost = (Number(row.unitCost) || 0) * (Number(row.quantity) || 0)
+}
+function recalcRows() {
+  ;[...formData.productRows, ...formData.materialRows].forEach(rowCost)
+}
 
 // ── 事件处理 ──────────────────────────────────────────
 
-async function handleBomChange(bomId: number) {
-  formData.items = []
-  formData.productId = undefined
-  formData.productCode = ''
-  formData.productName = ''
-  formData.productSpec = ''
-  formData.productUnit = ''
-  formData.splitBaseQty = 1
-  formData.bomVersion = ''
-  formData.availableStock = undefined
+async function handleBomChange(bomId?: number) {
+  formData.productRows = []
+  formData.materialRows = []
+  formData.bomId = bomId
 
   if (!bomId) return
 
   const bom = bomTemplateOptions.value.find((b: any) => b.value === bomId)
-  if (bom) {
-    formData.productId = bom.productId
-    formData.productCode = bom.productCode
-    formData.productName = bom.productName
-    formData.productSpec = bom.productSpec
-    formData.productUnit = bom.productUnit
-    formData.splitBaseQty = bom.outputQuantity ?? 1
-    formData.bomVersion = bom.version || ''
-  }
+  if (!bom) return
 
-  itemLoading.value = true
+  // 成品表：被拆分的源产品一行
+  formData.productRows = [emptyRow({
+    productId: bom.productId,
+    productCode: bom.productCode || '',
+    productName: bom.productName || '',
+    unit: bom.productUnit || '',
+    quantity: bom.outputQuantity ?? 1,
+  })]
+  formData.splitQuantity = bom.outputQuantity ?? 1
+
+  // 加载产出明细
   try {
-    const res = await request.get(`/wh/production-template/${bomId}/components`)
+    const res = await request.get(`/erp/stock/bom/${bomId}/items`)
     const components = res?.data || []
-    formData.items = components.map((comp: any) => ({
-      _key: nextKey(),
+    formData.materialRows = components.map((comp: any) => emptyRow({
       productId: comp.productId,
       productCode: comp.productCode || '',
       productName: comp.productName || '',
-      spec: comp.spec || '',
       unit: comp.unit || '',
-      baseQty: comp.quantity ?? 1,           // 每拆分一个源产品，产出的组件数量
-      outputQty: (comp.quantity ?? 1) * formData.splitQuantity,  // 产出数量 = 单位产出 * 拆分数量
-      wastageRate: comp.wastageRate ?? 0,
+      quantity: comp.quantity ?? 1,
       unitCost: comp.unitCost ?? 0,
-      cost: ((comp.quantity ?? 1) * formData.splitQuantity) * (comp.unitCost ?? 0),
     }))
-
-    // 查询源产品库存
-    if (formData.productId && formData.warehouseId) {
-      querySourceStock()
-    }
+    recalcRows()
+    querySourceStock()
   } catch {
     message.warning('加载BOM组件明细失败')
-    formData.items = []
-  } finally {
-    itemLoading.value = false
-  }
-}
-
-function handleQuantityChange(val: number | null) {
-  const qty = val || 1
-  formData.splitQuantity = qty
-  for (const item of formData.items) {
-    item.outputQty = (item.baseQty || 1) * qty
-    item.cost = item.outputQty * (item.unitCost || 0)
+    formData.materialRows = []
   }
 }
 
 async function querySourceStock() {
-  if (!formData.productId || !formData.warehouseId) return
+  const productId = formData.productRows[0]?.productId
+  if (!productId || !formData.outWarehouseId) return
   try {
-    const res = await request.get(`/erp/stock/quantity/${formData.productId}`, {
-      params: { warehouseId: formData.warehouseId },
+    const res = await request.get(`/erp/stock/quantity/${productId}`, {
+      params: { warehouseId: formData.outWarehouseId },
     })
-    formData.availableStock = res?.data ?? res ?? 0
+    formData.availableStock = res?.data ?? res ?? undefined
   } catch {
     formData.availableStock = undefined
   }
@@ -427,32 +463,44 @@ async function querySourceStock() {
 // ── 保存/提交/审批/执行 ──────────────────────────────
 
 function validate(): boolean {
-  if (!formData.bomId) { message.warning('请选择BOM模板'); return false }
-  if (!formData.warehouseId) { message.warning('请选择仓库'); return false }
-  if (!formData.splitQuantity || formData.splitQuantity < 1) { message.warning('拆分数量必须大于0'); return false }
-  if (formData.items.length === 0) { message.warning('BOM组件明细为空'); return false }
+  if (!formData.outWarehouseId) { message.warning('请选择成品仓库'); return false }
+  if (!formData.inWarehouseId) { message.warning('请选择原料仓库'); return false }
+  if (!formData.handlerName) { message.warning('请输入经手人'); return false }
+  if (!formData.splitDate) { message.warning('请选择单据日期'); return false }
+  if (formData.productRows.length === 0) { message.warning('成品详情不能为空'); return false }
+  if (formData.materialRows.length === 0) { message.warning('原料详情不能为空'); return false }
   return true
 }
 
 function buildPayload(status?: number) {
+  const productRow = formData.productRows[0] || {}
   return {
     bomId: formData.bomId,
-    warehouseId: formData.warehouseId,
-    splitQuantity: formData.splitQuantity,
-    splitFee: formData.splitFee || undefined,
+    warehouseId: formData.inWarehouseId,
+    warehouseName: formData.inWarehouseName,
+    inWarehouseId: formData.inWarehouseId,
+    inWarehouseName: formData.inWarehouseName,
+    outWarehouseId: formData.outWarehouseId,
+    outWarehouseName: formData.outWarehouseName,
+    handlerName: formData.handlerName,
+    splitDate: formData.splitDate,
+    splitQuantity: Number(productRow.quantity) || 1,
     totalCost: totalCost.value,
     remark: formData.remark || undefined,
     status: status ?? formData.status,
-    items: formData.items.map((item: any) => ({
-      productId: item.productId,
-      productCode: item.productCode,
-      productName: item.productName,
-      spec: item.spec,
-      unit: item.unit,
-      quantity: item.baseQty,
-      outputQty: item.outputQty,
-      wastageRate: item.wastageRate,
-      unitCost: item.unitCost,
+    productId: productRow.productId,
+    productCode: productRow.productCode,
+    productName: productRow.productName,
+    productSpec: productRow.location,
+    productUnit: productRow.unit,
+    items: formData.materialRows.map((row: any) => ({
+      productId: row.productId,
+      productCode: row.productCode,
+      productName: row.productName,
+      spec: row.location,
+      unit: row.unit,
+      quantity: row.quantity,
+      unitCost: row.unitCost,
     })),
   }
 }
@@ -463,11 +511,11 @@ async function handleSaveDraft() {
   try {
     if (formData.id) {
       await request.put(`/erp/stock/split/${formData.id}`, buildPayload(0))
-      message.success('拆分单已更新')
+      message.success('拆卸单已更新')
     } else {
       const res = await request.post('/erp/stock/split', buildPayload(0))
       formData.id = res?.data?.id || res?.id
-      message.success('拆分单草稿已保存')
+      message.success('拆卸单草稿已保存')
     }
     handleBack()
   } catch (err: any) {
@@ -491,7 +539,7 @@ async function handleSubmit() {
         await request.post(`/erp/stock/split/${formData.id}/submit`)
       }
     }
-    message.success('拆分单已提交审批')
+    message.success('拆卸单已提交审批')
     handleBack()
   } catch (err: any) {
     message.error(err?.message || '提交失败')
@@ -504,7 +552,7 @@ async function handleApprove() {
   if (!formData.id) return
   Modal.confirm({
     title: '审批确认',
-    content: '确认审批通过该拆分单吗？',
+    content: '确认审批通过该拆卸单吗？',
     okText: '确认',
     onOk: async () => {
       approving.value = true
@@ -525,7 +573,7 @@ async function handleReject() {
   if (!formData.id) return
   Modal.confirm({
     title: '拒绝确认',
-    content: '确认拒绝该拆分单吗？',
+    content: '确认拒绝该拆卸单吗？',
     okText: '确认拒绝',
     okButtonProps: { danger: true },
     onOk: async () => {
@@ -547,7 +595,7 @@ async function handleExecute() {
   if (!formData.id) return
   Modal.confirm({
     title: '执行拆分',
-    content: `确认执行该拆分单吗？执行后将：\n1. 扣除源产品库存\n2. 增加拆分产出组件库存`,
+    content: `确认执行该拆卸单吗？执行后将：\n1. 按成品详情扣减成品仓库库存\n2. 按原料详情增加原料仓库库存`,
     okText: '确认执行',
     onOk: async () => {
       executing.value = true
@@ -575,41 +623,50 @@ async function fetchDetail() {
       formData.id = data.id
       formData.splitNo = data.splitNo || ''
       formData.bomId = data.bomId
-      formData.warehouseId = data.warehouseId
+      formData.inWarehouseId = data.inWarehouseId ?? data.warehouseId
+      formData.inWarehouseName = data.inWarehouseName || data.warehouseName || ''
+      formData.outWarehouseId = data.outWarehouseId ?? data.warehouseId
+      formData.outWarehouseName = data.outWarehouseName || data.warehouseName || ''
+      formData.handlerName = data.handlerName || ''
+      formData.splitDate = data.splitDate || ''
       formData.splitQuantity = data.splitQuantity ?? 1
-      formData.splitFee = data.splitFee ?? 0
       formData.remark = data.remark || ''
       formData.status = data.status ?? 0
-      formData.productId = data.productId
-      formData.productCode = data.productCode || ''
-      formData.productName = data.productName || ''
-      formData.productSpec = data.productSpec || ''
-      formData.productUnit = data.productUnit || ''
-      formData.splitBaseQty = data.splitBaseQty ?? 1
-      formData.bomVersion = data.bomVersion || ''
-      formData.availableStock = data.availableStock
+      formData.applicantName = data.applicantName || ''
       formData.createTime = data.createTime || ''
+      formData.printCount = data.printCount ?? 0
+      formData.printRecords = data.printRecords || ''
+      formData.availableStock = data.availableStock
+
+      formData.productRows = [emptyRow({
+        productId: data.productId,
+        productCode: data.productCode || '',
+        productName: data.productName || '',
+        location: data.productSpec || '',
+        unit: data.productUnit || '',
+        quantity: data.splitQuantity ?? 1,
+        unitCost: data.outputTotalCost && data.splitQuantity
+          ? Math.round((data.outputTotalCost / data.splitQuantity) * 100) / 100
+          : 0,
+      })]
     }
-    // 加载明细
+    // 加载产出明细
     try {
       const itemsRes = await request.get(`/erp/stock/split/${idParam.value}/items`)
       const items = itemsRes?.data || []
-      formData.items = items.map((item: any) => ({
-        _key: nextKey(),
+      formData.materialRows = items.map((item: any) => emptyRow({
         productId: item.productId,
         productCode: item.productCode || '',
         productName: item.productName || '',
-        spec: item.spec || '',
+        location: item.spec || '',
         unit: item.unit || '',
-        baseQty: item.quantity ?? 1,
-        outputQty: item.outputQty ?? (item.quantity ?? 1) * (formData.splitQuantity || 1),
-        wastageRate: item.wastageRate ?? 0,
+        quantity: item.quantity ?? 1,
         unitCost: item.unitCost ?? 0,
-        cost: item.cost ?? ((item.outputQty ?? (item.quantity ?? 1) * (formData.splitQuantity || 1)) * (item.unitCost ?? 0)),
       }))
-    } catch { formData.items = [] }
+      recalcRows()
+    } catch { formData.materialRows = [] }
   } catch {
-    message.error('加载拆分单详情失败')
+    message.error('加载拆卸单详情失败')
   }
 }
 
@@ -618,16 +675,43 @@ function handleBack() {
 }
 
 function handleError(err: any) {
-  console.warn('[拆分单] ErrorBoundary 捕获:', err)
+  console.warn('[拆卸单] ErrorBoundary 捕获:', err)
 }
 
 function filterOption(input: string, option: any) {
   return (option?.label?.toString() || '').toLowerCase().includes(input.toLowerCase())
 }
 
+// ── 快捷键：保存草稿 Ctrl+S / 记帐 Ctrl+Enter ────────
+function onKeydown(e: KeyboardEvent) {
+  const tag = (e.target as HTMLElement)?.tagName
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable) {
+    return
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+    e.preventDefault()
+    handleSaveDraft()
+  } else if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    e.preventDefault()
+    handleSubmit()
+  }
+}
+
 onMounted(async () => {
+  if (!formData.handlerName && isNew.value) {
+    formData.handlerName = currentUserName.value
+  }
+  if (isNew.value && !formData.splitDate) {
+    const now = new Date()
+    formData.splitDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  }
   await Promise.all([loadBomTemplates(), loadWarehouses()])
   await fetchDetail()
+  window.addEventListener('keydown', onKeydown)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onKeydown)
 })
 </script>
 
@@ -651,20 +735,43 @@ onMounted(async () => {
 .panel-tag { margin-left: 8px; }
 .header-form { display: flex; flex-wrap: wrap; gap: 8px; }
 .btn-row { margin-top: 16px; }
-.empty-hint { color: #999; padding: 12px; text-align: center; }
-.summary-row {
+.shortcut {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.75);
+  margin-left: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 3px;
+  padding: 0 4px;
+}
+.summary-line {
   display: flex;
   gap: 24px;
   padding: 8px 12px;
   background: #fafafa;
   border-top: 1px solid #f0f0f0;
   font-size: 13px;
+  margin-top: 8px;
 }
-.summary-row b { color: #303133; }
-:deep(.ant-input-sm),
-:deep(.ant-input-number-sm),
-:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
-  height: 28px;
-  line-height: 28px;
+.summary-line b { color: #303133; }
+.doc-info-row {
+  display: flex;
+  gap: 28px;
+  font-size: 13px;
+  color: #606266;
+  flex-wrap: wrap;
 }
+.doc-info-row b { color: #303133; }
+.total-bar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: baseline;
+  gap: 10px;
+  background: #fff;
+  border-radius: 8px;
+  padding: 14px 20px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+.total-label { font-size: 14px; color: #606266; }
+.total-value { font-size: 22px; font-weight: 700; color: #1890ff; }
 </style>

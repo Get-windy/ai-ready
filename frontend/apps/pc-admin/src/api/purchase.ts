@@ -144,6 +144,8 @@ export interface PurchaseDocItem {
   supplierCode: string
   contactName: string
   contactPhone: string
+  contactAddress: string
+  supplierRemark: string
   purchaserName: string
   deptName: string
   productAmount: number
@@ -157,8 +159,16 @@ export interface PurchaseDocItem {
   unreceiveQuantity: number
   returnQuantity: number
   returnAmount: number
+  weight: number
+  volume: number
   remark: string
   summary: string
+  attachment: string
+  extNum1: number
+  extNum2: number
+  extText1: string
+  extText2: string
+  extText3: string
   submitTime: string
   createByName: string
   submitterName: string
@@ -173,6 +183,7 @@ export interface PurchaseDetailQueryParams {
   dateStart?: string
   dateEnd?: string
   orderNo?: string
+  sourceBillNo?: string
   productName?: string
   supplierName?: string
   purchaserName?: string
@@ -197,8 +208,13 @@ export interface PurchaseDetailItem {
   warehouseName: string
   supplierName: string
   supplierCode: string
+  contactName: string
+  contactPhone: string
+  contactAddress: string
+  supplierRemark: string
   purchaserName: string
   deptName: string
+  sourceBillNo: string
   productName: string
   itemCode: string
   barcode: string
@@ -206,10 +222,32 @@ export interface PurchaseDetailItem {
   model: string
   origin: string
   brand: string
+  customField1: number
+  customField2: number
+  customField3: number
+  customField4: string
+  customField5: string
+  customField6: number
+  customField7: number
+  customField8: number
+  customField9: number
+  customField10: number
   unit: string
+  smallUnit: string
+  smallUnitQuantity: number
+  smallUnitPrice: number
+  conversionRelation: string
+  convertedQuantity: number
+  bigPack: number
+  midPack: number
+  smallPack: number
   quantity: number
   receivedQuantity: number
   unreceiveQuantity: number
+  terminatedQuantity: number
+  terminatedAmount: number
+  weight: number
+  volume: number
   unitPrice: number
   amount: number
   discountRate: number
@@ -217,6 +255,8 @@ export interface PurchaseDetailItem {
   discountedAmount: number
   itemRemark: string
   remark: string
+  summary: string
+  attachment: string
   createByName: string
   auditorName: string
   createTime: string
@@ -225,13 +265,117 @@ export interface PurchaseDetailItem {
 }
 
 export const purchaseDocQueryApi = {
-  /** 按单据Tab分页查询 */
+  /** 按单据Tab分页查询（采购订单-按单据Tab） */
   docPage(params?: PurchaseDocQueryParams): Promise<PageResponse<PurchaseDocItem>> {
     return request.get('/erp/purchase/order/doc-query/page', params)
   },
   /** 按明细Tab分页查询 */
   detailPage(params?: PurchaseDetailQueryParams): Promise<PageResponse<PurchaseDetailItem>> {
     return request.get('/erp/purchase/order/detail-query/page', params)
+  }
+}
+
+// ═══════════════════════════════════════════
+// 采购单据查询（统一：入库/退货/换货合并）
+// 后端：UnifiedPurchaseDocQueryController /api/purchase/doc-query
+// 服务采购单据查询页 /purchase/doc-query
+// ═══════════════════════════════════════════
+
+/** 统一采购单据类型 */
+export enum PurchaseUnifiedDocType {
+  INBOUND = 'INBOUND',
+  RETURN = 'RETURN',
+  EXCHANGE = 'EXCHANGE',
+}
+
+/** 统一采购单据查询条件（对应 UnifiedPurchaseDocQueryDTO，18个字段） */
+export interface PurchaseDocUnifiedParams {
+  current?: number
+  size?: number
+  /** 单据日期起（yyyy-MM-dd） */
+  dateStart?: string
+  /** 单据日期止（yyyy-MM-dd） */
+  dateEnd?: string
+  documentNo?: string
+  documentType?: string
+  supplierName?: string
+  supplierCode?: string
+  handlerName?: string
+  departmentName?: string
+  creatorName?: string
+  bookkeeperName?: string
+  warehouseName?: string
+  warehouseId?: number
+  settlementStatus?: string
+  status?: number
+  sourceOrder?: string
+  remark?: string
+  extNum1Start?: number
+  extNum1End?: number
+  extNum2Start?: number
+  extNum2End?: number
+  extText1?: string
+  extText2?: string
+  extText3?: string
+  showRed?: boolean
+}
+
+/** 统一采购单据查询行（对应 UnifiedPurchaseDocumentDTO，37列） */
+export interface PurchaseDocUnifiedItem {
+  id: number
+  documentType: string
+  documentDate: string
+  documentNo: string
+  inboundWarehouse: string
+  outboundWarehouse: string
+  supplierName: string
+  supplierCode: string
+  contactName: string
+  contactPhone: string
+  contactAddress: string
+  supplierRemark: string
+  sourceOrder: string
+  handlerName: string
+  departmentName: string
+  settlementStatus: string
+  purchaseQuantity: number
+  amount: number
+  discountedAmount: number
+  favorableAmount: number
+  taxAmount: number
+  totalAmountWithTax: number
+  totalAmount: number
+  fee: number
+  discountAmount: number
+  extNum1: number
+  extNum2: number
+  extText1: string
+  extText2: string
+  extText3: string
+  remark: string
+  summary: string
+  attachment: string
+  bookkeeperName: string
+  creatorName: string
+  bookkeepingTime: string
+  createTime: string
+  printCount: number
+  status: number
+  statusDesc: string
+  supplierId: number
+  warehouseId: number
+  weight: number
+  volume: number
+}
+
+export const purchaseDocUnifiedApi = {
+  /** 统一采购单据分页查询 */
+  page(params?: PurchaseDocUnifiedParams): Promise<PageResponse<PurchaseDocUnifiedItem>> {
+    return request.get('/purchase/doc-query/page', params)
+  },
+  /** 更新整单备注 */
+  updateRemark(docType: string, id: number, remark: string): Promise<ApiResponse<any>> {
+    return request.put(`/purchase/doc-query/${docType}/${id}/remark`, { remark })
   }
 }
 

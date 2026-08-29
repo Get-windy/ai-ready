@@ -19,6 +19,9 @@ public class StockTransfer {
 
     private Integer transferType;
 
+    @TableField("bill_date")
+    private java.time.LocalDate billDate;
+
     private Long fromWarehouseId;
 
     private String fromWarehouseName;

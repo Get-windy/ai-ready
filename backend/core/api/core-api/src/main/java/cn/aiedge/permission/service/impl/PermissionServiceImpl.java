@@ -1,8 +1,8 @@
 package cn.aiedge.permission.service.impl;
 
 import cn.aiedge.base.config.SuperAdminConfig;
-import cn.aiedge.base.entity.Role;
 import cn.aiedge.base.entity.SysDataScope;
+import cn.aiedge.base.entity.SysRole;
 import cn.aiedge.base.entity.SysRolePermission;
 import cn.aiedge.base.entity.SysUserRole;
 import cn.aiedge.base.mapper.RoleMapper;
@@ -255,15 +255,15 @@ public class PermissionServiceImpl implements PermissionService {
 
         // 角色作用域校验
         try {
-            Collection<Role> roles = roleMapper.selectBatchIds(roleIds);
+            Collection<SysRole> roles = roleMapper.selectBatchIds(roleIds);
             if (roles.size() != roleIds.size()) {
                 log.warn("部分角色不存在: roleIds={}", roleIds);
                 throw new RuntimeException("部分角色不存在");
             }
-            Map<Long, Role> roleMap = roles.stream().collect(Collectors.toMap(Role::getId, r -> r));
+            Map<Long, SysRole> roleMap = roles.stream().collect(Collectors.toMap(SysRole::getId, r -> r));
             boolean hasTenantContext = tenantId != null;
             for (Long roleId : roleIds) {
-                Role role = roleMap.get(roleId);
+                SysRole role = roleMap.get(roleId);
                 if (role == null) continue;
                 if ("PLATFORM".equals(role.getScope()) && hasTenantContext) {
                     throw new RuntimeException("不能将平台级角色「" + role.getRoleName() + "」分配给租户用户");
@@ -282,7 +282,7 @@ public class PermissionServiceImpl implements PermissionService {
             java.util.List<Long> conflictingRoleIds = sysSodRuleService.findConflictingRoleIds(roleIds);
             if (!conflictingRoleIds.isEmpty()) {
                 String conflictNames = roleMapper.selectBatchIds(conflictingRoleIds).stream()
-                        .map(Role::getRoleName).collect(java.util.stream.Collectors.joining(", "));
+                        .map(SysRole::getRoleName).collect(java.util.stream.Collectors.joining(", "));
                 log.warn("SoD 校验失败: 角色[{}]存在互斥", conflictNames);
                 throw new RuntimeException("职责分离冲突：角色「" + conflictNames + "」互斥，不能同时分配");
             }

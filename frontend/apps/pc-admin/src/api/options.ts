@@ -72,6 +72,30 @@ export const optionsApi = {
     return request.get('/wms/warehouse/list-all')
   },
 
+  /** 获取部门下拉列表 */
+  getDepartments(): Promise<OptionItem[]> {
+    return request.get('/department/list').then((res: any) => {
+      const list = res?.data || res || []
+      return list.map((d: any) => ({
+        id: d.id,
+        name: d.departmentName || d.name || '',
+        code: d.departmentCode || d.code || '',
+      }))
+    })
+  },
+
+  /** 获取财务账户下拉列表（订金账户等） */
+  getAccounts(): Promise<OptionItem[]> {
+    return request.get('/erp/finance/account/list').then((res: any) => {
+      const list = res?.data || res || []
+      return list.map((a: any) => ({
+        id: a.id,
+        name: a.accountName || a.name || '',
+        code: a.bankAccount || a.code || '',
+      }))
+    })
+  },
+
   /** 批量获取字典选项 */
   getDicts(dictCodes: string[]): Promise<DictOption[]> {
     return request.post('/dict/batch', { dictCodes })

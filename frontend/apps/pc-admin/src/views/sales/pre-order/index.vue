@@ -762,6 +762,8 @@
     <!-- ═══ 页面配置弹窗 ═══ -->
     <PageConfigPanel
       :open="showPageConfig"
+      :query-fields-config="pageConfigQueryFields"
+      :storage-key="'pre-order-page-config'"
       @update:open="showPageConfig = $event"
       @change="handlePageConfigChange"
     />
@@ -975,16 +977,49 @@ const detailColumns = [
   { title: '型号', field: 'model', key: 'model', width: 100 },
   { title: '产地', field: 'origin', key: 'origin', width: 80 },
   { title: '品牌', field: 'brand', key: 'brand', width: 80 },
-  { title: '表体自定义1(数字)', field: 'extNum1', key: 'extNum1', width: 130, align: 'right' },
-  { title: '表体自定义2(数字)', field: 'extNum2', key: 'extNum2', width: 130, align: 'right' },
-  { title: '表体自定义3(数字)', field: 'extNum3', key: 'extNum3', width: 130, align: 'right' },
-  { title: '表体自定义4(文本)', field: 'extText1', key: 'extText1', width: 130 },
-  { title: '表体自定义5(文本)', field: 'extText2', key: 'extText2', width: 130 },
-  { title: '表体自定义6(数字)', field: 'extNum4', key: 'extNum4', width: 130, align: 'right' },
-  { title: '表体自定义7(数字)', field: 'extNum5', key: 'extNum5', width: 130, align: 'right' },
-  { title: '表体自定义8(往来单位)', field: 'extPartner', key: 'extPartner', width: 130 },
-  { title: '表体自定义9(职员)', field: 'extStaff', key: 'extStaff', width: 120 },
-  { title: '表体自定义10(部门)', field: 'extDept', key: 'extDept', width: 120 },
+  { title: '单据自定义1(数字)', field: 'extNum1', key: 'extNum1', width: 130, align: 'right' },
+  { title: '单据自定义2(数字)', field: 'extNum2', key: 'extNum2', width: 130, align: 'right' },
+  { title: '单据自定义3(数字)', field: 'extNum3', key: 'extNum3', width: 130, align: 'right' },
+  { title: '单据自定义4(文本)', field: 'extText1', key: 'extText1', width: 130 },
+  { title: '单据自定义5(文本)', field: 'extText2', key: 'extText2', width: 130 },
+  { title: '单据自定义6(数字)', field: 'extNum4', key: 'extNum4', width: 130, align: 'right' },
+  { title: '单据自定义7(数字)', field: 'extNum5', key: 'extNum5', width: 130, align: 'right' },
+  { title: '单据自定义8(往来单位)', field: 'extPartner', key: 'extPartner', width: 130 },
+  { title: '单据自定义9(职员)', field: 'extStaff', key: 'extStaff', width: 120 },
+  { title: '单据自定义10(部门)', field: 'extDept', key: 'extDept', width: 120 },
+  { title: '图片', field: 'imageUrl', key: 'imageUrl', width: 80, type: 'image' },
+  { title: '区域', field: 'region', key: 'region', width: 90 },
+  { title: '货位', field: 'location', key: 'location', width: 90 },
+  { title: '计价单位', field: 'productUnit', key: 'productUnitDetail', width: 90 },
+  { title: '件散数量', field: 'pieceQuantity', key: 'pieceQuantity', width: 90, align: 'right' },
+  { title: '可用库存', field: 'availableStock', key: 'availableStock', width: 100, align: 'right' },
+  { title: '可用库存换算结果', field: 'availableStockConverted', key: 'availableStockConverted', width: 130, align: 'right' },
+  { title: '账面库存', field: 'bookStock', key: 'bookStock', width: 100, align: 'right' },
+  { title: '批次条码', field: 'batchNo', key: 'batchNo', width: 120 },
+  { title: '生产日期', field: 'productionDate', key: 'productionDate', width: 110 },
+  { title: '保质期', field: 'shelfLife', key: 'shelfLife', width: 90 },
+  { title: '到期日期', field: 'validityDate', key: 'validityDate', width: 110 },
+  { title: '最近销售日期', field: 'lastSaleDate', key: 'lastSaleDate', width: 110 },
+  { title: '零售价', field: 'retailPrice', key: 'retailPrice', width: 100, align: 'right' },
+  { title: '批发价', field: 'wholesalePrice', key: 'wholesalePrice', width: 100, align: 'right' },
+  { title: '最低售价', field: 'minSalePrice', key: 'minSalePrice', width: 100, align: 'right' },
+  { title: '参考成本单价', field: 'costPrice', key: 'costPrice', width: 110, align: 'right' },
+  { title: '参考成本金额', field: 'costAmount', key: 'costAmount', width: 110, align: 'right' },
+  { title: '参考毛利', field: 'grossProfit', key: 'grossProfit', width: 100, align: 'right' },
+  { title: '兑换礼品', field: 'giftItem', key: 'giftItem', width: 100 },
+  { title: '兑换积分', field: 'exchangePoints', key: 'exchangePoints', width: 90, align: 'right' },
+  { title: '产生积分', field: 'generatedPoints', key: 'generatedPoints', width: 90, align: 'right' },
+  { title: '使用积分', field: 'usedPoints', key: 'usedPoints', width: 90, align: 'right' },
+  { title: '赠品', field: 'gift', key: 'gift', width: 70 },
+  { title: '备注', field: 'itemRemark', key: 'itemRemarkDetail', width: 120 },
+  { title: '价格等级1', field: 'priceLevel1', key: 'priceLevel1', width: 100, align: 'right' },
+  { title: '价格等级2', field: 'priceLevel2', key: 'priceLevel2', width: 100, align: 'right' },
+  { title: '价格等级3', field: 'priceLevel3', key: 'priceLevel3', width: 100, align: 'right' },
+  { title: '价格等级4', field: 'priceLevel4', key: 'priceLevel4', width: 100, align: 'right' },
+  { title: '价格等级5', field: 'priceLevel5', key: 'priceLevel5', width: 100, align: 'right' },
+  { title: '价格等级6', field: 'priceLevel6', key: 'priceLevel6', width: 100, align: 'right' },
+  { title: '价格等级7', field: 'priceLevel7', key: 'priceLevel7', width: 100, align: 'right' },
+  { title: '价格等级8', field: 'priceLevel8', key: 'priceLevel8', width: 100, align: 'right' },
   { title: '单位', field: 'unit', key: 'unit', width: 70 },
   { title: '小单位', field: 'smallUnit', key: 'smallUnit', width: 70 },
   { title: '小单位数量', field: 'smallUnitQuantity', key: 'smallUnitQuantity', width: 90, align: 'right' },
@@ -1047,6 +1082,32 @@ function handleColumnConfigReset() {
   else resetDetailColumns()
 }
 function handlePageConfigChange(_config: any) { /* 页面配置变更 */ }
+
+// ═══ 页面配置：查询条件字段（对标：可勾选显示/隐藏并持久化） ═══
+const pageConfigQueryFields = [
+  { key: 'dateRange', label: '日期', visible: true },
+  { key: 'orderNo', label: '单据编号', visible: true },
+  { key: 'customerName', label: '客户', visible: true },
+  { key: 'handlerName', label: '经手人', visible: true },
+  { key: 'deptName', label: '部门', visible: true },
+  { key: 'warehouseName', label: '仓库', visible: true },
+  { key: 'status', label: '单据状态', visible: true },
+  { key: 'settlementStatus', label: '结算状态', visible: true },
+  { key: 'creatorName', label: '制单人', visible: true },
+  { key: 'auditorName', label: '审核人', visible: true },
+  { key: 'extNum1', label: '表头自定义字段1(数字)', visible: false },
+  { key: 'extNum2', label: '表头自定义字段2(数字)', visible: false },
+  { key: 'extText1', label: '表头自定义字段3(文本)', visible: false },
+  { key: 'extText2', label: '表头自定义字段4(文本)', visible: false },
+  { key: 'extText3', label: '表头自定义字段5(文本)', visible: false },
+  { key: 'depositDeadlineStart', label: '收款期限(起)', visible: false },
+  { key: 'depositDeadlineEnd', label: '收款期限(止)', visible: false },
+  { key: 'saleType', label: '销售类型', visible: false },
+  { key: 'productAttribute', label: '商品行属性', visible: false },
+  { key: 'remark', label: '单据备注', visible: false },
+  { key: 'itemRemark', label: '明细备注', visible: false },
+  { key: 'showGift', label: '是否赠品', visible: false },
+]
 
 // ═══ 表格底部合计 ═══
 const tableFooterColumns = computed(() => {

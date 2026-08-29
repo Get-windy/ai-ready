@@ -36,10 +36,12 @@ const { fields, formData, saving, handleSave, handleSubmit } = useBasicForm({
   api: { create: opportunityApi.create, update: opportunityApi.update, getById: opportunityApi.getById },
   redirectPath: '/crm/opportunity',
   fields: [
-    { key: 'name', label: '商机名称', type: 'input', required: true },
+    { key: 'opportunityCode', label: '商机编号', type: 'input', disabled: true },
+    { key: 'opportunityName', label: '商机名称', type: 'input', required: true },
     { key: 'customerName', label: '客户名称', type: 'input', required: true },
+    { key: 'leadId', label: '来源线索ID', type: 'input' },
     {
-      key: 'stage', label: '阶段', type: 'select',
+      key: 'opportunityStage', label: '阶段', type: 'select',
       options: [
         { label: '初步接触', value: 1 },
         { label: '需求确认', value: 2 },
@@ -49,19 +51,39 @@ const { fields, formData, saving, handleSave, handleSubmit } = useBasicForm({
         { label: '输单', value: 6 },
       ],
     },
-    { key: 'expectedAmount', label: '预计金额', type: 'number', precision: 2 },
-    { key: 'winProbability', label: '赢单概率(%)', type: 'number', precision: 0, min: 0, max: 100 },
+    { key: 'estimatedAmount', label: '预计金额', type: 'number', precision: 2 },
+    { key: 'actualAmount', label: '实际金额', type: 'number', precision: 2 },
+    { key: 'probability', label: '赢单概率(%)', type: 'number', precision: 0, min: 0, max: 100 },
     {
-      key: 'priority', label: '优先级', type: 'select',
+      key: 'opportunityType', label: '商机类型', type: 'select',
       options: [
-        { label: '高', value: 'high' },
-        { label: '中', value: 'medium' },
-        { label: '低', value: 'low' },
+        { label: '新客户', value: 1 },
+        { label: '老客户增购', value: 2 },
+        { label: '续约', value: 3 },
       ],
     },
-    { key: 'expectedCloseDate', label: '预计成交日期', type: 'date' },
-    { key: 'ownerName', label: '负责人', type: 'input' },
-    { key: 'remark', label: '备注', type: 'textarea', width: 'wide' },
+    {
+      key: 'opportunitySource', label: '商机来源', type: 'select',
+      options: [
+        { label: '线索转化', value: 1 },
+        { label: '客户主动', value: 2 },
+        { label: '销售开发', value: 3 },
+      ],
+    },
+    { key: 'productInterest', label: '意向产品', type: 'input', width: 'wide' },
+    { key: 'requirement', label: '需求描述', type: 'textarea', width: 'wide' },
+    { key: 'competitor', label: '竞争对手', type: 'input' },
+    { key: 'winReason', label: '赢单原因', type: 'textarea', width: 'wide' },
+    { key: 'loseReason', label: '输单原因', type: 'textarea', width: 'wide' },
+    {
+      key: 'status', label: '状态', type: 'select',
+      options: [
+        { label: '进行中', value: 1 },
+        { label: '已赢单', value: 2 },
+        { label: '已输单', value: 3 },
+        { label: '已关闭', value: 4 },
+      ],
+    },
   ],
 })
 </script>

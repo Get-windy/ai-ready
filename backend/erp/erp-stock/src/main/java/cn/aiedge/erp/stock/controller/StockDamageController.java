@@ -30,6 +30,7 @@ public class StockDamageController {
     public static class CreateDamageRequest {
         private LocalDate damageDate;
         private Long warehouseId;
+        private Long handlerId;
         private Long locationId;
         private Integer damageCause;
         private String remark;
@@ -69,6 +70,7 @@ public class StockDamageController {
         damage.setTenantId(1L);
         damage.setDamageDate(request.getDamageDate());
         damage.setWarehouseId(request.getWarehouseId());
+        damage.setApplicantId(request.getHandlerId());
         damage.setLocationId(request.getLocationId());
         damage.setDamageCause(request.getDamageCause());
         damage.setRemark(request.getRemark());

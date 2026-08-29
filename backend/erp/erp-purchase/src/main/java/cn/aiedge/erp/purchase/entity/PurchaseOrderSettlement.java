@@ -43,10 +43,12 @@ public class PurchaseOrderSettlement {
     /** 供方要求 */
     private String requireProvide;
 
-    /** 订金账户1 */
+    /** 订金账户1（DB 列带下划线数字） */
+    @TableField("deposit_account_1")
     private String depositAccount1;
 
-    /** 订金金额1 */
+    /** 订金金额1（DB 列带下划线数字） */
+    @TableField("deposit_amount_1")
     private BigDecimal depositAmount1;
 
     /** 更多账户(JSON) */

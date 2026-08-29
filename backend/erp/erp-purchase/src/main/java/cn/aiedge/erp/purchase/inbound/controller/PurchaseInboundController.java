@@ -3,6 +3,7 @@ package cn.aiedge.erp.purchase.inbound.controller;
 import cn.aiedge.common.result.ApiResponse;
 import cn.aiedge.erp.purchase.inbound.dto.PurchaseInboundCreateDTO;
 import cn.aiedge.erp.purchase.inbound.dto.PurchaseInboundItemDTO;
+import cn.aiedge.erp.purchase.inbound.dto.PurchaseInboundQuery;
 import cn.aiedge.erp.purchase.inbound.dto.PurchaseInboundVO;
 import cn.aiedge.erp.purchase.inbound.entity.PurchaseInbound;
 import cn.aiedge.erp.purchase.inbound.entity.PurchaseInboundItem;
@@ -37,18 +38,17 @@ public class PurchaseInboundController {
 
     @GetMapping("/page")
     @Operation(summary = "分页查询入库单")
-    public Page<PurchaseInboundVO> page(
-            @Parameter(description = "关键词") @RequestParam(required = false) String keyword,
-            @Parameter(description = "供应商ID") @RequestParam(required = false) Long supplierId,
-            @Parameter(description = "订单ID") @RequestParam(required = false) Long orderId,
-            @Parameter(description = "仓库ID") @RequestParam(required = false) Long warehouseId,
-            @Parameter(description = "状态") @RequestParam(required = false) Integer status,
-            @Parameter(description = "页码") @RequestParam(defaultValue = "1") int pageNum,
-            @Parameter(description = "每页数量") @RequestParam(defaultValue = "10") int pageSize) {
-        Page<PurchaseInbound> page = purchaseInboundService.pageList(keyword, supplierId, orderId, warehouseId, status, pageNum, pageSize);
-        Page<PurchaseInboundVO> voPage = new Page<>(pageNum, pageSize, page.getTotal());
+    public Page<PurchaseInboundVO> page(@Parameter(description = "查询条件") @ModelAttribute PurchaseInboundQuery query) {
+        Page<PurchaseInbound> page = purchaseInboundService.pageList(query);
+        Page<PurchaseInboundVO> voPage = new Page<>(query.getPageNum(), query.getPageSize(), page.getTotal());
         voPage.setRecords(page.getRecords().stream().map(this::convertToVO).collect(Collectors.toList()));
         return voPage;
+    }
+
+    @GetMapping("/next-no")
+    @Operation(summary = "生成下一入库单号")
+    public String nextNo() {
+        return purchaseInboundService.generateInboundNo();
     }
 
     @GetMapping("/{id}")
@@ -210,6 +210,24 @@ public class PurchaseInboundController {
             @Parameter(description = "仓库ID") @RequestParam(required = false) Long warehouseId,
             @Parameter(description = "状态") @RequestParam(required = false) Integer status) {
         return purchaseInboundService.exportList(keyword, supplierId, orderId, warehouseId, status);
+    }
+
+    @PostMapping("/import")
+    @Operation(summary = "批量导入入库单")
+    public ApiResponse<Map<String, Integer>> importOrders(@RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        int count = purchaseInboundService.importOrders(file);
+        return ApiResponse.ok(Map.of("count", count));
+    }
+
+    @PostMapping("/batch-print")
+    @Operation(summary = "批量打印入库单")
+    public ApiResponse<Void> batchPrint(@RequestBody Map<String, Object> params) {
+        @SuppressWarnings("unchecked")
+        List<Number> rawIds = (List<Number>) params.get("ids");
+        List<Long> ids = rawIds != null ? rawIds.stream().map(Number::longValue).toList() : List.of();
+        String template = params.get("template") != null ? params.get("template").toString() : "default";
+        purchaseInboundService.batchPrint(ids, template);
+        return ApiResponse.ok("打印完成", null);
     }
 
     @PostMapping("/{id}/items")

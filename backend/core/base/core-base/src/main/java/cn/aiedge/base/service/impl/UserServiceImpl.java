@@ -1,8 +1,8 @@
 package cn.aiedge.base.service.impl;
 
-import cn.aiedge.base.entity.Permission;
-import cn.aiedge.base.entity.Role;
-import cn.aiedge.base.entity.User;
+import cn.aiedge.base.entity.SysPermission;
+import cn.aiedge.base.entity.SysRole;
+import cn.aiedge.base.entity.SysUser;
 import cn.aiedge.base.entity.SysUserRole;
 import cn.aiedge.base.mapper.PermissionMapper;
 import cn.aiedge.base.mapper.RoleMapper;
@@ -37,7 +37,7 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements UserService {
+public class UserServiceImpl extends ServiceImpl<UserMapper, SysUser> implements UserService {
 
     private final UserMapper userMapper;
     private final RoleMapper roleMapper;
@@ -47,20 +47,20 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
     @Override
     public PageResult<UserVO> pageList(UserQueryRequest request) {
-        LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
+        LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
         
         // 构建查询条件
-        wrapper.like(StringUtils.hasText(request.getUsername()), User::getUsername, request.getUsername())
-               .like(StringUtils.hasText(request.getRealName()), User::getRealName, request.getRealName())
-               .eq(StringUtils.hasText(request.getPhone()), User::getPhone, request.getPhone())
-               .eq(StringUtils.hasText(request.getEmail()), User::getEmail, request.getEmail())
-               .eq(request.getStatus() != null, User::getStatus, request.getStatus())
-               .eq(request.getDeptId() != null, User::getDeptId, request.getDeptId())
-               .eq(request.getGender() != null, User::getGender, request.getGender())
-               .orderByDesc(User::getCreateTime);
+        wrapper.like(StringUtils.hasText(request.getUsername()), SysUser::getUsername, request.getUsername())
+               .like(StringUtils.hasText(request.getRealName()), SysUser::getRealName, request.getRealName())
+               .eq(StringUtils.hasText(request.getPhone()), SysUser::getPhone, request.getPhone())
+               .eq(StringUtils.hasText(request.getEmail()), SysUser::getEmail, request.getEmail())
+               .eq(request.getStatus() != null, SysUser::getStatus, request.getStatus())
+               .eq(request.getDeptId() != null, SysUser::getDeptId, request.getDeptId())
+               .eq(request.getGender() != null, SysUser::getGender, request.getGender())
+               .orderByDesc(SysUser::getCreateTime);
 
-        Page<User> page = new Page<>(request.getPageNum(), request.getPageSize());
-        Page<User> result = page(page, wrapper);
+        Page<SysUser> page = new Page<>(request.getPageNum(), request.getPageSize());
+        Page<SysUser> result = page(page, wrapper);
 
         // 转换为VO
         List<UserVO> voList = result.getRecords().stream()
@@ -72,16 +72,16 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
     @Override
     public UserVO getDetail(Long id) {
-        User user = getById(id);
+        SysUser user = getById(id);
         if (user == null) {
             throw BusinessException.notFound("用户不存在");
         }
         UserVO vo = convertToVO(user);
         
         // 查询用户角色
-        List<Role> roles = roleMapper.selectByUserId(id);
+        List<SysRole> roles = roleMapper.selectByUserId(id);
         vo.setRoles(roles.stream().map(this::convertToRoleVO).collect(Collectors.toList()));
-        vo.setRoleIds(roles.stream().map(Role::getId).collect(Collectors.toList()));
+        vo.setRoleIds(roles.stream().map(SysRole::getId).collect(Collectors.toList()));
         
         return vo;
     }
@@ -111,7 +111,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         validatePasswordComplexity(request.getPassword());
 
         // 创建用户
-        User user = new User();
+        SysUser user = new SysUser();
         BeanUtils.copyProperties(request, user);
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setIsSuperAdmin(false);
@@ -130,7 +130,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void update(UserUpdateRequest request) {
-        User user = getById(request.getId());
+        SysUser user = getById(request.getId());
         if (user == null) {
             throw BusinessException.notFound("用户不存在");
         }
@@ -164,7 +164,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long id) {
-        User user = getById(id);
+        SysUser user = getById(id);
         if (user == null) {
             throw BusinessException.notFound("用户不存在");
         }
@@ -191,8 +191,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         
         // 检查是否包含超级管理员
         long superAdminCount = lambdaQuery()
-                .in(User::getId, ids)
-                .eq(User::getIsSuperAdmin, true)
+                .in(SysUser::getId, ids)
+                .eq(SysUser::getIsSuperAdmin, true)
                 .count();
         
         if (superAdminCount > 0) {
@@ -211,7 +211,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void changePassword(Long id, String oldPassword, String newPassword) {
-        User user = getById(id);
+        SysUser user = getById(id);
         if (user == null) {
             throw BusinessException.notFound("用户不存在");
         }
@@ -234,7 +234,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void resetPassword(Long id, String newPassword) {
-        User user = getById(id);
+        SysUser user = getById(id);
         if (user == null) {
             throw BusinessException.notFound("用户不存在");
         }
@@ -269,7 +269,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void updateStatus(Long id, Integer status) {
-        User user = getById(id);
+        SysUser user = getById(id);
         if (user == null) {
             throw BusinessException.notFound("用户不存在");
         }
@@ -293,20 +293,20 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         }
 
         // 查询目标用户
-        User targetUser = getById(userId);
+        SysUser targetUser = getById(userId);
 
         // 角色作用域校验（基于当前操作用户的安全上下文）
         if (!CollectionUtils.isEmpty(roleIds) && targetUser != null) {
-            Collection<Role> roles = roleMapper.selectBatchIds(roleIds);
+            Collection<SysRole> roles = roleMapper.selectBatchIds(roleIds);
             if (roles.size() != roleIds.size()) {
                 throw BusinessException.notFound("部分角色不存在");
             }
-            Map<Long, Role> roleMap = roles.stream().collect(Collectors.toMap(Role::getId, r -> r));
+            Map<Long, SysRole> roleMap = roles.stream().collect(Collectors.toMap(SysRole::getId, r -> r));
             // 判断当前操作用户是否有租户上下文
             boolean isTenantContext = cn.dev33.satoken.stp.StpUtil.isLogin()
                 && cn.dev33.satoken.stp.StpUtil.getSession().get("tenantId") != null;
             for (Long roleId : roleIds) {
-                Role role = roleMap.get(roleId);
+                SysRole role = roleMap.get(roleId);
                 if (role == null) continue;
                 if ("PLATFORM".equals(role.getScope()) && isTenantContext) {
                     throw BusinessException.forbidden(
@@ -336,17 +336,17 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     }
 
     @Override
-    public User getByUsername(String username) {
+    public SysUser getByUsername(String username) {
         return userMapper.selectByUsername(username);
     }
 
     @Override
-    public User getByPhone(String phone) {
+    public SysUser getByPhone(String phone) {
         return userMapper.selectByPhone(phone);
     }
 
     @Override
-    public User getByEmail(String email) {
+    public SysUser getByEmail(String email) {
         return userMapper.selectByEmail(email);
     }
 
@@ -358,24 +358,24 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
     @Override
     public List<String> getRoleCodes(Long userId) {
-        List<Role> roles = roleMapper.selectByUserId(userId);
+        List<SysRole> roles = roleMapper.selectByUserId(userId);
         return roles.stream()
-                .map(Role::getRoleCode)
+                .map(SysRole::getRoleCode)
                 .collect(Collectors.toList());
     }
 
     @Override
     public List<String> getPermissionCodes(Long userId) {
-        List<Permission> permissions = permissionMapper.selectByUserId(userId);
+        List<SysPermission> permissions = permissionMapper.selectByUserId(userId);
         return permissions.stream()
-                .map(Permission::getPermissionCode)
+                .map(SysPermission::getPermissionCode)
                 .collect(Collectors.toList());
     }
 
     /**
      * 转换为VO
      */
-    private UserVO convertToVO(User user) {
+    private UserVO convertToVO(SysUser user) {
         UserVO vo = new UserVO();
         BeanUtils.copyProperties(user, vo);
         return vo;
@@ -384,7 +384,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     /**
      * 转换为角色VO
      */
-    private cn.aiedge.common.dto.user.RoleVO convertToRoleVO(Role role) {
+    private cn.aiedge.common.dto.user.RoleVO convertToRoleVO(SysRole role) {
         cn.aiedge.common.dto.user.RoleVO vo = new cn.aiedge.common.dto.user.RoleVO();
         BeanUtils.copyProperties(role, vo);
         return vo;

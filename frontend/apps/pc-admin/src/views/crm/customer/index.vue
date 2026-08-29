@@ -856,20 +856,21 @@ const fetchKanbanData = async () => {
 }
 
 const vxeColumns = computed(() => [
-  { field: 'name', title: '客户信息', width: 200, formatter: ({ row }: any) => row.name || '' },
-  { field: 'contactPerson', title: '联系人', width: 100 },
+  { field: 'customerName', title: '客户信息', width: 200, formatter: ({ row }: any) => row.customerName || row.name || '' },
+  { field: 'customerCode', title: '客户编码', width: 120, formatter: ({ row }: any) => row.customerCode || row.code || '' },
+  { field: 'businessContact', title: '联系人', width: 100, formatter: ({ row }: any) => row.businessContact || row.contactPerson || '' },
   { field: 'phone', title: '联系电话', width: 120 },
-  { field: 'level', title: '客户等级', width: 100, align: 'center', formatter: ({ cellValue }: any) => getLevelName(cellValue) },
-  { field: 'industry', title: '行业', width: 100 },
+  { field: 'customerLevel', title: '客户等级', width: 100, align: 'center', formatter: ({ cellValue, row }: any) => getLevelName(cellValue ?? row.customerLevel ?? row.level) },
+  { field: 'industryType', title: '行业', width: 100, formatter: ({ cellValue, row }: any) => getIndustryName(cellValue ?? row.industryType ?? row.industry) },
   { field: 'status', title: '状态', width: 80, align: 'center', slotName: 'statusCell' },
   { field: 'createTime', title: '创建时间', width: 160 },
   { field: 'action', title: '操作', width: 160, fixed: 'right', type: 'action' }
 ])
 
 const filterFields = [
-  { key: 'name', label: '客户名称', type: 'input' as const, placeholder: '输入客户名称' },
-  { key: 'code', label: '客户编码', type: 'input' as const, placeholder: '输入客户编码' },
-  { key: 'level', label: '客户等级', type: 'select' as const, options: [
+  { key: 'customerName', label: '客户名称', type: 'input' as const, placeholder: '输入客户名称' },
+  { key: 'customerCode', label: '客户编码', type: 'input' as const, placeholder: '输入客户编码' },
+  { key: 'customerLevel', label: '客户等级', type: 'select' as const, options: [
     { label: 'VIP客户', value: 1 },
     { label: '重要客户', value: 2 },
     { label: '普通客户', value: 3 },
@@ -879,12 +880,11 @@ const filterFields = [
     { label: '正常', value: 0 },
     { label: '停用', value: 1 }
   ]},
-  { key: 'industry', label: '行业', type: 'select' as const, options: [
-    { label: 'IT/互联网', value: 'IT' },
-    { label: '制造业', value: '制造业' },
-    { label: '金融', value: '金融' },
-    { label: '零售', value: '零售' },
-    { label: '其他', value: '其他' }
+  { key: 'industryType', label: '行业', type: 'select' as const, options: [
+    { label: '食品加工', value: 1 },
+    { label: '餐饮服务', value: 2 },
+    { label: '批发零售', value: 3 },
+    { label: '其他', value: 4 }
   ]}
 ]
 
@@ -902,6 +902,12 @@ const levelColorMap: Record<number, string> = { 1: '#ff4d4f', 2: '#faad14', 3: '
 const levelTextMap: Record<number, string> = { 1: 'VIP客户', 2: '重要客户', 3: '普通客户', 4: '潜在客户' }
 function getLevelColor(level: number): string { return levelColorMap[level] || '#999' }
 function getLevelName(level: number): string { return levelTextMap[level] || '未知' }
+const industryTextMap: Record<number, string> = { 1: '食品加工', 2: '餐饮服务', 3: '批发零售', 4: '其他' }
+function getIndustryName(v: number | string | undefined): string {
+  if (v === undefined || v === null) return '-'
+  if (typeof v === 'number') return industryTextMap[v] || '未知'
+  return String(v)
+}
 
 // 自动刷新 (30秒)
 const startAutoRefresh = () => {

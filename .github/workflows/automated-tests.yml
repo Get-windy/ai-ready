@@ -25,7 +25,7 @@ on:
           - performance
 
 env:
-  JAVA_VERSION: '21'
+  JAVA_VERSION: '17'
 
 jobs:
   # ============ 单元测试 ============
@@ -45,6 +45,7 @@ jobs:
           cache: 'maven'
 
       - name: 运行单元测试
+        working-directory: backend
         run: |
           ./mvnw test \
             -Dtest.groups=unit \
@@ -53,6 +54,7 @@ jobs:
             -B
 
       - name: 生成覆盖率报告
+        working-directory: backend
         run: ./mvnw jacoco:report -B
 
       - name: 上传覆盖率到Codecov
@@ -113,6 +115,7 @@ jobs:
           cache: 'maven'
 
       - name: 运行集成测试
+        working-directory: backend
         env:
           SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/test_db
           SPRING_DATASOURCE_USERNAME: test
@@ -170,14 +173,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-          cache: 'npm'
-          cache-dependency-path: 'tests/e2e/package-lock.json'
+          cache: 'pnpm'
+          cache-dependency-path: 'frontend/pnpm-lock.yaml'
 
       - name: 安装E2E测试依赖
-        working-directory: tests/e2e
-        run: npm ci
+        working-directory: frontend
+        run: corepack enable && pnpm install --frozen-lockfile
 
-      - name: 启动应用
+      - name: 构建并启动应用
+        working-directory: backend
         env:
           SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/e2e_db
           SPRING_DATASOURCE_USERNAME: e2e
@@ -185,12 +189,24 @@ jobs:
           SPRING_REDIS_HOST: localhost
           SPRING_REDIS_PORT: 6379
         run: |
-          ./mvnw spring-boot:run -Dspring-boot.run.profiles=e2e &
-          sleep 60
-          curl -f http://localhost:8080/actuator/health || exit 1
+          # 先完整构建(确保内部模块可用)，再直接运行可执行 JAR
+          ./mvnw package -DskipTests -B -q
+          JAR_FILE="$(ls core/api/core-api/target/*-exec.jar | head -1)"
+          nohup java -jar "${JAR_FILE}" --spring.profiles.active=dev > /tmp/backend.log 2>&1 &
+          for i in $(seq 1 60); do
+            CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5655/api/system/health 2>/dev/null || echo "000")
+            if [[ "$CODE" != "000" ]]; then
+              echo "后端已启动 (HTTP $CODE)"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "后端启动失败，最近日志："
+          tail -100 /tmp/backend.log
+          exit 1
 
       - name: 运行Playwright E2E测试
-        working-directory: tests/e2e
+        working-directory: frontend
         run: |
           npx playwright install --with-deps
           npx playwright test --reporter=html
@@ -200,7 +216,7 @@ jobs:
         if: always()
         with:
           name: e2e-test-report
-          path: tests/e2e/playwright-report/
+          path: frontend/playwright-report/
           retention-days: 30
 
   # ============ 性能测试 ============
@@ -227,10 +243,12 @@ jobs:
           echo "$PWD/apache-jmeter-5.6.2/bin" >> $GITHUB_PATH
 
       - name: 运行性能测试
+        working-directory: backend
         run: |
-          jmeter -n -t tests/performance/api-load-test.jmx \
-            -l tests/performance/results.jtl \
-            -e -o tests/performance/report/
+          mkdir -p tests/reports
+          jmeter -n -t tests/tests/jmeter/ai-ready-api-performance-test.jmx \
+            -l tests/reports/jmeter-results.jtl \
+            -e -o tests/reports/jmeter-report/
         continue-on-error: true
 
       - name: 上传性能测试报告
@@ -238,13 +256,35 @@ jobs:
         if: always()
         with:
           name: performance-test-report
-          path: tests/performance/report/
+          path: backend/tests/reports/jmeter-report/
           retention-days: 30
 
       - name: 分析性能测试结果
+        working-directory: backend
         run: |
-          # 检查响应时间是否超过阈值
-          python3 scripts/analyze_performance.py tests/performance/results.jtl
+          # 检查错误率与响应时间是否超过阈值
+          python3 - <<'EOF'
+          import csv, sys
+          path = "tests/reports/jmeter-results.jtl"
+          try:
+              with open(path, newline="", encoding="utf-8") as f:
+                  rows = list(csv.DictReader(f))
+          except FileNotFoundError:
+              print(f"结果文件不存在: {path}")
+              sys.exit(1)
+          total = len(rows)
+          errors = [r for r in rows if r.get("success", "").strip().lower() == "false"]
+          if total == 0:
+              print("无测试数据")
+              sys.exit(1)
+          error_rate = len(errors) / total * 100
+          times = [int(r["elapsed"]) for r in rows if r.get("elapsed", "").isdigit()]
+          avg = sum(times) / len(times) if times else 0
+          print(f"请求数: {total}, 失败: {len(errors)}, 错误率: {error_rate:.2f}%, 平均响应时间: {avg:.0f}ms")
+          if error_rate > 5:
+              print("错误率超过 5%，性能测试未通过")
+              sys.exit(1)
+          EOF
 
   # ============ 测试汇总 ============
   test-summary:

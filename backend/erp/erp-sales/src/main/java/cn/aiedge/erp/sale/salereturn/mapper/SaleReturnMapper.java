@@ -36,7 +36,7 @@ public interface SaleReturnMapper extends BaseMapper<SaleReturn> {
             "  i.small_unit_price, i.ref_cost_price, i.ref_cost_amount,",
             "  i.weight, i.volume,",
             "  i.image_url, i.brand, i.is_gift, i.product_line_attr,",
-            "  i.item_remark, i.remark as item_remark, i.exchange_gift, i.exchange_points,",
+            "  i.item_remark, i.exchange_gift, i.exchange_points,",
             "  i.price_level1, i.price_level2, i.price_level3, i.price_level4,",
             "  i.price_level5, i.price_level6, i.price_level7, i.price_level8,",
             "  i.ext_num1 as i_ext_num1, i.ext_num2 as i_ext_num2, i.ext_num3 as i_ext_num3,",

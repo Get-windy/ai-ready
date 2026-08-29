@@ -2,92 +2,53 @@
   <div class="bank-reconciliation">
     <!-- 统计卡片 -->
     <div class="summary-cards">
-      <div
-        class="summary-card"
-        style="--card-color: #1890ff"
-      >
-        <div class="summary-card-title">
-          总交易笔数
-        </div>
-        <div class="summary-card-value">
-          {{ summaryData.totalCount }}
-        </div>
+      <div class="summary-card" style="--card-color: #faad14">
+        <div class="summary-card-title">待银行对账</div>
+        <div class="summary-card-value">{{ summaryData.pendingCount }}</div>
       </div>
-      <div
-        class="summary-card"
-        style="--card-color: #faad14"
-      >
-        <div class="summary-card-title">
-          总收入金额
-        </div>
-        <div class="summary-card-value">
-          ¥{{ summaryData.totalIncome.toFixed(2) }}
-        </div>
+      <div class="summary-card" style="--card-color: #1890ff">
+        <div class="summary-card-title">对账记录总数</div>
+        <div class="summary-card-value">{{ summaryData.totalCount }}</div>
       </div>
-      <div
-        class="summary-card"
-        style="--card-color: #52c41a"
-      >
-        <div class="summary-card-title">
-          总支出金额
-        </div>
-        <div class="summary-card-value">
-          ¥{{ summaryData.totalExpense.toFixed(2) }}
-        </div>
+      <div class="summary-card" style="--card-color: #722ed1">
+        <div class="summary-card-title">差异待处理</div>
+        <div class="summary-card-value">{{ summaryData.differenceCount }}</div>
       </div>
-      <div
-        class="summary-card"
-        style="--card-color: #722ed1"
-      >
-        <div class="summary-card-title">
-          对账完成率
-        </div>
-        <div class="summary-card-value">
-          {{ summaryData.completionRate }}%
-        </div>
+      <div class="summary-card" style="--card-color: #52c41a">
+        <div class="summary-card-title">本页差异合计</div>
+        <div class="summary-card-value">¥{{ summaryData.pageDifference.toFixed(2) }}</div>
       </div>
     </div>
 
     <div class="filter-area">
-      <a-form
-        layout="inline"
-        :model="queryParams"
-      >
-        <a-form-item label="银行账户">
-          <a-select
-            v-model:value="queryParams.bankAccount"
-            placeholder="请选择银行账户"
+      <a-form layout="inline" :model="queryParams">
+        <a-form-item label="对方名称">
+          <a-input
+            v-model:value="queryParams.targetName"
+            placeholder="请输入对方名称"
             allow-clear
             style="width: 200px"
             size="small"
-          >
-            <a-select-option value="001">
-              工商银行-123456
-            </a-select-option>
-            <a-select-option value="002">
-              建设银行-789012
-            </a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item label="对账日期">
-          <a-month-picker
-            v-model:value="queryParams.month"
-            format="YYYY-MM"
-            value-format="YYYY-MM"
-            size="small"
+            @press-enter="handleSearch"
           />
+        </a-form-item>
+        <a-form-item label="状态">
+          <a-select
+            v-model:value="queryParams.status"
+            placeholder="全部状态"
+            allow-clear
+            style="width: 140px"
+            size="small"
+          >
+            <a-select-option :value="0">待对账</a-select-option>
+            <a-select-option :value="1">已对账</a-select-option>
+            <a-select-option :value="2">有差异</a-select-option>
+          </a-select>
         </a-form-item>
         <a-form-item>
           <a-space>
-            <a-button
-              type="primary"
-              @click="handleSearch"
-            >
-              查询
-            </a-button>
-            <a-button @click="handleAutoReconcile">
-              自动对账
-            </a-button>
+            <a-button type="primary" size="small" @click="handleSearch">查询</a-button>
+            <a-button size="small" @click="handleAutoReconcile">自动对账</a-button>
           </a-space>
         </a-form-item>
       </a-form>
@@ -105,81 +66,72 @@
       :show-search="false"
       :show-export="false"
       :show-batch-delete="false"
-      @cell-dblclick="handleView"
+      @page-change="handlePageChange"
     >
-      <template #empty>
-        <div class="table-empty">
-          <template v-if="hasError">
-            <WarningOutlined
-              class="table-empty-icon"
-              style="color: #faad14"
-            />
-            <p class="table-empty-text">
-              加载失败
-            </p>
-            <a-button
-              type="primary"
-              size="small"
-              class="table-empty-action"
-              @click="loadMockData"
-            >
-              <ReloadOutlined /> 重试
-            </a-button>
-          </template>
-          <template v-else>
-            <InboxOutlined class="table-empty-icon" />
-            <p class="table-empty-text">
-              暂无数据
-            </p>
-          </template>
-        </div>
+      <template #periodCell="{ record }">
+        <span>{{ record.startDate }} ~ {{ record.endDate }}</span>
       </template>
-      <template #typeCell="{ record }">
-        <a-tag :color="record.type === 'in' ? 'green' : 'red'">
-          {{ record.type === 'in' ? '收入' : '支出' }}
-        </a-tag>
+      <template #systemBalanceCell="{ record }">
+        <span>¥{{ fmt(record.systemBalance) }}</span>
+      </template>
+      <template #actualBalanceCell="{ record }">
+        <span>¥{{ fmt(record.actualBalance) }}</span>
+      </template>
+      <template #differenceCell="{ record }">
+        <span :style="{ color: Number(record.difference) !== 0 ? '#f5222d' : '#52c41a' }">
+          ¥{{ fmt(record.difference) }}
+        </span>
       </template>
       <template #statusCell="{ record }">
-        <a-tag :color="getStatusColor(record.status)">
-          {{ getStatusText(record.status) }}
-        </a-tag>
+        <a-tag :color="getStatusColor(record.status)">{{ getStatusText(record.status) }}</a-tag>
       </template>
-      <template #amountCell="{ record }">
-        <span>¥{{ record.amount?.toFixed(2) }}</span>
+      <template #actionCell="{ record }">
+        <a-button
+          v-if="record.status === 0"
+          type="link"
+          size="small"
+          @click="handleReconcile(record)"
+        >
+          对账
+        </a-button>
+        <span v-else class="no-action">—</span>
       </template>
     </BillTableList>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import { message } from 'ant-design-vue'
-import { WarningOutlined, ReloadOutlined, InboxOutlined } from '@ant-design/icons-vue'
+import { reconciliationApi } from '@/api/finance'
 
 interface BankRecord {
   id: number
-  date: string
-  type: string
-  amount: number
-  description: string
+  reconciliationNo: string
+  targetName: string
+  startDate: string
+  endDate: string
+  systemBalance: number | null
+  actualBalance: number | null
+  difference: number | null
   status: number
+  reconciliationDate: string
 }
 
 const loading = ref(false)
-const hasError = ref(false)
 const dataSource = ref<BankRecord[]>([])
 
 const summaryData = reactive({
-  totalCount: 86,
-  totalIncome: 458000.00,
-  totalExpense: 236500.00,
-  completionRate: 92.5
+  pendingCount: 0,
+  totalCount: 0,
+  differenceCount: 0,
+  pageDifference: 0
 })
 
 const queryParams = reactive({
-  bankAccount: undefined as string | undefined,
-  month: undefined as string | undefined
+  targetName: '',
+  status: undefined as number | undefined
 })
 
 const pagination = reactive({
@@ -189,83 +141,125 @@ const pagination = reactive({
 })
 
 const columns = [
-  { field: 'date', title: '日期', width: 120 },
-  { field: 'type', title: '类型', width: 80, slotName: 'typeCell' },
-  { field: 'amount', title: '金额', width: 120, slotName: 'amountCell' },
-  { field: 'description', title: '说明' },
-  { field: 'status', title: '状态', width: 100, slotName: 'statusCell' }
+  { field: 'reconciliationNo', title: '对账编号', width: 160 },
+  { field: 'targetName', title: '对方名称', minWidth: 140 },
+  { field: 'period', title: '对账期间', width: 200, slotName: 'periodCell' },
+  { field: 'systemBalance', title: '系统余额', width: 120, align: 'right', slotName: 'systemBalanceCell' },
+  { field: 'actualBalance', title: '实际余额', width: 120, align: 'right', slotName: 'actualBalanceCell' },
+  { field: 'difference', title: '差异', width: 110, align: 'right', slotName: 'differenceCell' },
+  { field: 'status', title: '状态', width: 90, slotName: 'statusCell' },
+  { field: 'reconciliationDate', title: '对账日期', width: 110 },
+  { field: 'action', title: '操作', width: 80, fixed: 'right', slotName: 'actionCell' }
 ]
 
 const getStatusColor = (status: number) => {
-  const colors: Record<number, string> = {
-    0: 'success',
-    1: 'warning',
-    2: 'error'
-  }
+  const colors: Record<number, string> = { 0: 'warning', 1: 'success', 2: 'error' }
   return colors[status] || 'default'
 }
 
 const getStatusText = (status: number) => {
-  const texts: Record<number, string> = {
-    0: '已对账',
-    1: '待对账',
-    2: '异常'
-  }
+  const texts: Record<number, string> = { 0: '待对账', 1: '已对账', 2: '有差异' }
   return texts[status] || '未知'
 }
 
-const handleSearch = () => {
-  message.info('查询银行对账记录')
+const fmt = (v: number | null | undefined) => {
+  if (v === null || v === undefined) return '0.00'
+  return Number(v).toFixed(2)
 }
 
-const handleView = (record: BankRecord) => {
-  message.info(`查看记录: ${record.id}`)
+async function loadStats() {
+  try {
+    const res: any = await reconciliationApi.getStats()
+    if (res) {
+      summaryData.pendingCount = Number(res.bankPending || 0)
+      summaryData.differenceCount = Number(res.differenceCount || 0)
+    }
+  } catch (err) {
+    console.warn('[银行对账] 获取统计失败', err)
+  }
 }
 
-const handleAutoReconcile = () => {
-  message.success('自动对账完成')
-}
-
-loading.value = true
-hasError.value = false
-function loadMockData() {
-  setTimeout(() => {
-    dataSource.value = [
-      {
-        id: 1,
-        date: '2026-04-13',
-        type: 'in',
-        amount: 10000,
-        description: '销售收款',
-        status: 0
-      },
-      {
-        id: 2,
-        date: '2026-04-13',
-        type: 'out',
-        amount: 5000,
-        description: '采购付款',
-        status: 1
-      }
-    ]
+async function loadData() {
+  loading.value = true
+  try {
+    const res: any = await reconciliationApi.page({
+      reconciliationType: 'BANK',
+      targetName: queryParams.targetName || undefined,
+      status: queryParams.status,
+      pageNum: pagination.current,
+      pageSize: pagination.pageSize
+    })
+    const records = (res?.records || []) as BankRecord[]
+    dataSource.value = records
+    pagination.total = Number(res?.total || 0)
+    summaryData.totalCount = pagination.total
+    summaryData.pageDifference = records.reduce((sum, r) => sum + Number(r.difference || 0), 0)
+  } catch (err) {
+    console.warn('[银行对账] 加载失败', err)
+    message.error('加载银行对账记录失败')
+    dataSource.value = []
+  } finally {
     loading.value = false
-  }, 500)
+  }
 }
-loadMockData()
 
-function handleParentCreate() { handleAdd() }
-function handleAdd() {
-  message.info('创建功能由父组件触发')
+function handleSearch() {
+  pagination.current = 1
+  loadData()
+}
+
+function handlePageChange(page: number, pageSize: number) {
+  pagination.current = page
+  pagination.pageSize = pageSize
+  loadData()
+}
+
+async function handleReconcile(record: BankRecord) {
+  try {
+    await reconciliationApi.reconcile(record.id)
+    message.success(`对账成功：${record.reconciliationNo}`)
+    loadData()
+    loadStats()
+  } catch (err: any) {
+    message.error(err?.message || '对账失败')
+  }
+}
+
+async function handleAutoReconcile() {
+  const pending = dataSource.value.filter((r) => r.status === 0)
+  if (!pending.length) {
+    message.info('当前页无待对账记录')
+    return
+  }
+  loading.value = true
+  try {
+    for (const r of pending) {
+      await reconciliationApi.reconcile(r.id)
+    }
+    message.success(`已自动对账 ${pending.length} 笔`)
+    loadData()
+    loadStats()
+  } catch (err: any) {
+    message.error(err?.message || '自动对账失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+function handleParentCreate() {
+  loadData()
 }
 
 onMounted(() => {
+  loadStats()
+  loadData()
   window.addEventListener('finance:create', handleParentCreate)
-  window.addEventListener('finance:refresh', loadMockData)
+  window.addEventListener('finance:refresh', loadData)
 })
 
 onUnmounted(() => {
   window.removeEventListener('finance:create', handleParentCreate)
-  window.removeEventListener('finance:refresh', loadMockData)
+  window.removeEventListener('finance:refresh', loadData)
 })
 
 defineExpose({})
@@ -286,7 +280,6 @@ defineExpose({})
   min-height: 0;
 }
 
-/* 统计卡片样式 */
 .summary-cards {
   display: flex;
   gap: 16px;
@@ -320,6 +313,7 @@ defineExpose({})
   margin-bottom: 16px;
 }
 
-/* 网格边框样式 */
-
+.no-action {
+  color: #bbb;
+}
 </style>

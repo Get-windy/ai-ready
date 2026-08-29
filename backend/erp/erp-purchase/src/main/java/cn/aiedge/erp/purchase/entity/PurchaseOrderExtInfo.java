@@ -31,19 +31,24 @@ public class PurchaseOrderExtInfo {
     /** 附件(JSON) */
     private String attachment;
 
-    /** 表头自定义1(数字) */
+    /** 表头自定义1(数字，DB 列带下划线数字) */
+    @TableField("ext_num_1")
     private BigDecimal extNum1;
 
-    /** 表头自定义2(数字) */
+    /** 表头自定义2(数字，DB 列带下划线数字) */
+    @TableField("ext_num_2")
     private BigDecimal extNum2;
 
-    /** 表头自定义3(文本) */
+    /** 表头自定义3(文本，DB 列带下划线数字) */
+    @TableField("ext_text_1")
     private String extText1;
 
-    /** 表头自定义4(文本) */
+    /** 表头自定义4(文本，DB 列带下划线数字) */
+    @TableField("ext_text_2")
     private String extText2;
 
-    /** 表头自定义5(文本) */
+    /** 表头自定义5(文本，DB 列带下划线数字) */
+    @TableField("ext_text_3")
     private String extText3;
 
     /** 打印次数 */

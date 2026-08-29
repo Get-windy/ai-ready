@@ -1,10 +1,16 @@
 package cn.aiedge.erp.purchase.purchasereturn.controller;
 
+import cn.aiedge.common.result.ApiResponse;
 import cn.aiedge.erp.purchase.purchasereturn.dto.PurchaseReturnDTO;
 import cn.aiedge.erp.purchase.purchasereturn.dto.PurchaseReturnItemDTO;
+import cn.aiedge.erp.purchase.purchasereturn.dto.PurchaseReturnVO;
 import cn.aiedge.erp.purchase.purchasereturn.entity.PurchaseReturn;
 import cn.aiedge.erp.purchase.purchasereturn.entity.PurchaseReturnItem;
+import cn.aiedge.erp.purchase.purchasereturn.enums.ReturnStatus;
+import cn.aiedge.erp.purchase.purchasereturn.enums.ReturnType;
+import cn.aiedge.erp.purchase.purchasereturn.mapper.PurchaseReturnMapper;
 import cn.aiedge.erp.purchase.purchasereturn.service.PurchaseReturnService;
+import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -14,140 +20,153 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Slf4j
 @RestController
 @RequestMapping("/api/erp/purchase/return")
 @RequiredArgsConstructor
-@Tag(name = "采购退货管理", description = "采购退货单的创建、审批、执行等操作")
+@Tag(name = "采购退货管理", description = "采购退货单创建、审批、出库完成、取消等操作")
 public class PurchaseReturnController {
 
     private final PurchaseReturnService purchaseReturnService;
+    private final PurchaseReturnMapper purchaseReturnMapper;
 
     @GetMapping("/page")
     @Operation(summary = "分页查询退货单")
-    public Page<PurchaseReturn> page(
+    public Page<PurchaseReturnVO> page(
             @Parameter(description = "关键词") @RequestParam(required = false) String keyword,
             @Parameter(description = "供应商ID") @RequestParam(required = false) Long supplierId,
+            @Parameter(description = "源订单ID") @RequestParam(required = false) Long purchaseOrderId,
+            @Parameter(description = "仓库ID") @RequestParam(required = false) Long warehouseId,
             @Parameter(description = "状态") @RequestParam(required = false) Integer status,
+            @Parameter(description = "结算状态") @RequestParam(required = false) Integer settleStatus,
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") int pageNum,
             @Parameter(description = "每页数量") @RequestParam(defaultValue = "10") int pageSize) {
-        return purchaseReturnService.pageList(keyword, supplierId, status, pageNum, pageSize);
+        Page<PurchaseReturn> page = purchaseReturnService.pageList(keyword, supplierId, purchaseOrderId, warehouseId, status, settleStatus, pageNum, pageSize);
+        Page<PurchaseReturnVO> voPage = new Page<>(pageNum, pageSize, page.getTotal());
+        voPage.setRecords(page.getRecords().stream().map(this::convertToVO).collect(Collectors.toList()));
+        return voPage;
+    }
+
+    @GetMapping("/next-no")
+    @Operation(summary = "生成下一退货单号")
+    public String nextNo() {
+        return purchaseReturnService.generateReturnNo();
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "获取退货单详情")
-    public PurchaseReturn getById(@PathVariable Long id) {
-        return purchaseReturnService.getById(id);
-    }
-
-    @GetMapping("/returnNo/{returnNo}")
-    @Operation(summary = "根据退货单号获取退货单")
-    public PurchaseReturn getByReturnNo(@PathVariable String returnNo) {
-        return purchaseReturnService.getByReturnNo(returnNo);
-    }
-
-    @GetMapping("/supplier/{supplierId}")
-    @Operation(summary = "获取供应商退货单列表")
-    public List<PurchaseReturn> listBySupplierId(@PathVariable Long supplierId) {
-        return purchaseReturnService.listBySupplierId(supplierId);
-    }
-
-    @PostMapping
-    @Operation(summary = "创建退货单")
-    // Ref: Odoo 18.0 Purchase Return - 前端统一发送 DTO，服务层拆分 header + items
-    public PurchaseReturn create(@RequestBody PurchaseReturnDTO dto) {
-        PurchaseReturn returnOrder = new PurchaseReturn();
-        BeanUtils.copyProperties(dto, returnOrder);
-        List<PurchaseReturnItem> items = dto.getItems().stream().map(itemDTO -> {
-            PurchaseReturnItem item = new PurchaseReturnItem();
-            BeanUtils.copyProperties(itemDTO, item);
-            return item;
-        }).collect(Collectors.toList());
-        return purchaseReturnService.createReturn(returnOrder, items);
-    }
-
-    @PutMapping("/{id}")
-    @Operation(summary = "更新退货单")
-    public PurchaseReturn update(@PathVariable Long id, @RequestBody PurchaseReturnDTO dto) {
-        PurchaseReturn returnOrder = new PurchaseReturn();
-        BeanUtils.copyProperties(dto, returnOrder);
-        returnOrder.setId(id);
-        List<PurchaseReturnItem> items = dto.getItems().stream().map(itemDTO -> {
-            PurchaseReturnItem item = new PurchaseReturnItem();
-            BeanUtils.copyProperties(itemDTO, item);
-            return item;
-        }).collect(Collectors.toList());
-        return purchaseReturnService.updateReturn(id, returnOrder, items);
-    }
-
-    @PostMapping("/{id}/submit")
-    @Operation(summary = "提交审批")
-    public PurchaseReturn submit(@PathVariable Long id) {
-        return purchaseReturnService.submitForApproval(id);
-    }
-
-    @PostMapping("/{id}/approve")
-    @Operation(summary = "审批退货单")
-    public PurchaseReturn approve(
-            @PathVariable Long id,
-            @Parameter(description = "审批人ID") @RequestParam Long approverId,
-            @Parameter(description = "审批意见") @RequestParam(required = false) String note) {
-        return purchaseReturnService.approve(id, approverId, note);
-    }
-
-    @PostMapping("/{id}/reject")
-    @Operation(summary = "拒绝退货单")
-    public PurchaseReturn reject(
-            @PathVariable Long id,
-            @Parameter(description = "拒绝原因") @RequestParam String reason) {
-        return purchaseReturnService.reject(id, reason);
-    }
-
-    @PostMapping("/{id}/complete")
-    @Operation(summary = "完成退货单")
-    public PurchaseReturn complete(@PathVariable Long id) {
-        return purchaseReturnService.complete(id);
-    }
-
-    @PostMapping("/{id}/cancel")
-    @Operation(summary = "取消退货单")
-    public PurchaseReturn cancel(
-            @PathVariable Long id,
-            @Parameter(description = "取消原因") @RequestParam(required = false) String reason) {
-        return purchaseReturnService.cancel(id, reason);
+    public PurchaseReturnVO getById(@PathVariable Long id) {
+        PurchaseReturn ret = purchaseReturnService.getById(id);
+        if (ret == null) {
+            throw new RuntimeException("退货单不存在");
+        }
+        PurchaseReturnVO vo = convertToVO(ret);
+        vo.setItems(purchaseReturnService.getItems(id));
+        return vo;
     }
 
     @GetMapping("/{id}/items")
-    @Operation(summary = "获取退货单明细")
+    @Operation(summary = "获取退货明细")
     public List<PurchaseReturnItem> getItems(@PathVariable Long id) {
         return purchaseReturnService.getItems(id);
     }
 
-    @PostMapping("/{id}/items")
-    @Operation(summary = "添加退货明细")
-    public PurchaseReturnItem addItem(@PathVariable Long id, @RequestBody PurchaseReturnItem item) {
-        return purchaseReturnService.addItem(id, item);
+    @GetMapping("/supplier/{supplierId}")
+    @Operation(summary = "获取供应商的退货单列表")
+    public List<PurchaseReturnVO> listBySupplierId(@PathVariable Long supplierId) {
+        return purchaseReturnService.listBySupplierId(supplierId).stream()
+                .map(this::convertToVO).collect(Collectors.toList());
     }
 
-    @PutMapping("/items/{itemId}")
-    @Operation(summary = "更新退货明细")
-    public PurchaseReturnItem updateItem(@PathVariable Long itemId, @RequestBody PurchaseReturnItem item) {
-        return purchaseReturnService.updateItem(itemId, item);
+    @GetMapping("/order/{orderId}")
+    @Operation(summary = "获取源订单的退货单列表")
+    public List<PurchaseReturnVO> listByOrderId(@PathVariable Long orderId) {
+        return purchaseReturnService.listByOrderId(orderId).stream()
+                .map(this::convertToVO).collect(Collectors.toList());
     }
 
-    @DeleteMapping("/items/{itemId}")
-    @Operation(summary = "删除退货明细")
-    public void removeItem(@PathVariable Long itemId) {
-        purchaseReturnService.removeItem(itemId);
+    @PostMapping
+    @Operation(summary = "创建退货单")
+    public PurchaseReturnVO create(@RequestBody PurchaseReturnDTO dto) {
+        PurchaseReturn ret = new PurchaseReturn();
+        BeanUtils.copyProperties(dto, ret);
+        ret.setTenantId(1L);
+        ret.setCreateBy(StpUtil.getLoginIdAsLong());
+        List<PurchaseReturnItem> items = null;
+        if (dto.getItems() != null) {
+            items = dto.getItems().stream().map(itemDTO -> {
+                PurchaseReturnItem item = new PurchaseReturnItem();
+                BeanUtils.copyProperties(itemDTO, item);
+                return item;
+            }).collect(Collectors.toList());
+        }
+        PurchaseReturn created = purchaseReturnService.createReturn(ret, items);
+        return convertToVO(created);
     }
 
-    @DeleteMapping("/{id}")
-    @Operation(summary = "删除退货单")
-    public void delete(@PathVariable Long id) {
-        purchaseReturnService.removeById(id);
+    @PostMapping("/from-order/{orderId}")
+    @Operation(summary = "从采购订单创建退货单")
+    public PurchaseReturnVO createFromOrder(@PathVariable Long orderId) {
+        PurchaseReturn ret = purchaseReturnService.createFromOrder(orderId);
+        return convertToVO(ret);
+    }
+
+    @PutMapping("/{id}")
+    @Operation(summary = "更新退货单")
+    public PurchaseReturnVO update(@PathVariable Long id, @RequestBody PurchaseReturnDTO dto) {
+        PurchaseReturn ret = new PurchaseReturn();
+        BeanUtils.copyProperties(dto, ret);
+        List<PurchaseReturnItem> items = null;
+        if (dto.getItems() != null) {
+            items = dto.getItems().stream().map(itemDTO -> {
+                PurchaseReturnItem item = new PurchaseReturnItem();
+                BeanUtils.copyProperties(itemDTO, item);
+                return item;
+            }).collect(Collectors.toList());
+        }
+        PurchaseReturn updated = purchaseReturnService.updateReturn(id, ret, items);
+        return convertToVO(updated);
+    }
+
+    @PostMapping("/{id}/submit")
+    @Operation(summary = "提交审批")
+    public PurchaseReturnVO submitForApproval(@PathVariable Long id) {
+        PurchaseReturn ret = purchaseReturnService.submitForApproval(id);
+        return convertToVO(ret);
+    }
+
+    @PostMapping("/{id}/approve")
+    @Operation(summary = "审批通过")
+    public PurchaseReturnVO approve(@PathVariable Long id, @RequestParam(required = false) String note) {
+        Long approverId = StpUtil.getLoginIdAsLong();
+        PurchaseReturn ret = purchaseReturnService.approve(id, approverId, note);
+        return convertToVO(ret);
+    }
+
+    @PostMapping("/{id}/reject")
+    @Operation(summary = "审批拒绝")
+    public PurchaseReturnVO reject(@PathVariable Long id, @RequestParam String reason) {
+        PurchaseReturn ret = purchaseReturnService.reject(id, reason);
+        return convertToVO(ret);
+    }
+
+    @PostMapping("/{id}/complete")
+    @Operation(summary = "完成退货出库")
+    public PurchaseReturnVO complete(@PathVariable Long id) {
+        PurchaseReturn ret = purchaseReturnService.complete(id);
+        return convertToVO(ret);
+    }
+
+    @PostMapping("/{id}/cancel")
+    @Operation(summary = "取消退货单")
+    public PurchaseReturnVO cancel(@PathVariable Long id, @RequestParam String reason) {
+        PurchaseReturn ret = purchaseReturnService.cancel(id, reason);
+        return convertToVO(ret);
     }
 
     @DeleteMapping("/batch")
@@ -158,10 +177,80 @@ public class PurchaseReturnController {
 
     @GetMapping("/export")
     @Operation(summary = "导出退货单列表")
-    public List<PurchaseReturn> export(
+    public List<PurchaseReturnVO> export(
             @Parameter(description = "关键词") @RequestParam(required = false) String keyword,
             @Parameter(description = "供应商ID") @RequestParam(required = false) Long supplierId,
+            @Parameter(description = "源订单ID") @RequestParam(required = false) Long purchaseOrderId,
+            @Parameter(description = "仓库ID") @RequestParam(required = false) Long warehouseId,
             @Parameter(description = "状态") @RequestParam(required = false) Integer status) {
-        return purchaseReturnService.exportList(keyword, supplierId, status);
+        return purchaseReturnService.exportList(keyword, supplierId, purchaseOrderId, warehouseId, status).stream()
+                .map(this::convertToVO).collect(Collectors.toList());
+    }
+
+    @PostMapping("/batch-print")
+    @Operation(summary = "批量打印退货单")
+    public ApiResponse<Void> batchPrint(@RequestBody Map<String, Object> params) {
+        @SuppressWarnings("unchecked")
+        List<Number> rawIds = (List<Number>) params.get("ids");
+        List<Long> ids = rawIds != null ? rawIds.stream().map(Number::longValue).toList() : List.of();
+        String template = params.get("template") != null ? params.get("template").toString() : "default";
+        purchaseReturnService.batchPrint(ids, template);
+        return ApiResponse.ok("打印完成", null);
+    }
+
+    @PostMapping("/{id}/items")
+    @Operation(summary = "添加退货明细")
+    public PurchaseReturnItem addItem(@PathVariable Long id, @RequestBody PurchaseReturnItemDTO dto) {
+        PurchaseReturnItem item = new PurchaseReturnItem();
+        BeanUtils.copyProperties(dto, item);
+        return purchaseReturnService.addItem(id, item);
+    }
+
+    @PutMapping("/{id}/items/{itemId}")
+    @Operation(summary = "更新退货明细")
+    public PurchaseReturnItem updateItem(@PathVariable Long itemId, @RequestBody PurchaseReturnItemDTO dto) {
+        PurchaseReturnItem item = new PurchaseReturnItem();
+        BeanUtils.copyProperties(dto, item);
+        return purchaseReturnService.updateItem(itemId, item);
+    }
+
+    @DeleteMapping("/{id}/items/{itemId}")
+    @Operation(summary = "删除退货明细")
+    public void removeItem(@PathVariable Long itemId) {
+        purchaseReturnService.removeItem(itemId);
+    }
+
+    @GetMapping("/statistics")
+    @Operation(summary = "退货统计")
+    public ApiResponse<Map<String, Object>> statistics() {
+        Map<String, Object> stats = new HashMap<>();
+        for (ReturnStatus status : ReturnStatus.values()) {
+            stats.put(status.getDesc(), purchaseReturnService.lambdaQuery()
+                    .eq(PurchaseReturn::getStatus, status.getCode())
+                    .eq(PurchaseReturn::getDeleted, 0)
+                    .count());
+        }
+        stats.put("totalReturnAmount", purchaseReturnMapper.sumReturnAmount(1L));
+        return ApiResponse.ok(stats);
+    }
+
+    private PurchaseReturnVO convertToVO(PurchaseReturn ret) {
+        PurchaseReturnVO vo = new PurchaseReturnVO();
+        BeanUtils.copyProperties(ret, vo);
+        for (ReturnStatus status : ReturnStatus.values()) {
+            if (status.getCode().equals(ret.getStatus())) {
+                vo.setStatusDesc(status.getDesc());
+                break;
+            }
+        }
+        if (ret.getReturnType() != null) {
+            for (ReturnType type : ReturnType.values()) {
+                if (type.getCode().equals(ret.getReturnType())) {
+                    vo.setReturnTypeDesc(type.getDesc());
+                    break;
+                }
+            }
+        }
+        return vo;
     }
 }

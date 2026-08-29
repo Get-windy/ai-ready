@@ -80,6 +80,34 @@ public class CapitalFlowController {
         return stats;
     }
 
+    @GetMapping("/reconcile/page")
+    @Operation(summary = "在线支付对账单分页查询（支付类型/方式/对账标记）")
+    public Page<CapitalFlowDTO> reconcilePage(
+            @Parameter(description = "支付类型: 1-收款 2-退款") @RequestParam(required = false) Integer paymentType,
+            @Parameter(description = "方向: IN/OUT") @RequestParam(required = false) String direction,
+            @Parameter(description = "支付方式") @RequestParam(required = false) Integer paymentMethod,
+            @Parameter(description = "对账标记: 0-未对账 1-已对账") @RequestParam(required = false) Integer reconcileFlag,
+            @Parameter(description = "关键字(流水号/来源订单/交易号/客户)") @RequestParam(required = false) String keyword,
+            @Parameter(description = "开始日期") @RequestParam(required = false) LocalDate startDate,
+            @Parameter(description = "结束日期") @RequestParam(required = false) LocalDate endDate,
+            @Parameter(description = "页码") @RequestParam(defaultValue = "1") int pageNum,
+            @Parameter(description = "每页数量") @RequestParam(defaultValue = "10") int pageSize) {
+        Page<CapitalFlow> page = capitalFlowService.pageListForReconcile(paymentType, direction, paymentMethod,
+                reconcileFlag, keyword, startDate, endDate, pageNum, pageSize);
+        Page<CapitalFlowDTO> voPage = new Page<>(pageNum, pageSize, page.getTotal());
+        voPage.setRecords(page.getRecords().stream().map(this::convertToDTO).collect(Collectors.toList()));
+        return voPage;
+    }
+
+    @PutMapping("/reconcile/{id}")
+    @Operation(summary = "切换对账标记")
+    public void toggleReconcile(
+            @Parameter(description = "流水ID") @PathVariable Long id,
+            @Parameter(description = "对账标记: 0-未对账 1-已对账（缺省则取反）") @RequestParam(required = false) Integer flag,
+            @Parameter(description = "对账人") @RequestParam(required = false) String operator) {
+        capitalFlowService.toggleReconcileFlag(id, flag, operator);
+    }
+
     private CapitalFlowDTO convertToDTO(CapitalFlow flow) {
         CapitalFlowDTO dto = new CapitalFlowDTO();
         BeanUtils.copyProperties(flow, dto);

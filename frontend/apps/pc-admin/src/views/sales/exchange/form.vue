@@ -201,6 +201,7 @@ import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTab
 import type { BillHeaderConfig, BasicInfoField, BillTabConfig, SummaryRow, BillFooterConfig } from '@/components/BillFormPage/types'
 import { useBillForm } from '@/components/BillFormPage/useBillForm'
 import { saleExchangeApi } from '@/api/erp'
+import { PRODUCT_SALES_DEFAULTS } from '@/utils/productDefaults'
 import optionsApi from '@/api/options'
 import { useUserStore } from '@/stores/user'
 
@@ -244,14 +245,7 @@ const {
   },
   redirectPath: '/sales/exchange',
   optionTypes: ['customers', 'warehouses', 'users', 'products'],
-  productDefaults: {
-    itemCode: '', barcode: '', specification: '',
-    unit: '', batchCode: '',
-    conversionRelation: '', pieceQuantity: 0,
-    bigPack: 0, midPack: 0, smallPack: 0,
-    unitPrice: 0, taxRate: 13, scanMode: false,
-    exchangeGift: '', exchangePoints: 0,
-  },
+  productDefaults: PRODUCT_SALES_DEFAULTS,
   onFieldChange: (fieldKey, val, fd) => {
     if (fieldKey === 'customerId') {
       const c = optionRefs.customers.find((x: any) => x.id === val)
@@ -957,6 +951,10 @@ onMounted(async () => {
 
 <style scoped>
 .warehouse-section {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
   margin-bottom: 8px;
   border: 1px solid #e8e8e8;
   border-radius: 4px;

@@ -93,7 +93,12 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
         String uri = request.getRequestURI();
         String query = request.getQueryString();
         String fullUrl = query != null ? uri + "?" + query : uri;
-        
+
+        // XXL-Job执行器注册/心跳流量走内部 admin 路径，未部署 xxl-job-admin 时会产生持续 404 日志噪音，跳过记录
+        if (uri.startsWith("/xxl-job-admin")) {
+            return;
+        }
+
         if (duration > SLOW_REQUEST_THRESHOLD) {
             log.warn("慢请求: {} {} - status={}, duration={}ms", method, fullUrl, status, duration);
         } else if (status >= 500) {

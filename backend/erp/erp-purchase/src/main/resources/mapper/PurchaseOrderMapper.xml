@@ -91,12 +91,12 @@
             GROUP BY order_id
         ) item_agg ON item_agg.order_id = o.id
         LEFT JOIN (
-            SELECT ri.purchase_order_id,
+            SELECT r.purchase_order_id,
                    SUM(COALESCE(ri.return_quantity, 0)) AS return_qty,
                    SUM(COALESCE(ri.line_amount, 0)) AS return_amt
             FROM erp_purchase_return_item ri
             INNER JOIN erp_purchase_return r ON r.id = ri.return_id AND r.deleted = 0
-            GROUP BY ri.purchase_order_id
+            GROUP BY r.purchase_order_id
         ) ret_agg ON ret_agg.purchase_order_id = o.id
 
         ${ew.customSqlSegment}
@@ -119,6 +119,7 @@
             o.submit_time,
             o.create_time,
             o.remark,
+            o.source_bill_no,
 
             /* 名称解析 */
             w.warehouse_name AS warehouse_name,

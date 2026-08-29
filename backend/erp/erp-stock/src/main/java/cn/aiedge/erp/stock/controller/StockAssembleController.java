@@ -30,9 +30,23 @@ public class StockAssembleController {
     public static class CreateAssembleRequest {
         private Long bomId;
         private Long warehouseId;
+        private Long inWarehouseId;
+        private String inWarehouseName;
+        private Long outWarehouseId;
+        private String outWarehouseName;
+        private String handlerName;
+        private String produceUnit;
+        private String assembleDate;
         private BigDecimal assembleQuantity;
+        private BigDecimal outputQuantity;
         private BigDecimal assembleFee;
+        private BigDecimal totalCost;
         private String remark;
+        private Long productId;
+        private String productCode;
+        private String productName;
+        private String productSpec;
+        private String productUnit;
         private List<StockAssembleItem> items;
     }
 
@@ -70,11 +84,48 @@ public class StockAssembleController {
         assemble.setTenantId(1L);
         assemble.setBomId(request.getBomId());
         assemble.setWarehouseId(request.getWarehouseId());
+        assemble.setInWarehouseId(request.getInWarehouseId());
+        assemble.setInWarehouseName(request.getInWarehouseName());
+        assemble.setOutWarehouseId(request.getOutWarehouseId());
+        assemble.setOutWarehouseName(request.getOutWarehouseName());
+        assemble.setHandlerName(request.getHandlerName());
+        assemble.setProduceUnit(request.getProduceUnit());
         assemble.setAssembleQuantity(request.getAssembleQuantity());
+        assemble.setOutputQuantity(request.getOutputQuantity());
         assemble.setAssembleFee(request.getAssembleFee());
         assemble.setRemark(request.getRemark());
+        assemble.setProductId(request.getProductId());
+        assemble.setProductCode(request.getProductCode());
+        assemble.setProductName(request.getProductName());
+        assemble.setProductSpec(request.getProductSpec());
+        assemble.setProductUnit(request.getProductUnit());
         assemble.setCreateBy(StpUtil.getLoginIdAsLong());
         return Result.ok(assembleService.createAssemble(assemble, request.getItems()));
+    }
+
+    @PutMapping("/{id}")
+    @Operation(summary = "更新草稿组装单")
+    public Result<StockAssemble> update(@PathVariable Long id, @RequestBody CreateAssembleRequest request) {
+        StockAssemble assemble = new StockAssemble();
+        assemble.setId(id);
+        assemble.setBomId(request.getBomId());
+        assemble.setWarehouseId(request.getWarehouseId());
+        assemble.setInWarehouseId(request.getInWarehouseId());
+        assemble.setInWarehouseName(request.getInWarehouseName());
+        assemble.setOutWarehouseId(request.getOutWarehouseId());
+        assemble.setOutWarehouseName(request.getOutWarehouseName());
+        assemble.setHandlerName(request.getHandlerName());
+        assemble.setProduceUnit(request.getProduceUnit());
+        assemble.setAssembleQuantity(request.getAssembleQuantity());
+        assemble.setOutputQuantity(request.getOutputQuantity());
+        assemble.setAssembleFee(request.getAssembleFee());
+        assemble.setRemark(request.getRemark());
+        assemble.setProductId(request.getProductId());
+        assemble.setProductCode(request.getProductCode());
+        assemble.setProductName(request.getProductName());
+        assemble.setProductSpec(request.getProductSpec());
+        assemble.setProductUnit(request.getProductUnit());
+        return Result.ok(assembleService.updateAssemble(id, assemble, request.getItems()));
     }
 
     @PostMapping("/{id}/submit")

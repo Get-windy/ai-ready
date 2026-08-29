@@ -251,6 +251,7 @@ import { message, Modal } from 'ant-design-vue'
 import { SearchOutlined, MessageOutlined, GiftOutlined } from '@ant-design/icons-vue'
 import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTable/types'
 import { partnerApi } from '@/api/erp/partner'
+import PartnerListPage from '../components/PartnerListPage.vue'
 
 const router = useRouter()
 
@@ -359,6 +360,22 @@ const columns: DetailColumnConfig[] = [
   { key: 'promoterName', title: '推广人', type: 'input', width: 100 },
   { key: 'contactPerson', title: '联系人', type: 'input', width: 100 },
   { key: 'mnemonicCode', title: '助记码', type: 'input', width: 100 },
+  { key: 'phone', title: '联系电话', type: 'input', width: 130 },
+  { key: 'address', title: '联系地址', type: 'input', width: 200 },
+  { key: 'buyerAccount', title: '买家账号', type: 'input', width: 120 },
+  { key: 'customerOnePass', title: '客户一票通', type: 'input', width: 120 },
+  { key: 'dynamicPaymentTerm', title: '动态收款期限(天)', type: 'number', width: 140 },
+  { key: 'fixedPaymentTerm', title: '固定账期', type: 'input', width: 100 },
+  { key: 'settlementPeriod', title: '结算期', type: 'input', width: 100 },
+  { key: 'bankName', title: '开户银行', type: 'input', width: 120 },
+  { key: 'bankAccount', title: '银行账号', type: 'input', width: 140 },
+  { key: 'taxNumber', title: '税号', type: 'input', width: 140 },
+  { key: 'customerSource', title: '客户来源', type: 'input', width: 100 },
+  { key: 'businessLicenseExpiry', title: '营业执照有效期', type: 'input', width: 130 },
+  { key: 'lastTradeTime', title: '最近交易时间', type: 'input', width: 130 },
+  { key: 'createTime', title: '新增时间', type: 'input', width: 130 },
+  { key: 'attachment', title: '附件', type: 'input', width: 80 },
+  { key: 'remark', title: '备注', type: 'input', width: 150 },
 ]
 
 function handleSendMessage() {

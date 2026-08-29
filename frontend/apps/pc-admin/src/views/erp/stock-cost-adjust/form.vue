@@ -185,9 +185,9 @@ const headerConfig = computed<BillHeaderConfig>(() => ({
 }))
 
 const basicInfoFields = computed<BasicInfoField[]>(() => [
-  { key: 'warehouseId', label: '仓库', type: 'select', required: true, placeholder: '请选择仓库', options: (optionRefs.warehouses || []).map((w: any) => ({ label: w.name, value: w.id })), searchBtn: '+Q', loading: loadingOptions.value },
+  { key: 'warehouseId', label: '调价仓库', type: 'select', required: true, placeholder: '请选择调价仓库', options: (optionRefs.warehouses || []).map((w: any) => ({ label: w.name, value: w.id })), searchBtn: '+Q', loading: loadingOptions.value },
   { key: 'handlerId', label: '经手人', type: 'select', required: true, placeholder: '请选择经手人', options: (optionRefs.users || []).map((u: any) => ({ label: u.name, value: u.id })), searchBtn: '+Q', loading: loadingOptions.value },
-  { key: 'date', label: '调价日期', type: 'date', required: true },
+  { key: 'date', label: '单据日期', type: 'date', required: true },
   { key: 'adjustType', label: '调价类型', type: 'select', required: true, options: ADJUST_TYPE_OPTIONS },
   { key: 'reasonType', label: '原因类型', type: 'select', required: true, options: REASON_TYPE_OPTIONS },
 ])
@@ -219,7 +219,9 @@ const detailColumns: DetailColumnConfig[] = [
   { key: 'retailPrice', title: '零售价', type: 'number', width: 100, precision: 2 },
   { key: 'currentQuantity', title: '库存数量', type: 'number', width: 100, precision: 0 },
   { key: 'oldCost', title: '调前成本价', type: 'number', width: 100, precision: 2 },
+  { key: 'oldCostAmount', title: '调前成本金额', type: 'number', width: 110, precision: 2, readonly: true },
   { key: 'newCost', title: '调后成本价', type: 'number', width: 100, precision: 2 },
+  { key: 'newCostAmount', title: '调后成本金额', type: 'number', width: 110, precision: 2, readonly: true },
   { key: 'adjustAmount', title: '调整金额', type: 'number', width: 100, precision: 2 },
   { key: 'remark', title: '备注', type: 'input', width: 150 },
 ]

@@ -15,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import org.springframework.web.multipart.MultipartFile;
@@ -140,8 +141,16 @@ public class PurchaseOrderController {
     @GetMapping("/next-no")
     @SaCheckLogin
     public ApiResponse<String> getNextOrderNo(
-            @Parameter(description = "日期(yyyy-MM-dd)") @RequestParam(required = false) String date) {
-        LocalDate localDate = date != null ? LocalDate.parse(date) : LocalDate.now();
+            @Parameter(description = "日期(yyyy-MM-dd 或 yyyyMMdd)") @RequestParam(required = false) String date) {
+        // 容错：前端可能传 yyyyMMdd（generateCodeAsync 的 getTodayStr 返回 8 位），也可能传标准 ISO 日期
+        LocalDate localDate;
+        if (date == null || date.isBlank()) {
+            localDate = LocalDate.now();
+        } else if (date.matches("\\d{8}")) {
+            localDate = LocalDate.parse(date, DateTimeFormatter.BASIC_ISO_DATE);
+        } else {
+            localDate = LocalDate.parse(date, DateTimeFormatter.ISO_LOCAL_DATE);
+        }
         String orderNo = purchaseOrderService.generateNextOrderNo(localDate);
         return ApiResponse.ok(orderNo);
     }

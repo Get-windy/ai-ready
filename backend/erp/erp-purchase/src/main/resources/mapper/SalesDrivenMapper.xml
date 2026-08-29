@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.aiedge.erp.purchase.saledriven.mapper.SalesDrivenMapper">
+
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!-- 以销定购-销售订单列表分页（42列 + 订金前两条 + 是否已采购）      -->
+    <!-- 数据源 erp_sale_order 主表 + erp_sale_order_deposit 订金子表   -->
+    <!-- + erp_purchase_order 按 source_bill_no 反查是否已采购          -->
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <select id="selectPageWithDetails" resultType="cn.aiedge.erp.purchase.saledriven.dto.SalesDrivenRowDTO">
+        SELECT
+            o.id,
+            o.order_date                                             AS orderDate,
+            o.order_no                                               AS orderNo,
+            o.sale_type                                              AS saleType,
+            o.generation_method                                      AS generationMethod,
+            o.status                                                 AS status,
+            (CASE WHEN COALESCE(o.coupon_amount, 0) &gt; 0 THEN TRUE ELSE FALSE END) AS useCoupon,
+            o.warehouse_name                                         AS warehouseName,
+            o.customer_code                                          AS customerCode,
+            o.customer_name                                          AS customerName,
+            (CASE WHEN o.bookkeeping_time IS NULL THEN 0 ELSE 1 END) AS bookkeepingStatus,
+            FALSE                                                    AS forcedTerminated,
+            (CASE WHEN COALESCE(po.cnt, 0) &gt; 0 THEN TRUE ELSE FALSE END) AS hasPurchased,
+            o.total_quantity                                         AS totalQuantity,
+            o.shipped_quantity                                       AS shippedQuantity,
+            o.unshipped_quantity                                     AS unshippedQuantity,
+            o.total_weight                                           AS totalWeight,
+            o.total_volume                                           AS totalVolume,
+            o.bill_amount                                            AS billAmount,
+            dep.dep_account1                                         AS depositAccount1,
+            dep.dep_amount1                                          AS depositAmount1,
+            dep.dep_account2                                         AS depositAccount2,
+            dep.dep_amount2                                          AS depositAmount2,
+            o.logistics_company                                      AS logisticsCompany,
+            o.waybill_no                                             AS waybillNo,
+            o.shipping_fee                                           AS shippingFee,
+            o.coupon_amount                                          AS couponAmount,
+            o.discount_amount                                        AS discountAmount,
+            o.receiver_name                                          AS receiverName,
+            o.receiver_phone                                         AS receiverPhone,
+            o.shipping_address                                       AS shippingAddress,
+            o.expected_ship_time                                     AS expectedShipTime,
+            o.salesman_name                                          AS salesmanName,
+            o.dept_name                                              AS deptName,
+            o.creator_name                                           AS creatorName,
+            o.submitter_name                                         AS submitterName,
+            o.auditor_name                                           AS auditorName,
+            o.order_remark                                           AS orderRemark,
+            o.buyer_remark                                           AS buyerRemark,
+            o.attachment                                             AS attachment,
+            o.print_count                                            AS printCount,
+            o.submit_time                                            AS submitTime,
+            o.bookkeeping_time                                       AS bookkeepingTime
+
+        FROM erp_sale_order o
+
+        /* 订金子表：取 sequence 前两条作为订金账户1/2 */
+        LEFT JOIN (
+            SELECT t.order_id,
+                   MAX(CASE WHEN t.rn = 1 THEN t.account_name END) AS dep_account1,
+                   MAX(CASE WHEN t.rn = 1 THEN t.amount END)       AS dep_amount1,
+                   MAX(CASE WHEN t.rn = 2 THEN t.account_name END) AS dep_account2,
+                   MAX(CASE WHEN t.rn = 2 THEN t.amount END)       AS dep_amount2
+            FROM (
+                SELECT order_id, account_name, amount,
+                       ROW_NUMBER() OVER (PARTITION BY order_id ORDER BY sequence ASC, id ASC) AS rn
+                FROM erp_sale_order_deposit
+            ) t
+            GROUP BY t.order_id
+        ) dep ON dep.order_id = o.id
+
+        /* 是否已采购：反查采购单 source_bill_no（status 小于 4 视为在途，已取消不计） */
+        LEFT JOIN (
+            SELECT source_bill_no, COUNT(*) AS cnt
+            FROM erp_purchase_order
+            WHERE deleted = 0 AND status &lt; 4
+            GROUP BY source_bill_no
+        ) po ON po.source_bill_no = o.order_no
+
+        ${ew.customSqlSegment}
+    </select>
+
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!-- 查询销售订单明细（采购成品/采购原料明细来源）                       -->
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <select id="selectItemsByOrderId" resultType="cn.aiedge.erp.purchase.saledriven.dto.SalesDrivenItemDTO">
+        SELECT
+            id                  AS itemId,
+            product_id          AS productId,
+            product_code        AS productCode,
+            product_name        AS productName,
+            specification       AS specification,
+            unit                AS unit,
+            quantity            AS quantity,
+            unit_price          AS unitPrice,
+            warehouse_id        AS warehouseId
+        FROM erp_sale_order_item
+        WHERE order_id = #{orderId}
+        ORDER BY line_no ASC
+    </select>
+
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!-- 商品对应BOM成品（active 且未删除，按 product_id 匹配）             -->
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <select id="selectActiveKitIdByProductId" resultType="java.lang.Long">
+        SELECT id
+        FROM erp_product_kit
+        WHERE product_id = #{productId}
+          AND COALESCE(active, FALSE) = TRUE
+          AND deleted = 0
+        ORDER BY create_time DESC
+        LIMIT 1
+    </select>
+
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!-- 查询BOM原料明细（component 原料）                                 -->
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <select id="selectKitComponents" resultType="cn.aiedge.erp.purchase.saledriven.dto.SalesDrivenItemDTO">
+        SELECT
+            id                        AS itemId,
+            component_product_id      AS productId,
+            component_product_code    AS productCode,
+            component_product_name    AS productName,
+            component_product_spec    AS specification,
+            component_product_unit    AS unit,
+            quantity                  AS quantity
+        FROM erp_product_kit_item
+        WHERE kit_id = #{kitId} AND deleted = 0
+        ORDER BY line_no ASC
+    </select>
+
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!-- 查询销售订单编号                                                  -->
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <select id="selectOrderNoById" resultType="java.lang.String">
+        SELECT order_no
+        FROM erp_sale_order
+        WHERE id = #{orderId} AND deleted = 0
+    </select>
+
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!-- 查询销售发货仓库ID                                               -->
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <select id="selectWarehouseIdById" resultType="java.lang.Long">
+        SELECT warehouse_id
+        FROM erp_sale_order
+        WHERE id = #{orderId} AND deleted = 0
+    </select>
+
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!-- 按源单号统计未完成采购单数量（重复采购校验）                        -->
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <select id="countActivePurchaseBySourceBillNo" resultType="int">
+        SELECT COUNT(*)
+        FROM erp_purchase_order
+        WHERE source_bill_no = #{sourceBillNo} AND deleted = 0 AND status &lt; 4
+    </select>
+
+</mapper>

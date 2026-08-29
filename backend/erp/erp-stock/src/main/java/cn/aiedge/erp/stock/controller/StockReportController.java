@@ -3,7 +3,13 @@ package cn.aiedge.erp.stock.controller;
 import cn.aiedge.base.vo.Result;
 import cn.aiedge.erp.stock.dto.InvSummaryVO;
 import cn.aiedge.erp.stock.dto.PurchasePrepAnalysisVO;
+import cn.aiedge.erp.stock.dto.ShortageReplenishVO;
+import cn.aiedge.erp.stock.dto.SmartReplenishVO;
+import cn.aiedge.erp.stock.dto.StockAlertReplenishVO;
 import cn.aiedge.erp.stock.dto.StockFlowVO;
+import cn.aiedge.erp.stock.service.ShortageReplenishService;
+import cn.aiedge.erp.stock.service.SmartReplenishService;
+import cn.aiedge.erp.stock.service.StockAlertReplenishService;
 import cn.aiedge.erp.stock.service.StockReportService;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import io.swagger.v3.oas.annotations.Operation;
@@ -18,6 +24,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 /**
@@ -34,6 +41,9 @@ import java.time.LocalDate;
 public class StockReportController {
 
     private final StockReportService stockReportService;
+    private final StockAlertReplenishService stockAlertReplenishService;
+    private final ShortageReplenishService shortageReplenishService;
+    private final SmartReplenishService smartReplenishService;
 
     @Operation(summary = "进销存汇总分页", description = "每商品+仓库一行：期初数量/金额、期间入库、期间出库、结存（金额按成本价）")
     @GetMapping("/inv-summary/page")
@@ -65,5 +75,60 @@ public class StockReportController {
     public Result<PurchasePrepAnalysisVO> purchasePrepAnalysis(
             @Parameter(description = "仓库ID（可空，为空统计全部仓库）") @RequestParam(required = false) Long warehouseId) {
         return Result.ok(stockReportService.getPurchasePrepAnalysis(warehouseId));
+    }
+
+    @Operation(summary = "库存预警补货分页", description = "按商品×仓库一行：仓库/商品档案/预警类型/缺货数量/待发货/账面库存/待收货/最近采购")
+    @GetMapping("/alert-replenish/page")
+    public Result<IPage<StockAlertReplenishVO>> alertReplenishPage(
+            @Parameter(description = "页码") @RequestParam(defaultValue = "1") Integer pageNum,
+            @Parameter(description = "每页大小") @RequestParam(defaultValue = "20") Integer pageSize,
+            @Parameter(description = "仓库ID") @RequestParam(required = false) Long warehouseId,
+            @Parameter(description = "商品名称/编码/货号") @RequestParam(required = false) String keyword,
+            @Parameter(description = "品牌") @RequestParam(required = false) String brand,
+            @Parameter(description = "所属供应商(模糊)") @RequestParam(required = false) String supplierName,
+            @Parameter(description = "备注") @RequestParam(required = false) String remark,
+            @Parameter(description = "只显示下限预警商品") @RequestParam(required = false) Boolean onlyLowStock,
+            @Parameter(description = "商品分类ID") @RequestParam(required = false) Long categoryId) {
+        return Result.ok(stockAlertReplenishService.page(warehouseId, keyword, brand, supplierName,
+                remark, onlyLowStock, categoryId, pageNum, pageSize));
+    }
+
+    @Operation(summary = "缺货补货分页", description = "按商品×仓库一行：订单数量/价税合计/已发货/待发货/待收货/账面库存/缺货数量")
+    @GetMapping("/shortage-replenish/page")
+    public Result<IPage<ShortageReplenishVO>> shortageReplenishPage(
+            @Parameter(description = "页码") @RequestParam(defaultValue = "1") Integer pageNum,
+            @Parameter(description = "每页大小") @RequestParam(defaultValue = "20") Integer pageSize,
+            @Parameter(description = "单据状态（空=有效状态 2,3,4,5）") @RequestParam(required = false) Integer orderStatus,
+            @Parameter(description = "开始日期(yyyy-MM-dd，含)") @RequestParam(required = false) String startDate,
+            @Parameter(description = "结束日期(yyyy-MM-dd，含)") @RequestParam(required = false) String endDate,
+            @Parameter(description = "客户ID") @RequestParam(required = false) Long customerId,
+            @Parameter(description = "经手人ID") @RequestParam(required = false) Long salesmanId,
+            @Parameter(description = "仓库ID") @RequestParam(required = false) Long warehouseId,
+            @Parameter(description = "订单来源") @RequestParam(required = false) Integer orderSource,
+            @Parameter(description = "商品名称/编码/货号") @RequestParam(required = false) String productKeyword,
+            @Parameter(description = "供应商(模糊)") @RequestParam(required = false) String supplierName,
+            @Parameter(description = "商品分类ID") @RequestParam(required = false) Long categoryId,
+            @Parameter(description = "缺货数量口径(1=待发货-账面库存 2=待发货-待收货-账面库存)") @RequestParam(required = false) Integer shortageMode,
+            @Parameter(description = "仅显示缺货商品") @RequestParam(required = false) Boolean onlyShortage) {
+        return Result.ok(shortageReplenishService.page(orderStatus, startDate, endDate, customerId,
+                salesmanId, warehouseId, orderSource, productKeyword, supplierName, categoryId,
+                shortageMode, onlyShortage, pageNum, pageSize));
+    }
+
+    @Operation(summary = "智能补货分页", description = "每商品一行：商品档案/销售数量/销售金额/采购金额/日均销量/待收货/待发货/采购数量/账面库存/换算结果/计划采购数量/可用库存/最近销售/最近进货")
+    @GetMapping("/smart-replenish/page")
+    public Result<IPage<SmartReplenishVO>> smartReplenishPage(
+            @Parameter(description = "页码") @RequestParam(defaultValue = "1") Integer pageNum,
+            @Parameter(description = "每页大小") @RequestParam(defaultValue = "20") Integer pageSize,
+            @Parameter(description = "销售日期开始(yyyy-MM-dd，含)") @RequestParam(required = false) String startDate,
+            @Parameter(description = "销售日期结束(yyyy-MM-dd，含)") @RequestParam(required = false) String endDate,
+            @Parameter(description = "备货天数") @RequestParam(required = false) Integer stockDays,
+            @Parameter(description = "仓库ID") @RequestParam(required = false) Long warehouseId,
+            @Parameter(description = "商品名称/编码/货号/条码") @RequestParam(required = false) String productKeyword,
+            @Parameter(description = "供货商(模糊)") @RequestParam(required = false) String supplierName,
+            @Parameter(description = "商品分类ID") @RequestParam(required = false) Long categoryId,
+            @Parameter(description = "计划采购数量下限") @RequestParam(required = false) BigDecimal minPlanQty) {
+        return Result.ok(smartReplenishService.page(startDate, endDate, stockDays, warehouseId,
+                productKeyword, supplierName, categoryId, minPlanQty, pageNum, pageSize));
     }
 }

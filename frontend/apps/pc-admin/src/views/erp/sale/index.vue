@@ -102,8 +102,8 @@
             <!-- 待审核操作列 -->
             <template #pendingReviewActionCell="{ record }">
               <a-space :size="4">
-                <a-button type="link" size="small" @click="handleApprove(record)">审核</a-button>
-                <a-button type="link" size="small" danger @click="handleReject(record)">拒绝</a-button>
+                <a-button v-if="record.status === 1" type="link" size="small" @click="handleApprove(record)">审核</a-button>
+                <a-button v-if="record.status === 1" type="link" size="small" danger @click="handleReject(record)">拒绝</a-button>
                 <a-button type="link" size="small" @click="goEdit(record.id)">详情</a-button>
               </a-space>
             </template>

@@ -52,11 +52,63 @@
     </template>
 
     <template #bottom-extra>
+      <!-- ═══ 底部收款区域（对标：明细表下方平铺） ═══ -->
+      <div class="pay-area">
+        <div class="pay-row">
+          <span v-if="pageConfig['depositAccount1']?.visible !== false" class="pay-item">
+            <label>订金账户1</label>
+            <a-select v-model:value="formData.depositAccount1" size="small" show-search allow-clear style="width:130px" placeholder="+Q">
+              <a-select-option v-for="a in accountOptions" :key="a.id" :value="a.id">{{ a.name }}</a-select-option>
+            </a-select>
+          </span>
+          <span v-if="pageConfig['depositAmount1']?.visible !== false" class="pay-item">
+            <label>订金金额1</label>
+            <a-input-number v-model:value="formData.depositAmount1" size="small" :precision="2" style="width:110px" />
+          </span>
+          <span v-if="pageConfig['moreAccounts']?.visible !== false" class="pay-item">
+            <label>更多账户</label>
+            <a-input v-model:value="formData.moreAccounts" size="small" style="width:110px" disabled />
+          </span>
+          <span v-if="pageConfig['prevPrepaid']?.visible !== false" class="pay-item">
+            <label>此前预付</label>
+            <a-input-number v-model:value="formData.prevPrepaid" size="small" :precision="2" style="width:110px" disabled />
+          </span>
+          <span v-if="pageConfig['prepaidBalance']?.visible !== false" class="pay-item">
+            <label>预付余额</label>
+            <a-input-number v-model:value="formData.prepaidBalance" size="small" :precision="2" style="width:110px" disabled />
+          </span>
+          <span v-if="pageConfig['prevDebt']?.visible !== false" class="pay-item">
+            <label>此前欠款</label>
+            <a-input-number v-model:value="formData.prevDebt" size="small" :precision="2" style="width:110px" disabled />
+          </span>
+        </div>
+        <div class="pay-row">
+          <span v-if="pageConfig['expectedReceiveDate']?.visible !== false" class="pay-item">
+            <label>预计到货</label>
+            <a-date-picker v-model:value="formData.expectedReceiveDate" size="small" style="width:130px" value-format="YYYY-MM-DD" />
+          </span>
+          <span v-if="pageConfig['paymentTerm']?.visible !== false" class="pay-item">
+            <label>付款期限</label>
+            <a-input v-model:value="formData.paymentTerm" size="small" style="width:150px" />
+          </span>
+          <span v-if="pageConfig['otherExpense']?.visible !== false" class="pay-item">
+            <label>其他费用</label>
+            <a-input-number v-model:value="formData.otherExpense" size="small" :precision="2" style="width:110px" />
+          </span>
+        </div>
+      </div>
+      <!-- ═══ 备注区 ═══ -->
+      <div v-if="pageConfig['remark']?.visible !== false" class="remark-row">
+        <label class="remark-label">单据备注</label>
+        <a-input v-model:value="formData.remark" size="small" class="remark-input" placeholder="请输入备注" />
+      </div>
+      <!-- ═══ 单据信息 ═══ -->
       <div class="doc-info-row">
+        <span v-if="pageConfig['sourceBillNo']?.visible !== false" class="doc-info-item">源单 <a-tag size="small">{{ formData.sourceBillNo || '0' }}</a-tag></span>
         <span class="doc-info-item">制单人 <a-tag color="blue" size="small">{{ currentUserName || '系统' }}</a-tag></span>
         <span class="doc-info-item">制单时间 {{ formatNow() }}</span>
         <span class="doc-info-item">打印次数 {{ formData.printCount || 0 }}</span>
-        <a-button type="link" size="small" class="print-record-link">打印记录</a-button>
+        <a-button type="link" size="small" class="print-record-link" @click="printDialogRef?.open()">打印记录</a-button>
       </div>
     </template>
   </BillFormPage>
@@ -72,7 +124,7 @@
   <a-modal
     v-model:open="showFormConfig"
     title="配置"
-    :width="720"
+    :width="760"
     :footer="null"
     destroy-on-close
   >
@@ -86,78 +138,78 @@
           :pagination="false"
           size="small"
           row-key="key"
+          :scroll="{ y: 400 }"
         >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'displayName'">
               <a-input v-model:value="record.displayName" size="small" />
             </template>
             <template v-if="column.key === 'visible'">
-              <a-checkbox v-model:checked="record.visible" />
+              <a-checkbox
+                :checked="record.visible"
+                @change="(e: any) => handlePageConfigFieldVisibleChange(record.key, e.target.checked)"
+              />
             </template>
             <template v-if="column.key === 'enterJump'">
-              <a-checkbox v-model:checked="record.enterJump" />
+              <a-checkbox
+                :checked="record.enterJump"
+                @change="(e: any) => handlePageConfigEnterJumpChange(record.key, e.target.checked)"
+              />
             </template>
           </template>
         </a-table>
       </a-tab-pane>
       <!-- Tab 2: 录单默认值 -->
       <a-tab-pane key="defaultValues" tab="录单默认值">
+        <p class="config-hint">当前操作员新增单据时，对应字段带出默认值，可更改</p>
         <a-form layout="horizontal" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
-          <a-form-item label="默认仓库">
+          <a-form-item label="供应商">
+            <a-select
+              v-model:value="formData.defaultSupplierId"
+              show-search
+              size="small"
+              style="width: 100%"
+              :loading="loadingOptions"
+              @change="saveFormConfig"
+            >
+              <a-select-option v-for="s in optionRefs.suppliers" :key="s.id" :value="s.id">{{ s.name }}</a-select-option>
+            </a-select>
+          </a-form-item>
+          <a-form-item label="仓库">
             <a-select
               v-model:value="formData.defaultWarehouseId"
               show-search
               size="small"
               style="width: 100%"
               :loading="loadingOptions"
+              @change="saveFormConfig"
             >
-              <a-select-option v-for="w in optionRefs.warehouses" :key="w.id" :value="w.id">
-                {{ w.name }}
-              </a-select-option>
+              <a-select-option v-for="w in optionRefs.warehouses" :key="w.id" :value="w.id">{{ w.name }}</a-select-option>
             </a-select>
           </a-form-item>
-          <a-form-item label="默认经手人">
+          <a-form-item label="经手人">
             <a-select
               v-model:value="formData.defaultBuyerId"
               show-search
               size="small"
               style="width: 100%"
               :loading="loadingOptions"
+              @change="saveFormConfig"
             >
-              <a-select-option v-for="u in optionRefs.users" :key="u.id" :value="u.id">
-                {{ u.name }}
-              </a-select-option>
+              <a-select-option v-for="u in optionRefs.users" :key="u.id" :value="u.id">{{ u.name }}</a-select-option>
             </a-select>
-          </a-form-item>
-          <a-form-item label="默认付款方式">
-            <a-input v-model:value="formData.defaultPaymentMethod" size="small" />
-          </a-form-item>
-          <a-form-item label="默认税率">
-            <a-input-number v-model:value="formData.defaultTaxRate" :precision="0" size="small" style="width: 100%" />
           </a-form-item>
         </a-form>
       </a-tab-pane>
       <!-- Tab 3: 打印设置 -->
       <a-tab-pane key="printSettings" tab="打印设置">
-        <a-form layout="horizontal" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
-          <a-form-item label="打印模板">
-            <a-select v-model:value="formData.printTemplate" size="small" style="width: 100%">
-              <a-select-option value="standard">标准模板</a-select-option>
-              <a-select-option value="simple">简化模板</a-select-option>
-              <a-select-option value="detailed">详细模板</a-select-option>
-            </a-select>
-          </a-form-item>
-          <a-form-item label="打印份数">
-            <a-input-number v-model:value="formData.printCopies" :precision="0" :min="1" size="small" style="width: 100%" />
-          </a-form-item>
-          <a-form-item label="纸张大小">
-            <a-select v-model:value="formData.printPaperSize" size="small" style="width: 100%">
-              <a-select-option value="A4">A4</a-select-option>
-              <a-select-option value="A5">A5</a-select-option>
-              <a-select-option value="B5">B5</a-select-option>
-            </a-select>
-          </a-form-item>
-        </a-form>
+        <p class="config-hint">打印配置设置后只针对当前操作员有效</p>
+        <a-checkbox v-model:checked="formData.printAlwaysUseLastTemplate" @change="saveFormConfig" style="display:block;margin-bottom:12px">
+          始终使用最后一次打印的模板，打印时不再选择
+        </a-checkbox>
+        <a-checkbox v-model:checked="formData.printImmediatelyAfterSubmit" @change="saveFormConfig">
+          提单后立即打印
+        </a-checkbox>
       </a-tab-pane>
     </a-tabs>
   </a-modal>
@@ -168,7 +220,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, nextTick } from 'vue'
+import { computed, ref, reactive, onMounted, nextTick } from 'vue'
 import { message } from 'ant-design-vue'
 import {
   PrinterOutlined, ClockCircleOutlined, ImportOutlined,
@@ -181,7 +233,10 @@ import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTab
 import type { BillHeaderConfig, BasicInfoField, BillFooterConfig, SummaryRow } from '@/components/BillFormPage/types'
 import { useBillForm } from '@/components/BillFormPage/useBillForm'
 import { useUserStore } from '@/stores/user'
+import { userPageConfigApi } from '@/api/erp'
+import optionsApi from '@/api/options'
 import request from '@/utils/request'
+import { PRODUCT_PURCHASE_DEFAULTS } from '@/utils/productDefaults'
 
 defineOptions({ name: 'PurchaseOrderForm' })
 import { useRouter, useRoute } from 'vue-router'
@@ -200,6 +255,7 @@ const {
   saving,
   optionRefs,
   filterOption,
+  effectiveMode,
   handleAddProduct,
   handleRemoveProduct,
   handleProductChange: baseProductChange,
@@ -218,10 +274,44 @@ const {
     getById: (id: number) => request.get(`/erp/purchase/order/${id}`),
   },
   redirectPath: '/purchase/order',
+  codeApiPath: '/erp/purchase/order/next-no',
+  // 采购单金额：本单金额 = 商品金额 - 优惠金额 + 其他费用（采购单默认价内税，不另计税额）
+  // 见下方 billAmount computed
   optionTypes: ['suppliers', 'warehouses', 'users', 'products'],
-  productDefaults: {
-    itemCode: '', barcode: '', specification: '', unit: '', smallUnit: '',
-    quantity: 0, unitPrice: 0, taxRate: 13, brand: '', origin: '', model: '',
+  productDefaults: PRODUCT_PURCHASE_DEFAULTS,
+  // 编辑模式：把后端嵌套 DTO（order/快照/结算/扩展信息）映射回表单字段
+  onDetailLoaded: (d: any, fd: any) => {
+    const order = d?.order
+    if (order) {
+      if (order.orderDate) fd.date = String(order.orderDate).slice(0, 10)
+      if (order.purchaserId !== undefined && order.purchaserId !== null) fd.buyerId = order.purchaserId
+      if (order.expectedReceiveTime) fd.expectedReceiveDate = String(order.expectedReceiveTime).slice(0, 10)
+      if (order.warehouseId !== undefined) fd.warehouseId = order.warehouseId
+      if (order.deptId !== undefined) fd.deptId = order.deptId
+      if (order.sourceBillNo !== undefined) fd.sourceBillNo = order.sourceBillNo
+      if (order.purchaseType !== undefined) fd.purchaseType = order.purchaseType
+      if (order.remark !== undefined) fd.remark = order.remark
+      if (order.printCount !== undefined) fd.printCount = order.printCount
+      if (order.orderNo !== undefined) fd.orderNo = order.orderNo
+    }
+    const snap = d?.partnerSnapshot
+    if (snap) {
+      fd.supplierName = snap.supplierName; fd.supplierCode = snap.supplierCode
+      fd.contactName = snap.contactName; fd.contactPhone = snap.contactPhone
+      fd.contactAddress = snap.contactAddress
+      fd.bankName = snap.bankName; fd.bankAccount = snap.bankAccount; fd.taxNo = snap.taxNo
+    }
+    const sett = d?.settlement
+    if (sett) {
+      fd.depositAccount1 = sett.depositAccount1; fd.depositAmount1 = sett.depositAmount1
+      fd.prevPrepaid = sett.prevPrepaid; fd.prepaidBalance = sett.prepaidBalance
+      fd.prevDebt = sett.prevDebt; fd.paymentTerm = sett.paymentTerm; fd.otherExpense = sett.otherExpense
+    }
+    const ext = d?.extInfo
+    if (ext) {
+      fd.summary = ext.summary; fd.extNum1 = ext.extNum1; fd.extNum2 = ext.extNum2
+      fd.extText1 = ext.extText1; fd.extText2 = ext.extText2; fd.extText3 = ext.extText3
+    }
   },
   onFieldChange: (fieldKey: string, val: any, fd: Record<string, any>) => {
     if (fieldKey === 'supplierId' && val) {
@@ -243,13 +333,13 @@ const {
       warehouseId: fd.warehouseId,
       purchaserId: fd.buyerId,
       deptId: fd.deptId,
-      orderDate: fd.date,
-      expectedReceiveTime: fd.expectedReceiveDate || null,
+      orderDate: fd.date ? `${fd.date}T00:00:00` : null,
+      expectedReceiveTime: fd.expectedReceiveDate ? `${fd.expectedReceiveDate}T00:00:00` : null,
       purchaseType: fd.purchaseType,
       sourceBillNo: fd.sourceBillNo,
       productAmount: totalAmount.value,
       discountAmount: fd.discountAmount || 0,
-      billAmount: totalWithTax.value,
+      billAmount: billAmount.value,
       status,
     },
     partnerSnapshot: {
@@ -312,6 +402,15 @@ const {
       gift: p.gift || false,
       remark: p.remark,
       warehouseId: fd.warehouseId,
+      // 价格等级字段（标准化产品价格等级）
+      restaurant: p.restaurant || false,
+      canteen: p.canteen || false,
+      outRestaurant: p.outRestaurant || false,
+      vipSelf: p.vipSelf || false,
+      largeGroup: p.largeGroup || false,
+      vipLevel1: p.vipLevel1 || false,
+      vipLevel2: p.vipLevel2 || false,
+      specialCustomer: p.specialCustomer || false,
       customField1: p.customField1,
       customField2: p.customField2,
       customField3: p.customField3,
@@ -340,10 +439,10 @@ if (!('supplierId' in formData)) {
     prevPrepaid: 0, prepaidBalance: 0, prevDebt: 0, paymentTerm: '', otherExpense: 0,
     summary: '', extNum1: 0, extNum2: 0, extText1: '', extText2: '', extText3: '',
     remark: '', discountAmount: 0, printCount: 0,
-    // 默认值Tab
-    defaultWarehouseId: undefined, defaultBuyerId: undefined, defaultPaymentMethod: undefined, defaultTaxRate: 13,
+    // 录单默认值Tab
+    defaultSupplierId: undefined, defaultWarehouseId: undefined, defaultBuyerId: undefined,
     // 打印设置Tab
-    printTemplate: 'standard', printCopies: 1, printPaperSize: 'A5',
+    printAlwaysUseLastTemplate: false, printImmediatelyAfterSubmit: false,
   })
 }
 
@@ -362,65 +461,207 @@ const headerConfig = computed<BillHeaderConfig>(() => ({
   ],
 }))
 
-// ── 基本信息字段（35个，分组） ──
-const basicInfoFields = computed<BasicInfoField[]>(() => [
-  // 基本信息区
-  { key: 'supplierId', label: '供应商', type: 'select', required: true, width: 300, options: (optionRefs.suppliers || []).map((s: any) => ({ label: s.name, value: s.id })), searchBtn: '+Q', loading: loadingOptions.value },
-  { key: 'supplierCode', label: '供应商编号', type: 'display', width: 120 },
-  { key: 'bankName', label: '开户行', type: 'display', width: 180 },
-  { key: 'bankAccount', label: '银行账号', type: 'display', width: 180 },
-  { key: 'taxNo', label: '税号', type: 'display', width: 160 },
-  { key: 'warehouseId', label: '仓库', type: 'select', required: true, width: 180, options: (optionRefs.warehouses || []).map((w: any) => ({ label: w.name, value: w.id })), searchBtn: '+Q', loading: loadingOptions.value },
-  { key: 'buyerId', label: '经手人', type: 'select', required: true, width: 150, options: (optionRefs.users || []).map((u: any) => ({ label: u.name, value: u.id })), searchBtn: '+Q', loading: loadingOptions.value },
-  { key: 'deptId', label: '部门', type: 'select', width: 150, options: (optionRefs.departments || []).map((d: any) => ({ label: d.name, value: d.id })) },
-  { key: 'date', label: '单据日期', type: 'date', required: true, width: 150 },
-  { key: 'contactName', label: '联系人', type: 'display', width: 100 },
-  { key: 'contactPhone', label: '联系电话', type: 'display', width: 140 },
-  { key: 'contactAddress', label: '联系地址', type: 'display', width: 240 },
-  // 自定义字段
-  { key: 'extNum1', label: '自定义字段1(数字)', type: 'number', width: 140, precision: 2 },
-  { key: 'extNum2', label: '自定义字段2(数字)', type: 'number', width: 140, precision: 2 },
-  { key: 'extText1', label: '自定义字段3(文本)', type: 'input', width: 140 },
-  { key: 'extText2', label: '自定义字段4(文本)', type: 'input', width: 140 },
-  { key: 'extText3', label: '自定义字段5(文本)', type: 'input', width: 140 },
-  // 审核/摘要
-  { key: 'auditorName', label: '审核人', type: 'display', width: 120 },
-  { key: 'summary', label: '摘要', type: 'input', width: 300 },
-  // 付款区（对标系统字段顺序）
-  { key: 'depositAccount1', label: '订金账户1', type: 'select', width: 160, options: (optionRefs.accounts || []).map((a: any) => ({ label: a.name, value: a.id })) },
-  { key: 'depositAmount1', label: '订金金额1', type: 'number', width: 130, precision: 2, suffixBtn: '全' },
-  { key: 'moreAccounts', label: '更多账户', type: 'input', width: 130, disabled: true },
-  { key: 'depositBalance', label: '订金余额', type: 'number', width: 120, disabled: true, precision: 2 },
-  { key: 'prevPrepaid', label: '此前预付', type: 'number', width: 120, disabled: true, precision: 2 },
-  { key: 'usePrepaid', label: '使用预付款', type: 'number', width: 120, precision: 2 },
-  { key: 'prevDebt', label: '此前欠款', type: 'number', width: 120, disabled: true, precision: 2 },
-  { key: 'currentDebt', label: '本次欠款', type: 'number', width: 120, disabled: true, precision: 2 },
-  { key: 'otherExpense', label: '其他费用', type: 'number', width: 120, precision: 2 },
-  // 业务信息
-  { key: 'expectedReceiveDate', label: '预计到货', type: 'date', width: 150 },
-  { key: 'paymentTerm', label: '付款期限', type: 'input', width: 150 },
-  { key: 'otherExpense', label: '其他费用', type: 'number', width: 120, precision: 2 },
-  { key: 'sourceBillNo', label: '源单', type: 'input', width: 160 },
-  // 单据信息
-  { key: 'remark', label: '单据备注', type: 'input', width: 300 },
-  { key: 'createByName', label: '制单人', type: 'display', width: 100 },
-  { key: 'createTime', label: '制单时间', type: 'display', width: 160 },
-  { key: 'printCount', label: '打印次数', type: 'display', width: 90 },
-  { key: 'discountAmount', label: '优惠金额', type: 'number', width: 120, precision: 2 },
-])
+// ── 页面配置（35 字段，控制全部配置项显隐，持久化） ──
+type FieldGroup = 'header' | 'top' | 'payment' | 'remark' | 'docinfo' | 'summary'
+
+interface PageFieldSpec {
+  key: string
+  label: string
+  group: FieldGroup
+  /** 字段在页面上的渲染类型（供顶部基本信息区使用） */
+  fieldType: 'select' | 'input' | 'display' | 'date' | 'number' | 'textarea'
+  defaultVisible: boolean
+  defaultEnterJump?: boolean
+}
+
+const PAGE_FIELD_SPEC: PageFieldSpec[] = [
+  // 1-20 顶部/头部基本信息
+  { key: 'orderNo', label: '编号', group: 'header', fieldType: 'input', defaultVisible: true },
+  { key: 'supplierId', label: '供应商', group: 'top', fieldType: 'select', defaultVisible: true, defaultEnterJump: true },
+  { key: 'supplierCode', label: '供应商编号', group: 'top', fieldType: 'display', defaultVisible: false },
+  { key: 'bankName', label: '开户行', group: 'top', fieldType: 'display', defaultVisible: false },
+  { key: 'bankAccount', label: '银行账号', group: 'top', fieldType: 'display', defaultVisible: false },
+  { key: 'taxNo', label: '税号', group: 'top', fieldType: 'display', defaultVisible: false },
+  { key: 'warehouseId', label: '仓库', group: 'top', fieldType: 'select', defaultVisible: true, defaultEnterJump: true },
+  { key: 'buyerId', label: '经手人', group: 'top', fieldType: 'select', defaultVisible: true, defaultEnterJump: true },
+  { key: 'deptId', label: '部门', group: 'top', fieldType: 'select', defaultVisible: false },
+  { key: 'date', label: '单据日期', group: 'top', fieldType: 'date', defaultVisible: true, defaultEnterJump: true },
+  { key: 'contactName', label: '联系人', group: 'top', fieldType: 'display', defaultVisible: false },
+  { key: 'contactPhone', label: '联系电话', group: 'top', fieldType: 'display', defaultVisible: false },
+  { key: 'contactAddress', label: '联系地址', group: 'top', fieldType: 'display', defaultVisible: false },
+  { key: 'extNum1', label: '自定义字段1(数字)', group: 'top', fieldType: 'number', defaultVisible: false },
+  { key: 'extNum2', label: '自定义字段2(数字)', group: 'top', fieldType: 'number', defaultVisible: false },
+  { key: 'extText1', label: '自定义字段3(文本)', group: 'top', fieldType: 'input', defaultVisible: false },
+  { key: 'extText2', label: '自定义字段4(文本)', group: 'top', fieldType: 'input', defaultVisible: false },
+  { key: 'extText3', label: '自定义字段5(文本)', group: 'top', fieldType: 'input', defaultVisible: false },
+  { key: 'auditorName', label: '审核人', group: 'top', fieldType: 'display', defaultVisible: false },
+  { key: 'summary', label: '摘要', group: 'top', fieldType: 'input', defaultVisible: false },
+  // 21-29 底部收款区域
+  { key: 'depositAccount1', label: '订金账户1', group: 'payment', fieldType: 'select', defaultVisible: true },
+  { key: 'depositAmount1', label: '订金金额1', group: 'payment', fieldType: 'number', defaultVisible: true },
+  { key: 'moreAccounts', label: '更多账户', group: 'payment', fieldType: 'input', defaultVisible: true },
+  { key: 'prevPrepaid', label: '此前预付', group: 'payment', fieldType: 'number', defaultVisible: true },
+  { key: 'prepaidBalance', label: '预付余额', group: 'payment', fieldType: 'number', defaultVisible: true },
+  { key: 'prevDebt', label: '此前欠款', group: 'payment', fieldType: 'number', defaultVisible: true },
+  { key: 'expectedReceiveDate', label: '预计到货', group: 'payment', fieldType: 'date', defaultVisible: true },
+  { key: 'paymentTerm', label: '付款期限', group: 'payment', fieldType: 'input', defaultVisible: true },
+  { key: 'otherExpense', label: '其他费用', group: 'payment', fieldType: 'number', defaultVisible: true },
+  // 30-34 单据信息 + 备注区
+  { key: 'sourceBillNo', label: '源单', group: 'docinfo', fieldType: 'input', defaultVisible: true },
+  { key: 'remark', label: '单据备注', group: 'remark', fieldType: 'textarea', defaultVisible: true },
+  { key: 'createByName', label: '制单人', group: 'docinfo', fieldType: 'display', defaultVisible: true },
+  { key: 'createTime', label: '制单时间', group: 'docinfo', fieldType: 'display', defaultVisible: true },
+  { key: 'printCount', label: '打印次数', group: 'docinfo', fieldType: 'display', defaultVisible: true },
+  // 35 摘要面板
+  { key: 'discountAmount', label: '优惠金额', group: 'summary', fieldType: 'number', defaultVisible: true },
+]
+
+// 运行时的页面配置显隐状态
+const pageConfig = reactive<Record<string, { visible: boolean; enterJump: boolean }>>({})
+for (const f of PAGE_FIELD_SPEC) {
+  pageConfig[f.key] = { visible: f.defaultVisible, enterJump: f.defaultEnterJump || false }
+}
+
+const FORM_CONFIG_MODULE = 'purchase-form'
+const FORM_CONFIG_PAGE = 'order'
+
+async function loadFormConfig() {
+  try {
+    const raw = await userPageConfigApi.get(FORM_CONFIG_MODULE, FORM_CONFIG_PAGE)
+    if (!raw) return
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
+    if (parsed.fields && typeof parsed.fields === 'object') {
+      Object.keys(parsed.fields).forEach((k) => {
+        if (pageConfig[k]) {
+          pageConfig[k].visible = parsed.fields[k].visible !== false
+          pageConfig[k].enterJump = !!parsed.fields[k].enterJump
+        }
+      })
+    }
+    if (parsed.defaults) {
+      Object.assign(formData, {
+        defaultSupplierId: parsed.defaults.defaultSupplierId,
+        defaultWarehouseId: parsed.defaults.defaultWarehouseId,
+        defaultBuyerId: parsed.defaults.defaultBuyerId,
+      })
+    }
+    if (parsed.print) {
+      Object.assign(formData, {
+        printAlwaysUseLastTemplate: parsed.print.printAlwaysUseLastTemplate,
+        printImmediatelyAfterSubmit: parsed.print.printImmediatelyAfterSubmit,
+      })
+    }
+  } catch { /* API 不可用时保持默认 */ }
+}
+
+async function saveFormConfig() {
+  const payload = {
+    fields: Object.fromEntries(Object.entries(pageConfig).map(([k, v]) => [k, { visible: v.visible, enterJump: v.enterJump }])),
+    defaults: {
+      defaultSupplierId: formData.defaultSupplierId,
+      defaultWarehouseId: formData.defaultWarehouseId,
+      defaultBuyerId: formData.defaultBuyerId,
+    },
+    print: {
+      printAlwaysUseLastTemplate: formData.printAlwaysUseLastTemplate,
+      printImmediatelyAfterSubmit: formData.printImmediatelyAfterSubmit,
+    },
+  }
+  try {
+    await userPageConfigApi.save(FORM_CONFIG_MODULE, FORM_CONFIG_PAGE, JSON.stringify(payload))
+  } catch { /* 静默失败 */ }
+}
+
+function handlePageConfigFieldVisibleChange(fieldKey: string, visible: boolean) {
+  if (pageConfig[fieldKey]) pageConfig[fieldKey].visible = visible
+  saveFormConfig()
+}
+
+function handlePageConfigEnterJumpChange(fieldKey: string, checked: boolean) {
+  if (pageConfig[fieldKey]) pageConfig[fieldKey].enterJump = checked
+  saveFormConfig()
+}
+
+// ── 顶部基本信息字段（Zone 2，只含 group==='top' 的字段） ──
+const ALL_TOP_FIELDS: BasicInfoField[] = PAGE_FIELD_SPEC
+  .filter((f) => f.group === 'top')
+  .map((f) => ({
+    key: f.key,
+    label: f.label,
+    type: f.fieldType,
+    required: ['supplierId', 'warehouseId', 'buyerId', 'date'].includes(f.key),
+    width: f.fieldType === 'select' && f.key === 'supplierId' ? 300 : 160,
+    searchBtn: f.fieldType === 'select' ? '+Q' : undefined,
+  }))
+
+// 顶部基本信息渲染（过滤被配置隐藏的字段）
+const basicInfoFields = computed<BasicInfoField[]>(() =>
+  ALL_TOP_FIELDS
+    .filter((f) => pageConfig[f.key]?.visible !== false)
+    .map((f) => ({
+      ...f,
+      options: f.key === 'supplierId'
+        ? (optionRefs.suppliers || []).map((s: any) => ({ label: s.name, value: s.id }))
+        : f.key === 'warehouseId'
+          ? (optionRefs.warehouses || []).map((w: any) => ({ label: w.name, value: w.id }))
+          : f.key === 'buyerId'
+            ? (optionRefs.users || []).map((u: any) => ({ label: u.name, value: u.id }))
+            : f.key === 'deptId'
+              ? (departmentOptions || []).map((d: any) => ({ label: d.name, value: d.id }))
+              : f.options,
+      loading: (f.key === 'supplierId' || f.key === 'warehouseId' || f.key === 'buyerId' || f.key === 'deptId') ? loadingOptions.value : undefined,
+    }))
+)
+
+// 页面配置字段列表（配置弹窗表格）
+const pageConfigFields = computed(() =>
+  PAGE_FIELD_SPEC.map((f, i) => ({
+    key: f.key,
+    index: i + 1,
+    name: f.label,
+    displayName: f.label,
+    visible: pageConfig[f.key].visible,
+    enterJump: pageConfig[f.key].enterJump,
+  }))
+)
+
+// 配置弹窗表格列
+const pageConfigTableColumns = [
+  { title: '序号', key: 'index', width: 60 },
+  { title: '名称', key: 'name', width: 130 },
+  { title: '显示名', key: 'displayName', width: 150 },
+  { title: '显示', key: 'visible', width: 60, align: 'center' as const },
+  { title: '回车键跳转', key: 'enterJump', width: 90, align: 'center' as const },
+]
+
+// ── 部门/账户下拉选项 ──
+const departmentOptions = ref<any[]>([])
+const accountOptions = ref<any[]>([])
+
+async function loadExtraOptions() {
+  try { departmentOptions.value = await optionsApi.getDepartments() } catch { departmentOptions.value = [] }
+  try { accountOptions.value = await optionsApi.getAccounts() } catch { accountOptions.value = [] }
+}
+
+// 本单金额 = 商品金额 - 优惠金额 + 其他费用
+const billAmount = computed(() => totalAmount.value - (formData.discountAmount || 0) + (formData.otherExpense || 0))
 
 // ── 摘要 ──
-const summaryConfig = computed<SummaryRow[]>(() => [
-  { label: '总数量', value: totalQuantity.value },
-  { label: '商品金额', value: totalAmount.value.toFixed(2) },
-  { label: '税额', value: totalTaxAmount.value.toFixed(2) },
-  { label: '价税合计', value: totalWithTax.value.toFixed(2), divider: true },
-])
+const summaryConfig = computed<SummaryRow[]>(() => {
+  const rows: SummaryRow[] = []
+  if (pageConfig['discountAmount']?.visible !== false) {
+    rows.push({ label: '商品金额', value: totalAmount.value.toFixed(2) })
+    rows.push({ label: '优惠金额', value: (formData.discountAmount || 0).toFixed(2) })
+  } else {
+    rows.push({ label: '商品金额', value: totalAmount.value.toFixed(2) })
+  }
+  return rows
+})
 
 // ── 页脚 ──
 const footerConfig = computed<BillFooterConfig>(() => ({
   amountLabel: '本单金额',
-  amountValue: `¥${totalWithTax.value.toFixed(2)}`,
+  amountValue: `¥${billAmount.value.toFixed(2)}`,
   amountHighlight: true,
   draftBtnText: '保存草稿',
   draftShortcut: 'Ctrl+S',
@@ -429,8 +670,9 @@ const footerConfig = computed<BillFooterConfig>(() => ({
   saving: saving.value,
 }))
 
-// ── 明细表格列（57列） ──
+// ── 明细表格列（57列 + 行号/操作列） ──
 const detailColumns: DetailColumnConfig[] = [
+  { key: 'rowNo', title: '', type: 'rowNo', width: 40, fixed: 'left' },
   { key: 'action', title: '操作', type: 'action', slotName: 'actionCell', width: 50, fixed: 'left' },
   { key: 'image', title: '图片', type: 'input', width: 60, defaultHidden: true },
   { key: 'productName', title: '商品名称', type: 'slot', slotName: 'productCell', width: 200 },
@@ -470,15 +712,15 @@ const detailColumns: DetailColumnConfig[] = [
   { key: 'weight', title: '重量(kg)', type: 'number', width: 90, precision: 4 },
   { key: 'gift', title: '赠品', type: 'checkbox', width: 60 },
   { key: 'remark', title: '备注', type: 'input', width: 150 },
-  // 8个价格等级列（默认隐藏，销售模块专属）
-  { key: 'restaurant', title: '餐饮店', type: 'checkbox', width: 70, defaultHidden: true },
-  { key: 'canteen', title: '食堂团餐', type: 'checkbox', width: 80, defaultHidden: true },
-  { key: 'outRestaurant', title: '外围餐饮店', type: 'checkbox', width: 90, defaultHidden: true },
-  { key: 'vipSelf', title: '自助vip', type: 'checkbox', width: 80, defaultHidden: true },
-  { key: 'largeGroup', title: '大团餐', type: 'checkbox', width: 80, defaultHidden: true },
-  { key: 'vipLevel1', title: '重点|vip01', type: 'checkbox', width: 90, defaultHidden: true },
-  { key: 'vipLevel2', title: '连锁|vip', type: 'checkbox', width: 80, defaultHidden: true },
-  { key: 'specialCustomer', title: '特价客户', type: 'checkbox', width: 90, defaultHidden: true },
+  // 价格等级字段（用户自定义昵称，按标准化产品价格等级处理）
+  { key: 'restaurant', title: '餐饮店', type: 'boolean', width: 70, defaultHidden: true },
+  { key: 'canteen', title: '食堂团餐', type: 'boolean', width: 90, defaultHidden: true },
+  { key: 'outRestaurant', title: '外围餐饮店', type: 'boolean', width: 110, defaultHidden: true },
+  { key: 'vipSelf', title: '自助vip', type: 'boolean', width: 80, defaultHidden: true },
+  { key: 'largeGroup', title: '大团餐', type: 'boolean', width: 70, defaultHidden: true },
+  { key: 'vipLevel1', title: '重点|vip01', type: 'boolean', width: 100, defaultHidden: true },
+  { key: 'vipLevel2', title: '连锁|vip', type: 'boolean', width: 90, defaultHidden: true },
+  { key: 'specialCustomer', title: '特价客户', type: 'boolean', width: 90, defaultHidden: true },
   // 10个自定义字段
   { key: 'customField1', title: '单据自定义1(数字)', type: 'number', width: 120, precision: 2 },
   { key: 'customField2', title: '单据自定义2(数字)', type: 'number', width: 120, precision: 2 },
@@ -524,19 +766,18 @@ function handleInsertProduct(index: number) {
   if (item) formData.products.splice(index + 1, 0, item)
 }
 
-function handleCellChange(rowIndex: number, fieldKey: string, value: any) {
-  const item = formData.products?.[rowIndex]
-  if (!item) return
+function handleCellChange(record: any, fieldKey: string, value: any) {
+  if (!record) return
   if (fieldKey === 'quantity' || fieldKey === 'unitPrice') {
-    item.amount = (item.quantity || 0) * (item.unitPrice || 0)
+    record.amount = (record.quantity || 0) * (record.unitPrice || 0)
   }
-  if (fieldKey === 'discountRate' && item.unitPrice) {
-    const rate = item.discountRate || 0
-    item.discountedUnitPrice = item.unitPrice * (1 - rate / 100)
-    item.discountedAmount = (item.quantity || 0) * (item.discountedUnitPrice || 0)
+  if (fieldKey === 'discountRate' && record.unitPrice) {
+    const rate = record.discountRate || 0
+    record.discountedUnitPrice = record.unitPrice * (1 - rate / 100)
+    record.discountedAmount = (record.quantity || 0) * (record.discountedUnitPrice || 0)
   }
   if (fieldKey === 'costPrice') {
-    item.costAmount = (item.quantity || 0) * (item.costPrice || 0)
+    record.costAmount = (record.quantity || 0) * (record.costPrice || 0)
   }
 }
 
@@ -547,26 +788,6 @@ const configModalTab = ref('pageConfig')
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const importLoading = ref(false)
 
-// ── 配置弹窗：页面配置表格 ──
-const pageConfigTableColumns = [
-  { title: '序号', key: 'index', width: 60 },
-  { title: '名称', key: 'name', width: 120 },
-  { title: '显示名', key: 'displayName', width: 160 },
-  { title: '显示', key: 'visible', width: 70, align: 'center' as const },
-  { title: '回车键跳转', key: 'enterJump', width: 100, align: 'center' as const },
-]
-
-const pageConfigFields = computed(() =>
-  basicInfoFields.value.map((f, i) => ({
-    key: f.key,
-    index: i + 1,
-    name: f.label,
-    displayName: f.label,
-    visible: f.type !== 'display' || true,
-    enterJump: ['select', 'date', 'number', 'input'].includes(f.type),
-  }))
-)
-
 const printData = computed(() => ({
   ...formData,
   orderNo: formData.orderNo || '待生成',
@@ -575,7 +796,7 @@ const printData = computed(() => ({
 
 function handleAction(actionKey: string) {
   switch (actionKey) {
-    case 'history': router.push('/erp/purchase'); break
+    case 'history': router.push('/purchase/order'); break
     case 'print-order':
       printDialogRef.value?.open()
       break
@@ -616,7 +837,54 @@ function formatNow() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
-onMounted(() => {
+// ── 从缺货补货页跳转预填明细商品 ──
+async function prefillProducts(ids: number[]) {
+  if (!ids.length) return
+  if (!optionRefs.products || !optionRefs.products.length) {
+    try { optionRefs.products = await optionsApi.getProducts() } catch { optionRefs.products = [] }
+  }
+  const list = optionRefs.products || []
+  for (const pid of ids) {
+    if (formData.products.some((r: any) => r.productId === pid)) continue
+    handleAddProduct()
+    const row = formData.products[formData.products.length - 1]
+    const p = list.find((x: any) => Number(x?.id) === Number(pid))
+    row.productId = pid
+    if (p) {
+      row.itemCode = p.code || ''
+      row.barcode = p.barcode || ''
+      row.productName = p.name || ''
+      row.specification = p.specification || ''
+      row.unit = p.unit || ''
+      row.smallUnit = p.smallUnit || ''
+      row.brand = p.brand || ''
+      row.origin = p.origin || ''
+      row.model = p.model || ''
+      row.unitPrice = p.purchasePrice || p.price || 0
+      row.retailPrice = p.retailPrice || 0
+      row.wholesalePrice = p.wholesalePrice || 0
+      row.costPrice = p.costPrice || 0
+    }
+  }
+}
+
+// 新增单据时应用录单默认值
+function applyDefaultValues() {
+  if (effectiveMode.value === 'edit') return
+  if (formData.defaultSupplierId !== undefined && formData.defaultSupplierId !== null && !formData.supplierId) {
+    formData.supplierId = formData.defaultSupplierId
+  }
+  if (formData.defaultWarehouseId !== undefined && formData.defaultWarehouseId !== null && !formData.warehouseId) {
+    formData.warehouseId = formData.defaultWarehouseId
+  }
+  if (formData.defaultBuyerId !== undefined && formData.defaultBuyerId !== null && !formData.buyerId) {
+    formData.buyerId = formData.defaultBuyerId
+  }
+}
+
+onMounted(async () => {
+  await loadFormConfig()
+  await loadExtraOptions()
   const query = route.query
   if (query.supplierId) {
     formData.supplierId = Number(query.supplierId)
@@ -627,6 +895,11 @@ onMounted(() => {
     formData.warehouseId = Number(query.warehouseId)
     formData.warehouseName = query.warehouseName || ''
   }
+  if (query.productIds) {
+    const ids = String(query.productIds).split(',').map(Number).filter(Boolean)
+    await prefillProducts(ids)
+  }
+  applyDefaultValues()
   if (formData.products.length === 0) handleAddProduct()
   nextTick(() => { tableMaxHeight.value = Math.max(200, window.innerHeight - 420) })
 })
@@ -636,6 +909,13 @@ onMounted(() => {
 .action-add-btn { color: #1890ff; padding: 0; font-size: 14px; }
 .action-del-btn { color: #ff4d4f; padding: 0; font-size: 14px; }
 .print-record-link { color: #1890ff; }
-.doc-info-row { display: flex; align-items: center; gap: 16px; padding: 6px 0; font-size: 12px; color: #8c8c8c; border-top: 1px solid #f0f0f0; }
+.pay-area { padding: 4px 0; }
+.pay-row { display: flex; align-items: center; gap: 12px; padding: 3px 0; flex-wrap: wrap; }
+.pay-item { display: flex; align-items: center; gap: 4px; }
+.pay-item label { font-size: 12px; color: #595959; white-space: nowrap; }
+.remark-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
+.remark-label { font-size: 12px; color: #595959; white-space: nowrap; min-width: 80px; }
+.remark-input { flex: 1; }
+.doc-info-row { display: flex; align-items: center; gap: 16px; padding: 6px 0; font-size: 12px; color: #8c8c8c; border-top: 1px solid #f0f0f0; flex-wrap: wrap; }
 .config-hint { font-size: 12px; color: #ff4d4f; margin-bottom: 8px; }
 </style>

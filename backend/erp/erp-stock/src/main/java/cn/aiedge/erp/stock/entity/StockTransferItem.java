@@ -51,6 +51,26 @@ public class StockTransferItem {
 
     private LocalDateTime validityDate;
 
+    private String barcode;
+
+    private String shelfLife;
+
+    private String conversionRelation;
+
+    private BigDecimal pieceQuantity;
+
+    private BigDecimal bigPack;
+
+    private BigDecimal midPack;
+
+    private BigDecimal smallPack;
+
+    private BigDecimal transferPrice;
+
+    private BigDecimal transferAmount;
+
+    private BigDecimal transferDiff;
+
     private String remark;
 
     @TableLogic

@@ -27,17 +27,41 @@ public class CostSharingItem {
     /** 入库单ID */
     private Long inboundOrderId;
 
+    /** 入库单编号 */
+    private String inboundNo;
+
+    /** 供应商ID */
+    private Long supplierId;
+
+    /** 供应商名称 */
+    private String supplierName;
+
+    /** 供应商编码 */
+    private String supplierCode;
+
+    /** 结算单位编号 */
+    private String settleUnitId;
+
+    /** 结算单位 */
+    private String settleUnit;
+
     /** 商品ID */
     private Long productId;
 
     /** 商品名称 */
     private String productName;
 
+    /** 计价单位 */
+    private String pricingUnit;
+
     /** 数量 */
     private BigDecimal quantity;
 
-    /** 金额 */
-    private BigDecimal amount;
+    /** 优惠后单价 */
+    private BigDecimal discountedUnitPrice;
+
+    /** 优惠后金额 */
+    private BigDecimal discountedAmount;
 
     /** 重量 */
     private BigDecimal weight;

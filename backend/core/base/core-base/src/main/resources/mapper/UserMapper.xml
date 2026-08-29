@@ -3,22 +3,22 @@
 <mapper namespace="cn.aiedge.base.mapper.UserMapper">
 
     <!-- 根据用户名查询用户 -->
-    <select id="selectByUsername" resultType="cn.aiedge.base.entity.User">
+    <select id="selectByUsername" resultType="cn.aiedge.base.entity.SysUser">
         SELECT * FROM sys_user WHERE username = #{username} AND deleted = 0
     </select>
 
     <!-- 根据手机号查询用户 -->
-    <select id="selectByPhone" resultType="cn.aiedge.base.entity.User">
+    <select id="selectByPhone" resultType="cn.aiedge.base.entity.SysUser">
         SELECT * FROM sys_user WHERE phone = #{phone} AND deleted = 0
     </select>
 
     <!-- 根据邮箱查询用户 -->
-    <select id="selectByEmail" resultType="cn.aiedge.base.entity.User">
+    <select id="selectByEmail" resultType="cn.aiedge.base.entity.SysUser">
         SELECT * FROM sys_user WHERE email = #{email} AND deleted = 0
     </select>
 
     <!-- 根据角色ID查询用户列表 -->
-    <select id="selectByRoleId" resultType="cn.aiedge.base.entity.User">
+    <select id="selectByRoleId" resultType="cn.aiedge.base.entity.SysUser">
         SELECT u.* FROM sys_user u
         INNER JOIN sys_user_role ur ON u.id = ur.user_id
         WHERE ur.role_id = #{roleId} AND u.deleted = 0
@@ -26,7 +26,7 @@
     </select>
 
     <!-- 根据部门ID查询用户列表 -->
-    <select id="selectByDeptId" resultType="cn.aiedge.base.entity.User">
+    <select id="selectByDeptId" resultType="cn.aiedge.base.entity.SysUser">
         SELECT * FROM sys_user WHERE dept_id = #{deptId} AND deleted = 0
         ORDER BY create_time DESC
     </select>

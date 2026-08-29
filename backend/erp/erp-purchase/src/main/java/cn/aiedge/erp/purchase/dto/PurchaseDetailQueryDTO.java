@@ -22,6 +22,9 @@ public class PurchaseDetailQueryDTO {
     /** 单据编号 */
     private String orderNo;
 
+    /** 来源订单(源单编号) */
+    private String sourceBillNo;
+
     /** 商品名称 */
     private String productName;
 

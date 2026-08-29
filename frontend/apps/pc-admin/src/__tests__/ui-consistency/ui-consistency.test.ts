@@ -130,13 +130,15 @@ describe('UI一致性测试', () => {
     it('主色应符合设计规范', () => {
       const TestComponent = defineComponent({
         render() {
-          return h('div', { class: 'test-primary', style: { color: 'var(--color-primary)' } }, 'Test')
+          return h('div', { class: 'test-container' }, [
+            h('span', { class: 'test-primary', style: { color: 'var(--color-primary)' } }, 'Test')
+          ])
         }
       })
-      
+
       const wrapper = mount(TestComponent)
       const element = wrapper.element.querySelector('.test-primary') as HTMLElement
-      
+
       expect(element).toBeTruthy()
       // 注：在测试环境中，CSS变量可能无法解析，这里检查变量是否存在
       expect(element.style.color).toBe('var(--color-primary)')
@@ -267,49 +269,56 @@ describe('UI一致性测试', () => {
     it('按钮组件应使用设计系统颜色', () => {
       const TestButton = defineComponent({
         render() {
-          return h('button', { 
-            class: 'ai-btn ai-btn-primary',
-            style: { backgroundColor: DESIGN_TOKENS.colors.primary }
-          }, '按钮')
+          return h('div', { class: 'wrapper' }, [
+            h('button', {
+              class: 'ai-btn ai-btn-primary',
+              style: { backgroundColor: DESIGN_TOKENS.colors.primary }
+            }, '按钮')
+          ])
         }
       })
-      
+
       const wrapper = mount(TestButton)
       const button = wrapper.element.querySelector('.ai-btn-primary') as HTMLElement
-      
+
       expect(button).toBeTruthy()
-      expect(button.style.backgroundColor).toBe(DESIGN_TOKENS.colors.primary)
+      // jsdom将hex颜色转换为rgb格式，需要比较rgb值
+      expect(button.style.backgroundColor).toBe('rgb(24, 144, 255)')
     })
 
     it('卡片组件应使用设计系统间距', () => {
       const TestCard = defineComponent({
         render() {
-          return h('div', { 
-            class: 'ai-card',
-            style: { padding: `${DESIGN_TOKENS.spacing.lg}px` }
-          }, '卡片内容')
+          return h('div', { class: 'wrapper' }, [
+            h('div', {
+              class: 'ai-card',
+              style: { padding: `${DESIGN_TOKENS.spacing.lg}px` }
+            }, '卡片内容')
+          ])
         }
       })
-      
+
       const wrapper = mount(TestCard)
       const card = wrapper.element.querySelector('.ai-card') as HTMLElement
-      
+
       expect(card).toBeTruthy()
     })
 
     it('表单组件应使用设计系统圆角', () => {
       const TestInput = defineComponent({
         render() {
-          return h('input', { 
-            class: 'ai-input',
-            style: { borderRadius: `${DESIGN_TOKENS.borderRadius.base}px` }
-          })
+          return h('div', { class: 'wrapper' }, [
+            h('input', {
+              class: 'ai-input',
+              style: { borderRadius: `${DESIGN_TOKENS.borderRadius.base}px` }
+            })
+          ])
         }
       })
-      
+
       const wrapper = mount(TestInput)
       const input = wrapper.element.querySelector('.ai-input') as HTMLElement
-      
+
       expect(input).toBeTruthy()
     })
   })

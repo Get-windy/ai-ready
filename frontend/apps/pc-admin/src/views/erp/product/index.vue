@@ -712,11 +712,15 @@ const detailColumns = computed<DetailColumnConfig[]>(() => {
     { key: 'industryCategory', title: '所属行业类别', type: 'input', width: 120, sortable: true, hideable: true },
     { key: 'barcode', title: '条码', type: 'input', width: 140, sortable: true, hideable: true },
     { key: 'spec', title: '规格', type: 'input', width: 120, sortable: true, hideable: true },
-    { key: 'model', title: '型号', type: 'input', width: 100, sortable: true, hideable: true, defaultHidden: true },
-    { key: 'origin', title: '产地', type: 'input', width: 100, sortable: true, hideable: true, defaultHidden: true },
+    { key: 'model', title: '型号', type: 'input', width: 100, sortable: true, hideable: true },
+    { key: 'origin', title: '产地', type: 'input', width: 100, sortable: true, hideable: true },
     { key: 'brand', title: '品牌', type: 'input', width: 100, sortable: true, hideable: true },
-    { key: 'unit', title: '单位', type: 'input', width: 80, hideable: true, defaultHidden: true },
+    { key: 'unit', title: '单位', type: 'input', width: 80, hideable: true },
+    // 对标默认显示：可用库存 + 换算关系
+    { key: 'availableStock', title: '可用库存', type: 'number', width: 100, align: 'right', hideable: true, precision: 2 },
+    { key: 'conversionRelation', title: '换算关系', type: 'input', width: 100, hideable: true },
     { key: 'status', title: '状态', type: 'input', width: 80, hideable: true },
+    { key: 'remark', title: '备注', type: 'input', width: 150, hideable: true },
   ]
 
   // 动态等级价格列

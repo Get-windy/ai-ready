@@ -50,6 +50,8 @@ export interface UseBillFormOptions {
   codeApiPath?: string
   /** 保存成功回调（清理dirty标记等） */
   afterSave?: (status: number) => void
+  /** 详情加载后回调：页面可在此把嵌套 DTO（order/快照/结算等）映射到表单顶层字段 */
+  onDetailLoaded?: (data: any) => void
 }
 
 // ── Composable ──
@@ -67,6 +69,7 @@ export function useBillForm(options: UseBillFormOptions) {
     transformPayload,
     codeApiPath,
     afterSave,
+    onDetailLoaded,
   } = options
 
   const router = useRouter()
@@ -147,7 +150,13 @@ export function useBillForm(options: UseBillFormOptions) {
     try {
       const data = await api.getById(id)
       if (data) {
-        Object.assign(formData, data)
+        // 展平嵌套主表：{ order: {...}, items: [...] } → order 的标量字段直接落入表单顶层，
+        // 便于 onDetailLoaded 钩子做字段名映射（如 orderDate→date、purchaserId→buyerId）
+        if (data.order && typeof data.order === 'object') {
+          Object.assign(formData, data.order)
+        } else {
+          Object.assign(formData, data)
+        }
         // 兼容后端字段名映射（returnType → returnApplyType 等）
         if (data.returnType !== undefined && formData.returnApplyType === undefined) {
           formData.returnApplyType = data.returnType
@@ -173,6 +182,8 @@ export function useBillForm(options: UseBillFormOptions) {
             id: d.id || `detail-${i}`,
           }))
         }
+        // 页面级 DTO→表单字段映射钩子（嵌套主表/快照/结算/扩展信息）
+        onDetailLoaded?.(data, formData)
       }
     } catch (err: any) {
       message.error('加载详情失败: ' + (err?.message || ''))

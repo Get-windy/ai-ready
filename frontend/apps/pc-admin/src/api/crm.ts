@@ -6,19 +6,30 @@ import axios from 'axios'
 import request, { type ApiResponse, type PageResponse } from '@/utils/request'
 import { getToken } from '@/utils/tokenRefresher'
 
-// ── 线索 ──────────────────────────────────────────
+// ── 线索（对齐后端 CustomerLead 实体） ──────────────
 export interface Lead {
   id: number
   leadCode?: string
-  name: string
-  companyName: string
+  leadName?: string
+  name?: string
   contactName: string
-  phone: string
-  email: string
+  contactPhone?: string
+  phone?: string
+  contactEmail?: string
+  email?: string
+  companyName: string
+  industryType?: number
+  leadSource?: number
   source?: string
+  leadStatus?: number
   status?: number
   score?: number
   leadLevel?: number
+  estimatedAmount?: number
+  province?: string
+  city?: string
+  address?: string
+  requirement?: string
   salesPersonId?: number
   salesPersonName?: string
   remark?: string

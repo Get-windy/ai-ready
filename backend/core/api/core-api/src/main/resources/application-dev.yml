@@ -49,8 +49,6 @@ eureka:
     fetch-registry: false
 
 ai-ready:
-  ratelimit:
-    enabled: true
   rate-limit:
     enabled: true
 

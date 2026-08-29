@@ -1,15 +1,17 @@
 /**
  * 销售订单明细字段功能测试
  * 验证重构后的字段映射和持久化（基于生产级架构）
+ * 使用纯 Mockito 单元测试，不加载 Spring 上下文
  */
 package cn.aiedge.erp.sale;
 
 import cn.aiedge.erp.sale.entity.SaleOrderItem;
 import cn.aiedge.erp.sale.mapper.SaleOrderItemMapper;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -18,18 +20,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
-@SpringBootTest(classes = {TestConfig.class})
-public class SaleOrderItemFieldsTest {
+@ExtendWith(MockitoExtension.class)
+class SaleOrderItemFieldsTest {
 
-    @MockBean
+    @Mock
     private SaleOrderItemMapper saleOrderItemMapper;
 
     @Test
     @DisplayName("测试销售订单明细核心字段的CRUD操作")
-    public void testCoreFieldsCRUD() {
+    void testCoreFieldsCRUD() {
         // 创建测试数据 - 只包含快照字段，符合生产级架构
         SaleOrderItem item = new SaleOrderItem();
-        item.setId(1L); // 设置ID，这样mock就能正确工作
+        item.setId(1L);
         item.setOrderId(1L);
         item.setLineNo(1);
         item.setProductId(1L);
@@ -101,7 +103,7 @@ public class SaleOrderItemFieldsTest {
         item.setCustomField9(2001L);
         item.setCustomField10(3001L);
 
-        // 设置模拟行为 - 模拟按ID查询
+        // 设置模拟行为
         when(saleOrderItemMapper.insert(any(SaleOrderItem.class))).thenReturn(1);
         when(saleOrderItemMapper.selectById(1L)).thenReturn(item);
         when(saleOrderItemMapper.deleteById(any(Long.class))).thenReturn(1);
@@ -115,7 +117,7 @@ public class SaleOrderItemFieldsTest {
         SaleOrderItem retrievedItem = saleOrderItemMapper.selectById(item.getId());
         assertThat(retrievedItem).isNotNull();
 
-        // 验证核心字段值 - 只验证实际存储的字段，不验证JOIN/计算字段
+        // 验证核心字段值
         assertThat(retrievedItem.getProductCode()).isEqualTo("P001");
         assertThat(retrievedItem.getProductName()).isEqualTo("测试商品");
         assertThat(retrievedItem.getPreOrderNo()).isEqualTo("PRE20260622001");

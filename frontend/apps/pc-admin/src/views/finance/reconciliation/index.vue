@@ -157,7 +157,10 @@
               label="对账类型"
               name="type"
             >
-              <a-radio-group v-model:value="addForm.type">
+              <a-radio-group
+                v-model:value="addForm.type"
+                @change="handleTypeChange"
+              >
                 <a-radio value="bank">
                   银行对账
                 </a-radio>
@@ -170,21 +173,73 @@
               </a-radio-group>
             </a-form-item>
             <a-form-item
-              label="对方名称"
-              name="partyName"
+              label="对方"
+              name="targetId"
             >
-              <a-input
-                v-model:value="addForm.partyName"
-                placeholder="请输入银行/客户/供应商名称"
+              <template v-if="addForm.type === 'bank'">
+                <a-space>
+                  <a-input-number
+                    v-model:value="addForm.targetId"
+                    placeholder="对方ID"
+                    :min="1"
+                    style="width: 140px"
+                  />
+                  <a-input
+                    v-model:value="addForm.targetName"
+                    placeholder="对方名称"
+                    style="width: 220px"
+                  />
+                </a-space>
+              </template>
+              <a-select
+                v-else
+                v-model:value="addForm.targetId"
+                placeholder="请选择对方"
+                show-search
+                option-filter-prop="label"
+                :loading="targetLoading"
+                style="width: 100%"
+                @change="handleTargetChange"
+              >
+                <a-select-option
+                  v-for="o in targetOptions"
+                  :key="o.value"
+                  :value="o.value"
+                >
+                  {{ o.label }}
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+            <a-form-item
+              label="对账起止"
+              name="dateRange"
+            >
+              <a-range-picker
+                v-model:value="addForm.dateRange"
+                value-format="YYYY-MM-DD"
+                style="width: 100%"
               />
             </a-form-item>
             <a-form-item
-              label="对账期间"
-              name="period"
+              label="系统余额"
+              name="systemBalance"
             >
-              <a-input
-                v-model:value="addForm.period"
-                placeholder="例如: 2026-06"
+              <a-input-number
+                v-model:value="addForm.systemBalance"
+                :min="0"
+                :precision="2"
+                style="width: 100%"
+              />
+            </a-form-item>
+            <a-form-item
+              label="实际余额"
+              name="actualBalance"
+            >
+              <a-input-number
+                v-model:value="addForm.actualBalance"
+                :min="0"
+                :precision="2"
+                style="width: 100%"
               />
             </a-form-item>
             <a-form-item
@@ -222,6 +277,8 @@ import CustomerReconciliation from './components/CustomerReconciliation.vue'
 import SupplierReconciliation from './components/SupplierReconciliation.vue'
 import DifferenceHandling from './components/DifferenceHandling.vue'
 import { reconciliationApi } from '@/api/finance'
+import { customerApi } from '@/api/customer'
+import { supplierApi } from '@/api/supplier'
 
 const activeTab = ref('bank')
 const loading = ref(false)
@@ -240,12 +297,12 @@ const loadStats = async () => {
   loading.value = true
   refreshLoading.value = true
   try {
-    const res = await reconciliationApi.getStats()
-    if (res.data) {
-      stats.bankPending = res.bankPending || 0
-      stats.customerPending = res.customerPending || 0
-      stats.supplierPending = res.supplierPending || 0
-      stats.differenceCount = res.differenceCount || 0
+    const res: any = await reconciliationApi.getStats()
+    if (res) {
+      stats.bankPending = Number(res.bankPending || 0)
+      stats.customerPending = Number(res.customerPending || 0)
+      stats.supplierPending = Number(res.supplierPending || 0)
+      stats.differenceCount = Number(res.differenceCount || 0)
     }
     lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
   } catch (err) {
@@ -293,22 +350,71 @@ const addVisible = ref(false)
 const addLoading = ref(false)
 const addFormRef = ref()
 const addFormDirty = ref(false)
+const targetOptions = ref<{ value: number; label: string }[]>([])
+const targetLoading = ref(false)
+
 const addForm = reactive({
   type: 'bank',
-  partyName: '',
-  period: '',
+  targetId: undefined as number | undefined,
+  targetName: '',
+  dateRange: [] as string[],
+  systemBalance: 0,
+  actualBalance: 0,
   remark: ''
 })
+
+const typeMap: Record<string, string> = { bank: 'BANK', customer: 'CUSTOMER', supplier: 'SUPPLIER' }
+
 const addFormRules: any = {
-  partyName: [{ required: true, message: '请输入名称', trigger: 'blur' }]
+  targetId: [{ required: true, message: '请选择或输入对方', trigger: 'change' }],
+  dateRange: [{ required: true, message: '请选择对账起止日期', trigger: 'change', type: 'array' }]
 }
+
+async function loadTargetOptions() {
+  targetLoading.value = true
+  targetOptions.value = []
+  try {
+    if (addForm.type === 'customer') {
+      const res: any = await customerApi.getPage({ pageNum: 1, pageSize: 100 })
+      targetOptions.value = (res?.records || []).map((c: any) => ({ value: c.id, label: c.customerName }))
+    } else if (addForm.type === 'supplier') {
+      const res: any = await supplierApi.page({ pageNum: 1, pageSize: 100 })
+      targetOptions.value = (res?.records || []).map((s: any) => ({ value: s.id, label: s.supplierName }))
+    }
+  } catch (err) {
+    console.warn('[对账管理] 加载对方选项失败', err)
+  } finally {
+    targetLoading.value = false
+  }
+}
+
+function handleTypeChange() {
+  addForm.targetId = undefined
+  addForm.targetName = ''
+  if (addForm.type === 'customer' || addForm.type === 'supplier') {
+    loadTargetOptions()
+  } else {
+    targetOptions.value = []
+  }
+}
+
+function handleTargetChange(val: number) {
+  addForm.targetId = val
+  const opt = targetOptions.value.find((o) => o.value === val)
+  addForm.targetName = opt?.label || ''
+}
+
 function handleAdd() {
   addForm.type = activeTab.value
-  addForm.partyName = ''
-  addForm.period = ''
+  addForm.targetId = undefined
+  addForm.targetName = ''
+  addForm.dateRange = []
+  addForm.systemBalance = 0
+  addForm.actualBalance = 0
   addForm.remark = ''
   addVisible.value = true
   addFormDirty.value = false
+  handleTypeChange()
   setTimeout(() => { addFormDirty.value = true }, 500)
 }
 async function handleAddConfirm() {
@@ -316,14 +422,19 @@ async function handleAddConfirm() {
     await addFormRef.value?.validate()
     addLoading.value = true
     await reconciliationApi.create({
-      type: addForm.type,
-      partyName: addForm.partyName,
-      period: addForm.period || '',
+      reconciliationType: typeMap[addForm.type] || 'BANK',
+      targetId: addForm.targetId,
+      targetName: addForm.targetName || '',
+      startDate: addForm.dateRange[0],
+      endDate: addForm.dateRange[1],
+      systemBalance: addForm.systemBalance,
+      actualBalance: addForm.actualBalance,
       remark: addForm.remark || ''
     })
     message.success('对账创建成功')
     addVisible.value = false
     loadStats()
+    window.dispatchEvent(new Event('finance:create'))
   } catch (err: any) {
     if (err?.message) message.error(err.message)
   } finally {

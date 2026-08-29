@@ -36,7 +36,7 @@ public interface PurchaseOrderMapper extends BaseMapper<PurchaseOrder> {
      * @param wrapper 查询条件（使用PurchaseOrder实体字段名，列名不加别名前缀）
      * @return 分页结果
      */
-    Page<PurchaseOrderListDTO> selectDocListWithNames(Page<?> page, @Param("wrapper") Wrapper<PurchaseOrder> wrapper);
+    Page<PurchaseOrderListDTO> selectDocListWithNames(Page<?> page, @Param("ew") Wrapper<PurchaseOrder> wrapper);
 
     /**
      * 按明细Tab查询：JOIN明细行+主表+名称解析
@@ -46,5 +46,5 @@ public interface PurchaseOrderMapper extends BaseMapper<PurchaseOrder> {
      * @param wrapper 查询条件（列名需带表别名前缀，如 i.product_name, o.order_date）
      * @return 分页结果
      */
-    Page<PurchaseDetailListDTO> selectDetailListWithNames(Page<?> page, @Param("wrapper") Wrapper<PurchaseOrder> wrapper);
+    Page<PurchaseDetailListDTO> selectDetailListWithNames(Page<?> page, @Param("ew") Wrapper<PurchaseOrder> wrapper);
 }

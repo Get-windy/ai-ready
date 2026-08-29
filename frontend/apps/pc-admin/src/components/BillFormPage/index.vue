@@ -512,7 +512,7 @@ function getTabFieldDisplayValue(tf: TabField): string {
   min-height: 0;
   background: #fff;
   border-bottom: 1px solid #e8e8e8;
-  overflow: hidden;
+  overflow: auto;
 }
 
 .table-section-expanded {

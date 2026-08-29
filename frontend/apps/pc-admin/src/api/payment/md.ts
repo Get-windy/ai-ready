@@ -20,13 +20,13 @@ export interface PaymentMethodRecord {
 }
 
 export const paymentMethodApi = {
-  page(params: any) { return request.get('/api/erp/md/payment-method/page', { params }) },
-  getById(id: number) { return request.get(`/api/erp/md/payment-method/${id}`) },
-  list() { return request.get('/api/erp/md/payment-method/list') },
-  create(data: Partial<PaymentMethodRecord>) { return request.post('/api/erp/md/payment-method', data) },
-  update(id: number, data: Partial<PaymentMethodRecord>) { return request.put(`/api/erp/md/payment-method/${id}`, data) },
-  remove(id: number) { return request.delete(`/api/erp/md/payment-method/${id}`) },
-  updateStatus(id: number, status: number) { return request.put(`/api/erp/md/payment-method/${id}/status`, status) },
+  page(params: any) { return request.get('/erp/md/payment-method/page', { params }) },
+  getById(id: number) { return request.get(`/erp/md/payment-method/${id}`) },
+  list() { return request.get('/erp/md/payment-method/list') },
+  create(data: Partial<PaymentMethodRecord>) { return request.post('/erp/md/payment-method', data) },
+  update(id: number, data: Partial<PaymentMethodRecord>) { return request.put(`/erp/md/payment-method/${id}`, data) },
+  remove(id: number) { return request.delete(`/erp/md/payment-method/${id}`) },
+  updateStatus(id: number, status: number) { return request.put(`/erp/md/payment-method/${id}/status`, status) },
 }
 
 /**
@@ -48,13 +48,13 @@ export interface PaymentChannelRecord {
 }
 
 export const paymentChannelApi = {
-  page(params: any) { return request.get('/api/erp/md/payment-channel/page', { params }) },
-  getById(id: number) { return request.get(`/api/erp/md/payment-channel/${id}`) },
-  list(methodId?: number) { return request.get('/api/erp/md/payment-channel/list', { params: { methodId } }) },
-  create(data: Partial<PaymentChannelRecord>) { return request.post('/api/erp/md/payment-channel', data) },
-  update(id: number, data: Partial<PaymentChannelRecord>) { return request.put(`/api/erp/md/payment-channel/${id}`, data) },
-  remove(id: number) { return request.delete(`/api/erp/md/payment-channel/${id}`) },
-  updateStatus(id: number, status: number) { return request.put(`/api/erp/md/payment-channel/${id}/status`, status) },
+  page(params: any) { return request.get('/erp/md/payment-channel/page', { params }) },
+  getById(id: number) { return request.get(`/erp/md/payment-channel/${id}`) },
+  list(methodId?: number) { return request.get('/erp/md/payment-channel/list', { params: { methodId } }) },
+  create(data: Partial<PaymentChannelRecord>) { return request.post('/erp/md/payment-channel', data) },
+  update(id: number, data: Partial<PaymentChannelRecord>) { return request.put(`/erp/md/payment-channel/${id}`, data) },
+  remove(id: number) { return request.delete(`/erp/md/payment-channel/${id}`) },
+  updateStatus(id: number, status: number) { return request.put(`/erp/md/payment-channel/${id}/status`, status) },
 }
 
 // 支付方式类型枚举

@@ -1,6 +1,17 @@
 <template>
   <ErrorBoundary>
     <PageContainer title="付款单">
+      <!-- ═══ 表头操作按钮（对标：无结算收款单核销/打印F8/导出） ═══ -->
+      <div class="panel header-actions">
+        <a-space :size="8">
+          <a-button size="small" :disabled="!editable" @click="handleNoSettlementVerify">
+            无结算收款单核销({{ noSettlementCount }})
+          </a-button>
+          <a-button size="small" @click="handlePrint">打印(F8)</a-button>
+          <a-button size="small" @click="handleExport">导出</a-button>
+        </a-space>
+      </div>
+
       <!-- ═══ 单据头 ═══ -->
       <div class="panel">
         <div class="panel-title">
@@ -35,13 +46,31 @@
         </a-form>
       </div>
 
-      <!-- ═══ 付款金额区 ═══ -->
+      <!-- ═══ 付款金额区（对标：此前应付/应付余额/预付款余额/优惠金额/多付金额） ═══ -->
       <div class="panel">
         <div class="panel-title">付款金额</div>
         <a-form layout="inline" class="header-form">
+          <a-form-item label="此前应付">
+            <a-input-number v-model:value="form.prevPayable" :precision="2" style="width: 110px" disabled />
+          </a-form-item>
+          <a-form-item label="应付余额">
+            <a-input-number v-model:value="form.payableBalance" :precision="2" style="width: 110px" disabled />
+          </a-form-item>
+          <a-form-item label="预付款余额">
+            <a-input-number v-model:value="form.prepaidBalance" :precision="2" style="width: 110px" disabled />
+          </a-form-item>
           <a-form-item label="付款金额" required>
             <a-input-number v-model:value="form.paymentAmount" :min="0" :precision="2"
-              style="width: 180px" placeholder="输入付款金额" :disabled="!editable" @change="handleAmountChange" />
+              style="width: 140px" placeholder="输入付款金额" :disabled="!editable" @change="handleAmountChange" />
+          </a-form-item>
+          <a-form-item label="使用预付款">
+            <a-input-number v-model:value="form.usePrepaid" :min="0" :precision="2" style="width: 110px" :disabled="!editable" @change="handleAmountChange" />
+          </a-form-item>
+          <a-form-item label="优惠金额">
+            <a-input-number v-model:value="form.discountAmount" :min="0" :precision="2" style="width: 110px" :disabled="!editable" @change="handleAmountChange" />
+          </a-form-item>
+          <a-form-item label="多付金额">
+            <a-input-number v-model:value="form.overpayAmount" :min="0" :precision="2" style="width: 110px" disabled />
           </a-form-item>
           <a-form-item label="支付方式">
             <a-select v-model:value="form.paymentMethod" style="width: 160px" placeholder="选择支付方式"
@@ -151,9 +180,10 @@ import { message, Modal } from 'ant-design-vue'
 import { useRouter, useRoute } from 'vue-router'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
-import { paymentApi } from '@/api/finance'
+import { paymentApi, payableApi } from '@/api/finance'
 import { paymentMethodApi } from '@/api/payment/md'
 import { supplierApi } from '@/api/supplier'
+import request from '@/utils/request'
 
 defineOptions({ name: 'PaymentDocForm' })
 
@@ -204,6 +234,13 @@ const emptyForm = () => ({
   paymentAmount: 0,
   verifiedAmount: 0,
   pendingAmount: 0,
+  // 对标表头字段：此前应付/应付余额/预付款余额/优惠金额/多付金额/使用预付款
+  prevPayable: 0,
+  payableBalance: 0,
+  prepaidBalance: 0,
+  discountAmount: 0,
+  overpayAmount: 0,
+  usePrepaid: 0,
   paymentMethod: undefined as string | undefined,
   bankName: '',
   bankAccount: '',
@@ -284,14 +321,46 @@ async function loadPayables(supplierId: number) {
   payableLoading.value = true
   selectedPayables.value = new Set()
   try {
-    const res: any = await paymentApi.getPage({ supplierId, pageNum: 1, pageSize: 500 })
-    const list = res?.records || []
+    // 核销明细数据源=应付来源单据（finance_payable），而非付款单历史
+    const res: any = await payableApi.getPage({ supplierId: String(supplierId), page: 1, size: 500 })
+    const list: any[] = res?.records || res?.list || []
     supplierPayables.value = list
-      .filter((r: any) => r.status < 7 && (r.pendingAmount || r.remainingAmount) > 0)
+      .filter((r: any) => r.status !== 'written_off' && r.status !== 'bad_debt' && Number(r.remainingAmount) > 0)
       .map((r: any) => ({ ...r, _verifyAmount: 0 }))
   } catch { supplierPayables.value = [] }
   finally { payableLoading.value = false }
 }
+// ═══ 表头操作（对标：无结算收款单核销/打印/导出） ═══
+const noSettlementCount = ref(0)
+
+async function handleNoSettlementVerify() {
+  if (!form.supplierId) {
+    message.warning('请先选择供应商')
+    return
+  }
+  await loadPayables(form.supplierId)
+  message.info('已加载无结算付款单核销列表，请勾选本次核销')
+}
+
+function handlePrint() {
+  message.info('打印(F8)待对接打印模板')
+}
+
+async function handleExport() {
+  try {
+    const blob = await request.get('/erp/payment/export', { params: { paymentNo: form.paymentNo, supplierId: form.supplierId }, responseType: 'blob' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `付款单_${new Date().toISOString().slice(0, 10)}.xlsx`
+    a.click()
+    window.URL.revokeObjectURL(url)
+    message.success('导出成功')
+  } catch {
+    message.error('导出失败')
+  }
+}
+
 function isSelected(record: any) { return selectedPayables.value.has(record.id) }
 function toggleSelect(record: any) {
   if (selectedPayables.value.has(record.id)) {
@@ -391,6 +460,18 @@ async function handleCancel() {
 }
 
 function buildPayload() {
+  const selectedItems = supplierPayables.value
+    .filter((r: any) => selectedPayables.value.has(r.id))
+    .map((r: any) => ({
+      orderId: r.sourceType === 'purchase_order' ? r.sourceId : undefined,
+      orderNo: r.sourceNo || undefined,
+      invoiceId: r.sourceType === 'invoice' ? r.sourceId : undefined,
+      invoiceNo: r.invoiceNo || undefined,
+      orderAmount: r.totalAmount,
+      invoiceAmount: r.sourceType === 'invoice' ? r.totalAmount : undefined,
+      pendingAmount: r.remainingAmount,
+      verifyAmount: Number(r._verifyAmount) || 0,
+    }))
   return {
     paymentType: form.paymentType,
     supplierId: form.supplierId,
@@ -406,6 +487,8 @@ function buildPayload() {
     departmentName: form.departmentName || undefined,
     sourceNo: form.sourceNo || undefined,
     remark: form.remark || undefined,
+    // 核销明细落库：打通 PaymentCreateDTO.items → PaymentItem
+    items: selectedItems.length > 0 ? selectedItems : undefined,
   }
 }
 
@@ -441,6 +524,7 @@ onMounted(async () => {
 .panel-title { font-size: 15px; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
 .panel-subtitle { font-size: 13px; font-weight: 400; color: #666; }
 .panel-tag { margin-left: auto; }
+.header-actions { padding: 12px 16px; margin-bottom: 0; }
 .header-form { display: flex; flex-wrap: wrap; gap: 0; }
 .header-form .ant-form-item { margin-bottom: 12px; }
 .btn-row { display: flex; justify-content: flex-start; }

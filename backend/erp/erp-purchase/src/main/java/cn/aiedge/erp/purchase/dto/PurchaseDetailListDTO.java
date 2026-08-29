@@ -41,6 +41,8 @@ public class PurchaseDetailListDTO {
     private String purchaserName;
     /** 12 部门 */
     private String deptName;
+    /** 12-1 来源订单(源单编号) */
+    private String sourceBillNo;
 
     // ═══ 明细级字段(13-59) ═══
     /** 13 商品名称 */

@@ -1,6 +1,6 @@
 package cn.aiedge.erp.printing.controller.v2;
 
-import cn.aiedge.base.entity.User;
+import cn.aiedge.base.entity.SysUser;
 import cn.aiedge.base.entity.SysTenant;
 import cn.aiedge.base.mapper.TenantMapper;
 import cn.aiedge.base.mapper.UserMapper;
@@ -56,7 +56,7 @@ public class ClientAuthController {
         Long tenantId = tenant.getId();
 
         // 2. 查找用户
-        User user = userMapper.selectByUsername(dto.getUsername());
+        SysUser user = userMapper.selectByUsername(dto.getUsername());
         if (user == null) {
             return ResponseEntity.ok(ApiResponse.fail(401, "用户名或密码错误"));
         }
@@ -116,7 +116,7 @@ public class ClientAuthController {
             @Valid @RequestBody PrintClientRegisterDTO dto,
             @RequestParam(required = false) String machineId) {
         Long userId = StpUtil.getLoginIdAsLong();
-        User user = userMapper.selectById(userId);
+        SysUser user = userMapper.selectById(userId);
         if (user == null) {
             return ResponseEntity.ok(ApiResponse.fail(401, "用户不存在"));
         }
@@ -155,7 +155,7 @@ public class ClientAuthController {
     @SaCheckLogin
     public ResponseEntity<ApiResponse<Object>> me(@RequestParam(required = false) Long clientId) {
         Long userId = StpUtil.getLoginIdAsLong();
-        User user = userMapper.selectById(userId);
+        SysUser user = userMapper.selectById(userId);
         if (user == null) {
             return ResponseEntity.ok(ApiResponse.fail(401, "用户不存在"));
         }

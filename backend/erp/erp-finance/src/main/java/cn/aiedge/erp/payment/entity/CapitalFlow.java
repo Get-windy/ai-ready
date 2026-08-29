@@ -57,6 +57,15 @@ public class CapitalFlow {
 
     private String remark;
 
+    /** 对账标记：0-未对账 1-已对账（在线支付对账单） */
+    private Integer reconcileFlag;
+
+    /** 对账人 */
+    private String reconcileBy;
+
+    /** 对账时间 */
+    private LocalDateTime reconcileAt;
+
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
 }

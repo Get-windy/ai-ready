@@ -129,6 +129,7 @@ import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTable/types'
 import { partnerApi } from '@/api/erp/partner'
+import PartnerListPage from '../components/PartnerListPage.vue'
 
 const router = useRouter()
 
@@ -193,6 +194,9 @@ const columns: DetailColumnConfig[] = [
   { key: 'remark', title: '备注', type: 'input', width: 150 },
   { key: 'businessSeries', title: '经营系列', type: 'input', width: 120 },
   { key: 'businessArea', title: '经营面积', type: 'input', width: 100 },
+  { key: 'taxNumber', title: '税号', type: 'input', width: 150 },
+  { key: 'bankName', title: '开户行', type: 'input', width: 130 },
+  { key: 'bankAccount', title: '银行账号', type: 'input', width: 160 },
 ]
 
 </script>

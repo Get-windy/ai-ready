@@ -233,7 +233,7 @@ const quickEntries = [
   { key: 'shipment', label: '发货管理', icon: SendOutlined, path: '/erp/shipment' },
   { key: 'stocktake', label: '库存盘点', icon: CheckSquareOutlined, path: '/erp/stocktake' },
   { key: 'return', label: '退货管理', icon: RollbackOutlined, path: '/erp/return' },
-  { key: 'purchase-exchange', label: '采购换货', icon: SwapOutlined, path: '/erp/purchase-exchange' },
+  { key: 'purchase-exchange', label: '采购换货', icon: SwapOutlined, path: '/purchase/exchange' },
   { key: 'batch', label: '批次管理', icon: BarcodeOutlined, path: '/erp/batch' },
   { key: 'serial', label: '序列号管理', icon: NumberOutlined, path: '/erp/serial' },
   { key: 'sales-analysis', label: '销售分析', icon: BarChartOutlined, path: '/erp/sales-analysis' },

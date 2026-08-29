@@ -9,6 +9,7 @@ import cn.aiedge.wms.entity.WmsBorrowReturn;
 import cn.aiedge.wms.entity.WmsBorrowReturnItem;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -33,6 +34,17 @@ public class BorrowController {
     @GetMapping("/page")
     public Result<Page<WmsBorrowOrder>> page(@Valid Page<WmsBorrowOrder> page, WmsBorrowOrder query) {
         return Result.ok(borrowService.pageOrder(page, query));
+    }
+
+    @Operation(summary = "借进借出商品台账聚合查询（按 商品×往来单位 分组）")
+    @GetMapping("/aggregate")
+    public Result<List<java.util.Map<String, Object>>> aggregate(
+            @Parameter(description = "方向 1-借进 2-借出") @RequestParam(required = false) Integer direction,
+            @Parameter(description = "往来单位") @RequestParam(required = false) String partnerName,
+            @Parameter(description = "商品名称") @RequestParam(required = false) String productName,
+            @Parameter(description = "开始日期 YYYY-MM-DD") @RequestParam(required = false) String dateStart,
+            @Parameter(description = "结束日期 YYYY-MM-DD") @RequestParam(required = false) String dateEnd) {
+        return Result.ok(borrowService.aggregateByProduct(direction, partnerName, productName, dateStart, dateEnd));
     }
 
     @Operation(summary = "查询借进借出单（含明细）")

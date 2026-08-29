@@ -1,6 +1,6 @@
 package cn.aiedge.base.service;
 
-import cn.aiedge.base.entity.User;
+import cn.aiedge.base.entity.SysUser;
 import cn.aiedge.common.dto.user.UserCreateRequest;
 import cn.aiedge.common.dto.user.UserQueryRequest;
 import cn.aiedge.common.dto.user.UserUpdateRequest;
@@ -13,7 +13,7 @@ import java.util.List;
 /**
  * 用户服务接口
  */
-public interface UserService extends IService<User> {
+public interface UserService extends IService<SysUser> {
 
     /**
      * 分页查询用户
@@ -68,17 +68,17 @@ public interface UserService extends IService<User> {
     /**
      * 根据用户名查询用户
      */
-    User getByUsername(String username);
+    SysUser getByUsername(String username);
 
     /**
      * 根据手机号查询用户
      */
-    User getByPhone(String phone);
+    SysUser getByPhone(String phone);
 
     /**
      * 根据邮箱查询用户
      */
-    User getByEmail(String email);
+    SysUser getByEmail(String email);
 
     /**
      * 更新登录信息

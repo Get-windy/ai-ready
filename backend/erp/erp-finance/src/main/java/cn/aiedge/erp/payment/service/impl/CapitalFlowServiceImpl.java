@@ -56,6 +56,63 @@ public class CapitalFlowServiceImpl extends ServiceImpl<CapitalFlowMapper, Capit
     }
 
     @Override
+    public Page<CapitalFlow> pageListForReconcile(Integer paymentType, String direction,
+                                                  Integer paymentMethod, Integer reconcileFlag,
+                                                  String keyword, LocalDate startDate, LocalDate endDate,
+                                                  int pageNum, int pageSize) {
+        LambdaQueryWrapper<CapitalFlow> wrapper = new LambdaQueryWrapper<>();
+        // 支付类型：仅展示收款/退款类在线支付流水（IN 为收款）
+        if (paymentType != null) {
+            if (paymentType == 1) {
+                wrapper.eq(CapitalFlow::getDirection, "IN");
+            } else if (paymentType == 2) {
+                wrapper.eq(CapitalFlow::getDirection, "OUT");
+            }
+        }
+        if (direction != null && !direction.isEmpty()) {
+            wrapper.eq(CapitalFlow::getDirection, direction);
+        }
+        if (paymentMethod != null) {
+            wrapper.eq(CapitalFlow::getPaymentMethod, paymentMethod);
+        }
+        if (reconcileFlag != null) {
+            wrapper.eq(CapitalFlow::getReconcileFlag, reconcileFlag);
+        }
+        if (keyword != null && !keyword.isEmpty()) {
+            wrapper.and(w -> w.like(CapitalFlow::getFlowNo, keyword)
+                    .or().like(CapitalFlow::getRefNo, keyword)
+                    .or().like(CapitalFlow::getTransactionNo, keyword)
+                    .or().like(CapitalFlow::getPartyName, keyword));
+        }
+        if (startDate != null) {
+            wrapper.ge(CapitalFlow::getOccurDate, startDate.atStartOfDay());
+        }
+        if (endDate != null) {
+            wrapper.le(CapitalFlow::getOccurDate, endDate.atTime(23, 59, 59));
+        }
+        wrapper.orderByDesc(CapitalFlow::getOccurDate);
+        return page(new Page<>(pageNum, pageSize), wrapper);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void toggleReconcileFlag(Long id, Integer flag, String operator) {
+        CapitalFlow flow = getById(id);
+        if (flow == null) {
+            throw new IllegalArgumentException("流水不存在: " + id);
+        }
+        flow.setReconcileFlag(flag != null ? flag : (flow.getReconcileFlag() != null && flow.getReconcileFlag() == 1 ? 0 : 1));
+        if (flow.getReconcileFlag() == 1) {
+            flow.setReconcileBy(operator);
+            flow.setReconcileAt(LocalDateTime.now());
+        } else {
+            flow.setReconcileBy(null);
+            flow.setReconcileAt(null);
+        }
+        updateById(flow);
+    }
+
+    @Override
     @Transactional(rollbackFor = Exception.class)
     public CapitalFlow createFlow(CapitalFlow flow) {
         flow.setFlowNo(generateFlowNo());

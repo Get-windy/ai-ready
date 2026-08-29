@@ -33,6 +33,9 @@ public class StockBomItem {
 
     private BigDecimal cost;
 
+    /** 损耗率（生产模板/组装拆分配套） */
+    private BigDecimal wastageRate;
+
     private String remark;
 
     @TableLogic

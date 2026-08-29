@@ -75,21 +75,28 @@ const queryFields: ReportQueryField[] = [
   { key: 'riderId', type: 'input', label: '骑手ID', placeholder: '骑手ID', width: 120 }
 ]
 
-// ═══ 表格列 ═══
+// ═══ 表格列（对标 21 列：指定配送日期/任务编号/配送状态/开始结束时间/司机/车辆/送货员/配送单量/订金金额/退货单量/发货数量金额/退货数量金额/装箱数量/里程/备注/制单人/制单时间） ═══
 const columns: any[] = [
+  { title: '指定配送日期', dataIndex: 'planDate', key: 'planDate', width: 110 },
   { title: '任务编号', dataIndex: 'taskNo', key: 'taskNo', width: 160 },
-  { title: '订单号', dataIndex: 'orderNo', key: 'orderNo', width: 150 },
-  { title: '类型', dataIndex: 'orderType', key: 'orderType', width: 100 },
+  { title: '配送状态', dataIndex: 'status', key: 'status', width: 90 },
+  { title: '配送开始时间', dataIndex: 'pickupTime', key: 'pickupTime', width: 160 },
+  { title: '配送结束时间', dataIndex: 'deliveryTime', key: 'deliveryTime', width: 160 },
+  { title: '司机名称', dataIndex: 'driverName', key: 'driverName', width: 90 },
+  { title: '配送车辆', dataIndex: 'vehicleName', key: 'vehicleName', width: 100 },
   { title: '客户', dataIndex: 'customerName', key: 'customerName', width: 130, ellipsis: true },
   { title: '联系电话', dataIndex: 'customerPhone', key: 'customerPhone', width: 120 },
-  { title: '骑手ID', dataIndex: 'riderId', key: 'riderId', width: 80, align: 'center' },
-  { title: '数量', dataIndex: 'totalQuantity', key: 'totalQuantity', width: 90, align: 'right' },
-  { title: '货品金额', dataIndex: 'goodsAmount', key: 'goodsAmount', width: 110, align: 'right' },
+  { title: '订单号', dataIndex: 'orderNo', key: 'orderNo', width: 150 },
+  { title: '发货数量', dataIndex: 'totalQuantity', key: 'totalQuantity', width: 90, align: 'right' },
+  { title: '发货金额', dataIndex: 'goodsAmount', key: 'goodsAmount', width: 110, align: 'right' },
   { title: '配送费', dataIndex: 'deliveryFee', key: 'deliveryFee', width: 100, align: 'right' },
   { title: '代收货款', dataIndex: 'collectOnDelivery', key: 'collectOnDelivery', width: 110, align: 'right' },
+  { title: '重量(kg)', dataIndex: 'totalWeight', key: 'totalWeight', width: 90, align: 'right' },
+  { title: '体积(m³)', dataIndex: 'totalVolume', key: 'totalVolume', width: 90, align: 'right' },
+  { title: '配送里程(km)', dataIndex: 'estimatedDistance', key: 'estimatedDistance', width: 110, align: 'right' },
   { title: '优先级', dataIndex: 'priority', key: 'priority', width: 80 },
-  { title: '状态', dataIndex: 'status', key: 'status', width: 90 },
-  { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 160 }
+  { title: '备注', dataIndex: 'remark', key: 'remark', width: 120, ellipsis: true },
+  { title: '制单时间', dataIndex: 'createTime', key: 'createTime', width: 160 }
 ]
 
 function formatMoney(val: number | null | undefined): string {

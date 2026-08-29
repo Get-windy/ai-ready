@@ -1,6 +1,13 @@
 <template>
   <ErrorBoundary>
     <PageContainer title="会计凭证">
+      <!-- ═══ 表头操作按钮（对标：打印F8/导出） ═══ -->
+      <div class="panel header-actions">
+        <a-space :size="8">
+          <a-button size="small" @click="handlePrint">打印(F8)</a-button>
+          <a-button size="small" @click="handleExport">导出</a-button>
+        </a-space>
+      </div>
       <div class="panel">
         <div class="panel-title">
           凭证头
@@ -34,13 +41,20 @@
           <a-button v-if="editable" size="small" type="link" @click="addEntry">+ 添加分录</a-button>
         </div>
         <a-table :columns="entryColumns" :data-source="entries" row-key="_key"
-          size="small" :pagination="false" :scroll="{ x: 900 }">
+          size="small" :pagination="false" :scroll="{ x: 1100 }">
           <template #bodyCell="{ column, record, index }">
             <template v-if="column.dataIndex === 'lineNo'">{{ index + 1 }}</template>
             <template v-else-if="column.dataIndex === 'subjectId'">
               <a-select v-model:value="record.subjectId" style="width: 100%" placeholder="选择科目"
                 show-search :filter-option="(i: any, o: any) => o.label?.includes(i)"
-                :options="subjectOptions" :loading="subjectLoading" :disabled="!editable" />
+                :options="subjectOptions" :loading="subjectLoading" :disabled="!editable"
+                @change="(v: number) => syncSubjectInfo(record, v)" />
+            </template>
+            <template v-else-if="column.dataIndex === 'subjectCode'">
+              <span>{{ getSubjectField(record.subjectId, 'subjectCode') }}</span>
+            </template>
+            <template v-else-if="column.dataIndex === 'subjectName'">
+              <span>{{ getSubjectField(record.subjectId, 'subjectName') }}</span>
             </template>
             <template v-else-if="column.dataIndex === 'summary'">
               <a-input v-model:value="record.summary" placeholder="摘要" :disabled="!editable" />
@@ -85,9 +99,30 @@ import { useRouter, useRoute } from 'vue-router'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import { voucherApi, accountSubjectApi } from '@/api/finance'
+import request from '@/utils/request'
 
 defineOptions({ name: 'VoucherForm' })
 const router = useRouter()
+
+// ═══ 表头操作（对标：打印F8/导出） ═══
+function handlePrint() {
+  message.info('打印(F8)待对接打印模板')
+}
+
+async function handleExport() {
+  try {
+    const blob = await request.get('/erp/finance/voucher/export', { params: { id: form.id, voucherNo: form.voucherNo }, responseType: 'blob' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `会计凭证_${new Date().toISOString().slice(0, 10)}.xlsx`
+    a.click()
+    window.URL.revokeObjectURL(url)
+    message.success('导出成功')
+  } catch {
+    message.error('导出失败')
+  }
+}
 const route = useRoute()
 
 const voucherTypeOptions = [
@@ -120,13 +155,16 @@ const acting = ref(false)
 // ═══ 分录网格 ═══
 let _keySeq = 0
 const entries = ref<any[]>([])
+// 对标 7 列：明细摘要/科目编号/科目全名/明细科目/借方金额/贷方金额
 const entryColumns = [
-  { title: '行号', dataIndex: 'lineNo', key: 'lineNo', width: 60 },
-  { title: '会计科目', dataIndex: 'subjectId', key: 'subjectId', width: 200 },
-  { title: '摘要', dataIndex: 'summary', key: 'summary', width: 200 },
-  { title: '借方金额', dataIndex: 'debitAmount', key: 'debitAmount', width: 150, align: 'right' },
-  { title: '贷方金额', dataIndex: 'creditAmount', key: 'creditAmount', width: 150, align: 'right' },
-  { title: '操作', dataIndex: 'action', key: 'action', width: 80 },
+  { title: '行号', dataIndex: 'lineNo', key: 'lineNo', width: 50 },
+  { title: '科目编号', dataIndex: 'subjectCode', key: 'subjectCode', width: 100 },
+  { title: '科目全名', dataIndex: 'subjectName', key: 'subjectName', width: 160 },
+  { title: '明细科目', dataIndex: 'subjectId', key: 'subjectId', width: 200 },
+  { title: '摘要', dataIndex: 'summary', key: 'summary', width: 180 },
+  { title: '借方金额', dataIndex: 'debitAmount', key: 'debitAmount', width: 130, align: 'right' },
+  { title: '贷方金额', dataIndex: 'creditAmount', key: 'creditAmount', width: 130, align: 'right' },
+  { title: '操作', dataIndex: 'action', key: 'action', width: 70 },
 ]
 
 const debitTotal = computed(() => entries.value.reduce((s, e) => s + Number(e.debitAmount || 0), 0))
@@ -142,14 +180,32 @@ function recalcTotals() { /* computed handles this */ }
 // ═══ 科目选项 ═══
 const subjectOptions = ref<{ label: string; value: number }[]>([])
 const subjectLoading = ref(false)
+const subjectMap = ref<Record<number, any>>({})
 async function loadSubjects() {
   subjectLoading.value = true
   try {
     const res: any = await accountSubjectApi.getList()
     const list: any[] = Array.isArray(res) ? res : res?.data || []
-    subjectOptions.value = list.map((s: any) => ({ label: `${s.subjectCode} ${s.subjectName}`, value: s.id }))
+    subjectMap.value = {}
+    subjectOptions.value = list.map((s: any) => {
+      subjectMap.value[s.id] = s
+      return { label: `${s.subjectCode} ${s.subjectName}`, value: s.id }
+    })
   } catch { subjectOptions.value = [] }
   finally { subjectLoading.value = false }
+}
+
+function getSubjectField(subjectId: number | undefined, field: string): string {
+  if (!subjectId) return ''
+  const s = subjectMap.value[subjectId]
+  return s ? (s[field] ?? '') : ''
+}
+function syncSubjectInfo(record: any, val: number) {
+  const s = subjectMap.value[val]
+  if (s) {
+    record.subjectCode = s.subjectCode
+    record.subjectName = s.subjectName
+  }
 }
 
 // ═══ 操作 ═══
@@ -240,6 +296,7 @@ onMounted(async () => {
 .panel-subtitle { font-size: 13px; font-weight: 400; color: #666; }
 .panel-tag { margin-left: auto; }
 .header-form .ant-form-item { margin-bottom: 12px; }
+.header-actions { padding: 12px 16px; margin-bottom: 0; }
 .btn-row { display: flex; justify-content: flex-start; }
 .table-empty-hint { text-align: center; padding: 24px; color: #999; }
 </style>

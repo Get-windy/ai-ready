@@ -1,6 +1,6 @@
 package cn.aiedge.erp.finance.controller;
 
-import cn.aiedge.base.entity.User;
+import cn.aiedge.base.entity.SysUser;
 import cn.aiedge.base.log.annotation.OperationLog;
 import cn.aiedge.base.service.UserService;
 import cn.aiedge.base.utils.SecurityUtils;
@@ -46,7 +46,7 @@ public class MonthClosingController {
             operatorName = SecurityUtils.getCurrentUsername();
             if (operatorName == null || operatorName.isEmpty()) {
                 try {
-                    User user = userService.getById(loginId);
+                    SysUser user = userService.getById(loginId);
                     if (user != null) {
                         operatorName = user.getRealName() != null && !user.getRealName().isEmpty()
                                 ? user.getRealName() : user.getUsername();

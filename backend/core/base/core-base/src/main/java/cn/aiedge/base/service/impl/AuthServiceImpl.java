@@ -1,7 +1,7 @@
 package cn.aiedge.base.service.impl;
 
 import cn.aiedge.base.entity.SysTenant;
-import cn.aiedge.base.entity.User;
+import cn.aiedge.base.entity.SysUser;
 import cn.aiedge.base.mapper.TenantMapper;
 import cn.aiedge.base.service.AuthService;
 import cn.aiedge.base.service.UserService;
@@ -64,7 +64,7 @@ public class AuthServiceImpl implements AuthService {
         }
 
         // 查询用户
-        User user = userService.getByUsername(request.getUsername());
+        SysUser user = userService.getByUsername(request.getUsername());
         if (user == null) {
             recordFailure(request.getUsername());
             throw BusinessException.badRequest("用户名或密码错误");
@@ -159,7 +159,7 @@ public class AuthServiceImpl implements AuthService {
         Long userId = StpUtil.getLoginIdAsLong();
         String newToken = StpUtil.getTokenValue();
 
-        User user = userService.getById(userId);
+        SysUser user = userService.getById(userId);
         if (user == null) {
             throw BusinessException.notFound("用户不存在");
         }
@@ -186,7 +186,7 @@ public class AuthServiceImpl implements AuthService {
         }
 
         Long userId = StpUtil.getLoginIdAsLong();
-        User user = userService.getById(userId);
+        SysUser user = userService.getById(userId);
         if (user == null) {
             throw BusinessException.notFound("用户不存在");
         }

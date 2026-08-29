@@ -1,21 +1,40 @@
 import request, { type ApiResponse, type PageResponse } from '@/utils/request'
 
 /**
- * 客户信息
+ * 客户信息（对齐后端 Customer 实体：crm/customer/entity/Customer.java）
  */
 export interface CustomerInfo {
   id: number
   tenantId: number
-  name: string
-  code: string
-  contactPerson: string
-  phone: string
-  email: string
+  customerCode: string
+  customerName: string
+  shortName: string
+  customerType: number
+  customerSource: number
+  industryType: number
+  province: string
+  city: string
+  district: string
   address: string
-  level: number
-  industry: string
+  phone: string
+  fax: string
+  email: string
+  website: string
+  legalPerson: string
+  businessContact: string
+  businessContactPhone: string
+  financeContact: string
+  financeContactPhone: string
+  taxNumber: string
+  bankName: string
+  bankAccount: string
+  customerLevel: number
+  customerLevelDesc: string
+  creditLimit: number
+  currentDebt: number
+  settlementType: number
+  settlementDays: number
   status: number
-  description: string
   createTime: string
   updateTime: string
 }

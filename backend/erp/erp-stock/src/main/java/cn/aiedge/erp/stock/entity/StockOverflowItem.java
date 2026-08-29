@@ -25,6 +25,15 @@ public class StockOverflowItem {
     private BigDecimal amount;
     private String batchNo;
     private LocalDate productionDate;
+    private LocalDate validityDate;
+    private String barcode;
+    private String location;
+    private String shelfLife;
+    private String conversionRelation;
+    private BigDecimal pieceQuantity;
+    private BigDecimal bigPack;
+    private BigDecimal midPack;
+    private BigDecimal smallPack;
     private String remark;
     @TableLogic
     private Integer deleted;

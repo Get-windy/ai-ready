@@ -1,6 +1,6 @@
 package cn.aiedge.base.service;
 
-import cn.aiedge.base.entity.Permission;
+import cn.aiedge.base.entity.SysPermission;
 import cn.aiedge.common.dto.permission.PermissionCreateRequest;
 import cn.aiedge.common.dto.permission.PermissionDetailVO;
 import cn.aiedge.common.dto.permission.PermissionQueryRequest;
@@ -13,7 +13,7 @@ import java.util.List;
 /**
  * 权限服务接口
  */
-public interface PermissionService extends IService<Permission> {
+public interface PermissionService extends IService<SysPermission> {
 
     /**
      * 分页查询权限
@@ -63,20 +63,20 @@ public interface PermissionService extends IService<Permission> {
     /**
      * 根据权限编码查询权限
      */
-    Permission getByPermissionCode(String permissionCode);
+    SysPermission getByPermissionCode(String permissionCode);
 
     /**
      * 根据用户ID查询权限列表
      */
-    List<Permission> getByUserId(Long userId);
+    List<SysPermission> getByUserId(Long userId);
 
     /**
      * 根据角色ID查询权限列表
      */
-    List<Permission> getByRoleId(Long roleId);
+    List<SysPermission> getByRoleId(Long roleId);
 
     /**
      * 获取子权限列表
      */
-    List<Permission> getByParentId(Long parentId);
+    List<SysPermission> getByParentId(Long parentId);
 }

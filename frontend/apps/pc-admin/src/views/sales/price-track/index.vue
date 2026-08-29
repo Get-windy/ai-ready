@@ -1,119 +1,117 @@
 <template>
   <ErrorBoundary>
-    <PageContainer
-      title="销售价格跟踪"
-      full-height
-    >
-      <template #headerExtra>
-        <a-button
-          size="small"
-          @click="loadData"
-        >
-          <template #icon>
-            <ReloadOutlined />
-          </template>刷新
-        </a-button>
+    <PageContainer full-height>
+      <!-- ══ 顶栏：标题 + 日期快捷 + 操作按钮 ═══ -->
+      <template #header>
+        <div class="page-header">
+          <div class="page-header__left">
+            <span class="breadcrumb">仓储 / 销售价格跟踪</span>
+            <h2>销售价格跟踪</h2>
+          </div>
+          <div class="page-header__right">
+            <div class="date-shortcuts">
+              <a
+                v-for="s in dateShortcuts"
+                :key="s.key"
+                :class="['date-shortcut', { active: activeShortcut === s.key }]"
+                @click="pickShortcut(s.key)"
+              >{{ s.label }}</a>
+            </div>
+            <a-space :size="8">
+              <a-button type="primary" size="small"><PlusOutlined /> 新增</a-button>
+              <a-button size="small" :loading="loading" @click="loadData"><ReloadOutlined /> 刷新</a-button>
+              <a-button size="small"><PrinterOutlined /> 打印(F8)</a-button>
+              <a-dropdown>
+                <a-button size="small">更多 <DownOutlined /></a-button>
+                <template #overlay>
+                  <a-menu>
+                    <a-menu-item @click="handleExport"><ExportOutlined /> 导出</a-menu-item>
+                  </a-menu>
+                </template>
+              </a-dropdown>
+            </a-space>
+          </div>
+        </div>
       </template>
 
-      <div class="page-scroll">
-        <a-alert
-          type="info"
-          show-icon
-          class="track-alert"
-          message="价格走势按销售明细口径呈现"
-          description="后端价格跟踪端点为明细级查询（每行=一条出库明细），本页按商品+单据日期展示销售单价走势与明细，数据全部来自真实销售出库单据。"
-        />
+      <!-- ═══ 搜索区 ═══ -->
+      <div class="search-bar">
+        <a-form layout="inline">
+          <a-form-item>
+            <a-range-picker
+              v-model:value="dateRange"
+              style="width: 240px"
+              value-format="YYYY-MM-DD"
+            />
+          </a-form-item>
+          <a-form-item>
+            <a-input
+              v-model:value="queryValues.partnerName"
+              placeholder="往来单位"
+              allow-clear
+              style="width: 160px"
+            />
+          </a-form-item>
+          <a-form-item>
+            <a-input
+              v-model:value="queryValues.productName"
+              placeholder="商品"
+              allow-clear
+              style="width: 160px"
+            />
+          </a-form-item>
+          <a-form-item>
+            <a-select
+              v-model:value="queryValues.unitType"
+              placeholder="单位类型"
+              allow-clear
+              style="width: 120px"
+            >
+              <a-select-option value="">全部</a-select-option>
+              <a-select-option value="small">小单位</a-select-option>
+              <a-select-option value="big">大单位</a-select-option>
+            </a-select>
+          </a-form-item>
+          <a-form-item>
+            <a-button type="primary" @click="handleSearch">查询</a-button>
+          </a-form-item>
+          <a-form-item>
+            <a-checkbox v-model:checked="showSelected">仅显示已选中</a-checkbox>
+          </a-form-item>
+        </a-form>
+      </div>
 
-        <!-- ═══ 查询区 ═══ -->
-        <div class="search-area">
-          <a-form layout="inline">
-            <a-form-item label="商品">
-              <a-input
-                v-model:value="queryModel.productName"
-                placeholder="商品名称（跟踪单商品请填写）"
-                allow-clear
-                style="width: 180px"
-                @press-enter="handleSearch"
-              />
-            </a-form-item>
-            <a-form-item label="货号">
-              <a-input
-                v-model:value="queryModel.productCode"
-                placeholder="货号"
-                allow-clear
-                style="width: 140px"
-                @press-enter="handleSearch"
-              />
-            </a-form-item>
-            <a-form-item label="客户">
-              <a-input
-                v-model:value="queryModel.customerName"
-                placeholder="客户名称"
-                allow-clear
-                style="width: 160px"
-                @press-enter="handleSearch"
-              />
-            </a-form-item>
-            <a-form-item label="单据日期">
-              <a-range-picker
-                v-model:value="dateRange"
-                allow-clear
-                style="width: 240px"
-              />
-            </a-form-item>
-            <a-form-item>
-              <a-space>
-                <a-button
-                  type="primary"
-                  @click="handleSearch"
-                >
-                  <template #icon>
-                    <SearchOutlined />
-                  </template>查询
-                </a-button>
-                <a-button @click="handleReset">
-                  <template #icon>
-                    <ClearOutlined />
-                  </template>重置
-                </a-button>
-              </a-space>
-            </a-form-item>
-          </a-form>
+      <!-- ═══ 主体：分类树 + 表格 ═══ -->
+      <div class="main-content">
+        <div class="category-tree">
+          <a-tree
+            v-model:expandedKeys="expandedKeys"
+            v-model:selectedKeys="selectedKeys"
+            :tree-data="categoryTree"
+            @select="handleCategorySelect"
+            block-node
+            default-expand-all
+          />
         </div>
-
-        <!-- ═══ 价格走势 ═══ -->
-        <ARReportChart
-          title="销售单价走势（当前查询结果）"
-          :option="chartOption"
-          :loading="loading"
-          :height="300"
-          empty-text="执行查询后按单据日期展示销售单价走势"
-        />
-
-        <!-- ═══ 明细表 ═══ -->
         <div class="table-area">
           <a-table
             :columns="columns"
             :data-source="tableData"
             :loading="loading"
-            :pagination="tablePagination"
+            :pagination="paginationConfig"
             row-key="_rk"
             size="small"
-            :locale="{ emptyText: '暂无销售价格明细，请调整查询条件' }"
+            bordered
+            :scroll="{ x: 1400 }"
             @change="handleTableChange"
           >
-            <template #bodyCell="{ column, text }">
-              <template v-if="MONEY_COLUMNS.includes(column.dataIndex as string)">
-                {{ formatMoney(text) }}
+            <template #bodyCell="{ column, record }">
+              <template v-if="column.dataIndex === 'action'">
+                <a-button type="link" size="small">修改</a-button>
+                <a-button type="link" size="small" danger>删除</a-button>
               </template>
-              <template v-else-if="column.dataIndex === 'salesQuantity'">
-                {{ formatQty(text) }}
-              </template>
-              <template v-else-if="column.dataIndex === 'discountRate'">
-                {{ formatRate(text) }}
-              </template>
-              <template v-else-if="column.dataIndex === 'docDate'">
-                {{ formatDate(text) }}
+              <template v-else-if="column.dataIndex === 'recentPrice' || column.dataIndex === 'recentDiscountRate'">
+                {{ Number(record[column.dataIndex] ?? 0).toFixed(2) }}
               </template>
             </template>
           </a-table>
@@ -125,97 +123,142 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
-import dayjs, { type Dayjs } from 'dayjs'
-import { ReloadOutlined, SearchOutlined, ClearOutlined } from '@ant-design/icons-vue'
+import { useRouter } from 'vue-router'
+import {
+  PlusOutlined, ReloadOutlined, PrinterOutlined, DownOutlined,
+  ExportOutlined, SearchOutlined, ClearOutlined
+} from '@ant-design/icons-vue'
+import dayjs from 'dayjs'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
-import ARReportChart from '@/components/ARReportChart/ARReportChart.vue'
-import { salesPriceTrackApi } from '@/api/erp'
-import type { SalesPriceTrackItem } from '@/api/erp'
+import request from '@/utils/request'
 
-const MONEY_COLUMNS = ['unitPrice', 'discountedPrice', 'amount', 'wholesalePrice', 'retailPrice', 'minSalePrice']
+defineOptions({ name: 'SalesPriceTrack' })
 
-// ═══ 查询状态 ═══
-const queryModel = reactive({ productName: '', productCode: '', customerName: '' })
-const dateRange = ref<[Dayjs, Dayjs] | null>(null)
+// ═══ 日期快捷 ═══
+const dateShortcuts = [
+  { key: 'yesterday', label: '昨日' },
+  { key: 'today', label: '今日' },
+  { key: 'thisWeek', label: '本周' },
+  { key: 'thisWeek2', label: '近一周' },
+  { key: 'thisMonth', label: '本月' },
+  { key: 'lastMonth', label: '上月' },
+  { key: 'last3Month', label: '近三月' },
+  { key: 'thisYear', label: '本年' },
+]
+const activeShortcut = ref('thisMonth')
+const dateRange = ref<[string, string] | null>(null)
+
+function calcRange(key: string): [string, string] {
+  const now = dayjs()
+  switch (key) {
+    case 'yesterday': return [now.subtract(1, 'day').format('YYYY-MM-DD'), now.subtract(1, 'day').format('YYYY-MM-DD')]
+    case 'today': return [now.format('YYYY-MM-DD'), now.format('YYYY-MM-DD')]
+    case 'thisWeek': return [now.startOf('week').add(1, 'day').format('YYYY-MM-DD'), now.format('YYYY-MM-DD')]
+    case 'thisWeek2': return [now.subtract(6, 'day').format('YYYY-MM-DD'), now.format('YYYY-MM-DD')]
+    case 'thisMonth': return [now.startOf('month').format('YYYY-MM-DD'), now.format('YYYY-MM-DD')]
+    case 'lastMonth': return [now.subtract(1, 'month').startOf('month').format('YYYY-MM-DD'), now.subtract(1, 'month').endOf('month').format('YYYY-MM-DD')]
+    case 'last3Month': return [now.subtract(2, 'month').startOf('month').format('YYYY-MM-DD'), now.format('YYYY-MM-DD')]
+    case 'thisYear': return [now.startOf('year').format('YYYY-MM-DD'), now.format('YYYY-MM-DD')]
+    default: return [now.subtract(6, 'day').format('YYYY-MM-DD'), now.format('YYYY-MM-DD')]
+  }
+}
+
+function pickShortcut(key: string) {
+  activeShortcut.value = key
+  dateRange.value = calcRange(key)
+  loadData()
+}
+
+// ═══ 查询条件 ═══
+const queryValues = reactive({
+  partnerName: '',
+  productName: '',
+  unitType: '',
+})
+const showSelected = ref(false)
+
+// ═══ 商品分类树 ═══
+const expandedKeys = ref<string[]>([])
+const selectedKeys = ref<string[]>([])
+const categoryTree = ref<any[]>([
+  { title: '全部商品', key: 'all', children: [
+    { title: '饮品原料', key: 'drink' },
+    { title: '低温熟食', key: 'cold' },
+    { title: '调理冻品', key: 'frozen' },
+    { title: '米面制品', key: 'flour' },
+    { title: '烘焙西点', key: 'bakery' },
+    { title: '预制品', key: 'premade' },
+    { title: '常温食品', key: 'normal' },
+    { title: '生鲜冻品', key: 'fresh' },
+    { title: '包装耗材', key: 'package' },
+    { title: '吧台用品', key: 'bar' },
+    { title: '餐具器皿', key: 'tableware' },
+    { title: '餐饮设备', key: 'equipment' },
+    { title: '其他', key: 'other' },
+  ]},
+])
+
+function handleCategorySelect(keys: any[]) {
+  selectedKeys.value = keys
+}
+
+// ═══ 表格列（对标 13 列） ═══
+const columns = [
+  { title: '操作', key: 'action', width: 100, fixed: 'left' as const },
+  { title: '商品名称', dataIndex: 'productName', key: 'productName', width: 180, ellipsis: true },
+  { title: '货号', dataIndex: 'productCode', key: 'productCode', width: 90 },
+  { title: '商品单位', dataIndex: 'unit', key: 'unit', width: 70 },
+  { title: '条码', dataIndex: 'barcode', key: 'barcode', width: 110 },
+  { title: '规格', dataIndex: 'specification', key: 'specification', width: 90, ellipsis: true },
+  { title: '型号', dataIndex: 'model', key: 'model', width: 90 },
+  { title: '产地', dataIndex: 'origin', key: 'origin', width: 90 },
+  { title: '往来单位编号', dataIndex: 'partnerCode', key: 'partnerCode', width: 110 },
+  { title: '往来单位名称', dataIndex: 'partnerName', key: 'partnerName', width: 160, ellipsis: true },
+  { title: '最近销售价', dataIndex: 'recentPrice', key: 'recentPrice', width: 100, align: 'right' as const },
+  { title: '最近销售折扣（%）', dataIndex: 'recentDiscountRate', key: 'recentDiscountRate', width: 130, align: 'right' as const },
+  { title: '最近销售日期', dataIndex: 'recentSaleDate', key: 'recentSaleDate', width: 110 },
+]
+
+// ═══ 数据状态 ═══
+const tableData = ref<any[]>([])
+const loading = ref(false)
 const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
 
-const tablePagination = computed(() => ({
+const paginationConfig = computed(() => ({
   current: pagination.current,
   pageSize: pagination.pageSize,
   total: pagination.total,
   showSizeChanger: true,
-  showTotal: (t: number) => `共 ${t} 条`
+  showTotal: (t: number) => `共 ${t} 条记录`,
+  showQuickJumper: true,
 }))
 
-// ═══ 表格列（销售明细价格口径） ═══
-const columns: any[] = [
-  { title: '单据日期', dataIndex: 'docDate', key: 'docDate', width: 110 },
-  { title: '单据编号', dataIndex: 'docNo', key: 'docNo', width: 150 },
-  { title: '单据类型', dataIndex: 'docType', key: 'docType', width: 90 },
-  { title: '客户', dataIndex: 'customerName', key: 'customerName', width: 150, ellipsis: true },
-  { title: '商品名称', dataIndex: 'productName', key: 'productName', width: 170, ellipsis: true },
-  { title: '货号', dataIndex: 'productCode', key: 'productCode', width: 110 },
-  { title: '规格', dataIndex: 'specification', key: 'specification', width: 100, ellipsis: true },
-  { title: '单位', dataIndex: 'salesQuantityUnit', key: 'salesQuantityUnit', width: 60 },
-  { title: '销售数量', dataIndex: 'salesQuantity', key: 'salesQuantity', width: 90, align: 'right' },
-  { title: '单价', dataIndex: 'unitPrice', key: 'unitPrice', width: 100, align: 'right' },
-  { title: '折扣(%)', dataIndex: 'discountRate', key: 'discountRate', width: 80, align: 'right' },
-  { title: '折后单价', dataIndex: 'discountedPrice', key: 'discountedPrice', width: 100, align: 'right' },
-  { title: '金额', dataIndex: 'amount', key: 'amount', width: 110, align: 'right' },
-  { title: '批发价', dataIndex: 'wholesalePrice', key: 'wholesalePrice', width: 100, align: 'right' },
-  { title: '零售价', dataIndex: 'retailPrice', key: 'retailPrice', width: 100, align: 'right' },
-  { title: '最低售价', dataIndex: 'minSalePrice', key: 'minSalePrice', width: 100, align: 'right' }
-]
-
-function formatMoney(val: number | null | undefined): string {
-  if (val === null || val === undefined || isNaN(Number(val))) return '-'
-  return Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
-
-function formatQty(val: number | null | undefined): string {
-  if (val === null || val === undefined || isNaN(Number(val))) return '-'
-  return Number(val).toLocaleString('zh-CN', { maximumFractionDigits: 2 })
-}
-
-function formatRate(val: number | null | undefined): string {
-  if (val === null || val === undefined || isNaN(Number(val))) return '-'
-  return `${Number(val).toLocaleString('zh-CN', { maximumFractionDigits: 2 })}%`
-}
-
-function formatDate(val: string | null | undefined): string {
-  return val ? String(val).slice(0, 10) : '-'
-}
-
-// ═══ 数据请求（/sales/price-track/page，分页参数 current/size） ═══
-interface TrackRow extends SalesPriceTrackItem { _rk: string }
-
-const loading = ref(false)
-const tableData = ref<TrackRow[]>([])
-
+// ═══ 数据加载 ═══
 async function loadData() {
   loading.value = true
   try {
-    const res = await salesPriceTrackApi.page({
-      current: pagination.current,
-      size: pagination.pageSize,
-      productName: queryModel.productName || undefined,
-      productCode: queryModel.productCode || undefined,
-      customerName: queryModel.customerName || undefined,
-      startDate: dateRange.value?.[0]?.format('YYYY-MM-DD'),
-      endDate: dateRange.value?.[1]?.format('YYYY-MM-DD')
+    const res: any = await request.get('/sales/price-track/recent-price/page', {
+      params: {
+        current: pagination.current,
+        size: pagination.pageSize,
+        productName: queryValues.productName || undefined,
+        partnerName: queryValues.partnerName || undefined,
+        startDate: dateRange.value?.[0],
+        endDate: dateRange.value?.[1],
+      },
     })
-    const records = (res?.records || []) as SalesPriceTrackItem[]
-    // 后端行为明细级 Map 无唯一主键，合成行键保证 rowKey 唯一
-    tableData.value = records.map((r, i) => ({
+    // request 拦截器对 Page 结构直接返回 {records,total}，对数组直接返回数组
+    const page: any = res?.records ? res : { records: Array.isArray(res) ? res : [], total: res?.total }
+    const records = (page.records || []) as any[]
+    tableData.value = records.map((r: any, i: number) => ({
       ...r,
-      _rk: `${r.docNo || ''}|${r.productCode || ''}|${i}`
+      _rk: `${r.productId}-${r.partnerId}-${i}`,
     }))
-    pagination.total = Number(res?.total) || 0
-  } catch (e) {
+    pagination.total = Number(page.total) || 0
+  } catch {
     tableData.value = []
     pagination.total = 0
-    console.warn('[销售价格跟踪] 获取失败', e)
   } finally {
     loading.value = false
   }
@@ -226,87 +269,70 @@ function handleSearch() {
   loadData()
 }
 
-function handleReset() {
-  queryModel.productName = ''
-  queryModel.productCode = ''
-  queryModel.customerName = ''
-  dateRange.value = null
-  pagination.current = 1
-  loadData()
-}
-
 function handleTableChange(pag: { current?: number; pageSize?: number }) {
   pagination.current = pag.current || 1
   pagination.pageSize = pag.pageSize || 20
   loadData()
 }
 
-// ═══ 价格走势图（当前页结果按单据日期升序） ═══
-const sortedTrend = computed(() =>
-  [...tableData.value]
-    .filter(r => r.docDate)
-    .sort((a, b) => String(a.docDate).localeCompare(String(b.docDate)))
-)
-
-const chartOption = computed(() => ({
-  tooltip: {
-    trigger: 'axis',
-    valueFormatter: (v: any) => (v === null || v === undefined ? '-' : `¥${Number(v).toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`)
-  },
-  legend: { data: ['单价', '折后单价'], top: 0 },
-  grid: { left: 70, right: 30, top: 36, bottom: 30 },
-  xAxis: { type: 'category', data: sortedTrend.value.map(r => formatDate(r.docDate)) },
-  yAxis: { type: 'value', name: '单价(元)' },
-  series: [
-    {
-      name: '单价',
-      type: 'line',
-      smooth: true,
-      symbolSize: 6,
-      itemStyle: { color: '#1890ff' },
-      data: sortedTrend.value.map(r => (r.unitPrice === null || r.unitPrice === undefined ? null : Number(r.unitPrice)))
-    },
-    {
-      name: '折后单价',
-      type: 'line',
-      smooth: true,
-      symbolSize: 6,
-      itemStyle: { color: '#52c41a' },
-      data: sortedTrend.value.map(r => (r.discountedPrice === null || r.discountedPrice === undefined ? null : Number(r.discountedPrice)))
-    }
-  ]
-}))
+function handleExport() {
+  const header = columns.map(c => c.title).join(',')
+  const lines = tableData.value.map(r => [
+    '', r.productName || '', r.productCode || '', r.unit || '', r.barcode || '',
+    r.specification || '', r.model || '', r.origin || '', r.partnerCode || '',
+    r.partnerName || '', r.recentPrice ?? 0, r.recentDiscountRate ?? 0, r.recentSaleDate || '',
+  ].join(','))
+  const csv = '\uFEFF' + [header, ...lines].join('\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `销售价格跟踪-${dayjs().format('YYYYMMDD')}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
 
 onMounted(() => {
-  dateRange.value = [dayjs().subtract(89, 'day'), dayjs()]
+  dateRange.value = calcRange('thisMonth')
   loadData()
 })
 </script>
 
 <style scoped>
-.page-scroll {
-  flex: 1;
-  overflow-y: auto;
-  padding: 0 16px 16px;
-}
-
-.track-alert {
-  margin: 12px 0 16px;
-}
-
-.search-area {
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
   background: #fff;
-  padding: 16px 20px 0;
+  padding: 12px 16px;
   border-radius: 8px;
-  margin-bottom: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  margin-bottom: 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  flex-wrap: wrap;
+  gap: 12px;
 }
-
+.page-header__left .breadcrumb { font-size: 12px; color: #999; }
+.page-header__left h2 { font-size: 18px; font-weight: 600; color: #303133; margin: 4px 0 0; }
+.page-header__right { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.date-shortcuts { display: flex; gap: 4px; align-items: center; }
+.date-shortcut {
+  font-size: 12px; color: #606266; padding: 2px 8px; border-radius: 4px; cursor: pointer;
+}
+.date-shortcut:hover { color: #1890ff; }
+.date-shortcut.active { background: #e6f4ff; color: #1890ff; font-weight: 600; }
+.search-bar {
+  background: #fff; border-radius: 8px; padding: 12px 16px; margin-bottom: 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+.main-content {
+  display: flex; gap: 12px; height: calc(100vh - 260px);
+}
+.category-tree {
+  width: 180px; background: #fff; border-radius: 8px; padding: 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06); overflow-y: auto; flex-shrink: 0;
+}
 .table-area {
-  background: #fff;
-  padding: 16px;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  margin-top: 16px;
+  flex: 1; background: #fff; border-radius: 8px; padding: 16px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06); overflow: auto;
 }
 </style>

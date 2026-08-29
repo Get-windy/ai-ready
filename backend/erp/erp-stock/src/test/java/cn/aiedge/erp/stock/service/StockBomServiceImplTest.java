@@ -74,7 +74,7 @@ class StockBomServiceImplTest {
         when(bomMapper.selectPage(any(Page.class), any(LambdaQueryWrapper.class)))
                 .thenReturn(expectedPage);
 
-        Page<StockBom> result = bomService.pageList(null, null, null, 1, 10);
+        Page<StockBom> result = bomService.pageList(null, null, null, null, 1, 10);
         assertNotNull(result);
         assertEquals(1, result.getRecords().size());
     }

@@ -49,12 +49,14 @@ public class SaleOutboundItem {
     private Integer warehouseLocationId;
     private String warehouseLocationCode;
 
-    // ══ 来源订单 ═══
+    // ═ 来源订单 ═══
     private Long orderItemId;
+    @TableField(exist = false)
     private String orderNo;           // 来源订单编号
     private BigDecimal orderQuantity; // 订单数量
 
-    // ═══ 数量 ═══
+    // ══ 数量 ═══
+    @TableField(exist = false)
     private BigDecimal quantity;           // 出库数量（前端字段名）
     private BigDecimal outboundQuantity;   // 出库数量（后端字段名）
     private BigDecimal pendingQuantity;    // 待处理数量
@@ -74,6 +76,7 @@ public class SaleOutboundItem {
     // ══ 价格快照 ═══
     private BigDecimal unitPrice;            // 单价
     private BigDecimal lineAmount;           // 金额
+    @TableField(exist = false)
     private BigDecimal originalPrice;        // 折单原价
     private BigDecimal smallUnitPrice;       // 小单位单价
     private BigDecimal taxRate;              // 税率

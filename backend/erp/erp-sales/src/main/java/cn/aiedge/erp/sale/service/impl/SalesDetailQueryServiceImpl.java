@@ -84,6 +84,92 @@ public class SalesDetailQueryServiceImpl implements SalesDetailQueryService {
         return result;
     }
 
+    /**
+     * 最近成交价聚合（对标：商品×往来单位最近成交价 + 修改/删除操作）
+     * 从销售出库明细中按 product+往来单位 分组，取最近一次的成交价/折扣/日期
+     */
+    @Override
+    public Page<Map<String, Object>> pageRecentPriceAgg(SalesDetailQueryDTO dto) {
+        int pageNum = dto.getCurrent().intValue();
+        int pageSize = dto.getSize().intValue();
+
+        LambdaQueryWrapper<SaleOutboundItem> itemWrapper = new LambdaQueryWrapper<>();
+        itemWrapper.select(
+            SaleOutboundItem::getId,
+            SaleOutboundItem::getOutboundId,
+            SaleOutboundItem::getProductId,
+            SaleOutboundItem::getProductCode,
+            SaleOutboundItem::getProductName,
+            SaleOutboundItem::getBarcode,
+            SaleOutboundItem::getSpecification,
+            SaleOutboundItem::getModel,
+            SaleOutboundItem::getOrigin,
+            SaleOutboundItem::getProductUnit,
+            SaleOutboundItem::getUnitPrice,
+            SaleOutboundItem::getDiscountRate
+        );
+        itemWrapper.eq(SaleOutboundItem::getDeleted, 0);
+        applyItemFilters(itemWrapper, dto);
+        itemWrapper.orderByDesc(SaleOutboundItem::getOutboundId);
+
+        List<SaleOutboundItem> items = outboundItemMapper.selectList(itemWrapper);
+        List<Long> outboundIds = items.stream().map(SaleOutboundItem::getOutboundId).distinct().toList();
+        if (outboundIds.isEmpty()) {
+            return new Page<>(pageNum, pageSize, 0);
+        }
+
+        LambdaQueryWrapper<SaleOutbound> headerWrapper = new LambdaQueryWrapper<>();
+        headerWrapper.select(
+            SaleOutbound::getId,
+            SaleOutbound::getCustomerId,
+            SaleOutbound::getCustomerCode,
+            SaleOutbound::getCustomerName,
+            SaleOutbound::getOutboundDate,
+            SaleOutbound::getUpdateTime
+        );
+        headerWrapper.in(SaleOutbound::getId, outboundIds);
+        headerWrapper.eq(SaleOutbound::getDeleted, 0);
+        applyHeaderFilters(headerWrapper, dto);
+        List<SaleOutbound> outbounds = outboundMapper.selectList(headerWrapper);
+        Map<Long, SaleOutbound> outboundMap = outbounds.stream()
+                .collect(java.util.stream.Collectors.toMap(SaleOutbound::getId, o -> o, (a, b) -> a));
+
+        // 按 productId + 往来单位 分组，保留最近一条
+        Map<String, Map<String, Object>> aggMap = new LinkedHashMap<>();
+        for (SaleOutboundItem item : items) {
+            SaleOutbound o = outboundMap.get(item.getOutboundId());
+            if (o == null || o.getCustomerId() == null) continue;
+            String key = item.getProductId() + "_" + o.getCustomerId();
+            if (aggMap.containsKey(key)) continue; // 已保留最近一条（按 outbound_id 倒序）
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("productId", item.getProductId());
+            row.put("productCode", item.getProductCode());
+            row.put("productName", item.getProductName());
+            row.put("itemCode", item.getProductCode());
+            row.put("barcode", item.getBarcode());
+            row.put("specification", item.getSpecification());
+            row.put("model", item.getModel());
+            row.put("origin", item.getOrigin());
+            row.put("unit", item.getProductUnit() != null ? item.getProductUnit() : "");
+            row.put("partnerId", o.getCustomerId());
+            row.put("partnerCode", o.getCustomerCode());
+            row.put("partnerName", o.getCustomerName());
+            row.put("recentPrice", item.getUnitPrice() != null ? item.getUnitPrice() : BigDecimal.ZERO);
+            row.put("recentDiscountRate", item.getDiscountRate() != null ? item.getDiscountRate() : BigDecimal.ZERO);
+            row.put("recentSaleDate", o.getOutboundDate() != null ? o.getOutboundDate().toString() : "");
+            row.put("lastModifyTime", o.getUpdateTime() != null ? o.getUpdateTime().toString() : "");
+            aggMap.put(key, row);
+        }
+
+        List<Map<String, Object>> all = new java.util.ArrayList<>(aggMap.values());
+        int total = all.size();
+        int from = Math.min((pageNum - 1) * pageSize, total);
+        int to = Math.min(from + pageSize, total);
+        Page<Map<String, Object>> result = new Page<>(pageNum, pageSize, total);
+        result.setRecords(all.subList(from, to));
+        return result;
+    }
+
     // ═══════════════════════════════════════════════════════════════════
     // 明细级过滤（作用于 erp_sale_outbound_item 表）
     // ═══════════════════════════════════════════════════════════════════

@@ -91,8 +91,8 @@
         <result column="weight" property="weight"/>
         <result column="gift" property="gift"/>
         <result column="out_restaurant" property="outRestaurant"/>
-        <result column="vip_level_1" property="vipLevel1"/>
-        <result column="vip_level_2" property="vipLevel2"/>
+        <result column="vip_level1" property="vipLevel1"/>
+        <result column="vip_level2" property="vipLevel2"/>
     </resultMap>
 
     <!-- 基础查询列 -->
@@ -115,7 +115,7 @@
         unshipped_quantity, shipped_quantity_detail, cost_price, cost_amount, gross_profit,
         discount_percent, discounted_unit_price, original_price, discounted_amount,
         favorable_unit_price, favorable_amount, gift_item, exchange_points, used_points,
-        volume, weight, gift, out_restaurant, vip_level_1, vip_level_2
+        volume, weight, gift, out_restaurant, vip_level1, vip_level2
     </sql>
 
     <!-- 查询所有列 -->

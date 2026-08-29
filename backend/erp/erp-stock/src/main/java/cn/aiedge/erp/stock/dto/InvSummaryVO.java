@@ -51,4 +51,18 @@ public class InvSummaryVO {
 
     /** 结存金额 = 期初金额 + 入金额 - 出金额 */
     private BigDecimal closingAmt;
+
+    // ═══ 五类入库分项数量（对标：采购入库/调拨入库/其他入库/借进入库/销退入库） ═══
+    private BigDecimal purchaseInQty;
+    private BigDecimal transferInQty;
+    private BigDecimal otherInQty;
+    private BigDecimal borrowInQty;
+    private BigDecimal saleReturnInQty;
+
+    // ═══ 五类出库分项数量（对标：销售出库/调拨出库/其他出库/借出出库/采退出库） ═══
+    private BigDecimal saleOutQty;
+    private BigDecimal transferOutQty;
+    private BigDecimal otherOutQty;
+    private BigDecimal borrowOutQty;
+    private BigDecimal purchaseReturnOutQty;
 }

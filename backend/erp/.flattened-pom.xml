@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>cn.aiedge</groupId>
+    <artifactId>ai-ready-backend</artifactId>
+    <version>0.3.11</version>
+  </parent>
+  <groupId>cn.aiedge.erp</groupId>
+  <artifactId>erp</artifactId>
+  <version>0.3.11</version>
+  <packaging>pom</packaging>
+  <name>ERP 模块</name>
+  <description>企业资源计划模块</description>
+  <licenses>
+    <license>
+      <name>Apache License, Version 2.0</name>
+      <url>https://www.apache.org/licenses/LICENSE-2.0</url>
+    </license>
+  </licenses>
+  <modules>
+    <module>erp-purchase</module>
+    <module>erp-sales</module>
+    <module>erp-stock</module>
+    <module>erp-finance</module>
+    <module>erp-supplier-portal</module>
+    <module>erp-observability</module>
+    <module>erp-printing</module>
+    <module>erp-delivery-route</module>
+    <module>erp-mall</module>
+    <module>erp-fixed-asset</module>
+    <module>erp-budget</module>
+    <module>erp-partner</module>
+    <module>erp-pricing</module>
+    <module>erp-marketing</module>
+  </modules>
+  <properties>
+    <erp-common.version>0.2.0</erp-common.version>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>cn.aiedge</groupId>
+        <artifactId>erp-common</artifactId>
+        <version>${erp-common.version}</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+  <dependencies>
+    <dependency>
+      <groupId>cn.aiedge</groupId>
+      <artifactId>core-base</artifactId>
+    </dependency>
+  </dependencies>
+</project>

@@ -28,7 +28,7 @@ public class SalesPriceTrackController {
     private final SalesDetailQueryService salesDetailQueryService;
 
     @GetMapping("/page")
-    @Operation(summary = "分页查询销售价格跟踪")
+    @Operation(summary = "分页查询销售价格跟踪（明细流水）")
     public Page<Map<String, Object>> page(SalesDetailQueryDTO queryDTO) {
         if (queryDTO.getCurrent() == null || queryDTO.getCurrent() <= 0) {
             queryDTO.setCurrent(1L);
@@ -37,5 +37,17 @@ public class SalesPriceTrackController {
             queryDTO.setSize(20L);
         }
         return salesDetailQueryService.pageDetail(queryDTO);
+    }
+
+    @GetMapping("/recent-price/page")
+    @Operation(summary = "最近成交价聚合（商品×往来单位）")
+    public Page<Map<String, Object>> recentPricePage(SalesDetailQueryDTO queryDTO) {
+        if (queryDTO.getCurrent() == null || queryDTO.getCurrent() <= 0) {
+            queryDTO.setCurrent(1L);
+        }
+        if (queryDTO.getSize() == null || queryDTO.getSize() <= 0) {
+            queryDTO.setSize(20L);
+        }
+        return salesDetailQueryService.pageRecentPriceAgg(queryDTO);
     }
 }

@@ -139,8 +139,7 @@
       </template>
     </BillFormPage>
 
-    <!-- ═══ 表单配置弹窗 ═══ -->
-    <SaleOrderFormConfig v-model:open="showFormConfig" @change="loadPageVisibility" />
+    <!-- ═══ 表单配置弹窗（已迁移到 SaleOrderItemColumnConfig 独立页面） ═══ -->
 
     <!-- ═══ 产品选择弹窗 ═══ -->
     <ProductSelectModal
@@ -181,7 +180,6 @@ import { useBillForm } from '@/components/BillFormPage/useBillForm'
 import { saleOrderApi } from '@/api/erp'
 import optionsApi from '@/api/options'
 import { useUserStore } from '@/stores/user'
-import SaleOrderFormConfig from '@/views/erp/column-config/SaleOrderFormConfig.vue'
 import PrintDialog from '@/components/PrintDialog/index.vue'
 
 const router = useRouter()
@@ -190,7 +188,7 @@ const userStore = useUserStore()
 const currentUserName = computed(() => userStore?.userInfo?.nickname || userStore?.userInfo?.username || '')
 
 // ═══ 配置弹窗状态 ═══
-const showFormConfig = ref(false)
+// showFormConfig 已迁移到 SaleOrderItemColumnConfig 独立页面
 const showProductSelect = ref(false)
 const currentSelectRowIndex = ref(-1)
 const printDialogRef = ref<InstanceType<typeof PrintDialog> | null>(null)
@@ -1062,7 +1060,7 @@ function handleAction(actionKey: string, _parentKey?: string) {
       message.info(`${actionKey} 功能待完善`)
       break
     case 'config':
-      showFormConfig.value = true
+      router.push({ name: 'ErpSaleOrderItemColumnConfig' })
       break
   }
 }

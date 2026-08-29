@@ -170,6 +170,7 @@ import type { BillHeaderConfig, BasicInfoField, BillTabConfig, SummaryRow, BillF
 import { useBillForm } from '@/components/BillFormPage/useBillForm'
 import { useColumnConfig } from '@/composables/useColumnConfig'
 import { outboundApi } from '@/api/erp'
+import { PRODUCT_PACK_DEFAULTS } from '@/utils/productDefaults'
 import optionsApi from '@/api/options'
 import { useUserStore } from '@/stores/user'
 
@@ -248,31 +249,7 @@ const {
   },
   redirectPath: '/sales/outbound',
   optionTypes: ['customers', 'warehouses', 'users', 'products'],
-  productDefaults: {
-    specification: '', location: '', region: '', model: '', origin: '', brand: '',
-    unit: '', productAttribute: '',
-    pieceQuantity: 0, bigPack: 0, midPack: 0, smallPack: 0,
-    productionDate: '', shelfLife: '', expiryDate: '', batchNo: '',
-    conversionRelation: '', conversionResult: 0,
-    smallUnit: '', smallUnitPrice: 0, smallUnitQuantity: 0,
-    discountRate: 0, discountedAmount: 0, discountedPrice: 0,
-    favorableDiscountRate: 0, favorableUnitPrice: 0, favorableAmount: 0,
-    unitPrice: 0, taxRate: 13, scanMode: false,
-    retailPrice: 0, wholesalePrice: 0, minSalePrice: 0,
-    lastSalePrice: 0, lastSaleDate: '',
-    costPrice: 0, costAmount: 0, grossProfit: 0,
-    availableStock: 0, bookStock: 0,
-    volume: 0, weight: 0,
-    gift: false, giftItem: '',
-    exchangePoints: 0, usedPoints: 0, generatedPoints: 0,
-    extNum1: 0, extNum2: 0, extNum3: 0, extNum4: 0, extNum5: 0, extNum6: 0, extNum7: 0,
-    extText1: '', extText2: '',
-    extPartner: undefined, extStaff: undefined, extDept: undefined,
-    priceLevel1: 0, priceLevel2: 0, priceLevel3: 0, priceLevel4: 0,
-    priceLevel5: 0, priceLevel6: 0, priceLevel7: 0, priceLevel8: 0,
-    boxNo: '', remark: '',
-    originalPrice: 0, availableStockConverted: 0,
-  },
+  productDefaults: PRODUCT_PACK_DEFAULTS,
   onFieldChange: (fieldKey, val, fd) => {
     if (fieldKey === 'customerId') {
       const c = optionRefs.customers.find((x: any) => x.id === val)

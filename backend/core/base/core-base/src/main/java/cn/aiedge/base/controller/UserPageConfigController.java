@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -64,10 +65,19 @@ public class UserPageConfigController {
         String key = buildKey(module, page, userId);
         LambdaQueryWrapper<SysProjectConfig> wrapper = new LambdaQueryWrapper<SysProjectConfig>()
                 .eq(SysProjectConfig::getConfigKey, key)
-                .eq(SysProjectConfig::getDeleted, 0);
-        SysProjectConfig config = configMapper.selectOne(wrapper);
+                .eq(SysProjectConfig::getDeleted, 0)
+                .orderByAsc(SysProjectConfig::getId);
+        List<SysProjectConfig> list = configMapper.selectList(wrapper);
+        // 并发写入可能产生重复记录，此处清理多余记录避免 selectOne 抛 TooManyResultsException
+        if (list.size() > 1) {
+            for (int i = 1; i < list.size(); i++) {
+                configMapper.deleteById(list.get(i).getId());
+            }
+        }
 
-        if (config != null) {
+        SysProjectConfig config;
+        if (!list.isEmpty()) {
+            config = list.get(0);
             config.setConfigValue(value);
             config.setUpdateTime(LocalDateTime.now());
             configMapper.updateById(config);

@@ -64,6 +64,10 @@ export interface PurchaseInboundPayload {
   departmentId?: number; departmentName?: string
   trackingNumber?: string; logisticsCompany?: string
   remark?: string; internalNote?: string
+  summary?: string
+  extNum1?: number; extNum2?: number
+  extText1?: string; extText2?: string; extText3?: string
+  discountAmount?: number; fee?: number
   items?: Partial<PurchaseInboundItem>[]
 }
 export const inboundApi = {
@@ -88,22 +92,122 @@ export const inboundApi = {
   statistics() { return request.get('/erp/purchase/inbound/statistics') },
 }
 
+// ── 采购费用分摊 ────────────────────────────────────────
+export interface CostSharingPageItem {
+  id: number; sharingDate: string; sharingNo: string; status: string
+  accountTime?: string; createTime: string; totalAmount?: number
+  handlerName?: string; departmentName?: string; createByName?: string
+  bookkeeperName?: string; summary?: string; remark?: string; attachment?: number
+  allocationMethod?: string; expenseType?: string; supplierName?: string
+}
+export interface CostSharingExpenseItem {
+  id?: number; expenseNo?: string
+  partnerId?: number; partnerName?: string; partnerCode?: string
+  settleUnitId?: string; settleUnit?: string
+  expenseType?: string; expenseAmount?: number; remark?: string
+}
+export interface CostSharingItem {
+  id?: number; inboundOrderId?: number; inboundNo?: string
+  supplierId?: number; supplierName?: string; supplierCode?: string
+  settleUnitId?: string; settleUnit?: string
+  productId?: number; productName?: string; pricingUnit?: string
+  quantity?: number; discountedUnitPrice?: number; discountedAmount?: number
+  allocatedCost?: number
+}
+export interface CostSharingDetail {
+  sharing: {
+    id: number; sharingNo: string; sharingDate?: string; status: number
+    handlerId?: number; handlerName?: string; departmentId?: number; departmentName?: string
+    allocationMethod?: string; summary?: string; remark?: string
+    createByName?: string; createTime?: string; totalAmount?: number
+    accountTime?: string; bookkeeperName?: string
+  }
+  expenseItems: CostSharingExpenseItem[]
+  items: CostSharingItem[]
+}
+export interface CostSharingPayload {
+  handlerId?: number; handlerName?: string
+  departmentId?: number; departmentName?: string
+  sharingDate?: string; sharingMethod?: string
+  summary?: string; remark?: string; createByName?: string
+  expenseItems: CostSharingExpenseItem[]
+  details: CostSharingItem[]
+}
+export const costSharingApi = {
+  page(params: PageQuery): Promise<PageResult<CostSharingPageItem>> {
+    return request.get('/erp/purchase/cost-sharing/page', params)
+  },
+  nextNo(): Promise<string> { return request.get('/erp/purchase/cost-sharing/next-no') },
+  getDetail(id: number): Promise<CostSharingDetail> {
+    return request.get(`/erp/purchase/cost-sharing/${id}`)
+  },
+  create(data: CostSharingPayload) { return request.post('/erp/purchase/cost-sharing', data) },
+  complete(id: number) { return request.post(`/erp/purchase/cost-sharing/${id}/complete`) },
+  cancel(id: number) { return request.post(`/erp/purchase/cost-sharing/${id}/cancel`) },
+}
+
 // ── 采购退货 ──────────────────────────────────────────
 export interface PurchaseReturn {
-  id: number; returnNo: string; orderNo?: string; supplierName: string
-  returnDate: string; totalAmount?: number; status: number; creatorName?: string; createTime: string
+  id: number; returnNo: string; purchaseOrderId?: number; purchaseOrderNo?: string
+  supplierId?: number; supplierName: string; supplierNo?: string
+  bankName?: string; bankAccount?: string; taxNo?: string
+  warehouseId?: number; warehouseName?: string
+  purchaserId?: number; purchaserName?: string
+  departmentId?: number; departmentName?: string
+  returnDate: string; contactName?: string; contactPhone?: string; contactAddress?: string; supplierRemark?: string
+  returnType?: number; returnTypeDesc?: string
+  totalQuantity?: number; totalAmount?: number; discountAmount?: number; taxAmount?: number
+  totalAmountWithTax?: number; settledAmount?: number; settleStatus?: number
+  weight?: number; volume?: number; summary?: string
+  extNum1?: number; extNum2?: number; extText1?: string; extText2?: string; extText3?: string
+  paymentAccount?: string; paymentAmount?: number; moreAccounts?: string
+  prevPrepaid?: number; refundPrepay?: number; prepaidBalance?: number
+  currentDebt?: number; prevDebt?: number; debtBalance?: number; paymentDeadline?: string
+  remark?: string; createByName?: string; posterName?: string; postTime?: string
+  attachment?: string; printCount?: number; status: number; statusDesc?: string
+  createTime: string; items?: PurchaseReturnItem[]
+}
+/** 采购退货明细（对应后端 PurchaseReturnItem） */
+export interface PurchaseReturnItem {
+  id?: number; returnId?: number; lineNo?: number
+  productId: number; productCode?: string; productName?: string
+  productSpec?: string; productUnit?: string
+  image?: string; barcode?: string; model?: string; origin?: string; brand?: string; region?: string; location?: string
+  availableStock?: number; availableStockConverted?: number; bookStock?: number
+  batchNo?: string; batchCode?: string; productionDate?: string; shelfLife?: string; expiryDate?: string
+  returnQuantity?: number; conversionRelation?: string; pieceQuantity?: number
+  bigPack?: number; midPack?: number; smallPack?: number
+  latestPurchaseDate?: string; retailPrice?: number; wholesalePrice?: number
+  unitPrice?: number; smallUnit?: string; smallUnitPrice?: number; smallUnitQuantity?: number
+  unitCost?: number; costAmount?: number; taxRate?: number; taxAmount?: number; lineTotal?: number
+  volume?: number; weight?: number; gift?: boolean
+  restaurant?: boolean; canteen?: boolean; outRestaurant?: boolean; vipSelf?: boolean
+  largeGroup?: boolean; vipLevel1?: boolean; vipLevel2?: boolean; specialCustomer?: boolean
+  customField1?: number; customField2?: number; customField3?: number
+  customField4?: string; customField5?: string; customField6?: number; customField7?: number
+  customField8?: string; customField9?: string; customField10?: string
+  reason?: string; remark?: string
 }
 export const purchaseReturnApi = {
   page(params: PageQuery): Promise<PageResult<PurchaseReturn>> {
     return request.get('/erp/purchase/return/page', params)
   },
+  nextNo() { return request.get('/erp/purchase/return/next-no') },
   getById(id: number) { return request.get(`/erp/purchase/return/${id}`) },
-  getItems(id: number) { return request.get(`/erp/purchase/return/${id}/items`) },
+  getItems(id: number): Promise<PurchaseReturnItem[]> { return request.get(`/erp/purchase/return/${id}/items`) },
+  listByOrder(orderId: number) { return request.get(`/erp/purchase/return/order/${orderId}`) },
   create(data: any) { return request.post('/erp/purchase/return', data) },
+  createFromOrder(orderId: number) { return request.post(`/erp/purchase/return/from-order/${orderId}`) },
   update(id: number, data: any) { return request.put(`/erp/purchase/return/${id}`, data) },
   delete(id: number) { return request.delete(`/erp/purchase/return/${id}`) },
-  approve(id: number) { return request.post(`/erp/purchase/return/${id}/approve`) },
-  reject(id: number, reason?: string) { return request.post(`/erp/purchase/return/${id}/reject`, null, { params: { reason } }) },
+  submit(id: number) { return request.post(`/erp/purchase/return/${id}/submit`) },
+  approve(id: number, note?: string) { return request.post(`/erp/purchase/return/${id}/approve`, null, { params: { note } }) },
+  reject(id: number, reason: string) { return request.post(`/erp/purchase/return/${id}/reject`, null, { params: { reason } }) },
+  complete(id: number) { return request.post(`/erp/purchase/return/${id}/complete`) },
+  cancel(id: number, reason: string) { return request.post(`/erp/purchase/return/${id}/cancel`, null, { params: { reason } }) },
+  statistics() { return request.get('/erp/purchase/return/statistics') },
+  batchPrint(params: { ids: number[]; template?: string }) { return request.post('/erp/purchase/return/batch-print', params) },
+  export(params: any) { return request.get('/erp/purchase/return/export', { params }) },
 }
 
 // ── 付款管理 ──────────────────────────────────────────

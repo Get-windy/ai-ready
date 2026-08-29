@@ -59,9 +59,19 @@ public class StockSplitServiceImpl extends ServiceImpl<StockSplitMapper, StockSp
         split.setSplitNo(generateSplitNo());
         split.setStatus(0);
         split.setApplicantId(userId);
+        split.setApplicantName(getLoginName());
         split.setApplyTime(LocalDateTime.now());
         split.setCreateBy(userId);
         split.setCreateTime(LocalDateTime.now());
+        if (split.getSplitDate() == null) {
+            split.setSplitDate(LocalDateTime.now());
+        }
+        if (split.getInWarehouseId() == null) {
+            split.setInWarehouseId(split.getWarehouseId());
+        }
+        if (split.getOutWarehouseId() == null) {
+            split.setOutWarehouseId(split.getWarehouseId());
+        }
         this.save(split);
 
         if (items != null && !items.isEmpty()) {
@@ -95,6 +105,72 @@ public class StockSplitServiceImpl extends ServiceImpl<StockSplitMapper, StockSp
         }
 
         return split;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public StockSplit updateSplit(Long id, StockSplit split, List<StockSplitItem> items) {
+        StockSplit existing = this.getById(id);
+        if (existing == null) {
+            throw BusinessException.notFound("拆分单不存在");
+        }
+        if (existing.getStatus() != 0) {
+            throw BusinessException.badRequest("只有草稿状态的拆分单可以修改");
+        }
+        split.setId(id);
+        split.setTenantId(existing.getTenantId());
+        split.setSplitNo(existing.getSplitNo());
+        split.setStatus(0);
+        split.setApplicantId(existing.getApplicantId());
+        split.setApplyTime(existing.getApplyTime());
+        split.setCreateBy(existing.getCreateBy());
+        split.setCreateTime(existing.getCreateTime());
+        if (split.getSplitDate() == null) {
+            split.setSplitDate(existing.getSplitDate());
+        }
+        if (split.getInWarehouseId() == null) {
+            split.setInWarehouseId(existing.getInWarehouseId() != null ? existing.getInWarehouseId() : existing.getWarehouseId());
+        }
+        if (split.getOutWarehouseId() == null) {
+            split.setOutWarehouseId(existing.getOutWarehouseId() != null ? existing.getOutWarehouseId() : existing.getWarehouseId());
+        }
+        this.updateById(split);
+
+        // 重建明细
+        stockSplitItemMapper.delete(
+                new LambdaQueryWrapper<StockSplitItem>().eq(StockSplitItem::getSplitId, id)
+        );
+        if (items != null && !items.isEmpty()) {
+            BigDecimal subTotalCost = BigDecimal.ZERO;
+            for (StockSplitItem item : items) {
+                item.setId(null);
+                item.setSplitId(id);
+                if (item.getQuantity() == null) {
+                    item.setQuantity(BigDecimal.ONE);
+                }
+                if (item.getUnitCost() == null) {
+                    item.setUnitCost(BigDecimal.ZERO);
+                }
+                item.setCost(item.getQuantity().multiply(item.getUnitCost()));
+                item.setCreateTime(LocalDateTime.now());
+                stockSplitItemMapper.insert(item);
+                subTotalCost = subTotalCost.add(item.getCost());
+            }
+            split.setSubTotalCost(subTotalCost);
+            split.setTotalItems(items.size());
+            this.updateById(split);
+        }
+
+        return split;
+    }
+
+    private String getLoginName() {
+        try {
+            Object name = StpUtil.getSession().get("name");
+            return name != null ? name.toString() : "";
+        } catch (Exception e) {
+            return "";
+        }
     }
 
     @Override
@@ -180,10 +256,19 @@ public class StockSplitServiceImpl extends ServiceImpl<StockSplitMapper, StockSp
 
         Long userId = StpUtil.getLoginIdAsLong();
 
-        // Decrease stock for the original product
+        // 成品出库仓库（兼容旧数据：无双仓库时回退到 warehouse_id）
+        Long productWarehouseId = split.getOutWarehouseId() != null
+                ? split.getOutWarehouseId()
+                : split.getWarehouseId();
+        // 原料入库仓库
+        Long materialWarehouseId = split.getInWarehouseId() != null
+                ? split.getInWarehouseId()
+                : split.getWarehouseId();
+
+        // Decrease stock for the original product from 成品仓库
         Stock originalStock = stockMapper.selectOne(
                 new LambdaQueryWrapper<Stock>()
-                        .eq(Stock::getWarehouseId, split.getWarehouseId())
+                        .eq(Stock::getWarehouseId, productWarehouseId)
                         .eq(Stock::getProductId, split.getProductId())
         );
         if (originalStock == null) {
@@ -200,7 +285,7 @@ public class StockSplitServiceImpl extends ServiceImpl<StockSplitMapper, StockSp
         originalStock.setUpdateBy(userId);
         stockMapper.updateById(originalStock);
 
-        // Increase stock for each sub-item with cost allocation
+        // Increase stock for each sub-item in 原料仓库 with cost allocation
         List<StockSplitItem> items = getItemList(id);
         BigDecimal totalCost = split.getOutputTotalCost() != null ? split.getOutputTotalCost() : BigDecimal.ZERO;
         BigDecimal totalQuantity = items.stream()
@@ -210,7 +295,7 @@ public class StockSplitServiceImpl extends ServiceImpl<StockSplitMapper, StockSp
         for (StockSplitItem item : items) {
             Stock subStock = stockMapper.selectOne(
                     new LambdaQueryWrapper<Stock>()
-                            .eq(Stock::getWarehouseId, split.getWarehouseId())
+                            .eq(Stock::getWarehouseId, materialWarehouseId)
                             .eq(Stock::getProductId, item.getProductId())
             );
 
@@ -219,8 +304,9 @@ public class StockSplitServiceImpl extends ServiceImpl<StockSplitMapper, StockSp
             if (subStock == null) {
                 subStock = new Stock();
                 subStock.setTenantId(split.getTenantId());
-                subStock.setWarehouseId(split.getWarehouseId());
-                subStock.setWarehouseName(split.getWarehouseName());
+                subStock.setWarehouseId(materialWarehouseId);
+                subStock.setWarehouseName(split.getInWarehouseName() != null
+                        ? split.getInWarehouseName() : split.getWarehouseName());
                 subStock.setProductId(item.getProductId());
                 subStock.setProductCode(item.getProductCode());
                 subStock.setProductName(item.getProductName());

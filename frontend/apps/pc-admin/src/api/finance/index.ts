@@ -51,6 +51,17 @@ export const voucherApi = {
 }
 
 /**
+ * 分类账API（总账 + 明细账）
+ * 后端控制器: erp-finance LedgerController @RequestMapping("/api/erp/finance/ledger")
+ */
+export const ledgerApi = {
+  /** 总账：按科目汇总期初/本期/期末借贷 */
+  getGeneral: (params: any) => request.get('/erp/finance/ledger/general', params),
+  /** 明细账：按科目逐笔凭证分录 */
+  getDetail: (params: any) => request.get('/erp/finance/ledger/detail', params)
+}
+
+/**
  * 财务报表API v2
  */
 export const reportApi = {
@@ -696,6 +707,7 @@ export default {
   depositConditionApi,
   accountSubjectApi,
   voucherApi,
+  ledgerApi,
   reportApi,
   receivableApi,
   payableApi,

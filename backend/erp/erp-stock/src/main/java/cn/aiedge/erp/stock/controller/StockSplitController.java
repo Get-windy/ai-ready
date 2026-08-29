@@ -30,8 +30,20 @@ public class StockSplitController {
     public static class CreateSplitRequest {
         private Long bomId;
         private Long warehouseId;
+        private Long inWarehouseId;
+        private String inWarehouseName;
+        private Long outWarehouseId;
+        private String outWarehouseName;
+        private String handlerName;
+        private String splitDate;
         private BigDecimal splitQuantity;
+        private BigDecimal totalCost;
         private String remark;
+        private Long productId;
+        private String productCode;
+        private String productName;
+        private String productSpec;
+        private String productUnit;
         private List<StockSplitItem> items;
     }
 
@@ -75,10 +87,44 @@ public class StockSplitController {
         split.setTenantId(1L);
         split.setBomId(request.getBomId());
         split.setWarehouseId(request.getWarehouseId());
+        split.setInWarehouseId(request.getInWarehouseId());
+        split.setInWarehouseName(request.getInWarehouseName());
+        split.setOutWarehouseId(request.getOutWarehouseId());
+        split.setOutWarehouseName(request.getOutWarehouseName());
+        split.setHandlerName(request.getHandlerName());
         split.setSplitQuantity(request.getSplitQuantity());
+        split.setOutputTotalCost(request.getTotalCost());
         split.setRemark(request.getRemark());
+        split.setProductId(request.getProductId());
+        split.setProductCode(request.getProductCode());
+        split.setProductName(request.getProductName());
+        split.setProductSpec(request.getProductSpec());
+        split.setProductUnit(request.getProductUnit());
         split.setCreateBy(StpUtil.getLoginIdAsLong());
         return Result.ok(splitService.createSplit(split, request.getItems()));
+    }
+
+    @PutMapping("/{id}")
+    @Operation(summary = "更新草稿拆分单")
+    public Result<StockSplit> update(@PathVariable Long id, @RequestBody CreateSplitRequest request) {
+        StockSplit split = new StockSplit();
+        split.setId(id);
+        split.setBomId(request.getBomId());
+        split.setWarehouseId(request.getWarehouseId());
+        split.setInWarehouseId(request.getInWarehouseId());
+        split.setInWarehouseName(request.getInWarehouseName());
+        split.setOutWarehouseId(request.getOutWarehouseId());
+        split.setOutWarehouseName(request.getOutWarehouseName());
+        split.setHandlerName(request.getHandlerName());
+        split.setSplitQuantity(request.getSplitQuantity());
+        split.setOutputTotalCost(request.getTotalCost());
+        split.setRemark(request.getRemark());
+        split.setProductId(request.getProductId());
+        split.setProductCode(request.getProductCode());
+        split.setProductName(request.getProductName());
+        split.setProductSpec(request.getProductSpec());
+        split.setProductUnit(request.getProductUnit());
+        return Result.ok(splitService.updateSplit(id, split, request.getItems()));
     }
 
     @PostMapping("/create-with-items")

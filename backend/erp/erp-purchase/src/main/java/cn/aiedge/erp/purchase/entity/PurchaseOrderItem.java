@@ -152,26 +152,36 @@ public class PurchaseOrderItem {
     /** 仓库ID */
     private Long warehouseId;
 
-    // ═══ 自定义字段 1~10 ═══
+    // ═══ 自定义字段 1~10（DB 列名带下划线数字） ═══
     /** 单据自定义1(数字) */
+    @TableField("custom_field_1")
     private BigDecimal customField1;
     /** 单据自定义2(数字) */
+    @TableField("custom_field_2")
     private BigDecimal customField2;
     /** 单据自定义3(数字) */
+    @TableField("custom_field_3")
     private BigDecimal customField3;
     /** 单据自定义4(文本) */
+    @TableField("custom_field_4")
     private String customField4;
     /** 单据自定义5(文本) */
+    @TableField("custom_field_5")
     private String customField5;
     /** 单据自定义6(数字) */
+    @TableField("custom_field_6")
     private BigDecimal customField6;
     /** 单据自定义7(数字) */
+    @TableField("custom_field_7")
     private BigDecimal customField7;
     /** 单据自定义8(往来单位ID) */
+    @TableField("custom_field_8")
     private Long customField8;
     /** 单据自定义9(职员ID) */
+    @TableField("custom_field_9")
     private Long customField9;
     /** 单据自定义10(部门ID) */
+    @TableField("custom_field_10")
     private Long customField10;
 
     // ═══ 计算字段 ═══

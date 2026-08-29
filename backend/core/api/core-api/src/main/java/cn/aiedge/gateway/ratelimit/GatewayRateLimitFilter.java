@@ -6,7 +6,7 @@ import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
 import org.springframework.core.io.buffer.DataBuffer;
-import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -37,7 +37,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @ConditionalOnProperty(prefix = "ai-ready.ratelimit", name = "enabled", havingValue = "true", matchIfMissing = false)
 public class GatewayRateLimitFilter implements GlobalFilter, Ordered {
 
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final StringRedisTemplate redisTemplate;
     private final AiReadyRateLimitConfig rateLimitConfig;
     
     // 限流器缓存

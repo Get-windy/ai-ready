@@ -11,7 +11,7 @@ import cn.aiedge.erp.sale.outbound.service.SaleOutboundService;
 import cn.aiedge.erp.sale.service.ISaleReturnDocService;
 import cn.aiedge.erp.sale.service.ISaleExchangeService;
 import cn.aiedge.erp.sale.service.UnifiedSalesDocQueryService;
-import cn.dev33.satoken.annotation.SaCheckPermission;
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -24,7 +24,7 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/api/sales/doc-query")
-@SaCheckPermission("sales:doc-query")
+@SaCheckLogin
 public class SalesDocQueryController {
 
     @Autowired

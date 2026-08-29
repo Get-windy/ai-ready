@@ -212,7 +212,7 @@ describe('验证工具函数', () => {
   })
   
   it('验证密码强度', () => {
-    expect(isValidPassword('Admin123')).toBe(false) // 少于8位
+    expect(isValidPassword('Admin123')).toBe(true) // 恰好8位，含大写+小写+数字
     expect(isValidPassword('admin12345')).toBe(false) // 无大写
     expect(isValidPassword('ADMIN12345')).toBe(false) // 无小写
     expect(isValidPassword('Administrator')).toBe(false) // 无数字

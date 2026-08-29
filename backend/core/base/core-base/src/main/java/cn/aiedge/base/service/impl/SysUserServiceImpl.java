@@ -1,6 +1,6 @@
 package cn.aiedge.base.service.impl;
 
-import cn.aiedge.base.entity.Role;
+import cn.aiedge.base.entity.SysRole;
 import cn.aiedge.base.entity.SysTenant;
 import cn.aiedge.base.entity.SysUser;
 import cn.aiedge.base.entity.SysUserRole;
@@ -289,14 +289,14 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser>
         }
 
         // 查询角色作用域并校验
-        Collection<Role> roles = roleMapper.selectBatchIds(roleIds);
+        Collection<SysRole> roles = roleMapper.selectBatchIds(roleIds);
         if (roles.size() != roleIds.size()) {
             throw BusinessException.notFound("部分角色不存在");
         }
-        Map<Long, Role> roleMap = roles.stream().collect(Collectors.toMap(Role::getId, r -> r));
+        Map<Long, SysRole> roleMap = roles.stream().collect(Collectors.toMap(SysRole::getId, r -> r));
         boolean isTenantUser = targetUser.getTenantId() != null;
         for (Long roleId : roleIds) {
-            Role role = roleMap.get(roleId);
+            SysRole role = roleMap.get(roleId);
             if (role == null) continue;
             if ("PLATFORM".equals(role.getScope()) && isTenantUser) {
                 throw BusinessException.forbidden(

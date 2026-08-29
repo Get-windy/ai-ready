@@ -1,6 +1,6 @@
 package cn.aiedge.base.service;
 
-import cn.aiedge.base.entity.Role;
+import cn.aiedge.base.entity.SysRole;
 import cn.aiedge.common.dto.role.RoleCreateRequest;
 import cn.aiedge.common.dto.role.RoleDetailVO;
 import cn.aiedge.common.dto.role.RoleQueryRequest;
@@ -13,7 +13,7 @@ import java.util.List;
 /**
  * 角色服务接口
  */
-public interface RoleService extends IService<Role> {
+public interface RoleService extends IService<SysRole> {
 
     /**
      * 分页查询角色
@@ -64,12 +64,12 @@ public interface RoleService extends IService<Role> {
     /**
      * 根据角色编码查询角色
      */
-    Role getByRoleCode(String roleCode);
+    SysRole getByRoleCode(String roleCode);
 
     /**
      * 根据用户ID查询角色列表
      */
-    List<Role> getByUserId(Long userId);
+    List<SysRole> getByUserId(Long userId);
 
     /**
      * 获取角色的权限ID列表

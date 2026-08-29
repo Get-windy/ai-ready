@@ -396,6 +396,20 @@ public class SaleReturnServiceImpl extends ServiceImpl<SaleReturnMapper, SaleRet
         Page<Map<String, Object>> page = new Page<>(pageNum, pageSize);
         QueryWrapper<SaleReturn> wrapper = new QueryWrapper<>();
 
+        // 日期字符串 → LocalDateTime（与 pageList 保持一致，避免 PG 类型比较错误）
+        LocalDateTime startDateTime = null;
+        LocalDateTime endDateTime = null;
+        if (startDate != null && !startDate.isEmpty()) {
+            startDateTime = parseLocalDateToStartOfDay(startDate);
+        }
+        if (endDate != null && !endDate.isEmpty()) {
+            endDateTime = parseLocalDateToEndOfDay(endDate);
+        }
+        LocalDateTime auditDateTime = null;
+        if (auditTime != null && !auditTime.isEmpty()) {
+            auditDateTime = parseLocalDateToStartOfDay(auditTime);
+        }
+
         // 主表条件
         wrapper.eq("r.deleted", 0);
         if (keyword != null && !keyword.isEmpty()) {
@@ -425,11 +439,11 @@ public class SaleReturnServiceImpl extends ServiceImpl<SaleReturnMapper, SaleRet
         if (salesType != null && !salesType.isEmpty()) {
             wrapper.eq("r.sales_type", salesType);
         }
-        if (startDate != null && !startDate.isEmpty()) {
-            wrapper.ge("r.order_date", startDate);
+        if (startDateTime != null) {
+            wrapper.ge("r.order_date", startDateTime);
         }
-        if (endDate != null && !endDate.isEmpty()) {
-            wrapper.le("r.order_date", endDate);
+        if (endDateTime != null) {
+            wrapper.le("r.order_date", endDateTime);
         }
         if (creatorName != null && !creatorName.isEmpty()) {
             wrapper.like("r.creator_name", creatorName);
@@ -440,8 +454,8 @@ public class SaleReturnServiceImpl extends ServiceImpl<SaleReturnMapper, SaleRet
         if (remark != null && !remark.isEmpty()) {
             wrapper.like("r.remark", remark);
         }
-        if (auditTime != null && !auditTime.isEmpty()) {
-            wrapper.ge("r.audit_time", auditTime);
+        if (auditDateTime != null) {
+            wrapper.ge("r.audit_time", auditDateTime);
         }
 
         // 明细表条件

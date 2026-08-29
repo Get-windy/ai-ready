@@ -34,8 +34,9 @@ public class SecurityAspect {
         Pattern.CASE_INSENSITIVE
     );
 
-    private static final int RATE_LIMIT_REQUESTS = 1000;
+    private static final int RATE_LIMIT_REQUESTS = 120;
     private static final int RATE_LIMIT_WINDOW_SECONDS = 60;
+    private static final int RATE_LIMIT_GLOBAL_REQUESTS = 300;
 
     @Pointcut("@within(org.springframework.web.bind.annotation.RestController)")
     public void controllerMethods() {}
@@ -95,7 +96,7 @@ public class SecurityAspect {
             throw new BusinessException(429, "请求过于频繁，请稍后再试");
         }
 
-        if (globalCount != null && globalCount > RATE_LIMIT_REQUESTS * 2) {
+        if (globalCount != null && globalCount > RATE_LIMIT_GLOBAL_REQUESTS) {
             throw new BusinessException(429, "全局请求过于频繁，请稍后再试");
         }
     }
@@ -104,9 +105,10 @@ public class SecurityAspect {
         if (args == null) return;
         for (Object arg : args) {
             if (arg == null) continue;
-            String argStr = arg.toString();
-            if (SQL_INJECTION_PATTERN.matcher(argStr).find()) {
-                log.warn("检测到SQL注入攻击: {}", argStr);
+            // 只检查字符串类型参数，跳过DTO对象（避免toString()误报）
+            if (!(arg instanceof String)) continue;
+            if (SQL_INJECTION_PATTERN.matcher((String) arg).find()) {
+                log.warn("检测到SQL注入攻击: {}", arg);
                 throw new BusinessException(400, "请求参数包含非法字符");
             }
         }
@@ -116,9 +118,10 @@ public class SecurityAspect {
         if (args == null) return;
         for (Object arg : args) {
             if (arg == null) continue;
-            String argStr = arg.toString();
-            if (XSS_PATTERN.matcher(argStr).find()) {
-                log.warn("检测到XSS攻击: {}", argStr);
+            // 只检查字符串类型参数，跳过DTO对象（避免toString()误报）
+            if (!(arg instanceof String)) continue;
+            if (XSS_PATTERN.matcher((String) arg).find()) {
+                log.warn("检测到XSS攻击: {}", arg);
                 throw new BusinessException(400, "请求参数包含非法脚本");
             }
         }

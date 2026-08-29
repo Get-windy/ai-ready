@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.experimental.Accessors;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Data
@@ -30,6 +31,28 @@ public class StockCostAdjustItem {
     private Long warehouseId;
 
     private String batchNo;
+
+    private String barcode;
+
+    private String location;
+
+    private String shelfLife;
+
+    private LocalDate validityDate;
+
+    private String conversionRelation;
+
+    private String conversionResult;
+
+    private BigDecimal pieceQuantity;
+
+    private BigDecimal wholesalePrice;
+
+    private BigDecimal retailPrice;
+
+    private BigDecimal oldAmount;
+
+    private BigDecimal newAmount;
 
     private BigDecimal currentQuantity;
 

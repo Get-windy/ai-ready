@@ -24,6 +24,26 @@
         @toolbar-action="handleToolbarAction"
         @page-change="handlePageChange"
       >
+        <!-- 工具栏左侧：查询方案 + 快捷日期（DocCenterLayout 内置日期快捷） -->
+        <template #toolbar-left>
+          <div class="query-scheme-wrap">
+            <a-select
+              v-model:value="queryScheme"
+              style="width: 140px"
+              size="small"
+              placeholder="--查询方案--"
+              allow-clear
+              @change="handleSchemeChange"
+            >
+              <a-select-option value="">--查询方案--</a-select-option>
+              <a-select-option v-for="s in schemes" :key="s" :value="s">{{ s }}</a-select-option>
+            </a-select>
+            <a-button type="link" size="small" style="padding: 0 4px" @click="handleSaveScheme">
+              <PlusOutlined />
+            </a-button>
+          </div>
+        </template>
+
         <template #table>
           <BillDetailTable
             :columns="activeColumns"
@@ -32,6 +52,8 @@
             :view-mode="true"
             :storage-key="storageKey"
             style="height: 100%"
+            @checkbox-change="handleRowCheck"
+            @checkbox-all="handleRowCheckAll"
           >
             <template #actionCell="{ record }">
               <a-space :size="4">
@@ -53,9 +75,13 @@
 
       <!-- 页面配置弹窗 -->
       <PageConfigPanel
+        :key="'purchase-page-config-' + subTab"
         :open="showPageConfig"
         :storage-key="'purchase-order-page-config'"
+        :query-fields-config="subTab === 'byDoc' ? docQueryConfig : detailQueryConfig"
+        :function-buttons-config="functionButtonConfig"
         @update:open="showPageConfig = $event"
+        @change="handlePageConfigChange"
       />
 
       <!-- 批量打印弹窗 -->
@@ -86,11 +112,13 @@ import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import dayjs, { type Dayjs } from 'dayjs'
+import { PlusOutlined } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import DocCenterLayout from '@/components/DocCenterLayout/DocCenterLayout.vue'
 import BillDetailTable from '@/components/BillFormPage/BillDetailTable/index.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
+import { userPageConfigApi } from '@/api/erp'
 import { PURCHASE_ORDER_STATUS } from '@/utils/statusConfig'
 import request from '@/utils/request'
 import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTable/types'
@@ -117,7 +145,7 @@ const subTabs = [
 // ═══ 搜索 ═══
 const searchForm = reactive<Record<string, any>>({})
 
-// 按单据Tab搜索字段（17个）
+// 按单据Tab搜索字段（16个，日期由 DocCenterLayout 固定显示在第一格）
 const byDocSearchFields: SearchConfigMap = {
   'all.byDoc': [
     { key: 'orderNo', label: '单据编号', type: 'input' },
@@ -143,7 +171,7 @@ const byDocSearchFields: SearchConfigMap = {
   ],
 }
 
-// 按明细Tab搜索字段（13个）
+// 按明细Tab搜索字段（13个，日期由 DocCenterLayout 固定显示在第一格）
 const byDetailSearchFields: SearchConfigMap = {
   'all.byDetail': [
     { key: 'orderNo', label: '单据编号', type: 'input' },
@@ -154,9 +182,6 @@ const byDetailSearchFields: SearchConfigMap = {
     { key: 'createByName', label: '制单人', type: 'input' },
     { key: 'auditorName', label: '审核人', type: 'input' },
     { key: 'warehouseName', label: '仓库', type: 'input' },
-    { key: 'priceStatus', label: '单价状态', type: 'select', options: [
-      { label: '有单价', value: 1 }, { label: '无单价', value: 0 },
-    ]},
     { key: 'remark', label: '单据备注', type: 'input' },
     { key: 'itemRemark', label: '明细备注', type: 'input' },
     { key: 'isGift', label: '是否赠品', type: 'select', options: [
@@ -232,8 +257,10 @@ const toolbarConfig: ToolbarConfigMap = {
   ],
 }
 
-// ═══ 按单据 Tab 表格列（39 列） ═══
+// ═══ 按单据 Tab 表格列（41 列，含序号/齿轮与选择框） ═══
 const byDocColumns: DetailColumnConfig[] = [
+  { key: 'rowNo', title: '', type: 'rowNo', width: 40, fixed: 'left' },
+  { key: 'rowCheck', title: '', type: 'checkbox', width: 40 },
   { key: 'orderDate', title: '单据日期', width: 110 },
   { key: 'orderNo', title: '单据编号', width: 150, slotName: 'orderNoCell' },
   { key: 'sourceBillNo', title: '源单', width: 130 },
@@ -275,8 +302,10 @@ const byDocColumns: DetailColumnConfig[] = [
   { key: 'printCount', title: '打印次数', width: 90 },
 ]
 
-// ═══ 按明细 Tab 表格列（59 列） ═══
+// ═══ 按明细 Tab 表格列（61 列，含序号/齿轮与选择框） ═══
 const byDetailColumns: DetailColumnConfig[] = [
+  { key: 'rowNo', title: '', type: 'rowNo', width: 40, fixed: 'left' },
+  { key: 'rowCheck', title: '', type: 'checkbox', width: 40 },
   { key: 'orderDate', title: '单据日期', width: 110 },
   { key: 'orderNo', title: '单据编号', width: 150, slotName: 'orderNoCell' },
   { key: 'status', title: '单据状态', width: 90, slotName: 'statusCell' },
@@ -340,7 +369,7 @@ const byDetailColumns: DetailColumnConfig[] = [
 ]
 
 const activeColumns = computed(() => subTab.value === 'byDoc' ? byDocColumns : byDetailColumns)
-const storageKey = computed(() => subTab.value === 'byDoc' ? 'purchase-order-byDoc' : 'purchase-order-byDetail')
+const storageKey = computed(() => subTab.value === 'byDoc' ? 'purchase-list-columns-doc' : 'purchase-list-columns-detail')
 
 // ═══ 分页 ═══
 const paginationConfig = reactive({ current: 1, pageSize: 20, total: 0 })
@@ -365,12 +394,12 @@ const fetchData = async () => {
       const res = await request.get('/erp/purchase/order/doc-query/page', { params })
       const data = res.data || res
       tableData.value = data?.records || []
-      paginationConfig.total = data?.total || 0
+      paginationConfig.total = Number(data?.total) || 0
     } else {
       const res = await request.get('/erp/purchase/order/detail-query/page', { params })
       const data = res.data || res
       tableData.value = data?.records || []
-      paginationConfig.total = data?.total || 0
+      paginationConfig.total = Number(data?.total) || 0
     }
 
     // 更新统计
@@ -391,7 +420,66 @@ const handleSearch = () => { paginationConfig.current = 1; fetchData() }
 const handlePageChange = (page: number, size: number) => { paginationConfig.current = page; paginationConfig.pageSize = size; fetchData() }
 
 // Tab 切换
-watch(subTab, () => { handleSearch() })
+watch(subTab, () => {
+  applyHiddenSearchFields()
+  handleSearch()
+})
+
+// ═══ 查询方案 ═══
+const SCHEME_STORAGE_KEY = 'purchase-order-schemes'
+const queryScheme = ref('')
+const schemes = ref<string[]>([])
+function loadSchemes() {
+  try {
+    const raw = localStorage.getItem(SCHEME_STORAGE_KEY)
+    schemes.value = raw ? JSON.parse(raw) : []
+  } catch { schemes.value = [] }
+}
+function persistSchemes() {
+  try { localStorage.setItem(SCHEME_STORAGE_KEY, JSON.stringify(schemes.value)) } catch { /* ignore */ }
+}
+function handleSaveScheme() {
+  const name = window.prompt('请输入方案名称：')
+  if (!name) return
+  if (!schemes.value.includes(name)) {
+    schemes.value.push(name)
+    persistSchemes()
+  }
+  queryScheme.value = name
+  // 保存当前搜索条件作为方案快照
+  try { localStorage.setItem(`purchase-order-scheme:${name}`, JSON.stringify({ ...searchForm, dateRange: dateRange.value })) } catch { /* ignore */ }
+  message.success(`查询方案「${name}」已保存`)
+}
+function handleSchemeChange(val: string) {
+  if (!val) return
+  try {
+    const raw = localStorage.getItem(`purchase-order-scheme:${val}`)
+    if (raw) {
+      const saved = JSON.parse(raw)
+      Object.assign(searchForm, saved)
+      if (saved.dateRange) dateRange.value = saved.dateRange
+      handleSearch()
+    }
+  } catch { /* ignore */ }
+}
+
+// ═══ 行选择（批量操作） ═══
+const selectedRowKeys = ref<any[]>([])
+function handleRowCheck(record: any, index: number, checked: boolean) {
+  const key = record.orderId ?? record.id
+  if (checked) {
+    if (!selectedRowKeys.value.includes(key)) selectedRowKeys.value.push(key)
+  } else {
+    selectedRowKeys.value = selectedRowKeys.value.filter((k: any) => k !== key)
+  }
+}
+function handleRowCheckAll(checked: boolean, records: any[]) {
+  if (checked) {
+    selectedRowKeys.value = records.map((r: any) => r.orderId ?? r.id)
+  } else {
+    selectedRowKeys.value = []
+  }
+}
 
 // ═══ 页面配置/打印/导入 ═══
 const showPageConfig = ref(false)
@@ -399,6 +487,117 @@ const showPrintDialog = ref(false)
 const printTemplate = ref('default')
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const importLoading = ref(false)
+
+// ═══ 页面配置（查询条件显隐 + 功能按钮），持久化到后端 ═══
+const PAGE_CONFIG_MODULE = 'purchase'
+const PAGE_CONFIG_PAGE = 'order'
+
+interface QueryFieldSetting { key: string; label: string; visible: boolean }
+interface FunctionButtonSetting { key: string; label: string; enabled: boolean }
+
+const DEFAULT_DOC_QUERY_FIELDS: QueryFieldSetting[] = [
+  { key: 'orderNo', label: '单据编号', visible: true },
+  { key: 'supplierName', label: '供应商', visible: true },
+  { key: 'purchaserName', label: '经手人', visible: true },
+  { key: 'deptName', label: '部门', visible: false },
+  { key: 'createByName', label: '制单人', visible: false },
+  { key: 'warehouseName', label: '仓库', visible: true },
+  { key: 'status', label: '单据状态', visible: true },
+  { key: 'remark', label: '单据备注', visible: false },
+  { key: 'submitterName', label: '提交人', visible: false },
+  { key: 'auditorName', label: '审核人', visible: false },
+  { key: 'extNum1Start', label: '自定义字段1(数字)', visible: false },
+  { key: 'extNum2Start', label: '自定义字段2(数字)', visible: false },
+  { key: 'extText1', label: '自定义字段3(文本)', visible: false },
+  { key: 'extText2', label: '自定义字段4(文本)', visible: false },
+  { key: 'extText3', label: '自定义字段5(文本)', visible: false },
+  { key: 'printCountStart', label: '打印次数', visible: false },
+]
+
+const DEFAULT_DETAIL_QUERY_FIELDS: QueryFieldSetting[] = [
+  { key: 'orderNo', label: '单据编号', visible: true },
+  { key: 'productName', label: '商品', visible: true },
+  { key: 'supplierName', label: '供应商', visible: true },
+  { key: 'purchaserName', label: '经手人', visible: true },
+  { key: 'deptName', label: '部门', visible: false },
+  { key: 'createByName', label: '制单人', visible: false },
+  { key: 'auditorName', label: '审核人', visible: false },
+  { key: 'warehouseName', label: '仓库', visible: true },
+  { key: 'priceStatus', label: '单价状态', visible: true },
+  { key: 'remark', label: '单据备注', visible: false },
+  { key: 'itemRemark', label: '明细备注', visible: false },
+  { key: 'isGift', label: '是否赠品', visible: false },
+  { key: 'status', label: '单据状态', visible: true },
+]
+
+const DEFAULT_FUNCTION_BUTTONS: FunctionButtonSetting[] = [
+  { key: 'add', label: '新增', enabled: true },
+  { key: 'refresh', label: '刷新', enabled: true },
+  { key: 'batchImport', label: '批量导入', enabled: true },
+  { key: 'batchPrint', label: '批量打印', enabled: true },
+  { key: 'printF8', label: '打印(F8)', enabled: true },
+  { key: 'export', label: '导出', enabled: true },
+  { key: 'pageConfig', label: '配置', enabled: true },
+]
+
+const docQueryConfig = ref<QueryFieldSetting[]>(DEFAULT_DOC_QUERY_FIELDS.map(f => ({ ...f })))
+const detailQueryConfig = ref<QueryFieldSetting[]>(DEFAULT_DETAIL_QUERY_FIELDS.map(f => ({ ...f })))
+const functionButtonConfig = ref<FunctionButtonSetting[]>(DEFAULT_FUNCTION_BUTTONS.map(f => ({ ...f })))
+
+async function loadPageConfig() {
+  try {
+    const raw = await userPageConfigApi.get(PAGE_CONFIG_MODULE, PAGE_CONFIG_PAGE)
+    if (raw) {
+      const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
+      if (parsed.queryFields) {
+        docQueryConfig.value = DEFAULT_DOC_QUERY_FIELDS.map(df => {
+          const saved = parsed.queryFields.find((f: QueryFieldSetting) => f.key === df.key)
+          return saved ? { ...df, ...saved } : { ...df }
+        })
+      }
+      if (parsed.detailQueryFields) {
+        detailQueryConfig.value = DEFAULT_DETAIL_QUERY_FIELDS.map(df => {
+          const saved = parsed.detailQueryFields.find((f: QueryFieldSetting) => f.key === df.key)
+          return saved ? { ...df, ...saved } : { ...df }
+        })
+      }
+      if (parsed.functionButtons) {
+        functionButtonConfig.value = DEFAULT_FUNCTION_BUTTONS.map(bf => {
+          const saved = parsed.functionButtons.find((f: FunctionButtonSetting) => f.key === bf.key)
+          return saved ? { ...bf, ...saved } : { ...bf }
+        })
+      }
+      // 同步 localStorage，供 PageConfigPanel 打开时读取
+      localStorage.setItem('purchase-order-page-config', JSON.stringify({
+        queryFields: docQueryConfig.value,
+        detailQueryFields: detailQueryConfig.value,
+        functionButtons: functionButtonConfig.value,
+      }))
+    }
+  } catch {
+    // API 不可用时保持默认
+  }
+}
+
+async function handlePageConfigChange(config: any) {
+  const payload = {
+    queryFields: config.queryFields || docQueryConfig.value,
+    detailQueryFields: config.detailQueryFields || detailQueryConfig.value,
+    functionButtons: config.functionButtons || functionButtonConfig.value,
+  }
+  try {
+    await userPageConfigApi.save(PAGE_CONFIG_MODULE, PAGE_CONFIG_PAGE, JSON.stringify(payload))
+  } catch {
+    // 静默失败
+  }
+  await loadPageConfig()
+  applyHiddenSearchFields()
+}
+
+function applyHiddenSearchFields() {
+  const config = subTab.value === 'byDoc' ? docQueryConfig.value : detailQueryConfig.value
+  hiddenSearchFieldKeys.value = config.filter(f => !f.visible).map(f => f.key)
+}
 
 // ═══ 工具栏操作 ═══
 const handleToolbarAction = (action: string) => {
@@ -520,21 +719,24 @@ function handleKeydown(e: KeyboardEvent) {
   if ((e.ctrlKey || e.metaKey) && e.key === 'e') { e.preventDefault(); handleExport() }
 }
 
-onMounted(() => {
-  fetchData()
+onMounted(async () => {
   window.addEventListener('keydown', handleKeydown)
-  // 初始化搜索字段隐藏配置（从localStorage加载，由PageConfigPanel控制）
+  loadSchemes()
+  // 清理旧格式列配置（早期 useColumnConfig 写入 {_version, columns} 包装，BillDetailTable 期望纯数组）
   try {
-    const raw = localStorage.getItem('purchase-order-page-config')
-    if (raw) {
-      const parsed = JSON.parse(raw)
-      if (parsed?.queryFields && Array.isArray(parsed.queryFields)) {
-        hiddenSearchFieldKeys.value = parsed.queryFields
-          .filter((f: any) => f.visible === false)
-          .map((f: any) => f.key)
+    for (const k of ['purchase-list-columns-doc', 'purchase-list-columns-detail']) {
+      const raw = localStorage.getItem(k)
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && Array.isArray(parsed.columns)) {
+          localStorage.removeItem(k)
+        }
       }
     }
   } catch { /* ignore */ }
+  await loadPageConfig()
+  applyHiddenSearchFields()
+  fetchData()
 })
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown)

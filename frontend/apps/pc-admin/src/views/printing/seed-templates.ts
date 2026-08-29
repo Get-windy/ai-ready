@@ -328,7 +328,7 @@ const ALL_SPECS: TemplateSpec[] = [
     tableDataSource: 'items',
   },
   {
-    pageCodes: ['purchase/exchange', 'erp/purchase-exchange'],
+    pageCodes: ['purchase/exchange'],
     name: '采购换货_默认模板',
     businessType: 'purchase_exchange',
     docTitle: '采购换货单',
@@ -350,7 +350,7 @@ const ALL_SPECS: TemplateSpec[] = [
     tableDataSource: 'items',
   },
   {
-    pageCodes: ['purchase/return', 'erp/return'],
+    pageCodes: ['purchase/return'],
     name: '采购退货_默认模板',
     businessType: 'purchase_return',
     docTitle: '采购退货单',

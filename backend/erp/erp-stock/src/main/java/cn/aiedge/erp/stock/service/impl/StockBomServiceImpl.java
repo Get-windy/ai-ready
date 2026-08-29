@@ -33,7 +33,7 @@ public class StockBomServiceImpl extends ServiceImpl<StockBomMapper, StockBom> i
     }
 
     @Override
-    public Page<StockBom> pageList(String keyword, Long productId, Integer status, int pageNum, int pageSize) {
+    public Page<StockBom> pageList(String keyword, Long productId, Integer bomType, Integer status, int pageNum, int pageSize) {
         LambdaQueryWrapper<StockBom> wrapper = new LambdaQueryWrapper<>();
         // 修复: 只有当keyword不为空时才添加like条件，避免产生空括号SQL语法错误
         if (keyword != null && !keyword.trim().isEmpty()) {
@@ -43,6 +43,7 @@ public class StockBomServiceImpl extends ServiceImpl<StockBomMapper, StockBom> i
                     .like(StockBom::getBomName, keyword));
         }
         wrapper.eq(productId != null, StockBom::getProductId, productId)
+                .eq(bomType != null, StockBom::getBomType, bomType)
                 .eq(status != null, StockBom::getStatus, status)
                 .orderByDesc(StockBom::getCreateTime);
         return this.page(new Page<>(pageNum, pageSize), wrapper);

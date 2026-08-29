@@ -25,6 +25,28 @@ public class StockAssemble {
 
     private String warehouseName;
 
+    /** 成品入库仓库 */
+    private Long inWarehouseId;
+
+    private String inWarehouseName;
+
+    /** 原料出库仓库 */
+    private Long outWarehouseId;
+
+    private String outWarehouseName;
+
+    /** 经手人 */
+    private String handlerName;
+
+    /** 生产单位 */
+    private String produceUnit;
+
+    /** 打印次数 */
+    private Integer printCount;
+
+    /** 打印记录 */
+    private String printRecords;
+
     private Long bomId;
 
     private String bomNo;

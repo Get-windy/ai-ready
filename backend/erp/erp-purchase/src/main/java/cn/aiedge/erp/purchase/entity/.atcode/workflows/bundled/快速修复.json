@@ -1,0 +1,39 @@
+{
+  "name": "快速修复",
+  "description": "快速定位并修复问题",
+  "steps": [
+    {
+      "name": "定位问题",
+      "description": "定位需要修复的问题",
+      "type": "prompt",
+      "content": "请根据最近的错误信息或问题描述，定位问题所在的代码位置。分析问题的根本原因。"
+    },
+    {
+      "name": "提出修复方案",
+      "description": "提出修复问题的方案",
+      "type": "prompt",
+      "content": "针对定位到的问题，提出具体的修复方案。包括需要修改的文件、修改内容、测试验证方法。",
+      "dependsOn": [
+        "定位问题"
+      ]
+    },
+    {
+      "name": "实施修复",
+      "description": "实施修复方案",
+      "type": "prompt",
+      "content": "请按照提出的修复方案实施修复。修改相关代码，确保不引入新问题。",
+      "dependsOn": [
+        "提出修复方案"
+      ]
+    },
+    {
+      "name": "验证修复",
+      "description": "验证修复是否有效",
+      "type": "bash",
+      "content": "npm test",
+      "dependsOn": [
+        "实施修复"
+      ]
+    }
+  ]
+}

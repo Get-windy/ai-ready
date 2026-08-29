@@ -1,5 +1,6 @@
 package cn.aiedge.erp.purchase.inbound.service.impl;
 
+import cn.aiedge.erp.purchase.inbound.dto.PurchaseInboundQuery;
 import cn.aiedge.erp.purchase.inbound.entity.PurchaseInbound;
 import cn.aiedge.erp.purchase.inbound.entity.PurchaseInboundItem;
 import cn.aiedge.erp.purchase.inbound.enums.InboundStatus;
@@ -63,6 +64,46 @@ public class PurchaseInboundServiceImpl extends ServiceImpl<PurchaseInboundMappe
         }
         wrapper.orderByDesc(PurchaseInbound::getCreateTime);
         return page(new Page<>(pageNum, pageSize), wrapper);
+    }
+
+    @Override
+    public Page<PurchaseInbound> pageList(PurchaseInboundQuery q) {
+        LambdaQueryWrapper<PurchaseInbound> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(PurchaseInbound::getDeleted, 0);
+        if (q.getKeyword() != null && !q.getKeyword().isEmpty()) {
+            wrapper.and(w -> w.like(PurchaseInbound::getInboundNo, q.getKeyword())
+                    .or().like(PurchaseInbound::getOrderNo, q.getKeyword())
+                    .or().like(PurchaseInbound::getSupplierName, q.getKeyword()));
+        }
+        wrapper.like(hasText(q.getInboundNo()), PurchaseInbound::getInboundNo, q.getInboundNo());
+        wrapper.like(hasText(q.getSupplierName()), PurchaseInbound::getSupplierName, q.getSupplierName());
+        wrapper.like(hasText(q.getOrderNo()), PurchaseInbound::getOrderNo, q.getOrderNo());
+        wrapper.like(hasText(q.getPurchaserName()), PurchaseInbound::getPurchaserName, q.getPurchaserName());
+        wrapper.like(hasText(q.getDepartmentName()), PurchaseInbound::getDepartmentName, q.getDepartmentName());
+        wrapper.like(hasText(q.getCreateByName()), PurchaseInbound::getCreateByName, q.getCreateByName());
+        wrapper.like(hasText(q.getPosterName()), PurchaseInbound::getPosterName, q.getPosterName());
+        wrapper.like(hasText(q.getApprovedByName()), PurchaseInbound::getApprovedByName, q.getApprovedByName());
+        wrapper.like(hasText(q.getWarehouseName()), PurchaseInbound::getWarehouseName, q.getWarehouseName());
+        wrapper.like(hasText(q.getRemark()), PurchaseInbound::getRemark, q.getRemark());
+        wrapper.like(hasText(q.getExtText1()), PurchaseInbound::getExtText1, q.getExtText1());
+        wrapper.like(hasText(q.getExtText2()), PurchaseInbound::getExtText2, q.getExtText2());
+        wrapper.like(hasText(q.getExtText3()), PurchaseInbound::getExtText3, q.getExtText3());
+        wrapper.eq(q.getStatus() != null, PurchaseInbound::getStatus, q.getStatus());
+        wrapper.eq(q.getSettleStatus() != null, PurchaseInbound::getSettleStatus, q.getSettleStatus());
+        wrapper.eq(q.getExtNum1() != null, PurchaseInbound::getExtNum1, q.getExtNum1());
+        wrapper.eq(q.getExtNum2() != null, PurchaseInbound::getExtNum2, q.getExtNum2());
+        wrapper.eq(q.getPrintCount() != null, PurchaseInbound::getPrintCount, q.getPrintCount());
+        wrapper.eq(q.getSupplierId() != null, PurchaseInbound::getSupplierId, q.getSupplierId());
+        wrapper.eq(q.getOrderId() != null, PurchaseInbound::getOrderId, q.getOrderId());
+        wrapper.eq(q.getWarehouseId() != null, PurchaseInbound::getWarehouseId, q.getWarehouseId());
+        wrapper.ge(q.getStartDate() != null, PurchaseInbound::getInboundDate, q.getStartDate());
+        wrapper.le(q.getEndDate() != null, PurchaseInbound::getInboundDate, q.getEndDate());
+        wrapper.orderByDesc(PurchaseInbound::getCreateTime);
+        return page(new Page<>(q.getPageNum(), q.getPageSize()), wrapper);
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isEmpty();
     }
 
     @Override
@@ -155,6 +196,67 @@ public class PurchaseInboundServiceImpl extends ServiceImpl<PurchaseInboundMappe
         inbound.setInboundType(1);
         inbound.setWarehouseId(1L);
         return createInbound(inbound, null);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int importOrders(org.springframework.web.multipart.MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new cn.aiedge.common.exception.BusinessException("导入文件不能为空");
+        }
+        int count = 0;
+        try (var inputStream = file.getInputStream()) {
+            var workbook = new org.apache.poi.xssf.usermodel.XSSFWorkbook(inputStream);
+            var sheet = workbook.getSheetAt(0);
+            for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+                var row = sheet.getRow(i);
+                if (row == null) continue;
+                var supplierCell = row.getCell(0);
+                var warehouseCell = row.getCell(1);
+                var productCell = row.getCell(2);
+                var qtyCell = row.getCell(3);
+                var priceCell = row.getCell(4);
+                if (productCell == null || productCell.getStringCellValue().trim().isEmpty()) continue;
+                PurchaseInbound inbound = new PurchaseInbound();
+                if (supplierCell != null) inbound.setSupplierName(supplierCell.getStringCellValue());
+                if (warehouseCell != null) inbound.setWarehouseName(warehouseCell.getStringCellValue());
+                inbound.setTenantId(1L);
+                PurchaseInboundItem item = new PurchaseInboundItem();
+                item.setProductName(productCell.getStringCellValue());
+                item.setOrderQuantity(qtyCell != null ? BigDecimal.valueOf(qtyCell.getNumericCellValue()) : BigDecimal.ZERO);
+                item.setUnitPrice(priceCell != null ? BigDecimal.valueOf(priceCell.getNumericCellValue()) : BigDecimal.ZERO);
+                item.setTaxRate(BigDecimal.ZERO);
+                try {
+                    createInbound(inbound, List.of(item));
+                    count++;
+                } catch (Exception e) {
+                    log.warn("导入第{}行失败: {}", i, e.getMessage());
+                }
+            }
+            workbook.close();
+        } catch (cn.aiedge.common.exception.BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new cn.aiedge.common.exception.BusinessException("导入文件解析失败: " + e.getMessage());
+        }
+        return count;
+    }
+
+    @Override
+    public void batchPrint(List<Long> ids, String template) {
+        if (ids == null || ids.isEmpty()) {
+            throw new cn.aiedge.common.exception.BusinessException("请选择要打印的入库单");
+        }
+        for (Long id : ids) {
+            PurchaseInbound inbound = baseMapper.selectById(id);
+            if (inbound == null) continue;
+            int pc = (inbound.getPrintCount() != null ? inbound.getPrintCount() : 0) + 1;
+            PurchaseInbound upd = new PurchaseInbound();
+            upd.setId(id);
+            upd.setPrintCount(pc);
+            baseMapper.updateById(upd);
+        }
+        log.info("批量打印 {} 条入库单，模板: {}", ids.size(), template);
     }
 
     @Override
