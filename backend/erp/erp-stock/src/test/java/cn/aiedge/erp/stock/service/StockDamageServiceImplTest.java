@@ -1,6 +1,7 @@
 package cn.aiedge.erp.stock.service;
 
 import cn.aiedge.common.exception.BusinessException;
+import cn.aiedge.erp.stock.dto.StockDamageQuery;
 import cn.aiedge.erp.stock.entity.StockDamage;
 import cn.aiedge.erp.stock.entity.StockDamageItem;
 import cn.aiedge.erp.stock.mapper.StockDamageItemMapper;
@@ -77,7 +78,10 @@ class StockDamageServiceImplTest {
         when(damageMapper.selectPage(any(Page.class), any(LambdaQueryWrapper.class)))
                 .thenReturn(expectedPage);
 
-        Page<StockDamage> result = damageService.pageList(null, null, null, null, 1, 10);
+        StockDamageQuery query = new StockDamageQuery();
+        query.setPageNum(1);
+        query.setPageSize(10);
+        Page<StockDamage> result = damageService.pageList(query);
         assertNotNull(result);
         assertEquals(1, result.getRecords().size());
     }
@@ -106,11 +110,11 @@ class StockDamageServiceImplTest {
             item.setQuantity(new BigDecimal("5"));
             item.setUnitCost(new BigDecimal("100"));
 
-            StockDamage result = damageService.createDamage(damage, List.of(item));
+            StockDamage result = damageService.createStockDamage(damage, List.of(item));
 
             assertNotNull(result);
             assertEquals(0, result.getStatus());
-            assertTrue(result.getDamageNo().startsWith("DM"));
+            assertTrue(result.getDamageNo().startsWith("BSD-"));
             verify(damageMapper).insert(any(StockDamage.class));
             verify(damageItemMapper).insert(any(StockDamageItem.class));
         }

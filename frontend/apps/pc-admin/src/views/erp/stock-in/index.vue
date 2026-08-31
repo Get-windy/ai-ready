@@ -1,1349 +1,888 @@
 <template>
-  <ErrorBoundary
-    @reset="fetchData"
-    @error="handleError"
-  >
+  <ErrorBoundary @error="handleError">
     <PageContainer full-height>
-      <template #header>
-        <div class="stock-in-header">
-          <div class="stock-in-header__left">
-            <span class="stock-in-header__breadcrumb">ERP / 采购管理 / 入库管理</span>
-            <h2 class="stock-in-header__title">
-              入库管理
-            </h2>
-          </div>
-          <div class="stock-in-header__right">
-            <a-space :size="12">
-              <span
-                v-if="autoRefreshCountdown > 0"
-                class="auto-refresh-badge"
-              >
-                <SyncOutlined /> {{ autoRefreshCountdown }}s
-              </span>
-              <span class="data-status">
-                <a-badge :status="loading ? 'processing' : 'success'" />
-                <span
-                  v-if="lastUpdateTime"
-                  class="update-time"
-                >
-                  数据更新: {{ lastUpdateTime }}
-                </span>
-              </span>
-              <a-button
-                size="small"
-                :loading="refreshLoading"
-                @click="debounceClick('refresh', fetchData)"
-              >
-                <template #icon>
-                  <ReloadOutlined />
-                </template>
-                刷新
-              </a-button>
-              <span class="shortcut-hints">
-                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-              </span>
-            </a-space>
-          </div>
-        </div>
-      </template>
-
-      <!-- 统计卡片 -->
-      <a-row
-        :gutter="16"
-        style="margin-bottom: 16px;"
+      <!-- ═══ Tab栏 + 工具栏 ═══ -->
+      <CategoryListLayout
+        :tabs="tabs"
+        :active-tab="activeTab"
+        :show-category-panel="false"
+        :show-table-footer="true"
+        @tab-change="handleTabChange"
       >
-        <a-col :span="6">
-          <div class="summary-card">
-            <div
-              class="summary-icon"
-              style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);"
+        <!-- ═══ 工具栏左侧：查询方案 + 快捷日期 ═══ -->
+        <template #toolbar-left>
+          <div class="query-scheme-wrap">
+            <a-select
+              v-model:value="queryScheme"
+              style="width: 140px"
+              size="small"
+              placeholder="--查询方案--"
             >
-              <FileTextOutlined />
-            </div>
-            <div class="summary-content">
-              <div class="summary-title">
-                入库单总数
-              </div>
-              <div class="summary-value">
-                {{ statistics.totalCount }}
-              </div>
-            </div>
-          </div>
-        </a-col>
-        <a-col :span="6">
-          <div class="summary-card">
-            <div
-              class="summary-icon"
-              style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);"
-            >
-              <ClockCircleOutlined />
-            </div>
-            <div class="summary-content">
-              <div class="summary-title">
-                待审核
-              </div>
-              <div class="summary-value warning">
-                {{ statistics.pendingCount }}
-              </div>
-            </div>
-          </div>
-        </a-col>
-        <a-col :span="6">
-          <div class="summary-card">
-            <div
-              class="summary-icon"
-              style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);"
-            >
-              <CheckCircleOutlined />
-            </div>
-            <div class="summary-content">
-              <div class="summary-title">
-                已完成
-              </div>
-              <div class="summary-value">
-                {{ statistics.completedCount }}
-              </div>
-            </div>
-          </div>
-        </a-col>
-        <a-col :span="6">
-          <div class="summary-card highlight">
-            <div
-              class="summary-icon"
-              style="background: linear-gradient(135deg, #722ed1 0%, #531dab 100%);"
-            >
-              <DollarOutlined />
-            </div>
-            <div class="summary-content">
-              <div class="summary-title">
-                入库金额
-              </div>
-              <div class="summary-value">
-                ¥{{ formatAmount(statistics.totalAmount) }}
-              </div>
-            </div>
-          </div>
-        </a-col>
-      </a-row>
-
-      <a-card
-        title="入库管理"
-        style="flex: 1; overflow: hidden;"
-        :body-style="{ display: 'flex', flexDirection: 'column', height: 'calc(100% - 57px)' }"
-      >
-        <!-- 搜索栏 -->
-        <SearchBar
-          :fields="searchFields"
-          :loading="loading"
-          @search="handleSearch"
-          @reset="handleReset"
-        />
-
-        <!-- 操作按钮 -->
-        <div class="action-area">
-          <a-space>
+              <a-select-option value="">
+                --查询方案--
+              </a-select-option>
+            </a-select>
             <a-button
-              v-permission="'stock:inbound:create'"
-              type="primary"
-              @click="handleCreate"
+              type="link"
+              size="small"
+              style="padding: 0 4px"
             >
-              <template #icon>
-                <PlusOutlined />
-              </template>
-              新建入库单
+              <PlusOutlined />
             </a-button>
+          </div>
+          <a-space
+            :size="4"
+            class="quick-dates"
+          >
             <a-button
-              v-permission="'stock:inbound:export'"
-              @click="debounceClick('export', handleExport)"
+              v-for="d in quickDates"
+              :key="d.key"
+              :type="quickDate === d.key ? 'primary' : 'link'"
+              size="small"
+              @click="setQuickDate(d.key)"
             >
-              <template #icon>
-                <ExportOutlined />
-              </template>
-              导出
+              {{ d.label }}
             </a-button>
           </a-space>
-        </div>
+        </template>
 
-        <!-- 数据表格 -->
-        <BillTableList
-          ref="tableRef"
-          :columns="vxeColumns"
-          :data-source="tableData"
-          :loading="loading"
-          :pagination="pagination"
-          row-key="id"
-          :show-toolbar="false"
-          :selectable="false"
-          :show-add="false"
-          :show-search="false"
-          :show-export="false"
-          :show-batch-delete="false"
-          @cell-dblclick="handleView"
-          @page-change="handlePageChange"
-        >
-          <template #empty>
-            <EmptyState
-              v-if="hasError"
-              image="error"
-              title="数据加载异常"
-              description="数据获取失败，请检查后重试"
-              :show-add="false"
-              size="small"
-              @refresh="fetchData"
-            />
-            <EmptyState
-              v-else
-              image="no-data"
-              title="暂无入库单"
-              description="当前没有入库单数据"
-              add-text="新建入库单"
-              size="small"
-              @refresh="fetchData"
-              @add="handleCreate"
-            />
-          </template>
-          <template #statusCell="{ record }">
-            <StatusTag
-              :status="record.status"
-              :map="INBOUND_STATUS"
-            />
-          </template>
-          <template #totalAmountCell="{ record }">
-            ¥{{ record.totalAmount?.toFixed(2) }}
-          </template>
-          <template #action="{ record }">
-            <a-space>
-              <a @click="handleView(record)">查看</a>
-              <a
-                v-if="record.status === 0"
-                @click="handleEdit(record)"
-              >编辑</a>
-              <a
-                v-if="record.status === 0"
-                @click="handleApprove(record)"
-              >审核</a>
-              <a
-                v-if="record.status === 1"
-                @click="handleExecuteInbound(record)"
-              >入库</a>
-              <PrintButton
-                v-if="record.status >= 2"
-                template-type="stock_in"
-                :business-id="record.id"
-                business-type="stock_in"
-                button-text="打印"
-                button-size="small"
-                @print-success="() => message.success(`入库单 ${record.inboundNo} 打印成功`)"
-                @print-error="(e: any) => message.error(`打印失败: ${e.message || '未知错误'}`)"
-              />
-            </a-space>
-          </template>
-        </BillTableList>
-      </a-card>
-
-      <!-- 详情弹窗 -->
-      <a-drawer
-        v-model:open="detailVisible"
-        title="入库单详情"
-        placement="right"
-        width="80vw"
-      >
-        <a-spin :spinning="detailLoading">
-          <a-descriptions
-            v-if="detailData"
-            bordered
-            :column="2"
-          >
-            <a-descriptions-item label="入库单号">
-              {{ detailData.inboundNo }}
-            </a-descriptions-item>
-            <a-descriptions-item label="采购订单号">
-              {{ detailData.purchaseOrderNo }}
-            </a-descriptions-item>
-            <a-descriptions-item label="供应商">
-              {{ detailData.supplierName }}
-            </a-descriptions-item>
-            <a-descriptions-item label="仓库">
-              {{ detailData.warehouseName }}
-            </a-descriptions-item>
-            <a-descriptions-item label="入库金额">
-              ¥{{ detailData.totalAmount?.toFixed(2) }}
-            </a-descriptions-item>
-            <a-descriptions-item label="状态">
-              <StatusTag
-                :status="detailData.status"
-                :map="INBOUND_STATUS"
-              />
-            </a-descriptions-item>
-            <a-descriptions-item label="入库日期">
-              {{ detailData.inboundDate || '-' }}
-            </a-descriptions-item>
-            <a-descriptions-item label="采购员">
-              {{ detailData.purchaserName || '-' }}
-            </a-descriptions-item>
-            <a-descriptions-item label="部门">
-              {{ detailData.departmentName || '-' }}
-            </a-descriptions-item>
-            <a-descriptions-item label="物流公司">
-              {{ detailData.logisticsCompany || '-' }}
-            </a-descriptions-item>
-            <a-descriptions-item label="运单号">
-              {{ detailData.trackingNumber || '-' }}
-            </a-descriptions-item>
-            <a-descriptions-item label="操作人">
-              {{ detailData.operator || '-' }}
-            </a-descriptions-item>
-            <a-descriptions-item label="创建时间">
-              {{ detailData.createTime || '-' }}
-            </a-descriptions-item>
-            <a-descriptions-item
-              label="备注"
-              :span="2"
-            >
-              {{ detailData.remark || '-' }}
-            </a-descriptions-item>
-          </a-descriptions>
-
-          <!-- 商品明细 -->
-          <div
-            v-if="detailData?.items?.length"
-            style="margin-top: 16px;"
-          >
-            <h4 style="margin-bottom: 8px; font-weight: 600;">
-              商品明细
-            </h4>
-            <a-table
-              :data-source="detailData.items"
-              :columns="detailItemColumns"
-              :pagination="false as any"
-              size="small"
-              row-key="id"
-              bordered
-            >
-              <template #bodyCell="{ column, record }">
-                <template v-if="column.dataIndex === 'amount'">
-                  ¥{{ ((record.orderQuantity || 0) * (record.unitPrice || 0)).toFixed(2) }}
-                </template>
-                <template v-else-if="column.dataIndex === 'unitPrice'">
-                  ¥{{ (record.unitPrice || 0).toFixed(2) }}
-                </template>
-              </template>
-            </a-table>
-          </div>
-        </a-spin>
-
-        <template #footer>
-          <div style="text-align: right;">
-            <a-space>
-              <a-button @click="detailVisible = false">
-                关闭
+        <!-- ═══ 工具栏右侧：操作按钮（新增/刷新/打印/导出/配置） ═══ -->
+        <template #toolbar-right>
+          <a-space :size="8">
+            <a-tooltip title="列配置">
+              <a-button size="small" @click="showColumnConfig = true">
+                <TableOutlined />
               </a-button>
-              <a-button
-                v-if="detailData?.status === 0"
-                type="primary"
-                @click="handleApprove(detailData)"
-              >
-                审核
+            </a-tooltip>
+            <a-tooltip title="页面配置">
+              <a-button size="small" @click="showPageConfig = true">
+                <SettingOutlined />
               </a-button>
-              <a-button
-                v-if="detailData?.status === 1"
-                type="primary"
-                @click="handleExecuteInbound(detailData)"
-              >
-                入库
-              </a-button>
-              <PrintButton
-                v-if="detailData?.status >= 2"
-                template-type="stock_in"
-                :business-id="detailData?.id"
-                business-type="stock_in"
-                button-text="打印"
-                @print-success="() => message.success(`入库单 ${detailData?.inboundNo} 打印成功`)"
-                @print-error="(e: any) => message.error(`打印失败: ${e.message || '未知错误'}`)"
-              />
-            </a-space>
+            </a-tooltip>
+            <a-button type="primary" size="small" @click="handleAdd">
+              <PlusOutlined /> 新增
+            </a-button>
+            <a-button size="small" @click="fetchData">
+              <ReloadOutlined /> 刷新
+            </a-button>
+            <a-button size="small" @click="handlePrintF8">
+              <PrinterOutlined /> 打印(F8)
+            </a-button>
+            <a-button size="small" @click="handleExport">
+              <ExportOutlined /> 导出
+            </a-button>
+          </a-space>
+        </template>
+
+        <!-- ═══ 搜索区域 ═══ -->
+        <template #search-fields>
+          <div class="search-area">
+            <!-- 按单据 Tab 搜索行 -->
+            <template v-if="activeTab === 'doc'">
+              <div class="search-container">
+                <div class="search-grid" ref="docGridRef">
+                  <div class="search-field-item">
+                    <a-range-picker
+                      v-model:value="dateRange"
+                      size="small"
+                      style="width: 100%"
+                      @change="handleDateChange"
+                    />
+                  </div>
+                  <div class="search-field-item">
+                    <a-input v-model:value="searchParams.stockInNo" placeholder="单据编号" allow-clear size="small" />
+                  </div>
+                  <div class="search-field-item">
+                    <a-input v-model:value="searchParams.partnerName" placeholder="往来单位" allow-clear size="small" />
+                  </div>
+                  <div class="search-field-item">
+                    <a-input v-model:value="searchParams.handlerName" placeholder="经手人" allow-clear size="small" />
+                  </div>
+                  <div class="search-field-item">
+                    <a-input v-model:value="searchParams.deptName" placeholder="部门" allow-clear size="small" />
+                  </div>
+                  <div class="search-field-item">
+                    <a-input v-model:value="searchParams.creatorName" placeholder="制单人" allow-clear size="small" />
+                  </div>
+                  <div class="search-field-item">
+                    <a-input v-model:value="searchParams.bookkeeperName" placeholder="记账人" allow-clear size="small" />
+                  </div>
+                  <div class="search-field-item">
+                    <a-input v-model:value="searchParams.warehouseName" placeholder="仓库" allow-clear size="small" />
+                  </div>
+                  <div class="search-field-item">
+                    <div class="search-select-wrap">
+                      <span class="search-select-label">单据状态</span>
+                      <a-select v-model:value="searchParams.status" size="small" allow-clear>
+                        <a-select-option value="">全部</a-select-option>
+                        <a-select-option :value="0">草稿</a-select-option>
+                        <a-select-option :value="1">待审批</a-select-option>
+                        <a-select-option :value="2">已审核</a-select-option>
+                        <a-select-option :value="3">已入库</a-select-option>
+                        <a-select-option :value="4">已拒绝</a-select-option>
+                        <a-select-option :value="5">已取消</a-select-option>
+                      </a-select>
+                    </div>
+                  </div>
+                  <div class="search-field-item">
+                    <a-input v-model:value="searchParams.remark" placeholder="单据备注" allow-clear size="small" />
+                  </div>
+                  <div class="search-action-group" ref="docActionRef" :style="{ gridColumn: 'span ' + docActionSpan }">
+                    <div class="search-field-item search-action-item">
+                      <a-button type="primary" size="small" @click="handleSearch">查询</a-button>
+                    </div>
+                    <div class="search-field-item">
+                      <a-checkbox v-model:checked="searchParams.showRed">显示红冲</a-checkbox>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </template>
+
+            <!-- 按明细 Tab 搜索行 -->
+            <template v-else>
+              <div class="search-container">
+                <div class="search-grid" ref="detailGridRef">
+                  <div class="search-field-item">
+                    <a-range-picker
+                      v-model:value="dateRange"
+                      size="small"
+                      style="width: 100%"
+                      @change="handleDateChange"
+                    />
+                  </div>
+                  <div class="search-field-item">
+                    <a-input v-model:value="searchParams.stockInNo" placeholder="单据编号" allow-clear size="small" />
+                  </div>
+                  <div class="search-field-item">
+                    <a-input v-model:value="searchParams.productName" placeholder="商品" allow-clear size="small" />
+                  </div>
+                  <div class="search-field-item">
+                    <a-input v-model:value="searchParams.partnerName" placeholder="往来单位" allow-clear size="small" />
+                  </div>
+                  <div class="search-field-item">
+                    <a-input v-model:value="searchParams.handlerName" placeholder="经手人" allow-clear size="small" />
+                  </div>
+                  <div class="search-field-item">
+                    <a-input v-model:value="searchParams.deptName" placeholder="部门" allow-clear size="small" />
+                  </div>
+                  <div class="search-field-item">
+                    <a-input v-model:value="searchParams.creatorName" placeholder="制单人" allow-clear size="small" />
+                  </div>
+                  <div class="search-field-item">
+                    <a-input v-model:value="searchParams.bookkeeperName" placeholder="记账人" allow-clear size="small" />
+                  </div>
+                  <div class="search-field-item">
+                    <a-input v-model:value="searchParams.warehouseName" placeholder="仓库" allow-clear size="small" />
+                  </div>
+                  <div class="search-field-item">
+                    <div class="search-select-wrap">
+                      <span class="search-select-label">单据状态</span>
+                      <a-select v-model:value="searchParams.status" size="small" allow-clear>
+                        <a-select-option value="">全部</a-select-option>
+                        <a-select-option :value="0">草稿</a-select-option>
+                        <a-select-option :value="1">待审批</a-select-option>
+                        <a-select-option :value="2">已审核</a-select-option>
+                        <a-select-option :value="3">已入库</a-select-option>
+                        <a-select-option :value="4">已拒绝</a-select-option>
+                        <a-select-option :value="5">已取消</a-select-option>
+                      </a-select>
+                    </div>
+                  </div>
+                  <div class="search-field-item">
+                    <a-input v-model:value="searchParams.remark" placeholder="单据备注" allow-clear size="small" />
+                  </div>
+                  <div class="search-field-item">
+                    <a-input v-model:value="searchParams.itemRemark" placeholder="明细备注" allow-clear size="small" />
+                  </div>
+                  <div class="search-action-group" ref="detailActionRef" :style="{ gridColumn: 'span ' + detailActionSpan }">
+                    <div class="search-field-item search-action-item">
+                      <a-button type="primary" size="small" @click="handleSearch">查询</a-button>
+                    </div>
+                    <div class="search-field-item">
+                      <a-checkbox v-model:checked="searchParams.showRed">显示红冲</a-checkbox>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </template>
           </div>
         </template>
-      </a-drawer>
+
+        <!-- ═══ 表格区域 ═══ -->
+        <template #table>
+          <div class="table-area">
+            <BillTableList
+              :columns="currentColumns"
+              :data-source="tableData"
+              :loading="loading"
+              :pagination="billPagination"
+              :show-toolbar="false"
+              :show-search="false"
+              :show-add="false"
+              :show-export="false"
+              :show-batch-delete="false"
+              :selectable="true"
+              :row-selection="rowSelection"
+              :summary-columns="tableFooterColumns"
+              row-key="id"
+              @page-change="handlePageChange"
+            >
+              <!-- 单据编号 -->
+              <template #stockInNoCell="{ record }">
+                <a-button type="link" size="small" @click="handleView(record)">
+                  {{ record.stockInNo }}
+                </a-button>
+              </template>
+              <!-- 单据状态 -->
+              <template #statusCell="{ record }">
+                <a-tag :color="getStatusColor(record.status)">{{ getStatusText(record.status) }}</a-tag>
+              </template>
+              <!-- 金额 -->
+              <template #totalAmountCell="{ record }">
+                <span class="currency-value">{{ formatAmount(record.totalAmount) }}</span>
+              </template>
+              <!-- 入库数量 -->
+              <template #totalQuantityCell="{ record }">
+                <span class="currency-value">{{ formatQuantity(record.totalQuantity) }}</span>
+              </template>
+              <!-- 数量 -->
+              <template #quantityCell="{ record }">
+                <span class="currency-value">{{ formatQuantity(record.quantity) }}</span>
+              </template>
+              <!-- 明细金额 -->
+              <template #amountCell="{ record }">
+                <span class="currency-value">{{ formatAmount(record.amount) }}</span>
+              </template>
+              <!-- 操作列 -->
+              <template #actionCell="{ record }">
+                <a-space :size="4">
+                  <a-button type="link" size="small" @click="handleView(record)">查看</a-button>
+                  <a-button v-if="record.status === 0" type="link" size="small" @click="handleEdit(record)">修改</a-button>
+                  <a-button
+                    v-if="record.status === 1"
+                    type="link"
+                    size="small"
+                    @click="handleApprove(record)"
+                  >审批</a-button>
+                  <a-button
+                    v-if="record.status === 2"
+                    type="link"
+                    size="small"
+                    @click="handleComplete(record)"
+                  >入库</a-button>
+                  <a-button
+                    v-if="record.status === 0"
+                    type="link"
+                    size="small"
+                    danger
+                    @click="handleDelete(record)"
+                  >删除</a-button>
+                </a-space>
+              </template>
+            </BillTableList>
+          </div>
+        </template>
+      </CategoryListLayout>
     </PageContainer>
 
-    <!-- ════════════════════════════════════════════════════════════ -->
-    <!-- 新建入库单弹窗 -->
-    <!-- ════════════════════════════════════════════════════════════ -->
-    <FullScreenDetail
-      :visible="createVisible"
-      title="新建入库单"
-      :save-loading="createLoading"
-      @close="handleCreateCancel"
-      @save="handleCreateSubmit"
-    >
-      <a-form
-        ref="createFormRef"
-        :model="createForm"
-        :rules="createRules"
-        layout="vertical"
-      >
-        <a-row :gutter="16">
-          <a-col :span="8">
-            <a-form-item
-              label="入库类型"
-              name="inboundType"
-            >
-              <a-select
-                v-model:value="createForm.inboundType"
-                placeholder="入库类型"
-              >
-                <a-select-option :value="1">
-                  采购入库
-                </a-select-option>
-                <a-select-option :value="2">
-                  采购退货
-                </a-select-option>
-                <a-select-option :value="3">
-                  销售退货
-                </a-select-option>
-                <a-select-option :value="4">
-                  调拨入库
-                </a-select-option>
-                <a-select-option :value="5">
-                  其他
-                </a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col :span="8">
-            <a-form-item
-              label="入库日期"
-              name="inboundDate"
-            >
-              <a-date-picker
-                v-model:value="createForm.inboundDate"
-                style="width: 100%"
-                value-format="YYYY-MM-DD"
-              />
-            </a-form-item>
-          </a-col>
-          <a-col :span="8">
-            <a-form-item
-              label="仓库"
-              name="warehouseId"
-            >
-              <a-select
-                v-model:value="createForm.warehouseId"
-                placeholder="选择仓库"
-                show-search
-                :filter-option="filterOption"
-                @change="onWarehouseChange"
-              >
-                <a-select-option
-                  v-for="w in warehouseOptions"
-                  :key="w.id"
-                  :value="w.id"
-                >
-                  {{ w.warehouseName }}
-                </a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-        </a-row>
-        <a-row :gutter="16">
-          <a-col :span="8">
-            <a-form-item
-              label="供应商"
-              name="supplierName"
-            >
-              <a-select
-                v-model:value="createForm.supplierId"
-                placeholder="选择供应商"
-                show-search
-                :filter-option="filterOption"
-                allow-clear
-                @change="onSupplierChange"
-              >
-                <a-select-option
-                  v-for="s in supplierOptions"
-                  :key="s.id"
-                  :value="s.id"
-                >
-                  {{ s.name || s.supplierName }}
-                </a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col :span="8">
-            <a-form-item label="采购员">
-              <a-input
-                v-model:value="createForm.purchaserName"
-                placeholder="采购员姓名"
-              />
-            </a-form-item>
-          </a-col>
-          <a-col :span="8">
-            <a-form-item label="采购部门">
-              <a-input
-                v-model:value="createForm.departmentName"
-                placeholder="部门名称"
-              />
-            </a-form-item>
-          </a-col>
-        </a-row>
-        <a-row :gutter="16">
-          <a-col :span="12">
-            <a-form-item label="物流公司">
-              <a-input
-                v-model:value="createForm.logisticsCompany"
-                placeholder="物流公司"
-              />
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="运单号">
-              <a-input
-                v-model:value="createForm.trackingNumber"
-                placeholder="运单号"
-              />
-            </a-form-item>
-          </a-col>
-        </a-row>
+    <!-- ═══ 列配置弹窗 ═══ -->
+    <ColumnConfigPanel
+      :open="showColumnConfig"
+      :settings-columns="panelColumns"
+      :is-locked-column="isLockedColumn"
+      @update:open="showColumnConfig = $event"
+      @change="handleColumnConfigChange"
+      @reset="handleColumnConfigReset"
+      @drag-end="handleColumnConfigChange"
+    />
 
-        <!-- 入库明细 -->
-        <div class="sub-table-header">
-          <span class="sub-table-title">入库明细</span>
-          <a-button
-            type="dashed"
-            size="small"
-            @click="addItem"
-          >
-            <PlusOutlined /> 添加产品
-          </a-button>
-        </div>
-        <a-table
-          :data-source="createForm.items"
-          :columns="itemColumns"
-          :pagination="false as any"
-          size="small"
-          row-key="tempId"
-          style="margin-bottom: 12px;"
-        >
-          <template #bodyCell="{ column, record, index }">
-            <template v-if="column.dataIndex === 'productName'">
-              <a-input
-                v-model:value="record.productName"
-                placeholder="产品名称"
-                style="width: 120px"
-              />
-              <a-tooltip title="选择产品">
-                <a-button
-                  size="small"
-                  type="link"
-                  @click="selectItemProduct(index)"
-                >
-                  <SearchOutlined />
-                </a-button>
-              </a-tooltip>
-            </template>
-            <template v-else-if="column.dataIndex === 'productSpec'">
-              <a-input
-                v-model:value="record.productSpec"
-                placeholder="规格"
-                style="width: 80px"
-              />
-            </template>
-            <template v-else-if="column.dataIndex === 'orderQuantity'">
-              <a-input-number
-                v-model:value="record.orderQuantity"
-                :min="0"
-                :precision="0"
-                style="width: 80px"
-              />
-            </template>
-            <template v-else-if="column.dataIndex === 'unitPrice'">
-              <a-input-number
-                v-model:value="record.unitPrice"
-                :min="0"
-                :precision="2"
-                style="width: 100px"
-              />
-            </template>
-            <template v-else-if="column.dataIndex === 'taxRate'">
-              <a-select
-                v-model:value="record.taxRate"
-                style="width: 80px"
-              >
-                <a-select-option :value="0">
-                  0%
-                </a-select-option>
-                <a-select-option :value="0.03">
-                  3%
-                </a-select-option>
-                <a-select-option :value="0.06">
-                  6%
-                </a-select-option>
-                <a-select-option :value="0.09">
-                  9%
-                </a-select-option>
-                <a-select-option :value="0.13">
-                  13%
-                </a-select-option>
-              </a-select>
-            </template>
-            <template v-else-if="column.dataIndex === 'action'">
-              <a-button
-                type="link"
-                danger
-                size="small"
-                @click="removeItem(index)"
-              >
-                <DeleteOutlined />
-              </a-button>
-            </template>
-          </template>
-        </a-table>
-
-        <a-form-item label="备注">
-          <a-textarea
-            v-model:value="createForm.remark"
-            :rows="2"
-            placeholder="备注信息"
-          />
-        </a-form-item>
-      </a-form>
-    </FullScreenDetail>
-
-    <!-- 商品选择弹窗 -->
-    <a-modal
-      v-model:open="productPickerVisible"
-      title="选择产品"
-      width="640px"
-      :footer="null"
-      destroy-on-close
-    >
-      <a-input-search
-        v-model:value="productSearchKeyword"
-        placeholder="搜索产品编码/名称"
-        @search="loadProductOptions"
-      />
-      <a-table
-        :data-source="productOptions"
-        :columns="productPickerColumns"
-        :pagination="{ pageSize: 5 }"
-        :loading="productLoading"
-        size="small"
-        row-key="id"
-        style="margin-top: 12px;"
-      >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.dataIndex === 'action'">
-            <a-button
-              type="primary"
-              size="small"
-              @click="pickProduct(record)"
-            >
-              选择
-            </a-button>
-          </template>
-        </template>
-      </a-table>
-    </a-modal>
+    <!-- ═══ 页面配置弹窗 ═══ -->
+    <PageConfigPanel
+      :open="showPageConfig"
+      :query-fields-config="activeQueryFields"
+      :function-buttons-config="functionButtonConfig"
+      :storage-key="activePageConfigStorageKey"
+      @update:open="showPageConfig = $event"
+      @change="handlePageConfigChange"
+    />
   </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
-import { PlusOutlined, ExportOutlined, ReloadOutlined, SyncOutlined, FileTextOutlined, ClockCircleOutlined, CheckCircleOutlined, DollarOutlined, WarningOutlined, SearchOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons-vue'
+import type { Dayjs } from 'dayjs'
+import dayjs from 'dayjs'
+import {
+  PlusOutlined, ReloadOutlined, PrinterOutlined, SettingOutlined,
+  TableOutlined, ExportOutlined,
+} from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
-import SearchBar from '@/components/SearchBar/SearchBar.vue'
-import EmptyState from '@/components/EmptyState/EmptyState.vue'
-import type { SearchField } from '@/components/SearchBar/SearchBar.vue'
-import PrintButton from '@/components/business/print-button/PrintButton.vue'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
-import StatusTag from '@/components/StatusTag/StatusTag.vue'
-import request from '@/utils/request'
-import { INBOUND_STATUS } from '@/utils/statusConfig'
-import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
-
-// ── 类型定义 ──────────────────────────────────────────
-interface StockInItem {
-  tempId?: number
-  productId?: number
-  productCode: string
-  productName: string
-  productSpec: string
-  productUnit: string
-  orderQuantity: number
-  unitPrice: number
-  taxRate: number
-  remark?: string
-}
-
-interface StockInOrder {
-  id: number
-  inboundNo: string
-  purchaseOrderNo: string
-  supplierName: string
-  warehouseName: string
-  totalAmount: number
-  status: number
-  inboundDate: string
-  operator: string
-  purchaserName?: string
-  departmentName?: string
-  logisticsCompany?: string
-  trackingNumber?: string
-  createTime?: string
-  remark?: string
-  items?: StockInItem[]
-}
-
-// ── 防抖工具 ──────────────────────────────────────────
-function handleError(err: any) { console.warn('[StockIn]', err) }
-
-const debounceMap = new Map<string, number>()
-function debounceClick(key: string, fn: () => void, delay = 300) {
-  const now = Date.now()
-  const last = debounceMap.get(key) || 0
-  if (now - last < delay) return
-  debounceMap.set(key, now)
-  fn()
-}
-
-// ── 键盘快捷键 ──────────────────────────────────────────
-function handleKeydown(e: KeyboardEvent) {
-  if (e.key === 'F5') { e.preventDefault(); debounceClick('refresh', fetchData); return }
-  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleCreate(); return }
-  if ((e.ctrlKey || e.metaKey) && e.key === 'e') { e.preventDefault(); debounceClick('export', handleExport); return }
-}
+import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayout.vue'
+import ColumnConfigPanel from '@/components/ColumnConfigPanel/index.vue'
+import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
+import { useColumnConfig, isLockedColumn } from '@/composables/useColumnConfig'
+import { useAutoGridSpan } from '@/composables/useAutoGridSpan'
+import { stockInApi } from '@/api/erp'
+import { useRouter } from 'vue-router'
 
 const router = useRouter()
 
+// ═══ Tab 配置 ═══
+const tabs = [
+  { key: 'doc', label: '按单据' },
+  { key: 'detail', label: '按明细' },
+]
+const activeTab = ref('doc')
+
+// ═══ 快捷日期 ═══
+const quickDates = [
+  { key: 'yesterday', label: '昨日' },
+  { key: 'today', label: '今日' },
+  { key: 'week', label: '本周' },
+  { key: 'lastWeek', label: '近一周' },
+  { key: 'month', label: '本月' },
+  { key: 'lastMonth', label: '上月' },
+  { key: 'last3Month', label: '近三月' },
+  { key: 'year', label: '本年' },
+]
+const quickDate = ref('week')
+const queryScheme = ref('')
+
+// ═══ 状态 ═══
 const loading = ref(false)
-const hasError = ref(false)
-const refreshLoading = ref(false)
-const lastUpdateTime = ref('')
-const autoRefreshCountdown = ref(0)
 const tableData = ref<any[]>([])
-const detailVisible = ref(false)
-const currentRecord = ref<any>(null)
-const tableRef = ref()
 
-let refreshTimer: ReturnType<typeof setInterval> | null = null
-let countdownTimer: ReturnType<typeof setInterval> | null = null
+const docGridRef = ref<HTMLElement | null>(null)
+const docActionRef = ref<HTMLElement | null>(null)
+const detailGridRef = ref<HTMLElement | null>(null)
+const detailActionRef = ref<HTMLElement | null>(null)
+const { span: docActionSpan } = useAutoGridSpan(docActionRef, docGridRef)
+const { span: detailActionSpan } = useAutoGridSpan(detailActionRef, detailGridRef)
 
-// 统计数据
-const statistics = ref({
-  totalCount: 0,
-  pendingCount: 0,
-  completedCount: 0,
-  totalAmount: 0
+// ═══ 日期范围 ═══
+const dateRange = ref<[Dayjs, Dayjs] | null>([dayjs().subtract(7, 'day'), dayjs()])
+
+// ═══ 搜索参数 ═══
+const searchParams = reactive({
+  stockInNo: '',
+  partnerName: '',
+  handlerName: '',
+  deptName: '',
+  creatorName: '',
+  bookkeeperName: '',
+  warehouseName: '',
+  productName: '',
+  remark: '',
+  itemRemark: '',
+  status: undefined as string | number | undefined,
+  showRed: false,
+  startDate: dayjs().subtract(7, 'day').format('YYYY-MM-DD'),
+  endDate: dayjs().format('YYYY-MM-DD'),
 })
 
-const formatAmount = (amount: number) => {
-  return amount?.toLocaleString?.('zh-CN', { minimumFractionDigits: 2 }) || '0.00'
-}
+// ═══ 分页 ═══
+const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
+const billPagination = computed(() => ({ current: pagination.current, pageSize: pagination.pageSize, total: pagination.total }))
 
-const searchFields: any = [
-  { name: 'inboundNo', label: '入库单号', type: 'input', placeholder: '请输入入库单号' },
-  { name: 'purchaseOrderNo', label: '采购订单', type: 'input', placeholder: '请输入采购订单号' },
-  { name: 'status', label: '状态', type: 'select', placeholder: '请选择',
-    options: Object.entries(INBOUND_STATUS).map(([k, v]) => ({ label: v.text, value: Number(k) }))
-  },
+// ═══ 多选状态 ═══
+const selectedRowKeys = ref<any[]>([])
+const rowSelection = computed(() => ({
+  selectedRowKeys: selectedRowKeys.value,
+  onChange: (keys: any[]) => { selectedRowKeys.value = keys },
+}))
+
+// ═══ 列配置/页面配置弹窗 ═══
+const showColumnConfig = ref(false)
+const showPageConfig = ref(false)
+
+// ═══ 页面配置（查询条件显隐、功能按钮） ═══
+const PAGE_CONFIG_STORAGE_KEY = 'stock-in-page-config'
+interface QueryFieldSetting { key: string; label: string; visible: boolean }
+interface FunctionButtonSetting { key: string; label: string; enabled: boolean }
+interface PageConfigData { queryFields: QueryFieldSetting[]; functionButtons: FunctionButtonSetting[] }
+
+// 默认查询字段 - 按单据tab（对标文档11个查询条件）
+const DEFAULT_DOC_QUERY_FIELDS: QueryFieldSetting[] = [
+  { key: 'date', label: '单据日期', visible: true },
+  { key: 'stockInNo', label: '单据编号', visible: true },
+  { key: 'partnerName', label: '往来单位', visible: true },
+  { key: 'handlerName', label: '经手人', visible: true },
+  { key: 'deptName', label: '部门', visible: true },
+  { key: 'creatorName', label: '制单人', visible: true },
+  { key: 'bookkeeperName', label: '记账人', visible: true },
+  { key: 'warehouseName', label: '仓库', visible: true },
+  { key: 'status', label: '单据状态', visible: true },
+  { key: 'remark', label: '单据备注', visible: true },
+  { key: 'showRed', label: '显示红冲', visible: true },
 ]
 
-const searchParams = reactive({
-  inboundNo: '',
-  purchaseOrderNo: '',
-  status: undefined as number | undefined
+// 默认查询字段 - 按明细tab（对标文档13个查询条件）
+const DEFAULT_DETAIL_QUERY_FIELDS: QueryFieldSetting[] = [
+  { key: 'date', label: '单据日期', visible: true },
+  { key: 'stockInNo', label: '单据编号', visible: true },
+  { key: 'productName', label: '商品', visible: true },
+  { key: 'partnerName', label: '往来单位', visible: true },
+  { key: 'handlerName', label: '经手人', visible: true },
+  { key: 'deptName', label: '部门', visible: true },
+  { key: 'creatorName', label: '制单人', visible: true },
+  { key: 'bookkeeperName', label: '记账人', visible: true },
+  { key: 'warehouseName', label: '仓库', visible: true },
+  { key: 'status', label: '单据状态', visible: true },
+  { key: 'remark', label: '单据备注', visible: true },
+  { key: 'itemRemark', label: '明细备注', visible: true },
+  { key: 'showRed', label: '显示红冲', visible: true },
+]
+
+// 默认功能按钮（对标文档：新增/刷新/打印(F8)/导出/配置）
+const DEFAULT_FUNCTION_BUTTONS: FunctionButtonSetting[] = [
+  { key: 'add', label: '新增', enabled: true },
+  { key: 'refresh', label: '刷新', enabled: true },
+  { key: 'printF8', label: '打印(F8)', enabled: true },
+  { key: 'export', label: '导出', enabled: true },
+  { key: 'config', label: '配置', enabled: true },
+]
+
+const docQueryConfig = ref<QueryFieldSetting[]>(DEFAULT_DOC_QUERY_FIELDS.map(f => ({ ...f })))
+const detailQueryConfig = ref<QueryFieldSetting[]>(DEFAULT_DETAIL_QUERY_FIELDS.map(f => ({ ...f })))
+const functionButtonConfig = ref<FunctionButtonSetting[]>(DEFAULT_FUNCTION_BUTTONS.map(f => ({ ...f })))
+
+const activeQueryFields = computed(() =>
+  activeTab.value === 'doc' ? docQueryConfig.value : detailQueryConfig.value
+)
+const activePageConfigStorageKey = computed(() =>
+  `${PAGE_CONFIG_STORAGE_KEY}-${activeTab.value}`
+)
+
+function loadPageConfig() {
+  try {
+    const docRaw = localStorage.getItem(PAGE_CONFIG_STORAGE_KEY + '-doc')
+    if (docRaw) {
+      const parsed = JSON.parse(docRaw) as PageConfigData
+      if (parsed.queryFields) {
+        docQueryConfig.value = DEFAULT_DOC_QUERY_FIELDS.map(df => {
+          const saved = parsed.queryFields!.find((f: QueryFieldSetting) => f.key === df.key)
+          return saved ? { ...df, ...saved } : { ...df }
+        })
+      }
+    }
+    const detailRaw = localStorage.getItem(PAGE_CONFIG_STORAGE_KEY + '-detail')
+    if (detailRaw) {
+      const parsed = JSON.parse(detailRaw) as PageConfigData
+      if (parsed.queryFields) {
+        detailQueryConfig.value = DEFAULT_DETAIL_QUERY_FIELDS.map(df => {
+          const saved = parsed.queryFields!.find((f: QueryFieldSetting) => f.key === df.key)
+          return saved ? { ...df, ...saved } : { ...df }
+        })
+      }
+    }
+    const btnRaw = localStorage.getItem(PAGE_CONFIG_STORAGE_KEY + '-buttons')
+    if (btnRaw) {
+      const parsed = JSON.parse(btnRaw) as PageConfigData
+      if (parsed.functionButtons) {
+        functionButtonConfig.value = DEFAULT_FUNCTION_BUTTONS.map(bf => {
+          const saved = parsed.functionButtons!.find((f: FunctionButtonSetting) => f.key === bf.key)
+          return saved ? { ...bf, ...saved } : { ...bf }
+        })
+      }
+    }
+  } catch {
+    // ignore
+  }
+}
+
+function handlePageConfigChange(config: any) {
+  const tabKey = activeTab.value === 'doc' ? '-doc' : '-detail'
+  localStorage.setItem(PAGE_CONFIG_STORAGE_KEY + tabKey, JSON.stringify({
+    queryFields: config.queryFields || [],
+  }))
+  localStorage.setItem(PAGE_CONFIG_STORAGE_KEY + '-buttons', JSON.stringify({
+    functionButtons: config.functionButtons || functionButtonConfig.value,
+  }))
+  loadPageConfig()
+}
+
+// ═══ 列定义（必须在 useColumnConfig 之前声明） ═══
+
+/** 按单据 Tab 列（对标文档20列） */
+const docColumns = [
+  { title: '', key: 'rowNo', type: 'rowNo', width: 40, fixed: 'left' },
+  { title: '操作', key: 'action', type: 'action', width: 180, fixed: 'right', slotName: 'actionCell' },
+  { title: '单据日期', field: 'stockInDate', key: 'stockInDate', width: 110, sortable: true },
+  { title: '单据编号', field: 'stockInNo', key: 'stockInNo', width: 170, type: 'slot', slotName: 'stockInNoCell', sortable: true },
+  { title: '单据状态', field: 'status', key: 'status', width: 100, align: 'center', type: 'slot', slotName: 'statusCell' },
+  { title: '仓库', field: 'warehouseName', key: 'warehouseName', width: 120, sortable: true },
+  { title: '往来单位编号', field: 'partnerCode', key: 'partnerCode', width: 110 },
+  { title: '往来单位', field: 'partnerName', key: 'partnerName', width: 160, sortable: true },
+  { title: '经手人', field: 'handlerName', key: 'handlerName', width: 90, sortable: true },
+  { title: '部门', field: 'deptName', key: 'deptName', width: 100 },
+  { title: '入库数量', field: 'totalQuantity', key: 'totalQuantity', width: 90, align: 'right', type: 'slot', slotName: 'totalQuantityCell', sortable: true },
+  { title: '本单金额', field: 'totalAmount', key: 'totalAmount', width: 120, align: 'right', type: 'slot', slotName: 'totalAmountCell', sortable: true },
+  { title: '重量（kg）', field: 'totalWeight', key: 'totalWeight', width: 90, align: 'right' },
+  { title: '体积（m³）', field: 'totalVolume', key: 'totalVolume', width: 90, align: 'right' },
+  { title: '单据备注', field: 'remark', key: 'remark', width: 120 },
+  { title: '摘要', field: 'summary', key: 'summary', width: 140 },
+  { title: '附件', field: 'attachment', key: 'attachment', width: 80 },
+  { title: '记账人', field: 'bookkeeperName', key: 'bookkeeperName', width: 90, sortable: true },
+  { title: '制单人', field: 'creatorName', key: 'creatorName', width: 90, sortable: true },
+  { title: '记账时间', field: 'bookkeepingTime', key: 'bookkeepingTime', width: 140 },
+  { title: '制单时间', field: 'createTime', key: 'createTime', width: 140 },
+  { title: '打印次数', field: 'printCount', key: 'printCount', width: 80, align: 'right' },
+]
+
+/** 按明细 Tab 列（对标文档45列） */
+const detailColumns = [
+  { title: '', key: 'rowNo', type: 'rowNo', width: 40, fixed: 'left' },
+  { title: '操作', key: 'action', type: 'action', width: 180, fixed: 'right', slotName: 'actionCell' },
+  { title: '单据日期', field: 'stockInDate', key: 'stockInDate', width: 110, sortable: true },
+  { title: '单据编号', field: 'stockInNo', key: 'stockInNo', width: 170, type: 'slot', slotName: 'stockInNoCell', sortable: true },
+  { title: '单据状态', field: 'status', key: 'status', width: 100, align: 'center', type: 'slot', slotName: 'statusCell' },
+  { title: '仓库', field: 'warehouseName', key: 'warehouseName', width: 120, sortable: true },
+  { title: '往来单位编号', field: 'partnerCode', key: 'partnerCode', width: 110 },
+  { title: '往来单位', field: 'partnerName', key: 'partnerName', width: 160, sortable: true },
+  { title: '经手人', field: 'handlerName', key: 'handlerName', width: 90, sortable: true },
+  { title: '部门', field: 'deptName', key: 'deptName', width: 100 },
+  { title: '商品名称', field: 'productName', key: 'productName', width: 200, sortable: true },
+  { title: '货号', field: 'productCode', key: 'productCode', width: 100 },
+  { title: '条码', field: 'barcode', key: 'barcode', width: 110 },
+  { title: '规格', field: 'productSpec', key: 'productSpec', width: 100 },
+  { title: '型号', field: 'model', key: 'model', width: 80 },
+  { title: '产地', field: 'origin', key: 'origin', width: 80 },
+  { title: '品牌', field: 'brand', key: 'brand', width: 80 },
+  { title: '表体自定义1(数字)', field: 'itemExtNum1', key: 'itemExtNum1', width: 120, align: 'right' },
+  { title: '表体自定义2(数字)', field: 'itemExtNum2', key: 'itemExtNum2', width: 120, align: 'right' },
+  { title: '表体自定义3(数字)', field: 'itemExtNum3', key: 'itemExtNum3', width: 120, align: 'right' },
+  { title: '表体自定义4(文本)', field: 'itemExtText1', key: 'itemExtText1', width: 120 },
+  { title: '表体自定义5(文本)', field: 'itemExtText2', key: 'itemExtText2', width: 120 },
+  { title: '单位', field: 'productUnit', key: 'productUnit', width: 80 },
+  { title: '入库单价', field: 'unitPrice', key: 'unitPrice', width: 90, align: 'right' },
+  { title: '入库数量', field: 'quantity', key: 'quantity', width: 90, align: 'right', type: 'slot', slotName: 'quantityCell', sortable: true },
+  { title: '批次条码', field: 'batchCode', key: 'batchCode', width: 120 },
+  { title: '生产日期', field: 'productionDate', key: 'productionDate', width: 110 },
+  { title: '到期日期', field: 'expiryDate', key: 'expiryDate', width: 110 },
+  { title: '换算关系', field: 'conversionRelation', key: 'conversionRelation', width: 100 },
+  { title: '换算结果', field: 'conversionResult', key: 'conversionResult', width: 100 },
+  { title: '大包装', field: 'bigPack', key: 'bigPack', width: 70, align: 'right' },
+  { title: '中包装', field: 'midPack', key: 'midPack', width: 70, align: 'right' },
+  { title: '小包装', field: 'smallPack', key: 'smallPack', width: 70, align: 'right' },
+  { title: '小单位', field: 'smallUnit', key: 'smallUnit', width: 70 },
+  { title: '小单位数量', field: 'smallUnitQuantity', key: 'smallUnitQuantity', width: 90, align: 'right' },
+  { title: '入库金额', field: 'amount', key: 'amount', width: 100, align: 'right', type: 'slot', slotName: 'amountCell', sortable: true },
+  { title: '重量（kg）', field: 'weight', key: 'weight', width: 80, align: 'right' },
+  { title: '体积（m³）', field: 'volume', key: 'volume', width: 80, align: 'right' },
+  { title: '明细备注', field: 'remark', key: 'itemRemark', width: 120 },
+  { title: '单据备注', field: 'docRemark', key: 'docRemark', width: 120 },
+  { title: '摘要', field: 'summary', key: 'summary', width: 120 },
+  { title: '附件', field: 'attachment', key: 'attachment', width: 80 },
+  { title: '记账人', field: 'bookkeeperName', key: 'bookkeeperName', width: 90, sortable: true },
+  { title: '制单人', field: 'creatorName', key: 'creatorName', width: 90, sortable: true },
+  { title: '记账时间', field: 'bookkeepingTime', key: 'bookkeepingTime', width: 140 },
+  { title: '制单时间', field: 'createTime', key: 'createTime', width: 140 },
+  { title: '打印次数', field: 'printCount', key: 'printCount', width: 80, align: 'right' },
+]
+
+// ═══ 列配置 ═══
+const docColumnDefs = computed(() => docColumns.map(col => ({ ...col })))
+const detailColumnDefs = computed(() => detailColumns.map(col => ({ ...col })))
+const {
+  visibleColumns: docVisibleColumns,
+  onSettingChange: onDocSettingChange,
+  resetSettings: resetDocSettings,
+  settingsColumns: docSettingsColumns,
+} = useColumnConfig(docColumnDefs.value, 'stock-in-list-columns-doc')
+const {
+  visibleColumns: detailVisibleColumns,
+  onSettingChange: onDetailSettingChange,
+  resetSettings: resetDetailSettings,
+  settingsColumns: detailSettingsColumns,
+} = useColumnConfig(detailColumnDefs.value, 'stock-in-list-columns-detail')
+
+const currentColumns = computed(() =>
+  activeTab.value === 'doc' ? docVisibleColumns.value : detailVisibleColumns.value
+)
+const panelColumns = computed(() =>
+  activeTab.value === 'doc' ? docSettingsColumns.value : detailSettingsColumns.value
+)
+
+function handleColumnConfigChange() {
+  if (activeTab.value === 'doc') onDocSettingChange()
+  else onDetailSettingChange()
+}
+function handleColumnConfigReset() {
+  if (activeTab.value === 'doc') resetDocSettings()
+  else resetDetailSettings()
+}
+
+// ═══ 状态映射（其他入库单：草稿/待审批/已审核/已入库/已拒绝/已取消） ═══
+const STATUS_MAP: Record<number, { text: string; color: string }> = {
+  0: { text: '草稿', color: 'default' },
+  1: { text: '待审批', color: 'orange' },
+  2: { text: '已审核', color: 'blue' },
+  3: { text: '已入库', color: 'green' },
+  4: { text: '已拒绝', color: 'red' },
+  5: { text: '已取消', color: 'default' },
+}
+function getStatusText(status: number): string {
+  return STATUS_MAP[status]?.text || '未知'
+}
+function getStatusColor(status: number): string {
+  return STATUS_MAP[status]?.color || 'default'
+}
+
+// ═══ 表格底部合计 ═══
+const tableFooterColumns = computed(() => {
+  if (activeTab.value !== 'doc') return []
+  const totalQty = tableData.value.reduce((s: number, r: any) => s + (r.totalQuantity || 0), 0)
+  const totalAmt = tableData.value.reduce((s: number, r: any) => s + (r.totalAmount || 0), 0)
+  return [
+    { key: 'totalQuantity', value: totalQty, highlight: true },
+    { key: 'totalAmount', value: totalAmt, highlight: true },
+  ]
 })
 
-const pagination = reactive({
-  current: 1, pageSize: 10, total: 0,
-  showSizeChanger: true, showQuickJumper: true,
-  showTotal: (total: number) => `共 ${total} 条`
-})
-
-const vxeColumns: any = computed(() => [
-  { field: 'inboundNo', title: '入库单号', width: 150 },
-  { field: 'purchaseOrderNo', title: '采购订单', width: 150 },
-  { field: 'supplierName', title: '供应商', width: 150 },
-  { field: 'warehouseName', title: '仓库', width: 120 },
-  { field: 'totalAmount', title: '入库金额', width: 120, slotName: 'totalAmountCell' },
-  { field: 'status', title: '状态', width: 100, slotName: 'statusCell' },
-  { field: 'inboundDate', title: '入库日期', width: 120 },
-  { field: 'operator', title: '操作人', width: 100 },
-  { field: 'action', title: '操作', width: 220, fixed: 'right', type: 'action' },
-])
-
-const fetchData = async () => {
-  hasError.value = false
+// ═══ 数据加载 ═══
+async function fetchData() {
   loading.value = true
   try {
-    const res = await request.get('/erp/purchase/inbound/page', {
-      params: { ...searchParams, pageNum: pagination.current, pageSize: pagination.pageSize }
-    })
-    const data = res.data || res
-    tableData.value = data?.records || []
-    pagination.total = data?.total || 0
-    // 更新统计：优先使用API返回的统计数据
-    if (data.totalCount !== undefined) {
-      statistics.value.totalCount = data.totalCount
-      statistics.value.pendingCount = data.pendingCount || 0
-      statistics.value.completedCount = data.completedCount || 0
-      statistics.value.totalAmount = data.totalAmount || 0
-    } else {
-      // 兼容：从当前页数据计算
-      statistics.value.totalCount = tableData.value.length
-      statistics.value.pendingCount = tableData.value.filter((r: any) => r.status === 0).length
-      statistics.value.completedCount = tableData.value.filter((r: any) => r.status >= 2).length
-      statistics.value.totalAmount = tableData.value.reduce((sum: number, r: any) => sum + (r.totalAmount || 0), 0)
+    const params: any = {
+      pageNum: pagination.current,
+      pageSize: pagination.pageSize,
     }
-  } catch (error) {
-    hasError.value = true
-    console.warn('[入库管理] 获取数据失败', error)
-    message.error('获取数据失败')
+    if (searchParams.stockInNo) params.stockInNo = searchParams.stockInNo
+    if (searchParams.partnerName) params.partnerName = searchParams.partnerName
+    if (searchParams.handlerName) params.handlerName = searchParams.handlerName
+    if (searchParams.deptName) params.deptName = searchParams.deptName
+    if (searchParams.creatorName) params.creatorName = searchParams.creatorName
+    if (searchParams.bookkeeperName) params.bookkeeperName = searchParams.bookkeeperName
+    if (searchParams.warehouseName) params.warehouseName = searchParams.warehouseName
+    if (searchParams.status !== undefined && searchParams.status !== '') params.status = searchParams.status
+    if (searchParams.remark) params.remark = searchParams.remark
+    if (searchParams.startDate) params.dateStart = searchParams.startDate
+    if (searchParams.endDate) params.dateEnd = searchParams.endDate
+
+    let res: any
+    if (activeTab.value === 'detail') {
+      if (searchParams.productName) params.productName = searchParams.productName
+      if (searchParams.itemRemark) params.itemRemark = searchParams.itemRemark
+      res = await stockInApi.pageDetail(params)
+    } else {
+      res = await stockInApi.getPage(params)
+    }
+    if (res) {
+      // 兼容 Promise<PageResult> 与 request 解包后的 { records, total }
+      const body = (res as any)?.data ?? res
+      tableData.value = body?.records || []
+      pagination.total = Number(body?.total) || 0
+    }
+  } catch (error: any) {
+    console.warn('[其他入库单] 获取列表失败', error)
+    message.error(error?.response?.data?.message || '获取数据失败')
   } finally {
     loading.value = false
-    refreshLoading.value = false
-    lastUpdateTime.value = new Date().toLocaleString('zh-CN')
   }
 }
 
-const handleSearch = (values?: Record<string, any>) => {
-  if (values) {
-    Object.assign(searchParams, values)
-  }
+// ═══ 事件处理 ═══
+function handleTabChange(key: string) {
+  activeTab.value = key
   pagination.current = 1
   fetchData()
 }
-const handleReset = () => {
-  Object.assign(searchParams, { inboundNo: '', purchaseOrderNo: '', status: undefined })
+
+function setQuickDate(key: string) {
+  quickDate.value = key
+  const now = dayjs()
+  let start: Dayjs, end: Dayjs
+  switch (key) {
+    case 'yesterday': start = now.subtract(1, 'day'); end = now.subtract(1, 'day'); break
+    case 'today': start = now; end = now; break
+    case 'week': start = now.startOf('week'); end = now; break
+    case 'lastWeek': start = now.subtract(7, 'day'); end = now; break
+    case 'month': start = now.startOf('month'); end = now; break
+    case 'lastMonth': start = now.subtract(1, 'month').startOf('month'); end = now.subtract(1, 'month').endOf('month'); break
+    case 'last3Month': start = now.subtract(3, 'month'); end = now; break
+    case 'year': start = now.startOf('year'); end = now; break
+    default: start = now.subtract(7, 'day'); end = now
+  }
+  dateRange.value = [start, end]
+  searchParams.startDate = start.format('YYYY-MM-DD')
+  searchParams.endDate = end.format('YYYY-MM-DD')
+  handleSearch()
+}
+
+function handleDateChange(dates: [Dayjs, Dayjs] | null) {
+  if (dates && dates.length === 2) {
+    searchParams.startDate = dates[0]?.format('YYYY-MM-DD') || ''
+    searchParams.endDate = dates[1]?.format('YYYY-MM-DD') || ''
+  } else {
+    searchParams.startDate = ''
+    searchParams.endDate = ''
+  }
+}
+
+function handleSearch() {
   pagination.current = 1
   fetchData()
 }
-const handlePageChange = (page: number, size: number) => { pagination.current = page; pagination.pageSize = size; fetchData() }
 
-// ════════════════════════════════════════════════════════════════
-// 新建入库单表单
-// ════════════════════════════════════════════════════════════════
-
-let tempIdCounter = 0
-function nextTempId() { return ++tempIdCounter }
-
-const createVisible = ref(false)
-const createLoading = ref(false)
-const createFormRef = ref<any>(null)
-const createForm = reactive({
-  inboundType: 1,
-  inboundDate: '',
-  warehouseId: undefined as number | undefined,
-  warehouseName: '',
-  supplierId: undefined as number | undefined,
-  supplierName: '',
-  purchaserName: '',
-  departmentName: '',
-  logisticsCompany: '',
-  trackingNumber: '',
-  remark: '',
-  items: [] as any[]
-})
-const createRules: Record<string, any[]> = {
-  inboundType: [{ required: true, message: '请选择入库类型' }],
-  inboundDate: [{ required: true, message: '请选择入库日期' }],
-  warehouseId: [{ required: true, message: '请选择仓库' }]
+function handlePageChange(page: number, pageSize: number) {
+  pagination.current = page
+  pagination.pageSize = pageSize
+  fetchData()
 }
 
-const itemColumns = [
-  { title: '产品编码', dataIndex: 'productCode', width: 100 },
-  { title: '产品名称', dataIndex: 'productName', width: 180 },
-  { title: '规格', dataIndex: 'productSpec', width: 80 },
-  { title: '单位', dataIndex: 'productUnit', width: 60 },
-  { title: '数量', dataIndex: 'orderQuantity', width: 80 },
-  { title: '单价', dataIndex: 'unitPrice', width: 100 },
-  { title: '税率', dataIndex: 'taxRate', width: 80 },
-  { title: '操作', dataIndex: 'action', width: 60 }
-]
-
-const detailItemColumns: any = [
-  { title: '产品编码', dataIndex: 'productCode', width: 120 },
-  { title: '产品名称', dataIndex: 'productName', width: 180 },
-  { title: '规格', dataIndex: 'productSpec', width: 100 },
-  { title: '数量', dataIndex: 'orderQuantity', width: 80, align: 'right' },
-  { title: '单价', dataIndex: 'unitPrice', width: 100, align: 'right' },
-  { title: '金额', dataIndex: 'amount', width: 120, align: 'right' },
-]
-
-// 仓库选项
-const warehouseOptions = ref<any[]>([])
-// 供应商选项
-const supplierOptions = ref<any[]>([])
-// 产品选项
-const productOptions = ref<any[]>([])
-const productLoading = ref(false)
-const productSearchKeyword = ref('')
-const productPickerVisible = ref(false)
-let pickerTargetIndex = -1
-
-const productPickerColumns = [
-  { title: '产品编码', dataIndex: 'productCode', width: 130 },
-  { title: '产品名称', dataIndex: 'productName', width: 180 },
-  { title: '规格', dataIndex: 'specification', width: 100 },
-  { title: '单位', dataIndex: 'unit', width: 60 },
-  { title: '操作', dataIndex: 'action', width: 80 }
-]
-
-function filterOption(input: string, option: any) {
-  return (option.children?.toString() || '').toLowerCase().includes(input.toLowerCase())
-}
-
-function onWarehouseChange(value: number) {
-  const w = warehouseOptions.value.find(x => x.id === value)
-  if (w) createForm.warehouseName = w.warehouseName
-}
-
-function onSupplierChange(value: number | undefined) {
-  if (!value) { createForm.supplierName = ''; return }
-  const s = supplierOptions.value.find(x => x.id === value)
-  if (s) createForm.supplierName = s.name || s.supplierName || ''
-}
-
-function addItem() {
-  createForm.items.push({
-    tempId: nextTempId(),
-    productId: undefined,
-    productCode: '',
-    productName: '',
-    productSpec: '',
-    productUnit: '',
-    orderQuantity: 1,
-    unitPrice: 0,
-    taxRate: 0.13,
-    remark: ''
-  })
-}
-
-function removeItem(index: number) {
-  createForm.items.splice(index, 1)
-}
-
-function selectItemProduct(index: number) {
-  pickerTargetIndex = index
-  productPickerVisible.value = true
-  productSearchKeyword.value = ''
-  productOptions.value = []
-  loadProductOptions()
-}
-
-async function loadProductOptions() {
-  productLoading.value = true
-  try {
-    const res = await request.get('/erp/product/list', {
-      params: { keyword: productSearchKeyword.value || undefined, pageSize: 50 }
-    })
-    const data = res?.data ?? res
-    productOptions.value = Array.isArray(data) ? data : []
-  } catch { productOptions.value = [] }
-  finally { productLoading.value = false }
-}
-
-function pickProduct(product: any) {
-  if (pickerTargetIndex >= 0 && pickerTargetIndex < createForm.items.length) {
-    const item = createForm.items[pickerTargetIndex]
-    item.productId = product.id
-    item.productCode = product.productCode
-    item.productName = product.productName
-    item.productSpec = product.specification || ''
-    item.productUnit = product.unit || ''
-  }
-  productPickerVisible.value = false
-}
-
-async function loadWarehouseOptions() {
-  try {
-    const res = await request.get('/erp/stock/warehouses')
-    const data = res?.data ?? res
-    warehouseOptions.value = Array.isArray(data) ? data : []
-  } catch { /* ignore */ }
-}
-
-async function loadSupplierOptions() {
-  try {
-    const res = await request.get('/erp/md/customer/list', {
-      params: { partnerType: 'supplier', pageSize: 200 }
-    })
-    const data = res?.data ?? res
-    supplierOptions.value = Array.isArray(data) ? data : (data?.records || [])
-  } catch { /* ignore */ }
-}
-
-function handleEdit(record: any) {
-  router.push(`/erp/stock-in/${record.id}`)
-}
-
-const handleCreate = () => {
+// ═══ 操作 ═══
+function handleAdd() {
   router.push('/erp/stock-in/form')
-  return // 以下旧代码保留待清理
-  tempIdCounter = 0
-  createForm.inboundType = 1
-  createForm.inboundDate = new Date().toISOString().slice(0, 10)
-  createForm.warehouseId = undefined
-  createForm.warehouseName = ''
-  createForm.supplierId = undefined
-  createForm.supplierName = ''
-  createForm.purchaserName = ''
-  createForm.departmentName = ''
-  createForm.logisticsCompany = ''
-  createForm.trackingNumber = ''
-  createForm.remark = ''
-  createForm.items = []
-  createVisible.value = true
-  nextTick(() => createFormRef.value?.resetFields?.())
 }
-
-const handleCreateSubmit = async () => {
-  try {
-    await createFormRef.value?.validate()
-  } catch { return }
-  if (createForm.items.length === 0) {
-    message.warning('请添加入库明细')
-    return
-  }
-  createLoading.value = true
-  try {
-    await request.post('/erp/purchase/inbound', {
-      inboundType: createForm.inboundType,
-      inboundDate: createForm.inboundDate,
-      warehouseId: createForm.warehouseId,
-      warehouseName: createForm.warehouseName,
-      supplierId: createForm.supplierId || undefined,
-      supplierName: createForm.supplierName,
-      purchaserName: createForm.purchaserName || undefined,
-      departmentName: createForm.departmentName || undefined,
-      logisticsCompany: createForm.logisticsCompany || undefined,
-      trackingNumber: createForm.trackingNumber || undefined,
-      remark: createForm.remark || undefined,
-      items: createForm.items.map(item => ({
-        productId: item.productId,
-        productCode: item.productCode,
-        productName: item.productName,
-        productSpec: item.productSpec || undefined,
-        productUnit: item.productUnit || undefined,
-        orderQuantity: item.orderQuantity,
-        unitPrice: item.unitPrice || undefined,
-        taxRate: item.taxRate || undefined
-      }))
-    })
-    message.success('入库单创建成功')
-    createVisible.value = false
-    fetchData()
-  } catch (err: any) {
-    console.warn('[入库管理] 创建失败', err)
-    message.error(err?.message || '创建失败，请稍后重试')
-  } finally {
-    createLoading.value = false
-  }
+function handleView(record: any) {
+  router.push(`/erp/stock-in/form?id=${record.id}`)
 }
-
-const handleCreateCancel = () => {
-  createVisible.value = false
+function handleEdit(record: any) {
+  router.push(`/erp/stock-in/form?id=${record.id}`)
 }
-
-function handleParentCreate() { handleCreate() }
-
-// ════════════════════════════════════════════════════════════════
-const detailData = ref<any>(null)
-const detailLoading = ref(false)
-
-const fetchDetail = async (id: number) => {
-  detailLoading.value = true
-  try {
-    const res = await request.get(`/erp/purchase/inbound/${id}`)
-    detailData.value = res.data || null
-  } catch (err) {
-    console.warn('[入库管理] 获取详情失败', err)
-    detailData.value = tableData.value.find(item => item.id === id) || null
-  } finally {
-    detailLoading.value = false
-  }
-}
-
-const handleView = (record: any) => {
-  detailVisible.value = true
-  fetchDetail(record.id)
-}
-
-const handleApprove = async (record: any) => {
+function handleDelete(record: any) {
   Modal.confirm({
-    title: '审核确认',
-    content: '确认审核该入库单吗？',
-    okText: '确认',
+    title: '确认删除',
+    content: `确定要删除入库单 ${record.stockInNo} 吗？此操作不可恢复。`,
+    okText: '确认删除',
+    okType: 'danger',
     cancelText: '取消',
     onOk: async () => {
       try {
-        await request.put(`/erp/purchase/inbound/${record.id}/approve`)
-        message.success('审核成功')
+        await stockInApi.delete(record.id)
+        message.success('删除成功')
         fetchData()
-        if (detailVisible.value) detailVisible.value = false
-      } catch (error) {
-        console.warn('[入库管理] 审核失败', error)
-        message.error('审核失败')
+      } catch (error: any) {
+        message.error(error?.response?.data?.message || '删除失败')
       }
-    }
+    },
   })
 }
-
-const handleExecuteInbound = async (record: any) => {
+function handleApprove(record: any) {
+  Modal.confirm({
+    title: '审批确认',
+    content: `确定审批通过入库单 ${record.stockInNo} 吗？`,
+    okText: '审批通过',
+    cancelText: '取消',
+    onOk: async () => {
+      try {
+        await stockInApi.approve(record.id)
+        message.success('审批成功')
+        fetchData()
+      } catch (error: any) {
+        message.error(error?.response?.data?.message || '审批失败')
+      }
+    },
+  })
+}
+function handleComplete(record: any) {
   Modal.confirm({
     title: '入库确认',
-    content: '确认执行该入库操作吗？',
-    okText: '确认',
+    content: `确定完成入库单 ${record.stockInNo} 的库存入库操作吗？`,
+    okText: '确认入库',
     cancelText: '取消',
     onOk: async () => {
       try {
-        await request.put(`/erp/purchase/inbound/${record.id}/execute`)
+        await stockInApi.complete(record.id)
         message.success('入库完成')
         fetchData()
-        if (detailVisible.value) detailVisible.value = false
-      } catch (error) {
-        console.warn('[入库管理] 入库操作失败', error)
-        message.error('入库操作失败')
+      } catch (error: any) {
+        message.error(error?.response?.data?.message || '入库失败')
       }
-    }
+    },
   })
 }
-
-const handleExport = async () => {
+function handlePrintF8() {
+  if (selectedRowKeys.value.length === 0) {
+    message.warning('请先选择要打印的入库单')
+    return
+  }
+  router.push(`/erp/stock-in/form?id=${selectedRowKeys.value[0]}`)
+}
+async function handleExport() {
   try {
-    const res = await request.get('/erp/purchase/inbound/export', {
-      params: { ...searchParams, pageNum: pagination.current, pageSize: pagination.pageSize },
-      responseType: 'blob'
-    })
-    const blob = new Blob([res.data || res], { type: 'application/vnd.ms-excel' })
+    const params: any = {}
+    if (searchParams.status !== undefined && searchParams.status !== '') params.status = searchParams.status
+    if (searchParams.stockInNo) params.stockInNo = searchParams.stockInNo
+    const res: any = await stockInApi.getPage({ ...params, pageNum: 1, pageSize: 9999 })
+    const body = (res as any)?.data ?? res
+    const data = body?.records || []
+    if (data.length === 0) {
+      message.warning('没有可导出的数据')
+      return
+    }
+    const headers = ['单据编号', '单据日期', '仓库', '往来单位', '经手人', '入库数量', '本单金额', '状态']
+    const rows = data.map((r: any) => [
+      r.stockInNo, r.stockInDate, r.warehouseName, r.partnerName, r.handlerName,
+      r.totalQuantity, r.totalAmount, getStatusText(r.status),
+    ])
+    const csv = [headers.join(','), ...rows.map((r: any[]) => r.join(','))].join('\n')
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `入库单_${new Date().toISOString().slice(0, 10)}.xlsx`
-    link.click()
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `其他入库单_${dayjs().format('YYYYMMDD_HHmmss')}.csv`
+    a.click()
     URL.revokeObjectURL(url)
     message.success('导出成功')
-  } catch (error) {
-    console.warn('[入库管理] 导出失败', error)
-    message.error('导出失败')
+  } catch (error: any) {
+    message.error(error?.response?.data?.message || '导出失败')
   }
 }
 
+const handleError = (error: Error) => {
+  console.error('[其他入库单] 页面错误', error)
+  message.error(`页面错误: ${error.message}`)
+}
+
+function formatAmount(amount: number): string {
+  if (amount === undefined || amount === null) return '0.00'
+  return amount.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+function formatQuantity(qty: number): string {
+  if (qty === undefined || qty === null) return '0'
+  return qty.toLocaleString('zh-CN', { maximumFractionDigits: 4 })
+}
+
+// ═══ 初始化 ═══
 onMounted(() => {
-  window.addEventListener('keydown', handleKeydown)
-  loadWarehouseOptions()
-  loadSupplierOptions()
+  loadPageConfig()
+  setQuickDate('lastWeek')
   fetchData()
-  window.addEventListener("erp:create", handleParentCreate)
-  window.addEventListener("erp:refresh", fetchData)
-  autoRefreshCountdown.value = 30
-  refreshTimer = setInterval(() => {
-    fetchData()
-    autoRefreshCountdown.value = 30
-  }, 30000)
-  countdownTimer = setInterval(() => {
-    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
-  }, 1000)
 })
-
-onUnmounted(() => {
-  window.removeEventListener('keydown', handleKeydown)
-  window.removeEventListener("erp:create", handleParentCreate)
-  window.removeEventListener("erp:refresh", fetchData)
-  if (refreshTimer) clearInterval(refreshTimer)
-  if (countdownTimer) clearInterval(countdownTimer)
-})
-
-defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>
-.stock-in-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-}
-
-.stock-in-header__left {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.stock-in-header__breadcrumb {
-  font-size: 12px;
-  color: #999;
-}
-
-.stock-in-header__title {
-  font-size: 18px;
-  font-weight: 600;
-  color: #303133;
-  margin: 0;
-}
-
-.stock-in-header__right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.auto-refresh-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: #52c41a;
-  white-space: nowrap;
-}
-
-.data-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.update-time {
-  font-size: 12px;
-  color: #999;
-  white-space: nowrap;
-}
-
-.search-area { margin-bottom: 16px; }
-.action-area { margin-bottom: 16px; }
-
-/* 统计卡片样式 */
-.summary-card {
-  display: flex;
-  align-items: center;
-  padding: 16px;
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  transition: all 0.3s;
-}
-
-.summary-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
-  transform: translateY(-2px);
-}
-
-.summary-card.highlight {
-  background: linear-gradient(135deg, #f9f0ff 0%, #efdbff 100%);
-  border: 1px solid #d3adf7;
-}
-
-.summary-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-size: 24px;
-  margin-right: 16px;
-}
-
-.summary-content {
-  flex: 1;
-}
-
-.summary-title {
-  font-size: 14px;
-  color: #666;
-  margin-bottom: 4px;
-}
-
-.summary-value {
-  font-size: 24px;
-  font-weight: 600;
-  color: #303133;
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, 'Courier New', monospace;
-  font-variant-numeric: tabular-nums;
-}
-
-.summary-value.warning {
-  color: #faad14;
-}
-
-/* 表格容器自动撑满 */
-:deep(.vxe-table-list-container) {
-  flex: 1;
-  min-height: 0;
-}
-
-.table-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 48px 0;
-}
-
-.table-empty-icon {
-  font-size: 48px;
-  color: #d9d9d9;
-  margin-bottom: 12px;
-}
-
-.table-empty-text {
-  color: #999;
-  margin-bottom: 16px;
-}
-
-
-/* ── 快捷键提示 ──────────────────────── */
-.shortcut-hints {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: #909399;
-  user-select: none;
-}
-.shortcut-hint {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  padding: 1px 4px;
-  border-radius: 3px;
-  background: #f5f7fa;
-}
-.shortcut-hint kbd {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 3px;
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-  font-size: 11px;
-  color: #606266;
-  background: #fff;
-  border: 1px solid #d0d5dd;
-  border-radius: 3px;
-  box-shadow: 0 1px 0 #d0d5dd;
-  line-height: 18px;
-}
-
-/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+.query-scheme-wrap { display: flex; align-items: center; gap: 2px; }
+.quick-dates :deep(.ant-btn) { font-size: 13px; padding: 2px 8px; }
+.quick-dates :deep(.ant-btn-primary) { color: #fff; background: #ff7a45; border-color: #ff7a45; }
+.search-area { padding: 8px 16px; background: #fff; border-bottom: 1px solid #e8e8e8; flex-shrink: 0; }
+.search-container > .search-grid { max-height: 80px; overflow: hidden; }
+.search-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; align-items: center; }
+.search-field-item { display: flex; min-width: 0; }
+.search-field-item :deep(.ant-input-wrapper),
+.search-field-item :deep(.ant-input-affix-wrapper) { width: 100%; font-size: 13px; }
+.search-field-item :deep(.ant-select) { width: 100%; }
+.search-field-item :deep(.ant-select .ant-select-selector) { font-size: 13px; }
+.search-field-item :deep(.ant-picker) { width: 100%; }
+.search-select-wrap { display: flex; align-items: center; width: 100%; border: 1px solid #d9d9d9; border-radius: 4px; background: #fff; }
+.search-select-wrap:hover { border-color: #4096ff; }
+.search-select-label { font-size: 13px; color: rgba(0,0,0,0.65); white-space: nowrap; flex-shrink: 0; padding-left: 8px; }
+.search-select-wrap :deep(.ant-select) { flex: 1; min-width: 0; }
+.search-select-wrap :deep(.ant-select .ant-select-selector) { border: none !important; border-radius: 0 !important; box-shadow: none !important; padding-top: 0 !important; padding-bottom: 0 !important; display: flex; align-items: center; }
+.search-action-item { flex-shrink: 0; }
+.search-action-group { display: flex; flex-wrap: nowrap; align-items: center; }
+.search-action-group .search-field-item { width: auto; flex: 0 0 auto; margin-right: 4px; }
+.search-action-group .search-field-item:last-child { margin-right: 0; }
+.table-area { flex: 1; min-height: 0; overflow: hidden; }
+.currency-value { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-variant-numeric: tabular-nums; }
 :deep(.ant-input-sm),
 :deep(.ant-input-number-sm),
 :deep(.ant-select-single.ant-select-sm .ant-select-selector),
 :deep(.ant-picker-small),
-:deep(.ant-btn-sm) {
-  height: 28px;
-  line-height: 28px;
-}
-:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
-  line-height: 26px;
-}
-:deep(.ant-input-number-sm input) {
-  height: 26px;
-}
+:deep(.ant-btn-sm) { height: 28px; line-height: 28px; }
 </style>

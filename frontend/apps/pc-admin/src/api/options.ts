@@ -28,10 +28,10 @@ export const optionsApi = {
 
   /** 获取产品下拉列表 */
   getProducts(): Promise<OptionItem[]> {
-    return request.get('/erp/product/page', { pageSize: 1000 }).then((res: any) => {
+    return request.get('/erp/product/page', { params: { pageNum: 1, pageSize: 1000 } }).then((res: any) => {
       // 处理响应格式：PageResult 格式 { records, total }
       const records = res?.records || res?.data?.records || []
-      // 映射字段名：后端 productCode/productName -> 前端 code/name
+      // 映射字段名：后端 productCode/productName -> 前端 code/name；补充成本/品牌/产地/型号/图片/重量/体积/保质期等
       return records.map((p: any) => ({
         id: p.id,
         name: p.productName || p.name || '',
@@ -39,8 +39,19 @@ export const optionsApi = {
         barcode: p.barcode || '',
         unit: p.unit || '',
         specification: p.spec || p.specification || '',
-        salePrice: p.wholesalePrice || p.standardPrice || p.salePrice || 0,
+        model: p.model || '',
+        origin: p.origin || '',
+        brand: p.brand || '',
+        image: p.imageUrl || '',
+        costPrice: p.costPrice ?? p.purchasePrice ?? 0,
         purchasePrice: p.costPrice || p.purchasePrice || 0,
+        salePrice: p.wholesalePrice || p.standardPrice || p.salePrice || 0,
+        wholesalePrice: p.wholesalePrice || 0,
+        retailPrice: p.retailPrice || 0,
+        weight: p.weight ?? 0,
+        volume: p.volume ?? 0,
+        shelfLifeDays: p.shelfLifeDays ?? 0,
+        shelfLife: p.shelfLifeDays ? `${p.shelfLifeDays}天` : '',
       }))
     })
   },

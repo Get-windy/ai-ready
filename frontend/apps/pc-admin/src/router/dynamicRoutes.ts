@@ -134,7 +134,7 @@ const componentMap: Record<string, () => Promise<any>> = {
   'erp/sales-analysis/index': () => import('@/views/erp/sales-analysis/index.vue'),
   'erp/sales-report/index': () => import('@/views/erp/sales-report/index.vue'),
   'erp/stock-in/index': () => import('@/views/erp/stock-in/index.vue'),
-  'erp/stock-out/index': () => import('@/views/erp/stock-transfer/index.vue'),
+  'erp/stock-out/index': () => import('@/views/erp/stock-out/index.vue'),
   'erp/stock/replenishment/index': () => import('@/views/erp/stock/replenishment/index.vue'),
   'erp/stocktake/index': () => import('@/views/erp/stocktake/index.vue'),
   'erp/return/index': () => import('@/views/erp/return/index.vue'),
@@ -154,9 +154,13 @@ const componentMap: Record<string, () => Promise<any>> = {
 
   // ── 库存扩展模块 ──
   'erp/stock-cost-adjust/index': () => import('@/views/erp/stock-cost-adjust/index.vue'),
+  'erp/stock-cost-adjust/form': () => import('@/views/erp/stock-cost-adjust/form.vue'),
   'erp/stock-overflow/index': () => import('@/views/erp/stock-overflow/index.vue'),
+  'erp/stock-overflow/form': () => import('@/views/erp/stock-overflow/form.vue'),
   'erp/stock-damage/index': () => import('@/views/erp/stock-damage/index.vue'),
+  'erp/stock-damage/form': () => import('@/views/erp/stock-damage/form.vue'),
   'erp/stock-transfer/index': () => import('@/views/erp/stock-transfer/index.vue'),
+  'erp/stock-transfer/form': () => import('@/views/erp/stock-transfer/form.vue'),
   'erp/stock-replenishment/index': () => import('@/views/erp/stock/replenishment/index.vue'),
   'erp/stock-alert-config/index': () => import('@/views/erp/stock-alert-config/index.vue'),
   'erp/stock-bom/index': () => import('@/views/erp/stock-bom/index.vue'),
@@ -505,6 +509,7 @@ const componentMap: Record<string, () => Promise<any>> = {
   'trade/channel/config': () => import('@/views/trade/channel/config.vue'),
 
   // ── Quality 质量模块 ──
+  'quality/inspection/form': () => import('@/views/quality/inspection/form.vue'),
   'quality/inspection/list': () => import('@/views/quality/inspection/list.vue'),
   'quality/standard/list': () => import('@/views/quality/standard/list.vue'),
   'quality/defect/list': () => import('@/views/quality/defect/list.vue'),

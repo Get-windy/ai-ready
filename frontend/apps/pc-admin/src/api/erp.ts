@@ -679,12 +679,26 @@ export interface StockTransfer {
   transferDate: string; status: number; creatorName?: string; createTime: string
 }
 export const stockTransferApi = {
-  page(params: PageQuery): Promise<PageResult<StockTransfer>> {
+  getPage(params: PageQuery): Promise<PageResult<StockTransfer>> {
     return request.get('/erp/stock/transfer/page', params)
   },
+  pageDetail(params: PageQuery): Promise<PageResult<any>> {
+    return request.get('/erp/stock/transfer/page-detail', params)
+  },
+  nextNo(): Promise<string> {
+    return request.get('/erp/stock/transfer/next-no')
+  },
   getById(id: number) { return request.get(`/erp/stock/transfer/${id}`) },
+  getItems(id: number) { return request.get(`/erp/stock/transfer/${id}/items`) },
   create(data: any) { return request.post('/erp/stock/transfer', data) },
-  approve(id: number) { return request.post(`/erp/stock/transfer/${id}/approve`) },
+  update(id: number, data: any) { return request.put(`/erp/stock/transfer/${id}`, data) },
+  delete(id: number) { return request.delete(`/erp/stock/transfer/${id}`) },
+  submit(id: number) { return request.post(`/erp/stock/transfer/${id}/submit`) },
+  approve(id: number, note?: string) { return request.post(`/erp/stock/transfer/${id}/approve`, null, { params: { note } }) },
+  reject(id: number, reason: string) { return request.post(`/erp/stock/transfer/${id}/reject`, null, { params: { reason } }) },
+  execute(id: number) { return request.post(`/erp/stock/transfer/${id}/execute`) },
+  cancel(id: number, reason?: string) { return request.post(`/erp/stock/transfer/${id}/cancel`, null, { params: { reason } }) },
+  batchDelete(ids: number[]) { return request.delete('/erp/stock/transfer/batch', { data: ids }) },
 }
 
 // ── 批次管理 ──────────────────────────────────────────
@@ -855,80 +869,27 @@ export const stockSplitApi = {
   }
 }
 
-// ── 库存报损 ──────────────────────────────────────────
-export interface StockDamageItem {
-  id: number
-  productId: number
-  productName: string
-  unit: string
-  damagedQty: number
-  batchNo?: string
-  producedDate?: string
-  expiryDate?: string
-  damageReason: string
-  remark?: string
-  // Add other properties as needed
-}
-
-export interface StockDamage {
-  id: number
-  damageNo: string
-  warehouseId: number
-  warehouseName: string
-  totalItems: number
-  totalDamagedAmount: number
-  damageDate: string
-  reasonType: string
-  reasonDesc?: string
-  status: number
-  applicantId?: number
-  applicantName?: string
-  applyTime?: string
-  approvedBy?: number
-  approvedTime?: string
-  approvedNote?: string
-  executedBy?: number
-  executedTime?: string
-  remark?: string
-  items: StockDamageItem[]
-  createTime: string
-  updateTime: string
-}
-
+// ── 报损单（库存损耗/报废出库，单号前缀 BSD-，与报溢单互为反向单据） ──
 export const stockDamageApi = {
-  page(params: PageQuery): Promise<PageResult<StockDamage>> {
+  getPage(params: PageQuery): Promise<PageResult<any>> {
     return request.get('/erp/stock/damage/page', params)
   },
-  getById(id: number): Promise<ApiResponse<StockDamage>> {
-    return request.get(`/erp/stock/damage/${id}`)
+  pageDetail(params: PageQuery): Promise<PageResult<any>> {
+    return request.get('/erp/stock/damage/page-detail', params)
   },
-  create(data: StockDamage): Promise<ApiResponse<StockDamage>> {
-    return request.post('/erp/stock/damage', data)
+  nextNo(): Promise<string> {
+    return request.get('/erp/stock/damage/next-no')
   },
-  update(id: number, data: StockDamage): Promise<ApiResponse<StockDamage>> {
-    return request.put(`/erp/stock/damage/${id}`, data)
-  },
-  delete(id: number): Promise<ApiResponse<void>> {
-    return request.delete(`/erp/stock/damage/${id}`)
-  },
-  submit(id: number): Promise<ApiResponse<void>> {
-    return request.post(`/erp/stock/damage/${id}/submit`)
-  },
-  approve(id: number): Promise<ApiResponse<void>> {
-    return request.post(`/erp/stock/damage/${id}/approve`)
-  },
-  reject(id: number, reason: string): Promise<ApiResponse<void>> {
-    return request.post(`/erp/stock/damage/${id}/reject`, null, { params: { reason } })
-  },
-  execute(id: number): Promise<ApiResponse<void>> {
-    return request.post(`/erp/stock/damage/${id}/execute`)
-  },
-  cancel(id: number, reason: string): Promise<ApiResponse<void>> {
-    return request.post(`/erp/stock/damage/${id}/cancel`, null, { params: { reason } })
-  },
-  export(params: any): Promise<Blob> {
-    return request.get('/erp/stock/damage/export', params, { responseType: 'blob' })
-  }
+  getById(id: number) { return request.get(`/erp/stock/damage/${id}`) },
+  create(data: any) { return request.post('/erp/stock/damage', data) },
+  update(id: number, data: any) { return request.put(`/erp/stock/damage/${id}`, data) },
+  delete(id: number) { return request.delete(`/erp/stock/damage/${id}`) },
+  submit(id: number) { return request.post(`/erp/stock/damage/${id}/submit`) },
+  approve(id: number, note?: string) { return request.post(`/erp/stock/damage/${id}/approve`, null, { params: { note } }) },
+  reject(id: number, reason: string) { return request.post(`/erp/stock/damage/${id}/reject`, null, { params: { reason } }) },
+  complete(id: number) { return request.post(`/erp/stock/damage/${id}/complete`) },
+  cancel(id: number, reason?: string) { return request.post(`/erp/stock/damage/${id}/cancel`, null, { params: { reason } }) },
+  getItems(id: number) { return request.get(`/erp/stock/damage/${id}/items`) },
 }
 
 // ── 库存报溢 ──────────────────────────────────────────
@@ -1262,23 +1223,6 @@ export const returnOrderApi = {
   approve(id: number) { return request.post(`/erp/return/${id}/approve`) },
 }
 
-// ── 入库管理 ──────────────────────────────────────────
-export interface StockInOrder {
-  id: number; stockInNo: string; orderNo?: string; supplierName?: string
-  stockInDate: string; status: number; totalAmount?: number; creatorName?: string; createTime: string
-}
-export const stockInApi = {
-  page(params: PageQuery): Promise<PageResult<StockInOrder>> {
-    return request.get('/erp/stock-in/page', params)
-  },
-  getById(id: number) { return request.get(`/erp/stock-in/${id}`) },
-  create(data: any) { return request.post('/erp/stock-in', data) },
-  update(id: number, data: any) { return request.put(`/erp/stock-in/${id}`, data) },
-  delete(id: number) { return request.delete(`/erp/stock-in/${id}`) },
-  submit(id: number) { return request.post(`/erp/stock-in/${id}/submit`) },
-  approve(id: number) { return request.post(`/erp/stock-in/${id}/approve`) },
-}
-
 // ── 其他出库单（库存出库：领用/赠送/样品/盘亏/其他） ──
 export interface StockOutOrder {
   id: number; stockOutNo: string; stockOutType: number; stockOutTypeName?: string
@@ -1289,6 +1233,12 @@ export interface StockOutOrder {
 export const stockOutApi = {
   getPage(params: PageQuery): Promise<PageResult<StockOutOrder>> {
     return request.get('/erp/stock/out/page', params)
+  },
+  pageDetail(params: PageQuery): Promise<PageResult<any>> {
+    return request.get('/erp/stock/out/page-detail', params)
+  },
+  nextNo(): Promise<string> {
+    return request.get('/erp/stock/out/next-no')
   },
   getById(id: number) { return request.get(`/erp/stock/out/${id}`) },
   create(data: any) { return request.post('/erp/stock/out', data) },
@@ -1312,6 +1262,29 @@ export interface WarehouseStockInOrder {
 export const warehouseStockInApi = {
   getPage(params: PageQuery): Promise<PageResult<WarehouseStockInOrder>> {
     return request.get('/erp/stock/in/page', params)
+  },
+  getById(id: number) { return request.get(`/erp/stock/in/${id}`) },
+  create(data: any) { return request.post('/erp/stock/in', data) },
+  update(id: number, data: any) { return request.put(`/erp/stock/in/${id}`, data) },
+  delete(id: number) { return request.delete(`/erp/stock/in/${id}`) },
+  submit(id: number) { return request.post(`/erp/stock/in/${id}/submit`) },
+  approve(id: number, note?: string) { return request.post(`/erp/stock/in/${id}/approve`, null, { params: { note } }) },
+  reject(id: number, reason: string) { return request.post(`/erp/stock/in/${id}/reject`, null, { params: { reason } }) },
+  complete(id: number) { return request.post(`/erp/stock/in/${id}/complete`) },
+  cancel(id: number, reason?: string) { return request.post(`/erp/stock/in/${id}/cancel`, null, { params: { reason } }) },
+  getItems(id: number) { return request.get(`/erp/stock/in/${id}/items`) },
+}
+
+// ── 其他入库单（与其他出库单对称，单号前缀 QTRKD-） ──
+export const stockInApi = {
+  getPage(params: PageQuery): Promise<PageResult<any>> {
+    return request.get('/erp/stock/in/page', params)
+  },
+  pageDetail(params: PageQuery): Promise<PageResult<any>> {
+    return request.get('/erp/stock/in/page-detail', params)
+  },
+  nextNo(): Promise<string> {
+    return request.get('/erp/stock/in/next-no')
   },
   getById(id: number) { return request.get(`/erp/stock/in/${id}`) },
   create(data: any) { return request.post('/erp/stock/in', data) },
