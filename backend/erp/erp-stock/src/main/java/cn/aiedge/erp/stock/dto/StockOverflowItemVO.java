@@ -1,21 +1,19 @@
-package cn.aiedge.erp.stock.entity;
+package cn.aiedge.erp.stock.dto;
 
-import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
-import lombok.experimental.Accessors;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+/**
+ * 报溢单「按明细」列表行：明细字段 + 单据级字段
+ */
 @Data
-@Accessors(chain = true)
-@TableName("erp_stock_overflow_item")
-public class StockOverflowItem {
-    @TableId(type = IdType.ASSIGN_ID)
+public class StockOverflowItemVO {
+    // ── 明细字段 ──
     private Long id;
     private Long overflowId;
-    private Long tenantId;
     private Long productId;
     private String productCode;
     private String productName;
@@ -36,7 +34,6 @@ public class StockOverflowItem {
     private String batchNo;
     private LocalDate productionDate;
     private String shelfLife;
-    @TableField("validity_date")
     private LocalDate expiryDate;
     private BigDecimal quantity;
     private String conversionRelation;
@@ -54,10 +51,21 @@ public class StockOverflowItem {
     private BigDecimal volume;
     private String image;
     private String remark;
-    @TableLogic
-    private Integer deleted;
-    @TableField(fill = FieldFill.INSERT)
+
+    // ── 单据级字段 ──
+    private LocalDate overflowDate;
+    private String overflowNo;
+    private Integer status;
+    private Long warehouseId;
+    private String warehouseName;
+    private String handlerName;
+    private String deptName;
+    private String docRemark;
+    private String summary;
+    private String attachment;
+    private String bookkeeperName;
+    private String creatorName;
+    private LocalDateTime bookkeepingTime;
     private LocalDateTime createTime;
-    @TableField(fill = FieldFill.INSERT_UPDATE)
-    private LocalDateTime updateTime;
+    private Integer printCount;
 }

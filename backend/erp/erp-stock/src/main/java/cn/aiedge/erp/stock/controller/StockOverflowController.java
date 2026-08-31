@@ -1,59 +1,52 @@
 package cn.aiedge.erp.stock.controller;
 
 import cn.aiedge.base.vo.Result;
-import cn.aiedge.common.exception.BusinessException;
+import cn.aiedge.erp.stock.dto.StockOverflowItemVO;
+import cn.aiedge.erp.stock.dto.StockOverflowQuery;
 import cn.aiedge.erp.stock.entity.StockOverflow;
 import cn.aiedge.erp.stock.entity.StockOverflowItem;
 import cn.aiedge.erp.stock.service.StockOverflowService;
 import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDate;
 import java.util.List;
 
 @Slf4j
 @RestController
 @RequestMapping("/api/erp/stock/overflow")
 @RequiredArgsConstructor
-@Tag(name = "报溢管理", description = "报溢单创建、审批、入库等操作")
+@Tag(name = "报溢单管理", description = "报溢单创建、送审、记账、入库等操作")
 public class StockOverflowController {
 
     private final StockOverflowService overflowService;
 
-    @lombok.Data
-    public static class CreateOverflowRequest {
-        private LocalDate overflowDate;
-        private Long warehouseId;
-        private Long handlerId;
-        private Long locationId;
-        private String sourceType;
-        private String remark;
-        private List<StockOverflowItem> items;
+    @GetMapping("/page")
+    @Operation(summary = "分页查询报溢单(按单据)")
+    public Result<Page<StockOverflow>> page(@org.springframework.web.bind.annotation.ModelAttribute StockOverflowQuery query) {
+        return Result.ok(overflowService.pageList(query));
     }
 
-    @GetMapping("/page")
-    @Operation(summary = "分页查询报溢单")
-    public Result<Page<StockOverflow>> page(
-            @Parameter(description = "关键词") @RequestParam(required = false) String keyword,
-            @Parameter(description = "仓库ID") @RequestParam(required = false) Long warehouseId,
-            @Parameter(description = "状态") @RequestParam(required = false) Integer status,
-            @Parameter(description = "页码") @RequestParam(defaultValue = "1") int pageNum,
-            @Parameter(description = "每页数量") @RequestParam(defaultValue = "10") int pageSize) {
-        return Result.ok(overflowService.pageList(keyword, warehouseId, status, pageNum, pageSize));
+    @GetMapping("/page-detail")
+    @Operation(summary = "分页查询报溢明细(按明细)")
+    public Result<Page<StockOverflowItemVO>> pageDetail(@org.springframework.web.bind.annotation.ModelAttribute StockOverflowQuery query) {
+        return Result.ok(overflowService.pageDetail(query));
+    }
+
+    @GetMapping("/next-no")
+    @Operation(summary = "生成下一报溢单号")
+    public Result<String> nextNo() {
+        return Result.ok(overflowService.generateNo());
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "获取报溢单详情")
     public Result<StockOverflow> getById(@PathVariable Long id) {
-        StockOverflow o = overflowService.getById(id);
-        if (o == null) throw BusinessException.notFound("报溢单不存在");
-        return Result.ok(o);
+        return Result.ok(overflowService.getDetail(id));
     }
 
     @GetMapping("/{id}/items")
@@ -63,17 +56,29 @@ public class StockOverflowController {
     }
 
     @PostMapping
-    @Operation(summary = "创建报溢单")
-    public Result<StockOverflow> create(@RequestBody CreateOverflowRequest request) {
-        StockOverflow overflow = new StockOverflow();
-        overflow.setTenantId(1L);
-        overflow.setOverflowDate(request.getOverflowDate());
-        overflow.setWarehouseId(request.getWarehouseId());
-        overflow.setApplicantId(request.getHandlerId());
-        overflow.setLocationId(request.getLocationId());
-        overflow.setSourceType(request.getSourceType());
-        overflow.setRemark(request.getRemark());
-        return Result.ok(overflowService.createOverflow(overflow, request.getItems()));
+    @Operation(summary = "创建报溢单(保存草稿)")
+    public Result<StockOverflow> create(@RequestBody StockOverflow overflow) {
+        List<StockOverflowItem> items = overflow.getItems();
+        overflow.setItems(null);
+        return Result.ok(overflowService.createOverflow(overflow, items));
+    }
+
+    @PutMapping("/{id}")
+    @Operation(summary = "更新报溢单(草稿)")
+    public Result<StockOverflow> update(@PathVariable Long id, @RequestBody StockOverflow overflow) {
+        List<StockOverflowItem> items = overflow.getItems();
+        overflow.setItems(null);
+        return Result.ok(overflowService.updateOverflow(id, overflow, items));
+    }
+
+    @DeleteMapping("/{id}")
+    @Operation(summary = "删除报溢单")
+    public Result<Boolean> delete(@PathVariable Long id) {
+        StockOverflow o = overflowService.getById(id);
+        if (o != null && o.getStatus() != 0) {
+            return Result.fail("只有草稿状态的报溢单可以删除");
+        }
+        return Result.ok(overflowService.removeById(id));
     }
 
     @PostMapping("/{id}/submit")
@@ -94,21 +99,33 @@ public class StockOverflowController {
         return Result.ok(overflowService.reject(id, reason));
     }
 
+    @PostMapping("/{id}/complete")
+    @Operation(summary = "执行记账(入库)")
+    public Result<StockOverflow> complete(@PathVariable Long id) {
+        return Result.ok(overflowService.execute(id));
+    }
+
     @PostMapping("/{id}/execute")
-    @Operation(summary = "执行入库")
+    @Operation(summary = "执行入库(记账)")
     public Result<StockOverflow> execute(@PathVariable Long id) {
         return Result.ok(overflowService.execute(id));
     }
 
     @PostMapping("/{id}/cancel")
     @Operation(summary = "取消报溢单")
-    public Result<StockOverflow> cancel(@PathVariable Long id, @RequestParam String reason) {
+    public Result<StockOverflow> cancel(@PathVariable Long id, @RequestParam(required = false) String reason) {
         return Result.ok(overflowService.cancel(id, reason));
     }
 
     @DeleteMapping("/batch")
-    @Operation(summary = "批量删除")
+    @Operation(summary = "批量删除报溢单")
     public Result<Boolean> batchDelete(@RequestBody List<Long> ids) {
+        for (Long id : ids) {
+            StockOverflow o = overflowService.getById(id);
+            if (o != null && o.getStatus() != 0) {
+                return Result.fail("存在非草稿状态的报溢单，不能批量删除");
+            }
+        }
         return Result.ok(overflowService.removeBatchByIds(ids));
     }
 }
