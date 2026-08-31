@@ -1,6 +1,8 @@
 package cn.aiedge.erp.stock.service;
 
 import cn.aiedge.common.exception.BusinessException;
+import cn.aiedge.erp.stock.dto.StockOverflowItemVO;
+import cn.aiedge.erp.stock.dto.StockOverflowQuery;
 import cn.aiedge.erp.stock.entity.StockOverflow;
 import cn.aiedge.erp.stock.entity.StockOverflowItem;
 import cn.aiedge.erp.stock.mapper.StockOverflowItemMapper;
@@ -17,6 +19,7 @@ import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -46,9 +49,9 @@ class StockOverflowServiceImplTest {
         testOverflow = new StockOverflow();
         testOverflow.setId(1L);
         testOverflow.setTenantId(1L);
-        testOverflow.setOverflowNo("OF20260610TEST01");
+        testOverflow.setOverflowNo("BYD20260610TEST01");
         testOverflow.setWarehouseId(10L);
-        testOverflow.setOverflowDate(java.time.LocalDate.now());
+        testOverflow.setOverflowDate(LocalDate.now());
         testOverflow.setSourceType("1");
         testOverflow.setStatus(0);
         testOverflow.setTotalQuantity(new BigDecimal("50"));
@@ -89,7 +92,7 @@ class StockOverflowServiceImplTest {
         when(overflowMapper.selectPage(any(Page.class), any(LambdaQueryWrapper.class)))
                 .thenReturn(expectedPage);
 
-        Page<StockOverflow> result = overflowService.pageList(null, null, null, 1, 10);
+        Page<StockOverflow> result = overflowService.pageList(new StockOverflowQuery());
 
         assertNotNull(result);
         assertEquals(1, result.getRecords().size());
@@ -104,10 +107,48 @@ class StockOverflowServiceImplTest {
         when(overflowMapper.selectPage(any(Page.class), any(LambdaQueryWrapper.class)))
                 .thenReturn(expectedPage);
 
-        Page<StockOverflow> result = overflowService.pageList("OF", 10L, 0, 1, 10);
+        StockOverflowQuery q = new StockOverflowQuery();
+        q.setOverflowNo("BYD");
+        q.setWarehouseId(10L);
+        q.setStatus(0);
+        q.setHandlerName("张三");
+        q.setDeptName("仓储部");
+        q.setDateStart("2026-06-01");
+        q.setDateEnd("2026-06-30");
+        Page<StockOverflow> result = overflowService.pageList(q);
 
         assertNotNull(result);
         verify(overflowMapper).selectPage(any(Page.class), any(LambdaQueryWrapper.class));
+    }
+
+    @Test
+    @DisplayName("按明细分页 - 无匹配单据返回空页")
+    void testPageDetailNoMatch() {
+        when(overflowMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of());
+
+        Page<StockOverflowItemVO> result = overflowService.pageDetail(new StockOverflowQuery());
+
+        assertNotNull(result);
+        assertEquals(0, result.getTotal());
+        assertTrue(result.getRecords().isEmpty());
+    }
+
+    @Test
+    @DisplayName("按明细分页 - 有数据")
+    void testPageDetailWithData() {
+        StockOverflowItem itemPageRow = testItems.get(0);
+        Page<StockOverflowItem> itemPage = new Page<>(1, 10);
+        itemPage.setRecords(List.of(itemPageRow));
+        itemPage.setTotal(1);
+        when(overflowMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(testOverflow));
+        when(overflowItemMapper.selectPage(any(Page.class), any(LambdaQueryWrapper.class))).thenReturn(itemPage);
+        when(overflowMapper.selectBatchIds(anyCollection())).thenReturn(List.of(testOverflow));
+
+        Page<StockOverflowItemVO> result = overflowService.pageDetail(new StockOverflowQuery());
+
+        assertNotNull(result);
+        assertEquals(1, result.getTotal());
+        assertEquals("BYD20260610TEST01", result.getRecords().get(0).getOverflowNo());
     }
 
     @Test
@@ -115,6 +156,7 @@ class StockOverflowServiceImplTest {
     void testCreateOverflowWithItems() {
         try (MockedStatic<StpUtil> stpUtil = mockStatic(StpUtil.class)) {
             stpUtil.when(StpUtil::getLoginIdAsLong).thenReturn(100L);
+            stpUtil.when(StpUtil::getLoginId).thenReturn(100L);
             when(overflowMapper.insert(any(StockOverflow.class))).thenAnswer(invocation -> {
                 StockOverflow o = invocation.getArgument(0);
                 o.setId(2L);
@@ -123,7 +165,7 @@ class StockOverflowServiceImplTest {
 
             StockOverflow overflow = new StockOverflow();
             overflow.setWarehouseId(10L);
-            overflow.setOverflowDate(java.time.LocalDate.now());
+            overflow.setOverflowDate(LocalDate.now());
             overflow.setSourceType("1");
             overflow.setRemark("测试报溢");
 
@@ -138,7 +180,9 @@ class StockOverflowServiceImplTest {
 
             assertNotNull(result);
             assertEquals(0, result.getStatus());
-            assertTrue(result.getOverflowNo().startsWith("OF"));
+            assertTrue(result.getOverflowNo().startsWith("BYD-"));
+            assertEquals(new BigDecimal("10"), result.getTotalQuantity());
+            assertNotNull(result.getCreatorName());
             verify(overflowMapper).insert(any(StockOverflow.class));
             verify(overflowItemMapper).insert(any(StockOverflowItem.class));
         }
@@ -149,6 +193,7 @@ class StockOverflowServiceImplTest {
     void testCreateOverflowWithoutItems() {
         try (MockedStatic<StpUtil> stpUtil = mockStatic(StpUtil.class)) {
             stpUtil.when(StpUtil::getLoginIdAsLong).thenReturn(100L);
+            stpUtil.when(StpUtil::getLoginId).thenReturn(100L);
             when(overflowMapper.insert(any(StockOverflow.class))).thenAnswer(invocation -> {
                 StockOverflow o = invocation.getArgument(0);
                 o.setId(3L);
@@ -157,7 +202,7 @@ class StockOverflowServiceImplTest {
 
             StockOverflow overflow = new StockOverflow();
             overflow.setWarehouseId(10L);
-            overflow.setOverflowDate(java.time.LocalDate.now());
+            overflow.setOverflowDate(LocalDate.now());
             overflow.setSourceType("1");
 
             StockOverflow result = overflowService.createOverflow(overflow, null);
@@ -166,8 +211,35 @@ class StockOverflowServiceImplTest {
             assertEquals(BigDecimal.ZERO, result.getTotalQuantity());
             assertEquals(BigDecimal.ZERO, result.getTotalAmount());
             assertEquals(0, result.getTotalItems());
-            verify(overflowMapper).insert(any(StockOverflow.class));
             verify(overflowItemMapper, never()).insert(any(StockOverflowItem.class));
+        }
+    }
+
+    @Test
+    @DisplayName("更新报溢单 - 草稿")
+    void testUpdateOverflow() {
+        try (MockedStatic<StpUtil> stpUtil = mockStatic(StpUtil.class)) {
+            stpUtil.when(StpUtil::getLoginIdAsLong).thenReturn(100L);
+            when(overflowMapper.selectById(1L)).thenReturn(testOverflow);
+            when(overflowMapper.updateById(any(StockOverflow.class))).thenReturn(1);
+
+            StockOverflow input = new StockOverflow();
+            input.setOverflowNo("BYD20260610TEST01");
+            input.setWarehouseId(10L);
+            input.setOverflowDate(LocalDate.now());
+            input.setSourceType("1");
+            StockOverflowItem item = new StockOverflowItem();
+            item.setProductId(1001L);
+            item.setQuantity(new BigDecimal("5"));
+            item.setUnitCost(new BigDecimal("60"));
+
+            StockOverflow result = overflowService.updateOverflow(1L, input, List.of(item));
+
+            assertNotNull(result);
+            assertEquals(0, result.getStatus());
+            assertEquals(new BigDecimal("5"), result.getTotalQuantity());
+            verify(overflowItemMapper).delete(any(LambdaQueryWrapper.class));
+            verify(overflowItemMapper).insert(any(StockOverflowItem.class));
         }
     }
 
@@ -226,15 +298,21 @@ class StockOverflowServiceImplTest {
     }
 
     @Test
-    @DisplayName("执行入库 - 已审批→已完成")
+    @DisplayName("执行入库 - 已审批→已完成(写记账人)")
     void testExecute() {
         testOverflow.setStatus(2);
         when(overflowMapper.selectById(1L)).thenReturn(testOverflow);
+        try (MockedStatic<StpUtil> stpUtil = mockStatic(StpUtil.class)) {
+            stpUtil.when(StpUtil::getLoginIdAsLong).thenReturn(100L);
+            stpUtil.when(StpUtil::getLoginId).thenReturn(100L);
 
-        StockOverflow result = overflowService.execute(1L);
+            StockOverflow result = overflowService.execute(1L);
 
-        assertEquals(3, result.getStatus());
-        verify(overflowMapper).updateById(argThat((StockOverflow o) -> o.getStatus() == 3));
+            assertEquals(3, result.getStatus());
+            assertEquals(100L, result.getBookkeeperId());
+            assertNotNull(result.getBookkeepingTime());
+            verify(overflowMapper).updateById(argThat((StockOverflow o) -> o.getStatus() == 3));
+        }
     }
 
     @Test
@@ -246,6 +324,7 @@ class StockOverflowServiceImplTest {
         StockOverflow result = overflowService.cancel(1L, "不再需要");
 
         assertEquals(5, result.getStatus());
+        assertEquals("不再需要", result.getCancelReason());
         verify(overflowMapper).updateById(argThat((StockOverflow o) -> o.getStatus() == 5));
     }
 
@@ -300,6 +379,18 @@ class StockOverflowServiceImplTest {
     }
 
     @Test
+    @DisplayName("获取详情 - 带明细")
+    void testGetDetail() {
+        when(overflowMapper.selectById(1L)).thenReturn(testOverflow);
+        when(overflowItemMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(testItems);
+
+        StockOverflow result = overflowService.getDetail(1L);
+
+        assertNotNull(result);
+        assertEquals(2, result.getItems().size());
+    }
+
+    @Test
     @DisplayName("状态流程: 草稿→提交→审批→执行")
     void testFullWorkflow() {
         when(overflowMapper.selectById(1L))
@@ -308,19 +399,23 @@ class StockOverflowServiceImplTest {
         testOverflow.setStatus(2);  // for execute
         when(overflowMapper.selectById(1L))
                 .thenReturn(testOverflow);  // execute
+        try (MockedStatic<StpUtil> stpUtil = mockStatic(StpUtil.class)) {
+            stpUtil.when(StpUtil::getLoginIdAsLong).thenReturn(100L);
+            stpUtil.when(StpUtil::getLoginId).thenReturn(100L);
 
-        // Submit
-        StockOverflow submitted = overflowService.submitForApproval(1L);
-        assertEquals(1, submitted.getStatus());
-        testOverflow.setStatus(1);
+            // Submit
+            StockOverflow submitted = overflowService.submitForApproval(1L);
+            assertEquals(1, submitted.getStatus());
+            testOverflow.setStatus(1);
 
-        // Approve
-        StockOverflow approved = overflowService.approve(1L, 200L, null);
-        assertEquals(2, approved.getStatus());
-        testOverflow.setStatus(2);
+            // Approve
+            StockOverflow approved = overflowService.approve(1L, 200L, null);
+            assertEquals(2, approved.getStatus());
+            testOverflow.setStatus(2);
 
-        // Execute
-        StockOverflow executed = overflowService.execute(1L);
-        assertEquals(3, executed.getStatus());
+            // Execute
+            StockOverflow executed = overflowService.execute(1L);
+            assertEquals(3, executed.getStatus());
+        }
     }
 }
