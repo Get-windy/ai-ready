@@ -9,7 +9,7 @@ import java.util.List;
 
 public interface StockBomService extends IService<StockBom> {
 
-    Page<StockBom> pageList(String keyword, Long productId, Integer bomType, Integer status, int pageNum, int pageSize);
+    Page<StockBom> pageList(String keyword, Long productId, String productName, Integer bomType, Integer status, int pageNum, int pageSize);
 
     StockBom createBom(StockBom bom, List<StockBomItem> items);
 

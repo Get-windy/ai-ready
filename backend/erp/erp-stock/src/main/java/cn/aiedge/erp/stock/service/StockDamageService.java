@@ -17,9 +17,6 @@ public interface StockDamageService extends IService<StockDamage> {
     List<StockDamageItem> getItems(Long damageId);
     StockDamage createStockDamage(StockDamage damage, List<StockDamageItem> items);
     StockDamage updateStockDamage(Long id, StockDamage damage, List<StockDamageItem> items);
-    StockDamage submitForApproval(Long id);
-    StockDamage approve(Long id, Long approverId, String note);
-    StockDamage reject(Long id, String reason);
     StockDamage execute(Long id);
     StockDamage cancel(Long id, String reason);
 }

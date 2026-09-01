@@ -1,5 +1,7 @@
 package cn.aiedge.erp.stock.service;
 
+import cn.aiedge.erp.stock.dto.StockCostAdjustItemVO;
+import cn.aiedge.erp.stock.dto.StockCostAdjustQuery;
 import cn.aiedge.erp.stock.entity.StockCostAdjust;
 import cn.aiedge.erp.stock.entity.StockCostAdjustItem;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -9,9 +11,17 @@ import java.util.List;
 
 public interface StockCostAdjustService extends IService<StockCostAdjust> {
 
-    Page<StockCostAdjust> pageList(String keyword, Long warehouseId, Integer status, int pageNum, int pageSize);
+    String generateNo();
+
+    Page<StockCostAdjust> pageList(StockCostAdjustQuery query);
+
+    Page<StockCostAdjustItemVO> pageDetail(StockCostAdjustQuery query);
+
+    StockCostAdjust getDetail(Long id);
 
     StockCostAdjust createAdjust(StockCostAdjust adjust, List<StockCostAdjustItem> items);
+
+    StockCostAdjust updateAdjust(Long id, StockCostAdjust adjust, List<StockCostAdjustItem> items);
 
     StockCostAdjust submitForApproval(Long id);
 

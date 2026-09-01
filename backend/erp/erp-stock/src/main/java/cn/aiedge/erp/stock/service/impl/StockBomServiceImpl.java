@@ -1,8 +1,10 @@
 package cn.aiedge.erp.stock.service.impl;
 
 import cn.aiedge.common.exception.BusinessException;
+import cn.aiedge.erp.stock.entity.Product;
 import cn.aiedge.erp.stock.entity.StockBom;
 import cn.aiedge.erp.stock.entity.StockBomItem;
+import cn.aiedge.erp.stock.mapper.ProductMapper;
 import cn.aiedge.erp.stock.mapper.StockBomItemMapper;
 import cn.aiedge.erp.stock.mapper.StockBomMapper;
 import cn.aiedge.erp.stock.service.StockBomService;
@@ -26,6 +28,9 @@ public class StockBomServiceImpl extends ServiceImpl<StockBomMapper, StockBom> i
     @Autowired
     private StockBomItemMapper stockBomItemMapper;
 
+    @Autowired
+    private ProductMapper productMapper;
+
     private String generateBomNo() {
         String dateStr = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
         String randomStr = IdUtil.randomUUID().substring(0, 6).toUpperCase();
@@ -33,7 +38,7 @@ public class StockBomServiceImpl extends ServiceImpl<StockBomMapper, StockBom> i
     }
 
     @Override
-    public Page<StockBom> pageList(String keyword, Long productId, Integer bomType, Integer status, int pageNum, int pageSize) {
+    public Page<StockBom> pageList(String keyword, Long productId, String productName, Integer bomType, Integer status, int pageNum, int pageSize) {
         LambdaQueryWrapper<StockBom> wrapper = new LambdaQueryWrapper<>();
         // 修复: 只有当keyword不为空时才添加like条件，避免产生空括号SQL语法错误
         if (keyword != null && !keyword.trim().isEmpty()) {
@@ -43,6 +48,7 @@ public class StockBomServiceImpl extends ServiceImpl<StockBomMapper, StockBom> i
                     .like(StockBom::getBomName, keyword));
         }
         wrapper.eq(productId != null, StockBom::getProductId, productId)
+                .like(productName != null && !productName.trim().isEmpty(), StockBom::getProductName, productName)
                 .eq(bomType != null, StockBom::getBomType, bomType)
                 .eq(status != null, StockBom::getStatus, status)
                 .orderByDesc(StockBom::getCreateTime);
@@ -63,12 +69,14 @@ public class StockBomServiceImpl extends ServiceImpl<StockBomMapper, StockBom> i
         }
         bom.setCreateBy(userId);
         bom.setCreateTime(LocalDateTime.now());
+        fillBomSnapshot(bom);
         this.save(bom);
 
         if (items != null && !items.isEmpty()) {
             BigDecimal totalCost = BigDecimal.ZERO;
             for (StockBomItem item : items) {
                 item.setBomId(bom.getId());
+                fillItemSnapshot(item);
                 if (item.getQuantity() == null) {
                     item.setQuantity(BigDecimal.ONE);
                 }
@@ -97,16 +105,23 @@ public class StockBomServiceImpl extends ServiceImpl<StockBomMapper, StockBom> i
 
         existing.setBomName(bom.getBomName());
         existing.setProductId(bom.getProductId());
-        existing.setProductCode(bom.getProductCode());
-        existing.setProductName(bom.getProductName());
-        existing.setProductSpec(bom.getProductSpec());
-        existing.setProductUnit(bom.getProductUnit());
+        existing.setTaste(bom.getTaste());
+        existing.setModel(bom.getModel());
         existing.setOutputQuantity(bom.getOutputQuantity());
         existing.setBomType(bom.getBomType());
         existing.setEffectiveDate(bom.getEffectiveDate());
         existing.setExpireDate(bom.getExpireDate());
         existing.setRemark(bom.getRemark());
         existing.setUpdateTime(LocalDateTime.now());
+        // 商品可能已更换，强制从商品主数据回填快照（型号/口味为模板头自有属性，保留用户输入）
+        existing.setProductCode(null);
+        existing.setProductName(null);
+        existing.setProductSpec(null);
+        existing.setProductUnit(null);
+        existing.setBarcode(null);
+        existing.setOrigin(null);
+        existing.setBrand(null);
+        fillBomSnapshot(existing);
         this.updateById(existing);
 
         // Delete old items and save new items
@@ -118,6 +133,7 @@ public class StockBomServiceImpl extends ServiceImpl<StockBomMapper, StockBom> i
             for (StockBomItem item : items) {
                 item.setBomId(id);
                 item.setId(null);
+                fillItemSnapshot(item);
                 if (item.getQuantity() == null) {
                     item.setQuantity(BigDecimal.ONE);
                 }
@@ -169,5 +185,52 @@ public class StockBomServiceImpl extends ServiceImpl<StockBomMapper, StockBom> i
         bom.setUpdateTime(LocalDateTime.now());
         this.updateById(bom);
         return bom;
+    }
+
+    /**
+     * 从商品主数据回填模板头商品快照（成品编码/名称/规格/单位/型号）
+     */
+    private void fillBomSnapshot(StockBom bom) {
+        if (bom.getProductId() == null) {
+            return;
+        }
+        Product p = productMapper.selectById(bom.getProductId());
+        if (p == null) {
+            return;
+        }
+        if (bom.getProductCode() == null) bom.setProductCode(p.getProductCode());
+        if (bom.getProductName() == null) bom.setProductName(p.getProductName());
+        if (bom.getProductSpec() == null) bom.setProductSpec(p.getSpec());
+        if (bom.getProductUnit() == null) bom.setProductUnit(p.getUnit());
+        if (bom.getModel() == null) bom.setModel(p.getModel());
+        if (bom.getBarcode() == null) bom.setBarcode(p.getBarcode());
+        if (bom.getOrigin() == null) bom.setOrigin(p.getOrigin());
+        if (bom.getBrand() == null) bom.setBrand(p.getBrand());
+    }
+
+    /**
+     * 从商品主数据回填原料明细商品快照（编码/名称/规格/单位/型号/产地/品牌/条码/图片/成本均价）
+     */
+    private void fillItemSnapshot(StockBomItem item) {
+        if (item.getProductId() == null) {
+            return;
+        }
+        Product p = productMapper.selectById(item.getProductId());
+        if (p == null) {
+            return;
+        }
+        if (item.getProductCode() == null) item.setProductCode(p.getProductCode());
+        if (item.getProductName() == null) item.setProductName(p.getProductName());
+        if (item.getProductSpec() == null) item.setProductSpec(p.getSpec());
+        if (item.getProductUnit() == null) item.setProductUnit(p.getUnit());
+        if (item.getModel() == null) item.setModel(p.getModel());
+        if (item.getOrigin() == null) item.setOrigin(p.getOrigin());
+        if (item.getBrand() == null) item.setBrand(p.getBrand());
+        if (item.getBarcode() == null) item.setBarcode(p.getBarcode());
+        if (item.getImageUrl() == null) item.setImageUrl(p.getImageUrl());
+        // 默认成本均价取商品成本价
+        if (item.getUnitCost() == null) {
+            item.setUnitCost(p.getCostPrice());
+        }
     }
 }

@@ -744,7 +744,7 @@ const detailColumns: DetailColumnConfig[] = [
   { key: 'productName', title: '商品名称', type: 'slot', slotName: 'productCell', width: 220 },
   { key: 'itemCode', title: '货号', type: 'input', width: 100 },
   { key: 'barcode', title: '条码', type: 'input', width: 120 },
-  { key: 'specification', title: '规格', type: 'input', width: 100 },
+  { key: 'specification', title: '规格', type: 'input', width: 100, defaultHidden: true },
   { key: 'model', title: '型号', type: 'input', width: 100, defaultHidden: true },
   { key: 'origin', title: '产地', type: 'input', width: 100, defaultHidden: true },
   { key: 'brand', title: '品牌', type: 'input', width: 100, defaultHidden: true },

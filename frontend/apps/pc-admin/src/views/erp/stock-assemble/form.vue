@@ -290,7 +290,7 @@ const warehouseLoading = ref(false)
 async function loadBomTemplates() {
   bomLoading.value = true
   try {
-    const res = await request.get('/erp/stock/bom/page', { params: { pageSize: 500, status: 1, bomType: 1 } })
+    const res = await request.get('/erp/stock/bom/page', { params: { pageSize: 500, status: 1 } })
     const data = res?.data || res
     const records = data?.records || (Array.isArray(data) ? data : [])
     bomTemplateOptions.value = records.map((b: any) => ({
@@ -477,7 +477,7 @@ async function handleBomChange(bomId?: number) {
       productId: comp.productId,
       productCode: comp.productCode || '',
       productName: comp.productName || '',
-      unit: comp.unit || '',
+      unit: comp.productUnit || comp.unit || '',
       quantity: (comp.quantity ?? 1) * (formData.productRows[0]?.quantity || 1),
       unitCost: comp.unitCost ?? 0,
     }))

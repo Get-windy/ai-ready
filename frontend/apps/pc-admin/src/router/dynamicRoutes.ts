@@ -1549,7 +1549,14 @@ function getRequiredRoutes(): RouteRecordRaw[] {
       path: 'erp/stock-bom',
       name: 'ErpStockBom',
       component: () => import('@/views/erp/stock-bom/index.vue'),
-      meta: { title: 'BOM管理', icon: 'DeploymentUnitOutlined', keepAlive: true, requiresAuth: true, hidden: true, billType: '601' }
+      meta: { title: '生产模板', icon: 'DeploymentUnitOutlined', keepAlive: true, requiresAuth: true, hidden: true, billType: '601' }
+    },
+    // 生产模板新增表单路由由数据库 displayMode=1 动态注册，此处仅保留 :id 编辑路由
+    {
+      path: 'erp/stock-bom/form/:id',
+      name: 'StockBomFormEdit',
+      component: () => import('@/views/erp/stock-bom/form.vue'),
+      meta: { title: '编辑生产模板', icon: 'DeploymentUnitOutlined', keepAlive: false, requiresAuth: true, hidden: true }
     },
     // ═══ 销售出库单/退货申请/零售单 的 form 路由已迁移到数据库动态管理（display_mode=1）═══
     // 仅保留 :id 详情页路由（编辑模式，由列表页跳转，无对应菜单项）

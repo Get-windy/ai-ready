@@ -5,10 +5,10 @@
   <parent>
     <groupId>cn.aiedge.erp</groupId>
     <artifactId>erp</artifactId>
-    <version>0.3.11</version>
+    <version>0.3.13</version>
   </parent>
   <artifactId>erp-sales</artifactId>
-  <version>0.3.11</version>
+  <version>0.3.13</version>
   <name>销售管理模块</name>
   <description>销售订单、出库、退货、换货、采购订单、产品套装管理</description>
   <licenses>

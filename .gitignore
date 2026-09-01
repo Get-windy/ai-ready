@@ -81,3 +81,6 @@ backend/cn/
 # Tool outputs / runtime stderr
 *.err
 tool-results/
+
+# AtCode tool runtime
+**/.atcode/

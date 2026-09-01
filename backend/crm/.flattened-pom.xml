@@ -5,11 +5,11 @@
   <parent>
     <groupId>cn.aiedge</groupId>
     <artifactId>ai-ready-backend</artifactId>
-    <version>0.3.11</version>
+    <version>0.3.13</version>
   </parent>
   <groupId>cn.aiedge.crm</groupId>
   <artifactId>crm</artifactId>
-  <version>0.3.11</version>
+  <version>0.3.13</version>
   <name>CRM 客户关系管理模块</name>
   <description>客户管理、报价、合同、营销活动统一管理</description>
   <licenses>

@@ -151,17 +151,90 @@
           </div>
         </template>
       </BillFormPage>
+
+      <!-- ═══ 配置弹窗（齿轮图标触发）：页面配置/录单默认值/打印设置 ═══ -->
+      <a-modal
+        v-model:open="showFormConfig"
+        title="配置"
+        :width="760"
+        :footer="null"
+        destroy-on-close
+      >
+        <a-tabs v-model:active-key="configModalTab" size="small">
+          <a-tab-pane key="pageConfig" tab="页面配置">
+            <p class="config-hint">勾选后自动保存，该设置对所有操作员生效</p>
+            <a-table
+              :columns="pageConfigTableColumns"
+              :data-source="pageConfigFields"
+              :pagination="false"
+              size="small"
+              row-key="key"
+            >
+              <template #bodyCell="{ column, record }">
+                <template v-if="column.key === 'visible'">
+                  <a-checkbox
+                    :checked="record.visible"
+                    @change="(e: any) => { pageConfig[record.key].visible = e.target.checked; saveFormConfig() }"
+                  />
+                </template>
+                <template v-if="column.key === 'enterJump'">
+                  <a-checkbox
+                    :checked="record.enterJump"
+                    @change="(e: any) => { pageConfig[record.key].enterJump = e.target.checked; saveFormConfig() }"
+                  />
+                </template>
+              </template>
+            </a-table>
+          </a-tab-pane>
+          <a-tab-pane key="defaultValues" tab="录单默认值">
+            <a-form layout="horizontal" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
+              <a-form-item label="默认仓库">
+                <a-select v-model:value="formData.defaultWarehouseId" show-search size="small" style="width:100%" :loading="loadingOptions" :options="(optionRefs.warehouses||[]).map((w:any)=>({label:w.name,value:w.id}))" @change="saveFormConfig" />
+              </a-form-item>
+              <a-form-item label="默认经手人">
+                <a-select v-model:value="formData.defaultHandlerId" show-search size="small" style="width:100%" :loading="loadingOptions" :options="(optionRefs.users||[]).map((u:any)=>({label:u.name,value:u.id}))" @change="saveFormConfig" />
+              </a-form-item>
+            </a-form>
+          </a-tab-pane>
+          <a-tab-pane key="printSettings" tab="打印设置">
+            <a-form layout="horizontal" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
+              <a-form-item label="打印模板">
+                <a-select v-model:value="formData.printTemplate" size="small" style="width:100%" @change="saveFormConfig">
+                  <a-select-option value="standard">标准模板</a-select-option>
+                  <a-select-option value="simple">简化模板</a-select-option>
+                  <a-select-option value="detailed">详细模板</a-select-option>
+                </a-select>
+              </a-form-item>
+              <a-form-item label="打印份数">
+                <a-input-number v-model:value="formData.printCopies" :precision="0" :min="1" size="small" style="width:100%" @change="saveFormConfig" />
+              </a-form-item>
+              <a-form-item label="纸张大小">
+                <a-select v-model:value="formData.printPaperSize" size="small" style="width:100%" @change="saveFormConfig">
+                  <a-select-option value="A4">A4</a-select-option>
+                  <a-select-option value="A5">A5</a-select-option>
+                  <a-select-option value="B5">B5</a-select-option>
+                </a-select>
+              </a-form-item>
+              <a-form-item label="打印选项">
+                <a-checkbox v-model:checked="formData.printAlwaysLastTemplate" @change="saveFormConfig">始终使用最后一次打印的模板，打印时不再选择</a-checkbox>
+                <a-checkbox v-model:checked="formData.printAfterSubmit" @change="saveFormConfig">记账后立即打印</a-checkbox>
+              </a-form-item>
+            </a-form>
+          </a-tab-pane>
+        </a-tabs>
+      </a-modal>
     </PageContainer>
   </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, nextTick } from 'vue'
+import { computed, ref, reactive, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import {
   HistoryOutlined, CheckOutlined, CheckCircleOutlined, CloseCircleOutlined,
-  PlusCircleOutlined, MinusCircleOutlined,
+  PlusCircleOutlined, MinusCircleOutlined, SettingOutlined,
+  ExportOutlined, ClockCircleOutlined,
 } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
@@ -171,7 +244,7 @@ import type { DetailColumnConfig, SummaryColumnDef } from '@/components/BillForm
 import type { BillHeaderConfig, BasicInfoField, SummaryRow, BillFooterConfig } from '@/components/BillFormPage/types'
 import { useBillForm } from '@/components/BillFormPage/useBillForm'
 import { useUserStore } from '@/stores/user'
-import { stockOutApi } from '@/api/erp'
+import { stockOutApi, userPageConfigApi } from '@/api/erp'
 
 defineOptions({ name: 'WarehouseStockOutForm' })
 
@@ -373,26 +446,106 @@ const headerConfig = computed<BillHeaderConfig>(() => ({
   title: '其他出库单',
   orderNo: formData.orderNo,
   showAttachment: true,
-  actions: [],
+  actions: [
+    { key: 'export', label: '导出', icon: ExportOutlined },
+    { key: 'history', label: '历史', icon: ClockCircleOutlined },
+    { key: 'config', label: '配置', icon: SettingOutlined },
+  ],
 }))
 
-// ── 基本信息字段 ──
-const basicInfoFields = computed<BasicInfoField[]>(() => [
+// ── 基本信息字段（全量可配置，含文档13字段，受页面配置显隐控制） ──
+const ALL_BASIC_INFO_FIELDS: BasicInfoField[] = [
   { key: 'orderNo', label: '编号', type: 'input', inlineLabel: true, width: 210, disabled: true },
-  { key: 'partnerId', label: '往来单位', type: 'select', inlineLabel: true, width: 210,
-    options: optionRefs.partners?.map((p: any) => ({ label: p.name, value: p.id })) || [],
-    searchBtn: '+Q', loading: loadingOptions.value },
-  { key: 'stockOutType', label: '出库类型', type: 'select', required: true, inlineLabel: true, width: 210,
-    options: STOCK_OUT_TYPE_OPTIONS },
-  { key: 'warehouseId', label: '出库仓库', type: 'select', required: true, inlineLabel: true, width: 210,
-    options: optionRefs.warehouses.map((w: any) => ({ label: w.name, value: w.id })),
-    searchBtn: '+Q', loading: loadingOptions.value },
-  { key: 'handlerId', label: '经手人', type: 'select', required: true, inlineLabel: true, width: 210,
-    options: optionRefs.users.map((u: any) => ({ label: u.name, value: u.id })),
-    searchBtn: '+Q', loading: loadingOptions.value },
+  { key: 'partnerId', label: '往来单位', type: 'select', inlineLabel: true, width: 210, searchBtn: '+Q' },
+  { key: 'partnerCode', label: '往来编号', type: 'display', inlineLabel: true, width: 130 },
+  { key: 'stockOutType', label: '出库类型', type: 'select', required: true, inlineLabel: true, width: 210, options: STOCK_OUT_TYPE_OPTIONS },
+  { key: 'warehouseId', label: '出库仓库', type: 'select', required: true, inlineLabel: true, width: 210, searchBtn: '+Q' },
+  { key: 'handlerId', label: '经手人', type: 'select', required: true, inlineLabel: true, width: 210, searchBtn: '+Q' },
+  { key: 'deptName', label: '部门', type: 'input', inlineLabel: true, width: 160 },
   { key: 'date', label: '单据日期', type: 'date', required: true, inlineLabel: true, width: 210 },
   { key: 'summary', label: '摘要', type: 'input', inlineLabel: true, width: 420 },
-])
+  { key: 'creatorName', label: '制单人', type: 'display', inlineLabel: true, width: 100 },
+  { key: 'createTime', label: '制单时间', type: 'display', inlineLabel: true, width: 170 },
+  { key: 'printCount', label: '打印次数', type: 'display', inlineLabel: true, width: 90 },
+]
+// 在 computed 内响应式绑定下拉选项
+const basicInfoFields = computed<BasicInfoField[]>(() =>
+  ALL_BASIC_INFO_FIELDS
+    .filter((f) => pageConfig[f.key]?.visible !== false)
+    .map((f) => {
+      if (f.key === 'partnerId') return { ...f, options: (optionRefs.partners || []).map((p: any) => ({ label: p.name, value: p.id })), loading: loadingOptions.value }
+      if (f.key === 'warehouseId') return { ...f, options: optionRefs.warehouses.map((w: any) => ({ label: w.name, value: w.id })), loading: loadingOptions.value }
+      if (f.key === 'handlerId') return { ...f, options: optionRefs.users.map((u: any) => ({ label: u.name, value: u.id })), loading: loadingOptions.value }
+      return f
+    })
+)
+
+// ── 页面配置弹窗（页面配置/录单默认值/打印设置） ──
+const showFormConfig = ref(false)
+const configModalTab = ref('pageConfig')
+type FieldConfig = { visible: boolean; enterJump: boolean }
+const pageConfig = reactive<Record<string, FieldConfig>>({})
+const DEFAULT_HIDDEN_PAGE_FIELDS: string[] = ['partnerCode', 'deptName', 'summary', 'creatorName', 'createTime', 'printCount']
+for (const f of ALL_BASIC_INFO_FIELDS) {
+  pageConfig[f.key] = { visible: !DEFAULT_HIDDEN_PAGE_FIELDS.includes(f.key), enterJump: ['select', 'date', 'number', 'input'].includes(f.type) }
+}
+const pageConfigTableColumns = [
+  { title: '字段', key: 'label', width: 160 },
+  { title: '显示名', key: 'displayName', width: 160 },
+  { title: '显示', key: 'visible', width: 60 },
+  { title: '回车跳转', key: 'enterJump', width: 80 },
+]
+const pageConfigFields = computed(() => ALL_BASIC_INFO_FIELDS.map((f) => ({
+  key: f.key, label: f.label, displayName: f.label,
+  visible: pageConfig[f.key]?.visible !== false,
+  enterJump: !!pageConfig[f.key]?.enterJump,
+})))
+
+const FORM_CONFIG_MODULE = 'stock-out-form'
+const FORM_CONFIG_PAGE = 'form'
+async function loadFormConfig() {
+  try {
+    const raw = await userPageConfigApi.get(FORM_CONFIG_MODULE, FORM_CONFIG_PAGE)
+    if (!raw) return
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
+    if (parsed.fields && typeof parsed.fields === 'object') {
+      Object.keys(parsed.fields).forEach((k) => {
+        if (pageConfig[k]) {
+          pageConfig[k].visible = parsed.fields[k].visible !== false
+          pageConfig[k].enterJump = !!parsed.fields[k].enterJump
+        }
+      })
+    }
+    if (parsed.defaults) {
+      Object.assign(formData, {
+        defaultWarehouseId: parsed.defaults.defaultWarehouseId,
+        defaultHandlerId: parsed.defaults.defaultHandlerId,
+        printTemplate: parsed.defaults.printTemplate,
+        printCopies: parsed.defaults.printCopies,
+        printPaperSize: parsed.defaults.printPaperSize,
+      })
+    }
+  } catch { /* API 不可用时保持默认 */ }
+}
+async function saveFormConfig() {
+  const payload = {
+    fields: Object.fromEntries(Object.entries(pageConfig).map(([k, v]) => [k, { visible: v.visible, enterJump: v.enterJump }])),
+    defaults: {
+      defaultWarehouseId: formData.defaultWarehouseId,
+      defaultHandlerId: formData.defaultHandlerId,
+      printTemplate: formData.printTemplate,
+      printCopies: formData.printCopies,
+      printPaperSize: formData.printPaperSize,
+    },
+  }
+  await userPageConfigApi.save(FORM_CONFIG_MODULE, FORM_CONFIG_PAGE, JSON.stringify(payload))
+}
+// 录单默认值 / 打印设置 初始化
+for (const k of ['defaultWarehouseId', 'defaultHandlerId', 'printTemplate', 'printCopies', 'printPaperSize']) {
+  if (formData[k] === undefined) formData[k] = k === 'printTemplate' ? 'standard' : (k === 'printCopies' ? 1 : (k === 'printPaperSize' ? 'A4' : undefined))
+}
+if (formData.printAlwaysLastTemplate === undefined) formData.printAlwaysLastTemplate = false
+if (formData.printAfterSubmit === undefined) formData.printAfterSubmit = false
 
 // ── 摘要面板 ──
 const summaryConfig = computed<SummaryRow[]>(() => [
@@ -412,17 +565,23 @@ const footerConfig = computed<BillFooterConfig>(() => ({
   saving: saving.value,
 }))
 
-// ── 明细表格列 ──
-const detailColumns: DetailColumnConfig[] = [
+// ── 明细表格列（全部45列，默认显20列，非默认列 defaultHidden 供配置显示） ──
+const ALL_DETAIL_COLUMNS: DetailColumnConfig[] = [
   { key: 'rowNo', title: '', type: 'rowNo', width: 40, fixed: 'left' },
-  { key: 'action', title: '操作', type: 'action', slotName: 'actionCell', width: 60, fixed: 'left' },
+  { key: 'action', title: '操作', type: 'action', slotName: 'actionCell', width: 90, fixed: 'left' },
+  { key: 'image', title: '图片', type: 'input', width: 70, defaultHidden: true },
   { key: 'productName', title: '商品名称', type: 'slot', slotName: 'productCell', width: 220 },
   { key: 'itemCode', title: '货号', type: 'input', width: 110 },
   { key: 'barcode', title: '条码', type: 'input', width: 110 },
-  { key: 'specification', title: '规格', type: 'input', width: 100 },
+  { key: 'specification', title: '规格', type: 'input', width: 100, defaultHidden: true },
+  { key: 'model', title: '型号', type: 'input', width: 80, defaultHidden: true },
+  { key: 'origin', title: '产地', type: 'input', width: 80, defaultHidden: true },
+  { key: 'region', title: '区域', type: 'input', width: 80, defaultHidden: true },
   { key: 'location', title: '货位', type: 'input', width: 90 },
   { key: 'unit', title: '计价单位', type: 'input', width: 80 },
   { key: 'availableStock', title: '可用库存', type: 'number', width: 90, precision: 2, readonly: true },
+  { key: 'availableStockConverted', title: '可用库存换算结果', type: 'number', width: 130, precision: 2, defaultHidden: true },
+  { key: 'bookStock', title: '账面库存', type: 'number', width: 90, precision: 2, defaultHidden: true },
   { key: 'batchCode', title: '批次条码', type: 'input', width: 120 },
   { key: 'productionDate', title: '生产日期', type: 'input', width: 110 },
   { key: 'shelfLife', title: '保质期', type: 'input', width: 80 },
@@ -433,10 +592,30 @@ const detailColumns: DetailColumnConfig[] = [
   { key: 'bigPack', title: '大包装', type: 'number', width: 80, precision: 2 },
   { key: 'midPack', title: '中包装', type: 'number', width: 80, precision: 2 },
   { key: 'smallPack', title: '小包装', type: 'number', width: 80, precision: 2 },
+  { key: 'retailPrice', title: '零售价', type: 'number', width: 90, precision: 2, defaultHidden: true },
+  { key: 'wholesalePrice', title: '批发价', type: 'number', width: 90, precision: 2, defaultHidden: true },
   { key: 'unitPrice', title: '单价', type: 'number', width: 100, precision: 2 },
   { key: 'amount', title: '金额', type: 'number', width: 110, precision: 2, readonly: true },
+  { key: 'smallUnit', title: '小单位', type: 'input', width: 70, defaultHidden: true },
+  { key: 'smallUnitPrice', title: '小单位单价', type: 'number', width: 100, precision: 2, defaultHidden: true },
+  { key: 'smallUnitQuantity', title: '小单位数量', type: 'number', width: 100, precision: 2, defaultHidden: true },
   { key: 'remark', title: '备注', type: 'input', width: 150 },
+  { key: 'priceLevel1', title: '价格等级1', type: 'number', width: 110, precision: 2, defaultHidden: true },
+  { key: 'priceLevel2', title: '价格等级2', type: 'number', width: 110, precision: 2, defaultHidden: true },
+  { key: 'priceLevel3', title: '价格等级3', type: 'number', width: 110, precision: 2, defaultHidden: true },
+  { key: 'priceLevel4', title: '价格等级4', type: 'number', width: 110, precision: 2, defaultHidden: true },
+  { key: 'priceLevel5', title: '价格等级5', type: 'number', width: 110, precision: 2, defaultHidden: true },
+  { key: 'priceLevel6', title: '价格等级6', type: 'number', width: 110, precision: 2, defaultHidden: true },
+  { key: 'priceLevel7', title: '价格等级7', type: 'number', width: 110, precision: 2, defaultHidden: true },
+  { key: 'priceLevel8', title: '价格等级8', type: 'number', width: 110, precision: 2, defaultHidden: true },
+  { key: 'docExtNum1', title: '单据自定义1(数字)', type: 'number', width: 130, precision: 2, defaultHidden: true },
+  { key: 'docExtNum2', title: '单据自定义2(数字)', type: 'number', width: 130, precision: 2, defaultHidden: true },
+  { key: 'docExtNum3', title: '单据自定义3(数字)', type: 'number', width: 130, precision: 2, defaultHidden: true },
+  { key: 'docExtText1', title: '单据自定义4(文本)', type: 'input', width: 130, defaultHidden: true },
+  { key: 'docExtText2', title: '单据自定义5(文本)', type: 'input', width: 130, defaultHidden: true },
 ]
+// 默认显示：rowNo + 操作 + 文档默认20列
+const detailColumns: DetailColumnConfig[] = ALL_DETAIL_COLUMNS.filter((c) => !c.defaultHidden)
 
 const tableSummaryColumns = computed(() => [
   { key: 'quantity', value: totalQuantity.value, highlight: true },
@@ -487,6 +666,28 @@ function handleAction(actionKey: string) {
     case 'history':
       router.push('/erp/stock-out')
       break
+    case 'config':
+      showFormConfig.value = true
+      break
+    case 'export': {
+      const items = formData.products || []
+      if (items.length === 0) { message.warning('当前没有可导出的明细'); return }
+      const headers = ['商品名称', '货号', '条码', '规格', '数量', '单价', '金额']
+      const rows = items.map((p: any) => [
+        p.productName || '', p.itemCode || '', p.barcode || '', p.specification || '',
+        p.quantity ?? 0, p.unitPrice ?? 0, p.amount ?? 0,
+      ])
+      const csv = [headers.join(','), ...rows.map((r: any[]) => r.join(','))].join('\n')
+      const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `其他出库单_${formData.orderNo || '明细'}.csv`
+      a.click()
+      URL.revokeObjectURL(url)
+      message.success('导出成功')
+      break
+    }
   }
 }
 
@@ -562,6 +763,7 @@ function formatNow() {
 }
 
 onMounted(() => {
+  loadFormConfig()
   if (effectiveMode.value !== 'edit' && formData.products.length === 0) {
     for (let i = 0; i < 5; i++) handleAddProduct()
   }
@@ -606,4 +808,5 @@ onMounted(() => {
 .remark-label { font-size: 12px; color: #595959; white-space: nowrap; min-width: 60px; }
 .remark-input { flex: 1; }
 .doc-info-row { display: flex; align-items: center; gap: 16px; padding: 6px 0; font-size: 12px; color: #8c8c8c; border-top: 1px solid #f0f0f0; flex-wrap: wrap; }
+.config-hint { font-size: 12px; color: #8c8c8c; margin: 0 0 8px; }
 </style>

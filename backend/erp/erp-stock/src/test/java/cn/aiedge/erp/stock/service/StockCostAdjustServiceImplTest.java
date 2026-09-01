@@ -1,6 +1,8 @@
 package cn.aiedge.erp.stock.service;
 
 import cn.aiedge.common.exception.BusinessException;
+import cn.aiedge.erp.stock.dto.StockCostAdjustItemVO;
+import cn.aiedge.erp.stock.dto.StockCostAdjustQuery;
 import cn.aiedge.erp.stock.entity.StockCostAdjust;
 import cn.aiedge.erp.stock.entity.StockCostAdjustItem;
 import cn.aiedge.erp.stock.mapper.StockCostAdjustItemMapper;
@@ -17,6 +19,7 @@ import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -45,12 +48,13 @@ class StockCostAdjustServiceImplTest {
     void setUp() {
         testAdjust = new StockCostAdjust();
         testAdjust.setId(1L);
-        testAdjust.setAdjustNo("CA20260610TEST01");
+        testAdjust.setAdjustNo("CBTJD-202609010001");
         testAdjust.setWarehouseId(10L);
         testAdjust.setAdjustType(1);
         testAdjust.setStatus(0);
         testAdjust.setReasonType("1");
         testAdjust.setReasonDesc("市场波动");
+        testAdjust.setAdjustDate(LocalDate.now());
         testAdjust.setTotalAdjustAmount(BigDecimal.ZERO);
         testAdjust.setApplicantId(100L);
         testAdjust.setApplyTime(LocalDateTime.now());
@@ -69,16 +73,37 @@ class StockCostAdjustServiceImplTest {
     }
 
     @Test
-    @DisplayName("分页查询")
+    @DisplayName("生成单号前缀")
+    void testGenerateNo() {
+        String no = adjustService.generateNo();
+        assertNotNull(no);
+        assertTrue(no.startsWith("CBTJD-"));
+    }
+
+    @Test
+    @DisplayName("分页查询(按单据)")
     void testPageList() {
         Page<StockCostAdjust> expectedPage = new Page<>(1, 10);
         expectedPage.setRecords(List.of(testAdjust));
         when(adjustMapper.selectPage(any(Page.class), any(LambdaQueryWrapper.class)))
                 .thenReturn(expectedPage);
 
-        Page<StockCostAdjust> result = adjustService.pageList(null, null, null, 1, 10);
+        StockCostAdjustQuery query = new StockCostAdjustQuery();
+        query.setAdjustNo("CBTJD");
+        Page<StockCostAdjust> result = adjustService.pageList(query);
         assertNotNull(result);
         assertEquals(1, result.getRecords().size());
+    }
+
+    @Test
+    @DisplayName("分页查询(按明细) - 无单据")
+    void testPageDetailEmpty() {
+        StockCostAdjustQuery query = new StockCostAdjustQuery();
+        query.setAdjustNo("NOTEXIST");
+        when(adjustMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of());
+        Page<StockCostAdjustItemVO> result = adjustService.pageDetail(query);
+        assertNotNull(result);
+        assertEquals(0, result.getRecords().size());
     }
 
     @Test
@@ -86,6 +111,7 @@ class StockCostAdjustServiceImplTest {
     void testCreateAdjust() {
         try (MockedStatic<StpUtil> stpUtil = mockStatic(StpUtil.class)) {
             stpUtil.when(StpUtil::getLoginIdAsLong).thenReturn(100L);
+            stpUtil.when(StpUtil::getLoginId).thenReturn(100L);
             when(adjustMapper.insert(any(StockCostAdjust.class))).thenAnswer(invocation -> {
                 StockCostAdjust a = invocation.getArgument(0);
                 a.setId(2L);
@@ -95,7 +121,7 @@ class StockCostAdjustServiceImplTest {
             StockCostAdjust adjust = new StockCostAdjust();
             adjust.setWarehouseId(10L);
             adjust.setAdjustType(1);
-            adjust.setAdjustDate(java.time.LocalDateTime.now());
+            adjust.setAdjustDate(LocalDate.now());
             adjust.setReasonType("2");
             adjust.setReasonDesc("供应商调价");
 
@@ -117,19 +143,57 @@ class StockCostAdjustServiceImplTest {
     }
 
     @Test
+    @DisplayName("更新成本调价单 - 草稿状态")
+    void testUpdateAdjust() {
+        try (MockedStatic<StpUtil> stpUtil = mockStatic(StpUtil.class)) {
+            stpUtil.when(StpUtil::getLoginIdAsLong).thenReturn(100L);
+            stpUtil.when(StpUtil::getLoginId).thenReturn(100L);
+            testAdjust.setStatus(0);
+            when(adjustMapper.selectById(1L)).thenReturn(testAdjust);
+
+            StockCostAdjust adjust = new StockCostAdjust();
+            adjust.setWarehouseId(10L);
+            adjust.setAdjustType(1);
+            adjust.setAdjustDate(LocalDate.now());
+            adjust.setReasonType("1");
+            adjust.setReasonDesc("市场波动");
+
+            StockCostAdjust result = adjustService.updateAdjust(1L, adjust, testItems);
+
+            assertNotNull(result);
+            assertEquals(1L, result.getId());
+            assertEquals(0, result.getStatus());
+            verify(adjustMapper).updateById(any(StockCostAdjust.class));
+        }
+    }
+
+    @Test
+    @DisplayName("更新成本调价单 - 已执行不可改")
+    void testUpdateAdjustLocked() {
+        testAdjust.setStatus(3);
+        when(adjustMapper.selectById(1L)).thenReturn(testAdjust);
+        StockCostAdjust adjust = new StockCostAdjust();
+        assertThrows(BusinessException.class, () -> adjustService.updateAdjust(1L, adjust, testItems));
+    }
+
+    @Test
     @DisplayName("执行成本调价 - 计算差价")
     void testExecuteCalculateDiff() {
-        testAdjust.setStatus(2);
-        when(adjustMapper.selectById(1L)).thenReturn(testAdjust);
-        when(adjustItemMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(testItems);
+        try (MockedStatic<StpUtil> stpUtil = mockStatic(StpUtil.class)) {
+            stpUtil.when(StpUtil::getLoginIdAsLong).thenReturn(100L);
+            stpUtil.when(StpUtil::getLoginId).thenReturn(100L);
+            testAdjust.setStatus(2);
+            when(adjustMapper.selectById(1L)).thenReturn(testAdjust);
+            when(adjustItemMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(testItems);
 
-        StockCostAdjust result = adjustService.execute(1L);
+            StockCostAdjust result = adjustService.execute(1L);
 
-        assertEquals(3, result.getStatus());
-        // 价差 = (12 - 10) * 100 = 200
-        assertEquals(new BigDecimal("200.00"), result.getTotalAdjustAmount());
-        verify(adjustItemMapper).updateById(argThat((StockCostAdjustItem item) ->
-                item.getDiffAmount().compareTo(new BigDecimal("200")) == 0));
+            assertEquals(3, result.getStatus());
+            // 价差 = (12 - 10) * 100 = 200
+            assertEquals(new BigDecimal("200.00"), result.getTotalAdjustAmount());
+            verify(adjustItemMapper).updateById(argThat((StockCostAdjustItem item) ->
+                    item.getDiffAmount().compareTo(new BigDecimal("200")) == 0));
+        }
     }
 
     @Test

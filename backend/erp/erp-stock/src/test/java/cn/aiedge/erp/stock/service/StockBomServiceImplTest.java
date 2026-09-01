@@ -3,6 +3,7 @@ package cn.aiedge.erp.stock.service;
 import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.stock.entity.StockBom;
 import cn.aiedge.erp.stock.entity.StockBomItem;
+import cn.aiedge.erp.stock.mapper.ProductMapper;
 import cn.aiedge.erp.stock.mapper.StockBomItemMapper;
 import cn.aiedge.erp.stock.mapper.StockBomMapper;
 import cn.aiedge.erp.stock.service.impl.StockBomServiceImpl;
@@ -33,6 +34,9 @@ class StockBomServiceImplTest {
 
     @Mock
     private StockBomItemMapper bomItemMapper;
+
+    @Mock
+    private ProductMapper productMapper;
 
     @InjectMocks
     private StockBomServiceImpl bomService;
@@ -74,7 +78,7 @@ class StockBomServiceImplTest {
         when(bomMapper.selectPage(any(Page.class), any(LambdaQueryWrapper.class)))
                 .thenReturn(expectedPage);
 
-        Page<StockBom> result = bomService.pageList(null, null, null, null, 1, 10);
+        Page<StockBom> result = bomService.pageList(null, null, null, null, null, 1, 10);
         assertNotNull(result);
         assertEquals(1, result.getRecords().size());
     }

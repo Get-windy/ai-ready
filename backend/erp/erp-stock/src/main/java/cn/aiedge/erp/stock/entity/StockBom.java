@@ -32,6 +32,21 @@ public class StockBom {
 
     private String productUnit;
 
+    /** 成品条码 */
+    private String barcode;
+
+    /** 成品产地 */
+    private String origin;
+
+    /** 成品品牌 */
+    private String brand;
+
+    /** 口味 */
+    private String taste;
+
+    /** 成品型号 */
+    private String model;
+
     private BigDecimal outputQuantity;
 
     private BigDecimal totalCost;

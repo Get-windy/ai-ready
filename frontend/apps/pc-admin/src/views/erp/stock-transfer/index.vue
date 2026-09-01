@@ -320,7 +320,7 @@
     <PageConfigPanel
       :open="showPageConfig"
       :query-fields-config="activeQueryFields"
-      :function-buttons-config="functionButtonConfig"
+      :function-buttons-config="activeFunctionButtons"
       :storage-key="activePageConfigStorageKey"
       @update:open="showPageConfig = $event"
       @change="handlePageConfigChange"
@@ -479,7 +479,7 @@ const DEFAULT_DETAIL_QUERY_FIELDS: QueryFieldSetting[] = [
 ]
 
 // 默认功能按钮（按单据：新增/刷新/批量打印/打印(F8)/导出/配置）
-const DEFAULT_FUNCTION_BUTTONS: FunctionButtonSetting[] = [
+const DEFAULT_DOC_FUNCTION_BUTTONS: FunctionButtonSetting[] = [
   { key: 'add', label: '新增', enabled: true },
   { key: 'refresh', label: '刷新', enabled: true },
   { key: 'batchPrint', label: '批量打印', enabled: true },
@@ -487,17 +487,34 @@ const DEFAULT_FUNCTION_BUTTONS: FunctionButtonSetting[] = [
   { key: 'export', label: '导出', enabled: true },
   { key: 'config', label: '配置', enabled: true },
 ]
+// 默认功能按钮（按明细：新增/刷新/打印(F8)/导出/配置，无批量打印）
+const DEFAULT_DETAIL_FUNCTION_BUTTONS: FunctionButtonSetting[] = [
+  { key: 'add', label: '新增', enabled: true },
+  { key: 'refresh', label: '刷新', enabled: true },
+  { key: 'printF8', label: '打印(F8)', enabled: true },
+  { key: 'export', label: '导出', enabled: true },
+  { key: 'config', label: '配置', enabled: true },
+]
 
 const docQueryConfig = ref<QueryFieldSetting[]>(DEFAULT_DOC_QUERY_FIELDS.map(f => ({ ...f })))
 const detailQueryConfig = ref<QueryFieldSetting[]>(DEFAULT_DETAIL_QUERY_FIELDS.map(f => ({ ...f })))
-const functionButtonConfig = ref<FunctionButtonSetting[]>(DEFAULT_FUNCTION_BUTTONS.map(f => ({ ...f })))
+const docFunctionButtonConfig = ref<FunctionButtonSetting[]>(DEFAULT_DOC_FUNCTION_BUTTONS.map(f => ({ ...f })))
+const detailFunctionButtonConfig = ref<FunctionButtonSetting[]>(DEFAULT_DETAIL_FUNCTION_BUTTONS.map(f => ({ ...f })))
 
 const activeQueryFields = computed(() =>
   activeTab.value === 'doc' ? docQueryConfig.value : detailQueryConfig.value
 )
+const activeFunctionButtons = computed(() =>
+  activeTab.value === 'doc' ? docFunctionButtonConfig.value : detailFunctionButtonConfig.value
+)
 const activePageConfigStorageKey = computed(() =>
   `${PAGE_CONFIG_STORAGE_KEY}-${activeTab.value}`
 )
+
+const DEFAULT_QUERY_FIELDS_BY_TAB = { doc: DEFAULT_DOC_QUERY_FIELDS, detail: DEFAULT_DETAIL_QUERY_FIELDS }
+const QUERY_CONFIG_BY_TAB = { doc: docQueryConfig, detail: detailQueryConfig }
+const FUNCTION_CONFIG_BY_TAB = { doc: docFunctionButtonConfig, detail: detailFunctionButtonConfig }
+const DEFAULT_FUNCTION_BYTAB = { doc: DEFAULT_DOC_FUNCTION_BUTTONS, detail: DEFAULT_DETAIL_FUNCTION_BUTTONS }
 
 function loadPageConfig() {
   try {
@@ -521,11 +538,21 @@ function loadPageConfig() {
         })
       }
     }
-    const btnRaw = localStorage.getItem(PAGE_CONFIG_STORAGE_KEY + '-buttons')
-    if (btnRaw) {
-      const parsed = JSON.parse(btnRaw) as PageConfigData
+    const docBtnRaw = localStorage.getItem(PAGE_CONFIG_STORAGE_KEY + '-buttons-doc')
+    if (docBtnRaw) {
+      const parsed = JSON.parse(docBtnRaw) as PageConfigData
       if (parsed.functionButtons) {
-        functionButtonConfig.value = DEFAULT_FUNCTION_BUTTONS.map(bf => {
+        docFunctionButtonConfig.value = DEFAULT_DOC_FUNCTION_BUTTONS.map(bf => {
+          const saved = parsed.functionButtons!.find((f: FunctionButtonSetting) => f.key === bf.key)
+          return saved ? { ...bf, ...saved } : { ...bf }
+        })
+      }
+    }
+    const detailBtnRaw = localStorage.getItem(PAGE_CONFIG_STORAGE_KEY + '-buttons-detail')
+    if (detailBtnRaw) {
+      const parsed = JSON.parse(detailBtnRaw) as PageConfigData
+      if (parsed.functionButtons) {
+        detailFunctionButtonConfig.value = DEFAULT_DETAIL_FUNCTION_BUTTONS.map(bf => {
           const saved = parsed.functionButtons!.find((f: FunctionButtonSetting) => f.key === bf.key)
           return saved ? { ...bf, ...saved } : { ...bf }
         })
@@ -538,11 +565,15 @@ function loadPageConfig() {
 
 function handlePageConfigChange(config: any) {
   const tabKey = activeTab.value === 'doc' ? '-doc' : '-detail'
+  const defaultQuery = DEFAULT_QUERY_FIELDS_BY_TAB[activeTab.value]
+  const queryCfg = QUERY_CONFIG_BY_TAB[activeTab.value]
+  const funcCfg = FUNCTION_CONFIG_BY_TAB[activeTab.value]
+  const defaultFunc = DEFAULT_FUNCTION_BYTAB[activeTab.value]
   localStorage.setItem(PAGE_CONFIG_STORAGE_KEY + tabKey, JSON.stringify({
-    queryFields: config.queryFields || [],
+    queryFields: config.queryFields || queryCfg.value || defaultQuery,
   }))
-  localStorage.setItem(PAGE_CONFIG_STORAGE_KEY + '-buttons', JSON.stringify({
-    functionButtons: config.functionButtons || functionButtonConfig.value,
+  localStorage.setItem(PAGE_CONFIG_STORAGE_KEY + '-buttons-' + activeTab.value, JSON.stringify({
+    functionButtons: config.functionButtons || funcCfg.value || defaultFunc,
   }))
   loadPageConfig()
 }

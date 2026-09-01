@@ -1,6 +1,8 @@
 package cn.aiedge.erp.stock.service;
 
 import cn.aiedge.common.exception.BusinessException;
+import cn.aiedge.erp.stock.dto.StockTransferCreateDTO;
+import cn.aiedge.erp.stock.dto.StockTransferItemDTO;
 import cn.aiedge.erp.stock.entity.StockTransfer;
 import cn.aiedge.erp.stock.entity.StockTransferItem;
 import cn.aiedge.erp.stock.mapper.StockTransferItemMapper;
@@ -90,20 +92,30 @@ class StockTransferServiceImplTest {
                 t.setId(2L);
                 return 1;
             });
+            StockTransfer saved = new StockTransfer();
+            saved.setId(2L);
+            saved.setTransferNo("TR20260610TEST01");
+            saved.setStatus(0);
+            saved.setFromWarehouseId(10L);
+            saved.setToWarehouseId(20L);
+            saved.setTenantId(100L);
+            when(transferMapper.selectById(2L)).thenReturn(saved);
+            when(transferItemMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(testItems);
+            when(transferMapper.updateById(any(StockTransfer.class))).thenReturn(1);
 
-            StockTransfer transfer = new StockTransfer();
-            transfer.setFromWarehouseId(10L);
-            transfer.setToWarehouseId(20L);
-            transfer.setRemark("常规调拨");
+            StockTransferCreateDTO dto = new StockTransferCreateDTO();
+            dto.setFromWarehouseId(10L);
+            dto.setToWarehouseId(20L);
+            dto.setRemark("常规调拨");
+            StockTransferItemDTO itemDto = new StockTransferItemDTO();
+            itemDto.setProductId(1001L);
+            itemDto.setProductCode("P001");
+            itemDto.setProductName("产品A");
+            itemDto.setQuantity(new BigDecimal("50"));
+            itemDto.setUnitCost(new BigDecimal("100"));
+            dto.setItems(List.of(itemDto));
 
-            StockTransferItem item = new StockTransferItem();
-            item.setProductId(1001L);
-            item.setProductCode("P001");
-            item.setProductName("产品A");
-            item.setQuantity(new BigDecimal("50"));
-            item.setUnitCost(new BigDecimal("100"));
-
-            StockTransfer result = transferService.createTransfer(transfer, List.of(item));
+            StockTransfer result = transferService.createTransfer(dto);
 
             assertNotNull(result);
             assertEquals(0, result.getStatus());
@@ -123,12 +135,20 @@ class StockTransferServiceImplTest {
                 t.setId(3L);
                 return 1;
             });
+            StockTransfer saved = new StockTransfer();
+            saved.setId(3L);
+            saved.setTransferNo("TR20260610TEST02");
+            saved.setStatus(0);
+            saved.setTenantId(100L);
+            when(transferMapper.selectById(3L)).thenReturn(saved);
+            when(transferItemMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of());
+            when(transferMapper.updateById(any(StockTransfer.class))).thenReturn(1);
 
-            StockTransfer transfer = new StockTransfer();
-            transfer.setFromWarehouseId(10L);
-            transfer.setToWarehouseId(20L);
+            StockTransferCreateDTO dto = new StockTransferCreateDTO();
+            dto.setFromWarehouseId(10L);
+            dto.setToWarehouseId(20L);
 
-            StockTransfer result = transferService.createTransfer(transfer, null);
+            StockTransfer result = transferService.createTransfer(dto);
 
             assertNotNull(result);
             assertEquals(0, result.getTotalItems());

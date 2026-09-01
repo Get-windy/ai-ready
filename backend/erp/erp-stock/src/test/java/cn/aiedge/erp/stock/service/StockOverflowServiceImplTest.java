@@ -143,6 +143,7 @@ class StockOverflowServiceImplTest {
         when(overflowMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(testOverflow));
         when(overflowItemMapper.selectPage(any(Page.class), any(LambdaQueryWrapper.class))).thenReturn(itemPage);
         when(overflowMapper.selectBatchIds(anyCollection())).thenReturn(List.of(testOverflow));
+        when(overflowMapper.selectByIds(anyCollection())).thenReturn(List.of(testOverflow));
 
         Page<StockOverflowItemVO> result = overflowService.pageDetail(new StockOverflowQuery());
 

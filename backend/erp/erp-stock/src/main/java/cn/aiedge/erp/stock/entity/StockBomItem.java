@@ -36,6 +36,45 @@ public class StockBomItem {
     /** 损耗率（生产模板/组装拆分配套） */
     private BigDecimal wastageRate;
 
+    /** 图片 */
+    private String imageUrl;
+
+    /** 型号 */
+    private String model;
+
+    /** 产地 */
+    private String origin;
+
+    /** 品牌 */
+    private String brand;
+
+    /** 条码 */
+    private String barcode;
+
+    /** 小单位（辅助计量单位） */
+    private String smallUnit;
+
+    /** 小单位数量 */
+    private BigDecimal smallUnitQty;
+
+    /** 小单位单价 */
+    private BigDecimal smallUnitPrice;
+
+    /** 单据自定义1(数字) */
+    private BigDecimal extNum1;
+
+    /** 单据自定义2(数字) */
+    private BigDecimal extNum2;
+
+    /** 单据自定义3(数字) */
+    private BigDecimal extNum3;
+
+    /** 单据自定义4(文本) */
+    private String extText4;
+
+    /** 单据自定义5(文本) */
+    private String extText5;
+
     private String remark;
 
     @TableLogic

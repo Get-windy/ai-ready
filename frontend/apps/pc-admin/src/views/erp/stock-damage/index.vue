@@ -113,11 +113,8 @@
                       <a-select v-model:value="searchParams.status" size="small" allow-clear>
                         <a-select-option value="">全部</a-select-option>
                         <a-select-option :value="0">草稿</a-select-option>
-                        <a-select-option :value="1">待审批</a-select-option>
-                        <a-select-option :value="2">已审核</a-select-option>
-                        <a-select-option :value="3">已出库</a-select-option>
-                        <a-select-option :value="4">已拒绝</a-select-option>
-                        <a-select-option :value="5">已取消</a-select-option>
+                        <a-select-option :value="1">已记账</a-select-option>
+                        <a-select-option :value="2">已作废</a-select-option>
                       </a-select>
                     </div>
                   </div>
@@ -175,11 +172,8 @@
                       <a-select v-model:value="searchParams.status" size="small" allow-clear>
                         <a-select-option value="">全部</a-select-option>
                         <a-select-option :value="0">草稿</a-select-option>
-                        <a-select-option :value="1">待审批</a-select-option>
-                        <a-select-option :value="2">已审核</a-select-option>
-                        <a-select-option :value="3">已出库</a-select-option>
-                        <a-select-option :value="4">已拒绝</a-select-option>
-                        <a-select-option :value="5">已取消</a-select-option>
+                        <a-select-option :value="1">已记账</a-select-option>
+                        <a-select-option :value="2">已作废</a-select-option>
                       </a-select>
                     </div>
                   </div>
@@ -254,17 +248,11 @@
                   <a-button type="link" size="small" @click="handleView(record)">查看</a-button>
                   <a-button v-if="record.status === 0" type="link" size="small" @click="handleEdit(record)">修改</a-button>
                   <a-button
-                    v-if="record.status === 1"
-                    type="link"
-                    size="small"
-                    @click="handleApprove(record)"
-                  >审批</a-button>
-                  <a-button
-                    v-if="record.status === 2"
+                    v-if="record.status === 0"
                     type="link"
                     size="small"
                     @click="handleComplete(record)"
-                  >出库</a-button>
+                  >记帐</a-button>
                   <a-button
                     v-if="record.status === 0"
                     type="link"
@@ -602,14 +590,11 @@ function handleColumnConfigReset() {
   else resetDetailSettings()
 }
 
-// ═══ 状态映射（报损单：草稿/待审批/已审核/已出库/已拒绝/已取消） ═══
+// ═══ 状态映射（报损单：草稿/已记账/已作废） ═══
 const STATUS_MAP: Record<number, { text: string; color: string }> = {
   0: { text: '草稿', color: 'default' },
-  1: { text: '待审批', color: 'orange' },
-  2: { text: '已审核', color: 'blue' },
-  3: { text: '已出库', color: 'green' },
-  4: { text: '已拒绝', color: 'red' },
-  5: { text: '已取消', color: 'default' },
+  1: { text: '已记账', color: 'green' },
+  2: { text: '已作废', color: 'red' },
 }
 function getStatusText(status: number): string {
   return STATUS_MAP[status]?.text || '未知'
@@ -746,36 +731,19 @@ function handleDelete(record: any) {
     },
   })
 }
-function handleApprove(record: any) {
-  Modal.confirm({
-    title: '审批确认',
-    content: `确定审批通过报损单 ${record.damageNo} 吗？`,
-    okText: '审批通过',
-    cancelText: '取消',
-    onOk: async () => {
-      try {
-        await stockDamageApi.approve(record.id)
-        message.success('审批成功')
-        fetchData()
-      } catch (error: any) {
-        message.error(error?.response?.data?.message || '审批失败')
-      }
-    },
-  })
-}
 function handleComplete(record: any) {
   Modal.confirm({
-    title: '出库确认',
-    content: `确定完成报损单 ${record.damageNo} 的库存出库记账操作吗？记账后库存生效。`,
-    okText: '确认出库',
+    title: '记帐确认',
+    content: `确认对报损单 ${record.damageNo} 记帐吗？记帐后库存生效扣减。`,
+    okText: '确认记帐',
     cancelText: '取消',
     onOk: async () => {
       try {
         await stockDamageApi.complete(record.id)
-        message.success('出库完成')
+        message.success('记帐完成')
         fetchData()
       } catch (error: any) {
-        message.error(error?.response?.data?.message || '出库失败')
+        message.error(error?.response?.data?.message || '记帐失败')
       }
     },
   })

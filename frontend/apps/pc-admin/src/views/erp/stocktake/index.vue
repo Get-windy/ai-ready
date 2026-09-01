@@ -1,1244 +1,848 @@
 <template>
-  <ErrorBoundary
-    @reset="fetchData"
-    @error="handleError"
-  >
+  <ErrorBoundary @error="handleError">
     <PageContainer full-height>
-      <template #header>
-        <div class="stocktake-header">
-          <div class="stocktake-header__left">
-            <span class="stocktake-header__breadcrumb">ERP / 库存管理 / 库存盘点</span>
-            <h2 class="stocktake-header__title">
-              库存盘点
-            </h2>
-          </div>
-          <div class="stocktake-header__right">
-            <a-space :size="12">
-              <span
-                v-if="autoRefreshCountdown > 0"
-                class="auto-refresh-badge"
-              >
-                <SyncOutlined /> {{ autoRefreshCountdown }}s
-              </span>
-              <span class="data-status">
-                <a-badge :status="loading ? 'processing' : 'success'" />
-                <span
-                  v-if="lastUpdateTime"
-                  class="update-time"
-                >
-                  数据更新: {{ lastUpdateTime }}
-                </span>
-              </span>
-              <span class="shortcut-hints">
-                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-              </span>
-              <a-button
-                size="small"
-                :loading="refreshLoading"
-                @click="debounceClick('refresh', fetchData)"
-              >
-                <template #icon>
-                  <ReloadOutlined />
-                </template>
-                刷新
-              </a-button>
-            </a-space>
-          </div>
-        </div>
-      </template>
-
-      <!-- 统计卡片 -->
-      <a-row
-        :gutter="16"
-        style="margin-bottom: 16px;"
+      <CategoryListLayout
+        :tabs="tabs"
+        :active-tab="activeTab"
+        :show-category-panel="false"
+        :show-table-footer="true"
+        @tab-change="handleTabChange"
       >
-        <a-col :span="6">
-          <div class="summary-card">
-            <div
-              class="summary-icon"
-              style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);"
-            >
-              <FileTextOutlined />
-            </div>
-            <div class="summary-content">
-              <div class="summary-title">
-                盘点单总数
-              </div>
-              <div class="summary-value">
-                {{ statistics.totalCount }}
-              </div>
-            </div>
+        <!-- ═══ 工具栏左侧：查询方案 + 快捷日期 ═══ -->
+        <template #toolbar-left>
+          <div class="query-scheme-wrap">
+            <a-select v-model:value="queryScheme" style="width: 140px" size="small" placeholder="--查询方案--">
+              <a-select-option value="">--查询方案--</a-select-option>
+            </a-select>
+            <a-button type="link" size="small" style="padding: 0 4px"><PlusOutlined /></a-button>
           </div>
-        </a-col>
-        <a-col :span="6">
-          <div class="summary-card">
-            <div
-              class="summary-icon"
-              style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);"
-            >
-              <ClockCircleOutlined />
-            </div>
-            <div class="summary-content">
-              <div class="summary-title">
-                待审核
-              </div>
-              <div class="summary-value warning">
-                {{ statistics.pendingCount }}
-              </div>
-            </div>
-          </div>
-        </a-col>
-        <a-col :span="6">
-          <div class="summary-card">
-            <div
-              class="summary-icon"
-              style="background: linear-gradient(135deg, #722ed1 0%, #531dab 100%);"
-            >
-              <FormOutlined />
-            </div>
-            <div class="summary-content">
-              <div class="summary-title">
-                盘点中
-              </div>
-              <div class="summary-value">
-                {{ statistics.processingCount }}
-              </div>
-            </div>
-          </div>
-        </a-col>
-        <a-col :span="6">
-          <div class="summary-card highlight">
-            <div
-              class="summary-icon"
-              style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);"
-            >
-              <CheckOutlined />
-            </div>
-            <div class="summary-content">
-              <div class="summary-title">
-                已完成
-              </div>
-              <div class="summary-value">
-                {{ statistics.completedCount }}
-              </div>
-            </div>
-          </div>
-        </a-col>
-      </a-row>
-
-      <BillTableList
-        ref="tableRef"
-        :columns="vxeColumns"
-        :data-source="tableDataSource"
-        :loading="loading"
-        :pagination="pagination"
-        :row-key="'id'"
-        :filter-fields="filterFields"
-        :selectable="true"
-        add-text="新建盘点单"
-        style="flex: 1;"
-        @add="handleCreate"
-        @refresh="fetchData"
-        @search="handleSearch"
-        @page-change="handlePageChange"
-        @filter-change="handleFilterChange"
-        @selection-change="handleSelectionChange"
-        @cell-dblclick="handleView"
-      >
-        <template #toolbar-actions>
-          <span class="list-update-timestamp">最后更新：{{ dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss') }}</span>
-          <a-button
-            v-permission="'erp:stock:export'"
-            size="small"
-            @click="handleExport"
-          >
-            <template #icon>
-              <DownloadOutlined />
-            </template>
-            导出
-          </a-button>
-        </template>
-
-        <template #empty>
-          <div
-            v-if="hasError"
-            class="table-empty"
-          >
-            <WarningOutlined class="table-empty-icon" />
-            <p class="table-empty-text">
-              数据加载异常，请重试
-            </p>
+          <a-space :size="4" class="quick-dates">
             <a-button
-              type="primary"
-              @click="fetchData"
-            >
-              <ReloadOutlined /> 重试
-            </a-button>
-          </div>
-          <div
-            v-else
-            class="table-empty"
-          >
-            <SearchOutlined
-              v-if="hasActiveFilters"
-              class="table-empty-icon"
-            />
-            <InboxOutlined
-              v-else
-              class="table-empty-icon"
-            />
-            <p
-              v-if="hasActiveFilters"
-              class="table-empty-text"
-            >
-              没有符合条件的盘点单，<a @click="handleResetFilters">清除筛选</a>
-            </p>
-            <p
-              v-else
-              class="table-empty-text"
-            >
-              暂无盘点单数据，点击右上角「新建盘点单」开始创建
-            </p>
-          </div>
-        </template>
-
-        <template #action="{ record }">
-          <a-space>
-            <a-tooltip title="查看">
-              <a-button
-                v-permission="'erp:stock:view'"
-                type="link"
-                size="small"
-                @click="handleView(record)"
-              >
-                <template #icon>
-                  <EyeOutlined />
-                </template>
-              </a-button>
-            </a-tooltip>
-            <!-- 草稿 -> 编辑 -->
-            <a-tooltip
-              v-if="record.status === 0"
-              title="编辑"
-            >
-              <a-button
-                v-permission="'erp:stock:view'"
-                type="link"
-                size="small"
-                @click="handleView(record)"
-              >
-                <template #icon>
-                  <EditOutlined />
-                </template>
-              </a-button>
-            </a-tooltip>
-            <!-- 已审批 -> 开始盘点 -->
-            <a-tooltip
-              v-if="record.status === 2"
-              title="开始盘点"
-            >
-              <a-button
-                type="link"
-                size="small"
-                @click="confirmStart(record)"
-              >
-                <template #icon>
-                  <FormOutlined />
-                </template>
-              </a-button>
-            </a-tooltip>
-            <!-- 进行中 -> 完成盘点 -->
-            <a-tooltip
-              v-if="record.status === 5"
-              title="完成盘点"
-            >
-              <a-button
-                type="link"
-                size="small"
-                @click="confirmComplete(record)"
-              >
-                <template #icon>
-                  <CheckOutlined />
-                </template>
-              </a-button>
-            </a-tooltip>
-            <!-- 已完成有差异 -> 库存调整 -->
-            <a-tooltip
-              v-if="record.status === 6 && record.diffItems > 0"
-              title="库存调整"
-            >
-              <a-button
-                type="link"
-                size="small"
-                @click="confirmAdjust(record)"
-              >
-                <template #icon>
-                  <AuditOutlined />
-                </template>
-              </a-button>
-            </a-tooltip>
-            <a-dropdown trigger="click">
-              <a-button
-                type="link"
-                size="small"
-                class="action-more-btn"
-              >
-                <template #icon>
-                  <EllipsisOutlined />
-                </template>
-              </a-button>
-              <template #overlay>
-                <a-menu @click="(e) => handleActionMenuClick(e.key, record)">
-                  <a-menu-item key="delete">
-                    <DeleteOutlined /> 删除
-                  </a-menu-item>
-                </a-menu>
-              </template>
-            </a-dropdown>
-          </a-space>
-        </template>
-      </BillTableList>
-
-      <a-drawer
-        v-model:open="detailVisible"
-        title="盘点单详情"
-        placement="right"
-        width="80vw"
-      >
-        <a-spin :spinning="detailLoading">
-          <a-descriptions
-            v-if="detailData"
-            bordered
-            :column="2"
-          >
-            <a-descriptions-item label="盘点单号">
-              {{ detailData.checkNo || detailData.stocktakeNo }}
-            </a-descriptions-item>
-            <a-descriptions-item label="仓库">
-              {{ detailData.warehouseName }}
-            </a-descriptions-item>
-            <a-descriptions-item label="盘点日期">
-              {{ detailData.checkDate ? dayjs(detailData.checkDate).format('YYYY-MM-DD') : (detailData.stocktakeDate || '-') }}
-            </a-descriptions-item>
-            <a-descriptions-item label="状态">
-              <StatusTag
-                :status="detailData.status"
-                :map="STOCKTAKE_STATUS_ORDER"
-              />
-            </a-descriptions-item>
-            <a-descriptions-item label="盘点类型">
-              {{ detailData.checkType === 1 ? '全盘' : detailData.checkType === 2 ? '抽盘' : detailData.checkType === 3 ? '动态盘点' : '-' }}
-            </a-descriptions-item>
-            <a-descriptions-item label="操作人">
-              {{ detailData.creatorName || detailData.operator || '-' }}
-            </a-descriptions-item>
-            <a-descriptions-item label="盘点人">
-              {{ detailData.checkerName || '-' }}
-            </a-descriptions-item>
-            <a-descriptions-item label="监盘人">
-              {{ detailData.supervisorName || '-' }}
-            </a-descriptions-item>
-            <a-descriptions-item label="系统数量">
-              {{ detailData.totalBookQuantity ?? detailData.systemQuantity ?? '-' }}
-            </a-descriptions-item>
-            <a-descriptions-item label="实际数量">
-              {{ detailData.totalActualQuantity ?? detailData.actualQuantity ?? '-' }}
-            </a-descriptions-item>
-            <a-descriptions-item label="差异">
-              <span :class="{ 'positive': (detailData.totalDiffQuantity ?? detailData.difference ?? 0) > 0, 'negative': (detailData.totalDiffQuantity ?? detailData.difference ?? 0) < 0 }">
-                {{ (detailData.totalDiffQuantity ?? detailData.difference ?? 0) > 0 ? '+' : '' }}{{ detailData.totalDiffQuantity ?? detailData.difference ?? 0 }}
-              </span>
-            </a-descriptions-item>
-            <a-descriptions-item label="差异项数">
-              {{ detailData.diffItems ?? '-' }}
-            </a-descriptions-item>
-            <a-descriptions-item
-              label="备注"
-              :span="2"
-            >
-              {{ detailData.remark || '-' }}
-            </a-descriptions-item>
-          </a-descriptions>
-          <template v-if="detailData">
-            <h4 style="margin: 16px 0 8px;">
-              盘点明细
-            </h4>
-            <a-table
-              :data-source="detailItems"
-              :columns="detailColumns"
-              :pagination="false as any"
+              v-for="d in quickDates"
+              :key="d.key"
+              :type="quickDate === d.key ? 'primary' : 'link'"
               size="small"
-              bordered
-              row-key="id"
-            />
-          </template>
-        </a-spin>
-        <template
-          v-if="detailData"
-          #footer
-        >
-          <a-space>
-            <a-button
-              v-if="detailData.status === 0"
-              v-permission="'erp:stock:edit'"
-              @click="handleEdit(detailData)"
-            >
-              <template #icon>
-                <EditOutlined />
-              </template>
-              编辑
-            </a-button>
-            <a-button
-              v-if="detailData.status === 2"
-              type="primary"
-              @click="confirmStart(detailData)"
-            >
-              <template #icon>
-                <FormOutlined />
-              </template>
-              开始盘点
-            </a-button>
-            <a-button
-              v-if="detailData.status === 5"
-              type="primary"
-              @click="confirmComplete(detailData)"
-            >
-              <template #icon>
-                <CheckOutlined />
-              </template>
-              完成盘点
-            </a-button>
-            <a-button
-              v-if="detailData.status === 6 && detailData.diffItems > 0"
-              type="primary"
-              @click="confirmAdjust(detailData)"
-            >
-              <template #icon>
-                <AuditOutlined />
-              </template>
-              库存调整
-            </a-button>
-            <PrintButton
-              v-if="detailData.status >= 6"
-              template-type="stocktake"
-              :business-id="detailData.id"
-              business-type="stocktake"
-              button-text="打印"
-              button-size="small"
-            />
+              @click="setQuickDate(d.key)"
+            >{{ d.label }}</a-button>
           </a-space>
         </template>
-      </a-drawer>
+
+        <!-- ═══ 工具栏右侧：操作按钮 ═══ -->
+        <template #toolbar-right>
+          <a-space :size="8">
+            <a-tooltip title="列配置">
+              <a-button size="small" @click="showColumnConfig = true"><TableOutlined /></a-button>
+            </a-tooltip>
+            <a-tooltip title="页面配置">
+              <a-button size="small" @click="showPageConfig = true"><SettingOutlined /></a-button>
+            </a-tooltip>
+            <template v-if="activeTab === 'history'">
+              <a-button type="primary" size="small" v-if="fnEnabled('add')" @click="handleAdd"><PlusOutlined /> 新增</a-button>
+              <a-button size="small" v-if="fnEnabled('refresh')" @click="fetchData"><ReloadOutlined /> 刷新</a-button>
+              <a-button size="small" v-if="fnEnabled('summary')" @click="handleSummary"><DashboardOutlined /> 汇总盘点</a-button>
+              <a-button size="small" v-if="fnEnabled('printF8')" @click="handlePrintF8"><PrinterOutlined /> 打印(F8)</a-button>
+              <a-button size="small" v-if="fnEnabled('export')" @click="handleExport"><ExportOutlined /> 导出</a-button>
+              <a-button size="small" v-if="fnEnabled('config')" @click="showPageConfig = true"><SettingOutlined /> 配置</a-button>
+            </template>
+            <template v-else>
+              <a-button size="small" v-if="fnEnabled('refresh')" @click="fetchData"><ReloadOutlined /> 刷新</a-button>
+              <a-button type="primary" size="small" v-if="fnEnabled('allCheck')" @click="handleAllCheck"><AppstoreAddOutlined /> 全部盘点</a-button>
+              <a-button size="small" v-if="fnEnabled('batchCheck')" @click="handleBatchCheck"><CheckSquareOutlined /> 批量盘点</a-button>
+              <a-button size="small" v-if="fnEnabled('printF8')" @click="handlePrintF8"><PrinterOutlined /> 打印(F8)</a-button>
+              <a-button size="small" v-if="fnEnabled('export')" @click="handleExport"><ExportOutlined /> 导出</a-button>
+              <a-button size="small" v-if="fnEnabled('config')" @click="showPageConfig = true"><SettingOutlined /> 配置</a-button>
+            </template>
+          </a-space>
+        </template>
+
+        <!-- ═══ 搜索区域 ═══ -->
+        <template #search-fields>
+          <div class="search-area">
+            <template v-if="activeTab === 'history'">
+              <div class="search-container">
+                <div class="search-grid" ref="docGridRef">
+                  <div class="search-field-item"><a-range-picker v-model:value="dateRange" size="small" style="width:100%" @change="handleDateChange" /></div>
+                  <div class="search-field-item"><a-input v-model:value="searchParams.stockTakeNo" placeholder="单据编号" allow-clear size="small" /></div>
+                  <div class="search-field-item">
+                    <div class="search-select-wrap">
+                      <span class="search-select-label">单据状态</span>
+                      <a-select v-model:value="searchParams.status" size="small" allow-clear>
+                        <a-select-option value="">全部</a-select-option>
+                        <a-select-option :value="0">草稿</a-select-option>
+                        <a-select-option :value="1">已保存</a-select-option>
+                        <a-select-option :value="2">已盘点</a-select-option>
+                      </a-select>
+                    </div>
+                  </div>
+                  <div class="search-field-item">
+                    <div class="search-select-wrap">
+                      <span class="search-select-label">盘点方式</span>
+                      <a-select v-model:value="searchParams.checkMethod" size="small" allow-clear>
+                        <a-select-option value="">全部</a-select-option>
+                        <a-select-option :value="1">手工录入</a-select-option>
+                        <a-select-option :value="2">扫码盘点</a-select-option>
+                        <a-select-option :value="3">快速盘点</a-select-option>
+                      </a-select>
+                    </div>
+                  </div>
+                  <div class="search-field-item"><a-input v-model:value="searchParams.regionName" placeholder="区域" allow-clear size="small" /></div>
+                  <div class="search-field-item"><a-input v-model:value="searchParams.warehouseName" placeholder="仓库" allow-clear size="small" /></div>
+                  <div class="search-field-item"><a-input v-model:value="searchParams.handlerName" placeholder="经手人" allow-clear size="small" /></div>
+                  <div class="search-field-item"><a-input v-model:value="searchParams.deptName" placeholder="部门" allow-clear size="small" /></div>
+                  <div class="search-field-item"><a-input v-model:value="searchParams.creatorName" placeholder="制单人" allow-clear size="small" /></div>
+                  <div class="search-field-item"><a-input v-model:value="searchParams.bookkeeperName" placeholder="记账人" allow-clear size="small" /></div>
+                  <div class="search-field-item"><a-input v-model:value="searchParams.linkedBillNo" placeholder="关联单据编号" allow-clear size="small" /></div>
+                  <div class="search-field-item"><a-input v-model:value="searchParams.remark" placeholder="单据备注" allow-clear size="small" /></div>
+                  <div class="search-action-group" ref="docActionRef" :style="{ gridColumn: 'span ' + docActionSpan }">
+                    <div class="search-field-item search-action-item">
+                      <a-button type="primary" size="small" @click="handleSearch">查询</a-button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </template>
+
+            <template v-else>
+              <div class="search-container">
+                <div class="search-grid" ref="uncheckedGridRef">
+                  <div class="search-field-item"><a-range-picker v-model:value="dateRange" size="small" style="width:100%" @change="handleDateChange" /></div>
+                  <div class="search-field-item">
+                    <div class="search-select-wrap">
+                      <span class="search-select-label">筛选条件</span>
+                      <a-select v-model:value="searchParams.filterCondition" size="small" allow-clear>
+                        <a-select-option value="">全部</a-select-option>
+                        <a-select-option value="unchecked">未盘</a-select-option>
+                        <a-select-option value="checked">已盘</a-select-option>
+                      </a-select>
+                    </div>
+                  </div>
+                  <div class="search-field-item">
+                    <a-select
+                      v-model:value="searchParams.checkWarehouseId"
+                      placeholder="仓库"
+                      size="small"
+                      allow-clear
+                      show-search
+                      :filter-option="(input, option:any) => option.label.toLowerCase().includes(input.toLowerCase())"
+                      :options="warehouseOptions"
+                    />
+                  </div>
+                  <div class="search-field-item"><a-input v-model:value="searchParams.location" placeholder="货位" allow-clear size="small" /></div>
+                  <div class="search-field-item"><a-input v-model:value="searchParams.productKeyword" placeholder="商品" allow-clear size="small" /></div>
+                  <div class="search-field-item">
+                    <div class="search-select-wrap">
+                      <span class="search-select-label">可用库存</span>
+                      <a-input-number v-model:value="searchParams.availableStockMin" :min="0" :precision="2" size="small" style="flex:1" placeholder="≥" />
+                    </div>
+                  </div>
+                  <div class="search-field-item">
+                    <div class="search-select-wrap">
+                      <span class="search-select-label">账面库存</span>
+                      <a-input-number v-model:value="searchParams.bookStockMin" :min="0" :precision="2" size="small" style="flex:1" placeholder="≥" />
+                    </div>
+                  </div>
+                  <div class="search-field-item">
+                    <div class="search-select-wrap">
+                      <span class="search-select-label">显示状态</span>
+                      <a-select v-model:value="searchParams.showStatus" size="small" allow-clear>
+                        <a-select-option value="">全部</a-select-option>
+                        <a-select-option value="有货">有货</a-select-option>
+                        <a-select-option value="无货">无货</a-select-option>
+                      </a-select>
+                    </div>
+                  </div>
+                  <div class="search-field-item">
+                    <a-checkbox v-model:checked="searchParams.includeHandled">包含未处理商品</a-checkbox>
+                  </div>
+                  <div class="search-action-group" ref="uncheckedActionRef" :style="{ gridColumn: 'span ' + uncheckedActionSpan }">
+                    <div class="search-field-item search-action-item">
+                      <a-button type="primary" size="small" @click="handleSearch">查询</a-button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </template>
+          </div>
+        </template>
+
+        <!-- ═══ 表格区域 ═══ -->
+        <template #table>
+          <div class="table-area">
+            <BillTableList
+              :columns="currentColumns"
+              :data-source="tableData"
+              :loading="loading"
+              :pagination="billPagination"
+              :show-toolbar="false"
+              :show-search="false"
+              :show-add="false"
+              :show-export="false"
+              :show-batch-delete="false"
+              :selectable="activeTab === 'unchecked'"
+              :row-selection="rowSelection"
+              :summary-columns="tableFooterColumns"
+              row-key="id"
+              @page-change="handlePageChange"
+            >
+              <!-- 单据编号 -->
+              <template #stockTakeNoCell="{ record }">
+                <a-button type="link" size="small" @click="handleView(record)">{{ record.stockTakeNo }}</a-button>
+              </template>
+              <!-- 单据状态 -->
+              <template #statusCell="{ record }">
+                <a-tag :color="getStatusColor(record.status)">{{ getStatusText(record.status) }}</a-tag>
+              </template>
+              <!-- 盘点方式/类型 -->
+              <template #checkMethodCell="{ record }">
+                {{ getCheckMethodText(record.checkMethod) }}
+              </template>
+              <template #checkTypeCell="{ record }">
+                {{ getCheckTypeText(record.checkType) }}
+              </template>
+              <!-- 盈亏 -->
+              <template #totalDiffQuantityCell="{ record }">
+                <span :class="record.totalDiffQuantity > 0 ? 'positive' : record.totalDiffQuantity < 0 ? 'negative' : ''" class="currency-value">
+                  {{ formatQuantity(record.totalDiffQuantity) }}
+                </span>
+              </template>
+              <template #totalDiffAmountCell="{ record }">
+                <span class="currency-value">{{ formatAmount(record.totalDiffAmount) }}</span>
+              </template>
+              <!-- 操作列 -->
+              <template #actionCell="{ record }">
+                <a-space :size="4">
+                  <a-button type="link" size="small" @click="handleView(record)">查看</a-button>
+                  <a-button v-if="record.status !== 2" type="link" size="small" @click="handleView(record)">修改</a-button>
+                  <a-button v-if="record.status !== 2" type="link" size="small" @click="handleProcess(record)">盘点处理</a-button>
+                  <a-button v-if="record.status !== 2" type="link" size="small" danger @click="handleDelete(record)">删除</a-button>
+                </a-space>
+              </template>
+            </BillTableList>
+          </div>
+        </template>
+      </CategoryListLayout>
     </PageContainer>
 
-    <!-- 新建盘点单弹窗 -->
-    <FullScreenDetail
-      :visible="createModalVisible"
-      title="新建盘点单"
-      :save-loading="submitLoading"
-      @close="handleCreateCancel"
-      @save="handleCreateSubmit"
-    >
-      <a-form
-        ref="createFormRef"
-        :model="createForm"
-        :rules="formRules"
-        layout="vertical"
-      >
-        <a-form-item label="创建方式">
-          <a-radio-group v-model:value="createMode">
-            <a-radio value="blank">
-              创建空白盘点单
-            </a-radio>
-            <a-radio value="from-stock">
-              从仓库库存生成明细
-            </a-radio>
-          </a-radio-group>
-        </a-form-item>
+    <!-- ═══ 列配置弹窗 ═══ -->
+    <ColumnConfigPanel
+      :open="showColumnConfig"
+      :settings-columns="panelColumns"
+      :is-locked-column="isLockedColumn"
+      @update:open="showColumnConfig = $event"
+      @change="handleColumnConfigChange"
+      @reset="handleColumnConfigReset"
+      @drag-end="handleColumnConfigChange"
+    />
 
-        <a-form-item
-          label="仓库"
-          name="warehouseId"
-        >
-          <a-select
-            v-model:value="createForm.warehouseId"
-            :options="warehouseOptions"
-            placeholder="请选择仓库"
-            show-search
-            :filter-option="(input, option) => option.label.toLowerCase().includes(input.toLowerCase())"
-            allow-clear
-          />
-        </a-form-item>
-
-        <a-form-item
-          label="盘点日期"
-          name="checkDate"
-        >
-          <a-date-picker
-            v-model:value="createForm.checkDate"
-            value-format="YYYY-MM-DD"
-            style="width: 100%"
-            placeholder="请选择盘点日期"
-          />
-        </a-form-item>
-
-        <a-form-item
-          label="盘点类型"
-          name="checkType"
-        >
-          <a-select
-            v-model:value="createForm.checkType"
-            placeholder="请选择盘点类型"
-            :options="[
-              { label: '全盘', value: 1 },
-              { label: '抽盘', value: 2 },
-              { label: '动态盘点', value: 3 },
-            ]"
-          />
-        </a-form-item>
-
-        <a-row :gutter="16">
-          <a-col :span="12">
-            <a-form-item
-              label="盘点人"
-              name="checkerName"
-            >
-              <a-input
-                v-model:value="createForm.checkerName"
-                placeholder="请输入盘点人姓名"
-              />
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item
-              label="监盘人"
-              name="supervisorName"
-            >
-              <a-input
-                v-model:value="createForm.supervisorName"
-                placeholder="请输入监盘人姓名"
-              />
-            </a-form-item>
-          </a-col>
-        </a-row>
-
-        <a-form-item
-          label="备注"
-          name="remark"
-        >
-          <a-textarea
-            v-model:value="createForm.remark"
-            placeholder="请输入备注"
-            :rows="3"
-          />
-        </a-form-item>
-      </a-form>
-    </FullScreenDetail>
+    <!-- ═══ 页面配置弹窗 ═══ -->
+    <PageConfigPanel
+      :open="showPageConfig"
+      :query-fields-config="activeQueryFields"
+      :function-buttons-config="functionButtonConfig"
+      :storage-key="activePageConfigStorageKey"
+      @update:open="showPageConfig = $event"
+      @change="handlePageConfigChange"
+    />
   </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
-import dayjs from 'dayjs'
-import BillTableList from '@/components/BillTableList/BillTableList.vue'
-import StatusTag from '@/components/StatusTag/StatusTag.vue'
-import { STOCKTAKE_STATUS_ORDER } from '@/utils/statusConfig'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
-import { useUserStore } from '@/stores/user'
-import request from '@/utils/request'
+import type { Dayjs } from 'dayjs'
+import dayjs from 'dayjs'
 import {
-  DownloadOutlined,
-  EyeOutlined,
-  FormOutlined,
-  CheckOutlined,
-  EllipsisOutlined,
-  DeleteOutlined,
-  SearchOutlined,
-  InboxOutlined,
-  FileTextOutlined,
-  ClockCircleOutlined,
-  SyncOutlined,
-  ReloadOutlined,
-  WarningOutlined,
-  EditOutlined,
-  AuditOutlined
+  PlusOutlined, ReloadOutlined, PrinterOutlined, SettingOutlined,
+  TableOutlined, ExportOutlined, DashboardOutlined, AppstoreAddOutlined, CheckSquareOutlined,
 } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
-import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
-import PrintButton from '@/components/business/print-button/PrintButton.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
+import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayout.vue'
+import ColumnConfigPanel from '@/components/ColumnConfigPanel/index.vue'
+import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
+import { useColumnConfig, isLockedColumn } from '@/composables/useColumnConfig'
+import { useAutoGridSpan } from '@/composables/useAutoGridSpan'
+import { stockTakeApi } from '@/api/erp'
+import optionsApi from '@/api/options'
+import { useRouter } from 'vue-router'
 
-// ── 防抖工具 ──────────────────────────────────────────
-function handleError(err: any) { console.warn('[Stocktake]', err) }
-
-const debounceMap = new Map<string, number>()
-function debounceClick(key: string, fn: () => void, delay = 300) {
-  const now = Date.now()
-  const last = debounceMap.get(key) || 0
-  if (now - last < delay) return
-  debounceMap.set(key, now)
-  fn()
-}
-
-interface Stocktake {
-  id: number
-  stocktakeNo: string
-  warehouseName: string
-  stocktakeDate: string
-  systemQuantity: number
-  actualQuantity: number
-  difference: number
-  status: number
-  operator: string
-  remark?: string
-}
-
-const userStore = useUserStore()
 const router = useRouter()
+
+// ═══ Tab 配置 ═══
+const tabs = [
+  { key: 'history', label: '盘点单历史' },
+  { key: 'unchecked', label: '未盘商品查询' },
+]
+const activeTab = ref('history')
+
+// ═══ 快捷日期 ═══
+const quickDates = [
+  { key: 'yesterday', label: '昨日' },
+  { key: 'today', label: '今日' },
+  { key: 'week', label: '本周' },
+  { key: 'lastWeek', label: '近一周' },
+  { key: 'month', label: '本月' },
+  { key: 'lastMonth', label: '上月' },
+  { key: 'last3Month', label: '近三月' },
+  { key: 'year', label: '本年' },
+]
+const quickDate = ref('week')
+const queryScheme = ref('')
+
 const loading = ref(false)
-const hasError = ref(false)
-const refreshLoading = ref(false)
-const lastUpdateTime = ref('')
-const autoRefreshCountdown = ref(0)
-const dataSource = ref<Stocktake[]>([])
-const detailVisible = ref(false)
-const currentRecord = ref<Stocktake | null>(null)
-const tableRef = ref()
-const lastUpdated = ref(new Date().toISOString())
-const selectedRows = ref<Stocktake[]>([])
-const selectedIds = ref<number[]>([])
-
-let refreshTimer: ReturnType<typeof setInterval> | null = null
-let countdownTimer: ReturnType<typeof setInterval> | null = null
-
-// 统计数据
-const statistics = ref({
-  totalCount: 0,
-  pendingCount: 0,
-  processingCount: 0,
-  completedCount: 0
-})
-
-const searchFilters = reactive<Record<string, any>>({})
-
-const pagination = reactive({
-  current: 1,
-  pageSize: 10,
-  total: 0,
-})
-
-const hasActiveFilters = computed(() => {
-  return Object.values(searchFilters).some(v => v !== undefined && v !== null && v !== '')
-})
-
-// 数据源
-const tableDataSource = dataSource
-
-const vxeColumns: any = computed(() => [
-  { field: 'stocktakeNo', title: '盘点单号', width: 150 },
-  { field: 'warehouseName', title: '仓库', width: 120 },
-  { field: 'stocktakeDate', title: '盘点日期', width: 120 },
-  { field: 'systemQuantity', title: '系统数量', width: 100, align: 'right' },
-  { field: 'actualQuantity', title: '实际数量', width: 100, align: 'right' },
-  { field: 'difference', title: '差异', width: 100, align: 'right', formatter: ({ cellValue }) => {
-    const prefix = cellValue > 0 ? '+' : ''
-    return `${prefix}${cellValue}`
-  }},
-  { field: 'status', title: '状态', width: 100, align: 'center', formatter: ({ cellValue }) => STOCKTAKE_STATUS_ORDER[cellValue]?.text || '' },
-  { field: 'operator', title: '操作人', width: 100 },
-  { type: 'action', title: '操作', width: 200, fixed: 'right' },
-])
-
+const tableData = ref<any[]>([])
 const warehouseOptions = ref<{ label: string; value: number }[]>([])
 
-const filterFields = computed(() => [
-  { key: 'stocktakeNo', label: '盘点单号', type: 'input' as const, placeholder: '请输入盘点单号' },
-  { key: 'warehouseId', label: '仓库', type: 'select' as const, options: warehouseOptions.value },
-  { key: 'status', label: '状态', type: 'select' as const, options: [
-    { label: '草稿', value: 0 },
-    { label: '待审批', value: 1 },
-    { label: '已审批', value: 2 },
-    { label: '已拒绝', value: 3 },
-    { label: '盘点中', value: 4 },
-    { label: '进行中', value: 5 },
-    { label: '已完成', value: 6 },
-    { label: '已调整', value: 7 },
-    { label: '已取消', value: 8 },
-  ]},
-])
+const docGridRef = ref<HTMLElement | null>(null)
+const docActionRef = ref<HTMLElement | null>(null)
+const uncheckedGridRef = ref<HTMLElement | null>(null)
+const uncheckedActionRef = ref<HTMLElement | null>(null)
+const { span: docActionSpan } = useAutoGridSpan(docActionRef, docGridRef)
+const { span: uncheckedActionSpan } = useAutoGridSpan(uncheckedActionRef, uncheckedGridRef)
 
-const loadWarehouses = async () => {
-  try {
-    const res = await request.get('/erp/warehouse/list')
-    const list = res?.data || []
-    warehouseOptions.value = list.map((w: any) => ({ label: w.name, value: w.id }))
-  } catch (err) {
-    console.warn('[库存盘点] 加载仓库列表失败', err)
-  }
-}
+const dateRange = ref<[Dayjs, Dayjs] | null>([dayjs().subtract(7, 'day'), dayjs()])
 
-const handleSearch = () => {
-  pagination.current = 1
-  fetchData()
-}
-
-function handleFilterChange(filters: Record<string, any>) {
-  Object.assign(searchFilters, filters)
-  pagination.current = 1
-  fetchData()
-}
-
-const handleResetFilters = () => {
-  for (const key of Object.keys(searchFilters)) {
-    searchFilters[key] = undefined
-  }
-  pagination.current = 1
-  fetchData()
-}
-
-function handleParentCreate() { handleCreate() }
-
-// ── 新建盘点单弹窗 ──────────────────────────────────────────
-const createModalVisible = ref(false)
-const createMode = ref<'blank' | 'from-stock'>('blank')
-const submitLoading = ref(false)
-const createFormRef = ref()
-
-const createForm = reactive({
-  warehouseId: undefined as number | undefined,
-  checkDate: dayjs().format('YYYY-MM-DD'),
-  checkType: 1,
-  checkerName: (userStore as any)?.realName || (userStore as any)?.username || '',
-  supervisorName: '',
-  remark: ''
+const searchParams = reactive({
+  stockTakeNo: '', regionName: '', warehouseName: '', handlerName: '', deptName: '',
+  creatorName: '', bookkeeperName: '', linkedBillNo: '', remark: '',
+  status: undefined as string | number | undefined,
+  checkMethod: undefined as string | number | undefined,
+  // 未盘商品查询
+  checkWarehouseId: undefined as number | undefined,
+  location: '', productKeyword: '', filterCondition: '', showStatus: '',
+  includeHandled: false, availableStockMin: undefined as number | undefined, bookStockMin: undefined as number | undefined,
+  startDate: dayjs().subtract(7, 'day').format('YYYY-MM-DD'),
+  endDate: dayjs().format('YYYY-MM-DD'),
 })
 
-const formRules: Record<string, any[]> = {
-  warehouseId: [{ required: true, message: '请选择仓库', trigger: 'change' }],
-  checkDate: [{ required: true, message: '请选择盘点日期', trigger: 'change' }],
-}
+const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
+const billPagination = computed(() => ({ current: pagination.current, pageSize: pagination.pageSize, total: pagination.total }))
 
-const handleCreate = () => {
-  createMode.value = 'blank'
-  createForm.warehouseId = undefined
-  createForm.checkDate = dayjs().format('YYYY-MM-DD')
-  createForm.checkType = 1
-  createForm.checkerName = (userStore as any)?.realName || (userStore as any)?.username || ''
-  createForm.supervisorName = ''
-  createForm.remark = ''
-  createModalVisible.value = true
-}
+const selectedRowKeys = ref<any[]>([])
+const selectedRows = ref<any[]>([])
+const rowSelection = computed(() => ({
+  selectedRowKeys: selectedRowKeys.value,
+  onChange: (keys: any[], rows: any[]) => { selectedRowKeys.value = keys; selectedRows.value = rows },
+}))
 
-const handleCreateSubmit = async () => {
-  try {
-    await createFormRef.value?.validate()
-  } catch {
-    return
-  }
+const showColumnConfig = ref(false)
+const showPageConfig = ref(false)
 
-  submitLoading.value = true
-  try {
-    const payload: Record<string, any> = {
-      checkType: createForm.checkType,
-      warehouseId: createForm.warehouseId,
-      warehouseName: warehouseOptions.value.find(o => o.value === createForm.warehouseId)?.label || '',
-      checkDate: createForm.checkDate,
-    }
-    if (createForm.checkerName) payload.checkerName = createForm.checkerName
-    if (createForm.supervisorName) payload.supervisorName = createForm.supervisorName
-    if (createForm.remark) payload.remark = createForm.remark
+// ═══ 页面配置 ═══
+const PAGE_CONFIG_STORAGE_KEY = 'stock-take-page-config'
+interface QueryFieldSetting { key: string; label: string; visible: boolean }
+interface FunctionButtonSetting { key: string; label: string; enabled: boolean }
+interface PageConfigData { queryFields: QueryFieldSetting[]; functionButtons: FunctionButtonSetting[] }
 
-    if (createMode.value === 'from-stock' && createForm.warehouseId) {
-      await request.post(`/erp/stock/check/create-with-items/${createForm.warehouseId}`, payload)
-      message.success('盘点单创建成功（含库存明细）')
-    } else {
-      await request.post('/erp/stock/check', payload)
-      message.success('空白盘点单创建成功')
-    }
-
-    createModalVisible.value = false
-    fetchData()
-  } catch (err) {
-    console.warn('[库存盘点] 创建盘点单失败', err)
-    message.error('创建盘点单失败')
-  } finally {
-    submitLoading.value = false
-  }
-}
-
-const handleCreateCancel = () => {
-  createModalVisible.value = false
-}
-
-const detailData = ref<any>(null)
-const detailLoading = ref(false)
-const detailItems = ref<any[]>([])
-const detailColumns: any = [
-  { title: '产品编码', dataIndex: 'productCode', key: 'productCode' },
-  { title: '产品名称', dataIndex: 'productName', key: 'productName' },
-  { title: '规格', dataIndex: 'productSpec', key: 'productSpec' },
-  { title: '系统数量', dataIndex: 'bookQuantity', key: 'bookQuantity' },
-  { title: '实际数量', dataIndex: 'actualQuantity', key: 'actualQuantity' },
-  {
-    title: '差异',
-    dataIndex: 'diffQuantity',
-    key: 'diffQuantity',
-    customRender: ({ text }: { text: number }) => {
-      const prefix = text > 0 ? '+' : ''
-      const color = text > 0 ? '#3f8600' : text < 0 ? '#ff4d4f' : undefined
-      return h('span', { style: { color, fontWeight: 'bold' } }, `${prefix}${text}`)
-    }
-  },
+const DEFAULT_HISTORY_QUERY_FIELDS: QueryFieldSetting[] = [
+  { key: 'date', label: '单据日期', visible: true },
+  { key: 'stockTakeNo', label: '单据编号', visible: true },
+  { key: 'status', label: '单据状态', visible: true },
+  { key: 'checkMethod', label: '盘点方式', visible: true },
+  { key: 'regionName', label: '区域', visible: true },
+  { key: 'warehouseName', label: '仓库', visible: true },
+  { key: 'handlerName', label: '经手人', visible: true },
+  { key: 'deptName', label: '部门', visible: true },
+  { key: 'creatorName', label: '制单人', visible: true },
+  { key: 'bookkeeperName', label: '记账人', visible: true },
+  { key: 'linkedBillNo', label: '关联单据编号', visible: true },
+  { key: 'remark', label: '单据备注', visible: true },
 ]
 
-const fetchDetail = async (id: number) => {
-  detailLoading.value = true
-  detailItems.value = []
+const DEFAULT_UNCHECKED_QUERY_FIELDS: QueryFieldSetting[] = [
+  { key: 'date', label: '单据日期', visible: true },
+  { key: 'filterCondition', label: '筛选条件', visible: true },
+  { key: 'checkWarehouseId', label: '仓库', visible: true },
+  { key: 'location', label: '货位', visible: true },
+  { key: 'productKeyword', label: '商品', visible: true },
+  { key: 'availableStockMin', label: '可用库存', visible: true },
+  { key: 'bookStockMin', label: '账面库存', visible: true },
+  { key: 'showStatus', label: '显示状态', visible: true },
+  { key: 'includeHandled', label: '包含未处理商品', visible: true },
+]
+
+const DEFAULT_HISTORY_FUNCTION_BUTTONS: FunctionButtonSetting[] = [
+  { key: 'add', label: '新增', enabled: true },
+  { key: 'refresh', label: '刷新', enabled: true },
+  { key: 'summary', label: '汇总盘点', enabled: true },
+  { key: 'printF8', label: '打印(F8)', enabled: true },
+  { key: 'export', label: '导出', enabled: true },
+  { key: 'config', label: '配置', enabled: true },
+]
+
+const DEFAULT_UNCHECKED_FUNCTION_BUTTONS: FunctionButtonSetting[] = [
+  { key: 'refresh', label: '刷新', enabled: true },
+  { key: 'allCheck', label: '全部盘点', enabled: true },
+  { key: 'batchCheck', label: '批量盘点', enabled: true },
+  { key: 'printF8', label: '打印(F8)', enabled: true },
+  { key: 'export', label: '导出', enabled: true },
+  { key: 'config', label: '配置', enabled: true },
+]
+
+const historyQueryConfig = ref<QueryFieldSetting[]>(DEFAULT_HISTORY_QUERY_FIELDS.map(f => ({ ...f })))
+const uncheckedQueryConfig = ref<QueryFieldSetting[]>(DEFAULT_UNCHECKED_QUERY_FIELDS.map(f => ({ ...f })))
+const historyFunctionButtonConfig = ref<FunctionButtonSetting[]>(DEFAULT_HISTORY_FUNCTION_BUTTONS.map(f => ({ ...f })))
+const uncheckedFunctionButtonConfig = ref<FunctionButtonSetting[]>(DEFAULT_UNCHECKED_FUNCTION_BUTTONS.map(f => ({ ...f })))
+
+const activeQueryFields = computed(() => activeTab.value === 'history' ? historyQueryConfig.value : uncheckedQueryConfig.value)
+const activePageConfigStorageKey = computed(() => `${PAGE_CONFIG_STORAGE_KEY}-${activeTab.value}`)
+
+function loadPageConfig() {
   try {
-    const res = await request.get(`/erp/stock/check/${id}`)
-    detailData.value = res.data || null
-    // 获取盘点明细
-    try {
-      const itemsRes = await request.get(`/erp/stock/check/${id}/items`)
-      detailItems.value = itemsRes?.data || []
-    } catch {
-      detailItems.value = []
+    const load = (tab: string, setter: (f: QueryFieldSetting[]) => void, defaultConfig: QueryFieldSetting[]) => {
+      const raw = localStorage.getItem(PAGE_CONFIG_STORAGE_KEY + '-' + tab)
+      if (!raw) return
+      const parsed = JSON.parse(raw) as PageConfigData
+      if (parsed.queryFields) {
+        setter(defaultConfig.map(df => {
+          const saved = parsed.queryFields!.find((f: QueryFieldSetting) => f.key === df.key)
+          return saved ? { ...df, ...saved } : { ...df }
+        }))
+      }
     }
-  } catch (err) {
-    console.warn('[库存盘点] 获取详情失败', err)
-    detailData.value = dataSource.value.find(item => item.id === id) || null
-  } finally {
-    detailLoading.value = false
-  }
+    load('history', v => { historyQueryConfig.value = v }, DEFAULT_HISTORY_QUERY_FIELDS)
+    load('unchecked', v => { uncheckedQueryConfig.value = v }, DEFAULT_UNCHECKED_QUERY_FIELDS)
+    const hRaw = localStorage.getItem(PAGE_CONFIG_STORAGE_KEY + '-history-buttons')
+    if (hRaw) {
+      const parsed = JSON.parse(hRaw) as PageConfigData
+      if (parsed.functionButtons) historyFunctionButtonConfig.value = DEFAULT_HISTORY_FUNCTION_BUTTONS.map(bf => {
+        const saved = parsed.functionButtons!.find((f: FunctionButtonSetting) => f.key === bf.key)
+        return saved ? { ...bf, ...saved } : { ...bf }
+      })
+    }
+    const uRaw = localStorage.getItem(PAGE_CONFIG_STORAGE_KEY + '-unchecked-buttons')
+    if (uRaw) {
+      const parsed = JSON.parse(uRaw) as PageConfigData
+      if (parsed.functionButtons) uncheckedFunctionButtonConfig.value = DEFAULT_UNCHECKED_FUNCTION_BUTTONS.map(bf => {
+        const saved = parsed.functionButtons!.find((f: FunctionButtonSetting) => f.key === bf.key)
+        return saved ? { ...bf, ...saved } : { ...bf }
+      })
+    }
+  } catch { /* ignore */ }
 }
 
-const handleView = (record: Stocktake) => {
-  detailVisible.value = true
-  fetchDetail(record.id)
+function handlePageConfigChange(config: any) {
+  const tabKey = activeTab.value === 'history' ? '-history' : '-unchecked'
+  localStorage.setItem(PAGE_CONFIG_STORAGE_KEY + tabKey, JSON.stringify({ queryFields: config.queryFields || [] }))
+  localStorage.setItem(PAGE_CONFIG_STORAGE_KEY + '-history-buttons', JSON.stringify({ functionButtons: historyFunctionButtonConfig.value }))
+  localStorage.setItem(PAGE_CONFIG_STORAGE_KEY + '-unchecked-buttons', JSON.stringify({ functionButtons: uncheckedFunctionButtonConfig.value }))
+  loadPageConfig()
 }
 
-const handleStart = async (record: Stocktake) => {
-  try {
-    await request.put(`/erp/stock/check/${record.id}/start`)
-    message.success(`开始盘点: ${record.stocktakeNo}`)
-    detailVisible.value = false
-    fetchData()
-  } catch (err) {
-    console.warn('[库存盘点] 开始盘点失败', err)
-    message.error('开始盘点失败')
-  }
+function fnEnabled(key: string): boolean {
+  const cfg = activeTab.value === 'history' ? historyFunctionButtonConfig.value : uncheckedFunctionButtonConfig.value
+  const found = cfg.find(f => f.key === key)
+  return found ? found.enabled : true
 }
 
-const handleComplete = async (record: Stocktake) => {
-  try {
-    await request.put(`/erp/stock/check/${record.id}/complete`)
-    message.success(`盘点完成: ${record.stocktakeNo}`)
-    detailVisible.value = false
-    fetchData()
-  } catch (err) {
-    console.warn('[库存盘点] 完成盘点失败', err)
-    message.error('完成盘点失败')
-  }
+// ═══ 列定义 ═══
+const historyColumns = [
+  { title: '', key: 'rowNo', type: 'rowNo', width: 40, fixed: 'left' },
+  { title: '操作', key: 'action', type: 'action', width: 200, fixed: 'right', slotName: 'actionCell' },
+  { title: '单据日期', field: 'stockTakeDate', key: 'stockTakeDate', width: 110, sortable: true },
+  { title: '单据编号', field: 'stockTakeNo', key: 'stockTakeNo', width: 170, type: 'slot', slotName: 'stockTakeNoCell', sortable: true },
+  { title: '单据状态', field: 'status', key: 'status', width: 90, align: 'center', type: 'slot', slotName: 'statusCell' },
+  { title: '盘点方式', field: 'checkMethod', key: 'checkMethod', width: 90, align: 'center', type: 'slot', slotName: 'checkMethodCell' },
+  { title: '盘点类型', field: 'checkType', key: 'checkType', width: 90, align: 'center', type: 'slot', slotName: 'checkTypeCell' },
+  { title: '仓库', field: 'warehouseName', key: 'warehouseName', width: 120, sortable: true },
+  { title: '库区', field: 'regionName', key: 'regionName', width: 100 },
+  { title: '盈亏数量', field: 'totalDiffQuantity', key: 'totalDiffQuantity', width: 110, align: 'right', type: 'slot', slotName: 'totalDiffQuantityCell', sortable: true },
+  { title: '盈亏金额', field: 'totalDiffAmount', key: 'totalDiffAmount', width: 110, align: 'right', type: 'slot', slotName: 'totalDiffAmountCell', sortable: true },
+  { title: '关联盘点单', field: 'linkedBillNo', key: 'linkedBillNo', width: 150 },
+  { title: '经手人', field: 'handlerName', key: 'handlerName', width: 90, sortable: true },
+  { title: '部门', field: 'deptName', key: 'deptName', width: 100 },
+  { title: '制单人', field: 'creatorName', key: 'creatorName', width: 90, sortable: true },
+  { title: '记账人', field: 'bookkeeperName', key: 'bookkeeperName', width: 90, sortable: true },
+  { title: '附件', field: 'attachment', key: 'attachment', width: 80 },
+  { title: '单据备注', field: 'remark', key: 'remark', width: 140 },
+]
+
+const uncheckedColumns = [
+  { title: '', key: 'rowNo', type: 'rowNo', width: 40, fixed: 'left' },
+  { title: '商品名称', field: 'productName', key: 'productName', width: 200, sortable: true },
+  { title: '货号', field: 'productCode', key: 'productCode', width: 110 },
+  { title: '单位', field: 'productUnit', key: 'productUnit', width: 80 },
+  { title: '规格', field: 'productSpec', key: 'productSpec', width: 100 },
+  { title: '型号', field: 'model', key: 'model', width: 90 },
+  { title: '产地', field: 'origin', key: 'origin', width: 90 },
+  { title: '品牌', field: 'brand', key: 'brand', width: 90 },
+  { title: '可用库存', field: 'availableStock', key: 'availableStock', width: 100, align: 'right', sortable: true },
+  { title: '账面库存', field: 'stockQuantity', key: 'stockQuantity', width: 100, align: 'right', sortable: true },
+  { title: '重量（kg）', field: 'weight', key: 'weight', width: 90, align: 'right' },
+  { title: '体积（m³）', field: 'volume', key: 'volume', width: 90, align: 'right' },
+  { title: '仓库区域', field: 'region', key: 'region', width: 100 },
+  { title: '货位', field: 'location', key: 'location', width: 100 },
+  { title: '条码', field: 'barcode', key: 'barcode', width: 120 },
+]
+
+const historyColumnDefs = computed(() => historyColumns.map(col => ({ ...col })))
+const uncheckedColumnDefs = computed(() => uncheckedColumns.map(col => ({ ...col })))
+const {
+  visibleColumns: historyVisibleColumns,
+  onSettingChange: onHistorySettingChange,
+  resetSettings: resetHistorySettings,
+  settingsColumns: historySettingsColumns,
+} = useColumnConfig(historyColumnDefs.value, 'stock-take-list-columns-history')
+const {
+  visibleColumns: uncheckedVisibleColumns,
+  onSettingChange: onUncheckedSettingChange,
+  resetSettings: resetUncheckedSettings,
+  settingsColumns: uncheckedSettingsColumns,
+} = useColumnConfig(uncheckedColumnDefs.value, 'stock-take-list-columns-unchecked')
+
+const currentColumns = computed(() => activeTab.value === 'history' ? historyVisibleColumns.value : uncheckedVisibleColumns.value)
+const panelColumns = computed(() => activeTab.value === 'history' ? historySettingsColumns.value : uncheckedSettingsColumns.value)
+
+function handleColumnConfigChange() {
+  if (activeTab.value === 'history') onHistorySettingChange()
+  else onUncheckedSettingChange()
+}
+function handleColumnConfigReset() {
+  if (activeTab.value === 'history') resetHistorySettings()
+  else resetUncheckedSettings()
 }
 
-const handleDelete = async (record: Stocktake) => {
-  try {
-    await request.delete(`/erp/stockCheck/${record.id}`)
-    message.success('删除成功')
-    fetchData()
-  } catch (error) {
-    console.warn('[库存盘点] 删除失败', error)
-    message.error('删除失败')
-  }
+// ═══ 状态/字典映射 ═══
+const STATUS_MAP: Record<number, { text: string; color: string }> = {
+  0: { text: '草稿', color: 'default' },
+  1: { text: '已保存', color: 'blue' },
+  2: { text: '已盘点', color: 'green' },
 }
+function getStatusText(status: number): string { return STATUS_MAP[status]?.text || '未知' }
+function getStatusColor(status: number): string { return STATUS_MAP[status]?.color || 'default' }
 
-const handleActionMenuClick = (key: any, record: Stocktake) => {
-  if (key === 'delete') {
-    Modal.confirm({
-      title: '确认删除',
-      content: '删除后数据不可恢复，确定要删除该盘点单吗？',
-      okText: '确定',
-      cancelText: '取消',
-      onOk: () => handleDelete(record)
-    })
-  }
-}
+const CHECK_METHOD_TEXT: Record<number, string> = { 1: '手工录入', 2: '扫码盘点', 3: '快速盘点' }
+function getCheckMethodText(m: number): string { return CHECK_METHOD_TEXT[m] || '—' }
+const CHECK_TYPE_TEXT: Record<number, string> = { 1: '全面盘点', 2: '抽盘', 3: '动态盘点' }
+function getCheckTypeText(t: number): string { return CHECK_TYPE_TEXT[t] || '—' }
 
-const handleEdit = (record: Stocktake) => {
-  router.push(`/erp/stocktake/${record.id}`)
-}
-
-const confirmStart = (record: Stocktake) => {
-  Modal.confirm({
-    title: '确认开始盘点',
-    content: `确认开始盘点 ${record.stocktakeNo} 吗？`,
-    okText: '确定',
-    cancelText: '取消',
-    onOk: () => handleStart(record)
-  })
-}
-
-const confirmComplete = (record: Stocktake) => {
-  Modal.confirm({
-    title: '确认完成盘点',
-    content: `确认完成盘点 ${record.stocktakeNo} 吗？完成后可进行库存调整。`,
-    okText: '确定',
-    cancelText: '取消',
-    onOk: () => handleComplete(record)
-  })
-}
-
-const confirmAdjust = (record: Stocktake) => {
-  Modal.confirm({
-    title: '库存调整确认',
-    content: `盘点单 ${record.stocktakeNo} 存在差异，确认按盘点结果调整库存？`,
-    okText: '确认调整',
-    cancelText: '取消',
-    onOk: () => handleAdjust(record)
-  })
-}
-
-const handleAdjust = async (record: Stocktake) => {
-  try {
-    await request.post(`/erp/stock/check/${record.id}/adjust`)
-    message.success(`库存调整完成: ${record.stocktakeNo}`)
-    detailVisible.value = false
-    fetchData()
-  } catch (err) {
-    console.warn('[库存盘点] 库存调整失败', err)
-    message.error('库存调整失败')
-  }
-}
-
-const handleExport = async () => {
-  try {
-    const res = await request.get('/erp/stock/check/export', null, {
-      params: { ...searchFilters },
-      responseType: 'blob'
-    })
-    const url = window.URL.createObjectURL(new Blob([res]))
-    const link = document.createElement('a')
-    link.href = url
-    link.setAttribute('download', `盘点单_${dayjs().format('YYYYMMDD_HHmmss')}.xlsx`)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    window.URL.revokeObjectURL(url)
-    message.success('导出成功')
-  } catch (err) {
-    console.warn('[库存盘点] 导出失败', err)
-    message.error('导出失败')
-  }
-}
-
-const handlePageChange = (page: number, size: number) => {
-  pagination.current = page
-  pagination.pageSize = size
-  fetchData()
-}
-
-const handleSelectionChange = (rows: Stocktake[], ids: number[]) => {
-  selectedRows.value = rows
-  selectedIds.value = ids
-}
-
-const handleKeydown = (e: KeyboardEvent) => {
-  if (e.key === 'F5') { e.preventDefault(); debounceClick('refresh', fetchData); return }
-  if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
-    e.preventDefault()
-    handleCreate()
-  }
-}
-
-onMounted(() => {
-  window.addEventListener('keydown', handleKeydown)
-  window.addEventListener('erp:create', handleParentCreate)
-  window.addEventListener('erp:refresh', () => fetchData())
-  loadWarehouses()
-  fetchData()
-  autoRefreshCountdown.value = 30
-  refreshTimer = setInterval(() => {
-    fetchData()
-    autoRefreshCountdown.value = 30
-  }, 30000)
-  countdownTimer = setInterval(() => {
-    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
-  }, 1000)
+// ═══ 表格底部合计 ═══
+const tableFooterColumns = computed(() => {
+  if (activeTab.value !== 'history') return []
+  const totalQty = tableData.value.reduce((s: number, r: any) => s + (r.totalDiffQuantity || 0), 0)
+  const totalAmt = tableData.value.reduce((s: number, r: any) => s + (r.totalDiffAmount || 0), 0)
+  return [
+    { key: 'totalDiffQuantity', value: totalQty, highlight: true },
+    { key: 'totalDiffAmount', value: totalAmt, highlight: true },
+  ]
 })
 
-onUnmounted(() => {
-  window.removeEventListener('keydown', handleKeydown)
-  window.removeEventListener('erp:create', handleParentCreate)
-  window.removeEventListener('erp:refresh', () => fetchData())
-  if (refreshTimer) clearInterval(refreshTimer)
-  if (countdownTimer) clearInterval(countdownTimer)
-})
+// ═══ 数据加载 ═══
+const loadWarehouses = async () => {
+  try {
+    const list = await optionsApi.getWarehouses()
+    warehouseOptions.value = (list || []).map((w: any) => ({ label: w.warehouseName || w.name, value: w.id }))
+  } catch { warehouseOptions.value = [] }
+}
 
-const fetchData = async () => {
-  hasError.value = false
+async function fetchData() {
   loading.value = true
   try {
-    const res = await request.get('/erp/stock/check/page', { params: {
-      tenantId: userStore.tenantId,
-      keyword: searchFilters.stocktakeNo || undefined,
-      status: searchFilters.status,
-      pageNum: pagination.current,
-      pageSize: pagination.pageSize
-    }})
-    if (res.data?.records) {
-      dataSource.value = res.records.map((item) => ({
-        id: item.id,
-        stocktakeNo: item.checkNo,
-        warehouseName: item.warehouseName,
-        stocktakeDate: item.checkDate,
-        systemQuantity: item.systemQuantity || 0,
-        actualQuantity: item.actualQuantity || 0,
-        difference: (item.actualQuantity || 0) - (item.systemQuantity || 0),
-        status: item.status,
-        operator: item.creatorName || '',
-        remark: item.remark || ''
-      }))
-      pagination.total = res.total || 0
-      // 优先使用 API 返回的全局统计数据，避免仅基于当前页计算
-      if (res.totalCount !== undefined) {
-        statistics.value.totalCount = res.totalCount
-        statistics.value.pendingCount = res.pendingCount || 0
-        statistics.value.processingCount = res.processingCount || 0
-        statistics.value.completedCount = res.completedCount || 0
-      } else {
-        statistics.value.totalCount = dataSource.value.length
-        statistics.value.pendingCount = dataSource.value.filter(item => item.status === 0).length
-        statistics.value.processingCount = dataSource.value.filter(item => item.status === 1).length
-        statistics.value.completedCount = dataSource.value.filter(item => item.status === 2).length
-      }
+    if (activeTab.value === 'history') {
+      const params: any = { pageNum: pagination.current, pageSize: pagination.pageSize }
+      if (searchParams.stockTakeNo) params.stockTakeNo = searchParams.stockTakeNo
+      if (searchParams.regionName) params.regionName = searchParams.regionName
+      if (searchParams.warehouseName) params.warehouseName = searchParams.warehouseName
+      if (searchParams.handlerName) params.handlerName = searchParams.handlerName
+      if (searchParams.deptName) params.deptName = searchParams.deptName
+      if (searchParams.creatorName) params.creatorName = searchParams.creatorName
+      if (searchParams.bookkeeperName) params.bookkeeperName = searchParams.bookkeeperName
+      if (searchParams.linkedBillNo) params.linkedBillNo = searchParams.linkedBillNo
+      if (searchParams.remark) params.remark = searchParams.remark
+      if (searchParams.status !== undefined && searchParams.status !== '') params.status = searchParams.status
+      if (searchParams.checkMethod !== undefined && searchParams.checkMethod !== '') params.checkMethod = searchParams.checkMethod
+      if (searchParams.startDate) params.dateStart = searchParams.startDate
+      if (searchParams.endDate) params.dateEnd = searchParams.endDate
+      const res: any = await stockTakeApi.getPage(params)
+      const body = (res as any)?.data ?? res
+      tableData.value = body?.records || []
+      pagination.total = Number(body?.total) || 0
     } else {
-      dataSource.value = []
-      pagination.total = 0
+      const params: any = { pageSize: 9999 }
+      if (searchParams.checkWarehouseId !== undefined) params.checkWarehouseId = searchParams.checkWarehouseId
+      if (searchParams.location) params.location = searchParams.location
+      if (searchParams.productKeyword) params.productKeyword = searchParams.productKeyword
+      if (searchParams.filterCondition) params.filterCondition = searchParams.filterCondition
+      if (searchParams.showStatus) params.showStatus = searchParams.showStatus
+      if (searchParams.availableStockMin !== undefined && searchParams.availableStockMin !== null) params.availableStockMin = searchParams.availableStockMin
+      if (searchParams.bookStockMin !== undefined && searchParams.bookStockMin !== null) params.bookStockMin = searchParams.bookStockMin
+      if (searchParams.includeHandled) params.includeHandled = true
+      const res: any = await stockTakeApi.uncheckedProducts(params)
+      const body = (res as any)?.data ?? res
+      const list = Array.isArray(body) ? body : []
+      tableData.value = list
+      pagination.total = list.length
     }
-    lastUpdated.value = new Date().toISOString()
-  } catch (error) {
-    hasError.value = true
-    console.warn('[库存盘点] 获取数据失败', error)
-    message.error('获取数据失败')
+  } catch (error: any) {
+    console.warn('[盘点单] 获取列表失败', error)
+    message.error(error?.response?.data?.message || '获取数据失败')
   } finally {
     loading.value = false
-    refreshLoading.value = false
-    lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
   }
 }
 
-defineExpose({ handleQuery: fetchData })
+function handleTabChange(key: string) {
+  activeTab.value = key
+  pagination.current = 1
+  selectedRowKeys.value = []
+  selectedRows.value = []
+  fetchData()
+}
+
+function setQuickDate(key: string) {
+  quickDate.value = key
+  const now = dayjs()
+  let start: Dayjs, end: Dayjs
+  switch (key) {
+    case 'yesterday': start = now.subtract(1, 'day'); end = now.subtract(1, 'day'); break
+    case 'today': start = now; end = now; break
+    case 'week': start = now.startOf('week'); end = now; break
+    case 'lastWeek': start = now.subtract(7, 'day'); end = now; break
+    case 'month': start = now.startOf('month'); end = now; break
+    case 'lastMonth': start = now.subtract(1, 'month').startOf('month'); end = now.subtract(1, 'month').endOf('month'); break
+    case 'last3Month': start = now.subtract(3, 'month'); end = now; break
+    case 'year': start = now.startOf('year'); end = now; break
+    default: start = now.subtract(7, 'day'); end = now
+  }
+  dateRange.value = [start, end]
+  searchParams.startDate = start.format('YYYY-MM-DD')
+  searchParams.endDate = end.format('YYYY-MM-DD')
+  handleSearch()
+}
+
+function handleDateChange(dates: [Dayjs, Dayjs] | null) {
+  if (dates && dates.length === 2) {
+    searchParams.startDate = dates[0]?.format('YYYY-MM-DD') || ''
+    searchParams.endDate = dates[1]?.format('YYYY-MM-DD') || ''
+  } else {
+    searchParams.startDate = ''
+    searchParams.endDate = ''
+  }
+}
+
+function handleSearch() {
+  pagination.current = 1
+  fetchData()
+}
+
+function handlePageChange(page: number, pageSize: number) {
+  pagination.current = page
+  pagination.pageSize = pageSize
+  fetchData()
+}
+
+// ═══ 操作 ═══
+function handleAdd() {
+  router.push('/erp/stocktake/form')
+}
+function handleView(record: any) {
+  router.push(`/erp/stocktake/form?id=${record.id}`)
+}
+function handleProcess(record: any) {
+  Modal.confirm({
+    title: '盘点处理确认',
+    content: `确定对盘点单 ${record.stockTakeNo} 执行盘点处理吗？处理后将按盈亏自动生成报损单/报溢单。`,
+    okText: '确认处理',
+    cancelText: '取消',
+    onOk: async () => {
+      try {
+        await stockTakeApi.process(record.id)
+        message.success('盘点处理完成')
+        fetchData()
+      } catch (error: any) {
+        message.error(error?.response?.data?.message || error?.message || '盘点处理失败')
+      }
+    },
+  })
+}
+function handleDelete(record: any) {
+  Modal.confirm({
+    title: '确认删除',
+    content: `确定要删除盘点单 ${record.stockTakeNo} 吗？此操作不可恢复。`,
+    okText: '确认删除',
+    okType: 'danger',
+    cancelText: '取消',
+    onOk: async () => {
+      try {
+        await stockTakeApi.delete(record.id)
+        message.success('删除成功')
+        fetchData()
+      } catch (error: any) {
+        message.error(error?.response?.data?.message || '删除失败')
+      }
+    },
+  })
+}
+
+// ── 未盘商品：创建盘点单并跳转 ──
+function buildItemsFromUnchecked() {
+  const rows = activeTab.value === 'unchecked' ? tableData.value : selectedRows.value
+  return rows.map((p: any) => ({
+    productId: p.productId,
+    productCode: p.productCode || '',
+    productName: p.productName || '',
+    productSpec: p.productSpec || '',
+    productUnit: p.productUnit || '',
+    barcode: p.barcode || '',
+    model: p.model || '',
+    origin: p.origin || '',
+    brand: p.brand || '',
+    location: p.location || '',
+    region: p.region || '',
+    stockQuantity: p.stockQuantity ?? 0,
+    checkQuantity: p.stockQuantity ?? 0,
+    costPrice: 0,
+    checkStatus: 1,
+    remark: '',
+  }))
+}
+
+async function handleAllCheck() {
+  if (!searchParams.checkWarehouseId) {
+    message.warning('请先选择仓库')
+    return
+  }
+  const items = buildItemsFromUnchecked()
+  if (items.length === 0) {
+    message.warning('当前仓库没有未盘商品')
+    return
+  }
+  await createAndJump(items, searchParams.checkWarehouseId)
+}
+
+async function handleBatchCheck() {
+  if (selectedRowKeys.value.length === 0) {
+    message.warning('请先勾选要盘点的商品')
+    return
+  }
+  const items = buildItemsFromUnchecked()
+  if (items.length === 0) {
+    message.warning('没有可盘点的商品')
+    return
+  }
+  await createAndJump(items, searchParams.checkWarehouseId)
+}
+
+async function createAndJump(items: any[], warehouseId?: number) {
+  try {
+    const payload: any = {
+      stockTakeDate: dayjs().format('YYYY-MM-DD'),
+      checkMethod: 1,
+      checkType: 1,
+      warehouseId,
+      status: 1,
+      items,
+    }
+    const res: any = await stockTakeApi.create(payload)
+    const created = (res as any)?.data ?? res
+    message.success(`盘点单已创建：${created?.stockTakeNo || ''}，请录入实盘数量`)
+    router.push(`/erp/stocktake/form?id=${created?.id}`)
+  } catch (error: any) {
+    message.error(error?.response?.data?.message || error?.message || '创建盘点单失败')
+  }
+}
+
+function handleSummary() {
+  message.info('汇总盘点：按相同商品汇总盈亏数量')
+}
+
+function handlePrintF8() {
+  if (activeTab.value === 'history') {
+    if (selectedRowKeys.value.length === 0) {
+      message.warning('请先选择要打印的盘点单')
+      return
+    }
+    router.push(`/erp/stocktake/form?id=${selectedRowKeys.value[0]}`)
+  } else {
+    message.warning('请勾选商品后再打印')
+  }
+}
+
+async function handleExport() {
+  try {
+    const params: any = { pageNum: 1, pageSize: 9999 }
+    const res: any = activeTab.value === 'history'
+      ? await stockTakeApi.getPage(params)
+      : await stockTakeApi.uncheckedProducts(params)
+    const body = (res as any)?.data ?? res
+    const data = activeTab.value === 'history' ? (body?.records || []) : (Array.isArray(body) ? body : [])
+    if (data.length === 0) {
+      message.warning('没有可导出的数据')
+      return
+    }
+    const headers = activeTab.value === 'history'
+      ? ['单据编号', '单据日期', '仓库', '盘点方式', '盈亏数量', '盈亏金额', '状态']
+      : ['商品名称', '货号', '单位', '规格', '型号', '产地', '品牌', '可用库存', '账面库存', '条码']
+    const rows = activeTab.value === 'history'
+      ? data.map((r: any) => [r.stockTakeNo, r.stockTakeDate, r.warehouseName, getCheckMethodText(r.checkMethod), r.totalDiffQuantity, r.totalDiffAmount, getStatusText(r.status)])
+      : data.map((r: any) => [r.productName, r.productCode, r.productUnit, r.productSpec, r.model, r.origin, r.brand, r.availableStock, r.stockQuantity, r.barcode])
+    const csv = [headers.join(','), ...rows.map((r: any[]) => r.join(','))].join('\n')
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${activeTab.value === 'history' ? '盘点单' : '未盘商品'}_${dayjs().format('YYYYMMDD_HHmmss')}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+    message.success('导出成功')
+  } catch (error: any) {
+    message.error(error?.response?.data?.message || '导出失败')
+  }
+}
+
+const handleError = (error: Error) => {
+  console.error('[盘点单] 页面错误', error)
+  message.error(`页面错误: ${error.message}`)
+}
+
+function formatAmount(amount: number): string {
+  if (amount === undefined || amount === null) return '0.00'
+  return amount.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+function formatQuantity(qty: number): string {
+  if (qty === undefined || qty === null) return '0'
+  return qty.toLocaleString('zh-CN', { maximumFractionDigits: 4 })
+}
+
+// ═══ 初始化 ═══
+onMounted(() => {
+  loadPageConfig()
+  loadWarehouses()
+  setQuickDate('lastWeek')
+  fetchData()
+})
 </script>
 
 <style scoped>
-.stocktake-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-}
-
-.stocktake-header__left {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.stocktake-header__breadcrumb {
-  font-size: 12px;
-  color: #999;
-}
-
-.stocktake-header__title {
-  font-size: 18px;
-  font-weight: 600;
-  color: #303133;
-  margin: 0;
-}
-
-.stocktake-header__right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.auto-refresh-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: #52c41a;
-  white-space: nowrap;
-}
-
-.data-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.update-time {
-  font-size: 12px;
-  color: #999;
-  white-space: nowrap;
-}
-
-.stocktake-page {
-  padding: 16px;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  min-height: 0;
-}
-
-.list-update-timestamp {
-  color: #999;
-  font-size: 12px;
-  margin-right: 12px;
-}
-
-.table-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 48px 0;
-}
-
-.table-empty-icon {
-  font-size: 48px;
-  color: #d9d9d9;
-}
-
-.table-empty-text {
-  color: #999;
-  margin-top: 12px;
-}
-
-.action-more-btn {
-  padding: 0 4px;
-}
-
-.positive {
-  color: #3f8600;
-  font-weight: bold;
-}
-
-.negative {
-  color: #ff4d4f;
-  font-weight: bold;
-}
-
-/* 统计卡片样式 */
-.summary-card {
-  display: flex;
-  align-items: center;
-  padding: 16px;
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  transition: all 0.3s;
-}
-
-.summary-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
-  transform: translateY(-2px);
-}
-
-.summary-card.highlight {
-  background: linear-gradient(135deg, #f6ffed 0%, #e6f7e6 100%);
-  border: 1px solid #b7eb8f;
-}
-
-.summary-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-size: 24px;
-  margin-right: 16px;
-}
-
-.summary-content {
-  flex: 1;
-}
-
-.summary-title {
-  font-size: 14px;
-  color: #666;
-  margin-bottom: 4px;
-}
-
-.summary-value {
-  font-size: 24px;
-  font-weight: 600;
-  color: #303133;
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, 'Courier New', monospace;
-  font-variant-numeric: tabular-nums;
-}
-
-.summary-value.warning {
-  color: #faad14;
-}
-
-/* 表格容器自动撑满 */
-:deep(.vxe-table-list-container) {
-  flex: 1;
-  min-height: 0;
-}
-
-
-/* ── 快捷键提示 ──────────────────────── */
-.shortcut-hints {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: #909399;
-  user-select: none;
-}
-.shortcut-hint {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  padding: 1px 4px;
-  border-radius: 3px;
-  background: #f5f7fa;
-}
-.shortcut-hint kbd {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 3px;
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-  font-size: 11px;
-  color: #606266;
-  background: #fff;
-  border: 1px solid #d0d5dd;
-  border-radius: 3px;
-  box-shadow: 0 1px 0 #d0d5dd;
-  line-height: 18px;
-}
-
-/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+.query-scheme-wrap { display: flex; align-items: center; gap: 2px; }
+.quick-dates :deep(.ant-btn) { font-size: 13px; padding: 2px 8px; }
+.quick-dates :deep(.ant-btn-primary) { color: #fff; background: #ff7a45; border-color: #ff7a45; }
+.search-area { padding: 8px 16px; background: #fff; border-bottom: 1px solid #e8e8e8; flex-shrink: 0; }
+.search-container > .search-grid { max-height: 80px; overflow: hidden; }
+.search-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; align-items: center; }
+.search-field-item { display: flex; min-width: 0; }
+.search-field-item :deep(.ant-input-wrapper),
+.search-field-item :deep(.ant-input-affix-wrapper) { width: 100%; font-size: 13px; }
+.search-field-item :deep(.ant-select) { width: 100%; }
+.search-field-item :deep(.ant-select .ant-select-selector) { font-size: 13px; }
+.search-field-item :deep(.ant-picker) { width: 100%; }
+.search-select-wrap { display: flex; align-items: center; width: 100%; border: 1px solid #d9d9d9; border-radius: 4px; background: #fff; }
+.search-select-wrap:hover { border-color: #4096ff; }
+.search-select-label { font-size: 13px; color: rgba(0,0,0,0.65); white-space: nowrap; flex-shrink: 0; padding-left: 8px; }
+.search-select-wrap :deep(.ant-select) { flex: 1; min-width: 0; }
+.search-select-wrap :deep(.ant-select .ant-select-selector) { border: none !important; border-radius: 0 !important; box-shadow: none !important; padding-top: 0 !important; padding-bottom: 0 !important; display: flex; align-items: center; }
+.search-action-item { flex-shrink: 0; }
+.search-action-group { display: flex; flex-wrap: nowrap; align-items: center; }
+.search-action-group .search-field-item { width: auto; flex: 0 0 auto; margin-right: 4px; }
+.search-action-group .search-field-item:last-child { margin-right: 0; }
+.table-area { flex: 1; min-height: 0; overflow: hidden; }
+.currency-value { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-variant-numeric: tabular-nums; }
+.positive { color: #3f8600; font-weight: bold; }
+.negative { color: #ff4d4f; font-weight: bold; }
 :deep(.ant-input-sm),
 :deep(.ant-input-number-sm),
 :deep(.ant-select-single.ant-select-sm .ant-select-selector),
 :deep(.ant-picker-small),
-:deep(.ant-btn-sm) {
-  height: 28px;
-  line-height: 28px;
-}
-:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
-  line-height: 26px;
-}
-:deep(.ant-input-number-sm input) {
-  height: 26px;
-}
+:deep(.ant-btn-sm) { height: 28px; line-height: 28px; }
 </style>

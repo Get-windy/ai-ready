@@ -673,6 +673,54 @@ export interface StockCheckItem {
   checkStatus?: number
 }
 
+// ── 盘点单 ──────────────────────────────────────────
+export interface StockTake {
+  id: number
+  stockTakeNo: string
+  stockTakeDate: string
+  checkMethod?: number
+  checkType?: number
+  warehouseId?: number
+  warehouseName?: string
+  regionName?: string
+  handlerId?: number
+  handlerName?: string
+  deptId?: number
+  deptName?: string
+  totalDiffQuantity?: number
+  totalDiffAmount?: number
+  totalItems?: number
+  linkedBillNo?: string
+  summary?: string
+  remark?: string
+  status: number
+  creatorName?: string
+  bookkeeperName?: string
+  bookkeepingTime?: string
+  processResult?: string
+  items?: any[]
+}
+export const stockTakeApi = {
+  getPage(params: PageQuery): Promise<PageResult<any>> {
+    return request.get('/erp/stock/take/page', params)
+  },
+  pageDetail(params: PageQuery): Promise<PageResult<any>> {
+    return request.get('/erp/stock/take/page-detail', params)
+  },
+  nextNo(): Promise<string> {
+    return request.get('/erp/stock/take/next-no')
+  },
+  uncheckedProducts(params: PageQuery): Promise<any[]> {
+    return request.get('/erp/stock/take/unchecked-products', params)
+  },
+  getById(id: number) { return request.get(`/erp/stock/take/${id}`) },
+  getItems(id: number) { return request.get(`/erp/stock/take/${id}/items`) },
+  create(data: any) { return request.post('/erp/stock/take', data) },
+  update(id: number, data: any) { return request.put(`/erp/stock/take/${id}`, data) },
+  delete(id: number) { return request.delete(`/erp/stock/take/${id}`) },
+  process(id: number) { return request.post(`/erp/stock/take/${id}/process`) },
+}
+
 // ── 库存调拨 ──────────────────────────────────────────
 export interface StockTransfer {
   id: number; transferNo: string; fromWarehouse: string; toWarehouse: string
@@ -884,9 +932,6 @@ export const stockDamageApi = {
   create(data: any) { return request.post('/erp/stock/damage', data) },
   update(id: number, data: any) { return request.put(`/erp/stock/damage/${id}`, data) },
   delete(id: number) { return request.delete(`/erp/stock/damage/${id}`) },
-  submit(id: number) { return request.post(`/erp/stock/damage/${id}/submit`) },
-  approve(id: number, note?: string) { return request.post(`/erp/stock/damage/${id}/approve`, null, { params: { note } }) },
-  reject(id: number, reason: string) { return request.post(`/erp/stock/damage/${id}/reject`, null, { params: { reason } }) },
   complete(id: number) { return request.post(`/erp/stock/damage/${id}/complete`) },
   cancel(id: number, reason?: string) { return request.post(`/erp/stock/damage/${id}/cancel`, null, { params: { reason } }) },
   getItems(id: number) { return request.get(`/erp/stock/damage/${id}/items`) },
@@ -933,8 +978,14 @@ export interface StockOverflow {
 }
 
 export const stockOverflowApi = {
-  page(params: PageQuery): Promise<PageResult<StockOverflow>> {
+  getPage(params: PageQuery): Promise<PageResult<any>> {
     return request.get('/erp/stock/overflow/page', params)
+  },
+  pageDetail(params: PageQuery): Promise<PageResult<any>> {
+    return request.get('/erp/stock/overflow/page-detail', params)
+  },
+  nextNo(): Promise<string> {
+    return request.get('/erp/stock/overflow/next-no')
   },
   getById(id: number): Promise<ApiResponse<StockOverflow>> {
     return request.get(`/erp/stock/overflow/${id}`)
@@ -951,40 +1002,55 @@ export const stockOverflowApi = {
   submit(id: number): Promise<ApiResponse<void>> {
     return request.post(`/erp/stock/overflow/${id}/submit`)
   },
-  approve(id: number): Promise<ApiResponse<void>> {
-    return request.post(`/erp/stock/overflow/${id}/approve`)
+  approve(id: number, note?: string): Promise<ApiResponse<void>> {
+    return request.post(`/erp/stock/overflow/${id}/approve`, null, { params: { note } })
   },
   reject(id: number, reason: string): Promise<ApiResponse<void>> {
     return request.post(`/erp/stock/overflow/${id}/reject`, null, { params: { reason } })
   },
+  complete(id: number): Promise<ApiResponse<void>> {
+    return request.post(`/erp/stock/overflow/${id}/complete`)
+  },
   execute(id: number): Promise<ApiResponse<void>> {
     return request.post(`/erp/stock/overflow/${id}/execute`)
   },
-  cancel(id: number, reason: string): Promise<ApiResponse<void>> {
+  cancel(id: number, reason?: string): Promise<ApiResponse<void>> {
     return request.post(`/erp/stock/overflow/${id}/cancel`, null, { params: { reason } })
   },
-  export(params: any): Promise<Blob> {
-    return request.get('/erp/stock/overflow/export', params, { responseType: 'blob' })
+  getItems(id: number): Promise<ApiResponse<StockOverflowItem[]>> {
+    return request.get(`/erp/stock/overflow/${id}/items`)
   }
 }
 
 // ── 库存成本调整 ──────────────────────────────────────────
 export interface StockCostAdjustItem {
-  id: number
+  id?: number
   productId: number
+  productCode?: string
   productName: string
-  unit: string
-  quantity: number
-  oldUnitCost: number
-  newUnitCost: number
-  oldTotalCost: number
-  newTotalCost: number
-  adjustAmount: number
+  productSpec?: string
+  productUnit?: string
+  warehouseId?: number
+  barcode?: string
+  location?: string
+  taste?: string
+  model?: string
+  origin?: string
+  brand?: string
+  currentQuantity?: number
+  oldCost?: number
+  oldAmount?: number
+  newCost?: number
+  newAmount?: number
+  diffAmount?: number
   batchNo?: string
-  producedDate?: string
-  expiryDate?: string
+  shelfLife?: string
+  validityDate?: string
+  conversionRelation?: string
+  conversionResult?: string
+  wholesalePrice?: number
+  retailPrice?: number
   remark?: string
-  // Add other properties as needed
 }
 
 export interface StockCostAdjust {
@@ -994,11 +1060,23 @@ export interface StockCostAdjust {
   adjustDate: string
   warehouseId?: number
   warehouseName?: string
+  handlerId?: number
+  handlerName?: string
+  deptId?: number
+  deptName?: string
   totalAdjustAmount: number
   totalItems: number
   reasonType: string
   reasonDesc?: string
   status: number
+  summary?: string
+  remark?: string
+  attachment?: string
+  bookkeeperId?: number
+  bookkeeperName?: string
+  bookkeepingTime?: string
+  creatorName?: string
+  printCount?: number
   applicantId?: number
   applicantName?: string
   applyTime?: string
@@ -1007,7 +1085,6 @@ export interface StockCostAdjust {
   approvedNote?: string
   executedBy?: number
   executedTime?: string
-  remark?: string
   items: StockCostAdjustItem[]
   createTime: string
   updateTime: string
@@ -1016,6 +1093,12 @@ export interface StockCostAdjust {
 export const stockCostAdjustApi = {
   page(params: PageQuery): Promise<PageResult<StockCostAdjust>> {
     return request.get('/erp/stock/cost-adjust/page', params)
+  },
+  pageDetail(params: PageQuery): Promise<PageResult<any>> {
+    return request.get('/erp/stock/cost-adjust/page-detail', params)
+  },
+  nextNo(): Promise<string> {
+    return request.get('/erp/stock/cost-adjust/next-no')
   },
   getById(id: number): Promise<ApiResponse<StockCostAdjust>> {
     return request.get(`/erp/stock/cost-adjust/${id}`)
@@ -1032,8 +1115,8 @@ export const stockCostAdjustApi = {
   submit(id: number): Promise<ApiResponse<void>> {
     return request.post(`/erp/stock/cost-adjust/${id}/submit`)
   },
-  approve(id: number): Promise<ApiResponse<void>> {
-    return request.post(`/erp/stock/cost-adjust/${id}/approve`)
+  approve(id: number, note?: string): Promise<ApiResponse<void>> {
+    return request.post(`/erp/stock/cost-adjust/${id}/approve`, null, { params: { note } })
   },
   reject(id: number, reason: string): Promise<ApiResponse<void>> {
     return request.post(`/erp/stock/cost-adjust/${id}/reject`, null, { params: { reason } })
@@ -1043,6 +1126,9 @@ export const stockCostAdjustApi = {
   },
   cancel(id: number, reason: string): Promise<ApiResponse<void>> {
     return request.post(`/erp/stock/cost-adjust/${id}/cancel`, null, { params: { reason } })
+  },
+  batchDelete(ids: number[]): Promise<ApiResponse<void>> {
+    return request.delete('/erp/stock/cost-adjust/batch', { data: ids })
   },
   export(params: any): Promise<Blob> {
     return request.get('/erp/stock/cost-adjust/export', params, { responseType: 'blob' })

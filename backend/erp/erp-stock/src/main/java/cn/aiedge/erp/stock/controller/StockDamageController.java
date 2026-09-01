@@ -6,7 +6,6 @@ import cn.aiedge.erp.stock.dto.StockDamageQuery;
 import cn.aiedge.erp.stock.entity.StockDamage;
 import cn.aiedge.erp.stock.entity.StockDamageItem;
 import cn.aiedge.erp.stock.service.StockDamageService;
-import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -81,32 +80,14 @@ public class StockDamageController {
         return Result.ok(damageService.removeById(id));
     }
 
-    @PostMapping("/{id}/submit")
-    @Operation(summary = "提交审批")
-    public Result<StockDamage> submit(@PathVariable Long id) {
-        return Result.ok(damageService.submitForApproval(id));
-    }
-
-    @PostMapping("/{id}/approve")
-    @Operation(summary = "审批通过")
-    public Result<StockDamage> approve(@PathVariable Long id, @RequestParam(required = false) String note) {
-        return Result.ok(damageService.approve(id, StpUtil.getLoginIdAsLong(), note));
-    }
-
-    @PostMapping("/{id}/reject")
-    @Operation(summary = "审批拒绝")
-    public Result<StockDamage> reject(@PathVariable Long id, @RequestParam String reason) {
-        return Result.ok(damageService.reject(id, reason));
-    }
-
     @PostMapping("/{id}/complete")
-    @Operation(summary = "执行记账(出库)")
+    @Operation(summary = "执行记帐(出库生效)")
     public Result<StockDamage> complete(@PathVariable Long id) {
         return Result.ok(damageService.execute(id));
     }
 
     @PostMapping("/{id}/execute")
-    @Operation(summary = "执行出库(记账)")
+    @Operation(summary = "执行记帐(出库生效)")
     public Result<StockDamage> execute(@PathVariable Long id) {
         return Result.ok(damageService.execute(id));
     }

@@ -217,49 +217,15 @@ public class StockDamageServiceImpl extends ServiceImpl<StockDamageMapper, Stock
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public StockDamage submitForApproval(Long id) {
-        StockDamage d = getAndCheck(id, 0, "只有草稿状态的报损单可以提交审批");
-        d.setStatus(1);
-        d.setApplicantId(StpUtil.getLoginIdAsLong());
-        d.setApplicantName(StpUtil.getLoginId().toString());
-        d.setApplyTime(LocalDateTime.now());
-        this.updateById(d);
-        return d;
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public StockDamage approve(Long id, Long approverId, String note) {
-        StockDamage d = getAndCheck(id, 1, "只有待审批状态的报损单可以审批");
-        d.setStatus(2);
-        d.setApprovedBy(approverId);
-        d.setApprovedTime(LocalDateTime.now());
-        d.setApprovedNote(note);
-        this.updateById(d);
-        return d;
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public StockDamage reject(Long id, String reason) {
-        StockDamage d = getAndCheck(id, 1, "只有待审批状态的报损单可以拒绝");
-        d.setStatus(4);
-        d.setApprovedNote(reason);
-        this.updateById(d);
-        return d;
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
     public StockDamage execute(Long id) {
-        // 执行出库（记账）：报损出库生效，按批次扣减库存
-        StockDamage d = getAndCheck(id, 2, "只有已审核状态的报损单可以记账出库");
-        d.setStatus(3);
-        d.setExecutedBy(StpUtil.getLoginIdAsLong());
-        d.setExecutedTime(LocalDateTime.now());
+        // 记帐（出库生效）：草稿 → 已记账，按批次扣减库存（报损出库）
+        StockDamage d = getAndCheck(id, 0, "只有草稿状态的报损单可以记帐");
+        d.setStatus(1);
         d.setBookkeeperId(StpUtil.getLoginIdAsLong());
         d.setBookkeeperName(StpUtil.getLoginId().toString());
         d.setBookkeepingTime(LocalDateTime.now());
+        d.setExecutedBy(StpUtil.getLoginIdAsLong());
+        d.setExecutedTime(LocalDateTime.now());
         this.updateById(d);
         return d;
     }
@@ -267,10 +233,8 @@ public class StockDamageServiceImpl extends ServiceImpl<StockDamageMapper, Stock
     @Override
     @Transactional(rollbackFor = Exception.class)
     public StockDamage cancel(Long id, String reason) {
-        StockDamage d = this.getById(id);
-        if (d == null) throw BusinessException.notFound("报损单不存在");
-        if (d.getStatus() >= 3) throw BusinessException.badRequest("已记账出库的报损单不能取消");
-        d.setStatus(5);
+        StockDamage d = getAndCheck(id, 0, "只有草稿状态的报损单可以作废");
+        d.setStatus(2);
         d.setCancelReason(reason);
         this.updateById(d);
         return d;

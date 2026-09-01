@@ -121,52 +121,25 @@ class StockDamageServiceImplTest {
     }
 
     @Test
-    @DisplayName("提交审批")
-    void testSubmitForApproval() {
-        when(damageMapper.selectById(1L)).thenReturn(testDamage);
-        StockDamage result = damageService.submitForApproval(1L);
+    @DisplayName("记帐（草稿→已记账）")
+    void testExecute() {
+        when(damageMapper.selectById(1L)).thenReturn(testDamage); // status 0
+        StockDamage result = damageService.execute(1L);
         assertEquals(1, result.getStatus());
     }
 
     @Test
-    @DisplayName("审批通过")
-    void testApprove() {
-        testDamage.setStatus(1);
-        when(damageMapper.selectById(1L)).thenReturn(testDamage);
-        StockDamage result = damageService.approve(1L, 200L, null);
+    @DisplayName("作废报损单（草稿→已作废）")
+    void testCancel() {
+        when(damageMapper.selectById(1L)).thenReturn(testDamage); // status 0
+        StockDamage result = damageService.cancel(1L, "不再报损");
         assertEquals(2, result.getStatus());
     }
 
     @Test
-    @DisplayName("审批拒绝")
-    void testReject() {
+    @DisplayName("作废 - 已记账抛出异常")
+    void testCancelBooked() {
         testDamage.setStatus(1);
-        when(damageMapper.selectById(1L)).thenReturn(testDamage);
-        StockDamage result = damageService.reject(1L, "原因不充分");
-        assertEquals(4, result.getStatus());
-    }
-
-    @Test
-    @DisplayName("执行出库")
-    void testExecute() {
-        testDamage.setStatus(2);
-        when(damageMapper.selectById(1L)).thenReturn(testDamage);
-        StockDamage result = damageService.execute(1L);
-        assertEquals(3, result.getStatus());
-    }
-
-    @Test
-    @DisplayName("取消报损单")
-    void testCancel() {
-        when(damageMapper.selectById(1L)).thenReturn(testDamage); // status 0
-        StockDamage result = damageService.cancel(1L, "不再报损");
-        assertEquals(5, result.getStatus());
-    }
-
-    @Test
-    @DisplayName("取消 - 已执行抛出异常")
-    void testCancelExecuted() {
-        testDamage.setStatus(3);
         when(damageMapper.selectById(1L)).thenReturn(testDamage);
         assertThrows(BusinessException.class, () -> damageService.cancel(1L, "test"));
     }
@@ -177,20 +150,5 @@ class StockDamageServiceImplTest {
         when(damageItemMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(testItems);
         List<StockDamageItem> items = damageService.getItems(1L);
         assertEquals(1, items.size());
-    }
-
-    @Test
-    @DisplayName("状态流转异常 - 草稿直接审批")
-    void testApproveDraftError() {
-        when(damageMapper.selectById(1L)).thenReturn(testDamage); // status 0
-        assertThrows(BusinessException.class, () -> damageService.approve(1L, 200L, null));
-    }
-
-    @Test
-    @DisplayName("状态流转异常 - 已执行再提交")
-    void testSubmitExecutedError() {
-        testDamage.setStatus(3);
-        when(damageMapper.selectById(1L)).thenReturn(testDamage);
-        assertThrows(BusinessException.class, () -> damageService.submitForApproval(1L));
     }
 }

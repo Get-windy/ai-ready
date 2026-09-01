@@ -5,10 +5,10 @@
   <parent>
     <groupId>cn.aiedge.erp</groupId>
     <artifactId>erp</artifactId>
-    <version>0.3.11</version>
+    <version>0.3.13</version>
   </parent>
   <artifactId>erp-pricing</artifactId>
-  <version>0.3.11</version>
+  <version>0.3.13</version>
   <name>企智连·定价引擎模块</name>
   <description>智能定价引擎 - 支持多种定价策略、动态价格调整和价格记忆功能</description>
   <licenses>

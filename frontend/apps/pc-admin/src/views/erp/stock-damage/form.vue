@@ -206,17 +206,13 @@
 <script setup lang="ts">
 import { computed, ref, reactive, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { message, Modal } from 'ant-design-vue'
+import { message } from 'ant-design-vue'
 import {
   ClockCircleOutlined,
-  CheckOutlined,
-  CloseCircleOutlined,
   PrinterOutlined,
   MinusCircleOutlined,
   PlusCircleOutlined,
   ImportOutlined,
-  DownloadOutlined,
-  AuditOutlined,
   SettingOutlined,
 } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
@@ -255,32 +251,13 @@ const DAMAGE_CAUSE_OPTIONS = Object.entries(DAMAGE_CAUSE_MAP).map(([k, v]) => ({
 }))
 
 // ════════════════════════════════════════════
-// 状态枚举
+// 状态枚举（报损单：草稿 → 记帐 → 已记账 / 已作废）
 // ════════════════════════════════════════════
 
 const DAMAGE_STATUS_MAP: Record<number, { text: string; color: string }> = {
   0: { text: '草稿', color: 'default' },
-  1: { text: '待审批', color: 'orange' },
-  2: { text: '已审核', color: 'blue' },
-  3: { text: '已出库', color: 'success' },
-  4: { text: '已拒绝', color: 'error' },
-  5: { text: '已取消', color: 'default' },
-}
-
-function getAvailableActions(status: number) {
-  switch (status) {
-    case 0: return [
-      { key: 'submit', label: '提交审批', icon: AuditOutlined },
-    ]
-    case 1: return [
-      { key: 'approve', label: '审核通过', icon: CheckOutlined },
-      { key: 'reject', label: '驳回', icon: CloseCircleOutlined },
-    ]
-    case 2: return [
-      { key: 'complete', label: '记账出库', icon: CheckOutlined },
-    ]
-    default: return []
-  }
+  1: { text: '已记账', color: 'success' },
+  2: { text: '已作废', color: 'error' },
 }
 
 // ════════════════════════════════════════════
@@ -292,7 +269,8 @@ async function createWithStatus(data: any) {
   const res: any = await stockDamageApi.create({ ...payload, status: 0 })
   const created = res?.data || res
   if (status === 1 && created?.id) {
-    await stockDamageApi.submit(created.id)
+    // 记帐：保存草稿后立即记帐生效
+    await stockDamageApi.complete(created.id)
   }
   return created
 }
@@ -301,7 +279,7 @@ async function updateWithStatus(id: number, data: any) {
   const { status, ...payload } = data
   const res: any = await stockDamageApi.update(id, { ...payload, status: 0 })
   if (status === 1) {
-    await stockDamageApi.submit(id)
+    await stockDamageApi.complete(id)
   }
   return res?.data || res
 }
@@ -499,10 +477,9 @@ const statusText = computed(() => DAMAGE_STATUS_MAP[currentStatus.value]?.text |
 const statusColor = computed(() => DAMAGE_STATUS_MAP[currentStatus.value]?.color || 'default')
 const isLocked = computed(() => effectiveMode.value === 'edit' && currentStatus.value !== 0)
 const damageCauseText = computed(() => DAMAGE_CAUSE_MAP[formData.damageCause] || '未选择')
-const availableActions = computed(() => getAvailableActions(currentStatus.value))
 
 // ════════════════════════════════════════════
-// 页眉配置
+// 页眉配置（对标按钮：打印(F8)/历史/导入/更多/保存草稿/记帐）
 // ════════════════════════════════════════════
 
 const headerConfig = computed<BillHeaderConfig>(() => ({
@@ -512,12 +489,6 @@ const headerConfig = computed<BillHeaderConfig>(() => ({
   actions: [
     { key: 'print', label: '打印(F8)', icon: PrinterOutlined },
     { key: 'import', label: '导入', icon: ImportOutlined },
-    { key: 'export', label: '导出', icon: DownloadOutlined },
-    ...availableActions.value.map((act: any) => ({
-      key: act.key,
-      label: act.label,
-      icon: act.icon,
-    })),
     { key: 'history', label: '历史', icon: ClockCircleOutlined },
     { key: 'config', label: '配置', icon: SettingOutlined },
   ],
@@ -693,8 +664,8 @@ const footerConfig = computed<BillFooterConfig>(() => ({
   amountHighlight: true,
   draftBtnText: isLocked.value ? undefined : '保存草稿',
   draftShortcut: isLocked.value ? undefined : 'Ctrl+S',
-  primaryBtnText: currentStatus.value === 2 ? '记账出库' : (currentStatus.value === 0 ? '提交审批' : '提交'),
-  primaryShortcut: 'Ctrl+Enter',
+  primaryBtnText: currentStatus.value === 0 ? '记帐' : (currentStatus.value === 1 ? '已记账' : '已作废'),
+  primaryShortcut: currentStatus.value === 0 ? 'Ctrl+Enter' : undefined,
   saving: saving.value,
 }))
 
@@ -790,12 +761,9 @@ function handleSearchBtn(fieldKey: string, _btnText: string) {
 }
 
 function handlePrimarySubmit() {
+  // 记帐（Ctrl+Enter）：保存草稿后立即记帐生效（由 createWithStatus/updateWithStatus 完成 complete）
   if (isLocked.value) return
-  if (currentStatus.value === 2) {
-    handleComplete()
-  } else {
-    handleSubmit()
-  }
+  handleSubmit()
 }
 
 async function handleAction(actionKey: string) {
@@ -811,21 +779,6 @@ async function handleAction(actionKey: string) {
       break
     case 'import':
       handleImport()
-      break
-    case 'export':
-      handleExport()
-      break
-    case 'submit':
-      handleSubmit()
-      break
-    case 'approve':
-      handleApprove()
-      break
-    case 'reject':
-      handleReject()
-      break
-    case 'complete':
-      handleComplete()
       break
   }
 }
@@ -895,106 +848,6 @@ function productDefaultsForImport() {
     pieceQuantity: 0, bigPack: 0, midPack: 0, smallPack: 0, smallUnitQuantity: 0,
     weight: 0, volume: 0, itemExtNum1: 0, itemExtNum2: 0, itemExtNum3: 0,
     itemExtText1: '', itemExtText2: '', image: '', remark: '',
-  }
-}
-
-// ── 导出：当前单据明细导出 CSV ──
-function handleExport() {
-  if (formData.products.length === 0) {
-    message.warning('没有可导出的明细')
-    return
-  }
-  const headers = ['商品名称', '货号', '条码', '规格', '报损数量', '报损单价', '报损金额', '备注']
-  const rows = formData.products
-    .filter((p: any) => p.productName)
-    .map((p: any) => [
-      p.productName, p.itemCode || '', p.barcode || '', p.specification || '',
-      p.quantity, p.unitPrice, p.amount, p.remark || '',
-    ])
-  const csv = [headers.join(','), ...rows.map((r: any[]) => r.join(','))].join('\n')
-  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `报损单明细_${formData.orderNo || new Date().toISOString().slice(0, 10)}.csv`
-  a.click()
-  URL.revokeObjectURL(url)
-  message.success('导出成功')
-}
-
-// ── 审批 ──
-function handleApprove() {
-  const id = Number(formData.id)
-  if (!id) return
-  Modal.confirm({
-    title: '确认审核',
-    content: `确认审核通过报损单 ${formData.orderNo} 吗？`,
-    okText: '审核通过',
-    cancelText: '取消',
-    onOk: async () => {
-      try {
-        await stockDamageApi.approve(id)
-        message.success('审核成功')
-        await reloadDetail(id)
-      } catch (err: any) {
-        message.error(err?.message || '审核失败')
-      }
-    },
-  })
-}
-
-// ── 驳回 ──
-function handleReject() {
-  const id = Number(formData.id)
-  if (!id) return
-  let reason = ''
-  Modal.confirm({
-    title: '驳回报损单',
-    content: `确认驳回报损单 ${formData.orderNo} 吗？`,
-    okText: '确认驳回',
-    okType: 'danger',
-    cancelText: '取消',
-    onOk: async () => {
-      try {
-        await stockDamageApi.reject(id, reason || '驳回')
-        message.success('已驳回')
-        await reloadDetail(id)
-      } catch (err: any) {
-        message.error(err?.message || '驳回失败')
-      }
-    },
-  })
-}
-
-// ── 记账出库 ──
-function handleComplete() {
-  const id = Number(formData.id)
-  if (!id) return
-  Modal.confirm({
-    title: '记账出库确认',
-    content: `确认完成报损单 ${formData.orderNo} 的出库记账操作吗？记账后库存生效。`,
-    okText: '确认记账',
-    cancelText: '取消',
-    onOk: async () => {
-      try {
-        await stockDamageApi.complete(id)
-        message.success('记账完成，库存已更新')
-        await reloadDetail(id)
-      } catch (err: any) {
-        message.error(err?.message || '记账失败')
-      }
-    },
-  })
-}
-
-async function reloadDetail(id: number) {
-  try {
-    const res: any = await stockDamageApi.getById(id)
-    const data = res?.data || res || {}
-    if (data.orderNo === undefined || data.orderNo === '') data.orderNo = data.damageNo || ''
-    Object.assign(formData, { ...data, status: data.status, orderNo: data.orderNo || formData.orderNo })
-  } catch {
-    // 静默
   }
 }
 

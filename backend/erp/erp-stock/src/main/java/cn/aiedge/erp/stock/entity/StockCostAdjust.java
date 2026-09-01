@@ -5,8 +5,14 @@ import lombok.Data;
 import lombok.experimental.Accessors;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
+/**
+ * 成本调价单（库存商品成本单价调整录单，单号前缀 CBTJD-）
+ * 仅调成本不动数量：记帐后库存成本单价由调前成本价改为调后成本价。
+ */
 @Data
 @Accessors(chain = true)
 @TableName("erp_stock_cost_adjust")
@@ -21,11 +27,19 @@ public class StockCostAdjust {
 
     private Integer adjustType;
 
-    private LocalDateTime adjustDate;
+    private LocalDate adjustDate;
 
     private Long warehouseId;
 
     private String warehouseName;
+
+    private Long handlerId;
+
+    private String handlerName;
+
+    private Long deptId;
+
+    private String deptName;
 
     private BigDecimal totalAdjustAmount;
 
@@ -36,6 +50,22 @@ public class StockCostAdjust {
     private String reasonDesc;
 
     private Integer status;
+
+    private String summary;
+
+    private String remark;
+
+    private String attachment;
+
+    private Long bookkeeperId;
+
+    private String bookkeeperName;
+
+    private LocalDateTime bookkeepingTime;
+
+    private String creatorName;
+
+    private Integer printCount;
 
     private Long applicantId;
 
@@ -53,7 +83,7 @@ public class StockCostAdjust {
 
     private LocalDateTime executedTime;
 
-    private String remark;
+    private String cancelReason;
 
     @TableLogic
     private Integer deleted;
@@ -72,4 +102,7 @@ public class StockCostAdjust {
 
     @Version
     private Integer versionNo;
+
+    @TableField(exist = false)
+    private List<StockCostAdjustItem> items;
 }

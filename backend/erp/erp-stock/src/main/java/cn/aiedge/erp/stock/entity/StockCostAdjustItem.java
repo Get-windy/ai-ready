@@ -16,6 +16,8 @@ public class StockCostAdjustItem {
     @TableId(type = IdType.ASSIGN_ID)
     private Long id;
 
+    private Long tenantId;
+
     private Long adjustId;
 
     private Long productId;
@@ -40,6 +42,14 @@ public class StockCostAdjustItem {
 
     private LocalDate validityDate;
 
+    private String taste;
+
+    private String model;
+
+    private String origin;
+
+    private String brand;
+
     private String conversionRelation;
 
     private String conversionResult;
@@ -50,15 +60,15 @@ public class StockCostAdjustItem {
 
     private BigDecimal retailPrice;
 
-    private BigDecimal oldAmount;
-
-    private BigDecimal newAmount;
-
     private BigDecimal currentQuantity;
 
     private BigDecimal oldCost;
 
     private BigDecimal newCost;
+
+    private BigDecimal oldAmount;
+
+    private BigDecimal newAmount;
 
     private BigDecimal diffAmount;
 
