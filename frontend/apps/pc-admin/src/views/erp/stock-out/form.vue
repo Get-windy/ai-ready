@@ -77,6 +77,7 @@
             :data-source="formData.products"
             :max-height="tableMaxHeight"
             :summary-columns="tableSummaryColumns"
+            storage-key="stock-out-form-detail-columns"
             @cell-change="handleCellChange"
             @expand-change="onExpandChange"
           >
@@ -614,8 +615,8 @@ const ALL_DETAIL_COLUMNS: DetailColumnConfig[] = [
   { key: 'docExtText1', title: '单据自定义4(文本)', type: 'input', width: 130, defaultHidden: true },
   { key: 'docExtText2', title: '单据自定义5(文本)', type: 'input', width: 130, defaultHidden: true },
 ]
-// 默认显示：rowNo + 操作 + 文档默认20列
-const detailColumns: DetailColumnConfig[] = ALL_DETAIL_COLUMNS.filter((c) => !c.defaultHidden)
+// 传全部45列给 BillDetailTable：其内置列配置(个人/全局)按 defaultHidden 默认显示20列，其余可配置开启
+const detailColumns: DetailColumnConfig[] = ALL_DETAIL_COLUMNS
 
 const tableSummaryColumns = computed(() => [
   { key: 'quantity', value: totalQuantity.value, highlight: true },
