@@ -3,11 +3,13 @@ package cn.aiedge.erp.stock.service.impl;
 import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.stock.dto.StockDamageItemVO;
 import cn.aiedge.erp.stock.dto.StockDamageQuery;
+import cn.aiedge.erp.stock.entity.Stock;
 import cn.aiedge.erp.stock.entity.StockDamage;
 import cn.aiedge.erp.stock.entity.StockDamageItem;
 import cn.aiedge.erp.stock.mapper.StockDamageItemMapper;
 import cn.aiedge.erp.stock.mapper.StockDamageMapper;
 import cn.aiedge.erp.stock.service.StockDamageService;
+import cn.aiedge.erp.stock.service.StockService;
 import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -34,6 +36,7 @@ import java.util.stream.Collectors;
 public class StockDamageServiceImpl extends ServiceImpl<StockDamageMapper, StockDamage> implements StockDamageService {
 
     private final StockDamageItemMapper damageItemMapper;
+    private final StockService stockService;
 
     private static final String NO_PREFIX = "BSD-";
 
@@ -217,9 +220,24 @@ public class StockDamageServiceImpl extends ServiceImpl<StockDamageMapper, Stock
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+
     public StockDamage execute(Long id) {
         // 记帐（出库生效）：草稿 → 已记账，按批次扣减库存（报损出库）
         StockDamage d = getAndCheck(id, 0, "只有草稿状态的报损单可以记帐");
+        List<StockDamageItem> items = getItems(id);
+        if (items != null) {
+            for (StockDamageItem item : items) {
+                if (item.getQuantity() == null || item.getQuantity().signum() <= 0) continue;
+                Stock move = new Stock();
+                move.setProductId(item.getProductId());
+                move.setWarehouseId(d.getWarehouseId());
+                move.setQuantity(item.getQuantity());
+                move.setBatchNo(item.getBatchCode() != null ? item.getBatchCode() : item.getBatchNo());
+                if (!stockService.recordStockOut(move)) {
+                    throw BusinessException.badRequest("报损出库失败（库存不足），商品：" + item.getProductName());
+                }
+            }
+        }
         d.setStatus(1);
         d.setBookkeeperId(StpUtil.getLoginIdAsLong());
         d.setBookkeeperName(StpUtil.getLoginId().toString());

@@ -2,6 +2,7 @@ package cn.aiedge.erp.stock.controller;
 
 import cn.aiedge.base.vo.Result;
 import cn.aiedge.common.exception.BusinessException;
+import cn.aiedge.erp.stock.dto.StockAssembleQuery;
 import cn.aiedge.erp.stock.entity.StockAssemble;
 import cn.aiedge.erp.stock.entity.StockAssembleItem;
 import cn.aiedge.erp.stock.service.StockAssembleService;
@@ -36,11 +37,16 @@ public class StockAssembleController {
         private String outWarehouseName;
         private String handlerName;
         private String produceUnit;
+        private Long deptId;
+        private String deptName;
         private String assembleDate;
         private BigDecimal assembleQuantity;
         private BigDecimal outputQuantity;
         private BigDecimal assembleFee;
         private BigDecimal totalCost;
+        private String summary;
+        private String attachment;
+        private String creatorName;
         private String remark;
         private Long productId;
         private String productCode;
@@ -52,13 +58,14 @@ public class StockAssembleController {
 
     @GetMapping("/page")
     @Operation(summary = "分页查询组装单")
-    public Result<Page<StockAssemble>> page(
-            @Parameter(description = "关键词") @RequestParam(required = false) String keyword,
-            @Parameter(description = "仓库ID") @RequestParam(required = false) Long warehouseId,
-            @Parameter(description = "状态") @RequestParam(required = false) Integer status,
-            @Parameter(description = "页码") @RequestParam(defaultValue = "1") int pageNum,
-            @Parameter(description = "每页数量") @RequestParam(defaultValue = "10") int pageSize) {
-        return Result.ok(assembleService.pageList(keyword, warehouseId, status, pageNum, pageSize));
+    public Result<Page<StockAssemble>> page(@org.springframework.web.bind.annotation.ModelAttribute StockAssembleQuery query) {
+        return Result.ok(assembleService.pageList(query));
+    }
+
+    @GetMapping("/next-no")
+    @Operation(summary = "生成下一组装单号")
+    public Result<String> nextNo() {
+        return Result.ok(assembleService.generateNo());
     }
 
     @GetMapping("/{id}")
@@ -90,9 +97,14 @@ public class StockAssembleController {
         assemble.setOutWarehouseName(request.getOutWarehouseName());
         assemble.setHandlerName(request.getHandlerName());
         assemble.setProduceUnit(request.getProduceUnit());
+        assemble.setDeptId(request.getDeptId());
+        assemble.setDeptName(request.getDeptName());
         assemble.setAssembleQuantity(request.getAssembleQuantity());
         assemble.setOutputQuantity(request.getOutputQuantity());
         assemble.setAssembleFee(request.getAssembleFee());
+        assemble.setSummary(request.getSummary());
+        assemble.setAttachment(request.getAttachment());
+        assemble.setCreatorName(request.getCreatorName());
         assemble.setRemark(request.getRemark());
         assemble.setProductId(request.getProductId());
         assemble.setProductCode(request.getProductCode());
@@ -116,9 +128,14 @@ public class StockAssembleController {
         assemble.setOutWarehouseName(request.getOutWarehouseName());
         assemble.setHandlerName(request.getHandlerName());
         assemble.setProduceUnit(request.getProduceUnit());
+        assemble.setDeptId(request.getDeptId());
+        assemble.setDeptName(request.getDeptName());
         assemble.setAssembleQuantity(request.getAssembleQuantity());
         assemble.setOutputQuantity(request.getOutputQuantity());
         assemble.setAssembleFee(request.getAssembleFee());
+        assemble.setSummary(request.getSummary());
+        assemble.setAttachment(request.getAttachment());
+        assemble.setCreatorName(request.getCreatorName());
         assemble.setRemark(request.getRemark());
         assemble.setProductId(request.getProductId());
         assemble.setProductCode(request.getProductCode());

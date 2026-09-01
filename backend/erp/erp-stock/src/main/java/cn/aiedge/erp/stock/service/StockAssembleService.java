@@ -1,5 +1,6 @@
 package cn.aiedge.erp.stock.service;
 
+import cn.aiedge.erp.stock.dto.StockAssembleQuery;
 import cn.aiedge.erp.stock.entity.StockAssemble;
 import cn.aiedge.erp.stock.entity.StockAssembleItem;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -9,7 +10,10 @@ import java.util.List;
 
 public interface StockAssembleService extends IService<StockAssemble> {
 
-    Page<StockAssemble> pageList(String keyword, Long warehouseId, Integer status, int pageNum, int pageSize);
+    Page<StockAssemble> pageList(StockAssembleQuery query);
+
+    /** 生成下一组装单号（ZZD-前缀） */
+    String generateNo();
 
     StockAssemble createAssemble(StockAssemble assemble, List<StockAssembleItem> items);
 

@@ -1,234 +1,421 @@
 <template>
-  <ErrorBoundary>
-    <PageContainer title="预警查询">
-      <template #header-extra>
-        <a-space>
-          <a-badge :count="statistics.overStockCount" :overflow-count="999" size="small">
-            <a-button size="small" @click="activeTab = 'overStock'">
-              <template #icon><FireOutlined /></template>超储
+  <ErrorBoundary @error="handleError">
+    <PageContainer full-height>
+      <CategoryListLayout
+        :tabs="[]"
+        :show-category-panel="true"
+        category-title="商品分类"
+        :category-tree-data="categoryTreeData"
+        :category-loading="categoryLoading"
+        :category-error="categoryError"
+        :selected-category-id="selectedCategoryId"
+        :category-expanded-keys="expandedKeys"
+        :current-path="currentCategoryPath"
+        :show-table-footer="true"
+        @category-retry="fetchCategoryTree"
+        @category-select="onCategorySelect"
+      >
+        <!-- ═══ 工具栏右侧：列配置 + 刷新 + 打印(F8) + 导出 ═══ -->
+        <template #toolbar-right>
+          <a-space :size="8">
+            <a-tooltip title="列配置">
+              <a-button size="small" @click="showColumnConfig = true">
+                <TableOutlined />
+              </a-button>
+            </a-tooltip>
+            <a-button size="small" @click="handleRefresh">
+              <ReloadOutlined /> 刷新
             </a-button>
-          </a-badge>
-          <a-badge :count="statistics.lowStockCount" :overflow-count="999" size="small" :offset="[4, -4]">
-            <a-button size="small" type="primary" ghost @click="activeTab = 'lowStock'">
-              <template #icon><BellOutlined /></template>低库存
+            <a-button size="small" @click="handlePrintF8">
+              <PrinterOutlined /> 打印(F8)
             </a-button>
-          </a-badge>
-          <a-button size="small" @click="openAlertConfig">
-            <template #icon><SettingOutlined /></template>预警配置
-          </a-button>
-        </a-space>
-      </template>
+            <a-button size="small" @click="handleExport">
+              <ExportOutlined /> 导出
+            </a-button>
+          </a-space>
+        </template>
 
-      <!-- 统计卡片 -->
-      <a-row :gutter="16" style="margin-bottom: 16px;">
-        <a-col :span="6">
-          <div class="summary-card">
-            <div class="summary-icon" style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);">
-              <AlertOutlined />
-            </div>
-            <div class="summary-content">
-              <div class="summary-title">预警条目</div>
-              <div class="summary-value">{{ statistics.totalAlerts }}</div>
+        <!-- ═══ 查询区：仓库(单选) + 商品 + 品牌 + 预警类型 + 查询 ═══ -->
+        <template #search-fields>
+          <div class="search-area">
+            <div class="search-row">
+              <div class="search-item">
+                <a-radio-group
+                  v-model:value="warehouseMode"
+                  size="small"
+                  @change="onWarehouseModeChange"
+                >
+                  <a-radio value="all">全部仓库</a-radio>
+                  <a-radio value="specific">指定仓库</a-radio>
+                </a-radio-group>
+              </div>
+              <div
+                v-if="warehouseMode === 'specific'"
+                class="search-item"
+              >
+                <a-select
+                  v-model:value="searchParams.warehouseId"
+                  style="width: 160px"
+                  size="small"
+                  allow-clear
+                  placeholder="选择仓库"
+                  :options="warehouseOptions"
+                />
+              </div>
+              <div class="search-item">
+                <a-input
+                  v-model:value="searchParams.productKeyword"
+                  placeholder="商品"
+                  style="width: 180px"
+                  size="small"
+                  allow-clear
+                  @press-enter="handleSearch"
+                />
+              </div>
+              <div class="search-item">
+                <a-input
+                  v-model:value="searchParams.brand"
+                  placeholder="品牌"
+                  style="width: 140px"
+                  size="small"
+                  allow-clear
+                  @press-enter="handleSearch"
+                />
+              </div>
+              <div class="search-item">
+                <span class="search-label">预警类型</span>
+                <a-select
+                  v-model:value="searchParams.alertType"
+                  style="width: 120px"
+                  size="small"
+                  @change="handleSearch"
+                >
+                  <a-select-option value="">全部</a-select-option>
+                  <a-select-option value="LOW_STOCK">下限预警</a-select-option>
+                  <a-select-option value="OVER_STOCK">上限预警</a-select-option>
+                </a-select>
+              </div>
+              <div class="search-item">
+                <a-button
+                  type="primary"
+                  size="small"
+                  @click="handleSearch"
+                >查询</a-button>
+              </div>
             </div>
           </div>
-        </a-col>
-        <a-col :span="6">
-          <div class="summary-card highlight-danger">
-            <div class="summary-icon" style="background: linear-gradient(135deg, #f5222d 0%, #cf1322 100%);">
-              <MinusCircleOutlined />
-            </div>
-            <div class="summary-content">
-              <div class="summary-title">低库存预警</div>
-              <div class="summary-value warning">{{ statistics.lowStockCount }}</div>
-            </div>
-          </div>
-        </a-col>
-        <a-col :span="6">
-          <div class="summary-card highlight-warning">
-            <div class="summary-icon" style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);">
-              <PlusCircleOutlined />
-            </div>
-            <div class="summary-content">
-              <div class="summary-title">超储预警</div>
-              <div class="summary-value warning">{{ statistics.overStockCount }}</div>
-            </div>
-          </div>
-        </a-col>
-        <a-col :span="6">
-          <div class="summary-card">
-            <div class="summary-icon" style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);">
-              <ShoppingCartOutlined />
-            </div>
-            <div class="summary-content">
-              <div class="summary-title">可补货</div>
-              <div class="summary-value">{{ statistics.replenishable }}</div>
-            </div>
-          </div>
-        </a-col>
-      </a-row>
+        </template>
 
-      <a-tabs v-model:active-key="activeTab" @change="reload">
-        <a-tab-pane key="all" tab="全部预警">
-          <ARReportPage
-            ref="reportRef"
-            title="预警查询"
-            :query-fields="queryFields"
-            :columns="columns"
-            :fetcher="fetcher"
-            export-file-name="预警查询"
-            row-key="id"
-          >
-            <template #bodyCell="{ column, record }">
-              <template v-if="column.dataIndex === 'statusText'">
-                <a-tag :color="record.alertType === 'LOW_STOCK' ? '#f5222d' : '#faad14'">
-                  {{ record.alertType === 'LOW_STOCK' ? '低库存' : record.alertType === 'OVER_STOCK' ? '超储' : record.alertType }}
-                </a-tag>
+        <!-- ═══ 表格区域 ═══ -->
+        <template #table>
+          <div class="table-area">
+            <BillTableList
+              :columns="visibleColumns"
+              :data-source="tableData"
+              :loading="loading"
+              :pagination="pagination"
+              :show-toolbar="false"
+              :show-search="false"
+              :show-add="false"
+              :show-export="false"
+              :show-batch-delete="false"
+              :selectable="true"
+              :summary-columns="footerColumns"
+              row-key="id"
+              @page-change="handlePageChange"
+            >
+              <template #productNameCell="{ record }">
+                <span class="cell-link">{{ record.productName }}</span>
               </template>
-              <template v-else-if="column.dataIndex === 'diffQty'">
-                <span :style="{ color: record.diffQty < 0 ? '#f5222d' : '#faad14', fontWeight: 600 }">
-                  {{ record.diffQty > 0 ? '+' : '' }}{{ formatQty(record.diffQty) }}
-                </span>
+              <template #maxStockCell="{ record }">
+                <span class="num-value">{{ formatQty(record.maxStock) }}</span>
               </template>
-              <template v-else-if="column.dataIndex === 'currentQty'">
-                <span :style="{ color: record.currentQty < (record.safetyStock || record.minStock) ? '#f5222d' : 'inherit', fontWeight: record.currentQty < (record.safetyStock || record.minStock) ? 600 : 'inherit' }">
-                  {{ formatQty(record.currentQty) }}
-                </span>
+              <template #minStockCell="{ record }">
+                <span class="num-value">{{ formatQty(record.minStock) }}</span>
               </template>
-              <template v-else-if="column.key === 'action'">
-                <a-space :size="4">
-                  <a-button v-if="record.alertType === 'LOW_STOCK'" size="small" type="link" @click="goReplenish(record)">补货</a-button>
-                  <a-button size="small" type="link" @click="viewDetail(record)">详情</a-button>
-                </a-space>
+              <template #bookQtyCell="{ record }">
+                <span
+                  :class="['num-value', record.bookQty < record.minStock ? 'text-danger' : 'text-warning']"
+                >{{ formatQty(record.bookQty) }}</span>
               </template>
-            </template>
-          </ARReportPage>
-        </a-tab-pane>
-        <a-tab-pane key="lowStock" tab="低库存">
-          <ARReportPage
-            ref="lowStockRef"
-            title="低库存预警"
-            :query-fields="queryFields"
-            :columns="columns"
-            :fetcher="lowStockFetcher"
-            export-file-name="低库存预警"
-            row-key="id"
-          />
-        </a-tab-pane>
-        <a-tab-pane key="overStock" tab="超储">
-          <ARReportPage
-            ref="overStockRef"
-            title="超储预警"
-            :query-fields="queryFields"
-            :columns="columns"
-            :fetcher="overStockFetcher"
-            export-file-name="超储预警"
-            row-key="id"
-          />
-        </a-tab-pane>
-      </a-tabs>
+            </BillTableList>
+          </div>
+        </template>
+      </CategoryListLayout>
     </PageContainer>
+
+    <!-- ═══ 数据表列配置弹窗 ═══ -->
+    <ColumnConfigPanel
+      :open="showColumnConfig"
+      :settings-columns="settingsColumns"
+      :is-locked-column="isLockedColumn"
+      @update:open="showColumnConfig = $event"
+      @change="onColumnConfigChange"
+      @reset="onColumnConfigReset"
+      @drag-end="onColumnConfigChange"
+    />
   </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
-import {
-  SearchOutlined, ClearOutlined, SettingOutlined, AlertOutlined,
-  FireOutlined, BellOutlined, MinusCircleOutlined, PlusCircleOutlined,
-  ShoppingCartOutlined,
-} from '@ant-design/icons-vue'
+import { TableOutlined, ReloadOutlined, PrinterOutlined, ExportOutlined } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
-import ARReportPage from '@/components/ARReportPage/ARReportPage.vue'
-import type { ReportQueryField } from '@/components/ARReportPage/types'
+import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayout.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
+import ColumnConfigPanel from '@/components/ColumnConfigPanel/index.vue'
+import { useColumnConfig, isLockedColumn } from '@/composables/useColumnConfig'
+import { stockAlertQueryApi } from '@/api/erp/stockAlert'
+import { productCategoryApi } from '@/api/erp/product'
 import request from '@/utils/request'
 
-const router = useRouter()
-const activeTab = ref('all')
-const reportRef = ref<any>(null)
-const lowStockRef = ref<any>(null)
-const overStockRef = ref<any>(null)
+// ═══ 状态 ═══
+const loading = ref(false)
+const tableData = ref<any[]>([])
 
-const statistics = reactive({ totalAlerts: 0, lowStockCount: 0, overStockCount: 0, replenishable: 0 })
+// ═══ 仓库 ═══
+const warehouseMode = ref('all')
+const warehouseOptions = ref<any[]>([])
 
+// ═══ 搜索参数 ═══
+const searchParams = reactive({
+  warehouseId: undefined as string | number | undefined,
+  productKeyword: '',
+  brand: '',
+  alertType: '',
+})
+
+// ═══ 分页 ═══
+const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
+
+// ═══ 列配置 ═══
+const showColumnConfig = ref(false)
+
+const defaultColumns = [
+  { title: '', key: 'rowNo', type: 'rowNo', width: 40, fixed: 'left' },
+  { title: '商品名称', field: 'productName', key: 'productName', width: 180, type: 'slot', slotName: 'productNameCell' },
+  { title: '货号', field: 'productCode', key: 'productCode', width: 110 },
+  { title: '口味', field: 'taste', key: 'taste', width: 80 },
+  { title: '型号', field: 'model', key: 'model', width: 90 },
+  { title: '单位', field: 'unit', key: 'unit', width: 70 },
+  { title: '预警仓库', field: 'warehouseName', key: 'warehouseName', width: 120 },
+  { title: '库存上限', field: 'maxStock', key: 'maxStock', width: 100, align: 'right', type: 'slot', slotName: 'maxStockCell' },
+  { title: '库存下限', field: 'minStock', key: 'minStock', width: 100, align: 'right', type: 'slot', slotName: 'minStockCell' },
+  { title: '说明', field: 'remark', key: 'remark', width: 160 },
+  { title: '小单位', field: 'smallUnit', key: 'smallUnit', width: 80, defaultHidden: true },
+  { title: '条码', field: 'barcode', key: 'barcode', width: 120, defaultHidden: true },
+  { title: '规格', field: 'spec', key: 'spec', width: 110, defaultHidden: true },
+  { title: '产地', field: 'origin', key: 'origin', width: 90, defaultHidden: true },
+  { title: '品牌', field: 'brand', key: 'brand', width: 100, defaultHidden: true },
+  { title: '账面库存', field: 'bookQty', key: 'bookQty', width: 100, align: 'right', type: 'slot', slotName: 'bookQtyCell', defaultHidden: true },
+]
+
+const columnDefs = computed(() => defaultColumns.map(col => ({ ...col })))
+const {
+  visibleColumns,
+  onSettingChange,
+  resetSettings,
+  settingsColumns,
+} = useColumnConfig(columnDefs.value, 'alert-query-list-columns')
+
+function onColumnConfigChange() { onSettingChange() }
+function onColumnConfigReset() { resetSettings() }
+
+// ═══ 分类树 ═══
+const categoryLoading = ref(false)
+const categoryError = ref(false)
+const categoryTree = ref<any[]>([])
+const selectedCategoryId = ref<string>('0')
+const expandedKeys = ref<string[]>([])
+const categoryTreeData = computed(() => categoryTree.value)
+
+const currentCategoryPath = computed(() => {
+  if (selectedCategoryId.value === '0' || !categoryTree.value.length) return '全部商品'
+  const path: string[] = []
+  function find(nodes: any[], target: string): boolean {
+    for (const node of nodes) {
+      path.push(node.categoryName)
+      if (String(node.id) === target) return true
+      if (node.children?.length && find(node.children, target)) return true
+      path.pop()
+    }
+    return false
+  }
+  find(categoryTree.value, selectedCategoryId.value)
+  return path.length ? path.join(' / ') : '全部商品'
+})
+
+async function fetchCategoryTree() {
+  categoryLoading.value = true
+  categoryError.value = false
+  try {
+    const data = await productCategoryApi.getTree()
+    categoryTree.value = Array.isArray(data) ? data : []
+    const firstLevel = categoryTree.value.map(n => String(n.id))
+    if (firstLevel.length > 0) expandedKeys.value = [...new Set([...firstLevel, ...expandedKeys.value])]
+  } catch (e) {
+    console.warn('[预警查询] 加载分类树失败', e)
+    categoryError.value = true
+  } finally {
+    categoryLoading.value = false
+  }
+}
+
+function onCategorySelect(keys: (string | number)[]) {
+  const key = keys[0]
+  selectedCategoryId.value = key != null ? String(key) : '0'
+  pagination.current = 1
+  fetchData()
+}
+
+// ═══ 仓库/品牌选项加载 ═══
+async function loadWarehouses() {
+  try {
+    const res: any = await request.get('/erp/stock/warehouses')
+    const list = res?.data || res || []
+    warehouseOptions.value = (Array.isArray(list) ? list : []).map((w: any) => ({
+      label: w.warehouseName || w.name,
+      value: w.id,
+    }))
+  } catch (e) {
+    console.warn('[预警查询] 加载仓库失败', e)
+    warehouseOptions.value = []
+  }
+}
+
+// ═══ 数据加载 ═══
+async function fetchData() {
+  loading.value = true
+  try {
+    const params: any = { pageNum: pagination.current, pageSize: pagination.pageSize }
+    if (warehouseMode.value === 'specific' && searchParams.warehouseId) params.warehouseId = searchParams.warehouseId
+    if (searchParams.productKeyword) params.productKeyword = searchParams.productKeyword
+    if (searchParams.brand) params.brand = searchParams.brand
+    if (searchParams.alertType) params.alertType = searchParams.alertType
+    if (selectedCategoryId.value !== '0') params.categoryId = selectedCategoryId.value
+
+    const res: any = await stockAlertQueryApi.page(params)
+    const body = res?.data ?? res
+    tableData.value = body?.records || []
+    pagination.total = Number(body?.total) || 0
+  } catch (error: any) {
+    console.warn('[预警查询] 获取列表失败', error)
+    message.error(error?.response?.data?.message || '获取数据失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+// ═══ 事件处理 ═══
+function handleSearch() {
+  pagination.current = 1
+  fetchData()
+}
+
+function handleRefresh() { fetchData() }
+
+function handlePageChange(page: number, pageSize: number) {
+  pagination.current = page
+  pagination.pageSize = pageSize
+  fetchData()
+}
+
+function onWarehouseModeChange() {
+  if (warehouseMode.value === 'all') searchParams.warehouseId = undefined
+  handleSearch()
+}
+
+// ═══ 工具栏操作 ═══
+function handlePrintF8() {
+  if (tableData.value.length === 0) {
+    message.warning('没有可打印的数据')
+    return
+  }
+  window.print()
+}
+
+async function handleExport() {
+  try {
+    const params: any = { pageNum: 1, pageSize: 9999 }
+    if (warehouseMode.value === 'specific' && searchParams.warehouseId) params.warehouseId = searchParams.warehouseId
+    if (searchParams.productKeyword) params.productKeyword = searchParams.productKeyword
+    if (searchParams.brand) params.brand = searchParams.brand
+    if (searchParams.alertType) params.alertType = searchParams.alertType
+    if (selectedCategoryId.value !== '0') params.categoryId = selectedCategoryId.value
+
+    const res: any = await stockAlertQueryApi.page(params)
+    const body = res?.data ?? res
+    const data = body?.records || []
+    if (data.length === 0) {
+      message.warning('没有可导出的数据')
+      return
+    }
+    const headers = ['商品名称', '货号', '型号', '单位', '预警仓库', '库存上限', '库存下限', '账面库存', '品牌', '说明']
+    const rows = data.map((r: any) => [
+      r.productName, r.productCode, r.model, r.unit, r.warehouseName,
+      r.maxStock, r.minStock, r.bookQty, r.brand, r.remark,
+    ])
+    const csv = [headers.join(','), ...rows.map((r: any[]) => r.join(','))].join('\n')
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `预警查询_${new Date().toISOString().slice(0, 19).replace(/[-T:]/g, '')}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+    message.success('导出成功')
+  } catch (error: any) {
+    message.error(error?.response?.data?.message || '导出失败')
+  }
+}
+
+// ═══ 合计 ═══
+const footerColumns = computed(() => {
+  const maxStock = tableData.value.reduce((s: number, r: any) => s + (Number(r.maxStock) || 0), 0)
+  const minStock = tableData.value.reduce((s: number, r: any) => s + (Number(r.minStock) || 0), 0)
+  const bookQty = tableData.value.reduce((s: number, r: any) => s + (Number(r.bookQty) || 0), 0)
+  return [
+    { key: 'maxStock', value: maxStock, highlight: true },
+    { key: 'minStock', value: minStock, highlight: true },
+    { key: 'bookQty', value: bookQty, highlight: true },
+  ]
+})
+
+// ═══ 工具 ═══
 function formatQty(val: number | null | undefined): string {
   if (val === null || val === undefined || isNaN(Number(val))) return '-'
-  return Number(val).toLocaleString('zh-CN', { maximumFractionDigits: 2 })
+  return Number(val).toLocaleString('zh-CN', { maximumFractionDigits: 4 })
 }
 
-const queryFields: ReportQueryField[] = [
-  { key: 'productCode', type: 'input', label: '产品编码', placeholder: '产品编码', width: 140 },
-  { key: 'productName', type: 'input', label: '产品名称', placeholder: '产品名称', width: 140 },
-  { key: 'warehouseId', type: 'input', label: '仓库ID', placeholder: '仓库ID', width: 100 },
-  { key: 'alertType', type: 'select', label: '预警类型', placeholder: '全部', options: [
-    { label: '全部', value: '' }, { label: '低库存', value: 'LOW_STOCK' }, { label: '超储', value: 'OVER_STOCK' },
-  ]},
-]
-
-const columns: any[] = [
-  { title: '产品编码', dataIndex: 'productCode', key: 'productCode', width: 130 },
-  { title: '产品名称', dataIndex: 'productName', key: 'productName', width: 160, ellipsis: true },
-  { title: '仓库', dataIndex: 'warehouseName', key: 'warehouseName', width: 110 },
-  { title: '当前库存', dataIndex: 'currentQty', key: 'currentQty', width: 100, align: 'right' },
-  { title: '最小库存', dataIndex: 'minStock', key: 'minStock', width: 90, align: 'right' },
-  { title: '最高库存', dataIndex: 'maxStock', key: 'maxStock', width: 90, align: 'right' },
-  { title: '安全库存', dataIndex: 'safetyStock', key: 'safetyStock', width: 90, align: 'right' },
-  { title: '差异数量', dataIndex: 'diffQty', key: 'diffQty', width: 100, align: 'right' },
-  { title: '预警类型', dataIndex: 'statusText', key: 'statusText', width: 90 },
-  { title: '操作', key: 'action', width: 130, fixed: 'right' },
-]
-
-function fetcher(params: Record<string, any>) {
-  return request.get('/erp/stock-alert/page', { params: { ...params, pageNum: params.page, pageSize: params.size } })
+function handleError(error: Error) {
+  console.error('[预警查询] 页面错误', error)
+  message.error(`页面错误: ${error.message}`)
 }
 
-function lowStockFetcher(params: Record<string, any>) {
-  return request.get('/erp/stock-alert/page', { params: { ...params, pageNum: params.page, pageSize: params.size, alertType: 'LOW_STOCK' } })
-}
-
-function overStockFetcher(params: Record<string, any>) {
-  return request.get('/erp/stock-alert/page', { params: { ...params, pageNum: params.page, pageSize: params.size, alertType: 'OVER_STOCK' } })
-}
-
-async function loadStatistics() {
-  try {
-    const res = await request.get('/erp/stock-alert/statistics')
-    if (res?.data) Object.assign(statistics, res.data)
-  } catch { /* ignore */ }
-}
-
-function reload() {
-  reportRef.value?.reload()
-  lowStockRef.value?.reload()
-  overStockRef.value?.reload()
-  loadStatistics()
-}
-
-function goReplenish(record: any) {
-  router.push({ path: '/erp/stock/replenishment', query: { productId: record.productId, productName: record.productName } })
-}
-
-function viewDetail(record: any) {
-  message.info(`产品: ${record.productName}, 当前库存: ${record.currentQty}, 安全库存: ${record.safetyStock}`)
-}
-
-function openAlertConfig() {
-  router.push('/erp/stock-alert-config')
-}
-
-onMounted(loadStatistics)
+// ═══ 初始化 ═══
+onMounted(() => {
+  loadWarehouses()
+  fetchCategoryTree()
+  fetchData()
+})
 </script>
 
 <style scoped>
-.summary-card { display: flex; align-items: center; padding: 16px; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); transition: all 0.3s; }
-.summary-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.12); transform: translateY(-2px); }
-.summary-card.highlight-danger { background: linear-gradient(135deg, #fff2f0 0%, #fff1f0 100%); border: 1px solid #ffa39e; }
-.summary-card.highlight-warning { background: linear-gradient(135deg, #fffbe6 0%, #fff7e6 100%); border: 1px solid #ffe58f; }
-.summary-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 24px; margin-right: 16px; }
-.summary-content { flex: 1; }
-.summary-title { font-size: 14px; color: #666; margin-bottom: 4px; }
-.summary-value { font-size: 24px; font-weight: 600; color: #303133; font-family: 'SFMono-Regular', Consolas, monospace; font-variant-numeric: tabular-nums; }
-.summary-value.warning { color: #f5222d; }
+.search-area { padding: 8px 16px; background: #fff; border-bottom: 1px solid #e8e8e8; flex-shrink: 0; }
+.search-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.search-item { display: flex; align-items: center; gap: 6px; }
+.search-item :deep(.ant-input), .search-item :deep(.ant-select) { font-size: 13px; }
+.search-label { font-size: 13px; color: #666; white-space: nowrap; }
+.table-area { flex: 1; min-height: 0; overflow: hidden; }
+.cell-link { color: #1668dc; }
+.num-value { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-variant-numeric: tabular-nums; }
+.text-danger { color: #f5222d; font-weight: 600; }
+.text-warning { color: #faad14; font-weight: 600; }
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) { height: 28px; line-height: 28px; }
 </style>

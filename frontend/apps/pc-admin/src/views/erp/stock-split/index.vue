@@ -1,1307 +1,668 @@
 <template>
-  <ErrorBoundary
-    @reset="fetchData"
-    @error="handleError"
-  >
+  <ErrorBoundary @error="handleError">
     <PageContainer full-height>
-      <template #header>
-        <div class="split-header">
-          <div class="split-header__left">
-            <span class="split-header__breadcrumb">ERP / 库存管理 / 拆分管理</span>
-            <h2 class="split-header__title">
-              拆分管理
-            </h2>
-          </div>
-          <div class="split-header__right">
-            <a-space :size="12">
-              <span
-                v-if="autoRefreshCountdown > 0"
-                class="auto-refresh-badge"
-              >
-                <SyncOutlined /> {{ autoRefreshCountdown }}s
-              </span>
-              <span class="data-status">
-                <a-badge :status="loading ? 'processing' : 'success'" />
-                <span
-                  v-if="lastUpdateTime"
-                  class="update-time"
-                >
-                  数据更新: {{ lastUpdateTime }}
-                </span>
-              </span>
-              <span class="shortcut-hints">
-                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-              </span>
-              <a-button
-                size="small"
-                :loading="refreshLoading"
-                @click="debounceClick('refresh', fetchData)"
-              >
-                <template #icon>
-                  <ReloadOutlined />
-                </template>
-                刷新
-              </a-button>
-            </a-space>
-          </div>
-        </div>
-      </template>
-
-      <!-- 统计卡片 -->
-      <a-row
-        :gutter="16"
-        style="margin-bottom: 16px;"
-      >
-        <a-col :span="6">
-          <div class="summary-card">
-            <div
-              class="summary-icon"
-              style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);"
-            >
-              <ScissorOutlined />
-            </div>
-            <div class="summary-content">
-              <div class="summary-title">
-                拆分单总数
-              </div>
-              <div class="summary-value">
-                {{ statistics.totalCount }}
-              </div>
-            </div>
-          </div>
-        </a-col>
-        <a-col :span="6">
-          <div class="summary-card">
-            <div
-              class="summary-icon"
-              style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);"
-            >
-              <ClockCircleOutlined />
-            </div>
-            <div class="summary-content">
-              <div class="summary-title">
-                待审批
-              </div>
-              <div class="summary-value warning">
-                {{ statistics.pendingCount }}
-              </div>
-            </div>
-          </div>
-        </a-col>
-        <a-col :span="6">
-          <div class="summary-card">
-            <div
-              class="summary-icon"
-              style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);"
-            >
-              <CheckCircleOutlined />
-            </div>
-            <div class="summary-content">
-              <div class="summary-title">
-                已完成
-              </div>
-              <div class="summary-value">
-                {{ statistics.completedCount }}
-              </div>
-            </div>
-          </div>
-        </a-col>
-        <a-col :span="6">
-          <div class="summary-card highlight">
-            <div
-              class="summary-icon"
-              style="background: linear-gradient(135deg, #722ed1 0%, #531dab 100%);"
-            >
-              <DollarOutlined />
-            </div>
-            <div class="summary-content">
-              <div class="summary-title">
-                费用总额
-              </div>
-              <div class="summary-value">
-                ¥{{ (statistics.totalAmount || 0).toFixed(2) }}
-              </div>
-            </div>
-          </div>
-        </a-col>
-      </a-row>
-
-      <BillTableList
-        ref="tableRef"
-        :columns="vxeColumns"
-        :data-source="tableData"
-        :loading="loading"
-        :pagination="pagination"
-        row-key="id"
-        :selectable="false"
-        :filter-fields="filterFields"
-        add-text="新建拆分单"
-        style="flex: 1;"
-        @add="handleCreate"
-        @refresh="fetchData"
+      <CategoryListLayout
+        :show-category-panel="false"
+        :show-table-footer="true"
         @search="handleSearch"
-        @page-change="handlePageChange"
-        @filter-change="handleFilterChange"
-        @cell-dblclick="handleView"
       >
-        <template #toolbar-actions>
-          <span class="list-update-timestamp">最后更新：{{ dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss') }}</span>
-        </template>
-
-        <template #empty>
-          <div
-            v-if="hasError"
-            class="table-empty"
-          >
-            <WarningOutlined class="table-empty-icon" />
-            <p class="table-empty-text">
-              数据加载异常，请重试
-            </p>
-            <a-button
-              type="primary"
-              @click="fetchData"
-            >
-              <ReloadOutlined /> 重试
-            </a-button>
-          </div>
-          <div
-            v-else
-            class="table-empty"
-          >
-            <SearchOutlined
-              v-if="hasActiveFilters"
-              class="table-empty-icon"
-            />
-            <ScissorOutlined
-              v-else
-              class="table-empty-icon"
-            />
-            <p
-              v-if="hasActiveFilters"
-              class="table-empty-text"
-            >
-              没有符合条件的拆分单，<a @click="handleResetFilters">清除筛选</a>
-            </p>
-            <p
-              v-else
-              class="table-empty-text"
-            >
-              暂无拆分单数据，点击右上角「新建拆分单」开始创建
-            </p>
-          </div>
-        </template>
-
-        <template #statusCell="{ record }">
-          <StatusTag
-            :status="record.status"
-            :map="ASSEMBLE_STATUS"
-          />
-        </template>
-
-        <template #totalCostCell="{ record }">
-          ¥{{ (record.totalCost || 0).toFixed(2) }}
-        </template>
-
-        <template #action="{ record }">
-          <a-space :size="4">
-            <a-tooltip title="查看">
-              <a-button
-                v-permission="'erp:stock:view'"
-                type="link"
-                size="small"
-                @click="handleView(record)"
-              >
-                <template #icon>
-                  <EyeOutlined />
-                </template>
-              </a-button>
-            </a-tooltip>
-            <!-- 草稿 -> 提交 -->
-            <a-tooltip
-              v-if="record.status === 0"
-              title="提交审批"
-            >
-              <a-button
-                v-permission="'erp:stock:submitapproval'"
-                type="link"
-                size="small"
-                style="color: #1890ff;"
-                @click="handleSubmitApproval(record)"
-              >
-                <template #icon>
-                  <SendOutlined />
-                </template>
-              </a-button>
-            </a-tooltip>
-            <!-- 待审批 -> 审批/拒绝 -->
-            <template v-if="record.status === 1">
-              <a-dropdown trigger="click">
-                <a-button
-                  type="link"
-                  size="small"
-                >
-                  审批 <DownOutlined />
-                </a-button>
-                <template #overlay>
-                  <a-menu>
-                    <a-menu-item @click="handleApprove(record)">
-                      <CheckOutlined /> 审批通过
-                    </a-menu-item>
-                    <a-menu-item @click="handleReject(record)">
-                      <CloseOutlined /> 拒绝
-                    </a-menu-item>
-                  </a-menu>
-                </template>
-              </a-dropdown>
-            </template>
-            <!-- 已审核 -> 执行 -->
-            <a-tooltip
-              v-if="record.status === 2"
-              title="执行"
-            >
-              <a-button
-                v-permission="'erp:stock:execute'"
-                type="link"
-                size="small"
-                style="color: #52c41a;"
-                @click="handleExecute(record)"
-              >
-                <template #icon>
-                  <MinusCircleOutlined />
-                </template>
-              </a-button>
-            </a-tooltip>
-            <!-- 已完成 -> 打印 -->
-            <PrintButton
-              v-if="record.status === 3"
-              template-type="stock_split"
-              :business-id="record.id"
-              business-type="stock_split"
-              button-size="small"
-              @print-success="() => message.success(`拆分单 ${record.splitNo} 打印成功`)"
-              @print-error="(e: any) => message.error(`打印失败: ${e.message || '未知错误'}`)"
-            />
-            <!-- 取消 -->
-            <a-tooltip
-              v-if="record.status === 0 || record.status === 2"
-              title="取消"
-            >
-              <a-button
-                v-permission="'erp:stock:cancel'"
-                type="link"
-                size="small"
-                style="color: #ff4d4f;"
-                @click="handleCancel(record)"
-              >
-                <template #icon>
-                  <CloseOutlined />
-                </template>
-              </a-button>
-            </a-tooltip>
-          </a-space>
-        </template>
-      </BillTableList>
-
-      <!-- 详情抽屉 -->
-      <a-drawer
-        v-model:open="detailVisible"
-        title="拆分单详情"
-        placement="right"
-        width="80vw"
-      >
-        <a-spin :spinning="detailLoading">
-          <a-descriptions
-            v-if="detailData"
-            bordered
-            :column="2"
-          >
-            <a-descriptions-item label="拆分单号">
-              {{ detailData.splitNo }}
-            </a-descriptions-item>
-            <a-descriptions-item label="仓库">
-              {{ detailData.warehouseName }}
-            </a-descriptions-item>
-            <a-descriptions-item label="产品编码">
-              {{ detailData.productCode || '-' }}
-            </a-descriptions-item>
-            <a-descriptions-item label="产品名称">
-              {{ detailData.productName || '-' }}
-            </a-descriptions-item>
-            <a-descriptions-item label="拆分数量">
-              {{ detailData.splitQuantity ?? '-' }}
-            </a-descriptions-item>
-            <a-descriptions-item label="拆分费用">
-              ¥{{ (detailData.splitFee || 0).toFixed(2) }}
-            </a-descriptions-item>
-            <a-descriptions-item label="总成本">
-              ¥{{ (detailData.totalCost || 0).toFixed(2) }}
-            </a-descriptions-item>
-            <a-descriptions-item label="状态">
-              <StatusTag
-                :status="detailData.status"
-                :map="ASSEMBLE_STATUS"
-              />
-            </a-descriptions-item>
-            <a-descriptions-item label="创建时间">
-              {{ detailData.createTime || '-' }}
-            </a-descriptions-item>
-            <a-descriptions-item
-              label="备注"
-              :span="2"
-            >
-              {{ detailData.remark || '-' }}
-            </a-descriptions-item>
-          </a-descriptions>
-
-          <template v-if="detailData">
-            <h4 style="margin: 16px 0 8px;">
-              拆分明细
-            </h4>
-            <a-table
-              :data-source="detailItems"
-              :columns="detailItemColumns"
-              :pagination="false as any"
+        <!-- ═══ 工具栏左侧：查询方案 ═══ -->
+        <template #toolbar-left>
+          <div class="query-scheme-wrap">
+            <a-select
+              v-model:value="queryScheme"
+              style="width: 140px"
               size="small"
-              bordered
-              row-key="id"
+              placeholder="--查询方案--"
             >
-              <template #bodyCell="{ column, record }">
-                <template v-if="column.dataIndex === 'unitCost' || column.dataIndex === 'cost'">
-                  ¥{{ (record[column.dataIndex] || 0).toFixed(2) }}
-                </template>
-              </template>
-            </a-table>
-          </template>
-        </a-spin>
-
-        <template
-          v-if="detailData"
-          #footer
-        >
-          <a-space>
-            <a-button @click="detailVisible = false">
-              关闭
-            </a-button>
+              <a-select-option value="">
+                --查询方案--
+              </a-select-option>
+              <a-select-option value="draft">草稿</a-select-option>
+              <a-select-option value="pending">待审批</a-select-option>
+              <a-select-option value="approved">已审核</a-select-option>
+              <a-select-option value="completed">已完成</a-select-option>
+            </a-select>
             <a-button
-              v-if="detailData.status === 0"
-              v-permission="'erp:stock:submitapproval'"
-              @click="handleSubmitApproval(detailData)"
+              type="link"
+              size="small"
+              style="padding: 0 4px"
             >
-              <template #icon>
-                <SendOutlined />
-              </template>
-              提交审批
+              <PlusOutlined />
             </a-button>
-            <template v-if="detailData.status === 1">
-              <a-button
-                v-permission="'erp:stock:approve'"
-                type="primary"
-                @click="handleApprove(detailData)"
-              >
-                <template #icon>
-                  <CheckOutlined />
-                </template>
-                审批通过
-              </a-button>
-              <a-button
-                v-permission="'erp:stock:reject'"
-                danger
-                @click="handleReject(detailData)"
-              >
-                <template #icon>
-                  <CloseOutlined />
-                </template>
-                拒绝
-              </a-button>
-            </template>
+          </div>
+          <a-space :size="4" class="quick-dates">
             <a-button
-              v-if="detailData.status === 2"
-              v-permission="'erp:stock:execute'"
-              type="primary"
-              @click="handleExecute(detailData)"
+              v-for="d in quickDates"
+              :key="d.key"
+              :type="quickDate === d.key ? 'primary' : 'link'"
+              size="small"
+              @click="setQuickDate(d.key)"
             >
-              <template #icon>
-                <MinusCircleOutlined />
-              </template>
-              执行
+              {{ d.label }}
             </a-button>
-            <PrintButton
-              v-if="detailData.status >= 3"
-              template-type="stock_split"
-              :business-id="detailData.id"
-              business-type="stock_split"
-              button-text="打印"
-              button-size="small"
-            />
           </a-space>
         </template>
-      </a-drawer>
+
+        <!-- ═══ 工具栏右侧：列配置/页面配置/新增/刷新/打印/导出 ═══ -->
+        <template #toolbar-right>
+          <a-space :size="8">
+            <a-tooltip title="列配置">
+              <a-button size="small" @click="showColumnConfig = true">
+                <TableOutlined />
+              </a-button>
+            </a-tooltip>
+            <a-tooltip title="页面配置">
+              <a-button size="small" @click="showPageConfig = true">
+                <SettingOutlined />
+              </a-button>
+            </a-tooltip>
+            <a-button type="primary" size="small" @click="handleAdd">
+              <PlusOutlined /> 新增
+            </a-button>
+            <a-button size="small" @click="fetchData">
+              <ReloadOutlined /> 刷新
+            </a-button>
+            <a-button size="small" @click="handlePrintF8">
+              <PrinterOutlined /> 打印(F8)
+            </a-button>
+            <a-button size="small" @click="handleExport">
+              <ExportOutlined /> 导出
+            </a-button>
+          </a-space>
+        </template>
+
+        <!-- ═══ 搜索区域 ═══ -->
+        <template #search-fields>
+          <div class="search-area">
+            <div class="search-container">
+              <div class="search-grid" ref="searchGridRef">
+                <div class="search-field-item">
+                  <a-range-picker
+                    v-model:value="dateRange"
+                    size="small"
+                    style="width: 100%"
+                    @change="handleDateChange"
+                  />
+                </div>
+                <div class="search-field-item">
+                  <a-input v-model:value="searchParams.splitNo" placeholder="单据编号" allow-clear size="small" />
+                </div>
+                <div class="search-field-item">
+                  <a-select v-model:value="searchParams.outWarehouseId" placeholder="出库仓库" allow-clear size="small" show-search :filter-option="filterOption">
+                    <a-select-option v-for="w in warehouseOptions" :key="w.id" :value="w.id">{{ w.warehouseName || w.name }}</a-select-option>
+                  </a-select>
+                </div>
+                <div class="search-field-item">
+                  <a-select v-model:value="searchParams.inWarehouseId" placeholder="入库仓库" allow-clear size="small" show-search :filter-option="filterOption">
+                    <a-select-option v-for="w in warehouseOptions" :key="w.id" :value="w.id">{{ w.warehouseName || w.name }}</a-select-option>
+                  </a-select>
+                </div>
+                <div class="search-field-item">
+                  <a-input v-model:value="searchParams.handlerName" placeholder="经手人" allow-clear size="small" />
+                </div>
+                <div class="search-field-item">
+                  <a-select v-model:value="searchParams.deptName" placeholder="部门" allow-clear size="small" show-search :filter-option="filterOption">
+                    <a-select-option v-for="d in departmentOptions" :key="d.id" :value="d.name">{{ d.name }}</a-select-option>
+                  </a-select>
+                </div>
+                <div class="search-field-item">
+                  <a-input v-model:value="searchParams.creatorName" placeholder="制单人" allow-clear size="small" />
+                </div>
+                <div class="search-field-item">
+                  <a-input v-model:value="searchParams.bookkeeperName" placeholder="记账人" allow-clear size="small" />
+                </div>
+                <div class="search-field-item">
+                  <div class="search-select-wrap">
+                    <span class="search-select-label">单据状态</span>
+                    <a-select v-model:value="searchParams.status" size="small" allow-clear>
+                      <a-select-option value="">全部</a-select-option>
+                      <a-select-option :value="0">草稿</a-select-option>
+                      <a-select-option :value="1">待审批</a-select-option>
+                      <a-select-option :value="2">已审核</a-select-option>
+                      <a-select-option :value="3">已完成</a-select-option>
+                      <a-select-option :value="4">已拒绝</a-select-option>
+                      <a-select-option :value="5">已取消</a-select-option>
+                    </a-select>
+                  </div>
+                </div>
+                <div class="search-field-item">
+                  <a-input v-model:value="searchParams.remark" placeholder="单据备注" allow-clear size="small" />
+                </div>
+                <div class="search-action-group" ref="searchActionRef" :style="{ gridColumn: 'span ' + actionSpan }">
+                  <div class="search-field-item search-action-item">
+                    <a-button type="primary" size="small" @click="handleSearch">查询</a-button>
+                  </div>
+                  <div class="search-field-item">
+                    <a-checkbox v-model:checked="searchParams.showRed">显示红冲</a-checkbox>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <!-- ═══ 表格区域 ═══ -->
+        <template #table>
+          <div class="table-area">
+            <BillTableList
+              :columns="visibleColumns"
+              :data-source="tableData"
+              :loading="loading"
+              :pagination="pagination"
+              :show-toolbar="false"
+              :show-search="false"
+              :show-add="false"
+              :show-export="false"
+              :show-batch-delete="false"
+              :selectable="true"
+              :row-selection="rowSelection"
+              row-key="id"
+              @page-change="handlePageChange"
+            >
+              <template #splitNoCell="{ record }">
+                <a-button type="link" size="small" @click="handleView(record)">
+                  {{ record.splitNo }}
+                </a-button>
+              </template>
+              <template #statusCell="{ record }">
+                <a-tag :color="getStatusColor(record.status)">{{ getStatusText(record.status) }}</a-tag>
+              </template>
+              <template #totalCostCell="{ record }">
+                <span class="currency-value">{{ formatAmount(record.totalCost) }}</span>
+              </template>
+              <template #printCountCell="{ record }">
+                <span class="currency-value">{{ record.printCount ?? 0 }}</span>
+              </template>
+              <template #actionCell="{ record }">
+                <a-space :size="4">
+                  <a-button type="link" size="small" @click="handleView(record)">查看</a-button>
+                  <a-button v-if="record.status === 0" type="link" size="small" @click="handleEdit(record)">修改</a-button>
+                  <a-button
+                    v-if="record.status === 1"
+                    type="link"
+                    size="small"
+                    @click="handleApprove(record)"
+                  >审批</a-button>
+                  <a-button
+                    v-if="record.status === 2"
+                    type="link"
+                    size="small"
+                    @click="handleExecute(record)"
+                  >执行</a-button>
+                  <a-button
+                    v-if="record.status === 0 || record.status === 2"
+                    type="link"
+                    size="small"
+                    danger
+                    @click="handleCancel(record)"
+                  >取消</a-button>
+                </a-space>
+              </template>
+            </BillTableList>
+          </div>
+        </template>
+      </CategoryListLayout>
     </PageContainer>
 
-    <!-- 新建拆分单弹窗 -->
-    <a-modal
-      v-model:open="createVisible"
-      title="新建拆分单"
-      width="900px"
-      :confirm-loading="createLoading"
-      :mask-closable="false"
-      destroy-on-close
-      @ok="handleCreateSubmit"
-      @cancel="handleCreateCancel"
-    >
-      <a-form
-        ref="createFormRef"
-        :model="createForm"
-        :rules="createRules"
-        layout="vertical"
-      >
-        <a-row :gutter="16">
-          <a-col :span="12">
-            <a-form-item
-              label="选择BOM"
-              name="bomId"
-            >
-              <a-select
-                v-model:value="createForm.bomId"
-                placeholder="请选择BOM"
-                show-search
-                :filter-option="filterOption"
-                allow-clear
-                size="small"
-                @change="handleBomChange"
-              >
-                <a-select-option
-                  v-for="b in bomOptions"
-                  :key="b.id"
-                  :value="b.id"
-                >
-                  {{ b.bomNo }} - {{ b.bomName }}
-                </a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item
-              label="仓库"
-              name="warehouseId"
-            >
-              <a-select
-                v-model:value="createForm.warehouseId"
-                placeholder="请选择仓库"
-                show-search
-                :filter-option="filterOption"
-                allow-clear
-                size="small"
-              >
-                <a-select-option
-                  v-for="w in warehouseOptions"
-                  :key="w.id"
-                  :value="w.id"
-                >
-                  {{ w.warehouseName }}
-                </a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-        </a-row>
-        <a-row :gutter="16">
-          <a-col :span="8">
-            <a-form-item
-              label="拆分数量"
-              name="splitQuantity"
-            >
-              <a-input-number
-                v-model:value="createForm.splitQuantity"
-                :min="1"
-                :precision="0"
-                style="width: 100%"
-                placeholder="拆分数量"
-                size="small"
-              />
-            </a-form-item>
-          </a-col>
-          <a-col :span="8">
-            <a-form-item
-              label="拆分费用"
-              name="splitFee"
-            >
-              <a-input-number
-                v-model:value="createForm.splitFee"
-                :min="0"
-                :precision="2"
-                style="width: 100%"
-                placeholder="拆分费用"
-                size="small"
-              />
-            </a-form-item>
-          </a-col>
-          <a-col :span="8">
-            <a-form-item
-              label="备注"
-              name="remark"
-            >
-              <a-input
-                v-model:value="createForm.remark"
-                placeholder="备注信息"
-                size="small"
-              />
-            </a-form-item>
-          </a-col>
-        </a-row>
+    <!-- ═══ 列配置弹窗 ═══ -->
+    <ColumnConfigPanel
+      :open="showColumnConfig"
+      :settings-columns="panelColumns"
+      :is-locked-column="isLockedColumn"
+      @update:open="showColumnConfig = $event"
+      @change="handleColumnConfigChange"
+      @reset="handleColumnConfigReset"
+      @drag-end="handleColumnConfigChange"
+    />
 
-        <!-- 物料明细（根据BOM自动加载） -->
-        <div class="sub-table-header">
-          <span class="sub-table-title">拆分产出明细</span>
-        </div>
-        <a-table
-          :data-source="createForm.items"
-          :columns="itemColumns"
-          :pagination="false as any"
-          size="small"
-          row-key="tempId"
-          style="margin-bottom: 12px;"
-        >
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.dataIndex === 'unitCost' || column.dataIndex === 'cost'">
-              ¥{{ (record[column.dataIndex] || 0).toFixed(2) }}
-            </template>
-          </template>
-        </a-table>
-      </a-form>
-    </a-modal>
-
-    <!-- 取消原因弹窗 -->
-    <a-modal
-      v-model:open="cancelModalVisible"
-      title="取消确认"
-      width="480px"
-      :confirm-loading="cancelLoading"
-      destroy-on-close
-      @ok="handleCancelConfirm"
-      @cancel="handleCancelClose"
-    >
-      <a-form layout="vertical">
-        <a-form-item
-          label="取消原因"
-          required
-        >
-          <a-textarea
-            v-model:value="cancelReason"
-            :rows="3"
-            placeholder="请输入取消原因（必填）"
-          />
-        </a-form-item>
-      </a-form>
-    </a-modal>
+    <!-- ═══ 页面配置弹窗 ═══ -->
+    <PageConfigPanel
+      :open="showPageConfig"
+      :query-fields-config="queryFieldsConfig"
+      :function-buttons-config="functionButtonConfig"
+      :storage-key="PAGE_CONFIG_STORAGE_KEY"
+      @update:open="showPageConfig = $event"
+      @change="handlePageConfigChange"
+    />
   </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import dayjs from 'dayjs'
 import { message, Modal } from 'ant-design-vue'
 import {
-  PlusOutlined, ReloadOutlined, SyncOutlined, ClockCircleOutlined,
-  CheckCircleOutlined, DollarOutlined, WarningOutlined,
-  DownOutlined, CheckOutlined, CloseOutlined, SendOutlined,
-  MinusCircleOutlined, EyeOutlined, ScissorOutlined, SearchOutlined
+  PlusOutlined, ReloadOutlined, PrinterOutlined, SettingOutlined,
+  TableOutlined, ExportOutlined,
 } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
-import StatusTag from '@/components/StatusTag/StatusTag.vue'
-import PrintButton from '@/components/business/print-button/PrintButton.vue'
-import request from '@/utils/request'
-import { ASSEMBLE_STATUS } from '@/utils/statusConfig'
+import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayout.vue'
+import ColumnConfigPanel from '@/components/ColumnConfigPanel/index.vue'
+import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
+import { useColumnConfig, isLockedColumn } from '@/composables/useColumnConfig'
+import { useAutoGridSpan } from '@/composables/useAutoGridSpan'
+import { stockSplitApi } from '@/api/erp'
+import optionsApi from '@/api/options'
+
+defineOptions({ name: 'StockSplitList' })
 
 const router = useRouter()
 
-// ── 类型定义 ──────────────────────────────────────────
-interface SplitItem {
-  tempId?: number
-  productId?: number
-  productCode: string
-  productName: string
-  spec: string
-  quantity: number
-  unitCost: number
-  cost?: number
-}
+// ═══ 快捷日期 ═══
+const quickDates = [
+  { key: 'yesterday', label: '昨日' },
+  { key: 'today', label: '今日' },
+  { key: 'week', label: '本周' },
+  { key: 'lastWeek', label: '近一周' },
+  { key: 'month', label: '本月' },
+  { key: 'lastMonth', label: '上月' },
+  { key: 'last3Month', label: '近三月' },
+  { key: 'year', label: '本年' },
+]
+const quickDate = ref('week')
+const queryScheme = ref('')
 
-interface SplitOrder {
-  id: number
-  splitNo: string
-  warehouseName: string
-  bomId: number
-  productCode: string
-  productName: string
-  splitQuantity: number
-  totalCost: number
-  splitFee: number
-  status: number
-  remark?: string
-  createTime: string
-  items?: SplitItem[]
-}
-
-// ── 防抖与错误处理 ─────────────────────────────────────
-function handleError(err: any) { console.warn('[拆分管理] ErrorBoundary 捕获异常:', err) }
-
-const debounceMap = new Map<string, number>()
-function debounceClick(key: string, fn: () => void, delay = 300) {
-  const now = Date.now()
-  const last = debounceMap.get(key) || 0
-  if (now - last < delay) return
-  debounceMap.set(key, now)
-  fn()
-}
-
-// ── 键盘快捷键 ──────────────────────────────────────────
-function handleKeydown(e: KeyboardEvent) {
-  if (e.key === 'F5') { e.preventDefault(); debounceClick('refresh', fetchData); return }
-  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleCreate(); return }
-}
-
+// ═══ 状态 ═══
 const loading = ref(false)
-const hasError = ref(false)
-const refreshLoading = ref(false)
-const lastUpdateTime = ref('')
-const autoRefreshCountdown = ref(0)
 const tableData = ref<any[]>([])
-const detailVisible = ref(false)
-const tableRef = ref()
-const lastUpdated = ref(new Date().toISOString())
+const warehouseOptions = ref<any[]>([])
+const departmentOptions = ref<any[]>([])
 
-let refreshTimer: ReturnType<typeof setInterval> | null = null
-let countdownTimer: ReturnType<typeof setInterval> | null = null
+const searchGridRef = ref<HTMLElement | null>(null)
+const searchActionRef = ref<HTMLElement | null>(null)
+const { span: actionSpan } = useAutoGridSpan(searchActionRef, searchGridRef)
 
-// 统计数据
-const statistics = ref({
-  totalCount: 0,
-  pendingCount: 0,
-  completedCount: 0,
-  totalAmount: 0
+const dateRange = ref<[any, any] | null>([dayjs().subtract(7, 'day'), dayjs()])
+
+const searchParams = reactive<any>({
+  splitNo: '',
+  outWarehouseId: undefined,
+  inWarehouseId: undefined,
+  handlerName: '',
+  deptName: '',
+  creatorName: '',
+  bookkeeperName: '',
+  status: undefined,
+  remark: '',
+  showRed: false,
+  startDate: dayjs().subtract(7, 'day').format('YYYY-MM-DD'),
+  endDate: dayjs().format('YYYY-MM-DD'),
 })
 
-const searchFilters = reactive<Record<string, any>>({})
+const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
 
-const pagination = reactive({
-  current: 1, pageSize: 10, total: 0,
-  showSizeChanger: true, showQuickJumper: true,
-  showTotal: (total: number) => `共 ${total} 条`
-})
+const selectedRowKeys = ref<any[]>([])
+const rowSelection = computed(() => ({
+  selectedRowKeys: selectedRowKeys.value,
+  onChange: (keys: any[]) => { selectedRowKeys.value = keys },
+}))
 
-const hasActiveFilters = computed(() => {
-  return Object.values(searchFilters).some(v => v !== undefined && v !== null && v !== '')
-})
+// ═══ 列配置/页面配置弹窗 ═══
+const showColumnConfig = ref(false)
+const showPageConfig = ref(false)
 
-const filterFields = computed(() => [
-  { key: 'keyword', label: '关键字', type: 'input' as const, placeholder: '请输入拆分单号/关键字' },
-  { key: 'warehouseId', label: '仓库', type: 'select' as const, options: warehouseOptions.value.map((w: any) => ({ label: w.warehouseName, value: w.id })) },
-  { key: 'status', label: '状态', type: 'select' as const, options: Object.entries(ASSEMBLE_STATUS).map(([k, v]) => ({ label: v.text, value: Number(k) })) },
-])
+// ═══ 页面配置（查询条件显隐、功能按钮） ═══
+const PAGE_CONFIG_STORAGE_KEY = 'stock-split-page-config'
+interface QueryFieldSetting { key: string; label: string; visible: boolean }
+interface FunctionButtonSetting { key: string; label: string; enabled: boolean }
 
-const vxeColumns: any = computed(() => [
-  { field: 'splitNo', title: '拆分单号', width: 150 },
-  { field: 'warehouseName', title: '仓库', width: 120 },
-  { field: 'productCode', title: '产品编码', width: 120 },
-  { field: 'productName', title: '产品名称', width: 140 },
-  { field: 'splitQuantity', title: '拆分数量', width: 90, align: 'center' },
-  { field: 'totalCost', title: '总成本', width: 120, slotName: 'totalCostCell' },
-  { field: 'status', title: '状态', width: 90, slotName: 'statusCell' },
-  { field: 'action', title: '操作', width: 200, fixed: 'right', type: 'action' },
-])
+const DEFAULT_QUERY_FIELDS: QueryFieldSetting[] = [
+  { key: 'date', label: '单据日期', visible: true },
+  { key: 'splitNo', label: '单据编号', visible: true },
+  { key: 'outWarehouseId', label: '出库仓库', visible: true },
+  { key: 'inWarehouseId', label: '入库仓库', visible: true },
+  { key: 'handlerName', label: '经手人', visible: true },
+  { key: 'deptName', label: '部门', visible: true },
+  { key: 'creatorName', label: '制单人', visible: true },
+  { key: 'bookkeeperName', label: '记账人', visible: true },
+  { key: 'status', label: '单据状态', visible: true },
+  { key: 'remark', label: '单据备注', visible: true },
+  { key: 'showRed', label: '显示红冲', visible: true },
+]
 
-const handleSearch = () => {
-  pagination.current = 1
-  fetchData()
-}
+const DEFAULT_FUNCTION_BUTTONS: FunctionButtonSetting[] = [
+  { key: 'add', label: '新增', enabled: true },
+  { key: 'refresh', label: '刷新', enabled: true },
+  { key: 'printF8', label: '打印(F8)', enabled: true },
+  { key: 'export', label: '导出', enabled: true },
+  { key: 'config', label: '配置', enabled: true },
+]
 
-function handleFilterChange(filters: Record<string, any>) {
-  Object.assign(searchFilters, filters)
-  pagination.current = 1
-  fetchData()
-}
+const queryFieldsConfig = ref<QueryFieldSetting[]>(DEFAULT_QUERY_FIELDS.map(f => ({ ...f })))
+const functionButtonConfig = ref<FunctionButtonSetting[]>(DEFAULT_FUNCTION_BUTTONS.map(f => ({ ...f })))
 
-const handleResetFilters = () => {
-  for (const key of Object.keys(searchFilters)) {
-    searchFilters[key] = undefined
+function loadPageConfig() {
+  try {
+    const raw = localStorage.getItem(PAGE_CONFIG_STORAGE_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (parsed.queryFields) {
+        queryFieldsConfig.value = DEFAULT_QUERY_FIELDS.map(df => {
+          const saved = parsed.queryFields.find((f: QueryFieldSetting) => f.key === df.key)
+          return saved ? { ...df, ...saved } : { ...df }
+        })
+      }
+      if (parsed.functionButtons) {
+        functionButtonConfig.value = DEFAULT_FUNCTION_BUTTONS.map(bf => {
+          const saved = parsed.functionButtons.find((f: FunctionButtonSetting) => f.key === bf.key)
+          return saved ? { ...bf, ...saved } : { ...bf }
+        })
+      }
+    }
+  } catch {
+    // ignore
   }
-  pagination.current = 1
-  fetchData()
 }
 
-function handleParentCreate() { handleCreate() }
+function handlePageConfigChange(config: any) {
+  localStorage.setItem(PAGE_CONFIG_STORAGE_KEY, JSON.stringify({
+    queryFields: config.queryFields || [],
+    functionButtons: config.functionButtons || functionButtonConfig.value,
+  }))
+  loadPageConfig()
+}
 
-const handlePageChange = (page: number, size: number) => { pagination.current = page; pagination.pageSize = size; fetchData() }
+// ═══ 列定义（对标文档18列） ═══
+const docColumns = [
+  { title: '', key: 'rowNo', type: 'rowNo', width: 40, fixed: 'left' },
+  { title: '操作', key: 'action', type: 'action', width: 160, fixed: 'right', slotName: 'actionCell' },
+  { title: '单据日期', field: 'splitDate', key: 'splitDate', width: 110, sortable: true },
+  { title: '单据编号', field: 'splitNo', key: 'splitNo', width: 170, type: 'slot', slotName: 'splitNoCell', sortable: true },
+  { title: '单据状态', field: 'status', key: 'status', width: 90, align: 'center', type: 'slot', slotName: 'statusCell' },
+  { title: '入库仓库', field: 'inWarehouseName', key: 'inWarehouseName', width: 120, sortable: true },
+  { title: '出库仓库', field: 'outWarehouseName', key: 'outWarehouseName', width: 120, sortable: true },
+  { title: '经手人', field: 'handlerName', key: 'handlerName', width: 90, sortable: true },
+  { title: '部门', field: 'deptName', key: 'deptName', width: 100 },
+  { title: '本单金额', field: 'totalCost', key: 'totalCost', width: 120, align: 'right', type: 'slot', slotName: 'totalCostCell', sortable: true },
+  { title: '单据备注', field: 'remark', key: 'remark', width: 120 },
+  { title: '摘要', field: 'summary', key: 'summary', width: 140 },
+  { title: '附件', field: 'attachment', key: 'attachment', width: 80 },
+  { title: '记账人', field: 'bookkeeperName', key: 'bookkeeperName', width: 90, sortable: true },
+  { title: '制单人', field: 'creatorName', key: 'creatorName', width: 90, sortable: true },
+  { title: '记账时间', field: 'bookkeepingTime', key: 'bookkeepingTime', width: 140 },
+  { title: '制单时间', field: 'createTime', key: 'createTime', width: 140 },
+  { title: '重量（kg）', field: 'totalWeight', key: 'totalWeight', width: 90, align: 'right' },
+  { title: '体积（m³）', field: 'totalVolume', key: 'totalVolume', width: 90, align: 'right' },
+  { title: '打印次数', field: 'printCount', key: 'printCount', width: 80, align: 'right', type: 'slot', slotName: 'printCountCell' },
+]
 
-const fetchData = async () => {
-  hasError.value = false
+const columnDefs = computed(() => docColumns.map(col => ({ ...col })))
+const {
+  visibleColumns,
+  onSettingChange,
+  resetSettings,
+  settingsColumns,
+} = useColumnConfig(columnDefs.value, 'stock-split-list-columns')
+
+const panelColumns = computed(() => settingsColumns.value)
+
+function handleColumnConfigChange() {
+  onSettingChange()
+}
+function handleColumnConfigReset() {
+  resetSettings()
+}
+
+// ═══ 状态映射 ═══
+const STATUS_MAP: Record<number, { text: string; color: string }> = {
+  0: { text: '草稿', color: 'default' },
+  1: { text: '待审批', color: 'orange' },
+  2: { text: '已审核', color: 'blue' },
+  3: { text: '已完成', color: 'green' },
+  4: { text: '已拒绝', color: 'red' },
+  5: { text: '已取消', color: 'default' },
+}
+function getStatusText(status: number): string {
+  return STATUS_MAP[status]?.text || '未知'
+}
+function getStatusColor(status: number): string {
+  return STATUS_MAP[status]?.color || 'default'
+}
+
+// ═══ 数据加载 ═══
+async function fetchData() {
   loading.value = true
   try {
-    const res = await request.get('/erp/stock/split/page', {
-      params: {
-        keyword: searchFilters.keyword || undefined,
-        warehouseId: searchFilters.warehouseId || undefined,
-        status: searchFilters.status,
-        pageNum: pagination.current,
-        pageSize: pagination.pageSize
-      }
-    })
-    const data = res.data || res
-    tableData.value = data?.records || []
-    pagination.total = data?.total || 0
-    if (data.totalCount !== undefined) {
-      statistics.value.totalCount = data.totalCount
-      statistics.value.pendingCount = data.pendingCount || 0
-      statistics.value.completedCount = data.completedCount || 0
-      statistics.value.totalAmount = data.totalAmount || 0
-    } else {
-      statistics.value.totalCount = tableData.value.length
-      statistics.value.pendingCount = tableData.value.filter((r: any) => r.status === 1).length
-      statistics.value.completedCount = tableData.value.filter((r: any) => r.status === 3).length
-      statistics.value.totalAmount = tableData.value.reduce((sum: number, r: any) => sum + (r.totalCost || 0), 0)
+    const params: any = {
+      pageNum: pagination.current,
+      pageSize: pagination.pageSize,
     }
-    lastUpdated.value = new Date().toISOString()
-  } catch (error) {
-    hasError.value = true
-    console.warn('[拆分管理] 获取数据失败', error)
-    message.error('获取数据失败')
+    if (searchParams.splitNo) params.splitNo = searchParams.splitNo
+    if (searchParams.outWarehouseId) params.outWarehouseId = searchParams.outWarehouseId
+    if (searchParams.inWarehouseId) params.inWarehouseId = searchParams.inWarehouseId
+    if (searchParams.handlerName) params.handlerName = searchParams.handlerName
+    if (searchParams.deptName) params.deptName = searchParams.deptName
+    if (searchParams.creatorName) params.creatorName = searchParams.creatorName
+    if (searchParams.bookkeeperName) params.bookkeeperName = searchParams.bookkeeperName
+    if (searchParams.status !== undefined && searchParams.status !== '') params.status = searchParams.status
+    if (searchParams.remark) params.remark = searchParams.remark
+    if (searchParams.dateStart) params.dateStart = searchParams.dateStart
+    if (searchParams.dateEnd) params.dateEnd = searchParams.dateEnd
+
+    const res: any = await stockSplitApi.page(params)
+    const body = (res as any)?.data ?? res
+    tableData.value = body?.records || []
+    pagination.total = Number(body?.total) || 0
+  } catch (error: any) {
+    console.warn('[拆分单] 获取列表失败', error)
+    message.error(error?.response?.data?.message || '获取数据失败')
   } finally {
     loading.value = false
-    refreshLoading.value = false
-    lastUpdateTime.value = new Date().toLocaleString('zh-CN')
   }
 }
 
-// ════════════════════════════════════════════════════════════════
-// 新建拆分单
-// ════════════════════════════════════════════════════════════════
-
-let tempIdCounter = 0
-function nextTempId() { return ++tempIdCounter }
-
-const createVisible = ref(false)
-const createLoading = ref(false)
-const createFormRef = ref<any>(null)
-const createForm = reactive({
-  bomId: undefined as number | undefined,
-  warehouseId: undefined as number | undefined,
-  splitQuantity: 1,
-  splitFee: 0,
-  remark: '',
-  items: [] as any[]
-})
-const createRules: Record<string, any[]> = {
-  bomId: [{ required: true, message: '请选择BOM', trigger: 'change' }],
-  warehouseId: [{ required: true, message: '请选择仓库', trigger: 'change' }],
-  splitQuantity: [{ required: true, message: '请输入拆分数量', trigger: 'blur' }]
+function setQuickDate(key: string) {
+  quickDate.value = key
+  const now = dayjs()
+  let start: any, end: any
+  switch (key) {
+    case 'yesterday': start = now.subtract(1, 'day'); end = now.subtract(1, 'day'); break
+    case 'today': start = now; end = now; break
+    case 'week': start = now.startOf('week'); end = now; break
+    case 'lastWeek': start = now.subtract(7, 'day'); end = now; break
+    case 'month': start = now.startOf('month'); end = now; break
+    case 'lastMonth': start = now.subtract(1, 'month').startOf('month'); end = now.subtract(1, 'month').endOf('month'); break
+    case 'last3Month': start = now.subtract(3, 'month'); end = now; break
+    case 'year': start = now.startOf('year'); end = now; break
+    default: start = now.subtract(7, 'day'); end = now
+  }
+  dateRange.value = [start, end]
+  searchParams.startDate = start.format('YYYY-MM-DD')
+  searchParams.endDate = end.format('YYYY-MM-DD')
+  handleSearch()
 }
 
-const itemColumns: any = [
-  { title: '产品编码', dataIndex: 'productCode', width: 100 },
-  { title: '产品名称', dataIndex: 'productName', width: 180 },
-  { title: '规格', dataIndex: 'spec', width: 80 },
-  { title: '数量', dataIndex: 'quantity', width: 80, align: 'center' },
-  { title: '单位成本', dataIndex: 'unitCost', width: 100 },
-  { title: '成本', dataIndex: 'cost', width: 100 }
-]
+function handleDateChange(dates: any) {
+  if (dates && dates.length === 2) {
+    searchParams.startDate = dates[0]?.format('YYYY-MM-DD') || ''
+    searchParams.endDate = dates[1]?.format('YYYY-MM-DD') || ''
+  } else {
+    searchParams.startDate = ''
+    searchParams.endDate = ''
+  }
+}
 
-const detailItemColumns: any = [
-  { title: '产品编码', dataIndex: 'productCode', width: 120 },
-  { title: '产品名称', dataIndex: 'productName', width: 180 },
-  { title: '规格', dataIndex: 'spec', width: 100 },
-  { title: '数量', dataIndex: 'quantity', width: 80, align: 'right' },
-  { title: '单位成本', dataIndex: 'unitCost', width: 100, align: 'right' },
-  { title: '成本', dataIndex: 'cost', width: 120, align: 'right' },
-]
+function handleSearch() {
+  pagination.current = 1
+  fetchData()
+}
 
-// BOM选项
-const bomOptions = ref<any[]>([])
-// 仓库选项
-const warehouseOptions = ref<any[]>([])
+function handlePageChange(page: number, pageSize: number) {
+  pagination.current = page
+  pagination.pageSize = pageSize
+  fetchData()
+}
 
 function filterOption(input: string, option: any) {
-  return (option.children?.toString() || '').toLowerCase().includes(input.toLowerCase())
+  return (option?.label?.toString() || option?.children?.toString() || '').toLowerCase().includes(input.toLowerCase())
 }
 
-async function loadBomOptions() {
-  try {
-    const res = await request.get('/erp/stock/bom/page', { params: { pageSize: 200 } })
-    const data = res?.data ?? res
-    const records = data?.records || (Array.isArray(data) ? data : [])
-    bomOptions.value = records.map((item: any) => ({
-      id: item.id,
-      bomNo: item.bomNo,
-      bomName: item.bomName,
-      productId: item.productId,
-      productCode: item.productCode,
-      productName: item.productName
-    }))
-  } catch { bomOptions.value = [] }
-}
-
-async function loadWarehouseOptions() {
-  try {
-    const res = await request.get('/erp/warehouse/list')
-    const list = res?.data || []
-    warehouseOptions.value = Array.isArray(list) ? list : []
-  } catch { warehouseOptions.value = [] }
-}
-
-async function handleBomChange(value: number) {
-  createForm.items = []
-  if (!value) return
-  try {
-    const res = await request.get(`/erp/stock/bom/${value}/items`)
-    const items = res?.data || []
-    createForm.items = items.map((item: any) => ({
-      tempId: nextTempId(),
-      productId: item.productId,
-      productCode: item.productCode || '',
-      productName: item.productName || '',
-      spec: item.spec || '',
-      quantity: item.quantity || 1,
-      unitCost: item.unitCost || 0,
-      cost: (item.quantity || 1) * (item.unitCost || 0)
-    }))
-  } catch {
-    message.warning('加载BOM明细失败')
-    createForm.items = []
-  }
-}
-
-const handleCreate = () => {
-  // 深度复刻：新建跳转双明细表并排表单页（成品详情出库表 + 原料详情入库表）
+// ═══ 操作 ═══
+function handleAdd() {
   router.push('/erp/stock-split/form')
 }
-
-const handleCreateSubmit = async () => {
-  try {
-    await createFormRef.value?.validate()
-  } catch { return }
-  if (createForm.items.length === 0) {
-    message.warning('请先选择BOM')
-    return
-  }
-  createLoading.value = true
-  try {
-    await request.post('/erp/stock/split', {
-      bomId: createForm.bomId,
-      warehouseId: createForm.warehouseId,
-      splitQuantity: createForm.splitQuantity,
-      splitFee: createForm.splitFee || undefined,
-      remark: createForm.remark || undefined,
-      items: createForm.items.map(item => ({
-        productId: item.productId,
-        productCode: item.productCode,
-        productName: item.productName,
-        spec: item.spec || undefined,
-        quantity: item.quantity,
-        unitCost: item.unitCost
-      }))
-    })
-    message.success('拆分单创建成功')
-    createVisible.value = false
-    fetchData()
-  } catch (err: any) {
-    console.warn('[拆分管理] 创建失败', err)
-    message.error(err?.message || '创建失败，请稍后重试')
-  } finally {
-    createLoading.value = false
-  }
+function handleView(record: any) {
+  router.push(`/erp/stock-split/form/${record.id}`)
 }
-
-const handleCreateCancel = () => {
-  createVisible.value = false
-}
-
-// ════════════════════════════════════════════════════════════════
-// 详情
-// ════════════════════════════════════════════════════════════════
-const detailData = ref<any>(null)
-const detailLoading = ref(false)
-const detailItems = ref<any[]>([])
-
-const fetchDetail = async (id: number) => {
-  detailLoading.value = true
-  detailItems.value = []
-  try {
-    const res = await request.get(`/erp/stock/split/${id}`)
-    detailData.value = res.data || null
-    try {
-      const itemsRes = await request.get(`/erp/stock/split/${id}/items`)
-      detailItems.value = itemsRes?.data || []
-    } catch { detailItems.value = [] }
-  } catch (err) {
-    console.warn('[拆分管理] 获取详情失败', err)
-    detailData.value = tableData.value.find(item => item.id === id) || null
-  } finally {
-    detailLoading.value = false
-  }
-}
-
-const handleView = (record: any) => {
-  // 深度复刻：查看跳转双表并排表单页（含审批/执行操作）
+function handleEdit(record: any) {
   router.push(`/erp/stock-split/form/${record.id}`)
 }
 
-// ════════════════════════════════════════════════════════════════
-// 操作
-// ════════════════════════════════════════════════════════════════
-
-const handleSubmitApproval = async (record: any) => {
+function handleCancel(record: any) {
+  const reason = '取消拆分单'
   Modal.confirm({
-    title: '提交审批',
-    content: `确认提交拆分单 ${record.splitNo} 进行审批吗？`,
-    okText: '确认',
+    title: '取消确认',
+    content: `确认取消拆分单 ${record.splitNo} 吗？`,
+    okText: '确认取消',
+    okType: 'danger',
     cancelText: '取消',
     onOk: async () => {
       try {
-        await request.post(`/erp/stock/split/${record.id}/submit`)
-        message.success('提交成功')
+        await stockSplitApi.cancel(record.id, reason || '取消拆分单')
+        message.success('取消成功')
         fetchData()
-        if (detailVisible.value) detailVisible.value = false
-      } catch (error) {
-        console.warn('[拆分管理] 提交失败', error)
-        message.error('提交失败')
+      } catch (error: any) {
+        message.error(error?.response?.data?.message || '取消失败')
       }
-    }
+    },
   })
 }
 
-const handleApprove = async (record: any) => {
+function handleApprove(record: any) {
   Modal.confirm({
     title: '审批确认',
-    content: '确认审批通过该拆分单吗？',
-    okText: '确认',
+    content: `确认审批通过拆分单 ${record.splitNo} 吗？`,
+    okText: '审批通过',
     cancelText: '取消',
     onOk: async () => {
       try {
-        await request.post(`/erp/stock/split/${record.id}/approve`)
+        await stockSplitApi.approve(record.id)
         message.success('审批通过')
         fetchData()
-        if (detailVisible.value) detailVisible.value = false
-      } catch (error) {
-        console.warn('[拆分管理] 审批失败', error)
-        message.error('审批失败')
+      } catch (error: any) {
+        message.error(error?.response?.data?.message || '审批失败')
       }
-    }
+    },
   })
 }
 
-const handleReject = async (record: any) => {
-  Modal.confirm({
-    title: '拒绝确认',
-    content: '确认拒绝该拆分单吗？',
-    okText: '确认拒绝',
-    cancelText: '取消',
-    okButtonProps: { danger: true },
-    onOk: async () => {
-      try {
-        await request.post(`/erp/stock/split/${record.id}/reject`)
-        message.success('已拒绝')
-        fetchData()
-        if (detailVisible.value) detailVisible.value = false
-      } catch (error) {
-        console.warn('[拆分管理] 拒绝失败', error)
-        message.error('拒绝失败')
-      }
-    }
-  })
-}
-
-const handleExecute = async (record: any) => {
+function handleExecute(record: any) {
   Modal.confirm({
     title: '执行确认',
-    content: '确认执行该拆分单吗？执行后将更新库存。',
+    content: `确认执行拆分单 ${record.splitNo} 吗？执行后将按成品扣减库存、按原料增加库存。`,
     okText: '确认执行',
     cancelText: '取消',
     onOk: async () => {
       try {
-        await request.post(`/erp/stock/split/${record.id}/execute`)
+        await stockSplitApi.execute(record.id)
         message.success('拆分执行成功')
         fetchData()
-        if (detailVisible.value) detailVisible.value = false
-      } catch (error) {
-        console.warn('[拆分管理] 执行失败', error)
-        message.error('拆分执行失败')
+      } catch (error: any) {
+        message.error(error?.response?.data?.message || '执行失败')
       }
-    }
+    },
   })
 }
 
-// ════════════════════════════════════════════════════════════════
-// 取消操作
-// ════════════════════════════════════════════════════════════════
-const cancelModalVisible = ref(false)
-const cancelReason = ref('')
-const cancelLoading = ref(false)
-let pendingCancelRecord: any = null
-
-const handleCancel = (record: any) => {
-  pendingCancelRecord = record
-  cancelReason.value = ''
-  cancelModalVisible.value = true
-}
-
-const handleCancelConfirm = async () => {
-  if (!cancelReason.value.trim()) {
-    message.warning('请输入取消原因')
+function handlePrintF8() {
+  if (selectedRowKeys.value.length === 0) {
+    message.warning('请先选择要打印的拆分单')
     return
   }
-  if (!pendingCancelRecord) return
-  cancelLoading.value = true
+  router.push(`/erp/stock-split/form/${selectedRowKeys.value[0]}`)
+}
+
+async function handleExport() {
   try {
-    await request.post(`/erp/stock/split/${pendingCancelRecord.id}/cancel`, null, {
-      params: { reason: cancelReason.value.trim() }
-    })
-    message.success('取消成功')
-    cancelModalVisible.value = false
-    pendingCancelRecord = null
-    fetchData()
-    if (detailVisible.value) detailVisible.value = false
-  } catch (error) {
-    console.warn('[拆分管理] 取消失败', error)
-    message.error('取消失败')
-  } finally {
-    cancelLoading.value = false
+    const params: any = { pageNum: 1, pageSize: 9999 }
+    if (searchParams.status !== undefined && searchParams.status !== '') params.status = searchParams.status
+    if (searchParams.splitNo) params.splitNo = searchParams.splitNo
+    const res: any = await stockSplitApi.page(params)
+    const body = (res as any)?.data ?? res
+    const data = body?.records || []
+    if (data.length === 0) {
+      message.warning('没有可导出的数据')
+      return
+    }
+    const headers = ['单据编号', '单据日期', '入库仓库', '出库仓库', '经手人', '本单金额', '状态']
+    const rows = data.map((r: any) => [
+      r.splitNo, r.splitDate, r.inWarehouseName, r.outWarehouseName, r.handlerName,
+      r.totalCost, getStatusText(r.status),
+    ])
+    const csv = [headers.join(','), ...rows.map((r: any[]) => r.join(','))].join('\n')
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `拆分单_${dayjs().format('YYYYMMDD_HHmmss')}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+    message.success('导出成功')
+  } catch (error: any) {
+    message.error(error?.response?.data?.message || '导出失败')
   }
 }
 
-const handleCancelClose = () => {
-  cancelModalVisible.value = false
-  pendingCancelRecord = null
+async function loadOptions() {
+  try {
+    const wRes: any = await optionsApi.getWarehouses()
+    warehouseOptions.value = Array.isArray(wRes) ? wRes : []
+  } catch { warehouseOptions.value = [] }
+  try {
+    const dRes: any = await optionsApi.getDepartments()
+    departmentOptions.value = Array.isArray(dRes) ? dRes : []
+  } catch { departmentOptions.value = [] }
+}
+
+const handleError = (error: Error) => {
+  console.error('[拆分单] 页面错误', error)
+  message.error(`页面错误: ${error.message}`)
+}
+
+function formatAmount(amount: number): string {
+  if (amount === undefined || amount === null) return '0.00'
+  return Number(amount).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 onMounted(() => {
-  window.addEventListener('keydown', handleKeydown)
-  window.addEventListener('erp:create', handleParentCreate)
-  window.addEventListener('erp:refresh', fetchData)
-  loadBomOptions()
-  loadWarehouseOptions()
+  loadPageConfig()
+  setQuickDate('lastWeek')
+  loadOptions()
   fetchData()
-  autoRefreshCountdown.value = 30
-  refreshTimer = setInterval(() => {
-    fetchData()
-    autoRefreshCountdown.value = 30
-  }, 30000)
-  countdownTimer = setInterval(() => {
-    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
-  }, 1000)
 })
-
-onUnmounted(() => {
-  window.removeEventListener('keydown', handleKeydown)
-  window.removeEventListener('erp:create', handleParentCreate)
-  window.removeEventListener('erp:refresh', fetchData)
-  if (refreshTimer) clearInterval(refreshTimer)
-  if (countdownTimer) clearInterval(countdownTimer)
-})
-
-defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>
-.split-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-}
-
-.split-header__left {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.split-header__breadcrumb {
-  font-size: 12px;
-  color: #999;
-}
-
-.split-header__title {
-  font-size: 18px;
-  font-weight: 600;
-  color: #303133;
-  margin: 0;
-}
-
-.split-header__right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.auto-refresh-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: #52c41a;
-  white-space: nowrap;
-}
-
-.data-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.update-time {
-  font-size: 12px;
-  color: #999;
-  white-space: nowrap;
-}
-
-.list-update-timestamp {
-  color: #999;
-  font-size: 12px;
-  margin-right: 12px;
-}
-
-.table-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 48px 0;
-}
-
-.table-empty-icon {
-  font-size: 48px;
-  color: #d9d9d9;
-  margin-bottom: 12px;
-}
-
-.table-empty-text {
-  color: #999;
-  margin-bottom: 16px;
-}
-
-.sub-table-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.sub-table-title {
-  font-weight: 600;
-  font-size: 13px;
-  color: #303133;
-}
-
-/* 统计卡片样式 */
-.summary-card {
-  display: flex;
-  align-items: center;
-  padding: 16px;
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  transition: all 0.3s;
-}
-
-.summary-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
-  transform: translateY(-2px);
-}
-
-.summary-card.highlight {
-  background: linear-gradient(135deg, #f9f0ff 0%, #efdbff 100%);
-  border: 1px solid #d3adf7;
-}
-
-.summary-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-size: 24px;
-  margin-right: 16px;
-}
-
-.summary-content {
-  flex: 1;
-}
-
-.summary-title {
-  font-size: 14px;
-  color: #666;
-  margin-bottom: 4px;
-}
-
-.summary-value {
-  font-size: 24px;
-  font-weight: 600;
-  color: #303133;
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, 'Courier New', monospace;
-  font-variant-numeric: tabular-nums;
-}
-
-.summary-value.warning {
-  color: #faad14;
-}
-
-/* 表格容器自动撑满 */
-:deep(.vxe-table-list-container) {
-  flex: 1;
-  min-height: 0;
-}
-
-
-/* ── 快捷键提示 ──────────────────────── */
-.shortcut-hints {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: #909399;
-  user-select: none;
-}
-.shortcut-hint {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  padding: 1px 4px;
-  border-radius: 3px;
-  background: #f5f7fa;
-}
-.shortcut-hint kbd {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 3px;
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-  font-size: 11px;
-  color: #606266;
-  background: #fff;
-  border: 1px solid #d0d5dd;
-  border-radius: 3px;
-  box-shadow: 0 1px 0 #d0d5dd;
-  line-height: 18px;
-}
-
-/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+.query-scheme-wrap { display: flex; align-items: center; gap: 2px; }
+.quick-dates :deep(.ant-btn) { font-size: 13px; padding: 2px 8px; }
+.quick-dates :deep(.ant-btn-primary) { color: #fff; background: #ff7a45; border-color: #ff7a45; }
+.search-area { padding: 8px 16px; background: #fff; border-bottom: 1px solid #e8e8e8; flex-shrink: 0; }
+.search-container > .search-grid { max-height: 200px; overflow: hidden; }
+.search-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; align-items: center; }
+.search-field-item { display: flex; min-width: 0; }
+.search-field-item :deep(.ant-input-wrapper),
+.search-field-item :deep(.ant-input-affix-wrapper) { width: 100%; font-size: 13px; }
+.search-field-item :deep(.ant-select) { width: 100%; }
+.search-field-item :deep(.ant-select .ant-select-selector) { font-size: 13px; }
+.search-field-item :deep(.ant-picker) { width: 100%; }
+.search-select-wrap { display: flex; align-items: center; width: 100%; border: 1px solid #d9d9d9; border-radius: 4px; background: #fff; }
+.search-select-wrap:hover { border-color: #4096ff; }
+.search-select-label { font-size: 13px; color: rgba(0,0,0,0.65); white-space: nowrap; flex-shrink: 0; padding-left: 8px; }
+.search-select-wrap :deep(.ant-select) { flex: 1; min-width: 0; }
+.search-select-wrap :deep(.ant-select .ant-select-selector) { border: none !important; border-radius: 0 !important; box-shadow: none !important; padding-top: 0 !important; padding-bottom: 0 !important; display: flex; align-items: center; }
+.search-action-item { flex-shrink: 0; }
+.search-action-group { display: flex; flex-wrap: nowrap; align-items: center; }
+.search-action-group .search-field-item { width: auto; flex: 0 0 auto; margin-right: 4px; }
+.search-action-group .search-field-item:last-child { margin-right: 0; }
+.table-area { flex: 1; min-height: 0; overflow: hidden; }
+.currency-value { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-variant-numeric: tabular-nums; }
 :deep(.ant-input-sm),
 :deep(.ant-input-number-sm),
 :deep(.ant-select-single.ant-select-sm .ant-select-selector),
 :deep(.ant-picker-small),
-:deep(.ant-btn-sm) {
-  height: 28px;
-  line-height: 28px;
-}
-:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
-  line-height: 26px;
-}
-:deep(.ant-input-number-sm input) {
-  height: 26px;
-}
+:deep(.ant-btn-sm) { height: 28px; line-height: 28px; }
 </style>

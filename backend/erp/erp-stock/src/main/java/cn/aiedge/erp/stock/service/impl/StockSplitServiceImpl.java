@@ -1,6 +1,7 @@
 package cn.aiedge.erp.stock.service.impl;
 
 import cn.aiedge.common.exception.BusinessException;
+import cn.aiedge.erp.stock.dto.StockSplitQuery;
 import cn.aiedge.erp.stock.entity.Stock;
 import cn.aiedge.erp.stock.entity.StockSplit;
 import cn.aiedge.erp.stock.entity.StockSplitItem;
@@ -10,6 +11,7 @@ import cn.aiedge.erp.stock.mapper.StockSplitMapper;
 import cn.aiedge.erp.stock.service.StockSplitService;
 import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.util.IdUtil;
+import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -19,7 +21,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
@@ -32,34 +36,56 @@ public class StockSplitServiceImpl extends ServiceImpl<StockSplitMapper, StockSp
     @Autowired
     private StockMapper stockMapper;
 
-    private String generateSplitNo() {
+    @Override
+    public String generateNo() {
         String dateStr = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
         String randomStr = IdUtil.randomUUID().substring(0, 6).toUpperCase();
-        return "SP" + dateStr + randomStr;
+        return "CXD-" + dateStr + randomStr;
     }
 
     @Override
-    public Page<StockSplit> pageList(String keyword, Long warehouseId, Integer status, int pageNum, int pageSize) {
+    public Page<StockSplit> pageList(StockSplitQuery query) {
+        if (query == null) query = new StockSplitQuery();
         LambdaQueryWrapper<StockSplit> wrapper = new LambdaQueryWrapper<>();
-        if (keyword != null && !keyword.isEmpty()) {
+        String keyword = StrUtil.trimToNull(query.getKeyword());
+        if (keyword != null) {
             wrapper.and(w -> w.like(StockSplit::getSplitNo, keyword)
-                    .or().like(StockSplit::getProductName, keyword));
+                    .or().like(StockSplit::getProductName, keyword)
+                    .or().like(StockSplit::getHandlerName, keyword));
         }
-        wrapper.eq(warehouseId != null, StockSplit::getWarehouseId, warehouseId)
-                .eq(status != null, StockSplit::getStatus, status)
-                .orderByDesc(StockSplit::getCreateTime);
-        return this.page(new Page<>(pageNum, pageSize), wrapper);
+        wrapper.like(StrUtil.isNotBlank(query.getSplitNo()), StockSplit::getSplitNo, StrUtil.trimToNull(query.getSplitNo()))
+                .like(StrUtil.isNotBlank(query.getHandlerName()), StockSplit::getHandlerName, StrUtil.trimToNull(query.getHandlerName()))
+                .like(StrUtil.isNotBlank(query.getDeptName()), StockSplit::getDeptName, StrUtil.trimToNull(query.getDeptName()))
+                .like(StrUtil.isNotBlank(query.getCreatorName()), StockSplit::getCreatorName, StrUtil.trimToNull(query.getCreatorName()))
+                .like(StrUtil.isNotBlank(query.getBookkeeperName()), StockSplit::getBookkeeperName, StrUtil.trimToNull(query.getBookkeeperName()))
+                .like(StrUtil.isNotBlank(query.getRemark()), StockSplit::getRemark, StrUtil.trimToNull(query.getRemark()))
+                .like(StrUtil.isNotBlank(query.getSummary()), StockSplit::getSummary, StrUtil.trimToNull(query.getSummary()))
+                .eq(query.getInWarehouseId() != null, StockSplit::getInWarehouseId, query.getInWarehouseId())
+                .eq(query.getOutWarehouseId() != null, StockSplit::getOutWarehouseId, query.getOutWarehouseId())
+                .eq(query.getStatus() != null, StockSplit::getStatus, query.getStatus());
+        if (StrUtil.isNotBlank(query.getDateStart())) {
+            wrapper.ge(StockSplit::getSplitDate, LocalDate.parse(query.getDateStart()).atStartOfDay());
+        }
+        if (StrUtil.isNotBlank(query.getDateEnd())) {
+            wrapper.le(StockSplit::getSplitDate, LocalDate.parse(query.getDateEnd()).atTime(LocalTime.MAX));
+        }
+        wrapper.orderByDesc(StockSplit::getCreateTime);
+        return this.page(new Page<>(query.getPageNum(), query.getPageSize()), wrapper);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public StockSplit createSplit(StockSplit split, List<StockSplitItem> items) {
         Long userId = StpUtil.getLoginIdAsLong();
-        split.setTenantId(userId);
-        split.setSplitNo(generateSplitNo());
+        split.setTenantId(1L);
+        split.setSplitNo(generateNo());
         split.setStatus(0);
         split.setApplicantId(userId);
-        split.setApplicantName(getLoginName());
+        String loginName = getLoginName();
+        split.setApplicantName(loginName);
+        if (StrUtil.isBlank(split.getCreatorName())) {
+            split.setCreatorName(loginName);
+        }
         split.setApplyTime(LocalDateTime.now());
         split.setCreateBy(userId);
         split.setCreateTime(LocalDateTime.now());
@@ -74,35 +100,16 @@ public class StockSplitServiceImpl extends ServiceImpl<StockSplitMapper, StockSp
         }
         this.save(split);
 
-        if (items != null && !items.isEmpty()) {
-            BigDecimal subTotalCost = BigDecimal.ZERO;
-            for (StockSplitItem item : items) {
-                item.setSplitId(split.getId());
-                if (item.getQuantity() == null) {
-                    item.setQuantity(BigDecimal.ONE);
-                }
-                if (item.getUnitCost() == null) {
-                    item.setUnitCost(BigDecimal.ZERO);
-                }
-                item.setCost(item.getQuantity().multiply(item.getUnitCost()));
-                item.setCreateTime(LocalDateTime.now());
-                stockSplitItemMapper.insert(item);
-                subTotalCost = subTotalCost.add(item.getCost());
-            }
-            split.setSubTotalCost(subTotalCost);
-            split.setTotalItems(items.size());
-
-            // Calculate allocation ratios
-            if (split.getOutputTotalCost() != null && split.getOutputTotalCost().compareTo(BigDecimal.ZERO) > 0) {
-                for (StockSplitItem item : items) {
-                    BigDecimal ratio = item.getCost().divide(split.getOutputTotalCost(), 4, RoundingMode.HALF_UP);
-                    item.setAllocationRatio(ratio);
-                    stockSplitItemMapper.updateById(item);
-                }
-            }
-
-            this.updateById(split);
+        BigDecimal subTotalCost = saveItems(split.getId(), items);
+        BigDecimal totalCost = split.getTotalCost() != null ? split.getTotalCost() : subTotalCost;
+        if (split.getOutputTotalCost() == null) {
+            split.setOutputTotalCost(totalCost);
         }
+        split.setSubTotalCost(subTotalCost);
+        split.setTotalCost(totalCost);
+        split.setTotalItems(items == null ? 0 : items.size());
+        this.updateById(split);
+        applyAllocationRatio(items, totalCost);
 
         return split;
     }
@@ -118,10 +125,11 @@ public class StockSplitServiceImpl extends ServiceImpl<StockSplitMapper, StockSp
             throw BusinessException.badRequest("只有草稿状态的拆分单可以修改");
         }
         split.setId(id);
-        split.setTenantId(existing.getTenantId());
+        split.setTenantId(1L);
         split.setSplitNo(existing.getSplitNo());
         split.setStatus(0);
         split.setApplicantId(existing.getApplicantId());
+        split.setApplicantName(existing.getApplicantName());
         split.setApplyTime(existing.getApplyTime());
         split.setCreateBy(existing.getCreateBy());
         split.setCreateTime(existing.getCreateTime());
@@ -140,28 +148,61 @@ public class StockSplitServiceImpl extends ServiceImpl<StockSplitMapper, StockSp
         stockSplitItemMapper.delete(
                 new LambdaQueryWrapper<StockSplitItem>().eq(StockSplitItem::getSplitId, id)
         );
-        if (items != null && !items.isEmpty()) {
-            BigDecimal subTotalCost = BigDecimal.ZERO;
-            for (StockSplitItem item : items) {
-                item.setId(null);
-                item.setSplitId(id);
-                if (item.getQuantity() == null) {
-                    item.setQuantity(BigDecimal.ONE);
-                }
-                if (item.getUnitCost() == null) {
-                    item.setUnitCost(BigDecimal.ZERO);
-                }
-                item.setCost(item.getQuantity().multiply(item.getUnitCost()));
-                item.setCreateTime(LocalDateTime.now());
-                stockSplitItemMapper.insert(item);
-                subTotalCost = subTotalCost.add(item.getCost());
-            }
-            split.setSubTotalCost(subTotalCost);
-            split.setTotalItems(items.size());
-            this.updateById(split);
+        BigDecimal subTotalCost = saveItems(id, items);
+        BigDecimal totalCost = split.getTotalCost() != null ? split.getTotalCost() : subTotalCost;
+        if (split.getOutputTotalCost() == null) {
+            split.setOutputTotalCost(totalCost);
         }
+        split.setSubTotalCost(subTotalCost);
+        split.setTotalCost(totalCost);
+        split.setTotalItems(items == null ? 0 : items.size());
+        this.updateById(split);
+        applyAllocationRatio(items, totalCost);
 
         return split;
+    }
+
+    /**
+     * 保存拆分明细（入库原料），并计算子件总成本
+     */
+    private BigDecimal saveItems(Long splitId, List<StockSplitItem> items) {
+        if (items == null || items.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+        BigDecimal subTotalCost = BigDecimal.ZERO;
+        for (StockSplitItem item : items) {
+            item.setId(null);
+            item.setSplitId(splitId);
+            item.setTenantId(1L);
+            if (item.getQuantity() == null) {
+                item.setQuantity(BigDecimal.ONE);
+            }
+            if (item.getUnitCost() == null) {
+                item.setUnitCost(BigDecimal.ZERO);
+            }
+            item.setCost(item.getQuantity().multiply(item.getUnitCost()));
+            item.setCreateTime(LocalDateTime.now());
+            stockSplitItemMapper.insert(item);
+            subTotalCost = subTotalCost.add(item.getCost());
+        }
+        return subTotalCost;
+    }
+
+    /**
+     * 按成本占比回填拆分产出原料的分配比例
+     */
+    private void applyAllocationRatio(List<StockSplitItem> items, BigDecimal totalCost) {
+        if (items == null || items.isEmpty() || totalCost == null || totalCost.compareTo(BigDecimal.ZERO) <= 0) {
+            return;
+        }
+        for (StockSplitItem item : items) {
+            if (item.getId() == null) {
+                continue;
+            }
+            BigDecimal ratio = item.getCost().divide(totalCost, 4, RoundingMode.HALF_UP);
+            item.setAllocationRatio(ratio);
+            stockSplitItemMapper.updateById(item);
+        }
     }
 
     private String getLoginName() {
@@ -342,6 +383,9 @@ public class StockSplitServiceImpl extends ServiceImpl<StockSplitMapper, StockSp
         split.setStatus(3);
         split.setExecutedBy(userId);
         split.setExecutedTime(LocalDateTime.now());
+        split.setBookkeeperId(userId);
+        split.setBookkeeperName(getLoginName());
+        split.setBookkeepingTime(LocalDateTime.now());
         split.setUpdateTime(LocalDateTime.now());
         this.updateById(split);
 
@@ -359,7 +403,7 @@ public class StockSplitServiceImpl extends ServiceImpl<StockSplitMapper, StockSp
             throw BusinessException.badRequest("已执行的拆分单不能取消");
         }
         split.setStatus(5);
-        split.setRemark(reason);
+        split.setCancelReason(reason);
         split.setUpdateTime(LocalDateTime.now());
         this.updateById(split);
         return split;

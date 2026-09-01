@@ -848,6 +848,9 @@ export const stockAssembleApi = {
   },
   export(params: any): Promise<Blob> {
     return request.get('/erp/stock/assemble/export', params, { responseType: 'blob' })
+  },
+  nextNo(): Promise<string> {
+    return request.get('/erp/stock/assemble/next-no').then((res: any) => res?.data || res || '')
   }
 }
 
@@ -911,6 +914,12 @@ export const stockSplitApi = {
   },
   cancel(id: number, reason: string): Promise<ApiResponse<void>> {
     return request.post(`/erp/stock/split/${id}/cancel`, null, { params: { reason } })
+  },
+  getItems(id: number): Promise<ApiResponse<StockSplitItem[]>> {
+    return request.get(`/erp/stock/split/${id}/items`)
+  },
+  nextNo(): Promise<string> {
+    return request.get('/erp/stock/split/next-no').then((res: any) => res?.data || res || '')
   },
   export(params: any): Promise<Blob> {
     return request.get('/erp/stock/split/export', params, { responseType: 'blob' })

@@ -4,6 +4,8 @@ import cn.aiedge.erp.stock.controller.initial.InitialStockDTO;
 import cn.aiedge.erp.stock.entity.Stock;
 import com.baomidou.mybatisplus.extension.service.IService;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -42,6 +44,26 @@ public interface StockService extends IService<Stock> {
      * @return 操作结果
      */
     boolean decreaseStock(Long productId, Long warehouseId, java.math.BigDecimal quantity);
+
+    /**
+     * 库存入库回写（记账）：增加库存并按核定成本单价做移动加权平均。
+     * 入参 stock 承载本次入库信息：productId/warehouseId/quantity/unitPrice(核定成本)/batchNo/
+     * productionDate/validityDate/productCode/productName/unit。
+     * 业界实践：盘盈/溢余入库按核定成本单价入账；若同批次已有库存，采用移动加权平均更新单价。
+     *
+     * @param stock 本次入库移动载体
+     * @return 操作结果
+     */
+    boolean recordStockIn(Stock stock);
+
+    /**
+     * 库存出库回写（记账）：按批次扣减库存，可用量不足则失败。
+     * 入参 stock 承载：productId/warehouseId/quantity/batchNo。
+     *
+     * @param stock 本次出库移动载体
+     * @return 操作结果
+     */
+    boolean recordStockOut(Stock stock);
 
     /**
      * 库存冻结

@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 
 /**
@@ -85,6 +86,92 @@ public class StockServiceImpl extends ServiceImpl<StockMapper, Stock> implements
         stock.setQuantity(newQuantity);
         stock.setAvailableQuantity(newAvailableQuantity);
         return this.updateById(stock);
+    }
+
+    @Override
+    public boolean recordStockIn(Stock movement) {
+        if (movement == null || movement.getQuantity() == null
+                || movement.getQuantity().compareTo(BigDecimal.ZERO) <= 0
+                || movement.getProductId() == null || movement.getWarehouseId() == null) {
+            return false;
+        }
+        Long productId = movement.getProductId();
+        Long warehouseId = movement.getWarehouseId();
+        BigDecimal qty = movement.getQuantity();
+        BigDecimal cost = movement.getUnitPrice() != null ? movement.getUnitPrice() : BigDecimal.ZERO;
+
+        QueryWrapper<Stock> qw = new QueryWrapper<>();
+        qw.eq("product_id", productId)
+                .eq("warehouse_id", warehouseId)
+                .eq("deleted", 0);
+        if (StringUtils.hasText(movement.getBatchNo())) qw.eq("batch_no", movement.getBatchNo());
+        if (movement.getValidityDate() != null) qw.eq("validity_date", movement.getValidityDate());
+        Stock exist = this.getOne(qw, false);
+
+        if (exist == null) {
+            Stock s = new Stock();
+            s.setProductId(productId);
+            s.setProductCode(movement.getProductCode());
+            s.setProductName(movement.getProductName());
+            s.setWarehouseId(warehouseId);
+            s.setWarehouseName(movement.getWarehouseName());
+            s.setQuantity(qty);
+            s.setAvailableQuantity(qty);
+            s.setFrozenQuantity(BigDecimal.ZERO);
+            s.setUnit(movement.getUnit());
+            s.setUnitPrice(cost);
+            s.setBatchNo(movement.getBatchNo());
+            s.setProductionDate(movement.getProductionDate());
+            s.setValidityDate(movement.getValidityDate());
+            s.setIsInitial(0);
+            return this.save(s);
+        }
+
+        BigDecimal oldQty = exist.getQuantity() != null ? exist.getQuantity() : BigDecimal.ZERO;
+        BigDecimal oldPrice = exist.getUnitPrice() != null ? exist.getUnitPrice() : BigDecimal.ZERO;
+        BigDecimal newQty = oldQty.add(qty);
+        // 移动加权平均成本核定：新单价 = (旧数量×旧单价 + 本次数量×核定单价) / 新数量
+        BigDecimal newPrice = cost;
+        if (oldQty.signum() > 0) {
+            BigDecimal totalCost = oldQty.multiply(oldPrice).add(qty.multiply(cost));
+            if (totalCost.signum() > 0 && newQty.signum() > 0) {
+                newPrice = totalCost.divide(newQty, 4, RoundingMode.HALF_UP);
+            }
+        }
+        exist.setQuantity(newQty);
+        BigDecimal oldAvail = exist.getAvailableQuantity() != null ? exist.getAvailableQuantity() : BigDecimal.ZERO;
+        exist.setAvailableQuantity(oldAvail.add(qty));
+        exist.setUnitPrice(newPrice);
+        if (exist.getProductCode() == null) exist.setProductCode(movement.getProductCode());
+        if (exist.getProductName() == null) exist.setProductName(movement.getProductName());
+        if (exist.getUnit() == null) exist.setUnit(movement.getUnit());
+        return this.updateById(exist);
+    }
+
+    @Override
+    public boolean recordStockOut(Stock movement) {
+        if (movement == null || movement.getQuantity() == null
+                || movement.getQuantity().compareTo(BigDecimal.ZERO) <= 0
+                || movement.getProductId() == null || movement.getWarehouseId() == null) {
+            return false;
+        }
+        Long productId = movement.getProductId();
+        Long warehouseId = movement.getWarehouseId();
+        BigDecimal qty = movement.getQuantity();
+
+        QueryWrapper<Stock> qw = new QueryWrapper<>();
+        qw.eq("product_id", productId)
+                .eq("warehouse_id", warehouseId)
+                .eq("deleted", 0);
+        if (StringUtils.hasText(movement.getBatchNo())) qw.eq("batch_no", movement.getBatchNo());
+        Stock exist = this.getOne(qw, false);
+        if (exist == null) return false;
+
+        BigDecimal avail = exist.getAvailableQuantity() != null ? exist.getAvailableQuantity() : BigDecimal.ZERO;
+        if (avail.compareTo(qty) < 0) return false; // 库存不足
+        exist.setQuantity(exist.getQuantity().subtract(qty));
+        exist.setAvailableQuantity(avail.subtract(qty));
+        return this.updateById(exist);
     }
 
     @Override

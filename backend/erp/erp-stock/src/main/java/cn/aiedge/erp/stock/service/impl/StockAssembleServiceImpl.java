@@ -1,6 +1,7 @@
 package cn.aiedge.erp.stock.service.impl;
 
 import cn.aiedge.common.exception.BusinessException;
+import cn.aiedge.erp.stock.dto.StockAssembleQuery;
 import cn.aiedge.erp.stock.entity.Stock;
 import cn.aiedge.erp.stock.entity.StockAssemble;
 import cn.aiedge.erp.stock.entity.StockAssembleItem;
@@ -10,6 +11,7 @@ import cn.aiedge.erp.stock.mapper.StockMapper;
 import cn.aiedge.erp.stock.service.StockAssembleService;
 import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.util.IdUtil;
+import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -18,7 +20,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
@@ -32,33 +36,59 @@ public class StockAssembleServiceImpl extends ServiceImpl<StockAssembleMapper, S
     private StockMapper stockMapper;
 
     private String generateAssembleNo() {
-        String dateStr = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-        String randomStr = IdUtil.randomUUID().substring(0, 6).toUpperCase();
-        return "AS" + dateStr + randomStr;
+        return generateNo();
     }
 
     @Override
-    public Page<StockAssemble> pageList(String keyword, Long warehouseId, Integer status, int pageNum, int pageSize) {
+    public String generateNo() {
+        String dateStr = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+        String randomStr = IdUtil.randomUUID().substring(0, 6).toUpperCase();
+        return "ZZD-" + dateStr + randomStr;
+    }
+
+    @Override
+    public Page<StockAssemble> pageList(StockAssembleQuery query) {
+        if (query == null) query = new StockAssembleQuery();
         LambdaQueryWrapper<StockAssemble> wrapper = new LambdaQueryWrapper<>();
-        if (keyword != null && !keyword.isEmpty()) {
+        String keyword = StrUtil.trimToNull(query.getKeyword());
+        if (keyword != null) {
             wrapper.and(w -> w.like(StockAssemble::getAssembleNo, keyword)
-                    .or().like(StockAssemble::getProductName, keyword));
+                    .or().like(StockAssemble::getProductName, keyword)
+                    .or().like(StockAssemble::getHandlerName, keyword));
         }
-        wrapper.eq(warehouseId != null, StockAssemble::getWarehouseId, warehouseId)
-                .eq(status != null, StockAssemble::getStatus, status)
-                .orderByDesc(StockAssemble::getCreateTime);
-        return this.page(new Page<>(pageNum, pageSize), wrapper);
+        wrapper.like(StrUtil.isNotBlank(query.getAssembleNo()), StockAssemble::getAssembleNo, StrUtil.trimToNull(query.getAssembleNo()))
+                .like(StrUtil.isNotBlank(query.getProduceUnit()), StockAssemble::getProduceUnit, StrUtil.trimToNull(query.getProduceUnit()))
+                .like(StrUtil.isNotBlank(query.getHandlerName()), StockAssemble::getHandlerName, StrUtil.trimToNull(query.getHandlerName()))
+                .like(StrUtil.isNotBlank(query.getDeptName()), StockAssemble::getDeptName, StrUtil.trimToNull(query.getDeptName()))
+                .like(StrUtil.isNotBlank(query.getCreatorName()), StockAssemble::getCreatorName, StrUtil.trimToNull(query.getCreatorName()))
+                .like(StrUtil.isNotBlank(query.getBookkeeperName()), StockAssemble::getBookkeeperName, StrUtil.trimToNull(query.getBookkeeperName()))
+                .like(StrUtil.isNotBlank(query.getRemark()), StockAssemble::getRemark, StrUtil.trimToNull(query.getRemark()))
+                .eq(query.getInWarehouseId() != null, StockAssemble::getInWarehouseId, query.getInWarehouseId())
+                .eq(query.getOutWarehouseId() != null, StockAssemble::getOutWarehouseId, query.getOutWarehouseId())
+                .eq(query.getStatus() != null, StockAssemble::getStatus, query.getStatus());
+        if (StrUtil.isNotBlank(query.getDateStart())) {
+            wrapper.ge(StockAssemble::getAssembleDate, LocalDate.parse(query.getDateStart()).atStartOfDay());
+        }
+        if (StrUtil.isNotBlank(query.getDateEnd())) {
+            wrapper.le(StockAssemble::getAssembleDate, LocalDate.parse(query.getDateEnd()).atTime(LocalTime.MAX));
+        }
+        wrapper.orderByDesc(StockAssemble::getCreateTime);
+        return this.page(new Page<>(query.getPageNum(), query.getPageSize()), wrapper);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public StockAssemble createAssemble(StockAssemble assemble, List<StockAssembleItem> items) {
         Long userId = StpUtil.getLoginIdAsLong();
-        assemble.setTenantId(userId);
+        assemble.setTenantId(1L);
         assemble.setAssembleNo(generateAssembleNo());
         assemble.setStatus(0);
         assemble.setApplicantId(userId);
-        assemble.setApplicantName(getLoginName());
+        String loginName = getLoginName();
+        assemble.setApplicantName(loginName);
+        if (StrUtil.isBlank(assemble.getCreatorName())) {
+            assemble.setCreatorName(loginName);
+        }
         assemble.setApplyTime(LocalDateTime.now());
         assemble.setCreateBy(userId);
         assemble.setCreateTime(LocalDateTime.now());
@@ -73,29 +103,12 @@ public class StockAssembleServiceImpl extends ServiceImpl<StockAssembleMapper, S
         }
         this.save(assemble);
 
-        if (items != null && !items.isEmpty()) {
-            BigDecimal subTotalCost = BigDecimal.ZERO;
-            for (StockAssembleItem item : items) {
-                item.setAssembleId(assemble.getId());
-                if (item.getQuantity() == null) {
-                    item.setQuantity(BigDecimal.ONE);
-                }
-                if (item.getUnitCost() == null) {
-                    item.setUnitCost(BigDecimal.ZERO);
-                }
-                item.setCost(item.getQuantity().multiply(item.getUnitCost()));
-                item.setCreateTime(LocalDateTime.now());
-                stockAssembleItemMapper.insert(item);
-                subTotalCost = subTotalCost.add(item.getCost());
-            }
-            assemble.setSubTotalCost(subTotalCost);
-            assemble.setTotalItems(items.size());
-            if (assemble.getAssembleFee() == null) {
-                assemble.setAssembleFee(BigDecimal.ZERO);
-            }
-            assemble.setTotalCost(subTotalCost.add(assemble.getAssembleFee()));
-            this.updateById(assemble);
-        }
+        BigDecimal subTotalCost = saveItems(assemble.getId(), items);
+        BigDecimal fee = assemble.getAssembleFee() == null ? BigDecimal.ZERO : assemble.getAssembleFee();
+        assemble.setSubTotalCost(subTotalCost);
+        assemble.setTotalCost(subTotalCost.add(fee));
+        assemble.setTotalItems(items == null ? 0 : items.size());
+        this.updateById(assemble);
 
         return assemble;
     }
@@ -111,10 +124,11 @@ public class StockAssembleServiceImpl extends ServiceImpl<StockAssembleMapper, S
             throw BusinessException.badRequest("只有草稿状态的组装单可以修改");
         }
         assemble.setId(id);
-        assemble.setTenantId(existing.getTenantId());
+        assemble.setTenantId(1L);
         assemble.setAssembleNo(existing.getAssembleNo());
         assemble.setStatus(0);
         assemble.setApplicantId(existing.getApplicantId());
+        assemble.setApplicantName(existing.getApplicantName());
         assemble.setApplyTime(existing.getApplyTime());
         assemble.setCreateBy(existing.getCreateBy());
         assemble.setCreateTime(existing.getCreateTime());
@@ -133,32 +147,40 @@ public class StockAssembleServiceImpl extends ServiceImpl<StockAssembleMapper, S
         stockAssembleItemMapper.delete(
                 new LambdaQueryWrapper<StockAssembleItem>().eq(StockAssembleItem::getAssembleId, id)
         );
-        if (items != null && !items.isEmpty()) {
-            BigDecimal subTotalCost = BigDecimal.ZERO;
-            for (StockAssembleItem item : items) {
-                item.setId(null);
-                item.setAssembleId(id);
-                if (item.getQuantity() == null) {
-                    item.setQuantity(BigDecimal.ONE);
-                }
-                if (item.getUnitCost() == null) {
-                    item.setUnitCost(BigDecimal.ZERO);
-                }
-                item.setCost(item.getQuantity().multiply(item.getUnitCost()));
-                item.setCreateTime(LocalDateTime.now());
-                stockAssembleItemMapper.insert(item);
-                subTotalCost = subTotalCost.add(item.getCost());
-            }
-            assemble.setSubTotalCost(subTotalCost);
-            assemble.setTotalItems(items.size());
-            if (assemble.getAssembleFee() == null) {
-                assemble.setAssembleFee(BigDecimal.ZERO);
-            }
-            assemble.setTotalCost(subTotalCost.add(assemble.getAssembleFee()));
-            this.updateById(assemble);
-        }
+        BigDecimal subTotalCost = saveItems(id, items);
+        BigDecimal fee = assemble.getAssembleFee() == null ? BigDecimal.ZERO : assemble.getAssembleFee();
+        assemble.setSubTotalCost(subTotalCost);
+        assemble.setTotalCost(subTotalCost.add(fee));
+        assemble.setTotalItems(items == null ? 0 : items.size());
+        this.updateById(assemble);
 
         return assemble;
+    }
+
+    /**
+     * 保存明细并计算子件总成本
+     */
+    private BigDecimal saveItems(Long assembleId, List<StockAssembleItem> items) {
+        if (items == null || items.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+        BigDecimal subTotalCost = BigDecimal.ZERO;
+        for (StockAssembleItem item : items) {
+            item.setId(null);
+            item.setAssembleId(assembleId);
+            item.setTenantId(1L);
+            if (item.getQuantity() == null) {
+                item.setQuantity(BigDecimal.ONE);
+            }
+            if (item.getUnitCost() == null) {
+                item.setUnitCost(BigDecimal.ZERO);
+            }
+            item.setCost(item.getQuantity().multiply(item.getUnitCost()));
+            item.setCreateTime(LocalDateTime.now());
+            stockAssembleItemMapper.insert(item);
+            subTotalCost = subTotalCost.add(item.getCost());
+        }
+        return subTotalCost;
     }
 
     private String getLoginName() {
@@ -320,9 +342,13 @@ public class StockAssembleServiceImpl extends ServiceImpl<StockAssembleMapper, S
             stockMapper.updateById(productStock);
         }
 
+        // 记账信息
         assemble.setStatus(3);
         assemble.setExecutedBy(userId);
         assemble.setExecutedTime(LocalDateTime.now());
+        assemble.setBookkeeperId(userId);
+        assemble.setBookkeeperName(getLoginName());
+        assemble.setBookkeepingTime(LocalDateTime.now());
         assemble.setUpdateTime(LocalDateTime.now());
         this.updateById(assemble);
 
@@ -340,7 +366,7 @@ public class StockAssembleServiceImpl extends ServiceImpl<StockAssembleMapper, S
             throw BusinessException.badRequest("已执行的组装单不能取消");
         }
         assemble.setStatus(5);
-        assemble.setRemark(reason);
+        assemble.setCancelReason(reason);
         assemble.setUpdateTime(LocalDateTime.now());
         this.updateById(assemble);
         return assemble;

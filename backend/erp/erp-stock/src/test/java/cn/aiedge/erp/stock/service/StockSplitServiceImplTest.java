@@ -1,8 +1,11 @@
 package cn.aiedge.erp.stock.service;
 
 import cn.aiedge.common.exception.BusinessException;
+import cn.aiedge.erp.stock.dto.StockSplitQuery;
+import cn.aiedge.erp.stock.entity.Stock;
 import cn.aiedge.erp.stock.entity.StockSplit;
 import cn.aiedge.erp.stock.entity.StockSplitItem;
+import cn.aiedge.erp.stock.mapper.StockMapper;
 import cn.aiedge.erp.stock.mapper.StockSplitItemMapper;
 import cn.aiedge.erp.stock.mapper.StockSplitMapper;
 import cn.aiedge.erp.stock.service.impl.StockSplitServiceImpl;
@@ -35,6 +38,9 @@ class StockSplitServiceImplTest {
     @Mock
     private StockSplitItemMapper splitItemMapper;
 
+    @Mock
+    private StockMapper stockMapper;
+
     @InjectMocks
     private StockSplitServiceImpl splitService;
 
@@ -63,7 +69,7 @@ class StockSplitServiceImplTest {
         when(splitMapper.selectPage(any(Page.class), any(LambdaQueryWrapper.class)))
                 .thenReturn(expectedPage);
 
-        Page<StockSplit> result = splitService.pageList(null, null, null, 1, 10);
+        Page<StockSplit> result = splitService.pageList(new StockSplitQuery());
         assertNotNull(result);
         assertEquals(1, result.getRecords().size());
     }
@@ -95,7 +101,7 @@ class StockSplitServiceImplTest {
 
             assertNotNull(result);
             assertEquals(0, result.getStatus());
-            assertTrue(result.getSplitNo().startsWith("SP"));
+            assertTrue(result.getSplitNo().startsWith("CXD-"));
             verify(splitMapper).insert(any(StockSplit.class));
             verify(splitItemMapper).insert(any(StockSplitItem.class));
         }
@@ -132,8 +138,13 @@ class StockSplitServiceImplTest {
     void testExecute() {
         testSplit.setStatus(2);
         when(splitMapper.selectById(1L)).thenReturn(testSplit);
+        Stock originalStock = new Stock();
+        originalStock.setQuantity(new BigDecimal("10"));
+        originalStock.setAvailableQuantity(new BigDecimal("10"));
+        when(stockMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(originalStock);
         StockSplit result = splitService.execute(1L);
         assertEquals(3, result.getStatus());
+        assertEquals(originalStock.getQuantity(), new BigDecimal("5"));
     }
 
     @Test

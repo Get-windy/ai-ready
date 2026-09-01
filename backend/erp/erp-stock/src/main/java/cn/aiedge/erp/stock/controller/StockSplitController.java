@@ -2,13 +2,13 @@ package cn.aiedge.erp.stock.controller;
 
 import cn.aiedge.base.vo.Result;
 import cn.aiedge.common.exception.BusinessException;
+import cn.aiedge.erp.stock.dto.StockSplitQuery;
 import cn.aiedge.erp.stock.entity.StockSplit;
 import cn.aiedge.erp.stock.entity.StockSplitItem;
 import cn.aiedge.erp.stock.service.StockSplitService;
 import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,6 +44,13 @@ public class StockSplitController {
         private String productName;
         private String productSpec;
         private String productUnit;
+        private Long deptId;
+        private String deptName;
+        private String summary;
+        private String attachment;
+        private String creatorName;
+        private BigDecimal totalWeight;
+        private BigDecimal totalVolume;
         private List<StockSplitItem> items;
     }
 
@@ -55,13 +62,14 @@ public class StockSplitController {
 
     @GetMapping("/page")
     @Operation(summary = "分页查询拆分单")
-    public Result<Page<StockSplit>> page(
-            @Parameter(description = "关键词") @RequestParam(required = false) String keyword,
-            @Parameter(description = "仓库ID") @RequestParam(required = false) Long warehouseId,
-            @Parameter(description = "状态") @RequestParam(required = false) Integer status,
-            @Parameter(description = "页码") @RequestParam(defaultValue = "1") int pageNum,
-            @Parameter(description = "每页数量") @RequestParam(defaultValue = "10") int pageSize) {
-        return Result.ok(splitService.pageList(keyword, warehouseId, status, pageNum, pageSize));
+    public Result<Page<StockSplit>> page(@ModelAttribute StockSplitQuery query) {
+        return Result.ok(splitService.pageList(query));
+    }
+
+    @GetMapping("/next-no")
+    @Operation(summary = "生成拆分单单号")
+    public Result<String> nextNo() {
+        return Result.ok(splitService.generateNo());
     }
 
     @GetMapping("/{id}")
@@ -100,6 +108,14 @@ public class StockSplitController {
         split.setProductName(request.getProductName());
         split.setProductSpec(request.getProductSpec());
         split.setProductUnit(request.getProductUnit());
+        split.setDeptId(request.getDeptId());
+        split.setDeptName(request.getDeptName());
+        split.setSummary(request.getSummary());
+        split.setAttachment(request.getAttachment());
+        split.setCreatorName(request.getCreatorName());
+        split.setTotalWeight(request.getTotalWeight());
+        split.setTotalVolume(request.getTotalVolume());
+        split.setTotalCost(request.getTotalCost());
         split.setCreateBy(StpUtil.getLoginIdAsLong());
         return Result.ok(splitService.createSplit(split, request.getItems()));
     }
@@ -124,6 +140,14 @@ public class StockSplitController {
         split.setProductName(request.getProductName());
         split.setProductSpec(request.getProductSpec());
         split.setProductUnit(request.getProductUnit());
+        split.setDeptId(request.getDeptId());
+        split.setDeptName(request.getDeptName());
+        split.setSummary(request.getSummary());
+        split.setAttachment(request.getAttachment());
+        split.setCreatorName(request.getCreatorName());
+        split.setTotalWeight(request.getTotalWeight());
+        split.setTotalVolume(request.getTotalVolume());
+        split.setTotalCost(request.getTotalCost());
         return Result.ok(splitService.updateSplit(id, split, request.getItems()));
     }
 

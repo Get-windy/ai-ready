@@ -1,6 +1,7 @@
 package cn.aiedge.erp.stock.service;
 
 import cn.aiedge.common.exception.BusinessException;
+import cn.aiedge.erp.stock.dto.StockAssembleQuery;
 import cn.aiedge.erp.stock.entity.StockAssemble;
 import cn.aiedge.erp.stock.entity.StockAssembleItem;
 import cn.aiedge.erp.stock.mapper.StockAssembleItemMapper;
@@ -64,7 +65,7 @@ class StockAssembleServiceImplTest {
         when(assembleMapper.selectPage(any(Page.class), any(LambdaQueryWrapper.class)))
                 .thenReturn(expectedPage);
 
-        Page<StockAssemble> result = assembleService.pageList(null, null, null, 1, 10);
+        Page<StockAssemble> result = assembleService.pageList(new StockAssembleQuery());
         assertNotNull(result);
         assertEquals(1, result.getRecords().size());
     }

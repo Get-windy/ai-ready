@@ -1,5 +1,6 @@
 package cn.aiedge.erp.stock.service;
 
+import cn.aiedge.erp.stock.dto.StockSplitQuery;
 import cn.aiedge.erp.stock.entity.StockSplit;
 import cn.aiedge.erp.stock.entity.StockSplitItem;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -9,7 +10,9 @@ import java.util.List;
 
 public interface StockSplitService extends IService<StockSplit> {
 
-    Page<StockSplit> pageList(String keyword, Long warehouseId, Integer status, int pageNum, int pageSize);
+    Page<StockSplit> pageList(StockSplitQuery query);
+
+    String generateNo();
 
     StockSplit createSplit(StockSplit split, List<StockSplitItem> items);
 

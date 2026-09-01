@@ -3,11 +3,13 @@ package cn.aiedge.erp.stock.service.impl;
 import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.stock.dto.StockOverflowItemVO;
 import cn.aiedge.erp.stock.dto.StockOverflowQuery;
+import cn.aiedge.erp.stock.entity.Stock;
 import cn.aiedge.erp.stock.entity.StockOverflow;
 import cn.aiedge.erp.stock.entity.StockOverflowItem;
 import cn.aiedge.erp.stock.mapper.StockOverflowItemMapper;
 import cn.aiedge.erp.stock.mapper.StockOverflowMapper;
 import cn.aiedge.erp.stock.service.StockOverflowService;
+import cn.aiedge.erp.stock.service.StockService;
 import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -34,6 +36,7 @@ import java.util.stream.Collectors;
 public class StockOverflowServiceImpl extends ServiceImpl<StockOverflowMapper, StockOverflow> implements StockOverflowService {
 
     private final StockOverflowItemMapper overflowItemMapper;
+    private final StockService stockService;
 
     private static final String NO_PREFIX = "BYD-";
 
@@ -43,7 +46,7 @@ public class StockOverflowServiceImpl extends ServiceImpl<StockOverflowMapper, S
                 + UUID.randomUUID().toString().substring(0, 6).toUpperCase();
     }
 
-    /** 从查询条件构建单据级过滤 wrapper（按单据/按明细共用） */
+    /** 浠庢煡璇㈡潯浠舵瀯寤哄崟鎹骇杩囨护 wrapper锛堟寜鍗曟嵁/鎸夋槑缁嗗叡鐢級 */
     private LambdaQueryWrapper<StockOverflow> buildDocWrapper(StockOverflowQuery q) {
         LambdaQueryWrapper<StockOverflow> wrapper = new LambdaQueryWrapper<StockOverflow>()
                 .like(StringUtils.hasText(q.getOverflowNo()), StockOverflow::getOverflowNo, q.getOverflowNo())
@@ -75,7 +78,7 @@ public class StockOverflowServiceImpl extends ServiceImpl<StockOverflowMapper, S
 
     @Override
     public Page<StockOverflowItemVO> pageDetail(StockOverflowQuery query) {
-        // 1. 先取满足单据级过滤的单据ID集合
+        // 1. 鍏堝彇婊¤冻鍗曟嵁绾ц繃婊ょ殑鍗曟嵁ID闆嗗悎
         LambdaQueryWrapper<StockOverflow> docWrapper = buildDocWrapper(query);
         docWrapper.select(StockOverflow::getId);
         List<StockOverflow> docs = this.list(docWrapper);
@@ -84,7 +87,7 @@ public class StockOverflowServiceImpl extends ServiceImpl<StockOverflowMapper, S
             return new Page<>(query.getPageNum(), query.getPageSize(), 0);
         }
 
-        // 2. 明细过滤
+        // 2. 鏄庣粏杩囨护
         LambdaQueryWrapper<StockOverflowItem> itemWrapper = new LambdaQueryWrapper<StockOverflowItem>()
                 .in(StockOverflowItem::getOverflowId, docIds)
                 .like(StringUtils.hasText(query.getProductName()), StockOverflowItem::getProductName, query.getProductName())
@@ -93,7 +96,7 @@ public class StockOverflowServiceImpl extends ServiceImpl<StockOverflowMapper, S
         Page<StockOverflowItem> itemPage = overflowItemMapper.selectPage(
                 new Page<>(query.getPageNum(), query.getPageSize()), itemWrapper);
 
-        // 3. 批量补齐单据级字段
+        // 3. 鎵归噺琛ラ綈鍗曟嵁绾у瓧娈�
         List<Long> pageDocIds = itemPage.getRecords().stream()
                 .map(StockOverflowItem::getOverflowId).distinct().collect(Collectors.toList());
         Map<Long, StockOverflow> docMap = pageDocIds.isEmpty() ? Map.of() :
@@ -131,7 +134,7 @@ public class StockOverflowServiceImpl extends ServiceImpl<StockOverflowMapper, S
     @Override
     public StockOverflow getDetail(Long id) {
         StockOverflow o = this.getById(id);
-        if (o == null) throw BusinessException.notFound("报溢单不存在");
+        if (o == null) throw BusinessException.notFound("鎶ユ孩鍗曚笉瀛樺湪");
         o.setItems(getItems(id));
         return o;
     }
@@ -164,8 +167,8 @@ public class StockOverflowServiceImpl extends ServiceImpl<StockOverflowMapper, S
     @Transactional(rollbackFor = Exception.class)
     public StockOverflow updateOverflow(Long id, StockOverflow overflow, List<StockOverflowItem> items) {
         StockOverflow exist = this.getById(id);
-        if (exist == null) throw BusinessException.notFound("报溢单不存在");
-        if (exist.getStatus() != 0) throw BusinessException.badRequest("只有草稿状态的报溢单可以修改");
+        if (exist == null) throw BusinessException.notFound("鎶ユ孩鍗曚笉瀛樺湪");
+        if (exist.getStatus() != 0) throw BusinessException.badRequest("鍙湁鑽夌鐘舵€佺殑鎶ユ孩鍗曞彲浠ヤ慨鏀�");
         overflow.setId(id);
         overflow.setTenantId(exist.getTenantId());
         if (overflow.getOverflowNo() == null) overflow.setOverflowNo(exist.getOverflowNo());
@@ -175,7 +178,7 @@ public class StockOverflowServiceImpl extends ServiceImpl<StockOverflowMapper, S
         overflow.setUpdateBy(StpUtil.getLoginIdAsLong());
         fillTotals(overflow, items);
         this.updateById(overflow);
-        // 重建明细
+        // 閲嶅缓鏄庣粏
         overflowItemMapper.delete(new LambdaQueryWrapper<StockOverflowItem>().eq(StockOverflowItem::getOverflowId, id));
         saveItems(id, items);
         return overflow;
@@ -218,7 +221,7 @@ public class StockOverflowServiceImpl extends ServiceImpl<StockOverflowMapper, S
     @Override
     @Transactional(rollbackFor = Exception.class)
     public StockOverflow submitForApproval(Long id) {
-        StockOverflow o = getAndCheck(id, 0, "只有草稿状态的报溢单可以提交审批");
+        StockOverflow o = getAndCheck(id, 0, "鍙湁鑽夌鐘舵€佺殑鎶ユ孩鍗曞彲浠ユ彁浜ゅ鎵�");
         o.setStatus(1);
         o.setApplicantId(StpUtil.getLoginIdAsLong());
         o.setApplicantName(StpUtil.getLoginId().toString());
@@ -230,7 +233,7 @@ public class StockOverflowServiceImpl extends ServiceImpl<StockOverflowMapper, S
     @Override
     @Transactional(rollbackFor = Exception.class)
     public StockOverflow approve(Long id, Long approverId, String note) {
-        StockOverflow o = getAndCheck(id, 1, "只有待审批状态的报溢单可以审批");
+        StockOverflow o = getAndCheck(id, 1, "鍙湁寰呭鎵圭姸鎬佺殑鎶ユ孩鍗曞彲浠ュ鎵�");
         o.setStatus(2);
         o.setApprovedBy(approverId);
         o.setApprovedTime(LocalDateTime.now());
@@ -242,7 +245,7 @@ public class StockOverflowServiceImpl extends ServiceImpl<StockOverflowMapper, S
     @Override
     @Transactional(rollbackFor = Exception.class)
     public StockOverflow reject(Long id, String reason) {
-        StockOverflow o = getAndCheck(id, 1, "只有待审批状态的报溢单可以拒绝");
+        StockOverflow o = getAndCheck(id, 1, "鍙湁寰呭鎵圭姸鎬佺殑鎶ユ孩鍗曞彲浠ユ嫆缁�");
         o.setStatus(4);
         o.setApprovedNote(reason);
         this.updateById(o);
@@ -251,9 +254,31 @@ public class StockOverflowServiceImpl extends ServiceImpl<StockOverflowMapper, S
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+
     public StockOverflow execute(Long id) {
-        // 执行入库（记账）：报溢入库生效，按批次增加库存
+        // 执行入库（记账）：报溢入库生效，按批次增加库存并核定入账成本单价
         StockOverflow o = getAndCheck(id, 2, "只有已审核状态的报溢单可以记账入库");
+        List<StockOverflowItem> items = getItems(id);
+        if (items != null) {
+            for (StockOverflowItem item : items) {
+                if (item.getQuantity() == null || item.getQuantity().signum() <= 0) continue;
+                Stock move = new Stock();
+                move.setProductId(item.getProductId());
+                move.setProductCode(item.getProductCode());
+                move.setProductName(item.getProductName());
+                move.setWarehouseId(o.getWarehouseId());
+                move.setWarehouseName(o.getWarehouseName());
+                move.setUnit(item.getProductUnit());
+                move.setQuantity(item.getQuantity());
+                move.setUnitPrice(item.getUnitCost());
+                move.setBatchNo(item.getBatchCode() != null ? item.getBatchCode() : item.getBatchNo());
+                move.setProductionDate(item.getProductionDate() != null ? item.getProductionDate().atStartOfDay() : null);
+                move.setValidityDate(item.getExpiryDate() != null ? item.getExpiryDate().atStartOfDay() : null);
+                if (!stockService.recordStockIn(move)) {
+                    throw BusinessException.badRequest("报溢入库失败，商品：" + item.getProductName());
+                }
+            }
+        }
         o.setStatus(3);
         o.setExecutedBy(StpUtil.getLoginIdAsLong());
         o.setExecutedTime(LocalDateTime.now());
@@ -268,8 +293,8 @@ public class StockOverflowServiceImpl extends ServiceImpl<StockOverflowMapper, S
     @Transactional(rollbackFor = Exception.class)
     public StockOverflow cancel(Long id, String reason) {
         StockOverflow o = this.getById(id);
-        if (o == null) throw BusinessException.notFound("报溢单不存在");
-        if (o.getStatus() >= 3) throw BusinessException.badRequest("已记账入库的报溢单不能取消");
+        if (o == null) throw BusinessException.notFound("鎶ユ孩鍗曚笉瀛樺湪");
+        if (o.getStatus() >= 3) throw BusinessException.badRequest("宸茶璐﹀叆搴撶殑鎶ユ孩鍗曚笉鑳藉彇娑�");
         o.setStatus(5);
         o.setCancelReason(reason);
         this.updateById(o);
@@ -278,7 +303,7 @@ public class StockOverflowServiceImpl extends ServiceImpl<StockOverflowMapper, S
 
     private StockOverflow getAndCheck(Long id, int expectedStatus, String msg) {
         StockOverflow o = this.getById(id);
-        if (o == null) throw BusinessException.notFound("报溢单不存在");
+        if (o == null) throw BusinessException.notFound("鎶ユ孩鍗曚笉瀛樺湪");
         if (o.getStatus() != expectedStatus) throw BusinessException.badRequest(msg);
         return o;
     }

@@ -41,11 +41,42 @@ public class StockAssemble {
     /** 生产单位 */
     private String produceUnit;
 
+    /** 部门 */
+    private Long deptId;
+
+    private String deptName;
+
     /** 打印次数 */
     private Integer printCount;
 
     /** 打印记录 */
     private String printRecords;
+
+    /** 摘要 */
+    private String summary;
+
+    /** 附件 */
+    private String attachment;
+
+    /** 记账人 */
+    private Long bookkeeperId;
+
+    private String bookkeeperName;
+
+    /** 记账时间 */
+    private LocalDateTime bookkeepingTime;
+
+    /** 制单人 */
+    private String creatorName;
+
+    /** 总重量(kg) */
+    private BigDecimal totalWeight;
+
+    /** 总体积(m³) */
+    private BigDecimal totalVolume;
+
+    /** 取消原因 */
+    private String cancelReason;
 
     private Long bomId;
 

@@ -763,8 +763,6 @@ const componentMap: Record<string, () => Promise<any>> = {
   'wh/shipping-order/form': () => import('@/views/wh/shipping-order/form/index.vue'),
   'wh/move-order/form': () => import('@/views/wh/move-order/form/index.vue'),
   'wh/inventory-order/form': () => import('@/views/wh/inventory-order/form/index.vue'),
-  'wh/production-template/form': () => import('@/views/wh/production-template/form/index.vue'),
-  'wh/production-template/index': () => import('@/views/wh/production-template/index.vue'),
   'wh/borrow-query': () => import('@/views/wh/borrow-query/index.vue'),
   'wh/borrow-query/index': () => import('@/views/wh/borrow-query/index.vue'),
   // ── WMS 8 作业单列表页（批次 0.1 新增） ──
@@ -1609,25 +1607,6 @@ function getRequiredRoutes(): RouteRecordRaw[] {
       name: 'PreOrderCreate',
       component: () => import('@/views/sales/pre-order/form.vue'),
       meta: { title: '新增预订货单', icon: 'FileTextOutlined', keepAlive: false, requiresAuth: true, hidden: true, billType: '604' }
-    },
-    // ═══ 生产模块表单路由 ═══
-    {
-      path: 'wh/production-template',
-      name: 'ProductionTemplate',
-      component: () => import('@/views/wh/production-template/index.vue'),
-      meta: { title: '生产模板', icon: 'DeploymentUnitOutlined', keepAlive: true, requiresAuth: true, hidden: true }
-    },
-    {
-      path: 'wh/production-template/form',
-      name: 'ProductionTemplateForm',
-      component: () => import('@/views/wh/production-template/form/index.vue'),
-      meta: { title: '新增生产模板', icon: 'DeploymentUnitOutlined', keepAlive: false, requiresAuth: true, hidden: true }
-    },
-    {
-      path: 'wh/production-template/form/:id',
-      name: 'ProductionTemplateFormEdit',
-      component: () => import('@/views/wh/production-template/form/index.vue'),
-      meta: { title: '编辑生产模板', icon: 'DeploymentUnitOutlined', keepAlive: false, requiresAuth: true, hidden: true }
     },
     {
       path: 'erp/stock-assemble/form',

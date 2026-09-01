@@ -1,8 +1,11 @@
 package cn.aiedge.erp.stock.controller;
 
 import cn.aiedge.base.vo.Result;
+import cn.aiedge.erp.stock.dto.StockAlertBatchItemDTO;
+import cn.aiedge.erp.stock.dto.StockAlertQueryVO;
 import cn.aiedge.erp.stock.entity.StockAlertConfig;
 import cn.aiedge.erp.stock.service.StockAlertConfigService;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -11,7 +14,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @RestController
@@ -108,5 +113,53 @@ public class StockAlertConfigController {
                 .count());
         stats.put("activeConfigs", stockAlertConfigService.countActive(1L));
         return Result.ok(stats);
+    }
+
+    // ═══════════════ 预警设置页（库存预警固定值设置） ═══════════════
+
+    @GetMapping("/config-items")
+    @Operation(summary = "预警设置：商品清单+上下限配置分页")
+    public Result<IPage<StockAlertQueryVO>> configItems(
+            @Parameter(description = "仓库ID（空=全部仓库，展示所有已配置行）") @RequestParam(required = false) Long warehouseId,
+            @Parameter(description = "商品名称/货号/编码/条码") @RequestParam(required = false) String keyword,
+            @Parameter(description = "品牌") @RequestParam(required = false) String brand,
+            @Parameter(description = "商品分类ID（分类树）") @RequestParam(required = false) Long categoryId,
+            @Parameter(description = "页码") @RequestParam(defaultValue = "1") int pageNum,
+            @Parameter(description = "每页数量") @RequestParam(defaultValue = "20") int pageSize) {
+        return Result.ok(stockAlertConfigService.configItemsPage(warehouseId, keyword, brand, categoryId, pageNum, pageSize));
+    }
+
+    @PostMapping("/batch-set")
+    @Operation(summary = "预警设置：批量设置/保存上下限（items 优先，否则统一赋值）")
+    public Result<Void> batchSet(@RequestBody BatchSetRequest request) {
+        if (request.getItems() != null && !request.getItems().isEmpty()) {
+            stockAlertConfigService.batchSetItems(request.getItems());
+        } else {
+            stockAlertConfigService.batchSetThreshold(request.getWarehouseId(), request.getProductIds(),
+                    request.getMinStock(), request.getMaxStock());
+        }
+        return Result.ok();
+    }
+
+    @GetMapping("/comparison")
+    @Operation(summary = "获取比较口径配置")
+    public Result<Map<String, Object>> getComparison() {
+        return Result.ok(stockAlertConfigService.getComparison());
+    }
+
+    @PostMapping("/comparison")
+    @Operation(summary = "保存比较口径配置")
+    public Result<Void> setComparison(@RequestBody Map<String, String> body) {
+        stockAlertConfigService.setComparison(body.get("value"));
+        return Result.ok();
+    }
+
+    @lombok.Data
+    public static class BatchSetRequest {
+        private Long warehouseId;
+        private List<Long> productIds;
+        private BigDecimal minStock;
+        private BigDecimal maxStock;
+        private List<StockAlertBatchItemDTO> items;
     }
 }

@@ -1,561 +1,697 @@
 <template>
-  <ErrorBoundary
-    @reset="fetchData"
-    @error="handleError"
-  >
+  <ErrorBoundary @error="handleError">
     <PageContainer full-height>
-      <template #header>
-        <div class="alert-config-header">
-          <div class="alert-config-header__left">
-            <span class="alert-config-header__breadcrumb">ERP / 库存管理 / 库存预警配置</span>
-            <h2 class="alert-config-header__title">
-              库存预警配置
-            </h2>
-          </div>
-          <div class="alert-config-header__right">
-            <a-space :size="12">
-              <span
-                v-if="autoRefreshCountdown > 0"
-                class="auto-refresh-badge"
-              ><SyncOutlined /> {{ autoRefreshCountdown }}s</span>
-              <span class="data-status">
-                <a-badge :status="loading ? 'processing' : 'success'" />
-                <span
-                  v-if="lastUpdateTime"
-                  class="update-time"
-                >数据更新: {{ lastUpdateTime }}</span>
-              </span>
-              <span class="shortcut-hints">
-                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-              </span>
-              <a-button
-                size="small"
-                :loading="refreshLoading"
-                @click="debounceClick('refresh', fetchData)"
-              >
-                <template #icon>
-                  <ReloadOutlined />
-                </template>刷新
-              </a-button>
-            </a-space>
-          </div>
-        </div>
-      </template>
-
-      <a-row
-        :gutter="16"
-        style="margin-bottom: 16px;"
+      <!-- 顶部：库存上下限比较口径提示条 -->
+      <div
+        class="comparison-banner"
+        @click="openComparisonModal"
       >
-        <a-col :span="6">
-          <div class="summary-card">
-            <div
-              class="summary-icon"
-              style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);"
-            >
-              <AlertOutlined />
-            </div>
-            <div class="summary-content">
-              <div class="summary-title">
-                总配置数
-              </div><div class="summary-value">
-                {{ statistics.totalConfigs }}
-              </div>
-            </div>
-          </div>
-        </a-col>
-        <a-col :span="6">
-          <div class="summary-card">
-            <div
-              class="summary-icon"
-              style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);"
-            >
-              <CheckCircleOutlined />
-            </div>
-            <div class="summary-content">
-              <div class="summary-title">
-                已启用
-              </div><div class="summary-value">
-                {{ statistics.activeConfigs }}
-              </div>
-            </div>
-          </div>
-        </a-col>
-        <a-col :span="6">
-          <div class="summary-card">
-            <div
-              class="summary-icon"
-              style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);"
-            >
-              <ExclamationCircleOutlined />
-            </div>
-            <div class="summary-content">
-              <div class="summary-title">
-                低库存预警
-              </div><div class="summary-value warning">
-                {{ statistics.lowStockCount }}
-              </div>
-            </div>
-          </div>
-        </a-col>
-        <a-col :span="6">
-          <div class="summary-card highlight">
-            <div
-              class="summary-icon"
-              style="background: linear-gradient(135deg, #f5222d 0%, #cf1322 100%);"
-            >
-              <FireOutlined />
-            </div>
-            <div class="summary-content">
-              <div class="summary-title">
-                超储预警
-              </div><div class="summary-value warning">
-                {{ statistics.overStockCount }}
-              </div>
-            </div>
-          </div>
-        </a-col>
-      </a-row>
+        <InfoCircleOutlined class="comparison-icon" />
+        <span class="comparison-text">库存上下限比较值：</span>
+        <b class="comparison-value">{{ comparisonLabel }}</b>
+        <a class="comparison-set">点击设置</a>
+      </div>
 
-      <BillTableList
-        ref="tableRef"
-        :columns="vxeColumns"
-        :data-source="tableData"
-        :loading="loading"
-        :pagination="pagination"
-        row-key="id"
-        :selectable="true"
-        :filter-fields="filterFields"
-        add-text="新建预警配置"
-        @add="handleCreate"
+      <CategoryListLayout
+        :show-category-panel="true"
+        :category-loading="categoryLoading"
+        :category-tree-data="categoryTreeData"
+        :selected-category-id="selectedCategoryId"
+        :category-expanded-keys="expandedKeys"
+        category-title="商品分类"
+        :show-table-footer="true"
+        @category-select="handleCategorySelect"
+        @category-expand="(keys: any) => (expandedKeys = keys)"
+        @category-retry="loadCategoryTree"
         @search="handleSearch"
-        @filter-change="handleFilterChange"
-        @page-change="handlePageChange"
-        @selection-change="handleSelectionChange"
       >
-        <template #toolbar-actions>
-          <a-button
-            v-permission="'erp:stock:checkalerts'"
-            size="small"
-            @click="handleCheckAlerts"
-          >
-            <BellOutlined /> 立即检查
-          </a-button>
+        <!-- ═══ 工具栏左侧：统计 ═══ -->
+        <template #toolbar-left>
+          <span class="toolbar-total">
+            共 <b>{{ pagination.total }}</b> 条
+          </span>
         </template>
 
-        <template #empty>
-          <div
-            v-if="hasError"
-            class="table-empty"
-          >
-            <WarningOutlined class="table-empty-icon" />
-            <p class="table-empty-text">
-              数据加载异常，请重试
-            </p>
+        <!-- ═══ 工具栏右侧：功能按钮 ═══ -->
+        <template #toolbar-right>
+          <a-space :size="8">
             <a-button
+              size="small"
+              :loading="refreshLoading"
+              @click="handleRefresh"
+            >
+              <ReloadOutlined /> 刷新
+            </a-button>
+            <a-button
+              size="small"
+              @click="handlePrintF8"
+            >
+              <PrinterOutlined /> 打印(F8)
+            </a-button>
+            <a-button
+              size="small"
               type="primary"
-              @click="fetchData"
+              :disabled="selectedRows.length === 0"
+              @click="openBatchModal"
             >
-              <ReloadOutlined /> 重试
+              <SettingOutlined /> 批量设置
             </a-button>
-          </div>
-          <div
-            v-else
-            class="table-empty"
-          >
-            <BellOutlined class="table-empty-icon" />
-            <p class="table-empty-text">
-              暂无预警配置，点击右上角「新建预警配置」开始创建
-            </p>
-          </div>
-        </template>
-
-        <template #activeCell="{ record }">
-          <a-switch
-            :checked="record.active === 1"
-            size="small"
-            @change="(v: any) => handleToggleActive(record, v)"
-          />
-        </template>
-        <template #action="{ record }">
-          <a-space :size="4">
-            <a-button
-              v-permission="'erp:stock:edit'"
-              type="link"
-              size="small"
-              @click="handleEdit(record)"
-            >
-              编辑
-            </a-button>
-            <a-button
-              v-if="record.currentQty != null && record.currentQty < (record.safetyStock || record.minStock)"
-              type="link"
-              size="small"
-              @click="goReplenish(record)"
-            >
-              补货
-            </a-button>
-            <a-popconfirm
-              title="确认删除该预警配置？"
-              @confirm="handleDelete(record)"
-            >
-              <a-button
-                type="link"
-                size="small"
-                danger
-              >
-                删除
+            <a-dropdown>
+              <a-button size="small">
+                更多 <DownOutlined />
               </a-button>
-            </a-popconfirm>
+              <template #overlay>
+                <a-menu>
+                  <a-menu-item
+                    key="cancel"
+                    :disabled="selectedRows.length === 0"
+                    @click="handleBatchCancel"
+                  >
+                    批量取消
+                  </a-menu-item>
+                  <a-menu-item
+                    key="export"
+                    @click="handleExport"
+                  >
+                    导出
+                  </a-menu-item>
+                </a-menu>
+              </template>
+            </a-dropdown>
           </a-space>
         </template>
-      </BillTableList>
 
-      <!-- 编辑/新建弹窗 -->
+        <!-- ═══ 搜索区：仓库/商品/品牌/查询 ═══ -->
+        <template #search-fields>
+          <div class="search-area">
+            <div class="search-field-item">
+              <span class="search-label">仓库</span>
+              <a-radio-group
+                v-model:value="warehouseMode"
+                size="small"
+              >
+                <a-radio-button value="all">全部仓库</a-radio-button>
+                <a-radio-button value="spec">指定仓库</a-radio-button>
+              </a-radio-group>
+              <a-select
+                v-if="warehouseMode === 'spec'"
+                v-model:value="searchValues.warehouseId"
+                :options="warehouseOptions"
+                placeholder="请选择仓库"
+                allow-clear
+                show-search
+                size="small"
+                style="width: 150px"
+              />
+            </div>
+            <div class="search-field-item">
+              <span class="search-label">商品</span>
+              <a-input
+                v-model:value="searchValues.keyword"
+                placeholder="商品名称/货号/条码"
+                allow-clear
+                size="small"
+                style="width: 180px"
+                @press-enter="handleSearch"
+              />
+            </div>
+            <div class="search-field-item">
+              <span class="search-label">品牌</span>
+              <a-select
+                v-model:value="searchValues.brand"
+                :options="brandOptions"
+                placeholder="全部"
+                allow-clear
+                show-search
+                size="small"
+                style="width: 140px"
+              />
+            </div>
+            <a-button
+              type="primary"
+              size="small"
+              class="btn-search"
+              @click="handleSearch"
+            >
+              查询
+            </a-button>
+          </div>
+        </template>
+
+        <!-- ═══ 表格：14 列，上下限行内可编辑 ═══ -->
+        <template #table>
+          <div class="table-area">
+            <BillTableList
+              ref="tableRef"
+              :columns="columns"
+              :data-source="tableData"
+              :loading="loading"
+              :pagination="pagination"
+              row-key="_rowKey"
+              :selectable="true"
+              :show-toolbar="false"
+              :show-search="false"
+              :show-add="false"
+              :show-batch-delete="false"
+              :show-export="false"
+              :min-empty-rows="0"
+              @page-change="handlePageChange"
+              @selection-change="handleSelectionChange"
+            >
+              <template #maxStockCell="{ record }">
+                <a-input-number
+                  v-model:value="record.maxStock"
+                  :min="0"
+                  size="small"
+                  style="width: 100%"
+                  placeholder="上限"
+                  @change="markDirty(record)"
+                />
+              </template>
+              <template #minStockCell="{ record }">
+                <a-input-number
+                  v-model:value="record.minStock"
+                  :min="0"
+                  size="small"
+                  style="width: 100%"
+                  placeholder="下限"
+                  @change="markDirty(record)"
+                />
+              </template>
+            </BillTableList>
+
+            <!-- 行内编辑保存栏 -->
+            <div
+              v-if="dirtyRowKeys.size > 0"
+              class="save-bar"
+            >
+              <a-space :size="8">
+                <span class="save-bar-text">
+                  已修改 {{ dirtyRowKeys.size }} 条
+                </span>
+                <a-button
+                  type="primary"
+                  size="small"
+                  :loading="saving"
+                  @click="handleSaveRows"
+                >
+                  保存修改
+                </a-button>
+                <a-button
+                  size="small"
+                  @click="resetDirty"
+                >
+                  放弃
+                </a-button>
+              </a-space>
+            </div>
+          </div>
+        </template>
+      </CategoryListLayout>
+
+      <!-- ═══ 批量设置弹窗 ═══ -->
       <a-modal
-        v-model:open="modalVisible"
-        :title="editingId ? '编辑预警配置' : '新建预警配置'"
+        v-model:open="batchModalVisible"
+        title="批量设置库存上下限"
         :confirm-loading="saving"
-        width="600px"
-        destroy-on-close
-        @ok="handleSave"
+        width="420px"
+        @ok="handleBatchApply"
       >
+        <p class="modal-tip">
+          将对已勾选的 {{ selectedRows.length }} 个商品在所选仓库下统一设置上下限。
+        </p>
         <a-form
-          :model="form"
+          :model="batchForm"
           :label-col="{ span: 6 }"
           :wrapper-col="{ span: 16 }"
           layout="horizontal"
         >
           <a-form-item
-            label="产品"
-            required
-          >
-            <a-select
-              v-model:value="form.productId"
-              show-search
-              :filter-option="filterOption"
-              placeholder="搜索选择产品"
-              :disabled="!!editingId"
-            >
-              <a-select-option
-                v-for="p in productOptions"
-                :key="p.id"
-                :value="p.id"
-              >
-                [{{ p.productCode }}] {{ p.productName }}
-              </a-select-option>
-            </a-select>
-          </a-form-item>
-          <a-form-item
             label="仓库"
             required
           >
             <a-select
-              v-model:value="form.warehouseId"
-              placeholder="选择仓库"
-              :disabled="!!editingId"
-            >
-              <a-select-option
-                v-for="w in warehouseOptions"
-                :key="w.id"
-                :value="w.id"
-              >
-                {{ w.warehouseName || w.name }}
-              </a-select-option>
-            </a-select>
-          </a-form-item>
-          <a-form-item label="最低库存">
-            <a-input-number
-              v-model:value="form.minStock"
-              :min="0"
-              style="width: 100%"
-              placeholder="低于此值触发预警"
+              v-model:value="batchForm.warehouseId"
+              :options="warehouseOptions"
+              placeholder="请选择仓库"
+              show-search
             />
           </a-form-item>
-          <a-form-item label="最高库存">
+          <a-form-item label="库存下限">
             <a-input-number
-              v-model:value="form.maxStock"
+              v-model:value="batchForm.minStock"
               :min="0"
               style="width: 100%"
-              placeholder="高于此值触发预警"
             />
           </a-form-item>
-          <a-form-item label="安全库存">
+          <a-form-item label="库存上限">
             <a-input-number
-              v-model:value="form.safetyStock"
+              v-model:value="batchForm.maxStock"
               :min="0"
               style="width: 100%"
-              placeholder="建议补货点"
-            />
-          </a-form-item>
-          <a-form-item label="预警类型">
-            <a-select
-              v-model:value="form.alertType"
-              placeholder="预警类型"
-            >
-              <a-select-option value="LOW_STOCK">
-                低库存
-              </a-select-option>
-              <a-select-option value="OVER_STOCK">
-                超储
-              </a-select-option>
-              <a-select-option value="BOTH">
-                两者
-              </a-select-option>
-              <a-select-option value="EXPIRY">
-                保质期
-              </a-select-option>
-            </a-select>
-          </a-form-item>
-          <a-form-item label="启用">
-            <a-switch v-model:checked="form.active" />
-          </a-form-item>
-          <a-form-item label="备注">
-            <a-textarea
-              v-model:value="form.remark"
-              :rows="2"
             />
           </a-form-item>
         </a-form>
+      </a-modal>
+
+      <!-- ═══ 比较口径弹窗 ═══ -->
+      <a-modal
+        v-model:open="comparisonModalVisible"
+        title="设置库存上下限比较值"
+        :confirm-loading="saving"
+        width="480px"
+        @ok="handleComparisonSave"
+      >
+        <p class="modal-tip">
+          预警判定时所比较的库存数量口径，将作为「预警查询」的过滤阈值依据。
+        </p>
+        <a-radio-group
+          v-model:value="comparisonForm.value"
+          style="display: flex; flex-direction: column; gap: 12px"
+        >
+          <a-radio value="BOOK_QTY">账面库存</a-radio>
+          <a-radio value="BOOK_WAIT_DELIVER">账面库存 - 待发货</a-radio>
+          <a-radio value="BOOK_WAIT_DELIVER_PURCHASE">账面库存 - 待发货 - 待收货</a-radio>
+        </a-radio-group>
       </a-modal>
     </PageContainer>
   </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { message, Modal } from 'ant-design-vue'
-import { ReloadOutlined, SyncOutlined, AlertOutlined, CheckCircleOutlined, ExclamationCircleOutlined, FireOutlined, BellOutlined, WarningOutlined } from '@ant-design/icons-vue'
+import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { message } from 'ant-design-vue'
+import {
+  ReloadOutlined, PrinterOutlined, SettingOutlined, DownOutlined,
+  InfoCircleOutlined,
+} from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayout.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import request from '@/utils/request'
 
-const router = useRouter()
-
-function handleError(err: any) { hasError.value = true; console.warn('[预警配置]', err) }
-
-const debounceMap = new Map<string, number>()
-function debounceClick(key: string, fn: () => void, delay = 300) {
-  const now = Date.now(); const last = debounceMap.get(key) || 0
-  if (now - last < delay) return; debounceMap.set(key, now); fn()
+// ── 错误处理 ──
+function handleError(err: any) {
+  console.warn('[预警设置] ErrorBoundary:', err)
 }
 
-function handleKeydown(e: KeyboardEvent) {
-  if (e.key === 'F5') { e.preventDefault(); debounceClick('refresh', fetchData); return }
-  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleCreate(); return }
+// ── 查询条件 ──
+const warehouseMode = ref<'all' | 'spec'>('all')
+const searchValues = reactive<Record<string, any>>({
+  warehouseId: undefined,
+  keyword: '',
+  brand: undefined,
+})
+const warehouseOptions = ref<any[]>([])
+const brandOptions = ref<any[]>([])
+
+// ── 分类树 ──
+const categoryLoading = ref(false)
+const categoryTreeData = ref<any[]>([])
+const expandedKeys = ref<(string | number)[]>(['__all__'])
+const selectedCategoryId = ref<string | number>('__all__')
+
+async function loadCategoryTree() {
+  categoryLoading.value = true
+  try {
+    const res: any = await request.get('/erp/product-category/tree')
+    const tree = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : [])
+    categoryTreeData.value = [{ id: '__all__', categoryName: '全部商品', children: tree }]
+    expandedKeys.value = ['__all__', ...tree.filter((c: any) => c.children?.length).map((c: any) => c.id)]
+  } catch (e) {
+    console.warn('[预警设置] 分类树加载失败', e)
+    categoryTreeData.value = [{ id: '__all__', categoryName: '全部商品', children: [] }]
+  } finally {
+    categoryLoading.value = false
+  }
 }
 
-let refreshTimer: ReturnType<typeof setInterval> | null = null
-let countdownTimer: ReturnType<typeof setInterval> | null = null
+function handleCategorySelect(keys: any[]) {
+  selectedCategoryId.value = keys && keys.length ? keys[0] : '__all__'
+  handleSearch()
+}
+
+// ── 仓库 / 品牌 ──
+async function loadWarehouses() {
+  try {
+    const res: any = await request.get('/erp/stock/warehouses')
+    const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : [])
+    warehouseOptions.value = list.map((w: any) => ({ value: w.warehouseId ?? w.id, label: w.warehouseName || w.name }))
+  } catch (e) {
+    console.warn('[预警设置] 仓库加载失败', e)
+    warehouseOptions.value = []
+  }
+}
+
+async function loadBrands() {
+  try {
+    const res: any = await request.get('/erp/product/brands')
+    const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : [])
+    brandOptions.value = list.map((b: string) => ({ value: b, label: b }))
+  } catch (e) {
+    console.warn('[预警设置] 品牌加载失败', e)
+    brandOptions.value = []
+  }
+}
+
+// ── 表格列（13 个数据列 + 序号/选择；文档列清单中「型号」重复，实际去重） ──
+const columns: any[] = [
+  { key: 'rowNo', title: '', type: 'rowNo', width: 50, fixed: 'left' },
+  { key: 'rowCheck', title: '', type: 'checkbox', width: 40 },
+  { title: '商品名称', field: 'productName', key: 'productName', width: 180, ellipsis: true },
+  { title: '货号', field: 'productCode', key: 'productCode', width: 110 },
+  { title: '口味', field: 'taste', key: 'taste', width: 90 },
+  { title: '型号', field: 'model', key: 'model', width: 90 },
+  { title: '单位', field: 'unit', key: 'unit', width: 70 },
+  { title: '小单位', field: 'smallUnit', key: 'smallUnit', width: 70 },
+  { title: '条码', field: 'barcode', key: 'barcode', width: 120 },
+  { title: '规格', field: 'spec', key: 'spec', width: 110 },
+  { title: '产地', field: 'origin', key: 'origin', width: 90 },
+  { title: '品牌', field: 'brand', key: 'brand', width: 90 },
+  { title: '预警仓库', field: 'warehouseName', key: 'warehouseName', width: 110 },
+  { title: '库存上限', field: 'maxStock', key: 'maxStock', width: 110, align: 'right', type: 'slot', slotName: 'maxStockCell' },
+  { title: '库存下限', field: 'minStock', key: 'minStock', width: 110, align: 'right', type: 'slot', slotName: 'minStockCell' },
+]
+
+// ── 数据状态 ──
 const loading = ref(false)
 const refreshLoading = ref(false)
-const hasError = ref(false)
-const lastUpdateTime = ref('')
-const autoRefreshCountdown = ref(0)
-const tableData = ref<any[]>([])
-const tableRef = ref()
-const selectedRows = ref<any[]>([])
-
-const statistics = ref({ totalConfigs: 0, activeConfigs: 0, lowStockCount: 0, overStockCount: 0 })
-const pagination = reactive({ current: 1, pageSize: 10, total: 0 })
-const searchFilters = reactive<Record<string, any>>({})
-
-const vxeColumns: any = computed(() => [
-  { field: 'productCode', title: '产品编码', width: 130 },
-  { field: 'productName', title: '产品名称', width: 150 },
-  { field: 'warehouseName', title: '仓库', width: 120 },
-  { field: 'minStock', title: '最低库存', width: 90, align: 'right' },
-  { field: 'maxStock', title: '最高库存', width: 90, align: 'right' },
-  { field: 'safetyStock', title: '安全库存', width: 90, align: 'right' },
-  { field: 'currentQty', title: '当前库存', width: 90, align: 'right' },
-  { field: 'status', title: '预警状态', width: 100, align: 'center' },
-  { field: 'active', title: '启用', width: 70, align: 'center', slotName: 'activeCell' },
-  { field: 'action', title: '操作', width: 140, fixed: 'right', type: 'action' },
-])
-
-const filterFields = computed(() => [
-  { key: 'keyword', label: '产品编码/名称', type: 'input' as const, placeholder: '请输入' },
-  { key: 'warehouseId', label: '仓库', type: 'select' as const, options: warehouseOptions.value },
-  { key: 'active', label: '状态', type: 'select' as const, options: [{ label: '全部', value: '' }, { label: '启用', value: true }, { label: '停用', value: false }] },
-])
-
-const warehouseOptions = ref<any[]>([])
-const productOptions = ref<any[]>([])
-const modalVisible = ref(false)
-const editingId = ref<number | null>(null)
 const saving = ref(false)
-const form = reactive({ productId: undefined as number | undefined, warehouseId: undefined as number | undefined, minStock: 0, maxStock: 999999, safetyStock: 0, alertType: 'LOW_STOCK', active: true, remark: '' })
+const tableData = ref<any[]>([])
+const tableRef = ref<any>(null)
+const selectedRows = ref<any[]>([])
+const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
 
-const filterOption = (input: string, option: any) => (option.children?.toString() || '').toLowerCase().includes(input.toLowerCase())
+// 行内编辑脏标记
+const dirtyRowKeys = ref<Set<string>>(new Set())
 
-async function loadWarehouses() {
-  try { const res = await request.get('/erp/stock/warehouses'); warehouseOptions.value = res?.data || [] } catch { warehouseOptions.value = [] }
+function rowKeyOf(record: any) {
+  return `${record.productId ?? ''}_${record.warehouseId ?? ''}`
 }
-async function loadProducts() {
-  try { const res = await request.get('/erp/product/list', { params: { pageSize: 200 } }); const data = res?.data || res; productOptions.value = Array.isArray(data) ? data : (data?.records || []) } catch { productOptions.value = [] }
+
+function markDirty(record: any) {
+  if (record && record.productId != null) dirtyRowKeys.value.add(rowKeyOf(record))
 }
 
-const fetchData = async () => {
-  hasError.value = false; loading.value = true
+function resetDirty() {
+  dirtyRowKeys.value = new Set()
+  fetchData()
+}
+
+// ── 数据加载 ──
+async function fetchData() {
+  loading.value = true
   try {
-    const res = await request.get('/erp/stock-alert-config/page', { params: { ...searchFilters, pageNum: pagination.current, pageSize: pagination.pageSize } })
-    const data = res?.data || res
-    tableData.value = data?.records || []
-    pagination.total = data?.total || 0
-    // Fetch statistics
-    const statsRes = await request.get('/erp/stock-alert-config/statistics')
-    if (statsRes?.data) Object.assign(statistics.value, statsRes.data)
-    const alertRes = await request.get('/erp/stock/alert')
-    if (Array.isArray(alertRes?.data)) {
-      statistics.value.lowStockCount = alertRes.data.filter((s: any) => s.quantity < (s.minStock ?? 0)).length
-      statistics.value.overStockCount = alertRes.data.filter((s: any) => s.quantity > (s.maxStock ?? 999999)).length
+    const params: Record<string, any> = {
+      pageNum: pagination.current,
+      pageSize: pagination.pageSize,
+      keyword: searchValues.keyword || undefined,
+      brand: searchValues.brand || undefined,
     }
-    lastUpdateTime.value = new Date().toLocaleString('zh-CN')
-  } catch (err) { hasError.value = true; console.warn('[预警配置] 加载失败', err); message.error('加载预警配置失败') }
-  finally { loading.value = false; refreshLoading.value = false }
+    if (warehouseMode.value === 'spec' && searchValues.warehouseId) {
+      params.warehouseId = searchValues.warehouseId
+    }
+    if (selectedCategoryId.value && selectedCategoryId.value !== '__all__') {
+      params.categoryId = selectedCategoryId.value
+    }
+    Object.keys(params).forEach((k) => (params[k] === undefined || params[k] === '') && delete params[k])
+
+    const res: any = await request.get('/erp/stock-alert-config/config-items', { params })
+    const page = res?.records ? res : (res?.data?.records ? res.data : (Array.isArray(res) ? { records: res, total: 0 } : { records: [], total: 0 }))
+    tableData.value = (page.records || []).map((r: any) => ({ ...r, _rowKey: rowKeyOf(r) }))
+    pagination.total = Number(page.total) || 0
+  } catch (e) {
+    console.warn('[预警设置] 加载失败', e)
+    message.error('查询失败，请检查网络后重试')
+  } finally {
+    loading.value = false
+    refreshLoading.value = false
+  }
 }
 
-const handleSearch = () => { pagination.current = 1; fetchData() }
-const handleFilterChange = (filters: Record<string, any>) => { Object.assign(searchFilters, filters); pagination.current = 1; fetchData() }
-const handlePageChange = (page: number, size: number) => { pagination.current = page; pagination.pageSize = size; fetchData() }
-const handleSelectionChange = (rows: any[]) => { selectedRows.value = rows }
-
-const handleCreate = () => {
-  editingId.value = null
-  form.productId = undefined; form.warehouseId = undefined; form.minStock = 0; form.maxStock = 999999; form.safetyStock = 0
-  form.alertType = 'LOW_STOCK'; form.active = true; form.remark = ''
-  loadProducts()
-  modalVisible.value = true
+function handleSearch() {
+  pagination.current = 1
+  dirtyRowKeys.value = new Set()
+  fetchData()
 }
 
-const handleEdit = (record: any) => {
-  editingId.value = record.id
-  form.productId = record.productId; form.warehouseId = record.warehouseId
-  form.minStock = record.minStock ?? 0; form.maxStock = record.maxStock ?? 999999
-  form.safetyStock = record.safetyStock ?? 0; form.alertType = record.alertType || 'LOW_STOCK'
-  form.active = record.active === 1 || record.active === true; form.remark = record.remark || ''
-  modalVisible.value = true
+function handleRefresh() {
+  refreshLoading.value = true
+  fetchData()
 }
 
-const handleSave = async () => {
-  if (!form.productId) { message.warning('请选择产品'); return }
-  if (!form.warehouseId) { message.warning('请选择仓库'); return }
+function handlePageChange(page: number, size: number) {
+  pagination.current = page
+  pagination.pageSize = size
+  dirtyRowKeys.value = new Set()
+  fetchData()
+}
+
+function handleSelectionChange(rows: any[]) {
+  selectedRows.value = rows
+}
+
+// ── 保存行内修改 ──
+async function handleSaveRows() {
+  const items = tableData.value
+    .filter((r: any) => dirtyRowKeys.value.has(rowKeyOf(r)))
+    .map((r: any) => ({
+      productId: r.productId,
+      warehouseId: r.warehouseId,
+      maxStock: r.maxStock ?? null,
+      minStock: r.minStock ?? null,
+    }))
+  if (items.length === 0) {
+    message.info('没有需要保存的修改')
+    return
+  }
   saving.value = true
   try {
-    const payload = { ...form, active: form.active ? 1 : 0 }
-    if (editingId.value) {
-      await request.put(`/erp/stock-alert-config/${editingId.value}`, payload)
-      message.success('更新成功')
-    } else {
-      await request.post('/erp/stock-alert-config', payload)
-      message.success('创建成功')
-    }
-    modalVisible.value = false; fetchData()
-  } catch (err: any) { console.warn('[预警配置] 保存失败', err); message.error(err?.message || '保存失败') }
-  finally { saving.value = false }
-}
-
-const handleToggleActive = async (record: any, active: boolean) => {
-  try {
-    if (active) await request.post(`/erp/stock-alert-config/${record.id}/activate`)
-    else await request.post(`/erp/stock-alert-config/${record.id}/deactivate`)
-    message.success(active ? '已启用' : '已停用'); fetchData()
-  } catch { message.error('操作失败') }
-}
-
-const handleDelete = async (record: any) => {
-  try { await request.delete(`/erp/stock-alert-config/${record.id}`); message.success('删除成功'); fetchData() }
-  catch { message.error('删除失败') }
-}
-
-const goReplenish = (record: any) => {
-  router.push({ path: '/erp/stock/replenishment', query: { productId: record.productId, productName: record.productName } })
-}
-
-const handleCheckAlerts = async () => {
-  try {
-    const res = await request.get('/erp/stock-alert-config/check')
-    const alerts = res?.data || []
-    Modal.info({ title: '预警检查结果', content: `共发现 ${alerts.length} 条预警`, okText: '知道了' })
+    await request.post('/erp/stock-alert-config/batch-set', { items })
+    message.success(`保存成功（${items.length} 条）`)
+    dirtyRowKeys.value = new Set()
+    pagination.current = 1
     fetchData()
-  } catch { message.error('检查失败') }
+  } catch (e: any) {
+    console.warn('[预警设置] 保存失败', e)
+    message.error(e?.message || '保存失败，请重试')
+  } finally {
+    saving.value = false
+  }
+}
+
+// ── 批量设置 ──
+const batchModalVisible = ref(false)
+const batchForm = reactive<Record<string, any>>({ warehouseId: undefined, minStock: undefined, maxStock: undefined })
+
+function openBatchModal() {
+  if (selectedRows.value.length === 0) {
+    message.warning('请先勾选商品')
+    return
+  }
+  batchForm.warehouseId = warehouseMode.value === 'spec' ? searchValues.warehouseId : undefined
+  batchForm.minStock = undefined
+  batchForm.maxStock = undefined
+  batchModalVisible.value = true
+}
+
+async function handleBatchApply() {
+  if (!batchForm.warehouseId) {
+    message.warning('请选择仓库')
+    return
+  }
+  const productIds = selectedRows.value.map((r: any) => r.productId).filter(Boolean)
+  if (productIds.length === 0) {
+    message.warning('勾选商品无效，请重新选择')
+    return
+  }
+  saving.value = true
+  try {
+    await request.post('/erp/stock-alert-config/batch-set', {
+      warehouseId: batchForm.warehouseId,
+      productIds,
+      minStock: batchForm.minStock ?? null,
+      maxStock: batchForm.maxStock ?? null,
+    })
+    message.success('批量设置成功')
+    batchModalVisible.value = false
+    pagination.current = 1
+    fetchData()
+  } catch (e: any) {
+    console.warn('[预警设置] 批量设置失败', e)
+    message.error(e?.message || '批量设置失败')
+  } finally {
+    saving.value = false
+  }
+}
+
+// ── 批量取消（清除选择） ──
+function handleBatchCancel() {
+  if (selectedRows.value.length === 0) return
+  tableRef.value?.clearSelection?.()
+  selectedRows.value = []
+  dirtyRowKeys.value = new Set()
+  message.success('已取消选择')
+}
+
+// ── 导出（前端 CSV 当前页） ──
+function handleExport() {
+  if (tableData.value.length === 0) {
+    message.warning('暂无数据可导出')
+    return
+  }
+  const headers = columns.filter((c: any) => c.field).map((c: any) => ({ field: c.field, title: c.title }))
+  const escape = (v: any) => {
+    const s = v === null || v === undefined ? '' : String(v)
+    return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s
+  }
+  const csv = '\ufeff' + headers.map((h) => h.title).join(',') + '\n' + tableData.value.map((r: any) => headers.map((h) => escape(r[h.field])).join(',')).join('\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = '库存预警固定值设置.csv'
+  a.click()
+  URL.revokeObjectURL(a.href)
+}
+
+// ── 打印 (F8) ──
+function handlePrintF8() {
+  window.print()
+}
+
+// ── 比较口径 ──
+const comparisonModalVisible = ref(false)
+const comparisonForm = reactive<Record<string, any>>({ value: 'BOOK_WAIT_DELIVER' })
+const comparisonLabel = ref<string>('账面库存-待发货')
+
+const COMPARISON_LABELS: Record<string, string> = {
+  BOOK_QTY: '账面库存',
+  BOOK_WAIT_DELIVER: '账面库存-待发货',
+  BOOK_WAIT_DELIVER_PURCHASE: '账面库存-待发货-待收货',
+}
+
+async function loadComparison() {
+  try {
+    const res: any = await request.get('/erp/stock-alert-config/comparison')
+    const data = res?.data || res
+    if (data?.value) comparisonForm.value = data.value
+    comparisonLabel.value = data?.label || COMPARISON_LABELS[comparisonForm.value] || comparisonForm.value
+  } catch (e) {
+    console.warn('[预警设置] 比较口径加载失败', e)
+  }
+}
+
+function openComparisonModal() {
+  comparisonModalVisible.value = true
+}
+
+async function handleComparisonSave() {
+  saving.value = true
+  try {
+    await request.post('/erp/stock-alert-config/comparison', { value: comparisonForm.value })
+    comparisonLabel.value = COMPARISON_LABELS[comparisonForm.value] || comparisonForm.value
+    comparisonModalVisible.value = false
+    message.success('比较口径已保存')
+  } catch (e: any) {
+    console.warn('[预警设置] 比较口径保存失败', e)
+    message.error(e?.message || '保存失败')
+  } finally {
+    saving.value = false
+  }
+}
+
+// ── 快捷键 ──
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'F5') {
+    e.preventDefault()
+    handleRefresh()
+  } else if (e.key === 'F8') {
+    e.preventDefault()
+    handlePrintF8()
+  }
 }
 
 onMounted(() => {
   window.addEventListener('keydown', handleKeydown)
-  loadWarehouses(); fetchData()
-  autoRefreshCountdown.value = 30
-  refreshTimer = setInterval(() => { fetchData(); autoRefreshCountdown.value = 30 }, 30000)
-  countdownTimer = setInterval(() => { if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value-- }, 1000)
+  loadCategoryTree()
+  loadWarehouses()
+  loadBrands()
+  loadComparison()
+  fetchData()
 })
+
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown)
-  if (refreshTimer) clearInterval(refreshTimer)
-  if (countdownTimer) clearInterval(countdownTimer)
 })
-defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>
-.alert-config-header { display: flex; justify-content: space-between; align-items: center; width: 100%; }
-.alert-config-header__left { display: flex; flex-direction: column; gap: 2px; }
-.alert-config-header__breadcrumb { font-size: 12px; color: #999; }
-.alert-config-header__title { font-size: 18px; font-weight: 600; color: #303133; margin: 0; }
-.alert-config-header__right { display: flex; align-items: center; gap: 12px; }
-.auto-refresh-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: #52c41a; white-space: nowrap; }
-.data-status { display: inline-flex; align-items: center; gap: 6px; }
-.update-time { font-size: 12px; color: #999; white-space: nowrap; }
-
-.summary-card { display: flex; align-items: center; padding: 16px; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); transition: all 0.3s; }
-.summary-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.12); transform: translateY(-2px); }
-.summary-card.highlight { background: linear-gradient(135deg, #fff2f0 0%, #fff1f0 100%); border: 1px solid #ffa39e; }
-.summary-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 24px; margin-right: 16px; }
-.summary-content { flex: 1; }
-.summary-title { font-size: 14px; color: #666; margin-bottom: 4px; }
-.summary-value { font-size: 24px; font-weight: 600; color: #303133; font-family: 'SFMono-Regular', Consolas, monospace; font-variant-numeric: tabular-nums; }
-.summary-value.warning { color: #f5222d; }
-.table-empty { display: flex; flex-direction: column; align-items: center; padding: 48px 0; }
-.table-empty-icon { font-size: 48px; color: #d9d9d9; margin-bottom: 12px; }
-.table-empty-text { color: #999; margin-bottom: 16px; }
-
-:deep(.vxe-table-list-container) { flex: 1; min-height: 0; }
-:deep(.ant-input-sm), :deep(.ant-input-number-sm), :deep(.ant-select-single.ant-select-sm .ant-select-selector), :deep(.ant-picker-small), :deep(.ant-btn-sm) { height: 28px; line-height: 28px; }
-:deep(.ant-select-single.ant-select-sm .ant-select-selector) { line-height: 26px; }
-:deep(.ant-input-number-sm input) { height: 26px; }
-
-/* ── 快捷键提示 ──────────────────────── */
-.shortcut-hints {
-  display: inline-flex;
+.comparison-banner {
+  display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: #909399;
-  user-select: none;
+  gap: 6px;
+  padding: 8px 16px;
+  background: linear-gradient(90deg, #fff7e6 0%, #fffbe6 100%);
+  border: 1px solid #ffe58f;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #613400;
 }
-.shortcut-hint {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  padding: 1px 4px;
-  border-radius: 3px;
-  background: #f5f7fa;
+.comparison-banner:hover {
+  background: #fff1cc;
 }
-.shortcut-hint kbd {
-  display: inline-flex;
+.comparison-icon { color: #faad14; }
+.comparison-value { color: #d48806; }
+.comparison-set { color: #1677ff; text-decoration: underline; margin-left: 4px; }
+
+.search-area {
+  display: flex;
   align-items: center;
-  justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 3px;
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-  font-size: 11px;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.search-field-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.search-label {
+  font-size: 13px;
   color: #606266;
-  background: #fff;
-  border: 1px solid #d0d5dd;
-  border-radius: 3px;
-  box-shadow: 0 1px 0 #d0d5dd;
-  line-height: 18px;
+  white-space: nowrap;
+}
+.btn-search { margin-left: 8px; }
+
+.toolbar-total { font-size: 13px; color: #606266; }
+.toolbar-total b { color: #1890ff; }
+
+.table-area {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
 }
 
+.save-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 8px 16px;
+  background: #e6f7ff;
+  border-top: 1px solid #91d5ff;
+}
+.save-bar-text { font-size: 13px; color: #1890ff; font-weight: 500; }
+
+.modal-tip {
+  font-size: 13px;
+  color: #909399;
+  margin-bottom: 16px;
+}
+
+:deep(.ant-input-number-sm) { height: 28px; line-height: 28px; }
+:deep(.ant-input-number-sm input) { height: 26px; }
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) { height: 28px; line-height: 26px; }
 </style>
