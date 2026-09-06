@@ -442,7 +442,7 @@ const props = withDefaults(defineProps<{
   summaryColumns?: { key: string; value: number; highlight?: boolean }[]
   /** 是否加载中 */
   loading?: boolean
-  /** 最小显示行数（不足时用空行填充） */
+  /** 最小显示行数（不足时用空行填充；默认 20，业务页确需改变才传入并在传参处注释原因） */
   minRows?: number
   /** 列配置存储键名（不同表格使用不同键，避免冲突） */
   storageKey?: string
@@ -467,6 +467,7 @@ const props = withDefaults(defineProps<{
   maxHeight: 0,
   summaryColumns: () => [],
   loading: false,
+  // 默认 20 行（金标准）：与「空数据时显示空提示（dataSource 为空且未传 minRows）」配合；业务页确需改变才在页面传 :min-rows 并注释原因
   minRows: 20,
   storageKey: 'product-unit-columns-config',
   fillMode: false,

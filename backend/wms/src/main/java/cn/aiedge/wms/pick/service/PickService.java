@@ -3,6 +3,8 @@ package cn.aiedge.wms.pick.service;
 import cn.aiedge.wms.entity.WmsPickWave;
 import cn.aiedge.wms.entity.WmsPickTask;
 import cn.aiedge.wms.entity.WmsPickDetail;
+import cn.aiedge.wms.pick.dto.PickTaskQuery;
+import cn.aiedge.wms.pick.dto.PickTaskDetailVO;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 
 import java.math.BigDecimal;
@@ -35,4 +37,10 @@ public interface PickService {
     void confirmPickItem(Long detailId, BigDecimal pickedQuantity);
     void markShortage(Long detailId, BigDecimal shortageQuantity);
     void completePick(Long taskId);
+    void cancelTask(Long taskId, String reason);
+
+    // 金标准查询/编号
+    String generateNo();
+    Page<WmsPickTask> pageOrderByQuery(PickTaskQuery query);
+    Page<PickTaskDetailVO> pageDetail(PickTaskQuery query);
 }

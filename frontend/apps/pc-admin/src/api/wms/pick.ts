@@ -114,4 +114,12 @@ export const pickApi = {
   taskCancel(taskId: number, reason?: string) {
     return request.post('/wms/pick/task/cancel', null, { params: { taskId, reason } })
   },
+
+  // ── 金标准查询 / 编号 ──
+  /** 生成下一拣货单号：GET /wms/pick/next-no */
+  nextNo() { return request.get('/wms/pick/next-no') },
+  /** 多条件分页查询拣货单(按单据)：GET /wms/pick/doc-query */
+  docQuery(params: any) { return request.get('/wms/pick/doc-query', { params }) },
+  /** 分页查询拣货明细(按明细)：GET /wms/pick/page-detail */
+  pageDetail(params: any) { return request.get('/wms/pick/page-detail', { params }) },
 }

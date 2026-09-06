@@ -40,6 +40,7 @@
                 <a-button type="link" size="small" @click="goDetail(record)">查看</a-button>
                 <a-button v-if="record.status === 0" type="link" size="small" @click="goEdit(record)">编辑</a-button>
                 <a-button v-if="record.status === 0" type="link" size="small" @click="handleSubmit(record)">提交</a-button>
+                <a-button type="link" size="small" @click="goQuality(record)">生成质检单</a-button>
               </a-space>
             </template>
             <template #inboundNoCell="{ record }">
@@ -106,6 +107,17 @@ import type {
 
 defineOptions({ name: 'PurchaseInboundList' })
 const router = useRouter()
+
+function goQuality(record: any) {
+  router.push({
+    path: '/quality/inspection/form',
+    query: {
+      bizType: 'PURCHASE_ORDER',
+      bizId: record.orderId || record.id,
+      bizNo: record.orderNo || record.inboundNo,
+    },
+  })
+}
 
 // ═══ Tab 状态（单一页面） ═══
 const mainTab = ref('all')

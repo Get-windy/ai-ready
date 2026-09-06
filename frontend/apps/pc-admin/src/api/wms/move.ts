@@ -19,6 +19,8 @@ export interface WmsMoveTask {
   movedQuantity: number
   status: number
   moveType: number
+  sourceType: number
+  sourceNo: string
   assigneeId: number
   assigneeName: string
   remark: string
@@ -52,6 +54,12 @@ export const moveApi = {
   update(data: Partial<WmsMoveTask>) { return request.post('/wms/move/update', data) },
   getById(id: number) { return request.get(`/wms/move/${id}`) },
   page(params: any) { return request.get('/wms/move/page', { params }) },
+  /** 按明细分页（明细行 + 单头字段）：GET /wms/move/page-detail */
+  pageDetail(params: any) { return request.get('/wms/move/page-detail', { params }) },
+  /** 生成移库单号：GET /wms/move/next-no */
+  nextNo() { return request.get('/wms/move/next-no') },
+  /** 批量删除：DELETE /wms/move/batch，body {ids} */
+  batchRemove(ids: number[]) { return request.delete('/wms/move/batch', { data: ids }) },
   remove(id: number) { return request.delete(`/wms/move/${id}`) },
   /** 开始移库：POST /wms/move/start?taskId&userId&userName */
   startMove(taskId: number, userId?: number, userName?: string) {

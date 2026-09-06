@@ -28,7 +28,7 @@ public interface QualityStandardService {
     /**
      * 分页查询质检标准
      */
-    PageResult<QualityStandard> page(Integer pageNum, Integer pageSize, String inspectionType, Integer status);
+    PageResult<QualityStandard> page(Integer pageNum, Integer pageSize, String standardCode, String standardName, String inspectionType, Integer status);
 
     /**
      * 查询质检标准详情
@@ -39,4 +39,9 @@ public interface QualityStandardService {
      * 根据检验类型查询标准列表
      */
     List<QualityStandard> listByType(String inspectionType);
+
+    /**
+     * 生成标准编码（QSTD-yyyyMMdd-UUID6）
+     */
+    String generateNo();
 }

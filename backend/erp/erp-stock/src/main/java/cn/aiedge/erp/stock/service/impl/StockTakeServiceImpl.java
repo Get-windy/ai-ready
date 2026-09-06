@@ -12,12 +12,14 @@ import cn.aiedge.erp.stock.service.StockDamageService;
 import cn.aiedge.erp.stock.service.StockOverflowService;
 import cn.aiedge.erp.stock.service.StockService;
 import cn.aiedge.erp.stock.service.StockTakeService;
+import cn.aiedge.erp.stock.event.StocktakeMoveEvent;
 import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -39,6 +41,7 @@ public class StockTakeServiceImpl extends ServiceImpl<StockTakeMapper, StockTake
     private final StockDamageService damageService;
     private final StockService stockService;
     private final cn.aiedge.erp.stock.mapper.ProductMapper productMapper;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     private static final String BIZ_TYPE = "PDD";
 
@@ -247,8 +250,20 @@ public class StockTakeServiceImpl extends ServiceImpl<StockTakeMapper, StockTake
         if (items.isEmpty()) throw BusinessException.badRequest("盘点单没有明细，无法盘点处理");
 
         List<String> created = new ArrayList<>();
-        List<StockTakeItem> positive = items.stream().filter(i -> i.getDiffQuantity() != null && i.getDiffQuantity().compareTo(BigDecimal.ZERO) > 0).collect(Collectors.toList());
-        List<StockTakeItem> negative = items.stream().filter(i -> i.getDiffQuantity() != null && i.getDiffQuantity().compareTo(BigDecimal.ZERO) < 0).collect(Collectors.toList());
+        List<StockTakeItem> transfer = items.stream().filter(i -> StringUtils.hasText(i.getToLocationCode())).collect(Collectors.toList());
+        List<StockTakeItem> positive = items.stream().filter(i -> !StringUtils.hasText(i.getToLocationCode()) && i.getDiffQuantity() != null && i.getDiffQuantity().compareTo(BigDecimal.ZERO) > 0).collect(Collectors.toList());
+        List<StockTakeItem> negative = items.stream().filter(i -> !StringUtils.hasText(i.getToLocationCode()) && i.getDiffQuantity() != null && i.getDiffQuantity().compareTo(BigDecimal.ZERO) < 0).collect(Collectors.toList());
+
+        // 货位转移差异 -> 发布事件，由 wms 监听生成移库单（sourceType=盘点差异，sourceNo=盘点单号）
+        if (!transfer.isEmpty()) {
+            StocktakeMoveEvent evt = new StocktakeMoveEvent();
+            evt.setSourceNo(d.getStockTakeNo());
+            evt.setWarehouseId(d.getWarehouseId());
+            evt.setWarehouseName(d.getWarehouseName());
+            evt.setItems(transfer.stream().map(this::toTransferItem).collect(Collectors.toList()));
+            applicationEventPublisher.publishEvent(evt);
+            created.add("移库单(货位转移)");
+        }
 
         // 盘盈 -> 报溢单
         if (!positive.isEmpty()) {
@@ -289,8 +304,9 @@ public class StockTakeServiceImpl extends ServiceImpl<StockTakeMapper, StockTake
             created.add("报损单" + saved.getDamageNo());
         }
 
-        // 回写库存：按实盘数调整
+        // 回写库存：按实盘数调整（货位转移明细数量不变，由 wms 移库处理，跳过）
         for (StockTakeItem item : items) {
+            if (StringUtils.hasText(item.getToLocationCode())) continue;
             if (item.getProductId() != null && item.getCheckQuantity() != null && d.getWarehouseId() != null) {
                 stockService.checkStock(item.getProductId(), d.getWarehouseId(), item.getCheckQuantity());
             }
@@ -306,6 +322,21 @@ public class StockTakeServiceImpl extends ServiceImpl<StockTakeMapper, StockTake
         d.setUpdateBy(StpUtil.getLoginIdAsLong());
         this.updateById(d);
         return d;
+    }
+
+    private StocktakeMoveEvent.TransferItem toTransferItem(StockTakeItem i) {
+        StocktakeMoveEvent.TransferItem t = new StocktakeMoveEvent.TransferItem();
+        t.setProductId(i.getProductId());
+        t.setProductCode(i.getProductCode());
+        t.setProductName(i.getProductName());
+        t.setProductSpec(i.getProductSpec());
+        t.setProductUnit(i.getProductUnit());
+        t.setQuantity(i.getStockQuantity() != null ? i.getStockQuantity() : i.getCheckQuantity());
+        t.setFromLocationCode(i.getLocation());
+        t.setToLocationId(i.getToLocationId());
+        t.setToLocationCode(i.getToLocationCode());
+        t.setBatchNo(i.getBatchCode());
+        return t;
     }
 
     private StockOverflowItem toOverflowItem(StockTakeItem i) {

@@ -5,10 +5,10 @@
   <parent>
     <groupId>cn.aiedge.erp</groupId>
     <artifactId>erp</artifactId>
-    <version>0.3.13</version>
+    <version>0.3.16</version>
   </parent>
   <artifactId>erp-fixed-asset</artifactId>
-  <version>0.3.13</version>
+  <version>0.3.16</version>
   <name>ERP Fixed Asset Module</name>
   <description>固定资产管理系统，支持资产登记、折旧、转移、处置、盘点等全流程管理</description>
   <licenses>

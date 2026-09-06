@@ -5,10 +5,10 @@
   <parent>
     <groupId>cn.aiedge.erp</groupId>
     <artifactId>erp</artifactId>
-    <version>0.3.13</version>
+    <version>0.3.16</version>
   </parent>
   <artifactId>erp-purchase</artifactId>
-  <version>0.3.13</version>
+  <version>0.3.16</version>
   <name>采购管理模块</name>
   <description>供应商管理、采购订单、采购入库、采购退货等功能</description>
   <licenses>

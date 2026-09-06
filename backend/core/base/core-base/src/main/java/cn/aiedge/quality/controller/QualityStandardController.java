@@ -46,15 +46,23 @@ public class QualityStandardController {
     public Result<PageResult<QualityStandard>> page(
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") Integer pageNum,
             @Parameter(description = "每页数量") @RequestParam(defaultValue = "10") Integer pageSize,
+            @Parameter(description = "标准编码") @RequestParam(required = false) String standardCode,
+            @Parameter(description = "标准名称") @RequestParam(required = false) String standardName,
             @Parameter(description = "检验类型") @RequestParam(required = false) String inspectionType,
             @Parameter(description = "状态") @RequestParam(required = false) Integer status) {
-        return Result.success(service.page(pageNum, pageSize, inspectionType, status));
+        return Result.success(service.page(pageNum, pageSize, standardCode, standardName, inspectionType, status));
     }
 
     @Operation(summary = "查询质检标准详情")
     @GetMapping("/{id}")
     public Result<QualityStandard> get(@PathVariable Long id) {
         return Result.success(service.get(id));
+    }
+
+    @Operation(summary = "生成质检标准编码")
+    @GetMapping("/next-no")
+    public Result<String> nextNo() {
+        return Result.success(service.generateNo());
     }
 
     @Operation(summary = "根据检验类型查询标准列表")

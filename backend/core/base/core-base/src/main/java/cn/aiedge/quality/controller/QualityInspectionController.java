@@ -2,6 +2,7 @@ package cn.aiedge.quality.controller;
 
 import cn.aiedge.common.result.PageResult;
 import cn.aiedge.base.vo.Result;
+import cn.aiedge.quality.dto.QualityInspectionQuery;
 import cn.aiedge.quality.entity.QualityInspection;
 import cn.aiedge.quality.service.QualityInspectionService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -30,6 +31,12 @@ public class QualityInspectionController {
         return Result.success(service.create(inspection));
     }
 
+    @Operation(summary = "更新检验记录")
+    @PutMapping("/{id}")
+    public Result<QualityInspection> update(@PathVariable Long id, @RequestBody QualityInspection inspection) {
+        return Result.success(service.updateInspection(id, inspection));
+    }
+
     @Operation(summary = "完成检验")
     @PostMapping("/{id}/complete")
     public Result<Void> complete(
@@ -38,18 +45,41 @@ public class QualityInspectionController {
         String result = (String) params.get("result");
         BigDecimal passQuantity = new BigDecimal(params.get("passQuantity").toString());
         BigDecimal failQuantity = new BigDecimal(params.get("failQuantity").toString());
-        service.complete(id, result, passQuantity, failQuantity);
+        String remark = (String) params.get("remark");
+        service.complete(id, result, passQuantity, failQuantity, remark);
         return Result.success();
     }
 
     @Operation(summary = "分页查询检验记录")
     @GetMapping("/page")
-    public Result<PageResult<QualityInspection>> page(
-            @Parameter(description = "页码") @RequestParam(defaultValue = "1") Integer pageNum,
-            @Parameter(description = "每页数量") @RequestParam(defaultValue = "10") Integer pageSize,
-            @Parameter(description = "业务类型") @RequestParam(required = false) String bizType,
-            @Parameter(description = "检验结果") @RequestParam(required = false) String result) {
-        return Result.success(service.page(pageNum, pageSize, bizType, result));
+    public Result<PageResult<QualityInspection>> page(@ModelAttribute QualityInspectionQuery query) {
+        return Result.success(service.page(query));
+    }
+
+    @Operation(summary = "生成质检单号")
+    @GetMapping("/next-no")
+    public Result<String> nextNo() {
+        return Result.success(service.generateNo());
+    }
+
+    @Operation(summary = "作废质检单")
+    @PostMapping("/{id}/cancel")
+    public Result<QualityInspection> cancel(@PathVariable Long id) {
+        return Result.success(service.cancel(id));
+    }
+
+    @Operation(summary = "删除质检单")
+    @DeleteMapping("/{id}")
+    public Result<Void> delete(@PathVariable Long id) {
+        service.deleteInspection(id);
+        return Result.success();
+    }
+
+    @Operation(summary = "批量删除质检单")
+    @DeleteMapping("/batch")
+    public Result<Void> batchDelete(@RequestBody List<Long> ids) {
+        service.batchDeleteInspection(ids);
+        return Result.success();
     }
 
     @Operation(summary = "查询检验记录详情")

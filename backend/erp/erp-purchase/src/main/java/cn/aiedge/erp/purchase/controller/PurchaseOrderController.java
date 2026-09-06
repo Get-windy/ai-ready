@@ -14,6 +14,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -34,6 +36,39 @@ public class PurchaseOrderController {
 
     private final PurchaseOrderService purchaseOrderService;
     private final PurchaseOrderItemMapper purchaseOrderItemMapper;
+
+    /**
+     * WMS→ERP：收货确认后回写采购订单明细已收数量（累加增量）。
+     * 裁决：WMS 不直接依赖 erp-purchase，只 HTTP 调用本接口。
+     */
+    @Operation(summary = "收货回写：累加采购订单明细已收数量")
+    @PostMapping("/received")
+    public ApiResponse<Boolean> receiveBackfill(@RequestBody Map<String, Object> body) {
+        Object poIdObj = body.get("purchaseOrderId");
+        Object itemsObj = body.get("items");
+        if (!(poIdObj instanceof Number) || !(itemsObj instanceof List)) {
+            return ApiResponse.ok("purchaseOrderId 与 items 不能为空", false);
+        }
+        Long purchaseOrderId = ((Number) poIdObj).longValue();
+        List<?> items = (List<?>) itemsObj;
+        for (Object itemObj : items) {
+            if (!(itemObj instanceof Map)) continue;
+            Map<?, ?> it = (Map<?, ?>) itemObj;
+            Object pid = it.get("productId");
+            Object qv = it.get("receivedQuantity");
+            if (!(pid instanceof Number) || qv == null) continue;
+            Long productId = ((Number) pid).longValue();
+            BigDecimal qty = new BigDecimal(String.valueOf(qv));
+            LambdaQueryWrapper<PurchaseOrderItem> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(PurchaseOrderItem::getOrderId, purchaseOrderId)
+                    .eq(PurchaseOrderItem::getProductId, productId);
+            List<PurchaseOrderItem> matched = purchaseOrderItemMapper.selectList(wrapper);
+            for (PurchaseOrderItem poItem : matched) {
+                purchaseOrderItemMapper.addReceivedQuantity(poItem.getId(), qty);
+            }
+        }
+        return ApiResponse.ok("收货回写成功", true);
+    }
 
     /**
      * 创建采购订单（含子表）

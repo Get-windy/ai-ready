@@ -1,350 +1,634 @@
 <template>
-  <PageContainer>
-    <!-- ═══ 顶栏：标题 + 方向 Tab + 日期快捷 + 操作 ═══ -->
-    <div class="query-header">
-      <div class="query-header__left">
-        <span class="query-header__breadcrumb">仓储 / 借进借出 / 借进借出查询</span>
-        <h2 class="query-header__title">借进借出查询</h2>
-      </div>
-      <div class="query-header__right">
-        <a-tabs
-          v-model:active-key="activeTab"
-          size="small"
-          @change="handleTabChange"
-        >
-          <a-tab-pane
-            key="in"
-            tab="借进商品查询"
-          />
-          <a-tab-pane
-            key="out"
-            tab="借出商品查询"
-          />
-        </a-tabs>
-        <div class="date-shortcuts">
-          <a
-            v-for="s in dateShortcuts"
-            :key="s.key"
-            class="date-shortcut"
-            :class="{ active: activeShortcut === s.key }"
-            @click="pickShortcut(s.key)"
-          >
-            {{ s.label }}
-          </a>
-        </div>
-        <a-space :size="8">
-          <a-button
-            size="small"
-            :loading="loading"
-            @click="loadData"
-          >
-            <template #icon><ReloadOutlined /></template>
-            刷新
-          </a-button>
-          <a-button
-            size="small"
-            @click="handleExport"
-          >
-            <template #icon><DownloadOutlined /></template>
-            导出
-          </a-button>
-        </a-space>
-      </div>
-    </div>
-
-    <!-- ═══ 查询区 ═══ -->
-    <div class="query-bar">
-      <a-form layout="inline">
-        <a-form-item label="商品">
-          <a-input
-            v-model:value="queryValues.keyword"
-            placeholder="商品名称/货号"
-            style="width: 180px"
-            allow-clear
-            @press-enter="loadData"
-          />
-        </a-form-item>
-        <a-form-item label="往来单位">
-          <a-input
-            v-model:value="queryValues.partnerName"
-            placeholder="往来单位"
-            style="width: 180px"
-            allow-clear
-            @press-enter="loadData"
-          />
-        </a-form-item>
-        <a-form-item>
-          <a-button
-            type="primary"
-            size="small"
-            @click="loadData"
-          >
-            查询
-          </a-button>
-        </a-form-item>
-      </a-form>
-    </div>
-
-    <!-- ═══ 统计卡 ═══ -->
-    <div class="stat-row">
-      <div class="stat-card">
-        <div class="stat-label">{{ activeTab === 'in' ? '借进未还库存' : '借出未还数量' }}</div>
-        <div class="stat-value">{{ formatQty(totals.stock) }}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">{{ activeTab === 'in' ? '借进金额' : '借出金额' }}</div>
-        <div class="stat-value">¥{{ totals.amount.toFixed(2) }}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">已还数量</div>
-        <div class="stat-value">{{ formatQty(totals.returnedQty) }}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">已还金额</div>
-        <div class="stat-value">¥{{ totals.returnedAmount.toFixed(2) }}</div>
-      </div>
-    </div>
-
-    <!-- ═══ 商品×往来单位 聚合台账 ═══ -->
-    <div class="table-card">
-      <a-table
-        :columns="columns"
-        :data-source="rows"
-        :loading="loading"
-        :pagination="false"
-        row-key="rowKey"
-        size="small"
-        bordered
-        :scroll="{ x: 1500 }"
+  <ErrorBoundary @error="handleError">
+    <PageContainer full-height>
+      <CategoryListLayout
+        :tabs="tabs"
+        :active-tab="activeTab"
+        :show-category-panel="true"
+        category-title="商品分类"
+        :category-tree-data="categoryTreeData"
+        :category-loading="categoryLoading"
+        :category-error="categoryError"
+        :selected-category-id="selectedCategoryId"
+        :category-expanded-keys="expandedKeys"
+        :current-path="currentCategoryPath"
+        :show-table-footer="true"
+        @category-retry="fetchCategoryTree"
+        @category-select="onCategorySelect"
+        @tab-change="handleTabChange"
       >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.dataIndex === 'borrowStock'">
-            <a-tag :color="Number(record.borrowStock) > 0 ? (activeTab === 'in' ? 'orange' : 'blue') : 'default'">
-              {{ formatQty(record.borrowStock) }}
-            </a-tag>
-          </template>
-          <template v-else-if="['borrowQty', 'returnedQty'].includes(String(column.dataIndex))">
-            {{ formatQty(record[String(column.dataIndex)]) }}
-          </template>
-          <template v-else-if="['borrowAmount', 'returnedAmount'].includes(String(column.dataIndex))">
-            ¥{{ (Number(record[String(column.dataIndex)]) || 0).toFixed(2) }}
-          </template>
-          <template v-else-if="column.dataIndex === 'transferPurchaseQty'">
-            {{ formatQty(record.transferPurchaseQty) }}
-          </template>
-          <template v-else-if="column.dataIndex === 'transferPurchaseAmount'">
-            ¥{{ (Number(record.transferPurchaseAmount) || 0).toFixed(2) }}
-          </template>
+        <!-- ═══ 工具栏左侧：查询方案 + 快捷日期 ═══ -->
+        <template #toolbar-left>
+          <div class="query-scheme-wrap">
+            <a-select
+              v-model:value="queryScheme"
+              style="width: 140px"
+              size="small"
+              placeholder="--查询方案--"
+            >
+              <a-select-option value="">--查询方案--</a-select-option>
+            </a-select>
+            <a-button
+              type="link"
+              size="small"
+              style="padding: 0 4px"
+            >
+              <PlusOutlined />
+            </a-button>
+          </div>
+          <a-space :size="4" class="quick-dates">
+            <a-button
+              v-for="d in quickDates"
+              :key="d.key"
+              :type="quickDate === d.key ? 'primary' : 'link'"
+              size="small"
+              @click="setQuickDate(d.key)"
+            >
+              {{ d.label }}
+            </a-button>
+          </a-space>
         </template>
-      </a-table>
-      <div class="table-footer-note">
-        注：借转采购为对标系统独有功能（借进转采购入库），本系统暂未实现，相关列恒为 0。
-      </div>
-    </div>
-  </PageContainer>
+
+        <!-- ═══ 工具栏右侧：列配置 + 页面配置 + 刷新 + 打印(F8) + 导出 ═══ -->
+        <template #toolbar-right>
+          <a-space :size="8">
+            <a-tooltip title="列配置">
+              <a-button size="small" @click="showColumnConfig = true">
+                <TableOutlined />
+              </a-button>
+            </a-tooltip>
+            <a-tooltip title="页面配置">
+              <a-button size="small" @click="showPageConfig = true">
+                <SettingOutlined />
+              </a-button>
+            </a-tooltip>
+            <a-button size="small" @click="fetchData">
+              <ReloadOutlined /> 刷新
+            </a-button>
+            <a-button size="small" @click="handlePrintF8">
+              <PrinterOutlined /> 打印(F8)
+            </a-button>
+            <a-button size="small" @click="handleExport">
+              <ExportOutlined /> 导出
+            </a-button>
+          </a-space>
+        </template>
+
+        <!-- ═══ 查询区 ═══ -->
+        <template #search-fields>
+          <div class="search-area">
+            <div class="search-grid">
+              <div class="search-field-item">
+                <a-range-picker
+                  v-model:value="dateRange"
+                  size="small"
+                  style="width: 100%"
+                  @change="handleDateChange"
+                />
+              </div>
+              <div class="search-field-item">
+                <a-input
+                  v-model:value="searchParams.productName"
+                  placeholder="商品"
+                  size="small"
+                  allow-clear
+                  @press-enter="handleSearch"
+                />
+              </div>
+              <div class="search-field-item">
+                <a-input
+                  v-model:value="searchParams.partnerName"
+                  placeholder="往来单位"
+                  size="small"
+                  allow-clear
+                  @press-enter="handleSearch"
+                />
+              </div>
+              <div class="search-field-item">
+                <a-input
+                  v-model:value="searchParams.handlerName"
+                  placeholder="经手人"
+                  size="small"
+                  allow-clear
+                  @press-enter="handleSearch"
+                />
+              </div>
+              <div class="search-field-item">
+                <a-input
+                  v-model:value="searchParams.deptName"
+                  placeholder="部门"
+                  size="small"
+                  allow-clear
+                  @press-enter="handleSearch"
+                />
+              </div>
+              <div class="search-field-item">
+                <a-button
+                  type="primary"
+                  size="small"
+                  @click="handleSearch"
+                >查询</a-button>
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <!-- ═══ 表格区域 ═══ -->
+        <template #table>
+          <div class="table-area">
+            <BillTableList
+              :columns="currentColumns"
+              :data-source="tableData"
+              :loading="loading"
+              :pagination="billPagination"
+              :show-toolbar="false"
+              :show-search="false"
+              :show-add="false"
+              :show-export="false"
+              :show-batch-delete="false"
+              :selectable="false"
+              row-key="rowKey"
+              @page-change="handlePageChange"
+            >
+              <template #imageCell="{ record }">
+                <img
+                  v-if="record.imageUrl"
+                  :src="record.imageUrl"
+                  class="row-img"
+                  alt=""
+                />
+                <span v-else>—</span>
+              </template>
+              <template #productNameCell="{ record }">
+                <a-tooltip :title="record.productName">
+                  <span class="cell-link">{{ record.productName }}</span>
+                </a-tooltip>
+              </template>
+              <template #borrowStockQtyCell="{ record }">
+                <span class="num-value">{{ formatQty(record.borrowStockQty) }}</span>
+              </template>
+              <template #borrowStockAmountCell="{ record }">
+                <span class="num-value">{{ formatAmount(record.borrowStockAmount) }}</span>
+              </template>
+              <template #borrowQueryQtyCell="{ record }">
+                <span class="num-value">{{ formatQty(record.borrowQueryQty) }}</span>
+              </template>
+              <template #borrowQueryAmountCell="{ record }">
+                <span class="num-value">{{ formatAmount(record.borrowQueryAmount) }}</span>
+              </template>
+              <template #returnQtyCell="{ record }">
+                <span class="num-value">{{ formatQty(record.returnQty) }}</span>
+              </template>
+              <template #returnAmountCell="{ record }">
+                <span class="num-value">{{ formatAmount(record.returnAmount) }}</span>
+              </template>
+              <template #convertQtyCell="{ record }">
+                <span class="num-value">{{ formatQty(record.convertQty) }}</span>
+              </template>
+              <template #convertAmountCell="{ record }">
+                <span class="num-value">{{ formatAmount(record.convertAmount) }}</span>
+              </template>
+            </BillTableList>
+          </div>
+        </template>
+      </CategoryListLayout>
+    </PageContainer>
+
+    <!-- ═══ 数据表列配置弹窗 ═══ -->
+    <ColumnConfigPanel
+      :open="showColumnConfig"
+      :settings-columns="panelColumns"
+      :is-locked-column="isLockedColumn"
+      @update:open="showColumnConfig = $event"
+      @change="handleColumnConfigChange"
+      @reset="handleColumnConfigReset"
+      @drag-end="handleColumnConfigChange"
+    />
+
+    <!-- ═══ 页面配置弹窗 ═══ -->
+    <PageConfigPanel
+      :open="showPageConfig"
+      :query-fields-config="activeQueryFields"
+      :function-buttons-config="functionButtonConfig"
+      :storage-key="pageConfigStorageKey"
+      @update:open="showPageConfig = $event"
+      @change="handlePageConfigChange"
+    />
+  </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { ReloadOutlined, DownloadOutlined } from '@ant-design/icons-vue'
-import PageContainer from '@/components/PageContainer/PageContainer.vue'
-import request from '@/utils/request'
-import { formatQty } from '../whTask'
+import { ref, reactive, computed, onMounted } from 'vue'
+import { message } from 'ant-design-vue'
+import type { Dayjs } from 'dayjs'
 import dayjs from 'dayjs'
+import {
+  PlusOutlined, SettingOutlined, TableOutlined, ReloadOutlined, PrinterOutlined, ExportOutlined,
+} from '@ant-design/icons-vue'
+import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayout.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
+import ColumnConfigPanel from '@/components/ColumnConfigPanel/index.vue'
+import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
+import { useColumnConfig, isLockedColumn } from '@/composables/useColumnConfig'
+import { productCategoryApi } from '@/api/erp/product'
+import { borrowApi } from '@/api/wms/borrow'
 
 defineOptions({ name: 'WhBorrowQuery' })
 
-// ═══ 方向 Tab ═══
+// ═══ 方向 Tab（借进商品查询 / 借出商品查询） ═══
+const tabs = [
+  { key: 'in', label: '借进商品查询' },
+  { key: 'out', label: '借出商品查询' },
+]
 const activeTab = ref<'in' | 'out'>('in')
 
-// ═══ 日期快捷 ═══
-const dateShortcuts = [
+// ═══ 快捷日期 ═══
+const quickDates = [
   { key: 'yesterday', label: '昨日' },
   { key: 'today', label: '今日' },
-  { key: 'thisWeek', label: '本周' },
-  { key: 'thisWeek2', label: '近一周' },
-  { key: 'thisMonth', label: '本月' },
+  { key: 'week', label: '本周' },
+  { key: 'lastWeek', label: '近一周' },
+  { key: 'month', label: '本月' },
   { key: 'lastMonth', label: '上月' },
   { key: 'last3Month', label: '近三月' },
-  { key: 'thisYear', label: '本年' },
+  { key: 'year', label: '本年' },
 ]
-const activeShortcut = ref('thisWeek2')
-const dateRange = ref<[dayjs.Dayjs, dayjs.Dayjs]>([dayjs().subtract(6, 'day'), dayjs()])
+const quickDate = ref('week')
+const queryScheme = ref('')
 
-function calcRange(key: string): [dayjs.Dayjs, dayjs.Dayjs] {
-  const now = dayjs()
-  switch (key) {
-    case 'yesterday': {
-      const y = now.subtract(1, 'day')
-      return [y, y]
+// ═══ 状态 ═══
+const loading = ref(false)
+const allRows = ref<any[]>([])
+
+// ═══ 日期范围 ═══
+const dateRange = ref<[Dayjs, Dayjs] | null>([dayjs().subtract(7, 'day'), dayjs()])
+
+// ═══ 搜索参数 ═══
+const searchParams = reactive({
+  productName: '',
+  partnerName: '',
+  handlerName: '',
+  deptName: '',
+  dateStart: dayjs().subtract(7, 'day').format('YYYY-MM-DD'),
+  dateEnd: dayjs().format('YYYY-MM-DD'),
+})
+
+// ═══ 分页（前端内存分页聚合结果） ═══
+const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
+const billPagination = computed(() => ({ current: pagination.current, pageSize: pagination.pageSize, total: pagination.total }))
+const tableData = computed(() =>
+  allRows.value.slice((pagination.current - 1) * pagination.pageSize, pagination.current * pagination.pageSize)
+)
+
+// ═══ 列配置 / 页面配置弹窗 ═══
+const showColumnConfig = ref(false)
+const showPageConfig = ref(false)
+
+// ═══ 列定义（对标文档30列 + 序号） ═══
+interface ColumnDef {
+  title: string
+  key: string
+  field?: string
+  type?: string
+  slotName?: string
+  width?: number
+  fixed?: string
+  align?: string
+  defaultHidden?: boolean
+  sortable?: boolean
+}
+
+function makeColumns(isIn: boolean): ColumnDef[] {
+  const st = isIn ? '借进' : '借出'                       // 库存前缀：借进库存 / 借出库存
+  const q = isIn ? '借进查询借进' : '借出查询借出'          // 借进/借出数量·金额
+  const r = isIn ? '借进查询还出' : '借出查询还回'          // 还出/还回数量·金额
+  const cv = isIn ? '借进查询借转采购' : '借出查询借转销售'  // 借转采购/借转销售数量·金额
+  return [
+    { title: '', key: 'rowNo', type: 'rowNo', width: 44, fixed: 'left' },
+    { title: '图片', key: 'imageUrl', field: 'imageUrl', width: 70, type: 'slot', slotName: 'imageCell' },
+    { title: '商品名称', key: 'productName', field: 'productName', width: 190, type: 'slot', slotName: 'productNameCell' },
+    { title: '货号', key: 'productCode', field: 'productCode', width: 110 },
+    { title: '规格', key: 'productSpec', field: 'productSpec', width: 100 },
+    { title: '型号', key: 'model', field: 'model', width: 90 },
+    { title: '产地', key: 'origin', field: 'origin', width: 90 },
+    { title: '品牌', key: 'brand', field: 'brand', width: 90 },
+    { title: '条码', key: 'barcode', field: 'barcode', width: 120 },
+    { title: '往来单位编号', key: 'partnerCode', field: 'partnerCode', width: 120 },
+    { title: '往来单位', key: 'partnerName', field: 'partnerName', width: 180 },
+    { title: '客户级别', key: 'customerLevel', field: 'customerLevel', width: 100 },
+    { title: '联系人', key: 'contact', field: 'contact', width: 100 },
+    { title: '地址', key: 'address', field: 'address', width: 150 },
+    { title: '默认经手人', key: 'defaultHandler', field: 'defaultHandler', width: 100 },
+    { title: '客户一票通', key: 'oneBill', field: 'oneBill', width: 100 },
+    { title: '客户备注', key: 'customerRemark', field: 'customerRemark', width: 130 },
+    { title: '小单位', key: 'smallUnit', field: 'smallUnit', width: 80 },
+    { title: '换算关系', key: 'conversionRelation', field: 'conversionRelation', width: 100 },
+    { title: '商品备注', key: 'productRemark', field: 'productRemark', width: 130 },
+    { title: '单位', key: 'unit', field: 'unit', width: 70 },
+    { title: `${st}库存数量`, key: 'borrowStockQty', field: 'borrowStockQty', width: 116, align: 'right', type: 'slot', slotName: 'borrowStockQtyCell' },
+    { title: `${st}库存换算结果`, key: 'borrowStockConversion', field: 'borrowStockConversion', width: 116, align: 'right' },
+    { title: `${st}库存浮动数量`, key: 'borrowStockFloat', field: 'borrowStockFloat', width: 116, align: 'right' },
+    { title: `${st}库存金额`, key: 'borrowStockAmount', field: 'borrowStockAmount', width: 126, align: 'right', type: 'slot', slotName: 'borrowStockAmountCell' },
+    { title: `${q}数量`, key: 'borrowQueryQty', field: 'borrowQueryQty', width: 126, align: 'right', type: 'slot', slotName: 'borrowQueryQtyCell' },
+    { title: `${q}金额`, key: 'borrowQueryAmount', field: 'borrowQueryAmount', width: 126, align: 'right', type: 'slot', slotName: 'borrowQueryAmountCell' },
+    { title: `${r}数量`, key: 'returnQty', field: 'returnQty', width: 126, align: 'right', type: 'slot', slotName: 'returnQtyCell' },
+    { title: `${r}金额`, key: 'returnAmount', field: 'returnAmount', width: 126, align: 'right', type: 'slot', slotName: 'returnAmountCell' },
+    { title: `${cv}数量`, key: 'convertQty', field: 'convertQty', width: 136, align: 'right', type: 'slot', slotName: 'convertQtyCell' },
+    { title: `${cv}金额`, key: 'convertAmount', field: 'convertAmount', width: 136, align: 'right', type: 'slot', slotName: 'convertAmountCell' },
+  ]
+}
+
+const inColumnDefs = makeColumns(true)
+const outColumnDefs = makeColumns(false)
+
+const {
+  visibleColumns: inVisibleColumns,
+  onSettingChange: onInSettingChange,
+  resetSettings: resetInSettings,
+  settingsColumns: inSettingsColumns,
+} = useColumnConfig(inColumnDefs, 'borrow-query-list-columns-in')
+const {
+  visibleColumns: outVisibleColumns,
+  onSettingChange: onOutSettingChange,
+  resetSettings: resetOutSettings,
+  settingsColumns: outSettingsColumns,
+} = useColumnConfig(outColumnDefs, 'borrow-query-list-columns-out')
+
+const currentColumns = computed(() =>
+  activeTab.value === 'in' ? inVisibleColumns.value : outVisibleColumns.value
+)
+const panelColumns = computed(() =>
+  activeTab.value === 'in' ? inSettingsColumns.value : outSettingsColumns.value
+)
+
+function handleColumnConfigChange() {
+  if (activeTab.value === 'in') onInSettingChange()
+  else onOutSettingChange()
+}
+function handleColumnConfigReset() {
+  if (activeTab.value === 'in') resetInSettings()
+  else resetOutSettings()
+}
+
+// ═══ 页面配置（查询条件显隐、功能按钮） ═══
+const PAGE_CONFIG_STORAGE_KEY = 'borrow-query-page-config'
+interface QueryFieldSetting { key: string; label: string; visible: boolean }
+interface FunctionButtonSetting { key: string; label: string; enabled: boolean }
+interface PageConfigData { queryFields: QueryFieldSetting[]; functionButtons: FunctionButtonSetting[] }
+
+const DEFAULT_QUERY_FIELDS: QueryFieldSetting[] = [
+  { key: 'date', label: '单据日期', visible: true },
+  { key: 'productName', label: '商品', visible: true },
+  { key: 'partnerName', label: '往来单位', visible: true },
+  { key: 'handlerName', label: '经手人', visible: true },
+  { key: 'deptName', label: '部门', visible: true },
+]
+const DEFAULT_FUNCTION_BUTTONS: FunctionButtonSetting[] = [
+  { key: 'config', label: '配置', enabled: true },
+  { key: 'refresh', label: '刷新', enabled: true },
+  { key: 'printF8', label: '打印(F8)', enabled: true },
+  { key: 'export', label: '导出', enabled: true },
+]
+
+const queryFieldConfig = ref<QueryFieldSetting[]>(DEFAULT_QUERY_FIELDS.map(f => ({ ...f })))
+const functionButtonConfig = ref<FunctionButtonSetting[]>(DEFAULT_FUNCTION_BUTTONS.map(f => ({ ...f })))
+const pageConfigStorageKey = computed(() => `page-config:${PAGE_CONFIG_STORAGE_KEY}`)
+const activeQueryFields = computed(() => queryFieldConfig.value)
+
+function loadPageConfig() {
+  try {
+    const raw = localStorage.getItem(PAGE_CONFIG_STORAGE_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw) as PageConfigData
+      if (parsed.queryFields) {
+        queryFieldConfig.value = DEFAULT_QUERY_FIELDS.map(df => {
+          const saved = parsed.queryFields!.find((f: QueryFieldSetting) => f.key === df.key)
+          return saved ? { ...df, ...saved } : { ...df }
+        })
+      }
+      if (parsed.functionButtons) {
+        functionButtonConfig.value = DEFAULT_FUNCTION_BUTTONS.map(bf => {
+          const saved = parsed.functionButtons!.find((f: FunctionButtonSetting) => f.key === bf.key)
+          return saved ? { ...bf, ...saved } : { ...bf }
+        })
+      }
     }
-    case 'today': return [now, now]
-    case 'thisWeek': return [now.startOf('week').add(1, 'day'), now]
-    case 'thisWeek2': return [now.subtract(6, 'day'), now]
-    case 'thisMonth': return [now.startOf('month'), now]
-    case 'lastMonth': {
-      const first = now.subtract(1, 'month').startOf('month')
-      return [first, first.endOf('month')]
-    }
-    case 'last3Month': return [now.subtract(2, 'month').startOf('month'), now]
-    case 'thisYear': return [now.startOf('year'), now]
-    default: return [now.subtract(6, 'day'), now]
+  } catch {
+    // ignore
   }
 }
 
-function pickShortcut(key: string) {
-  activeShortcut.value = key
-  dateRange.value = calcRange(key)
-  loadData()
+function handlePageConfigChange(config: any) {
+  localStorage.setItem(PAGE_CONFIG_STORAGE_KEY, JSON.stringify({
+    queryFields: config.queryFields || [],
+    functionButtons: config.functionButtons || functionButtonConfig.value,
+  }))
+  loadPageConfig()
 }
 
-// ═══ 查询条件 ═══
-const queryValues = ref({ keyword: '', partnerName: '' })
+// ═══ 商品分类树 ═══
+const categoryLoading = ref(false)
+const categoryError = ref(false)
+const categoryTree = ref<any[]>([])
+const selectedCategoryId = ref<string>('0')
+const expandedKeys = ref<string[]>([])
+const categoryTreeData = computed(() => categoryTree.value)
 
-// ═══ 数据状态 ═══
-const rows = ref<any[]>([])
-const loading = ref(false)
-const totals = ref({ stock: 0, amount: 0, returnedQty: 0, returnedAmount: 0 })
+const currentCategoryPath = computed(() => {
+  if (selectedCategoryId.value === '0' || !categoryTree.value.length) return '全部商品'
+  const path: string[] = []
+  function find(nodes: any[], target: string): boolean {
+    for (const node of nodes) {
+      path.push(node.categoryName)
+      if (String(node.id) === target) return true
+      if (node.children?.length && find(node.children, target)) return true
+      path.pop()
+    }
+    return false
+  }
+  find(categoryTree.value, selectedCategoryId.value)
+  return path.length ? path.join(' / ') : '全部商品'
+})
 
-// ═══ 表格列（对标：商品×往来单位 聚合台账） ═══
-const columns = computed(() => [
-  { title: '商品名称', dataIndex: 'productName', key: 'productName', width: 170, fixed: 'left' as const, ellipsis: true },
-  { title: '货号', dataIndex: 'productCode', key: 'productCode', width: 100 },
-  { title: '规格', dataIndex: 'productSpec', key: 'productSpec', width: 100 },
-  { title: '单位', dataIndex: 'unit', key: 'unit', width: 60 },
-  { title: '往来单位', dataIndex: 'partnerName', key: 'partnerName', width: 160, ellipsis: true },
-  { title: activeTab.value === 'in' ? '借进库存' : '借出未还', dataIndex: 'borrowStock', key: 'borrowStock', width: 100, align: 'right' as const },
-  { title: activeTab.value === 'in' ? '借进数量' : '借出数量', dataIndex: 'borrowQty', key: 'borrowQty', width: 100, align: 'right' as const },
-  { title: activeTab.value === 'in' ? '借进金额' : '借出金额', dataIndex: 'borrowAmount', key: 'borrowAmount', width: 110, align: 'right' as const },
-  { title: '还出数量', dataIndex: 'returnedQty', key: 'returnedQty', width: 90, align: 'right' as const },
-  { title: '还出金额', dataIndex: 'returnedAmount', key: 'returnedAmount', width: 100, align: 'right' as const },
-  { title: '借转采购数量', dataIndex: 'transferPurchaseQty', key: 'transferPurchaseQty', width: 110, align: 'right' as const },
-  { title: '借转采购金额', dataIndex: 'transferPurchaseAmount', key: 'transferPurchaseAmount', width: 110, align: 'right' as const },
-])
+async function fetchCategoryTree() {
+  categoryLoading.value = true
+  categoryError.value = false
+  try {
+    const data = await productCategoryApi.getTree()
+    categoryTree.value = Array.isArray(data) ? data : []
+    const firstLevel = categoryTree.value.map(n => String(n.id))
+    if (firstLevel.length > 0) expandedKeys.value = [...new Set([...firstLevel, ...expandedKeys.value])]
+  } catch (e) {
+    console.warn('[借进借出查询] 加载分类树失败', e)
+    categoryError.value = true
+  } finally {
+    categoryLoading.value = false
+  }
+}
+
+function onCategorySelect(keys: (string | number)[]) {
+  const key = keys[0]
+  selectedCategoryId.value = key != null ? String(key) : '0'
+  pagination.current = 1
+  fetchData()
+}
 
 // ═══ 数据加载 ═══
-async function loadData() {
+async function fetchData() {
   loading.value = true
   try {
-    const direction = activeTab.value === 'in' ? 1 : 2
-    const res: any = await request.get('/wms/borrow/aggregate', {
-      params: {
-        direction,
-        productName: queryValues.value.keyword || undefined,
-        partnerName: queryValues.value.partnerName || undefined,
-        dateStart: dateRange.value[0].format('YYYY-MM-DD'),
-        dateEnd: dateRange.value[1].format('YYYY-MM-DD'),
-      },
-    })
-    // request 拦截器已解包 data，res 为数组
-    const data: any[] = Array.isArray(res) ? res : (res?.data || [])
-    rows.value = data.map((r: any, i: number) => ({
-      ...r,
-      rowKey: `${r.productId}-${r.partnerId}-${i}`,
-      // 借转采购为我方未实现功能（对标独有），恒为 0
-      transferPurchaseQty: 0,
-      transferPurchaseAmount: 0,
-    }))
-    totals.value = {
-      stock: data.reduce((s: number, r: any) => s + (Number(r.borrowStock) || 0), 0),
-      amount: data.reduce((s: number, r: any) => s + (Number(r.borrowAmount) || 0), 0),
-      returnedQty: data.reduce((s: number, r: any) => s + (Number(r.returnedQty) || 0), 0),
-      returnedAmount: data.reduce((s: number, r: any) => s + (Number(r.returnedAmount) || 0), 0),
+    const params: any = {
+      direction: activeTab.value === 'in' ? 1 : 2,
+      dateStart: searchParams.dateStart || undefined,
+      dateEnd: searchParams.dateEnd || undefined,
     }
-  } catch {
-    rows.value = []
-    totals.value = { stock: 0, amount: 0, returnedQty: 0, returnedAmount: 0 }
+    if (searchParams.productName) params.productName = searchParams.productName
+    if (searchParams.partnerName) params.partnerName = searchParams.partnerName
+    if (searchParams.handlerName) params.handlerName = searchParams.handlerName
+    if (searchParams.deptName) params.deptName = searchParams.deptName
+    if (selectedCategoryId.value !== '0') params.categoryId = selectedCategoryId.value
+
+    const res: any = await borrowApi.aggregate(params)
+    // request 拦截器已解包 data，res 为数组
+    const data: any[] = Array.isArray(res) ? res : (res?.data || res?.records || [])
+    allRows.value = data.map((r: any, i: number) => ({
+      ...r,
+      rowKey: `${activeTab.value}-${r.productId}-${r.partnerId}-${i}`,
+    }))
+    pagination.total = data.length
+    pagination.current = 1
+  } catch (error: any) {
+    console.warn('[借进借出查询] 获取聚合数据失败', error)
+    message.error(error?.response?.data?.message || '获取数据失败')
+    allRows.value = []
+    pagination.total = 0
   } finally {
     loading.value = false
   }
 }
 
-function handleTabChange() {
-  queryValues.value = { keyword: '', partnerName: '' }
-  loadData()
+// ═══ 事件处理 ═══
+function handleTabChange(key: string) {
+  activeTab.value = key as 'in' | 'out'
+  pagination.current = 1
+  fetchData()
 }
 
-// ═══ 导出 CSV ═══
-function handleExport() {
-  const header = columns.value.map((c: any) => c.title).join(',')
-  const lines = rows.value.map((r: any) => [
-    r.productName || '',
-    r.productCode || '',
-    r.productSpec || '',
-    r.unit || '',
-    r.partnerName || '',
-    r.borrowStock ?? 0,
-    r.borrowQty ?? 0,
-    r.borrowAmount ?? 0,
-    r.returnedQty ?? 0,
-    r.returnedAmount ?? 0,
-    r.transferPurchaseQty ?? 0,
-    r.transferPurchaseAmount ?? 0,
-  ].join(','))
+function setQuickDate(key: string) {
+  quickDate.value = key
+  const now = dayjs()
+  let start: Dayjs, end: Dayjs
+  switch (key) {
+    case 'yesterday': start = now.subtract(1, 'day'); end = now.subtract(1, 'day'); break
+    case 'today': start = now; end = now; break
+    case 'week': start = now.startOf('week'); end = now; break
+    case 'lastWeek': start = now.subtract(7, 'day'); end = now; break
+    case 'month': start = now.startOf('month'); end = now; break
+    case 'lastMonth': start = now.subtract(1, 'month').startOf('month'); end = now.subtract(1, 'month').endOf('month'); break
+    case 'last3Month': start = now.subtract(3, 'month'); end = now; break
+    case 'year': start = now.startOf('year'); end = now; break
+    default: start = now.subtract(7, 'day'); end = now
+  }
+  dateRange.value = [start, end]
+  searchParams.dateStart = start.format('YYYY-MM-DD')
+  searchParams.dateEnd = end.format('YYYY-MM-DD')
+  handleSearch()
+}
+
+function handleDateChange(dates: [Dayjs, Dayjs] | null) {
+  if (dates && dates.length === 2) {
+    searchParams.dateStart = dates[0]?.format('YYYY-MM-DD') || ''
+    searchParams.dateEnd = dates[1]?.format('YYYY-MM-DD') || ''
+  } else {
+    searchParams.dateStart = ''
+    searchParams.dateEnd = ''
+  }
+}
+
+function handleSearch() {
+  pagination.current = 1
+  fetchData()
+}
+
+function handlePageChange(page: number, pageSize: number) {
+  pagination.current = page
+  pagination.pageSize = pageSize
+}
+
+// ═══ 工具栏操作 ═══
+function handleRefresh() { fetchData() }
+
+function handlePrintF8() {
+  if (allRows.value.length === 0) {
+    message.warning('没有可打印的数据')
+    return
+  }
+  window.print()
+}
+
+async function handleExport() {
+  if (allRows.value.length === 0) {
+    message.warning('没有可导出的数据')
+    return
+  }
+  const cols = currentColumns.value.filter((c: any) => c.key !== 'rowNo' && c.title)
+  const header = cols.map((c: any) => c.title).join(',')
+  const lines = allRows.value.map((r: any) => cols.map((c: any) => {
+    const v = r[c.field]
+    return v === null || v === undefined ? '' : (['qty', 'amount'].includes(c.align) && typeof v === 'number' ? v : String(v).replace(/,/g, ''))
+  }).join(','))
   const csv = '\uFEFF' + [header, ...lines].join('\n')
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `借进借出查询-${activeTab.value === 'in' ? '借进' : '借出'}-${dayjs().format('YYYYMMDD')}.csv`
+  a.download = `借进借出查询-${activeTab.value === 'in' ? '借进商品' : '借出商品'}-${dayjs().format('YYYYMMDD')}.csv`
   a.click()
   URL.revokeObjectURL(url)
+  message.success('导出成功')
 }
+
+// ═══ 工具 ═══
+function formatQty(val: number | null | undefined): string {
+  if (val === null || val === undefined) return '-'
+  return Number(val).toLocaleString('zh-CN', { maximumFractionDigits: 4 })
+}
+function formatAmount(val: number | null | undefined): string {
+  if (val === null || val === undefined) return '-'
+  return `¥${Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+}
+
+function handleError(error: Error) {
+  console.error('[借进借出查询] 页面错误', error)
+  message.error(`页面错误: ${error.message}`)
+}
+
+// ═══ 初始化 ═══
+onMounted(() => {
+  loadPageConfig()
+  setQuickDate('week')
+  fetchCategoryTree()
+})
 </script>
 
 <style scoped>
-.query-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  background: #fff;
-  border-radius: 8px;
-  padding: 12px 16px;
-  margin-bottom: 12px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.query-header__breadcrumb { font-size: 12px; color: #909399; }
-.query-header__title { font-size: 18px; font-weight: 600; color: #303133; margin: 4px 0 0; }
-.query-header__right { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
-.date-shortcuts { display: flex; gap: 4px; align-items: center; }
-.date-shortcut {
-  font-size: 12px;
-  color: #606266;
-  padding: 2px 8px;
-  border-radius: 4px;
-  cursor: pointer;
-}
-.date-shortcut:hover { color: #1890ff; }
-.date-shortcut.active { background: #e6f4ff; color: #1890ff; font-weight: 600; }
-.query-bar {
-  background: #fff;
-  border-radius: 8px;
-  padding: 12px 16px;
-  margin-bottom: 12px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
-}
-.stat-row { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
-.stat-card {
-  flex: 1;
-  min-width: 180px;
-  background: #fff;
-  border-radius: 8px;
-  padding: 14px 18px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
-}
-.stat-label { font-size: 12px; color: #909399; }
-.stat-value { font-size: 22px; font-weight: 700; color: #303133; margin-top: 4px; }
-.table-card {
-  background: #fff;
-  border-radius: 8px;
-  padding: 16px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
-}
-.table-footer-note {
-  margin-top: 8px;
-  font-size: 12px;
-  color: #999;
-}
+.query-scheme-wrap { display: inline-flex; align-items: center; margin-right: 8px; }
+.quick-dates { flex-wrap: wrap; }
+.search-area { padding: 8px 16px; background: #fff; border-bottom: 1px solid #e8e8e8; flex-shrink: 0; }
+.search-grid { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.search-field-item { display: flex; align-items: center; }
+.search-field-item :deep(.ant-input),
+.search-field-item :deep(.ant-select),
+.search-field-item :deep(.ant-picker) { font-size: 13px; }
+.search-field-item .ant-input { width: 150px; }
+.table-area { flex: 1; min-height: 0; overflow: hidden; }
+.row-img { width: 36px; height: 36px; object-fit: cover; border-radius: 4px; vertical-align: middle; }
+.cell-link { color: #1668dc; }
+.num-value { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-variant-numeric: tabular-nums; }
+:deep(.ant-input-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) { height: 28px; line-height: 28px; }
 </style>

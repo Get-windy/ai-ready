@@ -55,6 +55,10 @@ export const shipApi = {
   update(data: Partial<WmsShipTask>) { return request.post('/wms/ship/task/update', data) },
   getById(id: number) { return request.get(`/wms/ship/task/${id}`) },
   page(params: any) { return request.get('/wms/ship/task/page', { params }) },
+  /** 按单据多条件分页：GET /wms/ship/task/query（pageNum/pageSize + 关键字/仓库/客户/承运商/状态/日期范围） */
+  queryPage(params: any) { return request.get('/wms/ship/task/query', { params }) },
+  /** 按明细分页：GET /wms/ship/task/page-detail（pageNum/pageSize + 商品名/编码/单号/状态/日期范围） */
+  pageDetail(params: any) { return request.get('/wms/ship/task/page-detail', { params }) },
   remove(id: number) { return request.delete(`/wms/ship/task/${id}`) },
   /** 开始发货：POST /wms/ship/start?taskId&userId&userName */
   startShip(taskId: number, userId?: number, userName?: string) {

@@ -18,4 +18,7 @@ public interface InventoryService {
     void freeze(Long productId, Long warehouseId, Long locationId, String batchNo, BigDecimal quantity, String traceId, String sourceType, Long sourceId, Long operatorId, String operatorName);
     void unfreeze(Long productId, Long warehouseId, Long locationId, String batchNo, BigDecimal quantity, String traceId, String sourceType, Long sourceId, Long operatorId, String operatorName);
     void move(Long productId, Long warehouseId, Long fromLocationId, Long toLocationId, String batchNo, BigDecimal quantity, String traceId, String sourceType, Long sourceId, Long operatorId, String operatorName);
+
+    /** 查询商品在指定仓库下的可用库存批次行（有批次、可用量>0），供借出/出库按批次拣选 */
+    List<WmsInventory> listAvailableBatch(Long productId, Long warehouseId);
 }

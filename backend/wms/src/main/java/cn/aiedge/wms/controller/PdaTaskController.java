@@ -4,6 +4,7 @@ import cn.aiedge.base.vo.Result;
 import cn.aiedge.wms.check.service.CheckService;
 import cn.aiedge.wms.entity.WmsCheckTask;
 import cn.aiedge.wms.entity.WmsMoveTask;
+import cn.aiedge.wms.move.dto.MoveTaskQuery;
 import cn.aiedge.wms.entity.WmsPickTask;
 import cn.aiedge.wms.entity.WmsPutawayTask;
 import cn.aiedge.wms.entity.WmsReceiptTask;
@@ -65,7 +66,7 @@ public class PdaTaskController {
             tasks.add(new TaskDTO(t.getId(), t.getTaskNo(), "PICK",
                     t.getStatus(), t.getWarehouseName(), t.getCreateTime()));
         }
-        for (var t : moveService.pageTask(new Page<>(1, 1000), new WmsMoveTask()).getRecords()) {
+        for (var t : moveService.pageTask(new Page<>(1, 1000), new MoveTaskQuery()).getRecords()) {
             tasks.add(new TaskDTO(t.getId(), t.getTaskNo(), "MOVE",
                     t.getStatus(), t.getWarehouseName(), t.getCreateTime()));
         }

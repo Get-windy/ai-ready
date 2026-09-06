@@ -1,11 +1,13 @@
 package cn.aiedge.wms.entity;
 
 import cn.aiedge.base.entity.BaseEntity;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Data
@@ -15,7 +17,7 @@ import java.time.LocalDateTime;
 public class WmsReceiptTask extends BaseEntity {
     @Schema(description = "任务单号")
     private String taskNo;
-    @Schema(description = "来源类型 1-采购入库 2-退货入库 3-调拨入库 4-盘盈入库")
+    @Schema(description = "来源类型 0-采购入库 1-生产入库 2-退货入库 3-调拨入库 4-其他")
     private Integer sourceType;
     @Schema(description = "来源单据ID")
     private Long sourceOrderId;
@@ -37,7 +39,7 @@ public class WmsReceiptTask extends BaseEntity {
     private BigDecimal receivedQuantity;
     @Schema(description = "状态 0-待收货 1-收货中 2-已完成 3-已取消 4-异常")
     private Integer status;
-    @Schema(description = "优先级 1-普通 2-紧急 3-加急")
+    @Schema(description = "优先级 0-普通 1-紧急 2-加急")
     private Integer priority;
     @Schema(description = "预期到货时间")
     private LocalDateTime expectedTime;
@@ -49,4 +51,10 @@ public class WmsReceiptTask extends BaseEntity {
     private String assigneeName;
     @Schema(description = "备注")
     private String remark;
+    @Schema(description = "查询条件：创建日期起（不入库）")
+    @TableField(exist = false)
+    private LocalDate dateStart;
+    @Schema(description = "查询条件：创建日期止（不入库）")
+    @TableField(exist = false)
+    private LocalDate dateEnd;
 }

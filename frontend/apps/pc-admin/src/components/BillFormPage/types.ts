@@ -51,6 +51,8 @@ export interface BasicInfoField {
   placeholder?: string
   /** 下拉选项（type=select 时使用） */
   options?: BasicInfoFieldOption[]
+  /** 远程搜索模式（type=select 时使用）：关闭本地过滤，将输入关键字通过 search 事件交给业务页加载 options */
+  remoteSearch?: boolean
   /** 日期格式（type=date 时使用） */
   format?: string
   /** 搜索按钮文本（如 "+Q"、"Q"） */

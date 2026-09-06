@@ -4,6 +4,8 @@ import cn.aiedge.base.vo.Result;
 import cn.aiedge.wms.controller.dto.DetailSaveRequest;
 import cn.aiedge.wms.entity.WmsMoveDetail;
 import cn.aiedge.wms.entity.WmsMoveTask;
+import cn.aiedge.wms.move.dto.MoveTaskQuery;
+import cn.aiedge.wms.move.dto.MoveDetailVO;
 import cn.aiedge.wms.move.service.MoveService;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
@@ -52,10 +54,34 @@ public class MoveController {
         return Result.ok(task);
     }
 
-    @Operation(summary = "分页查询移库任务")
+    @Operation(summary = "分页查询移库任务（按单据）")
     @GetMapping("/page")
-    public Result<Page<WmsMoveTask>> page(@Valid Page<WmsMoveTask> page, WmsMoveTask query) {
+    public Result<Page<WmsMoveTask>> page(MoveTaskQuery query) {
+        Page<WmsMoveTask> page = new Page<>(query.getPageNum(), query.getPageSize());
         return Result.ok(moveService.pageTask(page, query));
+    }
+
+    @Operation(summary = "分页查询移库明细（按明细）")
+    @GetMapping("/page-detail")
+    public Result<Page<MoveDetailVO>> pageDetail(MoveTaskQuery query) {
+        Page<MoveDetailVO> page = new Page<>(query.getPageNum(), query.getPageSize());
+        return Result.ok(moveService.pageDetail(page, query));
+    }
+
+    @Operation(summary = "生成移库单号")
+    @GetMapping("/next-no")
+    public Result<String> nextNo() {
+        return Result.ok(moveService.nextNo());
+    }
+
+    @Operation(summary = "批量删除移库任务")
+    @DeleteMapping("/batch")
+    public Result<String> batchDelete(@RequestBody java.util.List<Long> ids) {
+        for (Long id : ids) {
+            moveService.removeTask(id);
+        }
+        log.info("批量删除移库任务: ids={}", ids);
+        return Result.ok("批量删除成功");
     }
 
     @Operation(summary = "删除移库任务")
@@ -84,6 +110,15 @@ public class MoveController {
         moveService.executeMove(taskId, userId, userName);
         log.info("执行移库: taskId={}, userId={}", taskId, userId);
         return Result.ok("执行移库成功");
+    }
+
+    @Operation(summary = "取消移库")
+    @PostMapping("/cancel")
+    public Result<String> cancel(@RequestParam @NotNull Long taskId,
+                                 @RequestParam(required = false) String reason) {
+        moveService.cancelMove(taskId, reason);
+        log.info("取消移库: taskId={}, reason={}", taskId, reason);
+        return Result.ok("取消移库成功");
     }
 
     @Operation(summary = "查询移库明细列表")

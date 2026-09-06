@@ -36,6 +36,10 @@ public class WmsMoveTask extends BaseEntity {
     private Integer status;
     @Schema(description = "移库类型 1-库内移库 2-补货移库 3-整理移库")
     private Integer moveType;
+    @Schema(description = "来源类型 0-手动 1-盘点差异 2-补货 3-其他")
+    private Integer sourceType;
+    @Schema(description = "来源单号")
+    private String sourceNo;
     @Schema(description = "分配操作人")
     private Long assigneeId;
     @Schema(description = "操作人姓名")

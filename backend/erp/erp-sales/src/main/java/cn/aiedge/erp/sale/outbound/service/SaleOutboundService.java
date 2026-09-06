@@ -72,6 +72,12 @@ public interface SaleOutboundService extends IService<SaleOutbound> {
     void updateStock(Long outboundId);
 
     /**
+     * WMS 发货确认回调：从销售订单创建/定位销售出库单并推进为已发货。
+     * 注意：WMS 侧已用 InventoryService.decrease 完成库存扣减，本方法**不再扣减**（避免双扣链路），仅建单+推进状态。
+     */
+    SaleOutbound confirmFromWms(Long saleOrderId);
+
+    /**
      * 导出出库单列表
      */
     List<SaleOutbound> exportList(String keyword, Integer status);

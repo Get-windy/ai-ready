@@ -5,6 +5,8 @@ import cn.aiedge.wms.controller.dto.DetailSaveRequest;
 import cn.aiedge.wms.entity.WmsPickDetail;
 import cn.aiedge.wms.entity.WmsPickTask;
 import cn.aiedge.wms.entity.WmsPickWave;
+import cn.aiedge.wms.pick.dto.PickTaskDetailVO;
+import cn.aiedge.wms.pick.dto.PickTaskQuery;
 import cn.aiedge.wms.pick.service.PickService;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
@@ -16,6 +18,7 @@ import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -107,7 +110,13 @@ public class PickController {
 
     @Operation(summary = "分页查询拣货任务")
     @GetMapping("/task/page")
-    public Result<Page<WmsPickTask>> taskPage(@Valid Page<WmsPickTask> page, WmsPickTask query) {
+    public Result<Page<WmsPickTask>> taskPage(@Valid Page<WmsPickTask> page, WmsPickTask query,
+                                              @RequestParam(required = false) String keyword) {
+        // 前端「关键字」是单号/来源单号模糊，注入到 taskNo 与 sourceOrderNo 供 Service 做 OR LIKE
+        if (StringUtils.hasText(keyword)) {
+            query.setTaskNo(keyword);
+            query.setSourceOrderNo(keyword);
+        }
         return Result.ok(pickService.pageTask(page, query));
     }
 
@@ -135,6 +144,15 @@ public class PickController {
         pickService.completePick(taskId);
         log.info("完成拣货: taskId={}", taskId);
         return Result.ok("完成拣货成功");
+    }
+
+    @Operation(summary = "取消拣货任务")
+    @PostMapping("/task/cancel")
+    public Result<String> cancelTask(@RequestParam @NotNull Long taskId,
+                                     @RequestParam(required = false) String reason) {
+        pickService.cancelTask(taskId, reason);
+        log.info("取消拣货任务: taskId={}, reason={}", taskId, reason);
+        return Result.ok("取消成功");
     }
 
     @Operation(summary = "根据波次查询拣货任务列表")
@@ -175,5 +193,25 @@ public class PickController {
         pickService.saveDetails(request.getTaskId(), request.getDetails());
         log.info("保存拣货明细: taskId={}, items={}", request.getTaskId(), request.getDetails().size());
         return Result.ok("保存成功");
+    }
+
+    // ==================== 金标准查询 / 编号 ====================
+
+    @Operation(summary = "生成下一拣货单号")
+    @GetMapping("/next-no")
+    public Result<String> nextNo() {
+        return Result.ok(pickService.generateNo());
+    }
+
+    @Operation(summary = "多条件分页查询拣货单(按单据)")
+    @GetMapping("/doc-query")
+    public Result<Page<WmsPickTask>> docQuery(PickTaskQuery query) {
+        return Result.ok(pickService.pageOrderByQuery(query));
+    }
+
+    @Operation(summary = "分页查询拣货明细(按明细)")
+    @GetMapping("/page-detail")
+    public Result<Page<PickTaskDetailVO>> pageDetail(PickTaskQuery query) {
+        return Result.ok(pickService.pageDetail(query));
     }
 }

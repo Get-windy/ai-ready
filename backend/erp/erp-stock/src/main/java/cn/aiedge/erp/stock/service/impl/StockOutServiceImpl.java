@@ -1,6 +1,8 @@
 package cn.aiedge.erp.stock.service.impl;
 
+import cn.aiedge.common.event.InventoryChangeEvent;
 import cn.aiedge.common.exception.BusinessException;
+import org.springframework.context.ApplicationEventPublisher;
 import cn.aiedge.erp.stock.dto.StockOutItemVO;
 import cn.aiedge.erp.stock.dto.StockOutQuery;
 import cn.aiedge.erp.stock.entity.StockOut;
@@ -34,6 +36,7 @@ import java.util.stream.Collectors;
 public class StockOutServiceImpl extends ServiceImpl<StockOutMapper, StockOut> implements StockOutService {
 
     private final StockOutItemMapper stockOutItemMapper;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     private static final String NO_PREFIX = "QTCKD-";
 
@@ -262,6 +265,16 @@ public class StockOutServiceImpl extends ServiceImpl<StockOutMapper, StockOut> i
         d.setBookkeeperName(StpUtil.getLoginId().toString());
         d.setBookkeepingTime(LocalDateTime.now());
         this.updateById(d);
+        // TODO-P0 库存收敛：发布库存变动请求，由 WMS InventoryService 统一过账（唯一写入口，不再直写 erp_stock）
+        List<StockOutItem> items = stockOutItemMapper.selectList(new LambdaQueryWrapper<StockOutItem>().eq(StockOutItem::getStockOutId, id));
+        if (items != null && d.getWarehouseId() != null) {
+            for (StockOutItem it : items) {
+                if (it.getProductId() == null || it.getQuantity() == null || it.getQuantity().signum() <= 0) continue;
+                applicationEventPublisher.publishEvent(new InventoryChangeEvent(
+                        InventoryChangeEvent.ChangeType.DECREASE, it.getProductId(), d.getWarehouseId(), null,
+                        it.getBatchCode(), it.getQuantity(), "STOCK_OUT", id, d.getStockOutNo(), d.getHandlerId(), d.getHandlerName()));
+            }
+        }
         return d;
     }
 

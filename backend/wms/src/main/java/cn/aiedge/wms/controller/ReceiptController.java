@@ -2,6 +2,7 @@ package cn.aiedge.wms.controller;
 
 import cn.aiedge.base.vo.Result;
 import cn.aiedge.wms.controller.dto.DetailSaveRequest;
+import cn.aiedge.wms.controller.dto.WmsReceiptDetailVO;
 import cn.aiedge.wms.entity.WmsReceiptDetail;
 import cn.aiedge.wms.entity.WmsReceiptTask;
 import cn.aiedge.wms.receipt.service.ReceiptService;
@@ -13,9 +14,11 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Slf4j
@@ -58,8 +61,37 @@ public class ReceiptController {
 
     @Operation(summary = "分页查询收货任务")
     @GetMapping("/page")
-    public Result<Page<WmsReceiptTask>> page(@Valid Page<WmsReceiptTask> page, WmsReceiptTask query) {
+    public Result<Page<WmsReceiptTask>> page(@Valid Page<WmsReceiptTask> page, WmsReceiptTask query,
+                                             @RequestParam(required = false) String keyword) {
+        // 前端「关键字」为单号/来源单号模糊，注入到 taskNo 与 sourceOrderNo 供 Service 做 OR LIKE
+        if (StringUtils.hasText(keyword)) {
+            query.setTaskNo(keyword);
+            query.setSourceOrderNo(keyword);
+        }
         return Result.ok(receiptService.pageTask(page, query));
+    }
+
+    @Operation(summary = "生成下一收货单号")
+    @GetMapping("/next-no")
+    public Result<String> nextNo() {
+        return Result.ok(receiptService.generateNo());
+    }
+
+    @Operation(summary = "分页查询收货明细(按明细)")
+    @GetMapping("/page-detail")
+    public Result<Page<WmsReceiptDetailVO>> pageDetail(@Valid Page<WmsReceiptDetailVO> page,
+                                                       @RequestParam(required = false) String keyword,
+                                                       @RequestParam(required = false) String sourceOrderNo,
+                                                       @RequestParam(required = false) Integer sourceType,
+                                                       @RequestParam(required = false) Integer status,
+                                                       @RequestParam(required = false) Long warehouseId,
+                                                       @RequestParam(required = false) String warehouseName,
+                                                       @RequestParam(required = false) String productName,
+                                                       @RequestParam(required = false) String batchNo,
+                                                       @RequestParam(required = false) LocalDate dateStart,
+                                                       @RequestParam(required = false) LocalDate dateEnd) {
+        return Result.ok(receiptService.pageDetail(page, keyword, sourceOrderNo, sourceType, status,
+                warehouseId, warehouseName, productName, batchNo, dateStart, dateEnd));
     }
 
     @Operation(summary = "删除收货任务")

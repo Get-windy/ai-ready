@@ -1007,6 +1007,21 @@ public class SaleOutboundServiceImpl extends ServiceImpl<SaleOutboundMapper, Sal
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    public SaleOutbound confirmFromWms(Long saleOrderId) {
+        SaleOutbound outbound = createFromOrder(saleOrderId);
+        if (outbound == null) {
+            throw new RuntimeException("由销售订单[" + saleOrderId + "]创建出库单失败");
+        }
+        // WMS 已用 InventoryService.decrease 完成库存扣减（唯一扣减点），此处仅推进为已发货，不再扣减（避免双扣链路）
+        outbound.setStatus(OutboundStatus.SHIPPED.getCode());
+        outbound.setShippedTime(LocalDateTime.now());
+        outbound.setActualShipTime(LocalDateTime.now());
+        updateById(outbound);
+        return outbound;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public SaleOutbound ship(Long outboundId, Long shipperId, String trackingNumber, String logisticsCompany) {
         SaleOutbound outbound = getById(outboundId);
         if (outbound == null) {
@@ -1510,15 +1525,10 @@ public class SaleOutboundServiceImpl extends ServiceImpl<SaleOutboundMapper, Sal
                         allSuccess = false;
                         continue;
                     }
-                    // 扣减库存（对标Odoo stock.quant: 先reservation再出库）
-                    boolean success = stockService.decreaseStock(item.getProductId(), warehouseId, qty);
-                    if (!success) {
-                        log.error("库存扣减失败: 产品ID={}, 仓库ID={}, 数量={}", item.getProductId(), warehouseId, qty);
-                        allSuccess = false;
-                    } else {
-                        log.info("库存扣减成功: 产品ID={}, 仓库ID={}, 出库数量={}", item.getProductId(), warehouseId, qty);
-                    }
-                    // 更新明细行库存快照
+                    // TODO-ARCH: 双轨库存统一前，ERP库存扣减暂由架构侧统一方案处理，此处仅维护WMS库存账，严禁反向同步ERP表。
+                    // （原扣减）stockService.decreaseStock(...) 已屏蔽：避免绕过 erp-stock 内部触发器/报表统计逻辑造成数据裂痕。
+                    // 中期方案：WMS 扣减后发布 InventoryChangedEvent，ERP 侧监听后单向同步更新 erp_stock，确保最终一致性，
+                    // 杜绝代码层双向调用。此处仅保留库存快照读取用于明细行库存回填。
                     cn.aiedge.erp.stock.entity.Stock updatedStock = stockService.getStockDetail(item.getProductId(), warehouseId);
                     if (updatedStock != null) {
                         item.setAvailableStock(updatedStock.getAvailableQuantity() != null ? updatedStock.getAvailableQuantity() : BigDecimal.ZERO);

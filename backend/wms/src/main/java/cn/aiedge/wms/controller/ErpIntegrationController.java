@@ -42,21 +42,18 @@ public class ErpIntegrationController {
         Long purchaseOrderId = payload.path("id").asLong();
         String purchaseOrderNo = payload.path("orderNo").asText("");
 
-        // 创建收货任务
-        WmsReceiptTask task = receiptService.createFromPurchaseOrder(purchaseOrderId);
-        if (task != null) {
-            log.info("收货任务已创建: taskNo={}, sourceOrderNo={}", task.getTaskNo(), purchaseOrderNo);
-            return Result.ok("收货任务已创建，任务单号: " + task.getTaskNo());
-        }
-
-        // 如果createFromPurchaseOrder未实现完整逻辑，手动创建
+        // 从 ERP 下发采购订单 payload 构建收货任务与明细（真实数据）
         WmsReceiptTask newTask = new WmsReceiptTask();
-        newTask.setTaskNo("RCV-" + System.currentTimeMillis());
-        newTask.setSourceType(1); // 采购入库
+        newTask.setTaskNo("RC" + System.currentTimeMillis());
+        newTask.setSourceType(0); // 采购入库（枚举与前端对齐：0-采购入库 1-生产入库 2-退货入库 3-调拨入库 4-其他）
         newTask.setSourceOrderId(purchaseOrderId);
         newTask.setSourceOrderNo(purchaseOrderNo);
+        newTask.setWarehouseId(payload.has("warehouseId") ? payload.path("warehouseId").asLong() : null);
+        newTask.setWarehouseName(payload.path("warehouseName").asText(""));
+        newTask.setSupplierId(payload.has("supplierId") ? payload.path("supplierId").asLong() : null);
+        newTask.setSupplierName(payload.path("supplierName").asText(""));
         newTask.setStatus(0); // 待收货
-        newTask.setPriority(1); // 普通
+        newTask.setPriority(0); // 普通
         newTask.setTotalItems(payload.path("itemCount").asInt(0));
         newTask.setTotalQuantity(BigDecimal.valueOf(payload.path("totalQuantity").asDouble(0)));
         newTask.setReceivedQuantity(BigDecimal.ZERO);

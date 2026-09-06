@@ -4,7 +4,10 @@ import cn.aiedge.base.vo.Result;
 import cn.aiedge.wms.controller.dto.DetailSaveRequest;
 import cn.aiedge.wms.entity.WmsShipDetail;
 import cn.aiedge.wms.entity.WmsShipTask;
+import cn.aiedge.wms.ship.dto.ShipQuery;
+import cn.aiedge.wms.ship.dto.WmsShipDetailPageVO;
 import cn.aiedge.wms.ship.service.ShipService;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -14,6 +17,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -56,8 +60,28 @@ public class ShipController {
 
     @Operation(summary = "分页查询发货任务")
     @GetMapping("/task/page")
-    public Result<Page<WmsShipTask>> taskPage(@Valid Page<WmsShipTask> page, WmsShipTask query) {
+    public Result<Page<WmsShipTask>> taskPage(@Valid Page<WmsShipTask> page, WmsShipTask query,
+                                              @RequestParam(required = false) String keyword) {
+        // 前端「关键字段」是单号/来源单号模糊，注入到 taskNo 与 sourceOrderNo 供 Service 做 OR LIKE
+        if (StringUtils.hasText(keyword)) {
+            query.setTaskNo(keyword);
+            query.setSourceOrderNo(keyword);
+        }
         return Result.ok(shipService.pageTask(page, query));
+    }
+
+    @Operation(summary = "分页查询发货单(按单据，多条件)")
+    @GetMapping("/task/query")
+    public Result<Page<WmsShipTask>> taskQuery(@ModelAttribute ShipQuery query) {
+        Page<WmsShipTask> page = new Page<>(query.getPageNum(), query.getPageSize());
+        return Result.ok(shipService.queryPage(page, query));
+    }
+
+    @Operation(summary = "分页查询发货明细(按明细)")
+    @GetMapping("/task/page-detail")
+    public Result<IPage<WmsShipDetailPageVO>> pageDetail(@ModelAttribute ShipQuery query) {
+        IPage<WmsShipDetailPageVO> page = new Page<>(query.getPageNum(), query.getPageSize());
+        return Result.ok(shipService.pageDetail(page, query));
     }
 
     @Operation(summary = "删除发货任务")

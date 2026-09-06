@@ -1,5 +1,7 @@
 package cn.aiedge.wms.inventory.service.impl;
 
+import cn.aiedge.erp.stock.entity.Product;
+import cn.aiedge.erp.stock.service.ProductService;
 import cn.aiedge.erp.stock.service.StockService;
 import cn.aiedge.wms.entity.WmsInventory;
 import cn.aiedge.wms.entity.WmsInventoryLog;
@@ -46,6 +48,7 @@ public class InventoryServiceImpl implements InventoryService {
     private final WmsInventoryMapper inventoryMapper;
     private final WmsInventoryLogMapper inventoryLogMapper;
     private final StockService stockService;
+    private final ProductService productService;
 
     @Override
     public WmsInventory getByUniqueKey(Long productId, Long warehouseId, Long locationId, String batchNo) {
@@ -127,6 +130,7 @@ public class InventoryServiceImpl implements InventoryService {
         if (inventory == null) {
             inventory = new WmsInventory();
             inventory.setProductId(productId);
+            fillProductSnapshot(inventory, productId);
             inventory.setWarehouseId(warehouseId);
             inventory.setLocationId(locationId);
             inventory.setBatchNo(batchNo);
@@ -398,6 +402,38 @@ public class InventoryServiceImpl implements InventoryService {
         wrapper.eq(batchNo != null, WmsInventory::getBatchNo, batchNo);
         wrapper.last("FOR UPDATE");
         return inventoryMapper.selectOne(wrapper);
+    }
+
+    @Override
+    public List<WmsInventory> listAvailableBatch(Long productId, Long warehouseId) {
+        LambdaQueryWrapper<WmsInventory> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(WmsInventory::getProductId, productId)
+                .eq(WmsInventory::getWarehouseId, warehouseId)
+                .isNotNull(WmsInventory::getBatchNo)
+                .gt(WmsInventory::getAvailableQuantity, BigDecimal.ZERO)
+                // FEFO 先进先出：近效期批次优先出库（validityDate 早者在前，NULL 在 PG ASC 排序时排最后）
+                .orderByAsc(WmsInventory::getValidityDate)
+                .orderByAsc(WmsInventory::getBatchNo);
+        return inventoryMapper.selectList(wrapper);
+    }
+
+    /**
+     * 库存建行时从商品主数据补冗余快照字段（productCode/productName/spec/unit）。
+     * 收货/上架/移库等经 increase 建行时，若无商品信息，库存列表商品字段会为空。
+     */
+    private void fillProductSnapshot(WmsInventory inv, Long productId) {
+        if (productId == null) return;
+        try {
+            Product p = productService.getById(productId);
+            if (p != null) {
+                inv.setProductCode(p.getProductCode());
+                inv.setProductName(p.getProductName());
+                inv.setProductSpec(p.getSpec());
+                inv.setProductUnit(p.getUnit());
+            }
+        } catch (Exception e) {
+            log.warn("库存建行补商品快照失败: productId={}", productId, e);
+        }
     }
 
     /**

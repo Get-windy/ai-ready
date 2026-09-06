@@ -17,13 +17,15 @@
           :value="modelValue"
           :placeholder="placeholder || '请选择'"
           show-search
-          :filter-option="filterOption"
+          :filter-option="remoteSearch ? false : filterOption"
           :loading="loading"
           :disabled="disabled"
+          :allow-clear="remoteSearch"
           size="small"
           style="flex:1"
           @update:value="emitValue"
           @change="(val: any) => emit('change', val)"
+          @search="(v: string) => remoteSearch && emit('search', v)"
         >
           <a-select-option
             v-for="opt in options"
@@ -143,6 +145,8 @@ const props = withDefaults(defineProps<{
   disabled?: boolean
   /** 搜索按钮文本 */
   searchBtn?: string
+  /** 远程搜索模式（type=select 时启用，关闭本地过滤，输入关键字通过 search 事件上抛） */
+  remoteSearch?: boolean
   /** 字段宽度 */
   width?: 'default' | 'narrow' | 'wide' | number
   /** 查看模式 */
@@ -153,6 +157,7 @@ const props = withDefaults(defineProps<{
   options: () => [],
   loading: false,
   disabled: false,
+  remoteSearch: false,
   width: 'default',
   viewMode: false,
 })
@@ -161,6 +166,7 @@ const emit = defineEmits<{
   'update:modelValue': [value: any]
   'change': [value: any]
   'searchBtn': []
+  'search': [keyword: string]
 }>()
 
 function emitValue(val: any) {

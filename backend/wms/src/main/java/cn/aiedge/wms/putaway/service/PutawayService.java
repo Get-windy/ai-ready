@@ -1,5 +1,7 @@
 package cn.aiedge.wms.putaway.service;
 
+import cn.aiedge.wms.controller.dto.WmsPutawayDetailQuery;
+import cn.aiedge.wms.controller.dto.WmsPutawayDetailVO;
 import cn.aiedge.wms.entity.WmsPutawayTask;
 import cn.aiedge.wms.entity.WmsPutawayDetail;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -19,4 +21,6 @@ public interface PutawayService {
     void saveDetails(Long taskId, List<WmsPutawayDetail> details);
     void startPutaway(Long taskId, Long userId, String userName);
     void confirmPutaway(Long taskId, Long userId, String userName);
+    void cancelPutaway(Long taskId, String reason);
+    Page<WmsPutawayDetailVO> pageDetail(Page<WmsPutawayDetail> page, WmsPutawayDetailQuery query);
 }

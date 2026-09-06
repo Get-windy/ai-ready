@@ -24,7 +24,7 @@ export interface DetailColumnConfig {
   width?: number
   /** 是否固定 */
   fixed?: 'left' | 'right'
-  /** 列类型：slot=自定义插槽，rowNo=行号，action=操作列 */
+  /** 列类型：默认 input（原生单元格直接输入）；select/number/date/searchable 为其它原生类型；slot=自定义插槽，rowNo=行号，action=操作列；业务页确需非默认类型才改并在列定义处注释原因 */
   type?: DetailColumnType
   /** 是否必填（显示红色星号） */
   required?: boolean

@@ -1,6 +1,9 @@
 package cn.aiedge.wms.borrow.service.impl;
 
+import cn.aiedge.wms.borrow.dto.BorrowOrderItemVO;
+import cn.aiedge.wms.borrow.dto.BorrowOrderQuery;
 import cn.aiedge.wms.borrow.dto.BorrowReturnRequest;
+import cn.aiedge.wms.borrow.dto.ConvertPurchaseRequest;
 import cn.aiedge.wms.borrow.dto.WmsBorrowOrderVO;
 import cn.aiedge.wms.borrow.mapper.WmsBorrowOrderItemMapper;
 import cn.aiedge.wms.borrow.mapper.WmsBorrowOrderMapper;
@@ -22,13 +25,21 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -96,7 +107,7 @@ public class BorrowServiceImpl implements BorrowService {
         order.setOrderNo(generateOrderNo(order.getDirection()));
         order.setStatus(STATUS_DRAFT);
         order.setReturnedQuantity(BigDecimal.ZERO);
-        order.setTotalQuantity(sumQuantity(order.getItems()));
+        fillTotals(order, order.getItems());
         orderMapper.insert(order);
         saveItems(order.getId(), order.getItems());
         log.info("新建借进借出单: id={}, orderNo={}, direction={}", order.getId(), order.getOrderNo(), order.getDirection());
@@ -116,7 +127,7 @@ public class BorrowServiceImpl implements BorrowService {
         order.setOrderNo(existing.getOrderNo());
         order.setStatus(STATUS_DRAFT);
         order.setReturnedQuantity(existing.getReturnedQuantity());
-        order.setTotalQuantity(sumQuantity(order.getItems()));
+        fillTotals(order, order.getItems());
         orderMapper.updateById(order);
         // 明细整体替换（先删后插）
         LambdaQueryWrapper<WmsBorrowOrderItem> delWrapper = new LambdaQueryWrapper<>();
@@ -160,9 +171,25 @@ public class BorrowServiceImpl implements BorrowService {
         if (order.getStatus() != STATUS_PENDING_APPROVAL) {
             throw new WmsBusinessException(String.format("单据[%s]仅待审批状态可审批", order.getOrderNo()));
         }
+        applyStockAndMarkApproved(order, operatorId, operatorName);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void post(Long id, Long operatorId, String operatorName) {
+        WmsBorrowOrder order = getOrThrow(id);
+        if (order.getStatus() != STATUS_DRAFT && order.getStatus() != STATUS_PENDING_APPROVAL) {
+            throw new WmsBusinessException(String.format("单据[%s]仅草稿/待审批状态可记账", order.getOrderNo()));
+        }
+        applyStockAndMarkApproved(order, operatorId, operatorName);
+    }
+
+    /** 记账入库/出库：借进库存增加、借出库存扣减，状态置为已审批（已记账） */
+    private void applyStockAndMarkApproved(WmsBorrowOrder order, Long operatorId, String operatorName) {
+        Long id = order.getId();
         List<WmsBorrowOrderItem> items = listItems(id);
         if (items.isEmpty()) {
-            throw new WmsBusinessException(String.format("单据[%s]无明细，不能审批", order.getOrderNo()));
+            throw new WmsBusinessException(String.format("单据[%s]无明细，不能记账", order.getOrderNo()));
         }
         String traceId = UUID.randomUUID().toString();
         boolean borrowIn = order.getDirection() == DIRECTION_IN;
@@ -175,15 +202,18 @@ public class BorrowServiceImpl implements BorrowService {
                         item.getQuantity(), traceId, SRC_BORROW_IN, order.getId(), order.getOrderNo(),
                         operatorId, operatorName);
             } else {
-                // 借出：库存扣减
-                inventoryService.decrease(item.getProductId(), order.getWarehouseId(), null, null,
+                // 借出：库存按批次扣减（批次为空则整仓扣减）；decrease 内部校验可用量不足
+                inventoryService.decrease(item.getProductId(), order.getWarehouseId(), null, item.getBatchCode(),
                         item.getQuantity(), traceId, SRC_BORROW_OUT, order.getId(), order.getOrderNo(),
                         operatorId, operatorName);
             }
         }
         order.setStatus(STATUS_APPROVED);
+        order.setBookkeeperId(operatorId);
+        order.setBookkeeperName(operatorName);
+        order.setBookkeepingTime(LocalDateTime.now());
         orderMapper.updateById(order);
-        log.info("审批通过: id={}, orderNo={}, direction={}, traceId={}", id, order.getOrderNo(), order.getDirection(), traceId);
+        log.info("记账/审批: id={}, orderNo={}, direction={}, traceId={}", id, order.getOrderNo(), order.getDirection(), traceId);
     }
 
     @Override
@@ -201,8 +231,14 @@ public class BorrowServiceImpl implements BorrowService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public List<Map<String, Object>> aggregateByProduct(Integer direction, String partnerName,
-                                                        String productName, String dateStart, String dateEnd) {
-        List<Map<String, Object>> raw = itemMapper.aggregateByProduct(direction, partnerName, productName, dateStart, dateEnd);
+                                                        String productName, String dateStart, String dateEnd,
+                                                        Long categoryId, String handlerName, String deptName) {
+        // 空串归一为 null，避免 SQL 中 CAST('' AS DATE) 报错
+        String start = StringUtils.hasText(dateStart) ? dateStart : null;
+        String end = StringUtils.hasText(dateEnd) ? dateEnd : null;
+        String handler = StringUtils.hasText(handlerName) ? handlerName : null;
+        String dept = StringUtils.hasText(deptName) ? deptName : null;
+        List<Map<String, Object>> raw = itemMapper.aggregateByProduct(direction, partnerName, productName, start, end, categoryId, handler, dept);
         // PostgreSQL 不加引号别名会转小写，统一转驼峰供前端使用
         List<Map<String, Object>> result = new java.util.ArrayList<>(raw.size());
         for (Map<String, Object> row : raw) {
@@ -318,7 +354,7 @@ public class BorrowServiceImpl implements BorrowService {
 
     @Override
     public String generateOrderNo(Integer direction) {
-        String prefix = (direction != null && direction == DIRECTION_OUT) ? "JC" : "JJ";
+        String prefix = (direction != null && direction == DIRECTION_OUT) ? "JCD" : "JJD";
         String head = prefix + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
         LambdaQueryWrapper<WmsBorrowOrder> wrapper = new LambdaQueryWrapper<>();
         wrapper.likeRight(WmsBorrowOrder::getOrderNo, head);
@@ -332,7 +368,210 @@ public class BorrowServiceImpl implements BorrowService {
         return head + String.format("%03d", seq);
     }
 
+    @Override
+    public String generateNo(Integer direction) {
+        return generateOrderNo(direction != null ? direction : DIRECTION_IN);
+    }
+
+    @Override
+    public Page<WmsBorrowOrder> pageOrderByQuery(BorrowOrderQuery query) {
+        LambdaQueryWrapper<WmsBorrowOrder> wrapper = buildDocWrapper(query);
+        wrapper.orderByDesc(WmsBorrowOrder::getBorrowDate).orderByDesc(WmsBorrowOrder::getId);
+        return orderMapper.selectPage(new Page<>(query.getPageNum(), query.getPageSize()), wrapper);
+    }
+
+    @Override
+    public Page<BorrowOrderItemVO> pageDetail(BorrowOrderQuery query) {
+        // 1. 先取满足单据级过滤的单据ID集合
+        LambdaQueryWrapper<WmsBorrowOrder> docWrapper = buildDocWrapper(query);
+        docWrapper.select(WmsBorrowOrder::getId);
+        List<WmsBorrowOrder> docs = orderMapper.selectList(docWrapper);
+        List<Long> docIds = docs.stream().map(WmsBorrowOrder::getId).collect(Collectors.toList());
+        if (docIds.isEmpty()) {
+            return new Page<>(query.getPageNum(), query.getPageSize(), 0);
+        }
+
+        // 2. 明细过滤
+        LambdaQueryWrapper<WmsBorrowOrderItem> itemWrapper = new LambdaQueryWrapper<WmsBorrowOrderItem>()
+                .in(WmsBorrowOrderItem::getOrderId, docIds)
+                .like(StringUtils.hasText(query.getProductName()), WmsBorrowOrderItem::getProductName, query.getProductName())
+                .like(StringUtils.hasText(query.getItemRemark()), WmsBorrowOrderItem::getRemark, query.getItemRemark())
+                .orderByAsc(WmsBorrowOrderItem::getLineNo);
+        Page<WmsBorrowOrderItem> itemPage = itemMapper.selectPage(
+                new Page<>(query.getPageNum(), query.getPageSize()), itemWrapper);
+
+        // 3. 批量补齐单据级字段
+        List<Long> pageDocIds = itemPage.getRecords().stream()
+                .map(WmsBorrowOrderItem::getOrderId).distinct().collect(Collectors.toList());
+        Map<Long, WmsBorrowOrder> docMap = pageDocIds.isEmpty() ? Collections.emptyMap()
+                : orderMapper.selectBatchIds(pageDocIds).stream()
+                .collect(Collectors.toMap(WmsBorrowOrder::getId, Function.identity()));
+
+        // 4. 联查往来单位主数据（客户级别/联系人/客户备注）
+        Set<Long> partnerIds = docMap.values().stream()
+                .map(WmsBorrowOrder::getPartnerId).filter(Objects::nonNull).collect(Collectors.toSet());
+        Map<Long, Map<String, Object>> partyMap = partnerIds.isEmpty() ? Collections.emptyMap()
+                : orderMapper.selectPartiesByIds(new ArrayList<>(partnerIds)).stream()
+                .collect(Collectors.toMap(m -> ((Number) m.get("id")).longValue(), Function.identity(), (a, b) -> a));
+        Map<Long, String> contactMap = partnerIds.isEmpty() ? Collections.emptyMap()
+                : orderMapper.selectContactsByIds(new ArrayList<>(partnerIds)).stream()
+                .collect(Collectors.toMap(m -> ((Number) m.get("partyId")).longValue(),
+                        m -> (String) m.get("contact"), (a, b) -> a));
+
+        List<BorrowOrderItemVO> voList = new ArrayList<>();
+        for (WmsBorrowOrderItem item : itemPage.getRecords()) {
+            BorrowOrderItemVO vo = new BorrowOrderItemVO();
+            org.springframework.beans.BeanUtils.copyProperties(item, vo);
+            WmsBorrowOrder doc = docMap.get(item.getOrderId());
+            if (doc != null) {
+                vo.setBorrowDate(doc.getBorrowDate());
+                vo.setOrderNo(doc.getOrderNo());
+                vo.setStatus(doc.getStatus());
+                vo.setWarehouseId(doc.getWarehouseId());
+                vo.setWarehouseName(doc.getWarehouseName());
+                vo.setPartnerId(doc.getPartnerId());
+                vo.setPartnerCode(doc.getPartnerCode());
+                vo.setPartnerName(doc.getPartnerName());
+                vo.setHandlerName(doc.getHandlerName());
+                vo.setDeptName(doc.getDeptName());
+                vo.setDocRemark(doc.getRemark());
+                vo.setSummary(doc.getSummary());
+                vo.setAttachment(doc.getAttachment());
+                vo.setBookkeeperName(doc.getBookkeeperName());
+                vo.setCreatorName(doc.getCreatorName());
+                vo.setBookkeepingTime(doc.getBookkeepingTime());
+                vo.setCreateTime(doc.getCreateTime());
+                vo.setPrintCount(doc.getPrintCount());
+                vo.setExpectedReturnDate(doc.getExpectedReturnDate());
+                vo.setTotalWeight(doc.getTotalWeight());
+                vo.setTotalVolume(doc.getTotalVolume());
+                // 往来单位主数据穿透（客户级别/客户备注/主要联系人）
+                if (doc.getPartnerId() != null) {
+                    Map<String, Object> party = partyMap.get(doc.getPartnerId());
+                    if (party != null) {
+                        vo.setCustomerLevel((String) party.get("partyLevel"));
+                        vo.setCustomerRemark((String) party.get("customerRemark"));
+                    }
+                    vo.setContact(contactMap.get(doc.getPartnerId()));
+                }
+            }
+            // 未处理数量/金额（快照外计算，防止历史数据为空）
+            BigDecimal qty = nvl(item.getQuantity());
+            BigDecimal retd = nvl(item.getReturnedQuantity());
+            BigDecimal conv = nvl(item.getProcessedPurchaseQuantity());
+            BigDecimal nonProcessed = nvl(item.getNonProcessedQuantity());
+            if (nonProcessed.compareTo(BigDecimal.ZERO) == 0) {
+                nonProcessed = qty.subtract(retd).subtract(conv).max(BigDecimal.ZERO);
+            }
+            vo.setProcessedReturnQuantity(retd);
+            vo.setProcessedPurchaseQuantity(conv);
+            vo.setNonProcessedQuantity(nonProcessed);
+            vo.setNonProcessedAmount(nvl(item.getNonProcessedAmount()).compareTo(BigDecimal.ZERO) == 0
+                    ? nonProcessed.multiply(nvl(item.getPrice())) : item.getNonProcessedAmount());
+            voList.add(vo);
+        }
+        Page<BorrowOrderItemVO> voPage = new Page<>(query.getPageNum(), query.getPageSize(), itemPage.getTotal());
+        voPage.setRecords(voList);
+        return voPage;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public WmsBorrowOrder convertPurchase(ConvertPurchaseRequest request) {
+        WmsBorrowOrder order = getOrThrow(request.getOrderId());
+        return applyConvert(order, request.getItems(), "借转采购");
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public WmsBorrowOrder convertSale(ConvertPurchaseRequest request) {
+        WmsBorrowOrder order = getOrThrow(request.getOrderId());
+        return applyConvert(order, request.getItems(), "借转销售");
+    }
+
+    /** 借进借出「借转」台账登记共用逻辑（借进=借转采购，借出=借转销售）：更新明细已处理-借转数量/未处理数量，单据借转金额/数量 */
+    private WmsBorrowOrder applyConvert(WmsBorrowOrder order, List<ConvertPurchaseRequest.Item> items, String actionLabel) {
+        if (order.getStatus() != STATUS_APPROVED && order.getStatus() != STATUS_PARTIAL_RETURNED) {
+            throw new WmsBusinessException(String.format("单据[%s]仅已记账状态可%s", order.getOrderNo(), actionLabel));
+        }
+        if (items == null || items.isEmpty()) {
+            throw new WmsBusinessException("请填写" + actionLabel + "明细");
+        }
+        BigDecimal orderConvertQty = nvl(order.getConvertPurchaseQuantity());
+        BigDecimal orderConvertAmt = nvl(order.getConvertPurchaseAmount());
+        for (ConvertPurchaseRequest.Item ci : items) {
+            if (ci.getQuantity() == null || ci.getQuantity().compareTo(BigDecimal.ZERO) <= 0) {
+                throw new WmsBusinessException(actionLabel + "数量必须大于0");
+            }
+            WmsBorrowOrderItem item = itemMapper.selectById(ci.getOrderItemId());
+            if (item == null || !item.getOrderId().equals(order.getId())) {
+                throw new WmsBusinessException(actionLabel + "明细不属于本单据: orderItemId=" + ci.getOrderItemId());
+            }
+            BigDecimal qty = nvl(item.getQuantity());
+            BigDecimal returned = nvl(item.getReturnedQuantity());
+            BigDecimal processed = nvl(item.getProcessedPurchaseQuantity());
+            BigDecimal remaining = qty.subtract(returned).subtract(processed).max(BigDecimal.ZERO);
+            if (ci.getQuantity().compareTo(remaining) > 0) {
+                throw new WmsBusinessException(String.format("商品[%s]%s数量超出剩余: 本次=%s, 剩余=%s",
+                        item.getProductCode(), actionLabel, ci.getQuantity(), remaining));
+            }
+            BigDecimal newProcessed = processed.add(ci.getQuantity());
+            BigDecimal newNonProcessed = qty.subtract(returned).subtract(newProcessed).max(BigDecimal.ZERO);
+            // 更新明细（绕开乐观锁，明细表无 version 列）
+            LambdaUpdateWrapper<WmsBorrowOrderItem> updateWrapper = new LambdaUpdateWrapper<>();
+            updateWrapper.eq(WmsBorrowOrderItem::getId, item.getId())
+                    .set(WmsBorrowOrderItem::getProcessedPurchaseQuantity, newProcessed)
+                    .set(WmsBorrowOrderItem::getNonProcessedQuantity, newNonProcessed)
+                    .set(WmsBorrowOrderItem::getNonProcessedAmount, newNonProcessed.multiply(nvl(item.getPrice())));
+            itemMapper.update(null, updateWrapper);
+
+            orderConvertQty = orderConvertQty.add(ci.getQuantity());
+            orderConvertAmt = orderConvertAmt.add(ci.getQuantity().multiply(nvl(item.getPrice())));
+        }
+        order.setConvertPurchaseQuantity(orderConvertQty);
+        order.setConvertPurchaseAmount(orderConvertAmt);
+        BigDecimal docNonProcessed = nvl(order.getTotalQuantity())
+                .subtract(nvl(order.getReturnedQuantity())).subtract(orderConvertQty).max(BigDecimal.ZERO);
+        order.setNonProcessedQuantity(docNonProcessed);
+        order.setNonProcessedAmount(docNonProcessed.multiply(
+                orderConvertQty.compareTo(BigDecimal.ZERO) > 0 ? orderConvertAmt.divide(orderConvertQty, 2, java.math.RoundingMode.HALF_UP) : BigDecimal.ZERO));
+        orderMapper.updateById(order);
+        log.info("{}: orderId={}, orderNo={}, convertQty={}, convertAmt={}",
+                actionLabel, order.getId(), order.getOrderNo(), orderConvertQty, orderConvertAmt);
+        return order;
+    }
+
     // ==================== 私有方法 ====================
+
+    /** 构建单据级查询 wrapper（按单据/按明细共用） */
+    private LambdaQueryWrapper<WmsBorrowOrder> buildDocWrapper(BorrowOrderQuery q) {
+        LambdaQueryWrapper<WmsBorrowOrder> wrapper = new LambdaQueryWrapper<WmsBorrowOrder>()
+                .eq(q.getDirection() != null, WmsBorrowOrder::getDirection, q.getDirection())
+                .like(StringUtils.hasText(q.getOrderNo()), WmsBorrowOrder::getOrderNo, q.getOrderNo())
+                .like(StringUtils.hasText(q.getPartnerName()), WmsBorrowOrder::getPartnerName, q.getPartnerName())
+                .like(StringUtils.hasText(q.getPartnerCode()), WmsBorrowOrder::getPartnerCode, q.getPartnerCode())
+                .like(StringUtils.hasText(q.getHandlerName()), WmsBorrowOrder::getHandlerName, q.getHandlerName())
+                .like(StringUtils.hasText(q.getDeptName()), WmsBorrowOrder::getDeptName, q.getDeptName())
+                .like(StringUtils.hasText(q.getCreatorName()), WmsBorrowOrder::getCreatorName, q.getCreatorName())
+                .like(StringUtils.hasText(q.getBookkeeperName()), WmsBorrowOrder::getBookkeeperName, q.getBookkeeperName())
+                .like(StringUtils.hasText(q.getRemark()), WmsBorrowOrder::getRemark, q.getRemark())
+                .like(StringUtils.hasText(q.getWarehouseName()), WmsBorrowOrder::getWarehouseName, q.getWarehouseName())
+                .eq(q.getWarehouseId() != null, WmsBorrowOrder::getWarehouseId, q.getWarehouseId())
+                .eq(q.getStatus() != null, WmsBorrowOrder::getStatus, q.getStatus());
+        if (StringUtils.hasText(q.getDateStart())) {
+            wrapper.ge(WmsBorrowOrder::getBorrowDate, LocalDate.parse(q.getDateStart()));
+        }
+        if (StringUtils.hasText(q.getDateEnd())) {
+            wrapper.le(WmsBorrowOrder::getBorrowDate, LocalDate.parse(q.getDateEnd()));
+        }
+        if (StringUtils.hasText(q.getReturnDateStart())) {
+            wrapper.ge(WmsBorrowOrder::getExpectedReturnDate, LocalDate.parse(q.getReturnDateStart()));
+        }
+        if (StringUtils.hasText(q.getReturnDateEnd())) {
+            wrapper.le(WmsBorrowOrder::getExpectedReturnDate, LocalDate.parse(q.getReturnDateEnd()));
+        }
+        return wrapper;
+    }
 
     private WmsBorrowOrder getOrThrow(Long id) {
         WmsBorrowOrder order = orderMapper.selectById(id);
@@ -355,8 +594,19 @@ public class BorrowServiceImpl implements BorrowService {
             item.setOrderId(orderId);
             item.setLineNo(lineNo++);
             if (item.getReturnedQuantity() == null) item.setReturnedQuantity(BigDecimal.ZERO);
+            if (item.getProcessedReturnQuantity() == null) item.setProcessedReturnQuantity(BigDecimal.ZERO);
+            if (item.getProcessedPurchaseQuantity() == null) item.setProcessedPurchaseQuantity(BigDecimal.ZERO);
             if (item.getAmount() == null && item.getQuantity() != null && item.getPrice() != null) {
                 item.setAmount(item.getQuantity().multiply(item.getPrice()));
+            }
+            BigDecimal qty = nvl(item.getQuantity());
+            BigDecimal retd = nvl(item.getReturnedQuantity());
+            BigDecimal conv = nvl(item.getProcessedPurchaseQuantity());
+            if (item.getNonProcessedQuantity() == null) {
+                item.setNonProcessedQuantity(qty.subtract(retd).subtract(conv).max(BigDecimal.ZERO));
+            }
+            if (item.getNonProcessedAmount() == null) {
+                item.setNonProcessedAmount(nvl(item.getNonProcessedQuantity()).multiply(nvl(item.getPrice())));
             }
             itemMapper.insert(item);
         }
@@ -389,6 +639,30 @@ public class BorrowServiceImpl implements BorrowService {
             if (item.getQuantity() != null) total = total.add(item.getQuantity());
         }
         return total;
+    }
+
+    /** 汇总借进借出单数量/金额/重量/体积/未处理 */
+    private void fillTotals(WmsBorrowOrder order, List<WmsBorrowOrderItem> items) {
+        BigDecimal totalQty = BigDecimal.ZERO;
+        BigDecimal totalAmt = BigDecimal.ZERO;
+        BigDecimal totalWeight = BigDecimal.ZERO;
+        BigDecimal totalVolume = BigDecimal.ZERO;
+        if (items != null) {
+            for (WmsBorrowOrderItem item : items) {
+                totalQty = totalQty.add(nvl(item.getQuantity()));
+                totalAmt = totalAmt.add(nvl(item.getAmount()));
+                totalWeight = totalWeight.add(nvl(item.getWeight()));
+                totalVolume = totalVolume.add(nvl(item.getVolume()));
+            }
+        }
+        order.setTotalQuantity(totalQty);
+        order.setBorrowQuantity(totalQty);
+        order.setBorrowAmount(totalAmt);
+        // 初始未处理=借进总量（还出/转采购为后续动作，新建时均为0）
+        order.setNonProcessedQuantity(totalQty);
+        order.setNonProcessedAmount(totalAmt);
+        order.setTotalWeight(totalWeight);
+        order.setTotalVolume(totalVolume);
     }
 
     private void validateDirection(Integer direction) {

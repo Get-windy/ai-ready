@@ -1,6 +1,8 @@
 package cn.aiedge.erp.purchase.inbound.service.impl;
 
+import cn.aiedge.common.event.InventoryChangeEvent;
 import cn.aiedge.erp.purchase.inbound.dto.PurchaseInboundQuery;
+import org.springframework.context.ApplicationEventPublisher;
 import cn.aiedge.erp.purchase.inbound.entity.PurchaseInbound;
 import cn.aiedge.erp.purchase.inbound.entity.PurchaseInboundItem;
 import cn.aiedge.erp.purchase.inbound.enums.InboundStatus;
@@ -9,13 +11,16 @@ import cn.aiedge.erp.purchase.inbound.mapper.PurchaseInboundMapper;
 import cn.aiedge.erp.purchase.inbound.service.PurchaseInboundService;
 import cn.aiedge.erp.purchase.service.integration.PurchaseAccountingService;
 import cn.aiedge.erp.stock.service.StockService;
+import cn.aiedge.quality.service.QualityInspectionService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -31,7 +36,9 @@ public class PurchaseInboundServiceImpl extends ServiceImpl<PurchaseInboundMappe
 
     private final PurchaseInboundItemMapper inboundItemMapper;
     private final StockService stockService;
+    private final ApplicationEventPublisher applicationEventPublisher;
     private final PurchaseAccountingService purchaseAccountingService;
+    private final QualityInspectionService qualityInspectionService;
 
     @Override
     public PurchaseInbound getByInboundNo(String inboundNo) {
@@ -406,6 +413,11 @@ public class PurchaseInboundServiceImpl extends ServiceImpl<PurchaseInboundMappe
         if (inbound.getStatus() != InboundStatus.QUALITY_CHECKED.getCode()) {
             throw new RuntimeException("只有已质检状态的入库单可以确认入库");
         }
+        // 未检不入库门禁(强制开启)：来源采购订单质检未通过(PASS/CONCESSION)则拦截
+        if (StringUtils.hasText(inbound.getOrderNo())
+                && !qualityInspectionService.hasPassed("PURCHASE_ORDER", inbound.getOrderNo(), null)) {
+            throw new RuntimeException("该采购订单未质检通过，禁止入库，请先完成质检");
+        }
         inbound.setStatus(InboundStatus.WAREHOUSE_CONFIRMED.getCode());
         inbound.setWarehouseConfirmedBy(confirmerId);
         inbound.setWarehouseConfirmedTime(LocalDateTime.now());
@@ -555,13 +567,11 @@ public class PurchaseInboundServiceImpl extends ServiceImpl<PurchaseInboundMappe
         for (PurchaseInboundItem item : items) {
             BigDecimal qty = item.getInboundQuantity();
             if (qty != null && qty.compareTo(BigDecimal.ZERO) > 0 && item.getProductId() != null) {
-                boolean success = stockService.increaseStock(item.getProductId(), warehouseId, qty);
-                if (!success) {
-                    throw new RuntimeException("库存回写失败: 产品ID=" + item.getProductId()
-                            + ", 仓库ID=" + warehouseId + ", 数量=" + qty);
-                }
-                log.info("采购入库回写库存成功: 入库单ID={}, 产品ID={}, 仓库ID={}, 数量={}",
-                        inboundId, item.getProductId(), warehouseId, qty);
+                // TODO-P0 库存收敛：仓库入库改由 WMS InventoryService 统一过账（唯一写入口），不再直写 erp_stock
+                applicationEventPublisher.publishEvent(new InventoryChangeEvent(
+                        InventoryChangeEvent.ChangeType.INCREASE, item.getProductId(), warehouseId, null,
+                        null, qty, "PURCHASE_INBOUND", inboundId, inbound.getInboundNo(), null, null));
+                log.info("采购入库触发库存入账事件: 入库单ID={}, 产品ID={}, 数量={}", inboundId, item.getProductId(), qty);
             }
         }
     }

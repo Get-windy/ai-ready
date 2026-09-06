@@ -56,6 +56,10 @@ export const receiptApi = {
   update(data: Partial<WmsReceiptTask>) { return request.post('/wms/receipt/update', data) },
   getById(id: number) { return request.get(`/wms/receipt/${id}`) },
   page(params: any) { return request.get('/wms/receipt/page', { params }) },
+  /** 按明细分页查询：GET /wms/receipt/page-detail */
+  pageDetail(params: any) { return request.get('/wms/receipt/page-detail', { params }) },
+  /** 生成下一收货单号：GET /wms/receipt/next-no */
+  nextNo() { return request.get('/wms/receipt/next-no') },
   remove(id: number) { return request.delete(`/wms/receipt/${id}`) },
   /** 开始收货：POST /wms/receipt/start?taskId&userId&userName */
   startReceipt(taskId: number, userId?: number, userName?: string) {

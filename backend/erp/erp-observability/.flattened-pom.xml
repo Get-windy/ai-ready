@@ -5,10 +5,10 @@
   <parent>
     <groupId>cn.aiedge.erp</groupId>
     <artifactId>erp</artifactId>
-    <version>0.3.13</version>
+    <version>0.3.16</version>
   </parent>
   <artifactId>erp-observability</artifactId>
-  <version>0.3.13</version>
+  <version>0.3.16</version>
   <name>ERP 可观测性模块</name>
   <description>业务指标监控、度量采集、告警规则、WebSocket 实时推送统一管理</description>
   <licenses>

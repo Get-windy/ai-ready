@@ -14,10 +14,12 @@ import java.math.BigDecimal;
 public class WmsPutawayTask extends BaseEntity {
     @Schema(description = "任务单号")
     private String taskNo;
-    @Schema(description = "来源 1-收货上架 2-移库上架")
+    @Schema(description = "来源类型 0-收货上架 1-退货上架 2-调拨上架 3-其他")
     private Integer sourceType;
     @Schema(description = "来源单据ID")
     private Long sourceId;
+    @Schema(description = "来源单号")
+    private String sourceOrderNo;
     @Schema(description = "仓库ID")
     private Long warehouseId;
     @Schema(description = "仓库名称")

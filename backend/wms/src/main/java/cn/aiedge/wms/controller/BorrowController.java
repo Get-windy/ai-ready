@@ -1,7 +1,10 @@
 package cn.aiedge.wms.controller;
 
 import cn.aiedge.base.vo.Result;
+import cn.aiedge.wms.borrow.dto.BorrowOrderItemVO;
+import cn.aiedge.wms.borrow.dto.BorrowOrderQuery;
 import cn.aiedge.wms.borrow.dto.BorrowReturnRequest;
+import cn.aiedge.wms.borrow.dto.ConvertPurchaseRequest;
 import cn.aiedge.wms.borrow.dto.WmsBorrowOrderVO;
 import cn.aiedge.wms.borrow.service.BorrowService;
 import cn.aiedge.wms.entity.WmsBorrowOrder;
@@ -36,6 +39,56 @@ public class BorrowController {
         return Result.ok(borrowService.pageOrder(page, query));
     }
 
+    @Operation(summary = "生成下一借进/借出单号")
+    @GetMapping("/next-no")
+    public Result<String> nextNo(@RequestParam(required = false) Integer direction,
+                                 @RequestParam(required = false) String prefix) {
+        if (direction == null) {
+            // 前端 codeGenerator 会传 prefix='JJD'/'JCD'，据此推断方向
+            direction = (prefix != null && prefix.toUpperCase().contains("CD"))
+                    ? BorrowService.DIRECTION_OUT : BorrowService.DIRECTION_IN;
+        }
+        return Result.ok(borrowService.generateNo(direction));
+    }
+
+    @Operation(summary = "多条件分页查询借进借出单(按单据)")
+    @GetMapping("/doc-query")
+    public Result<Page<WmsBorrowOrder>> docQuery(BorrowOrderQuery query) {
+        return Result.ok(borrowService.pageOrderByQuery(query));
+    }
+
+    @Operation(summary = "分页查询借进借出明细(按明细)")
+    @GetMapping("/page-detail")
+    public Result<Page<BorrowOrderItemVO>> pageDetail(BorrowOrderQuery query) {
+        return Result.ok(borrowService.pageDetail(query));
+    }
+
+    @Operation(summary = "记账(入库/出库)")
+    @PostMapping("/post")
+    public Result<String> post(@RequestParam @NotNull Long id,
+                               @RequestParam(required = false) Long operatorId,
+                               @RequestParam(required = false) String operatorName) {
+        borrowService.post(id, operatorId, operatorName);
+        log.info("记账: id={}, operatorId={}", id, operatorId);
+        return Result.ok("记账成功");
+    }
+
+    @Operation(summary = "借转采购登记")
+    @PostMapping("/convert-purchase")
+    public Result<WmsBorrowOrder> convertPurchase(@Valid @RequestBody ConvertPurchaseRequest request) {
+        WmsBorrowOrder updated = borrowService.convertPurchase(request);
+        log.info("借转采购: orderId={}, orderNo={}", updated.getId(), updated.getOrderNo());
+        return Result.ok(updated);
+    }
+
+    @Operation(summary = "借转销售登记（借出方向）")
+    @PostMapping("/convert-sale")
+    public Result<WmsBorrowOrder> convertSale(@Valid @RequestBody ConvertPurchaseRequest request) {
+        WmsBorrowOrder updated = borrowService.convertSale(request);
+        log.info("借转销售: orderId={}, orderNo={}", updated.getId(), updated.getOrderNo());
+        return Result.ok(updated);
+    }
+
     @Operation(summary = "借进借出商品台账聚合查询（按 商品×往来单位 分组）")
     @GetMapping("/aggregate")
     public Result<List<java.util.Map<String, Object>>> aggregate(
@@ -43,8 +96,11 @@ public class BorrowController {
             @Parameter(description = "往来单位") @RequestParam(required = false) String partnerName,
             @Parameter(description = "商品名称") @RequestParam(required = false) String productName,
             @Parameter(description = "开始日期 YYYY-MM-DD") @RequestParam(required = false) String dateStart,
-            @Parameter(description = "结束日期 YYYY-MM-DD") @RequestParam(required = false) String dateEnd) {
-        return Result.ok(borrowService.aggregateByProduct(direction, partnerName, productName, dateStart, dateEnd));
+            @Parameter(description = "结束日期 YYYY-MM-DD") @RequestParam(required = false) String dateEnd,
+            @Parameter(description = "商品分类ID") @RequestParam(required = false) Long categoryId,
+            @Parameter(description = "经手人") @RequestParam(required = false) String handlerName,
+            @Parameter(description = "部门") @RequestParam(required = false) String deptName) {
+        return Result.ok(borrowService.aggregateByProduct(direction, partnerName, productName, dateStart, dateEnd, categoryId, handlerName, deptName));
     }
 
     @Operation(summary = "查询借进借出单（含明细）")

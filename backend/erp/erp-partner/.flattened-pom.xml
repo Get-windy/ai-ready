@@ -5,10 +5,10 @@
   <parent>
     <groupId>cn.aiedge.erp</groupId>
     <artifactId>erp</artifactId>
-    <version>0.3.13</version>
+    <version>0.3.16</version>
   </parent>
   <artifactId>erp-partner</artifactId>
-  <version>0.3.13</version>
+  <version>0.3.16</version>
   <name>企智连·往来单位管理模块</name>
   <description>客户、供应商、物流公司及其他往来单位管理</description>
   <licenses>

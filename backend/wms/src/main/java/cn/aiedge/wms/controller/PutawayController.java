@@ -2,6 +2,8 @@ package cn.aiedge.wms.controller;
 
 import cn.aiedge.base.vo.Result;
 import cn.aiedge.wms.controller.dto.DetailSaveRequest;
+import cn.aiedge.wms.controller.dto.WmsPutawayDetailQuery;
+import cn.aiedge.wms.controller.dto.WmsPutawayDetailVO;
 import cn.aiedge.wms.entity.WmsPutawayDetail;
 import cn.aiedge.wms.entity.WmsPutawayTask;
 import cn.aiedge.wms.putaway.service.PutawayService;
@@ -60,6 +62,16 @@ public class PutawayController {
         return Result.ok(putawayService.pageTask(page, query));
     }
 
+    @Operation(summary = "按明细分页查询上架任务")
+    @GetMapping("/page-detail")
+    public Result<Page<WmsPutawayDetailVO>> pageDetail(WmsPutawayDetailQuery query) {
+        if (query == null) query = new WmsPutawayDetailQuery();
+        Page<WmsPutawayDetail> page = new Page<>(
+                query.getPageNum() == null ? 1 : query.getPageNum(),
+                query.getPageSize() == null ? 20 : query.getPageSize());
+        return Result.ok(putawayService.pageDetail(page, query));
+    }
+
     @Operation(summary = "删除上架任务")
     @DeleteMapping("/{id}")
     public Result<String> delete(@PathVariable @NotNull(message = "任务ID不能为空") Long id) {
@@ -86,6 +98,15 @@ public class PutawayController {
         putawayService.confirmPutaway(taskId, userId, userName);
         log.info("确认上架: taskId={}, userId={}", taskId, userId);
         return Result.ok("确认上架成功");
+    }
+
+    @Operation(summary = "取消上架")
+    @PostMapping("/cancel")
+    public Result<String> cancel(@RequestParam @NotNull Long taskId,
+                                 @RequestParam(required = false) String reason) {
+        putawayService.cancelPutaway(taskId, reason);
+        log.info("取消上架: taskId={}, reason={}", taskId, reason);
+        return Result.ok("取消成功");
     }
 
     @Operation(summary = "查询上架明细列表")

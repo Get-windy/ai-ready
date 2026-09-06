@@ -87,11 +87,13 @@
             :disabled="field.disabled"
             :loading="field.loading"
             :search-btn="field.searchBtn"
+            :remote-search="field.remoteSearch"
             :width="field.width"
             :view-mode="isViewMode"
             @update:model-value="(val: any) => emit('update:modelValue', { ...modelValue, [field.key]: val })"
             @change="(val: any) => emit('fieldChange', field.key, val)"
             @search-btn="emit('searchBtn', field.key, field.searchBtn)"
+            @search="(v: string) => emit('search', field.key, v)"
           />
           <!-- 默认模式：使用 LabelField -->
           <LabelField
@@ -109,11 +111,13 @@
             :disabled="field.disabled"
             :loading="field.loading"
             :search-btn="field.searchBtn"
+            :remote-search="field.remoteSearch"
             :width="field.width"
             :view-mode="isViewMode"
             @update:model-value="(val: any) => emit('update:modelValue', { ...modelValue, [field.key]: val })"
             @change="(val: any) => emit('fieldChange', field.key, val)"
             @search-btn="emit('searchBtn', field.key, field.searchBtn)"
+            @search="(v: string) => emit('search', field.key, v)"
           />
         </template>
       </div>
@@ -370,6 +374,7 @@ const emit = defineEmits<{
   'fieldChange': [fieldKey: string, value: any]
   'action': [actionKey: string, parentKey?: string]
   'searchBtn': [fieldKey: string, btnText: string]
+  'search': [fieldKey: string, keyword: string]
   'draft': []
   'submit': []
   'tabChange': [tabKey: string]

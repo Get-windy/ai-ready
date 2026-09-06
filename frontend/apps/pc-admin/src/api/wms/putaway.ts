@@ -10,6 +10,7 @@ export interface WmsPutawayTask {
   taskNo: string
   sourceType: number
   sourceId: number
+  sourceOrderNo: string
   warehouseId: number
   warehouseName: string
   totalItems: number
@@ -50,6 +51,7 @@ export const putawayApi = {
   update(data: Partial<WmsPutawayTask>) { return request.post('/wms/putaway/update', data) },
   getById(id: number) { return request.get(`/wms/putaway/${id}`) },
   page(params: any) { return request.get('/wms/putaway/page', { params }) },
+  pageDetail(params: any) { return request.get('/wms/putaway/page-detail', { params }) },
   remove(id: number) { return request.delete(`/wms/putaway/${id}`) },
   /** 开始上架：POST /wms/putaway/start?taskId&userId&userName */
   startPutaway(taskId: number, userId?: number, userName?: string) {

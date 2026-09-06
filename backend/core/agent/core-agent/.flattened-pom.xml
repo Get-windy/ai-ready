@@ -5,11 +5,11 @@
   <parent>
     <groupId>cn.aiedge</groupId>
     <artifactId>ai-ready-backend</artifactId>
-    <version>0.3.13</version>
+    <version>0.3.16</version>
     <relativePath>../../../pom.xml</relativePath>
   </parent>
   <artifactId>core-agent</artifactId>
-  <version>0.3.13</version>
+  <version>0.3.16</version>
   <name>Agent调用层模块</name>
   <description>Agent注册、能力管理、调用日志等AI-Ready核心功能</description>
   <licenses>

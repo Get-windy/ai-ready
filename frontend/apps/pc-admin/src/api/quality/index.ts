@@ -12,7 +12,8 @@ export const INSPECTION_TYPE_MAP: Record<string, { name: string; color: string }
 export const INSPECTION_RESULT_MAP: Record<string, { text: string; color: string }> = {
   PASS: { text: '合格', color: 'success' },
   FAIL: { text: '不合格', color: 'error' },
-  PENDING: { text: '待检', color: 'warning' }
+  PENDING: { text: '待检', color: 'warning' },
+  CONCESSION: { text: '让步接收', color: 'processing' }
 }
 
 // 缺陷类型枚举
@@ -52,6 +53,7 @@ export interface QualityInspection {
   bizId: number
   bizType: string
   bizNo: string
+  qualityNo: string
   productId: number
   productName: string
   batchNo: string
@@ -73,16 +75,38 @@ export interface QualityDefectHandle {
   id: number
   tenantId: number
   inspectionId: number
+  bizNo: string
   defectType: string
   defectDesc: string
+  defectLevel: string
+  defectQuantity: number
   handleType: string
   handleQuantity: number
   handlerId: number
   handlerName: string
   handleTime: string
   handleResult: string
+  correctiveAction: string
+  preventiveAction: string
+  returnNo: string
+  damageNo: string
   status: number
   createTime: string
+}
+
+// 缺陷处理历史
+export interface QualityDefectHandleHistory {
+  id: number
+  defectId: number
+  handleType: string
+  handleQuantity: number
+  handleResult: string
+  handlerName: string
+  handleTime: string
+  returnNo: string
+  damageNo: string
+  correctiveAction: string
+  preventiveAction: string
 }
 
 // 质检标准 API
@@ -90,20 +114,26 @@ export const qualityStandardApi = {
   create: (standard: QualityStandard) =>
     request.post<Result<QualityStandard>>('/api/quality/standard', standard),
 
-  update: (id: number, standard: QualityStandard) =>
+  update: (id: number, standard: Partial<QualityStandard>) =>
     request.put<Result<QualityStandard>>(`/api/quality/standard/${id}`, standard),
+
+  updateStatus: (id: number, status: number) =>
+    request.put<Result<QualityStandard>>(`/api/quality/standard/${id}`, { status }),
 
   delete: (id: number) =>
     request.delete<Result<void>>(`/api/quality/standard/${id}`),
 
-  page: (params: { pageNum: number; pageSize: number; inspectionType?: string; status?: number }) =>
+  page: (params: { pageNum: number; pageSize: number; standardCode?: string; standardName?: string; inspectionType?: string; status?: number }) =>
     request.get<Result<PageResult<QualityStandard>>>('/api/quality/standard/page', { params }),
 
   get: (id: number) =>
     request.get<Result<QualityStandard>>(`/api/quality/standard/${id}`),
 
   listByType: (inspectionType: string) =>
-    request.get<Result<QualityStandard[]>>('/api/quality/standard/list-by-type', { params: { inspectionType } })
+    request.get<Result<QualityStandard[]>>('/api/quality/standard/list-by-type', { params: { inspectionType } }),
+
+  nextNo: () =>
+    request.get<Result<string>>('/api/quality/standard/next-no')
 }
 
 // 检验记录 API
@@ -111,10 +141,25 @@ export const qualityInspectionApi = {
   create: (inspection: QualityInspection) =>
     request.post<Result<QualityInspection>>('/api/quality/inspection', inspection),
 
-  complete: (id: number, params: { result: string; passQuantity: number; failQuantity: number }) =>
+  update: (id: number, inspection: Partial<QualityInspection>) =>
+    request.put<Result<QualityInspection>>(`/api/quality/inspection/${id}`, inspection),
+
+  complete: (id: number, params: { result: string; passQuantity: number; failQuantity: number; remark?: string }) =>
     request.post<Result<void>>(`/api/quality/inspection/${id}/complete`, params),
 
-  page: (params: { pageNum: number; pageSize: number; bizType?: string; result?: string }) =>
+  cancel: (id: number) =>
+    request.post<Result<QualityInspection>>(`/api/quality/inspection/${id}/cancel`),
+
+  delete: (id: number) =>
+    request.delete<Result<void>>(`/api/quality/inspection/${id}`),
+
+  batchDelete: (ids: number[]) =>
+    request.delete<Result<void>>('/api/quality/inspection/batch', { data: ids }),
+
+  nextNo: () =>
+    request.get<Result<string>>('/api/quality/inspection/next-no'),
+
+  page: (params: { pageNum: number; pageSize: number; bizType?: string; result?: string; excludeResult?: string; bizNo?: string; qualityNo?: string; productName?: string; inspectorName?: string; inspectionType?: string; status?: number; dateStart?: string; dateEnd?: string; keyword?: string }) =>
     request.get<Result<PageResult<QualityInspection>>>('/api/quality/inspection/page', { params }),
 
   get: (id: number) =>
@@ -163,20 +208,23 @@ export const CERTIFICATE_TYPE_MAP: Record<string, { name: string; color: string 
 
 // 不合格处理 API
 export const qualityDefectHandleApi = {
-  create: (params: { inspectionId: number; defectType: string; defectDesc: string; defectQuantity: number }) =>
+  create: (params: { inspectionId: number; defectType: string; defectDesc: string; defectQuantity: number; defectLevel?: string }) =>
     request.post<Result<QualityDefectHandle>>('/api/quality/defect', params),
 
-  handle: (id: number, params: { handleType: string; handleQuantity: number; handleResult: string }) =>
+  handle: (id: number, params: { handleType: string; handleQuantity: number; handleResult: string; correctiveAction?: string; preventiveAction?: string }) =>
     request.post<Result<void>>(`/api/quality/defect/${id}/handle`, params),
 
-  page: (params: { pageNum: number; pageSize: number; status?: number }) =>
+  page: (params: { pageNum: number; pageSize: number; inspectionId?: string | number; defectType?: string; defectLevel?: string; status?: string | number; bizNo?: string; handlerName?: string; createTimeStart?: string; createTimeEnd?: string }) =>
     request.get<Result<PageResult<QualityDefectHandle>>>('/api/quality/defect/page', { params }),
 
   get: (id: number) =>
     request.get<Result<QualityDefectHandle>>(`/api/quality/defect/${id}`),
 
   listPending: () =>
-    request.get<Result<QualityDefectHandle[]>>('/api/quality/defect/pending')
+    request.get<Result<QualityDefectHandle[]>>('/api/quality/defect/pending'),
+
+  history: (id: number) =>
+    request.get<Result<QualityDefectHandleHistory[]>>(`/api/quality/defect/${id}/history`)
 }
 
 // 质量证书 API

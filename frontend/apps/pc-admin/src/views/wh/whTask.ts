@@ -28,6 +28,38 @@ export const DETAIL_STATUS_MAP: Record<number, { text: string; color: string }> 
   2: { text: '异常', color: 'red' },
 }
 
+/** 移库类型（WmsMoveTask.moveType 与后端/数据库注释对齐：1库内移库 2补货移库 3整理移库） */
+export const MOVE_TYPE_MAP: Record<number, { text: string; color: string }> = {
+  1: { text: '库内移库', color: 'default' },
+  2: { text: '补货移库', color: 'blue' },
+  3: { text: '整理移库', color: 'purple' },
+}
+
+/**
+ * 拣货任务状态（cn.aiedge.wms 拣货状态机：0待拣货 1拣货中 2已完成 3缺货 4已取消）
+ * 区别于通用 WMS_STATUS_MAP（3=已取消/4=异常），拣货单拥有独立状态语义
+ */
+export const PICK_STATUS_MAP: Record<number, { text: string; color: string }> = {
+  0: { text: '待拣货', color: 'orange' },
+  1: { text: '拣货中', color: 'blue' },
+  2: { text: '已完成', color: 'green' },
+  3: { text: '缺货', color: 'red' },
+  4: { text: '已取消', color: 'default' },
+}
+
+/** 拣货来源类型（对齐 WmsPickTask.sourceType：1销售出库 2退货出库 3调拨出库 4盘亏出库） */
+export const PICK_SOURCE_TYPE_OPTIONS = [
+  { label: '销售出库', value: 1 },
+  { label: '退货出库', value: 2 },
+  { label: '调拨出库', value: 3 },
+  { label: '盘亏出库', value: 4 },
+]
+
+/** 拣货来源类型文案 */
+export function pickSourceTypeText(t: number): string {
+  return PICK_SOURCE_TYPE_OPTIONS.find(o => o.value === t)?.label || '其他'
+}
+
 /** 数量千分位格式化 */
 export function formatQty(val: number | null | undefined): string {
   if (val === null || val === undefined || isNaN(Number(val))) return '-'

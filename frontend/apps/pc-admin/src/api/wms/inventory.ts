@@ -60,6 +60,10 @@ export interface WmsInventoryLog {
 
 export const inventoryApi = {
   query(params: any) { return request.get('/wms/inventory/query', { params }) },
+  /** 查询商品在仓库下的可用库存批次列表（按批次拣选）：GET /wms/inventory/batch-list */
+  batchList(productId: number, warehouseId: number) {
+    return request.get('/wms/inventory/batch-list', { params: { productId, warehouseId } })
+  },
   page(params: any) { return request.get('/wms/inventory/page', { params }) },
   /** 商品库存流水：后端无单独 by-product 端点，用 /log/page + productId 过滤，返回 records 数组 */
   async logByProduct(productId: number) {

@@ -32,6 +32,10 @@ public class StockTakeItem {
     private String region;
     private String location;
     private String image;
+    /** 目标货位ID（货位转移差异：账面在 location，应移至 toLocation） */
+    private Long toLocationId;
+    /** 目标货位编码 */
+    private String toLocationCode;
     /** 库存数量（账面库存） */
     private BigDecimal stockQuantity;
     /** 换算结果 */

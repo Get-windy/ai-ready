@@ -44,6 +44,13 @@ public class InventoryController {
         return Result.ok(inventoryService.pageInventory(page, query));
     }
 
+    @Operation(summary = "查询商品在仓库下的可用库存批次列表（按批次拣选）")
+    @GetMapping("/batch-list")
+    public Result<java.util.List<WmsInventory>> batchList(@RequestParam @NotNull Long productId,
+                                                          @RequestParam @NotNull Long warehouseId) {
+        return Result.ok(inventoryService.listAvailableBatch(productId, warehouseId));
+    }
+
     @Operation(summary = "分页查询库存流水")
     @GetMapping("/log/page")
     public Result<Page<WmsInventoryLog>> logPage(@Valid Page<WmsInventoryLog> page, WmsInventoryLog query) {

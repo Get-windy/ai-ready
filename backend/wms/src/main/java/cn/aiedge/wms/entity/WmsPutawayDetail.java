@@ -2,6 +2,7 @@ package cn.aiedge.wms.entity;
 
 import cn.aiedge.base.entity.BaseEntity;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -40,8 +41,10 @@ public class WmsPutawayDetail extends BaseEntity {
     @Schema(description = "批次号")
     private String batchNo;
     @Schema(description = "生产日期")
+    @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDateTime productionDate;
     @Schema(description = "有效期至")
+    @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDateTime validityDate;
     @Schema(description = "状态 0-待上架 1-已上架")
     private Integer status;

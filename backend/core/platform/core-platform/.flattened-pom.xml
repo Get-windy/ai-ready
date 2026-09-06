@@ -5,11 +5,11 @@
   <parent>
     <groupId>cn.aiedge</groupId>
     <artifactId>ai-ready-backend</artifactId>
-    <version>0.3.13</version>
+    <version>0.3.16</version>
     <relativePath>../../../pom.xml</relativePath>
   </parent>
   <artifactId>core-platform</artifactId>
-  <version>0.3.13</version>
+  <version>0.3.16</version>
   <name>核心平台扩展模块</name>
   <description>自动化、看板、自定义字段、记录权限等平台扩展功能统一管理</description>
   <licenses>

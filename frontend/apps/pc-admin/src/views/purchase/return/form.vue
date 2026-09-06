@@ -55,27 +55,6 @@
                 </a-space>
               </template>
             </template>
-            <template #productCell="{ record, index }">
-              <a-select
-                v-model:value="record.productId"
-                placeholder="搜索选择商品"
-                show-search
-                :filter-option="filterOption"
-                style="width:100%"
-                :loading="loadingOptions"
-                size="small"
-                :disabled="isLocked"
-                @change="(val: number) => handleProductChange(val, index)"
-              >
-                <a-select-option
-                  v-for="p in optionRefs.products"
-                  :key="p.id"
-                  :value="p.id"
-                >
-                  {{ p.name }}
-                </a-select-option>
-              </a-select>
-            </template>
           </BillDetailTable>
         </template>
 
@@ -398,7 +377,6 @@ const {
   effectiveMode,
   handleAddProduct,
   handleRemoveProduct,
-  handleProductChange: baseProductChange,
   handleFieldChange: baseFieldChange,
   handleSaveDraft,
   handleSubmit,
@@ -730,11 +708,13 @@ const footerConfig = computed<BillFooterConfig>(() => ({
 }))
 
 // ═══ 明细表格列（文档57列） ═══
-const detailColumns: DetailColumnConfig[] = [
+const detailColumns = computed<DetailColumnConfig[]>(() => [
   { key: 'rowNo', title: '', type: 'rowNo', width: 40, fixed: 'left' },
   { key: 'action', title: '操作', type: 'action', slotName: 'actionCell', width: 60, fixed: 'left' },
   { key: 'image', title: '图片', type: 'input', width: 60, defaultHidden: true },
-  { key: 'productName', title: '商品名称', type: 'slot', slotName: 'productCell', width: 220 },
+  { key: 'productId', title: '商品名称', type: 'input', searchable: true,
+    options: (optionRefs.products || []).map((p: any) => ({ label: p.name, value: p.id, searchText: `${p.name} ${p.code || ''} ${p.barcode || ''}` })),
+    width: 220 },
   { key: 'itemCode', title: '货号', type: 'input', width: 100 },
   { key: 'barcode', title: '条码', type: 'input', width: 120 },
   { key: 'specification', title: '规格', type: 'input', width: 100 },
@@ -795,7 +775,7 @@ const detailColumns: DetailColumnConfig[] = [
   { key: 'customField8', title: '单据自定义8(往来单位)', type: 'input', width: 140, defaultHidden: true },
   { key: 'customField9', title: '单据自定义9(职员)', type: 'input', width: 140, defaultHidden: true },
   { key: 'customField10', title: '单据自定义10(部门)', type: 'input', width: 140, defaultHidden: true },
-]
+])
 
 const tableSummaryColumns = computed(() => [
   { key: 'quantity', value: totalQuantity.value, highlight: true },
@@ -804,36 +784,33 @@ const tableSummaryColumns = computed(() => [
 ])
 
 // ═══ 事件处理 ═══
-function handleProductChange(val: number, index: number) {
-  baseProductChange(val, index)
-  const p: any = optionRefs.products.find((x: any) => x.id === val)
-  if (p && formData.products[index]) {
-    const row = formData.products[index]
-    row.itemCode = p.code || ''
-    row.barcode = p.barcode || ''
-    row.specification = p.specification || ''
-    row.model = p.model || ''
-    row.unit = p.unit || ''
-    row.smallUnit = p.smallUnit || ''
-    row.brand = p.brand || ''
-    row.origin = p.origin || ''
-    row.unitPrice = p.purchasePrice || p.price || 0
-    row.costPrice = p.costPrice || 0
-    row.wholesalePrice = p.wholesalePrice || 0
-    row.retailPrice = p.retailPrice || 0
-    row.latestPurchaseDate = p.latestPurchaseDate || ''
-    row.amount = (row.quantity || 0) * (row.unitPrice || 0)
-    row.costAmount = (row.quantity || 0) * (row.costPrice || 0)
-  }
-}
-
 function handleInsertProduct(index: number) {
   handleAddProduct()
   const item = formData.products.pop()
   if (item) formData.products.splice(index + 1, 0, item)
 }
 
-function handleCellChange(record: any, fieldKey: string, _value: any) {
+function handleCellChange(record: any, fieldKey: string, value: any) {
+  if (fieldKey === 'productId' && value != null) {
+    const p: any = optionRefs.products.find((x: any) => x.id === value)
+    if (p) {
+      record.itemCode = p.code || ''
+      record.barcode = p.barcode || ''
+      record.specification = p.specification || ''
+      record.model = p.model || ''
+      record.unit = p.unit || ''
+      record.smallUnit = p.smallUnit || ''
+      record.brand = p.brand || ''
+      record.origin = p.origin || ''
+      record.unitPrice = p.purchasePrice || p.price || 0
+      record.costPrice = p.costPrice || 0
+      record.wholesalePrice = p.wholesalePrice || 0
+      record.retailPrice = p.retailPrice || 0
+      record.latestPurchaseDate = p.latestPurchaseDate || ''
+      record.amount = (record.quantity || 0) * (record.unitPrice || 0)
+      record.costAmount = (record.quantity || 0) * (record.costPrice || 0)
+    }
+  }
   if (['quantity', 'unitPrice'].includes(fieldKey)) {
     record.amount = (record.quantity || 0) * (record.unitPrice || 0)
   }
@@ -976,7 +953,7 @@ function handleKeydown(e: KeyboardEvent) {
 // ═══ 生命周期 ═══
 onMounted(() => {
   if (effectiveMode.value !== 'edit' && formData.products.length === 0) {
-    handleAddProduct()
+    Array.from({ length: 20 }, () => handleAddProduct())
   }
   nextTick(() => {
     tableMaxHeight.value = Math.max(200, window.innerHeight - 420)

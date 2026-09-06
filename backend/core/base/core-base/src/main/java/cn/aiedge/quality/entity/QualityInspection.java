@@ -25,6 +25,18 @@ public class QualityInspection extends BaseEntity {
     /** 业务单号 */
     private String bizNo;
 
+    /** 质检单号 */
+    private String qualityNo;
+
+    /** 单据状态: 0待检, 1已完成, 2已作废 */
+    private Integer status;
+
+    /** 制单人 */
+    private String creatorName;
+
+    /** 检验类型: INBOUND来料, OUTBOUND出库, PROCESS过程 */
+    private String inspectionType;
+
     /** 产品ID */
     private Long productId;
 
@@ -40,7 +52,7 @@ public class QualityInspection extends BaseEntity {
     /** 抽检数量 */
     private BigDecimal sampleQuantity;
 
-    /** 检验结果: PASS, FAIL, PENDING */
+    /** 检验结果: PASS合格, FAIL不合格, PENDING待检, CONCESSION让步接收 */
     private String inspectionResult;
 
     /** 合格数量 */
@@ -60,6 +72,12 @@ public class QualityInspection extends BaseEntity {
 
     /** 检验时间 */
     private LocalDateTime inspectionTime;
+
+    /** 仓库ID(质检/冻结放行维度) */
+    private Long warehouseId;
+
+    /** 仓库名称 */
+    private String warehouseName;
 
     /** 备注 */
     private String remark;

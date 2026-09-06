@@ -19,13 +19,28 @@ public class QualityDefectHandle extends BaseEntity {
     /** 检验记录ID */
     private Long inspectionId;
 
+    /** 来源单号(质检单的业务单号) */
+    private String bizNo;
+
     /** 缺陷类型: QUALITY, PACKAGING, LABELING */
     private String defectType;
 
     /** 缺陷描述 */
     private String defectDesc;
 
-    /** 处理方式: RETURN, REWORK, SCRAP, SPECIAL_RELEASE */
+    /** 缺陷等级: S严重, Ma主要, Mi次要 */
+    private String defectLevel;
+
+    /** 纠正措施(CAPA) */
+    private String correctiveAction;
+
+    /** 预防措施(CAPA) */
+    private String preventiveAction;
+
+    /** 缺陷数量 */
+    private BigDecimal defectQuantity;
+
+    /** 处理方式: RETURN退货, CONCESSION让步接收, REWORK返工, SCRAP报废, SPECIAL_RELEASE特采 */
     private String handleType;
 
     /** 处理数量 */
@@ -42,6 +57,12 @@ public class QualityDefectHandle extends BaseEntity {
 
     /** 处理结果 */
     private String handleResult;
+
+    /** 处置生成的采购退货单号(RETURN) */
+    private String returnNo;
+
+    /** 处置生成的报损单号(SCRAP) */
+    private String damageNo;
 
     /** 状态: 0待处理, 1已处理 */
     private Integer status;

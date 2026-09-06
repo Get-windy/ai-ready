@@ -31,6 +31,8 @@ public class WmsReceiptDetail extends BaseEntity {
     private BigDecimal expectedQuantity;
     @Schema(description = "实收数量")
     private BigDecimal receivedQuantity;
+    @Schema(description = "破损数量（不入库，需红冲/调整）")
+    private BigDecimal brokenQuantity;
     @Schema(description = "已上架数量")
     private BigDecimal putawayQuantity;
     @Schema(description = "上架货位ID")
