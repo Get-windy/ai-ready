@@ -1,0 +1,50 @@
+{
+  "page": "外部订单",
+  "route": "trade/external-order/list",
+  "menuId": 605,
+  "parentMenu": "600（交易模块 > 外部平台）",
+  "sysMenuPath": "trade-external-order",
+  "component": "views/trade/external-order/list.vue",
+  "scrapeDate": "2026-09-07",
+  "type": "只读列表型",
+  "entry": "单入口：交易模块 → 外部平台 → 外部订单",
+  "tabs": 0,
+  "topButtons": [],
+  "queryFieldCount": 0,
+  "queryFields": [],
+  "columnConfigDialog": false,
+  "pageConfigDialog": false,
+  "columns": {
+    "count": 8,
+    "defaultDisplay": 8,
+    "hidden": 0,
+    "list": [
+      {"title": "渠道", "field": "channelCode", "display": true},
+      {"title": "外部订单号", "field": "externalOrderId", "display": true},
+      {"title": "接收时间", "field": "receiveTime", "display": true},
+      {"title": "处理状态", "field": "processStatus", "display": true},
+      {"title": "内部订单ID", "field": "internalOrderId", "display": true},
+      {"title": "重试次数", "field": "retryCount", "display": true},
+      {"title": "原始数据", "field": "rawData", "display": true},
+      {"title": "操作", "field": "action", "display": true}
+    ]
+  },
+  "fixedActionColumn": "操作（重试 processStatus===3 / 查看订单 processStatus===2）",
+  "rowOps": ["重试（失败）", "查看订单（已入库）", "查看原始数据（rawData列，弹窗）"],
+  "processStatusEnums": {"0": "待处理", "1": "已转换", "2": "已入库", "3": "失败"},
+  "backend": {
+    "controller": "OpenApiController（/api/open/order/*）+ ExternalOrderService",
+    "frontEndPageEndpoint": "/api/trade/external-order/page",
+    "frontEndRetryEndpoint": "/api/trade/external-order/{id}/retry",
+    "entity": "ExternalOrderRaw",
+    "table": "external_order_raw",
+    "migration": "V8.14.0__Multi_Channel_Integration_Tables.sql",
+    "gap": "前端 /api/trade/external-order/* 无后端控制器映射；服务层 pageRawOrders/retry 已实现，疑缺控制器装配"
+  },
+  "benchmark": {
+    "found": false,
+    "note": "ql361 未见到独立页，实测不可得，按本系统实现+业界标准",
+    "investigation": "ql361 顶栏商城/销售/设置菜单均无外部订单/渠道配置/库存同步；商城「订单处理」为自有商城（微商城XSDD-）订单处理中心，与本页外部平台订单接入台账概念不同，不构成对标"
+  },
+  "dataSource": "本系统源码实测：views/trade/external-order/list.vue + api/trade/index.ts + OpenApiController + ExternalOrderService"
+}

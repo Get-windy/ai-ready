@@ -1,0 +1,105 @@
+{
+  "domain": "财务",
+  "group": "收款",
+  "item": "提存（提现存现转款）",
+  "crawlTime": "2026-09-07",
+  "source": "对标系统实测抓取（Playwright MCP, 22stable.ql361.com）",
+  "entryType": "双入口(表单页 + 列表历史页)",
+  "listPage": {
+    "tabs": 2,
+    "tabNames": ["按单据", "按明细"],
+    "byDoc": {
+      "dataTableColumns": {
+        "allCount": 17,
+        "columns": [
+          {"seq": 1, "name": "单据日期", "def": "[x]"},
+          {"seq": 2, "name": "单据编号", "def": "[x]"},
+          {"seq": 3, "name": "单据状态", "def": "[x]"},
+          {"seq": 4, "name": "转出账户", "def": "[x]"},
+          {"seq": 5, "name": "转出金额", "def": "[x]"},
+          {"seq": 6, "name": "转入金额", "def": "[x]"},
+          {"seq": 7, "name": "手续费", "def": "[x]"},
+          {"seq": 8, "name": "经手人", "def": "[x]"},
+          {"seq": 9, "name": "部门", "def": "[ ]"},
+          {"seq": 10, "name": "记账人", "def": "[ ]"},
+          {"seq": 11, "name": "制单人", "def": "[ ]"},
+          {"seq": 12, "name": "摘要", "def": "[ ]"},
+          {"seq": 13, "name": "附件", "def": "[ ]"},
+          {"seq": 14, "name": "单据备注", "def": "[ ]"},
+          {"seq": 15, "name": "制单时间", "def": "[ ]"},
+          {"seq": 16, "name": "记账时间", "def": "[ ]"},
+          {"seq": 17, "name": "打印次数", "def": "[x]"}
+        ],
+        "defaultDisplayCount": 9,
+        "defaultDisplay": ["单据日期","单据编号","单据状态","转出账户","转出金额","转入金额","手续费","经手人","打印次数"],
+        "hiddenColumns": ["部门","记账人","制单人","摘要","附件","单据备注","制单时间","记账时间"]
+      },
+      "pageConfig": {
+        "queryConditionFields": {"count": 10, "fields": ["日期","单据编号","经手人","部门","制单人","记账人","单据状态","转出账户","单据备注","显示红冲"]},
+        "functionButtons": {"count": 4, "fields": ["新增","刷新","打印(F8)","导出"]}
+      }
+    },
+    "byDetail": {
+      "dataTableColumns": {
+        "allCount": 17,
+        "columns": [
+          {"seq": 1, "name": "单据日期", "def": "[x]"},
+          {"seq": 2, "name": "单据编号", "def": "[x]"},
+          {"seq": 3, "name": "单据状态", "def": "[x]"},
+          {"seq": 4, "name": "转出账户", "def": "[x]"},
+          {"seq": 5, "name": "转出金额", "def": "[x]"},
+          {"seq": 6, "name": "转入账户", "def": "[x]"},
+          {"seq": 7, "name": "转入金额", "def": "[x]"},
+          {"seq": 8, "name": "手续费", "def": "[x]"},
+          {"seq": 9, "name": "经手人", "def": "[x]"},
+          {"seq": 10, "name": "部门", "def": "[ ]"},
+          {"seq": 11, "name": "记账人", "def": "[ ]"},
+          {"seq": 12, "name": "制单人", "def": "[ ]"},
+          {"seq": 13, "name": "摘要", "def": "[ ]"},
+          {"seq": 14, "name": "单据备注", "def": "[ ]"},
+          {"seq": 15, "name": "制单时间", "def": "[ ]"},
+          {"seq": 16, "name": "记账时间", "def": "[ ]"},
+          {"seq": 17, "name": "打印次数", "def": "[x]"}
+        ],
+        "defaultDisplayCount": 10,
+        "defaultDisplay": ["单据日期","单据编号","单据状态","转出账户","转出金额","转入账户","转入金额","手续费","经手人","打印次数"],
+        "hiddenColumns": ["部门","记账人","制单人","摘要","单据备注","制单时间","记账时间"]
+      },
+      "pageConfig": {
+        "queryConditionFields": {"count": 11, "fields": ["日期","单据编号","经手人","部门","制单人","记账人","单据状态","转出账户","转入账户","单据备注","显示红冲"]},
+        "functionButtons": {"count": 4, "fields": ["新增","刷新","打印(F8)","导出"]}
+      }
+    }
+  },
+  "formPage": {
+    "pageConfigTab_pageConfig": {
+      "count": 10,
+      "fields": [
+        {"seq": 1, "name": "编号", "def": "[x]"},
+        {"seq": 2, "name": "转出账户", "def": "[x]"},
+        {"seq": 3, "name": "经手人", "def": "[x]"},
+        {"seq": 4, "name": "部门", "def": "[ ]"},
+        {"seq": 5, "name": "单据日期", "def": "[x]"},
+        {"seq": 6, "name": "手续费", "def": "[x]"},
+        {"seq": 7, "name": "单据备注", "def": "[x]"},
+        {"seq": 8, "name": "制单人", "def": "[x]"},
+        {"seq": 9, "name": "打印次数", "def": "[x]"},
+        {"seq": 10, "name": "本单金额", "def": "[x]"}
+      ],
+      "defaultDisplayCount": 9,
+      "hiddenFields": ["部门"]
+    },
+    "detailTableColumns": {
+      "table": "转入账户明细",
+      "allCount": 4,
+      "columns": [
+        {"seq": 1, "name": "转入账户编号", "def": "[x]"},
+        {"seq": 2, "name": "转入账户名称", "def": "[x]"},
+        {"seq": 3, "name": "转入金额", "def": "[x]"},
+        {"seq": 4, "name": "备注", "def": "[x]"}
+      ]
+    },
+    "workflowButtons": ["保存草稿Ctrl+S","记账Ctrl+Enter"]
+  },
+  "note": "列表页为双Tab(按单据/按明细)，各独立一套列配置与页面配置；表单页页面配置弹窗为dojox「页面配置/打印设置」两Tab；列表页页面配置弹窗为Vue「查询条件/功能按钮」两Tab"
+}

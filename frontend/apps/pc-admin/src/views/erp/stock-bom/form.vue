@@ -15,8 +15,7 @@
       <template #detail-table="{ onExpandChange }">
         <BillDetailTable
           :columns="visibleDetailColumns"
-          :data-source="formData.products"
-          :max-height="tableMaxHeight"
+          v-model:data-source="formData.products"
           :summary-columns="tableSummaryColumns"
           @cell-change="handleCellChange"
           @expand-change="onExpandChange"
@@ -30,22 +29,6 @@
                 <MinusCircleOutlined />
               </a-button>
             </a-space>
-          </template>
-          <template #productCell="{ record, index }">
-            <a-select
-              v-model:value="record.productId"
-              placeholder="搜索选择物料"
-              show-search
-              :filter-option="filterOption"
-              style="width:100%"
-              :loading="loadingOptions"
-              size="small"
-              @change="(val: number) => handleProductChange(val, index)"
-            >
-              <a-select-option v-for="p in optionRefs.products" :key="p.id" :value="p.id">
-                {{ p.code ? p.code + ' - ' : '' }}{{ p.name }}
-              </a-select-option>
-            </a-select>
           </template>
           <template #imageCell="{ record }">
             <a-image
@@ -126,7 +109,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, nextTick } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import {
@@ -138,6 +121,7 @@ import BillDetailTable from '@/components/BillFormPage/BillDetailTable/index.vue
 import ColumnConfigPanel from '@/components/ColumnConfigPanel/index.vue'
 import { useColumnConfig, isLockedColumn } from '@/composables/useColumnConfig'
 import type { BillHeaderConfig, BasicInfoField, SummaryRow, BillFooterConfig } from '@/components/BillFormPage/types'
+import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTable/types'
 import { useBillForm } from '@/components/BillFormPage/useBillForm'
 import { stockBomApi } from '@/api/erp'
 import { useUserStore } from '@/stores/user'
@@ -147,8 +131,6 @@ defineOptions({ name: 'StockBomForm' })
 const router = useRouter()
 const userStore = useUserStore()
 const currentUserName = computed(() => userStore?.userInfo?.nickname || userStore?.userInfo?.username || '')
-const tableMaxHeight = ref(400)
-
 // ═══ 页面配置：模板头字段显隐（存 localStorage） ═══
 const PAGE_CONFIG_KEY = 'stock-bom-page-config'
 const DEFAULT_PAGE_FIELDS = [
@@ -197,11 +179,9 @@ const {
   loadingOptions,
   saving,
   optionRefs,
-  filterOption,
   effectiveMode,
   handleAddProduct,
   handleRemoveProduct,
-  handleProductChange: baseProductChange,
   handleFieldChange: baseFieldChange,
   handleSaveDraft,
   handleSubmit,
@@ -373,10 +353,11 @@ const footerConfig = computed<BillFooterConfig>(() => ({
 }))
 
 // ═══ 明细22列（列配置控制显隐） ═══
-const detailColumnDefs: any[] = [
+const detailColumnDefs = computed<DetailColumnConfig[]>(() => [
   { key: 'action', title: '操作', type: 'action', slotName: 'actionCell', width: 60, fixed: 'left' },
   { key: 'image', title: '图片', type: 'slot', slotName: 'imageCell', width: 60, defaultHidden: true },
-  { key: 'productName', title: '商品名称', type: 'slot', slotName: 'productCell', width: 220 },
+  // 商品名称：点击编辑 type:'select'；options 用行级函数读 optionRefs.products（响应式，随物料下拉加载更新）
+  { key: 'productId', title: '商品名称', type: 'select', width: 220, options: () => optionRefs.products.map((p: any) => ({ value: p.id, label: p.code ? `${p.code} - ${p.name}` : p.name })) },
   { key: 'productCode', title: '货号', type: 'input', width: 110 },
   { key: 'barcode', title: '条码', type: 'input', width: 110 },
   { key: 'productSpec', title: '规格', type: 'input', width: 100, defaultHidden: true },
@@ -396,7 +377,7 @@ const detailColumnDefs: any[] = [
   { key: 'extNum3', title: '单据自定义3(数字)', type: 'number', width: 110, defaultHidden: true },
   { key: 'extText4', title: '单据自定义4(文本)', type: 'input', width: 120, defaultHidden: true },
   { key: 'extText5', title: '单据自定义5(文本)', type: 'input', width: 120, defaultHidden: true },
-]
+])
 
 const {
   showPanel: columnConfigOpen,
@@ -405,7 +386,7 @@ const {
   onSettingChange,
   resetSettings,
   handleColumnDrag,
-} = useColumnConfig(detailColumnDefs, 'stock-bom-detail-columns')
+} = useColumnConfig(detailColumnDefs.value, 'stock-bom-detail-columns')
 
 const tableSummaryColumns = computed(() => [
   { key: 'quantity', value: totalQuantity.value, highlight: true },
@@ -430,32 +411,30 @@ function handleFieldChange(fieldKey: string, val: any) {
   }
 }
 
-function handleProductChange(val: number, index: number) {
-  baseProductChange(val, index)
-  const p = optionRefs.products.find((x: any) => x.id === val)
-  const row = formData.products[index]
-  if (p && row) {
-    row.productCode = p.code || ''
-    row.productName = p.name || ''
-    row.barcode = p.barcode || ''
-    row.productSpec = p.specification || ''
-    row.productUnit = p.unit || ''
-    row.model = p.model || ''
-    row.origin = p.origin || ''
-    row.brand = p.brand || ''
-    row.imageUrl = p.image || ''
-    if (!row.unitCost) row.unitCost = p.costPrice || p.purchasePrice || 0
-    row.cost = (row.quantity || 0) * (row.unitCost || 0)
-  }
-}
-
 function handleInsertProduct(index: number) {
   handleAddProduct()
   const item = formData.products.pop()
   if (item) formData.products.splice(index + 1, 0, item)
 }
 
-function handleCellChange(record: any, fieldKey: string, _value: any) {
+function handleCellChange(record: any, fieldKey: string, value: any) {
+  // 商品名称（点击编辑 type:'select'）：回填物料相关字段（原 #productCell slot 联动逻辑迁移）
+  if (fieldKey === 'productId') {
+    const p = optionRefs.products.find((x: any) => x.id === value)
+    if (p && record) {
+      record.productCode = p.code || ''
+      record.productName = p.name || ''
+      record.barcode = p.barcode || ''
+      record.productSpec = p.specification || ''
+      record.productUnit = p.unit || ''
+      record.model = p.model || ''
+      record.origin = p.origin || ''
+      record.brand = p.brand || ''
+      record.imageUrl = p.image || ''
+      if (!record.unitCost) record.unitCost = p.costPrice || p.purchasePrice || 0
+      record.cost = (record.quantity || 0) * (record.unitCost || 0)
+    }
+  }
   if (['quantity', 'unitCost'].includes(fieldKey)) {
     record.cost = (record.quantity || 0) * (record.unitCost || 0)
   }
@@ -521,9 +500,6 @@ onMounted(() => {
   if (effectiveMode.value !== 'edit' && formData.products.length === 0) {
     for (let i = 0; i < 5; i++) handleAddProduct()
   }
-  nextTick(() => {
-    tableMaxHeight.value = Math.max(200, window.innerHeight - 420)
-  })
 })
 </script>
 

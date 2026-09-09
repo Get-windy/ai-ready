@@ -148,4 +148,48 @@ public class PaymentAccountingService {
             log.info("应收核销成功: receivableId={}", receivableId);
         }
     }
+
+    /**
+     * 预付款单记账时创建预付款凭证
+     * Dr. Prepayment (预付账款 1123)
+     * Cr. Bank Deposit (银行存款 1002)
+     *
+     * @param paymentId    预付款单ID
+     * @param paymentNo    预付款单编号
+     * @param supplierId   供应商ID
+     * @param supplierName 供应商名称
+     * @param amount       预付金额
+     */
+    public void postPrePaymentVoucher(Long paymentId, String paymentNo, String supplierId,
+                                      String supplierName, BigDecimal amount) {
+        log.info("创建预付款凭证: paymentNo={}, amount={}", paymentNo, amount);
+
+        BusinessAccountingRequest voucherRequest = new BusinessAccountingRequest();
+        voucherRequest.setSourceType("PRE_PAYMENT");
+        voucherRequest.setSourceId(paymentId);
+        voucherRequest.setSourceNo(paymentNo);
+        voucherRequest.setSupplierId(supplierId);
+        voucherRequest.setSupplierName(supplierName);
+        voucherRequest.setAmount(amount);
+        voucherRequest.setSummary("预付款 - " + paymentNo);
+        voucherRequest.setVoucherDate(LocalDate.now());
+
+        // Accounting entries: Dr. Prepayment, Cr. Bank Deposit
+        BusinessAccountingRequest.AccountingRequestItem debitEntry = new BusinessAccountingRequest.AccountingRequestItem();
+        debitEntry.setSummary("预付账款");
+        debitEntry.setSubjectCode("1123");  // 预付账款
+        debitEntry.setDebitAmount(amount);
+        debitEntry.setCreditAmount(BigDecimal.ZERO);
+
+        BusinessAccountingRequest.AccountingRequestItem creditEntry = new BusinessAccountingRequest.AccountingRequestItem();
+        creditEntry.setSummary("银行存款");
+        creditEntry.setSubjectCode("1002");  // 银行存款
+        creditEntry.setDebitAmount(BigDecimal.ZERO);
+        creditEntry.setCreditAmount(amount);
+
+        voucherRequest.setItems(List.of(debitEntry, creditEntry));
+
+        VoucherDTO voucherResult = businessAccountingService.createVoucherFromBusiness(voucherRequest);
+        log.info("预付款凭证创建成功: voucherNo={}", voucherResult.getVoucherNo());
+    }
 }

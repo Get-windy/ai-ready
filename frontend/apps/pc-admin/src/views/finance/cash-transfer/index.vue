@@ -1,92 +1,818 @@
 <template>
-  <ErrorBoundary>
-    <PageContainer title="现金转账">
-      <div class="search-area">
-        <div class="search-row">
-          <div class="search-item">
-            <span class="search-label">单据编号</span>
-            <a-input
-              v-model:value="searchParams.docNo"
-              placeholder="请输入单据编号"
-              allow-clear
-              style="width: 180px"
-            />
+  <ErrorBoundary @error="handleError">
+    <PageContainer full-height>
+      <!-- ═══ Tab栏 + 工具栏 ═══ -->
+      <CategoryListLayout
+        :tabs="tabs"
+        :active-tab="activeTab"
+        :show-category-panel="false"
+        :show-table-footer="true"
+        @tab-change="handleTabChange"
+      >
+        <!-- ═══ 工具栏左侧：查询方案 + 快捷日期 ═══ -->
+        <template #toolbar-left>
+          <div class="query-scheme-wrap">
+            <a-select
+              v-model:value="queryScheme"
+              style="width: 140px"
+              size="small"
+              placeholder="--查询方案--"
+            >
+              <a-select-option value="">--查询方案--</a-select-option>
+            </a-select>
+            <a-button type="link" size="small" style="padding: 0 4px">
+              <PlusOutlined />
+            </a-button>
           </div>
-          <div class="search-item">
-            <span class="search-label">日期范围</span>
-            <a-range-picker
-              v-model:value="dateRange"
-              style="width: 240px"
-            />
-          </div>
-          <div class="search-item">
-            <a-space>
-              <a-button
-                type="primary"
-                @click="handleSearch"
-              >
-                <template #icon>
-                  <SearchOutlined />
-                </template>查询
+          <a-space :size="4" class="quick-dates">
+            <a-button
+              v-for="d in quickDates"
+              :key="d.key"
+              :type="quickDate === d.key ? 'primary' : 'link'"
+              size="small"
+              @click="setQuickDate(d.key)"
+            >
+              {{ d.label }}
+            </a-button>
+          </a-space>
+        </template>
+
+        <!-- ═══ 工具栏右侧：列配置/页面配置/新增/刷新/打印/导出 ═══ -->
+        <template #toolbar-right>
+          <a-space :size="8">
+            <a-tooltip title="列配置">
+              <a-button size="small" @click="showColumnConfig = true">
+                <TableOutlined />
               </a-button>
-              <a-button @click="handleReset">
-                <template #icon>
-                  <ClearOutlined />
-                </template>重置
+            </a-tooltip>
+            <a-tooltip title="页面配置">
+              <a-button size="small" @click="showPageConfig = true">
+                <SettingOutlined />
               </a-button>
-            </a-space>
+            </a-tooltip>
+            <a-button type="primary" size="small" @click="handleAdd">
+              <PlusOutlined /> 新增
+            </a-button>
+            <a-button size="small" @click="fetchData">
+              <ReloadOutlined /> 刷新
+            </a-button>
+            <a-button size="small" @click="handlePrintF8">
+              <PrinterOutlined /> 打印(F8)
+            </a-button>
+            <a-button size="small" @click="handleExport">
+              <ExportOutlined /> 导出
+            </a-button>
+          </a-space>
+        </template>
+
+        <!-- ═══ 搜索区域 ═══ -->
+        <template #search-fields>
+          <div class="search-area">
+            <!-- 按单据 Tab 搜索行 -->
+            <template v-if="activeTab === 'doc'">
+              <div class="search-container">
+                <div class="search-grid" ref="docGridRef">
+                  <div class="search-field-item">
+                    <a-range-picker v-model:value="dateRange" size="small" style="width: 100%" @change="handleDateChange" />
+                  </div>
+                  <div class="search-field-item">
+                    <a-input v-model:value="searchParams.docNo" placeholder="单据编号" allow-clear size="small" />
+                  </div>
+                  <div class="search-field-item">
+                    <a-input v-model:value="searchParams.handlerName" placeholder="经手人" allow-clear size="small" />
+                  </div>
+                  <div class="search-field-item">
+                    <a-input v-model:value="searchParams.deptName" placeholder="部门" allow-clear size="small" />
+                  </div>
+                  <div class="search-field-item">
+                    <a-input v-model:value="searchParams.creatorName" placeholder="制单人" allow-clear size="small" />
+                  </div>
+                  <div class="search-field-item">
+                    <a-input v-model:value="searchParams.bookkeeperName" placeholder="记账人" allow-clear size="small" />
+                  </div>
+                  <div class="search-field-item">
+                    <div class="search-select-wrap">
+                      <span class="search-select-label">单据状态</span>
+                      <a-select v-model:value="searchParams.status" size="small" allow-clear>
+                        <a-select-option value="">全部</a-select-option>
+                        <a-select-option :value="0">草稿</a-select-option>
+                        <a-select-option :value="1">已记账</a-select-option>
+                        <a-select-option :value="2">已取消</a-select-option>
+                      </a-select>
+                    </div>
+                  </div>
+                  <div class="search-field-item">
+                    <a-input v-model:value="searchParams.fromAccountName" placeholder="转出账户" allow-clear size="small" />
+                  </div>
+                  <div class="search-field-item">
+                    <a-input v-model:value="searchParams.remark" placeholder="单据备注" allow-clear size="small" />
+                  </div>
+                  <div class="search-action-group" ref="docActionRef" :style="{ gridColumn: 'span ' + docActionSpan }">
+                    <div class="search-field-item search-action-item">
+                      <a-button type="primary" size="small" @click="handleSearch">查询</a-button>
+                    </div>
+                    <div class="search-field-item">
+                      <a-checkbox v-model:checked="searchParams.showRed">显示红冲</a-checkbox>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </template>
+
+            <!-- 按明细 Tab 搜索行 -->
+            <template v-else>
+              <div class="search-container">
+                <div class="search-grid" ref="detailGridRef">
+                  <div class="search-field-item">
+                    <a-range-picker v-model:value="dateRange" size="small" style="width: 100%" @change="handleDateChange" />
+                  </div>
+                  <div class="search-field-item">
+                    <a-input v-model:value="searchParams.docNo" placeholder="单据编号" allow-clear size="small" />
+                  </div>
+                  <div class="search-field-item">
+                    <a-input v-model:value="searchParams.handlerName" placeholder="经手人" allow-clear size="small" />
+                  </div>
+                  <div class="search-field-item">
+                    <a-input v-model:value="searchParams.deptName" placeholder="部门" allow-clear size="small" />
+                  </div>
+                  <div class="search-field-item">
+                    <a-input v-model:value="searchParams.creatorName" placeholder="制单人" allow-clear size="small" />
+                  </div>
+                  <div class="search-field-item">
+                    <a-input v-model:value="searchParams.bookkeeperName" placeholder="记账人" allow-clear size="small" />
+                  </div>
+                  <div class="search-field-item">
+                    <div class="search-select-wrap">
+                      <span class="search-select-label">单据状态</span>
+                      <a-select v-model:value="searchParams.status" size="small" allow-clear>
+                        <a-select-option value="">全部</a-select-option>
+                        <a-select-option :value="0">草稿</a-select-option>
+                        <a-select-option :value="1">已记账</a-select-option>
+                        <a-select-option :value="2">已取消</a-select-option>
+                      </a-select>
+                    </div>
+                  </div>
+                  <div class="search-field-item">
+                    <a-input v-model:value="searchParams.fromAccountName" placeholder="转出账户" allow-clear size="small" />
+                  </div>
+                  <div class="search-field-item">
+                    <a-input v-model:value="searchParams.toAccountName" placeholder="转入账户" allow-clear size="small" />
+                  </div>
+                  <div class="search-field-item">
+                    <a-input v-model:value="searchParams.remark" placeholder="单据备注" allow-clear size="small" />
+                  </div>
+                  <div class="search-action-group" ref="detailActionRef" :style="{ gridColumn: 'span ' + detailActionSpan }">
+                    <div class="search-field-item search-action-item">
+                      <a-button type="primary" size="small" @click="handleSearch">查询</a-button>
+                    </div>
+                    <div class="search-field-item">
+                      <a-checkbox v-model:checked="searchParams.showRed">显示红冲</a-checkbox>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </template>
           </div>
-        </div>
-      </div>
-      <BillTableList
-        ref="tableRef"
-        :columns="columns"
-        :api-url="apiUrl"
-        :params="searchParams"
-      />
+        </template>
+
+        <!-- ═══ 表格区域 ═══ -->
+        <template #table>
+          <div class="table-area">
+            <BillTableList
+              :columns="currentColumns"
+              :data-source="tableData"
+              :loading="loading"
+              :pagination="billPagination"
+              :show-toolbar="false"
+              :show-search="false"
+              :show-add="false"
+              :show-export="false"
+              :show-batch-delete="false"
+              :selectable="true"
+              :row-selection="rowSelection"
+              row-key="id"
+              @page-change="handlePageChange"
+            >
+              <template #docNoCell="{ record }">
+                <a-button type="link" size="small" @click="handleView(record)">
+                  {{ record.docNo }}
+                </a-button>
+              </template>
+              <template #statusCell="{ record }">
+                <a-tag :color="getStatusColor(record.status)">{{ getStatusText(record.status) }}</a-tag>
+              </template>
+              <template #fromAmountCell="{ record }">
+                <span class="currency-value">{{ formatAmount(record.fromAmount) }}</span>
+              </template>
+              <template #toAmountCell="{ record }">
+                <span class="currency-value">{{ formatAmount(record.toAmount ?? record.amount) }}</span>
+              </template>
+              <template #amountCell="{ record }">
+                <span class="currency-value">{{ formatAmount(record.amount) }}</span>
+              </template>
+              <template #feeCell="{ record }">
+                <span class="currency-value">{{ formatAmount(record.fee) }}</span>
+              </template>
+              <template #actionCell="{ record }">
+                <a-space :size="4">
+                  <a-button type="link" size="small" @click="handleView(record)">查看</a-button>
+                  <template v-if="record.status === 0">
+                    <a-button type="link" size="small" @click="handleEdit(record)">修改</a-button>
+                    <a-button type="link" size="small" @click="handlePost(record)">记账</a-button>
+                    <a-dropdown>
+                      <a-button type="link" size="small">更多 <DownOutlined /></a-button>
+                      <template #overlay>
+                        <a-menu @click="({ key }: any) => handleMoreAction(key, record)">
+                          <a-menu-item key="cancel">取消</a-menu-item>
+                          <a-menu-item key="delete">删除</a-menu-item>
+                        </a-menu>
+                      </template>
+                    </a-dropdown>
+                  </template>
+                </a-space>
+              </template>
+            </BillTableList>
+          </div>
+        </template>
+      </CategoryListLayout>
     </PageContainer>
+
+    <!-- ═══ 列配置弹窗 ═══ -->
+    <ColumnConfigPanel
+      :open="showColumnConfig"
+      :settings-columns="panelColumns"
+      :is-locked-column="isLockedColumn"
+      @update:open="showColumnConfig = $event"
+      @change="handleColumnConfigChange"
+      @reset="handleColumnConfigReset"
+      @drag-end="handleColumnConfigChange"
+    />
+
+    <!-- ═══ 页面配置弹窗 ═══ -->
+    <PageConfigPanel
+      :open="showPageConfig"
+      :query-fields-config="activeQueryFields"
+      :function-buttons-config="functionButtonConfig"
+      :storage-key="activePageConfigStorageKey"
+      @update:open="showPageConfig = $event"
+      @change="handlePageConfigChange"
+    />
   </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { message, Modal } from 'ant-design-vue'
 import type { Dayjs } from 'dayjs'
-import { SearchOutlined, ClearOutlined } from '@ant-design/icons-vue'
+import dayjs from 'dayjs'
+import {
+  PlusOutlined, ReloadOutlined, PrinterOutlined, SettingOutlined,
+  TableOutlined, ExportOutlined, DownOutlined,
+} from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
+import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayout.vue'
+import ColumnConfigPanel from '@/components/ColumnConfigPanel/index.vue'
+import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
+import { useColumnConfig, isLockedColumn } from '@/composables/useColumnConfig'
+import { useAutoGridSpan } from '@/composables/useAutoGridSpan'
+import { cashTransferApi } from '@/api/finance/cash-transfer'
+import { useUserStore } from '@/stores/user'
 
-const tableRef = ref()
-const apiUrl = '/finance/cash-transfer/page'
-const dateRange = ref<[Dayjs, Dayjs] | null>(null)
-const searchParams = reactive({ docNo: '', startDate: '', endDate: '' })
+const router = useRouter()
+const userStore = useUserStore()
 
-const columns = [
-  { title: '单据编号', dataIndex: 'docNo', width: 160 },
-  { title: '转出账户', dataIndex: 'fromAccount', width: 140 },
-  { title: '转入账户', dataIndex: 'toAccount', width: 140 },
-  { title: '转账金额', dataIndex: 'amount', width: 120, align: 'right' },
-  { title: '制单人', dataIndex: 'creatorName', width: 100 },
-  { title: '单据状态', dataIndex: 'status', width: 100 },
-  { title: '制单日期', dataIndex: 'createTime', width: 170 },
+// ═══ Tab 配置 ═══
+const tabs = [
+  { key: 'doc', label: '按单据' },
+  { key: 'detail', label: '按明细' },
+]
+const activeTab = ref('doc')
+
+// ═══ 快捷日期 ═══
+const quickDates = [
+  { key: 'yesterday', label: '昨日' },
+  { key: 'today', label: '今日' },
+  { key: 'week', label: '本周' },
+  { key: 'lastWeek', label: '近一周' },
+  { key: 'month', label: '本月' },
+  { key: 'lastMonth', label: '上月' },
+  { key: 'last3Month', label: '近三月' },
+  { key: 'year', label: '本年' },
+]
+const quickDate = ref('week')
+const queryScheme = ref('')
+
+// ═══ 状态 ═══
+const loading = ref(false)
+const tableData = ref<any[]>([])
+
+const docGridRef = ref<HTMLElement | null>(null)
+const docActionRef = ref<HTMLElement | null>(null)
+const detailGridRef = ref<HTMLElement | null>(null)
+const detailActionRef = ref<HTMLElement | null>(null)
+const { span: docActionSpan } = useAutoGridSpan(docActionRef, docGridRef)
+const { span: detailActionSpan } = useAutoGridSpan(detailActionRef, detailGridRef)
+
+// ═══ 日期范围 ═══
+const dateRange = ref<[Dayjs, Dayjs] | null>([dayjs().subtract(7, 'day'), dayjs()])
+
+// ═══ 搜索参数 ═══
+const searchParams = reactive({
+  docNo: '',
+  handlerName: '',
+  deptName: '',
+  creatorName: '',
+  bookkeeperName: '',
+  fromAccountName: '',
+  toAccountName: '',
+  remark: '',
+  itemRemark: '',
+  status: undefined as string | number | undefined,
+  showRed: false,
+  startDate: dayjs().subtract(7, 'day').format('YYYY-MM-DD'),
+  endDate: dayjs().format('YYYY-MM-DD'),
+})
+
+// ═══ 分页 ═══
+const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
+const billPagination = computed(() => ({ current: pagination.current, pageSize: pagination.pageSize, total: pagination.total }))
+
+// ═══ 多选状态 ═══
+const selectedRowKeys = ref<any[]>([])
+const rowSelection = computed(() => ({
+  selectedRowKeys: selectedRowKeys.value,
+  onChange: (keys: any[]) => { selectedRowKeys.value = keys },
+}))
+
+// ═══ 列配置/页面配置弹窗 ═══
+const showColumnConfig = ref(false)
+const showPageConfig = ref(false)
+
+// ═══ 页面配置（查询条件显隐、功能按钮） ═══
+const PAGE_CONFIG_STORAGE_KEY = 'cash-transfer-page-config'
+interface QueryFieldSetting { key: string; label: string; visible: boolean }
+interface FunctionButtonSetting { key: string; label: string; enabled: boolean }
+interface PageConfigData { queryFields: QueryFieldSetting[]; functionButtons: FunctionButtonSetting[] }
+
+const DEFAULT_DOC_QUERY_FIELDS: QueryFieldSetting[] = [
+  { key: 'date', label: '日期', visible: true },
+  { key: 'docNo', label: '单据编号', visible: true },
+  { key: 'handlerName', label: '经手人', visible: true },
+  { key: 'deptName', label: '部门', visible: true },
+  { key: 'creatorName', label: '制单人', visible: true },
+  { key: 'bookkeeperName', label: '记账人', visible: true },
+  { key: 'status', label: '单据状态', visible: true },
+  { key: 'fromAccountName', label: '转出账户', visible: true },
+  { key: 'remark', label: '单据备注', visible: true },
+  { key: 'showRed', label: '显示红冲', visible: true },
 ]
 
-const handleSearch = () => {
-  if (dateRange.value) {
-    searchParams.startDate = dateRange.value[0].format('YYYY-MM-DD')
-    searchParams.endDate = dateRange.value[1].format('YYYY-MM-DD')
-  } else { searchParams.startDate = ''; searchParams.endDate = '' }
-  tableRef.value?.reload()
+const DEFAULT_DETAIL_QUERY_FIELDS: QueryFieldSetting[] = [
+  { key: 'date', label: '日期', visible: true },
+  { key: 'docNo', label: '单据编号', visible: true },
+  { key: 'handlerName', label: '经手人', visible: true },
+  { key: 'deptName', label: '部门', visible: true },
+  { key: 'creatorName', label: '制单人', visible: true },
+  { key: 'bookkeeperName', label: '记账人', visible: true },
+  { key: 'status', label: '单据状态', visible: true },
+  { key: 'fromAccountName', label: '转出账户', visible: true },
+  { key: 'toAccountName', label: '转入账户', visible: true },
+  { key: 'remark', label: '单据备注', visible: true },
+  { key: 'showRed', label: '显示红冲', visible: true },
+]
+
+const DEFAULT_FUNCTION_BUTTONS: FunctionButtonSetting[] = [
+  { key: 'add', label: '新增', enabled: true },
+  { key: 'refresh', label: '刷新', enabled: true },
+  { key: 'printF8', label: '打印(F8)', enabled: true },
+  { key: 'export', label: '导出', enabled: true },
+  { key: 'config', label: '配置', enabled: true },
+]
+
+const docQueryConfig = ref<QueryFieldSetting[]>(DEFAULT_DOC_QUERY_FIELDS.map(f => ({ ...f })))
+const detailQueryConfig = ref<QueryFieldSetting[]>(DEFAULT_DETAIL_QUERY_FIELDS.map(f => ({ ...f })))
+const functionButtonConfig = ref<FunctionButtonSetting[]>(DEFAULT_FUNCTION_BUTTONS.map(f => ({ ...f })))
+
+const activeQueryFields = computed(() =>
+  activeTab.value === 'doc' ? docQueryConfig.value : detailQueryConfig.value
+)
+const activePageConfigStorageKey = computed(() =>
+  `${PAGE_CONFIG_STORAGE_KEY}-${activeTab.value}`
+)
+
+function loadPageConfig() {
+  try {
+    const docRaw = localStorage.getItem(PAGE_CONFIG_STORAGE_KEY + '-doc')
+    if (docRaw) {
+      const parsed = JSON.parse(docRaw) as PageConfigData
+      if (parsed.queryFields) {
+        docQueryConfig.value = DEFAULT_DOC_QUERY_FIELDS.map(df => {
+          const saved = parsed.queryFields!.find((f: QueryFieldSetting) => f.key === df.key)
+          return saved ? { ...df, ...saved } : { ...df }
+        })
+      }
+    }
+    const detailRaw = localStorage.getItem(PAGE_CONFIG_STORAGE_KEY + '-detail')
+    if (detailRaw) {
+      const parsed = JSON.parse(detailRaw) as PageConfigData
+      if (parsed.queryFields) {
+        detailQueryConfig.value = DEFAULT_DETAIL_QUERY_FIELDS.map(df => {
+          const saved = parsed.queryFields!.find((f: QueryFieldSetting) => f.key === df.key)
+          return saved ? { ...df, ...saved } : { ...df }
+        })
+      }
+    }
+    const btnRaw = localStorage.getItem(PAGE_CONFIG_STORAGE_KEY + '-buttons')
+    if (btnRaw) {
+      const parsed = JSON.parse(btnRaw) as PageConfigData
+      if (parsed.functionButtons) {
+        functionButtonConfig.value = DEFAULT_FUNCTION_BUTTONS.map(bf => {
+          const saved = parsed.functionButtons!.find((f: FunctionButtonSetting) => f.key === bf.key)
+          return saved ? { ...bf, ...saved } : { ...bf }
+        })
+      }
+    }
+  } catch {
+    // ignore
+  }
 }
-const handleReset = () => {
-  searchParams.docNo = ''; searchParams.startDate = ''; searchParams.endDate = ''
-  dateRange.value = null; tableRef.value?.reload()
+
+function handlePageConfigChange(config: any) {
+  const tabKey = activeTab.value === 'doc' ? '-doc' : '-detail'
+  localStorage.setItem(PAGE_CONFIG_STORAGE_KEY + tabKey, JSON.stringify({
+    queryFields: config.queryFields || [],
+  }))
+  localStorage.setItem(PAGE_CONFIG_STORAGE_KEY + '-buttons', JSON.stringify({
+    functionButtons: config.functionButtons || functionButtonConfig.value,
+  }))
+  loadPageConfig()
 }
+
+// ═══ 列定义（对标文档：按单据17列/按明细17列，含序号/操作） ═══
+
+/** 按单据 Tab 列（17 + 序号 + 操作，对标默认显示9列：日期/编号/状态/转出账户/转出金额/转入金额/手续费/经手人/打印次数） */
+const docColumns = [
+  { title: '', key: 'rowNo', type: 'rowNo', width: 40, fixed: 'left' },
+  { title: '操作', key: 'action', type: 'action', width: 160, fixed: 'right', slotName: 'actionCell' },
+  { title: '单据日期', field: 'docDate', key: 'docDate', width: 110, sortable: true },
+  { title: '单据编号', field: 'docNo', key: 'docNo', width: 170, type: 'slot', slotName: 'docNoCell', sortable: true },
+  { title: '单据状态', field: 'status', key: 'status', width: 100, align: 'center', type: 'slot', slotName: 'statusCell' },
+  { title: '转出账户', field: 'fromAccountName', key: 'fromAccountName', width: 160, sortable: true },
+  { title: '转出金额', field: 'fromAmount', key: 'fromAmount', width: 120, align: 'right', type: 'slot', slotName: 'fromAmountCell', sortable: true },
+  { title: '转入金额', field: 'toAmount', key: 'toAmount', width: 120, align: 'right', type: 'slot', slotName: 'toAmountCell', sortable: true },
+  { title: '手续费', field: 'fee', key: 'fee', width: 110, align: 'right', type: 'slot', slotName: 'feeCell' },
+  { title: '经手人', field: 'handlerName', key: 'handlerName', width: 90, sortable: true },
+  { title: '部门', field: 'deptName', key: 'deptName', width: 100, defaultHidden: true },
+  { title: '记账人', field: 'bookkeeperName', key: 'bookkeeperName', width: 90, sortable: true, defaultHidden: true },
+  { title: '制单人', field: 'creatorName', key: 'creatorName', width: 90, sortable: true, defaultHidden: true },
+  { title: '摘要', field: 'summary', key: 'summary', width: 140, defaultHidden: true },
+  { title: '附件', field: 'attachment', key: 'attachment', width: 80, defaultHidden: true },
+  { title: '单据备注', field: 'remark', key: 'remark', width: 140, defaultHidden: true },
+  { title: '制单时间', field: 'createTime', key: 'createTime', width: 140, defaultHidden: true },
+  { title: '记账时间', field: 'bookkeepingTime', key: 'bookkeepingTime', width: 140, defaultHidden: true },
+  { title: '打印次数', field: 'printCount', key: 'printCount', width: 80, align: 'right' },
+]
+
+/** 按明细 Tab 列（17 + 序号 + 操作，对标默认显示10列：日期/编号/状态/转出账户/转出金额/转入账户/转入金额/手续费/经手人/打印次数） */
+const detailColumns = [
+  { title: '', key: 'rowNo', type: 'rowNo', width: 40, fixed: 'left' },
+  { title: '操作', key: 'action', type: 'action', width: 160, fixed: 'right', slotName: 'actionCell' },
+  { title: '单据日期', field: 'docDate', key: 'docDate', width: 110, sortable: true },
+  { title: '单据编号', field: 'docNo', key: 'docNo', width: 170, type: 'slot', slotName: 'docNoCell', sortable: true },
+  { title: '单据状态', field: 'status', key: 'status', width: 100, align: 'center', type: 'slot', slotName: 'statusCell' },
+  { title: '转出账户', field: 'fromAccountName', key: 'fromAccountName', width: 150, sortable: true },
+  { title: '转出金额', field: 'fromAmount', key: 'fromAmount', width: 120, align: 'right', type: 'slot', slotName: 'fromAmountCell', sortable: true },
+  { title: '转入账户', field: 'toAccountName', key: 'toAccountName', width: 160, sortable: true },
+  { title: '转入金额', field: 'amount', key: 'amount', width: 120, align: 'right', type: 'slot', slotName: 'amountCell', sortable: true },
+  { title: '手续费', field: 'fee', key: 'fee', width: 110, align: 'right', type: 'slot', slotName: 'feeCell' },
+  { title: '经手人', field: 'handlerName', key: 'handlerName', width: 90, sortable: true },
+  { title: '部门', field: 'deptName', key: 'deptName', width: 100, defaultHidden: true },
+  { title: '记账人', field: 'bookkeeperName', key: 'bookkeeperName', width: 90, sortable: true, defaultHidden: true },
+  { title: '制单人', field: 'creatorName', key: 'creatorName', width: 90, sortable: true, defaultHidden: true },
+  { title: '摘要', field: 'summary', key: 'summary', width: 140, defaultHidden: true },
+  { title: '单据备注', field: 'remark', key: 'remark', width: 140, defaultHidden: true },
+  { title: '制单时间', field: 'createTime', key: 'createTime', width: 140, defaultHidden: true },
+  { title: '记账时间', field: 'bookkeepingTime', key: 'bookkeepingTime', width: 140, defaultHidden: true },
+  { title: '打印次数', field: 'printCount', key: 'printCount', width: 80, align: 'right' },
+]
+
+// ═══ 列配置 ═══
+const docColumnDefs = computed(() => docColumns.map(col => ({ ...col })))
+const detailColumnDefs = computed(() => detailColumns.map(col => ({ ...col })))
+const {
+  visibleColumns: docVisibleColumns,
+  onSettingChange: onDocSettingChange,
+  resetSettings: resetDocSettings,
+  settingsColumns: docSettingsColumns,
+} = useColumnConfig(docColumnDefs.value, 'cash-transfer-list-columns-doc')
+const {
+  visibleColumns: detailVisibleColumns,
+  onSettingChange: onDetailSettingChange,
+  resetSettings: resetDetailSettings,
+  settingsColumns: detailSettingsColumns,
+} = useColumnConfig(detailColumnDefs.value, 'cash-transfer-list-columns-detail')
+
+const currentColumns = computed(() =>
+  activeTab.value === 'doc' ? docVisibleColumns.value : detailVisibleColumns.value
+)
+const panelColumns = computed(() =>
+  activeTab.value === 'doc' ? docSettingsColumns.value : detailSettingsColumns.value
+)
+
+function handleColumnConfigChange() {
+  if (activeTab.value === 'doc') onDocSettingChange()
+  else onDetailSettingChange()
+}
+function handleColumnConfigReset() {
+  if (activeTab.value === 'doc') resetDocSettings()
+  else resetDetailSettings()
+}
+
+// ═══ 表格底部合计（按单据 Tab：转出金额/转入金额/手续费） ═══
+const tableFooterColumns = computed(() => {
+  if (activeTab.value !== 'doc') return []
+  const totalFrom = tableData.value.reduce((s: number, r: any) => s + (Number(r.fromAmount) || 0), 0)
+  const totalTo = tableData.value.reduce((s: number, r: any) => s + (Number(r.toAmount) || 0), 0)
+  const totalFee = tableData.value.reduce((s: number, r: any) => s + (Number(r.fee) || 0), 0)
+  return [
+    { key: 'fromAmount', value: totalFrom, highlight: true },
+    { key: 'toAmount', value: totalTo, highlight: true },
+    { key: 'fee', value: totalFee, highlight: true },
+  ]
+})
+
+// ═══ 状态映射（提存：0草稿 1已记账 2已取消） ═══
+const STATUS_MAP: Record<number, { text: string; color: string }> = {
+  0: { text: '草稿', color: 'default' },
+  1: { text: '已记账', color: 'blue' },
+  2: { text: '已取消', color: 'red' },
+}
+function getStatusText(status: number): string {
+  return STATUS_MAP[status]?.text || '未知'
+}
+function getStatusColor(status: number): string {
+  return STATUS_MAP[status]?.color || 'default'
+}
+
+// ═══ 数据加载 ═══
+async function fetchData() {
+  loading.value = true
+  try {
+    const params: any = {
+      pageNum: pagination.current,
+      pageSize: pagination.pageSize,
+    }
+    if (searchParams.docNo) params.docNo = searchParams.docNo
+    if (searchParams.handlerName) params.handlerName = searchParams.handlerName
+    if (searchParams.deptName) params.deptName = searchParams.deptName
+    if (searchParams.creatorName) params.creatorName = searchParams.creatorName
+    if (searchParams.bookkeeperName) params.bookkeeperName = searchParams.bookkeeperName
+    if (searchParams.fromAccountName) params.fromAccountName = searchParams.fromAccountName
+    if (searchParams.toAccountName) params.toAccountName = searchParams.toAccountName
+    if (searchParams.remark) params.remark = searchParams.remark
+    if (searchParams.itemRemark) params.itemRemark = searchParams.itemRemark
+    if (searchParams.status !== undefined && searchParams.status !== '') params.status = searchParams.status
+    // 显示红冲：默认 false（不显示红冲单），勾选后 true（包含红冲单）
+    params.showRed = searchParams.showRed === true
+    if (searchParams.startDate) params.dateStart = searchParams.startDate
+    if (searchParams.endDate) params.dateEnd = searchParams.endDate
+
+    let res: any
+    if (activeTab.value === 'detail') {
+      res = await cashTransferApi.pageDetail(params)
+    } else {
+      res = await cashTransferApi.docQuery(params)
+    }
+    if (res) {
+      const body = (res as any)?.data ?? res
+      tableData.value = body?.records || []
+      pagination.total = Number(body?.total) || 0
+    }
+  } catch (error: any) {
+    console.warn('[提存] 获取列表失败', error)
+    message.error(error?.response?.data?.message || '获取数据失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+// ═══ 事件处理 ═══
+function handleTabChange(key: string) {
+  activeTab.value = key
+  pagination.current = 1
+  fetchData()
+}
+
+function setQuickDate(key: string) {
+  quickDate.value = key
+  const now = dayjs()
+  let start: Dayjs, end: Dayjs
+  switch (key) {
+    case 'yesterday': start = now.subtract(1, 'day'); end = now.subtract(1, 'day'); break
+    case 'today': start = now; end = now; break
+    case 'week': start = now.startOf('week'); end = now; break
+    case 'lastWeek': start = now.subtract(7, 'day'); end = now; break
+    case 'month': start = now.startOf('month'); end = now; break
+    case 'lastMonth': start = now.subtract(1, 'month').startOf('month'); end = now.subtract(1, 'month').endOf('month'); break
+    case 'last3Month': start = now.subtract(3, 'month'); end = now; break
+    case 'year': start = now.startOf('year'); end = now; break
+    default: start = now.subtract(7, 'day'); end = now
+  }
+  dateRange.value = [start, end]
+  searchParams.startDate = start.format('YYYY-MM-DD')
+  searchParams.endDate = end.format('YYYY-MM-DD')
+  handleSearch()
+}
+
+function handleDateChange(dates: [Dayjs, Dayjs] | null) {
+  if (dates && dates.length === 2) {
+    searchParams.startDate = dates[0]?.format('YYYY-MM-DD') || ''
+    searchParams.endDate = dates[1]?.format('YYYY-MM-DD') || ''
+  } else {
+    searchParams.startDate = ''
+    searchParams.endDate = ''
+  }
+}
+
+function handleSearch() {
+  pagination.current = 1
+  fetchData()
+}
+
+function handlePageChange(page: number, pageSize: number) {
+  pagination.current = page
+  pagination.pageSize = pageSize
+  fetchData()
+}
+
+// ═══ 操作 ═══
+function currentOperator() {
+  return { id: userStore?.userId || 0, name: userStore?.userInfo?.nickname || userStore?.userInfo?.username || '系统' }
+}
+
+function handleAdd() {
+  router.push('/finance/cash-transfer/form')
+}
+function handleView(record: any) {
+  router.push(`/finance/cash-transfer/form?id=${record.transferId ?? record.id}`)
+}
+/** 操作列「更多」下拉分发 */
+function handleMoreAction(key: string, record: any) {
+  switch (key) {
+    case 'edit': handleEdit(record); break
+    case 'post': handlePost(record); break
+    case 'cancel': handleCancel(record); break
+    case 'delete': handleDelete(record); break
+  }
+}
+function handleEdit(record: any) {
+  router.push(`/finance/cash-transfer/form?id=${record.transferId ?? record.id}`)
+}
+function handleDelete(record: any) {
+  const targetId = record.transferId ?? record.id
+  Modal.confirm({
+    title: '确认删除',
+    content: `确定要删除提存单 ${record.docNo} 吗？此操作不可恢复。`,
+    okText: '确认删除',
+    okType: 'danger',
+    cancelText: '取消',
+    onOk: async () => {
+      try {
+        await cashTransferApi.remove(targetId)
+        message.success('删除成功')
+        fetchData()
+      } catch (error: any) {
+        message.error(error?.response?.data?.message || '删除失败')
+      }
+    },
+  })
+}
+function handlePost(record: any) {
+  const targetId = record.transferId ?? record.id
+  Modal.confirm({
+    title: '记账确认',
+    content: `确定对提存单 ${record.docNo} 执行记账吗？记账后生成会计凭证并更新账户余额。`,
+    okText: '确认记账',
+    cancelText: '取消',
+    onOk: async () => {
+      try {
+        const u = currentOperator()
+        await cashTransferApi.confirm(targetId, u.id, u.name)
+        message.success('记账完成，已生成会计凭证')
+        fetchData()
+      } catch (error: any) {
+        message.error(error?.response?.data?.message || '记账失败')
+      }
+    },
+  })
+}
+function handleCancel(record: any) {
+  const targetId = record.transferId ?? record.id
+  Modal.confirm({
+    title: '取消确认',
+    content: `确定取消提存单 ${record.docNo} 吗？`,
+    okText: '确认取消',
+    okType: 'danger',
+    cancelText: '取消',
+    onOk: async () => {
+      try {
+        await cashTransferApi.cancel(targetId)
+        message.success('取消成功')
+        fetchData()
+      } catch (error: any) {
+        message.error(error?.response?.data?.message || '取消失败')
+      }
+    },
+  })
+}
+
+function handlePrintF8() {
+  if (selectedRowKeys.value.length === 0) {
+    message.warning('请先选择要打印的提存单')
+    return
+  }
+  router.push(`/finance/cash-transfer/form?id=${selectedRowKeys.value[0]}`)
+}
+async function handleExport() {
+  try {
+    const params: any = { pageNum: 1, pageSize: 9999 }
+    if (searchParams.status !== undefined && searchParams.status !== '') params.status = searchParams.status
+    if (searchParams.docNo) params.docNo = searchParams.docNo
+    if (searchParams.startDate) params.dateStart = searchParams.startDate
+    if (searchParams.endDate) params.dateEnd = searchParams.endDate
+    const res: any = await cashTransferApi.docQuery(params)
+    const body = (res as any)?.data ?? res
+    const data = body?.records || []
+    if (data.length === 0) {
+      message.warning('没有可导出的数据')
+      return
+    }
+    const headers = ['单据编号', '单据日期', '转出账户', '转出金额', '转入金额', '手续费', '经手人', '状态']
+    const rows = data.map((r: any) => [
+      r.docNo, r.docDate, r.fromAccountName, r.fromAmount, r.toAmount, r.fee,
+      r.handlerName, getStatusText(r.status),
+    ])
+    const csv = [headers.join(','), ...rows.map((r: any[]) => r.join(','))].join('\n')
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `提存单_${dayjs().format('YYYYMMDD_HHmmss')}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+    message.success('导出成功')
+  } catch (error: any) {
+    message.error(error?.response?.data?.message || '导出失败')
+  }
+}
+
+const handleError = (error: Error) => {
+  console.error('[提存] 页面错误', error)
+  message.error(`页面错误: ${error.message}`)
+}
+
+function formatAmount(amount: number): string {
+  if (amount === undefined || amount === null) return '0.00'
+  return Number(amount).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+// ═══ 初始化 ═══
+onMounted(() => {
+  loadPageConfig()
+  setQuickDate('lastWeek')
+})
 </script>
 
 <style scoped>
-.search-area { padding: 16px 16px 0; background: #fff; border-radius: 4px; margin-bottom: 16px; }
-.search-row { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; margin-bottom: 16px; }
-.search-item { display: flex; align-items: center; gap: 8px; }
-.search-label { white-space: nowrap; font-size: 14px; }
+.query-scheme-wrap { display: flex; align-items: center; gap: 2px; }
+.quick-dates :deep(.ant-btn) { font-size: 13px; padding: 2px 8px; }
+.quick-dates :deep(.ant-btn-primary) { color: #fff; background: #ff7a45; border-color: #ff7a45; }
+.search-area { padding: 8px 16px; background: #fff; border-bottom: 1px solid #e8e8e8; flex-shrink: 0; }
+.search-container > .search-grid { max-height: 80px; overflow: hidden; }
+.search-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; align-items: center; }
+.search-field-item { display: flex; min-width: 0; }
+.search-field-item :deep(.ant-input-wrapper),
+.search-field-item :deep(.ant-input-affix-wrapper) { width: 100%; font-size: 13px; }
+.search-field-item :deep(.ant-select) { width: 100%; }
+.search-field-item :deep(.ant-select .ant-select-selector) { font-size: 13px; }
+.search-field-item :deep(.ant-picker) { width: 100%; }
+.search-select-wrap { display: flex; align-items: center; width: 100%; border: 1px solid #d9d9d9; border-radius: 4px; background: #fff; }
+.search-select-wrap:hover { border-color: #4096ff; }
+.search-select-label { font-size: 13px; color: rgba(0,0,0,0.65); white-space: nowrap; flex-shrink: 0; padding-left: 8px; }
+.search-select-wrap :deep(.ant-select) { flex: 1; min-width: 0; }
+.search-select-wrap :deep(.ant-select .ant-select-selector) { border: none !important; border-radius: 0 !important; box-shadow: none !important; padding-top: 0 !important; padding-bottom: 0 !important; display: flex; align-items: center; }
+.search-action-item { flex-shrink: 0; }
+.search-action-group { display: flex; flex-wrap: nowrap; align-items: center; }
+.search-action-group .search-field-item { width: auto; flex: 0 0 auto; margin-right: 4px; }
+.search-action-group .search-field-item:last-child { margin-right: 0; }
+.table-area { flex: 1; min-height: 0; overflow: hidden; }
+.currency-value { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-variant-numeric: tabular-nums; }
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) { height: 28px; line-height: 28px; }
 </style>

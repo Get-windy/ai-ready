@@ -20,8 +20,7 @@
       <template #detail-table="{ onExpandChange }">
         <BillDetailTable
           :columns="visibleDetailColumns"
-          :data-source="formData.products"
-          :max-height="tableMaxHeight"
+          v-model:data-source="formData.products"
           :summary-columns="tableSummaryColumns"
           @cell-change="handleCellChange"
           @expand-change="onExpandChange"
@@ -187,8 +186,6 @@ const showProductSelect = ref(false)
 const showFormConfig = ref(false)
 const showFormColumnConfig = ref(false)
 const currentSelectRowIndex = ref(-1)
-const tableMaxHeight = ref(400)
-
 // ═══ 快速搜索（+Q按钮） ═══
 const showQuickSearch = ref(false)
 const quickSearchTitle = ref('')
@@ -944,8 +941,8 @@ onMounted(() => {
   if (!route.params.id) {
     loadAndApplyDefaults()
   }
-  nextTick(() => { tableMaxHeight.value = Math.max(200, window.innerHeight - 420) })
-  window.addEventListener('keydown', onKeyDown)
+  nextTick(() => {  window.addEventListener('keydown', onKeyDown)
+})
 })
 
 onUnmounted(() => {

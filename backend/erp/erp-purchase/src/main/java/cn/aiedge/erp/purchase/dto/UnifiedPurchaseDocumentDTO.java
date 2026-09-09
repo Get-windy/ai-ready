@@ -180,4 +180,51 @@ public class UnifiedPurchaseDocumentDTO {
 
     @Schema(description = "审核时间")
     private LocalDateTime approvedTime;
+
+    // ═══ 按单付款核销工作台字段（采购单据作为应付来源单据） ═══
+
+    @Schema(description = "结算单位")
+    private String settlementUnit;
+
+    @Schema(description = "运单号")
+    private String waybillNo;
+
+    @Schema(description = "付款日期")
+    private LocalDate paymentDate;
+
+    @Schema(description = "动态付款期限")
+    private String dynamicPayTerm;
+
+    @Schema(description = "固定账期")
+    private String fixedTerms;
+
+    @Schema(description = "结算期")
+    private String settlePeriod;
+
+    @Schema(description = "已结金额")
+    private BigDecimal settledAmount;
+
+    @Schema(description = "待审金额")
+    private BigDecimal pendingApproveAmount;
+
+    @Schema(description = "未结金额")
+    private BigDecimal unsettledAmount;
+
+    @Schema(description = "强制结算金额")
+    private BigDecimal forceSettleAmount;
+
+    @Schema(description = "发票号码")
+    private String invoiceNumber;
+
+    @Schema(description = "发票代码")
+    private String invoiceCode;
+
+    @Schema(description = "对账标记（true=√ false=否）")
+    private Boolean reconcile;
+
+    @Schema(description = "最后对账标记人")
+    private String lastReconcileBy;
+
+    @Schema(description = "最后对账标记时间")
+    private LocalDateTime lastReconcileTime;
 }

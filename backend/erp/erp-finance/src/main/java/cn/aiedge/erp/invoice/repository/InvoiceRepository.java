@@ -2,6 +2,7 @@ package cn.aiedge.erp.invoice.repository;
 
 import cn.aiedge.erp.invoice.model.entity.Invoice;
 import cn.aiedge.erp.invoice.model.enums.InvoiceStatus;
+import cn.aiedge.erp.invoice.model.enums.InvoiceType;
 import cn.aiedge.erp.invoice.model.enums.PaymentStatus;
 import cn.aiedge.erp.invoice.model.enums.MatchingStatus;
 import org.springframework.data.domain.Page;
@@ -111,13 +112,40 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
     List<Invoice> searchInvoices(@Param("keyword") String keyword);
     
     /**
+     * 分页查询发票（按方向/类型 + 单据/发票信息过滤）
+     * 用于「按单付款-发票查询」销售/采购发票查询 Tab。
+     *
+     * @param types       发票类型集合（销售类 / 采购类，由调用方按方向注入）
+     * @param invoiceNumber 发票号码（模糊，可空）
+     * @param partnerName   往来单位名称（客户/供应商，模糊，可空）
+     * @param issuedByName  开票人（模糊，可空）
+     * @param startDate     发票日期起（可空）
+     * @param endDate       发票日期止（可空）
+     * @param pageable      分页参数
+     * @return 发票分页
+     */
+    @Query("SELECT i FROM Invoice i WHERE " +
+           "i.invoiceType IN :types " +
+           "AND (:invoiceNumber = '' OR i.invoiceNumber LIKE concat('%', :invoiceNumber, '%')) " +
+           "AND (:partnerName = '' OR i.customerName LIKE concat('%', :partnerName, '%') OR i.supplierName LIKE concat('%', :partnerName, '%')) " +
+           "AND (:issuedByName = '' OR i.issuedByName LIKE concat('%', :issuedByName, '%')) " +
+           "AND i.invoiceDate >= :startDate AND i.invoiceDate <= :endDate")
+    Page<Invoice> findByTypesAndFilters(@Param("types") List<String> types,
+                                        @Param("invoiceNumber") String invoiceNumber,
+                                        @Param("partnerName") String partnerName,
+                                        @Param("issuedByName") String issuedByName,
+                                        @Param("startDate") LocalDate startDate,
+                                        @Param("endDate") LocalDate endDate,
+                                        Pageable pageable);
+
+    /**
      * 批量更新逾期状态
-     * 
+     *
      * @return 更新的记录数
      */
     @Query(value = "UPDATE invoice SET overdue_days = DATEDIFF(CURDATE(), due_date), " +
                    "payment_status = 'OVERDUE' " +
-                   "WHERE due_date < CURDATE() AND payment_status IN ('PENDING', 'PARTIALLY_PAID')", 
+                   "WHERE due_date < CURDATE() AND payment_status IN ('PENDING', 'PARTIALLY_PAID')",
            nativeQuery = true)
     int batchUpdateOverdueStatus();
     

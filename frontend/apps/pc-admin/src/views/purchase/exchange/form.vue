@@ -25,8 +25,7 @@
           </div>
           <BillDetailTable
             :columns="inWarehouseColumns"
-            :data-source="formData.inWarehouseItems"
-            :max-height="tableMaxHeight"
+            v-model:data-source="formData.inWarehouseItems"
             :summary-columns="inWarehouseSummaryColumns"
             :view-mode="isLocked"
             @cell-change="handleInWarehouseCellChange"
@@ -67,8 +66,7 @@
           </div>
           <BillDetailTable
             :columns="outWarehouseColumns"
-            :data-source="formData.outWarehouseItems"
-            :max-height="tableMaxHeight"
+            v-model:data-source="formData.outWarehouseItems"
             :summary-columns="outWarehouseSummaryColumns"
             :view-mode="isLocked"
             @cell-change="handleOutWarehouseCellChange"
@@ -138,7 +136,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, nextTick } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
 import {
@@ -171,8 +169,6 @@ const currentUserName = computed(() => userStore?.userInfo?.nickname || userStor
 const showProductSelect = ref(false)
 const currentSelectRowIndex = ref(-1)
 const currentWarehouseType = ref<'in' | 'out'>('in')
-const tableMaxHeight = ref(400)
-
 // ═══════════════════════════════════════
 // useBillForm composable（仅负责状态/选项/编号）
 // ═══════════════════════════════════════
@@ -899,9 +895,6 @@ onMounted(async () => {
     }
   }
   // 编辑模式：useBillForm 在挂载时自动加载详情，onDetailLoaded 已拆分配置
-  nextTick(() => {
-    tableMaxHeight.value = Math.max(200, window.innerHeight - 480)
-  })
 })
 </script>
 

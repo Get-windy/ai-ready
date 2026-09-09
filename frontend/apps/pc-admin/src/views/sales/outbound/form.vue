@@ -20,8 +20,7 @@
       <template #detail-table="{ onExpandChange }">
         <BillDetailTable
           :columns="visibleDetailColumns"
-          :data-source="formData.products"
-          :max-height="tableMaxHeight"
+          v-model:data-source="formData.products"
           :summary-columns="tableSummaryColumns"
           @cell-change="handleCellChange"
           @expand-change="onExpandChange"
@@ -148,7 +147,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, nextTick } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 
 defineOptions({ name: 'SaleOutboundForm' })
 import { useRouter, useRoute } from 'vue-router'
@@ -225,8 +224,6 @@ const returnQty = ref(0)
 const promoDiscount = ref(0)
 const discountAmount = ref(0)
 const otherFee = ref(0)
-const tableMaxHeight = ref(400)
-
 const {
   formData,
   loadingOptions,
@@ -1119,9 +1116,6 @@ onMounted(() => {
   if (formData.products.length === 0) {
     for (let i = 0; i < 20; i++) handleAddProduct()
   }
-  nextTick(() => {
-    tableMaxHeight.value = Math.max(200, window.innerHeight - 420)
-  })
 })
 </script>
 

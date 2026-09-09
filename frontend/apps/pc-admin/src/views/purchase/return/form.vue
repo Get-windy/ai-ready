@@ -27,8 +27,7 @@
         <template #detail-table="{ onExpandChange }">
           <BillDetailTable
             :columns="detailColumns"
-            :data-source="formData.products"
-            :max-height="tableMaxHeight"
+            v-model:data-source="formData.products"
             :summary-columns="tableSummaryColumns"
             @cell-change="handleCellChange"
             @expand-change="onExpandChange"
@@ -168,7 +167,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, reactive, h, onMounted, nextTick } from 'vue'
+import { computed, ref, reactive, h, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import {
@@ -197,8 +196,6 @@ const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 const currentUserName = computed(() => userStore?.userInfo?.nickname || userStore?.userInfo?.username || '')
-const tableMaxHeight = ref(400)
-
 // ═══ 状态枚举 ═══
 const RETURN_STATUS_MAP: Record<number, { text: string; color: string }> = {
   0: { text: '草稿', color: 'default' },
@@ -955,9 +952,6 @@ onMounted(() => {
   if (effectiveMode.value !== 'edit' && formData.products.length === 0) {
     Array.from({ length: 20 }, () => handleAddProduct())
   }
-  nextTick(() => {
-    tableMaxHeight.value = Math.max(200, window.innerHeight - 420)
-  })
   window.addEventListener('keydown', handleKeydown)
   const orderId = route.query.orderId
   if (orderId) {

@@ -616,7 +616,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import dayjs from 'dayjs'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'

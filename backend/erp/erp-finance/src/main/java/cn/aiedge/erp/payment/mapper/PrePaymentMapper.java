@@ -20,6 +20,9 @@ public interface PrePaymentMapper extends BaseMapper<PrePayment> {
     @Select("SELECT * FROM erp_pre_payment WHERE pre_payment_no = #{prePaymentNo} AND deleted = 0")
     PrePayment selectByPrePaymentNo(@Param("prePaymentNo") String prePaymentNo);
 
-    @Select("SELECT COALESCE(SUM(remaining_amount), 0) FROM erp_pre_payment WHERE supplier_id = #{supplierId} AND deleted = 0 AND status IN ('paid', 'offset')")
+    @Select("SELECT COALESCE(SUM(remaining_amount), 0) FROM erp_pre_payment WHERE supplier_id = #{supplierId} AND deleted = 0 AND status IN ('confirmed', 'offset')")
     java.math.BigDecimal sumRemainingBySupplier(@Param("supplierId") Long supplierId);
+
+    @Select("SELECT COALESCE(SUM(remaining_amount), 0) FROM erp_pre_payment WHERE supplier_id = #{supplierId} AND deleted = 0 AND status IN ('confirmed', 'offset')")
+    java.math.BigDecimal sumAdvanceBalanceBySupplier(@Param("supplierId") Long supplierId);
 }

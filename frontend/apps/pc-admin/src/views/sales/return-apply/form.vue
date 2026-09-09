@@ -27,8 +27,7 @@
         </div>
         <BillDetailTable
           :columns="visibleDetailColumns"
-          :data-source="formData.products"
-          :max-height="tableMaxHeight"
+          v-model:data-source="formData.products"
           :summary-columns="tableSummaryColumns"
           :enter-jump-columns="enterJumpColumns"
           :formulas="detailFormulas"
@@ -111,7 +110,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, onMounted, nextTick } from 'vue'
+import { computed, ref, watch, onMounted } from 'vue'
 
 defineOptions({ name: 'SaleReturnApplyForm' })
 import { useRouter, useRoute, onBeforeRouteLeave } from 'vue-router'
@@ -150,8 +149,6 @@ const showProductSelect = ref(false)
 const showFormConfig = ref(false)
 const showDetailColumnConfig = ref(false)
 const currentSelectRowIndex = ref(-1)
-const tableMaxHeight = ref(400)
-
 // ═══════════════════════════════════════
 // useBillForm composable
 // ═══════════════════════════════════════
@@ -1015,9 +1012,6 @@ onMounted(() => {
   if (!route.params.id) {
     loadAndApplyDefaults()
   }
-  nextTick(() => {
-    tableMaxHeight.value = Math.max(200, window.innerHeight - 420)
-  })
 })
 </script>
 

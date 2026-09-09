@@ -23,7 +23,8 @@ public interface CapitalFlowService extends IService<CapitalFlow> {
      */
     Page<CapitalFlow> pageListForReconcile(Integer paymentType, String direction,
                                            Integer paymentMethod, Integer reconcileFlag,
-                                           String keyword, LocalDate startDate, LocalDate endDate,
+                                           String keyword, String customerName, String payStatus,
+                                           LocalDate startDate, LocalDate endDate,
                                            int pageNum, int pageSize);
 
     /**

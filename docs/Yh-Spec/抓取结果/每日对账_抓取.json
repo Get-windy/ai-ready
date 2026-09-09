@@ -1,0 +1,43 @@
+{
+  "meta": {
+    "system": "ql361 (22stable.ql361.com)",
+    "page": "每日对账（对标：财务→收款→在线支付对账单）",
+    "source": "对标系统实测抓取 (Playwright MCP)",
+    "date": "2026-09-07",
+    "pageType": "列表查询页",
+    "entry": "单入口 (财务→收款→在线支付对账单)",
+    "tabs": ["(无子标签，单一视图)"],
+    "toolbarButtons": ["刷新", "打印(F8)", "导出", "查询"],
+    "hasColumnConfigPopup": true,
+    "hasPageConfigPopup": false,
+    "note": "顶部无「配置」页面配置齿轮 (iconButtonConfig count=0)；查询条件为页面固定 UI，未提供查询条件/功能按钮配置弹窗。本文件与《在线支付对账单_抓取.json》为同一对标页实测数据，完全复用。",
+    "reuseFile": "在线支付对账单_抓取.json"
+  },
+  "list": {
+    "label": "在线支付对账单 (单一视图)",
+    "columns": [
+      {"n": 1, "name": "对账标记", "def": "[x]"},
+      {"n": 2, "name": "来源订单", "def": "[x]"},
+      {"n": 3, "name": "提交日期", "def": "[x]"},
+      {"n": 4, "name": "源单客户", "def": "[x]"},
+      {"n": 5, "name": "订单金额", "def": "[x]"},
+      {"n": 6, "name": "流水号", "def": "[x]"},
+      {"n": 7, "name": "支付状态", "def": "[x]"},
+      {"n": 8, "name": "关联交易号", "def": "[x]"},
+      {"n": 9, "name": "支付类型", "def": "[x]"},
+      {"n": 10, "name": "支付方式", "def": "[x]"}
+    ],
+    "defaultShownCount": 10,
+    "hiddenCount": 0,
+    "queryFields": [
+      {"name": "流水号/来源订单", "def": "文本框"},
+      {"name": "日期", "def": "日期范围 (起 至 止)"},
+      {"name": "源单客户", "def": "搜索框"},
+      {"name": "支付类型", "def": "下拉(全部)"},
+      {"name": "支付状态", "def": "下拉(全部)"},
+      {"name": "支付方式", "def": "下拉(全部)"},
+      {"name": "对账标记", "def": "下拉(全部)"}
+    ],
+    "pageConfig": null
+  }
+}

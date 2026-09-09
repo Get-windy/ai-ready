@@ -59,10 +59,9 @@
       >
         <BillDetailTable
           :columns="currentColumns"
-          :data-source="tableData"
+          v-model:data-source="tableData"
           :loading="loading"
           :view-mode="true"
-          :max-height="tableMaxHeight"
           fill-mode
         >
           <!-- 对应商品列（标签tab专用） -->
@@ -436,13 +435,6 @@ function switchTab(key: string) {
 }
 
 // ── 表格高度 ──
-const tableMaxHeight = computed(() => {
-  if (typeof window !== 'undefined') {
-    return window.innerHeight - 300
-  }
-  return 400
-})
-
 // ── 搜索 & 刷新 ──
 const searchKeyword = ref('')
 

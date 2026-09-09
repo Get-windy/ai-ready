@@ -13,7 +13,7 @@
     <template #detail-table>
       <BillDetailTable
         :columns="detailColumns"
-        :data-source="formData.products"
+        v-model:data-source="formData.products"
         :max-height="400"
         @cell-change="handleCellChange"
       >
@@ -43,7 +43,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, nextTick } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { PlusCircleOutlined, MinusCircleOutlined } from '@ant-design/icons-vue'
 import BillFormPage from '@/components/BillFormPage/index.vue'
 import BillDetailTable from '@/components/BillFormPage/BillDetailTable/index.vue'

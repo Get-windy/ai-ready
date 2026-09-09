@@ -27,6 +27,41 @@ public class ReceiptCreateDTO {
 
     private BigDecimal receiptAmount;
 
+    /** 优惠金额 */
+    private BigDecimal discountAmount;
+
+    /** 使用预收款 */
+    private BigDecimal usePrepaidAmount;
+
+    /** 多收金额 */
+    private BigDecimal overpayAmount;
+
+    /** 此前应收 */
+    private BigDecimal prevReceivable;
+
+    /** 应收余额 */
+    private BigDecimal receivableBalance;
+
+    /** 预收余额（可用预收） */
+    private BigDecimal prepaidBalance;
+
+    /** 收款账户1 */
+    private String receiptAccount1;
+
+    private BigDecimal receiptAmount1;
+
+    private String receiptAccount2;
+
+    private BigDecimal receiptAmount2;
+
+    private String receiptAccount3;
+
+    private BigDecimal receiptAmount3;
+
+    private String receiptAccount4;
+
+    private BigDecimal receiptAmount4;
+
     private String paymentMethod;
 
     private String bankAccount;

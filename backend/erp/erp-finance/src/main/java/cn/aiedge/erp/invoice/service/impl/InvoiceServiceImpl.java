@@ -4,6 +4,7 @@ import cn.aiedge.common.serial.BizNumberGeneratorService;
 import cn.aiedge.erp.invoice.model.entity.Invoice;
 import cn.aiedge.erp.invoice.model.entity.InvoiceApplication;
 import cn.aiedge.erp.invoice.model.enums.InvoiceStatus;
+import cn.aiedge.erp.invoice.model.enums.InvoiceType;
 import cn.aiedge.erp.invoice.model.enums.PaymentStatus;
 import cn.aiedge.erp.invoice.repository.InvoiceRepository;
 import cn.aiedge.erp.invoice.service.InvoiceService;
@@ -49,6 +50,41 @@ public class InvoiceServiceImpl implements InvoiceService {
     @Override
     public Page<Invoice> getInvoices(Pageable pageable) {
         return invoiceRepository.findAll(pageable);
+    }
+
+    /**
+     * 将发票类型枚举数组转为 name 字符串列表（对应 invoice_type 列存储值）。
+     */
+    private List<String> enumNames(InvoiceType[] types) {
+        List<String> result = new java.util.ArrayList<>(types.length);
+        for (InvoiceType t : types) {
+            result.add(t.name());
+        }
+        return result;
+    }
+
+    @Override
+    public Page<Invoice> getInvoicesByDirection(String direction, String invoiceNumber, String partnerName,
+                                                String issuedByName, LocalDate startDate, LocalDate endDate,
+                                                Pageable pageable) {
+        // 以枚举 name（对应 invoice_type 列的存储值，EnumType.STRING）构造过滤列表，
+        // 避免 Hibernate 6 对 `IN :list` 枚举集合的参数类型推断问题。
+        List<String> types;
+        if ("sales".equalsIgnoreCase(direction)) {
+            types = enumNames(InvoiceType.getSalesTypes());
+        } else if ("purchase".equalsIgnoreCase(direction)) {
+            types = enumNames(InvoiceType.getPurchaseTypes());
+        } else {
+            types = enumNames(InvoiceType.values());
+        }
+        // 日期为空时用哨兵日期，避免 JPQL 中 `:date IS NULL OR` 与时间参数组合在 Hibernate 6 下类型推断报错。
+        LocalDate effectiveStart = startDate != null ? startDate : LocalDate.of(1900, 1, 1);
+        LocalDate effectiveEnd = endDate != null ? endDate : LocalDate.of(9999, 12, 31);
+        return invoiceRepository.findByTypesAndFilters(types,
+                invoiceNumber == null ? "" : invoiceNumber,
+                partnerName == null ? "" : partnerName,
+                issuedByName == null ? "" : issuedByName,
+                effectiveStart, effectiveEnd, pageable);
     }
 
     @Override

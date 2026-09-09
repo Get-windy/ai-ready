@@ -243,7 +243,7 @@
 <script setup lang="ts">
 defineOptions({ name: 'MallBannerList' })
 
-import { ref, reactive, computed, nextTick, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
 import { ReloadOutlined, SyncOutlined } from '@ant-design/icons-vue'

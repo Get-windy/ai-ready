@@ -335,7 +335,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import { useRoute, useRouter } from 'vue-router'
 import { annualBudgetApi, budgetItemApi, budgetAdjustmentApi } from '@/api/budget'

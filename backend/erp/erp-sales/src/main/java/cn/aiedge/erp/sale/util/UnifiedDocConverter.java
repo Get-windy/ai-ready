@@ -354,6 +354,23 @@ public class UnifiedDocConverter {
         dto.setCustomObjField4(null);
         dto.setCustomObjField5(null);
 
+        // ═══ 应收核销字段（按单收款） ═══
+        dto.setSettledAmount(outbound.getSettledAmount());      // 已结算金额
+        dto.setUnsettledAmount(calcUnsettled(outbound.getTotalAmount(), outbound.getSettledAmount())); // 未结算金额
+        dto.setPendingApproveAmount(null);                      // 待审金额
+        dto.setSettlementUnit(outbound.getSettlementMethod());  // 结算单位
+        dto.setDriverName(outbound.getDeliveryDriver());        // 司机名称
+        dto.setReceiptDate(outbound.getPaymentDate() != null ? outbound.getPaymentDate().atStartOfDay() : null); // 收款日期
+        dto.setReconciliationDate(outbound.getReconciliationDate() != null ? outbound.getReconciliationDate().atStartOfDay() : null); // 对账日期
+        dto.setDynamicPayTerm(null);                            // 动态收款期限
+        dto.setFixedTerms(null);                                // 固定账期
+        dto.setSettlePeriod(outbound.getSettlementMethod());    // 结算期
+        dto.setOverdueDays(null);                               // 超期天数
+        dto.setReconcile(null);                                 // 对账标记
+        dto.setLoanNote(null);                                  // 欠条领取
+        dto.setLastReconcileTime(null);                         // 最后对账标记时间
+        dto.setLastReconcileBy(null);                           // 最后对账标记人
+
         return dto;
     }
 
@@ -523,6 +540,23 @@ public class UnifiedDocConverter {
         dto.setCustomObjField3(null);
         dto.setCustomObjField4(null);
         dto.setCustomObjField5(null);
+
+        // ═══ 应收核销字段（按单收款） ═══
+        dto.setSettledAmount(returnDoc.getSettledAmount());      // 已结算金额
+        dto.setUnsettledAmount(calcUnsettled(returnDoc.getTotalAmount(), returnDoc.getSettledAmount())); // 未结算金额
+        dto.setPendingApproveAmount(null);                       // 待审金额
+        dto.setSettlementUnit(null);                             // 结算单位（退货单无结算方式字段）
+        dto.setDriverName(returnDoc.getDriverName());            // 司机名称
+        dto.setReceiptDate(returnDoc.getPaymentDate());          // 收款日期
+        dto.setReconciliationDate(returnDoc.getReconciliationDate()); // 对账日期
+        dto.setDynamicPayTerm(null);                             // 动态收款期限
+        dto.setFixedTerms(null);                                 // 固定账期
+        dto.setSettlePeriod(null);                               // 结算期
+        dto.setOverdueDays(null);                                // 超期天数
+        dto.setReconcile(null);                                  // 对账标记
+        dto.setLoanNote(null);                                   // 欠条领取
+        dto.setLastReconcileTime(null);                          // 最后对账标记时间
+        dto.setLastReconcileBy(null);                            // 最后对账标记人
 
         return dto;
     }
@@ -694,6 +728,33 @@ public class UnifiedDocConverter {
         dto.setCustomObjField4(null);
         dto.setCustomObjField5(null);
 
+        // ═══ 应收核销字段（按单收款） ═══
+        dto.setSettledAmount(exchange.getSettledAmount());            // 已结算金额
+        dto.setUnsettledAmount(calcUnsettled(exchange.getTotalAmount(), exchange.getSettledAmount())); // 未结算金额
+        dto.setPendingApproveAmount(null);                            // 待审金额
+        dto.setSettlementUnit(null);                                  // 结算单位（换货单无结算方式字段）
+        dto.setDriverName(null);                                      // 司机名称
+        dto.setReceiptDate(null);                                     // 收款日期
+        dto.setReconciliationDate(null);                              // 对账日期
+        dto.setDynamicPayTerm(null);                                  // 动态收款期限
+        dto.setFixedTerms(null);                                      // 固定账期
+        dto.setSettlePeriod(null);                                    // 结算期
+        dto.setOverdueDays(null);                                     // 超期天数
+        dto.setReconcile(null);                                       // 对账标记
+        dto.setLoanNote(null);                                        // 欠条领取
+        dto.setLastReconcileTime(null);                               // 最后对账标记时间
+        dto.setLastReconcileBy(null);                                 // 最后对账标记人
+
         return dto;
+    }
+
+    /**
+     * 计算未结算金额 = 本单金额 - 已结算金额
+     * 金额缺失时按 0 处理，保证金额口径（本单金额=已结算+待审+未结算）恒等。
+     */
+    private static java.math.BigDecimal calcUnsettled(java.math.BigDecimal totalAmount, java.math.BigDecimal settledAmount) {
+        java.math.BigDecimal total = totalAmount != null ? totalAmount : java.math.BigDecimal.ZERO;
+        java.math.BigDecimal settled = settledAmount != null ? settledAmount : java.math.BigDecimal.ZERO;
+        return total.subtract(settled);
     }
 }

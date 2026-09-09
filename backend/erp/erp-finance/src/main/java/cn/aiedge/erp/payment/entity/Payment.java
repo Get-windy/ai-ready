@@ -44,6 +44,44 @@ public class Payment {
 
     private BigDecimal pendingAmount;
 
+    /** 优惠金额 */
+    private BigDecimal discountAmount;
+
+    /** 使用预付款 */
+    private BigDecimal usePrepaidAmount;
+
+    /** 多付金额（付款超应付转供应商预付） */
+    private BigDecimal overpayAmount;
+
+    /** 此前应付 */
+    private BigDecimal prevPayable;
+
+    /** 应付余额 */
+    private BigDecimal payableBalance;
+
+    /** 预付款余额（可用预付） */
+    private BigDecimal prepaidBalance;
+
+    /** 付款账户1 */
+    private String paymentAccount1;
+
+    private BigDecimal paymentAmount1;
+
+    /** 付款账户2 */
+    private String paymentAccount2;
+
+    private BigDecimal paymentAmount2;
+
+    /** 付款账户3 */
+    private String paymentAccount3;
+
+    private BigDecimal paymentAmount3;
+
+    /** 付款账户4 */
+    private String paymentAccount4;
+
+    private BigDecimal paymentAmount4;
+
     private String paymentMethod;
 
     private String bankAccount;

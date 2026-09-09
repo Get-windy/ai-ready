@@ -27,8 +27,7 @@
         <template #detail-table="{ onExpandChange }">
           <BillDetailTable
             :columns="detailColumns"
-            :data-source="formData.products"
-            :max-height="tableMaxHeight"
+            v-model:data-source="formData.products"
             :summary-columns="tableSummaryColumns"
             :storage-key="'stock-transfer-form-columns'"
             @cell-change="handleCellChange"
@@ -55,27 +54,6 @@
                   </a-button>
                 </a-space>
               </template>
-            </template>
-            <template #productCell="{ record, index }">
-              <a-select
-                v-model:value="record.productId"
-                placeholder="搜索选择商品"
-                show-search
-                :filter-option="filterOption"
-                style="width:100%"
-                :loading="loadingOptions"
-                size="small"
-                :disabled="isLocked"
-                @change="(val: number) => handleProductChange(val, index)"
-              >
-                <a-select-option
-                  v-for="p in optionRefs.products"
-                  :key="p.id"
-                  :value="p.id"
-                >
-                  {{ p.name }}
-                </a-select-option>
-              </a-select>
             </template>
           </BillDetailTable>
         </template>
@@ -207,7 +185,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, reactive, watch, onMounted, nextTick } from 'vue'
+import { computed, ref, reactive, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import {
@@ -240,8 +218,6 @@ const router = useRouter()
 const userStore = useUserStore()
 const currentUserName = computed(() => userStore?.userInfo?.nickname || userStore?.userInfo?.username || '')
 const currentUserId = computed(() => userStore?.userInfo?.id)
-const tableMaxHeight = ref(400)
-
 // ════════════════════════════════════════════
 // 调拨方式字典
 // ════════════════════════════════════════════
@@ -313,11 +289,9 @@ const {
   loadingOptions,
   saving,
   optionRefs,
-  filterOption,
   effectiveMode,
   handleAddProduct,
   handleRemoveProduct,
-  handleProductChange: baseProductChange,
   handleFieldChange: baseFieldChange,
   handleSaveDraft,
   handleSubmit,
@@ -767,11 +741,11 @@ const footerConfig = computed<BillFooterConfig>(() => ({
 // 明细表格列（默认23列 · 全部60列可配置）
 // ════════════════════════════════════════════
 
-const detailColumns: DetailColumnConfig[] = [
+const detailColumns = computed<DetailColumnConfig[]>(() => [
   { key: 'rowNo', title: '', type: 'rowNo', width: 40, fixed: 'left' },
   { key: 'action', title: '操作', type: 'action', slotName: 'actionCell', width: 60, fixed: 'left' },
   { key: 'image', title: '图片', type: 'input', width: 60, defaultHidden: true },
-  { key: 'productName', title: '商品名称', type: 'slot', slotName: 'productCell', width: 220, showScanToggle: true },
+  { key: 'productId', title: '商品名称', type: 'select', width: 220, showScanToggle: true, options: optionRefs.products.map((p: any) => ({ value: p.id, label: p.name })) },
   { key: 'itemCode', title: '货号', type: 'input', width: 100 },
   { key: 'barcode', title: '条码', type: 'input', width: 120 },
   { key: 'specification', title: '规格', type: 'input', width: 100 },
@@ -826,7 +800,7 @@ const detailColumns: DetailColumnConfig[] = [
   { key: 'extText1', title: '表体自定义4(文本)', type: 'input', width: 140, defaultHidden: true },
   { key: 'extText2', title: '表体自定义5(文本)', type: 'input', width: 140, defaultHidden: true },
   { key: 'remark', title: '备注', type: 'input', width: 150 },
-]
+])
 
 const tableSummaryColumns = computed(() => [
   { key: 'quantity', value: totalQuantity.value, highlight: true },
@@ -838,32 +812,6 @@ const tableSummaryColumns = computed(() => [
 // ════════════════════════════════════════════
 // 事件处理
 // ════════════════════════════════════════════
-
-function handleProductChange(val: number, index: number) {
-  baseProductChange(val, index)
-  const p = optionRefs.products.find((x: any) => x.id === val)
-  if (p && formData.products[index]) {
-    const row = formData.products[index]
-    row.itemCode = p.code || ''
-    row.productCode = p.code || ''
-    row.barcode = p.barcode || ''
-    row.specification = p.specification || ''
-    row.model = p.model || ''
-    row.origin = p.origin || ''
-    row.brand = p.brand || ''
-    row.unit = p.unit || ''
-    row.smallUnit = p.smallUnit || ''
-    row.batchCode = p.batchCode || ''
-    row.costPrice = p.costPrice ?? p.purchasePrice ?? 0
-    // 同价调拨默认调拨单价=成本单价；异价时可改
-    row.transferPrice = (formData.transferType === 2 ? row.transferPrice : row.costPrice) || row.costPrice || 0
-    row.costAmount = (row.quantity || 0) * (row.costPrice || 0)
-    row.transferAmount = (row.quantity || 0) * (row.transferPrice || 0)
-    row.transferDiff = (row.transferAmount || 0) - (row.costAmount || 0)
-    // 联动真实库存：出库仓库 + 商品 -> 可用库存/账面库存
-    refreshRowStock(row)
-  }
-}
 
 /** 按 (出库仓库 + 商品) 拉取真实库存回填可用/账面库存 */
 function refreshRowStock(row: any) {
@@ -899,7 +847,31 @@ function handleInsertProduct(index: number) {
   if (item) formData.products.splice(index + 1, 0, item)
 }
 
-function handleCellChange(record: any, fieldKey: string, _value: any) {
+function handleCellChange(record: any, fieldKey: string, value: any) {
+  if (fieldKey === 'productId') {
+    const p = optionRefs.products.find((x: any) => x.id === value)
+    if (p) {
+      record.productName = p.name || ''
+      record.productCode = p.code || ''
+      record.itemCode = p.code || ''
+      record.barcode = p.barcode || ''
+      record.specification = p.specification || ''
+      record.model = p.model || ''
+      record.origin = p.origin || ''
+      record.brand = p.brand || ''
+      record.unit = p.unit || ''
+      record.smallUnit = p.smallUnit || ''
+      record.batchCode = p.batchCode || ''
+      record.costPrice = p.costPrice ?? p.purchasePrice ?? 0
+      // 同价调拨默认调拨单价=成本单价；异价时可改
+      record.transferPrice = (formData.transferType === 2 ? record.transferPrice : record.costPrice) || record.costPrice || 0
+      record.costAmount = (record.quantity || 0) * (record.costPrice || 0)
+      record.transferAmount = (record.quantity || 0) * (record.transferPrice || 0)
+      record.transferDiff = (record.transferAmount || 0) - (record.costAmount || 0)
+      // 联动真实库存：出库仓库 + 商品 -> 可用库存/账面库存
+      refreshRowStock(record)
+    }
+  }
   if (['quantity', 'costPrice'].includes(fieldKey)) {
     record.costAmount = (record.quantity || 0) * (record.costPrice || 0)
   }
@@ -1121,9 +1093,6 @@ onMounted(async () => {
     }
     if (formData.defaultTransferType !== undefined) formData.transferType = formData.defaultTransferType
   }
-  nextTick(() => {
-    tableMaxHeight.value = Math.max(200, window.innerHeight - 420)
-  })
   loadFormConfig()
   loadExtraOptions()
 })

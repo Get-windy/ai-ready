@@ -46,8 +46,8 @@
         </div>
       </a-tab-pane>
 
-      <!-- ═══ Tab 2: 功能按钮 ═══ -->
-      <a-tab-pane key="buttons" tab="功能按钮">
+      <!-- ═══ Tab 2: 功能按钮（fieldsOnly 时隐藏） ═══ -->
+      <a-tab-pane v-if="!props.fieldsOnly" key="buttons" tab="功能按钮">
         <div class="tab-tip">勾选控制工具栏按钮启用/禁用</div>
         <div class="config-table-wrap">
           <table class="config-table">
@@ -73,8 +73,8 @@
         </div>
       </a-tab-pane>
 
-      <!-- ═══ Tab 3: 打印配置 ═══ -->
-      <a-tab-pane key="print" tab="打印配置">
+      <!-- ═══ Tab 3: 打印配置（fieldsOnly 时隐藏） ═══ -->
+      <a-tab-pane v-if="!props.fieldsOnly" key="print" tab="打印配置">
         <div class="tab-tip">打印配置仅对该操作员有效</div>
         <div class="print-settings">
           <a-checkbox v-model:checked="printConfig.alwaysLastTemplate" @change="handlePrintChange">
@@ -106,6 +106,8 @@ const props = defineProps<{
   functionButtonsConfig?: FunctionButtonSetting[]
   /** 可选：覆盖默认存储键 */
   storageKey?: string
+  /** 可选：仅显示「查询条件」Tab（对标：本类页面无「功能按钮」Tab） */
+  fieldsOnly?: boolean
 }>()
 const emit = defineEmits<{
   'update:open': [v: boolean]

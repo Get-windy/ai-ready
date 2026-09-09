@@ -31,8 +31,7 @@
           </div>
           <BillDetailTable
             :columns="detailColumns"
-            :data-source="formData.products"
-            :max-height="tableMaxHeight"
+            v-model:data-source="formData.products"
             :summary-columns="tableSummaryColumns"
             :storage-key="'borrow-out-form-columns'"
             @cell-change="handleCellChange"
@@ -59,40 +58,6 @@
                   </a-button>
                 </a-space>
               </template>
-            </template>
-            <template #productCell="{ record, index }">
-              <a-select
-                v-model:value="record.productId"
-                placeholder="搜索选择商品"
-                show-search
-                :filter-option="filterOption"
-                style="width:100%"
-                :loading="loadingOptions"
-                size="small"
-                :disabled="isLocked"
-                @change="(val: number) => handleProductChange(val, index)"
-              >
-                <a-select-option
-                  v-for="p in optionRefs.products"
-                  :key="p.id"
-                  :value="p.id"
-                >
-                  {{ p.name }}
-                </a-select-option>
-              </a-select>
-            </template>
-            <template #batchCodeCell="{ record }">
-              <a-select
-                v-model:value="record.batchCode"
-                placeholder="选择批次"
-                show-search
-                allow-clear
-                size="small"
-                style="width:100%"
-                :disabled="isLocked"
-                :options="record.batchOptions || []"
-                @change="(val: any) => handleBatchChange(val, record)"
-              />
             </template>
           </BillDetailTable>
         </template>
@@ -280,7 +245,6 @@ const router = useRouter()
 const userStore = useUserStore()
 const currentUserName = computed(() => userStore?.userInfo?.nickname || userStore?.userInfo?.username || '')
 const currentUserId = computed(() => userStore?.userInfo?.id)
-const tableMaxHeight = ref(400)
 /** 扫描枪录入开关（默认关；开启时建议从商品扫描条码快速带出，数据录入仍以商品选择为准） */
 const scannerMode = ref(false)
 
@@ -336,11 +300,9 @@ const {
   loadingOptions,
   saving,
   optionRefs,
-  filterOption,
   effectiveMode,
   handleAddProduct,
   handleRemoveProduct,
-  handleProductChange: baseProductChange,
   handleFieldChange: baseFieldChange,
   handleSaveDraft,
   handleSubmit,
@@ -709,11 +671,11 @@ const footerConfig = computed<BillFooterConfig>(() => ({
 }))
 
 // ═══ 明细表格列（默认20列 · 全部45列） ═══
-const detailColumns: DetailColumnConfig[] = [
+const detailColumns = computed<DetailColumnConfig[]>(() => [
   { key: 'rowNo', title: '', type: 'rowNo', width: 40, fixed: 'left' },
   { key: 'action', title: '操作', type: 'action', slotName: 'actionCell', width: 60, fixed: 'left' },
   { key: 'image', title: '图片', type: 'input', width: 60, defaultHidden: true },
-  { key: 'productName', title: '商品名称', type: 'slot', slotName: 'productCell', width: 220 },
+  { key: 'productId', title: '商品名称', type: 'select', width: 220, options: optionRefs.products.map((p: any) => ({ value: p.id, label: p.name })) },
   { key: 'productCode', title: '货号', type: 'input', width: 100 },
   { key: 'barcode', title: '条码', type: 'input', width: 120 },
   { key: 'specification', title: '规格', type: 'input', width: 100, defaultHidden: true },
@@ -725,7 +687,7 @@ const detailColumns: DetailColumnConfig[] = [
   { key: 'availableStock', title: '可用库存', type: 'number', width: 100, precision: 4 },
   { key: 'availableStockConversion', title: '可用库存换算结果', type: 'input', width: 110, defaultHidden: true },
   { key: 'bookStock', title: '账面库存', type: 'number', width: 100, precision: 4, defaultHidden: true },
-  { key: 'batchCode', title: '批次条码', type: 'slot', slotName: 'batchCodeCell', width: 160, required: false },
+  { key: 'batchCode', title: '批次条码', type: 'select', optionsField: 'batchOptions', width: 160, required: false },
   { key: 'productionDate', title: '生产日期', type: 'date', width: 110 },
   { key: 'shelfLife', title: '保质期', type: 'input', width: 100 },
   { key: 'expiryDate', title: '到期日期', type: 'date', width: 110 },
@@ -757,7 +719,7 @@ const detailColumns: DetailColumnConfig[] = [
   { key: 'itemExtText1', title: '单据自定义4(文本)', type: 'input', width: 140, defaultHidden: true },
   { key: 'itemExtText2', title: '单据自定义5(文本)', type: 'input', width: 140, defaultHidden: true },
   { key: 'remark', title: '备注', type: 'input', width: 150 },
-]
+])
 
 const tableSummaryColumns = computed(() => [
   { key: 'quantity', value: totalQuantity.value, highlight: true },
@@ -765,30 +727,6 @@ const tableSummaryColumns = computed(() => [
 ] as { key: string; value: number; highlight?: boolean }[])
 
 // ═══ 事件处理 ═══
-function handleProductChange(val: number, index: number) {
-  baseProductChange(val, index)
-  const p = optionRefs.products.find((x: any) => x.id === val)
-  if (p && formData.products[index]) {
-    const row = formData.products[index]
-    row.productCode = p.code || ''
-    row.barcode = p.barcode || ''
-    row.specification = p.specification || ''
-    row.model = p.model || ''
-    row.origin = p.origin || ''
-    row.brand = p.brand || ''
-    row.unit = p.unit || ''
-    row.taste = p.taste || ''
-    row.retailPrice = p.retailPrice || 0
-    row.wholesalePrice = p.wholesalePrice || 0
-    row.weight = p.weight || 0
-    row.volume = p.volume || 0
-    row.shelfLife = p.shelfLife || ''
-    row.price = p.purchasePrice || p.costPrice || 0
-    row.amount = (row.quantity || 0) * (row.price || 0)
-    ensureBatchOptions(row)
-  }
-}
-
 // ═══ 批次拣选：加载商品×仓库可用库存批次，回填空缺批次，校验数量 ≤ 批次可用库存 ═══
 function toBatchOptions(batches: WmsInventory[]) {
   return batches.map((b) => ({
@@ -847,7 +785,33 @@ function handleInsertProduct(index: number) {
   if (item) formData.products.splice(index + 1, 0, item)
 }
 
-function handleCellChange(record: any, fieldKey: string, _value: any) {
+function handleCellChange(record: any, fieldKey: string, value: any) {
+  if (fieldKey === 'productId') {
+    const p = optionRefs.products.find((x: any) => x.id === value)
+    if (p) {
+      record.productName = p.name || ''
+      record.productCode = p.code || ''
+      record.barcode = p.barcode || ''
+      record.specification = p.specification || ''
+      record.model = p.model || ''
+      record.origin = p.origin || ''
+      record.brand = p.brand || ''
+      record.unit = p.unit || ''
+      record.taste = p.taste || ''
+      record.retailPrice = p.retailPrice || 0
+      record.wholesalePrice = p.wholesalePrice || 0
+      record.weight = p.weight || 0
+      record.volume = p.volume || 0
+      record.shelfLife = p.shelfLife || ''
+      record.price = p.purchasePrice || p.costPrice || 0
+      record.amount = (record.quantity || 0) * (record.price || 0)
+      ensureBatchOptions(record)
+    }
+  }
+  // 批次条码（点击编辑 type:'select'）：回填批次相关字段 + 校验数量
+  if (fieldKey === 'batchCode') {
+    handleBatchChange(value, record)
+  }
   if (['quantity', 'price'].includes(fieldKey)) {
     record.amount = (record.quantity || 0) * (record.price || 0)
   }
@@ -1090,7 +1054,6 @@ onMounted(async () => {
     }
   }
   nextTick(() => {
-    tableMaxHeight.value = Math.max(200, window.innerHeight - 420)
     // 编辑已保存单据：为已有商品行加载库存批次选项
     ;(formData.products || []).forEach((r: any) => { if (r.productId) ensureBatchOptions(r) })
   })

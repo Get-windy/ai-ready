@@ -41,8 +41,7 @@
 
           <BillDetailTable
             :columns="detailColumns"
-            :data-source="formData.products"
-            :max-height="tableMaxHeight"
+            v-model:data-source="formData.products"
             :summary-columns="tableSummaryColumns"
             :storage-key="'shipping-order-form-columns'"
             :view-mode="isLocked"
@@ -153,8 +152,6 @@ defineOptions({ name: 'WhShippingOrderForm' })
 const router = useRouter()
 const userStore = useUserStore()
 const currentUserName = computed(() => userStore?.userInfo?.nickname || userStore?.userInfo?.username || '系统')
-const tableMaxHeight = ref(400)
-
 // ═══ 状态映射 ═══
 const currentStatus = computed(() => Number(formData.status ?? 0))
 const statusText = computed(() => WMS_STATUS_MAP[currentStatus.value]?.text || '未知')
@@ -663,8 +660,8 @@ onMounted(async () => {
     }
     if (formData.defaultCarrierName) formData.carrierName = formData.defaultCarrierName
   }
-  nextTick(() => { tableMaxHeight.value = Math.max(280, window.innerHeight - 420) })
-  loadFormConfig()
+  nextTick(() => {  loadFormConfig()
+})
 })
 </script>
 

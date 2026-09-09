@@ -7,6 +7,7 @@ import lombok.EqualsAndHashCode;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 /**
  * 应付账款实体
@@ -92,4 +93,22 @@ public class Payable extends BaseEntity {
      */
     @TableField("status")
     private String status;
+
+    /**
+     * 对账标记：0-否 1-√
+     */
+    @TableField("reconcile_flag")
+    private Integer reconcileFlag;
+
+    /**
+     * 最后对账标记人
+     */
+    @TableField("reconcile_by_name")
+    private String reconcileByName;
+
+    /**
+     * 最后对账标记时间
+     */
+    @TableField("reconcile_at")
+    private LocalDateTime reconcileAt;
 }

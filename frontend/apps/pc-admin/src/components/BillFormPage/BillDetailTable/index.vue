@@ -19,7 +19,7 @@
     >
       <!-- 空数据提示（没有 minRows 时才显示） -->
       <div
-        v-if="!loading && dataSource.length === 0 && !minRows"
+        v-if="!loading && dataSourceModel.length === 0 && !minRows"
         class="table-empty-text"
       >
         暂无数据
@@ -115,7 +115,7 @@
               v-for="col in visibleColumns"
               :key="col.key"
               :class="getCellClass(col)"
-              :style="{ width: col.width ? col.width + 'px' : 'auto' }"
+              :style="getColStyle(col)"
               :data-col-key="col.key"
             >
               <!-- 填充列：空白 -->
@@ -141,7 +141,40 @@
               </template>
               <!-- 操作列 -->
               <template v-else-if="col.type === 'action'">
+                <!-- 操作按钮（数据驱动，自动折叠）：≤4 平铺撑大；>4 显示前 3 个高频按钮 + "更多"下拉 -->
+                <template v-if="col.actionButtons && col.actionButtons.length">
+                  <div class="ss-button-cell">
+                    <template
+                      v-for="btn in (col.actionButtons.length > 4 ? col.actionButtons.slice(0, 3) : col.actionButtons)"
+                      :key="btn.key || btn.label"
+                    >
+                      <a-button
+                        :type="btn.type || 'link'"
+                        :danger="btn.danger"
+                        size="small"
+                        @click="btn.onClick?.(record, rowIndex)"
+                      >{{ btn.label }}</a-button>
+                    </template>
+                    <a-dropdown
+                      v-if="col.actionButtons.length > 4"
+                      :trigger="['click']"
+                    >
+                      <a-button type="link" size="small">更多</a-button>
+                      <template #overlay>
+                        <a-menu>
+                          <a-menu-item
+                            v-for="btn in col.actionButtons.slice(3)"
+                            :key="btn.key || btn.label"
+                            @click="btn.onClick?.(record, rowIndex)"
+                          >{{ btn.label }}</a-menu-item>
+                        </a-menu>
+                      </template>
+                    </a-dropdown>
+                  </div>
+                </template>
+                <!-- 兼容页面自定义 slot（不折叠，仅撑大列宽） -->
                 <slot
+                  v-else
                   :name="col.slotName || 'actionCell'"
                   :record="record"
                   :index="rowIndex"
@@ -183,64 +216,10 @@
               <template v-else-if="isViewMode">
                 <span class="ss-cell-text">{{ getCellDisplayValue(col, record) }}</span>
               </template>
-              <!-- ══ 编辑模式：原生输入 ═══ -->
+              <!-- ══ 编辑模式：点击编辑（非编辑态显示文本，点击该格进入编辑框） ═══ -->
               <template v-else>
-                <!-- select 类型 -->
-                <select
-                  v-if="col.type === 'select'"
-                  :value="record[col.key] ?? ''"
-                  class="ss-native-input ss-native-select"
-                  @change="(e: Event) => updateCell(record, col.key, (e.target as HTMLSelectElement).value)"
-                  @keydown.enter.prevent="handleCellKeydown($event, record, col.key, rowIndex)"
-                >
-                  <option
-                    value=""
-                    disabled
-                  >
-                    {{ col.placeholder || '请选择' }}
-                  </option>
-                  <option
-                    v-for="opt in col.options"
-                    :key="opt.value"
-                    :value="opt.value"
-                  >
-                    {{ opt.label }}
-                  </option>
-                </select>
-                <!-- date 类型：无数据时渲染空白，不显示原生日期控件占位 -->
-                <template v-else-if="col.type === 'date'">
-                  <input
-                    v-if="record[col.key]"
-                    type="date"
-                    :value="record[col.key]"
-                    class="ss-native-input ss-native-date"
-                    @change="(e: Event) => updateCell(record, col.key, (e.target as HTMLInputElement).value)"
-                    @keydown.enter.prevent="handleCellKeydown($event, record, col.key, rowIndex)"
-                  >
-                  <span v-else class="ss-date-empty"></span>
-                </template>
-                <!-- number 类型 -->
-                <input
-                  v-else-if="col.type === 'number'"
-                  type="number"
-                  :value="record[col.key] ?? 0"
-                  :step="getNumberStep(col)"
-                  class="ss-native-input ss-native-number"
-                  @input="(e: Event) => updateCell(record, col.key, parseNumber((e.target as HTMLInputElement).value, col))"
-                  @keydown.enter.prevent="handleCellKeydown($event, record, col.key, rowIndex)"
-                >
-                <!-- searchable input 类型（输入搜索 + 下拉） -->
-                <template v-else-if="col.searchable">
-                  <SearchSelect
-                    :model-value="record[col.key]"
-                    :options="col.options"
-                    :placeholder="col.placeholder || '搜索'"
-                    @update:model-value="(val: any) => updateCell(record, col.key, val)"
-                    @open-select-modal="handleOpenSelectModal(record, rowIndex, col.key)"
-                  />
-                </template>
-                <!-- boolean 类型：复选框 -->
-                <label v-else-if="col.type === 'boolean'" class="ss-bool-cell">
+                <!-- boolean 类型：开关，直接勾选（不进入"点击编辑"） -->
+                <label v-if="col.type === 'boolean'" class="ss-bool-cell">
                   <input
                     type="checkbox"
                     :checked="!!record[col.key]"
@@ -248,16 +227,93 @@
                     @change="(e: Event) => updateCell(record, col.key, (e.target as HTMLInputElement).checked)"
                   >
                 </label>
-                <!-- input 类型（默认） -->
-                <input
-                  v-else
-                  type="text"
-                  :value="record[col.key] ?? ''"
-                  :placeholder="col.placeholder || ''"
-                  class="ss-native-input ss-native-text"
-                  @input="(e: Event) => updateCell(record, col.key, (e.target as HTMLInputElement).value)"
-                  @keydown.enter.prevent="handleCellKeydown($event, record, col.key, rowIndex)"
-                >
+                <!-- 正在编辑的单元格 → 渲染编辑器 -->
+                <template v-else-if="isActiveEditing(rowIndex, col.key)">
+                  <!-- ══ select 列编辑器（成功经验：点击单元格即自动展开下拉）══
+                       · 用法：列配置 { type:'select', options:[{value,label}] }。点击单元格直接展开下拉、选中回填 label 文本。
+                       · 本编辑器用 a-select，进入编辑态由 enterEdit 置 selectOpen=true 自动展开。
+                       · ⚠️ 切勿给它加 :get-popup-container="() => document.body" —— 在非浏览器/边缘环境会抛
+                         "Cannot read properties of undefined (reading 'body')"。如确需自定义 popup 容器，请用
+                         trigger.ownerDocument.body 安全获取，勿直接引用全局 document。
+                       · 交互：失焦/下拉关闭 = 提交保存；Esc = 取消。 -->
+                  <a-select
+                    v-if="col.type === 'select'"
+                    :value="editingCell?.editing"
+                    :options="resolveColumnOptions(col, record)"
+                    :placeholder="col.placeholder || '请选择'"
+                    show-search
+                    :option-filter-prop="'label'"
+                    size="small"
+                    style="width:100%"
+                    :open="selectOpen"
+                    @change="(val: any) => onEditorInput(val)"
+                    @blur="commitEdit(record)"
+                    @keydown.esc="cancelEdit()"
+                    @dropdown-visible-change="(v: boolean) => { if (!v) commitEdit(record) }"
+                  />
+                  <!-- date 类型 -->
+                  <template v-else-if="col.type === 'date'">
+                    <input
+                      v-focus
+                      v-if="editingCell?.editing"
+                      type="date"
+                      :value="editingCell.editing"
+                      class="ss-native-input ss-native-date"
+                      @input="(e: Event) => onEditorInput((e.target as HTMLInputElement).value)"
+                      @blur="commitEdit(record)"
+                      @keydown="handleEditorKeydown($event, record, rowIndex, col)"
+                    >
+                    <span v-else class="ss-date-empty"></span>
+                  </template>
+                  <!-- number 类型 -->
+                  <input
+                    v-focus
+                    v-else-if="col.type === 'number'"
+                    type="number"
+                    :value="editingCell?.editing ?? 0"
+                    :step="getNumberStep(col)"
+                    class="ss-native-input ss-native-number"
+                    @input="(e: Event) => onEditorInput(parseNumber((e.target as HTMLInputElement).value, col))"
+                    @blur="commitEdit(record)"
+                    @keydown="handleEditorKeydown($event, record, rowIndex, col)"
+                  >
+                  <!-- searchable input 类型（输入搜索 + 下拉） -->
+                  <template v-else-if="col.searchable">
+                    <SearchSelect
+                      :model-value="editingCell?.editing"
+                      :options="col.options"
+                      :placeholder="col.placeholder || '搜索'"
+                      @update:model-value="(val: any) => onEditorInput(val)"
+                      @open-select-modal="handleOpenSelectModal(record, rowIndex, col.key)"
+                    />
+                  </template>
+                  <!-- input 类型（默认） -->
+                  <input
+                    v-focus
+                    v-else
+                    type="text"
+                    :value="editingCell?.editing ?? ''"
+                    :placeholder="col.placeholder || ''"
+                    class="ss-native-input ss-native-text"
+                    @input="(e: Event) => onEditorInput((e.target as HTMLInputElement).value)"
+                    @blur="commitEdit(record)"
+                    @keydown="handleEditorKeydown($event, record, rowIndex, col)"
+                  >
+                </template>
+                <!-- 可编辑单元格：非编辑态显示文本，点击 / 回车进入编辑 -->
+                <template v-else-if="isEditableText(col)">
+                  <span
+                    class="ss-cell-editable"
+                    :class="{ 'ss-cell-placeholder': !getCellText(col, record) }"
+                    tabindex="0"
+                    @click="enterEdit(rowIndex, col, record)"
+                    @keydown.enter.prevent="enterEdit(rowIndex, col, record)"
+                  >{{ getCellText(col, record) || col.placeholder || '' }}</span>
+                </template>
+                <!-- 其它不可编辑列（只读展示） -->
+                <template v-else>
+                  <span class="ss-cell-text">{{ getCellDisplayValue(col, record) }}</span>
+                </template>
               </template>
             </td>
           </tr>
@@ -423,17 +479,27 @@
 import { ref, computed, watch, reactive, nextTick } from 'vue'
 import { SettingOutlined, FullscreenOutlined, CaretUpOutlined, CaretDownOutlined } from '@ant-design/icons-vue'
 import { Modal, Button, Checkbox, Select, InputNumber, Input, Tabs } from 'ant-design-vue'
-import type { DetailColumnConfig, ColumnSetting } from './types'
+import type { DetailColumnConfig, ColumnSetting, DetailColumnOption } from './types'
 import SearchSelect from '@/components/SearchSelect/index.vue'
 import StandardPagination from '@/components/Pagination/Pagination.vue'
 
 defineOptions({ name: 'BillDetailTable' })
 
+// ══════════════════════════════════════════════════════════════════
+// 【BillDetailTable 金标准使用规范】—— 业务页接入时请遵守，否则易出现折叠/空白问题
+//   1. minRows 默认 20：空数据时自动填充 __ghost 占位行（可编辑空行）。
+//      → 业务页【不要手动 push 空行】，否则真实空行与 ghost 占位行混排，
+//        导致「只显示部分行 + 其余折叠/下方空白」。
+//   2. 表格高度由 flex 链自适应：【默认不要传 :max-height】。
+//      → 传了 max-height 会用固定高度限死，出现「只显示 N 行 + 下方留白」；
+//        超出区域的行由底部「表格展开显示」折叠展示，符合"占满区域、超出折叠"。
+//   3. 默认收起（expanded=false）：收起态 flex 占满、超出折叠；点「表格展开显示」为 70vh 滚动。
+//      → 如需某业务页默认展开，可传 :default-expanded="true"（默认 false，向后兼容）。
+//   4. 支持 v-model:data-source 双向回写父数组；占位行录入有值后自动提升为真实行。
+// ══════════════════════════════════════════════════════════════════
 const props = withDefaults(defineProps<{
   /** 列配置 */
   columns: DetailColumnConfig[]
-  /** 数据源 */
-  dataSource: any[]
   /** 是否查看模式 */
   viewMode?: boolean
   /** 表格最大高度（0=不限制，由 flex 父容器驱动高度；>0 时用 inline style 限制） */
@@ -462,6 +528,8 @@ const props = withDefaults(defineProps<{
   enterJumpColumns?: string[]
   /** 公式配置（{ 列key: 表达式 }，支持 {fieldName} 占位符） */
   formulas?: Record<string, string>
+  /** 初始是否展开（默认收起：收起态受 maxHeight 限高；展开态 70vh 滚动） */
+  defaultExpanded?: boolean
 }>(), {
   viewMode: false,
   maxHeight: 0,
@@ -469,8 +537,12 @@ const props = withDefaults(defineProps<{
   loading: false,
   // 默认 20 行（金标准）：与「空数据时显示空提示（dataSource 为空且未传 minRows）」配合；业务页确需改变才在页面传 :min-rows 并注释原因
   minRows: 20,
+  defaultExpanded: false,
   storageKey: 'product-unit-columns-config',
-  fillMode: false,
+  // ⚠️ 组件级解决操作列超宽（勿改回 false）：默认启用 __filler__ 空列占满剩余宽度，
+  //    使操作列(唯一 auto 列)不被剩余空间撑宽；列多的场景 __filler__ 会被压缩到 0，无副作用。
+  //    页面无需再传 fill-mode。个别页面确需无填充时可显式 :fill-mode="false"。
+  fillMode: true,
   showPagination: false,
   current: 1,
   pageSize: 20,
@@ -479,6 +551,9 @@ const props = withDefaults(defineProps<{
   enterJumpColumns: () => [],
   formulas: () => ({}),
 })
+
+// ═══ 可编辑数据：支持 v-model:data-source（组件管理可编辑行并双向回写父数组，免父逻辑接入） ═══
+const dataSourceModel = defineModel<any[]>('dataSource', { default: () => [] })
 
 const emit = defineEmits<{
   'cellChange': [record: any, fieldKey: string, value: any]
@@ -499,10 +574,28 @@ const emit = defineEmits<{
 }>()
 
 // ═══ 状态 ═══
-const expanded = ref(false)
+const expanded = ref(props.defaultExpanded)
 const showColPanel = ref(false)
 const scanEnabled = ref(false)
 const tableContainerRef = ref<HTMLElement>()
+
+// ═══ 操作列(按钮列)宽度：采用页面定义的 col.width（配合按钮折叠），不再按内容测量，
+//     这样多 tab/多实例各自独立（+/− 等窄操作列不被撑大），也不受单项宽内容影响。 ═══
+
+// ═══ 点击编辑：单实例编辑框状态（同一时刻仅一个单元格处于编辑态） ═══
+const editingCell = ref<{ rowIndex: number; fieldKey: string; original: any; editing: any } | null>(null)
+
+/** select 编辑器：进入编辑态时自动展开下拉选项 */
+const selectOpen = ref(false)
+
+/** 自动聚焦指令：进入编辑态时聚焦当前编辑器 */
+const vFocus = {
+  mounted: (el: HTMLElement) => {
+    const target = el as HTMLInputElement
+    target.focus?.()
+    target.select?.()
+  },
+}
 const colPanelRef = ref<HTMLElement>()
 
 // 排序状态
@@ -549,15 +642,16 @@ const isViewMode = computed(() => props.viewMode)
  *    推荐：在 flex 布局中不要传 maxHeight，让组件自适应。
  */
 const spreadsheetTableStyle = computed(() => {
-  // 不再使用 maxHeight 约束，让 flex 布局自然处理高度
-  // maxHeight 会创建独立滚动容器导致 sticky 表头失效
-  if (!expanded.value && props.maxHeight > 0) return { maxHeight: props.maxHeight + 'px' }
+  // ⚠️ 组件级（勿改回）：完全忽略传入的 maxHeight，高度由 flex 链驱动占满容器（BillFormPage 的 flex:1）。
+  //    若应用 maxHeight 会固定高度，导致「只显示部分行 + 下方空白」。
+  //    收起态 flex 占满、超出经「表格展开显示」折叠；展开态由 CSS .table-expanded 的 70vh 控制。
+  //    所有页面默认即占满，无需也不应传 max-height；个别页确需固定高度可显式覆盖。
   return {}
 })
 
 // ═══ 数据行（带空行填充和排序） ═══
 const displayRows = computed(() => {
-  const data = [...props.dataSource]
+  const data = [...dataSourceModel.value]
 
   // 应用排序
   if (sortState.key && sortState.order) {
@@ -583,18 +677,21 @@ const displayRows = computed(() => {
     }
   }
 
-  // 空行填充
+  // 空行填充（可编辑占位行：空数据时显示 minRows 个可编辑行，序号连续；录入有值后由父组件提升为真实行）
   const minRows = props.minRows || 0
   if (data.length < minRows) {
     for (let i = data.length; i < minRows; i++) {
-      data.push({ _isEmptyRow: true, id: `empty-${i}` })
+      data.push({ __ghost: true, id: `ghost-${i}` })
     }
   }
   return data
 })
 
+// 说明：操作列宽度采用页面定义的 col.width（配合按钮折叠），不再按内容测量；
+// 这样多 tab/多实例各自独立（+/− 窄操作列不被撑大），且不被单项宽内容影响。
+
 // 真实数据行数（排除空行）
-const realDataCount = computed(() => props.dataSource.length)
+const realDataCount = computed(() => dataSourceModel.value.length)
 
 // ═══ 排序功能 ═══
 function toggleSort(col: DetailColumnConfig) {
@@ -647,7 +744,7 @@ function checkAll(checked: boolean) {
   checkedRecords.value = []
   if (checked) {
     // 只选择真实数据行，排除空行
-    props.dataSource.forEach((record, index) => {
+    dataSourceModel.value.forEach((record, index) => {
       checkedRows.value.add(index)
       checkedRecords.value.push(record)
     })
@@ -771,6 +868,13 @@ const visibleColumns = computed<DetailColumnConfig[]>(() => {
   if (props.fillMode) {
     cols.push({ key: '__filler__', title: '', type: '__filler__', width: undefined } as any)
   }
+  // ⚠️ 组件级（勿删）：序号列(rowNo)强制为最左侧一列。
+  //    即使页面把勾选框(rowCheckbox)等配置在 rowNo 前面，也统一调整序号到最左，保证序号列始终在表格最左侧。
+  const rowNoIdx = cols.findIndex(c => c.type === 'rowNo')
+  if (rowNoIdx > 0) {
+    const [rn] = cols.splice(rowNoIdx, 1)
+    cols.unshift(rn)
+  }
   return cols
 })
 
@@ -801,7 +905,19 @@ function getSummaryValue(key: string): string {
 // ═══ 样式辅助 ═══
 function getColStyle(col: DetailColumnConfig) {
   if (col.key === '__filler__') {
-    return { minWidth: '0' }
+    // ⚠️ 填充列必须 width:100% 才能占满剩余宽度（table-layout:auto 下空内容吸不到剩余）。
+    //    否则操作列(唯一 auto 列)会被剩余空间撑宽——列少时操作列超宽、随容器漂移。
+    return { width: '100%' }
+  }
+  const isAction = col.type === 'action' || col.type === 'button'
+  if (isAction) {
+    // 操作列：table-layout:auto 下按该列最宽内容自适应（width:auto + nowrap），按钮总放得下、不溢出也不撑大；
+    // min-width 80 防 +/− 等窄操作列塌缩；按钮过多(>4)由 actionButtons 折叠为"更多"下拉。
+    return {
+      width: 'auto',
+      minWidth: 80,
+      whiteSpace: 'nowrap',
+    }
   }
   return {
     width: col.width ? col.width + 'px' : 'auto',
@@ -872,6 +988,104 @@ function updateCell(record: any, fieldKey: string, value: any) {
   emit('cellChange', record, fieldKey, value)
 }
 
+// ═══ 点击编辑：单实例编辑框 ═══
+
+/** 该列是否可"点击编辑"为文本（排除 boolean/操作/按钮/复选框/slot/行号/填充列，及只读/锁定） */
+function isEditableText(col: DetailColumnConfig, record?: any): boolean {
+  if (isViewMode.value) return false
+  if (col.type === 'boolean' || col.type === 'action' || col.type === 'button' || col.type === 'checkbox' || col.type === 'slot' || col.type === 'rowNo' || col.key === '__filler__') return false
+  if (col.readonly || col.locked) return false
+  if (record && record._isEmptyRow) return false
+  return true
+}
+
+/** 当前是否正在编辑该单元格 */
+function isActiveEditing(rowIndex: number, fieldKey: string): boolean {
+  return !!editingCell.value && editingCell.value.rowIndex === rowIndex && editingCell.value.fieldKey === fieldKey
+}
+
+/** 解析列 options：支持三种形态
+ *  1. 静态数组（列级）：[{value,label}]，原样
+ *  2. 函数（行级）：(record)=>[{value,label}]
+ *  3. optionsField 字段名：读 record[optionsField] 作为该行下拉选项
+ */
+function resolveColumnOptions(col: DetailColumnConfig, record: any): DetailColumnOption[] {
+  if (typeof col.options === 'function') {
+    return col.options(record) || []
+  }
+  if (col.optionsField) {
+    return record?.[col.optionsField] || []
+  }
+  return col.options || []
+}
+
+/** 单元格非编辑态文本（select/searchable 显示所选 option 的 label） */
+function getCellText(col: DetailColumnConfig, record: any): string {
+  const val = record?.[col.key]
+  const options = resolveColumnOptions(col, record)
+  if ((col.type === 'select' || col.searchable) && options.length) {
+    const opt = options.find((o: any) => String(o.value) === String(val))
+    if (opt) return opt.label ?? ''
+  }
+  if (val === null || val === undefined) return ''
+  return String(val)
+}
+
+/** 进入编辑态（点击 / 回车） */
+function enterEdit(rowIndex: number, col: DetailColumnConfig, record: any) {
+  if (!isEditableText(col, record)) return
+  editingCell.value = {
+    rowIndex,
+    fieldKey: col.key,
+    original: record[col.key],
+    editing: record[col.key] ?? (col.type === 'number' ? 0 : ''),
+  }
+  // select 列：进入编辑态即展开下拉选项（避免"先显示请选择再点击"）
+  if (col.type === 'select') selectOpen.value = true
+}
+
+/** 编辑态输入暂存 */
+function onEditorInput(val: any) {
+  if (editingCell.value) editingCell.value.editing = val
+}
+
+/** 提交（失焦 / Enter）：值有变化才写入并触发 cellChange；占位行(__ghost)提升为真实行回写父数组 */
+function commitEdit(record: any) {
+  const cell = editingCell.value
+  if (!cell) return
+  editingCell.value = null
+  selectOpen.value = false
+  if (cell.original !== cell.editing) {
+    if (record && record.__ghost && !dataSourceModel.value.includes(record)) {
+      delete record.__ghost
+      dataSourceModel.value.push(record)
+    }
+    updateCell(record, cell.fieldKey, cell.editing)
+  }
+}
+
+/** 取消（Esc）：丢弃暂存值，record 未变无需回滚 */
+function cancelEdit() {
+  editingCell.value = null
+  selectOpen.value = false
+}
+
+/** 编辑器键盘：Enter=保存并跳下一行同列（连续录入），Esc=取消 */
+function handleEditorKeydown(e: KeyboardEvent, record: any, rowIndex: number, col: DetailColumnConfig) {
+  if (e.key === 'Escape') {
+    e.preventDefault()
+    cancelEdit()
+    ;(e.target as HTMLElement | null)?.blur?.()
+  } else if (e.key === 'Enter') {
+    e.preventDefault()
+    commitEdit(record)
+    const next = displayRows.value[rowIndex + 1]
+    if (next && !next._isEmptyRow && isEditableText(col, next)) {
+      enterEdit(rowIndex + 1, col, next)
+    }
+  }
+}
+
 /** 简单表达式求值（支持数学运算和常用函数） */
 function evaluateFormula(formula: string, row: any): any {
   try {
@@ -895,28 +1109,7 @@ function evaluateFormula(formula: string, row: any): any {
   }
 }
 
-/** 回车跳转处理 */
-function handleCellKeydown(e: KeyboardEvent, record: any, colKey: string, rowIndex: number) {
-  if (e.key === 'Enter' && props.enterJumpColumns.includes(colKey)) {
-    e.preventDefault()
-    const tableEl = tableContainerRef.value
-    if (!tableEl) return
-    const rows = tableEl.querySelectorAll('.ss-row')
-    // 从当前行之后开始查找下一个非空行
-    for (let i = rowIndex + 1; i < rows.length; i++) {
-      const nextRow = rows[i]
-      // 跳过空行
-      if (nextRow.classList.contains('ss-empty-row')) continue
-      const cell = nextRow.querySelector<HTMLElement>(`[data-col-key="${colKey}"]`)
-      if (cell) {
-        const input = cell.querySelector<HTMLInputElement>('input, select')
-        input?.focus()
-        input?.select?.()
-        break
-      }
-    }
-  }
-}
+// 提示：单元格"回车跳转/连续录入"已由 handleEditorKeydown 统一处理
 
 // ═══ 打开选择弹窗 ═══
 function handleOpenSelectModal(record: any, rowIndex: number, fieldKey: string) {
@@ -939,8 +1132,8 @@ function getCellDisplayValue(col: DetailColumnConfig, record: any): string {
     return col.formatter(raw, record)
   }
 
-  if (col.type === 'select' && col.options) {
-    const opt = col.options.find(o => String(o.value) === String(raw))
+  if (col.type === 'select' && (col.options || col.optionsField)) {
+    const opt = resolveColumnOptions(col, record).find(o => String(o.value) === String(raw))
     return opt?.label || String(raw)
   }
   if (col.type === 'number') {
@@ -1077,7 +1270,7 @@ function onDrop(_index: number) {
   height: 0;
   flex-grow: 1;
   overflow: auto;          /* 唯一的滚动容器，sticky th 相对它定位 */
-  border: 1px solid #e8e8e8;
+  border: 1px solid #d9d9d9;
   border-bottom: none;
 }
 
@@ -1093,7 +1286,7 @@ function onDrop(_index: number) {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
-  table-layout: fixed;
+  table-layout: auto;
   font-size: 13px;
 }
 
@@ -1111,7 +1304,7 @@ function onDrop(_index: number) {
  */
 .ss-grid th {
   background: #fafafa;
-  border-right: 1px solid #e8e8e8;
+  border-right: 1px solid #d9d9d9;
   border-bottom: 2px solid #b0b0b0;
   padding: 0 6px;
   text-align: center;
@@ -1129,8 +1322,8 @@ function onDrop(_index: number) {
 }
 
 .ss-grid td {
-  border-right: 1px solid #e8e8e8;
-  border-bottom: 1px solid #e8e8e8;
+  border-right: 1px solid #d9d9d9;
+  border-bottom: 1px solid #d9d9d9;
   padding: 0;
   height: 28px;
   vertical-align: middle;
@@ -1270,6 +1463,27 @@ function onDrop(_index: number) {
   font-size: 10px;
   margin-left: 1px;
   font-weight: bold;
+}
+
+/* ═══ 点击编辑单元格（非编辑态文本，点击进入编辑框） ═══ */
+.ss-cell-editable {
+  display: inline-block;
+  width: 100%;
+  min-height: 18px;
+  line-height: 20px;
+  padding: 0 2px;
+  cursor: pointer;
+  border-radius: 2px;
+}
+.ss-cell-editable:hover {
+  background: #e6f7ff;
+  outline: 1px solid #91d5ff;
+}
+.ss-cell-editable:focus-visible {
+  outline: 1px solid #1890ff;
+}
+.ss-cell-placeholder {
+  color: #bfbfbf;
 }
 
 /* ═══ 原生输入框样式（无嵌套感） ═══ */
@@ -1425,8 +1639,8 @@ function onDrop(_index: number) {
 /* ═══ 合计行（tfoot） ═══ */
 .ss-summary-tr td {
   background: #fafafa;
-  border-right: 1px solid #e8e8e8;
-  border-bottom: 1px solid #e8e8e8;
+  border-right: 1px solid #d9d9d9;
+  border-bottom: 1px solid #d9d9d9;
   padding: 0 6px;
   height: 30px;
   font-weight: 600;
@@ -1452,7 +1666,7 @@ function onDrop(_index: number) {
   text-align: center;
   padding: 4px;
   background: #fafafa;
-  border: 1px solid #e8e8e8;
+  border: 1px solid #d9d9d9;
   border-top: none;
   flex-shrink: 0;
   position: sticky;
@@ -1497,7 +1711,7 @@ function onDrop(_index: number) {
 
 .col-settings-panel {
   background: #fff;
-  border: 1px solid #e8e8e8;
+  border: 1px solid #d9d9d9;
   border-radius: 6px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
   width: 360px;
@@ -1654,7 +1868,7 @@ function onDrop(_index: number) {
   align-items: center;
   padding: 12px 0;
   background: #fff;
-  border-top: 1px solid #e8e8e8;
+  border-top: 1px solid #d9d9d9;
   margin-top: -1px;
   z-index: 1;
   flex-shrink: 0; /* 防止在 flex 布局中被压缩 */

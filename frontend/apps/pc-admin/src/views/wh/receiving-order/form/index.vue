@@ -17,8 +17,7 @@
         <template #detail-table="{ onExpandChange }">
           <BillDetailTable
             :columns="detailColumns"
-            :data-source="formData.details"
-            :max-height="tableMaxHeight"
+            v-model:data-source="formData.details"
             :summary-columns="tableSummaryColumns"
             :storage-key="'receiving-order-form-columns'"
             @cell-change="handleCellChange"
@@ -484,8 +483,8 @@ async function refreshCurrent() {
 }
 
 // ═══ 其他 ═══
-const tableMaxHeight = ref<number>(0)
-function computeMaxHeight() { tableMaxHeight.value = Math.max(320, window.innerHeight - 420) }
+function computeMaxHeight() {
+}
 function handleError(e: any) { console.error(e) }
 function formatNow() { return new Date().toISOString().slice(0, 19).replace('T', ' ') }
 

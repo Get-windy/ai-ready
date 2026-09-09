@@ -25,8 +25,7 @@
           </div>
           <BillDetailTable
             :columns="inWarehouseColumns"
-            :data-source="formData.inWarehouseItems"
-            :max-height="tableMaxHeight"
+            v-model:data-source="formData.inWarehouseItems"
             :summary-columns="inWarehouseSummaryColumns"
             @cell-change="handleInWarehouseCellChange"
             @expand-change="onExpandChange"
@@ -86,8 +85,7 @@
           </div>
           <BillDetailTable
             :columns="outWarehouseColumns"
-            :data-source="formData.outWarehouseItems"
-            :max-height="tableMaxHeight"
+            v-model:data-source="formData.outWarehouseItems"
             :summary-columns="outWarehouseSummaryColumns"
             @cell-change="handleOutWarehouseCellChange"
             @expand-change="onExpandChange"
@@ -180,7 +178,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, nextTick } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 
 defineOptions({ name: 'SaleExchangeForm' })
 import { useRouter, useRoute } from 'vue-router'
@@ -213,8 +211,6 @@ const currentUserName = computed(() => userStore?.userInfo?.nickname || userStor
 // ═══ 弹窗状态 ═══
 const showProductSelect = ref(false)
 const currentSelectRowIndex = ref(-1)
-
-const tableMaxHeight = ref(400)
 
 // 弹窗当前操作的仓库类型: 'in' | 'out'
 const currentWarehouseType = ref<'in' | 'out'>('in')
@@ -943,9 +939,6 @@ onMounted(async () => {
   if (formData.outWarehouseItems.length === 0) {
     for (let i = 0; i < 10; i++) formData.outWarehouseItems.push(createEmptyItem())
   }
-  nextTick(() => {
-    tableMaxHeight.value = Math.max(200, window.innerHeight - 480)
-  })
 })
 </script>
 

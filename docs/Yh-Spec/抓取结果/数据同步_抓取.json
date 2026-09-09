@@ -1,0 +1,51 @@
+{
+  "page": "数据同步（库存同步）",
+  "route": "trade/inventory-sync/list",
+  "menuId": 606,
+  "parentMenu": "600（交易模块 > 外部平台）",
+  "sysMenuPath": "trade-inventory-sync",
+  "component": "views/trade/inventory-sync/list.vue",
+  "scrapeDate": "2026-09-07",
+  "type": "只读列表型",
+  "entry": "单入口：交易模块 → 外部平台 → 库存同步",
+  "tabs": 0,
+  "topButtons": [],
+  "queryFieldCount": 0,
+  "queryFields": [],
+  "columnConfigDialog": false,
+  "pageConfigDialog": false,
+  "columns": {
+    "count": 9,
+    "defaultDisplay": 9,
+    "hidden": 0,
+    "list": [
+      {"title": "渠道", "field": "channelCode", "display": true},
+      {"title": "SKU编码", "field": "skuCode", "display": true},
+      {"title": "内部库存", "field": "internalQty", "display": true},
+      {"title": "外部库存", "field": "externalQty", "display": true},
+      {"title": "同步数量", "field": "syncQty", "display": true},
+      {"title": "同步类型", "field": "syncType", "display": true},
+      {"title": "状态", "field": "syncStatus", "display": true},
+      {"title": "同步时间", "field": "syncTime", "display": true},
+      {"title": "错误信息", "field": "errorMsg", "display": true}
+    ]
+  },
+  "fixedActionColumn": "无（只读，无行级操作）",
+  "rowOps": [],
+  "syncTypeEnums": {"PUSH": "推送", "QUERY": "查询", "其他": "拉取"},
+  "syncStatusEnums": {"0": "待同步", "1": "成功", "2": "失败"},
+  "backend": {
+    "controller": "OpenApiController（/api/open/inventory/*）+ InventorySyncService",
+    "frontEndPageEndpoint": "/api/trade/inventory-sync/page",
+    "entity": "InventorySyncRecord",
+    "table": "inventory_sync_record",
+    "migration": "V8.14.0__Multi_Channel_Integration_Tables.sql",
+    "gap": "前端 /api/trade/inventory-sync/page 无后端控制器映射；服务层 pageSyncRecords（channelCode+skuCode）已实现，疑缺控制器装配；/api/open/inventory/lock、release 及 /api/open/order/status 为 TODO 桩"
+  },
+  "benchmark": {
+    "found": false,
+    "note": "ql361 未见到独立页，实测不可得，按本系统实现+业界标准",
+    "investigation": "ql361 顶栏商城/销售/设置菜单均无库存同步/数据同步/渠道配置/外部订单；ql361「仓储」为进销存入库/出库单据，与本页外部平台库存同步记录台账概念不同，不构成对标"
+  },
+  "dataSource": "本系统源码实测：views/trade/inventory-sync/list.vue + api/trade/index.ts + OpenApiController + InventorySyncService"
+}

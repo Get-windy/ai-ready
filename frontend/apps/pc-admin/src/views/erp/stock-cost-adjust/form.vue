@@ -27,8 +27,7 @@
         <template #detail-table>
           <BillDetailTable
             :columns="detailColumns"
-            :data-source="formData.products"
-            :max-height="tableMaxHeight"
+            v-model:data-source="formData.products"
             :summary-columns="tableSummaryColumns"
             :storage-key="'stock-cost-adjust-form-columns'"
             @cell-change="handleCellChange"
@@ -54,27 +53,6 @@
                   </a-button>
                 </a-space>
               </template>
-            </template>
-            <template #productCell="{ record, index }">
-              <a-select
-                v-model:value="record.productId"
-                placeholder="搜索选择商品"
-                show-search
-                :filter-option="filterOption"
-                style="width:100%"
-                :loading="loadingOptions"
-                size="small"
-                :disabled="isLocked"
-                @change="(val: number) => handleProductChange(val, index)"
-              >
-                <a-select-option
-                  v-for="p in optionRefs.products"
-                  :key="p.id"
-                  :value="p.id"
-                >
-                  {{ p.name }}
-                </a-select-option>
-              </a-select>
             </template>
           </BillDetailTable>
         </template>
@@ -200,7 +178,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, reactive, onMounted, nextTick } from 'vue'
+import { computed, ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import {
@@ -232,8 +210,6 @@ const router = useRouter()
 const userStore = useUserStore()
 const currentUserName = computed(() => userStore?.userInfo?.nickname || userStore?.userInfo?.username || '')
 const currentUserId = computed(() => userStore?.userInfo?.id)
-const tableMaxHeight = ref(400)
-
 // ════════════════════════════════════════════
 // 调价类型/原因类型字典
 // ════════════════════════════════════════════
@@ -296,11 +272,9 @@ const {
   loadingOptions,
   saving,
   optionRefs,
-  filterOption,
   effectiveMode,
   handleAddProduct,
   handleRemoveProduct,
-  handleProductChange: baseProductChange,
   handleFieldChange: baseFieldChange,
   handleSaveDraft,
   handleSubmit,
@@ -664,11 +638,11 @@ const footerConfig = computed<BillFooterConfig>(() => ({
 // 明细表格列（默认17列 · 全部26列）
 // ════════════════════════════════════════════
 
-const detailColumns: DetailColumnConfig[] = [
+const detailColumns = computed<DetailColumnConfig[]>(() => [
   { key: 'rowNo', title: '', type: 'rowNo', width: 40, fixed: 'left' },
   { key: 'action', title: '操作', type: 'action', slotName: 'actionCell', width: 60, fixed: 'left' },
   { key: 'image', title: '图片', type: 'input', width: 60, defaultHidden: true },
-  { key: 'productName', title: '商品名称', type: 'slot', slotName: 'productCell', width: 220, showScanToggle: true },
+  { key: 'productId', title: '商品名称', type: 'select', width: 220, showScanToggle: true, options: optionRefs.products.map((p: any) => ({ value: p.id, label: p.name })) },
   { key: 'itemCode', title: '货号', type: 'input', width: 100 },
   { key: 'barcode', title: '条码', type: 'input', width: 120 },
   { key: 'specification', title: '规格', type: 'input', width: 100 },
@@ -694,7 +668,7 @@ const detailColumns: DetailColumnConfig[] = [
   { key: 'itemExtNum3', title: '单据自定义3(数字)', type: 'number', width: 140, precision: 2, defaultHidden: true },
   { key: 'itemExtText1', title: '单据自定义4(文本)', type: 'input', width: 140, defaultHidden: true },
   { key: 'itemExtText2', title: '单据自定义5(文本)', type: 'input', width: 140, defaultHidden: true },
-]
+])
 
 const tableSummaryColumns = computed(() => [
   { key: 'diffAmount', value: Number(totalAdjustAmount.value.toFixed(2)), highlight: true },
@@ -704,38 +678,36 @@ const tableSummaryColumns = computed(() => [
 // 事件处理
 // ════════════════════════════════════════════
 
-function handleProductChange(val: number, index: number) {
-  baseProductChange(val, index)
-  const p = optionRefs.products.find((x: any) => x.id === val)
-  if (p && formData.products[index]) {
-    const row = formData.products[index]
-    row.itemCode = p.code || ''
-    row.productCode = p.code || ''
-    row.barcode = p.barcode || ''
-    row.specification = p.specification || ''
-    row.model = p.model || ''
-    row.origin = p.origin || ''
-    row.brand = p.brand || ''
-    row.taste = p.taste || ''
-    row.location = p.location || ''
-    row.unit = p.unit || ''
-    row.wholesalePrice = p.wholesalePrice || p.wholesale_price || 0
-    row.retailPrice = p.retailPrice || p.retail_price || 0
-    row.currentQuantity = p.stock ?? 0
-    row.oldCost = p.purchasePrice || 0
-    row.oldAmount = (row.currentQuantity || 0) * (row.oldCost || 0)
-    row.newAmount = (row.currentQuantity || 0) * (row.newCost || 0)
-    row.diffAmount = (((row.newCost || 0) - (row.oldCost || 0)) * (row.currentQuantity || 0))
-  }
-}
-
 function handleInsertProduct(index: number) {
   handleAddProduct()
   const item = formData.products.pop()
   if (item) formData.products.splice(index + 1, 0, item)
 }
 
-function handleCellChange(record: any, fieldKey: string, _value: any) {
+function handleCellChange(record: any, fieldKey: string, value: any) {
+  if (fieldKey === 'productId') {
+    const p = optionRefs.products.find((x: any) => x.id === value)
+    if (p) {
+      record.productName = p.name || ''
+      record.productCode = p.code || ''
+      record.itemCode = p.code || ''
+      record.barcode = p.barcode || ''
+      record.specification = p.specification || ''
+      record.model = p.model || ''
+      record.origin = p.origin || ''
+      record.brand = p.brand || ''
+      record.taste = p.taste || ''
+      record.location = p.location || ''
+      record.unit = p.unit || ''
+      record.wholesalePrice = p.wholesalePrice || p.wholesale_price || 0
+      record.retailPrice = p.retailPrice || p.retail_price || 0
+      record.currentQuantity = p.stock ?? 0
+      record.oldCost = p.purchasePrice || 0
+      record.oldAmount = (record.currentQuantity || 0) * (record.oldCost || 0)
+      record.newAmount = (record.currentQuantity || 0) * (record.newCost || 0)
+      record.diffAmount = (((record.newCost || 0) - (record.oldCost || 0)) * (record.currentQuantity || 0))
+    }
+  }
   if (['currentQuantity', 'oldCost', 'newCost'].includes(fieldKey)) {
     const qty = record.currentQuantity || 0
     const oldCost = record.oldCost || 0
@@ -996,9 +968,6 @@ onMounted(async () => {
     }
     if (formData.defaultAdjustType !== undefined) formData.adjustType = formData.defaultAdjustType
   }
-  nextTick(() => {
-    tableMaxHeight.value = Math.max(200, window.innerHeight - 420)
-  })
   loadFormConfig()
   loadExtraOptions()
 })

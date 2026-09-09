@@ -175,6 +175,9 @@ public class UnifiedSalesDocQueryDTO {
     @Schema(description = "是否仅统计车辆库")
     private Boolean onlyVehicleWarehouse;
 
+    @Schema(description = "应收来源过滤：true 时仅查询销售出库/退货/换货单，排除销售订单")
+    private Boolean receivableOnly;
+
     // ═══ 各单据类型子类型过滤 ═══
     @Schema(description = "订单类型列表")
     private List<String> orderTypes;

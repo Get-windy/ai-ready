@@ -76,6 +76,9 @@ public class CapitalFlowDTO {
     @Schema(description = "对账时间")
     private LocalDateTime reconcileAt;
 
+    @Schema(description = "支付状态: SUCCESS-支付成功（在线支付对账单展示；当前系统资金流均为成功入账）")
+    private String payStatus;
+
     @Schema(description = "创建时间")
     private LocalDateTime createTime;
 }

@@ -30,8 +30,10 @@ export interface DetailColumnConfig {
   required?: boolean
   /** 占位文本 */
   placeholder?: string
-  /** 下拉选项（type=select） */
-  options?: DetailColumnOption[]
+  /** 下拉选项（type=select）：静态数组 [{value,label}]，或函数 (record)=>[{value,label}] 支持行级动态 options */
+  options?: DetailColumnOption[] | ((record: any) => DetailColumnOption[])
+  /** 行级动态 options 字段名：读 record[optionsField] 作为该行下拉选项 */
+  optionsField?: string
   /** 数字精度（type=number） */
   precision?: number
   /** 最小值（type=number） */
@@ -55,6 +57,14 @@ export interface DetailColumnConfig {
     label: string
     type?: 'primary' | 'link' | 'default'
     /** 是否为危险按钮（红色） */
+    danger?: boolean
+    onClick?: (record: any, index: number) => void
+  }>
+  /** 操作按钮（type=action 用）：数据驱动渲染；≤4 平铺撑大；>4 自动折叠（显示前 3 个高频按钮 + "更多"下拉），高频按钮放数组前部 */
+  actionButtons?: Array<{
+    key?: string
+    label: string
+    type?: 'primary' | 'link' | 'default'
     danger?: boolean
     onClick?: (record: any, index: number) => void
   }>

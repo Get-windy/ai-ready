@@ -1,0 +1,14 @@
+{
+  "meta": {
+    "system": "ql361 (22stable.ql361.com)",
+    "page": "支付记录（对标参考）",
+    "source": "对标系统实测抓取 (Playwright MCP)",
+    "date": "2026-09-07",
+    "pageType": "无对标独立页",
+    "entry": "（ql361 无对应页面）",
+    "note": "ql361 未见到独立「支付记录/支付流水」页。已探查 财务→收款（含 在线支付对账单，但为对账单/对账标记口径，非支付流水）与 设置→系统配置→支付配置，均无本系统意义上的「支付记录」列表。按本系统实现 + 业界标准改写，不臆造对标字段。",
+    "hasColumnConfigPopup": null,
+    "hasPageConfigPopup": null,
+    "data": null
+  }
+}

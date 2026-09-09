@@ -25,8 +25,7 @@
         <template #detail-table="{ onExpandChange }">
           <BillDetailTable
             :columns="detailColumns"
-            :data-source="formData.inspectionItemList"
-            :max-height="tableMaxHeight"
+            v-model:data-source="formData.inspectionItemList"
             :storage-key="'quality-inspection-form-columns'"
             @cell-change="handleInspectionCellChange"
             @expand-change="onExpandChange"
@@ -238,7 +237,6 @@ const basicInfoFields = computed<BasicInfoField[]>(() =>
 )
 
 // ── 检验项目明细 ──
-const tableMaxHeight = ref(400)
 const detailColumns: DetailColumnConfig[] = [
   { key: 'rowNo', title: '', type: 'rowNo', width: 40, fixed: 'left' },
   { key: 'action', title: '操作', type: 'action', slotName: 'actionCell', width: 60, fixed: 'left' },

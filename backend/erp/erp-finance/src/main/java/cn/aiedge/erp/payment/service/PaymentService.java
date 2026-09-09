@@ -12,7 +12,28 @@ public interface PaymentService extends IService<Payment> {
 
     Payment getByPaymentNo(String paymentNo);
 
-    Page<Payment> pageList(String keyword, Long supplierId, Long orderId, Integer status, String sourceType, int pageNum, int pageSize);
+    /**
+     * 付款单多条件分页（按单据 tab）
+     */
+    Page<Payment> pageList(String keyword, Long supplierId, Long orderId, Integer status, String sourceType,
+                           String startDate, String endDate, String supplierName, String handlerName,
+                           String departmentName, String creatorName, String bookkeeperName, String remark,
+                           String statuses, String paymentNo, String orderNo, String deliveryNo,
+                           String paymentAccount1, String paymentAccount2,
+                           int pageNum, int pageSize);
+
+    /**
+     * 付款明细分页（按明细 tab）
+     */
+    Page<cn.aiedge.erp.payment.dto.PaymentItemDetailVO> pageDetail(Long paymentId, Long supplierId, String keyword,
+                                                                   Integer status, String tradeUnit, String sourceHandler,
+                                                                   String settlementNo, String startDate, String endDate,
+                                                                   int pageNum, int pageSize);
+
+    /**
+     * 生成付款单号（FKD- 前缀）
+     */
+    String nextNo();
 
     List<Payment> exportList(String keyword, Long supplierId, Long orderId, Integer status);
 

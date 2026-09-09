@@ -17,8 +17,7 @@
         <template #detail-table="{ onExpandChange }">
           <BillDetailTable
             :columns="detailColumns"
-            :data-source="formData.details"
-            :max-height="tableMaxHeight"
+            v-model:data-source="formData.details"
             :summary-columns="tableSummaryColumns"
             :storage-key="'putaway-order-form-columns'"
             @cell-change="handleCellChange"
@@ -287,8 +286,8 @@ async function doRecommendLocation() {
 function handleFieldChange(k: string, v: any) { baseFieldChange(k, v) }
 async function refreshCurrent() { if (!formData.id) return; try { const t: any = await putawayApi.getById(formData.id); const d = t?.data || t; if (d) { if (d.taskNo != null) formData.orderNo = d.taskNo; if (d.status != null) formData.status = d.status } } catch (e) {} }
 
-const tableMaxHeight = ref<number>(0)
-function computeMaxHeight() { tableMaxHeight.value = Math.max(320, window.innerHeight - 420) }
+function computeMaxHeight() {
+}
 function handleError(e: any) { console.error(e) }
 function formatNow() { return new Date().toISOString().slice(0, 19).replace('T', ' ') }
 

@@ -1,12 +1,12 @@
 package cn.aiedge.erp.payment.service.impl;
 
 import cn.aiedge.common.exception.BusinessException;
+import cn.aiedge.erp.payment.dto.ReceiptItemDetailVO;
 import cn.aiedge.erp.payment.entity.Receipt;
 import cn.aiedge.erp.payment.entity.ReceiptItem;
 import cn.aiedge.erp.payment.enums.ReceiptStatus;
 import cn.aiedge.erp.payment.mapper.ReceiptItemMapper;
 import cn.aiedge.erp.payment.mapper.ReceiptMapper;
-import cn.aiedge.erp.payment.entity.WriteOff;
 import cn.aiedge.erp.payment.service.CapitalFlowService;
 import cn.aiedge.erp.payment.service.ReceiptService;
 import cn.aiedge.erp.payment.service.WriteOffService;
@@ -15,6 +15,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,7 +23,11 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -42,7 +47,10 @@ public class ReceiptServiceImpl extends ServiceImpl<ReceiptMapper, Receipt> impl
     }
 
     @Override
-    public Page<Receipt> pageList(String keyword, Long customerId, Long orderId, Integer status, String sourceType, int pageNum, int pageSize) {
+    public Page<Receipt> pageList(String keyword, Long customerId, Long orderId, Integer status, String sourceType,
+                                  String startDate, String endDate, String customerName, String handlerName,
+                                  String departmentName, String creatorName, String bookkeeperName, String remark,
+                                  int pageNum, int pageSize) {
         LambdaQueryWrapper<Receipt> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Receipt::getDeleted, 0);
         if (keyword != null && !keyword.isEmpty()) {
@@ -62,8 +70,240 @@ public class ReceiptServiceImpl extends ServiceImpl<ReceiptMapper, Receipt> impl
         if (sourceType != null && !sourceType.isEmpty()) {
             wrapper.eq(Receipt::getSourceType, sourceType);
         }
+        if (startDate != null && !startDate.isEmpty()) {
+            wrapper.ge(Receipt::getReceiptDate, LocalDate.parse(startDate));
+        }
+        if (endDate != null && !endDate.isEmpty()) {
+            wrapper.le(Receipt::getReceiptDate, LocalDate.parse(endDate));
+        }
+        if (customerName != null && !customerName.isEmpty()) {
+            wrapper.like(Receipt::getCustomerName, customerName);
+        }
+        if (handlerName != null && !handlerName.isEmpty()) {
+            wrapper.like(Receipt::getSalesPersonName, handlerName);
+        }
+        if (departmentName != null && !departmentName.isEmpty()) {
+            wrapper.like(Receipt::getDepartmentName, departmentName);
+        }
+        if (creatorName != null && !creatorName.isEmpty()) {
+            Long id = parseLongOrNull(creatorName);
+            if (id != null) {
+                wrapper.eq(Receipt::getCreateBy, id);
+            }
+        }
+        if (bookkeeperName != null && !bookkeeperName.isEmpty()) {
+            Long id = parseLongOrNull(bookkeeperName);
+            if (id != null) {
+                wrapper.eq(Receipt::getVerifiedBy, id);
+            }
+        }
+        if (remark != null && !remark.isEmpty()) {
+            wrapper.like(Receipt::getRemark, remark);
+        }
         wrapper.orderByDesc(Receipt::getCreateTime);
         return page(new Page<>(pageNum, pageSize), wrapper);
+    }
+
+    @Override
+    public Page<Receipt> pageListPending(String keyword, Long customerId, Long orderId, Integer status, String sourceType,
+                                         String startDate, String endDate, String customerName, String handlerName,
+                                         String departmentName, String creatorName, String bookkeeperName, String remark,
+                                         String statuses, String receiptNo, String orderNo, String deliveryNo,
+                                         String receiptAccount1, String receiptAccount2,
+                                         int pageNum, int pageSize) {
+        LambdaQueryWrapper<Receipt> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Receipt::getDeleted, 0);
+        if (keyword != null && !keyword.isEmpty()) {
+            wrapper.and(w -> w.like(Receipt::getReceiptNo, keyword)
+                    .or().like(Receipt::getOrderNo, keyword)
+                    .or().like(Receipt::getCustomerName, keyword));
+        }
+        if (customerId != null) {
+            wrapper.eq(Receipt::getCustomerId, customerId);
+        }
+        if (orderId != null) {
+            wrapper.eq(Receipt::getOrderId, orderId);
+        }
+        if (status != null) {
+            wrapper.eq(Receipt::getStatus, status);
+        }
+        // 多状态（待核销/核销中等）→ IN 查询
+        if (statuses != null && !statuses.isEmpty()) {
+            List<Object> statusList = java.util.stream.Stream.of(statuses.split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .map(Integer::valueOf)
+                    .collect(Collectors.toList());
+            if (!statusList.isEmpty()) {
+                wrapper.in(Receipt::getStatus, statusList);
+            }
+        }
+        if (sourceType != null && !sourceType.isEmpty()) {
+            wrapper.eq(Receipt::getSourceType, sourceType);
+        }
+        if (startDate != null && !startDate.isEmpty()) {
+            wrapper.ge(Receipt::getReceiptDate, LocalDate.parse(startDate));
+        }
+        if (endDate != null && !endDate.isEmpty()) {
+            wrapper.le(Receipt::getReceiptDate, LocalDate.parse(endDate));
+        }
+        if (customerName != null && !customerName.isEmpty()) {
+            wrapper.like(Receipt::getCustomerName, customerName);
+        }
+        if (handlerName != null && !handlerName.isEmpty()) {
+            wrapper.like(Receipt::getSalesPersonName, handlerName);
+        }
+        if (departmentName != null && !departmentName.isEmpty()) {
+            wrapper.like(Receipt::getDepartmentName, departmentName);
+        }
+        if (creatorName != null && !creatorName.isEmpty()) {
+            Long id = parseLongOrNull(creatorName);
+            if (id != null) {
+                wrapper.eq(Receipt::getCreateBy, id);
+            }
+        }
+        if (bookkeeperName != null && !bookkeeperName.isEmpty()) {
+            Long id = parseLongOrNull(bookkeeperName);
+            if (id != null) {
+                wrapper.eq(Receipt::getVerifiedBy, id);
+            }
+        }
+        if (remark != null && !remark.isEmpty()) {
+            wrapper.like(Receipt::getRemark, remark);
+        }
+        if (receiptNo != null && !receiptNo.isEmpty()) {
+            wrapper.like(Receipt::getReceiptNo, receiptNo);
+        }
+        if (orderNo != null && !orderNo.isEmpty()) {
+            wrapper.like(Receipt::getOrderNo, orderNo);
+        }
+        if (deliveryNo != null && !deliveryNo.isEmpty()) {
+            // 配送任务编号非收款单自身字段，暂不对账单过滤（数据链路拆分至配送模块）
+            wrapper.eq(Receipt::getOrderNo, deliveryNo);
+        }
+        if (receiptAccount1 != null && !receiptAccount1.isEmpty()) {
+            wrapper.and(w -> w.like(Receipt::getReceiptAccount1, receiptAccount1)
+                    .or().like(Receipt::getReceiptAccount2, receiptAccount1)
+                    .or().like(Receipt::getReceiptAccount3, receiptAccount1)
+                    .or().like(Receipt::getReceiptAccount4, receiptAccount1));
+        }
+        if (receiptAccount2 != null && !receiptAccount2.isEmpty()) {
+            wrapper.and(w -> w.like(Receipt::getReceiptAccount1, receiptAccount2)
+                    .or().like(Receipt::getReceiptAccount2, receiptAccount2)
+                    .or().like(Receipt::getReceiptAccount3, receiptAccount2)
+                    .or().like(Receipt::getReceiptAccount4, receiptAccount2));
+        }
+        wrapper.orderByDesc(Receipt::getCreateTime);
+        return page(new Page<>(pageNum, pageSize), wrapper);
+    }
+
+    @Override
+    public Page<ReceiptItemDetailVO> pageDetail(Long receiptId, Long customerId, String keyword, Integer status,
+                                                String tradeUnit, String sourceHandler, String settlementNo,
+                                                String startDate, String endDate, int pageNum, int pageSize) {
+        boolean hasReceiptFilter = receiptId != null || customerId != null || status != null
+                || (startDate != null && !startDate.isEmpty()) || (endDate != null && !endDate.isEmpty());
+        List<Long> matchedReceiptIds = null;
+        if (hasReceiptFilter) {
+            LambdaQueryWrapper<Receipt> rw = new LambdaQueryWrapper<>();
+            rw.eq(Receipt::getDeleted, 0);
+            if (receiptId != null) rw.eq(Receipt::getId, receiptId);
+            if (customerId != null) rw.eq(Receipt::getCustomerId, customerId);
+            if (status != null) rw.eq(Receipt::getStatus, status);
+            if (startDate != null && !startDate.isEmpty()) rw.ge(Receipt::getReceiptDate, LocalDate.parse(startDate));
+            if (endDate != null && !endDate.isEmpty()) rw.le(Receipt::getReceiptDate, LocalDate.parse(endDate));
+            matchedReceiptIds = list(rw).stream().map(Receipt::getId).collect(Collectors.toList());
+            if (matchedReceiptIds.isEmpty()) {
+                return new Page<>(pageNum, pageSize, 0);
+            }
+        }
+        LambdaQueryWrapper<ReceiptItem> iw = new LambdaQueryWrapper<>();
+        iw.eq(ReceiptItem::getDeleted, 0);
+        if (matchedReceiptIds != null) {
+            iw.in(ReceiptItem::getReceiptId, matchedReceiptIds);
+        }
+        if (keyword != null && !keyword.isEmpty()) {
+            iw.and(w -> w.like(ReceiptItem::getSettlementNo, keyword)
+                    .or().like(ReceiptItem::getOrderNo, keyword)
+                    .or().like(ReceiptItem::getInvoiceNo, keyword));
+        }
+        if (tradeUnit != null && !tradeUnit.isEmpty()) {
+            iw.like(ReceiptItem::getTradeUnit, tradeUnit);
+        }
+        if (sourceHandler != null && !sourceHandler.isEmpty()) {
+            iw.like(ReceiptItem::getSourceHandlerName, sourceHandler);
+        }
+        if (settlementNo != null && !settlementNo.isEmpty()) {
+            iw.eq(ReceiptItem::getSettlementNo, settlementNo);
+        }
+        iw.orderByDesc(ReceiptItem::getCreateTime);
+        Page<ReceiptItem> itemPage = receiptItemMapper.selectPage(new Page<>(pageNum, pageSize), iw);
+        List<Long> ids = itemPage.getRecords().stream()
+                .map(ReceiptItem::getReceiptId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+        Map<Long, Receipt> receiptMap = ids.isEmpty()
+                ? new HashMap<>()
+                : listByIds(ids).stream().collect(Collectors.toMap(Receipt::getId, r -> r));
+        List<ReceiptItemDetailVO> vos = itemPage.getRecords().stream().map(item -> {
+            ReceiptItemDetailVO vo = new ReceiptItemDetailVO();
+            BeanUtils.copyProperties(item, vo);
+            Receipt r = receiptMap.get(item.getReceiptId());
+            if (r != null) {
+                vo.setReceiptDate(r.getReceiptDate());
+                vo.setReceiptNo(r.getReceiptNo());
+                vo.setReceiptStatus(r.getStatus());
+                vo.setCustomerName(r.getCustomerName());
+                vo.setHandlerName(r.getSalesPersonName());
+                vo.setDeptName(r.getDepartmentName());
+                vo.setCreatorName(r.getCreateBy() == null ? null : String.valueOf(r.getCreateBy()));
+                vo.setBookkeeperName(r.getVerifiedBy() == null ? null : String.valueOf(r.getVerifiedBy()));
+                vo.setAuditorName(r.getApprovedBy() == null ? null : String.valueOf(r.getApprovedBy()));
+                vo.setDocRemark(r.getRemark());
+                vo.setPrintCount(0);
+                vo.setBookkeepingTime(r.getVerifiedTime() == null ? null : r.getVerifiedTime().toString());
+            }
+            return vo;
+        }).collect(Collectors.toList());
+        Page<ReceiptItemDetailVO> voPage = new Page<>(pageNum, pageSize, itemPage.getTotal());
+        voPage.setRecords(vos);
+        return voPage;
+    }
+
+    @Override
+    public String nextNo() {
+        String prefix = "SKD-";
+        String dateStr = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+        LambdaQueryWrapper<Receipt> wrapper = new LambdaQueryWrapper<>();
+        wrapper.likeRight(Receipt::getReceiptNo, prefix + dateStr)
+                .eq(Receipt::getDeleted, 0)
+                .orderByDesc(Receipt::getReceiptNo)
+                .last("LIMIT 1");
+        Receipt lastReceipt = getOne(wrapper);
+        int seq = 1;
+        if (lastReceipt != null) {
+            String lastNo = lastReceipt.getReceiptNo();
+            String tail = lastNo.substring(lastNo.lastIndexOf('-') + 1);
+            seq = parseTail(tail) + 1;
+        }
+        return prefix + dateStr + "-" + String.format("%03d", seq);
+    }
+
+    private Long parseLongOrNull(String s) {
+        try {
+            return Long.parseLong(s);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private int parseTail(String tail) {
+        try {
+            return Integer.parseInt(tail);
+        } catch (NumberFormatException e) {
+            return 0;
+        }
     }
 
     @Override

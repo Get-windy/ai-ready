@@ -15,8 +15,7 @@
       <BillDetailTable
         ref="detailTableRef"
         :columns="detailColumns"
-        :data-source="formData.products"
-        :max-height="tableMaxHeight"
+        v-model:data-source="formData.products"
         :summary-columns="tableSummaryColumns"
         :storage-key="'purchase-order-form-columns'"
         @cell-change="handleCellChange"
@@ -31,22 +30,6 @@
               <MinusCircleOutlined />
             </a-button>
           </a-space>
-        </template>
-        <template #productCell="{ record, index }">
-          <a-select
-            v-model:value="record.productId"
-            placeholder="搜索选择产品"
-            show-search
-            :filter-option="filterOption"
-            style="width:100%"
-            :loading="loadingOptions"
-            size="small"
-            @change="(val: number) => handleProductChange(val, index)"
-          >
-            <a-select-option v-for="p in optionRefs.products" :key="p.id" :value="p.id">
-              {{ p.name }}
-            </a-select-option>
-          </a-select>
         </template>
       </BillDetailTable>
     </template>
@@ -220,7 +203,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, reactive, onMounted, nextTick } from 'vue'
+import { computed, ref, reactive, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
 import {
   PrinterOutlined, ClockCircleOutlined, ImportOutlined,
@@ -245,7 +228,6 @@ const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 const currentUserName = computed(() => userStore?.userInfo?.nickname || userStore?.userInfo?.username || '')
-const tableMaxHeight = ref(400)
 const detailTableRef = ref<InstanceType<typeof BillDetailTable> | null>(null)
 
 // ── useBillForm ──
@@ -254,11 +236,9 @@ const {
   loadingOptions,
   saving,
   optionRefs,
-  filterOption,
   effectiveMode,
   handleAddProduct,
   handleRemoveProduct,
-  handleProductChange: baseProductChange,
   handleFieldChange: baseFieldChange,
   handleSaveDraft,
   handleSubmit,
@@ -671,11 +651,11 @@ const footerConfig = computed<BillFooterConfig>(() => ({
 }))
 
 // ── 明细表格列（57列 + 行号/操作列） ──
-const detailColumns: DetailColumnConfig[] = [
+const detailColumns = computed<DetailColumnConfig[]>(() => [
   { key: 'rowNo', title: '', type: 'rowNo', width: 40, fixed: 'left' },
   { key: 'action', title: '操作', type: 'action', slotName: 'actionCell', width: 50, fixed: 'left' },
   { key: 'image', title: '图片', type: 'input', width: 60, defaultHidden: true },
-  { key: 'productName', title: '商品名称', type: 'slot', slotName: 'productCell', width: 200 },
+  { key: 'productId', title: '商品名称', type: 'select', width: 200, options: optionRefs.products.map((p: any) => ({ value: p.id, label: p.name })) },
   { key: 'itemCode', title: '货号', type: 'input', width: 100 },
   { key: 'barcode', title: '条码', type: 'input', width: 120 },
   { key: 'specification', title: '规格', type: 'input', width: 100 },
@@ -732,7 +712,7 @@ const detailColumns: DetailColumnConfig[] = [
   { key: 'customField8', title: '单据自定义8(往来单位)', type: 'input', width: 130 },
   { key: 'customField9', title: '单据自定义9(职员)', type: 'input', width: 120 },
   { key: 'customField10', title: '单据自定义10(部门)', type: 'input', width: 120 },
-]
+])
 
 const tableSummaryColumns = computed(() => [
   { key: 'quantity', value: totalQuantity.value, highlight: true },
@@ -740,26 +720,6 @@ const tableSummaryColumns = computed(() => [
 ])
 
 // ── 处理函数 ──
-function handleProductChange(val: number, index: number) {
-  baseProductChange(val, index)
-  const p = optionRefs.products.find((x: any) => x.id === val)
-  if (p && formData.products[index]) {
-    const row = formData.products[index]
-    row.itemCode = p.code || ''
-    row.barcode = p.barcode || ''
-    row.specification = p.specification || ''
-    row.unit = p.unit || ''
-    row.smallUnit = p.smallUnit || ''
-    row.brand = p.brand || ''
-    row.origin = p.origin || ''
-    row.model = p.model || ''
-    row.unitPrice = p.purchasePrice || p.price || 0
-    row.retailPrice = p.retailPrice || 0
-    row.wholesalePrice = p.wholesalePrice || 0
-    row.costPrice = p.costPrice || 0
-  }
-}
-
 function handleInsertProduct(index: number) {
   handleAddProduct()
   const item = formData.products.pop()
@@ -768,6 +728,25 @@ function handleInsertProduct(index: number) {
 
 function handleCellChange(record: any, fieldKey: string, value: any) {
   if (!record) return
+  if (fieldKey === 'productId') {
+    const p = optionRefs.products.find((x: any) => x.id === value)
+    if (p) {
+      record.productName = p.name || ''
+      record.productCode = p.code || ''
+      record.itemCode = p.code || ''
+      record.barcode = p.barcode || ''
+      record.specification = p.specification || ''
+      record.unit = p.unit || ''
+      record.smallUnit = p.smallUnit || ''
+      record.brand = p.brand || ''
+      record.origin = p.origin || ''
+      record.model = p.model || ''
+      record.unitPrice = p.purchasePrice || p.price || 0
+      record.retailPrice = p.retailPrice || 0
+      record.wholesalePrice = p.wholesalePrice || 0
+      record.costPrice = p.costPrice || 0
+    }
+  }
   if (fieldKey === 'quantity' || fieldKey === 'unitPrice') {
     record.amount = (record.quantity || 0) * (record.unitPrice || 0)
   }
@@ -901,7 +880,6 @@ onMounted(async () => {
   }
   applyDefaultValues()
   if (formData.products.length === 0) handleAddProduct()
-  nextTick(() => { tableMaxHeight.value = Math.max(200, window.innerHeight - 420) })
 })
 </script>
 

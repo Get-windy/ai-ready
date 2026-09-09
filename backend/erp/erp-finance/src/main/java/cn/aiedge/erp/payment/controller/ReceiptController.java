@@ -39,12 +39,69 @@ public class ReceiptController {
             @Parameter(description = "订单ID") @RequestParam(required = false) Long orderId,
             @Parameter(description = "状态") @RequestParam(required = false) Integer status,
             @Parameter(description = "来源类型") @RequestParam(required = false) String sourceType,
+            @Parameter(description = "开始日期") @RequestParam(required = false) String startDate,
+            @Parameter(description = "结束日期") @RequestParam(required = false) String endDate,
+            @Parameter(description = "结算单位") @RequestParam(required = false) String customerName,
+            @Parameter(description = "经手人") @RequestParam(required = false) String handlerName,
+            @Parameter(description = "部门") @RequestParam(required = false) String departmentName,
+            @Parameter(description = "制单人") @RequestParam(required = false) String creatorName,
+            @Parameter(description = "记账人") @RequestParam(required = false) String bookkeeperName,
+            @Parameter(description = "单据备注") @RequestParam(required = false) String remark,
+            @Parameter(description = "多状态(逗号分隔,待确认款项)") @RequestParam(required = false) String statuses,
+            @Parameter(description = "单据编号") @RequestParam(required = false) String receiptNo,
+            @Parameter(description = "来源订单编号") @RequestParam(required = false) String orderNo,
+            @Parameter(description = "配送任务编号") @RequestParam(required = false) String deliveryNo,
+            @Parameter(description = "收款账户1") @RequestParam(required = false) String receiptAccount1,
+            @Parameter(description = "收款账户2") @RequestParam(required = false) String receiptAccount2,
+            @Parameter(description = "显示红冲") @RequestParam(required = false) Integer showRed,
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") int pageNum,
             @Parameter(description = "每页数量") @RequestParam(defaultValue = "10") int pageSize) {
-        Page<Receipt> page = receiptService.pageList(keyword, customerId, orderId, status, sourceType, pageNum, pageSize);
+        Page<Receipt> page = receiptService.pageListPending(keyword, customerId, orderId, status, sourceType,
+                startDate, endDate, customerName, handlerName, departmentName, creatorName, bookkeeperName, remark,
+                statuses, receiptNo, orderNo, deliveryNo, receiptAccount1, receiptAccount2,
+                pageNum, pageSize);
         Page<ReceiptVO> voPage = new Page<>(pageNum, pageSize, page.getTotal());
         voPage.setRecords(page.getRecords().stream().map(this::convertToVO).collect(Collectors.toList()));
         return voPage;
+    }
+
+    @PostMapping("/batch-confirm")
+    @Operation(summary = "批量确认待确认款项（到账入账）")
+    public int batchConfirm(
+            @Parameter(description = "收款单ID列表") @RequestBody List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            throw BusinessException.badRequest("请选择要确认的收款单");
+        }
+        int count = 0;
+        for (Long id : ids) {
+            receiptService.completeVerify(id);
+            count++;
+        }
+        return count;
+    }
+
+    @GetMapping("/page-detail")
+    @Operation(summary = "按明细收款单分页查询（收款明细 tab）")
+    public Page<cn.aiedge.erp.payment.dto.ReceiptItemDetailVO> pageDetail(
+            @Parameter(description = "收款单ID") @RequestParam(required = false) Long receiptId,
+            @Parameter(description = "客户ID") @RequestParam(required = false) Long customerId,
+            @Parameter(description = "关键词") @RequestParam(required = false) String keyword,
+            @Parameter(description = "状态") @RequestParam(required = false) Integer status,
+            @Parameter(description = "往来单位") @RequestParam(required = false) String tradeUnit,
+            @Parameter(description = "源单经手人") @RequestParam(required = false) String sourceHandler,
+            @Parameter(description = "结算单据编号") @RequestParam(required = false) String settlementNo,
+            @Parameter(description = "开始日期") @RequestParam(required = false) String startDate,
+            @Parameter(description = "结束日期") @RequestParam(required = false) String endDate,
+            @Parameter(description = "页码") @RequestParam(defaultValue = "1") int pageNum,
+            @Parameter(description = "每页数量") @RequestParam(defaultValue = "10") int pageSize) {
+        return receiptService.pageDetail(receiptId, customerId, keyword, status, tradeUnit, sourceHandler,
+                settlementNo, startDate, endDate, pageNum, pageSize);
+    }
+
+    @GetMapping("/next-no")
+    @Operation(summary = "生成收款单号（SKD- 前缀）")
+    public String nextNo() {
+        return receiptService.nextNo();
     }
 
     @GetMapping("/{id}")

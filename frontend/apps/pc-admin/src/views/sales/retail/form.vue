@@ -29,8 +29,7 @@
         </div>
         <BillDetailTable
           :columns="detailColumns"
-          :data-source="formData.products"
-          :max-height="tableMaxHeight"
+          v-model:data-source="formData.products"
           :summary-columns="tableSummaryColumns"
           @cell-change="handleCellChange"
           @expand-change="onExpandChange"
@@ -635,7 +634,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 
 defineOptions({ name: 'RetailForm' })
 import { useRouter, useRoute } from 'vue-router'
@@ -719,8 +718,6 @@ const combinedPayment = ref(false)
 const directDiscount = ref(0)
 const promoDiscount = ref(0)
 const prevPoints = ref(0)
-
-const tableMaxHeight = ref(400)
 
 // ── useBillForm ──
 const {
@@ -1452,10 +1449,6 @@ onMounted(async () => {
   if (formData.products.length === 0) {
     for (let i = 0; i < 12; i++) handleAddProduct()
   }
-  nextTick(() => {
-    tableMaxHeight.value = Math.max(200, window.innerHeight - 440)
-  })
-
   // 键盘快捷键监听
   window.addEventListener('keydown', handleKeyDown)
 })

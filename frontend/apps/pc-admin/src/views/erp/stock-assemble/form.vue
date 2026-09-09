@@ -101,7 +101,7 @@
         </div>
         <BillDetailTable
           :columns="productColumns"
-          :data-source="formData.productRows"
+          v-model:data-source="formData.productRows"
           :min-rows="1"
           :storage-key="'stock-assemble-product-columns'"
           :summary-columns="productSummary"
@@ -109,20 +109,6 @@
           @cell-change="onProductCellChange"
           @expand-change="onExpand"
         >
-          <template #productCell="{ record, index }">
-            <a-select
-              v-model:value="record.productId"
-              placeholder="搜索选择商品"
-              show-search
-              :filter-option="filterOption"
-              style="width:100%"
-              :disabled="!editable"
-              size="small"
-              @change="(val: any) => selectProduct(val, index, 'product')"
-            >
-              <a-select-option v-for="p in productOptions" :key="p.id" :value="p.id">{{ p.name }}</a-select-option>
-            </a-select>
-          </template>
           <template #actionCell="{ index, empty }">
             <a-space :size="2">
               <a-button type="link" size="small" class="action-btn" :disabled="!editable" @click="addRow('product', index)"><PlusCircleOutlined /></a-button>
@@ -142,7 +128,7 @@
         </div>
         <BillDetailTable
           :columns="materialColumns"
-          :data-source="formData.materialRows"
+          v-model:data-source="formData.materialRows"
           :min-rows="5"
           :storage-key="'stock-assemble-material-columns'"
           :summary-columns="materialSummary"
@@ -150,20 +136,6 @@
           @cell-change="onMaterialCellChange"
           @expand-change="onExpand"
         >
-          <template #productCell="{ record, index }">
-            <a-select
-              v-model:value="record.productId"
-              placeholder="搜索选择商品"
-              show-search
-              :filter-option="filterOption"
-              style="width:100%"
-              :disabled="!editable"
-              size="small"
-              @change="(val: any) => selectProduct(val, index, 'material')"
-            >
-              <a-select-option v-for="p in productOptions" :key="p.id" :value="p.id">{{ p.name }}</a-select-option>
-            </a-select>
-          </template>
           <template #actionCell="{ index, empty }">
             <a-space :size="2">
               <a-button type="link" size="small" class="action-btn" :disabled="!editable" @click="addRow('material', index)"><PlusCircleOutlined /></a-button>
@@ -428,7 +400,8 @@ const PRODUCT_BASE_COLUMNS: DetailColumnConfig[] = [
   { key: 'rowNo', title: '', type: 'rowNo', width: 40, fixed: 'left' },
   { key: 'action', title: '操作', type: 'action', slotName: 'actionCell', width: 70, fixed: 'left' },
   { key: 'image', title: '图片', type: 'input', width: 60, defaultHidden: true },
-  { key: 'productName', title: '商品名称', type: 'slot', slotName: 'productCell', width: 230 },
+  // 商品名称：点击编辑 type:'select'；options 用行级函数读 productOptions（响应式，随商品下拉加载更新）
+  { key: 'productId', title: '商品名称', type: 'select', width: 230, options: () => productOptions.value.map((p: any) => ({ value: p.id, label: p.name })) },
   { key: 'productCode', title: '货号', type: 'input', width: 100 },
   { key: 'location', title: '货位', type: 'input', width: 90 },
   { key: 'barcode', title: '条码', type: 'input', width: 120 },
@@ -469,8 +442,8 @@ const PRODUCT_BASE_COLUMNS: DetailColumnConfig[] = [
 // 原料表：去掉品牌列，其余同成品（文档36列）
 const MATERIAL_BASE_COLUMNS = PRODUCT_BASE_COLUMNS.filter(c => c.key !== 'brand')
 
-const productColumns = ref<DetailColumnConfig[]>(PRODUCT_BASE_COLUMNS.map(c => ({ ...c })))
-const materialColumns = ref<DetailColumnConfig[]>(MATERIAL_BASE_COLUMNS.map(c => ({ ...c })))
+const productColumns = computed<DetailColumnConfig[]>(() => PRODUCT_BASE_COLUMNS.map(c => ({ ...c })))
+const materialColumns = computed<DetailColumnConfig[]>(() => MATERIAL_BASE_COLUMNS.map(c => ({ ...c })))
 
 // ── 计算属性 ──────────────────────────────────────────
 const materialCostTotal = computed(() =>
@@ -633,40 +606,41 @@ function removeRow(kind: 'product' | 'material', index: number) {
   if (index >= 0 && index < target.length) target.splice(index, 1)
 }
 
-function selectProduct(val: number, index: number, kind: 'product' | 'material') {
-  const p = productOptions.value.find((x: any) => x.id === val)
-  if (!p) return
-  const target = kind === 'product' ? formData.productRows : formData.materialRows
-  const row = target[index]
-  if (!row) return
-  row.productId = p.id
-  row.productName = p.name || ''
-  row.productCode = p.code || ''
-  row.barcode = p.barcode || ''
-  row.productSpec = p.specification || ''
-  row.model = p.model || ''
-  row.origin = p.origin || ''
-  row.brand = p.brand || ''
-  row.image = p.image || ''
-  row.productUnit = p.unit || ''
-  row.wholesalePrice = p.wholesalePrice || 0
-  row.retailPrice = p.retailPrice || 0
-  row.unitCost = p.costPrice || p.purchasePrice || 0
-  row.weight = p.weight || 0
-  row.volume = p.volume || 0
-  row.shelfLife = p.shelfLife || ''
-  row.cost = (Number(row.quantity) || 0) * (Number(row.unitCost) || 0)
+function applyProductToRow(record: any, productId: any) {
+  const p = productOptions.value.find((x: any) => x.id === productId)
+  if (!p || !record) return
+  record.productId = p.id
+  record.productName = p.name || ''
+  record.productCode = p.code || ''
+  record.barcode = p.barcode || ''
+  record.productSpec = p.specification || ''
+  record.model = p.model || ''
+  record.origin = p.origin || ''
+  record.brand = p.brand || ''
+  record.image = p.image || ''
+  record.productUnit = p.unit || ''
+  record.wholesalePrice = p.wholesalePrice || 0
+  record.retailPrice = p.retailPrice || 0
+  record.unitCost = p.costPrice || p.purchasePrice || 0
+  record.weight = p.weight || 0
+  record.volume = p.volume || 0
+  record.shelfLife = p.shelfLife || ''
+  record.cost = (Number(record.quantity) || 0) * (Number(record.unitCost) || 0)
   checkStockAvailability()
 }
 
-function onCellChange(record: any, fieldKey: string) {
+function onCellChange(record: any, fieldKey: string, value: any) {
   if (['quantity', 'unitCost'].includes(fieldKey)) {
     record.cost = (Number(record.quantity) || 0) * (Number(record.unitCost) || 0)
   }
 }
-function onProductCellChange(record: any, fieldKey: string) { onCellChange(record, fieldKey) }
-function onMaterialCellChange(record: any, fieldKey: string) {
-  onCellChange(record, fieldKey)
+function onProductCellChange(record: any, fieldKey: string, value: any) {
+  onCellChange(record, fieldKey, value)
+  if (fieldKey === 'productId') applyProductToRow(record, value)
+}
+function onMaterialCellChange(record: any, fieldKey: string, value: any) {
+  onCellChange(record, fieldKey, value)
+  if (fieldKey === 'productId') applyProductToRow(record, value)
   if (fieldKey === 'quantity') checkStockAvailability()
 }
 

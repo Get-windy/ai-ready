@@ -53,8 +53,11 @@ public class UnifiedSalesDocQueryServiceImpl implements UnifiedSalesDocQueryServ
         String docType = queryDTO.getDocumentType();
 
         // Step 1: 获取各类型的记录数（使用SQL COUNT，不加载数据）
+        // 应收来源：仅销售出库单 + 销售退货单（排除销售订单与换货单，换货单表缺应收核销列）
+        boolean skipOrder = Boolean.TRUE.equals(queryDTO.getReceivableOnly());
+        boolean skipExchange = Boolean.TRUE.equals(queryDTO.getReceivableOnly());
         long orderCount = 0, outboundCount = 0, returnCount = 0, exchangeCount = 0;
-        if (docType == null || docType.isEmpty() || "SALE_ORDER".equals(docType)) {
+        if (!skipOrder && (docType == null || docType.isEmpty() || "SALE_ORDER".equals(docType))) {
             orderCount = saleOrderService.count(buildSaleOrderQueryWrapper(queryDTO));
         }
         if (docType == null || docType.isEmpty() || "OUTBOUND".equals(docType)) {
@@ -63,7 +66,7 @@ public class UnifiedSalesDocQueryServiceImpl implements UnifiedSalesDocQueryServ
         if (docType == null || docType.isEmpty() || "RETURN".equals(docType)) {
             returnCount = saleReturnDocService.count(buildSaleReturnDocQueryWrapper(queryDTO));
         }
-        if (docType == null || docType.isEmpty() || "EXCHANGE".equals(docType)) {
+        if (!skipExchange && (docType == null || docType.isEmpty() || "EXCHANGE".equals(docType))) {
             exchangeCount = saleExchangeService.count(buildSaleExchangeQueryWrapper(queryDTO));
         }
 
@@ -83,8 +86,8 @@ public class UnifiedSalesDocQueryServiceImpl implements UnifiedSalesDocQueryServ
         List<UnifiedSalesDocumentDTO> pageRecords = new ArrayList<>();
         long offset = 0;
 
-        // 销售订单
-        if (orderCount > 0 && offset < globalEnd) {
+        // 销售订单（应收来源过滤时跳过）
+        if (!skipOrder && orderCount > 0 && offset < globalEnd) {
             long typeEnd = offset + orderCount;
             if (typeEnd > globalStart) {
                 long skip = Math.max(0, globalStart - offset);
@@ -159,8 +162,8 @@ public class UnifiedSalesDocQueryServiceImpl implements UnifiedSalesDocQueryServ
             offset = typeEnd;
         }
 
-        // 销售换货单
-        if (exchangeCount > 0 && offset < globalEnd && pageRecords.size() < pageSize) {
+        // 销售换货单（应收来源过滤时跳过）
+        if (!skipExchange && exchangeCount > 0 && offset < globalEnd && pageRecords.size() < pageSize) {
             long typeEnd = offset + exchangeCount;
             if (typeEnd > globalStart) {
                 long skip = Math.max(0, globalStart - offset);
@@ -194,7 +197,7 @@ public class UnifiedSalesDocQueryServiceImpl implements UnifiedSalesDocQueryServ
         QueryWrapper<SaleOrder> wrapper = new QueryWrapper<>();
 
         // 通用查询条件
-        addCommonQueryConditions(wrapper, queryDTO);
+        addCommonQueryConditions(wrapper, queryDTO, "SALE_ORDER");
 
         // SaleOrder默认日期字段是order_date（非document_date）
         String dateType = queryDTO.getDateType();
@@ -249,36 +252,36 @@ public class UnifiedSalesDocQueryServiceImpl implements UnifiedSalesDocQueryServ
         QueryWrapper<SaleOutbound> wrapper = new QueryWrapper<>();
 
         // 通用查询条件
-        addCommonQueryConditions(wrapper, queryDTO);
+        addCommonQueryConditions(wrapper, queryDTO, "OUTBOUND");
 
-        // SaleOutbound默认日期字段是document_date
+        // SaleOutbound默认日期字段是outbound_date
         String dateType = queryDTO.getDateType();
         if (dateType == null || dateType.isEmpty()) {
             if (queryDTO.getStartDate() != null && !queryDTO.getStartDate().isEmpty()) {
                 java.sql.Timestamp startTs = toTimestamp(queryDTO.getStartDate());
                 if (startTs != null) {
-                    wrapper.ge("document_date", startTs);
+                    wrapper.ge("outbound_date", startTs);
                 }
             }
             if (queryDTO.getEndDate() != null && !queryDTO.getEndDate().isEmpty()) {
                 java.sql.Timestamp endTs = toTimestamp(queryDTO.getEndDate());
                 if (endTs != null) {
-                    wrapper.le("document_date", endTs);
+                    wrapper.le("outbound_date", endTs);
                 }
             }
         }
 
         // 销售出库单特有查询条件
         if (queryDTO.getOutboundTypes() != null && !queryDTO.getOutboundTypes().isEmpty()) {
-            wrapper.in("document_type", queryDTO.getOutboundTypes());
+            wrapper.in("outbound_type", queryDTO.getOutboundTypes());
         }
 
         // 金额范围查询
         if (queryDTO.getMinAmount() != null) {
-            wrapper.ge("amount", queryDTO.getMinAmount());
+            wrapper.ge("total_amount", queryDTO.getMinAmount());
         }
         if (queryDTO.getMaxAmount() != null) {
-            wrapper.le("amount", queryDTO.getMaxAmount());
+            wrapper.le("total_amount", queryDTO.getMaxAmount());
         }
 
         // 客户相关查询
@@ -287,11 +290,6 @@ public class UnifiedSalesDocQueryServiceImpl implements UnifiedSalesDocQueryServ
         }
         if (queryDTO.getCustomerCode() != null && !queryDTO.getCustomerCode().isEmpty()) {
             wrapper.eq("customer_code", queryDTO.getCustomerCode());
-        }
-
-        // 经手人相关查询
-        if (queryDTO.getHandlerName() != null && !queryDTO.getHandlerName().isEmpty()) {
-            wrapper.like("handler_name", queryDTO.getHandlerName());
         }
 
         return wrapper;
@@ -304,36 +302,36 @@ public class UnifiedSalesDocQueryServiceImpl implements UnifiedSalesDocQueryServ
         QueryWrapper<SaleReturnDoc> wrapper = new QueryWrapper<>();
 
         // 通用查询条件
-        addCommonQueryConditions(wrapper, queryDTO);
+        addCommonQueryConditions(wrapper, queryDTO, "RETURN");
 
-        // SaleReturnDoc默认日期字段
+        // SaleReturnDoc默认日期字段是order_date
         String dateType = queryDTO.getDateType();
         if (dateType == null || dateType.isEmpty()) {
             if (queryDTO.getStartDate() != null && !queryDTO.getStartDate().isEmpty()) {
                 java.sql.Timestamp startTs = toTimestamp(queryDTO.getStartDate());
                 if (startTs != null) {
-                    wrapper.ge("document_date", startTs);
+                    wrapper.ge("order_date", startTs);
                 }
             }
             if (queryDTO.getEndDate() != null && !queryDTO.getEndDate().isEmpty()) {
                 java.sql.Timestamp endTs = toTimestamp(queryDTO.getEndDate());
                 if (endTs != null) {
-                    wrapper.le("document_date", endTs);
+                    wrapper.le("order_date", endTs);
                 }
             }
         }
 
         // 销售退货单特有查询条件
         if (queryDTO.getReturnTypes() != null && !queryDTO.getReturnTypes().isEmpty()) {
-            wrapper.in("document_type", queryDTO.getReturnTypes());
+            wrapper.in("return_type", queryDTO.getReturnTypes());
         }
 
         // 金额范围查询
         if (queryDTO.getMinAmount() != null) {
-            wrapper.ge("amount", queryDTO.getMinAmount());
+            wrapper.ge("total_amount", queryDTO.getMinAmount());
         }
         if (queryDTO.getMaxAmount() != null) {
-            wrapper.le("amount", queryDTO.getMaxAmount());
+            wrapper.le("total_amount", queryDTO.getMaxAmount());
         }
 
         // 客户相关查询
@@ -342,11 +340,6 @@ public class UnifiedSalesDocQueryServiceImpl implements UnifiedSalesDocQueryServ
         }
         if (queryDTO.getCustomerCode() != null && !queryDTO.getCustomerCode().isEmpty()) {
             wrapper.eq("customer_code", queryDTO.getCustomerCode());
-        }
-
-        // 经手人相关查询
-        if (queryDTO.getHandlerName() != null && !queryDTO.getHandlerName().isEmpty()) {
-            wrapper.like("handler_name", queryDTO.getHandlerName());
         }
 
         return wrapper;
@@ -359,36 +352,36 @@ public class UnifiedSalesDocQueryServiceImpl implements UnifiedSalesDocQueryServ
         QueryWrapper<SaleExchange> wrapper = new QueryWrapper<>();
 
         // 通用查询条件
-        addCommonQueryConditions(wrapper, queryDTO);
+        addCommonQueryConditions(wrapper, queryDTO, "EXCHANGE");
 
-        // SaleExchange默认日期字段
+        // SaleExchange默认日期字段是exchange_date
         String dateType = queryDTO.getDateType();
         if (dateType == null || dateType.isEmpty()) {
             if (queryDTO.getStartDate() != null && !queryDTO.getStartDate().isEmpty()) {
                 java.sql.Timestamp startTs = toTimestamp(queryDTO.getStartDate());
                 if (startTs != null) {
-                    wrapper.ge("document_date", startTs);
+                    wrapper.ge("exchange_date", startTs);
                 }
             }
             if (queryDTO.getEndDate() != null && !queryDTO.getEndDate().isEmpty()) {
                 java.sql.Timestamp endTs = toTimestamp(queryDTO.getEndDate());
                 if (endTs != null) {
-                    wrapper.le("document_date", endTs);
+                    wrapper.le("exchange_date", endTs);
                 }
             }
         }
 
         // 销售换货单特有查询条件
         if (queryDTO.getExchangeTypes() != null && !queryDTO.getExchangeTypes().isEmpty()) {
-            wrapper.in("document_type", queryDTO.getExchangeTypes());
+            wrapper.in("exchange_type", queryDTO.getExchangeTypes());
         }
 
         // 金额范围查询
         if (queryDTO.getMinAmount() != null) {
-            wrapper.ge("amount", queryDTO.getMinAmount());
+            wrapper.ge("total_amount", queryDTO.getMinAmount());
         }
         if (queryDTO.getMaxAmount() != null) {
-            wrapper.le("amount", queryDTO.getMaxAmount());
+            wrapper.le("total_amount", queryDTO.getMaxAmount());
         }
 
         // 客户相关查询
@@ -399,178 +392,153 @@ public class UnifiedSalesDocQueryServiceImpl implements UnifiedSalesDocQueryServ
             wrapper.eq("customer_code", queryDTO.getCustomerCode());
         }
 
-        // 经手人相关查询
-        if (queryDTO.getHandlerName() != null && !queryDTO.getHandlerName().isEmpty()) {
-            wrapper.like("handler_name", queryDTO.getHandlerName());
-        }
-
         return wrapper;
     }
 
     /**
-     * 添加通用查询条件
+     * 添加通用查询条件（按单据类型映射正确的数据库列名）
+     *
+     * <p>销售订单/出库单/退货单/换货单的表结构列名不同（如单据编号、经手人、日期列），
+     * 故此处不再使用统一的列名字面量，而是按 {@code docType} 解析正确的列名；
+     * 若某类型不存在对应列则跳过该条件，避免 PostgreSQL 报 "column does not exist"。
      */
-    private void addCommonQueryConditions(QueryWrapper<?> wrapper, UnifiedSalesDocQueryDTO queryDTO) {
-        // 单据编号查询
-        if (queryDTO.getDocumentNo() != null && !queryDTO.getDocumentNo().isEmpty()) {
-            wrapper.like("document_no", queryDTO.getDocumentNo());
-        }
-
-        // 日期范围由各单据类型的build方法自行处理（SaleOrder→order_date，其他→document_date）
-
-        // 收货人查询
-        if (queryDTO.getReceiverName() != null && !queryDTO.getReceiverName().isEmpty()) {
-            wrapper.like("receiver_name", queryDTO.getReceiverName());
-        }
-
-        // 联系电话查询
-        if (queryDTO.getReceiverPhone() != null && !queryDTO.getReceiverPhone().isEmpty()) {
-            wrapper.like("receiver_phone", queryDTO.getReceiverPhone());
-        }
-
-        // 收货地址查询
-        if (queryDTO.getShippingAddress() != null && !queryDTO.getShippingAddress().isEmpty()) {
-            wrapper.like("shipping_address", queryDTO.getShippingAddress());
-        }
-
-        // 部门查询
-        if (queryDTO.getDepartmentName() != null && !queryDTO.getDepartmentName().isEmpty()) {
-            wrapper.like("department_name", queryDTO.getDepartmentName());
-        }
-
-        // 制单人查询
-        if (queryDTO.getCreatorName() != null && !queryDTO.getCreatorName().isEmpty()) {
-            wrapper.like("creator_name", queryDTO.getCreatorName());
-        }
-
-        // 记账人查询
-        if (queryDTO.getBookkeeperName() != null && !queryDTO.getBookkeeperName().isEmpty()) {
-            wrapper.like("bookkeeper_name", queryDTO.getBookkeeperName());
-        }
-
-        // 结算状态查询
-        if (queryDTO.getSettlementStatus() != null && !queryDTO.getSettlementStatus().isEmpty()) {
-            wrapper.eq("settlement_status", queryDTO.getSettlementStatus());
-        }
-
-        // 来源订单查询
-        if (queryDTO.getSourceOrder() != null && !queryDTO.getSourceOrder().isEmpty()) {
-            wrapper.like("source_order", queryDTO.getSourceOrder());
-        }
-
-        // 来源订单日期范围查询
-        if (queryDTO.getSourceOrderStartDate() != null && !queryDTO.getSourceOrderStartDate().isEmpty()) {
-            java.sql.Timestamp startTs = toTimestamp(queryDTO.getSourceOrderStartDate());
-            if (startTs != null) {
-                wrapper.ge("source_order_date", startTs);
-            }
-        }
-        if (queryDTO.getSourceOrderEndDate() != null && !queryDTO.getSourceOrderEndDate().isEmpty()) {
-            java.sql.Timestamp endTs = toTimestamp(queryDTO.getSourceOrderEndDate());
-            if (endTs != null) {
-                wrapper.le("source_order_date", endTs);
-            }
-        }
-
-        // 产生方式查询
-        if (queryDTO.getGenerationMethod() != null && !queryDTO.getGenerationMethod().isEmpty()) {
-            wrapper.eq("generation_method", queryDTO.getGenerationMethod());
-        }
-
-        // 销售类型查询
-        if (queryDTO.getSalesType() != null && !queryDTO.getSalesType().isEmpty()) {
-            wrapper.eq("sales_type", queryDTO.getSalesType());
-        }
-
-        // 单据备注查询
-        if (queryDTO.getRemark() != null && !queryDTO.getRemark().isEmpty()) {
-            wrapper.like("remark", queryDTO.getRemark());
-        }
-
-        // 买家备注查询
-        if (queryDTO.getBuyerRemark() != null && !queryDTO.getBuyerRemark().isEmpty()) {
-            wrapper.like("buyer_remark", queryDTO.getBuyerRemark());
-        }
-
-        // 自定义字段查询
-        if (queryDTO.getExtNum1Min() != null || queryDTO.getExtNum1Max() != null) {
-            if (queryDTO.getExtNum1Min() != null) {
-                wrapper.ge("ext_num1", queryDTO.getExtNum1Min());
-            }
-            if (queryDTO.getExtNum1Max() != null) {
-                wrapper.le("ext_num1", queryDTO.getExtNum1Max());
-            }
-        }
-
-        if (queryDTO.getExtNum2Min() != null || queryDTO.getExtNum2Max() != null) {
-            if (queryDTO.getExtNum2Min() != null) {
-                wrapper.ge("ext_num2", queryDTO.getExtNum2Min());
-            }
-            if (queryDTO.getExtNum2Max() != null) {
-                wrapper.le("ext_num2", queryDTO.getExtNum2Max());
-            }
-        }
-
-        if (queryDTO.getExtText1() != null && !queryDTO.getExtText1().isEmpty()) {
-            wrapper.like("ext_text1", queryDTO.getExtText1());
-        }
-
-        if (queryDTO.getExtText2() != null && !queryDTO.getExtText2().isEmpty()) {
-            wrapper.like("ext_text2", queryDTO.getExtText2());
-        }
-
-        if (queryDTO.getExtText3() != null && !queryDTO.getExtText3().isEmpty()) {
-            wrapper.like("ext_text3", queryDTO.getExtText3());
-        }
-
-        // 物流公司查询
-        if (queryDTO.getLogisticsCompany() != null && !queryDTO.getLogisticsCompany().isEmpty()) {
-            wrapper.like("logistics_company", queryDTO.getLogisticsCompany());
-        }
-
-        // 运单号查询
-        if (queryDTO.getTrackingNumber() != null && !queryDTO.getTrackingNumber().isEmpty()) {
-            wrapper.like("tracking_number", queryDTO.getTrackingNumber());
-        }
-
-        // 区域查询
-        if (queryDTO.getRegion() != null && !queryDTO.getRegion().isEmpty()) {
-            wrapper.like("region", queryDTO.getRegion());
-        }
-
-        // 本单金额范围查询
+    private void addCommonQueryConditions(QueryWrapper<?> wrapper, UnifiedSalesDocQueryDTO queryDTO, String docType) {
+        // 单据编号
+        addLike(wrapper, col("docNo", docType), queryDTO.getDocumentNo());
+        // 客户名称/编号
+        addLike(wrapper, "customer_name", queryDTO.getCustomerName());
+        addEq(wrapper, col("customerCode", docType), queryDTO.getCustomerCode());
+        // 经手人
+        addLike(wrapper, col("handler", docType), queryDTO.getHandlerName());
+        // 收货人/联系电话/收货地址
+        addLike(wrapper, col("receiver", docType), queryDTO.getReceiverName());
+        addLike(wrapper, col("receiverPhone", docType), queryDTO.getReceiverPhone());
+        addLike(wrapper, col("shippingAddress", docType), queryDTO.getShippingAddress());
+        // 部门
+        addLike(wrapper, col("dept", docType), queryDTO.getDepartmentName());
+        // 制单人/记账人
+        addLike(wrapper, col("creator", docType), queryDTO.getCreatorName());
+        addLike(wrapper, col("bookkeeper", docType), queryDTO.getBookkeeperName());
+        // 结算状态
+        addEq(wrapper, col("settlementStatus", docType), queryDTO.getSettlementStatus());
+        // 来源订单
+        addLike(wrapper, col("sourceOrder", docType), queryDTO.getSourceOrder());
+        // 产生方式
+        addEq(wrapper, col("generationMethod", docType), queryDTO.getGenerationMethod());
+        // 销售类型
+        addEq(wrapper, col("salesType", docType), queryDTO.getSalesType());
+        // 单据备注/买家备注
+        addLike(wrapper, "remark", queryDTO.getRemark());
+        addLike(wrapper, col("buyerRemark", docType), queryDTO.getBuyerRemark());
+        // 物流公司/运单号/区域
+        addLike(wrapper, col("logistics", docType), queryDTO.getLogisticsCompany());
+        addLike(wrapper, col("tracking", docType), queryDTO.getTrackingNumber());
+        addLike(wrapper, col("region", docType), queryDTO.getRegion());
+        // 本单金额范围
         if (queryDTO.getMinTotalAmount() != null) {
-            wrapper.ge("total_amount", queryDTO.getMinTotalAmount());
+            wrapper.ge(col("totalAmount", docType), queryDTO.getMinTotalAmount());
         }
         if (queryDTO.getMaxTotalAmount() != null) {
-            wrapper.le("total_amount", queryDTO.getMaxTotalAmount());
+            wrapper.le(col("totalAmount", docType), queryDTO.getMaxTotalAmount());
         }
-
-        // 来源查询
-        if (queryDTO.getSource() != null && !queryDTO.getSource().isEmpty()) {
-            wrapper.eq("source", queryDTO.getSource());
-        }
-
+        // 来源
+        addEq(wrapper, col("source", docType), queryDTO.getSource());
         // 状态查询
         if (queryDTO.getStatus() != null) {
             wrapper.eq("status", queryDTO.getStatus());
         }
-
-        // 仅统计车辆库
-        if (Boolean.TRUE.equals(queryDTO.getOnlyVehicleWarehouse())) {
-            wrapper.eq("warehouse_type", "VEHICLE");
-        }
-
         // 红冲过滤：默认不显示红冲单据（status=3为红冲状态）
         if (!Boolean.TRUE.equals(queryDTO.getShowRed())) {
             wrapper.ne("status", 3);
         }
-
         // 仓库查询：前端传仓库名称文本，用模糊匹配
         if (queryDTO.getWarehouseName() != null && !queryDTO.getWarehouseName().isEmpty()) {
-            wrapper.and(w -> w.like("warehouse_name", queryDTO.getWarehouseName())
-                    .or().like("outbound_warehouse", queryDTO.getWarehouseName())
-                    .or().like("inbound_warehouse", queryDTO.getWarehouseName()));
+            wrapper.like(col("warehouse", docType), queryDTO.getWarehouseName());
+        }
+    }
+
+    /**
+     * 解析某个逻辑字段在指定单据类型下的数据库列名；类型无该列时返回 null（调用方跳过）。
+     */
+    private String col(String logical, String docType) {
+        switch (logical) {
+            case "docNo":
+                switch (docType) {
+                    case "OUTBOUND": return "outbound_no";
+                    case "RETURN": return "return_doc_no";
+                    case "EXCHANGE": return "exchange_no";
+                    default: return "order_no";
+                }
+            case "handler":
+                switch (docType) {
+                    case "OUTBOUND": return "sales_person_name";
+                    case "SALE_ORDER": return "salesman_name";
+                    case "EXCHANGE": return null;
+                    default: return "handler_name";
+                }
+            case "receiver":
+                return "EXCHANGE".equals(docType) ? null : "receiver_name";
+            case "receiverPhone":
+                return "EXCHANGE".equals(docType) ? null : "receiver_phone";
+            case "shippingAddress":
+                return "EXCHANGE".equals(docType) ? null : "shipping_address";
+            case "dept":
+                if ("EXCHANGE".equals(docType)) return null;
+                return "OUTBOUND".equals(docType) ? "department_name" : "dept_name";
+            case "creator":
+                return "EXCHANGE".equals(docType) ? null : "creator_name";
+            case "bookkeeper":
+                return ("RETURN".equals(docType) || "EXCHANGE".equals(docType)) ? null : "bookkeeper_name";
+            case "settlementStatus":
+                if ("OUTBOUND".equals(docType)) return "settlement_status";
+                return ("EXCHANGE".equals(docType) || "SALE_ORDER".equals(docType)) ? null : "settle_status";
+            case "customerCode":
+                return "EXCHANGE".equals(docType) ? null : "customer_code";
+            case "sourceOrder":
+                switch (docType) {
+                    case "OUTBOUND": return "order_no";
+                    case "RETURN": return "source_order";
+                    case "EXCHANGE": return null;
+                    default: return "original_order_no";
+                }
+            case "generationMethod":
+                if ("RETURN".equals(docType)) return "generate_type";
+                return "EXCHANGE".equals(docType) ? null : "generation_method";
+            case "salesType":
+                return "OUTBOUND".equals(docType) ? "outbound_type" : "sales_type";
+            case "buyerRemark":
+                return "EXCHANGE".equals(docType) ? null : "buyer_remark";
+            case "logistics":
+                return "EXCHANGE".equals(docType) ? null : "logistics_company";
+            case "tracking":
+                switch (docType) {
+                    case "OUTBOUND": return "tracking_number";
+                    case "RETURN": return "waybill_no";
+                    case "EXCHANGE": return null;
+                    default: return "waybill_no";
+                }
+            case "region":
+                return "EXCHANGE".equals(docType) ? null : "region";
+            case "totalAmount":
+                return "SALE_ORDER".equals(docType) ? "bill_amount" : "total_amount";
+            case "source":
+                return "source";
+            case "warehouse":
+                return "EXCHANGE".equals(docType) ? "in_warehouse_name" : "warehouse_name";
+            default:
+                return null;
+        }
+    }
+
+    private void addLike(QueryWrapper<?> wrapper, String column, String val) {
+        if (column != null && val != null && !val.isEmpty()) {
+            wrapper.like(column, val);
+        }
+    }
+
+    private void addEq(QueryWrapper<?> wrapper, String column, String val) {
+        if (column != null && val != null && !val.isEmpty()) {
+            wrapper.eq(column, val);
         }
     }
 

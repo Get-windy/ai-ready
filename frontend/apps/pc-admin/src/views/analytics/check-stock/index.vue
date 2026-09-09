@@ -40,7 +40,7 @@
     <div class="table-wrap">
       <BillDetailTable
         :columns="columns"
-        :data-source="tableData"
+        v-model:data-source="tableData"
         :loading="loading"
         :view-mode="true"
         :storage-key="'check-stock-columns'"

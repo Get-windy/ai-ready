@@ -277,7 +277,7 @@
             <BillDetailTable
               ref="tableRef"
               :columns="mergedColumns"
-              :data-source="tableData"
+              v-model:data-source="tableData"
               :loading="loading"
               :view-mode="true"
               :fill-mode="true"

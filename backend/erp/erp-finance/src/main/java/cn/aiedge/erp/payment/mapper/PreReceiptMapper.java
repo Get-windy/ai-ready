@@ -22,4 +22,7 @@ public interface PreReceiptMapper extends BaseMapper<PreReceipt> {
 
     @Select("SELECT COALESCE(SUM(remaining_amount), 0) FROM erp_pre_receipt WHERE customer_id = #{customerId} AND deleted = 0 AND status IN ('received', 'offset')")
     java.math.BigDecimal sumRemainingByCustomer(@Param("customerId") Long customerId);
+
+    @Select("SELECT COALESCE(SUM(remaining_amount), 0) FROM erp_pre_receipt WHERE customer_id = #{customerId} AND deleted = 0 AND status IN ('confirmed', 'received', 'offset')")
+    java.math.BigDecimal sumAdvanceBalanceByCustomer(@Param("customerId") Long customerId);
 }

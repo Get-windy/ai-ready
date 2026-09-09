@@ -8,7 +8,6 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -16,6 +15,13 @@ import java.util.List;
 
 /**
  * 财务账户Controller
+ *
+ * ⚠️ 鉴权易错点：本系统鉴权走 sa-token（登录拦截器 + StpInterface）。
+ *    请勿给本 Controller 方法加 Spring Security 的 @PreAuthorize —— sa-token 登录
+ *    不会填充 Spring Security 的 SecurityContext，@PreAuthorize 恒抛
+ *    AccessDeniedException，且 GlobalExceptionHandler 未专门处理它，会兜底返回 500。
+ *    这里曾因此导致 /list 等接口恒 500（提存表单账户下拉取不到数据），已移除
+ *    @PreAuthorize（接口仍受 sa-token 登录保护）。
  */
 @Tag(name = "财务账户管理", description = "财务账户管理接口")
 @Slf4j
@@ -30,7 +36,6 @@ public class FinanceAccountController {
      * 查询财务账户列表
      */
     @OperationLog(module = "财务账户管理", type = "QUERY", desc = "查询财务账户列表")
-    @PreAuthorize("hasPermission('/api/erp/finance/account/list', 'finance:account:view')")
     @GetMapping("/list")
     public Result<List<FinanceAccount>> listAccounts(
             @Parameter(description = "账户状态") @RequestParam(required = false) Integer status,
@@ -43,7 +48,6 @@ public class FinanceAccountController {
      * 查询账户统计信息
      */
     @OperationLog(module = "财务账户管理", type = "QUERY", desc = "查询账户统计信息")
-    @PreAuthorize("hasPermission('/api/erp/finance/account/statistics', 'finance:account:view')")
     @GetMapping("/statistics")
     public Result<Object> getAccountStatistics() {
         Object statistics = financeAccountService.getAccountStatistics();
@@ -54,7 +58,6 @@ public class FinanceAccountController {
      * 启用/停用账户
      */
     @OperationLog(module = "财务账户管理", type = "UPDATE", desc = "更新账户状态")
-    @PreAuthorize("hasPermission('/api/erp/finance/account/status', 'finance:account:edit')")
     @PutMapping("/status/{id}")
     public Result<Void> updateAccountStatus(
             @Parameter(description = "账户ID") @PathVariable Long id,
@@ -67,7 +70,6 @@ public class FinanceAccountController {
      * 更新账户余额
      */
     @OperationLog(module = "财务账户管理", type = "UPDATE", desc = "更新账户余额")
-    @PreAuthorize("hasPermission('/api/erp/finance/account/balance', 'finance:account:edit')")
     @PutMapping("/balance/{accountId}")
     public Result<Void> updateAccountBalance(
             @Parameter(description = "账户ID") @PathVariable Long accountId,

@@ -1,0 +1,62 @@
+{
+  "page": "渠道配置",
+  "route": "trade/channel/config",
+  "menuId": 604,
+  "parentMenu": "600（交易模块 > 外部平台）",
+  "sysMenuPath": "trade-channel-config",
+  "component": "views/trade/channel/config.vue",
+  "scrapeDate": "2026-09-07",
+  "type": "列表型 + 新增/编辑表单（弹窗）",
+  "entry": "单入口：交易模块 → 外部平台 → 渠道配置",
+  "tabs": 0,
+  "topButtons": ["新增渠道"],
+  "queryFieldCount": 0,
+  "queryFields": [],
+  "columnConfigDialog": false,
+  "pageConfigDialog": false,
+  "columns": {
+    "count": 9,
+    "defaultDisplay": 9,
+    "hidden": 0,
+    "list": [
+      {"title": "渠道", "field": "channelCode", "display": true},
+      {"title": "渠道名称", "field": "channelName", "display": true},
+      {"title": "类型", "field": "channelType", "display": true},
+      {"title": "连接状态", "field": "connected", "display": true},
+      {"title": "同步开关", "field": "syncEnabled", "display": true},
+      {"title": "同步间隔", "field": "syncInterval", "display": true},
+      {"title": "最后同步", "field": "lastSyncTime", "display": true},
+      {"title": "状态", "field": "status", "display": true},
+      {"title": "操作", "field": "action", "display": true}
+    ]
+  },
+  "fixedActionColumn": "操作（配置 / 初始化 / 同步）",
+  "rowOps": ["配置（编辑）", "初始化（无accessToken时显示）", "同步"],
+  "formFields": {
+    "type": "a-modal 新增/编辑复用",
+    "fields": [
+      {"label": "渠道编码", "control": "下拉选择", "options": ["TAOBAO淘宝/天猫", "JD京东", "PDD拼多多", "DOUYIN抖音", "WECHAT_MINI微信小程序", "SELF_MALL自有商城", "POS POS终端", "ERP_API ERP对接"]},
+      {"label": "渠道名称", "control": "文本输入"},
+      {"label": "API端点", "control": "文本输入"},
+      {"label": "App ID", "control": "文本输入"},
+      {"label": "App Secret", "control": "密码输入"},
+      {"label": "同步间隔", "control": "数字输入（分钟，min5/max120，默认30）"},
+      {"label": "扩展配置", "control": "多行文本（JSON）"}
+    ]
+  },
+  "channelCodeEnums": ["TAOBAO淘宝/天猫", "JD京东", "PDD拼多多", "DOUYIN抖音", "WECHAT_MINI微信小程序", "SELF_MALL自有商城", "POS POS终端", "ERP_API ERP对接"],
+  "channelTypeEnums": ["ECOMMERCE电商平台", "SOCIAL社交电商", "SELF自有渠道", "ERP ERP对接"],
+  "backend": {
+    "controller": "ChannelConfigController",
+    "basePath": "/api/trade/channel",
+    "entity": "ExternalChannelConfig",
+    "table": "external_channel_config",
+    "migration": "V8.14.0__Multi_Channel_Integration_Tables.sql"
+  },
+  "benchmark": {
+    "found": false,
+    "note": "ql361 未见到独立页，实测不可得，按本系统实现+业界标准",
+    "investigation": "ql361 顶栏商城/销售/设置菜单均无渠道配置/外部订单/库存同步；设置→系统配置→支付配置为微信公众号/支付方式/场景配置/在线退款（在线支付通道），与本页外部平台渠道API对接概念不同，不构成对标"
+  },
+  "dataSource": "本系统源码实测：views/trade/channel/config.vue + api/trade/index.ts + ChannelConfigController"
+}

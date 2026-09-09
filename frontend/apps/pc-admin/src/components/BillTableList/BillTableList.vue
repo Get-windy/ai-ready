@@ -178,7 +178,10 @@
       :data-source="tableData"
       :loading="loading"
       :view-mode="true"
+      :summary-columns="summaryData"
+      :storage-key="storageKey"
       :min-rows="minEmptyRows"
+      :fill-mode="fillMode"
       @checkbox-change="handleCheckboxChange"
       @checkbox-all="handleCheckboxAll"
       @sort-change="handleSortChange"
@@ -302,6 +305,9 @@ const props = defineProps({
   defaultSort: { type: Object as PropType<any>, default: undefined },
   showSummary: { type: Boolean, default: false },
   summaryData: { type: Array as PropType<any[]>, default: undefined },
+  storageKey: { type: String as PropType<string>, default: '' },
+  /** 是否用 __filler__ 列吸收剩余宽度（防止列少时操作列被剩余空间撑宽，见 BillDetailTable 使用规范） */
+  fillMode: { type: Boolean, default: true },
   showDelete: { type: Boolean, default: false },
 })
 

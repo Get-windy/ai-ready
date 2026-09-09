@@ -13,7 +13,7 @@
     <template #detail-table>
       <BillDetailTable
         :columns="detailColumns"
-        :data-source="formData.products"
+        v-model:data-source="formData.products"
         :max-height="400"
         @cell-change="handleCellChange"
       >
@@ -37,26 +37,6 @@
             </a-button>
           </a-space>
         </template>
-        <template #productCell="{ record, index }">
-          <a-select
-            v-model:value="record.productId"
-            placeholder="请选择商品"
-            show-search
-            :filter-option="filterOption"
-            style="width:100%"
-            :loading="loadingOptions"
-            size="small"
-            @change="(val: number) => handleProductChange(val, index)"
-          >
-            <a-select-option
-              v-for="p in optionRefs.products"
-              :key="p.id"
-              :value="p.id"
-            >
-              {{ p.name }}
-            </a-select-option>
-          </a-select>
-        </template>
       </BillDetailTable>
     </template>
   </BillFormPage>
@@ -73,9 +53,8 @@ import { useBillForm } from '@/components/BillFormPage/useBillForm'
 import { receiptApi } from '@/api/wms/receipt'
 
 const {
-  formData, loadingOptions, saving, optionRefs, filterOption,
+  formData, loadingOptions, saving, optionRefs,
   handleAddProduct, handleRemoveProduct,
-  handleProductChange: baseProductChange,
   handleFieldChange: baseFieldChange,
   handleSaveDraft, handleSubmit, totalQuantity,
 } = useBillForm({
@@ -136,10 +115,10 @@ const footerConfig = computed<BillFooterConfig>(() => ({
   saving: saving.value,
 }))
 
-const detailColumns: DetailColumnConfig[] = [
+const detailColumns = computed<DetailColumnConfig[]>(() => [
   { key: 'rowNo', title: '', type: 'rowNo', width: 40, fixed: 'left' },
   { key: 'action', title: '操作', type: 'action', slotName: 'actionCell', width: 70, fixed: 'left' },
-  { key: 'productId', title: '商品名称', type: 'slot', slotName: 'productCell', width: 200 },
+  { key: 'productId', title: '商品名称', type: 'select', width: 200, options: optionRefs.products.map((p: any) => ({ value: p.id, label: p.name })) },
   { key: 'itemCode', title: '货号', type: 'input', width: 100 },
   { key: 'specification', title: '规格', type: 'input', width: 100 },
   { key: 'unit', title: '单位', type: 'input', width: 80 },
@@ -148,20 +127,21 @@ const detailColumns: DetailColumnConfig[] = [
   { key: 'batchNo', title: '批次号', type: 'input', width: 120 },
   { key: 'productionDate', title: '生产日期', type: 'date', width: 110 },
   { key: 'remark', title: '备注', type: 'input', width: 150 },
-]
+])
 
-function handleProductChange(val: number, index: number) {
-  baseProductChange(val, index)
-  const p = optionRefs.products.find((x: any) => x.id === val)
-  if (p && formData.products[index]) {
-    const row = formData.products[index]
-    row.itemCode = p.code || ''
-    row.specification = p.specification || ''
-    row.unit = p.unit || ''
+function handleCellChange(record: any, fieldKey: string, value: any) {
+  if (fieldKey === 'productId') {
+    const p = optionRefs.products.find((x: any) => x.id === value)
+    if (p) {
+      record.productName = p.name || ''
+      record.productCode = p.code || ''
+      record.itemCode = p.code || ''
+      record.specification = p.specification || ''
+      record.unit = p.unit || ''
+      record.unitPrice = p.salePrice || p.price || 0
+    }
   }
 }
-
-function handleCellChange(_r: any, _k: string, _v: any) {}
 function handleAction(_k: string) {}
 function handleFieldChange(k: string, v: any) { baseFieldChange(k, v) }
 

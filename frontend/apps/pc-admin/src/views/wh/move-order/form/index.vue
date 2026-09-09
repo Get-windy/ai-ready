@@ -27,8 +27,7 @@
         <template #detail-table="{ onExpandChange }">
           <BillDetailTable
             :columns="detailColumns"
-            :data-source="formData.products"
-            :max-height="tableMaxHeight"
+            v-model:data-source="formData.products"
             :summary-columns="tableSummaryColumns"
             :storage-key="'move-order-form-columns'"
             :view-mode="isLocked"
@@ -164,8 +163,6 @@ defineOptions({ name: 'WhMoveOrderForm' })
 const router = useRouter()
 const userStore = useUserStore()
 const currentUserName = computed(() => userStore?.userInfo?.nickname || userStore?.userInfo?.username || '')
-const tableMaxHeight = ref(400)
-
 // ═══ 字典 ═══
 const MOVE_TYPE_OPTIONS = Object.entries(MOVE_TYPE_MAP).map(([v, m]) => ({ label: m.text, value: Number(v) }))
 const SOURCE_TYPE_OPTIONS = [
@@ -621,8 +618,8 @@ onMounted(async () => {
   }
   if (formData.defaultMoveType) formData.moveType = formData.defaultMoveType
   if (formData.defaultSourceType !== undefined) formData.sourceType = formData.defaultSourceType
-  nextTick(() => { tableMaxHeight.value = Math.max(200, window.innerHeight - 420) })
-  loadFormConfig()
+  nextTick(() => {  loadFormConfig()
+})
 })
 </script>
 

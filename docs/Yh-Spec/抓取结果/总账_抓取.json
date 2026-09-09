@@ -1,0 +1,43 @@
+{
+  "meta": {
+    "system": "ql361 (22stable.ql361.com)",
+    "page": "总账（账簿-按科目汇总）",
+    "type": "账簿查询报表（按科目汇总：期初余额 + 本期发生 + 期末余额）。单视图，无子Tab。",
+    "entry": "财务 → 账簿 → 总账",
+    "source": "对标系统实测抓取 (Playwright MCP)",
+    "date": "2026-09-07"
+  },
+  "report": {
+    "label": "总账 · 账簿查询报表（按科目汇总）",
+    "query": {
+      "note": "查询条件区（纯查询，无查询条件/功能按钮配置弹窗）",
+      "querySchemeDropdown": "查询方案（下拉，默认'--查询方案--'）",
+      "fields": [
+        {"name": "会计月(起)", "type": "期间选择", "defaultValue": "2026-08"},
+        {"name": "会计月(止)", "type": "期间选择", "defaultValue": "2026-08"},
+        {"name": "科目层级", "type": "下拉", "defaultValue": "1"}
+      ],
+      "checkboxes": ["无发生额不显示本期合计", "显示本年累计", "显示当前总计"],
+      "button": "查询"
+    },
+    "buttons": ["刷新", "打印(F8)", "导出", "明细对账"],
+    "pageConfig": {
+      "hasDialog": false,
+      "note": "工具栏无「配置」齿轮（仅 刷新/打印(F8)/导出/明细对账），无 查询条件/功能按钮 页面配置弹窗。标题栏 title='配置' 的齿轮元素可见性为 false（属隐藏Tab），故本页无页面配置弹窗。"
+    },
+    "columns": [
+      {"n": 1, "name": "科目编码", "def": "[x]"},
+      {"n": 2, "name": "科目名称", "def": "[x]"},
+      {"n": 3, "name": "期间", "def": "[x]"},
+      {"n": 4, "name": "摘要", "def": "[x]"},
+      {"n": 5, "name": "借方", "def": "[x]"},
+      {"n": 6, "name": "贷方", "def": "[x]"},
+      {"n": 7, "name": "方向", "def": "[x]"},
+      {"n": 8, "name": "余额", "def": "[x]"}
+    ],
+    "columnConfigDialog": "lkgrid-setting-dialog（个人配置/全局配置两Tab）。8 列全部默认显示（[x]），无隐藏列。",
+    "defaultShownCount": 8,
+    "hiddenCount": 0,
+    "dataStructure": "按科目汇总行。期间=会计期间（如 2026-08）；摘要=期初余额/本期合计；方向=借/贷/平；余额为期末余额。同一科目显示『期初余额』与『本期合计』两行（勾选 checkboxes 控制是否显示本期合计/本年累计/当前总计）。"
+  }
+}

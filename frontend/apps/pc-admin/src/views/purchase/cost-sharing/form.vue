@@ -38,7 +38,7 @@
               </div>
               <BillDetailTable
                 :columns="expenseCols"
-                :data-source="expenseItems"
+                v-model:data-source="expenseItems"
                 :max-height="220"
                 :min-rows="4"
                 :storage-key="'cost-sharing-expense-items-col'"
@@ -80,7 +80,7 @@
               </div>
               <BillDetailTable
                 :columns="itemCols"
-                :data-source="items"
+                v-model:data-source="items"
                 :max-height="240"
                 :min-rows="6"
                 :storage-key="'cost-sharing-inbound-items-col'"

@@ -170,21 +170,53 @@ export interface PreReceipt {
   sourceType: string
   sourceId: number
   sourceNo: string
+  sourceUnsettledAmount: number
+  partnerCode: string
   customerId: number
   customerName: string
   amount: number
   usedAmount: number
   remainingAmount: number
+  giftAmount: number
+  totalAmount: number
+  prevAmount: number
   depositType: number
   depositFlag: number
   receiptDate: string
   status: string
+  summary: string
+  handlerId: number
+  handlerName: string
+  deptId: number
+  deptName: string
+  creatorName: string
+  bookkeeperId: number
+  bookkeeperName: string
+  bookkeepingTime: string
+  auditorId: number
+  auditorName: string
+  auditorTime: string
+  printCount: number
   paymentMethod: string
   bankAccount: string
   bankName: string
   transactionNo: string
   remark: string
   createTime: string
+  items?: PreReceiptItem[]
+}
+
+/**
+ * 预收款-收款账户明细（一单多账户）
+ */
+export interface PreReceiptItem {
+  id?: number
+  preReceiptId?: number
+  lineNo?: number
+  accountNo: string
+  accountName: string
+  amount: number
+  remark: string
 }
 
 /**
@@ -282,6 +314,26 @@ export const preReceiptApi = {
   getById(id: number): Promise<ApiResponse<PreReceipt>> {
     return request.get(`/erp/pre-receipt/${id}`)
   },
+  /** 生成下一预收款单号（YSKD-） */
+  nextNo(prefix = 'YSKD'): Promise<ApiResponse<string>> {
+    return request.get('/erp/pre-receipt/next-no', { params: { prefix } })
+  },
+  /** 保存草稿（含收款账户明细） */
+  saveDraft(data: any): Promise<ApiResponse<PreReceipt>> {
+    return request.post('/erp/pre-receipt/save', data)
+  },
+  /** 记账：预收余额增加 + 生成凭证 */
+  confirm(id: number, operatorId?: number, operatorName?: string): Promise<ApiResponse<PreReceipt>> {
+    return request.post('/erp/pre-receipt/confirm', null, { params: { id, operatorId, operatorName } })
+  },
+  /** 批量确认预收款项（到账入账） */
+  batchConfirm(ids: number[]): Promise<ApiResponse<any>> {
+    return request.post('/erp/pre-receipt/batch-confirm', ids)
+  },
+  /** 查询结算单位（客户）预收余额 */
+  getAdvanceBalance(customerId: number): Promise<ApiResponse<number>> {
+    return request.get('/erp/pre-receipt/advance-balance', { params: { customerId } })
+  },
   create(data: any): Promise<ApiResponse<PreReceipt>> {
     return request.post('/erp/pre-receipt', data)
   },
@@ -362,6 +414,19 @@ export const capitalFlowApi = {
   },
   exportList(params: any): Promise<Blob> {
     return request.get('/erp/capital-flow/export', { params, responseType: 'blob' })
+  },
+  /**
+   * 在线支付对账单分页查询（单入口列表）
+   * 后端: CapitalFlowController /api/erp/capital-flow/reconcile/page
+   */
+  getReconcilePage(params: any): Promise<ApiResponse<PageResponse<CapitalFlow>>> {
+    return request.get('/erp/capital-flow/reconcile/page', { params })
+  },
+  /**
+   * 切换对账标记：flag=1 已对账 0 未对账（缺省取反）
+   */
+  toggleReconcile(id: number, flag?: number, operator?: string): Promise<ApiResponse<void>> {
+    return request.put('/erp/capital-flow/reconcile/' + id, null, { params: { flag, operator } })
   }
 }
 
@@ -408,8 +473,32 @@ export const receiptApi = {
   completeVerify(id: number): Promise<ApiResponse<any>> {
     return request.post(`/erp/receipt/${id}/complete-verify`)
   },
+  /**
+   * 批量确认待确认款项（到账入账）
+   */
+  batchConfirm(ids: number[]): Promise<ApiResponse<any>> {
+    return request.post('/erp/receipt/batch-confirm', ids)
+  },
   getStatistics(): Promise<ApiResponse<any>> {
     return request.get('/erp/receipt/statistics')
+  },
+  /**
+   * 生成下一个收款单号（SKD- 前缀）
+   */
+  nextNo(): Promise<ApiResponse<string>> {
+    return request.get('/erp/receipt/next-no')
+  },
+  /**
+   * 按明细分页查询收款单（收款明细 tab）
+   */
+  getPageDetail(params: any): Promise<ApiResponse<PageResponse<any>>> {
+    return request.get('/erp/receipt/page-detail', { params })
+  },
+  /**
+   * 批量打印
+   */
+  batchPrint(data: any): Promise<ApiResponse<any>> {
+    return request.post('/erp/receipt/batch-print', data)
   }
 }
 
@@ -458,6 +547,167 @@ export const paymentApi = {
   },
   getStatistics(): Promise<ApiResponse<any>> {
     return request.get('/erp/payment/statistics')
+  }
+}
+
+/**
+ * 按单付款（应付款核销工作台）API
+ * 数据源：采购单据统一查询（应付来源）+ 发票查询（销售/采购方向）
+ */
+export interface PaymentByDocQuery {
+  current?: number
+  size?: number
+  /** 单据日期起（yyyy-MM-dd） */
+  dateStart?: string
+  /** 单据日期止（yyyy-MM-dd） */
+  dateEnd?: string
+  /** 单据编号 */
+  documentNo?: string
+  /** 单据类型（INBOUND/RETURN/EXCHANGE） */
+  documentType?: string
+  /** 往来单位 */
+  supplierName?: string
+  /** 结算单位 */
+  settlementUnit?: string
+  /** 经手人 */
+  handlerName?: string
+  /** 结算状态（已结算/未结算） */
+  settlementStatus?: string
+  /** 来源订单 */
+  sourceOrder?: string
+  /** 对账（是/否） */
+  reconcileFlag?: string
+  /** 发票号码 */
+  invoiceNumber?: string
+  /** 发票代码 */
+  invoiceCode?: string
+}
+
+export const paymentByDocApi = {
+  /**
+   * 应付来源单据分页（待付款/全部单据）
+   * @param targetTab pending=待付款 / all=全部单据
+   */
+  page(targetTab: 'pending' | 'all', params?: PaymentByDocQuery): Promise<PageResponse<any>> {
+    const apiParams: Record<string, any> = {
+      current: params?.current,
+      size: params?.size,
+      dateStart: params?.dateStart,
+      dateEnd: params?.dateEnd,
+      documentNo: params?.documentNo,
+      documentType: params?.documentType,
+      supplierName: params?.supplierName,
+      handlerName: params?.handlerName,
+      settlementStatus: params?.settlementStatus,
+      sourceOrder: params?.sourceOrder,
+    }
+    // 待付款 → 只查未结算
+    if (targetTab === 'pending' && !apiParams.settlementStatus) {
+      apiParams.settlementStatus = '未结算'
+    }
+    Object.keys(apiParams).forEach(k => {
+      if (apiParams[k] === '' || apiParams[k] === null || apiParams[k] === undefined) delete apiParams[k]
+    })
+    return request.get('/purchase/doc-query/page', apiParams)
+  },
+  /**
+   * 发票方向分页（发票查询：销售/采购）
+   */
+  invoicePage(params: any): Promise<ApiResponse<PageResponse<any>>> {
+    return request.get('/erp/invoice/query', params)
+  },
+  /**
+   * 对账标记（按单付款）：标记采购入库单对应应付为已对账/取消，记录对账人/时间
+   * @param documentType 单据类型（INBOUND/RETURN/EXCHANGE）
+   * @param id 单据ID
+   * @param flag 1-√ 0-否（缺省取反）
+   * @param operator 对账人（当前登录用户名）
+   */
+  reconcile(documentType: string, id: number, flag: number, operator: string): Promise<ApiResponse<any>> {
+    return request.put(`/purchase/doc-query/${documentType}/${id}/reconcile`, null, {
+      params: { flag, operator },
+    })
+  },
+  /**
+   * 无结算付款单核销（按单付款）：对已记账未勾选核销单据的付款单事后补核销
+   * @param docIds 勾选的采购入库单ID列表
+   */
+  noSettleWriteOff(docIds: number[]): Promise<ApiResponse<any>> {
+    return request.post('/purchase/doc-query/no-settle-write-off', docIds)
+  },
+}
+
+/**
+ * 按单收款（应收款核销工作台）API
+ * 数据源：销售单据统一查询（应收来源）+ 发票查询（销售/采购方向）
+ */
+export interface ReceiptByDocQuery {
+  current?: number
+  size?: number
+  /** 单据日期起（yyyy-MM-dd） */
+  dateStart?: string
+  /** 单据日期止（yyyy-MM-dd） */
+  dateEnd?: string
+  /** 单据编号 */
+  documentNo?: string
+  /** 单据类型（OUTBOUND/RETURN/EXCHANGE） */
+  documentType?: string
+  /** 往来单位（客户名称） */
+  customerName?: string
+  /** 结算单位 */
+  settlementUnit?: string
+  /** 经手人 */
+  handlerName?: string
+  /** 结算状态（已结算/未结算） */
+  settlementStatus?: string
+  /** 来源订单 */
+  sourceOrder?: string
+  /** 对账（是/否） */
+  reconcileFlag?: string
+  /** 发票号码 */
+  invoiceNumber?: string
+  /** 发票代码 */
+  invoiceCode?: string
+}
+
+export const receiptByDocApi = {
+  /**
+   * 应收来源单据分页（待收款/超期待收款/全部单据）
+   * @param targetTab pending=待收款 / overdue=超期待收款 / all=全部单据
+   */
+  page(targetTab: 'pending' | 'overdue' | 'all', params?: ReceiptByDocQuery): Promise<PageResponse<any>> {
+    const apiParams: Record<string, any> = {
+      current: params?.current,
+      size: params?.size,
+      startDate: params?.dateStart,
+      endDate: params?.dateEnd,
+      documentNo: params?.documentNo,
+      documentType: params?.documentType,
+      customerName: params?.customerName,
+      handlerName: params?.handlerName,
+      settlementStatus: params?.settlementStatus,
+      sourceOrder: params?.sourceOrder,
+    }
+    // 应收来源：仅销售出库/退货/换货单，排除销售订单
+    apiParams.receivableOnly = true
+    // 待收款 → 只查未结算的应收来源单据
+    if (targetTab === 'pending' && !apiParams.settlementStatus) {
+      apiParams.settlementStatus = '未结算'
+    }
+    // 全部单据默认过滤红冲（status=3）
+    if (targetTab === 'all') {
+      apiParams.showRed = false
+    }
+    Object.keys(apiParams).forEach(k => {
+      if (apiParams[k] === '' || apiParams[k] === null || apiParams[k] === undefined) delete apiParams[k]
+    })
+    return request.get('/sales/doc-query/page', apiParams)
+  },
+  /**
+   * 发票方向分页（发票查询：销售/采购）
+   */
+  invoicePage(params: any): Promise<ApiResponse<PageResponse<any>>> {
+    return request.get('/erp/invoice/query', params)
   }
 }
 
@@ -701,6 +951,8 @@ export default {
   prePaymentApi,
   receiptApi,
   paymentApi,
+  paymentByDocApi,
+  receiptByDocApi,
   offsetApi,
   capitalFlowApi,
   writeOffApi,

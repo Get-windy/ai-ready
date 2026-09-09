@@ -460,8 +460,8 @@ interface VxeColumnDef {
   type?: string
   field?: string
   title?: string
-  width?: number
-  minWidth?: number
+  width?: number | string
+  minWidth?: number | string
   sortable?: boolean
   fixed?: string
   align?: string
@@ -516,10 +516,13 @@ const vxeColumns = computed<VxeColumnDef[]>(() => {
       vxeCol.formatter = ({ cellValue, row }: any) => col.formatter({ cellValue, row })
     }
 
-    // 操作列特殊处理
+    // 操作列特殊处理：宽度自适应内容撑开（多按钮不溢出），minWidth 保证最小可容纳
     if (col.type === 'action' || col.key === 'action' || col.dataIndex === 'action' || col.field === '_action') {
-      vxeCol.width = col.width || 120
+      // 操作列：宽度不写死，按内容自适应撑开（多按钮不溢出），minWidth 保证最小可容纳
+      vxeCol.width = col.width
+      vxeCol.minWidth = col.minWidth || 160
       vxeCol.fixed = col.fixed || 'right'
+      vxeCol.showOverflow = false
       // 操作列使用插槽
       vxeCol.slots = { default: 'action_default' }
     }
@@ -838,7 +841,7 @@ watch(() => props.pagination, (p) => {
   justify-content: space-between;
   align-items: center;
   padding: 12px 16px;
-  border-bottom: 1px solid #e8e8e8;
+  border-bottom: 1px solid #d9d9d9;
   flex-shrink: 0;
 }
 
@@ -851,7 +854,7 @@ watch(() => props.pagination, (p) => {
 .filter-panel {
   padding: 16px;
   background: #fafafa;
-  border-bottom: 1px solid #e8e8e8;
+  border-bottom: 1px solid #d9d9d9;
   flex-shrink: 0;
 }
 
@@ -877,7 +880,7 @@ watch(() => props.pagination, (p) => {
 
 .table-pagination {
   padding: 12px 16px;
-  border-top: 1px solid #e8e8e8;
+  border-top: 1px solid #d9d9d9;
   flex-shrink: 0;
 }
 
@@ -950,12 +953,12 @@ watch(() => props.pagination, (p) => {
 
 :deep(.vxe-table--body .vxe-body--column) {
   padding: 3px 10px !important;
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
+  border-right: 1px solid #d9d9d9 !important;
+  border-bottom: 1px solid #d9d9d9 !important;
 }
 
 :deep(.vxe-table--body .vxe-body--column:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
+  border-left: 1px solid #d9d9d9 !important;
 }
 
 /* 末行底部边框 */
@@ -1015,11 +1018,11 @@ watch(() => props.pagination, (p) => {
   font-weight: 600 !important;
   padding: 5px 10px !important;
   border-top: 2px solid #b0b0b0 !important;
-  border-right: 1px solid #e0e0e0 !important;
+  border-right: 1px solid #d9d9d9 !important;
 }
 
 :deep(.vxe-table--footer .vxe-footer--column:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
+  border-left: 1px solid #d9d9d9 !important;
 }
 
 /* 等宽数字（数值列） */

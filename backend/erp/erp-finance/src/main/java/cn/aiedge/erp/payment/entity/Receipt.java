@@ -44,6 +44,44 @@ public class Receipt {
 
     private BigDecimal pendingAmount;
 
+    /** 优惠金额 */
+    private BigDecimal discountAmount;
+
+    /** 使用预收款 */
+    private BigDecimal usePrepaidAmount;
+
+    /** 多收金额（收款超应收转客户预收） */
+    private BigDecimal overpayAmount;
+
+    /** 此前应收 */
+    private BigDecimal prevReceivable;
+
+    /** 应收余额 */
+    private BigDecimal receivableBalance;
+
+    /** 预收余额（可用预收） */
+    private BigDecimal prepaidBalance;
+
+    /** 收款账户1 */
+    private String receiptAccount1;
+
+    private BigDecimal receiptAmount1;
+
+    /** 收款账户2 */
+    private String receiptAccount2;
+
+    private BigDecimal receiptAmount2;
+
+    /** 收款账户3 */
+    private String receiptAccount3;
+
+    private BigDecimal receiptAmount3;
+
+    /** 收款账户4 */
+    private String receiptAccount4;
+
+    private BigDecimal receiptAmount4;
+
     private String paymentMethod;
 
     private String bankAccount;

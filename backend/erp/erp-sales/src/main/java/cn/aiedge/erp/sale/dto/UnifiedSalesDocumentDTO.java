@@ -415,4 +415,50 @@ public class UnifiedSalesDocumentDTO {
 
     @Schema(description = "自定义对象字段5")
     private String customObjField5;
+
+    // ═══ 应收核销字段（按单收款） ═══
+    @Schema(description = "已结算金额")
+    private BigDecimal settledAmount;
+
+    @Schema(description = "未结算金额")
+    private BigDecimal unsettledAmount;
+
+    @Schema(description = "待审金额")
+    private BigDecimal pendingApproveAmount;
+
+    @Schema(description = "结算单位")
+    private String settlementUnit;
+
+    @Schema(description = "司机名称")
+    private String driverName;
+
+    @Schema(description = "收款日期")
+    private LocalDateTime receiptDate;
+
+    @Schema(description = "对账日期")
+    private LocalDateTime reconciliationDate;
+
+    @Schema(description = "动态收款期限")
+    private String dynamicPayTerm;
+
+    @Schema(description = "固定账期")
+    private String fixedTerms;
+
+    @Schema(description = "结算期")
+    private String settlePeriod;
+
+    @Schema(description = "超期天数")
+    private Integer overdueDays;
+
+    @Schema(description = "对账标记（是=已对账/否=未对账）")
+    private Boolean reconcile;
+
+    @Schema(description = "欠条领取状态")
+    private String loanNote;
+
+    @Schema(description = "最后对账标记时间")
+    private LocalDateTime lastReconcileTime;
+
+    @Schema(description = "最后对账标记人")
+    private String lastReconcileBy;
 }

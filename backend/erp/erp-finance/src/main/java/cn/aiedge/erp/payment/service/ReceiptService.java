@@ -14,7 +14,38 @@ public interface ReceiptService extends IService<Receipt> {
 
     Receipt getByReceiptNo(String receiptNo);
 
-    Page<Receipt> pageList(String keyword, Long customerId, Long orderId, Integer status, String sourceType, int pageNum, int pageSize);
+    /**
+     * 分页查询收款单（金标准多条件）
+     */
+    Page<Receipt> pageList(
+            String keyword, Long customerId, Long orderId, Integer status, String sourceType,
+            String startDate, String endDate, String customerName, String handlerName,
+            String departmentName, String creatorName, String bookkeeperName, String remark,
+            int pageNum, int pageSize);
+
+    /**
+     * 分页查询收款单（待确认款项专用：支持待核销/核销中多状态 + 账户/单号过滤）
+     */
+    Page<Receipt> pageListPending(
+            String keyword, Long customerId, Long orderId, Integer status, String sourceType,
+            String startDate, String endDate, String customerName, String handlerName,
+            String departmentName, String creatorName, String bookkeeperName, String remark,
+            String statuses, String receiptNo, String orderNo, String deliveryNo,
+            String receiptAccount1, String receiptAccount2,
+            int pageNum, int pageSize);
+
+    /**
+     * 按明细分页查询收款单（收款明细 tab）
+     */
+    Page<cn.aiedge.erp.payment.dto.ReceiptItemDetailVO> pageDetail(
+            Long receiptId, Long customerId, String keyword, Integer status,
+            String tradeUnit, String sourceHandler, String settlementNo,
+            String startDate, String endDate, int pageNum, int pageSize);
+
+    /**
+     * 生成收款单号（SKD- 前缀）
+     */
+    String nextNo();
 
     List<Receipt> listByCustomerId(Long customerId);
 

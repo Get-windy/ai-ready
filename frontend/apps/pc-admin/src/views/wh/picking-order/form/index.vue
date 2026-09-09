@@ -25,8 +25,7 @@
         <template #detail-table="{ onExpandChange }">
           <BillDetailTable
             :columns="detailColumns"
-            :data-source="formData.products"
-            :max-height="tableMaxHeight"
+            v-model:data-source="formData.products"
             :summary-columns="tableSummaryColumns"
             :storage-key="'picking-order-form-columns'"
             :view-mode="isLocked"
@@ -357,7 +356,6 @@ const detailColumns = computed<DetailColumnConfig[]>(() => [
   { key: 'status', title: '状态', type: 'input', width: 90, readonly: true, defaultHidden: true },
 ])
 
-const tableMaxHeight = computed(() => Math.max(300, window.innerHeight - 340))
 const tableSummaryColumns = computed(() => [
   { key: 'expectedQuantity', value: totalQuantity.value, highlight: true },
 ] as { key: string; value: number; highlight?: boolean }[])

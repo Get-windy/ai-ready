@@ -40,6 +40,62 @@ public class PaymentVO {
 
     private BigDecimal pendingAmount;
 
+    /** 优惠金额 */
+    private BigDecimal discountAmount;
+
+    /** 使用预付款 */
+    private BigDecimal usePrepaidAmount;
+
+    /** 多付金额（付款超应付转供应商预付） */
+    private BigDecimal overpayAmount;
+
+    /** 此前应付 */
+    private BigDecimal prevPayable;
+
+    /** 应付余额 */
+    private BigDecimal payableBalance;
+
+    /** 预付款余额（可用预付） */
+    private BigDecimal prepaidBalance;
+
+    /** 付款账户1 */
+    private String paymentAccount1;
+
+    private BigDecimal paymentAmount1;
+
+    /** 付款账户2 */
+    private String paymentAccount2;
+
+    private BigDecimal paymentAmount2;
+
+    /** 付款账户3 */
+    private String paymentAccount3;
+
+    private BigDecimal paymentAmount3;
+
+    /** 付款账户4 */
+    private String paymentAccount4;
+
+    private BigDecimal paymentAmount4;
+
+    /** 结算单位编号（供应商主数据反查） */
+    private String supplierCode;
+
+    /** 制单人名称（用户表反查，当前实体仅存 createBy） */
+    private String creatorName;
+
+    /** 记账人名称（用户表反查，当前实体仅存 verifiedBy） */
+    private String bookkeeperName;
+
+    /** 审核人名称（用户表反查，当前实体仅存 approvedBy） */
+    private String auditorName;
+
+    /** 打印次数 */
+    private Integer printCount;
+
+    /** 摘要 */
+    private String summary;
+
     private String paymentMethod;
 
     private String bankAccount;

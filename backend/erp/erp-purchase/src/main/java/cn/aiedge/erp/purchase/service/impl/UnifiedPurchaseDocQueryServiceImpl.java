@@ -1,5 +1,12 @@
 package cn.aiedge.erp.purchase.service.impl;
 
+import cn.aiedge.erp.finance.mapper.PayableMapper;
+import cn.aiedge.erp.finance.model.entity.Payable;
+import cn.aiedge.erp.payment.entity.Payment;
+import cn.aiedge.erp.payment.entity.PaymentItem;
+import cn.aiedge.erp.payment.enums.ReceiptStatus;
+import cn.aiedge.erp.payment.mapper.PaymentItemMapper;
+import cn.aiedge.erp.payment.mapper.PaymentMapper;
 import cn.aiedge.erp.purchase.dto.SupplierSnapshotRow;
 import cn.aiedge.erp.purchase.dto.UnifiedPurchaseDocQueryDTO;
 import cn.aiedge.erp.purchase.dto.UnifiedPurchaseDocumentDTO;
@@ -19,10 +26,15 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -43,6 +55,9 @@ public class UnifiedPurchaseDocQueryServiceImpl implements UnifiedPurchaseDocQue
     private final PurchaseReturnService purchaseReturnService;
     private final PurchaseExchangeService purchaseExchangeService;
     private final SupplierSnapshotMapper supplierSnapshotMapper;
+    private final PayableMapper payableMapper;
+    private final PaymentItemMapper paymentItemMapper;
+    private final PaymentMapper paymentMapper;
 
     @Override
     public Page<UnifiedPurchaseDocumentDTO> unifiedPage(UnifiedPurchaseDocQueryDTO query) {
@@ -158,6 +173,9 @@ public class UnifiedPurchaseDocQueryServiceImpl implements UnifiedPurchaseDocQue
 
         // Step 3: 补全入库单缺失的供应商编号/联系人/电话/地址/备注
         enrichSupplierSnapshot(pageRecords);
+
+        // Step 4: 按单付款核销工作台 - 聚合应付核销金额(已结/待审/未结)及对账标记
+        enrichPayableSettlement(pageRecords);
 
         resultPage.setRecords(pageRecords);
         return resultPage;
@@ -301,5 +319,152 @@ public class UnifiedPurchaseDocQueryServiceImpl implements UnifiedPurchaseDocQue
 
     private boolean isEmpty(String s) {
         return s == null || s.trim().isEmpty();
+    }
+
+    /**
+     * 按单付款核销工作台：为采购来源单据聚合应付核销金额（已结/待审/未结）与对账标记。
+     *
+     * <p>关联链：采购单据(id) → finance_payable(source_id=PURCHASE_RECEIPT) →
+     * erp_payment_item(payable_id) → erp_payment(status)。
+     * 金额口径：本单金额 = 已结金额 + 待审金额 + 未结金额。
+     * <ul>
+     *   <li>待审金额 = 已提交未记账（status∈{1,2,4,5}）付款单明细金额</li>
+     *   <li>已结金额 = 已核销/已记账（status∈{6,7}）付款单明细核销金额</li>
+     *   <li>未结金额 = 本单金额 - 已结 - 待审（下限 0）</li>
+     * </ul>
+     * 对账标记(√/否)取自 finance_payable.reconcile_flag / reconcile_by_name / reconcile_at。
+     */
+    private void enrichPayableSettlement(List<UnifiedPurchaseDocumentDTO> records) {
+        if (records == null || records.isEmpty()) {
+            return;
+        }
+        // 1. 收集单据ID与单据类型（仅入库单产生 finance_payable，避免跨单据类型 ID 冲突）
+        Map<Long, UnifiedPurchaseDocumentDTO> inboundById = new HashMap<>();
+        for (UnifiedPurchaseDocumentDTO r : records) {
+            if (r.getId() != null && "INBOUND".equals(r.getDocumentType())) {
+                inboundById.put(r.getId(), r);
+            }
+        }
+        if (inboundById.isEmpty()) {
+            fillZeroForAll(records);
+            return;
+        }
+
+        List<Long> docIds = new ArrayList<>(inboundById.keySet());
+        // 2. 查应付（采购入库单记账产生）
+        List<Payable> payables = payableMapper.selectList(new QueryWrapper<Payable>()
+                .in("source_id", docIds)
+                .eq("source_type", "PURCHASE_RECEIPT")
+                .eq("deleted_flag", 0));
+        if (payables.isEmpty()) {
+            fillZeroForAll(records);
+            return;
+        }
+
+        Map<Long, Payable> payableBySourceId = payables.stream()
+                .filter(p -> p.getSourceId() != null)
+                .collect(Collectors.toMap(Payable::getSourceId, p -> p, (a, b) -> a));
+
+        List<Long> payableIds = payables.stream()
+                .map(Payable::getId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+
+        // 3. 查付款单明细（按应付关联）
+        List<PaymentItem> items = payableIds.isEmpty() ? List.of()
+                : paymentItemMapper.selectList(new QueryWrapper<PaymentItem>()
+                        .in("payable_id", payableIds)
+                        .eq("deleted", 0));
+
+        // 4. 查付款单（按支付状态区分已结/待审）
+        Set<Long> paymentIds = items.stream()
+                .map(PaymentItem::getPaymentId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<Long, Payment> paymentById = new HashMap<>();
+        if (!paymentIds.isEmpty()) {
+            paymentById = paymentMapper.selectBatchIds(paymentIds).stream()
+                    .collect(Collectors.toMap(Payment::getId, p -> p, (a, b) -> a));
+        }
+
+        // 5. 按应付ID分组明细
+        Map<Long, List<PaymentItem>> itemsByPayable = new HashMap<>();
+        for (PaymentItem item : items) {
+            if (item.getPayableId() != null) {
+                itemsByPayable.computeIfAbsent(item.getPayableId(), k -> new ArrayList<>()).add(item);
+            }
+        }
+
+        // 6. 计算每张单据
+        for (UnifiedPurchaseDocumentDTO r : records) {
+            Payable payable = r.getId() == null ? null : payableBySourceId.get(r.getId());
+            if (!"INBOUND".equals(r.getDocumentType())) {
+                payable = null;
+            }
+            BigDecimal totalAmount = r.getTotalAmount() != null ? r.getTotalAmount() : BigDecimal.ZERO;
+            r.setTotalAmount(totalAmount);
+
+            if (payable == null) {
+                setSettlement(r, BigDecimal.ZERO, BigDecimal.ZERO, totalAmount, false, null, null);
+                continue;
+            }
+
+            boolean reconciled = payable.getReconcileFlag() != null && payable.getReconcileFlag() == 1;
+            r.setReconcile(reconciled);
+            r.setLastReconcileBy(payable.getReconcileByName());
+            r.setLastReconcileTime(payable.getReconcileAt());
+            r.setSettlementUnit(payable.getSupplierName());
+            if (payable.getInvoiceNo() != null && !payable.getInvoiceNo().isEmpty()) {
+                r.setInvoiceNumber(payable.getInvoiceNo());
+            }
+
+            BigDecimal settled = BigDecimal.ZERO;
+            BigDecimal pending = BigDecimal.ZERO;
+            List<PaymentItem> payableItems = itemsByPayable.getOrDefault(payable.getId(), List.of());
+            for (PaymentItem item : payableItems) {
+                Payment payment = item.getPaymentId() == null ? null : paymentById.get(item.getPaymentId());
+                if (payment == null || payment.getStatus() == null) {
+                    continue;
+                }
+                int st = payment.getStatus();
+                if (st == ReceiptStatus.VERIFIED.getCode() || st == ReceiptStatus.COMPLETED.getCode()) {
+                    BigDecimal v = item.getVerifiedAmount();
+                    if (v != null) settled = settled.add(v);
+                } else if (st == ReceiptStatus.PENDING_APPROVAL.getCode()
+                        || st == ReceiptStatus.APPROVED.getCode()
+                        || st == ReceiptStatus.PENDING_VERIFY.getCode()
+                        || st == ReceiptStatus.VERIFYING.getCode()) {
+                    BigDecimal pv = item.getPendingAmount() != null ? item.getPendingAmount()
+                            : (item.getInvoiceAmount() != null ? item.getInvoiceAmount() : BigDecimal.ZERO);
+                    if (pv != null) pending = pending.add(pv);
+                }
+            }
+            BigDecimal unsettled = totalAmount.subtract(settled).subtract(pending);
+            if (unsettled.compareTo(BigDecimal.ZERO) < 0) {
+                unsettled = BigDecimal.ZERO;
+            }
+            setSettlement(r, settled, pending, unsettled, reconciled,
+                    payable.getReconcileByName(), payable.getReconcileAt());
+        }
+    }
+
+    private void fillZeroForAll(List<UnifiedPurchaseDocumentDTO> records) {
+        for (UnifiedPurchaseDocumentDTO r : records) {
+            BigDecimal totalAmount = r.getTotalAmount() != null ? r.getTotalAmount() : BigDecimal.ZERO;
+            r.setTotalAmount(totalAmount);
+            setSettlement(r, BigDecimal.ZERO, BigDecimal.ZERO, totalAmount, false, null, null);
+        }
+    }
+
+    private void setSettlement(UnifiedPurchaseDocumentDTO r, BigDecimal settled, BigDecimal pending,
+                               BigDecimal unsettled, boolean reconciled, String reconcileBy,
+                               LocalDateTime reconcileTime) {
+        r.setSettledAmount(settled);
+        r.setPendingApproveAmount(pending);
+        r.setUnsettledAmount(unsettled);
+        r.setReconcile(reconciled);
+        r.setLastReconcileBy(reconcileBy);
+        r.setLastReconcileTime(reconcileTime);
     }
 }

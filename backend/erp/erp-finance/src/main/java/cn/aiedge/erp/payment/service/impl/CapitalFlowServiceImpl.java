@@ -58,7 +58,8 @@ public class CapitalFlowServiceImpl extends ServiceImpl<CapitalFlowMapper, Capit
     @Override
     public Page<CapitalFlow> pageListForReconcile(Integer paymentType, String direction,
                                                   Integer paymentMethod, Integer reconcileFlag,
-                                                  String keyword, LocalDate startDate, LocalDate endDate,
+                                                  String keyword, String customerName, String payStatus,
+                                                  LocalDate startDate, LocalDate endDate,
                                                   int pageNum, int pageSize) {
         LambdaQueryWrapper<CapitalFlow> wrapper = new LambdaQueryWrapper<>();
         // 支付类型：仅展示收款/退款类在线支付流水（IN 为收款）
@@ -81,8 +82,15 @@ public class CapitalFlowServiceImpl extends ServiceImpl<CapitalFlowMapper, Capit
         if (keyword != null && !keyword.isEmpty()) {
             wrapper.and(w -> w.like(CapitalFlow::getFlowNo, keyword)
                     .or().like(CapitalFlow::getRefNo, keyword)
-                    .or().like(CapitalFlow::getTransactionNo, keyword)
-                    .or().like(CapitalFlow::getPartyName, keyword));
+                    .or().like(CapitalFlow::getTransactionNo, keyword));
+        }
+        // 源单客户独立模糊搜索
+        if (customerName != null && !customerName.isEmpty()) {
+            wrapper.like(CapitalFlow::getPartyName, customerName);
+        }
+        // 支付状态：当前系统资金流均为成功入账（payStatus 恒为 SUCCESS），非成功状态不命中任何流水
+        if (payStatus != null && !payStatus.isEmpty() && !"SUCCESS".equalsIgnoreCase(payStatus)) {
+            wrapper.eq(CapitalFlow::getId, -1L);
         }
         if (startDate != null) {
             wrapper.ge(CapitalFlow::getOccurDate, startDate.atStartOfDay());

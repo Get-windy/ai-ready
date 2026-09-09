@@ -290,6 +290,8 @@ const componentMap: Record<string, () => Promise<any>> = {
 
   // ── Phase 5B: 财务单据 form.vue ──
   'finance/receipt-doc/form': () => import('@/views/finance/receipt-doc/form.vue'),
+  'finance/receipt-doc': () => import('@/views/finance/receipt-doc/index.vue'),
+  'finance/receipt-doc/index': () => import('@/views/finance/receipt-doc/index.vue'),
   'finance/payment-doc/form': () => import('@/views/finance/payment-doc/form.vue'),
   'finance/expense-doc/form': () => import('@/views/finance/expense-doc/form.vue'),
   'finance/voucher/form': () => import('@/views/finance/voucher/form.vue'),
@@ -500,7 +502,6 @@ const componentMap: Record<string, () => Promise<any>> = {
   'hr/organization/index': () => import('@/views/hr/organization/index.vue'),
 
   // ── Trade 交易模块 ──
-  'trade/pos/index': () => import('@/views/trade/pos/index.vue'),
   'trade/mall-order/list': () => import('@/views/trade/mall-order/list.vue'),
   'trade/cart/list': () => import('@/views/trade/cart/list.vue'),
   'trade/api-monitor/list': () => import('@/views/trade/api-monitor/list.vue'),
@@ -856,6 +857,9 @@ const routeBillTypeMap: Record<string, string> = {
   'finance/receivable/index': '801',
   'finance/pre-receipt': '801',
   'finance/pre-receipt/index': '801',
+  'finance/advance-receipt': '801',
+  'finance/advance-receipt/index': '801',
+  'finance/advance-receipt/form': '801',
   'finance/deposit': '801',
   'finance/deposit/index': '801',
   'erp/finance/receivable': '801',

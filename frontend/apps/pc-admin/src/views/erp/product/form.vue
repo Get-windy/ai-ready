@@ -338,7 +338,7 @@
                   </template>
                   <BillDetailTable
                     :columns="unitColumns"
-                    :data-source="unitList"
+                    v-model:data-source="unitList"
                     :min-rows="3"
                     storage-key="product-unit-col-config"
                     @cell-change="onUnitCellChange"

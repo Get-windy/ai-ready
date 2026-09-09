@@ -16,8 +16,7 @@
         <template #detail-table="{ onExpandChange }">
           <BillDetailTable
             :columns="detailColumns"
-            :data-source="formData.products"
-            :max-height="tableMaxHeight"
+            v-model:data-source="formData.products"
             :storage-key="'quality-standard-form-columns'"
             @cell-change="handleCellChange"
             @expand-change="onExpandChange"
@@ -147,7 +146,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { ClockCircleOutlined, MinusCircleOutlined, PlusCircleOutlined, PrinterOutlined, SettingOutlined } from '@ant-design/icons-vue'
@@ -167,8 +166,6 @@ defineOptions({ name: 'QualityStandardForm' })
 const router = useRouter()
 const userStore = useUserStore()
 const creatorName = computed(() => userStore?.userInfo?.nickname || userStore?.userInfo?.username || '')
-const tableMaxHeight = ref(400)
-
 // ═══ 检验类型 / 状态字典 ═══
 const INSPECTION_TYPE_OPTIONS = [
   { label: '入库检验', value: 'INBOUND' },
@@ -468,9 +465,6 @@ onMounted(async () => {
     if (formData.defaultSampleRate !== undefined) formData.sampleRate = formData.defaultSampleRate
     if (formData.defaultPassThreshold !== undefined) formData.passThreshold = formData.defaultPassThreshold
   }
-  nextTick(() => {
-    tableMaxHeight.value = Math.max(200, window.innerHeight - 420)
-  })
   loadFormConfig()
 })
 </script>

@@ -178,7 +178,7 @@
           <div class="table-panel">
             <BillDetailTable
               :columns="columns"
-              :data-source="tableData"
+              v-model:data-source="tableData"
               :view-mode="true"
               :min-rows="0"
               :storage-key="storageKey"

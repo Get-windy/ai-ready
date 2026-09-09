@@ -1,0 +1,88 @@
+{
+  "domain": "财务",
+  "group": "收款",
+  "item": "预收款单",
+  "crawlTime": "2026-09-07",
+  "source": "对标系统实测抓取（Playwright MCP, 22stable.ql361.com）",
+  "entryType": "双入口(表单页 + 列表历史页)",
+  "listPage": {
+    "tab": "预收款单-历史",
+    "tabCount": 1,
+    "dataTableColumns": {
+      "allCount": 20,
+      "columns": [
+        {"seq": 1, "name": "单据日期", "def": "[x]"},
+        {"seq": 2, "name": "单据编号", "def": "[x]"},
+        {"seq": 3, "name": "单据状态", "def": "[x]"},
+        {"seq": 4, "name": "结算单位", "def": "[x]"},
+        {"seq": 5, "name": "结算单位编号", "def": "[ ]"},
+        {"seq": 6, "name": "来源订单", "def": "[ ]"},
+        {"seq": 7, "name": "本次预收", "def": "[ ]"},
+        {"seq": 8, "name": "赠送金额", "def": "[ ]"},
+        {"seq": 9, "name": "总金额", "def": "[x]"},
+        {"seq": 10, "name": "经手人", "def": "[x]"},
+        {"seq": 11, "name": "部门", "def": "[ ]"},
+        {"seq": 12, "name": "记账人", "def": "[ ]"},
+        {"seq": 13, "name": "制单人", "def": "[ ]"},
+        {"seq": 14, "name": "审核人", "def": "[ ]"},
+        {"seq": 15, "name": "摘要", "def": "[ ]"},
+        {"seq": 16, "name": "附件", "def": "[x]"},
+        {"seq": 17, "name": "单据备注", "def": "[ ]"},
+        {"seq": 18, "name": "制单时间", "def": "[ ]"},
+        {"seq": 19, "name": "记账时间", "def": "[ ]"},
+        {"seq": 20, "name": "打印次数", "def": "[x]"}
+      ],
+      "defaultDisplayCount": 8,
+      "defaultDisplay": ["单据日期","单据编号","单据状态","结算单位","总金额","经手人","附件","打印次数"],
+      "hiddenColumns": ["结算单位编号","来源订单","本次预收","赠送金额","部门","记账人","制单人","审核人","摘要","单据备注","制单时间","记账时间"]
+    },
+    "pageConfig": {
+      "queryConditionFields": {
+        "count": 12,
+        "fields": ["日期","单据编号","结算单位","经手人","部门","制单人","记账人","审核人","单据状态","单据备注","来源订单","显示红冲"]
+      },
+      "functionButtons": {
+        "count": 4,
+        "fields": ["新增","刷新","打印(F8)","导出"]
+      }
+    }
+  },
+  "formPage": {
+    "pageConfigTab_pageConfig": {
+      "count": 16,
+      "fields": [
+        {"seq": 1, "name": "编号", "def": "[x]"},
+        {"seq": 2, "name": "结算单位", "def": "[x]"},
+        {"seq": 3, "name": "客户编号", "def": "[ ]"},
+        {"seq": 4, "name": "经手人", "def": "[x]"},
+        {"seq": 5, "name": "部门", "def": "[ ]"},
+        {"seq": 6, "name": "单据日期", "def": "[x]"},
+        {"seq": 7, "name": "此前预收", "def": "[x]"},
+        {"seq": 8, "name": "本单赠送金额", "def": "[x]"},
+        {"seq": 9, "name": "摘要", "def": "[ ]"},
+        {"seq": 10, "name": "单据备注", "def": "[x]"},
+        {"seq": 11, "name": "制单人", "def": "[x]"},
+        {"seq": 12, "name": "制单时间", "def": "[x]"},
+        {"seq": 13, "name": "打印次数", "def": "[x]"},
+        {"seq": 14, "name": "源单", "def": "[x]"},
+        {"seq": 15, "name": "源单未结金额", "def": "[ ]"},
+        {"seq": 16, "name": "本单金额", "def": "[x]"}
+      ],
+      "defaultDisplayCount": 12,
+      "hiddenFields": ["客户编号","部门","摘要","源单未结金额"]
+    },
+    "detailTableColumns": {
+      "table": "收款账户明细",
+      "allCount": 5,
+      "columns": [
+        {"seq": 1, "name": "操作", "def": "[x]"},
+        {"seq": 2, "name": "收款账户编号", "def": "[x]"},
+        {"seq": 3, "name": "收款账户", "def": "[x]"},
+        {"seq": 4, "name": "收款金额", "def": "[x]"},
+        {"seq": 5, "name": "备注", "def": "[x]"}
+      ]
+    },
+    "workflowButtons": ["保存草稿Ctrl+S","记账Ctrl+Enter"]
+  },
+  "note": "列表页为单Tab；表单页页面配置弹窗为dojox「页面配置/打印设置」两Tab；列表页页面配置弹窗为Vue「查询条件/功能按钮」两Tab"
+}

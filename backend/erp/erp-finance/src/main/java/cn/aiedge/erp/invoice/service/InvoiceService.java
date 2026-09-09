@@ -43,11 +43,27 @@ public interface InvoiceService {
     
     /**
      * 分页获取发票
-     * 
+     *
      * @param pageable 分页参数
      * @return 发票分页
      */
     Page<Invoice> getInvoices(Pageable pageable);
+
+    /**
+     * 按方向（销售/采购）+ 过滤条件分页查询发票
+     *
+     * @param direction      方向（sales/purchase，可空=全部）
+     * @param invoiceNumber  发票号码（模糊，可空）
+     * @param partnerName    往来单位名称（模糊，可空）
+     * @param issuedByName   开票人（模糊，可空）
+     * @param startDate      发票日期起（可空）
+     * @param endDate        发票日期止（可空）
+     * @param pageable       分页参数
+     * @return 发票分页
+     */
+    Page<Invoice> getInvoicesByDirection(String direction, String invoiceNumber, String partnerName,
+                                         String issuedByName, LocalDate startDate, LocalDate endDate,
+                                         Pageable pageable);
     
     /**
      * 根据状态获取发票

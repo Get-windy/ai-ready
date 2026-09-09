@@ -17,8 +17,7 @@
       <template #detail-table="{ onExpandChange }">
         <BillDetailTable
           :columns="detailColumns"
-          :data-source="formData.products"
-          :max-height="tableMaxHeight"
+          v-model:data-source="formData.products"
           :summary-columns="tableSummaryColumns"
           @cell-change="handleCellChange"
           @expand-change="onExpandChange"
@@ -159,7 +158,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, nextTick, reactive } from 'vue'
+import { computed, ref, onMounted, reactive } from 'vue'
 defineOptions({ name: 'SaleReturnDocForm' })
 import { useRouter, useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
@@ -188,8 +187,6 @@ const showProductSelect = ref(false)
 const currentSelectRowIndex = ref(-1)
 const showFormConfig = ref(false)
 const configActiveTab = ref('page')
-
-const tableMaxHeight = ref(400)
 
 // ═══ 录单默认值 ═══
 const defaultValues = reactive({
@@ -856,9 +853,6 @@ onMounted(() => {
   if (formData.products.length === 0) {
     for (let i = 0; i < 15; i++) handleAddProduct()
   }
-  nextTick(() => {
-    tableMaxHeight.value = Math.max(200, window.innerHeight - 420)
-  })
 })
 </script>
 

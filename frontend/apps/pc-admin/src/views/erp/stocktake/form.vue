@@ -74,8 +74,7 @@
 
             <BillDetailTable
               :columns="detailColumns"
-              :data-source="filteredProducts"
-              :max-height="tableMaxHeight"
+              v-model:data-source="formData.products"
               :summary-columns="tableSummaryColumns"
               :storage-key="'stock-take-form-columns'"
               @cell-change="handleCellChange"
@@ -94,21 +93,6 @@
                     <a-button type="link" size="small" class="action-del-btn" disabled><MinusCircleOutlined /></a-button>
                   </a-space>
                 </template>
-              </template>
-              <template #productCell="{ record, index }">
-                <a-select
-                  v-model:value="record.productId"
-                  placeholder="搜索选择商品"
-                  show-search
-                  :filter-option="filterOption"
-                  style="width:100%"
-                  :loading="loadingOptions"
-                  size="small"
-                  :disabled="isLocked"
-                  @change="(val: number) => handleProductChange(val, index)"
-                >
-                  <a-select-option v-for="p in optionRefs.products" :key="p.id" :value="p.id">{{ p.name }}</a-select-option>
-                </a-select>
               </template>
               <template #diffCell="{ record }">
                 <span
@@ -235,7 +219,6 @@ const router = useRouter()
 const userStore = useUserStore()
 const currentUserName = computed(() => userStore?.userInfo?.nickname || userStore?.userInfo?.username || '')
 const currentUserId = computed(() => userStore?.userInfo?.id)
-const tableMaxHeight = ref(400)
 const savedId = ref<number | undefined>(undefined)
 
 // ═══ 盘点方式/盘点类型字典 ═══
@@ -267,10 +250,6 @@ const formData = reactive<Record<string, any>>({
 // ═══ 下拉选项 ═══
 const loadingOptions = ref(false)
 const optionRefs = reactive<Record<string, any[]>>({ warehouses: [], users: [], products: [] })
-const filterOption = (input: string, option: any) => {
-  const text = option?.label || option?.name || ''
-  return text.toString().toLowerCase().includes(input.toLowerCase())
-}
 const departmentOptions = ref<any[]>([])
 
 // ═══ 库存映射（按仓库加载） ═══
@@ -340,36 +319,6 @@ function handleInsertProduct(index: number) {
 }
 function handleRemoveProduct(index: number) { formData.products.splice(index, 1) }
 
-function handleProductChange(val: number, index: number) {
-  const p = optionRefs.products.find((x: any) => x.id === val)
-  if (p && formData.products[index]) {
-    const row = formData.products[index]
-    row.productCode = p.code || ''
-    row.itemCode = p.code || ''
-    row.productName = p.name || ''
-    row.barcode = p.barcode || ''
-    row.specification = p.specification || ''
-    row.itemSpec = p.specification || ''
-    row.model = p.model || ''
-    row.origin = p.origin || ''
-    row.brand = p.brand || ''
-    row.unit = p.unit || ''
-    row.itemUnit = p.unit || ''
-    row.productUnit = p.unit || ''
-    row.costPrice = p.costPrice ?? p.purchasePrice ?? 0
-    row.productId = val
-    const stock = stockMap.value[val]
-    if (stock) {
-      row.stockQuantity = stock.stockQuantity
-      row.checkQuantity = row.checkQuantity || stock.stockQuantity
-    } else if (p.stock != null) {
-      row.stockQuantity = p.stock
-      row.checkQuantity = row.checkQuantity || p.stock
-    }
-    recalcRow(row)
-  }
-}
-
 function recalcRow(row: any) {
   const stock = Number(row.stockQuantity ?? 0)
   const check = Number(row.checkQuantity ?? 0)
@@ -378,7 +327,34 @@ function recalcRow(row: any) {
   if (row.checkQuantity !== 0) row.checkStatus = 2
 }
 
-function handleCellChange(record: any, fieldKey: string, _value: any) {
+function handleCellChange(record: any, fieldKey: string, value: any) {
+  if (fieldKey === 'productId') {
+    const p = optionRefs.products.find((x: any) => x.id === value)
+    if (p) {
+      record.productCode = p.code || ''
+      record.itemCode = p.code || ''
+      record.productName = p.name || ''
+      record.barcode = p.barcode || ''
+      record.specification = p.specification || ''
+      record.itemSpec = p.specification || ''
+      record.model = p.model || ''
+      record.origin = p.origin || ''
+      record.brand = p.brand || ''
+      record.unit = p.unit || ''
+      record.itemUnit = p.unit || ''
+      record.productUnit = p.unit || ''
+      record.costPrice = p.costPrice ?? p.purchasePrice ?? 0
+      const stock = stockMap.value[value]
+      if (stock) {
+        record.stockQuantity = stock.stockQuantity
+        record.checkQuantity = record.checkQuantity || stock.stockQuantity
+      } else if (p.stock != null) {
+        record.stockQuantity = p.stock
+        record.checkQuantity = record.checkQuantity || p.stock
+      }
+      recalcRow(record)
+    }
+  }
   if (['checkQuantity', 'stockQuantity', 'costPrice'].includes(fieldKey)) recalcRow(record)
 }
 
@@ -429,26 +405,9 @@ const scanMode = ref(false)
 const quickLocationKeyword = ref('')
 const diffFilter = ref('')
 
-const filteredProducts = computed(() => {
-  let list = formData.products
-  if (quickLocationKeyword.value.trim()) {
-    const kw = quickLocationKeyword.value.trim().toLowerCase()
-    list = list.filter((r: any) =>
-      (r.productName && r.productName.toLowerCase().includes(kw)) ||
-      (r.barcode && r.barcode.toLowerCase().includes(kw)) ||
-      (r.itemCode && r.itemCode.toLowerCase().includes(kw))
-    )
-  }
-  if (diffFilter.value) {
-    list = list.filter((r: any) => {
-      const d = Number(r.diffQuantity ?? 0)
-      if (diffFilter.value === 'profit') return d > 0
-      if (diffFilter.value === 'loss') return d < 0
-      return d === 0
-    })
-  }
-  return list
-})
+// 说明：明细表 v-model 直接绑 formData.products（全程可编辑、占位行可正常提升）。
+// 原过滤(quickLocationKeyword/diffFilter)因与"可编辑占位行回写"冲突不再用于数据源过滤，
+// 若需"过滤 + 可编辑"，请改用支持 displayData 的增强方案（见 BillDetailTable 组件）。
 
 async function handleRefreshStock() {
   if (!formData.warehouseId) { message.warning('请先选择盘点仓库'); return }
@@ -765,11 +724,11 @@ const footerConfig = computed<BillFooterConfig>(() => ({
 }))
 
 // ═══ 明细表格列（默认14列 · 全部34列） ═══
-const detailColumns: DetailColumnConfig[] = [
+const detailColumns = computed<DetailColumnConfig[]>(() => [
   { key: 'rowNo', title: '', type: 'rowNo', width: 40, fixed: 'left' },
   { key: 'action', title: '操作', type: 'action', slotName: 'actionCell', width: 60, fixed: 'left' },
   { key: 'image', title: '图片', type: 'input', width: 60, defaultHidden: true },
-  { key: 'productName', title: '商品名称', type: 'slot', slotName: 'productCell', width: 220 },
+  { key: 'productId', title: '商品名称', type: 'select', width: 220, options: optionRefs.products.map((p: any) => ({ value: p.id, label: p.name })) },
   { key: 'itemCode', title: '货号', type: 'input', width: 100 },
   { key: 'barcode', title: '条码', type: 'input', width: 110, defaultHidden: true },
   { key: 'specification', title: '规格', type: 'input', width: 100 },
@@ -802,7 +761,7 @@ const detailColumns: DetailColumnConfig[] = [
   { key: 'itemExtNum3', title: '单据自定义3(数字)', type: 'number', width: 120, precision: 2, defaultHidden: true },
   { key: 'itemExtText1', title: '单据自定义4(文本)', type: 'input', width: 120, defaultHidden: true },
   { key: 'itemExtText2', title: '单据自定义5(文本)', type: 'input', width: 120, defaultHidden: true },
-]
+])
 
 const tableSummaryColumns = computed(() => [
   { key: 'diffQuantity', value: totalDiffQuantity.value, highlight: true },
@@ -972,9 +931,9 @@ onMounted(async () => {
     loadStockMap(formData.warehouseId)
   }
   if (formData.defaultCheckMethod) formData.checkMethod = formData.defaultCheckMethod
-  nextTick(() => { tableMaxHeight.value = Math.max(200, window.innerHeight - 420) })
-  loadFormConfig()
+  nextTick(() => {  loadFormConfig()
   loadDepartments()
+})
 })
 
 async function loadDepartments() {

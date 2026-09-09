@@ -9,6 +9,7 @@ import cn.aiedge.erp.invoice.service.InvoiceService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -75,6 +76,33 @@ public class InvoiceController {
     @GetMapping("/page")
     public Result<Page<Invoice>> getInvoicesPage(Pageable pageable) {
         Page<Invoice> invoices = invoiceService.getInvoices(pageable);
+        return Result.ok(invoices);
+    }
+
+    /**
+     * 按方向（销售/采购）+ 过滤条件分页查询发票
+     * 用于「按单付款-发票查询」销售/采购发票查询 Tab。
+     *
+     * @param direction     方向（sales / purchase，可空=全部）
+     * @param invoiceNumber 发票号码（模糊，可空）
+     * @param partnerName   往来单位名称（模糊，可空）
+     * @param issuedByName  开票人（模糊，可空）
+     * @param startDate     发票日期起（可空）
+     * @param endDate       发票日期止（可空）
+     * @param pageable      分页参数
+     * @return 发票分页
+     */
+    @GetMapping("/query")
+    public Result<Page<Invoice>> queryInvoices(
+            @RequestParam(required = false) String direction,
+            @RequestParam(required = false) String invoiceNumber,
+            @RequestParam(required = false) String partnerName,
+            @RequestParam(required = false) String issuedByName,
+            @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate endDate,
+            Pageable pageable) {
+        Page<Invoice> invoices = invoiceService.getInvoicesByDirection(
+                direction, invoiceNumber, partnerName, issuedByName, startDate, endDate, pageable);
         return Result.ok(invoices);
     }
 

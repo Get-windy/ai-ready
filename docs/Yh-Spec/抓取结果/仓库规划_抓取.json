@@ -1,0 +1,49 @@
+{
+  "page": "仓库规划",
+  "data_source": "对标系统实测抓取 (22stable.ql361.com 来肯企汇)",
+  "capture_date": "2026-09-07",
+  "entry": "资料 -> 仓库管理 -> 仓库规划 (单入口，页面内含 1.仓库 / 2.货位 两个 Tab)",
+  "internal_tabs": "1.仓库 | 2.货位",
+  "tab_1_warehouse": {
+    "entry": "仓库规划 -> 1.仓库",
+    "column_config": {
+      "has_config_dialog": true,
+      "note": "列配置弹窗(个人配置/全局配置 Tab)。最左固定「操作」列不在此配置内",
+      "count": 5,
+      "cols": "1仓库编号 2仓库名称 3联系人 4联系电话 5地址",
+      "default_display": "5 列全部默认显示 [x]"
+    },
+    "page_config": {
+      "has_config_dialog": false,
+      "note": "无页面配置(配置)齿轮，仅列配置弹窗；查询/按钮为固定项"
+    },
+    "render_buttons": "新增, 刷新, 打印(F8), 导出",
+    "render_query_conditions": "筛选条件(输入框), 查询, 显示停用(复选框), 显示层次结构(复选框,默认勾选)",
+    "render_columns": "操作, 仓库编号(排序), 仓库名称(排序), 联系人, 联系电话, 地址",
+    "left_tree": "仓库分类树 (全部 根 / 修改 删除 添加 收起树形菜单)",
+    "pagination": "当前路径: 全部, 共 3 条记录, 第(1/1)页",
+    "sample_rows": "ml001 酒泉, ml00100001 中转仓, ml002 敦煌"
+  },
+  "tab_2_location": {
+    "entry": "仓库规划 -> 2.货位",
+    "column_config": {
+      "has_config_dialog": true,
+      "count": 3,
+      "cols": "1所属仓库 2货位编号 3备注",
+      "default_display": "3 列全部默认显示 [x]"
+    },
+    "page_config": {
+      "has_config_dialog": false,
+      "note": "无页面配置(配置)齿轮，仅列配置弹窗"
+    },
+    "render_buttons": "新增货位, 刷新, 打印(F8), 批量删除, 更多, 查询",
+    "render_query_conditions": "仓库(sfullname 输入框), 货位编号(code 输入框), 显示停用(复选框)",
+    "render_columns": "操作, 所属仓库, 货位编号, 备注"
+  },
+  "form": {
+    "entry": "仓库规划 -> 新增 (弹窗标题: 仓库信息)",
+    "fields": "仓库名称*, 仓库编号*, 所属分类, 助记码, 联系人, 电话, 地址, 邮编, 备注",
+    "buttons": "保存(Enter), 取消(Esc)"
+  },
+  "notes": "仓库规划页实测为『1.仓库』(仓库主数据列表+仓库分类树) + 『2.货位』(货位列表) 两 Tab；两 Tab 均仅列配置弹窗、无页面配置齿轮。列表列实测为 5 列(仓库编号/仓库名称/联系人/联系电话/地址)，与本系统初稿所写 10 列(含库区数/货位数/容量/WMS状态等)不同。新增仓库表单实测字段为 仓库名称/编号/所属分类/助记码/联系人/电话/地址/邮编/备注，无 仓库类型/容量/WMS 字段。"
+}

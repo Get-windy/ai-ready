@@ -15,8 +15,7 @@
     <template #detail-table>
       <BillDetailTable
         :columns="detailColumns"
-        :data-source="formData.products"
-        :max-height="tableMaxHeight"
+        v-model:data-source="formData.products"
         @cell-change="handleCellChange"
       >
         <template #actionCell="{ index }">
@@ -38,28 +37,6 @@
               <MinusCircleOutlined />
             </a-button>
           </a-space>
-        </template>
-        <template #productCell="{ record, index }">
-          <div class="product-cell">
-            <a-select
-              v-model:value="record.productId"
-              placeholder="请选择商品"
-              show-search
-              :filter-option="filterOption"
-              style="flex:1"
-              :loading="loadingOptions"
-              size="small"
-              @change="(val: number) => handleProductChange(val, index)"
-            >
-              <a-select-option
-                v-for="p in optionRefs.products"
-                :key="p.id"
-                :value="p.id"
-              >
-                {{ p.name }}
-              </a-select-option>
-            </a-select>
-          </div>
         </template>
         <template #summary>
           <div class="table-summary-row">
@@ -99,7 +76,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, nextTick, defineOptions } from 'vue'
+import { computed, ref, onMounted, defineOptions } from 'vue'
 import { PlusCircleOutlined, MinusCircleOutlined } from '@ant-design/icons-vue'
 import BillFormPage from '@/components/BillFormPage/index.vue'
 import BillDetailTable from '@/components/BillFormPage/BillDetailTable/index.vue'
@@ -113,17 +90,13 @@ defineOptions({ name: 'ShipmentForm' })
 
 const userStore = useUserStore()
 const currentUserName = computed(() => userStore?.userInfo?.nickname || userStore?.userInfo?.username || '')
-const tableMaxHeight = ref(400)
-
 const {
   formData,
   loadingOptions,
   saving,
   optionRefs,
-  filterOption,
   handleAddProduct,
   handleRemoveProduct,
-  handleProductChange: baseProductChange,
   handleFieldChange: baseFieldChange,
   handleSaveDraft,
   handleSubmit,
@@ -240,10 +213,10 @@ const footerConfig = computed<BillFooterConfig>(() => ({
 }))
 
 // 明细表格列配置
-const detailColumns: DetailColumnConfig[] = [
+const detailColumns = computed<DetailColumnConfig[]>(() => [
   { key: 'rowNo', title: '', type: 'rowNo', width: 40, fixed: 'left' },
   { key: 'action', title: '操作', type: 'action', slotName: 'actionCell', width: 70, fixed: 'left' },
-  { key: 'productId', title: '商品名称', type: 'slot', slotName: 'productCell', width: 200 },
+  { key: 'productId', title: '商品名称', type: 'select', width: 200, options: optionRefs.products.map((p: any) => ({ value: p.id, label: p.name })) },
   { key: 'itemCode', title: '货号', type: 'input', width: 100 },
   { key: 'specification', title: '规格', type: 'input', width: 100 },
   { key: 'unit', title: '计价单位', type: 'input', width: 80 },
@@ -252,23 +225,23 @@ const detailColumns: DetailColumnConfig[] = [
   { key: 'batchNo', title: '批次号', type: 'input', width: 120 },
   { key: 'productionDate', title: '生产日期', type: 'date', width: 110 },
   { key: 'remark', title: '备注', type: 'input', width: 150 },
-]
+])
 
 // 事件处理
 
-function handleProductChange(val: number, index: number) {
-  baseProductChange(val, index)
-  const p = optionRefs.products.find((x: any) => x.id === val)
-  if (p && formData.products[index]) {
-    const row = formData.products[index]
-    row.itemCode = p.code || ''
-    row.specification = p.specification || ''
-    row.unit = p.unit || ''
-    row.unitPrice = p.salePrice || p.price || 0
+function handleCellChange(record: any, fieldKey: string, value: any) {
+  if (fieldKey === 'productId') {
+    const p = optionRefs.products.find((x: any) => x.id === value)
+    if (p) {
+      record.productName = p.name || ''
+      record.productCode = p.code || ''
+      record.itemCode = p.code || ''
+      record.specification = p.specification || ''
+      record.unit = p.unit || ''
+      record.unitPrice = p.salePrice || p.price || 0
+    }
   }
 }
-
-function handleCellChange(_record: any, _fieldKey: string, _value: any) {}
 
 function handleAction(_actionKey: string) {}
 
@@ -285,9 +258,6 @@ onMounted(() => {
   if (formData.products.length === 0) {
     for (let i = 0; i < 5; i++) handleAddProduct()
   }
-  nextTick(() => {
-    tableMaxHeight.value = Math.max(200, window.innerHeight - 420)
-  })
 })
 </script>
 
