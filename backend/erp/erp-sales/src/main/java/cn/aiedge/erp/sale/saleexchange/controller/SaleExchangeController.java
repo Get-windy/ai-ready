@@ -1,5 +1,7 @@
 package cn.aiedge.erp.sale.saleexchange.controller;
 
+import cn.aiedge.common.result.ApiResponse;
+import cn.aiedge.erp.sale.saleexchange.dto.SaleExchangeQuery;
 import cn.aiedge.erp.sale.saleexchange.entity.ExchangeApprovalRecord;
 import cn.aiedge.erp.sale.saleexchange.entity.SaleExchange;
 import cn.aiedge.erp.sale.saleexchange.entity.SaleExchangeItem;
@@ -11,11 +13,22 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 销售换货单接口。
+ *
+ * <p>主表/明细均通过实体 + Jackson 全字段绑定，避免手工 Map 映射丢字段。</p>
+ */
 @Slf4j
 @RestController
 @RequestMapping("/api/erp/sale/exchange")
@@ -26,22 +39,23 @@ public class SaleExchangeController {
     private final SaleExchangeService saleExchangeService;
 
     @GetMapping("/page")
-    @Operation(summary = "分页查询换货单（扩展版）")
-    public Page<SaleExchange> page(
-            @Parameter(description = "查询参数") @RequestParam Map<String, Object> params,
-            @Parameter(description = "页码") @RequestParam(defaultValue = "1") int pageNum,
-            @Parameter(description = "每页数量") @RequestParam(defaultValue = "20") int pageSize) {
-        return saleExchangeService.pageListExtended(params, pageNum, pageSize);
+    @Operation(summary = "分页查询换货单（按单据）")
+    public Page<SaleExchange> page(SaleExchangeQuery query) {
+        return saleExchangeService.pageListExtended(query);
     }
 
-    @GetMapping("/{id}")
-    @Operation(summary = "获取换货单详情")
+    @GetMapping("/next-no")
+    @Operation(summary = "生成下一换货单号（号段 XSHHD-yyyyMMdd-NNNN）")
+    public ApiResponse<String> nextNo() {
+        return ApiResponse.ok(saleExchangeService.generateExchangeNo());
+    }
+
+    @GetMapping("/{id:\\d+}")
+    @Operation(summary = "获取换货单详情（含明细）")
     public SaleExchange getById(@PathVariable Long id) {
         SaleExchange exchange = saleExchangeService.getById(id);
         if (exchange != null) {
-            // 加载明细
-            List<SaleExchangeItem> items = saleExchangeService.getItems(id);
-            exchange.setItems(items);
+            exchange.setItems(saleExchangeService.getItems(id));
         }
         return exchange;
     }
@@ -53,7 +67,7 @@ public class SaleExchangeController {
     }
 
     @GetMapping("/{id}/items/{warehouseType}")
-    @Operation(summary = "按仓库类型获取明细")
+    @Operation(summary = "按仓库类型获取明细（1=换入, 2=换出）")
     public List<SaleExchangeItem> getItemsByWarehouseType(
             @PathVariable Long id,
             @PathVariable Integer warehouseType) {
@@ -62,30 +76,30 @@ public class SaleExchangeController {
 
     @PostMapping
     @Operation(summary = "创建换货单")
-    public SaleExchange create(@RequestBody Map<String, Object> data) {
-        SaleExchange exchange = convertToExchange(data);
-        List<SaleExchangeItem> items = convertToItems(data);
-        return saleExchangeService.createExchange(exchange, items);
+    public SaleExchange create(@RequestBody SaleExchange exchange) {
+        return saleExchangeService.createExchange(exchange);
     }
 
     @PutMapping("/{id}")
     @Operation(summary = "更新换货单")
-    public SaleExchange update(@PathVariable Long id, @RequestBody Map<String, Object> data) {
-        SaleExchange exchange = convertToExchange(data);
-        List<SaleExchangeItem> items = convertToItems(data);
-        return saleExchangeService.updateExchange(id, exchange, items);
+    public SaleExchange update(@PathVariable Long id, @RequestBody SaleExchange exchange) {
+        return saleExchangeService.updateExchange(id, exchange);
     }
 
     @DeleteMapping("/{id}")
     @Operation(summary = "删除换货单")
-    public void delete(@PathVariable Long id) {
-        saleExchangeService.removeById(id);
+    public boolean delete(@PathVariable Long id) {
+        return saleExchangeService.deleteExchange(id);
     }
 
     @DeleteMapping("/batch")
     @Operation(summary = "批量删除换货单")
     public boolean batchDelete(@RequestBody List<Long> ids) {
-        return saleExchangeService.removeBatchByIds(ids);
+        boolean allOk = true;
+        for (Long id : ids) {
+            allOk &= saleExchangeService.deleteExchange(id);
+        }
+        return allOk;
     }
 
     @PostMapping("/{id}/submit")
@@ -95,21 +109,18 @@ public class SaleExchangeController {
     }
 
     @PostMapping("/{id}/approve")
-    @Operation(summary = "审批换货单")
+    @Operation(summary = "审批换货单（通过即过账库存）")
     public SaleExchange approve(
             @PathVariable Long id,
             @Parameter(description = "审批意见") @RequestParam(required = false) String remark) {
-        Long approverId = StpUtil.getLoginIdAsLong();
-        String approvedByName = StpUtil.getLoginIdAsString();
-        return saleExchangeService.approve(id, approverId, approvedByName, remark);
+        // 审批人姓名由 Service 统一解析（SysUser 昵称），避免各处重复实现
+        return saleExchangeService.approve(id, StpUtil.getLoginIdAsLong(), null, remark);
     }
 
     @PostMapping("/batch-approve")
     @Operation(summary = "批量审核")
     public int batchApprove(@RequestBody List<Long> ids) {
-        Long approverId = StpUtil.getLoginIdAsLong();
-        String approvedByName = StpUtil.getLoginIdAsString();
-        return saleExchangeService.batchApprove(ids, approverId, approvedByName);
+        return saleExchangeService.batchApprove(ids, StpUtil.getLoginIdAsLong(), null);
     }
 
     @PostMapping("/{id}/reject")
@@ -121,7 +132,7 @@ public class SaleExchangeController {
     }
 
     @PostMapping("/{id}/cancel")
-    @Operation(summary = "取消换货单")
+    @Operation(summary = "取消换货单（回滚库存）")
     public SaleExchange cancel(
             @PathVariable Long id,
             @Parameter(description = "取消原因") @RequestParam(required = false) String reason) {
@@ -141,7 +152,7 @@ public class SaleExchangeController {
     }
 
     @PostMapping("/batch-print")
-    @Operation(summary = "批量打印")
+    @Operation(summary = "批量打印（打印次数+1）")
     public void batchPrint(@RequestBody List<Long> ids) {
         saleExchangeService.batchPrint(ids);
     }
@@ -159,95 +170,24 @@ public class SaleExchangeController {
     }
 
     @GetMapping("/export")
-    @Operation(summary = "导出换货单列表")
-    public List<SaleExchange> export(
-            @Parameter(description = "关键词") @RequestParam(required = false) String keyword,
-            @Parameter(description = "客户ID") @RequestParam(required = false) Long customerId,
-            @Parameter(description = "状态") @RequestParam(required = false) Integer status,
-            @Parameter(description = "换货类型") @RequestParam(required = false) Integer exchangeType,
-            @Parameter(description = "开始日期") @RequestParam(required = false) String startDate,
-            @Parameter(description = "结束日期") @RequestParam(required = false) String endDate) {
-        return saleExchangeService.exportList(keyword, customerId, status, exchangeType, startDate, endDate);
+    @Operation(summary = "导出换货单列表（xlsx）")
+    public ResponseEntity<byte[]> export(SaleExchangeQuery query) {
+        byte[] bytes = saleExchangeService.exportExcel(query);
+        String filename = "销售换货单_" + LocalDate.now() + ".xlsx";
+        String encoded = URLEncoder.encode(filename, StandardCharsets.UTF_8).replace("+", "%20");
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"" + encoded + "\"; filename*=UTF-8''" + encoded)
+                .body(bytes);
     }
 
-    // ========== 辅助方法 ==========
-
-    private SaleExchange convertToExchange(Map<String, Object> data) {
-        SaleExchange exchange = new SaleExchange();
-        if (data.containsKey("id")) {
-            exchange.setId(Long.valueOf(data.get("id").toString()));
+    private String currentUserName() {
+        try {
+            return StpUtil.getLoginIdAsString();
+        } catch (Exception e) {
+            return "system";
         }
-        if (data.containsKey("customerId")) {
-            exchange.setCustomerId(Long.valueOf(data.get("customerId").toString()));
-        }
-        if (data.containsKey("customerName")) {
-            exchange.setCustomerName((String) data.get("customerName"));
-        }
-        if (data.containsKey("customerCode")) {
-            exchange.setCustomerCode((String) data.get("customerCode"));
-        }
-        if (data.containsKey("exchangeDate")) {
-            exchange.setExchangeDate(java.time.LocalDateTime.parse(data.get("exchangeDate").toString()));
-        }
-        if (data.containsKey("inWarehouseId")) {
-            exchange.setInWarehouseId(Long.valueOf(data.get("inWarehouseId").toString()));
-        }
-        if (data.containsKey("inWarehouseName")) {
-            exchange.setInWarehouseName((String) data.get("inWarehouseName"));
-        }
-        if (data.containsKey("outWarehouseId")) {
-            exchange.setOutWarehouseId(Long.valueOf(data.get("outWarehouseId").toString()));
-        }
-        if (data.containsKey("outWarehouseName")) {
-            exchange.setOutWarehouseName((String) data.get("outWarehouseName"));
-        }
-        if (data.containsKey("handlerId")) {
-            exchange.setHandlerId(Long.valueOf(data.get("handlerId").toString()));
-        }
-        if (data.containsKey("handlerName")) {
-            exchange.setHandlerName((String) data.get("handlerName"));
-        }
-        if (data.containsKey("salesType")) {
-            exchange.setSalesType((String) data.get("salesType"));
-        }
-        if (data.containsKey("remark")) {
-            exchange.setRemark((String) data.get("remark"));
-        }
-        return exchange;
-    }
-
-    private List<SaleExchangeItem> convertToItems(Map<String, Object> data) {
-        // 从请求体中提取明细数据
-        if (data.containsKey("items")) {
-            Object itemsObj = data.get("items");
-            if (itemsObj instanceof List) {
-                List<?> itemsList = (List<?>) itemsObj;
-                List<SaleExchangeItem> items = new java.util.ArrayList<>();
-                for (Object itemObj : itemsList) {
-                    if (itemObj instanceof Map) {
-                        Map<?, ?> itemMap = (Map<?, ?>) itemObj;
-                        SaleExchangeItem item = new SaleExchangeItem();
-                        if (itemMap.containsKey("productId")) {
-                            item.setProductId(Long.valueOf(itemMap.get("productId").toString()));
-                        }
-                        if (itemMap.containsKey("productName")) {
-                            item.setProductName((String) itemMap.get("productName"));
-                        }
-                        if (itemMap.containsKey("quantity")) {
-                            item.setQuantity(new java.math.BigDecimal(itemMap.get("quantity").toString()));
-                        }
-                        if (itemMap.containsKey("unitPrice")) {
-                            item.setUnitPrice(new java.math.BigDecimal(itemMap.get("unitPrice").toString()));
-                        }
-                        if (itemMap.containsKey("warehouseType")) {
-                            item.setWarehouseType(Integer.valueOf(itemMap.get("warehouseType").toString()));
-                        }
-                        items.add(item);
-                    }
-                }
-                return items;
-            }
-        }
-        return null;
     }
 }

@@ -31,6 +31,7 @@ public class SaleOutbound {
     private Integer outboundType;    // 销售类型（0正常/1换货/2调拨/3其他）
     private Integer status;          // 状态（0草稿→1待审批→2已审批→...→11已完成→12已取消）
     private String generationMethod; // 产生方式（手工/订单生成/复制等）
+    private String source;           // 来源（PC/MOBILE/API/IMPORT）
     private String summary;          // 摘要
 
     // ═══ 客户快照 ═══
@@ -113,6 +114,7 @@ public class SaleOutbound {
     private BigDecimal codAmount;          // 物流公司代收货款
     private String deliveryOrderNo;        // 配送单号
     private String deliveryDriver;         // 配送司机
+    private String logisticsRemark;        // 物流备注（列表页批量写入）
 
     // ═══ 流程时间/人员 ═══
     private LocalDateTime expectedShipTime;

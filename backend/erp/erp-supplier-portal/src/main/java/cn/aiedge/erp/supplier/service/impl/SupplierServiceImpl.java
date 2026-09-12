@@ -771,11 +771,22 @@ public class SupplierServiceImpl implements SupplierService {
     /**
      * 构建查询条件
      */
+    private Long parseTenantId(String tenantId) {
+        try {
+            return (tenantId == null || tenantId.isEmpty()) ? null : Long.valueOf(tenantId);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
     private LambdaQueryWrapper<SupplierEntity> buildQueryWrapper(SupplierQueryDTO queryDTO) {
         LambdaQueryWrapper<SupplierEntity> queryWrapper = new LambdaQueryWrapper<>();
         
-        // 租户过滤
-        queryWrapper.eq(SupplierEntity::getTenantId, SecurityUtils.getTenantId());
+        // 租户过滤（erp_supplier.tenant_id 已改为 BIGINT，绑定 Long，避免 character varying = integer 类型不匹配）
+        Long tenantId = parseTenantId(SecurityUtils.getTenantId());
+        if (tenantId != null) {
+            queryWrapper.eq(SupplierEntity::getTenantId, tenantId);
+        }
         
         // 基本条件
         if (queryDTO.getIds() != null && !queryDTO.getIds().isEmpty()) {

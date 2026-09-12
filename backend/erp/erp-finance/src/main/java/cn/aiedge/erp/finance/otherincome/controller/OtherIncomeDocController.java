@@ -2,25 +2,25 @@ package cn.aiedge.erp.finance.otherincome.controller;
 
 import cn.aiedge.base.log.annotation.OperationLog;
 import cn.aiedge.common.result.ApiResponse;
-import cn.aiedge.common.result.PageResult;
-import cn.aiedge.erp.finance.otherincome.entity.OtherIncomeDoc;
+import cn.aiedge.erp.finance.otherincome.dto.OtherIncomeCreateDTO;
+import cn.aiedge.erp.finance.otherincome.dto.OtherIncomeItemDetailVO;
+import cn.aiedge.erp.finance.otherincome.dto.OtherIncomeVO;
 import cn.aiedge.erp.finance.otherincome.service.OtherIncomeDocService;
-import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
-import java.util.Map;
 
 /**
- * 其他收入单控制器
- * Ref: Odoo 18.0 account.move - misc income
+ * 其他收入单控制器（金标准）
+ * 非主营收入登记，与费用单对称。
  */
-@Tag(name = "其他收入单管理", description = "其他收入单CRUD、审批、作废等操作")
+@Tag(name = "其他收入单管理", description = "其他收入单CRUD、记账、分页查询")
 @RestController
 @RequestMapping("/api/erp/finance/other-income-doc")
 @RequiredArgsConstructor
@@ -28,80 +28,97 @@ public class OtherIncomeDocController {
 
     private final OtherIncomeDocService otherIncomeDocService;
 
-    @Operation(summary = "分页查询其他收入单")
-    @PostMapping("/page")
+    @Operation(summary = "分页查询其他收入单（按单据）")
+    @GetMapping("/page")
     @PreAuthorize("hasPermission('/api/erp/finance/other-income-doc/page', 'finance:other-income-doc:view')")
     @OperationLog(module = "其他收入单", type = "QUERY", desc = "分页查询其他收入单")
-    public ApiResponse<PageResult<OtherIncomeDoc>> page(@RequestBody Map<String, Object> params) {
-        String docNo = (String) params.get("docNo");
-        String incomeType = (String) params.get("incomeType");
-        Integer status = params.get("status") != null ? ((Number) params.get("status")).intValue() : null;
-        LocalDate startDate = params.get("startDate") != null ? LocalDate.parse(params.get("startDate").toString()) : null;
-        LocalDate endDate = params.get("endDate") != null ? LocalDate.parse(params.get("endDate").toString()) : null;
-        int pageNum = params.get("pageNum") != null ? ((Number) params.get("pageNum")).intValue() : 1;
-        int pageSize = params.get("pageSize") != null ? ((Number) params.get("pageSize")).intValue() : 20;
+    public ApiResponse<Page<OtherIncomeVO>> page(
+            @Parameter(description = "关键词") @RequestParam(required = false) String keyword,
+            @Parameter(description = "单据编号") @RequestParam(required = false) String docNo,
+            @Parameter(description = "往来单位") @RequestParam(required = false) String partnerName,
+            @Parameter(description = "经手人") @RequestParam(required = false) String handlerName,
+            @Parameter(description = "部门") @RequestParam(required = false) String departmentName,
+            @Parameter(description = "制单人") @RequestParam(required = false) String creatorName,
+            @Parameter(description = "记账人") @RequestParam(required = false) String bookkeeperName,
+            @Parameter(description = "单据状态") @RequestParam(required = false) Integer status,
+            @Parameter(description = "结算状态") @RequestParam(required = false) Integer settleStatus,
+            @Parameter(description = "收入科目") @RequestParam(required = false) String incomeSubject,
+            @Parameter(description = "摘要") @RequestParam(required = false) String summary,
+            @Parameter(description = "单据备注") @RequestParam(required = false) String remark,
+            @Parameter(description = "显示红冲") @RequestParam(required = false) Integer showRed,
+            @Parameter(description = "开始日期") @RequestParam(required = false) String startDate,
+            @Parameter(description = "结束日期") @RequestParam(required = false) String endDate,
+            @Parameter(description = "页码") @RequestParam(defaultValue = "1") int pageNum,
+            @Parameter(description = "每页数量") @RequestParam(defaultValue = "10") int pageSize) {
+        Page<OtherIncomeVO> page = otherIncomeDocService.pageList(
+                keyword, docNo, partnerName, handlerName, departmentName, creatorName, bookkeeperName,
+                status, settleStatus, incomeSubject, summary, remark, showRed,
+                parse(startDate), parse(endDate), pageNum, pageSize);
+        return ApiResponse.success(page);
+    }
 
-        Page<OtherIncomeDoc> page = otherIncomeDocService.pageList(docNo, incomeType, status, startDate, endDate, pageNum, pageSize);
-        PageResult<OtherIncomeDoc> result = new PageResult<>();
-        result.setRecords(page.getRecords());
-        result.setTotal(page.getTotal());
-        result.setPageNum(page.getCurrent());
-        result.setPageSize(page.getSize());
-        return ApiResponse.success(result);
+    @Operation(summary = "分页查询其他收入单（按明细）")
+    @GetMapping("/page-detail")
+    @PreAuthorize("hasPermission('/api/erp/finance/other-income-doc/page-detail', 'finance:other-income-doc:view')")
+    @OperationLog(module = "其他收入单", type = "QUERY", desc = "按明细分页查询其他收入单")
+    public ApiResponse<Page<OtherIncomeItemDetailVO>> pageDetail(
+            @Parameter(description = "关键词") @RequestParam(required = false) String keyword,
+            @Parameter(description = "单据编号") @RequestParam(required = false) String docNo,
+            @Parameter(description = "往来单位") @RequestParam(required = false) String partnerName,
+            @Parameter(description = "经手人") @RequestParam(required = false) String handlerName,
+            @Parameter(description = "部门") @RequestParam(required = false) String departmentName,
+            @Parameter(description = "制单人") @RequestParam(required = false) String creatorName,
+            @Parameter(description = "记账人") @RequestParam(required = false) String bookkeeperName,
+            @Parameter(description = "单据状态") @RequestParam(required = false) Integer status,
+            @Parameter(description = "收入科目") @RequestParam(required = false) String incomeSubject,
+            @Parameter(description = "开始日期") @RequestParam(required = false) String startDate,
+            @Parameter(description = "结束日期") @RequestParam(required = false) String endDate,
+            @Parameter(description = "页码") @RequestParam(defaultValue = "1") int pageNum,
+            @Parameter(description = "每页数量") @RequestParam(defaultValue = "10") int pageSize) {
+        Page<OtherIncomeItemDetailVO> page = otherIncomeDocService.pageDetail(
+                keyword, docNo, partnerName, handlerName, departmentName, creatorName, bookkeeperName,
+                status, incomeSubject, parse(startDate), parse(endDate), pageNum, pageSize);
+        return ApiResponse.success(page);
+    }
+
+    @Operation(summary = "生成下一个其他收入单号（QTSRD-）")
+    @GetMapping("/next-no")
+    @PreAuthorize("hasPermission('/api/erp/finance/other-income-doc/next-no', 'finance:other-income-doc:create')")
+    @OperationLog(module = "其他收入单", type = "QUERY", desc = "生成下一个其他收入单号")
+    public ApiResponse<String> nextNo() {
+        return ApiResponse.success(otherIncomeDocService.nextNo());
     }
 
     @Operation(summary = "获取其他收入单详情")
     @GetMapping("/{id}")
     @PreAuthorize("hasPermission('/api/erp/finance/other-income-doc/view', 'finance:other-income-doc:view')")
     @OperationLog(module = "其他收入单", type = "QUERY", desc = "获取其他收入单详情")
-    public ApiResponse<OtherIncomeDoc> getById(@PathVariable Long id) {
-        OtherIncomeDoc doc = otherIncomeDocService.getById(id);
-        return ApiResponse.success(doc);
+    public ApiResponse<OtherIncomeVO> getById(@PathVariable Long id) {
+        return ApiResponse.success(otherIncomeDocService.getDetail(id));
     }
 
-    @Operation(summary = "创建其他收入单")
-    @PostMapping
+    @Operation(summary = "保存草稿")
+    @PostMapping("/save-draft")
     @PreAuthorize("hasPermission('/api/erp/finance/other-income-doc/create', 'finance:other-income-doc:create')")
-    @OperationLog(module = "其他收入单", type = "CREATE", desc = "创建其他收入单")
-    public ApiResponse<OtherIncomeDoc> create(@RequestBody OtherIncomeDoc doc) {
-        OtherIncomeDoc created = otherIncomeDocService.createDoc(doc);
-        return ApiResponse.success(created);
+    @OperationLog(module = "其他收入单", type = "CREATE", desc = "保存草稿")
+    public ApiResponse<OtherIncomeVO> saveDraft(@RequestBody OtherIncomeCreateDTO dto) {
+        return ApiResponse.success(otherIncomeDocService.saveDoc(null, dto, false));
     }
 
-    @Operation(summary = "更新其他收入单")
+    @Operation(summary = "更新草稿")
     @PutMapping("/{id}")
     @PreAuthorize("hasPermission('/api/erp/finance/other-income-doc/update', 'finance:other-income-doc:update')")
-    @OperationLog(module = "其他收入单", type = "UPDATE", desc = "更新其他收入单")
-    public ApiResponse<Boolean> update(@PathVariable Long id, @RequestBody OtherIncomeDoc doc) {
-        doc.setId(id);
-        return ApiResponse.success(otherIncomeDocService.updateById(doc));
+    @OperationLog(module = "其他收入单", type = "UPDATE", desc = "更新草稿")
+    public ApiResponse<OtherIncomeVO> update(@PathVariable Long id, @RequestBody OtherIncomeCreateDTO dto) {
+        return ApiResponse.success(otherIncomeDocService.saveDoc(id, dto, false));
     }
 
-    @Operation(summary = "提交其他收入单")
-    @PostMapping("/{id}/submit")
-    @PreAuthorize("hasPermission('/api/erp/finance/other-income-doc/submit', 'finance:other-income-doc:update')")
-    @OperationLog(module = "其他收入单", type = "UPDATE", desc = "提交其他收入单")
-    public ApiResponse<Boolean> submit(@PathVariable Long id) {
-        otherIncomeDocService.submitDoc(id);
-        return ApiResponse.success(true);
-    }
-
-    @Operation(summary = "审批其他收入单")
-    @PostMapping("/{id}/approve")
-    @PreAuthorize("hasPermission('/api/erp/finance/other-income-doc/approve', 'finance:other-income-doc:approve')")
-    @OperationLog(module = "其他收入单", type = "UPDATE", desc = "审批其他收入单")
-    public ApiResponse<Boolean> approve(@PathVariable Long id, @RequestParam(required = false) String note) {
-        otherIncomeDocService.approveDoc(id, StpUtil.getLoginIdAsLong(), note);
-        return ApiResponse.success(true);
-    }
-
-    @Operation(summary = "作废其他收入单")
-    @PostMapping("/{id}/cancel")
-    @PreAuthorize("hasPermission('/api/erp/finance/other-income-doc/cancel', 'finance:other-income-doc:update')")
-    @OperationLog(module = "其他收入单", type = "UPDATE", desc = "作废其他收入单")
-    public ApiResponse<Boolean> cancel(@PathVariable Long id, @RequestParam(required = false) String reason) {
-        otherIncomeDocService.cancelDoc(id, reason);
-        return ApiResponse.success(true);
+    @Operation(summary = "记账（生成凭证，入总账/明细账）")
+    @PostMapping("/{id}/confirm")
+    @PreAuthorize("hasPermission('/api/erp/finance/other-income-doc/confirm', 'finance:other-income-doc:update')")
+    @OperationLog(module = "其他收入单", type = "UPDATE", desc = "记账")
+    public ApiResponse<OtherIncomeVO> confirm(@PathVariable Long id) {
+        return ApiResponse.success(otherIncomeDocService.confirm(id));
     }
 
     @Operation(summary = "删除其他收入单")
@@ -109,6 +126,14 @@ public class OtherIncomeDocController {
     @PreAuthorize("hasPermission('/api/erp/finance/other-income-doc/delete', 'finance:other-income-doc:delete')")
     @OperationLog(module = "其他收入单", type = "DELETE", desc = "删除其他收入单")
     public ApiResponse<Boolean> delete(@PathVariable Long id) {
-        return ApiResponse.success(otherIncomeDocService.removeById(id));
+        otherIncomeDocService.removeDoc(id);
+        return ApiResponse.success(true);
+    }
+
+    private LocalDate parse(String date) {
+        if (date == null || date.isEmpty()) {
+            return null;
+        }
+        return LocalDate.parse(date);
     }
 }

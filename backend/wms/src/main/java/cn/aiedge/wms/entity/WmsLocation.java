@@ -44,6 +44,12 @@ public class WmsLocation extends BaseEntity {
     private Integer isPickable;
     @Schema(description = "是否可收货 0-否 1-是")
     private Integer isReceivable;
+    @Schema(description = "是否启用 1-启用 0-停用")
+    private Integer isEnabled;
+    @Schema(description = "是否系统内置 1-内置（不可编辑/删除） 0-可维护")
+    private Integer isBuiltin;
+    @Schema(description = "所属仓库名称快照")
+    private String warehouseName;
     @Schema(description = "排序")
     private Integer sortOrder;
     @Schema(description = "备注")

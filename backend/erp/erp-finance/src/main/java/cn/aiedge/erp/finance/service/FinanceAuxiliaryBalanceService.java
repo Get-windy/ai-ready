@@ -1,16 +1,17 @@
 package cn.aiedge.erp.finance.service;
 
-import cn.aiedge.erp.finance.dto.FinanceAuxiliaryBalanceDTO;
-import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import cn.aiedge.erp.finance.dto.AuxBalancePageDTO;
+import cn.aiedge.erp.finance.dto.AuxBalanceQuery;
 
 /**
- * 辅助核算余额Service接口
+ * 辅助核算余额Service接口（辅助核算余额表）
+ *
+ * 口径（P0 红线）：只读取自凭证分录，严禁绕过凭证直改核算项余额。
  */
 public interface FinanceAuxiliaryBalanceService {
 
     /**
-     * 分页查询辅助核算余额
+     * 辅助核算余额表分页查询（按 科目 + 核算项 汇总四段余额）
      */
-    IPage<FinanceAuxiliaryBalanceDTO> page(Long accountingPeriodId, Long subjectId, Long auxiliaryTypeId, Long auxiliaryItemId, Page<FinanceAuxiliaryBalanceDTO> page);
+    AuxBalancePageDTO page(AuxBalanceQuery query);
 }

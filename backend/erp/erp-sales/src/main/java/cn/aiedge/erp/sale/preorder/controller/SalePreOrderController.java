@@ -56,6 +56,7 @@ public class SalePreOrderController {
             @Parameter(description = "表头自定义3(文本)") @RequestParam(required = false) String extText1,
             @Parameter(description = "表头自定义4(文本)") @RequestParam(required = false) String extText2,
             @Parameter(description = "表头自定义5(文本)") @RequestParam(required = false) String extText3,
+            @Parameter(description = "商品行属性") @RequestParam(required = false) String productAttribute,
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") int pageNum,
             @Parameter(description = "每页数量") @RequestParam(defaultValue = "20") int pageSize) {
 
@@ -67,7 +68,7 @@ public class SalePreOrderController {
         return salePreOrderService.pageList(keyword, null, customerName, handlerName, deptName,
                 statusArr, settlementStatus, depositDeadlineStart, depositDeadlineEnd,
                 startDate, endDate, warehouseName, creatorName, auditorName, saleType, remark,
-                extNum1, extNum2, extText1, extText2, extText3,
+                extNum1, extNum2, extText1, extText2, extText3, productAttribute,
                 pageNum, pageSize);
     }
 
@@ -106,7 +107,14 @@ public class SalePreOrderController {
                 pageNum, pageSize);
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/next-no")
+    @Operation(summary = "生成下一预订货单号（号段 YDHD-yyyyMMdd-NNNN）")
+    @SaCheckLogin
+    public ApiResponse<String> nextNo() {
+        return ApiResponse.ok(salePreOrderService.generateOrderNo());
+    }
+
+    @GetMapping("/{id:\\d+}")
     @Operation(summary = "获取预订货单详情")
     @SaCheckLogin
     public ApiResponse<Map<String, Object>> getDetail(@PathVariable Long id) {
@@ -272,7 +280,7 @@ public class SalePreOrderController {
                 keyword, null, customerName, handlerName, deptName,
                 statusArr, settlementStatus, null, null,
                 startDate, endDate, null, null, null, null, null,
-                null, null, null, null, null,
+                null, null, null, null, null, null,
                 1, 10000 // 导出时获取所有数据
             );
 
@@ -387,19 +395,21 @@ public class SalePreOrderController {
     @Operation(summary = "批量订货")
     @SaCheckLogin
     public ApiResponse<Map<String, Object>> batchOrder(@RequestBody Map<String, Object> body) {
-        @SuppressWarnings("unchecked")
-        List<Number> ids = (List<Number>) body.get("ids");
-        if (ids == null || ids.isEmpty()) {
+        // 雪花ID超出 JS 安全整数，前端以字符串回传 → 统一走 toLong 解析（数字/字符串均可）
+        Object raw = body.get("ids");
+        if (!(raw instanceof List) || ((List<?>) raw).isEmpty()) {
             return ApiResponse.fail("请选择要订货的预订货单");
         }
+        List<?> rawIds = (List<?>) raw;
         int successCount = 0;
         List<String> errors = new ArrayList<>();
-        for (Number idNum : ids) {
-            Long id = idNum.longValue();
+        for (Object idObj : rawIds) {
+            Long id = toLong(idObj);
             try {
                 salePreOrderService.batchOrder(id);
                 successCount++;
             } catch (Exception e) {
+                log.warn("批量订货失败: id={}", id, e);
                 errors.add("ID=" + id + ": " + e.getMessage());
             }
         }
@@ -423,6 +433,8 @@ public class SalePreOrderController {
         SalePreOrder order = new SalePreOrder();
         // tenant_id 由 MyBatis-Plus MetaObjectHandler 自动填充
 
+        // 单号来自后端号段 /next-no（前端原样回传，严禁被丢弃后另生成一个号）
+        if (body.get("orderNo") != null) order.setOrderNo(str(body.get("orderNo")));
         if (body.get("customerId") != null) order.setCustomerId(toLong(body.get("customerId")));
         if (body.get("customerName") != null) order.setCustomerName(str(body.get("customerName")));
         if (body.get("customerCode") != null) order.setCustomerCode(str(body.get("customerCode")));
@@ -435,7 +447,7 @@ public class SalePreOrderController {
         if (body.get("handlerName") != null) order.setHandlerName(str(body.get("handlerName")));
         if (body.get("deptId") != null) order.setDeptId(toLong(body.get("deptId")));
         if (body.get("deptName") != null) order.setDeptName(str(body.get("deptName")));
-        if (body.get("orderDate") != null) order.setOrderDate(LocalDate.parse(str(body.get("orderDate"))));
+        order.setOrderDate(toLocalDate(body.get("orderDate")));
         if (body.get("saleType") != null) order.setSaleType(toInt(body.get("saleType")));
         if (body.get("receiverName") != null) order.setReceiverName(str(body.get("receiverName")));
         if (body.get("receiverPhone") != null) order.setReceiverPhone(str(body.get("receiverPhone")));
@@ -452,9 +464,12 @@ public class SalePreOrderController {
         if (body.get("unreceivedDeposit") != null) order.setUnreceivedDeposit(toBigDecimal(body.get("unreceivedDeposit")));
         if (body.get("depositBalance") != null) order.setDepositBalance(toBigDecimal(body.get("depositBalance")));
         if (body.get("depositAccount1") != null) order.setDepositAccount1(str(body.get("depositAccount1")));
+        if (body.get("depositAccount2") != null) order.setDepositAccount2(str(body.get("depositAccount2")));
+        if (body.get("depositAccount3") != null) order.setDepositAccount3(str(body.get("depositAccount3")));
+        if (body.get("depositAccount4") != null) order.setDepositAccount4(str(body.get("depositAccount4")));
         if (body.get("depositAmount") != null) order.setDepositAmount(toBigDecimal(body.get("depositAmount")));
         if (body.get("creditLimit") != null) order.setCreditLimit(toBigDecimal(body.get("creditLimit")));
-        if (body.get("depositDeadline") != null) order.setDepositDeadline(LocalDate.parse(str(body.get("depositDeadline"))));
+        order.setDepositDeadline(toLocalDate(body.get("depositDeadline")));
         if (body.get("preOrderQuantity") != null) order.setPreOrderQuantity(toBigDecimal(body.get("preOrderQuantity")));
         if (body.get("orderedQuantity") != null) order.setOrderedQuantity(toBigDecimal(body.get("orderedQuantity")));
         if (body.get("shippedQuantity") != null) order.setShippedQuantity(toBigDecimal(body.get("shippedQuantity")));
@@ -515,6 +530,10 @@ public class SalePreOrderController {
             if (itemMap.get("costPrice") != null) item.setCostPrice(toBigDecimal(itemMap.get("costPrice")));
             if (itemMap.get("costAmount") != null) item.setCostAmount(toBigDecimal(itemMap.get("costAmount")));
             if (itemMap.get("grossProfit") != null) item.setGrossProfit(toBigDecimal(itemMap.get("grossProfit")));
+            if (itemMap.get("retailPrice") != null) item.setRetailPrice(toBigDecimal(itemMap.get("retailPrice")));
+            if (itemMap.get("wholesalePrice") != null) item.setWholesalePrice(toBigDecimal(itemMap.get("wholesalePrice")));
+            if (itemMap.get("minSalePrice") != null) item.setMinSalePrice(toBigDecimal(itemMap.get("minSalePrice")));
+            item.setLastSaleDate(toLocalDate(itemMap.get("lastSaleDate")));
             if (itemMap.get("volume") != null) item.setVolume(toBigDecimal(itemMap.get("volume")));
             if (itemMap.get("weight") != null) item.setWeight(toBigDecimal(itemMap.get("weight")));
             if (itemMap.get("availableStock") != null) item.setAvailableStock(toBigDecimal(itemMap.get("availableStock")));
@@ -632,5 +651,17 @@ public class SalePreOrderController {
         if (val instanceof BigDecimal) return (BigDecimal) val;
         if (val instanceof Number) return BigDecimal.valueOf(((Number) val).doubleValue());
         return new BigDecimal(val.toString());
+    }
+
+    /** 日期解析容错：空串/空白（前端未选日期时传 ''）返回 null，避免 DateTimeParseException */
+    private LocalDate toLocalDate(Object val) {
+        String s = str(val);
+        if (s == null || s.trim().isEmpty()) return null;
+        try {
+            return LocalDate.parse(s.trim().length() > 10 ? s.trim().substring(0, 10) : s.trim());
+        } catch (Exception e) {
+            log.warn("日期格式非法，已忽略: {}", s);
+            return null;
+        }
     }
 }

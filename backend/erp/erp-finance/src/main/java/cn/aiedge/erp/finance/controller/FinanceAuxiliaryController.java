@@ -2,7 +2,8 @@ package cn.aiedge.erp.finance.controller;
 
 import cn.aiedge.base.log.annotation.OperationLog;
 import cn.aiedge.base.vo.Result;
-import cn.aiedge.erp.finance.dto.FinanceAuxiliaryBalanceDTO;
+import cn.aiedge.erp.finance.dto.AuxBalancePageDTO;
+import cn.aiedge.erp.finance.dto.AuxBalanceQuery;
 import cn.aiedge.erp.finance.dto.FinanceAuxiliaryItemDTO;
 import cn.aiedge.erp.finance.dto.FinanceAuxiliaryTypeDTO;
 import cn.aiedge.erp.finance.service.FinanceAuxiliaryBalanceService;
@@ -157,19 +158,13 @@ public class FinanceAuxiliaryController {
         return Result.success("删除成功", null);
     }
 
-    // ==================== 辅助核算余额 ====================
+    // ==================== 辅助核算余额表 ====================
 
-    @Operation(summary = "辅助核算余额分页查询")
+    @Operation(summary = "辅助核算余额表分页查询（按科目+核算项汇总四段余额 + 表尾合计）")
     @GetMapping("/balance/page")
-    @PreAuthorize("hasPermission('/api/erp/finance/auxiliary/balance/list', 'finance:auxiliary:view')")
-    @OperationLog(module = "辅助核算管理", type = "QUERY", desc = "辅助核算余额分页查询")
-    public Result<IPage<FinanceAuxiliaryBalanceDTO>> balancePage(
-            @Parameter(description = "会计期间ID") @RequestParam(required = false) Long accountingPeriodId,
-            @Parameter(description = "科目ID") @RequestParam(required = false) Long subjectId,
-            @Parameter(description = "辅助核算类型ID") @RequestParam(required = false) Long auxiliaryTypeId,
-            @Parameter(description = "辅助核算项目ID") @RequestParam(required = false) Long auxiliaryItemId,
-            @Parameter(description = "页码") @RequestParam(defaultValue = "1") int page,
-            @Parameter(description = "每页大小") @RequestParam(defaultValue = "20") int size) {
-        return Result.success(financeAuxiliaryBalanceService.page(accountingPeriodId, subjectId, auxiliaryTypeId, auxiliaryItemId, new Page<>(page, size)));
+    @PreAuthorize("hasPermission('/api/erp/finance/auxiliary/balance/page', 'finance:report:view')")
+    @OperationLog(module = "辅助核算余额表", type = "QUERY", desc = "查询辅助核算余额表")
+    public Result<AuxBalancePageDTO> balancePage(AuxBalanceQuery query) {
+        return Result.success(financeAuxiliaryBalanceService.page(query != null ? query : new AuxBalanceQuery()));
     }
 }

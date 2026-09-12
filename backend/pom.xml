@@ -44,7 +44,7 @@
     
     <properties>
         <!-- 项目版本号，统一管理，所有子模块通过 ${revision} 引用 -->
-        <revision>0.3.17</revision>
+        <revision>0.3.18</revision>
 
         <java.version>17</java.version>
         <maven.compiler.source>17</maven.compiler.source>
@@ -97,6 +97,28 @@
     
     <dependencyManagement>
         <dependencies>
+            <!--
+              Apache POI 5.2.5 要求 commons-compress >= 1.25.0（1.25 才引入
+              ZipArchiveOutputStream#putArchiveEntry(ZipArchiveEntry)）。
+              传递依赖此前被解析到 1.24.0，导致导出 xlsx 时抛
+              NoSuchMethodError: putArchiveEntry。此处统一升到 1.27.1（含 CVE-2024-25710/26308 修复）。
+            -->
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-compress</artifactId>
+                <version>1.27.1</version>
+            </dependency>
+            <!--
+              commons-compress 1.27.1 的 ZipArchiveEntry#canConvertToInfoZipExtendedTimestamp
+              会调用 commons-io FileTimes.isUnixTime（2.16.1 才引入）。
+              传递依赖被解析到 2.15.0 时，读取 xlsx（POI WorkbookFactory）会抛
+              NoSuchMethodError → 导入 Excel 接口 500。此处统一升到 2.16.1。
+            -->
+            <dependency>
+                <groupId>commons-io</groupId>
+                <artifactId>commons-io</artifactId>
+                <version>2.16.1</version>
+            </dependency>
             <!-- Spring Boot Starters -->
             <dependency>
                 <groupId>org.springframework.boot</groupId>

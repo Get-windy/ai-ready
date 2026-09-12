@@ -2,7 +2,9 @@ package cn.aiedge.erp.party.controller;
 
 import cn.aiedge.base.vo.Result;
 import cn.aiedge.erp.party.dto.PartyContactDTO;
+import cn.aiedge.erp.party.entity.Contact;
 import cn.aiedge.erp.party.entity.PartyContact;
+import cn.aiedge.erp.party.service.IContactService;
 import cn.aiedge.erp.party.service.IPartyContactService;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
@@ -14,7 +16,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -25,6 +31,7 @@ import java.util.stream.Collectors;
 public class PartyContactController {
 
     private final IPartyContactService partyContactService;
+    private final IContactService contactService;
 
     @Operation(summary = "分页查询联系人")
     @GetMapping("/page")
@@ -62,7 +69,7 @@ public class PartyContactController {
                         .eq("party_id", partyId)
                         .eq("deleted", 0)
                         .orderByAsc("is_primary").orderByDesc("create_time"));
-        return Result.ok(contacts.stream().map(this::convertToDTO).collect(Collectors.toList()));
+        return Result.ok(convertWithPerson(contacts));
     }
 
     @Operation(summary = "获取联系人详情")
@@ -104,9 +111,8 @@ public class PartyContactController {
         if (contact == null || contact.getDeleted() != 0) {
             return Result.fail("联系人不存在");
         }
-        // 逻辑删除
-        contact.setDeleted(1);
-        boolean result = partyContactService.updateById(contact);
+        // 逻辑删除（deleted 为 @TableLogic 字段，须走 removeById 才会落库）
+        boolean result = partyContactService.removeById(id);
         return Result.ok(result);
     }
 
@@ -127,6 +133,33 @@ public class PartyContactController {
         contact.setIsPrimary(1);
         boolean result = partyContactService.updateById(contact);
         return Result.ok(result);
+    }
+
+    /**
+     * 关联记录 + 独立联系人（biz_contact）合并为 DTO：
+     * 「人」的属性优先取 biz_contact，回退关联表上的历史冗余列（兼容迁移前数据）。
+     */
+    private List<PartyContactDTO> convertWithPerson(List<PartyContact> rels) {
+        Set<Long> ids = rels.stream().map(PartyContact::getContactId).filter(Objects::nonNull).collect(Collectors.toSet());
+        Map<Long, Contact> personMap = ids.isEmpty() ? Collections.emptyMap()
+                : contactService.listByIds(ids).stream()
+                    .collect(Collectors.toMap(Contact::getId, c -> c, (a, b) -> a));
+        return rels.stream().map(r -> {
+            PartyContactDTO dto = convertToDTO(r);
+            Contact c = r.getContactId() == null ? null : personMap.get(r.getContactId());
+            if (c != null) {
+                dto.setContactId(c.getId());
+                dto.setContactName(c.getContactName());
+                dto.setGender(c.getGender());
+                dto.setMobile(c.getMobile());
+                dto.setPhone(c.getPhone());
+                dto.setEmail(c.getEmail());
+                dto.setWechat(c.getWechat());
+                dto.setQq(c.getQq());
+                dto.setBirthday(c.getBirthday());
+            }
+            return dto;
+        }).collect(Collectors.toList());
     }
 
     private PartyContactDTO convertToDTO(PartyContact contact) {

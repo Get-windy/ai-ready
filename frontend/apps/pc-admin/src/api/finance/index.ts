@@ -1,4 +1,5 @@
 import request, { type ApiResponse, type PageResponse } from '@/utils/request'
+import { arApAdjustApi } from './ar-ap-adjust'
 
 /**
  * 应收账款（旧版，与receivable页面兼容，使用/erp/finance/receivable/接口）
@@ -34,7 +35,11 @@ export const accountSubjectApi = {
   create: (data: any) => request.post('/erp/finance/subject', data),
   update: (id: number, data: any) => request.put(`/erp/finance/subject/${id}`, data),
   delete: (id: number) => request.delete(`/erp/finance/subject/${id}`),
-  toggleEnabled: (id: number, enabled?: boolean) => request.put(`/erp/finance/subject/${id}/enable`, null, { params: { enabled } })
+  toggleEnabled: (id: number, enabled?: boolean) => request.put(`/erp/finance/subject/${id}/enable`, null, { params: { enabled } }),
+  /** 核算项选项（辅助核算类型，复用 finance_auxiliary_type 主数据） */
+  getAuxTypes: () => request.get('/erp/finance/subject/aux-types'),
+  /** 导出（后端返回真实 xlsx 流，与列表同一过滤口径） */
+  export: (params?: any) => request.get('/erp/finance/subject/export', { params, responseType: 'blob' })
 }
 
 /**
@@ -44,10 +49,13 @@ export const voucherApi = {
   getPage: (params: any) => request.get('/erp/finance/voucher/list', params),
   getById: (id: number) => request.get(`/erp/finance/voucher/${id}`),
   getByVoucherNo: (no: string) => request.get(`/erp/finance/voucher/no/${no}`),
+  nextNo: () => request.get('/erp/finance/voucher/next-no'),
   create: (data: any) => request.post('/erp/finance/voucher', data),
+  update: (id: number, data: any) => request.put(`/erp/finance/voucher/${id}`, data),
   audit: (id: number) => request.put(`/erp/finance/voucher/${id}/audit`),
   post: (id: number) => request.put(`/erp/finance/voucher/${id}/post`),
-  reverse: (id: number, reason: string) => request.post(`/erp/finance/voucher/${id}/reverse`, { reason })
+  reverse: (id: number, reason: string) => request.post(`/erp/finance/voucher/${id}/reverse`, { reason }),
+  batchDelete: (ids: number[]) => request.delete('/erp/finance/voucher/batch', { data: ids })
 }
 
 /**
@@ -55,10 +63,16 @@ export const voucherApi = {
  * 后端控制器: erp-finance LedgerController @RequestMapping("/api/erp/finance/ledger")
  */
 export const ledgerApi = {
-  /** 总账：按科目汇总期初/本期/期末借贷 */
+  /** 总账（金标准）：按科目层级汇总，期初余额 + 本期发生 = 期末余额 */
   getGeneral: (params: any) => request.get('/erp/finance/ledger/general', params),
+  /** 总账科目层级选项（科目字典 level 去重升序） */
+  getLevels: () => request.get('/erp/finance/ledger/levels'),
   /** 明细账：按科目逐笔凭证分录 */
-  getDetail: (params: any) => request.get('/erp/finance/ledger/detail', params)
+  getDetail: (params: any) => request.get('/erp/finance/ledger/detail', params),
+  /** 明细账（金标准）：期初余额 + 逐笔发生额/期末余额 + 合计 + 多条件分页 */
+  getDetailPage: (params: any) => request.get('/erp/finance/ledger/detail-page', params),
+  /** 明细账科目分类树（全部/资产类/负债类/权益类/成本类/损益类） */
+  getSubjectTree: () => request.get('/erp/finance/ledger/subject-tree')
 }
 
 /**
@@ -66,7 +80,13 @@ export const ledgerApi = {
  */
 export const reportApi = {
   getTrialBalance: (params: any) => request.get('/erp/finance/report/v2/trial-balance', params),
+  /** 科目余额表（金标准）：四段余额（期初/本期发生/本年累计/期末）+ 合计行试算平衡，无分页 */
+  getTrialBalancePage: (params: any) => request.get('/erp/finance/report/v2/trial-balance-page', params),
   getBalanceSheet: (params: any) => request.get('/erp/finance/report/v2/balance-sheet', params),
+  /** 资产负债表（左右对照 · 金标准）：固定项目行 + 年初/期末双口径 + 平衡校验 */
+  getBalanceSheetReport: (params: any) => request.get('/erp/finance/report/v2/balance-sheet-report', params),
+  /** 利润表（纵向 3 列 · 金标准）：科目层级驱动（一/二/三/四 段汇总行 + 明细科目树）+ 本期/本年累计双口径 */
+  getIncomeStatementReport: (params: any) => request.get('/erp/finance/report/v2/income-statement-report', params),
   getIncomeStatement: (params: any) => request.get('/erp/finance/report/v2/income-statement', params),
   getDashboard: () => request.get('/erp/finance/report/v2/dashboard')
 }
@@ -144,6 +164,17 @@ export const reconciliationApi = {
    */
   exportList(params: any): Promise<ApiResponse<any[]>> {
     return request.get('/erp/finance/reconciliation/export', { params })
+  },
+
+  /**
+   * 查询对方系统余额（银行=账户余额 / 客户=应收 / 供应商=应付），用于新增对账预填系统余额
+   * @param reconciliationType BANK/CUSTOMER/SUPPLIER
+   * @param targetId 对方ID（银行账户ID / 客户ID / 供应商ID）
+   */
+  getBalance(reconciliationType: string, targetId: number): Promise<ApiResponse<{ balance: number }>> {
+    return request.get('/erp/finance/reconciliation/balance', {
+      params: { reconciliationType, targetId },
+    })
   },
 
   // ── 以下为旧版API，兼容现有组件 ──
@@ -228,21 +259,52 @@ export interface PrePayment {
   sourceType: string
   sourceId: number
   sourceNo: string
+  sourceUnsettledAmount: number
+  partnerCode: string
   supplierId: number
   supplierName: string
   amount: number
   usedAmount: number
   remainingAmount: number
+  prevAmount: number
   depositType: number
   depositFlag: number
   paymentDate: string
   status: string
+  summary: string
+  handlerId: number
+  handlerName: string
+  deptId: number
+  deptName: string
+  creatorName: string
+  bookkeeperId: number
+  bookkeeperName: string
+  bookkeepingTime: string
+  auditorId: number
+  auditorName: string
+  auditorTime: string
+  printCount: number
+  attachment: string
   paymentMethod: string
   bankAccount: string
   bankName: string
   transactionNo: string
   remark: string
   createTime: string
+  items?: PrePaymentItem[]
+}
+
+/**
+ * 预付款-付款账户明细（一单多账户）
+ */
+export interface PrePaymentItem {
+  id?: number
+  prePaymentId?: number
+  lineNo?: number
+  accountNo: string
+  accountName: string
+  amount: number
+  remark: string
 }
 
 /**
@@ -360,6 +422,22 @@ export const prePaymentApi = {
   },
   getById(id: number): Promise<ApiResponse<PrePayment>> {
     return request.get(`/erp/pre-payment/${id}`)
+  },
+  /** 生成下一预付款单号（YFKD-） */
+  nextNo(prefix = 'YFKD'): Promise<ApiResponse<string>> {
+    return request.get('/erp/pre-payment/next-no', { params: { prefix } })
+  },
+  /** 保存草稿（含付款账户明细） */
+  saveDraft(data: any): Promise<ApiResponse<PrePayment>> {
+    return request.post('/erp/pre-payment/save', data)
+  },
+  /** 记账：预付余额增加 + 生成凭证 */
+  confirm(id: number, operatorId?: number, operatorName?: string): Promise<ApiResponse<PrePayment>> {
+    return request.post('/erp/pre-payment/confirm', null, { params: { id, operatorId, operatorName } })
+  },
+  /** 查询结算单位（供应商）预付余额 */
+  getAdvanceBalance(supplierId: number): Promise<ApiResponse<number>> {
+    return request.get('/erp/pre-payment/advance-balance', { params: { supplierId } })
   },
   create(data: any): Promise<ApiResponse<PrePayment>> {
     return request.post('/erp/pre-payment', data)
@@ -547,6 +625,24 @@ export const paymentApi = {
   },
   getStatistics(): Promise<ApiResponse<any>> {
     return request.get('/erp/payment/statistics')
+  },
+  /**
+   * 生成下一个付款单号（FKD- 前缀）
+   */
+  nextNo(): Promise<ApiResponse<string>> {
+    return request.get('/erp/payment/next-no')
+  },
+  /**
+   * 按明细分页查询付款单（付款明细 tab）
+   */
+  getPageDetail(params: any): Promise<ApiResponse<PageResponse<any>>> {
+    return request.get('/erp/payment/page-detail', { params })
+  },
+  /**
+   * 批量打印
+   */
+  batchPrint(data: any): Promise<ApiResponse<any>> {
+    return request.post('/erp/payment/batch-print', data)
   }
 }
 
@@ -808,11 +904,20 @@ export const depositConditionApi = {
 }
 
 /**
- * 往来余额表（辅助核算余额）API
+ * 往来余额表 API
  * 后端: PartnerBalanceController /api/erp/finance/partner-balance
  */
 export const partnerBalanceApi = {
   getPage: (params: any) => request.get('/erp/finance/partner-balance/page', params)
+}
+
+/**
+ * 辅助核算余额表 API（按科目 + 核算项汇总四段余额，取数自凭证分录）
+ * 后端: FinanceAuxiliaryController /api/erp/finance/auxiliary/balance
+ */
+export const auxiliaryBalanceApi = {
+  /** 分页查询：返回 records + total + summary（表尾合计，全量口径） */
+  getPage: (params: any) => request.get('/erp/finance/auxiliary/balance/page', params)
 }
 
 /**
@@ -824,29 +929,119 @@ export const collectionStatsApi = {
 }
 
 /**
+ * 账款交账 API（金标准）
+ * 后端: AccountDeliveryController /api/erp/finance/account-delivery
+ * 数据源：销售出库单（配送代收/业务员代收款项，待交账）
+ */
+export const accountDeliveryApi = {
+  /** 按单据视图：分页查询待交账单据 + 五档统计（records/total/summary） */
+  docPage: (params: any) => request.get('/erp/finance/account-delivery/doc-page', params),
+  /** 按职员视图：按交账职员分组汇总 + 五档统计（staffList/summary） */
+  staff: (params: any) => request.get('/erp/finance/account-delivery/staff', params),
+  /** 交账动作（去交账/配送退货）：回写结算状态为已结算 */
+  deliver: (data: any) => request.post('/erp/finance/account-delivery/deliver', data)
+}
+
+/**
  * 费用审批 API
- * 后端: ExpenseApprovalController /api/erp/expense/approval
+ * 后端: ExpenseApprovalController /api/erp/finance/expense-approval
+ * 费用单多级审批（部门→财务→总经理）：复用费用单状态机（erp_expense_doc）与审批记录表
  */
 export const expenseApprovalApi = {
-  getPending: (params?: any) => request.get('/erp/expense/approval/pending', params),
+  /** 待审批分页查询（approvalStatus 默认 1-审批中；onlyMine=true 仅看我的待办） */
+  getPending: (params?: any): Promise<ApiResponse<PageResponse<any>>> =>
+    request.get('/erp/finance/expense-approval/pending', params),
+  /** 提交审批（草稿/已驳回 → 审批中） */
+  submit: (data: {
+    docId: number
+    totalLevel?: number
+    approverId?: number
+    approverName?: string
+  }): Promise<ApiResponse<any>> =>
+    request.post('/erp/finance/expense-approval/submit', data),
+  /** 审批处理：通过（未到末级需指定下一级审批人）/ 驳回（原因必填） */
   process: (data: {
-    applicationId: number
+    docId: number
     action: 'APPROVE' | 'REJECT'
     comment?: string
-    approverId?: string
-    approverName?: string
-  }) => request.post('/erp/expense/approval/process', data),
-  getRecords: (params: any) => request.get('/erp/expense/approval/records', params)
+    nextApproverId?: number
+    nextApproverName?: string
+  }): Promise<ApiResponse<any>> =>
+    request.post('/erp/finance/expense-approval/process', data),
+  /** 审批记录（按费用单追溯） */
+  getRecords: (docId: number): Promise<ApiResponse<any[]>> =>
+    request.get('/erp/finance/expense-approval/records', { docId }),
+  /** 审批详情（费用单 + 费用项明细 + 审批记录） */
+  getDetail: (docId: number): Promise<ApiResponse<any>> =>
+    request.get(`/erp/finance/expense-approval/detail/${docId}`),
+  /** 审批人配置查询（按级别默认审批人） */
+  getApproverConfig: (): Promise<ApiResponse<any>> =>
+    request.get('/erp/finance/expense-approval/approver-config'),
+  /** 审批人配置保存（null 表示清除该级别） */
+  saveApproverConfig: (data: {
+    level1ApproverId?: number | null
+    level2ApproverId?: number | null
+    level3ApproverId?: number | null
+  }): Promise<ApiResponse<string>> =>
+    request.post('/erp/finance/expense-approval/approver-config', data),
+  /** 审批人自动指派建议（一级取部门负责人，未设置回退配置；二/三级取配置） */
+  getSuggest: (docId?: number | string, totalLevel?: number): Promise<ApiResponse<any[]>> =>
+    request.get('/erp/finance/expense-approval/suggest', { docId, totalLevel })
 }
 
 /**
  * 费用统计 API
- * 后端: ExpenseController /api/erp/expense/statistics/*
+ * 后端: ExpenseStatsController /api/erp/finance/expense-stats
+ * P0 单一口径：数据源为《费用单》(erp_expense_doc + erp_expense_item)，状态口径与《费用审批》一致
  */
 export const expenseStatsApi = {
-  getSummary: (params: any) => request.get('/erp/expense/statistics/summary', params),
-  getByDepartment: (params: any) => request.get('/erp/expense/statistics/by-department', params),
-  getByType: (params: any) => request.get('/erp/expense/statistics/by-type', params)
+  /** 统计汇总（卡片 + byType/byDepartment 分组映射 + 月度趋势） */
+  getSummary: (params?: any): Promise<ApiResponse<any>> =>
+    request.get('/erp/finance/expense-stats/summary', params),
+  /** 按部门分组统计明细（含占比/单均） */
+  getByDepartment: (params?: any): Promise<ApiResponse<any[]>> =>
+    request.get('/erp/finance/expense-stats/by-department', params),
+  /** 按费用类型（费用名称/科目）分组统计明细 */
+  getByType: (params?: any): Promise<ApiResponse<any[]>> =>
+    request.get('/erp/finance/expense-stats/by-type', params),
+  /** 月度费用趋势 */
+  getMonthlyTrend: (params?: any): Promise<ApiResponse<any[]>> =>
+    request.get('/erp/finance/expense-stats/monthly-trend', params)
+}
+
+/**
+ * 费用单 API
+ * 后端: ExpenseDocController /api/erp/finance/expense-doc
+ * 费用单：非主营支出费用登记，往来单位费用/内部费用记账生成凭证（KJPZ-）
+ */
+export const expenseDocApi = {
+  /** 多条件分页查询(按单据) */
+  getPage: (params: any): Promise<ApiResponse<PageResponse<any>>> =>
+    request.get('/erp/finance/expense-doc/page', { params }),
+  /** 多条件分页查询(按明细) */
+  getPageDetail: (params: any): Promise<ApiResponse<PageResponse<any>>> =>
+    request.get('/erp/finance/expense-doc/page-detail', { params }),
+  /** 详情（含费用项明细） */
+  getById: (id: number): Promise<ApiResponse<any>> =>
+    request.get(`/erp/finance/expense-doc/${id}`),
+  /** 保存草稿 */
+  saveDraft: (data: any): Promise<ApiResponse<any>> =>
+    request.post('/erp/finance/expense-doc/create', data),
+  /** 更新草稿 */
+  update: (data: any): Promise<ApiResponse<boolean>> =>
+    request.post('/erp/finance/expense-doc/update', data),
+  /** 记账（生成凭证） */
+  confirm: (id: number, operatorId?: number, operatorName?: string): Promise<ApiResponse<any>> =>
+    request.post('/erp/finance/expense-doc/confirm', null, { params: { id, operatorId, operatorName } }),
+  /** 取消 */
+  cancel: (id: number): Promise<ApiResponse<string>> =>
+    request.post('/erp/finance/expense-doc/cancel', null, { params: { id } }),
+  /** 删除 */
+  delete: (id: number): Promise<ApiResponse<string>> =>
+    request.delete(`/erp/finance/expense-doc/${id}`),
+  /** 生成下一单号（YBFYD-） */
+  nextNo: (): Promise<ApiResponse<string>> =>
+    request.get('/erp/finance/expense-doc/next-no')
 }
 
 /**
@@ -890,6 +1085,8 @@ export interface MonthClosingResult {
   checks: MonthClosingCheckItem[]
   closedBy?: string
   closedTime?: string
+  /** 期末结转损益生成的凭证号（KJPZ-），无可结转损益时为 null */
+  carryOverVoucherNo?: string
 }
 
 /**
@@ -934,6 +1131,9 @@ export const monthClosingApi = {
   /** 执行月结（先跑检查项，全部通过则关闭期间） */
   execute: (periodCode: string): Promise<MonthClosingResult> =>
     request.post('/erp/finance/month-closing/execute', null, { params: { periodCode } }),
+  /** 批量执行月结（逐期间执行，收集结果） */
+  batchExecute: (periodCodes: string[]): Promise<MonthClosingResult[]> =>
+    request.post('/erp/finance/month-closing/batch-execute', periodCodes),
   /** 反月结（重新开启期间） */
   reopen: (periodCode: string): Promise<MonthClosingResult> =>
     request.post('/erp/finance/month-closing/reopen', null, { params: { periodCode } }),
@@ -945,7 +1145,38 @@ export const monthClosingApi = {
     request.get('/erp/finance/month-closing/logs/page', params)
 }
 
+/**
+ * 其他收入单API（金标准）
+ */
+export const otherIncomeApi = {
+  getPage(params: any): Promise<ApiResponse<PageResponse<any>>> {
+    return request.get('/erp/finance/other-income-doc/page', { params })
+  },
+  getPageDetail(params: any): Promise<ApiResponse<PageResponse<any>>> {
+    return request.get('/erp/finance/other-income-doc/page-detail', { params })
+  },
+  getById(id: number): Promise<ApiResponse<any>> {
+    return request.get(`/erp/finance/other-income-doc/${id}`)
+  },
+  nextNo(): Promise<ApiResponse<string>> {
+    return request.get('/erp/finance/other-income-doc/next-no')
+  },
+  saveDraft(data: any): Promise<ApiResponse<any>> {
+    return request.post('/erp/finance/other-income-doc/save-draft', data)
+  },
+  update(id: number, data: any): Promise<ApiResponse<any>> {
+    return request.put(`/erp/finance/other-income-doc/${id}`, data)
+  },
+  confirm(id: number): Promise<ApiResponse<any>> {
+    return request.post(`/erp/finance/other-income-doc/${id}/confirm`)
+  },
+  remove(id: number): Promise<ApiResponse<any>> {
+    return request.delete(`/erp/finance/other-income-doc/${id}`)
+  },
+}
+
 export default {
+  arApAdjustApi,
   reconciliationApi,
   preReceiptApi,
   prePaymentApi,
@@ -968,5 +1199,6 @@ export default {
   expenseApprovalApi,
   expenseStatsApi,
   accountingPeriodApi,
-  monthClosingApi
+  monthClosingApi,
+  otherIncomeApi
 }

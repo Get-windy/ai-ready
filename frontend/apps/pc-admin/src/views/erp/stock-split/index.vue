@@ -44,14 +44,9 @@
           </a-space>
         </template>
 
-        <!-- ═══ 工具栏右侧：列配置/页面配置/新增/刷新/打印/导出 ═══ -->
+        <!-- ═══ 工具栏右侧：页面配置/新增/刷新/打印/导出（列配置走数据表表头齿轮） ═══ -->
         <template #toolbar-right>
           <a-space :size="8">
-            <a-tooltip title="列配置">
-              <a-button size="small" @click="showColumnConfig = true">
-                <TableOutlined />
-              </a-button>
-            </a-tooltip>
             <a-tooltip title="页面配置">
               <a-button size="small" @click="showPageConfig = true">
                 <SettingOutlined />
@@ -146,8 +141,9 @@
         <template #table>
           <div class="table-area">
             <BillTableList
-              :columns="visibleColumns"
+              :columns="docColumns"
               :data-source="tableData"
+              :storage-key="'stock-split-table-columns'"
               :loading="loading"
               :pagination="pagination"
               :show-toolbar="false"
@@ -205,17 +201,6 @@
       </CategoryListLayout>
     </PageContainer>
 
-    <!-- ═══ 列配置弹窗 ═══ -->
-    <ColumnConfigPanel
-      :open="showColumnConfig"
-      :settings-columns="panelColumns"
-      :is-locked-column="isLockedColumn"
-      @update:open="showColumnConfig = $event"
-      @change="handleColumnConfigChange"
-      @reset="handleColumnConfigReset"
-      @drag-end="handleColumnConfigChange"
-    />
-
     <!-- ═══ 页面配置弹窗 ═══ -->
     <PageConfigPanel
       :open="showPageConfig"
@@ -235,15 +220,13 @@ import dayjs from 'dayjs'
 import { message, Modal } from 'ant-design-vue'
 import {
   PlusOutlined, ReloadOutlined, PrinterOutlined, SettingOutlined,
-  TableOutlined, ExportOutlined,
+  ExportOutlined,
 } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayout.vue'
-import ColumnConfigPanel from '@/components/ColumnConfigPanel/index.vue'
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
-import { useColumnConfig, isLockedColumn } from '@/composables/useColumnConfig'
 import { useAutoGridSpan } from '@/composables/useAutoGridSpan'
 import { stockSplitApi } from '@/api/erp'
 import optionsApi from '@/api/options'
@@ -301,8 +284,7 @@ const rowSelection = computed(() => ({
   onChange: (keys: any[]) => { selectedRowKeys.value = keys },
 }))
 
-// ═══ 列配置/页面配置弹窗 ═══
-const showColumnConfig = ref(false)
+// ═══ 页面配置弹窗（列配置走数据表表头齿轮） ═══
 const showPageConfig = ref(false)
 
 // ═══ 页面配置（查询条件显隐、功能按钮） ═══
@@ -390,22 +372,7 @@ const docColumns = [
   { title: '打印次数', field: 'printCount', key: 'printCount', width: 80, align: 'right', type: 'slot', slotName: 'printCountCell' },
 ]
 
-const columnDefs = computed(() => docColumns.map(col => ({ ...col })))
-const {
-  visibleColumns,
-  onSettingChange,
-  resetSettings,
-  settingsColumns,
-} = useColumnConfig(columnDefs.value, 'stock-split-list-columns')
-
-const panelColumns = computed(() => settingsColumns.value)
-
-function handleColumnConfigChange() {
-  onSettingChange()
-}
-function handleColumnConfigReset() {
-  resetSettings()
-}
+// 列配置走数据表表头齿轮（storage-key = stock-split-table-columns）
 
 // ═══ 状态映射 ═══
 const STATUS_MAP: Record<number, { text: string; color: string }> = {

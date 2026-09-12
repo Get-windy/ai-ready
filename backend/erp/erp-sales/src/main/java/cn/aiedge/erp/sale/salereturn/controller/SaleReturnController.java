@@ -208,14 +208,22 @@ public class SaleReturnController {
             @Parameter(description = "单据备注") @RequestParam(required = false) String remark,
             @Parameter(description = "是否赠品") @RequestParam(required = false) Boolean isGift,
             @Parameter(description = "审核时间") @RequestParam(required = false) String auditTime,
+            @Parameter(description = "商品分类ID") @RequestParam(required = false) Long categoryId,
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") int pageNum,
             @Parameter(description = "每页数量") @RequestParam(defaultValue = "20") int pageSize) {
         Page<Map<String, Object>> result = saleReturnService.pageDetail(
                 keyword, customerId, warehouseId, status, returnNo, productName,
                 handlerId, deptName, settleStatus, salesType, productLineAttr,
                 itemRemark, startDate, endDate, pageNum, pageSize,
-                creatorName, auditorName, remark, isGift, auditTime);
+                creatorName, auditorName, remark, isGift, auditTime, categoryId);
         return ApiResponse.ok(result);
+    }
+
+    @GetMapping("/next-no")
+    @Operation(summary = "生成下一退货申请单号（号段 XSTHSQD-yyyyMMdd-NNNN）")
+    @SaCheckLogin
+    public ApiResponse<String> nextNo() {
+        return ApiResponse.ok(saleReturnService.generateReturnNo());
     }
 
     @GetMapping("/export")

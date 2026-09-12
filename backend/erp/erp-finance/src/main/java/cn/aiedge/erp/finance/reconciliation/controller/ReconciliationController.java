@@ -119,6 +119,18 @@ public class ReconciliationController {
         return ApiResponse.success(stats);
     }
 
+    @Operation(summary = "查询对方系统余额（银行=账户余额/客户=应收/供应商=应付）")
+    @GetMapping("/balance")
+    @PreAuthorize("hasPermission('/api/erp/finance/reconciliation/view', 'finance:reconciliation:view')")
+    @OperationLog(module = "对账管理", type = "QUERY", desc = "查询对方系统余额用于预填")
+    public ApiResponse<java.util.Map<String, Object>> getBalance(
+            @Parameter(description = "对账类型") @RequestParam String reconciliationType,
+            @Parameter(description = "对方ID") @RequestParam Long targetId) {
+        java.util.Map<String, Object> result = new java.util.HashMap<>();
+        result.put("balance", reconciliationService.getBalance(reconciliationType, targetId));
+        return ApiResponse.success(result);
+    }
+
     @Operation(summary = "导出对账记录列表")
     @GetMapping("/export")
     @PreAuthorize("hasPermission('/api/erp/finance/reconciliation/list', 'finance:reconciliation:view')")

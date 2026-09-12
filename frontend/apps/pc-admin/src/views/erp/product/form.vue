@@ -336,37 +336,55 @@
                       </a-button>
                     </a-space>
                   </template>
-                  <BillDetailTable
-                    :columns="unitColumns"
-                    v-model:data-source="unitList"
-                    :min-rows="3"
-                    storage-key="product-unit-col-config"
-                    @cell-change="onUnitCellChange"
+                  <div
+                    class="unit-table-wrap"
+                    :style="{ height: unitTableHeight + 'px' }"
                   >
-                    <template #isBaseUnitCell="{ record }">
-                      <a-tag
-                        v-if="record.isBaseUnit"
-                        color="blue"
-                      >
-                        基本单位
-                      </a-tag>
-                      <span
-                        v-else
-                        style="color:#999"
-                      >换算单位</span>
-                    </template>
-                    <template #actionCell="{ record, index }">
-                      <a-button
-                        type="link"
-                        size="small"
-                        danger
-                        title="删除此行"
-                        @click="removeUnitRow(index)"
-                      >
-                        <CloseOutlined />
-                      </a-button>
-                    </template>
-                  </BillDetailTable>
+                    <BillDetailTable
+                      :columns="unitColumns"
+                      v-model:data-source="unitList"
+                      :min-rows="UNIT_MIN_ROWS"
+                      storage-key="product-unit-col-config"
+                      @cell-change="onUnitCellChange"
+                    >
+                      <template #isBaseUnitCell="{ record }">
+                        <a-tag
+                          v-if="record.isBaseUnit"
+                          color="blue"
+                        >
+                          基本单位
+                        </a-tag>
+                        <span
+                          v-else
+                          style="color:#999"
+                        >换算单位</span>
+                      </template>
+                      <template #actionCell="{ record, index }">
+                        <!-- 前三行是小/中/大单位固定槽位：只能清空数据，不能删行；
+                             第 4 行起可删行，且必须从最后一行依次往上删 -->
+                        <a-button
+                          v-if="index < UNIT_MIN_ROWS"
+                          type="link"
+                          size="small"
+                          title="清空本行数据（小/中/大单位行为固定槽位，不可删除）"
+                          @click="clearUnitRow(index)"
+                        >
+                          <ClearOutlined />
+                        </a-button>
+                        <a-button
+                          v-else
+                          type="link"
+                          size="small"
+                          danger
+                          :disabled="!canRemoveUnitRow(index)"
+                          :title="canRemoveUnitRow(index) ? '删除此行' : '请从最后一行开始依次删除'"
+                          @click="removeUnitRow(index)"
+                        >
+                          <CloseOutlined />
+                        </a-button>
+                      </template>
+                    </BillDetailTable>
+                  </div>
                   <div class="unit-actions">
                     <a-button
                       size="small"
@@ -448,36 +466,124 @@
                   </a-row>
                 </a-card>
 
-                <!-- ═══ 选择单位组弹窗 ═══ -->
+                <!-- ═══ 选择单位组弹窗（来源：商品辅助资料 → 商品单位 → 单位组管理） ═══ -->
                 <a-modal
                   v-model:open="unitGroupModalVisible"
-                  title="选择单位组"
-                  width="480px"
+                  title="单位组选择"
+                  width="560px"
                   @ok="applyUnitGroup"
                 >
                   <p style="color:#888;font-size:13px;margin-bottom:12px;">
-                    从单位字典中选择要添加的单位，已存在的单位不会重复添加。
+                    选择单位组后按组内「小单位 / 中单位 / 大单位」重设本商品的多单位明细（含换算关系）。
                   </p>
-                  <a-checkbox-group
-                    v-model:value="selectedUnitDictIds"
-                    style="display:flex;flex-direction:column;gap:8px;"
-                  >
-                    <a-checkbox
-                      v-for="dict in unitDictList"
-                      :key="dict.id"
-                      :value="dict.id"
+                  <div style="display:flex;gap:8px;margin-bottom:8px;">
+                    <a-input
+                      v-model:value="unitGroupKeyword"
+                      placeholder="请输入单位查询"
+                      size="small"
+                      style="width:200px"
+                      allow-clear
+                      @press-enter="loadUnitGroupList"
+                    />
+                    <a-button
+                      type="primary"
+                      size="small"
+                      @click="loadUnitGroupList"
                     >
-                      {{ dict.unitName }}
-                      <span
-                        v-if="dict.conversionRate && dict.conversionRate !== 1"
-                        style="color:#999;font-size:12px;"
-                      >(换算率: {{ dict.conversionRate }})</span>
-                    </a-checkbox>
-                  </a-checkbox-group>
+                      查询
+                    </a-button>
+                  </div>
+                  <a-table
+                    :data-source="unitGroupOptions"
+                    :columns="unitGroupPickColumns"
+                    :loading="unitGroupLoading"
+                    :pagination="false"
+                    :row-key="(r: any) => String(r.id)"
+                    size="small"
+                    :scroll="{ y: 260 }"
+                    :custom-row="(record: any) => ({ onClick: () => (selectedUnitGroupId = String(record.id)) })"
+                    :row-class-name="(record: any) => (String(record.id) === selectedUnitGroupId ? 'unit-group-row-active' : '')"
+                  >
+                    <template #bodyCell="{ column, record }">
+                      <template v-if="column.key === 'pick'">
+                        <a-radio :checked="String(record.id) === selectedUnitGroupId" />
+                      </template>
+                      <template v-else-if="column.key === 'unitNames'">
+                        {{ record.unitNames || '-' }}
+                      </template>
+                      <template v-else-if="column.key === 'unitRates'">
+                        {{ record.unitRates || '-' }}
+                      </template>
+                    </template>
+                  </a-table>
                   <a-empty
-                    v-if="unitDictList.length === 0"
-                    description="单位字典暂无数据，请先在辅助资料中添加单位"
+                    v-if="!unitGroupLoading && unitGroupOptions.length === 0"
+                    description="暂无单位组，请先在「商品辅助资料 → 商品单位 → 单位组管理」中维护"
                   />
+                </a-modal>
+
+                <!-- ═══ 批量价格计算弹窗 ═══ -->
+                <a-modal
+                  v-model:open="priceCalcModalVisible"
+                  title="批量价格计算"
+                  width="520px"
+                  @ok="applyPriceCalc"
+                >
+                  <p style="color:#888;font-size:13px;margin-bottom:12px;">
+                    按所选基准价与加价率重算「商品单位」明细中所有单位行的零售价 / 批发价 / 价格等级。
+                  </p>
+                  <a-form
+                    layout="horizontal"
+                    :label-col="{ span: 8 }"
+                    :wrapper-col="{ span: 14 }"
+                  >
+                    <a-form-item label="计算基准价">
+                      <a-select
+                        v-model:value="priceCalc.baseField"
+                        size="small"
+                        style="width:100%"
+                      >
+                        <a-select-option
+                          v-for="opt in priceCalcBaseOptions"
+                          :key="opt.value"
+                          :value="opt.value"
+                        >
+                          {{ opt.label }}
+                        </a-select-option>
+                      </a-select>
+                    </a-form-item>
+                    <a-form-item label="零售价加价率(%)">
+                      <a-input-number
+                        v-model:value="priceCalc.retailMarkup"
+                        :min="0"
+                        style="width:100%"
+                        size="small"
+                      />
+                    </a-form-item>
+                    <a-form-item label="批发价加价率(%)">
+                      <a-input-number
+                        v-model:value="priceCalc.wholesaleMarkup"
+                        :min="0"
+                        style="width:100%"
+                        size="small"
+                      />
+                    </a-form-item>
+                    <a-form-item label="价格等级折扣(%)">
+                      <a-input-number
+                        v-model:value="priceCalc.gradeDiscount"
+                        :min="0"
+                        :max="100"
+                        style="width:100%"
+                        size="small"
+                      />
+                      <span class="form-tip">0 表示不重算价格等级</span>
+                    </a-form-item>
+                    <a-form-item label="最低售价">
+                      <a-checkbox v-model:checked="priceCalc.writeMinSalePrice">
+                        同时写入最低售价 = 批发价
+                      </a-checkbox>
+                    </a-form-item>
+                  </a-form>
                 </a-modal>
               </div>
             </a-tab-pane>
@@ -498,6 +604,14 @@
                   <template #extra>
                     <span class="image-hint">说明：首图为主图，建议尺寸720×720，最多支持5张，大小不超过10M</span>
                   </template>
+                  <div class="image-space-bar">
+                    <a-button
+                      size="small"
+                      @click="openImageSpaceModal"
+                    >
+                      <PictureOutlined /> 引用图片空间
+                    </a-button>
+                  </div>
                   <div class="image-upload-area">
                     <div
                       v-for="(img, idx) in imageFileList"
@@ -600,6 +714,55 @@
                     @change="onVideoFileSelected"
                   >
                 </a-card>
+
+                <!-- ═══ 引用图片空间弹窗（对标「商品图片 → 引用图片空间」） ═══ -->
+                <a-modal
+                  v-model:open="imageSpaceModalVisible"
+                  title="引用图片空间"
+                  width="760px"
+                  :confirm-loading="imageSpaceLoading"
+                  @ok="applyImageSpace"
+                >
+                  <a-space style="margin-bottom:12px;">
+                    <a-input
+                      v-model:value="imageSpaceKeyword"
+                      placeholder="按图片名称搜索"
+                      size="small"
+                      style="width: 220px"
+                      allow-clear
+                      @press-enter="loadImageSpace"
+                    />
+                    <a-button
+                      size="small"
+                      @click="loadImageSpace"
+                    >
+                      查询
+                    </a-button>
+                  </a-space>
+                  <a-spin :spinning="imageSpaceLoading">
+                    <div class="image-space-grid">
+                      <div
+                        v-for="m in imageSpaceList"
+                        :key="m.id"
+                        class="image-space-item"
+                        :class="{ 'is-active': imageSpaceSelected.includes(m.id) }"
+                        @click="toggleImageSpace(m.id)"
+                      >
+                        <img
+                          :src="m.imageUrl"
+                          :alt="m.imageName"
+                        >
+                        <div class="image-space-name">
+                          {{ m.imageName || '未命名' }}
+                        </div>
+                      </div>
+                    </div>
+                    <a-empty
+                      v-if="!imageSpaceLoading && imageSpaceList.length === 0"
+                      description="图片空间暂无素材，请先在「资料 → 图片管理」上传"
+                    />
+                  </a-spin>
+                </a-modal>
               </div>
             </a-tab-pane>
 
@@ -667,43 +830,20 @@
                     <div class="tag-list">
                       <div
                         v-for="tag in tagOptions"
-                        :key="tag.id || tag.tagName"
+                        :key="tag.tagCode"
                         class="tag-item"
                       >
                         <a-checkbox
-                          :checked="selectedTags.includes(tag.tagName)"
-                          @change="(e: any) => handleTagChange(tag.tagName, e.target.checked)"
+                          :checked="selectedTags.includes(tag.tagCode as string)"
+                          @change="(e: any) => handleTagChange(tag.tagCode as string, e.target.checked)"
                         >
                           {{ tag.tagName }}
                         </a-checkbox>
-                        <a-button
-                          type="text"
-                          size="small"
-                          danger
-                          class="tag-delete-btn"
-                          @click="handleDeleteTag(tag)"
-                        >
-                          <CloseOutlined />
-                        </a-button>
                       </div>
-                      <!-- 新增标签 -->
-                      <div class="tag-add-row">
-                        <a-input
-                          v-model:value="newTagName"
-                          placeholder="输入新标签名称"
-                          size="small"
-                          style="width: 160px"
-                          @press-enter="handleAddTag"
-                        />
-                        <a-button
-                          size="small"
-                          type="primary"
-                          :disabled="!newTagName.trim()"
-                          @click="handleAddTag"
-                        >
-                          <PlusOutlined /> 添加
-                        </a-button>
-                      </div>
+                      <a-empty
+                        v-if="tagOptions.length === 0"
+                        description="暂无启用的商品标签，可在「资料 → 商品辅助资料 → 商品标签」维护"
+                      />
                     </div>
                   </div>
                 </a-card>
@@ -716,6 +856,25 @@
                   :bordered="false"
                 >
                   <a-row :gutter="24">
+                    <a-col :span="8">
+                      <a-form-item label="排序方式">
+                        <a-select
+                          v-model:value="form.mallSortType"
+                          size="small"
+                          style="width:100%"
+                        >
+                          <a-select-option value="DEFAULT">
+                            默认
+                          </a-select-option>
+                          <a-select-option value="SALES">
+                            按销量
+                          </a-select-option>
+                          <a-select-option value="MANUAL">
+                            手动排序
+                          </a-select-option>
+                        </a-select>
+                      </a-form-item>
+                    </a-col>
                     <a-col :span="8">
                       <a-form-item label="排序值">
                         <a-input-number
@@ -745,6 +904,25 @@
                           size="small"
                         />
                         <span class="form-tip">0表示不限购</span>
+                      </a-form-item>
+                    </a-col>
+                    <a-col :span="8">
+                      <a-form-item label="商品积分">
+                        <a-input-number
+                          v-model:value="form.mallPoints"
+                          :min="0"
+                          style="width:100%"
+                          size="small"
+                        />
+                      </a-form-item>
+                    </a-col>
+                    <a-col :span="8">
+                      <a-form-item label="关键字">
+                        <a-input
+                          v-model:value="form.keywords"
+                          placeholder="商城检索关键字，逗号分隔"
+                          size="small"
+                        />
                       </a-form-item>
                     </a-col>
                   </a-row>
@@ -823,7 +1001,7 @@
                       width="100"
                     />
                     <vxe-column
-                      field="recommendProductSpec"
+                      field="recommendProductModel"
                       title="型号"
                       width="100"
                     />
@@ -890,13 +1068,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted, defineOptions } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, nextTick, defineOptions } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { message, Modal } from 'ant-design-vue'
+import { message } from 'ant-design-vue'
 import {
   LeftOutlined, SaveOutlined, DownOutlined, PlusOutlined, UploadOutlined,
   ApartmentOutlined, CalculatorOutlined, VideoCameraOutlined, CrownOutlined,
-  CloseOutlined, PlusCircleOutlined, CloseCircleOutlined
+  CloseOutlined, PlusCircleOutlined, CloseCircleOutlined, PictureOutlined,
+  ClearOutlined
 } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import {
@@ -906,19 +1085,21 @@ import {
   productRecommendApi,
   productGradeApi,
   productUnitDictApi,
+  productUnitGroupApi,
   mallTagApi,
+  type MallTag,
   type Product,
   type ProductCategory,
   type ProductUnit,
   type ProductGrade,
-  type ProductRecommend,
-  type ProductUnitDict,
-  type MallTag
+  type ProductRecommend
 } from '@/api/erp/product'
+import { productImageApi, type ProductImageMaterial } from '@/api/erp/productImage'
 import request from '@/utils/request'
 
 import BillDetailTable from '@/components/BillFormPage/BillDetailTable/index.vue'
 import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTable/types'
+import { DEFAULT_GRADE_NAMES, gradeNameOfLevel } from './columns'
 
 import { useTabsStore } from '@/stores/tabs'
 
@@ -933,7 +1114,8 @@ const loading = ref(false)
 const saving = ref(false)
 const activeTab = ref('basic')
 const isEdit = ref(false)
-const productId = ref<number>(0)
+// 雪花 ID 超出 JS 安全整数范围（> 2^53），必须保持字符串；Number() 会丢精度导致按 id 查不到商品
+const productId = ref<string>('')
 
 // ── 基础数据 ──
 const categoryTree = ref<ProductCategory[]>([])
@@ -968,9 +1150,12 @@ const form = reactive({
   mallDescription: '',
   mallTags: '',
   mallShelfStatus: 0,
+  mallSortType: 'DEFAULT',
   mallSortOrder: 0,
   mallMinOrderQty: 0,
   mallPurchaseLimit: 0,
+  mallPoints: undefined as number | undefined,
+  keywords: '',
   richTextDetail: '',
   imageUrl: '',
   videoUrl: '',
@@ -986,80 +1171,61 @@ const form = reactive({
 
 const isMallShelf = ref(false)
 
-// ── 标签（从API加载，用户自定义） ──
+// ── 商品标签 ──
+// 数据源「资料 → 商品辅助资料 → 商品标签」：标准槽位 TAG_1..TAG_20 + 用户自定义昵称。
+// 勾选值与商品侧存储都是**槽位编码**，昵称（默认「标签1…标签20」，可改成业务别名）仅用于显示。
 const tagOptions = ref<MallTag[]>([])
 const selectedTags = ref<string[]>([])
-const newTagName = ref('')
 
 async function loadTags() {
   try {
-    tagOptions.value = await mallTagApi.list()
+    const list = await mallTagApi.list()
+    tagOptions.value = (Array.isArray(list) ? list : [])
+      .filter(t => t.status === 1 && t.tagCode)
+      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
   } catch {
     tagOptions.value = []
   }
 }
 
-function handleTagChange(tagValue: string, checked: boolean) {
+function handleTagChange(tagCode: string, checked: boolean) {
   if (checked) {
-    if (!selectedTags.value.includes(tagValue)) {
-      selectedTags.value.push(tagValue)
+    if (!selectedTags.value.includes(tagCode)) {
+      selectedTags.value.push(tagCode)
     }
   } else {
-    selectedTags.value = selectedTags.value.filter(t => t !== tagValue)
+    selectedTags.value = selectedTags.value.filter(t => t !== tagCode)
   }
   form.mallTags = selectedTags.value.join(',')
 }
 
-async function handleAddTag() {
-  const name = newTagName.value.trim()
-  if (!name) return
-  // 检查重复
-  if (tagOptions.value.some(t => t.tagName === name)) {
-    message.warning('标签已存在')
-    return
-  }
-  try {
-    const maxSort = Math.max(...tagOptions.value.map(t => t.sortOrder || 0), 0)
-    await mallTagApi.create({ tagName: name, sortOrder: maxSort + 1 })
-    message.success('标签添加成功')
-    newTagName.value = ''
-    await loadTags()
-  } catch {
-    message.error('添加标签失败')
-  }
-}
-
-async function handleDeleteTag(tag: MallTag) {
-  if (tag.id) {
-    Modal.confirm({
-      title: '确认删除',
-      content: `确定要删除标签"${tag.tagName}"吗？已关联该标签的商品将不再显示此标签。`,
-      okType: 'danger',
-      async onOk() {
-        try {
-          await mallTagApi.delete(tag.id)
-          selectedTags.value = selectedTags.value.filter(t => t !== tag.tagName)
-          form.mallTags = selectedTags.value.join(',')
-          await loadTags()
-          message.success('标签已删除')
-        } catch {
-          message.error('删除标签失败')
-        }
-      }
-    })
-  } else {
-    // 无id：从列表中移除
-    selectedTags.value = selectedTags.value.filter(t => t !== tag.tagName)
-    form.mallTags = selectedTags.value.join(',')
-  }
-}
-
 // ── 单位表格 ─
-const unitTypeOptions = [
-  { label: '大单位', value: 'LARGE' },
+/** 数据表默认预留的行数：小单位 / 中单位 / 大单位（表头 + 3 行） */
+const UNIT_MIN_ROWS = 3
+
+/** 前三个槽位是固定单位类型；第 4 行起为扩展槽位 UNIT_4 → 「单位4」，依次类推 */
+const FIXED_UNIT_TYPE_OPTIONS = [
+  { label: '小单位', value: 'SMALL' },
   { label: '中单位', value: 'MEDIUM' },
-  { label: '小单位', value: 'SMALL' }
+  { label: '大单位', value: 'LARGE' },
 ]
+
+/** 第 N 个槽位的类型默认值（1/2/3 → 小/中/大单位；N≥4 → UNIT_N） */
+function defaultUnitTypeAt(slot: number): string {
+  if (slot === 1) return 'SMALL'
+  if (slot === 2) return 'MEDIUM'
+  if (slot === 3) return 'LARGE'
+  return `UNIT_${slot}`
+}
+
+/** 扩展槽位下拉项：按当前行数动态补齐「单位4/单位5…」 */
+const unitTypeOptions = computed(() => {
+  const extra: { label: string; value: string }[] = []
+  for (let i = 4; i <= Math.max(4, unitList.value.length); i++) {
+    extra.push({ label: `单位${i}`, value: `UNIT_${i}` })
+  }
+  return [...FIXED_UNIT_TYPE_OPTIONS, ...extra]
+})
 
 // ── 价格等级（从API动态加载，最多8个） ──
 const gradeList = ref<ProductGrade[]>([])
@@ -1069,10 +1235,11 @@ const gradePriceFieldMap = [
 ]
 
 const gradePriceColumns = computed(() => {
-  // 最多展示8个等级价格列（受DB列数限制）
-  return gradeList.value.slice(0, 8).map((g, i) => ({
-    field: gradePriceFieldMap[i],
-    title: g.gradeName
+  // 固定 8 个标准价格等级槽位（grade_price_1..8 ↔ GRADE_1..8）；
+  // 列标题取用户自定义昵称，未配置时回落标准名「价格等级N」，与接口返回顺序无关
+  return gradePriceFieldMap.map((field, i) => ({
+    field,
+    title: gradeNameOfLevel(gradeList.value, i + 1),
   }))
 })
 
@@ -1091,10 +1258,9 @@ async function loadGrades() {
   }
 }
 
-/** 构建默认8个等级（当API无数据时使用） */
+/** 构建标准 8 个价格等级（接口无数据时的兜底，昵称回落标准名） */
 function buildDefaultGrades(): ProductGrade[] {
-  const defaultNames = ['餐饮店', '食堂团餐', '外围餐饮店', '自助vip', '大团餐', '重点vip01', '价格等级7', '价格等级8']
-  return defaultNames.map((name, i) => ({
+  return DEFAULT_GRADE_NAMES.map((name, i) => ({
     id: i + 1,
     gradeCode: `GRADE_${i + 1}`,
     gradeName: name,
@@ -1104,97 +1270,157 @@ function buildDefaultGrades(): ProductGrade[] {
   }))
 }
 
-// ── 单位字典（选择单位组） ──
-const unitDictList = ref<ProductUnitDict[]>([])
+// ── 单位组（选择单位组 → 带出小/中/大单位与换算关系） ──
 const unitGroupModalVisible = ref(false)
-const selectedUnitDictIds = ref<string[]>([])
+const unitGroupOptions = ref<any[]>([])
+const unitGroupKeyword = ref('')
+const unitGroupLoading = ref(false)
+const selectedUnitGroupId = ref<string>('')
 
-async function loadUnitDictList() {
-  try {
-    unitDictList.value = await productUnitDictApi.list()
-  } catch {
-    unitDictList.value = []
-  }
-}
+/** 单位组选择表格列（对标单位组管理的「单位 / 单位关系」） */
+const unitGroupPickColumns = [
+  { key: 'pick', title: '', width: 48 },
+  { key: 'unitNames', title: '单位' },
+  { key: 'unitRates', title: '单位关系', width: 140 },
+]
 
 async function showUnitGroupDialog() {
-  await loadUnitDictList()
-  // 预选已有的单位名称
-  selectedUnitDictIds.value = unitList.value
-    .filter(u => u.unitName)
-    .map(u => {
-      const match = unitDictList.value.find(d => d.unitName === u.unitName)
-      return match?.id || ''
-    })
-    .filter(Boolean)
   unitGroupModalVisible.value = true
+  unitGroupKeyword.value = ''
+  selectedUnitGroupId.value = ''
+  await loadUnitGroupList()
+  // 预选：当前单位明细与某单位组的单位串完全一致时默认选中
+  const currentNames = unitList.value.map(u => u.unitName).filter(Boolean).join(',')
+  const hit = currentNames
+    ? unitGroupOptions.value.find((g: any) => (g.unitNames || '') === currentNames)
+    : null
+  if (hit) selectedUnitGroupId.value = String(hit.id)
+}
+
+async function loadUnitGroupList() {
+  unitGroupLoading.value = true
+  try {
+    const res: any = await productUnitGroupApi.page({
+      pageNum: 1,
+      pageSize: 50,
+      status: 1,
+      ...(unitGroupKeyword.value ? { keyword: unitGroupKeyword.value } : {}),
+    })
+    unitGroupOptions.value = res?.records || []
+  } catch (e) {
+    console.error('[商品表单] 加载单位组失败', e)
+    unitGroupOptions.value = []
+  } finally {
+    unitGroupLoading.value = false
+  }
 }
 
 function applyUnitGroup() {
-  const selectedDicts = unitDictList.value.filter(d => selectedUnitDictIds.value.includes(d.id))
-  if (selectedDicts.length === 0) {
-    message.warning('请至少选择一个单位')
+  const group = unitGroupOptions.value.find((g: any) => String(g.id) === selectedUnitGroupId.value)
+  if (!group) {
+    message.warning('请选择一个单位组')
     return
   }
-  // 按字典中的单位名称填充单位列表
-  const existingNames = new Set(unitList.value.map(u => u.unitName))
-  const typeOrder = ['SMALL', 'MEDIUM', 'LARGE']
-
-  selectedDicts.forEach((dict, idx) => {
-    if (existingNames.has(dict.unitName)) return // 已存在则跳过
-    unitList.value.push({
-      id: 0,
-      productId: 0,
-      unitName: dict.unitName,
-      isBaseUnit: idx === 0 && unitList.value.filter(u => u.isBaseUnit).length === 0 ? 1 : 0,
-      conversionRate: dict.conversionRate || 1,
-      barcode: '',
-      sortOrder: unitList.value.length + 1,
-      unitType: typeOrder[idx] || '',
-    } as any)
-    existingNames.add(dict.unitName)
-  })
-
-  // 确保第一行是基本单位
-  if (unitList.value.length > 0 && unitList.value[0].isBaseUnit !== 1) {
-    unitList.value[0].isBaseUnit = 1
+  const items: any[] = group.items || []
+  if (items.length === 0) {
+    message.warning('该单位组未配置单位')
+    return
   }
+  // 按单位组重设多单位明细：第 1 个槽位=基本单位（换算关系 1），其余按槽位带出类型
+  unitList.value = items.map((item: any, idx: number) => ({
+    id: 0,
+    productId: 0,
+    unitName: item.unitName,
+    isBaseUnit: item.unitType === 'SMALL' || (!item.unitType && idx === 0) ? 1 : 0,
+    conversionRate: Number(item.conversionRate ?? 1),
+    barcode: '',
+    sortOrder: idx + 1,
+    unitType: item.unitType || defaultUnitTypeAt(idx + 1),
+  } as any))
 
   unitGroupModalVisible.value = false
-  message.success(`已加载 ${selectedDicts.length} 个单位`)
+  message.success(`已按单位组「${group.unitNames || ''}」重设 ${unitList.value.length} 个单位`)
 }
 
 const unitList = ref<ProductUnit[]>([])
 
 function addUnitRow() {
-  // 新增模式：默认创建小/中/大 3行
-  const types: Array<{ unitType: string; isBase: number }> = [
-    { unitType: 'SMALL', isBase: 1 },
-    { unitType: 'MEDIUM', isBase: 0 },
-    { unitType: 'LARGE', isBase: 0 },
-  ]
-  types.forEach((t, i) => {
+  // 新增模式：默认 3 行固定槽位 —— 小单位(基本单位) / 中单位 / 大单位
+  for (let i = 1; i <= UNIT_MIN_ROWS; i++) {
     unitList.value.push({
       id: 0,
       productId: 0,
       unitName: '',
-      isBaseUnit: t.isBase,
-      conversionRate: i === 0 ? 1 : undefined,
+      isBaseUnit: i === 1 ? 1 : 0,
+      conversionRate: i === 1 ? 1 : undefined,
       barcode: '',
-      sortOrder: unitList.value.length + 1,
-      unitType: t.unitType,
+      sortOrder: i,
+      unitType: defaultUnitTypeAt(i),
     } as any)
-  })
+  }
+}
+
+/** 补齐到默认 3 行固定槽位（小/中/大）：编辑只有 1~2 个单位的商品时也要占满 3 行并预填类型 */
+function ensureUnitRows() {
+  for (let slot = unitList.value.length + 1; slot <= UNIT_MIN_ROWS; slot++) {
+    unitList.value.push({
+      id: 0,
+      productId: 0,
+      unitName: '',
+      isBaseUnit: 0,
+      conversionRate: undefined,
+      barcode: '',
+      sortOrder: slot,
+      unitType: defaultUnitTypeAt(slot),
+    } as any)
+  }
+  // 首行必须是基本单位（换算关系缺省为 1）
+  const first: any = unitList.value[0]
+  if (first && first.isBaseUnit !== 1) {
+    first.isBaseUnit = 1
+    if (first.conversionRate == null) first.conversionRate = 1
+  }
+}
+
+/** 第 4 行起且为最后一行时才可删除（必须从最后一行依次往上删） */
+function canRemoveUnitRow(index: number): boolean {
+  return index >= UNIT_MIN_ROWS && index === unitList.value.length - 1
 }
 
 function removeUnitRow(index: number) {
+  if (index < UNIT_MIN_ROWS) {
+    // 前三行是固定槽位，不能删行
+    message.warning('小/中/大单位为固定槽位，只能清空数据，不能删除行')
+    return
+  }
+  if (!canRemoveUnitRow(index)) {
+    message.warning('请从最后一行开始依次删除')
+    return
+  }
   unitList.value.splice(index, 1)
   // 更新排序
   unitList.value.forEach((u, i) => { u.sortOrder = i + 1 })
 }
 
-/** 新增单行（按钮触发的新增行） */
+/** 清空一行的数据（保留单位类型槽位与基本单位标记），用于小/中/大单位行 */
+function clearUnitRow(index: number) {
+  const row: any = unitList.value[index]
+  if (!row) return
+  const keepType = row.unitType
+  const keepBase = row.isBaseUnit
+  Object.keys(row).forEach(k => {
+    if (['id', 'productId', 'tenantId', 'sortOrder', 'unitType', 'isBaseUnit'].includes(k)) return
+    row[k] = undefined
+  })
+  row.unitType = keepType
+  row.isBaseUnit = keepBase
+  unitList.value = [...unitList.value]
+  message.success('已清空该单位行数据')
+}
+
+/** 新增单行：类型列按槽位预填「单位N」（第 4 行 → 单位4，删掉再加仍为 单位4） */
 function addSingleUnitRow() {
+  const slot = unitList.value.length + 1
   unitList.value.push({
     id: 0,
     productId: 0,
@@ -1202,16 +1428,37 @@ function addSingleUnitRow() {
     isBaseUnit: 0,
     conversionRate: 1,
     barcode: '',
-    sortOrder: unitList.value.length + 1,
-    unitType: '',
+    sortOrder: slot,
+    unitType: defaultUnitTypeAt(slot),
   } as any)
+}
+
+// ── 数据表区域高度：默认预留「表头 + 3 行」，行数增减时容器高度同步自适应 ──
+const UNIT_HEADER_HEIGHT_FALLBACK = 38
+const UNIT_ROW_HEIGHT_FALLBACK = 33
+const unitHeaderHeight = ref(UNIT_HEADER_HEIGHT_FALLBACK)
+const unitRowHeight = ref(UNIT_ROW_HEIGHT_FALLBACK)
+
+/** 横向滚动条 + 表格描边余量：不留会让内容高度刚好等于容器高而被判成「需展开」，末行被折叠 */
+const UNIT_TABLE_EXTRA = 12
+const unitTableHeight = computed(() =>
+  unitHeaderHeight.value + Math.max(UNIT_MIN_ROWS, unitList.value.length) * unitRowHeight.value + UNIT_TABLE_EXTRA)
+
+/** 按实际渲染尺寸校准表头/行高（主题字号变化也能自适应） */
+function measureUnitTable() {
+  const head = document.querySelector('.unit-table-wrap .ss-grid thead') as HTMLElement | null
+  const row = document.querySelector('.unit-table-wrap .ss-grid tbody tr') as HTMLElement | null
+  const hh = head ? Math.round(head.getBoundingClientRect().height) : 0
+  const rh = row ? Math.round(row.getBoundingClientRect().height) : 0
+  if (hh > 10) unitHeaderHeight.value = hh
+  if (rh > 10) unitRowHeight.value = rh
 }
 
 /** 列定义（BillDetailTable 格式） */
 const unitColumns = computed<DetailColumnConfig[]>(() => {
   const baseColumns: DetailColumnConfig[] = [
     { key: 'rowNo', type: 'rowNo', title: '序号', width: 50, fixed: 'left' },
-    { key: 'unitType', type: 'select', title: '类型', width: 90, options: unitTypeOptions, placeholder: '选择类型' },
+    { key: 'unitType', type: 'select', title: '类型', width: 90, options: unitTypeOptions.value, placeholder: '选择类型' },
     { key: 'unitName', type: 'input', title: '单位名称', width: 100, placeholder: '如: 袋/箱/件' },
     { key: 'isBaseUnit', type: 'slot', title: '单位关系', width: 100, slotName: 'isBaseUnitCell' },
     { key: 'conversionRate', type: 'number', title: '换算关系', width: 100, precision: 6, min: 0.000001 },
@@ -1233,6 +1480,11 @@ const unitColumns = computed<DetailColumnConfig[]>(() => {
     precision: 2,
     min: 0,
   }))
+  // 重量 / 体积（单位级，对标商品单位明细表末尾两列）
+  const measureCols: DetailColumnConfig[] = [
+    { key: 'weight', type: 'number', title: '重量（kg）', width: 100, precision: 4, min: 0 },
+    { key: 'volume', type: 'number', title: '体积（m³）', width: 100, precision: 6, min: 0 },
+  ]
   // 操作列
   const actionCol: DetailColumnConfig = {
     key: 'action',
@@ -1242,7 +1494,7 @@ const unitColumns = computed<DetailColumnConfig[]>(() => {
     fixed: 'right',
     slotName: 'actionCell',
   }
-  return [...baseColumns, ...gradeCols, actionCol]
+  return [...baseColumns, ...gradeCols, ...measureCols, actionCol]
 })
 
 /** 单元格变更回调（BillDetailTable 已直接修改 record，仅用于触发响应式） */
@@ -1256,12 +1508,142 @@ function openGradeManage() {
   window.open(routeData.href, '_blank')
 }
 
+// ── 批量价格计算（对标 ql361 商品单位「批量价格计算」）──
+const priceCalcModalVisible = ref(false)
+const priceCalc = reactive({
+  baseField: 'presetPurchasePrice',
+  retailMarkup: 30,
+  wholesaleMarkup: 20,
+  gradeDiscount: 0,
+  writeMinSalePrice: true,
+})
+
+const priceCalcBaseOptions = [
+  { label: '预设进价', value: 'presetPurchasePrice' },
+  { label: '参考成本', value: 'referenceCost' },
+  { label: '最近进价', value: 'recentPurchasePrice' },
+]
+
 function batchCalcPrice() {
-  message.info('批量计算价格功能待完善')
+  if (unitList.value.length === 0) {
+    message.warning('请先添加商品单位')
+    return
+  }
+  priceCalcModalVisible.value = true
+}
+
+/** 按「基准价 × (1 + 加价率)」重算所有单位行的零售价/批发价/价格等级 */
+function applyPriceCalc() {
+  let changed = 0
+  unitList.value = unitList.value.map((row: any) => {
+    const base = Number(row[priceCalc.baseField] ?? 0)
+    if (!base) return row
+    const round2 = (n: number) => Math.round(n * 100) / 100
+    const retail = round2(base * (1 + Number(priceCalc.retailMarkup ?? 0) / 100))
+    const wholesale = round2(base * (1 + Number(priceCalc.wholesaleMarkup ?? 0) / 100))
+    const updated: any = { ...row, retailPrice: retail, wholesalePrice: wholesale }
+    if (priceCalc.writeMinSalePrice) {
+      updated.minSalePrice = wholesale
+    }
+    if (Number(priceCalc.gradeDiscount) > 0) {
+      const factor = 1 - Number(priceCalc.gradeDiscount) / 100
+      gradePriceFieldMap.forEach((field, i) => {
+        if (row[field] != null && row[field] !== '') {
+          updated[field] = round2(retail * factor)
+        }
+      })
+    }
+    changed++
+    return updated
+  })
+  if (!changed) {
+    message.warning('所选基准价在各单位行均为空，未计算')
+    return
+  }
+  message.success(`已按基准价重算 ${changed} 个单位行的价格`)
+  priceCalcModalVisible.value = false
 }
 
 // ── 图片上传（顺序逐个，最多5张） ──
-const imageFileList = ref<{ name: string; url: string; status: string }[]>([])
+const imageFileList = ref<{ name: string; url: string; status: string; materialId?: string }[]>([])
+
+// ── 引用图片空间（对标「商品图片 → 引用图片空间」）──
+const imageSpaceModalVisible = ref(false)
+const imageSpaceLoading = ref(false)
+const imageSpaceKeyword = ref('')
+const imageSpaceList = ref<ProductImageMaterial[]>([])
+const imageSpaceSelected = ref<string[]>([])
+
+async function loadImageSpace() {
+  imageSpaceLoading.value = true
+  try {
+    const res: any = await productImageApi.spacePage({
+      keyword: imageSpaceKeyword.value || undefined,
+      onlyImage: 1,
+      pageNum: 1,
+      pageSize: 60,
+    })
+    imageSpaceList.value = res?.records || []
+  } catch {
+    imageSpaceList.value = []
+  } finally {
+    imageSpaceLoading.value = false
+  }
+}
+
+function openImageSpaceModal() {
+  imageSpaceSelected.value = []
+  imageSpaceModalVisible.value = true
+  loadImageSpace()
+}
+
+function toggleImageSpace(id: string) {
+  const i = imageSpaceSelected.value.indexOf(id)
+  if (i >= 0) {
+    imageSpaceSelected.value.splice(i, 1)
+    return
+  }
+  if (imageFileList.value.length + imageSpaceSelected.value.length >= 5) {
+    message.warning('商品图片最多支持 5 张')
+    return
+  }
+  imageSpaceSelected.value.push(id)
+}
+
+/** 把选中的图片空间素材引用到当前商品（保存时写入绑定关系） */
+function applyImageSpace() {
+  if (!imageSpaceSelected.value.length) {
+    imageSpaceModalVisible.value = false
+    return
+  }
+  const picked = imageSpaceList.value.filter(m => imageSpaceSelected.value.includes(m.id))
+  picked.forEach(m => {
+    if (imageFileList.value.length >= 5) return
+    imageFileList.value.push({ name: m.imageName || '图片空间', url: m.imageUrl, status: 'done', materialId: m.id })
+  })
+  if (!form.imageUrl && imageFileList.value[0]) {
+    form.imageUrl = imageFileList.value[0].url
+  }
+  message.success(`已引用 ${picked.length} 张图片空间素材`)
+  imageSpaceSelected.value = []
+  imageSpaceModalVisible.value = false
+}
+
+/** 保存后把引用的图片空间素材绑定到该商品（首张为主图） */
+async function bindImageMaterials(pid: number | string) {
+  const items = imageFileList.value.filter((f: any) => f.materialId)
+  for (let i = 0; i < items.length; i++) {
+    try {
+      await productImageApi.bind({
+        imageId: String((items[i] as any).materialId),
+        productId: String(pid),
+        isMain: i === 0 ? 1 : 0,
+      })
+    } catch {
+      // 绑定失败不阻断商品保存
+    }
+  }
+}
 const imageInputRef = ref<HTMLInputElement>()
 
 function triggerImageUpload() {
@@ -1393,6 +1775,7 @@ function confirmRecommend() {
       recommendProductCode: opt.productCode,
       recommendProductName: opt.productName,
       recommendProductSpec: opt.spec,
+      recommendProductModel: opt.model,
       recommendProductUnit: opt.unit,
       recommendProductOrigin: opt.origin,
       recommendProductBrand: opt.brand
@@ -1413,6 +1796,7 @@ function confirmRecommend() {
       recommendProductCode: opt.productCode,
       recommendProductName: opt.productName,
       recommendProductSpec: opt.spec,
+      recommendProductModel: opt.model,
       recommendProductUnit: opt.unit,
       recommendProductOrigin: opt.origin,
       recommendProductBrand: opt.brand
@@ -1434,14 +1818,14 @@ async function init() {
   try {
     if (route.params.id) {
       isEdit.value = true
-      productId.value = Number(route.params.id)
+      productId.value = String(route.params.id)
     }
 
-    // 并行加载：分类树 + 标签 + 等级
+    // 并行加载：分类树 + 价格等级 + 商品标签字典
     const [cats] = await Promise.all([
       productCategoryApi.getTree(),
-      loadTags(),
-      loadGrades()
+      loadGrades(),
+      loadTags()
     ])
     categoryTree.value = cats
     if (isEdit.value && productId.value) {
@@ -1456,7 +1840,7 @@ async function init() {
   }
 }
 
-async function loadProduct(id: number) {
+async function loadProduct(id: number | string) {
   try {
     const formData = await productFormApi.getById(id)
     const prod = formData.product
@@ -1487,6 +1871,9 @@ async function loadProduct(id: number) {
       mallDescription: prod.mallDescription || '',
       mallTags: prod.mallTags || '',
       mallShelfStatus: prod.mallShelfStatus || 0,
+      mallSortType: prod.mallSortType || 'DEFAULT',
+      mallPoints: prod.mallPoints,
+      keywords: prod.keywords || '',
       mallSortOrder: prod.mallSortOrder || 0,
       mallMinOrderQty: prod.mallMinOrderQty || 0,
       mallPurchaseLimit: prod.mallPurchaseLimit || 0,
@@ -1508,7 +1895,13 @@ async function loadProduct(id: number) {
       selectedTags.value = form.mallTags.split(',').filter(Boolean)
     }
 
-    unitList.value = formData.units.map(u => ({ ...u }))
+    // 回填单位；历史数据缺类型时按槽位补默认值（1/2/3 → 小/中/大单位，N≥4 → UNIT_N）
+    unitList.value = formData.units.map((u, idx) => ({
+      ...u,
+      unitType: u.unitType || defaultUnitTypeAt(idx + 1),
+    }))
+    // 商品只有 1~2 个单位时也要占满默认 3 行：补齐小/中/大固定槽位并预填类型
+    ensureUnitRows()
     recommendList.value = formData.recommends.map(r => ({ ...r }))
 
     // 加载图片列表
@@ -1558,7 +1951,9 @@ async function saveAction(action: string) {
   if (!form.productName) { message.warning('请输入商品名称'); return }
   if (!form.categoryId) { message.warning('请选择所属分类'); return }
   if (!form.industryCategory) { message.warning('请选择所属行业类别'); return }
-  if (unitList.value.length === 0) { message.warning('请至少添加一个商品单位'); return }
+  // 表格恒占 3 行（含占位行），以「填写了单位名称的行」为有效单位口径
+  const validUnits = unitList.value.filter((u: any) => String(u.unitName || '').trim())
+  if (validUnits.length === 0) { message.warning('请至少填写一个商品单位'); return }
   if (!form.defaultSalesUnitId) { message.warning('请选择销售常用单位'); return }
 
   if (!form.productCodeAlias) {
@@ -1593,6 +1988,9 @@ async function saveAction(action: string) {
       mallDescription: form.mallDescription || undefined,
       mallTags: form.mallTags || undefined,
       mallShelfStatus: isMallShelf.value ? 1 : 0,
+      mallSortType: form.mallSortType,
+      mallPoints: form.mallPoints,
+      keywords: form.keywords || undefined,
       mallSortOrder: form.mallSortOrder,
       mallMinOrderQty: form.mallMinOrderQty,
       mallPurchaseLimit: form.mallPurchaseLimit,
@@ -1609,13 +2007,14 @@ async function saveAction(action: string) {
       retailPrice: form.retailPrice
     }
 
-    const unitsPayload = unitList.value.map((u: any) => ({
+    // 只提交填了单位名称的行：表格恒占 3 行，未使用的占位行不落库
+    const unitsPayload = validUnits.map((u: any, idx: number) => ({
       unitName: u.unitName,
       unitType: u.unitType,
       isBaseUnit: u.isBaseUnit || 0,
       conversionRate: u.conversionRate || 1,
       barcode: u.barcode || '',
-      sortOrder: u.sortOrder || 0,
+      sortOrder: idx + 1,
       presetPurchasePrice: u.presetPurchasePrice,
       referenceCost: u.referenceCost,
       recentPurchasePrice: u.recentPurchasePrice,
@@ -1630,7 +2029,9 @@ async function saveAction(action: string) {
       gradePrice5: u.gradePrice5,
       gradePrice6: u.gradePrice6,
       gradePrice7: u.gradePrice7,
-      gradePrice8: u.gradePrice8
+      gradePrice8: u.gradePrice8,
+      weight: u.weight,
+      volume: u.volume
     }))
 
     const recommendsPayload = recommendList.value.map(r => ({
@@ -1644,13 +2045,17 @@ async function saveAction(action: string) {
         units: unitsPayload,
         recommends: recommendsPayload
       })
+      await bindImageMaterials(productId.value)
       message.success('保存成功')
     } else {
-      const result = await productFormApi.batchCreate({
+      const result: any = await productFormApi.batchCreate({
         product: productPayload,
         units: unitsPayload,
         recommends: recommendsPayload
       })
+      // 引用的图片空间素材在商品创建后建立绑定（首张为主图）
+      const newId = result?.productId || result?.id
+      if (newId) await bindImageMaterials(newId)
       message.success('创建成功')
 
       if (action === 'save_and_new') {
@@ -1676,7 +2081,8 @@ function resetForm() {
     isBatchExpiryManaged: 0, isStandardProduct: 1, useCoupon: 0,
     defaultSalesUnitId: undefined, defaultPurchaseUnitId: undefined, defaultStockUnitId: undefined,
     mallDisplayTitle: '', mallDescription: '', mallTags: '',
-    mallShelfStatus: 0, mallSortOrder: 0, mallMinOrderQty: 0, mallPurchaseLimit: 0,
+    mallShelfStatus: 0, mallSortType: 'DEFAULT', mallPoints: undefined, keywords: '',
+    mallSortOrder: 0, mallMinOrderQty: 0, mallPurchaseLimit: 0,
     richTextDetail: '', imageUrl: '', videoUrl: ''
   })
   isMallShelf.value = false
@@ -1707,9 +2113,11 @@ function handleKeydown(e: KeyboardEvent) {
   }
 }
 
-onMounted(() => {
-  init()
+onMounted(async () => {
+  await init()
   document.addEventListener('keydown', handleKeydown)
+  // 表格渲染完成后校准表头/行高，使区域高度精确等于「表头 + 3 行」
+  nextTick(() => setTimeout(measureUnitTable, 300))
 })
 
 onUnmounted(() => {
@@ -1860,6 +2268,66 @@ onUnmounted(() => {
 
 .unit-actions {
   margin-top: 8px;
+}
+
+/* BillDetailTable 的高度由 flex 链驱动（内部 .spreadsheet-table 是 height:0 + flex-grow:1），
+ * 嵌在 a-card（block 容器）里必须由外层给出确定高度，否则表格塌陷成 1px 不可见。
+ * 高度由 :style 动态给出 = 表头 + max(3, 行数) 行 → 默认预留 4 行（表头+小/中/大 3 行），
+ * 用户新增/删除单位行时容器高度同步增减（内容区自适应表格高度）。 */
+.unit-table-wrap {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* 本区域高度已随单位行数自适应（行多则容器变高），不需要组件内置的「展开/收起」条，
+   且该条 flex-shrink:0 会额外吞掉一行高度，故隐藏 */
+.unit-table-wrap :deep(.detail-expand) {
+  display: none;
+}
+
+/* ── 引用图片空间 ── */
+.image-space-bar {
+  margin-bottom: 8px;
+}
+
+.image-space-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.image-space-item {
+  width: 110px;
+  border: 1px solid #f0f0f0;
+  border-radius: 4px;
+  padding: 4px;
+  cursor: pointer;
+  transition: border-color .2s, box-shadow .2s;
+}
+.image-space-item:hover {
+  border-color: #91caff;
+}
+.image-space-item.is-active {
+  border-color: #1677ff;
+  box-shadow: 0 0 0 2px rgba(22,119,255,.15);
+}
+.image-space-item img {
+  width: 100%;
+  height: 90px;
+  object-fit: cover;
+  display: block;
+}
+.image-space-name {
+  font-size: 12px;
+  color: #666;
+  text-align: center;
+  margin-top: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ── 图片上传区（顺序展示） ── */
@@ -2076,5 +2544,10 @@ onUnmounted(() => {
   border-radius: 3px;
   box-shadow: 0 1px 0 #d0d5dd;
   line-height: 18px;
+}
+
+/* 单位组选择：选中行高亮 */
+:deep(.unit-group-row-active) > td {
+  background: #fff3e0 !important;
 }
 </style>

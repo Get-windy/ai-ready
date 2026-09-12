@@ -116,6 +116,7 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
         dtoPage.setCurrent(result.getCurrent());
         dtoPage.setSize(result.getSize());
         dtoPage.setTotal(result.getTotal());
+        fillLineCount(dtoPage.getRecords());
         return dtoPage;
     }
 
@@ -662,6 +663,7 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
         dtoPage.setCurrent(result.getCurrent());
         dtoPage.setSize(result.getSize());
         dtoPage.setTotal(result.getTotal());
+        fillLineCount(dtoPage.getRecords());
         return dtoPage;
     }
 
@@ -772,6 +774,7 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
         dtoPage.setCurrent(result.getCurrent());
         dtoPage.setSize(result.getSize());
         dtoPage.setTotal(result.getTotal());
+        fillLineCount(dtoPage.getRecords());
         return dtoPage;
     }
 
@@ -846,6 +849,7 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
         dtoPage.setCurrent(result.getCurrent());
         dtoPage.setSize(result.getSize());
         dtoPage.setTotal(result.getTotal());
+        fillLineCount(dtoPage.getRecords());
         return dtoPage;
     }
 
@@ -868,6 +872,7 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
         dtoPage.setCurrent(result.getCurrent());
         dtoPage.setSize(result.getSize());
         dtoPage.setTotal(result.getTotal());
+        fillLineCount(dtoPage.getRecords());
         return dtoPage;
     }
 
@@ -1368,6 +1373,12 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
             try { wrapper.le(SaleOrder::getOrderDate, LocalDate.parse(endDate)); } catch (Exception ignored) {}
         }
 
+        // 单据日期（精确到某一天）
+        String orderDate = filters.get("orderDate") != null ? filters.get("orderDate").toString() : null;
+        if (orderDate != null && !orderDate.isEmpty()) {
+            try { wrapper.eq(SaleOrder::getOrderDate, LocalDate.parse(orderDate)); } catch (Exception ignored) {}
+        }
+
         // 单据编号
         String orderNo = filters.get("orderNo") != null ? filters.get("orderNo").toString() : null;
         if (orderNo != null && !orderNo.isEmpty()) {
@@ -1444,7 +1455,13 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
                     "SELECT DISTINCT order_id FROM erp_sale_order_item WHERE product_name LIKE '%" + productName.replace("'", "''") + "%'");
         }
 
-        // 单据备注
+        // 单据备注（表头 remark 列；orderRemark 为卖家备注，两者独立）
+        String remark = filters.get("remark") != null ? filters.get("remark").toString() : null;
+        if (remark != null && !remark.isEmpty()) {
+            wrapper.like(SaleOrder::getRemark, remark);
+        }
+
+        // 单据备注（卖家备注 orderRemark）
         String orderRemark = filters.get("orderRemark") != null ? filters.get("orderRemark").toString() : null;
         if (orderRemark != null && !orderRemark.isEmpty()) {
             wrapper.like(SaleOrder::getOrderRemark, orderRemark);
@@ -1754,6 +1771,11 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
         // 金额
         dto.setProductAmount(order.getProductAmount());
         dto.setDiscountAmount(order.getDiscountAmount());
+        // 优惠后金额 = 商品金额 − 促销优惠 − 优惠金额（与单据摘要口径一致：本单金额 − 其他费用）
+        dto.setFavorableAmount(
+                (order.getProductAmount() != null ? order.getProductAmount() : BigDecimal.ZERO)
+                        .subtract(order.getPromoDiscount() != null ? order.getPromoDiscount() : BigDecimal.ZERO)
+                        .subtract(order.getDiscountAmount() != null ? order.getDiscountAmount() : BigDecimal.ZERO));
         dto.setBillAmount(order.getBillAmount());
         dto.setSettledAmount(order.getSettledAmount());
         dto.setReceivedAmount(order.getReceivedAmount());
@@ -1848,6 +1870,17 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
         dto.setPickingWarehouse(order.getPickingWarehouse());
         dto.setCollectionLocation(order.getCollectionLocation());
         dto.setPickupAddress(order.getPickupAddress());
+        dto.setDeliveryRoute(order.getDeliveryRoute());
+        dto.setDriverName(order.getDriverName());
+        dto.setDeliveryVehicle(order.getDeliveryVehicle());
+        dto.setSortOrder(order.getSortOrder());
+        dto.setSortValue(order.getSortValue());
+        dto.setOrderSource(order.getOrderSource());
+        // 拣货进度：已拣货取主表汇总，未拣货 = 订货数量 − 已拣货数量（派生，不落库）
+        BigDecimal picked = order.getPickedQuantity() != null ? order.getPickedQuantity() : BigDecimal.ZERO;
+        dto.setPickedQuantity(picked);
+        BigDecimal orderedQty = order.getTotalQuantity() != null ? order.getTotalQuantity() : BigDecimal.ZERO;
+        dto.setUnpickedQuantity(orderedQty.subtract(picked).max(BigDecimal.ZERO));
         // 时间
         dto.setCreateTime(order.getCreateTime());
         dto.setUpdateTime(order.getUpdateTime());
@@ -1855,8 +1888,32 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
         // 业务扩展字段
         dto.setProductBrand(order.getProductBrand());
         dto.setIndustryCategory(order.getIndustryCategory());
+        dto.setExtText4(order.getExtText4());
+        dto.setExtText5(order.getExtText5());
 
         return dto;
+    }
+
+    /**
+     * 批量填充「商品行数」—— 取订单明细真实行数，一次分组查询避免 N+1。
+     * 拣货/发货 Tab「商品行数」列与按单据 Tab 均以此为准。
+     */
+    private void fillLineCount(List<SaleOrderListDTO> dtos) {
+        if (dtos == null || dtos.isEmpty()) return;
+        List<Long> orderIds = dtos.stream()
+                .map(SaleOrderListDTO::getId)
+                .filter(Objects::nonNull)
+                .map(Long::valueOf)
+                .collect(Collectors.toList());
+        if (orderIds.isEmpty()) return;
+        List<SaleOrderItem> items = itemMapper.selectList(
+                new LambdaQueryWrapper<SaleOrderItem>()
+                        .select(SaleOrderItem::getOrderId)
+                        .in(SaleOrderItem::getOrderId, orderIds));
+        Map<Long, Integer> countMap = items.stream()
+                .filter(i -> i.getOrderId() != null)
+                .collect(Collectors.groupingBy(SaleOrderItem::getOrderId, Collectors.summingInt(i -> 1)));
+        dtos.forEach(d -> d.setLineCount(countMap.getOrDefault(Long.valueOf(d.getId()), 0)));
     }
 
     private SaleOrderItemDTO convertItemToDTO(SaleOrderItem item) {

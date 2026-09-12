@@ -161,11 +161,62 @@
 - 是否在循环中触发了数据库查询？（性能红线）
 - 是否拷贝了 Odoo 原生代码而未做精简？（拒绝无脑搬运，必须按 OneLine 和 Min 原则做减法）
 
+### 7.3 验收脚本落位（金标准）
+
+- **新增模块级 E2E 脚本统一放 `tools/`**，命名 `tools/e2e-<模块>.cjs`；用 `NODE_PATH` 加载依赖、**不依赖脚本自身所在位置**（可被自由移动/复用）。
+- 历史上散落在项目根目录的 30 个脚本已统一归置到 **`tools/acceptance/`**，**该目录不可再移动**（这批脚本用 `__dirname` 定位项目根），运行方式见 `tools/acceptance/README.md`。
+- 每个模块的验收口径（脚本 + 通过数）必须回写到对应《XX开发文档》的「实现差异说明」中。
+
+### 7.4 会话收尾纪律（强制，2026-09-12 起）
+
+> **每个人 / 每个 AI 会话在结束当前工作前，必须关闭自己启动的实例，并清理自己产生的临时产物。**
+> 目的：避免重复启动造成系统阻塞（端口占用、内存耗尽、共享产物互相覆盖）。
+
+**① 关闭自己启动的实例**
+
+| 类型 | 识别方式 |
+|------|---------|
+| 后端 | `java.exe` 且命令行含 `-jar` + `core-api`（含为验证临时复制的 `<模块>-run.jar`） |
+| 前端 | `node.exe` 且命令行含 `vite`（dev server） |
+
+```powershell
+# 查看
+Get-CimInstance Win32_Process -Filter "name='java.exe'" |
+  Where-Object { $_.CommandLine -like '*-jar*' -and $_.CommandLine -like '*core-api*' } |
+  Select-Object ProcessId, CommandLine
+Get-CimInstance Win32_Process -Filter "name='node.exe'" |
+  Where-Object { $_.CommandLine -like '*vite*' } | Select-Object ProcessId
+
+# 关闭
+Get-CimInstance Win32_Process -Filter "name='java.exe'" |
+  Where-Object { $_.CommandLine -like '*-jar*' -and $_.CommandLine -like '*core-api*' } |
+  ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
+Get-CimInstance Win32_Process -Filter "name='node.exe'" |
+  Where-Object { $_.CommandLine -like '*vite*' } |
+  ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
+```
+
+> 注意：**不要**误杀 IDE 的 Java 语言服务（命令行含 `redhat.java` 的 JRE）。
+
+**② 清理自己产生的临时产物**（只清自己的）
+
+- 临时 fat jar 副本（`backend/*-run.jar`、`tool-results/core-api-*.jar` —— 单个约 180 MB）
+- 日志（`*.log`）、验收截图（`screenshots-*`）、`tool-results/` 下自己生成的一次性抓取/诊断产物
+
+**③ 不要清理别人的产物**
+
+- 其它会话正在使用的 jar / 实例；
+- **刚打包好的正式产物**（如 `backend/core/api/core-api/target/core-api-0.3.17-exec.jar`）——删掉会打断他人验证，即使可以重新 `mvn package`；
+- 拿不准就先问，**不要"顺手"删 `target/` 或别人的 jar**。
+
+**背景（为什么要有这条）**：并行会话各自复制 fat jar 到 `backend/`、`tool-results/` 下运行，收尾前项目里残留了 **21 个临时 fat jar（3.7 GB）** 与十多个后台实例，造成磁盘与端口被大量占用、共享产物互相覆盖（表现为莫名的 `NoClassDefFoundError`、端口占用）。
+
 ---
 
 ## 八、验收标准（交付物）
 
 ### 8.1 交付前必须满足
+- [ ] 会话收尾：自己启动的实例已全部关闭，自己产生的临时产物已清理（见 **7.4 会话收尾纪律**）。
 - [ ] UI 一致性：新页面与参考页面截图对比，视觉差异 ≤ 5%（字体、间距、交互反馈）。
 - [ ] 无冗余字段：该模块数据库表中不存在未引用的字段（已全部清理或迁移）。
 - [ ] 架构自检通过：Six-Rung Ladder 六步全部合规。

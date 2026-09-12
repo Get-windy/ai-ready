@@ -19,7 +19,7 @@ public interface ProductUnitDictMapper extends BaseMapper<ProductUnitDict> {
     @Select("<script>" +
             "SELECT * FROM erp_product_unit_dict WHERE tenant_id = #{tenantId} AND deleted = 0" +
             "<if test='keyword != null and keyword != \"\"'>" +
-            " AND unit_name LIKE CONCAT('%', #{keyword}, '%')" +
+            " AND (unit_name LIKE CONCAT('%', #{keyword}, '%') OR mnemonic_code LIKE CONCAT('%', #{keyword}, '%'))" +
             "</if>" +
             " ORDER BY sort_order ASC, id ASC" +
             "</script>")

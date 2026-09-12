@@ -9,11 +9,7 @@
           </div>
           <div class="bom-header__right">
             <a-space :size="8">
-              <a-tooltip title="列配置">
-                <a-button size="small" @click="showColumnConfig = true">
-                  <TableOutlined />
-                </a-button>
-              </a-tooltip>
+              <!-- 列配置走数据表表头齿轮 -->
               <a-button type="primary" size="small" @click="handleCreate">
                 <PlusOutlined /> 新增模板
               </a-button>
@@ -59,6 +55,7 @@
         ref="tableRef"
         :columns="vxeColumns"
         :data-source="tableData"
+        :storage-key="'stock-bom-table-columns'"
         :loading="loading"
         :pagination="pagination"
         row-key="id"
@@ -89,18 +86,6 @@
           </a-space>
         </template>
       </BillTableList>
-
-      <!-- ═══ 列配置弹窗 ═══ -->
-      <ColumnConfigPanel
-        :open="showColumnConfig"
-        :settings-columns="settingsColumns"
-        :is-locked-column="isLockedColumn"
-        global-config-key="stock-bom-list"
-        @update:open="showColumnConfig = $event"
-        @change="onSettingChange"
-        @reset="resetSettings"
-        @drag-end="handleColumnDrag"
-      />
     </PageContainer>
   </ErrorBoundary>
 </template>
@@ -112,13 +97,11 @@ import dayjs from 'dayjs'
 import { message, Modal } from 'ant-design-vue'
 import {
   PlusOutlined, ReloadOutlined, PrinterOutlined, ExportOutlined,
-  TableOutlined, EyeOutlined, EditOutlined, DeleteOutlined,
+  EyeOutlined, EditOutlined, DeleteOutlined,
 } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
-import ColumnConfigPanel from '@/components/ColumnConfigPanel/index.vue'
-import { useColumnConfig, isLockedColumn } from '@/composables/useColumnConfig'
 import { stockBomApi } from '@/api/erp'
 import request from '@/utils/request'
 
@@ -160,18 +143,10 @@ const columnDefs: any[] = [
   { key: 'brand', field: 'brand', title: '品牌', width: 100, defaultHidden: true },
 ]
 
-const {
-  showColumnConfig,
-  visibleColumns,
-  settingsColumns,
-  onSettingChange,
-  resetSettings,
-  handleColumnDrag,
-} = useColumnConfig(columnDefs, 'stock-bom-list-columns')
-
-// 操作列固定显示（不参与列配置），追加在业务列之后
+// 序号列（表头齿轮 = 列配置唯一入口）+ 操作列（固定显示，不参与列配置）
 const vxeColumns = computed<any[]>(() => [
-  ...visibleColumns.value,
+  { title: '', key: 'rowNo', type: 'rowNo', width: 40, fixed: 'left' },
+  ...columnDefs,
   { key: 'action', field: 'action', title: '操作', width: 150, fixed: 'right', type: 'action' },
 ])
 

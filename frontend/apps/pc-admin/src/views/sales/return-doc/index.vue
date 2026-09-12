@@ -12,11 +12,15 @@
               size="small"
               placeholder="--查询方案--"
             >
-              <a-select-option value="">--查询方案--</a-select-option>
+              <a-select-option value="">
+                --查询方案--
+              </a-select-option>
             </a-select>
-            <a-button type="link" size="small" style="padding: 0 4px">
-              <PlusOutlined />
-            </a-button>
+            <a-tooltip title="另存为查询方案" placement="bottom">
+              <a-button type="link" size="small" style="padding: 0 4px" @click="handleSaveQueryScheme">
+                <PlusOutlined />
+              </a-button>
+            </a-tooltip>
           </div>
           <a-space :size="4" class="quick-dates">
             <a-button
@@ -30,179 +34,147 @@
             </a-button>
           </a-space>
         </div>
-        <!-- 工具栏右侧：操作按钮 -->
+        <!-- 工具栏右侧：操作按钮（由页面配置「功能按钮」控制启停） -->
         <div class="toolbar-right">
           <a-space :size="8">
-            <a-tooltip title="配置">
+            <a-tooltip v-if="isButtonEnabled('config')" title="配置" placement="bottom">
               <a-button size="small" @click="showPageConfig = true">
                 <SettingOutlined />
               </a-button>
             </a-tooltip>
-            <a-tooltip title="列配置">
-              <a-button size="small" @click="showColumnConfig = true">
-                <ColumnWidthOutlined />
-              </a-button>
-            </a-tooltip>
-            <a-button type="primary" size="small" @click="handleAdd">
+            <a-button v-if="isButtonEnabled('add')" type="primary" size="small" @click="handleAdd">
               <PlusOutlined /> 新增
             </a-button>
-            <a-button size="small" @click="fetchData">
+            <a-button v-if="isButtonEnabled('refresh')" size="small" @click="fetchData">
               <ReloadOutlined /> 刷新
             </a-button>
-            <a-button size="small" @click="handleProductSummary">
+            <a-button v-if="isButtonEnabled('productSummary')" size="small" @click="handleProductSummary">
               <AppstoreOutlined /> 商品汇总
             </a-button>
-            <a-button size="small">
-              <PrinterOutlined /> 批量打印
-            </a-button>
-            <a-tooltip title="打印">
-              <a-button size="small">
+            <a-tooltip v-if="isButtonEnabled('batchPrint')" title="批量打印选中单据" placement="bottom">
+              <a-button size="small" @click="handleBatchPrint">
+                <PrinterOutlined /> 批量打印
+              </a-button>
+            </a-tooltip>
+            <a-tooltip v-if="isButtonEnabled('print')" title="打印(F8)" placement="bottom">
+              <a-button size="small" @click="handlePrintF8">
                 <PrinterOutlined /> 打印(F8)
               </a-button>
             </a-tooltip>
-            <a-button size="small">
+            <a-button v-if="isButtonEnabled('export')" size="small" @click="handleExport">
               <ExportOutlined /> 导出
+            </a-button>
+            <!-- 批量操作（仅在有选中行时显示） -->
+            <a-button v-if="selectedRowKeys.length > 0" size="small" @click="handleBatchApprove">
+              <CheckOutlined /> 批量审核
+            </a-button>
+            <a-button v-if="selectedRowKeys.length > 0" size="small" danger @click="handleBatchDelete">
+              <DeleteOutlined /> 批量删除
             </a-button>
           </a-space>
         </div>
       </div>
 
-      <!-- ═══ 搜索区域 ═══ -->
+      <!-- ═══ 搜索区域（默认 2 排，超出折叠；字段显隐由页面配置「查询条件」控制） ═══ -->
       <div class="search-area">
         <div class="search-container" :data-expanded="searchExpanded || null">
-        <div class="search-grid" ref="gridRef">
-          <!-- 基础字段（始终可见） -->
-          <div class="search-field-item">
-            <a-range-picker
-              v-model:value="dateRange"
-              size="small"
-              style="width: 100%"
-              @change="handleDateChange"
-            />
-          </div>
-          <div class="search-field-item">
-            <a-input v-model:value="searchParams.returnDocNo" placeholder="单据编号" allow-clear size="small" />
-          </div>
-          <div class="search-field-item">
-            <a-input v-model:value="searchParams.customerName" placeholder="客户" allow-clear size="small" :suffix="h(SearchOutlined, { style: 'color:#bbb' })" />
-          </div>
-          <div class="search-field-item">
-            <a-input v-model:value="searchParams.handlerName" placeholder="经手人" allow-clear size="small" :suffix="h(SearchOutlined, { style: 'color:#bbb' })" />
-          </div>
-          <!-- 扩展字段 -->
-          <div v-if="searchExpanded" class="search-field-item">
-            <a-input v-model:value="searchParams.deptName" placeholder="部门" allow-clear size="small" />
-          </div>
-          <div v-if="searchExpanded" class="search-field-item">
-            <a-input v-model:value="searchParams.creatorName" placeholder="制单人" allow-clear size="small" />
-          </div>
-          <div v-if="searchExpanded" class="search-field-item">
-            <a-input v-model:value="searchParams.bookkeeperName" placeholder="记账人" allow-clear size="small" />
-          </div>
-          <div v-if="searchExpanded" class="search-field-item">
-            <a-input v-model:value="searchParams.warehouseName" placeholder="仓库" allow-clear size="small" :suffix="h(SearchOutlined, { style: 'color:#bbb' })" />
-          </div>
-          <div v-if="searchExpanded" class="search-field-item">
-            <div class="search-select-wrap">
-              <span class="search-select-label">单据状态</span>
-              <a-select v-model:value="searchParams.status" size="small" allow-clear placeholder="全部">
-                <a-select-option :value="0">草稿</a-select-option>
-                <a-select-option :value="1">待审核</a-select-option>
-                <a-select-option :value="2">已审核</a-select-option>
-                <a-select-option :value="3">已完成</a-select-option>
-                <a-select-option :value="4">已取消</a-select-option>
-              </a-select>
+          <div ref="gridRef" class="search-grid">
+            <!-- 主查询字段（前 8 个默认排前，查询/刷新/显示红冲紧随其后） -->
+            <div v-for="f in primaryQueryFields" :key="f.key" class="search-field-item">
+              <a-range-picker
+                v-if="f.key === 'date'"
+                v-model:value="dateRange"
+                size="small"
+                style="width: 100%"
+                @change="handleDateChange"
+              />
+              <div v-else-if="fieldMeta[f.key]?.type === 'select'" class="search-select-wrap">
+                <span class="search-select-label">{{ f.label }}</span>
+                <a-select
+                  v-model:value="(searchParams as any)[f.key]"
+                  size="small"
+                  allow-clear
+                  placeholder="全部"
+                >
+                  <a-select-option
+                    v-for="opt in fieldMeta[f.key].options"
+                    :key="String(opt.value)"
+                    :value="opt.value"
+                  >
+                    {{ opt.label }}
+                  </a-select-option>
+                </a-select>
+              </div>
+              <a-input-number
+                v-else-if="fieldMeta[f.key]?.type === 'number'"
+                v-model:value="(searchParams as any)[f.key]"
+                size="small"
+                style="width: 100%"
+                :placeholder="f.label"
+              />
+              <a-input
+                v-else
+                v-model:value="(searchParams as any)[f.key]"
+                :placeholder="f.label"
+                allow-clear
+                size="small"
+                :suffix="fieldMeta[f.key]?.search ? h(SearchOutlined, { style: 'color:#bbb' }) : undefined"
+              />
             </div>
-          </div>
-          <div v-if="searchExpanded" class="search-field-item">
-            <div class="search-select-wrap">
-              <span class="search-select-label">结算状态</span>
-              <a-select v-model:value="searchParams.settleStatus" size="small" allow-clear placeholder="全部" />
+
+            <!-- 查询 / 重置 / 显示红冲（对标：2 排内必含查询及后续勾选项） -->
+            <div ref="actionRef" class="search-field-item search-action-group" :style="{ gridColumn: 'span ' + actionSpan }">
+              <a-space :size="4">
+                <a-button type="primary" size="small" @click="handleSearch">查询</a-button>
+                <a-button size="small" @click="resetSearch">重置</a-button>
+              </a-space>
+              <label class="search-red-flush">
+                <a-checkbox v-model:checked="searchParams.showRedFlush" @change="handleSearch" /> 显示红冲
+              </label>
             </div>
+
+            <!-- 折叠区：其余勾选可见的查询条件 -->
+            <template v-if="searchExpanded">
+              <div v-for="f in extraQueryFields" :key="f.key" class="search-field-item">
+                <div v-if="fieldMeta[f.key]?.type === 'select'" class="search-select-wrap">
+                  <span class="search-select-label">{{ f.label }}</span>
+                  <a-select
+                    v-model:value="(searchParams as any)[f.key]"
+                    size="small"
+                    allow-clear
+                    placeholder="全部"
+                  >
+                    <a-select-option
+                      v-for="opt in fieldMeta[f.key].options"
+                      :key="String(opt.value)"
+                      :value="opt.value"
+                    >
+                      {{ opt.label }}
+                    </a-select-option>
+                  </a-select>
+                </div>
+                <a-input-number
+                  v-else-if="fieldMeta[f.key]?.type === 'number'"
+                  v-model:value="(searchParams as any)[f.key]"
+                  size="small"
+                  style="width: 100%"
+                  :placeholder="f.label"
+                />
+                <a-input
+                  v-else
+                  v-model:value="(searchParams as any)[f.key]"
+                  :placeholder="f.label"
+                  allow-clear
+                  size="small"
+                  :suffix="fieldMeta[f.key]?.search ? h(SearchOutlined, { style: 'color:#bbb' }) : undefined"
+                />
+              </div>
+            </template>
           </div>
-          <div v-if="searchExpanded" class="search-field-item">
-            <div class="search-select-wrap">
-              <span class="search-select-label">配送方式</span>
-              <a-select v-model:value="searchParams.deliveryMethod" size="small" allow-clear placeholder="全部" />
-            </div>
-          </div>
-          <div v-if="searchExpanded" class="search-field-item">
-            <div class="search-select-wrap">
-              <span class="search-select-label">销售类型</span>
-              <a-select v-model:value="searchParams.salesType" size="small" allow-clear placeholder="全部" />
-            </div>
-          </div>
-          <div v-if="searchExpanded" class="search-field-item">
-            <div class="search-select-wrap">
-              <span class="search-select-label">商品行属性</span>
-              <a-select v-model:value="searchParams.productLineAttr" size="small" allow-clear placeholder="全部" />
-            </div>
-          </div>
-          <div v-if="searchExpanded" class="search-field-item">
-            <a-input v-model:value="searchParams.remark" placeholder="单据备注" allow-clear size="small" />
-          </div>
-          <div v-if="searchExpanded" class="search-field-item">
-            <a-input v-model:value="searchParams.summary" placeholder="摘要" allow-clear size="small" />
-          </div>
-          <div v-if="searchExpanded" class="search-field-item">
-            <a-input-number v-model:value="searchParams.extNum1" size="small" style="width: 100%" placeholder="自定义1(数字)" />
-          </div>
-          <div v-if="searchExpanded" class="search-field-item">
-            <a-input-number v-model:value="searchParams.extNum2" size="small" style="width: 100%" placeholder="自定义2(数字)" />
-          </div>
-          <div v-if="searchExpanded" class="search-field-item">
-            <a-input v-model:value="searchParams.extText1" placeholder="自定义3(文本)" allow-clear size="small" />
-          </div>
-          <div v-if="searchExpanded" class="search-field-item">
-            <a-input v-model:value="searchParams.extText2" placeholder="自定义4(文本)" allow-clear size="small" />
-          </div>
-          <div v-if="searchExpanded" class="search-field-item">
-            <a-input v-model:value="searchParams.extText3" placeholder="自定义5(文本)" allow-clear size="small" />
-          </div>
-          <div v-if="searchExpanded" class="search-field-item">
-            <a-input v-model:value="searchParams.receiverName" placeholder="收货人" allow-clear size="small" />
-          </div>
-          <div v-if="searchExpanded" class="search-field-item">
-            <a-input v-model:value="searchParams.receiverPhone" placeholder="联系电话" allow-clear size="small" />
-          </div>
-          <div v-if="searchExpanded" class="search-field-item">
-            <a-input v-model:value="searchParams.shippingAddress" placeholder="收货地址" allow-clear size="small" />
-          </div>
-          <div v-if="searchExpanded" class="search-field-item">
-            <a-input v-model:value="searchParams.logisticsCompany" placeholder="物流公司" allow-clear size="small" />
-          </div>
-          <div v-if="searchExpanded" class="search-field-item">
-            <a-input v-model:value="searchParams.waybillNo" placeholder="运单号" allow-clear size="small" />
-          </div>
-          <div v-if="searchExpanded" class="search-field-item">
-            <a-input v-model:value="searchParams.region" placeholder="区域" allow-clear size="small" />
-          </div>
-          <div v-if="searchExpanded" class="search-field-item">
-            <div class="search-select-wrap">
-              <span class="search-select-label">产生方式</span>
-              <a-select v-model:value="searchParams.generateType" size="small" allow-clear placeholder="全部" />
-            </div>
-          </div>
-          <div v-if="searchExpanded" class="search-field-item">
-            <a-input-number v-model:value="searchParams.printCount" size="small" style="width: 100%" placeholder="打印次数" :min="0" />
-          </div>
-          <div class="search-action-group" ref="actionRef" :style="{ gridColumn: 'span ' + actionSpan }">
-          <div class="search-field-item search-action-item">
-            <a-space :size="4">
-              <a-button type="primary" size="small" @click="handleSearch">查询</a-button>
-              <a-button size="small" @click="fetchData">刷新</a-button>
-            </a-space>
-          </div>
-          <div v-if="searchExpanded" class="search-field-item">
-            <label>
-              <a-checkbox v-model:checked="searchParams.showRedFlush" /> 显示红冲
-            </label>
-          </div>
-          </div>
-        </div>
-          <div class="search-more-toggle">
-            <a-button v-if="!searchExpanded" type="link" size="small" @click="searchExpanded = true">更多条件</a-button>
-            <a-button v-else type="link" size="small" @click="searchExpanded = false">收起</a-button>
+          <div v-if="hasMoreConditions" class="search-more-toggle">
+            <a-button type="link" size="small" @click="searchExpanded = !searchExpanded">
+              {{ searchExpanded ? '收起' : '更多条件' }}
+            </a-button>
           </div>
         </div>
       </div>
@@ -210,7 +182,8 @@
       <!-- ══ 表格区域 ═══ -->
       <div class="table-area">
         <BillTableList
-          :columns="visibleColumns"
+          :columns="docColumns"
+          :storage-key="'sale-return-doc-table-columns'"
           :data-source="tableData"
           :loading="loading"
           :pagination="billPagination"
@@ -238,8 +211,8 @@
           </template>
           <!-- 结算状态 -->
           <template #settleStatusCell="{ record }">
-            <a-tag v-if="record.settleStatus" :color="record.settleStatus === 'settled' ? 'success' : 'processing'">
-              {{ record.settleStatus === 'settled' ? '已结算' : '未结算' }}
+            <a-tag v-if="record.settleStatus" :color="record.settleStatus === '已结算' ? 'success' : 'processing'">
+              {{ record.settleStatus }}
             </a-tag>
             <span v-else>-</span>
           </template>
@@ -255,7 +228,7 @@
             <a-space :size="4">
               <a-button type="link" size="small" @click="handleView(record)">详情</a-button>
               <a-button v-if="record.status === 0" type="link" size="small" @click="handleEdit(record)">编辑</a-button>
-              <a-button v-if="record.status === 0" type="link" size="small">复制</a-button>
+              <a-button v-if="record.status === 0" type="link" size="small" @click="handleCopy(record)">复制</a-button>
               <a-button v-if="record.status === 0" type="link" size="small" danger @click="handleDelete(record)">删除</a-button>
               <a-dropdown v-if="record.status > 0">
                 <a-button type="link" size="small">更多</a-button>
@@ -274,24 +247,14 @@
       </div>
     </PageContainer>
 
-    <!-- ═══ 列配置弹窗 ═══ -->
-    <ColumnConfigPanel
-      :open="showColumnConfig"
-      :settings-columns="settingsColumns"
-      :is-locked-column="isLockedColumn"
-      @update:open="showColumnConfig = $event"
-      @change="onSettingChange"
-      @reset="resetSettings"
-      @drag-end="onSettingChange"
-    />
-
-    <!-- ═══ 页面配置弹窗 ═══ -->
+    <!-- ═══ 页面配置弹窗（3 Tab：查询条件/功能按钮/打印配置） ═══ -->
     <PageConfigPanel
       :open="showPageConfig"
       :query-fields-config="pageQueryFields"
       :function-buttons-config="pageFunctionButtons"
       storage-key="sale-return-doc-page-config"
       @update:open="showPageConfig = $event"
+      @change="handlePageConfigChange"
     />
   </ErrorBoundary>
 </template>
@@ -303,15 +266,13 @@ import type { Dayjs } from 'dayjs'
 import dayjs from 'dayjs'
 import {
   PlusOutlined, ReloadOutlined, PrinterOutlined, ExportOutlined,
-  SettingOutlined, SearchOutlined, ColumnWidthOutlined,
+  SettingOutlined, SearchOutlined, CheckOutlined, DeleteOutlined,
   AppstoreOutlined, PaperClipOutlined,
 } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
-import ColumnConfigPanel from '@/components/ColumnConfigPanel/index.vue'
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
-import { useColumnConfig, isLockedColumn } from '@/composables/useColumnConfig'
 import { useAutoGridSpan } from '@/composables/useAutoGridSpan'
 import { saleReturnDocApi } from '@/api/erp'
 import { useRouter } from 'vue-router'
@@ -334,7 +295,7 @@ const quickDate = ref('week')
 // ═══ 查询方案 ═══
 const queryScheme = ref('')
 
-// ══ 搜索展开 ═══
+// ══ 搜索展开 ══
 const searchExpanded = ref(false)
 
 // ═══ 动态 grid-column span ═══
@@ -400,18 +361,17 @@ const rowSelection = computed(() => ({
 }))
 
 // ═══ 配置弹窗 ═══
-const showColumnConfig = ref(false)
 const showPageConfig = ref(false)
 
-// ═══ 查询条件配置（PageConfigPanel 格式） ═══
-const pageQueryFields = ref([
+// ═══ 查询条件配置（PageConfigPanel 格式，29 项，与开发文档一致） ═══
+const DEFAULT_QUERY_FIELDS = [
   { key: 'date', label: '日期', visible: true },
   { key: 'returnDocNo', label: '单据编号', visible: true },
   { key: 'customerName', label: '客户', visible: true },
   { key: 'handlerName', label: '经手人', visible: true },
-  { key: 'deptName', label: '部门', visible: false },
-  { key: 'creatorName', label: '制单人', visible: false },
-  { key: 'bookkeeperName', label: '记账人', visible: false },
+  { key: 'deptName', label: '部门', visible: true },
+  { key: 'creatorName', label: '制单人', visible: true },
+  { key: 'bookkeeperName', label: '记账人', visible: true },
   { key: 'warehouseName', label: '仓库', visible: true },
   { key: 'status', label: '单据状态', visible: true },
   { key: 'settleStatus', label: '结算状态', visible: true },
@@ -433,11 +393,67 @@ const pageQueryFields = ref([
   { key: 'region', label: '区域', visible: false },
   { key: 'generateType', label: '产生方式', visible: false },
   { key: 'printCount', label: '打印次数', visible: false },
-  { key: 'showRedFlush', label: '显示红冲', visible: false },
-])
+  { key: 'showRedFlush', label: '显示红冲', visible: true },
+]
+const pageQueryFields = ref(DEFAULT_QUERY_FIELDS.map(f => ({ ...f })))
 
-// ═══ 功能按钮配置（PageConfigPanel 格式） ═══
-const pageFunctionButtons = ref([
+/** 查询字段渲染元信息（类型 / 下拉选项 / 是否带搜索图标） */
+const fieldMeta: Record<string, { type: 'input' | 'select' | 'number'; search?: boolean; options?: { label: string; value: any }[] }> = {
+  date: { type: 'input' },
+  returnDocNo: { type: 'input', search: true },
+  customerName: { type: 'input', search: true },
+  handlerName: { type: 'input', search: true },
+  deptName: { type: 'input' },
+  creatorName: { type: 'input' },
+  bookkeeperName: { type: 'input' },
+  warehouseName: { type: 'input', search: true },
+  status: { type: 'select', options: [
+    { label: '草稿', value: 0 },
+    { label: '待审核', value: 1 },
+    { label: '已审核', value: 2 },
+    { label: '已完成', value: 3 },
+    { label: '已取消', value: 4 },
+  ] },
+  settleStatus: { type: 'select', options: [
+    { label: '未结算', value: '未结算' },
+    { label: '部分结算', value: '部分结算' },
+    { label: '已结算', value: '已结算' },
+  ] },
+  deliveryMethod: { type: 'select', options: [
+    { label: '自提', value: '自提' },
+    { label: '配送', value: '配送' },
+    { label: '快递', value: '快递' },
+  ] },
+  salesType: { type: 'select', options: [
+    { label: '正常销售', value: 'normal' },
+    { label: '退货', value: 'return' },
+  ] },
+  productLineAttr: { type: 'select', options: [
+    { label: '正常', value: '正常' },
+    { label: '赠品', value: '赠品' },
+  ] },
+  generateType: { type: 'select', options: [
+    { label: '手动创建', value: '手动创建' },
+    { label: '销售退货申请', value: '销售退货申请' },
+  ] },
+  remark: { type: 'input' },
+  summary: { type: 'input' },
+  extNum1: { type: 'number' },
+  extNum2: { type: 'number' },
+  extText1: { type: 'input' },
+  extText2: { type: 'input' },
+  extText3: { type: 'input' },
+  receiverName: { type: 'input' },
+  receiverPhone: { type: 'input' },
+  shippingAddress: { type: 'input' },
+  logisticsCompany: { type: 'input' },
+  waybillNo: { type: 'input' },
+  region: { type: 'input' },
+  printCount: { type: 'number' },
+}
+
+// ═══ 功能按钮配置（PageConfigPanel 格式，7 项，与开发文档一致） ═══
+const DEFAULT_FUNCTION_BUTTONS = [
   { key: 'add', label: '新增', enabled: true },
   { key: 'refresh', label: '刷新', enabled: true },
   { key: 'productSummary', label: '商品汇总', enabled: true },
@@ -445,7 +461,20 @@ const pageFunctionButtons = ref([
   { key: 'print', label: '打印(F8)', enabled: true },
   { key: 'export', label: '导出', enabled: true },
   { key: 'config', label: '配置', enabled: true },
-])
+]
+const pageFunctionButtons = ref(DEFAULT_FUNCTION_BUTTONS.map(b => ({ ...b })))
+
+// ═══ 查询条件显隐联动 ═══
+const DEFAULT_PRIMARY_COUNT = 8
+const visibleQueryFields = computed(() => pageQueryFields.value.filter(f => f.visible !== false))
+const primaryQueryFields = computed(() => visibleQueryFields.value.slice(0, DEFAULT_PRIMARY_COUNT))
+const extraQueryFields = computed(() => visibleQueryFields.value.slice(DEFAULT_PRIMARY_COUNT))
+const hasMoreConditions = computed(() => extraQueryFields.value.length > 0)
+
+function isButtonEnabled(key: string): boolean {
+  const btn = pageFunctionButtons.value.find(b => b.key === key)
+  return btn ? btn.enabled !== false : true
+}
 
 // ═══ 状态映射 ═══
 const STATUS_MAP: Record<number, { text: string; color: string }> = {
@@ -512,13 +541,7 @@ const docColumns = [
   { title: '商品行数', field: 'productLineCount', key: 'productLineCount', width: 60, align: 'center' as const },
 ]
 
-// ═══ 列配置（使用 useColumnConfig composable） ═══
-const {
-  visibleColumns,
-  onSettingChange,
-  resetSettings,
-  settingsColumns,
-} = useColumnConfig(docColumns, 'sale-return-doc-list-columns')
+// ═══ 列配置走数据表表头齿轮（storage-key=sale-return-doc-table-columns，含个人/全局双配置） ═══
 
 // ═══ 数据加载 ═══
 async function fetchData() {
@@ -556,14 +579,15 @@ async function fetchData() {
     if (searchParams.region) params.region = searchParams.region
     if (searchParams.generateType) params.generateType = searchParams.generateType
     if (searchParams.printCount !== undefined) params.printCount = searchParams.printCount
-    if (searchParams.showRedFlush) params.showRedFlush = true
+    // 已取消(4) 即本单据口径下的「红冲」：筛已取消时必须放开红冲过滤，否则条件互斥查不到
+    if (searchParams.showRedFlush || searchParams.status === 4) params.showRedFlush = true
     if (searchParams.startDate) params.startDate = searchParams.startDate
     if (searchParams.endDate) params.endDate = searchParams.endDate
 
     const res = await saleReturnDocApi.page(params)
     if (res) {
-      tableData.value = res?.records || []
-      pagination.total = res?.total || 0
+      tableData.value = (res as any)?.records || []
+      pagination.total = (res as any)?.total || 0
     }
   } catch (error: any) {
     hasError.value = true
@@ -611,10 +635,54 @@ function handleSearch() {
   fetchData()
 }
 
+/** 重置查询条件（保留当前快捷日期口径） */
+function resetSearch() {
+  Object.assign(searchParams, {
+    returnDocNo: '', customerName: '', handlerName: '', deptName: '', creatorName: '',
+    bookkeeperName: '', warehouseName: '', status: undefined, settleStatus: undefined,
+    deliveryMethod: undefined, salesType: undefined, productLineAttr: undefined,
+    remark: '', summary: '', extNum1: undefined, extNum2: undefined,
+    extText1: '', extText2: '', extText3: '', receiverName: '', receiverPhone: '',
+    shippingAddress: '', logisticsCompany: '', waybillNo: '', region: '',
+    generateType: undefined, printCount: undefined, showRedFlush: false,
+  })
+  setQuickDate(quickDate.value)
+}
+
 function handlePageChange(page: number, pageSize: number) {
   pagination.current = page
   pagination.pageSize = pageSize
   fetchData()
+}
+
+/** 另存为查询方案：把当前查询条件存入 localStorage 供下次复用 */
+function handleSaveQueryScheme() {
+  Modal.confirm({
+    title: '另存为查询方案',
+    content: h('div', [
+      h('div', { style: 'margin-bottom:8px;font-size:12px;color:#8c8c8c' }, '保存当前搜索区全部查询条件，便于下次一键调用'),
+      h('input', {
+        id: 'sale-return-doc-scheme-name',
+        class: 'ant-input',
+        placeholder: '请输入方案名称',
+        style: 'width:100%',
+      }),
+    ]),
+    okText: '保存',
+    cancelText: '取消',
+    onOk: () => {
+      const el = document.getElementById('sale-return-doc-scheme-name') as HTMLInputElement | null
+      const name = (el?.value || '').trim()
+      if (!name) {
+        message.warning('请输入方案名称')
+        return Promise.reject()
+      }
+      const schemes = JSON.parse(localStorage.getItem('sale-return-doc-query-schemes') || '{}')
+      schemes[name] = { ...searchParams }
+      localStorage.setItem('sale-return-doc-query-schemes', JSON.stringify(schemes))
+      message.success(`查询方案「${name}」已保存`)
+    },
+  })
 }
 
 // ═══ 操作 ═══
@@ -628,6 +696,45 @@ function handleView(record: any) {
 
 function handleEdit(record: any) {
   router.push(`/sales/return-doc/form/${record.id}`)
+}
+
+/** 复制：以原单为模板新建草稿（新号段单号 + 相同明细），对标金蝶/管家婆「复制单据」 */
+async function handleCopy(record: any) {
+  try {
+    const detail = await saleReturnDocApi.getById(record.id)
+    if (!detail) {
+      message.error('源单不存在')
+      return
+    }
+    const noRes: any = await saleReturnDocApi.nextNo()
+    const newNo = typeof noRes === 'string' ? noRes : noRes?.data
+    const payload: any = {
+      ...detail,
+      id: undefined,
+      returnDocNo: newNo,
+      status: 0,
+      createTime: undefined,
+      updateTime: undefined,
+      bookkeepingTime: undefined,
+      bookkeeperName: undefined,
+      approvedBy: undefined,
+      approvedTime: undefined,
+      approvedNote: undefined,
+      auditor: undefined,
+      auditorId: undefined,
+      auditorName: undefined,
+      auditTime: undefined,
+      submitBy: undefined,
+      submitTime: undefined,
+      printCount: 0,
+      items: ((detail as any).items || []).map((it: any) => ({ ...it, id: undefined, returnDocId: undefined })),
+    }
+    await saleReturnDocApi.create(payload)
+    message.success('复制成功，已生成新的退货单草稿')
+    fetchData()
+  } catch (error: any) {
+    message.error(error?.response?.data?.message || '复制失败')
+  }
 }
 
 function handleDelete(record: any) {
@@ -650,10 +757,35 @@ function handleDelete(record: any) {
   })
 }
 
+async function handleBatchDelete() {
+  const ids = selectedRowKeys.value
+  if (!ids.length) {
+    message.warning('请先选择单据')
+    return
+  }
+  Modal.confirm({
+    title: '批量删除',
+    content: `确定要删除选中的 ${ids.length} 条单据吗？此操作不可恢复。`,
+    okText: '确认删除',
+    okType: 'danger',
+    cancelText: '取消',
+    onOk: async () => {
+      try {
+        await Promise.all(ids.map((id: any) => saleReturnDocApi.delete(id)))
+        message.success(`已删除 ${ids.length} 条单据`)
+        selectedRowKeys.value = []
+        fetchData()
+      } catch (error: any) {
+        message.error(error?.response?.data?.message || '批量删除失败')
+      }
+    },
+  })
+}
+
 function handleApprove(record: any) {
   Modal.confirm({
     title: '确认审核',
-    content: `确定要审核通过退货单 ${record.returnDocNo} 吗？`,
+    content: `确定要审核通过退货单 ${record.returnDocNo} 吗？审核后将回写库存并生成冲销凭证。`,
     onOk: async () => {
       try {
         await saleReturnDocApi.approve(record.id)
@@ -701,7 +833,7 @@ function handleComplete(record: any) {
 function handleCancel(record: any) {
   Modal.confirm({
     title: '确认取消',
-    content: `确定要取消退货单 ${record.returnDocNo} 吗？`,
+    content: `确定要取消退货单 ${record.returnDocNo} 吗？已记账单据将冲回库存并生成反向凭证。`,
     onOk: async () => {
       try {
         await saleReturnDocApi.cancel(record.id, '手动取消')
@@ -714,46 +846,190 @@ function handleCancel(record: any) {
   })
 }
 
+async function handleBatchApprove() {
+  const ids = selectedRowKeys.value
+  if (!ids.length) {
+    message.warning('请先选择单据')
+    return
+  }
+  Modal.confirm({
+    title: '批量审核',
+    content: `确定要审核选中的 ${ids.length} 条单据吗？审核后将逐单回写库存并生成凭证。`,
+    onOk: async () => {
+      try {
+        const res: any = await saleReturnDocApi.batchApprove(ids)
+        const approved = res?.approved ?? ids.length
+        message.success(`已审核 ${approved} 条单据${approved < ids.length ? `，${ids.length - approved} 条跳过(非待审核状态)` : ''}`)
+        selectedRowKeys.value = []
+        fetchData()
+      } catch (error: any) {
+        message.error(error?.response?.data?.message || '批量审核失败')
+      }
+    },
+  })
+}
+
+/** 商品汇总：按当前查询条件聚合明细数量/金额，数据来源 /page-detail（真实聚合） */
 async function handleProductSummary() {
   try {
-    const res = await saleReturnDocApi.pageDetail({
+    const res: any = await saleReturnDocApi.pageDetail({
       pageNum: 1,
       pageSize: 999,
       startDate: searchParams.startDate,
       endDate: searchParams.endDate,
-    })
-    const records = res?.records || []
+      customerName: searchParams.customerName || undefined,
+      warehouseName: searchParams.warehouseName || undefined,
+      status: searchParams.status,
+    } as any)
+    const records: any[] = res?.records || []
     if (records.length === 0) {
       message.info('当前查询条件下无数据')
       return
     }
-    const map = new Map<string, any>()
+    const pick = (r: any, camel: string, snake: string) => r[camel] ?? r[snake]
+    const map = new Map<string, { productName: string; productCode: string; quantity: number; amount: number }>()
     records.forEach((r: any) => {
-      const key = r.productName || r.product_code || '未知商品'
+      const name = pick(r, 'productName', 'product_name') || '未知商品'
+      const code = pick(r, 'productCode', 'product_code') || ''
+      const key = `${name}__${code}`
+      const qty = parseFloat(pick(r, 'returnQuantity', 'return_quantity')) || 0
+      const amt = parseFloat(pick(r, 'lineAmount', 'line_amount')) || 0
       const existing = map.get(key)
       if (existing) {
-        existing.quantity = (existing.quantity || 0) + (parseFloat(r.return_quantity) || 0)
-        existing.amount = (existing.amount || 0) + (parseFloat(r.line_amount) || 0)
+        existing.quantity += qty
+        existing.amount += amt
       } else {
-        map.set(key, {
-          productName: key,
-          productCode: r.product_code || '',
-          quantity: parseFloat(r.return_quantity) || 0,
-          amount: parseFloat(r.line_amount) || 0,
-        })
+        map.set(key, { productName: name, productCode: code, quantity: qty, amount: amt })
       }
     })
     const summaryLines = Array.from(map.values())
-      .sort((a: any, b: any) => b.amount - a.amount)
-      .map((p: any) => `${p.productName}(${p.productCode || '-'}): ${p.quantity}件 / ¥${p.amount.toFixed(2)}`)
+      .sort((a, b) => b.amount - a.amount)
+      .map(p => `${p.productName}(${p.productCode || '-'}): ${p.quantity} 件 / ¥${p.amount.toFixed(2)}`)
       .join('\n')
     Modal.info({
-      title: '商品汇总',
+      title: `商品汇总（${map.size} 个商品）`,
       content: h('pre', { style: 'max-height:400px;overflow:auto;font-size:13px;line-height:1.8' }, summaryLines || '无汇总数据'),
-      width: 500,
+      width: 560,
     })
   } catch {
     message.error('获取商品汇总失败')
+  }
+}
+
+/** 导出：按当前可见列导出 Excel 可直接打开的 CSV */
+function handleExport() {
+  const rows = tableData.value
+  if (!rows.length) {
+    message.warning('暂无数据可导出')
+    return
+  }
+  const cols = docColumns.filter((c: any) => c.field && c.type !== 'action')
+  const headers = cols.map((c: any) => c.title)
+  const csvRows = rows.map(r =>
+    cols.map((c: any) => {
+      const v = (r as any)[c.field]
+      if (v === null || v === undefined) return ''
+      return String(v).replace(/[",\n\r]/g, ' ')
+    })
+  )
+  const csv = [headers.join(','), ...csvRows.map(r => r.join(','))].join('\n')
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `销售退货单_${dayjs().format('YYYYMMDD_HHmmss')}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+  message.success(`已导出 ${rows.length} 行`)
+}
+
+/** 打印：跳转单据表单页并携带 print=1，由表单页唤起打印 */
+function openPrintForm(id: any) {
+  router.push(`/sales/return-doc/form/${id}?print=1`)
+}
+
+function handlePrintF8() {
+  if (selectedRowKeys.value.length === 0) {
+    message.warning('请先选择要打印的单据')
+    return
+  }
+  openPrintForm(selectedRowKeys.value[0])
+}
+
+/** 批量打印：逐张打开选中单据打印（对标管家婆批量打印） */
+function handleBatchPrint() {
+  if (selectedRowKeys.value.length === 0) {
+    message.warning('请先选择要批量打印的单据')
+    return
+  }
+  Modal.confirm({
+    title: '批量打印',
+    content: `将依次打开选中的 ${selectedRowKeys.value.length} 张单据进行打印，确定继续吗？`,
+    okText: '开始打印',
+    cancelText: '取消',
+    onOk: () => openPrintForm(selectedRowKeys.value[0]),
+  })
+}
+
+// ═══ 页面配置变更与回读（勾选/排序真实生效） ═══
+// 存档由 PageConfigPanel 统一写入 storage-key（sale-return-doc-page-config），本页只负责读取与应用
+const PAGE_CONFIG_STORAGE_KEY = 'sale-return-doc-page-config'
+
+function handlePageConfigChange(config: any) {
+  if (config.queryFields) {
+    config.queryFields.forEach((f: any) => {
+      const target = pageQueryFields.value.find(d => d.key === f.key)
+      if (target) target.visible = f.visible !== false
+    })
+    // 拖拽排序真实生效：按配置面板顺序重排查询字段
+    const ordered = config.queryFields
+      .map((f: any) => pageQueryFields.value.find(d => d.key === f.key))
+      .filter((d: any) => !!d)
+    if (ordered.length === pageQueryFields.value.length) {
+      pageQueryFields.value.splice(0, pageQueryFields.value.length, ...ordered)
+    }
+  }
+  if (config.functionButtons) {
+    config.functionButtons.forEach((b: any) => {
+      const target = pageFunctionButtons.value.find(d => d.key === b.key)
+      if (target) target.enabled = b.enabled !== false
+    })
+  }
+}
+
+/** 合并存档配置：按存档顺序重排，新增字段沿用默认，已移除字段丢弃 */
+function mergeQueryFields(
+  defaults: Array<{ key: string; label: string; visible: boolean }>,
+  saved: any[],
+) {
+  const merged = saved
+    .map(s => {
+      const def = defaults.find(d => d.key === s.key)
+      return def ? { ...def, visible: s.visible !== false } : null
+    })
+    .filter((f): f is { key: string; label: string; visible: boolean } => !!f)
+  defaults.forEach(def => {
+    if (!merged.find(m => m.key === def.key)) merged.push({ ...def })
+  })
+  return merged
+}
+
+function loadPageConfigFromStorage() {
+  try {
+    const raw = localStorage.getItem(PAGE_CONFIG_STORAGE_KEY)
+    if (!raw) return
+    const parsed = JSON.parse(raw)
+    if (Array.isArray(parsed.queryFields)) {
+      pageQueryFields.value = mergeQueryFields(DEFAULT_QUERY_FIELDS, parsed.queryFields)
+    }
+    if (Array.isArray(parsed.functionButtons)) {
+      parsed.functionButtons.forEach((b: any) => {
+        const target = pageFunctionButtons.value.find(d => d.key === b.key)
+        if (target) target.enabled = b.enabled !== false
+      })
+    }
+  } catch {
+    // 存档损坏时沿用默认配置
   }
 }
 
@@ -765,8 +1041,8 @@ const handleError = (error: Error) => {
 
 // ═══ 初始化 ═══
 onMounted(() => {
+  loadPageConfigFromStorage()
   setQuickDate('week')
-  fetchData()
 })
 </script>
 
@@ -806,6 +1082,7 @@ onMounted(() => {
 }
 
 .search-area { padding: 8px 16px; background: #fff; border-bottom: 1px solid #e8e8e8; flex-shrink: 0; }
+/* 折叠态：只显示 2 排（28px 控件 + 12px 行距 ≈ 68px） */
 .search-container:not(:has([data-expanded])) > .search-grid { max-height: 80px; overflow: hidden; }
 .search-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; align-items: center; }
 .search-field-item { display: flex; min-width: 0; }
@@ -819,19 +1096,19 @@ onMounted(() => {
 .search-select-label { font-size: 13px; color: rgba(0,0,0,0.65); white-space: nowrap; flex-shrink: 0; padding-left: 8px; }
 .search-select-wrap :deep(.ant-select) { flex: 1; min-width: 0; }
 .search-select-wrap :deep(.ant-select .ant-select-selector) { border: none !important; border-radius: 0 !important; box-shadow: none !important; padding-top: 0 !important; padding-bottom: 0 !important; display: flex; align-items: center; }
-.search-action-item { flex-shrink: 0; }
 .search-action-group {
   display: flex;
-  flex-wrap: nowrap;
   align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
 }
-.search-action-group .search-field-item {
-  width: auto;
-  flex: 0 0 auto;
-  margin-right: 4px;
-}
-.search-action-group .search-field-item:last-child {
-  margin-right: 0;
+.search-red-flush {
+  font-size: 13px;
+  color: rgba(0,0,0,0.65);
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 .search-more-toggle {
   margin-top: 4px;

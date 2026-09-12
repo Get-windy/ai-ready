@@ -27,12 +27,9 @@
           </a-space>
         </template>
 
-        <!-- ═══ 工具栏右侧：操作按钮 ═══ -->
+        <!-- ═══ 工具栏右侧：操作按钮（列配置走数据表表头齿轮） ═══ -->
         <template #toolbar-right>
           <a-space :size="8">
-            <a-tooltip title="列配置">
-              <a-button size="small" @click="showColumnConfig = true"><TableOutlined /></a-button>
-            </a-tooltip>
             <a-tooltip title="页面配置">
               <a-button size="small" @click="showPageConfig = true"><SettingOutlined /></a-button>
             </a-tooltip>
@@ -171,6 +168,7 @@
             <BillTableList
               :columns="currentColumns"
               :data-source="tableData"
+              :storage-key="activeTab === 'history' ? 'stocktake-table-columns-history' : 'stocktake-table-columns-unchecked'"
               :loading="loading"
               :pagination="billPagination"
               :show-toolbar="false"
@@ -223,17 +221,6 @@
       </CategoryListLayout>
     </PageContainer>
 
-    <!-- ═══ 列配置弹窗 ═══ -->
-    <ColumnConfigPanel
-      :open="showColumnConfig"
-      :settings-columns="panelColumns"
-      :is-locked-column="isLockedColumn"
-      @update:open="showColumnConfig = $event"
-      @change="handleColumnConfigChange"
-      @reset="handleColumnConfigReset"
-      @drag-end="handleColumnConfigChange"
-    />
-
     <!-- ═══ 页面配置弹窗 ═══ -->
     <PageConfigPanel
       :open="showPageConfig"
@@ -253,15 +240,13 @@ import type { Dayjs } from 'dayjs'
 import dayjs from 'dayjs'
 import {
   PlusOutlined, ReloadOutlined, PrinterOutlined, SettingOutlined,
-  TableOutlined, ExportOutlined, DashboardOutlined, AppstoreAddOutlined, CheckSquareOutlined,
+  ExportOutlined, DashboardOutlined, AppstoreAddOutlined, CheckSquareOutlined,
 } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayout.vue'
-import ColumnConfigPanel from '@/components/ColumnConfigPanel/index.vue'
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
-import { useColumnConfig, isLockedColumn } from '@/composables/useColumnConfig'
 import { useAutoGridSpan } from '@/composables/useAutoGridSpan'
 import { stockTakeApi } from '@/api/erp'
 import optionsApi from '@/api/options'
@@ -326,7 +311,7 @@ const rowSelection = computed(() => ({
   onChange: (keys: any[], rows: any[]) => { selectedRowKeys.value = keys; selectedRows.value = rows },
 }))
 
-const showColumnConfig = ref(false)
+// 列配置走数据表表头齿轮
 const showPageConfig = ref(false)
 
 // ═══ 页面配置 ═══
@@ -476,32 +461,7 @@ const uncheckedColumns = [
   { title: '条码', field: 'barcode', key: 'barcode', width: 120 },
 ]
 
-const historyColumnDefs = computed(() => historyColumns.map(col => ({ ...col })))
-const uncheckedColumnDefs = computed(() => uncheckedColumns.map(col => ({ ...col })))
-const {
-  visibleColumns: historyVisibleColumns,
-  onSettingChange: onHistorySettingChange,
-  resetSettings: resetHistorySettings,
-  settingsColumns: historySettingsColumns,
-} = useColumnConfig(historyColumnDefs.value, 'stock-take-list-columns-history')
-const {
-  visibleColumns: uncheckedVisibleColumns,
-  onSettingChange: onUncheckedSettingChange,
-  resetSettings: resetUncheckedSettings,
-  settingsColumns: uncheckedSettingsColumns,
-} = useColumnConfig(uncheckedColumnDefs.value, 'stock-take-list-columns-unchecked')
-
-const currentColumns = computed(() => activeTab.value === 'history' ? historyVisibleColumns.value : uncheckedVisibleColumns.value)
-const panelColumns = computed(() => activeTab.value === 'history' ? historySettingsColumns.value : uncheckedSettingsColumns.value)
-
-function handleColumnConfigChange() {
-  if (activeTab.value === 'history') onHistorySettingChange()
-  else onUncheckedSettingChange()
-}
-function handleColumnConfigReset() {
-  if (activeTab.value === 'history') resetHistorySettings()
-  else resetUncheckedSettings()
-}
+const currentColumns = computed(() => activeTab.value === 'history' ? historyColumns : uncheckedColumns)
 
 // ═══ 状态/字典映射 ═══
 const STATUS_MAP: Record<number, { text: string; color: string }> = {

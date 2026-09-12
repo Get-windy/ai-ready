@@ -458,6 +458,15 @@ public class SaleOrder {
     /** 集货位 */
     private String collectionLocation;
 
+    /** 已拣货数量汇总（= Σ 明细 picked_quantity，拣货作业回写） */
+    private BigDecimal pickedQuantity;
+
+    /** 排序（拣货顺序序号） */
+    private Integer sortOrder;
+
+    /** 排序值（拣货顺序二级权重） */
+    private Integer sortValue;
+
     // ═══ 系统字段 ═══
 
     /** 是否删除 */

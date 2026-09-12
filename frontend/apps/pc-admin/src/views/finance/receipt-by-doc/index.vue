@@ -48,6 +48,7 @@
         </template>
 
         <!-- ═══ 工具栏右侧：功能按钮（随Tab变化） ═══ -->
+        <!-- 列配置走数据表表头齿轮（BillDetailTable 内置），工具栏不再放重复入口 -->
         <template #toolbar-right>
           <a-space :size="8">
             <template v-if="activeTab === 'pending'">
@@ -122,11 +123,6 @@
                 <SettingOutlined />
               </a-button>
             </a-tooltip>
-            <a-tooltip title="列配置">
-              <a-button size="small" @click="showColumnConfig = true">
-                <TableOutlined />
-              </a-button>
-            </a-tooltip>
           </a-space>
         </template>
 
@@ -189,8 +185,9 @@
         <!-- ═══ 数据表格 ═══ -->
         <template #table>
           <BillTableList
-            :columns="visibleColumns"
+            :columns="currentColumns"
             :data-source="tableData"
+            :storage-key="`receipt-by-doc-table-columns-${activeTab}`"
             :loading="loading"
             :pagination="billPagination"
             :show-toolbar="false"
@@ -254,16 +251,6 @@
       @change="handlePageConfigChange"
     />
 
-    <!-- ═══ 列配置弹窗 ═══ -->
-    <ColumnConfigPanel
-      :open="showColumnConfig"
-      :settings-columns="panelColumns"
-      :is-locked-column="isLockedColumn"
-      @update:open="showColumnConfig = $event"
-      @change="handleColumnConfigChange"
-      @reset="handleColumnConfigReset"
-      @drag-end="handleColumnConfigChange"
-    />
   </ErrorBoundary>
 </template>
 
@@ -272,7 +259,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import dayjs, { type Dayjs } from 'dayjs'
 import { message } from 'ant-design-vue'
 import {
-  PlusOutlined, ReloadOutlined, SearchOutlined, SettingOutlined, TableOutlined,
+  PlusOutlined, ReloadOutlined, SearchOutlined, SettingOutlined,
   PrinterOutlined, ExportOutlined, ToolOutlined, MergeCellsOutlined, ThunderboltOutlined,
   FileDoneOutlined, BarsOutlined,
 } from '@ant-design/icons-vue'
@@ -281,8 +268,6 @@ import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayout.vue'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
-import ColumnConfigPanel from '@/components/ColumnConfigPanel/index.vue'
-import { useColumnConfig, isLockedColumn } from '@/composables/useColumnConfig'
 import { receiptByDocApi } from '@/api/finance'
 import { useRouter } from 'vue-router'
 
@@ -319,7 +304,7 @@ const queryScheme = ref('')
 const loading = ref(false)
 const tableData = ref<any[]>([])
 const showPageConfig = ref(false)
-const showColumnConfig = ref(false)
+// 列配置走数据表表头齿轮（storage-key=receipt-by-doc-table-columns-<tab>）
 const selectedRows = ref<any[]>([])
 
 // ═══ 日期范围 ═══
@@ -701,39 +686,13 @@ const INVOICE_COLUMNS: ColumnDef[] = [
   { title: '备注', field: 'notes', key: 'notes', width: 140 },
 ]
 
-// ═══ 列配置：每个Tab独立实例 ═══
-const pendingColCfg = useColumnConfig(PENDING_COLUMNS, 'receipt-by-doc-columns-pending')
-const overdueColCfg = useColumnConfig(OVERDUE_COLUMNS, 'receipt-by-doc-columns-overdue')
-const allColCfg = useColumnConfig(ALL_COLUMNS, 'receipt-by-doc-columns-all')
-const invoiceColCfg = useColumnConfig(INVOICE_COLUMNS, 'receipt-by-doc-columns-invoice')
-
-const visibleColumns = computed(() => {
-  if (activeTab.value === 'pending') return pendingColCfg.visibleColumns.value
-  if (activeTab.value === 'overdue') return overdueColCfg.visibleColumns.value
-  if (activeTab.value === 'all') return allColCfg.visibleColumns.value
-  return invoiceColCfg.visibleColumns.value
+// ═══ 列定义：每个Tab取原始列（显隐由表头齿轮按 storage-key 管理） ═══
+const currentColumns = computed(() => {
+  if (activeTab.value === 'pending') return PENDING_COLUMNS
+  if (activeTab.value === 'overdue') return OVERDUE_COLUMNS
+  if (activeTab.value === 'all') return ALL_COLUMNS
+  return INVOICE_COLUMNS
 })
-
-const panelColumns = computed(() => {
-  if (activeTab.value === 'pending') return pendingColCfg.settingsColumns.value
-  if (activeTab.value === 'overdue') return overdueColCfg.settingsColumns.value
-  if (activeTab.value === 'all') return allColCfg.settingsColumns.value
-  return invoiceColCfg.settingsColumns.value
-})
-
-const activeColCfg = computed(() => {
-  if (activeTab.value === 'pending') return pendingColCfg
-  if (activeTab.value === 'overdue') return overdueColCfg
-  if (activeTab.value === 'all') return allColCfg
-  return invoiceColCfg
-})
-
-function handleColumnConfigChange() {
-  activeColCfg.value.onSettingChange()
-}
-function handleColumnConfigReset() {
-  activeColCfg.value.resetSettings()
-}
 
 // ═══ 页面配置（查询条件显隐 + 功能按钮） ═══
 interface QueryFieldSetting { key: string; label: string; visible: boolean }
@@ -962,7 +921,7 @@ function handleExport() {
     message.warning('没有可导出的数据')
     return
   }
-  const cols = visibleColumns.value.filter((c: any) => c.key !== 'rowNo' && c.key !== 'action')
+  const cols = currentColumns.value.filter((c: any) => c.key !== 'rowNo' && c.key !== 'action')
   const headers = cols.map((c: any) => c.title)
   const lines = tableData.value.map((r: any) => cols.map((c: any) => {
     const v = r[c.field ?? c.key]

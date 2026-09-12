@@ -3,6 +3,8 @@ package cn.aiedge.erp.finance.service.impl;
 import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.finance.dto.VoucherDTO;
 import cn.aiedge.erp.finance.dto.VoucherItemDTO;
+import cn.aiedge.erp.finance.dto.VoucherQuery;
+import cn.aiedge.erp.finance.mapper.AccountingPeriodMapper;
 import cn.aiedge.erp.finance.mapper.VoucherItemMapper;
 import cn.aiedge.erp.finance.mapper.VoucherMapper;
 import cn.aiedge.erp.finance.model.entity.Voucher;
@@ -21,6 +23,7 @@ import org.springframework.util.StringUtils;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -34,8 +37,11 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class VoucherServiceImpl implements VoucherService {
 
+    private static final Long DEFAULT_TENANT_ID = 1L;
+
     private final VoucherMapper voucherMapper;
     private final VoucherItemMapper voucherItemMapper;
+    private final AccountingPeriodMapper accountingPeriodMapper;
     private final LedgerService ledgerService;
 
     @Override
@@ -44,18 +50,24 @@ public class VoucherServiceImpl implements VoucherService {
         // 验证借贷平衡
         BigDecimal totalDebit = BigDecimal.ZERO;
         BigDecimal totalCredit = BigDecimal.ZERO;
-        for (VoucherItemDTO item : dto.getItems()) {
+        List<VoucherItemDTO> itemDTOs = dto.getItems() != null ? dto.getItems() : new ArrayList<>();
+        for (VoucherItemDTO item : itemDTOs) {
             totalDebit = totalDebit.add(item.getDebitAmount() != null ? item.getDebitAmount() : BigDecimal.ZERO);
             totalCredit = totalCredit.add(item.getCreditAmount() != null ? item.getCreditAmount() : BigDecimal.ZERO);
         }
         if (totalDebit.compareTo(totalCredit) != 0) {
             throw BusinessException.badRequest("借方金额合计与贷方金额合计不平: debit=" + totalDebit + ", credit=" + totalCredit);
         }
+        if (itemDTOs.isEmpty()) {
+            throw BusinessException.badRequest("凭证分录不能为空");
+        }
 
-        // 生成凭证编号
         Integer fiscalYear = dto.getFiscalYear() != null ? dto.getFiscalYear() : LocalDate.now().getYear();
         Integer fiscalPeriod = dto.getFiscalPeriod() != null ? dto.getFiscalPeriod() : LocalDate.now().getMonthValue();
-        String voucherNo = generateVoucherNo(fiscalYear, fiscalPeriod);
+        // P0 红线：已关闭会计期间禁止新增/修改凭证（月结为唯一关账入口）
+        assertPeriodOpen(fiscalYear, fiscalPeriod);
+        // 优先使用前端生成的凭证号（原样落库），否则后端生成 KJPZ-
+        String voucherNo = StringUtils.hasText(dto.getVoucherNo()) ? dto.getVoucherNo() : generateVoucherNo();
 
         // 创建凭证
         Voucher entity = new Voucher();
@@ -63,7 +75,13 @@ public class VoucherServiceImpl implements VoucherService {
         entity.setVoucherDate(dto.getVoucherDate() != null ? dto.getVoucherDate() : LocalDate.now());
         entity.setFiscalYear(fiscalYear);
         entity.setFiscalPeriod(fiscalPeriod);
+        entity.setVoucherType(StringUtils.hasText(dto.getVoucherType()) ? dto.getVoucherType() : "manual");
+        entity.setSummary(dto.getSummary());
+        entity.setHandlerName(dto.getHandlerName());
+        entity.setDeptName(dto.getDeptName());
+        entity.setSourceNo(dto.getSourceNo());
         entity.setAttachments(dto.getAttachments() != null ? dto.getAttachments() : 0);
+        entity.setPrintCount(dto.getPrintCount() != null ? dto.getPrintCount() : 0);
         entity.setPrepBy(dto.getPrepBy());
         entity.setPrepAt(LocalDateTime.now());
         entity.setStatus("draft");
@@ -75,27 +93,84 @@ public class VoucherServiceImpl implements VoucherService {
         voucherMapper.insert(entity);
 
         // 创建凭证明细
-        List<VoucherItem> items = new ArrayList<>();
-        for (VoucherItemDTO itemDTO : dto.getItems()) {
-            VoucherItem item = new VoucherItem();
-            item.setVoucherId(entity.getId());
-            item.setSummary(itemDTO.getSummary());
-            item.setSubjectId(itemDTO.getSubjectId());
-            item.setSubjectCode(itemDTO.getSubjectCode());
-            item.setSubjectName(itemDTO.getSubjectName());
-            item.setDebitAmount(itemDTO.getDebitAmount() != null ? itemDTO.getDebitAmount() : BigDecimal.ZERO);
-            item.setCreditAmount(itemDTO.getCreditAmount() != null ? itemDTO.getCreditAmount() : BigDecimal.ZERO);
-            item.setSourceType(itemDTO.getSourceType());
-            item.setSourceId(itemDTO.getSourceId());
-            item.setSourceNo(itemDTO.getSourceNo());
-            items.add(item);
-            voucherItemMapper.insert(item);
+        for (VoucherItemDTO itemDTO : itemDTOs) {
+            voucherItemMapper.insert(buildItem(entity.getId(), itemDTO));
         }
 
-        // 设置明细
-        entity.setItems(items);
         log.info("创建凭证: voucherNo={}, debit={}, credit={}", voucherNo, totalDebit, totalCredit);
         return toDTO(entity);
+    }
+
+    /**
+     * P0 红线：校验会计期间未被关闭。已关闭期间严禁新增凭证。
+     * 期间不存在（未建账期）视为未关闭放行。
+     */
+    private void assertPeriodOpen(Integer fiscalYear, Integer fiscalPeriod) {
+        if (fiscalYear == null || fiscalPeriod == null) {
+            return;
+        }
+        String periodCode = String.format("%04d-%02d", fiscalYear, fiscalPeriod);
+        accountingPeriodMapper.findByPeriodCode(DEFAULT_TENANT_ID, periodCode)
+                .ifPresent(p -> {
+                    if (p.getStatus() != null && p.getStatus() == 0) {
+                        throw BusinessException.badRequest("会计期间已关闭，禁止新增/修改凭证: " + periodCode);
+                    }
+                });
+    }
+
+    @Override
+    @Transactional
+    public VoucherDTO update(Long id, VoucherDTO dto) {
+        Voucher voucher = voucherMapper.selectById(id);
+        if (voucher == null) {
+            throw BusinessException.notFound("凭证不存在: " + id);
+        }
+        if (!"draft".equals(voucher.getStatus())) {
+            throw BusinessException.badRequest("只有草稿状态的凭证才能修改，当前状态: " + voucher.getStatus());
+        }
+        // P0 红线：已关闭会计期间禁止新增/修改凭证
+        assertPeriodOpen(voucher.getFiscalYear(), voucher.getFiscalPeriod());
+
+        // 校验借贷平衡
+        BigDecimal totalDebit = BigDecimal.ZERO;
+        BigDecimal totalCredit = BigDecimal.ZERO;
+        List<VoucherItemDTO> itemDTOs = dto.getItems() != null ? dto.getItems() : new ArrayList<>();
+        for (VoucherItemDTO item : itemDTOs) {
+            totalDebit = totalDebit.add(item.getDebitAmount() != null ? item.getDebitAmount() : BigDecimal.ZERO);
+            totalCredit = totalCredit.add(item.getCreditAmount() != null ? item.getCreditAmount() : BigDecimal.ZERO);
+        }
+        if (itemDTOs.isEmpty()) {
+            throw BusinessException.badRequest("凭证分录不能为空");
+        }
+        if (totalDebit.compareTo(totalCredit) != 0) {
+            throw BusinessException.badRequest("借方金额合计与贷方金额合计不平: debit=" + totalDebit + ", credit=" + totalCredit);
+        }
+
+        // 更新头字段（凭证号不变）
+        voucher.setVoucherDate(dto.getVoucherDate() != null ? dto.getVoucherDate() : voucher.getVoucherDate());
+        voucher.setFiscalYear(dto.getFiscalYear() != null ? dto.getFiscalYear() : voucher.getFiscalYear());
+        voucher.setFiscalPeriod(dto.getFiscalPeriod() != null ? dto.getFiscalPeriod() : voucher.getFiscalPeriod());
+        voucher.setVoucherType(StringUtils.hasText(dto.getVoucherType()) ? dto.getVoucherType() : voucher.getVoucherType());
+        voucher.setSummary(dto.getSummary());
+        voucher.setHandlerName(dto.getHandlerName());
+        voucher.setDeptName(dto.getDeptName());
+        voucher.setSourceNo(dto.getSourceNo());
+        voucher.setAttachments(dto.getAttachments() != null ? dto.getAttachments() : voucher.getAttachments());
+        voucher.setPrintCount(dto.getPrintCount() != null ? dto.getPrintCount() : voucher.getPrintCount());
+        voucher.setTotalDebit(totalDebit);
+        voucher.setTotalCredit(totalCredit);
+        voucher.setRemark(dto.getRemark());
+        voucherMapper.updateById(voucher);
+
+        // 重建明细：先删后插
+        voucherItemMapper.delete(new LambdaQueryWrapper<VoucherItem>().eq(VoucherItem::getVoucherId, id));
+        for (VoucherItemDTO itemDTO : itemDTOs) {
+            voucherItemMapper.insert(buildItem(id, itemDTO));
+        }
+
+        List<VoucherItem> items = voucherItemMapper.findByVoucherId(id);
+        voucher.setItems(items);
+        return toDTO(voucher);
     }
 
     @Override
@@ -119,18 +194,10 @@ public class VoucherServiceImpl implements VoucherService {
     }
 
     @Override
-    public IPage<VoucherDTO> list(Integer fiscalYear, Integer fiscalPeriod, String status, Page<VoucherDTO> page) {
-        LambdaQueryWrapper<Voucher> wrapper = new LambdaQueryWrapper<>();
-        if (fiscalYear != null) {
-            wrapper.eq(Voucher::getFiscalYear, fiscalYear);
-        }
-        if (fiscalPeriod != null) {
-            wrapper.eq(Voucher::getFiscalPeriod, fiscalPeriod);
-        }
-        if (StringUtils.hasText(status)) {
-            wrapper.eq(Voucher::getStatus, status);
-        }
-        wrapper.orderByDesc(Voucher::getCreateTime);
+    public IPage<VoucherDTO> list(VoucherQuery query, Page<VoucherDTO> page) {
+        VoucherQuery q = query != null ? query : new VoucherQuery();
+        LambdaQueryWrapper<Voucher> wrapper = buildWrapper(q);
+        wrapper.orderByDesc(Voucher::getVoucherDate).orderByDesc(Voucher::getId);
 
         Page<Voucher> entityPage = voucherMapper.selectPage(new Page<>(page.getCurrent(), page.getSize()), wrapper);
         Page<VoucherDTO> dtoPage = new Page<>(entityPage.getCurrent(), entityPage.getSize(), entityPage.getTotal());
@@ -199,11 +266,15 @@ public class VoucherServiceImpl implements VoucherService {
 
         // 创建冲销凭证
         Voucher reverseVoucher = new Voucher();
-        reverseVoucher.setVoucherNo(generateVoucherNo(original.getFiscalYear(), original.getFiscalPeriod()));
+        reverseVoucher.setVoucherNo(generateVoucherNo());
         reverseVoucher.setVoucherDate(LocalDate.now());
         reverseVoucher.setFiscalYear(original.getFiscalYear());
         reverseVoucher.setFiscalPeriod(original.getFiscalPeriod());
+        reverseVoucher.setVoucherType("system");
+        reverseVoucher.setSummary("冲销凭证: " + reason);
+        reverseVoucher.setSourceNo(original.getVoucherNo());
         reverseVoucher.setAttachments(0);
+        reverseVoucher.setPrintCount(0);
         reverseVoucher.setPrepBy(original.getPostBy());
         reverseVoucher.setPrepAt(LocalDateTime.now());
         reverseVoucher.setStatus("posted");
@@ -214,7 +285,6 @@ public class VoucherServiceImpl implements VoucherService {
         voucherMapper.insert(reverseVoucher);
 
         // 创建冲销明细（借贷方向相反）
-        List<VoucherItem> reverseItems = new ArrayList<>();
         for (VoucherItem item : originalItems) {
             VoucherItem reverseItem = new VoucherItem();
             reverseItem.setVoucherId(reverseVoucher.getId());
@@ -222,18 +292,19 @@ public class VoucherServiceImpl implements VoucherService {
             reverseItem.setSubjectId(item.getSubjectId());
             reverseItem.setSubjectCode(item.getSubjectCode());
             reverseItem.setSubjectName(item.getSubjectName());
+            reverseItem.setDetailSubject(item.getDetailSubject());
             // 借贷互换
             reverseItem.setDebitAmount(item.getCreditAmount());
             reverseItem.setCreditAmount(item.getDebitAmount());
             reverseItem.setSourceType(item.getSourceType());
             reverseItem.setSourceId(item.getSourceId());
             reverseItem.setSourceNo(item.getSourceNo());
-            reverseItems.add(reverseItem);
             voucherItemMapper.insert(reverseItem);
         }
-        reverseVoucher.setItems(reverseItems);
 
         // 冲销凭证立即过账到分类账
+        List<VoucherItem> reverseItems = voucherItemMapper.findByVoucherId(reverseVoucher.getId());
+        reverseVoucher.setItems(reverseItems);
         ledgerService.postToLedger(reverseVoucher);
 
         // 更新原始凭证状态
@@ -264,30 +335,92 @@ public class VoucherServiceImpl implements VoucherService {
     }
 
     @Override
-    public List<VoucherDTO> exportList(Integer fiscalYear, Integer fiscalPeriod, String status) {
-        LambdaQueryWrapper<Voucher> wrapper = new LambdaQueryWrapper<>();
-        if (fiscalYear != null) {
-            wrapper.eq(Voucher::getFiscalYear, fiscalYear);
-        }
-        if (fiscalPeriod != null) {
-            wrapper.eq(Voucher::getFiscalPeriod, fiscalPeriod);
-        }
-        if (StringUtils.hasText(status)) {
-            wrapper.eq(Voucher::getStatus, status);
-        }
-        wrapper.orderByDesc(Voucher::getCreateTime);
+    public List<VoucherDTO> exportList(VoucherQuery query) {
+        VoucherQuery q = query != null ? query : new VoucherQuery();
+        LambdaQueryWrapper<Voucher> wrapper = buildWrapper(q);
+        wrapper.orderByDesc(Voucher::getVoucherDate).orderByDesc(Voucher::getId);
 
         List<Voucher> entities = voucherMapper.selectList(wrapper);
         return entities.stream().map(this::toDTOWithItems).collect(Collectors.toList());
     }
 
+    /**
+     * 生成 KJPZ-YYYYMMDD-序号 格式凭证编号
+     */
     @Override
-    @Transactional
-    public String generateVoucherNo(Integer fiscalYear, Integer fiscalPeriod) {
-        long count = voucherMapper.countByFiscalYearAndFiscalPeriod(fiscalYear, fiscalPeriod);
-        String periodStr = String.format("%04d%02d", fiscalYear, fiscalPeriod);
-        String seqStr = String.format("%04d", count + 1);
-        return periodStr + "-" + seqStr;
+    public String generateVoucherNo() {
+        String prefix = "KJPZ-" + LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE) + "-";
+        Long count = voucherMapper.selectCount(new LambdaQueryWrapper<Voucher>().likeRight(Voucher::getVoucherNo, prefix));
+        long seq = (count != null ? count : 0L) + 1;
+        return prefix + String.format("%03d", seq);
+    }
+
+    @Override
+    public String nextNo() {
+        return generateVoucherNo();
+    }
+
+    // ======== 私有方法 ========
+
+    private VoucherItem buildItem(Long voucherId, VoucherItemDTO dto) {
+        VoucherItem item = new VoucherItem();
+        item.setVoucherId(voucherId);
+        item.setSummary(dto.getSummary());
+        item.setSubjectId(dto.getSubjectId());
+        item.setSubjectCode(dto.getSubjectCode());
+        item.setSubjectName(dto.getSubjectName());
+        item.setSubjectFullName(dto.getSubjectFullName());
+        item.setDetailSubject(dto.getDetailSubject());
+        item.setDebitAmount(dto.getDebitAmount() != null ? dto.getDebitAmount() : BigDecimal.ZERO);
+        item.setCreditAmount(dto.getCreditAmount() != null ? dto.getCreditAmount() : BigDecimal.ZERO);
+        item.setSourceType(dto.getSourceType());
+        item.setSourceId(dto.getSourceId());
+        item.setSourceNo(dto.getSourceNo());
+        item.setReconcileFlag(dto.getReconcileFlag() != null ? dto.getReconcileFlag() : 0);
+        item.setAuxUnit(dto.getAuxUnit());
+        item.setAuxDept(dto.getAuxDept());
+        item.setAuxStaff(dto.getAuxStaff());
+        return item;
+    }
+
+    private LambdaQueryWrapper<Voucher> buildWrapper(VoucherQuery query) {
+        LambdaQueryWrapper<Voucher> wrapper = new LambdaQueryWrapper<>();
+        if (StringUtils.hasText(query.getKeyword())) wrapper.like(Voucher::getVoucherNo, query.getKeyword());
+        if (StringUtils.hasText(query.getSourceNo())) wrapper.like(Voucher::getSourceNo, query.getSourceNo());
+        if (StringUtils.hasText(query.getVoucherType())) wrapper.eq(Voucher::getVoucherType, query.getVoucherType());
+        if (StringUtils.hasText(query.getSummary())) wrapper.like(Voucher::getSummary, query.getSummary());
+        if (StringUtils.hasText(query.getHandlerName())) wrapper.like(Voucher::getHandlerName, query.getHandlerName());
+        if (StringUtils.hasText(query.getDeptName())) wrapper.like(Voucher::getDeptName, query.getDeptName());
+        if (StringUtils.hasText(query.getPrepBy())) wrapper.like(Voucher::getPrepBy, query.getPrepBy());
+        if (StringUtils.hasText(query.getVerifyBy())) {
+            wrapper.and(w -> w.like(Voucher::getAuditBy, query.getVerifyBy())
+                    .or().like(Voucher::getPostBy, query.getVerifyBy()));
+        }
+        if (StringUtils.hasText(query.getStatus())) wrapper.eq(Voucher::getStatus, query.getStatus());
+        if (StringUtils.hasText(query.getStartDate())) {
+            wrapper.ge(Voucher::getVoucherDate, LocalDate.parse(query.getStartDate()));
+        }
+        if (StringUtils.hasText(query.getEndDate())) {
+            wrapper.le(Voucher::getVoucherDate, LocalDate.parse(query.getEndDate()));
+        }
+        // 显示红冲：默认不显示已冲销(reversed)凭证；勾选后全部显示
+        if (Boolean.FALSE.equals(query.getShowRed())) {
+            wrapper.ne(Voucher::getStatus, "reversed");
+        }
+        // 科目过滤：联查分录取凭证ID
+        if (query.getSubjectId() != null) {
+            List<Long> voucherIds = voucherItemMapper.selectList(
+                            new LambdaQueryWrapper<VoucherItem>()
+                                    .eq(VoucherItem::getSubjectId, query.getSubjectId())
+                                    .select(VoucherItem::getVoucherId))
+                    .stream().map(VoucherItem::getVoucherId).distinct().collect(Collectors.toList());
+            if (voucherIds.isEmpty()) {
+                wrapper.eq(Voucher::getId, -1L);
+            } else {
+                wrapper.in(Voucher::getId, voucherIds);
+            }
+        }
+        return wrapper;
     }
 
     // ======== DTO <-> Entity 转换 ========
@@ -299,7 +432,13 @@ public class VoucherServiceImpl implements VoucherService {
         dto.setVoucherDate(entity.getVoucherDate());
         dto.setFiscalYear(entity.getFiscalYear());
         dto.setFiscalPeriod(entity.getFiscalPeriod());
+        dto.setVoucherType(entity.getVoucherType());
+        dto.setSummary(entity.getSummary());
+        dto.setHandlerName(entity.getHandlerName());
+        dto.setDeptName(entity.getDeptName());
+        dto.setSourceNo(entity.getSourceNo());
         dto.setAttachments(entity.getAttachments());
+        dto.setPrintCount(entity.getPrintCount());
         dto.setPrepBy(entity.getPrepBy());
         dto.setPrepAt(entity.getPrepAt());
         dto.setAuditBy(entity.getAuditBy());
@@ -337,11 +476,18 @@ public class VoucherServiceImpl implements VoucherService {
         dto.setSubjectId(entity.getSubjectId());
         dto.setSubjectCode(entity.getSubjectCode());
         dto.setSubjectName(entity.getSubjectName());
+        dto.setSubjectFullName(entity.getSubjectFullName());
+        dto.setDetailSubject(entity.getDetailSubject());
         dto.setDebitAmount(entity.getDebitAmount());
         dto.setCreditAmount(entity.getCreditAmount());
         dto.setSourceType(entity.getSourceType());
         dto.setSourceId(entity.getSourceId());
         dto.setSourceNo(entity.getSourceNo());
+        dto.setRemark(entity.getRemark());
+        dto.setReconcileFlag(entity.getReconcileFlag());
+        dto.setAuxUnit(entity.getAuxUnit());
+        dto.setAuxDept(entity.getAuxDept());
+        dto.setAuxStaff(entity.getAuxStaff());
         return dto;
     }
 }

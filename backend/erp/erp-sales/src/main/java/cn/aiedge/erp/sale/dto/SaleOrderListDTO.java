@@ -50,6 +50,8 @@ public class SaleOrderListDTO {
     // 金额
     private BigDecimal productAmount;
     private BigDecimal discountAmount;
+    /** 优惠后金额 = 商品金额 − 促销优惠 − 优惠金额（= 本单金额 − 其他费用） */
+    private BigDecimal favorableAmount;
     private BigDecimal billAmount;
     private BigDecimal settledAmount;
     private BigDecimal receivedAmount;
@@ -145,6 +147,24 @@ public class SaleOrderListDTO {
     private String pickingWarehouse;
     private String collectionLocation;
     private String pickupAddress;
+    /** 配送线路 */
+    private String deliveryRoute;
+    /** 配送司机 */
+    private String driverName;
+    /** 配送车辆 */
+    private String deliveryVehicle;
+    /** 已拣货数量（主表汇总，拣货作业回写） */
+    private BigDecimal pickedQuantity;
+    /** 未拣货数量（派生：订货数量 − 已拣货数量，不落库） */
+    private BigDecimal unpickedQuantity;
+    /** 商品行数（订单明细行数，查询时统计） */
+    private Integer lineCount;
+    /** 排序（拣货顺序序号） */
+    private Integer sortOrder;
+    /** 排序值（拣货顺序二级权重） */
+    private Integer sortValue;
+    /** 单据来源 */
+    private Integer orderSource;
 
     // 时间
     private LocalDateTime createTime;
@@ -153,4 +173,6 @@ public class SaleOrderListDTO {
     // 业务扩展字段
     private String productBrand;
     private String industryCategory;
+    private String extText4;
+    private String extText5;
 }

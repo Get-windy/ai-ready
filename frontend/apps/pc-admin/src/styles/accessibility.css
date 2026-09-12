@@ -320,8 +320,11 @@ textarea:focus-visible,
   z-index: 1000;
 }
 
-/* 工具提示无障碍 */
-[role="tooltip"] {
+/* 工具提示无障碍
+   注意：必须排除 Ant Design 浮层内层元素（.ant-tooltip-inner 同样带 role="tooltip"）。
+   否则这里的 position:absolute 会把它挤出文档流，导致浮层宽度塌成 0、文字竖排并压住触发按钮
+   （2026-09-10 费用审批/费用统计页实测缺陷：「提示遮挡了半边按钮」）。 */
+[role="tooltip"]:not([class*="ant-"]) {
   position: absolute;
   background: rgba(0, 0, 0, 0.85);
   color: #fff;

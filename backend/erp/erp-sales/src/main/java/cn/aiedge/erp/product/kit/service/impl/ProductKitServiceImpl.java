@@ -270,4 +270,31 @@ public class ProductKitServiceImpl extends ServiceImpl<ProductKitMapper, Product
         BigDecimal lineCost = quantity.multiply(unitCost).setScale(2, RoundingMode.HALF_UP);
         item.setLineCost(lineCost);
     }
+
+    @Override
+    public java.util.Map<Long, String> itemsSummary(List<Long> kitIds) {
+        java.util.Map<Long, String> result = new java.util.HashMap<>();
+        if (kitIds == null || kitIds.isEmpty()) {
+            return result;
+        }
+        LambdaQueryWrapper<ProductKitItem> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(ProductKitItem::getKitId, kitIds);
+        wrapper.eq(ProductKitItem::getDeleted, 0);
+        wrapper.orderByAsc(ProductKitItem::getKitId).orderByAsc(ProductKitItem::getLineNo);
+        java.util.Map<Long, StringBuilder> builders = new java.util.HashMap<>();
+        for (ProductKitItem item : kitItemMapper.selectList(wrapper)) {
+            String name = item.getComponentProductName() != null ? item.getComponentProductName() : "";
+            String unit = item.getComponentProductUnit() != null ? item.getComponentProductUnit() : "";
+            String qtyText = item.getQuantity() == null ? "" : item.getQuantity().stripTrailingZeros().toPlainString();
+            StringBuilder sb = builders.computeIfAbsent(item.getKitId(), k -> new StringBuilder());
+            if (sb.length() > 0) {
+                sb.append("；");
+            }
+            sb.append(name).append("×").append(qtyText).append(unit);
+        }
+        for (java.util.Map.Entry<Long, StringBuilder> e : builders.entrySet()) {
+            result.put(e.getKey(), e.getValue().toString());
+        }
+        return result;
+    }
 }

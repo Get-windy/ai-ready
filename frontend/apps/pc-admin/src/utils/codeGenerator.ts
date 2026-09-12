@@ -131,10 +131,10 @@ function getNextDemoSeq(): number {
 }
 
 /**
- * 通用业务编号生成（异步版，从后端获取当日最大序列号+1）
- * @param prefix  编号前缀
- * @param apiPath 后端接口路径，返回 { seq: number }
- * @returns 完整编号
+ * 通用业务编号生成（异步版，从后端号段获取完整单据编号）
+ * @param prefix  编号前缀（后端未返回时用于兜底）
+ * @param apiPath 后端号段接口路径（如 /erp/sale/pre-order/next-no）
+ * @returns 完整编号；后端不可用时返回空串（交由后端保存时兜底生成，严禁前端自增演示号）
  */
 export async function generateCodeAsync(prefix: string, apiPath: string): Promise<string> {
   const { default: request } = await import('@/utils/request')
@@ -145,13 +145,14 @@ export async function generateCodeAsync(prefix: string, apiPath: string): Promis
     if (typeof res === 'string' && res) return res
     if (res && typeof res === 'object') {
       if (typeof (res as any).data === 'string' && (res as any).data) return (res as any).data
-      const seq = (res as any)?.seq ?? (res as any)?.data?.seq ?? 1
-      return generateCode(prefix, seq)
+      const seq = (res as any)?.seq ?? (res as any)?.data?.seq
+      if (typeof seq === 'number' && seq > 0) return generateCode(prefix, seq)
     }
-    return generateCode(prefix, 1)
-  } catch {
-    // 后端不可用时降级为自增序列
-    return generateCode(prefix, getNextDemoSeq())
+    return ''
+  } catch (e) {
+    // 红线：单据编号必须来自后端号段；号段不可用时不留前端自增号，交由后端保存时兜底
+    console.warn('[codeGenerator] 号段接口不可用，单据编号将由后端生成:', apiPath, e)
+    return ''
   }
 }
 

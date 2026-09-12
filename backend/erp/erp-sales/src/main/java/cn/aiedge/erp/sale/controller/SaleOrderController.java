@@ -64,6 +64,13 @@ public class SaleOrderController {
         return ApiResponse.ok(saleOrderService.getOrderStats(tenantId));
     }
 
+    @Operation(summary = "生成下一订单号")
+    @GetMapping("/next-no")
+    @SaCheckLogin
+    public ApiResponse<String> nextNo() {
+        return ApiResponse.ok(saleOrderService.generateOrderNo());
+    }
+
     @Operation(summary = "获取订单详情")
     @GetMapping("/{id:\\d+}")
     @SaCheckLogin
@@ -240,7 +247,9 @@ public class SaleOrderController {
             @RequestParam Long tenantId,
             @RequestParam(required = false) String startDate,
             @RequestParam(required = false) String endDate,
+            @RequestParam(required = false) String orderDate,
             @RequestParam(required = false) String orderNo,
+            @RequestParam(required = false) String remark,
             @RequestParam(required = false) String deliveryRoute,
             @RequestParam(required = false) Long customerId,
             @RequestParam(required = false) String customerName,
@@ -278,11 +287,24 @@ public class SaleOrderController {
             @RequestParam(required = false) String extText1,
             @RequestParam(required = false) String extText2,
             @RequestParam(required = false) String extText3,
+            @RequestParam(required = false) String extText4,
+            @RequestParam(required = false) String extText5,
             @RequestParam(required = false) String footerExtText1,
             @RequestParam(required = false) String footerExtText2,
+            @RequestParam(required = false) String itemProperty,
+            @RequestParam(required = false) String detailRemark,
+            @RequestParam(required = false) String thirdPartyOrderNo,
+            @RequestParam(required = false) String submitTimeStart,
+            @RequestParam(required = false) String submitTimeEnd,
+            @RequestParam(required = false) String auditTimeStart,
+            @RequestParam(required = false) String auditTimeEnd,
+            @RequestParam(required = false) Integer printCount,
+            @RequestParam(required = false) String isGift,
             @RequestParam(required = false) String source) {
         Page<SaleOrder> page = new Page<>(pageNum, pageSize);
         Map<String, Object> filters = buildFilters(startDate, endDate, status, orderNo, customerId, salesmanId);
+        if (orderDate != null) filters.put("orderDate", orderDate);
+        if (remark != null) filters.put("remark", remark);
         if (supplementType != null) filters.put("supplementType", supplementType);
         if (generationMethod != null) filters.put("generationMethod", generationMethod);
         if (settlementMethod != null) filters.put("settlementMethod", settlementMethod);
@@ -317,9 +339,20 @@ public class SaleOrderController {
         if (extText1 != null) filters.put("extText1", extText1);
         if (extText2 != null) filters.put("extText2", extText2);
         if (extText3 != null) filters.put("extText3", extText3);
+        if (extText4 != null) filters.put("extText4", extText4);
+        if (extText5 != null) filters.put("extText5", extText5);
         if (footerExtText1 != null) filters.put("footerExtText1", footerExtText1);
         if (footerExtText2 != null) filters.put("footerExtText2", footerExtText2);
-        if (source != null) filters.put("sourceOrder", source);
+        if (itemProperty != null) filters.put("itemProperty", itemProperty);
+        if (detailRemark != null) filters.put("detailRemark", detailRemark);
+        if (thirdPartyOrderNo != null) filters.put("thirdPartyOrderNo", thirdPartyOrderNo);
+        if (submitTimeStart != null) filters.put("submitTimeStart", submitTimeStart);
+        if (submitTimeEnd != null) filters.put("submitTimeEnd", submitTimeEnd);
+        if (auditTimeStart != null) filters.put("auditTimeStart", auditTimeStart);
+        if (auditTimeEnd != null) filters.put("auditTimeEnd", auditTimeEnd);
+        if (printCount != null) filters.put("printCount", printCount);
+        if (isGift != null) filters.put("isGift", isGift);
+        if (source != null) filters.put("orderSource", source);
         return ApiResponse.ok(saleOrderService.orderCenterPageByDoc(page, tenantId, filters));
     }
 
@@ -424,6 +457,8 @@ public class SaleOrderController {
             @RequestParam(required = false) Long salesmanId,
             @RequestParam(required = false) String warehouseName,
             @RequestParam(required = false) String deptName,
+            @RequestParam(required = false) String orderDate,
+            @RequestParam(required = false) String remark,
             @RequestParam(required = false) String supplementType,
             @RequestParam(required = false) String productBrand,
             @RequestParam(required = false) String industryCategory,
@@ -448,6 +483,16 @@ public class SaleOrderController {
             @RequestParam(required = false) String summary,
             @RequestParam(required = false) String shipDateStart,
             @RequestParam(required = false) String shipDateEnd,
+            @RequestParam(required = false) String extText4,
+            @RequestParam(required = false) String extText5,
+            @RequestParam(required = false) String itemProperty,
+            @RequestParam(required = false) String detailRemark,
+            @RequestParam(required = false) String thirdPartyOrderNo,
+            @RequestParam(required = false) String submitTimeStart,
+            @RequestParam(required = false) String submitTimeEnd,
+            @RequestParam(required = false) String auditTimeStart,
+            @RequestParam(required = false) String auditTimeEnd,
+            @RequestParam(required = false) Integer printCount,
             @RequestParam(required = false) String source) {
         Page<SaleOrder> page = new Page<>(pageNum, pageSize);
         Map<String, Object> filters = buildFilters(startDate, endDate, null, orderNo, customerId, salesmanId);
@@ -455,6 +500,8 @@ public class SaleOrderController {
         if (salesmanName != null) filters.put("salesmanName", salesmanName);
         if (warehouseName != null) filters.put("warehouseName", warehouseName);
         if (deptName != null) filters.put("deptName", deptName);
+        if (orderDate != null) filters.put("orderDate", orderDate);
+        if (remark != null) filters.put("remark", remark);
         if (supplementType != null) filters.put("supplementType", supplementType);
         if (productBrand != null) filters.put("productBrand", productBrand);
         if (industryCategory != null) filters.put("industryCategory", industryCategory);
@@ -479,7 +526,17 @@ public class SaleOrderController {
         if (summary != null) filters.put("summary", summary);
         if (shipDateStart != null) filters.put("shipDateStart", shipDateStart);
         if (shipDateEnd != null) filters.put("shipDateEnd", shipDateEnd);
-        if (source != null) filters.put("sourceOrder", source);
+        if (extText4 != null) filters.put("extText4", extText4);
+        if (extText5 != null) filters.put("extText5", extText5);
+        if (itemProperty != null) filters.put("itemProperty", itemProperty);
+        if (detailRemark != null) filters.put("detailRemark", detailRemark);
+        if (thirdPartyOrderNo != null) filters.put("thirdPartyOrderNo", thirdPartyOrderNo);
+        if (submitTimeStart != null) filters.put("submitTimeStart", submitTimeStart);
+        if (submitTimeEnd != null) filters.put("submitTimeEnd", submitTimeEnd);
+        if (auditTimeStart != null) filters.put("auditTimeStart", auditTimeStart);
+        if (auditTimeEnd != null) filters.put("auditTimeEnd", auditTimeEnd);
+        if (printCount != null) filters.put("printCount", printCount);
+        if (source != null) filters.put("orderSource", source);
         return ApiResponse.ok(saleOrderService.pendingReviewPage(page, tenantId, filters));
     }
 
@@ -498,20 +555,38 @@ public class SaleOrderController {
             @RequestParam(required = false) String salesmanName,
             @RequestParam(required = false) Long salesmanId,
             @RequestParam(required = false) Long warehouseId,
+            @RequestParam(required = false) String orderDate,
             @RequestParam(required = false) String warehouseName,
             @RequestParam(required = false) String deliveryMethod,
             @RequestParam(required = false) String logisticsCompany,
             @RequestParam(required = false) String driverName,
+            @RequestParam(required = false) BigDecimal extNum1,
+            @RequestParam(required = false) BigDecimal extNum2,
+            @RequestParam(required = false) String extText1,
+            @RequestParam(required = false) String extText2,
+            @RequestParam(required = false) String extText3,
+            @RequestParam(required = false) Integer printCount,
+            @RequestParam(required = false) String submitTimeStart,
+            @RequestParam(required = false) String submitTimeEnd,
             @RequestParam(required = false) String salespersonName) {
         Page<SaleOrder> page = new Page<>(pageNum, pageSize);
         Map<String, Object> filters = buildFilters(startDate, endDate, null, orderNo, customerId, salesmanId);
         if (customerName != null) filters.put("customerName", customerName);
         if (salesmanName != null) filters.put("salesmanName", salesmanName);
         if (warehouseId != null) filters.put("warehouseId", warehouseId);
+        if (orderDate != null) filters.put("orderDate", orderDate);
         if (warehouseName != null) filters.put("warehouseName", warehouseName);
         if (deliveryMethod != null) filters.put("deliveryMethod", deliveryMethod);
         if (logisticsCompany != null) filters.put("logisticsCompany", logisticsCompany);
         if (driverName != null) filters.put("driverName", driverName);
+        if (extNum1 != null) filters.put("extNum1", extNum1);
+        if (extNum2 != null) filters.put("extNum2", extNum2);
+        if (extText1 != null) filters.put("extText1", extText1);
+        if (extText2 != null) filters.put("extText2", extText2);
+        if (extText3 != null) filters.put("extText3", extText3);
+        if (printCount != null) filters.put("printCount", printCount);
+        if (submitTimeStart != null) filters.put("submitTimeStart", submitTimeStart);
+        if (submitTimeEnd != null) filters.put("submitTimeEnd", submitTimeEnd);
         if (salespersonName != null) filters.put("salesmanName", salespersonName);
         return ApiResponse.ok(saleOrderService.pickingShippingPage(page, tenantId, filters));
     }

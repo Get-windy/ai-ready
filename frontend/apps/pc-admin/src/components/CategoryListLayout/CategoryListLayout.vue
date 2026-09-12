@@ -75,6 +75,8 @@
         <div class="category-header">
           <span class="category-title">{{ categoryTitle }}</span>
           <div class="category-header-actions">
+            <!-- 页面自定义操作（对标：标题栏「修改 / 删除」按钮，作用于当前选中节点） -->
+            <slot name="category-header-actions" />
             <a-button
               v-if="categoryEditable"
               type="link"
@@ -133,12 +135,18 @@
               @select="(keys: any[]) => $emit('category-select', keys)"
               @expand="(keys: any[]) => $emit('category-expand', keys)"
             >
-              <template #title="{ categoryName, productCount }">
-                <span>{{ categoryName }}</span>
-                <span
-                  v-if="productCount !== undefined"
-                  class="cat-count"
-                >({{ productCount }})</span>
+              <template #title="node">
+                <!-- 默认标题；分类可维护的页面（如资料模块）可覆盖 #tree-title 追加行内操作 -->
+                <slot
+                  name="tree-title"
+                  v-bind="node"
+                >
+                  <span>{{ node.categoryName }}</span>
+                  <span
+                    v-if="node.productCount !== undefined"
+                    class="cat-count"
+                  >({{ node.productCount }})</span>
+                </slot>
               </template>
               <template #icon="{ expanded }">
                 <FolderOpenOutlined

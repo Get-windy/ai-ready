@@ -3,9 +3,16 @@ package cn.aiedge.erp.finance.controller;
 import cn.aiedge.base.log.annotation.OperationLog;
 import cn.aiedge.base.vo.Result;
 import cn.aiedge.erp.finance.dto.BalanceSheetDTO;
+import cn.aiedge.erp.finance.dto.BalanceSheetQuery;
+import cn.aiedge.erp.finance.dto.BalanceSheetReportDTO;
 import cn.aiedge.erp.finance.dto.IncomeStatementDTO;
+import cn.aiedge.erp.finance.dto.IncomeStatementQuery;
+import cn.aiedge.erp.finance.dto.IncomeStatementReportDTO;
 import cn.aiedge.erp.finance.dto.TrialBalanceDTO;
+import cn.aiedge.erp.finance.dto.TrialBalancePageDTO;
+import cn.aiedge.erp.finance.dto.TrialBalanceQuery;
 import cn.aiedge.erp.finance.service.FinancialReportService;
+import cn.aiedge.erp.finance.service.TrialBalanceService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -28,6 +35,15 @@ import java.util.Map;
 public class FinancialReportController {
 
     private final FinancialReportService financialReportService;
+    private final TrialBalanceService trialBalanceService;
+
+    @Operation(summary = "科目余额表（四段余额试算平衡表）")
+    @GetMapping("/trial-balance-page")
+    @PreAuthorize("hasPermission('/api/erp/finance/report/trial-balance', 'finance:report:view')")
+    @OperationLog(module = "财务报表", type = "QUERY", desc = "查询科目余额表")
+    public Result<TrialBalancePageDTO> trialBalancePage(TrialBalanceQuery query) {
+        return Result.success(trialBalanceService.queryTrialBalance(query));
+    }
 
     @Operation(summary = "试算平衡表")
     @GetMapping("/trial-balance")
@@ -39,7 +55,28 @@ public class FinancialReportController {
         return Result.success(financialReportService.generateTrialBalance(fiscalYear, fiscalPeriod));
     }
 
-    @Operation(summary = "资产负债表")
+    @Operation(summary = "资产负债表(左右对照)")
+    @GetMapping("/balance-sheet-report")
+    @PreAuthorize("hasPermission('/api/erp/finance/report/balance-sheet', 'finance:report:view')")
+    @OperationLog(module = "财务报表", type = "QUERY", desc = "查询资产负债表")
+    public Result<BalanceSheetReportDTO> balanceSheetReport(
+            @Parameter(description = "会计年度") @RequestParam Integer fiscalYear,
+            @Parameter(description = "会计月(止)") @RequestParam(required = false) Integer fiscalPeriod,
+            @Parameter(description = "期间模式 single/multi") @RequestParam(required = false, defaultValue = "single") String periodMode,
+            @Parameter(description = "多会计月起止月") @RequestParam(required = false) Integer startPeriod,
+            @Parameter(description = "科目层级") @RequestParam(required = false, defaultValue = "1") Integer subjectLevel,
+            @Parameter(description = "显示为0科目") @RequestParam(required = false, defaultValue = "true") Boolean showZero) {
+        BalanceSheetQuery query = new BalanceSheetQuery();
+        query.setFiscalYear(fiscalYear);
+        query.setFiscalPeriod(fiscalPeriod);
+        query.setPeriodMode(periodMode);
+        query.setStartPeriod(startPeriod);
+        query.setSubjectLevel(subjectLevel);
+        query.setShowZero(showZero);
+        return Result.success(financialReportService.generateBalanceSheetReport(query));
+    }
+
+    @Operation(summary = "资产负债表(扁平列表，兼容旧报表页)")
     @GetMapping("/balance-sheet")
     @PreAuthorize("hasPermission('/api/erp/finance/report/balance-sheet', 'finance:report:view')")
     @OperationLog(module = "财务报表", type = "QUERY", desc = "查询资产负债表")
@@ -49,7 +86,28 @@ public class FinancialReportController {
         return Result.success(financialReportService.generateBalanceSheet(fiscalYear, fiscalPeriod));
     }
 
-    @Operation(summary = "利润表")
+    @Operation(summary = "利润表(科目层级驱动)")
+    @GetMapping("/income-statement-report")
+    @PreAuthorize("hasPermission('/api/erp/finance/report/income-statement', 'finance:report:view')")
+    @OperationLog(module = "财务报表", type = "QUERY", desc = "查询利润表")
+    public Result<IncomeStatementReportDTO> incomeStatementReport(
+            @Parameter(description = "会计年度") @RequestParam Integer fiscalYear,
+            @Parameter(description = "会计月(止)") @RequestParam(required = false) Integer fiscalPeriod,
+            @Parameter(description = "期间模式 single/multi") @RequestParam(required = false, defaultValue = "single") String periodMode,
+            @Parameter(description = "多会计月起止月") @RequestParam(required = false) Integer startPeriod,
+            @Parameter(description = "科目层级") @RequestParam(required = false, defaultValue = "2") Integer subjectLevel,
+            @Parameter(description = "显示为0科目") @RequestParam(required = false, defaultValue = "false") Boolean showZero) {
+        IncomeStatementQuery query = new IncomeStatementQuery();
+        query.setFiscalYear(fiscalYear);
+        query.setFiscalPeriod(fiscalPeriod);
+        query.setPeriodMode(periodMode);
+        query.setStartPeriod(startPeriod);
+        query.setSubjectLevel(subjectLevel);
+        query.setShowZero(showZero);
+        return Result.success(financialReportService.generateIncomeStatementReport(query));
+    }
+
+    @Operation(summary = "利润表(扁平列表，兼容旧报表页)")
     @GetMapping("/income-statement")
     @PreAuthorize("hasPermission('/api/erp/finance/report/income-statement', 'finance:report:view')")
     @OperationLog(module = "财务报表", type = "QUERY", desc = "查询利润表")

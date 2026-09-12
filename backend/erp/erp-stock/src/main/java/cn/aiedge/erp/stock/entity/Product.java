@@ -173,7 +173,10 @@ public class Product {
     /** 商城商品描述 */
     private String mallDescription;
 
-    /** 商品标签(逗号分隔) */
+    /**
+     * 商品标签：逗号分隔的**标准槽位编码**（如 TAG_1,TAG_5），对应 erp_mall_tag.tag_code。
+     * 槽位显示名（昵称）可在「商品辅助资料 → 商品标签」自定义，改昵称不影响已打标商品。
+     */
     private String mallTags;
 
     /** 商城上架状态 0=下架 1=上架 */
@@ -190,6 +193,15 @@ public class Product {
 
     /** 主图视频URL */
     private String videoUrl;
+
+    /** 商城排序方式 DEFAULT=默认 SALES=按销量 MANUAL=手动排序 */
+    private String mallSortType;
+
+    /** 商品积分 */
+    private java.math.BigDecimal mallPoints;
+
+    /** 商城检索关键字 */
+    private String keywords;
 
     /**
      * 状态
@@ -242,4 +254,20 @@ public class Product {
     /** 等级价格映射：key=等级编码(GRADE_1等)，value=价格 */
     @TableField(exist = false)
     private java.util.Map<String, java.math.BigDecimal> gradePriceMap;
+
+    /** 可用库存(Σ erp_stock.available_quantity，列表展示用) */
+    @TableField(exist = false)
+    private java.math.BigDecimal availableStock;
+
+    /** 换算关系描述，如 "1箱=12袋"(列表展示用) */
+    @TableField(exist = false)
+    private String conversionRelation;
+
+    /** 默认仓库（库存最多的仓库，列表展示用） */
+    @TableField(exist = false)
+    private String defaultWarehouseName;
+
+    /** 商品标签列表(由 mallTags 逗号串拆分，列表展示用) */
+    @TableField(exist = false)
+    private java.util.List<String> mallTagList;
 }

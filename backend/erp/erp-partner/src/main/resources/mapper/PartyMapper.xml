@@ -35,6 +35,222 @@
         <result column="deleted" property="deleted"/>
     </resultMap>
 
+    <!-- ==================================================================
+         客户金标准查询（资料 → 往来单位 → 客户，5 子标签）
+         ================================================================== -->
+
+    <!-- 「全部客户」分页：18 项查询条件 -->
+    <select id="selectCustomerPage" resultType="cn.aiedge.erp.party.entity.Party">
+        SELECT p.*
+        FROM biz_party p
+        <where>
+            p.deleted = 0
+            <if test="q.partyType != null">
+                <choose>
+                    <when test="q.showAsRole != null and q.showAsRole and q.role != null">
+                        AND (p.party_type = #{q.partyType} OR p.roles LIKE CONCAT('%', #{q.role}, '%'))
+                    </when>
+                    <otherwise>
+                        AND p.party_type = #{q.partyType}
+                    </otherwise>
+                </choose>
+            </if>
+            <if test="q.status != null">
+                AND p.status = #{q.status}
+            </if>
+            <if test="q.categoryId != null">
+                AND p.category_id = #{q.categoryId}
+            </if>
+            <if test="q.keyword != null and q.keyword != ''">
+                AND (p.party_code LIKE CONCAT('%', #{q.keyword}, '%')
+                   OR p.party_name LIKE CONCAT('%', #{q.keyword}, '%')
+                   OR p.short_name LIKE CONCAT('%', #{q.keyword}, '%')
+                   OR p.mnemonic_code LIKE CONCAT('%', #{q.keyword}, '%')
+                   OR p.phone LIKE CONCAT('%', #{q.keyword}, '%')
+                   OR p.remark LIKE CONCAT('%', #{q.keyword}, '%'))
+            </if>
+            <if test="q.settleType != null and q.settleType != ''">
+                AND p.settlement_type = #{q.settleType}
+            </if>
+            <if test="q.gradeName != null and q.gradeName != ''">
+                AND p.party_level LIKE CONCAT('%', #{q.gradeName}, '%')
+            </if>
+            <if test="q.handler != null and q.handler != ''">
+                AND p.default_handler_name LIKE CONCAT('%', #{q.handler}, '%')
+            </if>
+            <if test="q.promoter != null and q.promoter != ''">
+                AND p.promoter_name LIKE CONCAT('%', #{q.promoter}, '%')
+            </if>
+            <if test="q.warehouse != null and q.warehouse != ''">
+                AND p.warehouse_name LIKE CONCAT('%', #{q.warehouse}, '%')
+            </if>
+            <if test="q.region != null and q.region != ''">
+                AND (p.region LIKE CONCAT('%', #{q.region}, '%')
+                   OR EXISTS (SELECT 1 FROM biz_party_contact pc
+                               WHERE pc.party_id = p.id AND pc.deleted = 0
+                                 AND pc.region LIKE CONCAT('%', #{q.region}, '%')))
+            </if>
+            <if test="q.customerSource != null and q.customerSource != ''">
+                AND p.customer_source LIKE CONCAT('%', #{q.customerSource}, '%')
+            </if>
+            <if test="q.address != null and q.address != ''">
+                AND (p.address LIKE CONCAT('%', #{q.address}, '%')
+                   OR EXISTS (SELECT 1 FROM biz_party_contact pc2
+                               WHERE pc2.party_id = p.id AND pc2.deleted = 0
+                                 AND pc2.detail_address LIKE CONCAT('%', #{q.address}, '%')))
+            </if>
+            <if test="q.onlyMallAccount != null and q.onlyMallAccount">
+                AND p.buyer_account IS NOT NULL AND p.buyer_account &lt;&gt; ''
+            </if>
+            <if test="q.onlyNoTrade != null and q.onlyNoTrade">
+                AND p.last_trade_time IS NULL
+            </if>
+            <if test="q.createTimeStart != null">
+                AND p.create_time &gt;= #{q.createTimeStart}
+            </if>
+            <if test="q.createTimeEnd != null">
+                AND p.create_time &lt;= #{q.createTimeEnd}
+            </if>
+            <if test="q.lastTradeStart != null">
+                AND p.last_trade_time &gt;= #{q.lastTradeStart}
+            </if>
+            <if test="q.lastTradeEnd != null">
+                AND p.last_trade_time &lt;= #{q.lastTradeEnd}
+            </if>
+        </where>
+        <!-- 列头排序：仅白名单字段（对标供应商列表 供应商编号/供应商名称/新增时间 可排序），其余按编号升序 -->
+        <choose>
+            <when test="q.sortField == 'partyCode' and q.sortOrder == 'desc'">ORDER BY p.party_code DESC</when>
+            <when test="q.sortField == 'partyCode'">ORDER BY p.party_code ASC</when>
+            <when test="q.sortField == 'partyName' and q.sortOrder == 'desc'">ORDER BY p.party_name DESC</when>
+            <when test="q.sortField == 'partyName'">ORDER BY p.party_name ASC</when>
+            <when test="q.sortField == 'createTime' and q.sortOrder == 'desc'">ORDER BY p.create_time DESC</when>
+            <when test="q.sortField == 'createTime'">ORDER BY p.create_time ASC</when>
+            <otherwise>ORDER BY p.party_code ASC</otherwise>
+        </choose>
+    </select>
+
+    <!-- 「会员管理」分页：会员档案口径（有会员卡号或会员名称） -->
+    <select id="selectMemberPage" resultType="cn.aiedge.erp.party.entity.Party">
+        SELECT p.*
+        FROM biz_party p
+        <where>
+            p.deleted = 0
+            <if test="q.partyType != null">
+                AND p.party_type = #{q.partyType}
+            </if>
+            AND ((p.member_card_no IS NOT NULL AND p.member_card_no &lt;&gt; '')
+                 OR (p.member_name IS NOT NULL AND p.member_name &lt;&gt; ''))
+            <if test="q.categoryId != null">
+                AND p.category_id = #{q.categoryId}
+            </if>
+            <if test="q.memberKeyword != null and q.memberKeyword != ''">
+                AND (p.member_name LIKE CONCAT('%', #{q.memberKeyword}, '%')
+                   OR p.member_card_no LIKE CONCAT('%', #{q.memberKeyword}, '%')
+                   OR p.party_name LIKE CONCAT('%', #{q.memberKeyword}, '%'))
+            </if>
+            <if test="q.phone != null and q.phone != ''">
+                AND (p.phone LIKE CONCAT('%', #{q.phone}, '%')
+                   OR EXISTS (SELECT 1 FROM biz_party_contact pc
+                               WHERE pc.party_id = p.id AND pc.deleted = 0
+                                 AND (pc.mobile LIKE CONCAT('%', #{q.phone}, '%')
+                                      OR pc.phone LIKE CONCAT('%', #{q.phone}, '%'))))
+            </if>
+            <if test="q.customerId != null">
+                AND p.id = #{q.customerId}
+            </if>
+            <if test="q.handler != null and q.handler != ''">
+                AND p.default_handler_name LIKE CONCAT('%', #{q.handler}, '%')
+            </if>
+            <if test="q.memberLevel != null and q.memberLevel != ''">
+                AND p.member_level = #{q.memberLevel}
+            </if>
+            <if test="q.memberCardStatus != null and q.memberCardStatus != ''">
+                AND p.member_card_status = #{q.memberCardStatus}
+            </if>
+            <if test="q.birthday != null">
+                AND p.birthday = #{q.birthday}
+            </if>
+            <if test="q.ageMin != null">
+                AND p.birthday IS NOT NULL
+                AND DATE_PART('year', AGE(CURRENT_DATE, p.birthday)) &gt;= #{q.ageMin}
+            </if>
+            <if test="q.ageMax != null">
+                AND p.birthday IS NOT NULL
+                AND DATE_PART('year', AGE(CURRENT_DATE, p.birthday)) &lt;= #{q.ageMax}
+            </if>
+            <if test="q.pointsMin != null">
+                AND p.points &gt;= #{q.pointsMin}
+            </if>
+            <if test="q.pointsMax != null">
+                AND p.points &lt;= #{q.pointsMax}
+            </if>
+            <if test="q.lastTradeStart != null">
+                AND p.last_trade_time &gt;= #{q.lastTradeStart}
+            </if>
+            <if test="q.lastTradeEnd != null">
+                AND p.last_trade_time &lt;= #{q.lastTradeEnd}
+            </if>
+        </where>
+        ORDER BY p.member_issue_time DESC NULLS LAST, p.id DESC
+    </select>
+
+    <!-- 「全部联系人」分页：联系人 × 归属客户联表 -->
+    <select id="selectContactPage" resultType="cn.aiedge.erp.party.dto.PartyContactRow">
+        SELECT c.id,
+               c.party_id,
+               c.contact_id,
+               COALESCE(ct.contact_name, c.contact_name)   AS contact_name,
+               COALESCE(ct.gender, c.gender)               AS gender,
+               c.position,
+               COALESCE(ct.mobile, c.mobile)               AS mobile,
+               COALESCE(ct.phone, c.phone)                 AS phone,
+               c.detail_address,
+               c.delivery_method,
+               c.delivery_route,
+               c.logistics_company,
+               COALESCE(ct.contact_name, c.contact_name)   AS outlet_name,
+               c.is_primary,
+               c.status,
+               c.create_time,
+               p.party_name              AS partner_name,
+               p.party_code              AS partner_code,
+               p.region                  AS party_region,
+               p.default_handler_name    AS handler_name
+        FROM biz_party_contact c
+        INNER JOIN biz_party p ON c.party_id = p.id AND p.deleted = 0
+        LEFT JOIN biz_contact ct ON ct.id = c.contact_id AND ct.deleted = 0
+        <where>
+            c.deleted = 0
+            <if test="q.partyType != null">
+                AND p.party_type = #{q.partyType}
+            </if>
+            <if test="q.customerId != null">
+                AND c.party_id = #{q.customerId}
+            </if>
+            <if test="q.keyword != null and q.keyword != ''">
+                AND (COALESCE(ct.contact_name, c.contact_name) LIKE CONCAT('%', #{q.keyword}, '%')
+                   OR c.linkman LIKE CONCAT('%', #{q.keyword}, '%')
+                   OR COALESCE(ct.mobile, c.mobile) LIKE CONCAT('%', #{q.keyword}, '%')
+                   OR COALESCE(ct.phone, c.phone) LIKE CONCAT('%', #{q.keyword}, '%'))
+            </if>
+            <if test="q.handler != null and q.handler != ''">
+                AND p.default_handler_name LIKE CONCAT('%', #{q.handler}, '%')
+            </if>
+            <if test="q.address != null and q.address != ''">
+                AND c.detail_address LIKE CONCAT('%', #{q.address}, '%')
+            </if>
+            <if test="q.deliveryMethod != null and q.deliveryMethod != ''">
+                AND c.delivery_method = #{q.deliveryMethod}
+            </if>
+            <if test="q.region != null and q.region != ''">
+                AND (c.region LIKE CONCAT('%', #{q.region}, '%')
+                   OR p.region LIKE CONCAT('%', #{q.region}, '%'))
+            </if>
+        </where>
+        ORDER BY c.is_primary DESC, c.id DESC
+    </select>
+
     <!-- 分页查询（支持过滤条件） -->
     <select id="selectPartyPage" resultMap="BaseResultMap">
         SELECT p.*, c.category_name

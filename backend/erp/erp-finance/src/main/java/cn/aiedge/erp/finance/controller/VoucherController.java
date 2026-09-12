@@ -3,6 +3,7 @@ package cn.aiedge.erp.finance.controller;
 import cn.aiedge.base.log.annotation.OperationLog;
 import cn.aiedge.base.vo.Result;
 import cn.aiedge.erp.finance.dto.VoucherDTO;
+import cn.aiedge.erp.finance.dto.VoucherQuery;
 import cn.aiedge.erp.finance.service.VoucherService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -40,6 +41,24 @@ public class VoucherController {
         return Result.success("创建成功", result);
     }
 
+    @Operation(summary = "更新凭证（草稿可改分录）")
+    @PutMapping("/{id:\\d+}")
+    @PreAuthorize("hasPermission('/api/erp/finance/voucher/edit', 'finance:voucher:edit')")
+    @OperationLog(module = "凭证管理", type = "UPDATE", desc = "更新凭证")
+    public Result<VoucherDTO> update(
+            @Parameter(description = "凭证ID") @PathVariable Long id,
+            @Valid @RequestBody VoucherDTO dto) {
+        return Result.success("更新成功", voucherService.update(id, dto));
+    }
+
+    @Operation(summary = "获取下一张凭证编号")
+    @GetMapping("/next-no")
+    @PreAuthorize("hasPermission('/api/erp/finance/voucher/list', 'finance:voucher:view')")
+    @OperationLog(module = "凭证管理", type = "QUERY", desc = "获取下一张凭证编号")
+    public Result<String> nextNo() {
+        return Result.success(voucherService.nextNo());
+    }
+
     @Operation(summary = "根据ID查询凭证")
     @GetMapping("/{id:\\d+}")
     @PreAuthorize("hasPermission('/api/erp/finance/voucher/view', 'finance:voucher:view')")
@@ -61,12 +80,10 @@ public class VoucherController {
     @PreAuthorize("hasPermission('/api/erp/finance/voucher/list', 'finance:voucher:view')")
     @OperationLog(module = "凭证管理", type = "QUERY", desc = "分页查询凭证列表")
     public Result<IPage<VoucherDTO>> list(
-            @Parameter(description = "会计年度") @RequestParam(required = false) Integer fiscalYear,
-            @Parameter(description = "会计期间") @RequestParam(required = false) Integer fiscalPeriod,
-            @Parameter(description = "状态(draft/audited/posted)") @RequestParam(required = false) String status,
+            @Parameter(description = "查询条件") VoucherQuery query,
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") int page,
             @Parameter(description = "每页大小") @RequestParam(defaultValue = "20") int size) {
-        IPage<VoucherDTO> pageResult = voucherService.list(fiscalYear, fiscalPeriod, status, new Page<>(page, size));
+        IPage<VoucherDTO> pageResult = voucherService.list(query, new Page<>(page, size));
         return Result.success(pageResult);
     }
 
@@ -129,9 +146,7 @@ public class VoucherController {
     @PreAuthorize("hasPermission('/api/erp/finance/voucher/list', 'finance:voucher:view')")
     @OperationLog(module = "凭证管理", type = "QUERY", desc = "导出凭证列表")
     public Result<List<VoucherDTO>> export(
-            @Parameter(description = "会计年度") @RequestParam(required = false) Integer fiscalYear,
-            @Parameter(description = "会计期间") @RequestParam(required = false) Integer fiscalPeriod,
-            @Parameter(description = "状态(draft/audited/posted)") @RequestParam(required = false) String status) {
-        return Result.success(voucherService.exportList(fiscalYear, fiscalPeriod, status));
+            @Parameter(description = "查询条件") VoucherQuery query) {
+        return Result.success(voucherService.exportList(query));
     }
 }

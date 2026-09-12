@@ -84,6 +84,7 @@ export interface AnnualBudget {
   totalApprovedAmount: number
   totalUsedAmount: number
   totalRemainingAmount: number
+  totalFrozenAmount: number
   executionRate: number
   description: string
   remark: string
@@ -92,6 +93,16 @@ export interface AnnualBudget {
   updatedBy: string
   updatedAt: string
   items: BudgetItem[]
+  // ── 金标准编制/审批字段 ──
+  budgetDate: string
+  handlerId: number | string
+  handlerName: string
+  creatorName: string
+  auditorId: number | string
+  auditorName: string
+  auditTime: string
+  auditRemark: string
+  printCount: number
 }
 
 export interface BudgetItem {
@@ -105,6 +116,10 @@ export interface BudgetItem {
   frozenAmount: number
   executionRate: number
   sortOrder: number
+  lineNo: number
+  subjectId: number | string
+  subjectType: string
+  remark: string
 }
 
 export const annualBudgetApi = {
@@ -122,6 +137,46 @@ export const annualBudgetApi = {
   },
   page(params: PageQuery): Promise<ApiResponse<PageResult<AnnualBudget>>> {
     return request.get('/erp/budget/annual/page', params)
+  },
+  /** 金标准：多条件分页（并把 records/total 提到顶层，兼容旧调用方） */
+  async getPage(params: PageQuery): Promise<any> {
+    const res: any = await request.get('/erp/budget/annual/page', params)
+    const body = res?.data ?? res
+    return {
+      ...res,
+      records: body?.records ?? [],
+      total: Number(body?.total) || 0,
+      current: body?.current,
+      size: body?.size,
+    }
+  },
+  /** 金标准：生成下一预算编制单号 */
+  nextNo(): Promise<ApiResponse<string>> {
+    return request.get('/erp/budget/annual/next-no')
+  },
+  /** 金标准：保存编制单（含预算科目明细） */
+  save(data: AnnualBudget): Promise<ApiResponse<AnnualBudget>> {
+    return request.post('/erp/budget/annual/save', data)
+  },
+  /** 金标准：批量提交审批 */
+  batchSubmit(ids: number[]): Promise<ApiResponse<number>> {
+    return request.post('/erp/budget/annual/batch-submit', { ids })
+  },
+  /** 金标准：批量审批通过 */
+  batchApprove(ids: number[], auditor?: { auditorId?: number | string; auditorName?: string; auditRemark?: string }): Promise<ApiResponse<number>> {
+    return request.post('/erp/budget/annual/batch-approve', { ids, ...(auditor || {}) })
+  },
+  /** 金标准：批量驳回 */
+  batchReject(ids: number[], auditor?: { auditorId?: number | string; auditorName?: string; auditRemark?: string }): Promise<ApiResponse<number>> {
+    return request.post('/erp/budget/annual/batch-reject', { ids, ...(auditor || {}) })
+  },
+  /** 金标准：批量删除 */
+  batchDelete(ids: number[]): Promise<ApiResponse<number>> {
+    return request.post('/erp/budget/annual/batch-delete', { ids })
+  },
+  /** 金标准：记录打印次数 */
+  printDoc(id: number): Promise<ApiResponse<void>> {
+    return request.post(`/erp/budget/annual/${id}/print`)
   },
   submit(id: number): Promise<ApiResponse<AnnualBudget>> {
     return request.post(`/erp/budget/annual/${id}/submit`)
@@ -225,6 +280,16 @@ export interface BudgetStatistics {
   draftCount: number
   increaseAmount: number
   decreaseAmount: number
+  /** 已转入执行的预算单数（已审批/执行中/已关闭） */
+  approvedCount?: number
+  /** 预算科目数 */
+  totalItemCount?: number
+  /** 超支科目数（执行进度 > 100%） */
+  overBudgetCount?: number
+  /** 预警科目数（执行进度 ≥ 90%） */
+  warningCount?: number
+  /** 超支金额合计 */
+  overBudgetAmount?: number
 }
 
 export const budgetReportApi = {
@@ -242,5 +307,57 @@ export const budgetReportApi = {
   },
   trend(fiscalYear?: number): Promise<ApiResponse<any[]>> {
     return request.get('/erp/budget/report/trend', { fiscalYear })
+  },
+}
+
+// ── 预算执行（只读跟踪 + 超支预警） ─────────────────────────
+export interface BudgetExecutionQuery {
+  /** 财政年度 */
+  fiscalYear?: number
+  departmentId?: string
+  subjectCode?: string
+  /** 预算编号 / 部门 / 预算科目名称 */
+  keyword?: string
+  /** draft/submitted/approved/executing/rejected/closed，空=已转入执行 */
+  status?: string
+  /** 仅看超支（执行进度 > 100%） */
+  overBudgetOnly?: boolean
+  /** 仅看预警（执行进度 ≥ 90%） */
+  warningOnly?: boolean
+  /** 页码，从 0 开始（后端口径） */
+  page?: number
+  size?: number
+}
+
+export interface BudgetExecutionLog {
+  id: number
+  budgetId: number
+  budgetItemId: number
+  executionType: string
+  executionTypeName: string
+  sourceType: string
+  sourceTypeName: string
+  sourceNo: string
+  amount: number
+  executionDate: string
+  description: string
+}
+
+export const budgetExecutionApi = {
+  /** 按预算单维度分页 */
+  rows(params: BudgetExecutionQuery): Promise<ApiResponse<PageResult<any>>> {
+    return request.get('/erp/budget/execution/rows', params)
+  },
+  /** 按预算科目明细维度分页 */
+  items(params: BudgetExecutionQuery): Promise<ApiResponse<PageResult<any>>> {
+    return request.get('/erp/budget/execution/items', params)
+  },
+  /** 预算执行流水（冻结/释放/消耗） */
+  logs(params: { budgetId?: number; budgetItemId?: number }): Promise<ApiResponse<BudgetExecutionLog[]>> {
+    return request.get('/erp/budget/execution/logs', params)
+  },
+  /** 超支预警清单 */
+  warnings(fiscalYear?: number): Promise<ApiResponse<any>> {
+    return request.get('/erp/budget/execution/warnings', { fiscalYear })
   },
 }

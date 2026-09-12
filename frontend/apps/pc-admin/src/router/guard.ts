@@ -149,8 +149,12 @@ export function setupRouterGuard(router: Router, options?: RouterGuardOptions) {
 
           // 返回重定向目标。注意：已剥离所有动态路由的 redirect 属性，
           // 因此 pushWithRedirect 重新解析时 handleRedirectRecord 不会触发递归。
-          const redirectPath = to.path === '/' || to.path === '/login' ? '/dashboard' : to.fullPath
-          return { path: redirectPath, replace: true }
+          // 必须用 path + query + hash 分开传递：to.fullPath 作为 path 会把查询串
+          // 当成路径的一部分，导致「带 ?id= 直达/刷新」丢失查询参数。
+          if (to.path === '/' || to.path === '/login') {
+            return { path: '/dashboard', replace: true }
+          }
+          return { path: to.path, query: to.query, hash: to.hash, replace: true }
         } catch (error: any) {
           console.warn('[路由守卫] 动态路由加载失败:', error?.message)
           // 无论成功失败都移除初始 catch-all，Layout 下有正式的 404 catch-all 兜底

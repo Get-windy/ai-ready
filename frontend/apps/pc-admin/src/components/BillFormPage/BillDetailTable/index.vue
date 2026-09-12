@@ -29,17 +29,22 @@
         class="ss-grid"
         :style="gridTableStyle"
       >
-        <thead>
-          <tr>
+        <thead :class="{ 'ss-grouped': headerGrouped }">
+          <tr
+            v-for="(row, ri) in headerRows"
+            :key="'hr-' + ri"
+          >
             <th
-              v-for="(col, ci) in visibleColumns"
-              :key="col.key"
-              :style="getColStyle(col)"
-              :class="getColClass(col)"
-              :data-filler="col.key === '__filler__' || undefined"
+              v-for="cell in row"
+              :key="cell.key"
+              :colspan="cell.colspan > 1 ? cell.colspan : undefined"
+              :rowspan="cell.rowspan > 1 ? cell.rowspan : undefined"
+              :style="cell.col ? getColStyle(cell.col) : undefined"
+              :class="cell.col ? getColClass(cell.col) : 'ss-header-group'"
+              :data-filler="cell.col && cell.col.key === '__filler__' ? true : undefined"
             >
               <!-- ═══ rowNo 列：内嵌齿轮设置图标 ═══ -->
-              <template v-if="col.type === 'rowNo'">
+              <template v-if="cell.col && cell.col.type === 'rowNo'">
                 <span
                   class="th-settings-btn"
                   title="配置"
@@ -49,7 +54,7 @@
                 </span>
               </template>
               <!-- ═══ checkbox 列：全选复选框 ═══ -->
-              <template v-else-if="col.type === 'checkbox'">
+              <template v-else-if="cell.col && cell.col.type === 'checkbox'">
                 <input
                   type="checkbox"
                   class="ss-checkbox ss-checkbox-header"
@@ -58,8 +63,8 @@
                 >
               </template>
               <!-- ═══ 商品名称列：内嵌扫描枪开关 ═══ -->
-              <template v-else-if="col.showScanToggle">
-                <span class="th-title">{{ col.title }}</span>
+              <template v-else-if="cell.col && cell.col.showScanToggle">
+                <span class="th-title">{{ cell.title }}</span>
                 <a-tooltip :title="scanEnabled ? '已开启扫描枪录入' : '扫描枪录入'">
                   <span class="th-scan-label">扫描枪录入</span>
                 </a-tooltip>
@@ -69,32 +74,38 @@
                   class="th-scan-switch"
                 />
                 <span
-                  v-if="col.sortable"
+                  v-if="cell.col.sortable"
                   class="th-sort-icon"
-                  :class="getSortIconClass(col)"
-                  :title="col.tooltip || '点击排序'"
-                  @click="toggleSort(col)"
+                  :class="getSortIconClass(cell.col)"
+                  :title="cell.col.tooltip || '点击排序'"
+                  @click="toggleSort(cell.col)"
                 >
-                  <CaretUpOutlined v-if="sortState.key === col.key && sortState.order === 'asc'" />
-                  <CaretDownOutlined v-else-if="sortState.key === col.key && sortState.order === 'desc'" />
+                  <CaretUpOutlined v-if="sortState.key === cell.col.key && sortState.order === 'asc'" />
+                  <CaretDownOutlined v-else-if="sortState.key === cell.col.key && sortState.order === 'desc'" />
                   <span
                     v-else
                     class="sort-neutral"
                   ><CaretUpOutlined /><CaretDownOutlined /></span>
                 </span>
               </template>
-              <!-- ═══ 普通列标题 ═══ -->
+              <!-- ═══ 普通列标题（含分组标题，分组标题无 col） ═══ -->
               <template v-else>
-                <span class="th-title">{{ col.title }}</span>
-                <span
-                  v-if="col.sortable"
-                  class="th-sort-icon"
-                  :class="getSortIconClass(col)"
-                  :title="col.tooltip || '点击排序'"
-                  @click="toggleSort(col)"
+                <span class="th-title">{{ cell.title }}</span>
+                <a-tooltip
+                  v-if="cell.col && cell.col.headerTip"
+                  :title="cell.col.headerTip"
                 >
-                  <CaretUpOutlined v-if="sortState.key === col.key && sortState.order === 'asc'" />
-                  <CaretDownOutlined v-else-if="sortState.key === col.key && sortState.order === 'desc'" />
+                  <QuestionCircleOutlined class="th-help-icon" />
+                </a-tooltip>
+                <span
+                  v-if="cell.col && cell.col.sortable"
+                  class="th-sort-icon"
+                  :class="getSortIconClass(cell.col)"
+                  :title="cell.col.tooltip || '点击排序'"
+                  @click="toggleSort(cell.col)"
+                >
+                  <CaretUpOutlined v-if="sortState.key === cell.col.key && sortState.order === 'asc'" />
+                  <CaretDownOutlined v-else-if="sortState.key === cell.col.key && sortState.order === 'desc'" />
                   <span
                     v-else
                     class="sort-neutral"
@@ -118,8 +129,13 @@
               :style="getColStyle(col)"
               :data-col-key="col.key"
             >
+              <!-- 只读列表的 __ghost 空行：除行号外一律空白（避免无 slot 列渲染 '-' 等占位值；
+                   可编辑明细的 ghost 行仍需渲染输入控件，故仅限 isViewMode） -->
+              <template v-if="isViewMode && record.__ghost && col.type !== 'rowNo' && col.key !== '__filler__'">
+                <span class="ss-empty-cell" />
+              </template>
               <!-- 填充列：空白 -->
-              <template v-if="col.key === '__filler__'">
+              <template v-else-if="col.key === '__filler__'">
                 <span class="ss-empty-cell" />
               </template>
               <!-- 空行（与填充列互斥） -->
@@ -281,7 +297,7 @@
                   <template v-else-if="col.searchable">
                     <SearchSelect
                       :model-value="editingCell?.editing"
-                      :options="col.options"
+                      :options="resolveColumnOptions(col, record)"
                       :placeholder="col.placeholder || '搜索'"
                       @update:model-value="(val: any) => onEditorInput(val)"
                       @open-select-modal="handleOpenSelectModal(record, rowIndex, col.key)"
@@ -371,7 +387,7 @@
           <div class="col-settings-panel-modal">
             <div class="col-panel-body">
               <div
-                v-for="(setting, si) in columnSettings"
+                v-for="(setting, si) in personalPanelSettings"
                 :key="setting.key"
                 class="col-setting-row"
                 :class="{ 'col-setting-ghost': !setting.visible }"
@@ -385,8 +401,8 @@
                 <span
                   class="col-setting-title"
                   draggable="true"
-                  @dragstart="onDragStart(si)"
-                  @dragover.prevent="onDragOver(si)"
+                  @dragstart="onDragStart(panelToRealIndex(si, 'personal'))"
+                  @dragover.prevent="onDragOver(panelToRealIndex(si, 'personal'))"
                   @drop="onDrop(si)"
                 >
                   <span class="drag-handle">⠿</span>
@@ -415,7 +431,7 @@
           <div class="col-settings-panel-modal">
             <div class="col-panel-body">
               <div
-                v-for="(setting, si) in globalSettings"
+                v-for="(setting, si) in globalPanelSettings"
                 :key="setting.key"
                 class="col-setting-row"
                 :class="{ 'col-setting-ghost': !setting.visible }"
@@ -429,8 +445,8 @@
                 <span
                   class="col-setting-title"
                   draggable="true"
-                  @dragstart="onDragStart(si)"
-                  @dragover.prevent="onDragOver(si)"
+                  @dragstart="onDragStart(panelToRealIndex(si, 'global'))"
+                  @dragover.prevent="onDragOver(panelToRealIndex(si, 'global'))"
                   @drop="onDrop(si)"
                 >
                   <span class="drag-handle">⠿</span>
@@ -477,7 +493,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, reactive, nextTick } from 'vue'
-import { SettingOutlined, FullscreenOutlined, CaretUpOutlined, CaretDownOutlined } from '@ant-design/icons-vue'
+import { SettingOutlined, FullscreenOutlined, CaretUpOutlined, CaretDownOutlined, QuestionCircleOutlined } from '@ant-design/icons-vue'
 import { Modal, Button, Checkbox, Select, InputNumber, Input, Tabs } from 'ant-design-vue'
 import type { DetailColumnConfig, ColumnSetting, DetailColumnOption } from './types'
 import SearchSelect from '@/components/SearchSelect/index.vue'
@@ -512,6 +528,8 @@ const props = withDefaults(defineProps<{
   minRows?: number
   /** 列配置存储键名（不同表格使用不同键，避免冲突） */
   storageKey?: string
+  /** 全局列配置持久化键名（传入后「全局配置」Tab 落后端 user-config，跨浏览器生效） */
+  globalConfigKey?: string
   /** 填充模式：右侧生成空白列占满剩余宽度 */
   fillMode?: boolean
   /** 是否显示分页器 */
@@ -655,7 +673,7 @@ const displayRows = computed(() => {
 
   // 应用排序
   if (sortState.key && sortState.order) {
-    const col = props.columns.find(c => c.key === sortState.key)
+    const col = leafColumns.value.find(c => c.key === sortState.key)
     if (col?.sorter) {
       data.sort(col.sorter)
     } else {
@@ -762,12 +780,41 @@ defineExpose({
   openColumnConfig: () => { showColPanel.value = true },
 })
 
+// ═══ 分组表头：扁平化叶子列（分组节点自身不参与行渲染与列配置） ═══
+function flattenColumns(cols: any[], parent?: { key: string; title: string }): any[] {
+  const out: any[] = []
+  for (const col of cols || []) {
+    if (Array.isArray(col?.children) && col.children.length) {
+      out.push(...flattenColumns(col.children, { key: col.key, title: col.title || '' }))
+    } else if (parent) {
+      out.push({ ...col, __groupKey: parent.key, __groupTitle: parent.title })
+    } else {
+      out.push({ ...col })
+    }
+  }
+  return out
+}
+
+/** 叶子列（分组列取其 children；无分组时与 props.columns 等价） */
+const leafColumns = computed<DetailColumnConfig[]>(() => flattenColumns(props.columns))
+/** 是否存在分组表头（决定 thead 渲染一行还是两行） */
+const headerGrouped = computed(() => leafColumns.value.some(c => (c as any).__groupKey))
+
+/**
+ * 列配置弹窗展示名：分组列用「分组名-子列名」（如 期初余额-借方），
+ * 与对标列配置的列名口径一致；无分组列仍为自身标题。
+ */
+function configTitle(col: DetailColumnConfig): string {
+  const group = (col as any).__groupTitle
+  return group ? `${group}-${col.title}` : col.title
+}
+
 // ═══ 列设置（运行时） ═══
 const defaultSettings = computed<ColumnSetting[]>(() =>
-  props.columns.map(col => ({
+  leafColumns.value.map(col => ({
     key: col.key,
-    title: col.title,
-    displayName: col.title,
+    title: configTitle(col),
+    displayName: configTitle(col),
     visible: !col.defaultHidden,
     width: col.width || 100,
     fixed: col.fixed || '',
@@ -782,6 +829,26 @@ const colConfigTab = ref<'personal' | 'global'>('personal')
 // 全局配置（独立存储，显示名可编辑）
 const globalSettings = reactive<ColumnSetting[]>([...defaultSettings.value])
 
+/**
+ * 列配置弹窗展示项：剔除系统列（LOCKED_COLUMNS：序号 / 操作）。
+ * 对标 ql361 的列配置弹窗只列出业务数据列（如互联账号页仅 往来单位/互联用户名/手机号 三条），
+ * 序号与操作是系统列不参与配置；这里只影响面板展示，表格渲染顺序仍以 columnSettings 为准。
+ */
+function panelSettingsOf(target: ColumnSetting[]): ColumnSetting[] {
+  return target.filter(s => !isLockedColumn(s.key))
+}
+const personalPanelSettings = computed(() => panelSettingsOf(columnSettings))
+const globalPanelSettings = computed(() => panelSettingsOf(globalSettings))
+
+/** 面板序号 → columnSettings/globalSettings 真实下标（拖拽排序用） */
+function panelToRealIndex(panelIdx: number, tab: 'personal' | 'global'): number {
+  const list = tab === 'personal' ? personalPanelSettings.value : globalPanelSettings.value
+  const target = tab === 'personal' ? columnSettings : globalSettings
+  if (panelIdx < 0 || panelIdx >= list.length) return panelIdx
+  const real = target.findIndex(s => s.key === list[panelIdx].key)
+  return real < 0 ? panelIdx : real
+}
+
 // 从本地存储加载列配置
 const STORAGE_KEY = computed(() => props.storageKey || 'product-unit-columns-config')
 const GLOBAL_STORAGE_KEY = computed(() => (props.storageKey || 'product-unit-columns-config') + '-global')
@@ -791,11 +858,12 @@ function loadStoredSettings(storageKey: string, target: ColumnSetting[]) {
     const stored = localStorage.getItem(storageKey)
     if (stored) {
       const parsed = JSON.parse(stored)
-      const mergedConfig = props.columns.map(col => {
+      const mergedConfig = leafColumns.value.map(col => {
         const storedCol = parsed.find((sc: any) => sc.key === col.key)
+        const title = configTitle(col)
         return storedCol
-          ? { key: col.key, title: col.title, displayName: storedCol.displayName || col.title, visible: storedCol.visible ?? !col.defaultHidden, width: storedCol.width || col.width || 100, fixed: storedCol.fixed || col.fixed || '' }
-          : { key: col.key, title: col.title, displayName: col.title, visible: !col.defaultHidden, width: col.width || 100, fixed: col.fixed || '' }
+          ? { key: col.key, title, displayName: storedCol.displayName || title, visible: storedCol.visible ?? !col.defaultHidden, width: storedCol.width || col.width || 100, fixed: storedCol.fixed || col.fixed || '' }
+          : { key: col.key, title, displayName: title, visible: !col.defaultHidden, width: col.width || 100, fixed: col.fixed || '' }
       })
       target.splice(0, target.length, ...mergedConfig)
     }
@@ -815,17 +883,41 @@ function saveStoredSettings(storageKey: string, settings: ColumnSetting[]) {
 // 加载个人配置和全局配置
 loadStoredSettings(STORAGE_KEY.value, columnSettings)
 loadStoredSettings(GLOBAL_STORAGE_KEY.value, globalSettings)
+// 全局配置：页面显式传入 global-config-key 时以后端为准（跨浏览器/终端）
+loadGlobalSettingsFromServer()
 
-// 同步 columns 变化
-watch(() => props.columns, (newCols) => {
+/**
+ * 多视图（Tab）页面会按视图动态切换 storage-key（如 `xxx-table-columns-doc/-detail`），
+ * 此时必须重新加载该视图的列配置，否则切 Tab 后仍沿用上一个 Tab 的设置（要刷新页面才生效）。
+ * flush:'post' 确保在 leafColumns 同步（上面的 watch）之后执行，用当前视图的列定义合并存储值。
+ */
+watch(STORAGE_KEY, () => {
+  loadStoredSettings(STORAGE_KEY.value, columnSettings)
+  loadStoredSettings(GLOBAL_STORAGE_KEY.value, globalSettings)
+  loadGlobalSettingsFromServer()
+}, { flush: 'post' })
+
+/**
+ * 是否保留了用户自定义显示名：
+ * 默认 displayName 恒等于 title，仅当用户改过名才会出现 displayName !== title。
+ * 多视图（Tab）复用同一列 key 时，未自定义的列名必须跟随当前视图的列定义，
+ * 否则切换视图会出现「表头名与列不符」（如按部门的「部门」串到按类型的「费用名称」）。
+ */
+function isRenamed(existing?: ColumnSetting): boolean {
+  return !!existing && !!existing.displayName && existing.displayName !== existing.title
+}
+
+// 同步 columns 变化（分组列以叶子列为准）
+watch(leafColumns, (newCols) => {
   // 同步个人配置
   const existingMap = new Map(columnSettings.map(s => [s.key, s]))
   const newSettings = newCols.map(col => {
     const existing = existingMap.get(col.key)
+    const title = configTitle(col)
     return {
       key: col.key,
-      title: col.title,
-      displayName: existing?.displayName || col.title,
+      title,
+      displayName: isRenamed(existing) ? existing!.displayName! : title,
       visible: existing ? existing.visible : !col.defaultHidden,
       width: existing ? existing.width : (col.width || 100),
       fixed: existing ? existing.fixed : (col.fixed || ''),
@@ -837,10 +929,11 @@ watch(() => props.columns, (newCols) => {
   const globalMap = new Map(globalSettings.map(s => [s.key, s]))
   const newGlobalSettings = newCols.map(col => {
     const existing = globalMap.get(col.key)
+    const title = configTitle(col)
     return {
       key: col.key,
-      title: col.title,
-      displayName: existing?.displayName || col.title,
+      title,
+      displayName: isRenamed(existing) ? existing!.displayName! : title,
       visible: existing ? existing.visible : !col.defaultHidden,
       width: existing ? existing.width : (col.width || 100),
       fixed: existing ? existing.fixed : (col.fixed || ''),
@@ -851,7 +944,7 @@ watch(() => props.columns, (newCols) => {
 
 /** 可见列（过滤隐藏 + 按设置顺序 + 应用冻结 + 可选填充列） */
 const visibleColumns = computed<DetailColumnConfig[]>(() => {
-  const colMap = new Map(props.columns.map(c => [c.key, c]))
+  const colMap = new Map(leafColumns.value.map(c => [c.key, c]))
   const cols = columnSettings
     .filter(s => s.visible && s.key !== '__filler__')
     .map(s => {
@@ -876,6 +969,50 @@ const visibleColumns = computed<DetailColumnConfig[]>(() => {
     cols.unshift(rn)
   }
   return cols
+})
+
+// ═══ 表头渲染行：无分组=单行；有分组=两行（组标题 + 叶子列） ═══
+interface HeaderCell {
+  key: string
+  title: string
+  colspan: number
+  rowspan: number
+  col?: DetailColumnConfig
+}
+
+const headerRows = computed<HeaderCell[][]>(() => {
+  const cols = visibleColumns.value
+  // 无分组：单行，全部叶子列
+  if (!headerGrouped.value) {
+    return [cols.map(col => ({ key: col.key, title: col.title, colspan: 1, rowspan: 1, col }))]
+  }
+  const row1: HeaderCell[] = []
+  const row2: HeaderCell[] = []
+  let i = 0
+  while (i < cols.length) {
+    const col: any = cols[i]
+    const groupKey = col.__groupKey
+    if (!groupKey) {
+      row1.push({ key: col.key, title: col.title, colspan: 1, rowspan: 2, col })
+      i++
+      continue
+    }
+    let j = i
+    while (j < cols.length && (cols[j] as any).__groupKey === groupKey) j++
+    const span = j - i
+    if (span === 1) {
+      // 组内只剩 1 列：不渲染组标题，避免出现只有一列的分组表头
+      row1.push({ key: col.key, title: col.title, colspan: 1, rowspan: 2, col })
+    } else {
+      row1.push({ key: `group-${groupKey}`, title: col.__groupTitle || '', colspan: span, rowspan: 1 })
+      for (let k = i; k < j; k++) {
+        const leaf: any = cols[k]
+        row2.push({ key: leaf.key, title: leaf.title, colspan: 1, rowspan: 1, col: leaf })
+      }
+    }
+    i = j
+  }
+  return [row1, row2]
 })
 
 // 计算所有可见列的总宽度（不含填充列）
@@ -903,6 +1040,33 @@ function getSummaryValue(key: string): string {
 }
 
 // ═══ 样式辅助 ═══
+/**
+ * 冻结列累计偏移：
+ * 左侧冻结按可见顺序累加「排在该列之前的左冻结列」宽度，右侧冻结从末尾往前累加。
+ * ⚠️ 不可直接写 left:0 —— 多列左冻结时会全部钉在同一位置而重叠。
+ */
+function stickyOffset(col: DetailColumnConfig): { left?: string; right?: string } {
+  const cols = visibleColumns.value
+  if (col.fixed === 'left') {
+    let left = 0
+    for (const c of cols) {
+      if (c.key === col.key) return { left: left + 'px' }
+      if (c.fixed === 'left') left += (c.width || 100)
+    }
+    return { left: '0px' }
+  }
+  if (col.fixed === 'right') {
+    let right = 0
+    for (let i = cols.length - 1; i >= 0; i--) {
+      const c = cols[i]
+      if (c.key === col.key) return { right: right + 'px' }
+      if (c.fixed === 'right') right += (c.width || 100)
+    }
+    return { right: '0px' }
+  }
+  return {}
+}
+
 function getColStyle(col: DetailColumnConfig) {
   if (col.key === '__filler__') {
     // ⚠️ 填充列必须 width:100% 才能占满剩余宽度（table-layout:auto 下空内容吸不到剩余）。
@@ -910,6 +1074,7 @@ function getColStyle(col: DetailColumnConfig) {
     return { width: '100%' }
   }
   const isAction = col.type === 'action' || col.type === 'button'
+  const sticky = stickyOffset(col)
   if (isAction) {
     // 操作列：table-layout:auto 下按该列最宽内容自适应（width:auto + nowrap），按钮总放得下、不溢出也不撑大；
     // min-width 80 防 +/− 等窄操作列塌缩；按钮过多(>4)由 actionButtons 折叠为"更多"下拉。
@@ -917,11 +1082,13 @@ function getColStyle(col: DetailColumnConfig) {
       width: 'auto',
       minWidth: 80,
       whiteSpace: 'nowrap',
+      ...sticky,
     }
   }
   return {
     width: col.width ? col.width + 'px' : 'auto',
     minWidth: col.width ? col.width + 'px' : '80px',
+    ...sticky,
   }
 }
 
@@ -1034,11 +1201,14 @@ function getCellText(col: DetailColumnConfig, record: any): string {
 /** 进入编辑态（点击 / 回车） */
 function enterEdit(rowIndex: number, col: DetailColumnConfig, record: any) {
   if (!isEditableText(col, record)) return
+  const raw = record[col.key]
   editingCell.value = {
     rowIndex,
     fieldKey: col.key,
-    original: record[col.key],
-    editing: record[col.key] ?? (col.type === 'number' ? 0 : ''),
+    original: raw,
+    // ⚠️ 空值一律以 '' 作为编辑初值（number 列也不要预填 0）：否则 NULL 单元格"点开即把 0 当成新值"提交，
+    //    会把空值写成 0（配合下方 isEmptyValue 判定，点开不动不会再触发 cellChange）。
+    editing: raw === null || raw === undefined ? '' : raw,
   }
   // select 列：进入编辑态即展开下拉选项（避免"先显示请选择再点击"）
   if (col.type === 'select') selectOpen.value = true
@@ -1049,13 +1219,19 @@ function onEditorInput(val: any) {
   if (editingCell.value) editingCell.value.editing = val
 }
 
+/** 空值等价判定：null / undefined / '' 视为同一空值 */
+function isEmptyValue(v: any): boolean {
+  return v === null || v === undefined || v === ''
+}
+
 /** 提交（失焦 / Enter）：值有变化才写入并触发 cellChange；占位行(__ghost)提升为真实行回写父数组 */
 function commitEdit(record: any) {
   const cell = editingCell.value
   if (!cell) return
   editingCell.value = null
   selectOpen.value = false
-  if (cell.original !== cell.editing) {
+  const unchanged = cell.original === cell.editing || (isEmptyValue(cell.original) && isEmptyValue(cell.editing))
+  if (!unchanged) {
     if (record && record.__ghost && !dataSourceModel.value.includes(record)) {
       delete record.__ghost
       dataSourceModel.value.push(record)
@@ -1163,6 +1339,43 @@ function onColSettingChange() {
 function onGlobalSettingChange() {
   globalSettings.splice(0, 0) // force reactivity
   saveStoredSettings(GLOBAL_STORAGE_KEY.value, globalSettings)
+  saveGlobalSettingsToServer()
+}
+
+/** 全局列配置落后端（仅在页面显式传入 global-config-key 时启用，跨浏览器/终端生效） */
+async function saveGlobalSettingsToServer() {
+  if (!props.globalConfigKey || globalSettings.length === 0) return
+  try {
+    const { userPageConfigApi } = await import('@/api/erp')
+    await userPageConfigApi.save('col-config', props.globalConfigKey, JSON.stringify([...globalSettings]))
+  } catch (e) {
+    console.warn('全局列配置保存失败:', e)
+  }
+}
+
+/** 从后端加载全局列配置（失败降级 localStorage） */
+async function loadGlobalSettingsFromServer() {
+  if (!props.globalConfigKey) return
+  try {
+    const { userPageConfigApi } = await import('@/api/erp')
+    const raw: any = await userPageConfigApi.get('col-config', props.globalConfigKey)
+    if (raw && typeof raw === 'string') {
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        const storedMap = new Map(parsed.map((s: any) => [s.key, s]))
+        const merged = leafColumns.value.map(col => {
+          const storedCol: any = storedMap.get(col.key)
+          const title = configTitle(col)
+          return storedCol
+            ? { key: col.key, title, displayName: storedCol.displayName || title, visible: storedCol.visible ?? !col.defaultHidden, width: storedCol.width || col.width || 100, fixed: storedCol.fixed || col.fixed || '' }
+            : { key: col.key, title, displayName: title, visible: !col.defaultHidden, width: col.width || 100, fixed: col.fixed || '' }
+        })
+        globalSettings.splice(0, globalSettings.length, ...merged)
+      }
+    }
+  } catch (e) {
+    console.warn('全局列配置加载失败，使用本地配置:', e)
+  }
 }
 
 function resetColumnSettings() {
@@ -1172,6 +1385,7 @@ function resetColumnSettings() {
   } else {
     globalSettings.splice(0, globalSettings.length, ...defaultSettings.value)
     saveStoredSettings(GLOBAL_STORAGE_KEY.value, globalSettings)
+    saveGlobalSettingsToServer()
   }
 }
 
@@ -1197,6 +1411,7 @@ function onDrop(_index: number) {
     saveStoredSettings(STORAGE_KEY.value, columnSettings)
   } else {
     saveStoredSettings(GLOBAL_STORAGE_KEY.value, globalSettings)
+    saveGlobalSettingsToServer()
   }
 }
 </script>
@@ -1329,6 +1544,22 @@ function onDrop(_index: number) {
   vertical-align: middle;
 }
 
+/* ─── 分组表头：第二行吸顶偏移到第一行下方（第一行 th 高 32px） ─── */
+.ss-grid thead.ss-grouped tr:nth-child(2) th {
+  top: 32px;
+  border-bottom: 2px solid #b0b0b0;
+}
+/* 组标题与子表头之间用细线分隔（仅 colspan 的组标题格，rowspan 叶子格保持表头整体下边线） */
+.ss-grid thead.ss-grouped tr:nth-child(1) th[colspan] {
+  border-bottom: 1px solid #d9d9d9;
+}
+
+/* 分组标题单元格（无对应数据列，仅做列分组） */
+.ss-grid th.ss-header-group {
+  color: #262626;
+  background: #f5f5f5;
+}
+
 /* 最后一列不画右边线，容器提供右边框 */
 .ss-grid th:last-child:not(.ss-filler-col),
 .ss-grid td:last-child:not(.ss-filler-col) {
@@ -1357,6 +1588,12 @@ function onDrop(_index: number) {
 .ss-grid td.ss-cell-number,
 .ss-grid td.ss-cell-right {
   padding-right: 5px;
+}
+
+/* ⚠️ 数据行默认白底：冻结列用 background:inherit 取行底色，
+   若行本身透明，横向滚动时滚动列内容会从冻结列下方透出（视觉穿插）。 */
+.ss-row td {
+  background: #fff;
 }
 
 .ss-row:hover td {
@@ -1408,6 +1645,15 @@ function onDrop(_index: number) {
 .th-title {
   display: inline;
   margin-right: 4px;
+}
+
+/* ─── 表头帮助图标（对标 ql361 表头 ⓘ） ─── */
+.th-help-icon {
+  font-size: 11px;
+  color: #8c8c8c;
+  margin-left: 2px;
+  vertical-align: middle;
+  cursor: help;
 }
 
 /* ─── 扫描枪标签 + 开关 ─── */
@@ -1550,9 +1796,13 @@ function onDrop(_index: number) {
   background: inherit;
 }
 
+/* ⚠️ 冻结表头层级必须高于普通表头（普通 th = sticky top:0 / z-index:10），
+   否则横向滚动时冻结表头会被普通表头盖住（表现为"表头冻结失效、单元格冻结正常"）；
+   同时显式给不透明底色，避免滚动内容从表头透出。 */
 .ss-grid th.ss-fixed-left,
 .ss-grid th.ss-fixed-right {
-  z-index: 3;
+  z-index: 12;
+  background: #fafafa;
 }
 
 .ss-row:hover .ss-fixed-left,

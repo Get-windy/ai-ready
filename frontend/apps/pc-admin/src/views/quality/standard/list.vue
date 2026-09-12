@@ -12,9 +12,6 @@
 
         <template #toolbar-right>
           <a-space :size="8">
-            <a-tooltip v-if="buttonEnabled('config')" title="列配置">
-              <a-button size="small" @click="showColumnConfig = true"><TableOutlined /></a-button>
-            </a-tooltip>
             <a-tooltip v-if="buttonEnabled('config')" title="页面配置">
               <a-button size="small" @click="showPageConfig = true"><SettingOutlined /></a-button>
             </a-tooltip>
@@ -71,7 +68,8 @@
         <template #table>
           <div class="table-area">
             <BillTableList
-              :columns="currentColumns"
+              :columns="columns"
+              :storage-key="'quality-standard-table-columns'"
               :data-source="tableData"
               :loading="loading"
               :pagination="billPagination"
@@ -115,15 +113,6 @@
       </CategoryListLayout>
     </PageContainer>
 
-    <ColumnConfigPanel
-      :open="showColumnConfig"
-      :settings-columns="panelColumns"
-      :is-locked-column="isLockedColumn"
-      @update:open="showColumnConfig = $event"
-      @change="handleColumnConfigChange"
-      @reset="handleColumnConfigReset"
-      @drag-end="handleColumnConfigChange"
-    />
     <PageConfigPanel
       :open="showPageConfig"
       :query-fields-config="queryConfig"
@@ -139,14 +128,12 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
-import { PlusOutlined, ReloadOutlined, ExportOutlined, TableOutlined, SettingOutlined, DeleteOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, ReloadOutlined, ExportOutlined, SettingOutlined, DeleteOutlined } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayout.vue'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
-import ColumnConfigPanel from '@/components/ColumnConfigPanel/index.vue'
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
-import { useColumnConfig } from '@/composables/useColumnConfig'
 import { qualityStandardApi } from '@/api/quality'
 
 defineOptions({ name: 'QualityStandardList' })
@@ -154,7 +141,6 @@ defineOptions({ name: 'QualityStandardList' })
 const router = useRouter()
 
 // ── 布局/配置弹窗状态 ──
-const showColumnConfig = ref(false)
 const showPageConfig = ref(false)
 const PAGE_CONFIG_STORAGE_KEY = 'quality-standard-page-config'
 
@@ -232,8 +218,9 @@ function buttonEnabled(key: string) {
   return buttonConfig.value.find(b => b.key === key)?.enabled !== false
 }
 
-// ── 列配置 ──
+// ── 列定义（列配置走数据表表头齿轮） ──
 const columns: any[] = [
+  { title: '', key: 'rowNo', type: 'rowNo', width: 40, fixed: 'left' },
   { title: '标准编码', key: 'standardCode', width: 150, sortable: true },
   { title: '标准名称', key: 'standardName', width: 180, ellipsis: true },
   { title: '检验类型', key: 'inspectionType', width: 100, type: 'slot', slotName: 'inspectionTypeCell' },
@@ -244,12 +231,6 @@ const columns: any[] = [
   { title: '描述', key: 'description', width: 200, ellipsis: true },
   { title: '操作', key: 'action', width: 170, fixed: 'right', type: 'action', slotName: 'actionCell' },
 ]
-const columnDefs = computed(() => columns.map(c => ({ ...c })))
-const { onSettingChange, resetSettings, settingsColumns, visibleColumns, isLockedColumn } = useColumnConfig(columnDefs.value, 'quality-standard-list-columns')
-const currentColumns = computed(() => visibleColumns.value)
-const panelColumns = computed(() => settingsColumns.value)
-function handleColumnConfigChange() { onSettingChange() }
-function handleColumnConfigReset() { resetSettings() }
 
 // ── 检验项目（JSON 数组）解析展示 ──
 function parseInspectionItems(json?: string): any[] {

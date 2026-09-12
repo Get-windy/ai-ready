@@ -1,11 +1,19 @@
 package cn.aiedge.erp.sale.service.impl;
 
+import cn.aiedge.erp.party.entity.Party;
+import cn.aiedge.erp.party.mapper.PartyMapper;
 import cn.aiedge.erp.sale.dto.SalesDetailQueryDTO;
+import cn.aiedge.erp.sale.entity.SaleOrder;
+import cn.aiedge.erp.sale.mapper.SaleOrderMapper;
 import cn.aiedge.erp.sale.outbound.entity.SaleOutbound;
 import cn.aiedge.erp.sale.outbound.entity.SaleOutboundItem;
 import cn.aiedge.erp.sale.outbound.mapper.SaleOutboundItemMapper;
 import cn.aiedge.erp.sale.outbound.mapper.SaleOutboundMapper;
 import cn.aiedge.erp.sale.service.SalesDetailQueryService;
+import cn.aiedge.erp.stock.entity.Product;
+import cn.aiedge.erp.stock.entity.ProductCategory;
+import cn.aiedge.erp.stock.mapper.ProductCategoryMapper;
+import cn.aiedge.erp.stock.mapper.ProductMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
@@ -17,10 +25,15 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * 销售明细查询服务实现
@@ -33,60 +46,153 @@ public class SalesDetailQueryServiceImpl implements SalesDetailQueryService {
 
     private final SaleOutboundMapper outboundMapper;
     private final SaleOutboundItemMapper outboundItemMapper;
+    /** 来源订单主数据（来源订单日期 / 所属行业类别） */
+    private final SaleOrderMapper saleOrderMapper;
+    /** 往来单位主数据（客户默认经手人） */
+    private final PartyMapper partyMapper;
+    /** 商品主数据（左侧分类树过滤） */
+    private final ProductMapper productMapper;
+    private final ProductCategoryMapper productCategoryMapper;
 
     @Override
     public Page<Map<String, Object>> pageDetail(SalesDetailQueryDTO dto) {
         int pageNum = dto.getCurrent().intValue();
         int pageSize = dto.getSize().intValue();
 
+        // 一行一明细：分页粒度 = 明细行（total 为明细行数，与表格逐行展示一致）
+        List<Map<String, Object>> rows = queryRows(dto);
+        int total = rows.size();
+        int from = Math.min(Math.max(pageNum - 1, 0) * pageSize, total);
+        int to = Math.min(from + pageSize, total);
+
+        Page<Map<String, Object>> result = new Page<>(pageNum, pageSize, total);
+        result.setRecords(new ArrayList<>(rows.subList(from, to)));
+        return result;
+    }
+
+    @Override
+    public List<Map<String, Object>> listDetail(SalesDetailQueryDTO dto) {
+        return queryRows(dto);
+    }
+
+    /**
+     * 明细级两阶段查询 + 96 列组装（分页/导出共用同一口径）
+     * <p>Phase A 明细过滤 → Phase B 表头过滤 → 主数据派生列回填 → 按单据日期倒序逐行输出</p>
+     */
+    private List<Map<String, Object>> queryRows(SalesDetailQueryDTO dto) {
         // ═══ Phase A: 查询明细表，应用明细级过滤 ═══
         LambdaQueryWrapper<SaleOutboundItem> itemWrapper = new LambdaQueryWrapper<>();
         itemWrapper.eq(SaleOutboundItem::getDeleted, 0);
         applyItemFilters(itemWrapper, dto);
-
         List<SaleOutboundItem> matchedItems = outboundItemMapper.selectList(itemWrapper);
-        List<Long> outboundIds = matchedItems.stream()
-                .map(SaleOutboundItem::getOutboundId)
-                .distinct()
-                .toList();
-
-        if (outboundIds.isEmpty()) {
-            return new Page<>(pageNum, pageSize, 0);
+        if (matchedItems.isEmpty()) {
+            return List.of();
         }
+        Set<Long> candidateIds = matchedItems.stream()
+                .map(SaleOutboundItem::getOutboundId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
 
         // ═══ Phase B: 查询表头，应用表头级过滤 ═══
         LambdaQueryWrapper<SaleOutbound> headerWrapper = new LambdaQueryWrapper<>();
         headerWrapper.eq(SaleOutbound::getDeleted, 0);
-        headerWrapper.in(SaleOutbound::getId, outboundIds);
+        headerWrapper.in(SaleOutbound::getId, candidateIds);
         applyHeaderFilters(headerWrapper, dto);
-        headerWrapper.orderByDesc(SaleOutbound::getOutboundDate);
-        headerWrapper.orderByDesc(SaleOutbound::getCreateTime);
+        List<SaleOutbound> headers = outboundMapper.selectList(headerWrapper);
+        if (headers.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, SaleOutbound> headerMap = headers.stream()
+                .collect(Collectors.toMap(SaleOutbound::getId, o -> o, (a, b) -> a));
 
-        Page<SaleOutbound> outboundPage = outboundMapper.selectPage(new Page<>(pageNum, pageSize), headerWrapper);
+        // ═══ Phase C: 主数据派生列回填 + 逐行组装 ═══
+        Map<Long, LocalDate> orderDateById = orderDateByOrderId(headers);
+        Map<String, LocalDate> orderDateByNo = orderDateByOrderNo(headers);
+        Map<Long, String> handlerByCustomer = defaultHandlerByCustomer(headers);
 
-        // ═══ Phase C: 合并结果 ═══
-        List<Long> filteredIds = outboundPage.getRecords().stream()
-                .map(SaleOutbound::getId)
-                .toList();
-        List<SaleOutboundItem> filteredItems = matchedItems.stream()
-                .filter(i -> filteredIds.contains(i.getOutboundId()))
-                .toList();
-
-        Map<Long, SaleOutbound> outboundMap = new HashMap<>();
-        outboundPage.getRecords().forEach(o -> outboundMap.put(o.getId(), o));
-
-        List<Map<String, Object>> records = filteredItems.stream()
-                .map(item -> buildRowMap(outboundMap.get(item.getOutboundId()), item))
+        List<SaleOutboundItem> rows = matchedItems.stream()
+                .filter(i -> headerMap.containsKey(i.getOutboundId()))
+                .sorted(rowComparator(headerMap))
                 .toList();
 
-        Page<Map<String, Object>> result = new Page<>(pageNum, pageSize, outboundPage.getTotal());
-        result.setRecords(records);
+        List<Map<String, Object>> result = new ArrayList<>(rows.size());
+        for (SaleOutboundItem item : rows) {
+            SaleOutbound ob = headerMap.get(item.getOutboundId());
+            LocalDate sourceOrderDate = null;
+            if (ob.getOrderId() != null) {
+                sourceOrderDate = orderDateById.get(ob.getOrderId());
+            }
+            if (sourceOrderDate == null && StringUtils.hasText(ob.getOrderNo())) {
+                sourceOrderDate = orderDateByNo.get(ob.getOrderNo());
+            }
+            result.add(buildRowMap(ob, item, sourceOrderDate,
+                    ob.getCustomerId() != null ? handlerByCustomer.get(ob.getCustomerId()) : null));
+        }
         return result;
     }
 
+    /** 明细行排序：单据日期倒序 → 制单时间倒序 → 单据ID倒序 → 行号升序 */
+    private Comparator<SaleOutboundItem> rowComparator(Map<Long, SaleOutbound> headerMap) {
+        return Comparator
+                .comparing((SaleOutboundItem i) -> headerMap.get(i.getOutboundId()).getOutboundDate(),
+                        Comparator.nullsLast(Comparator.reverseOrder()))
+                .thenComparing(i -> headerMap.get(i.getOutboundId()).getCreateTime(),
+                        Comparator.nullsLast(Comparator.reverseOrder()))
+                .thenComparing(i -> headerMap.get(i.getOutboundId()).getId(),
+                        Comparator.nullsLast(Comparator.reverseOrder()))
+                .thenComparing(SaleOutboundItem::getLineNo,
+                        Comparator.nullsLast(Comparator.naturalOrder()));
+    }
+
+    /** 来源订单日期：erp_sale_order.order_date，按订单ID批量回填 */
+    private Map<Long, LocalDate> orderDateByOrderId(List<SaleOutbound> headers) {
+        List<Long> ids = headers.stream().map(SaleOutbound::getOrderId)
+                .filter(Objects::nonNull).distinct().toList();
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        return saleOrderMapper.selectList(new LambdaQueryWrapper<SaleOrder>()
+                        .select(SaleOrder::getId, SaleOrder::getOrderDate)
+                        .in(SaleOrder::getId, ids))
+                .stream()
+                .filter(o -> o.getId() != null && o.getOrderDate() != null)
+                .collect(Collectors.toMap(SaleOrder::getId, SaleOrder::getOrderDate, (a, b) -> a));
+    }
+
+    /** 来源订单日期：兼容仅有 order_no 手工来源的历史单据 */
+    private Map<String, LocalDate> orderDateByOrderNo(List<SaleOutbound> headers) {
+        List<String> nos = headers.stream().map(SaleOutbound::getOrderNo)
+                .filter(StringUtils::hasText).distinct().toList();
+        if (nos.isEmpty()) {
+            return Map.of();
+        }
+        return saleOrderMapper.selectList(new LambdaQueryWrapper<SaleOrder>()
+                        .select(SaleOrder::getOrderNo, SaleOrder::getOrderDate)
+                        .in(SaleOrder::getOrderNo, nos))
+                .stream()
+                .filter(o -> StringUtils.hasText(o.getOrderNo()) && o.getOrderDate() != null)
+                .collect(Collectors.toMap(SaleOrder::getOrderNo, SaleOrder::getOrderDate, (a, b) -> a));
+    }
+
+    /** 默认经手人：客户主数据 biz_party.default_handler_name，按客户ID批量回填 */
+    private Map<Long, String> defaultHandlerByCustomer(List<SaleOutbound> headers) {
+        List<Long> customerIds = headers.stream().map(SaleOutbound::getCustomerId)
+                .filter(Objects::nonNull).distinct().toList();
+        if (customerIds.isEmpty()) {
+            return Map.of();
+        }
+        return partyMapper.selectList(new LambdaQueryWrapper<Party>()
+                        .select(Party::getId, Party::getDefaultHandlerName)
+                        .in(Party::getId, customerIds))
+                .stream()
+                .filter(p -> p.getId() != null && StringUtils.hasText(p.getDefaultHandlerName()))
+                .collect(Collectors.toMap(Party::getId, Party::getDefaultHandlerName, (a, b) -> a));
+    }
+
     /**
-     * 最近成交价聚合（对标：商品×往来单位最近成交价 + 修改/删除操作）
-     * 从销售出库明细中按 product+往来单位 分组，取最近一次的成交价/折扣/日期
+     * 最近成交价实时聚合（只读）
+     * 从销售出库明细中按 product+往来单位 分组，取最近一次的成交价/折扣/日期。
+     * 注意：本方法不含任何写操作；价格点的新增/修改/删除由 SalePriceTrackService 维护台账表。
      */
     @Override
     public Page<Map<String, Object>> pageRecentPriceAgg(SalesDetailQueryDTO dto) {
@@ -174,6 +280,20 @@ public class SalesDetailQueryServiceImpl implements SalesDetailQueryService {
     // 明细级过滤（作用于 erp_sale_outbound_item 表）
     // ═══════════════════════════════════════════════════════════════════
     private void applyItemFilters(LambdaQueryWrapper<SaleOutboundItem> w, SalesDetailQueryDTO dto) {
+        // 商品分类（左侧分类树，含子分类）
+        if (dto.getCategoryId() != null) {
+            List<Long> categoryIds = expandCategoryIds(dto.getCategoryId());
+            List<Long> productIds = categoryIds.isEmpty() ? List.of()
+                    : productMapper.selectList(new LambdaQueryWrapper<Product>()
+                            .select(Product::getId)
+                            .in(Product::getCategoryId, categoryIds))
+                    .stream().map(Product::getId).filter(Objects::nonNull).toList();
+            if (productIds.isEmpty()) {
+                w.apply("1 = 0");
+            } else {
+                w.in(SaleOutboundItem::getProductId, productIds);
+            }
+        }
         // 商品名称/货号/条码
         if (hasText(dto.getProductName())) {
             w.like(SaleOutboundItem::getProductName, dto.getProductName());
@@ -238,6 +358,24 @@ public class SalesDetailQueryServiceImpl implements SalesDetailQueryService {
         }
     }
 
+    /** 商品分类及其全部子孙分类ID（左侧分类树选中父节点时需覆盖子节点商品） */
+    private List<Long> expandCategoryIds(Long rootCategoryId) {
+        List<ProductCategory> all = productCategoryMapper.selectList(
+                new LambdaQueryWrapper<ProductCategory>().select(ProductCategory::getId, ProductCategory::getParentId));
+        Set<Long> result = new LinkedHashSet<>();
+        result.add(rootCategoryId);
+        boolean changed = true;
+        while (changed) {
+            changed = false;
+            for (ProductCategory c : all) {
+                if (c.getParentId() != null && result.contains(c.getParentId()) && result.add(c.getId())) {
+                    changed = true;
+                }
+            }
+        }
+        return new ArrayList<>(result);
+    }
+
     private void applyItemExtNumFilter(LambdaQueryWrapper<SaleOutboundItem> w,
                                         com.baomidou.mybatisplus.core.toolkit.support.SFunction<SaleOutboundItem, BigDecimal> field,
                                         BigDecimal min, BigDecimal max) {
@@ -255,6 +393,49 @@ public class SalesDetailQueryServiceImpl implements SalesDetailQueryService {
         // 单据编号
         if (hasText(dto.getDocumentNo())) {
             w.like(SaleOutbound::getOutboundNo, dto.getDocumentNo());
+        }
+        // 单据类型（erp_sale_outbound.outbound_type：0销售出库/1换货出库/2调拨出库/3其他出库）
+        if (hasText(dto.getDocumentType())) {
+            Integer documentType = parseIntSafe(dto.getDocumentType());
+            if (documentType != null) {
+                w.eq(SaleOutbound::getOutboundType, documentType);
+            }
+        }
+        // 来源（erp_sale_outbound.source：PC/MOBILE/API/IMPORT）
+        if (hasText(dto.getSource())) {
+            w.eq(SaleOutbound::getSource, dto.getSource().toUpperCase());
+        }
+        // 所属行业类别（溯源：来源销售订单 erp_sale_order.industry_category）
+        if (hasText(dto.getIndustryCategory())) {
+            List<String> matchedOrderNos = saleOrderMapper.selectList(new LambdaQueryWrapper<SaleOrder>()
+                            .select(SaleOrder::getOrderNo)
+                            .like(SaleOrder::getIndustryCategory, dto.getIndustryCategory()))
+                    .stream()
+                    .map(SaleOrder::getOrderNo)
+                    .filter(StringUtils::hasText)
+                    .distinct()
+                    .toList();
+            if (matchedOrderNos.isEmpty()) {
+                w.apply("1 = 0");
+            } else {
+                w.in(SaleOutbound::getOrderNo, matchedOrderNos);
+            }
+        }
+        // 默认经手人（溯源：客户主数据 biz_party.default_handler_name）
+        if (hasText(dto.getDefaultHandlerName())) {
+            List<Long> matchedCustomerIds = partyMapper.selectList(new LambdaQueryWrapper<Party>()
+                            .select(Party::getId)
+                            .like(Party::getDefaultHandlerName, dto.getDefaultHandlerName()))
+                    .stream()
+                    .map(Party::getId)
+                    .filter(Objects::nonNull)
+                    .distinct()
+                    .toList();
+            if (matchedCustomerIds.isEmpty()) {
+                w.apply("1 = 0");
+            } else {
+                w.in(SaleOutbound::getCustomerId, matchedCustomerIds);
+            }
         }
         // 仓库
         if (hasText(dto.getWarehouseName())) {
@@ -306,10 +487,9 @@ public class SalesDetailQueryServiceImpl implements SalesDetailQueryService {
         if (hasText(dto.getGenerationMethod())) {
             w.eq(SaleOutbound::getGenerationMethod, dto.getGenerationMethod());
         }
-        // 销售类型（对应outboundType字段：0正常/1换货/2调拨/3其他）
+        // 销售类型（对应outboundType字段：0正常销售/1换货/2调拨/3其他）
         if (hasText(dto.getSalesType())) {
-            Integer salesTypeInt = null;
-            try { salesTypeInt = Integer.parseInt(dto.getSalesType()); } catch (NumberFormatException ignored) {}
+            Integer salesTypeInt = parseIntSafe(dto.getSalesType());
             if (salesTypeInt != null) w.eq(SaleOutbound::getOutboundType, salesTypeInt);
         }
         // 物流
@@ -401,7 +581,8 @@ public class SalesDetailQueryServiceImpl implements SalesDetailQueryService {
     // ═══════════════════════════════════════════════════════════════════
     // 构建96列结果行
     // ═══════════════════════════════════════════════════════════════════
-    private Map<String, Object> buildRowMap(SaleOutbound ob, SaleOutboundItem item) {
+    private Map<String, Object> buildRowMap(SaleOutbound ob, SaleOutboundItem item,
+                                            LocalDate sourceOrderDate, String defaultHandlerName) {
         Map<String, Object> map = new LinkedHashMap<>();
 
         if (ob != null) {
@@ -427,12 +608,12 @@ public class SalesDetailQueryServiceImpl implements SalesDetailQueryService {
             map.put("buyerRemark", ob.getBuyerRemark());                        // 19 买家备注
             map.put("customerRemark", ob.getCustomerRemark());                  // 20 客户备注
             map.put("sourceOrder", ob.getOrderNo());                            // 21 来源订单
-            map.put("sourceOrderDate", null);                                   // 22 来源订单日期（暂空）
+            map.put("sourceOrderDate", sourceOrderDate);                        // 22 来源订单日期（销售订单 order_date）
             map.put("generationMethod", ob.getGenerationMethod());              // 23 产生方式
             map.put("handlerName", ob.getSalesPersonName());                    // 24 经手人
             map.put("departmentName", ob.getDepartmentName());                  // 25 部门
-            map.put("defaultHandlerName", null);                                // 26 默认经手人（暂空）
-            map.put("settlementStatus", ob.getSettlementStatus());              // 27 结算状态
+            map.put("defaultHandlerName", defaultHandlerName);                  // 26 默认经手人（客户主数据）
+            map.put("settlementStatus", settlementStatusLabel(ob.getSettlementStatus())); // 27 结算状态
 
             // ── 表头系统字段（列89-96） ──
             map.put("remark", ob.getRemark());                                  // 89 单据备注
@@ -445,8 +626,8 @@ public class SalesDetailQueryServiceImpl implements SalesDetailQueryService {
             map.put("deliveryDriver", ob.getDeliveryDriver());                  // 96 配送司机
 
             // ── 部分明细列需要从表头取的字段 ──
-            map.put("deliveryMethod", ob.getDeliveryMethod());                  // 35 配送方式
-            map.put("salesType", mapDocType(ob.getOutboundType()));                // 86 销售类型
+            map.put("deliveryMethod", deliveryMethodLabel(ob.getDeliveryMethod())); // 35 配送方式
+            map.put("salesType", mapSaleType(ob.getOutboundType()));             // 86 销售类型
         } else {
             map.put("deliveryMethod", null);
             map.put("salesType", null);
@@ -473,13 +654,13 @@ public class SalesDetailQueryServiceImpl implements SalesDetailQueryService {
         map.put("itemExtNum6", item.getExtNum6());                              // 42
         map.put("itemExtNum7", item.getExtNum7());                              // 43
 
-        // 表体自定义字段（文本/往来）(44-46)
-        map.put("itemExtText1", item.getExtText1());                            // 44 表体自定义4(文本)
-        map.put("itemExtText2", item.getExtText2());                            // 45 表体自定义5(文本)
-        map.put("itemExtPartner", item.getExtPartner());                        // 46 表体自定义8(往来单位) → 列44实际是文本4
-        // 注：文档编号与字段对应关系：
-        // 37-43 = 表体自定义1-7(数字), 44-45 = 表体自定义4-5(文本), 46 = 表体自定义8(往来单位)
-        // 这里按实际字段映射，前端列配置调整标题
+        // 表体自定义字段（文本/往来/职员/部门）(40-46)
+        // 对应文档列：40-41 = 表体自定义4-5(文本)，44-46 = 表体自定义8(往来单位)/9(职员)/10(部门)
+        map.put("itemExtText1", item.getExtText1());                            // 40 表体自定义4(文本)
+        map.put("itemExtText2", item.getExtText2());                            // 41 表体自定义5(文本)
+        map.put("itemExtPartner", item.getExtPartner());                        // 44 表体自定义8(往来单位)
+        map.put("itemExtStaff", item.getExtStaff());                            // 45 表体自定义9(职员)
+        map.put("itemExtDept", item.getExtDept());                              // 46 表体自定义10(部门)
 
         // 数量/包装 (47-58)
         map.put("salesQuantity", item.getOutboundQuantity());                   // 47 销售数量
@@ -549,16 +730,54 @@ public class SalesDetailQueryServiceImpl implements SalesDetailQueryService {
     }
 
     /**
-     * 单据类型映射：outboundType → 中文
+     * 单据类型映射（erp_sale_outbound.outbound_type）
+     * 本页数据源为销售出库单，故不存在「退货出库」（退货单在 erp_sale_return_doc）。
      */
     private String mapDocType(Integer outboundType) {
-        if (outboundType == null) return "出库单";
+        if (outboundType == null) return "销售出库";
         return switch (outboundType) {
             case 0 -> "销售出库";
-            case 1 -> "退货出库";
-            case 2 -> "换货出库";
-            case 3 -> "调拨出库";
-            default -> "出库单";
+            case 1 -> "换货出库";
+            case 2 -> "调拨出库";
+            case 3 -> "其他出库";
+            default -> "销售出库";
+        };
+    }
+
+    /**
+     * 销售类型映射（与销售出库单列表口径一致：0正常销售/1换货/2调拨/3其他）
+     */
+    private String mapSaleType(Integer outboundType) {
+        if (outboundType == null) return "正常销售";
+        return switch (outboundType) {
+            case 0 -> "正常销售";
+            case 1 -> "换货";
+            case 2 -> "调拨";
+            case 3 -> "其他";
+            default -> "正常销售";
+        };
+    }
+
+    /** 结算状态：落库为 unsettled/partial/settled，展示为中文 */
+    private String settlementStatusLabel(String status) {
+        if (!hasText(status)) return "";
+        return switch (status.toLowerCase()) {
+            case "unsettled" -> "未结算";
+            case "partial", "partial_paid" -> "部分结算";
+            case "settled", "paid" -> "已结算";
+            default -> status;
+        };
+    }
+
+    /** 配送方式：落库为 delivery/self/logistics/express，展示为中文 */
+    private String deliveryMethodLabel(String method) {
+        if (!hasText(method)) return "";
+        return switch (method.toLowerCase()) {
+            case "delivery" -> "配送";
+            case "self" -> "自提";
+            case "logistics" -> "物流";
+            case "express" -> "快递";
+            default -> method;
         };
     }
 
@@ -588,5 +807,17 @@ public class SalesDetailQueryServiceImpl implements SalesDetailQueryService {
 
     private boolean hasText(String s) {
         return StringUtils.hasText(s);
+    }
+
+    private Integer parseIntSafe(String value) {
+        if (!hasText(value)) {
+            return null;
+        }
+        try {
+            return Integer.parseInt(value.trim());
+        } catch (NumberFormatException e) {
+            log.warn("无效的整数查询参数: {}", value);
+            return null;
+        }
     }
 }

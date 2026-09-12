@@ -1,20 +1,24 @@
 package cn.aiedge.erp.sale.salereturn.service.impl;
 
+import cn.aiedge.base.config.MyBatisPlusConfig;
+import cn.aiedge.common.event.InventoryChangeEvent;
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.sale.salereturn.entity.SaleReturn;
 import cn.aiedge.erp.sale.salereturn.entity.SaleReturnItem;
 import cn.aiedge.erp.sale.salereturn.mapper.SaleReturnItemMapper;
 import cn.aiedge.erp.sale.salereturn.mapper.SaleReturnMapper;
 import cn.aiedge.erp.sale.salereturn.service.SaleReturnService;
-import cn.hutool.core.util.IdUtil;
+import cn.aiedge.erp.sale.service.integration.SalesAccountingService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import cn.dev33.satoken.stp.StpUtil;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -23,11 +27,24 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @Service
 public class SaleReturnServiceImpl extends ServiceImpl<SaleReturnMapper, SaleReturn> implements SaleReturnService {
 
     @Autowired
     private SaleReturnItemMapper saleReturnItemMapper;
+
+    /** 库存唯一写入口：发布库存变动事件，由 WMS InventoryService 统一过账（ERP 侧不直写 erp_stock） */
+    @Autowired
+    private ApplicationEventPublisher applicationEventPublisher;
+
+    /** 业财集成：审核通过生成退货冲销凭证 */
+    @Autowired
+    private SalesAccountingService salesAccountingService;
+
+    /** 取真实姓名（昵称优先）用于制单人/审核人快照 */
+    @Autowired
+    private cn.aiedge.base.mapper.SysUserMapper sysUserMapper;
 
     @Override
     public SaleReturn getByReturnNo(String returnNo) {
@@ -102,6 +119,22 @@ public class SaleReturnServiceImpl extends ServiceImpl<SaleReturnMapper, SaleRet
                 .ge(auditDateTime != null, SaleReturn::getAuditTime, auditDateTime)
                 .eq(salesType != null, SaleReturn::getSalesType, salesType)
                 .orderByDesc(SaleReturn::getCreateTime);
+        // 明细维度条件（商品/明细备注/商品分类）：按明细表 EXISTS 下推，避免空转参数
+        if (productName != null && !productName.isEmpty()) {
+            wrapper.apply("EXISTS (SELECT 1 FROM erp_sale_return_item i "
+                    + "WHERE i.return_id = erp_sale_return.id AND i.deleted = 0 "
+                    + "AND i.product_name LIKE CONCAT('%', {0}, '%'))", productName);
+        }
+        if (itemRemark != null && !itemRemark.isEmpty()) {
+            wrapper.apply("EXISTS (SELECT 1 FROM erp_sale_return_item i "
+                    + "WHERE i.return_id = erp_sale_return.id AND i.deleted = 0 "
+                    + "AND i.item_remark LIKE CONCAT('%', {0}, '%'))", itemRemark);
+        }
+        if (categoryId != null) {
+            wrapper.apply("EXISTS (SELECT 1 FROM erp_sale_return_item i "
+                    + "JOIN erp_product p ON p.id = i.product_id "
+                    + "WHERE i.return_id = erp_sale_return.id AND i.deleted = 0 AND p.category_id = {0})", categoryId);
+        }
         return this.page(new Page<>(pageNum, pageSize), wrapper);
     }
 
@@ -140,9 +173,17 @@ public class SaleReturnServiceImpl extends ServiceImpl<SaleReturnMapper, SaleRet
 
     @Override
     public String generateReturnNo() {
-        String dateStr = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-        String randomStr = IdUtil.randomUUID().substring(0, 6).toUpperCase();
-        return "XSTHSQD-" + dateStr + "-" + randomStr;
+        String prefix = "XSTHSQD-" + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd")) + "-";
+        String lastNo = this.baseMapper.selectLastReturnNo(prefix);
+        int seq = 1;
+        if (lastNo != null && lastNo.length() > prefix.length()) {
+            try {
+                seq = Integer.parseInt(lastNo.substring(prefix.length())) + 1;
+            } catch (NumberFormatException e) {
+                log.warn("历史单号后缀非数字，号段从1重新开始: " + lastNo);
+            }
+        }
+        return prefix + String.format("%04d", seq);
     }
 
     @Override
@@ -150,12 +191,28 @@ public class SaleReturnServiceImpl extends ServiceImpl<SaleReturnMapper, SaleRet
     public SaleReturn createReturn(SaleReturn returnOrder) {
         Long userId = StpUtil.getLoginIdAsLong();
 
-        returnOrder.setTenantId(StpUtil.getExtra("tenantId") != null ?
-                Long.parseLong(StpUtil.getExtra("tenantId").toString()) : 0L);
-        returnOrder.setReturnNo(generateReturnNo());
-        returnOrder.setStatus(0);
+        // 租户从 Sa-Token Session 解析（StpUtil.getExtra 需 sa-token-jwt 插件，此处不可用）；
+        // 上下文不可用时置空，由多租户拦截器在 insert 时统一注入
+        returnOrder.setTenantId(MyBatisPlusConfig.getCurrentTenantIdValue());
+        // 单号来自后端号段 /next-no，前端原样传入则保留；未传时自动生成
+        if (returnOrder.getReturnNo() == null || returnOrder.getReturnNo().isBlank()) {
+            returnOrder.setReturnNo(generateReturnNo());
+        }
+        // 保存草稿(0) / 直接提交审批(1)；进入审核中时记录提交人与提交时间
+        Integer status = returnOrder.getStatus();
+        if (status == null || (status != 0 && status != 1)) {
+            status = 0;
+        }
+        returnOrder.setStatus(status);
+        if (status == 1) {
+            returnOrder.setSubmitBy(userId);
+            returnOrder.setSubmitTime(LocalDateTime.now());
+        }
         returnOrder.setCreateTime(LocalDateTime.now());
         returnOrder.setCreateBy(userId);
+        if (returnOrder.getCreatorName() == null || returnOrder.getCreatorName().isBlank()) {
+            returnOrder.setCreatorName(currentUserName());
+        }
         this.save(returnOrder);
 
         // 保存明细
@@ -173,7 +230,8 @@ public class SaleReturnServiceImpl extends ServiceImpl<SaleReturnMapper, SaleRet
 
         calculateTotals(returnOrder.getId());
 
-        return returnOrder;
+        // 返回落库后的完整单据（含明细与汇总金额），避免调用方拿到未回填的对象
+        return this.getByIdWithItems(returnOrder.getId());
     }
 
     @Override
@@ -189,6 +247,11 @@ public class SaleReturnServiceImpl extends ServiceImpl<SaleReturnMapper, SaleRet
 
         returnOrder.setUpdateTime(LocalDateTime.now());
         returnOrder.setUpdateBy(StpUtil.getLoginIdAsLong());
+        // 草稿编辑后直接提交：记录提交人与提交时间
+        if (returnOrder.getStatus() != null && returnOrder.getStatus() == 1) {
+            returnOrder.setSubmitBy(StpUtil.getLoginIdAsLong());
+            returnOrder.setSubmitTime(LocalDateTime.now());
+        }
         this.updateById(returnOrder);
 
         // 更新明细：先删除旧的，再插入新的
@@ -212,7 +275,7 @@ public class SaleReturnServiceImpl extends ServiceImpl<SaleReturnMapper, SaleRet
 
         calculateTotals(returnOrder.getId());
 
-        return this.getById(returnOrder.getId());
+        return this.getByIdWithItems(returnOrder.getId());
     }
 
     @Override
@@ -247,9 +310,85 @@ public class SaleReturnServiceImpl extends ServiceImpl<SaleReturnMapper, SaleRet
         returnOrder.setApprovedBy(StpUtil.getLoginIdAsLong());
         returnOrder.setApprovedTime(LocalDateTime.now());
         returnOrder.setApprovedNote(note);
+        // 审核人/审核时间快照（列表"审核人/审核时间"列的真实来源）
+        returnOrder.setAuditorId(StpUtil.getLoginIdAsLong());
+        returnOrder.setAuditorName(currentUserName());
+        returnOrder.setAuditTime(LocalDateTime.now());
         returnOrder.setUpdateTime(LocalDateTime.now());
         this.updateById(returnOrder);
+
+        // 审核通过即真实业务闭环：退货入库回写库存 + 生成冲销凭证
+        // 幂等：bookkeepingTime 已存在说明已过账，跳过（重复审核已被状态机拦截）
+        if (returnOrder.getBookkeepingTime() == null) {
+            applyStockIncrease(returnOrder);
+            String voucherNo = salesAccountingService.createSaleReturnVoucher(
+                    returnOrder.getId(), returnOrder.getReturnNo(), returnOrder.getCustomerId(),
+                    returnOrder.getCustomerName(), returnOrder.getTotalAmount(), calcCostAmount(returnOrder.getId()));
+            if (voucherNo != null && !voucherNo.isEmpty()) {
+                returnOrder.setBookkeepingTime(LocalDateTime.now());
+                this.updateById(returnOrder);
+            }
+        }
         return returnOrder;
+    }
+
+    /**
+     * 审核通过后回写库存（退货入库增加）。
+     * <p>发布 {@link InventoryChangeEvent}，由 WMS {@code InventoryService} 统一过账——
+     * 库存唯一写入口，ERP 侧不直写 erp_stock。</p>
+     */
+    private void applyStockIncrease(SaleReturn returnOrder) {
+        if (returnOrder.getWarehouseId() == null) {
+            throw new RuntimeException("退货申请单未指定入库仓库，无法回写库存");
+        }
+        List<SaleReturnItem> items = getItems(returnOrder.getId());
+        boolean anyApplied = false;
+        for (SaleReturnItem item : items) {
+            BigDecimal qty = item.getReturnQuantity();
+            if (item.getProductId() == null || qty == null || qty.signum() <= 0) {
+                continue;
+            }
+            applicationEventPublisher.publishEvent(new InventoryChangeEvent(
+                    InventoryChangeEvent.ChangeType.INCREASE, item.getProductId(), returnOrder.getWarehouseId(), null,
+                    null, qty, "SALE_RETURN_APPLY", returnOrder.getId(), returnOrder.getReturnNo(),
+                    returnOrder.getHandlerId(), returnOrder.getHandlerName()));
+            log.info("销售退货审核触发库存入账: returnNo=" + returnOrder.getReturnNo()
+                    + ", productId=" + item.getProductId() + ", qty=" + qty);
+            anyApplied = true;
+        }
+        if (!anyApplied) {
+            throw new RuntimeException("退货申请单无有效退货明细，无法回写库存");
+        }
+    }
+
+    /**
+     * 取消已记账单据时冲回库存（与 {@link #applyStockIncrease} 对称）
+     */
+    private void applyStockDecrease(SaleReturn returnOrder) {
+        if (returnOrder.getWarehouseId() == null) {
+            return;
+        }
+        for (SaleReturnItem item : getItems(returnOrder.getId())) {
+            BigDecimal qty = item.getReturnQuantity();
+            if (item.getProductId() == null || qty == null || qty.signum() <= 0) {
+                continue;
+            }
+            applicationEventPublisher.publishEvent(new InventoryChangeEvent(
+                    InventoryChangeEvent.ChangeType.DECREASE, item.getProductId(), returnOrder.getWarehouseId(), null,
+                    null, qty, "SALE_RETURN_APPLY_CANCEL", returnOrder.getId(), returnOrder.getReturnNo(),
+                    returnOrder.getHandlerId(), returnOrder.getHandlerName()));
+            log.info("销售退货取消触发库存回冲: returnNo=" + returnOrder.getReturnNo()
+                    + ", productId=" + item.getProductId() + ", qty=" + qty);
+        }
+    }
+
+    /** 退货成本合计（明细参考成本金额之和），无成本数据时返回 null */
+    private BigDecimal calcCostAmount(Long returnId) {
+        BigDecimal cost = getItems(returnId).stream()
+                .map(SaleReturnItem::getRefCostAmount)
+                .filter(java.util.Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        return cost.signum() > 0 ? cost : null;
     }
 
     @Override
@@ -296,6 +435,17 @@ public class SaleReturnServiceImpl extends ServiceImpl<SaleReturnMapper, SaleRet
         }
         if (returnOrder.getStatus() == 3) {
             throw new RuntimeException("已完成的退货申请单不能取消");
+        }
+        if (returnOrder.getStatus() == 4) {
+            throw BusinessException.badRequest("已取消的退货申请单不能重复取消");
+        }
+
+        // 已记账单据取消：冲回库存 + 生成反向凭证，保持账实一致
+        if (returnOrder.getBookkeepingTime() != null) {
+            applyStockDecrease(returnOrder);
+            salesAccountingService.createSaleReturnReverseVoucher(
+                    returnOrder.getId(), returnOrder.getReturnNo(), returnOrder.getCustomerId(),
+                    returnOrder.getCustomerName(), returnOrder.getTotalAmount(), calcCostAmount(returnOrder.getId()));
         }
 
         returnOrder.setStatus(4);
@@ -391,7 +541,7 @@ public class SaleReturnServiceImpl extends ServiceImpl<SaleReturnMapper, SaleRet
             String itemRemark, String startDate, String endDate,
             int pageNum, int pageSize,
             String creatorName, String auditorName, String remark,
-            Boolean isGift, String auditTime) {
+            Boolean isGift, String auditTime, Long categoryId) {
 
         Page<Map<String, Object>> page = new Page<>(pageNum, pageSize);
         QueryWrapper<SaleReturn> wrapper = new QueryWrapper<>();
@@ -471,9 +621,62 @@ public class SaleReturnServiceImpl extends ServiceImpl<SaleReturnMapper, SaleRet
         if (isGift != null) {
             wrapper.eq("i.is_gift", isGift);
         }
+        // 商品分类树过滤：按明细商品所属分类下推
+        if (categoryId != null) {
+            wrapper.apply("EXISTS (SELECT 1 FROM erp_product p "
+                    + "WHERE p.id = i.product_id AND p.category_id = {0})", categoryId);
+        }
 
         // 排序
-        return this.baseMapper.selectPageDetail(page, wrapper);
+        Page<Map<String, Object>> raw = this.baseMapper.selectPageDetail(page, wrapper);
+        // MyBatis 对 Map 结果不做驼峰转换（map-underscore-to-camel-case 仅作用于实体映射），
+        // 这里统一转为驼峰键，保证前端按明细列（productName/returnQuantity…）可直接取值
+        Page<Map<String, Object>> result = new Page<>(raw.getCurrent(), raw.getSize(), raw.getTotal());
+        result.setRecords(raw.getRecords().stream().map(SaleReturnServiceImpl::toCamelKeys).toList());
+        return result;
+    }
+
+    /** 当前登录用户显示名（昵称优先，回退用户名/登录ID），用于制单人-审核人快照 */
+    private String currentUserName() {
+        try {
+            Long userId = StpUtil.getLoginIdAsLong();
+            cn.aiedge.base.entity.SysUser user = sysUserMapper.selectById(userId);
+            if (user != null) {
+                if (user.getNickname() != null && !user.getNickname().isBlank()) {
+                    return user.getNickname();
+                }
+                if (user.getUsername() != null && !user.getUsername().isBlank()) {
+                    return user.getUsername();
+                }
+            }
+            return String.valueOf(userId);
+        } catch (Exception e) {
+            return StpUtil.getLoginIdAsString();
+        }
+    }
+
+    /** 将 Map 结果的下划线键转为驼峰键（只处理含下划线的键） */
+    private static Map<String, Object> toCamelKeys(Map<String, Object> row) {
+        Map<String, Object> converted = new java.util.LinkedHashMap<>(row.size());
+        row.forEach((key, value) -> converted.put(toCamel(key), value));
+        return converted;
+    }
+
+    private static String toCamel(String name) {
+        if (name == null || name.indexOf('_') < 0) {
+            return name;
+        }
+        StringBuilder sb = new StringBuilder(name.length());
+        boolean upperNext = false;
+        for (char c : name.toCharArray()) {
+            if (c == '_') {
+                upperNext = true;
+                continue;
+            }
+            sb.append(upperNext ? Character.toUpperCase(c) : c);
+            upperNext = false;
+        }
+        return sb.toString();
     }
 
     @Transactional(rollbackFor = Exception.class)

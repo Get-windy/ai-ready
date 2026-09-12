@@ -49,6 +49,10 @@ public class ProductRecommend {
     @TableField(exist = false)
     private String recommendProductSpec;
 
+    /** 推荐商品型号（对标推荐商品子表「型号」列，与「规格」是两列，勿复用 spec） */
+    @TableField(exist = false)
+    private String recommendProductModel;
+
     @TableField(exist = false)
     private String recommendProductUnit;
 

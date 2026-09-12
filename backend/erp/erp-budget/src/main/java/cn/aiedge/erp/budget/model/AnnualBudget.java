@@ -5,9 +5,11 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 /**
- * 年度预算
+ * 年度预算（预算编制单）
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
@@ -48,6 +50,10 @@ public class AnnualBudget extends BaseEntity {
     @Column(name = "total_remaining_amount", precision = 15, scale = 2)
     private BigDecimal totalRemainingAmount;
 
+    /** 冻结金额汇总（占用待复核）：剩余 = 预算 − 已执行 − 冻结 */
+    @Column(name = "total_frozen_amount", precision = 15, scale = 2)
+    private BigDecimal totalFrozenAmount;
+
     @Column(name = "execution_rate", precision = 5, scale = 2)
     private BigDecimal executionRate;
 
@@ -56,4 +62,39 @@ public class AnnualBudget extends BaseEntity {
 
     @Column(name = "remark", length = 500)
     private String remark;
+
+    // ═══ 金标准编制/审批字段 ═══
+
+    /** 编制日期 */
+    @Column(name = "budget_date")
+    private LocalDate budgetDate;
+
+    /** 经手人 */
+    @Column(name = "handler_id")
+    private Long handlerId;
+
+    @Column(name = "handler_name", length = 100)
+    private String handlerName;
+
+    /** 制单人姓名（快照） */
+    @Column(name = "creator_name", length = 100)
+    private String creatorName;
+
+    /** 审核人 */
+    @Column(name = "auditor_id")
+    private Long auditorId;
+
+    @Column(name = "auditor_name", length = 100)
+    private String auditorName;
+
+    @Column(name = "audit_time")
+    private LocalDateTime auditTime;
+
+    /** 审批意见 */
+    @Column(name = "audit_remark", length = 500)
+    private String auditRemark;
+
+    /** 打印次数 */
+    @Column(name = "print_count")
+    private Integer printCount;
 }

@@ -11,10 +11,11 @@
     >
       <template #toolbar-left>
         <div class="query-scheme-wrap" style="display:inline-flex; align-items:center; gap:4px; margin-right:8px;">
-          <a-select v-model:value="queryScheme" style="width:140px" size="small" placeholder="--查询方案--">
+          <a-select v-model:value="queryScheme" style="width:140px" size="small" placeholder="--查询方案--" @change="handleApplyScheme">
             <a-select-option value="">--查询方案--</a-select-option>
+            <a-select-option v-for="s in savedSchemes" :key="s" :value="s">{{ s }}</a-select-option>
           </a-select>
-          <a-button type="link" size="small"><PlusOutlined /></a-button>
+          <a-button type="link" size="small" @click="handleSaveScheme"><PlusOutlined /></a-button>
         </div>
         <a-space :size="4">
           <a-button v-for="q in quickDates" :key="q.key" :type="quickDate === q.key ? 'primary' : 'default'" size="small" @click="setQuickDate(q.key)">{{ q.label }}</a-button>
@@ -22,276 +23,116 @@
       </template>
 
       <template #toolbar-right>
-        <a-space :size="12">
-          <a-button size="small" @click="showPageConfig = true">
-            <template #icon><SettingOutlined /></template>
-          </a-button>
+        <a-space :size="8">
+          <a-tooltip v-if="isButtonEnabled('config')" title="页面配置" placement="bottom">
+            <a-button size="small" @click="showPageConfig = true">
+              <SettingOutlined />
+            </a-button>
+          </a-tooltip>
           <a-badge :status="loading ? 'processing' : (hasError ? 'error' : 'success')" />
           <span v-if="lastUpdateTime" class="update-time">最后更新: {{ lastUpdateTime }}</span>
-          <a-button size="small" @click="fetchData">
-            <template #icon><ReloadOutlined /></template>
+          <a-button v-if="isButtonEnabled('refresh')" size="small" @click="fetchData">
+            <ReloadOutlined /> 刷新
+          </a-button>
+          <a-button v-if="isButtonEnabled('export')" size="small" :loading="exporting" @click="handleExport">
+            <DownloadOutlined /> 导出
           </a-button>
         </a-space>
       </template>
 
-      <!-- ═══ 搜索区域 ═══ -->
+      <!-- ═══ 搜索区域（字段显隐 / 顺序由「页面配置 → 查询条件」驱动） ═══ -->
       <template #search-fields>
-      <div class="search-area">
-        <div class="search-container" :data-expanded="showMoreConditions || null">
-        <div class="search-grid" ref="gridRef">
-          <!-- 始终可见字段 -->
-          <div class="search-field-item">
-            <a-range-picker v-model:value="documentDateRange" size="small" style="width: 100%" @change="handleDocumentDateChange" />
-          </div>
-          <div class="search-field-item">
-            <div class="search-select-wrap">
-              <span class="search-select-label">日期类型</span>
-              <a-select v-model:value="searchParams.dateType" size="small" allow-clear placeholder="请选择">
-                <a-select-option value="documentDate">单据日期</a-select-option>
-                <a-select-option value="createTime">制单时间</a-select-option>
-                <a-select-option value="bookkeepingTime">记账时间</a-select-option>
-                <a-select-option value="settlementTime">结算完成时间</a-select-option>
-              </a-select>
-            </div>
-          </div>
-          <div class="search-field-item">
-            <a-input v-model:value="searchParams.documentNo" placeholder="单据编号" allow-clear size="small" />
-          </div>
-          <div class="search-field-item">
-            <a-input v-model:value="searchParams.productName" placeholder="商品" allow-clear size="small" />
-          </div>
-          <div class="search-field-item">
-            <a-input v-model:value="searchParams.customerName" placeholder="客户" allow-clear size="small" />
-          </div>
-          <div class="search-field-item">
-            <div class="search-select-wrap">
-              <span class="search-select-label">配送方式</span>
-              <a-select v-model:value="searchParams.deliveryMethod" size="small" allow-clear placeholder="全部">
-                <a-select-option value="">全部</a-select-option>
-                <a-select-option value="DELIVERY">送货上门</a-select-option>
-                <a-select-option value="SELF">客户自提</a-select-option>
-                <a-select-option value="LOGISTICS">物流配送</a-select-option>
-                <a-select-option value="EXPRESS">快递</a-select-option>
-              </a-select>
-            </div>
-          </div>
-          <div class="search-field-item">
-            <a-input v-model:value="searchParams.brand" placeholder="品牌" allow-clear size="small" />
-          </div>
-          <div class="search-field-item">
-            <a-input v-model:value="searchParams.warehouseName" placeholder="仓库" allow-clear size="small" />
-          </div>
+        <div class="search-area">
+          <div class="search-container" :data-expanded="showMoreConditions || null">
+            <div class="search-grid">
+              <div
+                v-for="f in gridSearchFields"
+                :key="f.key"
+                class="search-field-item"
+              >
+                <!-- 日期区间 -->
+                <a-range-picker
+                  v-if="f.type === 'dateRange' && f.key === 'documentDate'"
+                  v-model:value="documentDateRange"
+                  size="small"
+                  style="width: 100%"
+                  @change="handleDocumentDateChange"
+                />
+                <a-range-picker
+                  v-else-if="f.type === 'dateRange'"
+                  v-model:value="settlementDateRange"
+                  size="small"
+                  style="width: 100%"
+                  @change="handleSettlementDateChange"
+                />
 
-          <!-- 展开区域 -->
-          <template v-if="showMoreConditions">
-            <!-- Row 3: 行业类别 + 价格查询 + 是否赠品 + 促销商品 -->
-            <div class="search-field-item">
-              <a-input v-model:value="searchParams.industryCategory" placeholder="所属行业类别" allow-clear size="small" />
-            </div>
-            <div class="search-field-item">
-              <div style="display: flex; align-items: center; width: 100%; gap: 4px;">
-                <a-input-number v-model:value="searchParams.minPrice" placeholder="最低" size="small" style="flex: 1; min-width: 0;" />
-                <span>-</span>
-                <a-input-number v-model:value="searchParams.maxPrice" placeholder="最高" size="small" style="flex: 1; min-width: 0;" />
-              </div>
-            </div>
-            <div class="search-field-item">
-              <a-checkbox v-model:checked="searchParams.isGift">赠品</a-checkbox>
-            </div>
-            <div class="search-field-item">
-              <a-checkbox v-model:checked="searchParams.isPromoProduct">促销品</a-checkbox>
-            </div>
+                <!-- 下拉 -->
+                <div v-else-if="isSelectType(f)" class="search-select-wrap">
+                  <span class="search-select-label">{{ f.label }}</span>
+                  <a-select
+                    v-model:value="searchParams[f.key]"
+                    size="small"
+                    allow-clear
+                    show-search
+                    option-filter-prop="label"
+                    :placeholder="f.placeholder || '全部'"
+                    :options="fieldOptions(f)"
+                  />
+                </div>
 
-            <!-- Row 4: 收货人 + 联系电话 + 收货地址 + 经手人 -->
-            <div class="search-field-item">
-              <a-input v-model:value="searchParams.receiverName" placeholder="收货人" allow-clear size="small" />
-            </div>
-            <div class="search-field-item">
-              <a-input v-model:value="searchParams.receiverPhone" placeholder="联系电话" allow-clear size="small" />
-            </div>
-            <div class="search-field-item">
-              <a-input v-model:value="searchParams.shippingAddress" placeholder="收货地址" allow-clear size="small" />
-            </div>
-            <div class="search-field-item">
-              <a-input v-model:value="searchParams.handlerName" placeholder="经手人" allow-clear size="small" />
-            </div>
+                <!-- 数值区间 -->
+                <div v-else-if="f.type === 'numberRange'" class="range-field" :title="f.label" style="display: flex; align-items: center; width: 100%; gap: 4px;">
+                  <span class="range-label">{{ f.label }}</span>
+                  <a-input-number v-model:value="searchParams[f.minKey!]" placeholder="最小" size="small" style="flex: 1; min-width: 0;" />
+                  <span>-</span>
+                  <a-input-number v-model:value="searchParams[f.maxKey!]" placeholder="最大" size="small" style="flex: 1; min-width: 0;" />
+                </div>
 
-            <!-- Row 5: 默认经手人 + 部门 + 制单人 + 记账人 -->
-            <div class="search-field-item">
-              <a-input v-model:value="searchParams.defaultHandlerName" placeholder="默认经手人" allow-clear size="small" />
-            </div>
-            <div class="search-field-item">
-              <a-input v-model:value="searchParams.departmentName" placeholder="部门" allow-clear size="small" />
-            </div>
-            <div class="search-field-item">
-              <a-input v-model:value="searchParams.creatorName" placeholder="制单人" allow-clear size="small" />
-            </div>
-            <div class="search-field-item">
-              <a-input v-model:value="searchParams.bookkeeperName" placeholder="记账人" allow-clear size="small" />
-            </div>
-
-            <!-- Row 6: 结算状态 + 来源订单 + 产生方式 + 单据类型 -->
-            <div class="search-field-item">
-              <div class="search-select-wrap">
-                <span class="search-select-label">结算状态</span>
-                <a-select v-model:value="searchParams.settlementStatus" size="small" allow-clear placeholder="全部">
-                  <a-select-option value="">全部</a-select-option>
-                  <a-select-option value="UNPAID">未结算</a-select-option>
-                  <a-select-option value="PARTIAL_PAID">部分结算</a-select-option>
-                  <a-select-option value="PAID">已结算</a-select-option>
-                </a-select>
-              </div>
-            </div>
-            <div class="search-field-item">
-              <a-input v-model:value="searchParams.sourceOrder" placeholder="来源订单" allow-clear size="small" />
-            </div>
-            <div class="search-field-item">
-              <div class="search-select-wrap">
-                <span class="search-select-label">产生方式</span>
-                <a-select v-model:value="searchParams.generationMethod" size="small" allow-clear placeholder="全部">
-                  <a-select-option value="">全部</a-select-option>
-                  <a-select-option value="MANUAL">手工录入</a-select-option>
-                  <a-select-option value="SYSTEM">系统生成</a-select-option>
-                </a-select>
-              </div>
-            </div>
-            <div class="search-field-item">
-              <div class="search-select-wrap">
-                <span class="search-select-label">单据类型</span>
-                <a-select v-model:value="searchParams.documentType" size="small" allow-clear placeholder="全部">
-                  <a-select-option value="">全部</a-select-option>
-                  <a-select-option value="0">销售出库</a-select-option>
-                  <a-select-option value="1">退货出库</a-select-option>
-                  <a-select-option value="2">换货出库</a-select-option>
-                  <a-select-option value="3">调拨出库</a-select-option>
-                </a-select>
+                <!-- 文本 -->
+                <a-input
+                  v-else
+                  v-model:value="searchParams[f.key]"
+                  :placeholder="f.label"
+                  allow-clear
+                  size="small"
+                  :suffix="f.searchIcon ? h(SearchOutlined, { style: 'color:#bbb' }) : undefined"
+                />
               </div>
             </div>
 
-            <!-- Row 7: 销售类型 + 商品行属性 + 明细备注 + 单据备注 -->
-            <div class="search-field-item">
-              <div class="search-select-wrap">
-                <span class="search-select-label">销售类型</span>
-                <a-select v-model:value="searchParams.salesType" size="small" allow-clear placeholder="全部">
-                  <a-select-option value="">全部</a-select-option>
-                  <a-select-option value="0">正常销售</a-select-option>
-                  <a-select-option value="1">换货</a-select-option>
-                  <a-select-option value="2">调拨</a-select-option>
-                </a-select>
-              </div>
-            </div>
-            <div class="search-field-item">
-              <a-input v-model:value="searchParams.productAttribute" placeholder="商品行属性" allow-clear size="small" />
-            </div>
-            <div class="search-field-item">
-              <a-input v-model:value="searchParams.itemRemark" placeholder="明细备注" allow-clear size="small" />
-            </div>
-            <div class="search-field-item">
-              <a-input v-model:value="searchParams.remark" placeholder="单据备注" allow-clear size="small" />
-            </div>
-
-            <!-- Row 8: 买家备注 + 物流公司 + 运单号 + 区域 -->
-            <div class="search-field-item">
-              <a-input v-model:value="searchParams.buyerRemark" placeholder="买家备注" allow-clear size="small" />
-            </div>
-            <div class="search-field-item">
-              <a-input v-model:value="searchParams.logisticsCompany" placeholder="物流公司" allow-clear size="small" />
-            </div>
-            <div class="search-field-item">
-              <a-input v-model:value="searchParams.trackingNumber" placeholder="运单号" allow-clear size="small" />
-            </div>
-            <div class="search-field-item">
-              <a-input v-model:value="searchParams.region" placeholder="区域" allow-clear size="small" />
-            </div>
-
-            <!-- Row 9: 表体自定义1-3(数字范围) + 表体自定义4(文本) -->
-            <div class="search-field-item">
-              <div style="display: flex; align-items: center; width: 100%; gap: 4px;">
-                <a-input-number v-model:value="searchParams.itemExtNum1Min" placeholder="最小" size="small" style="flex: 1; min-width: 0;" />
-                <span>-</span>
-                <a-input-number v-model:value="searchParams.itemExtNum1Max" placeholder="最大" size="small" style="flex: 1; min-width: 0;" />
-              </div>
-            </div>
-            <div class="search-field-item">
-              <div style="display: flex; align-items: center; width: 100%; gap: 4px;">
-                <a-input-number v-model:value="searchParams.itemExtNum2Min" placeholder="最小" size="small" style="flex: 1; min-width: 0;" />
-                <span>-</span>
-                <a-input-number v-model:value="searchParams.itemExtNum2Max" placeholder="最大" size="small" style="flex: 1; min-width: 0;" />
-              </div>
-            </div>
-            <div class="search-field-item">
-              <div style="display: flex; align-items: center; width: 100%; gap: 4px;">
-                <a-input-number v-model:value="searchParams.itemExtNum3Min" placeholder="最小" size="small" style="flex: 1; min-width: 0;" />
-                <span>-</span>
-                <a-input-number v-model:value="searchParams.itemExtNum3Max" placeholder="最大" size="small" style="flex: 1; min-width: 0;" />
-              </div>
-            </div>
-            <div class="search-field-item">
-              <a-input v-model:value="searchParams.itemExtText1" placeholder="表体自定义4(文本)" allow-clear size="small" />
-            </div>
-
-            <!-- Row 10: 表体自定义5(文本) + 配送司机 + 结算完成时间 + 来源 -->
-            <div class="search-field-item">
-              <a-input v-model:value="searchParams.itemExtText2" placeholder="表体自定义5(文本)" allow-clear size="small" />
-            </div>
-            <div class="search-field-item">
-              <a-input v-model:value="searchParams.deliveryDriver" placeholder="配送司机" allow-clear size="small" />
-            </div>
-            <div class="search-field-item">
-              <a-range-picker v-model:value="settlementDateRange" size="small" style="width: 100%" @change="handleSettlementDateChange" />
-            </div>
-            <div class="search-field-item">
-              <div class="search-select-wrap">
-                <span class="search-select-label">来源</span>
-                <a-select v-model:value="searchParams.source" size="small" allow-clear placeholder="全部">
-                  <a-select-option value="">全部</a-select-option>
-                  <a-select-option value="PC">电脑端</a-select-option>
-                  <a-select-option value="MOBILE">移动端</a-select-option>
-                  <a-select-option value="API">API接口</a-select-option>
-                </a-select>
-              </div>
-            </div>
-
-          </template>
-
-          <!-- 操作按钮 -->
-          <div class="search-action-group" ref="actionRef" :style="{ gridColumn: 'span ' + actionSpan }">
-          <div class="search-field-item search-action-item">
-            <a-space :size="4">
-              <a-button type="primary" size="small" @click="handleSearch">
+            <!-- ═══ 查询操作行：固定排在字段折叠区之外，字段再多也不会被折叠高度裁掉 ═══ -->
+            <div class="search-action-row">
+              <a-button v-if="isButtonEnabled('search')" type="primary" size="small" @click="handleSearch">
                 <SearchOutlined /> 查询
               </a-button>
-              <a-button size="small" @click="handleReset">
+              <a-button v-if="isButtonEnabled('reset')" size="small" @click="handleReset">
                 <ClearOutlined /> 重置
               </a-button>
-            </a-space>
-          </div>
-          <div class="search-field-item">
-            <a-checkbox v-model:checked="searchParams.showRed">显示红冲单据</a-checkbox>
-          </div>
-          <div class="search-field-item">
-            <a-checkbox v-model:checked="searchParams.onlyVehicleWarehouse">仅统计车辆库</a-checkbox>
-          </div>
-          <div class="search-field-item">
-            <a-checkbox v-model:checked="searchParams.hasSourceOrder">包含有来源订单</a-checkbox>
-          </div>
+              <a-checkbox
+                v-for="f in actionSearchFields"
+                :key="f.key"
+                v-model:checked="searchParams[f.key]"
+              >
+                {{ f.label }}
+              </a-checkbox>
+            </div>
+            <div v-if="isButtonEnabled('more')" class="search-more-toggle">
+              <a-button type="link" size="small" @click="toggleMoreConditions">
+                {{ showMoreConditions ? '收起' : '更多条件' }}
+                <DownOutlined v-if="!showMoreConditions" />
+                <UpOutlined v-else />
+              </a-button>
+            </div>
           </div>
         </div>
-        <div class="search-more-toggle">
-          <a-button type="link" size="small" @click="toggleMoreConditions">
-            {{ showMoreConditions ? '收起' : '更多条件' }}
-            <DownOutlined v-if="!showMoreConditions" />
-            <UpOutlined v-else />
-          </a-button>
-        </div>
-        </div>
-      </div>
       </template>
 
       <!-- ═══ 数据表格 ═══ -->
       <template #table>
         <BillTableList
-          :columns="visibleColumns"
+          :columns="columns"
+          :storage-key="'sales-detail-query-table-columns'"
+          global-config-key="sales-detail-query-columns"
           :data-source="tableData"
           :loading="loading"
           :pagination="billPagination"
@@ -308,69 +149,105 @@
         >
           <template #actionCell="{ record }">
             <a-space :size="0">
-              <a-button type="link" size="small" style="padding:0 4px;" @click="viewBatch(record)">批次号</a-button>
-              <a-button type="link" size="small" style="padding:0 4px;" @click="viewItemRemark(record)">明细备注</a-button>
+              <a-button type="link" size="small" style="padding:0 4px;" @click="openBatchModal(record)">批次号</a-button>
+              <a-button type="link" size="small" style="padding:0 4px;" @click="openRemarkModal(record)">明细备注</a-button>
             </a-space>
           </template>
         </BillTableList>
       </template>
     </CategoryListLayout>
 
-    <!-- ═══ 页面配置弹窗 ═══ -->
+    <!-- ═══ 页面配置弹窗（查询条件 / 功能按钮 / 打印配置） ═══ -->
     <PageConfigPanel
       :open="showPageConfig"
       :query-fields-config="queryFieldsConfig"
       :function-buttons-config="functionButtonConfig"
+      :print-config-items="printConfigItems"
       storage-key="sales-detail-query-page-config"
       @update:open="showPageConfig = $event"
       @change="handlePageConfigChange"
     />
 
-    <!-- ═══ 列配置弹窗 ═══ -->
-    <ColumnConfigPanel
-      :open="showColumnConfig"
-      :settings-columns="settingsColumns"
-      :is-locked-column="isLockedColumn"
-      @update:open="showColumnConfig = $event"
-      @change="handleColumnConfigChange"
-      @reset="handleColumnConfigReset"
-      @drag-end="handleColumnConfigChange"
-    />
+    <!-- ═══ 批次号：明细行批次追溯 ═══ -->
+    <a-modal
+      v-model:open="batchModal.open"
+      title="批次追溯"
+      :footer="null"
+      width="720px"
+      centered
+    >
+      <a-descriptions :column="3" size="small" bordered style="margin-bottom:12px;">
+        <a-descriptions-item label="单据编号">{{ batchModal.record?.docNo || '-' }}</a-descriptions-item>
+        <a-descriptions-item label="商品">{{ batchModal.record?.productName || '-' }}</a-descriptions-item>
+        <a-descriptions-item label="销售数量">{{ batchModal.record?.salesQuantity ?? '-' }} {{ batchModal.record?.salesQuantityUnit || '' }}</a-descriptions-item>
+        <a-descriptions-item label="批次条码">{{ batchModal.record?.batchBarcode || '未关联批次' }}</a-descriptions-item>
+        <a-descriptions-item label="生产日期">{{ batchModal.record?.productionDate || '-' }}</a-descriptions-item>
+        <a-descriptions-item label="到期日期">{{ batchModal.record?.expiryDate || '-' }}</a-descriptions-item>
+      </a-descriptions>
+      <a-spin :spinning="batchModal.loading">
+        <a-table
+          v-if="batchModal.rows.length"
+          :data-source="batchModal.rows"
+          :columns="batchColumns"
+          size="small"
+          row-key="id"
+          :pagination="false"
+          :scroll="{ x: 640 }"
+        />
+        <a-empty v-else description="该明细行未关联批次库存记录" />
+      </a-spin>
+    </a-modal>
+
+    <!-- ═══ 明细备注：单据/明细/买家/客户 备注一览 ═══ -->
+    <a-modal
+      v-model:open="remarkModal.open"
+      title="明细备注"
+      :footer="null"
+      width="620px"
+      centered
+    >
+      <a-descriptions :column="1" size="small" bordered>
+        <a-descriptions-item label="单据编号">{{ remarkModal.record?.docNo || '-' }}</a-descriptions-item>
+        <a-descriptions-item label="商品">{{ remarkModal.record?.productName || '-' }}</a-descriptions-item>
+        <a-descriptions-item label="明细备注">{{ remarkModal.record?.itemRemark || '（空）' }}</a-descriptions-item>
+        <a-descriptions-item label="单据备注">{{ remarkModal.record?.remark || '（空）' }}</a-descriptions-item>
+        <a-descriptions-item label="买家备注">{{ remarkModal.record?.buyerRemark || '（空）' }}</a-descriptions-item>
+        <a-descriptions-item label="客户备注">{{ remarkModal.record?.customerRemark || '（空）' }}</a-descriptions-item>
+      </a-descriptions>
+    </a-modal>
   </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, h } from 'vue'
 import type { Dayjs } from 'dayjs'
 import dayjs from 'dayjs'
+import { message, Modal } from 'ant-design-vue'
 import {
-  ReloadOutlined, SearchOutlined, ClearOutlined,
+  ReloadOutlined, SearchOutlined, ClearOutlined, DownloadOutlined,
   DownOutlined, UpOutlined, SettingOutlined, PlusOutlined
 } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayout.vue'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
-import ColumnConfigPanel from '@/components/ColumnConfigPanel/index.vue'
-import { useColumnConfig, isLockedColumn } from '@/composables/useColumnConfig'
-import { useAutoGridSpan } from '@/composables/useAutoGridSpan'
 import request from '@/utils/request'
 import { productCategoryApi } from '@/api/erp/product'
+import { optionsApi } from '@/api/options'
+import { batchApi } from '@/api/erp/batch'
+
+const PAGE_CONFIG_STORAGE_KEY = 'sales-detail-query-page-config'
 
 const loading = ref(false)
+const exporting = ref(false)
 const hasError = ref(false)
 const tableData = ref<any[]>([])
 const lastUpdateTime = ref('')
 const showMoreConditions = ref(false)
 const showPageConfig = ref(false)
-const showColumnConfig = ref(false)
-
-const gridRef = ref<HTMLElement | null>(null)
-const actionRef = ref<HTMLElement | null>(null)
-const { span: actionSpan } = useAutoGridSpan(actionRef, gridRef)
 
 // ═══ 搜索参数 ═══
-const searchParams = reactive({
+const searchParams = reactive<Record<string, any>>({
   dateType: 'documentDate',
   startDate: '', endDate: '',
   documentNo: '',
@@ -381,8 +258,6 @@ const searchParams = reactive({
   handlerName: '', defaultHandlerName: '', departmentName: '',
   creatorName: '', bookkeeperName: '',
   productName: '',
-  productCode: '',
-  barcode: '',
   brand: '',
   industryCategory: '',
   productAttribute: '',
@@ -404,7 +279,12 @@ const searchParams = reactive({
   itemExtNum1Min: null as number | null, itemExtNum1Max: null as number | null,
   itemExtNum2Min: null as number | null, itemExtNum2Max: null as number | null,
   itemExtNum3Min: null as number | null, itemExtNum3Max: null as number | null,
+  itemExtNum6Min: null as number | null, itemExtNum6Max: null as number | null,
+  itemExtNum7Min: null as number | null, itemExtNum7Max: null as number | null,
   itemExtText1: '', itemExtText2: '',
+  itemExtPartner: undefined as number | undefined,
+  itemExtStaff: undefined as number | undefined,
+  itemExtDept: undefined as number | undefined,
   showRed: false,
   onlyVehicleWarehouse: false,
   hasSourceOrder: false,
@@ -417,10 +297,155 @@ const billPagination = computed(() => ({
   current: pagination.current, pageSize: pagination.pageSize, total: pagination.total
 }))
 
-// ═══ 页面配置：查询字段（50个条目） ═══
+// ═══ 表体自定义8/9/10 选择项（往来单位 / 职员 / 部门） ═══
+const partnerOptions = ref<{ label: string; value: any }[]>([])
+const staffOptions = ref<{ label: string; value: any }[]>([])
+const deptOptions = ref<{ label: string; value: any }[]>([])
+const partnerNameMap = ref<Record<string, string>>({})
+const staffNameMap = ref<Record<string, string>>({})
+const deptNameMap = ref<Record<string, string>>({})
+
+async function loadExtOptions() {
+  try {
+    const customers = await optionsApi.getCustomers()
+    partnerOptions.value = (customers || []).map(c => ({ label: c.name, value: c.id }))
+    partnerNameMap.value = Object.fromEntries((customers || []).map(c => [String(c.id), c.name]))
+  } catch { partnerOptions.value = [] }
+  try {
+    const users = await optionsApi.getUsers()
+    const list = (users as any)?.data || users || []
+    staffOptions.value = list.map((u: any) => ({ label: u.nickname || u.username || u.name, value: u.id }))
+    staffNameMap.value = Object.fromEntries(list.map((u: any) => [String(u.id), u.nickname || u.username || u.name]))
+  } catch { staffOptions.value = [] }
+  try {
+    const depts = await optionsApi.getDepartments()
+    deptOptions.value = (depts || []).map(d => ({ label: d.name, value: d.id }))
+    deptNameMap.value = Object.fromEntries((depts || []).map(d => [String(d.id), d.name]))
+  } catch { deptOptions.value = [] }
+}
+
+// ═══ 查询字段定义（48 项，与「页面配置 → 查询条件」key 一一对应） ═══
+type SearchFieldType = 'text' | 'select' | 'dateRange' | 'numberRange' | 'checkbox'
+  | 'partnerSelect' | 'staffSelect' | 'deptSelect'
+
+interface SearchFieldDef {
+  key: string
+  label: string
+  type: SearchFieldType
+  placeholder?: string
+  searchIcon?: boolean
+  options?: Array<{ label: string; value: any }>
+  minKey?: string
+  maxKey?: string
+}
+
+const OPTION_DATE_TYPE = [
+  { label: '单据日期', value: 'documentDate' },
+  { label: '制单时间', value: 'createTime' },
+  { label: '记账时间', value: 'bookkeepingTime' },
+  { label: '结算完成时间', value: 'settlementTime' },
+]
+const OPTION_DELIVERY_METHOD = [
+  { label: '配送', value: 'delivery' },
+  { label: '自提', value: 'self' },
+  { label: '物流', value: 'logistics' },
+  { label: '快递', value: 'express' },
+]
+const OPTION_SETTLEMENT_STATUS = [
+  { label: '未结算', value: 'unsettled' },
+  { label: '部分结算', value: 'partial' },
+  { label: '已结算', value: 'settled' },
+]
+const OPTION_GENERATION_METHOD = [
+  { label: '手工创建', value: '手工创建' },
+  { label: '订单生成', value: '订单生成' },
+  { label: '复制', value: '复制' },
+  { label: '导入', value: '导入' },
+]
+const OPTION_DOC_TYPE = [
+  { label: '销售出库', value: '0' },
+  { label: '换货出库', value: '1' },
+  { label: '调拨出库', value: '2' },
+  { label: '其他出库', value: '3' },
+]
+const OPTION_SALES_TYPE = [
+  { label: '正常销售', value: '0' },
+  { label: '换货', value: '1' },
+  { label: '调拨', value: '2' },
+  { label: '其他', value: '3' },
+]
+const OPTION_SOURCE = [
+  { label: '电脑端', value: 'PC' },
+  { label: '移动端', value: 'MOBILE' },
+  { label: 'API接口', value: 'API' },
+  { label: '批量导入', value: 'IMPORT' },
+]
+
+const SEARCH_FIELD_DEFS: Record<string, SearchFieldDef> = {
+  documentDate: { key: 'documentDate', label: '单据日期', type: 'dateRange' },
+  dateType: { key: 'dateType', label: '日期类型', type: 'select', options: OPTION_DATE_TYPE },
+  documentNo: { key: 'documentNo', label: '单据编号', type: 'text' },
+  productName: { key: 'productName', label: '商品', type: 'text', searchIcon: true },
+  deliveryMethod: { key: 'deliveryMethod', label: '配送方式', type: 'select', options: OPTION_DELIVERY_METHOD },
+  brand: { key: 'brand', label: '品牌', type: 'text' },
+  industryCategory: { key: 'industryCategory', label: '所属行业类别', type: 'text' },
+  priceQuery: { key: 'priceQuery', label: '价格查询', type: 'numberRange', minKey: 'minPrice', maxKey: 'maxPrice' },
+  isGift: { key: 'isGift', label: '是否赠品', type: 'checkbox' },
+  isPromoProduct: { key: 'isPromoProduct', label: '促销商品', type: 'checkbox' },
+  customerName: { key: 'customerName', label: '客户', type: 'text', searchIcon: true },
+  receiverName: { key: 'receiverName', label: '收货人', type: 'text' },
+  receiverPhone: { key: 'receiverPhone', label: '联系电话', type: 'text' },
+  shippingAddress: { key: 'shippingAddress', label: '收货地址', type: 'text' },
+  handlerName: { key: 'handlerName', label: '经手人', type: 'text', searchIcon: true },
+  defaultHandlerName: { key: 'defaultHandlerName', label: '默认经手人', type: 'text' },
+  departmentName: { key: 'departmentName', label: '部门', type: 'text' },
+  creatorName: { key: 'creatorName', label: '制单人', type: 'text' },
+  bookkeeperName: { key: 'bookkeeperName', label: '记账人', type: 'text' },
+  warehouseName: { key: 'warehouseName', label: '仓库', type: 'text', searchIcon: true },
+  settlementStatus: { key: 'settlementStatus', label: '结算状态', type: 'select', options: OPTION_SETTLEMENT_STATUS },
+  sourceOrder: { key: 'sourceOrder', label: '来源订单', type: 'text' },
+  generationMethod: { key: 'generationMethod', label: '产生方式', type: 'select', options: OPTION_GENERATION_METHOD },
+  documentType: { key: 'documentType', label: '单据类型', type: 'select', options: OPTION_DOC_TYPE },
+  salesType: { key: 'salesType', label: '销售类型', type: 'select', options: OPTION_SALES_TYPE },
+  productAttribute: { key: 'productAttribute', label: '商品行属性', type: 'text' },
+  itemRemark: { key: 'itemRemark', label: '明细备注', type: 'text' },
+  remark: { key: 'remark', label: '单据备注', type: 'text' },
+  buyerRemark: { key: 'buyerRemark', label: '买家备注', type: 'text' },
+  logisticsCompany: { key: 'logisticsCompany', label: '物流公司', type: 'text' },
+  trackingNumber: { key: 'trackingNumber', label: '运单号', type: 'text' },
+  region: { key: 'region', label: '区域', type: 'text' },
+  itemExtNum1: { key: 'itemExtNum1', label: '表体自定义1(数字)', type: 'numberRange', minKey: 'itemExtNum1Min', maxKey: 'itemExtNum1Max' },
+  itemExtNum2: { key: 'itemExtNum2', label: '表体自定义2(数字)', type: 'numberRange', minKey: 'itemExtNum2Min', maxKey: 'itemExtNum2Max' },
+  itemExtNum3: { key: 'itemExtNum3', label: '表体自定义3(数字)', type: 'numberRange', minKey: 'itemExtNum3Min', maxKey: 'itemExtNum3Max' },
+  itemExtText1: { key: 'itemExtText1', label: '表体自定义4(文本)', type: 'text' },
+  itemExtText2: { key: 'itemExtText2', label: '表体自定义5(文本)', type: 'text' },
+  itemExtNum6: { key: 'itemExtNum6', label: '表体自定义6(数字)', type: 'numberRange', minKey: 'itemExtNum6Min', maxKey: 'itemExtNum6Max' },
+  itemExtNum7: { key: 'itemExtNum7', label: '表体自定义7(数字)', type: 'numberRange', minKey: 'itemExtNum7Min', maxKey: 'itemExtNum7Max' },
+  itemExtPartner: { key: 'itemExtPartner', label: '表体自定义8(往来单位)', type: 'partnerSelect' },
+  itemExtStaff: { key: 'itemExtStaff', label: '表体自定义9(职员)', type: 'staffSelect' },
+  itemExtDept: { key: 'itemExtDept', label: '表体自定义10(部门)', type: 'deptSelect' },
+  settlementTime: { key: 'settlementTime', label: '结算完成时间', type: 'dateRange' },
+  source: { key: 'source', label: '来源', type: 'select', options: OPTION_SOURCE },
+  deliveryDriver: { key: 'deliveryDriver', label: '配送司机', type: 'text' },
+  showRed: { key: 'showRed', label: '显示红冲', type: 'checkbox' },
+  onlyVehicleWarehouse: { key: 'onlyVehicleWarehouse', label: '仅统计车辆库', type: 'checkbox' },
+  hasSourceOrder: { key: 'hasSourceOrder', label: '包含有来源订单', type: 'checkbox' },
+}
+
+const isSelectType = (f: SearchFieldDef) =>
+  f.type === 'select' || f.type === 'partnerSelect' || f.type === 'staffSelect' || f.type === 'deptSelect'
+
+function fieldOptions(f: SearchFieldDef) {
+  if (f.type === 'partnerSelect') return partnerOptions.value
+  if (f.type === 'staffSelect') return staffOptions.value
+  if (f.type === 'deptSelect') return deptOptions.value
+  return f.options || []
+}
+
+// ═══ 页面配置：查询字段（默认勾选 = 折叠区 2 排 + 操作行 3 个勾选项） ═══
 const queryFieldsConfig = ref([
-  { key: 'dateType', label: '日期类型', visible: true },
   { key: 'documentDate', label: '单据日期', visible: true },
+  { key: 'dateType', label: '日期类型', visible: true },
   { key: 'documentNo', label: '单据编号', visible: true },
   { key: 'productName', label: '商品', visible: true },
   { key: 'deliveryMethod', label: '配送方式', visible: true },
@@ -456,26 +481,86 @@ const queryFieldsConfig = ref([
   { key: 'itemExtNum3', label: '表体自定义3(数字)', visible: false },
   { key: 'itemExtText1', label: '表体自定义4(文本)', visible: false },
   { key: 'itemExtText2', label: '表体自定义5(文本)', visible: false },
+  { key: 'itemExtNum6', label: '表体自定义6(数字)', visible: false },
+  { key: 'itemExtNum7', label: '表体自定义7(数字)', visible: false },
+  { key: 'itemExtPartner', label: '表体自定义8(往来单位)', visible: false },
+  { key: 'itemExtStaff', label: '表体自定义9(职员)', visible: false },
+  { key: 'itemExtDept', label: '表体自定义10(部门)', visible: false },
   { key: 'settlementTime', label: '结算完成时间', visible: false },
   { key: 'source', label: '来源', visible: false },
   { key: 'deliveryDriver', label: '配送司机', visible: false },
-  { key: 'showRed', label: '显示红冲', visible: false },
-  { key: 'onlyVehicleWarehouse', label: '仅统计车辆库', visible: false },
-  { key: 'hasSourceOrder', label: '包含有来源订单', visible: false },
+  { key: 'showRed', label: '显示红冲', visible: true },
+  { key: 'onlyVehicleWarehouse', label: '仅统计车辆库', visible: true },
+  { key: 'hasSourceOrder', label: '包含有来源订单', visible: true },
 ])
 
-// ═══ 页面配置：功能按钮 ═══
+/** 搜索区实际渲染字段：按页面配置的勾选与顺序（配置真实生效） */
+const visibleSearchFields = computed(() =>
+  queryFieldsConfig.value
+    .filter(cfg => cfg.visible)
+    .map(cfg => SEARCH_FIELD_DEFS[cfg.key])
+    .filter((def): def is SearchFieldDef => !!def)
+)
+/** 字段网格：参与「更多条件」折叠 */
+const gridSearchFields = computed(() => visibleSearchFields.value.filter(f => f.type !== 'checkbox'))
+/** 操作行：查询/重置按钮旁的勾选项，始终可见 */
+const actionSearchFields = computed(() => visibleSearchFields.value.filter(f => f.type === 'checkbox'))
+
+// ═══ 页面配置：功能按钮（与工具栏/搜索区按钮一一对应） ═══
 const functionButtonConfig = ref([
-  { key: 'search', label: '查询', enabled: false },
-  { key: 'reset', label: '重置', enabled: false },
+  { key: 'search', label: '查询', enabled: true },
+  { key: 'reset', label: '重置', enabled: true },
   { key: 'more', label: '更多条件', enabled: true },
   { key: 'refresh', label: '刷新', enabled: true },
   { key: 'export', label: '导出', enabled: true },
+  { key: 'config', label: '页面配置', enabled: true },
 ])
+
+const enabledButtons = ref<Record<string, boolean>>({})
+const isButtonEnabled = (key: string) => enabledButtons.value[key] !== false
+
+const printConfigItems = [
+  { key: 'alwaysLastTemplate', label: '始终使用最后一次打印的模板，打印时不再选择' },
+]
+const printConfig = reactive<Record<string, boolean>>({ alwaysLastTemplate: false })
+
+function syncPageConfig(config: any) {
+  if (!config) return
+  if (Array.isArray(config.queryFields) && config.queryFields.length) {
+    const orderMap = new Map<string, number>()
+    config.queryFields.forEach((f: any, i: number) => orderMap.set(f.key, i))
+    queryFieldsConfig.value = [...queryFieldsConfig.value]
+      .sort((a, b) => (orderMap.get(a.key) ?? 999) - (orderMap.get(b.key) ?? 999))
+      .map(f => {
+        const saved = config.queryFields.find((c: any) => c.key === f.key)
+        return saved ? { ...f, visible: saved.visible } : f
+      })
+  }
+  if (Array.isArray(config.functionButtons)) {
+    const map: Record<string, boolean> = {}
+    config.functionButtons.forEach((b: any) => { map[b.key] = b.enabled })
+    enabledButtons.value = map
+  }
+  if (config.printConfig) {
+    Object.assign(printConfig, config.printConfig)
+  }
+}
+
+const handlePageConfigChange = (config: any) => syncPageConfig(config)
+
+/** 首次进入同步已保存配置，避免必须打开弹窗才生效 */
+function loadSavedPageConfig() {
+  try {
+    const raw = localStorage.getItem(PAGE_CONFIG_STORAGE_KEY)
+    if (raw) syncPageConfig(JSON.parse(raw))
+  } catch {
+    // 配置损坏时按默认值运行
+  }
+}
 
 // ═══ 96列表格定义 ═══
 const columns = [
-  // 序号列
+  // 序号列（表头内嵌齿轮 = 列配置入口）
   { title: '', key: 'rowNo', type: 'rowNo', width: 40, fixed: 'left' as const },
   // 操作列
   { title: '操作', key: 'action', type: 'action', width: 120, fixed: 'right' as const, slotName: 'actionCell' },
@@ -525,9 +610,9 @@ const columns = [
   { title: '表体自定义5(文本)', field: 'itemExtText2', key: 'itemExtText2', width: 130, defaultHidden: true },
   { title: '表体自定义6', field: 'itemExtNum6', key: 'itemExtNum6', width: 120, align: 'right', defaultHidden: true },
   { title: '表体自定义7', field: 'itemExtNum7', key: 'itemExtNum7', width: 120, align: 'right', defaultHidden: true },
-  { title: '表体自定义8(往来单位)', field: 'itemExtPartner', key: 'itemExtPartner', width: 140, defaultHidden: true },
-  { title: '表体自定义9(职员)', field: 'itemExtStaff', key: 'itemExtStaff', width: 120, defaultHidden: true },
-  { title: '表体自定义10(部门)', field: 'itemExtDept', key: 'itemExtDept', width: 130, defaultHidden: true },
+  { title: '表体自定义8(往来单位)', field: 'itemExtPartner', key: 'itemExtPartner', width: 140, defaultHidden: true, formatter: (v: any) => partnerNameMap.value[String(v)] || v || '' },
+  { title: '表体自定义9(职员)', field: 'itemExtStaff', key: 'itemExtStaff', width: 120, defaultHidden: true, formatter: (v: any) => staffNameMap.value[String(v)] || v || '' },
+  { title: '表体自定义10(部门)', field: 'itemExtDept', key: 'itemExtDept', width: 130, defaultHidden: true, formatter: (v: any) => deptNameMap.value[String(v)] || v || '' },
   // 数量/包装 47-58
   { title: '销售数量', field: 'salesQuantity', key: 'salesQuantity', width: 100, align: 'right' },
   { title: '销售数量单位', field: 'salesQuantityUnit', key: 'salesQuantityUnit', width: 100 },
@@ -586,15 +671,6 @@ const columns = [
   { title: '配送司机', field: 'deliveryDriver', key: 'deliveryDriver', width: 100, defaultHidden: true },
 ]
 
-// ═══ 列配置 ═══
-const columnDefs = computed(() => columns.map(col => ({ ...col })))
-const {
-  visibleColumns,
-  settingsColumns,
-  onSettingChange: onColumnSettingChange,
-  resetSettings: resetColumnSettings,
-} = useColumnConfig(columnDefs.value, 'sales-detail-query-list-columns')
-
 // ═══ 事件处理 ═══
 const handleDocumentDateChange = (dates: [Dayjs, Dayjs] | null) => {
   if (dates?.length === 2) {
@@ -620,44 +696,32 @@ const toggleMoreConditions = () => {
   showMoreConditions.value = !showMoreConditions.value
 }
 
-const handlePageConfigChange = () => {
-  console.log('[销售明细查询] 页面配置已更新')
-}
-
-const handleColumnConfigChange = () => {
-  onColumnSettingChange()
-}
-
-const handleColumnConfigReset = () => {
-  resetColumnSettings()
-}
-
 // ═══ 数据获取 ═══
+/** 组装查询参数：剔除空值，保留显式勾选的布尔项 */
+function buildQueryParams(): Record<string, any> {
+  const params: Record<string, any> = {
+    ...searchParams,
+    ...(selectedCategoryId.value ? { categoryId: selectedCategoryId.value } : {}),
+  }
+  Object.keys(params).forEach(key => {
+    const v = params[key]
+    if (v === '' || v === null || v === undefined || v === false) {
+      delete params[key]
+    }
+  })
+  ;(['showRed', 'onlyVehicleWarehouse', 'hasSourceOrder', 'isGift', 'isPromoProduct'] as const).forEach(k => {
+    if (searchParams[k]) params[k] = true
+  })
+  return params
+}
+
 const fetchData = async () => {
   loading.value = true
   hasError.value = false
   try {
-    const apiParams: Record<string, any> = {
-      current: pagination.current,
-      size: pagination.pageSize,
-      ...(selectedCategoryId.value ? { categoryId: selectedCategoryId.value } : {}),
-      ...searchParams,
-    }
-    // 清理空值参数
-    Object.keys(apiParams).forEach(key => {
-      if (apiParams[key] === '' || apiParams[key] === null || apiParams[key] === false) {
-        // 保留 showRed/onlyVehicleWarehouse/hasSourceOrder/isGift/isPromoProduct 为 false 时不传
-        delete apiParams[key]
-      }
+    const res: any = await request.get('/sales/detail-query/page', {
+      params: { current: pagination.current, size: pagination.pageSize, ...buildQueryParams() },
     })
-    // 显式传布尔勾选字段
-    if (searchParams.showRed) apiParams.showRed = true
-    if (searchParams.onlyVehicleWarehouse) apiParams.onlyVehicleWarehouse = true
-    if (searchParams.hasSourceOrder) apiParams.hasSourceOrder = true
-    if (searchParams.isGift) apiParams.isGift = true
-    if (searchParams.isPromoProduct) apiParams.isPromoProduct = true
-
-    const res: any = await request.get('/sales/detail-query/page', { params: apiParams })
     if (res) {
       const data = res.data || res
       tableData.value = data.records || data.content || data.list || []
@@ -666,7 +730,7 @@ const fetchData = async () => {
     }
   } catch (e: any) {
     hasError.value = true
-    console.warn('[销售明细查询] 获取失败', e)
+    message.error(e?.response?.data?.message || '查询失败')
   } finally {
     loading.value = false
   }
@@ -678,57 +742,29 @@ const handleSearch = () => {
 }
 
 const handleReset = () => {
-  searchParams.dateType = 'documentDate'
-  searchParams.startDate = ''
-  searchParams.endDate = ''
-  searchParams.documentNo = ''
-  searchParams.documentType = ''
-  searchParams.warehouseName = ''
-  searchParams.customerName = ''
-  searchParams.receiverName = ''
-  searchParams.receiverPhone = ''
-  searchParams.shippingAddress = ''
-  searchParams.handlerName = ''
-  searchParams.defaultHandlerName = ''
-  searchParams.departmentName = ''
-  searchParams.creatorName = ''
-  searchParams.bookkeeperName = ''
-  searchParams.productName = ''
-  searchParams.productCode = ''
-  searchParams.barcode = ''
-  searchParams.brand = ''
-  searchParams.industryCategory = ''
-  searchParams.productAttribute = ''
-  searchParams.minPrice = null
-  searchParams.maxPrice = null
-  searchParams.isGift = false
-  searchParams.isPromoProduct = false
-  searchParams.deliveryMethod = ''
-  searchParams.logisticsCompany = ''
-  searchParams.trackingNumber = ''
-  searchParams.deliveryDriver = ''
-  searchParams.region = ''
-  searchParams.remark = ''
-  searchParams.itemRemark = ''
-  searchParams.buyerRemark = ''
-  searchParams.sourceOrder = ''
-  searchParams.settlementStatus = ''
-  searchParams.generationMethod = ''
-  searchParams.salesType = ''
-  searchParams.settlementTimeStart = ''
-  searchParams.settlementTimeEnd = ''
-  searchParams.source = ''
-  searchParams.itemExtNum1Min = null
-  searchParams.itemExtNum1Max = null
-  searchParams.itemExtNum2Min = null
-  searchParams.itemExtNum2Max = null
-  searchParams.itemExtNum3Min = null
-  searchParams.itemExtNum3Max = null
-  searchParams.itemExtText1 = ''
-  searchParams.itemExtText2 = ''
-  searchParams.showRed = false
-  searchParams.onlyVehicleWarehouse = false
-  searchParams.hasSourceOrder = false
+  Object.assign(searchParams, {
+    dateType: 'documentDate',
+    startDate: '', endDate: '',
+    documentNo: '', documentType: '', warehouseName: '', customerName: '',
+    receiverName: '', receiverPhone: '', shippingAddress: '',
+    handlerName: '', defaultHandlerName: '', departmentName: '',
+    creatorName: '', bookkeeperName: '',
+    productName: '', brand: '', industryCategory: '', productAttribute: '',
+    minPrice: null, maxPrice: null,
+    isGift: false, isPromoProduct: false,
+    deliveryMethod: '', logisticsCompany: '', trackingNumber: '', deliveryDriver: '',
+    region: '', remark: '', itemRemark: '', buyerRemark: '',
+    sourceOrder: '', settlementStatus: '', generationMethod: '', salesType: '',
+    settlementTimeStart: '', settlementTimeEnd: '', source: '',
+    itemExtNum1Min: null, itemExtNum1Max: null,
+    itemExtNum2Min: null, itemExtNum2Max: null,
+    itemExtNum3Min: null, itemExtNum3Max: null,
+    itemExtNum6Min: null, itemExtNum6Max: null,
+    itemExtNum7Min: null, itemExtNum7Max: null,
+    itemExtText1: '', itemExtText2: '',
+    itemExtPartner: undefined, itemExtStaff: undefined, itemExtDept: undefined,
+    showRed: false, onlyVehicleWarehouse: false, hasSourceOrder: false,
+  })
   documentDateRange.value = null
   settlementDateRange.value = null
   pagination.current = 1
@@ -744,6 +780,28 @@ const handlePageChange = (page: number, pageSize: number) => {
 const handleError = (e: Error) => {
   hasError.value = true
   console.error(e)
+}
+
+/** 导出：后端返回真实 Excel 流（与查询同一过滤口径） */
+const handleExport = async () => {
+  exporting.value = true
+  try {
+    const blob: any = await request.get('/sales/detail-query/export', {
+      params: buildQueryParams(),
+      responseType: 'blob',
+    })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `销售明细查询_${dayjs().format('YYYY-MM-DD')}.xlsx`
+    a.click()
+    URL.revokeObjectURL(url)
+    message.success('导出成功')
+  } catch (e: any) {
+    message.error(e?.response?.data?.message || '导出失败')
+  } finally {
+    exporting.value = false
+  }
 }
 
 // ═══ 商品分类树 ═══
@@ -773,13 +831,21 @@ function handleCategorySelect(keys: any[]) {
   fetchData()
 }
 
-function handleCategoryExpand(keys: (string | number)[]) {
-  categoryExpandedKeys.value = keys
-}
-
 // ═══ 查询方案 + 快捷日期 ═══
+const SCHEME_PREFIX = 'sales-detail-query-scheme-'
 const queryScheme = ref('')
+const savedSchemes = ref<string[]>([])
 const quickDate = ref('')
+
+/** 载入已保存的查询方案名称（与保存共用同一存储前缀） */
+function loadSavedSchemes() {
+  const names: string[] = []
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i)
+    if (key && key.startsWith(SCHEME_PREFIX)) names.push(key.slice(SCHEME_PREFIX.length))
+  }
+  savedSchemes.value = names.sort()
+}
 const quickDates = [
   { key: 'yesterday', label: '昨日' },
   { key: 'today', label: '今日' },
@@ -790,6 +856,63 @@ const quickDates = [
   { key: 'last3Month', label: '近三月' },
   { key: 'year', label: '本年' },
 ]
+
+/** 保存当前查询条件为查询方案（真实落库 localStorage，可再次选择复用） */
+function handleSaveScheme() {
+  const nameRef = { value: queryScheme.value || '' }
+  Modal.confirm({
+    title: '保存查询方案',
+    width: 420,
+    content: () => h('div', [
+      h('p', { style: 'margin-bottom:8px;color:#666;font-size:13px' }, '将当前查询条件保存为方案，便于下次一键复用'),
+      h('input', {
+        class: 'ant-input',
+        style: 'width:100%',
+        placeholder: '请输入方案名称',
+        value: nameRef.value,
+        onInput: (e: any) => { nameRef.value = e.target.value },
+      }),
+    ]),
+    onOk: () => {
+      const name = String(nameRef.value || '').trim()
+      if (!name) {
+        message.warning('请输入方案名称')
+        return Promise.reject(new Error('empty'))
+      }
+      try {
+        localStorage.setItem(SCHEME_PREFIX + name, JSON.stringify({ ...searchParams }))
+        loadSavedSchemes()
+        queryScheme.value = name
+        message.success(`查询方案「${name}」已保存`)
+      } catch {
+        message.error('保存失败')
+      }
+      return Promise.resolve()
+    },
+  })
+}
+
+/** 应用查询方案：回填查询参数并重新检索（真实可用，非死按钮） */
+function handleApplyScheme(name: string) {
+  if (!name) return
+  try {
+    const raw = localStorage.getItem(SCHEME_PREFIX + name)
+    if (!raw) return
+    const saved = JSON.parse(raw)
+    Object.assign(searchParams, saved)
+    if (saved.startDate && saved.endDate) {
+      documentDateRange.value = [dayjs(saved.startDate), dayjs(saved.endDate)]
+    }
+    if (saved.settlementTimeStart && saved.settlementTimeEnd) {
+      settlementDateRange.value = [dayjs(saved.settlementTimeStart), dayjs(saved.settlementTimeEnd)]
+    }
+    pagination.current = 1
+    fetchData()
+    message.success(`已应用查询方案「${name}」`)
+  } catch {
+    message.error('查询方案读取失败')
+  }
+}
 
 function setQuickDate(key: string) {
   quickDate.value = key
@@ -807,26 +930,61 @@ function setQuickDate(key: string) {
     default: start = now.subtract(7, 'day'); end = now
   }
   documentDateRange.value = [start, end]
+  searchParams.startDate = start.format('YYYY-MM-DD')
+  searchParams.endDate = end.format('YYYY-MM-DD')
   pagination.current = 1
   fetchData()
 }
 
 // ═══ 底部合计 ═══
 const tableFooterColumns = computed(() => {
-  const total = tableData.value.reduce((s: number, r: any) => s + (r.amount || 0), 0)
+  const total = tableData.value.reduce((s: number, r: any) => s + (Number(r.amount) || 0), 0)
   return total ? [{ label: '合计', value: total.toFixed(2) }] : []
 })
 
-// ═══ 操作列：批次号 / 明细备注 ═══
-function viewBatch(record: any) {
-  console.warn('查看批次号', record)
+// ═══ 操作列：批次号（真实批次追溯） ═══
+const batchModal = reactive<{ open: boolean; record: any; rows: any[]; loading: boolean }>({
+  open: false, record: null, rows: [], loading: false,
+})
+const batchColumns = [
+  { title: '批次号', dataIndex: 'batchNo', key: 'batchNo', width: 160 },
+  { title: '生产日期', dataIndex: 'productionDate', key: 'productionDate', width: 110 },
+  { title: '到期日期', dataIndex: 'expirationDate', key: 'expirationDate', width: 110 },
+  { title: '可用数量', dataIndex: 'availableQuantity', key: 'availableQuantity', width: 90, align: 'right' as const },
+  { title: '仓库', dataIndex: 'warehouseName', key: 'warehouseName', width: 110 },
+  { title: '质检状态', dataIndex: 'qualityStatus', key: 'qualityStatus', width: 90 },
+  { title: '来源类型', dataIndex: 'sourceType', key: 'sourceType', width: 90 },
+  { title: '来源单号', dataIndex: 'sourceRefNo', key: 'sourceRefNo', width: 150 },
+]
+
+async function openBatchModal(record: any) {
+  batchModal.record = record
+  batchModal.rows = []
+  batchModal.open = true
+  if (!record?.batchBarcode) return
+  batchModal.loading = true
+  try {
+    const res = await batchApi.page({ batchNo: record.batchBarcode, pageSize: 20 })
+    batchModal.rows = res?.records || []
+  } catch {
+    batchModal.rows = []
+  } finally {
+    batchModal.loading = false
+  }
 }
 
-function viewItemRemark(record: any) {
-  console.warn('查看明细备注', record)
+// ═══ 操作列：明细备注一览 ═══
+const remarkModal = reactive<{ open: boolean; record: any }>({ open: false, record: null })
+
+function openRemarkModal(record: any) {
+  remarkModal.record = record
+  remarkModal.open = true
 }
 
 onMounted(() => {
+  loadSavedPageConfig()
+  loadSavedSchemes()
+  loadExtOptions()
   fetchData()
   loadCategoryTree()
 })
@@ -847,19 +1005,21 @@ onMounted(() => {
 .search-select-label { font-size: 13px; color: rgba(0,0,0,0.65); white-space: nowrap; flex-shrink: 0; padding-left: 8px; }
 .search-select-wrap :deep(.ant-select) { flex: 1; min-width: 0; }
 .search-select-wrap :deep(.ant-select .ant-select-selector) { border: none !important; border-radius: 0 !important; box-shadow: none !important; padding-top: 0 !important; padding-bottom: 0 !important; display: flex; align-items: center; }
-.search-action-item { flex-shrink: 0; }
-.search-action-group {
+.range-label {
+  font-size: 12px;
+  color: rgba(0,0,0,0.65);
+  white-space: nowrap;
+  max-width: 74px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
+}
+.search-action-row {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   align-items: center;
-}
-.search-action-group .search-field-item {
-  width: auto;
-  flex: 0 0 auto;
-  margin-right: 4px;
-}
-.search-action-group .search-field-item:last-child {
-  margin-right: 0;
+  gap: 12px;
+  margin-top: 8px;
 }
 .search-more-toggle {
   margin-top: 4px;
@@ -878,7 +1038,5 @@ onMounted(() => {
 .search-more-toggle :deep(.ant-btn) {
   font-size: 13px;
 }
-.table-area { flex: 1; min-height: 0; display: flex; flex-direction: row; gap: 12px; align-items: stretch; background: #fff; padding: 16px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-.table-toolbar { display: flex; justify-content: flex-end; margin-bottom: 8px; }
 .update-time { font-size: 12px; color: #999; }
 </style>

@@ -24,6 +24,7 @@ public interface SalePreOrderService extends IService<SalePreOrder> {
                                 String auditorName, Integer saleType, String remark,
                                 BigDecimal extNum1, BigDecimal extNum2,
                                 String extText1, String extText2, String extText3,
+                                String productAttribute,
                                 int pageNum, int pageSize);
 
     /**
@@ -79,4 +80,9 @@ public interface SalePreOrderService extends IService<SalePreOrder> {
      * 打印计数递增
      */
     void incrementPrintCount(Long id);
+
+    /**
+     * 生成下一预订货单号（后端号段 YDHD-yyyyMMdd-NNNN，严禁前端自增演示号）
+     */
+    String generateOrderNo();
 }

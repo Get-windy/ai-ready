@@ -59,11 +59,12 @@
         class="contact-fields"
         style="margin-top:6px"
       >
-        <input
-          v-model="firstRow.region"
-          class="c-input"
+        <RegionCascader
+          v-model="firstRow._areaPath"
+          class="c-region"
           placeholder="所在地区"
-        >
+          @change="(path) => applyArea(firstRow, path)"
+        />
         <input
           v-model="firstRow.detailAddress"
           class="c-input c-input-wide"
@@ -163,11 +164,12 @@
         class="contact-fields"
         style="margin-top:6px"
       >
-        <input
-          v-model="row.region"
-          class="c-input"
+        <RegionCascader
+          v-model="row._areaPath"
+          class="c-region"
           placeholder="所在地区"
-        >
+          @change="(path) => applyArea(row, path)"
+        />
         <input
           v-model="row.detailAddress"
           class="c-input c-input-wide"
@@ -231,10 +233,15 @@
 import { ref, computed, watch } from 'vue'
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons-vue'
 import type { PartyContact } from '@/api/erp/partner'
+import RegionCascader from '@/components/RegionCascader/RegionCascader.vue'
 
 export interface ContactRowData extends PartyContact {
   _uid: number
+  _areaPath?: string[]
   region?: string
+  province?: string
+  city?: string
+  district?: string
   detailAddress?: string
   deliveryMethod?: string
   deliveryRoute?: string
@@ -243,6 +250,24 @@ export interface ContactRowData extends PartyContact {
   isDefault?: number
   contactPhone?: string
   contactEmail?: string
+}
+
+/** 省市区路径 → 回写 region 文本 + 三级字段（行政区划组件统一出口） */
+function applyArea(row: ContactRowData, path: string[]) {
+  row.province = path[0] || ''
+  row.city = path[1] || ''
+  row.district = path[2] || ''
+  row.region = path.filter(Boolean).join('/')
+}
+
+/** 从已有 province/city/district 还原级联回显路径 */
+function areaPathOf(row: ContactRowData): string[] {
+  if (row.province || row.city || row.district) {
+    return [row.province, row.city, row.district].filter(Boolean) as string[]
+  }
+  // 兼容历史数据：region 为 '省/市/区' 形态时直接拆
+  if (row.region && row.region.includes('/')) return row.region.split('/').filter(Boolean)
+  return []
 }
 
 const props = defineProps<{
@@ -266,6 +291,7 @@ const rows = ref<ContactRowData[]>(
       mobile: c.contactPhone || c.mobile || '',
       email: c.contactEmail || c.email || '',
       isDefault: c.isPrimary || c.isDefault || 0,
+      _areaPath: areaPathOf(c),
     }))
     : [{
         _uid: ++uidCounter,
@@ -276,6 +302,10 @@ const rows = ref<ContactRowData[]>(
         department: '',
         isDefault: 1,
         region: '',
+        province: '',
+        city: '',
+        district: '',
+        _areaPath: [],
         detailAddress: '',
         deliveryMethod: undefined,
         deliveryRoute: '',
@@ -297,6 +327,7 @@ watch(() => props.contacts, (val) => {
       mobile: c.contactPhone || c.mobile || '',
       email: c.contactEmail || c.email || '',
       isDefault: c.isPrimary || c.isDefault || 0,
+      _areaPath: areaPathOf(c),
     }))
   } else if (rows.value.length === 0) {
     rows.value = [{
@@ -335,6 +366,10 @@ function addContact() {
     department: '',
     isDefault: 0,
     region: '',
+    province: '',
+    city: '',
+    district: '',
+    _areaPath: [],
     detailAddress: '',
     deliveryMethod: undefined,
     deliveryRoute: '',
@@ -364,7 +399,7 @@ function handleDelete(row: ContactRowData) {
 }
 
 function emitUpdate() {
-  emit('update', rows.value.map(({ _uid, ...rest }) => {
+  emit('update', rows.value.map(({ _uid, _areaPath, ...rest }) => {
     // 确保将新字段转换为正确的数据类型
     return {
       ...rest,
@@ -383,7 +418,7 @@ function emitUpdate() {
 }
 
 defineExpose({
-  getContacts: () => rows.value.map(({ _uid, ...rest }) => {
+  getContacts: () => rows.value.map(({ _uid, _areaPath, ...rest }) => {
     return {
       ...rest,
       contactName: rest.contactName || rest.contactName || '',
@@ -427,6 +462,7 @@ defineExpose({
 .c-input::placeholder { color: #bfbfbf; }
 .c-input-wide { min-width: 160px; flex: 1; }
 .c-select { min-width: 120px; }
+.c-region { min-width: 170px; flex: 0.55; }
 .c-locate-btn { flex-shrink: 0; }
 .c-del-icon { font-size: 18px; color: #ff4d4f; cursor: pointer; flex-shrink: 0; margin-left: 4px; }
 .c-del-icon:hover { color: #ff7875; }

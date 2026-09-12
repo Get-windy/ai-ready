@@ -57,23 +57,38 @@ public class ProductUnit {
     private BigDecimal minDiscount;
 
     // ── 以下字段映射 erp_product_unit 表的 grade_price_1~8 列 ──
-    // 列名由 V8.1.0 创建、V9.23.0 重命名而来，MyBatis-Plus 下划线转驼峰自动映射
-
+    // ⚠️ 真实列名是 grade_price_1（数字前有下划线），而 MyBatis-Plus 默认驼峰映射会得到
+    //    grade_price1，两者不匹配 → 必须显式 @TableField 指定列名，否则单位查询/保存直接报
+    //    "字段 grade_price1 不存在"。此前的实体漏了该注解，是商品单位等级价长期不可用的根因。
+    @TableField("grade_price_1")
     private BigDecimal gradePrice1;
 
+    @TableField("grade_price_2")
     private BigDecimal gradePrice2;
 
+    @TableField("grade_price_3")
     private BigDecimal gradePrice3;
 
+    @TableField("grade_price_4")
     private BigDecimal gradePrice4;
 
+    @TableField("grade_price_5")
     private BigDecimal gradePrice5;
 
+    @TableField("grade_price_6")
     private BigDecimal gradePrice6;
 
+    @TableField("grade_price_7")
     private BigDecimal gradePrice7;
 
+    @TableField("grade_price_8")
     private BigDecimal gradePrice8;
+
+    /** 重量（kg，单位级） */
+    private BigDecimal weight;
+
+    /** 体积（m³，单位级） */
+    private BigDecimal volume;
 
     @TableLogic
     private Integer deleted;

@@ -21,7 +21,13 @@ public class VoucherDTO {
     private LocalDate voucherDate;
     private Integer fiscalYear;
     private Integer fiscalPeriod;
+    private String voucherType;
+    private String summary;
+    private String handlerName;
+    private String deptName;
+    private String sourceNo;
     private Integer attachments;
+    private Integer printCount;
     private String prepBy;
     private LocalDateTime prepAt;
     private String auditBy;

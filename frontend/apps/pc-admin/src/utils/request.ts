@@ -128,6 +128,18 @@ service.interceptors.request.use(
     config.headers.tenantId = tenantId
     config.headers['X-Tenant-Id'] = tenantId
 
+    // FormData 上传（证件/附件/头像等）：必须移除全局默认的 application/json，
+    // 交由 axios/浏览器写入 multipart/form-data 与 boundary；
+    // 否则后端按非 multipart 解析，报 “Current request is not a multipart request”
+    if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+      const headers: any = config.headers
+      if (typeof headers.delete === 'function') {
+        headers.delete('Content-Type')
+      } else {
+        delete headers['Content-Type']
+      }
+    }
+
     // 请求开始：启动进度条
     NProgress.start()
 
@@ -195,8 +207,14 @@ service.interceptors.response.use(
     // ── 标准 wrapper 响应处理 ──────────────────────────
     const { code, message: msg, data } = resData
 
-    // 成功判定：数字 200 / 字符串 "200"（expense/budget 域字符串 code）/ success===true（admin/datax 域 Map 响应）
-    const isOk = code === 200 || (code as unknown) === '200' || (code === undefined && (resData as any).success === true)
+    // 成功判定：
+    //   - 包装响应带 code 字段：200 / '200' / success===true 视为成功
+    //   - 裸响应（无 code 字段，如本系统财务模块 Controller 直接返回裸 VO/String/Page）视为成功，
+    //     避免 self-自研裸返回被前端误判为业务错误而弹"请求失败"（付款单/预付款单/收款单等）
+    const hasCode = resData !== null && typeof resData === 'object' && !Array.isArray(resData) && ('code' in resData)
+    const isOk = hasCode
+      ? code === 200 || (code as unknown) === '200' || (code as unknown) === 0 || (resData as any).success === true
+      : true
     if (isOk) {
       // Map 型响应（无 data 字段）整体返回，包装型返回 data
       return (data !== undefined ? data : resData) as any
@@ -229,6 +247,8 @@ service.interceptors.response.use(
       return Promise.reject(new Error(msg || '权限不足'))
     }
 
+    // [调试] 定位"请求失败"来源：打印触发业务错误的接口与响应体
+    console.warn('[REQ_FAIL]', response?.config?.url || '', 'code=', code, 'msg=', msg, 'body=', resData)
     message.error(msg || '请求失败')
     return Promise.reject(new Error(msg))
   },

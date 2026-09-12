@@ -23,6 +23,12 @@
             <artifactId>core-base</artifactId>
         </dependency>
 
+        <!-- 预算模块：费用/支出单据记账后回写《预算执行》（P1 执行回写） -->
+        <dependency>
+            <groupId>cn.aiedge.erp</groupId>
+            <artifactId>erp-budget</artifactId>
+        </dependency>
+
         <!-- Spring Boot Dependencies -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

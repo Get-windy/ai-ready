@@ -37,8 +37,11 @@ public class ProductUnitDict {
     /** 换算率（相对于基本单位） */
     private BigDecimal conversionRate;
 
-    /** 备注 */
+    /** 备注（对标 Tab2 列「计量单位备注」） */
     private String remark;
+
+    /** 是否默认单位: 1是 0否（对标 Tab2 列「是否默认」） */
+    private Integer isDefault;
 
     /** 排序 */
     private Integer sortOrder;

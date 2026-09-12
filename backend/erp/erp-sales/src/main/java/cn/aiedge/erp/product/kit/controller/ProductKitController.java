@@ -163,6 +163,12 @@ public class ProductKitController {
         return productKitService.checkKitAvailability(id, warehouseId, quantity);
     }
 
+    @GetMapping("/items-summary")
+    @Operation(summary = "批量查询套装商品明细摘要（商品列表「套餐」子标签用）")
+    public Map<Long, String> itemsSummary(@RequestParam("kitIds") List<Long> kitIds) {
+        return productKitService.itemsSummary(kitIds);
+    }
+
     @GetMapping("/statistics")
     @Operation(summary = "套装统计")
     public Map<String, Object> statistics() {

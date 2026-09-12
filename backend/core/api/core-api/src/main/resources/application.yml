@@ -10,6 +10,13 @@ spring:
     allow-circular-references: true  # 允许循环引用以解决BeanPostProcessor警告
   profiles:
     active: dev
+  # 文件上传上限：Spring 默认单文件仅 1MB，商品图片/Excel 导入等稍大文件会被
+  # MaxUploadSizeExceededException 兜底成 500「系统异常」。此处与前端的
+  # 10MB 图片校验对齐（单文件 10MB、单请求 50MB 以容纳多文件上传）。
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 50MB
   data:
     redis:
       host: localhost

@@ -67,8 +67,24 @@
 
     <!-- ═══ Zone 2: 基本信息选择器 ═══ -->
     <div class="bill-basic-info">
-      <!-- 流式布局：inline模式，自动换行 -->
-      <div class="info-flow">
+      <div class="basic-info-body">
+        <!-- 展开/收起：默认只显示 N 行，超出折叠（对标：头部字段区默认 2 行） -->
+        <button
+          v-if="collapsibleFields && canCollapse"
+          type="button"
+          class="info-flow-toggle"
+          :title="fieldsExpanded ? '收起' : '展开'"
+          @click="fieldsExpanded = !fieldsExpanded"
+        >
+          <DownOutlined v-if="fieldsExpanded" />
+          <RightOutlined v-else />
+        </button>
+        <!-- 流式布局：inline模式，自动换行 -->
+        <div
+          ref="infoFlowRef"
+          class="info-flow"
+          :style="flowStyle"
+        >
         <template
           v-for="field in basicInfoFields"
           :key="field.key"
@@ -120,6 +136,7 @@
             @search="(v: string) => emit('search', field.key, v)"
           />
         </template>
+        </div>
       </div>
     </div>
 
@@ -222,6 +239,7 @@
                         type="link"
                         size="small"
                         :class="{ 'btn-clear': tf.suffixBtnDanger }"
+                        @click="emit('tabSuffixBtn', tf.key, tf.suffixBtn)"
                       >
                         {{ tf.suffixBtn }}
                       </a-button>
@@ -321,11 +339,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import {
   PaperClipOutlined,
   DownOutlined,
+  RightOutlined,
 } from '@ant-design/icons-vue'
 import InlineField from '@/components/FormField/InlineField.vue'
 import LabelField from '@/components/FormField/LabelField.vue'
@@ -359,6 +378,10 @@ const props = withDefaults(defineProps<{
   mode?: 'create' | 'edit' | 'view'
   /** 是否显示底部面板（Zone 4），默认 true */
   showBottomPanel?: boolean
+  /** 头部字段区是否折叠（默认只显示 N 行，超出可展开）——对标表单页头部默认 2 行 */
+  collapsibleFields?: boolean
+  /** 折叠时显示的行数，默认 2 */
+  collapsedRows?: number
 }>(), {
   header: undefined,
   basicInfoFields: () => [],
@@ -367,7 +390,50 @@ const props = withDefaults(defineProps<{
   footer: undefined,
   mode: undefined,
   showBottomPanel: true,
+  collapsibleFields: false,
+  collapsedRows: 2,
 })
+
+// ═══ 头部字段区：默认 N 行折叠 + 展开/收起 ═══
+const infoFlowRef = ref<HTMLElement>()
+const fieldsExpanded = ref(false)
+const canCollapse = ref(false)
+const collapseHeight = ref(0)
+
+/**
+ * 收起高度 = 「第 N+1 行的 top − 第 1 行的 top − 行间距」。
+ * 注意 offsetTop 是相对 offsetParent（非本容器），必须用差值计算；
+ * 该算法切在行边界，字段高度不一致时也不会裁出半行。
+ */
+function measureCollapse() {
+  const wrap = infoFlowRef.value
+  if (!wrap || !props.collapsibleFields) { canCollapse.value = false; return }
+  const items = Array.from(wrap.children) as HTMLElement[]
+  if (items.length === 0) { canCollapse.value = false; return }
+  const tops = [...new Set(items.map(el => el.offsetTop))].sort((a, b) => a - b)
+  const rows = props.collapsedRows
+  if (tops.length <= rows) { canCollapse.value = false; collapseHeight.value = 0; return }
+  canCollapse.value = true
+  collapseHeight.value = Math.max(0, (tops[rows] as number) - (tops[0] as number) - 8)
+}
+
+const flowStyle = computed<Record<string, string>>(() =>
+  canCollapse.value && !fieldsExpanded.value
+    ? { maxHeight: `${collapseHeight.value}px`, overflow: 'hidden' }
+    : {}
+)
+
+let flowObserver: ResizeObserver | null = null
+onMounted(() => {
+  nextTick(measureCollapse)
+  flowObserver = new ResizeObserver(() => measureCollapse())
+  if (infoFlowRef.value) flowObserver.observe(infoFlowRef.value)
+})
+onBeforeUnmount(() => {
+  flowObserver?.disconnect()
+  flowObserver = null
+})
+watch(() => props.basicInfoFields, () => nextTick(measureCollapse), { deep: true })
 
 const emit = defineEmits<{
   'update:modelValue': [value: Record<string, any>]
@@ -375,6 +441,8 @@ const emit = defineEmits<{
   'action': [actionKey: string, parentKey?: string]
   'searchBtn': [fieldKey: string, btnText: string]
   'search': [fieldKey: string, keyword: string]
+  /** Tab 字段后缀按钮（+Q / 全 / ··· 等），由业务页实现具体行为 */
+  'tabSuffixBtn': [fieldKey: string, btnText: string]
   'draft': []
   'submit': []
   'tabChange': [tabKey: string]
@@ -495,7 +563,40 @@ function getTabFieldDisplayValue(tf: TabField): string {
   flex-shrink: 0;
 }
 
+.basic-info-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+/* 头部字段区展开/收起（默认 2 行折叠） */
+.info-flow-toggle {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin-top: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid #d9d9d9;
+  border-radius: 3px;
+  background: #fafafa;
+  color: #595959;
+  font-size: 10px;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.info-flow-toggle:hover {
+  color: #1890ff;
+  border-color: #1890ff;
+}
+
 .info-flow {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;

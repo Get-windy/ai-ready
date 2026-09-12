@@ -88,4 +88,158 @@ public class SalesAccountingService {
         VoucherDTO voucherResult = businessAccountingService.createVoucherFromBusiness(voucherRequest);
         log.info("凭证创建成功: voucherNo={}", voucherResult.getVoucherNo());
     }
+
+    /**
+     * 销售退货申请审核通过时创建红字冲销凭证
+     * <p>收入段：Dr. 主营业务收入(6001) / Cr. 应收账款(1122)——冲回已确认的收入与应收；</p>
+     * <p>成本段：Dr. 库存商品(1403) / Cr. 主营业务成本(6401)——退货入库冲回已结转成本（成本为 0 时省略）。</p>
+     *
+     * @param returnId     退货申请单ID
+     * @param returnNo     退货申请单编号
+     * @param customerId   客户ID
+     * @param customerName 客户名称
+     * @param amount       退货金额（含税，冲减收入与应收）
+     * @param costAmount   退货成本金额（参考成本合计，可为 null/0）
+     * @return 凭证编号；未生成时返回空串
+     */
+    public String createSaleReturnVoucher(Long returnId, String returnNo, Long customerId, String customerName,
+                                          BigDecimal amount, BigDecimal costAmount) {
+        return postSaleReturnVoucher(returnId, returnNo, customerId, customerName, amount, costAmount, false);
+    }
+
+    /**
+     * 销售退货申请取消（已记账后）生成反向冲回凭证
+     * <p>收入段：Dr. 应收账款(1122) / Cr. 主营业务收入(6001)；</p>
+     * <p>成本段：Dr. 主营业务成本(6401) / Cr. 库存商品(1403)。</p>
+     *
+     * @return 凭证编号；未生成时返回空串
+     */
+    public String createSaleReturnReverseVoucher(Long returnId, String returnNo, Long customerId, String customerName,
+                                                 BigDecimal amount, BigDecimal costAmount) {
+        return postSaleReturnVoucher(returnId, returnNo, customerId, customerName, amount, costAmount, true);
+    }
+
+    /**
+     * 销售退货单（实际退货入库单）审核通过时生成红字冲销凭证
+     * <p>口径与退货申请一致：收入段 Dr. 主营业务收入(6001) / Cr. 应收账款(1122)；
+     * 成本段 Dr. 库存商品(1403) / Cr. 主营业务成本(6401)（成本为 0 时省略）。</p>
+     *
+     * @param returnDocId  退货单ID
+     * @param returnDocNo  退货单编号
+     * @return 凭证编号；未生成时返回空串
+     */
+    public String createSaleReturnDocVoucher(Long returnDocId, String returnDocNo, Long customerId, String customerName,
+                                             BigDecimal amount, BigDecimal costAmount) {
+        return postReturnDocVoucher(returnDocId, returnDocNo, customerId, customerName, amount, costAmount, false);
+    }
+
+    /**
+     * 销售退货单取消（已记账后）生成反向冲回凭证
+     *
+     * @return 凭证编号；未生成时返回空串
+     */
+    public String createSaleReturnDocReverseVoucher(Long returnDocId, String returnDocNo, Long customerId,
+                                                    String customerName, BigDecimal amount, BigDecimal costAmount) {
+        return postReturnDocVoucher(returnDocId, returnDocNo, customerId, customerName, amount, costAmount, true);
+    }
+
+    private String postReturnDocVoucher(Long returnDocId, String returnDocNo, Long customerId, String customerName,
+                                        BigDecimal amount, BigDecimal costAmount, boolean reversed) {
+        if (amount == null || amount.signum() <= 0) {
+            log.warn("销售退货单金额为0，跳过记账: returnDocNo={}", returnDocNo);
+            return "";
+        }
+        String sourceType = reversed ? "SALE_RETURN_DOC_CANCEL" : "SALE_RETURN_DOC";
+        String prefix = reversed ? "销售退货单取消冲回" : "销售退货单冲销";
+        log.info("创建销售退货单凭证: returnDocNo={}, customerId={}, amount={}, costAmount={}, reversed={}",
+                returnDocNo, customerId, amount, costAmount, reversed);
+
+        BusinessAccountingRequest voucherRequest = new BusinessAccountingRequest();
+        voucherRequest.setSourceType(sourceType);
+        voucherRequest.setSourceId(returnDocId);
+        voucherRequest.setSourceNo(returnDocNo);
+        voucherRequest.setCustomerId(customerId != null ? String.valueOf(customerId) : null);
+        voucherRequest.setCustomerName(customerName);
+        voucherRequest.setAmount(amount);
+        voucherRequest.setSummary(prefix + " - " + returnDocNo);
+        voucherRequest.setVoucherDate(LocalDate.now());
+
+        List<BusinessAccountingRequest.AccountingRequestItem> entries = new java.util.ArrayList<>();
+        entries.add(buildEntry(reversed ? "销售退货单取消回补收入" : "销售退货单冲减收入", "6001",
+                reversed ? BigDecimal.ZERO : amount, reversed ? amount : BigDecimal.ZERO, null));
+        entries.add(buildEntry(reversed ? "销售退货单取消回补应收" : "销售退货单冲减应收", "1122",
+                reversed ? amount : BigDecimal.ZERO, reversed ? BigDecimal.ZERO : amount, customerName));
+
+        BigDecimal cost = costAmount != null ? costAmount : BigDecimal.ZERO;
+        if (cost.signum() > 0) {
+            entries.add(buildEntry(reversed ? "销售退货单取消转回成本" : "退货入库", "1403",
+                    reversed ? BigDecimal.ZERO : cost, reversed ? cost : BigDecimal.ZERO, null));
+            entries.add(buildEntry(reversed ? "销售退货单取消转回库存" : "冲回主营业务成本", "6401",
+                    reversed ? cost : BigDecimal.ZERO, reversed ? BigDecimal.ZERO : cost, null));
+        }
+        voucherRequest.setItems(entries);
+
+        VoucherDTO voucherResult = businessAccountingService.createVoucherFromBusiness(voucherRequest);
+        String voucherNo = voucherResult.getVoucherNo() != null ? voucherResult.getVoucherNo() : "";
+        log.info("销售退货单凭证创建成功: returnDocNo={}, voucherNo={}", returnDocNo, voucherNo);
+        return voucherNo;
+    }
+
+    private String postSaleReturnVoucher(Long returnId, String returnNo, Long customerId, String customerName,
+                                         BigDecimal amount, BigDecimal costAmount, boolean reversed) {
+        if (amount == null || amount.signum() <= 0) {
+            log.warn("退货申请单金额为0，跳过记账: returnNo={}", returnNo);
+            return "";
+        }
+        String sourceType = reversed ? "SALE_RETURN_APPLY_CANCEL" : "SALE_RETURN_APPLY";
+        String prefix = reversed ? "销售退货取消冲回" : "销售退货冲销";
+        log.info("创建销售退货凭证: returnNo={}, customerId={}, amount={}, costAmount={}, reversed={}",
+                returnNo, customerId, amount, costAmount, reversed);
+
+        BusinessAccountingRequest voucherRequest = new BusinessAccountingRequest();
+        voucherRequest.setSourceType(sourceType);
+        voucherRequest.setSourceId(returnId);
+        voucherRequest.setSourceNo(returnNo);
+        voucherRequest.setCustomerId(customerId != null ? String.valueOf(customerId) : null);
+        voucherRequest.setCustomerName(customerName);
+        voucherRequest.setAmount(amount);
+        voucherRequest.setSummary(prefix + " - " + returnNo);
+        voucherRequest.setVoucherDate(LocalDate.now());
+
+        List<BusinessAccountingRequest.AccountingRequestItem> entries = new java.util.ArrayList<>();
+
+        // 收入段：正向冲减收入与应收；反向回补（往来科目行挂客户核算项，供辅助核算余额表归集）
+        entries.add(buildEntry(reversed ? "销售退货取消回补收入" : "销售退货冲减收入", "6001",
+                reversed ? BigDecimal.ZERO : amount, reversed ? amount : BigDecimal.ZERO, null));
+        entries.add(buildEntry(reversed ? "销售退货取消回补应收" : "销售退货冲减应收", "1122",
+                reversed ? amount : BigDecimal.ZERO, reversed ? BigDecimal.ZERO : amount, customerName));
+
+        // 成本段：正向退货入库冲回已结转成本；反向退回出库恢复成本
+        BigDecimal cost = costAmount != null ? costAmount : BigDecimal.ZERO;
+        if (cost.signum() > 0) {
+            entries.add(buildEntry(reversed ? "销售退货取消转回成本" : "退货入库", "1403",
+                    reversed ? BigDecimal.ZERO : cost, reversed ? cost : BigDecimal.ZERO, null));
+            entries.add(buildEntry(reversed ? "销售退货取消转回库存" : "冲回主营业务成本", "6401",
+                    reversed ? cost : BigDecimal.ZERO, reversed ? BigDecimal.ZERO : cost, null));
+        }
+
+        voucherRequest.setItems(entries);
+
+        VoucherDTO voucherResult = businessAccountingService.createVoucherFromBusiness(voucherRequest);
+        String voucherNo = voucherResult.getVoucherNo() != null ? voucherResult.getVoucherNo() : "";
+        log.info("销售退货凭证创建成功: returnNo={}, voucherNo={}", returnNo, voucherNo);
+        return voucherNo;
+    }
+
+    private BusinessAccountingRequest.AccountingRequestItem buildEntry(String summary, String subjectCode,
+                                                                      BigDecimal debit, BigDecimal credit,
+                                                                      String auxUnit) {
+        BusinessAccountingRequest.AccountingRequestItem entry = new BusinessAccountingRequest.AccountingRequestItem();
+        entry.setSummary(summary);
+        entry.setSubjectCode(subjectCode);
+        entry.setDebitAmount(debit);
+        entry.setCreditAmount(credit);
+        entry.setAuxUnit(auxUnit);
+        return entry;
+    }
 }

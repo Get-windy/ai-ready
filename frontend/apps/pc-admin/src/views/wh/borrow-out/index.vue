@@ -39,14 +39,9 @@
           </a-space>
         </template>
 
-        <!-- ═══ 工具栏右侧：操作按钮（列配置/页面配置/新增/刷新/打印/批量导入/导出） ═══ -->
+        <!-- ═══ 工具栏右侧：操作按钮（页面配置/新增/刷新/打印/批量导入/导出，列配置走数据表表头齿轮） ═══ -->
         <template #toolbar-right>
           <a-space :size="8">
-            <a-tooltip v-if="isFnEnabled('columnConfig')" title="列配置">
-              <a-button size="small" @click="showColumnConfig = true">
-                <TableOutlined />
-              </a-button>
-            </a-tooltip>
             <a-tooltip v-if="isFnEnabled('config')" title="页面配置">
               <a-button size="small" @click="showPageConfig = true">
                 <SettingOutlined />
@@ -219,6 +214,7 @@
           <div class="table-area">
             <BillTableList
               :columns="currentColumns"
+              :storage-key="activeTab === 'doc' ? 'borrow-out-table-columns-doc' : 'borrow-out-table-columns-detail'"
               :data-source="tableData"
               :loading="loading"
               :pagination="billPagination"
@@ -296,17 +292,6 @@
         </template>
       </CategoryListLayout>
     </PageContainer>
-
-    <!-- ═══ 列配置弹窗 ═══ -->
-    <ColumnConfigPanel
-      :open="showColumnConfig"
-      :settings-columns="panelColumns"
-      :is-locked-column="isLockedColumn"
-      @update:open="showColumnConfig = $event"
-      @change="handleColumnConfigChange"
-      @reset="handleColumnConfigReset"
-      @drag-end="handleColumnConfigChange"
-    />
 
     <!-- ═══ 页面配置弹窗 ═══ -->
     <PageConfigPanel
@@ -392,15 +377,13 @@ import type { Dayjs } from 'dayjs'
 import dayjs from 'dayjs'
 import {
   PlusOutlined, ReloadOutlined, PrinterOutlined, SettingOutlined,
-  TableOutlined, ExportOutlined, ImportOutlined,
+  ExportOutlined, ImportOutlined,
 } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayout.vue'
-import ColumnConfigPanel from '@/components/ColumnConfigPanel/index.vue'
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
-import { useColumnConfig, isLockedColumn } from '@/composables/useColumnConfig'
 import { useAutoGridSpan } from '@/composables/useAutoGridSpan'
 import { borrowApi } from '@/api/wms/borrow'
 import { useUserStore } from '@/stores/user'
@@ -477,8 +460,7 @@ const rowSelection = computed(() => ({
   onChange: (keys: any[]) => { selectedRowKeys.value = keys },
 }))
 
-// ═══ 列配置/页面配置弹窗 ═══
-const showColumnConfig = ref(false)
+// ═══ 页面配置弹窗（列配置走数据表表头齿轮） ═══
 const showPageConfig = ref(false)
 
 // ═══ 页面配置（查询条件显隐、功能按钮） ═══
@@ -539,8 +521,7 @@ const activePageConfigStorageKey = computed(() =>
 )
 
 function isFnEnabled(key: string) {
-  // 列配置按钮固定显示；其余受功能按钮配置控制（默认全选）
-  if (key === 'columnConfig') return true
+  // 功能按钮受页面配置控制（默认全选）
   return functionButtonConfig.value.find(f => f.key === key)?.enabled ?? true
 }
 
@@ -680,37 +661,10 @@ const detailColumns = [
   { title: '打印次数', field: 'printCount', key: 'printCount', width: 80, align: 'right' },
 ]
 
-// ═══ 列配置 ═══
-const docColumnDefs = computed(() => docColumns.map(col => ({ ...col })))
-const detailColumnDefs = computed(() => detailColumns.map(col => ({ ...col })))
-const {
-  visibleColumns: docVisibleColumns,
-  onSettingChange: onDocSettingChange,
-  resetSettings: resetDocSettings,
-  settingsColumns: docSettingsColumns,
-} = useColumnConfig(docColumnDefs.value, 'borrow-out-list-columns-doc')
-const {
-  visibleColumns: detailVisibleColumns,
-  onSettingChange: onDetailSettingChange,
-  resetSettings: resetDetailSettings,
-  settingsColumns: detailSettingsColumns,
-} = useColumnConfig(detailColumnDefs.value, 'borrow-out-list-columns-detail')
-
+// ═══ 列配置（走数据表表头齿轮：storage-key=borrow-out-table-columns-doc/detail） ═══
 const currentColumns = computed(() =>
-  activeTab.value === 'doc' ? docVisibleColumns.value : detailVisibleColumns.value
+  activeTab.value === 'doc' ? docColumns : detailColumns
 )
-const panelColumns = computed(() =>
-  activeTab.value === 'doc' ? docSettingsColumns.value : detailSettingsColumns.value
-)
-
-function handleColumnConfigChange() {
-  if (activeTab.value === 'doc') onDocSettingChange()
-  else onDetailSettingChange()
-}
-function handleColumnConfigReset() {
-  if (activeTab.value === 'doc') resetDocSettings()
-  else resetDetailSettings()
-}
 
 // ═══ 状态映射（借出单：草稿/待审批/已记账/部分归还/已归还/已取消） ═══
 const STATUS_MAP: Record<number, { text: string; color: string }> = {

@@ -13,6 +13,9 @@ import java.math.BigDecimal;
 @Schema(description = "销售明细查询参数DTO")
 public class SalesDetailQueryDTO {
 
+    @Schema(description = "商品分类ID（含子分类，来源左侧商品分类树）")
+    private Long categoryId;
+
     // ═══ 分页参数 ═══
     @Schema(description = "页码", defaultValue = "1")
     private Long current = 1L;

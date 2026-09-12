@@ -1,10 +1,13 @@
 package cn.aiedge.erp.finance.service.impl;
 
+import cn.aiedge.erp.finance.dto.GeneralLedgerQueryDTO;
+import cn.aiedge.erp.finance.dto.GeneralLedgerRowDTO;
 import cn.aiedge.erp.finance.dto.LedgerEntryDTO;
 import cn.aiedge.erp.finance.dto.TrialBalanceDTO;
 import cn.aiedge.erp.finance.mapper.AccountSubjectMapper;
 import cn.aiedge.erp.finance.mapper.LedgerEntryMapper;
 import cn.aiedge.erp.finance.mapper.VoucherItemMapper;
+import cn.aiedge.erp.finance.model.entity.AccountSubject;
 import cn.aiedge.erp.finance.model.entity.LedgerEntry;
 import cn.aiedge.erp.finance.model.entity.Voucher;
 import cn.aiedge.erp.finance.model.entity.VoucherItem;
@@ -15,11 +18,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 /**
@@ -92,6 +98,306 @@ public class LedgerServiceImpl implements LedgerService {
         result.put("isBalanced", balanced);
 
         return result;
+    }
+
+    @Override
+    public List<Integer> listSubjectLevels() {
+        return accountSubjectMapper.selectList(null).stream()
+                .map(AccountSubject::getLevel)
+                .filter(Objects::nonNull)
+                .distinct()
+                .sorted()
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<GeneralLedgerRowDTO> queryGeneralReport(GeneralLedgerQueryDTO query) {
+        // ═══ 1. 会计月起止（缺省取当前会计月） ═══
+        int[] start = parsePeriod(query.getPeriodStart());
+        int[] end = parsePeriod(query.getPeriodEnd());
+        LocalDate today = LocalDate.now();
+        if (start == null && end == null) {
+            start = new int[]{today.getYear(), today.getMonthValue()};
+            end = new int[]{start[0], start[1]};
+        } else if (start == null) {
+            start = new int[]{end[0], end[1]};
+        } else if (end == null) {
+            end = new int[]{start[0], start[1]};
+        }
+        if (periodKey(start[0], start[1]) > periodKey(end[0], end[1])) {
+            int[] tmp = start;
+            start = end;
+            end = tmp;
+        }
+        int startKey = periodKey(start[0], start[1]);
+        int endKey = periodKey(end[0], end[1]);
+        int level = query.getSubjectLevel() != null && query.getSubjectLevel() > 0 ? query.getSubjectLevel() : 1;
+        boolean hideNoAmount = Boolean.TRUE.equals(query.getHideNoAmount());
+        String keyword = query.getSubjectCode() == null ? "" : query.getSubjectCode().trim();
+
+        // ═══ 2. 科目字典（层级上溯用） ═══
+        List<AccountSubject> subjects = accountSubjectMapper.selectList(null);
+        Map<Long, AccountSubject> subjectById = subjects.stream()
+                .filter(s -> s.getId() != null)
+                .collect(Collectors.toMap(AccountSubject::getId, s -> s, (a, b) -> a));
+        Map<String, AccountSubject> subjectByCode = subjects.stream()
+                .filter(s -> s.getSubjectCode() != null)
+                .collect(Collectors.toMap(AccountSubject::getSubjectCode, s -> s, (a, b) -> a));
+
+        // ═══ 3. 按科目汇总账簿数据 ═══
+        Map<String, List<LedgerEntry>> entriesByCode = new LinkedHashMap<>();
+        for (LedgerEntry entry : ledgerEntryMapper.selectList(null)) {
+            if (entry.getSubjectCode() == null) {
+                continue;
+            }
+            entriesByCode.computeIfAbsent(entry.getSubjectCode(), k -> new ArrayList<>()).add(entry);
+        }
+
+        Map<String, SubjectAgg> aggByDisplayCode = new LinkedHashMap<>();
+        for (Map.Entry<String, List<LedgerEntry>> group : entriesByCode.entrySet()) {
+            List<LedgerEntry> entries = group.getValue();
+            entries.sort(Comparator
+                    .comparingInt((LedgerEntry e) -> e.getFiscalYear() == null ? 0 : e.getFiscalYear())
+                    .thenComparingInt(e -> e.getFiscalPeriod() == null ? 0 : e.getFiscalPeriod()));
+
+            AccountSubject leaf = subjectByCode.get(group.getKey());
+            AccountSubject display = resolveDisplaySubject(leaf, subjectById, level);
+            String displayCode = display != null && display.getSubjectCode() != null
+                    ? display.getSubjectCode() : group.getKey();
+
+            SubjectAgg agg = aggByDisplayCode.computeIfAbsent(displayCode, k -> {
+                SubjectAgg created = new SubjectAgg();
+                created.subjectCode = k;
+                created.subjectName = display != null && display.getSubjectName() != null
+                        ? display.getSubjectName() : entries.get(0).getSubjectName();
+                created.subjectId = display != null ? display.getId() : entries.get(0).getSubjectId();
+                created.level = display != null ? display.getLevel() : null;
+                return created;
+            });
+
+            // 期初余额（带符号：借正贷负）= 账簿初始期初 + 起始期间之前各期发生净额
+            agg.opening = agg.opening.add(signedOpeningBefore(entries, startKey));
+
+            // 本年初余额（end 所在年度 1 月之前）
+            agg.yearOpening = agg.yearOpening.add(signedOpeningBefore(entries, periodKey(end[0], 1)));
+
+            // 区间内各期发生额
+            for (LedgerEntry entry : entries) {
+                int key = periodKey(entry.getFiscalYear(), entry.getFiscalPeriod());
+                BigDecimal debit = nz(entry.getPeriodDebit());
+                BigDecimal credit = nz(entry.getPeriodCredit());
+                if (key >= startKey && key <= endKey) {
+                    BigDecimal[] amounts = agg.periods.computeIfAbsent(key,
+                            k -> new BigDecimal[]{BigDecimal.ZERO, BigDecimal.ZERO});
+                    amounts[0] = amounts[0].add(debit);
+                    amounts[1] = amounts[1].add(credit);
+                    agg.periodDebit = agg.periodDebit.add(debit);
+                    agg.periodCredit = agg.periodCredit.add(credit);
+                }
+                // 本年累计：end 年度 1 月起至会计月(止)
+                if (entry.getFiscalYear() != null && entry.getFiscalYear() == end[0]
+                        && entry.getFiscalPeriod() != null && entry.getFiscalPeriod() <= end[1]) {
+                    agg.yearDebit = agg.yearDebit.add(debit);
+                    agg.yearCredit = agg.yearCredit.add(credit);
+                }
+            }
+        }
+
+        // ═══ 4. 生成账簿行 ═══
+        boolean singlePeriod = startKey == endKey;
+        boolean showYearAccum = Boolean.TRUE.equals(query.getShowYearAccum());
+        List<SubjectAgg> ordered = aggByDisplayCode.values().stream()
+                .filter(a -> keyword.isEmpty()
+                        || (a.subjectCode != null && a.subjectCode.contains(keyword))
+                        || (a.subjectName != null && a.subjectName.contains(keyword)))
+                .sorted(Comparator.comparing(a -> a.subjectCode == null ? "" : a.subjectCode))
+                .collect(Collectors.toList());
+
+        List<GeneralLedgerRowDTO> rows = new ArrayList<>();
+        BigDecimal totalDebit = BigDecimal.ZERO;
+        BigDecimal totalCredit = BigDecimal.ZERO;
+        BigDecimal totalClosing = BigDecimal.ZERO;
+
+        for (SubjectAgg agg : ordered) {
+            rows.add(buildRow(agg, periodCode(startKey), "期初余额", null, null, agg.opening, "opening"));
+
+            BigDecimal running = agg.opening;
+            for (int key = startKey; key <= endKey; key = nextPeriodKey(key)) {
+                BigDecimal[] amounts = agg.periods.get(key);
+                BigDecimal debit = amounts == null ? BigDecimal.ZERO : amounts[0];
+                BigDecimal credit = amounts == null ? BigDecimal.ZERO : amounts[1];
+                if (hideNoAmount && debit.signum() == 0 && credit.signum() == 0) {
+                    continue;
+                }
+                running = running.add(debit).subtract(credit);
+                rows.add(buildRow(agg, periodCode(key), singlePeriod ? "本期合计" : "本期发生",
+                        debit, credit, running, "period"));
+            }
+
+            if (showYearAccum) {
+                BigDecimal yearBalance = agg.yearOpening.add(agg.yearDebit).subtract(agg.yearCredit);
+                rows.add(buildRow(agg, periodCode(endKey), "本年累计",
+                        agg.yearDebit, agg.yearCredit, yearBalance, "yearTotal"));
+            }
+
+            totalDebit = totalDebit.add(agg.periodDebit);
+            totalCredit = totalCredit.add(agg.periodCredit);
+            totalClosing = totalClosing.add(agg.opening.add(agg.periodDebit).subtract(agg.periodCredit));
+        }
+
+        if (Boolean.TRUE.equals(query.getShowCurrentTotal())) {
+            GeneralLedgerRowDTO totalRow = new GeneralLedgerRowDTO();
+            totalRow.setSubjectCode("");
+            totalRow.setSubjectName("");
+            totalRow.setPeriod(periodCode(endKey));
+            totalRow.setSummary("当前总计");
+            totalRow.setDebit(totalDebit);
+            totalRow.setCredit(totalCredit);
+            totalRow.setDirection(directionOf(totalClosing));
+            totalRow.setBalance(totalClosing.abs());
+            totalRow.setRowType("grandTotal");
+            totalRow.setDrillable(false);
+            rows.add(totalRow);
+        }
+
+        return rows;
+    }
+
+    /**
+     * 指定期间之前的期初余额（带符号：借正贷负）= 账簿初始期初 + 该期间之前各期发生净额
+     */
+    private BigDecimal signedOpeningBefore(List<LedgerEntry> entries, int beforeKey) {
+        if (entries.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+        LedgerEntry first = entries.get(0);
+        return nz(first.getOpeningDebit()).subtract(nz(first.getOpeningCredit()))
+                .add(accBefore(entries, beforeKey));
+    }
+
+    /**
+     * 指定期间之前（不含）各期发生净额合计
+     */
+    private BigDecimal accBefore(List<LedgerEntry> entries, int beforeKey) {
+        BigDecimal acc = BigDecimal.ZERO;
+        for (LedgerEntry entry : entries) {
+            int key = periodKey(entry.getFiscalYear(), entry.getFiscalPeriod());
+            if (key < beforeKey) {
+                acc = acc.add(nz(entry.getPeriodDebit())).subtract(nz(entry.getPeriodCredit()));
+            }
+        }
+        return acc;
+    }
+
+    /**
+     * 把明细科目上溯到第 level 级科目（用于科目层级汇总）
+     */
+    private AccountSubject resolveDisplaySubject(AccountSubject subject, Map<Long, AccountSubject> byId, int level) {
+        if (subject == null) {
+            return null;
+        }
+        AccountSubject current = subject;
+        int guard = 0;
+        while (current.getLevel() != null && current.getLevel() > level
+                && current.getParentId() != null && guard++ < 10) {
+            AccountSubject parent = byId.get(current.getParentId());
+            if (parent == null) {
+                break;
+            }
+            current = parent;
+        }
+        return current;
+    }
+
+    private GeneralLedgerRowDTO buildRow(SubjectAgg agg, String period, String summary,
+                                         BigDecimal debit, BigDecimal credit, BigDecimal signedBalance,
+                                         String rowType) {
+        GeneralLedgerRowDTO row = new GeneralLedgerRowDTO();
+        row.setSubjectId(agg.subjectId);
+        row.setSubjectCode(agg.subjectCode);
+        row.setSubjectName(agg.subjectName);
+        row.setPeriod(period);
+        row.setSummary(summary);
+        row.setDebit(debit);
+        row.setCredit(credit);
+        row.setDirection(directionOf(signedBalance));
+        row.setBalance(signedBalance.abs());
+        row.setRowType(rowType);
+        row.setLevel(agg.level);
+        row.setDrillable(agg.subjectCode != null && !agg.subjectCode.isEmpty());
+        return row;
+    }
+
+    private String directionOf(BigDecimal signedBalance) {
+        int cmp = signedBalance == null ? 0 : signedBalance.signum();
+        if (cmp > 0) {
+            return "借";
+        }
+        if (cmp < 0) {
+            return "贷";
+        }
+        return "平";
+    }
+
+    private BigDecimal nz(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value;
+    }
+
+    /** "YYYY-MM" / "YYYYMM" → [年, 月] */
+    private int[] parsePeriod(String period) {
+        if (period == null || period.trim().isEmpty()) {
+            return null;
+        }
+        String text = period.trim().replace("-", "");
+        if (text.length() < 6) {
+            return null;
+        }
+        try {
+            int year = Integer.parseInt(text.substring(0, 4));
+            int month = Integer.parseInt(text.substring(4, 6));
+            if (month < 1 || month > 12) {
+                return null;
+            }
+            return new int[]{year, month};
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private int periodKey(Integer year, Integer period) {
+        return (year == null ? 0 : year) * 100 + (period == null ? 0 : period);
+    }
+
+    /** 期间键递增一月 */
+    private int nextPeriodKey(int key) {
+        int year = key / 100;
+        int month = key % 100;
+        return month >= 12 ? (year + 1) * 100 + 1 : key + 1;
+    }
+
+    /** 期间键 → "YYYY-MM" */
+    private String periodCode(int key) {
+        return String.format("%04d-%02d", key / 100, key % 100);
+    }
+
+    /** 总账聚合中间结构 */
+    private static class SubjectAgg {
+        private Long subjectId;
+        private String subjectCode;
+        private String subjectName;
+        private Integer level;
+        /** 期初余额（借正贷负） */
+        private BigDecimal opening = BigDecimal.ZERO;
+        /** 本年初余额（借正贷负） */
+        private BigDecimal yearOpening = BigDecimal.ZERO;
+        /** 区间内借/贷发生合计 */
+        private BigDecimal periodDebit = BigDecimal.ZERO;
+        private BigDecimal periodCredit = BigDecimal.ZERO;
+        /** 本年累计借/贷 */
+        private BigDecimal yearDebit = BigDecimal.ZERO;
+        private BigDecimal yearCredit = BigDecimal.ZERO;
+        /** 期间键 → [借方, 贷方] */
+        private final TreeMap<Integer, BigDecimal[]> periods = new TreeMap<>();
     }
 
     @Override

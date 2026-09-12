@@ -244,6 +244,9 @@ public class SaleOrderItem {
     /** 已出库数量 */
     private BigDecimal shippedQuantity;
 
+    /** 已拣货数量（拣货作业回写，与已发货数量是两个口径） */
+    private BigDecimal pickedQuantity;
+
     // ═══ 系统字段 ══
     /** 创建时间 */
     @TableField(fill = FieldFill.INSERT)

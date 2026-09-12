@@ -40,12 +40,52 @@ public class PaymentController {
             @Parameter(description = "订单ID") @RequestParam(required = false) Long orderId,
             @Parameter(description = "状态") @RequestParam(required = false) Integer status,
             @Parameter(description = "来源类型") @RequestParam(required = false) String sourceType,
+            @Parameter(description = "开始日期") @RequestParam(required = false) String startDate,
+            @Parameter(description = "结束日期") @RequestParam(required = false) String endDate,
+            @Parameter(description = "结算单位") @RequestParam(required = false) String supplierName,
+            @Parameter(description = "经手人") @RequestParam(required = false) String handlerName,
+            @Parameter(description = "部门") @RequestParam(required = false) String departmentName,
+            @Parameter(description = "制单人") @RequestParam(required = false) String creatorName,
+            @Parameter(description = "记账人") @RequestParam(required = false) String bookkeeperName,
+            @Parameter(description = "单据备注") @RequestParam(required = false) String remark,
+            @Parameter(description = "多状态(逗号分隔)") @RequestParam(required = false) String statuses,
+            @Parameter(description = "单据编号") @RequestParam(required = false) String paymentNo,
+            @Parameter(description = "来源订单编号") @RequestParam(required = false) String orderNo,
+            @Parameter(description = "配送任务编号") @RequestParam(required = false) String deliveryNo,
+            @Parameter(description = "付款账户1") @RequestParam(required = false) String paymentAccount1,
+            @Parameter(description = "付款账户2") @RequestParam(required = false) String paymentAccount2,
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") int pageNum,
             @Parameter(description = "每页数量") @RequestParam(defaultValue = "10") int pageSize) {
-        Page<Payment> page = paymentService.pageList(keyword, supplierId, orderId, status, sourceType, pageNum, pageSize);
+        Page<Payment> page = paymentService.pageList(keyword, supplierId, orderId, status, sourceType,
+                startDate, endDate, supplierName, handlerName, departmentName, creatorName, bookkeeperName, remark,
+                statuses, paymentNo, orderNo, deliveryNo, paymentAccount1, paymentAccount2, pageNum, pageSize);
         Page<PaymentVO> voPage = new Page<>(pageNum, pageSize, page.getTotal());
         voPage.setRecords(page.getRecords().stream().map(this::convertToVO).collect(Collectors.toList()));
         return voPage;
+    }
+
+    @GetMapping("/page-detail")
+    @Operation(summary = "按明细付款单分页查询（付款明细 tab）")
+    public Page<cn.aiedge.erp.payment.dto.PaymentItemDetailVO> pageDetail(
+            @Parameter(description = "付款单ID") @RequestParam(required = false) Long paymentId,
+            @Parameter(description = "供应商ID") @RequestParam(required = false) Long supplierId,
+            @Parameter(description = "关键词") @RequestParam(required = false) String keyword,
+            @Parameter(description = "状态") @RequestParam(required = false) Integer status,
+            @Parameter(description = "往来单位") @RequestParam(required = false) String tradeUnit,
+            @Parameter(description = "源单经手人") @RequestParam(required = false) String sourceHandler,
+            @Parameter(description = "结算单据编号") @RequestParam(required = false) String settlementNo,
+            @Parameter(description = "开始日期") @RequestParam(required = false) String startDate,
+            @Parameter(description = "结束日期") @RequestParam(required = false) String endDate,
+            @Parameter(description = "页码") @RequestParam(defaultValue = "1") int pageNum,
+            @Parameter(description = "每页数量") @RequestParam(defaultValue = "10") int pageSize) {
+        return paymentService.pageDetail(paymentId, supplierId, keyword, status, tradeUnit, sourceHandler,
+                settlementNo, startDate, endDate, pageNum, pageSize);
+    }
+
+    @GetMapping("/next-no")
+    @Operation(summary = "生成付款单号（FKD- 前缀）")
+    public String nextNo() {
+        return paymentService.nextNo();
     }
 
     @GetMapping("/{id}")
@@ -214,6 +254,19 @@ public class PaymentController {
     @Operation(summary = "批量删除付款单")
     public boolean batchDelete(@RequestBody List<Long> ids) {
         return paymentService.removeBatchByIds(ids);
+    }
+
+    @PostMapping("/batch-print")
+    @Operation(summary = "批量打印付款单")
+    public Map<String, Object> batchPrint(@RequestBody Map<String, Object> body) {
+        @SuppressWarnings("unchecked")
+        List<Long> ids = (List<Long>) body.getOrDefault("ids", new ArrayList<>());
+        String template = (String) body.getOrDefault("template", "default");
+        Map<String, Object> result = new HashMap<>();
+        result.put("success", true);
+        result.put("count", ids == null ? 0 : ids.size());
+        result.put("template", template);
+        return result;
     }
 
     @GetMapping("/export")

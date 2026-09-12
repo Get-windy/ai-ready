@@ -56,6 +56,12 @@ const chartRef = ref<HTMLElement | null>(null)
 let chart: ReturnType<typeof echarts.init> | null = null
 let resizeObserver: ResizeObserver | null = null
 
+/**
+ * 数据点点击（可选）：用于下钻（点击饼图扇区/柱条 → 跳转明细）。
+ * payload 为 ECharts 原始点击参数（含 name/value/dataIndex）；无监听方时无副作用。
+ */
+const emit = defineEmits<{ (e: 'point-click', params: any): void }>()
+
 /** 判断 option 的 series 是否含有任何数据点 */
 const isEmpty = computed(() => {
   const opt = props.option
@@ -69,7 +75,11 @@ const isEmpty = computed(() => {
 
 function renderChart() {
   if (!chartRef.value) return
-  if (!chart) chart = echarts.init(chartRef.value)
+  if (!chart) {
+    chart = echarts.init(chartRef.value)
+    // 图表仅初始化一次，此处绑定点击下钻监听
+    chart.on('click', (params: any) => emit('point-click', params))
+  }
   syncLoading()
   if (isEmpty.value) {
     chart.clear()

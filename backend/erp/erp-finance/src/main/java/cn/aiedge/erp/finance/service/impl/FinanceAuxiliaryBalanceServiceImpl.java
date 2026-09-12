@@ -1,23 +1,31 @@
 package cn.aiedge.erp.finance.service.impl;
 
-import cn.aiedge.erp.finance.dto.FinanceAuxiliaryBalanceDTO;
-import cn.aiedge.erp.finance.mapper.FinanceAuxiliaryBalanceMapper;
-import cn.aiedge.erp.finance.mapper.FinanceAuxiliaryItemMapper;
-import cn.aiedge.erp.finance.mapper.FinanceAuxiliaryTypeMapper;
-import cn.aiedge.erp.finance.model.entity.FinanceAuxiliaryBalance;
-import cn.aiedge.erp.finance.model.entity.FinanceAuxiliaryItem;
-import cn.aiedge.erp.finance.model.entity.FinanceAuxiliaryType;
+import cn.aiedge.common.exception.BusinessException;
+import cn.aiedge.erp.finance.dto.AuxBalancePageDTO;
+import cn.aiedge.erp.finance.dto.AuxBalanceQuery;
+import cn.aiedge.erp.finance.dto.AuxBalanceSummaryDTO;
+import cn.aiedge.erp.finance.mapper.AuxBalanceMapper;
+import cn.aiedge.erp.finance.service.AccountSubjectService;
 import cn.aiedge.erp.finance.service.FinanceAuxiliaryBalanceService;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
+import java.time.YearMonth;
+import java.time.format.DateTimeParseException;
+import java.util.List;
+import java.util.Set;
 
 /**
- * 辅助核算余额Service实现类
+ * 辅助核算余额Service实现类（辅助核算余额表）
+ *
+ * 取数完全来自凭证分录（finance_voucher_item ⨝ finance_voucher，仅 posted），
+ * 按 科目 + 核算项 汇总四段余额：期初余额 / 本期发生额 / 本年累计 / 期末余额（各含借、贷）。
+ *
+ * 余额公式（每行与合计行均成立）：期初借 − 期初贷 + 本期借 − 本期贷 = 期末借 − 期末贷。
+ * 勾稽：同一科目下各核算项的四段金额逐列加总 = 该科目在科目余额表中的对应金额。
  */
 @Slf4j
 @Service
@@ -25,65 +33,81 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class FinanceAuxiliaryBalanceServiceImpl implements FinanceAuxiliaryBalanceService {
 
-    /**
-     * 默认租户ID（本模块暂按单租户处理）
-     */
-    private static final Long DEFAULT_TENANT_ID = 1L;
+    /** 核算项类型白名单 */
+    private static final Set<String> AUX_TYPES = Set.of("PARTNER", "CUSTOMER", "SUPPLIER", "EMPLOYEE", "DEPT");
 
-    private final FinanceAuxiliaryBalanceMapper financeAuxiliaryBalanceMapper;
-    private final FinanceAuxiliaryTypeMapper financeAuxiliaryTypeMapper;
-    private final FinanceAuxiliaryItemMapper financeAuxiliaryItemMapper;
+    private static final int DEFAULT_PAGE_SIZE = 20;
+
+    /** 单次查询上限：兼容报表「导出」一次性拉取全量（前端传 pageSize=9999） */
+    private static final int MAX_PAGE_SIZE = 10000;
+
+    private final AuxBalanceMapper auxBalanceMapper;
+    private final AccountSubjectService accountSubjectService;
 
     @Override
-    public IPage<FinanceAuxiliaryBalanceDTO> page(Long accountingPeriodId, Long subjectId, Long auxiliaryTypeId, Long auxiliaryItemId, Page<FinanceAuxiliaryBalanceDTO> page) {
-        LambdaQueryWrapper<FinanceAuxiliaryBalance> wrapper = new LambdaQueryWrapper<FinanceAuxiliaryBalance>()
-                .eq(FinanceAuxiliaryBalance::getTenantId, DEFAULT_TENANT_ID)
-                .eq(accountingPeriodId != null, FinanceAuxiliaryBalance::getAccountingPeriodId, accountingPeriodId)
-                .eq(subjectId != null, FinanceAuxiliaryBalance::getSubjectId, subjectId)
-                .eq(auxiliaryTypeId != null, FinanceAuxiliaryBalance::getAuxiliaryTypeId, auxiliaryTypeId)
-                .eq(auxiliaryItemId != null, FinanceAuxiliaryBalance::getAuxiliaryItemId, auxiliaryItemId)
-                .orderByAsc(FinanceAuxiliaryBalance::getAuxiliaryTypeId)
-                .orderByAsc(FinanceAuxiliaryBalance::getAuxiliaryItemId)
-                .orderByAsc(FinanceAuxiliaryBalance::getId);
-        Page<FinanceAuxiliaryBalance> entityPage = financeAuxiliaryBalanceMapper.selectPage(
-                new Page<>(page.getCurrent(), page.getSize()), wrapper);
-        return entityPage.convert(this::toDTO);
+    public AuxBalancePageDTO page(AuxBalanceQuery query) {
+        AuxBalanceQuery q = query != null ? query : new AuxBalanceQuery();
+        normalize(q);
+
+        AuxBalancePageDTO result = new AuxBalancePageDTO();
+        long total = auxBalanceMapper.countRows(q);
+        result.setTotal(total);
+        if (total > 0) {
+            result.setRecords(auxBalanceMapper.selectRows(q));
+        }
+        AuxBalanceSummaryDTO summary = auxBalanceMapper.selectSummary(q);
+        result.setSummary(summary != null ? summary : new AuxBalanceSummaryDTO());
+        return result;
     }
 
-    private FinanceAuxiliaryBalanceDTO toDTO(FinanceAuxiliaryBalance entity) {
-        FinanceAuxiliaryBalanceDTO dto = new FinanceAuxiliaryBalanceDTO();
-        dto.setId(entity.getId());
-        dto.setAccountingPeriodId(entity.getAccountingPeriodId());
-        dto.setSubjectId(entity.getSubjectId());
-        dto.setAuxiliaryTypeId(entity.getAuxiliaryTypeId());
-        dto.setAuxiliaryItemId(entity.getAuxiliaryItemId());
-        dto.setBeginDebit(entity.getBeginDebit());
-        dto.setBeginCredit(entity.getBeginCredit());
-        dto.setPeriodDebit(entity.getPeriodDebit());
-        dto.setPeriodCredit(entity.getPeriodCredit());
-        dto.setEndDebit(entity.getEndDebit());
-        dto.setEndCredit(entity.getEndCredit());
-        dto.setYearDebit(entity.getYearDebit());
-        dto.setYearCredit(entity.getYearCredit());
-        dto.setCreateTime(entity.getCreateTime());
-        dto.setUpdateTime(entity.getUpdateTime());
+    /** 归一化查询条件：会计月区间、科目范围、核算项类型、分页参数 */
+    private void normalize(AuxBalanceQuery q) {
+        YearMonth end = parseMonth(q.getEndMonth(), "会计月(止)");
+        if (end == null) {
+            end = YearMonth.now();
+        }
+        YearMonth start = parseMonth(q.getStartMonth(), "会计月(起)");
+        if (start == null) {
+            start = end;
+        }
+        if (start.isAfter(end)) {
+            throw BusinessException.badRequest("会计月(起)不能晚于会计月(止)");
+        }
+        q.setStartMonth(start.toString());
+        q.setEndMonth(end.toString());
+        q.setStartPeriodKey(start.getYear() * 100 + start.getMonthValue());
+        q.setEndPeriodKey(end.getYear() * 100 + end.getMonthValue());
+        q.setEndFiscalYear(end.getYear());
+        q.setEndFiscalMonth(end.getMonthValue());
 
-        // 查询辅助核算类型名称
-        if (entity.getAuxiliaryTypeId() != null) {
-            FinanceAuxiliaryType type = financeAuxiliaryTypeMapper.selectById(entity.getAuxiliaryTypeId());
-            if (type != null) {
-                dto.setAuxiliaryTypeName(type.getTypeName());
-            }
+        // 科目范围：指定科目编码直接使用；指定科目ID展开为「本级 + 全部下级」
+        if (StringUtils.hasText(q.getSubjectCode())) {
+            q.setSubjectCodes(List.of(q.getSubjectCode().trim()));
+        } else if (q.getSubjectId() != null) {
+            q.setSubjectCodes(accountSubjectService.collectCodeWithDescendants(q.getSubjectId()));
+        } else {
+            q.setSubjectCodes(List.of());
         }
 
-        // 查询辅助核算项目名称
-        if (entity.getAuxiliaryItemId() != null) {
-            FinanceAuxiliaryItem item = financeAuxiliaryItemMapper.selectById(entity.getAuxiliaryItemId());
-            if (item != null) {
-                dto.setAuxiliaryItemName(item.getItemName());
-            }
-        }
+        String auxType = StringUtils.hasText(q.getAuxType()) ? q.getAuxType().trim().toUpperCase() : "PARTNER";
+        q.setAuxType(AUX_TYPES.contains(auxType) ? auxType : "PARTNER");
 
-        return dto;
+        q.setHideNoPeriodAmount(Boolean.TRUE.equals(q.getHideNoPeriodAmount()));
+        q.setHideZeroBalance(Boolean.TRUE.equals(q.getHideZeroBalance()));
+        q.setPageNum(q.getPageNum() != null && q.getPageNum() > 0 ? q.getPageNum() : 1);
+        int size = q.getPageSize() != null && q.getPageSize() > 0 ? q.getPageSize() : DEFAULT_PAGE_SIZE;
+        q.setPageSize(Math.min(size, MAX_PAGE_SIZE));
+    }
+
+    /** 解析 yyyy-MM；为空返回 null（由调用方取默认值） */
+    private YearMonth parseMonth(String value, String label) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        try {
+            return YearMonth.parse(value.trim());
+        } catch (DateTimeParseException e) {
+            throw BusinessException.badRequest(label + "格式应为 yyyy-MM，实际为: " + value);
+        }
     }
 }

@@ -1,114 +1,144 @@
 <template>
-  <ErrorBoundary>
-    <PageContainer title="总账月结">
-      <!-- ═══ 期间选择 + 操作区 ═══ -->
-      <div class="section-card">
-        <a-form layout="inline">
-          <a-form-item label="会计期间">
-            <a-select
-              v-model:value="selectedPeriod"
-              :options="periodOptions"
-              :loading="periodsLoading"
-              placeholder="请选择会计期间"
-              style="width: 220px"
-              @change="handlePeriodChange"
-            />
-          </a-form-item>
-          <a-form-item>
-            <a-space>
-              <a-button
-                type="primary"
-                :loading="executing"
-                :disabled="!selectedPeriod || statusInfo.status === 0"
-                @click="handleExecute"
-              >
-                <template #icon>
-                  <AuditOutlined />
-                </template>执行月结检查
-              </a-button>
-              <a-popconfirm
-                title="确认反月结？"
-                :description="`期间 ${selectedPeriod} 将重新开启，可继续录入/过账凭证`"
-                ok-text="反月结"
-                cancel-text="取消"
-                @confirm="handleReopen"
-              >
-                <a-button
-                  danger
-                  :loading="reopening"
-                  :disabled="!selectedPeriod || statusInfo.status !== 0"
-                >
-                  <template #icon>
-                    <RollbackOutlined />
-                  </template>反月结
-                </a-button>
-              </a-popconfirm>
-            </a-space>
-          </a-form-item>
-        </a-form>
-      </div>
-
-      <!-- ═══ 期间状态卡 ═══ -->
-      <div class="section-card">
-        <div class="section-title">
-          期间状态
-        </div>
-        <a-skeleton
-          v-if="statusLoading"
-          active
-          :paragraph="{ rows: 1 }"
-        />
-        <a-empty
-          v-else-if="!selectedPeriod"
-          description="请选择会计期间"
-          style="padding: 24px 0"
-        />
-        <a-empty
-          v-else-if="statusInfo.exists === false"
-          :description="`期间 ${selectedPeriod} 不存在，请先在「设置 > 会计期间」中新增`"
-          style="padding: 24px 0"
-        />
-        <a-descriptions
-          v-else
-          :column="{ xs: 1, sm: 2, md: 3 }"
-          size="small"
-        >
-          <a-descriptions-item label="期间编码">
-            {{ statusInfo.periodCode || selectedPeriod }}
-          </a-descriptions-item>
-          <a-descriptions-item label="状态">
-            <a-tag :color="statusInfo.status === 1 ? 'green' : 'default'">
-              {{ statusInfo.status === 1 ? '开启' : '关闭（已月结）' }}
-            </a-tag>
-          </a-descriptions-item>
-          <a-descriptions-item label="起止日期">
-            {{ statusInfo.startDate || '-' }} 至 {{ statusInfo.endDate || '-' }}
-          </a-descriptions-item>
-          <a-descriptions-item label="月结操作人">
-            {{ statusInfo.closedBy || '-' }}
-          </a-descriptions-item>
-          <a-descriptions-item label="月结时间">
-            {{ statusInfo.closedTime || '-' }}
-          </a-descriptions-item>
-        </a-descriptions>
-      </div>
-
-      <!-- ═══ 月结检查结果 ═══ -->
-      <div
-        v-if="closingResult"
-        class="section-card"
+  <ErrorBoundary @error="handleError">
+    <PageContainer full-height>
+      <CategoryListLayout
+        :tabs="[]"
+        :show-category-panel="false"
+        :show-table-footer="false"
       >
-        <div class="section-title">
-          检查结果
-        </div>
+        <!-- ═══ 工具栏右侧：月结 / 批量月结 / 反月结 / 刷新（列配置齿轮在表头 rowNo 右上角） ═══ -->
+        <template #toolbar-right>
+          <a-space :size="8">
+            <a-button
+              size="small"
+              type="primary"
+              :loading="executing"
+              @click="handleClose"
+            >
+              <CheckCircleOutlined /> 月结
+            </a-button>
+            <a-button
+              size="small"
+              :loading="batchLoading"
+              @click="handleBatchClose"
+            >
+              <AuditOutlined /> 批量月结
+            </a-button>
+            <a-button
+              size="small"
+              danger
+              :loading="reopening"
+              @click="handleBatchReopen"
+            >
+              <RollbackOutlined /> 反月结
+            </a-button>
+            <a-button size="small" @click="handleRefresh">
+              <ReloadOutlined /> 刷新
+            </a-button>
+          </a-space>
+        </template>
+
+        <!-- ═══ 查询区：会计年 / 状态 ═══ -->
+        <template #search-fields>
+          <div class="search-area">
+            <div class="search-row">
+              <div class="search-item">
+                <span class="search-label">会计年</span>
+                <a-select
+                  v-model:value="searchParams.periodYear"
+                  style="width: 110px"
+                  size="small"
+                  allow-clear
+                  placeholder="全部"
+                  @change="handleSearch"
+                >
+                  <a-select-option :value="undefined">全部</a-select-option>
+                  <a-select-option
+                    v-for="y in yearOptions"
+                    :key="y"
+                    :value="y"
+                  >{{ y }}年</a-select-option>
+                </a-select>
+              </div>
+              <div class="search-item">
+                <span class="search-label">状态</span>
+                <a-select
+                  v-model:value="searchParams.status"
+                  style="width: 110px"
+                  size="small"
+                  allow-clear
+                  placeholder="全部"
+                  @change="handleSearch"
+                >
+                  <a-select-option :value="undefined">全部</a-select-option>
+                  <a-select-option :value="1">未结账</a-select-option>
+                  <a-select-option :value="0">已结账</a-select-option>
+                </a-select>
+              </div>
+              <div class="search-item">
+                <a-button type="primary" size="small" @click="handleSearch">查询</a-button>
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <!-- ═══ 表格（5 列 + checkbox + 行操作，列配置齿轮在 rowNo 表头） ═══ -->
+        <template #table>
+          <div class="table-area">
+            <BillTableList
+              :columns="columns"
+              :data-source="tableData"
+              :loading="loading"
+              :pagination="pagination"
+              :show-toolbar="false"
+              :show-search="false"
+              :show-add="false"
+              :show-export="false"
+              :show-batch-delete="false"
+              :selectable="true"
+              storage-key="finance-month-closing-columns"
+              row-key="id"
+              @page-change="handlePageChange"
+              @selection-change="handleSelectionChange"
+            >
+              <template #statusCell="{ record }">
+                <a-tag :color="record.status === 1 ? 'default' : 'green'">
+                  {{ record.status === 1 ? '未结账' : '已结账' }}
+                </a-tag>
+              </template>
+              <template #actionCell="{ record }">
+                <template v-if="record.status === 1">
+                  <a-button type="link" size="small" @click="handleCloseRow(record)">月结</a-button>
+                </template>
+                <template v-else>
+                  <a-button type="link" size="small" danger @click="handleReopenRow(record)">反月结</a-button>
+                </template>
+              </template>
+            </BillTableList>
+          </div>
+        </template>
+      </CategoryListLayout>
+
+      <!-- ═══ 月结检查结果弹窗 ═══ -->
+      <a-modal v-model:open="resultModalOpen" title="月结检查结果" :width="620" :footer="null">
         <a-alert
-          :type="closingResult.success ? 'success' : 'error'"
-          :message="closingResult.message"
+          v-if="lastResult"
+          :type="lastResult.success ? 'success' : 'error'"
+          :message="lastResult.message"
           show-icon
           class="result-alert"
         />
+        <template
+          v-if="lastResult && lastResult.carryOverVoucherNo"
+        >
+          <a-descriptions size="small" :column="1" class="carry-desc">
+            <a-descriptions-item label="结转凭证">
+              <a-tag color="blue">{{ lastResult.carryOverVoucherNo }}</a-tag>
+            </a-descriptions-item>
+          </a-descriptions>
+        </template>
         <div
-          v-for="check in closingResult.checks || []"
+          v-for="check in (lastResult?.checks || [])"
           :key="check.checkCode"
           class="check-item"
         >
@@ -118,209 +148,130 @@
           <span class="check-name">{{ check.checkName }}</span>
           <span class="check-detail">{{ check.detail || '-' }}</span>
         </div>
-      </div>
-
-      <!-- ═══ 月结日志 ═══ -->
-      <div class="section-card">
-        <div class="section-title">
-          月结日志
-          <a-button
-            size="small"
-            class="reload-btn"
-            @click="loadLogs"
-          >
-            <template #icon>
-              <ReloadOutlined />
-            </template>刷新
-          </a-button>
-        </div>
-        <a-table
-          :columns="logColumns"
-          :data-source="logs"
-          :loading="logsLoading"
-          :pagination="logPagination"
-          row-key="id"
-          size="small"
-          :locale="{ emptyText: '暂无月结日志' }"
-          @change="handleLogTableChange"
-        >
-          <template #bodyCell="{ column, record, text }">
-            <template v-if="column.dataIndex === 'action'">
-              <a-tag :color="text === 'close' ? 'green' : 'orange'">
-                {{ text === 'close' ? '月结' : '反月结' }}
-              </a-tag>
-            </template>
-            <template v-else-if="column.dataIndex === 'checkResult'">
-              <template v-if="parseCheckPassed(text) !== null">
-                <a-tag :color="parseCheckPassed(text) ? 'green' : 'red'">
-                  {{ parseCheckPassed(text) ? '检查通过' : '检查未通过' }}
-                </a-tag>
-              </template>
-              <span v-else>-</span>
-            </template>
-            <template v-else-if="column.dataIndex === 'operatorName'">
-              {{ record.operatorName || record.operatorId || '-' }}
-            </template>
-          </template>
-        </a-table>
-      </div>
+      </a-modal>
     </PageContainer>
   </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive, onMounted } from 'vue'
-import dayjs from 'dayjs'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
-import { ReloadOutlined, AuditOutlined, RollbackOutlined } from '@ant-design/icons-vue'
+import {
+  CheckCircleOutlined,
+  RollbackOutlined,
+  ReloadOutlined,
+  AuditOutlined,
+} from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
-import {
-  accountingPeriodApi,
-  monthClosingApi,
-  type AccountingPeriod,
-  type MonthClosingResult,
-  type MonthClosingLog
-} from '@/api/finance'
+import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayout.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
+import { accountingPeriodApi, monthClosingApi, type MonthClosingResult } from '@/api/finance'
 
-// ═══ 期间下拉 ═══
-const periods = ref<AccountingPeriod[]>([])
-const periodsLoading = ref(false)
-const selectedPeriod = ref<string>()
+// ═══ 状态 ═══
+const loading = ref(false)
+const tableData = ref<any[]>([])
+const yearOptions = ref<number[]>([new Date().getFullYear()])
 
-const periodOptions = computed(() =>
-  periods.value.map(p => ({
-    label: `${p.periodCode}（${p.status === 1 ? '开启' : '已关闭'}）`,
-    value: p.periodCode
-  }))
-)
-
-// ═══ 期间状态 ═══
-const statusInfo = ref<Record<string, any>>({})
-const statusLoading = ref(false)
-
-// ═══ 月结执行/反月结 ═══
+// ═══ 操作状态 ═══
 const executing = ref(false)
+const batchLoading = ref(false)
 const reopening = ref(false)
-const closingResult = ref<MonthClosingResult | null>(null)
 
-// ═══ 月结日志 ═══
-const logs = ref<MonthClosingLog[]>([])
-const logsLoading = ref(false)
-const logPage = reactive({ current: 1, pageSize: 20, total: 0 })
+// ═══ 搜索参数 ═══
+const searchParams = reactive<Record<string, any>>({
+  periodYear: undefined,
+  status: undefined,
+})
 
-const logColumns: any[] = [
-  { title: '期间编码', dataIndex: 'periodCode', key: 'periodCode', width: 110 },
-  { title: '操作类型', dataIndex: 'action', key: 'action', width: 100 },
-  { title: '检查结果', dataIndex: 'checkResult', key: 'checkResult', width: 110 },
-  { title: '操作人', dataIndex: 'operatorName', key: 'operatorName', width: 120 },
-  { title: '操作时间', dataIndex: 'createTime', key: 'createTime', width: 180 }
+// ═══ 分页 ═══
+const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
+
+// ═══ 勾选结果 ═══
+const selectedRows = ref<any[]>([])
+
+// ═══ 月结结果弹窗 ═══
+const resultModalOpen = ref(false)
+const lastResult = ref<MonthClosingResult | null>(null)
+
+// ═══ 列定义（rowNo 首列内置【列配置】齿轮；操作列锁定不进配置） ═══
+const columns: any[] = [
+  { title: '', key: 'rowCheckbox', type: 'checkbox', width: 44, fixed: 'left' },
+  { title: '', key: 'rowNo', type: 'rowNo', width: 44, fixed: 'left' },
+  { title: '会计年', field: 'periodYear', key: 'periodYear', width: 90, align: 'center' },
+  { title: '会计月', field: 'periodMonth', key: 'periodMonth', width: 90, align: 'center' },
+  { title: '开始日期', field: 'startDate', key: 'startDate', width: 130 },
+  { title: '结束日期', field: 'endDate', key: 'endDate', width: 130 },
+  { title: '状态', field: 'status', key: 'status', width: 110, align: 'center', type: 'slot', slotName: 'statusCell' },
+  { title: '操作', key: 'action', type: 'action', width: 120, fixed: 'right', slotName: 'actionCell' },
 ]
 
-const logPagination = computed(() => ({
-  current: logPage.current,
-  pageSize: logPage.pageSize,
-  total: logPage.total,
-  showSizeChanger: true,
-  showTotal: (t: number) => `共 ${t} 条`
-}))
-
-/** 解析日志中的检查结果快照（JSON字符串），失败/为空返回 null */
-function parseCheckPassed(json?: string): boolean | null {
-  if (!json) return null
-  try {
-    const obj = JSON.parse(json)
-    return typeof obj?.passed === 'boolean' ? obj.passed : null
-  } catch {
-    return null
-  }
-}
-
 // ═══ 数据加载 ═══
-async function loadPeriods() {
-  periodsLoading.value = true
+async function fetchData() {
+  loading.value = true
   try {
-    const res = await accountingPeriodApi.getList()
-    periods.value = Array.isArray(res) ? res : []
-    // 默认选中当前月所在期间，无则选最新期间（列表按期间编码升序）
-    if (periods.value.length && !selectedPeriod.value) {
-      const currentCode = dayjs().format('YYYY-MM')
-      const hit = periods.value.find(p => p.periodCode === currentCode)
-      selectedPeriod.value = (hit || periods.value[periods.value.length - 1]).periodCode
+    const params: Record<string, any> = { page: pagination.current, size: pagination.pageSize }
+    if (searchParams.periodYear !== undefined && searchParams.periodYear !== null && searchParams.periodYear !== '') {
+      params.periodYear = searchParams.periodYear
     }
-  } catch (e) {
-    periods.value = []
-    console.warn('[月结] 会计期间列表获取失败', e)
-  } finally {
-    periodsLoading.value = false
-  }
-}
+    if (searchParams.status !== undefined && searchParams.status !== null && searchParams.status !== '') {
+      params.status = searchParams.status
+    }
+    const res: any = await accountingPeriodApi.getPage(params)
+    tableData.value = res?.records || []
+    pagination.total = Number(res?.total) || 0
 
-async function loadStatus() {
-  if (!selectedPeriod.value) {
-    statusInfo.value = {}
-    return
-  }
-  statusLoading.value = true
-  try {
-    const res = await monthClosingApi.getStatus(selectedPeriod.value)
-    statusInfo.value = res && typeof res === 'object' ? res : {}
-  } catch (e) {
-    statusInfo.value = {}
-    console.warn('[月结] 期间状态获取失败', e)
-  } finally {
-    statusLoading.value = false
-  }
-}
-
-async function loadLogs() {
-  logsLoading.value = true
-  try {
-    const res: any = await monthClosingApi.getLogsPage({
-      periodCode: selectedPeriod.value || undefined,
-      page: logPage.current,
-      size: logPage.pageSize
+    // 动态收集年份选项
+    const years = new Set<number>(yearOptions.value)
+    tableData.value.forEach((r: any) => {
+      if (r.periodYear) years.add(Number(r.periodYear))
     })
-    logs.value = res?.records || []
-    logPage.total = Number(res?.total) || 0
-  } catch (e) {
-    logs.value = []
-    logPage.total = 0
-    console.warn('[月结] 月结日志获取失败', e)
+    yearOptions.value = Array.from(years).sort((a, b) => b - a)
+  } catch (error: any) {
+    console.warn('[月结] 获取期间列表失败', error)
+    message.error(error?.response?.data?.message || '获取数据失败')
   } finally {
-    logsLoading.value = false
+    loading.value = false
   }
 }
 
-function handlePeriodChange() {
-  closingResult.value = null
-  logPage.current = 1
-  loadStatus()
-  loadLogs()
+// ═══ 事件处理 ═══
+function handleSearch() {
+  pagination.current = 1
+  fetchData()
+}
+function handleRefresh() {
+  fetchData()
+}
+function handlePageChange(page: number, pageSize: number) {
+  pagination.current = page
+  pagination.pageSize = pageSize
+  fetchData()
+}
+function handleSelectionChange(rows: any[]) {
+  selectedRows.value = rows
 }
 
-function handleLogTableChange(pag: { current?: number; pageSize?: number }) {
-  logPage.current = pag.current || 1
-  logPage.pageSize = pag.pageSize || 20
-  loadLogs()
+// ═══ 月结 ═══
+async function doClose(periodCode: string) {
+  const res = await monthClosingApi.execute(periodCode)
+  lastResult.value = res
+  resultModalOpen.value = true
+  if (res?.success) {
+    message.success(res.message || '月结成功，期间已关闭')
+  } else {
+    message.warning(res?.message || '月结检查未通过，期间未关闭')
+  }
+  fetchData()
+  return res
 }
 
-// ═══ 月结操作 ═══
-async function handleExecute() {
-  if (!selectedPeriod.value) return
+/** 行级月结（未结账期间） */
+async function handleCloseRow(record: any) {
+  if (executing.value) return
   executing.value = true
-  closingResult.value = null
   try {
-    const res = await monthClosingApi.execute(selectedPeriod.value)
-    closingResult.value = res
-    if (res?.success) {
-      message.success(res.message || '月结成功，期间已关闭')
-    } else {
-      message.warning(res?.message || '月结检查未通过，期间未关闭')
-    }
-    loadStatus()
-    loadLogs()
-    loadPeriods()
+    await doClose(record.periodCode)
   } catch (e) {
     console.warn('[月结] 执行月结失败', e)
   } finally {
@@ -328,16 +279,78 @@ async function handleExecute() {
   }
 }
 
-async function handleReopen() {
-  if (!selectedPeriod.value) return
+/** 顶部【月结】：对勾选的未结账期间逐个执行 */
+async function handleClose() {
+  const targets = selectedRows.value.filter(r => r.status === 1)
+  if (targets.length === 0) {
+    message.warning('请勾选未结账的会计期间')
+    return
+  }
+  if (executing.value) return
+  executing.value = true
+  try {
+    let last: MonthClosingResult | null = null
+    for (const r of targets) {
+      last = await doClose(r.periodCode)
+    }
+    if (last) {
+      lastResult.value = last
+      resultModalOpen.value = false
+    }
+  } catch (e) {
+    console.warn('[月结] 执行月结失败', e)
+  } finally {
+    executing.value = false
+  }
+}
+
+/** 顶部【批量月结】：后端批量执行 */
+async function handleBatchClose() {
+  const targets = selectedRows.value.filter(r => r.status === 1)
+  if (targets.length === 0) {
+    message.warning('请勾选未结账的会计期间')
+    return
+  }
+  if (batchLoading.value) return
+  batchLoading.value = true
+  try {
+    const codes = targets.map(r => r.periodCode)
+    const res = await monthClosingApi.batchExecute(codes)
+    const failed = (res || []).filter(r => !r.success)
+    const successCount = (res || []).filter(r => r.success).length
+    if (failed.length === 0) {
+      message.success(`批量月结成功，共 ${successCount} 个期间`)
+    } else {
+      message.warning(`批量月结完成：成功 ${successCount} 个，失败 ${failed.length} 个`)
+    }
+    // 展示最后一个检查结果
+    lastResult.value = (res || []).find(r => r.success) || (res || []).find(r => !r.success) || null
+    resultModalOpen.value = true
+    fetchData()
+  } catch (e: any) {
+    console.warn('[月结] 批量月结失败', e)
+    message.error(e?.response?.data?.message || '批量月结失败')
+  } finally {
+    batchLoading.value = false
+  }
+}
+
+// ═══ 反月结 ═══
+async function doReopen(periodCode: string) {
+  const res = await monthClosingApi.reopen(periodCode)
+  message.success(res?.message || '反月结成功，期间已重新开启')
+  lastResult.value = null
+  resultModalOpen.value = false
+  fetchData()
+  return res
+}
+
+/** 行级反月结（已结账期间） */
+async function handleReopenRow(record: any) {
+  if (reopening.value) return
   reopening.value = true
   try {
-    const res = await monthClosingApi.reopen(selectedPeriod.value)
-    message.success(res?.message || '反月结成功，期间已重新开启')
-    closingResult.value = null
-    loadStatus()
-    loadLogs()
-    loadPeriods()
+    await doReopen(record.periodCode)
   } catch (e) {
     console.warn('[月结] 反月结失败', e)
   } finally {
@@ -345,30 +358,75 @@ async function handleReopen() {
   }
 }
 
-onMounted(async () => {
-  await loadPeriods()
-  loadStatus()
-  loadLogs()
+/** 顶部【反月结】：对勾选的已结账期间逐个重新开启 */
+async function handleBatchReopen() {
+  const targets = selectedRows.value.filter(r => r.status === 0)
+  if (targets.length === 0) {
+    message.warning('请勾选已结账的会计期间')
+    return
+  }
+  if (reopening.value) return
+  reopening.value = true
+  try {
+    for (const r of targets) {
+      await monthClosingApi.reopen(r.periodCode)
+    }
+    message.success(`反月结成功，共开启 ${targets.length} 个期间`)
+    fetchData()
+  } catch (e) {
+    console.warn('[月结] 反月结失败', e)
+  } finally {
+    reopening.value = false
+  }
+}
+
+function handleError(error: Error) {
+  console.error('[月结] 页面错误', error)
+  message.error(`页面错误: ${error.message}`)
+}
+
+// ═══ 初始化 ═══
+onMounted(() => {
+  fetchData()
 })
 </script>
 
 <style scoped>
-.section-card {
+.search-area {
+  padding: 8px 16px;
   background: #fff;
-  padding: 16px 20px;
-  border-radius: 8px;
-  margin-bottom: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border-bottom: 1px solid #e8e8e8;
+  flex-shrink: 0;
 }
-.section-title {
-  font-size: 15px;
-  font-weight: 600;
-  margin-bottom: 12px;
+.search-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
 }
-.reload-btn {
-  margin-left: 12px;
+.search-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.search-item :deep(.ant-input),
+.search-item :deep(.ant-select) {
+  font-size: 13px;
+}
+.search-label {
+  font-size: 13px;
+  color: #666;
+  white-space: nowrap;
+}
+.table-area {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 .result-alert {
+  margin-bottom: 12px;
+}
+.carry-desc {
   margin-bottom: 12px;
 }
 .check-item {
@@ -388,5 +446,13 @@ onMounted(async () => {
 .check-detail {
   color: #666;
   word-break: break-all;
+}
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
 }
 </style>

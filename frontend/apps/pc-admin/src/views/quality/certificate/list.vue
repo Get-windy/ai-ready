@@ -12,9 +12,6 @@
 
         <template #toolbar-right>
           <a-space :size="8">
-            <a-tooltip v-if="buttonEnabled('config')" title="列配置">
-              <a-button size="small" @click="showColumnConfig = true"><TableOutlined /></a-button>
-            </a-tooltip>
             <a-tooltip v-if="buttonEnabled('config')" title="页面配置">
               <a-button size="small" @click="showPageConfig = true"><SettingOutlined /></a-button>
             </a-tooltip>
@@ -67,7 +64,8 @@
         <template #table>
           <div class="table-area">
             <BillTableList
-              :columns="currentColumns"
+              :columns="columns"
+              :storage-key="'quality-certificate-table-columns'"
               :data-source="tableData"
               :loading="loading"
               :pagination="billPagination"
@@ -109,15 +107,6 @@
       </CategoryListLayout>
     </PageContainer>
 
-    <ColumnConfigPanel
-      :open="showColumnConfig"
-      :settings-columns="panelColumns"
-      :is-locked-column="isLockedColumn"
-      @update:open="showColumnConfig = $event"
-      @change="handleColumnConfigChange"
-      @reset="handleColumnConfigReset"
-      @drag-end="handleColumnConfigChange"
-    />
     <PageConfigPanel
       :open="showPageConfig"
       :query-fields-config="queryConfig"
@@ -231,14 +220,12 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import dayjs from 'dayjs'
 import type { Dayjs } from 'dayjs'
-import { PlusOutlined, ReloadOutlined, ExportOutlined, TableOutlined, SettingOutlined, DeleteOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, ReloadOutlined, ExportOutlined, SettingOutlined, DeleteOutlined } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayout.vue'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
-import ColumnConfigPanel from '@/components/ColumnConfigPanel/index.vue'
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
-import { useColumnConfig } from '@/composables/useColumnConfig'
 import { qualityCertificateApi } from '@/api/quality'
 
 defineOptions({ name: 'QualityCertificateList' })
@@ -247,7 +234,6 @@ defineOptions({ name: 'QualityCertificateList' })
 const modalVisible = ref(false)
 const editingId = ref<number | null>(null)
 const saving = ref(false)
-const showColumnConfig = ref(false)
 const showPageConfig = ref(false)
 const PAGE_CONFIG_STORAGE_KEY = 'quality-certificate-page-config'
 
@@ -345,8 +331,9 @@ function buttonEnabled(key: string) {
   return buttonConfig.value.find(b => b.key === key)?.enabled !== false
 }
 
-// ── 列配置 ──
+// ── 列定义（列配置走数据表表头齿轮） ──
 const columns: any[] = [
+  { title: '', key: 'rowNo', type: 'rowNo', width: 40, fixed: 'left' },
   { title: '证书编号', key: 'certificateNo', width: 180, sortable: true },
   { title: '证书类型', key: 'certificateType', width: 110, type: 'slot', slotName: 'certificateTypeCell' },
   { title: '产品名称', key: 'productName', width: 160, ellipsis: true },
@@ -361,12 +348,6 @@ const columns: any[] = [
   { title: '附件', key: 'certificateUrl', width: 90, type: 'slot', slotName: 'certificateUrlCell' },
   { title: '操作', key: 'action', width: 160, fixed: 'right', type: 'action', slotName: 'actionCell' },
 ]
-const columnDefs = computed(() => columns.map(c => ({ ...c })))
-const { onSettingChange, resetSettings, settingsColumns, visibleColumns, isLockedColumn } = useColumnConfig(columnDefs.value, 'quality-certificate-list-columns')
-const currentColumns = computed(() => visibleColumns.value)
-const panelColumns = computed(() => settingsColumns.value)
-function handleColumnConfigChange() { onSettingChange() }
-function handleColumnConfigReset() { resetSettings() }
 
 // ── 表单 ──
 const defaultForm = () => ({

@@ -80,11 +80,15 @@
           style="flex:1"
           @update:value="emitValue"
         />
-        <!-- display 模式：纯文本展示，不可编辑 -->
-        <span
+        <!-- display 模式：只读文本框（外观与其它字段一致，不可输入；无值时以标签/占位文本兜底，不再显示破折号） -->
+        <a-input
           v-else-if="type === 'display'"
-          class="label-view-text"
-        >{{ modelValue !== undefined && modelValue !== null && modelValue !== '' ? modelValue : '—' }}</span>
+          :value="modelValue !== undefined && modelValue !== null ? modelValue : ''"
+          :placeholder="placeholder || label"
+          disabled
+          size="small"
+          style="flex:1"
+        />
         <a-input
           v-else
           :value="modelValue"

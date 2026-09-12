@@ -68,6 +68,10 @@ public class BusinessAccountingServiceImpl implements BusinessAccountingService 
             item.setSourceType(request.getSourceType());
             item.setSourceId(request.getSourceId());
             item.setSourceNo(request.getSourceNo());
+            // 核算项：往来科目行带往来单位，费用科目行带部门/职员，供辅助核算余额表按核算项归集
+            item.setAuxUnit(reqItem.getAuxUnit());
+            item.setAuxDept(reqItem.getAuxDept());
+            item.setAuxStaff(reqItem.getAuxStaff());
             items.add(item);
         }
 

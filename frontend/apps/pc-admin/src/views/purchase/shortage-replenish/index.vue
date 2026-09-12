@@ -65,9 +65,6 @@
             <a-button size="small" @click="handleExport">
               <ExportOutlined /> 导出
             </a-button>
-            <a-button size="small" @click="showColumnConfig = true">
-              <TableOutlined />
-            </a-button>
           </a-space>
         </template>
 
@@ -197,7 +194,8 @@
         <!-- ═══ 数据表格 ═══ -->
         <template #table>
           <BillTableList
-            :columns="visibleColumns"
+            :columns="columns"
+            :storage-key="'purchase-shortage-replenish-table-columns'"
             :data-source="tableData"
             :loading="loading"
             :pagination="billPagination"
@@ -253,16 +251,6 @@
       @change="handlePageConfigChange"
     />
 
-    <!-- ═══ 列配置弹窗 ═══ -->
-    <ColumnConfigPanel
-      :open="showColumnConfig"
-      :settings-columns="settingsColumns"
-      :is-locked-column="isLockedColumn"
-      @update:open="showColumnConfig = $event"
-      @change="handleColumnConfigChange"
-      @reset="handleColumnConfigReset"
-      @drag-end="handleColumnConfigChange"
-    />
   </ErrorBoundary>
 </template>
 
@@ -272,7 +260,7 @@ import { useRouter } from 'vue-router'
 import dayjs, { type Dayjs } from 'dayjs'
 import { message } from 'ant-design-vue'
 import {
-  SearchOutlined, SettingOutlined, TableOutlined, PlusOutlined, PrinterOutlined,
+  SearchOutlined, SettingOutlined, PlusOutlined, PrinterOutlined,
   ExportOutlined, ReloadOutlined, ShoppingCartOutlined, PictureOutlined,
 } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
@@ -280,8 +268,6 @@ import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayout.vue'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
-import ColumnConfigPanel from '@/components/ColumnConfigPanel/index.vue'
-import { useColumnConfig, isLockedColumn } from '@/composables/useColumnConfig'
 import { stockReportApi, type ShortageReplenishItem } from '@/api/analytics'
 import { optionsApi } from '@/api/options'
 import request from '@/utils/request'
@@ -295,7 +281,6 @@ const handleError = (e: any) => console.warn('[缺货补货] ErrorBoundary:', e)
 const loading = ref(false)
 const tableData = ref<ShortageReplenishItem[]>([])
 const showPageConfig = ref(false)
-const showColumnConfig = ref(false)
 const queryScheme = ref('')
 const selectedRows = ref<ShortageReplenishItem[]>([])
 
@@ -363,6 +348,7 @@ function formatMoney(v: any): string {
 
 // ═══ 16列表格 ═══
 const columns = [
+  { title: '', key: 'rowNo', type: 'rowNo', width: 40, fixed: 'left' },
   { key: 'rowCheck', title: '', type: 'checkbox', width: 40, fixed: 'left' },
   { title: '图片', field: 'image', key: 'image', width: 60, type: 'slot', slotName: 'imageCell' },
   { title: '商品名称', field: 'productName', key: 'productName', width: 180, ellipsis: true },
@@ -381,17 +367,6 @@ const columns = [
   { title: '缺货数量', field: 'shortageQty', key: 'shortageQty', width: 100, align: 'right', formatter: formatQty },
   { title: '备注', field: 'remark', key: 'remark', width: 140 },
 ]
-
-const columnDefs = computed(() => columns.map(c => ({ ...c })))
-const {
-  visibleColumns,
-  settingsColumns,
-  onSettingChange,
-  resetSettings,
-} = useColumnConfig(columnDefs.value, 'purchase-shortage-replenish-list-columns')
-
-function handleColumnConfigChange() { onSettingChange() }
-function handleColumnConfigReset() { resetSettings() }
 
 // ═══ 页面配置 ═══
 const queryFieldsConfig = ref([
@@ -412,7 +387,6 @@ const functionButtonConfig = ref([
   { key: 'refresh', label: '刷新', enabled: true },
   { key: 'print', label: '打印(PDF)', enabled: true },
   { key: 'export', label: '导出', enabled: true },
-  { key: 'columnConfig', label: '列配置', enabled: true },
 ])
 
 function handlePageConfigChange() {

@@ -1,802 +1,737 @@
 <template>
-  <div class="form-page-wrapper">
-    <div class="page-header">
-      <a-space>
-        <a-button
-          type="text"
-          size="small"
-          @click="handleCancel"
-        >
-          <template #icon>
-            <ArrowLeftOutlined />
-          </template>
-          返回
-        </a-button>
-        <span class="page-title">其他往来单位新增</span>
-      </a-space>
-    </div>
-
-    <!-- 其他业务关系 -->
+  <div class="partner-form-page">
+    <!-- ═══ 顶部选项行：该单位的其他业务关系（多重身份） ═══ -->
     <div class="top-options">
-      <span style="font-size:13px;color:#595959;margin-right:16px">该往来单位还有其他业务关系：</span>
+      <span class="top-options-label">该单位还有其他业务关系：</span>
       <a-checkbox
-        v-for="opt in otherRoleOptions"
+        v-for="opt in roleOptions"
         :key="opt.value"
         v-model:checked="opt.checked"
-        style="margin-right:16px"
       >
         {{ opt.label }}
       </a-checkbox>
       <a-checkbox
         v-if="hasCustomerRole"
-        v-model:checked="enablePriceTrack"
-        style="margin-left:24px"
+        v-model:checked="form.priceTrackEnabled"
+        style="margin-left: 12px"
       >
         启用销售价格跟踪
       </a-checkbox>
     </div>
 
-    <div class="form-scroll-area">
+    <div class="form-body">
       <a-form
         ref="formRef"
         :model="form"
-        :rules="formRules"
-        layout="horizontal"
-        :label-col="{ span: 4 }"
-        :wrapper-col="{ span: 18 }"
+        :rules="rules"
+        layout="vertical"
+        :colon="false"
       >
-        <!-- 基本信息 -->
-        <div class="section-card">
-          <div class="section-title">
-            基本信息
-          </div>
-          <a-row
-            :gutter="24"
-            class="section-row"
-          >
-            <a-col :span="16">
-              <a-row :gutter="24">
-                <a-col :span="12">
-                  <a-form-item
-                    label="单位名称"
-                    name="partnerName"
-                  >
-                    <a-input
-                      v-model:value="form.partnerName"
-                      placeholder="请输入单位名称"
-                      size="small"
-                    />
-                  </a-form-item>
-                </a-col>
-                <a-col :span="12">
-                  <a-form-item label="单位编号">
-                    <a-input
-                      v-model:value="form.partnerCode"
-                      placeholder="由系统自动生成"
-                      size="small"
-                      disabled
-                    />
-                  </a-form-item>
-                </a-col>
-              </a-row>
-              <a-row :gutter="24">
-                <a-col :span="12">
-                  <a-form-item label="单位类别">
-                    <a-select
-                      v-model:value="form.partnerCategoryId"
-                      placeholder="请选择类别"
-                      allow-clear
-                      size="small"
-                    >
-                      <a-select-option
-                        v-for="c in categories"
-                        :key="c.id"
-                        :value="c.id"
-                      >
-                        {{ c.categoryName }}
-                      </a-select-option>
-                    </a-select>
-                  </a-form-item>
-                </a-col>
-                <a-col :span="12">
-                  <a-form-item
-                    label="单位级别"
-                    name="partnerGradeId"
-                  >
-                    <a-select
-                      v-model:value="form.partnerGradeId"
-                      placeholder="请选择级别"
-                      allow-clear
-                      size="small"
-                    >
-                      <a-select-option
-                        v-for="g in grades"
-                        :key="g.id"
-                        :value="g.id"
-                      >
-                        {{ g.gradeName }}
-                      </a-select-option>
-                    </a-select>
-                  </a-form-item>
-                </a-col>
-              </a-row>
-              <a-row :gutter="24">
-                <a-col :span="12">
-                  <a-form-item
-                    label="默认经手人"
-                    name="defaultHandlerId"
-                  >
-                    <a-select
-                      v-model:value="form.defaultHandlerId"
-                      placeholder="请选择经手人"
-                      allow-clear
-                      size="small"
-                      show-search
-                      :filter-option="filterUser"
-                    >
-                      <a-select-option
-                        v-for="u in users"
-                        :key="u.id"
-                        :value="u.id"
-                        :label="u.nickname || u.username"
-                      >
-                        {{ u.nickname || u.username }}
-                      </a-select-option>
-                    </a-select>
-                  </a-form-item>
-                </a-col>
-                <a-col :span="12">
-                  <a-form-item
-                    label="所属仓库"
-                    name="defaultWarehouseId"
-                  >
-                    <a-select
-                      v-model:value="form.defaultWarehouseId"
-                      placeholder="请选择仓库"
-                      allow-clear
-                      size="small"
-                    >
-                      <a-select-option
-                        v-for="w in warehouses"
-                        :key="w.id"
-                        :value="w.id"
-                      >
-                        {{ w.warehouseName }}
-                      </a-select-option>
-                    </a-select>
-                  </a-form-item>
-                </a-col>
-              </a-row>
-              <a-row :gutter="24">
-                <a-col :span="8">
-                  <a-form-item label="所在省">
-                    <a-input
-                      v-model:value="form.province"
-                      placeholder="省"
-                      size="small"
-                    />
-                  </a-form-item>
-                </a-col>
-                <a-col :span="8">
-                  <a-form-item label="所在市">
-                    <a-input
-                      v-model:value="form.city"
-                      placeholder="市"
-                      size="small"
-                    />
-                  </a-form-item>
-                </a-col>
-                <a-col :span="8">
-                  <a-form-item label="所在区/县">
-                    <a-input
-                      v-model:value="form.district"
-                      placeholder="区/县"
-                      size="small"
-                    />
-                  </a-form-item>
-                </a-col>
-              </a-row>
-              <a-row :gutter="24">
-                <a-col :span="8">
-                  <a-form-item label="助记码">
-                    <a-input
-                      v-model:value="form.partnerShortName"
-                      placeholder="输入拼音首字母等"
-                      size="small"
-                    />
-                  </a-form-item>
-                </a-col>
-                <a-col :span="8">
-                  <a-form-item label="结算方式">
-                    <a-select
-                      v-model:value="form.settleType"
-                      size="small"
-                    >
-                      <a-select-option value="MONTHLY">
-                        月结
-                      </a-select-option><a-select-option value="WEEKLY">
-                        周结
-                      </a-select-option><a-select-option value="CASH">
-                        现结
-                      </a-select-option><a-select-option value="ADVANCE">
-                        预付
-                      </a-select-option>
-                    </a-select>
-                  </a-form-item>
-                </a-col>
-                <a-col :span="8">
-                  <a-form-item label="税率(%)">
-                    <a-input-number
-                      v-model:value="form.taxRate"
-                      :precision="2"
-                      :min="0"
-                      :max="100"
-                      style="width:100%"
-                      size="small"
-                    />
-                  </a-form-item>
-                </a-col>
-              </a-row>
-              <a-row :gutter="24">
-                <a-col :span="8">
-                  <a-form-item label="状态">
-                    <a-switch
-                      v-model:checked="statusChecked"
-                      checked-children="启用"
-                      un-checked-children="停用"
-                      size="small"
-                    />
-                  </a-form-item>
-                </a-col>
-              </a-row>
-            </a-col>
-            <a-col
-              :span="8"
-              style="text-align:center"
-            >
-              <div class="avatar-upload">
-                <div
-                  class="avatar-placeholder"
-                  @click="avatarFileInput.click()"
-                >
-                  <img
-                    v-if="avatarUrl"
-                    :src="avatarUrl"
-                    class="avatar-preview"
-                  >
-                  <div
-                    v-else
-                    class="avatar-empty"
-                  >
-                    <UserOutlined style="font-size:48px;color:#d9d9d9" />
-                  </div>
-                </div>
-                <input
-                  ref="avatarFileInput"
-                  type="file"
-                  accept="image/*"
-                  hidden
-                  @change="(e)=>handleAvatarUpload(e)"
-                >
-                <a-button
+        <!-- ═══ 基础信息 ═══ -->
+        <section class="section">
+          <h4 class="section-title">
+            基础信息
+          </h4>
+          <a-row :gutter="24">
+            <a-col :span="8">
+              <a-form-item
+                label="单位名称"
+                name="partnerName"
+              >
+                <a-input
+                  v-model:value="form.partnerName"
+                  placeholder="请输入单位名称"
                   size="small"
-                  style="margin-top:8px"
-                  @click="avatarFileInput?.click()"
-                >
-                  上传
-                </a-button>
-              </div>
+                  allow-clear
+                />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item
+                label="单位编号"
+                name="partnerCode"
+              >
+                <a-input
+                  v-model:value="form.partnerCode"
+                  placeholder="由系统自动生成，可修改"
+                  size="small"
+                  allow-clear
+                />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item
+                label="单位类别"
+                name="partnerCategoryId"
+              >
+                <div class="category-picker">
+                  <a-tree-select
+                    v-model:value="form.partnerCategoryId"
+                    :tree-data="categoryTreeData"
+                    :field-names="{ children: 'children', label: 'categoryName', value: 'id' }"
+                    placeholder="如：银行 / 政府机构 / 劳务公司"
+                    size="small"
+                    allow-clear
+                    tree-default-expand-all
+                    style="flex: 1"
+                  />
+                  <a-button
+                    type="text"
+                    size="small"
+                    title="新增类别"
+                    @click="openCategoryModal"
+                  >
+                    <PlusOutlined />
+                  </a-button>
+                </div>
+              </a-form-item>
             </a-col>
           </a-row>
-        </div>
-
-        <!-- 联系人 -->
-        <div class="section-card">
-          <ContactList
-            :contacts="contacts"
-            :show-mall-account="showMallAccount"
-            @update="contacts = $event"
-          />
-        </div>
-
-        <!-- 工商信息 -->
-        <div class="section-card">
-          <div class="section-title">
-            工商信息
-          </div>
-          <a-row
-            :gutter="24"
-            class="section-row"
-          >
+          <a-row :gutter="24">
             <a-col :span="8">
+              <a-form-item label="助记码">
+                <a-input
+                  v-model:value="form.mnemonicCode"
+                  placeholder="请输入助记码"
+                  size="small"
+                  allow-clear
+                />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item label="状态">
+                <a-switch
+                  v-model:checked="statusChecked"
+                  checked-children="启用"
+                  un-checked-children="停用"
+                  size="small"
+                />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item label="备注">
+                <a-input
+                  v-model:value="form.remark"
+                  placeholder="请输入备注"
+                  size="small"
+                  allow-clear
+                />
+              </a-form-item>
+            </a-col>
+          </a-row>
+        </section>
+
+        <!-- ═══ 联系人 ═══ -->
+        <section class="section">
+          <h4 class="section-title">
+            联系人
+          </h4>
+          <a-row :gutter="24">
+            <a-col :span="8">
+              <a-form-item label="联系人">
+                <a-input
+                  v-model:value="form.contactPerson"
+                  placeholder="请输入联系人"
+                  size="small"
+                  allow-clear
+                />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item label="联系电话">
+                <a-input
+                  v-model:value="form.contactPhone"
+                  placeholder="请输入联系电话"
+                  size="small"
+                  allow-clear
+                />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item label="联系地址">
+                <a-input
+                  v-model:value="form.contactAddress"
+                  placeholder="请输入联系地址"
+                  size="small"
+                  allow-clear
+                />
+              </a-form-item>
+            </a-col>
+          </a-row>
+        </section>
+
+        <!-- ═══ 纳税人信息 ═══ -->
+        <section class="section">
+          <h4 class="section-title">
+            纳税人信息
+          </h4>
+          <a-row :gutter="24">
+            <a-col :span="12">
               <a-form-item label="公司全称">
                 <a-input
                   v-model:value="form.companyFullName"
                   placeholder="请输入公司全称"
                   size="small"
+                  allow-clear
                 />
               </a-form-item>
             </a-col>
-            <a-col :span="8">
-              <a-form-item label="统一信用代码">
+            <a-col :span="12">
+              <a-form-item label="税号">
                 <a-input
-                  v-model:value="form.unifiedSocialCode"
-                  placeholder="请输入统一信用代码"
-                  size="small"
-                />
-              </a-form-item>
-            </a-col>
-            <a-col :span="8">
-              <a-form-item label="纳税人识别号">
-                <a-input
-                  v-model:value="form.taxId"
+                  v-model:value="form.taxNumber"
                   placeholder="请输入纳税人识别号"
                   size="small"
+                  allow-clear
                 />
               </a-form-item>
             </a-col>
           </a-row>
-          <a-row
-            :gutter="24"
-            class="section-row"
-          >
-            <a-col :span="8">
-              <a-form-item label="法定代表人">
+          <a-row :gutter="24">
+            <a-col :span="12">
+              <a-form-item label="地址">
                 <a-input
-                  v-model:value="form.legalPerson"
-                  placeholder="请输入法定代表人"
+                  v-model:value="form.taxAddress"
+                  placeholder="请输入纳税人地址"
                   size="small"
+                  allow-clear
                 />
               </a-form-item>
             </a-col>
-            <a-col :span="8">
-              <a-form-item label="公司电话">
+            <a-col :span="12">
+              <a-form-item label="开户行">
                 <a-input
-                  v-model:value="form.companyPhone"
-                  placeholder="请输入公司电话"
+                  v-model:value="form.bankName"
+                  placeholder="请输入开户行"
                   size="small"
-                />
-              </a-form-item>
-            </a-col>
-            <a-col :span="8">
-              <a-form-item label="公司邮箱">
-                <a-input
-                  v-model:value="form.companyEmail"
-                  placeholder="请输入公司邮箱"
-                  size="small"
+                  allow-clear
                 />
               </a-form-item>
             </a-col>
           </a-row>
-          <a-row
-            :gutter="24"
-            class="section-row"
-          >
-            <a-col :span="8">
-              <a-form-item label="单位地址">
-                <a-input
-                  v-model:value="form.detailAddress"
-                  placeholder="请输入单位地址"
-                  size="small"
-                />
-              </a-form-item>
-            </a-col>
-            <a-col :span="8">
-              <a-form-item label="单位网址">
-                <a-input
-                  v-model:value="companyWebsite"
-                  placeholder="请输入网址"
-                  size="small"
-                />
-              </a-form-item>
-            </a-col>
-            <a-col :span="8">
-              <a-form-item label="所属行业">
-                <a-input
-                  v-model:value="form.industry"
-                  placeholder="请输入所属行业"
-                  size="small"
-                />
-              </a-form-item>
-            </a-col>
-          </a-row>
-          <a-row
-            :gutter="24"
-            class="section-row"
-          >
-            <a-col :span="8">
-              <a-form-item label="开户银行">
-                <a-input
-                  v-model:value="bankName"
-                  placeholder="请输入开户银行"
-                  size="small"
-                />
-              </a-form-item>
-            </a-col>
-            <a-col :span="8">
+          <a-row :gutter="24">
+            <a-col :span="12">
               <a-form-item label="银行账号">
                 <a-input
-                  v-model:value="bankAccount"
+                  v-model:value="form.bankAccount"
                   placeholder="请输入银行账号"
                   size="small"
+                  allow-clear
                 />
               </a-form-item>
             </a-col>
           </a-row>
-        </div>
+        </section>
 
-        <!-- 期初信息 -->
-        <div class="section-card">
-          <div class="section-title">
+        <!-- ═══ 期初信息 ═══ -->
+        <section class="section">
+          <h4 class="section-title">
             期初信息
-          </div>
-          <a-row
-            :gutter="24"
-            class="section-row"
-          >
+          </h4>
+          <a-row :gutter="24">
             <a-col :span="8">
               <a-form-item label="期初应收金额">
                 <a-input-number
-                  v-model:value="openingBalance"
+                  v-model:value="form.openingReceivable"
                   :precision="2"
                   :min="0"
-                  style="width:100%"
+                  style="width: 100%"
                   size="small"
-                  placeholder="0"
                 />
               </a-form-item>
             </a-col>
             <a-col :span="8">
               <a-form-item label="期初应付金额">
                 <a-input-number
-                  v-model:value="openingPayable"
+                  v-model:value="form.openingPayable"
                   :precision="2"
                   :min="0"
-                  style="width:100%"
+                  style="width: 100%"
                   size="small"
-                  placeholder="0"
                 />
               </a-form-item>
             </a-col>
           </a-row>
-        </div>
+        </section>
 
-        <!-- 其他信息 -->
-        <div class="section-card">
-          <div
-            class="section-title"
-            style="cursor:pointer"
-            @click="otherInfoCollapsed=!otherInfoCollapsed"
-          >
+        <!-- ═══ 其他信息 ═══ -->
+        <section class="section">
+          <h4 class="section-title">
             其他信息
-            <span style="margin-left:8px;font-weight:400;color:#bfbfbf;font-size:13px">
-              {{ otherInfoCollapsed?'点击展开':'点击收起' }}
-              <CaretDownOutlined
-                v-if="!otherInfoCollapsed"
-                style="margin-left:4px"
-              />
-              <CaretRightOutlined
-                v-else
-                style="margin-left:4px"
-              />
-            </span>
-          </div>
-          <a-row
-            v-if="!otherInfoCollapsed"
-            :gutter="24"
-            class="section-row"
-          >
-            <a-col :span="24">
-              <a-form-item label="备注">
-                <a-textarea
-                  v-model:value="form.remark"
-                  placeholder="请输入备注"
-                  :rows="2"
+          </h4>
+          <a-row :gutter="24">
+            <a-col :span="8">
+              <a-form-item label="默认经手人">
+                <a-select
+                  v-model:value="form.defaultHandlerId"
+                  placeholder="请选择经手人"
+                  allow-clear
+                  show-search
                   size="small"
-                />
+                  :filter-option="filterUser"
+                >
+                  <a-select-option
+                    v-for="u in users"
+                    :key="u.id"
+                    :value="u.id"
+                    :label="u.nickname || u.username"
+                  >
+                    {{ u.nickname || u.username }}
+                  </a-select-option>
+                </a-select>
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item label="结款方式">
+                <a-select
+                  v-model:value="form.settleType"
+                  size="small"
+                >
+                  <a-select-option value="挂账">
+                    挂账
+                  </a-select-option>
+                  <a-select-option value="现结">
+                    现结
+                  </a-select-option>
+                </a-select>
               </a-form-item>
             </a-col>
           </a-row>
-        </div>
+        </section>
 
-        <!-- 证件信息 -->
-        <div class="section-card">
-          <div class="section-title">
-            证件信息
-          </div>
-          <a-row
-            :gutter="24"
-            class="section-row"
-          >
-            <a-col :span="8">
-              <div class="cert-upload">
-                <div
-                  class="cert-placeholder"
-                  @click="certFileInput1.click()"
-                >
-                  <img
-                    v-if="certLicenseUrl"
-                    :src="certLicenseUrl"
-                    class="cert-preview"
-                  >
-                  <div
-                    v-else
-                    class="cert-empty"
-                  >
-                    <PictureOutlined style="font-size:32px;color:#d9d9d9" /><span>点击上传图片</span>
-                  </div>
-                </div>
-                <input
-                  ref="certFileInput1"
-                  type="file"
-                  accept="image/*"
-                  hidden
-                  @change="(e)=>handleCertUpload(e,'license')"
-                >
-                <div class="cert-label">
-                  营业执照
-                </div>
-              </div>
-            </a-col>
-            <a-col :span="8">
-              <div class="cert-upload">
-                <div
-                  class="cert-placeholder"
-                  @click="certFileInput2.click()"
-                >
-                  <img
-                    v-if="certPermitUrl"
-                    :src="certPermitUrl"
-                    class="cert-preview"
-                  >
-                  <div
-                    v-else
-                    class="cert-empty"
-                  >
-                    <PictureOutlined style="font-size:32px;color:#d9d9d9" /><span>点击上传图片</span>
-                  </div>
-                </div>
-                <input
-                  ref="certFileInput2"
-                  type="file"
-                  accept="image/*"
-                  hidden
-                  @change="(e)=>handleCertUpload(e,'permit')"
-                >
-                <div class="cert-label">
-                  其他证件
-                </div>
-              </div>
-            </a-col>
-          </a-row>
-        </div>
+        <!-- ═══ 证件信息（通用组件：营业执照固定，其余可选/自定义，始终保留一个待输入位） ═══ -->
+        <section class="section">
+          <CertUploadList
+            ref="certRef"
+            :partner-id="partyId"
+          />
+        </section>
 
-        <!-- 附件 -->
-        <div class="section-card">
-          <AttachmentUpload :partner-id="savedPartnerId" />
-        </div>
+        <!-- ═══ 附件 ═══ -->
+        <section class="section">
+          <AttachmentUpload
+            ref="attachmentRef"
+            :partner-id="partyId"
+          />
+        </section>
       </a-form>
     </div>
 
-    <!-- 固定底部按钮栏 -->
+    <!-- ═══ 底部保存 ═══ -->
     <div class="form-footer">
       <a-space>
         <a-button @click="handleCancel">
           取消
         </a-button>
         <a-button
+          v-if="!partyId"
           :loading="saving"
-          @click="handleSaveAndNew"
+          @click="handleSave(true)"
         >
           保存并新增
         </a-button>
         <a-button
           type="primary"
           :loading="saving"
-          @click="handleSubmit"
+          @click="handleSave(false)"
         >
-          保存并返回列表
+          保存并返回列表(Ctrl+Enter)
         </a-button>
       </a-space>
     </div>
+
+    <!-- ═══ 新增类别 ═══ -->
+    <a-modal
+      v-model:open="categoryModalVisible"
+      title="新增单位类别"
+      :confirm-loading="categorySaving"
+      width="420px"
+      @ok="handleCategorySave"
+    >
+      <a-form
+        :label-col="{ span: 6 }"
+        :wrapper-col="{ span: 16 }"
+      >
+        <a-form-item label="类别名称">
+          <a-input
+            v-model:value="categoryName"
+            placeholder="如：银行 / 政府机构 / 劳务公司"
+            size="small"
+          />
+        </a-form-item>
+      </a-form>
+    </a-modal>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
-import { ArrowLeftOutlined, CaretDownOutlined, CaretRightOutlined, PictureOutlined, UserOutlined } from '@ant-design/icons-vue'
-import { partnerApi, partnerCategoryApi, partnerGradeApi, partnerContactApi, partnerBankAccountApi, partnerRoleApi, type PartyContact } from '@/api/erp/partner'
-import type { PartnerCategory, PartnerGrade } from '@/api/erp/partner'
-import ContactList, { type ContactRowData } from '../components/ContactList.vue'
+import { PlusOutlined } from '@ant-design/icons-vue'
 import AttachmentUpload from '../components/AttachmentUpload.vue'
+import CertUploadList from '@/components/CertUploadList/CertUploadList.vue'
+import {
+  partnerApi,
+  partnerCategoryApi,
+  type PartnerCategory,
+} from '@/api/erp/partner'
 import { userApi, type UserInfo } from '@/api/user'
-import { warehouseApi, type WmsWarehouse } from '@/api/wms/warehouse'
-import request from '@/utils/request'
 import { generatePartnerCodeAsync } from '../utils/generateCode'
 
-async function generateCode() { form.partnerCode = await generatePartnerCodeAsync('partner') }
+defineOptions({ name: 'MdPartnerForm' })
 
+const route = useRoute()
 const router = useRouter()
 const formRef = ref<FormInstance>()
+const attachmentRef = ref<any>(null)
+
+/** 编辑态主键：有值=编辑，无值=新增 */
+const partyId = ref<number | undefined>(undefined)
+const certRef = ref<any>(null)
 const saving = ref(false)
 const statusChecked = ref(true)
-const otherRoleOptions = ref([
+
+/** 多重身份：本页固定 OTHER，可叠加客户/供应商/物流 */
+const roleOptions = ref([
   { value: 'CUSTOMER', label: '客户', checked: false },
   { value: 'SUPPLIER', label: '供应商', checked: false },
   { value: 'LOGISTICS', label: '物流', checked: false },
 ])
-const enablePriceTrack = ref(false)
-const hasCustomerRole = computed(() => otherRoleOptions.value.some(o => o.value === 'CUSTOMER' && o.checked))
-const showMallAccount = hasCustomerRole
-const openingBalance = ref(0)
-const openingPayable = ref(0)
-const companyWebsite = ref('')
-const bankName = ref('')
-const bankAccount = ref('')
-const otherInfoCollapsed = ref(true)
-const categories = ref<PartnerCategory[]>([])
-const grades = ref<PartnerGrade[]>([])
+const hasCustomerRole = computed(() => roleOptions.value.some(o => o.value === 'CUSTOMER' && o.checked))
+
 const users = ref<UserInfo[]>([])
-const warehouses = ref<WmsWarehouse[]>([])
-const contacts = ref<ContactRowData[]>([])
-const savedPartnerId = ref<number>()
-const avatarUrl = ref('')
-const avatarFileInput = ref<HTMLInputElement>()
-const certLicenseUrl = ref('')
-const certPermitUrl = ref('')
-const certFileInput1 = ref<HTMLInputElement>()
-const certFileInput2 = ref<HTMLInputElement>()
 
 const form = reactive({
-  partnerName:'', partnerShortName:'', partnerCode:'',
-  partnerCategoryId:undefined as number|undefined,
-  partnerGradeId:undefined as number|undefined,
-  defaultHandlerId:undefined as number|undefined,
-  defaultWarehouseId:undefined as number|undefined,
-  province:'', city:'', district:'',
-  companyFullName:'',
-  detailAddress:'', unifiedSocialCode:'', taxId:'', legalPerson:'',
-  companyPhone:'', companyEmail:'', industry:'',
-  settleType:'MONTHLY', taxRate:13, remark:'',
+  partnerName: '',
+  partnerCode: '',
+  mnemonicCode: '',
+  partnerCategoryId: undefined as any,
+  remark: '',
+  priceTrackEnabled: false,
+  contactPerson: '',
+  contactPhone: '',
+  contactAddress: '',
+  companyFullName: '',
+  taxNumber: '',
+  taxAddress: '',
+  bankName: '',
+  bankAccount: '',
+  openingReceivable: 0,
+  openingPayable: 0,
+  defaultHandlerId: undefined as any,
+  settleType: '挂账',
 })
 
-const formRules: Record<string, any> = { partnerName: [{ required: true, message: '请输入单位名称', trigger: 'blur' }] }
-
-async function loadCategories() { try { categories.value = await partnerCategoryApi.getTree('OTHER') } catch { categories.value = [] } }
-async function loadGrades() { try { grades.value = await partnerGradeApi.list('OTHER') } catch { grades.value = [] } }
-async function loadUsers() { try { const res = await userApi.getList(); users.value = (res as any)?.data || (res as any) || [] } catch { users.value = [] } }
-async function loadWarehouses() { try { const res = await warehouseApi.listAll(); warehouses.value = (res as any)?.data || (res as any) || [] } catch { warehouses.value = [] } }
-function filterUser(input: string, option: any) { return (option.label || '').toLowerCase().includes(input.toLowerCase()) }
-function handleCancel() { router.push('/md/partner/index') }
-
-async function handleAvatarUpload(e: Event) {
-  const input = e.target as HTMLInputElement
-  const file = input.files?.[0]
-  if (!file) return
-  try {
-    const formData = new FormData()
-    formData.append('file', file)
-    const res = await request.post('/file/upload', formData)
-    avatarUrl.value = typeof res === 'string' ? res : (res as any)?.url || (res as any)?.data?.url
-    message.success('上传成功')
-  } catch { message.error('上传失败') }
-  input.value = ''
+const rules = {
+  partnerName: [{ required: true, message: '请输入单位名称', trigger: 'blur' }],
+  partnerCode: [{ required: true, message: '请填写单位编号', trigger: 'blur' }],
+  // 其他往来单位的核心标识就是「单位类别」（银行/政府机构/劳务公司…），与供应商页口径一致强制选择
+  partnerCategoryId: [{ required: true, message: '请选择单位类别', trigger: 'change' }],
 }
 
-async function handleCertUpload(e: Event, type: 'license' | 'permit') {
-  const input = e.target as HTMLInputElement; const file = input.files?.[0]; if (!file) return
+// ═══ 类别树（其他往来单位口径 OTHER） ═══
+const categoryList = ref<PartnerCategory[]>([])
+const categoryTreeData = computed<any[]>(() => [
+  { id: 0, categoryName: '全部单位', children: categoryList.value },
+])
+
+async function loadCategories() {
   try {
-    const formData = new FormData(); formData.append('file', file)
-    const res = await request.post('/file/upload', formData)
-    const url = typeof res === 'string' ? res : (res as any)?.url || (res as any)?.data?.url
-    if (type==='license') certLicenseUrl.value=url; else certPermitUrl.value=url
-    message.success('上传成功')
-  } catch { message.error('上传失败') }
-  input.value = ''
+    const tree = await partnerCategoryApi.getTree('OTHER')
+    categoryList.value = Array.isArray(tree) ? tree : []
+  } catch {
+    categoryList.value = []
+  }
 }
 
-async function doSubmit(): Promise<number|null> {
-  try { await formRef.value?.validate() } catch { return null }
-  try {
-    const result = await partnerApi.create({
-      ...form, partnerType:'OTHER', status:statusChecked.value?'ENABLED':'DISABLED',
-      openingBalance:openingBalance.value, openingPayable:openingPayable.value,
-      companyWebsite:companyWebsite.value,
-      partnerAvatar:avatarUrl.value,
-    } as any)
-    return (result as any)?.id||0
-  } catch (err: any) { message.error(err?.response?.data?.message||err?.message||'创建失败'); return null }
-}
+const categoryModalVisible = ref(false)
+const categorySaving = ref(false)
+const categoryName = ref('')
 
-async function submitContacts(partnerId: number) {
-  const ordered=[...contacts.value].sort((a,b)=>(b.isDefault||0)-(a.isDefault||0))
-  for(const c of ordered) {
-    const data = {
-      ...c,
-      partyId: partnerId,
-      isPrimary: c.isDefault || 0,
-      phone: c.contactPhone || c.phone || '',
-      mobile: c.contactPhone || c.mobile || '',
-      email: c.contactEmail || c.email || '',
-      contactName: c.contactName || ''
+/** 按名称在类别树中查找（新增类别后自动选中用） */
+function findCategoryByName(nodes: PartnerCategory[], name: string): PartnerCategory | undefined {
+  for (const n of nodes) {
+    if (n.categoryName === name) return n
+    if (n.children?.length) {
+      const hit = findCategoryByName(n.children, name)
+      if (hit) return hit
     }
-    delete (data as any).id
-    delete (data as any).partnerId
-    delete (data as any).isDefault
-    delete (data as any).contactPhone
-    delete (data as any).contactEmail
-    await partnerContactApi.create(data)
+  }
+  return undefined
+}
+
+function openCategoryModal() {
+  categoryName.value = ''
+  categoryModalVisible.value = true
+}
+async function handleCategorySave() {
+  if (!categoryName.value.trim()) {
+    message.warning('请输入类别名称')
+    return
+  }
+  categorySaving.value = true
+  try {
+    const name = categoryName.value.trim()
+    await partnerCategoryApi.create({
+      categoryName: name,
+      categoryType: 'OTHER',
+      sortOrder: 0,
+    } as any)
+    message.success('类别新增成功')
+    categoryModalVisible.value = false
+    await loadCategories()
+    // 新建后自动选中（按名称回查，兼容 create 的多种返回形态）
+    const created = findCategoryByName(categoryList.value, name)
+    if (created) {
+      form.partnerCategoryId = created.id
+    }
+  } catch (e: any) {
+    message.error(e?.message || '类别新增失败')
+  } finally {
+    categorySaving.value = false
   }
 }
-async function submitRoles(partnerId: number) {
-  const allRoles = ['OTHER', ...otherRoleOptions.value.filter(o => o.checked).map(o => o.value)]
-  for (const roleType of allRoles) {
-    try { await partnerRoleApi.addRole(partnerId, roleType, roleType === 'OTHER') } catch {}
+
+async function loadUsers() {
+  try {
+    const res: any = await userApi.getList()
+    users.value = res?.data || res || []
+  } catch {
+    users.value = []
+  }
+}
+function filterUser(input: string, option: any) {
+  return String(option?.label || '').toLowerCase().includes(String(input).toLowerCase())
+}
+
+// ═══ 编辑回填 ═══
+async function loadDetail(id: number) {
+  const data: any = await partnerApi.getById(id)
+  if (!data) {
+    message.error('其他往来单位不存在或已删除')
+    return
+  }
+  partyId.value = id
+  const roles = String(data.roles || '')
+  statusChecked.value = data.status !== 'DISABLED'
+  roleOptions.value.forEach(opt => {
+    opt.checked = roles.includes(opt.value)
+  })
+  Object.assign(form, {
+    partnerName: data.partnerName || '',
+    partnerCode: data.partnerCode || '',
+    mnemonicCode: data.mnemonicCode || '',
+    partnerCategoryId: data.categoryId ?? undefined,
+    remark: data.remark || '',
+    priceTrackEnabled: data.priceTrackEnabled === 1,
+    contactPerson: data.contactPerson || '',
+    contactPhone: data.contactPhone || '',
+    contactAddress: data.address || '',
+    companyFullName: data.companyFullName || '',
+    taxNumber: data.taxNumber || '',
+    taxAddress: data.taxAddress || '',
+    bankName: data.bankName || '',
+    bankAccount: data.bankAccount || '',
+    openingReceivable: Number(data.openingReceivable || 0),
+    openingPayable: Number(data.openingPayable || 0),
+    defaultHandlerId: data.defaultHandlerId ?? undefined,
+    settleType: data.settleType === '现结' ? '现结' : '挂账',
+  })
+}
+
+// ═══ 保存 ═══
+function buildRoles(): string {
+  const extra = roleOptions.value.filter(o => o.checked).map(o => o.value)
+  return ['OTHER', ...extra].join(',')
+}
+
+function buildPayload() {
+  const handlerId = form.defaultHandlerId ? Number(form.defaultHandlerId) : undefined
+  const handler = users.value.find(u => Number(u.id) === handlerId)
+  return {
+    partnerType: 'OTHER',
+    status: statusChecked.value ? 'ENABLED' : 'DISABLED',
+    roles: buildRoles(),
+    partnerName: form.partnerName.trim(),
+    partnerCode: form.partnerCode.trim(),
+    mnemonicCode: form.mnemonicCode || undefined,
+    partnerCategoryId: form.partnerCategoryId || undefined,
+    remark: form.remark || undefined,
+    companyFullName: form.companyFullName || undefined,
+    taxNumber: form.taxNumber || undefined,
+    address: form.taxAddress || undefined,
+    bankName: form.bankName || undefined,
+    bankAccount: form.bankAccount || undefined,
+    openingReceivable: Number(form.openingReceivable || 0),
+    openingPayable: Number(form.openingPayable || 0),
+    defaultHandlerId: handlerId,
+    defaultHandlerName: handler?.nickname || handler?.username || undefined,
+    settleType: form.settleType || '挂账',
+    priceTrackEnabled: form.priceTrackEnabled ? 1 : 0,
   }
 }
 
-async function submitBankAccount(partnerId: number) {
-  if(!bankName.value&&!bankAccount.value)return
-  try{await partnerBankAccountApi.create({partnerId,accountName:form.partnerName,bankName:bankName.value,accountNo:bankAccount.value,isDefault:1})}catch{}
-}
-
-async function handleSubmit(){
-  saving.value=true
-  try{
-    const pid=await doSubmit();
-    if(!pid)return;
-    await submitRoles(pid);
-    await submitContacts(pid);
-    await submitBankAccount(pid);
-    savedPartnerId.value=pid;
-    message.success('往来单位创建成功');
-    router.push('/md/partner/index')
+/**
+ * 保存
+ * @param andNew true=保存并新增（保存后清空表单继续录入）
+ */
+async function handleSave(andNew: boolean) {
+  try {
+    await formRef.value?.validate()
+  } catch {
+    return
   }
-  finally{saving.value=false}
+  saving.value = true
+  try {
+    const payload = buildPayload()
+    let id = partyId.value
+    if (id) {
+      await partnerApi.update(id, payload as any)
+    } else {
+      const created: any = await partnerApi.create(payload as any)
+      id = Number(created?.id || 0)
+      if (!id) {
+        message.error('保存失败：未获取到新建单位 ID')
+        return
+      }
+      partyId.value = id
+    }
+    await certRef.value?.sync(id!)
+    // 联系人分区落到主联系人记录（biz_party_contact，is_primary=1）
+    await partnerApi.savePrimaryContact(id!, {
+      contactPerson: form.contactPerson || undefined,
+      contactPhone: form.contactPhone || undefined,
+      address: form.contactAddress || undefined,
+    })
+
+    if (andNew) {
+      message.success('保存成功，可继续新增')
+      resetForm()
+      await loadCategories()
+    } else {
+      message.success(partyId.value === id && !andNew ? '保存成功' : '新增成功')
+      router.push('/md/partner/index')
+    }
+  } catch (e: any) {
+    message.error(e?.response?.data?.message || e?.message || '保存失败')
+  } finally {
+    saving.value = false
+  }
 }
 
-async function handleSaveAndNew(){
-  saving.value=true
-  try{
-    const pid=await doSubmit();
-    if(!pid)return;
-    await submitRoles(pid);
-    await submitContacts(pid);
-    await submitBankAccount(pid);
-    savedPartnerId.value=pid
-    message.success('往来单位创建成功')
-    Object.assign(form,{partnerName:'',partnerShortName:'',partnerCode:'',partnerCategoryId:undefined,partnerGradeId:undefined,defaultHandlerId:undefined,defaultWarehouseId:undefined,province:'',city:'',district:'',companyFullName:'',detailAddress:'',unifiedSocialCode:'',taxId:'',legalPerson:'',companyPhone:'',companyEmail:'',industry:'',settleType:'MONTHLY',taxRate:13,remark:''})
-    contacts.value=[];companyWebsite.value='';bankName.value='';bankAccount.value=''
-    openingBalance.value=0;openingPayable.value=0;avatarUrl.value=''
-    certLicenseUrl.value='';certPermitUrl.value='';await generateCode()
-  }finally{saving.value=false}
+async function resetForm() {
+  partyId.value = undefined
+  statusChecked.value = true
+  roleOptions.value.forEach(o => { o.checked = false })
+  Object.assign(form, {
+    partnerName: '',
+    partnerCode: '',
+    mnemonicCode: '',
+    partnerCategoryId: undefined,
+    remark: '',
+    priceTrackEnabled: false,
+    contactPerson: '',
+    contactPhone: '',
+    contactAddress: '',
+    companyFullName: '',
+    taxNumber: '',
+    taxAddress: '',
+    bankName: '',
+    bankAccount: '',
+    openingReceivable: 0,
+    openingPayable: 0,
+    defaultHandlerId: undefined,
+    settleType: '挂账',
+  })
+  form.partnerCode = await generatePartnerCodeAsync('partner')
 }
 
-function handleKeydown(e:KeyboardEvent){if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();handleSubmit()}}
-onMounted(()=>{loadCategories();loadGrades();loadUsers();loadWarehouses();document.addEventListener('keydown',handleKeydown)})
-onUnmounted(()=>{document.removeEventListener('keydown',handleKeydown)})
+function handleCancel() {
+  router.push('/md/partner/index')
+}
+
+function handleKeydown(e: KeyboardEvent) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    e.preventDefault()
+    handleSave(false)
+  }
+}
+
+onMounted(async () => {
+  await loadCategories()
+  await loadUsers()
+  const id = Number(route.query.id || route.params.id || 0)
+  if (id) {
+    await loadDetail(id)
+  } else {
+    form.partnerCode = await generatePartnerCodeAsync('partner')
+  }
+  document.addEventListener('keydown', handleKeydown)
+})
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
+})
 </script>
 
 <style scoped>
-.form-page-wrapper{display:flex;flex-direction:column;height:100%;overflow:hidden}
-.page-header{padding:12px 16px;flex-shrink:0}.page-title{font-size:16px;font-weight:600;color:#262626}
-.top-options{background:#fff;padding:12px 20px;margin:0 16px 8px;border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,0.05);flex-shrink:0}
-.form-scroll-area{flex:1;overflow-y:auto;padding:0 16px 8px;min-height:0}
-.section-card{background:#fff;border-radius:6px;padding:20px 24px 12px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,0.05)}
-.section-title{font-size:14px;font-weight:600;color:#262626;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid #f0f0f0}
-.section-row :deep(.ant-form-item){margin-bottom:10px}.section-row :deep(.ant-form-item-label>label){font-size:13px;color:#595959}
-.form-footer{background:#fff;border-radius:6px;padding:16px 24px;text-align:right;box-shadow:0 -1px 4px rgba(0,0,0,0.05);flex-shrink:0;margin:0 16px 16px}
-.cert-upload{display:flex;flex-direction:column;align-items:center;gap:8px}
-.cert-placeholder{width:120px;height:120px;border:1px dashed #d9d9d9;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:#fafafa;overflow:hidden;transition:border-color 0.2s}
-.cert-placeholder:hover{border-color:#40a9ff}.cert-preview{width:100%;height:100%;object-fit:cover}
-.cert-empty{display:flex;flex-direction:column;align-items:center;gap:4px;color:#bfbfbf;font-size:12px}
-.cert-label{font-size:13px;color:#595959}
-
-.avatar-upload{display:flex;flex-direction:column;align-items:center;gap:8px}
-.avatar-placeholder{width:100px;height:100px;border:1px dashed #d9d9d9;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:#fafafa;overflow:hidden;transition:border-color 0.2s}
-.avatar-placeholder:hover{border-color:#40a9ff}.avatar-preview{width:100%;height:100%;object-fit:cover}
-.avatar-empty{display:flex;align-items:center;justify-content:center}
+.partner-form-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: #f5f7fa;
+}
+.top-options {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: #fff;
+  padding: 12px 20px;
+  flex-shrink: 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+.top-options-label {
+  font-size: 13px;
+  color: #595959;
+}
+.form-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px 16px;
+}
+.section {
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 4px;
+  padding: 16px 20px 0;
+  margin-bottom: 12px;
+}
+.section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0 0 14px;
+}
+.category-picker {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.form-footer {
+  background: #fff;
+  border-top: 1px solid #e8e8e8;
+  padding: 12px 24px;
+  text-align: right;
+  flex-shrink: 0;
+}
+:deep(.ant-form-item) {
+  margin-bottom: 14px;
+}
+:deep(.ant-form-item-label > label) {
+  font-size: 13px;
+  color: #606266;
+}
 </style>

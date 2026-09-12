@@ -14,6 +14,8 @@ import cn.aiedge.erp.stock.entity.Stock;
 import cn.aiedge.erp.stock.mapper.ProductMapper;
 import cn.aiedge.erp.stock.mapper.StockMapper;
 import cn.aiedge.erp.stock.service.StockService;
+import cn.aiedge.common.exception.BusinessException;
+import cn.aiedge.common.serial.BizNumberGeneratorService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
@@ -42,26 +44,19 @@ public class RetailOrderServiceImpl extends ServiceImpl<RetailOrderMapper, Retai
     private final ProductMapper productMapper;
     private final StockMapper stockMapper;
     private final StockService stockService;
+    private final BizNumberGeneratorService bizNumberGeneratorService;
 
     @Override
     public IPage<RetailOrder> pageByDoc(Page<RetailOrder> page, RetailQueryDTO query) {
-        LambdaQueryWrapper<RetailOrder> wrapper = new LambdaQueryWrapper<RetailOrder>()
-                .eq(RetailOrder::getDeleted, 0)
-                .ge(StringUtils.hasText(query.getDateStart()), RetailOrder::getOrderDate, parseSqlDate(query.getDateStart()))
-                .le(StringUtils.hasText(query.getDateEnd()), RetailOrder::getOrderDate, parseSqlDate(query.getDateEnd()))
-                .like(StringUtils.hasText(query.getRetailNo()), RetailOrder::getRetailNo, query.getRetailNo())
-                .like(StringUtils.hasText(query.getCustomerName()), RetailOrder::getCustomerName, query.getCustomerName())
-                .eq(query.getCustomerId() != null, RetailOrder::getCustomerId, query.getCustomerId())
-                .eq(query.getHandlerId() != null, RetailOrder::getHandlerId, query.getHandlerId())
-                .eq(query.getDepartmentId() != null, RetailOrder::getDepartmentId, query.getDepartmentId())
-                .eq(query.getWarehouseId() != null, RetailOrder::getWarehouseId, query.getWarehouseId())
-                .eq(query.getStatus() != null, RetailOrder::getStatus, query.getStatus())
-                .eq(StringUtils.hasText(query.getSaleType()), RetailOrder::getSaleType, query.getSaleType())
-                .like(StringUtils.hasText(query.getRemark()), RetailOrder::getRemark, query.getRemark())
-                .like(StringUtils.hasText(query.getCreatorName()), RetailOrder::getCreatorName, query.getCreatorName())
-                .like(StringUtils.hasText(query.getMemberCardNo()), RetailOrder::getMemberCardNo, query.getMemberCardNo())
-                // 默认不显示已作废（红冲），除非显式要求
-                .ne(!Boolean.TRUE.equals(query.getShowRedFlush()), RetailOrder::getStatus, 3)
+        // 商品行属性是明细字段，先按明细命中反查单据ID
+        if (StringUtils.hasText(query.getProductAttribute())) {
+            List<Long> orderIds = findOrderIdsByProductAttribute(query.getProductAttribute());
+            if (orderIds.isEmpty()) {
+                return page.setRecords(Collections.emptyList()).setTotal(0);
+            }
+            query.setMatchedOrderIds(orderIds);
+        }
+        LambdaQueryWrapper<RetailOrder> wrapper = buildDocWrapper(query)
                 .orderByDesc(RetailOrder::getCreateTime);
         IPage<RetailOrder> result = page(page, wrapper);
         // 计算非持久化字段：折后金额、优惠后金额、优惠金额总计
@@ -79,45 +74,41 @@ public class RetailOrderServiceImpl extends ServiceImpl<RetailOrderMapper, Retai
 
     @Override
     public IPage<Map<String, Object>> pageByDetail(Page<Map<String, Object>> page, RetailDetailQueryDTO query) {
-        // 先查明细，再关联主表
-        LambdaQueryWrapper<RetailOrderItem> itemWrapper = new LambdaQueryWrapper<RetailOrderItem>()
-                .eq(RetailOrderItem::getDeleted, 0)
-                .like(StringUtils.hasText(query.getProductName()), RetailOrderItem::getProductName, query.getProductName())
-                .like(StringUtils.hasText(query.getBarcode()), RetailOrderItem::getBarcode, query.getBarcode())
-                .like(StringUtils.hasText(query.getRemark()), RetailOrderItem::getRemark, query.getRemark())
-                .orderByDesc(RetailOrderItem::getCreateTime);
-
-        // 修复：使用传入的 page 参数的分页值，确保分页参数正确传递
-        IPage<RetailOrderItem> itemPage = new Page<>(page.getCurrent(), page.getSize());
-        itemPage = retailOrderItemMapper.selectPage(itemPage, itemWrapper);
-
-        // 获取对应的零售单ID列表
-        Set<Long> orderIds = itemPage.getRecords().stream()
-                .map(RetailOrderItem::getOrderId)
-                .collect(Collectors.toSet());
-
-        if (orderIds.isEmpty()) {
+        // 1) 先按主表条件命中单据ID（日期/单号/客户/经手人/部门/仓库/状态/红冲），
+        //    保证明细分页的 total 与过滤结果一致（原实现先分页明细再过滤，total 会虚高）
+        List<Long> matchedOrderIds = list(buildDocWrapper(query).select(RetailOrder::getId))
+                .stream().map(RetailOrder::getId).collect(Collectors.toList());
+        if (matchedOrderIds.isEmpty()) {
             Page<Map<String, Object>> emptyPage = new Page<>(page.getCurrent(), page.getSize(), 0);
             emptyPage.setRecords(Collections.emptyList());
             return emptyPage;
         }
 
-        // 查询对应的零售单
-        LambdaQueryWrapper<RetailOrder> orderWrapper = new LambdaQueryWrapper<RetailOrder>()
-                .in(RetailOrder::getId, orderIds)
-                .eq(RetailOrder::getDeleted, 0)
-                .ge(StringUtils.hasText(query.getDateStart()), RetailOrder::getOrderDate, parseSqlDate(query.getDateStart()))
-                .le(StringUtils.hasText(query.getDateEnd()), RetailOrder::getOrderDate, parseSqlDate(query.getDateEnd()))
-                .like(StringUtils.hasText(query.getRetailNo()), RetailOrder::getRetailNo, query.getRetailNo())
-                .like(StringUtils.hasText(query.getCustomerName()), RetailOrder::getCustomerName, query.getCustomerName())
-                .eq(query.getHandlerId() != null, RetailOrder::getHandlerId, query.getHandlerId())
-                .eq(query.getDepartmentId() != null, RetailOrder::getDepartmentId, query.getDepartmentId())
-                .eq(query.getWarehouseId() != null, RetailOrder::getWarehouseId, query.getWarehouseId())
-                .eq(query.getStatus() != null, RetailOrder::getStatus, query.getStatus())
-                .ne(!Boolean.TRUE.equals(query.getShowRedFlush()), RetailOrder::getStatus, 3);
+        // 2) 明细条件 + 主表命中集合，一次性分页
+        LambdaQueryWrapper<RetailOrderItem> itemWrapper = new LambdaQueryWrapper<RetailOrderItem>()
+                .eq(RetailOrderItem::getDeleted, 0)
+                .in(RetailOrderItem::getOrderId, matchedOrderIds)
+                .like(StringUtils.hasText(query.getProductName()), RetailOrderItem::getProductName, query.getProductName())
+                .like(StringUtils.hasText(query.getBarcode()), RetailOrderItem::getBarcode, query.getBarcode())
+                .like(StringUtils.hasText(query.getRemark()), RetailOrderItem::getRemark, query.getRemark())
+                .orderByDesc(RetailOrderItem::getCreateTime);
 
-        List<RetailOrder> orders = list(orderWrapper);
-        Map<Long, RetailOrder> orderMap = orders.stream().collect(Collectors.toMap(RetailOrder::getId, o -> o));
+        IPage<RetailOrderItem> itemPage = new Page<>(page.getCurrent(), page.getSize());
+        itemPage = retailOrderItemMapper.selectPage(itemPage, itemWrapper);
+        if (itemPage.getRecords().isEmpty()) {
+            Page<Map<String, Object>> emptyPage = new Page<>(page.getCurrent(), page.getSize(), itemPage.getTotal());
+            emptyPage.setRecords(Collections.emptyList());
+            return emptyPage;
+        }
+
+        Set<Long> orderIds = itemPage.getRecords().stream()
+                .map(RetailOrderItem::getOrderId)
+                .collect(Collectors.toSet());
+
+        // 3) 取本次页内单据（同一批过滤条件，直接按ID取回）
+        Map<Long, RetailOrder> orderMap = listByIds(orderIds).stream()
+                .filter(o -> o.getDeleted() == null || o.getDeleted() == 0)
+                .collect(Collectors.toMap(RetailOrder::getId, o -> o));
 
         // 组装结果
         List<Map<String, Object>> records = itemPage.getRecords().stream()
@@ -140,7 +131,11 @@ public class RetailOrderServiceImpl extends ServiceImpl<RetailOrderMapper, Retai
                     map.put("departmentId", order.getDepartmentId());
                     map.put("departmentName", order.getDepartmentName());
                     map.put("remark", order.getRemark());
+                    map.put("summary", order.getSummary());
+                    map.put("attachment", order.getAttachment());
                     map.put("creatorName", order.getCreatorName());
+                    map.put("bookkeeperName", order.getBookkeeperName());
+                    map.put("bookkeepingTime", order.getBookkeepingTime());
                     map.put("createTime", order.getCreateTime());
                     map.put("printCount", order.getPrintCount());
                     // 明细字段
@@ -253,14 +248,12 @@ public class RetailOrderServiceImpl extends ServiceImpl<RetailOrderMapper, Retai
     }
 
     /**
-     * 生成零售单号：LS + yyyyMMdd + 4位当日流水
+     * 生成零售单号：走系统统一号段（biz_number_sequence: LSD → LS-yyyyMMdd-NNNN）
+     * 数据库行锁保证跨进程唯一，前端 /next-no 与保存时未传单号均走此处。
      */
-    private String generateRetailNo() {
-        String prefix = "LS" + LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd"));
-        Long count = lambdaQuery()
-                .likeRight(RetailOrder::getRetailNo, prefix)
-                .count();
-        return prefix + String.format("%04d", count + 1);
+    @Override
+    public String generateRetailNo() {
+        return bizNumberGeneratorService.nextNumber("LSD");
     }
 
     @Override
@@ -317,48 +310,75 @@ public class RetailOrderServiceImpl extends ServiceImpl<RetailOrderMapper, Retai
     @Transactional(rollbackFor = Exception.class)
     public RetailOrder settle(Long orderId, List<RetailOrderPayment> payments) {
         RetailOrder order = getById(orderId);
-        if (order == null) throw new RuntimeException("零售单不存在");
-        if (order.getStatus() == 1) throw new RuntimeException("零售单已完成结算");
-        if (order.getStatus() == 3) throw new RuntimeException("零售单已作废");
+        if (order == null) throw BusinessException.notFound("零售单不存在");
+        Integer currentStatus = order.getStatus();
+        if (currentStatus != null && currentStatus == 1) throw BusinessException.badRequest("零售单已完成结算");
+        if (currentStatus != null && currentStatus == 3) throw BusinessException.badRequest("零售单已作废");
 
-        // 校验支付金额平衡
-        BigDecimal totalPayment = payments.stream()
-                .map(RetailOrderPayment::getPaymentAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal payable = order.getPayableAmount() != null ? order.getPayableAmount() : BigDecimal.ZERO;
 
-        if (totalPayment.compareTo(order.getPayableAmount().subtract(order.getChangeAmount())) != 0) {
-            BigDecimal expected = order.getPayableAmount().subtract(
-                order.getChangeAmount() != null ? order.getChangeAmount() : BigDecimal.ZERO);
-            throw new RuntimeException(String.format("支付金额不平衡: 应收%.2f，实收%.2f", expected, totalPayment));
+        // 收款明细不能为空（应收为 0 的免单/全额优惠单据除外）
+        if ((payments == null || payments.isEmpty()) && payable.compareTo(BigDecimal.ZERO) > 0) {
+            throw BusinessException.badRequest("请录入收款方式及金额");
         }
 
-        // 更新收款汇总字段
-        for (RetailOrderPayment payment : payments) {
-            payment.setOrderId(orderId);
-            payment.setCreateTime(LocalDateTime.now());
-            payment.setUpdateTime(LocalDateTime.now());
-            retailOrderPaymentMapper.insert(payment);
+        // 实收合计（找零前）
+        BigDecimal totalPayment = payments == null ? BigDecimal.ZERO
+                : payments.stream()
+                    .map(p -> p.getPaymentAmount() != null ? p.getPaymentAmount() : BigDecimal.ZERO)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-            // 更新主表收款汇总
-            switch (payment.getPaymentMethod()) {
-                case "CASH": order.setCashAmount(payment.getPaymentAmount()); break;
-                case "CARD": order.setCardAmount(payment.getPaymentAmount()); break;
-                case "ALIPAY": order.setAlipayAmount(payment.getPaymentAmount()); break;
-                case "WECHAT": order.setWechatAmount(payment.getPaymentAmount()); break;
-                case "AGGREGATE": order.setAggregateAmount(payment.getPaymentAmount()); break;
-                case "ABC": order.setAbcAmount(payment.getPaymentAmount()); break;
-                case "CCB": order.setCcbAmount(payment.getPaymentAmount()); break;
-                case "JD": order.setJdAmount(payment.getPaymentAmount()); break;
-                case "PREPAID": order.setPrepaidAmount(payment.getPaymentAmount()); break;
-                case "TRANSFER": order.setTransferAmount(payment.getPaymentAmount()); break;
+        // 收款不得少于应收；多收部分由后端统一计算为找零（不信任前端传入的找零）
+        if (totalPayment.compareTo(payable) < 0) {
+            throw BusinessException.badRequest(String.format("收款不足: 应收%.2f，实收%.2f", payable, totalPayment));
+        }
+        BigDecimal changeAmount = totalPayment.subtract(payable);
+
+        // 落库收款明细，并回写主表各支付方式汇总
+        if (payments != null) {
+            for (RetailOrderPayment payment : payments) {
+                if (payment.getPaymentAmount() == null) payment.setPaymentAmount(BigDecimal.ZERO);
+                payment.setId(null);
+                payment.setOrderId(orderId);
+                payment.setPaymentTime(LocalDateTime.now());
+                payment.setCreateTime(LocalDateTime.now());
+                payment.setUpdateTime(LocalDateTime.now());
+                retailOrderPaymentMapper.insert(payment);
+
+                // 更新主表收款汇总
+                switch (payment.getPaymentMethod() == null ? "" : payment.getPaymentMethod()) {
+                    case "CASH": order.setCashAmount(payment.getPaymentAmount()); break;
+                    case "CARD": order.setCardAmount(payment.getPaymentAmount()); break;
+                    case "ALIPAY": order.setAlipayAmount(payment.getPaymentAmount()); break;
+                    case "WECHAT": order.setWechatAmount(payment.getPaymentAmount()); break;
+                    case "AGGREGATE": order.setAggregateAmount(payment.getPaymentAmount()); break;
+                    case "ABC": order.setAbcAmount(payment.getPaymentAmount()); break;
+                    case "CCB": order.setCcbAmount(payment.getPaymentAmount()); break;
+                    case "JD": order.setJdAmount(payment.getPaymentAmount()); break;
+                    case "PREPAID": order.setPrepaidAmount(payment.getPaymentAmount()); break;
+                    case "TRANSFER": order.setTransferAmount(payment.getPaymentAmount()); break;
+                    default: break;
+                }
             }
         }
 
-        // 更新状态
+        // 更新状态（结算即记账：写入记账人/记账时间）
         order.setStatus(1); // 已完成
         order.setTotalReceived(totalPayment);
+        order.setChangeAmount(changeAmount);
+        order.setCombinedPayment(payments != null && payments.size() > 1);
+        order.setPaymentMethod(resolvePaymentMethod(payments));
         order.setSettlementStatus("SETTLED");
+        order.setSettledAmount(payable);
         order.setCompletedTime(LocalDateTime.now());
+        order.setCompletedBy(order.getCashierId() != null ? order.getCashierId() : order.getHandlerId());
+        order.setBookkeepingTime(LocalDateTime.now());
+        if (!StringUtils.hasText(order.getBookkeeperName())) {
+            order.setBookkeeperName(order.getCashierName() != null ? order.getCashierName() : order.getCreatorName());
+        }
+
+        // 会员积分闭环：产生积分（1 元 = 1 分，向下取整）/ 使用积分，写回会员档案
+        applyMemberPoints(order);
         updateById(order);
 
         // 库存处理（同事务，异常时整体回滚）
@@ -375,13 +395,13 @@ public class RetailOrderServiceImpl extends ServiceImpl<RetailOrderMapper, Retai
                 if (isReturn) {
                     boolean success = stockService.increaseStock(item.getProductId(), order.getWarehouseId(), quantity);
                     if (!success) {
-                        throw new RuntimeException(String.format("退货库存回补失败，结算失败: 商品ID=%d，需回补%s",
+                        throw BusinessException.badRequest(String.format("退货库存回补失败，结算失败: 商品ID=%d，需回补%s",
                                 item.getProductId(), quantity));
                     }
                 } else {
                     boolean success = stockService.decreaseStock(item.getProductId(), order.getWarehouseId(), quantity);
                     if (!success) {
-                        throw new RuntimeException(String.format("库存不足，结算失败: 商品ID=%d，需扣减%s",
+                        throw BusinessException.badRequest(String.format("库存不足，结算失败: 商品ID=%d，需扣减%s",
                                 item.getProductId(), quantity));
                     }
                 }
@@ -397,8 +417,8 @@ public class RetailOrderServiceImpl extends ServiceImpl<RetailOrderMapper, Retai
     @Transactional(rollbackFor = Exception.class)
     public void hold(Long orderId) {
         RetailOrder order = getById(orderId);
-        if (order == null) throw new RuntimeException("零售单不存在");
-        if (order.getStatus() != 0) throw new RuntimeException("只有草稿状态才能挂单");
+        if (order == null) throw BusinessException.notFound("零售单不存在");
+        if (order.getStatus() != 0) throw BusinessException.badRequest("只有草稿状态才能挂单");
         order.setStatus(2); // 挂单
         order.setHoldOrderFlag(true);
         updateById(order);
@@ -408,8 +428,8 @@ public class RetailOrderServiceImpl extends ServiceImpl<RetailOrderMapper, Retai
     @Transactional(rollbackFor = Exception.class)
     public void unhold(Long orderId) {
         RetailOrder order = getById(orderId);
-        if (order == null) throw new RuntimeException("零售单不存在");
-        if (order.getStatus() != 2) throw new RuntimeException("只有挂单状态才能取单");
+        if (order == null) throw BusinessException.notFound("零售单不存在");
+        if (order.getStatus() != 2) throw BusinessException.badRequest("只有挂单状态才能取单");
         order.setStatus(0); // 恢复草稿
         order.setHoldOrderFlag(false);
         updateById(order);
@@ -419,8 +439,8 @@ public class RetailOrderServiceImpl extends ServiceImpl<RetailOrderMapper, Retai
     @Transactional(rollbackFor = Exception.class)
     public void voidOrder(Long orderId, String reason) {
         RetailOrder order = getById(orderId);
-        if (order == null) throw new RuntimeException("零售单不存在");
-        if (order.getStatus() == 3) throw new RuntimeException("零售单已作废");
+        if (order == null) throw BusinessException.notFound("零售单不存在");
+        if (order.getStatus() == 3) throw BusinessException.badRequest("零售单已作废");
         order.setStatus(3); // 已作废
         if (StringUtils.hasText(reason)) {
             order.setInternalNote((order.getInternalNote() != null ? order.getInternalNote() + "; " : "") + "作废原因: " + reason);
@@ -432,7 +452,7 @@ public class RetailOrderServiceImpl extends ServiceImpl<RetailOrderMapper, Retai
     @Transactional(rollbackFor = Exception.class)
     public RetailOrder copyOrder(Long orderId) {
         RetailOrder source = getById(orderId);
-        if (source == null) throw new RuntimeException("零售单不存在");
+        if (source == null) throw BusinessException.notFound("零售单不存在");
 
         // 复制主表
         RetailOrder newOrder = new RetailOrder();
@@ -512,8 +532,8 @@ public class RetailOrderServiceImpl extends ServiceImpl<RetailOrderMapper, Retai
     @Override
     public void deleteOrder(Long id) {
         RetailOrder order = getById(id);
-        if (order == null) throw new RuntimeException("零售单不存在");
-        if (order.getStatus() != 0) throw new RuntimeException("只有草稿状态才能删除");
+        if (order == null) throw BusinessException.notFound("零售单不存在");
+        if (order.getStatus() != 0) throw BusinessException.badRequest("只有草稿状态才能删除");
         // 软删除主表
         order.setDeleted(1);
         updateById(order);
@@ -530,6 +550,132 @@ public class RetailOrderServiceImpl extends ServiceImpl<RetailOrderMapper, Retai
     }
 
     // ── 内部工具方法 ──
+
+    /**
+     * 主表公共查询条件（按单据 / 按明细共用，保证两 Tab 口径一致）
+     * 经手人/部门/仓库支持按名称模糊（列表搜索框为文本输入，落库字段即名称快照）
+     */
+    private LambdaQueryWrapper<RetailOrder> buildDocWrapper(RetailQueryDTO query) {
+        LambdaQueryWrapper<RetailOrder> wrapper = new LambdaQueryWrapper<RetailOrder>()
+                .eq(RetailOrder::getDeleted, 0)
+                .ge(StringUtils.hasText(query.getDateStart()), RetailOrder::getOrderDate, parseSqlDate(query.getDateStart()))
+                .le(StringUtils.hasText(query.getDateEnd()), RetailOrder::getOrderDate, parseSqlDate(query.getDateEnd()))
+                .like(StringUtils.hasText(query.getRetailNo()), RetailOrder::getRetailNo, query.getRetailNo())
+                .like(StringUtils.hasText(query.getCustomerName()), RetailOrder::getCustomerName, query.getCustomerName())
+                .eq(query.getCustomerId() != null, RetailOrder::getCustomerId, query.getCustomerId())
+                .eq(query.getHandlerId() != null, RetailOrder::getHandlerId, query.getHandlerId())
+                .eq(query.getDepartmentId() != null, RetailOrder::getDepartmentId, query.getDepartmentId())
+                .eq(query.getWarehouseId() != null, RetailOrder::getWarehouseId, query.getWarehouseId())
+                .eq(query.getStatus() != null, RetailOrder::getStatus, query.getStatus())
+                .eq(StringUtils.hasText(query.getSaleType()), RetailOrder::getSaleType, query.getSaleType())
+                .like(StringUtils.hasText(query.getRemark()), RetailOrder::getRemark, query.getRemark())
+                .like(StringUtils.hasText(query.getCreatorName()), RetailOrder::getCreatorName, query.getCreatorName())
+                .like(StringUtils.hasText(query.getBookkeeperName()), RetailOrder::getBookkeeperName, query.getBookkeeperName())
+                .like(StringUtils.hasText(query.getMemberCardNo()), RetailOrder::getMemberCardNo, query.getMemberCardNo())
+                // 默认不显示已作废（红冲），除非显式要求
+                .ne(!Boolean.TRUE.equals(query.getShowRedFlush()), RetailOrder::getStatus, 3)
+                .in(query.getMatchedOrderIds() != null, RetailOrder::getId,
+                        query.getMatchedOrderIds() != null ? query.getMatchedOrderIds() : Collections.emptyList());
+        if (query.getPrintCount() != null) {
+            wrapper.eq(RetailOrder::getPrintCount, query.getPrintCount());
+        }
+        if (query.getExtNum1() != null) {
+            wrapper.eq(RetailOrder::getExtNum1, query.getExtNum1());
+        }
+        if (query.getExtNum2() != null) {
+            wrapper.eq(RetailOrder::getExtNum2, query.getExtNum2());
+        }
+        if (StringUtils.hasText(query.getExtText1())) {
+            wrapper.like(RetailOrder::getExtText1, query.getExtText1());
+        }
+        if (StringUtils.hasText(query.getExtText2())) {
+            wrapper.like(RetailOrder::getExtText2, query.getExtText2());
+        }
+        if (StringUtils.hasText(query.getExtText3())) {
+            wrapper.like(RetailOrder::getExtText3, query.getExtText3());
+        }
+        return wrapper;
+    }
+
+    /**
+     * 主表公共查询条件（按明细 Tab 口径：无下单员/记账人/会员卡号/自定义字段）
+     */
+    private LambdaQueryWrapper<RetailOrder> buildDocWrapper(RetailDetailQueryDTO query) {
+        return new LambdaQueryWrapper<RetailOrder>()
+                .eq(RetailOrder::getDeleted, 0)
+                .ge(StringUtils.hasText(query.getDateStart()), RetailOrder::getOrderDate, parseSqlDate(query.getDateStart()))
+                .le(StringUtils.hasText(query.getDateEnd()), RetailOrder::getOrderDate, parseSqlDate(query.getDateEnd()))
+                .like(StringUtils.hasText(query.getRetailNo()), RetailOrder::getRetailNo, query.getRetailNo())
+                .like(StringUtils.hasText(query.getCustomerName()), RetailOrder::getCustomerName, query.getCustomerName())
+                .eq(query.getHandlerId() != null, RetailOrder::getHandlerId, query.getHandlerId())
+                .like(StringUtils.hasText(query.getHandlerName()), RetailOrder::getHandlerName, query.getHandlerName())
+                .eq(query.getDepartmentId() != null, RetailOrder::getDepartmentId, query.getDepartmentId())
+                .like(StringUtils.hasText(query.getDepartmentName()), RetailOrder::getDepartmentName, query.getDepartmentName())
+                .eq(query.getWarehouseId() != null, RetailOrder::getWarehouseId, query.getWarehouseId())
+                .like(StringUtils.hasText(query.getWarehouseName()), RetailOrder::getWarehouseName, query.getWarehouseName())
+                .eq(query.getStatus() != null, RetailOrder::getStatus, query.getStatus())
+                .ne(!Boolean.TRUE.equals(query.getShowRedFlush()), RetailOrder::getStatus, 3);
+    }
+
+    /**
+     * 按商品行属性反查命中单据ID（商品行属性为明细字段）
+     */
+    private List<Long> findOrderIdsByProductAttribute(String productAttribute) {
+        return retailOrderItemMapper.selectList(new LambdaQueryWrapper<RetailOrderItem>()
+                        .select(RetailOrderItem::getOrderId)
+                        .eq(RetailOrderItem::getDeleted, 0)
+                        .like(RetailOrderItem::getProductAttribute, productAttribute))
+                .stream().map(RetailOrderItem::getOrderId).filter(Objects::nonNull).distinct().collect(Collectors.toList());
+    }
+
+    /**
+     * 由收款明细推导主表支付方式：单方式原样存，多方式记 MIXED
+     */
+    private String resolvePaymentMethod(List<RetailOrderPayment> payments) {
+        if (payments == null || payments.isEmpty()) return "CASH";
+        Set<String> methods = payments.stream()
+                .filter(p -> p.getPaymentAmount() != null && p.getPaymentAmount().compareTo(BigDecimal.ZERO) > 0)
+                .map(RetailOrderPayment::getPaymentMethod)
+                .filter(StringUtils::hasText)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        if (methods.isEmpty()) return "CASH";
+        if (methods.size() == 1) return methods.iterator().next();
+        return "MIXED";
+    }
+
+    /**
+     * 会员积分闭环：
+     * 产生积分 = 应收金额（1 元 = 1 分，向下取整；单据显式传入时以单据为准）
+     * 使用积分 = 单据传入值（不能超过会员当前可用积分）
+     * 结果写回 erp_retail_order（此前/当前积分）并同步 biz_party.points
+     */
+    private void applyMemberPoints(RetailOrder order) {
+        if (order.getCustomerId() == null) return;
+        Party member = partyMapper.selectById(order.getCustomerId());
+        if (member == null) return;
+
+        BigDecimal payable = order.getPayableAmount() != null ? order.getPayableAmount() : BigDecimal.ZERO;
+        BigDecimal generated = order.getMemberGeneratedPoints();
+        if (generated == null || generated.compareTo(BigDecimal.ZERO) <= 0) {
+            generated = payable.setScale(0, java.math.RoundingMode.DOWN);
+        }
+        BigDecimal used = order.getMemberUsedPoints() != null ? order.getMemberUsedPoints() : BigDecimal.ZERO;
+        if (used.compareTo(BigDecimal.ZERO) < 0) used = BigDecimal.ZERO;
+
+        int available = member.getPoints() != null ? member.getPoints() : 0;
+        if (used.compareTo(new BigDecimal(available)) > 0) {
+            throw BusinessException.badRequest(String.format("会员积分不足: 可用%d，本次使用%s", available, used.stripTrailingZeros().toPlainString()));
+        }
+
+        int current = available + generated.intValue() - used.intValue();
+        order.setPrevPoints(available);
+        order.setMemberGeneratedPoints(generated);
+        order.setMemberUsedPoints(used);
+        order.setCurrentPoints(new BigDecimal(current));
+
+        member.setPoints(current);
+        partyMapper.updateById(member);
+    }
 
     /**
      * 将日期字符串转为 java.sql.Date，确保 MyBatis-Plus 参数绑定时使用正确的 JDBC 类型

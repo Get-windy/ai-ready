@@ -1,0 +1,9 @@
+package cn.aiedge.erp.delivery.route.mapper;
+
+import cn.aiedge.erp.delivery.route.entity.RouteArea;
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import org.apache.ibatis.annotations.Mapper;
+
+@Mapper
+public interface RouteAreaMapper extends BaseMapper<RouteArea> {
+}

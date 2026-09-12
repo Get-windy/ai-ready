@@ -29,10 +29,9 @@
           </a-space>
         </template>
 
-        <!-- ═══ 工具栏右侧：操作按钮 ═══ -->
+        <!-- ═══ 工具栏右侧：操作按钮（列配置走数据表表头齿轮） ═══ -->
         <template #toolbar-right>
           <a-space :size="8">
-            <a-tooltip title="列配置"><a-button size="small" @click="showColumnConfig = true"><TableOutlined /></a-button></a-tooltip>
             <a-tooltip title="页面配置"><a-button size="small" @click="showPageConfig = true"><SettingOutlined /></a-button></a-tooltip>
             <a-button type="primary" size="small" @click="handleAdd"><PlusOutlined /> 新增收货单</a-button>
             <a-button size="small" @click="fetchData"><ReloadOutlined /> 刷新</a-button>
@@ -81,6 +80,7 @@
           <div class="table-area">
             <BillTableList
               :columns="currentColumns"
+              :storage-key="activeTab === 'doc' ? 'receiving-order-table-columns-doc' : 'receiving-order-table-columns-detail'"
               :data-source="tableData"
               :loading="loading"
               :pagination="billPagination"
@@ -124,16 +124,6 @@
       </CategoryListLayout>
     </PageContainer>
 
-    <ColumnConfigPanel
-      :open="showColumnConfig"
-      :settings-columns="panelColumns"
-      :is-locked-column="isLockedColumn"
-      @update:open="showColumnConfig = $event"
-      @change="handleColumnConfigChange"
-      @reset="handleColumnConfigReset"
-      @drag-end="handleColumnConfigChange"
-    />
-
     <PageConfigPanel
       :open="showPageConfig"
       :query-fields-config="activeQueryFields"
@@ -150,14 +140,12 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import dayjs, { type Dayjs } from 'dayjs'
 import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
-import { PlusOutlined, ReloadOutlined, ExportOutlined, PrinterOutlined, TableOutlined, SettingOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, ReloadOutlined, ExportOutlined, PrinterOutlined, SettingOutlined } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayout.vue'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
-import ColumnConfigPanel from '@/components/ColumnConfigPanel/index.vue'
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
-import { useColumnConfig, isLockedColumn } from '@/composables/useColumnConfig'
 import { useAutoGridSpan } from '@/composables/useAutoGridSpan'
 import { receiptApi } from '@/api/wms/receipt'
 import { WMS_STATUS_MAP, DETAIL_STATUS_MAP, formatQty, formatTime } from '../whTask'
@@ -204,8 +192,7 @@ const quickDates = [
 const quickDate = ref('week')
 const queryScheme = ref('')
 
-// ═══ 弹窗开关 ═══
-const showColumnConfig = ref(false)
+// ═══ 页面配置弹窗（列配置走数据表表头齿轮） ═══
 const showPageConfig = ref(false)
 
 // ═══ 搜索参数 ═══
@@ -345,7 +332,7 @@ function loadPageConfig() {
   } catch (e) { /* 忽略 */ }
 }
 
-// ═══ 列定义（必须在 useColumnConfig 之前声明） ═══
+// ═══ 列定义（原始列数组，直接交给数据表表头齿轮） ═══
 /** 按单据 Tab 列 */
 const docColumns: any[] = [
   { title: '', key: 'rowNo', type: 'rowNo', width: 44, fixed: 'left' },
@@ -391,21 +378,8 @@ const detailColumns: any[] = [
   { title: '操作', key: 'action', type: 'action', width: 150, fixed: 'right', slotName: 'actionCell' },
 ]
 
-// ═══ 列配置（按 Tab 分 key） ═══
-const docColumnDefs = computed(() => docColumns.map(c => ({ ...c })))
-const detailColumnDefs = computed(() => detailColumns.map(c => ({ ...c })))
-const {
-  visibleColumns: docVisibleColumns, onSettingChange: onDocSettingChange,
-  resetSettings: resetDocSettings, settingsColumns: docSettingsColumns,
-} = useColumnConfig(docColumnDefs.value, 'receiving-order-list-columns-doc')
-const {
-  visibleColumns: detailVisibleColumns, onSettingChange: onDetailSettingChange,
-  resetSettings: resetDetailSettings, settingsColumns: detailSettingsColumns,
-} = useColumnConfig(detailColumnDefs.value, 'receiving-order-list-columns-detail')
-const currentColumns = computed(() => activeTab.value === 'doc' ? docVisibleColumns.value : detailVisibleColumns.value)
-const panelColumns = computed(() => activeTab.value === 'doc' ? docSettingsColumns.value : detailSettingsColumns.value)
-function handleColumnConfigChange() { if (activeTab.value === 'doc') onDocSettingChange(); else onDetailSettingChange() }
-function handleColumnConfigReset() { if (activeTab.value === 'doc') resetDocSettings(); else resetDetailSettings() }
+// ═══ 列配置（走数据表表头齿轮：storage-key=receiving-order-table-columns-doc/detail） ═══
+const currentColumns = computed(() => activeTab.value === 'doc' ? docColumns : detailColumns)
 
 // ═══ 表格底部合计 ═══
 const tableFooterColumns = computed(() => {

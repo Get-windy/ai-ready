@@ -32,12 +32,19 @@ public class ProductGradeController {
     @Operation(summary = "获取等级详情")
     @GetMapping("/{id}")
     public Result<ProductGrade> getById(@PathVariable Long id) {
-        return Result.ok(productGradeService.getById(id));
+        return Result.ok(productGradeService.getAllGrades().stream()
+                .filter(g -> id.equals(g.getId()))
+                .findFirst().orElse(null));
     }
 
     @Operation(summary = "新增等级")
     @PostMapping
     public Result<Boolean> create(@RequestBody ProductGrade grade) {
+        // 价格等级是全局标准槽位字典（种子 tenant_id=0），新增同样落在全局
+        grade.setTenantId(0L);
+        if (grade.getStatus() == null) {
+            grade.setStatus(1);
+        }
         return Result.ok(productGradeService.save(grade));
     }
 
@@ -45,12 +52,12 @@ public class ProductGradeController {
     @PutMapping("/{id}")
     public Result<Boolean> update(@PathVariable Long id, @RequestBody ProductGrade grade) {
         grade.setId(id);
-        return Result.ok(productGradeService.updateById(grade));
+        return Result.ok(productGradeService.updateGrade(grade));
     }
 
     @Operation(summary = "删除等级")
     @DeleteMapping("/{id}")
     public Result<Boolean> delete(@PathVariable Long id) {
-        return Result.ok(productGradeService.removeById(id));
+        return Result.ok(productGradeService.deleteGrade(id));
     }
 }

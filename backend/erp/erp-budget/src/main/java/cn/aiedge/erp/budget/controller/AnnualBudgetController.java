@@ -1,7 +1,9 @@
 package cn.aiedge.erp.budget.controller;
 
 import cn.aiedge.erp.budget.dto.AnnualBudgetDTO;
+import cn.aiedge.erp.budget.dto.AnnualBudgetQuery;
 import cn.aiedge.erp.budget.dto.ApiResponse;
+import cn.aiedge.erp.budget.dto.BudgetBatchOpRequest;
 import cn.aiedge.erp.budget.service.AnnualBudgetService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -51,17 +53,61 @@ public class AnnualBudgetController {
         return ApiResponse.success(result);
     }
 
-    @Operation(summary = "分页查询年度预算列表")
+    @Operation(summary = "多条件分页查询预算编制单")
     @GetMapping("/page")
-    public ApiResponse<Map<String, Object>> page(
-            @Parameter(description = "关键词") @RequestParam(required = false) String keyword,
-            @Parameter(description = "财政年度") @RequestParam(required = false) Integer fiscalYear,
-            @Parameter(description = "部门ID") @RequestParam(required = false) String departmentId,
-            @Parameter(description = "状态") @RequestParam(required = false) String status,
-            @Parameter(description = "页码") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "每页大小") @RequestParam(defaultValue = "20") int size) {
-        Map<String, Object> result = annualBudgetService.page(keyword, fiscalYear, departmentId, status, page, size);
-        return ApiResponse.success(result);
+    public ApiResponse<Map<String, Object>> page(AnnualBudgetQuery query) {
+        return ApiResponse.success(annualBudgetService.pageQuery(query));
+    }
+
+    @Operation(summary = "多条件分页查询预算编制单（别名）")
+    @GetMapping("/doc-query")
+    public ApiResponse<Map<String, Object>> docQuery(AnnualBudgetQuery query) {
+        return ApiResponse.success(annualBudgetService.pageQuery(query));
+    }
+
+    @Operation(summary = "生成下一预算编制单号")
+    @GetMapping("/next-no")
+    public ApiResponse<String> nextNo() {
+        return ApiResponse.success(annualBudgetService.generateDocNo());
+    }
+
+    @Operation(summary = "保存预算编制单（含预算科目明细）")
+    @PostMapping("/save")
+    public ApiResponse<AnnualBudgetDTO> save(@RequestBody AnnualBudgetDTO dto) {
+        return ApiResponse.success("保存成功", annualBudgetService.save(dto));
+    }
+
+    @Operation(summary = "批量删除预算编制单（仅草稿/已驳回）")
+    @PostMapping("/batch-delete")
+    public ApiResponse<Integer> batchDelete(@RequestBody BudgetBatchOpRequest request) {
+        return ApiResponse.success("批量删除完成", annualBudgetService.batchDelete(request.getIds()));
+    }
+
+    @Operation(summary = "批量提交审批")
+    @PostMapping("/batch-submit")
+    public ApiResponse<Integer> batchSubmit(@RequestBody BudgetBatchOpRequest request) {
+        return ApiResponse.success("批量提交完成", annualBudgetService.batchSubmit(request.getIds()));
+    }
+
+    @Operation(summary = "批量审批通过")
+    @PostMapping("/batch-approve")
+    public ApiResponse<Integer> batchApprove(@RequestBody BudgetBatchOpRequest request) {
+        return ApiResponse.success("批量审批完成", annualBudgetService.batchApprove(
+                request.getIds(), request.getAuditorId(), request.getAuditorName(), request.getAuditRemark()));
+    }
+
+    @Operation(summary = "批量驳回")
+    @PostMapping("/batch-reject")
+    public ApiResponse<Integer> batchReject(@RequestBody BudgetBatchOpRequest request) {
+        return ApiResponse.success("批量驳回完成", annualBudgetService.batchReject(
+                request.getIds(), request.getAuditorId(), request.getAuditorName(), request.getAuditRemark()));
+    }
+
+    @Operation(summary = "打印次数 +1")
+    @PostMapping("/{id}/print")
+    public ApiResponse<Void> print(@PathVariable Long id) {
+        annualBudgetService.increasePrintCount(id);
+        return ApiResponse.success("已记录打印", null);
     }
 
     @Operation(summary = "提交审批")

@@ -11,9 +11,13 @@ import cn.aiedge.erp.sale.entity.SaleOrderItem;
 import cn.aiedge.erp.sale.mapper.SaleOrderItemMapper;
 import cn.aiedge.erp.sale.mapper.SaleOrderMapper;
 import cn.aiedge.erp.stock.entity.Product;
+import cn.aiedge.erp.stock.entity.ProductCategory;
 import cn.aiedge.erp.stock.entity.Warehouse;
+import cn.aiedge.erp.stock.mapper.ProductCategoryMapper;
 import cn.aiedge.erp.stock.mapper.ProductMapper;
 import cn.aiedge.erp.stock.mapper.WarehouseMapper;
+import cn.aiedge.base.entity.SysUser;
+import cn.aiedge.base.mapper.SysUserMapper;
 import cn.aiedge.erp.party.entity.Party;
 import cn.aiedge.erp.party.mapper.PartyMapper;
 import cn.dev33.satoken.stp.StpUtil;
@@ -46,6 +50,8 @@ public class SalePreOrderServiceImpl extends ServiceImpl<SalePreOrderMapper, Sal
     private final BizNumberGeneratorService bizNumberGeneratorService;
     private final SaleOrderMapper saleOrderMapper;
     private final SaleOrderItemMapper saleOrderItemMapper;
+    private final ProductCategoryMapper productCategoryMapper;
+    private final SysUserMapper sysUserMapper;
 
     @Override
     public Page<SalePreOrder> pageList(String keyword, Long customerId, String customerName,
@@ -57,6 +63,7 @@ public class SalePreOrderServiceImpl extends ServiceImpl<SalePreOrderMapper, Sal
                                        String auditorName, Integer saleType, String remark,
                                        BigDecimal extNum1, BigDecimal extNum2,
                                        String extText1, String extText2, String extText3,
+                                       String productAttribute,
                                        int pageNum, int pageSize) {
         LambdaQueryWrapper<SalePreOrder> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SalePreOrder::getDeleted, 0);
@@ -87,6 +94,12 @@ public class SalePreOrderServiceImpl extends ServiceImpl<SalePreOrderMapper, Sal
             wrapper.le(SalePreOrder::getDepositDeadline, LocalDate.parse(depositDeadlineEnd));
         if (StringUtils.hasText(startDate)) wrapper.ge(SalePreOrder::getOrderDate, LocalDate.parse(startDate));
         if (StringUtils.hasText(endDate)) wrapper.le(SalePreOrder::getOrderDate, LocalDate.parse(endDate));
+        // 商品行属性：按明细命中过滤（主表无该列，用 EXISTS 关联明细）
+        if (StringUtils.hasText(productAttribute)) {
+            wrapper.exists("SELECT 1 FROM erp_sale_pre_order_item i "
+                    + "WHERE i.order_id = erp_sale_pre_order.id AND i.deleted = 0 "
+                    + "AND i.product_attribute = {0}", productAttribute);
+        }
 
         wrapper.orderByDesc(SalePreOrder::getCreateTime);
         return page(new Page<>(pageNum, pageSize), wrapper);
@@ -105,6 +118,8 @@ public class SalePreOrderServiceImpl extends ServiceImpl<SalePreOrderMapper, Sal
         // 使用数据库层JOIN分页查询（符合生产级ERP标准）
         Page<Map<String, Object>> page = new Page<>(pageNum, pageSize);
         List<Integer> statusList = status != null ? Arrays.asList(status) : null;
+        // 商品分类树 → 该节点及其全部子孙分类ID（左侧分类树下钻真实生效）
+        List<Long> categoryIds = resolveCategoryScope(categoryId);
 
         // 调用自定义Mapper的JOIN查询
         // tenant_id 由 MyBatis-Plus TenantLineInnerInterceptor 自动注入
@@ -126,7 +141,8 @@ public class SalePreOrderServiceImpl extends ServiceImpl<SalePreOrderMapper, Sal
             auditorName,
             saleType,
             remark,
-            itemRemark
+            itemRemark,
+            categoryIds
         );
 
         // 转换为Map格式
@@ -236,7 +252,6 @@ public class SalePreOrderServiceImpl extends ServiceImpl<SalePreOrderMapper, Sal
                 map.put("extDept", dto.getExtDept());
                 // 主表状态别名(前端按明细tab用)
                 map.put("orderStatus", dto.getStatus());
-                map.put("orderRemark", dto.getSummary());
                 return map;
             })
             .collect(Collectors.toList());
@@ -262,6 +277,7 @@ public class SalePreOrderServiceImpl extends ServiceImpl<SalePreOrderMapper, Sal
 
         order.setStatus(1);
         order.setSubmitBy(StpUtil.getLoginIdAsLong());
+        order.setSubmitterName(currentUserName());
         order.setSubmitTime(LocalDateTime.now());
         updateById(order);
     }
@@ -275,6 +291,7 @@ public class SalePreOrderServiceImpl extends ServiceImpl<SalePreOrderMapper, Sal
 
         order.setStatus(2);
         order.setApprovedBy(StpUtil.getLoginIdAsLong());
+        order.setAuditorName(currentUserName());
         order.setApprovedTime(LocalDateTime.now());
         updateById(order);
     }
@@ -312,13 +329,26 @@ public class SalePreOrderServiceImpl extends ServiceImpl<SalePreOrderMapper, Sal
             }
         }
 
-        // 5. 设置初始状态
+        // 5. 设置初始状态 + 制单人（真实登录用户姓名，列表「制单人」列不再恒空）
         if (order.getStatus() == null) {
             order.setStatus(0); // 草稿状态
         }
         order.setPrintCount(0);
+        if (order.getCreatorName() == null || order.getCreatorName().isEmpty()) {
+            order.setCreatorName(currentUserName());
+        }
+        if (order.getCreateBy() == null) {
+            order.setCreateBy(currentUserId());
+        }
+        // 前端「提交」时直接带 status=1：一并落提交人/提交时间，避免状态与提交信息不一致
+        if (order.getStatus() != null && order.getStatus() == 1) {
+            order.setSubmitBy(order.getSubmitBy() != null ? order.getSubmitBy() : currentUserId());
+            order.setSubmitterName(order.getSubmitterName() != null ? order.getSubmitterName() : order.getCreatorName());
+            order.setSubmitTime(order.getSubmitTime() != null ? order.getSubmitTime() : LocalDateTime.now());
+        }
 
-        // 6. 保存主表
+        // 6. 数量汇总（服务端权威口径）+ 保存主表
+        applyQuantitySummary(order, items);
         save(order);
 
         // 7. 保存明细
@@ -380,9 +410,22 @@ public class SalePreOrderServiceImpl extends ServiceImpl<SalePreOrderMapper, Sal
             }
         }
 
-        // 7. 更新主表
+        // 7. 更新主表（保留原制单人，避免被空值覆盖）
+        applyQuantitySummary(order, items);
         order.setId(id);
         order.setUpdateTime(LocalDateTime.now());
+        if (order.getCreatorName() == null || order.getCreatorName().isEmpty()) {
+            order.setCreatorName(existingOrder.getCreatorName());
+        }
+        if (order.getCreateBy() == null) {
+            order.setCreateBy(existingOrder.getCreateBy());
+        }
+        // 草稿直接提交（前端提交按钮带 status=1）：补记提交人/提交时间，状态与提交信息保持一致
+        if (order.getStatus() != null && order.getStatus() == 1 && existingOrder.getStatus() == 0) {
+            order.setSubmitBy(currentUserId());
+            order.setSubmitterName(currentUserName());
+            order.setSubmitTime(LocalDateTime.now());
+        }
         updateById(order);
 
         // 8. 更新明细：先删除旧的，再插入新的
@@ -629,5 +672,102 @@ public class SalePreOrderServiceImpl extends ServiceImpl<SalePreOrderMapper, Sal
         order.setPrintCount((order.getPrintCount() != null ? order.getPrintCount() : 0) + 1);
         order.setUpdateTime(LocalDateTime.now());
         updateById(order);
+    }
+
+    @Override
+    public String generateOrderNo() {
+        return bizNumberGeneratorService.nextPreOrderNo();
+    }
+
+    // ─── 辅助方法 ───
+
+    /**
+     * 商品分类树下钻：返回该分类节点及其全部子孙分类ID。
+     * 分类为空/不存在时返回 null（不过滤），保证列表行为与「全部」一致。
+     */
+    private List<Long> resolveCategoryScope(Long categoryId) {
+        if (categoryId == null || categoryId <= 0) return null;
+        List<ProductCategory> all = productCategoryMapper.selectList(
+                new LambdaQueryWrapper<ProductCategory>().eq(ProductCategory::getDeleted, 0));
+        if (all == null || all.isEmpty()) return Collections.singletonList(categoryId);
+
+        Map<Long, List<Long>> childrenMap = new HashMap<>();
+        for (ProductCategory c : all) {
+            Long pid = c.getParentId() != null ? c.getParentId() : 0L;
+            childrenMap.computeIfAbsent(pid, k -> new ArrayList<>()).add(c.getId());
+        }
+
+        List<Long> scope = new ArrayList<>();
+        Deque<Long> queue = new ArrayDeque<>();
+        Set<Long> visited = new HashSet<>();
+        queue.add(categoryId);
+        while (!queue.isEmpty()) {
+            Long cur = queue.poll();
+            if (!visited.add(cur)) continue;
+            scope.add(cur);
+            List<Long> children = childrenMap.get(cur);
+            if (children != null) queue.addAll(children);
+        }
+        return scope;
+    }
+
+    /**
+     * 数量汇总（服务端权威口径，避免前端可篡改导致「已订/未订」滚动失真）：
+     * 主表 预订数量 = Σ 明细预订数量；未订数量 = 预订数量 − 已订数量；
+     * 明细 未订数量 = 预订数量 − 已订数量（明细行独立滚动，供批量订货逐行扣减）。
+     */
+    private void applyQuantitySummary(SalePreOrder order, List<SalePreOrderItem> items) {
+        BigDecimal preQty = BigDecimal.ZERO;
+        BigDecimal weight = BigDecimal.ZERO;
+        BigDecimal volume = BigDecimal.ZERO;
+        if (items != null) {
+            for (SalePreOrderItem item : items) {
+                BigDecimal qty = item.getQuantity() != null ? item.getQuantity() : BigDecimal.ZERO;
+                BigDecimal ordered = item.getOrderedQuantity() != null ? item.getOrderedQuantity() : BigDecimal.ZERO;
+                item.setOrderedQuantity(ordered);
+                item.setUnOrderedQuantity(qty.subtract(ordered).max(BigDecimal.ZERO));
+                BigDecimal shipped = item.getShippedQuantity() != null ? item.getShippedQuantity() : BigDecimal.ZERO;
+                item.setUnShippedQuantity(qty.subtract(shipped).max(BigDecimal.ZERO));
+                if (item.getAmount() == null && item.getUnitPrice() != null) {
+                    item.setAmount(qty.multiply(item.getUnitPrice()));
+                }
+                preQty = preQty.add(qty);
+                // 重量/体积口径与销售订单一致：单位重量 × 数量
+                weight = weight.add(item.getWeight() != null ? item.getWeight().multiply(qty) : BigDecimal.ZERO);
+                volume = volume.add(item.getVolume() != null ? item.getVolume().multiply(qty) : BigDecimal.ZERO);
+            }
+        }
+        order.setPreOrderQuantity(preQty);
+        BigDecimal orderedTotal = order.getOrderedQuantity() != null ? order.getOrderedQuantity() : BigDecimal.ZERO;
+        order.setUnOrderedQuantity(preQty.subtract(orderedTotal).max(BigDecimal.ZERO));
+        order.setShippedQuantity(order.getShippedQuantity() != null ? order.getShippedQuantity() : BigDecimal.ZERO);
+        order.setUnShippedQuantity(order.getPreOrderQuantity().subtract(order.getShippedQuantity()).max(BigDecimal.ZERO));
+        order.setTotalWeight(weight);
+        order.setTotalVolume(volume);
+    }
+
+    /** 当前登录用户ID（未登录返回 null，避免对外键列写入脏值） */
+    private Long currentUserId() {
+        try {
+            return StpUtil.isLogin() ? StpUtil.getLoginIdAsLong() : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** 当前登录用户真实姓名（昵称优先，其次用户名） */
+    private String currentUserName() {
+        Long userId = currentUserId();
+        if (userId == null) return "系统";
+        try {
+            SysUser user = sysUserMapper.selectById(userId);
+            if (user != null) {
+                if (StringUtils.hasText(user.getNickname())) return user.getNickname();
+                if (StringUtils.hasText(user.getUsername())) return user.getUsername();
+            }
+        } catch (Exception e) {
+            log.warn("查询当前用户姓名失败: userId={}", userId, e);
+        }
+        return String.valueOf(userId);
     }
 }

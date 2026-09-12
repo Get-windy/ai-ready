@@ -21,6 +21,7 @@ public interface ProductRecommendMapper extends BaseMapper<ProductRecommend> {
             "p2.product_code AS recommend_product_code, " +
             "p2.product_name AS recommend_product_name, " +
             "p2.spec AS recommend_product_spec, " +
+            "p2.model AS recommend_product_model, " +
             "p2.unit AS recommend_product_unit, " +
             "p2.origin AS recommend_product_origin, " +
             "p2.brand AS recommend_product_brand " +
@@ -32,6 +33,7 @@ public interface ProductRecommendMapper extends BaseMapper<ProductRecommend> {
             @Result(column = "recommend_product_code", property = "recommendProductCode"),
             @Result(column = "recommend_product_name", property = "recommendProductName"),
             @Result(column = "recommend_product_spec", property = "recommendProductSpec"),
+            @Result(column = "recommend_product_model", property = "recommendProductModel"),
             @Result(column = "recommend_product_unit", property = "recommendProductUnit"),
             @Result(column = "recommend_product_origin", property = "recommendProductOrigin"),
             @Result(column = "recommend_product_brand", property = "recommendProductBrand")

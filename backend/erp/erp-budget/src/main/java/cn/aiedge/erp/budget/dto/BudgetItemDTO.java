@@ -3,6 +3,7 @@ package cn.aiedge.erp.budget.dto;
 import lombok.Data;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 /**
  * 预算科目DTO
@@ -19,4 +20,9 @@ public class BudgetItemDTO {
     private BigDecimal frozenAmount;
     private BigDecimal executionRate;
     private Integer sortOrder;
+    private LocalDate lastExecDate;
+    private Integer lineNo;
+    private Long subjectId;
+    private String subjectType;
+    private String remark;
 }

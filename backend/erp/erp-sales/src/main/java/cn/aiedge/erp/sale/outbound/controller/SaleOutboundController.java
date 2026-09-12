@@ -2,6 +2,7 @@ package cn.aiedge.erp.sale.outbound.controller;
 
 import cn.aiedge.erp.sale.outbound.dto.SaleOutboundCreateDTO;
 import cn.aiedge.erp.sale.outbound.dto.SaleOutboundItemDTO;
+import cn.aiedge.erp.sale.outbound.dto.SaleOutboundQueryDTO;
 import cn.aiedge.erp.sale.outbound.dto.SaleOutboundVO;
 import cn.aiedge.erp.sale.outbound.entity.SaleOutbound;
 import cn.aiedge.erp.sale.outbound.entity.SaleOutboundItem;
@@ -36,49 +37,25 @@ public class SaleOutboundController {
     private final SaleOutboundMapper saleOutboundMapper;
 
     @GetMapping("/page")
-    @Operation(summary = "分页查询出库单（按单据）")
-    public Page<SaleOutboundVO> page(
-            @Parameter(description = "关键词") @RequestParam(required = false) String keyword,
-            @Parameter(description = "客户ID") @RequestParam(required = false) Long customerId,
-            @Parameter(description = "订单ID") @RequestParam(required = false) Long orderId,
-            @Parameter(description = "仓库ID") @RequestParam(required = false) Long warehouseId,
-            @Parameter(description = "状态") @RequestParam(required = false) Integer status,
-            @Parameter(description = "出库单号") @RequestParam(required = false) String outboundNo,
-            @Parameter(description = "经手人ID") @RequestParam(required = false) Long salesPersonId,
-            @Parameter(description = "结算状态") @RequestParam(required = false) String settlementStatus,
-            @Parameter(description = "结款方式") @RequestParam(required = false) String settlementMethod,
-            @Parameter(description = "来源订单") @RequestParam(required = false) String sourceOrder,
-            @Parameter(description = "收货人") @RequestParam(required = false) String receiverName,
-            @Parameter(description = "开始日期") @RequestParam(required = false) String dateStart,
-            @Parameter(description = "结束日期") @RequestParam(required = false) String dateEnd,
-            @Parameter(description = "页码") @RequestParam(defaultValue = "1") int pageNum,
-            @Parameter(description = "每页数量") @RequestParam(defaultValue = "10") int pageSize) {
-        Page<SaleOutbound> page = saleOutboundService.pageList(keyword, customerId, orderId, warehouseId, status,
-                outboundNo, salesPersonId, settlementStatus, settlementMethod, sourceOrder, receiverName,
-                dateStart, dateEnd, pageNum, pageSize);
-        Page<SaleOutboundVO> voPage = new Page<>(pageNum, pageSize, page.getTotal());
+    @Operation(summary = "分页查询出库单（按单据，对标文档 40 项查询条件）")
+    public Page<SaleOutboundVO> page(SaleOutboundQueryDTO query) {
+        Page<SaleOutbound> page = saleOutboundService.pageList(query);
+        Page<SaleOutboundVO> voPage = new Page<>(query.getPageNum(), query.getPageSize(), page.getTotal());
         voPage.setRecords(page.getRecords().stream().map(this::convertToVO).collect(Collectors.toList()));
         return voPage;
     }
 
     @GetMapping("/page-detail")
-    @Operation(summary = "分页查询出库单明细（按明细）")
-    public Page<Map<String, Object>> pageDetail(
-            @Parameter(description = "关键词") @RequestParam(required = false) String keyword,
-            @Parameter(description = "客户ID") @RequestParam(required = false) Long customerId,
-            @Parameter(description = "仓库ID") @RequestParam(required = false) Long warehouseId,
-            @Parameter(description = "状态") @RequestParam(required = false) Integer status,
-            @Parameter(description = "出库单号") @RequestParam(required = false) String outboundNo,
-            @Parameter(description = "商品ID") @RequestParam(required = false) Long productId,
-            @Parameter(description = "经手人ID") @RequestParam(required = false) Long salesPersonId,
-            @Parameter(description = "结算状态") @RequestParam(required = false) String settlementStatus,
-            @Parameter(description = "来源订单") @RequestParam(required = false) String sourceOrder,
-            @Parameter(description = "开始日期") @RequestParam(required = false) String dateStart,
-            @Parameter(description = "结束日期") @RequestParam(required = false) String dateEnd,
-            @Parameter(description = "页码") @RequestParam(defaultValue = "1") int pageNum,
-            @Parameter(description = "每页数量") @RequestParam(defaultValue = "10") int pageSize) {
-        return saleOutboundService.pageDetail(keyword, customerId, warehouseId, status, outboundNo,
-                productId, salesPersonId, settlementStatus, sourceOrder, dateStart, dateEnd, pageNum, pageSize);
+    @Operation(summary = "分页查询出库单明细（按明细，分页口径 = 明细行）")
+    public Page<Map<String, Object>> pageDetail(SaleOutboundQueryDTO query) {
+        return saleOutboundService.pageDetail(query);
+    }
+
+    @GetMapping("/next-no")
+    @Operation(summary = "获取下一个出库单号（后端号段，前端禁止自增演示号）")
+    public String nextNo() {
+        // 与采购/入库等模块一致：直接返回完整单号字符串，前端 generateCodeAsync 原样使用
+        return saleOutboundService.generateOutboundNo();
     }
 
     @GetMapping("/{id}")
@@ -118,6 +95,11 @@ public class SaleOutboundController {
     public SaleOutboundVO create(@RequestBody SaleOutboundCreateDTO dto) {
         SaleOutbound outbound = new SaleOutbound();
         BeanUtils.copyProperties(dto, outbound);
+        // 来源订单：前端「源单」输入框字段名为 sourceOrder，实体字段为 orderNo
+        if ((outbound.getOrderNo() == null || outbound.getOrderNo().isBlank())
+                && dto.getSourceOrder() != null && !dto.getSourceOrder().isBlank()) {
+            outbound.setOrderNo(dto.getSourceOrder());
+        }
         outbound.setTenantId(1L);
         outbound.setCreateBy(StpUtil.getLoginIdAsLong());
         List<SaleOutboundItem> items = mapItemsFromDTO(dto.getItems());
@@ -137,6 +119,10 @@ public class SaleOutboundController {
     public SaleOutboundVO update(@PathVariable Long id, @RequestBody SaleOutboundCreateDTO dto) {
         SaleOutbound outbound = new SaleOutbound();
         BeanUtils.copyProperties(dto, outbound);
+        if ((outbound.getOrderNo() == null || outbound.getOrderNo().isBlank())
+                && dto.getSourceOrder() != null && !dto.getSourceOrder().isBlank()) {
+            outbound.setOrderNo(dto.getSourceOrder());
+        }
         List<SaleOutboundItem> items = mapItemsFromDTO(dto.getItems());
         SaleOutbound updated = saleOutboundService.updateOutbound(id, outbound, items);
         return convertToVO(updated);
@@ -287,11 +273,105 @@ public class SaleOutboundController {
     }
 
     @GetMapping("/export")
-    @Operation(summary = "导出售库单列表")
-    public List<SaleOutbound> export(
-            @Parameter(description = "关键词") @RequestParam(required = false) String keyword,
-            @Parameter(description = "状态") @RequestParam(required = false) Integer status) {
-        return saleOutboundService.exportList(keyword, status);
+    @Operation(summary = "导出售库单列表（真实 Excel 流式输出）")
+    public void export(SaleOutboundQueryDTO query, jakarta.servlet.http.HttpServletResponse response) {
+        List<SaleOutbound> list = saleOutboundService.exportList(query);
+        String fileName = "销售出库单_" + java.time.LocalDate.now() + ".xlsx";
+        try {
+            response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            response.setCharacterEncoding("UTF-8");
+            response.setHeader("Content-Disposition",
+                    "attachment; filename*=UTF-8''" + java.net.URLEncoder.encode(fileName, java.nio.charset.StandardCharsets.UTF_8));
+            try (org.apache.poi.xssf.usermodel.XSSFWorkbook workbook = new org.apache.poi.xssf.usermodel.XSSFWorkbook()) {
+                org.apache.poi.ss.usermodel.Sheet sheet = workbook.createSheet("销售出库单");
+                String[] headers = {"单据日期", "单据编号", "单据状态", "来源订单", "仓库", "客户", "客户编号",
+                        "经手人", "部门", "商品金额", "本单金额", "已结金额", "结算状态", "数量", "配送方式",
+                        "运单号", "单据备注", "物流备注", "制单人", "审核人", "记账人", "制单时间"};
+                org.apache.poi.ss.usermodel.Row head = sheet.createRow(0);
+                org.apache.poi.ss.usermodel.CellStyle headStyle = workbook.createCellStyle();
+                org.apache.poi.ss.usermodel.Font headFont = workbook.createFont();
+                headFont.setBold(true);
+                headStyle.setFont(headFont);
+                for (int i = 0; i < headers.length; i++) {
+                    org.apache.poi.ss.usermodel.Cell cell = head.createCell(i);
+                    cell.setCellValue(headers[i]);
+                    cell.setCellStyle(headStyle);
+                }
+                int rowIdx = 1;
+                for (SaleOutbound o : list) {
+                    org.apache.poi.ss.usermodel.Row row = sheet.createRow(rowIdx++);
+                    int c = 0;
+                    row.createCell(c++).setCellValue(o.getOutboundDate() == null ? "" : o.getOutboundDate().toString());
+                    row.createCell(c++).setCellValue(nvl(o.getOutboundNo()));
+                    row.createCell(c++).setCellValue(statusDesc(o.getStatus()));
+                    row.createCell(c++).setCellValue(nvl(o.getOrderNo()));
+                    row.createCell(c++).setCellValue(nvl(o.getWarehouseName()));
+                    row.createCell(c++).setCellValue(nvl(o.getCustomerName()));
+                    row.createCell(c++).setCellValue(nvl(o.getCustomerCode()));
+                    row.createCell(c++).setCellValue(nvl(o.getSalesPersonName()));
+                    row.createCell(c++).setCellValue(nvl(o.getDepartmentName()));
+                    row.createCell(c++).setCellValue(num(o.getTotalQuantity()));
+                    row.createCell(c++).setCellValue(num(o.getTotalAmount()));
+                    row.createCell(c++).setCellValue(num(o.getSettledAmount()));
+                    row.createCell(c++).setCellValue(nvl(o.getSettlementStatus()));
+                    row.createCell(c++).setCellValue(num(o.getTotalQuantity()));
+                    row.createCell(c++).setCellValue(nvl(o.getDeliveryMethod()));
+                    row.createCell(c++).setCellValue(nvl(o.getTrackingNumber()));
+                    row.createCell(c++).setCellValue(nvl(o.getRemark()));
+                    row.createCell(c++).setCellValue(nvl(o.getLogisticsRemark()));
+                    row.createCell(c++).setCellValue(nvl(o.getCreatorName()));
+                    row.createCell(c++).setCellValue(nvl(o.getAuditorName()));
+                    row.createCell(c++).setCellValue(nvl(o.getBookkeeperName()));
+                    row.createCell(c).setCellValue(o.getCreateTime() == null ? "" : o.getCreateTime().toString());
+                }
+                for (int i = 0; i < headers.length; i++) {
+                    sheet.setColumnWidth(i, 16 * 256);
+                }
+                workbook.write(response.getOutputStream());
+                response.getOutputStream().flush();
+            }
+        } catch (Exception e) {
+            log.error("销售出库单导出失败: {}", e.getMessage(), e);
+            throw new RuntimeException("导出失败: " + e.getMessage(), e);
+        }
+    }
+
+    @PostMapping("/batch-logistics-remark")
+    @Operation(summary = "批量写入物流备注（选中单据）")
+    public Map<String, Object> batchLogisticsRemark(@RequestBody Map<String, Object> body) {
+        Object idsObj = body.get("ids");
+        if (!(idsObj instanceof List<?> rawIds) || rawIds.isEmpty()) {
+            throw new IllegalArgumentException("请先选择出库单");
+        }
+        List<Long> ids = rawIds.stream()
+                .map(v -> v instanceof Number n ? n.longValue() : Long.parseLong(String.valueOf(v)))
+                .collect(Collectors.toList());
+        String logisticsRemark = body.get("logisticsRemark") == null ? "" : String.valueOf(body.get("logisticsRemark"));
+        int updated = saleOutboundService.batchUpdateLogisticsRemark(ids, logisticsRemark);
+        Map<String, Object> result = new HashMap<>();
+        result.put("success", true);
+        result.put("updated", updated);
+        return result;
+    }
+
+    private String nvl(String v) {
+        return v == null ? "" : v;
+    }
+
+    private double num(BigDecimal v) {
+        return v == null ? 0d : v.doubleValue();
+    }
+
+    private String statusDesc(Integer status) {
+        if (status == null) {
+            return "";
+        }
+        for (OutboundStatus s : OutboundStatus.values()) {
+            if (s.getCode().equals(status)) {
+                return s.getDesc();
+            }
+        }
+        return "";
     }
 
     @PostMapping("/batch-print")

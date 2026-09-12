@@ -50,6 +50,18 @@ public class VoucherItem extends BaseEntity {
     private String subjectName;
 
     /**
+     * 科目全名（完整路径，取自科目树，非数据库字段冗余）
+     */
+    @TableField(exist = false)
+    private String subjectFullName;
+
+    /**
+     * 明细科目 / 辅助核算项（如往来单位/部门/职员）
+     */
+    @TableField("detail_subject")
+    private String detailSubject;
+
+    /**
      * 借方金额
      */
     @TableField("debit_amount")
@@ -79,6 +91,30 @@ public class VoucherItem extends BaseEntity {
      */
     @TableField("source_no")
     private String sourceNo;
+
+    /**
+     * 对账标记 0-未对账 1-已对账
+     */
+    @TableField("reconcile_flag")
+    private Integer reconcileFlag = 0;
+
+    /**
+     * 核算单位（往来单位核算项）
+     */
+    @TableField("aux_unit")
+    private String auxUnit;
+
+    /**
+     * 核算部门
+     */
+    @TableField("aux_dept")
+    private String auxDept;
+
+    /**
+     * 核算职员
+     */
+    @TableField("aux_staff")
+    private String auxStaff;
 
     /**
      * 所属凭证 (非数据库字段)

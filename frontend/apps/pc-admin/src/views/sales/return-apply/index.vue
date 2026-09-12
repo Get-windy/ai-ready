@@ -70,7 +70,7 @@
             >
               <ReloadOutlined /> 刷新
             </a-button>
-            <a-button v-if="activeTab === 'doc' && isButtonEnabled('batchPrint')" size="small">
+            <a-button v-if="activeTab === 'doc' && isButtonEnabled('batchPrint')" size="small" @click="handleBatchPrint">
               <PrinterOutlined /> 批量打印
             </a-button>
             <a-button v-if="isButtonEnabled('printF8')" size="small" @click="handlePrintF8">
@@ -82,14 +82,6 @@
             <a-button v-if="isButtonEnabled('config')" size="small" @click="showPageConfig = true">
               <SettingOutlined /> 配置
             </a-button>
-            <a-tooltip title="列配置">
-              <a-button
-                size="small"
-                @click="showColumnConfig = true"
-              >
-                <ColumnWidthOutlined />
-              </a-button>
-            </a-tooltip>
             <!-- 批量操作（仅在有选中行时显示） -->
             <a-button v-if="activeTab === 'doc' && selectedRowKeys.length > 0" size="small" @click="handleBatchApprove">
               <CheckOutlined /> 批量审核
@@ -380,6 +372,7 @@
           <div class="table-area">
             <BillTableList
               :columns="currentColumns"
+              :storage-key="activeTab === 'doc' ? 'sale-return-apply-table-columns-doc' : 'sale-return-apply-table-columns-detail'"
               :data-source="tableData"
               :loading="loading"
               :pagination="billPagination"
@@ -444,23 +437,12 @@
       </CategoryListLayout>
     </PageContainer>
 
-    <!-- ═══ 列配置弹窗 ═══ -->
-    <ColumnConfigPanel
-      :open="showColumnConfig"
-      :settings-columns="panelColumns"
-      :is-locked-column="isLockedColumn"
-      @update:open="showColumnConfig = $event"
-      @change="handleColumnConfigChange"
-      @reset="handleColumnConfigReset"
-      @drag-end="handleColumnConfigChange"
-    />
-
     <!-- ═══ 页面配置弹窗 ═══ -->
     <PageConfigPanel
       :open="showPageConfig"
-      :query-fields-config="activeTab === 'detail' ? detailQueryConfig : docQueryConfig"
-      :function-buttons-config="functionButtonConfig"
-      storage-key="sale-return-apply-page-config"
+      :query-fields-config="activeQueryConfig"
+      :function-buttons-config="activeFunctionButtons"
+      :storage-key="activePageConfigStorageKey"
       @update:open="showPageConfig = $event"
       @change="handlePageConfigChange"
     />
@@ -483,15 +465,12 @@ import {
   CheckOutlined,
   DeleteOutlined,
   ExportOutlined,
-  ColumnWidthOutlined,
 } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayout.vue'
-import ColumnConfigPanel from '@/components/ColumnConfigPanel/index.vue'
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
-import { useColumnConfig, isLockedColumn } from '@/composables/useColumnConfig'
 import { useAutoGridSpan } from '@/composables/useAutoGridSpan'
 import { saleReturnApi } from '@/api/erp'
 import { productCategoryApi } from '@/api/erp/product'
@@ -581,7 +560,6 @@ const rowSelection = computed(() => ({
 }))
 
 // ═══ 配置弹窗状态 ═══
-const showColumnConfig = ref(false)
 const showPageConfig = ref(false)
 const showMoreDocConditions = ref(false)
 const showMoreDetailConditions = ref(false)
@@ -594,11 +572,21 @@ const detailActionRef = ref<HTMLElement | null>(null)
 const { span: docActionSpan } = useAutoGridSpan(docActionRef, docGridRef)
 const { span: detailActionSpan } = useAutoGridSpan(detailActionRef, detailGridRef)
 
-// ═══ 页面配置存储键 ═══
+// ═══ 页面配置存储键（按 Tab 独立：查询条件互不覆盖；功能按钮全局共用） ═══
 const PAGE_CONFIG_STORAGE_KEY = 'sale-return-apply-page-config'
+const activePageConfigStorageKey = computed(() => `${PAGE_CONFIG_STORAGE_KEY}-${activeTab.value}`)
+const activeQueryConfig = computed(() =>
+  activeTab.value === 'detail' ? detailQueryConfig.value : docQueryConfig.value
+)
+/** 按明细 Tab 无「批量打印」（对标文档：按明细功能按钮 5 个） */
+const activeFunctionButtons = computed(() =>
+  activeTab.value === 'detail'
+    ? functionButtonConfig.value.filter(b => b.key !== 'batchPrint')
+    : functionButtonConfig.value
+)
 
-// ═══ 页面配置默认值 ═══
-const docQueryConfig = ref([
+// ═══ 页面配置默认值（按 Tab 独立，供存档合并/恢复默认使用） ═══
+const DEFAULT_DOC_QUERY_FIELDS = [
   { key: 'orderDate', label: '单据时间', visible: true },
   { key: 'orderNo', label: '单据编号', visible: true },
   { key: 'customerName', label: '客户', visible: true },
@@ -626,10 +614,11 @@ const docQueryConfig = ref([
   { key: 'contactPhone', label: '联系电话', visible: true },
   { key: 'contactAddress', label: '联系地址', visible: true },
   { key: 'auditTime', label: '审核时间', visible: true },
-])
+]
+const docQueryConfig = ref(DEFAULT_DOC_QUERY_FIELDS.map(f => ({ ...f })))
 
 // 按明细tab查询条件配置（16个，默认全部勾选）
-const detailQueryConfig = ref([
+const DEFAULT_DETAIL_QUERY_FIELDS = [
   { key: 'orderDate', label: '单据时间', visible: true },
   { key: 'orderNo', label: '单据编号', visible: true },
   { key: 'productName', label: '商品', visible: true },
@@ -646,7 +635,8 @@ const detailQueryConfig = ref([
   { key: 'creatorName', label: '制单人', visible: true },
   { key: 'auditorName', label: '审核人', visible: true },
   { key: 'auditTime', label: '审核时间', visible: true },
-])
+]
+const detailQueryConfig = ref(DEFAULT_DETAIL_QUERY_FIELDS.map(f => ({ ...f })))
 
 const functionButtonConfig = ref([
   { key: 'add', label: '新增', enabled: true },
@@ -656,11 +646,6 @@ const functionButtonConfig = ref([
   { key: 'export', label: '导出', enabled: true },
   { key: 'config', label: '配置', enabled: true },
 ])
-
-const printConfig = reactive({
-  useLastTemplate: true,
-  defaultTemplate: '',
-})
 
 // ═══ 商品分类树 ═══
 const categoryTreeData = ref<any[]>([])
@@ -685,10 +670,11 @@ function getStatusColor(status: number): string {
   return STATUS_MAP[status]?.color || 'default'
 }
 
-// ═══ 列定义（必须在 useColumnConfig 之前声明） ═══
+// ═══ 列定义 ═══
 
 /** 按单据 Tab 列 (47列) */
 const docColumns = [
+  { title: '', key: 'rowNo', type: 'rowNo', width: 40, fixed: 'left' },
   { title: '操作', key: 'action', type: 'action', width: 120, fixed: 'right', slotName: 'actionCell' },
   { title: '单据日期', field: 'orderDate', key: 'orderDate', width: 110, sortable: true },
   { title: '单据编号', field: 'returnNo', key: 'returnNo', width: 170, type: 'slot', slotName: 'orderNoCell', sortable: true },
@@ -751,6 +737,7 @@ const docColumns = [
 
 /** 按明细 Tab 列 (62列) */
 const detailColumns = [
+  { title: '', key: 'rowNo', type: 'rowNo', width: 40, fixed: 'left' },
   { title: '操作', key: 'action', type: 'action', width: 120, fixed: 'right', slotName: 'actionCell' },
   { title: '单据日期', field: 'orderDate', key: 'orderDate', width: 110, sortable: true },
   { title: '单据编号', field: 'returnNo', key: 'returnNo', width: 170, type: 'slot', slotName: 'orderNoCell', sortable: true },
@@ -786,40 +773,6 @@ const detailColumns = [
   { title: '单据自定义8(往来单位)', field: 'extPartner', key: 'extPartner', width: 100 },
   { title: '单据自定义9(职员)', field: 'extStaff', key: 'extStaff', width: 100 },
   { title: '单据自定义10(部门)', field: 'extDept', key: 'extDept', width: 100 },
-  { title: '图片', field: 'imageUrl', key: 'imageUrl', width: 80, type: 'image' },
-  { title: '区域', field: 'region', key: 'region', width: 90 },
-  { title: '品牌', field: 'brand', key: 'brand', width: 90 },
-  { title: '计价单位', field: 'productUnit', key: 'productUnitDetail', width: 90 },
-  { title: '件散数量', field: 'pieceQuantity', key: 'pieceQuantity', width: 90, align: 'right' },
-  { title: '可用库存', field: 'availableStock', key: 'availableStock', width: 100, align: 'right' },
-  { title: '可用库存换算结果', field: 'availableStockConverted', key: 'availableStockConverted', width: 130, align: 'right' },
-  { title: '账面库存', field: 'bookStock', key: 'bookStock', width: 100, align: 'right' },
-  { title: '批次条码', field: 'batchNo', key: 'batchNo', width: 120 },
-  { title: '生产日期', field: 'productionDate', key: 'productionDate', width: 110 },
-  { title: '保质期', field: 'shelfLife', key: 'shelfLife', width: 90 },
-  { title: '到期日期', field: 'validityDate', key: 'validityDate', width: 110 },
-  { title: '最近销售日期', field: 'lastSaleDate', key: 'lastSaleDate', width: 110 },
-  { title: '最近售价', field: 'lastSalePrice', key: 'lastSalePrice', width: 100, align: 'right' },
-  { title: '零售价', field: 'retailPrice', key: 'retailPrice', width: 100, align: 'right' },
-  { title: '批发价', field: 'wholesalePrice', key: 'wholesalePrice', width: 100, align: 'right' },
-  { title: '最低售价', field: 'minSalePrice', key: 'minSalePrice', width: 100, align: 'right' },
-  { title: '参考成本单价', field: 'costPrice', key: 'costPrice', width: 110, align: 'right' },
-  { title: '参考成本金额', field: 'costAmount', key: 'costAmount', width: 110, align: 'right' },
-  { title: '参考毛利', field: 'grossProfit', key: 'grossProfit', width: 100, align: 'right' },
-  { title: '兑换礼品', field: 'giftItem', key: 'giftItem', width: 100 },
-  { title: '兑换积分', field: 'exchangePoints', key: 'exchangePoints', width: 90, align: 'right' },
-  { title: '产生积分', field: 'generatedPoints', key: 'generatedPoints', width: 90, align: 'right' },
-  { title: '使用积分', field: 'usedPoints', key: 'usedPoints', width: 90, align: 'right' },
-  { title: '赠品', field: 'gift', key: 'gift', width: 70 },
-  { title: '备注', field: 'itemRemark', key: 'itemRemarkDetail', width: 120 },
-  { title: '价格等级1', field: 'priceLevel1', key: 'priceLevel1', width: 100, align: 'right' },
-  { title: '价格等级2', field: 'priceLevel2', key: 'priceLevel2', width: 100, align: 'right' },
-  { title: '价格等级3', field: 'priceLevel3', key: 'priceLevel3', width: 100, align: 'right' },
-  { title: '价格等级4', field: 'priceLevel4', key: 'priceLevel4', width: 100, align: 'right' },
-  { title: '价格等级5', field: 'priceLevel5', key: 'priceLevel5', width: 100, align: 'right' },
-  { title: '价格等级6', field: 'priceLevel6', key: 'priceLevel6', width: 100, align: 'right' },
-  { title: '价格等级7', field: 'priceLevel7', key: 'priceLevel7', width: 100, align: 'right' },
-  { title: '价格等级8', field: 'priceLevel8', key: 'priceLevel8', width: 100, align: 'right' },
   // ── 单位/包装 ──
   { title: '单位', field: 'unit', key: 'unit', width: 80 },
   { title: '小单位', field: 'smallUnit', key: 'smallUnit', width: 70 },
@@ -860,67 +813,38 @@ const detailColumns = [
   { title: '审核时间', field: 'auditTime', key: 'auditTime', width: 140 },
 ]
 
-// ═══ 列配置 ═══
-const docColumnDefs = computed(() => docColumns.map(col => ({ ...col })))
-const detailColumnDefs = computed(() => detailColumns.map(col => ({ ...col })))
-const {
-  visibleColumns: docVisibleColumns,
-  showPanel: docShowPanel,
-  onSettingChange: onDocSettingChange,
-  resetSettings: resetDocSettings,
-  settingsColumns: docSettingsColumns,
-} = useColumnConfig(docColumnDefs.value, 'sale-return-apply-list-columns-doc')
-const {
-  visibleColumns: detailVisibleColumns,
-  showPanel: detailShowPanel,
-  onSettingChange: onDetailSettingChange,
-  resetSettings: resetDetailSettings,
-  settingsColumns: detailSettingsColumns,
-} = useColumnConfig(detailColumnDefs.value, 'sale-return-apply-list-columns-detail')
-
+// ═══ 列配置走数据表表头齿轮（storage-key=sale-return-apply-table-columns-doc/-detail） ═══
 // 当前显示的列
 const currentColumns = computed(() => {
-  if (activeTab.value === 'doc') return docVisibleColumns.value
-  return detailVisibleColumns.value
+  if (activeTab.value === 'doc') return docColumns
+  return detailColumns
 })
-
-// 列配置弹窗使用的列
-const panelColumns = computed(() => {
-  if (activeTab.value === 'doc') return docSettingsColumns.value
-  return detailSettingsColumns.value
-})
-
-function handleColumnConfigChange() {
-  if (activeTab.value === 'doc') onDocSettingChange()
-  else onDetailSettingChange()
-}
-function handleColumnConfigReset() {
-  if (activeTab.value === 'doc') resetDocSettings()
-  else resetDetailSettings()
-}
 
 // ═══ 页面配置变更处理 ═══
 function handlePageConfigChange(config: any) {
+  const tab = activeTab.value === 'detail' ? 'detail' : 'doc'
+  const targetConfig = tab === 'detail' ? detailQueryConfig.value : docQueryConfig.value
   if (config.queryFields) {
-    // 根据当前激活tab更新对应的查询条件配置
-    const targetConfig = activeTab.value === 'detail' ? detailQueryConfig.value : docQueryConfig.value
     config.queryFields.forEach((f: any) => {
       const target = targetConfig.find(d => d.key === f.key)
       if (target) target.visible = f.visible
     })
+    // 拖拽排序真实生效：按配置面板顺序重排查询字段
+    const ordered = config.queryFields
+      .map((f: any) => targetConfig.find(d => d.key === f.key))
+      .filter((d: any) => !!d)
+    if (ordered.length === targetConfig.length) {
+      targetConfig.splice(0, targetConfig.length, ...ordered)
+    }
+    localStorage.setItem(`${PAGE_CONFIG_STORAGE_KEY}-${tab}`, JSON.stringify({ queryFields: config.queryFields }))
   }
   if (config.functionButtons) {
     config.functionButtons.forEach((b: any) => {
       const target = functionButtonConfig.value.find(d => d.key === b.key)
       if (target) target.enabled = b.enabled
     })
+    localStorage.setItem(`${PAGE_CONFIG_STORAGE_KEY}-buttons`, JSON.stringify({ functionButtons: config.functionButtons }))
   }
-  localStorage.setItem(PAGE_CONFIG_STORAGE_KEY, JSON.stringify({
-    docQueryFields: docQueryConfig.value,
-    detailQueryFields: detailQueryConfig.value,
-    functionButtons: config.functionButtons || functionButtonConfig.value,
-    printConfig: config.printConfig || { ...printConfig },
-  }))
 }
 
 // 查询条件显隐控制
@@ -1131,21 +1055,36 @@ function handleAdd() {
   router.push('/sales/return-apply/create')
 }
 
+/** 导出当前 Tab 的可见列数据为 CSV（Excel 可直接打开） */
 function handleExport() {
-  if (!tableData.value.length) {
+  const rows = tableData.value
+  if (!rows.length) {
     message.warning('暂无数据可导出')
     return
   }
-  // 构建导出参数
-  const params: Record<string, any> = { ...searchParams }
-  if (dateRange.value?.[0]) params.startDate = dateRange.value[0].format('YYYY-MM-DD')
-  if (dateRange.value?.[1]) params.endDate = dateRange.value[1].format('YYYY-MM-DD')
-  params.tab = activeTab.value
-  saleReturnApi.export(params).then(() => {
-    message.success('导出成功')
-  }).catch(() => {
-    message.error('导出失败')
-  })
+  const cols = currentColumns.value.filter((c: any) => c.field && c.type !== 'action')
+  const headers = cols.map((c: any) => c.title)
+  const csvRows = rows.map((r: any) =>
+    cols.map((c: any) => {
+      const v = r[c.field]
+      if (v === null || v === undefined) return ''
+      return String(v).replace(/[",\n\r]/g, ' ')
+    })
+  )
+  const csv = [headers.join(','), ...csvRows.map(r => r.join(','))].join('\n')
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `销售退货申请_${activeTab.value === 'doc' ? '按单据' : '按明细'}_${dayjs().format('YYYYMMDD_HHmmss')}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+  message.success(`已导出 ${rows.length} 行`)
+}
+
+/** 打印：跳转单据表单页并携带打印标记，由表单页调用打印组件 */
+function openPrintForm(id: any) {
+  router.push(`/sales/return-apply/form/${id}?print=1`)
 }
 
 function handlePrintF8() {
@@ -1153,7 +1092,22 @@ function handlePrintF8() {
     message.warning('请先选择要打印的单据')
     return
   }
-  message.info('打印功能开发中')
+  openPrintForm(selectedRowKeys.value[0])
+}
+
+/** 批量打印：逐张打开选中单据打印（对标管家婆批量打印） */
+function handleBatchPrint() {
+  if (selectedRowKeys.value.length === 0) {
+    message.warning('请先选择要批量打印的单据')
+    return
+  }
+  Modal.confirm({
+    title: '批量打印',
+    content: `将依次打开选中的 ${selectedRowKeys.value.length} 张单据进行打印，确定继续吗？`,
+    okText: '开始打印',
+    cancelText: '取消',
+    onOk: () => openPrintForm(selectedRowKeys.value[0]),
+  })
 }
 
 function handleView(record: any) {
@@ -1234,28 +1188,45 @@ const handleError = (error: Error) => {
 }
 
 // ═══ 初始化 ═══
+/** 合并存档配置：按存档顺序重排，新增字段沿用默认，已被移除的字段丢弃 */
+function mergeQueryFields(defaults: Array<{ key: string; label: string; visible: boolean }>, saved: any[]) {
+  const merged = saved
+    .map(s => {
+      const def = defaults.find(d => d.key === s.key)
+      return def ? { ...def, ...s } : null
+    })
+    .filter((f): f is { key: string; label: string; visible: boolean } => !!f)
+  defaults.forEach(def => {
+    if (!merged.find(m => m.key === def.key)) merged.push({ ...def })
+  })
+  return merged
+}
+
 function loadPageConfigFromStorage() {
   try {
-    const raw = localStorage.getItem(PAGE_CONFIG_STORAGE_KEY)
-    if (!raw) return
-    const parsed = JSON.parse(raw)
-    if (parsed.docQueryFields) {
-      parsed.docQueryFields.forEach((f: any) => {
-        const target = docQueryConfig.value.find(d => d.key === f.key)
-        if (target) target.visible = f.visible
-      })
+    const docRaw = localStorage.getItem(`${PAGE_CONFIG_STORAGE_KEY}-doc`)
+    if (docRaw) {
+      const parsed = JSON.parse(docRaw)
+      if (Array.isArray(parsed.queryFields)) {
+        docQueryConfig.value = mergeQueryFields(DEFAULT_DOC_QUERY_FIELDS, parsed.queryFields)
+      }
     }
-    if (parsed.detailQueryFields) {
-      parsed.detailQueryFields.forEach((f: any) => {
-        const target = detailQueryConfig.value.find(d => d.key === f.key)
-        if (target) target.visible = f.visible
-      })
+    const detailRaw = localStorage.getItem(`${PAGE_CONFIG_STORAGE_KEY}-detail`)
+    if (detailRaw) {
+      const parsed = JSON.parse(detailRaw)
+      if (Array.isArray(parsed.queryFields)) {
+        detailQueryConfig.value = mergeQueryFields(DEFAULT_DETAIL_QUERY_FIELDS, parsed.queryFields)
+      }
     }
-    if (parsed.functionButtons) {
-      parsed.functionButtons.forEach((b: any) => {
-        const target = functionButtonConfig.value.find(d => d.key === b.key)
-        if (target) target.enabled = b.enabled
-      })
+    const btnRaw = localStorage.getItem(`${PAGE_CONFIG_STORAGE_KEY}-buttons`)
+    if (btnRaw) {
+      const parsed = JSON.parse(btnRaw)
+      if (Array.isArray(parsed.functionButtons)) {
+        parsed.functionButtons.forEach((b: any) => {
+          const target = functionButtonConfig.value.find(d => d.key === b.key)
+          if (target) target.enabled = b.enabled
+        })
+      }
     }
   } catch {
     // ignore

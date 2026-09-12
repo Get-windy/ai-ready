@@ -79,9 +79,6 @@
             >
               <AppstoreOutlined /> 采购原料({{ selectedRows.length }})
             </a-button>
-            <a-button size="small" @click="showColumnConfig = true">
-              <TableOutlined />
-            </a-button>
           </a-space>
         </template>
 
@@ -368,7 +365,8 @@
         <!-- ═══ 数据表格 ═══ -->
         <template #table>
           <BillTableList
-            :columns="visibleColumns"
+            :columns="columns"
+            :storage-key="'purchase-sales-driven-table-columns'"
             :data-source="tableData"
             :loading="loading"
             :pagination="billPagination"
@@ -426,16 +424,6 @@
       @change="handlePageConfigChange"
     />
 
-    <!-- ═══ 列配置弹窗 ═══ -->
-    <ColumnConfigPanel
-      :open="showColumnConfig"
-      :settings-columns="settingsColumns"
-      :is-locked-column="isLockedColumn"
-      @update:open="showColumnConfig = $event"
-      @change="handleColumnConfigChange"
-      @reset="handleColumnConfigReset"
-      @drag-end="handleColumnConfigChange"
-    />
   </ErrorBoundary>
 </template>
 
@@ -445,7 +433,7 @@ import dayjs, { type Dayjs } from 'dayjs'
 import { message, Modal } from 'ant-design-vue'
 import {
   ReloadOutlined, SearchOutlined, DownOutlined, UpOutlined,
-  SettingOutlined, TableOutlined, PlusOutlined, PrinterOutlined, ExportOutlined,
+  SettingOutlined, PlusOutlined, PrinterOutlined, ExportOutlined,
   ShoppingCartOutlined, AppstoreOutlined
 } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
@@ -453,8 +441,6 @@ import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayout.vue'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
-import ColumnConfigPanel from '@/components/ColumnConfigPanel/index.vue'
-import { useColumnConfig, isLockedColumn } from '@/composables/useColumnConfig'
 import { useAutoGridSpan } from '@/composables/useAutoGridSpan'
 import request from '@/utils/request'
 
@@ -475,7 +461,6 @@ const selectedRows = ref<any[]>([])
 const batchActing = ref(false)
 const showMoreConditions = ref(false)
 const showPageConfig = ref(false)
-const showColumnConfig = ref(false)
 
 const gridRef = ref<HTMLElement | null>(null)
 const actionRef = ref<HTMLElement | null>(null)
@@ -612,15 +597,6 @@ const columns: any[] = [
   { title: '制单时间', field: 'bookkeepingTime', key: 'bookkeepingTime', width: 160 },
 ]
 
-// ═══ 列配置 ═══
-const columnDefs = computed(() => columns.map(col => ({ ...col })))
-const {
-  visibleColumns,
-  settingsColumns,
-  onSettingChange: onColumnSettingChange,
-  resetSettings: resetColumnSettings,
-} = useColumnConfig(columnDefs.value, 'purchase-sales-driven-columns')
-
 // ═══ 合计 ═══
 const summaryData = computed(() => {
   const data = tableData.value
@@ -678,9 +654,6 @@ const functionButtonConfig = ref([
 ])
 
 const handlePageConfigChange = () => { /* PageConfigPanel 自行持久化 */ }
-
-const handleColumnConfigChange = () => onColumnSettingChange()
-const handleColumnConfigReset = () => resetColumnSettings()
 
 // ═══ 日期处理 ═══
 const handleDocumentDateChange = (dates: [Dayjs, Dayjs] | null) => {
@@ -768,7 +741,7 @@ function handleExportMenu({ key }: { key: string | number }) {
     message.warning('没有可导出的数据')
     return
   }
-  const exportCols = visibleColumns.value.filter((c: any) => c.key !== 'rowNo' && c.key !== 'action')
+  const exportCols = columns.filter((c: any) => c.key !== 'rowNo' && c.key !== 'action')
   const headers = exportCols.map((c: any) => c.title)
   const rows = tableData.value.map(row =>
     exportCols.map((col: any) => {

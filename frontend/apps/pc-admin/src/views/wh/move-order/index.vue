@@ -21,14 +21,9 @@
           </a-button>
         </template>
 
-        <!-- ═══ 工具栏右侧：列/页面配置 + 刷新 + 打印 + 导出 ═══ -->
+        <!-- ═══ 工具栏右侧：页面配置 + 刷新 + 打印 + 导出（列配置走数据表表头齿轮） ═══ -->
         <template #toolbar-right>
           <a-space :size="8">
-            <a-tooltip title="列配置">
-              <a-button size="small" @click="showColumnConfig = true">
-                <TableOutlined />
-              </a-button>
-            </a-tooltip>
             <a-tooltip title="页面配置">
               <a-button size="small" @click="showPageConfig = true">
                 <SettingOutlined />
@@ -127,6 +122,7 @@
         <template #table>
           <BillTableList
             :columns="currentColumns"
+            :storage-key="activeTab === 'doc' ? 'move-order-table-columns-doc' : 'move-order-table-columns-detail'"
             :data-source="tableData"
             :loading="loading"
             :pagination="pagination"
@@ -185,17 +181,6 @@
       </CategoryListLayout>
     </PageContainer>
 
-    <!-- ═══ 数据表列配置弹窗 ═══ -->
-    <ColumnConfigPanel
-      :open="showColumnConfig"
-      :settings-columns="panelColumns"
-      :is-locked-column="isLockedColumn"
-      @update:open="showColumnConfig = $event"
-      @change="handleColumnConfigChange"
-      @reset="handleColumnConfigReset"
-      @drag-end="handleColumnConfigChange"
-    />
-
     <!-- ═══ 页面配置弹窗 ═══ -->
     <PageConfigPanel
       :open="showPageConfig"
@@ -215,15 +200,13 @@ import { message } from 'ant-design-vue'
 import { useUserStore } from '@/stores/user'
 import dayjs from 'dayjs'
 import {
-  PlusOutlined, SettingOutlined, TableOutlined, ReloadOutlined, PrinterOutlined, ExportOutlined,
+  PlusOutlined, SettingOutlined, ReloadOutlined, PrinterOutlined, ExportOutlined,
 } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayout.vue'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
-import ColumnConfigPanel from '@/components/ColumnConfigPanel/index.vue'
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
-import { useColumnConfig, isLockedColumn } from '@/composables/useColumnConfig'
 import { moveApi, type WmsMoveTask } from '@/api/wms/move'
 import { WMS_STATUS_MAP, MOVE_TYPE_MAP, DETAIL_STATUS_MAP, formatQty, formatTime } from '../whTask'
 
@@ -258,8 +241,7 @@ const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
 const tableData = ref<any[]>([])
 const loading = ref(false)
 
-// ═══ 列配置弹窗 ═══
-const showColumnConfig = ref(false)
+// ═══ 页面配置弹窗（列配置走数据表表头齿轮） ═══
 const showPageConfig = ref(false)
 
 // ═══ 列定义（按单据 / 按明细） ═══
@@ -301,20 +283,8 @@ const detailColumnDefs: ColDef[] = [
   { title: '操作', key: 'action', field: 'action', width: 150, fixed: 'right', type: 'slot', slotName: 'actionCell' },
 ]
 
-const docCC = useColumnConfig(docColumnDefs, 'move-order-list-columns-doc')
-const detailCC = useColumnConfig(detailColumnDefs, 'move-order-list-columns-detail')
-
-const currentColumns = computed(() => (activeTab.value === 'doc' ? docCC.visibleColumns.value : detailCC.visibleColumns.value))
-const panelColumns = computed(() => (activeTab.value === 'doc' ? docCC.settingsColumns.value : detailCC.settingsColumns.value))
-
-function handleColumnConfigChange() {
-  if (activeTab.value === 'doc') docCC.onSettingChange()
-  else detailCC.onSettingChange()
-}
-function handleColumnConfigReset() {
-  if (activeTab.value === 'doc') docCC.resetSettings()
-  else detailCC.resetSettings()
-}
+// ═══ 列配置（走数据表表头齿轮：storage-key=move-order-table-columns-doc/detail） ═══
+const currentColumns = computed(() => (activeTab.value === 'doc' ? docColumnDefs : detailColumnDefs))
 
 // ═══ 页面配置（查询字段显隐/功能按钮/打印） ═══
 const PAGE_CONFIG_STORAGE_KEY = 'move-order-page-config'
@@ -339,7 +309,6 @@ const DEFAULT_QUERY_FIELDS_DETAIL: QueryFieldSetting[] = [
 ]
 const DEFAULT_FUNCTION_BUTTONS: FunctionButtonSetting[] = [
   { key: 'add', label: '新增', enabled: true },
-  { key: 'config', label: '列配置', enabled: true },
   { key: 'refresh', label: '刷新', enabled: true },
   { key: 'print', label: '打印(F8)', enabled: true },
   { key: 'export', label: '导出', enabled: true },

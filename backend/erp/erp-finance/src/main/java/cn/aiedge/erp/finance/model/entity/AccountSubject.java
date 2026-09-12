@@ -65,4 +65,22 @@ public class AccountSubject extends BaseEntity {
      */
     @TableField("is_enabled")
     private Boolean isEnabled = true;
+
+    /**
+     * 助记码（拼音首字母，用于快速检索）
+     */
+    @TableField("mnemonic_code")
+    private String mnemonicCode;
+
+    /**
+     * 科目全名（上级科目链 + 本科目名称，留空自动拼装）
+     */
+    @TableField("full_name")
+    private String fullName;
+
+    /**
+     * 核算项 = 辅助核算类型ID（finance_auxiliary_type.id）
+     */
+    @TableField("auxiliary_type_id")
+    private Long auxiliaryTypeId;
 }

@@ -23,7 +23,7 @@ public interface SaleReturnDocMapper extends BaseMapper<SaleReturnDoc> {
             "  r.warehouse_name, r.handler_name, r.dept_name,",
             "  r.order_date, r.status, r.settle_status, r.sales_type,",
             "  r.total_amount, r.total_quantity, r.generate_type, r.print_count,",
-            "  r.submit_time, r.creator_name, r.auditor_name, r.audit_time,",
+            "  r.submit_time, r.creator_name, r.auditor_name, r.audit_time, r.bookkeeper_name,",
             "  r.summary, r.attachment, r.remark, r.delivery_method, r.delivery_no,",
             "  r.waybill_no, r.logistics_company, r.shipping_fee, r.freight_payer,",
             "  r.total_weight, r.total_volume, r.submit_by,",
@@ -56,4 +56,13 @@ public interface SaleReturnDocMapper extends BaseMapper<SaleReturnDoc> {
     Page<Map<String, Object>> selectPageDetail(
             Page<Map<String, Object>> page,
             @Param(Constants.WRAPPER) QueryWrapper<SaleReturnDoc> wrapper);
+
+    /**
+     * 取当天最后一张单据编号（号段自增用）。
+     * <p>刻意绕过 {@code @TableLogic} 逻辑删除过滤：已软删除的单据仍占用编号唯一索引，
+     * 若按 deleted=0 过滤会导致号段回退并撞唯一键。</p>
+     */
+    @Select("SELECT return_doc_no FROM erp_sale_return_doc WHERE return_doc_no LIKE CONCAT(#{prefix}, '%') "
+            + "ORDER BY return_doc_no DESC LIMIT 1")
+    String selectLastReturnDocNo(@Param("prefix") String prefix);
 }

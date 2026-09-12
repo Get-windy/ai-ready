@@ -46,6 +46,8 @@ export interface DetailColumnConfig {
   slotName?: string
   /** 是否仅查看 */
   readonly?: boolean
+  /** 锁定列：不可编辑（与 readonly 等价，按业务语义二选一表达） */
+  locked?: boolean
   /** 对齐方式 */
   align?: 'left' | 'center' | 'right'
   /** 商品名称列专用：是否显示扫描枪开关 */
@@ -80,10 +82,17 @@ export interface DetailColumnConfig {
   defaultHidden?: boolean
   /** 列标题提示 */
   tooltip?: string
+  /** 表头标题旁的帮助说明（对标 ql361 表头 ⓘ 图标） */
+  headerTip?: string
   /** 自定义类名 */
   className?: string
   /** 自定义样式 */
   style?: Record<string, string>
+  /**
+   * 分组表头：设置后该列作为分组标题（colspan），子列渲染为第二行表头。
+   * 仅支持一层分组；分组节点自身不参与列配置（配置弹窗只暴露叶子列）。
+   */
+  children?: DetailColumnConfig[]
 }
 
 /** 列设置项（运行时状态） */

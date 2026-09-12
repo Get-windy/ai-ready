@@ -10,6 +10,7 @@ import { initFeatureFlags, getFeatureFlagService } from '@/utils/featureFlags'
 import { initSentry, setSentryUser, clearSentryUser } from '@/utils/sentry'
 import { trackPageLoad, setupRouteTracking } from '@/utils/performanceMonitor'
 import { useUserStore } from '@/stores/user'
+import '@/utils/antdDefaults'
 import dayjs from 'dayjs'
 import 'dayjs/locale/zh-cn'
 

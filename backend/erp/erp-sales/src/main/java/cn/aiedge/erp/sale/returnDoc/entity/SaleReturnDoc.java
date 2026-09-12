@@ -200,6 +200,9 @@ public class SaleReturnDoc {
     private String auditorName;
     private LocalDateTime auditTime;
 
+    /** 记账人（过账生成凭证时记录，列表「记账人」列口径） */
+    private String bookkeeperName;
+
     // 提交相关
     private Long submitBy;
     private LocalDateTime submitTime;

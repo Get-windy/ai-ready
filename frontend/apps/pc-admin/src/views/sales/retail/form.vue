@@ -16,7 +16,7 @@
       <!-- ═══ 商品明细表格 ═══ -->
       <template #detail-table="{ onExpandChange }">
         <!-- 商品搜索行 -->
-        <div class="product-search-row">
+        <div v-if="isVisible('productSearch')" class="product-search-row">
           <span class="search-label">商品 条码/名称/编码(F1)</span>
           <a-input
             ref="productSearchInput"
@@ -80,10 +80,10 @@
         </BillDetailTable>
       </template>
 
-      <!-- ═══ 底部面板：优惠 + 收款 ═══ -->
+      <!-- ═══ 底部面板：优惠 + 扩展信息 + 收款（字段受页面配置控制） ═══ -->
       <template #bottom-extra>
         <div class="retail-bottom-layout">
-          <!-- 简易模式下简化为一行 -->
+          <!-- 简易模式：仅一行金额摘要 -->
           <template v-if="simpleMode">
             <div class="retail-bottom-simple">
               <span class="simple-amount-label">应收金额：</span>
@@ -97,174 +97,312 @@
             </div>
           </template>
           <template v-else>
-            <!-- 左侧：优惠 + 备注 + 单据信息 -->
-          <div class="retail-bottom-left">
-            <!-- 优惠行 -->
-            <div class="discount-row">
-              <div class="discount-field">
-                <span class="discount-label">直接优惠</span>
-                <a-input-number
-                  v-model:value="directDiscount"
-                  :min="0"
-                  :precision="2"
-                  size="small"
-                  style="width: 140px"
-                  placeholder="0"
-                />
-              </div>
-              <div class="discount-field">
-                <span class="discount-label">优惠券</span>
-                <a-input
-                  size="small"
-                  style="width: 140px"
-                  placeholder="选择优惠券"
-                  readonly
-                >
-                  <template #suffix>
-                    <SearchOutlined style="color:#bbb;cursor:pointer" />
-                  </template>
-                </a-input>
-              </div>
-              <div class="discount-field">
-                <span class="discount-label">促销优惠</span>
-                <a-input-number
-                  :value="promoDiscount"
-                  :min="0"
-                  :precision="2"
-                  size="small"
-                  disabled
-                  style="width: 100px"
-                />
-              </div>
-              <div class="discount-field">
-                <span class="discount-label">此前积分</span>
-                <span class="discount-value">{{ prevPoints }}</span>
-              </div>
-            </div>
-            <!-- 单据备注 -->
-            <div class="remark-row">
-              <span class="remark-label">单据备注</span>
-              <a-input
-                v-model:value="formData.orderRemark"
-                size="small"
-                class="remark-input"
-              />
-            </div>
-            <!-- 单据信息 -->
-            <div class="doc-info-row">
-              <span class="doc-info-item">制单人 <a-tag
-                color="blue"
-                size="small"
-              >{{ currentUserName || '系统' }}</a-tag></span>
-              <span class="doc-info-item">制单时间 {{ formatNow() }}</span>
-              <span class="doc-info-item">打印次数 {{ formData.printCount || 0 }}</span>
-              <a-button
-                type="link"
-                size="small"
-                class="doc-info-link"
-              >
-                打印记录
-              </a-button>
-            </div>
-          </div>
-
-          <!-- 右侧：收款面板 -->
-          <div class="retail-payment-panel">
-            <div class="payment-title">
-              收款
-            </div>
-            <div class="payment-buttons">
-              <button
-                class="pay-btn pay-btn-cash"
-                :class="{ active: cashAmount > 0 }"
-                @click="focusPayment('cash')"
-              >
-                <span class="pay-btn-icon">💵</span>
-                <span>现金</span>
-              </button>
-              <button
-                class="pay-btn pay-btn-card"
-                :class="{ active: cardAmount > 0 }"
-                @click="focusPayment('card')"
-              >
-                <span class="pay-btn-icon">💳</span>
-                <span>银行卡</span>
-              </button>
-              <button
-                class="pay-btn pay-btn-prepaid"
-                :class="{ active: prepaidAmount > 0 }"
-                @click="focusPayment('prepaid')"
-              >
-                <span class="pay-btn-icon">📥</span>
-                <span>预收款</span>
-              </button>
-            </div>
-            <div class="payment-buttons">
-              <button
-                class="pay-btn pay-btn-transfer-green"
-                :class="{ active: transferAmount > 0 }"
-                @click="focusPayment('transfer')"
-              >
-                <span class="pay-btn-icon">✅</span>
-                <span>转账</span>
-              </button>
-              <button
-                class="pay-btn pay-btn-alipay"
-                :class="{ active: alipayAmount > 0 }"
-                @click="focusPayment('alipay')"
-              >
-                <span class="pay-btn-icon">🔵</span>
-                <span>支付宝</span>
-              </button>
-              <button
-                class="pay-btn pay-btn-wechat"
-                :class="{ active: wechatAmount > 0 }"
-                @click="focusPayment('wechat')"
-              >
-                <span class="pay-btn-icon">💚</span>
-                <span>微信</span>
-              </button>
-              <label class="combined-payment-label">
-                <a-checkbox v-model:checked="combinedPayment" />
-                <span>组合收款</span>
-              </label>
-            </div>
-            <!-- 收款明细 -->
-            <div class="payment-details">
-              <div class="payment-detail-row">
-                <span class="payment-detail-label">应收金额</span>
-                <span class="payment-detail-value text-red">{{ payableAmount.toFixed(2) }}</span>
-                <div class="payment-input-wrap">
-                  <span class="payment-input-label">现金</span>
+            <!-- 左侧：优惠 + 扩展信息 + 备注 + 单据信息 -->
+            <div class="retail-bottom-left">
+              <!-- 优惠行 -->
+              <div v-if="showDiscountRow" class="discount-row">
+                <div v-if="isVisible('directDiscount')" class="discount-field">
+                  <span class="discount-label">直接优惠</span>
                   <a-input-number
-                    v-model:value="cashAmount"
+                    v-model:value="directDiscount"
+                    :min="0"
+                    :precision="2"
+                    size="small"
+                    style="width: 140px"
+                    placeholder="0"
+                    @change="updateChangeAmount"
+                  />
+                </div>
+                <div v-if="isVisible('couponDiscount')" class="discount-field">
+                  <span class="discount-label">优惠券</span>
+                  <a-input-number
+                    v-model:value="formData.couponDiscount"
+                    :min="0"
+                    :precision="2"
+                    size="small"
+                    style="width: 120px"
+                    placeholder="0"
+                    @change="updateChangeAmount"
+                  />
+                </div>
+                <div v-if="isVisible('promoDiscount')" class="discount-field">
+                  <span class="discount-label">促销优惠</span>
+                  <a-input-number
+                    v-model:value="promoDiscount"
                     :min="0"
                     :precision="2"
                     size="small"
                     style="width: 110px"
+                    placeholder="0"
                     @change="updateChangeAmount"
                   />
-                  <span class="payment-input-unit">元</span>
+                </div>
+                <div v-if="isVisible('prevPoints')" class="discount-field">
+                  <span class="discount-label">此前积分</span>
+                  <span class="discount-value">{{ prevPoints }}</span>
+                </div>
+                <div class="discount-field">
+                  <span class="discount-label">本次产生积分</span>
+                  <span class="discount-value">{{ memberGeneratedPoints }}</span>
                 </div>
               </div>
-              <div class="payment-detail-row">
-                <span class="payment-detail-label">可用预收</span>
-                <span class="payment-detail-value">{{ formData.prepaidBalance || 0 }}</span>
-                <div class="payment-input-wrap">
-                  <span class="payment-input-label">预收余额</span>
-                  <span class="payment-input-value">{{ prepaidBalanceDisplay }}</span>
+
+              <!-- 扩展信息（客户快照 + 自定义字段） -->
+              <div v-if="showExtInfo" class="ext-info-row">
+                <div v-if="isVisible('bankName')" class="ext-field">
+                  <span class="ext-label">开户行</span>
+                  <a-input v-model:value="formData.bankName" size="small" />
+                </div>
+                <div v-if="isVisible('bankAccount')" class="ext-field">
+                  <span class="ext-label">银行账号</span>
+                  <a-input v-model:value="formData.bankAccount" size="small" />
+                </div>
+                <div v-if="isVisible('taxNo')" class="ext-field">
+                  <span class="ext-label">税号</span>
+                  <a-input v-model:value="formData.taxNo" size="small" />
+                </div>
+                <div v-if="isVisible('extNum1')" class="ext-field">
+                  <span class="ext-label">自定义字段1</span>
+                  <a-input-number v-model:value="formData.extNum1" size="small" :precision="2" style="width:100%" />
+                </div>
+                <div v-if="isVisible('extNum2')" class="ext-field">
+                  <span class="ext-label">自定义字段2</span>
+                  <a-input-number v-model:value="formData.extNum2" size="small" :precision="2" style="width:100%" />
+                </div>
+                <div v-if="isVisible('extNum3')" class="ext-field">
+                  <span class="ext-label">自定义字段3</span>
+                  <a-input-number v-model:value="formData.extNum3" size="small" :precision="2" style="width:100%" />
+                </div>
+                <div v-if="isVisible('extText1')" class="ext-field">
+                  <span class="ext-label">自定义字段4</span>
+                  <a-input v-model:value="formData.extText1" size="small" />
+                </div>
+                <div v-if="isVisible('extText2')" class="ext-field">
+                  <span class="ext-label">自定义字段5</span>
+                  <a-input v-model:value="formData.extText2" size="small" />
                 </div>
               </div>
-              <div class="payment-detail-row">
-                <span class="payment-detail-label">找零金额</span>
-                <span class="payment-detail-value">{{ changeAmount.toFixed(2) }}</span>
+
+              <!-- 单据备注 -->
+              <div v-if="isVisible('orderRemark')" class="remark-row">
+                <span class="remark-label">单据备注</span>
+                <a-input
+                  v-model:value="formData.orderRemark"
+                  size="small"
+                  class="remark-input"
+                />
+              </div>
+              <!-- 单据信息 -->
+              <div class="doc-info-row">
+                <span v-if="isVisible('creatorName')" class="doc-info-item">制单人 <a-tag color="blue" size="small">{{ formData.creatorName || currentUserName || '系统' }}</a-tag></span>
+                <span v-if="isVisible('createTime')" class="doc-info-item">制单时间 {{ formData.createTime || formatNow() }}</span>
+                <span v-if="isVisible('printCount')" class="doc-info-item">打印次数 {{ formData.printCount || 0 }}</span>
+                <span v-if="isVisible('cashierName')" class="doc-info-item">收银员 {{ formData.cashierName || currentUserName || '系统' }}</span>
+                <a-button type="link" size="small" class="doc-info-link" @click="handlePrint">
+                  打印小票
+                </a-button>
               </div>
             </div>
-          </div>
-        </template>
-      </div>
+
+            <!-- 右侧：收款面板 -->
+            <div class="retail-payment-panel">
+              <div class="payment-title">
+                收款
+              </div>
+              <!-- 收款方式（受「零售设置」启用集合控制） -->
+              <div class="payment-buttons">
+                <button
+                  v-for="m in enabledPayMethods"
+                  :key="m.value"
+                  class="pay-btn"
+                  :style="{ background: m.color }"
+                  :class="{ active: methodAmounts[m.value] > 0 }"
+                  @click="focusPayment(m.value)"
+                >
+                  <span class="pay-btn-icon">{{ m.icon }}</span>
+                  <span>{{ m.label }}</span>
+                </button>
+              </div>
+              <div class="payment-buttons">
+                <label v-if="isVisible('combinedPayment')" class="combined-payment-label">
+                  <a-checkbox v-model:checked="combinedPayment" @change="handleCombinedChange" />
+                  <span>组合收款</span>
+                </label>
+                <a-button type="link" size="small" @click="clearPayments">清空收款</a-button>
+              </div>
+              <!-- 收款明细 -->
+              <div class="payment-details">
+                <div v-if="isVisible('payableAmount')" class="payment-detail-row">
+                  <span class="payment-detail-label">应收金额</span>
+                  <span class="payment-detail-value text-red">{{ payableAmount.toFixed(2) }}</span>
+                </div>
+                <div v-if="isVisible('payMethod1')" class="payment-detail-row">
+                  <span class="payment-detail-label">收款方式1</span>
+                  <a-select v-model:value="primaryMethod" size="small" style="width:120px" :options="enabledPayMethods.map(m => ({ label: m.label, value: m.value }))" />
+                </div>
+                <div v-if="isVisible('payAmount')" class="payment-detail-row">
+                  <span class="payment-detail-label">收款金额</span>
+                  <a-input-number
+                    v-model:value="methodAmounts[primaryMethod]"
+                    :min="0"
+                    :precision="2"
+                    size="small"
+                    style="width: 120px"
+                    @change="updateChangeAmount"
+                  />
+                </div>
+                <div v-if="isVisible('payMethod')" class="payment-detail-row">
+                  <span class="payment-detail-label">收款方式2</span>
+                  <a-select v-model:value="secondMethod" size="small" style="width:120px" :options="enabledPayMethods.map(m => ({ label: m.label, value: m.value }))" />
+                </div>
+                <div v-if="isVisible('availablePrepaid')" class="payment-detail-row">
+                  <span class="payment-detail-label">可用预收</span>
+                  <span class="payment-detail-value">{{ formData.prepaidBalance || 0 }}</span>
+                </div>
+                <div v-if="isVisible('prepaidBalance')" class="payment-detail-row">
+                  <span class="payment-detail-label">预收余额</span>
+                  <span class="payment-detail-value">{{ prepaidBalanceDisplay }}</span>
+                </div>
+                <div v-if="isVisible('payQrCode')" class="payment-detail-row">
+                  <span class="payment-detail-label">收款码</span>
+                  <a-input v-model:value="paymentQrCode" size="small" style="width: 160px" placeholder="扫码/账号" />
+                </div>
+                <div v-if="isVisible('changeAmount')" class="payment-detail-row">
+                  <span class="payment-detail-label">找零金额</span>
+                  <span class="payment-detail-value">{{ changeAmount.toFixed(2) }}</span>
+                </div>
+                <div class="payment-detail-row">
+                  <span class="payment-detail-label">实收合计</span>
+                  <span class="payment-detail-value text-red">{{ totalPaid.toFixed(2) }}</span>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
       </template>
+
     </BillFormPage>
+
+    <!-- ═══ 配置弹窗：页面配置(36字段) / 零售设置 / 打印设置 ═══ -->
+    <a-modal
+      v-model:open="showFormConfig"
+      title="配置"
+      :width="820"
+      :footer="null"
+      destroy-on-close
+    >
+      <a-tabs v-model:active-key="configModalTab" size="small">
+        <!-- Tab 1: 页面配置 -->
+        <a-tab-pane key="pageConfig" tab="页面配置">
+          <p class="config-hint">勾选控制字段显隐，勾选后自动保存并对所有操作员生效</p>
+          <a-table
+            :columns="pageConfigTableColumns"
+            :data-source="pageConfigFields"
+            :pagination="false"
+            size="small"
+            row-key="key"
+            :scroll="{ y: 380 }"
+          >
+            <template #bodyCell="{ column, record }">
+              <template v-if="column.key === 'visible'">
+                <a-checkbox
+                  :checked="record.visible"
+                  @change="(e: any) => handlePageFieldVisibleChange(record.key, e.target.checked)"
+                />
+              </template>
+            </template>
+          </a-table>
+        </a-tab-pane>
+        <!-- Tab 2: 零售设置 -->
+        <a-tab-pane key="settings" tab="零售设置">
+          <a-form layout="horizontal" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
+            <a-form-item label="默认出库仓库">
+              <a-select
+                v-model:value="retailSettings.defaultWarehouseId"
+                show-search
+                allow-clear
+                size="small"
+                style="width:100%"
+                :loading="loadingOptions"
+                :options="(optionRefs.warehouses || []).map((w: any) => ({ label: w.name || w.warehouseName, value: w.id }))"
+                @change="saveFormConfig"
+              />
+            </a-form-item>
+            <a-form-item label="默认经手人">
+              <a-select
+                v-model:value="retailSettings.defaultHandlerId"
+                show-search
+                allow-clear
+                size="small"
+                style="width:100%"
+                :loading="loadingOptions"
+                :options="(optionRefs.users || []).map((u: any) => ({ label: u.name, value: u.id }))"
+                @change="saveFormConfig"
+              />
+            </a-form-item>
+            <a-form-item label="默认销售类型">
+              <a-select v-model:value="retailSettings.defaultSaleType" size="small" style="width:100%" @change="saveFormConfig">
+                <a-select-option value="NORMAL">正常销售</a-select-option>
+                <a-select-option value="RETURN">退货</a-select-option>
+              </a-select>
+            </a-form-item>
+            <a-form-item label="积分规则">
+              <a-input-number v-model:value="retailSettings.pointPerYuan" :min="0" :precision="2" size="small" @change="saveFormConfig" />
+              <span style="margin-left:8px;color:#8c8c8c">每消费 1 元产生的积分数</span>
+            </a-form-item>
+            <a-form-item label="收款方式">
+              <a-checkbox-group
+                :value="retailSettings.enabledMethods"
+                :options="payMethodOptions"
+                @change="handleEnabledMethodsChange"
+              />
+            </a-form-item>
+            <a-form-item label="默认开启组合收款">
+              <a-checkbox v-model:checked="retailSettings.enableCombinedPayment" @change="saveFormConfig">
+                允许同一单多种收款方式组合
+              </a-checkbox>
+            </a-form-item>
+            <a-form-item label="默认简易模式">
+              <a-checkbox v-model:checked="retailSettings.autoSimpleMode" @change="saveFormConfig">
+                打开表单时默认隐藏扩展列
+              </a-checkbox>
+            </a-form-item>
+          </a-form>
+        </a-tab-pane>
+        <!-- Tab 3: 打印设置 -->
+        <a-tab-pane key="printSettings" tab="打印设置">
+          <a-form layout="horizontal" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
+            <a-form-item label="打印模板">
+              <a-select v-model:value="printSettings.printTemplate" size="small" style="width:100%" @change="saveFormConfig">
+                <a-select-option value="standard">标准模板（小票）</a-select-option>
+                <a-select-option value="simple">简化模板</a-select-option>
+                <a-select-option value="detailed">详细模板</a-select-option>
+              </a-select>
+            </a-form-item>
+            <a-form-item label="打印份数">
+              <a-input-number v-model:value="printSettings.printCopies" :min="1" :precision="0" size="small" @change="saveFormConfig" />
+            </a-form-item>
+            <a-form-item label="纸张大小">
+              <a-select v-model:value="printSettings.printPaperSize" size="small" style="width:100%" @change="saveFormConfig">
+                <a-select-option value="A4">A4</a-select-option>
+                <a-select-option value="A5">A5</a-select-option>
+                <a-select-option value="B5">B5</a-select-option>
+                <a-select-option value="58mm">58mm 热敏小票</a-select-option>
+                <a-select-option value="80mm">80mm 热敏小票</a-select-option>
+              </a-select>
+            </a-form-item>
+            <a-form-item label="打印选项">
+              <a-checkbox v-model:checked="printSettings.alwaysLastTemplate" @change="saveFormConfig">
+                始终使用最后一次打印的模板，打印时不再选择
+              </a-checkbox>
+              <a-checkbox v-model:checked="printSettings.printAfterSubmit" @change="saveFormConfig">
+                记账后立即打印
+              </a-checkbox>
+            </a-form-item>
+          </a-form>
+        </a-tab-pane>
+      </a-tabs>
+    </a-modal>
 
     <!-- ═══ 产品选择弹窗 ═══ -->
     <ProductSelectModal
@@ -634,7 +772,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, reactive, watch, onMounted, onUnmounted } from 'vue'
 
 defineOptions({ name: 'RetailForm' })
 import { useRouter, useRoute } from 'vue-router'
@@ -642,9 +780,9 @@ import { message } from 'ant-design-vue'
 import {
   PlusCircleOutlined,
   MinusCircleOutlined,
-  SearchOutlined,
   SettingOutlined,
   ThunderboltOutlined,
+  PrinterOutlined,
 } from '@ant-design/icons-vue'
 import BillFormPage from '@/components/BillFormPage/index.vue'
 import BillDetailTable from '@/components/BillFormPage/BillDetailTable/index.vue'
@@ -652,7 +790,8 @@ import ProductSelectModal from '@/components/ProductSelectModal/index.vue'
 import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTable/types'
 import type { BillHeaderConfig, BasicInfoField, SummaryRow, BillFooterConfig } from '@/components/BillFormPage/types'
 import { useBillForm } from '@/components/BillFormPage/useBillForm'
-import { retailOrderApi, memberApi } from '@/api/erp'
+import { retailOrderApi, memberApi, userPageConfigApi } from '@/api/erp'
+import optionsApi from '@/api/options'
 import { PRODUCT_RETAIL_DEFAULTS } from '@/utils/productDefaults'
 import { useUserStore } from '@/stores/user'
 
@@ -704,20 +843,68 @@ const posDisplayRows = computed(() => {
   }))]
 })
 
-// ═══ 支付金额 ═══
-const cashAmount = ref(0)
-const cardAmount = ref(0)
-const prepaidAmount = ref(0)
-const transferAmount = ref(0)
-const alipayAmount = ref(0)
-const wechatAmount = ref(0)
+// ═══ 收款方式定义（与后端 RetailOrderPayment.paymentMethod 一一对应）═══
+const PAY_METHODS = [
+  { value: 'CASH', label: '现金', icon: '💵', color: '#fa8c16' },
+  { value: 'CARD', label: '银行卡', icon: '💳', color: '#faad14' },
+  { value: 'PREPAID', label: '预收款', icon: '📥', color: '#1890ff' },
+  { value: 'TRANSFER', label: '转账', icon: '✅', color: '#52c41a' },
+  { value: 'ALIPAY', label: '支付宝', icon: '🔵', color: '#1677ff' },
+  { value: 'WECHAT', label: '微信', icon: '💚', color: '#07c160' },
+  { value: 'AGGREGATE', label: '聚合支付', icon: '🔗', color: '#722ed1' },
+  { value: 'ABC', label: '中国农业银行', icon: '🏦', color: '#13a8a8' },
+  { value: 'CCB', label: '中国建设银行', icon: '🏦', color: '#2f54eb' },
+  { value: 'JD', label: '京东支付', icon: '🛒', color: '#eb2f96' },
+]
+const DEFAULT_ENABLED_METHODS = ['CASH', 'CARD', 'PREPAID', 'TRANSFER', 'ALIPAY', 'WECHAT']
+const payMethodOptions = PAY_METHODS.map(m => ({ label: m.label, value: m.value }))
+
+// ═══ 支付金额（按收款方式存放，组合收款自然支持）═══
+const methodAmounts = reactive<Record<string, number>>(
+  Object.fromEntries(PAY_METHODS.map(m => [m.value, 0]))
+)
+const enabledMethods = ref<string[]>([...DEFAULT_ENABLED_METHODS])
+const primaryMethod = ref('CASH')
+const secondMethod = ref('WECHAT')
+const paymentQrCode = ref('')
 const changeAmount = ref(0)
 const combinedPayment = ref(false)
+
+/** 启用中的收款方式（零售设置可配置，直接决定收款按钮与结算落库方式） */
+const enabledPayMethods = computed(() => PAY_METHODS.filter(m => enabledMethods.value.includes(m.value)))
 
 // ══ 优惠 ═══
 const directDiscount = ref(0)
 const promoDiscount = ref(0)
 const prevPoints = ref(0)
+const memberGeneratedPoints = ref(0)
+const memberUsedPoints = ref(0)
+
+/** 收款方式 → 主表汇总字段名（与 RetailOrder 实体一致） */
+const AMOUNT_FIELD_BY_METHOD: Record<string, string> = {
+  CASH: 'cashAmount', CARD: 'cardAmount', PREPAID: 'prepaidAmount', TRANSFER: 'transferAmount',
+  ALIPAY: 'alipayAmount', WECHAT: 'wechatAmount', AGGREGATE: 'aggregateAmount',
+  ABC: 'abcAmount', CCB: 'ccbAmount', JD: 'jdAmount',
+}
+
+/** 由已录入的收款方式推导支付方式（单方式原样，多方式 MIXED） */
+function resolvePaymentMethod(): string {
+  const used = enabledMethods.value.filter(m => Number(methodAmounts[m]) > 0)
+  if (used.length === 0) return primaryMethod.value || 'CASH'
+  return used.length === 1 ? used[0] : 'MIXED'
+}
+
+/** 结算用支付明细行（仅金额 > 0 的方式） */
+function buildPayments() {
+  return enabledMethods.value
+    .filter(m => Number(methodAmounts[m]) > 0)
+    .map(m => ({
+      paymentMethod: m,
+      paymentAmount: Number(methodAmounts[m]),
+      paymentAccount: m === 'CASH' ? '' : (formData.paymentAccount1 || ''),
+      remark: '',
+    }))
+}
 
 // ── useBillForm ──
 const {
@@ -725,16 +912,16 @@ const {
   loadingOptions,
   saving,
   optionRefs,
-  filterOption,
   handleAddProduct,
   handleRemoveProduct,
   handleFieldChange: baseFieldChange,
-  handleSaveDraft,
-  handleSubmit,
+  buildPayload,
   totalQuantity,
   totalAmount,
 } = useBillForm({
   billPrefix: 'LSD',
+  // 单据编号来自后端号段（GET /api/sales/retail/next-no），严禁前端演示自增号
+  codeApiPath: '/sales/retail/next-no',
   api: {
     create: (data: any) => retailOrderApi.create({ order: data, items: data.items }),
     update: (id: any, data: any) => retailOrderApi.update(id, { order: data, items: data.items }),
@@ -743,6 +930,22 @@ const {
   redirectPath: '/sales/retail',
   optionTypes: ['warehouses', 'users', 'products'],
   productDefaults: PRODUCT_RETAIL_DEFAULTS,
+  onDetailLoaded: (data: any) => {
+    // 已结算单据：回填收款方式金额与支付明细
+    const order = data?.order || data || {}
+    PAY_METHODS.forEach(m => { methodAmounts[m.value] = Number(order[AMOUNT_FIELD_BY_METHOD[m.value]] || 0) })
+    combinedPayment.value = !!order.combinedPayment
+    paymentQrCode.value = order.paymentQrCode || ''
+    const payments: any[] = data?.payments || []
+    const paidMethods = payments.filter(p => Number(p.paymentAmount) > 0).map(p => p.paymentMethod)
+    if (paidMethods.length) {
+      primaryMethod.value = paidMethods[0]
+      if (paidMethods[1]) secondMethod.value = paidMethods[1]
+    }
+    prevPoints.value = order.prevPoints || 0
+    if (order.memberGeneratedPoints != null) memberGeneratedPoints.value = Number(order.memberGeneratedPoints)
+    if (order.memberUsedPoints != null) memberUsedPoints.value = Number(order.memberUsedPoints)
+  },
   transformPayload: (fd, status) => ({
     ...fd,
     status: status ?? 1,
@@ -765,17 +968,26 @@ const {
     promoDiscount: promoDiscount.value,
     prevPoints: prevPoints.value,
     payableAmount: payableAmount.value,
-    cashAmount: cashAmount.value,
-    cardAmount: cardAmount.value,
-    alipayAmount: fd.alipayAmount || 0,
-    wechatAmount: fd.wechatAmount || 0,
-    aggregateAmount: fd.aggregateAmount || 0,
-    prepaidAmount: prepaidAmount.value,
-    transferAmount: transferAmount.value,
+    cashAmount: methodAmounts.CASH,
+    cardAmount: methodAmounts.CARD,
+    alipayAmount: methodAmounts.ALIPAY,
+    wechatAmount: methodAmounts.WECHAT,
+    aggregateAmount: methodAmounts.AGGREGATE,
+    prepaidAmount: methodAmounts.PREPAID,
+    transferAmount: methodAmounts.TRANSFER,
+    abcAmount: methodAmounts.ABC,
+    ccbAmount: methodAmounts.CCB,
+    jdAmount: methodAmounts.JD,
     combinedPayment: combinedPayment.value,
+    paymentMethod: resolvePaymentMethod(),
     changeAmount: changeAmount.value,
     totalReceived: totalPaid.value,
+    paymentQrCode: paymentQrCode.value,
+    cashierId: userStore?.userInfo?.id,
+    cashierName: currentUserName.value || '系统',
     prepaidBalance: fd.prepaidBalance || 0,
+    memberGeneratedPoints: memberGeneratedPoints.value,
+    memberUsedPoints: memberUsedPoints.value,
     remark: fd.orderRemark,
     bankName: fd.bankName || '',
     bankAccount: fd.bankAccount || '',
@@ -871,7 +1083,8 @@ const totalMidPack = computed(() => formData.products.reduce((s: number, p: any)
 const totalSmallPack = computed(() => formData.products.reduce((s: number, p: any) => s + (p.smallPack || 0), 0))
 const totalDiscount = computed(() => directDiscount.value + promoDiscount.value)
 const payableAmount = computed(() => Math.max(0, totalAmount.value - totalDiscount.value))
-const totalPaid = computed(() => cashAmount.value + cardAmount.value + prepaidAmount.value + transferAmount.value + alipayAmount.value + wechatAmount.value)
+/** 实收合计（仅统计启用中的收款方式） */
+const totalPaid = computed(() => enabledMethods.value.reduce((s: number, m: string) => s + (Number(methodAmounts[m]) || 0), 0))
 const prepaidBalanceDisplay = computed(() => (formData.prepaidBalance || 0).toFixed(2))
 
 const tableSummaryColumns = computed(() => [
@@ -882,6 +1095,141 @@ const tableSummaryColumns = computed(() => [
 ])
 
 // ═══════════════════════════════════════
+// 表单页配置（页面配置 36 字段 / 零售设置 / 打印设置）
+// ═══════════════════════════════════════
+
+const FORM_CONFIG_MODULE = 'retail-form'
+const FORM_CONFIG_PAGE = 'form'
+
+interface PageFieldSetting { key: string; label: string; visible: boolean }
+
+/** 页面配置 36 字段（对标：零售单开发文档「页面配置 Tab」字段清单） */
+const PAGE_FIELDS: PageFieldSetting[] = [
+  { key: 'docNo', label: '编号', visible: true },
+  { key: 'customerName', label: '客户', visible: true },
+  { key: 'customerCode', label: '客户编号', visible: false },
+  { key: 'bankName', label: '开户行', visible: false },
+  { key: 'bankAccount', label: '银行账号', visible: false },
+  { key: 'taxNo', label: '税号', visible: false },
+  { key: 'memberCardNo', label: '会员卡号', visible: true },
+  { key: 'warehouseId', label: '出库仓库', visible: true },
+  { key: 'handlerId', label: '经手人', visible: true },
+  { key: 'departmentId', label: '部门', visible: false },
+  { key: 'orderDate', label: '单据日期', visible: true },
+  { key: 'saleType', label: '销售类型', visible: true },
+  { key: 'extNum1', label: '自定义字段1', visible: false },
+  { key: 'extNum2', label: '自定义字段2', visible: false },
+  { key: 'extNum3', label: '自定义字段3', visible: false },
+  { key: 'extText1', label: '自定义字段4', visible: false },
+  { key: 'extText2', label: '自定义字段5', visible: false },
+  { key: 'productSearch', label: '商品', visible: true },
+  { key: 'directDiscount', label: '直接优惠', visible: true },
+  { key: 'couponDiscount', label: '优惠券', visible: true },
+  { key: 'promoDiscount', label: '促销优惠', visible: true },
+  { key: 'prevPoints', label: '此前积分', visible: true },
+  { key: 'orderRemark', label: '单据备注', visible: true },
+  { key: 'creatorName', label: '制单人', visible: true },
+  { key: 'createTime', label: '制单时间', visible: true },
+  { key: 'printCount', label: '打印次数', visible: true },
+  { key: 'combinedPayment', label: '组合收款', visible: true },
+  { key: 'payableAmount', label: '应收金额', visible: true },
+  { key: 'availablePrepaid', label: '可用预收', visible: true },
+  { key: 'prepaidBalance', label: '预收余额', visible: true },
+  { key: 'changeAmount', label: '找零金额', visible: true },
+  { key: 'payMethod1', label: '收款方式1', visible: true },
+  { key: 'payAmount', label: '收款金额', visible: true },
+  { key: 'payMethod', label: '收款方式', visible: true },
+  { key: 'payQrCode', label: '收款码', visible: false },
+  { key: 'cashierName', label: '收银员', visible: false },
+]
+
+const pageConfig = reactive<Record<string, { visible: boolean }>>(
+  Object.fromEntries(PAGE_FIELDS.map(f => [f.key, { visible: f.visible }]))
+)
+const pageConfigFields = computed(() => PAGE_FIELDS.map((f, i) => ({
+  key: f.key,
+  index: i + 1,
+  name: f.label,
+  visible: pageConfig[f.key]?.visible !== false,
+})))
+const pageConfigTableColumns = [
+  { title: '序号', dataIndex: 'index', key: 'index', width: 60 },
+  { title: '名称', dataIndex: 'name', key: 'name', width: 200 },
+  { title: '显示', dataIndex: 'visible', key: 'visible', width: 80, align: 'center' as const },
+]
+function isVisible(key: string): boolean {
+  return pageConfig[key]?.visible !== false
+}
+
+// ── 零售设置（真实生效：默认值、收款方式、简易模式）──
+const retailSettings = reactive({
+  defaultWarehouseId: undefined as any,
+  defaultHandlerId: undefined as any,
+  defaultSaleType: 'NORMAL',
+  pointPerYuan: 1,
+  enableCombinedPayment: true,
+  enabledMethods: [...DEFAULT_ENABLED_METHODS] as string[],
+  autoSimpleMode: false,
+})
+
+// ── 打印设置 ──
+const printSettings = reactive({
+  printTemplate: 'standard',
+  printCopies: 1,
+  printPaperSize: 'A4',
+  alwaysLastTemplate: false,
+  printAfterSubmit: false,
+})
+
+const showFormConfig = ref(false)
+const configModalTab = ref('pageConfig')
+
+async function loadFormConfig() {
+  try {
+    const raw = await userPageConfigApi.get(FORM_CONFIG_MODULE, FORM_CONFIG_PAGE)
+    if (!raw) return
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
+    if (parsed.fields && typeof parsed.fields === 'object') {
+      Object.keys(parsed.fields).forEach((k) => {
+        if (pageConfig[k]) pageConfig[k].visible = parsed.fields[k].visible !== false
+      })
+    }
+    if (parsed.settings) Object.assign(retailSettings, parsed.settings)
+    if (parsed.print) Object.assign(printSettings, parsed.print)
+    if (Array.isArray(retailSettings.enabledMethods) && retailSettings.enabledMethods.length) {
+      enabledMethods.value = [...retailSettings.enabledMethods]
+    }
+    combinedPayment.value = !!retailSettings.enableCombinedPayment
+    simpleMode.value = !!retailSettings.autoSimpleMode
+  } catch { /* 后端不可用时使用默认配置 */ }
+}
+
+async function saveFormConfig() {
+  const payload = {
+    fields: Object.fromEntries(Object.entries(pageConfig).map(([k, v]) => [k, { visible: v.visible }])),
+    settings: { ...retailSettings },
+    print: { ...printSettings },
+  }
+  try {
+    await userPageConfigApi.save(FORM_CONFIG_MODULE, FORM_CONFIG_PAGE, JSON.stringify(payload))
+  } catch { /* 静默失败，保留本页内存态 */ }
+}
+
+function handlePageFieldVisibleChange(fieldKey: string, visible: boolean) {
+  if (pageConfig[fieldKey]) pageConfig[fieldKey].visible = visible
+  saveFormConfig()
+}
+
+function handleEnabledMethodsChange(values: any) {
+  retailSettings.enabledMethods = [...values]
+  enabledMethods.value = [...values]
+  // 关闭的方式金额清零，避免脏数据进入结算
+  PAY_METHODS.forEach(m => { if (!values.includes(m.value)) methodAmounts[m.value] = 0 })
+  updateChangeAmount()
+  saveFormConfig()
+}
+
+// ═══════════════════════════════════════
 // BillFormPage 配置
 // ═══════════════════════════════════════
 
@@ -890,6 +1238,8 @@ const headerConfig = computed<BillHeaderConfig>(() => ({
   orderNo: formData.orderNo || formData.retailNo,
   showAttachment: true,
   actions: [
+    { key: 'config', label: '配置', icon: SettingOutlined },
+    { key: 'print', label: '打印', icon: PrinterOutlined },
     { key: 'pos-mode', label: 'POS收银模式', icon: ThunderboltOutlined },
     { key: 'simple-mode', label: simpleMode.value ? '关闭简易' : '简易模式' },
     { key: 'keyboard', label: '键盘' },
@@ -900,7 +1250,9 @@ const headerConfig = computed<BillHeaderConfig>(() => ({
   ],
 }))
 
-const basicInfoFields = computed<BasicInfoField[]>(() => [
+const departmentOptions = ref<any[]>([])
+
+const ALL_BASIC_INFO_FIELDS: BasicInfoField[] = [
   {
     key: 'customerName',
     label: '客户',
@@ -910,12 +1262,42 @@ const basicInfoFields = computed<BasicInfoField[]>(() => [
     placeholder: '散客',
     searchBtn: '+Q',
   },
+  { key: 'customerCode', label: '客户编号', type: 'input', inlineLabel: true, width: 140 },
   { key: 'memberCardNo', label: '会员卡号', type: 'input', inlineLabel: true, width: 200, placeholder: '输入卡号/电话号码' },
-  { key: 'warehouseId', label: '出库仓库', type: 'select', required: true, inlineLabel: true, width: 180, options: optionRefs.warehouses.map((w: any) => ({ label: w.name, value: w.id })), searchBtn: '+Q', loading: loadingOptions.value },
-  { key: 'handlerId', label: '经手人', type: 'select', required: true, inlineLabel: true, width: 160, options: optionRefs.users.map((u: any) => ({ label: u.name, value: u.id })), searchBtn: '+Q', loading: loadingOptions.value },
+  { key: 'warehouseId', label: '出库仓库', type: 'select', required: true, inlineLabel: true, width: 180 },
+  { key: 'handlerId', label: '经手人', type: 'select', required: true, inlineLabel: true, width: 160 },
+  { key: 'departmentId', label: '部门', type: 'select', inlineLabel: true, width: 160 },
   { key: 'orderDate', label: '单据日期', type: 'date', required: true, inlineLabel: true, width: 160 },
   { key: 'saleType', label: '销售类型', type: 'select', required: true, inlineLabel: true, width: 160, options: [{ label: '正常销售', value: 'NORMAL' }, { label: '退货', value: 'RETURN' }] },
-])
+]
+
+/** 实际渲染的基本信息字段：受页面配置控制 + 注入真实下拉数据 */
+const basicInfoFields = computed<BasicInfoField[]>(() =>
+  ALL_BASIC_INFO_FIELDS
+    .filter(f => isVisible(f.key))
+    .map(f => ({
+      ...f,
+      options: f.key === 'warehouseId'
+        ? (optionRefs.warehouses || []).map((w: any) => ({ label: w.name || w.warehouseName, value: w.id }))
+        : f.key === 'handlerId'
+          ? (optionRefs.users || []).map((u: any) => ({ label: u.name, value: u.id }))
+          : f.key === 'departmentId'
+            ? (departmentOptions.value || []).map((d: any) => ({ label: d.name, value: d.id }))
+            : (f as any).options,
+      loading: ['warehouseId', 'handlerId', 'departmentId'].includes(f.key) ? loadingOptions.value : (f as any).loading,
+      searchBtn: ['warehouseId', 'handlerId', 'departmentId'].includes(f.key) ? '+Q' : (f as any).searchBtn,
+    }))
+)
+
+/** 优惠行是否需要渲染 */
+const showDiscountRow = computed(() =>
+  isVisible('directDiscount') || isVisible('couponDiscount') || isVisible('promoDiscount') || isVisible('prevPoints')
+)
+
+/** 扩展信息区是否需要渲染（开户行/银行账号/税号/自定义字段） */
+const showExtInfo = computed(() =>
+  ['bankName', 'bankAccount', 'taxNo', 'extNum1', 'extNum2', 'extNum3', 'extText1', 'extText2'].some(k => isVisible(k))
+)
 
 const summaryConfig = computed<SummaryRow[]>(() => [
   { label: '零售数量', value: totalQuantity.value },
@@ -958,7 +1340,6 @@ const detailColumns = computed<DetailColumnConfig[]>(() => { return ([
   { key: 'specification', title: '规格', type: 'input', width: 100 },
   { key: 'model', title: '型号', type: 'input', width: 80 },
   { key: 'origin', title: '产地', type: 'input', width: 80 },
-  { key: 'brand', title: '品牌', type: 'input', width: 80 },
   { key: 'productAttribute', title: '商品行属性', type: 'input', width: 90 },
   // 库存(3列)
   { key: 'availableStock', title: '可用库存', type: 'number', width: 90, precision: 2 },
@@ -1030,8 +1411,6 @@ const detailColumns = computed<DetailColumnConfig[]>(() => { return ([
   { key: 'extPartner', title: '单据自定义8(往来单位)', type: 'number', width: 120 },
   { key: 'extStaff', title: '单据自定义9(职员)', type: 'number', width: 100 },
   { key: 'extDept', title: '单据自定义10(部门)', type: 'number', width: 100 },
-  { key: 'extNum6', title: '单据自定义6b(数字)', type: 'number', width: 110, precision: 2 },
-  { key: 'extNum7', title: '单据自定义7b(数字)', type: 'number', width: 110, precision: 2 },
   // 简易模式下隐藏的列key列表
 ] satisfies DetailColumnConfig[]).filter((col) => {
   if (!simpleMode.value) return true
@@ -1049,7 +1428,6 @@ const detailColumns = computed<DetailColumnConfig[]>(() => { return ([
     'gift', 'exchangePoints', 'usedPoints', 'generatedPoints',
     'extNum1', 'extNum2', 'extNum3', 'extText1', 'extText2',
     'extNum4', 'extNum5', 'extPartner', 'extStaff', 'extDept',
-    'extNum6', 'extNum7',
   ]
   return !hiddenKeys.includes(col.key)
 }); })
@@ -1073,16 +1451,19 @@ function handleInsertProduct(index: number) {
 
 function handleFieldChange(fieldKey: string, val: any) {
   baseFieldChange(fieldKey, val)
-  if (fieldKey === 'customerName' && val) {
-    // 客户变更时，如果不是散客则尝试匹配会员
-  }
   updateChangeAmount()
 }
 
 function updateChangeAmount() {
   const change = totalPaid.value - payableAmount.value
-  changeAmount.value = change > 0 ? change : 0
+  changeAmount.value = change > 0 ? Number(change.toFixed(2)) : 0
 }
+
+// 应收变化时同步找零与产生积分（1 元 = 1 分，与后端结算口径一致）
+watch(payableAmount, (v) => {
+  memberGeneratedPoints.value = Math.floor(v)
+  updateChangeAmount()
+}, { immediate: true })
 
 /**
  * 根据客户价格等级自动匹配商品单价
@@ -1111,56 +1492,84 @@ function getPriceByCustomerLevel(product: any, level: string): number {
 function handleCellChange(record: any, fieldKey: string, value: any) {
   if (fieldKey === 'productId' && value != null) {
     const p = optionRefs.products.find((x: any) => x.id === value)
-    if (p) {
-      record.productCode = p.code || ''
-      record.productName = p.name || ''
-      record.itemCode = p.code || ''
-      record.barcode = p.barcode || ''
-      record.unit = p.unit || ''
-      record.availableStock = p.stock || 0
-      // 根据客户价格等级自动匹配单价
-      record.unitPrice = getPriceByCustomerLevel(p, customerLevel.value)
-    }
+    if (p) applyProductToRow(record, p)
+  } else if (fieldKey === 'quantity' || fieldKey === 'unitPrice') {
+    record.amount = (record.quantity || 0) * (record.unitPrice || 0)
+    updateChangeAmount()
   }
 }
 
-function handleProductSearch() {
-  if (!productSearchText.value.trim()) return
-  const keyword = productSearchText.value.trim().toLowerCase()
-  const product = optionRefs.products.find((p: any) =>
-    (p.name || '').toLowerCase().includes(keyword) ||
-    (p.code || '').toLowerCase().includes(keyword) ||
-    (p.barcode || '').toLowerCase().includes(keyword)
-  )
-  if (product) {
-    // 找到空行或追加
-    const emptyIdx = formData.products.findIndex((p: any) => !p.productId && !p.productName)
-    if (emptyIdx >= 0) {
-      const row = formData.products[emptyIdx]
-      row.productId = product.id
-      row.productName = product.name
-      row.itemCode = product.code || ''
-      row.barcode = product.barcode || ''
-      row.unit = product.unit || ''
-      row.availableStock = product.stock || 0
-      row.unitPrice = getPriceByCustomerLevel(product, customerLevel.value)
-    } else {
-      handleAddProduct()
-      const lastIdx = formData.products.length - 1
-      const row = formData.products[lastIdx]
-      row.productId = product.id
-      row.productName = product.name
-      row.itemCode = product.code || ''
-      row.barcode = product.barcode || ''
-      row.unit = product.unit || ''
-      row.availableStock = product.stock || 0
-      row.unitPrice = getPriceByCustomerLevel(product, customerLevel.value)
+/**
+ * 商品搜索（F1 / 扫码）：优先走后端零售商品快查（返回真实零售价与所选仓库可用库存），
+ * 后端不可用时回退到已加载的商品选项。
+ */
+async function handleProductSearch() {
+  const keyword = productSearchText.value.trim()
+  if (!keyword) return
+  let product: any = null
+  try {
+    const list: any = await retailOrderApi.quickSearchProducts(keyword, formData.warehouseId)
+    const hit = Array.isArray(list) ? list[0] : null
+    if (hit) {
+      product = {
+        id: hit.id,
+        name: hit.productName,
+        code: hit.productCode,
+        barcode: hit.barcode,
+        specification: hit.specification,
+        model: hit.model,
+        origin: hit.origin,
+        brand: hit.brand,
+        unit: hit.unit,
+        stock: hit.availableStock,
+        image: hit.imageUrl,
+        retailPrice: hit.retailPrice,
+        wholesalePrice: hit.wholesalePrice,
+        costPrice: hit.costPrice,
+      }
     }
-    productSearchText.value = ''
-    message.success(`已添加：${product.name}`)
-  } else {
-    message.warning('未找到匹配商品')
+  } catch { /* 回退到本地选项 */ }
+  if (!product) {
+    const kw = keyword.toLowerCase()
+    product = optionRefs.products.find((p: any) =>
+      (p.name || '').toLowerCase().includes(kw) ||
+      (p.code || '').toLowerCase().includes(kw) ||
+      (p.barcode || '').toLowerCase().includes(kw)
+    )
   }
+  if (!product) {
+    message.warning('未找到匹配商品')
+    return
+  }
+  const emptyIdx = formData.products.findIndex((p: any) => !p.productId && !p.productName)
+  if (emptyIdx < 0) handleAddProduct()
+  const row = formData.products[emptyIdx >= 0 ? emptyIdx : formData.products.length - 1]
+  applyProductToRow(row, product)
+  productSearchText.value = ''
+  message.success(`已添加：${product.name}`)
+}
+
+/** 商品快照 + 价格等级取价 + 扫码默认数量 1，写入明细行 */
+function applyProductToRow(row: any, product: any) {
+  row.productId = product.id
+  row.productName = product.name || product.productName || ''
+  row.productCode = product.code || product.productCode || ''
+  row.itemCode = product.code || product.productCode || ''
+  row.barcode = product.barcode || ''
+  row.specification = product.specification || product.spec || ''
+  row.model = product.model || ''
+  row.origin = product.origin || ''
+  row.brand = product.brand || ''
+  row.unit = product.unit || ''
+  row.imageUrl = product.image || product.imageUrl || ''
+  row.availableStock = product.stock ?? product.availableStock ?? 0
+  row.costPrice = product.costPrice || 0
+  row.retailPrice = product.retailPrice || 0
+  row.wholesalePrice = product.wholesalePrice || 0
+  row.unitPrice = getPriceByCustomerLevel(product, customerLevel.value)
+  if (!row.quantity) row.quantity = 1
+  row.amount = (row.quantity || 0) * (row.unitPrice || 0)
+  updateChangeAmount()
 }
 
 function handleSearchBtn(fieldKey: string, _btnText: string) {
@@ -1227,51 +1636,121 @@ function handleProductSelectConfirm(products: any[]) {
   products.forEach((p: any, i: number) => {
     const rowIndex = startIndex + i
     if (rowIndex < formData.products.length) {
-      const row = formData.products[rowIndex]
-      row.productId = p.id
-      row.productName = p.name || ''
-      row.itemCode = p.code || ''
-      row.barcode = p.barcode || ''
-      row.unit = p.unit || ''
-      row.availableStock = p.stock || 0
-      row.unitPrice = getPriceByCustomerLevel(p, customerLevel.value)
+      applyProductToRow(formData.products[rowIndex], p)
     }
   })
   showProductSelect.value = false
+  updateChangeAmount()
   message.success(`已选择 ${products.length} 个商品`)
 }
 
 // ═══ 收款按钮点击 ═══
-function focusPayment(type: string) {
-  if (type === 'cash') {
-    if (cashAmount.value === 0) cashAmount.value = payableAmount.value
-  } else if (type === 'card') {
-    if (cardAmount.value === 0) cardAmount.value = payableAmount.value
-  } else if (type === 'prepaid') {
-    if (prepaidAmount.value === 0) prepaidAmount.value = Math.min(payableAmount.value, formData.prepaidBalance || 0)
-  } else if (type === 'transfer') {
-    if (transferAmount.value === 0) transferAmount.value = payableAmount.value
-  } else if (type === 'alipay') {
-    if (alipayAmount.value === 0) alipayAmount.value = payableAmount.value
-  } else if (type === 'wechat') {
-    if (wechatAmount.value === 0) wechatAmount.value = payableAmount.value
+function focusPayment(method: string) {
+  if (method === 'PREPAID' && Number(formData.prepaidBalance || 0) <= 0) {
+    message.warning('该客户当前无可用预收款')
+    return
+  }
+  const payable = payableAmount.value
+  if (!combinedPayment.value) {
+    // 非组合收款：单选一种方式，清空其它
+    enabledMethods.value.forEach(m => { methodAmounts[m] = 0 })
+    methodAmounts[method] = method === 'PREPAID'
+      ? Math.min(payable, Number(formData.prepaidBalance || 0))
+      : payable
+  } else {
+    // 组合收款：补足剩余应收
+    const others = enabledMethods.value
+      .filter(m => m !== method)
+      .reduce((s, m) => s + Number(methodAmounts[m] || 0), 0)
+    let remain = Math.max(0, payable - others)
+    if (method === 'PREPAID') remain = Math.min(remain, Number(formData.prepaidBalance || 0))
+    methodAmounts[method] = remain
   }
   updateChangeAmount()
 }
 
-// ═══ 挂单（F3）═══════
-function handleHoldOrder() {
-  handleSaveDraft()
-  message.info('零售单已挂单，可在列表中查看')
+/** 清空全部收款 */
+function clearPayments() {
+  enabledMethods.value.forEach(m => { methodAmounts[m] = 0 })
+  updateChangeAmount()
 }
 
-// ═══ 记账（Ctrl+Enter）═══════
-function handleSettle() {
+/** 组合收款开关：关闭时只保留一种收款方式 */
+function handleCombinedChange() {
+  if (!combinedPayment.value) {
+    const current = resolvePaymentMethod()
+    const keep = current === 'MIXED' ? primaryMethod.value : current
+    enabledMethods.value.forEach(m => { if (m !== keep) methodAmounts[m] = 0 })
+  }
+  updateChangeAmount()
+}
+
+// ═══ 挂单（F3）：先落草稿，再调后端 /hold 置为挂单状态 ═══
+async function handleHoldOrder() {
+  if (!ensureProducts()) return
+  saving.value = true
+  try {
+    const id = await persistOrder()
+    await retailOrderApi.hold(id)
+    message.success('已挂单，可在零售单列表中「取单」继续收银')
+    router.push('/sales/retail')
+  } catch (e: any) {
+    message.error(e?.message || '挂单失败')
+  } finally {
+    saving.value = false
+  }
+}
+
+/** 明细校验：至少一行有效商品 */
+function ensureProducts(): boolean {
+  const valid = (formData.products || []).filter((p: any) => p.productId != null || p.productName)
+  if (valid.length === 0) {
+    message.warning('请先添加商品明细')
+    return false
+  }
+  return true
+}
+
+/** 保存单据（新建或更新），返回订单ID —— 结算/挂单均以此为基础 */
+async function persistOrder(status = 0): Promise<any> {
+  const payload = buildPayload(status)
+  const editId = route.query.id || route.params.id
+  let order: any
+  if (editId) {
+    order = await retailOrderApi.update(editId, { order: payload, items: payload.items })
+  } else {
+    order = await retailOrderApi.create({ order: payload, items: payload.items })
+  }
+  const id = order?.id ?? editId
+  if (!id) throw new Error('单据保存失败，未获取到单据ID')
+  formData.id = id
+  formData.orderNo = order?.retailNo || payload.retailNo || formData.orderNo
+  formData.retailNo = formData.orderNo
+  return id
+}
+
+// ═══ 记账（Ctrl+Enter）：先落单，再由后端 /settle 完成收款落库 + 库存扣减 ═══
+async function handleSettle() {
   if (payableAmount.value > 0 && totalPaid.value < payableAmount.value) {
     message.warning(`收款不足：应收 ${payableAmount.value.toFixed(2)}，已收 ${totalPaid.value.toFixed(2)}`)
     return
   }
-  handleSubmit()
+  if (!ensureProducts()) return
+  if (payableAmount.value > 0 && buildPayments().length === 0) {
+    message.warning('请选择收款方式并录入收款金额')
+    return
+  }
+  saving.value = true
+  try {
+    const id = await persistOrder(0)
+    await retailOrderApi.settle(id, buildPayments())
+    message.success('结算成功，已完成收款与库存扣减')
+    router.push('/sales/retail')
+  } catch (e: any) {
+    message.error(e?.message || '结算失败')
+  } finally {
+    saving.value = false
+  }
 }
 
 // ═══ 复制零售单 ═══
@@ -1304,10 +1783,6 @@ function exitPosMode() {
   posMode.value = false
 }
 
-function handleOverlayClick(e: MouseEvent) {
-  // 点击非交互区域不退出
-}
-
 function handlePosProductSelect(rowIndex: number) {
   currentSelectRowIndex.value = rowIndex
   showProductSelect.value = true
@@ -1315,11 +1790,11 @@ function handlePosProductSelect(rowIndex: number) {
 
 // ═══ POS 零售单历史 ═══
 function statusColor(status: number): string {
-  const map: Record<number, string> = { 0: 'default', 1: 'processing', 2: 'success', 3: 'success', 4: 'error' }
+  const map: Record<number, string> = { 0: 'default', 1: 'green', 2: 'orange', 3: 'red' }
   return map[status] || 'default'
 }
 function statusLabel(status: number): string {
-  const map: Record<number, string> = { 0: '草稿', 1: '待结算', 2: '已结算', 3: '已完成', 4: '已作废' }
+  const map: Record<number, string> = { 0: '草稿', 1: '已完成', 2: '挂单', 3: '已作废' }
   return map[status] || '未知'
 }
 async function handleShowOrderHistory() {
@@ -1331,8 +1806,8 @@ async function handleShowOrderHistory() {
     const res = await retailOrderApi.pageByDoc({
       pageNum: 1,
       pageSize: 50,
-      startDate: today,
-      endDate: today,
+      dateStart: today,
+      dateEnd: today,
     })
     orderHistoryList.value = res?.records || res?.data?.records || []
   } catch (e: any) {
@@ -1409,6 +1884,12 @@ function handleKeyDown(e: KeyboardEvent) {
 
 function handleAction(actionKey: string, _parentKey?: string) {
   switch (actionKey) {
+    case 'config':
+      showFormConfig.value = true
+      break
+    case 'print':
+      handlePrint()
+      break
     case 'pos-mode':
       enterPosMode()
       break
@@ -1423,9 +1904,102 @@ function handleAction(actionKey: string, _parentKey?: string) {
       handleCopyOrder()
       break
     case 'export':
-      message.info('导出功能待启用')
+      handleExport()
       break
   }
+}
+
+// ── 打印：渲染当前单据（含明细与小票金额）后调用浏览器打印，并累加打印次数 ──
+async function handlePrint() {
+  const rows = (formData.products || [])
+    .filter((p: any) => p.productId != null || p.productName)
+    .map((p: any, i: number) => `<tr>
+        <td>${i + 1}</td><td>${escapeHtml(p.productName || '')}</td><td>${escapeHtml(p.barcode || '')}</td>
+        <td class="num">${fmtNum(p.quantity)}</td><td class="num">${fmtNum(p.unitPrice)}</td><td class="num">${fmtNum((p.quantity || 0) * (p.unitPrice || 0))}</td>
+      </tr>`).join('')
+  const payRows = buildPayments()
+    .map(p => `<tr><td>${payMethodLabel(p.paymentMethod)}</td><td class="num">${fmtNum(p.paymentAmount)}</td></tr>`).join('')
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" /><title>零售单 ${escapeHtml(formData.orderNo || '')}</title>
+    <style>
+      body{font-family:"Microsoft YaHei",Arial,sans-serif;margin:0;padding:16px;color:#000}
+      h2{text-align:center;margin:0 0 12px;font-size:18px}
+      .meta{display:flex;flex-wrap:wrap;gap:4px 24px;font-size:12px;margin-bottom:8px}
+      table{width:100%;border-collapse:collapse;font-size:12px}
+      th,td{border:1px solid #999;padding:4px 6px;text-align:left}
+      th{background:#f2f2f2}.num{text-align:right}
+      .totals{margin-top:8px;font-size:13px;text-align:right}.totals span{margin-left:16px}
+    </style></head><body>
+    <h2>零售单</h2>
+    <div class="meta">
+      <span>单据编号：${escapeHtml(formData.orderNo || '')}</span>
+      <span>单据日期：${escapeHtml(formData.orderDate || '')}</span>
+      <span>客户：${escapeHtml(formData.customerName || '散客')}</span>
+      <span>仓库：${escapeHtml(formData.warehouseName || '')}</span>
+      <span>经手人：${escapeHtml(formData.handlerName || '')}</span>
+      <span>制单人：${escapeHtml(formData.creatorName || currentUserName.value || '')}</span>
+    </div>
+    <table><thead><tr><th>#</th><th>商品名称</th><th>条码</th><th>数量</th><th>单价</th><th>金额</th></tr></thead>
+    <tbody>${rows || '<tr><td colspan="6">无明细</td></tr>'}</tbody></table>
+    <div class="totals">
+      <span>商品金额：${fmtNum(totalAmount.value)}</span>
+      <span>优惠金额：${fmtNum(totalDiscount.value)}</span>
+      <span>本单应收：${fmtNum(payableAmount.value)}</span>
+      <span>收款合计：${fmtNum(totalPaid.value)}</span>
+      <span>找零：${fmtNum(changeAmount.value)}</span>
+    </div>
+    ${payRows ? `<table style="margin-top:8px"><thead><tr><th>收款方式</th><th>金额</th></tr></thead><tbody>${payRows}</tbody></table>` : ''}
+    </body></html>`
+  const win = window.open('', '_blank', 'width=900,height=700')
+  if (!win) {
+    message.warning('浏览器阻止了打印窗口，请允许弹出窗口后重试')
+    return
+  }
+  win.document.write(`${html}`)
+  win.document.close()
+  win.focus()
+  win.print()
+  if (formData.id) {
+    try {
+      await retailOrderApi.afterPrint(formData.id)
+      formData.printCount = (formData.printCount || 0) + 1
+    } catch { /* 计数失败不影响打印 */ }
+  }
+}
+
+// ── 导出：当前单据明细导出 CSV（真实数据） ──
+function handleExport() {
+  const rows = (formData.products || []).filter((p: any) => p.productId != null || p.productName)
+  if (rows.length === 0) {
+    message.warning('没有可导出的明细')
+    return
+  }
+  const headers = ['商品名称', '货号', '条码', '规格', '型号', '产地', '单位', '数量', '单价', '金额', '折扣(%)', '折后单价', '折后金额', '优惠后金额', '备注']
+  const escapeCsv = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`
+  const body = rows.map((p: any) => [
+    p.productName, p.itemCode, p.barcode, p.specification, p.model, p.origin, p.unit,
+    p.quantity, p.unitPrice, (p.quantity || 0) * (p.unitPrice || 0),
+    p.discountRate, p.discountedPrice, p.discountedAmount, p.favorableAmount, p.remark,
+  ].map(escapeCsv).join(','))
+  const csv = [headers.join(','), ...body].join('\r\n')
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `零售单明细_${formData.orderNo || new Date().toISOString().slice(0, 10)}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+  message.success(`导出成功（${rows.length} 行）`)
+}
+
+function escapeHtml(v: any): string {
+  return String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string))
+}
+function fmtNum(v: any): string {
+  const n = Number(v || 0)
+  return n.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+function payMethodLabel(method: string): string {
+  return PAY_METHODS.find(m => m.value === method)?.label || method || ''
 }
 
 function formatNow() {
@@ -1435,6 +2009,9 @@ function formatNow() {
 
 // ── 生命周期 ──
 onMounted(async () => {
+  await loadFormConfig()
+  // 部门下拉（基本信息「部门」字段）
+  try { departmentOptions.value = await optionsApi.getDepartments() } catch { departmentOptions.value = [] }
   // 初始化默认散客
   try {
     const walkin = await memberApi.getWalkIn()
@@ -1444,6 +2021,14 @@ onMounted(async () => {
     }
   } catch {
     formData.customerName = '散客'
+  }
+  // 零售设置默认值生效（仅新建单据时）
+  const editId = route.query.id || route.params.id
+  if (!editId) {
+    if (retailSettings.defaultWarehouseId && !formData.warehouseId) formData.warehouseId = retailSettings.defaultWarehouseId
+    if (retailSettings.defaultHandlerId && !formData.handlerId) formData.handlerId = retailSettings.defaultHandlerId
+    if (retailSettings.defaultSaleType) formData.saleType = retailSettings.defaultSaleType
+    formData.cashierName = currentUserName.value || '系统'
   }
 
   if (formData.products.length === 0) {
@@ -1508,6 +2093,20 @@ onUnmounted(() => {
   flex: 1;
   min-width: 0;
 }
+/* ═══ 扩展信息区 ═══ */
+.ext-info-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 6px 12px;
+  margin-bottom: 6px;
+}
+.ext-field { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.ext-label { font-size: 12px; color: #595959; white-space: nowrap; }
+.ext-field :deep(.ant-input), .ext-field :deep(.ant-input-number) { flex: 1; min-width: 0; }
+
+/* ═══ 配置弹窗 ═══ */
+.config-hint { font-size: 12px; color: #8c8c8c; margin: 0 0 8px; }
+
 .retail-payment-panel {
   width: 320px;
   flex-shrink: 0;

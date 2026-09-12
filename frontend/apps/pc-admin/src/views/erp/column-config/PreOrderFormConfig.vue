@@ -21,7 +21,6 @@
                 <th style="width: 200px;">名称</th>
                 <th>显示名</th>
                 <th style="width: 80px;">显示</th>
-                <th style="width: 100px;">回车键跳转</th>
               </tr>
             </thead>
             <tbody>
@@ -33,9 +32,6 @@
                 </td>
                 <td class="cell-center">
                   <a-checkbox v-model:checked="field.visible" @change="handlePageFieldChange" />
-                </td>
-                <td class="cell-center">
-                  <a-checkbox v-model:checked="field.enterJump" @change="handlePageFieldChange" />
                 </td>
               </tr>
             </tbody>
@@ -106,7 +102,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted } from 'vue'
-import request from '@/utils/request'
+import optionsApi from '@/api/options'
 
 const props = defineProps<{ open: boolean }>()
 const emit = defineEmits<{
@@ -148,7 +144,7 @@ const DEFAULT_PAGE_FIELDS: PageField[] = [
   { key: 'summary', label: '摘要', displayName: '摘要', visible: false, enterJump: false },
   { key: 'depositAccount1', label: '预订金账户', displayName: '预订金账户', visible: true, enterJump: false },
   { key: 'depositAmount', label: '预订金金额', displayName: '预订金金额', visible: true, enterJump: false },
-  { key: 'moreAccounts', label: '更多账户', displayName: '更多账户', visible: false, enterJump: false },
+  { key: 'moreAccounts', label: '更多账户', displayName: '更多账户', visible: true, enterJump: false },
   { key: 'creditLimit', label: '信用额度', displayName: '信用额度', visible: false, enterJump: false },
   { key: 'depositDeadline', label: '收款期限', displayName: '收款期限', visible: false, enterJump: false },
   { key: 'remark', label: '单据备注', displayName: '单据备注', visible: true, enterJump: false },
@@ -302,14 +298,13 @@ async function handleAddDefault(key: string) {
   selectorSelectedId.value = null
   try {
     if (key === 'customerId') {
-      const res = await request.get('/api/erp/partner/customer/list')
-      selectorOptions.value = res || []
+      selectorOptions.value = await optionsApi.getCustomers()
     } else if (key === 'warehouseId') {
-      const res = await request.get('/api/wms/warehouse/list')
-      selectorOptions.value = res || []
+      selectorOptions.value = await optionsApi.getWarehouses()
     } else if (key === 'handlerId') {
-      const res = await request.get('/api/system/user/list')
-      selectorOptions.value = res || []
+      selectorOptions.value = await optionsApi.getUsers()
+    } else if (key === 'depositAccount1') {
+      selectorOptions.value = await optionsApi.getAccounts()
     } else {
       selectorOptions.value = []
     }
@@ -328,7 +323,10 @@ function handleSelectorConfirm() {
     const field = defaultFields.value.find(f => f.key === selectorFieldKey.value)
     if (field) {
       const opt = selectorOptions.value.find((o: any) => o.id === selectorSelectedId.value)
-      field.value = opt ? `${opt.id}` : `${selectorSelectedId.value}`
+      // 账户类字段存名称（单据上落的是账户名），其余存主键ID
+      field.value = field.key === 'depositAccount1'
+        ? (opt?.name || `${selectorSelectedId.value}`)
+        : (opt ? `${opt.id}` : `${selectorSelectedId.value}`)
     }
   }
   selectorVisible.value = false

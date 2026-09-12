@@ -103,5 +103,20 @@ public class BusinessAccountingRequest {
          * 贷方金额
          */
         private BigDecimal creditAmount;
+
+        /**
+         * 核算项-往来单位（应收/应付/预收/预付等往来科目行填写，供辅助核算余额表按往来单位归集）
+         */
+        private String auxUnit;
+
+        /**
+         * 核算项-部门（费用类科目行填写）
+         */
+        private String auxDept;
+
+        /**
+         * 核算项-职员（费用类科目行填写）
+         */
+        private String auxStaff;
     }
 }

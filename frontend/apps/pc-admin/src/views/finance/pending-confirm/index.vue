@@ -40,14 +40,10 @@
           </a-space>
         </template>
 
-        <!-- ═══ 工具栏右侧：列配置 + 页面配置 + 刷新 + 批量确认 + 打印(F8) + 导出 ═══ -->
+        <!-- ═══ 工具栏右侧：页面配置 + 刷新 + 批量确认 + 打印(F8) + 导出 ═══ -->
+        <!-- 列配置走数据表表头齿轮（BillDetailTable 内置），工具栏不再放重复入口 -->
         <template #toolbar-right>
           <a-space :size="8">
-            <a-tooltip title="列配置">
-              <a-button size="small" @click="showColumnConfig = true">
-                <TableOutlined />
-              </a-button>
-            </a-tooltip>
             <a-tooltip title="页面配置">
               <a-button size="small" @click="showPageConfig = true">
                 <SettingOutlined />
@@ -115,6 +111,7 @@
               ref="tableRef"
               :columns="currentColumns"
               :data-source="tableData"
+              :storage-key="activeTab === 'receipt' ? 'pending-confirm-table-columns-receipt' : 'pending-confirm-table-columns-prereceipt'"
               :loading="loading"
               :pagination="billPagination"
               :show-toolbar="false"
@@ -148,17 +145,6 @@
       </CategoryListLayout>
     </PageContainer>
 
-    <!-- ═══ 数据表列配置弹窗 ═══ -->
-    <ColumnConfigPanel
-      :open="showColumnConfig"
-      :settings-columns="panelColumns"
-      :is-locked-column="lockedColumn"
-      @update:open="showColumnConfig = $event"
-      @change="handleColumnConfigChange"
-      @reset="handleColumnConfigReset"
-      @drag-end="handleColumnConfigChange"
-    />
-
     <!-- ═══ 页面配置弹窗（仅「查询条件」Tab） ═══ -->
     <PageConfigPanel
       :open="showPageConfig"
@@ -177,21 +163,16 @@ import { message } from 'ant-design-vue'
 import type { Dayjs } from 'dayjs'
 import dayjs from 'dayjs'
 import {
-  PlusOutlined, SettingOutlined, TableOutlined, ReloadOutlined, PrinterOutlined, ExportOutlined, CheckOutlined,
+  PlusOutlined, SettingOutlined, ReloadOutlined, PrinterOutlined, ExportOutlined, CheckOutlined,
 } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayout.vue'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
-import ColumnConfigPanel from '@/components/ColumnConfigPanel/index.vue'
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
-import { useColumnConfig } from '@/composables/useColumnConfig'
 import { receiptApi, preReceiptApi } from '@/api/finance'
 
 defineOptions({ name: 'FinancePendingConfirm' })
-
-// 锁定列：选择列 + 序号 + 操作（不允许隐藏，保证批量选择可用）
-const lockedColumn = (key: string) => ['rowCheckbox', 'rowNo', 'action'].includes(key)
 
 // ═══ 方向 Tab（收款待确认 / 预收款待确认） ═══
 const tabs = [
@@ -233,8 +214,7 @@ const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
 const billPagination = computed(() => ({ current: pagination.current, pageSize: pagination.pageSize, total: pagination.total }))
 const tableData = computed(() => allRows.value)
 
-// ═══ 列配置 / 页面配置弹窗 ═══
-const showColumnConfig = ref(false)
+// ═══ 页面配置弹窗（列配置走数据表表头齿轮，storage-key=pending-confirm-table-columns-*） ═══
 const showPageConfig = ref(false)
 
 // ═══ 列定义 ═══
@@ -313,34 +293,9 @@ function makePreColumns(): ColumnDef[] {
 const receiptColumnDefs = makeReceiptColumns()
 const preColumnDefs = makePreColumns()
 
-const {
-  visibleColumns: receiptVisibleColumns,
-  onSettingChange: onReceiptSettingChange,
-  resetSettings: resetReceiptSettings,
-  settingsColumns: receiptSettingsColumns,
-} = useColumnConfig(receiptColumnDefs, 'pending-confirm-list-columns-receipt')
-const {
-  visibleColumns: preVisibleColumns,
-  onSettingChange: onPreSettingChange,
-  resetSettings: resetPreSettings,
-  settingsColumns: preSettingsColumns,
-} = useColumnConfig(preColumnDefs, 'pending-confirm-list-columns-pre')
-
 const currentColumns = computed(() =>
-  activeTab.value === 'receipt' ? receiptVisibleColumns.value : preVisibleColumns.value
+  activeTab.value === 'receipt' ? receiptColumnDefs : preColumnDefs
 )
-const panelColumns = computed(() =>
-  activeTab.value === 'receipt' ? receiptSettingsColumns.value : preSettingsColumns.value
-)
-
-function handleColumnConfigChange() {
-  if (activeTab.value === 'receipt') onReceiptSettingChange()
-  else onPreSettingChange()
-}
-function handleColumnConfigReset() {
-  if (activeTab.value === 'receipt') resetReceiptSettings()
-  else resetPreSettings()
-}
 
 // ═══ 页面配置（查询条件显隐） ═══
 interface QueryFieldSetting { key: string; label: string; visible: boolean }

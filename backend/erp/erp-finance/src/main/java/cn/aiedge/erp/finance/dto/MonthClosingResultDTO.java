@@ -42,6 +42,11 @@ public class MonthClosingResultDTO {
     private LocalDateTime closedTime;
 
     /**
+     * 期末结转损益生成的凭证号（KJPZ-），本期无可结转损益时为 null
+     */
+    private String carryOverVoucherNo;
+
+    /**
      * 单项检查结果
      */
     @Data

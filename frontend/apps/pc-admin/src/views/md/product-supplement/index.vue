@@ -1,375 +1,417 @@
 <template>
   <ErrorBoundary @error="handleError">
     <PageContainer full-height>
-      <!-- Tab标签栏（居中） -->
-      <div class="tab-bar">
-        <div class="tab-bar-inner">
-          <div
-            v-for="tab in tabs"
-            :key="tab.key"
-            :class="['tab-item', { active: activeTab === tab.key }]"
-            @click="switchTab(tab.key)"
-          >
-            {{ tab.label }}
-          </div>
-        </div>
-      </div>
-
-      <!-- 工具栏 -->
-      <div class="toolbar">
-        <div class="toolbar-left">
+      <!-- 复用资料模块通用骨架（与客户 / 供应商 / 商品等页面同一版式）：
+           Tab 条 → 工具栏 → 查询行 → 数据表 → 分页；本页无分类树故关闭左面板 -->
+      <CategoryListLayout
+        :show-category-panel="false"
+        :tabs="tabs"
+        :active-tab="activeTab"
+        :show-table-footer="true"
+        @tab-change="onTabChange"
+      >
+        <!-- ── 工具栏（左：新增按钮组；右：刷新/打印(F8)/导出） ── -->
+        <template #toolbar-left>
           <a-button
             type="primary"
-            class="btn-add"
             @click="handleAdd"
           >
-            <PlusOutlined /> 新增{{ currentTabLabel }}
+            <PlusOutlined /> 新增{{ addLabel }}
           </a-button>
-        </div>
-        <div class="toolbar-right">
-          <a-input
-            v-model:value="searchKeyword"
-            :placeholder="searchPlaceholder"
-            size="small"
-            style="width: 200px"
-            allow-clear
-            @press-enter="handleSearch"
-          />
           <a-button
+            v-if="activeTab === 'unit'"
             type="primary"
-            size="small"
-            @click="handleSearch"
+            @click="openUnitGroupManager"
           >
-            查询
+            <ApartmentOutlined /> 单位组管理
           </a-button>
+        </template>
+
+        <template #toolbar-right>
           <a-button
             size="small"
             @click="handleRefresh"
           >
             <ReloadOutlined /> 刷新
           </a-button>
-        </div>
-      </div>
+          <a-button
+            size="small"
+            @click="handlePrint"
+          >
+            <PrinterOutlined /> 打印(F8)
+          </a-button>
+          <a-button
+            size="small"
+            @click="handleExport"
+          >
+            <ExportOutlined /> 导出
+          </a-button>
+        </template>
 
-      <!-- 表格区域 -->
-      <!-- 品牌/单位/标签 使用 BillDetailTable -->
-      <div
-        v-if="activeTab !== 'category'"
-        class="table-wrapper"
-      >
-        <BillDetailTable
-          :columns="currentColumns"
-          v-model:data-source="tableData"
-          :loading="loading"
-          :view-mode="true"
-          fill-mode
-        >
-          <!-- 对应商品列（标签tab专用） -->
-          <template #relatedProductsCell="{ record }">
+        <!-- ── 查询行（筛选条件 + 查询） ── -->
+        <template #search-fields>
+          <div class="search-row">
+            <div class="search-item">
+              <span class="search-label">筛选条件</span>
+              <a-input
+                v-model:value="searchKeyword"
+                placeholder="筛选条件"
+                size="small"
+                style="width: 220px"
+                allow-clear
+                @press-enter="handleSearch"
+              />
+            </div>
             <a-button
-              type="link"
+              type="primary"
               size="small"
-              @click="openProductSelector(record)"
+              class="btn-search"
+              @click="handleSearch"
             >
-              选择商品
+              查询
             </a-button>
-            <span
-              v-if="record.productCount"
-              class="product-count"
-            >{{ record.productCount }}个</span>
-          </template>
-        </BillDetailTable>
-        <a-empty
-          v-if="!loading && tableData.length === 0"
-          description="暂无数据"
-          style="padding: 40px 0"
-        />
-      </div>
+          </div>
+        </template>
 
-      <!-- 分类树表格（ColumnConfigTable 内置列配置 + 填充列） -->
-      <div
-        v-else
-        class="table-wrapper"
-      >
-        <ColumnConfigTable
-          :column-defs="categoryColDefs"
-          storage-key="product-supplement-category-columns"
-          fill-mode
-          :data-source="categoryFlatRows"
-          :pagination="false"
-          size="small"
-          :bordered="true"
-          row-key="id"
-          class="category-tree-table"
-        >
-          <template #bodyCell="{ column, record, index }">
-            <template v-if="!column" />
-            <template v-else-if="column.key === 'rowNo'">
-              {{ index + 1 }}
-            </template>
-            <template v-else-if="column.key === 'categoryName'">
-              <span
-                class="tree-indent"
-                :style="{ paddingLeft: (record._level || 0) * 20 + 'px' }"
-              >
-                <span
-                  v-if="record._hasChildren"
-                  class="tree-expand-icon"
-                  @click.stop="toggleCategoryExpand(record.id)"
+        <!-- ── 数据表（表头齿轮 = 列配置） ── -->
+        <template #table>
+          <BillDetailTable
+            ref="tableRef"
+            :key="activeTab"
+            :columns="currentColumns"
+            v-model:data-source="tableData"
+            :loading="loading"
+            :view-mode="true"
+            :fill-mode="true"
+            :storage-key="currentStorageKey"
+          >
+            <!-- 操作列 -->
+            <template #actionCell="{ record }">
+              <a-space :size="0">
+                <a-button
+                  type="link"
+                  size="small"
+                  @click="handleEdit(record)"
                 >
-                  <CaretDownOutlined v-if="categoryExpandedKeys.includes(record.id)" />
-                  <CaretRightOutlined v-else />
-                </span>
-                <span
+                  修改
+                </a-button>
+                <a-button
+                  v-if="activeTab === 'tag'"
+                  type="link"
+                  size="small"
+                  :danger="record.status !== 0"
+                  @click="handleToggleTagStatus(record)"
+                >
+                  {{ record.status === 0 ? '启用' : '停用' }}
+                </a-button>
+                <a-button
                   v-else
-                  class="tree-expand-placeholder"
-                />
-                <span
-                  :class="{ 'tree-node-clickable': record._hasChildren }"
-                  @click="record._hasChildren && toggleCategoryExpand(record.id)"
-                >{{ record.categoryName }}</span>
+                  type="link"
+                  size="small"
+                  danger
+                  @click="handleDelete(record)"
+                >
+                  删除
+                </a-button>
+              </a-space>
+            </template>
+
+            <!-- 是否默认列（对标 GoodsUnitList：#{isdefault}===1?'√':'X'） -->
+            <template #isDefaultCell="{ record }">
+              <span :class="record.isDefault === 1 ? 'aux-flag-on' : 'aux-flag-off'">
+                {{ record.isDefault === 1 ? '√' : 'X' }}
               </span>
             </template>
-            <template v-else-if="column.key === 'action'">
-              <a-button
-                type="link"
-                size="small"
-                @click="handleAddSubCategory(record)"
+
+            <!-- 对应商品列（商品名聚合串，超长省略） -->
+            <template #productNamesCell="{ record }">
+              <a-tooltip
+                :title="record.productNames || '暂无关联商品'"
+                placement="bottom"
               >
-                新增
-              </a-button>
+                <span class="aux-ellipsis">{{ record.productNames || '-' }}</span>
+              </a-tooltip>
+            </template>
+          </BillDetailTable>
+        </template>
+
+        <!-- ── 底部分页（资料模块经典形态，对齐对标分页栏） ── -->
+        <template #table-footer>
+          <StandardPagination
+            variant="classic"
+            :current="pagination.current"
+            :page-size="pagination.pageSize"
+            :total="pagination.total"
+            :page-size-options="[20, 50, 100]"
+            @change="handlePageChange"
+          />
+        </template>
+      </CategoryListLayout>
+
+      <!-- ══════════ 品牌 / 单位 编辑弹窗 ══════════ -->
+      <a-modal
+        v-model:open="mainModalVisible"
+        :title="modalTitle"
+        :confirm-loading="modalLoading"
+        width="520px"
+        ok-text="保存(Enter)"
+        cancel-text="取消(Esc)"
+        @ok="handleModalSubmit"
+        @cancel="closeMainModal"
+      >
+        <a-form
+          ref="mainFormRef"
+          :model="mainForm"
+          :rules="mainFormRules"
+          :label-col="{ span: 5 }"
+          :wrapper-col="{ span: 18 }"
+          style="margin-top: 16px"
+        >
+          <a-form-item
+            :label="activeTab === 'brand' ? '品牌名称' : activeTab === 'unit' ? '单位名称' : '标签名称'"
+            name="name"
+          >
+            <a-input
+              v-model:value="mainForm.name"
+              :placeholder="activeTab === 'brand' ? '请输入品牌名称' : activeTab === 'unit' ? '请输入单位名称' : '请输入标签名称'"
+              :maxlength="activeTab === 'tag' ? 50 : 30"
+              @press-enter="handleModalSubmit"
+            />
+          </a-form-item>
+
+          <template v-if="activeTab !== 'tag'">
+            <a-form-item label="助记码">
+              <a-input
+                v-model:value="mainForm.mnemonicCode"
+                placeholder="请输入助记码(拼音首字母)"
+                :maxlength="50"
+                @press-enter="handleModalSubmit"
+              />
+            </a-form-item>
+            <a-form-item :label="activeTab === 'unit' ? '计量单位备注' : '备注'">
+              <a-input
+                v-model:value="mainForm.remark"
+                placeholder="请输入备注,限30字"
+                :maxlength="30"
+                show-count
+                @press-enter="handleModalSubmit"
+              />
+            </a-form-item>
+          </template>
+
+          <a-form-item
+            v-if="activeTab === 'unit'"
+            label="是否默认"
+          >
+            <a-switch
+              v-model:checked="mainForm.isDefault"
+              checked-children="是"
+              un-checked-children="否"
+            />
+          </a-form-item>
+
+          <a-form-item
+            v-if="activeTab === 'tag'"
+            label="排序"
+          >
+            <a-input-number
+              v-model:value="mainForm.sortOrder"
+              :min="0"
+              style="width: 100%"
+            />
+          </a-form-item>
+        </a-form>
+      </a-modal>
+
+      <!-- ══════════ 单位组管理弹窗（对标：工具栏 → 查询 → 单位/单位关系表 → 分页） ══════════ -->
+      <a-modal
+        v-model:open="unitGroupVisible"
+        title="单位组管理"
+        width="900px"
+        :footer="null"
+        @cancel="unitGroupVisible = false"
+      >
+        <div class="ug-toolbar">
+          <a-button
+            type="primary"
+            @click="handleAddUnitGroup"
+          >
+            <PlusOutlined /> 新增单位组
+          </a-button>
+          <div class="ug-toolbar-right">
+            <a-button
+              size="small"
+              @click="handlePrint"
+            >
+              <PrinterOutlined /> 打印(F8)
+            </a-button>
+            <a-button
+              size="small"
+              :loading="unitGroupExporting"
+              @click="handleExportUnitGroup"
+            >
+              <ExportOutlined /> 导出
+            </a-button>
+            <a-button
+              size="small"
+              @click="fetchUnitGroups"
+            >
+              <ReloadOutlined /> 刷新
+            </a-button>
+          </div>
+        </div>
+
+        <div class="ug-query">
+          <a-input
+            v-model:value="unitGroupKeyword"
+            placeholder="单位"
+            size="small"
+            style="width: 220px"
+            allow-clear
+            @press-enter="handleUnitGroupSearch"
+          />
+          <a-select
+            v-model:value="unitGroupStatus"
+            placeholder="显示状态"
+            size="small"
+            style="width: 120px"
+            allow-clear
+            :options="unitGroupStatusOptions"
+          />
+          <a-button
+            type="primary"
+            size="small"
+            @click="handleUnitGroupSearch"
+          >
+            查询
+          </a-button>
+        </div>
+
+        <BillDetailTable
+          ref="unitGroupTableRef"
+          :columns="unitGroupColumns"
+          v-model:data-source="unitGroupData"
+          :loading="unitGroupLoading"
+          :view-mode="true"
+          :fill-mode="false"
+          :max-height="360"
+          :min-rows="20"
+          storage-key="md-product-supplement-unit-group-columns"
+        >
+          <template #ugActionCell="{ record }">
+            <a-space :size="0">
               <a-button
                 type="link"
                 size="small"
-                @click="handleEditCategory(record)"
+                @click="handleEditUnitGroup(record)"
               >
                 修改
               </a-button>
               <a-button
                 type="link"
                 size="small"
+                @click="handleToggleUnitGroupStatus(record)"
+              >
+                {{ record.status === 0 ? '启用' : '停用' }}
+              </a-button>
+              <a-button
+                type="link"
+                size="small"
                 danger
-                @click="handleDeleteCategory(record)"
+                @click="handleDeleteUnitGroup(record)"
               >
                 删除
               </a-button>
-            </template>
+            </a-space>
           </template>
-          <template #emptyText>
-            <a-empty description="暂无分类" />
-          </template>
-        </ColumnConfigTable>
-      </div>
+        </BillDetailTable>
 
-      <!-- 底部分页（页面级，所有tab共享，固定在PageContainer底部） -->
-      <template #footer>
         <StandardPagination
-          :current="pagination.current"
-          :page-size="pagination.pageSize"
-          :total="pagination.total"
-          :page-size-options="[10, 20, 50, 100]"
-          @change="handlePageChange"
+          variant="classic"
+          :current="unitGroupPagination.current"
+          :page-size="unitGroupPagination.pageSize"
+          :total="unitGroupPagination.total"
+          :page-size-options="[20, 50]"
+          @change="handleUnitGroupPageChange"
         />
-      </template>
-
-      <!-- ── 品牌编辑弹窗 ── -->
-      <a-modal
-        v-model:open="brandModalVisible"
-        :title="isEdit ? '修改商品品牌' : '新增商品品牌'"
-        :confirm-loading="modalLoading"
-        width="480px"
-        @ok="handleBrandSubmit"
-        @cancel="brandModalVisible = false"
-      >
-        <a-form
-          :label-col="{ span: 6 }"
-          :wrapper-col="{ span: 16 }"
-          style="margin-top: 16px"
-        >
-          <a-form-item
-            label="品牌名称"
-            :required="true"
-          >
-            <a-input
-              v-model:value="brandForm.brandName"
-              placeholder="请输入品牌名称"
-            />
-          </a-form-item>
-          <a-form-item label="助记码">
-            <a-input
-              v-model:value="brandForm.mnemonicCode"
-              placeholder="请输入助记码(拼音首字母)"
-            />
-          </a-form-item>
-          <a-form-item label="备注">
-            <a-textarea
-              v-model:value="brandForm.remark"
-              placeholder="请输入备注"
-              :rows="3"
-            />
-          </a-form-item>
-        </a-form>
       </a-modal>
 
-      <!-- ── 单位编辑弹窗 ── -->
+      <!-- ══════════ 单位组新增编辑（对标：固定 3 行 类型/单位名称/换算关系） ══════════ -->
       <a-modal
-        v-model:open="unitModalVisible"
-        :title="isEdit ? '修改商品单位' : '新增商品单位'"
-        :confirm-loading="modalLoading"
-        width="480px"
-        @ok="handleUnitSubmit"
-        @cancel="unitModalVisible = false"
+        v-model:open="unitGroupFormVisible"
+        title="单位组新增编辑"
+        width="600px"
+        :footer="null"
+        @cancel="unitGroupFormVisible = false"
       >
-        <a-form
-          :label-col="{ span: 6 }"
-          :wrapper-col="{ span: 16 }"
-          style="margin-top: 16px"
-        >
-          <a-form-item
-            label="单位名称"
-            :required="true"
-          >
-            <a-input
-              v-model:value="unitForm.unitName"
-              placeholder="请输入单位名称"
-            />
-          </a-form-item>
-          <a-form-item label="助记码">
-            <a-input
-              v-model:value="unitForm.mnemonicCode"
-              placeholder="请输入助记码(拼音首字母)"
-            />
-          </a-form-item>
-          <a-form-item label="备注">
-            <a-textarea
-              v-model:value="unitForm.remark"
-              placeholder="请输入备注"
-              :rows="3"
-            />
-          </a-form-item>
-        </a-form>
-      </a-modal>
+        <table class="ug-edit-grid">
+          <thead>
+            <tr>
+              <th style="width: 48px">
+                #
+              </th>
+              <th style="width: 110px">
+                类型
+              </th>
+              <th>单位名称</th>
+              <th style="width: 150px">
+                换算关系
+                <a-tooltip
+                  title="相对小单位的倍数，小单位固定为 1"
+                  placement="bottom"
+                >
+                  <QuestionCircleOutlined class="ug-help" />
+                </a-tooltip>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="(row, idx) in unitGroupRows"
+              :key="row.unitType"
+            >
+              <td class="ug-idx">
+                {{ idx + 1 }}
+              </td>
+              <td>{{ unitTypeLabel(row.unitType) }}</td>
+              <td>
+                <a-select
+                  v-model:value="row.unitName"
+                  :options="unitDictOptions"
+                  :loading="unitDictLoading"
+                  placeholder="请选择单位"
+                  size="small"
+                  show-search
+                  allow-clear
+                  style="width: 100%"
+                  @change="(val: any) => onUnitNameChange(row, val)"
+                />
+              </td>
+              <td>
+                <a-input-number
+                  v-model:value="row.conversionRate"
+                  :min="1"
+                  :precision="0"
+                  :disabled="row.unitType === 'SMALL'"
+                  size="small"
+                  style="width: 100%"
+                />
+              </td>
+            </tr>
+          </tbody>
+        </table>
 
-      <!-- ── 标签编辑弹窗 ── -->
-      <a-modal
-        v-model:open="tagModalVisible"
-        :title="isEdit ? '修改商品标签' : '新增商品标签'"
-        :confirm-loading="modalLoading"
-        width="480px"
-        @ok="handleTagSubmit"
-        @cancel="tagModalVisible = false"
-      >
-        <a-form
-          :label-col="{ span: 6 }"
-          :wrapper-col="{ span: 16 }"
-          style="margin-top: 16px"
-        >
-          <a-form-item
-            label="标签名称"
-            :required="true"
+        <div class="ug-edit-footer">
+          <a-button
+            type="primary"
+            :loading="unitGroupSaving"
+            @click="handleUnitGroupSubmit"
           >
-            <a-input
-              v-model:value="tagForm.tagName"
-              placeholder="请输入标签名称"
-            />
-          </a-form-item>
-          <a-form-item label="排序">
-            <a-input-number
-              v-model:value="tagForm.sortOrder"
-              :min="0"
-              style="width: 100%"
-            />
-          </a-form-item>
-        </a-form>
-      </a-modal>
-
-      <!-- ── 分类编辑弹窗 ── -->
-      <a-modal
-        v-model:open="categoryModalVisible"
-        :title="isEdit ? '修改商品分类' : '新增商品分类'"
-        :confirm-loading="modalLoading"
-        width="480px"
-        @ok="handleCategorySubmit"
-        @cancel="categoryModalVisible = false"
-      >
-        <a-form
-          :label-col="{ span: 6 }"
-          :wrapper-col="{ span: 16 }"
-          style="margin-top: 16px"
-        >
-          <a-form-item
-            label="分类名称"
-            :required="true"
-          >
-            <a-input
-              v-model:value="categoryForm.categoryName"
-              placeholder="请输入分类名称"
-            />
-          </a-form-item>
-          <a-form-item label="分类编码">
-            <a-input
-              v-model:value="categoryForm.categoryCode"
-              placeholder="请输入分类编码"
-            />
-          </a-form-item>
-          <a-form-item label="上级分类">
-            <a-tree-select
-              v-model:value="categoryForm.parentId"
-              :tree-data="categoryTreeData"
-              :field-names="{ children: 'children', label: 'categoryName', value: 'id' }"
-              placeholder="无(根节点)"
-              allow-clear
-              style="width: 100%"
-              tree-check-strictly
-            />
-          </a-form-item>
-          <a-form-item label="排序">
-            <a-input-number
-              v-model:value="categoryForm.sortOrder"
-              :min="0"
-              style="width: 100%"
-            />
-          </a-form-item>
-        </a-form>
-      </a-modal>
-
-      <!-- ── 商品选择弹窗（标签-对应商品） ── -->
-      <a-modal
-        v-model:open="productSelectorVisible"
-        title="选择对应商品"
-        width="700px"
-        :confirm-loading="productSelectorLoading"
-        @ok="handleProductSelectorOk"
-        @cancel="productSelectorVisible = false"
-      >
-        <div style="margin-bottom: 12px">
-          <a-input-search
-            v-model:value="productSearchKeyword"
-            placeholder="搜索商品名称/编码"
-            style="width: 300px"
-            allow-clear
-            @search="searchProductsForTag"
-          />
-        </div>
-        <a-table
-          :columns="productSelectorColumns"
-          :data-source="productSelectorData"
-          :pagination="false"
-          :row-selection="{ selectedRowKeys: selectedProductIds, onChange: onProductSelectChange }"
-          size="small"
-          :bordered="true"
-          row-key="id"
-          :scroll="{ y: 360 }"
-          :loading="productSelectorLoading"
-        >
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'productName'">
-              {{ record.productName }}
-            </template>
-          </template>
-        </a-table>
-        <div style="margin-top: 8px; color: #999; font-size: 12px">
-          已选择 {{ selectedProductIds.length }} 个商品
+            保存(Enter)
+          </a-button>
+          <a-button @click="unitGroupFormVisible = false">
+            关闭(Esc)
+          </a-button>
         </div>
       </a-modal>
     </PageContainer>
@@ -379,511 +421,617 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
+import type { FormInstance, Rule } from 'ant-design-vue/es/form'
 import {
   PlusOutlined,
   ReloadOutlined,
-  CaretDownOutlined,
-  CaretRightOutlined,
+  PrinterOutlined,
+  ExportOutlined,
+  ApartmentOutlined,
+  QuestionCircleOutlined,
 } from '@ant-design/icons-vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
+import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayout.vue'
 import BillDetailTable from '@/components/BillFormPage/BillDetailTable/index.vue'
 import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTable/types'
-import ColumnConfigTable from '@/components/ColumnConfigTable/index.vue'
 import StandardPagination from '@/components/Pagination/Pagination.vue'
 import { toMnemonicCode } from '@/composables/useMnemonicCode'
 import {
   productBrandApi,
   productUnitDictApi,
   mallTagApi,
-  productCategoryApi,
-  productApi,
+  productUnitGroupApi,
 } from '@/api/erp/product'
-import type { ProductBrand, ProductUnitDict, MallTag, ProductCategory, Product } from '@/api/erp/product'
 
-// ── Tab配置 ──
-const tabs = ref([
+/**
+ * 商品辅助资料（资料 → 商品管理 → 商品辅助资料）
+ *
+ * 对标 ql361 实测（2026-09-11，22stable.ql361.com）为 3 个子标签组合页：
+ *   1. 商品品牌：工具栏「新增品牌 | 刷新 | 打印(F8) | 导出」+ 查询「筛选条件 + 查询」
+ *   2. 商品单位：工具栏「新增单位 | 单位组管理 | 刷新 | 打印(F8) | 导出」+ 查询
+ *   3. 商品标签：行内「修改 / 停用」
+ *
+ * 裁决：对标 3 Tab（无「商品分类」）；商品分类在 ql361 由「商品」页的分类树承载，
+ *      本系统 `views/erp/product/index.vue` 已完整承载分类增删改，故本页移除分类 Tab。
+ */
+
+// ── Tab 配置（对标 3 子标签） ──
+type AuxTabKey = 'brand' | 'unit' | 'tag'
+const tabs: { key: AuxTabKey; label: string }[] = [
   { key: 'brand', label: '商品品牌' },
   { key: 'unit', label: '商品单位' },
   { key: 'tag', label: '商品标签' },
-  { key: 'category', label: '商品分类' },
-])
-const activeTab = ref('brand')
+]
+const activeTab = ref<AuxTabKey>('brand')
 
-const currentTabLabel = computed(() => {
-  return tabs.value.find(t => t.key === activeTab.value)?.label.replace('商品', '') || ''
-})
-
-const searchPlaceholder = computed(() => {
+const addLabel = computed(() => {
   switch (activeTab.value) {
-    case 'brand': return '品牌名称/助记码'
-    case 'unit': return '单位名称'
-    case 'tag': return '标签名称'
-    default: return '请输入关键字'
+    case 'brand': return '品牌'
+    case 'unit': return '单位'
+    default: return '标签'
   }
 })
 
-function switchTab(key: string) {
-  activeTab.value = key
-  searchKeyword.value = ''
-  if (key === 'category') {
-    fetchCategoryTree()
-  } else {
-    pagination.current = 1
-    fetchData()
-  }
-}
+/** 各 Tab 独立列配置存储键（切 Tab 时 BillDetailTable 会按 storage-key 重载） */
+const currentStorageKey = computed(() => `md-product-supplement-${activeTab.value}-columns`)
 
-// ── 表格高度 ──
-// ── 搜索 & 刷新 ──
-const searchKeyword = ref('')
-
-function handleSearch() {
-  if (activeTab.value === 'category') {
-    fetchCategoryTree()
-  } else {
-    pagination.current = 1
-    fetchData()
-  }
-}
-
-function handleRefresh() {
-  if (activeTab.value === 'category') {
-    fetchCategoryTree()
-  } else {
-    fetchData()
-  }
-}
-
-// ── 数据加载（品牌/单位/标签）─
-const loading = ref(false)
-const tableData = ref<any[]>([])
-const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
-
-async function fetchData() {
-  loading.value = true
-  try {
-    const params: any = {
-      pageNum: pagination.current,
-      pageSize: pagination.pageSize,
-    }
-    if (searchKeyword.value) params.keyword = searchKeyword.value
-
-    let res: any
-    switch (activeTab.value) {
-      case 'brand':
-        res = await productBrandApi.page(params)
-        tableData.value = res.records || []
-        pagination.total = res.total || 0
-        break
-      case 'unit':
-        res = await productUnitDictApi.page(params)
-        tableData.value = res.records || []
-        pagination.total = res.total || 0
-        break
-      case 'tag': {
-        const allTags = (await mallTagApi.list()) as any[]
-        const filtered = searchKeyword.value
-          ? allTags.filter(t => t.tagName?.includes(searchKeyword.value))
-          : allTags
-        pagination.total = filtered.length
-        const start = (pagination.current - 1) * pagination.pageSize
-        tableData.value = filtered.slice(start, start + pagination.pageSize)
-        break
-      }
-    }
-  } catch (e) {
-    console.error('[商品辅助资料] 加载失败', e)
-    message.error('加载数据失败')
-  } finally {
-    loading.value = false
-  }
-}
-
-// ── 品牌列配置（BillDetailTable 格式）──
+// ── 列定义（对标数据表列） ──
 const brandColumns: DetailColumnConfig[] = [
-  { key: 'rowNo', title: '', type: 'rowNo', width: 60 },
-  { key: 'action', title: '操作', type: 'button', width: 120, buttons: [
-    { label: '修改', type: 'link', onClick: (rec: any) => handleEdit(rec) },
-    { label: '删除', type: 'link', danger: true, onClick: (rec: any) => handleDelete(rec) },
-  ]},
-  { key: 'brandName', title: '品牌名称', width: 200 },
-  { key: 'mnemonicCode', title: '助记码', width: 120 },
+  { key: 'rowNo', title: '', type: 'rowNo', width: 50 },
+  { key: 'action', title: '操作', type: 'action', slotName: 'actionCell', width: 110 },
+  { key: 'brandName', title: '品牌名称', width: 220 },
+  { key: 'mnemonicCode', title: '助记码', width: 140 },
   { key: 'remark', title: '备注' },
 ]
 
-// ── 单位列配置 ──
 const unitColumns: DetailColumnConfig[] = [
-  { key: 'rowNo', title: '', type: 'rowNo', width: 60 },
-  { key: 'action', title: '操作', type: 'button', width: 120, buttons: [
-    { label: '修改', type: 'link', onClick: (rec: any) => handleEdit(rec) },
-    { label: '删除', type: 'link', danger: true, onClick: (rec: any) => handleDelete(rec) },
-  ]},
-  { key: 'unitName', title: '单位名称', width: 200 },
-  { key: 'mnemonicCode', title: '助记码', width: 120 },
-  { key: 'remark', title: '备注' },
+  { key: 'rowNo', title: '', type: 'rowNo', width: 50 },
+  { key: 'action', title: '操作', type: 'action', slotName: 'actionCell', width: 110 },
+  { key: 'unitName', title: '商品单位', width: 180 },
+  { key: 'mnemonicCode', title: '助记码', width: 140 },
+  { key: 'remark', title: '计量单位备注' },
+  { key: 'isDefault', title: '是否默认', type: 'slot', slotName: 'isDefaultCell', width: 100, align: 'center' },
 ]
 
-// ── 标签列配置（含对应商品列）─
+// 列序对齐对标源码（GoodsTags.columnMap：序号 | 操作 | 标签名称 fullname | 对应商品 goodsname）；
+// 标签为标准槽位 TAG_N + 用户自定义昵称
 const tagColumns: DetailColumnConfig[] = [
-  { key: 'rowNo', title: '', type: 'rowNo', width: 60 },
-  { key: 'action', title: '操作', type: 'button', width: 120, buttons: [
-    { label: '修改', type: 'link', onClick: (rec: any) => handleEdit(rec) },
-    { label: '删除', type: 'link', danger: true, onClick: (rec: any) => handleDelete(rec) },
-  ]},
+  { key: 'rowNo', title: '', type: 'rowNo', width: 50 },
+  { key: 'action', title: '操作', type: 'action', slotName: 'actionCell', width: 110 },
   { key: 'tagName', title: '标签名称', width: 200 },
-  { key: 'relatedProducts', title: '对应商品', type: 'slot', slotName: 'relatedProductsCell', width: 140 },
-  { key: 'sortOrder', title: '排序', width: 80 },
+  { key: 'productNames', title: '对应商品', type: 'slot', slotName: 'productNamesCell' },
 ]
 
-const currentColumns = computed(() => {
+const currentColumns = computed<DetailColumnConfig[]>(() => {
   switch (activeTab.value) {
-    case 'brand': return brandColumns
     case 'unit': return unitColumns
     case 'tag': return tagColumns
     default: return brandColumns
   }
 })
 
-// ── 分类树表格 ──
-const categoryTreeData = ref<ProductCategory[]>([])
-const categoryExpandedKeys = ref<string[]>([])
+// ── 列表数据 ──
+const tableRef = ref()
+const loading = ref(false)
+const tableData = ref<any[]>([])
+const searchKeyword = ref('')
+const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
 
-interface FlatCategory extends ProductCategory {
-  _level: number
-  _hasChildren: boolean
-}
-
-const categoryFlatRows = computed<FlatCategory[]>(() => {
-  const result: FlatCategory[] = []
-  const expandedSet = new Set(categoryExpandedKeys.value)
-  const walk = (nodes: ProductCategory[], level: number) => {
-    for (const node of nodes) {
-      const hasChildren = !!(node.children?.length)
-      const { children: _children, ...rest } = node
-      result.push({ ...rest, _level: level, _hasChildren: hasChildren } as FlatCategory)
-      if (hasChildren && expandedSet.has(node.id)) {
-        walk(node.children!, level + 1)
-      }
-    }
-  }
-  walk(categoryTreeData.value, 0)
-  return result
-})
-
-function toggleCategoryExpand(id: string) {
-  const idx = categoryExpandedKeys.value.indexOf(id)
-  if (idx === -1) {
-    categoryExpandedKeys.value = [...categoryExpandedKeys.value, id]
-  } else {
-    categoryExpandedKeys.value = categoryExpandedKeys.value.filter(k => k !== id)
-  }
-}
-
-// ── 分类列配置 ──
-const categoryColDefs = [
-  { title: '', key: 'rowNo', width: 60, align: 'center' as const },
-  { title: '操作', key: 'action', width: 180, align: 'center' as const },
-  { title: '分类名称', dataIndex: 'categoryName', key: 'categoryName', width: 240 },
-  { title: '分类编码', dataIndex: 'categoryCode', key: 'categoryCode', width: 120 },
-  { title: '层级', dataIndex: 'categoryLevel', key: 'categoryLevel', width: 80, align: 'center' as const },
-  { title: '排序', dataIndex: 'sortOrder', key: 'sortOrder', width: 80, align: 'center' as const },
-]
-
-async function fetchCategoryTree() {
+async function fetchData() {
   loading.value = true
   try {
-    const data = await productCategoryApi.getTree()
-    categoryTreeData.value = Array.isArray(data) ? data : []
-    const firstLevelIds: string[] = []
-    for (const node of categoryTreeData.value) {
-      if (node.children?.length) firstLevelIds.push(node.id)
+    const params = {
+      pageNum: pagination.current,
+      pageSize: pagination.pageSize,
+      ...(searchKeyword.value ? { keyword: searchKeyword.value } : {}),
     }
-    categoryExpandedKeys.value = firstLevelIds
+    const res: any = activeTab.value === 'brand'
+      ? await productBrandApi.page(params)
+      : activeTab.value === 'unit'
+        ? await productUnitDictApi.page(params)
+        : await mallTagApi.page(params)
+    tableData.value = res?.records || []
+    pagination.total = res?.total || 0
   } catch (e) {
-    console.error('[商品辅助资料] 加载分类树失败', e)
+    console.error('[商品辅助资料] 加载失败', e)
+    message.error('加载数据失败')
+    tableData.value = []
+    pagination.total = 0
   } finally {
     loading.value = false
   }
 }
 
-// ── 品牌弹窗 ──
-const brandModalVisible = ref(false)
-const modalLoading = ref(false)
-const isEdit = ref(false)
-const editingId = ref<string | null>(null)
-const brandForm = reactive({ brandName: '', mnemonicCode: '', remark: '' })
-
-// 品牌名称变化时自动生成助记码
-watch(() => brandForm.brandName, (val) => {
-  brandForm.mnemonicCode = toMnemonicCode(val || '')
-})
-
-function handleAdd() {
-  isEdit.value = false
-  editingId.value = null
-  switch (activeTab.value) {
-    case 'brand':
-      Object.assign(brandForm, { brandName: '', mnemonicCode: '', remark: '' })
-      brandModalVisible.value = true
-      break
-    case 'unit':
-      Object.assign(unitForm, { unitName: '', mnemonicCode: '', remark: '' })
-      unitModalVisible.value = true
-      break
-    case 'tag':
-      Object.assign(tagForm, { tagName: '', sortOrder: 0 })
-      tagModalVisible.value = true
-      break
-    case 'category':
-      Object.assign(categoryForm, { categoryName: '', categoryCode: '', parentId: undefined, sortOrder: 0 })
-      categoryModalVisible.value = true
-      break
-  }
+function switchTab(key: 'brand' | 'unit' | 'tag') {
+  if (activeTab.value === key) return
+  activeTab.value = key
+  searchKeyword.value = ''
+  pagination.current = 1
+  fetchData()
 }
 
-function handleEdit(record: any) {
-  isEdit.value = true
-  editingId.value = record.id
-  switch (activeTab.value) {
-    case 'brand':
-      Object.assign(brandForm, {
-        brandName: record.brandName || '',
-        mnemonicCode: record.mnemonicCode || '',
-        remark: record.remark || '',
-      })
-      brandModalVisible.value = true
-      break
-    case 'unit':
-      Object.assign(unitForm, {
-        unitName: record.unitName || '',
-        mnemonicCode: record.mnemonicCode || '',
-        remark: record.remark || '',
-      })
-      unitModalVisible.value = true
-      break
-    case 'tag':
-      Object.assign(tagForm, {
-        tagName: record.tagName || '',
-        sortOrder: record.sortOrder ?? 0,
-      })
-      tagModalVisible.value = true
-      break
-  }
+/** CategoryListLayout 的 tab-change 回调（其 key 为 string） */
+function onTabChange(key: string) {
+  switchTab(key as 'brand' | 'unit' | 'tag')
 }
 
-async function handleBrandSubmit() {
-  if (!brandForm.brandName?.trim()) { message.warning('请输入品牌名称'); return }
-  modalLoading.value = true
-  try {
-    const payload: Partial<ProductBrand> = {
-      brandName: brandForm.brandName,
-      mnemonicCode: brandForm.mnemonicCode,
-      remark: brandForm.remark,
-    }
-    if (isEdit.value && editingId.value) {
-      await productBrandApi.update(editingId.value, payload)
-    } else {
-      await productBrandApi.create(payload)
-    }
-    message.success(isEdit.value ? '修改成功' : '新增成功')
-    brandModalVisible.value = false
-    fetchData()
-  } catch { message.error('操作失败') } finally { modalLoading.value = false }
+function handleSearch() {
+  pagination.current = 1
+  fetchData()
 }
 
-// ── 单位弹窗 ──
-const unitModalVisible = ref(false)
-const unitForm = reactive({ unitName: '', mnemonicCode: '', remark: '' })
-
-// 单位名称变化时自动生成助记码
-watch(() => unitForm.unitName, (val) => {
-  unitForm.mnemonicCode = toMnemonicCode(val || '')
-})
-
-async function handleUnitSubmit() {
-  if (!unitForm.unitName?.trim()) { message.warning('请输入单位名称'); return }
-  modalLoading.value = true
-  try {
-    const payload: Partial<ProductUnitDict> = {
-      unitName: unitForm.unitName,
-      mnemonicCode: unitForm.mnemonicCode,
-      remark: unitForm.remark,
-    }
-    if (isEdit.value && editingId.value) {
-      await productUnitDictApi.update(editingId.value, payload)
-    } else {
-      await productUnitDictApi.create(payload)
-    }
-    message.success(isEdit.value ? '修改成功' : '新增成功')
-    unitModalVisible.value = false
-    fetchData()
-  } catch { message.error('操作失败') } finally { modalLoading.value = false }
+function handleRefresh() {
+  fetchData()
 }
 
-// ── 标签弹窗 ──
-const tagModalVisible = ref(false)
-const tagForm = reactive({ tagName: '', sortOrder: 0 })
-
-async function handleTagSubmit() {
-  if (!tagForm.tagName?.trim()) { message.warning('请输入标签名称'); return }
-  modalLoading.value = true
-  try {
-    const payload: Partial<MallTag> = { tagName: tagForm.tagName, sortOrder: tagForm.sortOrder }
-    if (isEdit.value && editingId.value) {
-      await mallTagApi.update(editingId.value, payload)
-    } else {
-      await mallTagApi.create(payload)
-    }
-    message.success(isEdit.value ? '修改成功' : '新增成功')
-    tagModalVisible.value = false
-    fetchData()
-  } catch { message.error('操作失败') } finally { modalLoading.value = false }
-}
-
-// ── 分类弹窗 ──
-const categoryModalVisible = ref(false)
-const categoryForm = reactive({
-  categoryName: '', categoryCode: '', parentId: undefined as string | undefined, sortOrder: 0,
-})
-
-function handleAddSubCategory(parentRecord: any) {
-  isEdit.value = false
-  Object.assign(categoryForm, { categoryName: '', categoryCode: '', parentId: parentRecord.id, sortOrder: 0 })
-  categoryModalVisible.value = true
-}
-
-function handleEditCategory(record: any) {
-  isEdit.value = true
-  editingId.value = record.id
-  Object.assign(categoryForm, {
-    categoryName: record.categoryName || '',
-    categoryCode: record.categoryCode || '',
-    parentId: record.parentId && record.parentId !== '0' ? record.parentId : undefined,
-    sortOrder: record.sortOrder ?? 0,
-  })
-  categoryModalVisible.value = true
-}
-
-async function handleCategorySubmit() {
-  if (!categoryForm.categoryName?.trim()) { message.warning('请输入分类名称'); return }
-  modalLoading.value = true
-  try {
-    const payload: any = {
-      categoryName: categoryForm.categoryName,
-      categoryCode: categoryForm.categoryCode,
-      parentId: categoryForm.parentId || '0',
-      sortOrder: categoryForm.sortOrder,
-    }
-    if (isEdit.value && editingId.value) {
-      await productCategoryApi.update(editingId.value, payload)
-    } else {
-      await productCategoryApi.create(payload)
-    }
-    message.success(isEdit.value ? '修改成功' : '新增成功')
-    categoryModalVisible.value = false
-    fetchCategoryTree()
-  } catch { message.error('操作失败') } finally { modalLoading.value = false }
-}
-
-// ── 删除 ──
-function handleDelete(record: any) {
-  const name = record.brandName || record.unitName || record.tagName || ''
-  Modal.confirm({
-    title: '确认删除',
-    content: `确定要删除"${name}"吗？此操作不可恢复。`,
-    okText: '确认删除',
-    okType: 'danger',
-    onOk: async () => {
-      try {
-        switch (activeTab.value) {
-          case 'brand': await productBrandApi.delete(record.id); break
-          case 'unit': await productUnitDictApi.delete(record.id); break
-          case 'tag': await mallTagApi.delete(record.id); break
-        }
-        message.success('删除成功')
-        fetchData()
-      } catch { message.error('删除失败') }
-    },
-  })
-}
-
-function handleDeleteCategory(record: any) {
-  Modal.confirm({
-    title: '确认删除',
-    content: `确定要删除分类"${record.categoryName}"吗？此操作不可恢复。`,
-    okText: '确认删除',
-    okType: 'danger',
-    onOk: async () => {
-      try {
-        await productCategoryApi.delete(record.id)
-        message.success('删除成功')
-        fetchCategoryTree()
-      } catch { message.error('删除失败') }
-    },
-  })
-}
-
-// ── 标签-对应商品选择器 ──
-const productSelectorVisible = ref(false)
-const productSelectorLoading = ref(false)
-const productSelectorData = ref<Product[]>([])
-const selectedProductIds = ref<(string | number)[]>([])
-const productSearchKeyword = ref('')
-let currentTagForProducts: MallTag | null = null
-
-const productSelectorColumns = [
-  { title: '商品编码', dataIndex: 'productCode', width: 120 },
-  { title: '商品名称', dataIndex: 'productName' },
-  { title: '规格', dataIndex: 'spec', width: 100 },
-  { title: '单位', dataIndex: 'unit', width: 60 },
-]
-
-async function openProductSelector(tag: MallTag) {
-  currentTagForProducts = tag
-  selectedProductIds.value = []
-  productSearchKeyword.value = ''
-  productSelectorVisible.value = true
-  await loadProductsForTag()
-}
-
-async function loadProductsForTag() {
-  productSelectorLoading.value = true
-  try {
-    const res = await productApi.page({
-      pageNum: 1,
-      pageSize: 200,
-      ...(productSearchKeyword.value ? { productName: productSearchKeyword.value } : {}),
-    } as any)
-    productSelectorData.value = res.records || []
-  } catch (e) {
-    console.error('[商品辅助资料] 加载商品列表失败', e)
-  } finally {
-    productSelectorLoading.value = false
-  }
-}
-
-function searchProductsForTag() { loadProductsForTag() }
-function onProductSelectChange(keys: (string | number)[]) { selectedProductIds.value = keys }
-
-async function handleProductSelectorOk() {
-  message.success(`已选择 ${selectedProductIds.value.length} 个商品关联到标签"${currentTagForProducts?.tagName}"`)
-  productSelectorVisible.value = false
-}
-
-// ── 分页 ──
 function handlePageChange(page: number, pageSize: number) {
   pagination.current = page
   pagination.pageSize = pageSize
   fetchData()
 }
 
-// ── 键盘快捷键 ──
-function handleKeydown(e: KeyboardEvent) {
-  if (e.key === 'F5') { e.preventDefault(); handleRefresh() }
+// ── 新增 / 修改（品牌 / 单位 / 标签） ──
+const mainModalVisible = ref(false)
+const modalLoading = ref(false)
+const mainFormRef = ref<FormInstance>()
+const editingId = ref<string | null>(null)
+
+const mainForm = reactive({
+  name: '',
+  mnemonicCode: '',
+  remark: '',
+  isDefault: false,
+  sortOrder: 0,
+})
+
+const modalTitle = computed(() => {
+  const label = addLabel.value
+  return (editingId.value ? '修改' : '新增') + label
+})
+
+const mainFormRules = computed<Record<string, Rule[]>>(() => ({
+  name: [{
+    required: true,
+    message: `请输入${activeTab.value === 'brand' ? '品牌名称' : activeTab.value === 'unit' ? '单位名称' : '标签名称'}`,
+    trigger: 'blur',
+  }],
+}))
+
+/** 助记码自动跟随：仅当用户未手工改动过时才用名称拼音覆盖 */
+let lastAutoMnemonic = ''
+watch(() => mainForm.name, (val) => {
+  if (activeTab.value === 'tag') return
+  const current = mainForm.mnemonicCode || ''
+  if (current === '' || current === lastAutoMnemonic) {
+    const auto = toMnemonicCode(val || '')
+    mainForm.mnemonicCode = auto
+    lastAutoMnemonic = auto
+  }
+})
+
+function resetMainForm() {
+  mainForm.name = ''
+  mainForm.mnemonicCode = ''
+  mainForm.remark = ''
+  mainForm.isDefault = false
+  mainForm.sortOrder = 0
+  lastAutoMnemonic = ''
 }
 
-// ── 初始化 ──
+function handleAdd() {
+  editingId.value = null
+  resetMainForm()
+  mainModalVisible.value = true
+}
+
+function handleEdit(record: any) {
+  editingId.value = String(record.id)
+  if (activeTab.value === 'brand') {
+    mainForm.name = record.brandName || ''
+    mainForm.mnemonicCode = record.mnemonicCode || ''
+    mainForm.remark = record.remark || ''
+  } else if (activeTab.value === 'unit') {
+    mainForm.name = record.unitName || ''
+    mainForm.mnemonicCode = record.mnemonicCode || ''
+    mainForm.remark = record.remark || ''
+    mainForm.isDefault = record.isDefault === 1
+  } else {
+    mainForm.name = record.tagName || ''
+    mainForm.sortOrder = record.sortOrder ?? 0
+  }
+  lastAutoMnemonic = mainForm.mnemonicCode
+  mainModalVisible.value = true
+}
+
+function closeMainModal() {
+  mainModalVisible.value = false
+}
+
+async function handleModalSubmit() {
+  try {
+    await mainFormRef.value?.validate()
+  } catch {
+    return
+  }
+  modalLoading.value = true
+  try {
+    if (activeTab.value === 'brand') {
+      const payload = {
+        brandName: mainForm.name.trim(),
+        mnemonicCode: mainForm.mnemonicCode,
+        remark: mainForm.remark,
+      }
+      editingId.value
+        ? await productBrandApi.update(editingId.value, payload)
+        : await productBrandApi.create(payload)
+    } else if (activeTab.value === 'unit') {
+      const payload = {
+        unitName: mainForm.name.trim(),
+        mnemonicCode: mainForm.mnemonicCode,
+        remark: mainForm.remark,
+        isDefault: mainForm.isDefault ? 1 : 0,
+      }
+      editingId.value
+        ? await productUnitDictApi.update(editingId.value, payload)
+        : await productUnitDictApi.create(payload)
+    } else {
+      const payload = {
+        tagName: mainForm.name.trim(),
+        sortOrder: mainForm.sortOrder,
+      }
+      editingId.value
+        ? await mallTagApi.update(editingId.value, payload)
+        : await mallTagApi.create(payload)
+    }
+    message.success(editingId.value ? '修改成功' : '新增成功')
+    mainModalVisible.value = false
+    fetchData()
+    if (unitGroupVisible.value) fetchUnitGroups()
+  } catch (e: any) {
+    message.error(e?.message || '操作失败')
+  } finally {
+    modalLoading.value = false
+  }
+}
+
+// ── 删除 / 启停 ──
+function handleDelete(record: any) {
+  const name = activeTab.value === 'brand' ? record.brandName : record.unitName
+  Modal.confirm({
+    title: '确认删除',
+    content: `确定要删除「${name}」吗？此操作不可恢复。`,
+    okText: '确认删除',
+    okType: 'danger',
+    onOk: async () => {
+      try {
+        activeTab.value === 'brand'
+          ? await productBrandApi.delete(String(record.id))
+          : await productUnitDictApi.delete(String(record.id))
+        message.success('删除成功')
+        fetchData()
+      } catch (e: any) {
+        message.error(e?.message || '删除失败')
+      }
+    },
+  })
+}
+
+function handleToggleTagStatus(record: any) {
+  const nextStatus = record.status === 0 ? 1 : 0
+  const action = nextStatus === 0 ? '停用' : '启用'
+  Modal.confirm({
+    title: `确认${action}`,
+    content: `确定要${action}标签「${record.tagName}」吗？`,
+    onOk: async () => {
+      try {
+        await mallTagApi.updateStatus(String(record.id), nextStatus)
+        message.success(`${action}成功`)
+        fetchData()
+      } catch (e: any) {
+        message.error(e?.message || `${action}失败`)
+      }
+    },
+  })
+}
+
+// ── 打印（F8） / 导出 ──
+function handlePrint() {
+  window.print()
+}
+
+async function handleExport() {
+  try {
+    const params = searchKeyword.value ? { keyword: searchKeyword.value } : {}
+    const blob: any = activeTab.value === 'brand'
+      ? await productBrandApi.exportFile(params)
+      : activeTab.value === 'unit'
+        ? await productUnitDictApi.exportFile(params)
+        : await mallTagApi.exportFile(params)
+    const url = window.URL.createObjectURL(new Blob([blob]))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${addLabel.value}_${new Date().toISOString().slice(0, 10)}.xlsx`
+    a.click()
+    window.URL.revokeObjectURL(url)
+    message.success('导出成功')
+  } catch (e: any) {
+    console.error('[商品辅助资料] 导出失败', e)
+    message.error('导出失败')
+  }
+}
+
+// ── 单位组管理（对标：单位组管理弹窗 + 单位组新增编辑弹窗） ──
+const unitGroupVisible = ref(false)
+const unitGroupTableRef = ref()
+const unitGroupLoading = ref(false)
+const unitGroupExporting = ref(false)
+const unitGroupData = ref<any[]>([])
+const unitGroupKeyword = ref('')
+/** 对标「显示状态」字典（ConstData.showstopstatus：全部 -1 / 已启用 2 / 已停用 1），默认「已启用」 */
+const unitGroupStatusOptions = [
+  { label: '全部', value: -1 },
+  { label: '已启用', value: 2 },
+  { label: '已停用', value: 1 },
+]
+const unitGroupStatus = ref<number>(2)
+
+/** 对标状态值 → 本系统 status（1启用 / 0停用）；-1 表示全部不过滤 */
+function toLocalUnitGroupStatus(v: number | undefined): number | undefined {
+  if (v === 2) return 1
+  if (v === 1) return 0
+  return undefined
+}
+const unitGroupPagination = reactive({ current: 1, pageSize: 20, total: 0 })
+
+/** 对标列：操作 | 单位 | 单位关系（仅此 3 列，均默认显示） */
+const unitGroupColumns: DetailColumnConfig[] = [
+  { key: 'rowNo', title: '', type: 'rowNo', width: 50 },
+  { key: 'action', title: '操作', type: 'action', slotName: 'ugActionCell', width: 160 },
+  { key: 'unitNames', title: '单位', width: 260 },
+  { key: 'unitRates', title: '单位关系' },
+]
+
+const unitGroupFormVisible = ref(false)
+const unitGroupSaving = ref(false)
+const unitGroupEditingId = ref<string | null>(null)
+
+/** 对标「单位组新增编辑」固定 3 行：小单位 / 中单位 / 大单位 */
+interface UnitGroupRow {
+  unitType: 'SMALL' | 'MEDIUM' | 'LARGE'
+  unitName: string
+  unitId?: string
+  conversionRate: number
+}
+const UNIT_GROUP_TYPES: Array<{ type: UnitGroupRow['unitType']; label: string }> = [
+  { type: 'SMALL', label: '小单位' },
+  { type: 'MEDIUM', label: '中单位' },
+  { type: 'LARGE', label: '大单位' },
+]
+const unitGroupRows = ref<UnitGroupRow[]>([])
+
+function emptyUnitGroupRows(): UnitGroupRow[] {
+  return UNIT_GROUP_TYPES.map(t => ({
+    unitType: t.type,
+    unitName: '',
+    unitId: undefined,
+    conversionRate: 1,
+  }))
+}
+
+function unitTypeLabel(type: string) {
+  return UNIT_GROUP_TYPES.find(t => t.type === type)?.label || type
+}
+
+/** 选中单位名后回填单位字典 ID（明细引用字典，不复制字典） */
+function onUnitNameChange(row: UnitGroupRow, value: string) {
+  row.unitId = value ? unitDictIdMap.value[value] : undefined
+}
+
+// 单位字典下拉（单位组内成员来源，红线：不另建重复字典）
+const unitDictOptions = ref<{ label: string; value: string }[]>([])
+/** 单位名称 → 单位字典ID（提交 items 时回填 unitId 引用） */
+const unitDictIdMap = ref<Record<string, string>>({})
+const unitDictLoading = ref(false)
+let unitDictLoaded = false
+
+async function loadUnitDictOptions() {
+  if (unitDictLoaded) return
+  unitDictLoading.value = true
+  try {
+    const list = await productUnitDictApi.list()
+    unitDictOptions.value = (list || []).map((u: any) => ({
+      label: u.unitName,
+      value: u.unitName,
+    }))
+    const map: Record<string, string> = {}
+    for (const u of list || []) {
+      if (u.unitName && u.id != null) map[u.unitName] = String(u.id)
+    }
+    unitDictIdMap.value = map
+    unitDictLoaded = true
+  } catch (e) {
+    console.error('[商品辅助资料] 加载单位字典失败', e)
+  } finally {
+    unitDictLoading.value = false
+  }
+}
+
+function openUnitGroupManager() {
+  unitGroupVisible.value = true
+  unitGroupKeyword.value = ''
+  unitGroupStatus.value = 2
+  unitGroupPagination.current = 1
+  loadUnitDictOptions()
+  fetchUnitGroups()
+}
+
+function handleUnitGroupSearch() {
+  unitGroupPagination.current = 1
+  fetchUnitGroups()
+}
+
+async function fetchUnitGroups() {
+  unitGroupLoading.value = true
+  try {
+    const localStatus = toLocalUnitGroupStatus(unitGroupStatus.value)
+    const res: any = await productUnitGroupApi.page({
+      pageNum: unitGroupPagination.current,
+      pageSize: unitGroupPagination.pageSize,
+      ...(unitGroupKeyword.value ? { keyword: unitGroupKeyword.value } : {}),
+      ...(localStatus === undefined ? {} : { status: localStatus }),
+    })
+    unitGroupData.value = res?.records || []
+    unitGroupPagination.total = res?.total || 0
+  } catch (e) {
+    console.error('[商品辅助资料] 加载单位组失败', e)
+    message.error('加载单位组失败')
+    unitGroupData.value = []
+    unitGroupPagination.total = 0
+  } finally {
+    unitGroupLoading.value = false
+  }
+}
+
+/** 单位组导出（后端真实 xlsx，与查询条件同口径） */
+async function handleExportUnitGroup() {
+  unitGroupExporting.value = true
+  try {
+    const params: { keyword?: string; status?: number } = {}
+    if (unitGroupKeyword.value) params.keyword = unitGroupKeyword.value
+    const localStatus = toLocalUnitGroupStatus(unitGroupStatus.value)
+    if (localStatus !== undefined) params.status = localStatus
+    const blob: any = await productUnitGroupApi.exportFile(params)
+    const url = window.URL.createObjectURL(new Blob([blob]))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `商品单位组_${new Date().toISOString().slice(0, 10)}.xlsx`
+    a.click()
+    window.URL.revokeObjectURL(url)
+    message.success('导出成功')
+  } catch (e: any) {
+    console.error('[商品辅助资料] 单位组导出失败', e)
+    message.error('导出失败')
+  } finally {
+    unitGroupExporting.value = false
+  }
+}
+
+function handleUnitGroupPageChange(page: number, pageSize: number) {
+  unitGroupPagination.current = page
+  unitGroupPagination.pageSize = pageSize
+  fetchUnitGroups()
+}
+
+function handleAddUnitGroup() {
+  unitGroupEditingId.value = null
+  unitGroupRows.value = emptyUnitGroupRows()
+  loadUnitDictOptions()
+  unitGroupFormVisible.value = true
+}
+
+async function handleEditUnitGroup(record: any) {
+  unitGroupEditingId.value = String(record.id)
+  unitGroupRows.value = emptyUnitGroupRows()
+  loadUnitDictOptions()
+  unitGroupFormVisible.value = true
+  try {
+    const detail: any = await productUnitGroupApi.detail(String(record.id))
+    for (const item of detail?.items || []) {
+      const row = unitGroupRows.value.find(r => r.unitType === item.unitType)
+      if (row) {
+        row.unitName = item.unitName || ''
+        row.unitId = item.unitId ? String(item.unitId) : undefined
+        row.conversionRate = Number(item.conversionRate ?? 1)
+      }
+    }
+  } catch (e: any) {
+    message.error(e?.message || '加载单位组明细失败')
+  }
+}
+
+async function handleUnitGroupSubmit() {
+  const small = unitGroupRows.value.find(r => r.unitType === 'SMALL')
+  if (!small?.unitName) {
+    message.warning('请选择小单位')
+    return
+  }
+  const items = unitGroupRows.value
+    .filter(r => !!r.unitName)
+    .map((r, idx) => ({
+      unitType: r.unitType,
+      unitName: r.unitName,
+      unitId: unitDictIdMap.value[r.unitName],
+      conversionRate: r.unitType === 'SMALL' ? 1 : r.conversionRate,
+      sortOrder: idx + 1,
+    }))
+  for (const item of items) {
+    if (item.unitType !== 'SMALL' && (!item.conversionRate || item.conversionRate <= 1)) {
+      message.warning('中单位/大单位的换算关系必须大于 1')
+      return
+    }
+  }
+  unitGroupSaving.value = true
+  try {
+    const payload = { status: 1, items }
+    unitGroupEditingId.value
+      ? await productUnitGroupApi.update(unitGroupEditingId.value, payload)
+      : await productUnitGroupApi.create(payload)
+    message.success(unitGroupEditingId.value ? '修改成功' : '新增成功')
+    unitGroupFormVisible.value = false
+    fetchUnitGroups()
+  } catch (e: any) {
+    message.error(e?.message || '操作失败')
+  } finally {
+    unitGroupSaving.value = false
+  }
+}
+
+/** 行内「停用 / 启用」（对标 GoodsUnitTemplateList 操作列第二项） */
+function handleToggleUnitGroupStatus(record: any) {
+  const nextStatus = record.status === 1 ? 0 : 1
+  const action = nextStatus === 0 ? '停用' : '启用'
+  Modal.confirm({
+    title: `确认${action}`,
+    content: `确定要${action}单位组「${record.unitNames || ''}」吗？`,
+    onOk: async () => {
+      try {
+        await productUnitGroupApi.updateStatus(String(record.id), nextStatus)
+        message.success(`${action}成功`)
+        fetchUnitGroups()
+      } catch (e: any) {
+        message.error(e?.message || `${action}失败`)
+      }
+    },
+  })
+}
+
+function handleDeleteUnitGroup(record: any) {
+  Modal.confirm({
+    title: '确认删除',
+    content: `确定要删除单位组「${record.unitNames || ''}」吗？此操作不可恢复。`,
+    okText: '确认删除',
+    okType: 'danger',
+    onOk: async () => {
+      try {
+        await productUnitGroupApi.delete(String(record.id))
+        message.success('删除成功')
+        fetchUnitGroups()
+      } catch (e: any) {
+        message.error(e?.message || '删除失败')
+      }
+    },
+  })
+}
+
+// ── 快捷键：F8 打印 ──
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'F8') {
+    e.preventDefault()
+    handlePrint()
+  }
+}
+
 onMounted(() => {
   fetchData()
   document.addEventListener('keydown', handleKeydown)
@@ -893,192 +1041,108 @@ onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
 })
 
-function handleError(err: any) { console.warn('[商品辅助资料] ErrorBoundary:', err) }
+function handleError(err: any) {
+  console.warn('[商品辅助资料] ErrorBoundary:', err)
+}
 </script>
 
 <style scoped>
-/* ── Tab标签栏（居中） ── */
-.tab-bar {
-  background: #4a5568;
-  flex-shrink: 0;
-}
-.tab-bar-inner {
+/* ── 查询行样式（必须页面自备）：骨架 CategoryListLayout 的 scoped 样式不作用于
+       页面注入到 #search-fields 插槽的内容，不写则「筛选条件/输入框/查询」会纵向塌陷 ── */
+.search-row {
   display: flex;
-  justify-content: center;
-  align-items: flex-end;
-  height: 38px;
-  gap: 2px;
-  padding: 0 16px;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
 }
-.tab-item {
-  padding: 8px 24px;
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.7);
-  cursor: pointer;
-  transition: all 0.2s;
-  user-select: none;
+.search-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.search-label {
+  font-size: 13px;
+  color: #666;
   white-space: nowrap;
-  border-radius: 4px 4px 0 0;
 }
-.tab-item:hover:not(.active) {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.1);
-}
-.tab-item.active {
-  color: #333;
-  background: #fff;
-  font-weight: 500;
-  padding-bottom: 10px;
-  margin-bottom: -1px;
+.btn-search {
+  margin-left: 8px;
 }
 
-/* ── 工具栏 ── */
-.toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 16px;
-  background: #fff;
-  border-bottom: 1px solid #e8e8e8;
-  flex-shrink: 0;
+/* ── 数据表填充剩余高度（骨架 #table 插槽内） ── */
+:deep(.bill-detail-table) {
+  flex: 1;
+  min-height: 0;
 }
-.toolbar-left, .toolbar-right {
+
+/* ── 是否默认标记 ── */
+.aux-flag-on {
+  color: #52c41a;
+  font-weight: 600;
+}
+.aux-flag-off {
+  color: #bfbfbf;
+}
+
+/* ── 长文本省略 ── */
+.aux-ellipsis {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+/* ── 单位组弹窗工具栏 / 查询行（对标：左新增，右打印·导出·刷新） ── */
+.ug-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.ug-toolbar-right {
   display: flex;
   align-items: center;
   gap: 8px;
 }
-
-/* ── 橙色新增按钮 ── */
-.btn-add {
-  background: #ff6b35 !important;
-  border-color: #ff6b35 !important;
-}
-.btn-add:hover {
-  background: #e55a2b !important;
-  border-color: #e55a2b !important;
-}
-
-/* ── 表格区域 ── */
-.table-wrapper {
-  flex: 1;
-  min-height: 0;
-  overflow: hidden; /* 让 BillDetailTable 内部控制滚动 */
-  background: #fff;
+.ug-query {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
 }
 
-/* ── 树缩进（分类tab） ── */
-.tree-indent {
-  display: inline-flex;
-  align-items: center;
-  white-space: nowrap;
+/* ── 单位组新增编辑：固定 3 行编辑网格 ── */
+.ug-edit-grid {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
 }
-.tree-expand-icon {
-  display: inline-flex;
-  align-items: center;
+.ug-edit-grid th,
+.ug-edit-grid td {
+  border: 1px solid #e8e8e8;
+  padding: 6px 8px;
+  font-size: 13px;
+  text-align: left;
+}
+.ug-edit-grid th {
+  background: #fafafa;
+  font-weight: 600;
+  color: #333;
+}
+.ug-edit-grid .ug-idx {
+  color: #999;
+}
+.ug-help {
+  color: #999;
+  margin-left: 2px;
+}
+.ug-edit-footer {
+  display: flex;
   justify-content: center;
-  width: 16px;
-  height: 16px;
-  margin-right: 4px;
-  cursor: pointer;
-  border-radius: 3px;
-  font-size: 10px;
-  color: #606266;
-  transition: background 0.15s;
-  flex-shrink: 0;
-}
-.tree-expand-icon:hover {
-  background: #e8e8e8;
-}
-.tree-expand-placeholder {
-  display: inline-block;
-  width: 16px;
-  height: 16px;
-  margin-right: 4px;
-  flex-shrink: 0;
-}
-.tree-node-clickable { cursor: pointer; }
-.tree-node-clickable:hover { color: #1890ff; }
-
-/* ── 分类树表格样式 ── */
-.category-tree-table :deep(.ant-table) { font-size: 13px; }
-.category-tree-table :deep(.ant-table table) { border-collapse: separate; border-spacing: 0; }
-.category-tree-table :deep(.ant-table-thead > tr > th) {
-  position: sticky; top: 0; z-index: 10;
-  background: #fafafa !important;
-  border-right: 1px solid #e8e8e8;
-  border-bottom: 1px solid #e8e8e8;
-  padding: 0 6px !important;
-  text-align: center; font-weight: 600; color: #262626;
-  font-size: 13px; height: 32px !important; line-height: 32px !important;
-  white-space: nowrap; vertical-align: middle;
-}
-.category-tree-table :deep(.ant-table-thead > tr > th:last-child) { border-right: none; }
-.category-tree-table :deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e8e8e8;
-  border-bottom: 1px solid #e8e8e8;
-  padding: 0 6px !important;
-  height: 28px !important; max-height: 28px !important;
-  line-height: 28px !important; font-size: 13px;
-  vertical-align: middle; box-sizing: border-box;
-  overflow: hidden;
-}
-.category-tree-table :deep(.ant-table-tbody > tr > td:last-child) { border-right: none; }
-.category-tree-table :deep(.ant-table-tbody > tr:hover > td) { background: #f5f7fa !important; }
-.category-tree-table :deep(.ant-table-thead > tr > th:first-child) {
-  text-align: center;
-  padding: 0 !important;
-}
-/* 移除 th 的 ::before 列分隔线，避免与 border-bottom 叠加 */
-.category-tree-table :deep(.ant-table-thead > tr > th::before) {
-  display: none !important;
-}
-/* 确保表头/表体分割线仅 1px */
-.category-tree-table :deep(.ant-table-thead > tr > th) {
-  border-bottom: 1px solid #e8e8e8 !important;
-}
-.category-tree-table :deep(.ant-table-tbody .ant-btn-link) {
-  height: 22px !important; line-height: 22px !important;
-  padding: 0 4px !important; margin: 0 !important; font-size: 13px;
-}
-
-/* ── 底部分页 ── */
-.pagination-section {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 16px;
-  background: #fafafa;
-  border-top: 1px solid #e8e8e8;
-  flex-shrink: 0;
-}
-.total-text { font-size: 13px; color: #666; }
-
-/* ── 对应商品数量标记 ── */
-.product-count { font-size: 12px; color: #1890ff; margin-left: 4px; }
-
-/* ── BillDetailTable 内联样式覆盖 ── */
-:deep(.bill-detail-table) { flex: 1; }
-:deep(.bill-detail-table .spreadsheet-table) { min-height: 100%; }
-
-/* ── 填充列：表头保留背景色，表体自动继承表格边框 ── */
-.category-tree-table :deep(.ant-table-thead .ss-filler-col) {
-  background: #fafafa;
-}
-.category-tree-table :deep(.ant-table-thead .ss-filler-col::before) {
-  display: none !important;
-}
-.category-tree-table :deep(.ant-table-thead .ss-filler-col .ant-table-column-sorter) {
-  display: none;
-}
-
-/* ── 紧凑尺寸 ── */
-:deep(.ant-input-sm),
-:deep(.ant-input-number-sm),
-:deep(.ant-select-single.ant-select-sm .ant-select-selector),
-:deep(.ant-btn-sm) {
-  height: 28px;
-  line-height: 28px;
+  gap: 12px;
+  margin-top: 16px;
 }
 </style>

@@ -115,78 +115,68 @@ interface PageField { key: string; label: string; displayName: string; visible: 
 interface DefaultValueField { key: string; label: string; value: string }
 interface PrintSettings { alwaysLastTemplate: boolean; printAfterSubmit: boolean }
 
-const STORAGE_KEY_PAGE = 'sale-return-apply-form-page-config'
+const STORAGE_KEY_PAGE = 'sale-return-apply-form-page-config-v2'
 const STORAGE_KEY_DEFAULT = 'sale-return-apply-form-default-config'
 const STORAGE_KEY_PRINT = 'sale-return-apply-form-print-config'
 
-// ── 页面字段默认数据（对标开发文档50字段） ──
+// ── 页面字段默认数据（仅「头部字段区」可选字段；编号/制单信息/本单金额/备注在固定区域渲染，不在此列） ──
+// 默认勾选集 = 参考截图头部 2 行：客户/入库仓库/经手人/单据日期/销售类型/联系人 + 联系电话/联系地址/预计收货/审核人
 const DEFAULT_PAGE_FIELDS: PageField[] = [
-  // 1 编号
-  { key: 'orderNo', label: '编号', displayName: '编号', visible: true, enterJump: false },
-  // 2-4 客户
+  // 客户
   { key: 'customerId', label: '客户', displayName: '客户', visible: true, enterJump: true },
-  { key: 'customerCode', label: '客户编号', displayName: '客户编号', visible: true, enterJump: false },
-  { key: 'customerLevel', label: '客户级别', displayName: '客户级别', visible: true, enterJump: false },
-  // 5-7 银行/税务
+  { key: 'customerCode', label: '客户编号', displayName: '客户编号', visible: false, enterJump: false },
+  { key: 'customerLevel', label: '客户级别', displayName: '客户级别', visible: false, enterJump: false },
+  // 银行/税务
   { key: 'bankName', label: '开户行', displayName: '开户行', visible: false, enterJump: false },
   { key: 'bankAccount', label: '银行账号', displayName: '银行账号', visible: false, enterJump: false },
   { key: 'taxNo', label: '税号', displayName: '税号', visible: false, enterJump: false },
-  // 8-11 仓库/经手人
+  // 仓库/经手人/部门
   { key: 'warehouseId', label: '入库仓库', displayName: '入库仓库', visible: true, enterJump: true },
   { key: 'handlerId', label: '经手人', displayName: '经手人', visible: true, enterJump: true },
-  { key: 'departmentId', label: '部门', displayName: '部门', visible: true, enterJump: false },
+  { key: 'deptId', label: '部门', displayName: '部门', visible: false, enterJump: false },
   { key: 'orderDate', label: '单据日期', displayName: '单据日期', visible: true, enterJump: true },
-  // 12 销售类型
+  // 销售类型
   { key: 'returnApplyType', label: '销售类型', displayName: '销售类型', visible: true, enterJump: true },
-  // 13-16 联系人
+  // 联系人
   { key: 'contactName', label: '联系人', displayName: '联系人', visible: true, enterJump: false },
   { key: 'contactPhone', label: '联系电话', displayName: '联系电话', visible: true, enterJump: false },
   { key: 'contactAddress', label: '联系地址', displayName: '联系地址', visible: true, enterJump: false },
-  { key: 'expectedReceiveDate', label: '预计收货', displayName: '预计收货', visible: false, enterJump: false },
-  // 17-21 自定义字段
-  { key: 'extNum1', label: '自定义字段1(数字)', displayName: '自定义字段1(数字)', visible: false, enterJump: false },
-  { key: 'extNum2', label: '自定义字段2(数字)', displayName: '自定义字段2(数字)', visible: false, enterJump: false },
-  { key: 'extText1', label: '自定义字段3(文本)', displayName: '自定义字段3(文本)', visible: false, enterJump: false },
-  { key: 'extText2', label: '自定义字段4(文本)', displayName: '自定义字段4(文本)', visible: false, enterJump: false },
-  { key: 'extText3', label: '自定义字段5(文本)', displayName: '自定义字段5(文本)', visible: false, enterJump: false },
-  // 22-23 审核/摘要
-  { key: 'auditor', label: '审核人', displayName: '审核人', visible: false, enterJump: false },
+  { key: 'expectedReceiveDate', label: '预计收货', displayName: '预计收货', visible: true, enterJump: false },
+  // 自定义字段（扩展信息 Tab）
+  { key: 'extNum1', label: '自定义字段1(数字)', displayName: '自定义字段1(数字)', visible: true, enterJump: false },
+  { key: 'extNum2', label: '自定义字段2(数字)', displayName: '自定义字段2(数字)', visible: true, enterJump: false },
+  { key: 'extText1', label: '自定义字段3(文本)', displayName: '自定义字段3(文本)', visible: true, enterJump: false },
+  { key: 'extText2', label: '自定义字段4(文本)', displayName: '自定义字段4(文本)', visible: true, enterJump: false },
+  { key: 'extText3', label: '自定义字段5(文本)', displayName: '自定义字段5(文本)', visible: true, enterJump: false },
+  { key: 'footerExtText1', label: '表尾自定义字段1', displayName: '表尾自定义字段1', visible: true, enterJump: false },
+  { key: 'footerExtText2', label: '表尾自定义字段2', displayName: '表尾自定义字段2', visible: true, enterJump: false },
+  // 审核/摘要
+  { key: 'auditor', label: '审核人', displayName: '审核人', visible: true, enterJump: false },
   { key: 'summary', label: '摘要', displayName: '摘要', visible: false, enterJump: false },
-  // 24-28 信用额度
+  // 信用额度
   { key: 'creditLimit', label: '信用额度', displayName: '信用额度', visible: false, enterJump: false },
   { key: 'availableCredit', label: '可用额度', displayName: '可用额度', visible: false, enterJump: false },
   { key: 'currentDebt', label: '本次欠款', displayName: '本次欠款', visible: false, enterJump: false },
   { key: 'prevDebt', label: '此前欠款', displayName: '此前欠款', visible: false, enterJump: false },
   { key: 'debtBalance', label: '欠款余额', displayName: '欠款余额', visible: false, enterJump: false },
-  // 29 收款期限
+  // 收款期限
   { key: 'collectionDeadline', label: '收款期限', displayName: '收款期限', visible: false, enterJump: false },
-  // 30-31 源单/配送单
+  // 源单/配送单
   { key: 'sourceOrder', label: '源单', displayName: '源单', visible: false, enterJump: false },
   { key: 'deliveryNo', label: '配送单', displayName: '配送单', visible: false, enterJump: false },
-  // 32-36 物流
+  // 物流
   { key: 'deliveryMethod', label: '配送方式', displayName: '配送方式', visible: false, enterJump: false },
   { key: 'deliveryRoute', label: '配送线路', displayName: '配送线路', visible: false, enterJump: false },
   { key: 'logisticsCompany', label: '物流公司', displayName: '物流公司', visible: false, enterJump: false },
   { key: 'shippingFee', label: '运费', displayName: '运费', visible: false, enterJump: false },
   { key: 'waybillNo', label: '运单号', displayName: '运单号', visible: false, enterJump: false },
-  // 37-42 会员积分
+  // 会员积分
   { key: 'memberCardNo', label: '会员卡号', displayName: '会员卡号', visible: false, enterJump: false },
   { key: 'prevPoints', label: '此前积分', displayName: '此前积分', visible: false, enterJump: false },
   { key: 'memberGeneratedPoints', label: '产生积分', displayName: '产生积分', visible: false, enterJump: false },
   { key: 'memberExchangePoints', label: '兑换积分', displayName: '兑换积分', visible: false, enterJump: false },
   { key: 'memberUsedPoints', label: '使用积分', displayName: '使用积分', visible: false, enterJump: false },
   { key: 'currentPoints', label: '剩余积分', displayName: '剩余积分', visible: false, enterJump: false },
-  // 43-46 备注
-  { key: 'remark', label: '单据备注', displayName: '单据备注', visible: true, enterJump: false },
-  { key: 'buyerRemark', label: '买家备注', displayName: '买家备注', visible: false, enterJump: false },
-  { key: 'footerExtText1', label: '表尾自定义字段1', displayName: '表尾自定义字段1', visible: false, enterJump: false },
-  { key: 'footerExtText2', label: '表尾自定义字段2', displayName: '表尾自定义字段2', visible: false, enterJump: false },
-  // 47-49 单据信息
-  { key: 'creatorName', label: '制单人', displayName: '制单人', visible: true, enterJump: false },
-  { key: 'createTime', label: '制单时间', displayName: '制单时间', visible: true, enterJump: false },
-  { key: 'printCount', label: '打印次数', displayName: '打印次数', visible: true, enterJump: false },
-  // 50 本单金额
-  { key: 'totalAmount', label: '本单金额', displayName: '本单金额', visible: true, enterJump: false },
 ]
 
 const DEFAULT_DEFAULT_FIELDS: DefaultValueField[] = [

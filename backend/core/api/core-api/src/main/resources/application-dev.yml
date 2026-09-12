@@ -68,3 +68,11 @@ logging:
   level:
     cn.aiedge: DEBUG
     org.springframework.web: DEBUG
+
+# ── 本地文件存储根目录（图片/附件）──
+# ⚠️ 必须显式给绝对路径：代码默认值 ./uploads 是相对 JVM 工作目录解析的，
+#    IDE 在模块目录启动、命令行在仓库根启动会写到不同目录，
+#    导致 A 实例上传的图片在 B 实例上 404（前端 <img> 加载失败并刷 Sentry）。
+storage:
+  local:
+    base-path: ${STORAGE_LOCAL_BASE_PATH:I:/AI-Ready/uploads}

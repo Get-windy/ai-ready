@@ -88,6 +88,11 @@ public interface IRetailOrderService extends IService<RetailOrder> {
     List<Map<String, Object>> quickSearchProducts(String keyword, Long warehouseId);
 
     /**
+     * 生成下一个零售单号（后端号段，供 /next-no 使用；保存时未传单号也走此处）
+     */
+    String generateRetailNo();
+
+    /**
      * 含明细行的零售单详情 VO
      */
     class RetailOrderDetailVO {
@@ -119,8 +124,11 @@ public interface IRetailOrderService extends IService<RetailOrder> {
         private String customerName;
         private Long customerId;
         private Long handlerId;
+        private String handlerName;
         private Long departmentId;
+        private String departmentName;
         private Long warehouseId;
+        private String warehouseName;
         private Integer status;
         private String saleType;
         private String productAttribute;
@@ -128,7 +136,15 @@ public interface IRetailOrderService extends IService<RetailOrder> {
         private String creatorName;
         private String bookkeeperName;
         private String memberCardNo;
+        private Integer printCount;
+        private java.math.BigDecimal extNum1;
+        private java.math.BigDecimal extNum2;
+        private String extText1;
+        private String extText2;
+        private String extText3;
         private Boolean showRedFlush;
+        /** 明细反查命中的单据ID集合（商品行属性过滤时使用） */
+        private List<Long> matchedOrderIds;
         private Integer pageNum = 1;
         private Integer pageSize = 20;
 
@@ -165,6 +181,26 @@ public interface IRetailOrderService extends IService<RetailOrder> {
         public void setMemberCardNo(String memberCardNo) { this.memberCardNo = memberCardNo; }
         public Boolean getShowRedFlush() { return showRedFlush; }
         public void setShowRedFlush(Boolean showRedFlush) { this.showRedFlush = showRedFlush; }
+        public String getHandlerName() { return handlerName; }
+        public void setHandlerName(String handlerName) { this.handlerName = handlerName; }
+        public String getDepartmentName() { return departmentName; }
+        public void setDepartmentName(String departmentName) { this.departmentName = departmentName; }
+        public String getWarehouseName() { return warehouseName; }
+        public void setWarehouseName(String warehouseName) { this.warehouseName = warehouseName; }
+        public Integer getPrintCount() { return printCount; }
+        public void setPrintCount(Integer printCount) { this.printCount = printCount; }
+        public java.math.BigDecimal getExtNum1() { return extNum1; }
+        public void setExtNum1(java.math.BigDecimal extNum1) { this.extNum1 = extNum1; }
+        public java.math.BigDecimal getExtNum2() { return extNum2; }
+        public void setExtNum2(java.math.BigDecimal extNum2) { this.extNum2 = extNum2; }
+        public String getExtText1() { return extText1; }
+        public void setExtText1(String extText1) { this.extText1 = extText1; }
+        public String getExtText2() { return extText2; }
+        public void setExtText2(String extText2) { this.extText2 = extText2; }
+        public String getExtText3() { return extText3; }
+        public void setExtText3(String extText3) { this.extText3 = extText3; }
+        public List<Long> getMatchedOrderIds() { return matchedOrderIds; }
+        public void setMatchedOrderIds(List<Long> matchedOrderIds) { this.matchedOrderIds = matchedOrderIds; }
         public Integer getPageNum() { return pageNum; }
         public void setPageNum(Integer pageNum) { this.pageNum = pageNum; }
         public Integer getPageSize() { return pageSize; }
@@ -182,8 +218,11 @@ public interface IRetailOrderService extends IService<RetailOrder> {
         private String barcode;
         private String customerName;
         private Long handlerId;
+        private String handlerName;
         private Long departmentId;
+        private String departmentName;
         private Long warehouseId;
+        private String warehouseName;
         private Integer status;
         private String remark;
         private Boolean showRedFlush;
@@ -215,6 +254,12 @@ public interface IRetailOrderService extends IService<RetailOrder> {
         public void setRemark(String remark) { this.remark = remark; }
         public Boolean getShowRedFlush() { return showRedFlush; }
         public void setShowRedFlush(Boolean showRedFlush) { this.showRedFlush = showRedFlush; }
+        public String getHandlerName() { return handlerName; }
+        public void setHandlerName(String handlerName) { this.handlerName = handlerName; }
+        public String getDepartmentName() { return departmentName; }
+        public void setDepartmentName(String departmentName) { this.departmentName = departmentName; }
+        public String getWarehouseName() { return warehouseName; }
+        public void setWarehouseName(String warehouseName) { this.warehouseName = warehouseName; }
         public Integer getPageNum() { return pageNum; }
         public void setPageNum(Integer pageNum) { this.pageNum = pageNum; }
         public Integer getPageSize() { return pageSize; }

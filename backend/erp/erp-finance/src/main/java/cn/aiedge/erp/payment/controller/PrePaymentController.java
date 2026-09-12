@@ -3,6 +3,8 @@ package cn.aiedge.erp.payment.controller;
 import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.payment.dto.PrePaymentCreateDTO;
 import cn.aiedge.erp.payment.dto.PrePaymentDTO;
+import cn.aiedge.erp.payment.dto.PrePaymentQuery;
+import cn.aiedge.erp.payment.dto.PrePaymentSaveDTO;
 import cn.aiedge.erp.payment.entity.PrePayment;
 import cn.aiedge.erp.payment.service.PrePaymentService;
 import cn.dev33.satoken.stp.StpUtil;
@@ -17,6 +19,7 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -25,37 +28,61 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/erp/pre-payment")
 @RequiredArgsConstructor
-@Tag(name = "预付款管理", description = "预付款/定金创建、冲抵、收回、退还等操作")
+@Tag(name = "预付款管理", description = "预付款/定金创建、记账、冲抵、收回、退还等操作")
 public class PrePaymentController {
 
     private final PrePaymentService prePaymentService;
 
+    @GetMapping("/next-no")
+    @Operation(summary = "生成下一预付款单号")
+    public String nextNo(@Parameter(description = "编号前缀") @RequestParam(required = false) String prefix) {
+        return prePaymentService.generatePrePaymentNo();
+    }
+
     @GetMapping("/page")
     @Operation(summary = "分页查询预付款单")
     public Page<PrePaymentDTO> page(
-            @Parameter(description = "关键词") @RequestParam(required = false) String keyword,
-            @Parameter(description = "供应商ID") @RequestParam(required = false) Long supplierId,
-            @Parameter(description = "状态") @RequestParam(required = false) String status,
+            PrePaymentQuery query,
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") int pageNum,
             @Parameter(description = "每页数量") @RequestParam(defaultValue = "10") int pageSize) {
-        Page<PrePayment> page = prePaymentService.pageList(keyword, supplierId, status, pageNum, pageSize);
+        Page<PrePayment> page = prePaymentService.pageQuery(query, pageNum, pageSize);
         Page<PrePaymentDTO> voPage = new Page<>(pageNum, pageSize, page.getTotal());
         voPage.setRecords(page.getRecords().stream().map(this::convertToDTO).collect(Collectors.toList()));
         return voPage;
     }
 
+    @GetMapping("/advance-balance")
+    @Operation(summary = "查询结算单位（供应商）预付余额")
+    public BigDecimal advanceBalance(@Parameter(description = "供应商ID") @RequestParam Long supplierId) {
+        return prePaymentService.getSupplierAdvanceBalance(supplierId);
+    }
+
     @GetMapping("/{id}")
-    @Operation(summary = "获取预付款单详情")
+    @Operation(summary = "获取预付款单详情（含付款账户明细）")
     public PrePaymentDTO getById(@PathVariable Long id) {
-        PrePayment prePayment = prePaymentService.getById(id);
-        if (prePayment == null) {
-            throw BusinessException.notFound("预付款单不存在");
-        }
+        return prePaymentService.getDetail(id);
+    }
+
+    @PostMapping("/save")
+    @Operation(summary = "保存预付款单草稿（含付款账户明细）")
+    public PrePaymentDTO save(@Valid @RequestBody PrePaymentSaveDTO dto) {
+        PrePayment prePayment = prePaymentService.saveDraft(dto);
+        return convertToDTO(prePayment);
+    }
+
+    @PostMapping("/confirm")
+    @Operation(summary = "预付款单记账（预付余额增加 + 生成凭证）")
+    public PrePaymentDTO confirm(
+            @Parameter(description = "单据ID") @RequestParam Long id,
+            @Parameter(description = "记账人ID") @RequestParam(required = false) Long operatorId,
+            @Parameter(description = "记账人") @RequestParam(required = false) String operatorName) {
+        Long bookkeeperId = operatorId != null ? operatorId : StpUtil.getLoginIdAsLong();
+        PrePayment prePayment = prePaymentService.confirm(id, bookkeeperId, operatorName);
         return convertToDTO(prePayment);
     }
 
     @PostMapping
-    @Operation(summary = "创建预付款单")
+    @Operation(summary = "创建预付款单（旧版）")
     public PrePaymentDTO create(@Valid @RequestBody PrePaymentCreateDTO dto) {
         PrePayment prePayment = new PrePayment();
         BeanUtils.copyProperties(dto, prePayment);
@@ -96,7 +123,7 @@ public class PrePaymentController {
     @Operation(summary = "预付款统计")
     public Map<String, Object> statistics() {
         Map<String, Object> stats = new java.util.HashMap<>();
-        for (String status : new String[]{"paid", "offset", "recovered", "refunded"}) {
+        for (String status : new String[]{"draft", "confirmed", "offset", "recovered", "refunded"}) {
             stats.put(status, prePaymentService.lambdaQuery()
                     .eq(PrePayment::getStatus, status)
                     .eq(PrePayment::getDeleted, 0)

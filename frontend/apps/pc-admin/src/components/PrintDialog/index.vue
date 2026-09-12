@@ -19,6 +19,7 @@
             placeholder="选择打印模板"
             style="width: 100%"
             :loading="loadingTemplates"
+            :disabled="props.alwaysLastTemplate && !!readLastTemplateId()"
             @change="handleTemplateChange"
           >
             <a-select-option
@@ -157,6 +158,12 @@ const props = defineProps<{
   pageCode: string
   /** 打印数据，会传递给模板渲染接口 */
   printData: Record<string, any>
+  /** 页面打印设置：默认打印模板ID（未指定时用模板自身的默认标记） */
+  defaultTemplateId?: number | null
+  /** 页面打印设置：默认打印份数 */
+  defaultCopies?: number
+  /** 页面打印设置：始终使用最后一次打印的模板，打印时不再选择 */
+  alwaysLastTemplate?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -188,6 +195,19 @@ function handleClose() {
   previewHtml.value = ''
 }
 
+/** 「始终使用最后一次打印的模板」所需的本地记录（按页面编码隔离） */
+const lastTemplateKey = computed(() => `print-last-template-${props.pageCode}`)
+function readLastTemplateId(): number | null {
+  try {
+    const v = localStorage.getItem(lastTemplateKey.value)
+    return v ? Number(v) : null
+  } catch { return null }
+}
+function writeLastTemplateId(id: number | null) {
+  if (id == null) return
+  try { localStorage.setItem(lastTemplateKey.value, String(id)) } catch { /* 忽略写入失败 */ }
+}
+
 /** 加载当前 pageCode 的模板列表 */
 async function loadTemplates() {
   loadingTemplates.value = true
@@ -200,9 +220,18 @@ async function loadTemplates() {
     })
     const records = res?.data?.records || res?.records || []
     templates.value = records
-    // 默认选中 isDefault 或第一个
-    const defaultTpl = records.find((t: PrintTemplateVO) => t.isDefault)
-    selectedTemplateId.value = defaultTpl?.templateId || records[0]?.templateId || null
+    // 优先级：页面打印设置指定模板 > 「始终使用最后一次打印的模板」 > 模板默认标记 > 第一个
+    const lastUsedId = readLastTemplateId()
+    const bySetting = props.defaultTemplateId
+      ? records.find((t: PrintTemplateVO) => t.templateId === props.defaultTemplateId)
+      : undefined
+    const byLastUsed = (props.alwaysLastTemplate && lastUsedId)
+      ? records.find((t: PrintTemplateVO) => t.templateId === lastUsedId)
+      : undefined
+    const byDefault = records.find((t: PrintTemplateVO) => t.isDefault)
+    const picked = bySetting || byLastUsed || byDefault || records[0]
+    selectedTemplateId.value = picked?.templateId || null
+    copies.value = props.defaultCopies && props.defaultCopies > 0 ? props.defaultCopies : 1
   } catch (e) {
     templates.value = []
     selectedTemplateId.value = null
@@ -295,6 +324,7 @@ async function handlePrint() {
       // 远程打印：调用打印链执行
       message.info('远程打印功能配置中，请在打印链管理中添加客户端')
     }
+    writeLastTemplateId(selectedTemplateId.value)
     emit('print-success')
   } catch (e: any) {
     message.error('打印失败：' + (e?.message || '未知错误'))

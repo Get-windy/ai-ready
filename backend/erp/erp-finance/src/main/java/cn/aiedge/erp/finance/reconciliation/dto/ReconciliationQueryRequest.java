@@ -11,6 +11,9 @@ import java.time.LocalDate;
 @Schema(description = "对账记录查询请求")
 public class ReconciliationQueryRequest {
 
+    @Schema(description = "对账编号")
+    private String reconciliationNo;
+
     @Schema(description = "对账类型")
     private String reconciliationType; // BANK-银行 CUSTOMER-客户 SUPPLIER-供应商
 

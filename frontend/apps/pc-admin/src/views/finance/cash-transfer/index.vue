@@ -37,14 +37,9 @@
           </a-space>
         </template>
 
-        <!-- ═══ 工具栏右侧：列配置/页面配置/新增/刷新/打印/导出 ═══ -->
+        <!-- ═══ 工具栏右侧：页面配置/新增/刷新/打印/导出（列配置走数据表表头齿轮） ═══ -->
         <template #toolbar-right>
           <a-space :size="8">
-            <a-tooltip title="列配置">
-              <a-button size="small" @click="showColumnConfig = true">
-                <TableOutlined />
-              </a-button>
-            </a-tooltip>
             <a-tooltip title="页面配置">
               <a-button size="small" @click="showPageConfig = true">
                 <SettingOutlined />
@@ -181,6 +176,7 @@
             <BillTableList
               :columns="currentColumns"
               :data-source="tableData"
+              :storage-key="activeTab === 'doc' ? 'cash-transfer-table-columns-doc' : 'cash-transfer-table-columns-detail'"
               :loading="loading"
               :pagination="billPagination"
               :show-toolbar="false"
@@ -237,17 +233,6 @@
       </CategoryListLayout>
     </PageContainer>
 
-    <!-- ═══ 列配置弹窗 ═══ -->
-    <ColumnConfigPanel
-      :open="showColumnConfig"
-      :settings-columns="panelColumns"
-      :is-locked-column="isLockedColumn"
-      @update:open="showColumnConfig = $event"
-      @change="handleColumnConfigChange"
-      @reset="handleColumnConfigReset"
-      @drag-end="handleColumnConfigChange"
-    />
-
     <!-- ═══ 页面配置弹窗 ═══ -->
     <PageConfigPanel
       :open="showPageConfig"
@@ -268,15 +253,13 @@ import type { Dayjs } from 'dayjs'
 import dayjs from 'dayjs'
 import {
   PlusOutlined, ReloadOutlined, PrinterOutlined, SettingOutlined,
-  TableOutlined, ExportOutlined, DownOutlined,
+  ExportOutlined, DownOutlined,
 } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayout.vue'
-import ColumnConfigPanel from '@/components/ColumnConfigPanel/index.vue'
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
-import { useColumnConfig, isLockedColumn } from '@/composables/useColumnConfig'
 import { useAutoGridSpan } from '@/composables/useAutoGridSpan'
 import { cashTransferApi } from '@/api/finance/cash-transfer'
 import { useUserStore } from '@/stores/user'
@@ -347,8 +330,7 @@ const rowSelection = computed(() => ({
   onChange: (keys: any[]) => { selectedRowKeys.value = keys },
 }))
 
-// ═══ 列配置/页面配置弹窗 ═══
-const showColumnConfig = ref(false)
+// ═══ 页面配置弹窗（列配置走数据表表头齿轮） ═══
 const showPageConfig = ref(false)
 
 // ═══ 页面配置（查询条件显隐、功能按钮） ═══
@@ -499,37 +481,10 @@ const detailColumns = [
   { title: '打印次数', field: 'printCount', key: 'printCount', width: 80, align: 'right' },
 ]
 
-// ═══ 列配置 ═══
-const docColumnDefs = computed(() => docColumns.map(col => ({ ...col })))
-const detailColumnDefs = computed(() => detailColumns.map(col => ({ ...col })))
-const {
-  visibleColumns: docVisibleColumns,
-  onSettingChange: onDocSettingChange,
-  resetSettings: resetDocSettings,
-  settingsColumns: docSettingsColumns,
-} = useColumnConfig(docColumnDefs.value, 'cash-transfer-list-columns-doc')
-const {
-  visibleColumns: detailVisibleColumns,
-  onSettingChange: onDetailSettingChange,
-  resetSettings: resetDetailSettings,
-  settingsColumns: detailSettingsColumns,
-} = useColumnConfig(detailColumnDefs.value, 'cash-transfer-list-columns-detail')
-
+// ═══ 列配置（走数据表表头齿轮：storage-key=cash-transfer-table-columns-doc/detail） ═══
 const currentColumns = computed(() =>
-  activeTab.value === 'doc' ? docVisibleColumns.value : detailVisibleColumns.value
+  activeTab.value === 'doc' ? docColumns : detailColumns
 )
-const panelColumns = computed(() =>
-  activeTab.value === 'doc' ? docSettingsColumns.value : detailSettingsColumns.value
-)
-
-function handleColumnConfigChange() {
-  if (activeTab.value === 'doc') onDocSettingChange()
-  else onDetailSettingChange()
-}
-function handleColumnConfigReset() {
-  if (activeTab.value === 'doc') resetDocSettings()
-  else resetDetailSettings()
-}
 
 // ═══ 表格底部合计（按单据 Tab：转出金额/转入金额/手续费） ═══
 const tableFooterColumns = computed(() => {

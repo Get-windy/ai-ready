@@ -5,6 +5,7 @@ import cn.aiedge.erp.finance.model.entity.MonthClosingLog;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -26,6 +27,11 @@ public interface MonthClosingService {
      * 反月结：重新开启已关闭期间并记录日志
      */
     MonthClosingResultDTO reopen(String periodCode, String operatorId, String operatorName);
+
+    /**
+     * 批量执行月结：逐期间执行，收集结果（单个异常不阻断其余期间）
+     */
+    List<MonthClosingResultDTO> batchExecute(List<String> periodCodes, String operatorId, String operatorName);
 
     /**
      * 查询期间状态及最近一次月结日志

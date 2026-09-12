@@ -1,6 +1,7 @@
 package cn.aiedge.erp.finance.service;
 
 import cn.aiedge.erp.finance.dto.VoucherDTO;
+import cn.aiedge.erp.finance.dto.VoucherQuery;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 
@@ -17,6 +18,11 @@ public interface VoucherService {
     VoucherDTO create(VoucherDTO dto);
 
     /**
+     * 更新凭证（草稿可改分录）
+     */
+    VoucherDTO update(Long id, VoucherDTO dto);
+
+    /**
      * 根据ID获取凭证
      */
     VoucherDTO getById(Long id);
@@ -29,7 +35,7 @@ public interface VoucherService {
     /**
      * 分页查询凭证
      */
-    IPage<VoucherDTO> list(Integer fiscalYear, Integer fiscalPeriod, String status, Page<VoucherDTO> page);
+    IPage<VoucherDTO> list(VoucherQuery query, Page<VoucherDTO> page);
 
     /**
      * 审核凭证（draft/audited -> audited）
@@ -47,9 +53,14 @@ public interface VoucherService {
     VoucherDTO reverse(Long id, String reason);
 
     /**
-     * 生成凭证编号（格式：YYYYMM-XXXX）
+     * 生成凭证编号（格式：KJPZ-YYYYMMDD-序号）
      */
-    String generateVoucherNo(Integer fiscalYear, Integer fiscalPeriod);
+    String generateVoucherNo();
+
+    /**
+     * 获取下一张凭证编号（KJPZ-YYYYMMDD-序号，下次保存用）
+     */
+    String nextNo();
 
     /**
      * 批量删除凭证
@@ -59,5 +70,5 @@ public interface VoucherService {
     /**
      * 导出凭证列表
      */
-    List<VoucherDTO> exportList(Integer fiscalYear, Integer fiscalPeriod, String status);
+    List<VoucherDTO> exportList(VoucherQuery query);
 }

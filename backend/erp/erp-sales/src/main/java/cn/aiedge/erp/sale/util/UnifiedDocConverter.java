@@ -66,7 +66,7 @@ public class UnifiedDocConverter {
         dto.setExtText3(order.getExtText3());                  // 16表头自定义字段5(文本)
         dto.setBuyerRemark(order.getBuyerRemark());            // 17买家备注
         dto.setCustomerRemark(order.getCustomerRemark());      // 18客户备注
-        dto.setSourceOrder(order.getOriginalOrderNo());        // 19来源订单 - 销售订单使用原始订单号
+        dto.setSourceOrder(order.getSourceOrder() != null ? order.getSourceOrder() : order.getOriginalOrderNo()); // 19来源订单 - 优先 source_order，回退原始订单号
         dto.setSourceOrderDate(null);                          // 20来源订单日期 - 销售订单无此字段
         dto.setLogisticsCompany(order.getLogisticsCompany());  // 21物流公司
         dto.setTrackingNumber(order.getWaybillNo());           // 22运单号 - 销售订单使用waybillNo
@@ -74,30 +74,30 @@ public class UnifiedDocConverter {
         dto.setGenerationMethod(order.getGenerationMethod());  // 24产生方式
         dto.setHandlerName(order.getSalesmanName());           // 25经手人 - 销售订单使用salesmanName
         dto.setDepartmentName(order.getDeptName());            // 26部门 - 销售订单使用deptName
-        dto.setSettlementStatus(order.getSettlementMethod());  // 27结算状态 - 销售订单使用结算方式
+        dto.setSettlementStatus(deriveSettlementStatus(order.getBillAmount(), order.getSettledAmount(), null)); // 27结算状态 - 由「本单金额 / 已结算金额」派生（订单无结算状态列）
         dto.setSalesQuantity(order.getTotalQuantity());        // 28销售数量 - 销售订单使用totalQuantity
         dto.setAmount(order.getProductAmount());               // 29金额 - 销售订单使用productAmount
         dto.setDiscountedAmount(order.getBillAmount());        // 30折后金额 - 销售订单使用billAmount
         dto.setSalesRevenue(order.getBillAmount());            // 31销售收入 - 销售订单使用billAmount
-        dto.setFreightPayer(null);                             // 32运费承担方 - 销售订单可能无此字段
+        dto.setFreightPayer(order.getFreightPayer());          // 32运费承担方
         dto.setFreight(order.getShippingFee());                // 33运费 - 销售订单使用shippingFee
         dto.setOtherFee(order.getOtherFee());                  // 34其它费用
-        dto.setRoundingAmount(null);                           // 35抹零金额 - 销售订单无此字段
+        dto.setRoundingAmount(null);                           // 35抹零金额 - 销售订单无此字段（不适用）
         dto.setTotalAmount(order.getBillAmount());             // 36本单金额 - 销售订单使用billAmount
         dto.setPromoDiscount(order.getPromoDiscount());        // 37促销优惠
         dto.setCouponAmount(order.getCouponAmount());          // 38优惠券优惠
         dto.setDirectDiscount(order.getDirectDiscount());      // 39直接优惠
-        dto.setPointsDeduction(null);                          // 40积分抵扣 - 销售订单可能无此字段
-        dto.setCostAmount(null);                               // 41成本金额 - 销售订单无此字段
-        dto.setGrossProfit(null);                              // 42毛利 - 销售订单无此字段
+        dto.setPointsDeduction(order.getUsedPoints());         // 40积分抵扣 - 销售订单使用usedPoints
+        dto.setCostAmount(null);                               // 41成本金额 - 由 Service 按明细 cost_amount 聚合回填
+        dto.setGrossProfit(null);                              // 42毛利 - 由 Service 按明细 gross_profit 聚合回填
         dto.setSalesType(String.valueOf(order.getSaleType())); // 43销售类型 - 销售订单使用saleType(Integer)
         dto.setRemark(order.getRemark());                      // 44单据备注
         dto.setSummary(order.getSummary());                    // 45摘要
         dto.setAttachment(order.getAttachment());              // 46附件
-        dto.setBookkeeperName(order.getCreatorName());         // 47记账人 - 销售订单使用creatorName作为制单人
+        dto.setBookkeeperName(null);                           // 47记账人 - 销售订单无记账人字段（记账人只在过账后记录，订单不落库）
         dto.setCreatorName(order.getCreatorName());            // 48制单人
         dto.setBookkeepingTime(order.getBookkeepingTime());    // 49记账时间
-        dto.setCreateTime(order.getSubmitTime());              // 50制单时间 - 销售订单使用submitTime
+        dto.setCreateTime(order.getCreateTime() != null ? order.getCreateTime() : order.getSubmitTime()); // 50制单时间 - 优先 createTime，回退提交时间
         dto.setPrintCount(order.getPrintCount());              // 51打印次数
 
         // 其他字段映射
@@ -246,7 +246,7 @@ public class UnifiedDocConverter {
         dto.setGenerationMethod(outbound.getGenerationMethod()); // 24产生方式
         dto.setHandlerName(outbound.getSalesPersonName());     // 25经手人 → salesPersonName
         dto.setDepartmentName(outbound.getDepartmentName());   // 26部门
-        dto.setSettlementStatus(outbound.getSettlementStatus()); // 27结算状态
+        dto.setSettlementStatus(deriveSettlementStatus(outbound.getTotalAmount(), outbound.getSettledAmount(), outbound.getSettlementStatus())); // 27结算状态 - 实体列优先，为空时按已结算金额派生
         dto.setSalesQuantity(outbound.getTotalQuantity());     // 28销售数量 → totalQuantity
         dto.setAmount(outbound.getTotalAmount());              // 29金额 → totalAmount
         dto.setDiscountedAmount(null);                         // 30折后金额 - 新实体无此字段
@@ -260,8 +260,8 @@ public class UnifiedDocConverter {
         dto.setCouponAmount(outbound.getCouponAmount());       // 38优惠券优惠
         dto.setDirectDiscount(outbound.getDirectDiscount());   // 39直接优惠
         dto.setPointsDeduction(outbound.getMemberUsedPoints()); // 40积分抵扣 → memberUsedPoints
-        dto.setCostAmount(null);                               // 41成本金额 - 新实体表头无此字段
-        dto.setGrossProfit(null);                              // 42毛利 - 新实体表头无此字段
+        dto.setCostAmount(null);                               // 41成本金额 - 由 Service 按明细 cost_amount 聚合回填
+        dto.setGrossProfit(null);                              // 42毛利 - 由 Service 按明细 gross_profit 聚合回填
         dto.setSalesType(outbound.getOutboundType() != null ? String.valueOf(outbound.getOutboundType()) : null); // 43销售类型 → outboundType(Integer)
         dto.setRemark(outbound.getRemark());                   // 44单据备注
         dto.setSummary(outbound.getSummary());                 // 45摘要
@@ -433,7 +433,7 @@ public class UnifiedDocConverter {
         dto.setGenerationMethod(returnDoc.getGenerateType());        // generateType
         dto.setHandlerName(returnDoc.getHandlerName());
         dto.setDepartmentName(returnDoc.getDeptName());              // deptName
-        dto.setSettlementStatus(returnDoc.getSettleStatus());      // settleStatus
+        dto.setSettlementStatus(deriveSettlementStatus(returnDoc.getTotalAmount(), returnDoc.getSettledAmount(), returnDoc.getSettleStatus())); // settleStatus 优先，为空时按已结算金额派生
         dto.setSalesQuantity(returnDoc.getTotalQuantity());        // totalQuantity
         dto.setAmount(returnDoc.getProductAmount());               // productAmount
         dto.setDiscountedAmount(returnDoc.getDiscountAmount());    // discountAmount
@@ -446,14 +446,14 @@ public class UnifiedDocConverter {
         dto.setPromoDiscount(returnDoc.getPromoDiscount());        // promoDiscount
         dto.setCouponAmount(returnDoc.getCouponAmount());          // couponAmount
         dto.setDirectDiscount(returnDoc.getDirectDiscount());      // directDiscount
-        dto.setPointsDeduction(null);
-        dto.setCostAmount(null);                                   // 新实体无此字段
-        dto.setGrossProfit(null);                                  // 新实体无此字段
+        dto.setPointsDeduction(returnDoc.getMemberUsedPoints());   // memberUsedPoints
+        dto.setCostAmount(null);                                   // 由 Service 按明细 ref_cost_amount 聚合回填
+        dto.setGrossProfit(null);                                  // 由 Service 回填（本单金额 - 成本金额）
         dto.setSalesType(returnDoc.getSalesType());
         dto.setRemark(returnDoc.getRemark());
         dto.setSummary(returnDoc.getSummary());
         dto.setAttachment(returnDoc.getAttachment());
-        dto.setBookkeeperName(null);                               // 新实体无此字段
+        dto.setBookkeeperName(returnDoc.getBookkeeperName());      // 记账人（过账后记录）
         dto.setCreatorName(returnDoc.getCreatorName());
         dto.setBookkeepingTime(returnDoc.getBookkeepingTime());
         dto.setCreateTime(returnDoc.getCreateTime());
@@ -620,22 +620,22 @@ public class UnifiedDocConverter {
         dto.setGenerationMethod(null);
         dto.setHandlerName(exchange.getHandlerName());
         dto.setDepartmentName(exchange.getDeptName());
-        dto.setSettlementStatus(exchange.getSettleStatus());       // settleStatus
+        dto.setSettlementStatus(deriveSettlementStatus(exchange.getTotalAmount(), exchange.getSettledAmount(), exchange.getSettleStatus())); // settleStatus 优先，为空时按已结算金额派生
         dto.setSalesQuantity(exchange.getInQuantityTotal());       // inQuantityTotal
         dto.setAmount(exchange.getProductAmount());                // productAmount
-        dto.setDiscountedAmount(exchange.getTotalAmount());        // totalAmount
-        dto.setSalesRevenue(null);
-        dto.setFreightPayer(null);
-        dto.setFreight(null);
-        dto.setOtherFee(null);
-        dto.setRoundingAmount(null);
+        dto.setDiscountedAmount(exchange.getTotalAmount());        // totalAmount（换货以本单金额为结算金额）
+        dto.setSalesRevenue(null);                                 // 销售收入 - 换货单不适用
+        dto.setFreightPayer(null);                                 // 运费承担方 - 换货单不适用
+        dto.setFreight(null);                                      // 运费 - 换货单不适用
+        dto.setOtherFee(null);                                     // 其它费用 - 换货单不适用
+        dto.setRoundingAmount(null);                               // 抹零金额 - 换货单不适用
         dto.setTotalAmount(exchange.getTotalAmount());
-        dto.setPromoDiscount(null);
-        dto.setCouponAmount(null);
-        dto.setDirectDiscount(null);
-        dto.setPointsDeduction(null);
-        dto.setCostAmount(null);
-        dto.setGrossProfit(null);
+        dto.setPromoDiscount(null);                                // 促销优惠 - 换货单不适用
+        dto.setCouponAmount(null);                                 // 优惠券优惠 - 换货单不适用
+        dto.setDirectDiscount(exchange.getDiscountAmount());       // 直接优惠 - 换货单折扣金额
+        dto.setPointsDeduction(null);                              // 积分抵扣 - 换货单不适用
+        dto.setCostAmount(null);                                   // 由 Service 按明细 cost_amount 聚合回填
+        dto.setGrossProfit(null);                                  // 由 Service 回填（本单金额 - 成本金额）
         dto.setSalesType(exchange.getSalesType());
         dto.setRemark(exchange.getRemark());
         dto.setSummary(exchange.getSummary());
@@ -756,5 +756,26 @@ public class UnifiedDocConverter {
         java.math.BigDecimal total = totalAmount != null ? totalAmount : java.math.BigDecimal.ZERO;
         java.math.BigDecimal settled = settledAmount != null ? settledAmount : java.math.BigDecimal.ZERO;
         return total.subtract(settled);
+    }
+
+    /**
+     * 结算状态口径：实体自身列优先；列缺失时由「本单金额 / 已结算金额」派生，
+     * 取值与前端「结算状态」下拉（未结算 / 部分结算 / 已结算）一致。
+     */
+    private static String deriveSettlementStatus(java.math.BigDecimal totalAmount,
+                                                 java.math.BigDecimal settledAmount,
+                                                 String entityValue) {
+        if (entityValue != null && !entityValue.isEmpty()) {
+            return entityValue;
+        }
+        java.math.BigDecimal total = totalAmount != null ? totalAmount : java.math.BigDecimal.ZERO;
+        if (total.compareTo(java.math.BigDecimal.ZERO) <= 0) {
+            return null;
+        }
+        java.math.BigDecimal settled = settledAmount != null ? settledAmount : java.math.BigDecimal.ZERO;
+        if (settled.compareTo(java.math.BigDecimal.ZERO) <= 0) {
+            return "UNPAID";
+        }
+        return settled.compareTo(total) >= 0 ? "PAID" : "PARTIAL_PAID";
     }
 }

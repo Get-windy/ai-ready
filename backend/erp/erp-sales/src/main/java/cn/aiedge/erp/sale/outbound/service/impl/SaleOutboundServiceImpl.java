@@ -1,5 +1,6 @@
 package cn.aiedge.erp.sale.outbound.service.impl;
 
+import cn.aiedge.common.event.InventoryChangeEvent;
 import cn.aiedge.crm.customer.service.CustomerCreditService;
 import cn.aiedge.erp.finance.dto.VoucherDTO;
 import cn.aiedge.erp.finance.dto.VoucherItemDTO;
@@ -10,6 +11,7 @@ import cn.aiedge.erp.pricing.strategy.entity.PriceCalculationResult;
 import cn.aiedge.erp.sale.entity.SaleOrder;
 import cn.aiedge.erp.sale.entity.SaleOrderItem;
 import cn.aiedge.erp.sale.mapper.SaleOrderItemMapper;
+import cn.aiedge.erp.sale.outbound.dto.SaleOutboundQueryDTO;
 import cn.aiedge.erp.sale.outbound.entity.SaleOutbound;
 import cn.aiedge.erp.sale.outbound.entity.SaleOutboundItem;
 import cn.aiedge.erp.sale.outbound.enums.OutboundStatus;
@@ -18,9 +20,15 @@ import cn.aiedge.erp.sale.outbound.mapper.SaleOutboundMapper;
 import cn.aiedge.erp.sale.outbound.service.SaleOutboundService;
 import cn.aiedge.erp.sale.service.ISaleOrderService;
 import cn.aiedge.erp.sale.service.integration.SalesAccountingService;
+import cn.aiedge.erp.stock.entity.Product;
+import cn.aiedge.erp.stock.entity.ProductCategory;
+import cn.aiedge.erp.stock.entity.Stock;
+import cn.aiedge.erp.stock.mapper.ProductMapper;
+import cn.aiedge.erp.stock.service.ProductCategoryService;
 import cn.aiedge.erp.stock.service.StockService;
 import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +41,7 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,6 +55,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -60,6 +70,10 @@ public class SaleOutboundServiceImpl extends ServiceImpl<SaleOutboundMapper, Sal
     private final CustomerCreditService customerCreditService;
     private final VoucherService voucherService;
     private final SalesAccountingService salesAccountingService;
+    private final ProductMapper productMapper;
+    private final ProductCategoryService productCategoryService;
+    /** 库存变动唯一写入口在 WMS（InventoryChangeEvent → InventoryService），ERP 侧只发布请求 */
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     @Override
     public SaleOutbound getByOutboundNo(String outboundNo) {
@@ -70,106 +84,286 @@ public class SaleOutboundServiceImpl extends ServiceImpl<SaleOutboundMapper, Sal
     }
 
     @Override
-    public Page<SaleOutbound> pageList(String keyword, Long customerId, Long orderId, Long warehouseId, Integer status,
-                                       String outboundNo, Long salesPersonId, String settlementStatus,
-                                       String settlementMethod, String sourceOrder, String receiverName,
-                                       String dateStart, String dateEnd, int pageNum, int pageSize) {
+    public Page<SaleOutbound> pageList(SaleOutboundQueryDTO query) {
+        LambdaQueryWrapper<SaleOutbound> wrapper = buildDocWrapper(query);
+        wrapper.orderByDesc(SaleOutbound::getCreateTime);
+        return page(new Page<>(query.getPageNum(), query.getPageSize()), wrapper);
+    }
+
+    /**
+     * 构建单据级查询条件（对标文档「按单据」40 项查询条件 + 按明细 Tab 的单据维度条件）。
+     * <p>单一实现点：按单据分页 / 按明细分页 / 导出 均复用本方法，避免条件漂移。</p>
+     */
+    private LambdaQueryWrapper<SaleOutbound> buildDocWrapper(SaleOutboundQueryDTO q) {
         LambdaQueryWrapper<SaleOutbound> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SaleOutbound::getDeleted, 0);
-        if (keyword != null && !keyword.isEmpty()) {
-            wrapper.and(w -> w.like(SaleOutbound::getOutboundNo, keyword)
-                    .or().like(SaleOutbound::getOrderNo, keyword)
-                    .or().like(SaleOutbound::getCustomerName, keyword));
+        if (q == null) {
+            return wrapper;
         }
-        if (customerId != null) {
-            wrapper.eq(SaleOutbound::getCustomerId, customerId);
+        // 1 日期
+        if (StringUtils.isNotBlank(q.getDateStart())) {
+            wrapper.ge(SaleOutbound::getOutboundDate, LocalDate.parse(q.getDateStart()));
         }
-        if (orderId != null) {
-            wrapper.eq(SaleOutbound::getOrderId, orderId);
+        if (StringUtils.isNotBlank(q.getDateEnd())) {
+            wrapper.le(SaleOutbound::getOutboundDate, LocalDate.parse(q.getDateEnd()));
         }
-        if (warehouseId != null) {
-            wrapper.eq(SaleOutbound::getWarehouseId, warehouseId);
+        // 2 单据编号
+        if (StringUtils.isNotBlank(q.getOutboundNo())) {
+            wrapper.like(SaleOutbound::getOutboundNo, q.getOutboundNo());
         }
-        if (status != null) {
-            wrapper.eq(SaleOutbound::getStatus, status);
+        // 3 客户
+        if (q.getCustomerId() != null) {
+            wrapper.eq(SaleOutbound::getCustomerId, q.getCustomerId());
         }
-        if (outboundNo != null && !outboundNo.isEmpty()) {
-            wrapper.like(SaleOutbound::getOutboundNo, outboundNo);
+        if (StringUtils.isNotBlank(q.getCustomerName())) {
+            wrapper.like(SaleOutbound::getCustomerName, q.getCustomerName());
         }
-        if (salesPersonId != null) {
-            wrapper.eq(SaleOutbound::getSalesPersonId, salesPersonId);
+        // 4 经手人 / 5 部门 / 6 仓库
+        if (q.getSalesPersonId() != null) {
+            wrapper.eq(SaleOutbound::getSalesPersonId, q.getSalesPersonId());
         }
-        if (settlementStatus != null && !settlementStatus.isEmpty()) {
-            wrapper.eq(SaleOutbound::getSettlementStatus, settlementStatus);
+        if (StringUtils.isNotBlank(q.getSalesPersonName())) {
+            wrapper.like(SaleOutbound::getSalesPersonName, q.getSalesPersonName());
         }
-        if (settlementMethod != null && !settlementMethod.isEmpty()) {
-            wrapper.eq(SaleOutbound::getSettlementMethod, settlementMethod);
+        if (StringUtils.isNotBlank(q.getDepartmentName())) {
+            wrapper.like(SaleOutbound::getDepartmentName, q.getDepartmentName());
         }
-        if (sourceOrder != null && !sourceOrder.isEmpty()) {
-            wrapper.like(SaleOutbound::getOrderNo, sourceOrder);
+        if (q.getWarehouseId() != null) {
+            wrapper.eq(SaleOutbound::getWarehouseId, q.getWarehouseId());
         }
-        if (receiverName != null && !receiverName.isEmpty()) {
-            wrapper.like(SaleOutbound::getReceiverName, receiverName);
+        if (StringUtils.isNotBlank(q.getWarehouseName())) {
+            wrapper.like(SaleOutbound::getWarehouseName, q.getWarehouseName());
         }
-        if (dateStart != null && !dateStart.isEmpty()) {
-            wrapper.ge(SaleOutbound::getOutboundDate, LocalDate.parse(dateStart));
+        // 7 单据状态 / 8 结算状态 / 9 结款方式
+        if (q.getStatus() != null) {
+            wrapper.eq(SaleOutbound::getStatus, q.getStatus());
         }
-        if (dateEnd != null && !dateEnd.isEmpty()) {
-            wrapper.le(SaleOutbound::getOutboundDate, LocalDate.parse(dateEnd));
+        if (StringUtils.isNotBlank(q.getSettlementStatus())) {
+            wrapper.eq(SaleOutbound::getSettlementStatus, q.getSettlementStatus());
         }
-        wrapper.orderByDesc(SaleOutbound::getCreateTime);
-        return page(new Page<>(pageNum, pageSize), wrapper);
+        if (StringUtils.isNotBlank(q.getSettlementMethod())) {
+            wrapper.eq(SaleOutbound::getSettlementMethod, q.getSettlementMethod());
+        }
+        // 10 来源订单
+        if (StringUtils.isNotBlank(q.getSourceOrder())) {
+            wrapper.like(SaleOutbound::getOrderNo, q.getSourceOrder());
+        }
+        // 11-13 备注/摘要
+        if (StringUtils.isNotBlank(q.getRemark())) {
+            wrapper.like(SaleOutbound::getRemark, q.getRemark());
+        }
+        if (StringUtils.isNotBlank(q.getBuyerRemark())) {
+            wrapper.like(SaleOutbound::getBuyerRemark, q.getBuyerRemark());
+        }
+        if (StringUtils.isNotBlank(q.getSummary())) {
+            wrapper.like(SaleOutbound::getSummary, q.getSummary());
+        }
+        // 14-16 制单人/审核人/记账人
+        if (StringUtils.isNotBlank(q.getCreatorName())) {
+            wrapper.like(SaleOutbound::getCreatorName, q.getCreatorName());
+        }
+        if (StringUtils.isNotBlank(q.getAuditorName())) {
+            wrapper.like(SaleOutbound::getAuditorName, q.getAuditorName());
+        }
+        if (StringUtils.isNotBlank(q.getBookkeeperName())) {
+            wrapper.like(SaleOutbound::getBookkeeperName, q.getBookkeeperName());
+        }
+        // 17-21 表头自定义字段
+        if (q.getExtNum1() != null) {
+            wrapper.eq(SaleOutbound::getExtNum1, q.getExtNum1());
+        }
+        if (q.getExtNum2() != null) {
+            wrapper.eq(SaleOutbound::getExtNum2, q.getExtNum2());
+        }
+        if (StringUtils.isNotBlank(q.getExtText1())) {
+            wrapper.like(SaleOutbound::getExtText1, q.getExtText1());
+        }
+        if (StringUtils.isNotBlank(q.getExtText2())) {
+            wrapper.like(SaleOutbound::getExtText2, q.getExtText2());
+        }
+        if (StringUtils.isNotBlank(q.getExtText3())) {
+            wrapper.like(SaleOutbound::getExtText3, q.getExtText3());
+        }
+        // 22-24 收货信息
+        if (StringUtils.isNotBlank(q.getReceiverName())) {
+            wrapper.like(SaleOutbound::getReceiverName, q.getReceiverName());
+        }
+        if (StringUtils.isNotBlank(q.getReceiverPhone())) {
+            wrapper.like(SaleOutbound::getReceiverPhone, q.getReceiverPhone());
+        }
+        if (StringUtils.isNotBlank(q.getShippingAddress())) {
+            wrapper.like(SaleOutbound::getShippingAddress, q.getShippingAddress());
+        }
+        // 25-26 物流公司/运单号
+        if (StringUtils.isNotBlank(q.getLogisticsCompany())) {
+            wrapper.like(SaleOutbound::getLogisticsCompany, q.getLogisticsCompany());
+        }
+        if (StringUtils.isNotBlank(q.getTrackingNumber())) {
+            wrapper.and(w -> w.like(SaleOutbound::getTrackingNumber, q.getTrackingNumber())
+                    .or().like(SaleOutbound::getWaybillNo, q.getTrackingNumber()));
+        }
+        if (StringUtils.isNotBlank(q.getLogisticsRemark())) {
+            wrapper.like(SaleOutbound::getLogisticsRemark, q.getLogisticsRemark());
+        }
+        if (StringUtils.isNotBlank(q.getDeliveryDriver())) {
+            wrapper.like(SaleOutbound::getDeliveryDriver, q.getDeliveryDriver());
+        }
+        // 27-30 收款账户 1-4
+        if (StringUtils.isNotBlank(q.getPaymentAccount1())) {
+            wrapper.like(SaleOutbound::getPaymentAccount1, q.getPaymentAccount1());
+        }
+        if (StringUtils.isNotBlank(q.getPaymentAccount2())) {
+            wrapper.like(SaleOutbound::getPaymentAccount2, q.getPaymentAccount2());
+        }
+        if (StringUtils.isNotBlank(q.getPaymentAccount3())) {
+            wrapper.like(SaleOutbound::getPaymentAccount3, q.getPaymentAccount3());
+        }
+        if (StringUtils.isNotBlank(q.getPaymentAccount4())) {
+            wrapper.like(SaleOutbound::getPaymentAccount4, q.getPaymentAccount4());
+        }
+        // 31 区域 / 32 产生方式 / 33 销售类型 / 35 配送方式
+        if (StringUtils.isNotBlank(q.getRegion())) {
+            wrapper.like(SaleOutbound::getRegion, q.getRegion());
+        }
+        if (StringUtils.isNotBlank(q.getGenerationMethod())) {
+            wrapper.like(SaleOutbound::getGenerationMethod, q.getGenerationMethod());
+        }
+        if (q.getOutboundType() != null) {
+            wrapper.eq(SaleOutbound::getOutboundType, q.getOutboundType());
+        }
+        if (StringUtils.isNotBlank(q.getDeliveryMethod())) {
+            wrapper.eq(SaleOutbound::getDeliveryMethod, q.getDeliveryMethod());
+        }
+        // 34 商品行属性（明细维度 → 先解析命中单据集合）
+        if (StringUtils.isNotBlank(q.getProductAttribute())) {
+            List<Long> matched = outboundItemMapper.selectList(new LambdaQueryWrapper<SaleOutboundItem>()
+                            .eq(SaleOutboundItem::getDeleted, 0)
+                            .eq(SaleOutboundItem::getProductAttribute, q.getProductAttribute())
+                            .select(SaleOutboundItem::getOutboundId))
+                    .stream().map(SaleOutboundItem::getOutboundId).distinct().toList();
+            wrapper.in(SaleOutbound::getId, matched.isEmpty() ? List.of(-1L) : matched);
+        }
+        // 36 配送司机 / 37 打印次数 / 38 本单金额
+        if (q.getPrintCount() != null) {
+            wrapper.eq(SaleOutbound::getPrintCount, q.getPrintCount());
+        }
+        if (q.getTotalAmount() != null) {
+            wrapper.eq(SaleOutbound::getTotalAmount, q.getTotalAmount());
+        }
+        // 39 显示红冲：默认隐藏红字（负数金额）单据
+        if (!Boolean.TRUE.equals(q.getShowRed())) {
+            wrapper.and(w -> w.isNull(SaleOutbound::getTotalAmount)
+                    .or().ge(SaleOutbound::getTotalAmount, BigDecimal.ZERO));
+        }
+        // 40 仅显示异常记账单据：已完成但未生成凭证（记账时间为空）
+        if (Boolean.TRUE.equals(q.getShowAbnormal())) {
+            wrapper.eq(SaleOutbound::getStatus, OutboundStatus.COMPLETED.getCode())
+                    .isNull(SaleOutbound::getBookkeepingTime);
+        }
+        // 通用关键词（单据编号/来源订单/客户名）
+        if (StringUtils.isNotBlank(q.getKeyword())) {
+            String kw = q.getKeyword();
+            wrapper.and(w -> w.like(SaleOutbound::getOutboundNo, kw)
+                    .or().like(SaleOutbound::getOrderNo, kw)
+                    .or().like(SaleOutbound::getCustomerName, kw));
+        }
+        if (q.getProductId() != null || StringUtils.isNotBlank(q.getCategoryId())) {
+            // 按明细 Tab 的商品/分类筛选：命中的单据集合由明细侧决定
+            // 此处不追加单据条件（由 pageDetail 在明细查询中处理）
+            log.debug("按明细商品维度筛选由 pageDetail 处理: productId={}, categoryId={}",
+                    q.getProductId(), q.getCategoryId());
+        }
+        return wrapper;
+    }
+
+    /** 商品分类树筛选：解析分类（含子孙）对应的商品 ID 集合；无匹配时返回空集合 */
+    private List<Long> resolveProductIdsByCategory(String categoryId) {
+        if (StringUtils.isBlank(categoryId) || "0".equals(categoryId)) {
+            return null;
+        }
+        Long rootId;
+        try {
+            rootId = Long.valueOf(categoryId);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+        List<ProductCategory> all = productCategoryService.list();
+        java.util.Set<Long> categoryIds = new java.util.HashSet<>();
+        categoryIds.add(rootId);
+        boolean expanded = true;
+        while (expanded) {
+            expanded = false;
+            for (ProductCategory c : all) {
+                if (c.getParentId() != null && categoryIds.contains(c.getParentId()) && categoryIds.add(c.getId())) {
+                    expanded = true;
+                }
+            }
+        }
+        List<Product> products = productMapper.selectList(
+                new LambdaQueryWrapper<Product>()
+                        .in(Product::getCategoryId, categoryIds)
+                        .select(Product::getId));
+        return products.stream().map(Product::getId).toList();
     }
 
     @Override
-    public Page<Map<String, Object>> pageDetail(String keyword, Long customerId, Long warehouseId, Integer status,
-                                                 String outboundNo, Long productId, Long salesPersonId,
-                                                 String settlementStatus, String sourceOrder,
-                                                 String dateStart, String dateEnd, int pageNum, int pageSize) {
-        LambdaQueryWrapper<SaleOutboundItem> itemWrapper = new LambdaQueryWrapper<>();
-        itemWrapper.eq(SaleOutboundItem::getDeleted, 0);
+    public Page<Map<String, Object>> pageDetail(SaleOutboundQueryDTO query) {
+        int pageNum = query.getPageNum();
+        int pageSize = query.getPageSize();
 
-        if (keyword != null && !keyword.isEmpty()) {
-            itemWrapper.and(w -> w.like(SaleOutboundItem::getProductName, keyword)
-                    .or().like(SaleOutboundItem::getProductCode, keyword));
-        }
-        if (productId != null) {
-            itemWrapper.eq(SaleOutboundItem::getProductId, productId);
-        }
-
-        List<SaleOutboundItem> items = outboundItemMapper.selectList(itemWrapper);
-        List<Long> outboundIds = items.stream().map(SaleOutboundItem::getOutboundId).distinct().toList();
-
-        if (outboundIds.isEmpty()) {
+        // ── 1. 单据维度筛选（40 项查询条件的单据侧）→ 命中单据 ID 集合 ──
+        List<Long> docIds = list(buildDocWrapper(query).select(SaleOutbound::getId))
+                .stream().map(SaleOutbound::getId).toList();
+        if (docIds.isEmpty()) {
             return new Page<>(pageNum, pageSize, 0);
         }
 
-        LambdaQueryWrapper<SaleOutbound> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(SaleOutbound::getDeleted, 0);
-        wrapper.in(SaleOutbound::getId, outboundIds);
+        // ── 2. 明细维度筛选（按明细 Tab 专属条件） ──
+        LambdaQueryWrapper<SaleOutboundItem> itemWrapper = new LambdaQueryWrapper<>();
+        itemWrapper.eq(SaleOutboundItem::getDeleted, 0);
+        itemWrapper.in(SaleOutboundItem::getOutboundId, docIds);
+        if (StringUtils.isNotBlank(query.getKeyword())) {
+            String kw = query.getKeyword();
+            itemWrapper.and(w -> w.like(SaleOutboundItem::getProductName, kw)
+                    .or().like(SaleOutboundItem::getProductCode, kw));
+        }
+        if (StringUtils.isNotBlank(query.getProductName())) {
+            itemWrapper.and(w -> w.like(SaleOutboundItem::getProductName, query.getProductName())
+                    .or().like(SaleOutboundItem::getProductCode, query.getProductName()));
+        }
+        if (query.getProductId() != null) {
+            itemWrapper.eq(SaleOutboundItem::getProductId, query.getProductId());
+        }
+        if (StringUtils.isNotBlank(query.getProductAttribute())) {
+            itemWrapper.eq(SaleOutboundItem::getProductAttribute, query.getProductAttribute());
+        }
+        if (StringUtils.isNotBlank(query.getItemRemark())) {
+            itemWrapper.like(SaleOutboundItem::getRemark, query.getItemRemark());
+        }
+        if (Boolean.TRUE.equals(query.getGift())) {
+            itemWrapper.eq(SaleOutboundItem::getGift, true);
+        }
+        // 促销商品：命中优惠折扣的商品行
+        if (Boolean.TRUE.equals(query.getPromoProduct())) {
+            itemWrapper.gt(SaleOutboundItem::getFavorableDiscountRate, BigDecimal.ZERO);
+        }
+        // 商品分类树：解析分类（含子孙）对应的商品
+        List<Long> categoryProductIds = resolveProductIdsByCategory(query.getCategoryId());
+        if (categoryProductIds != null) {
+            itemWrapper.in(SaleOutboundItem::getProductId,
+                    categoryProductIds.isEmpty() ? List.of(-1L) : categoryProductIds);
+        }
 
-        if (customerId != null) wrapper.eq(SaleOutbound::getCustomerId, customerId);
-        if (warehouseId != null) wrapper.eq(SaleOutbound::getWarehouseId, warehouseId);
-        if (status != null) wrapper.eq(SaleOutbound::getStatus, status);
-        if (outboundNo != null && !outboundNo.isEmpty()) wrapper.like(SaleOutbound::getOutboundNo, outboundNo);
-        if (salesPersonId != null) wrapper.eq(SaleOutbound::getSalesPersonId, salesPersonId);
-        if (settlementStatus != null && !settlementStatus.isEmpty()) wrapper.eq(SaleOutbound::getSettlementStatus, settlementStatus);
-        if (sourceOrder != null && !sourceOrder.isEmpty()) wrapper.like(SaleOutbound::getOrderNo, sourceOrder);
-        if (dateStart != null && !dateStart.isEmpty()) wrapper.ge(SaleOutbound::getOutboundDate, LocalDate.parse(dateStart));
-        if (dateEnd != null && !dateEnd.isEmpty()) wrapper.le(SaleOutbound::getOutboundDate, LocalDate.parse(dateEnd));
+        // ── 3. 分页（口径 = 明细行数，与对标一致） ──
+        itemWrapper.orderByDesc(SaleOutboundItem::getOutboundId).orderByAsc(SaleOutboundItem::getLineNo);
+        Page<SaleOutboundItem> itemPage = outboundItemMapper.selectPage(new Page<>(pageNum, pageSize), itemWrapper);
 
-        wrapper.orderByDesc(SaleOutbound::getCreateTime);
-        Page<SaleOutbound> outboundPage = page(new Page<>(pageNum, pageSize), wrapper);
+        List<SaleOutboundItem> filteredItems = itemPage.getRecords();
+        List<Long> pageDocIds = filteredItems.stream().map(SaleOutboundItem::getOutboundId).distinct().toList();
+        Map<Long, SaleOutbound> outboundMap = pageDocIds.isEmpty() ? Map.of()
+                : listByIds(pageDocIds).stream().collect(Collectors.toMap(SaleOutbound::getId, o -> o));
 
-        List<Long> filteredIds = outboundPage.getRecords().stream().map(SaleOutbound::getId).toList();
-        List<SaleOutboundItem> filteredItems = items.stream()
-                .filter(i -> filteredIds.contains(i.getOutboundId()))
-                .toList();
-
-        Map<Long, SaleOutbound> outboundMap = new HashMap<>();
-        outboundPage.getRecords().forEach(o -> outboundMap.put(o.getId(), o));
-
-        Page<Map<String, Object>> result = new Page<>(pageNum, pageSize, outboundPage.getTotal());
+        Page<Map<String, Object>> result = new Page<>(pageNum, pageSize, itemPage.getTotal());
         List<Map<String, Object>> records = filteredItems.stream().map(item -> {
             Map<String, Object> map = new HashMap<>();
             SaleOutbound outbound = outboundMap.get(item.getOutboundId());
@@ -197,13 +391,17 @@ public class SaleOutboundServiceImpl extends ServiceImpl<SaleOutboundMapper, Sal
                 map.put("settledAmount", outbound.getSettledAmount());
                 map.put("totalQuantity", outbound.getTotalQuantity());
                 // 表头自定义字段
-                map.put("extNum1", outbound.getExtNum1());
-                map.put("extNum2", outbound.getExtNum2());
-                map.put("extText1", outbound.getExtText1());
-                map.put("extText2", outbound.getExtText2());
-                map.put("extText3", outbound.getExtText3());
-                map.put("extText4", outbound.getExtText4());
-                map.put("extText5", outbound.getExtText5());
+                // 表头自定义字段前缀 header*，避免与表体自定义字段(extNum1..)键冲突
+                map.put("headerExtNum1", outbound.getExtNum1());
+                map.put("headerExtNum2", outbound.getExtNum2());
+                map.put("headerExtNum3", outbound.getExtNum3());
+                map.put("headerExtNum4", outbound.getExtNum4());
+                map.put("headerExtNum5", outbound.getExtNum5());
+                map.put("headerExtText1", outbound.getExtText1());
+                map.put("headerExtText2", outbound.getExtText2());
+                map.put("headerExtText3", outbound.getExtText3());
+                map.put("headerExtText4", outbound.getExtText4());
+                map.put("headerExtText5", outbound.getExtText5());
                 // 表尾自定义字段
                 map.put("footerExtText1", outbound.getFooterExtText1());
                 map.put("footerExtText2", outbound.getFooterExtText2());
@@ -212,8 +410,10 @@ public class SaleOutboundServiceImpl extends ServiceImpl<SaleOutboundMapper, Sal
                 map.put("bookkeeperName", outbound.getBookkeeperName());
                 map.put("auditorName", outbound.getAuditorName());
                 map.put("printCount", outbound.getPrintCount());
-                map.put("remark", outbound.getRemark());
+                // 单据备注用 docRemark，避免与明细备注(remark)键冲突
+                map.put("docRemark", outbound.getRemark());
                 map.put("buyerRemark", outbound.getBuyerRemark());
+                map.put("logisticsRemark", outbound.getLogisticsRemark());
                 map.put("summary", outbound.getSummary());
                 map.put("generationMethod", outbound.getGenerationMethod());
                 // 物流
@@ -231,6 +431,9 @@ public class SaleOutboundServiceImpl extends ServiceImpl<SaleOutboundMapper, Sal
                 // 流程
                 map.put("bookkeepingTime", outbound.getBookkeepingTime());
                 map.put("printTime", outbound.getPrintTime());
+                map.put("createTime", outbound.getCreateTime());
+                // 附件：本系统销售出库单暂未提供单据附件存储，列对标保留、无附件时为空
+                map.put("attachment", null);
             }
             // 明细字段（71列完整覆盖）
             map.put("productName", item.getProductName());
@@ -292,6 +495,7 @@ public class SaleOutboundServiceImpl extends ServiceImpl<SaleOutboundMapper, Sal
             map.put("usedPoints", item.getUsedPoints());
             map.put("generatedPoints", item.getGeneratedPoints());
             map.put("boxNo", item.getBoxNo());
+            map.put("customerTicket", item.getCustomerTicket());
             map.put("remark", item.getRemark());
             // 表体自定义字段（10个）
             map.put("extNum1", item.getExtNum1());
@@ -313,19 +517,24 @@ public class SaleOutboundServiceImpl extends ServiceImpl<SaleOutboundMapper, Sal
     }
 
     @Override
-    public List<SaleOutbound> exportList(String keyword, Integer status) {
-        LambdaQueryWrapper<SaleOutbound> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(SaleOutbound::getDeleted, 0);
-        if (keyword != null && !keyword.isEmpty()) {
-            wrapper.and(w -> w.like(SaleOutbound::getOutboundNo, keyword)
-                    .or().like(SaleOutbound::getOrderNo, keyword)
-                    .or().like(SaleOutbound::getCustomerName, keyword));
-        }
-        if (status != null) {
-            wrapper.eq(SaleOutbound::getStatus, status);
-        }
+    public List<SaleOutbound> exportList(SaleOutboundQueryDTO query) {
+        LambdaQueryWrapper<SaleOutbound> wrapper = buildDocWrapper(query);
         wrapper.orderByDesc(SaleOutbound::getCreateTime);
         return list(wrapper);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int batchUpdateLogisticsRemark(List<Long> ids, String logisticsRemark) {
+        if (ids == null || ids.isEmpty()) {
+            return 0;
+        }
+        LambdaUpdateWrapper<SaleOutbound> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.in(SaleOutbound::getId, ids)
+                .eq(SaleOutbound::getDeleted, 0)
+                .set(SaleOutbound::getLogisticsRemark, logisticsRemark)
+                .set(SaleOutbound::getUpdateTime, LocalDateTime.now());
+        return baseMapper.update(null, wrapper);
     }
 
     @Override
@@ -548,7 +757,11 @@ public class SaleOutboundServiceImpl extends ServiceImpl<SaleOutboundMapper, Sal
     @Override
     @Transactional(rollbackFor = Exception.class)
     public SaleOutbound createOutbound(SaleOutbound outbound, List<SaleOutboundItem> items) {
-        outbound.setOutboundNo(generateOutboundNo());
+        // 单号权威在后端号段：沿用前端从 /next-no 取到的号码；同号已存在或为空则重新分配
+        if (StringUtils.isBlank(outbound.getOutboundNo())
+                || lambdaQuery().eq(SaleOutbound::getOutboundNo, outbound.getOutboundNo()).count() > 0) {
+            outbound.setOutboundNo(generateOutboundNo());
+        }
         if (outbound.getStatus() == null) {
             outbound.setStatus(OutboundStatus.DRAFT.getCode());
         }
@@ -557,6 +770,10 @@ public class SaleOutboundServiceImpl extends ServiceImpl<SaleOutboundMapper, Sal
         }
         if (outbound.getOutboundType() == null) {
             outbound.setOutboundType(0);
+        }
+        // 来源：调用方未指定时视为电脑端录入（PC）
+        if (StringUtils.isBlank(outbound.getSource())) {
+            outbound.setSource("PC");
         }
         if (outbound.getTotalQuantity() == null) {
             outbound.setTotalQuantity(BigDecimal.ZERO);
@@ -604,6 +821,7 @@ public class SaleOutboundServiceImpl extends ServiceImpl<SaleOutboundMapper, Sal
         outbound.setOutboundDate(order.getOrderDate() != null ? order.getOrderDate() : LocalDate.now());
         outbound.setOutboundType(1); // 1=正常销售
         outbound.setGenerationMethod("订单生成");
+        outbound.setSource("PC");    // 订单生成出库由电脑端触发
         outbound.setSummary(order.getSummary());
 
         // 客户快照
@@ -1054,9 +1272,6 @@ public class SaleOutboundServiceImpl extends ServiceImpl<SaleOutboundMapper, Sal
         outbound.setStatus(OutboundStatus.COMPLETED.getCode());
         outbound.setCompletedBy(outbound.getCreateBy());
         outbound.setCompletedTime(LocalDateTime.now());
-        // 记账人 = 当前操作人
-        outbound.setBookkeeperName(outbound.getCreatorName());
-        outbound.setBookkeepingTime(LocalDateTime.now());
 
         // 结算状态自动更新（对标Odoo/SAP：出库完成 → 默认"未结清"，全额收款则"已结清"）
         BigDecimal totalAmount = outbound.getTotalAmount() != null ? outbound.getTotalAmount() : BigDecimal.ZERO;
@@ -1077,11 +1292,21 @@ public class SaleOutboundServiceImpl extends ServiceImpl<SaleOutboundMapper, Sal
         }
 
         // 自动生成会计凭证（对标SAP/金蝶的凭证自动生成）
+        // 记账人/记账时间仅在凭证生成成功时写入；失败则留空，列表页「仅显示异常记账单据」据此可查
+        boolean voucherPosted = false;
         try {
             generateAccountingVoucher(outbound);
+            voucherPosted = true;
         } catch (Exception e) {
             log.error("自动生成会计凭证失败，出库单ID={}, 原因={}", outboundId, e.getMessage(), e);
             // 凭证生成失败不影响出库单完成状态
+        }
+        if (voucherPosted) {
+            outbound.setBookkeeperName(outbound.getCreatorName());
+            outbound.setBookkeepingTime(LocalDateTime.now());
+            updateById(outbound);
+        } else {
+            log.warn("出库单 {} 记账异常（凭证未生成），可通过「仅显示异常记账单据」筛选", outbound.getOutboundNo());
         }
 
         // 业财直调：发货完成产生应收及收入凭证（对标Odoo invoice on delivery）
@@ -1295,20 +1520,25 @@ public class SaleOutboundServiceImpl extends ServiceImpl<SaleOutboundMapper, Sal
         List<SaleOutboundItem> items = getItems(outboundId);
         SaleOutbound outbound = getById(outboundId);
         Long warehouseId = outbound.getWarehouseId();
+        if (warehouseId == null) {
+            log.warn("出库单 {} 未指定仓库，取消未产生库存回滚", outbound.getOutboundNo());
+            return;
+        }
         for (SaleOutboundItem item : items) {
             BigDecimal qty = item.getOutboundQuantity();
-            if (qty != null && qty.compareTo(BigDecimal.ZERO) > 0 && item.getProductId() != null && warehouseId != null) {
-                try {
-                    boolean success = stockService.increaseStock(item.getProductId(), warehouseId, qty);
-                    if (success) {
-                        log.info("取消出库库存回滚成功: 产品ID={}, 仓库ID={}, 数量={}", item.getProductId(), warehouseId, qty);
-                    } else {
-                        log.error("取消出库库存回滚失败: 产品ID={}, 仓库ID={}, 数量={}", item.getProductId(), warehouseId, qty);
-                    }
-                } catch (Exception e) {
-                    log.error("取消出库库存回滚异常: 产品ID={}, 数量={}", item.getProductId(), qty, e);
-                }
+            if (item.getProductId() == null || qty == null || qty.signum() <= 0) {
+                continue;
             }
+            // 与出库扣减对称：同样只发布变动请求，由 WMS InventoryService 统一过账
+            applicationEventPublisher.publishEvent(new InventoryChangeEvent(
+                    InventoryChangeEvent.ChangeType.INCREASE, item.getProductId(), warehouseId,
+                    item.getWarehouseLocationId() == null ? null : item.getWarehouseLocationId().longValue(),
+                    item.getBatchNo(), qty,
+                    "SALE_OUTBOUND_CANCEL", outbound.getId(), outbound.getOutboundNo(),
+                    outbound.getShippedBy() != null ? outbound.getShippedBy() : outbound.getCreateBy(),
+                    outbound.getCreatorName()));
+            log.info("取消出库触发库存回冲: outboundNo={}, productId={}, qty={}",
+                    outbound.getOutboundNo(), item.getProductId(), qty);
         }
     }
 
@@ -1510,39 +1740,56 @@ public class SaleOutboundServiceImpl extends ServiceImpl<SaleOutboundMapper, Sal
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void updateStock(Long outboundId) {
-        List<SaleOutboundItem> items = getItems(outboundId);
         SaleOutbound outbound = getById(outboundId);
+        if (outbound == null) {
+            throw new RuntimeException("出库单不存在: " + outboundId);
+        }
         Long warehouseId = outbound.getWarehouseId();
-        boolean allSuccess = true;
+        if (warehouseId == null) {
+            throw new RuntimeException("出库单未指定发货仓库，无法过账库存");
+        }
+        List<SaleOutboundItem> items = getItems(outboundId);
+        boolean anyPosted = false;
         for (SaleOutboundItem item : items) {
             BigDecimal qty = item.getOutboundQuantity();
-            if (qty != null && qty.compareTo(BigDecimal.ZERO) > 0 && item.getProductId() != null && warehouseId != null) {
-                try {
-                    // 先检查可用库存
-                    cn.aiedge.erp.stock.entity.Stock stock = stockService.getStockDetail(item.getProductId(), warehouseId);
-                    if (stock == null) {
-                        log.warn("库存记录不存在: 产品ID={}, 仓库ID={}", item.getProductId(), warehouseId);
-                        allSuccess = false;
-                        continue;
-                    }
-                    // TODO-ARCH: 双轨库存统一前，ERP库存扣减暂由架构侧统一方案处理，此处仅维护WMS库存账，严禁反向同步ERP表。
-                    // （原扣减）stockService.decreaseStock(...) 已屏蔽：避免绕过 erp-stock 内部触发器/报表统计逻辑造成数据裂痕。
-                    // 中期方案：WMS 扣减后发布 InventoryChangedEvent，ERP 侧监听后单向同步更新 erp_stock，确保最终一致性，
-                    // 杜绝代码层双向调用。此处仅保留库存快照读取用于明细行库存回填。
-                    cn.aiedge.erp.stock.entity.Stock updatedStock = stockService.getStockDetail(item.getProductId(), warehouseId);
-                    if (updatedStock != null) {
-                        item.setAvailableStock(updatedStock.getAvailableQuantity() != null ? updatedStock.getAvailableQuantity() : BigDecimal.ZERO);
-                        item.setBookStock(updatedStock.getQuantity() != null ? updatedStock.getQuantity() : BigDecimal.ZERO);
-                        outboundItemMapper.updateById(item);
-                    }
-                } catch (Exception e) {
-                    log.error("库存更新异常: 产品ID={}, 仓库ID={}, 数量={}, 错误={}", item.getProductId(), warehouseId, qty, e.getMessage(), e);
-                    allSuccess = false;
-                }
+            if (item.getProductId() == null || qty == null || qty.signum() <= 0) {
+                continue;
             }
+            // 库存唯一写入口是 WMS：ERP 侧只发布变动请求，由 InventoryChangeEventListener →
+            // InventoryService.decrease 统一过账（双写 wms_inventory + 镜像 erp_stock），严禁 ERP 直写 erp_stock。
+            applicationEventPublisher.publishEvent(new InventoryChangeEvent(
+                    InventoryChangeEvent.ChangeType.DECREASE, item.getProductId(), warehouseId,
+                    item.getWarehouseLocationId() == null ? null : item.getWarehouseLocationId().longValue(),
+                    item.getBatchNo(), qty,
+                    "SALE_OUTBOUND", outbound.getId(), outbound.getOutboundNo(),
+                    outbound.getShippedBy() != null ? outbound.getShippedBy() : outbound.getCreateBy(),
+                    outbound.getCreatorName()));
+            log.info("销售出库触发库存出账: outboundNo={}, productId={}, qty={}",
+                    outbound.getOutboundNo(), item.getProductId(), qty);
+            anyPosted = true;
         }
-        if (!allSuccess) {
-            log.warn("出库单 {} 部分明细库存更新失败", outbound.getOutboundNo());
+        if (!anyPosted) {
+            log.warn("出库单 {} 无有效出库明细，未产生库存变动", outbound.getOutboundNo());
+        }
+        refreshStockSnapshot(warehouseId, items);
+    }
+
+    /** 回填明细行库存快照（可用库存/账面库存），供列表与明细页展示 */
+    private void refreshStockSnapshot(Long warehouseId, List<SaleOutboundItem> items) {
+        for (SaleOutboundItem item : items) {
+            if (item.getProductId() == null) {
+                continue;
+            }
+            try {
+                Stock stock = stockService.getStockDetail(item.getProductId(), warehouseId);
+                if (stock != null) {
+                    item.setAvailableStock(stock.getAvailableQuantity() != null ? stock.getAvailableQuantity() : BigDecimal.ZERO);
+                    item.setBookStock(stock.getQuantity() != null ? stock.getQuantity() : BigDecimal.ZERO);
+                    outboundItemMapper.updateById(item);
+                }
+            } catch (Exception e) {
+                log.warn("回填库存快照失败: 产品ID={}, 仓库ID={}, 原因={}", item.getProductId(), warehouseId, e.getMessage());
+            }
         }
     }
 

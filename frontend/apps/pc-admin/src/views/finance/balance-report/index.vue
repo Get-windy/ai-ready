@@ -1,208 +1,496 @@
 <template>
-  <ErrorBoundary>
-    <PageContainer title="资产负债表">
-      <!-- ═══ 查询区 ═══ -->
-      <div class="search-area">
-        <a-form layout="inline">
-          <a-form-item label="会计年度">
+  <ErrorBoundary @error="handleError">
+    <PageContainer full-height>
+      <CategoryListLayout
+        :tabs="[]"
+        :show-category-panel="false"
+        :show-table-footer="false"
+      >
+        <!-- ═══ 工具栏左侧：标题 + 查询方案 ═══ -->
+        <template #toolbar-left>
+          <div class="query-scheme-wrap">
+            <span class="list-title">资产负债表</span>
             <a-select
-              v-model:value="fiscalYear"
-              :options="YEAR_OPTIONS"
+              v-model:value="queryScheme"
               style="width: 140px"
-            />
-          </a-form-item>
-          <a-form-item label="会计期间">
-            <a-select
-              v-model:value="fiscalPeriod"
-              :options="PERIOD_OPTIONS"
-              style="width: 140px"
-            />
-          </a-form-item>
-          <a-form-item>
-            <a-button
-              type="primary"
-              @click="loadData"
+              size="small"
+              placeholder="--查询方案--"
             >
-              <template #icon>
-                <SearchOutlined />
-              </template>查询
+              <a-select-option value="">--查询方案--</a-select-option>
+            </a-select>
+          </div>
+        </template>
+
+        <!-- ═══ 工具栏右侧：刷新 / 打印(F8) / 导出（无「配置」齿轮，本页无页面配置弹窗） ═══ -->
+        <template #toolbar-right>
+          <a-space :size="8">
+            <a-button
+              size="small"
+              :loading="loading"
+              @click="handleRefresh"
+            >
+              <ReloadOutlined /> 刷新
             </a-button>
-          </a-form-item>
-        </a-form>
-      </div>
+            <a-button
+              size="small"
+              @click="handlePrintF8"
+            >
+              <PrinterOutlined /> 打印(F8)
+            </a-button>
+            <a-button
+              size="small"
+              @click="handleExport"
+            >
+              <ExportOutlined /> 导出
+            </a-button>
+          </a-space>
+        </template>
 
-      <!-- ═══ 统计卡片 ═══ -->
-      <ARStatCards
-        :items="statCards"
-        :loading="loading"
-      />
+        <!-- ═══ 查询区：查询方案 / 单-多会计月 / 会计月(止) / 科目层级 / 显示为0科目 ═══ -->
+        <template #search-fields>
+          <div class="search-area">
+            <div class="search-row">
+              <div class="search-item">
+                <a-radio-group
+                  v-model:value="periodMode"
+                  size="small"
+                  button-style="solid"
+                  @change="handleSearch"
+                >
+                  <a-radio-button value="single">单会计月</a-radio-button>
+                  <a-radio-button value="multi">多会计月</a-radio-button>
+                </a-radio-group>
+              </div>
+              <div
+                v-if="periodMode === 'multi'"
+                class="search-item"
+              >
+                <span class="search-label">会计月(起)</span>
+                <a-date-picker
+                  v-model:value="startMonth"
+                  picker="month"
+                  size="small"
+                  style="width: 120px"
+                  :allow-clear="false"
+                  @change="handleSearch"
+                />
+              </div>
+              <div class="search-item">
+                <span class="search-label">会计月(止)</span>
+                <a-date-picker
+                  v-model:value="endMonth"
+                  picker="month"
+                  size="small"
+                  style="width: 120px"
+                  :allow-clear="false"
+                  @change="handleSearch"
+                />
+              </div>
+              <div class="search-item">
+                <span class="search-label">科目层级</span>
+                <a-select
+                  v-model:value="subjectLevel"
+                  :options="LEVEL_OPTIONS"
+                  size="small"
+                  style="width: 90px"
+                  @change="handleSearch"
+                />
+              </div>
+              <div class="search-item search-checkbox-item">
+                <a-checkbox
+                  v-model:checked="showZero"
+                  @change="handleSearch"
+                >
+                  显示为0科目
+                </a-checkbox>
+              </div>
+              <div class="search-item">
+                <a-space :size="4">
+                  <a-button
+                    type="primary"
+                    size="small"
+                    @click="handleSearch"
+                  >
+                    查询
+                  </a-button>
+                  <a-button
+                    size="small"
+                    @click="handleReset"
+                  >
+                    重置
+                  </a-button>
+                </a-space>
+              </div>
+            </div>
+          </div>
+        </template>
 
-      <!-- ═══ 图表 ═══ -->
-      <div class="chart-area">
-        <ARReportChart
-          title="资产 / 负债 / 所有者权益"
-          :option="chartOption"
-          :loading="loading"
-          :height="320"
-        />
-      </div>
-
-      <!-- ═══ 表格区 ═══ -->
-      <div class="table-area">
-        <a-table
-          :columns="columns"
-          :data-source="tableData"
-          :loading="loading"
-          :pagination="false"
-          row-key="itemCode"
-          size="small"
-        >
-          <template #bodyCell="{ column, record, text }">
-            <template v-if="column.dataIndex === 'itemName'">
-              <span :style="{ paddingLeft: ((record.level || 1) - 1) * 16 + 'px', fontWeight: record.level === 1 ? 600 : 400 }">
-                {{ text }}
+        <!-- ═══ 左右对照表（6 列 + 序号列内置列配置齿轮） ═══ -->
+        <template #table>
+          <div class="table-area">
+            <div
+              class="balance-bar"
+              :class="balanceBarClass"
+            >
+              <span class="balance-item">
+                <span class="balance-label">资产合计</span>
+                <span class="balance-value">{{ formatMoney(report.assetEndTotal) }}</span>
               </span>
-            </template>
-            <template v-else-if="column.dataIndex === 'type'">
-              <a-tag :color="TYPE_MAP[text]?.color || 'default'">
-                {{ TYPE_MAP[text]?.label || text }}
-              </a-tag>
-            </template>
-            <template v-else-if="['endBalance', 'beginBalance'].includes(column.dataIndex as string)">
-              {{ formatMoney(text) }}
-            </template>
-          </template>
-        </a-table>
-      </div>
+              <span class="balance-op">=</span>
+              <span class="balance-item">
+                <span class="balance-label">负债合计</span>
+                <span class="balance-value">{{ formatMoney(report.liabilityEndTotal) }}</span>
+              </span>
+              <span class="balance-op">+</span>
+              <span class="balance-item">
+                <span class="balance-label">所有者权益合计</span>
+                <span class="balance-value">{{ formatMoney(report.equityEndTotal) }}</span>
+              </span>
+              <span class="balance-flag">
+                <CheckCircleOutlined v-if="report.hasData && report.balanced" />
+                <ExclamationCircleOutlined v-else-if="report.hasData" />
+                {{ balanceFlag }}
+              </span>
+            </div>
+
+            <BillTableList
+              :columns="columns"
+              :data-source="rows"
+              :loading="loading"
+              :pagination="false"
+              :show-toolbar="false"
+              :show-search="false"
+              :show-add="false"
+              :show-export="false"
+              :show-batch-delete="false"
+              :selectable="false"
+              :min-empty-rows="0"
+              storage-key="finance-balance-report-columns"
+              row-key="rowNo"
+            >
+              <!-- 资产侧 -->
+              <template #assetItemCell="{ record }">
+                <span :class="['item-name', { 'is-total': record.assetTotalRow }]">
+                  {{ record.assetItemName || '' }}
+                </span>
+              </template>
+              <template #assetBeginCell="{ record }">
+                <span
+                  v-if="record.assetItemName"
+                  :class="['num-value', { 'is-total': record.assetTotalRow }]"
+                >{{ formatMoney(record.assetBeginBalance) }}</span>
+              </template>
+              <template #assetEndCell="{ record }">
+                <a
+                  v-if="record.assetSubjectId && !record.assetTotalRow"
+                  class="num-link"
+                  :title="`穿透明细账：${record.assetSubjectCode || ''}`"
+                  @click="goDetailLedger(record, 'asset')"
+                >{{ formatMoney(record.assetEndBalance) }}</a>
+                <span
+                  v-else-if="record.assetItemName"
+                  :class="['num-value', { 'is-total': record.assetTotalRow }]"
+                >{{ formatMoney(record.assetEndBalance) }}</span>
+              </template>
+
+              <!-- 负债及权益侧 -->
+              <template #liabilityItemCell="{ record }">
+                <span :class="['item-name', { 'is-total': record.liabilityTotalRow }]">
+                  {{ record.liabilityItemName || '' }}
+                </span>
+              </template>
+              <template #liabilityBeginCell="{ record }">
+                <span
+                  v-if="record.liabilityItemName"
+                  :class="['num-value', { 'is-total': record.liabilityTotalRow }]"
+                >{{ formatMoney(record.liabilityBeginBalance) }}</span>
+              </template>
+              <template #liabilityEndCell="{ record }">
+                <a
+                  v-if="record.liabilitySubjectId && !record.liabilityTotalRow"
+                  class="num-link"
+                  :title="`穿透明细账：${record.liabilitySubjectCode || ''}`"
+                  @click="goDetailLedger(record, 'liability')"
+                >{{ formatMoney(record.liabilityEndBalance) }}</a>
+                <span
+                  v-else-if="record.liabilityItemName"
+                  :class="['num-value', { 'is-total': record.liabilityTotalRow }]"
+                >{{ formatMoney(record.liabilityEndBalance) }}</span>
+              </template>
+            </BillTableList>
+          </div>
+        </template>
+      </CategoryListLayout>
     </PageContainer>
   </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { SearchOutlined } from '@ant-design/icons-vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { message } from 'ant-design-vue'
+import { useRouter } from 'vue-router'
+import dayjs, { type Dayjs } from 'dayjs'
+import {
+  ReloadOutlined,
+  PrinterOutlined,
+  ExportOutlined,
+  CheckCircleOutlined,
+  ExclamationCircleOutlined,
+} from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
-import ARStatCards from '@/components/ARStatCards/ARStatCards.vue'
-import ARReportChart from '@/components/ARReportChart/ARReportChart.vue'
-import type { StatCardItem } from '@/components/ARReportPage/types'
+import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayout.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import { reportApi } from '@/api/finance'
 
-// ═══ 会计期间 ═══
-const currentYear = new Date().getFullYear()
-const YEAR_OPTIONS = [0, 1, 2, 3].map(i => {
-  const y = currentYear - i
-  return { label: `${y}年`, value: y }
-})
-const PERIOD_OPTIONS = Array.from({ length: 12 }, (_, i) => ({ label: `第${i + 1}期`, value: i + 1 }))
-const fiscalYear = ref(currentYear)
-const fiscalPeriod = ref(new Date().getMonth() + 1)
+defineOptions({ name: 'FinanceBalanceReport' })
 
-const TYPE_MAP: Record<string, { label: string; color: string }> = {
-  asset: { label: '资产', color: 'blue' },
-  liability: { label: '负债', color: 'orange' },
-  equity: { label: '权益', color: 'green' }
-}
+const router = useRouter()
+
+// ═══ 查询条件 ═══
+const queryScheme = ref('')
+const periodMode = ref<'single' | 'multi'>('single')
+const endMonth = ref<Dayjs>(dayjs())
+const startMonth = ref<Dayjs>(dayjs())
+const subjectLevel = ref(1)
+const showZero = ref(true)
+
+const LEVEL_OPTIONS = [1, 2, 3, 4].map(v => ({ label: `${v}级`, value: v }))
 
 // ═══ 数据 ═══
 const loading = ref(false)
-const tableData = ref<any[]>([])
+const rows = ref<any[]>([])
+const report = ref<any>(emptyReport())
 
+function emptyReport() {
+  return {
+    rows: [],
+    assetBeginTotal: 0,
+    assetEndTotal: 0,
+    liabilityBeginTotal: 0,
+    liabilityEndTotal: 0,
+    equityBeginTotal: 0,
+    equityEndTotal: 0,
+    liabilityEquityBeginTotal: 0,
+    liabilityEquityEndTotal: 0,
+    balanced: false,
+    difference: 0,
+    hasData: false,
+  }
+}
+
+// ═══ 列定义（对标 6 列全部默认显示；序号列内置列配置齿轮） ═══
 const columns: any[] = [
-  { title: '项目编码', dataIndex: 'itemCode', key: 'itemCode', width: 120 },
-  { title: '项目名称', dataIndex: 'itemName', key: 'itemName' },
-  { title: '类别', dataIndex: 'type', key: 'type', width: 90, align: 'center' },
-  { title: '期末余额', dataIndex: 'endBalance', key: 'endBalance', width: 160, align: 'right' },
-  { title: '年初余额', dataIndex: 'beginBalance', key: 'beginBalance', width: 160, align: 'right' }
+  { title: '', key: 'rowNo', type: 'rowNo', width: 44, fixed: 'left' },
+  { title: '资产', field: 'assetItemName', key: 'assetItemName', width: 160, type: 'slot', slotName: 'assetItemCell' },
+  { title: '年初余额', field: 'assetBeginBalance', key: 'assetBeginBalance', width: 140, align: 'right', type: 'slot', slotName: 'assetBeginCell' },
+  { title: '资产期末余额', field: 'assetEndBalance', key: 'assetEndBalance', width: 150, align: 'right', type: 'slot', slotName: 'assetEndCell' },
+  { title: '负债及权益', field: 'liabilityItemName', key: 'liabilityItemName', width: 180, type: 'slot', slotName: 'liabilityItemCell' },
+  { title: '年初余额', field: 'liabilityBeginBalance', key: 'liabilityBeginBalance', width: 140, align: 'right', type: 'slot', slotName: 'liabilityBeginCell' },
+  { title: '期末余额', field: 'liabilityEndBalance', key: 'liabilityEndBalance', width: 150, align: 'right', type: 'slot', slotName: 'liabilityEndCell' },
 ]
 
-function formatMoney(val: number | null | undefined): string {
-  if (val === null || val === undefined || isNaN(Number(val))) return '-'
-  return Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
-
-// ═══ 汇总卡片 ═══
-function sumByType(type: string, field: 'endBalance' | 'beginBalance'): number {
-  return tableData.value
-    .filter(r => r.type === type)
-    .reduce((acc, r) => acc + (Number(r[field]) || 0), 0)
-}
-
-const statCards = computed<StatCardItem[]>(() => {
-  if (!tableData.value.length) return []
-  const asset = sumByType('asset', 'endBalance')
-  const liability = sumByType('liability', 'endBalance')
-  const equity = sumByType('equity', 'endBalance')
-  return [
-    { label: '资产总计', value: asset, precision: 2, prefix: '¥' },
-    { label: '负债总计', value: liability, precision: 2, prefix: '¥' },
-    { label: '所有者权益总计', value: equity, precision: 2, prefix: '¥' },
-    {
-      label: '资产 - 负债 - 权益 校验',
-      value: asset - liability - equity,
-      precision: 2,
-      prefix: '¥',
-      valueStyle: { color: Math.abs(asset - liability - equity) < 0.01 ? '#52c41a' : '#f5222d' }
-    }
-  ]
+// ═══ 平衡校验条状态 ═══
+const balanceFlag = computed(() => {
+  if (loading.value) return '加载中…'
+  if (!report.value.hasData) return '暂无科目余额数据'
+  return report.value.balanced ? '平衡' : `不平衡，差额 ${formatMoney(report.value.difference)}`
 })
 
-// ═══ 图表 ═══
-const chartOption = computed(() => {
-  const types: Array<{ key: string; name: string }> = [
-    { key: 'asset', name: '资产' },
-    { key: 'liability', name: '负债' },
-    { key: 'equity', name: '所有者权益' }
-  ]
-  return {
-    tooltip: { trigger: 'axis' },
-    legend: { data: ['期末余额', '年初余额'] },
-    grid: { left: 80, right: 24, top: 48, bottom: 32 },
-    xAxis: { type: 'category', data: types.map(t => t.name) },
-    yAxis: { type: 'value' },
-    series: [
-      { name: '期末余额', type: 'bar', data: types.map(t => sumByType(t.key, 'endBalance')) },
-      { name: '年初余额', type: 'bar', data: types.map(t => sumByType(t.key, 'beginBalance')) }
-    ]
-  }
+const balanceBarClass = computed(() => {
+  if (loading.value || !report.value.hasData) return 'is-empty'
+  return report.value.balanced ? 'is-balanced' : 'is-unbalanced'
 })
 
-// ═══ 数据请求：资产负债表 v2 ═══
-async function loadData() {
+// ═══ 数据加载 ═══
+async function fetchData() {
   loading.value = true
   try {
-    const res: any = await reportApi.getBalanceSheet({ fiscalYear: fiscalYear.value, fiscalPeriod: fiscalPeriod.value })
-    tableData.value = Array.isArray(res) ? res : []
-  } catch (e) {
-    tableData.value = []
-    console.warn('[资产负债表] 获取失败', e)
+    const params: Record<string, any> = {
+      fiscalYear: endMonth.value.year(),
+      fiscalPeriod: endMonth.value.month() + 1,
+      periodMode: periodMode.value,
+      subjectLevel: subjectLevel.value,
+      showZero: showZero.value,
+    }
+    if (periodMode.value === 'multi') {
+      params.startPeriod = startMonth.value.month() + 1
+    }
+    const res: any = await reportApi.getBalanceSheetReport(params)
+    const body = res?.data ?? res
+    report.value = { ...emptyReport(), ...(body || {}) }
+    rows.value = Array.isArray(body?.rows) ? body.rows : []
+  } catch (error: any) {
+    console.warn('[资产负债表] 获取数据失败', error)
+    message.error(error?.response?.data?.message || '获取资产负债表失败')
+    report.value = emptyReport()
+    rows.value = []
   } finally {
     loading.value = false
   }
 }
 
-onMounted(loadData)
+function handleSearch() {
+  fetchData()
+}
+
+function handleReset() {
+  periodMode.value = 'single'
+  endMonth.value = dayjs()
+  startMonth.value = dayjs()
+  subjectLevel.value = 1
+  showZero.value = true
+  fetchData()
+}
+
+function handleRefresh() {
+  fetchData()
+}
+
+// ═══ 期末余额穿透明细账（科目 + 本年度至期止月区间） ═══
+function goDetailLedger(record: any, side: 'asset' | 'liability') {
+  const subjectId = side === 'asset' ? record?.assetSubjectId : record?.liabilitySubjectId
+  if (!subjectId) return
+  router.push({
+    path: '/finance/detail-ledger',
+    query: {
+      subjectId: String(subjectId),
+      dateStart: dayjs(`${endMonth.value.year()}-01-01`).format('YYYY-MM-DD'),
+      dateEnd: endMonth.value.endOf('month').format('YYYY-MM-DD'),
+    },
+  })
+}
+
+// ═══ 打印(F8) ═══
+function handlePrintF8() {
+  if (rows.value.length === 0) {
+    message.warning('没有可打印的数据')
+    return
+  }
+  window.print()
+}
+
+function handleF8Key(e: KeyboardEvent) {
+  if ((e.key === 'F8' || e.code === 'F8') && !e.ctrlKey && !e.altKey && !e.metaKey) {
+    e.preventDefault()
+    handlePrintF8()
+  }
+}
+
+// ═══ 导出（CSV，左右对照 6 列 + 序号） ═══
+function handleExport() {
+  if (rows.value.length === 0) {
+    message.warning('没有可导出的数据')
+    return
+  }
+  const escape = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`
+  const header = ['序号', '资产', '年初余额', '资产期末余额', '负债及权益', '年初余额', '期末余额']
+  const lines = rows.value.map(r => [
+    r.rowNo,
+    r.assetItemName || '',
+    r.assetItemName ? Number(r.assetBeginBalance || 0).toFixed(2) : '',
+    r.assetItemName ? Number(r.assetEndBalance || 0).toFixed(2) : '',
+    r.liabilityItemName || '',
+    r.liabilityItemName ? Number(r.liabilityBeginBalance || 0).toFixed(2) : '',
+    r.liabilityItemName ? Number(r.liabilityEndBalance || 0).toFixed(2) : '',
+  ].map(escape).join(','))
+  const csv = '\uFEFF' + [header.map(escape).join(','), ...lines].join('\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `资产负债表_${endMonth.value.format('YYYY-MM')}_${dayjs().format('HHmmss')}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+  message.success('导出成功')
+}
+
+// ═══ 格式化 ═══
+function formatMoney(val: any): string {
+  if (val === null || val === undefined || val === '' || isNaN(Number(val))) return '-'
+  return Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+function handleError(error: Error) {
+  console.error('[资产负债表] 页面错误', error)
+  message.error(`页面错误: ${error.message}`)
+}
+
+// ═══ 初始化 ═══
+onMounted(() => {
+  fetchData()
+  window.addEventListener('keydown', handleF8Key)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleF8Key)
+})
 </script>
 
 <style scoped>
-.search-area {
-  background: #fff;
-  padding: 16px 20px 0;
-  border-radius: 8px;
-  margin-bottom: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+.query-scheme-wrap { display: inline-flex; align-items: center; gap: 8px; margin-right: 8px; }
+.list-title { font-size: 15px; font-weight: 600; color: #303133; }
+.search-area { padding: 8px 16px; background: #fff; border-bottom: 1px solid #e8e8e8; flex-shrink: 0; }
+.search-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.search-item { display: flex; align-items: center; gap: 6px; }
+.search-item :deep(.ant-picker),
+.search-item :deep(.ant-select) { font-size: 13px; }
+.search-label { font-size: 13px; color: #666; white-space: nowrap; }
+.search-checkbox-item { padding: 0 4px; }
+.search-checkbox-item :deep(.ant-checkbox-wrapper) { font-size: 13px; }
+
+.table-area { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+
+/* ── 平衡校验条（P0 红线：资产合计 = 负债合计 + 所有者权益合计） ── */
+.balance-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  font-size: 13px;
+  border-bottom: 1px solid #f0f0f0;
+  flex-shrink: 0;
 }
-.chart-area {
-  background: #fff;
-  padding: 16px;
-  border-radius: 8px;
-  margin: 16px 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+.balance-bar.is-empty { background: #fafafa; color: #8c8c8c; }
+.balance-bar.is-balanced { background: #f6ffed; color: #389e0d; }
+.balance-bar.is-unbalanced { background: #fff2f0; color: #cf1322; }
+.balance-item { display: inline-flex; align-items: center; gap: 6px; }
+.balance-label { color: inherit; opacity: 0.75; }
+.balance-value {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
 }
-.table-area {
-  background: #fff;
-  padding: 16px;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+.balance-op { font-weight: 600; opacity: 0.6; }
+.balance-flag { display: inline-flex; align-items: center; gap: 4px; margin-left: 8px; font-weight: 600; }
+
+.item-name { font-size: 13px; }
+.item-name.is-total,
+.num-value.is-total { font-weight: 700; }
+.num-value {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}
+.num-link {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  color: #1677ff;
+  cursor: pointer;
+  text-decoration: underline dotted;
+}
+.num-link:hover { color: #4096ff; }
+
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) { height: 28px; line-height: 28px; }
+
+/* ── 打印(F8)：只保留报表主体 ── */
+@media print {
+  .search-area { display: none !important; }
+  .balance-bar { background: transparent !important; color: #000 !important; }
+  :deep(.toolbar-section),
+  :deep(.tab-bar) { display: none !important; }
 }
 </style>

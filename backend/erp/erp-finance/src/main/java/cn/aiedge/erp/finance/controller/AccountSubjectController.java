@@ -3,15 +3,28 @@ package cn.aiedge.erp.finance.controller;
 import cn.aiedge.base.log.annotation.OperationLog;
 import cn.aiedge.base.vo.Result;
 import cn.aiedge.erp.finance.dto.AccountSubjectDTO;
+import cn.aiedge.erp.finance.dto.AccountSubjectQuery;
+import cn.aiedge.erp.finance.dto.FinanceAuxiliaryTypeDTO;
 import cn.aiedge.erp.finance.service.AccountSubjectService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import cn.dev33.satoken.annotation.SaCheckPermission;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.Font;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -24,22 +37,29 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AccountSubjectController {
 
+    /** 导出列：[字段, 表头] */
+    private static final String[][] EXPORT_COLUMNS = {
+            {"subjectCode", "科目编号"},
+            {"subjectName", "科目名称"},
+            {"auxiliaryTypeName", "核算项"}
+    };
+
     private final AccountSubjectService accountSubjectService;
 
-    @Operation(summary = "查询会计科目列表")
+    @Operation(summary = "查询会计科目列表（支持 科目名称/编号/助记码、科目分类、显示停用）")
     @GetMapping("/list")
     @SaCheckPermission("finance:subject:view")
     @OperationLog(module = "会计科目管理", type = "QUERY", desc = "查询会计科目列表")
-    public Result<List<AccountSubjectDTO>> list() {
-        return Result.success(accountSubjectService.getAll());
+    public Result<List<AccountSubjectDTO>> list(AccountSubjectQuery query) {
+        return Result.success(accountSubjectService.search(query));
     }
 
-    @Operation(summary = "查询会计科目树形结构")
+    @Operation(summary = "查询会计科目树形结构（hierarchical=false 时返回平铺列表）")
     @GetMapping("/tree")
     @SaCheckPermission("finance:subject:view")
     @OperationLog(module = "会计科目管理", type = "QUERY", desc = "查询会计科目树形结构")
-    public Result<List<AccountSubjectDTO>> tree() {
-        return Result.success(accountSubjectService.getTree());
+    public Result<List<AccountSubjectDTO>> tree(AccountSubjectQuery query) {
+        return Result.success(accountSubjectService.getTree(query));
     }
 
     @Operation(summary = "根据ID查询会计科目")
@@ -48,6 +68,13 @@ public class AccountSubjectController {
     @OperationLog(module = "会计科目管理", type = "QUERY", desc = "根据ID查询会计科目")
     public Result<AccountSubjectDTO> getById(@Parameter(description = "科目ID") @PathVariable Long id) {
         return Result.success(accountSubjectService.getById(id));
+    }
+
+    @Operation(summary = "核算项可选项（辅助核算类型，供科目编辑器下拉）")
+    @GetMapping("/aux-types")
+    @SaCheckPermission("finance:subject:view")
+    public Result<List<FinanceAuxiliaryTypeDTO>> auxTypes() {
+        return Result.success(accountSubjectService.getAuxTypeOptions());
     }
 
     @Operation(summary = "根据科目类型查询")
@@ -59,7 +86,8 @@ public class AccountSubjectController {
     }
 
     @Operation(summary = "创建会计科目")
-    @PostMapping("/")
+    // 同时匹配 /api/erp/finance/subject 与带尾斜杠两种写法（前端调用无尾斜杠，Spring Boot 3 不再自动重定向）
+    @PostMapping({"", "/"})
     @SaCheckPermission("finance:subject:create")
     @OperationLog(module = "会计科目管理", type = "CREATE", desc = "创建会计科目")
     public Result<AccountSubjectDTO> create(@RequestBody AccountSubjectDTO dto) {
@@ -107,11 +135,47 @@ public class AccountSubjectController {
         return Result.success("批量删除成功", null);
     }
 
-    @Operation(summary = "导出会计科目列表")
+    @Operation(summary = "导出会计科目（真实 Excel 流，与列表同一过滤口径）")
     @GetMapping("/export")
     @SaCheckPermission("finance:subject:view")
-    @OperationLog(module = "会计科目管理", type = "QUERY", desc = "导出会计科目列表")
-    public Result<List<AccountSubjectDTO>> export() {
-        return Result.success(accountSubjectService.getAll());
+    public void export(AccountSubjectQuery query, HttpServletResponse response) throws IOException {
+        List<AccountSubjectDTO> rows = accountSubjectService.search(query);
+
+        String fileName = "会计科目_" + LocalDate.now() + ".xlsx";
+        response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        response.setCharacterEncoding("UTF-8");
+        response.setHeader("Content-Disposition",
+                "attachment; filename*=UTF-8''" + URLEncoder.encode(fileName, StandardCharsets.UTF_8));
+
+        try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet("会计科目");
+            CellStyle headStyle = workbook.createCellStyle();
+            Font headFont = workbook.createFont();
+            headFont.setBold(true);
+            headStyle.setFont(headFont);
+
+            Row head = sheet.createRow(0);
+            for (int i = 0; i < EXPORT_COLUMNS.length; i++) {
+                Cell cell = head.createCell(i);
+                cell.setCellValue(EXPORT_COLUMNS[i][1]);
+                cell.setCellStyle(headStyle);
+            }
+            int rowIdx = 1;
+            for (AccountSubjectDTO row : rows) {
+                Row excelRow = sheet.createRow(rowIdx++);
+                excelRow.createCell(0).setCellValue(nullToEmpty(row.getSubjectCode()));
+                excelRow.createCell(1).setCellValue(nullToEmpty(row.getSubjectName()));
+                excelRow.createCell(2).setCellValue(nullToEmpty(row.getAuxiliaryTypeName()));
+            }
+            for (int i = 0; i < EXPORT_COLUMNS.length; i++) {
+                sheet.setColumnWidth(i, 22 * 256);
+            }
+            workbook.write(response.getOutputStream());
+        }
+        log.info("导出会计科目: rows={}", rows.size());
+    }
+
+    private String nullToEmpty(String value) {
+        return value == null ? "" : value;
     }
 }

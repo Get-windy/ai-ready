@@ -45,4 +45,11 @@ public interface ProductKitService extends IService<ProductKit> {
     BigDecimal calculateKitProfitRate(Long kitId);
 
     Boolean checkKitAvailability(Long kitId, Long warehouseId, BigDecimal quantity);
+
+    /**
+     * 批量获取套餐商品明细摘要（商品列表「套餐」子标签的"商品明细"列）
+     *
+     * @return kitId → "组件名×数量；..." 的映射
+     */
+    java.util.Map<Long, String> itemsSummary(List<Long> kitIds);
 }

@@ -32,9 +32,6 @@
             <a-button size="small" @click="handleExport">
               <ExportOutlined /> 导出
             </a-button>
-            <a-button size="small" @click="showColumnConfig = true">
-              <TableOutlined />
-            </a-button>
           </a-space>
         </template>
 
@@ -131,7 +128,8 @@
         <!-- ═══ 数据表格 ═══ -->
         <template #table>
           <BillTableList
-            :columns="visibleColumns"
+            :columns="columns"
+            :storage-key="'purchase-smart-replenish-table-columns'"
             :data-source="tableData"
             :loading="loading"
             :pagination="billPagination"
@@ -181,16 +179,6 @@
       </CategoryListLayout>
     </PageContainer>
 
-    <!-- ═══ 列配置弹窗 ═══ -->
-    <ColumnConfigPanel
-      :open="showColumnConfig"
-      :settings-columns="settingsColumns"
-      :is-locked-column="isLockedColumn"
-      @update:open="showColumnConfig = $event"
-      @change="handleColumnConfigChange"
-      @reset="handleColumnConfigReset"
-      @drag-end="handleColumnConfigChange"
-    />
   </ErrorBoundary>
 </template>
 
@@ -200,15 +188,13 @@ import { useRouter } from 'vue-router'
 import dayjs, { type Dayjs } from 'dayjs'
 import { message } from 'ant-design-vue'
 import {
-  SearchOutlined, TableOutlined, PrinterOutlined, ExportOutlined,
+  SearchOutlined, PrinterOutlined, ExportOutlined,
   ReloadOutlined, ShoppingCartOutlined, PictureOutlined,
 } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayout.vue'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
-import ColumnConfigPanel from '@/components/ColumnConfigPanel/index.vue'
-import { useColumnConfig, isLockedColumn } from '@/composables/useColumnConfig'
 import { stockReportApi, type SmartReplenishItem } from '@/api/analytics'
 import { optionsApi } from '@/api/options'
 import request from '@/utils/request'
@@ -221,7 +207,6 @@ const handleError = (e: any) => console.warn('[智能补货] ErrorBoundary:', e)
 // ═══ 状态 ═══
 const loading = ref(false)
 const tableData = ref<SmartReplenishItem[]>([])
-const showColumnConfig = ref(false)
 const selectedRows = ref<SmartReplenishItem[]>([])
 
 // ═══ 分类树 ═══
@@ -264,6 +249,7 @@ function formatMoney(v: any): string {
 
 // ═══ 25 列表格 ═══
 const columns = [
+  { title: '', key: 'rowNo', type: 'rowNo', width: 40, fixed: 'left' },
   { title: '图片', field: 'image', key: 'image', width: 60, type: 'slot', slotName: 'imageCell' },
   { title: '商品名称', field: 'productName', key: 'productName', width: 190, ellipsis: true },
   { title: '货号', field: 'productCode', key: 'productCode', width: 120 },
@@ -290,17 +276,6 @@ const columns = [
   { title: '最近销售日期', field: 'lastSaleDate', key: 'lastSaleDate', width: 120, defaultHidden: true },
   { title: '最近进货日期', field: 'lastPurchaseDate', key: 'lastPurchaseDate', width: 120, defaultHidden: true },
 ]
-
-const columnDefs = computed(() => columns.map(c => ({ ...c })))
-const {
-  visibleColumns,
-  settingsColumns,
-  onSettingChange,
-  resetSettings,
-} = useColumnConfig(columnDefs.value, 'purchase-smart-replenish-list-columns')
-
-function handleColumnConfigChange() { onSettingChange() }
-function handleColumnConfigReset() { resetSettings() }
 
 // ═══ 日期处理 ═══
 const handleDateRangeChange = (dates: [Dayjs, Dayjs] | null) => {

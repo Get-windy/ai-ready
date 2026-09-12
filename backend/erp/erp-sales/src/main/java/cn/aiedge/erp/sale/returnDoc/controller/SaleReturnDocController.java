@@ -46,6 +46,7 @@ public class SaleReturnDocController {
             @RequestParam(required = false) String endDate,
             @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) String creatorName,
+            @RequestParam(required = false) String bookkeeperName,
             @RequestParam(required = false) String auditorName,
             @RequestParam(required = false) String submitBy,
             @RequestParam(required = false) String productLineAttr,
@@ -70,11 +71,18 @@ public class SaleReturnDocController {
         Page<SaleReturnDoc> result = saleReturnDocService.pageList(pageNum, pageSize, keyword, customerName,
                 handlerName, deptName, warehouseName, productName, itemRemark, status,
                 generateType, settleStatus, printCount, startDate, endDate, categoryId,
-                creatorName, auditorName, submitBy, productLineAttr, remark, summary,
+                creatorName, bookkeeperName, auditorName, submitBy, productLineAttr, remark, summary,
                 deliveryMethod, extNum1, extNum2, extText1, extText2, extText3,
                 contactName, contactPhone, contactAddress, auditTime, salesType,
                 receiverName, logisticsCompany, waybillNo, region, showRedFlush);
         return ApiResponse.ok(result);
+    }
+
+    @GetMapping("/next-no")
+    @Operation(summary = "获取下一退货单号（后端号段）")
+    @SaCheckLogin
+    public ApiResponse<String> nextNo() {
+        return ApiResponse.ok(saleReturnDocService.generateReturnDocNo());
     }
 
     @GetMapping("/page-detail")

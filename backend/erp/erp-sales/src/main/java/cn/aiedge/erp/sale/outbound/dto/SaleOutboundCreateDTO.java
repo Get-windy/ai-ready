@@ -15,14 +15,21 @@ import java.util.List;
 public class SaleOutboundCreateDTO {
 
     // ═══ 基本信息 ═══
+    /** 出库单号：来自后端号段（GET /next-no）；同号已存在时服务端会重新分配 */
+    private String outboundNo;
     private Long orderId;
+    /** 来源订单编号（落库到 erp_sale_outbound.order_no） */
     private String orderNo;
+    /** 前端「源单」输入框字段名，与 orderNo 同义 */
+    private String sourceOrder;
     private LocalDate outboundDate;
     private Integer outboundType;
     private Integer status;
     private BigDecimal totalAmount;
     private BigDecimal totalQuantity;
     private String generationMethod;
+    /** 来源（PC/MOBILE/API/IMPORT），未传时服务端按 PC 落库 */
+    private String source;
     private String summary;
 
     // ═══ 客户 ══
@@ -103,6 +110,9 @@ public class SaleOutboundCreateDTO {
     private String remark;
     private String internalNote;
     private String buyerRemark;
+
+    // ═══ 制单人（列表「制单人」列与查询条件口径） ═══
+    private String creatorName;
 
     // ═══ 表头自定义字段 ═══
     private BigDecimal extNum1;

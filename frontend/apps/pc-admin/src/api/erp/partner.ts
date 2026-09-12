@@ -61,6 +61,8 @@ export interface Partner {
   partnerCode: string
   partnerName: string
   partnerShortName?: string
+  /** 助记码（基础资料快速检索） */
+  mnemonicCode?: string
   partnerType: string
   partnerCategoryId?: number
   partnerGradeId?: number
@@ -76,13 +78,16 @@ export interface Partner {
   companyEmail?: string
   phone?: string
   email?: string
+  /** 联系人姓名（后端由 biz_party_contact 主记录带出） */
   contactPerson?: string
+  /** 联系电话（后端由 biz_party_contact 主记录带出） */
   contactPhone?: string
   contactEmail?: string
   province?: string
   city?: string
   district?: string
   detailAddress?: string
+  /** 对方地址（物流公司地址/联系地址，后端由主网点 detail_address 带出） */
   address?: string
   creditLimit?: number
   creditDays?: number
@@ -98,14 +103,165 @@ export interface Partner {
   fax?: string
   bankName?: string
   bankAccount?: string
+  /** 纳税人信息：公司全称 */
+  companyFullName?: string
+  /** 纳税人信息：开户行地址 */
+  bankAddress?: string
   shortName?: string
   createTime?: string
   updateTime?: string
+  // ── 基础资料金标准补充（供应商等） ──
+  /** 多重身份，逗号分隔：CUSTOMER/SUPPLIER/LOGISTICS/OTHER */
+  roles?: string
+  /** 列表「新增时间」列 */
+  addTime?: string
+  /** 附件数量 */
+  attachmentCount?: number
+  /** 纳税人信息：地址（与「联系地址」区分） */
+  taxAddress?: string
+  /** 期初应付金额 */
+  openingPayable?: number
+  /** 期初预付金额 */
+  openingPrepaid?: number
+  /** 经营系列 */
+  operatingSeries?: string
+  /** 经营面积 */
+  operatingArea?: number
+  /** 付款期限方式：DYNAMIC 动态付款期限 / FIXED 固定账期 */
+  paymentTermType?: string
+  /** 动态付款期限(天) */
+  paymentDays?: number
+  /** 固定账期日(号) */
+  fixedPaymentDay?: number
+  /** 结算期(号) */
+  settlementDay?: number
+  /** 启用价格跟踪 0/1 */
+  priceTrackEnabled?: number
+
+  // ── 客户金标准字段（全部客户 26 列 / 会员管理 10 列） ──
+  /** 所属仓库 */
+  warehouseName?: string
+  /** 所属区域 */
+  region?: string
+  /** 推广人 */
+  promoterId?: number | string
+  promoterName?: string
+  /** 买家账号（商城账号） */
+  buyerAccount?: string
+  /** 客户一票通 */
+  customerOnePass?: string
+  /** 客户来源 */
+  customerSource?: string
+  /** 营业执照有效期 */
+  businessLicenseExpiry?: string
+  /** 最近交易时间 */
+  lastTradeTime?: string
+  /** 动态收款期限（天） */
+  creditDays?: number
+  /** 固定账期（号） */
+  fixedCreditDay?: number
+  /** 结算期（号） */
+  statementDay?: number
+  /** 期初应收金额 */
+  openingReceivable?: number
+  /** 期初预收金额 */
+  openingPreReceived?: number
+
+  // ── 会员信息 ──
+  memberName?: string
+  memberCardNo?: string
+  memberLevel?: string
+  memberCardStatus?: string
+  memberCardStatusDesc?: string
+  memberValidStart?: string
+  memberValidEnd?: string
+  birthday?: string
+  points?: number
+  memberInitialPoints?: number
+  memberTotalConsume?: number
+  memberIssueTime?: string
+}
+
+/** 「全部联系人」子标签行（联系人 × 归属客户） */
+export interface PartyContactRow {
+  id: number
+  partyId: number
+  /** 姓名 */
+  contactName: string
+  /** 性别 */
+  gender?: string
+  /** 职务 */
+  position?: string
+  /** 手机 */
+  mobile?: string
+  phone?: string
+  /** 联系地址 */
+  detailAddress?: string
+  /** 配送方式 */
+  deliveryMethod?: string
+  deliveryRoute?: string
+  /** 物流公司 */
+  logisticsCompany?: string
+  /** 网点 */
+  outletName?: string
+  isPrimary?: number
+  status?: number
+  /** 对应客户 */
+  partnerName?: string
+  /** 客户编号 */
+  partnerCode?: string
+  /** 客户所属区域 */
+  partyRegion?: string
+  /** 客户经手人 */
+  handlerName?: string
+  createTime?: string
+}
+
+/** 客户区域（区域管理子标签） */
+export interface CustomerRegion {
+  id: number
+  regionCode: string
+  regionName: string
+  parentId?: number
+  regionLevel?: number
+  sortOrder?: number
+  status?: number
+  remark?: string
+  children?: CustomerRegion[]
+}
+
+export const customerRegionApi = {
+  page(params: Record<string, any>): Promise<PageResult<CustomerRegion>> {
+    return request.get('/erp/customer/region/page', params)
+  },
+  list(params?: Record<string, any>): Promise<CustomerRegion[]> {
+    return request.get('/erp/customer/region/list', { params })
+  },
+  getById(id: number | string): Promise<CustomerRegion> {
+    return request.get(`/erp/customer/region/${id}`)
+  },
+  create(data: Partial<CustomerRegion>): Promise<CustomerRegion> {
+    return request.post('/erp/customer/region', data)
+  },
+  update(id: number | string, data: Partial<CustomerRegion>): Promise<boolean> {
+    return request.put(`/erp/customer/region/${id}`, data)
+  },
+  remove(id: number | string): Promise<string | null> {
+    return request.delete(`/erp/customer/region/${id}`)
+  }
 }
 
 export const partnerApi = {
-  page(params: PageQuery & { partnerType?: string; categoryId?: number; keyword?: string }): Promise<PageResult<Partner>> {
+  page(params: PageQuery & { partnerType?: string; categoryId?: number; keyword?: string; showHierarchy?: boolean }): Promise<PageResult<Partner>> {
     return request.get('/erp/md/customer/page', params)
+  },
+  /** 会员管理子标签分页（客户页 → 会员管理） */
+  memberPage(params: Record<string, any>): Promise<PageResult<Partner>> {
+    return request.get('/erp/md/customer/member/page', params)
+  },
+  /** 全部联系人子标签分页（客户页 → 全部联系人） */
+  contactPage(params: Record<string, any>): Promise<PageResult<PartyContactRow>> {
+    return request.get('/erp/md/customer/contact/page', params)
   },
   getById(id: number): Promise<Partner> {
     return request.get(`/erp/md/customer/${id}`)
@@ -116,7 +272,8 @@ export const partnerApi = {
   list(partnerType?: string, status?: string, pageSize?: number): Promise<Partner[]> {
     return request.get('/erp/md/customer/list', { params: { partnerType, status, pageSize } })
   },
-  create(data: Record<string, any>): Promise<boolean> {
+  /** 新增往来单位，返回含 id 的对象（供继续挂接网点/联系人等子表） */
+  create(data: Record<string, any>): Promise<Partner> {
     return request.post('/erp/md/customer', data)
   },
   update(id: number, data: Record<string, any>): Promise<boolean> {
@@ -131,13 +288,56 @@ export const partnerApi = {
   getNextSeq(prefix: string): Promise<{ seq: number }> {
     return request.get('/erp/md/customer/next-seq', { params: { prefix } })
   },
+  /** 保存主联系人（表单「联系人」分区：联系人 / 联系电话 / 联系地址） */
+  savePrimaryContact(id: number, data: { contactPerson?: string; contactPhone?: string; address?: string }): Promise<boolean> {
+    return request.put(`/erp/md/customer/${id}/primary-contact`, data)
+  },
+  /** 导出 Excel（真实 xlsx 流，与分页查询同口径） */
+  export(params: Record<string, any>): Promise<Blob> {
+    return request.get('/erp/md/customer/export', { params, responseType: 'blob' })
+  },
+  /** 批量启用/停用 */
+  batchStatus(ids: Array<number | string>, status: string): Promise<boolean> {
+    return request.put('/erp/md/customer/batch-status', { ids, status })
+  },
+  /** 批量设置价格跟踪 */
+  batchPriceTrack(ids: Array<number | string>, priceTrackEnabled: boolean): Promise<boolean> {
+    return request.put('/erp/md/customer/batch-price-track', { ids, priceTrackEnabled })
+  },
+  /** 批量删除 */
+  batchDelete(ids: Array<number | string>): Promise<boolean> {
+    return request.delete('/erp/md/customer/batch', { data: { ids } })
+  },
+  /** 批量搬移（改所属分类） */
+  batchMove(ids: Array<number | string>, categoryId: number | string): Promise<boolean> {
+    return request.put('/erp/md/customer/batch-move', { ids, categoryId })
+  },
+  /** 客商合并：把当前往来单位（源）并入目标往来单位 */
+  mergePartner(id: number | string, targetId: number | string): Promise<{
+    merged: boolean
+    reason?: string
+    targetId?: string
+    targetName?: string
+    movedContacts?: number
+    movedAttachments?: number
+    /** 迁移的业务引用总数（订单/出入库/收付款/应收应付/发票等） */
+    movedReferences?: number
+    roles?: string
+  }> {
+    return request.put(`/erp/md/customer/${id}/merge-partner`, { targetId })
+  },
 }
 
 // ── 联系人 ──
 export interface PartyContact {
   id: number
   partyId: number
+  /** 名称：客户/供应商场景=联系人姓名；网点场景=网点名称 */
   contactName: string
+  /** 网点场景下的联系人姓名 */
+  linkman?: string
+  /** 联系地址（网点地址） */
+  detailAddress?: string
   position: string
   department: string
   phone: string

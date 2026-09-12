@@ -865,13 +865,15 @@ onMounted(async () => {
   await loadFormConfig()
   await loadExtraOptions()
   const query = route.query
+  // 主数据 id 全站以字符串传递（后端 Long 序列化为 string），下拉选项 value 也是字符串。
+  // 这里做 Number() 会让 select 匹配不到 label、只显示 ID（供应商「订货」下推曾出现该问题）。
   if (query.supplierId) {
-    formData.supplierId = Number(query.supplierId)
+    formData.supplierId = String(query.supplierId)
     formData.supplierName = query.supplierName || ''
     if (!formData.date) formData.date = new Date().toISOString().slice(0, 10)
   }
   if (query.warehouseId) {
-    formData.warehouseId = Number(query.warehouseId)
+    formData.warehouseId = String(query.warehouseId)
     formData.warehouseName = query.warehouseName || ''
   }
   if (query.productIds) {

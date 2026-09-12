@@ -10,11 +10,6 @@
       >
         <template #toolbar-right>
           <a-space :size="8">
-            <a-tooltip title="列配置">
-              <a-button size="small" @click="showColumnConfig = true">
-                <TableOutlined />
-              </a-button>
-            </a-tooltip>
             <a-tooltip title="页面配置">
               <a-button size="small" @click="showPageConfig = true">
                 <SettingOutlined />
@@ -73,7 +68,8 @@
         <template #table>
           <div class="table-area">
             <BillTableList
-              :columns="currentColumns"
+              :columns="columns"
+              :storage-key="'quality-inspection-table-columns'"
               :data-source="tableData"
               :loading="loading"
               :pagination="billPagination"
@@ -107,16 +103,6 @@
         </template>
       </CategoryListLayout>
     </PageContainer>
-
-    <!-- 列配置 -->
-    <ColumnConfigPanel
-      :open="showColumnConfig"
-      :settings-columns="settingsColumns"
-      :is-locked-column="isLockedColumn"
-      @update:open="showColumnConfig = $event"
-      @change="onSettingChange"
-      @reset="resetSettings"
-    />
 
     <!-- 页面配置 -->
     <PageConfigPanel
@@ -221,15 +207,13 @@ import { message, Modal } from 'ant-design-vue'
 import dayjs from 'dayjs'
 import type { Dayjs } from 'dayjs'
 import {
-  TableOutlined, SettingOutlined, PlusOutlined, ReloadOutlined, ExportOutlined,
+  SettingOutlined, PlusOutlined, ReloadOutlined, ExportOutlined,
 } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayout.vue'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
-import ColumnConfigPanel from '@/components/ColumnConfigPanel/index.vue'
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
-import { useColumnConfig, isLockedColumn } from '@/composables/useColumnConfig'
 import { useAutoGridSpan } from '@/composables/useAutoGridSpan'
 import { qualityInspectionApi, qualityDefectHandleApi } from '@/api/quality'
 
@@ -260,7 +244,6 @@ const searchParams = reactive({
 })
 
 // ── 弹窗状态 ──
-const showColumnConfig = ref(false)
 const showPageConfig = ref(false)
 const completeModalVisible = ref(false)
 const defectModalVisible = ref(false)
@@ -289,8 +272,6 @@ const columns: any[] = [
   { title: '检验时间', field: 'inspectionTime', key: 'inspectionTime', width: 160 },
   { title: '备注', field: 'remark', key: 'remark', width: 150, ellipsis: true },
 ]
-const { visibleColumns, settingsColumns, onSettingChange, resetSettings } = useColumnConfig(columns, 'quality-inspection-list-columns')
-const currentColumns = computed(() => visibleColumns.value)
 
 // ── 页面配置 ──
 interface QueryFieldSetting { key: string; label: string; visible: boolean }

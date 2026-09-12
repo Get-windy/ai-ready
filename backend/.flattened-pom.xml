@@ -10,7 +10,7 @@
   </parent>
   <groupId>cn.aiedge</groupId>
   <artifactId>ai-ready-backend</artifactId>
-  <version>0.3.16</version>
+  <version>0.3.17</version>
   <packaging>pom</packaging>
   <name>ERP Parent Project</name>
   <description>ERP System Parent Project with unified dependency management</description>
@@ -47,7 +47,7 @@
     <mockito.version>5.10.0</mockito.version>
     <mybatis-plus.version>3.5.10.1</mybatis-plus.version>
     <knife4j.version>4.5.0</knife4j.version>
-    <revision>0.3.16</revision>
+    <revision>0.3.17</revision>
     <lombok.version>1.18.32</lombok.version>
     <maven.compiler.target>17</maven.compiler.target>
     <postgresql.version>42.7.11</postgresql.version>
@@ -57,6 +57,16 @@
   </properties>
   <dependencyManagement>
     <dependencies>
+      <dependency>
+        <groupId>org.apache.commons</groupId>
+        <artifactId>commons-compress</artifactId>
+        <version>1.27.1</version>
+      </dependency>
+      <dependency>
+        <groupId>commons-io</groupId>
+        <artifactId>commons-io</artifactId>
+        <version>2.16.1</version>
+      </dependency>
       <dependency>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-web</artifactId>

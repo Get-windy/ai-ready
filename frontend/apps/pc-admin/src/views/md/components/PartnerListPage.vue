@@ -1,7 +1,10 @@
 <template>
   <div class="partner-page-layout">
-    <!-- 左侧类型导航 -->
-    <PartnerTypeSidebar :active-key="partnerType" />
+    <!-- 左侧类型导航（往来单位专用；商品等其它资料模块可关闭） -->
+    <PartnerTypeSidebar
+      v-if="showTypeSidebar"
+      :active-key="partnerType"
+    />
 
     <!-- 右侧主内容区 -->
     <div class="main-content">
@@ -14,8 +17,8 @@
           <div
             v-for="tab in tabs"
             :key="tab.key"
-            :class="['tab-item', { active: activeTab === tab.key }]"
-            @click="activeTab = tab.key"
+            :class="['tab-item', { active: currentTab === tab.key }]"
+            @click="switchTab(tab.key)"
           >
             {{ tab.label }}
           </div>
@@ -26,6 +29,7 @@
       <div class="toolbar-section">
         <div class="toolbar-left">
           <a-button
+            v-if="!hideDefaultToolbar"
             type="primary"
             class="btn-add"
             @click="handleAdd"
@@ -34,6 +38,7 @@
           </a-button>
           <slot name="toolbar-left" />
           <a-button
+            v-if="!hideDefaultToolbar"
             size="small"
             @click="showImportModal"
           >
@@ -42,6 +47,7 @@
         </div>
         <div class="toolbar-right">
           <slot name="toolbar-right" />
+          <template v-if="!hideDefaultToolbar">
           <!-- 列设置 -->
           <a-dropdown v-if="columns.length > 0">
             <a-button
@@ -106,6 +112,7 @@
               </a-menu>
             </template>
           </a-dropdown>
+          </template>
         </div>
       </div>
 
@@ -178,6 +185,24 @@
             <span class="category-title">{{ categoryTitle }}</span>
             <div class="category-header-actions">
               <a-button
+                v-if="treeEditable"
+                type="link"
+                size="small"
+                title="修改分类"
+                @click="showCategoryModal(selectedCategoryNode)"
+              >
+                <EditOutlined />
+              </a-button>
+              <a-button
+                v-if="treeEditable"
+                type="link"
+                size="small"
+                title="删除分类"
+                @click="handleCategoryDelete"
+              >
+                <CloseOutlined />
+              </a-button>
+              <a-button
                 type="link"
                 size="small"
                 title="新增分类"
@@ -188,7 +213,7 @@
               <a-button
                 type="link"
                 size="small"
-                title="折叠"
+                title="收起树形菜单"
                 @click="categoryCollapsed = true"
               >
                 <MenuFoldOutlined />
@@ -279,10 +304,12 @@
               :columns="mergedColumns"
               v-model:data-source="tableData"
               :loading="loading"
-              :view-mode="true"
+              :view-mode="viewMode"
               :fill-mode="true"
+              :storage-key="storageKey || undefined"
               @checkbox-change="handleCheckboxChange"
               @checkbox-all="handleCheckboxAll"
+              @cell-change="onCellChange"
             >
               <!-- 操作列（优先使用子页面自定义，否则用默认） -->
               <template #actionCell="{ record }">
@@ -471,7 +498,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import {
@@ -488,6 +515,8 @@ import {
   SettingOutlined,
   PrinterOutlined,
   UploadOutlined,
+  EditOutlined,
+  CloseOutlined,
 } from '@ant-design/icons-vue'
 import PartnerTypeSidebar from './PartnerTypeSidebar.vue'
 import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
@@ -496,14 +525,15 @@ import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTab
 import StandardPagination from '@/components/Pagination/Pagination.vue'
 import { partnerApi, partnerCategoryApi } from '@/api/erp/partner'
 import type { PartnerCategory } from '@/api/erp/partner'
+import type { MdListAdapter, MdCategoryAdapter } from './partnerListTypes'
 import request from '@/utils/request'
 
 // ── Props ─
 const props = withDefaults(defineProps<{
   /** 往来单位类型 */
-  partnerType: 'customer' | 'supplier' | 'logistics' | 'partner'
+  partnerType?: 'customer' | 'supplier' | 'logistics' | 'partner'
   /** API partnerType参数 */
-  apiPartnerType: string
+  apiPartnerType?: string
   /** 页面标题 */
   pageTitle: string
   /** 分类标题 */
@@ -524,6 +554,26 @@ const props = withDefaults(defineProps<{
   pageSizeOptions?: number[]
   /** 默认每页条数 */
   defaultPageSize?: number
+  /** 是否显示左侧「往来单位类型」导航（资料模块非往来单位页面设为 false） */
+  showTypeSidebar?: boolean
+  /** 数据表列配置存储键（多子Tab页面按Tab传入以实现独立列配置） */
+  storageKey?: string
+  /** 数据适配器（不传则使用往来单位接口） */
+  dataAdapter?: MdListAdapter
+  /** 分类树适配器（不传则使用往来单位分类接口） */
+  categoryAdapter?: MdCategoryAdapter
+  /** 分类树是否可编辑（修改/删除/新增） */
+  treeEditable?: boolean
+  /** 点击「新增」时若给定则拦截（自定义新增行为） */
+  onAdd?: () => void
+  /** 附加查询参数（每次查询时调用，如子Tab过滤条件） */
+  extraParams?: () => Record<string, any>
+  /** 当前子Tab（v-model:active-tab，可由父页面控制以切换列/按钮） */
+  activeTab?: string
+  /** 隐藏内置工具栏（新增/导入/刷新/打印/导出/批量修改/更多），由页面通过插槽完全自定义 */
+  hideDefaultToolbar?: boolean
+  /** 数据表是否只读展示（默认 true；需要行内编辑的页面传 false 并对不可编辑列标 readonly） */
+  viewMode?: boolean
 }>(), {
   categoryTitle: '分类',
   searchPlaceholder: '名称/编码/联系人',
@@ -533,12 +583,40 @@ const props = withDefaults(defineProps<{
   editFormRoute: '',
   pageSizeOptions: () => [20, 50, 100],
   defaultPageSize: 20,
+  showTypeSidebar: true,
+  storageKey: '',
+  treeEditable: false,
+  hideDefaultToolbar: false,
+  viewMode: true,
 })
+
+const emit = defineEmits<{
+  (e: 'update:activeTab', key: string): void
+  (e: 'tab-change', key: string): void
+  (e: 'cell-change', record: any, fieldKey: string, value: any): void
+}>()
+
+/** 表格单元格编辑透传给父页面（如商品上架排序值/起订量行内编辑） */
+function onCellChange(record: any, fieldKey: string, value: any) {
+  emit('cell-change', record, fieldKey, value)
+}
 
 const router = useRouter()
 
 // ── Tab ──
-const activeTab = ref(props.tabs[0]?.key || '')
+const innerTab = ref(props.tabs[0]?.key || '')
+const currentTab = computed(() => props.activeTab ?? innerTab.value)
+
+function switchTab(key: string) {
+  innerTab.value = key
+  emit('update:activeTab', key)
+  emit('tab-change', key)
+  selectedRows.value = []
+  tableRef.value?.clearCheckbox?.()
+  pagination.current = 1
+  // 等父组件把 activeTab 回写后再查询，避免本次查询仍用旧Tab条件
+  nextTick(() => fetchList())
+}
 
 // ─ 搜索 ──
 const searchForm = reactive({
@@ -548,6 +626,20 @@ const searchForm = reactive({
 
 // ── 列可见性 ──
 const visibleColumns = ref<Set<string>>(new Set(props.columns.map(c => c.key)))
+
+// 多子Tab页面切换时列定义会整体替换：把新出现的列自动纳入可见集合，
+// 否则新Tab的列会被下方的可见性过滤全部滤掉（页面空白）。
+watch(() => props.columns, cols => {
+  const next = new Set(visibleColumns.value)
+  let changed = false
+  for (const c of cols || []) {
+    if (!next.has(c.key)) {
+      next.add(c.key)
+      changed = true
+    }
+  }
+  if (changed) visibleColumns.value = next
+})
 
 function toggleColumn(key: string) {
   if (visibleColumns.value.has(key)) {
@@ -568,9 +660,14 @@ const categoryCollapsed = ref(false)
 
 const categoryTreeData = computed(() => categoryTree.value)
 
-// 当前分类路径
+// 当前分类路径（根节点文案 = 「全部」+ 分类名去掉"分类"二字，如 商品分类 → 全部商品）
+const rootCategoryLabel = computed(() => {
+  const name = props.categoryTitle || '分类'
+  return `全部${name.endsWith('分类') ? name.slice(0, -2) : name}`
+})
+
 const currentCategoryPath = computed(() => {
-  if (selectedCategoryId.value === '0' || !categoryTree.value.length) return `全部${props.categoryTitle}`
+  if (selectedCategoryId.value === '0' || !categoryTree.value.length) return rootCategoryLabel.value
   const path: string[] = []
   function find(nodes: any[], target: string): boolean {
     for (const node of nodes) {
@@ -582,7 +679,7 @@ const currentCategoryPath = computed(() => {
     return false
   }
   find(categoryTree.value, selectedCategoryId.value)
-  return path.length ? path.join(' / ') : `全部${props.categoryTitle}`
+  return path.length ? path.join(' / ') : rootCategoryLabel.value
 })
 
 // 加载分类树
@@ -590,7 +687,9 @@ async function fetchCategoryTree() {
   categoryLoading.value = true
   categoryError.value = false
   try {
-    const data = await partnerCategoryApi.getTree(props.apiPartnerType)
+    const data = props.categoryAdapter
+      ? await props.categoryAdapter.load()
+      : await partnerCategoryApi.getTree(props.apiPartnerType || 'CUSTOMER')
     categoryTree.value = Array.isArray(data) ? data : []
     const firstLevel = categoryTree.value.map(n => String(n.id))
     if (firstLevel.length > 0) {
@@ -604,6 +703,53 @@ async function fetchCategoryTree() {
   } finally {
     categoryLoading.value = false
   }
+}
+
+/** 当前选中的分类节点（用于「修改/删除分类」） */
+const selectedCategoryNode = computed<PartnerCategory | null>(() => {
+  if (selectedCategoryId.value === '0') return null
+  let found: PartnerCategory | null = null
+  const walk = (nodes: any[]) => {
+    for (const n of nodes) {
+      if (String(n.id) === selectedCategoryId.value) {
+        found = n
+        return
+      }
+      if (n.children?.length) walk(n.children)
+    }
+  }
+  walk(categoryTree.value)
+  return found
+})
+
+/** 删除选中分类（存在子分类或已被商品引用时后端会拒绝） */
+function handleCategoryDelete() {
+  const node = selectedCategoryNode.value
+  if (!node) {
+    message.warning('请先在左侧选择要删除的分类')
+    return
+  }
+  Modal.confirm({
+    title: '确认删除',
+    content: `确定要删除分类 "${(node as any).categoryName}" 吗？`,
+    okText: '确认删除',
+    okType: 'danger',
+    onOk: async () => {
+      try {
+        if (props.categoryAdapter?.remove) {
+          await props.categoryAdapter.remove(node!.id)
+        } else {
+          await partnerCategoryApi.delete(node!.id)
+        }
+        message.success('删除成功')
+        selectedCategoryId.value = '0'
+        await fetchCategoryTree()
+        await fetchList()
+      } catch (e: any) {
+        message.error(e?.message || '删除失败')
+      }
+    },
+  })
 }
 
 function onCategorySelect(keys: (string | number)[]) {
@@ -664,10 +810,18 @@ async function handleCategoryOk() {
       categoryType: props.apiPartnerType,
     }
     if (editingCategory.value) {
-      await partnerCategoryApi.update(editingCategory.value.id, catPayload)
+      if (props.categoryAdapter) {
+        await props.categoryAdapter.update(editingCategory.value.id, catPayload)
+      } else {
+        await partnerCategoryApi.update(editingCategory.value.id, catPayload)
+      }
       message.success('更新成功')
     } else {
-      await partnerCategoryApi.create(catPayload)
+      if (props.categoryAdapter) {
+        await props.categoryAdapter.create(catPayload)
+      } else {
+        await partnerCategoryApi.create(catPayload)
+      }
       message.success('新增成功')
     }
     categoryModalVisible.value = false
@@ -721,7 +875,6 @@ async function fetchList() {
     const params: any = {
       pageNum: pagination.current,
       pageSize: pagination.pageSize,
-      partnerType: props.apiPartnerType,
     }
     if (selectedCategoryId.value && selectedCategoryId.value !== '0') {
       params.categoryId = selectedCategoryId.value
@@ -732,13 +885,23 @@ async function fetchList() {
     if (searchForm.status) {
       params.status = searchForm.status
     }
-    if (activeTab.value && activeTab.value !== 'all') {
-      params.tab = activeTab.value
+    if (currentTab.value && currentTab.value !== 'all') {
+      params.tab = currentTab.value
+    }
+    if (props.extraParams) {
+      Object.assign(params, props.extraParams())
     }
 
-    const res = await partnerApi.page(params)
-    tableData.value = res?.records || []
-    pagination.total = res?.total || 0
+    if (props.dataAdapter) {
+      const res = await props.dataAdapter.load(params)
+      tableData.value = res?.records || []
+      pagination.total = res?.total || 0
+    } else {
+      params.partnerType = props.apiPartnerType
+      const res = await partnerApi.page(params)
+      tableData.value = res?.records || []
+      pagination.total = res?.total || 0
+    }
   } catch (e) {
     console.error(`[${props.pageTitle}] 加载列表失败`, e)
     message.error('加载列表失败')
@@ -768,6 +931,10 @@ function handleCheckboxAll(_checked: boolean, records: any[]) {
 
 // ── 操作 ─
 function handleAdd() {
+  if (props.onAdd) {
+    props.onAdd()
+    return
+  }
   if (props.formRoute) {
     router.push(props.formRoute)
   }
@@ -803,7 +970,11 @@ function handleToggleStatus(record: any) {
     content: `确定要${actionText}该记录吗？`,
     onOk: async () => {
       try {
-        await partnerApi.updateStatus(record.id, newStatus)
+        if (props.dataAdapter?.updateStatus) {
+          await props.dataAdapter.updateStatus(record.id, newStatus)
+        } else {
+          await partnerApi.updateStatus(record.id, newStatus)
+        }
         message.success(`已${actionText}`)
         fetchList()
       } catch {
@@ -814,14 +985,19 @@ function handleToggleStatus(record: any) {
 }
 
 function handleDelete(record: any) {
+  const displayName = record.partnerName || record.productName || record.name || ''
   Modal.confirm({
     title: '确认删除',
-    content: `确定要删除 "${record.partnerName}" 吗？此操作不可恢复。`,
+    content: `确定要删除 "${displayName}" 吗？此操作不可恢复。`,
     okText: '确认删除',
     okType: 'danger',
     onOk: async () => {
       try {
-        await partnerApi.delete(record.id)
+        if (props.dataAdapter?.remove) {
+          await props.dataAdapter.remove(record.id)
+        } else {
+          await partnerApi.delete(record.id)
+        }
         message.success('删除成功')
         fetchList()
       } catch {
@@ -861,7 +1037,9 @@ function handleBatchStatus() {
       try {
         await Promise.all(selectedRows.value.map((row: any) => {
           const newStatus = row.status === 'ENABLED' ? 'DISABLED' : 'ENABLED'
-          return partnerApi.updateStatus(row.id, newStatus)
+          return props.dataAdapter?.updateStatus
+            ? props.dataAdapter.updateStatus(row.id, newStatus)
+            : partnerApi.updateStatus(row.id, newStatus)
         }))
         message.success('批量改状态成功')
         fetchList()
@@ -888,7 +1066,8 @@ function handleBatchDelete() {
     okType: 'danger',
     onOk: async () => {
       try {
-        await Promise.all(selectedRows.value.map((row: any) => partnerApi.delete(row.id)))
+        await Promise.all(selectedRows.value.map((row: any) =>
+          props.dataAdapter?.remove ? props.dataAdapter.remove(row.id) : partnerApi.delete(row.id)))
         message.success('批量删除成功')
         fetchList()
       } catch {
@@ -961,6 +1140,19 @@ function handleKeydown(e: KeyboardEvent) {
 function onPartnerRefresh() {
   fetchList()
 }
+
+defineExpose({
+  /** 重新查询（父页面「查询」按钮调用，会带上 extraParams 中的父页面条件） */
+  search: handleSearch,
+  /** 仅刷新列表（保持页码） */
+  refresh: fetchList,
+  /** 刷新分类树 + 列表 */
+  refreshAll,
+  /** 当前选中行 */
+  getSelectedRows: () => selectedRows.value,
+  /** 当前页数据 */
+  getTableData: () => tableData.value,
+})
 
 onMounted(() => {
   fetchCategoryTree()

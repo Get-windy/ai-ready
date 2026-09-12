@@ -12,6 +12,15 @@ import cn.aiedge.erp.finance.reconciliation.dto.ReconciliationQueryRequest;
 import cn.aiedge.erp.finance.reconciliation.dto.ReconciliationVO;
 import cn.aiedge.erp.finance.reconciliation.dto.ReconciliationItemVO;
 import cn.aiedge.erp.finance.reconciliation.service.IReconciliationService;
+import cn.aiedge.erp.finance.arapadjust.dto.ArApAdjustSaveDTO;
+import cn.aiedge.erp.finance.arapadjust.entity.ArApAdjustItem;
+import cn.aiedge.erp.finance.arapadjust.service.ArApAdjustService;
+import cn.aiedge.erp.finance.model.entity.Receivable;
+import cn.aiedge.erp.finance.model.entity.Payable;
+import cn.aiedge.erp.finance.model.entity.FinanceAccount;
+import cn.aiedge.erp.finance.mapper.ReceivableMapper;
+import cn.aiedge.erp.finance.mapper.PayableMapper;
+import cn.aiedge.erp.finance.mapper.FinanceAccountMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -20,10 +29,13 @@ import cn.dev33.satoken.stp.StpUtil;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -34,12 +46,28 @@ import java.util.stream.Collectors;
 @Transactional
 public class ReconciliationServiceImpl extends ServiceImpl<ReconciliationMapper, Reconciliation> implements IReconciliationService {
 
+    private static final Logger log = LoggerFactory.getLogger(ReconciliationServiceImpl.class);
+
+    /** 应收/应付查询的非坏账、非核销状态 */
+    private static final List<String> OPEN_STATUSES = Arrays.asList("normal", "overdue");
+    private static final BigDecimal ZERO = BigDecimal.ZERO;
+
     private final ReconciliationMapper reconciliationMapper;
     private final ReconciliationItemMapper reconciliationItemMapper;
+    private final ReceivableMapper receivableMapper;
+    private final PayableMapper payableMapper;
+    private final FinanceAccountMapper financeAccountMapper;
+    private final ArApAdjustService arApAdjustService;
 
-    public ReconciliationServiceImpl(ReconciliationMapper reconciliationMapper, ReconciliationItemMapper reconciliationItemMapper) {
+    public ReconciliationServiceImpl(ReconciliationMapper reconciliationMapper, ReconciliationItemMapper reconciliationItemMapper,
+                                     ReceivableMapper receivableMapper, PayableMapper payableMapper,
+                                     FinanceAccountMapper financeAccountMapper, ArApAdjustService arApAdjustService) {
         this.reconciliationMapper = reconciliationMapper;
         this.reconciliationItemMapper = reconciliationItemMapper;
+        this.receivableMapper = receivableMapper;
+        this.payableMapper = payableMapper;
+        this.financeAccountMapper = financeAccountMapper;
+        this.arApAdjustService = arApAdjustService;
     }
 
     @Override
@@ -98,6 +126,7 @@ public class ReconciliationServiceImpl extends ServiceImpl<ReconciliationMapper,
     @Override
     public Page<ReconciliationVO> pageReconciliations(ReconciliationQueryRequest request) {
         LambdaQueryWrapper<Reconciliation> wrapper = Wrappers.lambdaQuery(Reconciliation.class)
+                .like(request.getReconciliationNo() != null, Reconciliation::getReconciliationNo, request.getReconciliationNo())
                 .eq(request.getReconciliationType() != null, Reconciliation::getReconciliationType, request.getReconciliationType())
                 .eq(request.getTargetId() != null, Reconciliation::getTargetId, request.getTargetId())
                 .like(request.getTargetName() != null, Reconciliation::getTargetName, request.getTargetName())
@@ -177,15 +206,89 @@ public class ReconciliationServiceImpl extends ServiceImpl<ReconciliationMapper,
         if (reconciliation == null || !reconciliation.getTenantId().equals(getCurrentTenantId())) {
             throw BusinessException.notFound("对账记录不存在");
         }
-        
-        // 更新差异处理信息
+
+        // P1 差异闭环：客户/供应商差异下推《应收应付调整》（记账经凭证，调整应收/应付余额）
+        BigDecimal signedDiff = nvl(reconciliation.getSystemBalance()).subtract(nvl(reconciliation.getActualBalance()));
+        if ("CUSTOMER".equals(reconciliation.getReconciliationType())
+                || "SUPPLIER".equals(reconciliation.getReconciliationType())) {
+            if (signedDiff.compareTo(ZERO) != 0) {
+                pushDownAdjust(reconciliation, signedDiff);
+            }
+        } else if (signedDiff.compareTo(ZERO) != 0) {
+            // 银行差异：不涉及应收/应付，仅登记原因结案（避免误用调整单）
+            log.warn("[对账管理] 银行对账差异，不生成应收应付调整单: id={}", id);
+        }
+
+        // 结案：登记差异原因 + 处理人
         reconciliation.setDifferenceReason(differenceReason);
         reconciliation.setHandlerId(getCurrentUser());
         reconciliation.setHandlerName(getCurrentUserName());
         reconciliation.setStatus(1); // 差异已处理，状态设为已对账
         reconciliation.setReconciliationDate(LocalDate.now());
-        
+
         reconciliationMapper.updateById(reconciliation);
+    }
+
+    /**
+     * 按对账类型与差异符号决定调整方向并下推《应收应付调整》。
+     *  客户：系统应收 > 实际确认 → 应收减少(2)；系统应收 < 实际确认 → 应收增加(1)。
+     *  供应商：系统应付 > 实际确认 → 应付减少(4)；系统应付 < 实际确认 → 应付增加(3)。
+     */
+    private void pushDownAdjust(Reconciliation reconciliation, BigDecimal signedDiff) {
+        boolean isCustomer = "CUSTOMER".equals(reconciliation.getReconciliationType());
+        boolean positive = signedDiff.compareTo(ZERO) > 0;
+        Integer direction;
+        if (isCustomer) {
+            direction = positive ? 2 : 1; // 应收减少 / 应收增加
+        } else {
+            direction = positive ? 4 : 3; // 应付减少 / 应付增加
+        }
+        String partnerType = isCustomer ? "customer" : "supplier";
+
+        ArApAdjustSaveDTO dto = new ArApAdjustSaveDTO();
+        dto.setDocDate(reconciliation.getReconciliationDate() != null ? reconciliation.getReconciliationDate() : LocalDate.now());
+        dto.setDirection(direction);
+        dto.setPartnerType(partnerType);
+        dto.setPartnerId(reconciliation.getTargetId());
+        dto.setPartnerName(reconciliation.getTargetName());
+        dto.setSummary("对账差异处理 - " + reconciliation.getReconciliationNo());
+        dto.setRemark(reconciliation.getRemark());
+
+        ArApAdjustItem item = new ArApAdjustItem();
+        item.setSubjectCode("1901"); // 待处理财产损溢
+        item.setSubjectName("待处理财产损溢");
+        item.setAmount(signedDiff.abs());
+        item.setRemark("对账差异 - " + reconciliation.getReconciliationNo());
+        dto.setItems(java.util.Collections.singletonList(item));
+
+        cn.aiedge.erp.finance.arapadjust.entity.ArApAdjust adjust = arApAdjustService.saveDraft(dto);
+        cn.aiedge.erp.finance.arapadjust.entity.ArApAdjust posted =
+                arApAdjustService.confirm(adjust.getId(), getCurrentUserId(), getCurrentUserName());
+        String downPushNo = (posted != null && posted.getDocNo() != null) ? posted.getDocNo() : adjust.getDocNo();
+        reconciliation.setRemark(appendRemark(reconciliation.getRemark(), "下推调整单:" + downPushNo));
+        log.info("[对账管理] 差异下推应收应付调整成功: reconNo={}, adjustNo={}", reconciliation.getReconciliationNo(), downPushNo);
+    }
+
+    @Override
+    public BigDecimal getBalance(String reconciliationType, Long targetId) {
+        if (targetId == null) {
+            return ZERO;
+        }
+        if ("BANK".equals(reconciliationType)) {
+            FinanceAccount account = financeAccountMapper.selectById(targetId);
+            return account != null ? nvl(account.getBalance()) : ZERO;
+        } else if ("CUSTOMER".equals(reconciliationType)) {
+            List<Receivable> list = receivableMapper.selectList(new LambdaQueryWrapper<Receivable>()
+                    .eq(Receivable::getCustomerId, String.valueOf(targetId))
+                    .in(Receivable::getStatus, OPEN_STATUSES));
+            return list.stream().map(r -> nvl(r.getRemainingAmount())).reduce(ZERO, BigDecimal::add);
+        } else if ("SUPPLIER".equals(reconciliationType)) {
+            List<Payable> list = payableMapper.selectList(new LambdaQueryWrapper<Payable>()
+                    .eq(Payable::getSupplierId, String.valueOf(targetId))
+                    .in(Payable::getStatus, OPEN_STATUSES));
+            return list.stream().map(p -> nvl(p.getRemainingAmount())).reduce(ZERO, BigDecimal::add);
+        }
+        return ZERO;
     }
 
     private ReconciliationVO convertToVO(Reconciliation reconciliation) {
@@ -255,6 +358,28 @@ public class ReconciliationServiceImpl extends ServiceImpl<ReconciliationMapper,
             return StpUtil.getLoginIdAsString(); // 实际项目中可能需要从用户服务获取真实姓名
         }
         return "系统";
+    }
+
+    private Long getCurrentUserId() {
+        if (StpUtil.isLogin()) {
+            try {
+                return Long.valueOf(StpUtil.getLoginIdAsString());
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private BigDecimal nvl(BigDecimal v) {
+        return v != null ? v : ZERO;
+    }
+
+    private String appendRemark(String existing, String add) {
+        if (existing == null || existing.isEmpty()) {
+            return add;
+        }
+        return existing + "；" + add;
     }
 
     @Override

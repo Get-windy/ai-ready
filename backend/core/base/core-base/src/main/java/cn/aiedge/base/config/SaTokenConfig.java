@@ -43,6 +43,10 @@ public class SaTokenConfig implements WebMvcConfigurer {
                         "/api/tenant/register",
                         "/api/temp/reset-password",
                         "/api/erp/batch-sn/**",
+                        // 商品图片内容访问（供 <img> 直接引用，不经 Authorization 头）
+                        "/api/erp/md/image/view/**",
+                        // 通用文件访问（证件/附件/头像等 <img> 直接引用）
+                        "/api/file/view/**",
                         "/api/supplier/**",
                         "/api/v1/supplier-portal/**",
                         "/api/crm/**",
@@ -78,6 +82,10 @@ public class SaTokenConfig implements WebMvcConfigurer {
                         "/api/tenant/register",
                         "/api/temp/reset-password",
                         "/api/erp/batch-sn/**",
+                        // 商品图片内容访问（供 <img> 直接引用，不经 Authorization 头）
+                        "/api/erp/md/image/view/**",
+                        // 通用文件访问（证件/附件/头像等 <img> 直接引用）
+                        "/api/file/view/**",
                         "/api/supplier/**",
                         "/api/v1/supplier-portal/**",
                         "/api/crm/**",

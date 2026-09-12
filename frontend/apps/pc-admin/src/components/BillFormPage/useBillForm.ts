@@ -23,8 +23,8 @@ export type BillField = {
 
 export interface BillFormApi {
   create: (data: any) => Promise<any>
-  update?: (id: number, data: any) => Promise<any>
-  getById?: (id: number) => Promise<any>
+  update?: (id: number | string, data: any) => Promise<any>
+  getById?: (id: number | string) => Promise<any>
 }
 
 export interface UseBillFormOptions {
@@ -145,7 +145,8 @@ export function useBillForm(options: UseBillFormOptions) {
   }
 
   // ── 编辑模式：加载详情 ──
-  async function loadDetail(id: number) {
+  // 注意：id 必须原样透传（雪花ID超出 JS Number 安全范围，Number(id) 会精度丢失导致查不到单据）
+  async function loadDetail(id: number | string) {
     if (!api.getById) return
     try {
       const data = await api.getById(id)
@@ -274,7 +275,7 @@ export function useBillForm(options: UseBillFormOptions) {
       const payload = buildPayload(status)
       const editId = route.params.id || route.query.id
       if (effectiveMode.value === 'edit' && editId && api.update) {
-        await api.update(Number(editId), payload)
+        await api.update(editId, payload)
       } else {
         await api.create(payload)
       }
@@ -306,12 +307,15 @@ export function useBillForm(options: UseBillFormOptions) {
 
   // ── 生命周期 ──
   onMounted(() => {
-    generateBillNo()  // async, fires and forgets
+    const editId = route.params.id || route.query.id
+    // 编辑/查看模式不取新号：generateBillNo 是异步的，会晚于 loadDetail 回来并覆盖真实单号
+    if (!(editId && effectiveMode.value === 'edit')) {
+      generateBillNo()  // async, fires and forgets
+    }
     loadOptions()
     document.addEventListener('keydown', handleKeydown)
-    const editId = route.params.id || route.query.id
     if (editId && effectiveMode.value === 'edit') {
-      loadDetail(Number(editId))
+      loadDetail(editId)
     }
   })
 
@@ -326,12 +330,16 @@ export function useBillForm(options: UseBillFormOptions) {
     optionRefs,
     filterOption,
     effectiveMode,
+    /** 供页面在同路由 query 变化（?id 切换）时手动重载详情 */
+    loadDetail,
     handleAddProduct,
     handleRemoveProduct,
     handleProductChange,
     handleFieldChange,
     handleSaveDraft,
     handleSubmit,
+    /** 构建提交数据（供「先落单再走业务动作」的页面复用，如零售单先 create 再 /settle） */
+    buildPayload,
     // 计算
     totalQuantity,
     totalAmount,

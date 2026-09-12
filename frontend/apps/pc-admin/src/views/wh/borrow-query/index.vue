@@ -49,14 +49,9 @@
           </a-space>
         </template>
 
-        <!-- ═══ 工具栏右侧：列配置 + 页面配置 + 刷新 + 打印(F8) + 导出 ═══ -->
+        <!-- ═══ 工具栏右侧：页面配置 + 刷新 + 打印(F8) + 导出（列配置走数据表表头齿轮） ═══ -->
         <template #toolbar-right>
           <a-space :size="8">
-            <a-tooltip title="列配置">
-              <a-button size="small" @click="showColumnConfig = true">
-                <TableOutlined />
-              </a-button>
-            </a-tooltip>
             <a-tooltip title="页面配置">
               <a-button size="small" @click="showPageConfig = true">
                 <SettingOutlined />
@@ -138,6 +133,7 @@
           <div class="table-area">
             <BillTableList
               :columns="currentColumns"
+              :storage-key="activeTab === 'in' ? 'borrow-query-table-columns-in' : 'borrow-query-table-columns-out'"
               :data-source="tableData"
               :loading="loading"
               :pagination="billPagination"
@@ -194,17 +190,6 @@
       </CategoryListLayout>
     </PageContainer>
 
-    <!-- ═══ 数据表列配置弹窗 ═══ -->
-    <ColumnConfigPanel
-      :open="showColumnConfig"
-      :settings-columns="panelColumns"
-      :is-locked-column="isLockedColumn"
-      @update:open="showColumnConfig = $event"
-      @change="handleColumnConfigChange"
-      @reset="handleColumnConfigReset"
-      @drag-end="handleColumnConfigChange"
-    />
-
     <!-- ═══ 页面配置弹窗 ═══ -->
     <PageConfigPanel
       :open="showPageConfig"
@@ -223,15 +208,13 @@ import { message } from 'ant-design-vue'
 import type { Dayjs } from 'dayjs'
 import dayjs from 'dayjs'
 import {
-  PlusOutlined, SettingOutlined, TableOutlined, ReloadOutlined, PrinterOutlined, ExportOutlined,
+  PlusOutlined, SettingOutlined, ReloadOutlined, PrinterOutlined, ExportOutlined,
 } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayout.vue'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
-import ColumnConfigPanel from '@/components/ColumnConfigPanel/index.vue'
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
-import { useColumnConfig, isLockedColumn } from '@/composables/useColumnConfig'
 import { productCategoryApi } from '@/api/erp/product'
 import { borrowApi } from '@/api/wms/borrow'
 
@@ -282,8 +265,7 @@ const tableData = computed(() =>
   allRows.value.slice((pagination.current - 1) * pagination.pageSize, pagination.current * pagination.pageSize)
 )
 
-// ═══ 列配置 / 页面配置弹窗 ═══
-const showColumnConfig = ref(false)
+// ═══ 页面配置弹窗（列配置走数据表表头齿轮） ═══
 const showPageConfig = ref(false)
 
 // ═══ 列定义（对标文档30列 + 序号） ═══
@@ -343,34 +325,10 @@ function makeColumns(isIn: boolean): ColumnDef[] {
 const inColumnDefs = makeColumns(true)
 const outColumnDefs = makeColumns(false)
 
-const {
-  visibleColumns: inVisibleColumns,
-  onSettingChange: onInSettingChange,
-  resetSettings: resetInSettings,
-  settingsColumns: inSettingsColumns,
-} = useColumnConfig(inColumnDefs, 'borrow-query-list-columns-in')
-const {
-  visibleColumns: outVisibleColumns,
-  onSettingChange: onOutSettingChange,
-  resetSettings: resetOutSettings,
-  settingsColumns: outSettingsColumns,
-} = useColumnConfig(outColumnDefs, 'borrow-query-list-columns-out')
-
+// ═══ 列配置（走数据表表头齿轮：storage-key=borrow-query-table-columns-in/out） ═══
 const currentColumns = computed(() =>
-  activeTab.value === 'in' ? inVisibleColumns.value : outVisibleColumns.value
+  activeTab.value === 'in' ? inColumnDefs : outColumnDefs
 )
-const panelColumns = computed(() =>
-  activeTab.value === 'in' ? inSettingsColumns.value : outSettingsColumns.value
-)
-
-function handleColumnConfigChange() {
-  if (activeTab.value === 'in') onInSettingChange()
-  else onOutSettingChange()
-}
-function handleColumnConfigReset() {
-  if (activeTab.value === 'in') resetInSettings()
-  else resetOutSettings()
-}
 
 // ═══ 页面配置（查询条件显隐、功能按钮） ═══
 const PAGE_CONFIG_STORAGE_KEY = 'borrow-query-page-config'

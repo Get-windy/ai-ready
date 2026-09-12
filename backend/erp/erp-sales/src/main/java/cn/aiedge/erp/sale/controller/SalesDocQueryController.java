@@ -12,6 +12,7 @@ import cn.aiedge.erp.sale.service.ISaleReturnDocService;
 import cn.aiedge.erp.sale.service.ISaleExchangeService;
 import cn.aiedge.erp.sale.service.UnifiedSalesDocQueryService;
 import cn.dev33.satoken.annotation.SaCheckLogin;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -60,8 +61,14 @@ public class SalesDocQueryController {
         return unifiedSalesDocQueryService.unifiedPage(queryDTO);
     }
 
+    /** 整单备注最大长度（erp_sale_order / erp_sale_outbound / erp_sale_exchange.remark 为 varchar(500)） */
+    private static final int REMARK_MAX_LENGTH = 500;
+
     /**
      * 更新单据整单备注
+     *
+     * <p>只更新 remark 列（不整行覆盖），避免把并发的其它字段修改回滚。</p>
+     *
      * @param docType 单据类型 (SALE_ORDER/OUTBOUND/RETURN/EXCHANGE)
      * @param id 单据ID
      * @param body 请求体 { remark: "备注内容" }
@@ -72,41 +79,44 @@ public class SalesDocQueryController {
             @PathVariable Long id,
             @RequestBody Map<String, String> body) {
         String remark = body.get("remark");
-        boolean updated = false;
+        if (remark == null) {
+            remark = "";
+        }
+        if (remark.length() > REMARK_MAX_LENGTH) {
+            return Map.of("success", false,
+                    "message", "整单备注超长，最多 " + REMARK_MAX_LENGTH + " 个字符");
+        }
 
+        boolean updated;
         switch (docType) {
-            case "SALE_ORDER": {
-                SaleOrder entity = saleOrderService.getById(id);
-                if (entity != null) {
-                    entity.setRemark(remark);
-                    updated = saleOrderService.updateById(entity);
+            case "SALE_ORDER":
+                if (saleOrderService.getById(id) == null) {
+                    return Map.of("success", false, "message", "单据不存在或已删除");
                 }
+                updated = saleOrderService.update(new UpdateWrapper<SaleOrder>()
+                        .eq("id", id).set("remark", remark));
                 break;
-            }
-            case "OUTBOUND": {
-                SaleOutbound entity = saleOutboundService.getById(id);
-                if (entity != null) {
-                    entity.setRemark(remark);
-                    updated = saleOutboundService.updateById(entity);
+            case "OUTBOUND":
+                if (saleOutboundService.getById(id) == null) {
+                    return Map.of("success", false, "message", "单据不存在或已删除");
                 }
+                updated = saleOutboundService.update(new UpdateWrapper<SaleOutbound>()
+                        .eq("id", id).set("remark", remark));
                 break;
-            }
-            case "RETURN": {
-                SaleReturnDoc entity = saleReturnDocService.getById(id);
-                if (entity != null) {
-                    entity.setRemark(remark);
-                    updated = saleReturnDocService.updateById(entity);
+            case "RETURN":
+                if (saleReturnDocService.getById(id) == null) {
+                    return Map.of("success", false, "message", "单据不存在或已删除");
                 }
+                updated = saleReturnDocService.update(new UpdateWrapper<SaleReturnDoc>()
+                        .eq("id", id).set("remark", remark));
                 break;
-            }
-            case "EXCHANGE": {
-                SaleExchange entity = saleExchangeService.getById(id);
-                if (entity != null) {
-                    entity.setRemark(remark);
-                    updated = saleExchangeService.updateById(entity);
+            case "EXCHANGE":
+                if (saleExchangeService.getById(id) == null) {
+                    return Map.of("success", false, "message", "单据不存在或已删除");
                 }
+                updated = saleExchangeService.update(new UpdateWrapper<SaleExchange>()
+                        .eq("id", id).set("remark", remark));
                 break;
-            }
             default:
                 throw new IllegalArgumentException("不支持的单据类型: " + docType);
         }

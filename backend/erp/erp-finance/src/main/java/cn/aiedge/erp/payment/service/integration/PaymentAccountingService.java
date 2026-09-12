@@ -78,6 +78,7 @@ public class PaymentAccountingService {
         debitEntry.setSubjectCode("2202");  // 应付账款
         debitEntry.setDebitAmount(amount);
         debitEntry.setCreditAmount(BigDecimal.ZERO);
+        debitEntry.setAuxUnit(supplierName);  // 核算项-供应商（辅助核算余额表按往来单位归集）
 
         BusinessAccountingRequest.AccountingRequestItem creditEntry = new BusinessAccountingRequest.AccountingRequestItem();
         creditEntry.setSummary("银行存款");
@@ -136,6 +137,7 @@ public class PaymentAccountingService {
         creditEntry.setSubjectCode("1122");  // 应收账款
         creditEntry.setDebitAmount(BigDecimal.ZERO);
         creditEntry.setCreditAmount(amount);
+        creditEntry.setAuxUnit(customerName);  // 核算项-客户（辅助核算余额表按往来单位归集）
 
         voucherRequest.setItems(List.of(debitEntry, creditEntry));
 
@@ -180,6 +182,7 @@ public class PaymentAccountingService {
         debitEntry.setSubjectCode("1123");  // 预付账款
         debitEntry.setDebitAmount(amount);
         debitEntry.setCreditAmount(BigDecimal.ZERO);
+        debitEntry.setAuxUnit(supplierName);  // 核算项-供应商（辅助核算余额表按往来单位归集）
 
         BusinessAccountingRequest.AccountingRequestItem creditEntry = new BusinessAccountingRequest.AccountingRequestItem();
         creditEntry.setSummary("银行存款");

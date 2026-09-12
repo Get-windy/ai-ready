@@ -5,12 +5,12 @@
   <parent>
     <groupId>cn.aiedge</groupId>
     <artifactId>ai-ready-backend</artifactId>
-    <version>0.3.16</version>
+    <version>0.3.17</version>
     <relativePath>../../pom.xml</relativePath>
   </parent>
   <groupId>cn.aiedge.erp</groupId>
   <artifactId>erp-delivery-route</artifactId>
-  <version>0.3.16</version>
+  <version>0.3.17</version>
   <name>ERP配送路线优化模块</name>
   <description>配送路线优化功能：高德API集成、多点路径规划、实时路况调整、导航功能</description>
   <licenses>
@@ -20,6 +20,20 @@
     </license>
   </licenses>
   <dependencies>
+    <dependency>
+      <groupId>cn.aiedge</groupId>
+      <artifactId>core-base</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.poi</groupId>
+      <artifactId>poi</artifactId>
+      <version>5.2.5</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.poi</groupId>
+      <artifactId>poi-ooxml</artifactId>
+      <version>5.2.5</version>
+    </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-web</artifactId>

@@ -46,10 +46,46 @@ public class Voucher extends BaseEntity {
     private Integer fiscalPeriod;
 
     /**
+     * 单据类型 (manual-手工凭证 / system-系统凭证)
+     */
+    @TableField("voucher_type")
+    private String voucherType = "manual";
+
+    /**
+     * 凭证头摘要
+     */
+    @TableField("summary")
+    private String summary;
+
+    /**
+     * 经手人
+     */
+    @TableField("handler_name")
+    private String handlerName;
+
+    /**
+     * 部门
+     */
+    @TableField("dept_name")
+    private String deptName;
+
+    /**
+     * 来源单据编号
+     */
+    @TableField("source_no")
+    private String sourceNo;
+
+    /**
      * 附件数量
      */
     @TableField("attachments")
     private Integer attachments = 0;
+
+    /**
+     * 打印次数
+     */
+    @TableField("print_count")
+    private Integer printCount = 0;
 
     /**
      * 制单人

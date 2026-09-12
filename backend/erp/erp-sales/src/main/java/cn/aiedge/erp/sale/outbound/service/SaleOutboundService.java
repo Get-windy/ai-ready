@@ -1,5 +1,6 @@
 package cn.aiedge.erp.sale.outbound.service;
 
+import cn.aiedge.erp.sale.outbound.dto.SaleOutboundQueryDTO;
 import cn.aiedge.erp.sale.outbound.entity.SaleOutbound;
 import cn.aiedge.erp.sale.outbound.entity.SaleOutboundItem;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -13,15 +14,11 @@ public interface SaleOutboundService extends IService<SaleOutbound> {
 
     SaleOutbound getByOutboundNo(String outboundNo);
 
-    Page<SaleOutbound> pageList(String keyword, Long customerId, Long orderId, Long warehouseId, Integer status,
-                                String outboundNo, Long salesPersonId, String settlementStatus,
-                                String settlementMethod, String sourceOrder, String receiverName,
-                                String dateStart, String dateEnd, int pageNum, int pageSize);
+    /** 按单据分页查询（对标文档 40 项查询条件） */
+    Page<SaleOutbound> pageList(SaleOutboundQueryDTO query);
 
-    Page<Map<String, Object>> pageDetail(String keyword, Long customerId, Long warehouseId, Integer status,
-                                          String outboundNo, Long productId, Long salesPersonId,
-                                          String settlementStatus, String sourceOrder,
-                                          String dateStart, String dateEnd, int pageNum, int pageSize);
+    /** 按明细分页查询（对标文档 18 项查询条件，分页口径 = 明细行） */
+    Page<Map<String, Object>> pageDetail(SaleOutboundQueryDTO query);
 
     List<SaleOutbound> listByCustomerId(Long customerId);
 
@@ -78,9 +75,16 @@ public interface SaleOutboundService extends IService<SaleOutbound> {
     SaleOutbound confirmFromWms(Long saleOrderId);
 
     /**
-     * 导出出库单列表
+     * 导出售库单列表（按当前查询条件返回全部命中数据，供 Excel 流式导出）
      */
-    List<SaleOutbound> exportList(String keyword, Integer status);
+    List<SaleOutbound> exportList(SaleOutboundQueryDTO query);
+
+    /**
+     * 批量写入物流备注（列表页「物流备注」功能，真实落库到 logistics_remark）
+     *
+     * @return 实际更新的单据数
+     */
+    int batchUpdateLogisticsRemark(List<Long> ids, String logisticsRemark);
 
     /**
      * 复制出库单（从已有出库单复制为草稿）

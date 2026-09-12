@@ -10,10 +10,6 @@
             <template #icon><SettingOutlined /></template>
             <span style="font-size:12px">页面配置</span>
           </a-button>
-          <a-button size="small" class="toolbar-btn" @click="toggleColumnConfig">
-            <template #icon><BarsOutlined /></template>
-            <span style="font-size:12px">列配置</span>
-          </a-button>
           <a-badge :status="loading ? 'processing' : (hasError ? 'error' : 'success')" />
           <span v-if="lastUpdateTime" class="update-time">最后更新: {{ lastUpdateTime }}</span>
           <a-button size="small" class="toolbar-btn" @click="fetchData">
@@ -175,7 +171,8 @@
       <!-- ═══ 数据表格 ═══ -->
       <template #table>
         <BillTableList
-          :columns="visibleColumns"
+          :columns="columns"
+          :storage-key="'purchase-detail-query-table-columns'"
           :data-source="tableData"
           :loading="loading"
           :pagination="billPagination"
@@ -203,17 +200,6 @@
       @update:open="showPageConfig = $event"
       @change="handlePageConfigChange"
     />
-
-    <!-- ═══ 列配置弹窗 ═══ -->
-    <ColumnConfigPanel
-      :open="showColumnConfig"
-      :settings-columns="settingsColumns"
-      :is-locked-column="isLockedColumn"
-      @update:open="showColumnConfig = $event"
-      @change="handleColumnConfigChange"
-      @reset="handleColumnConfigReset"
-      @drag-end="handleColumnConfigChange"
-    />
   </ErrorBoundary>
 </template>
 
@@ -222,14 +208,12 @@ import { ref, reactive, computed, watch, onMounted } from 'vue'
 import type { Dayjs } from 'dayjs'
 import {
   ReloadOutlined, SearchOutlined, ClearOutlined,
-  DownOutlined, UpOutlined, SettingOutlined, BarsOutlined,
+  DownOutlined, UpOutlined, SettingOutlined,
 } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayout.vue'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
-import ColumnConfigPanel from '@/components/ColumnConfigPanel/index.vue'
-import { useColumnConfig, isLockedColumn } from '@/composables/useColumnConfig'
 import { useAutoGridSpan } from '@/composables/useAutoGridSpan'
 import { purchaseDocQueryApi } from '@/api/purchase'
 
@@ -254,7 +238,6 @@ const tableData = ref<any[]>([])
 const lastUpdateTime = ref('')
 const showMoreConditions = ref(false)
 const showPageConfig = ref(false)
-const showColumnConfig = ref(false)
 
 const gridRef = ref<HTMLElement | null>(null)
 const actionRef = ref<HTMLElement | null>(null)
@@ -332,7 +315,7 @@ const functionButtonConfig = ref([
   { key: 'more', label: '更多条件', enabled: true },
   { key: 'refresh', label: '刷新', enabled: true },
   { key: 'export', label: '导出', enabled: true },
-  { key: 'config', label: '列配置', enabled: true },
+  { key: 'config', label: '页面配置', enabled: true },
 ])
 
 // ═══ 58列表格定义（key 与后端字段对齐；无数据源字段用 defaultHidden 隐藏） ═══
@@ -405,15 +388,6 @@ const columns = [
   { title: '打印次数', field: 'printCount', key: 'printCount', width: 90, align: 'right' },
 ]
 
-// ═══ 列配置 ═══
-const columnDefs = computed(() => columns.map(col => ({ ...col })))
-const {
-  visibleColumns,
-  settingsColumns,
-  onSettingChange: onColumnSettingChange,
-  resetSettings: resetColumnSettings,
-} = useColumnConfig(columnDefs.value, 'purchase-detail-query-list-columns')
-
 // ═══ 搜索字段可见性（页面配置驱动） ═══
 function isFieldVisible(key: string): boolean {
   const f = queryFieldsConfig.value.find(x => x.key === key)
@@ -439,16 +413,7 @@ const handlePageConfigChange = () => {
   // 页面配置变化后，重新同步搜索字段显隐（isFieldVisible 为响应式读取）
 }
 
-const handleColumnConfigChange = () => {
-  onColumnSettingChange()
-}
-
-const handleColumnConfigReset = () => {
-  resetColumnSettings()
-}
-
 function togglePageConfig() { showPageConfig.value = true }
-function toggleColumnConfig() { showColumnConfig.value = true }
 
 // ═══ 数据获取 ═══
 const fetchData = async () => {

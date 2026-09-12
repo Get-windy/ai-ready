@@ -13,15 +13,18 @@
       @action="handleAction"
       @field-change="handleFieldChange"
       @search-btn="handleSearchBtn"
+      @tab-suffix-btn="handleTabSuffixBtn"
       @draft="handleSaveDraft"
       @submit="handleSubmit"
     >
       <!-- ═══ Zone 3: 商品明细表格 ═══ -->
       <template #detail-table="{ onExpandChange }">
         <BillDetailTable
-          :columns="visibleDetailColumns"
+          :columns="detailColumns"
           v-model:data-source="formData.products"
           :summary-columns="tableSummaryColumns"
+          storage-key="sale-outbound-form-detail-columns"
+          global-config-key="sale-outbound-form-detail-columns"
           @cell-change="handleCellChange"
           @expand-change="onExpandChange"
           @open-select-modal="handleOpenProductSelectModal"
@@ -165,12 +168,12 @@ import BillDetailTable from '@/components/BillFormPage/BillDetailTable/index.vue
 import ProductSelectModal from '@/components/ProductSelectModal/index.vue'
 import SaleOutboundFormConfig from '@/views/erp/column-config/SaleOutboundFormConfig.vue'
 import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTable/types'
-import type { BillHeaderConfig, BasicInfoField, BillTabConfig, SummaryRow, BillFooterConfig } from '@/components/BillFormPage/types'
+import type { BillHeaderConfig, BasicInfoField, BillTabConfig, SummaryRow, BillFooterConfig, TabField } from '@/components/BillFormPage/types'
 import { useBillForm } from '@/components/BillFormPage/useBillForm'
-import { useColumnConfig } from '@/composables/useColumnConfig'
 import { outboundApi } from '@/api/erp'
 import { PRODUCT_PACK_DEFAULTS } from '@/utils/productDefaults'
 import optionsApi from '@/api/options'
+import request from '@/utils/request'
 import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
@@ -191,6 +194,8 @@ const quickSearchOptions = ref<{label:string;value:any}[]>([])
 const quickSearchValue = ref<any>(undefined)
 
 // ═══ 页面配置联动 ═══
+/** 收款 Tab：「更多账户」展开收款账户2~4 */
+const showMoreAccounts = ref(false)
 const STORAGE_KEY_PAGE = 'sale-outbound-form-page-config'
 const pageConfigFields = ref<any[]>([])
 
@@ -211,6 +216,13 @@ function isFieldVisible(fieldKey: string): boolean {
   if (pageConfigFields.value.length === 0) return true
   const field = pageConfigFields.value.find((f: any) => f.key === fieldKey)
   return field ? field.visible !== false : true
+}
+
+/** 页面配置里的「显示名」覆盖字段标签（配置面板可改名，改名需真实生效） */
+function fieldLabel(fieldKey: string, fallback: string): string {
+  const field = pageConfigFields.value.find((f: any) => f.key === fieldKey)
+  const name = field?.displayName
+  return name && String(name).trim() ? String(name) : fallback
 }
 
 // 初始化加载
@@ -244,6 +256,8 @@ const {
     update: outboundApi.update,
     getById: outboundApi.getById,
   },
+  // 单号来自后端号段（SaleOutboundController#nextNo），前端不再使用演示生成器
+  codeApiPath: '/erp/sale/outbound/next-no',
   redirectPath: '/sales/outbound',
   optionTypes: ['customers', 'warehouses', 'users', 'products'],
   productDefaults: PRODUCT_PACK_DEFAULTS,
@@ -252,19 +266,33 @@ const {
       const c = optionRefs.customers.find((x: any) => x.id === val)
       if (c) {
         fd.customerName = c.name
+        fd.customerCode = c.code || ''
         fd.receiverName = c.contactName || ''
         fd.receiverPhone = c.contactPhone || ''
         fd.shippingAddress = c.address || ''
       }
     }
+    // 仓库/经手人名称快照：列表「仓库/经手人」列与查询口径均取快照字段
+    if (fieldKey === 'warehouseId') {
+      const w = optionRefs.warehouses.find((x: any) => x.id === val)
+      fd.warehouseName = w ? (w.warehouseName || w.name || '') : ''
+    }
+    if (fieldKey === 'salesPersonId') {
+      const u = optionRefs.users.find((x: any) => x.id === val)
+      fd.salesPersonName = u ? (u.nickname || u.realName || u.name || u.username || '') : ''
+    }
   },
   transformPayload: (fd, status) => ({
     // ═══ 基本信息 ═══
     status,
+    // 单号来自后端号段（useBillForm.codeApiPath → /erp/sale/outbound/next-no）
+    outboundNo: fd.outboundNo || fd.orderNo || '',
+    // 来源订单：前端「源单」字段 sourceOrder，落库到 erp_sale_outbound.order_no
+    orderNo: fd.sourceOrder || '',
+    sourceOrder: fd.sourceOrder || '',
     outboundType: fd.outboundType || 0,
     outboundDate: fd.outboundDate,
     orderId: fd.orderId,
-    orderNo: fd.orderNo || fd.outboundNo,
     generationMethod: fd.generationMethod || '',
     summary: fd.summary || '',
     totalAmount: totalAmount.value,
@@ -316,8 +344,9 @@ const {
     logisticsBranch: fd.logisticsBranch || '',
     freightPayer: fd.freightPayer || '',
     freight: fd.freight || 0,
-    trackingNumber: fd.trackingNumber || '',
-    waybillNo: fd.waybillNo || '',
+    // 运单号：表单只有一个「运单号」输入框，双写 trackingNumber/waybillNo 两个列保持口径一致
+    trackingNumber: fd.waybillNo || fd.trackingNumber || '',
+    waybillNo: fd.waybillNo || fd.trackingNumber || '',
     codAmount: fd.codAmount || 0,
     // ═══ 物流扩展 ═══
     deliveryOrderNo: fd.deliveryOrderNo || '',
@@ -352,6 +381,8 @@ const {
     remark: fd.remark || '',
     internalNote: fd.internalNote || '',
     buyerRemark: fd.buyerRemark || '',
+    // ═══ 制单人（列表「制单人」列与查询条件口径） ═══
+    creatorName: fd.creatorName || currentUserName.value || '',
     // ═══ 表头自定义字段 ═══
     extNum1: fd.extNum1 || 0, extNum2: fd.extNum2 || 0, extNum3: fd.extNum3 || 0,
     extNum4: fd.extNum4 || 0, extNum5: fd.extNum5 || 0,
@@ -361,8 +392,6 @@ const {
     // ═══ 表尾自定义字段 ═══
     footerExtText1: fd.footerExtText1 || '',
     footerExtText2: fd.footerExtText2 || '',
-    // ═══ 源单 ═══
-    sourceOrder: fd.sourceOrder || '',
     // ═══ 明细列表 ═══
     items: fd.products.filter((p: any) => p.productId != null).map((p: any) => ({
       productId: p.productId,
@@ -437,6 +466,16 @@ const {
   }),
 })
 
+// ═══ 下拉选项：仓库/用户接口未做字段归一化（返回 warehouseName / nickname），此处统一映射为 label ═══
+const warehouseOptions = computed(() => optionRefs.warehouses.map((w: any) => ({
+  label: w.warehouseName || w.name || w.warehouseCode || String(w.id),
+  value: w.id,
+})))
+const userOptionsList = computed(() => optionRefs.users.map((u: any) => ({
+  label: u.nickname || u.realName || u.name || u.username || String(u.id),
+  value: u.id,
+})))
+
 // 初始化销售出库单特有字段
 if (!('customerId' in formData)) {Object.assign(formData, {
   // ═══ 客户 ═══
@@ -464,8 +503,8 @@ if (!('customerId' in formData)) {Object.assign(formData, {
   deliveryMethod: '', logisticsCompany: '', logisticsBranch: '',
   freightPayer: '', freight: 0, trackingNumber: '', waybillNo: '', codAmount: 0,
   deliveryOrderNo: '', deliveryDriver: '', expectedShipTime: '',
-  // ═══ 代收货款 ═══
-  codCheckbox: 'no',
+  // ═══ 代收货款（是否代收） ═══
+  codEnabled: 'no',
   // ═══ 预收款 ═══
   useDepositPayment: 0, prevAdvancePayment: 0, usedAdvancePayment: 0,
   orderDeposit: 0, availableAdvancePayment: 0, advancePaymentBalance: 0,
@@ -510,7 +549,8 @@ const tableSummaryColumns = computed(() => [
 
 const headerConfig = computed<BillHeaderConfig>(() => ({
   title: '销售出库单',
-  orderNo: formData.outboundNo || formData.orderNo,
+  // 编号字段受页面配置「编号」显隐控制
+  orderNo: isFieldVisible('outboundNo') ? (formData.outboundNo || formData.orderNo) : '',
   showAttachment: true,
   actions: [
     { key: 'print', label: '打印(F8)', icon: PrinterOutlined, children: [
@@ -531,16 +571,16 @@ const headerConfig = computed<BillHeaderConfig>(() => ({
 const basicInfoFields = computed<BasicInfoField[]>(() => {
   const allFields: BasicInfoField[] = [
     // ═══ Row 1: 核心6字段（按截图） ═══
-    { key: 'customerId', label: '客户', type: 'select', required: true, inlineLabel: true, width: 320, options: optionRefs.customers.map((c: any) => ({ label: c.name, value: c.id })), searchBtn: '+Q', loading: loadingOptions.value },
-    { key: 'warehouseId', label: '发货仓库', type: 'select', required: true, inlineLabel: true, width: 220, options: optionRefs.warehouses.map((w: any) => ({ label: w.name, value: w.id })), searchBtn: '+Q', loading: loadingOptions.value },
-    { key: 'location', label: '点位', type: 'input', inlineLabel: true, width: 140 },
-    { key: 'salesPersonId', label: '经手人', type: 'select', required: true, inlineLabel: true, width: 220, options: optionRefs.users.map((u: any) => ({ label: u.name, value: u.id })), searchBtn: '+Q', loading: loadingOptions.value },
-    { key: 'outboundDate', label: '单据日期', type: 'date', required: true, inlineLabel: true, width: 200 },
-    { key: 'outboundType', label: '销售类型', type: 'select', required: true, inlineLabel: true, width: 200, options: [{ label: '正常销售', value: 0 }, { label: '换货', value: 1 }, { label: '调拨', value: 2 }, { label: '其他', value: 3 }] },
+    { key: 'customerId', label: fieldLabel('customerId', '客户'), type: 'select', required: true, inlineLabel: true, width: 320, options: optionRefs.customers.map((c: any) => ({ label: c.name, value: c.id })), searchBtn: '+Q', loading: loadingOptions.value },
+    { key: 'warehouseId', label: fieldLabel('warehouseId', '发货仓库'), type: 'select', required: true, inlineLabel: true, width: 220, options: warehouseOptions.value, searchBtn: '+Q', loading: loadingOptions.value },
+    { key: 'location', label: fieldLabel('location', '点位'), type: 'input', inlineLabel: true, width: 140 },
+    { key: 'salesPersonId', label: fieldLabel('salesPersonId', '经手人'), type: 'select', required: true, inlineLabel: true, width: 220, options: userOptionsList.value, searchBtn: '+Q', loading: loadingOptions.value },
+    { key: 'outboundDate', label: fieldLabel('outboundDate', '单据日期'), type: 'date', required: true, inlineLabel: true, width: 200 },
+    { key: 'outboundType', label: fieldLabel('outboundType', '销售类型'), type: 'select', required: true, inlineLabel: true, width: 200, options: [{ label: '正常销售', value: 0 }, { label: '换货', value: 1 }, { label: '调拨', value: 2 }, { label: '其他', value: 3 }] },
     // ══ Row 2: 收货3字段（按截图） ═══
-    { key: 'receiverName', label: '收货人', type: 'input', inlineLabel: true, width: 200, searchBtn: 'Q' },
-    { key: 'receiverPhone', label: '联系电话', type: 'input', inlineLabel: true, width: 220 },
-    { key: 'shippingAddress', label: '收货地址', type: 'input', inlineLabel: true, width: 500 },
+    { key: 'receiverName', label: fieldLabel('receiverName', '收货人'), type: 'input', inlineLabel: true, width: 200, searchBtn: 'Q' },
+    { key: 'receiverPhone', label: fieldLabel('receiverPhone', '联系电话'), type: 'input', inlineLabel: true, width: 220 },
+    { key: 'shippingAddress', label: fieldLabel('shippingAddress', '收货地址'), type: 'input', inlineLabel: true, width: 500 },
   ]
   // 根据页面配置过滤可见字段
   return allFields.filter(f => isFieldVisible(f.key))
@@ -558,7 +598,12 @@ const tabsConfig = computed<BillTabConfig[]>(() => {
       ]},
       { key: 'paymentAccount1', label: '收款账户1', type: 'input', placeholder: '请选择', width: 200, suffixBtn: '+Q' },
       { key: 'settledAmount', label: '收款金额1', type: 'number', placeholder: '0.00', width: 140, precision: 2 },
-      { key: 'useMoreAccount', label: '更多账户', type: 'input', placeholder: '···', readonly: true, width: 100 },
+      { key: 'useMoreAccount', label: '更多账户', type: 'input', placeholder: showMoreAccounts.value ? '收起收款账户2~4' : '展开收款账户2~4', readonly: true, width: 100, suffixBtn: showMoreAccounts.value ? '收起' : '展开' },
+      ...(showMoreAccounts.value ? ([
+        { key: 'paymentAccount2', label: '收款账户2', type: 'input', placeholder: '请选择', width: 200, suffixBtn: '+Q' },
+        { key: 'paymentAccount3', label: '收款账户3', type: 'input', placeholder: '请选择', width: 200, suffixBtn: '+Q' },
+        { key: 'paymentAccount4', label: '收款账户4', type: 'input', placeholder: '请选择', width: 200, suffixBtn: '+Q' },
+      ] as TabField[]) : []),
       { key: 'useDepositPayment', label: '使用预订货款', type: 'number', placeholder: '0.00', width: 140, precision: 2 },
       { key: 'prevAdvancePayment', label: '此前预收', type: 'number', disabled: true, width: 120, precision: 2 },
       // Row 2: 预收/欠款
@@ -576,7 +621,7 @@ const tabsConfig = computed<BillTabConfig[]>(() => {
       { key: 'customerRemark', label: '客户备注', type: 'input', width: 200 },
       { key: 'sourceOrder', label: '源单', type: 'input', placeholder: '请输入源单编号', width: 200 },
     ]},
-    // ═══ Tab 2: 物流信息（按截图） ═══
+    // ═══ Tab 2: 物流信息（按截图，10 字段） ═══
     { key: 'logistics', tab: '物流信息', fields: [
       // Row 1
       { key: 'deliveryMethod', label: '配送方式', type: 'select', width: 140, options: [
@@ -584,25 +629,23 @@ const tabsConfig = computed<BillTabConfig[]>(() => {
         { label: '物流', value: 'logistics' }, { label: '配送', value: 'delivery' },
       ]},
       { key: 'logisticsCompany', label: '物流公司', type: 'input', placeholder: '请输入物流公司', width: 200, suffixBtn: '+Q' },
+      { key: 'logisticsBranch', label: '物流网点', type: 'input', placeholder: '请输入网点', width: 180 },
       { key: 'freightPayer', label: '运费承担方', type: 'select', width: 130, options: [
         { label: '买方承担', value: 'buyer' }, { label: '卖方承担', value: 'seller' }, { label: '第三方承担', value: 'third' },
       ]},
       { key: 'freight', label: '运费', type: 'number', placeholder: '0.00', width: 120, precision: 2 },
-      { key: 'trackingNumber', label: '物流单号', type: 'input', placeholder: '请输入物流单号', width: 160 },
-      { key: 'codCheckbox', label: '物流公司代收货款', type: 'select', width: 160, options: [
+      { key: 'waybillNo', label: '运单号', type: 'input', placeholder: '请输入运单号', width: 160 },
+      // Row 2
+      { key: 'codEnabled', label: '物流公司代收货款', type: 'select', width: 160, options: [
         { label: '否', value: 'no' }, { label: '是', value: 'yes' },
       ]},
-      // Row 2
       { key: 'codAmount', label: '代收货款', type: 'number', placeholder: '0.00', width: 140, precision: 2 },
       { key: 'deliveryOrderNo', label: '配送单', type: 'input', placeholder: '请输入配送单号', width: 160 },
-      { key: 'deliveryDriver', label: '配送司机', type: 'input', placeholder: '请输入司机', width: 140 },
       { key: 'expectedShipTime', label: '预计发货', type: 'date', width: 140 },
-      { key: 'logisticsBranch', label: '物流网点', type: 'input', placeholder: '请输入网点', width: 180 },
-      { key: 'waybillNo', label: '运单号', type: 'input', placeholder: '请输入运单号', width: 160 },
     ]},
     // ═══ Tab 3: 会员信息（按截图） ═══
     { key: 'member', tab: '会员信息', fields: [
-      { key: 'memberCardNo', label: '会员卡号', type: 'input', placeholder: '请输入会员卡号', width: 200, suffixBtn: '+Q' },
+      { key: 'memberCardNo', label: '会员卡号', type: 'input', placeholder: '请输入会员卡号', width: 200 },
       { key: 'prevPoints', label: '此前积分', type: 'number', disabled: true, width: 120, precision: 0 },
       { key: 'memberGeneratedPoints', label: '产生积分', type: 'number', width: 120, precision: 0 },
       { key: 'memberExchangePoints', label: '兑换积分', type: 'number', width: 120, precision: 0 },
@@ -622,7 +665,7 @@ const tabsConfig = computed<BillTabConfig[]>(() => {
       { key: 'extText2', label: '自定义字段4(文本)', type: 'input', width: 140 },
       { key: 'extText3', label: '自定义字段5(文本)', type: 'input', width: 140 },
       // 审核/摘要
-      { key: 'approverId', label: '审核人', type: 'select', width: 150, options: optionRefs.users.map((u: any) => ({ label: u.name, value: u.id })), searchBtn: '+Q', loading: loadingOptions.value },
+      { key: 'approverId', label: '审核人', type: 'select', width: 150, options: userOptionsList.value, searchBtn: '+Q', loading: loadingOptions.value },
       { key: 'summary', label: '摘要', type: 'textarea', width: 300 },
       // 表尾自定义
       { key: 'footerExtText1', label: '表尾自定义字段1', type: 'input', width: 200 },
@@ -632,10 +675,12 @@ const tabsConfig = computed<BillTabConfig[]>(() => {
       { key: 'internalNote', label: '内部备注', type: 'textarea', width: 300 },
     ]},
   ]
-  // 根据页面配置过滤每个tab的可见字段
+  // 根据页面配置过滤每个tab的可见字段，并应用配置里的「显示名」
   return allTabs.map(tab => ({
     ...tab,
-    fields: tab.fields.filter((f: any) => isFieldVisible(f.key)),
+    fields: tab.fields
+      .filter((f: any) => isFieldVisible(f.key))
+      .map((f: any) => ({ ...f, label: fieldLabel(f.key, f.label) })),
   })).filter(tab => tab.fields.length > 0)
 })
 
@@ -649,7 +694,9 @@ const summaryConfig = computed<SummaryRow[]>(() => {
     { fieldKey: 'otherFee', label: '其他费用', value: otherFee.value.toFixed(2), showMore: true },
     { fieldKey: 'netAmount', label: '本单金额', value: totalWithTax.value.toFixed(2) },
   ]
-  return allRows.filter(r => !r.fieldKey || isFieldVisible(r.fieldKey))
+  return allRows
+    .filter(r => !r.fieldKey || isFieldVisible(r.fieldKey))
+    .map(r => ({ ...r, label: r.fieldKey ? fieldLabel(r.fieldKey, r.label) : r.label }))
 })
 
 const footerConfig = computed<BillFooterConfig>(() => ({
@@ -752,21 +799,7 @@ const detailColumns = computed<DetailColumnConfig[]>(() => [
   { key: 'remark', title: '备注', type: 'input', width: 120 },
 ])
 
-// ═══ 数据表格列配置 ═══
-const formColumnDefs = computed(() => detailColumns.value.map(col => ({
-  title: col.title || col.key,
-  field: col.key,
-  key: col.key,
-  width: col.width || 100,
-})))
-const {
-  visibleColumns: formVisibleColumns,
-} = useColumnConfig(formColumnDefs.value, 'sale-outbound-form-columns')
-
-const visibleDetailColumns = computed<DetailColumnConfig[]>(() => {
-  const visibleKeys = new Set(formVisibleColumns.value.map((c: any) => c.key))
-  return detailColumns.value.filter(col => visibleKeys.has(col.key) || col.type === 'action' || col.type === 'rowNo')
-})
+// ═══ 数据表格列配置：走 BillDetailTable 表头齿轮（storage-key/global-config-key 见模板） ═══
 
 // ═══════════════════════════════════════
 // 事件处理
@@ -914,17 +947,60 @@ function handleSearchBtn(fieldKey: string, _btnText: string) {
   } else if (fieldKey === 'warehouseId' && optionRefs.warehouses?.length) {
     quickSearchTitle.value = '仓库'
     quickSearchFieldKey.value = 'warehouseId'
-    quickSearchOptions.value = optionRefs.warehouses.map((w: any) => ({ label: w.name, value: w.id }))
+    quickSearchOptions.value = warehouseOptions.value
     quickSearchValue.value = formData.warehouseId
     showQuickSearch.value = true
   } else if (fieldKey === 'salesPersonId' && optionRefs.users?.length) {
     quickSearchTitle.value = '经手人'
     quickSearchFieldKey.value = 'salesPersonId'
-    quickSearchOptions.value = optionRefs.users.map((u: any) => ({ label: `${u.name}${u.deptName ? `(${u.deptName})` : ''}`, value: u.id }))
+    quickSearchOptions.value = userOptionsList.value.map((o: any, i: number) => ({
+      label: `${o.label}${optionRefs.users[i]?.deptName ? `(${optionRefs.users[i].deptName})` : ''}`,
+      value: o.value,
+    }))
     quickSearchValue.value = formData.salesPersonId
     showQuickSearch.value = true
   } else if (fieldKey === 'receiverName') {
     message.info('可直接输入收货人名称')
+  }
+}
+
+/** Tab 内后缀按钮（+Q / 展开）：账户、物流公司取自真实主数据；「更多账户」展开收款账户2~4 */
+async function handleTabSuffixBtn(fieldKey: string, _btnText: string) {
+  if (fieldKey === 'useMoreAccount') {
+    showMoreAccounts.value = !showMoreAccounts.value
+    return
+  }
+  if (fieldKey === 'paymentAccount1' || fieldKey === 'paymentAccount2'
+    || fieldKey === 'paymentAccount3' || fieldKey === 'paymentAccount4') {
+    const accounts = await optionsApi.getAccounts().catch(() => [])
+    if (!accounts.length) {
+      message.warning('暂无可用收款账户，请先在财务账户中维护')
+      return
+    }
+    quickSearchTitle.value = '收款账户'
+    quickSearchFieldKey.value = fieldKey
+    quickSearchOptions.value = accounts.map((a: any) => ({
+      label: `${a.name}${a.code ? `[${a.code}]` : ''}`,
+      value: a.name,
+    }))
+    quickSearchValue.value = formData[fieldKey]
+    showQuickSearch.value = true
+    return
+  }
+  if (fieldKey === 'logisticsCompany') {
+    const list = await request.get('/md/logistics/list').then((res: any) => res?.data || res || []).catch(() => [])
+    if (!list.length) {
+      message.warning('暂无物流公司主数据，请先在资料中维护')
+      return
+    }
+    quickSearchTitle.value = '物流公司'
+    quickSearchFieldKey.value = fieldKey
+    quickSearchOptions.value = list.map((l: any) => ({
+      label: l.name || l.companyName || l.logisticsName || String(l.id),
+      value: l.name || l.companyName || l.logisticsName || String(l.id),
+    }))
+    quickSearchValue.value = formData.logisticsCompany
+    showQuickSearch.value = true
   }
 }
 
@@ -940,6 +1016,12 @@ function handleQuickSearchConfirm(val: any) {
   } else if (fieldKey === 'salesPersonId') {
     formData.salesPersonId = val
     handleFieldChange('salesPersonId', val)
+  } else if (fieldKey === 'paymentAccount1' || fieldKey === 'paymentAccount2'
+    || fieldKey === 'paymentAccount3' || fieldKey === 'paymentAccount4') {
+    // 选项 value 即账户名称（列表页展示口径）
+    formData[fieldKey] = val
+  } else if (fieldKey === 'logisticsCompany') {
+    formData.logisticsCompany = val
   }
   showQuickSearch.value = false
 }

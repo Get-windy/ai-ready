@@ -53,4 +53,12 @@ public interface IReconciliationService extends IService<Reconciliation> {
      * @return 统计数据（bankPending, customerPending, supplierPending, differenceCount）
      */
     java.util.Map<String, Object> getStats();
+
+    /**
+     * 查询对方系统余额（银行=账户余额 / 客户=应收 / 供应商=应付），用于新增对账预填系统余额
+     * @param reconciliationType BANK/CUSTOMER/SUPPLIER
+     * @param targetId 对方ID（银行账户ID / 客户ID / 供应商ID）
+     * @return 余额
+     */
+    java.math.BigDecimal getBalance(String reconciliationType, Long targetId);
 }

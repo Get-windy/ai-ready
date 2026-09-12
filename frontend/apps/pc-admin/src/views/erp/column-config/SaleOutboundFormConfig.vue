@@ -102,6 +102,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted } from 'vue'
+import { message } from 'ant-design-vue'
 import request from '@/utils/request'
 
 const props = defineProps<{ open: boolean }>()
@@ -180,17 +181,15 @@ const DEFAULT_PAGE_FIELDS: PageField[] = [
   { key: 'reconciliationDate', label: '对账日', displayName: '对账日', visible: false, enterJump: false },
   // 44 源单
   { key: 'sourceOrder', label: '源单', displayName: '源单', visible: false, enterJump: false },
-  // 45-52 物流
+  // 45-53 物流（对标文档：配送方式/物流公司/物流网点/运费承担方/运费/运单号/物流公司代收货款/代收货款/配送单）
   { key: 'deliveryMethod', label: '配送方式', displayName: '配送方式', visible: true, enterJump: false },
   { key: 'logisticsCompany', label: '物流公司', displayName: '物流公司', visible: true, enterJump: false },
   { key: 'logisticsBranch', label: '物流网点', displayName: '物流网点', visible: false, enterJump: false },
   { key: 'freightPayer', label: '运费承担方', displayName: '运费承担方', visible: false, enterJump: false },
   { key: 'freight', label: '运费', displayName: '运费', visible: false, enterJump: false },
-  { key: 'trackingNumber', label: '物流单号', displayName: '物流单号', visible: false, enterJump: false },
   { key: 'waybillNo', label: '运单号', displayName: '运单号', visible: false, enterJump: false },
-  { key: 'codAmount', label: '物流公司代收货款', displayName: '物流公司代收货款', visible: false, enterJump: false },
-  { key: 'codAmountValue', label: '代收货款', displayName: '代收货款', visible: false, enterJump: false },
-  { key: 'codCheckbox', label: '代收货款开关', displayName: '代收货款开关', visible: false, enterJump: false },
+  { key: 'codEnabled', label: '物流公司代收货款', displayName: '物流公司代收货款', visible: false, enterJump: false },
+  { key: 'codAmount', label: '代收货款', displayName: '代收货款', visible: false, enterJump: false },
   { key: 'deliveryOrderNo', label: '配送单', displayName: '配送单', visible: false, enterJump: false },
   // 54-60 配送扩展/会员信息
   { key: 'expectedShipTime', label: '预计发货', displayName: '预计发货', visible: false, enterJump: false },
@@ -409,8 +408,16 @@ function handleSelectorConfirm() {
   persistDefaultConfig()
 }
 
+/**
+ * 「配置」按钮：重置录单默认值。
+ * 对标截图中该按钮用于管理录单默认值集合；本系统默认值集合固定为
+ * 客户/发货仓库/经手人/物流公司 4 项，故此处实现为「清空全部已设默认值」。
+ */
 function handleConfigDefault() {
-  // Placeholder for detailed config
+  defaultFields.value = DEFAULT_DEFAULT_FIELDS.map(f => ({ ...f }))
+  defaultPriority.value = false
+  persistDefaultConfig()
+  message.success('已重置录单默认值')
 }
 
 onMounted(() => { if (props.open) loadConfig() })

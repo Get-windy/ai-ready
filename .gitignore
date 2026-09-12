@@ -76,7 +76,12 @@ nul
 # Build artifacts
 backend/BOOT-INF/
 backend/*.jar
+# 临时 fat jar 备份（<module>-run.jar.bak-<时间> 等，超出 Gitee 100MB 单文件配额）
+backend/*.jar.*
 backend/cn/
+
+# 运行期上传目录（本地存储产物，不入库）
+**/uploads/
 
 # Tool outputs / runtime stderr
 *.err

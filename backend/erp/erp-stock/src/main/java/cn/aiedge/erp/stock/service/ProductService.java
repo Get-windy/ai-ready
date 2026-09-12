@@ -95,4 +95,33 @@ public interface ProductService extends IService<Product> {
      * 获取不重复的品牌列表
      */
     List<String> getDistinctBrands();
+
+    /**
+     * 批量搬移分类
+     *
+     * @return 影响行数
+     */
+    int batchMoveCategory(List<Long> ids, Long categoryId);
+
+    /**
+     * 批量修改字段（brand/industryCategory/categoryId/isStandardProduct/useCoupon）
+     */
+    int batchUpdateFields(List<Long> ids, java.util.Map<String, Object> fields);
+
+    /**
+     * 批量上架/下架（商城）
+     */
+    int batchUpdateShelfStatus(List<Long> ids, Integer mallShelfStatus);
+
+    /**
+     * 设置商城默认排序方式（全租户商品统一）
+     */
+    int setMallSortType(String sortType);
+
+    /**
+     * Excel 导入商品（真实解析，逐行建档并生成基本单位）
+     *
+     * @return { count, skipped, errors }
+     */
+    java.util.Map<String, Object> importFromExcel(org.springframework.web.multipart.MultipartFile file);
 }

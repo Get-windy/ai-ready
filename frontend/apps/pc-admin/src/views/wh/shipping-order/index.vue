@@ -22,11 +22,9 @@
           </a-space>
         </template>
 
+        <!-- ═══ 工具栏右侧：页面配置/新增/刷新/打印(F8)/导出（列配置走数据表表头齿轮） ═══ -->
         <template #toolbar-right>
           <a-space :size="8">
-            <a-tooltip title="列配置">
-              <a-button size="small" @click="showColumnConfig = true"><TableOutlined /></a-button>
-            </a-tooltip>
             <a-tooltip title="页面配置">
               <a-button size="small" @click="showPageConfig = true"><SettingOutlined /></a-button>
             </a-tooltip>
@@ -121,6 +119,7 @@
           <div class="table-area">
             <BillTableList
               :columns="currentColumns"
+              :storage-key="activeTab === 'doc' ? 'shipping-order-table-columns-doc' : 'shipping-order-table-columns-detail'"
               :data-source="tableData"
               :loading="loading"
               :pagination="billPagination"
@@ -178,16 +177,6 @@
       </CategoryListLayout>
     </PageContainer>
 
-    <ColumnConfigPanel
-      :open="showColumnConfig"
-      :settings-columns="panelColumns"
-      :is-locked-column="isLockedColumn"
-      @update:open="showColumnConfig = $event"
-      @change="handleColumnConfigChange"
-      @reset="handleColumnConfigReset"
-      @drag-end="handleColumnConfigChange"
-    />
-
     <PageConfigPanel
       :open="showPageConfig"
       :query-fields-config="activeQueryFields"
@@ -203,14 +192,12 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import dayjs, { type Dayjs } from 'dayjs'
-import { PlusOutlined, ReloadOutlined, PrinterOutlined, SettingOutlined, TableOutlined, ExportOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, ReloadOutlined, PrinterOutlined, SettingOutlined, ExportOutlined } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayout.vue'
-import ColumnConfigPanel from '@/components/ColumnConfigPanel/index.vue'
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
-import { useColumnConfig, isLockedColumn } from '@/composables/useColumnConfig'
 import { useAutoGridSpan } from '@/composables/useAutoGridSpan'
 import { shipApi } from '@/api/wms/ship'
 import { formatQty, formatTime } from '../whTask'
@@ -253,7 +240,7 @@ const billPagination = computed(() => ({ current: pagination.current, pageSize: 
 const selectedRowKeys = ref<any[]>([])
 const rowSelection = computed(() => ({ selectedRowKeys: selectedRowKeys.value, onChange: (keys: any[]) => { selectedRowKeys.value = keys } }))
 
-const showColumnConfig = ref(false)
+// 页面配置弹窗（列配置走数据表表头齿轮）
 const showPageConfig = ref(false)
 
 // 页面配置
@@ -309,7 +296,7 @@ function handlePageConfigChange(config: any) {
   loadPageConfig()
 }
 
-// 列定义（在 useColumnConfig 前声明）
+// 列定义（原始列数组，直接交给数据表表头齿轮）
 const docColumns = [
   { title: '', key: 'rowNo', type: 'rowNo', width: 40, fixed: 'left' },
   { title: '操作', key: 'action', type: 'action', width: 150, fixed: 'right', slotName: 'actionCell' },
@@ -345,14 +332,8 @@ const detailColumns = [
   { title: '创建时间', field: 'createTime', key: 'createTime', width: 140, type: 'slot', slotName: 'createTimeCell', sortable: true },
 ]
 
-const docColumnDefs = computed(() => docColumns.map(c => ({ ...c })))
-const detailColumnDefs = computed(() => detailColumns.map(c => ({ ...c })))
-const { visibleColumns: docVisible, onSettingChange: onDocSettingChange, resetSettings: resetDocSettings, settingsColumns: docSettings } = useColumnConfig(docColumnDefs.value, 'shipping-order-list-columns-doc')
-const { visibleColumns: detailVisible, onSettingChange: onDetailSettingChange, resetSettings: resetDetailSettings, settingsColumns: detailSettings } = useColumnConfig(detailColumnDefs.value, 'shipping-order-list-columns-detail')
-const currentColumns = computed(() => (activeTab.value === 'doc' ? docVisible.value : detailVisible.value))
-const panelColumns = computed(() => (activeTab.value === 'doc' ? docSettings.value : detailSettings.value))
-function handleColumnConfigChange() { if (activeTab.value === 'doc') onDocSettingChange(); else onDetailSettingChange() }
-function handleColumnConfigReset() { if (activeTab.value === 'doc') resetDocSettings(); else resetDetailSettings() }
+// ═══ 列配置（走数据表表头齿轮：storage-key=shipping-order-table-columns-doc/detail） ═══
+const currentColumns = computed(() => (activeTab.value === 'doc' ? docColumns : detailColumns))
 
 // 状态映射
 const SHIP_STATUS_MAP: Record<number, { text: string; color: string }> = {

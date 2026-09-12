@@ -214,6 +214,17 @@
         <if test="itemRemark != null and itemRemark != ''">
             AND item.remark LIKE CONCAT('%', #{itemRemark}, '%')
         </if>
+        <!-- 商品分类下钻：分类树节点（含全部子孙分类）→ 商品 → 明细 -->
+        <if test="categoryIds != null and categoryIds.size() > 0">
+            AND EXISTS (
+                SELECT 1 FROM erp_product p
+                WHERE p.id = item.product_id AND p.deleted = 0
+                  AND p.category_id IN
+                  <foreach collection="categoryIds" item="cid" open="(" separator="," close=")">
+                      #{cid}
+                  </foreach>
+            )
+        </if>
         ORDER BY o.order_date DESC, o.order_no DESC, item.line_no ASC
     </select>
 

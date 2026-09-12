@@ -20,6 +20,24 @@
     <description>配送路线优化功能：高德API集成、多点路径规划、实时路况调整、导航功能</description>
 
     <dependencies>
+        <!-- Core dependencies（ApiResponse / BusinessException / OperationLog） -->
+        <dependency>
+            <groupId>cn.aiedge</groupId>
+            <artifactId>core-base</artifactId>
+        </dependency>
+
+        <!-- 线路主数据导入/导出（真实 xlsx，与资料模块其他页同口径） -->
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi</artifactId>
+            <version>5.2.5</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+            <version>5.2.5</version>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>

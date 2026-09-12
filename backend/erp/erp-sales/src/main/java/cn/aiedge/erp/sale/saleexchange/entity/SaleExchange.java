@@ -1,6 +1,7 @@
 package cn.aiedge.erp.sale.saleexchange.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -39,7 +40,11 @@ public class SaleExchange {
 
     // ========== 单据基本信息 ==========
     private String exchangeNo;
+
+    /** 单据日期：兼容 "2026-09-10" / "2026-09-10T00:00:00" 两种前端写法 */
+    @JsonDeserialize(using = cn.aiedge.erp.sale.saleexchange.support.FlexibleLocalDateTimeDeserializer.class)
     private LocalDateTime exchangeDate;
+
     private String salesType;
     private Integer status;
     private String settleStatus;
@@ -75,6 +80,9 @@ public class SaleExchange {
 
     // ========== 收款/信用 ==========
     private String paymentAccount;
+
+    /** 更多账户（对标：表单「收款 → 更多账户」，逗号分隔的账户名列表） */
+    private String moreAccounts;
     private BigDecimal receivedAmount;
     private BigDecimal prevAdvance;
     private BigDecimal useAdvance;
@@ -132,6 +140,7 @@ public class SaleExchange {
     private LocalDateTime completedTime;
 
     // ========== 制单信息 ==========
+    // 列名与销售域其它单据（销售退货单/退货申请/销售单据查询）保持一致：creator_id / creator_name
     private Long creatorId;
     private String creatorName;
 

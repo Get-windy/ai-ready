@@ -40,6 +40,7 @@ public class MyBatisPlusConfig {
         "sys_user_tenant",        // 用户租户关联表（登录时需要无租户过滤查询）
         "sys_user",               // 用户表（登录时需要无租户过滤查询）
         "sys_login_log",          // 登录日志表
+        "sys_region",             // 行政区划（省/市/区县，全系统公共数据，无tenant_id列）
         "flyway_schema_history",  // Flyway迁移历史表
         "sys_print_chain_item",   // 打印链路项（无tenant_id列）
         "sys_screenshot_task",    // 截图任务（无tenant_id列）
@@ -101,14 +102,10 @@ public class MyBatisPlusConfig {
     public MybatisPlusInterceptor mybatisPlusInterceptor() {
         MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
 
-        // 分页插件
-        interceptor.addInnerInterceptor(new PaginationInnerInterceptor(DbType.POSTGRE_SQL));
-
-        // 乐观锁插件（支持 @Version 注解）
-        interceptor.addInnerInterceptor(new OptimisticLockerInnerInterceptor());
-
         // 全局租户隔离插件 — 自动为 SELECT/INSERT/UPDATE/DELETE 注入 tenant_id 过滤
         // 使用增强版：租户不可解析（无会话线程）时跳过处理，不再注入字面量 tenant_id=null
+        // 注意：必须放在分页插件之前（MyBatis-Plus 官方要求的多插件顺序），
+        //      否则分页 count 语句不会注入 tenant_id，出现「total 含其它租户、records 只有本租户」的口径不一致
         interceptor.addInnerInterceptor(new AiReadyTenantLineInnerInterceptor(new TenantLineHandler() {
             @Override
             public Expression getTenantId() {
@@ -139,6 +136,12 @@ public class MyBatisPlusConfig {
                     .anyMatch(col -> tenantIdColumn.equalsIgnoreCase(col.getColumnName()));
             }
         }));
+
+        // 分页插件（放在租户插件之后：count 语句同时带租户条件，total 与 records 口径一致）
+        interceptor.addInnerInterceptor(new PaginationInnerInterceptor(DbType.POSTGRE_SQL));
+
+        // 乐观锁插件（支持 @Version 注解）
+        interceptor.addInnerInterceptor(new OptimisticLockerInnerInterceptor());
 
         // 数据权限插件 — 根据 @DataScope 注解注入行级权限条件
         interceptor.addInnerInterceptor(new DataScopeInterceptor());

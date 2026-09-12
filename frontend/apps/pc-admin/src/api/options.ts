@@ -21,9 +21,21 @@ export interface DictOption {
 }
 
 export const optionsApi = {
-  /** 获取供应商下拉列表 */
+  /**
+   * 获取供应商下拉列表
+   * 数据源＝往来单位（biz_party, partyType=supplier），与「资料 → 供应商」档案页同一口径。
+   * 旧实现走 `/supplier/list`（供应商门户模块）返回恒为空，导致采购订单等页面供应商下拉无数据。
+   */
   getSuppliers(): Promise<OptionItem[]> {
-    return request.get('/supplier/list')
+    return request.get('/erp/md/customer/list', { partnerType: 'supplier', status: 'ENABLED', pageSize: 500 })
+      .then((res: any) => {
+        const list = res?.data || res || []
+        return list.map((p: any) => ({
+          id: p.id,
+          name: p.partnerName || p.partyName || '',
+          code: p.partnerCode || p.partyCode || '',
+        }))
+      })
   },
 
   /** 获取产品下拉列表 */

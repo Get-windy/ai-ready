@@ -64,7 +64,7 @@ public interface SaleReturnService extends IService<SaleReturn> {
             String itemRemark, String startDate, String endDate,
             int pageNum, int pageSize,
             String creatorName, String auditorName, String remark,
-            Boolean isGift, String auditTime);
+            Boolean isGift, String auditTime, Long categoryId);
 
     /**
      * 批量审批退货申请单

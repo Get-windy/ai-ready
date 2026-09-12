@@ -8,9 +8,9 @@
         :show-table-footer="false"
         @tab-change="handleTabChange"
       >
+        <!-- ═══ 工具栏右侧：页面配置/新增/刷新/导出（列配置走数据表表头齿轮） ═══ -->
         <template #toolbar-right>
           <a-space :size="8">
-            <a-tooltip title="列配置"><a-button size="small" @click="showColumnConfig = true"><TableOutlined /></a-button></a-tooltip>
             <a-tooltip title="页面配置"><a-button size="small" @click="showPageConfig = true"><SettingOutlined /></a-button></a-tooltip>
             <a-button type="primary" size="small" @click="handleAdd"><PlusOutlined /> 新增上架单</a-button>
             <a-button size="small" @click="fetchData"><ReloadOutlined /> 刷新</a-button>
@@ -44,7 +44,7 @@
 
         <template #table>
           <div class="table-area">
-            <BillTableList :columns="currentColumns" :data-source="tableData" :loading="loading" :pagination="billPagination" :show-toolbar="false" :show-search="false" :show-add="false" :show-export="false" :show-batch-delete="false" row-key="id" @page-change="handlePageChange">
+            <BillTableList :columns="currentColumns" :storage-key="activeTab === 'doc' ? 'putaway-order-table-columns-doc' : 'putaway-order-table-columns-detail'" :data-source="tableData" :loading="loading" :pagination="billPagination" :show-toolbar="false" :show-search="false" :show-add="false" :show-export="false" :show-batch-delete="false" row-key="id" @page-change="handlePageChange">
               <template #taskNoCell="{ record }"><a-button type="link" size="small" @click="handleView(record)">{{ record.taskNo }}</a-button></template>
               <template #sourceTypeCell="{ record }">{{ sourceTypeText(record.sourceType) }}</template>
               <template #totalQuantityCell="{ record }"><span class="currency-value">{{ formatQty(record.totalQuantity) }}</span></template>
@@ -67,7 +67,6 @@
         </template>
       </CategoryListLayout>
     </PageContainer>
-    <ColumnConfigPanel :open="showColumnConfig" :settings-columns="panelColumns" :is-locked-column="isLockedColumn" @update:open="showColumnConfig = $event" @change="handleColumnConfigChange" @reset="handleColumnConfigReset" @drag-end="handleColumnConfigChange" />
     <PageConfigPanel :open="showPageConfig" :query-fields-config="activeQueryFields" :function-buttons-config="buttonConfig" :storage-key="activePageConfigStorageKey" @update:open="showPageConfig = $event" @change="handlePageConfigChange" />
   </ErrorBoundary>
 </template>
@@ -76,14 +75,12 @@
 import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
-import { PlusOutlined, ReloadOutlined, ExportOutlined, TableOutlined, SettingOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, ReloadOutlined, ExportOutlined, SettingOutlined } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayout.vue'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
-import ColumnConfigPanel from '@/components/ColumnConfigPanel/index.vue'
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
-import { useColumnConfig, isLockedColumn } from '@/composables/useColumnConfig'
 import { useAutoGridSpan } from '@/composables/useAutoGridSpan'
 import { putawayApi } from '@/api/wms/putaway'
 import { useUserStore } from '@/stores/user'
@@ -122,7 +119,7 @@ const tabs = [
 ]
 const activeTab = ref('doc')
 
-const showColumnConfig = ref(false)
+// 页面配置弹窗（列配置走数据表表头齿轮）
 const showPageConfig = ref(false)
 const searchParams = reactive<any>({ keyword: '', sourceType: undefined, status: undefined, productName: '', locationCode: '', sourceOrderNo: '' })
 const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
@@ -231,14 +228,8 @@ const detailColumns: any[] = [
   { title: '操作', key: 'action', type: 'action', width: 170, fixed: 'right', slotName: 'actionCell' },
 ]
 
-const docColumnDefs = computed(() => docColumns.map(c => ({ ...c })))
-const detailColumnDefs = computed(() => detailColumns.map(c => ({ ...c })))
-const { onSettingChange, resetSettings, settingsColumns, visibleColumns } = useColumnConfig(docColumnDefs.value, 'putaway-order-list-columns-doc')
-const { onSettingChange: onDetailSettingChange, resetSettings: resetDetailSettings, settingsColumns: detailSettingsColumns, visibleColumns: detailVisibleColumns } = useColumnConfig(detailColumnDefs.value, 'putaway-order-list-columns-detail')
-const currentColumns = computed(() => activeTab.value === 'doc' ? visibleColumns.value : detailVisibleColumns.value)
-const panelColumns = computed(() => activeTab.value === 'doc' ? settingsColumns.value : detailSettingsColumns.value)
-function handleColumnConfigChange() { if (activeTab.value === 'doc') onSettingChange(); else onDetailSettingChange() }
-function handleColumnConfigReset() { if (activeTab.value === 'doc') resetSettings(); else resetDetailSettings() }
+// ═══ 列配置（走数据表表头齿轮：storage-key=putaway-order-table-columns-doc/detail） ═══
+const currentColumns = computed(() => activeTab.value === 'doc' ? docColumns : detailColumns)
 
 function handleAdd() { router.push('/wh/putaway-order/form') }
 function handleView(record: any) { router.push(`/wh/putaway-order/form?id=${record.id}`) }

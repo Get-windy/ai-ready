@@ -303,7 +303,24 @@ export const outboundApi = {
   complete(id: number) { return request.post(`/erp/sale/outbound/${id}/complete`) },
   cancel(id: number, reason?: string) { return request.post(`/erp/sale/outbound/${id}/cancel`, null, { params: { reason } }) },
   getItems(id: number) { return request.get(`/erp/sale/outbound/${id}/items`) },
-  export(params: any) { return request.get('/erp/sale/outbound/export', params) },
+  /** 后端号段：下一个出库单号（前端禁止自增/演示号） */
+  nextNo() { return request.get('/erp/sale/outbound/next-no') },
+  /** 导出：后端返回真实 Excel 流 */
+  exportExcel(params: any) {
+    return request.get('/erp/sale/outbound/export', { params, responseType: 'blob' }).then((blob: any) => {
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `销售出库单_${new Date().toISOString().slice(0, 10)}.xlsx`
+      a.click()
+      URL.revokeObjectURL(url)
+      return blob
+    })
+  },
+  /** 批量写入物流备注（真实落库 logistics_remark） */
+  batchLogisticsRemark(ids: number[], logisticsRemark: string) {
+    return request.post('/erp/sale/outbound/batch-logistics-remark', { ids, logisticsRemark })
+  },
   // ═══ 流程操作 ═══
   startPicking(id: number) { return request.post(`/erp/sale/outbound/${id}/start-picking`) },
   completePicking(id: number) { return request.post(`/erp/sale/outbound/${id}/complete-picking`) },
@@ -441,6 +458,7 @@ export const saleReturnApi = {
   cancel(id: number, reason?: string) { return request.post(`/erp/sale/return/${id}/cancel`, null, { params: { reason } }) },
   batchApprove(ids: number[], note?: string) { return request.post('/erp/sale/return/batch-approve', ids, { params: { note } }) },
   getItems(id: number) { return request.get(`/erp/sale/return/${id}/items`) },
+  nextNo() { return request.get('/erp/sale/return/next-no') },
   export(params: any) { return request.get('/erp/sale/return/export', params) },
 }
 
@@ -514,6 +532,8 @@ export interface SaleReturnDoc {
   internalNote?: string; buyerRemark?: string;
   approvedBy?: number; approvedTime?: string; approvedNote?: string;
   auditor?: string; auditorId?: number; auditorName?: string; auditTime?: string;
+  /** 记账人（审核过账生成凭证时的操作员） */
+  bookkeeperName?: string;
   submitBy?: number; submitTime?: string; printTime?: string;
   creatorName?: string; createBy?: number; createTime?: string;
   updateBy?: number; updater?: string; updateTime?: string; version?: number;
@@ -530,6 +550,8 @@ export const saleReturnDocApi = {
   },
   getById(id: number) { return request.get(`/erp/sale/return-doc/${id}`) },
   getByReturnDocNo(returnDocNo: string) { return request.get(`/erp/sale/return-doc/returnDocNo/${returnDocNo}`) },
+  /** 后端号段：生成下一个退货单号（严禁前端演示自增号） */
+  nextNo() { return request.get('/erp/sale/return-doc/next-no') },
   create(data: any) { return request.post('/erp/sale/return-doc', data) },
   update(id: number, data: any) { return request.put(`/erp/sale/return-doc/${id}`, data) },
   delete(id: number) { return request.delete(`/erp/sale/return-doc/${id}`) },
@@ -587,22 +609,26 @@ export const saleExchangeApi = {
   page(params: PageQuery): Promise<PageResult<SaleExchange>> {
     return request.get('/erp/sale/exchange/page', params)
   },
-  getById(id: number) { return request.get(`/erp/sale/exchange/${id}`) },
+  /** 单据号段：XSHHD-yyyyMMdd-NNNN（红线：严禁前端演示号） */
+  nextNo() { return request.get('/erp/sale/exchange/next-no') },
+  getById(id: number | string) { return request.get(`/erp/sale/exchange/${id}`) },
   create(data: any) { return request.post('/erp/sale/exchange', data) },
-  update(id: number, data: any) { return request.put(`/erp/sale/exchange/${id}`, data) },
-  delete(id: number) { return request.delete(`/erp/sale/exchange/${id}`) },
-  submit(id: number) { return request.post(`/erp/sale/exchange/${id}/submit`) },
-  approve(id: number, remark?: string) { return request.post(`/erp/sale/exchange/${id}/approve`, null, { params: { remark } }) },
-  batchApprove(ids: number[]) { return request.post('/erp/sale/exchange/batch-approve', ids) },
-  reject(id: number, remark: string) { return request.post(`/erp/sale/exchange/${id}/reject`, null, { params: { remark } }) },
-  cancel(id: number, reason?: string) { return request.post(`/erp/sale/exchange/${id}/cancel`, null, { params: { reason } }) },
-  complete(id: number) { return request.post(`/erp/sale/exchange/${id}/complete`) },
-  print(id: number) { return request.post(`/erp/sale/exchange/${id}/print`) },
-  batchPrint(ids: number[]) { return request.post('/erp/sale/exchange/batch-print', ids) },
-  getItems(id: number) { return request.get(`/erp/sale/exchange/${id}/items`) },
-  getItemsByWarehouseType(id: number, warehouseType: number) { return request.get(`/erp/sale/exchange/${id}/items/${warehouseType}`) },
-  getApprovalRecords(id: number) { return request.get(`/erp/sale/exchange/${id}/approval-records`) },
-  export(params?: any) { return request.get('/erp/sale/exchange/export', params) },
+  update(id: number | string, data: any) { return request.put(`/erp/sale/exchange/${id}`, data) },
+  delete(id: number | string) { return request.delete(`/erp/sale/exchange/${id}`) },
+  submit(id: number | string) { return request.post(`/erp/sale/exchange/${id}/submit`) },
+  approve(id: number | string, remark?: string) { return request.post(`/erp/sale/exchange/${id}/approve`, null, { params: { remark } }) },
+  batchApprove(ids: (number | string)[]) { return request.post('/erp/sale/exchange/batch-approve', ids) },
+  reject(id: number | string, remark: string) { return request.post(`/erp/sale/exchange/${id}/reject`, null, { params: { remark } }) },
+  cancel(id: number | string, reason?: string) { return request.post(`/erp/sale/exchange/${id}/cancel`, null, { params: { reason } }) },
+  complete(id: number | string) { return request.post(`/erp/sale/exchange/${id}/complete`) },
+  print(id: number | string) { return request.post(`/erp/sale/exchange/${id}/print`) },
+  batchPrint(ids: (number | string)[]) { return request.post('/erp/sale/exchange/batch-print', ids) },
+  getItems(id: number | string) { return request.get(`/erp/sale/exchange/${id}/items`) },
+  getItemsByWarehouseType(id: number | string, warehouseType: number) { return request.get(`/erp/sale/exchange/${id}/items/${warehouseType}`) },
+  getApprovalRecords(id: number | string) { return request.get(`/erp/sale/exchange/${id}/approval-records`) },
+  getTracking(id: number | string) { return request.get(`/erp/sale/exchange/${id}/tracking`) },
+  /** 导出 xlsx（后端 POI 生成，blob 直下） */
+  export(params?: any) { return request.get('/erp/sale/exchange/export', { params, responseType: 'blob' }) },
 }
 
 // ── 库存管理 ──────────────────────────────────────────
@@ -1565,7 +1591,11 @@ export interface OrderCenterStats {
 
 export const saleOrderApi = {
   getPage(params: any): Promise<PageResult<SaleOrder>> { return request.get('/erp/sale/order/page', params) },
-  getById(id: number) { return request.get(`/erp/sale/order/${id}`) },
+  /** 生成下一订单号：GET /erp/sale/order/next-no（单据编号唯一来源，禁止前端自增） */
+  nextNo(): Promise<string> {
+    return request.get('/erp/sale/order/next-no').then((res: any) => res?.data || res || '')
+  },
+  getById(id: number | string) { return request.get(`/erp/sale/order/${id}`) },
   create(data: any) { return request.post('/erp/sale/order', data) },
   update(id: number, data: any) { return request.put(`/erp/sale/order/${id}`, data) },
   delete(id: number) { return request.delete(`/erp/sale/order/${id}`) },
@@ -1620,10 +1650,9 @@ export const saleOrderApi = {
 }
 
 // ── 销售价格跟踪（/api/sales/price-track） ─────────────
-// 后端 SalesPriceTrackController 复用销售明细查询，返回裸 Page<Map>，
-// 拦截器对 { records, total } 透传不拆包；行字段取 buildRowMap 的常用列
+// 台账口径：erp_sale_price_track（商品×往来单位最近销售价）+ 手动维护价格点
 
-/** 销售价格跟踪查询条件（与后端 SalesDetailQueryDTO 常用字段对齐） */
+/** 销售价格跟踪查询条件（与后端 SalePriceTrackQueryDTO 对齐） */
 export interface SalesPriceTrackQuery {
   current?: number
   size?: number
@@ -1631,54 +1660,81 @@ export interface SalesPriceTrackQuery {
   startDate?: string
   /** 结束日期 yyyy-MM-dd */
   endDate?: string
-  /** 商品名称（明细级模糊） */
+  /** 商品名称 */
   productName?: string
   /** 货号 */
   productCode?: string
-  /** 客户名称 */
-  customerName?: string
-  /** 单据编号 */
-  documentNo?: string
-  /** 最低价 */
-  minPrice?: number
-  /** 最高价 */
-  maxPrice?: number
+  /** 条码 */
+  barcode?: string
+  /** 往来单位（客户）名称 */
+  partnerName?: string
+  /** 商品分类ID */
+  categoryId?: number | string
+  /** 商品单位 */
+  unitType?: string
+  /** 仅显示有折扣（折扣 < 100） */
+  onlyDiscounted?: boolean
+  /** 仅显示有销售日期 */
+  onlyHasSale?: boolean
 }
 
-/** 销售价格跟踪行（后端 buildRowMap 常用列，明细级：每行=一条出库明细） */
+/** 销售价格跟踪行（每条 = 商品×往来单位最近一次成交价） */
 export interface SalesPriceTrackItem {
-  docDate: string
-  docNo: string
-  docType: string
-  warehouseName: string
-  customerName: string
-  customerCode: string
-  productName: string
+  id: number | string
+  productId: number | string
   productCode: string
+  productName: string
+  unit: string
   barcode: string
   specification: string
   model: string
   origin: string
-  brand: string
-  salesQuantity: number
-  unitPrice: number
-  discountedPrice: number
+  partnerId: number | string
+  partnerCode: string
+  partnerName: string
+  salePrice: number
   discountRate: number
-  amount: number
-  wholesalePrice: number
-  retailPrice: number
-  minSalePrice: number
-  costPrice: number
-  grossProfit: number
-  handlerName: string
-  createTime: string
+  saleDate: string
+  lastModifyTime: string
+  source?: string
+}
+
+/** 价格趋势点 */
+export interface SalesPriceTrendPoint {
+  id: number | string
+  productId: number | string
+  productName: string
+  saleDate: string
+  salePrice: number
+  discountRate: number
+  partnerName: string
 }
 
 export const salesPriceTrackApi = {
-  /** 分页查询销售价格跟踪（明细级，按单据日期倒序） */
+  /** 分页查询销售价格跟踪列表 */
   page(params?: SalesPriceTrackQuery): Promise<PageResponse<SalesPriceTrackItem>> {
     return request.get('/sales/price-track/page', params)
-  }
+  },
+  /** 新增价格折扣 */
+  save(data: Record<string, any>) {
+    return request.post('/sales/price-track', data)
+  },
+  /** 修改价格记录 */
+  update(id: number | string, data: Record<string, any>) {
+    return request.put(`/sales/price-track/${id}`, data)
+  },
+  /** 删除价格记录 */
+  remove(id: number | string) {
+    return request.delete(`/sales/price-track/${id}`)
+  },
+  /** 批量删除 */
+  batchRemove(ids: (number | string)[]) {
+    return request.post('/sales/price-track/batch-delete', ids)
+  },
+  /** 商品销售价格趋势 */
+  trend(productId: number | string): Promise<SalesPriceTrendPoint[]> {
+    return request.get('/sales/price-track/trend', { productId })
+  },
 }
 
 // ── 采购订单 ──────────────────────────────────────────
@@ -1772,6 +1828,10 @@ export interface RetailOrderItem {
 }
 
 export const retailOrderApi = {
+  // 后端号段：下一个零售单号（LS-yyyyMMdd-NNNN）
+  nextNo(): Promise<any> {
+    return request.get('/sales/retail/next-no')
+  },
   // 按单据分页
   pageByDoc(params: any): Promise<any> {
     return request.get('/sales/retail/page/doc', params)
@@ -2045,15 +2105,17 @@ export const preOrderApi = {
   pageDetail(params: PageQuery): Promise<PageResult<any>> {
     return request.get('/erp/sale/pre-order/page-detail', params)
   },
-  getById(id: number) { return request.get(`/erp/sale/pre-order/${id}`) },
+  // 单号号段由 useBillForm 的 codeApiPath 直接调用 /erp/sale/pre-order/next-no
+  // 雪花ID超出 JS 安全整数：id 一律以 string 透传
+  getById(id: number | string) { return request.get(`/erp/sale/pre-order/${id}`) },
   create(data: any) { return request.post('/erp/sale/pre-order', data) },
-  update(id: number, data: any) { return request.put(`/erp/sale/pre-order/${id}`, data) },
-  delete(id: number) { return request.delete(`/erp/sale/pre-order/${id}`) },
-  submit(id: number) { return request.post(`/erp/sale/pre-order/${id}/submit`) },
-  approve(id: number) { return request.post(`/erp/sale/pre-order/${id}/approve`) },
+  update(id: number | string, data: any) { return request.put(`/erp/sale/pre-order/${id}`, data) },
+  delete(id: number | string) { return request.delete(`/erp/sale/pre-order/${id}`) },
+  submit(id: number | string) { return request.post(`/erp/sale/pre-order/${id}/submit`) },
+  approve(id: number | string) { return request.post(`/erp/sale/pre-order/${id}/approve`) },
   export(params: any) { return request.get('/erp/sale/pre-order/export', params) },
-  batchOrder(ids: number[]) { return request.post('/erp/sale/pre-order/batch-order', { ids }) },
-  print(id: number) { return request.post(`/erp/sale/pre-order/${id}/print`) },
+  batchOrder(ids: (number | string)[]) { return request.post('/erp/sale/pre-order/batch-order', { ids }) },
+  print(id: number | string) { return request.post(`/erp/sale/pre-order/${id}/print`) },
 }
 
 // ─ 用户页面配置 ────────────────────────────────────────

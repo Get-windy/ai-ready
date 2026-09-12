@@ -1,0 +1,67 @@
+package cn.aiedge.erp.sale.dto;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
+import lombok.Data;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+
+/**
+ * 销售价格跟踪 新增/修改参数DTO（价格折扣）
+ *
+ * @author AI-Ready Team
+ * @since 1.0.0
+ */
+@Data
+@Schema(description = "销售价格跟踪-价格折扣保存参数")
+public class SalePriceTrackSaveDTO {
+
+    @Schema(description = "价格记录ID（修改时传）")
+    private Long id;
+
+    @Schema(description = "商品ID", requiredMode = Schema.RequiredMode.REQUIRED)
+    @NotNull(message = "商品不能为空")
+    private Long productId;
+
+    @Schema(description = "货号")
+    private String productCode;
+
+    @Schema(description = "商品名称")
+    private String productName;
+
+    @Schema(description = "商品单位")
+    private String unit;
+
+    @Schema(description = "条码")
+    private String barcode;
+
+    @Schema(description = "规格")
+    private String specification;
+
+    @Schema(description = "型号")
+    private String model;
+
+    @Schema(description = "产地")
+    private String origin;
+
+    @Schema(description = "往来单位ID", requiredMode = Schema.RequiredMode.REQUIRED)
+    @NotNull(message = "往来单位不能为空")
+    private Long partnerId;
+
+    @Schema(description = "往来单位编号")
+    private String partnerCode;
+
+    @Schema(description = "往来单位名称")
+    private String partnerName;
+
+    @Schema(description = "销售价", requiredMode = Schema.RequiredMode.REQUIRED)
+    @NotNull(message = "销售价不能为空")
+    private BigDecimal salePrice;
+
+    @Schema(description = "销售折扣（%），缺省 100 表示无折扣")
+    private BigDecimal discountRate;
+
+    @Schema(description = "销售日期")
+    private LocalDate saleDate;
+}

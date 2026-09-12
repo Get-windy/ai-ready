@@ -73,15 +73,17 @@
         </div>
       </a-tab-pane>
 
-      <!-- ═══ Tab 3: 打印配置（fieldsOnly 时隐藏） ═══ -->
-      <a-tab-pane v-if="!props.fieldsOnly" key="print" tab="打印配置">
-        <div class="tab-tip">打印配置仅对该操作员有效</div>
+      <!-- ═══ Tab 3: 打印配置（fieldsOnly 或 hidePrintConfig 时隐藏） ═══ -->
+      <a-tab-pane v-if="!props.fieldsOnly && !props.hidePrintConfig" key="print" tab="打印配置">
+        <div class="tab-tip">打印配置仅对该操作员有效，将作为页面打印组件的默认行为</div>
         <div class="print-settings">
-          <a-checkbox v-model:checked="printConfig.alwaysLastTemplate" @change="handlePrintChange">
-            始终使用最后一次打印的模板，打印时不再选择
-          </a-checkbox>
-          <a-checkbox v-model:checked="printConfig.linkReturnApply" @change="handlePrintChange">
-            批量打印关联退货申请单
+          <a-checkbox
+            v-for="item in activePrintItems"
+            :key="item.key"
+            v-model:checked="printConfig[item.key]"
+            @change="handlePrintChange"
+          >
+            {{ item.label }}
           </a-checkbox>
         </div>
         <div class="tab-footer">
@@ -104,10 +106,22 @@ const props = defineProps<{
   queryFieldsConfig?: QueryFieldSetting[]
   /** 可选：覆盖默认功能按钮列表 */
   functionButtonsConfig?: FunctionButtonSetting[]
+  /**
+   * 可选：「恢复默认」的基准配置。
+   * 缺省回落到 queryFieldsConfig / functionButtonsConfig —— 但页面通常把「当前配置」传给上面两个 prop，
+   * 此时「恢复默认」会退化为「不变化」；需要真正恢复出厂勾选的页面应传本项。
+   */
+  defaultQueryFieldsConfig?: QueryFieldSetting[]
+  /** 可选：功能按钮「恢复默认」的基准配置（同上） */
+  defaultFunctionButtonsConfig?: FunctionButtonSetting[]
   /** 可选：覆盖默认存储键 */
   storageKey?: string
   /** 可选：仅显示「查询条件」Tab（对标：本类页面无「功能按钮」Tab） */
   fieldsOnly?: boolean
+  /** 可选：隐藏「打印配置」Tab（对标：拣货/发货类页面无打印配置） */
+  hidePrintConfig?: boolean
+  /** 可选：自定义「打印配置」勾选项（缺省为内置两项），勾选结果通过 change 事件回传页面 */
+  printConfigItems?: PrintConfigItem[]
 }>()
 const emit = defineEmits<{
   'update:open': [v: boolean]
@@ -130,6 +144,13 @@ export interface FunctionButtonSetting {
 export interface PrintConfigSetting {
   alwaysLastTemplate: boolean
   linkReturnApply: boolean
+  [key: string]: boolean
+}
+
+/** 打印配置勾选项定义（页面可覆盖） */
+export interface PrintConfigItem {
+  key: string
+  label: string
 }
 
 export interface PageConfig {
@@ -141,8 +162,14 @@ export interface PageConfig {
 // ── Storage (支持父组件覆盖) ──
 const STORAGE_KEY_DEFAULT = 'sale-order-page-config'
 const activeStorageKey = computed(() => props.storageKey || STORAGE_KEY_DEFAULT)
-const activeDefaultQueryFields = computed(() => props.queryFieldsConfig || DEFAULT_QUERY_FIELDS)
-const activeDefaultFunctionButtons = computed(() => props.functionButtonsConfig || DEFAULT_FUNCTION_BUTTONS)
+const activeDefaultQueryFields = computed(() =>
+  props.defaultQueryFieldsConfig || props.queryFieldsConfig || DEFAULT_QUERY_FIELDS)
+const activeDefaultFunctionButtons = computed(() =>
+  props.defaultFunctionButtonsConfig || props.functionButtonsConfig || DEFAULT_FUNCTION_BUTTONS)
+
+/** 配置项基准列表（用于合并本地已存配置；始终取「当前配置」以保证字段全集） */
+const activeBaseQueryFields = computed(() => props.queryFieldsConfig || DEFAULT_QUERY_FIELDS)
+const activeBaseFunctionButtons = computed(() => props.functionButtonsConfig || DEFAULT_FUNCTION_BUTTONS)
 
 // ── Defaults ──
 const DEFAULT_QUERY_FIELDS: QueryFieldSetting[] = [
@@ -211,9 +238,16 @@ const DEFAULT_FUNCTION_BUTTONS: FunctionButtonSetting[] = [
   { key: 'pickComplete', label: '拣完批量发货', enabled: true },
 ]
 
-const DEFAULT_PRINT_CONFIG: PrintConfigSetting = {
-  alwaysLastTemplate: false,
-  linkReturnApply: false,
+const DEFAULT_PRINT_ITEMS: PrintConfigItem[] = [
+  { key: 'alwaysLastTemplate', label: '始终使用最后一次打印的模板，打印时不再选择' },
+  { key: 'linkReturnApply', label: '批量打印关联退货申请单' },
+]
+const activePrintItems = computed(() => props.printConfigItems?.length ? props.printConfigItems : DEFAULT_PRINT_ITEMS)
+
+function buildDefaultPrintConfig(): PrintConfigSetting {
+  const cfg: Record<string, boolean> = {}
+  activePrintItems.value.forEach(item => { cfg[item.key] = false })
+  return cfg as PrintConfigSetting
 }
 
 // ── State ──
@@ -221,7 +255,7 @@ const visible = ref(false)
 const activeTab = ref('fields')
 const queryFields = ref<QueryFieldSetting[]>([])
 const functionButtons = ref<FunctionButtonSetting[]>([])
-const printConfig = reactive<PrintConfigSetting>({ ...DEFAULT_PRINT_CONFIG })
+const printConfig = reactive<PrintConfigSetting>(buildDefaultPrintConfig())
 
 // ═══ Drag state ═══
 let dragIndex = -1
@@ -237,7 +271,11 @@ function onDrop() { dragIndex = -1 }
 // ═══ Sync open prop ═══
 watch(() => props.open, (val) => {
   visible.value = val
-  if (val) loadConfig()
+  if (val) {
+    // 每次打开都回到「查询条件」页，避免残留上次停留的 Tab
+    activeTab.value = 'fields'
+    loadConfig()
+  }
 })
 watch(visible, (val) => emit('update:open', val))
 
@@ -253,20 +291,48 @@ watch(
 )
 
 // ═══ Storage ═══
+
+/**
+ * 按已保存数组的顺序还原配置项，并把默认列表中的新增项追加到末尾。
+ * 保证「查询条件」Tab 的拖拽排序在重开弹窗 / 刷新页面后依然生效。
+ */
+function mergeSavedOrder<T extends { key: string }>(
+  defaults: T[],
+  saved: T[] | undefined,
+  merge: (def: T, item: T) => T
+): T[] {
+  if (!Array.isArray(saved) || saved.length === 0) {
+    return defaults.map(d => ({ ...d }))
+  }
+  const result: T[] = []
+  saved.forEach((s) => {
+    const def = defaults.find(d => d.key === s.key)
+    if (def) result.push(merge(def, s))
+  })
+  defaults.forEach((d) => {
+    if (!saved.some(s => s.key === d.key)) result.push({ ...d })
+  })
+  return result
+}
+
 function loadConfig() {
   try {
     const raw = localStorage.getItem(activeStorageKey.value)
     if (raw) {
       const parsed = JSON.parse(raw)
-      queryFields.value = activeDefaultQueryFields.value.map(df => {
-        const saved = parsed.queryFields?.find((f: QueryFieldSetting) => f.key === df.key)
-        return saved ? { ...df, ...saved } : { ...df }
-      })
-      functionButtons.value = activeDefaultFunctionButtons.value.map(bf => {
-        const saved = parsed.functionButtons?.find((f: FunctionButtonSetting) => f.key === bf.key)
-        return saved ? { ...bf, ...saved } : { ...bf }
-      })
-      Object.assign(printConfig, { ...DEFAULT_PRINT_CONFIG, ...parsed.printConfig })
+      // 保留用户拖拽后的顺序：先按已保存数组的顺序还原，再把新增字段追加到末尾。
+      // 若按默认数组顺序 map，拖拽排序会在重开弹窗后丢失（「可拖动排序」形同虚设）。
+      queryFields.value = mergeSavedOrder(
+        activeBaseQueryFields.value,
+        parsed.queryFields,
+        (df, saved) => ({ ...df, ...saved })
+      ) as QueryFieldSetting[]
+      functionButtons.value = mergeSavedOrder(
+        activeBaseFunctionButtons.value,
+        parsed.functionButtons,
+        (bf, saved) => ({ ...bf, ...saved })
+      ) as FunctionButtonSetting[]
+      Object.assign(printConfig, buildDefaultPrintConfig(), parsed.printConfig)
     } else {
       resetToDefaults()
     }
@@ -289,7 +355,7 @@ function persistConfig() {
 function resetToDefaults() {
   queryFields.value = activeDefaultQueryFields.value.map(f => ({ ...f }))
   functionButtons.value = activeDefaultFunctionButtons.value.map(f => ({ ...f }))
-  Object.assign(printConfig, { ...DEFAULT_PRINT_CONFIG })
+  Object.assign(printConfig, buildDefaultPrintConfig())
 }
 
 function emitChange() {
@@ -313,7 +379,7 @@ function handleResetButtons() {
   persistConfig()
 }
 function handleResetPrint() {
-  Object.assign(printConfig, { ...DEFAULT_PRINT_CONFIG })
+  Object.assign(printConfig, buildDefaultPrintConfig())
   persistConfig()
 }
 function handleClose() { emit('update:open', false) }

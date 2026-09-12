@@ -43,14 +43,9 @@
           </a-space>
         </template>
 
-        <!-- ═══ 工具栏右侧：列配置/页面配置/新增/刷新/打印(F8)/导出 ═══ -->
+        <!-- ═══ 工具栏右侧：页面配置/新增/刷新/打印(F8)/导出（列配置走数据表表头齿轮） ═══ -->
         <template #toolbar-right>
           <a-space :size="8">
-            <a-tooltip title="列配置">
-              <a-button size="small" @click="showColumnConfig = true">
-                <TableOutlined />
-              </a-button>
-            </a-tooltip>
             <a-tooltip title="页面配置">
               <a-button size="small" @click="showPageConfig = true">
                 <SettingOutlined />
@@ -142,8 +137,9 @@
         <template #table>
           <div class="table-area">
             <BillTableList
-              :columns="visibleColumns"
+              :columns="allColumns"
               :data-source="tableData"
+              :storage-key="'advance-receipt-table-columns'"
               :loading="loading"
               :pagination="billPagination"
               :show-toolbar="false"
@@ -207,17 +203,6 @@
       </CategoryListLayout>
     </PageContainer>
 
-    <!-- ═══ 列配置弹窗 ═══ -->
-    <ColumnConfigPanel
-      :open="showColumnConfig"
-      :settings-columns="panelColumns"
-      :is-locked-column="isLockedColumn"
-      @update:open="showColumnConfig = $event"
-      @change="handleColumnConfigChange"
-      @reset="handleColumnConfigReset"
-      @drag-end="handleColumnConfigChange"
-    />
-
     <!-- ═══ 页面配置弹窗 ═══ -->
     <PageConfigPanel
       :open="showPageConfig"
@@ -238,15 +223,13 @@ import type { Dayjs } from 'dayjs'
 import dayjs from 'dayjs'
 import {
   PlusOutlined, ReloadOutlined, PrinterOutlined, SettingOutlined,
-  TableOutlined, ExportOutlined,
+  ExportOutlined,
 } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayout.vue'
-import ColumnConfigPanel from '@/components/ColumnConfigPanel/index.vue'
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
-import { useColumnConfig, isLockedColumn } from '@/composables/useColumnConfig'
 import { useAutoGridSpan } from '@/composables/useAutoGridSpan'
 import { preReceiptApi } from '@/api/finance'
 import { useUserStore } from '@/stores/user'
@@ -311,8 +294,7 @@ const rowSelection = computed(() => ({
   onChange: (keys: any[]) => { selectedRowKeys.value = keys },
 }))
 
-// ═══ 列配置/页面配置弹窗 ═══
-const showColumnConfig = ref(false)
+// ═══ 页面配置弹窗（列配置走数据表表头齿轮，storage-key=advance-receipt-table-columns） ═══
 const showPageConfig = ref(false)
 
 // ═══ 页面配置（查询条件显隐、功能按钮） ═══
@@ -403,21 +385,6 @@ const allColumns = [
   { title: '记账时间', field: 'bookkeepingTime', key: 'bookkeepingTime', width: 140, defaultHidden: true },
   { title: '打印次数', field: 'printCount', key: 'printCount', width: 80, align: 'right', type: 'slot', slotName: 'printCountCell' },
 ]
-
-const columnDefs = computed(() => allColumns.map(col => ({ ...col })))
-const {
-  visibleColumns,
-  onSettingChange,
-  resetSettings,
-  settingsColumns: panelColumns,
-} = useColumnConfig(columnDefs.value, 'advance-receipt-list-columns')
-
-function handleColumnConfigChange() {
-  onSettingChange()
-}
-function handleColumnConfigReset() {
-  resetSettings()
-}
 
 // ═══ 状态映射 ═══
 const STATUS_MAP: Record<string, { text: string; color: string }> = {

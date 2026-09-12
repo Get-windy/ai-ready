@@ -24,6 +24,12 @@ public class BudgetReportServiceImpl implements BudgetReportService {
     private final BudgetItemRepository budgetItemRepository;
     private final BudgetExecutionLogRepository budgetExecutionLogRepository;
 
+    private static final BigDecimal ZERO = BigDecimal.ZERO;
+    private static final BigDecimal HUNDRED = BigDecimal.valueOf(100);
+    /** 已转入执行的预算状态：只有这些预算计入执行口径 */
+    private static final java.util.Set<String> EXECUTED_STATUS =
+            java.util.Set.of("approved", "executing", "closed");
+
     @Override
     public BudgetStatisticsDTO getExecutionSummary(Integer fiscalYear) {
         List<AnnualBudget> budgets = annualBudgetRepository.findByFiscalYearAndDeletedFalse(fiscalYear);
@@ -31,38 +37,65 @@ public class BudgetReportServiceImpl implements BudgetReportService {
         BudgetStatisticsDTO dto = new BudgetStatisticsDTO();
         BigDecimal totalBudget = BigDecimal.ZERO;
         BigDecimal totalUsed = BigDecimal.ZERO;
-        BigDecimal totalRemaining = BigDecimal.ZERO;
+        BigDecimal totalFrozen = BigDecimal.ZERO;
+        BigDecimal overAmount = BigDecimal.ZERO;
         int totalCount = 0;
         int executingCount = 0;
         int closedCount = 0;
         int draftCount = 0;
+        int approvedCount = 0;
+        int itemCount = 0;
+        int overCount = 0;
+        int warnCount = 0;
 
         for (AnnualBudget budget : budgets) {
-            totalBudget = totalBudget.add(budget.getTotalAmount() != null ? budget.getTotalAmount() : BigDecimal.ZERO);
-            totalUsed = totalUsed.add(budget.getTotalUsedAmount() != null ? budget.getTotalUsedAmount() : BigDecimal.ZERO);
-            totalRemaining = totalRemaining.add(budget.getTotalRemainingAmount() != null ? budget.getTotalRemainingAmount() : BigDecimal.ZERO);
-            totalCount++;
-            switch (budget.getStatus()) {
+            String status = budget.getStatus() != null ? budget.getStatus() : "";
+            switch (status) {
                 case "executing": executingCount++; break;
                 case "closed": closedCount++; break;
                 case "draft": draftCount++; break;
+                default: break;
+            }
+            // P1 预算来源：只有已审批并转入执行的预算才计入执行口径
+            if (!EXECUTED_STATUS.contains(status)) {
+                continue;
+            }
+            approvedCount++;
+
+            // 金额按预算科目明细实时聚合（剩余 = 预算 − 已执行 − 冻结）
+            for (BudgetItem item : budgetItemRepository.findByBudgetIdOrderBySortOrderAsc(budget.getId())) {
+                itemCount++;
+                BigDecimal amount = nvl(item.getBudgetAmount());
+                BigDecimal used = nvl(item.getUsedAmount());
+                BigDecimal frozen = nvl(item.getFrozenAmount());
+                totalBudget = totalBudget.add(amount);
+                totalUsed = totalUsed.add(used);
+                totalFrozen = totalFrozen.add(frozen);
+                BigDecimal rate = rate(used, amount);
+                if (rate.compareTo(BigDecimal.valueOf(100)) > 0) {
+                    overCount++;
+                    overAmount = overAmount.add(used.subtract(amount).max(BigDecimal.ZERO));
+                } else if (rate.compareTo(BigDecimal.valueOf(90)) >= 0) {
+                    warnCount++;
+                }
             }
         }
+        totalCount = budgets.size();
 
         dto.setTotalBudgetAmount(totalBudget);
         dto.setTotalUsedAmount(totalUsed);
-        dto.setTotalRemainingAmount(totalRemaining);
+        dto.setTotalFrozenAmount(totalFrozen);
+        dto.setTotalRemainingAmount(totalBudget.subtract(totalUsed).subtract(totalFrozen));
+        dto.setExecutionRate(rate(totalUsed, totalBudget));
         dto.setTotalBudgetCount(totalCount);
         dto.setExecutingCount(executingCount);
         dto.setClosedCount(closedCount);
         dto.setDraftCount(draftCount);
-
-        if (totalBudget.compareTo(BigDecimal.ZERO) > 0) {
-            dto.setExecutionRate(totalUsed.multiply(BigDecimal.valueOf(100))
-                    .divide(totalBudget, 2, java.math.RoundingMode.HALF_UP));
-        } else {
-            dto.setExecutionRate(BigDecimal.ZERO);
-        }
+        dto.setApprovedCount(approvedCount);
+        dto.setTotalItemCount(itemCount);
+        dto.setOverBudgetCount(overCount);
+        dto.setWarningCount(warnCount);
+        dto.setOverBudgetAmount(overAmount);
 
         return dto;
     }
@@ -73,6 +106,9 @@ public class BudgetReportServiceImpl implements BudgetReportService {
 
         Map<String, Map<String, Object>> deptMap = new LinkedHashMap<>();
         for (AnnualBudget budget : budgets) {
+            if (!EXECUTED_STATUS.contains(budget.getStatus())) {
+                continue;
+            }
             String deptId = budget.getDepartmentId();
             String deptName = budget.getDepartmentName();
             if (deptId == null) continue;
@@ -82,22 +118,23 @@ public class BudgetReportServiceImpl implements BudgetReportService {
             entry.put("departmentId", deptId);
             entry.put("departmentName", deptName != null ? deptName : deptId);
 
-            BigDecimal amount = budget.getTotalAmount() != null ? budget.getTotalAmount() : BigDecimal.ZERO;
-            BigDecimal used = budget.getTotalUsedAmount() != null ? budget.getTotalUsedAmount() : BigDecimal.ZERO;
-            entry.merge("totalBudget", amount, (a, b) -> ((BigDecimal) a).add((BigDecimal) b));
-            entry.merge("totalUsed", used, (a, b) -> ((BigDecimal) a).add((BigDecimal) b));
+            for (BudgetItem item : budgetItemRepository.findByBudgetIdOrderBySortOrderAsc(budget.getId())) {
+                entry.merge("totalBudget", nvl(item.getBudgetAmount()), (a, b) -> ((BigDecimal) a).add((BigDecimal) b));
+                entry.merge("totalUsed", nvl(item.getUsedAmount()), (a, b) -> ((BigDecimal) a).add((BigDecimal) b));
+                entry.merge("totalFrozen", nvl(item.getFrozenAmount()), (a, b) -> ((BigDecimal) a).add((BigDecimal) b));
+            }
         }
 
         for (Map<String, Object> entry : deptMap.values()) {
-            BigDecimal totalBudget = (BigDecimal) entry.get("totalBudget");
-            BigDecimal totalUsed = (BigDecimal) entry.get("totalUsed");
-            if (totalBudget.compareTo(BigDecimal.ZERO) > 0) {
-                entry.put("executionRate", totalUsed.multiply(BigDecimal.valueOf(100))
-                        .divide(totalBudget, 2, java.math.RoundingMode.HALF_UP));
-            } else {
-                entry.put("executionRate", BigDecimal.ZERO);
-            }
-            entry.put("totalRemaining", totalBudget.subtract(totalUsed));
+            BigDecimal totalBudget = nvl((BigDecimal) entry.get("totalBudget"));
+            BigDecimal totalUsed = nvl((BigDecimal) entry.get("totalUsed"));
+            BigDecimal totalFrozen = nvl((BigDecimal) entry.get("totalFrozen"));
+            entry.put("totalBudget", totalBudget);
+            entry.put("totalUsed", totalUsed);
+            entry.put("totalFrozen", totalFrozen);
+            entry.put("executionRate", rate(totalUsed, totalBudget));
+            // P1 剩余公式：剩余 = 预算 − 已执行 − 冻结
+            entry.put("totalRemaining", totalBudget.subtract(totalUsed).subtract(totalFrozen));
         }
 
         return new ArrayList<>(deptMap.values());
@@ -112,6 +149,9 @@ public class BudgetReportServiceImpl implements BudgetReportService {
             List<AnnualBudget> budgets = annualBudgetRepository.findByFiscalYearAndDeletedFalse(fiscalYear);
             items = new ArrayList<>();
             for (AnnualBudget budget : budgets) {
+                if (!EXECUTED_STATUS.contains(budget.getStatus())) {
+                    continue;
+                }
                 items.addAll(budgetItemRepository.findByBudgetIdOrderBySortOrderAsc(budget.getId()));
             }
         }
@@ -125,22 +165,20 @@ public class BudgetReportServiceImpl implements BudgetReportService {
             entry.put("subjectCode", code);
             entry.put("subjectName", item.getSubjectName());
 
-            BigDecimal amount = item.getBudgetAmount() != null ? item.getBudgetAmount() : BigDecimal.ZERO;
-            BigDecimal used = item.getUsedAmount() != null ? item.getUsedAmount() : BigDecimal.ZERO;
-            entry.merge("totalBudget", amount, (a, b) -> ((BigDecimal) a).add((BigDecimal) b));
-            entry.merge("totalUsed", used, (a, b) -> ((BigDecimal) a).add((BigDecimal) b));
+            entry.merge("totalBudget", nvl(item.getBudgetAmount()), (a, b) -> ((BigDecimal) a).add((BigDecimal) b));
+            entry.merge("totalUsed", nvl(item.getUsedAmount()), (a, b) -> ((BigDecimal) a).add((BigDecimal) b));
+            entry.merge("totalFrozen", nvl(item.getFrozenAmount()), (a, b) -> ((BigDecimal) a).add((BigDecimal) b));
         }
 
         for (Map<String, Object> entry : subjectMap.values()) {
-            BigDecimal totalBudget = (BigDecimal) entry.get("totalBudget");
-            BigDecimal totalUsed = (BigDecimal) entry.get("totalUsed");
-            if (totalBudget.compareTo(BigDecimal.ZERO) > 0) {
-                entry.put("executionRate", totalUsed.multiply(BigDecimal.valueOf(100))
-                        .divide(totalBudget, 2, java.math.RoundingMode.HALF_UP));
-            } else {
-                entry.put("executionRate", BigDecimal.ZERO);
-            }
-            entry.put("totalRemaining", totalBudget.subtract(totalUsed));
+            BigDecimal totalBudget = nvl((BigDecimal) entry.get("totalBudget"));
+            BigDecimal totalUsed = nvl((BigDecimal) entry.get("totalUsed"));
+            BigDecimal totalFrozen = nvl((BigDecimal) entry.get("totalFrozen"));
+            entry.put("totalBudget", totalBudget);
+            entry.put("totalUsed", totalUsed);
+            entry.put("totalFrozen", totalFrozen);
+            entry.put("executionRate", rate(totalUsed, totalBudget));
+            entry.put("totalRemaining", totalBudget.subtract(totalUsed).subtract(totalFrozen));
         }
 
         return new ArrayList<>(subjectMap.values());
@@ -185,19 +223,18 @@ public class BudgetReportServiceImpl implements BudgetReportService {
     public List<Map<String, Object>> getTrend(Integer fiscalYear) {
         List<Map<String, Object>> result = new ArrayList<>();
 
-        List<BudgetExecutionLog> logs = budgetExecutionLogRepository.findByBudgetIdAndExecutionDateBetweenOrderByExecutionDateDesc(
-                null, LocalDate.of(fiscalYear, 1, 1), LocalDate.of(fiscalYear, 12, 31));
+        List<BudgetExecutionLog> logs = budgetExecutionLogRepository.findByExecutionDateBetweenOrderByExecutionDateAsc(
+                LocalDate.of(fiscalYear, 1, 1), LocalDate.of(fiscalYear, 12, 31));
 
         Map<Integer, BigDecimal> monthlyMap = new TreeMap<>();
         for (int i = 1; i <= 12; i++) {
-            monthlyMap.put(i, BigDecimal.ZERO);
+            monthlyMap.put(i, ZERO);
         }
 
         for (BudgetExecutionLog log : logs) {
             if (log.getExecutionDate() != null && "consume".equals(log.getExecutionType())) {
                 int month = log.getExecutionDate().getMonthValue();
-                BigDecimal amount = log.getAmount() != null ? log.getAmount() : BigDecimal.ZERO;
-                monthlyMap.merge(month, amount, BigDecimal::add);
+                monthlyMap.merge(month, nvl(log.getAmount()), BigDecimal::add);
             }
         }
 
@@ -209,5 +246,16 @@ public class BudgetReportServiceImpl implements BudgetReportService {
         }
 
         return result;
+    }
+
+    private static BigDecimal nvl(BigDecimal value) {
+        return value != null ? value : ZERO;
+    }
+
+    private static BigDecimal rate(BigDecimal used, BigDecimal amount) {
+        if (nvl(amount).compareTo(ZERO) > 0) {
+            return nvl(used).multiply(HUNDRED).divide(amount, 2, java.math.RoundingMode.HALF_UP);
+        }
+        return ZERO;
     }
 }

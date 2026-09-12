@@ -18,6 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -75,6 +76,18 @@ public class MonthClosingController {
             @Parameter(description = "操作人姓名") @RequestHeader(value = "username", required = false) String operatorName) {
         String[] operator = resolveOperator(operatorId, operatorName);
         return Result.success(monthClosingService.execute(periodCode, operator[0], operator[1]));
+    }
+
+    @Operation(summary = "批量执行月结")
+    @PostMapping("/batch-execute")
+    @PreAuthorize("hasPermission('/api/erp/finance/month-closing/execute', 'finance:month-closing:execute')")
+    @OperationLog(module = "总账月结", type = "UPDATE", desc = "批量执行月结")
+    public Result<List<MonthClosingResultDTO>> batchExecute(
+            @Parameter(description = "期间编码列表 yyyy-MM") @RequestBody List<String> periodCodes,
+            @Parameter(description = "操作人ID") @RequestHeader(value = "userId", required = false) String operatorId,
+            @Parameter(description = "操作人姓名") @RequestHeader(value = "username", required = false) String operatorName) {
+        String[] operator = resolveOperator(operatorId, operatorName);
+        return Result.success(monthClosingService.batchExecute(periodCodes, operator[0], operator[1]));
     }
 
     @Operation(summary = "反月结（重新开启期间）")

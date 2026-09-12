@@ -12,7 +12,7 @@
           </template>
           返回
         </a-button>
-        <span class="page-title">客户新增</span>
+        <span class="page-title">{{ isEdit ? '客户编辑' : '客户新增' }}</span>
       </a-space>
     </div>
 
@@ -54,10 +54,14 @@
             :gutter="24"
             class="section-row"
           >
-            <a-col :span="16">
-              <a-row :gutter="24">
-                <a-col :span="12">
+            <a-col :span="20">
+              <a-row
+                :gutter="24"
+                class="basic-info-row"
+              >
+                <a-col :span="6">
                   <a-form-item
+                    :label-col="{ flex: '78px' }"
                     label="客户名称"
                     name="partnerName"
                   >
@@ -68,8 +72,9 @@
                     />
                   </a-form-item>
                 </a-col>
-                <a-col :span="12">
+                <a-col :span="6">
                   <a-form-item
+                    :label-col="{ flex: '78px' }"
                     label="客户编号"
                     name="partnerCode"
                   >
@@ -81,10 +86,9 @@
                     />
                   </a-form-item>
                 </a-col>
-              </a-row>
-              <a-row :gutter="24">
-                <a-col :span="12">
+                <a-col :span="6">
                   <a-form-item
+                    :label-col="{ flex: '78px' }"
                     label="所属分类"
                     name="partnerCategoryId"
                   >
@@ -104,8 +108,9 @@
                     </a-select>
                   </a-form-item>
                 </a-col>
-                <a-col :span="12">
+                <a-col :span="6">
                   <a-form-item
+                    :label-col="{ flex: '78px' }"
                     label="客户级别"
                     name="partnerGradeId"
                   >
@@ -125,10 +130,9 @@
                     </a-select>
                   </a-form-item>
                 </a-col>
-              </a-row>
-              <a-row :gutter="24">
-                <a-col :span="12">
+                <a-col :span="6">
                   <a-form-item
+                    :label-col="{ flex: '78px' }"
                     label="默认经手人"
                     name="defaultHandlerId"
                   >
@@ -139,6 +143,7 @@
                       size="small"
                       show-search
                       :filter-option="filterUser"
+                      @change="onDefaultHandlerChange"
                     >
                       <a-select-option
                         v-for="u in users"
@@ -151,8 +156,9 @@
                     </a-select>
                   </a-form-item>
                 </a-col>
-                <a-col :span="12">
+                <a-col :span="6">
                   <a-form-item
+                    :label-col="{ flex: '78px' }"
                     label="所属仓库"
                     name="defaultWarehouseId"
                   >
@@ -172,48 +178,29 @@
                     </a-select>
                   </a-form-item>
                 </a-col>
-              </a-row>
-              <a-row :gutter="24">
-                <a-col :span="8">
+                <!-- 对标：所属区域在基本信息区（与所属仓库同排），带放大镜下拉 -->
+                <a-col :span="6">
                   <a-form-item
-                    label="所在省"
-                    name="province"
+                    label="所属区域"
+                    :label-col="{ flex: '78px' }"
                   >
-                    <a-input
-                      v-model:value="form.province"
-                      placeholder="省"
+                    <a-select
+                      v-model:value="region"
+                      placeholder="请选择所属区域"
+                      allow-clear
+                      show-search
+                      option-filter-prop="label"
                       size="small"
+                      :options="regionOptions"
                     />
                   </a-form-item>
                 </a-col>
-                <a-col :span="8">
+              <!-- 省/市/区已移到「联系人信息 → 所在地区」三级联动，单位所在地区默认取常用联系人（对标无此三项，避免冗余） -->
+                <a-col :span="6">
                   <a-form-item
-                    label="所在市"
-                    name="city"
+                    label="助记码"
+                    :label-col="{ flex: '78px' }"
                   >
-                    <a-input
-                      v-model:value="form.city"
-                      placeholder="市"
-                      size="small"
-                    />
-                  </a-form-item>
-                </a-col>
-                <a-col :span="8">
-                  <a-form-item
-                    label="所在区/县"
-                    name="district"
-                  >
-                    <a-input
-                      v-model:value="form.district"
-                      placeholder="区/县"
-                      size="small"
-                    />
-                  </a-form-item>
-                </a-col>
-              </a-row>
-              <a-row :gutter="24">
-                <a-col :span="12">
-                  <a-form-item label="助记码">
                     <a-input
                       v-model:value="form.partnerShortName"
                       placeholder="输入拼音首字母等"
@@ -221,8 +208,9 @@
                     />
                   </a-form-item>
                 </a-col>
-                <a-col :span="12">
+                <a-col :span="6">
                   <a-form-item
+                    :label-col="{ flex: '78px' }"
                     label="结款方式"
                     name="settleType"
                   >
@@ -230,25 +218,20 @@
                       v-model:value="form.settleType"
                       size="small"
                     >
-                      <a-select-option value="MONTHLY">
-                        月结
+                      <a-select-option value="挂账">
+                        挂账
                       </a-select-option>
-                      <a-select-option value="WEEKLY">
-                        周结
-                      </a-select-option>
-                      <a-select-option value="CASH">
+                      <a-select-option value="现结">
                         现结
-                      </a-select-option>
-                      <a-select-option value="ADVANCE">
-                        预付
                       </a-select-option>
                     </a-select>
                   </a-form-item>
                 </a-col>
-              </a-row>
-              <a-row :gutter="24">
-                <a-col :span="12">
-                  <a-form-item label="状态">
+                <a-col :span="6">
+                  <a-form-item
+                    label="状态"
+                    :label-col="{ flex: '78px' }"
+                  >
                     <a-switch
                       v-model:checked="statusChecked"
                       checked-children="启用"
@@ -260,7 +243,7 @@
               </a-row>
             </a-col>
             <a-col
-              :span="8"
+              :span="4"
               style="text-align:center"
             >
               <div class="avatar-upload">
@@ -297,6 +280,15 @@
               </div>
             </a-col>
           </a-row>
+        </div>
+
+        <!-- 联系人信息（对标：位于基本信息之后、会员信息之前） -->
+        <div class="section-card">
+          <ContactList
+            :contacts="contacts"
+            show-mall-account
+            @update="contacts = $event"
+          />
         </div>
 
         <!-- 会员信息 -->
@@ -338,15 +330,84 @@
               </a-form-item>
             </a-col>
           </a-row>
-        </div>
-
-        <!-- 联系人（内联行模式） -->
-        <div class="section-card">
-          <ContactList
-            :contacts="contacts"
-            show-mall-account
-            @update="contacts = $event"
-          />
+          <a-row
+            :gutter="24"
+            class="section-row"
+          >
+            <a-col :span="8">
+              <a-form-item label="会员级别">
+                <a-select
+                  v-model:value="memberLevel"
+                  placeholder="请选择会员级别"
+                  size="small"
+                  allow-clear
+                  :options="grades.map(g => ({ label: g.gradeName, value: g.gradeName }))"
+                />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item label="会员卡状态">
+                <a-select
+                  v-model:value="memberCardStatus"
+                  placeholder="请选择会员卡状态"
+                  size="small"
+                  allow-clear
+                  :options="memberCardStatusOptions"
+                />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item label="会员卡有效期">
+                <a-range-picker
+                  v-model:value="memberValidRange"
+                  size="small"
+                  format="YYYY-MM-DD"
+                  value-format="YYYY-MM-DD"
+                  style="width: 100%"
+                />
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <a-row
+            :gutter="24"
+            class="section-row"
+          >
+            <a-col :span="8">
+              <a-form-item label="累计消费额">
+                <a-input-number
+                  v-model:value="memberTotalConsume"
+                  :precision="2"
+                  :min="0"
+                  style="width:100%"
+                  size="small"
+                  placeholder="0"
+                />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item label="发卡时间">
+                <a-date-picker
+                  v-model:value="memberIssueTime"
+                  size="small"
+                  show-time
+                  format="YYYY-MM-DD HH:mm:ss"
+                  value-format="YYYY-MM-DD HH:mm:ss"
+                  style="width: 100%"
+                />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item label="当前积分">
+                <a-input-number
+                  v-model:value="currentPoints"
+                  :min="0"
+                  style="width:100%"
+                  size="small"
+                  placeholder="0"
+                />
+              </a-form-item>
+            </a-col>
+          </a-row>
         </div>
 
         <!-- 纳税人信息 -->
@@ -574,6 +635,109 @@
               </a-form-item>
             </a-col>
           </a-row>
+          <!-- 账期（对标：结款方式=挂账时配套 动态收款期限/固定账期/结算期） -->
+          <a-row
+            v-if="!otherInfoCollapsed"
+            :gutter="24"
+            class="section-row"
+          >
+            <a-col :span="8">
+              <a-form-item label="动态收款期限（天）">
+                <a-input-number
+                  v-model:value="creditDays"
+                  :min="0"
+                  style="width:100%"
+                  size="small"
+                  placeholder="0"
+                />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item label="固定账期">
+                <a-input-number
+                  v-model:value="fixedCreditDay"
+                  :min="0"
+                  :max="31"
+                  style="width:100%"
+                  size="small"
+                  placeholder="号"
+                />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item label="结算期">
+                <a-input-number
+                  v-model:value="statementDay"
+                  :min="0"
+                  :max="31"
+                  style="width:100%"
+                  size="small"
+                  placeholder="号"
+                />
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <a-row
+            v-if="!otherInfoCollapsed"
+            :gutter="24"
+            class="section-row"
+          >
+            <a-col :span="8">
+              <a-form-item label="推广人">
+                <a-input
+                  v-model:value="promoterName"
+                  placeholder="请输入推广人"
+                  size="small"
+                />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item label="客户来源">
+                <a-select
+                  v-model:value="customerSource"
+                  placeholder="请选择客户来源"
+                  size="small"
+                  allow-clear
+                  :options="customerSourceOptions"
+                />
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <a-row
+            v-if="!otherInfoCollapsed"
+            :gutter="24"
+            class="section-row"
+          >
+            <a-col :span="8">
+              <a-form-item label="买家账号">
+                <a-input
+                  v-model:value="buyerAccount"
+                  placeholder="商城买家账号（开通商城账号后可用）"
+                  size="small"
+                />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item label="客户一票通">
+                <a-input
+                  v-model:value="customerOnePass"
+                  placeholder="请输入客户一票通"
+                  size="small"
+                />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item label="营业执照有效期">
+                <a-date-picker
+                  v-model:value="businessLicenseExpiry"
+                  size="small"
+                  format="YYYY-MM-DD"
+                  value-format="YYYY-MM-DD"
+                  style="width: 100%"
+                />
+              </a-form-item>
+            </a-col>
+          </a-row>
           <a-row
             v-if="!otherInfoCollapsed"
             :gutter="24"
@@ -592,83 +756,17 @@
           </a-row>
         </div>
 
-        <!-- 证件信息 -->
+        <!-- 证件信息（通用组件：营业执照固定，其余类型可选/自定义，始终保留一个待输入位） -->
         <div class="section-card">
-          <div class="section-title">
-            证件信息
-          </div>
-          <a-row
-            :gutter="24"
-            class="section-row"
-          >
-            <a-col :span="8">
-              <div class="cert-upload">
-                <div
-                  class="cert-placeholder"
-                  @click="certFileInput1.click()"
-                >
-                  <img
-                    v-if="certLicenseUrl"
-                    :src="certLicenseUrl"
-                    class="cert-preview"
-                  >
-                  <div
-                    v-else
-                    class="cert-empty"
-                  >
-                    <PictureOutlined style="font-size: 32px; color: #d9d9d9" />
-                    <span>点击上传图片</span>
-                  </div>
-                </div>
-                <input
-                  ref="certFileInput1"
-                  type="file"
-                  accept="image/*"
-                  hidden
-                  @change="(e) => handleCertUpload(e, 'license')"
-                >
-                <div class="cert-label">
-                  营业执照
-                </div>
-              </div>
-            </a-col>
-            <a-col :span="8">
-              <div class="cert-upload">
-                <div
-                  class="cert-placeholder"
-                  @click="certFileInput2.click()"
-                >
-                  <img
-                    v-if="certPermitUrl"
-                    :src="certPermitUrl"
-                    class="cert-preview"
-                  >
-                  <div
-                    v-else
-                    class="cert-empty"
-                  >
-                    <PictureOutlined style="font-size: 32px; color: #d9d9d9" />
-                    <span>点击上传图片</span>
-                  </div>
-                </div>
-                <input
-                  ref="certFileInput2"
-                  type="file"
-                  accept="image/*"
-                  hidden
-                  @change="(e) => handleCertUpload(e, 'permit')"
-                >
-                <div class="cert-label">
-                  生产许可证
-                </div>
-              </div>
-            </a-col>
-          </a-row>
+          <CertUploadList
+            ref="certRef"
+            :partner-id="savedPartnerId || loadedPartnerId"
+          />
         </div>
 
         <!-- 附件 -->
         <div class="section-card">
-          <AttachmentUpload :partner-id="savedPartnerId" />
+          <AttachmentUpload :partner-id="savedPartnerId || loadedPartnerId" />
         </div>
       </a-form>
     </div>
@@ -698,15 +796,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
 import { ArrowLeftOutlined, CaretDownOutlined, CaretRightOutlined, PictureOutlined, UserOutlined } from '@ant-design/icons-vue'
-import { partnerApi, partnerCategoryApi, partnerGradeApi, partnerContactApi, partnerBankAccountApi, partnerRoleApi, type PartyContact } from '@/api/erp/partner'
+import { partnerApi, partnerCategoryApi, partnerGradeApi, partnerContactApi, partnerBankAccountApi, partnerRoleApi, customerRegionApi, type PartyContact } from '@/api/erp/partner'
 import type { PartnerCategory, PartnerGrade } from '@/api/erp/partner'
 import ContactList, { type ContactRowData } from '../components/ContactList.vue'
 import AttachmentUpload from '../components/AttachmentUpload.vue'
+import CertUploadList from '@/components/CertUploadList/CertUploadList.vue'
 import { userApi, type UserInfo } from '@/api/user'
 import { warehouseApi, type WmsWarehouse } from '@/api/wms/warehouse'
 import request from '@/utils/request'
@@ -714,8 +813,13 @@ import { generatePartnerCodeAsync } from '../utils/generateCode'
 
 async function generateCode() { form.partnerCode = await generatePartnerCodeAsync('customer') }
 
+const route = useRoute()
 const router = useRouter()
 const formRef = ref<FormInstance>()
+
+/** 编辑模式：?id= 命中时为编辑，否则为新增（对标双入口：列表/新增同页） */
+const editingId = computed<number>(() => Number(route.query.id || (route.params as any).id || 0))
+const isEdit = computed(() => editingId.value > 0)
 const saving = ref(false)
 const statusChecked = ref(true)
 const enablePriceTrack = ref(true)
@@ -737,15 +841,47 @@ const users = ref<UserInfo[]>([])
 const warehouses = ref<WmsWarehouse[]>([])
 const contacts = ref<ContactRowData[]>([])
 const savedPartnerId = ref<number>()
+/** 编辑模式已加载的客户 id（附件组件依赖） */
+const loadedPartnerId = ref<number>()
 const avatarUrl = ref('')
 const avatarFileInput = ref<HTMLInputElement>()
 const memberCardNo = ref('')
 const memberName = ref('')
 const initialPoints = ref(0)
-const certLicenseUrl = ref('')
-const certPermitUrl = ref('')
-const certFileInput1 = ref<HTMLInputElement>()
-const certFileInput2 = ref<HTMLInputElement>()
+const certRef = ref<any>(null)
+
+// ── 会员信息（对标「会员信息」分区 + 会员管理子标签） ──
+const memberLevel = ref<string | undefined>(undefined)
+const memberCardStatus = ref<string | undefined>(undefined)
+const memberValidRange = ref<[string, string] | undefined>(undefined)
+const memberTotalConsume = ref<number | undefined>(undefined)
+const memberIssueTime = ref<string | undefined>(undefined)
+const currentPoints = ref<number | undefined>(undefined)
+const memberCardStatusOptions = [
+  { label: '正常', value: 'NORMAL' },
+  { label: '停用', value: 'STOPPED' },
+  { label: '已过期', value: 'EXPIRED' },
+]
+
+// ── 其他信息（对标「其他信息」分区：账期 / 推广人 / 来源 / 商城账号 / 证件） ──
+const creditDays = ref<number | undefined>(undefined)
+const fixedCreditDay = ref<number | undefined>(undefined)
+const statementDay = ref<number | undefined>(undefined)
+const promoterName = ref('')
+const customerSource = ref<string | undefined>(undefined)
+const region = ref('')
+/** 所属区域下拉（对标：基本信息区「所属区域」带放大镜可选择区域档案） */
+const regionOptions = ref<Array<{ label: string; value: string }>>([])
+const buyerAccount = ref('')
+const customerOnePass = ref('')
+const businessLicenseExpiry = ref<string | undefined>(undefined)
+const customerSourceOptions = [
+  { label: '门店拜访', value: '门店拜访' },
+  { label: '电话营销', value: '电话营销' },
+  { label: '老客户介绍', value: '老客户介绍' },
+  { label: '线上推广', value: '线上推广' },
+  { label: '其他', value: '其他' },
+]
 
 const form = reactive({
   partnerName: '',
@@ -754,6 +890,7 @@ const form = reactive({
   partnerCategoryId: undefined as number | undefined,
   partnerGradeId: undefined as number | undefined,
   defaultHandlerId: undefined as number | undefined,
+  defaultHandlerName: undefined as string | undefined,
   defaultWarehouseId: undefined as number | undefined,
   province: '',
   city: '',
@@ -766,7 +903,7 @@ const form = reactive({
   companyEmail: '',
   industry: '',
   sourceChannel: '',
-  settleType: 'MONTHLY',
+  settleType: '挂账',
   taxRate: 13,
   creditLimit: undefined as number | undefined,
   remark: '',
@@ -780,7 +917,21 @@ async function loadCategories() { try { categories.value = await partnerCategory
 async function loadGrades() { try { grades.value = await partnerGradeApi.list('CUSTOMER') } catch { grades.value = [] } }
 async function loadUsers() { try { const res = await userApi.getList(); users.value = (res as any)?.data || (res as any) || [] } catch { users.value = [] } }
 async function loadWarehouses() { try { const res = await warehouseApi.listAll(); warehouses.value = (res as any)?.data || (res as any) || [] } catch { warehouses.value = [] } }
+/** 所属区域选项（来源：客户区域管理 erp_customer_region） */
+async function loadRegions() {
+  try {
+    const list = await customerRegionApi.list()
+    regionOptions.value = (list || []).map((r: any) => ({ label: r.regionName, value: r.regionName }))
+  } catch {
+    regionOptions.value = []
+  }
+}
 function filterUser(input: string, option: any) { return (option.label || '').toLowerCase().includes(input.toLowerCase()) }
+/** 默认经手人：同步落库姓名，供销售单据/明细查询按名称展示与筛选 */
+function onDefaultHandlerChange(value: any) {
+  const u = users.value.find((x: any) => x.id === value)
+  form.defaultHandlerName = u ? (u.nickname || u.username) : undefined
+}
 function handleCancel() { router.push('/md/customer/index') }
 
 async function handleAvatarUpload(e: Event) {
@@ -797,55 +948,203 @@ async function handleAvatarUpload(e: Event) {
   input.value = ''
 }
 
-async function handleCertUpload(e: Event, type: 'license' | 'permit') {
-  const input = e.target as HTMLInputElement
-  const file = input.files?.[0]
-  if (!file) return
-  try {
-    const formData = new FormData()
-    formData.append('file', file)
-    const res = await request.post('/file/upload', formData)
-    const url = typeof res === 'string' ? res : (res as any)?.url || (res as any)?.data?.url
-    if (type === 'license') certLicenseUrl.value = url
-    else certPermitUrl.value = url
-    message.success('上传成功')
-  } catch { message.error('上传失败') }
-  input.value = ''
+/** 汇总表单 → 后端 payload（新增/编辑共用；字段口径与列表 26 列一致） */
+function buildPayload(): Record<string, any> {
+  const roles = ['CUSTOMER', ...otherRoleOptions.value.filter(o => o.checked).map(o => o.value)].join(',')
+  const warehouse = warehouses.value.find((w: any) => w.id === form.defaultWarehouseId)
+  const grade = grades.value.find(g => g.id === form.partnerGradeId)
+  // 单位所在地区 = 常用联系人所在地区（对标：基本信息区不再单列省/市/区）
+  const primaryContact = contacts.value.find((c: any) => c.isDefault) || contacts.value[0]
+  const areaPath = [primaryContact?.province, primaryContact?.city, primaryContact?.district].filter(Boolean) as string[]
+  return {
+    ...form,
+    partnerType: 'CUSTOMER',
+    roles,
+    gradeName: grade ? grade.gradeName : (form as any).gradeName,
+    status: statusChecked.value ? 'ENABLED' : 'DISABLED',
+    province: areaPath[0] || undefined,
+    city: areaPath[1] || undefined,
+    district: areaPath[2] || undefined,
+    // 期初信息
+    openingReceivable: openingBalance.value,
+    openingPreReceived: preReceivedAmount.value,
+    // 纳税人信息 / 联系地址
+    companyWebsite: companyWebsite.value,
+    address: detailAddress.value,
+    bankName: bankName.value,
+    bankAccount: bankAccount.value,
+    // 客户列表专属列
+    warehouseName: warehouse ? ((warehouse as any).warehouseName || (warehouse as any).name) : undefined,
+    region: region.value || undefined,
+    buyerAccount: buyerAccount.value || undefined,
+    customerOnePass: customerOnePass.value || undefined,
+    customerSource: customerSource.value || undefined,
+    businessLicenseExpiry: businessLicenseExpiry.value || undefined,
+    creditDays: creditDays.value,
+    fixedCreditDay: fixedCreditDay.value,
+    statementDay: statementDay.value,
+    promoterName: promoterName.value || undefined,
+    partnerAvatar: avatarUrl.value || undefined,
+    // 会员信息
+    memberCardNo: memberCardNo.value || undefined,
+    memberName: memberName.value || undefined,
+    memberInitialPoints: initialPoints.value,
+    points: currentPoints.value,
+    memberLevel: memberLevel.value || undefined,
+    memberCardStatus: memberCardStatus.value || undefined,
+    memberValidStart: memberValidRange.value?.[0] || undefined,
+    memberValidEnd: memberValidRange.value?.[1] || undefined,
+    memberTotalConsume: memberTotalConsume.value,
+    memberIssueTime: memberIssueTime.value || undefined,
+  }
 }
 
 async function doSubmit(): Promise<number | null> {
   try { await formRef.value?.validate() } catch { return null }
-  const roles = ['CUSTOMER', ...otherRoleOptions.value.filter(o => o.checked).map(o => o.value)]
   try {
-    const result = await partnerApi.create({
-      ...form, partnerType: 'CUSTOMER', status: statusChecked.value ? 'ENABLED' : 'DISABLED',
-      openingBalance: openingBalance.value, openingPrepaid: preReceivedAmount.value,
-      companyWebsite: companyWebsite.value, detailAddress: detailAddress.value,
-      partnerAvatar: avatarUrl.value, memberCardNo: memberCardNo.value,
-      memberName: memberName.value, initialPoints: initialPoints.value,
-    } as any)
+    if (isEdit.value) {
+      await partnerApi.update(editingId.value, buildPayload())
+      return editingId.value
+    }
+    const result = await partnerApi.create(buildPayload())
     return (result as any)?.id || 0
-  } catch (err: any) { message.error(err?.response?.data?.message || err?.message || '创建失败'); return null }
+  } catch (err: any) { message.error(err?.response?.data?.message || err?.message || (isEdit.value ? '保存失败' : '创建失败')); return null }
+}
+
+/** 编辑模式：回填客户档案 */
+async function loadDetail(id: number) {
+  try {
+    const d: any = await partnerApi.getById(id)
+    if (!d) { message.warning('客户不存在'); return }
+    Object.assign(form, {
+      partnerName: d.partnerName || '',
+      partnerShortName: d.partnerShortName || '',
+      partnerCode: d.partnerCode || '',
+      partnerCategoryId: d.categoryId || undefined,
+      partnerGradeId: undefined,
+      defaultHandlerId: d.defaultHandlerId || undefined,
+      defaultHandlerName: d.defaultHandlerName || undefined,
+      companyFullName: d.companyFullName || '',
+      taxId: d.taxNumber || '',
+      legalPerson: d.legalPerson || '',
+      companyPhone: d.phone || '',
+      companyEmail: d.email || '',
+      // 结款方式与列表/对标同口径：直接使用「挂账 / 现结」中文值，避免 MONTHLY/CASH 混用
+      settleType: d.settleType || '挂账',
+      // 单位所在地区（表单不再单独设输入项，仅用于回填常用联系人的所在地区）
+      province: d.province || '',
+      city: d.city || '',
+      district: d.district || '',
+      creditLimit: d.creditLimit ?? undefined,
+      remark: d.remark || '',
+    })
+    // 客户级别（下拉以等级 id 为值，按名称反查）
+    if (d.gradeName) {
+      const hit = grades.value.find(g => g.gradeName === d.gradeName)
+      form.partnerGradeId = hit ? hit.id : undefined
+      if (!hit) (form as any).gradeName = d.gradeName
+    }
+    statusChecked.value = d.status !== 'DISABLED'
+    openingBalance.value = d.openingReceivable ?? d.openingPayable ?? 0
+    preReceivedAmount.value = d.openingPreReceived ?? d.openingPrepaid ?? 0
+    companyWebsite.value = d.website || ''
+    detailAddress.value = d.address || ''
+    bankName.value = d.bankName || ''
+    bankAccount.value = d.bankAccount || ''
+    memberCardNo.value = d.memberCardNo || ''
+    memberName.value = d.memberName || ''
+    initialPoints.value = d.memberInitialPoints ?? 0
+    currentPoints.value = d.points ?? undefined
+    memberLevel.value = d.memberLevel || undefined
+    memberCardStatus.value = d.memberCardStatus || undefined
+    memberValidRange.value = d.memberValidStart && d.memberValidEnd ? [d.memberValidStart, d.memberValidEnd] : undefined
+    memberTotalConsume.value = d.memberTotalConsume ?? undefined
+    memberIssueTime.value = d.memberIssueTime ? String(d.memberIssueTime).replace('T', ' ').slice(0, 19) : undefined
+    creditDays.value = d.creditDays ?? undefined
+    fixedCreditDay.value = d.fixedCreditDay ?? undefined
+    statementDay.value = d.statementDay ?? undefined
+    promoterName.value = d.promoterName || ''
+    customerSource.value = d.customerSource || undefined
+    region.value = d.region || ''
+    buyerAccount.value = d.buyerAccount || ''
+    customerOnePass.value = d.customerOnePass || ''
+    businessLicenseExpiry.value = d.businessLicenseExpiry ? String(d.businessLicenseExpiry).slice(0, 10) : undefined
+    avatarUrl.value = d.partnerAvatar || ''
+    // 其他业务关系（多重身份）
+    const roles = String(d.roles || '').split(',').map((r: string) => r.trim())
+    otherRoleOptions.value.forEach(o => { o.checked = roles.includes(o.value) })
+    savedPartnerId.value = id
+    loadedPartnerId.value = id
+    // 联系人
+    try {
+      const list: any = await partnerContactApi.getByPartner(id)
+      contacts.value = (list || []).map((c: any, i: number) => ({
+        ...c,
+        _uid: i + 1,
+        isDefault: c.isPrimary,
+        contactPhone: c.mobile || c.phone,
+        contactEmail: c.email,
+        region: c.region,
+        detailAddress: c.detailAddress,
+        deliveryMethod: c.deliveryMethod,
+        deliveryRoute: c.deliveryRoute,
+        openMallAccount: c.openMallAccount,
+      }))
+      // 历史数据：单位已有所在地区、联系人未填时，回填到常用联系人（单位地区 = 常用联系人地区）
+      const first = contacts.value[0] as any
+      if (first && !first.province && !first.city && !first.district && (form.province || form.city || form.district)) {
+        first.province = form.province
+        first.city = form.city
+        first.district = form.district
+        first.region = [form.province, form.city, form.district].filter(Boolean).join('/')
+        first._areaPath = [form.province, form.city, form.district].filter(Boolean)
+      }
+    } catch { contacts.value = [] }
+  } catch (e: any) {
+    message.error(e?.message || '加载客户失败')
+  }
+}
+
+/** 编辑模式：联系人增量同步（更新已有 / 新增 / 删除被移除的） */
+/** 联系人分区 → 独立联系人(人) + 关联(单位)：统一走 /erp/contact/link（按手机/姓名归并同一个人，幂等） */
+function contactLinkPayload(partnerId: number, c: any, isPrimary: number) {
+  return {
+    partyId: partnerId,
+    contactId: c.contactId || undefined,
+    contactName: c.contactName || '',
+    mobile: c.contactPhone || c.mobile || c.phone || undefined,
+    phone: c.phone || undefined,
+    gender: c.gender || undefined,
+    email: c.contactEmail || c.email || undefined,
+    position: c.position || undefined,
+    department: c.department || undefined,
+    region: c.region || undefined,
+    detailAddress: c.detailAddress || undefined,
+    deliveryMethod: c.deliveryMethod || undefined,
+    deliveryRoute: c.deliveryRoute || undefined,
+    logisticsCompany: c.logisticsCompany || undefined,
+    isPrimary,
+  }
 }
 
 async function submitContacts(partnerId: number) {
   const ordered = [...contacts.value].sort((a, b) => (b.isDefault || 0) - (a.isDefault || 0))
   for (const c of ordered) {
-    const data = {
-      ...c,
-      partyId: partnerId,
-      isPrimary: c.isDefault || 0,
-      phone: c.contactPhone || c.phone || '',
-      mobile: c.contactPhone || c.mobile || '',
-      email: c.contactEmail || c.email || '',
-      contactName: c.contactName || ''
+    if (!c.contactName && !(c.contactPhone || c.mobile)) continue
+    await request.post('/erp/contact/link', contactLinkPayload(partnerId, c, c.isDefault || 0))
+  }
+}
+
+/** 编辑模式：先 upsert 全部（link 幂等），再解除被移除联系人与本单位的关联 */
+async function syncContactsOnEdit(partnerId: number) {
+  await submitContacts(partnerId)
+  const existing: any = await partnerContactApi.getByPartner(partnerId).catch(() => [])
+  const keep = new Set(contacts.value.filter(c => c.contactId || c.id).map(c => String(c.contactId || c.id)))
+  for (const rel of (existing || [])) {
+    if (!rel.contactId) continue
+    if (!keep.has(String(rel.contactId))) {
+      await request.delete(`/erp/contact/${rel.contactId}/parties/${rel.id}`).catch(() => {})
     }
-    delete (data as any).id
-    delete (data as any).partnerId
-    delete (data as any).isDefault
-    delete (data as any).contactPhone
-    delete (data as any).contactEmail
-    await partnerContactApi.create(data)
   }
 }
 
@@ -866,11 +1165,17 @@ async function handleSubmit() {
   try {
     const pid = await doSubmit()
     if (!pid) return
-    await submitRoles(pid)
-    await submitContacts(pid)
-    await submitBankAccount(pid)
-    savedPartnerId.value = pid
-    message.success('客户创建成功')
+    await certRef.value?.sync(pid)
+    if (isEdit.value) {
+      await syncContactsOnEdit(pid)
+      message.success('客户保存成功')
+    } else {
+      await submitRoles(pid)
+      await submitContacts(pid)
+      await submitBankAccount(pid)
+      savedPartnerId.value = pid
+      message.success('客户创建成功')
+    }
     router.push('/md/customer/index')
   } finally { saving.value = false }
 }
@@ -880,22 +1185,31 @@ async function handleSaveAndNew() {
   try {
     const pid = await doSubmit()
     if (!pid) return
+    await certRef.value?.sync(pid)
     await submitRoles(pid)
     await submitContacts(pid)
     await submitBankAccount(pid)
     savedPartnerId.value = pid
     message.success('客户创建成功')
-    Object.assign(form, { partnerName:'', partnerShortName:'', partnerCode:'', partnerCategoryId:undefined, partnerGradeId:undefined, defaultHandlerId:undefined, defaultWarehouseId:undefined, province:'', city:'', district:'', companyFullName:'', unifiedSocialCode:'', taxId:'', legalPerson:'', companyPhone:'', companyEmail:'', industry:'', sourceChannel:'', settleType:'MONTHLY', taxRate:13, creditLimit:undefined, remark:'' })
+    Object.assign(form, { partnerName:'', partnerShortName:'', partnerCode:'', partnerCategoryId:undefined, partnerGradeId:undefined, defaultHandlerId:undefined, defaultHandlerName:undefined, defaultWarehouseId:undefined, province:'', city:'', district:'', companyFullName:'', unifiedSocialCode:'', taxId:'', legalPerson:'', companyPhone:'', companyEmail:'', industry:'', sourceChannel:'', settleType:'挂账', taxRate:13, creditLimit:undefined, remark:'' })
     contacts.value = []; bankName.value = ''; bankAccount.value = ''; detailAddress.value = ''
     openingBalance.value = 0; preReceivedAmount.value = 0; companyWebsite.value = ''
     avatarUrl.value = ''; memberCardNo.value = ''; memberName.value = ''; initialPoints.value = 0
-    certLicenseUrl.value = ''; certPermitUrl.value = ''
     await generateCode()
   } finally { saving.value = false }
 }
 
 function handleKeydown(e: KeyboardEvent) { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); handleSubmit() } }
-onMounted(() => { loadCategories(); loadGrades(); loadUsers(); loadWarehouses(); document.addEventListener('keydown', handleKeydown) })
+
+onMounted(async () => {
+  await Promise.all([loadCategories(), loadGrades(), loadUsers(), loadWarehouses(), loadRegions()])
+  if (isEdit.value) {
+    await loadDetail(editingId.value)
+  } else {
+    await generateCode()
+  }
+  document.addEventListener('keydown', handleKeydown)
+})
 onUnmounted(() => { document.removeEventListener('keydown', handleKeydown) })
 </script>
 
@@ -924,16 +1238,6 @@ onUnmounted(() => { document.removeEventListener('keydown', handleKeydown) })
   flex-shrink: 0; margin: 0 16px 16px;
 }
 
-.cert-upload { display: flex; flex-direction: column; align-items: center; gap: 8px; }
-.cert-placeholder {
-  width: 120px; height: 120px; border: 1px dashed #d9d9d9; border-radius: 6px;
-  display: flex; align-items: center; justify-content: center; cursor: pointer;
-  background: #fafafa; overflow: hidden; transition: border-color 0.2s;
-}
-.cert-placeholder:hover { border-color: #40a9ff; }
-.cert-preview { width: 100%; height: 100%; object-fit: cover; }
-.cert-empty { display: flex; flex-direction: column; align-items: center; gap: 4px; color: #bfbfbf; font-size: 12px; }
-.cert-label { font-size: 13px; color: #595959; }
 
 /* 头像上传 */
 .avatar-upload { display: flex; flex-direction: column; align-items: center; gap: 8px; }

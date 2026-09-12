@@ -38,8 +38,11 @@ public class RetailController {
             @Parameter(description = "客户名称") @RequestParam(required = false) String customerName,
             @Parameter(description = "客户ID") @RequestParam(required = false) Long customerId,
             @Parameter(description = "经手人ID") @RequestParam(required = false) Long handlerId,
+            @Parameter(description = "经手人姓名") @RequestParam(required = false) String handlerName,
             @Parameter(description = "部门ID") @RequestParam(required = false) Long departmentId,
+            @Parameter(description = "部门名称") @RequestParam(required = false) String departmentName,
             @Parameter(description = "仓库ID") @RequestParam(required = false) Long warehouseId,
+            @Parameter(description = "仓库名称") @RequestParam(required = false) String warehouseName,
             @Parameter(description = "状态") @RequestParam(required = false) Integer status,
             @Parameter(description = "销售类型") @RequestParam(required = false) String saleType,
             @Parameter(description = "商品行属性") @RequestParam(required = false) String productAttribute,
@@ -47,6 +50,12 @@ public class RetailController {
             @Parameter(description = "制单人") @RequestParam(required = false) String creatorName,
             @Parameter(description = "记账人") @RequestParam(required = false) String bookkeeperName,
             @Parameter(description = "会员卡号") @RequestParam(required = false) String memberCardNo,
+            @Parameter(description = "打印次数") @RequestParam(required = false) Integer printCount,
+            @Parameter(description = "表头自定义字段1(数字)") @RequestParam(required = false) java.math.BigDecimal extNum1,
+            @Parameter(description = "表头自定义字段2(数字)") @RequestParam(required = false) java.math.BigDecimal extNum2,
+            @Parameter(description = "表头自定义字段3(文本)") @RequestParam(required = false) String extText1,
+            @Parameter(description = "表头自定义字段4(文本)") @RequestParam(required = false) String extText2,
+            @Parameter(description = "表头自定义字段5(文本)") @RequestParam(required = false) String extText3,
             @Parameter(description = "显示红冲") @RequestParam(required = false) Boolean showRedFlush,
             @RequestParam(defaultValue = "1") Integer pageNum,
             @RequestParam(defaultValue = "20") Integer pageSize) {
@@ -57,8 +66,11 @@ public class RetailController {
         query.setCustomerName(customerName);
         query.setCustomerId(customerId);
         query.setHandlerId(handlerId);
+        query.setHandlerName(handlerName);
         query.setDepartmentId(departmentId);
+        query.setDepartmentName(departmentName);
         query.setWarehouseId(warehouseId);
+        query.setWarehouseName(warehouseName);
         query.setStatus(status);
         query.setSaleType(saleType);
         query.setProductAttribute(productAttribute);
@@ -66,6 +78,12 @@ public class RetailController {
         query.setCreatorName(creatorName);
         query.setBookkeeperName(bookkeeperName);
         query.setMemberCardNo(memberCardNo);
+        query.setPrintCount(printCount);
+        query.setExtNum1(extNum1);
+        query.setExtNum2(extNum2);
+        query.setExtText1(extText1);
+        query.setExtText2(extText2);
+        query.setExtText3(extText3);
         query.setShowRedFlush(showRedFlush);
         query.setPageNum(pageNum);
         query.setPageSize(pageSize);
@@ -83,8 +101,11 @@ public class RetailController {
             @Parameter(description = "条码") @RequestParam(required = false) String barcode,
             @Parameter(description = "客户名称") @RequestParam(required = false) String customerName,
             @Parameter(description = "经手人ID") @RequestParam(required = false) Long handlerId,
+            @Parameter(description = "经手人姓名") @RequestParam(required = false) String handlerName,
             @Parameter(description = "部门ID") @RequestParam(required = false) Long departmentId,
+            @Parameter(description = "部门名称") @RequestParam(required = false) String departmentName,
             @Parameter(description = "仓库ID") @RequestParam(required = false) Long warehouseId,
+            @Parameter(description = "仓库名称") @RequestParam(required = false) String warehouseName,
             @Parameter(description = "状态") @RequestParam(required = false) Integer status,
             @Parameter(description = "明细备注") @RequestParam(required = false) String remark,
             @Parameter(description = "显示红冲") @RequestParam(required = false) Boolean showRedFlush,
@@ -98,8 +119,11 @@ public class RetailController {
         query.setBarcode(barcode);
         query.setCustomerName(customerName);
         query.setHandlerId(handlerId);
+        query.setHandlerName(handlerName);
         query.setDepartmentId(departmentId);
+        query.setDepartmentName(departmentName);
         query.setWarehouseId(warehouseId);
+        query.setWarehouseName(warehouseName);
         query.setStatus(status);
         query.setRemark(remark);
         query.setShowRedFlush(showRedFlush);
@@ -108,7 +132,14 @@ public class RetailController {
         return retailOrderService.pageByDetail(new Page<>(pageNum, pageSize), query);
     }
 
-    // ═══ 3. 查询详情（含明细行） ═══
+    // ═══ 3. 生成下一个零售单号（后端号段） ═══
+    @GetMapping("/next-no")
+    @Operation(summary = "生成下一个零售单号（后端号段）")
+    public String nextNo() {
+        return retailOrderService.generateRetailNo();
+    }
+
+    // ═══ 4. 查询详情（含明细行） ═══
     @GetMapping("/{id}")
     @Operation(summary = "查询零售单详情（含明细行和支付明细）")
     public RetailOrderDetailVO getDetail(@PathVariable Long id) {

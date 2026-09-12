@@ -87,8 +87,8 @@ public class FinanceAuxiliaryItemServiceImpl implements FinanceAuxiliaryItemServ
                     throw BusinessException.badRequest("辅助核算项目编码已存在: " + dto.getItemCode());
                 });
 
-        // 如果有上级ID，验证上级是否存在
-        if (dto.getParentId() != null) {
+        // 如果有上级ID，验证上级是否存在（parent_id = 0 是本表「顶级」口径，不参与校验）
+        if (dto.getParentId() != null && dto.getParentId() > 0) {
             FinanceAuxiliaryItem parent = financeAuxiliaryItemMapper.selectById(dto.getParentId());
             if (parent == null) {
                 throw BusinessException.notFound("上级辅助核算项目不存在: " + dto.getParentId());
@@ -140,11 +140,13 @@ public class FinanceAuxiliaryItemServiceImpl implements FinanceAuxiliaryItemServ
             entity.setItemName(dto.getItemName());
         }
 
-        // 如果修改了上级ID，验证新上级是否存在
+        // 如果修改了上级ID，验证新上级是否存在（parent_id = 0 表示置为顶级，无需校验）
         if (dto.getParentId() != null && !dto.getParentId().equals(entity.getParentId())) {
-            FinanceAuxiliaryItem parent = financeAuxiliaryItemMapper.selectById(dto.getParentId());
-            if (parent == null) {
-                throw BusinessException.notFound("上级辅助核算项目不存在: " + dto.getParentId());
+            if (dto.getParentId() > 0) {
+                FinanceAuxiliaryItem parent = financeAuxiliaryItemMapper.selectById(dto.getParentId());
+                if (parent == null) {
+                    throw BusinessException.notFound("上级辅助核算项目不存在: " + dto.getParentId());
+                }
             }
             entity.setParentId(dto.getParentId());
         }

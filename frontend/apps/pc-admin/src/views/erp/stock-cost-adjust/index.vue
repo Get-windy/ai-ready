@@ -27,12 +27,9 @@
           </a-space>
         </template>
 
-        <!-- ═══ 工具栏右侧：操作按钮 ═══ -->
+        <!-- ═══ 工具栏右侧：操作按钮（列配置走数据表表头齿轮） ═══ -->
         <template #toolbar-right>
           <a-space :size="8">
-            <a-tooltip title="列配置">
-              <a-button size="small" @click="showColumnConfig = true"><TableOutlined /></a-button>
-            </a-tooltip>
             <a-tooltip title="页面配置">
               <a-button size="small" @click="showPageConfig = true"><SettingOutlined /></a-button>
             </a-tooltip>
@@ -89,6 +86,7 @@
             <BillTableList
               :columns="currentColumns"
               :data-source="tableData"
+              :storage-key="activeTab === 'bill' ? 'stock-cost-adjust-table-columns-bill' : 'stock-cost-adjust-table-columns-detail'"
               :loading="loading"
               :pagination="billPagination"
               :show-toolbar="false"
@@ -144,17 +142,6 @@
       </CategoryListLayout>
     </PageContainer>
 
-    <!-- ═══ 列配置弹窗 ═══ -->
-    <ColumnConfigPanel
-      :open="showColumnConfig"
-      :settings-columns="panelColumns"
-      :is-locked-column="isLockedColumn"
-      @update:open="showColumnConfig = $event"
-      @change="handleColumnConfigChange"
-      @reset="handleColumnConfigReset"
-      @drag-end="handleColumnConfigChange"
-    />
-
     <!-- ═══ 页面配置弹窗 ═══ -->
     <PageConfigPanel
       :open="showPageConfig"
@@ -174,15 +161,13 @@ import type { Dayjs } from 'dayjs'
 import dayjs from 'dayjs'
 import {
   PlusOutlined, ReloadOutlined, PrinterOutlined, SettingOutlined,
-  TableOutlined, ExportOutlined,
+  ExportOutlined,
 } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayout.vue'
-import ColumnConfigPanel from '@/components/ColumnConfigPanel/index.vue'
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
-import { useColumnConfig, isLockedColumn } from '@/composables/useColumnConfig'
 import { useAutoGridSpan } from '@/composables/useAutoGridSpan'
 import { stockCostAdjustApi } from '@/api/erp'
 import { useRouter } from 'vue-router'
@@ -231,7 +216,6 @@ const searchParams = reactive<any>({
 const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
 const billPagination = computed(() => ({ current: pagination.current, pageSize: pagination.pageSize, total: pagination.total }))
 
-const showColumnConfig = ref(false)
 const showPageConfig = ref(false)
 
 // ═══ 页面配置 ═══
@@ -368,32 +352,7 @@ const detailColumns = [
   { title: '打印次数', field: 'printCount', key: 'printCount', width: 80, align: 'center' },
 ]
 
-const billColumnDefs = computed(() => billColumns.map(col => ({ ...col })))
-const detailColumnDefs = computed(() => detailColumns.map(col => ({ ...col })))
-const {
-  visibleColumns: billVisibleColumns,
-  onSettingChange: onBillSettingChange,
-  resetSettings: resetBillSettings,
-  settingsColumns: billSettingsColumns,
-} = useColumnConfig(billColumnDefs.value, 'stock-cost-adjust-list-columns-bill')
-const {
-  visibleColumns: detailVisibleColumns,
-  onSettingChange: onDetailSettingChange,
-  resetSettings: resetDetailSettings,
-  settingsColumns: detailSettingsColumns,
-} = useColumnConfig(detailColumnDefs.value, 'stock-cost-adjust-list-columns-detail')
-
-const currentColumns = computed(() => activeTab.value === 'bill' ? billVisibleColumns.value : detailVisibleColumns.value)
-const panelColumns = computed(() => activeTab.value === 'bill' ? billSettingsColumns.value : detailSettingsColumns.value)
-
-function handleColumnConfigChange() {
-  if (activeTab.value === 'bill') onBillSettingChange()
-  else onDetailSettingChange()
-}
-function handleColumnConfigReset() {
-  if (activeTab.value === 'bill') resetBillSettings()
-  else resetDetailSettings()
-}
+const currentColumns = computed(() => activeTab.value === 'bill' ? billColumns : detailColumns)
 
 // ═══ 状态映射 ═══
 const STATUS_MAP: Record<number, { text: string; color: string }> = {

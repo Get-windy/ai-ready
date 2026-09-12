@@ -293,11 +293,14 @@ const componentMap: Record<string, () => Promise<any>> = {
   'finance/receipt-doc': () => import('@/views/finance/receipt-doc/index.vue'),
   'finance/receipt-doc/index': () => import('@/views/finance/receipt-doc/index.vue'),
   'finance/payment-doc/form': () => import('@/views/finance/payment-doc/form.vue'),
+  'finance/payment-doc': () => import('@/views/finance/payment-doc/index.vue'),
+  'finance/payment-doc/index': () => import('@/views/finance/payment-doc/index.vue'),
   'finance/expense-doc/form': () => import('@/views/finance/expense-doc/form.vue'),
   'finance/voucher/form': () => import('@/views/finance/voucher/form.vue'),
   'finance/advance-receipt/form': () => import('@/views/finance/advance-receipt/form.vue'),
   'finance/advance-payment/form': () => import('@/views/finance/advance-payment/form.vue'),
   'finance/ar-ap-adjust/form': () => import('@/views/finance/ar-ap-adjust/form.vue'),
+  'finance/budget-plan/form': () => import('@/views/finance/budget-plan/form.vue'),
 
   // ── Phase 5C: DMS 模块 form.vue ──
   'dms/rider/form': () => import('@/views/dms/rider/form.vue'),
@@ -414,8 +417,8 @@ const componentMap: Record<string, () => Promise<any>> = {
   // 财务模块
   'finance/expense-doc': () => import('@/views/finance/expense-doc/index.vue'),
   'finance/expense-doc/index': () => import('@/views/finance/expense-doc/index.vue'),
-  'finance/other-income': () => import('@/views/finance/other-income/index.vue'),
-  'finance/other-income/index': () => import('@/views/finance/other-income/index.vue'),
+  'finance/other-income': () => import('@/views/finance/other-income-doc/index.vue'),
+  'finance/other-income/index': () => import('@/views/finance/other-income-doc/index.vue'),
   'finance/ar-ap-adjust': () => import('@/views/finance/ar-ap-adjust/index.vue'),
   'finance/ar-ap-adjust/index': () => import('@/views/finance/ar-ap-adjust/index.vue'),
   'finance/account-delivery': () => import('@/views/finance/account-delivery/index.vue'),
@@ -528,9 +531,9 @@ const componentMap: Record<string, () => Promise<any>> = {
   'md/barcode/index': () => import('@/views/md/barcode/index.vue'),
   'md/product-price': () => import('@/views/md/product-price/index.vue'),
   'md/product-price/index': () => import('@/views/md/product-price/index.vue'),
-  'md/product-aux': () => import('@/views/md/product-aux/index.vue'),
-  'md/product-aux/index': () => import('@/views/md/product-aux/index.vue'),
-  'md/product-aux/form': () => import('@/views/md/product-aux/form.vue'),
+  // 商品辅助资料：历史桩目录 views/md/product-aux 已删除，统一收敛到 product-supplement
+  'md/product-aux': () => import('@/views/md/product-supplement/index.vue'),
+  'md/product-aux/index': () => import('@/views/md/product-supplement/index.vue'),
   'md/product-supplement': () => import('@/views/md/product-supplement/index.vue'),
   'md/product-supplement/index': () => import('@/views/md/product-supplement/index.vue'),
   'md/image': () => import('@/views/md/image/index.vue'),
@@ -871,6 +874,9 @@ const routeBillTypeMap: Record<string, string> = {
   'finance/payable/index': '802',
   'finance/pre-payment': '802',
   'finance/pre-payment/index': '802',
+  'finance/advance-payment': '802',
+  'finance/advance-payment/index': '802',
+  'finance/advance-payment/form': '802',
   'erp/finance/payable': '802',
   'finance/payment': '802',
   'finance/payment/index': '802',
@@ -989,12 +995,17 @@ function transformMenuToRoutes(menu: MenuItem, parentPath: string = ''): RouteRe
     }
 
     const listBillType = billType
+    // 双入口第二标签标题：指向表单组件时为「XX编辑」（对标 ql361 供应商编辑页签），
+    // 指向列表组件时为「XX列表」（path=X/form + list_path=X/index 的常规单据约定）。
+    const secondaryTitle = menu.listPath.includes('/form')
+      ? `${menu.menuName}编辑`
+      : `${menu.menuName}列表`
     const listRoute: RouteRecordRaw = {
       path: listRoutePath,
       name: `${menu.menuCode}_list`,
       component: getComponent(menu.listPath!),
       meta: {
-        title: `${menu.menuName}列表`,
+        title: secondaryTitle,
         icon: menu.icon,
         keepAlive: menu.isCache === 1,
         hidden: true,
@@ -1562,6 +1573,20 @@ function getRequiredRoutes(): RouteRecordRaw[] {
       meta: { title: '编辑生产模板', icon: 'DeploymentUnitOutlined', keepAlive: false, requiresAuth: true, hidden: true }
     },
     // ═══ 销售出库单/退货申请/零售单 的 form 路由已迁移到数据库动态管理（display_mode=1）═══
+    // 零售单列表页：菜单 list_path=sales/retail/index，文档约定地址为 sales/retail（两者均指向列表组件）
+    {
+      path: 'sales/retail',
+      name: 'RetailList',
+      component: () => import('@/views/sales/retail/index.vue'),
+      meta: { title: '零售单', icon: 'ShoppingCartOutlined', keepAlive: true, requiresAuth: true, hidden: true }
+    },
+    // 零售单新增（文档约定 sales/retail/create 与 sales/retail/form 均可进入新增模式）
+    {
+      path: 'sales/retail/create',
+      name: 'RetailFormCreate',
+      component: () => import('@/views/sales/retail/form.vue'),
+      meta: { title: '新增零售单', icon: 'ShoppingCartOutlined', keepAlive: false, requiresAuth: true, hidden: true }
+    },
     // 仅保留 :id 详情页路由（编辑模式，由列表页跳转，无对应菜单项）
     {
       path: 'sales/retail/form/:id',
@@ -1593,6 +1618,24 @@ function getRequiredRoutes(): RouteRecordRaw[] {
       name: 'MallUserAuditFormDetail',
       component: () => import('@/views/erp/mall/user-audit/form.vue'),
       meta: { title: '用户审核详情', icon: 'UserOutlined', keepAlive: false, requiresAuth: true, hidden: true }
+    },
+    // ═══ 资料 > 物流公司编辑路由 ═══
+    // 列表路由由菜单 displayMode=1 动态注册（path=md/logistics/index，list_path=md/logistics/form），
+    // 编辑（带 id）不在菜单树内，此处补隐藏路由，避免列表「修改」跳转 404。
+    {
+      path: 'md/logistics/form/:id',
+      name: 'MdLogisticsFormEdit',
+      component: () => import('@/views/md/logistics/form.vue'),
+      meta: { title: '编辑物流公司', icon: 'FileTextOutlined', keepAlive: false, requiresAuth: true, hidden: true }
+    },
+    // ═══ 预订货单列表别名路由 ═══
+    // 菜单 displayMode=1 注册的列表路由为 list_path（sales/pre-order/index）；
+    // 文档/历史链接与表单保存后的跳转都使用 /sales/pre-order，此处补别名，避免 404。
+    {
+      path: 'sales/pre-order',
+      name: 'PreOrderListAlias',
+      component: () => import('@/views/sales/pre-order/index.vue'),
+      meta: { title: '预订货单', icon: 'FileTextOutlined', keepAlive: false, requiresAuth: true, hidden: true, billType: '604' }
     },
     // ═══ 预订货单编辑路由（列表路由由菜单displayMode=1动态注册，新增通过/form无参访问） ═══
     {

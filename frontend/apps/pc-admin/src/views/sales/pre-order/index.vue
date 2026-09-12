@@ -52,18 +52,11 @@
           </a-space>
         </template>
 
-        <!-- ═══ 工具栏右侧：操作按钮 ═══ -->
+        <!-- ═══ 工具栏右侧：操作按钮（显隐由页面配置「功能按钮」驱动） ═══ -->
         <template #toolbar-right>
           <a-space :size="4">
-            <a-tooltip title="列配置">
-              <a-button
-                size="small"
-                @click="showColumnConfig = true"
-              >
-                <SettingOutlined />
-              </a-button>
-            </a-tooltip>
             <a-button
+              v-if="btnEnabled('add')"
               type="primary"
               size="small"
               @click="handleAdd"
@@ -71,31 +64,39 @@
               <PlusOutlined /> 新增
             </a-button>
             <a-button
+              v-if="btnEnabled('refresh')"
               size="small"
               @click="fetchData"
             >
               <ReloadOutlined /> 刷新
             </a-button>
             <a-button
+              v-if="btnEnabled('batchOrder')"
               size="small"
-              :disabled="selectedRowKeys.length === 0"
+              :disabled="selectedOrderIds.length === 0"
               @click="handleBatchOrder"
             >
-              <PrinterOutlined /> 批量订货
+              <ImportOutlined /> 批量订货
             </a-button>
             <a-button
+              v-if="btnEnabled('printF8')"
               size="small"
               @click="handlePrint"
             >
               <PrinterOutlined /> 打印(F8)
             </a-button>
             <a-button
+              v-if="btnEnabled('export')"
               size="small"
               @click="handleExport"
             >
               <ExportOutlined /> 导出
             </a-button>
-            <a-tooltip title="页面配置">
+            <a-tooltip
+              v-if="btnEnabled('config')"
+              title="页面配置"
+              placement="bottom"
+            >
               <a-button
                 size="small"
                 @click="showPageConfig = true"
@@ -106,506 +107,112 @@
           </a-space>
         </template>
 
-        <!-- ═══ 搜索区域 ═══ -->
+        <!-- ═══ 搜索区域（字段显隐/排序由页面配置驱动，按 Tab 两套查询条件） ═══ -->
         <template #search-fields>
           <div class="search-area">
-            <!-- 按单据 Tab 搜索行 -->
-            <template v-if="activeTab === 'doc'">
-              <div class="search-container" :data-expanded="searchExpanded || null">
-              <div ref="docGridRef" class="search-grid">
-                <div class="search-field-item">
-                  <a-range-picker
-                    v-model:value="dateRange"
+            <div
+              class="search-grid"
+              :class="{ 'search-grid-collapsed': !searchExpanded }"
+            >
+              <div
+                v-for="f in visibleQueryFields"
+                :key="f.key"
+                class="search-field-item"
+              >
+                <!-- 日期区间 -->
+                <a-range-picker
+                  v-if="f.key === 'dateRange'"
+                  v-model:value="dateRange"
+                  size="small"
+                  style="width: 100%"
+                  value-format="YYYY-MM-DD"
+                  @change="handleDateChange"
+                />
+                <!-- 下拉（单据状态支持多选） -->
+                <div
+                  v-else-if="selectOptionsFor(f.key).length"
+                  class="search-select-wrap"
+                >
+                  <span class="search-select-label">{{ f.label }}</span>
+                  <a-select
+                    v-model:value="searchParams[f.key]"
                     size="small"
-                    style="width: 100%"
-                    value-format="YYYY-MM-DD"
-                    @change="handleDateChange"
-                  />
-                </div>
-                <div class="search-field-item">
-                  <a-input
-                    v-model:value="searchParams.orderNo"
-                    placeholder="单据编号"
                     allow-clear
-                    size="small"
-                  />
-                </div>
-                <div class="search-field-item">
-                  <a-input
-                    v-model:value="searchParams.customerName"
-                    placeholder="客户"
-                    allow-clear
-                    size="small"
-                    :suffix="h(SearchOutlined, { style: 'color:#bbb' })"
-                  />
-                </div>
-                <div class="search-field-item">
-                  <a-input
-                    v-model:value="searchParams.handlerName"
-                    placeholder="经手人"
-                    allow-clear
-                    size="small"
-                    :suffix="h(SearchOutlined, { style: 'color:#bbb' })"
-                  />
-                </div>
-                <div class="search-field-item">
-                  <a-input
-                    v-model:value="searchParams.deptName"
-                    placeholder="部门"
-                    allow-clear
-                    size="small"
-                    :suffix="h(SearchOutlined, { style: 'color:#bbb' })"
-                  />
-                </div>
-                <div class="search-field-item">
-                  <a-input
-                    v-model:value="searchParams.warehouseName"
-                    placeholder="仓库"
-                    allow-clear
-                    size="small"
-                    :suffix="h(SearchOutlined, { style: 'color:#bbb' })"
-                  />
-                </div>
-                <div class="search-field-item">
-                  <div class="search-select-wrap">
-                    <span class="search-select-label">单据状态</span>
-                    <a-select
-                      v-model:value="searchParams.status"
-                      size="small"
-                      allow-clear
-                      mode="multiple"
-                      :max-tag-count="1"
-                      placeholder="全部"
-                    >
-                      <a-select-option :value="0">
-                        草稿
-                      </a-select-option>
-                      <a-select-option :value="1">
-                        审核中
-                      </a-select-option>
-                      <a-select-option :value="2">
-                        待订货
-                      </a-select-option>
-                      <a-select-option :value="3">
-                        部分订货
-                      </a-select-option>
-                      <a-select-option :value="4">
-                        已订货
-                      </a-select-option>
-                      <a-select-option :value="5">
-                        已完成
-                      </a-select-option>
-                      <a-select-option :value="-1">
-                        已取消
-                      </a-select-option>
-                    </a-select>
-                  </div>
-                </div>
-                <div class="search-field-item">
-                  <div class="search-select-wrap">
-                    <span class="search-select-label">结算状态</span>
-                    <a-select
-                      v-model:value="searchParams.settlementStatus"
-                      size="small"
-                      allow-clear
-                      placeholder="全部"
-                    >
-                      <a-select-option :value="0">
-                        未结算
-                      </a-select-option>
-                      <a-select-option :value="1">
-                        部分结算
-                      </a-select-option>
-                      <a-select-option :value="2">
-                        已结算
-                      </a-select-option>
-                    </a-select>
-                  </div>
-                </div>
-                <div class="search-field-item">
-                  <a-input
-                    v-model:value="searchParams.creatorName"
-                    placeholder="制单人"
-                    allow-clear
-                    size="small"
-                  />
-                </div>
-                <div class="search-field-item">
-                  <a-input
-                    v-model:value="searchParams.auditorName"
-                    placeholder="审核人"
-                    allow-clear
-                    size="small"
-                  />
-                </div>
-                <div class="search-field-item">
-                  <div class="search-select-wrap">
-                    <span class="search-select-label">销售类型</span>
-                    <a-select
-                      v-model:value="searchParams.saleType"
-                      size="small"
-                      allow-clear
-                      placeholder="全部"
-                    >
-                      <a-select-option :value="0">
-                        正常销售
-                      </a-select-option>
-                      <a-select-option :value="1">
-                        样品销售
-                      </a-select-option>
-                      <a-select-option :value="2">
-                        促销销售
-                      </a-select-option>
-                    </a-select>
-                  </div>
-                </div>
-                <template v-if="searchExpanded">
-                <div class="search-field-item">
-                  <a-date-picker
-                    v-model:value="searchParams.depositDeadlineStart"
-                    size="small"
-                    style="width: 100%"
-                    value-format="YYYY-MM-DD"
-                    placeholder="收款期限(起)"
-                  />
-                </div>
-                <div class="search-field-item">
-                  <a-date-picker
-                    v-model:value="searchParams.depositDeadlineEnd"
-                    size="small"
-                    style="width: 100%"
-                    value-format="YYYY-MM-DD"
-                    placeholder="收款期限(止)"
-                  />
-                </div>
-                <div class="search-field-item">
-                  <a-input
-                    v-model:value="searchParams.productAttribute"
-                    placeholder="商品行属性"
-                    allow-clear
-                    size="small"
-                  />
-                </div>
-                <div class="search-field-item">
-                  <a-input
-                    v-model:value="searchParams.remark"
-                    placeholder="单据备注"
-                    allow-clear
-                    size="small"
-                  />
-                </div>
-                <div class="search-field-item">
-                  <a-input-number
-                    v-model:value="searchParams.extNum1"
-                    placeholder="表头自定义1"
-                    size="small"
-                    style="width: 100%"
-                  />
-                </div>
-                <div class="search-field-item">
-                  <a-input-number
-                    v-model:value="searchParams.extNum2"
-                    placeholder="表头自定义2"
-                    size="small"
-                    style="width: 100%"
-                  />
-                </div>
-                <div class="search-field-item">
-                  <a-input
-                    v-model:value="searchParams.extText1"
-                    placeholder="表头自定义3"
-                    allow-clear
-                    size="small"
-                  />
-                </div>
-                <div class="search-field-item">
-                  <a-input
-                    v-model:value="searchParams.extText2"
-                    placeholder="表头自定义4"
-                    allow-clear
-                    size="small"
-                  />
-                </div>
-                <div class="search-field-item">
-                  <a-input
-                    v-model:value="searchParams.extText3"
-                    placeholder="表头自定义5"
-                    allow-clear
-                    size="small"
-                  />
-                </div>
-                </template>
-                <div ref="docActionRef" class="search-action-group" :style="{ gridColumn: 'span ' + docActionSpan }">
-                <div class="search-field-item search-action-item">
-                  <a-button
-                    type="primary"
-                    size="small"
-                    @click="handleSearch"
+                    :mode="f.key === 'status' ? 'multiple' : undefined"
+                    :max-tag-count="1"
+                    placeholder="全部"
                   >
-                    查询
-                  </a-button>
-                </div>
-                <div class="search-field-item">
-                  <a-checkbox v-model:checked="searchParams.showCancelled">
-                    显示已取消
-                  </a-checkbox>
-                </div>
-                <div class="search-field-item">
-                  <a-checkbox v-model:checked="searchParams.showCompleted">
-                    显示已完成
-                  </a-checkbox>
-                </div>
-                <div class="search-field-item">
-                  <a-checkbox v-model:checked="searchParams.showDraft">
-                    显示草稿
-                  </a-checkbox>
-                </div>
-                </div>
-              </div>
-                <div class="search-more-toggle">
-                  <a-button
-                    type="link"
-                    size="small"
-                    @click="searchExpanded = !searchExpanded"
-                  >
-                    {{ searchExpanded ? '收起' : '更多条件' }}
-                    <DownOutlined v-if="!searchExpanded" />
-                    <UpOutlined v-else />
-                  </a-button>
-                </div>
-              </div>
-            </template>
-
-            <!-- 按明细 Tab 搜索行 -->
-            <template v-else>
-              <div class="search-container" :data-expanded="searchExpanded || null">
-              <div ref="detailGridRef" class="search-grid">
-                <div class="search-field-item">
-                  <a-range-picker
-                    v-model:value="dateRange"
-                    size="small"
-                    style="width: 100%"
-                    value-format="YYYY-MM-DD"
-                    @change="handleDateChange"
-                  />
-                </div>
-                <div class="search-field-item">
-                  <a-input
-                    v-model:value="searchParams.orderNo"
-                    placeholder="单据编号"
-                    allow-clear
-                    size="small"
-                  />
-                </div>
-                <div class="search-field-item">
-                  <a-input
-                    v-model:value="searchParams.productName"
-                    placeholder="商品"
-                    allow-clear
-                    size="small"
-                    :suffix="h(SearchOutlined, { style: 'color:#bbb' })"
-                  />
-                </div>
-                <div class="search-field-item">
-                  <a-input
-                    v-model:value="searchParams.customerName"
-                    placeholder="客户"
-                    allow-clear
-                    size="small"
-                    :suffix="h(SearchOutlined, { style: 'color:#bbb' })"
-                  />
-                </div>
-                <div class="search-field-item">
-                  <a-input
-                    v-model:value="searchParams.handlerName"
-                    placeholder="经手人"
-                    allow-clear
-                    size="small"
-                    :suffix="h(SearchOutlined, { style: 'color:#bbb' })"
-                  />
-                </div>
-                <div class="search-field-item">
-                  <a-input
-                    v-model:value="searchParams.deptName"
-                    placeholder="部门"
-                    allow-clear
-                    size="small"
-                    :suffix="h(SearchOutlined, { style: 'color:#bbb' })"
-                  />
-                </div>
-                <div class="search-field-item">
-                  <div class="search-select-wrap">
-                    <span class="search-select-label">单据状态</span>
-                    <a-select
-                      v-model:value="searchParams.status"
-                      size="small"
-                      allow-clear
-                      mode="multiple"
-                      :max-tag-count="1"
-                      placeholder="全部"
+                    <a-select-option
+                      v-for="o in selectOptionsFor(f.key)"
+                      :key="o.value"
+                      :value="o.value"
                     >
-                      <a-select-option :value="0">
-                        草稿
-                      </a-select-option>
-                      <a-select-option :value="1">
-                        审核中
-                      </a-select-option>
-                      <a-select-option :value="2">
-                        待订货
-                      </a-select-option>
-                      <a-select-option :value="3">
-                        部分订货
-                      </a-select-option>
-                      <a-select-option :value="4">
-                        已订货
-                      </a-select-option>
-                      <a-select-option :value="5">
-                        已完成
-                      </a-select-option>
-                      <a-select-option :value="-1">
-                        已取消
-                      </a-select-option>
-                    </a-select>
-                  </div>
+                      {{ o.label }}
+                    </a-select-option>
+                  </a-select>
                 </div>
-                <div class="search-field-item">
-                  <div class="search-select-wrap">
-                    <span class="search-select-label">结算状态</span>
-                    <a-select
-                      v-model:value="searchParams.settlementStatus"
-                      size="small"
-                      allow-clear
-                      placeholder="全部"
-                    >
-                      <a-select-option :value="0">
-                        未结算
-                      </a-select-option>
-                      <a-select-option :value="1">
-                        部分结算
-                      </a-select-option>
-                      <a-select-option :value="2">
-                        已结算
-                      </a-select-option>
-                    </a-select>
-                  </div>
-                </div>
-                <div class="search-field-item">
-                  <a-input
-                    v-model:value="searchParams.warehouseName"
-                    placeholder="仓库"
-                    allow-clear
-                    size="small"
-                    :suffix="h(SearchOutlined, { style: 'color:#bbb' })"
-                  />
-                </div>
-                <div class="search-field-item">
-                  <div class="search-select-wrap">
-                    <span class="search-select-label">销售类型</span>
-                    <a-select
-                      v-model:value="searchParams.saleType"
-                      size="small"
-                      allow-clear
-                      placeholder="全部"
-                    >
-                      <a-select-option :value="0">
-                        正常销售
-                      </a-select-option>
-                      <a-select-option :value="1">
-                        样品销售
-                      </a-select-option>
-                      <a-select-option :value="2">
-                        促销销售
-                      </a-select-option>
-                    </a-select>
-                  </div>
-                </div>
-                <div class="search-field-item">
-                  <a-input
-                    v-model:value="searchParams.itemRemark"
-                    placeholder="明细备注"
-                    allow-clear
-                    size="small"
-                  />
-                </div>
-                <div class="search-field-item">
-                  <a-input
-                    v-model:value="searchParams.creatorName"
-                    placeholder="制单人"
-                    allow-clear
-                    size="small"
-                  />
-                </div>
-                <div class="search-field-item">
-                  <a-input
-                    v-model:value="searchParams.auditorName"
-                    placeholder="审核人"
-                    allow-clear
-                    size="small"
-                  />
-                </div>
-                <template v-if="searchExpanded">
-                <div class="search-field-item">
-                  <a-input
-                    v-model:value="searchParams.productAttribute"
-                    placeholder="商品行属性"
-                    allow-clear
-                    size="small"
-                  />
-                </div>
-                <div class="search-field-item">
-                  <a-input
-                    v-model:value="searchParams.remark"
-                    placeholder="单据备注"
-                    allow-clear
-                    size="small"
-                  />
-                </div>
-                </template>
-                <div ref="detailActionRef" class="search-action-group" :style="{ gridColumn: 'span ' + detailActionSpan }">
-                <div class="search-field-item search-action-item">
-                  <a-button
-                    type="primary"
-                    size="small"
-                    @click="handleSearch"
-                  >
-                    查询
-                  </a-button>
-                </div>
-                <div class="search-field-item">
-                  <a-checkbox v-model:checked="searchParams.showGift">
-                    是否赠品
-                  </a-checkbox>
-                </div>
-                <div class="search-field-item">
-                  <a-checkbox v-model:checked="searchParams.showCancelled">
-                    显示已取消
-                  </a-checkbox>
-                </div>
-                <div class="search-field-item">
-                  <a-checkbox v-model:checked="searchParams.showCompleted">
-                    显示已完成
-                  </a-checkbox>
-                </div>
-                <div class="search-field-item">
-                  <a-checkbox v-model:checked="searchParams.showDraft">
-                    显示草稿
-                  </a-checkbox>
-                </div>
-                </div>
+                <!-- 日期 -->
+                <a-date-picker
+                  v-else-if="DATE_FIELDS.includes(f.key)"
+                  v-model:value="searchParams[f.key]"
+                  size="small"
+                  style="width: 100%"
+                  value-format="YYYY-MM-DD"
+                  :placeholder="f.label"
+                />
+                <!-- 数字 -->
+                <a-input-number
+                  v-else-if="NUMBER_FIELDS.includes(f.key)"
+                  v-model:value="searchParams[f.key]"
+                  size="small"
+                  style="width: 100%"
+                  :placeholder="f.label"
+                />
+                <!-- 文本 -->
+                <a-input
+                  v-else
+                  v-model:value="searchParams[f.key]"
+                  :placeholder="f.label"
+                  allow-clear
+                  size="small"
+                  :suffix="SEARCH_ICON_FIELDS.includes(f.key) ? h(SearchOutlined, { style: 'color:#bbb' }) : undefined"
+                />
               </div>
-                <div class="search-more-toggle">
-                  <a-button
-                    type="link"
-                    size="small"
-                    @click="searchExpanded = !searchExpanded"
-                  >
-                    {{ searchExpanded ? '收起' : '更多条件' }}
-                    <DownOutlined v-if="!searchExpanded" />
-                    <UpOutlined v-else />
-                  </a-button>
-                </div>
-              </div>
-            </template>
+            </div>
+            <div class="search-action-bar">
+              <a-button
+                type="primary"
+                size="small"
+                @click="handleSearch"
+              >
+                查询
+              </a-button>
+              <a-checkbox
+                v-if="activeTab === 'detail'"
+                v-model:checked="searchParams.showGift"
+              >
+                是否赠品
+              </a-checkbox>
+              <a-checkbox v-model:checked="searchParams.showCancelled">
+                显示已取消
+              </a-checkbox>
+              <a-checkbox v-model:checked="searchParams.showCompleted">
+                显示已完成
+              </a-checkbox>
+              <a-checkbox v-model:checked="searchParams.showDraft">
+                显示草稿
+              </a-checkbox>
+              <a-button
+                v-if="visibleQueryFields.length > DEFAULT_VISIBLE_COUNT"
+                type="link"
+                size="small"
+                @click="searchExpanded = !searchExpanded"
+              >
+                {{ searchExpanded ? '收起' : '更多条件' }}
+                <UpOutlined v-if="searchExpanded" />
+                <DownOutlined v-else />
+              </a-button>
+            </div>
           </div>
         </template>
 
@@ -614,6 +221,8 @@
           <div class="table-area">
             <BillTableList
               :columns="currentColumns"
+              :storage-key="activeTab === 'doc' ? 'sale-pre-order-table-columns-doc' : 'sale-pre-order-table-columns-detail'"
+              :global-config-key="activeTab === 'doc' ? 'sale-pre-order-columns-doc' : 'sale-pre-order-columns-detail'"
               :data-source="tableData"
               :loading="loading"
               :pagination="billPagination"
@@ -640,8 +249,8 @@
               </template>
               <!-- 单据状态 -->
               <template #statusCell="{ record }">
-                <a-tag :color="getStatusColor(activeTab === 'doc' ? record.status : record.orderStatus)">
-                  {{ getStatusText(activeTab === 'doc' ? record.status : record.orderStatus) }}
+                <a-tag :color="getStatusColor(rowStatus(record))">
+                  {{ getStatusText(rowStatus(record)) }}
                 </a-tag>
               </template>
               <!-- 金额 -->
@@ -703,7 +312,7 @@
               <template #terminateAmountCell="{ record }">
                 <span class="currency-value">{{ formatAmount(record.terminateAmount) }}</span>
               </template>
-              <!-- 操作列 -->
+              <!-- 操作列：单据行工作流（提交 → 审核 → 订货） -->
               <template #actionCell="{ record }">
                 <a-space :size="4">
                   <a-button
@@ -713,16 +322,7 @@
                   >
                     编辑
                   </a-button>
-                  <a-button
-                    v-if="record.status === 0"
-                    type="link"
-                    size="small"
-                    danger
-                    @click="handleDelete(record)"
-                  >
-                    删除
-                  </a-button>
-                  <a-dropdown v-if="record.status > 0">
+                  <a-dropdown v-if="rowWorkflowActions(record).length">
                     <a-button
                       type="link"
                       size="small"
@@ -731,11 +331,13 @@
                     </a-button>
                     <template #overlay>
                       <a-menu>
-                        <a-menu-item @click="handleEdit(record)">
-                          修改
-                        </a-menu-item>
-                        <a-menu-item @click="handleDelete(record)">
-                          删除
+                        <a-menu-item
+                          v-for="act in rowWorkflowActions(record)"
+                          :key="act.key"
+                          :danger="act.danger"
+                          @click="act.run(record)"
+                        >
+                          {{ act.label }}
                         </a-menu-item>
                       </a-menu>
                     </template>
@@ -748,22 +350,12 @@
       </CategoryListLayout>
     </PageContainer>
 
-    <!-- ═══ 列配置弹窗 ═══ -->
-    <ColumnConfigPanel
-      :open="showColumnConfig"
-      :settings-columns="panelColumns"
-      :is-locked-column="isLockedColumn"
-      @update:open="showColumnConfig = $event"
-      @change="handleColumnConfigChange"
-      @reset="handleColumnConfigReset"
-      @drag-end="handleColumnConfigChange"
-    />
-
-    <!-- ═══ 页面配置弹窗 ═══ -->
+    <!-- ═══ 页面配置弹窗（查询条件按 Tab 独立 + 功能按钮全页共用） ═══ -->
     <PageConfigPanel
       :open="showPageConfig"
-      :query-fields-config="pageConfigQueryFields"
-      :storage-key="'pre-order-page-config'"
+      :query-fields-config="activeQueryConfig"
+      :function-buttons-config="activeFunctionButtons"
+      :storage-key="activePageConfigStorageKey"
       @update:open="showPageConfig = $event"
       @change="handlePageConfigChange"
     />
@@ -784,15 +376,14 @@ import {
   DownOutlined,
   UpOutlined,
   ExportOutlined,
+  ImportOutlined,
 } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayout.vue'
-import ColumnConfigPanel from '@/components/ColumnConfigPanel/index.vue'
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
-import { useColumnConfig, isLockedColumn } from '@/composables/useColumnConfig'
-import { useAutoGridSpan } from '@/composables/useAutoGridSpan'
+import type { FunctionButtonSetting, QueryFieldSetting } from '@/components/PageConfigPanel/index.vue'
 import { preOrderApi } from '@/api/erp'
 import { productCategoryApi } from '@/api/erp/product'
 import { useRouter } from 'vue-router'
@@ -829,7 +420,7 @@ const tableData = ref<any[]>([])
 const dateRange = ref<[Dayjs, Dayjs] | null>([dayjs().subtract(7, 'day'), dayjs()])
 
 // ═══ 搜索参数 ═══
-const searchParams = reactive({
+const searchParams = reactive<Record<string, any>>({
   orderNo: '',
   customerName: '',
   handlerName: '',
@@ -843,12 +434,12 @@ const searchParams = reactive({
   saleType: undefined as number | undefined,
   productAttribute: '',
   remark: '',
+  itemRemark: '',
   extNum1: undefined as number | undefined,
   extNum2: undefined as number | undefined,
   extText1: '',
   extText2: '',
   extText3: '',
-  itemRemark: '',
   showGift: false,
   showCancelled: false,
   showCompleted: false,
@@ -870,16 +461,17 @@ const rowSelection = computed(() => ({
   onChange: (keys: any[]) => { selectedRowKeys.value = keys }
 }))
 
-const showColumnConfig = ref(false)
+/** 批量操作面向「单据」：按明细 Tab 的选中行换算为所属单据ID（去重） */
+const selectedOrderIds = computed(() => {
+  if (activeTab.value === 'doc') return selectedRowKeys.value as number[]
+  const ids = tableData.value
+    .filter(r => selectedRowKeys.value.includes(r.id))
+    .map(r => r.orderId)
+  return Array.from(new Set(ids)) as number[]
+})
+
 const showPageConfig = ref(false)
 const searchExpanded = ref(false)
-
-const docGridRef = ref<HTMLElement | null>(null)
-const docActionRef = ref<HTMLElement | null>(null)
-const detailGridRef = ref<HTMLElement | null>(null)
-const detailActionRef = ref<HTMLElement | null>(null)
-const { span: docActionSpan } = useAutoGridSpan(docActionRef, docGridRef)
-const { span: detailActionSpan } = useAutoGridSpan(detailActionRef, detailGridRef)
 
 // ═══ 商品分类树 ═══
 const categoryTreeData = ref<any[]>([])
@@ -901,8 +493,189 @@ const STATUS_MAP: Record<number, { text: string; color: string }> = {
 function getStatusText(status: number): string { return STATUS_MAP[status]?.text || '未知' }
 function getStatusColor(status: number): string { return STATUS_MAP[status]?.color || 'default' }
 
-// ═══ 按单据 Tab 列（47列） ═══
+/** 行所属单据ID / 单据状态（按明细 Tab 取单据维度字段） */
+function rowOrderId(record: any): number { return activeTab.value === 'doc' ? record.id : record.orderId }
+function rowStatus(record: any): number { return activeTab.value === 'doc' ? record.status : record.orderStatus }
+
+// ═══ 页面配置：查询条件（按 Tab 两套，对标：按单据 20 / 按明细 16） ═══
+const PAGE_CONFIG_STORAGE_KEY = 'sale-pre-order-page-config'
+const activePageConfigStorageKey = computed(() => `${PAGE_CONFIG_STORAGE_KEY}-${activeTab.value}`)
+/** 折叠阈值：默认展示约 2 排（含查询按钮所在操作条），超出部分由「更多条件」展开 */
+const DEFAULT_VISIBLE_COUNT = 8
+
+const DEFAULT_DOC_QUERY_FIELDS: QueryFieldSetting[] = [
+  { key: 'dateRange', label: '日期', visible: true },
+  { key: 'orderNo', label: '单据编号', visible: true },
+  { key: 'customerName', label: '客户', visible: true },
+  { key: 'handlerName', label: '经手人', visible: true },
+  { key: 'deptName', label: '部门', visible: true },
+  { key: 'warehouseName', label: '仓库', visible: true },
+  { key: 'status', label: '单据状态', visible: true },
+  { key: 'settlementStatus', label: '结算状态', visible: true },
+  { key: 'creatorName', label: '制单人', visible: true },
+  { key: 'auditorName', label: '审核人', visible: true },
+  { key: 'extNum1', label: '表头自定义字段1(数字)', visible: false },
+  { key: 'extNum2', label: '表头自定义字段2(数字)', visible: false },
+  { key: 'extText1', label: '表头自定义字段3(文本)', visible: false },
+  { key: 'extText2', label: '表头自定义字段4(文本)', visible: false },
+  { key: 'extText3', label: '表头自定义字段5(文本)', visible: false },
+  { key: 'depositDeadlineStart', label: '收款期限(起)', visible: false },
+  { key: 'depositDeadlineEnd', label: '收款期限(止)', visible: false },
+  { key: 'saleType', label: '销售类型', visible: false },
+  { key: 'productAttribute', label: '商品行属性', visible: false },
+  { key: 'remark', label: '单据备注', visible: false },
+]
+
+const DEFAULT_DETAIL_QUERY_FIELDS: QueryFieldSetting[] = [
+  { key: 'dateRange', label: '日期', visible: true },
+  { key: 'orderNo', label: '单据编号', visible: true },
+  { key: 'productName', label: '商品', visible: true },
+  { key: 'customerName', label: '客户', visible: true },
+  { key: 'handlerName', label: '经手人', visible: true },
+  { key: 'deptName', label: '部门', visible: true },
+  { key: 'creatorName', label: '制单人', visible: false },
+  { key: 'auditorName', label: '审核人', visible: false },
+  { key: 'warehouseName', label: '仓库', visible: false },
+  { key: 'status', label: '单据状态', visible: false },
+  { key: 'settlementStatus', label: '结算状态', visible: false },
+  { key: 'saleType', label: '销售类型', visible: false },
+  { key: 'productAttribute', label: '商品行属性', visible: false },
+  { key: 'remark', label: '单据备注', visible: false },
+  { key: 'itemRemark', label: '明细备注', visible: false },
+]
+
+// 功能按钮（默认全选，配置面板可关闭 → 工具栏按钮真实显隐）
+const DEFAULT_FUNCTION_BUTTONS: FunctionButtonSetting[] = [
+  { key: 'add', label: '新增', enabled: true },
+  { key: 'refresh', label: '刷新', enabled: true },
+  { key: 'batchOrder', label: '批量订货', enabled: true },
+  { key: 'printF8', label: '打印(F8)', enabled: true },
+  { key: 'export', label: '导出', enabled: true },
+  { key: 'config', label: '配置', enabled: true },
+]
+
+const docQueryConfig = ref<QueryFieldSetting[]>(DEFAULT_DOC_QUERY_FIELDS.map(f => ({ ...f })))
+const detailQueryConfig = ref<QueryFieldSetting[]>(DEFAULT_DETAIL_QUERY_FIELDS.map(f => ({ ...f })))
+const functionButtonConfig = ref<FunctionButtonSetting[]>(DEFAULT_FUNCTION_BUTTONS.map(b => ({ ...b })))
+
+const activeQueryConfig = computed(() =>
+  activeTab.value === 'detail' ? detailQueryConfig.value : docQueryConfig.value
+)
+const activeFunctionButtons = computed(() => functionButtonConfig.value)
+
+/** 当前 Tab 生效的可见查询字段（勾选隐藏 + 拖拽排序均真实生效） */
+const visibleQueryFields = computed(() => activeQueryConfig.value.filter(f => f.visible))
+
+function btnEnabled(key: string): boolean {
+  return functionButtonConfig.value.find(b => b.key === key)?.enabled !== false
+}
+
+// ═══ 查询控件类型映射（通用渲染：区间/下拉/日期/数字/文本） ═══
+const SELECT_OPTIONS: Record<string, { label: string; value: any }[]> = {
+  status: [
+    { label: '草稿', value: 0 },
+    { label: '审核中', value: 1 },
+    { label: '待订货', value: 2 },
+    { label: '部分订货', value: 3 },
+    { label: '已订货', value: 4 },
+    { label: '已完成', value: 5 },
+    { label: '已取消', value: -1 },
+  ],
+  settlementStatus: [
+    { label: '未结算', value: 0 },
+    { label: '部分结算', value: 1 },
+    { label: '已结算', value: 2 },
+  ],
+  saleType: [
+    { label: '正常销售', value: 0 },
+    { label: '样品销售', value: 1 },
+    { label: '促销销售', value: 2 },
+  ],
+}
+const DATE_FIELDS = ['depositDeadlineStart', 'depositDeadlineEnd']
+const NUMBER_FIELDS = ['extNum1', 'extNum2']
+const SEARCH_ICON_FIELDS = ['customerName', 'handlerName', 'deptName', 'warehouseName', 'productName']
+
+function selectOptionsFor(key: string) { return SELECT_OPTIONS[key] || [] }
+
+// ═══ 页面配置持久化（按 Tab 落 localStorage，与 PageConfigPanel 同键同结构） ═══
+function mergeQueryFields(defaults: QueryFieldSetting[], saved: any[]): QueryFieldSetting[] {
+  const merged = saved
+    .map(s => {
+      const def = defaults.find(d => d.key === s.key)
+      return def ? { ...def, ...s, label: def.label } : null
+    })
+    .filter((f): f is QueryFieldSetting => !!f)
+  defaults.forEach(def => {
+    if (!merged.find(m => m.key === def.key)) merged.push({ ...def })
+  })
+  return merged
+}
+
+function persistPageConfig(tab: 'doc' | 'detail') {
+  const payload = {
+    queryFields: (tab === 'doc' ? docQueryConfig.value : detailQueryConfig.value).map(f => ({ ...f })),
+    functionButtons: functionButtonConfig.value.map(b => ({ ...b })),
+  }
+  localStorage.setItem(`${PAGE_CONFIG_STORAGE_KEY}-${tab}`, JSON.stringify(payload))
+  // 功能按钮为全页共用：同步到另一 Tab 的存档，避免切换 Tab 后被旧值回退
+  const otherKey = `${PAGE_CONFIG_STORAGE_KEY}-${tab === 'doc' ? 'detail' : 'doc'}`
+  try {
+    const otherRaw = localStorage.getItem(otherKey)
+    const other = otherRaw ? JSON.parse(otherRaw) : {}
+    localStorage.setItem(otherKey, JSON.stringify({ ...other, functionButtons: payload.functionButtons }))
+  } catch { /* 忽略另一 Tab 存档解析异常 */ }
+}
+
+function applyFunctionButtons(saved: FunctionButtonSetting[]) {
+  saved.forEach((b: any) => {
+    const target = functionButtonConfig.value.find(d => d.key === b.key)
+    if (target) target.enabled = b.enabled !== false
+  })
+}
+
+function loadPageConfigFromStorage() {
+  try {
+    const docRaw = localStorage.getItem(`${PAGE_CONFIG_STORAGE_KEY}-doc`)
+    if (docRaw) {
+      const parsed = JSON.parse(docRaw)
+      if (Array.isArray(parsed.queryFields)) {
+        docQueryConfig.value = mergeQueryFields(DEFAULT_DOC_QUERY_FIELDS, parsed.queryFields)
+      }
+      if (Array.isArray(parsed.functionButtons)) applyFunctionButtons(parsed.functionButtons)
+    }
+    const detailRaw = localStorage.getItem(`${PAGE_CONFIG_STORAGE_KEY}-detail`)
+    if (detailRaw) {
+      const parsed = JSON.parse(detailRaw)
+      if (Array.isArray(parsed.queryFields)) {
+        detailQueryConfig.value = mergeQueryFields(DEFAULT_DETAIL_QUERY_FIELDS, parsed.queryFields)
+      }
+      if (Array.isArray(parsed.functionButtons)) applyFunctionButtons(parsed.functionButtons)
+    }
+  } catch { /* 存档损坏时回退默认配置 */ }
+}
+
+/** 页面配置变更：真实驱动查询条件显隐/排序 + 工具栏按钮显隐，并持久化 */
+function handlePageConfigChange(config: any) {
+  const tab: 'doc' | 'detail' = activeTab.value === 'detail' ? 'detail' : 'doc'
+  const targetConfig = tab === 'detail' ? detailQueryConfig : docQueryConfig
+  if (Array.isArray(config.queryFields)) {
+    const next = config.queryFields
+      .map((f: any) => {
+        const existing = targetConfig.value.find(d => d.key === f.key)
+        return existing ? { ...existing, visible: f.visible !== false } : null
+      })
+      .filter((f: any) => !!f)
+    // 拖拽排序生效：按配置面板顺序重排查询条件
+    if (next.length) targetConfig.value.splice(0, targetConfig.value.length, ...next)
+  }
+  if (Array.isArray(config.functionButtons)) applyFunctionButtons(config.functionButtons)
+  persistPageConfig(tab)
+}
+
+// ═══ 按单据 Tab 列（47列 + 序号 + 操作） ═══
 const docColumns = [
+  { title: '', key: 'rowNo', type: 'rowNo', width: 40, fixed: 'left' },
   { title: '操作', key: 'action', type: 'action', width: 120, fixed: 'right', slotName: 'actionCell' },
   { title: '单据日期', field: 'orderDate', key: 'orderDate', width: 110, sortable: true },
   { title: '单据编号', field: 'orderNo', key: 'orderNo', width: 170, type: 'slot', slotName: 'orderNoCell', sortable: true },
@@ -953,8 +726,9 @@ const docColumns = [
   { title: '打印次数', field: 'printCount', key: 'printCount', width: 70, align: 'center' },
 ]
 
-// ═══ 按明细 Tab 列（63列） ═══
+// ═══ 按明细 Tab 列（63列 + 序号 + 操作，对标：表体自定义1~10） ═══
 const detailColumns = [
+  { title: '', key: 'rowNo', type: 'rowNo', width: 40, fixed: 'left' },
   { title: '操作', key: 'action', type: 'action', width: 80, fixed: 'right', slotName: 'actionCell' },
   { title: '单据日期', field: 'orderDate', key: 'orderDate', width: 110, sortable: true },
   { title: '单据编号', field: 'orderNo', key: 'orderNo', width: 170, type: 'slot', slotName: 'orderNoCell', sortable: true },
@@ -977,49 +751,16 @@ const detailColumns = [
   { title: '型号', field: 'model', key: 'model', width: 100 },
   { title: '产地', field: 'origin', key: 'origin', width: 80 },
   { title: '品牌', field: 'brand', key: 'brand', width: 80 },
-  { title: '单据自定义1(数字)', field: 'extNum1', key: 'extNum1', width: 130, align: 'right' },
-  { title: '单据自定义2(数字)', field: 'extNum2', key: 'extNum2', width: 130, align: 'right' },
-  { title: '单据自定义3(数字)', field: 'extNum3', key: 'extNum3', width: 130, align: 'right' },
-  { title: '单据自定义4(文本)', field: 'extText1', key: 'extText1', width: 130 },
-  { title: '单据自定义5(文本)', field: 'extText2', key: 'extText2', width: 130 },
-  { title: '单据自定义6(数字)', field: 'extNum4', key: 'extNum4', width: 130, align: 'right' },
-  { title: '单据自定义7(数字)', field: 'extNum5', key: 'extNum5', width: 130, align: 'right' },
-  { title: '单据自定义8(往来单位)', field: 'extPartner', key: 'extPartner', width: 130 },
-  { title: '单据自定义9(职员)', field: 'extStaff', key: 'extStaff', width: 120 },
-  { title: '单据自定义10(部门)', field: 'extDept', key: 'extDept', width: 120 },
-  { title: '图片', field: 'imageUrl', key: 'imageUrl', width: 80, type: 'image' },
-  { title: '区域', field: 'region', key: 'region', width: 90 },
-  { title: '货位', field: 'location', key: 'location', width: 90 },
-  { title: '计价单位', field: 'productUnit', key: 'productUnitDetail', width: 90 },
-  { title: '件散数量', field: 'pieceQuantity', key: 'pieceQuantity', width: 90, align: 'right' },
-  { title: '可用库存', field: 'availableStock', key: 'availableStock', width: 100, align: 'right' },
-  { title: '可用库存换算结果', field: 'availableStockConverted', key: 'availableStockConverted', width: 130, align: 'right' },
-  { title: '账面库存', field: 'bookStock', key: 'bookStock', width: 100, align: 'right' },
-  { title: '批次条码', field: 'batchNo', key: 'batchNo', width: 120 },
-  { title: '生产日期', field: 'productionDate', key: 'productionDate', width: 110 },
-  { title: '保质期', field: 'shelfLife', key: 'shelfLife', width: 90 },
-  { title: '到期日期', field: 'validityDate', key: 'validityDate', width: 110 },
-  { title: '最近销售日期', field: 'lastSaleDate', key: 'lastSaleDate', width: 110 },
-  { title: '零售价', field: 'retailPrice', key: 'retailPrice', width: 100, align: 'right' },
-  { title: '批发价', field: 'wholesalePrice', key: 'wholesalePrice', width: 100, align: 'right' },
-  { title: '最低售价', field: 'minSalePrice', key: 'minSalePrice', width: 100, align: 'right' },
-  { title: '参考成本单价', field: 'costPrice', key: 'costPrice', width: 110, align: 'right' },
-  { title: '参考成本金额', field: 'costAmount', key: 'costAmount', width: 110, align: 'right' },
-  { title: '参考毛利', field: 'grossProfit', key: 'grossProfit', width: 100, align: 'right' },
-  { title: '兑换礼品', field: 'giftItem', key: 'giftItem', width: 100 },
-  { title: '兑换积分', field: 'exchangePoints', key: 'exchangePoints', width: 90, align: 'right' },
-  { title: '产生积分', field: 'generatedPoints', key: 'generatedPoints', width: 90, align: 'right' },
-  { title: '使用积分', field: 'usedPoints', key: 'usedPoints', width: 90, align: 'right' },
-  { title: '赠品', field: 'gift', key: 'gift', width: 70 },
-  { title: '备注', field: 'itemRemark', key: 'itemRemarkDetail', width: 120 },
-  { title: '价格等级1', field: 'priceLevel1', key: 'priceLevel1', width: 100, align: 'right' },
-  { title: '价格等级2', field: 'priceLevel2', key: 'priceLevel2', width: 100, align: 'right' },
-  { title: '价格等级3', field: 'priceLevel3', key: 'priceLevel3', width: 100, align: 'right' },
-  { title: '价格等级4', field: 'priceLevel4', key: 'priceLevel4', width: 100, align: 'right' },
-  { title: '价格等级5', field: 'priceLevel5', key: 'priceLevel5', width: 100, align: 'right' },
-  { title: '价格等级6', field: 'priceLevel6', key: 'priceLevel6', width: 100, align: 'right' },
-  { title: '价格等级7', field: 'priceLevel7', key: 'priceLevel7', width: 100, align: 'right' },
-  { title: '价格等级8', field: 'priceLevel8', key: 'priceLevel8', width: 100, align: 'right' },
+  { title: '表体自定义1(数字)', field: 'extNum1', key: 'extNum1', width: 130, align: 'right' },
+  { title: '表体自定义2(数字)', field: 'extNum2', key: 'extNum2', width: 130, align: 'right' },
+  { title: '表体自定义3(数字)', field: 'extNum3', key: 'extNum3', width: 130, align: 'right' },
+  { title: '表体自定义4(文本)', field: 'extText1', key: 'extText1', width: 130 },
+  { title: '表体自定义5(文本)', field: 'extText2', key: 'extText2', width: 130 },
+  { title: '表体自定义6(数字)', field: 'extNum4', key: 'extNum4', width: 130, align: 'right' },
+  { title: '表体自定义7(数字)', field: 'extNum5', key: 'extNum5', width: 130, align: 'right' },
+  { title: '表体自定义8(往来单位)', field: 'extPartner', key: 'extPartner', width: 130 },
+  { title: '表体自定义9(职员)', field: 'extStaff', key: 'extStaff', width: 120 },
+  { title: '表体自定义10(部门)', field: 'extDept', key: 'extDept', width: 120 },
   { title: '单位', field: 'unit', key: 'unit', width: 70 },
   { title: '小单位', field: 'smallUnit', key: 'smallUnit', width: 70 },
   { title: '小单位数量', field: 'smallUnitQuantity', key: 'smallUnitQuantity', width: 90, align: 'right' },
@@ -1056,58 +797,7 @@ const detailColumns = [
 
 const currentColumns = computed(() => activeTab.value === 'doc' ? docColumns : detailColumns)
 
-// ═══ 列配置集成 ═══
-const docColumnDefs = computed(() => docColumns.filter((c: any) => c.key !== 'action').map((c: any) => ({ key: c.key, title: c.title, visible: true, enterJump: false })))
-const detailColumnDefs = computed(() => detailColumns.filter((c: any) => c.key !== 'action').map((c: any) => ({ key: c.key, title: c.title, visible: true, enterJump: false })))
-
-const {
-  visibleColumns: visibleDocColumns,
-  settingsColumns: docSettingsColumns,
-  resetSettings: resetDocColumns,
-} = useColumnConfig(docColumnDefs.value, 'sale-pre-order-list-columns-doc')
-
-const {
-  visibleColumns: visibleDetailColumns,
-  settingsColumns: detailSettingsColumns,
-  resetSettings: resetDetailColumns,
-} = useColumnConfig(detailColumnDefs.value, 'sale-pre-order-list-columns-detail')
-
-const panelColumns = computed(() => {
-  return activeTab.value === 'doc' ? docSettingsColumns.value : detailSettingsColumns.value
-})
-
-function handleColumnConfigChange() { /* 列配置变更时自动持久化 */ }
-function handleColumnConfigReset() {
-  if (activeTab.value === 'doc') resetDocColumns()
-  else resetDetailColumns()
-}
-function handlePageConfigChange(_config: any) { /* 页面配置变更 */ }
-
-// ═══ 页面配置：查询条件字段（对标：可勾选显示/隐藏并持久化） ═══
-const pageConfigQueryFields = [
-  { key: 'dateRange', label: '日期', visible: true },
-  { key: 'orderNo', label: '单据编号', visible: true },
-  { key: 'customerName', label: '客户', visible: true },
-  { key: 'handlerName', label: '经手人', visible: true },
-  { key: 'deptName', label: '部门', visible: true },
-  { key: 'warehouseName', label: '仓库', visible: true },
-  { key: 'status', label: '单据状态', visible: true },
-  { key: 'settlementStatus', label: '结算状态', visible: true },
-  { key: 'creatorName', label: '制单人', visible: true },
-  { key: 'auditorName', label: '审核人', visible: true },
-  { key: 'extNum1', label: '表头自定义字段1(数字)', visible: false },
-  { key: 'extNum2', label: '表头自定义字段2(数字)', visible: false },
-  { key: 'extText1', label: '表头自定义字段3(文本)', visible: false },
-  { key: 'extText2', label: '表头自定义字段4(文本)', visible: false },
-  { key: 'extText3', label: '表头自定义字段5(文本)', visible: false },
-  { key: 'depositDeadlineStart', label: '收款期限(起)', visible: false },
-  { key: 'depositDeadlineEnd', label: '收款期限(止)', visible: false },
-  { key: 'saleType', label: '销售类型', visible: false },
-  { key: 'productAttribute', label: '商品行属性', visible: false },
-  { key: 'remark', label: '单据备注', visible: false },
-  { key: 'itemRemark', label: '明细备注', visible: false },
-  { key: 'showGift', label: '是否赠品', visible: false },
-]
+// ═══ 列配置入口 = 数据表表头齿轮（个人/全局双配置，全局配置落后端） ═══
 
 // ═══ 表格底部合计 ═══
 const tableFooterColumns = computed(() => {
@@ -1137,11 +827,12 @@ async function fetchData() {
     if (searchParams.creatorName) params.creatorName = searchParams.creatorName
     if (searchParams.auditorName) params.auditorName = searchParams.auditorName
     if (searchParams.settlementStatus !== undefined) params.settlementStatus = searchParams.settlementStatus
+    if (searchParams.productAttribute) params.productAttribute = searchParams.productAttribute
 
     // 状态过滤：复选框控制默认隐藏的特殊状态（草稿0/已取消-1/已完成5）
     const effectiveStatuses = new Set<number>()
     if (searchParams.status?.length) {
-      searchParams.status.forEach(s => effectiveStatuses.add(s))
+      searchParams.status.forEach((s: number) => effectiveStatuses.add(s))
     }
     if (searchParams.showCancelled) effectiveStatuses.add(-1)
     if (searchParams.showCompleted) effectiveStatuses.add(5)
@@ -1158,9 +849,8 @@ async function fetchData() {
       if (searchParams.productName) params.keyword = searchParams.productName
       if (searchParams.categoryId) params.categoryId = searchParams.categoryId
       if (searchParams.itemRemark) params.itemRemark = searchParams.itemRemark
-      if (searchParams.productAttribute) params.productAttribute = searchParams.productAttribute
       if (searchParams.remark) params.remark = searchParams.remark
-      if (searchParams.saleType !== undefined) params.saleType = searchParams.saleType
+      if (searchParams.saleType !== undefined && searchParams.saleType !== null) params.saleType = searchParams.saleType
       if (searchParams.showGift) params.gift = true
       const res = await preOrderApi.pageDetail(params)
       if (res) {
@@ -1169,16 +859,15 @@ async function fetchData() {
       }
     } else {
       if (searchParams.warehouseName) params.warehouseName = searchParams.warehouseName
-      if (searchParams.saleType !== undefined) params.saleType = searchParams.saleType
+      if (searchParams.saleType !== undefined && searchParams.saleType !== null) params.saleType = searchParams.saleType
       if (searchParams.depositDeadlineStart) params.depositDeadlineStart = searchParams.depositDeadlineStart
       if (searchParams.depositDeadlineEnd) params.depositDeadlineEnd = searchParams.depositDeadlineEnd
       if (searchParams.remark) params.remark = searchParams.remark
-      if (searchParams.extNum1 !== undefined) params.extNum1 = searchParams.extNum1
-      if (searchParams.extNum2 !== undefined) params.extNum2 = searchParams.extNum2
+      if (searchParams.extNum1 !== undefined && searchParams.extNum1 !== null) params.extNum1 = searchParams.extNum1
+      if (searchParams.extNum2 !== undefined && searchParams.extNum2 !== null) params.extNum2 = searchParams.extNum2
       if (searchParams.extText1) params.extText1 = searchParams.extText1
       if (searchParams.extText2) params.extText2 = searchParams.extText2
       if (searchParams.extText3) params.extText3 = searchParams.extText3
-      if (searchParams.productAttribute) params.productAttribute = searchParams.productAttribute
       const res = await preOrderApi.page(params)
       if (res) {
         tableData.value = res.records || []
@@ -1207,7 +896,13 @@ async function loadCategoryTree() {
 }
 
 // ═══ 事件处理 ═══
-function handleTabChange(key: string) { activeTab.value = key; pagination.current = 1; fetchData() }
+function handleTabChange(key: string) {
+  activeTab.value = key
+  pagination.current = 1
+  selectedRowKeys.value = []
+  searchExpanded.value = false
+  fetchData()
+}
 
 function setQuickDate(key: string) {
   quickDate.value = key
@@ -1241,15 +936,76 @@ function handleSearch() { pagination.current = 1; fetchData() }
 function handlePageChange(page: number, pageSize: number) { pagination.current = page; pagination.pageSize = pageSize; fetchData() }
 
 function handleCategorySelect(keys: (string | number)[]) {
-  if (keys.length > 0) { selectedCategoryId.value = keys[0]; searchParams.categoryId = keys[0] as number }
-  else { selectedCategoryId.value = '0'; searchParams.categoryId = undefined }
+  if (keys.length > 0 && keys[0] !== '0') {
+    selectedCategoryId.value = keys[0]
+    searchParams.categoryId = Number(keys[0])
+  } else {
+    selectedCategoryId.value = '0'
+    searchParams.categoryId = undefined
+  }
   pagination.current = 1; fetchData()
 }
 
 function handleCategoryExpand(keys: (string | number)[]) { categoryExpandedKeys.value = keys }
 
 function handleAdd() { router.push('/sales/pre-order/create') }
-function handleEdit(record: any) { router.push(`/sales/pre-order/form/${record.id}`) }
+function handleEdit(record: any) { router.push(`/sales/pre-order/form/${rowOrderId(record)}`) }
+
+// ═══ 行工作流（提交 → 审核 → 订货） ═══
+function rowWorkflowActions(record: any): { key: string; label: string; danger?: boolean; run: (r: any) => void }[] {
+  const status = rowStatus(record)
+  const actions: { key: string; label: string; danger?: boolean; run: (r: any) => void }[] = []
+  if (status === 0) {
+    actions.push({ key: 'submit', label: '提交', run: handleSubmitOne })
+    actions.push({ key: 'delete', label: '删除', danger: true, run: handleDelete })
+  }
+  if (status === 1) {
+    actions.push({ key: 'approve', label: '审核', run: handleApproveOne })
+  }
+  if (status === 2 || status === 3) {
+    actions.push({ key: 'order', label: '订货', run: handleOrderOne })
+  }
+  return actions
+}
+
+async function handleSubmitOne(record: any) {
+  try {
+    await preOrderApi.submit(rowOrderId(record))
+    message.success('已提交，等待审核')
+    fetchData()
+  } catch (error: any) {
+    message.error(error?.response?.data?.message || '提交失败')
+  }
+}
+
+async function handleApproveOne(record: any) {
+  try {
+    await preOrderApi.approve(rowOrderId(record))
+    message.success('审核通过，可执行订货')
+    fetchData()
+  } catch (error: any) {
+    message.error(error?.response?.data?.message || '审核失败')
+  }
+}
+
+function handleOrderOne(record: any) {
+  Modal.confirm({
+    title: '确认订货',
+    content: `确定要将单据 ${record.orderNo} 转为销售订单吗？`,
+    okText: '确认', cancelText: '取消',
+    onOk: async () => {
+      try {
+        const res: any = await preOrderApi.batchOrder([rowOrderId(record)])
+        const data = res as any
+        if (data?.errors?.length) message.warning(`订货失败：${data.errors[0]}`)
+        else message.success('订货成功，已生成销售订单')
+        fetchData()
+      } catch (error: any) {
+        message.error(error?.response?.data?.message || '订货失败')
+      }
+    },
+  })
+}
 
 function handleDelete(record: any) {
   Modal.confirm({
@@ -1257,7 +1013,7 @@ function handleDelete(record: any) {
     content: `确定要删除预订货单 ${record.orderNo} 吗？此操作不可恢复。`,
     okText: '确认删除', okType: 'danger', cancelText: '取消',
     onOk: async () => {
-      try { await preOrderApi.delete(record.id); message.success('删除成功'); fetchData() }
+      try { await preOrderApi.delete(rowOrderId(record)); message.success('删除成功'); fetchData() }
       catch (error: any) { message.error(error?.response?.data?.message || '删除失败') }
     },
   })
@@ -1265,7 +1021,6 @@ function handleDelete(record: any) {
 
 // ═══ 导出 ═══
 function handleExport() {
-  // 构建查询参数用于导出
   const params: any = {}
   if (searchParams.startDate) params.startDate = searchParams.startDate
   if (searchParams.endDate) params.endDate = searchParams.endDate
@@ -1280,7 +1035,7 @@ function handleExport() {
 
 // ═══ 批量订货 ═══
 async function handleBatchOrder() {
-  const ids = selectedRowKeys.value
+  const ids = selectedOrderIds.value
   if (ids.length === 0) {
     message.warning('请先选择要订货的预订货单')
     return
@@ -1308,14 +1063,13 @@ async function handleBatchOrder() {
   })
 }
 
-// ═══ 打印 ═══
+// ═══ 打印（F8） ═══
 function handlePrint() {
-  const ids = selectedRowKeys.value
+  const ids = selectedOrderIds.value
   if (ids.length === 0) {
     message.warning('请先选择要打印的预订货单')
     return
   }
-  // 递增打印计数
   preOrderApi.print(ids[0] as number).then(() => {
     message.success('打印计数已递增')
     window.print()
@@ -1342,6 +1096,7 @@ function formatQty(qty: number): string {
 
 // ═══ 初始化 ═══
 onMounted(() => {
+  loadPageConfigFromStorage()
   setQuickDate('lastWeek')
   fetchData()
   loadCategoryTree()
@@ -1359,8 +1114,9 @@ onUnmounted(() => window.removeEventListener('keydown', onKeyDown))
 .quick-dates :deep(.ant-btn) { font-size: 13px; padding: 2px 8px; }
 .quick-dates :deep(.ant-btn-primary) { color: #fff; background: #ff7a45; border-color: #ff7a45; }
 .search-area { padding: 8px 16px; background: #fff; border-bottom: 1px solid #e8e8e8; flex-shrink: 0; }
-.search-container:not(:has([data-expanded])) > .search-grid { max-height: 80px; overflow: hidden; }
 .search-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; align-items: center; }
+/* 默认显示 2 排，超出自动折叠；点击「更多条件」展开 */
+.search-grid-collapsed { max-height: 68px; overflow: hidden; }
 .search-field-item { display: flex; min-width: 0; }
 .search-field-item :deep(.ant-input-wrapper),
 .search-field-item :deep(.ant-input-affix-wrapper) { width: 100%; font-size: 13px; }
@@ -1372,37 +1128,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeyDown))
 .search-select-label { font-size: 13px; color: rgba(0,0,0,0.65); white-space: nowrap; flex-shrink: 0; padding-left: 8px; }
 .search-select-wrap :deep(.ant-select) { flex: 1; min-width: 0; }
 .search-select-wrap :deep(.ant-select .ant-select-selector) { border: none !important; border-radius: 0 !important; box-shadow: none !important; padding-top: 0 !important; padding-bottom: 0 !important; display: flex; align-items: center; }
-.search-action-item { flex-shrink: 0; }
-.search-action-group {
-  display: flex;
-  flex-wrap: nowrap;
-  align-items: center;
-}
-.search-action-group .search-field-item {
-  flex: 0 0 auto;
-  width: auto;
-  margin-right: 4px;
-}
-.search-action-group .search-field-item:last-child {
-  margin-right: 0;
-}
-.search-more-toggle {
-  margin-top: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-.search-more-toggle::before,
-.search-more-toggle::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: #e8e8e8;
-}
-.search-more-toggle :deep(.ant-btn) {
-  font-size: 13px;
-}
+.search-action-bar { display: flex; align-items: center; gap: 12px; margin-top: 8px; padding-top: 6px; border-top: 1px dashed #f0f0f0; }
 .table-area { flex: 1; min-height: 0; overflow: hidden; }
 .currency-value { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-variant-numeric: tabular-nums; }
 :deep(.ant-input-sm), :deep(.ant-input-number-sm), :deep(.ant-select-single.ant-select-sm .ant-select-selector), :deep(.ant-picker-small), :deep(.ant-btn-sm) { height: 28px; line-height: 28px; }

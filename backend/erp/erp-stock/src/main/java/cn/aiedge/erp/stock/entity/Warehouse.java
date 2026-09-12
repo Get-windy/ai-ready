@@ -54,9 +54,34 @@ public class Warehouse {
     private String contactPhone;
 
     /**
-     * 状态
+     * 上级仓库ID（0=顶级）
      */
-    private String status;
+    private Long parentId;
+
+    /**
+     * 所属分类ID（erp_warehouse_category.id）
+     */
+    private Long categoryId;
+
+    /**
+     * 助记码
+     */
+    private String easyCode;
+
+    /**
+     * 邮编
+     */
+    private String zipCode;
+
+    /**
+     * 排序号
+     */
+    private Integer sortOrder;
+
+    /**
+     * 状态 1-启用 0-停用
+     */
+    private Integer status;
 
     /**
      * 备注

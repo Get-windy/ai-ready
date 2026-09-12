@@ -13,6 +13,7 @@
       @action="handleAction"
       @field-change="handleFieldChange"
       @search-btn="handleSearchBtn"
+      @tab-suffix-btn="handleTabSuffixBtn"
       @draft="handleSaveDraft"
       @submit="handleSubmit"
     >
@@ -127,11 +128,13 @@
     <ColumnConfigPanel
       :open="showFormColumnConfig"
       :settings-columns="formSettingsColumns"
+      :global-config-key="'sale-pre-order-form-detail-columns'"
       :is-locked-column="isLockedColumn"
       @update:open="showFormColumnConfig = $event"
       @change="handleFormColumnConfigChange"
       @reset="handleFormColumnConfigReset"
       @drag-end="handleFormColumnConfigChange"
+      @global-config-change="handleGlobalColumnConfigChange"
     />
 
     <!-- ═══ 快速搜索弹窗（+Q按钮） ═══ -->
@@ -152,6 +155,51 @@
         @change="handleQuickSearchConfirm"
       />
     </a-modal>
+
+    <!-- ═══ 更多账户弹窗（预订金账户2~4） ═══ -->
+    <a-modal
+      v-model:open="showMoreAccounts"
+      title="更多预订金账户"
+      width="520px"
+      :footer="null"
+      destroy-on-close
+    >
+      <div
+        v-for="acc in MORE_ACCOUNT_FIELDS"
+        :key="acc.key"
+        class="more-account-row"
+      >
+        <span class="more-account-label">{{ acc.label }}</span>
+        <a-select
+          v-model:value="formData[acc.key]"
+          show-search
+          allow-clear
+          size="small"
+          placeholder="请选择账户"
+          style="flex:1"
+          :options="accountOptions"
+          :filter-option="filterOption"
+        />
+      </div>
+      <div class="more-account-footer">
+        <a-button
+          type="primary"
+          size="small"
+          @click="showMoreAccounts = false"
+        >
+          确定
+        </a-button>
+      </div>
+    </a-modal>
+
+    <!-- ═══ 批量导入隐藏文件输入（Excel/CSV 明细回填） ═══ -->
+    <input
+      ref="fileInputRef"
+      type="file"
+      accept=".xlsx,.xls,.csv"
+      style="display:none"
+      @change="handleImportFileChange"
+    >
   </div>
 </template>
 
@@ -172,9 +220,11 @@ import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTab
 import type { BillHeaderConfig, BasicInfoField, BillTabConfig, SummaryRow, BillFooterConfig } from '@/components/BillFormPage/types'
 import { useBillForm } from '@/components/BillFormPage/useBillForm'
 import { useColumnConfig, isLockedColumn } from '@/composables/useColumnConfig'
-import { preOrderApi } from '@/api/erp'
+import { preOrderApi, userPageConfigApi } from '@/api/erp'
+import optionsApi from '@/api/options'
 import { PRODUCT_EXTEND_DEFAULTS } from '@/utils/productDefaults'
 import { useUserStore } from '@/stores/user'
+import * as XLSX from 'xlsx'
 
 const router = useRouter()
 const route = useRoute()
@@ -192,6 +242,16 @@ const quickSearchTitle = ref('')
 const quickSearchFieldKey = ref('')
 const quickSearchOptions = ref<{label:string;value:any}[]>([])
 const quickSearchValue = ref<any>(undefined)
+// ═══ 更多预订金账户弹窗 ═══
+const showMoreAccounts = ref(false)
+const accountOptions = ref<{ label: string; value: string; code?: string }[]>([])
+const MORE_ACCOUNT_FIELDS = [
+  { key: 'depositAccount2', label: '预订金账户2' },
+  { key: 'depositAccount3', label: '预订金账户3' },
+  { key: 'depositAccount4', label: '预订金账户4' },
+]
+// ═══ 批量导入 ═══
+const fileInputRef = ref<HTMLInputElement | null>(null)
 
 // ═══ 页面配置联动 ═══
 const STORAGE_KEY_PAGE = 'sale-pre-order-form-page-config'
@@ -212,6 +272,12 @@ function isFieldVisible(fieldKey: string): boolean {
   if (pageConfigFields.value.length === 0) return true
   const field = pageConfigFields.value.find((f: any) => f.key === fieldKey)
   return field ? field.visible !== false : true
+}
+
+/** 页面配置「显示名」生效：配置改名后表单标签同步 */
+function fieldLabel(fieldKey: string, fallback: string): string {
+  const field = pageConfigFields.value.find((f: any) => f.key === fieldKey)
+  return (field && field.displayName) ? field.displayName : fallback
 }
 
 // 初始化加载
@@ -236,11 +302,29 @@ const {
   totalAmount,
 } = useBillForm({
   billPrefix: 'YDHD',
+  // 单号必须来自后端号段（严禁前端演示自增号）
+  codeApiPath: '/erp/sale/pre-order/next-no',
   api: { create: preOrderApi.create, update: preOrderApi.update, getById: preOrderApi.getById },
   redirectPath: '/sales/pre-order',
   optionTypes: ['customers', 'warehouses', 'users', 'products'],
   productDefaults: PRODUCT_EXTEND_DEFAULTS,
+  onDetailLoaded: (data, fd) => {
+    // 明细：列表用 itemCode 承载「货号」，后端字段为 productCode，编辑回填时补齐
+    fd.products.forEach((p: any) => {
+      if (!p.itemCode) p.itemCode = p.productCode || ''
+      if (p.gift === 1) p.gift = true
+    })
+    // 主表：预订金账户已由 Object.assign 展开，这里补齐账户下拉显示
+    if (data.depositDeadline && typeof data.depositDeadline === 'string') {
+      fd.depositDeadline = data.depositDeadline.slice(0, 10)
+    }
+  },
   onFieldChange: (fieldKey, val, fd) => {
+    // 显式回写选择值：BillFormPage 以「新对象 emit」的方式更新，父级 reactive 需显式赋值，
+    // 否则仅快照字段（客户名等）落库，ID 字段（customerId/warehouseId/handlerId）会丢失。
+    if (['customerId', 'warehouseId', 'handlerId', 'deptId'].includes(fieldKey)) {
+      fd[fieldKey] = val
+    }
     if (fieldKey === 'customerId') {
       const c = optionRefs.customers.find((x: any) => x.id === val)
       if (c) {
@@ -323,7 +407,7 @@ const {
     depositAccount4: fd.depositAccount4 || '',
     depositAmount: fd.depositAmount || 0,
     creditLimit: fd.creditLimit || 0,
-    depositDeadline: fd.depositDeadline || '',
+    depositDeadline: fd.depositDeadline || null,
     // ═══ 备注 ═══
     remark: fd.remark || '',
     // ═══ 表头自定义字段 ═══
@@ -444,7 +528,10 @@ const headerConfig = computed<BillHeaderConfig>(() => ({
       { key: 'column-config', label: '列配置' },
     ]},
     { key: 'history', label: '历史', icon: ClockCircleOutlined },
-    { key: 'import', label: '导入', icon: ImportOutlined },
+    { key: 'import', label: '导入', icon: ImportOutlined, children: [
+      { key: 'import-excel', label: 'Excel 导入明细' },
+      { key: 'download-import-template', label: '下载导入模板' },
+    ]},
     { key: 'more', label: '更多', children: [
       { key: 'save-draft', label: '保存草稿' },
       { key: 'copy-pre-order', label: '复制预订货单' },
@@ -456,15 +543,15 @@ const headerConfig = computed<BillHeaderConfig>(() => ({
 const basicInfoFields = computed<BasicInfoField[]>(() => {
   const allFields: BasicInfoField[] = [
     // ═══ Row 1: 核心6字段（与出库单一致的简洁布局） ═══
-    { key: 'customerId', label: '客户', type: 'select', required: true, inlineLabel: true, width: 320, options: optionRefs.customers.map((c: any) => ({ label: c.name, value: c.id })), searchBtn: '+Q', loading: loadingOptions.value },
-    { key: 'warehouseId', label: '发货仓库', type: 'select', required: true, inlineLabel: true, width: 220, options: optionRefs.warehouses.map((w: any) => ({ label: w.name, value: w.id })), searchBtn: '+Q', loading: loadingOptions.value },
-    { key: 'handlerId', label: '经手人', type: 'select', required: true, inlineLabel: true, width: 220, options: optionRefs.users.map((u: any) => ({ label: u.name, value: u.id })), searchBtn: '+Q', loading: loadingOptions.value },
-    { key: 'orderDate', label: '单据日期', type: 'date', required: true, inlineLabel: true, width: 200 },
-    { key: 'saleType', label: '销售类型', type: 'select', required: true, inlineLabel: true, width: 200, options: [{ label: '正常销售', value: 0 }, { label: '样品销售', value: 1 }, { label: '促销销售', value: 2 }] },
+    { key: 'customerId', label: fieldLabel('customerId', '客户'), type: 'select', required: true, inlineLabel: true, width: 320, options: optionRefs.customers.map((c: any) => ({ label: c.name, value: c.id })), searchBtn: '+Q', loading: loadingOptions.value },
+    { key: 'warehouseId', label: fieldLabel('warehouseId', '发货仓库'), type: 'select', required: true, inlineLabel: true, width: 220, options: optionRefs.warehouses.map((w: any) => ({ label: w.name, value: w.id })), searchBtn: '+Q', loading: loadingOptions.value },
+    { key: 'handlerId', label: fieldLabel('handlerId', '经手人'), type: 'select', required: true, inlineLabel: true, width: 220, options: optionRefs.users.map((u: any) => ({ label: u.name, value: u.id })), searchBtn: '+Q', loading: loadingOptions.value },
+    { key: 'orderDate', label: fieldLabel('orderDate', '单据日期'), type: 'date', required: true, inlineLabel: true, width: 200 },
+    { key: 'saleType', label: fieldLabel('saleType', '销售类型'), type: 'select', required: true, inlineLabel: true, width: 200, options: [{ label: '正常销售', value: 0 }, { label: '样品销售', value: 1 }, { label: '促销销售', value: 2 }] },
     // ═══ Row 2: 收货信息3字段 ═══
-    { key: 'receiverName', label: '收货人', type: 'input', inlineLabel: true, width: 200, searchBtn: 'Q' },
-    { key: 'receiverPhone', label: '联系电话', type: 'input', inlineLabel: true, width: 220 },
-    { key: 'shippingAddress', label: '收货地址', type: 'input', inlineLabel: true, width: 500 },
+    { key: 'receiverName', label: fieldLabel('receiverName', '收货人'), type: 'input', inlineLabel: true, width: 200 },
+    { key: 'receiverPhone', label: fieldLabel('receiverPhone', '联系电话'), type: 'input', inlineLabel: true, width: 220 },
+    { key: 'shippingAddress', label: fieldLabel('shippingAddress', '收货地址'), type: 'input', inlineLabel: true, width: 500 },
   ]
   return allFields.filter(f => isFieldVisible(f.key))
 })
@@ -474,38 +561,34 @@ const tabsConfig = computed<BillTabConfig[]>(() => {
     // ═══ Tab 1: 收款（预订金 + 客户银行信息） ═══
     { key: 'deposit', tab: '收款', fields: [
       // Row 1: 预订金核心
-      { key: 'depositAccount1', label: '预订金账户', type: 'input', placeholder: '请选择', suffixBtn: '+Q' },
-      { key: 'depositAmount', label: '预订金金额', type: 'number', disabled: true, suffixBtn: '全清', suffixBtnDanger: true },
-      { key: '_moreAccount', label: '更多账户', type: 'input', disabled: true, suffixBtn: '···' },
-      { key: 'creditLimit', label: '信用额度', type: 'number', precision: 2 },
-      { key: 'depositDeadline', label: '收款期限', type: 'input' },
-      // Row 2: 更多预订金账户
-      { key: 'depositAccount2', label: '预订金账户2', type: 'input', suffixBtn: '+Q' },
-      { key: 'depositAccount3', label: '预订金账户3', type: 'input', suffixBtn: '+Q' },
-      { key: 'depositAccount4', label: '预订金账户4', type: 'input', suffixBtn: '+Q' },
-      // Row 3: 客户银行/税务信息（从basicInfo移入）
-      { key: 'customerCode', label: '客户编号', type: 'input' },
-      { key: 'bankName', label: '开户行', type: 'input' },
-      { key: 'bankAccount', label: '银行账号', type: 'input' },
-      { key: 'taxNo', label: '税号', type: 'input' },
-      { key: 'customerLevel', label: '客户级别', type: 'input' },
+      { key: 'depositAccount1', label: fieldLabel('depositAccount1', '预订金账户'), type: 'select', placeholder: '请选择', options: accountOptions.value },
+      { key: 'depositAmount', label: fieldLabel('depositAmount', '预订金金额'), type: 'number', disabled: true, suffixBtn: '全清', suffixBtnDanger: true },
+      { key: 'moreAccounts', label: fieldLabel('moreAccounts', '更多账户'), type: 'input', disabled: true, placeholder: '账户2~4', suffixBtn: '···' },
+      { key: 'creditLimit', label: fieldLabel('creditLimit', '信用额度'), type: 'number', precision: 2 },
+      { key: 'depositDeadline', label: fieldLabel('depositDeadline', '收款期限'), type: 'date' },
+      // Row 2: 客户银行/税务信息（从basicInfo移入）
+      { key: 'customerCode', label: fieldLabel('customerCode', '客户编号'), type: 'input' },
+      { key: 'bankName', label: fieldLabel('bankName', '开户行'), type: 'input' },
+      { key: 'bankAccount', label: fieldLabel('bankAccount', '银行账号'), type: 'input' },
+      { key: 'taxNo', label: fieldLabel('taxNo', '税号'), type: 'input' },
+      { key: 'customerLevel', label: fieldLabel('customerLevel', '客户级别'), type: 'input' },
     ]},
     // ═══ Tab 2: 扩展信息（部门、自定义字段、审核、摘要、表尾） ═══
     { key: 'extended', tab: '扩展信息', fields: [
       // 组织
-      { key: 'deptId', label: '部门', type: 'input' },
+      { key: 'deptId', label: fieldLabel('deptId', '部门'), type: 'input' },
       // 自定义字段1-5
-      { key: 'extNum1', label: '自定义字段1(数字)', type: 'number', precision: 2 },
-      { key: 'extNum2', label: '自定义字段2(数字)', type: 'number', precision: 2 },
-      { key: 'extText1', label: '自定义字段3(文本)', type: 'input' },
-      { key: 'extText2', label: '自定义字段4(文本)', type: 'input' },
-      { key: 'extText3', label: '自定义字段5(文本)', type: 'input' },
+      { key: 'extNum1', label: fieldLabel('extNum1', '自定义字段1(数字)'), type: 'number', precision: 2 },
+      { key: 'extNum2', label: fieldLabel('extNum2', '自定义字段2(数字)'), type: 'number', precision: 2 },
+      { key: 'extText1', label: fieldLabel('extText1', '自定义字段3(文本)'), type: 'input' },
+      { key: 'extText2', label: fieldLabel('extText2', '自定义字段4(文本)'), type: 'input' },
+      { key: 'extText3', label: fieldLabel('extText3', '自定义字段5(文本)'), type: 'input' },
       // 审核/摘要
-      { key: 'auditorName', label: '审核人', type: 'input' },
-      { key: 'summary', label: '摘要', type: 'input' },
+      { key: 'auditorName', label: fieldLabel('auditorName', '审核人'), type: 'input' },
+      { key: 'summary', label: fieldLabel('summary', '摘要'), type: 'input' },
       // 表尾自定义
-      { key: 'footerExtText1', label: '表尾自定义字段1', type: 'input' },
-      { key: 'footerExtText2', label: '表尾自定义字段2', type: 'input' },
+      { key: 'footerExtText1', label: fieldLabel('footerExtText1', '表尾自定义字段1'), type: 'input' },
+      { key: 'footerExtText2', label: fieldLabel('footerExtText2', '表尾自定义字段2'), type: 'input' },
     ]},
   ]
   return allTabs.map(tab => ({
@@ -633,6 +716,33 @@ function handleFormColumnConfigReset() { resetFormColumnSettings() }
 // 重算函数
 // ═══════════════════════════════════════
 
+/** 商品主数据 → 明细行字段快照（选品/扫码/导入共用，避免多处重复映射） */
+function fillRowFromProduct(row: any, p: any) {
+  row.productId = p.id
+  row.productName = p.name || ''
+  row.productCode = p.code || ''
+  row.itemCode = p.code || ''
+  row.barcode = p.barcode || ''
+  row.specification = p.specification || ''
+  row.model = p.model || ''
+  row.origin = p.origin || ''
+  row.brand = p.brand || ''
+  row.unit = p.unit || ''
+  row.smallUnit = p.smallUnit || ''
+  row.pricingUnit = p.unit || ''
+  row.unitPrice = p.salePrice || p.price || p.retailPrice || 0
+  row.retailPrice = p.retailPrice || 0
+  row.wholesalePrice = p.wholesalePrice || 0
+  row.minSalePrice = p.minSalePrice || 0
+  row.availableStock = p.stock || 0
+  row.bookStock = p.bookStock || 0
+  row.costPrice = p.costPrice || 0
+  row.volume = p.volume || 0
+  row.weight = p.weight || 0
+  // 价格等级快照（8 个标准化价格等级）
+  for (let i = 1; i <= 8; i++) row[`priceLevel${i}`] = p[`priceLevel${i}`] || 0
+}
+
 /** 重算行金额 = 数量 × 单价 */
 function recalcLineAmount(record: any) {
   const qty = Number(record.quantity) || 0
@@ -696,34 +806,7 @@ function handleCellChange(record: any, fieldKey: string, value: any) {
   if (fieldKey === 'productId' && value != null) {
     const p = optionRefs.products.find((x: any) => x.id === value)
     if (p) {
-      record.productCode = p.code || ''
-      record.productName = p.name || ''
-      record.itemCode = p.code || ''
-      record.barcode = p.barcode || ''
-      record.specification = p.specification || ''
-      record.model = p.model || ''
-      record.origin = p.origin || ''
-      record.brand = p.brand || ''
-      record.unit = p.unit || ''
-      record.pricingUnit = p.unit || ''
-      record.unitPrice = p.salePrice || p.price || 0
-      record.retailPrice = p.retailPrice || 0
-      record.wholesalePrice = p.wholesalePrice || 0
-      record.minSalePrice = p.minSalePrice || 0
-      record.availableStock = p.stock || 0
-      record.bookStock = p.bookStock || 0
-      record.costPrice = p.costPrice || 0
-      record.volume = p.volume || 0
-      record.weight = p.weight || 0
-      // 价格等级快照
-      record.priceLevel1 = p.priceLevel1 || 0
-      record.priceLevel2 = p.priceLevel2 || 0
-      record.priceLevel3 = p.priceLevel3 || 0
-      record.priceLevel4 = p.priceLevel4 || 0
-      record.priceLevel5 = p.priceLevel5 || 0
-      record.priceLevel6 = p.priceLevel6 || 0
-      record.priceLevel7 = p.priceLevel7 || 0
-      record.priceLevel8 = p.priceLevel8 || 0
+      fillRowFromProduct(record, p)
       recalcLineAmount(record)
     }
   }
@@ -762,9 +845,6 @@ function handleSearchBtn(fieldKey: string, _btnText: string) {
     quickSearchOptions.value = optionRefs.users.map((u: any) => ({ label: `${u.name}${u.deptName ? `(${u.deptName})` : ''}`, value: u.id }))
     quickSearchValue.value = formData.handlerId
     showQuickSearch.value = true
-  } else if (fieldKey === 'receiverName') {
-    // 'Q'按钮默认聚焦，实际用户可直接输入
-    message.info('可直接输入收货人名称')
   }
 }
 
@@ -780,8 +860,48 @@ function handleQuickSearchConfirm(val: any) {
   } else if (fieldKey === 'handlerId') {
     formData.handlerId = val
     handleFieldChange('handlerId', val)
+  } else if (fieldKey.startsWith('depositAccount')) {
+    formData[fieldKey] = val
   }
   showQuickSearch.value = false
+}
+
+/** Tab 字段右侧按钮（全清 / 更多账户 ···） */
+function handleTabSuffixBtn(fieldKey: string, btnText: string) {
+  if (fieldKey === 'depositAmount' && btnText === '全清') {
+    formData.depositAmount = 0
+    return
+  }
+  if (fieldKey === 'moreAccounts') {
+    showMoreAccounts.value = true
+    return
+  }
+  if (fieldKey === 'depositAccount1') {
+    openAccountQuickSearch('depositAccount1', '预订金账户')
+  }
+}
+
+/** 账户选择：账户下拉为空时兜底加载 */
+async function openAccountQuickSearch(fieldKey: string, label: string) {
+  if (!accountOptions.value.length) await loadAccountOptions()
+  quickSearchTitle.value = label
+  quickSearchFieldKey.value = fieldKey
+  quickSearchOptions.value = accountOptions.value.map(a => ({ label: a.code ? `${a.label}[${a.code}]` : a.label, value: a.value }))
+  quickSearchValue.value = formData[fieldKey]
+  showQuickSearch.value = true
+}
+
+async function loadAccountOptions() {
+  try {
+    const accounts = await optionsApi.getAccounts()
+    accountOptions.value = (accounts || []).map((a: any) => ({
+      label: a.name || a.accountName || '',
+      value: a.name || a.accountName || '',
+      code: a.code || '',
+    }))
+  } catch {
+    accountOptions.value = []
+  }
 }
 
 function handleOpenProductSelectModal(_record: any, rowIndex: number, fieldKey: string) {
@@ -797,34 +917,7 @@ function handleProductSelectConfirm(products: any[]) {
     const rowIndex = startIndex + i
     if (rowIndex < formData.products.length) {
       const row = formData.products[rowIndex]
-      row.productId = p.id
-      row.productName = p.name || ''
-      row.itemCode = p.code || ''
-      row.barcode = p.barcode || ''
-      row.specification = p.specification || ''
-      row.model = p.model || ''
-      row.origin = p.origin || ''
-      row.brand = p.brand || ''
-      row.unit = p.unit || ''
-      row.pricingUnit = p.unit || ''
-      row.unitPrice = p.retailPrice || p.salePrice || p.price || 0
-      row.retailPrice = p.retailPrice || 0
-      row.wholesalePrice = p.wholesalePrice || 0
-      row.minSalePrice = p.minSalePrice || 0
-      row.availableStock = p.stock || 0
-      row.bookStock = p.bookStock || 0
-      row.costPrice = p.costPrice || 0
-      row.volume = p.volume || 0
-      row.weight = p.weight || 0
-      // 价格等级
-      row.priceLevel1 = p.priceLevel1 || 0
-      row.priceLevel2 = p.priceLevel2 || 0
-      row.priceLevel3 = p.priceLevel3 || 0
-      row.priceLevel4 = p.priceLevel4 || 0
-      row.priceLevel5 = p.priceLevel5 || 0
-      row.priceLevel6 = p.priceLevel6 || 0
-      row.priceLevel7 = p.priceLevel7 || 0
-      row.priceLevel8 = p.priceLevel8 || 0
+      fillRowFromProduct(row, p)
       recalcLineAmount(row)
     }
   })
@@ -874,16 +967,117 @@ function handleAction(actionKey: string, _parentKey?: string) {
       router.push('/sales/pre-order/create')
       break
     case 'export':
-      if (formData.id) {
-        window.open(`/api/erp/sale/pre-order/export?id=${formData.id}`, '_blank')
-        message.success('导出任务已提交')
-      } else {
-        message.warning('请先保存预订货单')
-      }
+      // 导出当前单据（按单号过滤），未保存时导出列表查询结果
+      window.open(`/api/erp/sale/pre-order/export?keyword=${encodeURIComponent(formData.orderNo || '')}`, '_blank')
+      message.success('导出任务已提交')
       break
     case 'import':
-      message.info('导入功能待完善，可使用新增按钮逐条录入')
+    case 'import-excel':
+      fileInputRef.value?.click()
       break
+    case 'download-import-template':
+      downloadImportTemplate()
+      break
+  }
+}
+
+/** 全局列配置落后端（跨浏览器/终端生效） */
+async function handleGlobalColumnConfigChange(settings: any[]) {
+  try {
+    await userPageConfigApi.save('col-config', 'sale-pre-order-form-detail-columns', JSON.stringify(settings))
+  } catch (err: any) {
+    message.warning(`全局列配置保存失败：${err?.message || ''}`)
+  }
+}
+
+// ═══════════════════════════════════════
+// 批量导入（Excel/CSV → 明细回填，模板可下载）
+// ═══════════════════════════════════════
+const IMPORT_HEADERS = ['货号', '条码', '商品名称', '数量', '单价', '备注']
+
+/** 下载导入模板（表头 + 示例行） */
+function downloadImportTemplate() {
+  const ws = XLSX.utils.aoa_to_sheet([
+    IMPORT_HEADERS,
+    ['SP001', '6901234567890', '示例商品', 10, 12.5, ''],
+  ])
+  ws['!cols'] = [{ wch: 16 }, { wch: 18 }, { wch: 24 }, { wch: 10 }, { wch: 10 }, { wch: 20 }]
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, '预订货明细')
+  XLSX.writeFile(wb, '预订货明细导入模板.xlsx')
+}
+
+/** 读取导入文件并按「货号/条码/商品名称」匹配商品后回填明细 */
+async function handleImportFileChange(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  try {
+    const buf = await file.arrayBuffer()
+    const wb = XLSX.read(buf, { type: 'array' })
+    const sheet = wb.Sheets[wb.SheetNames[0]]
+    if (!sheet) { message.warning('文件中没有可读取的工作表'); return }
+    const rows: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false })
+    if (rows.length < 2) { message.warning('文件中没有数据行'); return }
+
+    const header = (rows[0] || []).map((h: any) => String(h ?? '').trim())
+    const idx = (name: string) => header.indexOf(name)
+    const iCode = idx('货号')
+    const iBarcode = idx('条码')
+    const iName = idx('商品名称')
+    const iQty = idx('数量')
+    const iPrice = idx('单价')
+    const iRemark = idx('备注')
+    if (iCode < 0 && iBarcode < 0 && iName < 0) {
+      message.warning(`表头缺少识别列，需包含「${IMPORT_HEADERS.slice(0, 3).join('/')}」之一`)
+      return
+    }
+    if (!optionRefs.products?.length) {
+      try { optionRefs.products = await optionsApi.getProducts() } catch { optionRefs.products = [] }
+    }
+    const products: any[] = optionRefs.products || []
+
+    let matched = 0
+    const unmatched: string[] = []
+    for (let r = 1; r < rows.length; r++) {
+      const row = rows[r] || []
+      const code = iCode >= 0 ? String(row[iCode] ?? '').trim() : ''
+      const barcode = iBarcode >= 0 ? String(row[iBarcode] ?? '').trim() : ''
+      const pname = iName >= 0 ? String(row[iName] ?? '').trim() : ''
+      if (!code && !barcode && !pname) continue
+      const p = products.find((x: any) =>
+        (code && x.code === code) || (barcode && x.barcode === barcode) || (pname && x.name === pname))
+      if (!p) { unmatched.push(code || barcode || pname); continue }
+
+      // 已存在同商品行则累加数量，否则新增行
+      let target = formData.products.find((x: any) => x.productId === p.id)
+      if (!target) {
+        if (formData.products.length === 1 && formData.products[0].productId == null) formData.products.splice(0, 1)
+        handleAddProduct()
+        target = formData.products[formData.products.length - 1]
+      }
+      fillRowFromProduct(target, p)
+      const qty = iQty >= 0 ? Number(row[iQty]) : NaN
+      if (!Number.isNaN(qty) && qty > 0) target.quantity = qty
+      const price = iPrice >= 0 ? Number(row[iPrice]) : NaN
+      if (!Number.isNaN(price) && price > 0) target.unitPrice = price
+      if (iRemark >= 0 && row[iRemark] != null) target.remark = String(row[iRemark])
+      recalcLineAmount(target)
+      matched++
+    }
+
+    if (matched > 0) {
+      message.success(`导入完成：回填 ${matched} 行明细`)
+    } else {
+      message.warning('没有匹配到任何商品，请检查货号/条码/商品名称')
+    }
+    if (unmatched.length) {
+      message.warning(`${unmatched.length} 行未匹配到商品：${unmatched.slice(0, 3).join('、')}${unmatched.length > 3 ? ' 等' : ''}`)
+    }
+  } catch (err: any) {
+    message.error(`导入失败：${err?.message || '文件解析异常'}`)
+  } finally {
+    input.value = ''
   }
 }
 
@@ -918,6 +1112,8 @@ function loadAndApplyDefaults() {
         formData.deptId = Number(df.value)
       } else if (df.key === 'saleType') {
         formData.saleType = Number(df.value)
+      } else if (df.key === 'depositAccount1') {
+        formData.depositAccount1 = df.value
       }
     }
   } catch { /* ignore parse errors */ }
@@ -937,6 +1133,8 @@ function onKeyDown(e: KeyboardEvent) {
 
 onMounted(() => {
   if (formData.products.length === 0) for (let i = 0; i < 20; i++) handleAddProduct()
+  // 预订金账户下拉（收款项真实可选）
+  loadAccountOptions()
   // 创建模式时应用录单默认值
   if (!route.params.id) {
     loadAndApplyDefaults()

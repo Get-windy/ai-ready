@@ -15,14 +15,9 @@
         @category-retry="fetchCategoryTree"
         @category-select="onCategorySelect"
       >
-        <!-- ═══ 工具栏右侧：列配置 + 刷新 + 打印(F8) + 导出 ═══ -->
+        <!-- ═══ 工具栏右侧：刷新 + 打印(F8) + 导出（列配置走数据表表头齿轮） ═══ -->
         <template #toolbar-right>
           <a-space :size="8">
-            <a-tooltip title="列配置">
-              <a-button size="small" @click="showColumnConfig = true">
-                <TableOutlined />
-              </a-button>
-            </a-tooltip>
             <a-button size="small" @click="handleRefresh">
               <ReloadOutlined /> 刷新
             </a-button>
@@ -110,8 +105,9 @@
         <template #table>
           <div class="table-area">
             <BillTableList
-              :columns="visibleColumns"
+              :columns="defaultColumns"
               :data-source="tableData"
+              :storage-key="'alert-query-table-columns'"
               :loading="loading"
               :pagination="pagination"
               :show-toolbar="false"
@@ -143,30 +139,17 @@
         </template>
       </CategoryListLayout>
     </PageContainer>
-
-    <!-- ═══ 数据表列配置弹窗 ═══ -->
-    <ColumnConfigPanel
-      :open="showColumnConfig"
-      :settings-columns="settingsColumns"
-      :is-locked-column="isLockedColumn"
-      @update:open="showColumnConfig = $event"
-      @change="onColumnConfigChange"
-      @reset="onColumnConfigReset"
-      @drag-end="onColumnConfigChange"
-    />
   </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
-import { TableOutlined, ReloadOutlined, PrinterOutlined, ExportOutlined } from '@ant-design/icons-vue'
+import { ReloadOutlined, PrinterOutlined, ExportOutlined } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayout.vue'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
-import ColumnConfigPanel from '@/components/ColumnConfigPanel/index.vue'
-import { useColumnConfig, isLockedColumn } from '@/composables/useColumnConfig'
 import { stockAlertQueryApi } from '@/api/erp/stockAlert'
 import { productCategoryApi } from '@/api/erp/product'
 import request from '@/utils/request'
@@ -190,9 +173,7 @@ const searchParams = reactive({
 // ═══ 分页 ═══
 const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
 
-// ═══ 列配置 ═══
-const showColumnConfig = ref(false)
-
+// ═══ 列定义（列配置走数据表表头齿轮） ═══
 const defaultColumns = [
   { title: '', key: 'rowNo', type: 'rowNo', width: 40, fixed: 'left' },
   { title: '商品名称', field: 'productName', key: 'productName', width: 180, type: 'slot', slotName: 'productNameCell' },
@@ -211,17 +192,6 @@ const defaultColumns = [
   { title: '品牌', field: 'brand', key: 'brand', width: 100, defaultHidden: true },
   { title: '账面库存', field: 'bookQty', key: 'bookQty', width: 100, align: 'right', type: 'slot', slotName: 'bookQtyCell', defaultHidden: true },
 ]
-
-const columnDefs = computed(() => defaultColumns.map(col => ({ ...col })))
-const {
-  visibleColumns,
-  onSettingChange,
-  resetSettings,
-  settingsColumns,
-} = useColumnConfig(columnDefs.value, 'alert-query-list-columns')
-
-function onColumnConfigChange() { onSettingChange() }
-function onColumnConfigReset() { resetSettings() }
 
 // ═══ 分类树 ═══
 const categoryLoading = ref(false)

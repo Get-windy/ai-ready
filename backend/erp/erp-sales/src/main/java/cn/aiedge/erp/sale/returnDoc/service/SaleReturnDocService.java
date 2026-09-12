@@ -19,7 +19,7 @@ public interface SaleReturnDocService extends IService<SaleReturnDoc> {
                                   String productName, String itemRemark, Integer status,
                                   String generateType, String settleStatus, Integer printCount,
                                   String startDate, String endDate, Long categoryId,
-                                  String creatorName, String auditorName, String submitBy,
+                                  String creatorName, String bookkeeperName, String auditorName, String submitBy,
                                   String productLineAttr, String remark, String summary,
                                   String deliveryMethod, Integer extNum1, Integer extNum2,
                                   String extText1, String extText2, String extText3,

@@ -35,6 +35,7 @@ public interface SalePreOrderItemMapper extends BaseMapper<SalePreOrderItem> {
         @Param("auditorName") String auditorName,
         @Param("saleType") Integer saleType,
         @Param("remark") String remark,
-        @Param("itemRemark") String itemRemark
+        @Param("itemRemark") String itemRemark,
+        @Param("categoryIds") List<Long> categoryIds
     );
 }
