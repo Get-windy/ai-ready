@@ -123,6 +123,20 @@ export interface Product {
   mallDescription?: string
   mallTags?: string
   mallShelfStatus?: number
+  /** 单位显示开关（商品级整品开关）: 0=隐藏 1=显示（erp_product.unit_display，V11.361.3） */
+  unitDisplay?: number
+  /**
+   * 单位显示类型（**单位粒度**，取**基本单位**的 erp_product_unit.unit_display_type）：
+   * 对标 ql361「单位显示类型」下拉实测取值 `-1`=全部 / `0`=只显示常用单位 /
+   * `1`=只显示小单位 / `2`=只显示中/大单位 / null=未显式设置（按 unitDisplay 兜底）。
+   * 口径见 Flyway V11.361.9（改正 V11.361.8 的 SHOW/HIDE 猜测口径）。
+   */
+  unitDisplayType?: string
+  /**
+   * 预设进价（取**基本单位**的 erp_product_unit.preset_purchase_price，为空回退
+   * 商品级 purchase_price；多单位时以基本单位为代表值）
+   */
+  presetPurchasePrice?: number
   mallSortOrder?: number
   mallMinOrderQty?: number
   mallPurchaseLimit?: number
@@ -270,6 +284,15 @@ export const productApi = {
     isStandardProduct?: number
     productType?: string
     mallShelfStatus?: number
+    /**
+     * 商品标签（erp_product.mall_tags 逗号分隔的标准槽位编码 TAG_1..TAG_20）：
+     * 后端按「整槽位包含」匹配（逗号包裹，避免 TAG_1 误命中 TAG_10..TAG_19）。
+     */
+    productTag?: string
+    /** 单位显示类型（erp_product_unit.unit_display_type **单位粒度**类型：-1/0/1/2，先反查单位所属商品再 IN） */
+    unitDisplayType?: string
+    /** 单位显示（商品级整品开关 erp_product.unit_display）：1=显示 0=隐藏 */
+    unitDisplay?: number
   }): Promise<PageResult<Product>> {
     return request.get('/erp/product/page', params)
   },
@@ -315,6 +338,10 @@ export const productApi = {
   getBrands(): Promise<string[]> {
     return request.get('/erp/product/brands')
   },
+  /** 获取商品标签选项（erp_product.mall_tags 已打标槽位编码去重，升序） */
+  getMallTags(): Promise<string[]> {
+    return request.get('/erp/product/mall-tags')
+  },
   /** 批量搬移分类 */
   batchMove(ids: (string | number)[], categoryId: string | number): Promise<number> {
     return request.put('/erp/product/batch-move', { ids, categoryId })
@@ -327,9 +354,42 @@ export const productApi = {
   batchShelf(ids: (string | number)[], mallShelfStatus: number): Promise<number> {
     return request.put('/erp/product/batch-shelf', { ids, mallShelfStatus })
   },
-  /** 设置商城默认排序方式 */
+  /**
+   * 批量设置「单位显示类型」（**单位粒度**类型，商城「单位显示」页查询区该条件的可写侧）
+   *
+   * 取值 = 对标 ql361 实测 `-1`=全部 / `0`=只显示常用单位 / `1`=只显示小单位 / `2`=只显示中/大单位
+   * （见 Flyway V11.361.9）；写 `erp_product_unit.unit_display_type`（该商品**全部有效单位**），
+   * 并联动 `erp_product.unit_display`=1（四种粒度都属"显示"）。
+   * ⚠️ 与「是否显示该商品」是**两个概念** —— 后者用 batchUnitDisplayFlag。
+   * 兼容历史二元写法：`SHOW`/`显示` 视为 `-1`，`HIDE`/`隐藏` 等价 `batchUnitDisplayFlag(..., 0)`。
+   */
+  batchUnitDisplay(
+    ids: (string | number)[],
+    unitDisplayType: '-1' | '0' | '1' | '2' | 'SHOW' | 'HIDE'
+  ): Promise<number> {
+    return request.put('/erp/product/batch-unit-display', { ids, unitDisplayType })
+  },
+  /**
+   * 批量设置「单位显示」**布尔开关**（本页「单位显示」列 √/× 勾选与批量显示/隐藏）
+   *
+   * 语义 = 「该商品（含其全部单位）是否在商城显示」= 对标查询区「单位显示」条件
+   * （全部(-1)/是(1)/否(2)），写商品级 `erp_product.unit_display`（1显示/0隐藏），
+   * **不写**单位粒度的 `erp_product_unit.unit_display_type`（那是另一个概念）。
+   */
+  batchUnitDisplayFlag(ids: (string | number)[], unitDisplay: 0 | 1): Promise<number> {
+    return request.put('/erp/product/batch-unit-display', { ids, unitDisplay })
+  },
+  /** 设置商城默认排序方式（旧端点，写 erp_product.mall_sort_type 逐商品列） */
   setMallSortType(sortType: string): Promise<number> {
     return request.put('/erp/product/set-mall-sort', { sortType })
+  },
+  /** 读取商城默认排序配置（配置中心 KV：sys_project_config `mall.product.default.sort`） */
+  getMallSort(): Promise<{ configKey?: string; field?: string; direction?: string }> {
+    return request.get('/erp/product/mall-sort')
+  },
+  /** 保存商城默认排序配置（body `{field,direction}`，落配置中心 KV `mall.product.default.sort`） */
+  saveMallSort(field: string, direction: 'asc' | 'desc'): Promise<{ configKey?: string; field?: string; direction?: string }> {
+    return request.put('/erp/product/mall-sort', { field, direction })
   },
   /** Excel 导入商品 */
   importFile(file: File): Promise<{ count: number; skipped: number; errors: string[] }> {
@@ -489,7 +549,13 @@ export interface ProductBarcodeRow {
   lastPurchaseDate?: string
 }
 
-export interface ProductBarcodeQuery extends PageQuery {
+/**
+ * 条码查询条件（商品条码页）。
+ * 说明：`PageQuery.status` 是 `number`，而本页「显示状态」传的是字符串
+ * （`ENABLED`/`DISABLED` 等），直接 `extends PageQuery` 会触发 TS2430
+ * （属性类型不兼容），故用 `Omit` 剔除后重定义。
+ */
+export type ProductBarcodeQuery = Omit<PageQuery, 'status'> & {
   categoryId?: string | number
   /** 商品名称/货号/条码 */
   keyword?: string

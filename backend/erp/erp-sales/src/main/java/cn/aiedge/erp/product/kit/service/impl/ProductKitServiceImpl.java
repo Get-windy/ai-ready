@@ -18,6 +18,7 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -179,6 +180,42 @@ public class ProductKitServiceImpl extends ServiceImpl<ProductKitMapper, Product
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    public int activateKits(List<Long> ids) {
+        return setActiveBatch(ids, true);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int deactivateKits(List<Long> ids) {
+        return setActiveBatch(ids, false);
+    }
+
+    /**
+     * 批量设置启用状态。listByIds 受租户插件与逻辑删除约束，只命中当前租户真实存在的套装，
+     * 返回值为真实更新条数（与 deleteKits 口径一致）。
+     */
+    private int setActiveBatch(List<Long> ids, boolean active) {
+        if (ids == null || ids.isEmpty()) {
+            return 0;
+        }
+        List<Long> validIds = ids.stream()
+                .filter(java.util.Objects::nonNull).distinct().collect(Collectors.toList());
+        if (validIds.isEmpty()) {
+            return 0;
+        }
+        List<ProductKit> existing = listByIds(validIds);
+        if (existing.isEmpty()) {
+            return 0;
+        }
+        existing.forEach(kit -> kit.setActive(active));
+        updateBatchById(existing);
+        log.info("批量{}套装: count={}, ids={}", active ? "激活" : "停用",
+                existing.size(), existing.stream().map(ProductKit::getId).collect(Collectors.toList()));
+        return existing.size();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public void calculateKitCost(Long kitId) {
         BigDecimal totalCost = kitItemMapper.sumCostByKitId(kitId);
         ProductKit kit = getById(kitId);
@@ -239,6 +276,44 @@ public class ProductKitServiceImpl extends ServiceImpl<ProductKitMapper, Product
         }
         kitItemMapper.deleteById(itemId);
         calculateKitCost(item.getKitId());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteKit(Long kitId) {
+        ProductKit kit = getById(kitId);
+        if (kit == null) {
+            throw new RuntimeException("套装不存在");
+        }
+        // 先级联逻辑删除组件行（erp_product_kit_item.deleted，@TableLogic），避免残留孤儿行
+        kitItemMapper.delete(new LambdaQueryWrapper<ProductKitItem>()
+                .eq(ProductKitItem::getKitId, kitId));
+        removeById(kitId);
+        log.info("删除套装: kitId={}, kitCode={}", kitId, kit.getKitCode());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int deleteKits(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return 0;
+        }
+        List<Long> validIds = ids.stream()
+                .filter(java.util.Objects::nonNull).distinct().collect(Collectors.toList());
+        if (validIds.isEmpty()) {
+            return 0;
+        }
+        // listByIds 受租户插件与逻辑删除约束：只删除当前租户真实存在的套装，返回值即真实条数
+        List<Long> existingIds = listByIds(validIds).stream()
+                .map(ProductKit::getId).collect(Collectors.toList());
+        if (existingIds.isEmpty()) {
+            return 0;
+        }
+        kitItemMapper.delete(new LambdaQueryWrapper<ProductKitItem>()
+                .in(ProductKitItem::getKitId, existingIds));
+        removeByIds(existingIds);
+        log.info("批量删除套装: count={}, ids={}", existingIds.size(), existingIds);
+        return existingIds.size();
     }
 
     @Override

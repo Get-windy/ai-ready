@@ -46,10 +46,7 @@
         :wrapper-col="{ span: 18 }"
       >
         <!-- 基本信息 -->
-        <div class="section-card">
-          <div class="section-title">
-            基本信息
-          </div>
+        <FormSection title="基本信息">
           <a-row
             :gutter="24"
             class="section-row"
@@ -280,22 +277,19 @@
               </div>
             </a-col>
           </a-row>
-        </div>
+        </FormSection>
 
         <!-- 联系人信息（对标：位于基本信息之后、会员信息之前） -->
-        <div class="section-card">
+        <FormSection>
           <ContactList
             :contacts="contacts"
             show-mall-account
             @update="contacts = $event"
           />
-        </div>
+        </FormSection>
 
         <!-- 会员信息 -->
-        <div class="section-card">
-          <div class="section-title">
-            会员信息
-          </div>
+        <FormSection title="会员信息">
           <a-row
             :gutter="24"
             class="section-row"
@@ -408,13 +402,10 @@
               </a-form-item>
             </a-col>
           </a-row>
-        </div>
+        </FormSection>
 
         <!-- 纳税人信息 -->
-        <div class="section-card">
-          <div class="section-title">
-            纳税人信息
-          </div>
+        <FormSection title="纳税人信息">
           <a-row
             :gutter="24"
             class="section-row"
@@ -514,13 +505,10 @@
               </a-form-item>
             </a-col>
           </a-row>
-        </div>
+        </FormSection>
 
         <!-- 期初信息 -->
-        <div class="section-card">
-          <div class="section-title">
-            期初信息
-          </div>
+        <FormSection title="期初信息">
           <a-row
             :gutter="24"
             class="section-row"
@@ -550,30 +538,16 @@
               </a-form-item>
             </a-col>
           </a-row>
-        </div>
+        </FormSection>
 
         <!-- 其他信息 -->
-        <div class="section-card">
-          <div
-            class="section-title"
-            style="cursor: pointer"
-            @click="otherInfoCollapsed = !otherInfoCollapsed"
-          >
-            其他信息
-            <span style="margin-left: 8px; font-weight: 400; color: #bfbfbf; font-size: 13px">
-              {{ otherInfoCollapsed ? '点击展开' : '点击收起' }}
-              <CaretDownOutlined
-                v-if="!otherInfoCollapsed"
-                style="margin-left: 4px"
-              />
-              <CaretRightOutlined
-                v-else
-                style="margin-left: 4px"
-              />
-            </span>
-          </div>
+        <FormSection
+          title="其他信息"
+          collapsible
+          v-model:collapsed="otherInfoCollapsed"
+        >
+          
           <a-row
-            v-if="!otherInfoCollapsed"
             :gutter="24"
             class="section-row"
           >
@@ -606,7 +580,6 @@
             </a-col>
           </a-row>
           <a-row
-            v-if="!otherInfoCollapsed"
             :gutter="24"
             class="section-row"
           >
@@ -637,7 +610,6 @@
           </a-row>
           <!-- 账期（对标：结款方式=挂账时配套 动态收款期限/固定账期/结算期） -->
           <a-row
-            v-if="!otherInfoCollapsed"
             :gutter="24"
             class="section-row"
           >
@@ -678,7 +650,6 @@
             </a-col>
           </a-row>
           <a-row
-            v-if="!otherInfoCollapsed"
             :gutter="24"
             class="section-row"
           >
@@ -704,7 +675,6 @@
             </a-col>
           </a-row>
           <a-row
-            v-if="!otherInfoCollapsed"
             :gutter="24"
             class="section-row"
           >
@@ -739,7 +709,6 @@
             </a-col>
           </a-row>
           <a-row
-            v-if="!otherInfoCollapsed"
             :gutter="24"
             class="section-row"
           >
@@ -754,20 +723,20 @@
               </a-form-item>
             </a-col>
           </a-row>
-        </div>
+        </FormSection>
 
         <!-- 证件信息（通用组件：营业执照固定，其余类型可选/自定义，始终保留一个待输入位） -->
-        <div class="section-card">
+        <FormSection>
           <CertUploadList
             ref="certRef"
             :partner-id="savedPartnerId || loadedPartnerId"
           />
-        </div>
+        </FormSection>
 
         <!-- 附件 -->
-        <div class="section-card">
+        <FormSection>
           <AttachmentUpload :partner-id="savedPartnerId || loadedPartnerId" />
-        </div>
+        </FormSection>
       </a-form>
     </div>
 
@@ -800,12 +769,13 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
-import { ArrowLeftOutlined, CaretDownOutlined, CaretRightOutlined, PictureOutlined, UserOutlined } from '@ant-design/icons-vue'
+import { ArrowLeftOutlined, PictureOutlined, UserOutlined } from '@ant-design/icons-vue'
 import { partnerApi, partnerCategoryApi, partnerGradeApi, partnerContactApi, partnerBankAccountApi, partnerRoleApi, customerRegionApi, type PartyContact } from '@/api/erp/partner'
 import type { PartnerCategory, PartnerGrade } from '@/api/erp/partner'
 import ContactList, { type ContactRowData } from '../components/ContactList.vue'
 import AttachmentUpload from '../components/AttachmentUpload.vue'
 import CertUploadList from '@/components/CertUploadList/CertUploadList.vue'
+import FormSection from '@/components/FormSection/index.vue'
 import { userApi, type UserInfo } from '@/api/user'
 import { warehouseApi, type WmsWarehouse } from '@/api/wms/warehouse'
 import request from '@/utils/request'
@@ -1226,8 +1196,6 @@ onUnmounted(() => { document.removeEventListener('keydown', handleKeydown) })
   flex: 1; overflow-y: auto; padding: 0 16px 8px; min-height: 0;
 }
 
-.section-card { background: #fff; border-radius: 6px; padding: 20px 24px 12px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
-.section-title { font-size: 14px; font-weight: 600; color: #262626; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid #f0f0f0; }
 .section-row :deep(.ant-form-item) { margin-bottom: 10px; }
 .section-row :deep(.ant-form-item-label > label) { font-size: 13px; color: #595959; }
 
@@ -1237,7 +1205,6 @@ onUnmounted(() => { document.removeEventListener('keydown', handleKeydown) })
   text-align: right; box-shadow: 0 -1px 4px rgba(0,0,0,0.05);
   flex-shrink: 0; margin: 0 16px 16px;
 }
-
 
 /* 头像上传 */
 .avatar-upload { display: flex; flex-direction: column; align-items: center; gap: 8px; }

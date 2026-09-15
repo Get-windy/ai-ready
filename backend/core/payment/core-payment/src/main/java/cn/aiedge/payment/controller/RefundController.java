@@ -40,8 +40,20 @@ public class RefundController {
     public Result<PageResult<RefundRequest>> pageRefundRequest(
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") Integer pageNum,
             @Parameter(description = "每页数量") @RequestParam(defaultValue = "10") Integer pageSize,
-            @Parameter(description = "状态") @RequestParam(required = false) Integer status) {
-        return Result.success(refundService.pageRefundRequest(pageNum, pageSize, status));
+            @Parameter(description = "状态") @RequestParam(required = false) Integer status,
+            @Parameter(description = "单号（渠道退款号 / 支付请求ID）") @RequestParam(required = false) String refundNo,
+            @Parameter(description = "退款（申请）日期起") @RequestParam(required = false) String startTime,
+            @Parameter(description = "退款（申请）日期止") @RequestParam(required = false) String endTime,
+            @Parameter(description = "支付渠道") @RequestParam(required = false) String channel) {
+        return Result.success(refundService.pageRefundRequest(
+                pageNum, pageSize, status, refundNo, startTime, endTime, channel));
+    }
+
+    @Operation(summary = "退款请求统计（后端聚合）")
+    @GetMapping("/request/stat")
+    public Result<Map<String, Object>> statRefundRequest(
+            @Parameter(description = "支付渠道") @RequestParam(required = false) String channel) {
+        return Result.success(refundService.statRefundRequest(channel));
     }
 
     @Operation(summary = "查询退款请求详情")

@@ -27,4 +27,9 @@ public interface SaleOrderItemMapper extends BaseMapper<SaleOrderItem> {
      * 设置已出库数量
      */
     int updateShippedQuantity(@Param("id") Long id, @Param("quantity") java.math.BigDecimal quantity);
+
+    /**
+     * 设置已拣货数量（拣货作业回写）
+     */
+    int updatePickedQuantity(@Param("id") Long id, @Param("quantity") java.math.BigDecimal quantity);
 }

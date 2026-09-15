@@ -17,6 +17,8 @@ public interface SaleReturnDocMapper extends BaseMapper<SaleReturnDoc> {
     @Select({
             "<script>",
             "SELECT",
+            // 明细行主键：主表 id 与明细行是一对多，不能作为前端行键（否则同单据多行 :key 重复）
+            "  i.id as \"itemId\",",
             "  r.id, r.return_doc_no, r.customer_name, r.customer_code, r.customer_level,",
             "  r.contact_name, r.contact_phone, r.contact_address,",
             "  r.customer_ticket, r.customer_remark,",

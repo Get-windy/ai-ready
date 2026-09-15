@@ -17,6 +17,16 @@ public interface MapService {
     /** 地图服务提供商编码 */
     String getProvider();
 
+    /** 是否已配置可用 Key（未配置时由 MapServiceRouter 降级到本地直线模式） */
+    boolean isConfigured();
+
+    /**
+     * 热更新 Key（由 MapServiceRouter 按 {@code MapKeyResolver} 的解析结果调用）
+     *
+     * 使「环境变量 / 配置文件 / 《配送参数》配置中心」三种来源的变更无需重启即可生效。
+     */
+    void applyApiKey(String apiKey);
+
     /** 驾车路线规划（多点最优） */
     RoutePlanResponse planDrivingRoute(RoutePlanRequest request);
 

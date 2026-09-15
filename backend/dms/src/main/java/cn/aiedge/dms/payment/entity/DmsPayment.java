@@ -26,8 +26,40 @@ public class DmsPayment {
     /** 关联任务ID */
     private Long taskId;
 
-    /** 支付方式：1-微信 2-支付宝 3-现金 4-其他 */
+    /** 收款类型：1-代收货款（负债，需上交） 2-配送费（收入）；与支付方式 payChannel 区分 */
     private Integer paymentType;
+
+    /** 支付方式：1-微信 2-支付宝 3-现金 4-POS 5-银行转账 9-其他 */
+    private Integer payChannel;
+
+    /** 支付方式名称快照 */
+    private String payChannelName;
+
+    /** 支付平台交易号（回调/对账**幂等键**与凭证） */
+    private String tradeNo;
+
+    /** 支付回调到达时间 */
+    private LocalDateTime callbackTime;
+
+    /** 配送员ID（交款稽核按人汇总） */
+    private Long riderId;
+
+    // ========== 资金上交 / 稽核（资金安全核心） ==========
+
+    /** 交款状态 0-未交 1-部分交 2-已交 */
+    private Integer handoverStatus;
+
+    /** 已上交金额 */
+    private BigDecimal handoverAmount;
+
+    private LocalDateTime handoverTime;
+
+    private Long handoverBy;
+
+    /** 交款经办人姓名快照 */
+    private String handoverByName;
+
+    private String handoverRemark;
 
     /** 收款金额 */
     private BigDecimal amount;
@@ -46,6 +78,14 @@ public class DmsPayment {
 
     /** 未付备注 */
     private String unpaidRemark;
+
+    // ========== 财务打通（推 ERP 幂等键） ==========
+
+    /** 财务推送状态 0-未推送 1-已推送 */
+    private Integer financePushStatus;
+
+    /** 财务推送追踪号（事件发件箱 traceId） */
+    private String financeTraceId;
 
     // ========== 审核字段 ==========
 

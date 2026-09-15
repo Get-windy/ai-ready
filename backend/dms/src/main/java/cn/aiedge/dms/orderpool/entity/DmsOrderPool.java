@@ -40,6 +40,12 @@ public class DmsOrderPool {
 
     private LocalDateTime publishedTime;
 
+    /** 下架原因（人工下架留痕，见《订单池开发文档》§3.5） */
+    private String offlineReason;
+
+    /** 下架时间 */
+    private LocalDateTime offlineTime;
+
     // === Audit fields ===
 
     @TableLogic

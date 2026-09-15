@@ -3,7 +3,8 @@
 const { chromium } = require('I:/AI-Ready/frontend/node_modules/playwright')
 
 const BASE = 'http://localhost:5656'
-const API = 'http://localhost:5655'
+// API 默认走本地 5655；设 ERP_API 时（如独立验收实例）前端 /api 请求将转发到该地址
+const API = process.env.ERP_API || 'http://localhost:5655'
 
 let pass = 0, fail = 0
 function check(name, ok, detail) {
@@ -38,6 +39,13 @@ async function main() {
 
   const browser = await chromium.launch({ headless: true })
   const page = await browser.newPage({ viewport: { width: 1760, height: 950 } })
+  if (process.env.ERP_API) {
+    // 前端 5656 代理固定指向 5655；指定独立实例时把页面内 /api 请求转发到被测后端
+    await page.route(url => new URL(url).pathname.startsWith('/api/'), async route => {
+      const u = new URL(route.request().url())
+      await route.continue({ url: `${API}${u.pathname}${u.search}` })
+    })
+  }
   const errors = []
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()) })
   page.on('pageerror', e => errors.push(String(e)))
@@ -83,10 +91,12 @@ async function main() {
   check('双 Tab「按单据/按明细」', tabs.length === 2 && tabs[0] === '按单据' && tabs[1] === '按明细', tabs.join('/'))
 
   let ths = await headTexts()
-  const docFields = ths.filter(Boolean).filter(t => t !== '操作')
-  check('按单据列 = 文档 47 字段', docFields.length === 47, `实际 ${docFields.length}`)
-  for (const n of ['单据日期', '单据编号', '单据状态', '客户', '本单金额', '审核时间', '商品行数']) {
-    check(`列「${n}」存在`, ths.includes(n))
+  // 对标：默认显示 20 数据列（其余 27 列在列配置中可勾选展开）
+  const DOC_DEFAULT = ['操作', '单据日期', '单据编号', '单据状态', '仓库', '客户', '客户编号', '客户级别', '联系人',
+    '联系电话', '联系地址', '客户备注', '经手人', '部门', '本单金额', '订货数量', '已收数量', '未收数量', '附件', '打印次数', '单据备注']
+  check('按单据默认表头 = 对标 20 数据列 + 操作', JSON.stringify(ths.filter(Boolean)) === JSON.stringify(DOC_DEFAULT), ths.join('/'))
+  for (const n of ['金额', '结算状态', '物流公司', '审核时间', '商品行数', '摘要']) {
+    check(`默认隐藏列「${n}」未展开`, !ths.includes(n))
   }
   const buttons = await btnTexts()
   for (const n of ['新增', '刷新', '批量打印', '打印(F8)', '导出', '配置']) {
@@ -103,13 +113,12 @@ async function main() {
   await page.click('.tab-item:nth-child(2)')
   await page.waitForTimeout(3000)
   ths = await headTexts()
-  const detailFields = ths.filter(Boolean).filter(t => t !== '操作')
-  check('按明细列 = 文档 62 字段（已收口 97→62）', detailFields.length === 62, `实际 ${detailFields.length}`)
-  for (const n of ['商品名称', '货号', '条码', '规格', '型号', '产地', '单位', '小单位', '换算关系', '换算结果',
-    '大包装', '中包装', '小包装', '退货数量', '已收数量', '未收数量', '终止数量', '终止金额',
-    '单价', '小单位单价', '金额', '折扣(%)', '折后单价', '折后金额', '重量(kg)', '体积(m³)',
-    '销售类型', '商品行属性', '明细备注', '单据备注']) {
-    check(`列「${n}」存在`, ths.includes(n))
+  // 对标：默认显示 22 数据列（其余 40 列在列配置中可勾选展开）
+  const DETAIL_DEFAULT = ['操作', '单据日期', '单据编号', '单据状态', '仓库', '客户', '客户编号', '客户级别', '联系人',
+    '联系电话', '联系地址', '客户备注', '经手人', '商品名称', '货号', '条码', '单位', '退货数量', '已收数量', '未收数量', '单价', '金额', '明细备注']
+  check('按明细默认表头 = 对标 22 数据列 + 操作', JSON.stringify(ths.filter(Boolean)) === JSON.stringify(DETAIL_DEFAULT), ths.join('/'))
+  for (const n of ['规格', '型号', '产地', '小单位', '换算关系', '终止数量', '折扣(%)', '重量(kg)', '销售类型', '单据备注']) {
+    check(`默认隐藏列「${n}」未展开`, !ths.includes(n))
   }
   for (const n of ['价格等级1', '可用库存', '账面库存', '最近售价', '零售价', '批发价', '最低售价', '参考成本单价', '兑换积分', '赠品', '图片']) {
     check(`多余列「${n}」已移除`, !ths.includes(n))

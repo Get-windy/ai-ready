@@ -10,6 +10,12 @@ public interface DmsConstants {
     Long DEFAULT_TENANT_ID = 0L;
     /** 地图服务默认提供商 */
     String DEFAULT_MAP_PROVIDER = "amap";
+    /**
+     * 配置变更广播频道（Redis Pub/Sub）
+     *
+     * 配置中心保存后发布，各实例订阅并失效本地缓存，实现**跨实例**即时生效（无需重启、不必等 TTL）。
+     */
+    String CONFIG_CHANGE_CHANNEL = "dms:config:change";
     /** 默认上班时间 */
     String DEFAULT_WORK_HOURS_START = "08:00";
     /** 默认下班时间 */

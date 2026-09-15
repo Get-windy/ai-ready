@@ -43,6 +43,12 @@ public class RefundRequest extends BaseEntity {
     /** 审批人ID */
     private Long approverId;
 
+    /** 审批人姓名（审批时按 approverId 关联 sys_user 回写；迁移 V11.361.4 补列） */
+    private String approverName;
+
     /** 审批备注 */
     private String approveRemark;
+
+    /** 处理时间（审批/回调完成时间；迁移 V11.361.2 补列） */
+    private LocalDateTime processTime;
 }

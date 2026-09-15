@@ -26,7 +26,7 @@
         :colon="false"
       >
         <!-- ═══ 基础信息（对标：编号/名称、助记码/简称、备注） ═══ -->
-        <div class="section-card">
+        <FormSection>
           <a-row :gutter="24">
             <a-col :span="12">
               <a-form-item
@@ -95,12 +95,11 @@
               </a-form-item>
             </a-col>
           </a-row>
-        </div>
+        </FormSection>
 
         <!-- ═══ 网点（可多行，第 1 行为主网点） ═══ -->
-        <div class="section-card">
-          <div class="section-head">
-            <span class="section-title">网点</span>
+        <FormSection title="网点">
+          <template #extra>
             <a-button
               type="link"
               size="small"
@@ -109,7 +108,8 @@
             >
               <PlusOutlined /> 新增
             </a-button>
-          </div>
+          </template>
+
           <div
             v-for="(branch, index) in branches"
             :key="branch._key"
@@ -188,13 +188,10 @@
               </a-col>
             </a-row>
           </div>
-        </div>
+        </FormSection>
 
         <!-- ═══ 纳税人信息 ═══ -->
-        <div class="section-card">
-          <div class="section-head">
-            <span class="section-title">纳税人信息</span>
-          </div>
+        <FormSection title="纳税人信息">
           <a-row :gutter="24">
             <a-col :span="12">
               <a-form-item label="公司全称">
@@ -261,14 +258,14 @@
               </a-form-item>
             </a-col>
           </a-row>
-        </div>
+        </FormSection>
         <!-- ═══ 证件信息（通用组件：营业执照固定，其余可选/自定义，始终保留一个待输入位） ═══ -->
-        <div class="section-card">
+        <FormSection>
           <CertUploadList
             ref="certRef"
             :partner-id="certPartnerId"
           />
-        </div>
+        </FormSection>
 
       </a-form>
     </div>
@@ -299,6 +296,7 @@ import { ArrowLeftOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/ico
 import { partnerApi, partnerContactApi } from '@/api/erp/partner'
 import request from '@/utils/request'
 import CertUploadList from '@/components/CertUploadList/CertUploadList.vue'
+import FormSection from '@/components/FormSection/index.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -541,22 +539,6 @@ onBeforeUnmount(() => document.removeEventListener('keydown', handleKeydown))
 
 .form-scroll-area { flex: 1; overflow-y: auto; padding: 12px 16px; min-height: 0; }
 
-.section-card {
-  background: #fff;
-  border-radius: 6px;
-  padding: 16px 24px 4px;
-  margin-bottom: 12px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
-}
-.section-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid #f0f0f0;
-}
-.section-title { font-size: 14px; font-weight: 600; color: #262626; }
 .btn-add-branch { padding: 0; }
 
 .branch-block { border-bottom: 1px dashed #f0f0f0; margin-bottom: 8px; }

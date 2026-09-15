@@ -53,6 +53,11 @@ temp/
 data/
 *.sql
 *.dump
+# ⚠️ 例外：Flyway 迁移是**源码**而非数据产物，必须纳入版本控制。
+# 上面的 `*.sql` 会把 backend/core/api/core-api/src/main/resources/db/migration/ 下的新迁移
+# 变成对 git 完全不可见（连 `git status` 的 `??` 都不显示），导致静默漏提交、
+# 干净检出后 Flyway 找不到文件、库结构与应用不一致。故此处按路径取反。
+!backend/core/api/core-api/src/main/resources/db/migration/*.sql
 
 # Test
 coverage/

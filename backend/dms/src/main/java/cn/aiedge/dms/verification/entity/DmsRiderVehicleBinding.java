@@ -64,6 +64,9 @@ public class DmsRiderVehicleBinding {
     /** 交车时的车辆位置 - 经度 */
     private Double handoverLng;
 
+    /** 交车地点（文本，人工可读，配合 handoverLat/Lng） */
+    private String handoverLocation;
+
     /** 绑定原因/任务描述 */
     private String bindReason;
 

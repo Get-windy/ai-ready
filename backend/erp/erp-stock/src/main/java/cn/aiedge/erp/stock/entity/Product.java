@@ -203,6 +203,10 @@ public class Product {
     /** 商城检索关键字 */
     private String keywords;
 
+    /** 单位显示开关: 0=隐藏 1=显示（商城「单位显示」页） */
+    @TableField("unit_display")
+    private Integer unitDisplay;
+
     /**
      * 状态
      */
@@ -270,4 +274,31 @@ public class Product {
     /** 商品标签列表(由 mallTags 逗号串拆分，列表展示用) */
     @TableField(exist = false)
     private java.util.List<String> mallTagList;
+
+    // ── 单位级派生字段（来自 erp_product_unit，列表展示用；非 erp_product 物理列） ──
+
+    /**
+     * 「预设进价」列表展示值（商城「单位显示」页列，默认隐藏）。
+     *
+     * <p>取数口径：**基本单位**（is_base_unit=1）的 erp_product_unit.preset_purchase_price；
+     * 若该商品无基本单位行，则取 sort_order 最小的单位行；仍为空时回退商品级
+     * erp_product.purchase_price（导入/档案维护写入的商品级预设进价）。</p>
+     */
+    @TableField(exist = false)
+    private java.math.BigDecimal presetPurchasePrice;
+
+    /**
+     * 单位显示类型（**单位粒度**）列表展示值：**基本单位**的
+     * erp_product_unit.unit_display_type，取值 {@code "-1"}=全部 / {@code "0"}=只显示常用单位 /
+     * {@code "1"}=只显示小单位 / {@code "2"}=只显示中/大单位 / {@code null}=未显式设置。
+     *
+     * <p>取值依据 2026-09-14 对标 ql361「单位显示类型」下拉 DOM 实测，
+     * 见 Flyway V11.361.9（改正）与 V11.361.8（建列）。</p>
+     *
+     * <p>多单位口径：本页是商品行列表，以基本单位为代表值回显；各单位的真实取值
+     * 仍逐行独立存储（可被商品表单按单位单独设置），NULL 时前端按商品级
+     * unit_display 兜底显示。</p>
+     */
+    @TableField(exist = false)
+    private String unitDisplayType;
 }

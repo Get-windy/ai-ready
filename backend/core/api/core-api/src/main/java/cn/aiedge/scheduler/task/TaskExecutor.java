@@ -1,5 +1,7 @@
 package cn.aiedge.scheduler.task;
 
+import cn.aiedge.base.scheduler.JobHandler;
+import cn.aiedge.scheduler.job.JobHandlerRegistry;
 import cn.aiedge.scheduler.mapper.ScheduledTaskLogMapper;
 import cn.aiedge.scheduler.mapper.ScheduledTaskMapper;
 import cn.aiedge.scheduler.model.ScheduledTask;
@@ -12,7 +14,6 @@ import org.springframework.scheduling.support.CronTrigger;
 import org.springframework.stereotype.Component;
 
 import jakarta.annotation.PostConstruct;
-import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -30,6 +31,8 @@ public class TaskExecutor {
     private final ThreadPoolTaskScheduler taskScheduler;
     private final ScheduledTaskMapper taskMapper;
     private final ScheduledTaskLogMapper logMapper;
+    /** 执行目标白名单（按 job_key 解析处理器） */
+    private final JobHandlerRegistry jobHandlerRegistry;
     
     // 存储正在运行的任务
     private final Map<Long, ScheduledFuture<?>> scheduledTasks = new ConcurrentHashMap<>();
@@ -137,12 +140,13 @@ public class TaskExecutor {
         
         boolean success = false;
         Exception lastException = null;
-        
+        String executeSummary = null;
+
         // 重试机制
         int maxRetries = task.getRetryCount() != null ? task.getRetryCount() : 0;
         for (int i = 0; i <= maxRetries; i++) {
             try {
-                executeTaskLogic(task);
+                executeSummary = executeTaskLogic(task);
                 success = true;
                 break;
             } catch (Exception e) {
@@ -169,7 +173,9 @@ public class TaskExecutor {
         
         if (success) {
             taskLog.setExecuteStatus("SUCCESS");
-            taskLog.setExecuteResult("执行成功");
+            // 处理器自报的执行摘要（否则记「执行成功」）——让「执行日志」能看到真实业务结果
+            taskLog.setExecuteResult(org.springframework.util.StringUtils.hasText(executeSummary)
+                    ? executeSummary : "执行成功");
             taskMapper.updateExecuteStats(task.getId(), 1, 0);
         } else {
             taskLog.setExecuteStatus("FAILURE");
@@ -186,14 +192,22 @@ public class TaskExecutor {
     }
 
     /**
-     * 执行任务逻辑
+     * 执行任务逻辑：按 {@code job_key} 取**已注册的处理器**执行
+     *
+     * <p>2026-09-14 改造：原实现用
+     * {@code Class.forName(task.getExecuteClass()).getDeclaredConstructor().newInstance()}
+     * + {@code getMethod(method, String.class)} 反射调用 ——
+     * ① 只能跑「无参构造 + 单 String 参数」的普通类，**无法注入 Spring Bean**（定时任务形同虚设）；
+     * ② 类名/方法名来自请求体 → 任意登录用户可下发（越权面）。现改为白名单处理器解析，
+     * 任务行里的类名字段不再被读取。</p>
      */
-    private void executeTaskLogic(ScheduledTask task) throws Exception {
-        // 使用反射执行指定的方法
-        Class<?> clazz = Class.forName(task.getExecuteClass());
-        Object instance = clazz.getDeclaredConstructor().newInstance();
-        Method method = clazz.getMethod(task.getExecuteMethod(), String.class);
-        method.invoke(instance, task.getExecuteParams());
+    private String executeTaskLogic(ScheduledTask task) throws Exception {
+        JobHandler handler = jobHandlerRegistry.get(task.getJobKey());
+        if (handler == null) {
+            throw new IllegalStateException("未注册的任务处理器: job_key=" + task.getJobKey()
+                    + "（请改用 GET /api/scheduler/task/handlers 返回的处理器键）");
+        }
+        return handler.execute(task.getExecuteParams());
     }
 
     /**

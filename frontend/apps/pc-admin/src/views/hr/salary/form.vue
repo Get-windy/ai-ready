@@ -10,8 +10,7 @@
       <div class="form-scroll-area">
         <a-form ref="formRef" :model="form" layout="vertical">
           <!-- 基本信息 -->
-          <div class="section-card">
-            <div class="section-title">基本信息</div>
+          <FormSection title="基本信息">
             <a-row :gutter="24">
               <a-col :span="12">
                 <a-form-item label="员工" name="employeeId" required>
@@ -26,11 +25,10 @@
                 </a-form-item>
               </a-col>
             </a-row>
-          </div>
+          </FormSection>
 
           <!-- 薪资构成 -->
-          <div class="section-card">
-            <div class="section-title">薪资构成</div>
+          <FormSection title="薪资构成">
             <a-row :gutter="24">
               <a-col :span="8">
                 <a-form-item label="基本工资">
@@ -87,14 +85,14 @@
                 ¥{{ totalSalary.toFixed(2) }}
               </span>
             </a-form-item>
-          </div>
+          </FormSection>
 
           <!-- 备注 -->
-          <div class="section-card">
+          <FormSection>
             <a-form-item label="备注">
               <a-textarea v-model:value="form.remark" :rows="3" placeholder="请输入备注" />
             </a-form-item>
-          </div>
+          </FormSection>
         </a-form>
 
         <div class="form-footer">
@@ -114,6 +112,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { ArrowLeftOutlined } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
+import FormSection from '@/components/FormSection/index.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import { hrSalaryApi, hrEmployeeApi } from '@/api/hr'
 
@@ -185,7 +184,5 @@ onMounted(() => {
 
 <style scoped>
 .form-scroll-area { flex: 1; overflow-y: auto; padding: 0 16px 16px; }
-.section-card { background: #fff; border-radius: 6px; padding: 20px 24px 12px; margin-bottom: 12px; }
-.section-title { font-size: 14px; font-weight: 600; color: #262626; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid #f0f0f0; }
 .form-footer { background: #fff; border-radius: 6px; padding: 16px 24px; text-align: right; margin-top: 12px; }
 </style>

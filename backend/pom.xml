@@ -44,7 +44,7 @@
     
     <properties>
         <!-- 项目版本号，统一管理，所有子模块通过 ${revision} 引用 -->
-        <revision>0.3.18</revision>
+        <revision>0.3.19</revision>
 
         <java.version>17</java.version>
         <maven.compiler.source>17</maven.compiler.source>

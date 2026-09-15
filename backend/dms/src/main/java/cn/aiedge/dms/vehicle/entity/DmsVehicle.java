@@ -75,6 +75,9 @@ public class DmsVehicle {
     /** 运营证号 */
     private String operatingPermitNo;
 
+    /** 营运证到期日（证件合规提醒：保险 / 年检 / 营运证 三证统一视图） */
+    private LocalDate operatingPermitExpireDate;
+
     /** 保险到期日 */
     private LocalDate insuranceExpireDate;
 
@@ -112,6 +115,12 @@ public class DmsVehicle {
 
     /** 车辆归属：1-公司自有 2-个人自带 3-租赁 */
     private Integer ownershipType;
+
+    /** 车主姓名（个人自带 / 租赁车辆，车主可与当班配送员不同） */
+    private String ownerName;
+
+    /** 车主联系电话 */
+    private String ownerPhone;
 
     /** 所属部门 */
     private String department;

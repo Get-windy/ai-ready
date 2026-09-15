@@ -55,6 +55,7 @@ export const SALE_RETURN_DOC_PAGE_FIELDS: SaleReturnDocPageField[] = [
   { key: 'currentDebt', label: '本次欠款', displayName: '本次欠款', visible: false, enterJump: false },
   { key: 'debtBalance', label: '欠款余额', displayName: '欠款余额', visible: false, enterJump: false },
   { key: 'collectionDeadline', label: '收款期限', displayName: '收款期限', visible: false, enterJump: false },
+  { key: 'returnApplyId', label: '退货申请', displayName: '退货申请', visible: true, enterJump: false },
   { key: 'sourceOrder', label: '源单', displayName: '源单', visible: false, enterJump: false },
   { key: 'deliveryMethod', label: '配送方式', displayName: '配送方式', visible: true, enterJump: false },
   { key: 'deliveryRoute', label: '配送线路', displayName: '配送线路', visible: false, enterJump: false },

@@ -1,3 +1,4 @@
+import { RouterView } from 'vue-router'
 import type { RouteRecordRaw, Router } from 'vue-router'
 import { h, defineComponent } from 'vue'
 import { useUserStore } from '@/stores/user'
@@ -231,13 +232,16 @@ const componentMap: Record<string, () => Promise<any>> = {
   'dms/vehicle/index': () => import('@/views/dms/vehicle/index.vue'),
   'dms/vehicle/maintenance': () => import('@/views/dms/vehicle/maintenance.vue'),
   'dms/verification/index': () => import('@/views/dms/verification/index.vue'),
-  'dms/verification/binding-detail': () => import('@/views/dms/verification/binding-detail.vue'),
+  'dms/vehicle/usage/index': () => import('@/views/dms/vehicle/usage/index.vue'),
   'dms/route/index': () => import('@/views/dms/route/index.vue'),
   'dms/dispatch/index': () => import('@/views/dms/dispatch/index.vue'),
   'dms/order-pool/index': () => import('@/views/dms/order-pool/index.vue'),
   'dms/order-pool/bid-detail': () => import('@/views/dms/order-pool/bid-detail.vue'),
   'dms/config/index': () => import('@/views/dms/config/index.vue'),
   'dms/tracking/index': () => import('@/views/dms/tracking/index.vue'),
+  'dms/sign/index': () => import('@/views/dms/sign/index.vue'),
+  'dms/settlement/index': () => import('@/views/dms/settlement/index.vue'),
+  'dms/payment/index': () => import('@/views/dms/payment/index.vue'),
 
   // ── 系统级新增路由 ──
   'admin/tenant/approval': () => import('@/views/admin/tenant/approval/index.vue'),
@@ -327,6 +331,9 @@ const componentMap: Record<string, () => Promise<any>> = {
   'crm/contract': () => import('@/views/crm/contract/index.vue'),
   'dms/rider': () => import('@/views/dms/rider/index.vue'),
   'dms/vehicle': () => import('@/views/dms/vehicle/index.vue'),
+  'dms/sign': () => import('@/views/dms/sign/index.vue'),
+  'dms/settlement': () => import('@/views/dms/settlement/index.vue'),
+  'dms/payment': () => import('@/views/dms/payment/index.vue'),
   'erp/return': () => import('@/views/erp/return/index.vue'),
   'erp/shipment': () => import('@/views/erp/shipment/index.vue'),
 
@@ -405,6 +412,8 @@ const componentMap: Record<string, () => Promise<any>> = {
   'dispatch/query/index': () => import('@/views/dispatch/query/index.vue'),
   'dispatch/logistics-ship': () => import('@/views/dispatch/logistics-ship/index.vue'),
   'dispatch/logistics-ship/index': () => import('@/views/dispatch/logistics-ship/index.vue'),
+  'dispatch/freight-reconcile': () => import('@/views/dispatch/freight-reconcile/index.vue'),
+  'dispatch/freight-reconcile/index': () => import('@/views/dispatch/freight-reconcile/index.vue'),
   'dispatch/ship-query': () => import('@/views/dispatch/ship-query/index.vue'),
   'dispatch/ship-query/index': () => import('@/views/dispatch/ship-query/index.vue'),
   'dispatch/return-receive': () => import('@/views/dispatch/return-receive/index.vue'),
@@ -932,6 +941,18 @@ function getComponent(componentPath: string) {
 }
 
 /**
+ * 目录节点（menuType=0，无自身页面组件）的透传组件。
+ *
+ * 嵌套路由渲染时，若某一层记录的 `components.default` 为空，Vue 会在该层渲染 `<!---->`，
+ * 其下所有子页面都不会显示（表现为「点击菜单空白、刷新后正常」）。补一个只渲染
+ * `<router-view/>` 的透传组件，即可让嵌套链贯通。
+ */
+const ROUTE_PASSTHROUGH = defineComponent({
+  name: 'RoutePassthrough',
+  render: () => h(RouterView),
+})
+
+/**
  * 将后台菜单转换为 Vue Router 路由配置，返回数组以支持双入口（displayMode=1 时生成两条路由）
  */
 function transformMenuToRoutes(menu: MenuItem, parentPath: string = ''): RouteRecordRaw[] {
@@ -970,6 +991,10 @@ function transformMenuToRoutes(menu: MenuItem, parentPath: string = ''): RouteRe
   if (menu.menuType === 1 && menu.component) {
     const componentPath = menu.component.replace(/^views\//, '').replace(/\.vue$/, '')
     ;(route as any).component = getComponent(componentPath)
+  } else {
+    // 目录/分组节点没有自身组件：必须给透传组件，否则该层 components.default 为空，
+    // 嵌套路由链在此断开，其下所有子页面渲染 <!---->（点击菜单空白、刷新才显示）
+    ;(route as any).component = ROUTE_PASSTHROUGH
   }
 
   if (menu.children && menu.children.length > 0) {
@@ -1599,6 +1624,13 @@ function getRequiredRoutes(): RouteRecordRaw[] {
       name: 'SalesOutboundFormEdit',
       component: () => import('@/views/sales/outbound/form.vue'),
       meta: { title: '编辑销售出库单', icon: 'SendOutlined', keepAlive: false, requiresAuth: true, hidden: true, billType: '601' }
+    },
+    // 订单池「查看竞标」子页（无独立菜单，由订单池列表跳转；此前只在 componentMap 注册 → 直接 404）
+    {
+      path: 'dms/order-pool/bid-detail',
+      name: 'DmsOrderPoolBidDetail',
+      component: () => import('@/views/dms/order-pool/bid-detail.vue'),
+      meta: { title: '竞标详情', icon: 'TrophyOutlined', keepAlive: false, requiresAuth: true, hidden: true }
     },
     {
       path: 'sales/return-apply/form/:id',

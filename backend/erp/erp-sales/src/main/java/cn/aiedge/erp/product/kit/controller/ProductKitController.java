@@ -1,5 +1,6 @@
 package cn.aiedge.erp.product.kit.controller;
 
+import cn.aiedge.base.vo.Result;
 import cn.aiedge.erp.product.kit.dto.ProductKitCreateDTO;
 import cn.aiedge.erp.product.kit.dto.ProductKitItemDTO;
 import cn.aiedge.erp.product.kit.dto.ProductKitVO;
@@ -132,6 +133,18 @@ public class ProductKitController {
         productKitService.deactivateKit(id);
     }
 
+    @PostMapping("/batch-activate")
+    @Operation(summary = "批量激活套装", description = "请求体 {\"ids\":[1,2]}；返回实际更新条数")
+    public Result<Integer> batchActivate(@RequestBody Map<String, List<Long>> body) {
+        return Result.ok(productKitService.activateKits(body == null ? null : body.get("ids")));
+    }
+
+    @PostMapping("/batch-deactivate")
+    @Operation(summary = "批量停用套装", description = "请求体 {\"ids\":[1,2]}；返回实际更新条数")
+    public Result<Integer> batchDeactivate(@RequestBody Map<String, List<Long>> body) {
+        return Result.ok(productKitService.deactivateKits(body == null ? null : body.get("ids")));
+    }
+
     @PostMapping("/{id}/items")
     @Operation(summary = "添加套装组件")
     public ProductKitItem addKitItem(@PathVariable Long id, @RequestBody ProductKitItemDTO dto) {
@@ -146,6 +159,19 @@ public class ProductKitController {
         ProductKitItem item = new ProductKitItem();
         BeanUtils.copyProperties(dto, item);
         return productKitService.updateKitItem(itemId, item);
+    }
+
+    @DeleteMapping("/{id}")
+    @Operation(summary = "删除套装", description = "逻辑删除套装并级联逻辑删除其组件行")
+    public Result<Boolean> delete(@PathVariable Long id) {
+        productKitService.deleteKit(id);
+        return Result.ok(true);
+    }
+
+    @DeleteMapping("/batch")
+    @Operation(summary = "批量删除套装", description = "请求体 {\"ids\":[1,2]}；级联逻辑删除组件行，返回实际删除条数")
+    public Result<Integer> batchDelete(@RequestBody Map<String, List<Long>> body) {
+        return Result.ok(productKitService.deleteKits(body == null ? null : body.get("ids")));
     }
 
     @DeleteMapping("/{id}/items/{itemId}")

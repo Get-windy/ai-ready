@@ -10,274 +10,183 @@
                   首页
                 </router-link>
               </a-breadcrumb-item>
-              <a-breadcrumb-item>DMS / 系统配置</a-breadcrumb-item>
+              <a-breadcrumb-item>DMS / 配送配置</a-breadcrumb-item>
             </a-breadcrumb>
-            <h2>系统配置</h2>
+            <h2>配送配置（按业务域总览）</h2>
           </div>
           <div class="page-header__right">
             <span
               v-if="lastUpdateTime"
               class="update-time"
             >更新于 {{ lastUpdateTime }}</span>
-            <span
-              v-if="autoRefreshCountdown > 0"
-              class="auto-refresh-badge"
-            ><SyncOutlined /> {{ autoRefreshCountdown }}s</span>
             <a-button
               size="small"
               :loading="loading"
-              @click="wms.debounce('refresh', wms.fetchData)"
+              @click="fetchAll"
             >
               <ReloadOutlined /> 刷新
             </a-button>
-            <span class="shortcut-hints">
-              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-            </span>
+            <a-button
+              type="primary"
+              size="small"
+              @click="goParams"
+            >
+              <EditOutlined /> 去「配送参数」编辑
+            </a-button>
           </div>
         </div>
       </template>
 
-      <template #filter>
-        <SearchBar
-          :fields="searchFields"
-          :loading="loading"
-          @search="handleSearch"
-          @reset="handleReset"
-        />
-      </template>
-
       <template #default>
         <div class="page-body">
-          <SkeletonTable
-            v-if="loading && dataList.length === 0"
-            :columns="columns.length"
-            :rows="8"
+          <!-- 分工说明：本页只读总览，编辑与变更历史在《配送参数》，避免同一张表两套可写入口 -->
+          <a-alert
+            type="info"
+            show-icon
+            banner
+            class="scope-tip"
+            message="本页是配置的「业务域总览」（只读）"
+            description="配置的新增 / 修改 / 变更历史请到「配送 → 配送配置 → 配送参数」。两页共用 dms_config，本页不重复提供编辑能力。"
           />
-          <a-table
-            v-else
-            :data-source="dataList"
-            :columns="columns"
-            :loading="loading"
-            :pagination="pagination"
-            row-key="id"
-            size="small"
-            bordered
-            @change="handleTableChange"
-          >
-            <template #emptyText>
-              <a-empty description="暂无系统配置">
-                <a-button
+          <a-spin :spinning="loading">
+            <a-collapse
+              v-model:activeKey="activeKeys"
+              class="config-collapse"
+            >
+              <a-collapse-panel
+                v-for="g in groups"
+                :key="g.key"
+                :header="`${g.label}（${g.items.length} 项）`"
+              >
+                <a-table
+                  :columns="itemColumns"
+                  :data-source="g.items"
+                  :pagination="false"
                   size="small"
-                  @click="wms.fetchData"
+                  row-key="configKey"
+                  bordered
                 >
-                  刷新
-                </a-button>
-              </a-empty>
-            </template>
-            <template #bodyCell="{ column, record }">
-              <template v-if="column.dataIndex === 'configValue'">
-                <span class="config-value-text">{{ record.configValue }}</span>
-              </template>
-              <template v-if="column.dataIndex === 'createTime'">
-                {{ formatDateTime(record.createTime) }}
-              </template>
-              <template v-if="column.dataIndex === 'action'">
-                <a-space :size="4">
-                  <a-tooltip title="编辑">
-                    <a-button
-                      v-permission="'dms:config:edit'"
-                      type="link"
-                      size="small"
-                      @click="handleEdit(record as any)"
-                    >
-                      <EditOutlined />
-                    </a-button>
-                  </a-tooltip>
-                </a-space>
-              </template>
-            </template>
-          </a-table>
+                  <template #bodyCell="{ column, record }">
+                    <template v-if="column.key === 'configValue'">
+                      <span class="cfg-value">{{ record.configValue || '（空）' }}</span>
+                    </template>
+                  </template>
+                </a-table>
+              </a-collapse-panel>
+              <a-empty
+                v-if="!loading && groups.length === 0"
+                description="暂无配置"
+              />
+            </a-collapse>
+          </a-spin>
         </div>
       </template>
     </PageContainer>
   </ErrorBoundary>
-
-  <!-- 编辑配置弹窗 -->
-  <a-modal
-    v-model:open="modalVisible"
-    title="编辑配置"
-    width="600px"
-    :confirm-loading="modalLoading"
-    @ok="handleModalOk"
-    @cancel="handleModalCancel"
-  >
-    <a-form
-      ref="formRef"
-      :model="formState"
-      :rules="formRules"
-      :label-col="{ span: 4 }"
-      :wrapper-col="{ span: 18 }"
-    >
-      <a-form-item
-        label="配置键"
-        name="configKey"
-      >
-        <a-input
-          v-model:value="formState.configKey"
-          size="small"
-          disabled
-        />
-      </a-form-item>
-      <a-form-item
-        label="配置值"
-        name="configValue"
-      >
-        <a-textarea
-          v-model:value="formState.configValue"
-          :rows="4"
-          size="small"
-          placeholder="请输入配置值"
-        />
-      </a-form-item>
-      <a-form-item
-        label="描述"
-        name="configDesc"
-      >
-        <a-input
-          v-model:value="formState.configDesc"
-          size="small"
-          disabled
-        />
-      </a-form-item>
-      <a-form-item
-        label="作用域"
-        name="scope"
-      >
-        <a-input
-          v-model:value="formState.scope"
-          size="small"
-          disabled
-        />
-      </a-form-item>
-    </a-form>
-  </a-modal>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+/**
+ * 配送配置（配送 → 配送配置 → 配送配置，菜单 80890）
+ *
+ * 定位：**业务域总览（只读）** —— 把 `dms_config` 的配置按业务域分组集中呈现，
+ * 便于排查"某项配置当前是什么值"。
+ *
+ * 分工（消除与《配送参数》80750 的重复）：
+ *   · 本页 = 总览视图（按业务域分组、只读、不提供编辑）；
+ *   · 《配送参数》= 唯一**参数维护入口**（列表 + 编辑 + 变更历史）。
+ * 两页共用同一张 `dms_config`，但**只有一处可写**，避免两套入口维护同一张表。
+ */
+import { ref, reactive, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
-import type { FormInstance } from 'ant-design-vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
-import SearchBar from '@/components/SearchBar/SearchBar.vue'
-import type { SearchField } from '@/components/SearchBar/SearchBar.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import SkeletonTable from '@/components/Skeleton/SkeletonTable.vue'
-import { configApi, type DmsConfig } from '@/api/dms/config'
-import { useWmsTable } from '@/composables/useWmsTable'
-import {
-  ReloadOutlined, EditOutlined, SyncOutlined,
-} from '@ant-design/icons-vue'
+import { configApi } from '@/api/dms/config'
+import { ReloadOutlined, EditOutlined } from '@ant-design/icons-vue'
 
-function handleError(err: any) { console.warn('[DMS配置]', err) }
+const router = useRouter()
+const loading = ref(false)
+const items = ref<any[]>([])
+const lastUpdateTime = ref('')
+const activeKeys = ref<string[]>(['settlement', 'payment'])
 
-function formatDateTime(dateStr?: string): string {
-  if (!dateStr) return '-'
-  try {
-    const d = new Date(dateStr)
-    if (isNaN(d.getTime())) return dateStr
-    return d.toLocaleString('zh-CN')
-  } catch { return dateStr }
-}
+function handleError(err: any) { console.warn('[配送配置]', err) }
 
-const columns = [
-  { title: '配置键', dataIndex: 'configKey', width: 180 },
-  { title: '配置值', dataIndex: 'configValue', width: 300, ellipsis: true },
-  { title: '描述', dataIndex: 'configDesc', width: 200, ellipsis: true },
-  { title: '作用域', dataIndex: 'scope', width: 120 },
-  { title: '操作', dataIndex: 'action', width: 80, fixed: 'right' },
-] as any
-
-const searchFields: SearchField[] = [
-  { name: 'configKey', label: '配置键', type: 'input', placeholder: '请输入配置键' },
+/** 业务域分组：按配置键前缀归类（新增业务域时在此登记即可） */
+const GROUP_RULES: Array<{ key: string; label: string; prefixes: string[] }> = [
+  { key: 'settlement', label: '配送结算计费', prefixes: ['dms.settlement.'] },
+  { key: 'payment', label: '末端收款', prefixes: ['dms.payment.'] },
+  { key: 'sign', label: '签收与位置校验', prefixes: ['dms.sign.'] },
+  { key: 'dispatch', label: '调度与派单', prefixes: ['dms.dispatch.'] },
+  { key: 'route', label: '路线与地理能力', prefixes: ['dms.route.', 'map.'] },
+  { key: 'channel', label: '运力渠道', prefixes: ['dms.channel.'] },
+  { key: 'vehicle', label: '车辆与能源', prefixes: ['dms.vehicle.', 'energy.'] },
+  { key: 'other', label: '其它配送配置', prefixes: ['dms.'] }
 ]
 
-const wms = useWmsTable({
-  fetchFn: configApi.list as any,
-  defaultPageSize: 20,
-  refreshInterval: 30,
-  shortcuts: { f5: 'refresh' },
+const groups = computed(() => {
+  const buckets = new Map<string, any[]>()
+  for (const it of items.value) {
+    const key = String(it.configKey || '')
+    const rule = GROUP_RULES.find(r => r.prefixes.some(p => key.startsWith(p)))
+      || { key: 'misc', label: '系统其它配置', prefixes: [] } as any
+    if (!buckets.has(rule.key)) buckets.set(rule.key, [])
+    buckets.get(rule.key)!.push(it)
+  }
+  // 按 GROUP_RULES 顺序输出（未命中的「系统其它配置」置末）
+  const ordered: Array<{ key: string; label: string; items: any[] }> = []
+  for (const r of GROUP_RULES) {
+    const list = buckets.get(r.key)
+    if (list && list.length) ordered.push({ key: r.key, label: r.label, items: list })
+  }
+  const misc = buckets.get('misc')
+  if (misc && misc.length) ordered.push({ key: 'misc', label: '系统其它配置', items: misc })
+  return ordered
 })
 
-const { tableData: dataList, loading, pagination, searchParams, lastUpdateTime, autoRefreshCountdown } = wms
+const itemColumns = [
+  { title: '配置键', dataIndex: 'configKey', key: 'configKey', width: 280 },
+  { title: '当前值', dataIndex: 'configValue', key: 'configValue', width: 280 },
+  { title: '说明', dataIndex: 'configDesc', key: 'configDesc' },
+  { title: '作用域', dataIndex: 'scope', key: 'scope', width: 110 }
+]
 
-// ── 编辑 ──
-const modalVisible = ref(false)
-const modalLoading = ref(false)
-const currentEditKey = ref('')
-const formRef = ref<FormInstance>()
-const formState = reactive<Record<string, any>>({
-  configKey: '',
-  configValue: '',
-  configDesc: '',
-  scope: '',
-})
-const formRules: Record<string, any[]> = {
-  configValue: [{ required: true, message: '请输入配置值', trigger: 'blur' }],
-}
-
-function handleEdit(record: DmsConfig) {
-  currentEditKey.value = record.configKey
-  Object.assign(formState, { ...record })
-  modalVisible.value = true
-}
-
-async function handleModalOk() {
-  try { await formRef.value?.validate() } catch { return }
-  modalLoading.value = true
+async function fetchAll() {
+  loading.value = true
   try {
-    await configApi.update(currentEditKey.value, { configValue: formState.configValue })
-    message.success('更新成功')
-    modalVisible.value = false
-    wms.fetchData()
-  } catch (err: any) {
-    message.error(err?.message || '更新失败')
+    // configApi.list 返回数组（按 tenantId 查询；0 = 全局缺省配置）
+    const res: any = await configApi.list(0)
+    const payload = res?.data?.data ?? res?.data ?? res ?? []
+    items.value = Array.isArray(payload) ? payload : (payload.records || payload.list || [])
+    lastUpdateTime.value = new Date().toLocaleString('zh-CN')
+  } catch (e) {
+    items.value = []
+    message.error('配置加载失败')
+    console.warn('[配送配置] 加载失败', e)
   } finally {
-    modalLoading.value = false
+    loading.value = false
   }
 }
 
-function handleModalCancel() { modalVisible.value = false }
-
-function handleSearch(formData: Record<string, any>) {
-  Object.assign(searchParams, formData)
-  wms.handleSearch()
+function goParams() {
+  router.push('/dms/config-params')
 }
 
-function handleReset() {
-  Object.keys(searchParams).forEach(k => { searchParams[k] = undefined })
-  wms.handleReset()
-}
-
-function handleTableChange(pag: any) {
-  wms.handlePageChange(pag.current, pag.pageSize)
-}
+onMounted(fetchAll)
 </script>
 
 <style scoped>
-.page-header { display: flex; justify-content: space-between; align-items: center; width: 100%; }
-.page-header__left { display: flex; align-items: center; gap: 12px; }
-.page-header__left h2 { font-size: 18px; font-weight: 600; color: #303133; margin: 0; }
-.page-header__right { display: flex; align-items: center; gap: 12px; }
-.update-time { font-size: 12px; color: #999; }
-.auto-refresh-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: #909399; padding: 2px 8px; border-radius: 4px; background: #f5f7fa; user-select: none; }
-.page-body { padding: 0; }
-.config-value-text { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 12px; word-break: break-all; }
-:deep(.ant-input-sm), :deep(.ant-select-single.ant-select-sm .ant-select-selector), :deep(.ant-btn-sm) { height: 28px; line-height: 28px; }
-:deep(.ant-select-single.ant-select-sm .ant-select-selector) { line-height: 26px; }
-
-@media print {
-  .page-header__right .shortcut-hints,
-  .auto-refresh-badge,
-  .update-time { display: none !important; }
+.page-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 16px; background: #fff; border-bottom: 1px solid #f0f0f0;
 }
+.page-header__left { display: flex; align-items: center; gap: 12px; }
+.page-header__left h2 { margin: 0; font-size: 16px; font-weight: 600; }
+.page-header__right { display: flex; align-items: center; gap: 8px; }
+.update-time { font-size: 12px; color: #8c8c8c; }
+.page-body { padding: 12px 16px; overflow: auto; height: 100%; }
+.scope-tip { margin-bottom: 12px; }
+.config-collapse { background: #fff; }
+.cfg-value { word-break: break-all; }
 </style>

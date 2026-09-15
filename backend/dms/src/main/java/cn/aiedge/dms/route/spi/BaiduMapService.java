@@ -196,28 +196,7 @@ public class BaiduMapService extends AbstractMapService {
 
     @Override
     public boolean isWithinFence(double lat, double lng, String fenceParams) {
-        try {
-            String[] parts = fenceParams.split(",");
-            double centerLat = Double.parseDouble(parts[0]);
-            double centerLng = Double.parseDouble(parts[1]);
-            double radius = Double.parseDouble(parts[2]);
-            double distance = haversineDistance(lat, lng, centerLat, centerLng);
-            return distance <= radius;
-        } catch (Exception e) {
-            log.warn("[Baidu] 围栏校验失败: {}", e.getMessage());
-            return false;
-        }
-    }
-
-    private double haversineDistance(double lat1, double lng1, double lat2, double lng2) {
-        double R = 6371000;
-        double dLat = Math.toRadians(lat2 - lat1);
-        double dLng = Math.toRadians(lng2 - lng1);
-        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
-                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
-                * Math.sin(dLng / 2) * Math.sin(dLng / 2);
-        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        return R * c;
+        return checkCircleFence(lat, lng, fenceParams);
     }
 
     private String getText(JsonNode node, String field) {

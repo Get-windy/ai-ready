@@ -172,6 +172,9 @@ public class SaleReturn {
 
     private BigDecimal billAmount;
 
+    /** 折后金额（商品金额 − 优惠金额），对齐销售退货单口径；本单金额 = 折后金额 + 运费 + 其他费用 */
+    private BigDecimal discountBillAmount;
+
     private BigDecimal settledAmount;
 
     private String freightPayer;
@@ -349,4 +352,12 @@ public class SaleReturn {
     // 非数据库字段 - 分类ID（用于明细tab搜索）
     @TableField(exist = false)
     private Long categoryId;
+
+    // 非数据库字段 - 提交人姓名（列表「提交人」列，由 submit_by 解析）
+    @TableField(exist = false)
+    private String submitByName;
+
+    // 非数据库字段 - 商品行数（列表「商品行数」列，明细行计数）
+    @TableField(exist = false)
+    private Integer lineCount;
 }

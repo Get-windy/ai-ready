@@ -1,21 +1,30 @@
 package cn.aiedge.erp.b2b.service;
 
 import cn.aiedge.common.exception.BusinessException;
+import cn.aiedge.common.result.PageResult;
 import cn.aiedge.erp.b2b.dto.CartAddRequest;
 import cn.aiedge.erp.b2b.dto.CartDTO;
 import cn.aiedge.erp.b2b.dao.ErpProductMall;
 import cn.aiedge.erp.b2b.dao.ErpProductMallMapper;
 import cn.aiedge.erp.b2b.mapper.MallCartMapper;
+import cn.aiedge.erp.b2b.mapper.ShopUserMapper;
 import cn.aiedge.erp.b2b.model.MallCart;
+import cn.aiedge.erp.b2b.model.ShopUser;
 import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -25,6 +34,7 @@ public class MallCartServiceImpl implements MallCartService {
 
     private final MallCartMapper mallCartMapper;
     private final ErpProductMallMapper erpProductMallMapper;
+    private final ShopUserMapper shopUserMapper;
 
     /** 获取当前登录用户的租户ID */
     private Long getTenantId() {
@@ -47,6 +57,85 @@ public class MallCartServiceImpl implements MallCartService {
         );
 
         return cartItems.stream().map(this::convertToDTO).collect(Collectors.toList());
+    }
+
+    @Override
+    public PageResult<CartDTO> pageCart(Integer pageNum, Integer pageSize, Long customerId,
+                                        String memberKeyword, String productKeyword) {
+        long current = pageNum == null || pageNum < 1 ? 1 : pageNum;
+        long size = pageSize == null || pageSize < 1 ? 20 : pageSize;
+        Long tenantId = getTenantId();
+        log.info("分页查询购物车: pageNum={}, pageSize={}, customerId={}, memberKeyword={}, productKeyword={}",
+                current, size, customerId, memberKeyword, productKeyword);
+
+        LambdaQueryWrapper<MallCart> wrapper = new LambdaQueryWrapper<MallCart>()
+                .eq(MallCart::getDeleted, 0)
+                .eq(MallCart::getTenantId, tenantId)
+                .eq(customerId != null, MallCart::getCustomerId, customerId);
+
+        // 商品关键字：商品名称 / 商品编码（mall_cart.product_id 存的是商品编码）
+        if (StringUtils.hasText(productKeyword)) {
+            String kw = productKeyword.trim();
+            wrapper.and(w -> w.like(MallCart::getProductName, kw)
+                    .or().like(MallCart::getProductId, kw));
+        }
+
+        // 会员关键字：先按 shop_user（登录名/昵称/手机号/公司名）解析出会员ID集合，
+        // 再以 customer_id IN (...) 过滤——mall_cart 只有 customer_id，无会员名称列，不新增列。
+        if (StringUtils.hasText(memberKeyword)) {
+            String kw = memberKeyword.trim();
+            List<Long> memberIds = shopUserMapper.selectList(new LambdaQueryWrapper<ShopUser>()
+                            .eq(ShopUser::getDeleted, 0)
+                            .and(w -> w.like(ShopUser::getUsername, kw)
+                                    .or().like(ShopUser::getNickname, kw)
+                                    .or().like(ShopUser::getPhone, kw)
+                                    .or().like(ShopUser::getCompanyName, kw)))
+                    .stream().map(ShopUser::getId).filter(java.util.Objects::nonNull).toList();
+            if (memberIds.isEmpty()) {
+                // 无匹配会员 → 空分页（避免退化为全量返回）
+                return PageResult.empty(current, size);
+            }
+            wrapper.in(MallCart::getCustomerId, memberIds);
+        }
+
+        wrapper.orderByDesc(MallCart::getCreateTime).orderByDesc(MallCart::getId);
+        Page<MallCart> page = mallCartMapper.selectPage(new Page<>(current, size), wrapper);
+
+        Map<Long, ShopUser> memberMap = loadMembers(page.getRecords());
+        Map<String, ErpProductMall> productMap = loadProducts(page.getRecords());
+        List<CartDTO> records = page.getRecords().stream()
+                .map(item -> convertToDTO(item, memberMap.get(item.getCustomerId()),
+                        productMap.get(item.getProductId())))
+                .collect(Collectors.toList());
+        return PageResult.of(records, page.getTotal(), current, size);
+    }
+
+    /** 一次性载入本页涉及商品（v_mall_product），避免逐行查询（N+1）；键为商品编码 */
+    private Map<String, ErpProductMall> loadProducts(List<MallCart> items) {
+        Set<String> productIds = items.stream()
+                .map(MallCart::getProductId)
+                .filter(StringUtils::hasText)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        if (productIds.isEmpty()) {
+            return new HashMap<>();
+        }
+        return erpProductMallMapper.selectList(new LambdaQueryWrapper<ErpProductMall>()
+                        .in(ErpProductMall::getProductId, productIds))
+                .stream()
+                .collect(Collectors.toMap(ErpProductMall::getProductId, p -> p, (a, b) -> a));
+    }
+
+    /** 一次性载入本页涉及会员，避免逐行查询（N+1） */
+    private Map<Long, ShopUser> loadMembers(List<MallCart> items) {
+        Set<Long> customerIds = items.stream()
+                .map(MallCart::getCustomerId)
+                .filter(java.util.Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        if (customerIds.isEmpty()) {
+            return new HashMap<>();
+        }
+        return shopUserMapper.selectBatchIds(customerIds).stream()
+                .collect(Collectors.toMap(ShopUser::getId, u -> u, (a, b) -> a));
     }
 
     @Override
@@ -127,6 +216,21 @@ public class MallCartServiceImpl implements MallCartService {
 
     @Override
     @Transactional
+    public int removeBatch(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return 0;
+        }
+        List<Long> validIds = ids.stream().filter(java.util.Objects::nonNull).distinct().collect(Collectors.toList());
+        if (validIds.isEmpty()) {
+            return 0;
+        }
+        log.info("批量删除购物车项: ids={}", validIds);
+        // deleteBatchIds 走 @TableLogic 逻辑删除，且租户条件由租户插件注入
+        return mallCartMapper.deleteBatchIds(validIds);
+    }
+
+    @Override
+    @Transactional
     public void clearCart() {
         log.info("清空购物车");
         Long customerId = StpUtil.getLoginIdAsLong();
@@ -173,6 +277,11 @@ public class MallCartServiceImpl implements MallCartService {
     }
 
     private CartDTO convertToDTO(MallCart cart) {
+        return convertToDTO(cart, null, null);
+    }
+
+    /** 管理端分页用：附带会员昵称/账号、商品编码/规格/单位与加入时间（member/product 为空则仅缺对应字段） */
+    private CartDTO convertToDTO(MallCart cart, ShopUser member, ErpProductMall product) {
         CartDTO dto = new CartDTO();
         dto.setId(cart.getId());
         dto.setProductId(cart.getProductId());
@@ -181,7 +290,23 @@ public class MallCartServiceImpl implements MallCartService {
         dto.setPrice(cart.getPrice());
         dto.setQuantity(cart.getQuantity());
         dto.setSubtotal(cart.getSubtotal());
+        dto.setTotalPrice(cart.getSubtotal());
         dto.setChecked(cart.getChecked());
+        dto.setCustomerId(cart.getCustomerId());
+        dto.setCreateTime(cart.getCreateTime());
+        // mall_cart.product_id 存的就是商品编码；无商品命中时回退为 product_id，避免列留空
+        dto.setProductCode(product != null && StringUtils.hasText(product.getProductCode())
+                ? product.getProductCode() : cart.getProductId());
+        if (product != null) {
+            dto.setSpecification(product.getSpecification());
+            dto.setUnitName(product.getUnitName());
+        }
+        if (member != null) {
+            dto.setMemberName(StringUtils.hasText(member.getNickname())
+                    ? member.getNickname() : member.getCompanyName());
+            dto.setMemberAccount(StringUtils.hasText(member.getUsername())
+                    ? member.getUsername() : member.getPhone());
+        }
         return dto;
     }
 }

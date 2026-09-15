@@ -38,6 +38,24 @@ public class DmsChannel {
     /** 调度优先级（数字越小优先级越高） */
     private Integer priority;
 
+    /** 对接状态：0-未对接 1-已对接 2-对接异常 */
+    private Integer linkStatus;
+
+    /** 最近一次连通性测试时间 */
+    private LocalDateTime lastTestTime;
+
+    /** 最近一次连通性测试结果摘要 */
+    private String lastTestResult;
+
+    /** 覆盖区域（行政区划名称，逗号分隔） */
+    private String coverageArea;
+
+    /** 计费方式：1-按单 2-按距 3-按重 */
+    private Integer billingType;
+
+    /** 计费规则 JSON：起步价/单价/加价等 */
+    private String billingConfig;
+
     private Integer sortOrder;
     private String remark;
 

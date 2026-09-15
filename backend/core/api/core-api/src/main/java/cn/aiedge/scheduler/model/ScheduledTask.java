@@ -38,17 +38,16 @@ public class ScheduledTask {
     private String cronExpression;
 
     /**
-     * 执行类全路径
+     * 执行目标处理器键（{@code JobHandler#key()}，白名单内取值）
+     *
+     * <p>2026-09-14 起**取代**原「执行类全路径 + 执行方法名」：执行目标由
+     * {@code JobHandlerRegistry} 白名单解析，任务行不再携带类名/方法名
+     * （原实现按请求体里的类名反射调用任意方法，属越权面）。</p>
      */
-    private String executeClass;
+    private String jobKey;
 
     /**
-     * 执行方法名
-     */
-    private String executeMethod;
-
-    /**
-     * 执行参数(JSON格式)
+     * 执行参数(JSON格式)：原样传给 {@code JobHandler#execute(String)}
      */
     private String executeParams;
 

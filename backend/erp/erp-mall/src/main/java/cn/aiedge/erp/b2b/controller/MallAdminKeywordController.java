@@ -28,8 +28,9 @@ public class MallAdminKeywordController {
             @Parameter(description = "每页数量") @RequestParam(defaultValue = "20") Integer pageSize,
             @Parameter(description = "关键词(模糊)") @RequestParam(required = false) String keyword,
             @Parameter(description = "类型 1热门 2置顶 3屏蔽") @RequestParam(required = false) Integer keywordType,
-            @Parameter(description = "状态 1启用 0禁用") @RequestParam(required = false) Integer status) {
-        return Result.ok(mallKeywordService.pageKeywords(pageNum, pageSize, keyword, keywordType, status));
+            @Parameter(description = "状态 1启用 0禁用") @RequestParam(required = false) Integer status,
+            @Parameter(description = "备注（模糊）") @RequestParam(required = false) String remark) {
+        return Result.ok(mallKeywordService.pageKeywords(pageNum, pageSize, keyword, keywordType, status, remark));
     }
 
     @PostMapping

@@ -1,0 +1,189 @@
+{
+  "page": "店铺设置",
+  "对标系统": "ql361（来肯企汇，22stable.ql361.com）",
+  "对标来源": "顶部「商城」菜单 → 「商城设置」组 → 「店铺设置」",
+  "抓取方式": "Playwright 实测抓取（frontend/_probe_trade_fix2.js、_probe_trade_fix4.js、_probe_trade_fix5.js、_probe_trade_fix7.js）",
+  "抓取时间": "2026-09-14",
+  "抓取轮次": "重抓（补齐 2026-09-07 首抓「注册设置字段标签缺失」的缺口）",
+  "本系统路由": "mall/shop-config",
+  "入口": "单入口（商城 → 商城设置 → 店铺设置）",
+  "页面结构": "左侧 3 个子项导航（店铺参数/注册设置/支付设置），右侧为当前子项配置表单，底部「保存」按钮；右侧内嵌商城预览 iframe（本租户为 https://200004989_wx.ql361.shop/index.html）。",
+  "列配置弹窗": "无（配置/表单型页面）",
+  "页面配置弹窗": "无",
+  "重抓修正": [
+    "【修正】2026-09-07 首抓记为「注册设置子项字段标签因网络资源失败而缺失、字段名未实测」——**本次已完整实测到全部 5 个字段的标签原文、控件类型、必填标记与下拉取值**。",
+    "【关键结论】**对标「注册设置」子项没有「注册协议」项**（无协议文本框、无富文本编辑器）。"
+  ],
+  "复现要点_注册设置如何加载出来": {
+    "有效路径（本次实测奏效）": "进入「店铺设置」→ 先点左侧子项「店铺参数」（让页面主体激活渲染）→ 再点左侧子项「注册设置」→ 等待约 7 秒 → 即渲染出完整字段。",
+    "失败路径（已排除）": [
+      "page.reload() 后重进：出现过整页只有顶栏、右侧内容区空白的白屏（对应 _fix_店铺设置_03注册设置二次.png）。",
+      "首次进页直接点「注册设置」：出现空白内容区（对应 _fix_店铺设置_02注册设置.png）。"
+    ],
+    "验收断言": "document.body.innerText 含「允许注册账号」即视为渲染成功。本次修复后重试 1 次即成功。",
+    "成功截图": "tool-results/ql361/pages/_fix7_注册设置.png、_fix4_注册设置.png、_fix_店铺设置_04注册设置刷新后.png"
+  },
+  "子项": [
+    {
+      "子项名": "注册设置",
+      "状态": "已完整实测（重抓成功）",
+      "面板文本逐字": "店铺参数 | 注册设置 | 支付设置 | 注册设置 | 允许注册账号 | 设置注册信息 | * 买家注册默认级别 | A餐饮客户 | 客户级别设置 | * 买家注册默认分类 | * 买家账号注册审核 | 是 | 新用户注册送优惠券 | 保存",
+      "字段": [
+        {
+          "序号": 1,
+          "label原文": "允许注册账号",
+          "控件类型": "复选框（Dojo CheckBox）",
+          "必填": false,
+          "实测值": "已勾选（checked=true）",
+          "附属按钮": "「设置注册信息」",
+          "后端字段（实测 API 键）": "EnableJoinApply = true",
+          "说明": "旁边有 tooltip 图标（lk-form-tooltip-help）；点「设置注册信息」按钮配置注册需填项（对应 API 的 B2BRegisteredContacts / B2CRegisteredContacts）"
+        },
+        {
+          "序号": 2,
+          "label原文": "买家注册默认级别",
+          "控件类型": "下拉（Dojo declaredClass=dijit.form.Select）",
+          "必填": true,
+          "必填标记": "*",
+          "实测选中值": "A餐饮客户（value=464415）",
+          "实测选项全集（22 项，逐字）": [
+            {"label": "--请选择--", "value": -1},
+            {"label": "A敦|瓜|玉餐饮客户", "value": 513068},
+            {"label": "A餐饮客户", "value": 464415, "实测选中": true},
+            {"label": "乡厨宴席", "value": 473480},
+            {"label": "会员客户|个人", "value": 474347},
+            {"label": "便利店", "value": 474330},
+            {"label": "加盟客户", "value": 476120},
+            {"label": "厨师1.22", "value": 494801},
+            {"label": "大团餐", "value": 475193},
+            {"label": "批发客户", "value": 472152},
+            {"label": "期结客户", "value": 470682},
+            {"label": "校园餐饮", "value": 472153},
+            {"label": "火锅", "value": 474497},
+            {"label": "特价客户", "value": 475217},
+            {"label": "经销商", "value": 470681},
+            {"label": "自助VIP", "value": 473487},
+            {"label": "自助餐", "value": 472156},
+            {"label": "连锁客户", "value": 472167},
+            {"label": "酒店客户", "value": 476236},
+            {"label": "重点客户", "value": 474487},
+            {"label": "重点客户01", "value": 475472},
+            {"label": "零售客户", "value": 464414}
+          ],
+          "选项性质（重要）": "**不是固定枚举**，是本租户的「客户级别」字典数据（可维护、每租户不同），第 1 项固定为「--请选择--」。",
+          "附属按钮": "「客户级别设置」",
+          "后端字段（推断，非实测绑定）": "候选 Default2bCustomerDealerTypeId = 464415（值与实测选中值一致）、Default2cCustomerDealerTypeId = 0"
+        },
+        {
+          "序号": 3,
+          "label原文": "买家注册默认分类",
+          "控件类型": "搜索式选择器（非 dijit.form.Select；带放大镜图标，输入框可搜索；DOM id=desktop_widgets_ItemField_20，input value=在线注册客户）",
+          "必填": true,
+          "必填标记": "*",
+          "实测当前值": "在线注册客户",
+          "选项全集": "**未抓到（如实记录）**：该控件不是 Dojo Select，dijit.byId(id).get('options') 读不到；其选项由远程字典（客户分类/来源）驱动，未展开捕获。",
+          "后端字段（推断，非实测绑定）": "候选 EnableCustomerRegistersorce = true（字面为「注册来源」）；本页同名语义待校准。"
+        },
+        {
+          "序号": 4,
+          "label原文": "买家账号注册审核",
+          "控件类型": "下拉（Dojo declaredClass=dijit.form.Select）",
+          "必填": true,
+          "必填标记": "*",
+          "实测选中值": "是（value=1）",
+          "实测选项全集（逐字）": [
+            {"label": "否", "value": 0},
+            {"label": "是", "value": 1, "实测选中": true}
+          ]
+        },
+        {
+          "序号": 5,
+          "label原文": "新用户注册送优惠券",
+          "控件类型": "复选框（Dojo CheckBox）",
+          "必填": false,
+          "实测值": "未勾选（checked=false）",
+          "附属按钮": "「设置优惠券」",
+          "后端字段（实测 API 键）": "MallRegGiveCoupons = {\"opengive\":false,\"couponslist\":[]}"
+        }
+      ],
+      "底部按钮": ["保存"],
+      "无此项": "**注册协议**（无文本框、无富文本编辑器）——对标该子项不含注册协议字段。",
+      "同实体其它相关 API 键（实测存在，未在本子项 UI 出现）": {
+        "EnableJoinApplyLicense": false,
+        "JoinApplyLicensePrompt": "上传营业执照",
+        "ShowCustomerLevel": true,
+        "LoginOnlyByWechat": false,
+        "EnableCustomerRegistersorce": true,
+        "EnableCustomerRegion": true
+      }
+    },
+    {
+      "子项名": "店铺参数（顺带实测，供交叉核对）",
+      "状态": "已实测",
+      "查询/表单项实测下拉": [
+        {"字段名": "是否允许游客访问", "控件": "下拉（dijit.form.Select）", "实测选中": "允许（3）", "选项全集": [{"label": "不允许", "value": 1}, {"label": "允许", "value": 3, "实测选中": true}]},
+        {"字段名": "游客显示价格", "控件": "下拉（dijit.form.Select）", "实测选中": "不显示价格（2）", "选项全集（逐字）": [
+          {"label": "显示零售价", "value": 1},
+          {"label": "不显示价格", "value": 2, "实测选中": true},
+          {"label": "餐饮店", "value": 3},
+          {"label": "食堂团餐", "value": 4},
+          {"label": "外围餐饮店", "value": 5},
+          {"label": "自助vip", "value": 6},
+          {"label": "大团餐", "value": 7},
+          {"label": "重点|vip01", "value": 8},
+          {"label": "连锁|vip", "value": 9},
+          {"label": "特价客户", "value": 10},
+          {"label": "显示批发价", "value": 11}
+        ], "备注": "混合枚举：前 2 项为「显示口径」，其余为本租户价格组名"},
+        {"字段名": "商城数量小数位数", "控件": "下拉（dijit.form.Select）", "实测选中": "整数（0）", "选项全集": [{"label": "整数", "value": 0, "实测选中": true}, {"label": "1位小数", "value": 1}, {"label": "2位小数", "value": 2}, {"label": "3位小数", "value": 3}, {"label": "4位小数", "value": 4}, {"label": "5位小数", "value": 5}, {"label": "6位小数", "value": 6}, {"label": "7位小数", "value": 7}, {"label": "8位小数", "value": 8}]},
+        {"字段名": "库存显示方式", "控件": "下拉（desktop.widgets.ItemField）", "实测选中": "显示有货/无货（2）", "选项全集": [{"label": "显示可用库存", "value": 0}, {"label": "显示放大库存", "value": 1}, {"label": "显示有货/无货", "value": 2, "实测选中": true}, {"label": "不显示库存", "value": 3}]},
+        {"字段名": "无货商品显示方式", "控件": "下拉（desktop.widgets.ItemField）", "实测选中": "不显示商品（1）", "选项全集": [{"label": "显示补货中", "value": 0}, {"label": "不显示商品", "value": 1, "实测选中": true}]}
+      ],
+      "文本类实测值": {"营业时间起": "00:00:00", "营业时间止": "23:59:59", "短信签名": "皇朝商行", "短信签名placeholder": "请输入公司名称/商城名称", "天自动收货_N": "4"},
+      "库存显示方式「说明」弹层原文": "说明 1、负库存与放大库存不能同时使用; ①若『系统参数-库存设置-可用库存允许为负』的配置开启，则下拉选项中“放大库存、全部库存+放大库存”不显示; ②若『系统参数-单据设置-多仓库录单』未开启则下拉选项中“全部仓库库存、全部库存+放大库存”不显示; 2、库存显示方式选择显示什么库存则商城以显示库存作为依据进行下单，如库存显示为“全部仓库”，A商品全部库存为100个，则商城买家可下单100个A商品; 知道了",
+      "说明弹层要点": "该说明提到「放大库存 / 全部库存+放大库存 / 全部仓库库存 / 全部仓库」等选项，但实测下拉只有 4 项（显示可用库存/显示放大库存/显示有货无货/不显示库存）——因为本租户『系统参数-单据设置-多仓库录单』未开启，部分选项被隐藏。故「库存显示方式」的**完整选项集需在多仓库录单开启后重抓**（本次未抓全，如实记录）。",
+      "截图": "tool-results/ql361/pages/_fix7_店铺参数.png、_fix5_库存说明.png、_fix4_库存显示方式_说明.png"
+    },
+    {
+      "子项名": "支付设置",
+      "状态": "沿用 2026-09-07 首抓（本次未重抓，首抓已完整）",
+      "首抓来源": "docs/Yh-Spec/抓取结果/店铺设置_抓取.json 的「支付设置」段",
+      "表头": ["支付方式", "商城默认显示顺序", "支付方式启用", "统一规则设置", "备注说明"],
+      "记录": [
+        {"支付方式": "在线支付", "商城默认显示顺序": "↓（可调）", "支付方式启用": "复选框", "统一规则设置": "复选框 + 数字输入（N小时未付款自动取消订单）"},
+        {"支付方式": "欠款", "商城默认显示顺序": "↑（可调）", "支付方式启用": "复选框", "统一规则设置": "复选框"},
+        {"支付方式": "货到付款", "商城默认显示顺序": "↑（可调）", "支付方式启用": "复选框", "统一规则设置": "（空）"}
+      ],
+      "本次新增实测（后端键，来自 B2B2CSettings.GetSettings）": {
+        "MallPayTypeSetting": "[{\"payname\":\"欠款\",\"paytype\":2,\"payorder\":1},{\"payname\":\"在线支付\",\"paytype\":1,\"payorder\":2},{\"payname\":\"货到付款\",\"paytype\":3,\"payorder\":3}]",
+        "MallAllowNoPayDelivery": true,
+        "MallPayType": "{\"b2b\":16,\"b2c\":0,\"isupdate\":1}"
+      },
+      "备注": "MallPayTypeSetting 给出了**支付场景的 payname/paytype/payorder 三段口径**（paytype: 1=在线支付 2=欠款 3=货到付款；payorder=商城默认显示顺序），可直接用于校准我们的 payment_scenes JSON。"
+    }
+  ],
+  "后端接口实测": {
+    "接口": "https://22stable.ql361.com/v_22stable/api.cc?___method=CC.ERP.BLL.DH.Baseinfo.B2B2CSettings.GetSettings&pagetype=erp&pagename=ShopSettingBasic",
+    "完整响应存档": "tool-results/ql361/pages/_api_CC.ERP.BLL.DH.Baseinfo.B2B2CSettings.GetSettings.json（248,821 字符，未截断，共 1088 个 data 键）",
+    "注册设置直接相关键": {
+      "EnableJoinApply": true,
+      "MallRegGiveCoupons": "{\"opengive\":false,\"couponslist\":[]}",
+      "B2BRegisteredContacts": "[{displayvname:'手机号码', vname:'phonenumber', isenable:true, isrequired:true, iseditname:false, enableiseditcheck:false, requirediseditcheck:false}, {displayvname:'联系人姓名', vname:'linkman', isenable:true, isrequired:true, ...}] （「设置注册信息」弹窗的数据结构）",
+      "B2CRegisteredContacts": true,
+      "EnableJoinApplyLicense": false,
+      "JoinApplyLicensePrompt": "上传营业执照",
+      "Default2bCustomerDealerTypeId": 464415,
+      "Default2cCustomerDealerTypeId": 0,
+      "ShowCustomerLevel": true
+    }
+  },
+  "截图": [
+    "tool-results/ql361/pages/_fix7_注册设置.png（本次最清晰的注册设置全字段截图）",
+    "tool-results/ql361/pages/_fix4_注册设置.png",
+    "tool-results/ql361/pages/_fix_店铺设置_04注册设置刷新后.png",
+    "tool-results/ql361/pages/_fix_店铺设置_03注册设置二次.png（失败态：内容区空白，对照用）",
+    "tool-results/ql361/pages/_fix7_店铺参数.png",
+    "tool-results/ql361/pages/_fix5_库存说明.png"
+  ],
+  "备注": "配置/表单型页面。3 个子项：店铺参数（本次顺带实测 5 个下拉全集）、注册设置（**本次重抓成功，5 个字段全部实测**，无注册协议项）、支付设置（沿用首抓 + 新增后端键）。"
+}

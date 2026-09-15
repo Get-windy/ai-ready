@@ -44,9 +44,21 @@ public class PaymentController {
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") Integer pageNum,
             @Parameter(description = "每页数量") @RequestParam(defaultValue = "10") Integer pageSize,
             @Parameter(description = "业务类型") @RequestParam(required = false) String bizType,
+            @Parameter(description = "业务单号（模糊）") @RequestParam(required = false) String bizNo,
             @Parameter(description = "支付渠道") @RequestParam(required = false) String channel,
-            @Parameter(description = "状态") @RequestParam(required = false) Integer status) {
-        return Result.success(paymentService.pagePaymentRequest(pageNum, pageSize, bizType, channel, status));
+            @Parameter(description = "状态") @RequestParam(required = false) Integer status,
+            @Parameter(description = "创建时间起") @RequestParam(required = false) String startTime,
+            @Parameter(description = "创建时间止") @RequestParam(required = false) String endTime,
+            @Parameter(description = "付款人（模糊）") @RequestParam(required = false) String payerName) {
+        return Result.success(paymentService.pagePaymentRequest(
+                pageNum, pageSize, bizType, bizNo, channel, status, startTime, endTime, payerName));
+    }
+
+    @Operation(summary = "支付请求统计（后端聚合）")
+    @GetMapping("/request/stat")
+    public Result<Map<String, Object>> statPaymentRequest(
+            @Parameter(description = "支付渠道") @RequestParam(required = false) String channel) {
+        return Result.success(paymentService.statPaymentRequest(channel));
     }
 
     @Operation(summary = "查询支付请求详情")
@@ -85,8 +97,20 @@ public class PaymentController {
     public Result<PageResult<PaymentRecord>> pagePaymentRecord(
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") Integer pageNum,
             @Parameter(description = "每页数量") @RequestParam(defaultValue = "10") Integer pageSize,
+            @Parameter(description = "支付渠道") @RequestParam(required = false) String channel,
+            @Parameter(description = "状态") @RequestParam(required = false) Integer status,
+            @Parameter(description = "渠道订单号（模糊）") @RequestParam(required = false) String channelOrderNo,
+            @Parameter(description = "支付（回调）时间起") @RequestParam(required = false) String startTime,
+            @Parameter(description = "支付（回调）时间止") @RequestParam(required = false) String endTime) {
+        return Result.success(paymentService.pagePaymentRecord(
+                pageNum, pageSize, channel, status, channelOrderNo, startTime, endTime));
+    }
+
+    @Operation(summary = "支付记录统计（后端聚合）")
+    @GetMapping("/record/stat")
+    public Result<Map<String, Object>> statPaymentRecord(
             @Parameter(description = "支付渠道") @RequestParam(required = false) String channel) {
-        return Result.success(paymentService.pagePaymentRecord(pageNum, pageSize, channel));
+        return Result.success(paymentService.statPaymentRecord(channel));
     }
 
     @Operation(summary = "获取可用支付渠道")

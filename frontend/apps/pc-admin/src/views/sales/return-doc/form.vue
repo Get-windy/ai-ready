@@ -1,7 +1,8 @@
 <template>
   <div class="form-page-container" style="height:100%;display:flex;flex-direction:column;">
     <BillFormPage
-      v-model="formData"
+      :model-value="formData"
+      @update:model-value="(v: any) => Object.assign(formData, v)"
       :header="headerConfig"
       :basic-info-fields="visibleBasicInfoFields"
       :tabs="tabsConfig"
@@ -142,7 +143,7 @@ import {
 import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTable/types'
 import type { BillHeaderConfig, BasicInfoField, BillTabConfig, TabField, SummaryRow, BillFooterConfig } from '@/components/BillFormPage/types'
 import { useBillForm } from '@/components/BillFormPage/useBillForm'
-import { saleReturnDocApi } from '@/api/erp'
+import { saleReturnDocApi, saleReturnApi } from '@/api/erp'
 import { PRODUCT_SALES_DEFAULTS } from '@/utils/productDefaults'
 import optionsApi from '@/api/options'
 import { useUserStore } from '@/stores/user'
@@ -251,6 +252,45 @@ const {
     if (fieldKey === 'deptId') {
       const d = departmentOptions.value.find((x: any) => x.id === val)
       fd.deptName = d?.name || ''
+    }
+    if (fieldKey === 'returnApplyId') {
+      // 雪花 ID 可能以字符串/数字两种形态到达，统一按字符串比较，避免精度形态差异导致匹配失败
+      const apply = returnApplyOptions.value.find((x: any) => String(x.value) === String(val))?.raw
+      if (!apply) {
+        fd.returnApplyNo = ''
+        return
+      }
+      fd.returnApplyNo = apply.returnNo || ''
+      // 表头随源单带出；统一从下拉选项反查（雪花 ID 到达时可能是字符串，直接赋值会导致下拉不回显）
+      if (apply.customerId != null) {
+        const c = optionRefs.customers.find((x: any) => String(x.id) === String(apply.customerId))
+        fd.customerId = c ? c.id : apply.customerId
+        baseFieldChange('customerId', fd.customerId)
+      }
+      if (apply.warehouseId != null) {
+        const w = optionRefs.warehouses.find((x: any) => String(x.id) === String(apply.warehouseId))
+        fd.warehouseId = w ? w.id : apply.warehouseId
+        fd.warehouseName = w ? (w.warehouseName || w.name || '') : (apply.warehouseName || '')
+      }
+      if (apply.handlerId != null) {
+        const u = optionRefs.users.find((x: any) => String(x.id) === String(apply.handlerId))
+        fd.handlerId = u ? u.id : apply.handlerId
+        fd.handlerName = u ? (u.name || '') : (apply.handlerName || '')
+      }
+      if (apply.deptId != null) fd.deptId = apply.deptId
+      if (apply.salesType) fd.salesType = apply.salesType
+      // 带出待收明细（已有明细时先确认，避免误覆盖）
+      if (formData.products.length > 0) {
+        Modal.confirm({
+          title: '覆盖商品明细',
+          content: '当前已有商品明细，是否用退货申请单的明细覆盖？',
+          okText: '覆盖',
+          cancelText: '保留',
+          onOk: () => fillProductsFromApply(apply),
+        })
+      } else {
+        fillProductsFromApply(apply)
+      }
     }
   },
   transformPayload: (fd, status) => {
@@ -362,7 +402,10 @@ function resetDirty() { isDirty.value = false }
 function handleBeforeUnload(e: BeforeUnloadEvent) {
   if (isDirty.value) { e.preventDefault(); e.returnValue = '' }
 }
-onMounted(() => window.addEventListener('beforeunload', handleBeforeUnload))
+onMounted(() => {
+  window.addEventListener('beforeunload', handleBeforeUnload)
+  loadReturnApplyOptions()
+})
 
 onBeforeRouteLeave((_to, _from, next) => {
   if (isDirty.value && effectiveMode.value !== 'view') {
@@ -410,6 +453,67 @@ if (!('customerId' in formData)) {
     receiverName: '', receiverPhone: '',
     generateType: '手动创建',
   })
+}
+
+// ─── 退货申请（源单）选项：只列「已审核待收货 / 部分收货」的申请，选后带出商品明细 ───
+// 这是《物流退货收货》闭环的操作入口：申请 → 退货单收货 → 回写申请的 已收/未收 数量。
+const returnApplyOptions = ref<any[]>([])
+const returnApplyLoading = ref(false)
+
+async function loadReturnApplyOptions() {
+  returnApplyLoading.value = true
+  try {
+    const res: any = await saleReturnApi.page({ pageNum: 1, pageSize: 200, status: 2 })
+    const records: any[] = res?.records || []
+    returnApplyOptions.value = records.map((r: any) => ({
+      label: `${r.returnNo || ''}（${r.customerName || ''}）`,
+      value: r.id,
+      raw: r,
+    }))
+  } catch {
+    returnApplyOptions.value = []
+  } finally {
+    returnApplyLoading.value = false
+  }
+}
+
+/** 选择退货申请后带出商品明细行（前端行模型 quantity ↔ 后端 returnQuantity） */
+async function fillProductsFromApply(apply: any) {
+  if (!apply?.id) return
+  try {
+    const res: any = await saleReturnApi.getItems(apply.id)
+    const items: any[] = Array.isArray(res) ? res : (res?.data || [])
+    if (!items.length) return
+    const newRows = items.map((it: any, idx: number) => ({
+      ...PRODUCT_SALES_DEFAULTS,
+      id: `apply-${it.id ?? idx}`,
+      productId: it.productId,
+      itemCode: it.productCode || '',
+      productCode: it.productCode || '',
+      productName: it.productName || '',
+      barcode: it.barcode || '',
+      specification: it.specification || '',
+      unit: it.unit || '',
+      quantity: Number(it.returnQuantity ?? 0),
+      unitPrice: Number(it.unitPrice ?? 0),
+      smallUnit: it.smallUnit || '',
+      conversionRelation: it.conversionRelation || '',
+      retailPrice: it.retailPrice || 0,
+      wholesalePrice: it.wholesalePrice || 0,
+      minSalePrice: it.minSalePrice || 0,
+      refCostPrice: it.refCostPrice || 0,
+      refCostAmount: it.refCostAmount || 0,
+      weight: it.weight || 0,
+      volume: it.volume || 0,
+      itemRemark: it.itemRemark || '',
+      productLineAttr: it.productLineAttr || '',
+      isGift: it.isGift || false,
+    }))
+    // 原地替换：保持明细数组引用不变，确保 BillDetailTable 的 v-model 数据源同步刷新
+    formData.products.splice(0, formData.products.length, ...newRows)
+  } catch {
+    // 明细加载失败时保留表头带出结果，用户可手工添加明细
+  }
 }
 
 // ─ 计算属性 ──
@@ -515,6 +619,9 @@ const allBasicInfoFields = computed<BasicInfoField[]>(() => [
   { key: 'memberUsedPoints', label: '使用积分', type: 'number', inlineLabel: true, width: 210 },
   { key: 'currentPoints', label: '剩余积分', type: 'number', inlineLabel: true, width: 210, disabled: true },
   // ═══ 源单 / 单据信息 ═══
+  { key: 'returnApplyId', label: '退货申请', type: 'select', inlineLabel: true, width: 435,
+    options: returnApplyOptions.value, searchBtn: '+Q', loading: returnApplyLoading.value,
+    placeholder: '选择退货申请单（带出待收明细）' },
   { key: 'sourceOrder', label: '源单', type: 'input', inlineLabel: true, width: 210, placeholder: '请输入源单编号' },
   { key: 'creatorName', label: '制单人', type: 'display', inlineLabel: true, width: 100, value: currentUserName.value },
   { key: 'createTime', label: '制单时间', type: 'display', inlineLabel: true, width: 200, value: formatNow() },

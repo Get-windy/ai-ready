@@ -76,6 +76,116 @@ public class ErpSaleOrderMall implements Serializable {
     /** 扩展信息（JSON，存储原始商城状态等） */
     private String extInfo;
 
+    // ═══════════════════════════════════════════════════════════════════════
+    // 商城订单处理页（views/mall/order-process/index.vue；按单据 39 列 / 按明细 47 列）
+    // 展示字段。列名严格对齐前端 column.key，库内已有语义同名字段一律复用
+    // （见 V11.361.3 迁移头部口径说明），不重复加列。
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /** 运费（复用既有列 shipping_fee，同 SaleOrder.shippingFee） */
+    @TableField("shipping_fee")
+    private BigDecimal freight;
+
+    /** 运费承担方 */
+    @TableField("freight_payer")
+    private String freightPayer;
+
+    /** 配送方式 */
+    @TableField("delivery_method")
+    private String deliveryMethod;
+
+    /** 物流公司 */
+    @TableField("logistics_company")
+    private String logisticsCompany;
+
+    /** 运单号（复用既有列 waybill_no，同 SaleOrder.waybillNo） */
+    @TableField("waybill_no")
+    private String trackingNo;
+
+    /** 代收金额 */
+    @TableField("cod_amount")
+    private BigDecimal codAmount;
+
+    /** 预计发货时间 */
+    @TableField("expected_ship_time")
+    private LocalDateTime expectedShipTime;
+
+    /** 已发数量 */
+    @TableField("shipped_quantity")
+    private BigDecimal shippedQuantity;
+
+    /** 未发数量 */
+    @TableField("unshipped_quantity")
+    private BigDecimal unshippedQuantity;
+
+    /** 商品数量（复用既有列 total_quantity，同 SaleOrder.totalQuantity） */
+    @TableField("total_quantity")
+    private BigDecimal productQuantity;
+
+    /** 仓库名称（发货仓库快照） */
+    @TableField("warehouse_name")
+    private String warehouseName;
+
+    /** 部门名称（reuse 既有列 dept_name，同 SaleOrder.deptName；按明细「部门」列数据源） */
+    @TableField("dept_name")
+    private String deptName;
+
+    /** 强制终止（0-否 1-是）；新增列 force_stop */
+    @TableField("force_stop")
+    private Integer forceStop;
+
+    /** 推广人名称 */
+    @TableField("promoter_name")
+    private String promoterName;
+
+    /** 经手人名称（复用既有列 salesman_name，同 SaleOrder.salesmanName） */
+    @TableField("salesman_name")
+    private String handlerName;
+
+    /** 打印次数 */
+    @TableField("print_count")
+    private Integer printCount;
+
+    /** 记账状态（0-未记账 1-已记账）；新增列 bookkeeping_status */
+    @TableField("bookkeeping_status")
+    private Integer bookkeepingStatus;
+
+    /** 已结金额 */
+    @TableField("settled_amount")
+    private BigDecimal settledAmount;
+
+    /** 是否使用优惠券（0-否 1-是）；新增列 coupon_used */
+    @TableField("coupon_used")
+    private Integer couponUsed;
+
+    /** 审核时间 */
+    @TableField("audit_time")
+    private LocalDateTime auditTime;
+
+    /** 其他费用 */
+    @TableField("other_fee")
+    private BigDecimal otherFee;
+
+    /** 表头自定义字段1(数字) */
+    @TableField("ext_num1")
+    private BigDecimal extNum1;
+
+    /** 表头自定义字段2(数字) */
+    @TableField("ext_num2")
+    private BigDecimal extNum2;
+
+    /** 表头自定义字段3(文本) */
+    @TableField("ext_text3")
+    private String extText3;
+
+    /** 表头自定义字段4(文本) */
+    @TableField("ext_text4")
+    private String extText4;
+
+    /** 表头自定义字段5(文本) */
+    @TableField("ext_text5")
+    private String extText5;
+
     @TableLogic
     private Integer deleted;
 

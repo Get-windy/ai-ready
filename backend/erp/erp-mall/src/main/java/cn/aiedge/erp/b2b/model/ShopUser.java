@@ -72,6 +72,64 @@ public class ShopUser {
     /** 最后登录时间 */
     private LocalDateTime lastLoginTime;
 
+    // ═══ 买家申请管理 / 买家账号 页字段（views/mall/buyer-apply、views/mall/buyer-account）═══
+
+    /** 联系人姓名 */
+    @TableField("contact_name")
+    private String contactName;
+
+    /** 地址 */
+    @TableField("address")
+    private String address;
+
+    /** 备注 */
+    @TableField("remark")
+    private String remark;
+
+    /** 营业执照图片URL */
+    @TableField("business_license")
+    private String businessLicense;
+
+    /** QQ */
+    @TableField("qq")
+    private String qq;
+
+    /** 微信 */
+    @TableField("wechat")
+    private String wechat;
+
+    /** 归属分类ID（biz_party_category.id，party_type=CUSTOMER） */
+    @TableField("category_id")
+    private Long categoryId;
+
+    /** 默认经手人ID（sys_user.id） */
+    @TableField("default_handler_id")
+    private Long defaultHandlerId;
+
+    /** 默认经手人姓名 */
+    @TableField("default_handler_name")
+    private String defaultHandlerName;
+
+    /** 客户级别 */
+    @TableField("customer_level")
+    private String customerLevel;
+
+    /** 所属仓库ID（erp_warehouse.id） */
+    @TableField("warehouse_id")
+    private Long warehouseId;
+
+    /** 所属仓库名称 */
+    @TableField("warehouse_name")
+    private String warehouseName;
+
+    /** 所属部门ID（sys_dept.id） */
+    @TableField("dept_id")
+    private Long deptId;
+
+    /** 所属部门名称 */
+    @TableField("dept_name")
+    private String deptName;
+
     /** 1正常 0禁用 */
     private Integer status;
 

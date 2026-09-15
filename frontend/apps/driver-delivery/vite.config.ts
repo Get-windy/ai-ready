@@ -19,7 +19,14 @@ export default defineConfig({
   },
   server: {
     port: 3004,
-    host: true
+    host: true,
+    // 司机端所有 /api/** 转发到 core-api（`utils/request` 的 baseURL 为 /api）
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5655',
+        changeOrigin: true,
+      },
+    },
   },
   build: {
     outDir: 'dist',

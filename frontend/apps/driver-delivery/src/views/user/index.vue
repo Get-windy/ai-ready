@@ -9,6 +9,7 @@ const userStore = useUserStore()
 
 const menuItems = [
   { icon: 'clock-o', title: '配送历史', path: '/user/history' },
+  { icon: 'flash-o', title: '补能登记', path: '/energy' },
   { icon: 'chart-trending-o', title: '配送统计', path: '/user/statistics' },
   { icon: 'cash-o', title: '收入明细', path: '/user/income' },
   { icon: 'comment-o', title: '客户评价', path: '/user/reviews' },

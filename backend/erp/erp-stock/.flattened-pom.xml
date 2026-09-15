@@ -5,10 +5,10 @@
   <parent>
     <groupId>cn.aiedge.erp</groupId>
     <artifactId>erp</artifactId>
-    <version>0.3.17</version>
+    <version>0.3.19</version>
   </parent>
   <artifactId>erp-stock</artifactId>
-  <version>0.3.17</version>
+  <version>0.3.19</version>
   <name>库存管理模块</name>
   <description>库存查询、库存盘点、库存调拨等功能</description>
   <licenses>

@@ -7,9 +7,12 @@
     />
     <template v-else>
       <div
-        v-for="item in items"
+        v-for="(item, index) in items"
         :key="item.label"
         class="ar-stat-card"
+        :class="{ 'is-clickable': isClickable(item) }"
+        :title="isClickable(item) ? '点击查看明细' : undefined"
+        @click="handleCardClick(item, index)"
       >
         <div class="ar-stat-card__label">
           {{ item.label }}
@@ -51,12 +54,26 @@ import { ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons-vue'
 
 defineOptions({ name: 'ARStatCards' })
 
-withDefaults(defineProps<{
+const props = withDefaults(defineProps<{
   items: StatCardItem[]
   loading?: boolean
+  /** 卡片是否可点击下钻（true 时鼠标变手型并派发 card-click） */
+  clickable?: boolean
 }>(), {
-  loading: false
+  loading: false,
+  clickable: false
 })
+
+const emit = defineEmits<{ (e: 'card-click', item: StatCardItem, index: number): void }>()
+
+function isClickable(item: StatCardItem): boolean {
+  return props.clickable && item.clickable !== false
+}
+
+function handleCardClick(item: StatCardItem, index: number) {
+  if (!isClickable(item)) return
+  emit('card-click', item, index)
+}
 
 function formatValue(item: StatCardItem): string {
   if (typeof item.value === 'number') {
@@ -85,6 +102,16 @@ function formatValue(item: StatCardItem): string {
   border-radius: 8px;
   padding: 16px 20px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.ar-stat-card.is-clickable {
+  cursor: pointer;
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+
+.ar-stat-card.is-clickable:hover {
+  box-shadow: 0 4px 16px rgba(24, 144, 255, 0.24);
+  transform: translateY(-1px);
 }
 
 .ar-stat-card__label {

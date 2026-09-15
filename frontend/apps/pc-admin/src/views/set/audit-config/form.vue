@@ -10,8 +10,7 @@
       <div class="form-scroll-area">
         <a-form ref="formRef" :model="form" layout="vertical">
           <!-- 基本信息 -->
-          <div class="section-card">
-            <div class="section-title">基本信息</div>
+          <FormSection title="基本信息">
             <a-row :gutter="24">
               <a-col :span="8">
                 <a-form-item label="流程名称" required>
@@ -46,11 +45,10 @@
             <a-form-item label="流程描述">
               <a-textarea v-model:value="form.description" :rows="2" placeholder="流程用途说明" />
             </a-form-item>
-          </div>
+          </FormSection>
 
           <!-- 审批节点 -->
-          <div class="section-card">
-            <div class="section-title">审批节点</div>
+          <FormSection title="审批节点">
             <div class="node-list">
               <div v-for="(node, idx) in form.nodes" :key="idx" class="node-card">
                 <div class="node-header">
@@ -104,11 +102,10 @@
             <a-button type="dashed" block @click="addNode">
               <template #icon><PlusOutlined /></template>添加节点
             </a-button>
-          </div>
+          </FormSection>
 
           <!-- 工作流引擎联动验证 -->
-          <div class="section-card">
-            <div class="section-title">工作流引擎联动</div>
+          <FormSection title="工作流引擎联动">
             <a-alert type="info" show-icon message="工作流引擎联动验证" description="当前审批流程配置通过 approvalFlowApi 对接后端 workflow/definitions 端点。流程发布后将可在业务单据（订单/采购/报销等）中调用该流程进行审批流转。" />
             <div class="linkage-status">
               <a-descriptions :column="3" size="small" bordered>
@@ -119,7 +116,7 @@
                 <a-descriptions-item label="审批模式">单人/或签/会签</a-descriptions-item>
               </a-descriptions>
             </div>
-          </div>
+          </FormSection>
         </a-form>
 
         <div class="form-footer">
@@ -139,6 +136,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { ArrowLeftOutlined, PlusOutlined } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
+import FormSection from '@/components/FormSection/index.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import {
   approvalFlowApi, type ApprovalFlowDefinition, type ApprovalFlowNode,
@@ -205,8 +203,6 @@ onMounted(() => {
 
 <style scoped>
 .form-scroll-area { flex: 1; overflow-y: auto; padding: 0 16px 16px; }
-.section-card { background: #fff; border-radius: 6px; padding: 20px 24px 12px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
-.section-title { font-size: 14px; font-weight: 600; color: #262626; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid #f0f0f0; }
 .form-footer { background: #fff; border-radius: 6px; padding: 16px 24px; text-align: right; box-shadow: 0 -1px 4px rgba(0,0,0,0.05); margin-top: 12px; }
 
 .node-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 12px; }

@@ -21,10 +21,7 @@
         :colon="false"
       >
         <!-- ═══ 基础信息 ═══ -->
-        <section class="section">
-          <h4 class="section-title">
-            基础信息
-          </h4>
+        <FormSection title="基础信息">
           <a-row :gutter="24">
             <a-col :span="8">
               <a-form-item
@@ -102,13 +99,10 @@
               </a-form-item>
             </a-col>
           </a-row>
-        </section>
+        </FormSection>
 
         <!-- ═══ 联系人 ═══ -->
-        <section class="section">
-          <h4 class="section-title">
-            联系人
-          </h4>
+        <FormSection title="联系人">
           <a-row :gutter="24">
             <a-col :span="8">
               <a-form-item label="联系人">
@@ -141,13 +135,10 @@
               </a-form-item>
             </a-col>
           </a-row>
-        </section>
+        </FormSection>
 
         <!-- ═══ 纳税人信息 ═══ -->
-        <section class="section">
-          <h4 class="section-title">
-            纳税人信息
-          </h4>
+        <FormSection title="纳税人信息">
           <a-row :gutter="24">
             <a-col :span="12">
               <a-form-item label="公司全称">
@@ -214,13 +205,10 @@
               </a-form-item>
             </a-col>
           </a-row>
-        </section>
+        </FormSection>
 
         <!-- ═══ 期初信息（付款/预付余额由财务记账维护，此处只读展示） ═══ -->
-        <section class="section">
-          <h4 class="section-title">
-            期初信息
-          </h4>
+        <FormSection title="期初信息">
           <a-row :gutter="24">
             <a-col :span="8">
               <a-form-item label="期初应付金额">
@@ -245,13 +233,10 @@
               </a-form-item>
             </a-col>
           </a-row>
-        </section>
+        </FormSection>
 
         <!-- ═══ 其他信息 ═══ -->
-        <section class="section">
-          <h4 class="section-title">
-            其他信息
-          </h4>
+        <FormSection title="其他信息">
           <a-row :gutter="24">
             <a-col :span="8">
               <a-form-item label="付款期限">
@@ -345,23 +330,23 @@
               </a-form-item>
             </a-col>
           </a-row>
-        </section>
+        </FormSection>
 
         <!-- ═══ 证件信息（通用组件：营业执照固定，其余可选/自定义，始终保留一个待输入位） ═══ -->
-        <section class="section">
+        <FormSection>
           <CertUploadList
             ref="certRef"
             :partner-id="partyId"
           />
-        </section>
+        </FormSection>
 
         <!-- ═══ 附件 ═══ -->
-        <section class="section">
+        <FormSection>
           <AttachmentUpload
             ref="attachmentRef"
             :partner-id="partyId"
           />
-        </section>
+        </FormSection>
       </a-form>
     </div>
 
@@ -436,6 +421,7 @@ import type { FormInstance } from 'ant-design-vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
 import AttachmentUpload from '../components/AttachmentUpload.vue'
 import CertUploadList from '@/components/CertUploadList/CertUploadList.vue'
+import FormSection from '@/components/FormSection/index.vue'
 import {
   partnerApi,
   partnerCategoryApi,
@@ -767,19 +753,6 @@ onUnmounted(() => {
   min-height: 0;
   overflow-y: auto;
   padding: 12px 16px;
-}
-.section {
-  background: #fff;
-  border: 1px solid #e8e8e8;
-  border-radius: 4px;
-  padding: 16px 20px 0;
-  margin-bottom: 12px;
-}
-.section-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #303133;
-  margin: 0 0 14px;
 }
 .category-picker {
   display: flex;

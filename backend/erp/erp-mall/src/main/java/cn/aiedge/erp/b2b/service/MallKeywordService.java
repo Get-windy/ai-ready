@@ -10,8 +10,11 @@ public interface MallKeywordService {
 
     /**
      * 分页查询关键词
+     *
+     * @param remark 备注模糊查询（可空，为空不过滤）
      */
-    IPage<MallKeyword> pageKeywords(Integer pageNum, Integer pageSize, String keyword, Integer keywordType, Integer status);
+    IPage<MallKeyword> pageKeywords(Integer pageNum, Integer pageSize, String keyword, Integer keywordType, Integer status,
+                                   String remark);
 
     /**
      * 新增关键词（同租户下关键词唯一）

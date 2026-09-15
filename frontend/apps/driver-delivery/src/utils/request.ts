@@ -33,6 +33,17 @@ service.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
+    // FormData 上传（签收照片/手写签名、补能凭证等）：必须移除全局默认的 application/json，
+    // 交由浏览器写入 multipart/form-data 与 boundary；否则后端按非 multipart 解析，
+    // 报 “Current request is not a multipart request”（与 pc-admin 同一处坑）
+    if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+      const headers: any = config.headers
+      if (typeof headers.delete === 'function') {
+        headers.delete('Content-Type')
+      } else {
+        delete headers['Content-Type']
+      }
+    }
     return config
   },
   (error) => Promise.reject(error)

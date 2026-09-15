@@ -24,6 +24,12 @@
             <artifactId>core-base</artifactId>
         </dependency>
 
+        <!-- 业财集成：配送结算推送 ERP 时真实生成记账凭证/应付（与 erp-purchase 同一范式） -->
+        <dependency>
+            <groupId>cn.aiedge.erp</groupId>
+            <artifactId>erp-finance</artifactId>
+        </dependency>
+
         <!-- Spring Boot -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -38,6 +44,24 @@
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
+        </dependency>
+
+        <!-- Redis：地理编码缓存（跨实例共享）+ 配置变更跨实例广播（平台已统一部署 Redis，core-base 亦依赖） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+
+        <!-- Excel 导出（配送单列表 /export 真实 xlsx） -->
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi</artifactId>
+            <version>5.2.5</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+            <version>5.2.5</version>
         </dependency>
 
         <!-- MyBatis Plus -->

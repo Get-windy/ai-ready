@@ -78,7 +78,8 @@ export const inboundApi = {
   getItems(id: number): Promise<PurchaseInboundItem[]> { return request.get(`/erp/purchase/inbound/${id}/items`) },
   listByOrder(orderId: number) { return request.get(`/erp/purchase/inbound/order/${orderId}`) },
   create(data: PurchaseInboundPayload) { return request.post('/erp/purchase/inbound', data) },
-  createFromOrder(orderId: number) { return request.post(`/erp/purchase/inbound/from-order/${orderId}`) },
+  /** 由采购订单生成入库单（雪花ID，按字符串透传避免精度丢失） */
+  createFromOrder(orderId: number | string) { return request.post(`/erp/purchase/inbound/from-order/${orderId}`) },
   update(id: number, data: PurchaseInboundPayload) { return request.put(`/erp/purchase/inbound/${id}`, data) },
   delete(id: number) { return request.delete(`/erp/purchase/inbound/${id}`) },
   submit(id: number) { return request.post(`/erp/purchase/inbound/${id}/submit`) },
@@ -317,6 +318,10 @@ export const outboundApi = {
       return blob
     })
   },
+  /** 打印次数 +1（发货查询 打印/批量打印 后回写，真实落库 print_count） */
+  print(id: number) { return request.post(`/erp/sale/outbound/${id}/print`) },
+  /** 批量打印（后端返回单据 VO 列表，供模板批量渲染） */
+  batchPrint(ids: number[]) { return request.post('/erp/sale/outbound/batch-print', ids) },
   /** 批量写入物流备注（真实落库 logistics_remark） */
   batchLogisticsRemark(ids: number[], logisticsRemark: string) {
     return request.post('/erp/sale/outbound/batch-logistics-remark', { ids, logisticsRemark })
@@ -1631,6 +1636,12 @@ export const saleOrderApi = {
   getPendingReviewPage(params: any) { return request.get('/erp/sale/order/center/pending-review', params) },
   /** 拣货/发货列表 */
   getPickingShippingPage(params: any) { return request.get('/erp/sale/order/center/picking-shipping', params) },
+  /** 拣货/发货列表合计（销售金额 / 商品数量，同查询条件全量汇总） */
+  getPickingShippingSummary(params: any) { return request.get('/erp/sale/order/center/picking-shipping-summary', params) },
+  /** 拣货完成（明细已拣数量回写 + 主表汇总） */
+  pickComplete(id: number | string) { return request.post(`/erp/sale/order/${id}/pick-complete`) },
+  /** 批量拣货完成，返回成功单数 */
+  batchPickComplete(ids: Array<number | string>) { return request.post('/erp/sale/order/batch-pick-complete', ids) },
   /** 批量导入 */
   batchImport(file: File) {
     const formData = new FormData()
@@ -1645,8 +1656,109 @@ export const saleOrderApi = {
   getStockDetail(productId: number, warehouseId: number) { return request.get(`/erp/stock/${productId}/${warehouseId}`) },
   /** 商品汇总 */
   productSummary(params: any) { return request.get('/erp/sale/order/product-summary', params) },
-  /** 批量更新物流备注 */
-  batchLogisticsRemark(ids: number[], remark: string) { return request.post('/erp/sale/order/batch-logistics-remark', { ids, remark }) },
+  /**
+   * 物流/备注批量更新（对齐 ql361 `OrderRemarks` 弹窗实测字段）
+   * 传 `ids` + 需要修改的字段；**未传/空值 = 不改动**。
+   */
+  batchLogisticsRemark(payload: {
+    ids: (number | string)[]
+    deliveryMethod?: string
+    driverId?: number | string
+    driverName?: string
+    waybillNo?: string
+    logisticsCompany?: string
+    receiverName?: string
+    receiverPhone?: string
+    salesmanName?: string
+    shippingAddress?: string
+    saleType?: number
+    extNum1?: number
+    extNum2?: number
+    extText1?: string
+    extText2?: string
+    extText3?: string
+    orderRemark?: string
+    /** 物流公司档案ID（传 id 时后端自动补名称快照） */
+    logisticsCompanyId?: number | string
+  }) { return request.post('/erp/sale/order/batch-logistics-remark', payload) },
+}
+
+// ── 销售物流域（包裹/运单 · 运费规则与对账 · 电子面单取号 · 发货通知 ASN） ──
+// 落地《物流发货-业界做法调研》P0/P1/P2；后端 SaleLogisticsController（/api/erp/sale/logistics）
+
+/** 包裹/运单（一条 = 一个包裹） */
+export interface SalePackage {
+  id?: number | string
+  orderId?: number | string
+  logisticsType?: string
+  deliveryMethod?: string
+  driverId?: number | string
+  driverName?: string
+  deliveryVehicle?: string
+  logisticsCompany?: string
+  logisticsCompanyId?: number | string
+  logisticsNo?: string
+  waybillNo?: string
+  packageNo?: string
+  packageCount?: number
+  packageWeight?: number
+  packageVolume?: number
+  /** 0-待发货 1-已发货 2-已签收 9-异常 */
+  packageStatus?: number
+  remark?: string
+  freightPayer?: string
+  shippingFee?: number
+  codAmount?: number
+  freightBillAmount?: number
+  freightDiff?: number
+  freightReconciled?: number
+}
+
+export const saleLogisticsApi = {
+  /** 订单包裹列表 */
+  packages(orderId: number | string) { return request.get(`/erp/sale/logistics/${orderId}/packages`) },
+  /** 新增/修改包裹（自动补包裹号、运单号唯一校验、按规则试算运费、同步主表快照） */
+  savePackage(orderId: number | string, data: SalePackage) {
+    return request.post(`/erp/sale/logistics/${orderId}/packages`, data)
+  },
+  /** 删除包裹（最后一个不允许删除） */
+  deletePackage(orderId: number | string, packageId: number | string) {
+    return request.delete(`/erp/sale/logistics/${orderId}/packages/${packageId}`)
+  },
+  /** 电子面单是否开通（未开通则前端提示手工录入） */
+  waybillStatus() { return request.get('/erp/sale/logistics/waybill/status') },
+  /** 获取电子面单运单号（未配置承运商接口 → 明确报错，不返回假号） */
+  acquireWaybill(packageId: number | string) {
+    return request.post(`/erp/sale/logistics/packages/${packageId}/acquire-waybill`)
+  },
+
+  // ── P2-4 运费规则 / 试算 / 对账 ──
+  freightRules(carrierId?: number | string) {
+    return request.get('/erp/sale/logistics/freight/rules', { params: { carrierId } })
+  },
+  saveFreightRule(data: Record<string, any>) {
+    return request.post('/erp/sale/logistics/freight/rules', data)
+  },
+  deleteFreightRule(id: number | string) { return request.delete(`/erp/sale/logistics/freight/rules/${id}`) },
+  freightCalc(params: { carrierId?: number | string; area?: string; weight: number }) {
+    return request.get('/erp/sale/logistics/freight/calc', { params })
+  },
+  freightReconcile(params: { carrierId?: number | string; startDate?: string; endDate?: string }) {
+    return request.get('/erp/sale/logistics/freight/reconcile', { params })
+  },
+  saveFreightBill(packageId: number | string, billAmount: number) {
+    return request.post('/erp/sale/logistics/freight/bill', null, { params: { packageId, billAmount } })
+  },
+  markReconciled(packageIds: (number | string)[]) {
+    return request.post('/erp/sale/logistics/freight/reconcile-mark', packageIds)
+  },
+
+  // ── P2-6 发货通知 ASN ──
+  notifyPage(params: { status?: number; orderNo?: string; current?: number; size?: number }) {
+    return request.get('/erp/sale/logistics/shipment-notify/page', { params })
+  },
+  sendNotify(id: number | string) { return request.post(`/erp/sale/logistics/shipment-notify/${id}/send`) },
+  sendPendingNotify() { return request.post('/erp/sale/logistics/shipment-notify/send-pending') },
 }
 
 // ── 销售价格跟踪（/api/sales/price-track） ─────────────
@@ -1757,6 +1869,10 @@ export const purchaseOrderApi = {
   batchApprove(ids: number[]) { return request.post('/erp/purchase/order/batch-approve', ids) },
   close(id: number) { return request.post(`/erp/purchase/order/${id}/close`) },
   print(id: number) { return request.get(`/erp/purchase/order/${id}/print`) },
+  /** 打印回写：累加订单「打印次数」（雪花 ID 以字符串透传，避免精度丢失） */
+  batchPrint(ids: Array<number | string>, template = 'default') {
+    return request.post('/erp/purchase/order/batch-print', { ids, template })
+  },
   export(params: any) { return request.get('/erp/purchase/order/export', params) },
 }
 

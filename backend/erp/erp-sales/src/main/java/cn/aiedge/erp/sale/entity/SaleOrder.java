@@ -51,6 +51,10 @@ public class SaleOrder {
     /** 单据状态（0-草稿 1-待审核 2-待发货 3-部分发货 4-发货完成 5-交易完成 6-已取消） */
     private Integer status;
 
+    /** 强制终止（0-否 1-是）；商城订单处理页「强制终止」列 */
+    @TableField("force_stop")
+    private Integer forceStop;
+
     // ═══ 外键关联 (只存ID，名称通过JOIN查询) ═══
 
     /** 往来单位ID (ERP biz_party) */
@@ -234,6 +238,10 @@ public class SaleOrder {
     /** 优惠券金额 */
     private BigDecimal couponAmount;
 
+    /** 是否使用优惠券（0-否 1-是）；商城订单处理页「是否使用优惠券」列 */
+    @TableField("coupon_used")
+    private Integer couponUsed;
+
     /** 直接优惠 */
     private BigDecimal directDiscount;
 
@@ -403,6 +411,10 @@ public class SaleOrder {
 
     /** 制单时间 */
     private LocalDateTime bookkeepingTime;
+
+    /** 记账状态（0-未记账 1-已记账）；商城订单处理页「记账状态」列 */
+    @TableField("bookkeeping_status")
+    private Integer bookkeepingStatus;
 
     /** 制单人名称 */
     private String creatorName;

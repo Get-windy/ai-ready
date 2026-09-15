@@ -1,5 +1,6 @@
 package cn.aiedge.erp.sale.salereturn.controller;
 
+import cn.aiedge.erp.sale.salereturn.dto.SaleReturnItemPageDTO;
 import cn.aiedge.erp.sale.salereturn.entity.SaleReturn;
 import cn.aiedge.erp.sale.salereturn.entity.SaleReturnItem;
 import cn.aiedge.erp.sale.salereturn.service.SaleReturnService;
@@ -13,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
@@ -32,7 +34,9 @@ public class SaleReturnController {
             @RequestParam(defaultValue = "1") Integer pageNum,
             @RequestParam(defaultValue = "20") Integer pageSize,
             @RequestParam(required = false) String keyword,
+            @Parameter(description = "单据编号（精确到模糊匹配，与 keyword 同列）") @RequestParam(required = false) String returnNo,
             @RequestParam(required = false) String customerName,
+            @Parameter(description = "结算单位（本表无独立列，即客户快照 customer_name）") @RequestParam(required = false) String settleUnit,
             @RequestParam(required = false) String handlerName,
             @RequestParam(required = false) String deptName,
             @RequestParam(required = false) String warehouseName,
@@ -52,22 +56,27 @@ public class SaleReturnController {
             @RequestParam(required = false) String remark,
             @RequestParam(required = false) String summary,
             @RequestParam(required = false) String deliveryMethod,
-            @RequestParam(required = false) Integer extNum1,
-            @RequestParam(required = false) Integer extNum2,
+            @Parameter(description = "表头自定义字段1（数字）") @RequestParam(required = false) BigDecimal extNum1,
+            @Parameter(description = "表头自定义字段2（数字）") @RequestParam(required = false) BigDecimal extNum2,
             @RequestParam(required = false) String extText1,
             @RequestParam(required = false) String extText2,
             @RequestParam(required = false) String extText3,
+            @Parameter(description = "表头自定义字段4（文本）") @RequestParam(required = false) String extText4,
+            @Parameter(description = "表头自定义字段5（文本）") @RequestParam(required = false) String extText5,
             @RequestParam(required = false) String contactName,
             @RequestParam(required = false) String contactPhone,
             @RequestParam(required = false) String contactAddress,
-            @RequestParam(required = false) String auditTime,
-            @RequestParam(required = false) String salesType) {
+            @Parameter(description = "审核时间（单日，按当日区间过滤）") @RequestParam(required = false) String auditTime,
+            @RequestParam(required = false) String salesType,
+            @Parameter(description = "来源订单/来源单据") @RequestParam(required = false) String sourceOrder) {
         Page<SaleReturn> result = saleReturnService.pageList(pageNum, pageSize, keyword, customerName,
                 handlerName, deptName, warehouseName, productName, itemRemark, status,
                 generateType, settleStatus, printCount, startDate, endDate, categoryId,
                 creatorName, auditorName, submitBy, productLineAttr, remark, summary,
                 deliveryMethod, extNum1, extNum2, extText1, extText2, extText3,
-                contactName, contactPhone, contactAddress, auditTime, salesType);
+                extText4, extText5,
+                contactName, contactPhone, contactAddress, auditTime, salesType,
+                returnNo, sourceOrder, settleUnit);
         return ApiResponse.ok(result);
     }
 
@@ -188,16 +197,21 @@ public class SaleReturnController {
     @GetMapping("/page-detail")
     @Operation(summary = "分页查询退货申请单明细（按明细）")
     @SaCheckLogin
-    public ApiResponse<Page<Map<String, Object>>> pageDetail(
+    public ApiResponse<Page<SaleReturnItemPageDTO>> pageDetail(
             @Parameter(description = "关键词") @RequestParam(required = false) String keyword,
             @Parameter(description = "客户ID") @RequestParam(required = false) Long customerId,
+            @Parameter(description = "客户名称") @RequestParam(required = false) String customerName,
             @Parameter(description = "仓库ID") @RequestParam(required = false) Long warehouseId,
+            @Parameter(description = "仓库名称") @RequestParam(required = false) String warehouseName,
             @Parameter(description = "状态") @RequestParam(required = false) Integer status,
             @Parameter(description = "退货单号") @RequestParam(required = false) String returnNo,
+            @Parameter(description = "来源订单/来源单据") @RequestParam(required = false) String sourceOrder,
             @Parameter(description = "商品名称") @RequestParam(required = false) String productName,
             @Parameter(description = "经手人ID") @RequestParam(required = false) Long handlerId,
+            @Parameter(description = "经手人姓名") @RequestParam(required = false) String handlerName,
             @Parameter(description = "部门名称") @RequestParam(required = false) String deptName,
             @Parameter(description = "结算状态") @RequestParam(required = false) String settleStatus,
+            @Parameter(description = "结算单位（本表无独立列，即客户快照 customer_name）") @RequestParam(required = false) String settleUnit,
             @Parameter(description = "销售类型") @RequestParam(required = false) String salesType,
             @Parameter(description = "商品行属性") @RequestParam(required = false) String productLineAttr,
             @Parameter(description = "明细备注") @RequestParam(required = false) String itemRemark,
@@ -207,15 +221,22 @@ public class SaleReturnController {
             @Parameter(description = "审核人") @RequestParam(required = false) String auditorName,
             @Parameter(description = "单据备注") @RequestParam(required = false) String remark,
             @Parameter(description = "是否赠品") @RequestParam(required = false) Boolean isGift,
-            @Parameter(description = "审核时间") @RequestParam(required = false) String auditTime,
+            @Parameter(description = "审核时间（单日，按当日区间过滤）") @RequestParam(required = false) String auditTime,
             @Parameter(description = "商品分类ID") @RequestParam(required = false) Long categoryId,
+            @Parameter(description = "表头自定义字段1（数字）") @RequestParam(required = false) BigDecimal extNum1,
+            @Parameter(description = "表头自定义字段2（数字）") @RequestParam(required = false) BigDecimal extNum2,
+            @Parameter(description = "表头自定义字段3（文本）") @RequestParam(required = false) String extText3,
+            @Parameter(description = "表头自定义字段4（文本）") @RequestParam(required = false) String extText4,
+            @Parameter(description = "表头自定义字段5（文本）") @RequestParam(required = false) String extText5,
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") int pageNum,
             @Parameter(description = "每页数量") @RequestParam(defaultValue = "20") int pageSize) {
-        Page<Map<String, Object>> result = saleReturnService.pageDetail(
+        Page<SaleReturnItemPageDTO> result = saleReturnService.pageDetail(
                 keyword, customerId, warehouseId, status, returnNo, productName,
-                handlerId, deptName, settleStatus, salesType, productLineAttr,
+                handlerId, handlerName, deptName, settleStatus, salesType, productLineAttr,
                 itemRemark, startDate, endDate, pageNum, pageSize,
-                creatorName, auditorName, remark, isGift, auditTime, categoryId);
+                creatorName, auditorName, remark, isGift, auditTime, categoryId,
+                customerName, warehouseName, sourceOrder, settleUnit,
+                extNum1, extNum2, extText3, extText4, extText5);
         return ApiResponse.ok(result);
     }
 

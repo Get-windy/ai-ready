@@ -208,7 +208,7 @@ const billColumns = [
   { title: '操作', key: 'action', type: 'action', width: 180, fixed: 'right', slotName: 'actionCell' }
 ]
 
-const itemColumns = [
+const itemColumns: any[] = [
   { title: '商品名称', dataIndex: 'productName', key: 'productName', width: 200 },
   { title: '数量', dataIndex: 'quantity', key: 'quantity', width: 80, align: 'right' },
   { title: '退款金额', dataIndex: 'subtotal', key: 'subtotal', width: 100, align: 'right' }

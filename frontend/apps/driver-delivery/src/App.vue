@@ -8,6 +8,7 @@ const userStore = useUserStore()
 const tabBarItems = [
   { key: 'order', icon: 'todo-list-o', text: '订单', path: '/order' },
   { key: 'delivery', icon: 'logistics', text: '配送', path: '/delivery' },
+  { key: 'myRoute', icon: 'logistics', text: '路线', path: '/my-route' },
   { key: 'map', icon: 'location-o', text: '地图', path: '/map' },
   { key: 'user', icon: 'user-o', text: '我的', path: '/user' }
 ]

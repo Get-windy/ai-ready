@@ -61,9 +61,26 @@ public interface ExternalOrderService {
     PageResult<ExternalOrderRaw> pageRawOrders(Integer pageNum, Integer pageSize, String channelCode, Integer status);
 
     /**
+     * 分页查询原始订单（管理端扩展条件：渠道 + 状态 + 外部订单号 + 接收时间区间）
+     *
+     * @param externalOrderId 外部订单号（模糊匹配，可空）
+     * @param startTime       接收时间起（可空，支持 yyyy-MM-dd / yyyy-MM-dd HH:mm:ss）
+     * @param endTime         接收时间止（可空）
+     */
+    PageResult<ExternalOrderRaw> pageRawOrders(Integer pageNum, Integer pageSize, String channelCode, Integer status,
+                                               String externalOrderId, String startTime, String endTime);
+
+    /**
      * 查询待处理订单数量
      */
     int countPending(String channelCode);
+
+    /**
+     * 外部订单处理状态统计（真实聚合 SQL，非当前页口径）
+     *
+     * <p>返回：total 总笔数 / pendingCount 待处理(0) / processedCount 已处理(1已转换+2已入库) / failedCount 失败(3)。</p>
+     */
+    java.util.Map<String, Object> statExternalOrders();
 
     /**
      * 检查订单是否已存在（幂等校验）

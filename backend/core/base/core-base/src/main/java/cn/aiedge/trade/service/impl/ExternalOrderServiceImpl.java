@@ -1,12 +1,14 @@
 package cn.aiedge.trade.service.impl;
 
 import cn.aiedge.common.result.PageResult;
+import cn.aiedge.trade.channel.CallbackPayloadParser;
 import cn.aiedge.trade.channel.ExternalChannelAdapter;
 import cn.aiedge.trade.dto.ExternalOrderDTO;
 import cn.aiedge.trade.entity.ExternalChannelConfig;
 import cn.aiedge.trade.entity.ExternalOrderRaw;
 import cn.aiedge.trade.mapper.ExternalChannelConfigMapper;
 import cn.aiedge.trade.mapper.ExternalOrderRawMapper;
+import cn.aiedge.trade.monitor.TimeParsers;
 import cn.aiedge.trade.service.ExternalOrderService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -14,8 +16,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -56,18 +60,32 @@ public class ExternalOrderServiceImpl implements ExternalOrderService {
 
         ExternalOrderDTO dto = adapter.handleOrderCallback(callbackData);
 
+        // 外部订单号缺失时：先从原始报文兜底提取，仍缺则给出**明确业务错误**，
+        // 避免直接落到 external_order_raw.external_order_id NOT NULL 约束（表现为 500）
+        String externalOrderId = dto == null ? null : dto.getExternalOrderId();
+        if (!StringUtils.hasText(externalOrderId)) {
+            externalOrderId = CallbackPayloadParser.extractOrderId(callbackData);
+        }
+        if (!StringUtils.hasText(externalOrderId)) {
+            throw new IllegalArgumentException("回调报文缺少外部订单号（externalOrderId）");
+        }
+        if (dto == null) {
+            dto = new ExternalOrderDTO();
+        }
+        dto.setExternalOrderId(externalOrderId);
+
         // 检查是否已存在
-        if (existsByExternalId(channelCode, dto.getExternalOrderId())) {
-            log.warn("订单已存在,忽略重复回调: {}", dto.getExternalOrderId());
+        if (existsByExternalId(channelCode, externalOrderId)) {
+            log.warn("订单已存在,忽略重复回调: {}", externalOrderId);
             return rawMapper.selectOne(new LambdaQueryWrapper<ExternalOrderRaw>()
                     .eq(ExternalOrderRaw::getChannelCode, channelCode)
-                    .eq(ExternalOrderRaw::getExternalOrderId, dto.getExternalOrderId()));
+                    .eq(ExternalOrderRaw::getExternalOrderId, externalOrderId));
         }
 
         // 保存原始数据
         ExternalOrderRaw raw = new ExternalOrderRaw();
         raw.setChannelCode(channelCode);
-        raw.setExternalOrderId(dto.getExternalOrderId());
+        raw.setExternalOrderId(externalOrderId);
         raw.setRawData(callbackData);
         raw.setReceiveTime(LocalDateTime.now());
         raw.setProcessStatus(0);
@@ -202,10 +220,23 @@ public class ExternalOrderServiceImpl implements ExternalOrderService {
 
     @Override
     public PageResult<ExternalOrderRaw> pageRawOrders(Integer pageNum, Integer pageSize, String channelCode, Integer status) {
+        return pageRawOrders(pageNum, pageSize, channelCode, status, null, null, null);
+    }
+
+    @Override
+    public PageResult<ExternalOrderRaw> pageRawOrders(Integer pageNum, Integer pageSize, String channelCode, Integer status,
+                                                      String externalOrderId, String startTime, String endTime) {
         LambdaQueryWrapper<ExternalOrderRaw> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(channelCode != null, ExternalOrderRaw::getChannelCode, channelCode);
+        wrapper.eq(StringUtils.hasText(channelCode), ExternalOrderRaw::getChannelCode, channelCode);
         wrapper.eq(status != null, ExternalOrderRaw::getProcessStatus, status);
-        wrapper.orderByDesc(ExternalOrderRaw::getReceiveTime);
+        wrapper.like(StringUtils.hasText(externalOrderId), ExternalOrderRaw::getExternalOrderId, externalOrderId);
+        LocalDateTime from = TimeParsers.parse(startTime);
+        LocalDateTime to = TimeParsers.parse(endTime);
+        wrapper.ge(from != null, ExternalOrderRaw::getReceiveTime, from);
+        // 结束时间只传日期（00:00:00）时按「含当日」处理，与库存同步台账口径一致
+        wrapper.lt(to != null, ExternalOrderRaw::getReceiveTime,
+                to != null && to.toLocalTime().equals(java.time.LocalTime.MIDNIGHT) ? to.plusDays(1) : to);
+        wrapper.orderByDesc(ExternalOrderRaw::getReceiveTime).orderByDesc(ExternalOrderRaw::getId);
 
         Page<ExternalOrderRaw> page = rawMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);
         return PageResult.of(page.getRecords(), page.getTotal(), pageNum, pageSize);
@@ -214,6 +245,30 @@ public class ExternalOrderServiceImpl implements ExternalOrderService {
     @Override
     public int countPending(String channelCode) {
         return rawMapper.countPending(channelCode);
+    }
+
+    @Override
+    public Map<String, Object> statExternalOrders() {
+        long pending = 0L;
+        long processed = 0L;
+        long failed = 0L;
+        // 单条 GROUP BY 聚合（tenant_id 由租户插件注入），不在应用层按当前页累加
+        for (Map<String, Object> row : rawMapper.countByProcessStatus()) {
+            long count = row.get("count") instanceof Number ? ((Number) row.get("count")).longValue() : 0L;
+            int status = row.get("processStatus") instanceof Number ? ((Number) row.get("processStatus")).intValue() : -1;
+            switch (status) {
+                case 0 -> pending += count;
+                case 1, 2 -> processed += count; // 1已转换 / 2已入库 均属「已处理」
+                case 3 -> failed += count;
+                default -> pending += count; // 状态为空的历史数据按「待处理」计
+            }
+        }
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("total", pending + processed + failed);
+        out.put("pendingCount", pending);
+        out.put("processedCount", processed);
+        out.put("failedCount", failed);
+        return out;
     }
 
     @Override

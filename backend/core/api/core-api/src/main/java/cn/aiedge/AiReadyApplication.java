@@ -84,6 +84,9 @@ import io.swagger.v3.oas.annotations.info.License;
     "cn.aiedge.audit",
     "cn.aiedge.erp.expense",
     "cn.aiedge.erp.fixedasset",
+    // 定时任务（开发工具 → 定时任务，菜单 62405）：此前**漏配**该包 → 控制器/执行器/Mapper 全未装配，
+    // 表现为「接口 404 + 执行日志 0 条 + 页面静默空列表」（2026-09-14 复核修复）
+    "cn.aiedge.scheduler",
     "cn.aiedge.config"  // 添加新的配置包
 }, exclude = {
     GatewayAutoConfiguration.class,

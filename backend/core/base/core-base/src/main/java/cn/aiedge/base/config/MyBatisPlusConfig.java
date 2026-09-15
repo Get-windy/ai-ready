@@ -45,13 +45,24 @@ public class MyBatisPlusConfig {
         "sys_print_chain_item",   // 打印链路项（无tenant_id列）
         "sys_screenshot_task",    // 截图任务（无tenant_id列）
         "dms_event_outbox",       // DMS事件发件箱（无tenant_id列）
+        // 定时任务（开发工具 → 定时任务）：平台级调度配置，与租户无关。
+        // 不忽略时：迁移/种子写入的行（tenant_id=0）在租户会话下读不到，表现为「页面空白、
+        // 触发执行报参数非法」（2026-09-14 实踩）
+        "scheduled_task",
+        "scheduled_task_log",
         // 工作流四表：多租户拦截属 P1 未实现项（见 AGENTS.md 核心差距），
         // 现阶段由 WorkflowServiceImpl 按 X-Tenant-Id 显式过滤；自动注入会使
         // 启动种子判重（tenant_id = null 永不匹配）与空租户会话下的可见性失效
         "workflow_definition",
         "workflow_node",
         "workflow_instance",
-        "workflow_task"
+        "workflow_task",
+        // 商城装修模板（商城 → 商城设置 → 商城装修）：
+        // ⚠️ `shop_template` **无 tenant_id 列**（真库 information_schema 已核；V6.4.0 建表即无）。
+        // 该表按设计是**平台共享**（「模板库」14 个行业模板为全租户共用，见 V11.366.0 注释），
+        // 不忽略时拦截器会注入 `AND tenant_id = 1` → SQL 直接报「字段 tenant_id 不存在」，
+        // 表现为 /template/list 与 /template/library 双双 500（2026-09-14 实踩）。
+        "shop_template"
     ));
 
     /** 临时租户ID（ThreadLocal）- 用于登录等未认证场景 */

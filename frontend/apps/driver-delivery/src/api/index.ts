@@ -47,28 +47,10 @@ export const api = {
     getPendingCount: () => request.get('/deliveries/pending-count')
   },
   
-  sign: {
-    submit: (orderId: string, data: {
-      signatureImage: string
-      photos: string[]
-      receiverName: string
-      receiverPhone: string
-      remark: string
-      location: { lat: number; lng: number }
-    }) => request.post(`/orders/${orderId}/sign`, data),
-    getSignatureTemplate: () => request.get('/sign/template')
-  },
-  
-  collect: {
-    submit: (orderId: string, data: {
-      amount: number
-      paymentMethod: string
-      remark: string
-      photos?: string[]
-    }) => request.post(`/orders/${orderId}/collect`, data),
-    getPaymentMethods: () => request.get('/collect/payment-methods')
-  },
-  
+  // ⚠️ 签收 / 收款已迁到真实契约 `@/api/dms`（`/api/dms/sign/submit`、`/api/dms/payment/confirm`）。
+  //    旧 `api.sign.submit → POST /orders/{id}/sign`、`api.collect.submit → POST /orders/{id}/collect`
+  //    指向不存在的端点（后端无该 mapping），2026-09-13 删除。
+
   map: {
     getDeliveryPoints: () => request.get('/map/delivery-points'),
     getOptimizedRoute: (points: any[]) => request.post('/map/optimize-route', { points }),

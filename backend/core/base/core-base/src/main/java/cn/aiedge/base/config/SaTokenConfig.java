@@ -54,6 +54,8 @@ public class SaTokenConfig implements WebMvcConfigurer {
                         "/api/v1/mall/auth/**",
                         "/api/error-report/**",
                         "/api/sse/**",
+                        // 外部运力平台回调（无会话；安全由 HMAC 验签 + 时间戳容差 + nonce 防重放保证，见《渠道管理开发文档》§3.4）
+                        "/api/dms/channel/callback",
                         "/xxl-job-admin/**",
                         "/doc.html",
                         "/webjars/**",
@@ -93,6 +95,8 @@ public class SaTokenConfig implements WebMvcConfigurer {
                         "/api/v1/mall/auth/**",
                         "/api/error-report/**",
                         "/api/sse/**",
+                        // 外部运力平台回调（无会话；安全由 HMAC 验签 + 时间戳容差 + nonce 防重放保证，见《渠道管理开发文档》§3.4）
+                        "/api/dms/channel/callback",
                         "/xxl-job-admin/**",
                         "/doc.html",
                         "/webjars/**",

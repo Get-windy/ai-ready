@@ -1,6 +1,8 @@
-// 销售退货申请金标准验收：号段 → 创建 → 提交 → 审核（库存回写 + 凭证） → 取消（冲回） → 明细分类过滤
-// 不变量驱动：库存净变化为 0（审核+3 / 取消-3），凭证借贷平衡
-const BASE = 'http://localhost:5655'
+// 销售退货申请金标准验收：号段 → 创建 → 提交 → 审核（状态推进，入库/记账下沉到退货单收货） → 取消 → 明细分类过滤
+// 业务口径（2026-09-13 调整）：退货申请审核不再直接入库/记账，库存与凭证统一由《销售退货单》收货环节承担，
+// 避免「申请」「退货单」双链路重复过账；收货进度（订货/已收/未收）回写见 tools/e2e-return-receive.cjs。
+// 不变量驱动：审核前后库存净变化为 0（未入账）
+const BASE = process.env.ERP_BASE || 'http://localhost:5655'
 const { execFileSync } = require('child_process')
 const PSQL = 'C:/Program Files/PostgreSQL/18/bin/psql.exe'
 const PGENV = { ...process.env, PGPASSWORD: 'devuser123' }
@@ -136,36 +138,31 @@ async function main() {
     const no2 = (await call('GET', '/erp/sale/return/next-no')).data
     check('落库后号段推进（+1）', Number(String(no2).slice(-4)) === Number(String(no1).slice(-4)) + 1, `${no1} → ${no2}`)
 
-    // ═══ C. 提交 → 审核（库存 + 凭证） ═══
-    console.log('\n[C] 提交审核 → 审核通过（库存回写 + 会计凭证）')
+    // ═══ C. 提交 → 审核（状态推进；入库/记账下沉到退货单收货） ═══
+    console.log('\n[C] 提交审核 → 审核通过（状态推进，入库/记账下沉到退货单收货）')
     const sub = await call('POST', `/erp/sale/return/${returnId}/submit`)
     check('提交后状态=1（审核中）', sub.data?.status === 1, `status=${sub.data?.status}`)
 
     const app = await call('POST', `/erp/sale/return/${returnId}/approve?note=E2E审核`)
     check('审核接口 200', app.code === 200, `code=${app.code} ${app.message || ''}`)
-    check('审核后状态=2（审核通过）', app.data?.status === 2, `status=${app.data?.status}`)
-    check('已记账标记 bookkeepingTime 非空', !!app.data?.bookkeepingTime, String(app.data?.bookkeepingTime))
+    check('审核后状态=2（审核通过=待收货）', app.data?.status === 2, `status=${app.data?.status}`)
+    check('审核不置记账标记（记账由退货单收货环节负责）', !app.data?.bookkeepingTime, String(app.data?.bookkeepingTime))
     check('审核人/审核时间真实回填', !!app.data?.auditorName && !!app.data?.auditTime,
       `${app.data?.auditorName} / ${app.data?.auditTime}`)
     check('制单人真实回填', !!app.data?.creatorName, String(app.data?.creatorName))
+    // 收货进度跟踪三列的真实来源（未收货时 已收=0 / 未收=订货数量）
+    check('订货数量 = 明细退货数量合计', Number(app.data?.orderedQuantity) === QTY, `ordered=${app.data?.orderedQuantity}`)
+    check('未收货时 已收数量 = 0', Number(app.data?.receivedQuantity) === 0, `received=${app.data?.receivedQuantity}`)
+    check('未收货时 未收数量 = 订货数量', Number(app.data?.unreceivedQuantity) === QTY, `unreceived=${app.data?.unreceivedQuantity}`)
 
+    // 申请审核不再直接入库：入库与记账统一由《销售退货单》收货环节承担，避免双链路重复过账
     const qty1 = stockQty()
-    check(`库存真实增加（+${QTY}）`, Math.abs(qty1 - (qty0 + QTY)) < 0.0001, `${qty0} → ${qty1}`)
+    check('审核不直接入库（库存保持不变）', Math.abs(qty1 - qty0) < 0.0001, `${qty0} → ${qty1}`)
 
-    const vrows = sqlRows(`SELECT v.voucher_no, v.status, i.subject_code, i.debit_amount, i.credit_amount, i.aux_unit
-      FROM finance_voucher v JOIN finance_voucher_item i ON i.voucher_id = v.id
-      WHERE i.source_type='SALE_RETURN_APPLY' AND i.source_id=${returnId} ORDER BY i.subject_code`)
-    check('生成退货冲销凭证（4 条分录）', vrows.length === 4, `分录数=${vrows.length}`)
-    const vmap = Object.fromEntries(vrows.map(r => [r[2], { d: Number(r[3]), c: Number(r[4]), aux: r[5] }]))
-    check('Dr.6001 主营业务收入 = 退货金额', vmap['6001']?.d === QTY * PRICE, `借 ${vmap['6001']?.d}`)
-    check('Cr.1122 应收账款 = 退货金额（挂客户核算项）', vmap['1122']?.c === QTY * PRICE && vmap['1122']?.aux === CUSTOMER_NAME,
-      `贷 ${vmap['1122']?.c} aux=${vmap['1122']?.aux}`)
-    check('Dr.1403 库存商品 = 退货成本', vmap['1403']?.d === COST, `借 ${vmap['1403']?.d}`)
-    check('Cr.6401 主营业务成本 = 退货成本', vmap['6401']?.c === COST, `贷 ${vmap['6401']?.c}`)
-    const totalDebit = vrows.reduce((s, r) => s + Number(r[3]), 0)
-    const totalCredit = vrows.reduce((s, r) => s + Number(r[4]), 0)
-    check('凭证借贷平衡', Math.abs(totalDebit - totalCredit) < 0.005, `借 ${totalDebit} / 贷 ${totalCredit}`)
-    check('凭证已过账（posted）', vrows.every(r => r[1] === 'posted'), `状态=${[...new Set(vrows.map(r => r[1]))].join('/')}`)
+    const vrows = sqlRows(`SELECT i.subject_code FROM finance_voucher v
+      JOIN finance_voucher_item i ON i.voucher_id = v.id
+      WHERE i.source_type='SALE_RETURN_APPLY' AND i.source_id=${returnId}`)
+    check('申请侧不生成重复凭证（避免与退货单重复记账）', vrows.length === 0, `分录数=${vrows.length}`)
 
     // ═══ D. 按明细查询 + 分类过滤 ═══
     console.log('\n[D] 按明细分页 + 商品分类过滤')
@@ -177,19 +174,16 @@ async function main() {
     check('明细返回商品名称/退货数量（驼峰键）', row?.productName === PRODUCT_NAME && Number(row?.returnQuantity) === QTY,
       `${row?.productName} × ${row?.returnQuantity}`)
 
-    // ═══ E. 取消（冲回库存 + 反向凭证） ═══
-    console.log('\n[E] 取消单据（库存回冲 + 反向冲销凭证）')
+    // ═══ E. 取消（状态关闭；未过账故无需冲回） ═══
+    console.log('\n[E] 取消单据（状态关闭；申请侧未过账，无库存/凭证冲回）')
     const cancelRes = await call('POST', `/erp/sale/return/${returnId}/cancel?reason=E2E取消`)
     check('取消后状态=4', cancelRes.data?.status === 4, `status=${cancelRes.data?.status}`)
     const qty2 = stockQty()
-    check('库存回冲至初始值', Math.abs(qty2 - qty0) < 0.0001, `${qty1} → ${qty2}（初始 ${qty0}）`)
-    const rrows = sqlRows(`SELECT i.subject_code, i.debit_amount, i.credit_amount FROM finance_voucher v
+    check('取消后库存不变（申请侧未入账）', Math.abs(qty2 - qty0) < 0.0001, `${qty1} → ${qty2}（初始 ${qty0}）`)
+    const rrows = sqlRows(`SELECT i.subject_code FROM finance_voucher v
       JOIN finance_voucher_item i ON i.voucher_id = v.id
       WHERE i.source_type='SALE_RETURN_APPLY_CANCEL' AND i.source_id=${returnId}`)
-    check('生成反向冲销凭证（4 条分录）', rrows.length === 4, `分录数=${rrows.length}`)
-    const rmap = Object.fromEntries(rrows.map(r => [r[0], { d: Number(r[1]), c: Number(r[2]) }]))
-    check('反向凭证 Dr.1122 / Cr.6001', rmap['1122']?.d === QTY * PRICE && rmap['6001']?.c === QTY * PRICE,
-      `1122借=${rmap['1122']?.d} 6001贷=${rmap['6001']?.c}`)
+    check('取消不生成反向凭证（申请侧未记账）', rrows.length === 0, `分录数=${rrows.length}`)
     const dup = await call('POST', `/erp/sale/return/${returnId}/cancel?reason=再次取消`)
     check('重复取消被拦截（400 业务异常）', dup.code === 400, `code=${dup.code} ${dup.message || ''}`)
 

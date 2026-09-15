@@ -1,0 +1,74 @@
+{
+  "页面": "商城装修",
+  "对标系统": "ql361（来肯企汇，22stable.ql361.com）",
+  "对标来源": "顶部「商城」→「商城设置」→「商城装修」→「分类页装修」Tab",
+  "抓取方式": "从**已抓到的真实接口响应**离线解析（非推测）：tool-results/ql361/pages/_api_CC.ERP.BLL.DH.Baseinfo.B2B2CSettings.GetSettings.json（251KB，2026-09-14 15:14 登录后自动拉取）",
+  "抓取时间": "2026-09-14（原始响应） / 2026-09-14 离线解析",
+  "为什么可信": "GetSettings 是 ql361「设置」页自己的读取接口；响应里除 PascalCase 的 data.* 外，还内嵌一层 **snake_case 设置字典（602 键）**，即**真实落库的存储键与当前值**。据此可确定「存储编码」，不再需要靠界面文字猜。",
+  "内层设置字典": {
+    "位置": "GetSettings 响应内嵌 JSON 字符串（键名 snake_case，值多为字符串）",
+    "键总数": 602,
+    "全量已导出": "tool-results/ql361/pages/_settings_inner_dict.json"
+  },
+  "分类页装修四项的真实存储键": {
+    "分类展示方式": {
+      "真实存储键": "mall_product_categorytype",
+      "实测当前值": "0",
+      "推断值域": {
+        "0": "按目录分类（对标界面默认勾选；实测值与默认勾选一致）"
+      },
+      "⚠️未实测": "「按品牌分类」对应的编码未取到（该 JS 分片未下载；内层字典里只有当前值 0）——**不猜**",
+      "我方实现": "列 tenant_shop_config.category_display_mode，取值 CATALOG/BRAND（本实现口径，与对标编码不同但语义对应：CATALOG↔0）"
+    },
+    "商品默认排序": {
+      "真实存储键": "mall_goodsorder",
+      "实测当前值": "9",
+      "✅值域已完整实测（来自 ql361 前端常量表）": {
+        "来源": "tool-results/ql361/dl2-ConstData.js（等价副本 js-widget.js）内的常量定义：mallgoodsorder",
+        "原文": "mallgoodsorder:[{label:\"按货号升序\",value:\"1\"},{label:\"按货号降序\",value:\"3\"},{label:\"按销量降序\",value:\"5\"},{label:\"按商品名称\",value:\"7\"},{label:\"综合排序\",value:\"9\"}]",
+        "选项": [
+          { "label": "按货号升序", "value": "1" },
+          { "label": "按货号降序", "value": "3" },
+          { "label": "按销量降序", "value": "5" },
+          { "label": "按商品名称", "value": "7" },
+          { "label": "综合排序", "value": "9" }
+        ]
+      },
+      "结论": "对标**只有这 5 项**，且默认「综合排序」= **9**。我方此前自造的「销量排序/价格升序/价格降序/上新时间」**在标的中不存在**，须按实测改正。"
+    },
+    "分类页分类样式": {
+      "真实存储键": "mall_categorypage_model",
+      "实测当前值": "1",
+      "同组实测到的卫星键（可佐证语义）": {
+        "mall_categorypage_model_url": "desktop/images/mallcommon/textmodel.png",
+        "mall_categorypage_model_explain": "提示：纯文本模式将不会展示分类图片"
+      },
+      "结论": "当前值 1 对应 **纯文本模式**（配图文件名 textmodel.png、提示语逐字一致）。图文模式对应编码未取到 —— **不猜**。",
+      "我方实现": "列 tenant_shop_config.category_style，取值 TEXT/IMAGE（本实现口径；TEXT↔1）"
+    },
+    "显示分类下商品数量": {
+      "真实存储键": "**未取到**（内层字典里没有 mall_showcategoryqty / showcategoryqty 之类键）",
+      "已排除": "PascalCase 的 data.MallShowcategoryqty=true 是**另一层**（data.* 原始设置），不是内层落库键",
+      "候选但**未证实**": "mall_notqtyshowtype=1（键名语义不符，**不得**据此断定）",
+      "结论": "该项的**真实存储键仍未实测**，如实留缺口。"
+    }
+  },
+  "顺带实测到的同页其他真实键": {
+    "mall_name": "皇朝餐饮货仓（商城名称）",
+    "mall_login_examine": "1",
+    "mall_product_categorytype": "0",
+    "mall_goodsorder": "9",
+    "mall_categorypage_model": "1",
+    "mall_notqtyshowtype": "1",
+    "mall_qty_type": "2",
+    "mall_common_unit_only": "false",
+    "isopen_shop_category": "false",
+    "category_isSynchro": "true",
+    "enable_brand": "true",
+    "mall_paytype": "{\"b2b\":16,\"b2c\":0,\"isupdate\":1}",
+    "mall_paytype_setting": "[{\"payname\":\"欠款\",\"paytype\":2,\"payorder\":1},{\"payname\":\"在线支付\",\"paytype\":1,\"payorder\":2},{\"payname\":\"货到付款\",\"paytype\":3,\"payorder\":3}]",
+    "mallreggivecoupons": "{\"opengive\":false,\"couponslist\":[{\"couponname\":\"\",\"couponnumber\":\"\",\"freeamount\":0,\"showclass\":\"color:red\"}]}",
+    "malldetailshowset": "{\"g_guige_enable\":true,\"g_xinghao_enable\":true,\"g_chandi_enable\":true,\"enable_brand\":false,\"enable_commoditybarcode\":true,\"g_batch\":true,\"mall_goodsorder\":\"1\"}"
+  },
+  "备注": "本文件只记录**从真实响应/真实前端常量里解出来的事实**；凡未取到的一律写明「未实测/不猜」，不用『很可能』『应该是』之类说法。"
+}

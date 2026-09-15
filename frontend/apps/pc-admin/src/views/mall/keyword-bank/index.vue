@@ -1,130 +1,258 @@
 <template>
-  <ARReportPage
-    ref="reportRef"
-    title="关键词库"
-    :query-fields="queryFields"
-    :columns="columns"
-    :fetcher="fetcher"
-    page-param-style="pageNum"
-    export-file-name="关键词库"
-    row-key="id"
-  >
-    <template #header-extra>
-      <a-button
-        type="primary"
-        size="small"
-        @click="openCreate"
+  <ErrorBoundary @error="handleError">
+    <PageContainer full-height>
+      <!--
+        关键词库（交易 → 商城设置 → 关键词库，对标 ql361 商城 → 商城设置 → 关键词库）
+        · 单入口单视图列表页 + 新增/编辑弹窗；对标无「页面配置」弹窗（查询区/按钮为固定项）
+        · 列配置齿轮在数据表表头 rowNo 列（个人配置 / 全局配置），storage-key 持久化
+        · 对标列（实测 2 列，全默认显示）：关键词名称 / 备注；本系统保留 类型 / 排序 / 状态 以便启停筛选
+        · 工具栏：新增关键词 ｜ 刷新 / 打印(F8)
+        · 行内操作：修改 / 删除
+        · 对标实测：docs/Yh-Spec/手动整理对标开发文档/交易模块/关键词库开发文档.md
+      -->
+      <CategoryListLayout
+        :tabs="[]"
+        :show-category-panel="false"
+        :show-table-footer="true"
       >
-        <template #icon>
-          <PlusOutlined />
-        </template>新增关键词
-      </a-button>
-    </template>
-    <template #bodyCell="{ column, record, text }">
-      <template v-if="column.dataIndex === 'keywordType'">
-        <a-tag :color="TYPE_MAP[text]?.color">
-          {{ TYPE_MAP[text]?.label || text || '-' }}
-        </a-tag>
-      </template>
-      <template v-else-if="column.dataIndex === 'status'">
-        <a-switch
-          :checked="record.status === 1"
-          :loading="togglingId === record.id"
-          checked-children="启用"
-          un-checked-children="禁用"
-          @change="(checked: any) => handleToggle(record, checked)"
-        />
-      </template>
-      <template v-else-if="column.dataIndex === 'createTime'">
-        {{ fmtTime(text) }}
-      </template>
-      <template v-else-if="column.key === 'action'">
-        <a-space :size="4">
+        <!-- ═══ 工具栏左侧：新增关键词 ═══ -->
+        <template #toolbar-left>
           <a-button
-            type="link"
+            type="primary"
             size="small"
-            @click="openEdit(record)"
+            class="btn-add"
+            @click="openCreate"
           >
-            编辑
+            <PlusOutlined /> 新增关键词
           </a-button>
-          <a-popconfirm
-            title="确认删除该关键词？"
-            ok-text="删除"
-            cancel-text="取消"
-            @confirm="handleDelete(record)"
-          >
-            <a-button
-              type="link"
-              size="small"
-              danger
-            >
-              删除
-            </a-button>
-          </a-popconfirm>
-        </a-space>
-      </template>
-    </template>
-  </ARReportPage>
+        </template>
 
-  <!-- 新增/编辑关键词弹窗 -->
-  <a-modal
-    v-model:open="modalOpen"
-    :title="editingId ? '编辑关键词' : '新增关键词'"
-    :confirm-loading="saving"
-    :width="480"
-    @ok="handleSave"
-  >
-    <a-form
-      ref="formRef"
-      :model="form"
-      :rules="rules"
-      :label-col="{ span: 5 }"
-      :wrapper-col="{ span: 17 }"
-      style="margin-top: 16px"
-    >
-      <a-form-item
-        label="关键词"
-        name="keyword"
+        <!-- ═══ 工具栏右侧：刷新 + 打印(F8) ═══ -->
+        <template #toolbar-right>
+          <a-space :size="8">
+            <a-button
+              size="small"
+              :loading="loading"
+              @click="handleRefresh"
+            >
+              <ReloadOutlined /> 刷新
+            </a-button>
+            <a-button
+              size="small"
+              @click="handlePrint"
+            >
+              <PrinterOutlined /> 打印(F8)
+            </a-button>
+          </a-space>
+        </template>
+
+        <!-- ═══ 查询区（对标固定项：筛选条件 + 查询；本系统另含 类型/状态） ═══ -->
+        <template #search-fields>
+          <div class="search-area">
+            <div class="search-row">
+              <span class="search-label">筛选条件</span>
+              <a-input
+                v-model:value="searchForm.keyword"
+                placeholder="请输入关键词"
+                size="small"
+                style="width: 200px"
+                allow-clear
+                @press-enter="handleSearch"
+              />
+              <a-select
+                v-model:value="searchForm.keywordType"
+                placeholder="全部类型"
+                size="small"
+                style="width: 130px"
+                allow-clear
+                :options="typeOptions"
+                @change="handleSearch"
+              />
+              <a-select
+                v-model:value="searchForm.status"
+                placeholder="全部状态"
+                size="small"
+                style="width: 130px"
+                allow-clear
+                :options="statusOptions"
+                @change="handleSearch"
+              />
+              <a-button
+                type="primary"
+                size="small"
+                @click="handleSearch"
+              >
+                查询
+              </a-button>
+            </div>
+          </div>
+        </template>
+
+        <!-- ═══ 数据表（列配置齿轮在表头 rowNo 列） ═══ -->
+        <template #table>
+          <div class="table-area">
+            <BillDetailTable
+              v-model:data-source="tableData"
+              :columns="columns"
+              :loading="loading"
+              :view-mode="true"
+              :min-rows="20"
+              storage-key="mall-keyword-bank-table-columns"
+              global-config-key="mall-keyword-bank-table-columns"
+            >
+              <!-- 关键词名称：点击进入编辑 -->
+              <template #keywordCell="{ record }">
+                <a
+                  v-if="!record.__ghost"
+                  class="cell-link"
+                  @click="openEdit(record)"
+                >{{ record.keyword }}</a>
+              </template>
+
+              <!-- 类型 -->
+              <template #typeCell="{ record }">
+                <a-tag :color="TYPE_MAP[record.keywordType]?.color || 'default'">
+                  {{ TYPE_MAP[record.keywordType]?.label || '-' }}
+                </a-tag>
+              </template>
+
+              <!-- 状态：启用 / 禁用 -->
+              <template #statusCell="{ record }">
+                <a-switch
+                  :checked="record.status === 1"
+                  :loading="togglingId === record.id"
+                  checked-children="启用"
+                  un-checked-children="禁用"
+                  @change="(checked: any) => handleToggle(record, checked)"
+                />
+              </template>
+
+              <!-- 创建时间 -->
+              <template #createTimeCell="{ record }">
+                {{ fmtTime(record.createTime) }}
+              </template>
+
+              <!-- 操作列（对标：行内 修改 / 删除） -->
+              <template #actionCell="{ record }">
+                <a-space
+                  v-if="!record.__ghost"
+                  :size="0"
+                >
+                  <a-button
+                    type="link"
+                    size="small"
+                    @click="openEdit(record)"
+                  >
+                    修改
+                  </a-button>
+                  <a-button
+                    type="link"
+                    size="small"
+                    danger
+                    @click="handleDelete(record)"
+                  >
+                    删除
+                  </a-button>
+                </a-space>
+              </template>
+            </BillDetailTable>
+          </div>
+        </template>
+
+        <!-- ═══ 底部：经典分页栏 ═══ -->
+        <template #table-footer>
+          <StandardPagination
+            variant="classic"
+            :current="pagination.current"
+            :page-size="pagination.pageSize"
+            :total="pagination.total"
+            :page-size-options="[20, 50, 100]"
+            @change="handlePageChange"
+          />
+        </template>
+      </CategoryListLayout>
+
+      <!-- ═══ 新增/编辑关键词弹窗（对标字段：关键词* / 备注） ═══ -->
+      <a-modal
+        v-model:open="modalOpen"
+        :title="editingId ? '编辑关键词' : '新增关键词'"
+        :confirm-loading="saving"
+        :width="480"
+        @ok="handleSave"
       >
-        <a-input
-          v-model:value="form.keyword"
-          :maxlength="50"
-          placeholder="如：矿泉水、办公用品"
-        />
-      </a-form-item>
-      <a-form-item
-        label="类型"
-        name="keywordType"
-      >
-        <a-select
-          v-model:value="form.keywordType"
-          :options="typeOptions"
-          placeholder="请选择关键词类型"
-        />
-      </a-form-item>
-      <a-form-item
-        label="排序"
-        name="sort"
-      >
-        <a-input-number
-          v-model:value="form.sort"
-          :min="0"
-          :precision="0"
-          style="width: 100%"
-          placeholder="数值越小越靠前"
-        />
-      </a-form-item>
-    </a-form>
-  </a-modal>
+        <a-form
+          ref="formRef"
+          :model="form"
+          :rules="rules"
+          :label-col="{ span: 5 }"
+          :wrapper-col="{ span: 17 }"
+          style="margin-top: 16px"
+        >
+          <a-form-item
+            label="关键词"
+            name="keyword"
+          >
+            <a-input
+              v-model:value="form.keyword"
+              :maxlength="30"
+              show-count
+              placeholder="请输入关键词，不超过30字符"
+            />
+          </a-form-item>
+          <a-form-item
+            label="备注"
+            name="remark"
+          >
+            <a-input
+              v-model:value="form.remark"
+              :maxlength="30"
+              show-count
+              placeholder="请输入备注，限30字"
+            />
+          </a-form-item>
+          <a-form-item
+            label="类型"
+            name="keywordType"
+          >
+            <a-select
+              v-model:value="form.keywordType"
+              :options="typeOptions"
+              placeholder="请选择关键词类型"
+            />
+          </a-form-item>
+          <a-form-item
+            label="排序"
+            name="sort"
+          >
+            <a-input-number
+              v-model:value="form.sort"
+              :min="0"
+              :precision="0"
+              style="width: 100%"
+              placeholder="数值越小越靠前"
+            />
+          </a-form-item>
+        </a-form>
+      </a-modal>
+    </PageContainer>
+  </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted, onBeforeUnmount } from 'vue'
 import dayjs from 'dayjs'
 import { message } from 'ant-design-vue'
-import { PlusOutlined } from '@ant-design/icons-vue'
-import ARReportPage from '@/components/ARReportPage/ARReportPage.vue'
-import type { ReportQueryField } from '@/components/ARReportPage/types'
+import {
+  PlusOutlined,
+  ReloadOutlined,
+  PrinterOutlined,
+} from '@ant-design/icons-vue'
+import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayout.vue'
+import BillDetailTable from '@/components/BillFormPage/BillDetailTable/index.vue'
+import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTable/types'
+import StandardPagination from '@/components/Pagination/Pagination.vue'
 import { mallKeywordApi } from '@/api/erp/mall'
 
 defineOptions({ name: 'MallKeywordBank' })
@@ -135,38 +263,78 @@ const TYPE_MAP: Record<number, { label: string; color: string }> = {
   2: { label: '置顶', color: 'blue' },
   3: { label: '屏蔽', color: 'default' }
 }
-
 const typeOptions = Object.entries(TYPE_MAP).map(([value, v]) => ({ label: v.label, value: Number(value) }))
 const statusOptions = [
   { label: '启用', value: 1 },
   { label: '禁用', value: 0 }
 ]
 
-const reportRef = ref<InstanceType<typeof ARReportPage>>()
+// ═══ 状态 ═══
+const loading = ref(false)
+const tableData = ref<any[]>([])
 
-const queryFields: ReportQueryField[] = [
-  { key: 'keyword', type: 'input', label: '关键词', placeholder: '关键词（模糊）', width: 180 },
-  { key: 'keywordType', type: 'select', label: '类型', placeholder: '全部类型', options: typeOptions },
-  { key: 'status', type: 'select', label: '状态', placeholder: '全部状态', options: statusOptions }
-]
+// ═══ 查询条件 ═══
+const searchForm = reactive({
+  keyword: '' as string,
+  keywordType: undefined as number | undefined,
+  status: undefined as number | undefined,
+})
 
-// ═══ 表格列 ═══
-const columns: any[] = [
-  { title: '关键词', dataIndex: 'keyword', key: 'keyword', width: 220, ellipsis: true },
-  { title: '类型', dataIndex: 'keywordType', key: 'keywordType', width: 100 },
-  { title: '排序', dataIndex: 'sort', key: 'sort', width: 80, align: 'right' },
-  { title: '状态', dataIndex: 'status', key: 'status', width: 110 },
-  { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 160 },
-  { title: '操作', key: 'action', width: 140, fixed: 'right' }
+const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
+
+// 序号列承载表头「列配置」齿轮；操作列为固定列
+const columns: DetailColumnConfig[] = [
+  { key: 'rowNo', title: '', type: 'rowNo', width: 40, fixed: 'left' },
+  { key: 'action', title: '操作', type: 'action', slotName: 'actionCell', width: 130, fixed: 'left' },
+  { key: 'keyword', title: '关键词名称', type: 'slot', slotName: 'keywordCell', width: 220, sortable: true },
+  { key: 'remark', title: '备注', type: 'input', width: 220 },
+  { key: 'keywordType', title: '类型', type: 'slot', slotName: 'typeCell', width: 100 },
+  { key: 'sort', title: '排序', type: 'input', width: 80 },
+  { key: 'status', title: '状态', type: 'slot', slotName: 'statusCell', width: 110 },
+  { key: 'createTime', title: '创建时间', type: 'slot', slotName: 'createTimeCell', width: 160, defaultHidden: true },
 ]
 
 function fmtTime(val: string | null | undefined): string {
   return val ? dayjs(val).format('YYYY-MM-DD HH:mm') : '-'
 }
 
-// ═══ 数据请求 ═══
-function fetcher(params: Record<string, any>) {
-  return mallKeywordApi.page(params)
+// ═══ 数据加载 ═══
+async function fetchList() {
+  loading.value = true
+  try {
+    const res: any = await mallKeywordApi.page({
+      pageNum: pagination.current,
+      pageSize: pagination.pageSize,
+      keyword: searchForm.keyword || undefined,
+      keywordType: searchForm.keywordType,
+      status: searchForm.status,
+    })
+    tableData.value = res?.records || []
+    pagination.total = Number(res?.total) || 0
+  } catch (error: any) {
+    console.error('[关键词库] 加载列表失败', error)
+    message.error(error?.response?.data?.message || '加载列表失败')
+    tableData.value = []
+    pagination.total = 0
+  } finally {
+    loading.value = false
+  }
+}
+
+// ═══ 事件 ═══
+function handleSearch() {
+  pagination.current = 1
+  fetchList()
+}
+
+function handleRefresh() {
+  fetchList()
+}
+
+function handlePageChange(page: number, pageSize: number) {
+  pagination.current = page
+  pagination.pageSize = pageSize
+  fetchList()
 }
 
 // ═══ 新增/编辑弹窗 ═══
@@ -177,6 +345,7 @@ const editingId = ref<number | null>(null)
 
 const emptyForm = () => ({
   keyword: '' as string,
+  remark: '' as string,
   keywordType: 1 as number,
   sort: 0 as number
 })
@@ -201,6 +370,7 @@ function openEdit(record: any) {
   editingId.value = record.id
   resetForm({
     keyword: record.keyword || '',
+    remark: record.remark || '',
     keywordType: record.keywordType ?? 1,
     sort: record.sort ?? 0
   })
@@ -223,15 +393,15 @@ async function handleSave() {
       message.success('关键词创建成功')
     }
     modalOpen.value = false
-    reportRef.value?.reload()
-  } catch (e) {
-    console.warn('[关键词库] 保存失败', e)
+    fetchList()
+  } catch (error: any) {
+    message.error(error?.response?.data?.message || '保存失败')
   } finally {
     saving.value = false
   }
 }
 
-// ═══ 启停切换/删除 ═══
+// ═══ 启停切换 / 删除 ═══
 const togglingId = ref<number | null>(null)
 
 async function handleToggle(record: any, checked: boolean | string | number) {
@@ -240,9 +410,9 @@ async function handleToggle(record: any, checked: boolean | string | number) {
   try {
     await mallKeywordApi.toggleStatus(record.id, target)
     message.success(target === 1 ? '已启用' : '已禁用')
-    reportRef.value?.reload()
-  } catch (e) {
-    console.warn('[关键词库] 状态切换失败', e)
+    fetchList()
+  } catch (error: any) {
+    message.error(error?.response?.data?.message || '状态切换失败')
   } finally {
     togglingId.value = null
   }
@@ -252,9 +422,107 @@ async function handleDelete(record: any) {
   try {
     await mallKeywordApi.delete(record.id)
     message.success('删除成功')
-    reportRef.value?.reload()
-  } catch (e) {
-    console.warn('[关键词库] 删除失败', e)
+    fetchList()
+  } catch (error: any) {
+    message.error(error?.response?.data?.message || '删除失败')
   }
 }
+
+// ═══ 打印(F8)：真实打印模板（与列表同口径） ═══
+function escapeHtml(v: any): string {
+  return String(v ?? '').replace(/[&<>"']/g, c => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string
+  ))
+}
+
+function handlePrint() {
+  const rows = (tableData.value || []).filter((r: any) => !r.__ghost)
+  if (!rows.length) {
+    message.warning('没有可打印的数据')
+    return
+  }
+  const body = rows.map((r: any, i: number) => `
+    <tr>
+      <td>${i + 1}</td>
+      <td>${escapeHtml(r.keyword)}</td>
+      <td>${escapeHtml(r.remark || '')}</td>
+      <td>${escapeHtml(TYPE_MAP[r.keywordType]?.label || '')}</td>
+      <td>${escapeHtml(r.sort ?? '')}</td>
+      <td>${r.status === 1 ? '启用' : '禁用'}</td>
+    </tr>`).join('')
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" />
+    <title>关键词库</title>
+    <style>
+      body{font-family:"Microsoft YaHei",Arial,sans-serif;margin:0;padding:16px;color:#000}
+      h2{text-align:center;margin:0 0 12px;font-size:18px}
+      .meta{display:flex;flex-wrap:wrap;gap:4px 24px;font-size:12px;margin-bottom:8px}
+      table{width:100%;border-collapse:collapse;font-size:12px}
+      th,td{border:1px solid #999;padding:4px 6px;text-align:left}
+      th{background:#f2f2f2}
+    </style></head><body>
+    <h2>关键词库</h2>
+    <div class="meta">
+      <span>筛选条件：${escapeHtml(searchForm.keyword || '全部')}</span>
+      <span>打印时间：${dayjs().format('YYYY-MM-DD HH:mm')}</span>
+      <span>记录数：${rows.length}</span>
+    </div>
+    <table>
+      <thead><tr><th>#</th><th>关键词名称</th><th>备注</th><th>类型</th><th>排序</th><th>状态</th></tr></thead>
+      <tbody>${body}</tbody>
+    </table></body></html>`
+  const win = window.open('', '_blank', 'width=1000,height=700')
+  if (!win) {
+    message.warning('浏览器阻止了打印窗口，请允许弹出窗口后重试')
+    return
+  }
+  win.document.write(html)
+  win.document.close()
+  win.focus()
+  win.print()
+}
+
+function handleF8Key(e: KeyboardEvent) {
+  if ((e.key === 'F8' || e.code === 'F8') && !e.ctrlKey && !e.altKey && !e.metaKey) {
+    e.preventDefault()
+    handlePrint()
+  }
+}
+
+function handleError(error: Error) {
+  console.error('[关键词库] 页面错误', error)
+  message.error(`页面错误: ${error.message}`)
+}
+
+// ═══ 初始化 ═══
+onMounted(() => {
+  fetchList()
+  window.addEventListener('keydown', handleF8Key)
+})
+onBeforeUnmount(() => window.removeEventListener('keydown', handleF8Key))
 </script>
+
+<style scoped>
+.search-area { padding: 8px 16px; background: #fff; border-bottom: 1px solid #e8e8e8; flex-shrink: 0; }
+.search-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.search-label { font-size: 13px; color: #666; }
+/* ⚠️ 必须是 flex 纵向容器：BillDetailTable 根元素为 flex:1，父级非 flex 时表格高度会塌陷为 0 */
+.table-area { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+.cell-link { color: #1890ff; cursor: pointer; }
+.cell-link:hover { text-decoration: underline; }
+
+/* 橙色新增按钮（交易模块统一） */
+.btn-add {
+  background: #ff6b35 !important;
+  border-color: #ff6b35 !important;
+}
+.btn-add:hover {
+  background: #e55a2b !important;
+  border-color: #e55a2b !important;
+}
+
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) { height: 28px; line-height: 28px; }
+</style>

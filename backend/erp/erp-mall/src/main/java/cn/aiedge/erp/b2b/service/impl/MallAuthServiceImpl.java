@@ -112,13 +112,41 @@ public class MallAuthServiceImpl implements MallAuthService {
         }
 
         // 判断是否需要审核（取第一个租户的配置，简化处理）
+        //
+        // ── 新列优先 + 旧列兼容回落（V11.365.0 起对接）─────────────────────────
+        // 「店铺设置 → 注册设置」页自 Flyway V11.365.0 起重做为对标 5 项，**只写**
+        // reg_audit_required（列 reg_audit_required，对标实测「买家账号注册审核：否(0)/是(1)」），
+        // 已不再写旧的 enable_auto_audit，故此处必须优先读新列，否则页面配置对注册流程无效。
+        //
+        // ⚠️ 两列语义**方向相反**，映射必须按各自实际代码/对标口径，不能按列名望文生义：
+        //   · reg_audit_required（新，对标列）：1 = 需要审核，0 = 免审核（直通）。
+        //   · enable_auto_audit（旧，V6.4.0 历史自造列）：从列名与既有实现看是
+        //     「注册自动审核 1=是 0=否」，即有旧代码语义为 `==1 → 不需审核`（免审）。
+        //     因此二者映射为：reg_audit_required == (enable_auto_audit == 1 ? 0 : 1)。
+        //     本方法只以「是否需要审核」这一布尔口径表达，无需在两列间做数值换算，
+        //     只要各按自身口径解读即可（新列 1→needAudit=true；旧列 1→needAudit=false）。
+        //
+        // 回落原因：兼容「新列尚无值」的两种情形 —— ① 存量租户历史数据只写过旧列
+        // enable_auto_audit，其 reg_audit_required 为 NULL（V11.365.0 未应用时该列尚不存在，
+        // 应用后亦可能为 NULL）；② 旧前端/已发布 JAR 的写入口径只写旧列。
+        // 注：V11.365.0 初稿的 ADD COLUMN ... DEFAULT 0 会把既有行回填为 0（0=免审核），
+        // 从而绕过本回落分支并**翻转**存量租户的审核行为；该缺陷已订正为
+        // 「无 DEFAULT 新增 + 按旧列反向映射订正存量行」，故存量行会得到**与本回落分支一致**
+        // 的确定值（enable_auto_audit=1 → 0；否则 → 1），本分支仅在缺值兜底时生效。
+        // 详见《店铺设置开发文档》「为什么 reg_audit_required 不能给默认值」。
         boolean needAudit = true;
         ShopConfig config = shopConfigMapper.selectOne(
                 new LambdaQueryWrapper<ShopConfig>()
                         .last("LIMIT 1")
         );
-        if (config != null && config.getEnableAutoAudit() == 1) {
-            needAudit = false;
+        if (config != null) {
+            if (config.getRegAuditRequired() != null) {
+                // 新列（对标口径）：1=需审核，0=免审核
+                needAudit = config.getRegAuditRequired() == 1;
+            } else if (config.getEnableAutoAudit() != null) {
+                // 旧列回落（历史自造口径）：1=自动审核（即免审），0=需人工审核
+                needAudit = config.getEnableAutoAudit() != 1;
+            }
         }
 
         ShopUser user = new ShopUser();

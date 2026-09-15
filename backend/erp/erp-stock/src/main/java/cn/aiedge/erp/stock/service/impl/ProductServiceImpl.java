@@ -12,6 +12,7 @@ import cn.aiedge.erp.stock.mapper.ProductUnitMapper;
 import cn.aiedge.erp.stock.service.ProductService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -64,6 +65,7 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
                                           String createTimeStart, String createTimeEnd,
                                           Integer useCoupon, Integer isStandardProduct,
                                           String productType, Integer mallShelfStatus,
+                                          String productTag, String unitDisplayType, Integer unitDisplay,
                                           Integer pageNum, Integer pageSize) {
         Page<Product> page = new Page<>(pageNum != null ? pageNum : 1, pageSize != null ? pageSize : 20);
 
@@ -137,9 +139,65 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
             wrapper.eq("p.mall_shelf_status", mallShelfStatus);
         }
 
+        // 商品标签筛选（对标查询区固定项）：erp_product.mall_tags 是逗号分隔的槽位编码串
+        // （TAG_1..TAG_20，见 V11.161.0），按「整槽位包含」匹配 ——
+        // 刻意不用裸 LIKE '%TAG_1%'：那会误命中 TAG_10..TAG_19（20 槽位下 10/19 概率）。
+        // 表达式内无拼接用户输入，值走 {0} 参数绑定。
+        if (StringUtils.hasText(productTag)) {
+            wrapper.apply("(',' || REPLACE(COALESCE(p.mall_tags, ''), ' ', '') || ',') LIKE {0}",
+                    "%," + productTag.trim() + ",%");
+        }
+
+        // 单位显示类型筛选（对标查询区固定项）：**单位粒度**类型
+        // erp_product_unit.unit_display_type（V11.361.8 建列 / V11.361.9 按对标实测改正取值口径：
+        // -1=全部 / 0=只显示常用单位 / 1=只显示小单位 / 2=只显示中/大单位）。
+        // 先反查命中单位所属商品ID集合，再 IN 到商品主表。
+        if (StringUtils.hasText(unitDisplayType)) {
+            String normalizedType = normalizeUnitDisplayType(unitDisplayType);
+            if (normalizedType == null) {
+                // 兼容历史二元写法：SHOW≈-1（全部单位显示）；HIDE 在单位粒度 4 值域中无对应（不编造枚举）
+                Boolean legacyFlag = parseLegacyDisplayFlag(unitDisplayType);
+                if (Boolean.TRUE.equals(legacyFlag)) {
+                    normalizedType = UNIT_DISPLAY_TYPE_ALL;
+                } else if (Boolean.FALSE.equals(legacyFlag)) {
+                    throw new IllegalArgumentException(
+                            "单位显示类型不支持 HIDE/隐藏（单位粒度 4 值域无「隐藏」项）；"
+                                    + "「是否在商城显示」请用商品级「单位显示」条件 unitDisplay=0");
+                }
+            }
+            if (normalizedType == null) {
+                throw new IllegalArgumentException(
+                        "单位显示类型取值非法: " + unitDisplayType + "（仅支持 -1/0/1/2）");
+            }
+            // -1=全部：不额外加粒度条件（保留 NULL=未显式设置 的行，与对标下拉「全部」语义一致）
+            if (!UNIT_DISPLAY_TYPE_ALL.equals(normalizedType)) {
+                LambdaQueryWrapper<ProductUnit> hitUnits = new LambdaQueryWrapper<>();
+                hitUnits.select(ProductUnit::getProductId);
+                hitUnits.eq(ProductUnit::getUnitDisplayType, normalizedType);
+                hitUnits.eq(ProductUnit::getDeleted, 0);
+                List<Long> hitProductIds = productUnitMapper.selectList(hitUnits).stream()
+                        .map(ProductUnit::getProductId)
+                        .filter(java.util.Objects::nonNull)
+                        .distinct()
+                        .collect(Collectors.toList());
+                if (hitProductIds.isEmpty()) {
+                    // 无任何单位命中：直接返回空页，避免 IN () 触发 SQL 语法错误，也省一次主表查询
+                    page.setRecords(Collections.emptyList());
+                    page.setTotal(0);
+                    return page;
+                }
+                wrapper.in("p.id", hitProductIds);
+            }
+        }
+
+        // 单位显示（商品级整品开关）筛选：erp_product.unit_display（V11.361.3）
+        if (unitDisplay != null) {
+            wrapper.eq("p.unit_display", unitDisplay);
+        }
+
         IPage<Product> result = baseMapper.selectProductPage(page, wrapper);
         fillGradePriceMap(result);
-        fillConversionRelation(result.getRecords());
+        fillUnitDerivedFields(result.getRecords());
         fillProductImage(result.getRecords());
         return result;
     }
@@ -250,9 +308,20 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
     }
 
     /**
-     * 批量填充单位换算关系描述（如 "1箱=12袋；1中包=6袋"），列表「换算关系」列展示用。
+     * 批量填充**单位维度派生字段**（一次查询取回分页内所有商品的单位行）：
+     *
+     * <ol>
+     *   <li>单位换算关系描述（如 "1箱=12袋；1中包=6袋"）—— 列表「换算关系」列；</li>
+     *   <li>「预设进价」(presetPurchasePrice) —— 取**基本单位**的
+     *       erp_product_unit.preset_purchase_price；无基本单位行时取 sort_order 最小的单位行；
+     *       该值仍为空时回退商品级 erp_product.purchase_price（商品导入/档案维护写的商品级值）。</li>
+     *   <li>「单位显示类型」(unitDisplayType) —— 取**基本单位**的
+     *       erp_product_unit.unit_display_type（-1=全部 / 0=只显示常用单位 / 1=只显示小单位 /
+     *       2=只显示中/大单位，V11.361.8 建列、V11.361.9 按对标实测改正）；多单位时以基本单位为
+     *       代表值回显，各单位真实取值仍独立存储。</li>
+     * </ol>
      */
-    private void fillConversionRelation(List<Product> records) {
+    private void fillUnitDerivedFields(List<Product> records) {
         if (records == null || records.isEmpty()) {
             return;
         }
@@ -277,18 +346,22 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
                 if (p.getUnit() == null) {
                     p.setUnit(null);
                 }
+                // 无单位行：预设进价回退商品级，单位显示类型置空（前端按商品级 unit_display 兜底）
+                p.setPresetPurchasePrice(p.getPurchasePrice());
+                p.setUnitDisplayType(null);
                 continue;
             }
-            String baseName = null;
+            ProductUnit baseUnit = null;
             for (ProductUnit u : list) {
                 if (u.getIsBaseUnit() != null && u.getIsBaseUnit() == 1) {
-                    baseName = u.getUnitName();
+                    baseUnit = u;
                     break;
                 }
             }
-            if (baseName == null) {
-                baseName = list.get(0).getUnitName();
+            if (baseUnit == null) {
+                baseUnit = list.get(0);
             }
+            String baseName = baseUnit.getUnitName();
             if (p.getUnit() == null || p.getUnit().isEmpty()) {
                 p.setUnit(baseName);
             }
@@ -308,6 +381,12 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
                         .append(rate.stripTrailingZeros().toPlainString()).append(baseName);
             }
             p.setConversionRelation(sb.length() > 0 ? sb.toString() : "1" + baseName);
+
+            // 预设进价：基本单位优先，空则回退商品级 purchase_price
+            BigDecimal preset = baseUnit.getPresetPurchasePrice();
+            p.setPresetPurchasePrice(preset != null ? preset : p.getPurchasePrice());
+            // 单位显示类型：基本单位的单位级取值（可为 NULL，前端按商品级兜底）
+            p.setUnitDisplayType(baseUnit.getUnitDisplayType());
         }
     }
 
@@ -557,6 +636,12 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
         if (ids == null || ids.isEmpty()) {
             return false;
         }
+        // 商城上架/下架：商品上架页批量按钮以 ON_SHELF / OFF_SHELF 调用本端点，
+        // 落 erp_product.mall_shelf_status（1上架 / 0下架），与 /batch-shelf 同口径，不新增列
+        Integer shelfStatus = shelfStatusOf(status);
+        if (shelfStatus != null) {
+            return batchUpdateShelfStatus(ids, shelfStatus) > 0;
+        }
         List<Product> batch = ids.stream().map(id -> {
             Product p = new Product();
             p.setId(id);
@@ -564,6 +649,18 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
             return p;
         }).collect(Collectors.toList());
         return updateBatchById(batch);
+    }
+
+    /** 上架/下架语义识别：识别不到返回 null（按商品档案状态处理） */
+    private static Integer shelfStatusOf(String status) {
+        if (status == null) {
+            return null;
+        }
+        return switch (status.trim().toUpperCase()) {
+            case "ON_SHELF", "ON_SALE", "SHELF_ON", "上架" -> 1;
+            case "OFF_SHELF", "OFF_SALE", "SHELF_OFF", "下架" -> 0;
+            default -> null;
+        };
     }
 
     @Override
@@ -705,6 +802,128 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
         }
         updateBatchById(batch);
         return batch.size();
+    }
+
+    /**
+     * 批量设置**单位粒度显示类型**（商城 → 基础业务 → 单位显示 页查询区「单位显示类型」条件的可写侧）。
+     *
+     * <p>取值口径（对标 ql361 实测，2026-09-14）：{@code -1}=全部 / {@code 0}=只显示常用单位 /
+     * {@code 1}=只显示小单位 / {@code 2}=只显示中/大单位；见 Flyway V11.361.9。</p>
+     *
+     * <ol>
+     *   <li><b>单位级</b> erp_product_unit.unit_display_type：写该商品**全部有效单位**，
+     *       使单位粒度数据真实落库，商品表单等其他入口仍可对单个单位分别设置；</li>
+     *   <li><b>商品级</b> erp_product.unit_display：四种粒度均属"显示"，故同步置 1（显示）。
+     *       注意「显示/隐藏」是**另一个概念**，见 {@link #batchUpdateUnitDisplayFlag}。</li>
+     * </ol>
+     *
+     * <p>兼容：历史二元写法 SHOW/DISPLAY/显示 视为 {@code -1}（全部，语义最接近）；
+     * HIDE/HIDDEN/隐藏 在 4 值域中无对应，不编造枚举，改走商品级布尔开关
+     * （只写 erp_product.unit_display，不动单位粒度列），保证旧前端不静默写坏数据。</p>
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int batchUpdateUnitDisplay(List<Long> ids, String unitDisplayType) {
+        if (ids == null || ids.isEmpty()) {
+            return 0;
+        }
+        String normalized = normalizeUnitDisplayType(unitDisplayType);
+        if (normalized == null) {
+            // 历史二元写法兼容：SHOW=显示（≈-1 全部）/ HIDE=隐藏（粒度域无对应项 → 只写商品级开关）
+            Boolean legacyFlag = parseLegacyDisplayFlag(unitDisplayType);
+            if (legacyFlag == null) {
+                throw new IllegalArgumentException(
+                        "单位显示类型取值非法: " + unitDisplayType + "（仅支持 -1/0/1/2）");
+            }
+            return batchUpdateUnitDisplayFlag(ids, legacyFlag ? 1 : 0);
+        }
+        // 1) 单位级：该商品全部有效单位写 unit_display_type（单位粒度类型）
+        LambdaUpdateWrapper<ProductUnit> unitUpdate = new LambdaUpdateWrapper<>();
+        unitUpdate.in(ProductUnit::getProductId, ids);
+        unitUpdate.eq(ProductUnit::getDeleted, 0);
+        unitUpdate.set(ProductUnit::getUnitDisplayType, normalized);
+        productUnitMapper.update(null, unitUpdate);
+        // 2) 商品级整品开关联动：四种粒度都属"显示"→ 1
+        List<Product> batch = new ArrayList<>();
+        for (Long id : ids) {
+            Product p = new Product();
+            p.setId(id);
+            p.setUnitDisplay(1);
+            batch.add(p);
+        }
+        updateBatchById(batch);
+        return batch.size();
+    }
+
+    /**
+     * 批量设置「单位显示」**布尔开关** = 商品级整品开关 erp_product.unit_display（1显示/0隐藏）。
+     *
+     * <p>本页「单位显示」列的 √/× 勾选与「批量显示 / 批量隐藏」走本方法：语义是
+     * 「该商品（含其全部单位）是否在商城显示」，即对标查询区「单位显示」条件
+     * （实测 全部(-1)/是(1)/否(2)），**不是**「单位显示类型」（-1/0/1/2 的单位粒度类型），
+     * 因此只写商品级列，不改 erp_product_unit.unit_display_type。</p>
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int batchUpdateUnitDisplayFlag(List<Long> ids, Integer unitDisplay) {
+        if (ids == null || ids.isEmpty()) {
+            return 0;
+        }
+        if (unitDisplay == null || (unitDisplay != 0 && unitDisplay != 1)) {
+            throw new IllegalArgumentException("单位显示取值非法: " + unitDisplay + "（仅支持 1=显示 / 0=隐藏）");
+        }
+        List<Product> batch = new ArrayList<>();
+        for (Long id : ids) {
+            Product p = new Product();
+            p.setId(id);
+            p.setUnitDisplay(unitDisplay);
+            batch.add(p);
+        }
+        updateBatchById(batch);
+        return batch.size();
+    }
+
+    /** 「单位显示类型」= -1 全部（对标下拉第一项；查询侧视为"不加粒度条件"） */
+    private static final String UNIT_DISPLAY_TYPE_ALL = "-1";
+
+    /**
+     * 单位显示类型（**单位粒度**）归一化 —— 对标 ql361 查询区「单位显示类型」下拉 DOM 实测口径
+     * （2026-09-14，Flyway V11.361.9 改正）：
+     * {@code -1}=全部 / {@code 0}=只显示常用单位 / {@code 1}=只显示小单位 / {@code 2}=只显示中/大单位。
+     *
+     * <p>兼容中文文案与常见英文别名；未识别或空返回 null（调用方决定报错还是忽略）。
+     * 注意：历史二元口径 SHOW/HIDE **不在此归一**（见 {@link #parseLegacyDisplayFlag}），
+     * 避免把"显示/隐藏"硬套成 4 值域中的某一粒度。</p>
+     */
+    private static String normalizeUnitDisplayType(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        return switch (raw.trim().toUpperCase()) {
+            case "-1", "ALL", "全部", "只显示全部单位" -> "-1";
+            case "0", "COMMON", "常用", "常用单位", "只显示常用单位" -> "0";
+            case "1", "SMALL", "小单位", "只显示小单位" -> "1";
+            case "2", "MEDIUM_LARGE", "MEDIUM/LARGE", "中大单位", "中/大单位", "只显示中/大单位" -> "2";
+            default -> null;
+        };
+    }
+
+    /**
+     * 历史二元开关写法解析（V11.361.8 的猜测口径，已废止，仅作兼容）：
+     * SHOW/DISPLAY/VISIBLE/显示 → true；HIDE/HIDDEN/INVISIBLE/隐藏 → false；其它返回 null。
+     *
+     * <p>刻意不解析数字 {@code 1/0}：新口径下 {@code 1}=只显示小单位、{@code 0}=只显示常用单位，
+     * 数字必须按 4 值域解释，不能再当作 SHOW/HIDE。</p>
+     */
+    private static Boolean parseLegacyDisplayFlag(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        return switch (raw.trim().toUpperCase()) {
+            case "SHOW", "DISPLAY", "VISIBLE", "显示" -> Boolean.TRUE;
+            case "HIDE", "HIDDEN", "INVISIBLE", "隐藏" -> Boolean.FALSE;
+            default -> null;
+        };
     }
 
     @Override
@@ -1046,6 +1265,27 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
                 .orderByAsc("brand");
         List<Product> list = this.list(wrapper);
         return list.stream().map(Product::getBrand).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<String> getDistinctMallTags() {
+        // 商品标签字典：商品主数据 erp_product.mall_tags 已打标的槽位编码去重集合
+        // （逗号分隔串，见 V11.161.0；显示名昵称由「商品辅助资料 → 商品标签」维护）
+        QueryWrapper<Product> wrapper = new QueryWrapper<Product>()
+                .select("DISTINCT mall_tags")
+                .eq("deleted", 0)
+                .isNotNull("mall_tags")
+                .ne("mall_tags", "");
+        java.util.TreeSet<String> distinct = new java.util.TreeSet<>();
+        for (Product p : this.list(wrapper)) {
+            for (String code : String.valueOf(p.getMallTags()).split(",")) {
+                String v = code.trim();
+                if (!v.isEmpty()) {
+                    distinct.add(v);
+                }
+            }
+        }
+        return new ArrayList<>(distinct);
     }
 
     private String parseLocalDateToStartOfDay(String dateString) {

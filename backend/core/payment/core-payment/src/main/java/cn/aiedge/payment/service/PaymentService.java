@@ -25,8 +25,14 @@ public interface PaymentService {
 
     /**
      * 分页查询支付请求
+     *
+     * @param bizNo     业务单号（模糊，可空）
+     * @param startTime 创建时间起（可空，yyyy-MM-dd / yyyy-MM-dd HH:mm:ss）
+     * @param endTime   创建时间止（可空）
      */
-    PageResult<PaymentRequest> pagePaymentRequest(Integer pageNum, Integer pageSize, String bizType, String channel, Integer status);
+    PageResult<PaymentRequest> pagePaymentRequest(Integer pageNum, Integer pageSize, String bizType, String bizNo,
+                                                  String channel, Integer status, String startTime, String endTime,
+                                                  String payerName);
 
     /**
      * 查询支付请求详情
@@ -53,8 +59,28 @@ public interface PaymentService {
 
     /**
      * 分页查询支付记录
+     *
+     * @param channelOrderNo 渠道订单号（模糊，可空）
+     * @param status         状态（可空）
+     * @param startTime      回调时间起（可空）
+     * @param endTime        回调时间止（可空）
      */
-    PageResult<PaymentRecord> pagePaymentRecord(Integer pageNum, Integer pageSize, String channel);
+    PageResult<PaymentRecord> pagePaymentRecord(Integer pageNum, Integer pageSize, String channel, Integer status,
+                                                String channelOrderNo, String startTime, String endTime);
+
+    /**
+     * 支付记录统计（后端聚合：成功/失败笔数 + 成功金额合计）
+     *
+     * @return {total, successCount, failedCount, successAmount}
+     */
+    java.util.Map<String, Object> statPaymentRecord(String channel);
+
+    /**
+     * 支付请求统计（后端聚合：待支付/成功/失败笔数 + 累计金额）
+     *
+     * @return {pendingCount, successCount, failedCount, totalAmount}
+     */
+    java.util.Map<String, Object> statPaymentRequest(String channel);
 
     /**
      * 查询可用渠道

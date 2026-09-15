@@ -118,7 +118,7 @@
         <tbody>
           <tr
             v-for="(record, rowIndex) in displayRows"
-            :key="record.id || rowIndex"
+            :key="record[rowKey] ?? record.id ?? rowIndex"
             class="ss-row"
             :class="{ 'ss-empty-row': record._isEmptyRow }"
           >
@@ -189,10 +189,13 @@
                   </div>
                 </template>
                 <!-- 兼容页面自定义 slot（不折叠，仅撑大列宽） -->
+                <!-- ⚠️ column 必须透传：页面普遍写 `#xxxCell="{ record, column }"` 再取 record[column.key]，
+                     漏传会让「金额/数量」类格子恒取到 undefined（显示 0，而合计行却正确）。 -->
                 <slot
                   v-else
                   :name="col.slotName || 'actionCell'"
                   :record="record"
+                  :column="col"
                   :index="rowIndex"
                   :empty="false"
                 />
@@ -215,11 +218,12 @@
                   </template>
                 </div>
               </template>
-              <!-- 自定义插槽列 -->
+              <!-- 自定义插槽列（column 透传：页面用 record[column.key] 取值的格子依赖它） -->
               <template v-else-if="col.type === 'slot'">
                 <slot
                   :name="col.slotName || col.key + 'Cell'"
                   :record="record"
+                  :column="col"
                   :index="rowIndex"
                   :empty="false"
                 />
@@ -518,6 +522,12 @@ const props = withDefaults(defineProps<{
   columns: DetailColumnConfig[]
   /** 是否查看模式 */
   viewMode?: boolean
+  /**
+   * 行唯一键字段名（默认 id）。
+   * 多行共用主表 id 的场景（如「按明细」查询返回的是主表 id）必须传明细行主键字段（如 itemId），
+   * 否则 :key 重复会触发 Vue「Duplicate keys found during update」，导致行复用错乱。
+   */
+  rowKey?: string
   /** 表格最大高度（0=不限制，由 flex 父容器驱动高度；>0 时用 inline style 限制） */
   maxHeight?: number
   /** 合计列定义 */
@@ -550,6 +560,7 @@ const props = withDefaults(defineProps<{
   defaultExpanded?: boolean
 }>(), {
   viewMode: false,
+  rowKey: 'id',
   maxHeight: 0,
   summaryColumns: () => [],
   loading: false,
@@ -743,6 +754,36 @@ function isChecked(record: any, rowIndex: number): boolean {
   return checkedRows.value.has(rowIndex)
 }
 
+/**
+ * 清空勾选
+ *
+ * ⚠️ 勾选按 **rowIndex** 持有，而父组件（BillTableList）的 clearSelection 只清它自己的
+ * selectedRecords；若不同步清这里，会出现「批量条消失、行上仍勾着」，且换查询条件后
+ * 同一 index 指向**另一行**（勾选漂移 → 批量操作作用到用户没勾的数据）。
+ */
+function clearSelection() {
+  checkedRows.value.clear()
+  checkedRecords.value = []
+}
+
+/** 行身份键（判断 dataSource 是否换了一批数据） */
+function rowIdentity(record: any, index: number): string {
+  return String(record?.[props.rowKey || 'id'] ?? record?.key ?? index)
+}
+
+// 数据集合变化（换查询/翻页/刷新后行不同）→ 清空勾选，杜绝索引漂移；
+// 同一批数据重渲染（父级无关状态变化）保留勾选。
+// 注：`dataSource` 由 `defineModel('dataSource')` 声明（见上方 dataSourceModel），
+// **不在** `defineProps` 的类型里，故不能写 `props.dataSource`（TS2339）；
+// 非本地模式下 `dataSourceModel.value` 即父级传入的数组，语义完全等价。
+watch(() => dataSourceModel.value, (next, prev) => {
+  const nextKeys = (next || []).map(rowIdentity).join('|')
+  const prevKeys = (prev || []).map(rowIdentity).join('|')
+  if (nextKeys !== prevKeys) {
+    clearSelection()
+  }
+})
+
 function handleCheckboxChange(record: any, rowIndex: number, checked: boolean) {
   if (checked) {
     checkedRows.value.add(rowIndex)
@@ -777,6 +818,7 @@ function getCheckedRecords(): any[] {
 // 暴露方法给父组件
 defineExpose({
   getCheckedRecords,
+  clearSelection,
   openColumnConfig: () => { showColPanel.value = true },
 })
 
@@ -853,23 +895,31 @@ function panelToRealIndex(panelIdx: number, tab: 'personal' | 'global'): number 
 const STORAGE_KEY = computed(() => props.storageKey || 'product-unit-columns-config')
 const GLOBAL_STORAGE_KEY = computed(() => (props.storageKey || 'product-unit-columns-config') + '-global')
 
+/**
+ * 按当前视图的列定义重建列设置：
+ * - 该视图有存储配置 → 用存储值（用户自定义优先）；未记录的列回落到该视图默认显隐
+ * - 该视图无存储配置 → 全部用该视图默认显隐（!defaultHidden）
+ *
+ * 必须**无条件重建**：多视图（Tab）页面切换 storage-key 时，若不重建，
+ * watch(leafColumns) 会因同名列（如按单据的「已收数量」与按明细的「已收货数量」）键相同而保留
+ * 上一个视图的 visible，导致目标视图的默认可见列被上一个视图的隐藏状态覆盖。
+ */
 function loadStoredSettings(storageKey: string, target: ColumnSetting[]) {
+  let parsed: any[] | null = null
   try {
     const stored = localStorage.getItem(storageKey)
-    if (stored) {
-      const parsed = JSON.parse(stored)
-      const mergedConfig = leafColumns.value.map(col => {
-        const storedCol = parsed.find((sc: any) => sc.key === col.key)
-        const title = configTitle(col)
-        return storedCol
-          ? { key: col.key, title, displayName: storedCol.displayName || title, visible: storedCol.visible ?? !col.defaultHidden, width: storedCol.width || col.width || 100, fixed: storedCol.fixed || col.fixed || '' }
-          : { key: col.key, title, displayName: title, visible: !col.defaultHidden, width: col.width || 100, fixed: col.fixed || '' }
-      })
-      target.splice(0, target.length, ...mergedConfig)
-    }
+    if (stored) parsed = JSON.parse(stored)
   } catch (error) {
     console.warn('加载列配置失败:', error)
   }
+  const mergedConfig = leafColumns.value.map(col => {
+    const storedCol = parsed?.find((sc: any) => sc.key === col.key)
+    const title = configTitle(col)
+    return storedCol
+      ? { key: col.key, title, displayName: storedCol.displayName || title, visible: storedCol.visible ?? !col.defaultHidden, width: storedCol.width || col.width || 100, fixed: storedCol.fixed || col.fixed || '' }
+      : { key: col.key, title, displayName: title, visible: !col.defaultHidden, width: col.width || 100, fixed: col.fixed || '' }
+  })
+  target.splice(0, target.length, ...mergedConfig)
 }
 
 function saveStoredSettings(storageKey: string, settings: ColumnSetting[]) {
@@ -1324,8 +1374,8 @@ function toggleExpand() {
   emit('expand-change', expanded.value)
 }
 
-/** 锁定列：行号和操作列不允许隐藏 */
-const LOCKED_COLUMNS = ['rowNo', 'action']
+/** 锁定列（系统列，不参与列配置）：行号 / 勾选 / 操作 */
+const LOCKED_COLUMNS = ['rowNo', 'checkbox', 'action']
 function isLockedColumn(key: string): boolean {
   return LOCKED_COLUMNS.includes(key)
 }

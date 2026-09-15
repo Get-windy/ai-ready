@@ -19,6 +19,16 @@ public class ReverseGeocodeResponse {
     private boolean success;
     private String message;
 
+    /** 实际生效的地图服务商 */
+    private String provider;
+
+    /** 是否降级（未配置地图 Key，无法做真实逆地理编码） */
+    private boolean degraded;
+
+    /** 输入坐标（GCJ-02） */
+    private Double lat;
+    private Double lng;
+
     /** 格式化地址 */
     private String formattedAddress;
 

@@ -284,9 +284,17 @@ public class SaleOutboundController {
                     "attachment; filename*=UTF-8''" + java.net.URLEncoder.encode(fileName, java.nio.charset.StandardCharsets.UTF_8));
             try (org.apache.poi.xssf.usermodel.XSSFWorkbook workbook = new org.apache.poi.xssf.usermodel.XSSFWorkbook()) {
                 org.apache.poi.ss.usermodel.Sheet sheet = workbook.createSheet("销售出库单");
+                // 列定义与《发货查询》页面 49 列一一对应（顺序/文案一致，避免"导出与页面口径不一致"）
+                // 说明：客户一票通（仅明细有列）、附件（表头无列）本系统无表头数据源，导出留空；
+                //      本单金额 = 商品金额 − 促销优惠 − 优惠劵 − 直接优惠 + 运费 + 其他费用（与页面同一口径）
                 String[] headers = {"单据日期", "单据编号", "单据状态", "来源订单", "仓库", "客户", "客户编号",
-                        "经手人", "部门", "商品金额", "本单金额", "已结金额", "结算状态", "数量", "配送方式",
-                        "运单号", "单据备注", "物流备注", "制单人", "审核人", "记账人", "制单时间"};
+                        "客户级别", "收货人", "联系电话", "收货地址", "物流公司", "运单号", "客户一票通", "客户备注",
+                        "经手人", "部门", "商品金额", "促销优惠", "优惠劵", "直接优惠", "运费承担方", "运费",
+                        "其他费用", "本单金额", "已结金额", "结算状态", "数量", "配送方式", "重量（kg）", "体积（m³）",
+                        "产生方式", "单据备注", "摘要", "附件", "表头自定义字段1(数字)", "表头自定义字段2(数字)",
+                        "表头自定义字段3(文本)", "表头自定义字段4(文本)", "表头自定义字段5(文本)",
+                        "表尾自定义字段1(文本)", "表尾自定义字段2(文本)", "制单人", "记账人", "审核人",
+                        "记账时间", "制单时间", "打印次数", "打印时间"};
                 org.apache.poi.ss.usermodel.Row head = sheet.createRow(0);
                 org.apache.poi.ss.usermodel.CellStyle headStyle = workbook.createCellStyle();
                 org.apache.poi.ss.usermodel.Font headFont = workbook.createFont();
@@ -308,21 +316,48 @@ public class SaleOutboundController {
                     row.createCell(c++).setCellValue(nvl(o.getWarehouseName()));
                     row.createCell(c++).setCellValue(nvl(o.getCustomerName()));
                     row.createCell(c++).setCellValue(nvl(o.getCustomerCode()));
+                    row.createCell(c++).setCellValue(nvl(o.getCustomerLevel()));
+                    row.createCell(c++).setCellValue(nvl(o.getReceiverName()));
+                    row.createCell(c++).setCellValue(nvl(o.getReceiverPhone()));
+                    row.createCell(c++).setCellValue(nvl(o.getShippingAddress()));
+                    row.createCell(c++).setCellValue(nvl(o.getLogisticsCompany()));
+                    row.createCell(c++).setCellValue(nvl(o.getTrackingNumber()));
+                    row.createCell(c++).setCellValue("");   // 客户一票通：表头无数据源
+                    row.createCell(c++).setCellValue(nvl(o.getCustomerRemark()));
                     row.createCell(c++).setCellValue(nvl(o.getSalesPersonName()));
                     row.createCell(c++).setCellValue(nvl(o.getDepartmentName()));
-                    row.createCell(c++).setCellValue(num(o.getTotalQuantity()));
                     row.createCell(c++).setCellValue(num(o.getTotalAmount()));
+                    row.createCell(c++).setCellValue(num(o.getPromoDiscount()));
+                    row.createCell(c++).setCellValue(num(o.getCouponAmount()));
+                    row.createCell(c++).setCellValue(num(o.getDirectDiscount()));
+                    row.createCell(c++).setCellValue(nvl(o.getFreightPayer()));
+                    row.createCell(c++).setCellValue(num(o.getFreight()));
+                    row.createCell(c++).setCellValue(num(o.getOtherFee()));
+                    row.createCell(c++).setCellValue(billAmount(o).doubleValue());
                     row.createCell(c++).setCellValue(num(o.getSettledAmount()));
                     row.createCell(c++).setCellValue(nvl(o.getSettlementStatus()));
                     row.createCell(c++).setCellValue(num(o.getTotalQuantity()));
                     row.createCell(c++).setCellValue(nvl(o.getDeliveryMethod()));
-                    row.createCell(c++).setCellValue(nvl(o.getTrackingNumber()));
+                    row.createCell(c++).setCellValue(num(o.getTotalWeight()));
+                    row.createCell(c++).setCellValue(num(o.getTotalVolume()));
+                    row.createCell(c++).setCellValue(nvl(o.getGenerationMethod()));
                     row.createCell(c++).setCellValue(nvl(o.getRemark()));
-                    row.createCell(c++).setCellValue(nvl(o.getLogisticsRemark()));
+                    row.createCell(c++).setCellValue(nvl(o.getSummary()));
+                    row.createCell(c++).setCellValue("");   // 附件：表头无列
+                    row.createCell(c++).setCellValue(num(o.getExtNum1()));
+                    row.createCell(c++).setCellValue(num(o.getExtNum2()));
+                    row.createCell(c++).setCellValue(nvl(o.getExtText1()));
+                    row.createCell(c++).setCellValue(nvl(o.getExtText2()));
+                    row.createCell(c++).setCellValue(nvl(o.getExtText3()));
+                    row.createCell(c++).setCellValue(nvl(o.getFooterExtText1()));
+                    row.createCell(c++).setCellValue(nvl(o.getFooterExtText2()));
                     row.createCell(c++).setCellValue(nvl(o.getCreatorName()));
-                    row.createCell(c++).setCellValue(nvl(o.getAuditorName()));
                     row.createCell(c++).setCellValue(nvl(o.getBookkeeperName()));
-                    row.createCell(c).setCellValue(o.getCreateTime() == null ? "" : o.getCreateTime().toString());
+                    row.createCell(c++).setCellValue(nvl(o.getAuditorName()));
+                    row.createCell(c++).setCellValue(o.getBookkeepingTime() == null ? "" : o.getBookkeepingTime().toString());
+                    row.createCell(c++).setCellValue(o.getCreateTime() == null ? "" : o.getCreateTime().toString());
+                    row.createCell(c++).setCellValue(o.getPrintCount() == null ? 0 : o.getPrintCount());
+                    row.createCell(c).setCellValue(o.getPrintTime() == null ? "" : o.getPrintTime().toString());
                 }
                 for (int i = 0; i < headers.length; i++) {
                     sheet.setColumnWidth(i, 16 * 256);
@@ -360,6 +395,20 @@ public class SaleOutboundController {
 
     private double num(BigDecimal v) {
         return v == null ? 0d : v.doubleValue();
+    }
+
+    /** 本单金额 = 商品金额 − 促销优惠 − 优惠劵 − 直接优惠 + 运费 + 其他费用（与《发货查询》页面同一口径） */
+    private BigDecimal billAmount(SaleOutbound o) {
+        return nz(o.getTotalAmount())
+                .subtract(nz(o.getPromoDiscount()))
+                .subtract(nz(o.getCouponAmount()))
+                .subtract(nz(o.getDirectDiscount()))
+                .add(nz(o.getFreight()))
+                .add(nz(o.getOtherFee()));
+    }
+
+    private BigDecimal nz(BigDecimal v) {
+        return v == null ? BigDecimal.ZERO : v;
     }
 
     private String statusDesc(Integer status) {

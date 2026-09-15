@@ -47,6 +47,15 @@ public class InventorySyncRecord {
     /** 错误信息 */
     private String errorMsg;
 
+    /** 人工/自动重试次数 */
+    private Integer retryCount;
+
+    /** 最近一次重试时间 */
+    private LocalDateTime lastRetryTime;
+
+    /** 失败原因分类: NETWORK/AUTH/PARAM/RATE_LIMIT/BIZ_REJECT/UNKNOWN */
+    private String errorCategory;
+
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
 

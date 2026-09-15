@@ -45,6 +45,9 @@ export const useUserStore = defineStore('delivery-user', () => {
     user.value = userData
     token.value = userData.token || ''
     if (userData.token) {
+      // ⚠️ `utils/request` 读取的是 `token`；早期只写 `delivery_token`，
+      //    导致真实登录后所有 /api/dms/** 不带 Authorization（E2E 因直接注入 token 才没暴露）
+      localStorage.setItem('token', userData.token)
       localStorage.setItem('delivery_token', userData.token)
       localStorage.setItem('delivery_user', JSON.stringify(userData))
     }
@@ -52,18 +55,20 @@ export const useUserStore = defineStore('delivery-user', () => {
 
   const setToken = (newToken: string) => {
     token.value = newToken
+    localStorage.setItem('token', newToken)
     localStorage.setItem('delivery_token', newToken)
   }
 
   const logout = () => {
     user.value = null
     token.value = ''
+    localStorage.removeItem('token')
     localStorage.removeItem('delivery_token')
     localStorage.removeItem('delivery_user')
   }
 
   const init = () => {
-    const savedToken = localStorage.getItem('delivery_token')
+    const savedToken = localStorage.getItem('token') || localStorage.getItem('delivery_token')
     const savedUser = localStorage.getItem('delivery_user')
     if (savedToken && savedUser) {
       token.value = savedToken

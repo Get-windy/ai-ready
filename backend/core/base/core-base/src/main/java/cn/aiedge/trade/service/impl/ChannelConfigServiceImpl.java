@@ -1,16 +1,20 @@
 package cn.aiedge.trade.service.impl;
 
+import cn.aiedge.common.result.PageResult;
 import cn.aiedge.trade.entity.ExternalChannelConfig;
 import cn.aiedge.trade.mapper.ExternalChannelConfigMapper;
 import cn.aiedge.trade.service.ChannelConfigService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -71,6 +75,48 @@ public class ChannelConfigServiceImpl implements ChannelConfigService {
         LambdaQueryWrapper<ExternalChannelConfig> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(ExternalChannelConfig::getStatus, 1);
         return mapper.selectList(wrapper);
+    }
+
+    @Override
+    public PageResult<ExternalChannelConfig> pageChannels(Integer pageNum, Integer pageSize, String keyword,
+                                                          String channelType, Integer syncEnabled, Integer status) {
+        LambdaQueryWrapper<ExternalChannelConfig> wrapper = new LambdaQueryWrapper<>();
+        if (StringUtils.hasText(keyword)) {
+            String kw = keyword.trim();
+            wrapper.and(w -> w.like(ExternalChannelConfig::getChannelCode, kw)
+                    .or().like(ExternalChannelConfig::getChannelName, kw));
+        }
+        wrapper.eq(StringUtils.hasText(channelType), ExternalChannelConfig::getChannelType, channelType);
+        wrapper.eq(syncEnabled != null, ExternalChannelConfig::getSyncEnabled, syncEnabled);
+        wrapper.eq(status != null, ExternalChannelConfig::getStatus, status);
+        // 渠道编码升序（与 CHANNEL_CODE_MAP 枚举顺序一致），末尾用 id 兜底保证分页稳定
+        wrapper.orderByAsc(ExternalChannelConfig::getChannelCode).orderByAsc(ExternalChannelConfig::getId);
+
+        Page<ExternalChannelConfig> page = mapper.selectPage(
+                new Page<>(pageNum == null ? 1 : pageNum, pageSize == null ? 20 : pageSize), wrapper);
+        return PageResult.of(page.getRecords(), page.getTotal(),
+                pageNum == null ? 1 : pageNum, pageSize == null ? 20 : pageSize);
+    }
+
+    @Override
+    public Map<String, Object> statChannels() {
+        // 单条聚合 SQL（COUNT + FILTER），tenant_id 由租户插件注入；无行时返回全 0，不回退当前页口径
+        Map<String, Object> row = mapper.statChannels();
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("total", longOf(row, "total"));
+        out.put("enabledCount", longOf(row, "enabledCount"));
+        out.put("syncEnabledCount", longOf(row, "syncEnabledCount"));
+        out.put("abnormalCount", longOf(row, "abnormalCount"));
+        return out;
+    }
+
+    /** 聚合列取值：PostgreSQL COUNT 返回 bigint，统一转为 long，缺失记 0 */
+    private static long longOf(Map<String, Object> row, String key) {
+        if (row == null) {
+            return 0L;
+        }
+        Object value = row.get(key);
+        return value instanceof Number ? ((Number) value).longValue() : 0L;
     }
 
     @Override

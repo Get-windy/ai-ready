@@ -48,4 +48,7 @@ public class PaymentReconciliation extends BaseEntity {
 
     /** 备注 */
     private String remark;
+
+    /** 差异处理方式: MANUAL手工调账, IGNORE忽略差异, REPROCESS重新对账（迁移 V11.361.1 补列） */
+    private String handleMethod;
 }

@@ -35,6 +35,27 @@ public class ProductUnit {
     /** 单位类型: SMALL=小单位 MEDIUM=中单位 LARGE=大单位 */
     private String unitType;
 
+    /**
+     * 单位显示类型 —— **单位粒度**显示类型（erp_product_unit.unit_display_type，列由 Flyway
+     * V11.361.8 新增、取值口径由 V11.361.9 按对标实测改正）
+     *
+     * <p>取值（对标 ql361「单位显示」页查询区「单位显示类型」下拉 DOM 实测，2026-09-14）：</p>
+     * <ul>
+     *   <li>{@code "-1"} = 全部</li>
+     *   <li>{@code "0"} = 只显示常用单位</li>
+     *   <li>{@code "1"} = 只显示小单位</li>
+     *   <li>{@code "2"} = 只显示中/大单位</li>
+     * </ul>
+     *
+     * <p>NULL = 未显式设置，读取时按商品级 {@code erp_product.unit_display}（整品开关 1/0）
+     * 兜底判断「该商品是否在商城显示」。</p>
+     *
+     * <p>⚠️ 本列是「单位粒度」显示类型，**不是**「显示/隐藏该单位」的布尔开关；后者是
+     * 商品级 {@code erp_product.unit_display}（对标查询区「单位显示」= 全部(-1)/是(1)/否(2)）。
+     * V11.361.8 曾落的 SHOW/HIDE 二元口径是猜测，已废止。</p>
+     */
+    private String unitDisplayType;
+
     /** 预设进价 */
     private BigDecimal presetPurchasePrice;
 

@@ -79,6 +79,9 @@ public class DmsVehicleInspection {
     /** 里程数（验车时） */
     private Integer mileage;
 
+    /** 巡检地点（文本，配合照片凭证） */
+    private String inspectionLocation;
+
     /** 油量/电量百分比 */
     private Integer fuelLevel;
 

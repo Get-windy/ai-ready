@@ -181,6 +181,7 @@
       :summary-columns="summaryData"
       :storage-key="storageKey"
       :global-config-key="globalConfigKey"
+      :row-key="rowKey"
       :min-rows="minEmptyRows"
       :fill-mode="fillMode"
       @checkbox-change="handleCheckboxChange"
@@ -414,6 +415,8 @@ function handleSortChange(key: string | null, order: string | null) {
 
 function clearSelection() {
   selectedRecords.value = []
+  // 同步清空子表勾选态：只清父层会导致「批量条消失、行上仍勾着」，进而勾选漂移
+  tableRef.value?.clearSelection?.()
   emit('selection-change', [], [])
 }
 

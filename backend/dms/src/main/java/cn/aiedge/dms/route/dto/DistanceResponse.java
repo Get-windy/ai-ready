@@ -19,6 +19,12 @@ public class DistanceResponse {
     private boolean success;
     private String message;
 
+    /** 实际生效的地图服务商 */
+    private String provider;
+
+    /** 是否降级（球面直线距离） */
+    private boolean degraded;
+
     private List<DistanceItem> distances;
 
     @Data

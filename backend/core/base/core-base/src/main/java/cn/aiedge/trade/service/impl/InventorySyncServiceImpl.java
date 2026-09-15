@@ -6,6 +6,10 @@ import cn.aiedge.trade.dto.ProductSyncResult;
 import cn.aiedge.trade.channel.ExternalChannelAdapter;
 import cn.aiedge.trade.entity.InventorySyncRecord;
 import cn.aiedge.trade.mapper.InventorySyncRecordMapper;
+import cn.aiedge.trade.monitor.ApiCallDirection;
+import cn.aiedge.trade.monitor.ApiCallLogRecorder;
+import cn.aiedge.trade.monitor.ErrorCategory;
+import cn.aiedge.trade.monitor.entity.ApiAccessLog;
 import cn.aiedge.trade.service.InventorySyncService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -27,9 +31,16 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class InventorySyncServiceImpl implements InventorySyncService {
 
+    /** 出站调用日志的接口标识（与《API监控》「接口调用日志」按接口聚合口径一致） */
+    private static final String OUT_PATH_SYNC = "/channel/inventory/sync";
+    private static final String OUT_NAME_SYNC = "渠道库存推送";
+    private static final String OUT_PATH_PRICE = "/channel/product/price";
+    private static final String OUT_NAME_PRICE = "渠道价格推送";
+
     private final InventorySyncRecordMapper syncMapper;
     private final List<ExternalChannelAdapter> adapters;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final ApiCallLogRecorder apiCallLogRecorder;
 
     private static final String CACHE_PREFIX = "inventory:";
     private static final int CACHE_EXPIRE_SECONDS = 30;
@@ -80,32 +91,34 @@ public class InventorySyncServiceImpl implements InventorySyncService {
 
     @Override
     public ProductSyncResult pushToChannel(String channelCode, String skuCode, Integer quantity) {
-        ExternalChannelAdapter adapter = getAdapterMap().get(channelCode);
-        if (adapter == null) {
-            ProductSyncResult fail = new ProductSyncResult();
-            fail.setSkuCode(skuCode);
-            fail.setStatus(0);
-            fail.setErrorMsg("不支持的渠道: " + channelCode);
-            return fail;
-        }
+        ProductSyncResult result = invokeChannel(channelCode, skuCode, quantity);
 
-        ProductSyncResult result = adapter.pushInventory(skuCode, quantity);
-
-        // 记录同步日志
-        InventorySyncRecord record = new InventorySyncRecord();
-        record.setChannelCode(channelCode);
-        record.setSkuCode(skuCode);
-        record.setSyncQty(quantity);
-        record.setSyncType("PUSH");
-        record.setSyncTime(LocalDateTime.now());
-        record.setSyncStatus(result.getStatus() == 1 ? 1 : 2);
-        record.setErrorMsg(result.getErrorMsg());
-        syncMapper.insert(record);
+        // 记录同步日志（按 SKU 记账；product_id 允许为空，见迁移 V11.360.0）
+        writeSyncRecord(channelCode, skuCode, quantity, result);
 
         // 刷新缓存
         refreshCache(skuCode);
 
         log.info("推送库存到渠道: channel={}, sku={}, qty={}, result={}", channelCode, skuCode, quantity, result.getStatus());
+        return result;
+    }
+
+    @Override
+    public ProductSyncResult invokeChannel(String channelCode, String skuCode, Integer quantity) {
+        long startMs = System.currentTimeMillis();
+        ExternalChannelAdapter adapter = getAdapterMap().get(channelCode);
+        ProductSyncResult result;
+        if (adapter == null) {
+            result = new ProductSyncResult();
+            result.setSkuCode(skuCode);
+            result.setStatus(0);
+            result.setErrorCode("CHANNEL_NOT_SUPPORTED");
+            result.setErrorMsg("不支持的渠道: " + channelCode);
+        } else {
+            result = adapter.pushInventory(skuCode, quantity);
+        }
+        recordOutbound(channelCode, skuCode, OUT_PATH_SYNC, OUT_NAME_SYNC, result,
+                (int) Math.max(System.currentTimeMillis() - startMs, 0));
         return result;
     }
 
@@ -118,12 +131,55 @@ public class InventorySyncServiceImpl implements InventorySyncService {
                         ProductSyncResult fail = new ProductSyncResult();
                         fail.setSkuCode(k);
                         fail.setStatus(0);
+                        fail.setErrorCode("CHANNEL_NOT_SUPPORTED");
                         fail.setErrorMsg("不支持的渠道");
+                        // 未知渠道同样落一条失败同步记录 + 出站调用日志，保证「失败可查、可重试」
+                        recordOutbound(channelCode, k, OUT_PATH_SYNC, OUT_NAME_SYNC, fail, 0);
                         return fail;
                     }));
         }
 
-        return adapter.batchPushInventory(skuQuantities);
+        // 逐 SKU 走单条通道：与适配器内部实现一致，但可获得**逐 SKU 的同步记录与调用日志**
+        Map<String, ProductSyncResult> results = new java.util.LinkedHashMap<>();
+        skuQuantities.forEach((sku, qty) -> results.put(sku, pushToChannel(channelCode, sku, qty)));
+        return results;
+    }
+
+    /**
+     * 写库存同步记录（状态口径：1 成功 / 2 失败）+ 失败原因分类
+     */
+    private void writeSyncRecord(String channelCode, String skuCode, Integer quantity, ProductSyncResult result) {
+        boolean success = result != null && Integer.valueOf(1).equals(result.getStatus());
+        InventorySyncRecord record = new InventorySyncRecord();
+        record.setChannelCode(channelCode);
+        record.setSkuCode(skuCode);
+        record.setSyncQty(quantity);
+        record.setSyncType("PUSH");
+        record.setSyncTime(LocalDateTime.now());
+        record.setSyncStatus(success ? 1 : 2);
+        record.setErrorMsg(success || result == null ? (result == null ? "渠道无返回" : null) : result.getErrorMsg());
+        record.setErrorCategory(success ? null : ErrorCategory.classify(record.getErrorMsg()).name());
+        record.setRetryCount(0);
+        syncMapper.insert(record);
+    }
+
+    /**
+     * 写出站调用日志（方向 OUT）——《API监控》「接口调用日志」的外部调用来源
+     *
+     * <p>口径：只落 SKU 与耗时/状态/错误摘要，不落请求体。</p>
+     */
+    private void recordOutbound(String channelCode, String skuCode, String apiPath, String apiName,
+                               ProductSyncResult result, int costMs) {
+        boolean success = result != null && Integer.valueOf(1).equals(result.getStatus());
+        ApiAccessLog row = apiCallLogRecorder.build(
+                ApiCallDirection.OUT.name(), channelCode, apiPath, apiName, "POST",
+                success, success ? 200 : 500, costMs,
+                success ? null : (result == null ? null : result.getErrorCode()),
+                success ? null : (result == null ? "渠道无返回" : result.getErrorMsg()));
+        row.setRequestId(apiCallLogRecorder.newRequestId());
+        row.setRequestParams("skuCode=" + skuCode);
+        row.setAccessTime(LocalDateTime.now());
+        apiCallLogRecorder.record(row);
     }
 
     @Override
@@ -178,15 +234,20 @@ public class InventorySyncServiceImpl implements InventorySyncService {
 
     @Override
     public ProductSyncResult updatePrice(String channelCode, String skuCode, BigDecimal price) {
+        long startMs = System.currentTimeMillis();
         ExternalChannelAdapter adapter = getAdapterMap().get(channelCode);
+        ProductSyncResult result;
         if (adapter == null) {
-            ProductSyncResult fail = new ProductSyncResult();
-            fail.setSkuCode(skuCode);
-            fail.setStatus(0);
-            fail.setErrorMsg("不支持的渠道");
-            return fail;
+            result = new ProductSyncResult();
+            result.setSkuCode(skuCode);
+            result.setStatus(0);
+            result.setErrorCode("CHANNEL_NOT_SUPPORTED");
+            result.setErrorMsg("不支持的渠道: " + channelCode);
+        } else {
+            result = adapter.updatePrice(skuCode, price);
         }
-
-        return adapter.updatePrice(skuCode, price);
+        recordOutbound(channelCode, skuCode, OUT_PATH_PRICE, OUT_NAME_PRICE, result,
+                (int) Math.max(System.currentTimeMillis() - startMs, 0));
+        return result;
     }
 }

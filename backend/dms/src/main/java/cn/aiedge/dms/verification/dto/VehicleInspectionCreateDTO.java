@@ -15,6 +15,12 @@ public class VehicleInspectionCreateDTO {
     @Schema(description = "车辆ID")
     private Long vehicleId;
 
+    @Schema(description = "巡检人（配送员ID），为空时取登录用户")
+    private Long riderId;
+
+    @Schema(description = "关联人车绑定ID（出车检查由绑定流程回写；收车检查由交车流程带入）")
+    private Long bindingId;
+
     @Schema(description = "验车类型：1-出车验车 2-收车验车")
     private Integer inspectionType;
 
@@ -53,6 +59,9 @@ public class VehicleInspectionCreateDTO {
 
     @Schema(description = "当前里程")
     private Integer mileage;
+
+    @Schema(description = "巡检地点（文本，配合照片凭证）")
+    private String inspectionLocation;
 
     @Schema(description = "油量/电量百分比")
     private Integer fuelLevel;

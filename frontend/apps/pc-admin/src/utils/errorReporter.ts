@@ -116,7 +116,15 @@ export function initErrorReporter(app: {
 
       console.error('[Resource Error]', (target as HTMLImageElement).src || (target as HTMLLinkElement).href)
 
-      const errorMsg = `Resource load failed: ${(target as HTMLImageElement).src || (target as HTMLLinkElement).href}`
+      // 用户数据类资源（业务附件 / 商品图 / 签名照）加载失败属**数据状态**（文件被删、历史脏数据、
+      // 路径不合规），不是应用异常：只留控制台日志，不上报 Sentry / 错误台账，避免被刷屏。
+      // 脚本、样式、字体等代码资源失败仍照常上报（那是真的应用缺陷）。
+      const failedUrl = (target as HTMLImageElement).src || (target as HTMLLinkElement).href || ''
+      if (isUserDataAsset(target.tagName, failedUrl)) {
+        return
+      }
+
+      const errorMsg = `Resource load failed: ${failedUrl}`
 
       // 1) 上报 Sentry
       captureException(errorMsg, {
@@ -147,6 +155,31 @@ export function initErrorReporter(app: {
   startFlushTimer(finalConfig)
 
   console.warn('[ErrorReporter] Initialized')
+}
+
+/** 用户数据类资源路径（业务附件 / 商品图 / 签名照，均由后端按业务数据下发） */
+const USER_DATA_ASSET_PATH = /\/(api\/file\/view|api\/erp\/md\/image\/view)\//
+
+/**
+ * 是否为「用户数据类」媒体资源（附件 / 商品图 / 签名照 / 音视频）
+ *
+ * <p>用途：过滤资源加载失败的上报。这类资源的生命周期由业务数据决定（上传后可被删除、
+ * 历史数据可能指向不存在的文件、路径不合规会被安全白名单直接 400），失败是**数据状态**而非代码缺陷；
+ * 打包进前端的静态资源（logo/图标）失败仍照常上报。</p>
+ */
+function isUserDataAsset(tagName: string, url: string): boolean {
+  const tag = String(tagName || '').toUpperCase()
+  if (tag !== 'IMG' && tag !== 'VIDEO' && tag !== 'AUDIO') {
+    return false
+  }
+  if (!url) {
+    return false
+  }
+  try {
+    return USER_DATA_ASSET_PATH.test(new URL(url, window.location.origin).pathname)
+  } catch {
+    return false
+  }
 }
 
 /**

@@ -1,5 +1,6 @@
 package cn.aiedge.erp.b2b.controller;
 
+import cn.aiedge.common.result.PageResult;
 import cn.aiedge.erp.b2b.dto.ApiResponse;
 import cn.aiedge.erp.b2b.dto.CartAddRequest;
 import cn.aiedge.erp.b2b.dto.CartDTO;
@@ -25,6 +26,19 @@ public class MallCartController {
     public ApiResponse<List<CartDTO>> getCart() {
         List<CartDTO> cartList = mallCartService.getCart();
         return ApiResponse.success(cartList);
+    }
+
+    @Operation(summary = "购物车分页查询（管理端）",
+            description = "真实分页 SQL；支持会员（登录名/昵称/手机号/公司名）与商品（名称/编码）关键字过滤，"
+                    + "额外返回会员昵称 memberName 与账号 memberAccount（由 shop_user 派生，未新增列）")
+    @GetMapping("/page")
+    public ApiResponse<PageResult<CartDTO>> page(
+            @Parameter(description = "页码") @RequestParam(defaultValue = "1") Integer pageNum,
+            @Parameter(description = "每页数量") @RequestParam(defaultValue = "20") Integer pageSize,
+            @Parameter(description = "会员ID") @RequestParam(required = false) Long customerId,
+            @Parameter(description = "会员关键字（登录名/昵称/手机号/公司名）") @RequestParam(required = false) String memberKeyword,
+            @Parameter(description = "商品关键字（名称/编码）") @RequestParam(required = false) String productKeyword) {
+        return ApiResponse.success(mallCartService.pageCart(pageNum, pageSize, customerId, memberKeyword, productKeyword));
     }
 
     @Operation(summary = "添加购物车", description = "将商品添加到购物车")
@@ -56,6 +70,13 @@ public class MallCartController {
     public ApiResponse<Void> clearCart() {
         mallCartService.clearCart();
         return ApiResponse.success("购物车已清空", null);
+    }
+
+    @Operation(summary = "批量删除购物车项", description = "请求体为购物车项ID数组，如 [1,2,3]；逻辑删除，返回实际删除条数")
+    @DeleteMapping("/batch")
+    public ApiResponse<Integer> removeBatch(@RequestBody List<Long> ids) {
+        int removed = mallCartService.removeBatch(ids);
+        return ApiResponse.success("已删除 " + removed + " 项", removed);
     }
 
     @Operation(summary = "检查库存", description = "检查购物车中商品的库存是否充足")

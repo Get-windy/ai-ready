@@ -15,7 +15,8 @@ public enum AlertTypeEnum {
     SPEED_ANOMALY(3, "速度异常"),
     OFF_ROUTE(4, "偏离路线"),
     BINDING_TIMEOUT(5, "绑定超时未交车"),
-    VEHICLE_OFF_HOURS(6, "非工作时段用车");
+    VEHICLE_OFF_HOURS(6, "非工作时段用车"),
+    CERT_EXPIRING(7, "证照/资质到期");
 
     private final int value;
     private final String description;
@@ -25,5 +26,13 @@ public enum AlertTypeEnum {
             if (a.value == value) return a;
         }
         return POSITION_MISMATCH;
+    }
+
+    public static String text(Integer value) {
+        if (value == null) return "";
+        for (AlertTypeEnum a : values()) {
+            if (a.value == value) return a.description;
+        }
+        return String.valueOf(value);
     }
 }

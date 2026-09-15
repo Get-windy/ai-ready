@@ -136,7 +136,7 @@ export type { ReportQueryField, ReportFetchResult, ReportFetcher, ReportExportCo
 </script>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import dayjs, { type Dayjs } from 'dayjs'
 import { message } from 'ant-design-vue'
 import {
@@ -175,6 +175,11 @@ const props = withDefaults(defineProps<{
   immediate?: boolean
   /** 是否显示刷新按钮，默认 true */
   showRefresh?: boolean
+  /**
+   * 初始查询条件（挂载时写入查询模型，用于从其他页面下钻带入筛选）。
+   * 仅写入非空值；键名与 queryFields 的 key / paramKey 一致。
+   */
+  initialQuery?: Record<string, any>
   /** 空态文案 */
   emptyText?: string
   /** 是否启用行选择（checkbox），默认 false */
@@ -188,6 +193,7 @@ const props = withDefaults(defineProps<{
   pageParamStyle: 'page',
   statCards: () => [],
   immediate: true,
+  initialQuery: () => ({}),
   showRefresh: true,
   emptyText: '暂无数据',
   enableRowSelection: false,
@@ -364,9 +370,29 @@ function handleExport() {
   message.success('导出成功')
 }
 
+/** 把下钻带入的初始条件写入查询模型（仅非空值） */
+function applyInitialQuery() {
+  const init = props.initialQuery || {}
+  Object.keys(init).forEach((key) => {
+    const value = init[key]
+    if (value !== undefined && value !== null && value !== '') {
+      queryModel[key] = value
+    }
+  })
+}
+
 onMounted(() => {
+  // 下钻带入的初始条件：写入查询模型后再发起首次查询
+  applyInitialQuery()
   if (props.immediate) fetchData()
 })
+
+// 同一路由重复下钻（如仪表盘 待分配任务 → 异常任务）时组件被复用，需响应条件变化并重查
+watch(() => props.initialQuery, () => {
+  applyInitialQuery()
+  pagination.current = 1
+  fetchData()
+}, { deep: true })
 
 /** 清空选择 */
 function clearSelection() {

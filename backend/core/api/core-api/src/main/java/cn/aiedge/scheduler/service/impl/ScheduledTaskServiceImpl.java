@@ -1,7 +1,10 @@
 package cn.aiedge.scheduler.service.impl;
 
+import cn.aiedge.common.exception.BusinessException;
+import cn.aiedge.scheduler.job.JobHandlerRegistry;
 import cn.aiedge.scheduler.mapper.ScheduledTaskLogMapper;
 import cn.aiedge.scheduler.mapper.ScheduledTaskMapper;
+import cn.aiedge.scheduler.model.JobHandlerVO;
 import cn.aiedge.scheduler.model.ScheduledTask;
 import cn.aiedge.scheduler.model.ScheduledTaskLog;
 import cn.aiedge.scheduler.service.ScheduledTaskService;
@@ -14,9 +17,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * 定时任务服务实现
@@ -30,22 +35,26 @@ public class ScheduledTaskServiceImpl extends ServiceImpl<ScheduledTaskMapper, S
     private final ScheduledTaskMapper taskMapper;
     private final ScheduledTaskLogMapper logMapper;
     private final TaskExecutor taskExecutor;
+    private final JobHandlerRegistry jobHandlerRegistry;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ScheduledTask createTask(ScheduledTask task) {
+        validateJobKey(task.getJobKey());
         task.setStatus("STOPPED");
         task.setExecuteCount(0);
         task.setSuccessCount(0);
         task.setFailCount(0);
-        task.setEnabled(1);
+        if (task.getEnabled() == null) {
+            task.setEnabled(1);
+        }
         taskMapper.insert(task);
-        
+
         // 如果启用，添加到调度器
         if (task.getEnabled() == 1) {
             taskExecutor.scheduleTask(task);
         }
-        
+
         return task;
     }
 
@@ -54,23 +63,47 @@ public class ScheduledTaskServiceImpl extends ServiceImpl<ScheduledTaskMapper, S
     public ScheduledTask updateTask(ScheduledTask task) {
         ScheduledTask existing = taskMapper.selectById(task.getId());
         if (existing == null) {
-            throw new RuntimeException("任务不存在");
+            throw new BusinessException(400, "任务不存在");
         }
-        
+        // 未提交 jobKey 时保持原值（updateById 忽略 null 字段），并统一走白名单校验
+        if (!StringUtils.hasText(task.getJobKey())) {
+            task.setJobKey(existing.getJobKey());
+        }
+        validateJobKey(task.getJobKey());
+
         // 如果任务正在运行，先取消
         if ("RUNNING".equals(existing.getStatus())) {
             taskExecutor.cancelTask(existing.getId());
         }
-        
+
         taskMapper.updateById(task);
-        
-        // 重新调度
-        if (task.getEnabled() == 1) {
-            ScheduledTask updated = taskMapper.selectById(task.getId());
-            taskExecutor.scheduleTask(updated);
+
+        // 以落库后的最终状态决定「重新调度 / 取消调度」
+        ScheduledTask latest = taskMapper.selectById(task.getId());
+        if (latest.getEnabled() != null && latest.getEnabled() == 1) {
+            taskExecutor.scheduleTask(latest);
+        } else {
+            taskExecutor.cancelTask(latest.getId());
         }
-        
-        return taskMapper.selectById(task.getId());
+        return latest;
+    }
+
+    /**
+     * 执行目标白名单校验：{@code job_key} 必须对应一个已注册的 {@code JobHandler}
+     *
+     * <p>把「类名 + 方法名」换成「处理器键」后，配置阶段即可拦住无效目标 ——
+     * 不再像旧实现那样等到执行时才在日志里出现 {@code ClassNotFoundException/NPE}。</p>
+     */
+    private void validateJobKey(String jobKey) {
+        if (!StringUtils.hasText(jobKey)) {
+            throw new BusinessException(400, "请选择任务处理器（job_key）");
+        }
+        if (jobHandlerRegistry.get(jobKey) == null) {
+            String available = jobHandlerRegistry.list().stream()
+                    .map(JobHandlerVO::getKey).collect(Collectors.joining(", "));
+            throw new BusinessException(400, "未注册的任务处理器: " + jobKey
+                    + (available.isEmpty() ? "（当前无可用处理器）" : "（可选：" + available + "）"));
+        }
     }
 
     @Override
@@ -87,7 +120,9 @@ public class ScheduledTaskServiceImpl extends ServiceImpl<ScheduledTaskMapper, S
         if (task == null) {
             return false;
         }
-        
+        // 启用前校验目标处理器仍存在（历史演示任务没有 job_key，启用即失败：给出可读原因而非运行时静默失败）
+        validateJobKey(task.getJobKey());
+
         task.setEnabled(1);
         taskMapper.updateById(task);
         taskExecutor.scheduleTask(task);

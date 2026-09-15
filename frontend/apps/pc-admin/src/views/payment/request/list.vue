@@ -1,259 +1,519 @@
 <template>
-  <PageContainer full-height>
-    <template #header>
-      <div class="payment-page-header">
-        <div class="payment-page-header-left">
-          <a-breadcrumb>
-            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-            <a-breadcrumb-item>支付管理</a-breadcrumb-item>
-            <a-breadcrumb-item>支付请求</a-breadcrumb-item>
-          </a-breadcrumb>
-          <h2 class="payment-page-header-title">支付请求</h2>
-        </div>
-        <div class="payment-page-header-right">
+  <ErrorBoundary @error="handleError">
+    <PageContainer full-height>
+      <!--
+        支付请求（交易 → 支付管理 → 支付请求，路由 payment/request/list，菜单 90301）
+        · 定位：在线支付单统一查询/处理（只读查询 + 线下「确认收款」，无创建入口）
+        · 对标：ql361 无对应页（支付请求开发文档）→ 按金标准结构实现
+        · 骨架（路线 A）：CategoryListLayout + BillDetailTable（表头序号齿轮列配置：个人/全局）+ PageConfigPanel
+        · 数据：`GET /api/payment/request/page`（本轮扩充：业务类型/业务单号/渠道/状态/创建时间区间）
+                统计：`GET /api/payment/request/stat?channel=`（后端聚合，随查询区「支付渠道」联动）
+                确认收款：`POST /api/payment/request/{id}/confirm?channelOrderNo=`
+                取消支付：`POST /api/payment/request/{id}/cancel`（后端仅 `status≠2` 可取消，行级入口按同口径显示）
+        · 状态机（PAYMENT_STATUS_MAP）：0 待支付 / 1 支付中 / 2 已支付 / 3 已取消 / 4 支付失败
+      -->
+      <CategoryListLayout
+        :tabs="[]"
+        :show-category-panel="false"
+        :show-table-footer="true"
+      >
+        <!-- ═══ 工具栏左侧：口径提示 ═══ -->
+        <template #toolbar-left>
           <a-space :size="8">
-            <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-            <a-button size="small" :loading="loading" @click="() => fetchData()">
-              <template #icon><ReloadOutlined /></template>刷新
-            </a-button>
-            <span class="shortcut-hints">
-              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            <span class="toolbar-tip">
+              支付请求由业务流程发起（无新增入口）；现金/银行转账渠道走「确认收款」
             </span>
           </a-space>
-        </div>
-      </div>
-    </template>
-
-    <ErrorBoundary @error="handleError" @reset="fetchData">
-      <div class="stats-cards">
-        <a-row :gutter="16">
-          <a-col :span="6">
-            <div class="stat-card stat-card-blue">
-              <div class="stat-icon" style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);"><DollarOutlined /></div>
-              <div class="stat-content">
-                <div class="stat-title">待支付</div>
-                <div class="stat-value">{{ stats.pending }}</div>
-                <div class="stat-desc">等待支付</div>
-              </div>
-            </div>
-          </a-col>
-          <a-col :span="6">
-            <div class="stat-card stat-card-green">
-              <div class="stat-icon" style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);"><CheckCircleOutlined /></div>
-              <div class="stat-content">
-                <div class="stat-title">成功</div>
-                <div class="stat-value">{{ stats.success }}</div>
-                <div class="stat-desc">支付成功</div>
-              </div>
-            </div>
-          </a-col>
-          <a-col :span="6">
-            <div class="stat-card stat-card-red">
-              <div class="stat-icon" style="background: linear-gradient(135deg, #ff4d4f 0%, #cf1322 100%);"><CloseCircleOutlined /></div>
-              <div class="stat-content">
-                <div class="stat-title">失败</div>
-                <div class="stat-value">{{ stats.failed }}</div>
-                <div class="stat-desc">支付失败</div>
-              </div>
-            </div>
-          </a-col>
-          <a-col :span="6">
-            <div class="stat-card stat-card-purple">
-              <div class="stat-icon" style="background: linear-gradient(135deg, #722ed1 0%, #531dab 100%);"><BarChartOutlined /></div>
-              <div class="stat-content">
-                <div class="stat-title">总金额</div>
-                <div class="stat-value">¥{{ formatAmount(stats.totalAmount) }}</div>
-                <div class="stat-desc">累计金额</div>
-              </div>
-            </div>
-          </a-col>
-        </a-row>
-      </div>
-
-      <!-- 筛选 -->
-      <a-collapse v-model:active-key="filterExpanded" class="filter-collapse">
-        <a-collapse-panel key="1" header="筛选条件">
-          <a-row :gutter="16">
-            <a-col :span="6">
-              <a-form-item label="业务单号">
-                <a-input v-model:value="searchForm.bizNo" placeholder="请输入" allow-clear size="small" />
-              </a-form-item>
-            </a-col>
-            <a-col :span="6">
-              <a-form-item label="渠道">
-                <a-select v-model:value="searchForm.channel" placeholder="全部渠道" allow-clear size="small">
-                  <a-select-option v-for="[key, val] in Object.entries(PAYMENT_CHANNEL_MAP)" :key="key" :value="key">{{ val.name }}</a-select-option>
-                </a-select>
-              </a-form-item>
-            </a-col>
-            <a-col :span="6">
-              <a-form-item label="状态">
-                <a-select v-model:value="searchForm.status" placeholder="全部状态" allow-clear size="small">
-                  <a-select-option v-for="[key, val] in Object.entries(PAYMENT_STATUS_MAP)" :key="key" :value="Number(key)">{{ val.text }}</a-select-option>
-                </a-select>
-              </a-form-item>
-            </a-col>
-            <a-col :span="6" class="filter-actions">
-              <a-space>
-                <a-button type="primary" size="small" @click="handleSearch">查询</a-button>
-                <a-button size="small" @click="handleReset">重置</a-button>
-              </a-space>
-            </a-col>
-          </a-row>
-        </a-collapse-panel>
-      </a-collapse>
-
-      <div class="table-card">
-        <BillTableList
-          ref="tableRef"
-          :columns="vxeColumns"
-          :data-source="tableData"
-          :loading="loading"
-          :pagination="pagination"
-          :show-toolbar="false"
-          :show-search="false"
-          :show-add="false"
-          :selectable="true"
-          :min-empty-rows="10"
-          row-key="id"
-          @refresh="fetchData"
-          @page-change="handlePageChange"
-          @filter-change="handleFilterChange"
-          @selection-change="handleSelectionChange"
-          @cell-dblclick="handleView"
-        >
-          <template #empty>
-            <div class="table-empty">
-              <InboxOutlined v-if="!hasError" class="table-empty-icon" />
-              <WarningOutlined v-else class="table-empty-icon" style="color: #faad14" />
-              <p class="table-empty-text">{{ hasError ? '数据加载失败' : '暂无支付请求数据' }}</p>
-            </div>
-          </template>
-          <template #amountCell="{ record }">
-            <span style="color: #52c41a; font-weight: bold">¥{{ formatAmount(record.amount) }}</span>
-          </template>
-          <template #channelCell="{ record }">
-            <a-tag :color="PAYMENT_CHANNEL_MAP[record.channel]?.color">{{ PAYMENT_CHANNEL_MAP[record.channel]?.name || record.channel }}</a-tag>
-          </template>
-          <template #statusCell="{ record }">
-            <a-tag :color="PAYMENT_STATUS_MAP[record.status]?.color">{{ PAYMENT_STATUS_MAP[record.status]?.text || record.status }}</a-tag>
-          </template>
-          <template #action="{ record }">
-            <a-space>
-              <a-button size="small" type="link" @click="handleView(record)">详情</a-button>
-              <a-button v-if="record.status === 1 && (record.channel === 'CASH' || record.channel === 'BANK')" size="small" type="link" @click="showConfirmModal(record)">确认收款</a-button>
-            </a-space>
-          </template>
-        </BillTableList>
-      </div>
-    </ErrorBoundary>
-
-    <!-- 确认收款弹窗 -->
-    <a-modal v-model:open="confirmModalVisible" title="确认线下收款" @ok="handleConfirm">
-      <a-form :label-col="{ span: 4 }" :wrapper-col="{ span: 18 }">
-        <a-form-item label="收款金额">
-          <span style="font-weight: 500">¥{{ formatAmount(confirmForm.amount) }}</span>
-        </a-form-item>
-        <a-form-item label="收款单号">
-          <a-input v-model:value="confirmForm.channelOrderNo" placeholder="请输入收款单号/流水号" />
-        </a-form-item>
-      </a-form>
-    </a-modal>
-
-    <!-- 详情抽屉 -->
-    <a-drawer v-model:open="detailVisible" title="支付请求详情" placement="right" width="560px" :footer="null">
-      <a-spin :spinning="detailLoading">
-        <template v-if="detailData">
-          <a-descriptions :column="2" bordered size="small">
-            <a-descriptions-item label="业务类型">{{ detailData.bizType }}</a-descriptions-item>
-            <a-descriptions-item label="业务单号">{{ detailData.bizNo }}</a-descriptions-item>
-            <a-descriptions-item label="支付金额"><span style="color:#52c41a;font-weight:bold">¥{{ formatAmount(detailData.amount) }}</span></a-descriptions-item>
-            <a-descriptions-item label="支付渠道"><a-tag :color="PAYMENT_CHANNEL_MAP[detailData.channel]?.color">{{ PAYMENT_CHANNEL_MAP[detailData.channel]?.name }}</a-tag></a-descriptions-item>
-            <a-descriptions-item label="状态"><a-tag :color="PAYMENT_STATUS_MAP[detailData.status]?.color">{{ PAYMENT_STATUS_MAP[detailData.status]?.text }}</a-tag></a-descriptions-item>
-            <a-descriptions-item label="渠道订单号">{{ detailData.channelOrderNo || '-' }}</a-descriptions-item>
-            <a-descriptions-item label="创建时间">{{ detailData.createTime }}</a-descriptions-item>
-            <a-descriptions-item label="完成时间">{{ detailData.completeTime || '-' }}</a-descriptions-item>
-          </a-descriptions>
         </template>
-      </a-spin>
-    </a-drawer>
-  </PageContainer>
+
+        <!-- ═══ 工具栏右侧：页面配置 / 刷新 / 打印(F8) / 导出 ═══ -->
+        <template #toolbar-right>
+          <a-space :size="8">
+            <a-tooltip title="页面配置" placement="bottom" :mouse-enter-delay="0.4">
+              <a-button size="small" @click="showPageConfig = true">
+                <SettingOutlined />
+              </a-button>
+            </a-tooltip>
+            <a-button v-if="isButtonEnabled('refresh')" size="small" :loading="loading" @click="refreshAll">
+              <ReloadOutlined /> 刷新
+            </a-button>
+            <a-button v-if="isButtonEnabled('printF8')" size="small" @click="handlePrint">
+              <PrinterOutlined /> 打印(F8)
+            </a-button>
+            <a-button v-if="isButtonEnabled('export')" size="small" @click="handleExport">
+              <DownloadOutlined /> 导出
+            </a-button>
+          </a-space>
+        </template>
+
+        <!-- ═══ 查询区（业务类型 / 业务单号 / 渠道 / 状态 / 创建时间区间） ═══ -->
+        <template #search-fields>
+          <div class="search-area">
+            <div class="search-row">
+              <div v-if="isQueryVisible('bizType')" class="search-item">
+                <span class="search-label">业务类型</span>
+                <a-input
+                  v-model:value="searchForm.bizType"
+                  placeholder="如 SALE_ORDER"
+                  size="small"
+                  style="width: 150px"
+                  allow-clear
+                  @press-enter="handleSearch"
+                />
+              </div>
+              <div v-if="isQueryVisible('bizNo')" class="search-item">
+                <span class="search-label">业务单号</span>
+                <a-input
+                  v-model:value="searchForm.bizNo"
+                  placeholder="请输入业务单号"
+                  size="small"
+                  style="width: 170px"
+                  allow-clear
+                  @press-enter="handleSearch"
+                />
+              </div>
+              <div v-if="isQueryVisible('channel')" class="search-item">
+                <span class="search-label">支付渠道</span>
+                <a-select
+                  v-model:value="searchForm.channel"
+                  placeholder="全部渠道"
+                  size="small"
+                  style="width: 140px"
+                  allow-clear
+                  :options="channelOptions"
+                  @change="handleSearch"
+                />
+              </div>
+              <div v-if="isQueryVisible('status')" class="search-item">
+                <span class="search-label">支付状态</span>
+                <a-select
+                  v-model:value="searchForm.status"
+                  placeholder="全部状态"
+                  size="small"
+                  style="width: 120px"
+                  allow-clear
+                  :options="statusOptions"
+                  @change="handleSearch"
+                />
+              </div>
+              <div v-if="isQueryVisible('payerName')" class="search-item">
+                <span class="search-label">付款人</span>
+                <a-input
+                  v-model:value="searchForm.payerName"
+                  placeholder="请输入付款人"
+                  size="small"
+                  style="width: 140px"
+                  allow-clear
+                  @press-enter="handleSearch"
+                />
+              </div>
+              <div v-if="isQueryVisible('timeRange')" class="search-item">
+                <span class="search-label">创建时间</span>
+                <a-range-picker
+                  v-model:value="timeRange"
+                  size="small"
+                  show-time
+                  value-format="YYYY-MM-DD HH:mm:ss"
+                  :placeholder="['开始时间', '结束时间']"
+                  style="width: 320px"
+                  @change="handleSearch"
+                />
+              </div>
+              <a-button type="primary" size="small" @click="handleSearch">查询</a-button>
+              <a-button size="small" @click="handleReset">重置</a-button>
+            </div>
+          </div>
+        </template>
+
+        <!-- ═══ 数据表（含统计卡片；列配置齿轮在表头 rowNo 列） ═══ -->
+        <template #table>
+          <div class="request-body">
+            <!-- 统计卡片（后端聚合：GET /api/payment/request/stat） -->
+            <a-row :gutter="12" class="stat-row">
+              <a-col :span="6">
+                <div class="stat-card stat-card-blue">
+                  <div class="stat-icon" style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);"><DollarOutlined /></div>
+                  <div class="stat-content">
+                    <div class="stat-title">待支付</div>
+                    <div class="stat-value">{{ stats.pendingCount }}</div>
+                    <div class="stat-desc">后端聚合（status 0/1）</div>
+                  </div>
+                </div>
+              </a-col>
+              <a-col :span="6">
+                <div class="stat-card stat-card-green">
+                  <div class="stat-icon" style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);"><CheckCircleOutlined /></div>
+                  <div class="stat-content">
+                    <div class="stat-title">已支付</div>
+                    <div class="stat-value">{{ stats.successCount }}</div>
+                    <div class="stat-desc">后端聚合（status=2）</div>
+                  </div>
+                </div>
+              </a-col>
+              <a-col :span="6">
+                <div class="stat-card stat-card-red">
+                  <div class="stat-icon" style="background: linear-gradient(135deg, #ff4d4f 0%, #cf1322 100%);"><CloseCircleOutlined /></div>
+                  <div class="stat-content">
+                    <div class="stat-title">已取消/失败</div>
+                    <div class="stat-value">{{ stats.failedCount }}</div>
+                    <div class="stat-desc">后端聚合（status 3/4）</div>
+                  </div>
+                </div>
+              </a-col>
+              <a-col :span="6">
+                <div class="stat-card stat-card-purple">
+                  <div class="stat-icon" style="background: linear-gradient(135deg, #722ed1 0%, #531dab 100%);"><BarChartOutlined /></div>
+                  <div class="stat-content">
+                    <div class="stat-title">累计金额</div>
+                    <div class="stat-value">¥{{ formatAmount(stats.totalAmount) }}</div>
+                    <div class="stat-desc">后端聚合</div>
+                  </div>
+                </div>
+              </a-col>
+            </a-row>
+
+            <div class="table-area">
+              <BillDetailTable
+                v-model:data-source="tableData"
+                :columns="columns"
+                :loading="loading"
+                :view-mode="true"
+                :min-rows="20"
+                storage-key="payment-request-table-columns"
+                global-config-key="payment-request-table-columns"
+              >
+                <!-- 业务类型（后端 bizType 原文展示，无枚举字典） -->
+                <template #bizTypeCell="{ record }">
+                  {{ record.bizType || '-' }}
+                </template>
+
+                <!-- 业务单号 -->
+                <template #bizNoCell="{ record }">
+                  <a class="cell-link" @click="handleView(record)">{{ record.bizNo || '-' }}</a>
+                </template>
+
+                <!-- 支付金额 -->
+                <template #amountCell="{ record }">
+                  <span class="amount-success">¥{{ formatAmount(record.amount) }}</span>
+                </template>
+
+                <!-- 支付渠道 -->
+                <template #channelCell="{ record }">
+                  <a-tag :color="PAYMENT_CHANNEL_MAP[record.channel]?.color || 'default'">
+                    {{ PAYMENT_CHANNEL_MAP[record.channel]?.name || record.channel || '-' }}
+                  </a-tag>
+                </template>
+
+                <!-- 状态 -->
+                <template #statusCell="{ record }">
+                  <a-tag :color="PAYMENT_STATUS_MAP[record.status]?.color || 'default'">
+                    {{ PAYMENT_STATUS_MAP[record.status]?.text || record.status }}
+                  </a-tag>
+                </template>
+
+                <!-- 创建时间 -->
+                <template #createTimeCell="{ record }">
+                  {{ fmtTime(record.createTime) }}
+                </template>
+
+                <!-- 操作列（详情 / 确认收款 / 取消支付） -->
+                <template #actionCell="{ record }">
+                  <a-space v-if="!record.__ghost" :size="0">
+                    <a-button type="link" size="small" @click="handleView(record)">详情</a-button>
+                    <a-button
+                      v-if="canConfirmOffline(record)"
+                      type="link"
+                      size="small"
+                      @click="showConfirmModal(record)"
+                    >
+                      确认收款
+                    </a-button>
+                    <a-popconfirm
+                      v-if="canCancel(record)"
+                      title="确定取消该支付请求？取消后不可恢复。"
+                      ok-text="确定"
+                      cancel-text="再想想"
+                      @confirm="handleCancel(record)"
+                    >
+                      <a-button
+                        type="link"
+                        size="small"
+                        danger
+                        :loading="cancellingId === record.id"
+                      >
+                        取消支付
+                      </a-button>
+                    </a-popconfirm>
+                  </a-space>
+                </template>
+              </BillDetailTable>
+            </div>
+          </div>
+        </template>
+
+        <!-- ═══ 底部：经典分页栏 ═══ -->
+        <template #table-footer>
+          <StandardPagination
+            variant="classic"
+            :current="pagination.current"
+            :page-size="pagination.pageSize"
+            :total="pagination.total"
+            :page-size-options="[20, 50, 100]"
+            @change="handlePageChange"
+          />
+        </template>
+      </CategoryListLayout>
+
+      <!-- ═══ 确认线下收款弹窗 ═══ -->
+      <a-modal
+        v-model:open="confirmModalVisible"
+        title="确认线下收款"
+        :confirm-loading="confirming"
+        @ok="handleConfirm"
+      >
+        <a-form :label-col="{ span: 5 }" :wrapper-col="{ span: 18 }">
+          <a-form-item label="收款金额">
+            <span class="amount-success">¥{{ formatAmount(confirmForm.amount) }}</span>
+          </a-form-item>
+          <a-form-item label="收款单号" required>
+            <a-input v-model:value="confirmForm.channelOrderNo" placeholder="请输入收款单号/流水号" />
+          </a-form-item>
+        </a-form>
+      </a-modal>
+
+      <!-- ═══ 详情抽屉 ═══ -->
+      <a-drawer v-model:open="detailVisible" title="支付请求详情" placement="right" :width="600" :footer="null">
+        <a-descriptions v-if="detailData" :column="1" bordered size="small">
+          <a-descriptions-item label="支付请求ID">{{ detailData.id }}</a-descriptions-item>
+          <a-descriptions-item label="业务类型">{{ detailData.bizType || '-' }}</a-descriptions-item>
+          <a-descriptions-item label="业务单号">{{ detailData.bizNo || '-' }}</a-descriptions-item>
+          <a-descriptions-item label="支付金额">
+            <span class="amount-success">¥{{ formatAmount(detailData.amount) }}</span>
+          </a-descriptions-item>
+          <a-descriptions-item label="支付渠道">
+            <a-tag :color="PAYMENT_CHANNEL_MAP[detailData.channel]?.color || 'default'">
+              {{ PAYMENT_CHANNEL_MAP[detailData.channel]?.name || detailData.channel }}
+            </a-tag>
+          </a-descriptions-item>
+          <a-descriptions-item label="状态">
+            <a-tag :color="PAYMENT_STATUS_MAP[detailData.status]?.color || 'default'">
+              {{ PAYMENT_STATUS_MAP[detailData.status]?.text || detailData.status }}
+            </a-tag>
+          </a-descriptions-item>
+          <a-descriptions-item label="渠道订单号">{{ detailData.channelOrderNo || '-' }}</a-descriptions-item>
+          <a-descriptions-item label="渠道交易号">{{ detailData.channelTradeNo || '-' }}</a-descriptions-item>
+          <a-descriptions-item label="付款人">{{ detailData.payerName || '-' }}</a-descriptions-item>
+          <a-descriptions-item label="创建时间">{{ fmtTime(detailData.createTime) }}</a-descriptions-item>
+          <a-descriptions-item label="支付完成时间">{{ fmtTime(detailData.paidTime) }}</a-descriptions-item>
+          <a-descriptions-item label="过期时间">{{ fmtTime(detailData.expireTime) }}</a-descriptions-item>
+          <a-descriptions-item label="备注">{{ detailData.remark || '-' }}</a-descriptions-item>
+        </a-descriptions>
+      </a-drawer>
+
+      <!-- ═══ 页面配置（查询条件 / 功能按钮） ═══ -->
+      <PageConfigPanel
+        :open="showPageConfig"
+        :query-fields-config="queryFields"
+        :function-buttons-config="functionButtons"
+        :default-query-fields-config="DEFAULT_QUERY_FIELDS"
+        :default-function-buttons-config="DEFAULT_FUNCTION_BUTTONS"
+        storage-key="payment-request-page-config"
+        hide-print-config
+        @update:open="showPageConfig = $event"
+        @change="handlePageConfigChange"
+      />
+    </PageContainer>
+  </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, onMounted, onBeforeUnmount } from 'vue'
+import dayjs from 'dayjs'
 import { message } from 'ant-design-vue'
 import {
-  ReloadOutlined, DollarOutlined, CheckCircleOutlined, CloseCircleOutlined,
-  BarChartOutlined, WarningOutlined, InboxOutlined
+  ReloadOutlined, PrinterOutlined, DownloadOutlined, SettingOutlined,
+  DollarOutlined, CheckCircleOutlined, CloseCircleOutlined, BarChartOutlined
 } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
-import BillTableList from '@/components/BillTableList/BillTableList.vue'
+import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayout.vue'
+import BillDetailTable from '@/components/BillFormPage/BillDetailTable/index.vue'
+import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTable/types'
+import StandardPagination from '@/components/Pagination/Pagination.vue'
+import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
 import { paymentApi, PAYMENT_CHANNEL_MAP, PAYMENT_STATUS_MAP } from '@/api/payment'
 
-const tableRef = ref()
+defineOptions({ name: 'PaymentRequestList' })
+
+// ═══ 常量字典 ═══
+const channelOptions = Object.entries(PAYMENT_CHANNEL_MAP).map(([value, v]) => ({ value, label: v.name }))
+const statusOptions = Object.entries(PAYMENT_STATUS_MAP).map(([value, v]) => ({ value: Number(value), label: v.text }))
+
+// ═══ 状态 ═══
 const loading = ref(false)
-const hasError = ref(false)
 const tableData = ref<any[]>([])
-const lastUpdateTime = ref('')
-const filterExpanded = ref<string[]>([])
-const selectedRowKeys = ref<number[]>([])
 const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
-const searchForm = reactive({ bizNo: '', channel: undefined as string | undefined, status: undefined as number | undefined })
+const timeRange = ref<[string, string] | undefined>()
+const stats = reactive<Record<string, any>>({})
 
-const stats = reactive({ pending: 0, success: 0, failed: 0, totalAmount: 0 })
+const searchForm = reactive<{
+  bizType?: string
+  bizNo?: string
+  channel?: string
+  status?: number
+  payerName?: string
+}>({})
 
-const detailVisible = ref(false)
-const detailLoading = ref(false)
-const detailData = ref<any>(null)
-const confirmModalVisible = ref(false)
-const confirmForm = reactive({ id: 0, amount: 0, channelOrderNo: '' })
+// 序号列承载表头「列配置」齿轮；操作列为固定列（8 列 + 行号 + 操作）
+const columns: DetailColumnConfig[] = [
+  { key: 'rowNo', title: '', type: 'rowNo', width: 40, fixed: 'left' },
+  { key: 'action', title: '操作', type: 'action', slotName: 'actionCell', width: 130, fixed: 'left' },
+  { key: 'bizType', title: '业务类型', type: 'slot', slotName: 'bizTypeCell', width: 130 },
+  { key: 'bizNo', title: '业务单号', type: 'slot', slotName: 'bizNoCell', width: 170 },
+  { key: 'amount', title: '支付金额', type: 'slot', slotName: 'amountCell', width: 120, align: 'right' },
+  { key: 'channel', title: '支付渠道', type: 'slot', slotName: 'channelCell', width: 110 },
+  { key: 'channelOrderNo', title: '渠道订单号', type: 'input', width: 170 },
+  { key: 'status', title: '状态', type: 'slot', slotName: 'statusCell', width: 100 },
+  { key: 'createTime', title: '创建时间', type: 'slot', slotName: 'createTimeCell', width: 160 },
+  { key: 'channelTradeNo', title: '渠道交易号', type: 'input', width: 170, defaultHidden: true },
+  { key: 'payerName', title: '付款人', type: 'input', width: 110, defaultHidden: true },
+  { key: 'paidTime', title: '支付完成时间', type: 'input', width: 160, defaultHidden: true },
+  { key: 'expireTime', title: '过期时间', type: 'input', width: 160, defaultHidden: true }
+]
 
-const vxeColumns = computed(() => [
-  { field: 'bizType', title: '业务类型', width: 100 },
-  { field: 'bizNo', title: '业务单号', width: 130 },
-  { field: 'amount', title: '支付金额', width: 110, align: 'right', slotName: 'amountCell' },
-  { field: 'channel', title: '支付渠道', width: 100, slotName: 'channelCell' },
-  { field: 'channelOrderNo', title: '渠道订单号', width: 150 },
-  { field: 'status', title: '状态', width: 80, slotName: 'statusCell' },
-  { field: 'createTime', title: '创建时间', width: 150 },
-  { field: 'action', title: '操作', width: 150, fixed: 'right', type: 'action' }
-])
+// ═══ 页面配置 ═══
+interface QueryFieldSetting { key: string; label: string; visible: boolean }
+interface FunctionButtonSetting { key: string; label: string; enabled: boolean }
 
+const DEFAULT_QUERY_FIELDS: QueryFieldSetting[] = [
+  { key: 'bizType', label: '业务类型', visible: true },
+  { key: 'bizNo', label: '业务单号', visible: true },
+  { key: 'channel', label: '支付渠道', visible: true },
+  { key: 'status', label: '支付状态', visible: true },
+  { key: 'payerName', label: '付款人', visible: true },
+  { key: 'timeRange', label: '创建时间', visible: true }
+]
+const DEFAULT_FUNCTION_BUTTONS: FunctionButtonSetting[] = [
+  { key: 'refresh', label: '刷新', enabled: true },
+  { key: 'printF8', label: '打印(F8)', enabled: true },
+  { key: 'export', label: '导出', enabled: true },
+  { key: 'confirmOffline', label: '确认收款', enabled: true }
+]
+const queryFields = ref<QueryFieldSetting[]>(DEFAULT_QUERY_FIELDS.map(f => ({ ...f })))
+const functionButtons = ref<FunctionButtonSetting[]>(DEFAULT_FUNCTION_BUTTONS.map(f => ({ ...f })))
+const showPageConfig = ref(false)
+
+function isQueryVisible(key: string): boolean {
+  const hit = queryFields.value.find(f => f.key === key)
+  return hit ? hit.visible : false
+}
+
+function isButtonEnabled(key: string): boolean {
+  const hit = functionButtons.value.find(b => b.key === key)
+  return hit ? hit.enabled : true
+}
+
+function handlePageConfigChange(config: { queryFields: QueryFieldSetting[]; functionButtons: FunctionButtonSetting[] }) {
+  if (config?.queryFields) queryFields.value = config.queryFields.map(f => ({ ...f }))
+  if (config?.functionButtons) functionButtons.value = config.functionButtons.map(f => ({ ...f }))
+}
+
+// ═══ 格式化 ═══
 function formatAmount(val: number | undefined | null): string {
   return (val ?? 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-async function fetchData(silent = false) {
-  if (!silent) loading.value = true
-  hasError.value = false
+function fmtTime(val?: string | null): string {
+  if (!val) return '-'
+  return dayjs(val).format('YYYY-MM-DD HH:mm:ss')
+}
+
+/** 线下渠道（现金/银行转账）且支付中可确认收款 */
+function canConfirmOffline(record: any): boolean {
+  return isButtonEnabled('confirmOffline')
+    && record?.status === 1
+    && (record?.channel === 'CASH' || record?.channel === 'BANK')
+}
+
+/**
+ * 取消支付入口显示条件：`status !== 2`（与后端 `cancelPayment` 校验一致——status==2 抛「支付已完成，无法取消」）。
+ * 注：3 已取消 / 4 支付失败 亦满足 `status !== 2`，后端幂等置 3，故入口仍显示。
+ */
+function canCancel(record: any): boolean {
+  return record?.status !== 2
+}
+
+// ═══ 查询参数（业务单号 bizNo 由本轮后端 pagePaymentRequest 扩充支持） ═══
+function buildQuery(): any {
+  const params: Record<string, any> = {
+    pageNum: pagination.current,
+    pageSize: pagination.pageSize
+  }
+  if (searchForm.bizType) params.bizType = searchForm.bizType.trim()
+  if (searchForm.bizNo) params.bizNo = searchForm.bizNo.trim()
+  if (searchForm.channel) params.channel = searchForm.channel
+  if (searchForm.status != null) params.status = searchForm.status
+  if (searchForm.payerName) params.payerName = searchForm.payerName.trim()
+  if (timeRange.value?.length === 2) {
+    params.startTime = timeRange.value[0]
+    params.endTime = timeRange.value[1]
+  }
+  return params
+}
+
+// ═══ 数据加载 ═══
+async function fetchData() {
+  loading.value = true
   try {
-    const params: any = { pageNum: pagination.current, pageSize: pagination.pageSize }
-    if (searchForm.bizNo) params.bizNo = searchForm.bizNo
-    if (searchForm.channel) params.channel = searchForm.channel
-    if (searchForm.status !== undefined) params.status = searchForm.status
-    const result = await paymentApi.pageRequest(params)
-    const data = (result as any).data || result
-    tableData.value = data.records || data.content || []
-    pagination.total = data.total || 0
-    lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
-    updateStats()
-  } catch (err) {
-    if (!silent) { hasError.value = true; message.error('获取支付请求失败') }
+    const res: any = await paymentApi.pageRequest(buildQuery())
+    tableData.value = res?.records || []
+    pagination.total = Number(res?.total) || 0
+  } catch (error: any) {
+    console.error('[支付请求] 加载列表失败', error)
+    message.error(error?.response?.data?.message || '获取支付请求失败')
     tableData.value = []
+    pagination.total = 0
   } finally {
-    if (!silent) loading.value = false
+    loading.value = false
   }
 }
 
-function updateStats() {
-  const list = tableData.value
-  stats.pending = list.filter(r => r.status === 0 || r.status === 1).length
-  stats.success = list.filter(r => r.status === 2).length
-  stats.failed = list.filter(r => r.status === 3 || r.status === 4).length
-  stats.totalAmount = list.reduce((s, r) => s + (r.amount || 0), 0)
+/** 统计走后端聚合（`GET /api/payment/request/stat?channel=`），按查询区「支付渠道」联动 */
+async function loadStats() {
+  try {
+    const res: any = await paymentApi.statRequest({ channel: searchForm.channel || undefined })
+    Object.assign(stats, res || {})
+  } catch (error) {
+    console.warn('[支付请求] 统计加载失败', error)
+  }
 }
+
+async function refreshAll() {
+  await Promise.all([fetchData(), loadStats()])
+}
+
+function handleSearch() {
+  pagination.current = 1
+  refreshAll()
+}
+
+function handleReset() {
+  Object.assign(searchForm, { bizType: undefined, bizNo: undefined, channel: undefined, status: undefined, payerName: undefined })
+  timeRange.value = undefined
+  pagination.current = 1
+  refreshAll()
+}
+
+function handlePageChange(page: number, pageSize: number) {
+  pagination.current = page
+  pagination.pageSize = pageSize
+  fetchData()
+}
+
+// ═══ 确认收款 ═══
+const confirmModalVisible = ref(false)
+const confirming = ref(false)
+const confirmForm = reactive({ id: 0, amount: 0, channelOrderNo: '' })
 
 function showConfirmModal(record: any) {
   confirmForm.id = record.id
@@ -263,60 +523,193 @@ function showConfirmModal(record: any) {
 }
 
 async function handleConfirm() {
-  if (!confirmForm.channelOrderNo) { message.warning('请输入收款单号'); return }
+  if (!confirmForm.channelOrderNo) {
+    message.warning('请输入收款单号')
+    return
+  }
+  confirming.value = true
   try {
-    await paymentApi.confirmPayment(confirmForm.id, { channelOrderNo: confirmForm.channelOrderNo })
+    // 后端签名为 @RequestParam channelOrderNo（非请求体）→ 使用 confirmOffline
+    await paymentApi.confirmOffline(confirmForm.id, confirmForm.channelOrderNo)
     message.success('确认收款成功')
     confirmModalVisible.value = false
-    fetchData()
-  } catch (e: any) { message.error(e?.message || '确认收款失败') }
+    await refreshAll()
+  } catch (error: any) {
+    message.error(error?.response?.data?.message || '确认收款失败')
+  } finally {
+    confirming.value = false
+  }
 }
+
+// ═══ 取消支付 ═══
+const cancellingId = ref<number | null>(null)
+
+/** 取消支付请求（`POST /api/payment/request/{id}/cancel`，二次确认后调用，成功后刷新列表+统计） */
+async function handleCancel(record: any) {
+  cancellingId.value = record.id
+  try {
+    await paymentApi.cancel(record.id)
+    message.success('已取消支付请求')
+    await refreshAll()
+  } catch (error: any) {
+    message.error(error?.response?.data?.message || '取消支付失败')
+  } finally {
+    cancellingId.value = null
+  }
+}
+
+// ═══ 详情 ═══
+const detailVisible = ref(false)
+const detailData = ref<any>(null)
 
 function handleView(record: any) {
   detailData.value = record
   detailVisible.value = true
 }
 
-function handleSearch() { pagination.current = 1; fetchData() }
-function handleReset() { Object.assign(searchForm, { bizNo: '', channel: undefined, status: undefined }); pagination.current = 1; fetchData() }
-function handlePageChange(page: number, size: number) { pagination.current = page; pagination.pageSize = size; fetchData() }
-function handleFilterChange(filters: Record<string, any>) { Object.assign(searchForm, filters); pagination.current = 1; fetchData() }
-function handleSelectionChange(rows: any[], ids: any[]) { selectedRowKeys.value = ids }
-function handleError(err: any) { console.warn('[支付请求]', err) }
-
-function handleKeydown(e: KeyboardEvent) {
-  if (e.key === 'F5') { e.preventDefault(); fetchData() }
+// ═══ 打印(F8)：真实打印模板（与列表同口径） ═══
+function escapeHtml(v: any): string {
+  return String(v ?? '').replace(/[&<>"']/g, c => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string
+  ))
 }
 
-onMounted(() => { fetchData(); document.addEventListener('keydown', handleKeydown) })
-onUnmounted(() => { document.removeEventListener('keydown', handleKeydown) })
+function printableRows(): any[] {
+  return tableData.value.filter((r: any) => !r.__ghost)
+}
+
+function handlePrint() {
+  const rows = printableRows()
+  if (!rows.length) {
+    message.warning('没有可打印的数据')
+    return
+  }
+  const body = rows.map((r: any, i: number) => `
+    <tr>
+      <td>${i + 1}</td>
+      <td>${escapeHtml(r.bizType || '')}</td>
+      <td>${escapeHtml(r.bizNo || '')}</td>
+      <td style="text-align:right">${formatAmount(r.amount)}</td>
+      <td>${escapeHtml(PAYMENT_CHANNEL_MAP[r.channel]?.name || r.channel || '')}</td>
+      <td>${escapeHtml(r.channelOrderNo || '')}</td>
+      <td>${escapeHtml(PAYMENT_STATUS_MAP[r.status]?.text || '')}</td>
+      <td>${escapeHtml(fmtTime(r.createTime))}</td>
+    </tr>`).join('')
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" />
+    <title>支付请求</title>
+    <style>
+      body{font-family:"Microsoft YaHei",Arial,sans-serif;margin:0;padding:16px;color:#000}
+      h2{text-align:center;margin:0 0 12px;font-size:18px}
+      .meta{display:flex;flex-wrap:wrap;gap:4px 24px;font-size:12px;margin-bottom:8px}
+      table{width:100%;border-collapse:collapse;font-size:12px}
+      th,td{border:1px solid #999;padding:4px 6px;text-align:left}
+      th{background:#f2f2f2}
+    </style></head><body>
+    <h2>支付请求</h2>
+    <div class="meta">
+      <span>业务单号：${escapeHtml(searchForm.bizNo || '全部')}</span>
+      <span>渠道：${escapeHtml(searchForm.channel || '全部')}</span>
+      <span>打印时间：${dayjs().format('YYYY-MM-DD HH:mm')}</span>
+      <span>记录数：${rows.length}</span>
+    </div>
+    <table>
+      <thead><tr><th>#</th><th>业务类型</th><th>业务单号</th><th>支付金额</th><th>支付渠道</th><th>渠道订单号</th><th>状态</th><th>创建时间</th></tr></thead>
+      <tbody>${body}</tbody>
+    </table></body></html>`
+  const win = window.open('', '_blank', 'width=1100,height=700')
+  if (!win) {
+    message.warning('浏览器阻止了打印窗口，请允许弹出窗口后重试')
+    return
+  }
+  win.document.write(html)
+  win.document.close()
+  win.focus()
+  win.print()
+}
+
+function handleF8Key(e: KeyboardEvent) {
+  if ((e.key === 'F8' || e.code === 'F8') && !e.ctrlKey && !e.altKey && !e.metaKey) {
+    e.preventDefault()
+    handlePrint()
+  }
+}
+
+// ═══ 导出（CSV，前端拼装） ═══
+function handleExport() {
+  const rows = printableRows()
+  if (!rows.length) {
+    message.warning('没有可导出的数据')
+    return
+  }
+  const headers = ['业务类型', '业务单号', '支付金额', '支付渠道', '渠道订单号', '渠道交易号', '状态', '付款人', '创建时间', '支付完成时间']
+  const csv = [
+    headers.join(','),
+    ...rows.map((r: any) => [
+      r.bizType || '',
+      r.bizNo || '',
+      r.amount ?? '',
+      PAYMENT_CHANNEL_MAP[r.channel]?.name || r.channel || '',
+      r.channelOrderNo || '',
+      r.channelTradeNo || '',
+      PAYMENT_STATUS_MAP[r.status]?.text || '',
+      r.payerName || '',
+      r.createTime ? fmtTime(r.createTime) : '',
+      r.paidTime ? fmtTime(r.paidTime) : ''
+    ].map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+  ].join('\r\n')
+  const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' })
+  const url = window.URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `支付请求_${dayjs().format('YYYYMMDD')}.csv`
+  a.click()
+  window.URL.revokeObjectURL(url)
+  message.success('导出成功')
+}
+
+function handleError(error: Error) {
+  console.error('[支付请求] 页面错误', error)
+  message.error(`页面错误: ${error.message}`)
+}
+
+// ═══ 初始化 ═══
+onMounted(() => {
+  refreshAll()
+  window.addEventListener('keydown', handleF8Key)
+})
+onBeforeUnmount(() => window.removeEventListener('keydown', handleF8Key))
 </script>
 
 <style scoped>
-.payment-page-header { display: flex; justify-content: space-between; align-items: center; width: 100%; }
-.payment-page-header-left { display: flex; align-items: center; gap: 12px; }
-.payment-page-header-title { font-size: 18px; font-weight: 600; color: #303133; margin: 0; }
-.payment-page-header-right { display: flex; align-items: center; gap: 12px; }
-.stats-cards { flex-shrink: 0; margin-bottom: 16px; }
-.update-time { font-size: 12px; color: #999; }
-.stat-card { display: flex; align-items: center; padding: 16px; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); transition: all 0.3s; }
-.stat-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.12); transform: translateY(-2px); }
+.search-area { padding: 8px 16px; background: #fff; border-bottom: 1px solid #e8e8e8; flex-shrink: 0; }
+.search-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.search-item { display: flex; align-items: center; gap: 6px; }
+.search-label { font-size: 13px; color: #666; white-space: nowrap; }
+.toolbar-tip { font-size: 12px; color: #8c8c8c; }
+
+.request-body { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 12px 16px 0; }
+.stat-row { flex-shrink: 0; margin-bottom: 12px; }
+.stat-card { display: flex; align-items: center; padding: 12px 16px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06); }
 .stat-card.stat-card-blue { background: linear-gradient(135deg, #e6f7ff 0%, #bae7ff 100%); border: 1px solid #91d5ff; }
 .stat-card.stat-card-green { background: linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%); border: 1px solid #b7eb8f; }
 .stat-card.stat-card-red { background: linear-gradient(135deg, #fff2f0 0%, #ffd8d2 100%); border: 1px solid #ffbcb3; }
 .stat-card.stat-card-purple { background: linear-gradient(135deg, #f9f0ff 0%, #efdbff 100%); border: 1px solid #d3adf7; }
-.stat-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 24px; margin-right: 16px; }
-.stat-content { flex: 1; }
-.stat-title { font-size: 14px; color: #666; margin-bottom: 4px; }
-.stat-value { font-size: 24px; font-weight: 600; color: #303133; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, 'Courier New', monospace; }
-.stat-desc { font-size: 12px; color: #999; margin-top: 4px; }
-.filter-collapse { flex-shrink: 0; margin-bottom: 16px; }
-.filter-actions { display: flex; align-items: flex-end; padding-bottom: 4px; }
-.table-card { background: #fff; border-radius: 8px; }
-.table-empty { display: flex; flex-direction: column; align-items: center; padding: 48px 0; }
-.table-empty-icon { font-size: 48px; color: #d9d9d9; }
-.table-empty-text { color: #999; margin-top: 12px; }
-.shortcut-hints { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: #909399; user-select: none; }
-.shortcut-hint { display: inline-flex; align-items: center; gap: 2px; padding: 1px 4px; border-radius: 3px; background: #f5f7fa; }
-.shortcut-hint kbd { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 3px; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 11px; color: #606266; background: #fff; border: 1px solid #d0d5dd; border-radius: 3px; box-shadow: 0 1px 0 #d0d5dd; line-height: 18px; }
+.stat-icon { width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 20px; margin-right: 12px; flex-shrink: 0; }
+.stat-content { flex: 1; min-width: 0; }
+.stat-title { font-size: 13px; color: #666; }
+.stat-value { font-size: 22px; font-weight: 600; color: #303133; font-family: 'SFMono-Regular', Consolas, monospace; }
+.stat-desc { font-size: 12px; color: #999; }
+
+/* ⚠️ 必须是 flex 纵向容器：BillDetailTable 根元素为 flex:1，父级非 flex 时表格高度会塌陷为 0 */
+.table-area { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+
+.cell-link { color: #1890ff; cursor: pointer; }
+.cell-link:hover { text-decoration: underline; }
+.amount-success { color: #52c41a; font-weight: 600; font-family: 'SFMono-Regular', Consolas, monospace; }
+
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) { height: 28px; line-height: 28px; }
 </style>

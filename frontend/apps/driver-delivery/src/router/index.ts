@@ -55,6 +55,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '路线优化', showTabBar: false }
   },
   {
+    path: '/my-route',
+    name: 'MyRoute',
+    component: () => import('@/views/route/my-route.vue'),
+    meta: { title: '我的配送路线', showTabBar: true }
+  },
+  {
     path: '/navigation',
     name: 'NavigationNew',
     component: () => import('@/views/map/navigation.vue'),
@@ -108,6 +114,18 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/binding/index.vue'),
     meta: { title: '车辆绑定', showTabBar: false }
   },
+  {
+
+    path: '/energy',
+
+    name: 'Energy',
+
+    component: () => import('@/views/energy/index.vue'),
+
+    meta: { requiresAuth: true }
+
+  },
+
   {
     path: '/handover',
     name: 'Handover',

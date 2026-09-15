@@ -26,6 +26,15 @@
             <artifactId>core-base</artifactId>
         </dependency>
 
+        <!--
+          DMS 地理能力（规划/重新规划/距离/坐标转换/围栏校验）——全系统单一口径。
+          边界：地图能力只在 dms-delivery 实现一次，本模块只消费不自建（见《配送路线单开发文档》§研判）。
+        -->
+        <dependency>
+            <groupId>cn.aiedge</groupId>
+            <artifactId>dms-delivery</artifactId>
+        </dependency>
+
         <!-- 线路主数据导入/导出（真实 xlsx，与资料模块其他页同口径） -->
         <dependency>
             <groupId>org.apache.poi</groupId>

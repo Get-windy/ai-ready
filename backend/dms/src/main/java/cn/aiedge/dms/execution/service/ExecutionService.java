@@ -140,6 +140,12 @@ public class ExecutionService {
                 .lng(task.getCustomerLng().doubleValue())
                 .build();
 
-        return routeService.planDeliveryRoute(origin, List.of(dest), 0);
+        // RouteService.planDeliveryRoute 已统一为 RoutePlanRequest 入参（旧的三参重载已移除）
+        RoutePlanRequest request = RoutePlanRequest.builder()
+                .origin(origin)
+                .destinations(List.of(dest))
+                .strategy(0)
+                .build();
+        return routeService.planDeliveryRoute(request);
     }
 }

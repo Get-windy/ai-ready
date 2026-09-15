@@ -1,5 +1,6 @@
 package cn.aiedge.erp.b2b.model;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -33,6 +34,10 @@ public class MallNotice extends BaseEntity {
 
     /** 发布时间 */
     private LocalDateTime publishTime;
+
+    /** 发布人（公告设置「发布人」列） */
+    @TableField("publisher")
+    private String publisher;
 
     /** 排序 */
     private Integer sort;

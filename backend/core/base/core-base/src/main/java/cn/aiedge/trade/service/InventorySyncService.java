@@ -45,6 +45,19 @@ public interface InventorySyncService {
     ProductSyncResult pushToChannel(String channelCode, String skuCode, Integer quantity);
 
     /**
+     * 仅调用渠道（**不写同步记录**）
+     *
+     * <p>供《API监控》「同步失败重试」复用：重试须回写**原记录**的重试次数与结果，
+     * 不能再追加一条新记录（避免同一笔同步重复记账）。调用本身仍落网关调用日志（方向 OUT）。</p>
+     *
+     * @param channelCode 渠道编码
+     * @param skuCode     SKU编码
+     * @param quantity    数量
+     * @return 渠道返回结果
+     */
+    ProductSyncResult invokeChannel(String channelCode, String skuCode, Integer quantity);
+
+    /**
      * 批量推送库存
      */
     Map<String, ProductSyncResult> batchPushToChannel(String channelCode, Map<String, Integer> skuQuantities);

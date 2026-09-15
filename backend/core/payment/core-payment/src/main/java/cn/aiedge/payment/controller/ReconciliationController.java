@@ -2,6 +2,7 @@ package cn.aiedge.payment.controller;
 
 import cn.aiedge.common.result.PageResult;
 import cn.aiedge.base.vo.Result;
+import cn.aiedge.payment.dto.ReconciliationDetailVO;
 import cn.aiedge.payment.entity.PaymentReconciliation;
 import cn.aiedge.payment.service.ReconciliationService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -44,18 +45,29 @@ public class ReconciliationController {
         return Result.success(reconciliationService.pageReconciliation(pageNum, pageSize, startDate, endDate, channel, status));
     }
 
-    @Operation(summary = "查询对账详情")
+    @Operation(summary = "对账统计（后端聚合）")
+    @GetMapping("/stat")
+    public Result<java.util.Map<String, Object>> statReconciliation(
+            @Parameter(description = "开始日期") @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate startDate,
+            @Parameter(description = "结束日期") @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate endDate,
+            @Parameter(description = "渠道") @RequestParam(required = false) String channel) {
+        return Result.success(reconciliationService.statReconciliation(startDate, endDate, channel));
+    }
+
+    @Operation(summary = "查询对账详情",
+            description = "返回对账汇总字段 + 差异明细 diffRecords（无对账明细子表，diffRecords 恒为空数组，见 VO 注释）")
     @GetMapping("/{id}")
-    public Result<PaymentReconciliation> getReconciliation(@PathVariable Long id) {
-        return Result.success(reconciliationService.getReconciliation(id));
+    public Result<ReconciliationDetailVO> getReconciliation(@PathVariable Long id) {
+        return Result.success(reconciliationService.getReconciliationDetail(id));
     }
 
     @Operation(summary = "处理差异")
     @PostMapping("/{id}/handle")
     public Result<Void> handleDifference(
             @PathVariable Long id,
-            @RequestParam String remark) {
-        reconciliationService.handleDifference(id, remark);
+            @Parameter(description = "处理方式 MANUAL/IGNORE/REPROCESS") @RequestParam(required = false) String method,
+            @Parameter(description = "处理备注") @RequestParam String remark) {
+        reconciliationService.handleDifference(id, method, remark);
         return Result.success();
     }
 

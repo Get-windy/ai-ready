@@ -64,11 +64,30 @@
             :data-source="activeTableData"
             :loading="loading"
             :view-mode="true"
+            :summary-columns="summaryColumns"
             :storage-key="'order-center-columns-' + mainTab + '-' + subTab"
             style="height: 100%"
           >
             <template #actionCell="{ record }">
-              <a-space :size="4">
+              <!-- 拣货/发货阶段行级操作：取消 / 拣完 / 发货 / 更多（对齐《物流发货开发文档》§3 实测） -->
+              <a-space v-if="mainTab === 'picking'" :size="4">
+                <a-button type="link" size="small" @click="handleReject(record)">取消</a-button>
+                <a-button type="link" size="small" :disabled="pickedDone(record)" @click="handlePickOne(record)">拣完</a-button>
+                <a-button type="link" size="small" @click="handleShip(record)">发货</a-button>
+                <a-dropdown>
+                  <a-button type="link" size="small">更多</a-button>
+                  <template #overlay>
+                    <a-menu>
+                      <a-menu-item @click="goDetail(record)">查看</a-menu-item>
+                      <!-- ql361 实测：行内「更多」= 修改 / 终止 / 物流/备注；此处补物流/备注 + 包裹/运单（本系统增强） -->
+                      <a-menu-item @click="openLogisticsRemark(record)">物流/备注</a-menu-item>
+                      <a-menu-item @click="openPackages(record)">包裹/运单</a-menu-item>
+                      <a-menu-item @click="handlePrint(record)">打印</a-menu-item>
+                    </a-menu>
+                  </template>
+                </a-dropdown>
+              </a-space>
+              <a-space v-else :size="4">
                 <a-button type="link" size="small" @click="goDetail(record)">查看</a-button>
                 <a-button v-if="record.status === 1" type="link" size="small" @click="handleApprove(record)">审核</a-button>
                 <a-button v-if="record.status === 2" type="link" size="small" @click="handleShip(record)">发货</a-button>
@@ -149,20 +168,73 @@
         />
       </a-modal>
 
-      <!-- 物流备注弹窗 -->
+      <!-- 物流/备注弹窗（对齐 ql361 OrderRemarks 实测 15 字段；留空不修改） -->
       <a-modal
         v-model:open="logisticsRemarkVisible"
-        title="批量物流备注"
-        :ok-text="'确定'"
+        :title="logisticsRemarkIds.length > 1 ? `物流/备注（批量 ${logisticsRemarkIds.length} 单）` : '物流/备注'"
+        width="820px"
+        :ok-text="'保存'"
+        :confirm-loading="logisticsRemarkSaving"
         @ok="submitLogisticsRemark"
       >
-        <a-textarea
-          v-model:value="logisticsRemarkText"
-          :rows="4"
-          placeholder="请输入物流备注内容，将应用到已勾选单据"
-          show-count
-        />
+        <a-form :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }">
+          <a-row :gutter="12">
+            <a-col :span="8"><a-form-item label="配送方式"><a-input v-model:value="logisticsForm.deliveryMethod" allow-clear placeholder="配送方式" /></a-form-item></a-col>
+            <a-col :span="8"><a-form-item label="司机"><a-input v-model:value="logisticsForm.driverName" allow-clear placeholder="司机" /></a-form-item></a-col>
+            <a-col :span="8"><a-form-item label="运单号"><a-input v-model:value="logisticsForm.waybillNo" allow-clear placeholder="运单号 / 物流单号" /></a-form-item></a-col>
+            <a-col :span="8">
+              <a-form-item label="物流公司">
+                <!-- 可选《资料→物流公司》档案，也可手输（兼容历史自由文本值） -->
+                <a-auto-complete
+                  v-model:value="logisticsForm.logisticsCompany"
+                  :options="carrierOptions"
+                  placeholder="物流公司"
+                  allow-clear
+                  style="width: 100%"
+                />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8"><a-form-item label="收货人"><a-input v-model:value="logisticsForm.receiverName" allow-clear placeholder="收货人" /></a-form-item></a-col>
+            <a-col :span="8"><a-form-item label="联系电话"><a-input v-model:value="logisticsForm.receiverPhone" allow-clear placeholder="联系电话" /></a-form-item></a-col>
+            <a-col :span="8"><a-form-item label="经手人"><a-input v-model:value="logisticsForm.salesmanName" allow-clear placeholder="经手人" /></a-form-item></a-col>
+            <a-col :span="8">
+              <a-form-item label="销售类型">
+                <a-select v-model:value="logisticsForm.saleType" allow-clear placeholder="销售类型" :options="saleTypeOptions" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8"><a-form-item label="自定义字段1(数字)"><a-input-number v-model:value="logisticsForm.extNum1" style="width: 100%" placeholder="数字" /></a-form-item></a-col>
+            <a-col :span="12">
+              <a-form-item label="收货地址" :label-col="{ span: 5 }" :wrapper-col="{ span: 19 }">
+                <a-input v-model:value="logisticsForm.shippingAddress" allow-clear placeholder="收货地址" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
+              <a-form-item label="自定义字段2(数字)" :label-col="{ span: 9 }" :wrapper-col="{ span: 15 }">
+                <a-input-number v-model:value="logisticsForm.extNum2" style="width: 100%" placeholder="数字" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8"><a-form-item label="自定义字段3(文本)"><a-input v-model:value="logisticsForm.extText1" allow-clear /></a-form-item></a-col>
+            <a-col :span="8"><a-form-item label="自定义字段4(文本)"><a-input v-model:value="logisticsForm.extText2" allow-clear /></a-form-item></a-col>
+            <a-col :span="8"><a-form-item label="自定义字段5(文本)"><a-input v-model:value="logisticsForm.extText3" allow-clear /></a-form-item></a-col>
+            <a-col :span="24">
+              <a-form-item label="单据备注" :label-col="{ span: 3 }" :wrapper-col="{ span: 21 }">
+                <a-textarea v-model:value="logisticsForm.orderRemark" :rows="3" placeholder="单据备注" show-count :maxlength="500" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+        </a-form>
+        <div class="logistics-remark-tip">
+          留空的字段不会修改；批量保存时所有选中单据统一写入所填内容（ql361 口径：所选单据需「单据状态 + 配送方式」一致，配送中的订单不能改配送方式）。
+        </div>
       </a-modal>
+
+      <!-- 包裹/运单管理（一单多包 · P1） -->
+      <SalePackageDrawer
+        v-model:open="pkgDrawerOpen"
+        :order-id="pkgOrderId"
+        :order-no="pkgOrderNo"
+        @changed="fetchData"
+      />
 
       <!-- 打印弹窗（真实打印：模板渲染 → 浏览器打印 / 远程打印链） -->
       <PrintDialog
@@ -177,7 +249,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import dayjs, { type Dayjs } from 'dayjs'
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons-vue'
@@ -193,6 +265,8 @@ import { useUserStore } from '@/stores/user'
 import { exportCsvWithLoading } from '@/utils/exportCsv'
 import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTable/types'
 import PrintDialog from '@/components/PrintDialog/index.vue'
+import SalePackageDrawer from '@/components/business/SalePackageDrawer/index.vue'
+import { partnerApi } from '@/api/erp/partner'
 import type {
   SearchConfigMap, SearchCheckboxConfigMap, SearchFieldItem,
   StatCardConfigMap, ToolbarConfigMap, ToolbarButtonItem,
@@ -200,14 +274,16 @@ import type {
 
 defineOptions({ name: 'OrderCenter' })
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
 const tenantId = computed(() => userStore.tenantId || 1)
 
 // ═══ 阶段 Tab + 维度子 Tab ═══
+// 阶段 Tab 文案对齐 ql361 实测（《物流发货开发文档》§1：外层 全部 / 1.待审核 / 2.拣货/发货）
 const mainTabs = [
   { key: 'all', label: '全部' },
-  { key: 'pending', label: '待审核' },
-  { key: 'picking', label: '拣货发货' },
+  { key: 'pending', label: '1.待审核' },
+  { key: 'picking', label: '2.拣货/发货' },
 ]
 const subTabs = computed(() => {
   // 只有「全部」阶段才有维度子 Tab；待审核 / 拣货发货为单一处理列表
@@ -220,7 +296,15 @@ const subTabs = computed(() => {
     { key: 'fulfillment', label: '订单履约' },
   ]
 })
-const mainTab = ref('all')
+/** 阶段 Tab：支持入口直达——「物流发货」(70155) 复用本视图并默认落在「拣货发货」→ /dispatch/logistics-ship?tab=picking */
+const MAIN_TAB_KEYS = ['all', 'pending', 'picking']
+function mainTabFromQuery(): string {
+  const t = String(route.query.tab || '')
+  return MAIN_TAB_KEYS.includes(t) ? t : 'all'
+}
+const mainTab = ref(mainTabFromQuery())
+// 薄壳入口（物流发货）挂载后再补 query，这里同步一次，保证直达落在正确阶段
+watch(() => route.query.tab, () => { mainTab.value = mainTabFromQuery() })
 const subTab = ref('byDoc')
 const dateShortcut = ref('thisWeek')
 const dateRange = ref<[Dayjs, Dayjs] | null>([dayjs().subtract(7, 'day'), dayjs()])
@@ -330,33 +414,36 @@ const groupSearchFields: SearchFieldItem[] = [
   { key: 'promoterName', label: '推广人', type: 'input', span: 4, suffix: 'search' },
   { key: 'deptName', label: '部门', type: 'input', span: 4, suffix: 'search' },
 ]
-// 拣货/发货查询条件（文档指定 15 项）
+// 拣货/发货查询条件（文档指定 16 项，顺序同实测抓取）
 const pickingSearchFields: SearchFieldItem[] = [
   { key: 'orderDate', label: '单据日期', type: 'input', span: 4 },
-  { key: 'orderNo', label: '单据编号', type: 'input', span: 4 },
   { key: 'customerName', label: '客户', type: 'input', span: 4, suffix: 'search' },
   { key: 'salesmanName', label: '经手人', type: 'input', span: 4, suffix: 'search' },
-  { key: 'submitTime', label: '提交时间', type: 'input', span: 4, suffix: 'search' },
   { key: 'warehouseName', label: '仓库', type: 'input', span: 4, suffix: 'search' },
+  { key: 'orderNo', label: '单据编号', type: 'input', span: 4 },
+  { key: 'submitTime', label: '提交时间', type: 'input', span: 4, suffix: 'search' },
+  { key: 'printCount', label: '打印次数', type: 'input', span: 4, suffix: 'search' },
+  { key: 'region', label: '区域', type: 'input', span: 4, suffix: 'search' },
+  { key: 'logisticsCompany', label: '物流公司', type: 'input', span: 4, suffix: 'search' },
+  { key: 'deliveryMethod', label: '配送方式', type: 'input', span: 4, suffix: 'search' },
+  { key: 'driverName', label: '配送司机', type: 'input', span: 4, suffix: 'search' },
   { key: 'extNum1', label: '表头自定义字段1(数字)', type: 'input', span: 4, suffix: 'search' },
   { key: 'extNum2', label: '表头自定义字段2(数字)', type: 'input', span: 4, suffix: 'search' },
   { key: 'extText1', label: '表头自定义字段3(文本)', type: 'input', span: 4, suffix: 'search' },
   { key: 'extText2', label: '表头自定义字段4(文本)', type: 'input', span: 4, suffix: 'search' },
   { key: 'extText3', label: '表头自定义字段5(文本)', type: 'input', span: 4, suffix: 'search' },
-  { key: 'logisticsCompany', label: '物流公司', type: 'input', span: 4, suffix: 'search' },
-  { key: 'deliveryMethod', label: '配送方式', type: 'input', span: 4, suffix: 'search' },
-  { key: 'driverName', label: '配送司机', type: 'input', span: 4, suffix: 'search' },
-  { key: 'printCount', label: '打印次数', type: 'input', span: 4, suffix: 'search' },
 ]
 
+// ⚠️ 阶段键口径：DocCenterLayout 仅在 mainTabsWithSubTabs（默认 ['all']）内的阶段才用 `mainTab.subTab`，
+// 其余阶段（1.待审核 / 2.拣货/发货）是单一处理列表，配置键就是阶段本身，否则查询区/工具栏取不到配置。
 const searchConfig: SearchConfigMap = {
   'all.byDoc': byDocSearchFields,
   'all.byDate': groupSearchFields,
   'all.byRoute': groupSearchFields,
   'all.byCustomer': groupSearchFields,
   'all.fulfillment': fulfillmentSearchFields,
-  'pending.byDoc': pendingSearchFields,
-  'picking.byDoc': pickingSearchFields,
+  'pending': pendingSearchFields,
+  'picking': pickingSearchFields,
 }
 
 const searchCheckboxConfig: SearchCheckboxConfigMap = {
@@ -368,11 +455,11 @@ const searchCheckboxConfig: SearchCheckboxConfigMap = {
   'all.fulfillment': [
     { key: 'showSelected', label: '仅显示已选中' },
   ],
-  'pending.byDoc': [
+  'pending': [
     { key: 'showSelected', label: '仅显示已选中' },
     { key: 'hideReturnApply', label: '不显示有关联审核中退货申请单的单据' },
   ],
-  'picking.byDoc': [
+  'picking': [
     { key: 'showSelected', label: '仅显示已选中' },
   ],
 }
@@ -395,8 +482,8 @@ const baseToolbarConfig: ToolbarConfigMap = {
   'all.byRoute': [ { key: 'batchPrint', label: '批量打印' }, { key: 'export', label: '导出' }, { key: 'pageConfig', label: '配置' } ],
   'all.byCustomer': [ { key: 'batchPrint', label: '批量打印' }, { key: 'export', label: '导出' }, { key: 'pageConfig', label: '配置' } ],
   'all.fulfillment': [ { key: 'refresh', label: '刷新' }, { key: 'export', label: '导出' }, { key: 'pageConfig', label: '配置' } ],
-  'pending.byDoc': docToolbarButtons,
-  'picking.byDoc': [
+  'pending': docToolbarButtons,
+  'picking': [
     { key: 'refresh', label: '刷新' },
     { key: 'batchPrint', label: '批量打印' },
     { key: 'productSummary', label: '商品汇总' },
@@ -440,12 +527,10 @@ const statCardConfig: StatCardConfigMap = {
     { label: '发货完成', valueKey: 'shippedCount', color: '#13c2c2' },
     { label: '交易完成', valueKey: 'completedCount', color: '#52c41a' },
   ],
-  'pending.byDoc': [ { label: '待审核', valueKey: 'pendingReview', color: '#fa8c16' } ],
-  'picking.byDoc': [
-    { label: '待出库', valueKey: 'pendingOutbound', color: '#fa8c16' },
-    { label: '待发货', valueKey: 'pendingShip', color: '#fa8c16' },
-    { label: '已出库', valueKey: 'outboundCount', color: '#722ed1' },
-  ],
+  'pending': [ { label: '待审核', valueKey: 'pendingReview', color: '#fa8c16' } ],
+  // 拣货/发货阶段无统计卡片：对齐 ql361 实测（该视图只有查询区 + 表格 + 合计行），
+  // 金额/数量口径统一由服务端「合计行」承载（与查询条件同源，不会与筛选脱节）。
+  'picking': [],
 }
 
 // ═══ 查询方案（按操作员持久化，整套条件可复用） ═══
@@ -521,8 +606,8 @@ const activeTableData = computed(() => tableData.value)
 const byDocColumns: DetailColumnConfig[] = [
   { key: 'checkbox', title: '', type: 'checkbox', width: 40 },
   { key: 'orderDate', title: '单据日期', width: 110 },
-  { key: 'orderNo', title: '单据编号', width: 150, slotName: 'orderNoCell' },
-  { key: 'status', title: '单据状态', width: 90, slotName: 'statusCell' },
+  { key: 'orderNo', title: '单据编号', type: 'slot', width: 150, slotName: 'orderNoCell' },
+  { key: 'status', title: '单据状态', type: 'slot', width: 90, slotName: 'statusCell' },
   { key: 'warehouseName', title: '仓库', width: 120 },
   { key: 'customerName', title: '客户', width: 160 },
   { key: 'settlementMethod', title: '结款方式', width: 90 },
@@ -562,7 +647,7 @@ const byDocColumns: DetailColumnConfig[] = [
   { key: 'depositAccount3', title: '订金账户3', width: 110 },
   { key: 'depositAccount4', title: '订金账户4', width: 110 },
   { key: 'region', title: '区域', width: 80 },
-  { key: 'saleType', title: '销售类型', width: 90, slotName: 'saleTypeCell' },
+  { key: 'saleType', title: '销售类型', type: 'slot', width: 90, slotName: 'saleTypeCell' },
   { key: 'deliveryMethod', title: '配送方式', width: 100 },
   { key: 'buyerRemark', title: '买家备注', width: 140 },
   { key: 'orderRemark', title: '卖家备注', width: 140 },
@@ -583,9 +668,9 @@ const byDocColumns: DetailColumnConfig[] = [
   { key: 'auditorName', title: '审核人', width: 90 },
   { key: 'printCount', title: '打印次数', width: 80 },
   { key: 'thirdPartyOrderNo', title: '第三方单号', width: 130 },
-  { key: 'resendMessage', title: '重推元气订单完成消息', width: 150, slotName: 'resendMessageCell' },
+  { key: 'resendMessage', title: '重推元气订单完成消息', type: 'slot', width: 150, slotName: 'resendMessageCell' },
   { key: 'auditTime', title: '审核时间', width: 130 },
-  { key: 'action', title: '操作', width: 170, fixed: 'right', slotName: 'actionCell' },
+  { key: 'action', title: '操作', type: 'action', width: 170, fixed: 'right', slotName: 'actionCell' },
 ]
 
 // 商品汇总弹窗列
@@ -604,7 +689,7 @@ const fulfillmentColumns: DetailColumnConfig[] = [
   { key: 'checkbox', title: '', type: 'checkbox', width: 40 },
   { key: 'orderDate', title: '单据日期', width: 110 },
   { key: 'originalOrderNo', title: '原始订单', width: 150 },
-  { key: 'status', title: '单据状态', width: 90, slotName: 'statusCell' },
+  { key: 'status', title: '单据状态', type: 'slot', width: 90, slotName: 'statusCell' },
   { key: 'warehouseName', title: '仓库', width: 100 },
   { key: 'shippedOrderNo', title: '已发订单', width: 150 },
   { key: 'supplementStatus', title: '补单状态', width: 90 },
@@ -671,53 +756,55 @@ const fulfillmentColumns: DetailColumnConfig[] = [
   { key: 'auditorName', title: '审核人', width: 80 },
   { key: 'printCount', title: '打印次数', width: 70, align: 'right' },
   { key: 'thirdPartyOrderNo', title: '第三方单号', width: 120 },
-  { key: 'resendMessage', title: '重推元气订单完成消息', width: 150, slotName: 'resendMessageCell' },
+  { key: 'resendMessage', title: '重推元气订单完成消息', type: 'slot', width: 150, slotName: 'resendMessageCell' },
   { key: 'auditTime', title: '审核时间', width: 110 },
-  { key: 'action', title: '操作', width: 150, fixed: 'right', slotName: 'actionCell' },
+  { key: 'action', title: '操作', type: 'action', width: 150, fixed: 'right', slotName: 'actionCell' },
 ]
 
 // 拣货/发货列（37 列，对齐文档；已拣货/未拣货取拣货作业真实回写值）
+// 默认显示 17 列（单据日期/单据编号/单据状态/打印次数/拣货仓库/集货位/客户/销售金额/商品数量/
+// 预计发货时间/经手人/摘要/提货地址/配送方式/物流公司/单据来源/单据备注），其余 20 列 defaultHidden
 const pickingColumns: DetailColumnConfig[] = [
   { key: 'rowNo', title: '', type: 'rowNo', width: 40, fixed: 'left' },
   { key: 'checkbox', title: '', type: 'checkbox', width: 40 },
   { key: 'orderDate', title: '单据日期', width: 110 },
-  { key: 'orderNo', title: '单据编号', width: 150, slotName: 'orderNoCell' },
-  { key: 'status', title: '单据状态', width: 90, slotName: 'statusCell' },
+  { key: 'orderNo', title: '单据编号', type: 'slot', width: 150, slotName: 'orderNoCell' },
+  { key: 'status', title: '单据状态', type: 'slot', width: 90, slotName: 'statusCell' },
   { key: 'printCount', title: '打印次数', width: 70, align: 'right' },
-  { key: 'settlementStatus', title: '结算状态', width: 90 },
+  { key: 'settlementStatus', title: '结算状态', width: 90, defaultHidden: true },
   { key: 'pickingWarehouse', title: '拣货仓库', width: 100 },
   { key: 'collectionLocation', title: '集货位', width: 80 },
   { key: 'customerName', title: '客户', width: 150 },
   { key: 'productAmount', title: '销售金额', width: 100, align: 'right' },
-  { key: 'totalVolume', title: '体积(m³)', width: 80, align: 'right' },
-  { key: 'totalWeight', title: '重量(kg)', width: 80, align: 'right' },
-  { key: 'lineCount', title: '商品行数', width: 80, align: 'right' },
+  { key: 'totalVolume', title: '体积(m³)', width: 80, align: 'right', defaultHidden: true },
+  { key: 'totalWeight', title: '重量(kg)', width: 80, align: 'right', defaultHidden: true },
+  { key: 'lineCount', title: '商品行数', width: 80, align: 'right', defaultHidden: true },
   { key: 'totalQuantity', title: '商品数量', width: 80, align: 'right' },
-  { key: 'pickedQuantity', title: '已拣货数量', width: 90, align: 'right' },
-  { key: 'unpickedQuantity', title: '未拣货数量', width: 90, align: 'right' },
-  { key: 'shippedQuantity', title: '已发货数量', width: 90, align: 'right' },
-  { key: 'unshippedQuantity', title: '未发货数量', width: 90, align: 'right' },
-  { key: 'receiverName', title: '收货人', width: 80 },
-  { key: 'receiverPhone', title: '联系电话', width: 110 },
-  { key: 'shippingAddress', title: '收货地址', width: 150 },
+  { key: 'pickedQuantity', title: '已拣货数量', width: 90, align: 'right', defaultHidden: true },
+  { key: 'unpickedQuantity', title: '未拣货数量', width: 90, align: 'right', defaultHidden: true },
+  { key: 'shippedQuantity', title: '已发货数量', width: 90, align: 'right', defaultHidden: true },
+  { key: 'unshippedQuantity', title: '未发货数量', width: 90, align: 'right', defaultHidden: true },
+  { key: 'receiverName', title: '收货人', width: 80, defaultHidden: true },
+  { key: 'receiverPhone', title: '联系电话', width: 110, defaultHidden: true },
+  { key: 'shippingAddress', title: '收货地址', width: 150, defaultHidden: true },
   { key: 'expectedShipTime', title: '预计发货时间', width: 110 },
   { key: 'salesmanName', title: '经手人', width: 80 },
   { key: 'summary', title: '摘要', width: 200 },
   { key: 'pickupAddress', title: '提货地址', width: 150 },
   { key: 'deliveryMethod', title: '配送方式', width: 80 },
   { key: 'logisticsCompany', title: '物流公司', width: 100 },
-  { key: 'driverName', title: '配送司机', width: 80 },
-  { key: 'orderSource', title: '单据来源', width: 80, slotName: 'orderSourceCell' },
-  { key: 'bookkeepingTime', title: '制单时间', width: 110 },
-  { key: 'extNum1', title: '表头自定义字段1(数字)', width: 120 },
-  { key: 'extNum2', title: '表头自定义字段2(数字)', width: 120 },
-  { key: 'extText1', title: '表头自定义字段3(文本)', width: 120 },
-  { key: 'extText2', title: '表头自定义字段4(文本)', width: 120 },
-  { key: 'extText3', title: '表头自定义字段5(文本)', width: 120 },
+  { key: 'driverName', title: '配送司机', width: 80, defaultHidden: true },
+  { key: 'orderSource', title: '单据来源', type: 'slot', width: 80, slotName: 'orderSourceCell' },
+  { key: 'bookkeepingTime', title: '制单时间', width: 110, defaultHidden: true },
+  { key: 'extNum1', title: '表头自定义字段1(数字)', width: 120, defaultHidden: true },
+  { key: 'extNum2', title: '表头自定义字段2(数字)', width: 120, defaultHidden: true },
+  { key: 'extText1', title: '表头自定义字段3(文本)', width: 120, defaultHidden: true },
+  { key: 'extText2', title: '表头自定义字段4(文本)', width: 120, defaultHidden: true },
+  { key: 'extText3', title: '表头自定义字段5(文本)', width: 120, defaultHidden: true },
   { key: 'orderRemark', title: '单据备注', width: 120 },
-  { key: 'sortOrder', title: '排序', width: 80, align: 'right' },
-  { key: 'sortValue', title: '排序值', width: 80, align: 'right' },
-  { key: 'action', title: '操作', width: 150, fixed: 'right', slotName: 'actionCell' },
+  { key: 'sortOrder', title: '排序', width: 80, align: 'right', defaultHidden: true },
+  { key: 'sortValue', title: '排序值', width: 80, align: 'right', defaultHidden: true },
+  { key: 'action', title: '操作', type: 'action', width: 150, fixed: 'right', slotName: 'actionCell' },
 ]
 
 // 按时间维度：按天/周/月聚合
@@ -773,6 +860,32 @@ const activeColumns = computed(() => {
 })
 const storageKey = computed(() => `order-center-${mainTab.value}-${subTab.value}`)
 
+// ═══ 拣货/发货合计（与列表同查询条件，服务端全量汇总；对齐文档「合计 销售金额 | 商品数量」） ═══
+const pickingSummary = ref<{ productAmount: number; totalQuantity: number; totalOrders: number }>({
+  productAmount: 0, totalQuantity: 0, totalOrders: 0,
+})
+const summaryColumns = computed(() => {
+  if (mainTab.value !== 'picking') return []
+  return [
+    { key: 'productAmount', value: Number(pickingSummary.value.productAmount || 0), highlight: true },
+    { key: 'totalQuantity', value: Number(pickingSummary.value.totalQuantity || 0) },
+  ]
+})
+
+async function fetchPickingSummary(params: Record<string, any>) {
+  try {
+    const res: any = await saleOrderApi.getPickingShippingSummary({ tenantId: tenantId.value, ...params })
+    const d = res?.data || res || {}
+    pickingSummary.value = {
+      productAmount: Number(d.productAmount || 0),
+      totalQuantity: Number(d.totalQuantity || 0),
+      totalOrders: Number(d.totalOrders || 0),
+    }
+  } catch {
+    pickingSummary.value = { productAmount: 0, totalQuantity: 0, totalOrders: 0 }
+  }
+}
+
 // ═══ 数据加载 ═══
 const fetchData = async () => {
   loading.value = true
@@ -826,6 +939,10 @@ const fetchData = async () => {
     if (Number(paginationConfig.current) === 1 || mainTab.value === 'all') {
       const st: any = await saleOrderApi.getCenterStats({ tenantId: tenantId.value, ...params })
       stats.value = st?.data || st || {}
+    }
+    // 拣货/发货合计行（销售金额 / 商品数量）
+    if (mainTab.value === 'picking') {
+      await fetchPickingSummary(params)
     }
   } catch (error) {
     console.warn('[订单处理中心] 获取数据失败', error)
@@ -897,7 +1014,7 @@ const handleToolbarAction = async (action: string) => {
   }
 }
 
-/** 拣完批量发货：对已勾选且已拣完的单据批量确认出库 */
+/** 拣完批量发货：先批量回写已拣货数量，再逐单确认出库（对齐文档按钮语义） */
 const handlePickComplete = async () => {
   const ids = getSelectedIds()
   if (!ids.length) { message.warning('请先勾选要发货的单据'); return }
@@ -907,14 +1024,19 @@ const handlePickComplete = async () => {
     onOk: async () => {
       try {
         const records = tableRef.value?.getCheckedRecords?.() || []
+        const pickRes: any = await saleOrderApi.batchPickComplete(ids)
+        const picked = Number(pickRes?.data ?? pickRes) || 0
         let done = 0
+        let skipped = 0
         for (const r of records) {
           const warehouseId = r.warehouseId
-          if (!warehouseId) continue
+          if (!warehouseId) { skipped++; continue }
           await saleOrderApi.ship(r.orderId || r.id, warehouseId)
           done++
         }
-        message.success(`已完成 ${done} 张单据的发货`); fetchData()
+        if (skipped) message.warning(`已完成 ${done} 张发货，${skipped} 张因缺少仓库未发货（拣货完成 ${picked} 张）`)
+        else message.success(`已完成 ${done} 张单据的拣货与发货`)
+        fetchData()
       } catch { message.error('批量发货失败') }
     },
   })
@@ -1032,22 +1154,95 @@ const handleImportChange = async (e: Event) => {
   }
 }
 
-// 物流备注（批量更新）
+// ═══ 物流/备注（批量 + 行内单条，弹窗字段对齐 ql361 OrderRemarks 实测 15 项）═══
 const logisticsRemarkVisible = ref(false)
-const logisticsRemarkText = ref('')
-const handleLogisticsRemark = () => {
-  const ids = getSelectedIds()
-  if (!ids.length) { message.warning('请先勾选要备注的单据'); return }
-  logisticsRemarkText.value = ''
+const logisticsRemarkSaving = ref(false)
+const logisticsRemarkIds = ref<(number | string)[]>([])
+const saleTypeOptions = [
+  { label: '普通销售', value: 0 }, { label: '预订货', value: 1 },
+  { label: '零售', value: 2 }, { label: '换货', value: 3 },
+]
+// 物流公司档案（《资料 → 物流公司》= partnerType LOGISTICS）：可选可手输
+const carrierOptions = ref<{ label: string; value: string }[]>([])
+const carrierMap = ref<Record<string, number | string>>({})
+const loadCarriers = async () => {
+  if (carrierOptions.value.length) return
+  const res: any = await partnerApi.list('LOGISTICS', '1', 500).catch(() => null)
+  const list = (res?.data ?? res) || []
+  carrierOptions.value = list.map((p: any) => ({ label: p.partyName || p.name, value: p.partyName || p.name }))
+  carrierMap.value = list.reduce((acc: Record<string, number | string>, p: any) => {
+    const name = p.partyName || p.name
+    if (name) acc[name] = p.id
+    return acc
+  }, {})
+}
+
+// 包裹/运单管理（P1，一单多包）
+const pkgDrawerOpen = ref(false)
+const pkgOrderId = ref<number | string | undefined>()
+const pkgOrderNo = ref('')
+const openPackages = (record: any) => {
+  pkgOrderId.value = record.orderId || record.id
+  pkgOrderNo.value = record.orderNo || ''
+  pkgDrawerOpen.value = true
+}
+/** 弹窗表单：键名与后端 SaleLogisticsRemarkDTO 一致（空 = 不改动） */
+const emptyLogisticsForm = () => ({
+  deliveryMethod: undefined as string | undefined,
+  driverName: undefined as string | undefined,
+  waybillNo: undefined as string | undefined,
+  logisticsCompany: undefined as string | undefined,
+  receiverName: undefined as string | undefined,
+  receiverPhone: undefined as string | undefined,
+  salesmanName: undefined as string | undefined,
+  shippingAddress: undefined as string | undefined,
+  saleType: undefined as number | undefined,
+  extNum1: undefined as number | undefined,
+  extNum2: undefined as number | undefined,
+  extText1: undefined as string | undefined,
+  extText2: undefined as string | undefined,
+  extText3: undefined as string | undefined,
+  orderRemark: undefined as string | undefined,
+})
+const logisticsForm = reactive<Record<string, any>>(emptyLogisticsForm())
+
+/** 打开弹窗：传 record = 行内单条；不传 = 工具栏批量（取勾选） */
+const openLogisticsRemark = (record?: any) => {
+  const ids = record ? [record.orderId || record.id].filter(Boolean) : getSelectedIds()
+  if (!ids.length) { message.warning('请先勾选要操作的单据'); return }
+  logisticsRemarkIds.value = ids
+  Object.assign(logisticsForm, emptyLogisticsForm())
+  loadCarriers()
   logisticsRemarkVisible.value = true
 }
+const handleLogisticsRemark = () => openLogisticsRemark()
+
 const submitLogisticsRemark = async () => {
-  const ids = getSelectedIds()
-  if (!logisticsRemarkText.value.trim()) { message.warning('请输入物流备注'); return }
+  const payload: Record<string, any> = { ids: logisticsRemarkIds.value }
+  Object.keys(logisticsForm).forEach((key) => {
+    const value = logisticsForm[key]
+    if (value === undefined || value === null || String(value).trim() === '') return
+    payload[key] = typeof value === 'string' ? value.trim() : value
+  })
+  if (Object.keys(payload).length <= 1) {
+    message.warning('请至少填写一项要修改的内容')
+    return
+  }
+  // 物流公司选了档案 → 带上 id（后端据此补名称快照，为运费规则/对账提供承运商主键）
+  if (payload.logisticsCompany && carrierMap.value[payload.logisticsCompany]) {
+    payload.logisticsCompanyId = carrierMap.value[payload.logisticsCompany]
+  }
+  logisticsRemarkSaving.value = true
   try {
-    await saleOrderApi.batchLogisticsRemark(ids, logisticsRemarkText.value.trim())
-    message.success('物流备注已更新'); logisticsRemarkVisible.value = false; fetchData()
-  } catch { message.error('更新失败') }
+    await saleOrderApi.batchLogisticsRemark(payload as any)
+    message.success('物流/备注已更新')
+    logisticsRemarkVisible.value = false
+    fetchData()
+  } catch (e: any) {
+    message.error(e?.message || '更新失败')
+  } finally {
+    logisticsRemarkSaving.value = false
+  }
 }
 
 // 批量审核
@@ -1139,6 +1334,21 @@ const handleApprove = (record: any) => {
     },
   })
 }
+/** 已拣完判定：未拣货数量为 0 时「拣完」置灰（未拣货数量为派生值） */
+const pickedDone = (record: any) => Number(record?.unpickedQuantity || 0) <= 0
+/** 拣完（单张）：回写明细已拣货数量 + 主表汇总，拣货与发货数量分离跟踪 */
+const handlePickOne = (record: any) => {
+  Modal.confirm({
+    title: '拣货完成确认', content: `确认订单 ${record.orderNo} 拣货完成吗？`,
+    okText: '确认拣完', cancelText: '取消',
+    onOk: async () => {
+      try {
+        await saleOrderApi.pickComplete(record.orderId || record.id)
+        message.success('已拣完'); fetchData()
+      } catch { message.error('拣货完成失败') }
+    },
+  })
+}
 const handleShip = (record: any) => {
   Modal.confirm({
     title: '发货确认', content: `确认对订单 ${record.orderNo} 发货吗？`,
@@ -1191,7 +1401,8 @@ const handleError = (err: any) => { console.warn('[订单处理中心] ErrorBoun
 
 // ═══ 页面配置（查询条件显隐 + 功能按钮开关，均与当前 Tab 的搜索/工具栏同源） ═══
 const showPageConfig = ref(false)
-const currentTabKey = computed(() => `${mainTab.value}.${subTab.value}`)
+// 与 DocCenterLayout.currentTabKey 同口径：仅「全部」阶段带维度子 Tab，其余阶段用阶段键
+const currentTabKey = computed(() => (mainTab.value === 'all' ? `all.${subTab.value}` : mainTab.value))
 const currentSearchFields = computed<SearchFieldItem[]>(
   () => searchConfig[currentTabKey.value] || byDocSearchFields
 )
@@ -1264,4 +1475,15 @@ onUnmounted(() => {
 
 <style scoped>
 .query-scheme-wrap { display: flex; align-items: center; gap: 2px; }
+
+/* 物流/备注弹窗：底部口径提示 */
+.logistics-remark-tip {
+  margin-top: 4px;
+  padding: 8px 12px;
+  background: #f7f8fa;
+  border-radius: 4px;
+  color: #8c8c8c;
+  font-size: 12px;
+  line-height: 1.6;
+}
 </style>

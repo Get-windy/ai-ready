@@ -2,6 +2,7 @@ package cn.aiedge.erp.sale.controller;
 
 import cn.aiedge.base.log.annotation.OperationLog;
 import cn.aiedge.common.result.ApiResponse;
+import cn.aiedge.erp.sale.dto.SaleLogisticsRemarkDTO;
 import cn.aiedge.erp.sale.dto.SaleOrderDTO;
 import cn.aiedge.erp.sale.dto.SaleOrderDetailDTO;
 import cn.aiedge.erp.sale.dto.SaleOrderListDTO;
@@ -568,7 +569,8 @@ public class SaleOrderController {
             @RequestParam(required = false) Integer printCount,
             @RequestParam(required = false) String submitTimeStart,
             @RequestParam(required = false) String submitTimeEnd,
-            @RequestParam(required = false) String salespersonName) {
+            @RequestParam(required = false) String salespersonName,
+            @RequestParam(required = false) String region) {
         Page<SaleOrder> page = new Page<>(pageNum, pageSize);
         Map<String, Object> filters = buildFilters(startDate, endDate, null, orderNo, customerId, salesmanId);
         if (customerName != null) filters.put("customerName", customerName);
@@ -588,10 +590,70 @@ public class SaleOrderController {
         if (submitTimeStart != null) filters.put("submitTimeStart", submitTimeStart);
         if (submitTimeEnd != null) filters.put("submitTimeEnd", submitTimeEnd);
         if (salespersonName != null) filters.put("salesmanName", salespersonName);
+        if (region != null) filters.put("region", region);
         return ApiResponse.ok(saleOrderService.pickingShippingPage(page, tenantId, filters));
     }
 
+    @Operation(summary = "拣货/发货列表合计（销售金额 / 商品数量）")
+    @GetMapping("/center/picking-shipping-summary")
+    @SaCheckLogin
+    public ApiResponse<Map<String, Object>> pickingShippingSummary(
+            @RequestParam Long tenantId,
+            @RequestParam Map<String, String> params) {
+        return ApiResponse.ok(saleOrderService.pickingShippingSummary(tenantId, pickingFiltersFromMap(params)));
+    }
+
+    @Operation(summary = "拣货完成")
+    @PostMapping("/{id}/pick-complete")
+    @SaCheckLogin
+    @OperationLog(module = "销售订单管理", type = "UPDATE", desc = "拣货完成")
+    public ApiResponse<Void> pickComplete(@PathVariable Long id) {
+        saleOrderService.completePicking(id);
+        return ApiResponse.ok("拣货完成", null);
+    }
+
+    @Operation(summary = "批量拣货完成")
+    @PostMapping("/batch-pick-complete")
+    @SaCheckLogin
+    @OperationLog(module = "销售订单管理", type = "UPDATE", desc = "批量拣货完成")
+    public ApiResponse<Integer> batchPickComplete(@RequestBody List<Long> ids) {
+        return ApiResponse.ok(saleOrderService.batchCompletePicking(ids));
+    }
+
     // ═══ 辅助方法 ═══
+
+    /**
+     * 由查询串构建「拣货/发货」查询条件（与 pickingShippingPage 同口径，供合计接口复用）
+     */
+    private Map<String, Object> pickingFiltersFromMap(Map<String, String> q) {
+        Map<String, Object> filters = new HashMap<>();
+        String[] strKeys = {"startDate", "endDate", "orderNo", "customerName", "salesmanName", "orderDate",
+                "warehouseName", "deliveryMethod", "logisticsCompany", "driverName", "extText1", "extText2",
+                "extText3", "submitTimeStart", "submitTimeEnd", "region"};
+        for (String k : strKeys) {
+            String v = q.get(k);
+            if (v != null && !v.trim().isEmpty()) filters.put(k, v.trim());
+        }
+        String[] longKeys = {"customerId", "salesmanId", "warehouseId"};
+        for (String k : longKeys) {
+            String v = q.get(k);
+            if (v != null && !v.trim().isEmpty()) {
+                try { filters.put(k, Long.valueOf(v.trim())); } catch (NumberFormatException ignored) {}
+            }
+        }
+        String[] decKeys = {"extNum1", "extNum2"};
+        for (String k : decKeys) {
+            String v = q.get(k);
+            if (v != null && !v.trim().isEmpty()) {
+                try { filters.put(k, new BigDecimal(v.trim())); } catch (NumberFormatException ignored) {}
+            }
+        }
+        String pc = q.get("printCount");
+        if (pc != null && !pc.trim().isEmpty()) {
+            try { filters.put("printCount", Integer.valueOf(pc.trim())); } catch (NumberFormatException ignored) {}
+        }
+        return filters;
+    }
 
     private Map<String, Object> buildFilters(String startDate, String endDate, Integer status,
                                               String orderNo, Long customerId, Long salesmanId) {
@@ -635,13 +697,13 @@ public class SaleOrderController {
 
     // ═══ 物流备注批量更新 ═══
 
-    @Operation(summary = "批量更新物流备注")
+    @Operation(summary = "物流/备注批量更新（对齐 ql361 OrderRemarks 弹窗全字段；空值不修改）")
     @PostMapping("/batch-logistics-remark")
     @SaCheckPermission("sale:order:update")
-    @OperationLog(module = "销售订单管理", type = "UPDATE", desc = "批量更新物流备注")
-    public ApiResponse<Void> batchLogisticsRemark(@RequestBody BatchLogisticsRemarkRequest request) {
-        saleOrderService.batchUpdateLogisticsRemark(request.getIds(), request.getRemark());
-        return ApiResponse.ok("更新成功", null);
+    @OperationLog(module = "销售订单管理", type = "UPDATE", desc = "物流/备注批量更新")
+    public ApiResponse<Integer> batchLogisticsRemark(@RequestBody SaleLogisticsRemarkDTO request) {
+        int updated = saleOrderService.batchUpdateLogistics(request);
+        return ApiResponse.ok("更新成功", updated);
     }
 
     // ═══ 信用额度 ═══
@@ -660,12 +722,5 @@ public class SaleOrderController {
         return ApiResponse.ok(saleOrderService.getCustomerDepositBalance(customerId));
     }
 
-    /**
-     * 批量更新物流备注请求体
-     */
-    @Data
-    public static class BatchLogisticsRemarkRequest {
-        private List<Long> ids;
-        private String remark;
-    }
+    // 「物流/备注」请求体已提取为 cn.aiedge.erp.sale.dto.SaleLogisticsRemarkDTO（对齐 ql361 OrderRemarks 弹窗字段）
 }

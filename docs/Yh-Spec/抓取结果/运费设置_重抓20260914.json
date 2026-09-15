@@ -1,0 +1,166 @@
+{
+  "page": "运费设置",
+  "对标系统": "ql361（来肯企汇，22stable.ql361.com）",
+  "对标来源": "顶部「商城」菜单 → 「商城设置」组 → 「运费设置」",
+  "抓取方式": "Playwright 实测抓取（frontend/_probe_trade_fix2.js、_probe_trade_api.js、_probe_trade_fix8.js）",
+  "抓取时间": "2026-09-14",
+  "抓取轮次": "重抓（修正 2026-09-07 首抓的两处误判）",
+  "本系统路由": "mall/freight-config",
+  "入口": "单入口（商城 → 商城设置 → 运费设置）",
+  "页面结构": "左侧 2 个子项导航（物流/到店自提），右侧为当前子项配置表单，底部「保存」按钮。右侧无商城预览 iframe。",
+  "列配置弹窗": "无（配置/表单型页面，无数据表列配置 .icon-shezhi2，无顶部「配置」齿轮）",
+  "页面配置弹窗": "无",
+  "重抓修正": [
+    "【修正 1】2026-09-07 首抓记为「物流方式/运费模板数据区因网络资源请求失败未加载」——**该结论错误**。真实原因是：「启用物流」开关为「关」时本页不渲染数据区；把开关真正打开后数据区即渲染（见「触发条件」）。",
+    "【修正 2】进页面时的「网络资源请求失败，请关闭此页面重新打开或刷新再试」弹窗**确实存在**（需点「我知道了」关闭），但它不影响物流数据区渲染。该弹窗与数据区未加载**无因果关系**。"
+  ],
+  "触发条件": {
+    "步骤": "进入运费设置 → 停留左侧子项「物流」→ 把「启用物流」开关点开（input name=isexpress）→ 等待 5 秒",
+    "断言证据": "input[name=isexpress].checked === true，且右侧面板出现文本「运费计算方式」「未设置运费的地区，默认运费为0元」与带列头的数据表",
+    "截图": "_fix4_运费设置_物流全开.png、_fix2_运费设置_02启用物流开.png、_fix8_运费设置_两个开关都开.png",
+    "备注": "「保存」不是渲染前提；无需点保存，开关打开后数据区即出现。"
+  },
+  "子项": [
+    {
+      "子项名": "物流（默认激活子项）",
+      "开关实测": [
+        {"字段名": "自有配送", "控件": "开关（ql361 自定义 buttontoggle）", "input_name": "selfmention", "input_id": "dijit_form_CheckBox_2", "实测状态": "关", "tooltip原文": "启用后商城下单可选择商家配送，且不计算运费"},
+        {"字段名": "启用物流", "控件": "开关（buttontoggle）", "input_name": "isexpress", "input_id": "dijit_form_CheckBox_3", "实测状态": "关（默认）；打开后渲染数据区", "tooltip原文": "客户商城下单配送方式可以选择邮寄，且按订单和按重量只能同时开启一个"}
+      ],
+      "分组": [
+        {
+          "分组名": "物流设置",
+          "字段": [
+            {"字段名": "自有配送", "控件": "开关", "默认值/说明": "关"},
+            {"字段名": "启用物流", "控件": "开关", "默认值/说明": "关"}
+          ]
+        },
+        {
+          "分组名": "物流数据区（「启用物流」=开 才渲染）",
+          "状态": "已实测（重抓成功）",
+          "字段": [
+            {
+              "字段名": "运费计算方式",
+              "控件": "下拉（Dojo 组件 declaredClass=desktop.widgets.ItemField，id=desktop_widgets_ItemField_7）",
+              "选项原文与取值": [
+                {"label": "按重量", "value": "1", "实测选中": true},
+                {"label": "按订单金额", "value": "2", "实测选中": false},
+                {"label": "按订单数量", "value": "3", "实测选中": false}
+              ],
+              "默认值": "按重量",
+              "说明": "选此项即切换下方三张运费表；三张表的 DOM 始终都在，按该项显示/隐藏。"
+            },
+            {
+              "字段名": "（红字提示，非字段）",
+              "控件": "静态文本（style=color:red）",
+              "原文": "未设置运费的地区，默认运费为0元"
+            },
+            {
+              "字段名": "运费表 —— 按重量（对应后端 weight_freight_temps，wftype=1）",
+              "控件": "dgrid 表格 + 行内编辑",
+              "列头逐字（含内部字段名）": [
+                {"列头": "（行号列，表头仅一个齿轮图标=列配置）", "内部字段": "lkrowno"},
+                {"列头": "操作", "内部字段": "lkoperation", "行内控件": "⊕ 增行 / ⊖ 删行"},
+                {"列头": "区域", "内部字段": "areaname", "行内控件": "文本「选择区域」（区域选择器）"},
+                {"列头": "首重(KG)", "内部字段": "basicweight", "行内控件": "文本输入"},
+                {"列头": "运费(元)", "内部字段": "basicfreight", "行内控件": "文本输入"},
+                {"列头": "续重(KG)", "内部字段": "increaseweight", "行内控件": "文本输入"},
+                {"列头": "续费(元)", "内部字段": "increasefreight", "行内控件": "文本输入"},
+                {"列头": "满额包邮(元)", "内部字段": "freefreight", "行内控件": "文本输入；列头右侧附「批量」文字链（class=inventoryEditor-freefreight_w，橙红色下划线）"}
+              ],
+              "实测行数": 11,
+              "备注": "末列为 dgrid 占位列 _lk_fill_empty_column，表头为空。**没有「启用」列**（2026-09-07 之后的目测曾误读，本次以 HTML 表头为准）。"
+            },
+            {
+              "字段名": "运费表 —— 按订单金额（对应后端 amount_freight_temps，wftype=2）",
+              "控件": "dgrid 表格",
+              "列头逐字（含内部字段名）": [
+                {"列头": "操作", "内部字段": "lkoperation"},
+                {"列头": "区域", "内部字段": "areaname"},
+                {"列头": "运费(元)", "内部字段": "basicfreight"},
+                {"列头": "满额包邮(元)", "内部字段": "freefreight", "行内控件": "列头右侧「批量」文字链（class=inventoryEditor-freefreight_a）"}
+              ],
+              "行内控件": "「选择区域」+「设置」按钮（点开配置金额阶梯）",
+              "实测样本数据（本租户已存 1 行）": {
+                "区域": "甘肃省",
+                "运费(元)": "0--100 运费10元,100--300 运费5元",
+                "满额包邮(元)": "300"
+              },
+              "后端阶梯结构": {"字段": "prilist", "元素": [{"min": "0", "max": 100, "freight": 10, "caninput": true}]}
+            },
+            {
+              "字段名": "运费表 —— 按订单数量（对应后端 count_freight_temps，wftype=3）",
+              "控件": "dgrid 表格",
+              "列头逐字（含内部字段名）": [
+                {"列头": "操作", "内部字段": "lkoperation"},
+                {"列头": "区域", "内部字段": "areaname"},
+                {"列头": "起算数量", "内部字段": "basicweight"},
+                {"列头": "运费(元)", "内部字段": "basicfreight"},
+                {"列头": "增加数量", "内部字段": "increaseweight"},
+                {"列头": "续费(元)", "内部字段": "increasefreight"},
+                {"列头": "满额包邮(元)", "内部字段": "freefreight", "行内控件": "列头右侧「批量」文字链（class=inventoryEditor-freefreight_c）"}
+              ],
+              "实测行数": 10
+            }
+          ]
+        }
+      ],
+      "自有配送数据区": {
+        "状态": "未抓到（如实记录）",
+        "现象": "单独点击「自有配送」开关后，断言 input[name=selfmention].checked 仍为 false；右侧面板文本仍只有「自有配送 关 / 启用物流 关」，未出现任何配送范围/运费配置。",
+        "证据": "_fix8_运费设置_仅自有配送开.png、_probe_trade_fix8_raw.json 的 snapSelfDeliveryOnly.toggles",
+        "推断（非实测）": "该开关可能被『系统参数-流程-启用自配』门控；后端 MallFreight.getFreight 返回 selfmention / mall_selfdelivery_freightlimit / mall_selfdelivery_freightmoney 三个自配字段，说明自配确有「限额 + 运费」模型，但其 UI 未实测到。"
+      }
+    },
+    {
+      "子项名": "到店自提",
+      "分组": [
+        {
+          "分组名": "到店自提设置",
+          "字段": [
+            {"字段名": "到店自提", "控件": "开关", "input_name": "gostore_ask", "input_id": "dijit_form_CheckBox_4", "实测状态": "关", "tooltip原文": "勾选之后客户商城下单配送方式可以选择『到店自提』,且不计算运费"},
+            {"字段名": "隐藏收货地址", "控件": "开关", "input_name": "ishide_receiving_address", "input_id": "dijit_form_CheckBox_5", "实测状态": "关", "tooltip原文": "开启后商城提交订单页面隐藏收货地址，否则显示"},
+            {"字段名": "提货地址", "控件": "地址列表（含说明）", "说明原文": "请添加至少1条提货地址，以免影响买家商城下单"},
+            {"字段名": "添加提货地址", "控件": "按钮"},
+            {"字段名": "联系人", "控件": "文本输入（提货地址表列头）"},
+            {"字段名": "联系电话", "控件": "文本输入（提货地址表列头）"},
+            {"字段名": "提货地址", "控件": "文本输入（提货地址表列头）"}
+          ],
+          "面板文本逐字": "到店自提 关 提货地址 请添加至少1条提货地址，以免影响买家商城下单 添加提货地址 联系人 联系电话 提货地址 保存"
+        }
+      ]
+    }
+  ],
+  "后端接口实测": {
+    "接口": "POST/GET https://22stable.ql361.com/v_22stable/api.cc?___method=cc.erp.bll.MallFreight.GetFreight&pagetype=erp&pagename=ShopSettingFreight",
+    "完整响应存档": "tool-results/ql361/pages/_api_cc.erp.bll.MallFreight.GetFreight.json（160,069 字符，未截断）",
+    "data.data 全部键与实测值": {
+      "profileid": 200004989,
+      "weight_freight_temps": "JSON 字符串；元素字段 = wftype(=1), region[ ], areaname, basicweight, basicfreight, increaseweight, increasefreight, freefreight, wfid",
+      "amount_freight_temps": "JSON 字符串；元素字段 = wftype(=2), region[{code,province,city,area}], areaname, basicfreight, freefreight, prilist[{min,max,freight,caninput}], amounttype, strregion, type, wfid",
+      "count_freight_temps": "JSON 字符串；元素字段 = wftype(=3), lkrowno, region[ ], areaname, basicweight, basicfreight, increaseweight, increasefreight, freefreight, wfid",
+      "usetype": 2,
+      "isexpress": 0,
+      "selfmention": 0,
+      "mall_selfdelivery_freightlimit": 0,
+      "mall_selfdelivery_freightmoney": 0,
+      "delivery_address": "对象 = {mdaid:1472, profileid:200004989, contactor:'杨生淮', phone:'15095664266', region:'甘肃省 酒泉市 肃州区 ', addr:'甘肃省 酒泉市 肃州区 互联网商贸城9号楼1层11号商铺', address:'互联网商贸城9号楼1层11号商铺', isdefault:0, provinceid:620000, cityid:620900, distictid:620902, streetid:0, lng:98.4840282963186, lat:39.7660906684305, createtime, modifytime}",
+      "gostore_ask": false,
+      "ishide_receiving_address": false,
+      "enable_isexpress": false,
+      "enable_gostore_ask": true,
+      "enable_delivery": true
+    },
+    "注意": "usetype 为服务端已持久化的值（=2），而页面刚渲染时下拉显示「按重量」且隐藏 value=1；两者不一致说明「开关打开」会以默认模板（按重量）重渲染数据区，未保存前下拉值不等于服务端 usetype。"
+  },
+  "截图": [
+    "tool-results/ql361/pages/_fix4_运费设置_物流全开.png（启用物流=开 + 按重量表 + 红字提示）",
+    "tool-results/ql361/pages/_fix2_运费设置_02启用物流开.png",
+    "tool-results/ql361/pages/_fix2_运费设置_03保存后.png",
+    "tool-results/ql361/pages/_fix8_运费设置_两个开关都开.png",
+    "tool-results/ql361/pages/_fix8_运费设置_仅自有配送开.png",
+    "tool-results/ql361/pages/_fix4_运费设置_到店自提.png",
+    "tool-results/ql361/pages/_fix2_运费设置_01物流初始.png（开关未开时的空白状态，对照用）"
+  ],
+  "备注": "配置/表单型页面，无列配置/页面配置弹窗。2 个子项：物流（开关 + 启用物流后出现「运费计算方式」下拉与三张地区运费表）、到店自提（开关 + 提货地址列表）。重抓已推翻首抓「物流数据库因网络失败未加载」的结论：真实原因是开关为「关」时不渲染。"
+}

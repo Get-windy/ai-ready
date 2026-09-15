@@ -80,6 +80,54 @@ password:
   policy:
     max-age-days: 90
 
+# ── 地图服务配置（全平台单一入口）──
+# 消费方：DMS《路线规划》（dms.map.*：路径规划/地理编码/逆编码/围栏）
+#         配送路线单《优化/重新规划/导航》（amap.key，erp-delivery-route）
+# 优先级：环境变量/启动参数 > 外部化配置文件 > 《配送参数》数据库配置 > 内置默认（直线降级模式）
+# ⚠️ 必须声明在 core-api 的配置里：各业务模块自带的 application.yml 位于嵌套 jar 内、
+#    **不会被 core-api 加载**，只在模块 yml 写 ${AMAP_API_KEY:} 是读不到的（表现为始终降级）。
+# 配置落位与四种方式见《路线规划开发文档》§8「地图服务 Key 配置落位」。
+dms:
+  map:
+    # 默认服务商：amap / tencent / baidu（未配置对应 Key 时自动降级为 local 直线模式）
+    default-provider: ${DMS_MAP_DEFAULT_PROVIDER:amap}
+    amap:
+      api-key: ${AMAP_API_KEY:}
+      # 前端底图用（JS SDK Key，公开+域名限制）；不配则前端用自研矢量画布
+      js-key: ${AMAP_JS_KEY:}
+    tencent:
+      api-key: ${TENCENT_MAP_API_KEY:}
+    baidu:
+      api-key: ${BAIDU_MAP_API_KEY:}
+
+  # ── 运力渠道适配器开关（《渠道管理》配送 → 配送配置 → 渠道管理）──
+  # 默认仅装配「自有员工」内部运力适配器；外部平台适配器当前为**未对接占位**：
+  # 即使开启也如实返回「未实现」，不返回模拟单号/模拟坐标（金标准红线：无桩、无模拟）。
+  # 接入真实平台时覆写适配器的 check()/fetchRiders()/createOrder 即可，页面与接口无需改动。
+  # 凭据加密密钥优先级：环境变量 DMS_CHANNEL_ENCRYPT_KEY > 配置中心 dms.channel.config.encrypt-key > 内置默认（仅开发）。
+  channel:
+    encrypt-key: ${DMS_CHANNEL_ENCRYPT_KEY:}
+    own:
+      enabled: ${DMS_CHANNEL_OWN_ENABLED:true}
+    dada:
+      enabled: ${DMS_CHANNEL_DADA_ENABLED:false}
+    meituan:
+      enabled: ${DMS_CHANNEL_MEITUAN_ENABLED:false}
+    shunfeng:
+      enabled: ${DMS_CHANNEL_SHUNFENG_ENABLED:false}
+    taxi:
+      enabled: ${DMS_CHANNEL_TAXI_ENABLED:false}
+
+# 短信通道（core-base 消息底座 msgType=3）：配送 ETA 通知等短信统一走此处。
+# 未配置（enabled=false 或 endpoint 为空）时，消息保持「待发送」并按底座策略重试 3 次后标记失败；
+# 不会静默丢弃，业务侧可在《配送路线单 → 通知台账》查看发送结果。
+sms:
+  enabled: ${SMS_ENABLED:false}
+  endpoint: ${SMS_ENDPOINT:}
+  access-key: ${SMS_ACCESS_KEY:}
+  sign-name: ${SMS_SIGN_NAME:}
+  timeout-millis: ${SMS_TIMEOUT_MILLIS:5000}
+
 # Actuator 可观测性端点（Prometheus 指标导出）
 management:
   endpoints:

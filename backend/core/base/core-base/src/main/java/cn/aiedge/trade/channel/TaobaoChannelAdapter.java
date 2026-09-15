@@ -149,10 +149,9 @@ public class TaobaoChannelAdapter implements ExternalChannelAdapter {
 
     @Override
     public ExternalOrderDTO handleOrderCallback(String callbackData) {
-        // 解析淘宝订单回调JSON
-        // 实际需要解析top消息格式
-        ExternalOrderDTO dto = new ExternalOrderDTO();
-        dto.setRawJson(callbackData);
+        // 解析订单回调 JSON（字段契约见 CallbackPayloadParser）；
+        // TOP 专有消息格式（XML/签名包裹）接入时在此扩展，未识别键忽略而非报错
+        ExternalOrderDTO dto = CallbackPayloadParser.apply(new ExternalOrderDTO(), callbackData);
         dto.setChannelCode(getChannelCode());
         return dto;
     }

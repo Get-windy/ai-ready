@@ -10,7 +10,7 @@
   </parent>
   <groupId>cn.aiedge</groupId>
   <artifactId>ai-ready-backend</artifactId>
-  <version>0.3.17</version>
+  <version>0.3.19</version>
   <packaging>pom</packaging>
   <name>ERP Parent Project</name>
   <description>ERP System Parent Project with unified dependency management</description>
@@ -47,7 +47,7 @@
     <mockito.version>5.10.0</mockito.version>
     <mybatis-plus.version>3.5.10.1</mybatis-plus.version>
     <knife4j.version>4.5.0</knife4j.version>
-    <revision>0.3.17</revision>
+    <revision>0.3.19</revision>
     <lombok.version>1.18.32</lombok.version>
     <maven.compiler.target>17</maven.compiler.target>
     <postgresql.version>42.7.11</postgresql.version>

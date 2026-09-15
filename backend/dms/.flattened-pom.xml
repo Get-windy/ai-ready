@@ -5,10 +5,10 @@
   <parent>
     <groupId>cn.aiedge</groupId>
     <artifactId>ai-ready-backend</artifactId>
-    <version>0.3.17</version>
+    <version>0.3.19</version>
   </parent>
   <artifactId>dms-delivery</artifactId>
-  <version>0.3.17</version>
+  <version>0.3.19</version>
   <name>DMS 配送管理模块</name>
   <description>配送管理系统（含渠道/运力/路线/调度/执行/签收/收款/轨迹/核验/结算/配置/事件）</description>
   <licenses>
@@ -23,6 +23,10 @@
       <artifactId>core-base</artifactId>
     </dependency>
     <dependency>
+      <groupId>cn.aiedge.erp</groupId>
+      <artifactId>erp-finance</artifactId>
+    </dependency>
+    <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-web</artifactId>
     </dependency>
@@ -33,6 +37,20 @@
     <dependency>
       <groupId>org.postgresql</groupId>
       <artifactId>postgresql</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-redis</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.poi</groupId>
+      <artifactId>poi</artifactId>
+      <version>5.2.5</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.poi</groupId>
+      <artifactId>poi-ooxml</artifactId>
+      <version>5.2.5</version>
     </dependency>
     <dependency>
       <groupId>com.baomidou</groupId>

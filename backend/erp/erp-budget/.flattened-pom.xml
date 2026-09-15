@@ -5,10 +5,10 @@
   <parent>
     <groupId>cn.aiedge.erp</groupId>
     <artifactId>erp</artifactId>
-    <version>0.3.17</version>
+    <version>0.3.19</version>
   </parent>
   <artifactId>erp-budget</artifactId>
-  <version>0.3.17</version>
+  <version>0.3.19</version>
   <name>ERP Budget Module</name>
   <description>预算管理系统，支持预算模板、年度预算、预算调整、预算执行等全流程管理</description>
   <licenses>

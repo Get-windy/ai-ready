@@ -81,10 +81,13 @@ public class AmapMapService extends AbstractMapService {
             }
 
             String response = doGet(url.toString());
-            return parseDrivingResponse(response, request);
+            RoutePlanResponse plan = parseDrivingResponse(response, request);
+            plan.setTravelMode("DRIVING");
+            return plan;
         } catch (Exception e) {
             log.error("[Amap] 驾车路线规划失败: {}", e.getMessage());
-            return RoutePlanResponse.builder().success(false).message("路线规划失败: " + e.getMessage()).build();
+            return RoutePlanResponse.builder().success(false).provider(getProvider())
+                    .message("路线规划失败: " + e.getMessage()).build();
         }
     }
 
@@ -97,10 +100,13 @@ public class AmapMapService extends AbstractMapService {
                     .append("&destination=").append(request.getDestination().getLng()).append(",").append(request.getDestination().getLat());
 
             String response = doGet(url.toString());
-            return parseDrivingResponse(response, request);
+            RoutePlanResponse plan = parseDrivingResponse(response, request);
+            plan.setTravelMode("CYCLING");
+            return plan;
         } catch (Exception e) {
             log.error("[Amap] 骑行路线规划失败: {}", e.getMessage());
-            return RoutePlanResponse.builder().success(false).message("骑行路线规划失败: " + e.getMessage()).build();
+            return RoutePlanResponse.builder().success(false).provider(getProvider())
+                    .message("骑行路线规划失败: " + e.getMessage()).build();
         }
     }
 
@@ -113,10 +119,13 @@ public class AmapMapService extends AbstractMapService {
                     .append("&destination=").append(request.getDestination().getLng()).append(",").append(request.getDestination().getLat());
 
             String response = doGet(url.toString());
-            return parseDrivingResponse(response, request);
+            RoutePlanResponse plan = parseDrivingResponse(response, request);
+            plan.setTravelMode("WALKING");
+            return plan;
         } catch (Exception e) {
             log.error("[Amap] 步行路线规划失败: {}", e.getMessage());
-            return RoutePlanResponse.builder().success(false).message("步行路线规划失败: " + e.getMessage()).build();
+            return RoutePlanResponse.builder().success(false).provider(getProvider())
+                    .message("步行路线规划失败: " + e.getMessage()).build();
         }
     }
 
@@ -140,20 +149,45 @@ public class AmapMapService extends AbstractMapService {
 
             JsonNode geocodes = root.get("geocodes");
             if (geocodes == null || !geocodes.isArray() || geocodes.isEmpty()) {
-                return GeocodeResponse.builder().success(false).message("未找到地址坐标").build();
+                return GeocodeResponse.builder().success(false).provider(getProvider())
+                        .message("未找到地址坐标").build();
             }
 
-            JsonNode first = geocodes.get(0);
-            String[] loc = first.get("location").asText().split(",");
+            // 金标准：返回全部候选（模糊搜索可选），首条同时平铺为单结果字段
+            List<GeocodeResponse.GeocodeCandidate> candidates = new ArrayList<>();
+            for (JsonNode node : geocodes) {
+                String location = getText(node, "location");
+                if (location == null || !location.contains(",")) {
+                    continue;
+                }
+                String[] loc = location.split(",");
+                candidates.add(GeocodeResponse.GeocodeCandidate.builder()
+                        .lng(Double.parseDouble(loc[0]))
+                        .lat(Double.parseDouble(loc[1]))
+                        .formattedAddress(getText(node, "formatted_address"))
+                        .province(getText(node, "province"))
+                        .city(getText(node, "city"))
+                        .district(getText(node, "district"))
+                        .adcode(getText(node, "adcode"))
+                        .level(getText(node, "level"))
+                        .build());
+            }
+            if (candidates.isEmpty()) {
+                return GeocodeResponse.builder().success(false).provider(getProvider())
+                        .message("未找到地址坐标").build();
+            }
 
+            GeocodeResponse.GeocodeCandidate first = candidates.get(0);
             return GeocodeResponse.builder()
                     .success(true)
-                    .lng(Double.parseDouble(loc[0]))
-                    .lat(Double.parseDouble(loc[1]))
-                    .formattedAddress(first.has("formatted_address") ? first.get("formatted_address").asText() : null)
-                    .province(getText(first, "province"))
-                    .city(getText(first, "city"))
-                    .district(getText(first, "district"))
+                    .provider(getProvider())
+                    .lng(first.getLng())
+                    .lat(first.getLat())
+                    .formattedAddress(first.getFormattedAddress())
+                    .province(first.getProvince())
+                    .city(first.getCity())
+                    .district(first.getDistrict())
+                    .candidates(candidates)
                     .build();
         } catch (Exception e) {
             log.error("[Amap] 地理编码失败: {}", e.getMessage());
@@ -177,17 +211,22 @@ public class AmapMapService extends AbstractMapService {
             JsonNode root = objectMapper.readTree(response);
 
             if (!"1".equals(root.get("status").asText())) {
-                return ReverseGeocodeResponse.builder().success(false)
+                return ReverseGeocodeResponse.builder().success(false).provider(getProvider())
                         .message(root.get("info").asText()).build();
             }
 
             JsonNode regeocode = root.get("regeocode");
             if (regeocode == null) {
-                return ReverseGeocodeResponse.builder().success(false).message("未找到地址信息").build();
+                return ReverseGeocodeResponse.builder().success(false).provider(getProvider())
+                        .lat(request.getLat()).lng(request.getLng())
+                        .message("未找到地址信息").build();
             }
 
             ReverseGeocodeResponse.ReverseGeocodeResponseBuilder builder = ReverseGeocodeResponse.builder()
                     .success(true)
+                    .provider(getProvider())
+                    .lat(request.getLat())
+                    .lng(request.getLng())
                     .formattedAddress(getText(regeocode, "formatted_address"));
 
             JsonNode addressComponent = regeocode.get("addressComponent");
@@ -238,15 +277,24 @@ public class AmapMapService extends AbstractMapService {
             if (results != null && results.isArray()) {
                 int idx = 0;
                 for (JsonNode r : results) {
+                    // 高德按入参顺序返回，回填起终点便于前端核对
+                    RoutePlanRequest.Coordinate dest = null;
+                    if (request.getDestinations() != null && idx < request.getDestinations().size()) {
+                        dest = request.getDestinations().get(idx);
+                    }
                     items.add(DistanceResponse.DistanceItem.builder()
                             .index(idx++)
                             .distance(r.has("distance") ? r.get("distance").asLong() : 0)
                             .duration(r.has("duration") ? r.get("duration").asLong() : 0)
+                            .originLat(request.getOrigin().getLat())
+                            .originLng(request.getOrigin().getLng())
+                            .destLat(dest != null ? dest.getLat() : 0d)
+                            .destLng(dest != null ? dest.getLng() : 0d)
                             .build());
                 }
             }
 
-            return DistanceResponse.builder().success(true).distances(items).build();
+            return DistanceResponse.builder().success(true).provider(getProvider()).distances(items).build();
         } catch (Exception e) {
             log.error("[Amap] 距离计算失败: {}", e.getMessage());
             return DistanceResponse.builder().success(false).message(e.getMessage()).build();
@@ -256,19 +304,7 @@ public class AmapMapService extends AbstractMapService {
     @Override
     public boolean isWithinFence(double lat, double lng, String fenceParams) {
         // 电子围栏：fenceParams 格式为 "centerLat,centerLng,radius(m)"
-        // 使用高德行政区域或自行计算
-        try {
-            String[] parts = fenceParams.split(",");
-            double centerLat = Double.parseDouble(parts[0]);
-            double centerLng = Double.parseDouble(parts[1]);
-            double radius = Double.parseDouble(parts[2]);
-
-            double distance = haversineDistance(lat, lng, centerLat, centerLng);
-            return distance <= radius;
-        } catch (Exception e) {
-            log.warn("[Amap] 围栏校验失败: {}", e.getMessage());
-            return false;
-        }
+        return checkCircleFence(lat, lng, fenceParams);
     }
 
     // ==================== 私有方法 ====================
@@ -280,20 +316,22 @@ public class AmapMapService extends AbstractMapService {
         try {
             JsonNode root = objectMapper.readTree(response);
             if (!"1".equals(root.get("status").asText())) {
-                return RoutePlanResponse.builder().success(false)
+                return RoutePlanResponse.builder().success(false).provider(getProvider())
                         .message(root.get("info").asText()).build();
             }
 
             JsonNode route = root.get("route");
             if (route == null || !route.has("paths") || !route.get("paths").isArray()
                     || route.get("paths").isEmpty()) {
-                return RoutePlanResponse.builder().success(false).message("未找到路线").build();
+                return RoutePlanResponse.builder().success(false).provider(getProvider())
+                        .message("未找到路线").build();
             }
 
             JsonNode path = route.get("paths").get(0);
 
             RoutePlanResponse.RoutePlanResponseBuilder builder = RoutePlanResponse.builder()
                     .success(true)
+                    .provider(getProvider())
                     .totalDistance(path.has("distance") ? path.get("distance").asLong() : 0)
                     .totalDuration(path.has("duration") ? path.get("duration").asLong() : 0)
                     .totalToll(path.has("tolls") ? path.get("tolls").asDouble() : 0)
@@ -342,7 +380,8 @@ public class AmapMapService extends AbstractMapService {
             return builder.build();
         } catch (Exception e) {
             log.error("[Amap] 解析路线响应失败: {}", e.getMessage());
-            return RoutePlanResponse.builder().success(false).message("解析路线失败: " + e.getMessage()).build();
+            return RoutePlanResponse.builder().success(false).provider(getProvider())
+                    .message("解析路线失败: " + e.getMessage()).build();
         }
     }
 
@@ -358,19 +397,5 @@ public class AmapMapService extends AbstractMapService {
             return getText(node.get(parent), child);
         }
         return null;
-    }
-
-    /**
-     * Haversine 公式计算两点距离（米）
-     */
-    private double haversineDistance(double lat1, double lng1, double lat2, double lng2) {
-        double R = 6371000;
-        double dLat = Math.toRadians(lat2 - lat1);
-        double dLng = Math.toRadians(lng2 - lng1);
-        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
-                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
-                * Math.sin(dLng / 2) * Math.sin(dLng / 2);
-        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        return R * c;
     }
 }

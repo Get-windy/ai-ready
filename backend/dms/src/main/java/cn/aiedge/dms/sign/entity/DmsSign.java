@@ -53,6 +53,15 @@ public class DmsSign {
     /** 定位偏差警告：0-正常 1-超限 */
     private Integer locationWarning;
 
+    /** 本次签收生效的定位偏差阈值（米）：快照自《配送参数》dms.sign.deviation.threshold */
+    private BigDecimal deviationThresh;
+
+    /** 应签收数量快照（提交签收时的任务总量，用于部分签收对比） */
+    private BigDecimal plannedQuantity;
+
+    /** 实际签收数量（部分签收必填，按实际数量计费依据） */
+    private BigDecimal actualQuantity;
+
     /** 修正后的客户纬度 */
     private BigDecimal newCustomerLat;
 
@@ -72,6 +81,9 @@ public class DmsSign {
 
     /** 审核人 */
     private Long auditBy;
+
+    /** 审核人姓名快照 */
+    private String auditByName;
 
     /** 审核时间 */
     private LocalDateTime auditTime;

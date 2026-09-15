@@ -97,6 +97,28 @@ public class MessageServiceImpl extends ServiceImpl<SysMessageMapper, SysMessage
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    public Long sendSms(Long receiverId, String receiverContact, String title, String content,
+                        String businessType, Long businessId) {
+        SysMessage message = new SysMessage();
+        message.setMsgType(3); // 短信
+        message.setTitle(title);
+        message.setContent(content);
+        message.setReceiverId(receiverId);
+        message.setReceiverContact(receiverContact);
+        message.setSendStatus(0); // 待发送
+        message.setBusinessType(businessType);
+        message.setBusinessId(businessId);
+        message.setTenantId(cn.aiedge.base.utils.SecurityUtils.getCurrentTenantId() == null
+                ? 1L : cn.aiedge.base.utils.SecurityUtils.getCurrentTenantId());
+        message.setRetryCount(0);
+
+        messageMapper.insert(message);
+        log.info("创建短信消息: contact={}, title={}, businessType={}", receiverContact, title, businessType);
+        return message.getId();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public Long sendEmail(Long receiverId, String receiverEmail, String title, String content,
                           String businessType, Long businessId) {
         SysMessage message = new SysMessage();

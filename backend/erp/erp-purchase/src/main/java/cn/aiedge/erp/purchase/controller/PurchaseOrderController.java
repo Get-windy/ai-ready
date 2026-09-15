@@ -234,9 +234,10 @@ public class PurchaseOrderController {
     @PostMapping("/batch-print")
     @SaCheckPermission("purchase:order:list")
     public ApiResponse<Void> batchPrint(@RequestBody Map<String, Object> params) {
-        @SuppressWarnings("unchecked")
-        List<Number> rawIds = (List<Number>) params.get("ids");
-        List<Long> ids = rawIds != null ? rawIds.stream().map(Number::longValue).toList() : List.of();
+        // 雪花 ID 超出 JS 安全整数范围，前端一律以字符串透传；Number / String 两种入参都需兼容
+        List<?> rawIds = (List<?>) params.get("ids");
+        List<Long> ids = rawIds == null ? List.of()
+                : rawIds.stream().map(v -> Long.parseLong(String.valueOf(v))).toList();
         String template = params.get("template") != null ? params.get("template").toString() : "default";
         purchaseOrderService.batchPrint(ids, template);
         return ApiResponse.ok("打印完成", null);

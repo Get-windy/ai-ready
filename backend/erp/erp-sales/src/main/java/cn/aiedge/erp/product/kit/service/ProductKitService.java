@@ -30,6 +30,22 @@ public interface ProductKitService extends IService<ProductKit> {
 
     void deactivateKit(Long kitId);
 
+    /**
+     * 批量激活套装
+     *
+     * @param ids 套装ID列表（空/全不存在返回 0）
+     * @return 实际更新条数
+     */
+    int activateKits(List<Long> ids);
+
+    /**
+     * 批量停用套装
+     *
+     * @param ids 套装ID列表（空/全不存在返回 0）
+     * @return 实际更新条数
+     */
+    int deactivateKits(List<Long> ids);
+
     void calculateKitCost(Long kitId);
 
     List<ProductKitItem> getKitItems(Long kitId);
@@ -39,6 +55,21 @@ public interface ProductKitService extends IService<ProductKit> {
     ProductKitItem updateKitItem(Long itemId, ProductKitItem item);
 
     void removeKitItem(Long itemId);
+
+    /**
+     * 删除套装（级联逻辑删除其组件行）
+     *
+     * @throws RuntimeException 套装不存在
+     */
+    void deleteKit(Long kitId);
+
+    /**
+     * 批量删除套装（级联逻辑删除组件行）
+     *
+     * @param ids 套装ID列表（空/全不存在返回 0）
+     * @return 实际删除条数
+     */
+    int deleteKits(List<Long> ids);
 
     BigDecimal calculateKitPrice(Long kitId);
 

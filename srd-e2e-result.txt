@@ -1,0 +1,68 @@
+pass=45 fail=0
+登录成功（BASE=http://localhost:5660）
+历史测试数据已清理
+
+[A] 单据号段
+  [OK] 号段格式 XSTHD-yyyyMMdd-NNNN — XSTHD-20260913-0001
+
+[B] 创建退货单
+  [OK] 创建接口 200 — code=200 success
+  [OK] 单号原样落库（非 UUID） — XSTHD-20260913-0001
+  [OK] 主表金额=明细汇总 — totalAmount=300
+  [OK] 主表数量汇总 — totalQuantity=3
+  [OK] 明细落库 — items=1
+  [OK] 制单人回填 — sra_e2e
+  [OK] 号段推进 +1 — XSTHD-20260913-0001 → XSTHD-20260913-0002
+
+[C] 提交 → 审核（库存 + 凭证）
+  [OK] 提交后 status=1 — status=1
+  [OK] 审核接口 200 — code=200 success
+  [OK] 审核后 status=2 — status=2
+  [OK] bookkeepingTime 非空 — 2026-09-13T16:38:28.0596208
+  [OK] 记账人 bookkeeperName 回填 — sra_e2e
+  [OK] 审核人/审核时间回填 — sra_e2e / 2026-09-13T16:38:27.8000876
+  [OK] 库存增加 3（退货入库） — 31 → 34
+  [OK] 冲销凭证 4 分录 — count=4
+  [OK] Dr.6001 = 退货金额 — 借 300
+  [OK] Cr.1122 = 退货金额（挂客户核算项） — 贷 300 aux=客户甲
+  [OK] Dr.1403 = 退货成本 — 借 240
+  [OK] Cr.6401 = 退货成本 — 贷 240
+  [OK] 凭证借贷平衡 — 借 540 / 贷 540
+  [OK] 凭证已过账 — 状态=posted
+
+[D] 查询条件（含原空转参数 EXISTS 下推）
+  [OK] keyword 命中 — records=1
+  [OK] productName 生效 — records=1
+  [OK] productName 不匹配为 0 — records=0
+  [OK] itemRemark 生效 — records=1
+  [OK] categoryId 生效 — records=1
+  [OK] categoryId 不匹配为 0 — records=0
+  [OK] bookkeeperName 生效 — records=1
+
+[E] 完成 + 状态门控
+  [OK] 完成后 status=3 — status=3
+  [OK] 完成后库存不二次过账 — 库存=34
+  [OK] 已完成不可取消（业务异常 400） — code=400 已完成的退货单不能取消
+
+[F] 第二张单：审核后取消（回冲 + 反向凭证）
+  [OK] 第二张单创建 — no=XSTHD-20260913-0002
+  [OK] 第二张单审核通过 — status=2
+  [OK] 取消后 status=4 — status=4
+  [OK] 库存回冲 -3 — 37 → 34
+  [OK] 反向凭证 4 分录 — count=4
+  [OK] 反向凭证 Dr.1122 / Cr.6001 — 1122借=300 6001贷=300
+  [OK] 重复取消被拦截（400） — code=400 已取消的退货单不能重复取消
+
+[G] 显示红冲
+  [OK] 默认隐藏红冲单据 — records=0
+  [OK] 勾选显示红冲可见 — records=1
+  [OK] 按已取消状态筛选命中 — records=1
+
+[H] 明细页 + 复制链路
+  [OK] 明细页返回商品行 — records=1
+  [OK] 详情返回主表+明细 — items=1
+  [OK] 详情返回单据编号（编辑回显） — XSTHD-20260913-0001
+
+清理完成，库存=31（初始 31）
+
+══════ 验收结果：45 通过 / 0 失败 ══════

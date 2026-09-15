@@ -9,6 +9,7 @@ import cn.aiedge.erp.pricing.strategy.entity.PriceCalculationResult;
 import cn.aiedge.erp.party.entity.CustomerGrade;
 import cn.aiedge.erp.party.service.CustomerGradeService;
 import cn.aiedge.erp.party.service.PartyGradeRelationService;
+import cn.aiedge.erp.sale.dto.SaleLogisticsRemarkDTO;
 import cn.aiedge.erp.sale.dto.SaleOrderDTO;
 import cn.aiedge.erp.sale.dto.SaleOrderDetailDTO;
 import cn.aiedge.erp.sale.dto.SaleOrderItemDTO;
@@ -16,6 +17,7 @@ import cn.aiedge.erp.sale.dto.SaleOrderListDTO;
 import cn.aiedge.erp.sale.entity.*;
 import cn.aiedge.erp.sale.mapper.*;
 import cn.aiedge.erp.sale.service.ISaleOrderService;
+import cn.aiedge.erp.sale.service.SaleLogisticsService;
 import cn.aiedge.erp.party.entity.Party;
 import cn.aiedge.erp.party.mapper.PartyMapper;
 import cn.aiedge.erp.payment.mapper.PreReceiptMapper;
@@ -75,6 +77,9 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
 
     /** 往来单位Mapper */
     private final PartyMapper partyMapper;
+
+    /** 销售物流域服务（包裹/运费/取号/发货通知） */
+    private final SaleLogisticsService saleLogisticsService;
 
     /** 预收款/订金Mapper */
     private final PreReceiptMapper preReceiptMapper;
@@ -530,8 +535,9 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
         }
 
         List<SaleOrderItem> updatedItems = itemMapper.selectByOrderId(id);
+        // 已发数量以 shipped_quantity 为准（shipped_quantity_detail 为历史遗留列，本流程不写）
         boolean allShipped = updatedItems.stream().allMatch(item -> {
-            BigDecimal shipped = item.getShippedQuantityDetail() != null ? item.getShippedQuantityDetail() : BigDecimal.ZERO;
+            BigDecimal shipped = item.getShippedQuantity() != null ? item.getShippedQuantity() : BigDecimal.ZERO;
             BigDecimal qty = item.getQuantity() != null ? item.getQuantity() : BigDecimal.ZERO;
             return shipped.compareTo(qty) >= 0;
         });
@@ -547,6 +553,22 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
             }
         } catch (Exception e) {
             log.error("销售出库单生成失败: orderId={}", id, e);
+        }
+
+        // 包裹层（P1）：发货 → 包裹置「已发货」
+        try {
+            saleLogisticsService.markPackagesShipped(id);
+        } catch (Exception e) {
+            log.warn("包裹状态回写跳过: orderId={}, err={}", id, e.getMessage());
+        }
+        // 发货通知 ASN（P2-6）：按 订单+运单号 幂等生成台账
+        try {
+            int created = saleLogisticsService.createNotifyForOrder(id);
+            if (created > 0) {
+                log.info("发货通知(ASN)已生成: orderId={}, count={}", id, created);
+            }
+        } catch (Exception e) {
+            log.warn("发货通知生成失败: orderId={}, err={}", id, e.getMessage());
         }
 
         log.info("确认销售订单出库: orderId={}, allShipped={}", id, allShipped);
@@ -802,6 +824,11 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
         LambdaQueryWrapper<SaleOrder> base = buildOrderCenterWrapper(tenantId, filters);
         stats.put("totalOrders", count(base));
 
+        // 待审核 (status = 1)
+        LambdaQueryWrapper<SaleOrder> w1 = buildOrderCenterWrapper(tenantId, filters);
+        w1.eq(SaleOrder::getStatus, 1);
+        stats.put("pendingReview", count(w1));
+
         // 待出库 (status = 2 待发货)
         LambdaQueryWrapper<SaleOrder> w2 = buildOrderCenterWrapper(tenantId, filters);
         w2.eq(SaleOrder::getStatus, 2);
@@ -874,6 +901,75 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
         dtoPage.setTotal(result.getTotal());
         fillLineCount(dtoPage.getRecords());
         return dtoPage;
+    }
+
+    @Override
+    public Map<String, Object> pickingShippingSummary(Long tenantId, Map<String, Object> filters) {
+        // 与列表同源查询条件（口径唯一），只取两个数值列做全量汇总，避免口径漂移
+        LambdaQueryWrapper<SaleOrder> wrapper = buildOrderCenterWrapper(tenantId, filters);
+        wrapper.in(SaleOrder::getStatus, 2, 3);
+        wrapper.select(SaleOrder::getProductAmount, SaleOrder::getTotalQuantity);
+        List<SaleOrder> rows = list(wrapper);
+        BigDecimal productAmount = BigDecimal.ZERO;
+        BigDecimal totalQuantity = BigDecimal.ZERO;
+        for (SaleOrder o : rows) {
+            productAmount = productAmount.add(o.getProductAmount() != null ? o.getProductAmount() : BigDecimal.ZERO);
+            totalQuantity = totalQuantity.add(o.getTotalQuantity() != null ? o.getTotalQuantity() : BigDecimal.ZERO);
+        }
+        Map<String, Object> summary = new LinkedHashMap<>();
+        summary.put("productAmount", productAmount);
+        summary.put("totalQuantity", totalQuantity);
+        summary.put("totalOrders", (long) rows.size());
+        return summary;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void completePicking(Long id) {
+        doCompletePicking(id);
+    }
+
+    @Override
+    public int batchCompletePicking(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) return 0;
+        int done = 0;
+        for (Long id : ids) {
+            if (id == null) continue;
+            try {
+                doCompletePicking(id);
+                done++;
+            } catch (Exception e) {
+                // 逐单尽力而为：单张状态不允许时跳过，不阻断整批
+                log.warn("批量拣货完成跳过 orderId={}: {}", id, e.getMessage());
+            }
+        }
+        return done;
+    }
+
+    /** 拣货完成内核：明细 picked_quantity 回写 + 主表汇总 */
+    private void doCompletePicking(Long id) {
+        SaleOrder order = getById(id);
+        if (order == null) throw BusinessException.notFound("订单不存在");
+        if (order.getStatus() == null || (order.getStatus() != 2 && order.getStatus() != 3)) {
+            throw BusinessException.badRequest("订单状态不允许拣货");
+        }
+        List<SaleOrderItem> items = itemMapper.selectByOrderId(id);
+        BigDecimal totalPicked = BigDecimal.ZERO;
+        for (SaleOrderItem item : items) {
+            BigDecimal qty = item.getQuantity() != null ? item.getQuantity() : BigDecimal.ZERO;
+            // 已发货部分不再需要拣货：拣货目标 = 订货数量 − 已发货数量（不小于 0）
+            BigDecimal shipped = item.getShippedQuantity() != null ? item.getShippedQuantity() : BigDecimal.ZERO;
+            BigDecimal target = qty.subtract(shipped).max(BigDecimal.ZERO);
+            itemMapper.updatePickedQuantity(item.getId(), target);
+            totalPicked = totalPicked.add(target);
+        }
+        order.setPickedQuantity(totalPicked);
+        // 拣货仓库未指定时以订单仓库兜底，保证拣货作业有据可依
+        if (order.getPickingWarehouse() == null || order.getPickingWarehouse().isEmpty()) {
+            order.setPickingWarehouse(order.getWarehouseName());
+        }
+        updateById(order);
+        log.info("拣货完成: orderId={}, pickedQuantity={}", id, totalPicked);
     }
 
     @Override
@@ -2271,6 +2367,156 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
             }
         }
         log.info("批量更新物流备注: ids={}, remark={}", ids.size(), remark);
+    }
+
+    /**
+     * 「物流/备注」批量更新（对齐 ql361 `OrderRemarks` 弹窗实测字段）
+     *
+     * <p>前置校验（ql361 `onLogisticsRemarkClick` 实测口径）：
+     * ① 所选单据必须「单据状态相同」且「配送方式相同」，否则整批拒绝；
+     * ② 已进入配送（status ≥ 3 部分发货）的单据不允许修改配送方式（保留其余字段可改）。</p>
+     *
+     * <p>字段语义：<b>null / 空串 = 不改动该字段</b>——弹窗允许只填其中几项。</p>
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int batchUpdateLogistics(SaleLogisticsRemarkDTO dto) {
+        if (dto == null || dto.getIds() == null || dto.getIds().isEmpty()) {
+            throw BusinessException.badRequest("请先勾选要操作的单据");
+        }
+        List<SaleOrder> orders = new ArrayList<>();
+        for (Long id : dto.getIds().stream().filter(Objects::nonNull).distinct().toList()) {
+            SaleOrder order = getById(id);
+            if (order != null) {
+                orders.add(order);
+            }
+        }
+        if (orders.isEmpty()) {
+            throw BusinessException.notFound("单据不存在");
+        }
+
+        Integer status = orders.get(0).getStatus();
+        String deliveryMethod = orders.get(0).getDeliveryMethod();
+        for (SaleOrder order : orders) {
+            if (!Objects.equals(order.getStatus(), status)) {
+                throw BusinessException.badRequest("请选择单据状态相同的单据进行操作");
+            }
+            if (!Objects.equals(blankToEmpty(order.getDeliveryMethod()), blankToEmpty(deliveryMethod))) {
+                throw BusinessException.badRequest("请选择配送方式相同的单据进行操作");
+            }
+        }
+
+        String newDeliveryMethod = trimToNull(dto.getDeliveryMethod());
+        String newDriverName = trimToNull(dto.getDriverName());
+        String newWaybillNo = trimToNull(dto.getWaybillNo());
+        String newLogisticsCompany = trimToNull(dto.getLogisticsCompany());
+        String newReceiverName = trimToNull(dto.getReceiverName());
+        String newReceiverPhone = trimToNull(dto.getReceiverPhone());
+        String newSalesmanName = trimToNull(dto.getSalesmanName());
+        String newShippingAddress = trimToNull(dto.getShippingAddress());
+        String newExtText1 = trimToNull(dto.getExtText1());
+        String newExtText2 = trimToNull(dto.getExtText2());
+        String newExtText3 = trimToNull(dto.getExtText3());
+        // 单据备注：优先新字段名 orderRemark，兼容旧入参 remark
+        String newOrderRemark = trimToNull(dto.getOrderRemark());
+        if (newOrderRemark == null) {
+            newOrderRemark = trimToNull(dto.getRemark());
+        }
+
+        if (newDeliveryMethod != null && status != null && status >= 3) {
+            throw BusinessException.badRequest("配送中的销售订单不能修改配送方式");
+        }
+
+        boolean anyField = newDeliveryMethod != null || dto.getDriverId() != null || newDriverName != null
+                || newWaybillNo != null || newLogisticsCompany != null || dto.getLogisticsCompanyId() != null
+                || newReceiverName != null
+                || newReceiverPhone != null || newSalesmanName != null || newShippingAddress != null
+                || dto.getSaleType() != null || dto.getExtNum1() != null || dto.getExtNum2() != null
+                || newExtText1 != null || newExtText2 != null || newExtText3 != null || newOrderRemark != null;
+        if (!anyField) {
+            throw BusinessException.badRequest("请至少填写一项要修改的内容");
+        }
+
+        // 物流公司：只给 id 时按档案取名称快照
+        String carrierName = newLogisticsCompany;
+        if (carrierName == null && dto.getLogisticsCompanyId() != null) {
+            carrierName = resolveCarrierName(dto.getLogisticsCompanyId());
+        }
+
+        for (SaleOrder order : orders) {
+            // ① 物流子表（erp_sale_order_logistics）：一条 = 一个包裹；此处写「默认包裹」（P1，无则建）
+            SaleOrderLogistics pkg = defaultPackage(order.getId());
+            if (pkg == null) {
+                pkg = new SaleOrderLogistics().setOrderId(order.getId())
+                        .setPackageNo("P1").setPackageStatus(0);
+            }
+            if (newDeliveryMethod != null) pkg.setDeliveryMethod(newDeliveryMethod);
+            if (dto.getDriverId() != null) pkg.setDriverId(dto.getDriverId());
+            if (newDriverName != null) pkg.setDriverName(newDriverName);
+            if (newWaybillNo != null) pkg.setWaybillNo(newWaybillNo);
+            if (dto.getLogisticsCompanyId() != null) pkg.setLogisticsCompanyId(dto.getLogisticsCompanyId());
+            if (carrierName != null) pkg.setLogisticsCompany(carrierName);
+            if (pkg.getId() == null) {
+                logisticsMapper.insert(pkg);
+            } else {
+                logisticsMapper.updateById(pkg);
+            }
+
+            // ② 主表扁平列：降级为「列表展示快照」（拣货/发货 37 列读的就是这几列）
+            if (newDeliveryMethod != null) order.setDeliveryMethod(newDeliveryMethod);
+            if (dto.getDriverId() != null) order.setDriverId(dto.getDriverId());
+            if (newDriverName != null) order.setDriverName(newDriverName);
+            if (newWaybillNo != null) order.setWaybillNo(newWaybillNo);
+            if (carrierName != null) order.setLogisticsCompany(carrierName);
+            if (newReceiverName != null) order.setReceiverName(newReceiverName);
+            if (newReceiverPhone != null) order.setReceiverPhone(newReceiverPhone);
+            if (newSalesmanName != null) order.setSalesmanName(newSalesmanName);
+            if (newShippingAddress != null) order.setShippingAddress(newShippingAddress);
+            if (dto.getSaleType() != null) order.setSaleType(dto.getSaleType());
+            if (dto.getExtNum1() != null) order.setExtNum1(dto.getExtNum1());
+            if (dto.getExtNum2() != null) order.setExtNum2(dto.getExtNum2());
+            if (newExtText1 != null) order.setExtText1(newExtText1);
+            if (newExtText2 != null) order.setExtText2(newExtText2);
+            if (newExtText3 != null) order.setExtText3(newExtText3);
+            if (newOrderRemark != null) order.setOrderRemark(newOrderRemark);
+            updateById(order);
+        }
+        log.info("物流/备注批量更新: 单数={}, 运单号={}, 承运商={}(id={}), 备注={}",
+                orders.size(), newWaybillNo, carrierName, dto.getLogisticsCompanyId(), newOrderRemark);
+        return orders.size();
+    }
+
+    /** 订单的「默认包裹」：子表按 id 升序第一条（P1 约定，无则为 null） */
+    private SaleOrderLogistics defaultPackage(Long orderId) {
+        return logisticsMapper.selectOne(new LambdaQueryWrapper<SaleOrderLogistics>()
+                .eq(SaleOrderLogistics::getOrderId, orderId)
+                .orderByAsc(SaleOrderLogistics::getId)
+                .last("LIMIT 1"));
+    }
+
+    /** 承运商名称快照（取不到则回落 null，不阻断主流程） */
+    private String resolveCarrierName(Long carrierId) {
+        try {
+            Party party = partyMapper.selectById(carrierId);
+            return party == null ? null : party.getPartyName();
+        } catch (Exception e) {
+            log.warn("解析承运商名称失败: carrierId={}", carrierId, e);
+            return null;
+        }
+    }
+
+    /** 空串归一为 null：null / 空白 = 不修改 */
+    private static String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    /** 比较用：null 与空串视为同一值 */
+    private static String blankToEmpty(String value) {
+        return value == null ? "" : value.trim();
     }
 
 }

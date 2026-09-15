@@ -44,6 +44,14 @@ public class DmsVehicleMaintenance {
     /** 维保厂商 */
     private String maintVendor;
 
+    /**
+     * 维保厂商往来单位ID（biz_party.id，供应商/其他往来单位）
+     *
+     * <p>生产级口径：厂商优先引用往来单位档案（成本分析/应付对账/改名单一锚点），
+     * 未建档的散户厂商允许仅填 {@link #maintVendor} 名称（此列为空）。</p>
+     */
+    private Long vendorId;
+
     /** 维保联系人 */
     private String maintContact;
 

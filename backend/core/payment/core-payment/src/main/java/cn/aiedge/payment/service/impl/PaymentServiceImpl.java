@@ -15,7 +15,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -24,6 +29,9 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class PaymentServiceImpl implements PaymentService {
+
+    private static final DateTimeFormatter SPACE = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final DateTimeFormatter SPACE_MINUTE = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
     private final PaymentRequestMapper requestMapper;
     private final PaymentRecordMapper recordMapper;
@@ -77,12 +85,21 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     @Override
-    public PageResult<PaymentRequest> pagePaymentRequest(Integer pageNum, Integer pageSize, String bizType, String channel, Integer status) {
+    public PageResult<PaymentRequest> pagePaymentRequest(Integer pageNum, Integer pageSize, String bizType, String bizNo,
+                                                         String channel, Integer status, String startTime, String endTime,
+                                                         String payerName) {
         LambdaQueryWrapper<PaymentRequest> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(bizType != null, PaymentRequest::getBizType, bizType);
+        wrapper.like(hasText(bizNo), PaymentRequest::getBizNo, bizNo);
         wrapper.eq(channel != null, PaymentRequest::getChannel, channel);
         wrapper.eq(status != null, PaymentRequest::getStatus, status);
-        wrapper.orderByDesc(PaymentRequest::getCreateTime);
+        // 付款人（payer_name）模糊查询：原先前端仅能展示/导出该列，无法按付款人筛选
+        wrapper.like(hasText(payerName), PaymentRequest::getPayerName, payerName);
+        LocalDateTime from = parseTime(startTime);
+        LocalDateTime to = parseTime(endTime);
+        wrapper.ge(from != null, PaymentRequest::getCreateTime, from);
+        wrapper.lt(to != null, PaymentRequest::getCreateTime, endOfRange(to));
+        wrapper.orderByDesc(PaymentRequest::getCreateTime).orderByDesc(PaymentRequest::getId);
 
         Page<PaymentRequest> page = requestMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);
         return PageResult.of(page.getRecords(), page.getTotal(), pageNum, pageSize);
@@ -152,6 +169,14 @@ public class PaymentServiceImpl implements PaymentService {
         if (request.getStatus() != 1) {
             throw new IllegalArgumentException("支付状态不正确");
         }
+        // 仅「线下」渠道可人工确认收款（与前端展示条件一致：CASH 现金 / BANK 银行转账）。
+        // 在线渠道（ALIPAY / WECHAT / UNIONPAY）必须由渠道回调驱动入账，不得人工置为已支付——
+        // 否则绕过前端即可把任意「支付中」的在线支付单确认收款。
+        String ch = request.getChannel();
+        if (!"CASH".equalsIgnoreCase(ch) && !"BANK".equalsIgnoreCase(ch)) {
+            throw new IllegalArgumentException(
+                    "渠道 " + ch + " 为在线支付，须由渠道回调确认，不支持人工确认收款");
+        }
 
         request.setStatus(2);
         request.setChannelOrderNo(channelOrderNo);
@@ -169,13 +194,113 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     @Override
-    public PageResult<PaymentRecord> pagePaymentRecord(Integer pageNum, Integer pageSize, String channel) {
+    public PageResult<PaymentRecord> pagePaymentRecord(Integer pageNum, Integer pageSize, String channel, Integer status,
+                                                       String channelOrderNo, String startTime, String endTime) {
         LambdaQueryWrapper<PaymentRecord> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(channel != null, PaymentRecord::getChannel, channel);
-        wrapper.orderByDesc(PaymentRecord::getCallbackTime);
+        wrapper.eq(status != null, PaymentRecord::getStatus, status);
+        wrapper.like(hasText(channelOrderNo), PaymentRecord::getChannelOrderNo, channelOrderNo);
+        LocalDateTime from = parseTime(startTime);
+        LocalDateTime to = parseTime(endTime);
+        // 支付时间口径 = 回调时间（payment_record 无独立「支付时间」列）
+        wrapper.ge(from != null, PaymentRecord::getCallbackTime, from);
+        wrapper.lt(to != null, PaymentRecord::getCallbackTime, endOfRange(to));
+        wrapper.orderByDesc(PaymentRecord::getCallbackTime).orderByDesc(PaymentRecord::getId);
 
         Page<PaymentRecord> page = recordMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);
         return PageResult.of(page.getRecords(), page.getTotal(), pageNum, pageSize);
+    }
+
+    @Override
+    public Map<String, Object> statPaymentRecord(String channel) {
+        LambdaQueryWrapper<PaymentRecord> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(channel != null, PaymentRecord::getChannel, channel);
+        List<PaymentRecord> records = recordMapper.selectList(wrapper);
+
+        long successCount = records.stream().filter(r -> r.getStatus() != null && r.getStatus() == 2).count();
+        BigDecimal successAmount = records.stream()
+                .filter(r -> r.getStatus() != null && r.getStatus() == 2)
+                .map(r -> r.getAmount() == null ? BigDecimal.ZERO : r.getAmount())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("total", records.size());
+        data.put("successCount", successCount);
+        data.put("failedCount", records.size() - successCount);
+        data.put("successAmount", successAmount);
+        return data;
+    }
+
+    @Override
+    public Map<String, Object> statPaymentRequest(String channel) {
+        LambdaQueryWrapper<PaymentRequest> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(channel != null, PaymentRequest::getChannel, channel);
+        List<PaymentRequest> records = requestMapper.selectList(wrapper);
+
+        long pending = records.stream()
+                .filter(r -> r.getStatus() != null && (r.getStatus() == 0 || r.getStatus() == 1)).count();
+        long success = records.stream().filter(r -> r.getStatus() != null && r.getStatus() == 2).count();
+        long failed = records.stream()
+                .filter(r -> r.getStatus() != null && (r.getStatus() == 3 || r.getStatus() == 4)).count();
+        BigDecimal totalAmount = records.stream()
+                .map(r -> r.getAmount() == null ? BigDecimal.ZERO : r.getAmount())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("pendingCount", pending);
+        data.put("successCount", success);
+        data.put("failedCount", failed);
+        data.put("totalAmount", totalAmount);
+        return data;
+    }
+
+    // ── 查询参数宽松解析（与交易模块 TimeParsers 同口径；core-payment 不依赖 core-base 的 trade 包） ──
+
+    private static boolean hasText(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private static LocalDateTime parseTime(String text) {
+        if (text == null || text.isBlank()) {
+            return null;
+        }
+        String value = text.trim().replace('T', ' ');
+        if (value.endsWith("Z")) {
+            value = value.substring(0, value.length() - 1).trim();
+        }
+        int dot = value.indexOf('.');
+        if (dot > 0) {
+            value = value.substring(0, dot);
+        }
+        for (DateTimeFormatter formatter : new DateTimeFormatter[]{SPACE, SPACE_MINUTE}) {
+            try {
+                return LocalDateTime.parse(value, formatter);
+            } catch (DateTimeParseException ignored) {
+                // 继续尝试下一种格式
+            }
+        }
+        try {
+            return LocalDate.parse(value).atStartOfDay();
+        } catch (DateTimeParseException e) {
+            return null;
+        }
+    }
+
+    /**
+     * 结束时间只传日期（00:00:00）时按「含当日」处理。
+     *
+     * <p>⚠️ 必须容忍 `to == null`：调用方写的是
+     * {@code wrapper.lt(to != null, col, endOfRange(to))}，而 Java 会**先求值实参**再传参，
+     * 即条件为 false（不筛结束时间）时 `endOfRange(null)` 仍会被执行 →
+     * 原实现在「不传时间区间」的默认查询下必抛
+     * {@code NullPointerException: Cannot invoke "LocalDateTime.toLocalTime()" because "to" is null}，
+     * 表现为 `/api/payment/record/page` 直接 500（2026-09-14 实踩）。返回 null 表示不设上界。</p>
+     */
+    private static LocalDateTime endOfRange(LocalDateTime to) {
+        if (to == null) {
+            return null;
+        }
+        return to.toLocalTime().equals(LocalTime.MIDNIGHT) ? to.plusDays(1) : to;
     }
 
     @Override

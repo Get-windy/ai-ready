@@ -42,10 +42,16 @@ public class DmsTracking {
     /** 方向角度（0-360，正北为0顺时针） */
     private BigDecimal direction;
 
+    /** 定位精度（米）：越大越不可信，用于轨迹可信度与对账 */
+    private BigDecimal accuracy;
+
+    /** 上报位置地址（上报端带回；服务端逆地理编码待接《路线规划》） */
+    private String address;
+
     /** 上报时间 */
     private LocalDateTime reportTime;
 
-    /** 数据来源：1-APP上报 2-后台查询 */
+    /** 数据来源：1-APP上报 2-后台补录 3-渠道回传（TrackingSourceEnum） */
     private Integer source;
 
     /** 逻辑删除 */

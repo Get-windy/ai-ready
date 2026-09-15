@@ -121,9 +121,8 @@ public class ErpApiChannelAdapter implements ExternalChannelAdapter {
 
     @Override
     public ExternalOrderDTO handleOrderCallback(String callbackData) {
-        // 解析ERP推送的订单JSON
-        ExternalOrderDTO dto = new ExternalOrderDTO();
-        dto.setRawJson(callbackData);
+        // 解析 ERP 推送的订单 JSON（字段契约见 CallbackPayloadParser）
+        ExternalOrderDTO dto = CallbackPayloadParser.apply(new ExternalOrderDTO(), callbackData);
         dto.setChannelCode(getChannelCode());
         return dto;
     }

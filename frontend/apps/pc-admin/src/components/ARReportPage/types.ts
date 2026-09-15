@@ -20,6 +20,11 @@ export interface StatCardItem {
   trend?: number
   /** 自定义值样式 */
   valueStyle?: CSSProperties
+  /**
+   * 是否可下钻。仅当卡片容器 clickable 时生效；显式 false 表示该卡不可点，
+   * 用于同一行中可下钻卡片与纯展示卡片混排的场景。
+   */
+  clickable?: boolean
 }
 
 /** 查询字段配置 */

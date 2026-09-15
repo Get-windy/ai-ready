@@ -43,6 +43,17 @@ public interface MessageService extends IService<SysMessage> {
     /**
      * 批量发送消息
      */
+    /**
+     * 发送短信（msgType=3）：落 sys_message 待发送，由 MessageSendTask 消费；
+     * 通道未配置时消息保持待发送/重试，不静默丢弃。
+     *
+     * @param receiverId      接收人ID（可为空，如外部客户）
+     * @param receiverContact 手机号
+     * @return 消息ID
+     */
+    Long sendSms(Long receiverId, String receiverContact, String title, String content,
+                 String businessType, Long businessId);
+
     void batchSendSiteMessage(List<Long> receiverIds, String title, String content,
                               String businessType, Long businessId);
 

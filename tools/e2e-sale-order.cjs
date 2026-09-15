@@ -215,7 +215,9 @@ async function main() {
   await page.screenshot({ path: `${SHOTS}/01-order-center-byDoc.png` })
 
   const mainTabTexts = await page.locator('.main-tabs .tab-item').allInnerTexts()
-  check('主 Tab 命名 = 全部/待审核/拣货发货', mainTabTexts.join('|').includes('拣货发货'), mainTabTexts.join('|'))
+  // 阶段文案对齐 ql361 实测：全部 / 1.待审核 / 2.拣货/发货（见《物流发货开发文档》§1）
+  check('主 Tab 命名 = 全部 / 1.待审核 / 2.拣货/发货',
+    /拣货\s*\/?\s*发货/.test(mainTabTexts.join('|')) && /待审核/.test(mainTabTexts.join('|')), mainTabTexts.join('|'))
 
   const subTabTexts = await page.locator('.sub-tabs .ant-tabs-tab').allInnerTexts()
   check('子 Tab 命名含「按路线」', subTabTexts.join('|').includes('按路线'), subTabTexts.join('|'))
@@ -233,12 +235,13 @@ async function main() {
   }
 
   // —— 拣货发货主 Tab ——
-  const pickTab = page.locator('.main-tabs .tab-item', { hasText: '拣货发货' }).first()
+  const pickTab = page.locator('.main-tabs .tab-item', { hasText: /拣货\s*\/?\s*发货/ }).first()
   if (await pickTab.count()) {
     await pickTab.click()
     await page.waitForTimeout(2200)
     const ph = await page.locator('.ss-grid thead th').count()
-    check('拣货发货列头 = 40（37 数据列 + 行号/勾选/操作）', ph >= 37, `表头单元格=${ph}`)
+    // 拣货/发货 37 列中默认仅 17 列显示（对齐《物流发货开发文档》§3），另有行号/勾选/操作系统列
+    check('拣货发货列头 = 17 默认数据列 + 系统列（其余 20 列默认隐藏）', ph >= 18 && ph <= 22, `表头单元格=${ph}`)
     await page.screenshot({ path: `${SHOTS}/03-picking.png` })
   } else {
     check('拣货发货主 Tab 存在', false, '未找到主 Tab')

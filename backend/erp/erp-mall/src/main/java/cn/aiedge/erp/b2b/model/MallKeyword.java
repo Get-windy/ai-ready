@@ -23,4 +23,7 @@ public class MallKeyword extends BaseEntity {
 
     /** 状态: 1=启用 0=禁用 */
     private Integer status;
+
+    /** 备注（对标 ql361 关键词库「备注」列，限 30 字） */
+    private String remark;
 }

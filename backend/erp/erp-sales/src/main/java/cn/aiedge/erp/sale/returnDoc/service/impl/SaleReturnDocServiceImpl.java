@@ -364,8 +364,8 @@ public class SaleReturnDocServiceImpl extends ServiceImpl<SaleReturnDocMapper, S
             }
         }
 
-        // 审批通过后回写退货申请单状态
-        writebackReturnApplyStatus(returnDoc.getReturnApplyId());
+        // 收货确认：回写退货申请的 已收/未收 数量与状态（《物流退货收货》跟踪口径的唯一数据来源）
+        writebackReturnApplyReceived(returnDoc.getReturnApplyId());
 
         return returnDoc;
     }
@@ -509,6 +509,10 @@ public class SaleReturnDocServiceImpl extends ServiceImpl<SaleReturnDocMapper, S
         }
         returnDoc.setUpdateTime(LocalDateTime.now());
         this.updateById(returnDoc);
+
+        // 取消后重算退货申请收货进度（已取消单据不再计入已收数量，未收数量自动回升）
+        writebackReturnApplyReceived(returnDoc.getReturnApplyId());
+
         return returnDoc;
     }
 
@@ -830,34 +834,32 @@ public class SaleReturnDocServiceImpl extends ServiceImpl<SaleReturnDocMapper, S
     }
 
     /**
-     * 审批通过后回写退货申请单状态
+     * 收货确认回写退货申请（《物流退货收货》跟踪口径的唯一写入口）。
+     * <p>汇总该申请下所有<b>已审批</b>退货单（status 2 已审批 / 3 已完成）的明细数量，
+     * 按商品刷新申请明细与主表的 已收数量 / 未收数量，并推进全部收货的申请为「已完成」。
+     * 退货单取消时同样调用此方法，已收数量随之下修、未收数量回升。</p>
      */
-    private void writebackReturnApplyStatus(Long returnApplyId) {
+    private void writebackReturnApplyReceived(Long returnApplyId) {
         if (returnApplyId == null) {
             return;
         }
 
-        SaleReturn returnApply = saleReturnService.getById(returnApplyId);
-        if (returnApply == null) {
-            log.warn("退货申请单不存在，无法回写状态，ID: {}", returnApplyId);
-            return;
-        }
-
-        // 查询该退货申请关联的所有退货单
         LambdaQueryWrapper<SaleReturnDoc> docWrapper = new LambdaQueryWrapper<>();
-        docWrapper.eq(SaleReturnDoc::getReturnApplyId, returnApplyId);
+        docWrapper.eq(SaleReturnDoc::getReturnApplyId, returnApplyId)
+                .in(SaleReturnDoc::getStatus, 2, 3);
         List<SaleReturnDoc> relatedDocs = this.list(docWrapper);
 
-        // 检查是否所有退货单都已审批通过
-        boolean allApproved = !relatedDocs.isEmpty() && relatedDocs.stream()
-                .allMatch(doc -> doc.getStatus() != null && doc.getStatus() >= 2);
-
-        if (allApproved && returnApply.getStatus() != null && returnApply.getStatus() < 3) {
-            // 更新退货申请状态为已完成
-            returnApply.setStatus(3);
-            returnApply.setUpdateTime(LocalDateTime.now());
-            saleReturnService.updateById(returnApply);
-            log.info("退货申请单 {} 已关联的所有退货单均审批通过，状态更新为已完成", returnApply.getReturnNo());
+        Map<Long, BigDecimal> receivedByProduct = new java.util.HashMap<>();
+        for (SaleReturnDoc doc : relatedDocs) {
+            for (SaleReturnDocItem item : getItems(doc.getId())) {
+                if (item.getProductId() != null && item.getReturnQuantity() != null) {
+                    receivedByProduct.merge(item.getProductId(), item.getReturnQuantity(), BigDecimal::add);
+                }
+            }
         }
+
+        saleReturnService.writebackReceivedProgress(returnApplyId, receivedByProduct);
+        log.info("退货申请 {} 收货回写：关联已审批退货单 {} 张，商品 {} 项",
+                returnApplyId, relatedDocs.size(), receivedByProduct.size());
     }
 }

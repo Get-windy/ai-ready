@@ -154,11 +154,20 @@ public class SaleOrderDTO {
         private String driverName;
         private String deliveryVehicle;
         private String logisticsCompany;
+        /** 物流公司档案ID（biz_party.id，partnerType=LOGISTICS） */
+        private Long logisticsCompanyId;
         private String logisticsNo;
         private String waybillNo;
         private String freightPayer;
         private BigDecimal shippingFee;
         private BigDecimal codAmount;
+        // ── 包裹/运单层（一单多包：一条 = 一个包裹）──
+        private String packageNo;
+        private Integer packageCount;
+        private BigDecimal packageWeight;
+        private BigDecimal packageVolume;
+        private Integer packageStatus;
+        private String remark;
     }
 
     @Data

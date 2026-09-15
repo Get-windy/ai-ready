@@ -32,7 +32,8 @@ public class MallKeywordServiceImpl implements MallKeywordService {
     }
 
     @Override
-    public IPage<MallKeyword> pageKeywords(Integer pageNum, Integer pageSize, String keyword, Integer keywordType, Integer status) {
+    public IPage<MallKeyword> pageKeywords(Integer pageNum, Integer pageSize, String keyword, Integer keywordType, Integer status,
+                                           String remark) {
         LambdaQueryWrapper<MallKeyword> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(MallKeyword::getTenantId, getCurrentTenantId());
         if (keyword != null && !keyword.isEmpty()) {
@@ -43,6 +44,10 @@ public class MallKeywordServiceImpl implements MallKeywordService {
         }
         if (status != null) {
             wrapper.eq(MallKeyword::getStatus, status);
+        }
+        // 备注模糊查询（原先前端「备注」列只能展示、无法按备注筛选）
+        if (remark != null && !remark.isEmpty()) {
+            wrapper.like(MallKeyword::getRemark, remark);
         }
         wrapper.orderByAsc(MallKeyword::getSort).orderByDesc(MallKeyword::getCreateTime);
         return mallKeywordMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);

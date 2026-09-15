@@ -3,6 +3,7 @@ package cn.aiedge.erp.sale.outbound.dto;
 import lombok.Data;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 /**
  * 销售出库单多条件查询参数
@@ -98,4 +99,14 @@ public class SaleOutboundQueryDTO {
 
     // ═══ 商品分类树 ═══
     private String categoryId;
+
+    // ═══ 发货查询（配发收 → 发货查询）固定项 ═══
+    /**
+     * 配送执行命中的出库单号集合。
+     *
+     * <p>「配送状态 / 配送线路」不是出库单自身的列，而是配送任务（`dms_task`）的执行属性；
+     * 由 DMS 侧 `GET /api/dms/task/outbound-filter` 依据来源单据号反查出单号集合后，
+     * 本页以本字段做精确过滤——跨域只走接口，不在销售模块内 JOIN DMS 表结构。</p>
+     */
+    private List<String> outboundNos;
 }

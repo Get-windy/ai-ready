@@ -74,11 +74,12 @@ export const paymentChannelConfigApi = {
   }
 }
 
-// 对账状态枚举
+// 对账状态枚举（与后端 payment_reconciliation.status 注释一致；3「处理中」用于页面统计口径）
 export const RECON_STATUS_MAP: Record<number, { text: string; color: string }> = {
   0: { text: '待对账', color: 'warning' },
   1: { text: '已对账', color: 'success' },
-  2: { text: '有差异', color: 'error' }
+  2: { text: '有差异', color: 'error' },
+  3: { text: '处理中', color: 'processing' }
 }
 
 // 支付请求类型
@@ -182,79 +183,119 @@ export interface ChannelInfo {
 export const paymentApi = {
   // 创建支付请求
   create: (params: { bizType: string; bizId: number; bizNo: string; amount: number; channel: string }) =>
-    request.post<Result<PaymentRequest>>('/api/payment/request', params),
+    request.post<Result<PaymentRequest>>('/payment/request', params),
 
-  // 分页查询支付请求
-  pageRequest: (params: { pageNum: number; pageSize: number; bizType?: string; channel?: string; status?: number }) =>
-    request.get<Result<PageResult<PaymentRequest>>>('/api/payment/request/page', { params }),
+  // 分页查询支付请求（业务类型 / 业务单号 / 渠道 / 状态 / 创建时间区间 / 付款人）
+  pageRequest: (params: {
+    pageNum: number
+    pageSize: number
+    bizType?: string
+    bizNo?: string
+    channel?: string
+    status?: number
+    startTime?: string
+    endTime?: string
+    /** 付款人（模糊）；后端 PaymentController#pagePaymentRequest 支持 */
+    payerName?: string
+  }) => request.get<Result<PageResult<PaymentRequest>>>('/payment/request/page', { params }),
+
+  // 支付请求统计（后端聚合：待支付/成功/失败 + 累计金额）
+  statRequest: (params?: { channel?: string }) =>
+    request.get<Result<Record<string, any>>>('/payment/request/stat', { params }),
 
   // 查询支付请求详情
   getRequest: (id: number) =>
-    request.get<Result<PaymentRequest>>(`/api/payment/request/${id}`),
+    request.get<Result<PaymentRequest>>(`/payment/request/${id}`),
 
   // 取消支付请求
   cancel: (id: number) =>
-    request.post<Result<void>>(`/api/payment/request/${id}/cancel`),
+    request.post<Result<void>>(`/payment/request/${id}/cancel`),
 
   // 确认线下支付
   confirmOffline: (id: number, channelOrderNo: string) =>
-    request.post<Result<void>>(`/api/payment/request/${id}/confirm`, null, { params: { channelOrderNo } }),
+    request.post<Result<void>>(`/payment/request/${id}/confirm`, null, { params: { channelOrderNo } }),
 
   // 确认支付
   confirmPayment: (id: number, params: { method?: string; remark?: string; channelOrderNo?: string }) =>
-    request.post<Result<void>>(`/api/payment/request/${id}/confirm`, params),
+    request.post<Result<void>>(`/payment/request/${id}/confirm`, params),
 
-  // 分页查询支付记录
-  pageRecord: (params: { pageNum: number; pageSize: number; channel?: string }) =>
-    request.get<Result<PageResult<PaymentRecord>>>('/api/payment/record/page', { params }),
+  // 分页查询支付记录（渠道 / 状态 / 渠道订单号 / 支付时间区间）
+  pageRecord: (params: {
+    pageNum: number
+    pageSize: number
+    channel?: string
+    status?: number
+    channelOrderNo?: string
+    startTime?: string
+    endTime?: string
+  }) => request.get<Result<PageResult<PaymentRecord>>>('/payment/record/page', { params }),
+
+  // 支付记录统计（后端聚合：成功/失败笔数 + 成功金额合计）
+  statRecord: (params?: { channel?: string }) =>
+    request.get<Result<Record<string, any>>>('/payment/record/stat', { params }),
 
   // 获取可用支付渠道
   getChannels: (amount: number) =>
-    request.get<Result<ChannelInfo[]>>('/api/payment/channels', { params: { amount } })
+    request.get<Result<ChannelInfo[]>>('/payment/channels', { params: { amount } })
 }
 
 // 退款请求 API
 export const refundApi = {
   // 创建退款请求
   create: (params: { paymentId: number; amount: number; reason: string }) =>
-    request.post<Result<RefundRequest>>('/api/refund/request', params),
+    request.post<Result<RefundRequest>>('/refund/request', params),
 
-  // 分页查询退款请求
-  pageRequest: (params: { pageNum: number; pageSize: number; status?: number }) =>
-    request.get<Result<PageResult<RefundRequest>>>('/api/refund/request/page', { params }),
+  // 分页查询退款请求（状态 / 单号 / 退款日期区间 / 渠道）
+  pageRequest: (params: {
+    pageNum: number
+    pageSize: number
+    status?: number
+    refundNo?: string
+    startTime?: string
+    endTime?: string
+    channel?: string
+  }) => request.get<Result<PageResult<RefundRequest>>>('/refund/request/page', { params }),
+
+  // 退款请求统计（后端聚合：待审批/已批准/已拒绝 + 退款金额合计）
+  statRequest: (params?: { channel?: string }) =>
+    request.get<Result<Record<string, any>>>('/refund/request/stat', { params }),
 
   // 查询退款请求详情
   getRequest: (id: number) =>
-    request.get<Result<RefundRequest>>(`/api/refund/request/${id}`),
+    request.get<Result<RefundRequest>>(`/refund/request/${id}`),
 
   // 审批退款
   approve: (id: number, approved: boolean, remark?: string) =>
-    request.post<Result<void>>(`/api/refund/request/${id}/approve`, null, { params: { approved, remark } }),
+    request.post<Result<void>>(`/refund/request/${id}/approve`, null, { params: { approved, remark } }),
 
   // 分页查询退款记录
   pageRecord: (params: { pageNum: number; pageSize: number; channel?: string }) =>
-    request.get<Result<PageResult<RefundRecord>>>('/api/refund/record/page', { params })
+    request.get<Result<PageResult<RefundRecord>>>('/refund/record/page', { params })
 }
 
 // 对账 API
 export const reconciliationApi = {
   // 执行日对账
   execute: (date: string, channel?: string) =>
-    request.post<Result<PaymentReconciliation[]>>('/api/reconciliation/execute', null, { params: { date, channel } }),
+    request.post<Result<PaymentReconciliation[]>>('/reconciliation/execute', null, { params: { date, channel } }),
 
   // 分页查询对账记录
   page: (params: { pageNum: number; pageSize: number; startDate?: string; endDate?: string; channel?: string; status?: number }) =>
-    request.get<Result<PageResult<PaymentReconciliation>>>('/api/reconciliation/page', { params }),
+    request.get<Result<PageResult<PaymentReconciliation>>>('/reconciliation/page', { params }),
 
   // 查询对账详情
   get: (id: number) =>
-    request.get<Result<PaymentReconciliation>>(`/api/reconciliation/${id}`),
+    request.get<Result<PaymentReconciliation>>(`/reconciliation/${id}`),
 
-  // 处理差异
+  // 处理差异（method：MANUAL手工调账 / IGNORE忽略差异 / REPROCESS重新对账）
   handleDifference: (id: number, params: { method: string; remark: string }) =>
-    request.post<Result<void>>(`/api/reconciliation/${id}/handle`, params),
+    request.post<Result<void>>(`/reconciliation/${id}/handle`, null, { params }),
+
+  // 对账统计（后端聚合：已对账/有差异/处理中 + 差异金额合计）
+  stat: (params?: { startDate?: string; endDate?: string; channel?: string }) =>
+    request.get<Result<Record<string, any>>>('/reconciliation/stat', { params }),
 
   // 获取待对账日期列表
   getPendingDates: (channel?: string) =>
-    request.get<Result<string[]>>('/api/reconciliation/pending-dates', { params: { channel } })
+    request.get<Result<string[]>>('/reconciliation/pending-dates', { params: { channel } })
 }

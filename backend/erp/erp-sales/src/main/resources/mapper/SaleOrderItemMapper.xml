@@ -24,6 +24,7 @@
         <result column="small_pack" property="smallPack"/>
         <result column="quantity" property="quantity"/>
         <result column="shipped_quantity" property="shippedQuantity"/>
+        <result column="picked_quantity" property="pickedQuantity"/>
         <result column="unit_price" property="unitPrice"/>
         <result column="tax_rate" property="taxRate"/>
         <result column="unit_price_with_tax" property="unitPriceWithTax"/>
@@ -99,7 +100,7 @@
     <sql id="Base_Column_List">
         id, order_id, line_no, product_id, product_code, product_name, barcode, specification,
         location, unit, line_attribute, batch_code, production_date, shelf_life, expiry_date,
-        big_pack, mid_pack, small_pack, quantity, shipped_quantity, unit_price, tax_rate,
+        big_pack, mid_pack, small_pack, quantity, shipped_quantity, picked_quantity, unit_price, tax_rate,
         unit_price_with_tax, amount, tax_amount, amount_with_tax, discount_rate, discount_amount,
         warehouse_id, remark, create_time, update_time
     </sql>
@@ -144,6 +145,13 @@
     <update id="updateShippedQuantity">
         UPDATE erp_sale_order_item
         SET shipped_quantity = #{quantity}
+        WHERE id = #{id}
+    </update>
+
+    <!-- 设置已拣货数量（拣货作业回写，全量） -->
+    <update id="updatePickedQuantity">
+        UPDATE erp_sale_order_item
+        SET picked_quantity = #{quantity}
         WHERE id = #{id}
     </update>
 

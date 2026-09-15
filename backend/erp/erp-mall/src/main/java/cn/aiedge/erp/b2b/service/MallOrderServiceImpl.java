@@ -1,16 +1,16 @@
 package cn.aiedge.erp.b2b.service;
 
 import cn.aiedge.common.exception.BusinessException;
+import cn.aiedge.erp.b2b.dao.ErpProductMall;
+import cn.aiedge.erp.b2b.dao.ErpProductMallMapper;
 import cn.aiedge.erp.b2b.dao.ErpSaleOrderItemMall;
 import cn.aiedge.erp.b2b.dao.ErpSaleOrderItemMallMapper;
 import cn.aiedge.erp.b2b.dao.ErpSaleOrderMall;
 import cn.aiedge.erp.b2b.dao.ErpSaleOrderMallMapper;
 import cn.aiedge.erp.b2b.dto.*;
 import cn.aiedge.erp.b2b.mapper.MallAddressMapper;
-import cn.aiedge.erp.b2b.mapper.MallProductMapper;
 import cn.aiedge.erp.b2b.mapper.ShopUserMapper;
 import cn.aiedge.erp.b2b.model.MallAddress;
-import cn.aiedge.erp.b2b.model.MallProduct;
 import cn.aiedge.erp.b2b.model.ShopUser;
 import cn.aiedge.erp.party.entity.Party;
 import cn.aiedge.erp.party.service.PartyService;
@@ -37,6 +37,12 @@ import java.util.stream.Collectors;
  * - B2B 企业客户订单：order_source=2
  * - B2C 个人会员订单：order_source=3
  * 根据 shop_user.user_type 自动路由到对应通道
+ *
+ * <p><b>商城商品数据源（2026-09-14 修复）</b>：本类此前从已废弃的 {@code mall_product} 表读商品并回写其库存
+ * （{@code V9.0.0__Trade_Center_Consolidation.sql} Part 9 已标注「[已废弃] 由 v_mall_product 视图替代，
+ * 数据源为 erp_product」）。现读侧统一为 {@code v_mall_product} 视图（{@link ErpProductMallMapper}，
+ * 与商城列表/购物车同源）；写侧不再回写库存（{@code erp_product} 无库存列，视图 {@code stock_quantity}
+ * 由 {@code erp_stock} 实时聚合，商城侧无库存写入通道），详见 {@code createOrder} 内注释。</p>
  */
 @Slf4j
 @Service
@@ -45,7 +51,12 @@ public class MallOrderServiceImpl implements MallOrderService {
 
     private final ErpSaleOrderMallMapper erpSaleOrderMapper;
     private final ErpSaleOrderItemMallMapper erpSaleOrderItemMapper;
-    private final MallProductMapper mallProductMapper;
+    /**
+     * 商城商品**只读**数据源：{@code v_mall_product} 视图（源表 {@code erp_product} + {@code erp_stock} 实时聚合）。
+     * 与商城商品列表（{@code MallAdminServiceImpl.pageProducts}）、购物车（{@code MallCartServiceImpl}）同源。
+     * 不再使用已废弃的 {@code mall_product} 表（见 {@link cn.aiedge.erp.b2b.model.MallProduct}）。
+     */
+    private final ErpProductMallMapper erpProductMallMapper;
     private final ShopUserMapper shopUserMapper;
     private final MallAddressMapper mallAddressMapper;
     private final PartyService partyService;
@@ -231,15 +242,23 @@ public class MallOrderServiceImpl implements MallOrderService {
         List<ErpSaleOrderItemMall> orderItems = new ArrayList<>();
 
         for (OrderItemRequest itemRequest : request.getItems()) {
-            MallProduct product = mallProductMapper.selectOne(
-                    new LambdaQueryWrapper<MallProduct>()
-                            .eq(MallProduct::getProductId, itemRequest.getProductId())
-                            .eq(MallProduct::getDeleted, 0)
+            // ── 数据源修复（2026-09-14）：商品读取由已废弃的 mall_product 表改走 v_mall_product 视图 ──
+            // mall_product 已在 V9.0.0 Part 9 标注「[已废弃] 由 v_mall_product 视图替代，数据源为 erp_product」，
+            // 实为 erp_product → mall_product 的**单向**触发器缓存（trg_erp_product_sync_mall 只同步商品字段，
+            // 且新行 stock_quantity 固定写 0）。真库复核：该表 85 行 stock_quantity 全为 0、sale_price 全为 0.00，
+            // 故原读法使「库存不足」恒真、单价恒为 0（商城订单创建实际不可用）。
+            // 视图与列表/购物车同源：product_id ← erp_product.product_code，
+            // stock_quantity ← erp_stock 实时聚合，sale_price ← erp_product.retail_price。
+            // （租户过滤由 TenantLineInnerInterceptor 自动注入 tenant_id，视图含该列。）
+            ErpProductMall product = erpProductMallMapper.selectOne(
+                    new LambdaQueryWrapper<ErpProductMall>()
+                            .eq(ErpProductMall::getProductId, itemRequest.getProductId())
             );
             if (product == null) {
                 throw BusinessException.notFound("商品不存在: " + itemRequest.getProductId());
             }
-            if (product.getStockQuantity() < itemRequest.getQuantity()) {
+            int availableStock = product.getStockQuantity() != null ? product.getStockQuantity() : 0;
+            if (availableStock < itemRequest.getQuantity()) {
                 throw BusinessException.badRequest("商品库存不足: " + product.getProductName());
             }
 
@@ -257,9 +276,13 @@ public class MallOrderServiceImpl implements MallOrderService {
 
             totalAmount = totalAmount.add(subtotal);
 
-            // 扣除 mall_product 库存（由 DB 触发器同步到 erp_product）
-            product.setStockQuantity(product.getStockQuantity() - itemRequest.getQuantity());
-            mallProductMapper.updateById(product);
+            // 库存**不**由商城侧回写（修复说明；如实保留为已知缺口，不做假实现）：
+            // 1) 原写法扣减 mall_product.stock_quantity 后 updateById，但 mall_product 是
+            //    erp_product → mall_product 的**单向**触发器缓存（旧注释「由 DB 触发器同步到 erp_product」方向写反了），
+            //    且该表已无任何读路径（商品列表/购物车/本方法均读 v_mall_product 视图），属无效写入；
+            // 2) 视图 stock_quantity 由 erp_stock 实时聚合，erp_product **无库存列**（真库核对 information_schema 确认），
+            //    erp-mall 模块未依赖 erp-stock、也无 erp_stock 写入通道，硬写会造出假库存；
+            // 3) 商城订单创建只做可用量校验（见上），实际扣减应由 ERP 侧出库单据驱动 erp_stock。
         }
 
         // 创建 erp_sale_order 订单
@@ -402,8 +425,8 @@ public class MallOrderServiceImpl implements MallOrderService {
         order.setExtInfo(buildExtInfo("CANCELLED"));
         erpSaleOrderMapper.updateById(order);
 
-        // 归还库存
-        restoreStock(order.getId());
+        // 无需归还库存：createOrder 已不再由商城侧扣减库存（见其修复说明），
+        // 原 restoreStock() 回写 mall_product.stock_quantity 的写法已随之移除。
         log.info("订单已取消: {}", order.getOrderNo());
     }
 
@@ -492,27 +515,9 @@ public class MallOrderServiceImpl implements MallOrderService {
         order.setExtInfo(buildExtInfo("REJECTED"));
         erpSaleOrderMapper.updateById(order);
 
-        // 驳回时归还库存
-        restoreStock(order.getId());
+        // 无需归还库存：createOrder 已不再由商城侧扣减库存（见其修复说明），
+        // 原 restoreStock() 回写 mall_product.stock_quantity 的写法已随之移除。
         log.info("订单已驳回: {}", order.getOrderNo());
-    }
-
-    /** 归还订单占用的库存 */
-    private void restoreStock(Long orderId) {
-        List<ErpSaleOrderItemMall> items = erpSaleOrderItemMapper.selectList(
-                new LambdaQueryWrapper<ErpSaleOrderItemMall>()
-                        .eq(ErpSaleOrderItemMall::getOrderId, orderId)
-        );
-        for (ErpSaleOrderItemMall item : items) {
-            MallProduct product = mallProductMapper.selectOne(
-                    new LambdaQueryWrapper<MallProduct>()
-                            .eq(MallProduct::getProductId, item.getProductCode())
-            );
-            if (product != null) {
-                product.setStockQuantity(product.getStockQuantity() + item.getQuantity().intValue());
-                mallProductMapper.updateById(product);
-            }
-        }
     }
 
     @Override

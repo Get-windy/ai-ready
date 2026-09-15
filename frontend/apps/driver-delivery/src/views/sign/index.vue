@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { dmsApi, uploadFile, dataUrlToBlob, SIGN_TYPE } from '@/api/dms'
 
 const router = useRouter()
 const route = useRoute()
 
-const orderId = ref(route.query.orderId as string || '')
+// ⚠️ 2026-09-13：原实现只调 `window.electronAPI.delivery.submitSignature`，Web 环境下该桥不存在，
+//    可选链静默跳过却仍弹「签收成功」——假成功。现改为直连真实签收接口。
+const orderId = ref((route.query.taskId || route.query.orderId || '') as string)
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 const hasSignature = ref(false)
 const signerName = ref('')
@@ -122,30 +125,34 @@ const confirmSignature = async () => {
     alert('请先签名')
     return
   }
-  
+
   if (!signerName.value) {
     alert('请填写签收人姓名')
     return
   }
-  
+
+  if (!orderId.value) {
+    alert('缺少配送任务编号，无法提交签收')
+    return
+  }
+
   if (!canvasRef.value) return
-  
+
   const imageData = canvasRef.value.toDataURL('image/png')
-  
+
   try {
-    await window.electronAPI?.delivery?.submitSignature?.({
-      orderId: orderId.value,
-      signerName: signerName.value,
-      signerPhone: signerPhone.value,
-      signTime: signTime.value,
-      signatureImage: imageData,
-      remark: remark.value
+    const signatureUrl = await uploadFile(dataUrlToBlob(imageData), `sign-${orderId.value}.png`)
+    await dmsApi.submitSign({
+      taskId: orderId.value,
+      signType: SIGN_TYPE.NORMAL,
+      signatureUrl,
+      remark: remark.value || undefined,
     })
-    
+
     alert('签收成功')
     router.push('/order')
-  } catch (err) {
-    alert('签收失败: ' + err)
+  } catch (err: any) {
+    alert('签收失败: ' + (err?.message || err))
   }
 }
 

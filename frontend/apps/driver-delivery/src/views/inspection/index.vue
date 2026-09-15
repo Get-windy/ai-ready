@@ -1,128 +1,141 @@
 <template>
   <div class="inspection-page">
-    <NavBar title="出车验车" left-arrow @click-left="onBack" />
+    <NavBar :title="pageTitle" left-arrow @click-left="onBack" />
 
-    <Form @submit="onSubmit" class="inspection-form">
-      <!-- Vehicle ID -->
+    <Form class="inspection-form" @submit="onSubmit">
+      <!-- 车辆选择（复用车辆选择器数据源，不再手输编号） -->
       <Field
-        v-model="form.vehicle_id"
-        name="vehicle_id"
-        label="车辆编号"
-        placeholder="请输入或扫描车辆编号"
-        :rules="[{ required: true, message: '请输入车辆编号' }]"
+        :model-value="selectedVehicleLabel"
+        label="车辆"
+        placeholder="请选择车辆"
+        readonly
+        is-link
+        :rules="[{ required: true, message: '请选择车辆' }]"
+        @click="showVehiclePicker = true"
       />
+      <Popup v-model:show="showVehiclePicker" position="bottom" round>
+        <Picker
+          :columns="vehicleColumns"
+          title="选择车辆"
+          @confirm="onVehicleConfirm"
+          @cancel="showVehiclePicker = false"
+        />
+      </Popup>
 
-      <!-- Inspection Type -->
-      <Field name="inspection_type" label="检查类型">
+      <Field
+        v-model="form.inspectionType"
+        label="检查类型"
+        readonly
+        is-link
+        @click="showTypePicker = true"
+      >
         <template #input>
-          <Picker
-            v-model="form.inspection_type"
-            :columns="inspectionTypeOptions"
-            title="选择检查类型"
-            @confirm="(val) => form.inspection_type = val"
-          >
-            <template #default>
-              <div class="picker-value" @click="showInspectionPicker = true">
-                {{ inspectionTypeLabel(form.inspection_type) || '请选择检查类型' }}
-              </div>
-            </template>
-          </Picker>
+          <span>{{ inspectionTypeLabel(form.inspectionType) }}</span>
         </template>
       </Field>
+      <Popup v-model:show="showTypePicker" position="bottom" round>
+        <Picker
+          :columns="typeColumns"
+          title="选择检查类型"
+          @confirm="onTypeConfirm"
+          @cancel="showTypePicker = false"
+        />
+      </Popup>
 
-      <!-- Mileage -->
       <Field
         v-model="form.mileage"
         name="mileage"
         label="里程(km)"
         type="digit"
-        placeholder="请输入当前里程"
+        placeholder="请输入当前仪表里程"
         :rules="[{ required: true, message: '请输入里程' }]"
       />
-
-      <!-- Fuel Level -->
       <Field
-        v-model="form.fuel_level"
-        name="fuel_level"
-        label="油量/电量"
+        v-model="form.fuelLevel"
+        name="fuelLevel"
+        label="油量/电量(%)"
         type="digit"
-        placeholder="请输入油量或电量"
+        placeholder="0-100"
         :rules="[{ required: true, message: '请输入油量/电量' }]"
       />
+      <Field
+        v-model="form.inspectionLocation"
+        name="inspectionLocation"
+        label="检查地点"
+        placeholder="停车场 / 站点名称（选填）"
+      />
 
-      <!-- Status Toggles -->
-      <CellGroup title="车辆状态检查">
-        <Cell label="外观状态">
+      <!-- 车况检查项：正常 / 异常（异常必须填写描述，便于留档与转维修） -->
+      <CellGroup title="车况检查">
+        <template v-for="item in CHECK_ITEMS" :key="item.key">
+          <Cell :title="item.label">
+            <template #value>
+              <RadioGroup v-model="form[item.key]" direction="horizontal">
+                <Radio :name="0">
+                  正常
+                </Radio>
+                <Radio :name="1">
+                  异常
+                </Radio>
+              </RadioGroup>
+            </template>
+          </Cell>
+          <Field
+            v-if="form[item.key] === 1"
+            v-model="form[item.remarkKey]"
+            :label="`${item.label}异常描述`"
+            placeholder="请描述异常现象"
+          />
+        </template>
+      </CellGroup>
+
+      <CellGroup title="随车装备">
+        <Cell title="灭火器">
           <template #value>
-            <a-radio-group v-model:value="form.exterior_status" size="small">
-              <a-radio-button :value="0">正常</a-radio-button>
-              <a-radio-button :value="1">异常</a-radio-button>
-            </a-radio-group>
+            <RadioGroup v-model="form.fireExtinguisher" direction="horizontal">
+              <Radio :name="0">
+                正常
+              </Radio>
+              <Radio :name="1">
+                缺失/过期
+              </Radio>
+            </RadioGroup>
           </template>
         </Cell>
-        <Cell label="轮胎状态">
+        <Cell title="三角警示牌">
           <template #value>
-            <a-radio-group v-model:value="form.tire_status" size="small">
-              <a-radio-button :value="0">正常</a-radio-button>
-              <a-radio-button :value="1">异常</a-radio-button>
-            </a-radio-group>
-          </template>
-        </Cell>
-        <Cell label="灯光状态">
-          <template #value>
-            <a-radio-group v-model:value="form.light_status" size="small">
-              <a-radio-button :value="0">正常</a-radio-button>
-              <a-radio-button :value="1">异常</a-radio-button>
-            </a-radio-group>
-          </template>
-        </Cell>
-        <Cell label="刹车状态">
-          <template #value>
-            <a-radio-group v-model:value="form.brake_status" size="small">
-              <a-radio-button :value="0">正常</a-radio-button>
-              <a-radio-button :value="1">异常</a-radio-button>
-            </a-radio-group>
-          </template>
-        </Cell>
-        <Cell label="清洁状态">
-          <template #value>
-            <a-radio-group v-model:value="form.cleanliness_status" size="small">
-              <a-radio-button :value="0">正常</a-radio-button>
-              <a-radio-button :value="1">异常</a-radio-button>
-            </a-radio-group>
+            <RadioGroup v-model="form.warningTriangle" direction="horizontal">
+              <Radio :name="0">
+                有
+              </Radio>
+              <Radio :name="1">
+                缺失
+              </Radio>
+            </RadioGroup>
           </template>
         </Cell>
       </CellGroup>
 
-      <!-- Checkboxes for equipment -->
-      <CellGroup title="随车装备检查">
-        <Cell center>
-          <template #title>
-            <span>灭火器</span>
-          </template>
-          <template #value>
-            <a-radio-group v-model:value="form.fire_extinguisher" size="small">
-              <a-radio-button :value="0">正常</a-radio-button>
-              <a-radio-button :value="1">缺失</a-radio-button>
-            </a-radio-group>
-          </template>
-        </Cell>
-        <Cell center>
-          <template #title>
-            <span>警示三角牌</span>
-          </template>
-          <template #value>
-            <a-radio-group v-model:value="form.warning_triangle" size="small">
-              <a-radio-button :value="0">有</a-radio-button>
-              <a-radio-button :value="1">缺失</a-radio-button>
-            </a-radio-group>
-          </template>
-        </Cell>
-      </CellGroup>
+      <Field
+        v-model="form.remark"
+        label="备注"
+        type="textarea"
+        rows="2"
+        autosize
+        placeholder="检查备注（选填）"
+      />
+
+      <NoticeBar
+        v-if="willFail"
+        type="danger"
+        :text="`存在否决项（${vetoText}），提交后将判定为「不通过」并禁止出车`"
+        wrapable
+        :scrollable="false"
+      />
 
       <div style="margin: 20px 16px;">
         <Button round block type="primary" native-type="submit" :loading="submitting">
-          提交验车
+          提交检查
         </Button>
       </div>
     </Form>
@@ -130,39 +143,76 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
-import { useRouter } from 'vue-router'
-import { NavBar, Form, Field, Cell, CellGroup, Button, Picker, Dialog, Toast } from 'vant'
-import { api } from '@/api'
+import { computed, onMounted, reactive, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import {
+  NavBar, Form, Field, Cell, CellGroup, Button, Picker, Popup, Radio, RadioGroup, NoticeBar, Dialog, Toast,
+} from 'vant'
 import { dmsApi } from '@/api/dms'
 
+const route = useRoute()
 const router = useRouter()
 
-const showInspectionPicker = ref(false)
+/** 检查项（key 与后端字段一致） */
+const CHECK_ITEMS = [
+  { key: 'exteriorStatus', label: '车辆外观', remarkKey: 'exteriorRemark' },
+  { key: 'tireStatus', label: '轮胎', remarkKey: 'tireRemark' },
+  { key: 'lightStatus', label: '灯光', remarkKey: 'lightRemark' },
+  { key: 'brakeStatus', label: '刹车', remarkKey: 'brakeRemark' },
+  { key: 'cleanlinessStatus', label: '车内清洁', remarkKey: 'cleanlinessRemark' },
+] as const
 
-const inspectionTypeOptions = [
-  { text: '出车检查', value: 1 },
-  { text: '收车检查', value: 2 }
+/** 否决项（与后端 evaluateResult 同口径：刹车/灯光/灭火器任一异常 → 不通过） */
+const VETO_ITEMS = [
+  { key: 'brakeStatus', label: '刹车' },
+  { key: 'lightStatus', label: '灯光' },
+  { key: 'fireExtinguisher', label: '灭火器' },
+] as const
+
+const form = reactive<any>({
+  inspectionType: Number(route.query.type || 1),
+  mileage: undefined,
+  fuelLevel: undefined,
+  inspectionLocation: '',
+  exteriorStatus: 0,
+  exteriorRemark: '',
+  tireStatus: 0,
+  tireRemark: '',
+  lightStatus: 0,
+  lightRemark: '',
+  brakeStatus: 0,
+  brakeRemark: '',
+  cleanlinessStatus: 0,
+  cleanlinessRemark: '',
+  fireExtinguisher: 0,
+  warningTriangle: 0,
+  remark: '',
+})
+
+const pageTitle = computed(() => (form.inspectionType === 2 ? '收车检查' : '出车验车'))
+const inspectionTypeLabel = (val: number) => ({ 1: '出车前检查', 2: '收车后检查', 3: '随机抽检', 4: '定期检查' }[val] || '')
+const typeColumns = [
+  { text: '出车前检查', value: 1 },
+  { text: '收车后检查', value: 2 },
 ]
 
-const inspectionTypeLabel = (val: number | undefined): string => {
-  const map: Record<number, string> = { 1: '出车检查', 2: '收车检查' }
-  return val != null ? map[val] ?? '' : ''
+const showTypePicker = ref(false)
+const onTypeConfirm = ({ selectedOptions }: any) => {
+  form.inspectionType = Number(selectedOptions?.[0]?.value ?? 1)
+  showTypePicker.value = false
 }
 
-const form = reactive({
-  vehicle_id: '',
-  inspection_type: 1,
-  mileage: undefined as number | undefined,
-  fuel_level: undefined as number | undefined,
-  exterior_status: 0,
-  tire_status: 0,
-  light_status: 0,
-  brake_status: 0,
-  cleanliness_status: 0,
-  fire_extinguisher: 0,
-  warning_triangle: 0
+const vehicleId = ref<string>('')
+const vehicleColumns = ref<{ text: string; value: string }[]>([])
+const showVehiclePicker = ref(false)
+const selectedVehicleLabel = computed(() => {
+  const hit = vehicleColumns.value.find(v => v.value === vehicleId.value)
+  return hit ? hit.text : ''
 })
+
+const abnormalItems = computed(() => VETO_ITEMS.filter(i => form[i.key] === 1).map(i => i.label))
+const willFail = computed(() => abnormalItems.value.length > 0)
+const vetoText = computed(() => abnormalItems.value.join('、'))
 
 const submitting = ref(false)
 
@@ -170,46 +220,82 @@ const onBack = () => {
   router.back()
 }
 
+const onVehicleConfirm = ({ selectedOptions }: any) => {
+  vehicleId.value = String(selectedOptions?.[0]?.value ?? '')
+  showVehiclePicker.value = false
+}
+
+const loadVehicles = async () => {
+  try {
+    const res: any = await dmsApi.getVehicleOptions()
+    const list = res?.data ?? res ?? []
+    vehicleColumns.value = (Array.isArray(list) ? list : []).map((v: any) => ({
+      text: `${v.plateNo || v.vehicleCode || v.id}${v.statusText ? '（' + v.statusText + '）' : ''}`,
+      value: String(v.id),
+    }))
+  } catch {
+    vehicleColumns.value = []
+  }
+}
+
 const onSubmit = async () => {
-  if (!form.vehicle_id) {
-    Toast.fail('请输入车辆编号')
+  if (!vehicleId.value) {
+    Toast.fail('请选择车辆')
     return
   }
   if (form.mileage == null) {
     Toast.fail('请输入里程')
     return
   }
-  if (form.fuel_level == null) {
+  if (form.fuelLevel == null) {
     Toast.fail('请输入油量/电量')
     return
   }
 
   submitting.value = true
   try {
-    const res = await dmsApi.createInspection({
-      vehicle_id: form.vehicle_id,
-      inspection_type: form.inspection_type,
-      mileage: form.mileage,
-      fuel_level: form.fuel_level,
-      exterior_status: form.exterior_status,
-      tire_status: form.tire_status,
-      light_status: form.light_status,
-      brake_status: form.brake_status,
-      cleanliness_status: form.cleanliness_status,
-      fire_extinguisher: form.fire_extinguisher,
-      warning_triangle: form.warning_triangle
+    const riderRes: any = await dmsApi.getMyRider().catch(() => null)
+    const rider = riderRes?.data ?? riderRes
+    const createRes: any = await dmsApi.createInspection({
+      vehicleId: vehicleId.value,
+      riderId: rider?.id,
+      ...form,
     })
-    const inspectionId = res?.data?.id ?? res?.id
-    Toast.success('验车提交成功')
-    setTimeout(() => {
-      router.push({ path: '/binding', query: { inspectionId: String(inspectionId) } })
-    }, 1000)
+    const inspectionId = createRes?.data ?? createRes?.id
+
+    // 取回后端判定结论（不在前端重复实现否决规则）
+    const detailRes: any = await dmsApi.getInspection(inspectionId)
+    const inspection = detailRes?.data ?? detailRes
+    const passed = Number(inspection?.result) === 1
+
+    if (form.inspectionType === 1) {
+      if (!passed) {
+        await Dialog.alert({
+          title: '出车前检查不通过',
+          message: `${vetoText.value}存在异常，检查单已留档（#${inspectionId}），禁止出车；请联系车管员转《车辆维护》处理。`,
+        })
+        return
+      }
+      Toast.success('检查通过，请完成车辆绑定')
+      router.replace({ path: '/binding', query: { inspectionId: String(inspectionId), result: '1' } })
+      return
+    }
+
+    await Dialog.alert({
+      title: passed ? '收车检查已完成' : '收车检查存在异常',
+      message: passed
+        ? '收车检查通过。'
+        : `${vetoText.value}存在异常，检查单已留档（#${inspectionId}），车辆将转《车辆维护》处理。`,
+    })
+    router.back()
   } catch (err: any) {
-    Toast.fail(err?.message || '验车提交失败')
+    Toast.fail(err?.message || '检查提交失败')
   } finally {
     submitting.value = false
   }
 }
+
+onMounted(loadVehicles)
 </script>
 
 <style scoped>
@@ -220,11 +306,5 @@ const onSubmit = async () => {
 
 .inspection-form {
   padding-top: 12px;
-}
-
-.picker-value {
-  color: #323233;
-  text-align: right;
-  padding: 8px 0;
 }
 </style>

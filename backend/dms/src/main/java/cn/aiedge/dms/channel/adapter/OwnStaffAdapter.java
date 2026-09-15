@@ -22,6 +22,15 @@ public class OwnStaffAdapter implements DeliveryAdapter {
         return "own";
     }
 
+    /**
+     * 连通性自检：内部运力由系统直接调度，无外部依赖，
+     * 配置了本适配器即视为对接就绪（渠道管理页「连通性测试」走此方法）。
+     */
+    @Override
+    public CheckResult check() {
+        return new CheckResult(true, "自有运力适配器就绪（内部调度，无需外部连通）");
+    }
+
     @Override
     public CreateResult createOrder(CreateRequest request) {
         log.info("自有员工配送 - 创建配送任务: orderNo={}, 地址={}", request.orderNo(), request.destAddress());

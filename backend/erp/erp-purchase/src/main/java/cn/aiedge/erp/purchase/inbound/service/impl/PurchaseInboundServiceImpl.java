@@ -1,14 +1,20 @@
 package cn.aiedge.erp.purchase.inbound.service.impl;
 
 import cn.aiedge.common.event.InventoryChangeEvent;
+import cn.aiedge.common.exception.BusinessException;
+import cn.aiedge.erp.purchase.entity.PurchaseOrder;
+import cn.aiedge.erp.purchase.entity.PurchaseOrderItem;
 import cn.aiedge.erp.purchase.inbound.dto.PurchaseInboundQuery;
 import org.springframework.context.ApplicationEventPublisher;
 import cn.aiedge.erp.purchase.inbound.entity.PurchaseInbound;
 import cn.aiedge.erp.purchase.inbound.entity.PurchaseInboundItem;
 import cn.aiedge.erp.purchase.inbound.enums.InboundStatus;
+import cn.aiedge.erp.purchase.inbound.mapper.InboundNameLookupMapper;
 import cn.aiedge.erp.purchase.inbound.mapper.PurchaseInboundItemMapper;
 import cn.aiedge.erp.purchase.inbound.mapper.PurchaseInboundMapper;
 import cn.aiedge.erp.purchase.inbound.service.PurchaseInboundService;
+import cn.aiedge.erp.purchase.mapper.PurchaseOrderItemMapper;
+import cn.aiedge.erp.purchase.mapper.PurchaseOrderMapper;
 import cn.aiedge.erp.purchase.service.integration.PurchaseAccountingService;
 import cn.aiedge.erp.stock.service.StockService;
 import cn.aiedge.quality.service.QualityInspectionService;
@@ -27,6 +33,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 
 @Slf4j
@@ -39,6 +46,9 @@ public class PurchaseInboundServiceImpl extends ServiceImpl<PurchaseInboundMappe
     private final ApplicationEventPublisher applicationEventPublisher;
     private final PurchaseAccountingService purchaseAccountingService;
     private final QualityInspectionService qualityInspectionService;
+    private final PurchaseOrderMapper purchaseOrderMapper;
+    private final PurchaseOrderItemMapper purchaseOrderItemMapper;
+    private final InboundNameLookupMapper nameLookupMapper;
 
     @Override
     public PurchaseInbound getByInboundNo(String inboundNo) {
@@ -194,15 +204,69 @@ public class PurchaseInboundServiceImpl extends ServiceImpl<PurchaseInboundMappe
         return getById(inbound.getId());
     }
 
+    /**
+     * 由采购订单生成采购入库单（收货动作）
+     *
+     * <p>原实现只建了「空头」入库单（无明细、无待收数量），收货工作台点完收货得到的是一张
+     * 没有商品行的草稿单，必须人工再录一遍——本次补齐为**真实收货**：</p>
+     * <ol>
+     *   <li>带出单据头快照（订单号/供应商/仓库/经手人/部门，取值口径与《采购单据查询》一致）；</li>
+     *   <li>带出**待收**明细：仅取「订货数量 − 已收数量 &gt; 0」的行，入库数量口径 = 本次待收数量；</li>
+     *   <li>入库单落 `DRAFT`，后续在《采购入库单》确认收货/质检/记账（库存写入仍走既有链路，不重复实现）。</li>
+     * </ol>
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public PurchaseInbound createFromOrder(Long orderId) {
+        PurchaseOrder order = purchaseOrderMapper.selectById(orderId);
+        if (order == null) {
+            throw BusinessException.notFound("采购订单不存在: " + orderId);
+        }
         PurchaseInbound inbound = new PurchaseInbound();
         inbound.setOrderId(orderId);
+        inbound.setOrderNo(order.getOrderNo());
+        inbound.setSupplierId(order.getSupplierId());
+        inbound.setSupplierName(nameLookupMapper.findSupplierNameByOrder(orderId));
+        inbound.setWarehouseId(order.getWarehouseId() != null ? order.getWarehouseId() : 1L);
+        inbound.setWarehouseName(nameLookupMapper.findWarehouseName(inbound.getWarehouseId()));
+        inbound.setPurchaserId(order.getPurchaserId());
+        if (order.getPurchaserId() != null) {
+            inbound.setPurchaserName(nameLookupMapper.findUserName(order.getPurchaserId()));
+        }
+        inbound.setDepartmentId(order.getDeptId());
+        if (order.getDeptId() != null) {
+            inbound.setDepartmentName(nameLookupMapper.findDeptName(order.getDeptId()));
+        }
         inbound.setInboundDate(LocalDate.now());
         inbound.setInboundType(1);
-        inbound.setWarehouseId(1L);
-        return createInbound(inbound, null);
+
+        // 待收明细：订货数量 - 已收数量 > 0 才带出（已全部收完的行不再生成）
+        List<PurchaseOrderItem> orderItems = purchaseOrderItemMapper.selectList(
+                new LambdaQueryWrapper<PurchaseOrderItem>().eq(PurchaseOrderItem::getOrderId, orderId));
+        List<PurchaseInboundItem> items = new ArrayList<>();
+        for (PurchaseOrderItem oi : orderItems) {
+            BigDecimal ordered = oi.getQuantity() == null ? BigDecimal.ZERO : oi.getQuantity();
+            // 已收口径取 received_quantity（《采购明细查询》同口径；received_quantity_detail 为历史死列，全项目无写入方）
+            BigDecimal received = oi.getReceivedQuantity() == null ? BigDecimal.ZERO : oi.getReceivedQuantity();
+            BigDecimal pending = ordered.subtract(received);
+            if (pending.signum() <= 0) {
+                continue;
+            }
+            PurchaseInboundItem item = new PurchaseInboundItem();
+            item.setProductId(oi.getProductId());
+            item.setProductCode(oi.getProductCode());
+            item.setProductName(oi.getProductName());
+            item.setProductSpec(oi.getSpecification());
+            item.setProductUnit(oi.getUnit());
+            item.setOrderItemId(oi.getId());
+            item.setOrderQuantity(pending);
+            item.setUnitPrice(oi.getUnitPrice());
+            item.setTaxRate(oi.getTaxRate() == null ? BigDecimal.ZERO : oi.getTaxRate());
+            item.setRemark(oi.getRemark());
+            items.add(item);
+        }
+        log.info("由采购订单生成入库单: orderId={}, orderNo={}, 待收明细 {} 行", orderId, order.getOrderNo(), items.size());
+        return createInbound(inbound, items);
     }
 
     @Override

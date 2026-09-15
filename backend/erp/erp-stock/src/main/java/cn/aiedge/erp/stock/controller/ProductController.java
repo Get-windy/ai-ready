@@ -40,6 +40,8 @@ public class ProductController {
     private final ProductBarcodeService productBarcodeService;
     private final ProductRecommendService productRecommendService;
     private final cn.aiedge.erp.stock.service.CloudProductService cloudProductService;
+    /** 配置中心（sys_project_config KV）：承载「商城默认排序」等管理端配置 */
+    private final cn.aiedge.base.service.SysConfigService sysConfigService;
     /** Spring 容器中的 ObjectMapper（已注册 JavaTimeModule，支持 LocalDateTime 等字段） */
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
@@ -50,7 +52,12 @@ public class ProductController {
         return Result.ok(productService.getProductList());
     }
 
-    @Operation(summary = "分页查询产品")
+    @Operation(summary = "分页查询产品",
+            description = "商城「单位显示」页新增条件：productTag（erp_product.mall_tags 槽位编码 TAG_1..TAG_20，"
+                    + "整槽位包含匹配）、unitDisplayType（erp_product_unit.unit_display_type **单位粒度**显示类型，"
+                    + "对标实测 -1=全部 / 0=只显示常用单位 / 1=只显示小单位 / 2=只显示中/大单位，"
+                    + "先反查单位所属商品ID再 IN；-1=全部不加粒度条件）、"
+                    + "unitDisplay（erp_product.unit_display 商品级整品开关 1/0，即对标「单位显示」条件）")
     @SaCheckPermission("erp:product:list")
     @GetMapping("/page")
     public Result<IPage<Product>> page(
@@ -65,10 +72,14 @@ public class ProductController {
             @RequestParam(required = false) Integer isStandardProduct,
             @RequestParam(required = false) String productType,
             @RequestParam(required = false) Integer mallShelfStatus,
+            @RequestParam(required = false) String productTag,
+            @RequestParam(required = false) String unitDisplayType,
+            @RequestParam(required = false) Integer unitDisplay,
             @RequestParam(defaultValue = "1") Integer pageNum,
             @RequestParam(defaultValue = "20") Integer pageSize) {
         return Result.ok(productService.getProductPage(categoryId, keyword, status, brand, industryCategory,
                 createTimeStart, createTimeEnd, useCoupon, isStandardProduct, productType, mallShelfStatus,
+                productTag, unitDisplayType, unitDisplay,
                 pageNum, pageSize));
     }
 
@@ -252,6 +263,14 @@ public class ProductController {
         return Result.ok(productService.getDistinctBrands());
     }
 
+    @Operation(summary = "获取商品标签选项(槽位编码去重)",
+            description = "商品上架页「商品标签」查询条件选项；来源 erp_product.mall_tags 已打标槽位编码")
+    @SaCheckPermission("erp:product:list")
+    @GetMapping("/mall-tags")
+    public Result<List<String>> getMallTags() {
+        return Result.ok(productService.getDistinctMallTags());
+    }
+
     @Operation(summary = "批量搬移分类")
     @SaCheckPermission("erp:product:update")
     @PutMapping("/batch-move")
@@ -307,12 +326,108 @@ public class ProductController {
         return Result.ok(productService.batchUpdateShelfStatus(ids, shelfStatus));
     }
 
+    @Operation(summary = "批量设置单位显示(商城「单位显示」页)",
+            description = "两个**不同概念**，按 body 字段区分："
+                    + "① unitDisplayType（单位粒度显示类型，对标实测 -1=全部 / 0=只显示常用单位 / "
+                    + "1=只显示小单位 / 2=只显示中/大单位）→ 写 erp_product_unit.unit_display_type"
+                    + "（该商品全部有效单位），并联动 erp_product.unit_display=1（显示）；"
+                    + "② unitDisplay（1=显示 / 0=隐藏，对标「单位显示」条件）→ 只写商品级 "
+                    + "erp_product.unit_display，即本页「单位显示」列 √/× 与批量显示/隐藏。"
+                    + "另有兼容路径：unitDisplayType 传历史二元写法 SHOW/显示 视为 -1，HIDE/隐藏 等价于 unitDisplay=0。"
+                    + "口径详见 Flyway V11.361.9（改正 V11.361.8 的 SHOW/HIDE 猜测口径）。")
+    @SaCheckPermission("erp:product:update")
+    @PutMapping("/batch-unit-display")
+    public Result<Integer> batchUnitDisplay(@RequestBody Map<String, Object> body) {
+        List<Long> ids = toLongList(body.get("ids"));
+        Object typeRaw = body.get("unitDisplayType");
+        Object displayRaw = body.get("unitDisplay");
+        if (ids == null || ids.isEmpty()) {
+            return Result.fail("请先选择商品");
+        }
+        // ①「单位显示」布尔开关（是否在商城显示该商品，商品级 erp_product.unit_display）
+        if (displayRaw != null && !String.valueOf(displayRaw).isBlank()) {
+            Integer unitDisplay;
+            try {
+                unitDisplay = Integer.valueOf(String.valueOf(displayRaw).trim());
+            } catch (NumberFormatException e) {
+                return Result.fail("单位显示取值非法: " + displayRaw + "（仅支持 1=显示 / 0=隐藏）");
+            }
+            return Result.ok(productService.batchUpdateUnitDisplayFlag(ids, unitDisplay));
+        }
+        // ②「单位显示类型」单位粒度类型（-1/0/1/2）
+        if (typeRaw == null || String.valueOf(typeRaw).isBlank()) {
+            return Result.fail("请指定单位显示类型或单位显示开关");
+        }
+        return Result.ok(productService.batchUpdateUnitDisplay(ids, String.valueOf(typeRaw)));
+    }
+
     @Operation(summary = "设置商城默认排序方式")
     @SaCheckPermission("erp:product:update")
     @PutMapping("/set-mall-sort")
     public Result<Integer> setMallSort(@RequestBody Map<String, Object> body) {
         String sortType = body.get("sortType") == null ? "DEFAULT" : String.valueOf(body.get("sortType"));
         return Result.ok(productService.setMallSortType(sortType));
+    }
+
+    /**
+     * 商城默认排序配置 —— KV 承载（sys_project_config）
+     *
+     * <p><b>键名约定（唯一权威口径）：</b>config_key = {@code mall.product.default.sort}，
+     * config_group = {@code mall}，config_type = {@code json}，
+     * 值形如 {@code {"field":"sort","direction":"asc"}}（field 为商城列表排序字段，
+     * direction 为 asc/desc）。此前前端仅存 localStorage（换设备即丢失），
+     * 现由该键落库，商城端与管理端共用。</p>
+     *
+     * <p>与旧端点 {@code PUT /set-mall-sort} 的区别：旧端点把排序方式写到
+     * erp_product.mall_sort_type（逐商品列），本端点写配置中心 KV（租户级单值）。</p>
+     */
+    @Operation(summary = "读取商城默认排序配置", description = "配置中心 KV：mall.product.default.sort")
+    @SaCheckPermission("erp:product:list")
+    @GetMapping("/mall-sort")
+    public Result<Map<String, Object>> getMallSort() {
+        Map<String, Object> cfg = new java.util.LinkedHashMap<>();
+        cfg.put("configKey", ProductService.MALL_SORT_CONFIG_KEY);
+        cfg.put("field", "sort");
+        cfg.put("direction", "asc");
+        String raw = sysConfigService.getValue(ProductService.MALL_SORT_CONFIG_KEY, null);
+        if (raw != null && !raw.isBlank()) {
+            try {
+                Map<String, Object> stored = objectMapper.readValue(raw, new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+                if (stored.get("field") != null) {
+                    cfg.put("field", stored.get("field"));
+                }
+                if (stored.get("direction") != null) {
+                    cfg.put("direction", stored.get("direction"));
+                }
+            } catch (Exception e) {
+                log.warn("[商城默认排序] 配置值解析失败，回落默认排序: key={}, value={}", ProductService.MALL_SORT_CONFIG_KEY, raw);
+            }
+        }
+        return Result.ok(cfg);
+    }
+
+    @Operation(summary = "保存商城默认排序配置",
+            description = "请求体 {\"field\":\"sort|createTime|salesCount|salePrice\",\"direction\":\"asc|desc\"}，落配置中心 KV")
+    @SaCheckPermission("erp:product:update")
+    @PutMapping("/mall-sort")
+    public Result<Map<String, Object>> saveMallSort(@RequestBody Map<String, Object> body) {
+        String field = body.get("field") == null ? "sort" : String.valueOf(body.get("field"));
+        String direction = body.get("direction") == null ? "asc" : String.valueOf(body.get("direction")).toLowerCase();
+        if (!"desc".equals(direction)) {
+            direction = "asc";
+        }
+        Map<String, Object> cfg = new java.util.LinkedHashMap<>();
+        cfg.put("field", field);
+        cfg.put("direction", direction);
+        try {
+            sysConfigService.setValue(ProductService.MALL_SORT_CONFIG_KEY, objectMapper.writeValueAsString(cfg),
+                    "json", "mall", "商城商品默认排序方式（field/direction）");
+        } catch (Exception e) {
+            log.error("[商城默认排序] 配置落库失败", e);
+            return Result.fail("保存失败: " + e.getMessage());
+        }
+        cfg.put("configKey", ProductService.MALL_SORT_CONFIG_KEY);
+        return Result.ok(cfg);
     }
 
     @Operation(summary = "导入商品(Excel)")

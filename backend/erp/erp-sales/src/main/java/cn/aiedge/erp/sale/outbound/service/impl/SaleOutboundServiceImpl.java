@@ -260,6 +260,10 @@ public class SaleOutboundServiceImpl extends ServiceImpl<SaleOutboundMapper, Sal
             wrapper.eq(SaleOutbound::getStatus, OutboundStatus.COMPLETED.getCode())
                     .isNull(SaleOutbound::getBookkeepingTime);
         }
+        // 发货查询固定项：配送状态 / 配送线路（由 DMS 配送任务反查到的出库单号集合做精确过滤）
+        if (q.getOutboundNos() != null && !q.getOutboundNos().isEmpty()) {
+            wrapper.in(SaleOutbound::getOutboundNo, q.getOutboundNos());
+        }
         // 通用关键词（单据编号/来源订单/客户名）
         if (StringUtils.isNotBlank(q.getKeyword())) {
             String kw = q.getKeyword();

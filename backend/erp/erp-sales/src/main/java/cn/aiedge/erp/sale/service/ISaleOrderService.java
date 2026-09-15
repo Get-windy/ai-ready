@@ -1,5 +1,6 @@
 package cn.aiedge.erp.sale.service;
 
+import cn.aiedge.erp.sale.dto.SaleLogisticsRemarkDTO;
 import cn.aiedge.erp.sale.dto.SaleOrderDTO;
 import cn.aiedge.erp.sale.dto.SaleOrderDetailDTO;
 import cn.aiedge.erp.sale.dto.SaleOrderListDTO;
@@ -105,6 +106,15 @@ public interface ISaleOrderService extends IService<SaleOrder> {
     /** 拣货/发货列表 */
     Page<SaleOrderListDTO> pickingShippingPage(Page<SaleOrder> page, Long tenantId, Map<String, Object> filters);
 
+    /** 拣货/发货列表合计（销售金额 / 商品数量，同一查询条件下的全量汇总） */
+    Map<String, Object> pickingShippingSummary(Long tenantId, Map<String, Object> filters);
+
+    /** 拣货完成：明细 picked_quantity 回写 + 主表汇总 */
+    void completePicking(Long id);
+
+    /** 批量拣货完成，返回成功单数 */
+    int batchCompletePicking(List<Long> ids);
+
     /** 构建查询条件 */
     LambdaQueryWrapper<SaleOrder> buildQueryWrapper(Long tenantId, Map<String, Object> filters);
 
@@ -117,8 +127,15 @@ public interface ISaleOrderService extends IService<SaleOrder> {
     /** 商品汇总查询 */
     List<Map<String, Object>> productSummary(Long tenantId, Map<String, Object> filters);
 
-    /** 批量更新物流备注 */
+    /** 批量更新物流备注（旧口径：仅单据备注） */
     void batchUpdateLogisticsRemark(List<Long> ids, String remark);
+
+    /**
+     * 「物流/备注」批量更新（对齐 ql361 OrderRemarks 弹窗全字段；空值不改动）
+     *
+     * @return 实际更新的单据数
+     */
+    int batchUpdateLogistics(SaleLogisticsRemarkDTO dto);
 
     /** 获取客户信用信息 */
     Map<String, Object> getCustomerCreditInfo(Long customerId);

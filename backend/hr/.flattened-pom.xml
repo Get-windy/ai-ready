@@ -5,10 +5,10 @@
   <parent>
     <groupId>cn.aiedge</groupId>
     <artifactId>ai-ready-backend</artifactId>
-    <version>0.3.17</version>
+    <version>0.3.19</version>
   </parent>
   <artifactId>hr</artifactId>
-  <version>0.3.17</version>
+  <version>0.3.19</version>
   <packaging>pom</packaging>
   <name>AI-Ready HR Modules Group</name>
   <description>人力资源管理模块组</description>

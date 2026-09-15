@@ -3,6 +3,7 @@ package cn.aiedge.base.service.message;
 import cn.aiedge.base.entity.SysMessage;
 import cn.aiedge.base.mapper.SysMessageMapper;
 import cn.aiedge.base.service.message.impl.EmailSenderImpl;
+import cn.aiedge.base.service.message.impl.SmsSenderImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -25,6 +26,7 @@ public class MessageSendTask {
 
     private final SysMessageMapper messageMapper;
     private final EmailSender emailSender;
+    private final SmsSender smsSender;
 
     /**
      * 每30秒扫描一次待发送消息
@@ -61,6 +63,14 @@ public class MessageSendTask {
                 break;
             case 2: // 站内信
                 success = true; // 站内信直接成功
+                break;
+            case 3: // 短信（通道未配置时返回 false，交给既有重试/失败逻辑，不静默丢弃）
+                success = smsSender.send(message);
+                if (!success) {
+                    handleSendFailure(message, smsSender.failureReason());
+                    messageMapper.updateById(message);
+                    return;
+                }
                 break;
             default:
                 log.warn("不支持的消息类型: msgType={}", message.getMsgType());
