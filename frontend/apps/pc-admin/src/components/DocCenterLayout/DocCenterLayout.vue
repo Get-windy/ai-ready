@@ -1,5 +1,8 @@
 <template>
-  <div class="doc-center-layout">
+  <div
+    class="doc-center-layout"
+    @table-expand-change="onTableExpandChange"
+  >
     <!-- ═══ 主Tab（工作流阶段）深色Tab栏 ═══ -->
     <div class="main-tabs tab-bar">
       <div class="tab-items">
@@ -310,20 +313,17 @@
       <div class="table-section">
         <slot name="table" />
       </div>
-      <!-- ═══ 分页 ═══ -->
+      <!-- ═══ 分页（表格展开显示时自动让位，表格长到页面底部） ═══ -->
       <div
-        v-if="showPagination"
+        v-if="showPagination && !tableExpanded"
         class="table-pagination"
       >
-        <a-pagination
-          v-model:current="pageCurrent"
-          v-model:page-size="pageSize"
+        <StandardPagination
+          variant="classic"
+          :current="pageCurrent"
+          :page-size="pageSize"
           :total="pageTotal"
-          :show-size-changer="true"
-          :show-quick-jumper="true"
-          :page-size-options="pageSizeOptions"
-          :show-total="(total: number) => `共 ${total} 条记录`"
-          size="small"
+          :page-size-options="numericPageSizeOptions"
           @change="handlePageChange"
         />
       </div>
@@ -339,6 +339,7 @@ import {
   DeleteOutlined, ExportOutlined, UpOutlined, SettingOutlined,
 } from '@ant-design/icons-vue'
 import dayjs, { type Dayjs } from 'dayjs'
+import StandardPagination from '@/components/Pagination/Pagination.vue'
 import type {
   DocMainTab, DocSubTab, DateShortcutItem, StatCardItem,
   SearchFieldItem, SearchCheckboxItem, ToolbarButtonItem, FulfillmentStatItem,
@@ -420,6 +421,20 @@ const pageSize = defineModel<number>('pageSize', { default: 20 })
 // ─ 内部状态 ──
 const timeChartMode = ref(props.timeChartMode || 'day')
 const searchExpanded = ref(false)
+
+/**
+ * 表格展开联动：BillDetailTable 点「表格展开显示」时冒泡 table-expand-change，
+ * 本组件据此隐藏分页区（表格下方让位，表格才能占满到页面底部）。业务页无需再接 expand-change。
+ */
+const tableExpanded = ref(false)
+function onTableExpandChange(e: Event) {
+  tableExpanded.value = !!(e as CustomEvent).detail
+}
+
+/** 分页条数选项：页面传的是字符串数组（['20','50','100']），StandardPagination 要数字 */
+const numericPageSizeOptions = computed(() =>
+  props.pageSizeOptions.map(v => Number(v)).filter(v => !Number.isNaN(v))
+)
 
 function currentTabKey(): string {
   if (props.mainTabsWithSubTabs.includes(activeMainTab.value)) {
@@ -885,14 +900,17 @@ function setTimeMode(mode: string) { timeChartMode.value = mode; emit('time-mode
 .table-section { flex: 1; min-height: 0; overflow: hidden; }
 
 /* ── 分页 ─ */
+/* 与「商城订单」等页统一走 StandardPagination 经典分页栏（首页/上页/第(x/y)页/下页/尾页/跳转/共 N 条记录/每页显示 N 行），
+   分页栏自带边框与内边距，这里只保留让位与底色，避免出现双层边框。 */
 .table-pagination {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  padding: 8px 16px;
   background: #fafafa;
   border-top: 1px solid #e8e8e8;
   flex-shrink: 0;
+}
+.table-pagination :deep(.standard-pagination) {
+  border-top: none;
+  background: transparent;
+  padding: 8px 16px;
 }
 
 /* ── 紧凑尺寸 ── */

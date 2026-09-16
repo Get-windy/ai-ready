@@ -5,10 +5,10 @@
   <parent>
     <groupId>cn.aiedge</groupId>
     <artifactId>ai-ready-backend</artifactId>
-    <version>0.3.19</version>
+    <version>0.3.20</version>
   </parent>
   <artifactId>dms-delivery</artifactId>
-  <version>0.3.19</version>
+  <version>0.3.20</version>
   <name>DMS 配送管理模块</name>
   <description>配送管理系统（含渠道/运力/路线/调度/执行/签收/收款/轨迹/核验/结算/配置/事件）</description>
   <licenses>

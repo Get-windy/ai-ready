@@ -5,10 +5,10 @@
   <parent>
     <groupId>cn.aiedge.erp</groupId>
     <artifactId>erp</artifactId>
-    <version>0.3.19</version>
+    <version>0.3.20</version>
   </parent>
   <artifactId>erp-mall</artifactId>
-  <version>0.3.19</version>
+  <version>0.3.20</version>
   <name>ERP Mall Module</name>
   <description>订货商城，支持B2B企业客户和B2C个人会员统一登录、多身份切换、商品浏览、订单管理</description>
   <licenses>

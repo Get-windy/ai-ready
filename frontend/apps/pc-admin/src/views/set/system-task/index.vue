@@ -153,6 +153,18 @@ onMounted(() => {
 
 <style scoped>
 .search-area { background: #fff; padding: 16px 20px; border-radius: 8px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-.table-area { background: #fff; padding: 16px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-.update-time { font-size: 12px; color: #999; }
+/* 表格卡片占满剩余高度：否则 BillTableList 的 height:100% 没有可解析的父高度，
+   表格塌成内容高度、下方大片留白（「表格展开显示」点了也只收起分页栏，表格长不高）。 */
+.table-area {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  background: #fff;
+  padding: 16px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.08);
+}
+.table-area .bill-table-list-container { flex: 1; min-height: 0; }
+.update-time { font-size: 12px; color: #999; flex-shrink: 0; }
 </style>

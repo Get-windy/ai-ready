@@ -1,5 +1,8 @@
 <template>
-  <div class="inv-analysis-page">
+  <div
+    class="inv-analysis-page"
+    @table-expand-change="onTableExpandChange"
+  >
     <!-- ═══ 视图 Tab（对标：按商品/仓库调拨分析/商品调拨分析） ═══ -->
     <div class="view-tabs">
       <a-tabs v-model:active-key="activeView" size="small">
@@ -41,15 +44,13 @@
           <span :class="{ 'stopped-product': record.stopped }">{{ record.productName }}</span>
         </template>
       </BillDetailTable>
-      <div class="table-pagination">
-        <a-pagination
-          v-model:current="pagination.current"
-          v-model:page-size="pagination.pageSize"
+      <div v-if="!tableExpanded" class="table-pagination">
+        <StandardPagination
+          variant="classic"
+          :current="pagination.current"
+          :page-size="pagination.pageSize"
           :total="pagination.total"
-          :show-size-changer="true"
-          :show-total="(t: number) => `共 ${t} 条记录`"
-          size="small"
-          @change="fetchData"
+          @change="onPageChange"
         />
       </div>
     </div>
@@ -61,10 +62,15 @@ import { ref, reactive, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
 import dayjs, { type Dayjs } from 'dayjs'
 import BillDetailTable from '@/components/BillFormPage/BillDetailTable/index.vue'
+import StandardPagination from '@/components/Pagination/Pagination.vue'
 import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTable/types'
 import { stockReportApi, stockApi } from '@/api/analytics'
+// 自建页面骨架（无 CategoryListLayout 等宿主布局）：自己当展开联动的宿主，收起下方分页区
+import { useTableExpandHost } from '@/composables/useTableExpandHost'
 
 defineOptions({ name: 'InventoryAnalysis' })
+
+const { tableExpanded, onTableExpandChange } = useTableExpandHost()
 
 const activeView = ref('product')
 const loading = ref(false)
@@ -117,6 +123,13 @@ const columns: DetailColumnConfig[] = [
   { key: 'closingAmt', title: '期末金额', width: 110, align: 'right' },
 ]
 
+/** 分页变化：StandardPagination 不像 antd 分页那样自带 v-model 双绑，需先回写分页状态再取数 */
+function onPageChange(page: number, size: number) {
+  pagination.current = page
+  pagination.pageSize = size
+  fetchData()
+}
+
 async function fetchData() {
   loading.value = true
   try {
@@ -162,6 +175,7 @@ onMounted(async () => {
 .view-toolbar { flex-shrink: 0; }
 .query-area { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 8px; background: #fff; border-radius: 4px; }
 .table-wrap { flex: 1; overflow: hidden; display: flex; flex-direction: column; background: #fff; border-radius: 4px; }
-.table-pagination { display: flex; justify-content: flex-end; padding: 8px 12px; }
+/* 分页栏统一走 StandardPagination 经典形态（自带边框/内边距/居中），这里只保留让位 */
+.table-pagination { flex-shrink: 0; }
 .stopped-product { color: #ff4d4f; }
 </style>

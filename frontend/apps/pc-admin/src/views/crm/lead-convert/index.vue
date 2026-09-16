@@ -536,4 +536,18 @@ onUnmounted(() => {
 .shortcut-hint { display: inline-flex; align-items: center; gap: 2px; padding: 1px 4px; border-radius: 3px; background: #f5f7fa; }
 .shortcut-hint kbd { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 3px; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 11px; color: #606266; background: #fff; border: 1px solid #d0d5dd; border-radius: 3px; box-shadow: 0 1px 0 #d0d5dd; line-height: 18px; }
 :deep(.ant-input-sm), :deep(.ant-input-number-sm), :deep(.ant-select-single.ant-select-sm .ant-select-selector), :deep(.ant-picker-small), :deep(.ant-btn-sm) { height: 28px; line-height: 28px; }
+
+/* 让 BillTableList 占满剩余高度：ErrorBoundary 根节点是 PageContainer 内容区的直接子节点，
+   必须撑满并保持纵向 flex，否则表格的 height:100% 没有可解析的父高度 → 表格塌成内容高度、
+   下方大片留白（「表格展开显示」点了也只收起分页栏，表格长不高）。 */
+.error-boundary-root {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.bill-table-list-container {
+  flex: 1;
+  min-height: 0;
+}
 </style>

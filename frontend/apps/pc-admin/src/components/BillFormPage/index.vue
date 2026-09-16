@@ -1,5 +1,8 @@
 <template>
-  <div class="bill-form-page">
+  <div
+    class="bill-form-page"
+    @table-expand-change="onTableExpandChange"
+  >
     <!-- ═══ Zone 1: 头部操作栏 ═══ -->
     <div class="bill-header">
       <div class="header-left">
@@ -453,9 +456,19 @@ const activeTab = ref(props.tabs?.[0]?.key || '')
 /** 表格展开状态（控制底部面板和页脚的显示/隐藏） */
 const tableExpanded = ref(false)
 
-/** 处理表格展开/收起事件 */
+/** 处理页面自行接线的展开/收起事件（<template #detail-table="{ onExpandChange }"> 用法） */
 function handleTableExpand(expanded: boolean) {
   tableExpanded.value = expanded
+}
+
+/**
+ * 组件级兜底：BillDetailTable 展开时会冒泡 DOM 事件 table-expand-change，
+ * 这里直接感知，**业务表单页无需再自己接 onExpandChange**（此前没接的页面点了展开毫无反应：
+ * 底部面板/页脚照旧占位，表格长不高 —— 用户视角"按钮是个摆设"）。
+ * ⚠️ 与页面自行接线的 handleTableExpand 并存不冲突（同一个状态，值一致）。
+ */
+function onTableExpandChange(e: Event) {
+  tableExpanded.value = !!(e as CustomEvent).detail
 }
 
 /** 有效模式：显式指定 > 路由推断 */

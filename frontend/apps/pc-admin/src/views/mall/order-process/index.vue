@@ -1316,9 +1316,11 @@ function handleCheckboxAll(_checked: boolean, records: OrderRow[]) {
  */
 const docColumns: DetailColumnConfig[] = [
   { key: 'rowNo', title: '', type: 'rowNo', width: 40, fixed: 'left' },
-  { key: 'action', title: '操作', type: 'action', slotName: 'actionCell', width: 190, fixed: 'left' },
   // 勾选列（key 必须为 checkbox —— BillDetailTable LOCKED_COLUMNS 锁定列口径）
+  // ⚠️ 必须紧挨序号列：操作列在 BillDetailTable 内被强制 width:auto（实际宽度≠配置宽度），
+  //    勾选列若排在操作列之后，会被钉到错误的 left 偏移上（表现为表格中间浮着一个错位的选中列）。
   { key: 'checkbox', title: '', type: 'checkbox', width: 40, fixed: 'left' },
+  { key: 'action', title: '操作', type: 'action', slotName: 'actionCell', width: 190, fixed: 'left' },
   { key: 'orderNo', title: '单据编号', type: 'slot', slotName: 'orderNoCell', width: 170 },
   { key: 'totalAmount', title: '订单金额', type: 'slot', slotName: 'totalAmountCell', width: 110, align: 'right' },
   { key: 'otherFee', title: '其他费用', type: 'slot', slotName: 'otherFeeCell', width: 100, align: 'right' },

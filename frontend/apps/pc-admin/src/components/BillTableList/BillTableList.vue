@@ -2,6 +2,7 @@
   <div
     ref="containerRef"
     class="bill-table-list-container"
+    @table-expand-change="onTableExpandChange"
   >
     <!-- 顶部工具栏 -->
     <div
@@ -200,20 +201,17 @@
       </template>
     </BillDetailTable>
 
-    <!-- 分页 -->
+    <!-- 分页（表格展开显示时自动让位，表格长到页面底部） -->
     <div
-      v-if="pagination"
+      v-if="pagination && !tableExpanded"
       class="table-pagination"
     >
-      <a-pagination
-        v-model:current="currentPage"
-        v-model:page-size="pageSize"
+      <StandardPagination
+        variant="classic"
+        :current="currentPage"
+        :page-size="pageSize"
         :total="paginationTotal"
-        :show-size-changer="true"
-        :show-quick-jumper="true"
-        :page-size-options="['10', '20', '50', '100']"
-        :show-total="(total: number) => `共 ${total} 条`"
-        size="small"
+        :page-size-options="[10, 20, 50, 100]"
         @change="handlePageChange"
       />
     </div>
@@ -242,6 +240,7 @@ import {
   FilterOutlined,
 } from '@ant-design/icons-vue'
 import BillDetailTable from '@/components/BillFormPage/BillDetailTable/index.vue'
+import StandardPagination from '@/components/Pagination/Pagination.vue'
 import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTable/types'
 import { usePermission } from '@/composables/usePermission'
 
@@ -343,6 +342,15 @@ const filterValues = reactive<Record<string, any>>({})
 const currentPage = ref((props.pagination as any)?.current || 1)
 const pageSize = ref((props.pagination as any)?.pageSize || 20)
 const paginationTotal = ref(Number((props.pagination as any)?.total) || 0)
+
+/**
+ * 表格展开联动：BillDetailTable 点「表格展开显示」时冒泡 table-expand-change，
+ * 本组件据此隐藏底部分页区（表格下方让位，表格才能占满到页面底部）。业务页无需再接 expand-change。
+ */
+const tableExpanded = ref(false)
+function onTableExpandChange(e: Event) {
+  tableExpanded.value = !!(e as CustomEvent).detail
+}
 
 // 处理数据（添加空行）
 const tableData = computed(() => props.dataSource)
@@ -495,11 +503,16 @@ onMounted(() => {
 }
 
 /* ── 分页 ── */
+/* 与「商城订单」等页统一走 StandardPagination 经典分页栏；
+   分页栏自带边框与内边距，这里只保留让位与底色，避免出现双层边框。 */
 .table-pagination {
-  display: flex;
-  justify-content: flex-end;
-  padding: 12px 16px;
   border-top: 1px solid #f0f0f0;
   background: #fafafa;
+  flex-shrink: 0;
+}
+.table-pagination :deep(.standard-pagination) {
+  border-top: none;
+  background: transparent;
+  padding: 8px 16px;
 }
 </style>

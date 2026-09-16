@@ -5,10 +5,10 @@
   <parent>
     <groupId>cn.aiedge.erp</groupId>
     <artifactId>erp</artifactId>
-    <version>0.3.19</version>
+    <version>0.3.20</version>
   </parent>
   <artifactId>erp-supplier-portal</artifactId>
-  <version>0.3.19</version>
+  <version>0.3.20</version>
   <name>供应商协同门户模块</name>
   <description>供应商协同门户，包括供应商管理、询价报价协同、订单协同、绩效管理、通知推送等功能</description>
   <licenses>

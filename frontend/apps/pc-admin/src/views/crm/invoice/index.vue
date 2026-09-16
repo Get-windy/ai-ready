@@ -1090,8 +1090,17 @@ defineExpose({ handleQuery: fetchData })
   margin: 0 24px;
 }
 
-/* 让 BillTableList 填满剩余空间 */
-.vxe-table-list-wrapper {
+/* 让 BillTableList 填满剩余空间：
+   ErrorBoundary 根节点是 PageContainer 内容区的直接子节点，它必须撑满并保持纵向 flex，
+   否则 BillTableList 的 height:100% 没有可解析的父高度 → 表格塌成内容高度、下方大片留白
+   （「表格展开显示」点了也只收起分页栏，表格长不高）。 */
+.error-boundary-root {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.bill-table-list-container {
   flex: 1;
   min-height: 0;
 }

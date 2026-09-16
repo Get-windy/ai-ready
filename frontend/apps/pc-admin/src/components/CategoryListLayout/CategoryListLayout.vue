@@ -1,5 +1,8 @@
 <template>
-  <div class="category-list-layout">
+  <div
+    class="category-list-layout"
+    @table-expand-change="onTableExpandChange"
+  >
     <!-- Tab标签页（居中，深色背景） -->
     <div
       v-if="tabs.length > 0"
@@ -188,9 +191,9 @@
         <div class="table-section">
           <slot name="table" />
         </div>
-        <!-- 表格底部插槽（放分页器等） -->
+        <!-- 表格底部插槽（放分页器等）；表格展开显示时自动让位，表格才能长到页面底部 -->
         <div
-          v-if="showTableFooter && $slots['table-footer']"
+          v-if="showTableFooter && !tableExpanded && $slots['table-footer']"
           class="table-footer-section"
         >
           <slot name="table-footer" />
@@ -288,6 +291,16 @@ defineEmits<{
 
 // ── 折叠状态 ──
 const categoryCollapsed = ref(false)
+
+/**
+ * 表格展开联动：BillDetailTable 点「表格展开显示」时冒泡 table-expand-change，
+ * 本组件据此隐藏底部分页区（表格下方区域让位，表格才能占满到页面底部）。
+ * 业务页无需再自己接 expand-change + 传 :show-table-footer。
+ */
+const tableExpanded = ref(false)
+function onTableExpandChange(e: Event) {
+  tableExpanded.value = !!(e as CustomEvent).detail
+}
 
 function toggleCollapse() {
   categoryCollapsed.value = !categoryCollapsed.value

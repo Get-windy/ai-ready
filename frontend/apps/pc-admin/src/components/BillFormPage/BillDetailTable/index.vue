@@ -42,6 +42,7 @@
               :style="cell.col ? getColStyle(cell.col) : undefined"
               :class="cell.col ? getColClass(cell.col) : 'ss-header-group'"
               :data-filler="cell.col && cell.col.key === '__filler__' ? true : undefined"
+              :data-col-key="cell.col ? cell.col.key : undefined"
             >
               <!-- ═══ rowNo 列：内嵌齿轮设置图标 ═══ -->
               <template v-if="cell.col && cell.col.type === 'rowNo'">
@@ -482,9 +483,11 @@
     </a-modal>
 
 
-    <!-- 分页器 -->
+    <!-- 分页器：与全站统一走经典形态（首页/上页/第(x/y)页/下页/尾页/跳转/共 N 条记录/每页显示 N 行）。
+         表格展开显示时自动让位 —— 它就在表格正下方，展开时必须收起，表格才能占满到页面底部。 -->
     <StandardPagination
-      v-if="showPagination"
+      v-if="showPagination && !expanded"
+      variant="classic"
       v-model:current="currentPage"
       v-model:page-size="currentPageSize"
       :total="total"
@@ -496,7 +499,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, reactive, nextTick } from 'vue'
+import { ref, computed, watch, reactive, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { SettingOutlined, FullscreenOutlined, CaretUpOutlined, CaretDownOutlined, QuestionCircleOutlined } from '@ant-design/icons-vue'
 import { Modal, Button, Checkbox, Select, InputNumber, Input, Tabs } from 'ant-design-vue'
 import type { DetailColumnConfig, ColumnSetting, DetailColumnOption } from './types'
@@ -607,6 +610,49 @@ const expanded = ref(props.defaultExpanded)
 const showColPanel = ref(false)
 const scanEnabled = ref(false)
 const tableContainerRef = ref<HTMLElement>()
+
+/** 各列实际渲染宽度（key → px），由 measureColWidths 回填，供冻结列偏移使用 */
+const measuredColWidths = ref<Record<string, number>>({})
+
+/**
+ * 回填各列「实际渲染宽度」，供冻结列偏移使用（见 stickyOffset 的说明）。
+ * 只在数值真变化时写回，避免 ResizeObserver → 样式变化 → 再次回调的自激循环。
+ */
+function measureColWidths() {
+  const root = tableContainerRef.value
+  if (!root) return
+  const ths = root.querySelectorAll<HTMLElement>('.ss-grid thead th[data-col-key]')
+  if (!ths.length) return
+  const next: Record<string, number> = {}
+  ths.forEach((th) => {
+    const key = th.dataset.colKey
+    const w = th.offsetWidth
+    if (key && w > 0) next[key] = w
+  })
+  const prev = measuredColWidths.value
+  const keys = Object.keys(next)
+  if (keys.length && keys.every(k => prev[k] === next[k]) && keys.length === Object.keys(prev).length) return
+  measuredColWidths.value = next
+}
+
+let colResizeObserver: ResizeObserver | null = null
+
+onMounted(() => {
+  nextTick(() => {
+    measureColWidths()
+    // 页面把表格配成默认展开时，同样要让宿主收起下方区域，保持初始状态自洽
+    if (expanded.value) notifyHostExpand(true)
+  })
+  if (typeof ResizeObserver !== 'undefined' && tableContainerRef.value) {
+    colResizeObserver = new ResizeObserver(() => measureColWidths())
+    colResizeObserver.observe(tableContainerRef.value)
+  }
+})
+
+onBeforeUnmount(() => {
+  colResizeObserver?.disconnect()
+  colResizeObserver = null
+})
 
 // ═══ 操作列(按钮列)宽度：采用页面定义的 col.width（配合按钮折叠），不再按内容测量，
 //     这样多 tab/多实例各自独立（+/− 等窄操作列不被撑大），也不受单项宽内容影响。 ═══
@@ -1021,6 +1067,13 @@ const visibleColumns = computed<DetailColumnConfig[]>(() => {
   return cols
 })
 
+// 列配置或行数据变化都会改变列的实际渲染宽度 → 重新实测（冻结列偏移依赖它）
+watch(
+  () => visibleColumns.value.map(c => `${c.key}:${c.width ?? ''}:${c.fixed ?? ''}`).join('|'),
+  () => nextTick(measureColWidths)
+)
+watch(() => displayRows.value.length, () => nextTick(measureColWidths))
+
 // ═══ 表头渲染行：无分组=单行；有分组=两行（组标题 + 叶子列） ═══
 interface HeaderCell {
   key: string
@@ -1091,6 +1144,17 @@ function getSummaryValue(key: string): string {
 
 // ═══ 样式辅助 ═══
 /**
+ * 冻结列偏移的宽度口径 —— 必须用「实际渲染宽度」而不是列配置里的 width。
+ * ⚠️ 组件级（踩过的坑）：操作列/按钮列在 getColStyle 里被强制 width:auto（保证按钮总放得下），
+ *    于是它**实际渲染宽度 ≠ 配置里的 width**；若偏移仍按配置 width 累加，排在它后面的冻结列
+ *    （如「按单据」页的勾选列）会被钉到一个错误位置 —— 表现为表格中间浮着一个错位的选中列。
+ *    实测宽度在渲染后用 ResizeObserver 回填，未测到时才退回配置值。
+ */
+function colEffectiveWidth(c: DetailColumnConfig): number {
+  return measuredColWidths.value[c.key] || c.width || 100
+}
+
+/**
  * 冻结列累计偏移：
  * 左侧冻结按可见顺序累加「排在该列之前的左冻结列」宽度，右侧冻结从末尾往前累加。
  * ⚠️ 不可直接写 left:0 —— 多列左冻结时会全部钉在同一位置而重叠。
@@ -1101,7 +1165,7 @@ function stickyOffset(col: DetailColumnConfig): { left?: string; right?: string 
     let left = 0
     for (const c of cols) {
       if (c.key === col.key) return { left: left + 'px' }
-      if (c.fixed === 'left') left += (c.width || 100)
+      if (c.fixed === 'left') left += colEffectiveWidth(c)
     }
     return { left: '0px' }
   }
@@ -1110,7 +1174,7 @@ function stickyOffset(col: DetailColumnConfig): { left?: string; right?: string 
     for (let i = cols.length - 1; i >= 0; i--) {
       const c = cols[i]
       if (c.key === col.key) return { right: right + 'px' }
-      if (c.fixed === 'right') right += (c.width || 100)
+      if (c.fixed === 'right') right += colEffectiveWidth(c)
     }
     return { right: '0px' }
   }
@@ -1369,9 +1433,24 @@ function getCellDisplayValue(col: DetailColumnConfig, record: any): string {
 }
 
 // ═══ 展开/收起 ═══
+/**
+ * 把展开状态告诉**宿主布局**（CategoryListLayout / DocCenterLayout / BillTableList / VxeTableList …），
+ * 让宿主自动收起自己表格下方的区域（分页栏 / 页脚区），表格才能真正长高占满。
+ * ⚠️ 组件级（踩过的坑）：此前只 emit('expand-change') 交给业务页处理，而绝大多数列表页根本没接这个事件，
+ *    于是点「表格展开显示」只切了个没有视觉效果的 class —— 下面的分页整天占着位置，按钮形同摆设。
+ * ⚠️ 用冒泡 DOM 事件而不是 provide/inject：插槽内容的注入链取决于「定义插槽的页面」而不是「渲染它的布局」，
+ *    跨层级不可靠；DOM 事件严格按真实 DOM 树冒泡，且天然覆盖 BillTableList 这类多一层包裹的场景。
+ */
+function notifyHostExpand(value: boolean) {
+  tableContainerRef.value?.dispatchEvent(
+    new CustomEvent('table-expand-change', { detail: value, bubbles: true })
+  )
+}
+
 function toggleExpand() {
   expanded.value = !expanded.value
   emit('expand-change', expanded.value)
+  notifyHostExpand(expanded.value)
 }
 
 /** 锁定列（系统列，不参与列配置）：行号 / 勾选 / 操作 */

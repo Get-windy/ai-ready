@@ -371,15 +371,13 @@
           v-if="flatMenuRows.length > 0"
           class="table-pagination"
         >
-          <a-pagination
-            v-model:current="currentPage"
-            v-model:page-size="pageSize"
+          <StandardPagination
+            variant="classic"
+            :current="currentPage"
+            :page-size="pageSize"
             :total="flatMenuRows.length"
-            :show-size-changer="true"
-            :show-quick-jumper="true"
-            :page-size-options="['20', '50', '100', '200']"
-            :show-total="(total: number) => `共 ${total} 条`"
-            size="small"
+            :page-size-options="[20, 50, 100, 200]"
+            @change="onPageChange"
           />
         </div>
 
@@ -683,6 +681,7 @@ import {
   CaretRightOutlined
 } from '@ant-design/icons-vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import StandardPagination from '@/components/Pagination/Pagination.vue'
 import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 import menuApi, { type MenuInfo, type MenuQuery, type MenuSaveRequest, type MenuUpdateRequest } from '@/api/menu'
 import roleApi from '@/api/role'
@@ -719,6 +718,12 @@ const isExpandAll = ref(false)
 // ── 分页状态 ─────────────────────────────────────────────
 const currentPage = ref(1)
 const pageSize = ref(50)
+
+/** 分页变化：StandardPagination 不像 antd 分页那样自带 v-model 双绑，需显式回写分页状态 */
+function onPageChange(page: number, size: number) {
+  currentPage.value = page
+  pageSize.value = size
+}
 
 // ── 树展开状态（扁平化方案）─────────────────────────────
 const expandedRowKeys = ref<number[]>([])
@@ -1564,10 +1569,9 @@ function handleError(err: any) { console.warn('[ErrorBoundary]', err) }
 }
 
 /* ── 分页 ───────────────────────────────────── */
+/* 分页栏统一走 StandardPagination 经典形态（自带边框/内边距/居中），这里只保留让位 */
 .table-pagination {
-  display: flex;
-  justify-content: flex-end;
-  padding: 10px 0 0;
+  flex-shrink: 0;
 }
 
 /* 响应式 */

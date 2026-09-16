@@ -335,15 +335,12 @@
       v-if="pagination"
       class="table-pagination"
     >
-      <a-pagination
-        v-model:current="currentPage"
-        v-model:page-size="pageSize"
+      <StandardPagination
+        variant="classic"
+        :current="currentPage"
+        :page-size="pageSize"
         :total="paginationTotal"
-        :show-size-changer="true"
-        :show-quick-jumper="true"
-        :page-size-options="['10', '20', '50', '100']"
-        :show-total="(total: number) => `共 ${total} 条`"
-        size="small"
+        :page-size-options="[10, 20, 50, 100]"
         @change="handlePageChange"
       />
     </div>
@@ -367,6 +364,7 @@ import {
   InboxOutlined,
 } from '@ant-design/icons-vue'
 import type { VxeTableInstance, VxeTablePropTypes } from 'vxe-table'
+import StandardPagination from '@/components/Pagination/Pagination.vue'
 
 // ── 防抖工具 ──────────────────────────────────────────
 const debounceMap = new Map<string, number>()
@@ -878,10 +876,17 @@ watch(() => props.pagination, (p) => {
   font-weight: 500;
 }
 
+/* 与「商城订单」等页统一走 StandardPagination 经典分页栏；
+   分页栏自带边框与内边距，这里只保留让位与底色，避免出现双层边框。 */
 .table-pagination {
-  padding: 12px 16px;
   border-top: 1px solid #d9d9d9;
+  background: #fafafa;
   flex-shrink: 0;
+}
+.table-pagination :deep(.standard-pagination) {
+  border-top: none;
+  background: transparent;
+  padding: 8px 16px;
 }
 
 .table-empty {

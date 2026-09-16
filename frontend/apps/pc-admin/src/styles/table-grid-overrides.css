@@ -240,3 +240,16 @@
   border-top: 2px solid #b0b0b0 !important;
   background-color: #fafafa !important;
 }
+
+/* =========================================================
+ * 「表格展开显示」通用兜底：展开时收起表格的后续兄弟区块
+ * ---------------------------------------------------------
+ * BillDetailTable 点「表格展开显示」会给根节点加 .table-expanded。
+ * 页面自建骨架里，分页栏 / 「当前路径」条 / 其它底部条带通常就是表格在**同一个容器内**的
+ * 后续兄弟节点；宿主布局的 JS 联动只能管到"不在同一容器里"的下方区域（见
+ * CategoryListLayout / DocCenterLayout / BillTableList / BillFormPage），
+ * 剩下的这一类用本条 CSS 一并让位，页面不需要再接任何事件。
+ * ========================================================= */
+.bill-detail-table.table-expanded ~ * {
+  display: none !important;
+}

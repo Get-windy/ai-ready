@@ -5,12 +5,12 @@
   <parent>
     <groupId>cn.aiedge</groupId>
     <artifactId>ai-ready-backend</artifactId>
-    <version>0.3.19</version>
+    <version>0.3.20</version>
     <relativePath>../../pom.xml</relativePath>
   </parent>
   <groupId>cn.aiedge.erp</groupId>
   <artifactId>erp-delivery-route</artifactId>
-  <version>0.3.19</version>
+  <version>0.3.20</version>
   <name>ERP配送路线优化模块</name>
   <description>配送路线优化功能：高德API集成、多点路径规划、实时路况调整、导航功能</description>
   <licenses>
