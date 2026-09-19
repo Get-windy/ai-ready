@@ -19,6 +19,12 @@ interface UserState {
   menus: MenuInfo[]
   billTypes: string[]
   validModuleCodes: string[]
+  /**
+   * 是否已尝试加载过模块授权数据。
+   * 用来区分「尚未加载 / 加载失败」与「确实一个模块都没授权」——
+   * 前者不该放行（fail-closed 前必须先能区分），后者本就该拒绝。见 hasValidModule 注释。
+   */
+  moduleCodesLoaded: boolean
 }
 
 export const useUserStore = defineStore('user', {
@@ -33,7 +39,9 @@ export const useUserStore = defineStore('user', {
     roles: [],
     menus: [],
     billTypes: [],
-    validModuleCodes: []
+    validModuleCodes: [],
+    // 注意：该字段刻意**不持久化**（见 persist.paths）——每次会话都要重新确认模块授权
+    moduleCodesLoaded: false
   }),
 
   getters: {
@@ -130,7 +138,9 @@ export const useUserStore = defineStore('user', {
         // 菜单由 loadDynamicRoutes() 负责加载，避免重复赋值导致 a-menu 重渲染崩溃
 
         // 加载当前租户的有效模块编码（用于路由守卫模块校验）
-        this.loadValidModuleCodes()
+        // ⚠️ 必须 await：不等待的话路由守卫会在数据到位前就执行模块校验，
+        //    而 hasValidModule 现在是 fail-closed，会误把正常页面判成无权访问。
+        await this.loadValidModuleCodes()
 
         // 建立 SSE 通知连接（页面刷新后重新连接）
         this.connectSse()
@@ -146,6 +156,10 @@ export const useUserStore = defineStore('user', {
         this.validModuleCodes = res.data || []
       } catch {
         this.validModuleCodes = []
+      } finally {
+        // 无论成功失败都标记「已尝试」——hasValidModule 据此区分
+        // 「尚未加载」（拒绝）与「已加载但确实没授权」（也拒绝，但语义不同）。
+        this.moduleCodesLoaded = true
       }
     },
 
@@ -163,6 +177,7 @@ export const useUserStore = defineStore('user', {
         this.roles = []
         this.billTypes = []
         this.validModuleCodes = []
+        this.moduleCodesLoaded = false
         this.menus = []
         localStorage.removeItem('token')
         localStorage.removeItem('tenantId')
@@ -212,23 +227,25 @@ export const useUserStore = defineStore('user', {
      * @param routePath 路由路径（如 "sale/order"）
      * @returns true=模块有效或无需校验
      */
-    hasValidModule(routePath: string): boolean {
+    hasValidModule(moduleCode: string): boolean {
       // 系统用户不限制模块
       if (this.isSystemUser) return true
-      // 没有模块限制数据时放行（避免影响未配置模块的租户）
-      if (!this.validModuleCodes || this.validModuleCodes.length === 0) return true
 
-      const parts = routePath.replace(/^\/+/, '').split('/').filter(Boolean)
-      if (parts.length === 0) return true
+      // 不受模块授权管辖的路径（getRouteModule 返回 undefined）不会走到这里；
+      // 走到这里的都是已登记在 MODULE_ROUTE_MAP 里的模块码。
+      if (!moduleCode) return true
 
-      // 取路径首段作为 moduleKey（如 "sale/order" → "sale"）
-      const moduleKey = parts[0]
+      // ⚠️ 模块授权数据尚未就绪（首次进入的竞态、或接口失败）→ **拒绝**，不静默放行。
+      //    旧实现是 `length === 0 → return true`（fail-open），与后端语义相反：
+      //    TenantModuleService.hasModuleAccess 是 `validCodes.isEmpty() → false`（fail-closed）。
+      //    两边语义不一致时，前端成了唯一的宽松方——「接口挂了 = 全模块解锁」。
+      if (!this.moduleCodesLoaded) return false
 
-      // 检查精确匹配
-      if (this.validModuleCodes.includes(moduleKey)) return true
+      // 精确匹配
+      if (this.validModuleCodes.includes(moduleCode)) return true
 
-      // 检查前缀匹配（如 "sale:order" 匹配 "sale"）
-      let prefix = moduleKey
+      // 前缀匹配（如 "sale:order" 匹配 "sale"）
+      let prefix = moduleCode
       while (prefix.includes(':')) {
         prefix = prefix.substring(0, prefix.lastIndexOf(':'))
         if (this.validModuleCodes.includes(prefix)) return true

@@ -1769,27 +1769,46 @@ function getFallbackRoutes(): RouteRecordRaw[] {
   ]
 }
 
+/**
+ * 「受租户模块授权管辖」的路径 → 模块码 映射。
+ *
+ * ⚠️ 只登记 `sys_tenant_module` 里**真实存在**的模块码。devdb 实测（2026-09-19）该表
+ *    总共只有 5 个码：crm / finance / purchase / sale / warehouse（租户 1、2 各 5 行）。
+ *
+ * 系统里还有 hr / mall / printing / wms / quality / trade / payment 等模块，但**不在租户
+ * 模块授权表里**。把它们登记进来，`hasValidModule` 会因为 `validModuleCodes` 里没有这些码
+ * 而一律判 false ⇒ 整块页面被锁死（连工作台都进不去）。所以刻意不登记：
+ *   不登记 ⇒ getRouteModule 返回 undefined ⇒ checkRouteAccess 跳过模块校验 ⇒ 放行。
+ * 要纳入管辖，前提是先把这些模块码补进 `sys_tenant_module`（属业务决策）。
+ *
+ * ⚠️ 另一处历史缺陷已修正：原 key 写作 `'customer'`，而库里实际模块码是 **`crm`** ⇒
+ *    「客户/合同/线索/商机/报价/发票」六页在模块校验真正生效时会被误拒
+ *    （`validModuleCodes.includes('customer')` 恒为 false）。
+ */
 const MODULE_ROUTE_MAP: Record<string, string[]> = {
-  'sale': ['sale', 'erp/sale', 'erp/sales-analysis', 'erp/sales-report', 'sales/outbound', 'sales/pre-order'],
-  'purchase': ['purchase', 'erp/purchase', 'purchase/exchange', 'purchase/return'],
-  'warehouse': ['stock', 'erp/stock', 'erp/stock-in', 'erp/stocktake', 'erp/return', 'erp/shipment', 'erp/batch', 'erp/serial'],
-  'finance': ['finance', 'erp/finance'],
-  'customer': ['crm/customer', 'crm/contract', 'crm/lead', 'crm/opportunity', 'crm/quotation', 'crm/invoice'],
-  'supplier': ['supplier'],
-  'report': ['charts', 'erp/dashboard'],
-  'system': ['system'],
-  'printing': ['printing'],
-  'notification': ['notification'],
-  'wms': ['wms'],
-  'mall': ['mall'],
-  'hr': ['hr'],
-  'trade': ['trade'],
-  'quality': ['quality'],
-  'payment': ['payment'],
+  'sale': ['sale', 'erp/sale', 'erp/sales-analysis', 'erp/sales-report',
+           'sales/outbound', 'sales/pre-order', 'sales/retail', 'sales/return-apply',
+           'sales/exchange', 'sales/return-doc', 'sales/order-center'],
+  'purchase': ['purchase', 'erp/purchase', 'purchase/exchange', 'purchase/return',
+               'erp/purchase-contract', 'purchase/inquiry'],
+  'warehouse': ['stock', 'erp/stock', 'erp/stock-in', 'erp/stocktake', 'erp/return',
+                'erp/shipment', 'erp/batch', 'erp/serial', 'erp/stock-bom',
+                'erp/stock-assemble', 'erp/stock-split', 'wms', 'wh'],
+  'finance': ['finance', 'erp/finance', 'budget', 'fixed-asset'],
+  'crm': ['crm'],   // ← 原为 'customer'（库中无此码），按实际模块码修正
 }
 
 /**
  * 根据路由路径推断所属模块编码
+ */
+/**
+ * 根据路由路径推断所属模块编码；返回 `undefined` 表示该路径**不受模块授权管辖**，
+ * 调用方 checkRouteAccess 会跳过模块校验。
+ *
+ * ⚠️ 不要恢复「用路径首段兜底」的旧写法。那会把 dashboard / profile / notification /
+ *    hr / mall / printing 等**未登记**的路径也算成模块码，再配合 hasValidModule 现在的
+ *    fail-closed 语义，就会把这些页面直接锁死——工作台都会被判「无权访问」。
+ *    只有明确登记在 MODULE_ROUTE_MAP 里的路径才参与模块校验。
  */
 function getRouteModule(routePath: string): string | undefined {
   const normalized = routePath.replace(/^\/+|\/+$/g, '').replace(/\/:\w+\??/g, '')
@@ -1800,9 +1819,7 @@ function getRouteModule(routePath: string): string | undefined {
       }
     }
   }
-  // 取路径首段作为模块
-  const firstSegment = normalized.split('/')[0]
-  return firstSegment || undefined
+  return undefined
 }
 
 export function checkRouteAccess(route: any): boolean {
