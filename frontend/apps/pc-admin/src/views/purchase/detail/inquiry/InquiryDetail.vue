@@ -25,14 +25,14 @@
     </template>
     <template #actions>
       <a-button
-        v-if="inquiry?.status === 0 && !isEditing"
+        v-if="isDraft(inquiry) && !isEditing"
         type="primary"
         @click="handleEdit"
       >
         编辑
       </a-button>
       <a-button
-        v-if="inquiry?.status === 0 && !isEditing"
+        v-if="isDraft(inquiry) && !isEditing"
         @click="handleSend"
       >
         发送询价
@@ -231,8 +231,30 @@ const activityLogs = computed(() => inquiry.value ? [
 ] : [])
 
 const getStatusColor = (s?: number) => ({ 0: 'default', 1: 'blue', 2: 'green' } as any)[s ?? 0] || 'default'
-const getStatusText = (s?: number) => ({ 0: '草稿', 1: '已发送', 2: '已报价' } as any)[s ?? 0] || '未知'
-const getStatusType = (s?: number): any => ({ 0: 'default', 1: 'info', 2: 'success' } as any)[s ?? 0] || 'default'
+// ⚠️ 2026-09-19 修正：后端 `InquiryStatus` 是 `@Enumerated(EnumType.STRING)`，
+// 接口返回的是**枚举名字符串**（8 个状态），此前这里只映射数字 0/1/2（3 个状态）
+// ⇒ 状态一律显示「未知」，且下方 `status === 0` 恒为假 ⇒ 编辑/发送按钮永不出现。
+// 现按后端枚举全量映射，并保留对历史数字写法的兼容。
+const STATUS_MAP: Record<string, { text: string; type: string }> = {
+  DRAFT: { text: '草稿', type: 'default' },
+  PUBLISHED: { text: '已发布', type: 'info' },
+  QUOTING: { text: '报价中', type: 'info' },
+  DECISION_MADE: { text: '已决策', type: 'success' },
+  CONTRACT_CREATED: { text: '已生成合同', type: 'success' },
+  CLOSED: { text: '已关闭', type: 'default' },
+  COMPLETED: { text: '已完成', type: 'success' },
+  CANCELLED: { text: '已取消', type: 'default' },
+}
+/** 兼容历史数字写法（0/1/2 → 前三个枚举名），其余原样返回 */
+const toStatusKey = (s?: number | string): string => {
+  if (s === undefined || s === null || s === '') return ''
+  if (typeof s === 'number') return ['DRAFT', 'PUBLISHED', 'QUOTING'][s] || ''
+  return String(s)
+}
+const getStatusText = (s?: number | string) => STATUS_MAP[toStatusKey(s)]?.text || '未知'
+const getStatusType = (s?: number | string): any => STATUS_MAP[toStatusKey(s)]?.type || 'default'
+/** 是否草稿态（编辑/发送按钮的可见条件） */
+const isDraft = (v: any) => toStatusKey(v?.status) === 'DRAFT'
 
 const fetchDetail = async () => {
   loading.value = true; error.value = null

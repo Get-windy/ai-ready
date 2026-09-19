@@ -22,9 +22,47 @@ export interface PageResult<T> {
 }
 
 // ── 采购询价 ──────────────────────────────────────────
+/**
+ * 采购询价单。
+ *
+ * ⚠️ 2026-09-19 按后端实体 `cn.aiedge.erp.purchase.entity.PurchaseInquiry` 校正：
+ * 此前声明的 `supplierId / supplierName / inquiryDate` 在实体里**并不存在**
+ * （受邀供应商是 `invitedSupplierIds` 逗号分隔串，时间字段是 `createdAt`）；
+ * `status` 也不是数字——实体用 `@Enumerated(EnumType.STRING)`，接口返回枚举名
+ * （如 'DRAFT'），分页接口的 status 查询参数同样是 String。
+ * 旧字段保留为可选仅为兼容既有调用方（如 InquiryDetail.vue），新代码请勿使用。
+ */
 export interface PurchaseInquiry {
-  id: number; inquiryNo: string; supplierId: number; supplierName: string
-  inquiryDate: string; status: number; creatorName?: string; createTime: string
+  id: number
+  inquiryNo: string
+  title?: string
+  inquiryType?: string
+  /** 枚举名：DRAFT / PUBLISHED / QUOTING / DECISION_MADE / CONTRACT_CREATED / CLOSED / COMPLETED / CANCELLED */
+  status: string
+  requirementDesc?: string
+  urgencyLevel?: string
+  deadlineDate?: string
+  publishDate?: string
+  closeDate?: string
+  departmentId?: number
+  requesterId?: number
+  purchaserId?: number
+  /** 受邀供应商 id，逗号分隔字符串（不是单个 supplierId） */
+  invitedSupplierIds?: string
+  quoteCount?: number
+  budget?: number
+  approvalStatus?: string
+  createdBy?: number
+  createdAt?: string
+  // ── 以下字段后端实体中不存在，仅为兼容历史调用方保留 ──
+  /** @deprecated 后端无此字段 */
+  supplierId?: number
+  /** @deprecated 后端无此字段；供应商应取 invitedSupplierIds */
+  supplierName?: string
+  /** @deprecated 后端无此字段；应取 createdAt */
+  inquiryDate?: string
+  creatorName?: string
+  createTime?: string
 }
 export const inquiryApi = {
   page(params: PageQuery): Promise<PageResult<PurchaseInquiry>> {

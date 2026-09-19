@@ -58,7 +58,6 @@ const componentMap: Record<string, () => Promise<any>> = {
   'partner/detail': () => import('@/views/erp/partner/detail.vue'),
   'erp/partner/index': () => import('@/views/erp/partner/index.vue'),
   'erp/partner/detail': () => import('@/views/erp/partner/detail.vue'),
-  'pricing/index': () => import('@/views/erp/pricing/index.vue'),
   'charts/index': () => import('@/views/charts/index.vue'),
   'crm/contract/index': () => import('@/views/crm/contract/index.vue'),
   'crm/customer/index': () => import('@/views/crm/customer/index.vue'),
@@ -140,8 +139,13 @@ const componentMap: Record<string, () => Promise<any>> = {
   'erp/stocktake/index': () => import('@/views/erp/stocktake/index.vue'),
   'erp/return/index': () => import('@/views/erp/return/index.vue'),
   'erp/shipment/index': () => import('@/views/erp/shipment/index.vue'),
-  // ── 价格引擎模块 ──'pricing/index': () => import('@/views/erp/pricing/index.vue'),
-  'erp/pricing/index': () => import('@/views/erp/pricing/index.vue'),
+  // ── 价格引擎模块 ──
+  // 'erp/pricing/index' 的映射已移除：该页（1704 行）与菜单 70503「商品价格管理」
+  // （views/md/product-price，1728 行、12+ 个 API）功能重叠，且它所谓的独有功能
+  // （对比等级/季节性调价/变更记录）依赖 /erp/pricing/partner-grade-prices/* ——
+  // 该接口后端**不存在**（只有 /api/erp/product-grade-price）⇒ 调用必 404；
+  // 其 v-permission 码 pricing:compare/seasonal/history 在 sys_permission 中也不存在
+  // ⇒ 按钮对非超管直接隐藏。既是坏功能又无入口，故直接清理，页面文件已删除。
   'erp/pricing/approval/index': () => import('@/views/erp/pricing/approval/index.vue'),
   'erp/pricing/tiers/index': () => import('@/views/erp/pricing/tiers/index.vue'),
   'erp/dashboard/index': () => import('@/views/erp/dashboard/index.vue'),
@@ -1530,12 +1534,8 @@ function getRequiredRoutes(): RouteRecordRaw[] {
       component: () => import('@/views/erp/pricing/approval/index.vue'),
       meta: { title: '价格审批', icon: 'DollarOutlined', keepAlive: true, requiresAuth: true }
     },
-    {
-      path: 'erp/pricing',
-      name: 'ErpPricing',
-      component: () => import('@/views/erp/pricing/index.vue'),
-      meta: { title: '价格管理', icon: 'DollarOutlined', keepAlive: true, requiresAuth: true }
-    },
+    // 'erp/pricing'（价格管理）的硬编码路由已移除：与菜单 70503 功能重叠，
+    // 且其独有功能依赖不存在的后端接口（详见 componentMap 处的说明），页面已删除。
     {
       path: 'erp/purchase',
       name: 'ErpPurchase',
@@ -1549,9 +1549,12 @@ function getRequiredRoutes(): RouteRecordRaw[] {
       meta: { title: '采购合同', icon: 'FileTextOutlined', keepAlive: true, requiresAuth: true, hidden: true, billType: '504' }
     },
     {
+      // 2026-09-19：原先 component 错配到 @/views/erp/purchase/index.vue（那是采购查询组件），
+      // 导致「采购询价」菜单点开的是采购查询页。真实询价列表页已按后端
+      // PurchaseInquiryController 的 13 个端点（/api/erp/purchase/inquiry/**）新建。
       path: 'erp/purchase/inquiry',
       name: 'ErpPurchaseInquiry',
-      component: () => import('@/views/erp/purchase/index.vue'),
+      component: () => import('@/views/purchase/inquiry/index.vue'),
       meta: { title: '采购询价', icon: 'SearchOutlined', keepAlive: true, requiresAuth: true, billType: '504' }
     },
     {
