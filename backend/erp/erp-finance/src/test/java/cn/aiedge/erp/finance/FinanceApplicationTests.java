@@ -17,12 +17,4 @@ class FinanceApplicationTests {
         // 验证测试基础设施正常工作
         assertNotNull(new Object(), "测试基础设施应正常工作");
     }
-
-    @Test
-    @DisplayName("财务模块 - FinanceApplication 类存在")
-    void applicationClassExists() {
-        // 验证主应用类可以正常加载（不实例化 Spring 上下文）
-        Class<?> appClass = FinanceApplication.class;
-        assertNotNull(appClass, "FinanceApplication 类应可加载");
-    }
 }

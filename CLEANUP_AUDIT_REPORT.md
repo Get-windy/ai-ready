@@ -189,3 +189,77 @@
 2. [ ] 建立代码冗余检测机制（CI检查重复实体定义）
 3. [ ] 完善模块文档，明确各模块职责边界
 4. [ ] 定期执行冗余审计（建议每季度一次）
+
+---
+
+# 第二轮死代码清理（2026-09-19）
+
+> 范围：backend（3514 个主源码 java）+ frontend（apps/packages）
+> **执行状态：已删除 330 个文件（后端 258 / 前端 72）；其中约 120 个已被并行提交 `6acdb6374` 一并带入版本库（4 个被 git 识别为重命名），其余 210 个留在工作区待提交**
+
+## 判定方法（每条结论都可复核）
+
+| 判据 | 做法 | 关键否证 |
+|------|------|----------|
+| ① 全仓库文本零引用 | 对每个类名在全仓库（java/xml/yml/ts/vue/cjs/sql/md，排除 node_modules/target/dist）统计"除定义文件外是否还有文件提及" | ❌ 不能只看"名字出现一次"：`@Service`/`@Controller`/`@Configuration` 靠注解装配，`*Impl` 经接口注入，名字天然只出现一次（首轮 817 个此类候选里绝大多数是活的） |
+| ② Spring 装配可达性 | 以 `AiReadyApplication` 的 `scanBasePackages` / `@MapperScan` / `@EntityScan` / `@EnableJpaRepositories` + 各 `@ComponentScan` 求闭包，再对 bean 做「接口是否有人注入」判定 | ❌ `implements` 写在续行会被漏读（`FeeApplicationServiceImpl` 即此坑） |
+| ③ HTTP 端点调用方 | 类级+方法级映射拼出真实路径，在前端 6 端 + `tools/` + `scripts/` + `docs/` 搜三种形态（完整路径 / 去 `/api` 前缀 / 辨识段） | ❌ 简单名 grep 分不清同名类（`InvoiceApplication` 既是实体又是模块入口）；包级引用（扫描配置）在类名搜索中**不可见** |
+| ④ 契约与在写工作排除 | 文档/Javadoc 声明对外契约的、`git status` 为 M/A（并行会话正在改）的一律不删 | ❌ 目录里已有 `libre` 之外的东西——`supplier/notification` 被显式登记在 `@EntityScan`/`@EnableJpaRepositories`，属"已登记未接线"，不是死代码 |
+
+## 已清除的表面
+
+**1) 零引用末端类型（161 个）**：无任何生产消费者的 DTO/VO/枚举/实体/Mapper/工具类/注解/占位类。
+- 典型：`crm/customer/dto/*`（8，被新 CRM 体系取代）、`erp-marketing/{Discount,Freight,Gift,RuleProduct,Threshold,PresaleOrder}` 实体+Mapper（促销老模型，随对应 Mapper 一起成簇死亡）、`erp-finance/invoice/mapper/*`（5）、`erp-pricing/strategy/mapper/*`（4）、`erp-purchase/{SupplierManagement,SupplierSelection}Service` 等。
+- 工具残骸：`common/cache/{Dict,Report,Stock,UserPermission}CacheService`（手写 TTL 缓存，已被 Spring Cache 取代）、`IdGenerator`（已被 MyBatis-Plus `ASSIGN_ID` 取代）、`SystemConstants`（其中 `status` 语义与项目规范相反，佐证其已被弃用）、`BaseMessageConsumer`（无子类的 MQ 基类）、`common/cache/annotation/CachePut`（自定义缓存注解，无人使用）。
+
+**2) 被取代的平行实现（46 个）**
+- `core-api / cn.aiedge.erp.expense` 整套 `Fee*`（5 接口 + 5 实现 + 7 实体 + 7 Mapper + 17 DTO = 41）：被 `erp-finance` 的 `Expense*`（JPA + `/erp/expense/**` 端点，前端 `api/erp/expense/index.ts` 实际调用）取代。
+- `erp-pricing / pricing.execution`（5）：`IPriceStrategyExecutor` 及其 DTO 被 `PriceEngineService`（`/erp/pricing/**` 活端点）取代。
+- 装配/拆分单（20）：`erp-sales / product.kit` 里的 `KitAssembly*`/`KitDisassembly*`（控制器+服务+DTO+实体+Mapper+枚举，全簇自洽零外引）被 erp-stock 的 `/erp/stock/assemble`、`/erp/stock/split` 取代。
+  - ⚠️ 同目录的 `ProductKit*`（套件）**是活的**（前端 `api/erp/mall.ts:1109` 调 `/erp/product-kit/*`），已保留。
+
+**3) 废弃的架构层（模块级独立入口，24 个）**：`@SpringBootApplication`/`@Configuration` 逐模块入口（`DmsApplication`、`BudgetApplication`、`MallApplication`、`GatewayApplication`、`MinimalApplication`、`BatchSnApplication`、`SaleReturnApplication` …）。这些是「每模块一个微服务」方案被模块化单体取代后的残留：其自身包已被主应用 `scanBasePackages` 覆盖（重复扫描），或根本不在任何扫描范围内（永不注册）。主入口 `AiReadyApplication` 保留。
+
+**4) 未接线簇（7 个）**：`CommissionSettlementConfig{实体,Mapper,Service,Impl}`（空实现壳，前端无任何页面/端点）、`WebSocketAuthInterceptor`（`HandshakeInterceptor` 但没有任何 `WebSocketConfigurer` 注册它）、`BalanceController`（`/api/erp/marketing/balances` 全仓零调用方，其数据层被别处使用故仅删控制器）、`ProductRecommendController`（前端用的是 `/erp/product/recommends`，服务被 `ProductController` 复用故仅删控制器）。
+
+**5) 前端（72 个）**
+- pc-admin 未可达页面：`views/wms/{move,pick,putaway,ship}/*`（8，`componentMap` 已把 `wms/*` 指向 `wh/*-order`）、`finance/trial-balance`（被 `finance/balance-report` 取代）、`finance/subsidiary-balance`（被 `finance/aux-balance` 取代；文档《辅助核算余额表开发文档》自己标注其为"无路由、无菜单的孤儿页，建议后续清理"）。
+- pc-admin 未接线组件：`erp/product/components/Product{Attachments,Attributes,Barcodes,Related,Units}Panel.vue`（5）、`md/components/PartnerFormLayout.vue`、`purchase/exchange/components/Exchange{Approve,Detail,Track}Modal.vue`（3）。
+- 未使用工具库：`utils/{logger,cache,worker,preload,performance,image,responsive,accessibility,errorHandler,batchOperations,formPersistence,formValidation,asyncComponent}`、`composables/useIntervalRefresh`、`layouts/components/{Breadcrumb,RouterCache}`（布局内已用 antd `a-breadcrumb` 与内联 `keep-alive`）。
+- 死 barrel/入口：`components/index.ts`、`{BillTableList,CategoryListLayout,FormField,SearchFieldsGrid,SettingsLayout,Skeleton}/index.ts`（7 个纯 re-export 入口，兄弟组件另有直接引用/自动导入）、`LazyImage.tsx`、`VirtualScroll.tsx`、`api/retail.ts`。
+- 其它端：mobile-admin `{Contract,Invoice,Quotation}Form.vue`（3）、pda-warehouse `stores/task.ts`、print-client `main/services/apiClient.ts` + `renderer/stores/printer.ts`（均经 dist 产物反证未进 bundle）。
+- 共享包 `packages/components`：`mobile/*`（4，且 `mobile/index.ts` 的相对路径 `./mobile/ARMobileScanner.vue` 解析后不存在，一旦被 import 即构建失败）、`base/{picker/ARDatePicker,upload/ARUpload}.vue`（仅被上述坏入口引用）、`feedback/{ARAlert,AREmpty,ARError,ARLoading}.vue`、`business/erp-inventory/batch-management/{BatchList.vue,types.ts}`、`business/erp-purchase/PurchaseOrderForm.vue`。
+- 遗留产物：`_probe_{cfg,dbg,trade_recon}.js`（无文档引用的探针残次品，其余 11 个探针仍被对标文档引用，保留）、`page-list.json`、`scan-results.json`、`pnpm-8.15.9.tgz`（3.8MB，CI/Docker/文档零引用）、2 个 `*.vue.bak`。
+
+**6) 安全项（1 个）**：`core-api / cn.aiedge.runner / PasswordResetRunner` —— `@Component implements CommandLineRunner`，每次启动把 `admin` 用户密码重置为硬编码 `admin123`。当前因 `cn.aiedge.runner` 未进 `scanBasePackages` 而处于休眠；但本项目正在批量补扫描包（见 0.3.21 提交），一旦补上即成为后门。已删除。
+
+## 验证（带牙齿的门禁）
+
+| 门禁 | 结果 |
+|------|------|
+| `mvn -o -DskipTests test-compile`（每次删除后重跑，共 4 次） | BUILD SUCCESS / EXIT=0 |
+| `npx vite build` — pc-admin | EXIT=0 |
+| `npx vite build` — mobile-admin / pda-warehouse / packages/components | 全部 OK |
+
+删除前逐文件校验：受 git 跟踪 + 无未提交改动（`git status` 不含 M/A）——保证任何一笔都可用 `git checkout` 恢复。
+
+## 复活条件
+
+- `cn.aiedge.erp.expense` 的 `Fee*`：当出现真实产出方（控制器/前端页面）时，从 `git show 6acdb6374^:backend/core/api/...` 取回。
+- 装配/拆分簇：当 `/erp/kit-assembly`、`/erp/kit-disassembly` 确有调用方时再取回（当前前端一律走 `/erp/stock/assemble|split`）。
+- 前端未接线组件（Product*Panel / Exchange*Modal / PartnerFormLayout）：若属于规划中的商品表单 Tab、换货审批弹窗，请从 git 恢复并接线；否则保持删除。
+- `packages/components/mobile/*`：若要在移动端复用，需要重写入口（现入口路径本身是坏的）。
+- `PasswordResetRunner`：**不要复活**。如需重置密码，走运维脚本或带鉴权的管理端点。
+
+## 范围外发现（未处理，建议单独立项）
+
+1. **已实现但运行时永不装配的功能包**（不在 `scanBasePackages`，也不被任何被扫描的 `@ComponentScan` 覆盖 → 控制器 404、`@Scheduled` 不跑、`@PostConstruct` 不执行）。0.3.21 已补 `module/monitor/platform/datasource/export/devtool`，以下仍未装配：
+   `cn.aiedge.{gateway.*, webhook.*, assistant.*, knowledge.*, mq.*, feedback.*, report.*, search.*, storage.*, recommendation.*, runner, inventory.repository, agent.*, erp.supplier.notification.service|config}`
+   典型症状就是项目自己记录的「表能建、点不动」。**建议先决定每个包是「补扫描」还是「删代码」，不要靠逐个 404 排查。**
+2. **无调用方但有对外契约声明的控制器（11 个，不可轻删）**：`BusinessAccountingController`（注释：供采购/销售/费用模块调用）、`ExpenseTypeController`（费用类型文档"保留原状"）、`IntegrationController`（第三方集成 + 接收 WebHook）、`SignatureController`/`RatingController`（签收/评价，疑公网）、`MallNoticeController`/`MallPartyLinkController`（商城端公开）、`wms/ErpCallbackController`（WMS 架构文档明列回调）、`GatewayManagementController`、`mq/*` 两个。
+3. **已登记未接线**：`erp.supplier.notification`（实体与 JPA 仓库已进 `@EntityScan`/`@EnableJpaRepositories`，但 service 包未扫描、无消费者）→ 属"待接线"，不是死代码。
+4. **契约文件未被采用**：`pc-admin/src/utils/priceLevelConfig.ts` 自称「全系统共享，勿重复定义」，但零引用；`api/erp.ts`、`api/erp/mall.ts`、`api/purchase-exchange.ts`、`api/wms/borrow.ts` 等各自内联了价格等级字段。文件已保留，建议改为全站唯一来源。
+5. **设计文档描述了从未接线的组件库**：`frontend/docs/ui-components/feedback-components-usage.md` 通篇用 `@/components/@ai-ready/common/components/feedback` 这一不存在的路径，且 `ARSkeleton` 连文件都没有 → 建议删除或重写。
+6. **遗留运行产物（未删，仅报告）**：`backend/*.log` 共 299MB（`dq-start.log` 72MB、`preorder-backend-5777.log` 63MB …，均未跟踪）、`frontend/.._tool-results_*.png`（3）、`backend/cols.tmp`、`backend/.atcode`+`frontend/**/.atcode` 下 285 个运行时文件（57 个目录）。
+7. **孤儿数据库对象**：本轮删除的实体对应表（促销老模型 `marketing_discount/freight/gift/threshold`、装配拆分、`finance_auxiliary_balance`、`fee_*` 旧费用栈、`commission_settlement_config` 等）仍留在库中。删表属于格式决策，未处理。
+8. **并行会话提交混入**：`6acdb6374 "feat: 营销模块全栈开发 + … + 死代码清理 + …"` 把本轮的 121 个删除混进了功能提交。清理与功能混在一起会让回溯困难，建议后续拆分提交。

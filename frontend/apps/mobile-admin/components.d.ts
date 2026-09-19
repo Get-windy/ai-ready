@@ -7,9 +7,6 @@ export {}
 
 declare module 'vue' {
   export interface GlobalComponents {
-    ContractForm: typeof import('./src/components/ContractForm.vue')['default']
-    InvoiceForm: typeof import('./src/components/InvoiceForm.vue')['default']
-    QuotationForm: typeof import('./src/components/QuotationForm.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     TabBar: typeof import('./src/components/layout/TabBar.vue')['default']
