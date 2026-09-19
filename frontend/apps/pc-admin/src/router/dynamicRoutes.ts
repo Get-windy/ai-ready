@@ -66,7 +66,10 @@ const componentMap: Record<string, () => Promise<any>> = {
   'crm/lead/index': () => import('@/views/crm/lead/index.vue'),
   'crm/opportunity/index': () => import('@/views/crm/opportunity/index.vue'),
   'crm/quotation/index': () => import('@/views/crm/quotation/index.vue'),
-  'crm/supplier/index': () => import('@/views/crm/supplier/index.vue'),
+  // 'crm/supplier/index' 的映射已移除：V11.422.0 同期按《CRM模块/README.md》P2 裁定
+  // 「与 ERP 供应商重复实现 → 删除页面与路由」处理，该页（1506 行，走旧 supplierApi）
+  // 已删除。在用实现是菜单 80511「供应商」→ views/md/supplier/index.vue（走 partnerApi）。
+  // 注意 supplierApi（/api/supplier/*）本身仍有 9 个其它页面在用，接口未删。
   'dashboard/index': () => import('@/views/dashboard/index.vue'),
   'finance/index': () => import('@/views/finance/index.vue'),
   'finance/reconciliation/index': () => import('@/views/finance/reconciliation/index.vue'),
@@ -814,10 +817,9 @@ const componentMap: Record<string, () => Promise<any>> = {
   'md/warehouse-plan/index': () => import('@/views/md/warehouse-plan/index.vue'),
   'md/staff-dept': () => import('@/views/md/staff-dept/index.vue'),
   'md/staff-dept/index': () => import('@/views/md/staff-dept/index.vue'),
-  'md/staff-role': () => import('@/views/md/staff-role/index.vue'),
-  'md/staff-role/index': () => import('@/views/md/staff-role/index.vue'),
-  'md/staff-all': () => import('@/views/md/staff-all/index.vue'),
-  'md/staff-all/index': () => import('@/views/md/staff-all/index.vue'),
+  // md/staff-role、md/staff-all 的映射已移除：V11.422.0 把菜单 80531/80532 改指
+  // views/system/position|user/index.vue（功能更完整的实现），这两页已废弃删除。
+  // md/staff-dept 暂留：菜单 80530 仍指向它，收敛前需先做能力差集比对（见《职员部门开发文档》§5.5）。
   'md/payment-method': () => import('@/views/md/payment-method/index.vue'),
   'md/payment-method/index': () => import('@/views/md/payment-method/index.vue'),
   'md/payment-channel': () => import('@/views/md/payment-channel/index.vue'),
