@@ -228,6 +228,12 @@ public class QuotationController {
         return convertToVO(quotation);
     }
 
+    @DeleteMapping("/{id}")
+    @Operation(summary = "删除报价单")
+    public boolean delete(@PathVariable Long id) {
+        return quotationService.removeById(id);
+    }
+
     @DeleteMapping("/batch")
     @Operation(summary = "批量删除报价单")
     public boolean batchDelete(@RequestBody List<Long> ids) {

@@ -1118,9 +1118,15 @@ export const accountingPeriodApi = {
   /** 新增会计期间（后端 @PostMapping("/")，需带尾部斜杠） */
   create: (data: { periodYear: number; periodMonth: number; remark?: string }) =>
     request.post('/erp/finance/period/', data),
-  /** 启用/停用会计期间：1-开启 0-关闭 */
-  updateStatus: (id: number, status: number) =>
-    request.put(`/erp/finance/period/${id}/status`, null, { params: { status } })
+  /** 启用/停用会计期间：1-开启 0-关闭（id 为雪花 ID，按字符串处理） */
+  updateStatus: (id: string | number, status: number) =>
+    request.put(`/erp/finance/period/${id}/status`, null, { params: { status } }),
+  /**
+   * 批量保存期间起止日期（对标「固定 12 期矩阵 + 底部保存」）
+   * 只提交 id / startDate / endDate 三个字段，后端不动状态与期间编码
+   */
+  saveDates: (items: Array<{ id: string | number; startDate: string; endDate: string }>) =>
+    request.put('/erp/finance/period/batch-dates', items)
 }
 
 /**

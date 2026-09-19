@@ -1,6 +1,7 @@
 package cn.aiedge.crm.customer.service.impl;
 
 import cn.aiedge.common.exception.BusinessException;
+import cn.aiedge.crm.common.CrmDocNo;
 import cn.aiedge.crm.customer.entity.CustomerOpportunity;
 import cn.aiedge.crm.customer.mapper.CustomerOpportunityMapper;
 import cn.aiedge.crm.customer.service.CustomerOpportunityService;
@@ -14,7 +15,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,6 +23,10 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class CustomerOpportunityServiceImpl extends ServiceImpl<CustomerOpportunityMapper, CustomerOpportunity> implements CustomerOpportunityService {
+
+    /** 商机阶段值域：1 初步接触 → 5 成交（与 getStageDesc 一一对应） */
+    private static final int STAGE_MIN = 1;
+    private static final int STAGE_MAX = 5;
 
     @Override
     public CustomerOpportunity getByOpportunityCode(String opportunityCode) {
@@ -125,6 +129,39 @@ public class CustomerOpportunityServiceImpl extends ServiceImpl<CustomerOpportun
 
     @Override
     @Transactional
+    public CustomerOpportunity updateStage(Long opportunityId, Integer stage) {
+        if (stage == null || stage < STAGE_MIN || stage > STAGE_MAX) {
+            throw BusinessException.badRequest("商机阶段取值非法，应为 " + STAGE_MIN + "-" + STAGE_MAX + "：" + stage);
+        }
+        CustomerOpportunity opportunity = baseMapper.selectById(opportunityId);
+        if (opportunity == null || (opportunity.getDeleted() != null && opportunity.getDeleted() == 1)) {
+            throw BusinessException.notFound("商机不存在: " + opportunityId);
+        }
+
+        opportunity.setOpportunityStage(stage);
+        opportunity.setOpportunityStageDesc(getStageDesc(stage));
+        opportunity.setProbability(getProbabilityByStage(stage));
+
+        // 拖到「成交」阶段时按赢单口径收口；拖回未成交阶段则清掉赢单痕迹
+        if (stage == STAGE_MAX) {
+            opportunity.setStatus(2);
+            opportunity.setStatusDesc("赢单");
+            if (opportunity.getActualCloseDate() == null) {
+                opportunity.setActualCloseDate(LocalDate.now());
+            }
+        } else if (opportunity.getStatus() != null && opportunity.getStatus() == 2) {
+            opportunity.setStatus(1);
+            opportunity.setStatusDesc("进行中");
+            opportunity.setActualCloseDate(null);
+        }
+
+        baseMapper.updateById(opportunity);
+        log.info("商机阶段更新: {} -> {}", opportunity.getOpportunityCode(), stage);
+        return opportunity;
+    }
+
+    @Override
+    @Transactional
     public CustomerOpportunity winOpportunity(Long opportunityId, BigDecimal actualAmount) {
         CustomerOpportunity opportunity = baseMapper.selectById(opportunityId);
         if (opportunity == null || opportunity.getDeleted() == 1) {
@@ -213,9 +250,8 @@ public class CustomerOpportunityServiceImpl extends ServiceImpl<CustomerOpportun
 
     @Override
     public String generateOpportunityCode() {
-        String dateStr = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-        long count = baseMapper.selectCount(null);
-        return "OPP-" + dateStr + String.format("%04d", count + 1);
+        String prefix = CrmDocNo.prefixOf("OPP-");
+        return CrmDocNo.next(prefix, baseMapper.selectMaxOpportunityCode(prefix), 4);
     }
 
     private String getStageDesc(int stage) {

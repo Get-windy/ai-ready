@@ -71,6 +71,11 @@ public class HrPerformance {
     private BigDecimal achievementScore;
 
     /**
+     * 绩效工资系数（由等级映射，用于薪资联动）
+     */
+    private BigDecimal performanceCoefficient;
+
+    /**
      * 综合评语
      */
     private String comment;
@@ -129,4 +134,18 @@ public class HrPerformance {
      */
     @TableField(fill = FieldFill.INSERT_UPDATE)
     private Long updateBy;
+
+    // ── 展示用联表字段（非表列） ──
+
+    /** 员工姓名 */
+    @TableField(exist = false)
+    private String employeeName;
+
+    /** 员工工号 */
+    @TableField(exist = false)
+    private String employeeNo;
+
+    /** 部门名称 */
+    @TableField(exist = false)
+    private String deptName;
 }

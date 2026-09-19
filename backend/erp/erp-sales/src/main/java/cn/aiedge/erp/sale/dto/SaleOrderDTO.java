@@ -43,6 +43,12 @@ public class SaleOrderDTO {
     private BigDecimal billAmount;
     private BigDecimal shippingFee;
 
+    /**
+     * 本单使用的优惠券实例 id 列表（营销 → 优惠券）。
+     * ⚠️ promoDiscount 与 couponAmount **以服务端促销引擎计算结果为准**，不再信任前端传参。
+     */
+    private List<Long> couponIds;
+
     // ═══ 数量 ═══
     private BigDecimal totalQuantity;
 

@@ -105,14 +105,11 @@ const componentMap: Record<string, () => Promise<any>> = {
   'system/dict/index': () => import('@/views/system/dict/index.vue'),
   'system/log/index': () => import('@/views/system/log/index.vue'),
   'system/menu/index': () => import('@/views/system/menu/index.vue'),
+  // 'system/permission/index' —— 权限配置页，2026-09-19 已挂菜单 6130704（系统 → 系统管理）
   'system/permission/index': () => import('@/views/system/permission/index.vue'),
-  'admin/sys/permissions/index': () => import('@/views/admin/sys/permissions/index.vue'),
-  'admin/tenant/permissions/index': () => import('@/views/admin/tenant/permissions/index.vue'),
   'system/position/index': () => import('@/views/system/position/index.vue'),
   'system/role/index': () => import('@/views/system/role/index.vue'),
   'system/user/index': () => import('@/views/system/user/index.vue'),
-  'system/tenant/index': () => import('@/views/system/tenant/index.vue'),
-  'system/tenant-approval/index': () => import('@/views/system/tenant-approval/index.vue'),
   'system/data-import/index': () => import('@/views/system/data-import/index.vue'),
   'workflow/instance-monitor': () => import('@/views/workflow/instance-monitor.vue'),
   // 流程定义（菜单801 /workflow/definition）与流程设计（菜单80610 set/workflow-designer）共用流程设计器
@@ -245,6 +242,10 @@ const componentMap: Record<string, () => Promise<any>> = {
 
   // ── 系统级新增路由 ──
   'admin/tenant/approval': () => import('@/views/admin/tenant/approval/index.vue'),
+  // ⚠️ 别名：菜单 62204「系统日志」的 component 是 `views/admin/monitor/log`（见 V6.15.0），
+  //    归一化后命中本键，因此该菜单的**实际实现是 `views/system/log/index.vue`**。
+  //    原同名文件 `views/admin/monitor/log/index.vue`（167 行，只调不存在的 /api/audit-log/page）
+  //    因本别名而永不可达，已于 2026-09-19 删除。新增「系统日志」相关逻辑请改 system/log/index.vue。
   'admin/monitor/log': () => import('@/views/system/log/index.vue'),
   'admin/tenant/list': () => import('@/views/admin/tenant/list/index.vue'),
   'admin/tenant/package': () => import('@/views/admin/tenant/package/index.vue'),
@@ -485,6 +486,9 @@ const componentMap: Record<string, () => Promise<any>> = {
   'crm/customer-follow/index': () => import('@/views/crm/customer-follow/index.vue'),
   'crm/customer-grade': () => import('@/views/crm/customer-grade/index.vue'),
   'crm/customer-grade/index': () => import('@/views/crm/customer-grade/index.vue'),
+  // 客户公海（80202）：后端 CustomerPoolController 的 10 个端点此前前端零引用
+  'crm/customer-pool': () => import('@/views/crm/customer-pool/index.vue'),
+  'crm/customer-pool/index': () => import('@/views/crm/customer-pool/index.vue'),
   'crm/lead-convert': () => import('@/views/crm/lead-convert/index.vue'),
   'crm/lead-convert/index': () => import('@/views/crm/lead-convert/index.vue'),
   'crm/opportunity-stage': () => import('@/views/crm/opportunity-stage/index.vue'),
@@ -590,6 +594,9 @@ const componentMap: Record<string, () => Promise<any>> = {
   'set/payment-config/index': () => import('@/views/set/payment-config/index.vue'),
   'set/app-center': () => import('@/views/set/app-center/index.vue'),
   'set/app-center/index': () => import('@/views/set/app-center/index.vue'),
+  // 打印设置（设置 → 打印管理 → 打印设置，菜单 80930，挂 61205 打印管理）
+  'set/print-config': () => import('@/views/set/print-config/index.vue'),
+  'set/print-config/index': () => import('@/views/set/print-config/index.vue'),
 
   // ── displayMode=1 添加标签的 form 页面（Phase 3 CRM） ──
   'crm/customer/form': () => import('@/views/crm/customer/form.vue'),
@@ -620,6 +627,10 @@ const componentMap: Record<string, () => Promise<any>> = {
   'marketing/member-manage/index': () => import('@/views/marketing/member-manage/index.vue'),
   'marketing/points-exchange': () => import('@/views/marketing/points-exchange/index.vue'),
   'marketing/points-exchange/index': () => import('@/views/marketing/points-exchange/index.vue'),
+  'marketing/stored-card': () => import('@/views/marketing/stored-card/index.vue'),
+  'marketing/stored-card/index': () => import('@/views/marketing/stored-card/index.vue'),
+  'marketing/auto-campaign': () => import('@/views/marketing/auto-campaign/index.vue'),
+  'marketing/auto-campaign/index': () => import('@/views/marketing/auto-campaign/index.vue'),
   'marketing/member-config': () => import('@/views/marketing/member-config/index.vue'),
   'marketing/member-config/index': () => import('@/views/marketing/member-config/index.vue'),
   'marketing/sms-send': () => import('@/views/marketing/sms-send/index.vue'),
@@ -1420,6 +1431,13 @@ function getRequiredRoutes(): RouteRecordRaw[] {
       component: () => import('@/views/workflow/task-management.vue'),
       meta: { title: '任务管理', icon: 'AuditOutlined', keepAlive: true, requiresAuth: true }
     },
+    // 流程分析（设置 → 工作流 → 流程分析，菜单 80611 / set:workflow-analysis）：
+    // 菜单行已于迁移 V11.417.0 补齐，正常情况由后端菜单树生成路由（path /workflow/process-analysis）。
+    // 此处刻意**保留**同路径兜底条目，理由：
+    //   ① 菜单树有 30 分钟本地缓存（menu_cache_*），刚补的菜单在旧缓存会话里点不到，
+    //      但按页面收到的「URL 直达」请求仍应能打开；
+    //   ② 菜单接口异常时走 getFallbackRoutes()，该分支不含本页，此处兜底不影响正常菜单路由
+    //      （动态菜单树先注册、同路径优先生效，两条路由 component 指向同一文件，行为一致）。
     {
       path: 'workflow/process-analysis',
       name: 'WorkflowProcessAnalysis',
@@ -1731,54 +1749,16 @@ function getFallbackRoutes(): RouteRecordRaw[] {
       children: [
         // ── 工作台 ──
         { path: 'dashboard', name: 'Dashboard', component: () => import('@/views/dashboard/index.vue'), meta: { title: '工作台', icon: 'DashboardOutlined', keepAlive: true, requiresAuth: true } },
-        // ─ 销售作业 ──
-        { path: 'sale', name: 'Sale', component: () => import('@/views/erp/sale/index.vue'), meta: { title: '销售订单', icon: 'ShoppingOutlined', keepAlive: true, requiresAuth: true, billType: '604' } },
-        { path: 'erp/sale', name: 'ErpSale', component: () => import('@/views/erp/sale/index.vue'), meta: { title: '销售管理(ERP)', icon: 'ShoppingOutlined', keepAlive: true, requiresAuth: true, billType: '604', hidden: true } },
-        { path: 'stock', name: 'Stock', component: () => import('@/views/erp/stock/index.vue'), meta: { title: '销售出库', icon: 'ExportOutlined', keepAlive: true, requiresAuth: true, billType: '601' } },
-        { path: 'erp/shipment', name: 'ErpShipment', component: () => import('@/views/erp/shipment/index.vue'), meta: { title: '发货管理', icon: 'SendOutlined', keepAlive: true, requiresAuth: true, billType: '601' } },
-        { path: 'erp/return', name: 'ErpReturn', component: () => import('@/views/erp/return/index.vue'), meta: { title: '退货管理', icon: 'RollbackOutlined', keepAlive: true, requiresAuth: true, billType: '601' } },
-        { path: 'erp/sales-analysis', name: 'ErpSalesAnalysis', component: () => import('@/views/erp/sales-analysis/index.vue'), meta: { title: '销售分析', icon: 'BarChartOutlined', keepAlive: true, requiresAuth: true, billType: '604' } },
-        { path: 'erp/sales-report', name: 'ErpSalesReport', component: () => import('@/views/erp/sales-report/index.vue'), meta: { title: '销售报表', icon: 'LineChartOutlined', keepAlive: true, requiresAuth: true, billType: '604' } },
-        // ── 采购作业 ──
-        { path: 'purchase', name: 'Purchase', component: () => import('@/views/erp/purchase/index.vue'), meta: { title: '采购订单', icon: 'ShoppingCartOutlined', keepAlive: true, requiresAuth: true, billType: '504' } },
-        { path: 'erp/purchase', name: 'ErpPurchase', component: () => import('@/views/erp/purchase/index.vue'), meta: { title: '采购管理(ERP)', icon: 'ShoppingCartOutlined', keepAlive: true, requiresAuth: true, billType: '504', hidden: true } },
-        { path: 'erp/stock-in', name: 'ErpStockIn', component: () => import('@/views/erp/stock-in/index.vue'), meta: { title: '入库管理', icon: 'InboxOutlined', keepAlive: true, requiresAuth: true, billType: '601' } },
-        // ── 仓储作业 ──
-        { path: 'erp/stock', name: 'ErpStock', component: () => import('@/views/erp/stock/index.vue'), meta: { title: '库存管理(ERP)', icon: 'ContainerOutlined', keepAlive: true, requiresAuth: true, billType: '601' } },
-        { path: 'erp/stocktake', name: 'ErpStocktake', component: () => import('@/views/erp/stocktake/index.vue'), meta: { title: '库存盘点', icon: 'CheckSquareOutlined', keepAlive: true, requiresAuth: true, billType: '601' } },
-        { path: 'erp/batch', name: 'ErpBatch', component: () => import('@/views/erp/batch/index.vue'), meta: { title: '批次管理', icon: 'BarcodeOutlined', keepAlive: true, requiresAuth: true, billType: '601' } },
-        { path: 'erp/serial', name: 'ErpSerial', component: () => import('@/views/erp/serial/index.vue'), meta: { title: '序列号管理', icon: 'NumberOutlined', keepAlive: true, requiresAuth: true, billType: '601' } },
-        // ── 客户关系 ──
-        { path: 'crm/customer', name: 'CrmCustomer', component: () => import('@/views/crm/customer/index.vue'), meta: { title: '客户管理', icon: 'TeamOutlined', keepAlive: true, requiresAuth: true } },
-        { path: 'crm/lead', name: 'CrmLead', component: () => import('@/views/crm/lead/index.vue'), meta: { title: '线索管理', icon: 'HighlightOutlined', keepAlive: true, requiresAuth: true } },
-        { path: 'crm/opportunity', name: 'CrmOpportunity', component: () => import('@/views/crm/opportunity/index.vue'), meta: { title: '商机管理', icon: 'BulbOutlined', keepAlive: true, requiresAuth: true } },
-        { path: 'crm/quotation', name: 'CrmQuotation', component: () => import('@/views/crm/quotation/index.vue'), meta: { title: '报价管理', icon: 'DollarOutlined', keepAlive: true, requiresAuth: true } },
-        { path: 'crm/contract', name: 'CrmContract', component: () => import('@/views/crm/contract/index.vue'), meta: { title: '合同管理', icon: 'FileTextOutlined', keepAlive: true, requiresAuth: true } },
-        { path: 'crm/invoice', name: 'CrmInvoice', component: () => import('@/views/crm/invoice/index.vue'), meta: { title: '发票管理', icon: 'FileProtectOutlined', keepAlive: true, requiresAuth: true } },
-        // ── 财务管理 ──
-        { path: 'finance', name: 'Finance', component: () => import('@/views/finance/index.vue'), meta: { title: '财务管理', icon: 'DollarOutlined', keepAlive: true, requiresAuth: true } },
-        // ── 费用管理 ──
-        { path: 'erp/expense/application', name: 'ExpenseApplication', component: () => import('@/views/erp/expense/application/index.vue'), meta: { title: '费用申请', icon: 'DollarOutlined', keepAlive: true, requiresAuth: true } },
-        { path: 'erp/expense/reimbursement', name: 'ExpenseReimbursement', component: () => import('@/views/erp/expense/reimbursement/index.vue'), meta: { title: '费用报销', icon: 'DollarOutlined', keepAlive: true, requiresAuth: true } },
-        // ── 资产管理 ──
-        { path: 'fixed-asset/asset', name: 'FixedAssetList', component: () => import('@/views/fixed-asset/asset/index.vue'), meta: { title: '资产列表', icon: 'BankOutlined', keepAlive: true, requiresAuth: true } },
-        // ── 预算管理 ──
-        { path: 'budget', name: 'Budget', component: () => import('@/views/budget/index.vue'), meta: { title: '预算管理', icon: 'FundOutlined', keepAlive: true, requiresAuth: true } },
-        // ── 商城管理 ──
-        { path: 'mall/config', name: 'MallConfig', component: () => import('@/views/erp/mall/config/index.vue'), meta: { title: '商城配置', icon: 'SettingOutlined', keepAlive: true, requiresAuth: true } },
-        { path: 'mall/banner', name: 'MallBanner', component: () => import('@/views/erp/mall/banner/index.vue'), meta: { title: '轮播图管理', icon: 'PictureOutlined', keepAlive: true, requiresAuth: true } },
-        { path: 'mall/product', name: 'MallProduct', component: () => import('@/views/erp/mall/product/index.vue'), meta: { title: '商品管理', icon: 'AppstoreOutlined', keepAlive: true, requiresAuth: true } },
-        // ── 产品数据 ──
-        { path: 'erp/product', name: 'ErpProduct', component: () => import('@/views/erp/product/index.vue'), meta: { title: '产品管理', icon: 'AppstoreOutlined', keepAlive: true, requiresAuth: true } },
-        { path: 'erp/partner', name: 'ErpPartner', component: () => import('@/views/erp/partner/index.vue'), meta: { title: '往来单位管理', icon: 'TeamOutlined', keepAlive: true, requiresAuth: true } },
-        // ── 打印管理 ──
-        { path: 'printing/template', name: 'PrintTemplate', component: () => import('@/views/printing/template/index.vue'), meta: { title: '打印模板', icon: 'FileTextOutlined', keepAlive: true, requiresAuth: true } },
-        { path: 'printing/chain', name: 'PrintChain', component: () => import('@/views/printing/chain/index.vue'), meta: { title: '打印链路', icon: 'LinkOutlined', keepAlive: true, requiresAuth: true } },
-        // ── 系统管理 ──
-        { path: 'system/user', name: 'SystemUser', component: () => import('@/views/system/user/index.vue'), meta: { title: '用户管理', icon: 'UserOutlined', keepAlive: true, requiresAuth: true } },
-        { path: 'system/role', name: 'SystemRole', component: () => import('@/views/system/role/index.vue'), meta: { title: '角色管理', icon: 'SafetyOutlined', keepAlive: true, requiresAuth: true } },
-        { path: 'system/menu', name: 'SystemMenu', component: () => import('@/views/system/menu/index.vue'), meta: { title: '菜单管理', icon: 'MenuOutlined', keepAlive: true, requiresAuth: true } },
-        { path: 'system/config', name: 'SystemConfig', component: () => import('@/views/system/config/index.vue'), meta: { title: '系统配置', icon: 'SettingOutlined', keepAlive: true, requiresAuth: true } },
+        // ⚠️ 这里**刻意不注入任何业务菜单**。
+        //
+        // 本函数只在「菜单接口完全不可用」时兜底，而业务路由的可见性本应由后端菜单树
+        // 下发的权限上下文决定。旧实现在此处塞进了 41 条全量业务菜单（含 system/user、
+        // system/role、system/menu、finance、mall/* 等），等于把权限判断悄悄降级成
+        // 「路径在不在 MODULE_ROUTE_MAP 里」——而其中大半条目连 billType 都没有，
+        // 只受 hasValidModule 约束，该方法在模块授权数据缺失时还会直接放行。
+        //
+        // 结论：降级时宁可不显示入口，也不能凭空给出可能越权的入口。
+        // 仅保留与角色/模块无关、任何登录用户都该能进的通用页。
         { path: 'charts/index', name: 'Charts', component: () => import('@/views/charts/index.vue'), meta: { title: '图表', icon: 'BarChartOutlined', keepAlive: true, requiresAuth: true } },
         { path: 'notification/index', name: 'Notification', component: () => import('@/views/notification/index.vue'), meta: { title: '通知公告', icon: 'BellOutlined', keepAlive: true, requiresAuth: true } },
         { path: 'profile/index', name: 'Profile', component: () => import('@/views/profile/index.vue'), meta: { title: '个人中心', icon: 'UserOutlined', keepAlive: true, requiresAuth: true } },

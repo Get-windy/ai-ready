@@ -29,6 +29,20 @@
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
+        <!-- 财务域依赖：储值卡资金闭环（开卡/充值/消费/退款 → 会计凭证）
+             ⚠️ 依赖方向 erp-marketing → erp-finance 不成环（erp-finance 只依赖 core-base + erp-budget） -->
+        <dependency>
+            <groupId>cn.aiedge.erp</groupId>
+            <artifactId>erp-finance</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- Redis（定时作业分布式锁：DistributedLockFactory 需要 RedisTemplate） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+
         <!-- MyBatis-Plus -->
         <dependency>
             <groupId>com.baomidou</groupId>

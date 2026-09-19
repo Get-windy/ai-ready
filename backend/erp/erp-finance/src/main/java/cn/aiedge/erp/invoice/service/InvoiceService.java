@@ -124,7 +124,16 @@ public interface InvoiceService {
      * @return 创建的发票
      */
     Invoice createInvoiceFromApplication(InvoiceApplication application, Long issuedBy, String issuedByName);
-    
+
+    /**
+     * 更新发票基本信息（部分更新语义：仅覆盖请求中非 null 的字段）
+     *
+     * @param invoiceId 发票ID
+     * @param payload   待更新的字段
+     * @return 更新后的发票
+     */
+    Invoice updateInvoice(Long invoiceId, Invoice payload);
+
     /**
      * 更新发票状态
      * 

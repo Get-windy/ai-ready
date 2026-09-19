@@ -1,6 +1,17 @@
 <template>
   <ErrorBoundary @error="handleError">
     <PageContainer full-height>
+      <!--
+        流程分析（设置 → 工作流 → 流程分析，菜单 80611 / set:workflow-analysis）
+        · 定位：只读分析台账（统计卡 + 流程耗时 / 节点耗时 / 按日审批效率三张表 + 两张图）
+        · 对标：ql361 无工作流域 → 本系统独有页面，无对标目标
+        · 数据源（core-api WorkflowController，全部为服务端真实聚合，页面内**无任何写死的假数据**）：
+            GET /api/workflow/analysis/refresh?processName=  → statistics / processDuration / nodeDuration
+            GET /api/workflow/analysis/report?startDate=&endDate= → records（按日聚合）
+        · 本页为只读页：无新增 / 修改 / 删除动作，故无 v-permission 门控按钮；
+          读端点在控制器上按本模块口径加了 workflow:analysis:view 方法级权限码。
+        · 首屏立即加载（onMounted 直接拉一次），随后 30 秒轮询 + 手动刷新（按钮 / F5 / Ctrl+R）
+      -->
       <template #header>
         <div class="workflow-analysis-page-header">
           <div class="workflow-analysis-page-header-left">
@@ -30,7 +41,7 @@
             <a-button
               size="small"
               :loading="refreshLoading"
-              @click="debounceClick('refresh', handleRefresh)()"
+              @click="handleRefresh"
             >
               <template #icon>
                 <ReloadOutlined />
@@ -47,7 +58,7 @@
 
       <div class="page-content">
         <div class="workflow-analysis">
-          <!-- 统计卡片 -->
+          <!-- 统计卡：服务端全量聚合；首屏拿到数据前显示「-」，不用 0 / 假数字占位 -->
           <a-row :gutter="16">
             <a-col
               v-for="card in statisticCards"
@@ -58,6 +69,7 @@
                 <a-statistic
                   :title="card.title"
                   :value="card.value"
+                  :formatter="formatStatValue"
                 >
                   <template #suffix>
                     <span class="suffix">{{ card.suffix }}</span>
@@ -71,24 +83,19 @@
             :gutter="16"
             style="margin-top: 16px"
           >
-            <!-- 流程耗时统计 -->
+            <!-- 流程耗时统计（按流程分组，全部流程） -->
             <a-col :span="12">
               <a-card>
                 <template #title>
                   <div class="card-header">
                     <span>流程耗时统计</span>
-                    <a-button
-                      type="link"
-                      @click="handleRefresh"
-                    >
-                      刷新
-                    </a-button>
                   </div>
                 </template>
                 <BillTableList
-                  :columns="processDurationVxeColumns"
+                  :columns="processDurationColumns"
                   :data-source="processDurationData"
-                  :pagination="false as any"
+                  :loading="summaryLoading"
+                  :pagination="false"
                   :show-toolbar="false"
                   :selectable="false"
                   :show-add="false"
@@ -128,7 +135,7 @@
               </a-card>
             </a-col>
 
-            <!-- 节点耗时分析 -->
+            <!-- 节点耗时分析：可选流程来自真实 processDuration，选中即按流程过滤（后端 processName 参数） -->
             <a-col :span="12">
               <a-card>
                 <template #title>
@@ -136,24 +143,20 @@
                     <span>节点耗时分析</span>
                     <a-select
                       v-model:value="selectedProcess"
-                      placeholder="选择流程"
+                      placeholder="全部流程"
                       size="small"
                       style="width: 200px"
-                    >
-                      <a-select-option
-                        v-for="item in processOptions"
-                        :key="item.value"
-                        :value="item.value"
-                      >
-                        {{ item.label }}
-                      </a-select-option>
-                    </a-select>
+                      allow-clear
+                      :options="processOptions"
+                      @change="loadSummary(false)"
+                    />
                   </div>
                 </template>
                 <BillTableList
-                  :columns="nodeDurationVxeColumns"
+                  :columns="nodeDurationColumns"
                   :data-source="nodeDurationData"
-                  :pagination="false as any"
+                  :loading="summaryLoading"
+                  :pagination="false"
                   :show-toolbar="false"
                   :selectable="false"
                   :show-add="false"
@@ -194,11 +197,11 @@
             </a-col>
           </a-row>
 
+          <!-- 审批效率报表（按日聚合，日期范围默认近 7 天，与后端缺省口径一致） -->
           <a-row
             :gutter="16"
             style="margin-top: 16px"
           >
-            <!-- 审批效率报表 -->
             <a-col :span="24">
               <a-card>
                 <template #title>
@@ -208,14 +211,15 @@
                       v-model:value="reportDateRange"
                       value-format="YYYY-MM-DD"
                       size="small"
-                      @change="handleReportDateChange"
+                      @change="loadReport(false)"
                     />
                   </div>
                 </template>
                 <BillTableList
-                  :columns="efficiencyVxeColumns"
+                  :columns="efficiencyColumns"
                   :data-source="efficiencyData"
-                  :pagination="false as any"
+                  :loading="reportLoading"
+                  :pagination="false"
                   :show-toolbar="false"
                   :selectable="false"
                   :show-add="false"
@@ -232,13 +236,14 @@
                   </template>
                   <template #efficiencyCell="{ record }">
                     <a-rate
-                      v-model:value="record.efficiency"
+                      :value="record.efficiency"
                       disabled
+                      allow-half
                     />
                   </template>
                   <template #empty>
                     <div class="table-empty">
-                      <template v-if="hasError">
+                      <template v-if="reportError">
                         <WarningOutlined
                           class="table-empty-icon"
                           style="color: #faad14"
@@ -250,7 +255,7 @@
                           type="primary"
                           size="small"
                           class="table-empty-action"
-                          @click="handleRefresh"
+                          @click="loadReport(false)"
                         >
                           <ReloadOutlined /> 重试
                         </a-button>
@@ -268,25 +273,34 @@
             </a-col>
           </a-row>
 
+          <!-- 图表：均取自上方两张表的同一份真实聚合，无 series 时组件自身展示空态 -->
           <a-row
             :gutter="16"
             style="margin-top: 16px"
           >
-            <!-- 流程趋势图 -->
             <a-col :span="12">
-              <a-card title="流程实例趋势">
-                <div class="chart-container">
-                  <a-empty description="图表组件开发中..." />
-                </div>
+              <a-card>
+                <ARReportChart
+                  title="流程实例分布（按流程）"
+                  :option="processDistOption"
+                  :height="300"
+                  :loading="summaryLoading"
+                />
               </a-card>
             </a-col>
-
-            <!-- 节点分布图 -->
             <a-col :span="12">
-              <a-card title="节点任务分布">
-                <div class="chart-container">
-                  <a-empty description="图表组件开发中..." />
-                </div>
+              <a-card>
+                <ARReportChart
+                  title="节点任务分布"
+                  :option="nodeDistOption"
+                  :height="300"
+                  :loading="summaryLoading"
+                >
+                  <!-- 标明口径：本图与「节点耗时分析」表同源，随该卡的流程下拉而变化 -->
+                  <template #extra>
+                    <span class="chart-scope">{{ selectedProcess || '全部流程' }}</span>
+                  </template>
+                </ARReportChart>
               </a-card>
             </a-col>
           </a-row>
@@ -297,234 +311,192 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
-import { SyncOutlined, ReloadOutlined, WarningOutlined, SearchOutlined, InboxOutlined } from '@ant-design/icons-vue'
+import dayjs from 'dayjs'
+import { SyncOutlined, ReloadOutlined, WarningOutlined, InboxOutlined } from '@ant-design/icons-vue'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
-import request from '@/utils/request'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
+import ARReportChart from '@/components/ARReportChart/ARReportChart.vue'
+import { workflowAnalysisApi, type WorkflowAnalysisSummary, type WorkflowAnalysisReportRow } from '@/api/workflow'
 
-// ── 防抖工具 ────────────────────────────────────────────
-const clickLocks = new Map<string, boolean>()
-function debounceClick(key: string, fn: (...args: any[]) => any) {
-  return (...args: any[]) => {
-    if (clickLocks.get(key)) return
-    clickLocks.set(key, true)
-    try { fn(...args) } finally { setTimeout(() => clickLocks.delete(key), 300) }
-  }
-}
+defineOptions({ name: 'WorkflowProcessAnalysis' })
 
-// ── 自动刷新 ────────────────────────────────────────────
-const hasError = ref(false)
-
-function handleError(err: any) { console.warn('[工作流] 流程分析出错', err); hasError.value = true }
+// ── 状态 ────────────────────────────────────────────────
+const hasError = ref(false)          // 汇总接口（统计卡 + 两张表 + 两张图）失败
+const reportError = ref(false)       // 报表接口失败
+const summaryLoading = ref(false)
+const reportLoading = ref(false)
+const refreshLoading = ref(false)
 const lastUpdateTime = ref('')
 const autoRefreshCountdown = ref(0)
-const refreshLoading = ref(false)
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 let countdownTimer: ReturnType<typeof setInterval> | null = null
 
-// 统计卡片数据
-const statisticCards = ref([
-  { title: '流程实例总数', value: 1234, suffix: '个' },
-  { title: '运行中实例', value: 56, suffix: '个' },
-  { title: '待办任务数', value: 234, suffix: '个' },
-  { title: '平均处理时长', value: 2.5, suffix: '天' }
+function handleError(err: any) {
+  console.warn('[流程分析] 页面出错', err)
+  hasError.value = true
+}
+
+// ── 统计卡 ──────────────────────────────────────────────
+//
+// value 初值为字符串「-」占位：a-statistic 会把字符串「-」当成数字解析（负号 + 空整数 = -0），
+// 因此非数字展示串必须走 formatter（见本仓既有踩坑记录）。
+const statisticCards = ref<Array<{ title: string; value: number | string; suffix: string }>>([
+  { title: '流程实例总数', value: '-', suffix: '个' },
+  { title: '运行中实例', value: '-', suffix: '个' },
+  { title: '待办任务数', value: '-', suffix: '个' },
+  { title: '平均处理时长', value: '-', suffix: '天' }
 ])
 
-// 流程耗时数据
-const processDurationVxeColumns = [
-  { field: 'processName', title: '流程名称', width: 150 },
-  { field: 'instanceCount', title: '实例数', width: 80, align: 'center' },
-  { field: 'avgDuration', title: '平均耗时', width: 100, align: 'right' },
-  { field: 'maxDuration', title: '最长耗时', width: 100, align: 'right' },
-  { field: 'minDuration', title: '最短耗时', width: 100, align: 'right' }
-]
+function formatStatValue(value: any): string {
+  if (value === null || value === undefined || value === '') return '-'
+  const num = Number(value)
+  if (!Number.isFinite(num)) return String(value)
+  return num.toLocaleString('zh-CN', { maximumFractionDigits: 2 })
+}
 
-const processDurationData = ref([
-  {
-    processName: '请假审批流程',
-    instanceCount: 120,
-    avgDuration: '1.2天',
-    maxDuration: '3天',
-    minDuration: '0.5天'
-  },
-  {
-    processName: '报销审批流程',
-    instanceCount: 89,
-    avgDuration: '2.5天',
-    maxDuration: '5天',
-    minDuration: '1天'
-  },
-  {
-    processName: '采购审批流程',
-    instanceCount: 67,
-    avgDuration: '3.8天',
-    maxDuration: '7天',
-    minDuration: '2天'
-  },
-  {
-    processName: '出差审批流程',
-    instanceCount: 45,
-    avgDuration: '1.8天',
-    maxDuration: '4天',
-    minDuration: '0.8天'
+// ── 流程耗时统计（全部流程） ──────────────────────────────
+const processDurationColumns = [
+  { title: '流程名称', field: 'processName', key: 'processName', width: 150 },
+  { title: '实例数', field: 'instanceCount', key: 'instanceCount', width: 80, align: 'center' },
+  { title: '平均耗时', field: 'avgDuration', key: 'avgDuration', width: 100, align: 'right' },
+  { title: '最长耗时', field: 'maxDuration', key: 'maxDuration', width: 100, align: 'right' },
+  { title: '最短耗时', field: 'minDuration', key: 'minDuration', width: 100, align: 'right' }
+]
+const processDurationData = ref<Array<Record<string, any>>>([])
+
+// ── 节点耗时分析（processName 为空 = 全部流程） ─────────────
+const selectedProcess = ref<string | undefined>(undefined)
+const nodeDurationColumns = [
+  { title: '节点名称', field: 'nodeName', key: 'nodeName', width: 120 },
+  { title: '任务数', field: 'taskCount', key: 'taskCount', width: 80, align: 'center' },
+  { title: '平均耗时', field: 'avgDuration', key: 'avgDuration', width: 100, align: 'right' },
+  { title: '超时数', field: 'overdueCount', key: 'overdueCount', width: 80, align: 'center' },
+  { title: '超时率', field: 'overdueRate', key: 'overdueRate', width: 80, align: 'center' }
+]
+const nodeDurationData = ref<Array<Record<string, any>>>([])
+
+// 流程下拉的真实选项来源：汇总接口返回的 processDuration（禁止写死选项）
+const processOptions = computed(() => processDurationData.value
+  .filter((row: any) => !!row.processName)
+  .map((row: any) => ({ label: row.processName as string, value: row.processName as string })))
+
+// ── 审批效率报表（按日） ─────────────────────────────────
+// 默认近 7 天：与后端缺省口径（end = 今天，start = end - 6）保持一致
+const reportDateRange = ref<[string, string]>([
+  dayjs().subtract(6, 'day').format('YYYY-MM-DD'),
+  dayjs().format('YYYY-MM-DD')
+])
+const efficiencyColumns = [
+  { title: '日期', field: 'date', key: 'date', width: 120 },
+  { title: '总任务数', field: 'totalTasks', key: 'totalTasks', width: 100, align: 'center' },
+  { title: '完成数', field: 'completedTasks', key: 'completedTasks', width: 100, align: 'center' },
+  // 插槽列必须显式 type: 'slot'：只写 slotName 会被当作普通单元格直出原值
+  { title: '完成率', field: 'completionRate', key: 'completionRate', width: 150, type: 'slot', slotName: 'completionRateCell' },
+  { title: '平均耗时', field: 'avgDuration', key: 'avgDuration', width: 100, align: 'right' },
+  { title: '超时任务', field: 'overdueTasks', key: 'overdueTasks', width: 100, align: 'center' },
+  { title: '效率评分', field: 'efficiency', key: 'efficiency', width: 150, type: 'slot', slotName: 'efficiencyCell' }
+]
+const efficiencyData = ref<WorkflowAnalysisReportRow[]>([])
+
+// ── 图表 option（数据源与表格完全一致，不额外造数） ────────
+const processDistOption = computed(() => {
+  const rows = processDurationData.value
+  return {
+    tooltip: { trigger: 'axis' },
+    grid: { left: 8, right: 16, top: 24, bottom: 8, containLabel: true },
+    xAxis: {
+      type: 'category',
+      data: rows.map((row: any) => row.processName),
+      axisLabel: { rotate: rows.length > 4 ? 20 : 0, interval: 0, hideOverlap: true }
+    },
+    yAxis: { type: 'value', name: '实例数', minInterval: 1 },
+    series: [{
+      type: 'bar',
+      name: '实例数',
+      barMaxWidth: 40,
+      data: rows.map((row: any) => row.instanceCount)
+    }]
   }
-])
+})
 
-// 节点耗时数据
-const selectedProcess = ref('leave')
-const processOptions = ref([
-  { label: '请假审批流程', value: 'leave' },
-  { label: '报销审批流程', value: 'expense' },
-  { label: '采购审批流程', value: 'purchase' }
-])
-
-const nodeDurationVxeColumns = [
-  { field: 'nodeName', title: '节点名称', width: 120 },
-  { field: 'taskCount', title: '任务数', width: 80, align: 'center' },
-  { field: 'avgDuration', title: '平均耗时', width: 100, align: 'right' },
-  { field: 'overdueCount', title: '超时数', width: 80, align: 'center' },
-  { field: 'overdueRate', title: '超时率', width: 80, align: 'center' }
-]
-
-const nodeDurationData = ref([
-  { nodeName: '发起人提交', taskCount: 120, avgDuration: '0.5h', overdueCount: 2, overdueRate: '1.7%' },
-  { nodeName: '部门经理审批', taskCount: 118, avgDuration: '4.2h', overdueCount: 8, overdueRate: '6.8%' },
-  { nodeName: '人事审批', taskCount: 110, avgDuration: '2.5h', overdueCount: 3, overdueRate: '2.7%' }
-])
-
-// 审批效率数据
-const reportDateRange = ref<any>([])
-const efficiencyVxeColumns = [
-  { field: 'date', title: '日期', width: 120 },
-  { field: 'totalTasks', title: '总任务数', width: 100, align: 'center' },
-  { field: 'completedTasks', title: '完成数', width: 100, align: 'center' },
-  { field: 'completionRate', title: '完成率', width: 150, slotName: 'completionRateCell' },
-  { field: 'avgDuration', title: '平均耗时', width: 100, align: 'right' },
-  { field: 'overdueTasks', title: '超时任务', width: 100, align: 'center' },
-  { field: 'efficiency', title: '效率评分', width: 150, slotName: 'efficiencyCell' }
-]
-
-const efficiencyData = ref([
-  {
-    date: '2024-04-08',
-    totalTasks: 50,
-    completedTasks: 48,
-    completionRate: 96,
-    avgDuration: '1.8天',
-    overdueTasks: 2,
-    efficiency: 5
-  },
-  {
-    date: '2024-04-09',
-    totalTasks: 55,
-    completedTasks: 52,
-    completionRate: 95,
-    avgDuration: '2.1天',
-    overdueTasks: 3,
-    efficiency: 4.5
-  },
-  {
-    date: '2024-04-10',
-    totalTasks: 60,
-    completedTasks: 58,
-    completionRate: 97,
-    avgDuration: '1.9天',
-    overdueTasks: 2,
-    efficiency: 5
-  },
-  {
-    date: '2024-04-11',
-    totalTasks: 48,
-    completedTasks: 45,
-    completionRate: 94,
-    avgDuration: '2.3天',
-    overdueTasks: 3,
-    efficiency: 4
-  },
-  {
-    date: '2024-04-12',
-    totalTasks: 52,
-    completedTasks: 50,
-    completionRate: 96,
-    avgDuration: '2.0天',
-    overdueTasks: 2,
-    efficiency: 4.5
-  },
-  {
-    date: '2024-04-13',
-    totalTasks: 58,
-    completedTasks: 56,
-    completionRate: 97,
-    avgDuration: '1.7天',
-    overdueTasks: 2,
-    efficiency: 5
-  },
-  {
-    date: '2024-04-14',
-    totalTasks: 65,
-    completedTasks: 62,
-    completionRate: 95,
-    avgDuration: '2.2天',
-    overdueTasks: 3,
-    efficiency: 4.5
+const nodeDistOption = computed(() => {
+  const rows = nodeDurationData.value
+  return {
+    tooltip: { trigger: 'item', formatter: '{b}：{c}（{d}%）' },
+    legend: { bottom: 0, type: 'scroll' },
+    series: [{
+      type: 'pie',
+      radius: ['40%', '65%'],
+      center: ['50%', '45%'],
+      data: rows.map((row: any) => ({ name: row.nodeName, value: row.taskCount }))
+    }]
   }
-])
+})
 
-// 刷新数据
-const handleRefresh = async () => {
-  hasError.value = false
+// ── 加载 ────────────────────────────────────────────────
+//
+// silent = true：首屏 / 轮询调用，不弹提示；silent = false：用户主动操作，给反馈。
+async function loadSummary(silent = true) {
+  summaryLoading.value = true
   try {
-    const res = await request.get('/workflow/analysis/refresh')
-    if (res.data) {
-      if (res.statistics) {
-        const stats = res.statistics
-        statisticCards.value = [
-          { title: '流程实例总数', value: stats.totalInstances || 0, suffix: '个' },
-          { title: '运行中实例', value: stats.runningInstances || 0, suffix: '个' },
-          { title: '待办任务数', value: stats.todoTasks || 0, suffix: '个' },
-          { title: '平均处理时长', value: stats.avgDuration || 0, suffix: '天' }
-        ]
-      }
-      if (res.processDuration) {
-        processDurationData.value = res.processDuration
-      }
-      if (res.nodeDuration) {
-        nodeDurationData.value = res.nodeDuration
-      }
-    }
-    console.warn('[工作流] 操作成功: 数据刷新成功')
-    message.success('数据刷新成功')
+    const params = selectedProcess.value ? { processName: selectedProcess.value } : {}
+    const res: WorkflowAnalysisSummary = await workflowAnalysisApi.refresh(params)
+    hasError.value = false
+
+    const stats: any = res?.statistics || res?.data || {}
+    statisticCards.value = [
+      { title: '流程实例总数', value: stats.totalInstances ?? '-', suffix: '个' },
+      { title: '运行中实例', value: stats.runningInstances ?? '-', suffix: '个' },
+      { title: '待办任务数', value: stats.todoTasks ?? '-', suffix: '个' },
+      { title: '平均处理时长', value: stats.avgDuration ?? '-', suffix: '天' }
+    ]
+
+    processDurationData.value = res?.processDuration || []
+    nodeDurationData.value = res?.nodeDuration || []
+    lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
   } catch (err) {
     hasError.value = true
-    console.warn('[工作流] 刷新数据失败', err)
-    message.error('刷新数据失败')
+    console.warn('[流程分析] 汇总数据加载失败', err)
+    if (!silent) message.error('加载分析数据失败')
   } finally {
-    lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
-    refreshLoading.value = false
+    summaryLoading.value = false
   }
 }
 
-// 报表日期变化
-const handleReportDateChange = async () => {
+async function loadReport(silent = true) {
+  reportLoading.value = true
   try {
-    const res = await request.get('/workflow/analysis/report', {
-      params: {
-        startDate: reportDateRange.value?.[0],
-        endDate: reportDateRange.value?.[1]
-      }
+    const res: any = await workflowAnalysisApi.report({
+      startDate: reportDateRange.value?.[0],
+      endDate: reportDateRange.value?.[1]
     })
-    if (res.data?.records?.length) {
-      efficiencyData.value = res.records
-    }
-    console.warn('[工作流] 操作成功: 报表数据加载成功')
-    message.success('报表数据加载成功')
+    reportError.value = false
+    efficiencyData.value = res?.records || []
   } catch (err) {
-    console.warn('[工作流] 加载报表数据失败', err)
-    message.error('加载报表数据失败')
+    reportError.value = true
+    console.warn('[流程分析] 报表数据加载失败', err)
+    if (!silent) message.error('加载报表数据失败')
+  } finally {
+    reportLoading.value = false
   }
+}
+
+/** 用户主动刷新（按钮 / 快捷键 / 重试）：表与图一起刷，并给出结果提示 */
+async function handleRefresh() {
+  refreshLoading.value = true
+  await Promise.all([loadSummary(false), loadReport(false)])
+  refreshLoading.value = false
+  autoRefreshCountdown.value = 30
+  if (!hasError.value && !reportError.value) message.success('数据刷新成功')
+}
+
+/** 轮询刷新：静默，只刷汇总（报表按选定日期范围人工触发） */
+async function loadByPolling() {
+  await loadSummary(true)
+  autoRefreshCountdown.value = 30
 }
 
 // 获取进度条颜色
@@ -539,15 +511,17 @@ function handleParentCreate() { handleRefresh() }
 function handleKeydown(e: KeyboardEvent) {
   if (e.key === 'F5' || (e.ctrlKey && e.key === 'r')) {
     e.preventDefault()
-    debounceClick('refresh', handleRefresh)()
+    handleRefresh()
   }
 }
 
 onMounted(() => {
+  // 首屏立即加载（原实现只在 setInterval 回调里刷新，首屏最多 30 秒展示写死的 2024 年假数据）
+  loadSummary(true)
+  loadReport(true)
   autoRefreshCountdown.value = 30
   refreshTimer = setInterval(() => {
-    handleRefresh()
-    autoRefreshCountdown.value = 30
+    loadByPolling()
   }, 30000)
   countdownTimer = setInterval(() => {
     if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
@@ -567,12 +541,20 @@ defineExpose({ handleQuery: handleRefresh })
 </script>
 
 <style scoped>
-/* ── 让 BillTableList 填满剩余空间 ──────────────────────── */
+/* ── 让内容区填满剩余空间 ──────────────────────── */
 .page-content {
   flex: 1;
   display: flex;
   flex-direction: column;
   min-height: 0;
+}
+
+.workflow-analysis {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  overflow: auto;
 }
 
 /* ── 空状态 ── */
@@ -631,18 +613,6 @@ defineExpose({ handleQuery: handleRefresh })
   user-select: none;
 }
 
-.workflow-analysis {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  padding: 16px;
-  overflow: auto;
-}
-
-.stat-cards-row {
-  margin-bottom: 16px;
-}
-
 .card-header {
   display: flex;
   justify-content: space-between;
@@ -655,13 +625,13 @@ defineExpose({ handleQuery: handleRefresh })
   color: #999;
 }
 
-.chart-container {
-  height: 300px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #f5f5f5;
-  border-radius: 4px;
+/* 图表口径标注（如「全部流程」/ 选中的流程名） */
+.chart-scope {
+  font-size: 12px;
+  color: #909399;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: #f5f7fa;
 }
 
 /* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
@@ -709,13 +679,6 @@ defineExpose({ handleQuery: handleRefresh })
   line-height: 18px;
 }
 
-/* ── 空状态 ──────────────────────── */
-.empty-state-wrapper { display: flex; flex-direction: column; align-items: center; padding: 48px 0; }
-.empty-state-icon { font-size: 48px; color: #d9d9d9; }
-.empty-state-text { color: #999; margin-top: 12px; }
-.empty-state-action { margin-top: 12px; }
-
 /* ── vxe-table 表头 2px 边框 ─────── */
 :deep(.vxe-table .vxe-header--row) { border-top: 2px solid #e8e8e8; }
-
 </style>

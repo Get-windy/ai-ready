@@ -1,7 +1,10 @@
 package cn.aiedge.erp.marketing.controller;
 
+import cn.aiedge.base.utils.SecurityUtils;
 import cn.aiedge.base.vo.Result;
+import cn.aiedge.erp.marketing.dto.PresaleOrderRowVO;
 import cn.aiedge.erp.marketing.entity.Presale;
+import cn.aiedge.erp.marketing.mapper.MarketingQueryMapper;
 import cn.aiedge.erp.marketing.service.PresaleService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
@@ -20,6 +23,7 @@ import org.springframework.web.bind.annotation.*;
 public class PresaleController {
 
     private final PresaleService presaleService;
+    private final MarketingQueryMapper marketingQueryMapper;
 
     @Operation(summary = "分页查询预售活动")
     @GetMapping("/page")
@@ -42,6 +46,20 @@ public class PresaleController {
         return Result.ok(presaleService.page(page, wrapper));
     }
 
+    @Operation(summary = "商城预售 →「预售订单」Tab（8 列）")
+    @GetMapping("/order/page")
+    public Result<IPage<PresaleOrderRowVO>> orderPage(
+            @RequestParam(required = false) String customer,
+            @RequestParam(required = false) String orderNo,
+            @RequestParam(required = false) Long presaleId,
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "20") Integer pageSize) {
+        Long tenantId = SecurityUtils.getCurrentTenantId();
+        if (tenantId == null) tenantId = 1L;
+        return Result.ok(marketingQueryMapper.selectPresaleOrderPage(
+                new Page<>(pageNum, pageSize), tenantId, customer, orderNo, presaleId));
+    }
+
     @Operation(summary = "查询预售活动详情")
     @GetMapping("/{id}")
     public Result<Presale> getById(@PathVariable Long id) {
@@ -54,6 +72,9 @@ public class PresaleController {
         presale.setId(null);
         presale.setStatus(Presale.STATUS_PENDING);
         presale.setSoldCount(0);
+        presale.setCreatorName(SecurityUtils.getCurrentUsername());
+        presale.setCreateTime(java.time.LocalDateTime.now());
+        presale.setUpdateTime(java.time.LocalDateTime.now());
         return Result.ok(presaleService.save(presale));
     }
 

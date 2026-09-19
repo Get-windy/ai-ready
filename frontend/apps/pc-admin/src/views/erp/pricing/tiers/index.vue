@@ -137,98 +137,102 @@
           </a-button>
         </template>
 
-        <BillTableList
-          ref="tableRef"
-          :columns="vxeColumns"
-          :data-source="tiers"
-          :loading="loading"
-          :pagination="{ pageSize: 10, total: tiers.length, showSizeChanger: true, showQuickJumper: true } as any"
-          row-key="tierId"
-          :show-toolbar="false"
-          :selectable="false"
-          :show-add="false"
-          :show-search="false"
-          :show-export="false"
-          :show-batch-delete="false"
-          @cell-dblclick="editTier"
+        <div
+          ref="tableWrap"
+          class="table-area"
         >
-          <template #empty>
-            <div
-              v-if="hasError"
-              class="table-empty"
-            >
-              <WarningOutlined class="table-empty-icon" />
-              <p class="table-empty-text">
-                数据加载异常，请重试
-              </p>
-              <a-button
-                type="primary"
-                @click="fetchTiers"
+          <BillTableList
+            ref="tableRef"
+            :columns="vxeColumns"
+            :data-source="tiers"
+            :loading="loading"
+            :pagination="{ pageSize: 10, total: tiers.length, showSizeChanger: true, showQuickJumper: true } as any"
+            row-key="tierId"
+            :show-toolbar="false"
+            :selectable="false"
+            :show-add="false"
+            :show-search="false"
+            :show-export="false"
+            :show-batch-delete="false"
+          >
+            <template #empty>
+              <div
+                v-if="hasError"
+                class="table-empty"
               >
-                <ReloadOutlined /> 重试
-              </a-button>
-            </div>
-          </template>
-          <template #statusCell="{ record }">
-            <StatusTag
-              :status="record.status"
-              :map="TIER_STATUS_MAP"
-            />
-          </template>
-          <template #pricingModeCell="{ record }">
-            <a-tag>{{ pricingModeLabel(record.pricingMode) }}</a-tag>
-          </template>
-          <template #customerLevelCell="{ record }">
-            {{ levelLabel(record.customerLevel) || '-' }}
-          </template>
-          <template #priceInfoCell="{ record }">
-            <template v-if="record.pricingMode === 'factor'">
-              ×{{ record.priceFactor }}
+                <WarningOutlined class="table-empty-icon" />
+                <p class="table-empty-text">
+                  数据加载异常，请重试
+                </p>
+                <a-button
+                  type="primary"
+                  @click="fetchTiers"
+                >
+                  <ReloadOutlined /> 重试
+                </a-button>
+              </div>
             </template>
-            <template v-else-if="record.pricingMode === 'discount'">
-              {{ record.discountRate }}%
+            <template #statusCell="{ record }">
+              <StatusTag
+                :status="record.status"
+                :map="TIER_STATUS_MAP"
+              />
             </template>
-            <template v-else-if="record.pricingMode === 'fixed'">
-              ¥{{ record.tierPrice }}
+            <template #pricingModeCell="{ record }">
+              <a-tag>{{ pricingModeLabel(record.pricingMode) }}</a-tag>
             </template>
-            <template v-else>
-              -
+            <template #customerLevelCell="{ record }">
+              {{ levelLabel(record.customerLevel) || '-' }}
             </template>
-          </template>
-          <template #quantityRangeCell="{ record }">
-            {{ record.minQuantity || 0 }} - {{ record.maxQuantity || '∞' }}
-          </template>
-          <template #action="{ record }">
-            <a-space :size="4">
-              <a-button
-                type="link"
-                size="small"
-                @click="editTier(record)"
-              >
-                编辑
-              </a-button>
-              <a-popconfirm
-                title="确定要删除此价层吗？"
-                @confirm="deleteTier(record)"
-              >
+            <template #priceInfoCell="{ record }">
+              <template v-if="record.pricingMode === 'factor'">
+                ×{{ record.priceFactor }}
+              </template>
+              <template v-else-if="record.pricingMode === 'discount'">
+                {{ record.discountRate }}%
+              </template>
+              <template v-else-if="record.pricingMode === 'fixed'">
+                ¥{{ record.tierPrice }}
+              </template>
+              <template v-else>
+                -
+              </template>
+            </template>
+            <template #quantityRangeCell="{ record }">
+              {{ record.minQuantity || 0 }} - {{ record.maxQuantity || '∞' }}
+            </template>
+            <template #action="{ record }">
+              <a-space :size="4">
                 <a-button
                   type="link"
                   size="small"
-                  danger
+                  @click="editTier(record)"
                 >
-                  删除
+                  编辑
                 </a-button>
-              </a-popconfirm>
-              <a-button
-                type="link"
-                size="small"
-                @click="toggleStatus(record)"
-              >
-                {{ record.status === 'active' ? '禁用' : '启用' }}
-              </a-button>
-            </a-space>
-          </template>
-        </BillTableList>
+                <a-popconfirm
+                  title="确定要删除此价层吗？"
+                  @confirm="deleteTier(record)"
+                >
+                  <a-button
+                    type="link"
+                    size="small"
+                    danger
+                  >
+                    删除
+                  </a-button>
+                </a-popconfirm>
+                <a-button
+                  type="link"
+                  size="small"
+                  @click="toggleStatus(record)"
+                >
+                  {{ record.status === 'active' ? '禁用' : '启用' }}
+                </a-button>
+              </a-space>
+            </template>
+          </BillTableList>
+        </div>
       </a-card>
 
       <!-- 新增/编辑弹窗 -->
@@ -386,6 +390,7 @@ import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import request from '@/utils/request'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'
 import { requiredRule, requiredSelectRule } from '@/utils/formRules'
+import { useRowDblclick } from '@/composables/useRowDblclick'
 
 // ── 防抖工具 ──────────────────────────────────────────
 const debounceMap = new Map<string, number>()
@@ -519,6 +524,11 @@ function editTier(tier: PriceTier) {
   modalVisible.value = true
 }
 
+// 双击行 → 进入编辑：页面侧自行实现（共享表格组件不再派发该事件）
+// 行标识由表格行上的 data-row-key 反查，与该表 row-key（'tierId'）同口径
+const tableWrap = ref<HTMLElement | null>(null)
+useRowDblclick(tableWrap, () => tiers.value, editTier, 'tierId')
+
 async function handleModalOk() {
   try {
     await formRef.value?.validate()
@@ -591,6 +601,16 @@ defineExpose({ handleQuery: fetchTiers })
 </script>
 
 <style scoped>
+
+/* 双击行入口容器（页面侧事件委托，见脚本 useRowDblclick）：撑满剩余空间，避免表格高度塌陷 */
+.table-area {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
 .tiers-header {
   display: flex;
   justify-content: space-between;

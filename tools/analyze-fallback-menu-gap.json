@@ -1,0 +1,275 @@
+{
+ "has_menu": [
+  {
+   "path": "workflow/instance-monitor",
+   "component": "workflow/instance-monitor.vue",
+   "title": "流程监控",
+   "menus": [
+    {
+     "id": 802,
+     "name": "流程实例",
+     "path": "/workflow/instance",
+     "client_type": "tenant-admin",
+     "parent_id": 61207,
+     "tenant_id": 0
+    }
+   ]
+  },
+  {
+   "path": "workflow/task-management",
+   "component": "workflow/task-management.vue",
+   "title": "任务管理",
+   "menus": [
+    {
+     "id": 804,
+     "name": "我的已办",
+     "path": "/workflow/done",
+     "client_type": "tenant-admin",
+     "parent_id": 61207,
+     "tenant_id": 0
+    },
+    {
+     "id": 803,
+     "name": "我的待办",
+     "path": "/workflow/task",
+     "client_type": "tenant-admin",
+     "parent_id": 61207,
+     "tenant_id": 0
+    }
+   ]
+  },
+  {
+   "path": "workflow/process-analysis",
+   "component": "workflow/process-analysis.vue",
+   "title": "流程分析",
+   "menus": [
+    {
+     "id": 80611,
+     "name": "流程分析",
+     "path": "/workflow/process-analysis",
+     "client_type": "tenant-admin",
+     "parent_id": 61206,
+     "tenant_id": 0
+    }
+   ]
+  }
+ ],
+ "no_menu": [
+  {
+   "path": "erp/product/price-batch",
+   "name": "ErpProductPriceBatch",
+   "component": "erp/product/price-batch.vue",
+   "title": "批量价格管理"
+  },
+  {
+   "path": "erp/product/inventory-mode",
+   "name": "ErpProductInventoryMode",
+   "component": "erp/product/inventory-mode.vue",
+   "title": "库存管理模式"
+  },
+  {
+   "path": "erp/product/grade",
+   "name": "ErpProductGrade",
+   "component": "erp/product/grade.vue",
+   "title": "价格等级管理"
+  },
+  {
+   "path": "erp/partner",
+   "name": "ErpPartner",
+   "component": "erp/partner/index.vue",
+   "title": "往来单位管理"
+  },
+  {
+   "path": "erp/batch",
+   "name": "ErpBatch",
+   "component": "erp/batch/index.vue",
+   "title": "批次管理"
+  },
+  {
+   "path": "erp/serial",
+   "name": "ErpSerial",
+   "component": "erp/serial/index.vue",
+   "title": "序列号管理"
+  },
+  {
+   "path": "erp/column-config/sale-order-item",
+   "name": "ErpSaleOrderItemColumnConfig",
+   "component": "erp/column-config/SaleOrderItemColumnConfig.vue",
+   "title": "销售订单明细列配置"
+  },
+  {
+   "path": "notification/index",
+   "name": "Notification",
+   "component": "notification/index.vue",
+   "title": "通知公告"
+  },
+  {
+   "path": "profile/index",
+   "name": "Profile",
+   "component": "profile/index.vue",
+   "title": "个人中心"
+  },
+  {
+   "path": "charts/index",
+   "name": "Charts",
+   "component": "charts/index.vue",
+   "title": "图表"
+  },
+  {
+   "path": "system/data-import",
+   "name": "DataImport",
+   "component": "system/data-import/index.vue",
+   "title": "数据导入"
+  },
+  {
+   "path": "mall/config",
+   "name": "MallConfig",
+   "component": "erp/mall/config/index.vue",
+   "title": "商城配置"
+  },
+  {
+   "path": "mall/user-audit",
+   "name": "MallUserAudit",
+   "component": "erp/mall/user-audit/index.vue",
+   "title": "用户审核"
+  },
+  {
+   "path": "mall/banner",
+   "name": "MallBanner",
+   "component": "erp/mall/banner/index.vue",
+   "title": "轮播图管理"
+  },
+  {
+   "path": "mall/order",
+   "name": "MallOrder",
+   "component": "erp/mall/order/index.vue",
+   "title": "订单管理"
+  },
+  {
+   "path": "mall/product",
+   "name": "MallProduct",
+   "component": "erp/mall/product/index.vue",
+   "title": "商品管理"
+  },
+  {
+   "path": "stock",
+   "name": "Stock",
+   "component": "erp/stock/index.vue",
+   "title": "销售出库"
+  },
+  {
+   "path": "finance",
+   "name": "Finance",
+   "component": "finance/index.vue",
+   "title": "财务管理首页"
+  },
+  {
+   "path": "erp/pricing/approval",
+   "name": "ErpPricingApproval",
+   "component": "erp/pricing/approval/index.vue",
+   "title": "价格审批"
+  },
+  {
+   "path": "erp/pricing",
+   "name": "ErpPricing",
+   "component": "erp/pricing/index.vue",
+   "title": "价格管理"
+  },
+  {
+   "path": "erp/purchase",
+   "name": "ErpPurchase",
+   "component": "erp/purchase/index.vue",
+   "title": "采购管理"
+  },
+  {
+   "path": "erp/purchase-contract",
+   "name": "ErpPurchaseContract",
+   "component": "erp/purchase-contract/index.vue",
+   "title": "采购合同"
+  },
+  {
+   "path": "erp/purchase/inquiry",
+   "name": "ErpPurchaseInquiry",
+   "component": "erp/purchase/index.vue",
+   "title": "采购询价"
+  },
+  {
+   "path": "erp/sales-analysis",
+   "name": "ErpSalesAnalysis",
+   "component": "erp/sales-analysis/index.vue",
+   "title": "销售分析"
+  },
+  {
+   "path": "erp/sales-report",
+   "name": "ErpSalesReport",
+   "component": "erp/sales-report/index.vue",
+   "title": "销售报表"
+  },
+  {
+   "path": "erp/stock",
+   "name": "ErpStock",
+   "component": "erp/stock/index.vue",
+   "title": "库存管理"
+  },
+  {
+   "path": "erp/stock-in",
+   "name": "ErpStockIn",
+   "component": "erp/stock-in/index.vue",
+   "title": "入库管理"
+  },
+  {
+   "path": "erp/stocktake",
+   "name": "ErpStocktake",
+   "component": "erp/stocktake/index.vue",
+   "title": "库存盘点"
+  },
+  {
+   "path": "erp/stock/replenishment",
+   "name": "ErpStockReplenishment",
+   "component": "erp/stock/replenishment/index.vue",
+   "title": "智能补货"
+  },
+  {
+   "path": "erp/batch",
+   "name": "ErpBatchMain",
+   "component": "erp/batch/index.vue",
+   "title": "批次管理"
+  },
+  {
+   "path": "erp/serial",
+   "name": "ErpSerialMain",
+   "component": "erp/serial/index.vue",
+   "title": "序列号管理"
+  },
+  {
+   "path": "erp/return",
+   "name": "ErpReturnMain",
+   "component": "erp/return/index.vue",
+   "title": "退货管理"
+  },
+  {
+   "path": "erp/stock-bom",
+   "name": "ErpStockBom",
+   "component": "erp/stock-bom/index.vue",
+   "title": "生产模板"
+  },
+  {
+   "path": "sales/retail",
+   "name": "RetailList",
+   "component": "sales/retail/index.vue",
+   "title": "零售单"
+  },
+  {
+   "path": "dms/order-pool/bid-detail",
+   "name": "DmsOrderPoolBidDetail",
+   "component": "dms/order-pool/bid-detail.vue",
+   "title": "竞标详情"
+  },
+  {
+   "path": "sales/pre-order",
+   "name": "PreOrderListAlias",
+   "component": "sales/pre-order/index.vue",
+   "title": "预订货单"
+  }
+ ]
+}

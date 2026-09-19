@@ -1,33 +1,64 @@
 <template>
   <ErrorBoundary @error="handleError">
     <PageContainer full-height>
-      <template #header>
-        <div class="menu-page-header">
-          <div class="menu-page-header-left">
-            <a-breadcrumb>
-              <a-breadcrumb-item>
-                <router-link to="/">
-                  首页
-                </router-link>
-              </a-breadcrumb-item>
-              <a-breadcrumb-item>菜单管理</a-breadcrumb-item>
-            </a-breadcrumb>
-            <h2 class="menu-page-header-title">
-              菜单管理
-            </h2>
-          </div>
-          <div class="menu-page-header-right">
-            <span
-              v-if="lastUpdateTime"
-              class="update-time"
-            >更新于 {{ lastUpdateTime }}</span>
-            <span class="shortcut-hints">
-              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-              <span class="shortcut-hint"><kbd>Ctrl</kbd> + <kbd>N</kbd> 新增</span>
-            </span>
+      <!--
+        菜单管理（系统 → 系统管理 → 菜单管理，菜单 6130701）
+        开发文档：docs/Yh-Spec/手动整理对标开发文档/系统模块/菜单管理开发文档.md
+        金标准外壳：ErrorBoundary > PageContainer(full-height) > CategoryListLayout
+      -->
+      <CategoryListLayout
+        :tabs="[]"
+        :show-category-panel="false"
+        :show-table-footer="true"
+      >
+        <!-- ═══ 工具栏左侧：新增菜单 / 展开收起 / 刷新缓存 ═══ -->
+        <template #toolbar-left>
+          <a-space :size="8">
             <a-button
+              v-if="isButtonEnabled('add')"
+              v-permission="'system:menu:create'"
+              type="primary"
               size="small"
-              :loading="refreshLoading"
+              :loading="submitLoading"
+              @click="handleAdd"
+            >
+              <template #icon>
+                <PlusOutlined />
+              </template>
+              新增菜单
+            </a-button>
+            <a-button
+              v-if="isButtonEnabled('expand')"
+              size="small"
+              @click="toggleExpandAll"
+            >
+              <template #icon>
+                <NodeExpandOutlined v-if="!isExpandAll" />
+                <NodeCollapseOutlined v-else />
+              </template>
+              {{ isExpandAll ? '折叠全部' : '展开全部' }}
+            </a-button>
+            <a-button
+              v-if="isButtonEnabled('refreshCache')"
+              size="small"
+              @click="handleRefreshCache"
+            >
+              <template #icon>
+                <SyncOutlined />
+              </template>
+              刷新缓存
+            </a-button>
+          </a-space>
+        </template>
+
+        <!-- ═══ 工具栏右侧：刷新 + 页面配置 ═══ -->
+        <template #toolbar-right>
+          <a-space :size="8">
+            <a-button
+              v-if="isButtonEnabled('refresh')"
+              size="small"
+              title="刷新 (F5)"
+              :loading="refreshLoading || loading"
               @click="debounceClick('refresh', loadMenuTree)()"
             >
               <template #icon>
@@ -35,628 +66,639 @@
               </template>
               刷新
             </a-button>
-          </div>
-        </div>
-      </template>
-
-      <div class="menu-management">
-        <!-- 统计卡片 -->
-        <div class="stat-cards">
-          <div class="stat-card stat-total">
-            <div class="stat-card-body">
-              <div class="stat-card-value">
-                {{ menuCount }}
-              </div>
-              <div class="stat-card-label">
-                菜单总数
-              </div>
-            </div>
-            <AppstoreOutlined class="stat-card-icon" />
-          </div>
-          <div class="stat-card stat-enabled">
-            <div class="stat-card-body">
-              <div class="stat-card-value">
-                {{ enabledCount }}
-              </div>
-              <div class="stat-card-label">
-                启用菜单
-              </div>
-            </div>
-            <CheckCircleOutlined class="stat-card-icon" />
-          </div>
-          <div class="stat-card stat-disabled">
-            <div class="stat-card-body">
-              <div class="stat-card-value">
-                {{ disabledCount }}
-              </div>
-              <div class="stat-card-label">
-                禁用菜单
-              </div>
-            </div>
-            <StopOutlined class="stat-card-icon" />
-          </div>
-          <div class="stat-card stat-button">
-            <div class="stat-card-body">
-              <div class="stat-card-value">
-                {{ buttonCount }}
-              </div>
-              <div class="stat-card-label">
-                按钮数量
-              </div>
-            </div>
-            <ControlOutlined class="stat-card-icon" />
-          </div>
-        </div>
-
-        <!-- 工具栏 -->
-        <div class="menu-toolbar">
-          <div class="menu-toolbar-left">
-            <a-space>
-              <a-button
-                v-permission="'system:permission:create'"
-                type="primary"
-                :loading="submitLoading"
-                @click="handleAdd"
-              >
-                <template #icon>
-                  <PlusOutlined />
-                </template>
-                新增菜单
-              </a-button>
-              <a-button @click="toggleExpandAll">
-                <template #icon>
-                  <NodeExpandOutlined v-if="!isExpandAll" /><NodeCollapseOutlined v-else />
-                </template>
-                {{ isExpandAll ? '折叠全部' : '展开全部' }}
-              </a-button>
-              <a-button @click="handleRefreshCache">
-                <template #icon>
-                  <SyncOutlined />
-                </template>
-                刷新缓存
-              </a-button>
-            </a-space>
-          </div>
-          <div class="menu-toolbar-right">
-            <a-space>
-              <a-select
-                v-model:value="queryForm.menuType"
-                placeholder="菜单类型"
-                allow-clear
-                style="width: 110px"
-                size="small"
-                @change="loadMenuTree"
-              >
-                <a-select-option
-                  v-for="opt in menuTypeOptions"
-                  :key="opt.value"
-                  :value="opt.value"
-                >
-                  {{ opt.label }}
-                </a-select-option>
-              </a-select>
-              <a-select
-                v-model:value="queryForm.status"
-                placeholder="状态"
-                allow-clear
-                style="width: 90px"
-                size="small"
-                @change="loadMenuTree"
-              >
-                <a-select-option :value="1">
-                  启用
-                </a-select-option>
-                <a-select-option :value="0">
-                  禁用
-                </a-select-option>
-              </a-select>
-              <a-input-search
-                v-model:value="queryForm.menuName"
-                placeholder="搜索菜单名称"
-                style="width: 180px"
-                size="small"
-                allow-clear
-                @search="loadMenuTree"
-              />
-              <a-tooltip title="刷新 (F5)">
-                <a-button
-                  size="small"
-                  :loading="refreshLoading"
-                  @click="debounceClick('refresh', loadMenuTree)()"
-                >
-                  <template #icon>
-                    <ReloadOutlined />
-                  </template>
-                </a-button>
-              </a-tooltip>
-            </a-space>
-          </div>
-        </div>
-
-        <a-skeleton
-          v-if="loading && menuTree.length === 0"
-          active
-          :paragraph="{ rows: 8 }"
-          style="padding: 24px;"
-        />
-
-        <!-- 表格 -->
-        <a-table
-          v-else
-          :columns="tableColumns"
-          :data-source="paginatedRows"
-          :loading="loading"
-          :pagination="false as any"
-          size="small"
-          row-key="id"
-          :bordered="true"
-          class="menu-tree-table"
-        >
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'menuName'">
-              <span
-                class="tree-indent"
-                :style="{ paddingLeft: (record._level || 0) * 20 + 'px' }"
-              >
-                <span
-                  v-if="record._hasChildren"
-                  class="tree-expand-icon"
-                  @click.stop="toggleRowExpand(record.id)"
-                >
-                  <CaretDownOutlined v-if="expandedRowKeys.includes(record.id)" />
-                  <CaretRightOutlined v-else />
-                </span>
-                <span
-                  v-else
-                  class="tree-expand-placeholder"
-                />
-                <component
-                  :is="iconComponent(record.icon)"
-                  v-if="record.icon"
-                  class="menu-icon"
-                />
-                <span
-                  :class="{ 'tree-node-clickable': record._hasChildren }"
-                  @click="record._hasChildren && toggleRowExpand(record.id)"
-                >{{ record.menuName }}</span>
-              </span>
-            </template>
-            <template v-else-if="column.key === 'menuType'">
-              <a-tag v-if="record.menuType === 0">
-                目录
-              </a-tag>
-              <a-tag
-                v-else-if="record.menuType === 1"
-                color="green"
-              >
-                菜单
-              </a-tag>
-              <a-tag
-                v-else-if="record.menuType === 2"
-                color="orange"
-              >
-                按钮
-              </a-tag>
-            </template>
-            <template v-else-if="column.key === 'status'">
-              <a-switch
-                :checked="record.status === 1"
-                @change="(checked: boolean) => handleStatusChange(record, checked ? 1 : 0)"
-              />
-            </template>
-            <template v-else-if="column.key === 'visible'">
-              <a-tag
-                v-if="record.visible === 1"
-                color="green"
-              >
-                显示
-              </a-tag>
-              <a-tag v-else>
-                隐藏
-              </a-tag>
-            </template>
-            <template v-else-if="column.key === 'bizFlowTag'">
-              <a-tag
-                v-if="record.bizFlowTag"
-                :color="getBizFlowTagColor(record.bizFlowTag)"
-              >
-                {{ getBizFlowTagLabel(record.bizFlowTag) }}
-              </a-tag>
-              <span
-                v-else
-                class="text-muted"
-              >—</span>
-            </template>
-            <template v-else-if="column.key === 'displayMode'">
-              <a-tag
-                v-if="record.displayMode === 1"
-                color="purple"
-              >
-                双入口
-              </a-tag>
-              <span
-                v-else
-                class="text-muted"
-              >默认</span>
-            </template>
-            <template v-else-if="column.key === 'menuLevel'">
-              <a-tag
-                v-if="record.menuLevel === 1"
-                color="red"
-              >
-                系统
-              </a-tag>
-              <a-tag
-                v-else-if="record.menuLevel === 0"
-                color="green"
-              >
-                租户
-              </a-tag>
-              <span
-                v-else
-                class="text-muted"
-              >—</span>
-            </template>
-            <template v-else-if="column.key === 'action'">
-              <a-button
-                v-permission="'system:permission:create'"
-                type="link"
-                size="small"
-                @click="handleAddChild(record)"
-              >
-                <template #icon>
-                  <PlusOutlined />
-                </template>新增
-              </a-button>
-              <a-button
-                v-permission="'system:permission:update'"
-                type="link"
-                size="small"
-                @click="handleEdit(record)"
-              >
-                <template #icon>
-                  <EditOutlined />
-                </template>编辑
-              </a-button>
-              <a-button
-                v-permission="'system:permission:assign'"
-                type="link"
-                size="small"
-                @click="handleAssignRole(record)"
-              >
-                <template #icon>
-                  <UserOutlined />
-                </template>角色
-              </a-button>
-              <a-button
-                v-permission="'system:permission:delete'"
-                type="link"
-                size="small"
-                danger
-                @click="handleDelete(record)"
-              >
-                <template #icon>
-                  <DeleteOutlined />
-                </template>删除
-              </a-button>
-            </template>
-          </template>
-          <template #emptyText>
-            <a-empty
-              v-if="!hasError"
-              description="暂无数据"
-            />
-            <a-result
-              v-else
-              status="error"
-              title="数据加载失败"
+            <a-button
+              size="small"
+              title="页面配置"
+              @click="showPageConfig = true"
             >
-              <template #extra>
-                <a-button
-                  type="primary"
-                  @click="debounceClick('refresh', loadMenuTree)()"
-                >
-                  <template #icon>
-                    <ReloadOutlined />
-                  </template>
-                  重新加载
-                </a-button>
+              <template #icon>
+                <SettingOutlined />
               </template>
-            </a-result>
-          </template>
-        </a-table>
+            </a-button>
+          </a-space>
+        </template>
 
-        <!-- 分页 -->
-        <div
-          v-if="flatMenuRows.length > 0"
-          class="table-pagination"
-        >
-          <StandardPagination
-            variant="classic"
-            :current="currentPage"
-            :page-size="pageSize"
-            :total="flatMenuRows.length"
-            :page-size-options="[20, 50, 100, 200]"
-            @change="onPageChange"
-          />
-        </div>
-
-        <!-- 菜单编辑弹窗 -->
-        <FullScreenDetail
-          :visible="dialogVisible"
-          :title="dialogTitle"
-          :dirty="formDirty"
-          :save-loading="submitLoading"
-          :show-save-and-new="!formData.id"
-          @save="handleSubmit"
-          @close="handleFormClose"
-          @save-and-new="handleFormSaveAndNew"
-        >
-          <a-form
-            ref="formRef"
-            :model="formData"
-            :rules="formRules"
-            :label-col="{ style: { width: '100px' } }"
-          >
-            <a-form-item label="上级菜单">
-              <a-tree-select
-                v-model:value="formData.parentId"
-                :tree-data="parentMenuTree"
-                :field-names="{ label: 'menuName', value: 'id', children: 'children' }"
-                placeholder="请选择上级菜单（留空则为顶级）"
-                allow-clear
-                tree-check-strictly
-                tree-default-expand-all
-                style="width: 100%"
-              />
-            </a-form-item>
-
-            <a-form-item
-              label="菜单类型"
-              name="menuType"
-            >
-              <a-radio-group v-model:value="formData.menuType">
-                <a-radio
-                  v-for="opt in menuTypeOptions"
-                  :key="opt.value"
-                  :value="opt.value"
-                >
-                  {{ opt.label }}
-                </a-radio>
-              </a-radio-group>
-            </a-form-item>
-
-            <a-form-item
-              label="菜单名称"
-              name="menuName"
-            >
-              <a-input
-                v-model:value="formData.menuName"
-                placeholder="请输入菜单名称"
-              />
-            </a-form-item>
-
-            <a-form-item
-              label="权限标识"
-              name="menuCode"
-            >
-              <a-input
-                v-model:value="formData.menuCode"
-                placeholder="请输入权限标识，如：system:user:list"
-              />
-            </a-form-item>
-
-            <a-form-item
-              v-if="formData.menuType !== 2"
-              label="路由路径"
-              name="path"
-            >
-              <a-input
-                v-model:value="formData.path"
-                :placeholder="formData.menuType === 0 ? '顶层目录以 / 开头，如：/system；子目录不以 / 开头，如：user' : '请输入路由路径，如：orders'"
-              />
-            </a-form-item>
-
-            <a-form-item
-              v-if="formData.menuType === 0"
-              label="组件路径"
-            >
-              <a-input
-                v-model:value="formData.component"
-                placeholder="可选，顶层目录填写如 layouts/BasicLayout.vue；子目录留空由系统自动推断"
-              />
-            </a-form-item>
-
-            <a-form-item
-              v-if="formData.menuType === 1"
-              label="组件路径"
-              name="component"
-            >
-              <a-input
-                v-model:value="formData.component"
-                placeholder="views/ 下的相对路径，如：views/erp/sale/index"
-              />
-            </a-form-item>
-
-            <a-form-item
-              v-if="formData.menuType !== 2"
-              label="菜单图标"
-            >
-              <a-auto-complete
-                v-model:value="formData.icon"
-                :options="iconOptions"
-                placeholder="输入或选择图标名，如：UserOutlined"
-                :filter-option="iconFilterOption"
-              />
-            </a-form-item>
-
-            <a-form-item
-              label="排序"
-              name="sortOrder"
-            >
-              <a-input-number
-                v-model:value="formData.sortOrder"
-                :min="0"
-                :max="9999"
-              />
-            </a-form-item>
-
-            <a-form-item
-              v-if="formData.menuType !== 2"
-              label="是否显示"
-            >
-              <a-radio-group v-model:value="formData.visible">
-                <a-radio :value="1">
-                  显示
-                </a-radio>
-                <a-radio :value="0">
-                  隐藏
-                </a-radio>
-              </a-radio-group>
-            </a-form-item>
-
-            <a-form-item label="菜单状态">
-              <a-radio-group v-model:value="formData.status">
-                <a-radio :value="1">
-                  启用
-                </a-radio>
-                <a-radio :value="0">
-                  禁用
-                </a-radio>
-              </a-radio-group>
-            </a-form-item>
-
-            <a-form-item label="备注">
-              <a-textarea
-                v-model:value="formData.remark"
-                :rows="3"
-                placeholder="请输入备注"
-              />
-            </a-form-item>
-
-            <a-form-item label="业务流向">
-              <a-select
-                v-model:value="formData.bizFlowTag"
-                placeholder="请选择业务流向（可选）"
-                allow-clear
-              >
-                <a-select-option
-                  v-for="opt in bizFlowTagOptions"
-                  :key="opt.value"
-                  :value="opt.value"
-                >
-                  {{ opt.label }}
-                </a-select-option>
-              </a-select>
-            </a-form-item>
-
-            <a-form-item label="展示分组">
-              <a-radio-group v-model:value="formData.displayGroup">
-                <a-radio :value="0">
-                  正常路由目录
-                </a-radio>
-                <a-radio :value="1">
-                  纯展示分组（Sidebar分组标题，不生成路由嵌套）
-                </a-radio>
-              </a-radio-group>
-            </a-form-item>
-
-            <a-form-item label="链接图标">
-              <a-input
-                v-model:value="formData.linkIcon"
-                placeholder="外链/快捷方式图标名，如 LinkOutlined"
-              />
-            </a-form-item>
-
-            <a-form-item label="菜单层级">
-              <a-radio-group v-model:value="formData.menuLevel">
-                <a-radio :value="0">
-                  租户级
-                </a-radio>
-                <a-radio :value="1">
-                  系统级
-                </a-radio>
-              </a-radio-group>
-            </a-form-item>
-
-            <a-form-item label="展示模式">
-              <a-radio-group v-model:value="formData.displayMode">
-                <a-radio :value="0">
-                  默认（单入口）
-                </a-radio>
-                <a-radio :value="1">
-                  双入口（含标签按钮）
-                </a-radio>
-              </a-radio-group>
-            </a-form-item>
-
-            <a-form-item
-              v-if="formData.displayMode === 1"
-              label="列表路径"
-            >
-              <a-input
-                v-model:value="formData.listPath"
-                placeholder="双入口时，标签按钮跳转的列表页路由路径"
-              />
-            </a-form-item>
-
-            <a-form-item label="标签文案">
-              <a-select
-                v-model:value="formData.tagLabel"
-                placeholder="请选择标签文案（可选）"
-                allow-clear
-              >
-                <a-select-option value="历史">
-                  历史
-                </a-select-option>
-                <a-select-option value="列表">
-                  列表
-                </a-select-option>
-                <a-select-option value="添加">
-                  添加
-                </a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-form>
-        </FullScreenDetail>
-
-        <!-- 角色分配弹窗 -->
-        <FullScreenDetail
-          :visible="roleDialogVisible"
-          title="分配角色"
-          :save-loading="roleSubmitLoading"
-          @save="handleRoleSubmit"
-          @close="roleDialogVisible = false"
-        >
-          <a-form :label-col="{ style: { width: '80px' } }">
-            <a-form-item label="菜单名称">
-              <span>{{ currentMenu?.menuName }}</span>
-            </a-form-item>
-            <a-form-item label="选择角色">
-              <a-select
-                v-model:value="selectedRoles"
-                mode="multiple"
-                placeholder="请选择角色"
+        <!-- ═══ 查询区（横向网格）：菜单名称 / 菜单编码 / 状态 ═══ -->
+        <template #search-fields>
+          <div class="search-area">
+            <div class="search-row">
+              <template v-if="isQueryFieldVisible('menuName')">
+                <span class="search-label">菜单名称</span>
+                <a-input
+                  v-model:value="queryForm.menuName"
+                  placeholder="请输入菜单名称"
+                  size="small"
+                  style="width: 180px"
+                  allow-clear
+                  @press-enter="handleSearch"
+                />
+              </template>
+              <template v-if="isQueryFieldVisible('menuCode')">
+                <span class="search-label">菜单编码</span>
+                <a-input
+                  v-model:value="queryForm.menuCode"
+                  placeholder="请输入权限标识"
+                  size="small"
+                  style="width: 180px"
+                  allow-clear
+                  @press-enter="handleSearch"
+                />
+              </template>
+              <template v-if="isQueryFieldVisible('status')">
+                <span class="search-label">状态</span>
+                <a-select
+                  v-model:value="queryForm.status"
+                  placeholder="全部状态"
+                  size="small"
+                  style="width: 120px"
+                  allow-clear
+                  :options="STATUS_OPTIONS"
+                  @change="handleSearch"
+                />
+              </template>
+              <a-button
+                type="primary"
                 size="small"
-                style="width: 100%"
+                @click="handleSearch"
               >
-                <a-select-option
-                  v-for="role in roleList"
-                  :key="role.id"
-                  :value="role.id"
-                >
-                  {{ role.roleName }}
-                </a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-form>
-        </FullScreenDetail>
-      </div>
+                查询
+              </a-button>
+              <a-button
+                size="small"
+                @click="handleReset"
+              >
+                重置
+              </a-button>
+            </div>
+          </div>
+        </template>
+
+        <!-- ═══ 数据表（树形；列配置齿轮在表头 rowNo 列） ═══ -->
+        <template #table>
+          <!--
+            数据口径说明（本页最容易被误判为「数据丢了」的一点）：
+            后端 SysMenuServiceImpl 强制 eq(tenant_id, 0L) 取菜单，而
+            「菜单管理」自身的记录（id 6130701）是 sys_menu 中唯一 tenant_id = 1 的行。
+          -->
+          <a-alert
+            class="scope-alert"
+            type="info"
+            show-icon
+            message="数据口径说明"
+            description="本页数据口径为 tenant_id = 0；菜单管理自身的记录（id 6130701）是 sys_menu 中唯一 tenant_id = 1 的行，故不在此列表中。通过本页新增的菜单会继承当前会话租户（tenant_id = 1），同样不会出现在下面的表格里。"
+          />
+
+          <div class="table-area">
+            <div class="menu-tree-table">
+              <!--
+                ⚠️ 为什么没有换 BillDetailTable：
+                BillDetailTable 的行渲染是 displayRows 上的扁平 v-for，其 col.children
+                只用于「分组表头列」，不支持记录级树形 children。
+                故本页保留自研扁平化树形 a-table，外层套 ColumnConfigTable
+                —— 该复用组件自带「表头齿轮 + ColumnConfigPanel + storage-key」，
+                补上了本页此前完全缺失的列配置能力。
+              -->
+              <ColumnConfigTable
+                :data-source="flatMenuRows"
+                :column-defs="tableColumns"
+                :loading="loading"
+                :pagination="false"
+                :bordered="true"
+                :min-rows="0"
+                row-key="id"
+                size="small"
+                :storage-key="TABLE_STORAGE_KEY"
+              >
+                <template #bodyCell="{ column, record, index }">
+                  <!-- 行号（表头该列承载列配置齿轮） -->
+                  <template v-if="column.key === 'rowNo'">
+                    <span class="row-no">{{ index + 1 }}</span>
+                  </template>
+                  <template v-else-if="column.key === 'menuName'">
+                    <span
+                      class="tree-indent"
+                      :style="{ paddingLeft: (record._level || 0) * 20 + 'px' }"
+                    >
+                      <span
+                        v-if="record._hasChildren"
+                        class="tree-expand-icon"
+                        @click.stop="toggleRowExpand(record.id)"
+                      >
+                        <CaretDownOutlined v-if="expandedRowKeys.includes(record.id)" />
+                        <CaretRightOutlined v-else />
+                      </span>
+                      <span
+                        v-else
+                        class="tree-expand-placeholder"
+                      />
+                      <component
+                        :is="iconComponent(record.icon)"
+                        v-if="record.icon"
+                        class="menu-icon"
+                      />
+                      <span
+                        :class="{ 'tree-node-clickable': record._hasChildren }"
+                        @click="record._hasChildren && toggleRowExpand(record.id)"
+                      >{{ record.menuName }}</span>
+                    </span>
+                  </template>
+                  <template v-else-if="column.key === 'menuType'">
+                    <a-tag v-if="record.menuType === 0">
+                      目录
+                    </a-tag>
+                    <a-tag
+                      v-else-if="record.menuType === 1"
+                      color="green"
+                    >
+                      菜单
+                    </a-tag>
+                    <a-tag
+                      v-else-if="record.menuType === 2"
+                      color="orange"
+                    >
+                      按钮
+                    </a-tag>
+                  </template>
+                  <template v-else-if="column.key === 'status'">
+                    <!-- 状态开关走 PUT /api/menu/{id}/status → 后端要求 system:menu:update-status -->
+                    <a-switch
+                      v-permission="'system:menu:update-status'"
+                      :checked="record.status === 1"
+                      @change="(checked: boolean) => handleStatusChange(record, checked ? 1 : 0)"
+                    />
+                  </template>
+                  <template v-else-if="column.key === 'visible'">
+                    <a-tag
+                      v-if="record.visible === 1"
+                      color="green"
+                    >
+                      显示
+                    </a-tag>
+                    <a-tag v-else>
+                      隐藏
+                    </a-tag>
+                  </template>
+                  <template v-else-if="column.key === 'bizFlowTag'">
+                    <a-tag
+                      v-if="record.bizFlowTag"
+                      :color="getBizFlowTagColor(record.bizFlowTag)"
+                    >
+                      {{ getBizFlowTagLabel(record.bizFlowTag) }}
+                    </a-tag>
+                    <span
+                      v-else
+                      class="text-muted"
+                    >—</span>
+                  </template>
+                  <template v-else-if="column.key === 'displayMode'">
+                    <a-tag
+                      v-if="record.displayMode === 1"
+                      color="purple"
+                    >
+                      双入口
+                    </a-tag>
+                    <span
+                      v-else
+                      class="text-muted"
+                    >默认</span>
+                  </template>
+                  <template v-else-if="column.key === 'menuLevel'">
+                    <a-tag
+                      v-if="record.menuLevel === 1"
+                      color="red"
+                    >
+                      系统
+                    </a-tag>
+                    <a-tag
+                      v-else-if="record.menuLevel === 0"
+                      color="green"
+                    >
+                      租户
+                    </a-tag>
+                    <span
+                      v-else
+                      class="text-muted"
+                    >—</span>
+                  </template>
+                  <template v-else-if="column.key === 'action'">
+                    <a-button
+                      v-permission="'system:menu:create'"
+                      type="link"
+                      size="small"
+                      @click="handleAddChild(record)"
+                    >
+                      <template #icon>
+                        <PlusOutlined />
+                      </template>新增
+                    </a-button>
+                    <a-button
+                      v-permission="'system:menu:update'"
+                      type="link"
+                      size="small"
+                      @click="handleEdit(record)"
+                    >
+                      <template #icon>
+                        <EditOutlined />
+                      </template>编辑
+                    </a-button>
+                    <!--
+                      例外说明：「角色」按钮实际调用 POST /api/role/{id}/menus（角色域），
+                      故使用该端点真实要求的 system:role:assign-menu，不强行归入 system:menu:*。
+                      ⚠️ 遗留：其前置步骤 roleApi.getMenus() → GET /api/role/{id}/menus 后端不存在（404），
+                      该功能在补齐后端端点前不可用（本轮只改前端，保持如实报错）。
+                    -->
+                    <a-button
+                      v-permission="'system:role:assign-menu'"
+                      type="link"
+                      size="small"
+                      @click="handleAssignRole(record)"
+                    >
+                      <template #icon>
+                        <UserOutlined />
+                      </template>角色
+                    </a-button>
+                    <a-button
+                      v-permission="'system:menu:delete'"
+                      type="link"
+                      size="small"
+                      danger
+                      @click="handleDelete(record)"
+                    >
+                      <template #icon>
+                        <DeleteOutlined />
+                      </template>删除
+                    </a-button>
+                  </template>
+                </template>
+
+                <template #emptyText>
+                  <a-empty
+                    v-if="!hasError"
+                    description="暂无数据"
+                  />
+                  <a-result
+                    v-else
+                    status="error"
+                    title="数据加载失败"
+                  >
+                    <template #extra>
+                      <a-button
+                        type="primary"
+                        @click="debounceClick('refresh', loadMenuTree)()"
+                      >
+                        <template #icon>
+                          <ReloadOutlined />
+                        </template>
+                        重新加载
+                      </a-button>
+                    </template>
+                  </a-result>
+                </template>
+              </ColumnConfigTable>
+            </div>
+          </div>
+        </template>
+
+        <!--
+          ═══ 底部插槽 ═══
+          本页是「树形全量展示」：GET /api/menu/tree 一次性返回整棵树（后端无分页参数），
+          前端按展开状态渲染可见行，因此**不接分页器**（标准分页会切断父子行、
+          出现「第 2 页全是孤立节点」的语义问题）。此处改放口径汇总条。
+          原页面顶部 4 张统计卡（菜单总数 / 启用 / 禁用 / 按钮数量）口径不变，一并收纳在此。
+        -->
+        <template #table-footer>
+          <div class="table-footer-bar">
+            <div class="footer-left">
+              <span class="footer-item">菜单总数 <b>{{ menuCount }}</b></span>
+              <span class="footer-item">启用 <b>{{ enabledCount }}</b></span>
+              <span class="footer-item">禁用 <b>{{ disabledCount }}</b></span>
+              <span class="footer-item">按钮数量 <b>{{ buttonCount }}</b></span>
+              <span class="footer-item">当前显示 <b>{{ flatMenuRows.length }}</b> 行</span>
+            </div>
+            <div class="footer-right">
+              <span
+                v-if="lastUpdateTime"
+                class="footer-time"
+              >更新于 {{ lastUpdateTime }}</span>
+              <span class="footer-hint"><kbd>F5</kbd> 刷新 · <kbd>Ctrl</kbd>+<kbd>N</kbd> 新增</span>
+            </div>
+          </div>
+        </template>
+      </CategoryListLayout>
+
+      <!-- ═══ 页面配置（查询条件显隐 + 功能按钮启用） ═══ -->
+      <PageConfigPanel
+        :open="showPageConfig"
+        :query-fields-config="queryFields"
+        :function-buttons-config="functionButtons"
+        :default-query-fields-config="DEFAULT_QUERY_FIELDS"
+        :default-function-buttons-config="DEFAULT_FUNCTION_BUTTONS"
+        :storage-key="PAGE_CONFIG_STORAGE_KEY"
+        :hide-print-config="true"
+        @update:open="showPageConfig = $event"
+        @change="handlePageConfigChange"
+      />
+
+      <!-- 菜单编辑弹窗 -->
+      <FullScreenDetail
+        :visible="dialogVisible"
+        :title="dialogTitle"
+        :dirty="formDirty"
+        :save-loading="submitLoading"
+        :show-save-and-new="!formData.id"
+        @save="handleSubmit"
+        @close="handleFormClose"
+        @save-and-new="handleFormSaveAndNew"
+      >
+        <a-form
+          ref="formRef"
+          :model="formData"
+          :rules="formRules"
+          :label-col="{ style: { width: '100px' } }"
+        >
+          <a-form-item label="上级菜单">
+            <a-tree-select
+              v-model:value="formData.parentId"
+              :tree-data="parentMenuTree"
+              :field-names="{ label: 'menuName', value: 'id', children: 'children' }"
+              placeholder="请选择上级菜单（留空则为顶级）"
+              allow-clear
+              tree-check-strictly
+              tree-default-expand-all
+              style="width: 100%"
+            />
+          </a-form-item>
+
+          <a-form-item
+            label="菜单类型"
+            name="menuType"
+          >
+            <a-radio-group v-model:value="formData.menuType">
+              <a-radio
+                v-for="opt in MENU_TYPE_OPTIONS"
+                :key="opt.value"
+                :value="opt.value"
+              >
+                {{ opt.label }}
+              </a-radio>
+            </a-radio-group>
+          </a-form-item>
+
+          <a-form-item
+            label="菜单名称"
+            name="menuName"
+          >
+            <a-input
+              v-model:value="formData.menuName"
+              placeholder="请输入菜单名称"
+            />
+          </a-form-item>
+
+          <a-form-item
+            label="权限标识"
+            name="menuCode"
+          >
+            <a-input
+              v-model:value="formData.menuCode"
+              placeholder="请输入权限标识，如：system:user:list"
+            />
+          </a-form-item>
+
+          <a-form-item
+            v-if="formData.menuType !== 2"
+            label="路由路径"
+            name="path"
+          >
+            <a-input
+              v-model:value="formData.path"
+              :placeholder="formData.menuType === 0 ? '顶层目录以 / 开头，如：/system；子目录不以 / 开头，如：user' : '请输入路由路径，如：orders'"
+            />
+          </a-form-item>
+
+          <a-form-item
+            v-if="formData.menuType === 0"
+            label="组件路径"
+          >
+            <a-input
+              v-model:value="formData.component"
+              placeholder="可选，顶层目录填写如 layouts/BasicLayout.vue；子目录留空由系统自动推断"
+            />
+          </a-form-item>
+
+          <a-form-item
+            v-if="formData.menuType === 1"
+            label="组件路径"
+            name="component"
+          >
+            <a-input
+              v-model:value="formData.component"
+              placeholder="views/ 下的相对路径，如：views/erp/sale/index"
+            />
+          </a-form-item>
+
+          <a-form-item
+            v-if="formData.menuType !== 2"
+            label="菜单图标"
+          >
+            <a-auto-complete
+              v-model:value="formData.icon"
+              :options="iconOptions"
+              placeholder="输入或选择图标名，如：UserOutlined"
+              :filter-option="iconFilterOption"
+            />
+          </a-form-item>
+
+          <a-form-item
+            label="排序"
+            name="sortOrder"
+          >
+            <a-input-number
+              v-model:value="formData.sortOrder"
+              :min="0"
+              :max="9999"
+            />
+          </a-form-item>
+
+          <a-form-item
+            v-if="formData.menuType !== 2"
+            label="是否显示"
+          >
+            <a-radio-group v-model:value="formData.visible">
+              <a-radio :value="1">
+                显示
+              </a-radio>
+              <a-radio :value="0">
+                隐藏
+              </a-radio>
+            </a-radio-group>
+          </a-form-item>
+
+          <a-form-item label="菜单状态">
+            <a-radio-group v-model:value="formData.status">
+              <a-radio :value="1">
+                启用
+              </a-radio>
+              <a-radio :value="0">
+                禁用
+              </a-radio>
+            </a-radio-group>
+          </a-form-item>
+
+          <a-form-item label="备注">
+            <a-textarea
+              v-model:value="formData.remark"
+              :rows="3"
+              placeholder="请输入备注"
+            />
+          </a-form-item>
+
+          <a-form-item label="业务流向">
+            <a-select
+              v-model:value="formData.bizFlowTag"
+              placeholder="请选择业务流向（可选）"
+              allow-clear
+            >
+              <a-select-option
+                v-for="opt in BIZ_FLOW_TAG_OPTIONS"
+                :key="opt.value"
+                :value="opt.value"
+              >
+                {{ opt.label }}
+              </a-select-option>
+            </a-select>
+          </a-form-item>
+
+          <a-form-item label="展示分组">
+            <a-radio-group v-model:value="formData.displayGroup">
+              <a-radio :value="0">
+                正常路由目录
+              </a-radio>
+              <a-radio :value="1">
+                纯展示分组（Sidebar分组标题，不生成路由嵌套）
+              </a-radio>
+            </a-radio-group>
+          </a-form-item>
+
+          <a-form-item label="链接图标">
+            <a-input
+              v-model:value="formData.linkIcon"
+              placeholder="外链/快捷方式图标名，如 LinkOutlined"
+            />
+          </a-form-item>
+
+          <a-form-item label="菜单层级">
+            <a-radio-group v-model:value="formData.menuLevel">
+              <a-radio :value="0">
+                租户级
+              </a-radio>
+              <a-radio :value="1">
+                系统级
+              </a-radio>
+            </a-radio-group>
+          </a-form-item>
+
+          <a-form-item label="展示模式">
+            <a-radio-group v-model:value="formData.displayMode">
+              <a-radio :value="0">
+                默认（单入口）
+              </a-radio>
+              <a-radio :value="1">
+                双入口（含标签按钮）
+              </a-radio>
+            </a-radio-group>
+          </a-form-item>
+
+          <a-form-item
+            v-if="formData.displayMode === 1"
+            label="列表路径"
+          >
+            <a-input
+              v-model:value="formData.listPath"
+              placeholder="双入口时，标签按钮跳转的列表页路由路径"
+            />
+          </a-form-item>
+
+          <a-form-item label="标签文案">
+            <a-select
+              v-model:value="formData.tagLabel"
+              placeholder="请选择标签文案（可选）"
+              allow-clear
+            >
+              <a-select-option value="历史">
+                历史
+              </a-select-option>
+              <a-select-option value="列表">
+                列表
+              </a-select-option>
+              <a-select-option value="添加">
+                添加
+              </a-select-option>
+            </a-select>
+          </a-form-item>
+        </a-form>
+      </FullScreenDetail>
+
+      <!-- 角色分配弹窗 -->
+      <FullScreenDetail
+        :visible="roleDialogVisible"
+        title="分配角色"
+        :save-loading="roleSubmitLoading"
+        @save="handleRoleSubmit"
+        @close="roleDialogVisible = false"
+      >
+        <a-form :label-col="{ style: { width: '80px' } }">
+          <a-form-item label="菜单名称">
+            <span>{{ currentMenu?.menuName }}</span>
+          </a-form-item>
+          <a-form-item label="选择角色">
+            <a-select
+              v-model:value="selectedRoles"
+              mode="multiple"
+              placeholder="请选择角色"
+              size="small"
+              style="width: 100%"
+            >
+              <a-select-option
+                v-for="role in roleList"
+                :key="role.id"
+                :value="role.id"
+              >
+                {{ role.roleName }}
+              </a-select-option>
+            </a-select>
+          </a-form-item>
+        </a-form>
+      </FullScreenDetail>
     </PageContainer>
   </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
+/**
+ * 菜单管理（系统 → 系统管理 → 菜单管理，菜单 6130701）
+ *
+ * ⚠️ 本轮统一按钮权限码（修复「按钮码与后端不同域」缺陷）
+ *   本页原先用 `system:permission:*`（**权限管理域**的码），而后端 `SysMenuController`
+ *   方法级注解要求的是 `system:menu:create/update/delete/list/detail/update-status`。
+ *   两个集合交集为空 → 按钮能显示、接口照样 403（开发文档 §5.5「看得见、点不动」）。
+ *   现按「每个按钮实际调用的端点」逐一改为后端真实要求的码：
+ *     POST   /api/menu                → system:menu:create         （工具栏新增菜单 / 行内新增）
+ *     PUT    /api/menu/{id}           → system:menu:update         （行内编辑）
+ *     DELETE /api/menu/{id}           → system:menu:delete         （行内删除）
+ *     PUT    /api/menu/{id}/status    → system:menu:update-status  （状态开关）
+ *     GET    /api/menu/tree           → system:menu:list           （树/列表查询）
+ *   唯一例外：行内「角色」按钮实际调用 `POST /api/role/{id}/menus`，属**角色域**，
+ *   故用该端点真实要求的 `system:role:assign-menu`，不强行改成 `system:menu:*`。
+ *   🔴 遗留（需后端补种子，本轮只改前端）：`system:menu:*` 六个码在 `sys_permission`
+ *   表中 0 行 → 除超管（前端指令对 `*` 放行）外仍会 403（开发文档 §10.1-⑯）。
+ *
+ * ⚠️ 表格选型说明（为什么没换 BillDetailTable）
+ *   `BillDetailTable` 的行渲染是 `v-for="record in displayRows"` 的**扁平**渲染，
+ *   其 `col.children` 只用于**分组表头列**（flattenColumns），**不支持记录级树形 children**
+ *   → 本页保留自研扁平化树形 `a-table`，外层套 `ColumnConfigTable`
+ *   （复用组件已自带表头齿轮 + ColumnConfigPanel + storage-key，补上此前缺失的列配置能力）。
+ */
+
 import { ref, reactive, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import { onBeforeRouteLeave } from 'vue-router'
@@ -668,27 +710,79 @@ import {
   EditOutlined,
   DeleteOutlined,
   UserOutlined,
-  AppstoreOutlined,
-  CheckCircleOutlined,
-  StopOutlined,
-  ControlOutlined,
   ReloadOutlined,
   SyncOutlined,
-  WarningOutlined,
+  SettingOutlined,
   NodeExpandOutlined,
   NodeCollapseOutlined,
   CaretDownOutlined,
   CaretRightOutlined
 } from '@ant-design/icons-vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
-import StandardPagination from '@/components/Pagination/Pagination.vue'
+import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayout.vue'
+import ColumnConfigTable from '@/components/ColumnConfigTable/index.vue'
+import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
 import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
-import menuApi, { type MenuInfo, type MenuQuery, type MenuSaveRequest, type MenuUpdateRequest } from '@/api/menu'
+import menuApi, { type MenuInfo, type MenuSaveRequest, type MenuUpdateRequest } from '@/api/menu'
 import roleApi from '@/api/role'
-import { dictItemApi } from '@/api/dict'
 import { useSubmitLock } from '@/composables'
 import * as Icons from '@ant-design/icons-vue'
 
+// ═══ 持久化键 ═══
+/** 页面配置（查询条件显隐 / 功能按钮启用） */
+const PAGE_CONFIG_STORAGE_KEY = 'system-menu-page-config'
+/** 数据表列配置（表头齿轮；个人配置 + 全局配置） */
+const TABLE_STORAGE_KEY = 'system-menu-table-columns'
+
+// ═══ 枚举常量 ═══
+/** 状态值域（开发文档 §5.1：1=启用 / 0=禁用） */
+const STATUS_OPTIONS = [
+  { label: '启用', value: 1 },
+  { label: '禁用', value: 0 },
+]
+/**
+ * 菜单类型：固定的三值枚举（与本页「类型」列 tag 同源）。
+ * 不再依赖 `MENU_TYPE` 字典 —— 该字典在库中 0 行（开发文档 §5.2），
+ * 原先会让「菜单类型」单选组恒空、用户无法切换类型。
+ */
+const MENU_TYPE_OPTIONS = [
+  { label: '目录', value: 0 },
+  { label: '菜单', value: 1 },
+  { label: '按钮', value: 2 },
+]
+
+// ═══ 页面配置（查询条件 / 功能按钮） ═══
+interface QueryFieldSetting { key: string; label: string; visible: boolean }
+interface FunctionButtonSetting { key: string; label: string; enabled: boolean }
+interface PageConfig { queryFields: QueryFieldSetting[]; functionButtons: FunctionButtonSetting[] }
+
+const DEFAULT_QUERY_FIELDS: QueryFieldSetting[] = [
+  { key: 'menuName', label: '菜单名称', visible: true },
+  { key: 'menuCode', label: '菜单编码', visible: true },
+  { key: 'status', label: '状态', visible: true },
+]
+const DEFAULT_FUNCTION_BUTTONS: FunctionButtonSetting[] = [
+  { key: 'add', label: '新增菜单', enabled: true },
+  { key: 'expand', label: '展开/折叠全部', enabled: true },
+  { key: 'refreshCache', label: '刷新缓存', enabled: true },
+  { key: 'refresh', label: '刷新', enabled: true },
+]
+const queryFields = ref<QueryFieldSetting[]>(DEFAULT_QUERY_FIELDS.map(f => ({ ...f })))
+const functionButtons = ref<FunctionButtonSetting[]>(DEFAULT_FUNCTION_BUTTONS.map(f => ({ ...f })))
+const showPageConfig = ref(false)
+
+function isQueryFieldVisible(key: string) {
+  return queryFields.value.find(f => f.key === key)?.visible !== false
+}
+function isButtonEnabled(key: string) {
+  return functionButtons.value.find(f => f.key === key)?.enabled !== false
+}
+function handlePageConfigChange(config: PageConfig) {
+  if (config?.queryFields?.length) queryFields.value = config.queryFields
+  if (config?.functionButtons?.length) functionButtons.value = config.functionButtons
+}
+
+// ═══ 页面状态 ═══
 const lastUpdateTime = ref('')
 const refreshLoading = ref(false)
 const hasError = ref(false)
@@ -703,27 +797,23 @@ function debounceClick(key: string, fn: (...args: any[]) => any) {
   }
 }
 
-// 查询表单
-const queryForm = reactive<MenuQuery>({
-  menuName: '',
-  menuType: undefined,
-  status: undefined
+// ═══ 查询表单 ═══
+/**
+ * 三个查询条件**全部是前端本地过滤**：
+ * `GET /api/menu/tree` 只声明 `@RequestParam Long tenantId`（SysMenuController.java:83），
+ * 其余参数会被 Spring 静默忽略（不会 400，也不生效）。
+ * 故不再把 menuName/menuCode/status 发给后端（避免「装饰性查询条件」），改为拉全量树后本地过滤。
+ */
+const queryForm = reactive({
+  menuName: '' as string,
+  menuCode: '' as string,
+  status: undefined as number | undefined,
 })
 
-// 菜单树数据
+// ═══ 菜单树数据 ═══
 const menuTree = ref<MenuInfo[]>([])
 const loading = ref(false)
 const isExpandAll = ref(false)
-
-// ── 分页状态 ─────────────────────────────────────────────
-const currentPage = ref(1)
-const pageSize = ref(50)
-
-/** 分页变化：StandardPagination 不像 antd 分页那样自带 v-model 双绑，需显式回写分页状态 */
-function onPageChange(page: number, size: number) {
-  currentPage.value = page
-  pageSize.value = size
-}
 
 // ── 树展开状态（扁平化方案）─────────────────────────────
 const expandedRowKeys = ref<number[]>([])
@@ -748,6 +838,47 @@ function collectAllParentIds(nodes: MenuInfo[]): number[] {
   return ids
 }
 
+/** 默认只展开第一层（避免一次性渲染 380+ 行） */
+function applyDefaultExpand() {
+  const firstLevelIds: number[] = []
+  for (const node of menuTree.value) {
+    if (node.children?.length) firstLevelIds.push(node.id)
+  }
+  expandedRowKeys.value = firstLevelIds
+}
+
+// ═══ 本地过滤 ═══
+const hasFilter = computed(() =>
+  !!(queryForm.menuName.trim() || queryForm.menuCode.trim() || queryForm.status !== undefined)
+)
+
+/** 过滤后的树：自身命中 → 保留完整子树；仅后代命中 → 只保留命中分支 */
+const filteredMenuTree = computed<MenuInfo[]>(() => {
+  if (!hasFilter.value) return menuTree.value
+  const name = queryForm.menuName.trim().toLowerCase()
+  const code = queryForm.menuCode.trim().toLowerCase()
+  const status = queryForm.status
+  const hit = (n: MenuInfo) =>
+    (!name || (n.menuName || '').toLowerCase().includes(name)) &&
+    (!code || (n.menuCode || '').toLowerCase().includes(code)) &&
+    (status === undefined || n.status === status)
+  const walk = (nodes: MenuInfo[]): MenuInfo[] => {
+    const out: MenuInfo[] = []
+    for (const node of nodes) {
+      const hitSelf = hit(node)
+      const kids = node.children?.length ? walk(node.children) : []
+      if (hitSelf || kids.length) {
+        out.push({
+          ...node,
+          children: hitSelf && node.children?.length ? node.children : (kids.length ? kids : undefined),
+        })
+      }
+    }
+    return out
+  }
+  return walk(menuTree.value)
+})
+
 // 扁平化：根据展开状态生成当前可见行
 interface FlatRow extends MenuInfo {
   _level: number
@@ -768,14 +899,8 @@ const flatMenuRows = computed<FlatRow[]>(() => {
       }
     }
   }
-  walk(menuTree.value, 0)
+  walk(filteredMenuTree.value, 0)
   return result
-})
-
-// 分页基于实际显示行数
-const paginatedRows = computed(() => {
-  const start = (currentPage.value - 1) * pageSize.value
-  return flatMenuRows.value.slice(start, start + pageSize.value)
 })
 
 // 上级菜单树（过滤掉按钮，添加虚拟根节点）
@@ -800,7 +925,7 @@ const iconFilterOption = (inputValue: string, option: { value: string }) => {
   return option.value.toLowerCase().includes(inputValue.toLowerCase())
 }
 
-// ── 统计数据 ────────────────────────────────────────────
+// ── 统计口径（客户端计算，与开发文档 §3.3 一致）──────────
 const flattenMenuTree = (tree: MenuInfo[]): MenuInfo[] => {
   const result: MenuInfo[] = []
   const traverse = (nodes: MenuInfo[]) => {
@@ -812,12 +937,13 @@ const flattenMenuTree = (tree: MenuInfo[]): MenuInfo[] => {
   traverse(tree)
   return result
 }
+/** ⚠️ 「菜单总数」不含按钮（menuType !== 2），按钮单独计数，两者相加 = 树节点总数 */
 const menuCount = computed(() => flattenMenuTree(menuTree.value).filter(m => m.menuType !== 2).length)
 const buttonCount = computed(() => flattenMenuTree(menuTree.value).filter(m => m.menuType === 2).length)
 const enabledCount = computed(() => flattenMenuTree(menuTree.value).filter(m => m.status === 1).length)
 const disabledCount = computed(() => flattenMenuTree(menuTree.value).filter(m => m.status === 0).length)
 
-// 弹窗控制
+// ═══ 弹窗控制 ═══
 const dialogVisible = ref(false)
 const dialogTitle = ref('新增菜单')
 const { isSubmitting: submitLoading, withSubmitLock } = useSubmitLock()
@@ -845,8 +971,11 @@ onBeforeRouteLeave((to, from, next) => {
   })
 })
 
-// 表格列配置（Ant Design Vue 格式）
+// ═══ 表格列配置 ═══
+// rowNo 列承载表头「列配置」齿轮（由 ColumnConfigTable 注入），行内渲染行号；
+// action 与 rowNo 在 useColumnConfig 中为锁定列，不允许隐藏。
 const tableColumns: any[] = [
+  { title: '', key: 'rowNo', width: 45, align: 'center' },
   { title: '菜单名称', dataIndex: 'menuName', key: 'menuName', width: 220, ellipsis: true },
   { title: '上级菜单', dataIndex: 'parentName', key: 'parentName', width: 100, ellipsis: true },
   { title: '权限标识', dataIndex: 'menuCode', key: 'menuCode', width: 150, ellipsis: true },
@@ -862,30 +991,14 @@ const tableColumns: any[] = [
   { title: '操作', key: 'action', width: 240 },
 ]
 
-// ── 菜单类型选项（从API加载） ──────────────────────────
-const menuTypeOptions = ref<{ label: string; value: number }[]>([])
-
-async function loadMenuTypes() {
-  try {
-    const data = await dictItemApi.getByDictCode('MENU_TYPE')
-    if (data) {
-      menuTypeOptions.value = (data as any)
-        .sort((a: any, b: any) => a.sortOrder - b.sortOrder)
-        .map((item: any) => ({ label: item.itemText, value: Number(item.itemValue) }))
-    }
-  } catch (err) {
-    console.warn('[菜单管理] 加载菜单类型失败', err)
-  }
-}
-
 // 将图标字符串转为组件
 const iconComponent = (iconName: string) => {
   if (!iconName) return null
   return (Icons as any)[iconName] || null
 }
 
-// 业务流向选项（供表单下拉选择）
-const bizFlowTagOptions = [
+// ═══ 业务流向（前端词表；开发文档 §11 登记为「无落位/构建期常量」） ═══
+const BIZ_FLOW_TAG_OPTIONS = [
   { value: '', label: '无' },
   { value: 'sales', label: '销售管理' },
   { value: 'purchase', label: '采购管理' },
@@ -926,14 +1039,14 @@ const bizFlowTagColorMap: Record<string, string> = {
 }
 
 function getBizFlowTagLabel(tag: string): string {
-  return bizFlowTagOptions.find(o => o.value === tag)?.label || tag
+  return BIZ_FLOW_TAG_OPTIONS.find(o => o.value === tag)?.label || tag
 }
 
 function getBizFlowTagColor(tag: string): string {
   return bizFlowTagColorMap[tag] || 'default'
 }
 
-// 表单数据
+// ═══ 表单数据 ═══
 const formData = reactive<MenuUpdateRequest>({
   id: 0,
   parentId: undefined as unknown as number,
@@ -968,15 +1081,19 @@ const formRules = computed<any>(() => ({
   sortOrder: [{ required: true, message: '请输入排序', trigger: 'blur' }]
 }))
 
-// 角色分配弹窗
+// ═══ 角色分配弹窗 ═══
 const roleDialogVisible = ref(false)
 const { isSubmitting: roleSubmitLoading, withSubmitLock: withRoleSubmitLock } = useSubmitLock()
 const currentMenu = ref<MenuInfo | null>(null)
 const selectedRoles = ref<number[]>([])
 const roleList = ref<any[]>([])
 
-// 刷新所有菜单（侧边栏 + 管理页树）
-const refreshAllMenus = async () => {
+/**
+ * 刷新菜单缓存并重装动态路由。
+ * 返回 false 表示「路由重装失败」（已提示），调用方据此决定是否再报成功。
+ */
+const refreshAllMenus = async (): Promise<boolean> => {
+  let ok = true
   try {
     // 清除菜单缓存，强制从后端重新拉取
     Object.keys(localStorage).forEach(key => {
@@ -984,8 +1101,13 @@ const refreshAllMenus = async () => {
     })
     const { setupDynamicRoutes } = await import('@/router')
     await setupDynamicRoutes()
-  } catch { /* 静默 */ }
-  loadMenuTree()
+  } catch (error) {
+    ok = false
+    console.error('[菜单管理] 重装动态路由失败', error)
+    message.error('菜单路由缓存刷新失败，请重试')
+  }
+  await loadMenuTree()
+  return ok
 }
 
 // 加载菜单树
@@ -993,7 +1115,8 @@ const loadMenuTree = async () => {
   loading.value = true
   hasError.value = false
   try {
-    const res = await menuApi.getTree(queryForm)
+    // 只传 tenantId（由 api 层注入）；menuName/menuCode/status 后端不接收 → 本地过滤
+    const res = await menuApi.getTree()
     if (res) {
       const rawTree = Array.isArray(res) ? res : [res]
       // 注入 parentName：构建 id→menuName 映射，遍历树填充
@@ -1007,29 +1130,31 @@ const loadMenuTree = async () => {
       buildNameMap(rawTree)
       const injectParentName = (nodes: MenuInfo[]) => {
         for (const node of nodes) {
-          (node as any).parentName = node.parentId && nameMap.has(node.parentId)
+          // ⚠️ id / parentId 被 JacksonConfig 序列化为**字符串**（实测 "0" / "60001"），
+          // 必须用 Number() 比较，否则顶级节点的「上级菜单」会一律显示 '-'
+          const isTop = Number(node.parentId) === 0
+          ;(node as any).parentName = !isTop && nameMap.has(node.parentId)
             ? nameMap.get(node.parentId)!
-            : node.parentId === 0 ? '顶级菜单' : '-'
+            : isTop ? '顶级菜单' : '-'
           if (node.children?.length) injectParentName(node.children)
         }
       }
       injectParentName(rawTree)
       menuTree.value = rawTree
-      // 默认展开第一层
-      const firstLevelIds: number[] = []
-      for (const node of rawTree) {
-        if (node.children?.length) firstLevelIds.push(node.id)
-      }
-      expandedRowKeys.value = firstLevelIds
+      applyDefaultExpand()
     } else {
+      // 返回空数据 → 清空列表，不做假数据兜底
       message.error('获取菜单列表失败：返回空数据')
       menuTree.value = []
+      expandedRowKeys.value = []
     }
   } catch (error) {
     hasError.value = true
     console.error('[菜单管理] 获取菜单列表失败', error)
     message.error('获取菜单列表失败')
+    // 失败即清空，禁止假数据兜底
     menuTree.value = []
+    expandedRowKeys.value = []
   } finally {
     loading.value = false
     lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
@@ -1037,11 +1162,26 @@ const loadMenuTree = async () => {
   }
 }
 
+// ═══ 查询 / 重置（本地过滤） ═══
+function handleSearch() {
+  // 过滤生效后自动展开所有命中的父节点，避免「筛了却看不到」的困惑
+  isExpandAll.value = false
+  expandedRowKeys.value = collectAllParentIds(filteredMenuTree.value)
+}
+
+function handleReset() {
+  queryForm.menuName = ''
+  queryForm.menuCode = ''
+  queryForm.status = undefined
+  isExpandAll.value = false
+  applyDefaultExpand()
+}
+
 // 展开/折叠全部
 const toggleExpandAll = () => {
   isExpandAll.value = !isExpandAll.value
   if (isExpandAll.value) {
-    expandedRowKeys.value = collectAllParentIds(menuTree.value)
+    expandedRowKeys.value = collectAllParentIds(filteredMenuTree.value)
   } else {
     expandedRowKeys.value = []
   }
@@ -1049,8 +1189,8 @@ const toggleExpandAll = () => {
 
 // 刷新菜单缓存（清除路由缓存并重新加载）
 const handleRefreshCache = async () => {
-  await refreshAllMenus()
-  message.success('菜单缓存已刷新')
+  const ok = await refreshAllMenus()
+  if (ok) message.success('菜单缓存已刷新')
 }
 
 // 新增菜单
@@ -1076,7 +1216,8 @@ const handleEdit = (row: any) => {
   resetForm()
   Object.assign(formData, {
     id: row.id,
-    parentId: row.parentId || undefined,
+    // parentId 是字符串（"0" = 顶级）→ 顶级时置空，父级选择器才会显示占位而不错位
+    parentId: row.parentId && Number(row.parentId) !== 0 ? row.parentId : undefined,
     menuName: row.menuName,
     menuCode: row.menuCode,
     menuType: row.menuType,
@@ -1111,9 +1252,14 @@ const handleDelete = async (row: any) => {
     cancelText: '取消',
     okType: 'danger',
     onOk: async () => {
-      await menuApi.delete(row.id)
-      message.success('删除成功')
-      await refreshAllMenus()
+      try {
+        await menuApi.delete(row.id)
+        message.success('删除成功')
+        await refreshAllMenus()
+      } catch (error: any) {
+        console.error('[菜单管理] 删除菜单失败', error)
+        message.error(error?.message || '删除失败')
+      }
     },
     onCancel: () => { /* noop */ }
   })
@@ -1123,9 +1269,14 @@ const handleDelete = async (row: any) => {
 const handleSubmit = async () => {
   if (!formRef.value) return
 
+  // 表单校验失败：antd 已在控件上标红，不再弹提示（也避免把校验异常误报成「提交失败」）
   try {
     await formRef.value.validate()
+  } catch {
+    return
+  }
 
+  try {
     const result = await withSubmitLock(async () => {
       if (formData.id) {
         await menuApi.update(formData.id, { ...formData, parentId: formData.parentId ?? 0 })
@@ -1162,10 +1313,9 @@ const handleSubmit = async () => {
     })
     void result
   } catch (error: any) {
-    if (error) {
-      console.warn('[系统管理] 提交表单失败', error)
-      message.error(error?.message || '提交失败')
-    }
+    // 写路径失败保留用户输入（不清表单），否则用户需重新录入
+    console.error('[菜单管理] 提交表单失败', error)
+    message.error(error?.message || '提交失败')
   }
 }
 
@@ -1194,8 +1344,9 @@ const handleStatusChange = async (row: any, status: number) => {
     message.success('状态更新成功')
     await refreshAllMenus()
   } catch (error) {
-    console.warn('[系统管理] 更新状态失败', error)
+    console.error('[菜单管理] 更新状态失败', error)
     message.error('状态更新失败')
+    // 失败回滚开关，避免 UI 与后端不一致
     row.status = status === 1 ? 0 : 1
   }
 }
@@ -1204,13 +1355,20 @@ const handleStatusChange = async (row: any, status: number) => {
 const handleAssignRole = async (row: any) => {
   currentMenu.value = row
   selectedRoles.value = []
+  roleList.value = []
   roleDialogVisible.value = true
 
   try {
     const data = await roleApi.listAll()
-    roleList.value = (data as any) || []
+    roleList.value = Array.isArray(data) ? data : []
+    if (roleList.value.length === 0) {
+      message.warning('未获取到角色列表')
+    }
   } catch (error) {
-    console.warn('[系统管理] 获取角色列表失败', error)
+    console.error('[菜单管理] 获取角色列表失败', error)
+    message.error('获取角色列表失败')
+    // 失败即清空，禁止假数据兜底
+    roleList.value = []
   }
 }
 
@@ -1232,10 +1390,8 @@ const handleRoleSubmit = async () => {
     })
     void result
   } catch (error: any) {
-    if (error) {
-      console.warn('[系统管理] 分配角色失败', error)
-      message.error(error?.message || '分配角色失败')
-    }
+    console.error('[菜单管理] 分配角色失败', error)
+    message.error(error?.message || '分配角色失败')
   }
 }
 
@@ -1283,7 +1439,6 @@ function handleKeydown(e: KeyboardEvent) {
 // 初始化
 onMounted(() => {
   loadMenuTree()
-  loadMenuTypes()
   document.addEventListener('keydown', handleKeydown)
 })
 
@@ -1293,79 +1448,64 @@ onUnmounted(() => {
 
 defineExpose({ handleQuery: loadMenuTree })
 
-function handleError(err: any) { console.warn('[ErrorBoundary]', err) }
+/** 页面级错误兜底：ErrorBoundary 捕获后统一记录并提示 */
+function handleError(error: any) {
+  console.error('[菜单管理] 页面错误', error)
+  message.error(`页面错误：${error?.message || '未知错误'}`)
+}
 </script>
 
 <style scoped>
-.menu-page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
+/* ═══ 查询区（横向网格） ═══ */
+.search-area {
+  padding: 8px 16px;
+  background: #fff;
+  border-bottom: 1px solid #e8e8e8;
+  flex-shrink: 0;
 }
-.menu-page-header-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.menu-page-header-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: #303133;
-  margin: 0;
-}
-.menu-page-header-right {
+.search-row {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
 }
-.update-time {
-  font-size: 12px;
-  color: #999;
-}
-.auto-refresh-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: #909399;
-  padding: 2px 8px;
-  border-radius: 4px;
-  background: #f5f7fa;
-  user-select: none;
+.search-label {
+  font-size: 13px;
+  color: #666;
 }
 
-.menu-management {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  padding: 16px;
-  overflow: hidden;
-  min-height: 0;
+/* ═══ 数据口径提示（表格上方） ═══ */
+.scope-alert {
+  flex-shrink: 0;
+  margin: 8px 16px 0;
 }
 
-.menu-management > :deep(.ant-table-wrapper) {
+/* ═══ 表格区 ═══ */
+/* 必须是 flex 纵向容器：表格组件根元素为 flex:1，父级非 flex 时表格高度会塌陷 */
+.table-area {
   flex: 1;
   min-height: 0;
-  overflow: auto;          /* 唯一的滚动容器，sticky th 相对它定位 */
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+/* 树形表格自身是滚动容器（sticky 表头相对它定位） */
+.menu-tree-table {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
 }
 
 /* ── a-table 仿 BillDetailTable 样式 ─────────────────────────── */
 /* 表格本体：必须 separate + spacing:0，sticky 才能正常工作 */
 .menu-tree-table :deep(.ant-table) {
   font-size: 13px;
-  border: 1px solid #e8e8e8;
-  border-bottom: none;
-}
-.menu-tree-table :deep(.ant-table .ant-table-content) {
-  border: 1px solid #e8e8e8;
-  border-bottom: none;
 }
 .menu-tree-table :deep(.ant-table table) {
   border-collapse: separate;
   border-spacing: 0;
 }
-/* 表头行 — sticky 吸顶，与 BillDetailTable .ss-grid th 一致 */
+/* 表头行 — sticky 吸顶 */
 .menu-tree-table :deep(.ant-table-thead > tr > th) {
   position: sticky;
   top: 0;
@@ -1441,35 +1581,22 @@ function handleError(err: any) { console.warn('[ErrorBoundary]', err) }
 }
 /* 操作列禁止换行 */
 .menu-tree-table :deep(.ant-table-tbody > tr > td:last-child) {
-  border-right: none;
   white-space: nowrap !important;
 }
 /* 全局约束：所有行内元素垂直居中，防止撑高 */
 .menu-tree-table :deep(.ant-table-tbody > tr > td *) {
   vertical-align: middle;
 }
-/* 行悬浮 — BillDetailTable .ss-row:hover td */
+/* 行悬浮 */
 .menu-tree-table :deep(.ant-table-tbody > tr:hover > td),
 .menu-tree-table :deep(.ant-table-tbody > tr:hover > .ant-table-cell) {
   background: #f5f7fa !important;
-}
-.menu-tree-table :deep(.ant-table-tbody > tr.ant-table-row-selected > td),
-.menu-tree-table :deep(.ant-table-tbody > tr.ant-table-row-selected > .ant-table-cell) {
-  background: #e6f7ff !important;
 }
 /* 空数据提示 */
 .menu-tree-table :deep(.ant-table-placeholder) {
   padding: 40px 0;
   font-size: 13px;
   color: #999;
-}
-/* 操作列按钮垂直居中 */
-.menu-tree-table :deep(.ant-table-tbody > tr > td .ant-btn-link) {
-  vertical-align: middle;
-  padding: 0 4px;
-  height: 24px;
-  font-size: 13px;
-  line-height: 1.4;
 }
 /* 表格内容溢出省略 */
 .menu-tree-table :deep(.ant-table-cell-ellipsis) {
@@ -1478,49 +1605,64 @@ function handleError(err: any) { console.warn('[ErrorBoundary]', err) }
   white-space: nowrap;
 }
 
-/* 统计卡片 */
-.stat-cards {
-  display: flex;
-  gap: 16px;
-  margin-bottom: 16px;
-}
-
-.stat-card {
-  flex: 1;
+/* ═══ 底部汇总条（树形全量展示，不接分页器） ═══ */
+.table-footer-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px;
-  border-radius: 8px;
-}
-
-.stat-total { background: linear-gradient(135deg, #e6f7ff 0%, #bae7ff 100%); }
-.stat-enabled { background: linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%); }
-.stat-disabled { background: linear-gradient(135deg, #fff7e6 0%, #ffe7ba 100%); }
-.stat-button { background: linear-gradient(135deg, #f9f0ff 0%, #efdbff 100%); }
-
-.stat-card-value {
-  font-size: 20px;
-  font-weight: 600;
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-  color: #333;
-}
-
-.stat-card-label {
-  font-size: 12px;
+  gap: 12px;
+  padding: 6px 16px;
+  background: #fff;
+  border-top: 1px solid #e8e8e8;
+  font-size: 13px;
   color: #666;
-  margin-top: 4px;
+  flex-wrap: wrap;
+}
+.footer-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.footer-item b {
+  color: #1890ff;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+}
+.footer-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: #999;
+}
+.footer-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
 }
 
-.stat-card-icon {
-  font-size: 28px;
-  color: rgba(0, 0, 0, 0.15);
+/* ═══ 单元格 ═══ */
+.row-no {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  color: #888;
 }
-
 .menu-icon {
   margin-right: 4px;
   font-size: 14px;
   vertical-align: middle;
+}
+.text-muted {
+  color: #bbb;
 }
 
 /* ── 树缩进与展开图标 ──────────────────────────── */
@@ -1560,26 +1702,6 @@ function handleError(err: any) { console.warn('[ErrorBoundary]', err) }
   color: #1890ff;
 }
 
-/* ── 工具栏 ─────────────────────────────────── */
-.menu-toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 0 12px 0;
-}
-
-/* ── 分页 ───────────────────────────────────── */
-/* 分页栏统一走 StandardPagination 经典形态（自带边框/内边距/居中），这里只保留让位 */
-.table-pagination {
-  flex-shrink: 0;
-}
-
-/* 响应式 */
-@media (max-width: 768px) {
-  .stat-cards { flex-wrap: wrap; }
-  .stat-card { flex: 1 1 45%; min-width: 120px; }
-}
-
 /* ── FullScreenDetail 内部紧凑样式 ────────────────────── */
 :deep(.fsd-body .ant-form-item) { margin-bottom: 8px; }
 :deep(.fsd-body .ant-form-item-label > label) { font-size: 12px; height: 28px; }
@@ -1587,40 +1709,6 @@ function handleError(err: any) { console.warn('[ErrorBoundary]', err) }
 :deep(.fsd-body .ant-input-number-input) { font-size: 12px; }
 :deep(.fsd-body .ant-select-selection-item) { font-size: 12px; }
 :deep(.fsd-body .ant-btn) { font-size: 12px; }
-
-/* ── 快捷键提示 ──────────────────────── */
-.shortcut-hints {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: #909399;
-  user-select: none;
-}
-.shortcut-hint {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  padding: 1px 4px;
-  border-radius: 3px;
-  background: #f5f7fa;
-}
-.shortcut-hint kbd {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 3px;
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-  font-size: 11px;
-  color: #606266;
-  background: #fff;
-  border: 1px solid #d0d5dd;
-  border-radius: 3px;
-  box-shadow: 0 1px 0 #d0d5dd;
-  line-height: 18px;
-}
 
 /* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
 :deep(.ant-input-sm),
@@ -1637,5 +1725,4 @@ function handleError(err: any) { console.warn('[ErrorBoundary]', err) }
 :deep(.ant-input-number-sm input) {
   height: 26px;
 }
-
 </style>

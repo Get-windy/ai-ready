@@ -1,6 +1,7 @@
 package cn.aiedge.erp.finance.service;
 
 import cn.aiedge.erp.finance.dto.AccountingPeriodDTO;
+import cn.aiedge.erp.finance.dto.AccountingPeriodDateDTO;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 
@@ -30,4 +31,11 @@ public interface AccountingPeriodService {
      * 启用/停用（关闭）期间
      */
     AccountingPeriodDTO updateStatus(Long id, Integer status);
+
+    /**
+     * 批量保存期间起止日期（对标「12 期矩阵 + 底部保存」）
+     *
+     * <p>只写 start_date / end_date；已关闭（已月结）的期间禁止改日期。</p>
+     */
+    List<AccountingPeriodDTO> saveDates(List<AccountingPeriodDateDTO> items);
 }

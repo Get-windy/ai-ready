@@ -442,7 +442,6 @@
             :show-search="false"
             :show-export="false"
             :show-batch-delete="false"
-            @cell-dblclick="handleView"
           >
             <template #orderTypeCell="{ record }">
               <a-tag
@@ -661,6 +660,7 @@ import { useRouter } from 'vue-router'
 import { Modal, message } from 'ant-design-vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
+import { useRowDblclick } from '@/composables/useRowDblclick'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import {
   EyeOutlined,
@@ -1199,6 +1199,10 @@ function handleView(record: any) {
     : `/sale/order/${record.id}`
   router.push(path)
 }
+
+// 双击行跳转单据详情 —— 页面侧自行实现（不依赖共享表格组件派发事件）
+// 复用表格外层容器 ref；行标识由 data-row-key（= row-key 指定的 _rowKey）反查得到
+useRowDblclick(tableContainerRef, () => displayData.value, handleView, '_rowKey')
 
 async function handleCopyOrderNo(record: any) {
   try {

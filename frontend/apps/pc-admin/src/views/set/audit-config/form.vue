@@ -1,214 +1,187 @@
 <template>
-  <ErrorBoundary>
-    <PageContainer title="审批流程编辑器">
-      <template #extra>
-        <a-button type="text" @click="handleBack">
-          <template #icon><ArrowLeftOutlined /></template>返回
-        </a-button>
-      </template>
+  <!--
+    审核设置 - 单据审核规则配置弹窗（审核设置页 80622 的子组件）
+    · 形态对标 ql361：列表每行一个「设置」按钮 → 打开该单据的「审核条件 → 审批人集合」配置
+    · 保存走 PUT /api/workflow/audit-config/{docType}（真实落库 sys_audit_rule），保存成功由父页回读
 
-      <div class="form-scroll-area">
-        <a-form ref="formRef" :model="form" layout="vertical">
-          <!-- 基本信息 -->
-          <FormSection title="基本信息">
-            <a-row :gutter="24">
-              <a-col :span="8">
-                <a-form-item label="流程名称" required>
-                  <a-input v-model:value="form.name" placeholder="如：销售订单审批" />
-                </a-form-item>
-              </a-col>
-              <a-col :span="8">
-                <a-form-item label="流程编码" required>
-                  <a-input v-model:value="form.code" placeholder="如：SALE_ORDER_APPROVAL" />
-                </a-form-item>
-              </a-col>
-              <a-col :span="8">
-                <a-form-item label="流程类型" required>
-                  <a-select v-model:value="form.type">
-                    <a-select-option v-for="(v, k) in APPROVAL_FLOW_TYPE_MAP" :key="k" :value="k">{{ v.label }}</a-select-option>
-                  </a-select>
-                </a-form-item>
-              </a-col>
-            </a-row>
-            <a-row :gutter="24">
-              <a-col :span="8">
-                <a-form-item label="版本">
-                  <a-input-number v-model:value="form.version" :min="1" style="width:100%" />
-                </a-form-item>
-              </a-col>
-              <a-col :span="8">
-                <a-form-item label="启用状态">
-                  <a-switch v-model:checked="form.enabled" checked-children="启用" un-checked-children="停用" />
-                </a-form-item>
-              </a-col>
-            </a-row>
-            <a-form-item label="流程描述">
-              <a-textarea v-model:value="form.description" :rows="2" placeholder="流程用途说明" />
-            </a-form-item>
-          </FormSection>
+    ⚠️ 本文件此前是「审批流程编辑器」（214 行、无菜单无路由入口、编辑态保存只 message.info 不提交），
+       本轮按《审核设置开发文档》§4 的裁定**收敛**：流程定义/节点的编辑归「流程定义 / 流程设计」页
+       （views/workflow/designer）唯一持有，本页不再提供第二套流程定义编辑器；
+       本文件因此被改写为**本页自己的**规则配置弹窗，由 index.vue 真实引用（不再是孤儿实现）。
+       文件路径保持不变，是为了不牵动 router/dynamicRoutes.ts 里既有的组件懒加载映射。
+  -->
+  <a-modal
+    :open="open"
+    :title="`审核设置 - ${doc?.docName || ''}`"
+    :width="720"
+    :confirm-loading="saving"
+    ok-text="保存"
+    @update:open="(value: boolean) => emit('update:open', value)"
+    @ok="handleSave"
+  >
+    <a-alert
+      type="info"
+      show-icon
+      class="modal-tip"
+      message="勾选需要审核的条件，并为每个条件选择审批人；未勾选的条件表示该类单据不因该条件触发审核。"
+    />
 
-          <!-- 审批节点 -->
-          <FormSection title="审批节点">
-            <div class="node-list">
-              <div v-for="(node, idx) in form.nodes" :key="idx" class="node-card">
-                <div class="node-header">
-                  <span class="node-seq">节点 {{ idx + 1 }}</span>
-                  <a-button type="link" danger size="small" @click="form.nodes.splice(idx, 1)">移除</a-button>
-                </div>
-                <a-row :gutter="16" class="node-fields">
-                  <a-col :span="8">
-                    <a-form-item label="节点名称">
-                      <a-input v-model:value="node.nodeName" placeholder="如：部门审批" size="small" />
-                    </a-form-item>
-                  </a-col>
-                  <a-col :span="8">
-                    <a-form-item label="审批人类型">
-                      <a-select v-model:value="node.approverType" size="small">
-                        <a-select-option v-for="(label, k) in APPROVER_TYPE_MAP" :key="k" :value="k">{{ label }}</a-select-option>
-                      </a-select>
-                    </a-form-item>
-                  </a-col>
-                  <a-col :span="8">
-                    <a-form-item label="审批模式">
-                      <a-select v-model:value="node.approveMode" size="small">
-                        <a-select-option v-for="(label, k) in APPROVE_MODE_MAP" :key="k" :value="k">{{ label }}</a-select-option>
-                      </a-select>
-                    </a-form-item>
-                  </a-col>
-                </a-row>
-                <a-row :gutter="16">
-                  <a-col :span="12">
-                    <a-form-item label="审批人（ID/角色编码，逗号分隔）">
-                      <a-select v-model:value="node.approverIds" mode="tags" placeholder="输入" :token-separators="[',', ' ']" size="small" />
-                    </a-form-item>
-                  </a-col>
-                  <a-col :span="6">
-                    <a-form-item label="超时（小时）">
-                      <a-input-number v-model:value="node.timeoutHours" :min="0" size="small" style="width:100%" />
-                    </a-form-item>
-                  </a-col>
-                  <a-col :span="6">
-                    <a-form-item label="超时处理">
-                      <a-select v-model:value="node.timeoutAction" size="small" allow-clear>
-                        <a-select-option value="auto_approve">自动通过</a-select-option>
-                        <a-select-option value="auto_reject">自动驳回</a-select-option>
-                        <a-select-option value="escalate">升级处理</a-select-option>
-                      </a-select>
-                    </a-form-item>
-                  </a-col>
-                </a-row>
-              </div>
-            </div>
-            <a-button type="dashed" block @click="addNode">
-              <template #icon><PlusOutlined /></template>添加节点
-            </a-button>
-          </FormSection>
-
-          <!-- 工作流引擎联动验证 -->
-          <FormSection title="工作流引擎联动">
-            <a-alert type="info" show-icon message="工作流引擎联动验证" description="当前审批流程配置通过 approvalFlowApi 对接后端 workflow/definitions 端点。流程发布后将可在业务单据（订单/采购/报销等）中调用该流程进行审批流转。" />
-            <div class="linkage-status">
-              <a-descriptions :column="3" size="small" bordered>
-                <a-descriptions-item label="API 端点">/workflow/definitions</a-descriptions-item>
-                <a-descriptions-item label="流程类型映射">
-                  <a-tag v-for="(v, k) in APPROVAL_FLOW_TYPE_MAP" :key="k" :color="v.color" style="margin:2px">{{ v.label }}</a-tag>
-                </a-descriptions-item>
-                <a-descriptions-item label="审批模式">单人/或签/会签</a-descriptions-item>
-              </a-descriptions>
-            </div>
-          </FormSection>
-        </a-form>
-
-        <div class="form-footer">
-          <a-space>
-            <a-button @click="handleBack">取消</a-button>
-            <a-button :loading="saving" type="primary" @click="handleSave">保存流程</a-button>
-          </a-space>
-        </div>
+    <div class="rule-list">
+      <div
+        v-for="row in editorRows"
+        :key="row.condition"
+        class="rule-row"
+      >
+        <a-checkbox v-model:checked="row.enabled">
+          {{ row.conditionLabel }}
+        </a-checkbox>
+        <a-select
+          v-model:value="row.userIds"
+          mode="multiple"
+          size="small"
+          class="rule-approvers"
+          :disabled="!row.enabled"
+          :options="approverOptions"
+          :max-tag-count="3"
+          option-filter-prop="label"
+          :placeholder="row.enabled ? '请选择审批人（可多选）' : '未启用该条件'"
+          allow-clear
+        />
       </div>
-    </PageContainer>
-  </ErrorBoundary>
+    </div>
+  </a-modal>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { ref, watch } from 'vue'
 import { message } from 'ant-design-vue'
-import { ArrowLeftOutlined, PlusOutlined } from '@ant-design/icons-vue'
-import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import FormSection from '@/components/FormSection/index.vue'
-import PageContainer from '@/components/PageContainer/PageContainer.vue'
-import {
-  approvalFlowApi, type ApprovalFlowDefinition, type ApprovalFlowNode,
-  APPROVAL_FLOW_TYPE_MAP, APPROVER_TYPE_MAP, APPROVE_MODE_MAP
-} from '@/api/workflow'
+import { auditConfigApi, type AuditDocRule, type AuditRuleApprover } from '@/api/workflow'
+import { optionsApi } from '@/api/options'
 
-const route = useRoute()
-const router = useRouter()
-const formRef = ref()
+defineOptions({ name: 'SetAuditConfigRuleForm' })
+
+const props = defineProps<{
+  /** 弹窗显隐（父页 v-model:open） */
+  open: boolean
+  /** 正在配置的单据行（含已保存的规则，用于回填） */
+  doc: AuditDocRule | null
+  /** 审核条件目录（后端逐字取自 ql361，父页从列表接口一次性取得） */
+  conditions: { value: string; label: string }[]
+}>()
+
+const emit = defineEmits<{
+  (e: 'update:open', value: boolean): void
+  /** 保存成功（父页据此回读列表 —— 摘要由后端拼装，必须以服务端口径为准） */
+  (e: 'saved'): void
+}>()
+
+interface EditorRow {
+  condition: string
+  conditionLabel: string
+  enabled: boolean
+  /** 选中的审批人ID（雪花 ID 字符串，禁止 Number()） */
+  userIds: string[]
+}
+
 const saving = ref(false)
-const editingId = ref<string | null>(null)
+const editorRows = ref<EditorRow[]>([])
 
-const form = reactive<{
-  name: string; code: string; type: string | undefined; description: string;
-  version: number; enabled: boolean; nodes: ApprovalFlowNode[]
-}>({
-  name: '', code: '', type: undefined, description: '',
-  version: 1, enabled: true,
-  nodes: [{ nodeName: '', approverType: 'user', approverIds: [], approveMode: 'single', timeoutHours: 0 }]
-})
+// ═══ 审批人下拉（复用通用选项 API：/user/list） ═══
+// ⚠️ 该端点需要 system:user:list 权限；无权限时降级为空列表并提示，不阻塞其它功能
+const approverOptions = ref<{ label: string; value: string }[]>([])
+const approverLoaded = ref(false)
 
-function addNode() {
-  form.nodes.push({ nodeName: '', approverType: 'user', approverIds: [], approveMode: 'single', timeoutHours: 0 })
-}
-
-function handleBack() {
-  router.push('/set/audit-config/index')
-}
-
-async function loadData(id: string) {
+async function loadApprovers() {
+  if (approverLoaded.value) return
   try {
-    const res = await approvalFlowApi.getById(id)
-    Object.assign(form, res)
-  } catch { message.error('加载失败') }
+    const users: any = await optionsApi.getUsers()
+    const list = Array.isArray(users) ? users : (users?.records || [])
+    approverOptions.value = list.map((u: any) => ({
+      // 后端 JacksonConfig 已全局把 Long 序列化为 String，这里再兜一层 String()
+      value: String(u.id),
+      label: u.realName || u.nickname || u.username || u.name || String(u.id),
+    }))
+    approverLoaded.value = true
+  } catch (error) {
+    console.warn('[审核设置] 审批人列表加载失败', error)
+    approverOptions.value = []
+    message.warning('审批人列表加载失败，请确认当前账号拥有「用户列表」权限')
+  }
 }
+
+/** 提交时作为姓名快照一并上送（后端在账号不可解析时用它兜底展示） */
+function userNameOf(userId: string): string {
+  return approverOptions.value.find(o => o.value === userId)?.label || ''
+}
+
+/** 打开弹窗时按「条件目录 × 已保存规则」求并集构建编辑行 */
+function buildRows() {
+  const savedMap = new Map<string, AuditRuleApprover[]>(
+    (props.doc?.rules || []).map(r => [r.condition, r.approvers || []]),
+  )
+  editorRows.value = props.conditions.map((c) => {
+    const saved = savedMap.get(c.value)
+    return {
+      condition: c.value,
+      conditionLabel: c.label,
+      enabled: !!saved && saved.length > 0,
+      userIds: saved ? saved.map(a => String(a.userId)) : [],
+    }
+  })
+}
+
+watch(
+  () => [props.open, props.doc?.docType, props.conditions] as const,
+  ([open]) => {
+    if (open) {
+      buildRows()
+      loadApprovers()
+    }
+  },
+  { immediate: true },
+)
 
 async function handleSave() {
-  if (!form.name.trim() || !form.code.trim() || !form.type) {
-    message.warning('请填写流程名称、编码和类型')
+  const doc = props.doc
+  if (!doc) return
+
+  // 条件目录没加载出来（列表接口失败）时保存会把该单据的规则**清空**（全量覆盖语义），必须拦下
+  if (editorRows.value.length === 0) {
+    message.warning('审核条件目录未加载，请关闭弹窗并刷新页面后重试')
     return
   }
-  const nodes = form.nodes
-    .filter(n => n.nodeName.trim())
-    .map((n, idx) => ({ ...n, nodeId: n.nodeId || `node_${idx + 1}`, nodeType: 'approval' }))
+
+  // 已勾选却没选审批人 = 配了一条不会生效的规则，直接拦下比静默丢弃友好
+  const invalid = editorRows.value.filter(r => r.enabled && r.userIds.length === 0)
+  if (invalid.length) {
+    message.warning(`请为「${invalid[0].conditionLabel}」选择审批人`)
+    return
+  }
+
+  const rules = editorRows.value
+    .filter(r => r.enabled && r.userIds.length > 0)
+    .map(r => ({
+      condition: r.condition,
+      approvers: r.userIds.map(id => ({ userId: String(id), userName: userNameOf(String(id)) })),
+    }))
+
   saving.value = true
   try {
-    if (editingId.value) {
-      // 后端暂无更新接口，通知用户
-      message.info('当前版本不支持在线修改已有流程，请新建流程')
-    } else {
-      await approvalFlowApi.create({ ...form, nodes })
-      message.success('流程创建成功')
-    }
-    router.push('/set/audit-config/index')
-  } catch (e: any) { message.error(e?.response?.data?.message || '保存失败') }
-  finally { saving.value = false }
+    await auditConfigApi.save(doc.docType, rules)
+    message.success('保存成功')
+    emit('update:open', false)
+    emit('saved')
+  } catch (error: any) {
+    message.error(error?.response?.data?.message || '保存失败')
+  } finally {
+    saving.value = false
+  }
 }
-
-onMounted(() => {
-  const id = route.params.id as string
-  if (id) { editingId.value = id; loadData(id) }
-})
 </script>
 
 <style scoped>
-.form-scroll-area { flex: 1; overflow-y: auto; padding: 0 16px 16px; }
-.form-footer { background: #fff; border-radius: 6px; padding: 16px 24px; text-align: right; box-shadow: 0 -1px 4px rgba(0,0,0,0.05); margin-top: 12px; }
-
-.node-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 12px; }
-.node-card { border: 1px solid #f0f0f0; border-radius: 6px; padding: 12px 16px; background: #fafafa; }
-.node-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-.node-seq { font-weight: 600; font-size: 13px; color: #1890ff; }
-
-.linkage-status { margin-top: 12px; }
+.modal-tip { margin-bottom: 12px; }
+.rule-list { display: flex; flex-direction: column; gap: 10px; }
+.rule-row { display: flex; align-items: center; gap: 12px; }
+.rule-approvers { flex: 1; min-width: 0; }
 </style>

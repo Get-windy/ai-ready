@@ -28,7 +28,7 @@ public class DataSourceServiceImpl implements DataSourceService {
     @Override
     public List<DataSource> list(String keyword, Long tenantId) {
         LambdaQueryWrapper<DataSource> wrapper = new LambdaQueryWrapper<DataSource>()
-                .eq(DataSource::getDeleted, false)
+                .eq(DataSource::getDeleted, 0)
                 .eq(tenantId != null, DataSource::getTenantId, tenantId)
                 .and(keyword != null && !keyword.isEmpty(), w -> w
                         .like(DataSource::getName, keyword)
@@ -51,7 +51,7 @@ public class DataSourceServiceImpl implements DataSourceService {
         dataSource.setTenantId(tenantId);
         dataSource.setCreateTime(LocalDateTime.now());
         dataSource.setUpdateTime(LocalDateTime.now());
-        dataSource.setDeleted(false);
+        dataSource.setDeleted(0);
         dataSourceMapper.insert(dataSource);
         return dataSource;
     }
@@ -78,7 +78,7 @@ public class DataSourceServiceImpl implements DataSourceService {
     public boolean delete(Long id) {
         DataSource existing = dataSourceMapper.selectById(id);
         if (existing == null) return false;
-        existing.setDeleted(true);
+        existing.setDeleted(1);
         existing.setUpdateTime(LocalDateTime.now());
         return dataSourceMapper.updateById(existing) > 0;
     }

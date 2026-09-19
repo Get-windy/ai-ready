@@ -5,10 +5,10 @@
   <parent>
     <groupId>cn.aiedge</groupId>
     <artifactId>hr</artifactId>
-    <version>0.3.20</version>
+    <version>0.3.21</version>
   </parent>
   <artifactId>hr-base</artifactId>
-  <version>0.3.20</version>
+  <version>0.3.21</version>
   <name>AI-Ready HR Module</name>
   <description>人力资源管理模块 - 组织架构、员工、考勤、薪酬、绩效</description>
   <licenses>

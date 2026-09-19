@@ -62,6 +62,11 @@ public class HrContract {
     private LocalDate endDate;
 
     /**
+     * 试用期到期日（Odoo `hr.contract.trial_date_end`；本系统新增列）
+     */
+    private LocalDate trialDateEnd;
+
+    /**
      * 约定薪资
      */
     private BigDecimal salaryAmount;
@@ -75,6 +80,11 @@ public class HrContract {
      * 合同状态（0-待签 1-生效 2-到期 3-终止）
      */
     private Integer status;
+
+    /**
+     * 终止原因
+     */
+    private String terminateReason;
 
     /**
      * 备注
@@ -110,4 +120,14 @@ public class HrContract {
      */
     @TableField(fill = FieldFill.INSERT_UPDATE)
     private Long updateBy;
+
+    // ── 展示用联表字段（非表列） ──
+
+    /** 员工姓名 */
+    @TableField(exist = false)
+    private String employeeName;
+
+    /** 员工工号 */
+    @TableField(exist = false)
+    private String employeeNo;
 }

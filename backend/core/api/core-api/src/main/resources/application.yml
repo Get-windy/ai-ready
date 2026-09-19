@@ -66,6 +66,36 @@ app:
     structured:
       dir: ./logs/structured
 
+  # ── 开发工具 → API测试（菜单 62404）· 受控出站请求的服务端安全边界 ──
+  # 消费方：cn.aiedge.devtool（DevApiTestController / ApiTestTargetGuard / ApiTestOutboundService）
+  # 口径：本页是「用户输入什么、服务端就往哪发请求」的唯一入口，因此三个事实来源
+  #       （本系统自己的 origin / 外部白名单 / 能否自带 Authorization）**只认服务端配置**，
+  #       绝不接受前端传入 —— 前端只能决定「打哪个路径、用什么方法、带什么 body」。
+  # 依据说明：协议白名单 / allowlist / 禁跳转 / 屏蔽内网网段 有 OWASP 依据；
+  #       「剥离平台凭据 + 响应大小/超时上限」OWASP 无对应章节，属**本系统自建安全设计**（不声称业界标准）。
+  # ⚠️ 生产环境应设 app.api-test.enabled=false（本页是调试台，不应长期在线）。
+  api-test:
+    enabled: true
+    # 「本系统自身」的 origin。相对路径（/api/...）拼在它之后；绝对 URL 只有同 origin 才算同源。
+    # 不从请求头 Host / X-Forwarded-Host 推导：那两个头是调用方可控的输入，用它当 allowlist 等于没有 allowlist。
+    self-base-url: http://127.0.0.1:${server.port}
+    # 是否放行外部地址（默认 false）。开启后仍受 allowed-hosts 限制，且**仍要**过内网网段检查。
+    allow-external: false
+    allowed-hosts: []
+    connect-timeout-ms: 5000
+    read-timeout-ms: 5000
+    max-response-bytes: 262144   # 256KB，超出流式截断（不会先把整个响应读进内存）
+    max-request-bytes: 65536     # 64KB
+    max-url-length: 2048
+    max-headers: 20
+    rate-limit-per-minute: 30    # 单实例内存滑动窗口；防「把调试台当扫描器用」
+    # 是否允许使用者自行填写 Authorization 并转发。默认 false = 平台不代持/不转发任何会话凭据（凭据剥离）。
+    allow-user-authorization: false
+    # 命中同源（self-base-url）时豁免内网网段检查：本系统自身的 API 在开发/内网部署时本就绑在
+    # 127.0.0.1 / 10.x / 192.168.x 上，一律按内网拒绝会让本页完全不可用。豁免严格限定为
+    # 「origin 与 self-base-url 完全相同」，使用者无法借它去打 127.0.0.1:其它端口 / 169.254.169.254。
+    exempt-self-origin-from-private-ip-check: true
+
 # 系统管理配置
 system:
   super-admin:

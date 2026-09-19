@@ -10,6 +10,9 @@ import java.time.LocalDateTime;
  * 岗位实体
  * 组织架构中的岗位定义
  *
+ * <p>与系统管理域的 `sys_position`（系统岗位/职务）是**两套主数据**：本表是 HR 域的
+ * 职位/编制单元（带 `quota_count` 编制人数与 `current_count` 在岗人数）。</p>
+ *
  * @author AI-Ready Team
  * @since 1.0.0
  */
@@ -60,7 +63,7 @@ public class HrPosition {
     private Integer quotaCount;
 
     /**
-     * 在岗人数
+     * 在岗人数（由员工建档/转正/调岗/离职自动维护）
      */
     private Integer currentCount;
 
@@ -108,4 +111,14 @@ public class HrPosition {
      */
     @TableField(fill = FieldFill.INSERT_UPDATE)
     private Long updateBy;
+
+    // ── 展示用联表字段（非表列） ──
+
+    /** 部门名称 */
+    @TableField(exist = false)
+    private String deptName;
+
+    /** 是否超编（current_count > quota_count） */
+    @TableField(exist = false)
+    private Boolean overQuota;
 }

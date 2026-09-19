@@ -5,12 +5,12 @@
   <parent>
     <groupId>cn.aiedge</groupId>
     <artifactId>ai-ready-backend</artifactId>
-    <version>0.3.20</version>
+    <version>0.3.21</version>
     <relativePath>../../pom.xml</relativePath>
   </parent>
   <groupId>cn.aiedge.erp</groupId>
   <artifactId>erp-printing</artifactId>
-  <version>0.3.20</version>
+  <version>0.3.21</version>
   <name>ERP 打印与签收管理模块</name>
   <description>远程打印、模板管理、打印任务、签收管理统一管理</description>
   <licenses>

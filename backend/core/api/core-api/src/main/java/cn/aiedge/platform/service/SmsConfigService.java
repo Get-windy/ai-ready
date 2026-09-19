@@ -1,5 +1,6 @@
 package cn.aiedge.platform.service;
 
+import cn.aiedge.platform.dto.ConnectionTestResult;
 import cn.aiedge.platform.model.SmsConfig;
 
 /**
@@ -20,5 +21,5 @@ public interface SmsConfigService {
     /**
      * 测试短信服务
      */
-    boolean testConnection(SmsConfig config);
+    ConnectionTestResult testConnection(SmsConfig config);
 }

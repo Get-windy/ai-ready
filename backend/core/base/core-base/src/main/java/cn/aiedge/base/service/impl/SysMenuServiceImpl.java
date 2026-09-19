@@ -3,6 +3,7 @@ package cn.aiedge.base.service.impl;
 import cn.aiedge.base.config.SuperAdminConfig;
 import cn.aiedge.base.entity.SysMenu;
 import cn.aiedge.base.mapper.SysMenuMapper;
+import cn.aiedge.base.service.MenuVisibilityService;
 import cn.aiedge.base.service.SysMenuService;
 import cn.aiedge.base.service.SysTenantMenuService;
 import cn.aiedge.base.service.SysUserService;
@@ -40,6 +41,7 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu>
     private final SysUserService userService;
     private final UnifiedPermissionCacheService permissionCacheService;
     private final SysTenantMenuService tenantMenuService;
+    private final MenuVisibilityService menuVisibilityService;
     private final SuperAdminConfig superAdminConfig;
 
     // 系统租户ID（超级租户）
@@ -260,8 +262,11 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu>
             // 系统租户：跳过 sys_tenant_menu 授权检查，仅按角色权限过滤
             if (isSuperAdmin) {
                 // 超管返回 tenant-admin + system-admin 全部菜单
+                // ⚠️ 这条早退分支同样要过「租户级菜单显隐」（设置 → 菜单配置）：
+                //    开发/默认登录的 admin 正是「系统租户 + 超管」，不过滤的话
+                //    本页关掉的菜单在导航里依然可见，开关就成了空操作。
                 List<SysMenu> allMenus = getAllMenusForSystemAdmin();
-                return buildMenuTree(allMenus, 0L);
+                return buildMenuTree(excludeTenantHidden(allMenus, tenantId), 0L);
             }
             // 系统租户内普通用户：按角色菜单关联过滤
             List<Long> roleIds = baseMapper.selectRoleIdsByUserId(userId);
@@ -284,6 +289,14 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu>
             // 取交集
             finalMenuIds = new HashSet<>(tenantAuthorizedIds);
             finalMenuIds.retainAll(roleMenuIds);
+        }
+
+        // 租户级菜单显隐（设置 → 系统配置 → 菜单配置）：排除本租户显式隐藏的菜单。
+        // 落库位置为 sys_project_config（tenant_id + config_key），默认无配置 = 全部可见，
+        // 因此未使用本页时本方法行为与改造前完全一致。
+        Set<Long> hiddenMenuIds = menuVisibilityService.getHiddenMenuIds(tenantId);
+        if (!hiddenMenuIds.isEmpty()) {
+            finalMenuIds.removeAll(hiddenMenuIds);
         }
 
         if (finalMenuIds.isEmpty()) {
@@ -339,6 +352,20 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu>
     }
 
     // ==================== 私有方法 ====================
+
+    /**
+     * 剔除本租户在「设置 → 系统配置 → 菜单配置」中显式隐藏的菜单。
+     * 无隐藏配置（默认）时原样返回，保证与改造前的行为一致。
+     */
+    private List<SysMenu> excludeTenantHidden(List<SysMenu> menus, Long tenantId) {
+        Set<Long> hiddenMenuIds = menuVisibilityService.getHiddenMenuIds(tenantId);
+        if (hiddenMenuIds.isEmpty()) {
+            return menus;
+        }
+        return menus.stream()
+                .filter(menu -> !hiddenMenuIds.contains(menu.getId()))
+                .collect(Collectors.toList());
+    }
 
     /**
      * 构建菜单树

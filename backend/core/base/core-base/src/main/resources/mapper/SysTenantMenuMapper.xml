@@ -25,18 +25,29 @@
 
     <!-- 批量插入租户菜单授权 -->
     <insert id="batchInsert">
-        INSERT INTO sys_tenant_menu (id, tenant_id, menu_id, create_time, deleted)
+        <!-- ⚠️ 两点都必须这样写，否则「给租户 A 授权」会写到会话租户头上（2026-09-18 实踩）：
+             ① 不再指定 id：该列有序列默认值 `nextval('sys_tenant_menu_id_seq')`，
+                显式传 null 会撞 `NOT NULL` 约束（实体侧从未 setId）；
+             ② tenant_id 用**独立参数** `#{tenantId}` 而不是 `#{item.tenantId}`：
+                MyBatis-Plus 的 `MetaObjectHandler.insertFill` 会在任何 INSERT（含自定义 XML）执行前
+                遍历参数里的实体，把 `tenantId` 覆盖成**当前会话租户**
+                （见 MyBatisPlusConfig#metaObjectHandler）；
+                会话租户是 admin 的 1，而目标是路径参数里的 2 → 授权写错归属。 -->
+        INSERT INTO sys_tenant_menu (tenant_id, menu_id, create_time, deleted)
         VALUES
         <foreach collection="list" item="item" separator=",">
-            (#{item.id}, #{item.tenantId}, #{item.menuId}, #{item.createTime}, 0)
+            (#{tenantId}, #{item.menuId}, #{item.createTime}, 0)
         </foreach>
     </insert>
 
-    <!-- 根据租户ID软删除所有授权 -->
-    <update id="deleteByTenantId">
-        UPDATE sys_tenant_menu SET deleted = 1
-        WHERE tenant_id = #{tenantId} AND deleted = 0
-    </update>
+    <!-- 根据租户ID删除所有授权
+         ⚠️ 必须是**物理删除**：`uk_tenant_menu (tenant_id, menu_id)` 唯一索引**不含 deleted**，
+         软删行仍占用键值 → 重新授权同一菜单时会撞唯一约束（2026-09-18 实踩：重复保存报 400
+         「请求数据不完整或存在冲突」）。授权关系不需要软删历史。 -->
+    <delete id="deleteByTenantId">
+        DELETE FROM sys_tenant_menu
+        WHERE tenant_id = #{tenantId}
+    </delete>
 
     <!-- 根据菜单ID软删除所有关联 -->
     <update id="deleteByMenuId">

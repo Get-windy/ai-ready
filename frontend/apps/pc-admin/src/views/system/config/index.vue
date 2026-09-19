@@ -46,7 +46,10 @@
         </div>
       </template>
 
-      <div class="config-management">
+      <div
+        ref="tableWrap"
+        class="config-management"
+      >
         <!-- 统计卡片 -->
         <div class="stat-cards">
           <div class="stat-card stat-total">
@@ -114,7 +117,6 @@
           @page-change="handlePageChange"
           @filter-change="handleFilterChange"
           @selection-change="(keys: any) => { (selectedRowKeys as any) = keys }"
-          @cell-dblclick="handleView"
         >
           <template #toolbar-actions>
             <a-button @click="handleRefreshCache">
@@ -283,6 +285,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
+import { useRowDblclick } from '@/composables/useRowDblclick'
 import { onBeforeRouteLeave } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
@@ -629,6 +632,11 @@ const handleFormSaveAndNew = async () => {
 function handleView(record: any) {
   handleEdit(record)
 }
+
+// 双击行打开配置详情 —— 页面侧自行实现（不依赖共享表格组件派发事件）
+// 行标识由表格行上的 data-row-key（= row-key 指定的 id）反查得到；占位空行不带该属性
+const tableWrap = ref<HTMLElement | null>(null)
+useRowDblclick(tableWrap, () => tableDataSource.value, handleView, 'id')
 
 // ── 键盘快捷键 ──────────────────────────────────────────
 function handleKeydown(e: KeyboardEvent) {

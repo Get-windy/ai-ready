@@ -1,5 +1,7 @@
 package cn.aiedge.crm.customer.service.impl;
 
+import cn.aiedge.crm.common.CrmDocNo;
+import cn.aiedge.crm.customer.dto.CustomerFollowUpQuery;
 import cn.aiedge.crm.customer.entity.CustomerFollowUp;
 import cn.aiedge.crm.customer.mapper.CustomerFollowUpMapper;
 import cn.aiedge.crm.customer.service.CustomerFollowUpService;
@@ -10,8 +12,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Slf4j
@@ -28,29 +28,53 @@ public class CustomerFollowUpServiceImpl extends ServiceImpl<CustomerFollowUpMap
     }
 
     @Override
-    public Page<CustomerFollowUp> pageList(Long customerId, Long opportunityId, Long leadId,
-                                            Long salesPersonId, int pageNum, int pageSize) {
+    public Page<CustomerFollowUp> pageList(CustomerFollowUpQuery query) {
         LambdaQueryWrapper<CustomerFollowUp> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(CustomerFollowUp::getDeleted, 0);
-        
-        if (customerId != null) {
-            wrapper.eq(CustomerFollowUp::getCustomerId, customerId);
+
+        if (query.getCustomerId() != null) {
+            wrapper.eq(CustomerFollowUp::getCustomerId, query.getCustomerId());
         }
-        
-        if (opportunityId != null) {
-            wrapper.eq(CustomerFollowUp::getOpportunityId, opportunityId);
+        if (query.getOpportunityId() != null) {
+            wrapper.eq(CustomerFollowUp::getOpportunityId, query.getOpportunityId());
         }
-        
-        if (leadId != null) {
-            wrapper.eq(CustomerFollowUp::getLeadId, leadId);
+        if (query.getLeadId() != null) {
+            wrapper.eq(CustomerFollowUp::getLeadId, query.getLeadId());
         }
-        
-        if (salesPersonId != null) {
-            wrapper.eq(CustomerFollowUp::getSalesPersonId, salesPersonId);
+        if (query.getSalesPersonId() != null) {
+            wrapper.eq(CustomerFollowUp::getSalesPersonId, query.getSalesPersonId());
         }
-        
-        wrapper.orderByDesc(CustomerFollowUp::getFollowUpDate);
-        
+        if (query.getFollowUpType() != null) {
+            wrapper.eq(CustomerFollowUp::getFollowUpType, query.getFollowUpType());
+        }
+        if (query.getFollowUpResult() != null) {
+            wrapper.eq(CustomerFollowUp::getFollowUpResult, query.getFollowUpResult());
+        }
+        if (query.getFollowUpDateStart() != null) {
+            wrapper.ge(CustomerFollowUp::getFollowUpDate, query.getFollowUpDateStart());
+        }
+        if (query.getFollowUpDateEnd() != null) {
+            wrapper.le(CustomerFollowUp::getFollowUpDate, query.getFollowUpDateEnd());
+        }
+        if (query.getNextFollowUpDateStart() != null) {
+            wrapper.ge(CustomerFollowUp::getNextFollowUpDate, query.getNextFollowUpDateStart());
+        }
+        if (query.getNextFollowUpDateEnd() != null) {
+            wrapper.le(CustomerFollowUp::getNextFollowUpDate, query.getNextFollowUpDateEnd());
+        }
+        if (query.getKeyword() != null && !query.getKeyword().isBlank()) {
+            String kw = query.getKeyword().trim();
+            wrapper.and(w -> w.like(CustomerFollowUp::getFollowUpCode, kw)
+                    .or().like(CustomerFollowUp::getCustomerName, kw)
+                    .or().like(CustomerFollowUp::getContent, kw));
+        }
+
+        // 排序：跟进日期倒序，用 id 兜底 —— 原实现只有 follow_up_date 一列，
+        // 而 PG 的 DESC 默认 NULLS FIRST，会让「没填日期」的记录排在最前、同日期顺序不确定。
+        wrapper.orderByDesc(CustomerFollowUp::getFollowUpDate).orderByDesc(CustomerFollowUp::getId);
+
+        int pageNum = query.getPageNum() != null ? query.getPageNum() : 1;
+        int pageSize = query.getPageSize() != null ? query.getPageSize() : 20;
         return baseMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);
     }
 
@@ -83,8 +107,7 @@ public class CustomerFollowUpServiceImpl extends ServiceImpl<CustomerFollowUpMap
 
     @Override
     public String generateFollowUpCode() {
-        String dateStr = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-        long count = baseMapper.selectCount(null);
-        return "FUP-" + dateStr + String.format("%04d", count + 1);
+        String prefix = CrmDocNo.prefixOf("FUP-");
+        return CrmDocNo.next(prefix, baseMapper.selectMaxFollowUpCode(prefix), 4);
     }
 }

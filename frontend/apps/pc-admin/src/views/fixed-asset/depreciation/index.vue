@@ -54,7 +54,11 @@
         </div>
       </template>
 
-      <div class="depreciation-list-page">
+      <!-- ref 供页面侧双击行入口使用（表格自身的双击事件冒泡到该容器） -->
+      <div
+        ref="tableWrap"
+        class="depreciation-list-page"
+      >
         <!-- 统计卡片 -->
         <div class="stat-cards">
           <div class="stat-card stat-total">
@@ -105,7 +109,6 @@
           :selectable="true"
           :min-empty-rows="12"
           @refresh="debounceClick('refresh', fetchData)()"
-          @cell-dblclick="handleViewAsset"
           @search="handleSearch"
           @page-change="handlePageChange"
           @filter-change="handleFilterChange"
@@ -233,6 +236,7 @@ import {
 } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
+import { useRowDblclick } from '@/composables/useRowDblclick'
 import { depreciationApi } from '@/api/fixed-asset'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import { useRouter } from 'vue-router'
@@ -409,6 +413,14 @@ function handleViewAsset(record: any) {
     router.push(`/fixed-asset/asset/detail/${record.assetId}`)
   }
 }
+
+/**
+ * 双击行跳转资产详情 —— **页面侧自行实现**（共享表格组件不再派发该事件）
+ * 行标识由表格 <tr> 上的 data-row-key 反查（与 row-key 默认值 "id" 同口径），
+ * 占位空行不带该属性，行内按钮等交互控件的双击也会被过滤掉。
+ */
+const tableWrap = ref<HTMLElement | null>(null)
+useRowDblclick(tableWrap, () => tableData.value, handleViewAsset, 'id')
 
 function handleResetFilters() {
   Object.keys(searchFilters).forEach(k => { searchFilters[k] = undefined })

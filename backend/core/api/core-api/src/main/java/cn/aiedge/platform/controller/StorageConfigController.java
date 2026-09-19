@@ -1,5 +1,6 @@
 package cn.aiedge.platform.controller;
 
+import cn.aiedge.platform.dto.ConnectionTestResult;
 import cn.aiedge.platform.model.StorageConfig;
 import cn.aiedge.platform.service.StorageConfigService;
 import cn.dev33.satoken.annotation.SaCheckPermission;
@@ -25,9 +26,8 @@ public class StorageConfigController {
     @GetMapping("/config")
     @SaCheckPermission("platform:storage:config")
     @Operation(summary = "获取存储配置")
-    public ResponseEntity<Map<String, Object>> getConfig(
-            @RequestHeader(value = "X-Tenant-Id", required = false) Long tenantId) {
-        StorageConfig config = storageConfigService.getConfig(tenantId);
+    public ResponseEntity<Map<String, Object>> getConfig() {
+        StorageConfig config = storageConfigService.getConfig(0L);
         return ResponseEntity.ok(Map.of("code", 200, "data", config, "message", "ok"));
     }
 
@@ -35,9 +35,8 @@ public class StorageConfigController {
     @SaCheckPermission("platform:storage:update")
     @Operation(summary = "保存存储配置")
     public ResponseEntity<Map<String, Object>> saveConfig(
-            @RequestBody StorageConfig config,
-            @RequestHeader(value = "X-Tenant-Id", required = false) Long tenantId) {
-        StorageConfig saved = storageConfigService.saveConfig(config, tenantId);
+            @RequestBody StorageConfig config) {
+        StorageConfig saved = storageConfigService.saveConfig(config, 0L);
         return ResponseEntity.ok(Map.of("success", true, "config", saved));
     }
 
@@ -46,10 +45,11 @@ public class StorageConfigController {
     @Operation(summary = "测试存储连接")
     public ResponseEntity<Map<String, Object>> testConnection(
             @RequestBody StorageConfig config) {
-        boolean success = storageConfigService.testConnection(config);
+        // 真实测试：返回布尔 + 人话原因（此前只 return true，页面永远显示成功）
+        ConnectionTestResult result = storageConfigService.testConnection(config);
         return ResponseEntity.ok(Map.of(
-                "success", success,
-                "message", success ? "存储连接测试成功" : "存储连接测试失败"
+                "success", result.success(),
+                "message", result.message()
         ));
     }
 }

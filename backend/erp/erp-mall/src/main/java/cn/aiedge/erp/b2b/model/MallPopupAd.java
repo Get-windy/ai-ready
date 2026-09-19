@@ -49,4 +49,8 @@ public class MallPopupAd extends BaseEntity {
 
     /** 备注 */
     private String remark;
+
+    /** 创建人姓名（对标「商城弹窗广告」页「创建人」列，写入时快照） */
+    @com.baomidou.mybatisplus.annotation.TableField(updateStrategy = com.baomidou.mybatisplus.annotation.FieldStrategy.NEVER)
+    private String creatorName;
 }

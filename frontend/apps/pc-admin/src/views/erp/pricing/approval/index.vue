@@ -142,251 +142,252 @@
           </a-button>
         </template>
 
-        <a-tabs
-          v-model:active-key="activeTab"
-          style="flex: 1; overflow: hidden;"
+        <div
+          ref="tableWrap"
+          class="table-area"
         >
-          <a-tab-pane
-            key="pending"
-            tab="待审批"
+          <a-tabs
+            v-model:active-key="activeTab"
+            style="flex: 1; overflow: hidden;"
           >
-            <BillTableList
-              ref="pendingTableRef"
-              :columns="pendingVxeColumns"
-              :data-source="pendingList"
-              :loading="loading"
-              :pagination="pagination"
-              show-toolbar
-              :show-add="false"
-              :show-search="false"
-              :show-export="false"
-              :show-batch-delete="false"
-              :selectable="false"
-              @cell-dblclick="handleView"
-              @refresh="loadData"
-              @page-change="handlePageChange"
+            <a-tab-pane
+              key="pending"
+              tab="待审批"
             >
-              <template #empty>
-                <div
-                  v-if="hasError"
-                  class="table-empty"
-                >
-                  <WarningOutlined class="table-empty-icon" />
-                  <p class="table-empty-text">
-                    数据加载异常，请重试
-                  </p>
-                  <a-button
-                    type="primary"
-                    @click="loadData"
+              <BillTableList
+                ref="pendingTableRef"
+                :columns="pendingVxeColumns"
+                :data-source="pendingList"
+                :loading="loading"
+                :pagination="pagination"
+                show-toolbar
+                :show-add="false"
+                :show-search="false"
+                :show-export="false"
+                :show-batch-delete="false"
+                :selectable="false"
+                @refresh="loadData"
+                @page-change="handlePageChange"
+              >
+                <template #empty>
+                  <div
+                    v-if="hasError"
+                    class="table-empty"
                   >
-                    <ReloadOutlined /> 重试
-                  </a-button>
-                </div>
-              </template>
-              <template #priceChange="{ record }">
-                <div class="price-change">
-                  <span class="old-price">原价: ¥{{ record.oldPrice }}</span>
-                  <span class="new-price">新价: ¥{{ record.newPrice }}</span>
-                  <span
-                    class="change"
-                    :class="record.priceChangeType"
-                  >
-                    {{ record.priceChangeType === 'increase' ? '+' : '-' }}¥{{ record.priceChange }}
-                  </span>
-                </div>
-              </template>
-              <template #statusCell="{ record }">
-                <StatusTag
-                  :status="record.status"
-                  :map="PRICE_APPROVAL_STATUS"
-                />
-              </template>
-              <template #action="{ record }">
-                <a-space :size="4">
-                  <a-button
-                    v-permission="'pricing:approval:approve'"
-                    size="small"
-                    type="primary"
-                    @click="handleApprove(record)"
-                  >
-                    通过
-                  </a-button>
-                  <a-button
-                    v-permission="'pricing:approval:reject'"
-                    size="small"
-                    danger
-                    @click="handleReject(record)"
-                  >
-                    拒绝
-                  </a-button>
-                  <a-button
-                    type="link"
-                    size="small"
-                    @click="handleView(record)"
-                  >
-                    详情
-                  </a-button>
-                </a-space>
-              </template>
-            </BillTableList>
-          </a-tab-pane>
-          <a-tab-pane
-            key="approved"
-            tab="已通过"
-          >
-            <BillTableList
-              :columns="processedVxeColumns"
-              :data-source="approvedList"
-              :loading="loading"
-              :show-toolbar="false"
-              :selectable="false"
-              :pagination="false as any"
-              @cell-dblclick="handleView"
+                    <WarningOutlined class="table-empty-icon" />
+                    <p class="table-empty-text">
+                      数据加载异常，请重试
+                    </p>
+                    <a-button
+                      type="primary"
+                      @click="loadData"
+                    >
+                      <ReloadOutlined /> 重试
+                    </a-button>
+                  </div>
+                </template>
+                <template #priceChange="{ record }">
+                  <div class="price-change">
+                    <span class="old-price">原价: ¥{{ record.oldPrice }}</span>
+                    <span class="new-price">新价: ¥{{ record.newPrice }}</span>
+                    <span
+                      class="change"
+                      :class="record.priceChangeType"
+                    >
+                      {{ record.priceChangeType === 'increase' ? '+' : '-' }}¥{{ record.priceChange }}
+                    </span>
+                  </div>
+                </template>
+                <template #statusCell="{ record }">
+                  <StatusTag
+                    :status="record.status"
+                    :map="PRICE_APPROVAL_STATUS"
+                  />
+                </template>
+                <template #action="{ record }">
+                  <a-space :size="4">
+                    <a-button
+                      v-permission="'pricing:approval:approve'"
+                      size="small"
+                      type="primary"
+                      @click="handleApprove(record)"
+                    >
+                      通过
+                    </a-button>
+                    <a-button
+                      v-permission="'pricing:approval:reject'"
+                      size="small"
+                      danger
+                      @click="handleReject(record)"
+                    >
+                      拒绝
+                    </a-button>
+                    <a-button
+                      type="link"
+                      size="small"
+                      @click="handleView(record)"
+                    >
+                      详情
+                    </a-button>
+                  </a-space>
+                </template>
+              </BillTableList>
+            </a-tab-pane>
+            <a-tab-pane
+              key="approved"
+              tab="已通过"
             >
-              <template #empty>
-                <div
-                  v-if="hasError"
-                  class="table-empty"
-                >
-                  <WarningOutlined class="table-empty-icon" />
-                  <p class="table-empty-text">
-                    数据加载异常，请重试
-                  </p>
-                  <a-button
-                    type="primary"
-                    @click="loadData"
+              <BillTableList
+                :columns="processedVxeColumns"
+                :data-source="approvedList"
+                :loading="loading"
+                :show-toolbar="false"
+                :selectable="false"
+                :pagination="false as any"
+              >
+                <template #empty>
+                  <div
+                    v-if="hasError"
+                    class="table-empty"
                   >
-                    <ReloadOutlined /> 重试
-                  </a-button>
-                </div>
-              </template>
-              <template #priceChange="{ record }">
-                <div class="price-change">
-                  <span class="old-price">原价: ¥{{ record.oldPrice }}</span>
-                  <span class="new-price">新价: ¥{{ record.newPrice }}</span>
-                  <span
-                    class="change"
-                    :class="record.priceChangeType"
-                  >
-                    {{ record.priceChangeType === 'increase' ? '+' : '-' }}¥{{ record.priceChange }}
-                  </span>
-                </div>
-              </template>
-              <template #statusCell="{ record }">
-                <StatusTag
-                  :status="record.status"
-                  :map="PRICE_APPROVAL_STATUS"
-                />
-              </template>
-              <template #approverCell="{ record }">
-                {{ record.approverName }} / {{ formatDate(record.approveTime) }}
-              </template>
-            </BillTableList>
-          </a-tab-pane>
-          <a-tab-pane
-            key="rejected"
-            tab="已拒绝"
-          >
-            <BillTableList
-              :columns="processedVxeColumns"
-              :data-source="rejectedList"
-              :loading="loading"
-              :show-toolbar="false"
-              :selectable="false"
-              :pagination="false as any"
-              @cell-dblclick="handleView"
+                    <WarningOutlined class="table-empty-icon" />
+                    <p class="table-empty-text">
+                      数据加载异常，请重试
+                    </p>
+                    <a-button
+                      type="primary"
+                      @click="loadData"
+                    >
+                      <ReloadOutlined /> 重试
+                    </a-button>
+                  </div>
+                </template>
+                <template #priceChange="{ record }">
+                  <div class="price-change">
+                    <span class="old-price">原价: ¥{{ record.oldPrice }}</span>
+                    <span class="new-price">新价: ¥{{ record.newPrice }}</span>
+                    <span
+                      class="change"
+                      :class="record.priceChangeType"
+                    >
+                      {{ record.priceChangeType === 'increase' ? '+' : '-' }}¥{{ record.priceChange }}
+                    </span>
+                  </div>
+                </template>
+                <template #statusCell="{ record }">
+                  <StatusTag
+                    :status="record.status"
+                    :map="PRICE_APPROVAL_STATUS"
+                  />
+                </template>
+                <template #approverCell="{ record }">
+                  {{ record.approverName }} / {{ formatDate(record.approveTime) }}
+                </template>
+              </BillTableList>
+            </a-tab-pane>
+            <a-tab-pane
+              key="rejected"
+              tab="已拒绝"
             >
-              <template #empty>
-                <div
-                  v-if="hasError"
-                  class="table-empty"
-                >
-                  <WarningOutlined class="table-empty-icon" />
-                  <p class="table-empty-text">
-                    数据加载异常，请重试
-                  </p>
-                  <a-button
-                    type="primary"
-                    @click="loadData"
+              <BillTableList
+                :columns="processedVxeColumns"
+                :data-source="rejectedList"
+                :loading="loading"
+                :show-toolbar="false"
+                :selectable="false"
+                :pagination="false as any"
+              >
+                <template #empty>
+                  <div
+                    v-if="hasError"
+                    class="table-empty"
                   >
-                    <ReloadOutlined /> 重试
-                  </a-button>
-                </div>
-              </template>
-              <template #priceChange="{ record }">
-                <div class="price-change">
-                  <span class="old-price">原价: ¥{{ record.oldPrice }}</span>
-                  <span class="new-price">新价: ¥{{ record.newPrice }}</span>
-                  <span
-                    class="change"
-                    :class="record.priceChangeType"
-                  >
-                    {{ record.priceChangeType === 'increase' ? '+' : '-' }}¥{{ record.priceChange }}
-                  </span>
-                </div>
-              </template>
-              <template #statusCell="{ record }">
-                <StatusTag
-                  :status="record.status"
-                  :map="PRICE_APPROVAL_STATUS"
-                />
-              </template>
-              <template #approverCell="{ record }">
-                {{ record.approverName }} / {{ formatDate(record.approveTime) }}
-              </template>
-            </BillTableList>
-          </a-tab-pane>
-          <a-tab-pane
-            key="my"
-            tab="我的申请"
-          >
-            <BillTableList
-              :columns="myVxeColumns"
-              :data-source="myList"
-              :loading="loading"
-              :show-toolbar="false"
-              :selectable="false"
-              :pagination="false as any"
-              @cell-dblclick="handleView"
+                    <WarningOutlined class="table-empty-icon" />
+                    <p class="table-empty-text">
+                      数据加载异常，请重试
+                    </p>
+                    <a-button
+                      type="primary"
+                      @click="loadData"
+                    >
+                      <ReloadOutlined /> 重试
+                    </a-button>
+                  </div>
+                </template>
+                <template #priceChange="{ record }">
+                  <div class="price-change">
+                    <span class="old-price">原价: ¥{{ record.oldPrice }}</span>
+                    <span class="new-price">新价: ¥{{ record.newPrice }}</span>
+                    <span
+                      class="change"
+                      :class="record.priceChangeType"
+                    >
+                      {{ record.priceChangeType === 'increase' ? '+' : '-' }}¥{{ record.priceChange }}
+                    </span>
+                  </div>
+                </template>
+                <template #statusCell="{ record }">
+                  <StatusTag
+                    :status="record.status"
+                    :map="PRICE_APPROVAL_STATUS"
+                  />
+                </template>
+                <template #approverCell="{ record }">
+                  {{ record.approverName }} / {{ formatDate(record.approveTime) }}
+                </template>
+              </BillTableList>
+            </a-tab-pane>
+            <a-tab-pane
+              key="my"
+              tab="我的申请"
             >
-              <template #empty>
-                <div
-                  v-if="hasError"
-                  class="table-empty"
-                >
-                  <WarningOutlined class="table-empty-icon" />
-                  <p class="table-empty-text">
-                    数据加载异常，请重试
-                  </p>
-                  <a-button
-                    type="primary"
-                    @click="loadData"
+              <BillTableList
+                :columns="myVxeColumns"
+                :data-source="myList"
+                :loading="loading"
+                :show-toolbar="false"
+                :selectable="false"
+                :pagination="false as any"
+              >
+                <template #empty>
+                  <div
+                    v-if="hasError"
+                    class="table-empty"
                   >
-                    <ReloadOutlined /> 重试
-                  </a-button>
-                </div>
-              </template>
-              <template #priceChange="{ record }">
-                <div class="price-change">
-                  <span class="old-price">原价: ¥{{ record.oldPrice }}</span>
-                  <span class="new-price">新价: ¥{{ record.newPrice }}</span>
-                  <span
-                    class="change"
-                    :class="record.priceChangeType"
-                  >
-                    {{ record.priceChangeType === 'increase' ? '+' : '-' }}¥{{ record.priceChange }}
-                  </span>
-                </div>
-              </template>
-              <template #statusCell="{ record }">
-                <StatusTag
-                  :status="record.status"
-                  :map="PRICE_APPROVAL_STATUS"
-                />
-              </template>
-            </BillTableList>
-          </a-tab-pane>
-        </a-tabs>
+                    <WarningOutlined class="table-empty-icon" />
+                    <p class="table-empty-text">
+                      数据加载异常，请重试
+                    </p>
+                    <a-button
+                      type="primary"
+                      @click="loadData"
+                    >
+                      <ReloadOutlined /> 重试
+                    </a-button>
+                  </div>
+                </template>
+                <template #priceChange="{ record }">
+                  <div class="price-change">
+                    <span class="old-price">原价: ¥{{ record.oldPrice }}</span>
+                    <span class="new-price">新价: ¥{{ record.newPrice }}</span>
+                    <span
+                      class="change"
+                      :class="record.priceChangeType"
+                    >
+                      {{ record.priceChangeType === 'increase' ? '+' : '-' }}¥{{ record.priceChange }}
+                    </span>
+                  </div>
+                </template>
+                <template #statusCell="{ record }">
+                  <StatusTag
+                    :status="record.status"
+                    :map="PRICE_APPROVAL_STATUS"
+                  />
+                </template>
+              </BillTableList>
+            </a-tab-pane>
+          </a-tabs>
+        </div>
       </a-card>
 
       <a-modal
@@ -642,6 +643,7 @@ import { priceApprovalApi, type PriceApproval, type PriceApprovalStatistics } fr
 import { useUserStore } from '@/stores/user'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'
 import { PRICE_APPROVAL_STATUS } from '@/utils/statusConfig'
+import { useRowDblclick } from '@/composables/useRowDblclick'
 
 // ── 防抖工具 ──────────────────────────────────────────
 const debounceMap = new Map<string, number>()
@@ -941,6 +943,17 @@ const handleView = async (record: PriceApproval) => {
   }
 }
 
+// 双击行 → 打开详情：页面侧自行实现（共享表格组件不再派发该事件）
+// 四个 Tab 的表格共用同一个 tableWrap（包住 a-tabs），因此按当前 Tab 取行数组；
+// 行标识由表格行上的 data-row-key 反查（这些表都未显式指定 row-key，用默认 'id'）
+const tableWrap = ref<HTMLElement | null>(null)
+useRowDblclick(tableWrap, () => {
+  if (activeTab.value === 'approved') return approvedList.value
+  if (activeTab.value === 'rejected') return rejectedList.value
+  if (activeTab.value === 'my') return myList.value
+  return pendingList.value
+}, handleView, 'id')
+
 // ── 辅助 ────────────────────────────────────────────────
 
 const formatDate = (date: string) => date ? date.split('T')[0] : ''
@@ -983,6 +996,16 @@ defineExpose({ handleQuery: loadData })
 </script>
 
 <style scoped lang="scss">
+
+/* 双击行入口容器（页面侧事件委托，见脚本 useRowDblclick）：撑满剩余空间，避免表格高度塌陷 */
+.table-area {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
 .approval-header {
   display: flex;
   justify-content: space-between;

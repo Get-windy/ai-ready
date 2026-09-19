@@ -128,22 +128,46 @@
 
 ---
 
-## 4. 本模块当前实现现状（2026-09-15 源码核对）
+## 4. 本模块当前实现现状（2026-09-18 全模块金标准改造后）
 
-> **重要**：截至 2026-09-15，本模块整体与对标差距**较大**，且**普遍缺少「多视图 Tab + 逐 Tab 列配置」**这一核心结构。逐页实情见各页文档「实现差异说明 → 当前实现」，此处汇总三类：
+> **2026-09-18 结论：31 页已全部完成金标准改造**，统一走路线 A/A′（`ErrorBoundary > PageContainer(full-height) > CategoryListLayout > BillDetailTable` + `StandardPagination variant="classic"` + 表头齿轮列配置；对标有「页面配置」弹窗的页接 `PageConfigPanel`），**多视图 Tab 页逐 Tab 独立一套**列定义 / 查询条件 / `storage-key`。
+>
+> - **施工手册**：同目录《_开发指南-金标准.md》（分析模块特有约定、可复用件、运行期陷阱、自检清单 11 项）。
+> - **模块级 E2E**：`tools/e2e-analytics.cjs`（七节：菜单完整性 / 组件文件 / 骨架静态 11 项 / 取数接口探针 / UI 逐页逐 Tab 列配置弹窗核对 / 综合单据口径深检 / 查询方案行为）。**当前 368 项通过 / 0 失败 / 0 未改造（退出码 0）**。可选 `ANALYTICS_ONLY="页名,…"` 只跑指定页。
+> - **列数口径核验方式**：直接打开每页每个 Tab 的列配置弹窗（「全局配置」Tab），读「全部列数 / 已勾选列数」，与对标实测 `columnConfig.count/defCount` 逐个比对 —— 与 ql361 抓取脚本口径一致，不靠"当前渲染结果"反推。
+> - **逐页真实实现与剩余缺口**：见各页文档「实现差异说明 → 当前实现 / 剩余缺口」「金标准落地记录」。
 
-| 类型 | 页面 | 现状 |
-|------|------|------|
-| `ARReportPage` 只读报表壳 | 待审批单据、业务草稿、经营历程、销售履约分析、销售费用分析、查批次、库存明细、客户活跃分析、推广分析、预订货查询、采购准备、查资金、查应付、业绩提成中心（部分）、推广历史查询（营销模块）等 | 无列配置齿轮、无页面配置弹窗、无多视图 Tab、多数无合计行与行级动作 |
-| 自建 `PageContainer` + 卡片/图表 + 裸 `a-table` | 销售业绩、销售分析、销售欠款分析、采购分析、经营分析、查费用、发票统计、查应收、营销活动分析、营销推广分析、查库存（用 `BillDetailTable`）、进销存分析 | 有指标卡与图表，但**维度 Tab 与列规格普遍不对齐**，列数远少于对标 |
-| 建了两 Tab 但口径错位 | 销售费用分析（按部门/按类型 ≠ 对标 按往来单位/按职员）、业绩提成中心（提成记录/规则 ≠ 对标 6 视图） | 需按对标重建 |
+### 4.1 本次改造新增的后端聚合能力（均未新增表，无迁移）
 
-- **无模块级 E2E**：`tools/` 下**未找到** `e2e-analytics*.cjs`，本模块各页均**未跑过**端到端验收（各页文档如实标注，**未声称通过**）。
-- **落地建议**：
-  1. 先补**通用骨架**——所有页面统一按《交易模块/_开发指南-金标准》路线 A/A′（列表/账表页用 `CategoryListLayout` + `BillDetailTable` + `StandardPagination` + `PageConfigPanel`）；
-  2. **多视图 Tab 页必须逐 Tab 独立**列定义 + 查询条件 + `storage-key`（见指南 §四）；
-  3. 账表页补**多级表头 + 合计行 + 导出/打印**；统计页补**指标卡/图表 + 钻取**；
-  4. **采购准备**建议改为**薄壳复用**采购模块的智能补货/缺货补货视图（避免同功能两套实现）。
+| 域 | 端点 | 口径 |
+|---|---|---|
+| 综合单据 | `GET /api/docquery/{business-history,pending-docs,draft-docs}/page` | 13 类单据 UNION：从 7 列扩到 **23 列**（单据日期改为取单据自身日期列、来源订单/仓库/区域/经手人/部门/制单人/记账人/摘要/备注/附件/制单时间/记账时间/打印次数/账期），新增 8 类查询参数 + 合计(`summary.amount`) + 排序 + 「显示红冲」 |
+| 销售分析 | `GET /api/erp/sale/analysis/{sales-performance,sales-analysis,sales-fulfillment,sales-debt}/page` | 8 维度量本利 / 业绩漏斗 / 履约五金额 / 欠款滚动五要素 + 超期账龄五档 |
+| 采购分析 | `GET /api/erp/purchase/analytics/page?tab=time\|product\|supplier` | 采订 / 采购 / 退货三段量额 + 实采金额 + 退货率 |
+| 进销存分析 | `GET /api/erp/stock/analytics/page?tab=product\|transferWarehouse\|transferProduct` | 期初 + 五类入 − 五类出 = 期末（数量 + 金额双口径），含调拨成本/差异 |
+| 预订货查询 | `GET /api/erp/sale/pre-order/analysis/page?tab=product\|customer` | 按商品 / 按客户汇总 + 赠品三口径 + 预订金三口径 |
+| 推广分析 | `GET /api/erp/sale/analysis/promotion-funnel/page` | 按分享人归因（读既有 `mkt_share_record`，未新增埋点） |
+| 回款统计 | `GET /api/erp/finance/analytics/collection-stats/page·/detail` | 收款 + 预收款 + 预订货收款三口径，按职员 / 部门归集 |
+| 往来余额表 | `GET /api/erp/finance/analytics/partner-balance/page·/detail·/reconcile-history`、`POST …/reconcile` | 应收/预收/应付/预付四象限期初·本期·期末 + 清账（走凭证，不直改余额） |
+| 发票统计 | `GET /api/erp/finance/analytics/invoice-stats/page` | 增值税进销项月度台账（`invoice_type` + `is_credit_note` + `tax_amount` 支撑 17 列多级表头） |
+| 查费用 | `GET /api/erp/expense/statistics/matrix·/detail·/partner` | 费用四维账表（行 = 费用科目，列 = 动态部门/职员矩阵） |
+| 业绩提成中心 | `GET/POST /api/erp/marketing/commission/analytics/*` | 六视图 + 批量结算（含月份顺序约束） |
+
+### 4.2 仍然成立的缺口（**不造假、如实留空**，逐条有据）
+
+> ⚠️ 其中 6 处属**跨模块决策**（缺生产者 / 缺埋点 / 缺口径列 / 字段类型不合群），已联网调研 Odoo / SAP / 金蝶 / 用友 的建模范式并逐条裁决，见 **[《跨模块建模决策-20260918.md》](./跨模块建模决策-20260918.md)**（含调研笔记 `tool-results/research/*.md`、第一手实测证据、已修/待决策/YAGNI 清单）。
+
+- **查询方案**：已落为**本机具名方案**（`views/analytics/shared/QuerySchemeBar.vue`，localStorage，按页隔离）；对标是否支持跨设备/服务端方案**未确证**。
+- **确无数据源而留空的列**（后端返回 null、前端显示 `-`，**不返回 0 冒充**）：
+  - 交易分析：登录客户数 / 下单客户数 / 下单转化率（无商城登录日志表）；商城客户列表：访问次数 / 成交数量 / 成交率（无访问埋点表）
+  - 推广分析：新客注册（无「分享链接 → 客户注册」归因链路）
+  - 采购分析：浮动单位 / 采订浮动数量 / 采购浮动数量；进销存：所属供应商、采购费用分摊（行级）
+  - 预订货查询：含税单价 / 价税合计 / 税额（预订货单无税额列）
+  - 业绩提成中心：提成方案名称/类型/规则/描述（`erp_commission_record` 无 `rule_id`）、配送域 8 个包装/退货指标
+- **链路缺生产者**：`erp_commission_record` 全库无写入者 → 提成三 Tab 恒 0 行；需接《业务员提成》落库并给该表补 `rule_id`。
+- **对标列清单至今不可得**（如实标注、不编造）：采购分析「按时间」Tab（抓取时 `columnConfig={"err":"no dialog"}`）、业务员提成（对标页无表头齿轮，`{"err":"no gear"}`）。
+- **组件层建议**：`BillDetailTable` 的「不进列配置弹窗的固定列」目前靠复用 `key='checkbox'` 的锁定列判定承载（销售分析「来源」列、查费用矩阵列）；建议组件层补显式声明（如 `excludeFromConfigKeys`）。分组表头目前渲染为「分组名-子列名」，与对标「组名合并单元格 + 叶子名」的表现不同。
+
 
 ---
 

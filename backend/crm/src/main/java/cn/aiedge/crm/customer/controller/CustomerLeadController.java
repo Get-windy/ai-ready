@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/crm/lead")
@@ -86,6 +87,12 @@ public class CustomerLeadController {
     @PostMapping("/{id}/convert")
     public Customer convertToCustomer(@PathVariable Long id) {
         return customerLeadService.convertToCustomer(id);
+    }
+
+    @Operation(summary = "批量转化线索为客户（单条失败不中断整批）")
+    @PostMapping("/batch-convert")
+    public Map<String, Object> batchConvert(@RequestBody List<Long> ids) {
+        return customerLeadService.batchConvertToCustomer(ids);
     }
     
     @Operation(summary = "查询销售人员的线索")

@@ -83,7 +83,7 @@ public interface PositionService extends IService<Position> {
     void removeFromUser(Long userId, List<Long> positionIds);
 
     /**
-     * 获取岗位下的用户ID列表
+     * 获取岗位下的人员列表（含账号/姓名等展示字段）
      */
-    List<Long> getUserIds(Long positionId);
+    List<PositionUserVO> getUsers(Long positionId);
 }

@@ -226,6 +226,8 @@ public class MdCustomerController {
     @GetMapping("/member/page")
     public ResponseEntity<ApiResponse<PageResult<MdCustomerVO>>> memberPage(
             @RequestParam(required = false) String memberKeyword,
+            @RequestParam(required = false) String partyKeyword,
+            @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) String phone,
             @RequestParam(required = false) Long customerId,
             @RequestParam(required = false) String handler,
@@ -244,6 +246,8 @@ public class MdCustomerController {
         PartyQueryParam query = new PartyQueryParam();
         query.setPartyType(1);
         query.setMemberKeyword(memberKeyword);
+        query.setPartyKeyword(partyKeyword);
+        query.setCategoryId(categoryId);
         query.setPhone(phone);
         query.setCustomerId(customerId);
         query.setHandler(handler);

@@ -1,5 +1,8 @@
 package cn.aiedge.scheduler.service.impl;
 
+import cn.aiedge.base.entity.SysUser;
+import cn.aiedge.base.mapper.SysUserMapper;
+import cn.aiedge.base.utils.SecurityUtils;
 import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.scheduler.job.JobHandlerRegistry;
 import cn.aiedge.scheduler.mapper.ScheduledTaskLogMapper;
@@ -36,6 +39,7 @@ public class ScheduledTaskServiceImpl extends ServiceImpl<ScheduledTaskMapper, S
     private final ScheduledTaskLogMapper logMapper;
     private final TaskExecutor taskExecutor;
     private final JobHandlerRegistry jobHandlerRegistry;
+    private final SysUserMapper sysUserMapper;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -149,8 +153,11 @@ public class ScheduledTaskServiceImpl extends ServiceImpl<ScheduledTaskMapper, S
         if (task == null) {
             return false;
         }
-        
-        taskExecutor.executeImmediately(task);
+
+        // 发起人必须在**本线程**（仍有 Sa-Token 会话）解析后透传：
+        // executeImmediately 内部会切到调度线程池执行，届时会话上下文已丢失（2026-09-18）
+        Operator operator = currentOperator();
+        taskExecutor.executeImmediately(task, operator.id(), operator.name());
         return true;
     }
 
@@ -168,7 +175,9 @@ public class ScheduledTaskServiceImpl extends ServiceImpl<ScheduledTaskMapper, S
         
         // 使用相同的参数重试
         task.setExecuteParams(taskLog.getExecuteParams());
-        taskExecutor.executeImmediately(task);
+        // 重试同样是「某个用户手工发起」→ 与立即执行同一口径记录发起人
+        Operator operator = currentOperator();
+        taskExecutor.executeImmediately(task, operator.id(), operator.name());
         return true;
     }
 
@@ -243,5 +252,37 @@ public class ScheduledTaskServiceImpl extends ServiceImpl<ScheduledTaskMapper, S
                 log.error("批量执行任务失败: taskId={}", taskId, e);
             }
         }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    //  发起人解析（写入 scheduled_task_log.create_by / created_by_name）
+    // ══════════════════════════════════════════════════════════════════════
+
+    /** 发起人（姓名可空 → 由 {@link TaskExecutor} 兜底记系统标识） */
+    private record Operator(Long id, String name) {
+    }
+
+    /**
+     * 解析当前登录用户作为发起人。
+     *
+     * <p>姓名取 {@code sys_user} 的 {@code real_name → nickname → username} 逐级回退
+     * （实测库内 real_name 普遍为空、nickname 有值，直接取 real_name 会又变成空）。</p>
+     *
+     * <p>取不到会话时返回 {@code (null, null)} —— 由 {@link TaskExecutor} 兜底记
+     * 「定时调度」，不在此处编造姓名。</p>
+     */
+    private Operator currentOperator() {
+        Long userId = SecurityUtils.getCurrentUserId();
+        String username = SecurityUtils.getCurrentUsername();
+        if (userId == null) {
+            return new Operator(null, username);
+        }
+        SysUser user = sysUserMapper.selectById(userId);
+        if (user == null) {
+            return new Operator(userId, username);
+        }
+        String name = StringUtils.hasText(user.getRealName()) ? user.getRealName()
+                : (StringUtils.hasText(user.getNickname()) ? user.getNickname() : user.getUsername());
+        return new Operator(userId, StringUtils.hasText(name) ? name : username);
     }
 }

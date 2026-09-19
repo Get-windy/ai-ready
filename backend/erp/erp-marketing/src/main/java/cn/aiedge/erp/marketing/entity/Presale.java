@@ -32,6 +32,19 @@ public class Presale {
     private Long productId;
     private String productName;
     private String productCode;
+    /** 商品图片（对标「商品预售」Tab「商品图片」列） */
+    private String productImage;
+    /** 规格 */
+    private String productSpec;
+    /** 型号 */
+    private String productModel;
+    /** 预售价（对标「商品预售」Tab「预售价」列） */
+    private BigDecimal presalePrice;
+    /** 是否支付订金：1 是 / 0 否 */
+    private Integer depositRequired;
+    /** 创建人姓名（对标「商品预售」Tab「创建人」列，写入时快照） */
+    @TableField(updateStrategy = FieldStrategy.NEVER)
+    private String creatorName;
 
     /** 定金 */
     private BigDecimal depositAmount;

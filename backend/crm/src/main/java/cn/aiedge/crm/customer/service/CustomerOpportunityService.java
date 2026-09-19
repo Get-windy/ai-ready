@@ -23,7 +23,13 @@ public interface CustomerOpportunityService extends IService<CustomerOpportunity
                                           Integer status, Long salesPersonId);
 
     CustomerOpportunity advanceStage(Long opportunityId);
-    
+
+    /**
+     * 跳转到指定阶段（商机看板拖拽改阶段）。
+     * 与 advanceStage 的区别：不做「只能 +1」限制，允许前后移动。
+     */
+    CustomerOpportunity updateStage(Long opportunityId, Integer stage);
+
     CustomerOpportunity winOpportunity(Long opportunityId, BigDecimal actualAmount);
     
     CustomerOpportunity loseOpportunity(Long opportunityId, String loseReason);

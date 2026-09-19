@@ -46,7 +46,11 @@
         </div>
       </template>
 
-      <div class="finance-payable-page">
+      <!-- ref 供页面侧双击行入口使用（表格自身的双击事件冒泡到该容器） -->
+      <div
+        ref="tableWrap"
+        class="finance-payable-page"
+      >
         <!-- 统计卡片 -->
         <div class="stat-cards">
           <div class="stat-card stat-total">
@@ -130,7 +134,6 @@
               :selectable="true"
               @refresh="fetchData"
               @add="handleAdd"
-              @cell-dblclick="handleView"
               @page-change="handlePageChange"
               @filter-change="handleFilterChange"
               @selection-change="handleSelectionChange"
@@ -378,6 +381,7 @@ import {
 import dayjs from 'dayjs'
 import * as echarts from 'echarts'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
+import { useRowDblclick } from '@/composables/useRowDblclick'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 import { payableApi } from '@/api/finance'
@@ -566,6 +570,15 @@ const initAgingChart = (data: any) => {
 const handleView = (record: any) => {
   message.info(`查看详情: ${record.supplierName}`)
 }
+
+/**
+ * 双击行查看详情 —— **页面侧自行实现**（共享表格组件不再派发该事件）
+ * 行标识由表格 <tr> 上的 data-row-key 反查（与 row-key="id" 同口径），
+ * 占位空行不带该属性，行内按钮等交互控件的双击也会被过滤掉。
+ * 表格在「应付列表」标签页内，故容器取页面根元素（事件委托不要求直接父级）。
+ */
+const tableWrap = ref<HTMLElement | null>(null)
+useRowDblclick(tableWrap, () => tableData.value, handleView, 'id')
 
 const handleSearch = () => {
   pagination.current = 1

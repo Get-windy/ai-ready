@@ -1,185 +1,548 @@
 <template>
-  <div>
-    <ARReportPage
-      ref="reportRef"
-      title="弹窗广告"
-      :query-fields="queryFields"
-      :columns="columns"
-      :fetcher="fetcher"
-      page-param-style="pageNum"
-      export-file-name="弹窗广告"
-      row-key="id"
-    >
-      <template #header-extra>
-        <a-button type="primary" @click="openCreate">
-          <template #icon><PlusOutlined /></template>新增广告
-        </a-button>
-      </template>
-      <template #bodyCell="{ column, record, text }">
-        <template v-if="column.dataIndex === 'status'">
-          <a-tag :color="statusColor(text)">{{ statusText(text) }}</a-tag>
+  <ErrorBoundary @error="handleError">
+    <PageContainer full-height>
+      <!--
+        商城弹窗广告（营销 → 商城营销 → 商城弹窗广告，菜单 80323）
+        对标 ql361「营销 → 商城营销 → 商城弹窗广告」：单视图列表页，5 列（全部默认可见）
+        列：活动名称 / 起始时间 / 结束时间 / 活动状态 / 创建人
+        对标文档：docs/Yh-Spec/手动整理对标开发文档/营销模块/商城弹窗广告开发文档.md
+        后端：复用既有 /erp/mall/admin/popup-ad；V11.374.0 补 creator_name（创建人快照）
+        对标无「页面配置」弹窗
+      -->
+      <CategoryListLayout
+        :tabs="[]"
+        :show-category-panel="false"
+        :show-table-footer="true"
+      >
+        <template #toolbar-left>
+          <a-button
+            type="primary"
+            size="small"
+            class="btn-add"
+            @click="openCreate"
+          >
+            <PlusOutlined /> 新增
+          </a-button>
         </template>
-        <template v-else-if="column.dataIndex === 'showType'">
-          {{ SHOW_TYPE_MAP[text] || text }}
-        </template>
-        <template v-else-if="column.dataIndex === 'targetUser'">
-          {{ TARGET_USER_MAP[text] || text }}
-        </template>
-        <template v-else-if="column.dataIndex === 'createTime'">
-          {{ formatTime(text) }}
-        </template>
-        <template v-else-if="column.dataIndex === 'action'">
-          <a-space>
-            <a-button type="link" size="small" @click="openEdit(record)">编辑</a-button>
-            <a-button v-if="record.status === 0" type="link" size="small" @click="handlePublish(record)">投放</a-button>
-            <a-button v-if="record.status === 1" type="link" size="small" @click="handleOffline(record)">下架</a-button>
-            <a-popconfirm title="确认删除？" ok-text="删除" cancel-text="取消" @confirm="handleDelete(record)">
-              <a-button type="link" size="small" danger>删除</a-button>
-            </a-popconfirm>
+
+        <template #toolbar-right>
+          <a-space :size="8">
+            <a-button
+              size="small"
+              :loading="loading"
+              @click="fetchList"
+            >
+              <ReloadOutlined /> 刷新
+            </a-button>
+            <a-button
+              size="small"
+              @click="handlePrint"
+            >
+              <PrinterOutlined /> 打印(F8)
+            </a-button>
+            <a-button
+              size="small"
+              :loading="exporting"
+              @click="handleExport"
+            >
+              <DownloadOutlined /> 导出
+            </a-button>
           </a-space>
         </template>
-      </template>
-    </ARReportPage>
 
-    <a-modal v-model:open="modalOpen" :title="editingId ? '编辑广告' : '新增广告'"
-      :confirm-loading="saving" width="650px" @ok="handleSave">
-      <a-form ref="formRef" :model="form" :rules="rules" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
-        <a-form-item label="标题" name="title">
-          <a-input v-model:value="form.title" placeholder="弹窗广告标题" />
-        </a-form-item>
-        <a-form-item label="图片URL">
-          <a-input v-model:value="form.imageUrl" placeholder="https://..." />
-        </a-form-item>
-        <a-form-item label="跳转链接">
-          <a-input v-model:value="form.linkUrl" placeholder="点击跳转链接" />
-        </a-form-item>
-        <a-form-item label="展示频次" name="showType">
-          <a-select v-model:value="form.showType" :options="SHOW_TYPE_OPTIONS" />
-        </a-form-item>
-        <a-form-item label="目标用户">
-          <a-select v-model:value="form.targetUser" :options="TARGET_USER_OPTIONS" />
-        </a-form-item>
-        <a-form-item label="投放开始">
-          <a-date-picker v-model:value="form.startTime" show-time value-format="YYYY-MM-DDTHH:mm:ss" style="width: 100%" />
-        </a-form-item>
-        <a-form-item label="投放结束">
-          <a-date-picker v-model:value="form.endTime" show-time value-format="YYYY-MM-DDTHH:mm:ss" style="width: 100%" />
-        </a-form-item>
-        <a-form-item label="排序">
-          <a-input-number v-model:value="form.sort" :min="0" style="width: 100%" />
-        </a-form-item>
-      </a-form>
-    </a-modal>
-  </div>
+        <template #search-fields>
+          <div class="search-area">
+            <div class="search-row">
+              <span class="search-label">活动名称</span>
+              <a-input
+                v-model:value="searchForm.title"
+                placeholder="请输入活动名称"
+                size="small"
+                style="width: 200px"
+                allow-clear
+                @press-enter="handleSearch"
+              />
+              <span class="search-label">活动状态</span>
+              <a-select
+                v-model:value="searchForm.status"
+                placeholder="全部状态"
+                size="small"
+                style="width: 140px"
+                allow-clear
+                :options="STATUS_OPTIONS"
+                @change="handleSearch"
+              />
+              <a-button
+                type="primary"
+                size="small"
+                @click="handleSearch"
+              >
+                查询
+              </a-button>
+            </div>
+          </div>
+        </template>
+
+        <template #table>
+          <div class="table-area">
+            <BillDetailTable
+              v-model:data-source="tableData"
+              :columns="columns"
+              :loading="loading"
+              :view-mode="true"
+              :min-rows="20"
+              row-key="id"
+              storage-key="marketing-mall-popup-table-columns"
+              global-config-key="marketing-mall-popup-table-columns"
+            >
+              <template #nameCell="{ record }">
+                <a
+                  v-if="!record.__ghost"
+                  class="cell-link"
+                  @click="openEdit(record)"
+                >{{ record.title }}</a>
+              </template>
+
+              <template #timeCell="{ record, column }">
+                <span v-if="!record.__ghost">{{ fmtTime(record[column.key]) }}</span>
+              </template>
+
+              <template #statusCell="{ record }">
+                <a-tag
+                  v-if="!record.__ghost"
+                  :color="POPUP_STATUS_MAP[record.status]?.color || 'default'"
+                >
+                  {{ POPUP_STATUS_MAP[record.status]?.text || record.status }}
+                </a-tag>
+              </template>
+
+              <template #actionCell="{ record }">
+                <a-space
+                  v-if="!record.__ghost"
+                  :size="0"
+                >
+                  <a-button
+                    type="link"
+                    size="small"
+                    @click="openEdit(record)"
+                  >
+                    修改
+                  </a-button>
+                  <a-dropdown>
+                    <a-button
+                      type="link"
+                      size="small"
+                    >
+                      更多
+                    </a-button>
+                    <template #overlay>
+                      <a-menu @click="(e: any) => handleMore(e, record)">
+                        <a-menu-item
+                          v-if="record.status !== 1"
+                          key="publish"
+                        >
+                          发布
+                        </a-menu-item>
+                        <a-menu-item
+                          v-if="record.status === 1"
+                          key="offline"
+                        >
+                          下线
+                        </a-menu-item>
+                        <a-menu-item key="delete">删除</a-menu-item>
+                      </a-menu>
+                    </template>
+                  </a-dropdown>
+                </a-space>
+              </template>
+            </BillDetailTable>
+          </div>
+        </template>
+
+        <template #table-footer>
+          <StandardPagination
+            variant="classic"
+            :current="pagination.current"
+            :page-size="pagination.pageSize"
+            :total="pagination.total"
+            :page-size-options="[20, 50, 100]"
+            @change="handlePageChange"
+          />
+        </template>
+      </CategoryListLayout>
+
+      <!-- ═══ 新增/修改弹窗广告 ═══ -->
+      <a-modal
+        v-model:open="formOpen"
+        :title="editingId ? '修改弹窗广告' : '新增弹窗广告'"
+        :confirm-loading="saving"
+        width="640px"
+        @ok="handleSave"
+      >
+        <a-form
+          :label-col="{ span: 6 }"
+          :wrapper-col="{ span: 16 }"
+          size="small"
+          style="margin-top: 12px"
+        >
+          <a-form-item
+            label="活动名称"
+            required
+          >
+            <a-input
+              v-model:value="form.title"
+              placeholder="请输入活动名称"
+            />
+          </a-form-item>
+          <a-form-item label="广告图片">
+            <a-input
+              v-model:value="form.imageUrl"
+              placeholder="图片URL"
+              allow-clear
+            />
+          </a-form-item>
+          <a-form-item label="跳转链接">
+            <a-input
+              v-model:value="form.linkUrl"
+              placeholder="点击跳转链接"
+              allow-clear
+            />
+          </a-form-item>
+          <a-form-item label="展示方式">
+            <a-select
+              v-model:value="form.showType"
+              :options="SHOW_TYPE_OPTIONS"
+            />
+          </a-form-item>
+          <a-form-item label="目标用户">
+            <a-select
+              v-model:value="form.targetUser"
+              :options="TARGET_USER_OPTIONS"
+            />
+          </a-form-item>
+          <a-row :gutter="8">
+            <a-col :span="12">
+              <a-form-item label="起始时间">
+                <a-date-picker
+                  v-model:value="form.startTime"
+                  show-time
+                  style="width: 100%"
+                  value-format="YYYY-MM-DDTHH:mm:ss"
+                />
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
+              <a-form-item label="结束时间">
+                <a-date-picker
+                  v-model:value="form.endTime"
+                  show-time
+                  style="width: 100%"
+                  value-format="YYYY-MM-DDTHH:mm:ss"
+                />
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <a-form-item label="排序">
+            <a-input-number
+              v-model:value="form.sort"
+              :min="0"
+              :precision="0"
+              style="width: 160px"
+            />
+          </a-form-item>
+          <a-form-item label="备注">
+            <a-textarea
+              v-model:value="form.remark"
+              :rows="2"
+              placeholder="请输入备注"
+            />
+          </a-form-item>
+        </a-form>
+      </a-modal>
+    </PageContainer>
+  </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
-import { message } from 'ant-design-vue'
-import { PlusOutlined } from '@ant-design/icons-vue'
-import ARReportPage from '@/components/ARReportPage/ARReportPage.vue'
-import type { ReportQueryField } from '@/components/ARReportPage/types'
+import { ref, reactive, onMounted, onBeforeUnmount } from 'vue'
+import { message, Modal } from 'ant-design-vue'
+import dayjs from 'dayjs'
+import { PlusOutlined, ReloadOutlined, PrinterOutlined, DownloadOutlined } from '@ant-design/icons-vue'
+import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayout.vue'
+import BillDetailTable from '@/components/BillFormPage/BillDetailTable/index.vue'
+import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTable/types'
+import StandardPagination from '@/components/Pagination/Pagination.vue'
 import { popupAdApi, POPUP_STATUS_MAP, SHOW_TYPE_MAP, TARGET_USER_MAP } from '@/api/marketing'
 
-defineOptions({ name: 'MallPopupAd' })
+defineOptions({ name: 'MarketingMallPopup' })
 
-const SHOW_TYPE_OPTIONS = Object.entries(SHOW_TYPE_MAP).map(([v, l]) => ({ label: l, value: v }))
-const TARGET_USER_OPTIONS = Object.entries(TARGET_USER_MAP).map(([v, l]) => ({ label: l, value: v }))
+const STATUS_OPTIONS = Object.entries(POPUP_STATUS_MAP).map(([value, v]: any) => ({
+  value: Number(value), label: v.text,
+}))
+const SHOW_TYPE_OPTIONS = Object.entries(SHOW_TYPE_MAP).map(([value, label]) => ({ value, label: label as string }))
+const TARGET_USER_OPTIONS = Object.entries(TARGET_USER_MAP).map(([value, label]) => ({ value, label: label as string }))
 
-function formatTime(val: string | null | undefined): string {
-  return val ? String(val).replace('T', ' ').slice(0, 16) : '-'
+const loading = ref(false)
+const exporting = ref(false)
+const tableData = ref<any[]>([])
+const searchForm = reactive({ title: '', status: undefined as number | undefined })
+const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
+
+// 对标 5 列（全部默认可见）
+const columns: DetailColumnConfig[] = [
+  { key: 'rowNo', title: '', type: 'rowNo', width: 40, fixed: 'left' },
+  { key: 'action', title: '操作', type: 'action', slotName: 'actionCell', width: 160, fixed: 'left' },
+  { key: 'title', title: '活动名称', type: 'slot', slotName: 'nameCell', width: 300 },
+  { key: 'startTime', title: '起始时间', type: 'slot', slotName: 'timeCell', width: 170 },
+  { key: 'endTime', title: '结束时间', type: 'slot', slotName: 'timeCell', width: 170 },
+  { key: 'status', title: '活动状态', type: 'slot', slotName: 'statusCell', width: 120 },
+  { key: 'creatorName', title: '创建人', type: 'input', width: 120 },
+]
+
+function fmtTime(v: any): string {
+  return v ? dayjs(v).format('YYYY-MM-DD HH:mm:ss') : '-'
 }
-function statusText(s: number) { return POPUP_STATUS_MAP[s]?.text || '未知' }
-function statusColor(s: number) { return POPUP_STATUS_MAP[s]?.color || 'default' }
 
-const queryFields: ReportQueryField[] = [
-  { key: 'title', type: 'input', label: '标题', placeholder: '标题', width: 200 },
-  { key: 'status', type: 'select', label: '状态', placeholder: '全部',
-    options: Object.entries(POPUP_STATUS_MAP).map(([v, m]) => ({ label: m.text, value: Number(v) })) },
-]
+async function fetchList() {
+  loading.value = true
+  try {
+    const res: any = await popupAdApi.page({
+      title: searchForm.title || undefined,
+      status: searchForm.status,
+      pageNum: pagination.current,
+      pageSize: pagination.pageSize,
+    })
+    tableData.value = res?.records || []
+    pagination.total = Number(res?.total) || 0
+  } catch (error: any) {
+    console.error('[商城弹窗广告] 加载列表失败', error)
+    message.error(error?.response?.data?.message || '加载列表失败')
+    tableData.value = []
+    pagination.total = 0
+  } finally {
+    loading.value = false
+  }
+}
 
-const columns: any[] = [
-  { title: '标题', dataIndex: 'title', key: 'title', width: 200, ellipsis: true },
-  { title: '展示频次', dataIndex: 'showType', key: 'showType', width: 100 },
-  { title: '目标用户', dataIndex: 'targetUser', key: 'targetUser', width: 90 },
-  { title: '投放开始', dataIndex: 'startTime', key: 'startTime', width: 150 },
-  { title: '投放结束', dataIndex: 'endTime', key: 'endTime', width: 150 },
-  { title: '排序', dataIndex: 'sort', key: 'sort', width: 70, align: 'right' },
-  { title: '状态', dataIndex: 'status', key: 'status', width: 80 },
-  { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 150 },
-  { title: '操作', dataIndex: 'action', key: 'action', width: 190, fixed: 'right' },
-]
+function handleSearch() {
+  pagination.current = 1
+  fetchList()
+}
+function handlePageChange(page: number, pageSize: number) {
+  pagination.current = page
+  pagination.pageSize = pageSize
+  fetchList()
+}
 
-function fetcher(params: Record<string, any>) { return popupAdApi.page(params) }
-
-const reportRef = ref<InstanceType<typeof ARReportPage> | null>(null)
-const formRef = ref()
-const modalOpen = ref(false)
+const formOpen = ref(false)
 const saving = ref(false)
-const editingId = ref<number | null>(null)
-
+const editingId = ref<any>(null)
 const emptyForm = () => ({
   title: '',
   imageUrl: '',
   linkUrl: '',
   showType: 'once',
   targetUser: 'all',
-  startTime: undefined as string | undefined,
-  endTime: undefined as string | undefined,
-  sort: 0,
+  startTime: undefined as any,
+  endTime: undefined as any,
+  sort: 0 as number | undefined,
+  remark: '',
 })
 const form = reactive(emptyForm())
-const rules: Record<string, any> = {
-  title: [{ required: true, message: '请输入标题', trigger: 'blur' }],
-  showType: [{ required: true, message: '请选择展示频次', trigger: 'change' }],
-}
 
-function resetForm(data?: any) { Object.assign(form, emptyForm(), data || {}) }
-function openCreate() { editingId.value = null; resetForm(); modalOpen.value = true }
+function openCreate() {
+  editingId.value = null
+  Object.assign(form, emptyForm())
+  formOpen.value = true
+}
 function openEdit(record: any) {
   editingId.value = record.id
-  resetForm({
-    title: record.title,
+  Object.assign(form, emptyForm(), {
+    title: record.title || '',
     imageUrl: record.imageUrl || '',
     linkUrl: record.linkUrl || '',
     showType: record.showType || 'once',
     targetUser: record.targetUser || 'all',
-    startTime: record.startTime,
-    endTime: record.endTime,
+    startTime: record.startTime || undefined,
+    endTime: record.endTime || undefined,
     sort: record.sort ?? 0,
+    remark: record.remark || '',
   })
-  modalOpen.value = true
+  formOpen.value = true
 }
 
 async function handleSave() {
-  try { await formRef.value?.validate() } catch { return }
+  if (!form.title?.trim()) {
+    message.warning('请输入活动名称')
+    return
+  }
+  if (form.startTime && form.endTime && dayjs(form.endTime).isBefore(dayjs(form.startTime))) {
+    message.warning('结束时间不得早于起始时间')
+    return
+  }
   saving.value = true
   try {
+    const payload: any = { ...form }
     if (editingId.value) {
-      await popupAdApi.update(editingId.value, { ...form })
-      message.success('更新成功')
+      await popupAdApi.update(editingId.value, payload)
+      message.success('弹窗广告已更新')
     } else {
-      await popupAdApi.create({ ...form })
-      message.success('创建成功')
+      await popupAdApi.create(payload)
+      message.success('弹窗广告已新增')
     }
-    modalOpen.value = false
-    reportRef.value?.reload()
-  } catch (e: any) { message.error(e?.data?.message || '保存失败') }
-  finally { saving.value = false }
+    formOpen.value = false
+    fetchList()
+  } catch (error: any) {
+    message.error(error?.response?.data?.message || '保存失败')
+  } finally {
+    saving.value = false
+  }
 }
 
-async function handlePublish(record: any) {
-  try { await popupAdApi.publish(record.id); message.success('已投放'); reportRef.value?.reload() }
-  catch (e: any) { message.error(e?.data?.message || '投放失败') }
+async function handleMore(e: any, record: any) {
+  if (e.key === 'publish') {
+    try {
+      await popupAdApi.publish(record.id)
+      message.success('已发布')
+      fetchList()
+    } catch (error: any) {
+      message.error(error?.response?.data?.message || '发布失败')
+    }
+  } else if (e.key === 'offline') {
+    try {
+      await popupAdApi.offline(record.id)
+      message.success('已下线')
+      fetchList()
+    } catch (error: any) {
+      message.error(error?.response?.data?.message || '下线失败')
+    }
+  } else if (e.key === 'delete') {
+    Modal.confirm({
+      title: '确认删除',
+      content: `确定要删除弹窗广告「${record.title}」吗？`,
+      okText: '确认删除',
+      okType: 'danger',
+      onOk: async () => {
+        try {
+          await popupAdApi.remove(record.id)
+          message.success('删除成功')
+          fetchList()
+        } catch (error: any) {
+          message.error(error?.response?.data?.message || '删除失败')
+        }
+      },
+    })
+  }
 }
 
-async function handleOffline(record: any) {
-  try { await popupAdApi.offline(record.id); message.success('已下架'); reportRef.value?.reload() }
-  catch (e: any) { message.error(e?.data?.message || '下架失败') }
+function escapeHtml(v: any): string {
+  return String(v ?? '').replace(/[&<>"']/g, c => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string
+  ))
+}
+const PRINT_COLUMNS = [
+  { key: 'title', title: '活动名称' },
+  { key: 'startTime', title: '起始时间' },
+  { key: 'endTime', title: '结束时间' },
+  { key: 'statusText', title: '活动状态' },
+  { key: 'creatorName', title: '创建人' },
+]
+function printCell(row: any, key: string): string {
+  if (key === 'statusText') return POPUP_STATUS_MAP[row.status]?.text || ''
+  if (key === 'startTime' || key === 'endTime') return fmtTime(row[key])
+  return row[key] == null ? '' : String(row[key])
 }
 
-async function handleDelete(record: any) {
-  try { await popupAdApi.remove(record.id); message.success('删除成功'); reportRef.value?.reload() }
-  catch (e: any) { message.error(e?.data?.message || '删除失败') }
+function handlePrint() {
+  const rows = (tableData.value || []).filter((r: any) => !r.__ghost)
+  if (!rows.length) {
+    message.warning('没有可打印的数据')
+    return
+  }
+  const body = rows.map((r: any, i: number) => `<tr><td>${i + 1}</td>${
+    PRINT_COLUMNS.map(c => `<td>${escapeHtml(printCell(r, c.key))}</td>`).join('')}</tr>`).join('')
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" /><title>商城弹窗广告</title>
+    <style>body{font-family:"Microsoft YaHei",Arial,sans-serif;margin:0;padding:16px}
+    h2{text-align:center;margin:0 0 12px;font-size:18px}
+    table{width:100%;border-collapse:collapse;font-size:12px}
+    th,td{border:1px solid #999;padding:4px 6px;text-align:left}th{background:#f2f2f2}</style></head><body>
+    <h2>商城弹窗广告</h2>
+    <table><thead><tr><th>#</th>${PRINT_COLUMNS.map(c => `<th>${c.title}</th>`).join('')}</tr></thead>
+    <tbody>${body}</tbody></table></body></html>`
+  const win = window.open('', '_blank', 'width=1200,height=800')
+  if (!win) {
+    message.warning('浏览器阻止了打印窗口，请允许弹出窗口后重试')
+    return
+  }
+  win.document.write(html)
+  win.document.close()
+  win.focus()
+  win.print()
 }
+
+function handleF8Key(e: KeyboardEvent) {
+  if ((e.key === 'F8' || e.code === 'F8') && !e.ctrlKey && !e.altKey && !e.metaKey) {
+    e.preventDefault()
+    handlePrint()
+  }
+}
+
+function handleExport() {
+  const rows = (tableData.value || []).filter((r: any) => !r.__ghost)
+  if (!rows.length) {
+    message.warning('没有可导出的数据')
+    return
+  }
+  exporting.value = true
+  try {
+    const csv = '\uFEFF' + [PRINT_COLUMNS.map(c => c.title),
+      ...rows.map((r: any) => PRINT_COLUMNS.map(c => printCell(r, c.key)))]
+      .map(line => line.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\r\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `商城弹窗广告_${dayjs().format('YYYYMMDD_HHmmss')}.csv`
+    a.click()
+    window.URL.revokeObjectURL(url)
+    message.success('导出成功')
+  } finally {
+    exporting.value = false
+  }
+}
+
+function handleError(error: Error) {
+  console.error('[商城弹窗广告] 页面错误', error)
+  message.error(`页面错误: ${error.message}`)
+}
+
+onMounted(() => {
+  fetchList()
+  window.addEventListener('keydown', handleF8Key)
+})
+onBeforeUnmount(() => window.removeEventListener('keydown', handleF8Key))
 </script>
+
+<style scoped>
+.search-area { padding: 8px 0; }
+.search-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.search-label { font-size: 13px; color: #666; white-space: nowrap; }
+.table-area { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+.cell-link { color: #1890ff; cursor: pointer; }
+.cell-link:hover { text-decoration: underline; }
+.btn-add {
+  background: #ff6b35 !important;
+  border-color: #ff6b35 !important;
+}
+.btn-add:hover {
+  background: #e55a2b !important;
+  border-color: #e55a2b !important;
+}
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) { height: 28px; line-height: 28px; }
+</style>

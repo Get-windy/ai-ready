@@ -34,14 +34,23 @@ public class SyncTask implements Serializable {
     @Schema(description = "Cron表达式")
     private String cronExpression;
 
-    @Schema(description = "状态: running/paused/stopped")
+    @Schema(description = "启停状态: running/paused/stopped（不是执行状态，执行结果见 lastRunStatus）")
     private String status;
 
-    @Schema(description = "上次同步时间")
+    @Schema(description = "上次成功投递给同步引擎的时间")
     private LocalDateTime lastSyncTime;
 
     @Schema(description = "下次同步时间")
     private LocalDateTime nextSyncTime;
+
+    @Schema(description = "最近一次「立即执行」的发起时间")
+    private LocalDateTime lastRunTime;
+
+    @Schema(description = "最近一次执行结论: running/dispatched/failed")
+    private String lastRunStatus;
+
+    @Schema(description = "最近一次执行的说明或失败原因")
+    private String lastRunMessage;
 
     @Schema(description = "描述")
     private String description;
@@ -62,7 +71,7 @@ public class SyncTask implements Serializable {
     private String updateBy;
 
     @Schema(description = "是否删除")
-    private Boolean deleted;
+    private Integer deleted;
 
     // Getters and Setters
     public Long getId() { return id; }
@@ -83,6 +92,12 @@ public class SyncTask implements Serializable {
     public void setLastSyncTime(LocalDateTime lastSyncTime) { this.lastSyncTime = lastSyncTime; }
     public LocalDateTime getNextSyncTime() { return nextSyncTime; }
     public void setNextSyncTime(LocalDateTime nextSyncTime) { this.nextSyncTime = nextSyncTime; }
+    public LocalDateTime getLastRunTime() { return lastRunTime; }
+    public void setLastRunTime(LocalDateTime lastRunTime) { this.lastRunTime = lastRunTime; }
+    public String getLastRunStatus() { return lastRunStatus; }
+    public void setLastRunStatus(String lastRunStatus) { this.lastRunStatus = lastRunStatus; }
+    public String getLastRunMessage() { return lastRunMessage; }
+    public void setLastRunMessage(String lastRunMessage) { this.lastRunMessage = lastRunMessage; }
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
     public Long getTenantId() { return tenantId; }
@@ -95,6 +110,6 @@ public class SyncTask implements Serializable {
     public void setCreateBy(String createBy) { this.createBy = createBy; }
     public String getUpdateBy() { return updateBy; }
     public void setUpdateBy(String updateBy) { this.updateBy = updateBy; }
-    public Boolean getDeleted() { return deleted; }
-    public void setDeleted(Boolean deleted) { this.deleted = deleted; }
+    public Integer getDeleted() { return deleted; }
+    public void setDeleted(Integer deleted) { this.deleted = deleted; }
 }

@@ -13,7 +13,6 @@ import java.time.LocalDateTime;
  * 员工月度工资发放记录
  *
  * @author AI-Ready Team
- * * @author AI-Ready Team
  * @since 1.0.0
  */
 @Data
@@ -83,6 +82,11 @@ public class HrSalaryPayment {
     private BigDecimal taxDeduct;
 
     /**
+     * 应发合计（税前）
+     */
+    private BigDecimal grossAmount;
+
+    /**
      * 实发金额
      */
     private BigDecimal actualAmount;
@@ -131,4 +135,26 @@ public class HrSalaryPayment {
      */
     @TableField(fill = FieldFill.INSERT_UPDATE)
     private Long updateBy;
+
+    // ── 展示用联表字段（非表列） ──
+
+    /** 员工姓名 */
+    @TableField(exist = false)
+    private String employeeName;
+
+    /** 员工工号 */
+    @TableField(exist = false)
+    private String employeeNo;
+
+    /** 部门名称 */
+    @TableField(exist = false)
+    private String deptName;
+
+    /** 考勤工时（小时，生成薪资时用的当月合计） */
+    @TableField(exist = false)
+    private BigDecimal workHours;
+
+    /** 缺勤天数 */
+    @TableField(exist = false)
+    private Integer absentDays;
 }

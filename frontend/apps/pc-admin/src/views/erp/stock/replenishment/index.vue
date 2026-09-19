@@ -162,215 +162,217 @@
           </template>
         </a-alert>
 
+      <div
+        ref="tableWrap"
+        class="table-area"
+      >
         <a-tabs
-          v-model:active-key="activeTab"
-          style="flex: 1; overflow: hidden;"
-        >
-          <a-tab-pane
-            key="pending"
-            tab="待处理"
+            v-model:active-key="activeTab"
+            style="flex: 1; overflow: hidden;"
           >
-            <BillTableList
-              ref="pendingTableRef"
-              :columns="pendingVxeColumns"
-              :data-source="pendingSuggestions"
-              :loading="loading"
-              :pagination="pagination"
-              row-key="id"
-              :show-toolbar="false"
-              :selectable="false"
-              :show-add="false"
-              :show-search="false"
-              :show-export="false"
-              :show-batch-delete="false"
-              @cell-dblclick="handleViewDetail"
-              @page-change="handlePageChange"
+            <a-tab-pane
+              key="pending"
+              tab="待处理"
             >
-              <template #empty>
-                <div
-                  v-if="hasError"
-                  class="table-empty"
-                >
-                  <WarningOutlined class="table-empty-icon" />
-                  <p class="table-empty-text">
-                    数据加载异常，请重试
-                  </p>
-                  <a-button
-                    type="primary"
-                    @click="loadSuggestions"
+              <BillTableList
+                ref="pendingTableRef"
+                :columns="pendingVxeColumns"
+                :data-source="pendingSuggestions"
+                :loading="loading"
+                :pagination="pagination"
+                row-key="id"
+                :show-toolbar="false"
+                :selectable="false"
+                :show-add="false"
+                :show-search="false"
+                :show-export="false"
+                :show-batch-delete="false"
+                @page-change="handlePageChange"
+              >
+                <template #empty>
+                  <div
+                    v-if="hasError"
+                    class="table-empty"
                   >
-                    <ReloadOutlined /> 重试
-                  </a-button>
-                </div>
-              </template>
-              <template #productCell="{ record }">
-                <div class="product-info">
-                  <span class="product-name">{{ record.productName }}</span>
-                  <span class="product-code">{{ record.productCode }}</span>
-                </div>
-              </template>
-              <template #stockCell="{ record }">
-                <div class="stock-info">
-                  <div class="stock-row">
-                    <span class="stock-label">当前库存:</span>
-                    <span class="stock-value">{{ record.currentQty }}</span>
+                    <WarningOutlined class="table-empty-icon" />
+                    <p class="table-empty-text">
+                      数据加载异常，请重试
+                    </p>
+                    <a-button
+                      type="primary"
+                      @click="loadSuggestions"
+                    >
+                      <ReloadOutlined /> 重试
+                    </a-button>
                   </div>
-                  <div class="stock-row">
-                    <span class="stock-label">安全库存:</span>
-                    <span class="stock-value">{{ record.safetyStock }}</span>
+                </template>
+                <template #productCell="{ record }">
+                  <div class="product-info">
+                    <span class="product-name">{{ record.productName }}</span>
+                    <span class="product-code">{{ record.productCode }}</span>
                   </div>
-                  <div class="stock-row danger">
-                    <span class="stock-label">缺口:</span>
-                    <span class="stock-value shortage">{{ record.shortageQty }}</span>
+                </template>
+                <template #stockCell="{ record }">
+                  <div class="stock-info">
+                    <div class="stock-row">
+                      <span class="stock-label">当前库存:</span>
+                      <span class="stock-value">{{ record.currentQty }}</span>
+                    </div>
+                    <div class="stock-row">
+                      <span class="stock-label">安全库存:</span>
+                      <span class="stock-value">{{ record.safetyStock }}</span>
+                    </div>
+                    <div class="stock-row danger">
+                      <span class="stock-label">缺口:</span>
+                      <span class="stock-value shortage">{{ record.shortageQty }}</span>
+                    </div>
                   </div>
-                </div>
-              </template>
-              <template #analysisCell="{ record }">
-                <div class="analysis-info">
-                  <div class="analysis-row">
-                    <span class="analysis-label">日均销量:</span>
-                    <span class="analysis-value">{{ record.avgDailySales }}件</span>
+                </template>
+                <template #analysisCell="{ record }">
+                  <div class="analysis-info">
+                    <div class="analysis-row">
+                      <span class="analysis-label">日均销量:</span>
+                      <span class="analysis-value">{{ record.avgDailySales }}件</span>
+                    </div>
+                    <div class="analysis-row">
+                      <span class="analysis-label">库存天数:</span>
+                      <span
+                        class="analysis-value"
+                        :class="{ danger: record.daysOfStock <= 3 }"
+                      >{{ record.daysOfStock }}天</span>
+                    </div>
+                    <div class="analysis-row">
+                      <span class="analysis-label">采购周期:</span>
+                      <span class="analysis-value">{{ record.leadTime }}天</span>
+                    </div>
                   </div>
-                  <div class="analysis-row">
-                    <span class="analysis-label">库存天数:</span>
-                    <span
-                      class="analysis-value"
-                      :class="{ danger: record.daysOfStock <= 3 }"
-                    >{{ record.daysOfStock }}天</span>
-                  </div>
-                  <div class="analysis-row">
-                    <span class="analysis-label">采购周期:</span>
-                    <span class="analysis-value">{{ record.leadTime }}天</span>
-                  </div>
-                </div>
-              </template>
-              <template #suggestedQtyCell="{ record }">
-                <span class="suggested-qty">建议采购 {{ record.suggestedQty }} 件</span>
-              </template>
-              <template #priorityCell="{ record }">
-                <a-progress
-                  :percent="record.priority"
-                  :stroke-color="getPriorityColor(record.priority)"
-                  :show-info="true"
-                  size="small"
-                />
-              </template>
-              <template #estimatedArrivalCell="{ record }">
-                <span class="arrival-date">{{ formatDate(record.estimatedArrival) }}</span>
-              </template>
-              <template #action="{ record }">
-                <a-space>
-                  <a-button
-                    v-permission="'erp:stock:createorder'"
+                </template>
+                <template #suggestedQtyCell="{ record }">
+                  <span class="suggested-qty">建议采购 {{ record.suggestedQty }} 件</span>
+                </template>
+                <template #priorityCell="{ record }">
+                  <a-progress
+                    :percent="record.priority"
+                    :stroke-color="getPriorityColor(record.priority)"
+                    :show-info="true"
                     size="small"
-                    type="primary"
-                    @click="handleCreateOrder(record)"
-                  >
-                    创建采购单
-                  </a-button>
-                  <a-button
-                    v-permission="'erp:stock:ignore'"
-                    size="small"
-                    @click="handleIgnore(record)"
-                  >
-                    忽略
-                  </a-button>
-                  <a @click="handleViewDetail(record)">详情</a>
-                </a-space>
-              </template>
-            </BillTableList>
-          </a-tab-pane>
-          <a-tab-pane
-            key="processed"
-            tab="已处理"
-          >
-            <BillTableList
-              :columns="processedVxeColumns"
-              :data-source="processedSuggestions"
-              :loading="loading"
-              :pagination="false as any"
-              row-key="id"
-              :show-toolbar="false"
-              :selectable="false"
-              :show-add="false"
-              :show-search="false"
-              :show-export="false"
-              :show-batch-delete="false"
-              @cell-dblclick="handleViewDetail"
+                  />
+                </template>
+                <template #estimatedArrivalCell="{ record }">
+                  <span class="arrival-date">{{ formatDate(record.estimatedArrival) }}</span>
+                </template>
+                <template #action="{ record }">
+                  <a-space>
+                    <a-button
+                      v-permission="'erp:stock:createorder'"
+                      size="small"
+                      type="primary"
+                      @click="handleCreateOrder(record)"
+                    >
+                      创建采购单
+                    </a-button>
+                    <a-button
+                      v-permission="'erp:stock:ignore'"
+                      size="small"
+                      @click="handleIgnore(record)"
+                    >
+                      忽略
+                    </a-button>
+                    <a @click="handleViewDetail(record)">详情</a>
+                  </a-space>
+                </template>
+              </BillTableList>
+            </a-tab-pane>
+            <a-tab-pane
+              key="processed"
+              tab="已处理"
             >
-              <template #empty>
-                <div
-                  v-if="hasError"
-                  class="table-empty"
-                >
-                  <WarningOutlined class="table-empty-icon" />
-                  <p class="table-empty-text">
-                    数据加载异常，请重试
-                  </p>
-                  <a-button
-                    type="primary"
-                    @click="loadSuggestions"
+              <BillTableList
+                :columns="processedVxeColumns"
+                :data-source="processedSuggestions"
+                :loading="loading"
+                :pagination="false as any"
+                row-key="id"
+                :show-toolbar="false"
+                :selectable="false"
+                :show-add="false"
+                :show-search="false"
+                :show-export="false"
+                :show-batch-delete="false"
+              >
+                <template #empty>
+                  <div
+                    v-if="hasError"
+                    class="table-empty"
                   >
-                    <ReloadOutlined /> 重试
-                  </a-button>
-                </div>
-              </template>
-              <template #statusCell="{ record }">
-                <a-tag color="green">
-                  已生成采购单
-                </a-tag>
-              </template>
-              <template #purchaseOrderCell="{ record }">
-                <a @click="goPurchaseOrder(record.purchaseOrderId)">{{ record.purchaseOrderNo }}</a>
-              </template>
-            </BillTableList>
-          </a-tab-pane>
-          <a-tab-pane
-            key="ignored"
-            tab="已忽略"
-          >
-            <BillTableList
-              :columns="ignoredVxeColumns"
-              :data-source="ignoredSuggestions"
-              :loading="loading"
-              :pagination="false as any"
-              row-key="id"
-              :show-toolbar="false"
-              :selectable="false"
-              :show-add="false"
-              :show-search="false"
-              :show-export="false"
-              :show-batch-delete="false"
-              @cell-dblclick="handleViewDetail"
+                    <WarningOutlined class="table-empty-icon" />
+                    <p class="table-empty-text">
+                      数据加载异常，请重试
+                    </p>
+                    <a-button
+                      type="primary"
+                      @click="loadSuggestions"
+                    >
+                      <ReloadOutlined /> 重试
+                    </a-button>
+                  </div>
+                </template>
+                <template #statusCell="{ record }">
+                  <a-tag color="green">
+                    已生成采购单
+                  </a-tag>
+                </template>
+                <template #purchaseOrderCell="{ record }">
+                  <a @click="goPurchaseOrder(record.purchaseOrderId)">{{ record.purchaseOrderNo }}</a>
+                </template>
+              </BillTableList>
+            </a-tab-pane>
+            <a-tab-pane
+              key="ignored"
+              tab="已忽略"
             >
-              <template #empty>
-                <div
-                  v-if="hasError"
-                  class="table-empty"
-                >
-                  <WarningOutlined class="table-empty-icon" />
-                  <p class="table-empty-text">
-                    数据加载异常，请重试
-                  </p>
-                  <a-button
-                    type="primary"
-                    @click="loadSuggestions"
+              <BillTableList
+                :columns="ignoredVxeColumns"
+                :data-source="ignoredSuggestions"
+                :loading="loading"
+                :pagination="false as any"
+                row-key="id"
+                :show-toolbar="false"
+                :selectable="false"
+                :show-add="false"
+                :show-search="false"
+                :show-export="false"
+                :show-batch-delete="false"
+              >
+                <template #empty>
+                  <div
+                    v-if="hasError"
+                    class="table-empty"
                   >
-                    <ReloadOutlined /> 重试
-                  </a-button>
-                </div>
-              </template>
-              <template #statusCell="{ record }">
-                <a-tag color="default">
-                  已忽略
-                </a-tag>
-              </template>
-              <template #ignoreReasonCell="{ record }">
-                <span class="ignore-reason">{{ record.ignoreReason }}</span>
-              </template>
-            </BillTableList>
-          </a-tab-pane>
-        </a-tabs>
+                    <WarningOutlined class="table-empty-icon" />
+                    <p class="table-empty-text">
+                      数据加载异常，请重试
+                    </p>
+                    <a-button
+                      type="primary"
+                      @click="loadSuggestions"
+                    >
+                      <ReloadOutlined /> 重试
+                    </a-button>
+                  </div>
+                </template>
+                <template #statusCell="{ record }">
+                  <a-tag color="default">
+                    已忽略
+                  </a-tag>
+                </template>
+                <template #ignoreReasonCell="{ record }">
+                  <span class="ignore-reason">{{ record.ignoreReason }}</span>
+                </template>
+              </BillTableList>
+            </a-tab-pane>
+          </a-tabs>
+      </div>
       </a-card>
 
       <a-drawer
@@ -583,6 +585,7 @@ import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import * as echarts from 'echarts'
 import { replenishmentApi, type ReplenishmentSuggestion } from '@/api/erp'
+import { useRowDblclick } from '@/composables/useRowDblclick'
 
 // ── 防抖工具 ──────────────────────────────────────────
 const debounceMap = new Map<string, number>()
@@ -813,6 +816,16 @@ const handleViewDetail = (record: any) => {
   initSalesTrendChart()
 }
 
+// 双击行 → 打开详情：页面侧自行实现（共享表格组件不再派发该事件）
+// 三个 Tab 的表格共用同一个 tableWrap（包住 a-tabs），因此按当前 Tab 取行数组；
+// 行标识由表格行上的 data-row-key 反查，与这些表的 row-key（'id'）同口径
+const tableWrap = ref<HTMLElement | null>(null)
+useRowDblclick(tableWrap, () => {
+  if (activeTab.value === 'processed') return processedSuggestions.value
+  if (activeTab.value === 'ignored') return ignoredSuggestions.value
+  return pendingSuggestions.value
+}, handleViewDetail, 'id')
+
 const handleIgnore = (record: any) => {
   ignoreData.value = record
   ignoreReason.value = ''
@@ -895,6 +908,16 @@ const initPriorityChart = () => {
 </script>
 
 <style scoped lang="scss">
+
+/* 双击行入口容器（页面侧事件委托，见脚本 useRowDblclick）：撑满剩余空间，避免表格高度塌陷 */
+.table-area {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
 .replenishment-page-header {
   display: flex;
   justify-content: space-between;

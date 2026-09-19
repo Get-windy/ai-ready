@@ -50,14 +50,20 @@ public class RbacService {
     public boolean hasApiPermission(Long userId, String apiPath, String method) {
         // 获取用户所有权限
         List<String> permissionCodes = userService.getUserPermissionCodes(userId);
-        
+
         // 获取匹配的权限
+        // ⚠️ `SysPermission.status` 是「0-正常 / 1-禁用」——这里原写 `1` 并注释成「status=1启用」，
+        //    与实际语义相反（见实体字段注释 + `PermissionInitializationConfig:534` 的
+        //    `permission.setStatus(0); // 启用`），会让本方法恒判 false。已于 2026-09-19 更正。
+        // 📌 现状：**本方法目前没有任何调用方**（全仓 grep 仅此定义），真实鉴权走
+        //    `StpInterfaceImpl → UnifiedPermissionCacheService → SysUserServiceImpl#getUserPermissionCodes`。
+        //    保留是历史遗留；若确认无用可整体删除。
         List<SysPermission> permissions = permissionService.lambdaQuery()
                 .eq(SysPermission::getApiPath, apiPath)
                 .eq(SysPermission::getMethod, method)
-                .eq(SysPermission::getStatus, 1) // status=1启用
+                .eq(SysPermission::getStatus, 0)
                 .list();
-        
+
         // 检查是否匹配
         return permissions.stream()
                 .anyMatch(p -> permissionCodes.contains(p.getPermissionCode()));

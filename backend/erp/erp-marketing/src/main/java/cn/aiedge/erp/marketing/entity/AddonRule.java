@@ -49,6 +49,10 @@ public class AddonRule {
     private Integer sort;
     private String remark;
 
+    /** 制单人姓名（对标「加价购」页「制单人」列，写入时快照） */
+    @TableField(updateStrategy = FieldStrategy.NEVER)
+    private String creatorName;
+
     private Long createBy;
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;

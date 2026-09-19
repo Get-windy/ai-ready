@@ -90,6 +90,14 @@ public class CustomerOpportunityController {
     public CustomerOpportunity advanceStage(@PathVariable Long id) {
         return customerOpportunityService.advanceStage(id);
     }
+
+    @Operation(summary = "跳转到指定阶段（商机看板拖拽改阶段）")
+    @PutMapping("/{id}/stage")
+    public CustomerOpportunity updateStage(
+            @PathVariable Long id,
+            @Parameter(description = "目标阶段 1-5") @RequestParam Integer stage) {
+        return customerOpportunityService.updateStage(id, stage);
+    }
     
     @Operation(summary = "商机赢单")
     @PostMapping("/{id}/win")

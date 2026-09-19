@@ -68,7 +68,10 @@
     </template>
 
     <ErrorBoundary>
-      <div class="page-content">
+      <div
+        ref="tableWrap"
+        class="page-content"
+      >
         <!-- 统计卡片 -->
         <div class="stat-cards">
           <div class="stat-card stat-total">
@@ -159,7 +162,6 @@
             :show-export="false"
             :show-batch-delete="false"
             :min-empty-rows="12"
-            @cell-dblclick="handleView"
           >
             <template #inquiryStatusCell="{ record }">
               <a-tag :color="getStatusColor(record.inquiryStatus)">
@@ -315,6 +317,7 @@ import { message, Modal } from 'ant-design-vue'
 import { PlusOutlined, FileTextOutlined, ClockCircleOutlined, CheckCircleOutlined, CheckOutlined, ReloadOutlined, SyncOutlined, LeftOutlined, WarningOutlined, InboxOutlined } from '@ant-design/icons-vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
+import { useRowDblclick } from '@/composables/useRowDblclick'
 import { useRouter, useRoute } from 'vue-router'
 import { supplierApi } from '@/api/supplier'
 import { requiredRule } from '@/utils/formRules'
@@ -469,6 +472,11 @@ const handleView = (record: any) => {
   const row = record?.row ?? record
   handleViewQuotation(row)
 }
+
+// 双击行查看询价详情 —— 页面侧自行实现（不依赖共享表格组件派发事件）
+// 行标识由表格行上的 data-row-key（= row-key 指定的 id）反查得到；占位空行不带该属性
+const tableWrap = ref<HTMLElement | null>(null)
+useRowDblclick(tableWrap, () => inquiries.value, handleView, 'id')
 
 const submitInquiry = async () => {
   try {

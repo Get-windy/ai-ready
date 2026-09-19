@@ -202,6 +202,20 @@ public class InvoiceController {
     }
 
     /**
+     * 更新发票基本信息（部分更新：仅覆盖请求中非 null 的字段）
+     *
+     * @param invoiceId 发票ID
+     * @param payload   待更新字段
+     * @return 更新后的发票
+     */
+    @PutMapping("/{invoiceId}")
+    public Result<Invoice> updateInvoice(
+            @PathVariable Long invoiceId,
+            @RequestBody Invoice payload) {
+        return Result.ok(invoiceService.updateInvoice(invoiceId, payload));
+    }
+
+    /**
      * 更新发票状态
      *
      * @param invoiceId 发票ID

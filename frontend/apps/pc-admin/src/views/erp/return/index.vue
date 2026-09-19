@@ -141,141 +141,145 @@
         @reset="handleReset"
       />
 
-      <BillTableList
-        ref="tableRef"
-        :columns="vxeColumns"
-        :data-source="tableDataSource"
-        :loading="loading"
-        :pagination="pagination"
-        :row-key="'id'"
-        :filter-fields="filterFields"
-        :selectable="true"
-        :show-export="true"
-        add-text="新建退货申请"
-        style="flex: 1;"
-        @add="handleCreate"
-        @refresh="fetchData"
-        @export="handleExport"
-        @search="(val: any) => handleSearch(val ? { keyword: val } : undefined)"
-        @page-change="handlePageChange"
-        @filter-change="handleFilterChange"
-        @selection-change="handleSelectionChange"
-        @cell-dblclick="handleView"
+      <div
+        ref="tableWrap"
+        class="table-area"
       >
-        <template #toolbar-actions>
-          <span class="list-update-timestamp">最后更新：{{ dayjs(lastUpdateTime).format('YYYY-MM-DD HH:mm:ss') }}</span>
-        </template>
+        <BillTableList
+          ref="tableRef"
+          :columns="vxeColumns"
+          :data-source="tableDataSource"
+          :loading="loading"
+          :pagination="pagination"
+          :row-key="'id'"
+          :filter-fields="filterFields"
+          :selectable="true"
+          :show-export="true"
+          add-text="新建退货申请"
+          style="flex: 1;"
+          @add="handleCreate"
+          @refresh="fetchData"
+          @export="handleExport"
+          @search="(val: any) => handleSearch(val ? { keyword: val } : undefined)"
+          @page-change="handlePageChange"
+          @filter-change="handleFilterChange"
+          @selection-change="handleSelectionChange"
+        >
+          <template #toolbar-actions>
+            <span class="list-update-timestamp">最后更新：{{ dayjs(lastUpdateTime).format('YYYY-MM-DD HH:mm:ss') }}</span>
+          </template>
 
-        <template #emptyText>
-          <EmptyState
-            v-if="hasError"
-            image="error"
-            title="数据加载异常"
-            description="数据获取失败，请检查后重试"
-            :show-add="false"
-            size="small"
-            @refresh="fetchData"
-          />
-          <EmptyState
-            v-else-if="hasActiveFilters"
-            image="no-data"
-            title="没有符合条件的退货单"
-            description="请尝试修改筛选条件"
-            :show-add="false"
-            size="small"
-            @refresh="fetchData"
-          />
-          <EmptyState
-            v-else
-            image="no-data"
-            title="暂无退货单"
-            description="当前没有退货单数据"
-            add-text="新建退货申请"
-            size="small"
-            @refresh="fetchData"
-            @add="handleCreate"
-          />
-        </template>
+          <template #emptyText>
+            <EmptyState
+              v-if="hasError"
+              image="error"
+              title="数据加载异常"
+              description="数据获取失败，请检查后重试"
+              :show-add="false"
+              size="small"
+              @refresh="fetchData"
+            />
+            <EmptyState
+              v-else-if="hasActiveFilters"
+              image="no-data"
+              title="没有符合条件的退货单"
+              description="请尝试修改筛选条件"
+              :show-add="false"
+              size="small"
+              @refresh="fetchData"
+            />
+            <EmptyState
+              v-else
+              image="no-data"
+              title="暂无退货单"
+              description="当前没有退货单数据"
+              add-text="新建退货申请"
+              size="small"
+              @refresh="fetchData"
+              @add="handleCreate"
+            />
+          </template>
 
-        <template #action="{ record }">
-          <a-space>
-            <a-tooltip title="查看">
-              <a-button
-                type="link"
-                size="small"
-                @click="handleView(record)"
+          <template #action="{ record }">
+            <a-space>
+              <a-tooltip title="查看">
+                <a-button
+                  type="link"
+                  size="small"
+                  @click="handleView(record)"
+                >
+                  <template #icon>
+                    <EyeOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip
+                v-if="record.status === 0"
+                title="审核"
               >
-                <template #icon>
-                  <EyeOutlined />
-                </template>
-              </a-button>
-            </a-tooltip>
-            <a-tooltip
-              v-if="record.status === 0"
-              title="审核"
-            >
-              <a-button
-                v-permission="'erp:return:approve'"
-                type="link"
-                size="small"
-                @click="handleApprove(record)"
+                <a-button
+                  v-permission="'erp:return:approve'"
+                  type="link"
+                  size="small"
+                  @click="handleApprove(record)"
+                >
+                  <template #icon>
+                    <CheckCircleOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip
+                v-if="record.status === 1"
+                title="入库"
               >
-                <template #icon>
-                  <CheckCircleOutlined />
-                </template>
-              </a-button>
-            </a-tooltip>
-            <a-tooltip
-              v-if="record.status === 1"
-              title="入库"
-            >
-              <a-button
-                v-permission="'erp:return:receive'"
-                type="link"
-                size="small"
-                @click="handleReceive(record)"
+                <a-button
+                  v-permission="'erp:return:receive'"
+                  type="link"
+                  size="small"
+                  @click="handleReceive(record)"
+                >
+                  <template #icon>
+                    <DownloadOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip
+                v-if="record.status === 2"
+                title="退款"
               >
-                <template #icon>
-                  <DownloadOutlined />
+                <a-button
+                  v-permission="'erp:return:refund'"
+                  type="link"
+                  size="small"
+                  @click="handleRefund(record)"
+                >
+                  <template #icon>
+                    <RollbackOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <a-dropdown trigger="click">
+                <a-button
+                  type="link"
+                  size="small"
+                  class="action-more-btn"
+                >
+                  <template #icon>
+                    <EllipsisOutlined />
+                  </template>
+                </a-button>
+                <template #overlay>
+                  <a-menu @click="(e) => handleActionMenuClick(String(e.key), record)">
+                    <a-menu-item key="delete">
+                      <DeleteOutlined /> 删除
+                    </a-menu-item>
+                  </a-menu>
                 </template>
-              </a-button>
-            </a-tooltip>
-            <a-tooltip
-              v-if="record.status === 2"
-              title="退款"
-            >
-              <a-button
-                v-permission="'erp:return:refund'"
-                type="link"
-                size="small"
-                @click="handleRefund(record)"
-              >
-                <template #icon>
-                  <RollbackOutlined />
-                </template>
-              </a-button>
-            </a-tooltip>
-            <a-dropdown trigger="click">
-              <a-button
-                type="link"
-                size="small"
-                class="action-more-btn"
-              >
-                <template #icon>
-                  <EllipsisOutlined />
-                </template>
-              </a-button>
-              <template #overlay>
-                <a-menu @click="(e) => handleActionMenuClick(String(e.key), record)">
-                  <a-menu-item key="delete">
-                    <DeleteOutlined /> 删除
-                  </a-menu-item>
-                </a-menu>
-              </template>
-            </a-dropdown>
-          </a-space>
-        </template>
-      </BillTableList>
+              </a-dropdown>
+            </a-space>
+          </template>
+        </BillTableList>
+      </div>
 
       <a-drawer
         v-model:open="detailVisible"
@@ -635,6 +639,7 @@ import {
   ClockCircleOutlined, DollarOutlined, SyncOutlined, ReloadOutlined, WarningOutlined
 } from '@ant-design/icons-vue'
 import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
+import { useRowDblclick } from '@/composables/useRowDblclick'
 
 // ── 防抖工具 ──────────────────────────────────────────
 function handleError(err: any) { console.warn('[Return]', err) }
@@ -1003,6 +1008,11 @@ const handleView = (record: ReturnOrder) => {
   fetchDetail(record.id)
 }
 
+// 双击行 → 打开详情：页面侧自行实现（共享表格组件不再派发该事件）
+// 行标识由表格行上的 data-row-key 反查，与该表 row-key（'id'）同口径
+const tableWrap = ref<HTMLElement | null>(null)
+useRowDblclick(tableWrap, () => tableDataSource.value, handleView, 'id')
+
 const handleApprove = (record: ReturnOrder) => {
   Modal.confirm({
     title: '确认审核',
@@ -1188,6 +1198,16 @@ onMounted(() => {
 </script>
 
 <style scoped>
+
+/* 双击行入口容器（页面侧事件委托，见脚本 useRowDblclick）：撑满剩余空间，避免表格高度塌陷 */
+.table-area {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
 .return-page-header {
   display: flex;
   justify-content: space-between;

@@ -61,6 +61,7 @@ public class MallAdminPopupAdController {
     public Result<Void> create(@RequestBody MallPopupAd popupAd) {
         popupAd.setId(null);
         popupAd.setStatus(MallPopupAd.STATUS_DRAFT);
+        popupAd.setCreatorName(cn.aiedge.base.utils.SecurityUtils.getCurrentUsername());
         mallPopupAdService.save(popupAd);
         return Result.ok();
     }

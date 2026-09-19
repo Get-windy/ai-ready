@@ -120,6 +120,14 @@ public class SysRoleController {
         return Result.ok(permissionIds);
     }
 
+    @Operation(summary = "获取角色菜单")
+    @GetMapping("/{id}/menus")
+    public Result<List<Long>> getRoleMenus(@PathVariable Long id) {
+        // 与 POST /{id}/menus（assignMenus）配对：前端「菜单管理 → 角色」弹窗
+        // 需先回显该角色已分配的菜单，此前只实现了写、漏了读 → 前端 getMenus() 恒 404。
+        return Result.ok(roleService.getRoleMenuIds(id));
+    }
+
     @Operation(summary = "更新角色状态")
     @PutMapping("/{id}/status")
     @SaCheckPermission("system:role:update-status")

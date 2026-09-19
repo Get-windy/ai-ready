@@ -1,5 +1,6 @@
 package cn.aiedge.datasource.controller;
 
+import cn.aiedge.base.log.annotation.OperationLog;
 import cn.aiedge.datasource.model.SyncTask;
 import cn.aiedge.datasource.service.SyncTaskService;
 import cn.dev33.satoken.annotation.SaCheckPermission;
@@ -14,6 +15,15 @@ import java.util.Map;
 
 /**
  * 同步任务控制器
+ *
+ * <p>契约：{@code /{id}/execute} 返回 {@code {success, message, dispatched, configId?, engineMessage?}}。
+ * <ul>
+ *   <li>{@code success=true} + {@code dispatched=true} 表示「请求已投递给同步引擎」，
+ *       message 里明确写了「本系统无法确认数据搬运结果」—— 不把「已投递」翻译成「已同步」。</li>
+ *   <li>{@code success=false} 表示**根本没有投递出去**（无引擎配置 / 引擎不可达 / 任务正在执行中），
+ *       message 是可直接展示的原因。前端 {@code mutate} 会以错误提示弹出该 message。</li>
+ * </ul>
+ * 注意：本接口**不修改** {@code status}（启停开关），执行结论写 {@code last_run_*} 三列。
  */
 @RestController
 @RequestMapping("/api/data-source/sync")
@@ -48,6 +58,7 @@ public class SyncTaskController {
 
     @PostMapping("/")
     @SaCheckPermission("datasource:sync:create")
+    @OperationLog(module = "数据管理-同步任务", type = "CREATE", desc = "新增同步任务")
     @Operation(summary = "创建同步任务")
     public ResponseEntity<Map<String, Object>> create(
             @RequestBody SyncTask syncTask,
@@ -60,6 +71,7 @@ public class SyncTaskController {
 
     @PutMapping("/{id}")
     @SaCheckPermission("datasource:sync:update")
+    @OperationLog(module = "数据管理-同步任务", type = "UPDATE", desc = "修改同步任务")
     @Operation(summary = "更新同步任务")
     public ResponseEntity<Map<String, Object>> update(
             @PathVariable Long id,
@@ -76,6 +88,7 @@ public class SyncTaskController {
 
     @DeleteMapping("/{id}")
     @SaCheckPermission("datasource:sync:delete")
+    @OperationLog(module = "数据管理-同步任务", type = "DELETE", desc = "删除同步任务")
     @Operation(summary = "删除同步任务")
     public ResponseEntity<Map<String, Object>> delete(@PathVariable Long id) {
         boolean success = syncTaskService.delete(id);
@@ -84,12 +97,14 @@ public class SyncTaskController {
 
     @PostMapping("/{id}/execute")
     @SaCheckPermission("datasource:sync:execute")
+    @OperationLog(module = "数据管理-同步任务", type = "OTHER",
+            desc = "立即执行同步任务（投递到同步引擎）", saveResponse = true)
     @Operation(summary = "立即执行同步任务")
-    public ResponseEntity<Map<String, Object>> execute(@PathVariable Long id) {
-        boolean success = syncTaskService.execute(id);
-        return ResponseEntity.ok(Map.of(
-                "success", success,
-                "message", success ? "同步任务已触发执行" : "同步任务不存在"
-        ));
+    public ResponseEntity<Map<String, Object>> execute(
+            @PathVariable Long id,
+            @RequestHeader(value = "X-Tenant-Id", required = false) Long tenantId,
+            @RequestHeader(value = "X-User-Id", required = false) String operator) {
+
+        return ResponseEntity.ok(syncTaskService.execute(id, tenantId, operator != null ? operator : "unknown"));
     }
 }

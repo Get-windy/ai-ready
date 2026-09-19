@@ -24,6 +24,7 @@ import cn.aiedge.workflow.model.*;
 import cn.aiedge.workflow.model.WorkflowDefinition.WorkflowNode;
 import cn.aiedge.workflow.service.WorkflowService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,6 +38,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.function.Consumer;
 
 /**
  * 审批流程服务实现（PostgreSQL 持久化版本）
@@ -85,7 +87,14 @@ public class WorkflowServiceImpl implements WorkflowService {
     public List<WorkflowDefinition> getWorkflowDefinitions(String type, Long tenantId) {
         LambdaQueryWrapper<WorkflowDefinitionEntity> wrapper = new LambdaQueryWrapper<>();
         if (tenantId != null) {
-            wrapper.eq(WorkflowDefinitionEntity::getTenantId, tenantId);
+            // 读口径 = 「全局默认模板 + 租户自定义」，与本系统菜单树 / sys_config 的
+            // 「tenant_id = 0 为全局默认、租户行覆盖之」完全同口径：
+            //   内置流程由 WorkflowSeedRunner 写入 tenant_id = 0，迁移种子的流程也是 0；
+            //   前端恒发 X-Tenant-Id = 1，若按严格 eq(tenant_id, 1) 过滤 → 台账恒空。
+            // ⚠️ 仅**读**路径放开到 0；写入（saveWorkflowDefinition）仍落当前租户，
+            //    不得把租户新建的流程写到全局行（否则会跨租户可见）。
+            wrapper.and(w -> w.eq(WorkflowDefinitionEntity::getTenantId, tenantId)
+                    .or().eq(WorkflowDefinitionEntity::getTenantId, 0L));
         }
         Integer processType = WorkflowConverter.processTypeToInt(type);
         if (processType != null) {
@@ -599,22 +608,16 @@ public class WorkflowServiceImpl implements WorkflowService {
     // ==================== 分页查询 ====================
 
     @Override
-    public Map<String, Object> pageInstances(int pageNum, int pageSize, String processName, String status, Long tenantId) {
-        LambdaQueryWrapper<WorkflowInstanceEntity> wrapper = new LambdaQueryWrapper<>();
-        if (tenantId != null) {
-            wrapper.eq(WorkflowInstanceEntity::getTenantId, tenantId);
+    public Map<String, Object> pageInstances(int pageNum, int pageSize, String processName, String status,
+                                             String startDate, String endDate, Long tenantId) {
+        // 流程名称过滤：先匹配定义再按 definition_id 过滤（null = 未按名称过滤；空列表 = 无匹配定义 → 结果必空）
+        List<Long> defIds = resolveDefinitionIdsByName(processName);
+        if (defIds != null && defIds.isEmpty()) {
+            return pageResult(List.of(), 0, pageNum, pageSize);
         }
-        // 流程名称过滤：先匹配定义再按 definition_id 过滤
-        if (processName != null && !processName.isBlank()) {
-            List<Long> defIds = definitionMapper.selectList(new LambdaQueryWrapper<WorkflowDefinitionEntity>()
-                            .like(WorkflowDefinitionEntity::getProcessName, processName))
-                    .stream().map(WorkflowDefinitionEntity::getId).toList();
-            if (defIds.isEmpty()) {
-                return pageResult(List.of(), 0, pageNum, pageSize);
-            }
-            wrapper.in(WorkflowInstanceEntity::getDefinitionId, defIds);
-        }
-        // 状态过滤（兼容监控页词汇 running/completed 与规范词汇 approving/approved 等）
+
+        LambdaQueryWrapper<WorkflowInstanceEntity> wrapper = instanceWrapper(defIds, startDate, endDate, tenantId);
+        // 状态过滤（兼容监控页词汇 running/completed 与规范词汇 approving/approved 等；未知值不过滤）
         Integer statusInt = WorkflowConverter.instanceStatusToInt(status);
         if (statusInt != null) {
             wrapper.eq(WorkflowInstanceEntity::getStatus, statusInt);
@@ -631,47 +634,139 @@ public class WorkflowServiceImpl implements WorkflowService {
     }
 
     @Override
+    public Map<String, Object> statInstances(String processName, String status,
+                                             String startDate, String endDate, Long tenantId) {
+        Map<String, Object> stat = new LinkedHashMap<>();
+        // 与列表完全同口径的筛选条件（名称 / 时间区间 / 租户 / 状态），保证「统计卡 = 全量真聚合」
+        List<Long> defIds = resolveDefinitionIdsByName(processName);
+        Integer statusInt = WorkflowConverter.instanceStatusToInt(status);
+
+        if (defIds != null && defIds.isEmpty()) {
+            // 按流程名称过滤但无匹配定义 → 所有分组为 0
+            stat.put("total", 0L);
+            stat.put("running", 0L);
+            stat.put("completed", 0L);
+            stat.put("rejected", 0L);
+            stat.put("withdrawn", 0L);
+            stat.put("cancelled", 0L);
+            stat.put("suspended", 0L);
+            stat.put("terminated", 0L);
+            return stat;
+        }
+
+        // 逐状态计数（status 为空行不计入任何分组，但计入 total）
+        long total = 0L;
+        for (int s = WorkflowConverter.INST_APPROVING; s <= WorkflowConverter.INST_TERMINATED; s++) {
+            long count = 0L;
+            if (statusInt == null || statusInt == s) {
+                LambdaQueryWrapper<WorkflowInstanceEntity> wrapper = instanceWrapper(defIds, startDate, endDate, tenantId);
+                wrapper.eq(WorkflowInstanceEntity::getStatus, s);
+                count = instanceMapper.selectCount(wrapper);
+            }
+            stat.put(statKeyOf(s), count);
+            total += count;
+        }
+        // total 单独取一次：覆盖「状态列为空」的历史脏行，与分页 total 口径严格一致
+        LambdaQueryWrapper<WorkflowInstanceEntity> totalWrapper = instanceWrapper(defIds, startDate, endDate, tenantId);
+        if (statusInt != null) {
+            totalWrapper.eq(WorkflowInstanceEntity::getStatus, statusInt);
+        }
+        stat.put("total", instanceMapper.selectCount(totalWrapper));
+        // 统计卡口径：卡片仅「终止」计数，不含「挂起」（旧实现把二者合并，见《流程实例开发文档》§5.4）
+        return stat;
+    }
+
+    /** 状态码 → 统计字段名（卡片直接按字段取值） */
+    private static String statKeyOf(int status) {
+        return switch (status) {
+            case WorkflowConverter.INST_APPROVED -> "completed";
+            case WorkflowConverter.INST_REJECTED -> "rejected";
+            case WorkflowConverter.INST_WITHDRAWN -> "withdrawn";
+            case WorkflowConverter.INST_CANCELLED -> "cancelled";
+            case WorkflowConverter.INST_SUSPENDED -> "suspended";
+            case WorkflowConverter.INST_TERMINATED -> "terminated";
+            default -> "running";
+        };
+    }
+
+    /**
+     * 流程名称 → 定义ID集合
+     *
+     * @return null 表示「未按流程名称过滤」；空列表表示「按名称过滤但无匹配定义」（调用方应返回空结果）
+     */
+    private List<Long> resolveDefinitionIdsByName(String processName) {
+        if (processName == null || processName.isBlank()) {
+            return null;
+        }
+        return definitionMapper.selectList(new LambdaQueryWrapper<WorkflowDefinitionEntity>()
+                        .like(WorkflowDefinitionEntity::getProcessName, processName))
+                .stream().map(WorkflowDefinitionEntity::getId).toList();
+    }
+
+    /**
+     * 流程实例查询公共条件（租户 / 定义 / 开始时间区间）
+     * 说明：workflow_instance 在租户插件忽略清单内（MyBatisPlusConfig），租户条件必须在此手写。
+     */
+    private LambdaQueryWrapper<WorkflowInstanceEntity> instanceWrapper(List<Long> defIds,
+                                                                      String startDate, String endDate, Long tenantId) {
+        LambdaQueryWrapper<WorkflowInstanceEntity> wrapper = new LambdaQueryWrapper<>();
+        if (tenantId != null) {
+            wrapper.eq(WorkflowInstanceEntity::getTenantId, tenantId);
+        }
+        if (defIds != null) {
+            wrapper.in(WorkflowInstanceEntity::getDefinitionId, defIds);
+        }
+        // 开始时间（create_time）闭区间：YYYY-MM-DD 解析失败即忽略该边界（不静默失效，也不报错）
+        LocalDateTime from = parseDayStart(startDate);
+        if (from != null) {
+            wrapper.ge(WorkflowInstanceEntity::getCreateTime, from);
+        }
+        LocalDateTime to = parseDayStart(endDate);
+        if (to != null) {
+            wrapper.lt(WorkflowInstanceEntity::getCreateTime, to.plusDays(1));
+        }
+        return wrapper;
+    }
+
+    /** YYYY-MM-DD → 当日 00:00；空值或非法格式返回 null */
+    private static LocalDateTime parseDayStart(String day) {
+        if (day == null || day.isBlank()) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(day.trim()).atStartOfDay();
+        } catch (Exception e) {
+            log.warn("[workflow] 日期参数非法，已忽略: {}", day);
+            return null;
+        }
+    }
+
+    @Override
     public Map<String, Object> pageTasks(String tab, Long userId, int pageNum, int pageSize, Long tenantId) {
-        return pageTasks(tab, userId, pageNum, pageSize, tenantId, null, null);
+        return pageTasks(tab, userId, pageNum, pageSize, tenantId, null, null, null, null, null);
     }
 
     @Override
     public Map<String, Object> pageTasks(String tab, Long userId, int pageNum, int pageSize, Long tenantId,
                                          String taskName, String processName) {
+        return pageTasks(tab, userId, pageNum, pageSize, tenantId, taskName, processName, null, null, null);
+    }
+
+    @Override
+    public Map<String, Object> pageTasks(String tab, Long userId, int pageNum, int pageSize, Long tenantId,
+                                         String taskName, String processName, String priority,
+                                         String startDate, String endDate) {
         if (userId == null) {
             return pageResult(List.of(), 0, pageNum, pageSize);
         }
-        LambdaQueryWrapper<WorkflowTaskEntity> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(WorkflowTaskEntity::getAssigneeId, userId);
-        wrapper.eq(WorkflowTaskEntity::getTaskType, WorkflowConverter.TASK_TYPE_APPROVAL);
-        if ("done".equals(tab)) {
-            wrapper.in(WorkflowTaskEntity::getStatus, WorkflowConverter.TASK_STATUS_DONE,
-                    WorkflowConverter.TASK_STATUS_TRANSFERRED);
-        } else {
-            wrapper.eq(WorkflowTaskEntity::getStatus, WorkflowConverter.TASK_STATUS_PENDING);
+        // 流程名称 → 实例ID集合。空集必须短路返回空页（按不存在的流程名过滤不得退化成全量）
+        List<Long> instanceIds = resolveInstanceIdsByProcessName(processName);
+        if (instanceIds != null && instanceIds.isEmpty()) {
+            return pageResult(List.of(), 0, pageNum, pageSize);
         }
-        if (tenantId != null) {
-            wrapper.eq(WorkflowTaskEntity::getTenantId, tenantId);
-        }
-        if (taskName != null && !taskName.isBlank()) {
-            wrapper.like(WorkflowTaskEntity::getNodeName, taskName);
-        }
-        if (processName != null && !processName.isBlank()) {
-            List<Long> defIds = definitionMapper.selectList(new LambdaQueryWrapper<WorkflowDefinitionEntity>()
-                            .like(WorkflowDefinitionEntity::getProcessName, processName))
-                    .stream().map(WorkflowDefinitionEntity::getId).toList();
-            if (defIds.isEmpty()) {
-                return pageResult(List.of(), 0, pageNum, pageSize);
-            }
-            List<Long> instanceIds = instanceMapper.selectList(new LambdaQueryWrapper<WorkflowInstanceEntity>()
-                            .in(WorkflowInstanceEntity::getDefinitionId, defIds))
-                    .stream().map(WorkflowInstanceEntity::getId).toList();
-            if (instanceIds.isEmpty()) {
-                return pageResult(List.of(), 0, pageNum, pageSize);
-            }
-            wrapper.in(WorkflowTaskEntity::getInstanceId, instanceIds);
-        }
-        wrapper.orderByDesc(WorkflowTaskEntity::getId);
+        QueryWrapper<WorkflowTaskEntity> wrapper =
+                taskWrapper(tab, userId, tenantId, taskName, instanceIds, priority, startDate, endDate, null);
+        wrapper.orderByDesc("id");
 
         Page<WorkflowTaskEntity> taskPage = taskMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);
 
@@ -680,6 +775,168 @@ public class WorkflowServiceImpl implements WorkflowService {
             records.add(toTaskRecord(task));
         }
         return pageResult(records, taskPage.getTotal(), pageNum, pageSize);
+    }
+
+    @Override
+    public Map<String, Object> statTasks(String tab, Long userId, Long tenantId, String taskName,
+                                         String processName, String priority, String startDate, String endDate) {
+        Map<String, Object> stat = new LinkedHashMap<>();
+        List<Long> instanceIds = resolveInstanceIdsByProcessName(processName);
+        if (userId == null || (instanceIds != null && instanceIds.isEmpty())) {
+            // 无登录人 / 流程名无匹配定义 → 全部计数为 0（与分页空页同口径）
+            for (String key : TASK_STAT_KEYS) {
+                stat.put(key, 0L);
+            }
+            return stat;
+        }
+
+        // total 单独取一次：与分页 total 严格同口径（含 status/action/priority 为 NULL 的历史脏行）
+        stat.put("total", countTasks(tab, userId, tenantId, taskName, instanceIds,
+                priority, startDate, endDate, null));
+
+        // 状态 / 动作 / 优先级三组分布各用一次 GROUP BY（服务端全量真聚合，不是当页条数）
+        Map<String, Long> byStatus = groupCount(tab, userId, tenantId, taskName, instanceIds,
+                priority, startDate, endDate, "status");
+        stat.put("pending", byStatus.getOrDefault(String.valueOf(WorkflowConverter.TASK_STATUS_PENDING), 0L));
+        stat.put("done", byStatus.getOrDefault(String.valueOf(WorkflowConverter.TASK_STATUS_DONE), 0L));
+        stat.put("transferred", byStatus.getOrDefault(String.valueOf(WorkflowConverter.TASK_STATUS_TRANSFERRED), 0L));
+
+        Map<String, Long> byPriority = groupCount(tab, userId, tenantId, taskName, instanceIds,
+                priority, startDate, endDate, "priority");
+        stat.put("priorityHigh", byPriority.getOrDefault("high", 0L));
+        stat.put("priorityMedium", byPriority.getOrDefault("medium", 0L));
+        stat.put("priorityLow", byPriority.getOrDefault("low", 0L));
+        stat.put("priorityUnset", byPriority.getOrDefault("null", 0L));
+
+        Map<String, Long> byAction = groupCount(tab, userId, tenantId, taskName, instanceIds,
+                priority, startDate, endDate, "action");
+        stat.put("actionApprove", byAction.getOrDefault(String.valueOf(WorkflowConverter.ACTION_APPROVE), 0L));
+        stat.put("actionReject", byAction.getOrDefault(String.valueOf(WorkflowConverter.ACTION_REJECT), 0L));
+        stat.put("actionTransfer", byAction.getOrDefault(String.valueOf(WorkflowConverter.ACTION_TRANSFER), 0L));
+        stat.put("actionSubmit", byAction.getOrDefault(String.valueOf(WorkflowConverter.ACTION_SUBMIT), 0L));
+        stat.put("actionWithdraw", byAction.getOrDefault(String.valueOf(WorkflowConverter.ACTION_WITHDRAW), 0L));
+        stat.put("actionCancel", byAction.getOrDefault(String.valueOf(WorkflowConverter.ACTION_CANCEL), 0L));
+        stat.put("actionIntervene", byAction.getOrDefault(String.valueOf(WorkflowConverter.ACTION_INTERVENE), 0L));
+        stat.put("actionReturn", byAction.getOrDefault(String.valueOf(WorkflowConverter.ACTION_RETURN), 0L));
+        stat.put("actionUnset", byAction.getOrDefault("null", 0L));
+
+        // 超时：截止时间不落库，= create_time + 节点 time_limit（小时）；此处用子查询真聚合
+        stat.put("overdue", countTasks(tab, userId, tenantId, taskName, instanceIds, priority,
+                startDate, endDate, w -> w.apply(OVERDUE_TASK_SQL)));
+        // 今日新增：create_time >= 今日 00:00（服务端时间）
+        stat.put("today", countTasks(tab, userId, tenantId, taskName, instanceIds, priority,
+                startDate, endDate, w -> w.ge("create_time", LocalDate.now().atStartOfDay())));
+        return stat;
+    }
+
+    /** 统计卡字段名（与前端约定；顺序即响应字段顺序） */
+    private static final List<String> TASK_STAT_KEYS = List.of(
+            "total", "pending", "done", "transferred",
+            "priorityHigh", "priorityMedium", "priorityLow", "priorityUnset",
+            "overdue", "today",
+            "actionApprove", "actionReject", "actionReturn", "actionTransfer",
+            "actionSubmit", "actionWithdraw", "actionCancel", "actionIntervene", "actionUnset");
+
+    /**
+     * 超时判定子查询：节点的 time_limit（小时）存在且 create_time + time_limit &lt; now()。
+     * workflow_task / workflow_node 均在租户插件忽略清单内，租户条件由外层 wrapper 手写，不受影响。
+     */
+    private static final String OVERDUE_TASK_SQL =
+            "EXISTS (SELECT 1 FROM workflow_node n WHERE n.id = workflow_task.node_id "
+            + "AND n.deleted = 0 AND n.time_limit IS NOT NULL "
+            + "AND workflow_task.create_time + (n.time_limit * INTERVAL '1 hour') < now())";
+
+    /**
+     * 任务查询公共条件（待办/已办口径 + 租户 + 名称 + 优先级 + 创建时间区间）
+     * 说明：workflow_task 在租户插件忽略清单内（MyBatisPlusConfig），租户条件必须在此手写。
+     *
+     * @param instanceIds 流程名称过滤反查出的实例ID集合；null = 不过滤；空集合由调用方短路
+     * @param extra       额外条件（统计按状态/动作/优先级分组时逐项追加）
+     */
+    private QueryWrapper<WorkflowTaskEntity> taskWrapper(String tab, Long userId, Long tenantId,
+                                                         String taskName, List<Long> instanceIds,
+                                                         String priority, String startDate, String endDate,
+                                                         Consumer<QueryWrapper<WorkflowTaskEntity>> extra) {
+        // 用 QueryWrapper（字符串列名）而非 LambdaQueryWrapper：统计侧需要 select(...) + groupBy(...) 做分组计数，
+        // 本仓既有分组计数也一律用 QueryWrapper（见 SaleReturnServiceImpl / ProductServiceImpl）。
+        QueryWrapper<WorkflowTaskEntity> wrapper = new QueryWrapper<>();
+        wrapper.eq("assignee_id", userId);
+        wrapper.eq("task_type", WorkflowConverter.TASK_TYPE_APPROVAL);
+        if ("done".equals(tab)) {
+            // 已办 = 已处理 ∪ 已转交
+            wrapper.in("status", WorkflowConverter.TASK_STATUS_DONE, WorkflowConverter.TASK_STATUS_TRANSFERRED);
+        } else {
+            wrapper.eq("status", WorkflowConverter.TASK_STATUS_PENDING);
+        }
+        if (tenantId != null) {
+            wrapper.eq("tenant_id", tenantId);
+        }
+        if (taskName != null && !taskName.isBlank()) {
+            wrapper.like("node_name", taskName);
+        }
+        if (instanceIds != null) {
+            wrapper.in("instance_id", instanceIds);
+        }
+        if (priority != null && !priority.isBlank()) {
+            wrapper.eq("priority", priority.trim());
+        }
+        // 创建时间闭区间：YYYY-MM-DD 解析失败即忽略该边界（与流程实例页口径一致）
+        LocalDateTime from = parseDayStart(startDate);
+        if (from != null) {
+            wrapper.ge("create_time", from);
+        }
+        LocalDateTime to = parseDayStart(endDate);
+        if (to != null) {
+            wrapper.lt("create_time", to.plusDays(1));
+        }
+        if (extra != null) {
+            extra.accept(wrapper);
+        }
+        return wrapper;
+    }
+
+    private long countTasks(String tab, Long userId, Long tenantId, String taskName, List<Long> instanceIds,
+                            String priority, String startDate, String endDate,
+                            Consumer<QueryWrapper<WorkflowTaskEntity>> extra) {
+        Long count = taskMapper.selectCount(
+                taskWrapper(tab, userId, tenantId, taskName, instanceIds, priority, startDate, endDate, extra));
+        return count != null ? count : 0L;
+    }
+
+    /**
+     * 单列 GROUP BY 计数（服务端真聚合）。
+     * 键统一转成字符串：PG 下 int 列返回 Integer、bigint 返回 Long，且 NULL 分组无法直接查表，故用 "null" 表示空值组。
+     */
+    private Map<String, Long> groupCount(String tab, Long userId, Long tenantId, String taskName,
+                                         List<Long> instanceIds, String priority, String startDate, String endDate,
+                                         String column) {
+        QueryWrapper<WorkflowTaskEntity> wrapper =
+                taskWrapper(tab, userId, tenantId, taskName, instanceIds, priority, startDate, endDate, null);
+        wrapper.select(column, "count(*) AS cnt").groupBy(column);
+        Map<String, Long> result = new HashMap<>();
+        for (Map<String, Object> row : taskMapper.selectMaps(wrapper)) {
+            Object key = row.get(column);
+            result.put(key != null ? String.valueOf(key) : "null", toLong(row.get("cnt")));
+        }
+        return result;
+    }
+
+    /**
+     * 流程名称 → 实例ID集合（供任务列表按流程名过滤）
+     *
+     * @return null = 未指定流程名（不过滤）；空列表 = 指定了但无匹配（调用方必须短路返回空结果）
+     */
+    private List<Long> resolveInstanceIdsByProcessName(String processName) {
+        List<Long> defIds = resolveDefinitionIdsByName(processName);
+        if (defIds == null) {
+            return null;
+        }
+        if (defIds.isEmpty()) {
+            return List.of();
+        }
+        return instanceMapper.selectList(new LambdaQueryWrapper<WorkflowInstanceEntity>()
+                        .in(WorkflowInstanceEntity::getDefinitionId, defIds))
+                .stream().map(WorkflowInstanceEntity::getId).toList();
     }
 
     // ==================== 流程监控 ====================
@@ -756,7 +1013,7 @@ public class WorkflowServiceImpl implements WorkflowService {
     }
 
     @Override
-    public boolean interveneInstance(String instanceId, String action, Long userId) {
+    public boolean interveneInstance(String instanceId, String action, Long userId, String reason) {
         WorkflowInstanceEntity entity = instanceMapper.selectById(parseLongOrNull(instanceId));
         if (entity == null) {
             log.warn("[workflow] 干预失败，实例不存在: {}", instanceId);
@@ -775,7 +1032,12 @@ public class WorkflowServiceImpl implements WorkflowService {
             log.warn("[workflow] 未知干预动作: {}", action);
             return false;
         }
-        if (!transitionTo(entity, targetStatus, userId, "流程干预: " + action)) {
+        // 干预是强审计动作：理由不允许为空。HTTP 入口已在 WorkflowController 硬校验
+        // （空白 → 400「请填写干预理由」）；此处保留兜底文案，覆盖非 HTTP 调用方。
+        // 审计文案落 workflow_task.comment
+        String auditComment = "流程干预[" + action + "]: "
+                + (reason != null && !reason.isBlank() ? reason.trim() : "未填写理由");
+        if (!transitionTo(entity, targetStatus, userId, auditComment)) {
             return false;
         }
         entity.setUpdateTime(LocalDateTime.now());
@@ -788,9 +1050,9 @@ public class WorkflowServiceImpl implements WorkflowService {
             publishApprovalCompleted(entity, "terminated", userId, null);
         }
 
-        // 记录干预操作
+        // 记录干预操作（理由落 workflow_task.comment，详情抽屉时间线可见）
         insertRecordTask(entity, entity.getCurrentNodeId(), entity.getCurrentNodeName(),
-                userId, resolveUserName(userId), WorkflowConverter.ACTION_INTERVENE, "流程干预: " + action);
+                userId, resolveUserName(userId), WorkflowConverter.ACTION_INTERVENE, auditComment);
 
         log.info("[workflow] 流程干预成功: instanceId={}, action={}", instanceId, action);
         return true;
@@ -848,7 +1110,9 @@ public class WorkflowServiceImpl implements WorkflowService {
         detail.put("taskName", task.getNodeName());
         detail.put("instanceId", String.valueOf(task.getInstanceId()));
         detail.put("processName", instance != null ? resolveDefinitionName(instance.getDefinitionId()) : null);
-        detail.put("priority", "medium");
+        // 优先级：如实回传 workflow_task.priority（可空列，V11.405.0 新增）。
+        // 本系统暂无优先级写入来源 → 通常为 null，前端显示「-」；不再硬编码成 "medium" 造假。
+        detail.put("priority", task.getPriority());
         detail.put("assignee", task.getAssigneeName() != null
                 ? task.getAssigneeName()
                 : (task.getAssigneeId() != null ? "用户" + task.getAssigneeId() : "未指定"));
@@ -858,6 +1122,8 @@ public class WorkflowServiceImpl implements WorkflowService {
         detail.put("status", task.getStatus());
         detail.put("action", WorkflowConverter.taskActionToString(task.getAction()));
         detail.put("comment", task.getComment());
+        // 处理时间：workflow_task.handle_time 已有列，此前任务接口未出参（已办台账看不到「我什么时候办的」）
+        detail.put("handleTime", formatTime(task.getHandleTime()));
         if (instance != null) {
             WorkflowDefinitionEntity def = definitionMapper.selectById(instance.getDefinitionId());
             detail.put("description", def != null ? def.getDescription() : null);
@@ -879,15 +1145,155 @@ public class WorkflowServiceImpl implements WorkflowService {
         return switch (action != null ? action : "") {
             case "approve" -> approve(instanceId, operator, comment);
             case "reject" -> reject(instanceId, operator, comment);
-            case "return" -> {
-                String target = "start".equals(returnNode) ? "发起人" : "上一节点";
-                yield reject(instanceId, operator, "[退回至" + target + "] " + (comment != null ? comment : ""));
-            }
+            // 退回：真实的节点回退（回退至发起人 / 上一节点并重建待办），不再是「reject + 备注」
+            case "return" -> returnTask(taskId, userId, returnNode, comment);
             default -> {
                 log.warn("任务审批失败，未知动作: action={}", action);
                 yield false;
             }
         };
+    }
+
+    /**
+     * 按任务退回（真实节点回退）
+     *
+     * 与「驳回」的区别：驳回把实例置为终态 rejected（流程结束）；退回把实例**留在审批中**，
+     * 只把 current_node 指回目标节点并重建待办，让目标处理人（发起人或上一节点审批人）重新处理。
+     * 若无法定位回退目标（例如当前已在首个节点却要求「退回上一节点」），退化为「驳回」并把原因
+     * 写进意见——保证「界面提示」与「实际结果」一致，绝不悄悄终止流程。
+     */
+    @Override
+    public boolean returnTask(String taskId, Long userId, String returnNode, String comment) {
+        WorkflowTaskEntity task = taskMapper.selectById(parseLongOrNull(taskId));
+        if (task == null || !Objects.equals(task.getStatus(), WorkflowConverter.TASK_STATUS_PENDING)) {
+            log.warn("任务退回失败，任务不存在或已处理: taskId={}", taskId);
+            return false;
+        }
+        WorkflowInstanceEntity entity = instanceMapper.selectById(task.getInstanceId());
+        if (entity == null || !Objects.equals(entity.getStatus(), WorkflowConverter.INST_APPROVING)) {
+            log.warn("任务退回失败，流程实例不存在或不在审批中: taskId={}, instanceId={}", taskId, task.getInstanceId());
+            return false;
+        }
+
+        boolean toApplicant = !"previous".equals(returnNode);
+        String targetLabel = toApplicant ? "发起人" : "上一节点";
+        String note = "[退回至" + targetLabel + "] " + (comment != null ? comment : "");
+
+        WorkflowDefinition definition = getWorkflowDefinition(String.valueOf(entity.getDefinitionId()));
+        if (definition == null) {
+            log.warn("流程定义缺失，无法退回: definitionId={}", entity.getDefinitionId());
+            return false;
+        }
+        // 当前节点编码：优先取任务行所属节点（同实例会签时更准确），退化取实例当前节点
+        String currentCode = resolveNodeCode(task.getNodeId());
+        if (currentCode == null) {
+            currentCode = resolveNodeCode(entity.getCurrentNodeId());
+        }
+        WorkflowNode targetNode = toApplicant
+                ? findStartNode(definition)
+                : findPreviousApprovalNode(definition, currentCode);
+        if (targetNode == null) {
+            Long operator = userId != null ? userId : task.getAssigneeId();
+            log.warn("退回目标节点不存在，退化为驳回: taskId={}, returnNode={}, currentCode={}",
+                    taskId, returnNode, currentCode);
+            return reject(String.valueOf(entity.getId()), operator, note + "（无可回退节点，已驳回）");
+        }
+
+        // 1) 结束当前待办：动作记为「退回」，已办台账能如实回看这一步是「退回」而不是「驳回」
+        task.setStatus(WorkflowConverter.TASK_STATUS_DONE);
+        task.setAction(WorkflowConverter.ACTION_RETURN);
+        task.setComment(note);
+        task.setHandleTime(LocalDateTime.now());
+        task.setUpdateTime(LocalDateTime.now());
+        taskMapper.updateById(task);
+
+        // 2) 实例回到目标节点，**保持审批中**（不置终态、不发审批完成回调）
+        WorkflowNodeEntity targetRow = findNodeRow(entity.getDefinitionId(), targetNode.getNodeId());
+        entity.setCurrentNodeId(targetRow != null ? targetRow.getId() : null);
+        entity.setCurrentNodeName(targetNode.getNodeName());
+        entity.setUpdateTime(LocalDateTime.now());
+        instanceMapper.updateById(entity);
+
+        // 3) 为目标节点重建待办
+        rebuildPendingTask(entity, targetNode, targetRow);
+
+        log.info("任务退回: taskId={}, instanceId={}, returnNode={}, targetNode={}",
+                taskId, entity.getId(), returnNode, targetNode.getNodeId());
+        return true;
+    }
+
+    /** 流程定义中的开始节点（无 nodeType=start 的历史定义退化取首个节点） */
+    private WorkflowNode findStartNode(WorkflowDefinition definition) {
+        List<WorkflowNode> nodes = definition != null ? definition.getNodes() : null;
+        if (nodes == null || nodes.isEmpty()) {
+            return null;
+        }
+        for (WorkflowNode node : nodes) {
+            if ("start".equals(node.getNodeType())) {
+                return node;
+            }
+        }
+        return nodes.get(0);
+    }
+
+    /**
+     * 「上一节点」= 节点序列中当前节点之前最近的、可承载待办的节点（跳过结束 / 条件 / 抄送节点）。
+     * 历史定义里 nodeType 为空的节点按审批节点处理（与 WorkflowConverter.nodeTypeToInt 的默认值一致）。
+     */
+    private WorkflowNode findPreviousApprovalNode(WorkflowDefinition definition, String currentCode) {
+        List<WorkflowNode> nodes = definition != null ? definition.getNodes() : null;
+        if (nodes == null || nodes.isEmpty() || currentCode == null) {
+            return null;
+        }
+        int idx = -1;
+        for (int i = 0; i < nodes.size(); i++) {
+            if (currentCode.equals(nodes.get(i).getNodeId())) {
+                idx = i;
+                break;
+            }
+        }
+        if (idx <= 0) {
+            return null;
+        }
+        for (int i = idx - 1; i >= 0; i--) {
+            String type = nodes.get(i).getNodeType();
+            if (type == null || "start".equals(type) || "approval".equals(type)) {
+                return nodes.get(i);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 退回后为目标节点重建待办。
+     * 开始节点在流程定义里**没有审批人配置**，不能走 resolveAssignees（否则会落一条 assignee_id 为空的
+     * 占位任务，发起人自己都看不到）→ 显式指派给流程发起人（「退回重提」语义）。
+     */
+    private void rebuildPendingTask(WorkflowInstanceEntity instance, WorkflowNode node, WorkflowNodeEntity nodeRow) {
+        if ("start".equals(node.getNodeType())) {
+            if (instance.getApplicantId() != null) {
+                createPendingTaskForUser(instance, nodeRow, instance.getApplicantId(), node.getNodeName());
+            } else {
+                log.warn("退回至发起人但实例无申请人ID，未重建待办: instanceId={}", instance.getId());
+            }
+            return;
+        }
+        createPendingTasks(instance, node);
+    }
+
+    /** 为指定用户创建节点待办（退回至发起人专用） */
+    private void createPendingTaskForUser(WorkflowInstanceEntity instance, WorkflowNodeEntity nodeRow,
+                                          Long userId, String nodeName) {
+        WorkflowTaskEntity task = new WorkflowTaskEntity();
+        task.setInstanceId(instance.getId());
+        task.setNodeId(nodeRow != null ? nodeRow.getId() : null);
+        task.setNodeName(nodeName);
+        task.setTaskType(WorkflowConverter.TASK_TYPE_APPROVAL);
+        task.setAssigneeId(userId);
+        task.setAssigneeName(resolveUserName(userId));
+        task.setStatus(WorkflowConverter.TASK_STATUS_PENDING);
+        task.setTenantId(instance.getTenantId());
+        taskMapper.insert(task);
     }
 
     @Override
@@ -904,7 +1310,10 @@ public class WorkflowServiceImpl implements WorkflowService {
     // ==================== 流程分析（Step 2） ====================
 
     @Override
-    public Map<String, Object> getAnalysisSummary(Long tenantId) {
+    public Map<String, Object> getAnalysisSummary(String processName, Long tenantId) {
+        // 空白串一律归一为 null（「全部流程」），避免 SQL 里出现 process_name = '' 的假筛选
+        String nodeProcessFilter = (processName != null && !processName.isBlank()) ? processName : null;
+
         Map<String, Object> stats = instanceMapper.selectOverallStats();
         Long todoTasks = taskMapper.selectCount(new LambdaQueryWrapper<WorkflowTaskEntity>()
                 .eq(WorkflowTaskEntity::getStatus, WorkflowConverter.TASK_STATUS_PENDING)
@@ -928,9 +1337,9 @@ public class WorkflowServiceImpl implements WorkflowService {
             processDuration.add(item);
         }
 
-        // 按节点分组的耗时与超时
+        // 按节点分组的耗时与超时（processName 非空时按流程过滤，供前端「节点耗时分析」下拉使用）
         List<Map<String, Object>> nodeDuration = new ArrayList<>();
-        for (Map<String, Object> row : taskMapper.selectNodeDurations()) {
+        for (Map<String, Object> row : taskMapper.selectNodeDurations(nodeProcessFilter)) {
             Map<String, Object> item = new HashMap<>();
             long taskCount = toLong(row.get("task_count"));
             long overdueCount = toLong(row.get("overdue_count"));
@@ -984,6 +1393,10 @@ public class WorkflowServiceImpl implements WorkflowService {
 
     /**
      * 按 definitionId 查找定义实体：数值按主键，非数值按 process_code（兼容内置流程编码）
+     *
+     * 读口径与列表一致（全局默认 + 租户自定义）：定义详情/节点解析必须能读到
+     * tenant_id = 0 的内置流程，否则「按编码发起流程 / 查看内置流程设计」全部失败，
+     * 故此处**不加**租户条件（写路径不经过本方法做归属判定）。
      */
     private WorkflowDefinitionEntity findDefinitionEntity(String definitionId) {
         if (definitionId == null || definitionId.isBlank()) {
@@ -1494,7 +1907,8 @@ public class WorkflowServiceImpl implements WorkflowService {
         record.put("instanceId", String.valueOf(task.getInstanceId()));
         WorkflowInstanceEntity instance = instanceMapper.selectById(task.getInstanceId());
         record.put("processName", instance != null ? resolveDefinitionName(instance.getDefinitionId()) : null);
-        record.put("priority", "medium");
+        // 优先级：如实回传 workflow_task.priority（V11.405.0 新增的可空列），不再硬编码 "medium"
+        record.put("priority", task.getPriority());
         record.put("assignee", task.getAssigneeName() != null
                 ? task.getAssigneeName()
                 : (task.getAssigneeId() != null ? "用户" + task.getAssigneeId() : "未指定"));
@@ -1503,6 +1917,8 @@ public class WorkflowServiceImpl implements WorkflowService {
         record.put("status", task.getStatus());
         record.put("action", WorkflowConverter.taskActionToString(task.getAction()));
         record.put("comment", task.getComment());
+        // 处理时间（已办台账必备列；workflow_task.handle_time 早已有列，此前未出参）
+        record.put("handleTime", formatTime(task.getHandleTime()));
         return record;
     }
 

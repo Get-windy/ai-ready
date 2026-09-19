@@ -24,7 +24,13 @@ import java.util.*;
 
 /**
  * 导入模板管理控制器
- * 
+ *
+ * <p><b>数据源（2026-09-19 落库改造）</b>：模板定义真实读写库表 {@code dev_template}
+ * （经 {@link ImportTemplateStore}，迁移 {@code V11.415.0}），
+ * <b>不再</b>是原先的进程内存注册表 {@code ImportTemplateRegistry}（已删除）。
+ * 因此新增/修改/删除都会持久化：重启不复原、多个实例读同一份数据。
+ * 本类 13 个端点的路径、入参、返回结构未变。
+ *
  * @author AI-Ready Team
  * @since 1.1.0
  */
@@ -36,7 +42,7 @@ import java.util.*;
 @Tag(name = "导入模板管理", description = "模板定义、生成、校验接口")
 public class ImportTemplateController {
 
-    private final ImportTemplateRegistry templateRegistry;
+    private final ImportTemplateStore templateStore;
     private final ImportTemplateGenerator templateGenerator;
     private final ImportTemplateValidator templateValidator;
 
@@ -45,34 +51,34 @@ public class ImportTemplateController {
     @GetMapping
     @Operation(summary = "获取所有模板列表")
     public ResponseEntity<List<ImportTemplateDefinition>> getAllTemplates() {
-        return ResponseEntity.ok(templateRegistry.getAllTemplates());
+        return ResponseEntity.ok(templateStore.getAllTemplates());
     }
 
     @GetMapping("/{templateId}")
     @Operation(summary = "获取模板详情")
     public ResponseEntity<ImportTemplateDefinition> getTemplate(@PathVariable String templateId) {
-        ImportTemplateDefinition template = templateRegistry.getTemplate(templateId);
+        ImportTemplateDefinition template = templateStore.getTemplate(templateId);
         return template != null ? ResponseEntity.ok(template) : ResponseEntity.notFound().build();
     }
 
     @GetMapping("/data-type/{dataType}")
     @Operation(summary = "根据数据类型获取模板")
     public ResponseEntity<ImportTemplateDefinition> getTemplateByDataType(@PathVariable String dataType) {
-        ImportTemplateDefinition template = templateRegistry.getTemplateByDataType(dataType);
+        ImportTemplateDefinition template = templateStore.getTemplateByDataType(dataType);
         return template != null ? ResponseEntity.ok(template) : ResponseEntity.notFound().build();
     }
 
     @GetMapping("/data-types")
     @Operation(summary = "获取支持的数据类型")
     public ResponseEntity<Set<String>> getSupportedDataTypes() {
-        return ResponseEntity.ok(templateRegistry.getSupportedDataTypes());
+        return ResponseEntity.ok(templateStore.getSupportedDataTypes());
     }
 
     @PostMapping
     @Operation(summary = "注册新模板")
     public ResponseEntity<Map<String, Object>> registerTemplate(@RequestBody ImportTemplateDefinition template) {
         try {
-            templateRegistry.register(template);
+            templateStore.register(template);
             return ResponseEntity.ok(Map.of(
                 "success", true,
                 "templateId", template.getTemplateId(),
@@ -93,7 +99,7 @@ public class ImportTemplateController {
             @RequestBody ImportTemplateDefinition template) {
         try {
             template.setTemplateId(templateId);
-            templateRegistry.updateTemplate(template);
+            templateStore.updateTemplate(template);
             return ResponseEntity.ok(Map.of(
                 "success", true,
                 "message", "模板更新成功"
@@ -109,7 +115,7 @@ public class ImportTemplateController {
     @DeleteMapping("/{templateId}")
     @Operation(summary = "删除模板")
     public ResponseEntity<Map<String, Object>> deleteTemplate(@PathVariable String templateId) {
-        boolean removed = templateRegistry.removeTemplate(templateId);
+        boolean removed = templateStore.removeTemplate(templateId);
         return ResponseEntity.ok(Map.of(
             "success", removed,
             "message", removed ? "模板删除成功" : "模板不存在"
@@ -121,7 +127,7 @@ public class ImportTemplateController {
     @GetMapping("/{templateId}/download")
     @Operation(summary = "下载导入模板")
     public void downloadTemplate(@PathVariable String templateId, HttpServletResponse response) throws IOException {
-        ImportTemplateDefinition template = templateRegistry.getTemplate(templateId);
+        ImportTemplateDefinition template = templateStore.getTemplate(templateId);
         if (template == null) {
             response.sendError(HttpServletResponse.SC_NOT_FOUND, "模板不存在");
             return;
@@ -140,7 +146,7 @@ public class ImportTemplateController {
     @GetMapping("/data-type/{dataType}/download")
     @Operation(summary = "根据数据类型下载模板")
     public void downloadTemplateByDataType(@PathVariable String dataType, HttpServletResponse response) throws IOException {
-        ImportTemplateDefinition template = templateRegistry.getTemplateByDataType(dataType);
+        ImportTemplateDefinition template = templateStore.getTemplateByDataType(dataType);
         if (template == null) {
             response.sendError(HttpServletResponse.SC_NOT_FOUND, "不支持的数据类型: " + dataType);
             return;
@@ -164,7 +170,7 @@ public class ImportTemplateController {
             @PathVariable String templateId,
             @RequestParam("file") MultipartFile file) throws IOException {
         
-        ImportTemplateDefinition template = templateRegistry.getTemplate(templateId);
+        ImportTemplateDefinition template = templateStore.getTemplate(templateId);
         if (template == null) {
             return ResponseEntity.notFound().build();
         }
@@ -184,7 +190,7 @@ public class ImportTemplateController {
             @RequestBody Map<String, Object> rowData,
             @RequestParam(defaultValue = "1") int rowNum) {
         
-        ImportTemplateDefinition template = templateRegistry.getTemplate(templateId);
+        ImportTemplateDefinition template = templateStore.getTemplate(templateId);
         if (template == null) {
             return ResponseEntity.notFound().build();
         }
@@ -200,7 +206,7 @@ public class ImportTemplateController {
     @GetMapping("/{templateId}/preview")
     @Operation(summary = "预览模板结构")
     public ResponseEntity<TemplatePreview> previewTemplate(@PathVariable String templateId) {
-        ImportTemplateDefinition template = templateRegistry.getTemplate(templateId);
+        ImportTemplateDefinition template = templateStore.getTemplate(templateId);
         if (template == null) {
             return ResponseEntity.notFound().build();
         }
@@ -210,7 +216,8 @@ public class ImportTemplateController {
             fields.add(new FieldPreview(
                 field.getFieldName(),
                 field.getFieldTitle(),
-                field.getFieldType().name(),
+                // 定义已落库（content 列的 JSON），字段类型可能缺失 → 空值原样返回，不让单行脏数据打成 500
+                field.getFieldType() == null ? null : field.getFieldType().name(),
                 field.isRequired(),
                 field.getMaxLength(),
                 field.getDropdownOptions(),
@@ -236,23 +243,24 @@ public class ImportTemplateController {
             @PathVariable String templateId,
             @PathVariable String fieldName) {
         
-        ImportTemplateDefinition template = templateRegistry.getTemplate(templateId);
+        ImportTemplateDefinition template = templateStore.getTemplate(templateId);
         if (template == null) {
             return ResponseEntity.notFound().build();
         }
         
         TemplateField field = template.getFields().stream()
-            .filter(f -> f.getFieldName().equals(fieldName))
+            .filter(f -> fieldName.equals(f.getFieldName()))
             .findFirst()
             .orElse(null);
-        
+
         if (field == null) {
             return ResponseEntity.notFound().build();
         }
-        
+
         return ResponseEntity.ok(new FieldValidationRules(
             field.getFieldName(),
-            field.getFieldType().name(),
+            // 同 previewTemplate：字段类型缺失时返回空值而非 NPE
+            field.getFieldType() == null ? null : field.getFieldType().name(),
             field.isRequired(),
             field.getMaxLength(),
             field.getMinValue(),

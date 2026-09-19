@@ -8,11 +8,19 @@
     </select>
 
     <!-- 根据用户ID查询权限列表 -->
+    <!--
+      ⚠️ 状态的正确取值是 `0`，不要改回 1：
+      `SysPermission.status` 的定义是「0-正常 / 1-禁用」（见实体字段注释，
+      且 `PermissionInitializationConfig:534` 为 `permission.setStatus(0); // 启用`；
+      devdb 现有 364 行**全部**为 0）。
+      写成 `p.status = 1` 等于「只取禁用权限」→ 本查询**恒返回空**
+      （2026-09-19 与同文件的 `selectByRoleId`/`selectByParentId` 对照后修正；这两处本就不过滤 status）。
+    -->
     <select id="selectByUserId" resultType="cn.aiedge.base.entity.SysPermission">
         SELECT DISTINCT p.* FROM sys_permission p
         INNER JOIN sys_role_permission rp ON p.id = rp.permission_id
         INNER JOIN sys_user_role ur ON rp.role_id = ur.role_id
-        WHERE ur.user_id = #{userId} AND p.deleted = 0 AND p.status = 1
+        WHERE ur.user_id = #{userId} AND p.deleted = 0 AND p.status = 0
         ORDER BY p.sort ASC
     </select>
 
@@ -31,13 +39,14 @@
     </select>
 
     <!-- 查询菜单类型的权限列表（用于前端菜单渲染） -->
+    <!-- ⚠️ 同上：`p.status = 0` 才是「正常」，写 1 会恒空。 -->
     <select id="selectMenuPermissions" resultType="cn.aiedge.base.entity.SysPermission">
         SELECT DISTINCT p.* FROM sys_permission p
         INNER JOIN sys_role_permission rp ON p.id = rp.permission_id
         INNER JOIN sys_user_role ur ON rp.role_id = ur.role_id
-        WHERE ur.user_id = #{userId} 
-        AND p.deleted = 0 
-        AND p.status = 1
+        WHERE ur.user_id = #{userId}
+        AND p.deleted = 0
+        AND p.status = 0
         AND p.permission_type = 1
         AND p.visible = 1
         ORDER BY p.sort ASC

@@ -1,5 +1,6 @@
 package cn.aiedge.platform.controller;
 
+import cn.aiedge.platform.dto.ConnectionTestResult;
 import cn.aiedge.platform.model.MailConfig;
 import cn.aiedge.platform.service.MailConfigService;
 import cn.dev33.satoken.annotation.SaCheckPermission;
@@ -25,9 +26,8 @@ public class MailConfigController {
     @GetMapping("/config")
     @SaCheckPermission("platform:mail:config")
     @Operation(summary = "获取邮件配置")
-    public ResponseEntity<Map<String, Object>> getConfig(
-            @RequestHeader(value = "X-Tenant-Id", required = false) Long tenantId) {
-        MailConfig config = mailConfigService.getConfig(tenantId);
+    public ResponseEntity<Map<String, Object>> getConfig() {
+        MailConfig config = mailConfigService.getConfig(0L);
         return ResponseEntity.ok(Map.of("code", 200, "data", config, "message", "ok"));
     }
 
@@ -35,9 +35,8 @@ public class MailConfigController {
     @SaCheckPermission("platform:mail:update")
     @Operation(summary = "保存邮件配置")
     public ResponseEntity<Map<String, Object>> saveConfig(
-            @RequestBody MailConfig config,
-            @RequestHeader(value = "X-Tenant-Id", required = false) Long tenantId) {
-        MailConfig saved = mailConfigService.saveConfig(config, tenantId);
+            @RequestBody MailConfig config) {
+        MailConfig saved = mailConfigService.saveConfig(config, 0L);
         return ResponseEntity.ok(Map.of("success", true, "config", saved));
     }
 
@@ -46,10 +45,11 @@ public class MailConfigController {
     @Operation(summary = "测试SMTP连接")
     public ResponseEntity<Map<String, Object>> testConnection(
             @RequestBody MailConfig config) {
-        boolean success = mailConfigService.testConnection(config);
+        // 真实测试：返回布尔 + 人话原因（此前只 return true，页面永远显示成功）
+        ConnectionTestResult result = mailConfigService.testConnection(config);
         return ResponseEntity.ok(Map.of(
-                "success", success,
-                "message", success ? "SMTP连接测试成功" : "SMTP连接测试失败"
+                "success", result.success(),
+                "message", result.message()
         ));
     }
 }

@@ -1,5 +1,6 @@
 package cn.aiedge.platform.service;
 
+import cn.aiedge.platform.dto.ConnectionTestResult;
 import cn.aiedge.platform.model.StorageConfig;
 
 /**
@@ -20,5 +21,5 @@ public interface StorageConfigService {
     /**
      * 测试存储连接
      */
-    boolean testConnection(StorageConfig config);
+    ConnectionTestResult testConnection(StorageConfig config);
 }

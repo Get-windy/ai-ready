@@ -5,10 +5,10 @@
   <parent>
     <groupId>cn.aiedge.erp</groupId>
     <artifactId>erp</artifactId>
-    <version>0.3.20</version>
+    <version>0.3.21</version>
   </parent>
   <artifactId>erp-marketing</artifactId>
-  <version>0.3.20</version>
+  <version>0.3.21</version>
   <name>企智连·统一营销模块</name>
   <description>营销活动、促销规则、优惠券、会员卡、佣金管理 - 整合原 erp-loyalty + erp-stock 营销功能</description>
   <licenses>
@@ -25,6 +25,15 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>cn.aiedge.erp</groupId>
+      <artifactId>erp-finance</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-redis</artifactId>
     </dependency>
     <dependency>
       <groupId>com.baomidou</groupId>

@@ -53,7 +53,10 @@
         </div>
       </template>
 
-      <div class="transfer-list-page">
+      <div
+        ref="tableWrap"
+        class="transfer-list-page"
+      >
         <!-- 统计卡片 -->
         <div class="stat-cards">
           <div class="stat-card stat-draft">
@@ -116,7 +119,6 @@
           delete-permission="erp:fixed-asset:transfer:delete"
           :min-empty-rows="12"
           @add="showCreateModal"
-          @cell-dblclick="viewDetail"
           @edit="editRecord"
           @delete="handleDelete"
           @refresh="debounceClick('refresh', fetchData)"
@@ -364,6 +366,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
+import { useRowDblclick } from '@/composables/useRowDblclick'
 import { onBeforeRouteLeave } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import {
@@ -624,6 +627,11 @@ function viewDetail(record: any) {
   modalVisible.value = true
   nextTick(() => { saveFormSnapshot(); watchReady = true })
 }
+
+// 双击行打开详情 —— 页面侧自行实现（不依赖共享表格组件派发事件）
+// 行标识由表格行上的 data-row-key（= row-key 指定的 id）反查得到；占位空行不带该属性
+const tableWrap = ref<HTMLElement | null>(null)
+useRowDblclick(tableWrap, () => tableDataSource.value, viewDetail, 'id')
 
 function handleModalOk() {
   modalLoading.value = true

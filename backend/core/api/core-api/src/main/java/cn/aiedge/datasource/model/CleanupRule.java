@@ -34,11 +34,23 @@ public class CleanupRule implements Serializable {
     @Schema(description = "Cron表达式")
     private String cronExpression;
 
-    @Schema(description = "状态: running/paused/stopped")
+    @Schema(description = "启停状态: running/paused/stopped（不是执行状态，执行结果见 lastRunStatus）")
     private String status;
 
     @Schema(description = "描述")
     private String description;
+
+    @Schema(description = "最近一次执行时间")
+    private LocalDateTime lastRunTime;
+
+    @Schema(description = "最近一次执行结论: success/failed/rejected")
+    private String lastRunStatus;
+
+    @Schema(description = "最近一次实际删除行数")
+    private Long lastDeletedCount;
+
+    @Schema(description = "最近一次执行明细或失败原因")
+    private String lastRunResult;
 
     @Schema(description = "租户ID")
     private Long tenantId;
@@ -56,7 +68,7 @@ public class CleanupRule implements Serializable {
     private String updateBy;
 
     @Schema(description = "是否删除")
-    private Boolean deleted;
+    private Integer deleted;
 
     // Getters and Setters
     public Long getId() { return id; }
@@ -75,6 +87,14 @@ public class CleanupRule implements Serializable {
     public void setStatus(String status) { this.status = status; }
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
+    public LocalDateTime getLastRunTime() { return lastRunTime; }
+    public void setLastRunTime(LocalDateTime lastRunTime) { this.lastRunTime = lastRunTime; }
+    public String getLastRunStatus() { return lastRunStatus; }
+    public void setLastRunStatus(String lastRunStatus) { this.lastRunStatus = lastRunStatus; }
+    public Long getLastDeletedCount() { return lastDeletedCount; }
+    public void setLastDeletedCount(Long lastDeletedCount) { this.lastDeletedCount = lastDeletedCount; }
+    public String getLastRunResult() { return lastRunResult; }
+    public void setLastRunResult(String lastRunResult) { this.lastRunResult = lastRunResult; }
     public Long getTenantId() { return tenantId; }
     public void setTenantId(Long tenantId) { this.tenantId = tenantId; }
     public LocalDateTime getCreateTime() { return createTime; }
@@ -85,6 +105,6 @@ public class CleanupRule implements Serializable {
     public void setCreateBy(String createBy) { this.createBy = createBy; }
     public String getUpdateBy() { return updateBy; }
     public void setUpdateBy(String updateBy) { this.updateBy = updateBy; }
-    public Boolean getDeleted() { return deleted; }
-    public void setDeleted(Boolean deleted) { this.deleted = deleted; }
+    public Integer getDeleted() { return deleted; }
+    public void setDeleted(Integer deleted) { this.deleted = deleted; }
 }

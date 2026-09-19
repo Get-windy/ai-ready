@@ -45,7 +45,11 @@
         </div>
       </template>
 
-      <div class="finance-writeoff-page">
+      <!-- ref 供页面侧双击行入口使用（表格自身的双击事件冒泡到该容器） -->
+      <div
+        ref="tableWrap"
+        class="finance-writeoff-page"
+      >
         <!-- 统计卡片 -->
         <div class="stat-cards">
           <div class="stat-card stat-total">
@@ -121,7 +125,6 @@
               :selectable="true"
               @refresh="fetchData"
               @add="handleAdd"
-              @cell-dblclick="handleView"
               @page-change="handlePageChange"
               @filter-change="handleFilterChange"
               @selection-change="handleSelectionChange"
@@ -235,7 +238,6 @@
               :selectable="true"
               @refresh="fetchData"
               @add="handleAdd"
-              @cell-dblclick="handleView"
               @page-change="handlePageChange"
               @filter-change="handleFilterChange"
               @selection-change="handleSelectionChange"
@@ -459,6 +461,7 @@ import {
 } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
+import { useRowDblclick } from '@/composables/useRowDblclick'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 import { receiptApi, paymentApi } from '@/api/finance'
@@ -650,6 +653,20 @@ const handleView = (record: any) => {
   const name = activeTab.value === 'receipt' ? record.customerName : record.supplierName
   message.info(`查看详情: ${name}`)
 }
+
+/**
+ * 双击行查看详情 —— **页面侧自行实现**（共享表格组件不再派发该事件）
+ * 行标识由表格 <tr> 上的 data-row-key 反查（与 row-key="id" 同口径），
+ * 占位空行不带该属性，行内按钮等交互控件的双击也会被过滤掉。
+ * 收款核销 / 付款核销两个标签页各有一张表且共用同一个容器，故按当前标签页返回对应行数组。
+ */
+const tableWrap = ref<HTMLElement | null>(null)
+useRowDblclick(
+  tableWrap,
+  () => (activeTab.value === 'receipt' ? receiptTableData.value : paymentTableData.value),
+  handleView,
+  'id',
+)
 
 const handleSearch = () => {
   pagination.current = 1

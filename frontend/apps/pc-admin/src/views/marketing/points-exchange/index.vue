@@ -1,283 +1,507 @@
 <template>
-  <div>
-    <a-alert
-      type="warning"
-      show-icon
-      message="积分兑换流水（兑换记录/审核）后端端点待补全"
-      description="当前页对接忠诚程序（LOYALTY 积分方案）真实数据，可维护积分方案的规则与有效期；会员实际兑换记录列表将在后端提供端点后接入。"
-      style="margin-bottom: 16px"
-    />
-    <ARReportPage
-      ref="reportRef"
-      title="积分兑换"
-      :query-fields="queryFields"
-      :columns="columns"
-      :fetcher="fetcher"
-      page-param-style="pageNum"
-      export-file-name="积分方案"
-      row-key="id"
-    >
-      <template #header-extra>
-        <a-button
-          type="primary"
-          size="small"
-          @click="openCreate"
-        >
-          <template #icon>
-            <PlusOutlined />
-          </template>新增积分方案
-        </a-button>
-      </template>
-      <template #bodyCell="{ column, record, text }">
-        <template v-if="column.dataIndex === 'triggerType'">
-          {{ TRIGGER_MAP[text] || text || '-' }}
-        </template>
-        <template v-else-if="column.dataIndex === 'applyScope'">
-          {{ SCOPE_MAP[text] || text || '-' }}
-        </template>
-        <template v-else-if="column.dataIndex === 'period'">
-          {{ fmtDate(record.startDate) }} ~ {{ fmtDate(record.endDate) }}
-        </template>
-        <template v-else-if="['maxUsage', 'usageCount'].includes(column.dataIndex as string)">
-          {{ formatNum(text) }}
-        </template>
-        <template v-else-if="column.dataIndex === 'isActive'">
-          <a-switch
-            :checked="record.isActive === 1"
-            checked-children="启用"
-            un-checked-children="停用"
+  <ErrorBoundary @error="handleError">
+    <PageContainer full-height>
+      <!--
+        积分兑换（营销 → 会员中心 → 积分兑换，菜单 80301）
+        对标 ql361「营销 → 会员中心 → 积分兑换」：**可兑换商品目录**维护页
+        13 列（默认 7 列）：商品名称/货号/单位/兑换所需积分/规格/型号/产地 + 6 个价格列（默认隐藏）
+        对标文档：docs/Yh-Spec/手动整理对标开发文档/营销模块/积分兑换开发文档.md
+        查询区 1 项（货号/商品名称复合检索）；工具栏 新增兑换商品 ｜ 刷新 / 打印(F8) / 导出
+        对标无「页面配置」弹窗
+        口径：商品名称/货号/单位/规格/型号/产地与 6 个价格列实时取自商品主数据，本页只维护「兑换所需积分」
+      -->
+      <CategoryListLayout
+        :tabs="[]"
+        :show-category-panel="false"
+        :show-table-footer="true"
+      >
+        <template #toolbar-left>
+          <a-button
+            type="primary"
             size="small"
-            @change="(checked: boolean) => toggleActive(record, checked)"
-          />
+            class="btn-add"
+            @click="openCreate"
+          >
+            <PlusOutlined /> 新增兑换商品
+          </a-button>
         </template>
-        <template v-else-if="column.key === 'action'">
-          <a-space>
-            <a @click="openEdit(record)">编辑</a>
-            <a-divider type="vertical" />
-            <a-popconfirm
-              title="确认删除该积分方案？"
-              @confirm="handleDelete(record)"
+
+        <template #toolbar-right>
+          <a-space :size="8">
+            <a-button
+              size="small"
+              :loading="loading"
+              @click="fetchList"
             >
-              <a class="text-danger">删除</a>
-            </a-popconfirm>
+              <ReloadOutlined /> 刷新
+            </a-button>
+            <a-button
+              size="small"
+              @click="handlePrint"
+            >
+              <PrinterOutlined /> 打印(F8)
+            </a-button>
+            <a-button
+              size="small"
+              :loading="exporting"
+              @click="handleExport"
+            >
+              <DownloadOutlined /> 导出
+            </a-button>
           </a-space>
         </template>
-      </template>
-    </ARReportPage>
 
-    <!-- 新增/编辑积分方案弹窗 -->
-    <a-modal
-      v-model:open="modalVisible"
-      :title="editingProgram ? '编辑积分方案' : '新增积分方案'"
-      :confirm-loading="modalLoading"
-      :width="560"
-      @ok="handleModalOk"
-      @cancel="modalVisible = false"
-    >
-      <a-form
-        :label-col="{ span: 6 }"
-        :wrapper-col="{ span: 16 }"
-        style="margin-top: 16px"
+        <template #search-fields>
+          <div class="search-area">
+            <div class="search-row">
+              <span class="search-label">筛选条件</span>
+              <a-input
+                v-model:value="searchForm.keyword"
+                placeholder="请输入货号/商品名称"
+                size="small"
+                style="width: 220px"
+                allow-clear
+                @press-enter="handleSearch"
+              />
+              <a-button
+                type="primary"
+                size="small"
+                @click="handleSearch"
+              >
+                查询
+              </a-button>
+            </div>
+          </div>
+        </template>
+
+        <template #table>
+          <div class="table-area">
+            <BillDetailTable
+              v-model:data-source="tableData"
+              :columns="columns"
+              :loading="loading"
+              :view-mode="true"
+              :min-rows="20"
+              row-key="id"
+              storage-key="marketing-points-exchange-table-columns"
+              global-config-key="marketing-points-exchange-table-columns"
+            >
+              <template #nameCell="{ record }">
+                <a
+                  v-if="!record.__ghost"
+                  class="cell-link"
+                  @click="openEdit(record)"
+                >{{ record.productName }}</a>
+              </template>
+
+              <template #pointsCell="{ record }">
+                <span v-if="!record.__ghost">{{ fmtPoints(record.exchangePoints) }}</span>
+              </template>
+
+              <template #actionCell="{ record }">
+                <a-space
+                  v-if="!record.__ghost"
+                  :size="0"
+                >
+                  <a-button
+                    type="link"
+                    size="small"
+                    @click="openEdit(record)"
+                  >
+                    修改
+                  </a-button>
+                  <a-button
+                    type="link"
+                    size="small"
+                    danger
+                    @click="handleDelete(record)"
+                  >
+                    删除
+                  </a-button>
+                </a-space>
+              </template>
+            </BillDetailTable>
+          </div>
+        </template>
+
+        <template #table-footer>
+          <StandardPagination
+            variant="classic"
+            :current="pagination.current"
+            :page-size="pagination.pageSize"
+            :total="pagination.total"
+            :page-size-options="[20, 50, 100]"
+            @change="handlePageChange"
+          />
+        </template>
+      </CategoryListLayout>
+
+      <!-- ═══ 新增兑换商品（选品入目录 + 兑换所需积分） ═══ -->
+      <a-modal
+        v-model:open="formOpen"
+        :title="editingId ? '修改兑换商品' : '新增兑换商品'"
+        :confirm-loading="saving"
+        width="560px"
+        @ok="handleSave"
       >
-        <a-form-item
-          label="方案名称"
-          required
+        <a-form
+          :label-col="{ span: 6 }"
+          :wrapper-col="{ span: 16 }"
+          size="small"
+          style="margin-top: 12px"
         >
-          <a-input
-            v-model:value="modalForm.name"
-            placeholder="请输入方案名称"
-          />
-        </a-form-item>
-        <a-form-item label="触发方式">
-          <a-select
-            v-model:value="modalForm.triggerType"
-            :options="triggerOptions"
-            placeholder="请选择"
-            allow-clear
-          />
-        </a-form-item>
-        <a-form-item label="有效期">
-          <a-range-picker
-            v-model:value="modalForm.dateRange"
-            style="width: 100%"
-          />
-        </a-form-item>
-        <a-form-item label="适用范围">
-          <a-select
-            v-model:value="modalForm.applyScope"
-            :options="scopeOptions"
-            placeholder="请选择"
-            allow-clear
-          />
-        </a-form-item>
-        <a-form-item label="最大兑换次数">
-          <a-input-number
-            v-model:value="modalForm.maxUsage"
-            :min="1"
-            placeholder="留空表示不限"
-            style="width: 100%"
-          />
-        </a-form-item>
-        <a-form-item label="排序">
-          <a-input-number
-            v-model:value="modalForm.sortOrder"
-            :min="0"
-            style="width: 100%"
-          />
-        </a-form-item>
-        <a-form-item label="方案说明">
-          <a-textarea
-            v-model:value="modalForm.description"
-            :rows="2"
-            placeholder="积分兑换规则说明"
-          />
-        </a-form-item>
-      </a-form>
-    </a-modal>
-  </div>
+          <a-form-item label="商品">
+            <a-space v-if="!editingId">
+              <a-button
+                size="small"
+                @click="productPickerOpen = true"
+              >
+                选择商品
+              </a-button>
+              <span class="selected-tip">{{ form.productName || '未选择' }}</span>
+            </a-space>
+            <span v-else>{{ form.productName }}（{{ form.productCode }}）</span>
+          </a-form-item>
+          <a-form-item
+            label="兑换所需积分"
+            required
+          >
+            <a-input-number
+              v-model:value="form.exchangePoints"
+              :min="0"
+              :precision="0"
+              style="width: 180px"
+            />
+          </a-form-item>
+          <a-form-item label="排序">
+            <a-input-number
+              v-model:value="form.sort"
+              :min="0"
+              :precision="0"
+              style="width: 180px"
+            />
+          </a-form-item>
+          <a-form-item label="备注">
+            <a-input
+              v-model:value="form.remark"
+              placeholder="请输入备注"
+            />
+          </a-form-item>
+        </a-form>
+      </a-modal>
+
+      <ProductSelectModal
+        v-model:open="productPickerOpen"
+        multiple
+        @confirm="handleProductsPicked"
+      />
+    </PageContainer>
+  </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
-import dayjs, { type Dayjs } from 'dayjs'
-import { message } from 'ant-design-vue'
-import { PlusOutlined } from '@ant-design/icons-vue'
-import ARReportPage from '@/components/ARReportPage/ARReportPage.vue'
-import type { ReportQueryField } from '@/components/ARReportPage/types'
-import { loyaltyProgramApi, type LoyaltyProgram } from '@/api/marketing'
+import { ref, reactive, onMounted, onBeforeUnmount } from 'vue'
+import { message, Modal } from 'ant-design-vue'
+import dayjs from 'dayjs'
+import { PlusOutlined, ReloadOutlined, PrinterOutlined, DownloadOutlined } from '@ant-design/icons-vue'
+import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayout.vue'
+import BillDetailTable from '@/components/BillFormPage/BillDetailTable/index.vue'
+import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTable/types'
+import StandardPagination from '@/components/Pagination/Pagination.vue'
+import ProductSelectModal from '@/components/ProductSelectModal/index.vue'
+import { pointsExchangeApi, type PointsExchangeRow } from '@/api/marketing'
 
-// ═══ 字典（与后端 LoyaltyProgram 注释一致） ═══
-const TRIGGER_MAP: Record<string, string> = { AUTO: '自动触发', CODE: '需输入码' }
-const SCOPE_MAP: Record<string, string> = { ON_ORDER: '整单', ON_PRODUCT: '指定产品', ON_CATEGORY: '指定分类' }
-const triggerOptions = Object.entries(TRIGGER_MAP).map(([value, label]) => ({ label, value }))
-const scopeOptions = Object.entries(SCOPE_MAP).map(([value, label]) => ({ label, value }))
+defineOptions({ name: 'MarketingPointsExchange' })
 
-const reportRef = ref<InstanceType<typeof ARReportPage>>()
+const loading = ref(false)
+const exporting = ref(false)
+const tableData = ref<PointsExchangeRow[]>([])
+const searchForm = reactive({ keyword: '' })
+const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
 
-const queryFields: ReportQueryField[] = [
-  { key: 'keyword', type: 'input', label: '关键字', placeholder: '方案名称' }
+// 对标 13 列（默认 7 列，6 个价格列默认隐藏）
+const columns: DetailColumnConfig[] = [
+  { key: 'rowNo', title: '', type: 'rowNo', width: 40, fixed: 'left' },
+  { key: 'action', title: '操作', type: 'action', slotName: 'actionCell', width: 130, fixed: 'left' },
+  { key: 'productName', title: '商品名称', type: 'slot', slotName: 'nameCell', width: 260 },
+  { key: 'productCode', title: '货号', type: 'input', width: 140 },
+  { key: 'unit', title: '单位', type: 'input', width: 80 },
+  { key: 'exchangePoints', title: '兑换所需积分', type: 'slot', slotName: 'pointsCell', width: 130 },
+  { key: 'spec', title: '规格', type: 'input', width: 140 },
+  { key: 'model', title: '型号', type: 'input', width: 120 },
+  { key: 'origin', title: '产地', type: 'input', width: 120 },
+  { key: 'presetPurchasePrice', title: '预设进价', type: 'input', width: 110, defaultHidden: true },
+  { key: 'referenceCost', title: '参考成本', type: 'input', width: 110, defaultHidden: true },
+  { key: 'recentPurchasePrice', title: '最近进价', type: 'input', width: 110, defaultHidden: true },
+  { key: 'wholesalePrice', title: '批发价', type: 'input', width: 110, defaultHidden: true },
+  { key: 'retailPrice', title: '零售价', type: 'input', width: 110, defaultHidden: true },
+  { key: 'minSalePrice', title: '最低售价', type: 'input', width: 110, defaultHidden: true },
 ]
 
-// ═══ 表格列 ═══
-const columns: any[] = [
-  { title: '方案名称', dataIndex: 'name', key: 'name', width: 160, ellipsis: true },
-  { title: '触发方式', dataIndex: 'triggerType', key: 'triggerType', width: 100 },
-  { title: '有效期', dataIndex: 'period', key: 'period', width: 210 },
-  { title: '适用范围', dataIndex: 'applyScope', key: 'applyScope', width: 100 },
-  { title: '最大兑换次数', dataIndex: 'maxUsage', key: 'maxUsage', width: 110, align: 'right' },
-  { title: '已兑换次数', dataIndex: 'usageCount', key: 'usageCount', width: 100, align: 'right' },
-  { title: '排序', dataIndex: 'sortOrder', key: 'sortOrder', width: 70 },
-  { title: '状态', dataIndex: 'isActive', key: 'isActive', width: 90 },
-  { title: '操作', key: 'action', width: 140, fixed: 'right' }
-]
-
-function formatNum(val: number | null | undefined): string {
-  if (val === null || val === undefined || isNaN(Number(val))) return '-'
-  return Number(val).toLocaleString('zh-CN')
+function fmtPoints(v: any): string {
+  return v == null ? '-' : String(v)
 }
 
-function fmtDate(val: string | null | undefined): string {
-  return val ? dayjs(val).format('YYYY-MM-DD') : '不限'
+async function fetchList() {
+  loading.value = true
+  try {
+    const res: any = await pointsExchangeApi.page({
+      keyword: searchForm.keyword || undefined,
+      pageNum: pagination.current,
+      pageSize: pagination.pageSize,
+    })
+    tableData.value = res?.records || []
+    pagination.total = Number(res?.total) || 0
+  } catch (error: any) {
+    console.error('[积分兑换] 加载列表失败', error)
+    message.error(error?.response?.data?.message || '加载列表失败')
+    tableData.value = []
+    pagination.total = 0
+  } finally {
+    loading.value = false
+  }
 }
 
-// ═══ 数据请求（固定 LOYALTY 类型） ═══
-function fetcher(params: Record<string, any>) {
-  return loyaltyProgramApi.page({ ...params, programType: 'LOYALTY' })
+function handleSearch() {
+  pagination.current = 1
+  fetchList()
+}
+function handlePageChange(page: number, pageSize: number) {
+  pagination.current = page
+  pagination.pageSize = pageSize
+  fetchList()
 }
 
-// ═══ 新增/编辑弹窗 ═══
-const modalVisible = ref(false)
-const modalLoading = ref(false)
-const editingProgram = ref<LoyaltyProgram | null>(null)
-const modalForm = reactive<{
-  name?: string
-  triggerType?: string
-  dateRange?: [Dayjs, Dayjs]
-  applyScope?: string
-  maxUsage?: number
-  sortOrder?: number
-  description?: string
-}>({})
+// ═══ 新增 / 修改 ═══
+const formOpen = ref(false)
+const saving = ref(false)
+const editingId = ref<any>(null)
+const productPickerOpen = ref(false)
+const emptyForm = () => ({
+  productId: undefined as any,
+  productName: '',
+  productCode: '',
+  exchangePoints: 0 as number | undefined,
+  sort: 0 as number | undefined,
+  remark: '',
+})
+const form = reactive(emptyForm())
 
 function openCreate() {
-  editingProgram.value = null
-  Object.assign(modalForm, { name: undefined, triggerType: 'AUTO', dateRange: undefined, applyScope: 'ON_ORDER', maxUsage: undefined, sortOrder: 0, description: undefined })
-  modalVisible.value = true
+  editingId.value = null
+  Object.assign(form, emptyForm())
+  formOpen.value = true
 }
 
 function openEdit(record: any) {
-  editingProgram.value = record
-  Object.assign(modalForm, {
-    name: record.name,
-    triggerType: record.triggerType,
-    dateRange: record.startDate && record.endDate ? [dayjs(record.startDate), dayjs(record.endDate)] : undefined,
-    applyScope: record.applyScope,
-    maxUsage: record.maxUsage,
-    sortOrder: record.sortOrder,
-    description: record.description
+  editingId.value = record.id
+  Object.assign(form, emptyForm(), {
+    productId: record.productId,
+    productName: record.productName || '',
+    productCode: record.productCode || '',
+    exchangePoints: record.exchangePoints ?? 0,
+    sort: record.sort ?? 0,
+    remark: record.remark || '',
   })
-  modalVisible.value = true
+  formOpen.value = true
 }
 
-async function handleModalOk() {
-  if (!modalForm.name) {
-    message.warning('请输入方案名称')
+/** 选品入目录：多选时按「每商品一条」批量入目录 */
+async function handleProductsPicked(products: any[]) {
+  if (!products?.length) return
+  if (editingId.value) return
+  if (products.length === 1) {
+    const p = products[0]
+    form.productId = p.id
+    form.productName = p.productName || p.name || ''
+    form.productCode = p.productCode || p.code || ''
     return
   }
-  modalLoading.value = true
   try {
-    const payload: Partial<LoyaltyProgram> = {
-      programType: 'LOYALTY',
-      name: modalForm.name,
-      triggerType: modalForm.triggerType,
-      applyScope: modalForm.applyScope,
-      maxUsage: modalForm.maxUsage,
-      sortOrder: modalForm.sortOrder,
-      description: modalForm.description,
-      startDate: modalForm.dateRange?.[0] ? modalForm.dateRange[0].format('YYYY-MM-DDT00:00:00') : undefined,
-      endDate: modalForm.dateRange?.[1] ? modalForm.dateRange[1].format('YYYY-MM-DDT23:59:59') : undefined
-    }
-    if (editingProgram.value) {
-      await loyaltyProgramApi.update(editingProgram.value.id, payload)
-      message.success('更新成功')
+    const n = await pointsExchangeApi.batchCreate(products.map(p => ({
+      productId: p.id,
+      exchangePoints: 0,
+      sort: 0,
+    })))
+    message.success(`已加入目录 ${n} 个商品，请逐行维护兑换所需积分`)
+    formOpen.value = false
+    fetchList()
+  } catch (error: any) {
+    message.error(error?.response?.data?.message || '加入目录失败')
+  }
+}
+
+async function handleSave() {
+  if (!form.productId) {
+    message.warning('请先选择商品')
+    return
+  }
+  if (form.exchangePoints == null || form.exchangePoints < 0) {
+    message.warning('兑换所需积分须为非负数值')
+    return
+  }
+  saving.value = true
+  try {
+    if (editingId.value) {
+      await pointsExchangeApi.update(editingId.value, {
+        exchangePoints: form.exchangePoints,
+        sort: form.sort,
+        remark: form.remark,
+      })
+      message.success('已更新')
     } else {
-      await loyaltyProgramApi.create(payload)
-      message.success('创建成功')
+      await pointsExchangeApi.create({
+        productId: form.productId,
+        exchangePoints: form.exchangePoints,
+        sort: form.sort,
+        remark: form.remark,
+        status: 1,
+      })
+      message.success('已加入兑换目录')
     }
-    modalVisible.value = false
-    reportRef.value?.reload()
-  } catch (e) {
-    console.warn('[积分兑换] 保存失败', e)
+    formOpen.value = false
+    fetchList()
+  } catch (error: any) {
+    message.error(error?.response?.data?.message || '保存失败')
   } finally {
-    modalLoading.value = false
+    saving.value = false
   }
 }
 
-// ═══ 启用/停用 ═══
-async function toggleActive(record: any, checked: boolean) {
-  try {
-    await loyaltyProgramApi.update(record.id, { isActive: checked ? 1 : 0 })
-    message.success(checked ? '已启用' : '已停用')
-    reportRef.value?.reload()
-  } catch (e) {
-    console.warn('[积分兑换] 状态更新失败', e)
+function handleDelete(record: any) {
+  Modal.confirm({
+    title: '确认删除',
+    content: `确定要把商品「${record.productName}」移出积分兑换目录吗？`,
+    okText: '确认删除',
+    okType: 'danger',
+    onOk: async () => {
+      try {
+        await pointsExchangeApi.remove(record.id)
+        message.success('已移出兑换目录')
+        fetchList()
+      } catch (error: any) {
+        message.error(error?.response?.data?.message || '删除失败')
+      }
+    },
+  })
+}
+
+// ═══ 打印 / 导出 ═══
+function escapeHtml(v: any): string {
+  return String(v ?? '').replace(/[&<>"']/g, c => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string
+  ))
+}
+const PRINT_COLUMNS = [
+  { key: 'productName', title: '商品名称' },
+  { key: 'productCode', title: '货号' },
+  { key: 'unit', title: '单位' },
+  { key: 'exchangePoints', title: '兑换所需积分' },
+  { key: 'spec', title: '规格' },
+  { key: 'model', title: '型号' },
+  { key: 'origin', title: '产地' },
+  { key: 'presetPurchasePrice', title: '预设进价' },
+  { key: 'referenceCost', title: '参考成本' },
+  { key: 'recentPurchasePrice', title: '最近进价' },
+  { key: 'wholesalePrice', title: '批发价' },
+  { key: 'retailPrice', title: '零售价' },
+  { key: 'minSalePrice', title: '最低售价' },
+]
+function printCell(row: any, key: string): string {
+  return row[key] == null ? '' : String(row[key])
+}
+
+function handlePrint() {
+  const rows = (tableData.value || []).filter((r: any) => !r.__ghost)
+  if (!rows.length) {
+    message.warning('没有可打印的数据')
+    return
+  }
+  const body = rows.map((r: any, i: number) => `<tr><td>${i + 1}</td>${
+    PRINT_COLUMNS.map(c => `<td>${escapeHtml(printCell(r, c.key))}</td>`).join('')}</tr>`).join('')
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" /><title>积分兑换</title>
+    <style>body{font-family:"Microsoft YaHei",Arial,sans-serif;margin:0;padding:16px}
+    h2{text-align:center;margin:0 0 12px;font-size:18px}
+    table{width:100%;border-collapse:collapse;font-size:12px}
+    th,td{border:1px solid #999;padding:4px 6px;text-align:left}th{background:#f2f2f2}</style></head><body>
+    <h2>积分兑换商品目录</h2>
+    <table><thead><tr><th>#</th>${PRINT_COLUMNS.map(c => `<th>${c.title}</th>`).join('')}</tr></thead>
+    <tbody>${body}</tbody></table></body></html>`
+  const win = window.open('', '_blank', 'width=1200,height=800')
+  if (!win) {
+    message.warning('浏览器阻止了打印窗口，请允许弹出窗口后重试')
+    return
+  }
+  win.document.write(html)
+  win.document.close()
+  win.focus()
+  win.print()
+}
+
+function handleF8Key(e: KeyboardEvent) {
+  if ((e.key === 'F8' || e.code === 'F8') && !e.ctrlKey && !e.altKey && !e.metaKey) {
+    e.preventDefault()
+    handlePrint()
   }
 }
 
-// ═══ 删除 ═══
-async function handleDelete(record: any) {
+function handleExport() {
+  const rows = (tableData.value || []).filter((r: any) => !r.__ghost)
+  if (!rows.length) {
+    message.warning('没有可导出的数据')
+    return
+  }
+  exporting.value = true
   try {
-    await loyaltyProgramApi.remove(record.id)
-    message.success('删除成功')
-    reportRef.value?.reload()
-  } catch (e) {
-    console.warn('[积分兑换] 删除失败', e)
+    const csv = '\uFEFF' + [PRINT_COLUMNS.map(c => c.title),
+      ...rows.map((r: any) => PRINT_COLUMNS.map(c => printCell(r, c.key)))]
+      .map(line => line.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\r\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `积分兑换_${dayjs().format('YYYYMMDD_HHmmss')}.csv`
+    a.click()
+    window.URL.revokeObjectURL(url)
+    message.success('导出成功')
+  } finally {
+    exporting.value = false
   }
 }
+
+function handleError(error: Error) {
+  console.error('[积分兑换] 页面错误', error)
+  message.error(`页面错误: ${error.message}`)
+}
+
+onMounted(() => {
+  fetchList()
+  window.addEventListener('keydown', handleF8Key)
+})
+onBeforeUnmount(() => window.removeEventListener('keydown', handleF8Key))
 </script>
 
 <style scoped>
-.text-danger {
-  color: #ff4d4f;
+.search-area { padding: 8px 0; }
+.search-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.search-label { font-size: 13px; color: #666; white-space: nowrap; }
+.table-area { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+.cell-link { color: #1890ff; cursor: pointer; }
+.cell-link:hover { text-decoration: underline; }
+.selected-tip { font-size: 12px; color: #666; }
+.btn-add {
+  background: #ff6b35 !important;
+  border-color: #ff6b35 !important;
 }
+.btn-add:hover {
+  background: #e55a2b !important;
+  border-color: #e55a2b !important;
+}
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) { height: 28px; line-height: 28px; }
 </style>

@@ -1,6 +1,7 @@
 package cn.aiedge.base.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
@@ -36,7 +37,12 @@ public class SysUser {
 
     /**
      * 密码（加密存储）
+     *
+     * <p>⚠️ 必须 `@JsonIgnore`：`GET /api/user/page` 等端点直接返回本实体，
+     * 不加注解会把密码哈希随响应体外泄（HR「全部操作员」等页面同样受影响）。
+     * 若某个端点确实需要写密码，请走专用 DTO，而不是放开本字段的序列化。</p>
      */
+    @JsonIgnore
     private String password;
 
     /**

@@ -14,6 +14,7 @@ import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -256,28 +257,37 @@ public class StockServiceImpl extends ServiceImpl<StockMapper, Stock> implements
         return this.getOne(queryWrapper);
     }
 
+    /**
+     * 保存期初库存（按「商品 + 仓库」幂等 upsert）
+     * <p>
+     * ⚠️ 历史实现（2026-09-18 修复）有两处缺陷：
+     * ① **先 `remove(is_initial = 1)` 清空全部期初行再插入** —— 页面上「录入一条期初」会把其它商品/仓库
+     *    已录的期初全部删掉（静默数据丢失）。现改为按 (productId, warehouseId) 判断：
+     *    同商品同仓库已有期初行则更新，否则新增，实现幂等。
+     * ② **显式 `setTenantId(0L)`** —— 多租户插件的 `ignoreInsert` 在「INSERT 列清单已含 tenant_id」时
+     *    不再补列，此时租户值完全依赖手写值；虽然当前 `MetaObjectHandler.insertFill` 会按当前会话
+     *    覆盖 tenantId（故历史行 tenant_id 实测为 1，未复现落 0），但显式写 0 属危险冗余，
+     *    一旦填充链路被跳过即产生「保存成功却查不到」的跨租户脏数据。现交由租户链路统一注入。
+     */
     @Override
     public void saveInitialStock(List<InitialStockDTO> initialStockList) {
-        // 清除现有期初库存数据
-        QueryWrapper<Stock> clearWrapper = new QueryWrapper<>();
-        clearWrapper.eq("is_initial", 1);
-        this.remove(clearWrapper);
-
-        // 批量保存期初库存数据
+        if (initialStockList == null || initialStockList.isEmpty()) {
+            return;
+        }
         for (InitialStockDTO dto : initialStockList) {
-            Stock stock = new Stock();
-            stock.setProductCode(dto.getProductCode());
-            stock.setProductName(dto.getProductName());
-            stock.setWarehouseName(dto.getWarehouseName());
-            stock.setQuantity(dto.getQuantity());
-            stock.setUnitPrice(dto.getUnitPrice());
-            stock.setIsInitial(1); // 标记为期初库存
+            // 同商品 + 同仓库已存在期初行 → 走更新，避免重复期初行
+            Stock existingStock = findInitialStock(dto.getProductId(), dto.getWarehouseId());
+            if (existingStock != null) {
+                applyInitialStockFields(existingStock, dto);
+                this.updateById(existingStock);
+                continue;
+            }
 
-            // 设置其他必要字段的默认值
-            stock.setAvailableQuantity(dto.getQuantity()); // 期初数量全部为可用数量
+            Stock stock = new Stock();
+            applyInitialStockFields(stock, dto);
+            stock.setIsInitial(1); // 标记为期初库存
             stock.setFrozenQuantity(BigDecimal.ZERO); // 期初无冻结库存
             stock.setDeleted(0); // 未删除状态
-            stock.setTenantId(0L); // 租户ID
 
             this.save(stock);
         }
@@ -285,19 +295,83 @@ public class StockServiceImpl extends ServiceImpl<StockMapper, Stock> implements
 
     @Override
     public void updateInitialStock(InitialStockDTO initialStockDTO) {
-        // 更新指定的期初库存数据
-        Stock existingStock = this.getById(initialStockDTO.getId());
-        if (existingStock != null && existingStock.getIsInitial() != null && existingStock.getIsInitial() == 1) {
-            existingStock.setProductCode(initialStockDTO.getProductCode());
-            existingStock.setProductName(initialStockDTO.getProductName());
-            existingStock.setWarehouseName(initialStockDTO.getWarehouseName());
-            existingStock.setQuantity(initialStockDTO.getQuantity());
-            existingStock.setUnitPrice(initialStockDTO.getUnitPrice());
-
-            // 同步更新可用数量
-            existingStock.setAvailableQuantity(initialStockDTO.getQuantity());
-
-            this.updateById(existingStock);
+        if (initialStockDTO == null || initialStockDTO.getId() == null) {
+            return;
         }
+        // 更新指定的期初库存数据（只允许改期初行）
+        Stock existingStock = this.getById(initialStockDTO.getId());
+        if (existingStock == null || existingStock.getIsInitial() == null || existingStock.getIsInitial() != 1) {
+            return;
+        }
+        // ⚠️ 用 LambdaUpdateWrapper 显式 set 每一列：MyBatis-Plus 的 updateById **忽略 null 字段**，
+        //    会导致「清空生产日期 / 有效期至 / 备注」静默失效（改了等于没改）。
+        //    这里 null 也会被写入，因此「清空」是本页可表达的语义。
+        this.lambdaUpdate()
+                .eq(Stock::getId, initialStockDTO.getId())
+                .set(Stock::getProductId, initialStockDTO.getProductId())
+                .set(Stock::getProductCode, initialStockDTO.getProductCode())
+                .set(Stock::getProductName, initialStockDTO.getProductName())
+                .set(Stock::getWarehouseId, initialStockDTO.getWarehouseId())
+                .set(Stock::getWarehouseName, initialStockDTO.getWarehouseName())
+                .set(Stock::getUnit, initialStockDTO.getUnit())
+                .set(Stock::getQuantity, initialStockDTO.getQuantity())
+                .set(Stock::getUnitPrice, initialStockDTO.getUnitPrice())
+                // 期初数量全部计入可用数量（与新增口径一致）
+                .set(Stock::getAvailableQuantity, initialStockDTO.getQuantity())
+                .set(Stock::getProductionDate, initialStockDTO.getProductionDate())
+                .set(Stock::getValidityDate, initialStockDTO.getValidityDate())
+                .set(Stock::getRemark, initialStockDTO.getRemark())
+                // updateTime 的自动填充只在 updateById 链路生效，此处手工补齐
+                .set(Stock::getUpdateTime, LocalDateTime.now())
+                .update();
+    }
+
+    @Override
+    public boolean deleteInitialStock(Long id) {
+        if (id == null) {
+            return false;
+        }
+        // 只允许删除期初行：非期初的日常库存行不允许从本页删除（否则会破坏日常库存台账）
+        Stock existingStock = this.getById(id);
+        if (existingStock == null
+                || existingStock.getIsInitial() == null
+                || existingStock.getIsInitial() != 1) {
+            return false;
+        }
+        return this.removeById(id);
+    }
+
+    /**
+     * 查询某商品在某仓库的期初库存行（未找到返回 null）
+     */
+    private Stock findInitialStock(Long productId, Long warehouseId) {
+        if (productId == null || warehouseId == null) {
+            return null;
+        }
+        return lambdaQuery()
+                .eq(Stock::getIsInitial, 1)
+                .eq(Stock::getProductId, productId)
+                .eq(Stock::getWarehouseId, warehouseId)
+                .last("LIMIT 1")
+                .one();
+    }
+
+    /**
+     * 把 DTO 的期初字段写入库存实体（新增链路使用）
+     */
+    private void applyInitialStockFields(Stock stock, InitialStockDTO dto) {
+        stock.setProductId(dto.getProductId());
+        stock.setProductCode(dto.getProductCode());
+        stock.setProductName(dto.getProductName());
+        stock.setWarehouseId(dto.getWarehouseId());
+        stock.setWarehouseName(dto.getWarehouseName());
+        stock.setUnit(dto.getUnit());
+        stock.setQuantity(dto.getQuantity());
+        stock.setUnitPrice(dto.getUnitPrice());
+        stock.setProductionDate(dto.getProductionDate());
+        stock.setValidityDate(dto.getValidityDate());
+        stock.setRemark(dto.getRemark());
+        // 期初数量全部计入可用数量（期初不设冻结）
+        stock.setAvailableQuantity(dto.getQuantity());
     }
 }

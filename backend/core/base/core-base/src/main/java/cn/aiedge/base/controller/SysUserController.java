@@ -9,7 +9,9 @@ import cn.aiedge.base.dto.UserUpdateRequest;
 import cn.aiedge.base.entity.SysUser;
 import cn.aiedge.base.log.annotation.OperationLog;
 import cn.aiedge.base.service.SysUserService;
+import cn.aiedge.base.utils.SecurityUtils;
 import cn.aiedge.base.vo.Result;
+import cn.aiedge.common.exception.BusinessException;
 import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.dev33.satoken.annotation.SaCheckPermission;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -22,6 +24,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * 用户控制器
@@ -37,6 +40,32 @@ public class SysUserController {
 
     private final SysUserService userService;
     private final ApplicationEventPublisher eventPublisher;
+
+    /** 平台超级管理员角色码（与 SysMenuServiceImpl、SysUserServiceImpl 同源，不新造判定） */
+    private static final String SUPER_ADMIN_ROLE = "SUPER_ADMIN";
+
+    /**
+     * 校验目标账号与调用方属于同一租户（平台超管豁免）。
+     *
+     * <p>`sys_user` 在多租户忽略表内（登录要跨租户按用户名查账号），`getById` / `updateById` 等
+     * **不会**自动带租户条件 —— 所以「按 id 操作某个账号」的越权校验必须在入口显式补，
+     * 否则一个租户管理员只要知道 id，就能读 / 改 / 删 / 重置 / 分配角色到别的租户的账号。
+     *
+     * <p>口径与列表一致：**超管豁免、其余强制限本租户**。
+     */
+    private void assertSameTenant(Long targetUserId) {
+        if (SecurityUtils.hasRole(SUPER_ADMIN_ROLE)) {
+            return;
+        }
+        SysUser target = userService.getById(targetUserId);
+        if (target == null) {
+            throw BusinessException.notFound("用户不存在");
+        }
+        Long currentTenantId = SecurityUtils.getCurrentTenantId();
+        if (currentTenantId == null || !Objects.equals(target.getTenantId(), currentTenantId)) {
+            throw BusinessException.forbidden("无权操作其它租户的账号");
+        }
+    }
 
     /**
      * 用户登录
@@ -81,6 +110,7 @@ public class SysUserController {
     @PutMapping("/{id}")
     @SaCheckPermission("system:user:update")
     public Result<Void> updateUser(@PathVariable Long id, @RequestBody UserUpdateRequest dto) {
+        assertSameTenant(id);
         SysUser user = convertToEntity(dto);
         user.setId(id);
         userService.updateUser(user);
@@ -94,6 +124,7 @@ public class SysUserController {
     @DeleteMapping("/{id}")
     @SaCheckPermission("system:user:delete")
     public Result<Void> deleteUser(@PathVariable Long id) {
+        assertSameTenant(id);
         userService.deleteUser(id);
         return Result.ok("删除成功", null);
     }
@@ -105,6 +136,12 @@ public class SysUserController {
     @DeleteMapping("/batch")
     @SaCheckPermission("system:user:delete")
     public Result<Void> batchDeleteUsers(@RequestBody List<Long> ids) {
+        // 逐个校验归属：批量入口同样不能成为越权的旁路
+        if (ids != null) {
+            for (Long id : ids) {
+                assertSameTenant(id);
+            }
+        }
         userService.batchDeleteUsers(ids);
         return Result.ok("批量删除成功", null);
     }
@@ -144,6 +181,7 @@ public class SysUserController {
     @GetMapping("/{id}")
     @SaCheckPermission("system:user:detail")
     public Result<SysUser> getUserDetail(@PathVariable Long id) {
+        assertSameTenant(id);
         SysUser user = userService.getUserDetail(id);
         return Result.ok(user);
     }
@@ -156,6 +194,7 @@ public class SysUserController {
     @SaCheckPermission("system:user:reset-password")
     @OperationLog(module = "用户管理", type = "UPDATE", desc = "重置用户密码")
     public Result<Void> resetPassword(@PathVariable Long id, @RequestParam String newPassword) {
+        assertSameTenant(id);
         userService.resetPassword(id, newPassword);
         return Result.ok("密码重置成功", null);
     }
@@ -169,6 +208,11 @@ public class SysUserController {
     public Result<Void> changePassword(@PathVariable Long id,
                                         @RequestParam String oldPassword,
                                         @RequestParam String newPassword) {
+        // 改密是自助动作：只允许改**自己**的密码（超管除外）；否则等于给了「知道他人旧密码即可代改」的旁路
+        boolean isSelf = Objects.equals(id, SecurityUtils.getCurrentUserId());
+        if (!isSelf && !SecurityUtils.hasRole(SUPER_ADMIN_ROLE)) {
+            throw BusinessException.forbidden("只能修改本人的密码");
+        }
         userService.changePassword(id, oldPassword, newPassword);
         return Result.ok("密码修改成功", null);
     }
@@ -181,6 +225,7 @@ public class SysUserController {
     @SaCheckPermission("system:user:assign-role")
     @OperationLog(module = "用户管理", type = "UPDATE", desc = "分配用户角色", saveParams = true)
     public Result<Void> assignRoles(@PathVariable Long id, @RequestBody List<Long> roleIds) {
+        assertSameTenant(id);
         userService.assignRoles(id, roleIds);
         eventPublisher.publishEvent(PermissionChangeEvent.targeted(this,
                 PermissionChangeEvent.ChangeType.USER_ROLE_ASSIGNED,

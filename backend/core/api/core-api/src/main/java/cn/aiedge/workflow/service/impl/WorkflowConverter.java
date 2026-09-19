@@ -157,7 +157,12 @@ public final class WorkflowConverter {
         };
     }
 
-    // ==================== 任务动作（1-同意 2-驳回 3-转交 4-提交 5-撤回 6-取消 7-干预） ====================
+    // ==================== 任务动作（1-同意 2-驳回 3-转交 4-提交 5-撤回 6-取消 7-干预 8-退回） ====================
+    //
+    // ⚠️ 8-退回 是本轮（2026-09-18）新增的动作值：
+    //    此前「退回」被实现为 reject，只把目标节点拼进 comment → 流程被**终止**而非回退，
+    //    且已办台账里这些记录的动作全是「驳回」，看不出「退回」意图。
+    //    改为真实节点回退（见 WorkflowServiceImpl.returnTask）后，需要一个能如实表达该语义的动作码。
 
     public static final int ACTION_APPROVE = 1;
     public static final int ACTION_REJECT = 2;
@@ -166,6 +171,7 @@ public final class WorkflowConverter {
     public static final int ACTION_WITHDRAW = 5;
     public static final int ACTION_CANCEL = 6;
     public static final int ACTION_INTERVENE = 7;
+    public static final int ACTION_RETURN = 8;
 
     public static final int TASK_TYPE_RECORD = 0;
     public static final int TASK_TYPE_APPROVAL = 1;
@@ -185,6 +191,7 @@ public final class WorkflowConverter {
             case ACTION_WITHDRAW -> "withdraw";
             case ACTION_CANCEL -> "cancel";
             case ACTION_INTERVENE -> "intervene";
+            case ACTION_RETURN -> "return";
             default -> "pending";
         };
     }
@@ -342,6 +349,7 @@ public final class WorkflowConverter {
             case "submit" -> "submitted";
             case "withdraw" -> "withdrawn";
             case "cancel" -> "cancelled";
+            case "return" -> "returned";
             default -> "pending";
         });
         return record;

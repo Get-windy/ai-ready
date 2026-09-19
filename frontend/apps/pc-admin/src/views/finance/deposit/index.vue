@@ -46,7 +46,10 @@
         </div>
       </template>
 
-      <div class="finance-deposit-page">
+      <div
+        ref="tableWrap"
+        class="finance-deposit-page"
+      >
         <!-- 统计卡片 -->
         <div class="stat-cards">
           <div class="stat-card stat-total">
@@ -122,7 +125,6 @@
               :selectable="true"
               @add="handleAdd"
               @refresh="fetchData"
-              @cell-dblclick="handleView"
               @page-change="handlePageChange"
               @filter-change="handleFilterChange"
               @selection-change="handleSelectionChange"
@@ -235,7 +237,6 @@
               :selectable="true"
               @add="handleAdd"
               @refresh="fetchData"
-              @cell-dblclick="handleView"
               @page-change="handlePageChange"
               @filter-change="handleFilterChange"
               @selection-change="handleSelectionChange"
@@ -405,6 +406,7 @@ import dayjs from 'dayjs'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import { preReceiptApi, prePaymentApi } from '@/api/finance'
+import { useRowDblclick } from '@/composables/useRowDblclick'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
 import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 import request from '@/utils/request'
@@ -630,6 +632,12 @@ const handleView = (record: any) => {
   const name = activeTab.value === 'customer' ? record.customerName : record.supplierName
   message.info(`查看详情: ${name}`)
 }
+
+// 双击行 → 查看详情：页面侧自行实现（共享表格组件不再派发该事件）
+// 两个 Tab 的表格共用页面根容器作为 tableWrap，因此按当前 Tab 取行数组；
+// 行标识由表格行上的 data-row-key 反查，与这些表的 row-key（'id'）同口径
+const tableWrap = ref<HTMLElement | null>(null)
+useRowDblclick(tableWrap, () => (activeTab.value === 'customer' ? customerTableData.value : supplierTableData.value), handleView, 'id')
 
 const handleSearch = () => {
   pagination.current = 1

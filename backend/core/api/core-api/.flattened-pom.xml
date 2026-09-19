@@ -5,11 +5,11 @@
   <parent>
     <groupId>cn.aiedge</groupId>
     <artifactId>ai-ready-backend</artifactId>
-    <version>0.3.20</version>
+    <version>0.3.21</version>
     <relativePath>../../../pom.xml</relativePath>
   </parent>
   <artifactId>core-api</artifactId>
-  <version>0.3.20</version>
+  <version>0.3.21</version>
   <name>API接口定义模块</name>
   <description>供前端调用的API接口定义</description>
   <licenses>

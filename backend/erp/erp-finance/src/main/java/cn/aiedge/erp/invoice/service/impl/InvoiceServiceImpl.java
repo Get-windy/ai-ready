@@ -32,9 +32,33 @@ public class InvoiceServiceImpl implements InvoiceService {
     @Autowired
     private BizNumberGeneratorService bizNumberGeneratorService;
 
+    @Autowired
+    private com.fasterxml.jackson.databind.ObjectMapper objectMapper;
+
     @Override
     public Optional<Invoice> getInvoiceById(Long id) {
         return invoiceRepository.findById(id);
+    }
+
+    @Override
+    public Invoice updateInvoice(Long invoiceId, Invoice payload) {
+        Invoice existing = invoiceRepository.findById(invoiceId)
+                .orElseThrow(() -> new IllegalArgumentException("发票不存在: " + invoiceId));
+
+        // 部分更新语义：只覆盖请求里**显式携带（非 null）**的字段，未传字段保持原值。
+        // 走 Jackson 合并而非逐字段赋值，避免字段数量增长时漏搬（本实体 60+ 字段）。
+        java.util.Map<String, Object> patch =
+                objectMapper.convertValue(payload, new com.fasterxml.jackson.core.type.TypeReference<java.util.Map<String, Object>>() {});
+        patch.values().removeIf(java.util.Objects::isNull);
+        patch.remove("id");
+        try {
+            objectMapper.updateValue(existing, patch);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            // updateValue 声明的受检异常：字段值类型不匹配时抛出，转成业务可读的 400
+            throw new IllegalArgumentException("发票字段更新失败: " + e.getOriginalMessage(), e);
+        }
+
+        return invoiceRepository.save(existing);
     }
 
     @Override

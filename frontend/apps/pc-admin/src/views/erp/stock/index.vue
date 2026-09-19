@@ -198,102 +198,106 @@
           </a-space>
         </div>
 
-        <BillTableList
-          ref="tableRef"
-          :columns="vxeColumns"
-          :data-source="tableData"
-          :loading="loading"
-          :pagination="pagination"
-          row-key="id"
-          :show-toolbar="false"
-          :selectable="false"
-          :show-add="false"
-          :show-search="false"
-          :show-export="false"
-          :show-batch-delete="false"
-          @cell-dblclick="handleView"
-          @page-change="handlePageChange"
+        <div
+          ref="tableWrap"
+          class="table-area"
         >
-          <template #empty>
-            <div
-              v-if="hasError"
-              class="table-empty"
-            >
-              <WarningOutlined class="table-empty-icon" />
-              <p class="table-empty-text">
-                数据加载异常，请重试
-              </p>
-              <a-button
-                type="primary"
-                @click="fetchData"
+          <BillTableList
+            ref="tableRef"
+            :columns="vxeColumns"
+            :data-source="tableData"
+            :loading="loading"
+            :pagination="pagination"
+            row-key="id"
+            :show-toolbar="false"
+            :selectable="false"
+            :show-add="false"
+            :show-search="false"
+            :show-export="false"
+            :show-batch-delete="false"
+            @page-change="handlePageChange"
+          >
+            <template #empty>
+              <div
+                v-if="hasError"
+                class="table-empty"
               >
-                <ReloadOutlined /> 重试
-              </a-button>
-            </div>
-            <EmptyState
-              v-else
-              title="暂无数据"
-              description="暂无库存数据"
-              size="small"
-              :show-actions="false"
-            />
-          </template>
-          <template #quantityCell="{ record }">
-            <span :class="getStockClass(record)">
-              {{ record.quantity }} {{ record.unit }}
-            </span>
-          </template>
-          <template #warningStatusCell="{ record }">
-            <StatusTag
-              :status="getStockWarningStatusKey(record)"
-              :map="STOCK_WARNING_STATUS"
-            />
-          </template>
-          <template #action="{ record }">
-            <a-space :size="4">
-              <a-button
-                type="link"
+                <WarningOutlined class="table-empty-icon" />
+                <p class="table-empty-text">
+                  数据加载异常，请重试
+                </p>
+                <a-button
+                  type="primary"
+                  @click="fetchData"
+                >
+                  <ReloadOutlined /> 重试
+                </a-button>
+              </div>
+              <EmptyState
+                v-else
+                title="暂无数据"
+                description="暂无库存数据"
                 size="small"
-                @click="handleView(record)"
-              >
-                查看
-              </a-button>
-              <a-button
-                v-permission="'erp:stock:edit'"
-                type="link"
-                size="small"
-                @click="handleEdit(record)"
-              >
-                编辑
-              </a-button>
-              <a-button
-                type="link"
-                size="small"
-                @click="handleStockLog(record)"
-              >
-                库存明细
-              </a-button>
-              <a-dropdown v-permission="'erp:stock:lock'">
+                :show-actions="false"
+              />
+            </template>
+            <template #quantityCell="{ record }">
+              <span :class="getStockClass(record)">
+                {{ record.quantity }} {{ record.unit }}
+              </span>
+            </template>
+            <template #warningStatusCell="{ record }">
+              <StatusTag
+                :status="getStockWarningStatusKey(record)"
+                :map="STOCK_WARNING_STATUS"
+              />
+            </template>
+            <template #action="{ record }">
+              <a-space :size="4">
                 <a-button
                   type="link"
                   size="small"
+                  @click="handleView(record)"
                 >
-                  库存操作 <DownOutlined />
+                  查看
                 </a-button>
-                <template #overlay>
-                  <a-menu>
-                    <a-menu-item @click="handleFreezeStock(record)">
-                      <LockOutlined /> 冻结库存
-                    </a-menu-item>
-                    <a-menu-item @click="handleUnfreezeStock(record)">
-                      <UnlockOutlined /> 解冻库存
-                    </a-menu-item>
-                  </a-menu>
-                </template>
-              </a-dropdown>
-            </a-space>
-          </template>
-        </BillTableList>
+                <a-button
+                  v-permission="'erp:stock:edit'"
+                  type="link"
+                  size="small"
+                  @click="handleEdit(record)"
+                >
+                  编辑
+                </a-button>
+                <a-button
+                  type="link"
+                  size="small"
+                  @click="handleStockLog(record)"
+                >
+                  库存明细
+                </a-button>
+                <a-dropdown v-permission="'erp:stock:lock'">
+                  <a-button
+                    type="link"
+                    size="small"
+                  >
+                    库存操作 <DownOutlined />
+                  </a-button>
+                  <template #overlay>
+                    <a-menu>
+                      <a-menu-item @click="handleFreezeStock(record)">
+                        <LockOutlined /> 冻结库存
+                      </a-menu-item>
+                      <a-menu-item @click="handleUnfreezeStock(record)">
+                        <UnlockOutlined /> 解冻库存
+                      </a-menu-item>
+                    </a-menu>
+                  </template>
+                </a-dropdown>
+              </a-space>
+            </template>
+          </BillTableList>
+        </div>
       </a-card>
 
       <!-- 库存明细弹窗 -->
@@ -514,6 +518,7 @@ import SearchBar from '@/components/SearchBar/SearchBar.vue'
 import EmptyState from '@/components/EmptyState/EmptyState.vue'
 import type { SearchField } from '@/components/SearchBar/SearchBar.vue'
 import { stockApi } from '@/api/erp'
+import { useRowDblclick } from '@/composables/useRowDblclick'
 import request from '@/utils/request'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'
@@ -864,6 +869,11 @@ const handleView = (record: any) => {
   fetchDetail(record.id)
 }
 
+// 双击行 → 打开详情：页面侧自行实现（共享表格组件不再派发该事件）
+// 行标识由表格行上的 data-row-key 反查，与该表 row-key（'id'）同口径
+const tableWrap = ref<HTMLElement | null>(null)
+useRowDblclick(tableWrap, () => tableData.value, handleView, 'id')
+
 const handleStockLog = async (record: any) => {
   try {
     const res = await request.get(`/erp/stock/${record.id}/logs`)
@@ -944,6 +954,16 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+
+/* 双击行入口容器（页面侧事件委托，见脚本 useRowDblclick）：撑满剩余空间，避免表格高度塌陷 */
+.table-area {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
 .search-area { margin-bottom: 16px; }
 .action-area { margin-bottom: 16px; }
 .low-stock { color: #ff4d4f; font-weight: bold; }

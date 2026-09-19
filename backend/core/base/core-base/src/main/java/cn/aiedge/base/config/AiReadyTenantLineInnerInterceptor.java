@@ -27,9 +27,33 @@ public class AiReadyTenantLineInnerInterceptor extends TenantLineInnerIntercepto
         super(tenantLineHandler);
     }
 
-    /** 租户不可解析时应跳过租户处理 */
+    /**
+     * 应跳过租户处理的两种情况：
+     * <ol>
+     *   <li><b>租户不可解析</b>：未登录 / 无会话线程 / 未设置临时租户上下文
+     *       —— 登录、注册、启动任务等**认证前**链路靠这一条跨租户可查；</li>
+     *   <li><b>当前会话整体豁免</b>：平台超级管理员（`SUPER_ADMIN`）。
+     *       拦截器本身不认识「超管」，不加这一条，给某张表开了自动注入后超管也会被收敛到自己的会话租户，
+     *       表现为「admin 突然看不到别的租户数据」。口径与
+     *       `SysUserServiceImpl.resolveScopedTenantId` / `SysUserController.assertSameTenant` 同源。</li>
+     * </ol>
+     *
+     * <p><b>安全边界（动这里之前必读）</b>：第 1 条是 `sys_user` 登录链路的前提——
+     * `sys_user` 已从 `IGNORE_TENANT_TABLES` 中移出（原因见 MyBatisPlusConfig 该处注释），
+     * 登录时按用户名/手机号/邮箱**跨租户**查账号，靠的正是这里的「未登录即跳过」。
+     * 所以<b>不要</b>把它改成「未登录也不跳过」的 fail-closed：那会让登录查不到账号。
+     * </p>
+     * <p>「未登录请求不得触达业务数据」的防线在<b>上游</b>，不在本方法：
+     * ① `SaTokenConfig` 的 SaInterceptor 除白名单外一律要求登录（未登录在 Controller 之前就被拒，
+     * 根本走不到 Service/SQL）；② 白名单内的接口必须<b>自行</b>校验归属——例如
+     * `SseNotificationController` 用 `StpUtil.getLoginIdByToken` 自校验、
+     * `FileAccessController` 用 URL 中的 tenantId 做路径隔离。
+     * <b>结论：往 SaTokenConfig 白名单里新增任何接口时，必须同时确认该接口自身有归属校验。</b>
+     * </p>
+     */
     private boolean shouldSkip() {
-        return MyBatisPlusConfig.getCurrentTenantIdValue() == null;
+        return MyBatisPlusConfig.getCurrentTenantIdValue() == null
+                || MyBatisPlusConfig.isTenantScopeExempt();
     }
 
     @Override

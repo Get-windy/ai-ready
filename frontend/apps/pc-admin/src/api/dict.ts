@@ -103,8 +103,9 @@ export const dictTypeApi = {
 // 字典项API
 export const dictItemApi = {
   // 按字典类型获取字典项列表
+  // 后端实际端点：GET /api/dict/item/type/{dictTypeId}（仅返回启用状态项，按 sortOrder 升序）
   getByDictTypeId(dictTypeId: number, params?: DictItemQuery): Promise<ApiResponse<DictItem[]>> {
-    return request.get(`/dict/item/list/${dictTypeId}`, params)
+    return request.get(`/dict/item/type/${dictTypeId}`, params)
   },
 
   // 获取字典项详情

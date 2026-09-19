@@ -4,6 +4,9 @@ import cn.aiedge.hr.entity.HrRecruitment;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;
 
+import java.util.List;
+import java.util.Map;
+
 /**
  * 招聘职位服务接口
  *
@@ -14,25 +17,24 @@ public interface HrRecruitmentService extends IService<HrRecruitment> {
 
     /**
      * 分页查询招聘职位
-     *
-     * @param page         分页参数
-     * @param tenantId     租户ID
-     * @param status       状态
-     * @param positionName 岗位名称(模糊)
-     * @param channel      招聘渠道
-     * @param startDate    发布日期起始(yyyy-MM-dd)
-     * @param endDate      发布日期截止(yyyy-MM-dd)
-     * @return 分页结果
      */
     Page<HrRecruitment> pageList(Page<HrRecruitment> page, Long tenantId,
                                   Integer status, String positionName, String channel,
                                   String startDate, String endDate);
 
-    /**
-     * 更新招聘职位状态
-     *
-     * @param id     职位ID
-     * @param status 目标状态
-     */
+    /** 导出用全量查询 */
+    List<HrRecruitment> listForExport(Integer status, String positionName, String channel,
+                                      String startDate, String endDate);
+
+    /** 新建招聘职位（补齐发布人 / 发布日 / 计数初值） */
+    Long createRecruitment(HrRecruitment recruitment);
+
+    /** 修改招聘职位（状态字段不接受本端点直改） */
+    void updateRecruitment(HrRecruitment recruitment);
+
+    /** 更新招聘职位状态 */
     void updateStatus(Long id, Integer status);
+
+    /** 招聘统计：招聘中 / 已完成 / 计划人数 / 应聘人数 / 录用人数 */
+    Map<String, Object> statistics(Integer status);
 }

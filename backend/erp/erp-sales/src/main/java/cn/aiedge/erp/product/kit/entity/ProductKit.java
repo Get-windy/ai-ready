@@ -55,6 +55,15 @@ public class ProductKit {
 
     private String remark;
 
+    /** 套餐图片（对标「套餐」页「图片」列） */
+    private String imageUrl;
+
+    /** 套餐条码（对标「套餐」页「套餐条码」列） */
+    private String barcode;
+
+    /** 捆绑销售：1 是 / 0 否（对标「套餐」页「捆绑销售」列） */
+    private Integer bundleSales;
+
     @TableField(typeHandler = com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler.class)
     private String extInfo;
 

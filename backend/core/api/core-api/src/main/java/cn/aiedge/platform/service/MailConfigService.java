@@ -1,5 +1,6 @@
 package cn.aiedge.platform.service;
 
+import cn.aiedge.platform.dto.ConnectionTestResult;
 import cn.aiedge.platform.model.MailConfig;
 
 /**
@@ -20,5 +21,5 @@ public interface MailConfigService {
     /**
      * 测试SMTP连接
      */
-    boolean testConnection(MailConfig config);
+    ConnectionTestResult testConnection(MailConfig config);
 }

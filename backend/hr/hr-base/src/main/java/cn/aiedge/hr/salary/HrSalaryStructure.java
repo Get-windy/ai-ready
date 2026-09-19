@@ -12,6 +12,8 @@ import java.time.LocalDateTime;
  * 薪资结构实体
  * 员工薪资组成配置
  *
+ * <p>同一员工只保留一条 `status = 1`（生效中）的结构：新建结构时其生效日期之前的结构会自动置为失效。</p>
+ *
  * @author AI-Ready Team
  * @since 1.0.0
  */
@@ -130,4 +132,18 @@ public class HrSalaryStructure {
      */
     @TableField(fill = FieldFill.INSERT_UPDATE)
     private Long updateBy;
+
+    // ── 展示用联表字段（非表列） ──
+
+    /** 员工姓名 */
+    @TableField(exist = false)
+    private String employeeName;
+
+    /** 员工工号 */
+    @TableField(exist = false)
+    private String employeeNo;
+
+    /** 部门名称 */
+    @TableField(exist = false)
+    private String deptName;
 }

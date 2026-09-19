@@ -264,8 +264,8 @@ public class PositionServiceImpl extends ServiceImpl<PositionMapper, Position> i
     }
 
     @Override
-    public List<Long> getUserIds(Long positionId) {
-        return userPositionMapper.selectUserIdsByPositionId(positionId);
+    public List<PositionUserVO> getUsers(Long positionId) {
+        return userPositionMapper.selectUsersByPositionId(positionId);
     }
 
     /**

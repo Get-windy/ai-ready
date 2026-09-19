@@ -33,22 +33,47 @@ export type { BatchNumber } from './erp/batch'
 
 // ── 通用类型 ────────────────────────────────────────────
 
-/** docquery 风格分页响应（{list,total,page,size,summary?}） */
+/** docquery 风格分页响应（{list,total,page,size,summary:{amount}}） */
 export interface DocQueryPage<T = any, S = any> {
   list: T[]
   total: number
   page: number
   size: number
+  /** 合计行口径：对当前过滤范围求和 */
   summary?: S
 }
 
-/** docquery 分页查询参数 */
+/** docquery 分页查询参数（逐项对应对标查询区） */
 export interface DocQueryParams {
   docType?: string
   docNo?: string
   partnerName?: string
   startDate?: string
   endDate?: string
+  /** 仓库模糊 */
+  warehouseName?: string
+  /** 所属区域模糊 */
+  region?: string
+  /** 经手人模糊 */
+  handlerName?: string
+  /** 部门模糊 */
+  departmentName?: string
+  /** 制单人模糊 */
+  creatorName?: string
+  /** 单据备注模糊 */
+  remark?: string
+  /** 来源订单号模糊 */
+  sourceOrderNo?: string
+  /** 账期比较符：ge(≥) / le(≤) / eq(=) / gt(>) / lt(<) */
+  accountPeriodOp?: string
+  /** 账期天数（收/付款截止日 − 单据日期） */
+  accountPeriodDays?: number
+  /** 显示红冲：false（默认）排除已取消单据 */
+  includeReversed?: boolean
+  /** 排序字段：bizDate（默认）/ amount */
+  sortField?: string
+  /** 排序方向：desc（默认）/ asc */
+  sortOrder?: string
   page?: number
   size?: number
 }
@@ -61,10 +86,12 @@ export interface DateRangeParams {
 
 // ═══ 综合单据查询（/docquery） ═══
 
-/** 经营历程/待审批/草稿 单据行 */
+/** 经营历程/待审批/草稿 单据行（23 列口径，见 DocQueryService 列说明） */
 export interface DocHistoryItem {
   docTypeCode: string
   docType: string
+  /** 源单据主键（雪花 ID，务必按字符串使用，勿转 Number） */
+  docId: string
   docNo: string
   bizDate: string
   partnerName: string
@@ -72,6 +99,20 @@ export interface DocHistoryItem {
   status: string
   statusText: string
   createBy: string
+  creatorName: string
+  sourceOrderNo: string
+  warehouseName: string
+  region: string
+  handlerName: string
+  departmentName: string
+  bookkeeperName: string
+  summary: string
+  remark: string
+  hasAttachment: boolean
+  createTime: string
+  bookkeepingTime: string
+  printCount: number
+  accountPeriodDays: number
 }
 
 /** 待审批单据按类型计数 */
@@ -81,18 +122,71 @@ export interface PendingDocSummaryItem {
   count: number
 }
 
+/** 综合单据合计行 */
+export interface DocQuerySummary {
+  amount: number
+}
+
 export const docQueryApi = {
-  /** 经营历程分页（全部状态的各类单据，按业务日期倒序） */
-  businessHistoryPage(params?: DocQueryParams): Promise<DocQueryPage<DocHistoryItem>> {
+  /** 经营历程分页（全部状态的各类单据，按单据日期倒序；默认排除已取消） */
+  businessHistoryPage(params?: DocQueryParams): Promise<DocQueryPage<DocHistoryItem, DocQuerySummary>> {
     return request.get('/docquery/business-history/page', params)
   },
-  /** 待审批单据分页（summary 返回每类待审批数量） */
-  pendingDocsPage(params?: DocQueryParams): Promise<DocQueryPage<DocHistoryItem, PendingDocSummaryItem[]>> {
+  /** 待审批单据分页（pendingSummary 返回每类待审批数量） */
+  pendingDocsPage(params?: DocQueryParams): Promise<
+    DocQueryPage<DocHistoryItem, DocQuerySummary> & { pendingSummary?: PendingDocSummaryItem[] }
+  > {
     return request.get('/docquery/pending-docs/page', params)
   },
   /** 业务草稿分页 */
-  draftDocsPage(params?: DocQueryParams): Promise<DocQueryPage<DocHistoryItem>> {
+  draftDocsPage(params?: DocQueryParams): Promise<DocQueryPage<DocHistoryItem, DocQuerySummary>> {
     return request.get('/docquery/draft-docs/page', params)
+  }
+}
+
+/**
+ * 综合单据行级 / 批量动作
+ *
+ * 按单据类型分发到各业务域**既有**端点（能力矩阵见 views/analytics/shared/docTypes.ts），
+ * 不新建审批通道、不直改状态列。
+ */
+export const docActionApi = {
+  /** 提交记账 */
+  submit(base: string, id: string) {
+    return request.post(`${base}/${id}/submit`)
+  },
+  /** 审核通过 */
+  approve(base: string, id: string, note?: string) {
+    return request.post(`${base}/${id}/approve`, null, note ? { params: { note } } : undefined)
+  },
+  /** 驳回（reason 为驳回原因） */
+  reject(base: string, id: string, reason?: string) {
+    return request.post(`${base}/${id}/reject`, null, reason ? { params: { reason } } : undefined)
+  },
+  /** 删除草稿 */
+  remove(base: string, id: string) {
+    return request.delete(`${base}/${id}`)
+  },
+  /** 复制 */
+  copy(base: string, id: string) {
+    return request.post(`${base}/${id}/copy`)
+  },
+  /** 红冲 / 作废 */
+  cancel(base: string, id: string, reason?: string) {
+    return request.post(`${base}/${id}/cancel`, null, reason ? { params: { reason } } : undefined)
+  },
+  /**
+   * 更新单据备注（走各域 PUT /{id}；MyBatis-Plus 默认 NOT_NULL 策略只更新非 null 字段，
+   * 故仅传 remark 不会覆盖其余字段 —— 但本次也回传 id 以兼容按 id 校验的实现）
+   */
+  updateRemark(base: string, id: string, remark: string) {
+    return request.put(`${base}/${id}`, { id, remark })
+  },
+  /**
+   * 费用申请单审批（JPA 审批流，入参为 applicationId + action，不适用 /{id}/approve 约定）
+   */
+  expenseApproval(applicationId: string, action: 'APPROVE' | 'REJECT', comment?: string) {
+    return request.post('/erp/expense/approval/process', { applicationId, action, comment })
   }
 }
 

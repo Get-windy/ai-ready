@@ -152,10 +152,17 @@ export const menuApi = {
   },
 
   // 租户菜单授权
-  getTenantMenuIds(tenantId: number): Promise<ApiResponse<number[]>> {
+  // 注意：拦截器已把 `Result` 拆包 → 直接拿到 id 数组本体；且 JacksonConfig 把 Long 序列化为
+  // **字符串**（live 实测 id 形如 "90006"），故这里的类型按 string[] 声明，消费方不要 Number()。
+  getTenantMenuIds(tenantId: number | string): Promise<string[]> {
     return request.get(`/tenant-menu/${tenantId}`)
   },
-  assignTenantMenus(tenantId: number, menuIds: number[]): Promise<ApiResponse<void>> {
+  /**
+   * 全量覆盖某租户的授权菜单。
+   * 入参保持 `number | string` 原样：Jackson 可把 `["80601"]` 反序列化为 `List<Long>`，
+   * 用字符串提交可避免 Number() 对雪花 ID 的精度丢失。
+   */
+  assignTenantMenus(tenantId: number | string, menuIds: Array<number | string>): Promise<void> {
     return request.put(`/tenant-menu/${tenantId}`, menuIds)
   },
   removeTenantMenus(tenantId: number, menuIds: number[]): Promise<ApiResponse<void>> {

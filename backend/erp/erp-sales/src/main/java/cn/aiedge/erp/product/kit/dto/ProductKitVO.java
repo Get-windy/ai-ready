@@ -59,5 +59,14 @@ public class ProductKitVO {
 
     private Long updateBy;
 
+    /** 套餐图片 */
+    private String imageUrl;
+
+    /** 套餐条码 */
+    private String barcode;
+
+    /** 捆绑销售：1 是 / 0 否 */
+    private Integer bundleSales;
+
     private List<?> items;
 }

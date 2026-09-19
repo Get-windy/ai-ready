@@ -1,263 +1,522 @@
 <template>
-  <ErrorBoundary>
-    <PageContainer title="经营分析">
-      <!-- ═══ 财务 KPI 卡片 ═══ -->
-      <ARStatCards
-        :items="statCards"
-        :loading="kpiLoading"
-      />
+  <ErrorBoundary @error="handleError">
+    <PageContainer full-height>
+      <!--
+        经营分析（分析 → 财务分析 → 经营分析，菜单 80451）
+        对标 ql361：**期间损益账表**（单视图、无页内 Tab）——16 列 / 默认 10，多级表头
+        `日期 | 收入[销售收入 其他业务收入 其他收入 投资收益 营业外收入 收入合计] |
+         支出[销售成本 其他业务成本 营业外支出 销售费用 管理费用 财务费用 其他费用 支出合计] | 营业利润`；
+        底部合计行、粒度切换 按天/按周/按月、时间快捷段、行级无操作。
+        列名与顺序逐字取自《经营分析开发文档》§3，defaultHidden 个数 = 16 − 10 = 6。
 
-      <!-- ═══ 查询区（作用于回款趋势与明细） ═══ -->
-      <div class="search-area">
-        <a-form layout="inline">
-          <a-form-item label="收款日期">
-            <a-range-picker
-              v-model:value="dateRange"
-              :allow-clear="false"
-              style="width: 240px"
+        取数（真实接口，无硬编码数据）：
+          · reportApi.getIncomeStatementReport → /erp/finance/report/v2/income-statement-report
+            逐会计月（期间）取损益：revenueTotal / otherIncomeTotal / costTotal / expenseTotal /
+            nonOperatingIncomeTotal / nonOperatingExpenseTotal / operatingProfit，并从 rows 取
+            6601/6602/6603 三费（科目层级 1，无父子重复累加）。行以会计月为粒度。
+        后端缺口（见开发文档 §5，已在汇报中列出）：
+          · 无「按天 / 按周」损益聚合端点（现有端点最小粒度为会计月）→ 粒度按钮中「按天/按周」置灰；
+          · 无部门 / 经手人 / 「包含手工会计凭证」入参 → 对应查询项置灰（不做静默失效的假查询）；
+          · 无「其他收入 / 投资收益 / 其他业务成本 / 其他费用 / 优惠」等明细列的数据源 → 列以空白呈现。
+      -->
+      <CategoryListLayout
+        :tabs="[]"
+        :show-category-panel="false"
+        :show-table-footer="true"
+      >
+        <!-- ═══ 工具栏左侧：查询方案 + 时间快捷段 ═══ -->
+        <template #toolbar-left>
+          <QuerySchemeBar
+            storage-key="analytics-business-analysis\index.vue-query-scheme"
+            :snapshot="querySnapshot"
+            @apply="applyQuerySnapshot"
+          />
+          <a-space :size="4" class="quick-dates">
+            <a-button
+              v-for="d in QUICK_DATES"
+              :key="d.key"
+              :type="quickDate === d.key ? 'primary' : 'link'"
+              size="small"
+              @click="setQuickDate(d.key)"
+            >
+              {{ d.label }}
+            </a-button>
+          </a-space>
+        </template>
+
+        <!-- ═══ 工具栏右侧：刷新｜打印(F8)｜导出｜页面配置 ═══ -->
+        <template #toolbar-right>
+          <a-space :size="8">
+            <a-button v-if="isButtonEnabled('refresh')" size="small" :loading="loading" @click="handleRefresh">
+              <ReloadOutlined /> 刷新
+            </a-button>
+            <a-button v-if="isButtonEnabled('printF8')" size="small" @click="handlePrint">
+              <PrinterOutlined /> 打印(F8)
+            </a-button>
+            <a-button v-if="isButtonEnabled('export')" size="small" :loading="exporting" @click="handleExport">
+              <DownloadOutlined /> 导出
+            </a-button>
+            <a-button size="small" @click="showPageConfig = true">
+              <SettingOutlined /> 页面配置
+            </a-button>
+          </a-space>
+        </template>
+
+        <!-- ═══ 查询区（对标：日期范围 + 部门 + 经手人 + 包含手工会计凭证，横向自适应网格） ═══ -->
+        <template #search-fields>
+          <div class="search-area">
+            <div class="search-grid">
+              <div v-if="isQueryVisible('analysis.dateRange')" class="search-item">
+                <span class="search-label">日期</span>
+                <a-range-picker
+                  v-model:value="query.dateRange"
+                  size="small"
+                  value-format="YYYY-MM-DD"
+                  :allow-clear="false"
+                  style="width: 230px"
+                  @change="handleSearch"
+                />
+              </div>
+              <div v-if="isQueryVisible('analysis.departmentName')" class="search-item">
+                <span class="search-label">部门</span>
+                <a-input
+                  v-model:value="query.departmentName"
+                  size="small"
+                  placeholder="部门"
+                  allow-clear
+                  disabled
+                  style="width: 140px"
+                  title="后端损益端点（/erp/finance/report/v2/income-statement-report）暂无部门条件，待补"
+                />
+              </div>
+              <div v-if="isQueryVisible('analysis.handlerName')" class="search-item">
+                <span class="search-label">经手人</span>
+                <a-input
+                  v-model:value="query.handlerName"
+                  size="small"
+                  placeholder="经手人"
+                  allow-clear
+                  disabled
+                  style="width: 140px"
+                  title="后端损益端点（/erp/finance/report/v2/income-statement-report）暂无经手人条件，待补"
+                />
+              </div>
+              <div class="search-item search-actions">
+                <a-checkbox
+                  v-model:checked="query.includeManualVoucher"
+                  disabled
+                  title="后端损益端点暂无「包含手工会计凭证」入参，待补"
+                >
+                  包含手工会计凭证
+                </a-checkbox>
+                <a-button type="primary" size="small" @click="handleSearch">查询</a-button>
+                <a-button size="small" @click="handleReset">重置</a-button>
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <!-- ═══ 数据表格（多级表头 + 合计行；表头齿轮列配置） ═══ -->
+        <template #table>
+          <div class="table-area">
+            <!-- 粒度切换（对标：表格上方三段按钮） -->
+            <div class="granularity-bar">
+              <a-radio-group v-model:value="granularity" size="small" button-style="solid">
+                <a-radio-button value="day" disabled title="后端暂无按天损益聚合端点，待补">按天</a-radio-button>
+                <a-radio-button value="week" disabled title="后端暂无按周损益聚合端点，待补">按周</a-radio-button>
+                <a-radio-button value="month">按月</a-radio-button>
+              </a-radio-group>
+              <span class="granularity-hint">当前按会计月（会计期间）汇总；按天/按周端点待补</span>
+            </div>
+            <BillDetailTable
+              v-model:data-source="dataSource"
+              :columns="columns"
+              :loading="loading"
+              :view-mode="true"
+              :min-rows="20"
+              :summary-columns="summaryColumns"
+              row-key="rowKey"
+              storage-key="analytics-business-analysis-columns"
+              global-config-key="analytics-business-analysis-columns"
             />
-          </a-form-item>
-          <a-form-item>
-            <a-space>
-              <a-button
-                type="primary"
-                @click="handleSearch"
-              >
-                <template #icon>
-                  <SearchOutlined />
-                </template>查询
-              </a-button>
-              <a-button @click="handleReset">
-                <template #icon>
-                  <ClearOutlined />
-                </template>重置
-              </a-button>
-            </a-space>
-          </a-form-item>
-        </a-form>
-      </div>
+          </div>
+        </template>
 
-      <!-- ═══ 图表区 ═══ -->
-      <div class="chart-grid">
-        <ARReportChart
-          title="回款趋势"
-          :option="trendOption"
-          :loading="loading"
-          :height="340"
-        />
-        <ARReportChart
-          title="回款方式构成"
-          :option="payTypeOption"
-          :loading="loading"
-          :height="340"
-        />
-      </div>
+        <template #table-footer>
+          <StandardPagination
+            variant="classic"
+            :current="pagination.current"
+            :page-size="pagination.pageSize"
+            :total="pagination.total"
+            :page-size-options="[20, 50, 100]"
+            @change="handlePageChange"
+          />
+        </template>
+      </CategoryListLayout>
 
-      <!-- ═══ 回款明细表（按日） ═══ -->
-      <div class="table-area">
-        <a-table
-          :columns="columns"
-          :data-source="detailRows"
-          :loading="loading"
-          :pagination="tablePagination"
-          row-key="groupKey"
-          :locale="{ emptyText: '暂无数据' }"
-          size="small"
-        >
-          <template #bodyCell="{ column, text }">
-            <template v-if="['totalAmount', 'cashAmount', 'bankAmount', 'otherAmount'].includes(column.dataIndex as string)">
-              {{ formatMoney(text) }}
-            </template>
-          </template>
-        </a-table>
-      </div>
+      <!-- ═══ 页面配置（对标有「经营分析-页面配置弹窗」实测截图 → 接 PageConfigPanel） ═══ -->
+      <PageConfigPanel
+        :open="showPageConfig"
+        :query-fields-config="queryFields"
+        :function-buttons-config="functionButtons"
+        :default-query-fields-config="DEFAULT_QUERY_FIELDS"
+        :default-function-buttons-config="DEFAULT_FUNCTION_BUTTONS"
+        :storage-key="pageConfigStorageKey"
+        :print-config-items="PRINT_ITEMS"
+        @update:open="showPageConfig = $event"
+        @change="handlePageConfigChange"
+      />
     </PageContainer>
   </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import dayjs, { type Dayjs } from 'dayjs'
-import { SearchOutlined, ClearOutlined } from '@ant-design/icons-vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { message } from 'ant-design-vue'
+import {
+  DownloadOutlined, PrinterOutlined, ReloadOutlined, SettingOutlined
+} from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
-import ARStatCards from '@/components/ARStatCards/ARStatCards.vue'
-import ARReportChart from '@/components/ARReportChart/ARReportChart.vue'
-import type { StatCardItem } from '@/components/ARReportPage/types'
-import { reportApi, financeAnalyticsApi } from '@/api/analytics'
-import type { CollectionStats } from '@/api/analytics'
+import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayout.vue'
+import BillDetailTable from '@/components/BillFormPage/BillDetailTable/index.vue'
+import StandardPagination from '@/components/Pagination/Pagination.vue'
+import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
+import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTable/types'
+import { reportApi } from '@/api/analytics'
+import { useExport } from '@/composables/useExport'
+import { QUICK_DATES, quickDateRange } from '../shared/docTypes'
+import { formatMoney } from '../shared/docActions'
+import { useAnalyticsPageConfig } from '../shared/useAnalyticsPageConfig'
+import type { FunctionButtonSetting, QueryFieldSetting } from '../shared/useAnalyticsPageConfig'
+import QuerySchemeBar from '../shared/QuerySchemeBar.vue'
 
-// ═══ 状态 ═══
-const kpiLoading = ref(false)
+defineOptions({ name: 'AnalyticsBusinessAnalysis' })
+
+const quickDate = ref('month')
+/** 粒度（对标 按天/按周/按月；后端当前仅支持会计月） */
+const granularity = ref<'day' | 'week' | 'month'>('month')
+
+const query = reactive({
+  dateRange: quickDateRange('month') as [string, string],
+  departmentName: '',
+  handlerName: '',
+  includeManualVoucher: false
+})
+
 const loading = ref(false)
-const dateRange = ref<[Dayjs, Dayjs]>([dayjs().subtract(29, 'day'), dayjs()])
-const kpi = ref<Record<string, any>>({})
-const collectionStats = ref<CollectionStats | null>(null)
+/** 当前页展示行 */
+const dataSource = ref<any[]>([])
+/** 当前过滤条件下的全量行（会计月粒度，逐月一行） */
+const allRows = ref<any[]>([])
+const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
 
-// ═══ KPI 卡片（/erp/finance/report/v2/dashboard，后端固定本年/本期口径） ═══
-const statCards = computed<StatCardItem[]>(() => {
-  const k = kpi.value
-  const period = k.fiscalYear ? `${k.fiscalYear}年${k.fiscalPeriod}期` : ''
+function num(v: any): number {
+  const n = Number(v)
+  return Number.isFinite(n) ? n : 0
+}
+const pad = (n: number) => String(n).padStart(2, '0')
+
+// ═══ 列定义（对标 16 列 / 默认 10；收入、支出为分组表头，仅一层） ═══
+// defaultHidden 个数 = 16 − 10 = 6：收入组 3 列（其他收入/投资收益/营业外收入）+ 支出组 3 列（其他业务成本/营业外支出/其他费用）
+const columns: DetailColumnConfig[] = [
+  { key: 'rowNo', title: '', type: 'rowNo', width: 44, fixed: 'left' },
+  { key: 'date', title: '日期', width: 130 },
+  {
+    key: '__income',
+    title: '收入',
+    children: [
+      { key: 'saleRevenue', title: '销售收入', width: 130, align: 'right', formatter: v => formatMoney(v) },
+      { key: 'otherBizRevenue', title: '其他业务收入', width: 140, align: 'right', formatter: v => formatMoney(v) },
+      { key: 'otherRevenue', title: '其他收入', width: 120, align: 'right', formatter: v => formatMoney(v), defaultHidden: true },
+      { key: 'investmentIncome', title: '投资收益', width: 120, align: 'right', formatter: v => formatMoney(v), defaultHidden: true },
+      { key: 'nonOperatingIncome', title: '营业外收入', width: 130, align: 'right', formatter: v => formatMoney(v), defaultHidden: true },
+      { key: 'revenueTotal', title: '收入合计', width: 130, align: 'right', formatter: v => formatMoney(v) }
+    ]
+  },
+  {
+    key: '__expense',
+    title: '支出',
+    children: [
+      { key: 'saleCost', title: '销售成本', width: 130, align: 'right', formatter: v => formatMoney(v) },
+      { key: 'otherBizCost', title: '其他业务成本', width: 140, align: 'right', formatter: v => formatMoney(v), defaultHidden: true },
+      { key: 'nonOperatingExpense', title: '营业外支出', width: 130, align: 'right', formatter: v => formatMoney(v), defaultHidden: true },
+      { key: 'saleExpense', title: '销售费用', width: 120, align: 'right', formatter: v => formatMoney(v) },
+      { key: 'manageExpense', title: '管理费用', width: 120, align: 'right', formatter: v => formatMoney(v) },
+      { key: 'financeExpense', title: '财务费用', width: 120, align: 'right', formatter: v => formatMoney(v) },
+      { key: 'otherExpense', title: '其他费用', width: 120, align: 'right', formatter: v => formatMoney(v), defaultHidden: true },
+      { key: 'expenseTotal', title: '支出合计', width: 130, align: 'right', formatter: v => formatMoney(v) }
+    ]
+  },
+  { key: 'operatingProfit', title: '营业利润', width: 130, align: 'right', formatter: v => formatMoney(v) }
+]
+
+/** 合计行（对标：逐列求和，含隐藏列，含负利润） */
+const summaryColumns = computed(() => {
+  const sum = (key: string) => allRows.value.reduce((a, r) => a + num(r[key]), 0)
   return [
-    { label: `总资产${period ? `（${period}）` : ''}`, value: Number(k.totalAssets) || 0, precision: 2, prefix: '¥' },
-    { label: '总负债', value: Number(k.totalLiabilities) || 0, precision: 2, prefix: '¥' },
-    { label: '营业收入（本年）', value: Number(k.totalRevenue) || 0, precision: 2, prefix: '¥' },
-    { label: '营业成本（本年）', value: Number(k.totalCost) || 0, precision: 2, prefix: '¥' },
-    { label: '期间费用（本年）', value: Number(k.totalExpense) || 0, precision: 2, prefix: '¥' },
-    {
-      label: '净利润（本年）',
-      value: Number(k.netProfit) || 0,
-      precision: 2,
-      prefix: '¥',
-      valueStyle: { color: (Number(k.netProfit) || 0) >= 0 ? '#52c41a' : '#f5222d' }
-    }
+    { key: 'saleRevenue', value: sum('saleRevenue') },
+    { key: 'otherBizRevenue', value: sum('otherBizRevenue') },
+    { key: 'otherRevenue', value: sum('otherRevenue') },
+    { key: 'investmentIncome', value: sum('investmentIncome') },
+    { key: 'nonOperatingIncome', value: sum('nonOperatingIncome') },
+    { key: 'revenueTotal', value: sum('revenueTotal') },
+    { key: 'saleCost', value: sum('saleCost') },
+    { key: 'otherBizCost', value: sum('otherBizCost') },
+    { key: 'nonOperatingExpense', value: sum('nonOperatingExpense') },
+    { key: 'saleExpense', value: sum('saleExpense') },
+    { key: 'manageExpense', value: sum('manageExpense') },
+    { key: 'financeExpense', value: sum('financeExpense') },
+    { key: 'otherExpense', value: sum('otherExpense') },
+    { key: 'expenseTotal', value: sum('expenseTotal') },
+    { key: 'operatingProfit', value: sum('operatingProfit') }
   ]
 })
 
-// ═══ 回款明细 ═══
-const detailRows = computed(() => collectionStats.value?.details || [])
-
-const tablePagination = {
-  pageSize: 20,
-  showSizeChanger: true,
-  showTotal: (t: number) => `共 ${t} 条`
-}
-
-const columns: any[] = [
-  { title: '日期', dataIndex: 'groupName', key: 'groupName', width: 120 },
-  { title: '收款笔数', dataIndex: 'receiptCount', key: 'receiptCount', width: 100, align: 'right' },
-  { title: '回款总额', dataIndex: 'totalAmount', key: 'totalAmount', width: 140, align: 'right' },
-  { title: '现金', dataIndex: 'cashAmount', key: 'cashAmount', width: 130, align: 'right' },
-  { title: '银行', dataIndex: 'bankAmount', key: 'bankAmount', width: 130, align: 'right' },
-  { title: '其他', dataIndex: 'otherAmount', key: 'otherAmount', width: 130, align: 'right' }
+// ═══ 页面配置 ═══
+const DEFAULT_QUERY_FIELDS: QueryFieldSetting[] = [
+  { key: 'analysis.dateRange', label: '日期', visible: true },
+  { key: 'analysis.departmentName', label: '部门', visible: true },
+  { key: 'analysis.handlerName', label: '经手人', visible: true }
+]
+const DEFAULT_FUNCTION_BUTTONS: FunctionButtonSetting[] = [
+  { key: 'refresh', label: '刷新', enabled: true },
+  { key: 'printF8', label: '打印(F8)', enabled: true },
+  { key: 'export', label: '导出', enabled: true }
+]
+const PRINT_ITEMS = [
+  { key: 'showCompany', label: '打印抬头显示公司名' },
+  { key: 'showSummary', label: '打印底部显示合计行' }
 ]
 
-// ═══ 图表 ═══
-const trendOption = computed(() => {
-  const rows = [...detailRows.value].sort((a, b) => String(a.groupKey).localeCompare(String(b.groupKey)))
-  return {
-    tooltip: { trigger: 'axis' },
-    legend: { data: ['回款金额', '收款笔数'] },
-    grid: { left: 70, right: 50, top: 40, bottom: 30 },
-    xAxis: { type: 'category', data: rows.map(r => r.groupName || r.groupKey) },
-    yAxis: [
-      { type: 'value', name: '金额(元)' },
-      { type: 'value', name: '笔数', minInterval: 1 }
-    ],
-    series: [
-      {
-        name: '回款金额',
-        type: 'line',
-        smooth: true,
-        areaStyle: { opacity: 0.12 },
-        data: rows.map(r => Number(r.totalAmount) || 0)
-      },
-      {
-        name: '收款笔数',
-        type: 'line',
-        smooth: true,
-        yAxisIndex: 1,
-        data: rows.map(r => Number(r.receiptCount) || 0)
-      }
-    ]
-  }
+const {
+  showPageConfig, queryFields, functionButtons,
+  isQueryVisible, isButtonEnabled, handlePageConfigChange, pageConfigStorageKey
+} = useAnalyticsPageConfig({
+  storageKey: 'analytics-business-analysis-page-config',
+  defaultQueryFields: DEFAULT_QUERY_FIELDS,
+  defaultFunctionButtons: DEFAULT_FUNCTION_BUTTONS
 })
 
-const payTypeOption = computed(() => {
-  const s = collectionStats.value?.summary
-  const data = [
-    { name: '现金', value: Number(s?.cashAmount) || 0 },
-    { name: '银行', value: Number(s?.bankAmount) || 0 },
-    { name: '其他', value: Number(s?.otherAmount) || 0 }
-  ].filter(d => d.value > 0)
-  return {
-    tooltip: { trigger: 'item', formatter: '{b}: ¥{c}（{d}%）' },
-    legend: { bottom: 0 },
-    series: [
-      {
-        name: '回款方式',
-        type: 'pie',
-        radius: ['40%', '65%'],
-        center: ['50%', '45%'],
-        label: { formatter: '{b}\n{d}%' },
-        data
-      }
-    ]
+// ═══ 取数（逐会计月调用损益端点，按会计月成行） ═══
+/** 日期范围覆盖到的会计月列表 */
+function monthsInRange(): { year: number; month: number }[] {
+  const [start, end] = query.dateRange
+  const s = new Date(String(start).replace(/-/g, '/'))
+  const e = new Date(String(end).replace(/-/g, '/'))
+  const out: { year: number; month: number }[] = []
+  const cur = new Date(s.getFullYear(), s.getMonth(), 1)
+  while (cur <= e && out.length < 36) {
+    out.push({ year: cur.getFullYear(), month: cur.getMonth() + 1 })
+    cur.setMonth(cur.getMonth() + 1)
   }
-})
-
-// ═══ 工具 ═══
-function formatMoney(val: number | null | undefined): string {
-  if (val === null || val === undefined || isNaN(Number(val))) return '-'
-  return Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return out.length ? out : [{ year: e.getFullYear(), month: e.getMonth() + 1 }]
 }
 
-// ═══ 数据请求 ═══
-async function loadKpi() {
-  kpiLoading.value = true
-  try {
-    const res: any = await reportApi.getDashboard()
-    kpi.value = res?.data ?? res ?? {}
-  } catch (e) {
-    kpi.value = {}
-    console.warn('[经营分析] 财务KPI获取失败', e)
-  } finally {
-    kpiLoading.value = false
+/** 损益报表 → 表格行（列口径见开发文档 §3/§4 的三层公式） */
+function buildRow(m: { year: number; month: number }, res: any) {
+  const rows: any[] = res?.rows || []
+  // 三费按一级科目精确匹配（subjectLevel=1 时不存在父子重复累加）
+  const sumBy = (code: string) => rows
+    .filter(r => !r?.summaryRow && String(r?.subjectCode || '').startsWith(code))
+    .reduce((a, r) => a + num(r.currentAmount), 0)
+  const revenueTotal = num(res?.revenueTotal) + num(res?.otherIncomeTotal) + num(res?.nonOperatingIncomeTotal)
+  const expenseTotal = num(res?.costTotal) + num(res?.expenseTotal) + num(res?.nonOperatingExpenseTotal)
+  return {
+    rowKey: `${m.year}-${pad(m.month)}`,
+    date: `${m.year}-${pad(m.month)}`,
+    saleRevenue: num(res?.revenueTotal),
+    otherBizRevenue: num(res?.otherIncomeTotal),
+    nonOperatingIncome: num(res?.nonOperatingIncomeTotal),
+    revenueTotal,
+    saleCost: num(res?.costTotal),
+    nonOperatingExpense: num(res?.nonOperatingExpenseTotal),
+    saleExpense: sumBy('6601'),
+    manageExpense: sumBy('6602'),
+    financeExpense: sumBy('6603'),
+    expenseTotal,
+    operatingProfit: num(res?.operatingProfit)
   }
 }
 
-async function loadCollection() {
+function applyClientPage() {
+  const size = pagination.pageSize
+  const start = (pagination.current - 1) * size
+  dataSource.value = allRows.value.slice(start, start + size)
+}
+
+async function fetchData() {
   loading.value = true
   try {
-    const res = await financeAnalyticsApi.collectionStats({
-      startDate: dateRange.value[0].format('YYYY-MM-DD'),
-      endDate: dateRange.value[1].format('YYYY-MM-DD'),
-      groupBy: 'day'
-    })
-    collectionStats.value = res ?? null
-  } catch (e) {
-    collectionStats.value = null
-    console.warn('[经营分析] 回款统计获取失败', e)
+    const months = monthsInRange()
+    const rows = await Promise.all(months.map(async m => {
+      const res: any = await reportApi.getIncomeStatementReport({
+        fiscalYear: m.year,
+        periodMode: 'single',
+        fiscalPeriod: m.month,
+        subjectLevel: 1,
+        showZero: false
+      })
+      return buildRow(m, res)
+    }))
+    allRows.value = rows
+    pagination.total = rows.length
+    applyClientPage()
+  } catch (e: any) {
+    console.warn('[经营分析] 取数失败', e)
+    message.error('获取经营分析数据失败')
+    allRows.value = []
+    dataSource.value = []
+    pagination.total = 0
   } finally {
     loading.value = false
   }
 }
 
+// ═══ 查询交互 ═══
+// ═══ 查询方案（存本机，只对当前操作员可见） ═══
+function querySnapshot(): Record<string, any> {
+  return { ...query }
+}
+
+function applyQuerySnapshot(v: Record<string, any>) {
+  Object.assign(query, v)
+  if (typeof quickDate !== 'undefined') quickDate.value = ''
+  handleSearch()
+}
+
 function handleSearch() {
-  loadCollection()
+  pagination.current = 1
+  return fetchData()
+}
+
+function handlePageChange(page: number, size: number) {
+  const sizeChanged = size !== pagination.pageSize
+  pagination.pageSize = size
+  pagination.current = sizeChanged ? 1 : page
+  applyClientPage()
+  return Promise.resolve()
+}
+
+function setQuickDate(key: string) {
+  quickDate.value = key
+  const [start, end] = quickDateRange(key)
+  query.dateRange = [start, end]
+  handleSearch()
+}
+
+function handleRefresh() {
+  fetchData()
 }
 
 function handleReset() {
-  dateRange.value = [dayjs().subtract(29, 'day'), dayjs()]
-  loadCollection()
+  Object.assign(query, {
+    dateRange: quickDateRange('month'),
+    departmentName: '',
+    handlerName: '',
+    includeManualVoucher: false
+  })
+  handleSearch()
 }
 
-onMounted(() => {
-  loadKpi()
-  loadCollection()
+// ═══ 打印(F8) ═══
+/** 叶子列（收入/支出为分组表头，按叶子列展开） */
+function leafColumns(cols: DetailColumnConfig[]): DetailColumnConfig[] {
+  const out: DetailColumnConfig[] = []
+  for (const c of cols) {
+    if (c.children?.length) out.push(...leafColumns(c.children))
+    else if (c.key !== 'rowNo') out.push(c)
+  }
+  return out
+}
+
+const printColumns = computed(() => leafColumns(columns))
+
+function handlePrint() {
+  const header = printColumns.value.map(c => c.title)
+  const body = dataSource.value.map(r => printColumns.value.map(c => {
+    const v = r[c.key]
+    if (v === undefined || v === null) return ''
+    return c.align === 'right' ? formatMoney(v) : String(v)
+  }))
+  const win = window.open('', '_blank', 'width=1200,height=800')
+  if (!win) {
+    message.warning('浏览器拦截了打印窗口，请允许弹窗后重试')
+    return
+  }
+  const total = printColumns.value.map(c => {
+    const found = summaryColumns.value.find(s => s.key === c.key)
+    return found ? formatMoney(found.value) : ''
+  })
+  const html = `<html><head><meta charset="utf-8"><title>经营分析</title>
+    <style>body{font-family:system-ui,sans-serif;font-size:12px;padding:12px}
+    h3{margin:0 0 8px}table{border-collapse:collapse;width:100%}
+    th,td{border:1px solid #999;padding:4px 6px;text-align:left;white-space:nowrap}
+    tfoot td{font-weight:600}</style></head><body>
+    <h3>经营分析（${query.dateRange[0]} ~ ${query.dateRange[1]}，按会计月）</h3>
+    <table><thead><tr>${header.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+    <tbody>${body.map(row => `<tr>${row.map(v => `<td>${v}</td>`).join('')}</tr>`).join('')}</tbody>
+    <tfoot><tr>${total.map((v, i) => `<td>${i === 0 ? '合计' : v}</td>`).join('')}</tr></tfoot>
+    </table></body></html>`
+  win.document.write(html)
+  win.document.close()
+  win.focus()
+  win.print()
+}
+
+function handleF8Key(e: KeyboardEvent) {
+  if (e.key === 'F8') {
+    e.preventDefault()
+    handlePrint()
+  }
+}
+
+// ═══ 导出（CSV；会计月为最小粒度，全量即内存中的全量行） ═══
+const { execute: executeExport, exporting } = useExport()
+
+function toExportRow(r: any): string[] {
+  return printColumns.value.map(c => {
+    const v = r[c.key]
+    if (v === undefined || v === null) return ''
+    return c.align === 'right' ? formatMoney(v) : String(v)
+  })
+}
+
+function handleExport() {
+  executeExport({
+    fileName: '经营分析',
+    headers: printColumns.value.map(c => c.title),
+    total: pagination.total,
+    fetchAll: async () => allRows.value,
+    mapToRows: (list: any[]) => list.map(toExportRow),
+    fallbackRows: () => dataSource.value.map(toExportRow)
+  })
+}
+
+function handleError(err: any) {
+  console.error('[经营分析] 页面异常', err)
+}
+
+onMounted(async () => {
+  await fetchData()
+  window.addEventListener('keydown', handleF8Key)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleF8Key)
 })
 </script>
 
 <style scoped>
-.search-area {
-  background: #fff;
-  padding: 16px 20px 0;
-  border-radius: 8px;
-  margin-bottom: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
+/* 插槽内容不在 scoped 作用域内，样式随页面自带（见《插槽内容的样式必须自备》） */
+.search-area { width: 100%; }
+.search-grid { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; }
+.search-item { display: flex; align-items: center; gap: 6px; }
+.search-label { color: #666; font-size: 13px; white-space: nowrap; }
+.search-actions { margin-left: auto; }
+.quick-dates { margin-left: 8px; }
 
-.chart-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
-  gap: 16px;
-  margin-bottom: 16px;
-}
-
-.table-area {
-  background: #fff;
-  padding: 16px;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
+.table-area { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+.granularity-bar { display: flex; align-items: center; gap: 10px; padding: 6px 8px; }
+.granularity-hint { color: #999; font-size: 12px; }
 </style>

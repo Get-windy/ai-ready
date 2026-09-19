@@ -41,12 +41,16 @@
             <span class="shortcut-hints">
               <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
               <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+              <span class="shortcut-hint"><kbd>双击</kbd> 查看详情</span>
             </span>
           </div>
         </div>
       </template>
 
-      <div class="user-management">
+      <div
+        ref="tableWrap"
+        class="user-management"
+      >
         <!-- 统计卡片 -->
         <div class="stat-cards">
           <div class="stat-card stat-total">
@@ -112,7 +116,6 @@
           @page-change="handlePageChange"
           @filter-change="handleFilterChange"
           @selection-change="(keys: any) => { (selectedRowKeys as any) = keys }"
-          @cell-dblclick="handleView"
         >
           <template #empty>
             <div class="empty-state-wrapper">
@@ -372,6 +375,188 @@
             :filter-option="filterRoleOption"
           />
         </a-modal>
+
+        <!-- 用户详情抽屉（只读）：双击行打开，不提供任何写操作 -->
+        <a-drawer
+          v-model:open="detailVisible"
+          title="用户详情"
+          placement="right"
+          width="60vw"
+          :footer="null"
+          destroy-on-close
+        >
+          <a-spin :spinning="detailLoading">
+            <!-- 取数失败：给出错误态与重试入口，不静默显示空 -->
+            <a-result
+              v-if="detailError"
+              status="error"
+              title="用户详情加载失败"
+              :sub-title="detailError"
+            >
+              <template #extra>
+                <a-button
+                  type="primary"
+                  @click="loadDetail()"
+                >
+                  <template #icon>
+                    <ReloadOutlined />
+                  </template>
+                  重新加载
+                </a-button>
+              </template>
+            </a-result>
+
+            <template v-else-if="detailData">
+              <div class="detail-user-head">
+                <a-avatar
+                  :src="detailData.avatar"
+                  :size="40"
+                >
+                  {{ detailData.nickname?.charAt(0) || detailData.username?.charAt(0) }}
+                </a-avatar>
+                <div>
+                  <div class="user-name">
+                    {{ detailData.username }}
+                  </div>
+                  <div class="user-nickname">
+                    {{ detailData.nickname || '-' }}
+                  </div>
+                </div>
+              </div>
+
+              <!-- 账号信息：GET /user/{id} -->
+              <a-descriptions
+                class="detail-block"
+                title="账号信息"
+                bordered
+                :column="2"
+                size="small"
+              >
+                <a-descriptions-item label="用户名">
+                  {{ detailData.username || '-' }}
+                </a-descriptions-item>
+                <a-descriptions-item label="昵称">
+                  {{ detailData.nickname || '-' }}
+                </a-descriptions-item>
+                <a-descriptions-item label="姓名">
+                  {{ detailData.realName || '-' }}
+                </a-descriptions-item>
+                <a-descriptions-item label="手机号">
+                  {{ detailData.phone || '-' }}
+                </a-descriptions-item>
+                <a-descriptions-item label="邮箱">
+                  {{ detailData.email || '-' }}
+                </a-descriptions-item>
+                <a-descriptions-item label="性别">
+                  {{ getGenderName(detailData.gender) }}
+                </a-descriptions-item>
+                <a-descriptions-item label="状态">
+                  <a-tag :color="detailData.status === 0 ? 'success' : 'warning'">
+                    {{ getStatusName(detailData.status) }}
+                  </a-tag>
+                </a-descriptions-item>
+                <a-descriptions-item label="用户类型">
+                  <a-tag :color="getUserTypeColor(detailData.userType ?? -1)">
+                    {{ getUserTypeName(detailData.userType ?? -1) }}
+                  </a-tag>
+                </a-descriptions-item>
+              </a-descriptions>
+
+              <!-- 归属信息 -->
+              <a-descriptions
+                class="detail-block"
+                title="归属信息"
+                bordered
+                :column="2"
+                size="small"
+              >
+                <a-descriptions-item label="所属租户">
+                  {{ tenantLabel(detailData.tenantId) }}
+                </a-descriptions-item>
+                <a-descriptions-item label="所属部门">
+                  {{ deptLabel }}
+                </a-descriptions-item>
+                <a-descriptions-item label="超级管理员">
+                  {{ detailData.isSuperAdmin ? '是' : '否' }}
+                </a-descriptions-item>
+                <a-descriptions-item label="租户管理员">
+                  {{ detailData.isTenantAdmin ? '是' : '否' }}
+                </a-descriptions-item>
+              </a-descriptions>
+
+              <!-- 角色：GET /user-permission/user/{id}/role-ids + GET /role/list -->
+              <a-descriptions
+                class="detail-block"
+                title="角色"
+                bordered
+                :column="1"
+                size="small"
+              >
+                <a-descriptions-item label="已分配角色">
+                  <a-spin
+                    :spinning="rolesLoading"
+                    size="small"
+                  >
+                    <template v-if="rolesError">
+                      <span style="color: #f5222d;">{{ rolesError }}</span>
+                      <a-button
+                        type="link"
+                        size="small"
+                        @click="loadDetail(currentDetailId)"
+                      >
+                        重试
+                      </a-button>
+                    </template>
+                    <a-space
+                      v-else-if="roleTags.length"
+                      wrap
+                    >
+                      <a-tag
+                        v-for="role in roleTags"
+                        :key="role.id"
+                        color="blue"
+                      >
+                        {{ role.name }}
+                      </a-tag>
+                    </a-space>
+                    <!-- 仍在加载时不要断言「暂未分配」，避免把加载中误报成空态 -->
+                    <span
+                      v-else-if="!rolesLoading"
+                      style="color: #999;"
+                    >该用户暂未分配任何角色</span>
+                  </a-spin>
+                </a-descriptions-item>
+              </a-descriptions>
+
+              <!-- 时间信息 -->
+              <a-descriptions
+                class="detail-block"
+                title="时间信息"
+                bordered
+                :column="2"
+                size="small"
+              >
+                <a-descriptions-item label="创建时间">
+                  {{ formatDateTime(detailData.createTime) }}
+                </a-descriptions-item>
+                <a-descriptions-item label="更新时间">
+                  {{ formatDateTime(detailData.updateTime) }}
+                </a-descriptions-item>
+                <a-descriptions-item label="最后登录时间">
+                  {{ formatDateTime(detailData.lastLoginTime) }}
+                </a-descriptions-item>
+                <a-descriptions-item label="最后登录IP">
+                  {{ detailData.lastLoginIp || '-' }}
+                </a-descriptions-item>
+              </a-descriptions>
+            </template>
+
+            <a-empty
+              v-else-if="!detailLoading"
+              description="未找到该用户的信息"
+            />
+          </a-spin>
+        </a-drawer>
       </div>
     </PageContainer>
   </ErrorBoundary>
@@ -380,6 +565,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, nextTick, onMounted, onUnmounted, h } from 'vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
+import { useRowDblclick } from '@/composables/useRowDblclick'
 import { useRouter, onBeforeRouteLeave } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
@@ -388,6 +574,7 @@ import BillTableList, { type FilterField } from '@/components/BillTableList/Bill
 import { userApi, type UserInfo, type TenantInfo } from '@/api/user'
 import { roleApi, type RoleInfo } from '@/api/role'
 import { dictItemApi } from '@/api/dict'
+import { departmentApi } from '@/api/department'
 import { useSubmitLock, useOptimisticUpdate } from '@/composables'
 import { useUserStore } from '@/stores/user'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
@@ -729,8 +916,143 @@ onUnmounted(() => {
 defineExpose({ handleQuery: fetchData })
 
 function handleError(err: any) { console.warn('[ErrorBoundary]', err) }
-// 查看详情
-const handleView = (record: any) => {}
+
+// ── 用户详情（只读）──────────────────────────────────────
+// 数据来源（全部为真实接口，无写操作）：
+//   · 账号/归属/时间：GET /api/user/{id}（SysUser 实体，含 tenantId / userType / lastLoginTime）
+//   · 角色：GET /api/user-permission/user/{id}/role-ids（直查 sys_user_role 关联表）
+//          + GET /api/role/list（把 roleId 映射成角色名）
+//   · 部门名：GET /api/department/{id}（详情只返回 deptId；取不到名时降级显示部门ID）
+const detailVisible = ref(false)
+const detailLoading = ref(false)
+const detailError = ref('')
+const detailData = ref<UserInfo | null>(null)
+/** 当前正在查看的用户ID（字符串口径，雪花ID不做数值转换） */
+const currentDetailId = ref<any>(null)
+const rolesLoading = ref(false)
+const rolesError = ref('')
+const roleTags = ref<{ id: string; name: string }[]>([])
+const deptName = ref('')
+
+
+/** 性别取值口径与编辑表单一致（0-未知 1-男 2-女） */
+const GENDER_NAMES: Record<number, string> = { 0: '未知', 1: '男', 2: '女' }
+function getGenderName(gender?: number) {
+  if (gender === undefined || gender === null) return '-'
+  return GENDER_NAMES[gender] || '未知'
+}
+
+/** 状态口径：0-正常 1-停用 2-锁定（见后端 SysUser.status 注释；列表页只出现 0/1） */
+function getStatusName(status?: number) {
+  if (status === 0) return '正常'
+  if (status === 1) return '停用'
+  if (status === 2) return '锁定'
+  return '-'
+}
+
+/** 所属租户：与列表「所属租户」列同口径（tenantMap 来自 /auth/tenants） */
+function tenantLabel(tenantId?: number) {
+  if (tenantId === undefined || tenantId === null) return '-'
+  return tenantMap.value[tenantId] || `租户${tenantId}`
+}
+
+/** 后端 LocalDateTime 形如 2026-06-12T01:22:49.946885 */
+function formatDateTime(value?: string) {
+  if (!value) return '-'
+  return String(value).replace('T', ' ').slice(0, 19)
+}
+
+const deptLabel = computed(() => {
+  const deptId = detailData.value?.deptId
+  if (deptId === undefined || deptId === null || deptId === '') return '-'
+  return deptName.value || `部门ID ${deptId}`
+})
+
+/**
+ * 加载详情主数据（失败即整块错误态 + 重试）
+ * @param id 不传时沿用当前正在查看的用户
+ */
+async function loadDetail(id?: any) {
+  const userId = id ?? currentDetailId.value
+  if (userId === undefined || userId === null || userId === '') return
+  currentDetailId.value = userId
+  detailVisible.value = true
+  detailLoading.value = true
+  detailError.value = ''
+  detailData.value = null
+  deptName.value = ''
+  rolesLoading.value = true
+  try {
+    const res: any = await userApi.getById(userId)
+    if (!res) {
+      detailError.value = '接口未返回该用户的数据'
+      return
+    }
+    detailData.value = res as UserInfo
+    // 角色随详情一并返回（后端 /api/v2/user/{id} 的 roles/roleIds），无需再发请求
+    resolveRoles(res as UserInfo)
+    // 部门名是分块数据：失败只影响本块，不拖垮整个详情
+    void loadDeptName(res.deptId)
+  } catch (err: any) {
+    console.warn('[用户管理] 加载用户详情失败', err)
+    detailError.value = err?.message || '请求失败，请稍后重试'
+  } finally {
+    detailLoading.value = false
+  }
+}
+
+/**
+ * 解析该用户已分配的角色 → 角色名标签
+ *
+ * 数据源：**`GET /api/v2/user/{id}` 自带的 `roles` / `roleIds`**（后端 `UserServiceImpl`
+ * 已把角色随详情一并返回），不再单开一个端点。
+ *
+ * ⚠️ 历史弯路（勿再走回）：本页曾改调 `GET /api/user-permission/user/{id}/role-ids`，
+ * 那条路径要 `system:role:view` 权限（仅授 SUPER_ADMIN）→ **租户管理员调用会 500**，
+ * 且还要再发一次 `/role/list` 做 id→名映射。真正的根因在**后端**：
+ * `RoleMapper.selectByUserId` 的状态过滤写成 `r.status = 1`，而 `sys_role.status`
+ * 是 **0 = 启用 / 1 = 停用**（见 `PermissionInitializationConfig` 的 `setStatus(0); // 启用`）
+ * → 该查询恒返回空 → 用户详情的角色恒为空。**已于 2026-09-19 修正为 `status = 0`**，
+ * 故本页直接用详情自带字段即可：少一次请求，且不再受权限码限制。
+ */
+function resolveRoles(detail: UserInfo | null) {
+  rolesError.value = ''
+  roleTags.value = []
+  if (!detail) return
+  const roles = (detail as any).roles as RoleInfo[] | undefined
+  const roleIds = (detail as any).roleIds as any[] | undefined
+  if (Array.isArray(roles) && roles.length > 0) {
+    roleTags.value = roles.map(r => ({ id: String(r.id), name: r.roleName || `角色ID ${r.id}` }))
+    return
+  }
+  // 后端只回 id 时（理论上不会，留兜底）用 id 展示，不静默隐藏
+  if (Array.isArray(roleIds) && roleIds.length > 0) {
+    roleTags.value = roleIds.map(id => ({ id: String(id), name: `角色ID ${id}` }))
+  }
+}
+
+/** 部门名（详情只返回 deptId，取名字失败时降级显示部门ID，不影响其它块） */
+async function loadDeptName(deptId?: any) {
+  if (deptId === undefined || deptId === null || deptId === '') return
+  try {
+    const res: any = await departmentApi.getById(deptId)
+    deptName.value = res?.departmentName || ''
+  } catch (err) {
+    console.warn('[用户管理] 加载部门名称失败', err)
+    deptName.value = ''
+  }
+}
+
+// 查看详情：双击行时由 useRowDblclick 回调，行为只读（不修改任何数据）
+const handleView = (record: any) => {
+  if (!record?.id) return
+  void loadDetail(record.id)
+}
+
+// 双击行查看用户详情 —— 页面侧自行实现（不依赖共享表格组件派发事件）
+// 行标识由表格行上的 data-row-key（= row-key 指定的 id）反查得到；占位空行不带该属性
+const tableWrap = ref<HTMLElement | null>(null)
+useRowDblclick(tableWrap, () => tableDataSource.value, handleView, 'id')
 </script>
 
 <style scoped>
@@ -834,6 +1156,17 @@ const handleView = (record: any) => {}
 
 .user-name { font-weight: 500; }
 .user-nickname { font-size: 12px; color: #999; }
+
+/* ── 用户详情抽屉（只读）─────────────── */
+.detail-user-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.detail-block + .detail-block {
+  margin-top: 16px;
+}
 
 
 

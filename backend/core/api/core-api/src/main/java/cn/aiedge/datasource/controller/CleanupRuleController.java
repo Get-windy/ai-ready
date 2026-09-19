@@ -1,5 +1,6 @@
 package cn.aiedge.datasource.controller;
 
+import cn.aiedge.base.log.annotation.OperationLog;
 import cn.aiedge.datasource.model.CleanupRule;
 import cn.aiedge.datasource.service.CleanupRuleService;
 import cn.dev33.satoken.annotation.SaCheckPermission;
@@ -14,6 +15,15 @@ import java.util.Map;
 
 /**
  * 数据清理规则控制器
+ *
+ * <p>契约：写动作返回 {@code {success, message, ...计数}}。
+ * {@code /{id}/execute} 支持两个可选开关：
+ * <ul>
+ *   <li>{@code confirm}（必须为 true 才真正执行；缺省拒绝）—— 破坏性动作的二次确认闸门；</li>
+ *   <li>{@code dryRun}（true 时只预统计「将删除 N 行」，不删任何数据）—— 文档 §5.6 ⑧ 的干跑能力。</li>
+ * </ul>
+ * 执行结果直接返回真实计数（plannedRows / deletedRows / remainingRows / truncated），
+ * 页面无需猜测即可展示「实际删了多少」。
  */
 @RestController
 @RequestMapping("/api/data-source/cleanup")
@@ -46,8 +56,16 @@ public class CleanupRuleController {
         ));
     }
 
+    @GetMapping("/allowed-tables")
+    @SaCheckPermission("datasource:cleanup:list")
+    @Operation(summary = "获取清理表白名单")
+    public ResponseEntity<List<Map<String, Object>>> allowedTables() {
+        return ResponseEntity.ok(cleanupRuleService.allowedTables());
+    }
+
     @PostMapping("/")
     @SaCheckPermission("datasource:cleanup:create")
+    @OperationLog(module = "数据管理-清理规则", type = "CREATE", desc = "新增数据清理规则")
     @Operation(summary = "创建清理规则")
     public ResponseEntity<Map<String, Object>> create(
             @RequestBody CleanupRule rule,
@@ -60,6 +78,7 @@ public class CleanupRuleController {
 
     @PutMapping("/{id}")
     @SaCheckPermission("datasource:cleanup:update")
+    @OperationLog(module = "数据管理-清理规则", type = "UPDATE", desc = "修改数据清理规则")
     @Operation(summary = "更新清理规则")
     public ResponseEntity<Map<String, Object>> update(
             @PathVariable Long id,
@@ -76,6 +95,7 @@ public class CleanupRuleController {
 
     @DeleteMapping("/{id}")
     @SaCheckPermission("datasource:cleanup:delete")
+    @OperationLog(module = "数据管理-清理规则", type = "DELETE", desc = "删除数据清理规则")
     @Operation(summary = "删除清理规则")
     public ResponseEntity<Map<String, Object>> delete(@PathVariable Long id) {
         boolean success = cleanupRuleService.delete(id);
@@ -84,12 +104,27 @@ public class CleanupRuleController {
 
     @PostMapping("/{id}/execute")
     @SaCheckPermission("datasource:cleanup:execute")
+    @OperationLog(module = "数据管理-清理规则", type = "OTHER",
+            desc = "执行数据清理（按保留天数删除历史数据）", saveResponse = true)
     @Operation(summary = "立即执行清理")
-    public ResponseEntity<Map<String, Object>> execute(@PathVariable Long id) {
-        boolean success = cleanupRuleService.execute(id);
-        return ResponseEntity.ok(Map.of(
-                "success", success,
-                "message", success ? "清理任务已触发执行" : "清理规则不存在"
-        ));
+    public ResponseEntity<Map<String, Object>> execute(
+            @PathVariable Long id,
+            @RequestBody(required = false) Map<String, Object> request,
+            @RequestHeader(value = "X-Tenant-Id", required = false) Long tenantId,
+            @RequestHeader(value = "X-User-Id", required = false) String operator) {
+
+        boolean confirm = isTrue(request == null ? null : request.get("confirm"));
+        boolean dryRun = isTrue(request == null ? null : request.get("dryRun"));
+        return ResponseEntity.ok(cleanupRuleService.execute(id, confirm, dryRun, tenantId,
+                operator != null ? operator : "unknown"));
+    }
+
+    /** 宽松布尔解析：接受 true / "true" / 1 / "1"；其余（含 null）一律视为未开启 */
+    private boolean isTrue(Object value) {
+        if (value == null) {
+            return false;
+        }
+        String text = String.valueOf(value).trim();
+        return "true".equalsIgnoreCase(text) || "1".equals(text);
     }
 }

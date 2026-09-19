@@ -87,6 +87,22 @@ import io.swagger.v3.oas.annotations.info.License;
     // 定时任务（开发工具 → 定时任务，菜单 62405）：此前**漏配**该包 → 控制器/执行器/Mapper 全未装配，
     // 表现为「接口 404 + 执行日志 0 条 + 页面静默空列表」（2026-09-14 复核修复）
     "cn.aiedge.scheduler",
+    // —— 系统模块（平台级，client_type=system-admin）后端装配（2026-09-18 复核）——
+    // 以下 5 个包此前**从未进入 scanBasePackages**：@MapperScan 是通配的（见下方 :117），
+    // 所以 Mapper 一直在、表能建，但 Service/Controller 不在容器里 → 表现为「表能建、点不动」的假可用状态。
+    // 影响系统模块 16 页（共 19 控制器 / 126 端点）；cn.aiedge.export 还跨模块外溢——
+    // 它是全站 Excel 导入/导出的后端（/api/import、/api/export、/api/import/v2）。
+    // 排查口诀：页面空白 + 表里有数据 + 端点 404 → 先查 scanBasePackages。
+    "cn.aiedge.module",      // 模块列表/版本/发布/使用统计（62101-62104，10 端点）
+    "cn.aiedge.monitor",     // 服务状态/性能监控（62201/62202）+ 告警/基础设施（52 端点）
+    "cn.aiedge.platform",    // 邮件/短信/存储/安全策略（62502-62505，11 端点）
+    "cn.aiedge.datasource",  // 连接/慢查询/备份/同步/清理（62301-62305，22 端点）
+    "cn.aiedge.export",      // 模板管理（62402，13 端点）+ 全站导入导出（31 端点）
+    // 开发工具 → API测试（62404）的服务端安全兜底（2026-09-19 新增）：
+    // 本页的 allowlist / 凭据剥离 / 调用审计必须由**服务端**成立（前端校验可被开发者工具绕过），
+    // 端点 POST /api/dev/api-test/send 与 POST /api/dev/api-test/policy 都在本包。
+    // 漏配本包的后果同上一段 5 个包：控制器不在容器里 → 页面点「发送请求」404。
+    "cn.aiedge.devtool",
     "cn.aiedge.config"  // 添加新的配置包
 }, exclude = {
     GatewayAutoConfiguration.class,

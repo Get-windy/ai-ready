@@ -12,6 +12,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
+
 @Slf4j
 @Tag(name = "加价购规则管理")
 @RestController
@@ -50,7 +52,10 @@ public class AddonRuleController {
     @PostMapping
     public Result<Boolean> create(@RequestBody AddonRule addonRule) {
         addonRule.setId(null);
-        addonRule.setStatus(AddonRule.STATUS_DISABLED);
+        if (addonRule.getStatus() == null) addonRule.setStatus(AddonRule.STATUS_DISABLED);
+        addonRule.setCreatorName(cn.aiedge.base.utils.SecurityUtils.getCurrentUsername());
+        addonRule.setCreateTime(LocalDateTime.now());
+        addonRule.setUpdateTime(LocalDateTime.now());
         return Result.ok(addonRuleService.save(addonRule));
     }
 

@@ -1,5 +1,6 @@
 package cn.aiedge.crm.customer.controller;
 
+import cn.aiedge.crm.customer.dto.CustomerFollowUpQuery;
 import cn.aiedge.crm.customer.entity.CustomerFollowUp;
 import cn.aiedge.crm.customer.service.CustomerFollowUpService;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -21,14 +22,8 @@ public class CustomerFollowUpController {
     
     @Operation(summary = "分页查询跟进记录")
     @GetMapping("/page")
-    public Page<CustomerFollowUp> pageList(
-            @Parameter(description = "客户ID") @RequestParam(required = false) Long customerId,
-            @Parameter(description = "商机ID") @RequestParam(required = false) Long opportunityId,
-            @Parameter(description = "线索ID") @RequestParam(required = false) Long leadId,
-            @Parameter(description = "销售人员ID") @RequestParam(required = false) Long salesPersonId,
-            @Parameter(description = "页码") @RequestParam(defaultValue = "1") int pageNum,
-            @Parameter(description = "每页数量") @RequestParam(defaultValue = "20") int pageSize) {
-        return customerFollowUpService.pageList(customerId, opportunityId, leadId, salesPersonId, pageNum, pageSize);
+    public Page<CustomerFollowUp> pageList(CustomerFollowUpQuery query) {
+        return customerFollowUpService.pageList(query);
     }
     
     @Operation(summary = "获取跟进记录详情")

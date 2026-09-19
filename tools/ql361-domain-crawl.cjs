@@ -319,7 +319,10 @@ async function crawlPage(page, itemName, group, subGroup) {
   }
   out.desktopTab = first.desktopTab
   const isListPage = !!(first.headers && first.headers.length > 1)
-  const tabNames = isListPage && first.tabs && first.tabs.length > 1 ? first.tabs : []
+  // ⚠️ 页内 Tab 判定**不能**依赖「本页是列表页」：像「发短信」这类页，主 Tab 是表单，
+  //    但其「短信历史 / 短信模板管理」子 Tab 仍是列表（各有独立列配置）。
+  //    旧逻辑用 isListPage 卡一道，导致这些页的 Tab 全部丢失（发短信实测漏抓即此因）。
+  const tabNames = first.tabs && first.tabs.length > 1 ? first.tabs : []
 
   if (tabNames.length) {
     for (const t of tabNames) {
@@ -327,7 +330,6 @@ async function crawlPage(page, itemName, group, subGroup) {
       await page.waitForTimeout(2200)
       if (!ok) continue
       const snap = await readActivePane(page)
-      if (!(snap.headers && snap.headers.length > 1)) continue
       // 列配置弹窗截图（仓储/采购文档同款「数据表列配置弹窗」图）
       const colShot = path.join(SHOTS, `${itemName}-${t}-列配置弹窗.png`)
       out.tabs[t] = { snapshot: snap, columnConfig: await readColumnConfig(page, colShot) }

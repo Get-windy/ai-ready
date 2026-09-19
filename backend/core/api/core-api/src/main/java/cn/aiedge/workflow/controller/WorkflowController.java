@@ -3,10 +3,13 @@ package cn.aiedge.workflow.controller;
 import cn.aiedge.common.result.ApiResponse;
 import cn.aiedge.workflow.facade.ApprovalCallbackDispatcher;
 import cn.aiedge.workflow.model.ApprovalRecord;
+import cn.aiedge.workflow.model.AuditRuleSaveRequest;
 import cn.aiedge.workflow.model.WorkflowDefinition;
 import cn.aiedge.workflow.model.WorkflowInstance;
+import cn.aiedge.workflow.service.AuditRuleService;
 import cn.aiedge.workflow.service.WorkflowService;
 import cn.dev33.satoken.annotation.SaCheckLogin;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 import cn.dev33.satoken.stp.StpUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -34,6 +37,7 @@ import java.util.Map;
 public class WorkflowController {
 
     private final WorkflowService workflowService;
+    private final AuditRuleService auditRuleService;
     private final ApprovalCallbackDispatcher callbackDispatcher;
 
     /**
@@ -51,9 +55,22 @@ public class WorkflowController {
         }
     }
 
-    // ==================== 流程定义 ====================
+    // ==================== 流程定义（流程定义 801 / 流程设计 80610 两页共用，已补方法级权限码） ====================
+    //
+    // 权限码命名沿用本控制器既有口径（workflow:<域>:<动作>，见 audit-config 的 workflow:audit:*）：
+    //   workflow:definition:list     列表 / 详情
+    //   workflow:definition:save     新建 / 更新（保存即生成新版本）
+    //   workflow:definition:publish  发布（启用，只改 status）
+    //   workflow:definition:disable  停用（只改 status）
+    //   workflow:definition:delete   删除（有实例引用 → 400）
+    // 权限码种子见迁移 V11.403.0；前端 views/workflow/designer/index.vue 已同步加 v-permission 门控。
+    //
+    // ⚠️ publish / disable 是**只改 status、不动 version** 的独立启停端点：
+    //    前端启停开关必须走这两个端点，**不要**再借道「POST /definitions 带 definitionId」
+    //    的保存通道（那条路会 version +1 并把 process_config / workflow_node 整份重写）。
 
     @GetMapping("/definitions")
+    @SaCheckPermission("workflow:definition:list")
     @Operation(summary = "获取流程定义列表")
     public ApiResponse<Map<String, Object>> getWorkflowDefinitions(
             @Parameter(description = "流程类型") @RequestParam(required = false) String type,
@@ -68,6 +85,7 @@ public class WorkflowController {
     }
 
     @GetMapping("/definitions/{definitionId}")
+    @SaCheckPermission("workflow:definition:list")
     @Operation(summary = "获取流程定义详情")
     public ApiResponse<WorkflowDefinition> getWorkflowDefinition(
             @PathVariable String definitionId) {
@@ -80,6 +98,7 @@ public class WorkflowController {
     }
 
     @PostMapping("/definitions")
+    @SaCheckPermission("workflow:definition:save")
     @Operation(summary = "创建流程定义")
     public ApiResponse<WorkflowDefinition> createWorkflowDefinition(
             @RequestBody WorkflowDefinition definition,
@@ -90,6 +109,7 @@ public class WorkflowController {
     }
 
     @PutMapping("/definitions/{definitionId}")
+    @SaCheckPermission("workflow:definition:save")
     @Operation(summary = "更新流程定义（含节点，版本+1）")
     public ApiResponse<WorkflowDefinition> updateWorkflowDefinition(
             @PathVariable String definitionId,
@@ -104,6 +124,7 @@ public class WorkflowController {
     }
 
     @PostMapping("/definitions/{definitionId}/publish")
+    @SaCheckPermission("workflow:definition:publish")
     @Operation(summary = "发布流程定义")
     public ApiResponse<Map<String, Object>> publishWorkflowDefinition(
             @PathVariable String definitionId,
@@ -117,6 +138,7 @@ public class WorkflowController {
     }
 
     @PostMapping("/definitions/{definitionId}/disable")
+    @SaCheckPermission("workflow:definition:disable")
     @Operation(summary = "停用流程定义")
     public ApiResponse<Map<String, Object>> disableWorkflowDefinition(
             @PathVariable String definitionId,
@@ -130,6 +152,7 @@ public class WorkflowController {
     }
 
     @DeleteMapping("/definitions/{definitionId}")
+    @SaCheckPermission("workflow:definition:delete")
     @Operation(summary = "删除流程定义（存在实例引用时禁止删除）")
     public ApiResponse<Map<String, Object>> deleteWorkflowDefinition(
             @PathVariable String definitionId,
@@ -147,6 +170,35 @@ public class WorkflowController {
         result.put("success", success);
         result.put("message", success ? "删除成功" : "删除失败");
         return ApiResponse.ok(result);
+    }
+
+    // ==================== 审核设置（设置 → 系统配置 → 审核设置，菜单 80622） ====================
+    //
+    // 本组是本页（views/set/audit-config/index.vue）**唯一**用到的端点，已补方法级权限码；
+    // 权限码种子见迁移 V11.398.0（workflow:audit:list / workflow:audit:update）。
+    //
+    // ⚠️ 除「流程定义组」（workflow:definition:*，见上方 §流程定义）与本组外，
+    //    本控制器其余端点**仍是仅类级 @SaCheckLogin**（无方法级权限码）——
+    //    这是**刻意不扩面**：补服务端权限码必须连同该页前端 v-permission 门控一起做，
+    //    否则会让非超管用户在那些页面上直接 403（跨页回归）。
+    //    「流程实例 / 待办 / 已办」的权限码由各自批次连同前端门控一并落地。
+
+    @GetMapping("/audit-config/list")
+    @SaCheckPermission("workflow:audit:list")
+    @Operation(summary = "审核设置：16 类单据的审核规则与摘要")
+    public ApiResponse<Map<String, Object>> listAuditRules() {
+        return ApiResponse.ok(auditRuleService.listAuditRules());
+    }
+
+    @PutMapping("/audit-config/{docType}")
+    @SaCheckPermission("workflow:audit:update")
+    @Operation(summary = "审核设置：保存指定单据类型的审核规则（全量覆盖）")
+    public ApiResponse<Map<String, Object>> saveAuditRules(
+            @PathVariable String docType,
+            @RequestBody AuditRuleSaveRequest request) {
+
+        Map<String, Object> saved = auditRuleService.saveAuditRules(docType, request);
+        return ApiResponse.ok("保存成功", saved);
     }
 
     // ==================== 流程实例 ====================
@@ -196,6 +248,7 @@ public class WorkflowController {
     }
 
     @GetMapping("/instance/page")
+    @SaCheckPermission("workflow:instance:view")
     @Operation(summary = "分页查询流程实例")
     public ApiResponse<Map<String, Object>> pageInstances(
             @Parameter(description = "流程名称") @RequestParam(required = false) String processName,
@@ -206,11 +259,27 @@ public class WorkflowController {
             @Parameter(description = "每页大小") @RequestParam(defaultValue = "10") int pageSize,
             @Parameter(hidden = true) @RequestHeader(value = "X-Tenant-Id", required = false) Long tenantId) {
 
-        Map<String, Object> result = workflowService.pageInstances(pageNum, pageSize, processName, status, tenantId);
+        // 修复：startDate / endDate 此前被接收但未透传给 service（时间区间筛选静默失效）
+        Map<String, Object> result = workflowService.pageInstances(pageNum, pageSize, processName, status,
+                startDate, endDate, tenantId);
         return ApiResponse.ok(result);
     }
 
+    @GetMapping("/instance/stat")
+    @SaCheckPermission("workflow:instance:view")
+    @Operation(summary = "流程实例统计（统计卡全量聚合，与列表同筛选条件）")
+    public ApiResponse<Map<String, Object>> statInstances(
+            @Parameter(description = "流程名称") @RequestParam(required = false) String processName,
+            @Parameter(description = "状态") @RequestParam(required = false) String status,
+            @Parameter(description = "开始日期") @RequestParam(required = false) String startDate,
+            @Parameter(description = "结束日期") @RequestParam(required = false) String endDate,
+            @Parameter(hidden = true) @RequestHeader(value = "X-Tenant-Id", required = false) Long tenantId) {
+
+        return ApiResponse.ok(workflowService.statInstances(processName, status, startDate, endDate, tenantId));
+    }
+
     @GetMapping("/instance/detail")
+    @SaCheckPermission("workflow:instance:view")
     @Operation(summary = "获取流程实例详情（监控页）")
     public ApiResponse<Map<String, Object>> getInstanceDetail(
             @Parameter(description = "流程实例ID") @RequestParam(required = false) String instanceId,
@@ -290,21 +359,45 @@ public class WorkflowController {
     }
 
     @GetMapping("/task/page")
+    @SaCheckPermission("workflow:task:view")
     @Operation(summary = "分页查询任务（待办/已办）")
     public ApiResponse<Map<String, Object>> pageTasks(
             @Parameter(description = "标签页: todo/done") @RequestParam(defaultValue = "todo") String tab,
             @Parameter(description = "任务名称") @RequestParam(required = false) String taskName,
             @Parameter(description = "流程名称") @RequestParam(required = false) String processName,
+            @Parameter(description = "优先级 high/medium/low") @RequestParam(required = false) String priority,
+            @Parameter(description = "创建时间下限 YYYY-MM-DD") @RequestParam(required = false) String startDate,
+            @Parameter(description = "创建时间上限 YYYY-MM-DD") @RequestParam(required = false) String endDate,
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") int pageNum,
             @Parameter(description = "每页大小") @RequestParam(defaultValue = "10") int pageSize,
             @Parameter(hidden = true) @RequestHeader(value = "X-User-Id", required = false) Long userId,
             @Parameter(hidden = true) @RequestHeader(value = "X-Tenant-Id", required = false) Long tenantId) {
 
-        Map<String, Object> result = workflowService.pageTasks(tab, resolveUserId(userId), pageNum, pageSize, tenantId, taskName, processName);
+        Map<String, Object> result = workflowService.pageTasks(tab, resolveUserId(userId), pageNum, pageSize,
+                tenantId, taskName, processName, priority, startDate, endDate);
         return ApiResponse.ok(result);
     }
 
+    @GetMapping("/task/stat")
+    @SaCheckPermission("workflow:task:view")
+    @Operation(summary = "任务统计（待办/已办统计卡的服务端全量真聚合，与列表同筛选条件）")
+    public ApiResponse<Map<String, Object>> statTasks(
+            @Parameter(description = "标签页: todo/done") @RequestParam(defaultValue = "todo") String tab,
+            @Parameter(description = "任务名称") @RequestParam(required = false) String taskName,
+            @Parameter(description = "流程名称") @RequestParam(required = false) String processName,
+            @Parameter(description = "优先级 high/medium/low") @RequestParam(required = false) String priority,
+            @Parameter(description = "创建时间下限 YYYY-MM-DD") @RequestParam(required = false) String startDate,
+            @Parameter(description = "创建时间上限 YYYY-MM-DD") @RequestParam(required = false) String endDate,
+            @Parameter(hidden = true) @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @Parameter(hidden = true) @RequestHeader(value = "X-Tenant-Id", required = false) Long tenantId) {
+
+        Map<String, Object> stat = workflowService.statTasks(tab, resolveUserId(userId), tenantId,
+                taskName, processName, priority, startDate, endDate);
+        return ApiResponse.ok(stat);
+    }
+
     @GetMapping("/task/detail")
+    @SaCheckPermission("workflow:task:view")
     @Operation(summary = "获取任务详情")
     public ApiResponse<Map<String, Object>> getTaskDetail(
             @Parameter(description = "任务ID") @RequestParam(required = false) String taskId,
@@ -319,7 +412,8 @@ public class WorkflowController {
     }
 
     @PostMapping("/task/approve")
-    @Operation(summary = "按任务审批（approve/reject/return）")
+    @SaCheckPermission("workflow:task:approve")
+    @Operation(summary = "按任务审批（approve/reject/return；return 为真实节点回退）")
     public ApiResponse<Map<String, Object>> approveTask(
             @RequestBody TaskApproveRequest request,
             @Parameter(hidden = true) @RequestHeader(value = "X-User-Id", required = false) Long userId) {
@@ -338,7 +432,8 @@ public class WorkflowController {
     }
 
     @PostMapping("/task/transfer")
-    @Operation(summary = "按任务转交他人")
+    @SaCheckPermission("workflow:task:transfer")
+    @Operation(summary = "按任务转办他人（本系统只有「转办」一种语义，无「委托」）")
     public ApiResponse<Map<String, Object>> transferTask(
             @RequestBody TaskTransferRequest request,
             @Parameter(hidden = true) @RequestHeader(value = "X-User-Id", required = false) Long userId) {
@@ -358,17 +453,26 @@ public class WorkflowController {
         return ApiResponse.ok(result);
     }
 
-    // ==================== 流程分析 ====================
+    // ==================== 流程分析（设置 → 工作流 → 流程分析，菜单 80611 / set:workflow-analysis） ====================
+    //
+    // 本系统独有页面（ql361 无工作流域，无对标），两条端点均为只读服务端聚合：
+    //   GET /api/workflow/analysis/refresh  → 统计卡 + 按流程耗时 + 按节点耗时（processName 可选，仅过滤「节点耗时」段）
+    //   GET /api/workflow/analysis/report   → 按日审批效率（缺省近 7 天）
+    // 权限码 workflow:analysis:view 种子见迁移 V11.417.0（本模块口径：读端点同样加方法级权限码，
+    // 与 workflow:definition:list / workflow:instance:view / workflow:task:view 一致）。
 
     @GetMapping("/analysis/refresh")
-    @Operation(summary = "流程分析汇总（真实数据聚合）")
+    @SaCheckPermission("workflow:analysis:view")
+    @Operation(summary = "流程分析汇总（真实数据聚合；processName 仅过滤「节点耗时」段）")
     public ApiResponse<Map<String, Object>> getAnalysisSummary(
+            @Parameter(description = "流程名称（可选，缺省=全部流程；仅影响节点耗时）") @RequestParam(required = false) String processName,
             @Parameter(hidden = true) @RequestHeader(value = "X-Tenant-Id", required = false) Long tenantId) {
 
-        return ApiResponse.ok(workflowService.getAnalysisSummary(tenantId));
+        return ApiResponse.ok(workflowService.getAnalysisSummary(processName, tenantId));
     }
 
     @GetMapping("/analysis/report")
+    @SaCheckPermission("workflow:analysis:view")
     @Operation(summary = "审批效率报表（按日聚合）")
     public ApiResponse<Map<String, Object>> getAnalysisReport(
             @Parameter(description = "开始日期 YYYY-MM-DD") @RequestParam(required = false) String startDate,
@@ -472,6 +576,7 @@ public class WorkflowController {
     // ==================== 审批记录 ====================
 
     @GetMapping("/{instanceId}/records")
+    @SaCheckPermission("workflow:instance:view")
     @Operation(summary = "获取审批记录")
     public ApiResponse<List<ApprovalRecord>> getApprovalRecords(@PathVariable String instanceId) {
         List<ApprovalRecord> records = workflowService.getApprovalRecords(instanceId);
@@ -481,6 +586,7 @@ public class WorkflowController {
     // ==================== 流程监控 - 流程图 ====================
 
     @GetMapping("/instance/diagram")
+    @SaCheckPermission("workflow:instance:diagram")
     @Operation(summary = "获取流程图（SVG）")
     public ApiResponse<Map<String, Object>> getInstanceDiagram(
             @Parameter(description = "流程实例ID") @RequestParam String instanceId) {
@@ -492,15 +598,23 @@ public class WorkflowController {
     // ==================== 流程监控 - 流程干预 ====================
 
     @PostMapping("/instance/{instanceId}/intervene")
+    @SaCheckPermission("workflow:instance:intervene")
     @Operation(summary = "流程干预（终止/挂起/恢复）")
     public ApiResponse<Map<String, Object>> interveneInstance(
             @PathVariable String instanceId,
             @RequestBody InterveneRequest request,
             @Parameter(hidden = true) @RequestHeader(value = "X-User-Id", required = false) Long userId) {
 
+        // 干预是强审计动作：理由必填必须由**服务端**硬校验（前端 required 只是双保险，
+        // 客户端可绕过 → 历史实现会兜底成「未填写理由」落审计记录，审计链失效）
+        if (request.getReason() == null || request.getReason().isBlank()) {
+            return ApiResponse.error(400, "请填写干预理由");
+        }
+
         log.info("流程干预: instanceId={}, action={}, userId={}", instanceId, request.getAction(), userId);
 
-        boolean success = workflowService.interveneInstance(instanceId, request.getAction(), resolveUserId(userId));
+        boolean success = workflowService.interveneInstance(instanceId, request.getAction(),
+                resolveUserId(userId), request.getReason());
 
         Map<String, Object> result = new HashMap<>();
         result.put("success", success);
@@ -566,9 +680,16 @@ public class WorkflowController {
 
     public static class InterveneRequest {
         private String action;
+        /**
+         * 干预理由（**服务端必填**：空白 → POST /instance/{id}/intervene 直接 400「请填写干预理由」；
+         * 前端弹窗 required 校验保留作双保险。值落 workflow_task.comment 供审计追溯）
+         */
+        private String reason;
 
         public String getAction() { return action; }
         public void setAction(String action) { this.action = action; }
+        public String getReason() { return reason; }
+        public void setReason(String reason) { this.reason = reason; }
     }
 
     public static class TaskApproveRequest {
@@ -596,6 +717,12 @@ public class WorkflowController {
         private Long targetUserId;
         /** 目标用户（前端 task-management 传 targetUser，为用户ID） */
         private String targetUser;
+        /**
+         * 兼容字段：历史前端曾用 transfer/delegate 区分「转办」与「委托」。
+         * 本系统的任务表**没有 owner 类字段**，「委托（代处理并回交原处理人）」无法实现 →
+         * 该字段**不参与任何语义**，两种取值都只有「转办（任务所有权转移）」一种行为。
+         * 前端已移除「委托」入口，不再下发本字段（见《我的待办开发文档》§5.4）。
+         */
         private String type;
         private String comment;
 

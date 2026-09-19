@@ -1,5 +1,6 @@
 package cn.aiedge.crm.customer.service.impl;
 
+import cn.aiedge.crm.common.CrmDocNo;
 import cn.aiedge.crm.customer.entity.Customer;
 import cn.aiedge.crm.customer.mapper.CustomerMapper;
 import cn.aiedge.crm.customer.service.CustomerService;
@@ -10,8 +11,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Slf4j
@@ -96,8 +95,7 @@ public class CustomerServiceImpl extends ServiceImpl<CustomerMapper, Customer> i
 
     @Override
     public String generateCustomerCode() {
-        String dateStr = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-        long count = baseMapper.selectCount(null);
-        return "CUS-" + dateStr + String.format("%04d", count + 1);
+        String prefix = CrmDocNo.prefixOf("CUS-");
+        return CrmDocNo.next(prefix, baseMapper.selectMaxCustomerCode(prefix), 4);
     }
 }

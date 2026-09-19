@@ -46,6 +46,15 @@ public class BackupRecord implements Serializable {
     @Schema(description = "错误信息")
     private String errorMessage;
 
+    @Schema(description = "最近一次恢复状态: none/dispatched/success/failed")
+    private String restoreStatus;
+
+    @Schema(description = "最近一次恢复时间")
+    private LocalDateTime restoreTime;
+
+    @Schema(description = "最近一次恢复结果摘要或失败原因")
+    private String restoreMessage;
+
     @Schema(description = "租户ID")
     private Long tenantId;
 
@@ -76,6 +85,12 @@ public class BackupRecord implements Serializable {
     public void setEndTime(LocalDateTime endTime) { this.endTime = endTime; }
     public String getErrorMessage() { return errorMessage; }
     public void setErrorMessage(String errorMessage) { this.errorMessage = errorMessage; }
+    public String getRestoreStatus() { return restoreStatus; }
+    public void setRestoreStatus(String restoreStatus) { this.restoreStatus = restoreStatus; }
+    public LocalDateTime getRestoreTime() { return restoreTime; }
+    public void setRestoreTime(LocalDateTime restoreTime) { this.restoreTime = restoreTime; }
+    public String getRestoreMessage() { return restoreMessage; }
+    public void setRestoreMessage(String restoreMessage) { this.restoreMessage = restoreMessage; }
     public Long getTenantId() { return tenantId; }
     public void setTenantId(Long tenantId) { this.tenantId = tenantId; }
     public LocalDateTime getCreateTime() { return createTime; }

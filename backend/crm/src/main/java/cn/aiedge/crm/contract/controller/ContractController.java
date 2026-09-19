@@ -1,5 +1,6 @@
 package cn.aiedge.crm.contract.controller;
 
+import cn.aiedge.crm.common.CrmPermissions;
 import cn.aiedge.crm.contract.dto.ContractCreateDTO;
 import cn.aiedge.crm.contract.dto.ContractVO;
 import cn.aiedge.crm.contract.entity.Contract;
@@ -122,6 +123,8 @@ public class ContractController {
     @PostMapping("/{id}/submit")
     @Operation(summary = "提交审批")
     public ContractVO submitForApproval(@PathVariable Long id) {
+        // 提交审批属编辑动作：能改合同的人才能提交（原先三个端点均无鉴权，任何登录用户可自审）
+        CrmPermissions.require("crm:contract:edit");
         Contract contract = contractService.submitForApproval(id);
         return convertToVO(contract);
     }
@@ -129,6 +132,7 @@ public class ContractController {
     @PostMapping("/{id}/approve")
     @Operation(summary = "审批通过")
     public ContractVO approve(@PathVariable Long id, @RequestParam(required = false) String note) {
+        CrmPermissions.require("crm:contract:approve");
         Long approverId = StpUtil.getLoginIdAsLong();
         Contract contract = contractService.approve(id, approverId, note);
         return convertToVO(contract);
@@ -137,6 +141,7 @@ public class ContractController {
     @PostMapping("/{id}/reject")
     @Operation(summary = "审批拒绝")
     public ContractVO reject(@PathVariable Long id, @RequestParam String reason) {
+        CrmPermissions.require("crm:contract:approve");
         Long rejecterId = StpUtil.getLoginIdAsLong();
         Contract contract = contractService.reject(id, rejecterId, reason);
         return convertToVO(contract);

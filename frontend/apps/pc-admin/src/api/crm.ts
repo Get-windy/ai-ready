@@ -346,6 +346,17 @@ export interface FollowUpQuery {
   opportunityId?: number
   leadId?: number
   salesPersonId?: number
+  /** 跟进方式 1 电话 / 2 拜访 / 3 邮件 / 4 微信 / 5 其他 */
+  followUpType?: number
+  /** 跟进结果 1 有意向 / 2 无意向 / 3 待跟进 */
+  followUpResult?: number
+  followUpDateStart?: string
+  followUpDateEnd?: string
+  /** 下次跟进日期区间 —— 「待办跟进」口径 */
+  nextFollowUpDateStart?: string
+  nextFollowUpDateEnd?: string
+  /** 关键词：单号 / 客户名 / 内容 */
+  keyword?: string
   pageNum?: number
   pageSize?: number
 }
@@ -358,6 +369,14 @@ export const followUpApi = {
   /** 创建跟进记录（裸实体响应） */
   create(data: Partial<FollowUpRecord>): Promise<FollowUpRecord> {
     return postRaw(`${CRM_BASE}/followUp`, data)
+  },
+  /** 更新跟进记录（裸实体响应） */
+  update(id: number, data: Partial<FollowUpRecord>): Promise<FollowUpRecord> {
+    return putRaw(`${CRM_BASE}/followUp/${id}`, data)
+  },
+  /** 删除跟进记录（逻辑删，返回裸 boolean） */
+  delete(id: number): Promise<boolean> {
+    return request.delete(`${CRM_BASE}/followUp/${id}`)
   },
   /** 查询客户的跟进记录（裸 List） */
   listByCustomer(customerId: number): Promise<FollowUpRecord[]> {
@@ -694,5 +713,98 @@ export const visitReviewApi = {
   /** 拜访统计汇总（裸 Map 响应） */
   statsSummary(): Promise<VisitStatsSummary> {
     return getRaw(`${CRM_BASE}/visit/stats/summary`)
+  }
+}
+
+// ── 客户公海池（/api/crm/customer-pool） ───────────────────────────
+//
+// 后端 `CustomerPoolController` 的 10 个端点此前**前端零引用、无菜单** ——
+// 能力齐全（放入/领取/退回/自动回收/过期检查/统计）但用户不可达。
+// 本页（CRM → 客户管理 → 客户公海）把它接出来。
+
+/** 公海池条目（与后端 CustomerPool 实体一致） */
+export interface CustomerPoolItem {
+  id: number
+  customerId?: number
+  customerCode?: string
+  customerName?: string
+  poolType?: number
+  poolTypeDesc?: string
+  poolReason?: number
+  poolReasonDesc?: string
+  originalSalesPersonId?: number
+  originalSalesPersonName?: string
+  originalDepartmentName?: string
+  poolTime?: string
+  poolDays?: number
+  expireTime?: string
+  /** 1 可领取 / 2 已领取 / 3 已过期 / 4 已退回 */
+  status?: number
+  statusDesc?: string
+  claimSalesPersonId?: number
+  claimSalesPersonName?: string
+  claimTime?: string
+  remark?: string
+  createdAt?: string
+}
+
+export interface CustomerPoolQuery {
+  keyword?: string
+  poolType?: number
+  status?: number
+  pageNum?: number
+  pageSize?: number
+}
+
+export interface CustomerPoolStatistics {
+  availableCount?: number
+  myClaimCount?: number
+}
+
+export const customerPoolApi = {
+  /** 分页查询公海池（裸 Page） */
+  page(params: CustomerPoolQuery): Promise<PageResponse<CustomerPoolItem>> {
+    // ⚠️ 标准 `request` 实例的 baseURL 已是 `/api`，此处**必须写相对路径**；
+    // 写成 `${CRM_BASE}/...` 会合成 `/api/api/...` 直接 404（2026-09-18 真机实测）
+    return request.get('/crm/customer-pool/page', params)
+  },
+  /** 可领取客户列表（裸 List） */
+  listAvailable(): Promise<CustomerPoolItem[]> {
+    return request.get('/crm/customer-pool/available')
+  },
+  /** 我领取的客户（裸 List） */
+  listMyClaimed(): Promise<CustomerPoolItem[]> {
+    return request.get('/crm/customer-pool/my-claimed')
+  },
+  /** 我放入公海的客户（裸 List） */
+  listMyReturned(): Promise<CustomerPoolItem[]> {
+    return request.get('/crm/customer-pool/my-returned')
+  },
+  /** 放入公海池（裸实体） */
+  put(customerId: number, poolReason: number, remark?: string): Promise<CustomerPoolItem> {
+    return postRaw(`${CRM_BASE}/customer-pool/put/${customerId}`, null, {
+      poolReason,
+      remark
+    })
+  },
+  /** 领取（裸实体） */
+  claim(poolId: number): Promise<CustomerPoolItem> {
+    return postRaw(`${CRM_BASE}/customer-pool/claim/${poolId}`)
+  },
+  /** 退回公海池（裸实体） */
+  returnToPool(poolId: number, remark?: string): Promise<CustomerPoolItem> {
+    return postRaw(`${CRM_BASE}/customer-pool/return/${poolId}`, null, { remark })
+  },
+  /** 执行自动回收（无返回体） */
+  autoRecovery(noFollowUpDays = 30): Promise<void> {
+    return postRaw(`${CRM_BASE}/customer-pool/auto-recovery`, null, { noFollowUpDays })
+  },
+  /** 检查过期客户（无返回体） */
+  checkExpired(): Promise<void> {
+    return postRaw(`${CRM_BASE}/customer-pool/check-expired`)
+  },
+  /** 公海池统计（裸 Map） */
+  statistics(): Promise<CustomerPoolStatistics> {
+    return getRaw(`${CRM_BASE}/customer-pool/statistics`)
   }
 }

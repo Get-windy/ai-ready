@@ -124,10 +124,10 @@ public class PositionController {
         return ApiResponse.ok(null);
     }
 
-    @Operation(summary = "获取岗位下的用户")
+    @Operation(summary = "获取岗位下的人员")
     @GetMapping("/{id}/users")
     @RequiresPermission("position:query")
-    public ApiResponse<List<Long>> getUsers(@PathVariable Long id) {
-        return ApiResponse.ok(positionService.getUserIds(id));
+    public ApiResponse<List<PositionUserVO>> getUsers(@PathVariable Long id) {
+        return ApiResponse.ok(positionService.getUsers(id));
     }
 }

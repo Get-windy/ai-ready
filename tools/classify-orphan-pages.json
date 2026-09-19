@@ -1,0 +1,442 @@
+{
+ "D1_dead_files": [
+  "finance/subsidiary-balance/index.vue",
+  "finance/trial-balance/index.vue",
+  "wms/pick/form.vue",
+  "wms/putaway/form.vue"
+ ],
+ "D2_url_only": [
+  {
+   "key": "charts/index",
+   "file": "charts/index.vue"
+  },
+  {
+   "key": "dms/order-pool/bid-detail",
+   "file": "dms/order-pool/bid-detail.vue"
+  },
+  {
+   "key": "erp/batch/index",
+   "file": "erp/batch/index.vue"
+  },
+  {
+   "key": "erp/column-config/sale-order-item",
+   "file": "erp/column-config/SaleOrderItemColumnConfig.vue"
+  },
+  {
+   "key": "erp/mall/banner/index",
+   "file": "erp/mall/banner/index.vue"
+  },
+  {
+   "key": "erp/mall/config/index",
+   "file": "erp/mall/config/index.vue"
+  },
+  {
+   "key": "erp/mall/order/index",
+   "file": "erp/mall/order/index.vue"
+  },
+  {
+   "key": "erp/mall/product/index",
+   "file": "erp/mall/product/index.vue"
+  },
+  {
+   "key": "erp/mall/user-audit/index",
+   "file": "erp/mall/user-audit/index.vue"
+  },
+  {
+   "key": "erp/partner/index",
+   "file": "erp/partner/index.vue"
+  },
+  {
+   "key": "erp/pricing/approval/index",
+   "file": "erp/pricing/approval/index.vue"
+  },
+  {
+   "key": "erp/pricing/index",
+   "file": "erp/pricing/index.vue"
+  },
+  {
+   "key": "erp/product/grade",
+   "file": "erp/product/grade.vue"
+  },
+  {
+   "key": "erp/product/inventory-mode",
+   "file": "erp/product/inventory-mode.vue"
+  },
+  {
+   "key": "erp/product/price-batch",
+   "file": "erp/product/price-batch.vue"
+  },
+  {
+   "key": "erp/purchase-contract/index",
+   "file": "erp/purchase-contract/index.vue"
+  },
+  {
+   "key": "erp/purchase/index",
+   "file": "erp/purchase/index.vue"
+  },
+  {
+   "key": "erp/return",
+   "file": "erp/return/index.vue"
+  },
+  {
+   "key": "erp/sales-analysis/index",
+   "file": "erp/sales-analysis/index.vue"
+  },
+  {
+   "key": "erp/sales-report/index",
+   "file": "erp/sales-report/index.vue"
+  },
+  {
+   "key": "erp/serial/index",
+   "file": "erp/serial/index.vue"
+  },
+  {
+   "key": "erp/stock-replenishment/index",
+   "file": "erp/stock/replenishment/index.vue"
+  },
+  {
+   "key": "erp/stock/index",
+   "file": "erp/stock/index.vue"
+  },
+  {
+   "key": "finance/index",
+   "file": "finance/index.vue"
+  },
+  {
+   "key": "notification/index",
+   "file": "notification/index.vue"
+  },
+  {
+   "key": "profile/index",
+   "file": "profile/index.vue"
+  },
+  {
+   "key": "system/data-import/index",
+   "file": "system/data-import/index.vue"
+  }
+ ],
+ "D3_mapping_only": [
+  {
+   "key": "admin/monitor/log",
+   "file": "system/log/index.vue"
+  },
+  {
+   "key": "budget/index",
+   "file": "budget/index.vue"
+  },
+  {
+   "key": "common/placeholder/index",
+   "file": "common/placeholder/index.vue"
+  },
+  {
+   "key": "crm/supplier/index",
+   "file": "crm/supplier/index.vue"
+  },
+  {
+   "key": "erp/dashboard/index",
+   "file": "erp/dashboard/index.vue"
+  },
+  {
+   "key": "erp/expense/application/index",
+   "file": "erp/expense/application/index.vue"
+  },
+  {
+   "key": "erp/expense/approval/index",
+   "file": "erp/expense/approval/index.vue"
+  },
+  {
+   "key": "erp/expense/payment/index",
+   "file": "erp/expense/payment/index.vue"
+  },
+  {
+   "key": "erp/expense/reimbursement/index",
+   "file": "erp/expense/reimbursement/index.vue"
+  },
+  {
+   "key": "erp/expense/statistics/index",
+   "file": "erp/expense/statistics/index.vue"
+  },
+  {
+   "key": "erp/pricing/tiers/index",
+   "file": "erp/pricing/tiers/index.vue"
+  },
+  {
+   "key": "erp/shipment",
+   "file": "erp/shipment/index.vue"
+  },
+  {
+   "key": "finance/auxiliary",
+   "file": "finance/auxiliary/index.vue"
+  },
+  {
+   "key": "finance/capital-flow/index",
+   "file": "finance/capital-flow/index.vue"
+  },
+  {
+   "key": "finance/deposit/index",
+   "file": "finance/deposit/index.vue"
+  },
+  {
+   "key": "finance/expense-apply",
+   "file": "finance/expense-apply/index.vue"
+  },
+  {
+   "key": "finance/expense-pay",
+   "file": "finance/expense-pay/index.vue"
+  },
+  {
+   "key": "finance/expense-reimburse",
+   "file": "finance/expense-reimburse/index.vue"
+  },
+  {
+   "key": "finance/offset/index",
+   "file": "finance/offset/index.vue"
+  },
+  {
+   "key": "finance/payable/index",
+   "file": "finance/payable/index.vue"
+  },
+  {
+   "key": "finance/payment/index",
+   "file": "finance/payment/index.vue"
+  },
+  {
+   "key": "finance/pre-payment/index",
+   "file": "finance/pre-payment/index.vue"
+  },
+  {
+   "key": "finance/pre-receipt/index",
+   "file": "finance/pre-receipt/index.vue"
+  },
+  {
+   "key": "finance/receipt/index",
+   "file": "finance/receipt/index.vue"
+  },
+  {
+   "key": "finance/receivable/index",
+   "file": "finance/receivable/index.vue"
+  },
+  {
+   "key": "finance/report/index",
+   "file": "finance/report/index.vue"
+  },
+  {
+   "key": "finance/reports/index",
+   "file": "finance/reports/index.vue"
+  },
+  {
+   "key": "finance/subject/index",
+   "file": "finance/subject/index.vue"
+  },
+  {
+   "key": "finance/write-off/index",
+   "file": "finance/write-off/index.vue"
+  },
+  {
+   "key": "fixed-asset/asset/index",
+   "file": "fixed-asset/asset/index.vue"
+  },
+  {
+   "key": "fixed-asset/category/index",
+   "file": "fixed-asset/category/index.vue"
+  },
+  {
+   "key": "fixed-asset/depreciation/index",
+   "file": "fixed-asset/depreciation/index.vue"
+  },
+  {
+   "key": "fixed-asset/disposal/index",
+   "file": "fixed-asset/disposal/index.vue"
+  },
+  {
+   "key": "fixed-asset/index",
+   "file": "fixed-asset/index.vue"
+  },
+  {
+   "key": "fixed-asset/inventory/index",
+   "file": "fixed-asset/inventory/index.vue"
+  },
+  {
+   "key": "fixed-asset/purchase/index",
+   "file": "fixed-asset/purchase/index.vue"
+  },
+  {
+   "key": "fixed-asset/report/index",
+   "file": "fixed-asset/report/index.vue"
+  },
+  {
+   "key": "fixed-asset/transfer/index",
+   "file": "fixed-asset/transfer/index.vue"
+  },
+  {
+   "key": "hr/attendance/index",
+   "file": "hr/attendance/index.vue"
+  },
+  {
+   "key": "hr/leave/index",
+   "file": "hr/leave/index.vue"
+  },
+  {
+   "key": "hr/organization/index",
+   "file": "hr/organization/index.vue"
+  },
+  {
+   "key": "hr/performance/index",
+   "file": "hr/performance/index.vue"
+  },
+  {
+   "key": "member/points-history",
+   "file": "member/points-history/index.vue"
+  },
+  {
+   "key": "member/profile",
+   "file": "member/profile/index.vue"
+  },
+  {
+   "key": "order-center/index",
+   "file": "order-center/index.vue"
+  },
+  {
+   "key": "printing/chain/index",
+   "file": "printing/chain/index.vue"
+  },
+  {
+   "key": "printing/client/index",
+   "file": "printing/client/index.vue"
+  },
+  {
+   "key": "printing/designer/index",
+   "file": "printing/designer/index.vue"
+  },
+  {
+   "key": "printing/task/index",
+   "file": "printing/task/index.vue"
+  },
+  {
+   "key": "quality/certificate/list",
+   "file": "quality/certificate/list.vue"
+  },
+  {
+   "key": "supplier/inquiry/index",
+   "file": "supplier/inquiry/index.vue"
+  },
+  {
+   "key": "supplier/performance/index",
+   "file": "supplier/performance/index.vue"
+  },
+  {
+   "key": "system/department/index",
+   "file": "system/department/index.vue"
+  },
+  {
+   "key": "system/position/index",
+   "file": "system/position/index.vue"
+  },
+  {
+   "key": "system/role/index",
+   "file": "system/role/index.vue"
+  },
+  {
+   "key": "system/user/index",
+   "file": "system/user/index.vue"
+  },
+  {
+   "key": "trade/mall-return",
+   "file": "trade/mall-return/index.vue"
+  },
+  {
+   "key": "wh/inventory-order/index",
+   "file": "wh/inventory-order/index.vue"
+  },
+  {
+   "key": "wms/check",
+   "file": "wms/check/index.vue"
+  },
+  {
+   "key": "wms/event/index",
+   "file": "wms/event/index.vue"
+  },
+  {
+   "key": "wms/inventory/index",
+   "file": "wms/inventory/index.vue"
+  },
+  {
+   "key": "wms/location/index",
+   "file": "wms/location/index.vue"
+  },
+  {
+   "key": "wms/receipt",
+   "file": "wms/receipt/index.vue"
+  },
+  {
+   "key": "wms/warehouse/index",
+   "file": "wms/warehouse/index.vue"
+  },
+  {
+   "key": "wms/wave",
+   "file": "wms/wave/index.vue"
+  }
+ ],
+ "D4_push_only": [
+  {
+   "key": "(仅 push 可达)",
+   "file": "wms/move/form.vue"
+  },
+  {
+   "key": "(仅 push 可达)",
+   "file": "wms/move/index.vue"
+  },
+  {
+   "key": "(仅 push 可达)",
+   "file": "wms/pick/index.vue"
+  },
+  {
+   "key": "(仅 push 可达)",
+   "file": "wms/putaway/index.vue"
+  },
+  {
+   "key": "(仅 push 可达)",
+   "file": "wms/ship/form.vue"
+  },
+  {
+   "key": "(仅 push 可达)",
+   "file": "wms/ship/index.vue"
+  },
+  {
+   "key": "budget/adjustment/index",
+   "file": "budget/adjustment/index.vue"
+  },
+  {
+   "key": "budget/annual/index",
+   "file": "budget/annual/index.vue"
+  },
+  {
+   "key": "budget/report/index",
+   "file": "budget/report/index.vue"
+  },
+  {
+   "key": "budget/template/index",
+   "file": "budget/template/index.vue"
+  },
+  {
+   "key": "erp/sale/index",
+   "file": "erp/sale/index.vue"
+  },
+  {
+   "key": "hr/employee/index",
+   "file": "hr/employee/index.vue"
+  },
+  {
+   "key": "hr/salary/index",
+   "file": "hr/salary/index.vue"
+  },
+  {
+   "key": "printing/template/index",
+   "file": "printing/template/index.vue"
+  },
+  {
+   "key": "supplier/index",
+   "file": "supplier/index.vue"
+  }
+ ]
+}

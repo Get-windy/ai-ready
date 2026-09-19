@@ -58,8 +58,17 @@ public class SecurityPolicy implements Serializable {
     @Schema(description = "IP白名单（逗号分隔）")
     private String ipWhitelist;
 
-    @Schema(description = "是否限制请求频率")
-    private boolean rateLimit;
+    /**
+     * 限流阈值（QPS）。
+     *
+     * <p>⚠️ 2026-09-18 订正：本字段原声明为 `boolean`，而库列 `sys_security_policy.rate_limit`
+     * 是 **integer**（DDL 默认值 1000）—— 语义上它是「每秒允许的请求数」而不是开关。
+     * 类型不一致会让 MyBatis-Plus 生成 `rate_limit = ?` 绑布尔参数，PostgreSQL 直接报
+     * `column "rate_limit" is of type integer but expression is of type boolean`
+     * → 安全策略页**读写双双 500**。已改为 `Integer`（其余 boolean 字段与库列一致，不动）。
+     */
+    @Schema(description = "限流阈值（QPS）")
+    private Integer rateLimit;
 
     @Schema(description = "审计日志保留天数")
     private Integer auditRetentionDays;
@@ -117,8 +126,8 @@ public class SecurityPolicy implements Serializable {
     public void setSingleDevice(boolean singleDevice) { this.singleDevice = singleDevice; }
     public String getIpWhitelist() { return ipWhitelist; }
     public void setIpWhitelist(String ipWhitelist) { this.ipWhitelist = ipWhitelist; }
-    public boolean isRateLimit() { return rateLimit; }
-    public void setRateLimit(boolean rateLimit) { this.rateLimit = rateLimit; }
+    public Integer getRateLimit() { return rateLimit; }
+    public void setRateLimit(Integer rateLimit) { this.rateLimit = rateLimit; }
     public Integer getAuditRetentionDays() { return auditRetentionDays; }
     public void setAuditRetentionDays(Integer auditRetentionDays) { this.auditRetentionDays = auditRetentionDays; }
     public boolean isLogSensitiveOps() { return logSensitiveOps; }

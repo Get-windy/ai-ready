@@ -1,156 +1,364 @@
 <template>
-  <ARReportPage
-    title="发票统计"
-    :query-fields="queryFields"
-    :columns="columns"
-    :fetcher="fetcher"
-    :normalize-response="normalizeResponse"
-    :stat-cards="statCards"
-    export-file-name="发票统计"
-    row-key="day"
-    empty-text="该区间暂无发票记录"
-  >
-    <template #header-extra>
-      <span class="invoice-tip">按日明细由区间内发票列表按开票日期聚合；汇总口径见卡片</span>
-    </template>
-    <template #bodyCell="{ column, text }">
-      <template v-if="['totalAmount', 'taxAmount', 'paidAmount', 'unpaidAmount'].includes(column.dataIndex as string)">
-        {{ formatMoney(text) }}
-      </template>
-    </template>
-  </ARReportPage>
+  <ErrorBoundary @error="handleError">
+    <PageContainer full-height>
+      <!--
+        发票统计（分析 → 财务分析 → 发票统计，菜单 80455）
+        对标 ql361「发票统计」：单视图增值税进销项月度台账，**多级表头**（仅一层 children）：
+          3 个固定列（年度 / 月份 / 抵扣后应交税额）+「销项开票」7 叶子 +「取得进项专票」7 叶子 = 17 列，全部默认可见。
+        对标工具栏最简（刷新 / 打印(F8) / 导出），**无「页面配置」弹窗、无「查询方案」下拉**
+        （已逐页核文档 §2 与页面配置弹窗实据）→ 查询区为固定项，不接页面配置面板与查询方案条。
+        取数：/erp/finance/analytics/invoice-stats/page（后端 InvoiceStatsController，数据源 invoice 表）。
+      -->
+      <CategoryListLayout
+        :active-tab="'main'"
+        :show-category-panel="false"
+        :show-table-footer="true"
+      >
+        <!-- ═══ 工具栏右侧：刷新｜打印(F8)｜导出 ═══ -->
+        <template #toolbar-right>
+          <a-space :size="8">
+            <a-button size="small" :loading="loading" @click="fetchData">
+              <ReloadOutlined /> 刷新
+            </a-button>
+            <a-button size="small" @click="handlePrint">
+              <PrinterOutlined /> 打印(F8)
+            </a-button>
+            <a-button size="small" :loading="exporting" @click="handleExport">
+              <DownloadOutlined /> 导出
+            </a-button>
+          </a-space>
+        </template>
+
+        <!-- ═══ 查询区（对标：查询方式 + 月份(起) + 月份(止) + 进销均无发生的不显示；横向自适应网格） ═══ -->
+        <template #search-fields>
+          <div class="search-area">
+            <div class="search-grid">
+              <div class="search-item">
+                <span class="search-label">查询方式</span>
+                <a-select
+                  v-model:value="queryMode"
+                  size="small"
+                  style="width: 130px"
+                  :options="QUERY_MODE_OPTIONS"
+                />
+              </div>
+              <div class="search-item">
+                <span class="search-label">月份(起)</span>
+                <a-date-picker
+                  v-model:value="monthStart"
+                  size="small"
+                  picker="month"
+                  value-format="YYYY-MM"
+                  :allow-clear="false"
+                  style="width: 130px"
+                />
+              </div>
+              <div class="search-item">
+                <span class="search-label">月份(止)</span>
+                <a-date-picker
+                  v-model:value="monthEnd"
+                  size="small"
+                  picker="month"
+                  value-format="YYYY-MM"
+                  :allow-clear="false"
+                  style="width: 130px"
+                />
+              </div>
+              <div class="search-item search-actions">
+                <a-checkbox v-model:checked="hideEmpty">进销均无发生的不显示</a-checkbox>
+                <a-button type="primary" size="small" @click="handleSearch">查询</a-button>
+                <a-button size="small" @click="handleReset">重置</a-button>
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <!-- ═══ 数据表格（多级表头 17 列，一套列配置） ═══ -->
+        <template #table>
+          <div class="table-area" :data-cols="colSummary">
+            <BillDetailTable
+              :data-source="rows"
+              :columns="columns"
+              :loading="loading"
+              :view-mode="true"
+              :min-rows="20"
+              :summary-columns="summaryColumns"
+              row-key="periodLabel"
+              storage-key="analytics-invoice-stats-columns-main"
+              global-config-key="analytics-invoice-stats-columns-main"
+            />
+          </div>
+        </template>
+
+        <template #table-footer>
+          <StandardPagination
+            variant="classic"
+            :current="pagination.page"
+            :page-size="pagination.size"
+            :total="pagination.total"
+            :page-size-options="[20, 50, 100]"
+            @change="handlePageChange"
+          />
+        </template>
+      </CategoryListLayout>
+    </PageContainer>
+  </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { message } from 'ant-design-vue'
+import { DownloadOutlined, PrinterOutlined, ReloadOutlined } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
-import ARReportPage from '@/components/ARReportPage/ARReportPage.vue'
-import type { ReportQueryField, ReportFetchResult, StatCardItem } from '@/components/ARReportPage/types'
-import { invoiceApi, invoiceAnalyticsApi, type InvoiceStatsSummary, type InvoiceRecordItem } from '@/api/analytics'
+import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayout.vue'
+import BillDetailTable from '@/components/BillFormPage/BillDetailTable/index.vue'
+import StandardPagination from '@/components/Pagination/Pagination.vue'
+import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTable/types'
+import { invoiceStatsApi } from '@/api/analytics-finance'
+import { useExport } from '@/composables/useExport'
 
-// ═══ 付款状态（与后端 PaymentStatus 枚举一致） ═══
-const PAYMENT_STATUS_OPTIONS = [
-  { label: '待付款', value: 'PENDING' },
-  { label: '部分付款', value: 'PARTIALLY_PAID' },
-  { label: '已付款', value: 'PAID' },
-  { label: '逾期', value: 'OVERDUE' },
-  { label: '已退款', value: 'REFUNDED' }
+defineOptions({ name: 'AnalyticsInvoiceStats' })
+
+// ═══ 查询项（对标实测：查询方式 / 月份(起) / 月份(止) / 进销均无发生的不显示） ═══
+const QUERY_MODE_OPTIONS = [
+  { label: '按月查询', value: 'month' }
 ]
+const queryMode = ref('month')
+const monthStart = ref<string>(dayjs().startOf('year').format('YYYY-MM'))
+const monthEnd = ref<string>(dayjs().format('YYYY-MM'))
+const hideEmpty = ref(false)
 
-const queryFields: ReportQueryField[] = [
-  { key: 'invoiceDateRange', type: 'date-range', label: '开票日期' },
-  {
-    key: 'paymentStatus',
-    type: 'select',
-    label: '付款状态',
-    placeholder: '全部状态',
-    options: PAYMENT_STATUS_OPTIONS
-  }
-]
+const loading = ref(false)
+const rows = ref<any[]>([])
+const pagination = reactive({ page: 1, size: 20, total: 0 })
+const summary = ref<Record<string, any>>({})
 
-// ═══ 表格列（按日聚合明细，由发票列表前端汇总） ═══
-const columns: any[] = [
-  { title: '开票日期', dataIndex: 'day', key: 'day', width: 120 },
-  { title: '发票张数', dataIndex: 'count', key: 'count', width: 100, align: 'right' },
-  { title: '开票金额', dataIndex: 'totalAmount', key: 'totalAmount', width: 130, align: 'right' },
-  { title: '税额', dataIndex: 'taxAmount', key: 'taxAmount', width: 110, align: 'right' },
-  { title: '已收金额', dataIndex: 'paidAmount', key: 'paidAmount', width: 130, align: 'right' },
-  { title: '未收金额', dataIndex: 'unpaidAmount', key: 'unpaidAmount', width: 130, align: 'right' },
-  {
-    title: '收款率', key: 'paidRate', width: 90, align: 'right',
-    customRender: ({ record }: { record: any }) => {
-      const total = Number(record.totalAmount) || 0
-      if (total <= 0) return '-'
-      return `${(((Number(record.paidAmount) || 0) / total) * 100).toFixed(1)}%`
-    }
-  },
-  {
-    title: '平均单张', key: 'avgAmount', width: 110, align: 'right',
-    customRender: ({ record }: { record: any }) => {
-      const count = Number(record.count) || 0
-      if (count <= 0) return '-'
-      return formatMoney((Number(record.totalAmount) || 0) / count)
-    }
-  }
-]
-
-function formatMoney(val: number | null | undefined): string {
-  if (val === null || val === undefined || isNaN(Number(val))) return '-'
-  return Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+// ═══ 数值格式化 ═══
+function fmtNum(v: any): string {
+  if (v === null || v === undefined || v === '' || isNaN(Number(v))) return '-'
+  return Number(v).toLocaleString('zh-CN', { maximumFractionDigits: 4 })
+}
+function fmtMoney(v: any): string {
+  if (v === null || v === undefined || v === '' || isNaN(Number(v))) return '-'
+  return Number(v).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+function fmtText(v: any): string {
+  return v === null || v === undefined || v === '' ? '-' : String(v)
 }
 
-/** 后端 startDate/endDate 必填，未选择时默认本月至今 */
-function resolveRange(params: Record<string, any>): { startDate: string; endDate: string } {
+type Kind = 'money' | 'num' | 'text'
+const FORMATTER: Record<Kind, (v: any) => string> = {
+  money: fmtMoney,
+  num: fmtNum,
+  text: fmtText
+}
+
+function col(key: string, title: string, kind: Kind, width = 130): DetailColumnConfig {
   return {
-    startDate: params.startDate || dayjs().startOf('month').format('YYYY-MM-DD'),
-    endDate: params.endDate || dayjs().format('YYYY-MM-DD')
+    key,
+    title,
+    width,
+    align: kind === 'text' ? 'left' : 'right',
+    formatter: FORMATTER[kind]
   }
 }
 
-// ═══ 汇总卡片（独立请求 /erp/invoice/statistics） ═══
-const summary = ref<InvoiceStatsSummary | null>(null)
+const ROW_NO: DetailColumnConfig = { key: 'rowNo', title: '', type: 'rowNo', width: 44, fixed: 'left' }
 
-const statCards = computed<StatCardItem[]>(() => {
-  const s = summary.value
-  return [
-    { label: '发票张数', value: Number(s?.totalCount) || 0, suffix: '张' },
-    { label: '开票总额', value: Number(s?.totalAmount) || 0, precision: 2, prefix: '¥' },
-    { label: '税额合计', value: Number(s?.totalTax) || 0, precision: 2, prefix: '¥' },
-    { label: '已收金额', value: Number(s?.totalPaid) || 0, precision: 2, prefix: '¥' },
-    { label: '未收金额', value: Number(s?.totalUnpaid) || 0, precision: 2, prefix: '¥', valueStyle: { color: '#fa8c16' } },
-    { label: '待收金额', value: Number(s?.pendingAmount) || 0, precision: 2, prefix: '¥', suffix: `${Number(s?.pendingCount) || 0} 笔` },
-    { label: '逾期未收', value: Number(s?.overdueAmount) || 0, precision: 2, prefix: '¥', suffix: `${Number(s?.overdueCount) || 0} 笔`, valueStyle: { color: '#f5222d' } }
-  ]
+/** 销项开票分组（7 叶子） */
+function salesGroup(): DetailColumnConfig {
+  return {
+    key: 'salesGroup',
+    title: '销项开票',
+    children: [
+      col('salesPosCount', '正数发票张数', 'num', 120),
+      col('salesPosAmount', '正数开票金额', 'money', 130),
+      col('salesNegCount', '负数发票张数', 'num', 120),
+      col('salesNegAmount', '负数开票金额', 'money', 130),
+      col('salesNetAmount', '销项开票金额', 'money', 130),
+      col('salesTotalAmount', '销项价税合计', 'money', 130),
+      col('salesTaxAmount', '销项税额', 'money', 120)
+    ]
+  }
+}
+
+/** 取得进项专票分组（7 叶子） */
+function purchaseGroup(): DetailColumnConfig {
+  return {
+    key: 'purchaseGroup',
+    title: '取得进项专票',
+    children: [
+      col('purPosCount', '正数发票张数', 'num', 120),
+      col('purPosAmount', '正数开票金额', 'money', 130),
+      col('purNegCount', '负数发票张数', 'num', 120),
+      col('purNegAmount', '负数开票金额', 'money', 130),
+      col('purNetAmount', '进项开票金额', 'money', 130),
+      col('purTotalAmount', '进项价税合计', 'money', 130),
+      col('purTaxAmount', '进项税额', 'money', 120)
+    ]
+  }
+}
+
+// ── 全部 17 列 / 默认 17（全可见），多级表头仅一层 ──
+const columns: DetailColumnConfig[] = [
+  ROW_NO,
+  col('year', '年度', 'text', 90),
+  col('month', '月份', 'text', 80),
+  col('taxPayable', '抵扣后应交税额', 'money', 140),
+  salesGroup(),
+  purchaseGroup()
+]
+
+const leafColumns = computed<DetailColumnConfig[]>(() =>
+  columns.flatMap(c => (c.children?.length ? c.children : [c])))
+
+/** `全部可配置列/默认显示列`（供真机校验对标 17/17） */
+const colSummary = computed(() => {
+  const leaf = leafColumns.value.filter(c => c.type !== 'rowNo' && c.type !== 'action')
+  return `${leaf.length}/${leaf.filter(c => !c.defaultHidden).length}`
 })
 
-// ═══ 数据请求（日期范围发票列表 → 前端按付款状态过滤 + 按日聚合） ═══
-async function fetcher(params: Record<string, any>): Promise<InvoiceRecordItem[]> {
-  const range = resolveRange(params)
-  const list = await invoiceAnalyticsApi.dateRangeList(range)
-  const items = Array.isArray(list) ? list : []
-  if (!params.paymentStatus) return items
-  return items.filter(inv => inv.paymentStatus === params.paymentStatus)
-}
+/** 底部合计行：取后端 summary（按当前过滤范围 SUM） */
+const SUMMARY_KEYS = ['salesPosCount', 'salesPosAmount', 'salesNegCount', 'salesNegAmount',
+  'salesNetAmount', 'salesTotalAmount', 'salesTaxAmount', 'purPosCount', 'purPosAmount',
+  'purNegCount', 'purNegAmount', 'purNetAmount', 'purTotalAmount', 'purTaxAmount', 'taxPayable']
+const summaryColumns = computed(() =>
+  SUMMARY_KEYS.filter(k => leafColumns.value.some(c => c.key === k))
+    .map(k => ({ key: k, value: Number(summary.value[k]) || 0 })))
 
-interface DailyInvoiceRow {
-  day: string
-  count: number
-  totalAmount: number
-  taxAmount: number
-  paidAmount: number
-  unpaidAmount: number
-}
-
-function normalizeResponse(res: InvoiceRecordItem[]): ReportFetchResult<DailyInvoiceRow> {
-  const byDay = new Map<string, DailyInvoiceRow>()
-  for (const inv of Array.isArray(res) ? res : []) {
-    const day = String(inv.invoiceDate || '').slice(0, 10) || '未知日期'
-    const row = byDay.get(day) || { day, count: 0, totalAmount: 0, taxAmount: 0, paidAmount: 0, unpaidAmount: 0 }
-    row.count += 1
-    row.totalAmount += Number(inv.totalAmount) || 0
-    row.taxAmount += Number(inv.taxAmount) || 0
-    row.paidAmount += Number(inv.paidAmount) || 0
-    row.unpaidAmount += Number(inv.unpaidAmount) || 0
-    byDay.set(day, row)
+// ═══ 取数 ═══
+function buildParams(extra: Record<string, any> = {}) {
+  return {
+    queryMode: queryMode.value,
+    monthStart: monthStart.value,
+    monthEnd: monthEnd.value,
+    hideEmpty: hideEmpty.value || undefined,
+    page: pagination.page,
+    size: pagination.size,
+    ...extra
   }
-  const list = [...byDay.values()].sort((a, b) => (a.day < b.day ? 1 : -1))
-  return { list, total: list.length, raw: res }
 }
 
-onMounted(async () => {
+async function fetchData() {
+  loading.value = true
   try {
-    const range = resolveRange({})
-    const res = await invoiceApi.getStatistics(range.startDate, range.endDate)
-    summary.value = (res as unknown as InvoiceStatsSummary) || null
+    const res = await invoiceStatsApi.page(buildParams())
+    rows.value = res?.records || []
+    pagination.total = Number(res?.total) || 0
+    summary.value = res?.summary || {}
   } catch (e) {
-    console.warn('[发票统计] 汇总获取失败', e)
+    console.warn('[发票统计] 取数失败', e)
+    message.error('获取数据失败')
+    rows.value = []
+    pagination.total = 0
+    summary.value = {}
+  } finally {
+    loading.value = false
   }
+}
+
+function handleSearch() { pagination.page = 1; fetchData() }
+function handlePageChange(page: number, size: number) {
+  pagination.page = page
+  pagination.size = size
+  fetchData()
+}
+function handleReset() {
+  queryMode.value = 'month'
+  monthStart.value = dayjs().startOf('year').format('YYYY-MM')
+  monthEnd.value = dayjs().format('YYYY-MM')
+  hideEmpty.value = false
+  handleSearch()
+}
+
+// ═══ 打印(F8) / 导出 ═══
+const printableColumns = computed<DetailColumnConfig[]>(() =>
+  leafColumns.value.filter(c => c.type !== 'rowNo' && !c.defaultHidden))
+
+function cellText(c: DetailColumnConfig, r: any): string {
+  const raw = r[c.key]
+  return c.formatter ? c.formatter(raw, r) : fmtText(raw)
+}
+
+function handlePrint() {
+  const cols = printableColumns.value
+  const header = cols.map(c => c.title)
+  const body = rows.value.map(r => cols.map(c => cellText(c, r)))
+  const win = window.open('', '_blank', 'width=1400,height=800')
+  if (!win) {
+    message.warning('浏览器拦截了打印窗口，请允许弹窗后重试')
+    return
+  }
+  const html = `<html><head><meta charset="utf-8"><title>发票统计</title>
+    <style>body{font-family:system-ui,sans-serif;font-size:12px;padding:12px}
+    h3{margin:0 0 8px}table{border-collapse:collapse;width:100%}
+    th,td{border:1px solid #999;padding:4px 6px;text-align:left;white-space:nowrap}</style></head><body>
+    <h3>发票统计（${monthStart.value} ~ ${monthEnd.value}）</h3>
+    <table><thead><tr>${header.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+    <tbody>${body.map(row => `<tr>${row.map(v => `<td>${v}</td>`).join('')}</tr>`).join('')}</tbody>
+    </table></body></html>`
+  win.document.write(html)
+  win.document.close()
+  win.focus()
+  win.print()
+}
+
+function handleF8Key(e: KeyboardEvent) {
+  if (e.key === 'F8') {
+    e.preventDefault()
+    handlePrint()
+  }
+}
+
+const { execute: executeExport, exporting } = useExport()
+
+async function fetchAllRows(): Promise<any[]> {
+  const size = 200
+  const all: any[] = []
+  const pages = Math.max(1, Math.ceil(pagination.total / size))
+  for (let p = 1; p <= pages; p++) {
+    const res = await invoiceStatsApi.page(buildParams({ page: p, size }))
+    const list = res?.records || []
+    all.push(...list)
+    if (list.length < size) break
+  }
+  return all
+}
+
+function handleExport() {
+  const cols = printableColumns.value
+  executeExport({
+    fileName: '发票统计',
+    headers: cols.map(c => c.title),
+    total: pagination.total,
+    fetchAll: fetchAllRows,
+    mapToRows: (list: any[]) => list.map(r => cols.map(c => cellText(c, r))),
+    fallbackRows: () => rows.value.map(r => cols.map(c => cellText(c, r)))
+  })
+}
+
+function handleError(err: any) {
+  console.error('[发票统计] 页面异常', err)
+}
+
+onMounted(() => {
+  fetchData()
+  window.addEventListener('keydown', handleF8Key)
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleF8Key)
 })
 </script>
 
 <style scoped>
-.invoice-tip {
-  font-size: 12px;
-  color: #999;
-}
+/* 插槽内容不受宿主 scoped 样式影响，查询区样式随页面自带 */
+.search-area { width: 100%; }
+.search-grid { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; }
+.search-item { display: flex; align-items: center; gap: 6px; }
+.search-label { color: #666; font-size: 13px; white-space: nowrap; }
+.search-actions { margin-left: auto; }
+
+.table-area { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
 </style>

@@ -2,9 +2,7 @@ package cn.aiedge.monitor.controller;
 
 import cn.aiedge.base.vo.Result;
 import cn.dev33.satoken.annotation.SaCheckLogin;
-import cn.aiedge.monitor.model.AlertRule;
 import cn.aiedge.monitor.model.SystemMetrics;
-import cn.aiedge.monitor.service.AlertRuleService;
 import cn.aiedge.monitor.service.SystemMonitorService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -30,7 +28,6 @@ import java.util.Map;
 public class SystemMonitorController {
 
     private final SystemMonitorService monitorService;
-    private final AlertRuleService alertRuleService;
 
     // ==================== 系统监控 ====================
 
@@ -93,58 +90,15 @@ public class SystemMonitorController {
     }
 
     // ==================== 告警规则管理 ====================
-
-    @PostMapping("/alerts/rules")
-    @Operation(summary = "创建告警规则")
-    public Result<AlertRule> createAlertRule(@RequestBody AlertRule rule) {
-        return Result.ok(alertRuleService.createRule(rule));
-    }
-
-    @PutMapping("/alerts/rules")
-    @Operation(summary = "更新告警规则")
-    public Result<AlertRule> updateAlertRule(@RequestBody AlertRule rule) {
-        return Result.ok(alertRuleService.updateRule(rule));
-    }
-
-    @DeleteMapping("/alerts/rules/{ruleId}")
-    @Operation(summary = "删除告警规则")
-    public Result<Map<String, Object>> deleteAlertRule(@PathVariable Long ruleId) {
-        boolean success = alertRuleService.deleteRule(ruleId);
-        return Result.ok(Map.of("success", success));
-    }
-
-    @GetMapping("/alerts/rules/{ruleId}")
-    @Operation(summary = "获取告警规则")
-    public Result<AlertRule> getAlertRule(@PathVariable Long ruleId) {
-        return Result.ok(alertRuleService.getRule(ruleId));
-    }
-
-    @GetMapping("/alerts/rules")
-    @Operation(summary = "获取告警规则列表")
-    public Result<List<AlertRule>> getEnabledRules(
-            @RequestParam(required = false) Long tenantId) {
-        return Result.ok(alertRuleService.getEnabledRules(tenantId));
-    }
-
-    @PostMapping("/alerts/rules/{ruleId}/enable")
-    @Operation(summary = "启用告警规则")
-    public Result<Map<String, Object>> enableAlertRule(@PathVariable Long ruleId) {
-        boolean success = alertRuleService.enableRule(ruleId);
-        return Result.ok(Map.of("success", success));
-    }
-
-    @PostMapping("/alerts/rules/{ruleId}/disable")
-    @Operation(summary = "禁用告警规则")
-    public Result<Map<String, Object>> disableAlertRule(@PathVariable Long ruleId) {
-        boolean success = alertRuleService.disableRule(ruleId);
-        return Result.ok(Map.of("success", success));
-    }
-
-    @GetMapping("/alerts/history")
-    @Operation(summary = "获取告警历史")
-    public Result<List<Map<String, Object>>> getAlertHistory(
-            @RequestParam(required = false) Long tenantId,
-            @RequestParam(defaultValue = "24") int hours) {
-        return Result.ok(alertRuleService.getAlertHistory(tenantId, hours));
-    }
+    // ⚠️ 告警相关端点（/api/monitor/alerts/**）已**整体移除**（2026-09-18）：
+    //    本类与 AlertManagementController（@RequestMapping("/api/monitor/alerts")）存在 7 组
+    //    完全相同的 method+path（POST|GET /rules、GET|DELETE /rules/{ruleId}、
+    //    POST /rules/{ruleId}/enable|disable、GET /history），此前因 cn.aiedge.monitor 包
+    //    **未列入 scanBasePackages** 而从未暴露；一旦装配即报
+    //    `IllegalStateException: Ambiguous mapping ... /api/monitor/alerts/history`，
+    //    直接导致应用启动失败。
+    //    保留 AlertManagementController —— 它是功能更全的一份（另有 acknowledge / resolve /
+    //    notification config / test / statistics），且**路径完全兼容**本类原有的 7 个端点，
+    //    故不存在能力损失；仅 `PUT /rules`（body 带 id）这一处路径形态不同，
+    //    现统一为 `PUT /api/monitor/alerts/rules/{ruleId}`（前端实测零调用，见验收脚本）。
 }

@@ -4,6 +4,7 @@ import cn.aiedge.module.model.SysModule;
 import cn.aiedge.module.model.SysModuleVersion;
 import cn.aiedge.module.service.ModuleService;
 import cn.dev33.satoken.annotation.SaCheckPermission;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -27,46 +28,62 @@ public class ModuleController {
 
     @GetMapping("/list")
     @SaCheckPermission("system:module:list")
-    @Operation(summary = "获取模块列表")
-    public ResponseEntity<Map<String, Object>> getModuleList() {
-        List<SysModule> modules = moduleService.getModuleList();
-        return ResponseEntity.ok(Map.of("records", modules, "total", modules.size()));
+    @Operation(summary = "获取模块列表（分页 + 名称/编码模糊 + 状态筛选）")
+    public ResponseEntity<Map<String, Object>> getModuleList(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Integer status,
+            @RequestParam(required = false, defaultValue = "1") Integer pageNum,
+            @RequestParam(required = false, defaultValue = "20") Integer pageSize) {
+        IPage<SysModule> page = moduleService.pageModules(keyword, status, pageNum, pageSize);
+        // 用 HashMap（而非 Map.of）以容忍潜在的 null 值
+        Map<String, Object> body = new HashMap<>();
+        body.put("records", page.getRecords());
+        body.put("total", page.getTotal());
+        return ResponseEntity.ok(body);
     }
 
     @GetMapping("/versions")
     @SaCheckPermission("system:module:list")
-    @Operation(summary = "获取模块版本列表")
+    @Operation(summary = "获取模块版本列表（分页 + 模块/状态/版本号筛选）")
     public ResponseEntity<Map<String, Object>> getVersionList(
-            @RequestParam(required = false) Long moduleId) {
-        List<SysModuleVersion> versions = moduleService.getVersionList();
-        if (moduleId != null) {
-            versions = versions.stream()
-                    .filter(v -> moduleId.equals(v.getModuleId()))
-                    .toList();
-        }
-        return ResponseEntity.ok(Map.of("records", versions, "total", versions.size()));
+            @RequestParam(required = false) Long moduleId,
+            @RequestParam(required = false) String releaseStatus,
+            @RequestParam(required = false) String version,
+            @RequestParam(required = false, defaultValue = "1") Integer pageNum,
+            @RequestParam(required = false, defaultValue = "50") Integer pageSize) {
+        return okPage(moduleService.pageVersions(moduleId, releaseStatus, version, pageNum, pageSize));
     }
 
+    /**
+     * 发布记录：与 /versions 同源（都是 sys_module_version）。
+     * 本系统无独立「发布单」实体（见《模块发布开发文档》§7.2）—— 发布动作的产物就是一行版本记录，
+     * 故两个端点共用同一份查询，仅默认排序口径一致（发布时间倒序、草稿沉底）。
+     */
     @GetMapping("/releases")
     @SaCheckPermission("system:module:list")
-    @Operation(summary = "获取模块发布记录")
+    @Operation(summary = "获取模块发布记录（分页 + 模块/状态/版本号筛选）")
     public ResponseEntity<Map<String, Object>> getReleaseList(
-            @RequestParam(required = false) Long moduleId) {
-        List<SysModuleVersion> versions = moduleService.getVersionList();
-        if (moduleId != null) {
-            versions = versions.stream()
-                    .filter(v -> moduleId.equals(v.getModuleId()))
-                    .toList();
-        }
-        return ResponseEntity.ok(Map.of("records", versions, "total", versions.size()));
+            @RequestParam(required = false) Long moduleId,
+            @RequestParam(required = false) String releaseStatus,
+            @RequestParam(required = false) String version,
+            @RequestParam(required = false, defaultValue = "1") Integer pageNum,
+            @RequestParam(required = false, defaultValue = "50") Integer pageSize) {
+        return okPage(moduleService.pageVersions(moduleId, releaseStatus, version, pageNum, pageSize));
+    }
+
+    private ResponseEntity<Map<String, Object>> okPage(IPage<?> page) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("records", page.getRecords());
+        body.put("total", page.getTotal());
+        return ResponseEntity.ok(body);
     }
 
     @GetMapping("/usage")
     @SaCheckPermission("system:module:list")
-    @Operation(summary = "获取模块使用统计")
-    public ResponseEntity<Map<String, Object>> getUsageStats() {
-        List<Map<String, Object>> stats = moduleService.getUsageStats();
-        return ResponseEntity.ok(Map.of("records", stats, "total", stats.size()));
+    @Operation(summary = "获取模块使用统计（含汇总卡；days=统计窗口天数，默认 30）")
+    public ResponseEntity<Map<String, Object>> getUsageStats(
+            @RequestParam(required = false, defaultValue = "30") Integer days) {
+        return ResponseEntity.ok(moduleService.getUsageStats(days));
     }
 
     @GetMapping("/{id}")
@@ -137,5 +154,27 @@ public class ModuleController {
             return ResponseEntity.ok(Map.of("success", false, "message", "模块不存在"));
         }
         return ResponseEntity.ok(Map.of("success", true, "data", v, "message", "发布成功"));
+    }
+
+    /**
+     * 回滚：把模块当前版本号回写为某个已存在的历史版本（不新增版本行）。
+     * 说明：这是**本系统设计**（业界对标未取得「按版本回滚」的官方正文，见《模块发布开发文档》§8），
+     * 语义限定为「切换当前版本指针」，不做代码/数据层面的真实回退。
+     */
+    @PostMapping("/{id}/rollback")
+    @SaCheckPermission("system:module:update")
+    @Operation(summary = "回滚模块当前版本")
+    public ResponseEntity<Map<String, Object>> rollbackVersion(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> request) {
+        String version = request.get("version");
+        if (version == null || version.isEmpty()) {
+            return ResponseEntity.ok(Map.of("success", false, "message", "版本号不能为空"));
+        }
+        boolean success = moduleService.rollbackVersion(id, version);
+        if (!success) {
+            return ResponseEntity.ok(Map.of("success", false, "message", "模块或目标版本不存在"));
+        }
+        return ResponseEntity.ok(Map.of("success", true, "message", "已回滚到 " + version));
     }
 }

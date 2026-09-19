@@ -242,7 +242,10 @@
         </a-row>
       </template>
 
-      <div class="table-wrapper">
+      <div
+        ref="tableWrap"
+        class="table-wrapper"
+      >
         <!-- 错误提示 -->
         <a-alert
           v-if="fetchError"
@@ -279,7 +282,6 @@
           :show-summary="true"
           :summary-data="summaryData"
           :min-empty-rows="12"
-          @cell-dblclick="handleView"
           @page-change="handlePageChange"
           @selection-change="handleSelectionChange"
         >
@@ -602,6 +604,7 @@ import {
 } from '@ant-design/icons-vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
+import { useRowDblclick } from '@/composables/useRowDblclick'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import { exportCsv } from '@/utils/exportCsv'
 import { supplierApi, type Supplier } from '@/api/supplier'
@@ -812,6 +815,11 @@ const handleView = (record: any) => {
   const row = record?.row ?? record
   router.push(`/supplier/detail/${row.id}`)
 }
+
+// 双击行打开供应商详情 —— 页面侧自行实现（不依赖共享表格组件派发事件）
+// 行标识由表格行上的 data-row-key（= 默认 row-key 指定的 id）反查得到；占位空行不带该属性
+const tableWrap = ref<HTMLElement | null>(null)
+useRowDblclick(tableWrap, () => dataSource.value, handleView, 'id')
 
 // ── 门户管理（弹窗模式） ──
 const handlePortal = (record: Supplier) => {

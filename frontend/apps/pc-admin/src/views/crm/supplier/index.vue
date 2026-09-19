@@ -171,179 +171,175 @@
           />
         </a-tabs>
 
-        <BillTableList
-          ref="tableRef"
-          :columns="vxeColumns"
-          :data-source="tableDataSource"
-          :loading="loading"
-          :pagination="pagination"
-          :filter-fields="filterFields"
-          :show-summary="true"
-          :summary-data="summaryData"
-          :show-export="true"
-          :selectable="true"
-          :min-empty-rows="12"
-          add-text="新建供应商"
-          <!--
-          selection-change:
-          handler
-          not
-          @add="handleAdd"
-          defined
-          @refresh="fetchData"
-          (removed)
-          @search="handleSearch"
-          --
-          @page-change="handlePageChange"
-          @sort-change="handleSortChange"
-          @filter-change="handleFilterChange"
+        <div
+          ref="tableWrap"
+          class="table-area"
         >
-          @cell-dblclick="handleView"
-          @export="handleExport"
+          <BillTableList
+            ref="tableRef"
+            :columns="vxeColumns"
+            :data-source="tableDataSource"
+            :loading="loading"
+            :pagination="pagination"
+            :filter-fields="filterFields"
+            :show-summary="true"
+            :summary-data="summaryData"
+            :show-export="true"
+            :selectable="true"
+            :min-empty-rows="12"
+            add-text="新建供应商"
+            @add="handleAdd"
+            @refresh="fetchData"
+            @search="handleSearch"
+            @export="handleExport"
+            @page-change="handlePageChange"
+            @sort-change="handleSortChange"
+            @filter-change="handleFilterChange"
           >
-          <template #toolbar-actions />
+            <template #toolbar-actions />
 
-          <template #empty>
-            <div class="table-empty">
-              <template v-if="hasError">
-                <WarningOutlined
-                  class="table-empty-icon"
-                  style="color: #faad14"
-                />
-                <p class="table-empty-text">
-                  数据加载失败，请重试
-                </p>
-                <a-button
-                  type="primary"
-                  size="small"
-                  @click="fetchData as any"
-                >
-                  <template #icon>
-                    <ReloadOutlined />
-                  </template>
-                  重试
-                </a-button>
-              </template>
-              <template v-else>
-                <SearchOutlined
-                  v-if="hasActiveFilters"
-                  class="table-empty-icon"
-                />
-                <InboxOutlined
-                  v-else
-                  class="table-empty-icon"
-                />
-                <p
-                  v-if="hasActiveFilters"
-                  class="table-empty-text"
-                >
-                  没有符合条件的供应商，<a @click="handleResetFilters">清除筛选</a>
-                </p>
-                <p
-                  v-else
-                  class="table-empty-text"
-                >
-                  暂无供应商数据
-                </p>
-                <div
-                  v-if="!hasActiveFilters"
-                  class="empty-state-wrapper"
-                >
+            <template #empty>
+              <div class="table-empty">
+                <template v-if="hasError">
+                  <WarningOutlined
+                    class="table-empty-icon"
+                    style="color: #faad14"
+                  />
+                  <p class="table-empty-text">
+                    数据加载失败，请重试
+                  </p>
                   <a-button
-                    v-permission="'crm:supplier:create'"
                     type="primary"
-                    @click="handleAdd"
+                    size="small"
+                    @click="fetchData as any"
                   >
                     <template #icon>
-                      <PlusOutlined />
+                      <ReloadOutlined />
                     </template>
-                    新建第一个供应商
+                    重试
                   </a-button>
-                </div>
-              </template>
-            </div>
-          </template>
-
-          <template #action="{ record }">
-            <a-space :size="4">
-              <a-tooltip title="查看">
-                <a-button
-                  v-permission="'crm:supplier:view'"
-                  type="link"
-                  size="small"
-                  @click="handleView(record)"
-                >
-                  <template #icon>
-                    <EyeOutlined />
-                  </template>
-                </a-button>
-              </a-tooltip>
-              <a-tooltip title="编辑">
-                <a-button
-                  v-permission="'crm:supplier:edit'"
-                  type="link"
-                  size="small"
-                  @click="handleEdit(record)"
-                >
-                  <template #icon>
-                    <EditOutlined />
-                  </template>
-                </a-button>
-              </a-tooltip>
-              <a-tooltip title="产品">
-                <a-button
-                  v-permission="'crm:supplier:products'"
-                  type="link"
-                  size="small"
-                  @click="handleProducts(record)"
-                >
-                  <template #icon>
-                    <ShoppingOutlined />
-                  </template>
-                </a-button>
-              </a-tooltip>
-              <a-tooltip title="评估">
-                <a-button
-                  v-permission="'crm:supplier:evaluate'"
-                  type="link"
-                  size="small"
-                  @click="handleEvaluate(record)"
-                >
-                  <template #icon>
-                    <StarOutlined />
-                  </template>
-                </a-button>
-              </a-tooltip>
-              <a-dropdown>
-                <a-button
-                  type="link"
-                  size="small"
-                  @click.prevent
-                >
-                  <template #icon>
-                    <MoreOutlined />
-                  </template>
-                </a-button>
-                <template #overlay>
-                  <a-menu>
-                    <a-menu-item @click="handlePortal(record)">
-                      供应商门户
-                    </a-menu-item>
-                    <a-menu-item @click="handleContact(record)">
-                      联系记录
-                    </a-menu-item>
-                    <a-menu-item
-                      v-if="record.cooperationStatus === 2"
-                      @click="handleDelete(record)"
-                    >
-                      删除
-                    </a-menu-item>
-                  </a-menu>
                 </template>
-              </a-dropdown>
-            </a-space>
-          </template>
-        </BillTableList>
+                <template v-else>
+                  <SearchOutlined
+                    v-if="hasActiveFilters"
+                    class="table-empty-icon"
+                  />
+                  <InboxOutlined
+                    v-else
+                    class="table-empty-icon"
+                  />
+                  <p
+                    v-if="hasActiveFilters"
+                    class="table-empty-text"
+                  >
+                    没有符合条件的供应商，<a @click="handleResetFilters">清除筛选</a>
+                  </p>
+                  <p
+                    v-else
+                    class="table-empty-text"
+                  >
+                    暂无供应商数据
+                  </p>
+                  <div
+                    v-if="!hasActiveFilters"
+                    class="empty-state-wrapper"
+                  >
+                    <a-button
+                      v-permission="'crm:supplier:create'"
+                      type="primary"
+                      @click="handleAdd"
+                    >
+                      <template #icon>
+                        <PlusOutlined />
+                      </template>
+                      新建第一个供应商
+                    </a-button>
+                  </div>
+                </template>
+              </div>
+            </template>
+
+            <template #action="{ record }">
+              <a-space :size="4">
+                <a-tooltip title="查看">
+                  <a-button
+                    v-permission="'crm:supplier:view'"
+                    type="link"
+                    size="small"
+                    @click="handleView(record)"
+                  >
+                    <template #icon>
+                      <EyeOutlined />
+                    </template>
+                  </a-button>
+                </a-tooltip>
+                <a-tooltip title="编辑">
+                  <a-button
+                    v-permission="'crm:supplier:edit'"
+                    type="link"
+                    size="small"
+                    @click="handleEdit(record)"
+                  >
+                    <template #icon>
+                      <EditOutlined />
+                    </template>
+                  </a-button>
+                </a-tooltip>
+                <a-tooltip title="产品">
+                  <a-button
+                    v-permission="'crm:supplier:products'"
+                    type="link"
+                    size="small"
+                    @click="handleProducts(record)"
+                  >
+                    <template #icon>
+                      <ShoppingOutlined />
+                    </template>
+                  </a-button>
+                </a-tooltip>
+                <a-tooltip title="评估">
+                  <a-button
+                    v-permission="'crm:supplier:evaluate'"
+                    type="link"
+                    size="small"
+                    @click="handleEvaluate(record)"
+                  >
+                    <template #icon>
+                      <StarOutlined />
+                    </template>
+                  </a-button>
+                </a-tooltip>
+                <a-dropdown>
+                  <a-button
+                    type="link"
+                    size="small"
+                    @click.prevent
+                  >
+                    <template #icon>
+                      <MoreOutlined />
+                    </template>
+                  </a-button>
+                  <template #overlay>
+                    <a-menu>
+                      <a-menu-item @click="handlePortal(record)">
+                        供应商门户
+                      </a-menu-item>
+                      <a-menu-item @click="handleContact(record)">
+                        联系记录
+                      </a-menu-item>
+                      <a-menu-item
+                        v-if="record.cooperationStatus === 2"
+                        @click="handleDelete(record)"
+                      >
+                        删除
+                      </a-menu-item>
+                    </a-menu>
+                  </template>
+                </a-dropdown>
+              </a-space>
+            </template>
+          </BillTableList>
+        </div>
       </template>
     </ErrorBoundary>
 
@@ -898,6 +894,7 @@ import { supplierApi } from '@/api/supplier'
 import type { FormInstance } from 'ant-design-vue'
 import { useRouter } from 'vue-router'
 import { exportCsv } from '@/utils/exportCsv'
+import { useRowDblclick } from '@/composables/useRowDblclick'
 
 function handleError(err: any) { console.warn('[CRM供应商]', err) }
 
@@ -1149,6 +1146,11 @@ function handleView(record: any) {
   fetchDetail(record.id)
   detailVisible.value = true
 }
+
+// 双击行 → 打开详情：页面侧自行实现（共享表格组件不再派发该事件）
+// 行标识由表格行上的 data-row-key 反查（本表未显式指定 row-key，用默认 'id'）
+const tableWrap = ref<HTMLElement | null>(null)
+useRowDblclick(tableWrap, () => tableDataSource.value, handleView, 'id')
 function handleEdit(record: any) {
   modalTitle.value = '编辑供应商'
   isEdit.value = true
@@ -1268,6 +1270,16 @@ defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>
+
+/* 双击行入口容器（页面侧事件委托，见脚本 useRowDblclick）：撑满剩余空间，避免表格高度塌陷 */
+.table-area {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
 .supplier-page-header {
   display: flex;
   justify-content: space-between;

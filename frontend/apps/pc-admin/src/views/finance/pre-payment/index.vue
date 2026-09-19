@@ -46,7 +46,11 @@
         </div>
       </template>
 
-      <div class="finance-pre-payment-page">
+      <!-- ref 供页面侧双击行入口使用（表格自身的双击事件冒泡到该容器） -->
+      <div
+        ref="tableWrap"
+        class="finance-pre-payment-page"
+      >
         <!-- 统计卡片 -->
         <div class="stat-cards">
           <div class="stat-card stat-total">
@@ -114,7 +118,6 @@
           :selectable="true"
           @refresh="fetchData"
           @add="handleAdd"
-          @cell-dblclick="handleView"
           @page-change="handlePageChange"
           @filter-change="handleFilterChange"
           @selection-change="handleSelectionChange"
@@ -458,6 +461,7 @@ import {
 } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
+import { useRowDblclick } from '@/composables/useRowDblclick'
 import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
@@ -625,6 +629,14 @@ const fetchData = async () => {
 const handleView = (record: any) => {
   message.info(`查看详情: ${record.prePaymentNo}`)
 }
+
+/**
+ * 双击行查看详情 —— **页面侧自行实现**（共享表格组件不再派发该事件）
+ * 行标识由表格 <tr> 上的 data-row-key 反查（与 row-key="id" 同口径），
+ * 占位空行不带该属性，行内按钮等交互控件的双击也会被过滤掉。
+ */
+const tableWrap = ref<HTMLElement | null>(null)
+useRowDblclick(tableWrap, () => tableData.value, handleView, 'id')
 
 const handleSearch = () => {
   pagination.current = 1

@@ -36,6 +36,16 @@ public class MemberLevel {
 
     private String remark;
 
+    // ── 会员等级规则（V11.381.0）：门槛 / 保级周期 / 默认等级 ──
+    /** 升级门槛：累计消费额达到该值即升到本级（NULL=不按消费额） */
+    private BigDecimal upgradeAmount;
+    /** 升级门槛：成长值/累计积分达到该值即升到本级（NULL=不按积分） */
+    private Integer upgradePoints;
+    /** 保级周期（月，NULL=永久保级） */
+    private Integer keepMonths;
+    /** 是否默认等级（1=新会员初始等级，全租户唯一） */
+    private Integer isDefault;
+
     @TableField(fill = FieldFill.INSERT)
     private Long createBy;
 

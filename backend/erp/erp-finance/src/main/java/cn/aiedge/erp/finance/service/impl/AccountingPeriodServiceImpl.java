@@ -2,6 +2,7 @@ package cn.aiedge.erp.finance.service.impl;
 
 import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.finance.dto.AccountingPeriodDTO;
+import cn.aiedge.erp.finance.dto.AccountingPeriodDateDTO;
 import cn.aiedge.erp.finance.mapper.AccountingPeriodMapper;
 import cn.aiedge.erp.finance.model.entity.AccountingPeriod;
 import cn.aiedge.erp.finance.service.AccountingPeriodService;
@@ -15,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -101,6 +103,46 @@ public class AccountingPeriodServiceImpl implements AccountingPeriodService {
         accountingPeriodMapper.updateById(entity);
         log.info("更新会计期间状态: id={}, code={}, status={}", id, entity.getPeriodCode(), status);
         return toDTO(entity);
+    }
+
+    @Override
+    @Transactional
+    public List<AccountingPeriodDTO> saveDates(List<AccountingPeriodDateDTO> items) {
+        if (items == null || items.isEmpty()) {
+            throw BusinessException.badRequest("没有需要保存的会计期间");
+        }
+        List<AccountingPeriodDTO> saved = new ArrayList<>(items.size());
+        for (AccountingPeriodDateDTO item : items) {
+            if (item.getId() == null) {
+                throw BusinessException.badRequest("会计期间ID不能为空");
+            }
+            if (item.getStartDate() == null || item.getEndDate() == null) {
+                throw BusinessException.badRequest("起始日期与结账日期不能为空");
+            }
+            if (item.getStartDate().isAfter(item.getEndDate())) {
+                throw BusinessException.badRequest("起始日期不能晚于结账日期");
+            }
+            AccountingPeriod entity = accountingPeriodMapper.selectById(item.getId());
+            if (entity == null || !DEFAULT_TENANT_ID.equals(entity.getTenantId())) {
+                throw BusinessException.notFound("会计期间不存在: " + item.getId());
+            }
+            // 已关闭（已月结）的期间视为账期已锁定：允许改日期会让已过账凭证落到期间区间之外，
+            // 因此这里采取保守口径 —— 关闭期间一律拒绝修改日期，需先「开启」再改。
+            if (entity.getStatus() != null && entity.getStatus() == 0) {
+                throw BusinessException.badRequest("期间 " + entity.getPeriodCode() + " 已关闭，不可修改起止日期");
+            }
+            // 值未变化则跳过写库（幂等：矩阵整体提交时不会有副作用）
+            if (item.getStartDate().equals(entity.getStartDate()) && item.getEndDate().equals(entity.getEndDate())) {
+                saved.add(toDTO(entity));
+                continue;
+            }
+            entity.setStartDate(item.getStartDate());
+            entity.setEndDate(item.getEndDate());
+            accountingPeriodMapper.updateById(entity);
+            saved.add(toDTO(entity));
+        }
+        log.info("批量保存会计期间起止日期: {} 条", saved.size());
+        return saved;
     }
 
     private String buildPeriodCode(AccountingPeriodDTO dto) {

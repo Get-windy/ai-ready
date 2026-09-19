@@ -10,7 +10,10 @@ import cn.aiedge.base.mapper.SysUserMapper;
 import cn.aiedge.base.mapper.SysUserRoleMapper;
 import cn.aiedge.base.mapper.SysUserTenantMapper;
 import cn.aiedge.base.service.SysUserService;
+import cn.aiedge.base.spi.PlatformSecuritySettingsProvider;
+import cn.aiedge.base.spi.PlatformSecuritySettingsProvider.PlatformSecuritySettings;
 import cn.aiedge.base.util.PasswordPolicy;
+import cn.aiedge.base.utils.SecurityUtils;
 import cn.aiedge.common.exception.BusinessException;
 import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.crypto.digest.BCrypt;
@@ -19,6 +22,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.context.annotation.Primary;
@@ -48,9 +52,37 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser>
     private final SysUserTenantMapper userTenantMapper;
     private final RoleMapper roleMapper;
 
-    /** 密码最长有效期（天），超过需修改 */
+    /** 密码最长有效期（天）—— **yml 兜底值**；平台安全策略有配置时以策略为准 */
     @Value("${password.policy.max-age-days:90}")
     private int passwordMaxAgeDays;
+
+    /** 平台安全策略读取口（core-api 提供实现）；裁剪部署或单测下可能缺失 → 允许为 null */
+    @Autowired(required = false)
+    private PlatformSecuritySettingsProvider securitySettingsProvider;
+
+    /**
+     * 解析密码最长有效期。
+     *
+     * <p>优先级：平台安全策略（「系统 → 平台设置 → 安全策略」的 `password_expire_days`）
+     * → yml `password.policy.max-age-days` → 默认 90。
+     *
+     * <p>约定：返回值 {@code <=0} 表示**不过期**（页面把有效期设为 0 即关闭该检查）。
+     * 读取失败一律回退 yml，**不因为读不到策略就报错或放宽校验**。
+     */
+    private int resolvePasswordMaxAgeDays() {
+        try {
+            PlatformSecuritySettingsProvider p = securitySettingsProvider;
+            if (p != null) {
+                PlatformSecuritySettings s = p.currentSecuritySettings();
+                if (s != null && s.passwordExpireDays() != null) {
+                    return s.passwordExpireDays();
+                }
+            }
+        } catch (Exception e) {
+            log.warn("读取平台安全策略的密码有效期失败，回退到 yml password.policy.max-age-days", e);
+        }
+        return passwordMaxAgeDays;
+    }
 
     @Override
     public String login(String username, String password, Long tenantId, String loginIp) {
@@ -82,11 +114,16 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser>
         // 6. 将租户ID存入Sa-Token Session，避免多租户拦截器递归查询
         StpUtil.getSession().set("tenantId", tenantId);
 
-        // 7. 密码过期检查
+        // 6.1 写入「租户隔离整体豁免」标记（平台超管）。
+        // 必须在这里算并写进 Session —— 拦截器侧只能读缓存，实时算角色会经过 SQL 造成无限递归。
+        StpUtil.getSession().set("tenantScopeExempt", StpUtil.hasRole("SUPER_ADMIN"));
+
+        // 7. 密码过期检查（有效期来自平台安全策略，未配置时回退 yml）
+        int maxAgeDays = resolvePasswordMaxAgeDays();
         boolean passwordExpired = false;
-        if (user.getPasswordUpdateTime() != null && passwordMaxAgeDays > 0) {
+        if (user.getPasswordUpdateTime() != null && maxAgeDays > 0) {
             passwordExpired = Duration.between(user.getPasswordUpdateTime(), LocalDateTime.now())
-                .toDays() >= passwordMaxAgeDays;
+                .toDays() >= maxAgeDays;
         }
         StpUtil.getSession().set("passwordExpired", passwordExpired);
 
@@ -243,10 +280,49 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser>
         resetPassword(userId, newPassword);
     }
 
+    /** 平台超级管理员角色码（与本库既有口径一致：SysMenuServiceImpl 亦以此判定超管） */
+    private static final String SUPER_ADMIN_ROLE = "SUPER_ADMIN";
+
+    /**
+     * 分页查询用户。
+     *
+     * <p><b>租户条件必须在这里显式施加</b>：`sys_user` 被登记在
+     * `MyBatisPlusConfig.IGNORE_TENANT_TABLES`（登录要按用户名跨租户查账号，不能移除），
+     * 多租户拦截器因此**不会**为它注入 `tenant_id`，全靠 `SysUserMapper.selectUserPage` 的
+     * `<if test="tenantId != null"> AND tenant_id = #{tenantId} </if>` 这一段 ——
+     * 而此前传入的 `tenantId` **完全来自 HTTP 查询参数**：前端不传就没有任何租户条件，
+     * 任意租户的管理员即可翻到全库所有租户的账号（用户名 / 邮箱 / 手机号）。
+     *
+     * <p>现按「**超管豁免、其余强制收敛到会话租户**」收敛。
+     */
     @Override
     public Page<SysUser> pageUsers(Page<SysUser> page, Long tenantId,
                                    String username, Integer status, Long deptId) {
-        return baseMapper.selectUserPage(page, tenantId, username, status, deptId);
+        return baseMapper.selectUserPage(page, resolveScopedTenantId(tenantId), username, status, deptId);
+    }
+
+    /**
+     * 计算「实际生效的租户条件」。
+     *
+     * <ul>
+     *   <li><b>平台超管</b> → 豁免：沿用调用方传入值（null 表示不限制，保持全局视野与「切换租户」能力）；</li>
+     *   <li><b>其它角色</b> → 强制收敛到会话租户，<b>忽略</b>调用方传入值；</li>
+     *   <li>取不到会话租户且非超管 → 直接拒绝（宁可报错，也不放行全表）。</li>
+     * </ul>
+     *
+     * <p>超管判定用 Sa-Token 角色列表（`SUPER_ADMIN`），与 `SysMenuServiceImpl` 同源，
+     * 不新造第二套判定。会话租户取自 `SecurityUtils.getCurrentTenantId()` —— 它读 Sa-Token Session
+     * 中的 `tenantId`，故超管切换租户后立即生效，无需额外适配。
+     */
+    private Long resolveScopedTenantId(Long requestedTenantId) {
+        if (SecurityUtils.hasRole(SUPER_ADMIN_ROLE)) {
+            return requestedTenantId;
+        }
+        Long sessionTenantId = SecurityUtils.getCurrentTenantId();
+        if (sessionTenantId == null) {
+            throw BusinessException.forbidden("无法确定当前租户，已拒绝查询用户列表");
+        }
+        return sessionTenantId;
     }
 
     @Override

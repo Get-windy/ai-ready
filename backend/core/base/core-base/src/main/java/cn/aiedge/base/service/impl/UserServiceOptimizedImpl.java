@@ -10,6 +10,7 @@ import cn.aiedge.base.mapper.UserMapper;
 import cn.aiedge.base.mapper.SysUserRoleMapper;
 import cn.aiedge.base.service.UserService;
 import cn.aiedge.common.dto.user.*;
+import cn.aiedge.base.utils.SecurityUtils;
 import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.common.result.PageResult;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -80,6 +81,9 @@ public class UserServiceOptimizedImpl extends ServiceImpl<UserMapper, SysUser> i
             .recordStats()
             .build();
 
+    /** 平台超级管理员角色码（与 SysMenuServiceImpl / SysUserServiceImpl 同源，不新造判定） */
+    private static final String SUPER_ADMIN_ROLE = "SUPER_ADMIN";
+
     // Redis缓存Key前缀
     private static final String USER_CACHE_KEY_PREFIX = "user:info:";
     private static final String USER_ROLES_CACHE_KEY_PREFIX = "user:roles:";
@@ -110,7 +114,18 @@ public class UserServiceOptimizedImpl extends ServiceImpl<UserMapper, SysUser> i
         if (request.getDeptId() != null) {
             wrapper.eq(SysUser::getDeptId, request.getDeptId());
         }
-        
+
+        // 租户收敛：`sys_user` 在多租户忽略表内（登录需跨租户按用户名查账号），拦截器不会注入 tenant_id，
+        // 而本方法此前**完全没有租户条件** → 任意租户的管理员能翻到全库所有租户的账号。
+        // 口径与 /api/user/page 一致：**超管豁免，其余强制限本租户**。
+        if (!SecurityUtils.hasRole(SUPER_ADMIN_ROLE)) {
+            Long sessionTenantId = SecurityUtils.getCurrentTenantId();
+            if (sessionTenantId == null) {
+                throw BusinessException.forbidden("无法确定当前租户，已拒绝查询用户列表");
+            }
+            wrapper.eq(SysUser::getTenantId, sessionTenantId);
+        }
+
         // 优化：使用索引排序
         wrapper.orderByDesc(SysUser::getCreateTime);
 

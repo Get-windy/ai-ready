@@ -17,6 +17,8 @@ export interface UserInfo {
   userId: number
   username: string
   nickname?: string
+  /** 姓名（GET /user/{id} 直接返回 SysUser，含该列） */
+  realName?: string
   userType?: number
   avatar?: string
   email?: string
@@ -26,6 +28,14 @@ export interface UserInfo {
   deptId?: number
   deptName?: string
   tenantId?: number
+  /** 是否超级管理员（GET /user/{id} 返回） */
+  isSuperAdmin?: boolean
+  /** 是否租户管理员（GET /user/{id} 返回） */
+  isTenantAdmin?: boolean
+  /** 最后登录时间（GET /user/{id} 返回） */
+  lastLoginTime?: string
+  /** 最后登录IP（GET /user/{id} 返回） */
+  lastLoginIp?: string
   roles: string[]
   permissions: string[]
   createTime?: string

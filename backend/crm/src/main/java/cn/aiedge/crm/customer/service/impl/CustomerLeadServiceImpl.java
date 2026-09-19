@@ -1,6 +1,7 @@
 package cn.aiedge.crm.customer.service.impl;
 
 import cn.aiedge.common.exception.BusinessException;
+import cn.aiedge.crm.common.CrmDocNo;
 import cn.aiedge.crm.customer.entity.Customer;
 import cn.aiedge.crm.customer.entity.CustomerLead;
 import cn.aiedge.crm.customer.mapper.CustomerLeadMapper;
@@ -14,11 +15,14 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -27,6 +31,7 @@ public class CustomerLeadServiceImpl extends ServiceImpl<CustomerLeadMapper, Cus
 
     private final CustomerMapper customerMapper;
     private final CustomerService customerService;
+    private final TransactionTemplate transactionTemplate;
 
     @Override
     public CustomerLead getByLeadCode(String leadCode) {
@@ -137,9 +142,43 @@ public class CustomerLeadServiceImpl extends ServiceImpl<CustomerLeadMapper, Cus
     }
 
     @Override
+    public Map<String, Object> batchConvertToCustomer(List<Long> leadIds) {
+        if (leadIds == null || leadIds.isEmpty()) {
+            throw BusinessException.badRequest("请选择要转化的线索");
+        }
+
+        List<Long> successIds = new ArrayList<>();
+        List<Map<String, Object>> failures = new ArrayList<>();
+
+        for (Long leadId : leadIds) {
+            try {
+                // 逐条独立事务：单条失败不影响已成功的部分（不整批回滚）
+                transactionTemplate.executeWithoutResult(status -> convertToCustomer(leadId));
+                successIds.add(leadId);
+            } catch (Exception e) {
+                Map<String, Object> failure = new HashMap<>();
+                failure.put("leadId", leadId);
+                failure.put("reason", e.getMessage());
+                failures.add(failure);
+                log.warn("线索批量转化跳过 {}: {}", leadId, e.getMessage());
+            }
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("total", leadIds.size());
+        result.put("successCount", successIds.size());
+        result.put("failCount", failures.size());
+        result.put("successIds", successIds);
+        result.put("failures", failures);
+        log.info("线索批量转化完成: 共 {} 条, 成功 {}, 失败 {}", leadIds.size(), successIds.size(), failures.size());
+        return result;
+    }
+
+    @Override
     public String generateLeadCode() {
-        String dateStr = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-        long count = baseMapper.selectCount(null);
-        return "LEAD-" + dateStr + String.format("%04d", count + 1);
+        // 按当日已有单号的最大值顺延（含已逻辑删除行），而非 selectCount+1：
+        // 后者在「删掉最新一条再新建」时会撞 uk_crm_lead_code 唯一约束（500）。
+        String prefix = CrmDocNo.prefixOf("LEAD-");
+        return CrmDocNo.next(prefix, baseMapper.selectMaxLeadCode(prefix), 4);
     }
 }

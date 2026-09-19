@@ -90,6 +90,23 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
     /** 出库 Service（延迟注入避免循环依赖）：确认出库时生成销售出库单 */
     private final ObjectProvider<cn.aiedge.erp.sale.outbound.service.SaleOutboundService> outboundServiceProvider;
 
+    /** 促销引擎（营销域）：服务端优惠计算的**单一真源** */
+    private final cn.aiedge.erp.marketing.promotion.PromotionEngine promotionEngine;
+
+    /** 优惠券核销（营销域）：与订单同事务 */
+    private final cn.aiedge.erp.marketing.promotion.CouponRedemptionService couponRedemptionService;
+
+    /** 优惠分摊明细 Mapper（订单优惠可回溯 + 分析域数据源） */
+    private final SaleOrderPromoDetailMapper promoDetailMapper;
+
+    /**
+     * 最近一次 calculateAmount 的促销引擎结果（ThreadLocal）。
+     * calculateAmount 是接口方法（无返回值），而分摊明细与券核销要在订单落库后执行，
+     * 故用 ThreadLocal 在两者之间传递结果；用完即 remove，避免线程池串单。
+     */
+    private final ThreadLocal<cn.aiedge.erp.marketing.promotion.PromotionResult> lastPromotionResult =
+            new ThreadLocal<>();
+
     // ═══════════════════════════════════════════
     // 基础 CRUD
     // ═══════════════════════════════════════════
@@ -186,6 +203,9 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
         order.setDeptId(dto.getDeptId());
         order.setProductAmount(dto.getProductAmount());
         order.setDiscountAmount(dto.getDiscountAmount());
+        // 促销引擎算出的两项优惠必须落库（否则 billAmount 里减了、列里却是 0，对账与毛利分析失真）
+        order.setPromoDiscount(dto.getPromoDiscount() != null ? dto.getPromoDiscount() : BigDecimal.ZERO);
+        order.setCouponAmount(dto.getCouponAmount() != null ? dto.getCouponAmount() : BigDecimal.ZERO);
         order.setBillAmount(dto.getBillAmount());
         order.setSettledAmount(BigDecimal.ZERO);
         order.setReceivedAmount(BigDecimal.ZERO);
@@ -258,6 +278,16 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
             }
         }
 
+        // 优惠分摊明细落库 + 活动使用次数累加
+        savePromotionDetails(order, dto);
+
+        // 优惠券核销（与订单同一事务：核销失败则整单回滚，避免"券没用上但单据已存"）
+        if (dto.getCouponIds() != null) {
+            for (Long couponId : dto.getCouponIds()) {
+                couponRedemptionService.redeem(couponId, order.getId(), order.getOrderNo());
+            }
+        }
+
         log.info("创建销售订单: orderId={}, orderNo={}", order.getId(), order.getOrderNo());
         return order.getId();
     }
@@ -296,6 +326,9 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
         order.setDeptId(dto.getDeptId());
         order.setProductAmount(dto.getProductAmount());
         order.setDiscountAmount(dto.getDiscountAmount());
+        // 促销引擎算出的两项优惠必须落库（否则 billAmount 里减了、列里却是 0，对账与毛利分析失真）
+        order.setPromoDiscount(dto.getPromoDiscount() != null ? dto.getPromoDiscount() : BigDecimal.ZERO);
+        order.setCouponAmount(dto.getCouponAmount() != null ? dto.getCouponAmount() : BigDecimal.ZERO);
         order.setBillAmount(dto.getBillAmount());
         order.setTotalQuantity(dto.getTotalQuantity());
         order.setRemark(dto.getRemark());
@@ -330,6 +363,8 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
             }
         }
 
+        // 优惠分摊明细重算落库（先清后插，改单幂等）
+        savePromotionDetails(order, dto);
         log.info("更新销售订单: orderId={}", order.getId());
     }
 
@@ -344,6 +379,8 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
         List<SaleOrderItem> items = itemMapper.selectByOrderId(id);
         items.forEach(item -> itemMapper.deleteById(item.getId()));
         removeById(id);
+        // 券回滚：订单删除后券退回「已领取未使用」，否则券会被永久占用
+        couponRedemptionService.rollbackByOrder(id);
         log.info("删除销售订单: orderId={}", id);
     }
 
@@ -645,12 +682,99 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
         BigDecimal otherFee = dto.getOtherFee() != null ? dto.getOtherFee() : BigDecimal.ZERO;
         BigDecimal discountAmt = dto.getDiscountAmount() != null ? dto.getDiscountAmount() : BigDecimal.ZERO;
         BigDecimal shippingFee = dto.getShippingFee() != null ? dto.getShippingFee() : BigDecimal.ZERO;
-        BigDecimal promoDiscount = dto.getPromoDiscount() != null ? dto.getPromoDiscount() : BigDecimal.ZERO;
-        BigDecimal couponAmount = dto.getCouponAmount() != null ? dto.getCouponAmount() : BigDecimal.ZERO;
         BigDecimal directDiscount = dto.getDirectDiscount() != null ? dto.getDirectDiscount() : BigDecimal.ZERO;
 
-        dto.setBillAmount(totalAmount.add(otherFee).subtract(discountAmt)
-                .subtract(promoDiscount).subtract(couponAmount).subtract(directDiscount).add(shippingFee));
+        // ── 促销与优惠券：由**服务端促销引擎**计算，不再信任前端传参 ──
+        //    （此前 promoDiscount/couponAmount 直接取前端值 ⇒ 促销活动/券配置完不生效）
+        cn.aiedge.erp.marketing.promotion.PromotionResult promo = evaluatePromotion(dto, totalAmount);
+        BigDecimal promoDiscount = promo.getPromoDiscount();
+        BigDecimal couponAmount = promo.getCouponDiscount();
+        this.lastPromotionResult.set(promo);
+
+        dto.setProductAmount(totalAmount);
+        dto.setPromoDiscount(promoDiscount);
+        dto.setCouponAmount(couponAmount);
+
+        BigDecimal billAmount = totalAmount.add(otherFee).subtract(discountAmt)
+                .subtract(promoDiscount).subtract(couponAmount).subtract(directDiscount).add(shippingFee);
+        if (billAmount.compareTo(BigDecimal.ZERO) < 0) {
+            throw BusinessException.badRequest(
+                    "优惠合计（促销 " + promoDiscount + " + 券 " + couponAmount + " + 让价 " + directDiscount
+                            + "）超过商品金额，请调整优惠后重试");
+        }
+        dto.setBillAmount(billAmount);
+    }
+
+    /** 组装促销引擎上下文并求解（纯计算；命中/跳过原因写入日志便于排障） */
+    private cn.aiedge.erp.marketing.promotion.PromotionResult evaluatePromotion(SaleOrderDTO dto, BigDecimal totalAmount) {
+        try {
+            cn.aiedge.erp.marketing.promotion.PromotionRequest req =
+                    new cn.aiedge.erp.marketing.promotion.PromotionRequest();
+            req.setTenantId(dto.getTenantId());
+            req.setCustomerId(dto.getCustomerId());
+            req.setOrderDate(dto.getOrderDate());
+            // 商城来源（orderSource>0 视为商城下单，线下开单为 0 / null）
+            req.setChannel(dto.getOrderSource() != null && dto.getOrderSource() > 0 ? "MALL" : "OFFLINE");
+            req.setCouponIds(dto.getCouponIds());
+            List<cn.aiedge.erp.marketing.promotion.CartLine> lines = new ArrayList<>();
+            for (SaleOrderItemDTO it : dto.getItems()) {
+                cn.aiedge.erp.marketing.promotion.CartLine line =
+                        new cn.aiedge.erp.marketing.promotion.CartLine();
+                line.setLineNo(it.getLineNo());
+                line.setProductId(it.getProductId());
+                line.setProductName(it.getProductName());
+                line.setQuantity(it.getQuantity());
+                line.setUnitPrice(it.getCalculatedPrice() != null ? it.getCalculatedPrice() : it.getUnitPrice());
+                lines.add(line);
+            }
+            req.setLines(lines);
+            cn.aiedge.erp.marketing.promotion.PromotionResult r = promotionEngine.evaluate(req);
+            if (!r.getNotes().isEmpty() || !r.getSkipped().isEmpty()) {
+                log.info("促销引擎：订单 {} 命中活动 {}（促销 {} / 券 {}）；说明={}；跳过={}",
+                        dto.getOrderNo(), r.getAppliedPromotionIds(), r.getPromoDiscount(), r.getCouponDiscount(),
+                        r.getNotes(), r.getSkipped());
+            }
+            return r;
+        } catch (Exception e) {
+            // 促销计算失败不得阻断开单：降级为"无促销优惠"并告警（金额以无优惠为准，不会多算）
+            log.error("促销引擎计算失败，本单按无促销优惠处理：orderNo={}", dto.getOrderNo(), e);
+            return new cn.aiedge.erp.marketing.promotion.PromotionResult();
+        }
+    }
+
+    /** 落库优惠分摊明细（先清后插，保证改单幂等） */
+    private void savePromotionDetails(SaleOrder order, SaleOrderDTO dto) {
+        try {
+            promoDetailMapper.delete(new LambdaQueryWrapper<SaleOrderPromoDetail>()
+                    .eq(SaleOrderPromoDetail::getOrderId, order.getId()));
+            cn.aiedge.erp.marketing.promotion.PromotionResult r = this.lastPromotionResult.get();
+            if (r == null || r.getAllocations().isEmpty()) return;
+            LocalDateTime now = LocalDateTime.now();
+            for (cn.aiedge.erp.marketing.promotion.PromotionAllocation a : r.getAllocations()) {
+                promoDetailMapper.insert(new SaleOrderPromoDetail()
+                        .setTenantId(order.getTenantId())
+                        .setOrderId(order.getId())
+                        .setOrderNo(order.getOrderNo())
+                        .setPromotionId(a.getPromotionId())
+                        .setPromotionName(a.getPromotionName())
+                        .setPromoMode(a.getPromoMode())
+                        .setScopeType(a.getScopeType())
+                        .setLineNo(a.getLineNo())
+                        .setProductId(a.getProductId())
+                        .setDiscountAmount(a.getDiscountAmount())
+                        .setCouponId(a.getCouponId())
+                        .setCouponCode(a.getCouponCode())
+                        .setGiftProductId(a.getGiftProductId())
+                        .setGiftQuantity(a.getGiftQuantity())
+                        .setRemark(a.getRemark())
+                        .setDeleted(0)
+                        .setCreateTime(now));
+            }
+            // 活动已用次数累加（次数上限控制的数据源；试算不累加，只有落单才累加）
+            promotionEngine.recordUsage(r.getAppliedPromotionIds());
+        } finally {
+            this.lastPromotionResult.remove();
+        }
     }
 
     @Override

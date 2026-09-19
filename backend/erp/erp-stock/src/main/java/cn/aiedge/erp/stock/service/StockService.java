@@ -123,4 +123,15 @@ public interface StockService extends IService<Stock> {
      * @param initialStockDTO 期初库存数据
      */
     void updateInitialStock(InitialStockDTO initialStockDTO);
+
+    /**
+     * 删除单条期初库存记录
+     * <p>
+     * ⚠️ 只允许删除 {@code is_initial = 1} 的期初行：本页是「erp_stock 中期初行的唯一维护入口」，
+     * 日常库存行（is_initial = 0）不属于本页管辖，误删会破坏日常库存台账。
+     *
+     * @param id 期初库存记录ID
+     * @return true=删除成功；false=记录不存在或不是期初行
+     */
+    boolean deleteInitialStock(Long id);
 }

@@ -30,6 +30,7 @@
             <span class="shortcut-hints">
               <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
               <span class="shortcut-hint"><kbd>Ctrl</kbd> + <kbd>N</kbd> 新增</span>
+              <span class="shortcut-hint">双击行查看详情</span>
             </span>
             <a-button
               size="small"
@@ -45,7 +46,10 @@
         </div>
       </template>
 
-      <div class="role-management">
+      <div
+        ref="tableWrap"
+        class="role-management"
+      >
         <!-- 统计卡片 -->
         <div class="stat-cards">
           <div class="stat-card stat-total">
@@ -109,7 +113,6 @@
           @refresh="debounceClick('refresh', fetchData)"
           @page-change="handlePageChange"
           @filter-change="handleFilterChange"
-          @cell-dblclick="handleView"
         >
           <template #empty>
             <a-empty
@@ -312,6 +315,205 @@
           </a-form>
         </FullScreenDetail>
 
+        <!-- ═══ 角色详情（只读）═══ -->
+        <!-- 双击行打开（见下方 useRowDblclick）；:show-footer="false" → 无保存/保存并新增按钮，纯只读查看，不提交任何写操作 -->
+        <FullScreenDetail
+          :visible="viewVisible"
+          :title="viewTitle"
+          :show-footer="false"
+          @close="handleViewClose"
+        >
+          <a-skeleton
+            v-if="viewLoading"
+            active
+            :paragraph="{ rows: 8 }"
+            style="padding: 8px;"
+          />
+
+          <a-result
+            v-else-if="viewError"
+            status="error"
+            title="角色详情加载失败"
+            :sub-title="viewErrorMessage"
+          >
+            <template #extra>
+              <a-button
+                type="primary"
+                @click="debounceClick('viewReload', reloadView)"
+              >
+                <template #icon>
+                  <ReloadOutlined />
+                </template>
+                重新加载
+              </a-button>
+            </template>
+          </a-result>
+
+          <template v-else-if="viewDetail">
+            <!-- 基本信息：字段口径对齐后端 SysRole 实体（GET /api/role/{id} 直接返回 sys_role 行） -->
+            <a-descriptions
+              :column="2"
+              size="small"
+              bordered
+            >
+              <a-descriptions-item label="角色名称">
+                {{ viewDetail.roleName || '-' }}
+              </a-descriptions-item>
+              <a-descriptions-item label="角色编码">
+                {{ viewDetail.roleCode || '-' }}
+              </a-descriptions-item>
+              <a-descriptions-item label="角色类型">
+                <a-tag
+                  v-if="viewRoleType"
+                  :color="viewRoleType.color"
+                >
+                  {{ viewRoleType.label }}
+                </a-tag>
+                <span v-else>-</span>
+              </a-descriptions-item>
+              <a-descriptions-item label="作用域">
+                <a-tag :color="viewDetail.scope === 'PLATFORM' ? 'purple' : 'blue'">
+                  {{ viewDetail.scope === 'PLATFORM' ? '平台级' : (viewDetail.scope === 'TENANT' ? '租户级' : '-') }}
+                </a-tag>
+              </a-descriptions-item>
+              <a-descriptions-item label="数据范围">
+                {{ viewDataScopeLabel }}
+              </a-descriptions-item>
+              <a-descriptions-item label="排序">
+                {{ viewDetail.sort ?? '-' }}
+              </a-descriptions-item>
+              <a-descriptions-item label="状态">
+                <a-tag :color="viewDetail.status === 0 ? 'success' : 'default'">
+                  {{ viewStatusText }}
+                </a-tag>
+              </a-descriptions-item>
+              <a-descriptions-item label="角色ID">
+                {{ viewDetail.id }}
+              </a-descriptions-item>
+              <a-descriptions-item label="创建时间">
+                {{ viewDetail.createTime || '-' }}
+              </a-descriptions-item>
+              <a-descriptions-item label="更新时间">
+                {{ viewDetail.updateTime || '-' }}
+              </a-descriptions-item>
+              <a-descriptions-item
+                label="备注"
+                :span="2"
+              >
+                {{ viewDetail.remark || '-' }}
+              </a-descriptions-item>
+            </a-descriptions>
+
+            <!-- 已分配权限：GET /api/role/{id}/permissions（返回 sys_permission.id 清单，下方按模块分组还原权限码） -->
+            <div class="detail-section-header">
+              <span class="detail-section-title">已分配权限</span>
+              <span class="detail-section-count">共 {{ viewPermissionIds.length }} 项</span>
+              <span
+                v-if="viewPermOptionsLoading"
+                class="detail-section-hint"
+              >权限名称解析中…</span>
+            </div>
+
+            <a-alert
+              v-if="viewPermOptionsError && viewPermissionIds.length > 0"
+              type="warning"
+              show-icon
+              message="权限名称解析失败"
+              description="未能解析的项仅显示权限 ID，请检查网络或权限后重试"
+              style="margin-bottom: 8px"
+            >
+              <template #action>
+                <a-button
+                  size="small"
+                  @click="debounceClick('viewPermReload', loadPermissionOptions)"
+                >
+                  重试
+                </a-button>
+              </template>
+            </a-alert>
+
+            <a-empty
+              v-if="viewPermissionIds.length === 0"
+              description="该角色暂无已分配权限"
+            />
+            <div
+              v-else
+              class="detail-perm-groups"
+            >
+              <div
+                v-for="group in viewPermissionGroups"
+                :key="group.module"
+                class="detail-perm-group"
+              >
+                <div class="detail-perm-module">
+                  模块：{{ group.module }}（{{ group.items.length }}）
+                </div>
+                <div class="detail-perm-tags">
+                  <a-tooltip
+                    v-for="item in group.items"
+                    :key="item.id"
+                    :title="item.name || `权限ID ${item.id}`"
+                    placement="bottom"
+                  >
+                    <a-tag>{{ item.code || `#${item.id}` }}</a-tag>
+                  </a-tooltip>
+                </div>
+              </div>
+            </div>
+
+            <!-- 已分配菜单：GET /api/role/{id}/menus（返回 sys_menu.id 清单，下方用菜单树还原层级与名称） -->
+            <div class="detail-section-header">
+              <span class="detail-section-title">已分配菜单</span>
+              <span class="detail-section-count">共 {{ viewMenuIds.length }} 项</span>
+              <span
+                v-if="viewMenuTreeLoading"
+                class="detail-section-hint"
+              >菜单名称解析中…</span>
+            </div>
+
+            <a-alert
+              v-if="viewMenuTreeError && viewMenuIds.length > 0"
+              type="warning"
+              show-icon
+              message="菜单名称解析失败"
+              description="下面仅显示菜单 ID，请检查网络后重试"
+              style="margin-bottom: 8px"
+            >
+              <template #action>
+                <a-button
+                  size="small"
+                  @click="debounceClick('viewMenuReload', loadMenuTreeForView)"
+                >
+                  重试
+                </a-button>
+              </template>
+            </a-alert>
+
+            <a-empty
+              v-if="viewMenuIds.length === 0"
+              description="该角色暂无已分配菜单"
+            />
+            <a-tree
+              v-else-if="viewMenuTree.length > 0"
+              :tree-data="viewMenuTree"
+              :checkable="false"
+              :selectable="false"
+              :default-expand-all="true"
+            />
+            <div
+              v-else
+              class="detail-id-list"
+            >
+              <a-tag
+                v-for="id in viewMenuIds"
+                :key="id"
+              >
+                #{{ id }}
+              </a-tag>
+            </div>
+          </template>
+        </FullScreenDetail>
+
         <!-- 权限配置弹窗 -->
         <a-modal
           v-model:open="permissionModalVisible"
@@ -411,6 +613,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
+import { useRowDblclick } from '@/composables/useRowDblclick'
 import { useRouter, onBeforeRouteLeave } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
@@ -418,6 +621,7 @@ import { SafetyOutlined, CheckCircleOutlined, StopOutlined, ReloadOutlined, Sync
 import { roleApi, type RoleInfo } from '@/api/role'
 import menuApi from '@/api/menu'
 import { roleBillTypeApi, type BillTypeDetail } from '@/api/roleBillType'
+import { permissionApi } from '@/api/permission'
 import { dictItemApi } from '@/api/dict'
 import { useSubmitLock } from '@/composables'
 import { useUserStore } from '@/stores/user'
@@ -749,8 +953,261 @@ onUnmounted(() => {
 defineExpose({ handleQuery: fetchData })
 
 function handleError(err: any) { console.warn('[ErrorBoundary]', err) }
-// 查看详情
-const handleView = (record: any) => {}
+
+// ==================== 角色详情（只读） ====================
+// 容器复用本页既有的 FullScreenDetail（:show-footer="false" → 无保存按钮，纯只读，不提交/不删除）
+// 三块数据全部取自真实接口，且不复用列表行快照：
+//   1. 基本信息   GET /api/role/{id}               （后端直接返回 sys_role 行）
+//   2. 已分配权限 GET /api/role/{id}/permissions    （返回 sys_permission.id 清单）
+//   3. 已分配菜单 GET /api/role/{id}/menus          （返回 sys_menu.id 清单）
+// 名称还原：权限码来自 GET /api/permission/page（sys_permission 属系统级共享表，接口按 tenantId 显式过滤，
+// 角色可能同时挂着 tenant_id=0 的全局权限与本租户权限，故两段都要取）；菜单名来自 GET /api/menu/tree。
+type RoleDetail = RoleInfo & { updateTime?: string }
+
+const viewVisible = ref(false)
+const viewLoading = ref(false)
+const viewError = ref(false)
+const viewErrorMessage = ref('')
+const viewDetail = ref<RoleDetail | null>(null)
+/** 当前查看的角色 id：雪花 ID 按原值（字符串）透传，不做 Number() 转换 */
+const viewRoleId = ref<string | number | null>(null)
+
+const viewTitle = computed(() => viewDetail.value?.roleName
+  ? `角色详情 - ${viewDetail.value.roleName}`
+  : '角色详情')
+
+// 数据范围口径对齐后端 SysRole.dataScope 注释（0-全部 1-本部门 2-本部门及以下 3-仅本人 4-自定义）
+const DATA_SCOPE_LABELS: Record<number, string> = { 0: '全部数据', 1: '本部门', 2: '本部门及以下', 3: '仅本人', 4: '自定义' }
+// 角色类型兜底口径对齐后端 SysRole.roleType 注释（0-系统角色 1-自定义角色）
+// 说明：当前库里没有 ROLE_TYPE 字典（loadRoleTypeOptions 取不到值），详情里不再回落成「未知」而误报
+const ROLE_TYPE_LABELS: Record<number, string> = { 0: '系统角色', 1: '自定义角色' }
+
+const viewDataScopeLabel = computed(() => {
+  const v = viewDetail.value?.dataScope
+  if (v === null || v === undefined) return '-'
+  return DATA_SCOPE_LABELS[v] || String(v)
+})
+
+const viewStatusText = computed(() => {
+  const v = viewDetail.value?.status
+  return v === 0 ? '正常' : (v === 1 ? '停用' : '-')
+})
+
+const viewRoleType = computed(() => {
+  const v = viewDetail.value?.roleType
+  if (v === null || v === undefined || v === '') return null
+  const num = Number(v)
+  const dictLabel = roleTypeOptions.value.find(o => o.value === num)?.label
+  return { label: dictLabel || ROLE_TYPE_LABELS[num] || '未知', color: getRoleTypeColor(num) }
+})
+
+/**
+ * 拆包：响应拦截器在成功时已把 Result 拆成 data 本体（见 utils/request.ts），
+ * 因此运行时拿到的通常就是数据本身；这里同时兼容尚未拆包的 { data: ... } 形态。
+ */
+function unwrap<T>(res: unknown): T | null {
+  if (res === null || res === undefined) return null
+  const wrapped = res as { data?: T }
+  return wrapped.data !== undefined ? wrapped.data : (res as T)
+}
+
+/** 归一化为字符串数组（雪花 ID 一律按字符串处理，禁止 Number()） */
+function normalizeIdList(raw: unknown): string[] {
+  const list = Array.isArray(raw) ? raw : []
+  return list.map((v: unknown) => String(v))
+}
+
+/** 传给 roleApi 的 id：始终原样透传（雪花 ID 不做 Number()），仅补一处类型断言 */
+function asApiId(id: string | number): number {
+  return id as unknown as number
+}
+
+// ── 已分配权限 ──────────────────────────────────────────
+const viewPermissionIds = ref<string[]>([])
+const viewPermOptionsLoading = ref(false)
+const viewPermOptionsError = ref(false)
+/** sys_permission.id → { name, code }，用于把分配到角色的权限 ID 还原成权限码 */
+const viewPermOptionMap = ref<Map<string, { name: string; code: string }>>(new Map())
+
+/** 权限码形如 system:role:list，第一段即模块标识，据此分组（sys_permission 无可用父子层级） */
+const viewPermissionGroups = computed(() => {
+  const groups = new Map<string, { id: string; name: string; code: string }[]>()
+  for (const id of viewPermissionIds.value) {
+    const hit = viewPermOptionMap.value.get(id)
+    const code = hit?.code || ''
+    const module = code ? code.split(':')[0] : '未解析权限'
+    const bucket = groups.get(module)
+    if (bucket) bucket.push({ id, name: hit?.name || '', code })
+    else groups.set(module, [{ id, name: hit?.name || '', code }])
+  }
+  return Array.from(groups.entries())
+    .map(([module, items]) => ({ module, items }))
+    .sort((a, b) => a.module.localeCompare(b.module))
+})
+
+/** 权限名称解析：GET /api/permission/page（分别取全局 tenant_id=0 与角色所属租户） */
+async function loadPermissionOptions() {
+  viewPermOptionsLoading.value = true
+  viewPermOptionsError.value = false
+  try {
+    const tenantIds: number[] = [0]
+    const roleTenantId = viewDetail.value?.tenantId
+    if (roleTenantId !== null && roleTenantId !== undefined && String(roleTenantId) !== '0') {
+      tenantIds.push(roleTenantId)
+    }
+    const results = await Promise.allSettled(tenantIds.map(tenantId =>
+      permissionApi.getPage({ tenantId, current: 1, size: 1000 })
+    ))
+    const map = new Map<string, { name: string; code: string }>()
+    let failed = false
+    for (const result of results) {
+      if (result.status === 'rejected') {
+        // 单段失败不影响另一段已解析出的名称，但要显式进入错误态给重试，不能静默当成"该角色没有权限"
+        failed = true
+        console.warn('[角色管理] 解析权限名称失败', result.reason)
+        continue
+      }
+      const page = result.value as unknown as {
+        records?: Array<{ id?: string | number; permissionName?: string; permissionCode?: string }>
+      }
+      const records = Array.isArray(page?.records) ? page.records : []
+      for (const p of records) {
+        if (p?.id === undefined || p?.id === null) continue
+        map.set(String(p.id), { name: p.permissionName || '', code: p.permissionCode || '' })
+      }
+    }
+    viewPermOptionMap.value = map
+    viewPermOptionsError.value = failed
+  } finally {
+    viewPermOptionsLoading.value = false
+  }
+}
+
+// ── 已分配菜单 ──────────────────────────────────────────
+const viewMenuIds = ref<string[]>([])
+const viewMenuTreeLoading = ref(false)
+const viewMenuTreeError = ref(false)
+const viewMenuTree = ref<ReadonlyTreeNode[]>([])
+
+/** 菜单树节点（GET /api/menu/tree 返回体；雪花 ID 运行时可能是字符串） */
+interface MenuTreeNode {
+  id?: string | number
+  menuName?: string
+  menuType?: number
+  children?: MenuTreeNode[]
+}
+
+/** 只读菜单树节点（a-tree 的 tree-data） */
+interface ReadonlyTreeNode {
+  key: string
+  title: string
+  children?: ReadonlyTreeNode[]
+}
+
+/** 菜单类型口径对齐前端 MenuInfo.menuType 注释（0-目录 1-菜单 2-按钮） */
+const MENU_TYPE_LABELS: Record<number, string> = { 0: '目录', 1: '菜单', 2: '按钮' }
+
+/**
+ * 用「已分配菜单 ID」重建菜单树：只保留被分配的节点及其祖先目录；
+ * 祖先仅用于体现层级，标题里显式标注「上级目录」以免被误认为已分配。
+ */
+function buildAssignedMenuTree(nodes: MenuTreeNode[], assigned: Set<string>): ReadonlyTreeNode[] {
+  const result: ReadonlyTreeNode[] = []
+  for (const node of nodes || []) {
+    if (!node || node.id === undefined || node.id === null) continue
+    const children = buildAssignedMenuTree(node.children || [], assigned)
+    const selfAssigned = assigned.has(String(node.id))
+    if (!selfAssigned && children.length === 0) continue
+    const typeLabel = node.menuType !== undefined ? (MENU_TYPE_LABELS[node.menuType] || '') : ''
+    result.push({
+      key: String(node.id),
+      title: `${node.menuName || String(node.id)}${typeLabel ? `（${typeLabel}）` : ''}${selfAssigned ? '' : '（上级目录，未分配）'}`,
+      children: children.length > 0 ? children : undefined,
+    })
+  }
+  return result
+}
+
+/** 菜单名称解析：复用本页「菜单配置」弹窗同款接口 GET /api/menu/tree */
+async function loadMenuTreeForView() {
+  viewMenuTreeLoading.value = true
+  viewMenuTreeError.value = false
+  try {
+    const menuRes = await menuApi.getTree({})
+    const nodes = unwrap<MenuTreeNode[]>(menuRes) || []
+    viewMenuTree.value = buildAssignedMenuTree(nodes, new Set(viewMenuIds.value))
+  } catch (err) {
+    viewMenuTree.value = []
+    viewMenuTreeError.value = true
+    console.warn('[角色管理] 解析菜单名称失败', err)
+  } finally {
+    viewMenuTreeLoading.value = false
+  }
+}
+
+/** 基本信息 + 已分配权限 ID + 已分配菜单 ID（任一失败整体进入错误态，并提供重试） */
+const fetchViewDetail = async (roleId: string | number) => {
+  viewLoading.value = true
+  viewError.value = false
+  viewErrorMessage.value = ''
+  viewDetail.value = null
+  viewPermissionIds.value = []
+  viewMenuIds.value = []
+  viewMenuTree.value = []
+  viewPermOptionMap.value = new Map()
+  viewPermOptionsError.value = false
+  viewMenuTreeError.value = false
+  try {
+    const [roleRes, permRes, menuRes] = await Promise.all([
+      roleApi.getById(asApiId(roleId)),
+      roleApi.getPermissions(asApiId(roleId)),
+      roleApi.getMenus(asApiId(roleId)),
+    ])
+    const role = unwrap<RoleDetail>(roleRes)
+    if (!role || role.id === undefined || role.id === null) {
+      viewError.value = true
+      viewErrorMessage.value = '未找到该角色，可能已被删除'
+      return
+    }
+    viewDetail.value = role
+    viewPermissionIds.value = normalizeIdList(unwrap<string[] | number[]>(permRes))
+    viewMenuIds.value = normalizeIdList(unwrap<string[] | number[]>(menuRes))
+  } catch (err) {
+    viewError.value = true
+    viewErrorMessage.value = '角色详情加载失败'
+    console.warn('[角色管理] 加载角色详情失败', err)
+    return
+  } finally {
+    viewLoading.value = false
+  }
+  // 附属数据（名称解析）失败不阻塞主体，各自在对应分区给错误态与重试
+  loadPermissionOptions()
+  loadMenuTreeForView()
+}
+
+// 重试：基本信息 + 已分配权限/菜单一起重载
+const reloadView = () => {
+  if (viewRoleId.value === null) return
+  fetchViewDetail(viewRoleId.value)
+}
+
+const handleViewClose = () => {
+  viewVisible.value = false
+}
+
+// 查看详情（只读，双击行触发）
+const handleView = (record: RoleInfo) => {
+  const roleId = record?.id
+  if (roleId === undefined || roleId === null) return
+  viewRoleId.value = roleId
+  viewVisible.value = true
+  fetchViewDetail(roleId)
+}
+
+// 双击行查看角色详情 —— 页面侧自行实现（不依赖共享表格组件派发事件）
+// 行标识由表格行上的 data-row-key（= row-key 指定的 id）反查得到；占位空行不带该属性
+const tableWrap = ref<HTMLElement | null>(null)
+useRowDblclick(tableWrap, () => tableDataSource.value, handleView, 'id')
 </script>
 
 <style scoped>
@@ -860,6 +1317,58 @@ const handleView = (record: any) => {}
 @media (max-width: 768px) {
   .stat-cards { flex-wrap: wrap; }
   .stat-card { flex: 1 1 45%; min-width: 120px; }
+}
+
+/* ── 角色详情（只读）分区 ──────────────────────────── */
+.detail-section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0 8px;
+}
+
+.detail-section-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1890ff;
+}
+
+.detail-section-count {
+  font-size: 12px;
+  color: #666;
+}
+
+.detail-section-hint {
+  font-size: 12px;
+  color: #999;
+}
+
+.detail-perm-group {
+  margin-bottom: 10px;
+}
+
+.detail-perm-module {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 6px;
+}
+
+.detail-perm-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.detail-perm-tags :deep(.ant-tag) {
+  margin-inline-end: 0;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 12px;
+}
+
+.detail-id-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 /* ── FullScreenDetail form compact overrides ── */

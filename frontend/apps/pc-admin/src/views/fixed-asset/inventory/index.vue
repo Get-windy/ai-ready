@@ -53,7 +53,11 @@
         </div>
       </template>
 
-      <div class="inventory-list-page">
+      <!-- ref 供页面侧双击行入口使用（表格自身的双击事件冒泡到该容器） -->
+      <div
+        ref="tableWrap"
+        class="inventory-list-page"
+      >
         <!-- 统计卡片 -->
         <div class="stat-cards">
           <div class="stat-card stat-pending">
@@ -117,7 +121,6 @@
           :min-empty-rows="12"
           @add="showCreateModal"
           @edit="editRecord"
-          @cell-dblclick="viewDetail"
           @refresh="debounceClick('refresh', fetchData)"
           @search="handleSearch"
           @page-change="handlePageChange"
@@ -454,6 +457,7 @@ import {
 } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
+import { useRowDblclick } from '@/composables/useRowDblclick'
 import { inventoryApi } from '@/api/fixed-asset'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
@@ -718,6 +722,14 @@ function viewDetail(record: any) {
   modalVisible.value = true
   nextTick(() => { saveFormSnapshot(); watchReady = true })
 }
+
+/**
+ * 双击行打开盘点记录 —— **页面侧自行实现**（共享表格组件不再派发该事件）
+ * 行标识由表格 <tr> 上的 data-row-key 反查（与 row-key 默认值 "id" 同口径），
+ * 占位空行不带该属性，行内按钮等交互控件的双击也会被过滤掉。
+ */
+const tableWrap = ref<HTMLElement | null>(null)
+useRowDblclick(tableWrap, () => tableData.value, viewDetail, 'id')
 
 function handleModalOk() {
   modalLoading.value = true

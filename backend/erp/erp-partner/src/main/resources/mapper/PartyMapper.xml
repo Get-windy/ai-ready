@@ -144,6 +144,10 @@
             <if test="q.categoryId != null">
                 AND p.category_id = #{q.categoryId}
             </if>
+            <if test="q.partyKeyword != null and q.partyKeyword != ''">
+                AND (p.party_code LIKE CONCAT('%', #{q.partyKeyword}, '%')
+                   OR p.party_name LIKE CONCAT('%', #{q.partyKeyword}, '%'))
+            </if>
             <if test="q.memberKeyword != null and q.memberKeyword != ''">
                 AND (p.member_name LIKE CONCAT('%', #{q.memberKeyword}, '%')
                    OR p.member_card_no LIKE CONCAT('%', #{q.memberKeyword}, '%')

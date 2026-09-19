@@ -183,90 +183,94 @@
             </a-space>
           </div>
 
-          <BillTableList
-            ref="tableRef"
-            :columns="vxeColumns"
-            :data-source="list"
-            :loading="loading"
-            :pagination="pagination"
-            row-key="id"
-            :show-toolbar="false"
-            :selectable="true"
-            :show-add="false"
-            :show-search="false"
-            :show-export="true"
-            @export="handleExport"
-            @page-change="handlePageChange"
-            @cell-dblclick="handleView"
-            @selection-change="handleSelectionChange"
+          <div
+            ref="tableWrap"
+            class="table-area"
           >
-            <template #empty>
-              <EmptyState
-                v-if="hasError"
-                image="error"
-                title="数据加载异常"
-                description="数据获取失败，请检查后重试"
-                :show-add="false"
-                size="small"
-                @refresh="fetchPartners"
-              />
-              <EmptyState
-                v-else
-                image="no-data"
-                title="暂无往来单位"
-                description="当前没有单位数据"
-                add-text="新增单位"
-                size="small"
-                @refresh="fetchPartners"
-                @add="() => router.push('/erp/partner/create')"
-              />
-            </template>
-            <template #typeCell="{ record }">
-              <a-tag>{{ typeLabel(record.partnerType) }}</a-tag>
-            </template>
-            <template #statusCell="{ record }">
-              <StatusTag
-                :status="record.status"
-                :map="PARTNER_STATUS"
-              />
-            </template>
-            <template #action="{ record }">
-              <a-space :size="4">
-                <a-button
-                  type="link"
+            <BillTableList
+              ref="tableRef"
+              :columns="vxeColumns"
+              :data-source="list"
+              :loading="loading"
+              :pagination="pagination"
+              row-key="id"
+              :show-toolbar="false"
+              :selectable="true"
+              :show-add="false"
+              :show-search="false"
+              :show-export="true"
+              @export="handleExport"
+              @page-change="handlePageChange"
+              @selection-change="handleSelectionChange"
+            >
+              <template #empty>
+                <EmptyState
+                  v-if="hasError"
+                  image="error"
+                  title="数据加载异常"
+                  description="数据获取失败，请检查后重试"
+                  :show-add="false"
                   size="small"
-                  @click="handleView(record)"
-                >
-                  查看
-                </a-button>
-                <a-button
-                  v-permission="'erp:partner:edit'"
-                  type="link"
+                  @refresh="fetchPartners"
+                />
+                <EmptyState
+                  v-else
+                  image="no-data"
+                  title="暂无往来单位"
+                  description="当前没有单位数据"
+                  add-text="新增单位"
                   size="small"
-                  @click="router.push(`/erp/partner/${record.id}`)"
-                >
-                  编辑
-                </a-button>
-                <a-button
-                  v-permission="'erp:partner:toggle-status'"
-                  type="link"
-                  size="small"
-                  @click="handleToggleStatus(record)"
-                >
-                  {{ record.status === 'ENABLED' ? '停用' : '启用' }}
-                </a-button>
-                <a-button
-                  v-permission="'erp:partner:delete'"
-                  type="link"
-                  size="small"
-                  danger
-                  @click="handleDelete(record)"
-                >
-                  删除
-                </a-button>
-              </a-space>
-            </template>
-          </BillTableList>
+                  @refresh="fetchPartners"
+                  @add="() => router.push('/erp/partner/create')"
+                />
+              </template>
+              <template #typeCell="{ record }">
+                <a-tag>{{ typeLabel(record.partnerType) }}</a-tag>
+              </template>
+              <template #statusCell="{ record }">
+                <StatusTag
+                  :status="record.status"
+                  :map="PARTNER_STATUS"
+                />
+              </template>
+              <template #action="{ record }">
+                <a-space :size="4">
+                  <a-button
+                    type="link"
+                    size="small"
+                    @click="handleView(record)"
+                  >
+                    查看
+                  </a-button>
+                  <a-button
+                    v-permission="'erp:partner:edit'"
+                    type="link"
+                    size="small"
+                    @click="router.push(`/erp/partner/${record.id}`)"
+                  >
+                    编辑
+                  </a-button>
+                  <a-button
+                    v-permission="'erp:partner:toggle-status'"
+                    type="link"
+                    size="small"
+                    @click="handleToggleStatus(record)"
+                  >
+                    {{ record.status === 'ENABLED' ? '停用' : '启用' }}
+                  </a-button>
+                  <a-button
+                    v-permission="'erp:partner:delete'"
+                    type="link"
+                    size="small"
+                    danger
+                    @click="handleDelete(record)"
+                  >
+                    删除
+                  </a-button>
+                </a-space>
+              </template>
+            </BillTableList>
+          </div>
         </div>
       </div>
 
@@ -382,6 +386,7 @@ import PrintButton from '@/components/business/print-button/PrintButton.vue'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'
 import { PARTNER_STATUS } from '@/utils/statusConfig'
 import { partnerApi, partnerCategoryApi, type Partner, type PartnerCategory } from '@/api/erp/partner'
+import { useRowDblclick } from '@/composables/useRowDblclick'
 import request from '@/utils/request'
 
 // ── 类型 ──────────────────────────────────────────────
@@ -601,6 +606,11 @@ async function handleView(record: Partner) {
   }
 }
 
+// 双击行 → 打开详情：页面侧自行实现（共享表格组件不再派发该事件）
+// 行标识由表格行上的 data-row-key 反查，与该表 row-key（'id'）同口径
+const tableWrap = ref<HTMLElement | null>(null)
+useRowDblclick(tableWrap, () => list.value, handleView, 'id')
+
 // ── 业务操作 ──────────────────────────────────────────
 function handleDelete(record: Partner) {
   Modal.confirm({
@@ -686,6 +696,16 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+
+/* 双击行入口容器（页面侧事件委托，见脚本 useRowDblclick）：撑满剩余空间，避免表格高度塌陷 */
+.table-area {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
 .page-header {
   display: flex;
   justify-content: space-between;

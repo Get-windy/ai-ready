@@ -39,11 +39,13 @@ public class SysTenantMenuServiceImpl extends ServiceImpl<SysTenantMenuMapper, S
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void assignMenus(Long tenantId, List<Long> menuIds) {
+        // 先清除旧授权（物理删除）。
+        // ⚠️ 空菜单列表的语义是「撤销该租户的全部授权」，不是「什么都不做」——
+        //    此前这里直接 return，导致「清空后保存」返回成功却零变更（谎报成功，2026-09-18 实踩）。
+        tenantMenuMapper.deleteByTenantId(tenantId);
         if (menuIds == null || menuIds.isEmpty()) {
             return;
         }
-        // 先清除旧授权
-        tenantMenuMapper.deleteByTenantId(tenantId);
         // 批量插入新授权
         List<SysTenantMenu> list = menuIds.stream().map(menuId -> {
             SysTenantMenu tm = new SysTenantMenu();
@@ -52,7 +54,7 @@ public class SysTenantMenuServiceImpl extends ServiceImpl<SysTenantMenuMapper, S
             tm.setCreateTime(LocalDateTime.now());
             return tm;
         }).collect(Collectors.toList());
-        tenantMenuMapper.batchInsert(list);
+        tenantMenuMapper.batchInsert(tenantId, list);
     }
 
     @Override

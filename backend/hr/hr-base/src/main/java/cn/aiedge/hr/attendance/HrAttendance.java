@@ -13,6 +13,9 @@ import java.time.LocalTime;
  * 考勤记录实体
  * 员工每日打卡记录
  *
+ * <p>考勤状态：`NORMAL` 正常 / `LATE` 迟到 / `EARLY` 早退 / `ABSENT` 缺勤 / `LEAVE` 休假。
+ * `LEAVE` 由请假批准时**自动写入**（请假↔考勤联动），从而避免休假期间被误判为缺勤而扣款。</p>
+ *
  * @author AI-Ready Team
  * @since 1.0.0
  */
@@ -53,7 +56,7 @@ public class HrAttendance {
     private LocalTime clockOutTime;
 
     /**
-     * 考勤状态（NORMAL-正常 LATE-迟到 EARLY-早退 ABSENT-缺勤）
+     * 考勤状态（NORMAL-正常 LATE-迟到 EARLY-早退 ABSENT-缺勤 LEAVE-休假）
      */
     private String status;
 
@@ -71,6 +74,11 @@ public class HrAttendance {
      * 工作时长（小时）
      */
     private BigDecimal workHours;
+
+    /**
+     * 关联请假单ID（status=LEAVE 时写入）
+     */
+    private Long leaveRequestId;
 
     /**
      * 备注
@@ -106,4 +114,18 @@ public class HrAttendance {
      */
     @TableField(fill = FieldFill.INSERT_UPDATE)
     private Long updateBy;
+
+    // ── 展示用联表字段（非表列） ──
+
+    /** 员工姓名 */
+    @TableField(exist = false)
+    private String employeeName;
+
+    /** 员工工号 */
+    @TableField(exist = false)
+    private String employeeNo;
+
+    /** 部门名称 */
+    @TableField(exist = false)
+    private String deptName;
 }

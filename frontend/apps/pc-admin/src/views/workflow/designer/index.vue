@@ -1,193 +1,377 @@
 <template>
-  <ErrorBoundary>
+  <ErrorBoundary @error="handleError">
+    <!--
+      流程定义（菜单 801 / workflow-definition / path=/workflow/definition）
+      与流程设计（菜单 80610 / set:workflow-designer）**共用本组件**（DB component 逐字相同）。
+      两者靠**读路由**分流（本轮修复前组件零路由读取，导致两菜单 100% 同一界面、页内标题恒为「流程设计」）：
+        · 801   → 流程定义**台账**（CategoryListLayout + BillDetailTable），行内「设计」进设计器
+        · 80610 → **直接进设计器**
+      路由字段：route.name（= menu.routeName || menu.menuCode，见 router/dynamicRoutes.ts:988）优先，
+       route.path 兜底（801 解析为 /workflow/definition）。
+      本系统工作流为**自研审批引擎**（无 Flowable / Activiti / Camunda），流程图存
+      workflow_definition.process_config（JSON 字符串，非 BPMN XML）。
+    -->
     <PageContainer
-      title="流程设计"
       full-height
+      :title="pageTitle"
     >
-      <a-alert
-        type="info"
-        show-icon
-        class="tip-alert"
-        message="流程定义对接自后端 /api/workflow/definitions 实时数据。"
-        description="后端仅开放流程定义的列表 / 详情 / 新建接口：保存已有流程会以同一定义ID重新提交并自动生成新版本；停用/启用通过同一保存通道切换 enabled 实现；删除接口尚未开放。"
-      />
-      <div class="designer-layout">
-        <!-- 左侧：流程定义列表 -->
-        <div class="definition-panel">
-          <div class="definition-panel-header">
-            <a-select
-              v-model:value="queryType"
-              placeholder="全部类型"
-              allow-clear
-              size="small"
-              style="width: 130px"
-              @change="loadDefinitions"
-            >
-              <a-select-option
-                v-for="(v, k) in APPROVAL_FLOW_TYPE_MAP"
-                :key="k"
-                :value="k"
+      <!-- ═══════════════ 视图一：流程定义台账（菜单 801） ═══════════════ -->
+      <div
+        v-if="activeView === 'ledger'"
+        class="ledger-page"
+      >
+        <CategoryListLayout
+          :tabs="[]"
+          :show-category-panel="false"
+          :show-table-footer="true"
+          @search="handleSearch"
+        >
+          <!-- 工具栏右侧：刷新 / 新建流程 -->
+          <template #toolbar-right>
+            <a-space :size="8">
+              <a-button
+                size="small"
+                :loading="listLoading"
+                @click="loadDefinitions"
               >
-                {{ v.label }}
-              </a-select-option>
-            </a-select>
-            <a-button
-              size="small"
-              @click="loadDefinitions"
-            >
-              <template #icon>
-                <ReloadOutlined />
-              </template>
-            </a-button>
-            <a-button
-              type="primary"
-              size="small"
-              @click="handleCreate"
-            >
-              <template #icon>
-                <PlusOutlined />
-              </template>
-              新建
-            </a-button>
-          </div>
-          <a-spin :spinning="listLoading">
-            <div class="definition-list">
+                <ReloadOutlined /> 刷新
+              </a-button>
+              <a-button
+                v-permission="'workflow:definition:save'"
+                type="primary"
+                size="small"
+                @click="handleCreate"
+              >
+                <PlusOutlined /> 新建流程
+              </a-button>
+            </a-space>
+          </template>
+
+          <!-- 查询区：横向自适应网格（禁止纵向单列） -->
+          <template #search-fields>
+            <div class="search-area">
               <div
-                v-for="item in definitions"
-                :key="item.definitionId"
-                class="definition-item"
-                :class="{ 'definition-item-active': item.definitionId === draft.definitionId }"
-                @click="handleSelect(item)"
+                ref="gridRef"
+                class="search-grid"
               >
-                <div class="definition-item-main">
-                  <div class="definition-item-name">
-                    {{ item.name }}
-                  </div>
-                  <div class="definition-item-meta">
-                    <a-tag
-                      :color="typeTag(item.type).color"
-                      class="definition-tag"
-                    >
-                      {{ typeTag(item.type).label }}
-                    </a-tag>
-                    <span>v{{ item.version }}</span>
-                    <span>{{ item.nodes?.length ?? 0 }} 节点</span>
-                  </div>
+                <div class="search-field-item">
+                  <a-input
+                    v-model:value="searchForm.name"
+                    placeholder="流程名称"
+                    size="small"
+                    allow-clear
+                    @press-enter="handleSearch"
+                  />
+                </div>
+                <div class="search-field-item">
+                  <!-- 流程类型是**服务端**过滤项（后端 processTypeToInt 映射，见 WorkflowServiceImpl.getWorkflowDefinitions） -->
+                  <a-select
+                    v-model:value="searchForm.type"
+                    placeholder="流程类型"
+                    size="small"
+                    allow-clear
+                    :options="typeOptions"
+                    @change="handleSearch"
+                  />
+                </div>
+                <div class="search-field-item">
+                  <!-- 状态是**页面侧**过滤项（后端列表端点只有 type 一个入参，不为本页新增查询参数） -->
+                  <a-select
+                    v-model:value="searchForm.enabled"
+                    placeholder="状态"
+                    size="small"
+                    allow-clear
+                    :options="ENABLED_OPTIONS"
+                    @change="handleSearch"
+                  />
                 </div>
                 <div
-                  class="definition-item-side"
-                  @click.stop
+                  ref="actionRef"
+                  class="search-action-group"
+                  :style="{ gridColumn: 'span ' + actionSpan }"
                 >
-                  <a-tooltip :title="item.enabled ? '点击停用' : '点击启用'">
-                    <a-switch
-                      :checked="item.enabled"
-                      :loading="togglingId === item.definitionId"
-                      size="small"
-                      @change="(checked) => handleToggleEnabled(item, checked as boolean)"
-                    />
-                  </a-tooltip>
+                  <a-button
+                    type="primary"
+                    size="small"
+                    @click="handleSearch"
+                  >
+                    查询
+                  </a-button>
+                  <a-button
+                    size="small"
+                    @click="handleReset"
+                  >
+                    重置
+                  </a-button>
                 </div>
               </div>
-              <a-empty
-                v-if="!listLoading && definitions.length === 0"
-                description="暂无流程定义"
-                :image-style="{ height: '60px' }"
-              />
             </div>
-          </a-spin>
-        </div>
+          </template>
 
-        <!-- 右侧：画布区 -->
-        <div class="canvas-area">
-          <div class="canvas-toolbar">
-            <div class="canvas-toolbar-left">
+          <!-- 数据表：列配置齿轮挂在表头 rowNo 列 -->
+          <template #table>
+            <div class="table-area">
+              <BillDetailTable
+                v-model:data-source="tableData"
+                :columns="columns"
+                :loading="listLoading"
+                :view-mode="true"
+                :min-rows="0"
+                row-key="definitionId"
+                storage-key="workflow-definition-table-columns"
+                global-config-key="workflow-definition-table-columns"
+                :empty-text="ledgerEmptyText"
+              >
+                <template #nameCell="{ record }">
+                  <a-tooltip
+                    v-if="record.name"
+                    placement="bottom"
+                    :title="record.name"
+                  >
+                    <span class="cell-ellipsis">{{ record.name }}</span>
+                  </a-tooltip>
+                  <span
+                    v-else
+                    class="cell-empty"
+                  >-</span>
+                </template>
+
+                <template #codeCell="{ record }">
+                  <span class="cell-mono">{{ record.code || '-' }}</span>
+                </template>
+
+                <template #typeCell="{ record }">
+                  <a-tag :color="typeTag(record.type).color">
+                    {{ typeTag(record.type).label }}
+                  </a-tag>
+                </template>
+
+                <template #versionCell="{ record }">
+                  v{{ record.version ?? 1 }}
+                </template>
+
+                <template #nodeCountCell="{ record }">
+                  {{ record.nodes?.length ?? 0 }}
+                </template>
+
+                <template #enabledCell="{ record }">
+                  <a-tag :color="record.enabled ? 'success' : 'default'">
+                    {{ record.enabled ? '启用' : '停用' }}
+                  </a-tag>
+                </template>
+
+                <template #descriptionCell="{ record }">
+                  <a-tooltip
+                    v-if="record.description"
+                    placement="bottom"
+                    :title="record.description"
+                  >
+                    <span class="cell-ellipsis">{{ record.description }}</span>
+                  </a-tooltip>
+                  <span
+                    v-else
+                    class="cell-empty"
+                  >-</span>
+                </template>
+
+                <template #updateTimeCell="{ record }">
+                  {{ fmtDateTime(record.updateTime) }}
+                </template>
+
+                <!-- 行操作：设计（进设计器）/ 发布 / 停用 / 删除，四个端点后端均已实现 -->
+                <template #actionCell="{ record }">
+                  <div class="row-actions">
+                    <a-button
+                      type="link"
+                      size="small"
+                      @click="handleDesign(record)"
+                    >
+                      设计
+                    </a-button>
+                    <a-button
+                      v-if="!record.enabled"
+                      v-permission="'workflow:definition:publish'"
+                      type="link"
+                      size="small"
+                      :loading="togglingId === record.definitionId"
+                      @click="handleToggleEnabled(record, true)"
+                    >
+                      发布
+                    </a-button>
+                    <a-button
+                      v-else
+                      v-permission="'workflow:definition:disable'"
+                      type="link"
+                      size="small"
+                      :loading="togglingId === record.definitionId"
+                      @click="handleToggleEnabled(record, false)"
+                    >
+                      停用
+                    </a-button>
+                    <a-popconfirm
+                      title="确定删除该流程定义？存在实例引用时后端会拒绝删除。"
+                      @confirm="handleDelete(record)"
+                    >
+                      <a-button
+                        v-permission="'workflow:definition:delete'"
+                        type="link"
+                        size="small"
+                        danger
+                      >
+                        删除
+                      </a-button>
+                    </a-popconfirm>
+                  </div>
+                </template>
+              </BillDetailTable>
+            </div>
+          </template>
+
+          <!-- 底部：经典分页栏（后端列表端点无分页参数，分页在页面侧完成） -->
+          <template #table-footer>
+            <StandardPagination
+              variant="classic"
+              :current="pagination.current"
+              :page-size="pagination.pageSize"
+              :total="filteredDefinitions.length"
+              :page-size-options="[20, 50, 100]"
+              @change="handlePageChange"
+            />
+          </template>
+        </CategoryListLayout>
+      </div>
+
+      <!-- ═══════════════ 视图二：流程设计器（菜单 80610，或从 801 台账点「设计」进入） ═══════════════ -->
+      <div
+        v-else
+        class="designer-page"
+      >
+        <a-alert
+          type="info"
+          show-icon
+          class="designer-tip"
+          message="流程设计器（本系统自研审批引擎，非 BPMN 引擎）"
+          description="节点按顺序串联执行。「保存」会把整份节点链路写入 process_config 并镜像到 workflow_node，同时版本 +1；启停走独立的发布 / 停用端点，不会产生新版本。"
+        />
+
+        <div class="designer-shell">
+          <div class="designer-toolbar">
+            <div class="designer-toolbar-left">
+              <a-button
+                v-if="isLedgerRoute"
+                size="small"
+                @click="backToLedger"
+              >
+                <ArrowLeftOutlined /> 返回台账
+              </a-button>
+              <!-- 定义选择器：设计器内切换要编辑的流程定义（沿用原左侧列表的能力） -->
+              <a-select
+                v-model:value="pickerValue"
+                placeholder="选择流程定义"
+                size="small"
+                allow-clear
+                style="width: 220px"
+                :options="pickerOptions"
+                @change="handlePickerChange"
+              />
+              <a-button
+                v-permission="'workflow:definition:save'"
+                size="small"
+                @click="handleCreate"
+              >
+                <PlusOutlined /> 新建
+              </a-button>
               <span class="draft-title">
                 {{ draft.name || '未命名流程' }}
                 <a-tag v-if="draft.definitionId">v{{ draft.version }}</a-tag>
                 <a-tag
                   v-else
                   color="blue"
-                >新建</a-tag>
+                >
+                  新建
+                </a-tag>
                 <a-tag :color="draft.enabled ? 'success' : 'default'">
                   {{ draft.enabled ? '启用' : '停用' }}
                 </a-tag>
                 <a-tag
                   v-if="dirty"
                   color="warning"
-                >未保存</a-tag>
+                >
+                  未保存
+                </a-tag>
               </span>
             </div>
-            <div class="canvas-toolbar-right">
+            <div class="designer-toolbar-right">
               <a-button
                 size="small"
                 @click="metaModalVisible = true"
               >
-                <template #icon>
-                  <SettingOutlined />
-                </template>
-                流程信息
+                <SettingOutlined /> 流程信息
               </a-button>
               <a-button
                 size="small"
                 @click="addNode"
               >
-                <template #icon>
-                  <PlusOutlined />
-                </template>
-                添加审批节点
+                <PlusOutlined /> 添加审批节点
               </a-button>
               <a-button
+                v-permission="'workflow:definition:save'"
                 type="primary"
                 size="small"
                 :loading="saving"
                 :disabled="!dirty && !!draft.definitionId"
                 @click="handleSave"
               >
-                <template #icon>
-                  <SaveOutlined />
-                </template>
-                保存
+                <SaveOutlined /> 保存
               </a-button>
             </div>
           </div>
-          <div class="canvas-wrapper">
-            <CanvasBoard
-              ref="canvasRef"
-              :config="canvasConfig"
-            >
-              <template #connections>
-                <Connection
-                  v-for="conn in canvasConnections"
-                  :key="conn.id"
-                  :connection="conn"
-                />
-              </template>
-              <template #nodes>
-                <FlowNode
-                  v-for="node in canvasNodes"
-                  :key="node.id"
-                  :node="node"
-                  @click="handleNodeClick"
-                />
-              </template>
-            </CanvasBoard>
-            <div
-              v-if="draft.nodes.length === 0"
-              class="canvas-empty-tip"
-            >
-              暂无审批节点，点击右上角「添加审批节点」开始编排
+
+          <div class="canvas-area">
+            <div class="canvas-wrapper">
+              <CanvasBoard
+                ref="canvasRef"
+                :config="canvasConfig"
+              >
+                <template #connections>
+                  <Connection
+                    v-for="conn in canvasConnections"
+                    :key="conn.id"
+                    :connection="conn"
+                  />
+                </template>
+                <template #nodes>
+                  <FlowNode
+                    v-for="node in canvasNodes"
+                    :key="node.id"
+                    :node="node"
+                    @click="handleNodeClick"
+                  />
+                </template>
+              </CanvasBoard>
+              <!-- 空态文案随「是否已选中/新建流程」变化 -->
+              <div
+                v-if="draft.nodes.length === 0"
+                class="canvas-empty-tip"
+              >
+                {{ canvasEmptyText }}
+              </div>
             </div>
           </div>
         </div>
       </div>
     </PageContainer>
 
-    <!-- 流程信息弹窗 -->
+    <!-- ═══════ 弹窗一律放在布局之外 ═══════ -->
+
+    <!-- 流程信息弹窗：「保存」真实提交（原先 @ok 只关闭弹窗，易被误解为保存） -->
     <a-modal
       v-model:open="metaModalVisible"
       title="流程信息"
       width="560px"
-      @ok="metaModalVisible = false"
+      ok-text="保存"
+      :confirm-loading="saving"
+      @ok="handleSave"
     >
       <a-form
         :model="draft"
@@ -243,6 +427,7 @@
           </a-col>
           <a-col :span="12">
             <a-form-item label="是否启用">
+              <!-- 这里只改草稿态；真正的启停请在台账行内操作（走 publish / disable 端点，不会 +版本） -->
               <a-switch
                 v-model:checked="draft.enabled"
                 @change="dirty = true"
@@ -365,20 +550,14 @@
               :disabled="editingNodeIndex <= 0"
               @click="moveNode(editingNodeIndex, -1)"
             >
-              <template #icon>
-                <ArrowUpOutlined />
-              </template>
-              上移
+              <ArrowUpOutlined /> 上移
             </a-button>
             <a-button
               size="small"
               :disabled="editingNodeIndex >= draft.nodes.length - 1"
               @click="moveNode(editingNodeIndex, 1)"
             >
-              <template #icon>
-                <ArrowDownOutlined />
-              </template>
-              下移
+              <ArrowDownOutlined /> 下移
             </a-button>
             <a-popconfirm
               title="确定删除该审批节点？"
@@ -388,10 +567,7 @@
                 danger
                 size="small"
               >
-                <template #icon>
-                  <DeleteOutlined />
-                </template>
-                删除节点
+                <DeleteOutlined /> 删除节点
               </a-button>
             </a-popconfirm>
           </a-space>
@@ -402,8 +578,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
+import dayjs from 'dayjs'
 import {
   PlusOutlined,
   ReloadOutlined,
@@ -411,10 +589,16 @@ import {
   SettingOutlined,
   DeleteOutlined,
   ArrowUpOutlined,
-  ArrowDownOutlined
+  ArrowDownOutlined,
+  ArrowLeftOutlined
 } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayout.vue'
+import BillDetailTable from '@/components/BillFormPage/BillDetailTable/index.vue'
+import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTable/types'
+import StandardPagination from '@/components/Pagination/Pagination.vue'
+import { useAutoGridSpan } from '@/composables/useAutoGridSpan'
 import { CanvasBoard, FlowNode, Connection } from '@/components/Workflow/Canvas'
 import type { FlowNode as FlowNodeData } from '@/types/workflow/node'
 import type { Connection as ConnectionData } from '@/types/workflow/connection'
@@ -428,13 +612,39 @@ import {
   type ApprovalFlowNode
 } from '@/api/workflow'
 
-// ── 画布布局常量 ─────────────────────────────────────────
+defineOptions({ name: 'WorkflowDesigner' })
+
+// ══════════════════ 路由分流（801 流程定义 / 80610 流程设计） ══════════════════
+//
+// route.name = menu.routeName || menu.menuCode（router/dynamicRoutes.ts:988），实测两菜单 route_name 均为 NULL：
+//   · 801   → route.name = 'workflow-definition'，route.path = '/workflow/definition'
+//   · 80610 → route.name = 'set:workflow-designer'，route.path = '/set/workflow-designer'
+// 以「是否台账路由」判定；非台账路由一律按流程设计处理（菜单名与落点一致）。
+const route = useRoute()
+const isLedgerRoute = computed(() => {
+  const routeName = String(route.name ?? '')
+  return routeName === 'workflow-definition' || String(route.path || '').includes('/workflow/definition')
+})
+
+type PageView = 'ledger' | 'designer'
+const activeView = ref<PageView>(isLedgerRoute.value ? 'ledger' : 'designer')
+/** 标题跟着**视图**走：台账=流程定义（801 菜单名），设计器=流程设计（80610 菜单名） */
+const pageTitle = computed(() => (activeView.value === 'designer' ? '流程设计' : '流程定义'))
+
+// 同一组件被两个菜单复用，若被 keep-alive 复用实例，切菜单时要回到该菜单的默认视图
+watch(isLedgerRoute, (isLedger) => {
+  activeView.value = isLedger ? 'ledger' : 'designer'
+})
+
+// ══════════════════ 画布布局常量 ══════════════════
 const CANVAS_CENTER_X = 320
 const START_Y = 40
 const START_H = 50
 const APPROVAL_W = 180
 const APPROVAL_H = 64
 const GAP_Y = 88
+
+const canvasRef = ref<InstanceType<typeof CanvasBoard> | null>(null)
 
 const canvasConfig: Partial<CanvasConfig> = {
   minScale: 0.3,
@@ -448,13 +658,72 @@ const canvasConfig: Partial<CanvasConfig> = {
   }
 }
 
-// ── 列表状态 ─────────────────────────────────────────────
+// ══════════════════ 台账状态 ══════════════════
 const definitions = ref<ApprovalFlowDefinition[]>([])
 const listLoading = ref(false)
-const queryType = ref<string | undefined>(undefined)
-const togglingId = ref<string>('')
+const togglingId = ref('')
+/** 提交给 BillDetailTable 的当前页数据（组件用 v-model:data-source） */
+const tableData = ref<ApprovalFlowDefinition[]>([])
 
-// ── 当前编辑草稿 ─────────────────────────────────────────
+const searchForm = reactive<{ name: string; type: string | undefined; enabled: string | undefined }>({
+  name: '',
+  type: undefined,
+  enabled: undefined
+})
+const ENABLED_OPTIONS = [
+  { label: '启用', value: 'yes' },
+  { label: '停用', value: 'no' }
+]
+const typeOptions = computed(() =>
+  Object.entries(APPROVAL_FLOW_TYPE_MAP).map(([value, item]) => ({ label: item.label, value }))
+)
+
+const pagination = reactive({ current: 1, pageSize: 20 })
+
+const gridRef = ref<HTMLElement | null>(null)
+const actionRef = ref<HTMLElement | null>(null)
+const { span: actionSpan } = useAutoGridSpan(actionRef, gridRef)
+
+const ledgerEmptyText = '该租户下暂无流程定义，点击右上角「新建流程」开始创建'
+
+// 列定义：rowNo 列承载表头「列配置」齿轮（本系统金标准项）
+const columns: DetailColumnConfig[] = [
+  { key: 'rowNo', title: '', type: 'rowNo', width: 44, fixed: 'left' },
+  { key: 'name', title: '流程名称', type: 'slot', slotName: 'nameCell', width: 200 },
+  { key: 'code', title: '流程编码', type: 'slot', slotName: 'codeCell', width: 190 },
+  { key: 'type', title: '流程类型', type: 'slot', slotName: 'typeCell', width: 120 },
+  { key: 'version', title: '版本', type: 'slot', slotName: 'versionCell', width: 80, align: 'center' },
+  { key: 'nodes', title: '节点数', type: 'slot', slotName: 'nodeCountCell', width: 80, align: 'center' },
+  { key: 'enabled', title: '状态', type: 'slot', slotName: 'enabledCell', width: 90 },
+  { key: 'description', title: '流程描述', type: 'slot', slotName: 'descriptionCell' },
+  { key: 'updateTime', title: '更新时间', type: 'slot', slotName: 'updateTimeCell', width: 170 },
+  { key: 'action', title: '操作', type: 'slot', slotName: 'actionCell', width: 240, fixed: 'right' }
+]
+
+const filteredDefinitions = computed(() => {
+  const keyword = searchForm.name.trim()
+  return definitions.value.filter((item) => {
+    if (keyword && !String(item.name || '').includes(keyword)) return false
+    if (searchForm.enabled === 'yes' && !item.enabled) return false
+    if (searchForm.enabled === 'no' && item.enabled) return false
+    return true
+  })
+})
+
+const pagedDefinitions = computed(() => {
+  const start = (pagination.current - 1) * pagination.pageSize
+  return filteredDefinitions.value.slice(start, start + pagination.pageSize)
+})
+
+watch(
+  pagedDefinitions,
+  (rows) => {
+    tableData.value = [...rows]
+  },
+  { immediate: true }
+)
+
+// ══════════════════ 设计器草稿 ══════════════════
 interface DraftState {
   definitionId: string
   name: string
@@ -480,7 +749,16 @@ const dirty = ref(false)
 const saving = ref(false)
 const metaModalVisible = ref(false)
 
-// ── 节点抽屉 ─────────────────────────────────────────────
+/** 定义选择器：单独持有选中值，dirty 拦截失败时可回退显示 */
+const pickerValue = ref<string | undefined>(undefined)
+const pickerOptions = computed(() =>
+  definitions.value.map((item) => ({
+    label: `${item.name || '未命名流程'}（v${item.version ?? 1}）`,
+    value: item.definitionId
+  }))
+)
+
+// ══════════════════ 节点抽屉 ══════════════════
 const nodeDrawerVisible = ref(false)
 const editingNodeIndex = ref(-1)
 const editingNode = computed<ApprovalFlowNode | null>(() => {
@@ -489,7 +767,13 @@ const editingNode = computed<ApprovalFlowNode | null>(() => {
 })
 const selectedNodeId = ref('')
 
-// ── 画布数据（开始 → 审批节点 → 结束，纵向自动布局） ────────
+const canvasEmptyText = computed(() =>
+  draft.definitionId || dirty.value
+    ? '暂无审批节点，点击工具栏「添加审批节点」开始编排'
+    : '请先在上方选择一条流程定义，或点击「新建」开始编排'
+)
+
+// ══════════════════ 画布数据（开始 → 审批节点 → 结束，纵向自动布局） ══════════════════
 function makeCanvasNode(
   id: string,
   type: FlowNodeData['type'],
@@ -557,25 +841,56 @@ const canvasConnections = computed<ConnectionData[]>(() => {
   return result
 })
 
-// ── 工具函数 ─────────────────────────────────────────────
+// ══════════════════ 工具函数 ══════════════════
 function typeTag(type: string): { label: string; color: string } {
   return APPROVAL_FLOW_TYPE_MAP[type] || { label: type || '未知', color: 'default' }
 }
 
-// ── 列表加载 ─────────────────────────────────────────────
+function fmtDateTime(value?: string | null): string {
+  if (!value) return '-'
+  const d = dayjs(value)
+  return d.isValid() ? d.format('YYYY-MM-DD HH:mm:ss') : String(value)
+}
+
+function handleError(error: Error) {
+  console.error('[流程定义] 页面错误', error)
+  message.error(`页面错误: ${error.message}`)
+}
+
+// ══════════════════ 列表加载 / 查询 / 分页 ══════════════════
 async function loadDefinitions() {
   listLoading.value = true
   try {
-    const res = await approvalFlowApi.list(queryType.value)
+    const res = await approvalFlowApi.list(searchForm.type)
     definitions.value = res?.definitions || []
   } catch (e) {
-    console.warn('[流程设计] 流程定义获取失败', e)
+    // 响应拦截器已弹出后端错误文案，这里只留痕，避免双重 toast
+    console.error('[流程定义] 流程定义列表加载失败', e)
+    definitions.value = []
   } finally {
     listLoading.value = false
   }
 }
 
-// ── 选中 / 新建 ──────────────────────────────────────────
+async function handleSearch() {
+  pagination.current = 1
+  await loadDefinitions()
+}
+
+async function handleReset() {
+  searchForm.name = ''
+  searchForm.type = undefined
+  searchForm.enabled = undefined
+  pagination.current = 1
+  await loadDefinitions()
+}
+
+function handlePageChange(page: number, pageSize: number) {
+  pagination.current = page
+  pagination.pageSize = pageSize
+}
+
+// ══════════════════ 草稿装载 / 新建 ══════════════════
 function applyDefinition(def: ApprovalFlowDefinition) {
   draft.definitionId = def.definitionId
   draft.name = def.name
@@ -587,24 +902,51 @@ function applyDefinition(def: ApprovalFlowDefinition) {
   draft.nodes = (def.nodes || [])
     .filter(n => !n.nodeType || n.nodeType === 'approval')
     .map(n => ({ ...n, approverIds: n.approverIds ? [...n.approverIds] : [] }))
+  pickerValue.value = def.definitionId || undefined
   selectedNodeId.value = ''
   editingNodeIndex.value = -1
   nodeDrawerVisible.value = false
   dirty.value = false
 }
 
-async function handleSelect(item: ApprovalFlowDefinition) {
-  if (dirty.value) {
-    message.warning('当前流程有未保存的修改，请先保存')
-    return
-  }
+/** 拉详情后装载草稿；详情失败时退回列表行数据渲染（不出现空白编辑器） */
+async function loadDraft(item: ApprovalFlowDefinition) {
   try {
     const detail = await approvalFlowApi.getById(item.definitionId)
     applyDefinition(detail || item)
   } catch (e) {
-    console.warn('[流程设计] 流程详情获取失败，使用列表数据', e)
+    console.warn('[流程定义] 流程详情获取失败，使用列表数据', e)
     applyDefinition(item)
   }
+}
+
+/** 台账行内「设计」：载入该定义并切到设计器 */
+async function handleDesign(item: ApprovalFlowDefinition) {
+  if (dirty.value) {
+    message.warning('当前流程有未保存的修改，请先保存')
+    return
+  }
+  await loadDraft(item)
+  activeView.value = 'designer'
+}
+
+/** 设计器内切换定义（选择器变更）；dirty 时拒绝并回退选择器显示 */
+async function handlePickerChange(value: unknown) {
+  const target = definitions.value.find(item => item.definitionId === String(value ?? ''))
+  if (!target) {
+    pickerValue.value = draft.definitionId || undefined
+    return
+  }
+  if (dirty.value) {
+    message.warning('当前流程有未保存的修改，请先保存')
+    pickerValue.value = draft.definitionId || undefined
+    return
+  }
+  await loadDraft(target)
+}
+
+function backToLedger() {
+  activeView.value = 'ledger'
 }
 
 function handleCreate() {
@@ -620,38 +962,64 @@ function handleCreate() {
   draft.enabled = true
   draft.version = 0
   draft.nodes = [{ nodeId: 'node_1', nodeName: '', nodeType: 'approval', approverType: 'user', approverIds: [], approveMode: 'single' }]
+  pickerValue.value = undefined
   selectedNodeId.value = ''
   editingNodeIndex.value = -1
   nodeDrawerVisible.value = false
   dirty.value = true
+  activeView.value = 'designer'
   metaModalVisible.value = true
 }
 
-// ── 启停（后端无独立启停接口，通过同一定义ID重新保存切换 enabled） ──
+// ══════════════════ 启停（走独立端点，不产生新版本） ══════════════════
+//
+// 后端已实现两个**只改 status、不动 version** 的端点：
+//   POST /definitions/{id}/publish  → status = 1（启用）
+//   POST /definitions/{id}/disable  → status = 2（停用）
+// 历史实现借道「POST /definitions 带 definitionId」的保存通道 → 后端走更新分支，version +1
+// 且把 process_config / workflow_node 整份重写（WorkflowServiceImpl.updateWorkflowDefinition）。
 async function handleToggleEnabled(item: ApprovalFlowDefinition, enabled: boolean) {
   togglingId.value = item.definitionId
   try {
-    let detail: ApprovalFlowDefinition = item
-    try {
-      detail = await approvalFlowApi.getById(item.definitionId) || item
-    } catch {
-      // 详情不可用时退回列表行数据
+    if (enabled) {
+      await approvalFlowApi.publish(item.definitionId)
+    } else {
+      await approvalFlowApi.disable(item.definitionId)
     }
-    await approvalFlowApi.create({ ...detail, enabled })
     message.success(enabled ? '已启用' : '已停用')
     if (draft.definitionId === item.definitionId) {
       draft.enabled = enabled
     }
     await loadDefinitions()
   } catch (e) {
-    console.warn('[流程设计] 启停切换失败', e)
-    message.error('操作失败')
+    console.error('[流程定义] 启停切换失败', e)
   } finally {
     togglingId.value = ''
   }
 }
 
-// ── 节点编排 ─────────────────────────────────────────────
+/** 删除（后端有「存在实例引用 → 400」保护） */
+async function handleDelete(item: ApprovalFlowDefinition) {
+  if (draft.definitionId === item.definitionId && dirty.value) {
+    message.warning('当前流程有未保存的修改，请先保存')
+    return
+  }
+  try {
+    await approvalFlowApi.remove(item.definitionId)
+    message.success('删除成功')
+    if (draft.definitionId === item.definitionId) {
+      draft.definitionId = ''
+      draft.nodes = []
+      pickerValue.value = undefined
+      dirty.value = false
+    }
+    await loadDefinitions()
+  } catch (e) {
+    console.error('[流程定义] 删除失败', e)
+  }
+}
+
+// ══════════════════ 节点编排 ══════════════════
 function addNode() {
   draft.nodes.push({
     nodeId: `node_${draft.nodes.length + 1}`,
@@ -701,7 +1069,8 @@ function handleNodeClick(nodeId: string) {
   }
 }
 
-// ── 保存（新建走创建；已有定义按同ID重新提交，后端自动版本+1） ──
+// ══════════════════ 保存 ══════════════════
+// 新建走 POST /definitions；已有定义走 PUT /definitions/{id}（后端会 version+1 并整份重写节点）
 async function handleSave() {
   if (!draft.name.trim()) {
     message.warning('请填写流程名称')
@@ -741,15 +1110,18 @@ async function handleSave() {
         nextNodeId: idx < nodes.length - 1 ? `node_${idx + 2}` : '__end__'
       }))
     }
-    const saved = await approvalFlowApi.create(payload)
+    const saved = isNew
+      ? await approvalFlowApi.create(payload)
+      : await approvalFlowApi.update(draft.definitionId, payload)
     if (saved?.definitionId) {
       applyDefinition(saved)
     }
     dirty.value = false
+    metaModalVisible.value = false
     message.success(isNew ? '创建成功' : '保存成功（已生成新版本）')
     await loadDefinitions()
   } catch (e) {
-    console.warn('[流程设计] 保存流程失败', e)
+    console.error('[流程定义] 保存流程失败', e)
   } finally {
     saving.value = false
   }
@@ -759,115 +1131,110 @@ onMounted(loadDefinitions)
 </script>
 
 <style scoped>
-.tip-alert {
-  margin-bottom: 12px;
-}
-
-.designer-layout {
+/* ═══ 台账视图 ═══ */
+/* 外层必须是 flex 纵向容器：CategoryListLayout 占满 PageContainer 剩余高度 */
+.ledger-page {
   display: flex;
-  gap: 12px;
-  height: 100%;
+  flex-direction: column;
+  flex: 1;
   min-height: 0;
 }
-
-/* ── 左侧流程定义列表 ── */
-.definition-panel {
-  width: 280px;
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  overflow: hidden;
-}
-
-.definition-panel-header {
-  display: flex;
-  gap: 8px;
-  padding: 12px;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.definition-list {
+/* CategoryListLayout 自带 height:100%，改成 flex 占位，避免撑出页面滚动条 */
+.ledger-page :deep(.category-list-layout) {
   flex: 1;
-  overflow-y: auto;
-  padding: 8px;
+  min-height: 0;
+  height: auto;
 }
 
-.definition-item {
+/* 查询区：横向自适应网格（禁止纵向单列） */
+.search-area {
+  padding: 8px 16px;
+  background: #fff;
+  border-bottom: 1px solid #e8e8e8;
+  flex-shrink: 0;
+}
+.search-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 8px 12px;
+}
+.search-field-item {
+  min-width: 150px;
+}
+.search-action-group {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 10px 12px;
-  margin-bottom: 6px;
-  border: 1px solid #e8e8e8;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 150px;
 }
 
-.definition-item:hover {
-  border-color: #1890ff;
-  background: #f0f7ff;
-}
-
-.definition-item-active {
-  border-color: #1890ff;
-  background: #e6f7ff;
-}
-
-.definition-item-main {
-  min-width: 0;
+/* BillDetailTable 根元素 flex:1，父级不是 flex 纵向容器时表格高度会塌陷为 0 */
+.table-area {
   flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
-.definition-item-name {
-  font-size: 14px;
-  font-weight: 500;
-  color: rgba(0, 0, 0, 0.85);
-  white-space: nowrap;
+.row-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cell-ellipsis {
+  display: inline-block;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+.cell-mono {
+  font-family: Consolas, Monaco, monospace;
+}
+.cell-empty {
+  color: #bbb;
 }
 
-.definition-item-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 4px;
-  font-size: 12px;
-  color: rgba(0, 0, 0, 0.45);
-}
-
-.definition-tag {
-  margin-inline-end: 0;
-}
-
-.definition-item-side {
-  margin-left: 8px;
-}
-
-/* ── 右侧画布区 ── */
-.canvas-area {
-  flex: 1;
-  min-width: 0;
+/* ═══ 设计器视图 ═══ */
+.designer-page {
   display: flex;
   flex-direction: column;
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  overflow: hidden;
+  flex: 1;
+  min-height: 0;
 }
-
-.canvas-toolbar {
+.designer-tip {
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+.designer-shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.designer-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 12px;
-  border-bottom: 1px solid #f0f0f0;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #fff;
+  border: 1px solid #f0f0f0;
+  border-radius: 6px;
+  flex-shrink: 0;
 }
-
+.designer-toolbar-left,
+.designer-toolbar-right {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
 .draft-title {
   font-size: 14px;
   font-weight: 600;
@@ -876,18 +1243,22 @@ onMounted(loadDefinitions)
   align-items: center;
   gap: 6px;
 }
-
-.canvas-toolbar-right {
+.canvas-area {
+  flex: 1;
+  min-height: 0;
+  margin-top: 8px;
   display: flex;
-  gap: 8px;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid #f0f0f0;
+  border-radius: 6px;
+  overflow: hidden;
 }
-
 .canvas-wrapper {
   position: relative;
   flex: 1;
   min-height: 0;
 }
-
 .canvas-empty-tip {
   position: absolute;
   left: 50%;
@@ -902,6 +1273,7 @@ onMounted(loadDefinitions)
   pointer-events: none;
 }
 
+/* ═══ 抽屉底部 ═══ */
 .node-drawer-footer {
   margin-top: 16px;
   padding-top: 16px;

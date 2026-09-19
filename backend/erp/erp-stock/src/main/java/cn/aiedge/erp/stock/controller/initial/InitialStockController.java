@@ -1,10 +1,11 @@
 package cn.aiedge.erp.stock.controller.initial;
 
-import cn.aiedge.erp.stock.entity.Stock;
-import cn.aiedge.erp.stock.service.StockService;
+import cn.aiedge.base.config.MyBatisPlusConfig;
 import cn.aiedge.common.result.ApiResponse;
+import cn.aiedge.erp.stock.mapper.InitialStockQueryMapper;
+import cn.aiedge.erp.stock.service.StockService;
 import cn.dev33.satoken.annotation.SaCheckLogin;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -15,8 +16,25 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 /**
- * 期初库存管理Controller
- * 用于管理系统初始库存数据
+ * 期初库存管理 Controller（设置 → 数据录入 → 库存期初，菜单 70550）
+ * <p>
+ * 本页是 {@code erp_stock} 中 {@code is_initial = 1} 行的唯一维护入口：开账前录入每个商品在每个仓库的
+ * 期初数量与期初成本单价。⚠️ 期初录入**不走库存事件服务**，因此不产生库存流水（设计取舍）。
+ * <p>
+ * 接口契约（与前端 {@code views/set/initial-stock/index.vue} 严格一一对应，2026-09-18 对齐）：
+ * <ul>
+ *   <li>{@code GET  /page}          分页查询</li>
+ *   <li>{@code POST /save}          新增（body 为数组，沿用批量口径，前端单条也包成数组）</li>
+ *   <li>{@code PUT  /update}        编辑（id 在 body）</li>
+ *   <li>{@code DELETE /{id}}        删除</li>
+ *   <li>{@code GET  /export}        导出全量（与 /page 同口径，前端据此生成 xlsx）</li>
+ * </ul>
+ * ⚠️ 历史缺陷（2026-09-18 修复）：前端原先调 {@code POST /}、{@code PUT /{id}}、{@code DELETE /{id}} 三个
+ * **后端不存在**的路径 → 写操作 100% 404。现统一为「新增/编辑沿用 /save + /update（RPC 口径），
+ * 删除补 {@code DELETE /{id}}」—— 二选一不并存，见《库存期初开发文档》§9.2 P0 建议 ①。
+ *
+ * @author AI-Ready Team
+ * @since 1.0.0
  */
 @Slf4j
 @Tag(name = "期初库存管理", description = "期初库存数据的管理")
@@ -26,49 +44,44 @@ import java.util.List;
 public class InitialStockController {
 
     private final StockService stockService;
+    private final InitialStockQueryMapper initialStockQueryMapper;
 
     @GetMapping("/page")
     @Operation(summary = "分页查询期初库存")
     @SaCheckLogin
-    public ApiResponse<Page<InitialStockVO>> page(
+    public ApiResponse<IPage<InitialStockVO>> page(
             @RequestParam(defaultValue = "1") Integer pageNum,
             @RequestParam(defaultValue = "20") Integer pageSize,
             @RequestParam(required = false) String productCode,
-            @RequestParam(required = false) String productName) {
+            @RequestParam(required = false) String productName,
+            @RequestParam(required = false) Long warehouseId,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String initialQtyFilter) {
 
-        Page<Stock> stockPage = new Page<>(pageNum, pageSize);
-
-        LambdaQueryWrapper<Stock> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(Stock::getIsInitial, 1); // 只查询期初库存记录
-
-        if (productCode != null && !productCode.trim().isEmpty()) {
-            queryWrapper.like(Stock::getProductCode, productCode);
-        }
-        if (productName != null && !productName.trim().isEmpty()) {
-            queryWrapper.like(Stock::getProductName, productName);
-        }
-
-        Page<Stock> pageResult = stockService.page(stockPage, queryWrapper);
-
-        Page<InitialStockVO> voPage = new Page<>();
-        voPage.setCurrent(pageResult.getCurrent());
-        voPage.setSize(pageResult.getSize());
-        voPage.setTotal(pageResult.getTotal());
-
-        List<InitialStockVO> voList = pageResult.getRecords().stream()
-                .map(this::convertToVO)
-                .collect(java.util.stream.Collectors.toList());
-
-        voPage.setRecords(voList);
-
-        return ApiResponse.ok(voPage);
+        // 交回 Mapper 的返回值（MyBatis-Plus 会把 records/total 填进传入的 Page 并原样返回）
+        IPage<InitialStockVO> pageResult = initialStockQueryMapper.selectInitialStockPage(
+                new Page<>(pageNum, pageSize), MyBatisPlusConfig.getCurrentTenantIdValue(),
+                warehouseId, categoryId, keyword, productCode, productName, initialQtyFilter);
+        return ApiResponse.ok(pageResult);
     }
 
     @PostMapping("/save")
     @Operation(summary = "保存期初库存")
     @SaCheckLogin
     public ApiResponse<Void> save(@RequestBody List<InitialStockDTO> dtoList) {
-        // 保存期初库存数据
+        if (dtoList == null || dtoList.isEmpty()) {
+            return ApiResponse.badRequest("期初库存数据不能为空");
+        }
+        // 逐条校验：商品与仓库必须能定位（否则数据无法归属，列表按商品/仓库口径也查不出来）
+        for (InitialStockDTO dto : dtoList) {
+            if (dto.getProductId() == null) {
+                return ApiResponse.badRequest("请选择商品");
+            }
+            if (dto.getWarehouseId() == null) {
+                return ApiResponse.badRequest("请选择仓库");
+            }
+        }
         stockService.saveInitialStock(dtoList);
         return ApiResponse.ok(null);
     }
@@ -77,8 +90,21 @@ public class InitialStockController {
     @Operation(summary = "更新期初库存")
     @SaCheckLogin
     public ApiResponse<Void> update(@RequestBody InitialStockDTO dto) {
-        // 更新期初库存数据
+        if (dto == null || dto.getId() == null) {
+            return ApiResponse.badRequest("期初库存ID不能为空");
+        }
         stockService.updateInitialStock(dto);
+        return ApiResponse.ok(null);
+    }
+
+    @DeleteMapping("/{id}")
+    @Operation(summary = "删除期初库存")
+    @SaCheckLogin
+    public ApiResponse<Void> delete(@PathVariable Long id) {
+        boolean removed = stockService.deleteInitialStock(id);
+        if (!removed) {
+            return ApiResponse.badRequest("期初库存记录不存在或不允许删除");
+        }
         return ApiResponse.ok(null);
     }
 
@@ -87,35 +113,15 @@ public class InitialStockController {
     @SaCheckLogin
     public ApiResponse<List<InitialStockVO>> export(
             @RequestParam(required = false) String productCode,
-            @RequestParam(required = false) String productName) {
-        // 导出期初库存数据
-        LambdaQueryWrapper<Stock> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(Stock::getIsInitial, 1);
+            @RequestParam(required = false) String productName,
+            @RequestParam(required = false) Long warehouseId,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String initialQtyFilter) {
 
-        if (productCode != null && !productCode.trim().isEmpty()) {
-            queryWrapper.like(Stock::getProductCode, productCode);
-        }
-        if (productName != null && !productName.trim().isEmpty()) {
-            queryWrapper.like(Stock::getProductName, productName);
-        }
-
-        List<Stock> stockList = stockService.list(queryWrapper);
-        List<InitialStockVO> voList = stockList.stream()
-                .map(this::convertToVO)
-                .collect(java.util.stream.Collectors.toList());
-
+        List<InitialStockVO> voList = initialStockQueryMapper.selectInitialStockList(
+                MyBatisPlusConfig.getCurrentTenantIdValue(),
+                warehouseId, categoryId, keyword, productCode, productName, initialQtyFilter);
         return ApiResponse.ok(voList);
-    }
-
-    private InitialStockVO convertToVO(Stock stock) {
-        InitialStockVO vo = new InitialStockVO();
-        vo.setId(stock.getId());
-        vo.setProductCode(stock.getProductCode());
-        vo.setProductName(stock.getProductName());
-        vo.setWarehouseName(stock.getWarehouseName());
-        vo.setQuantity(stock.getQuantity());
-        vo.setUnitPrice(stock.getUnitPrice());
-        vo.setCreateTime(stock.getCreateTime());
-        return vo;
     }
 }

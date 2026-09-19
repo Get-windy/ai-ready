@@ -3,6 +3,7 @@ package cn.aiedge.erp.finance.controller;
 import cn.aiedge.base.log.annotation.OperationLog;
 import cn.aiedge.base.vo.Result;
 import cn.aiedge.erp.finance.dto.AccountingPeriodDTO;
+import cn.aiedge.erp.finance.dto.AccountingPeriodDateDTO;
 import cn.aiedge.erp.finance.service.AccountingPeriodService;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -56,6 +57,14 @@ public class AccountingPeriodController {
     @OperationLog(module = "会计期间管理", type = "CREATE", desc = "新增会计期间")
     public Result<AccountingPeriodDTO> create(@Valid @RequestBody AccountingPeriodDTO dto) {
         return Result.success("创建成功", accountingPeriodService.create(dto));
+    }
+
+    @Operation(summary = "批量保存会计期间起止日期")
+    @PutMapping("/batch-dates")
+    @PreAuthorize("hasPermission('/api/erp/finance/period/update', 'finance:period:update')")
+    @OperationLog(module = "会计期间管理", type = "UPDATE", desc = "批量保存会计期间起止日期")
+    public Result<List<AccountingPeriodDTO>> batchDates(@RequestBody List<AccountingPeriodDateDTO> items) {
+        return Result.success("保存成功", accountingPeriodService.saveDates(items));
     }
 
     @Operation(summary = "启用/停用会计期间")

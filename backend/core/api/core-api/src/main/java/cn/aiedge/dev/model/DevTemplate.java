@@ -28,6 +28,15 @@ public class DevTemplate implements Serializable {
     @Schema(description = "模板类型: entity/controller/service/mapper/frontend")
     private String type;
 
+    /**
+     * 模板类别: codegen=代码生成模板(遗留种子) / import=导入模板(模板管理页 62402)
+     * <p>由迁移 V11.415.0 新增；已有 7 行取 DEFAULT 'codegen'。
+     * 用途：dev_template.type 一列同时承载两套值域（codegen 用 entity/controller/…，
+     * import 用 user/customer/…），靠本列区分，避免 7 行代码生成种子混进 /api/import-templates。
+     */
+    @Schema(description = "模板类别: codegen/import")
+    private String templateKind;
+
     @Schema(description = "模板内容")
     private String content;
 
@@ -60,6 +69,8 @@ public class DevTemplate implements Serializable {
     public void setCode(String code) { this.code = code; }
     public String getType() { return type; }
     public void setType(String type) { this.type = type; }
+    public String getTemplateKind() { return templateKind; }
+    public void setTemplateKind(String templateKind) { this.templateKind = templateKind; }
     public String getContent() { return content; }
     public void setContent(String content) { this.content = content; }
     public String getDescription() { return description; }

@@ -1,47 +1,320 @@
 <template>
-  <div>
-    <ARReportPage
-      title="拜访检视"
-      :stat-cards="statCards"
-      :query-fields="queryFields"
-      :columns="columns"
-      :fetcher="fetcher"
-      :normalize-response="normalizeResponse"
-      export-file-name="拜访检视"
-      row-key="id"
-      empty-text="暂无拜访检视数据"
-      @loaded="handleLoaded"
-    >
-      <template #bodyCell="{ column, text }">
-        <template v-if="column.dataIndex === 'visitType'">
-          <a-tag :color="VISIT_TYPE_MAP[text]?.color || 'default'">
-            {{ VISIT_TYPE_MAP[text]?.label || '-' }}
-          </a-tag>
+  <ErrorBoundary @error="handleError">
+    <PageContainer full-height>
+      <!--
+        拜访检视（CRM → 外勤拜访 → 拜访检视，菜单 70003）
+        · CRM 为本系统独有模块（ql361 无 CRM 域），按业界生产级 CRM 的「计划-执行-检视」模型建模
+        · 规格：docs/Yh-Spec/手动整理对标开发文档/crm模块/拜访检视开发文档.md
+        · 路线 A：ErrorBoundary > PageContainer(full-height) > CategoryListLayout > BillDetailTable
+        · 本页为**纯只读检视页**：无新增/编辑/删除/行操作（不按模板硬加写入口）
+        · 本轮由路线 B（ARReportPage）整体重写为路线 A，并补：
+            ① 趋势图（/review/page 的 byDate 后端每次都算、前端从未使用，此处落地为柱状趋势）；
+            ② 计划覆盖率的分子分母与拜访转化率（planTotal/planExecuted/interested/total 均已返回）；
+            ③ 口径标注条：今日/本周/覆盖率为全局口径，不随筛选变化；
+            ④ 列配置齿轮 + 页面配置弹窗 + 经典分页栏；
+            ⑤ 修复旧实现「onMounted + @loaded 各请求一次 /stats/summary」的双请求。
+        · 未接线：按客户/负责人筛选（后端 review/page 的 Controller 未开参，Service 已支持）
+                   —— 前端类型虽已声明，直接接线会「看似生效实则无效」，故保留为缺口
+      -->
+      <CategoryListLayout
+        :tabs="[]"
+        :show-category-panel="false"
+        :show-table-footer="true"
+      >
+        <!-- ═══ 工具栏左侧：口径说明 ═══ -->
+        <template #toolbar-left>
+          <span class="toolbar-tip">只读检视：修改拜访数据请到「拜访规划 / 拜访执行」页</span>
         </template>
-        <template v-else-if="column.dataIndex === 'result'">
-          <a-tag :color="RESULT_MAP[text]?.color || 'default'">
-            {{ RESULT_MAP[text]?.label || '-' }}
-          </a-tag>
+
+        <!-- ═══ 工具栏右侧：刷新 / 图表显隐 / 打印(F8) / 导出 / 页面配置 ═══ -->
+        <template #toolbar-right>
+          <a-space :size="8">
+            <a-button
+              v-if="isButtonEnabled('refresh')"
+              size="small"
+              :loading="loading"
+              @click="handleRefresh"
+            >
+              <ReloadOutlined /> 刷新
+            </a-button>
+            <!-- 提示下置（placement=bottom）避免浮层压住按钮 -->
+            <a-tooltip
+              v-if="isButtonEnabled('charts')"
+              :title="showCharts ? '隐藏图表' : '显示图表'"
+              placement="bottom"
+            >
+              <a-button
+                :type="showCharts ? 'primary' : 'default'"
+                size="small"
+                @click="toggleCharts"
+              >
+                <BarChartOutlined />
+              </a-button>
+            </a-tooltip>
+            <a-button
+              v-if="isButtonEnabled('printF8')"
+              size="small"
+              @click="handlePrint"
+            >
+              <PrinterOutlined /> 打印(F8)
+            </a-button>
+            <a-button
+              v-if="isButtonEnabled('export')"
+              size="small"
+              @click="handleExport"
+            >
+              <DownloadOutlined /> 导出
+            </a-button>
+            <a-tooltip
+              title="页面配置"
+              placement="bottom"
+            >
+              <a-button
+                size="small"
+                @click="showPageConfig = true"
+              >
+                <SettingOutlined />
+              </a-button>
+            </a-tooltip>
+          </a-space>
         </template>
-        <template v-else-if="column.dataIndex === 'visitTime'">
-          {{ formatTime(text) }}
+
+        <!-- ═══ 查询区（横向网格；显隐受页面配置控制） ═══ -->
+        <template #search-fields>
+          <div class="search-area">
+            <div class="search-grid">
+              <div
+                v-if="isFieldVisible('result')"
+                class="search-item"
+              >
+                <span class="search-label">拜访结果</span>
+                <a-select
+                  v-model:value="searchForm.result"
+                  placeholder="全部结果"
+                  size="small"
+                  allow-clear
+                  :options="resultOptions"
+                  @change="handleSearch"
+                />
+              </div>
+              <div
+                v-if="isFieldVisible('visitDateRange')"
+                class="search-item"
+              >
+                <span class="search-label">拜访日期</span>
+                <a-range-picker
+                  v-model:value="searchForm.visitDateRange"
+                  size="small"
+                  value-format="YYYY-MM-DD"
+                  :placeholder="['开始日期', '结束日期']"
+                  @change="handleSearch"
+                />
+              </div>
+              <div class="search-item search-actions">
+                <a-button
+                  type="primary"
+                  size="small"
+                  @click="handleSearch"
+                >
+                  查询
+                </a-button>
+                <a-button
+                  size="small"
+                  @click="handleReset"
+                >
+                  重置
+                </a-button>
+              </div>
+            </div>
+          </div>
         </template>
-      </template>
-    </ARReportPage>
-  </div>
+
+        <!-- ═══ 统计卡 + 趋势图 + 检视台账 ═══ -->
+        <template #table>
+          <div class="review-body">
+            <ARStatCards
+              :items="statCards"
+              :loading="loading"
+              class="stats-cards"
+            />
+
+            <!-- 指标口径补充：覆盖率分子分母、拜访转化率、口径提示 -->
+            <div class="stats-meta">
+              <span class="meta-item">
+                <span class="meta-label">计划覆盖率</span>
+                <span class="meta-value">{{ coverageDetail }}</span>
+              </span>
+              <span class="meta-item">
+                <span class="meta-label">拜访转化率（有意向/总数）</span>
+                <span class="meta-value">{{ conversionRate }}</span>
+              </span>
+              <span class="meta-item meta-tip">
+                今日 / 本周 / 计划覆盖率为全局口径，不随下方筛选变化；其余 4 张随拜访日期区间变化（结果筛选不影响分布卡，属有意设计）
+              </span>
+            </div>
+
+            <!-- 趋势图（可显隐）：按日拜访次数，数据来自 /review/page 的 byDate，随日期区间变化 -->
+            <div
+              v-if="showCharts"
+              class="chart-row"
+            >
+              <ARReportChart
+                title="拜访趋势（按日）"
+                :option="trendChartOption"
+                :loading="loading"
+                :height="200"
+                empty-text="暂无拜访趋势数据"
+              />
+            </div>
+
+            <!-- 检视台账（只读，无操作列） -->
+            <div class="table-area">
+              <BillDetailTable
+                v-model:data-source="tableData"
+                :columns="columns"
+                :loading="loading"
+                :view-mode="true"
+                :min-rows="20"
+                storage-key="crm-visit-review-table-columns"
+                global-config-key="crm-visit-review-table-columns"
+              >
+                <template #customerCell="{ record }">
+                  <a-tooltip
+                    v-if="!record.__ghost && record.customerName"
+                    :title="record.customerName"
+                    placement="bottom"
+                  >
+                    <span class="cell-ellipsis">{{ record.customerName }}</span>
+                  </a-tooltip>
+                  <span v-else-if="!record.__ghost">-</span>
+                  <span v-else />
+                </template>
+
+                <template #visitTypeCell="{ record }">
+                  <a-tag
+                    v-if="!record.__ghost && record.visitType"
+                    :color="VISIT_TYPE_MAP[record.visitType]?.color || 'default'"
+                  >
+                    {{ VISIT_TYPE_MAP[record.visitType]?.label || '-' }}
+                  </a-tag>
+                  <span v-else-if="!record.__ghost">-</span>
+                  <span v-else />
+                </template>
+
+                <template #visitTimeCell="{ record }">
+                  <span v-if="record.__ghost" />
+                  <span v-else>{{ formatTime(record.visitTime) }}</span>
+                </template>
+
+                <template #locationCell="{ record }">
+                  <a-tooltip
+                    v-if="!record.__ghost && record.location"
+                    :title="record.location"
+                    placement="bottom"
+                  >
+                    <span class="cell-ellipsis">{{ record.location }}</span>
+                  </a-tooltip>
+                  <span v-else-if="!record.__ghost">-</span>
+                  <span v-else />
+                </template>
+
+                <template #contentCell="{ record }">
+                  <a-tooltip
+                    v-if="!record.__ghost && record.content"
+                    :title="record.content"
+                    placement="bottom"
+                  >
+                    <span class="cell-ellipsis">{{ record.content }}</span>
+                  </a-tooltip>
+                  <span v-else-if="!record.__ghost">-</span>
+                  <span v-else />
+                </template>
+
+                <template #resultCell="{ record }">
+                  <a-tag
+                    v-if="!record.__ghost && record.result"
+                    :color="RESULT_MAP[record.result]?.color || 'default'"
+                  >
+                    {{ RESULT_MAP[record.result]?.label || '-' }}
+                  </a-tag>
+                  <span v-else-if="!record.__ghost">-</span>
+                  <span v-else />
+                </template>
+
+                <template #nextActionCell="{ record }">
+                  <a-tooltip
+                    v-if="!record.__ghost && record.nextAction"
+                    :title="record.nextAction"
+                    placement="bottom"
+                  >
+                    <span class="cell-ellipsis">{{ record.nextAction }}</span>
+                  </a-tooltip>
+                  <span v-else-if="!record.__ghost">-</span>
+                  <span v-else />
+                </template>
+              </BillDetailTable>
+            </div>
+          </div>
+        </template>
+
+        <!-- ═══ 经典分页栏 ═══ -->
+        <template #table-footer>
+          <StandardPagination
+            variant="classic"
+            :current="pagination.current"
+            :page-size="pagination.pageSize"
+            :total="pagination.total"
+            :page-size-options="[20, 50, 100]"
+            @change="handlePageChange"
+          />
+        </template>
+      </CategoryListLayout>
+
+      <!-- ═══ 页面配置（查询条件显隐 + 功能按钮启用） ═══ -->
+      <PageConfigPanel
+        :open="showPageConfig"
+        :query-fields-config="queryFieldsConfig"
+        :function-buttons-config="functionButtonConfig"
+        :default-query-fields-config="DEFAULT_QUERY_FIELDS"
+        :default-function-buttons-config="DEFAULT_FUNCTION_BUTTONS"
+        :storage-key="pageConfigStorageKey"
+        @update:open="showPageConfig = $event"
+        @change="handlePageConfigChange"
+      />
+    </PageContainer>
+  </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue'
 import dayjs from 'dayjs'
-import ARReportPage from '@/components/ARReportPage/ARReportPage.vue'
-import type { ReportFetchResult, ReportQueryField, StatCardItem } from '@/components/ARReportPage/types'
+import { message } from 'ant-design-vue'
+import {
+  ReloadOutlined,
+  PrinterOutlined,
+  DownloadOutlined,
+  SettingOutlined,
+  BarChartOutlined,
+} from '@ant-design/icons-vue'
+import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayout.vue'
+import BillDetailTable from '@/components/BillFormPage/BillDetailTable/index.vue'
+import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTable/types'
+import StandardPagination from '@/components/Pagination/Pagination.vue'
+import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
+import type { QueryFieldSetting, FunctionButtonSetting } from '@/components/PageConfigPanel/index.vue'
+import ARStatCards from '@/components/ARStatCards/ARStatCards.vue'
+import ARReportChart from '@/components/ARReportChart/ARReportChart.vue'
+import type { StatCardItem } from '@/components/ARReportPage/types'
 import {
   visitReviewApi,
-  type VisitReviewResponse, type VisitReviewSummary, type VisitStatsSummary
+  type VisitReviewResponse, type VisitReviewSummary, type VisitStatsSummary, type VisitRecord
 } from '@/api/crm'
 
-// ═══ 拜访方式/结果（与后端 VisitRecord 注释一致） ═══
+defineOptions({ name: 'SalesVisitReview' })
+
+// ═══ 拜访方式/结果（与后端 VisitRecord 注释一致，与「拜访执行」页同字典） ═══
 const VISIT_TYPE_MAP: Record<number, { label: string; color: string }> = {
   1: { label: '上门', color: 'blue' },
   2: { label: '电话', color: 'cyan' },
@@ -52,6 +325,7 @@ const RESULT_MAP: Record<number, { label: string; color: string }> = {
   2: { label: '一般', color: 'orange' },
   3: { label: '无意向', color: 'red' }
 }
+/** 结果下拉选项由 RESULT_MAP 反推（字典单一真源） */
 const resultOptions = Object.entries(RESULT_MAP).map(([value, v]) => ({
   label: v.label,
   value: Number(value)
@@ -61,7 +335,60 @@ function formatTime(val: string | undefined): string {
   return val ? dayjs(val).format('YYYY-MM-DD HH:mm') : '-'
 }
 
-// ═══ 统计卡片（/api/crm/visit/stats/summary + review/page 结果分布） ═══
+// ═══ 页面配置 ═══
+const DEFAULT_QUERY_FIELDS: QueryFieldSetting[] = [
+  { key: 'result', label: '拜访结果', visible: true },
+  { key: 'visitDateRange', label: '拜访日期', visible: true }
+]
+const DEFAULT_FUNCTION_BUTTONS: FunctionButtonSetting[] = [
+  { key: 'refresh', label: '刷新', enabled: true },
+  { key: 'charts', label: '图表', enabled: true },
+  { key: 'printF8', label: '打印(F8)', enabled: true },
+  { key: 'export', label: '导出', enabled: true }
+]
+const showPageConfig = ref(false)
+const queryFieldsConfig = ref<QueryFieldSetting[]>(DEFAULT_QUERY_FIELDS.map(f => ({ ...f })))
+const functionButtonConfig = ref<FunctionButtonSetting[]>(DEFAULT_FUNCTION_BUTTONS.map(b => ({ ...b })))
+const pageConfigStorageKey = 'crm-visit-review-page-config'
+
+function isFieldVisible(key: string): boolean {
+  const found = queryFieldsConfig.value.find(f => f.key === key)
+  return found ? found.visible : true
+}
+function isButtonEnabled(key: string): boolean {
+  const found = functionButtonConfig.value.find(b => b.key === key)
+  return found ? found.enabled : true
+}
+function handlePageConfigChange(config: any) {
+  if (config?.queryFields) queryFieldsConfig.value = config.queryFields
+  if (config?.functionButtons) functionButtonConfig.value = config.functionButtons
+}
+
+// ═══ 查询条件（后端 review/page 仅接 result + 日期区间） ═══
+const searchForm = reactive({
+  result: undefined as number | undefined,
+  visitDateRange: undefined as [string, string] | undefined,
+})
+
+const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
+const loading = ref(false)
+const tableData = ref<VisitRecord[]>([])
+
+// ═══ 表格列（rowNo 承载列配置齿轮；只读页无操作列） ═══
+const columns: DetailColumnConfig[] = [
+  { key: 'rowNo', title: '', type: 'rowNo', width: 40, fixed: 'left' },
+  { key: 'customerName', title: '客户', type: 'slot', slotName: 'customerCell', width: 170 },
+  { key: 'salesPersonName', title: '负责人', type: 'input', width: 100 },
+  { key: 'visitType', title: '拜访方式', type: 'slot', slotName: 'visitTypeCell', width: 90 },
+  { key: 'visitTime', title: '打卡时间', type: 'slot', slotName: 'visitTimeCell', width: 130 },
+  { key: 'location', title: '拜访地点', type: 'slot', slotName: 'locationCell', width: 180 },
+  { key: 'content', title: '拜访内容', type: 'slot', slotName: 'contentCell', width: 220 },
+  { key: 'result', title: '拜访结果', type: 'slot', slotName: 'resultCell', width: 90 },
+  { key: 'nextAction', title: '下一步行动', type: 'slot', slotName: 'nextActionCell', width: 150 },
+  { key: 'nextVisitDate', title: '下次拜访', type: 'input', width: 110 },
+]
+
+// ═══ 统计（/crm/visit/stats/summary 全局口径 + /review/page 的 summary 随日期变化） ═══
 const stats = ref<VisitStatsSummary | null>(null)
 const reviewSummary = ref<VisitReviewSummary | null>(null)
 
@@ -75,57 +402,85 @@ const statCards = computed<StatCardItem[]>(() => [
   { label: '无意向', value: reviewSummary.value?.noIntention ?? 0, suffix: '次', valueStyle: { color: '#ff4d4f' } }
 ])
 
-// ═══ 查询字段（按结果 + 拜访日期筛选） ═══
-const queryFields: ReportQueryField[] = [
-  {
-    key: 'result',
-    type: 'select',
-    label: '拜访结果',
-    placeholder: '全部结果',
-    width: 140,
-    options: resultOptions
-  },
-  {
-    key: 'visitDateRange',
-    type: 'date-range',
-    label: '拜访日期',
-    startKey: 'visitDateStart',
-    endKey: 'visitDateEnd',
-    width: 240
-  }
-]
+/** 计划覆盖率的分子/分母（接口已返回，旧实现只用了 coverage，看不到 5/10 还是 1/2） */
+const coverageDetail = computed(() => {
+  const s = stats.value
+  if (!s) return '—'
+  return `已完成 ${s.planExecuted ?? 0} / 总数 ${s.planTotal ?? 0}`
+})
 
-// ═══ 表格列 ═══
-const columns: any[] = [
-  { title: '客户', dataIndex: 'customerName', key: 'customerName', width: 170, ellipsis: true },
-  { title: '负责人', dataIndex: 'salesPersonName', key: 'salesPersonName', width: 100 },
-  { title: '拜访方式', dataIndex: 'visitType', key: 'visitType', width: 90 },
-  { title: '打卡时间', dataIndex: 'visitTime', key: 'visitTime', width: 130 },
-  { title: '拜访地点', dataIndex: 'location', key: 'location', ellipsis: true },
-  { title: '拜访内容', dataIndex: 'content', key: 'content', ellipsis: true },
-  { title: '拜访结果', dataIndex: 'result', key: 'result', width: 90 },
-  { title: '下一步行动', dataIndex: 'nextAction', key: 'nextAction', width: 150, ellipsis: true },
-  { title: '下次拜访', dataIndex: 'nextVisitDate', key: 'nextVisitDate', width: 110 }
-]
+/** 拜访转化率 = 有意向 / 拜访总数（数据已具备，无需新端点） */
+const conversionRate = computed(() => {
+  const total = reviewSummary.value?.total ?? 0
+  if (!total) return '—'
+  const rate = (Number(reviewSummary.value?.interested ?? 0) * 100) / total
+  return `${rate.toFixed(2)}%`
+})
 
-// ═══ 数据请求（GET /api/crm/visit/review/page，裸 Map：summary+byDate+page） ═══
-function fetcher(params: Record<string, any>) {
-  return visitReviewApi.reviewPage(params)
+// ═══ 趋势数据（byDate：后端已返回，旧实现从未使用） ═══
+const trendData = ref<{ date: string; cnt: number }[]>([])
+
+/**
+ * byDate 归一化。
+ * ⚠️ 后端 SQL 写的是 `AS visitDate`（未加双引号），PostgreSQL 会把标识符折叠为小写 `visitdate`；
+ *    且 `visitdate` 无下划线，map-underscore-to-camel-case 不会转换 → 两种键名都要兜住，避免图表空白。
+ */
+function normalizeByDate(list: any): { date: string; cnt: number }[] {
+  if (!Array.isArray(list)) return []
+  return list
+    .map((item: any) => {
+      const raw = item?.visitDate ?? item?.visitdate ?? item?.VISITDATE
+      return { date: String(raw ?? ''), cnt: Number(item?.cnt ?? item?.CNT ?? 0) || 0 }
+    })
+    .filter(p => p.date)
+    // 后端按日期 DESC 返回，趋势图需按日期升序
+    .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
 }
 
-function normalizeResponse(res: VisitReviewResponse): ReportFetchResult {
-  const page = res?.page
-  return {
-    list: page?.records || [],
-    total: Number(page?.total) || 0,
-    raw: res
-  }
+const trendChartOption = computed(() => ({
+  tooltip: { trigger: 'axis' },
+  grid: { left: 44, right: 16, top: 24, bottom: 30 },
+  xAxis: { type: 'category', data: trendData.value.map(p => p.date), boundaryGap: true },
+  yAxis: { type: 'value', minInterval: 1 },
+  series: [{
+    name: '拜访次数',
+    type: 'bar',
+    barMaxWidth: 28,
+    itemStyle: { color: '#1890ff' },
+    data: trendData.value.map(p => p.cnt)
+  }]
+}))
+
+// 图表显隐（本地记忆，与费用统计页同口径）
+const showCharts = ref(true)
+function toggleCharts() {
+  showCharts.value = !showCharts.value
+  localStorage.setItem('crm-visit-review-chart-visible', showCharts.value ? '1' : '0')
 }
 
-/** 列表加载完成后同步结果分布，并刷新顶部统计 */
-function handleLoaded(result: ReportFetchResult) {
-  reviewSummary.value = (result.raw as VisitReviewResponse)?.summary || null
-  loadStats()
+// ═══ 数据加载（GET /crm/visit/review/page，裸 Map：summary + byDate + page） ═══
+async function fetchData() {
+  loading.value = true
+  try {
+    const res = (await visitReviewApi.reviewPage({
+      page: pagination.current,
+      size: pagination.pageSize,
+      result: searchForm.result,
+      visitDateStart: searchForm.visitDateRange?.[0],
+      visitDateEnd: searchForm.visitDateRange?.[1],
+    })) as VisitReviewResponse
+    reviewSummary.value = res?.summary || null
+    trendData.value = normalizeByDate(res?.byDate)
+    tableData.value = res?.page?.records || []
+    pagination.total = Number(res?.page?.total) || 0
+  } catch (error: any) {
+    console.error('[拜访检视] 加载失败', error)
+    message.error(error?.message || '加载失败')
+    tableData.value = []
+    pagination.total = 0
+  } finally {
+    loading.value = false
+  }
 }
 
 async function loadStats() {
@@ -133,8 +488,174 @@ async function loadStats() {
     stats.value = await visitReviewApi.statsSummary()
   } catch (e) {
     console.warn('[拜访检视] 统计汇总获取失败', e)
+    message.warning('统计汇总加载失败，请稍后重试')
   }
 }
 
-onMounted(loadStats)
+function handleSearch() {
+  pagination.current = 1
+  fetchData()
+}
+
+function handleReset() {
+  searchForm.result = undefined
+  searchForm.visitDateRange = undefined
+  pagination.current = 1
+  fetchData()
+}
+
+function handleRefresh() {
+  fetchData()
+  loadStats()
+}
+
+function handlePageChange(page: number, pageSize: number) {
+  pagination.current = page
+  pagination.pageSize = pageSize
+  fetchData()
+}
+
+// ═══ 导出（套方式/结果的中文文案与时间格式） ═══
+function exportCsv() {
+  const rows = (tableData.value || []).filter((r: any) => !r.__ghost)
+  if (!rows.length) {
+    message.warning('没有可导出的数据')
+    return
+  }
+  const headers = ['客户', '负责人', '拜访方式', '打卡时间', '拜访地点', '拜访内容', '拜访结果', '下一步行动', '下次拜访']
+  const lines = rows.map((r: any) => [
+    r.customerName, r.salesPersonName, VISIT_TYPE_MAP[r.visitType]?.label || '-',
+    formatTime(r.visitTime), r.location, r.content,
+    RESULT_MAP[r.result]?.label || '-', r.nextAction, r.nextVisitDate
+  ])
+  const escape = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`
+  const csv = '\uFEFF' + [headers, ...lines].map(row => row.map(escape).join(',')).join('\r\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `拜访检视_${dayjs().format('YYYYMMDD_HHmmss')}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+function handleExport() {
+  exportCsv()
+}
+
+// ═══ 打印(F8) ═══
+function escapeHtml(v: any): string {
+  return String(v ?? '').replace(/[&<>"']/g, c => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string
+  ))
+}
+
+function handlePrint() {
+  const rows = (tableData.value || []).filter((r: any) => !r.__ghost)
+  if (!rows.length) {
+    message.warning('没有可打印的数据')
+    return
+  }
+  const body = rows.map((r: any, i: number) => `
+    <tr>
+      <td>${i + 1}</td>
+      <td>${escapeHtml(r.customerName || '')}</td>
+      <td>${escapeHtml(r.salesPersonName || '')}</td>
+      <td>${escapeHtml(VISIT_TYPE_MAP[r.visitType]?.label || '-')}</td>
+      <td>${escapeHtml(formatTime(r.visitTime))}</td>
+      <td>${escapeHtml(r.location || '')}</td>
+      <td>${escapeHtml(r.content || '')}</td>
+      <td>${escapeHtml(RESULT_MAP[r.result]?.label || '-')}</td>
+      <td>${escapeHtml(r.nextAction || '')}</td>
+    </tr>`).join('')
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" />
+    <title>拜访检视</title>
+    <style>
+      body{font-family:"Microsoft YaHei",Arial,sans-serif;margin:0;padding:16px;color:#000}
+      h2{text-align:center;margin:0 0 12px;font-size:18px}
+      .meta{display:flex;flex-wrap:wrap;gap:4px 24px;font-size:12px;margin-bottom:8px}
+      table{width:100%;border-collapse:collapse;font-size:12px}
+      th,td{border:1px solid #999;padding:4px 6px;text-align:left}
+      th{background:#f2f2f2}
+    </style></head><body>
+    <h2>拜访检视</h2>
+    <div class="meta">
+      <span>打印时间：${dayjs().format('YYYY-MM-DD HH:mm')}</span>
+      <span>记录数：${rows.length}</span>
+      <span>拜访总数：${reviewSummary.value?.total ?? 0}</span>
+      <span>计划覆盖率：${coverageDetail.value}</span>
+    </div>
+    <table>
+      <thead><tr><th>#</th><th>客户</th><th>负责人</th><th>拜访方式</th><th>打卡时间</th>
+      <th>拜访地点</th><th>拜访内容</th><th>拜访结果</th><th>下一步行动</th></tr></thead>
+      <tbody>${body}</tbody>
+    </table></body></html>`
+  const win = window.open('', '_blank', 'width=1100,height=700')
+  if (!win) {
+    message.warning('浏览器阻止了打印窗口，请允许弹出窗口后重试')
+    return
+  }
+  win.document.write(html)
+  win.document.close()
+  win.focus()
+  win.print()
+}
+
+function handleF8Key(e: KeyboardEvent) {
+  if ((e.key === 'F8' || e.code === 'F8') && !e.ctrlKey && !e.altKey && !e.metaKey) {
+    e.preventDefault()
+    handlePrint()
+  }
+}
+
+function handleError(error: Error) {
+  console.error('[拜访检视] 页面错误', error)
+  message.error(`页面错误: ${error.message}`)
+}
+
+// ═══ 初始化（旧实现 onMounted 与 @loaded 各请求一次 /stats/summary → 此处只请求一次） ═══
+onMounted(() => {
+  const flag = localStorage.getItem('crm-visit-review-chart-visible')
+  if (flag !== null) showCharts.value = flag === '1'
+  fetchData()
+  loadStats()
+  window.addEventListener('keydown', handleF8Key)
+})
+onBeforeUnmount(() => window.removeEventListener('keydown', handleF8Key))
 </script>
+
+<style scoped>
+.search-area { padding: 8px 16px; background: #fff; border-bottom: 1px solid #e8e8e8; flex-shrink: 0; }
+.search-grid { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.search-item { display: flex; align-items: center; gap: 6px; }
+.search-item :deep(.ant-select) { min-width: 150px; }
+.search-actions { margin-left: auto; }
+.search-label { font-size: 13px; color: #666; white-space: nowrap; }
+.toolbar-tip { font-size: 12px; color: #999; }
+
+/* ═══ 复合页容器：统计卡 + 口径条 + 图表 + 表格（表格占剩余高度） ═══ */
+.review-body { display: flex; flex-direction: column; height: 100%; min-height: 0; padding: 8px 12px 0; gap: 8px; }
+.stats-cards { margin-bottom: 0; }
+.stats-cards :deep(.ar-stat-card) { padding: 10px 16px; box-shadow: none; background: #fafafa; border: 1px solid #f0f0f0; }
+.stats-cards :deep(.ar-stat-card__value) { font-size: 19px; }
+.stats-cards :deep(.ar-stat-card__label) { margin-bottom: 4px; }
+
+.stats-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; padding: 0 2px; font-size: 12px; flex-shrink: 0; }
+.meta-item { display: flex; align-items: center; gap: 4px; }
+.meta-label { color: #888; }
+.meta-value { color: #262626; font-weight: 600; }
+.meta-tip { color: #faad14; }
+
+.chart-row { flex-shrink: 0; }
+.chart-row :deep(.ar-report-chart) { box-shadow: none; border: 1px solid #f0f0f0; padding: 8px 12px; }
+
+/* ⚠️ 必须是 flex 纵向容器：BillDetailTable 根元素为 flex:1，父级非 flex 时表格高度会塌陷为 0 */
+.table-area { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+.cell-ellipsis { display: inline-block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
+
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) { height: 28px; line-height: 28px; }
+</style>

@@ -1,6 +1,7 @@
 package cn.aiedge.scheduler.task;
 
 import cn.aiedge.base.scheduler.JobHandler;
+import cn.aiedge.base.utils.SecurityUtils;
 import cn.aiedge.scheduler.job.JobHandlerRegistry;
 import cn.aiedge.scheduler.mapper.ScheduledTaskLogMapper;
 import cn.aiedge.scheduler.mapper.ScheduledTaskMapper;
@@ -12,6 +13,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.scheduling.support.CronTrigger;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import jakarta.annotation.PostConstruct;
 import java.net.InetAddress;
@@ -117,16 +119,42 @@ public class TaskExecutor {
     }
 
     /**
-     * 立即执行任务
+     * 立即执行任务（无发起人信息 —— 由 {@link #executeTask(ScheduledTask)} 兜底解析）
      */
     public void executeImmediately(ScheduledTask task) {
-        taskScheduler.execute(() -> executeTask(task));
+        executeImmediately(task, null, null);
     }
 
     /**
-     * 执行任务
+     * 立即执行任务（**带发起人**）。
+     *
+     * <p>⚠️ 发起人必须由<b>调用线程</b>解析后透传：{@code taskScheduler.execute(...)} 会切到调度线程池，
+     * Sa-Token 的会话上下文（ThreadLocal）在新线程里取不到，若在 {@link #executeTask} 里现取，
+     * 「立即执行 / 重试」的台账行就会丢发起人。</p>
+     *
+     * @param operatorId   发起人用户 id（可为 null）
+     * @param operatorName 发起人姓名（为空时退回会话解析 / 系统标识）
+     */
+    public void executeImmediately(ScheduledTask task, Long operatorId, String operatorName) {
+        taskScheduler.execute(() -> executeTask(task, operatorId, operatorName));
+    }
+
+    /**
+     * 执行任务（无发起人信息：调度线程触发 → 记系统标识「定时调度」）
      */
     public void executeTask(ScheduledTask task) {
+        executeTask(task, null, null);
+    }
+
+    /**
+     * 执行任务（并记录发起人）。
+     *
+     * <p><b>发起人写入口径（2026-09-18 补齐 README §10.5「创建人恒为 -」缺口）</b>：
+     * ① 显式透传的发起人（立即执行 / 重试）→ 记其 id + 姓名；
+     * ② 当前线程有会话（兜底）→ 记会话用户；
+     * ③ 都没有（无会话的定时调度）→ 记系统标识「定时调度」，**绝不留空**。</p>
+     */
+    public void executeTask(ScheduledTask task, Long operatorId, String operatorName) {
         // 创建执行日志
         ScheduledTaskLog taskLog = new ScheduledTaskLog();
         taskLog.setTaskId(task.getId());
@@ -136,6 +164,13 @@ public class TaskExecutor {
         taskLog.setExecuteNode(nodeIp);
         taskLog.setRetryTimes(0);
         taskLog.setExecuteStatus("RUNNING");
+        // 任务类型：本执行器产出的行**只可能**来自 scheduled_task 的定义执行（事实陈述，非造数），
+        // 与 V11.401.0 对既有行的回填口径一致（否则新行的「任务类型」列会空白）
+        taskLog.setTaskType("定时任务");
+        // 发起人：台账「创建人」列的数据来源（写入侧此前从未写过，故历史行恒为「-」）
+        Initiator initiator = resolveInitiator(operatorId, operatorName);
+        taskLog.setCreateBy(initiator.id());
+        taskLog.setCreatedByName(initiator.name());
         logMapper.insert(taskLog);
         
         boolean success = false;
@@ -208,6 +243,40 @@ public class TaskExecutor {
                     + "（请改用 GET /api/scheduler/task/handlers 返回的处理器键）");
         }
         return handler.execute(task.getExecuteParams());
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    //  发起人解析（台账「创建人」列）
+    // ══════════════════════════════════════════════════════════════════════
+
+    /**
+     * 无会话（定时调度线程）触发时的发起人标识。
+     * 语义 = 「由系统调度自动执行」，与「某用户手工执行」区分开；<b>绝不留空</b>。
+     */
+    private static final String SYSTEM_OPERATOR_NAME = "定时调度";
+
+    /** 发起人（id 可空，姓名必非空） */
+    private record Initiator(Long id, String name) {
+    }
+
+    /**
+     * 解析本次执行的发起人：显式透传 > 当前会话 > 系统标识。
+     *
+     * <p>{@link SecurityUtils} 内部对 Sa-Token 抛出的「非 Web 上下文」异常已做兜底（返回 null），
+     * 因此调度线程调用本方法不会抛错。</p>
+     */
+    private Initiator resolveInitiator(Long operatorId, String operatorName) {
+        if (StringUtils.hasText(operatorName)) {
+            return new Initiator(operatorId, operatorName);
+        }
+        Long sessionUserId = SecurityUtils.getCurrentUserId();
+        String sessionUsername = SecurityUtils.getCurrentUsername();
+        if (sessionUserId != null || StringUtils.hasText(sessionUsername)) {
+            return new Initiator(sessionUserId,
+                    StringUtils.hasText(sessionUsername) ? sessionUsername : "用户" + sessionUserId);
+        }
+        // 无会话：定时调度线程触发（平台级）→ 记明确的系统标识，不编造人名
+        return new Initiator(null, SYSTEM_OPERATOR_NAME);
     }
 
     /**

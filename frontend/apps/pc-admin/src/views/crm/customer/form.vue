@@ -1,9 +1,15 @@
 <template>
+  <!--
+    ⚠️ 不能写 v-model="formData"：useBasicForm 返回的是 reactive 常量，
+    BillFormPage 变更时回传「新对象」，v-model 的赋值会失败（输入能打字但状态不更新、
+    提交时仍是空值）。故改为 :model-value + @update:model-value 手动合并。
+  -->
   <BillFormPage
-    v-model="formData"
+    :model-value="formData"
     :header="{ title: '客户' }"
     :basic-info-fields="fields"
     :show-bottom-panel="false"
+    @update:model-value="handleModelUpdate"
   >
     <template #footer>
       <div class="footer-right">
@@ -83,13 +89,14 @@ const { fields, formData, saving, handleSave, handleSubmit } = useBasicForm({
     { key: 'taxNumber', label: '税号', type: 'input' },
     { key: 'bankName', label: '开户行', type: 'input' },
     { key: 'bankAccount', label: '银行账号', type: 'input' },
+    // 等级文案与列表页 / 左分类树 / 客户分级页统一（此前写作 VIP/A级/B级/C级，同值不同文案）
     {
       key: 'customerLevel', label: '客户等级', type: 'select',
       options: [
-        { label: 'VIP', value: 1 },
-        { label: 'A级', value: 2 },
-        { label: 'B级', value: 3 },
-        { label: 'C级', value: 4 },
+        { label: 'VIP客户', value: 1 },
+        { label: '重要客户', value: 2 },
+        { label: '普通客户', value: 3 },
+        { label: '潜在客户', value: 4 },
       ],
     },
     { key: 'creditLimit', label: '信用额度', type: 'number' },
@@ -106,6 +113,7 @@ const { fields, formData, saving, handleSave, handleSubmit } = useBasicForm({
     { key: 'settlementDays', label: '结算账期(天)', type: 'number' },
     {
       key: 'status', label: '状态', type: 'select',
+      // 状态口径：1 = 正常 / 0 = 停用（与 crm_customer.status 及列表页一致）
       options: [
         { label: '正常', value: 1 },
         { label: '停用', value: 0 },
@@ -113,4 +121,13 @@ const { fields, formData, saving, handleSave, handleSubmit } = useBasicForm({
     },
   ],
 })
+
+/**
+ * BillFormPage 每次变更都回传「新对象」，而 useBasicForm 的 formData 是 reactive 常量，
+ * 不能被整体赋值 —— 必须手动合并，否则表单状态静默不更新、提交空值。
+ */
+function handleModelUpdate(val: Record<string, any>) {
+  if (!val) return
+  Object.assign(formData, val)
+}
 </script>

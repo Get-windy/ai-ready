@@ -1,5 +1,6 @@
 package cn.aiedge.crm.visit.service.impl;
 
+import cn.aiedge.crm.common.CrmDocNo;
 import cn.aiedge.crm.visit.entity.VisitPlan;
 import cn.aiedge.crm.visit.mapper.VisitPlanMapper;
 import cn.aiedge.crm.visit.service.VisitPlanService;
@@ -11,7 +12,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 
 @Slf4j
 @Service
@@ -44,9 +44,8 @@ public class VisitPlanServiceImpl extends ServiceImpl<VisitPlanMapper, VisitPlan
 
     @Override
     public String generatePlanNo() {
-        String dateStr = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-        long count = baseMapper.selectCount(null);
-        return "VP-" + dateStr + String.format("%04d", count + 1);
+        String prefix = CrmDocNo.prefixOf("VP-");
+        return CrmDocNo.next(prefix, baseMapper.selectMaxPlanNo(prefix), 4);
     }
 
     @Override

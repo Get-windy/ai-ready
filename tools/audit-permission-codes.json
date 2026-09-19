@@ -1,0 +1,1891 @@
+{
+ "used": [
+  "data-permission:assign",
+  "data-permission:check",
+  "data-permission:create",
+  "data-permission:delete",
+  "data-permission:list",
+  "data-permission:update",
+  "data-permission:update-status",
+  "data-permission:view",
+  "datasource:backup:create",
+  "datasource:backup:delete",
+  "datasource:backup:list",
+  "datasource:backup:restore",
+  "datasource:cleanup:create",
+  "datasource:cleanup:delete",
+  "datasource:cleanup:execute",
+  "datasource:cleanup:list",
+  "datasource:cleanup:update",
+  "datasource:slowquery:export",
+  "datasource:slowquery:list",
+  "datasource:sync:create",
+  "datasource:sync:delete",
+  "datasource:sync:execute",
+  "datasource:sync:list",
+  "datasource:sync:update",
+  "dms:channel:create",
+  "dms:channel:delete",
+  "dms:channel:update",
+  "dms:config:update",
+  "dms:dispatch:assign",
+  "dms:dispatch:auto",
+  "dms:dispatch:candidates",
+  "dms:dispatch:config",
+  "dms:dispatch:fence",
+  "dms:dispatch:reassign",
+  "dms:dispatch:view",
+  "dms:event:retry",
+  "dms:execution:operate",
+  "dms:rider:approve",
+  "dms:rider:create",
+  "dms:rider:delete",
+  "dms:rider:update",
+  "dms:sign:audit",
+  "dms:sign:submit",
+  "dms:tracking:report",
+  "dms:vehicle:create",
+  "dms:vehicle:delete",
+  "dms:vehicle:update",
+  "erp:product:approval",
+  "erp:product:create",
+  "erp:product:delete",
+  "erp:product:list",
+  "erp:product:price-batch",
+  "erp:product:status",
+  "erp:product:update",
+  "erp:product:view",
+  "finance:subject:create",
+  "finance:subject:delete",
+  "finance:subject:edit",
+  "finance:subject:view",
+  "log:audit:create",
+  "log:audit:delete",
+  "log:audit:detail",
+  "log:audit:export",
+  "log:audit:list",
+  "log:audit:stats",
+  "log:login:detail",
+  "log:login:export",
+  "log:login:list",
+  "log:login:stats",
+  "log:oper:delete",
+  "log:oper:detail",
+  "log:oper:export",
+  "log:oper:list",
+  "log:oper:stats",
+  "payment:channel:list",
+  "payment:config:list",
+  "payment:config:update",
+  "payment:record:list",
+  "payment:request:cancel",
+  "payment:request:confirm",
+  "payment:request:create",
+  "payment:request:list",
+  "permission-template:apply",
+  "permission-template:create",
+  "permission-template:delete",
+  "permission-template:detail",
+  "permission-template:list",
+  "permission-template:update",
+  "permission-template:update-status",
+  "platform:mail:config",
+  "platform:mail:test",
+  "platform:mail:update",
+  "platform:security:policy",
+  "platform:security:update",
+  "platform:sms:config",
+  "platform:sms:test",
+  "platform:sms:update",
+  "platform:storage:config",
+  "platform:storage:test",
+  "platform:storage:update",
+  "platform:tenant-package:create",
+  "platform:tenant-package:delete",
+  "platform:tenant-package:list",
+  "platform:tenant-package:update",
+  "platform:tenant-quota:create",
+  "platform:tenant-quota:delete",
+  "platform:tenant-quota:list",
+  "platform:tenant-quota:update",
+  "purchase:cost-sharing:cancel",
+  "purchase:cost-sharing:complete",
+  "purchase:cost-sharing:create",
+  "purchase:cost-sharing:detail",
+  "purchase:cost-sharing:list",
+  "purchase:cost-sharing:update",
+  "purchase:order:approve",
+  "purchase:order:cancel",
+  "purchase:order:create",
+  "purchase:order:delete",
+  "purchase:order:detail",
+  "purchase:order:list",
+  "purchase:order:submit",
+  "purchase:order:update",
+  "purchase_order:approve",
+  "purchase_order:create",
+  "purchase_order:delete",
+  "purchase_order:execute",
+  "purchase_order:export",
+  "purchase_order:submit",
+  "purchase_order:update",
+  "role-inheritance:manage",
+  "role-inheritance:view",
+  "sale:order:approve",
+  "sale:order:cancel",
+  "sale:order:create",
+  "sale:order:delete",
+  "sale:order:list",
+  "sale:order:payment",
+  "sale:order:print",
+  "sale:order:ship",
+  "sale:order:submit",
+  "sale:order:update",
+  "sale:promotion:create",
+  "sale:promotion:delete",
+  "sale:promotion:publish",
+  "sale:promotion:update",
+  "set:company-info:save",
+  "set:initial-finance:create",
+  "set:initial-finance:delete",
+  "set:initial-finance:update",
+  "set:initial-finance:view",
+  "set:print-config:update",
+  "set:print-config:view",
+  "set:rebuild:execute",
+  "system:agent:activate",
+  "system:agent:deactivate",
+  "system:agent:delete",
+  "system:agent:detail",
+  "system:agent:list",
+  "system:agent:register",
+  "system:agent:update",
+  "system:config:delete",
+  "system:config:export",
+  "system:config:list",
+  "system:config:update",
+  "system:data-scope:assign",
+  "system:data-scope:delete",
+  "system:data-scope:list",
+  "system:datasource:create",
+  "system:datasource:delete",
+  "system:datasource:list",
+  "system:datasource:test",
+  "system:datasource:update",
+  "system:dict:create",
+  "system:dict:delete",
+  "system:dict:export",
+  "system:dict:update",
+  "system:field-permission:assign",
+  "system:field-permission:delete",
+  "system:field-permission:list",
+  "system:menu:create",
+  "system:menu:delete",
+  "system:menu:detail",
+  "system:menu:list",
+  "system:menu:update",
+  "system:menu:update-status",
+  "system:module:create",
+  "system:module:delete",
+  "system:module:list",
+  "system:module:update",
+  "system:permission:create",
+  "system:permission:delete",
+  "system:permission:detail",
+  "system:permission:list",
+  "system:permission:update",
+  "system:permission:update-status",
+  "system:role:assign",
+  "system:role:assign-menu",
+  "system:role:assign-permission",
+  "system:role:create",
+  "system:role:delete",
+  "system:role:detail",
+  "system:role:list",
+  "system:role:update",
+  "system:role:update-status",
+  "system:session:disable",
+  "system:session:kickout",
+  "system:session:view",
+  "system:simulate",
+  "system:sod-rule:create",
+  "system:sod-rule:delete",
+  "system:sod-rule:list",
+  "system:sod-rule:update",
+  "system:sod-rule:validate",
+  "system:tenant:approve",
+  "system:tenant:create",
+  "system:tenant:delete",
+  "system:tenant:update",
+  "system:user:assign-role",
+  "system:user:create",
+  "system:user:delete",
+  "system:user:detail",
+  "system:user:export",
+  "system:user:list",
+  "system:user:reset-password",
+  "system:user:update",
+  "system:user:update-status",
+  "tenant:menu:assign",
+  "tenant:menu:query",
+  "tenant:menu:remove",
+  "workflow:analysis:view",
+  "workflow:audit:list",
+  "workflow:audit:update",
+  "workflow:definition:delete",
+  "workflow:definition:disable",
+  "workflow:definition:list",
+  "workflow:definition:publish",
+  "workflow:definition:save",
+  "workflow:instance:diagram",
+  "workflow:instance:intervene",
+  "workflow:instance:view",
+  "workflow:task:approve",
+  "workflow:task:transfer",
+  "workflow:task:view"
+ ],
+ "db": [
+  "crm:contract:approve",
+  "crm:contract:batchapprove",
+  "crm:contract:create",
+  "crm:contract:detailrefresh",
+  "crm:contract:download",
+  "crm:contract:edit",
+  "crm:contract:refresh",
+  "crm:contract:renewapply",
+  "crm:contract:sign",
+  "crm:contract:view",
+  "crm:create",
+  "crm:customer:addtolevel",
+  "crm:customer:batchassign",
+  "crm:customer:create",
+  "crm:customer:delete",
+  "crm:customer:edit",
+  "crm:customer:follow",
+  "crm:customer:import",
+  "crm:customer:list",
+  "crm:customer:refresh",
+  "crm:customer:update",
+  "crm:customer:view",
+  "crm:invoice:cancelconfirm",
+  "crm:invoice:create",
+  "crm:invoice:detailrefresh",
+  "crm:invoice:edit",
+  "crm:invoice:issue",
+  "crm:invoice:send",
+  "crm:invoice:view",
+  "crm:lead:assign",
+  "crm:lead:batchassign",
+  "crm:lead:batchconvert",
+  "crm:lead:convert",
+  "crm:lead:create",
+  "crm:lead:edit",
+  "crm:lead:import",
+  "crm:lead:view",
+  "crm:manage",
+  "crm:opportunity:convert",
+  "crm:opportunity:create",
+  "crm:opportunity:detailrefresh",
+  "crm:opportunity:edit",
+  "crm:opportunity:move",
+  "crm:opportunity:reset",
+  "crm:opportunity:search",
+  "crm:opportunity:view",
+  "crm:quotation:batchsend",
+  "crm:quotation:convert",
+  "crm:quotation:convertfromdetail",
+  "crm:quotation:create",
+  "crm:quotation:detailrefresh",
+  "crm:quotation:downloadpdf",
+  "crm:quotation:edit",
+  "crm:quotation:send",
+  "crm:quotation:sendfromdetail",
+  "crm:quotation:view",
+  "crm:refresh",
+  "data-permission:assign",
+  "data-permission:check",
+  "data-permission:create",
+  "data-permission:delete",
+  "data-permission:list",
+  "data-permission:update",
+  "data-permission:update-status",
+  "data-permission:view",
+  "datasource:backup:create",
+  "datasource:backup:delete",
+  "datasource:backup:list",
+  "datasource:backup:restore",
+  "datasource:cleanup:create",
+  "datasource:cleanup:delete",
+  "datasource:cleanup:execute",
+  "datasource:cleanup:list",
+  "datasource:cleanup:update",
+  "datasource:slowquery:export",
+  "datasource:slowquery:list",
+  "datasource:sync:create",
+  "datasource:sync:delete",
+  "datasource:sync:execute",
+  "datasource:sync:list",
+  "datasource:sync:update",
+  "department:create",
+  "department:delete",
+  "department:edit",
+  "department:list",
+  "department:manage",
+  "department:query",
+  "erp:expense:application:approve",
+  "erp:expense:application:create",
+  "erp:expense:application:delete",
+  "erp:expense:application:edit",
+  "erp:expense:application:list",
+  "erp:expense:application:query",
+  "erp:expense:application:submit",
+  "erp:expense:approval:list",
+  "erp:expense:approval:process",
+  "erp:expense:approval:query",
+  "erp:expense:payment:cancel",
+  "erp:expense:payment:confirm",
+  "erp:expense:payment:create",
+  "erp:expense:payment:list",
+  "erp:expense:payment:query",
+  "erp:expense:reimbursement:create",
+  "erp:expense:reimbursement:delete",
+  "erp:expense:reimbursement:edit",
+  "erp:expense:reimbursement:list",
+  "erp:expense:reimbursement:query",
+  "erp:expense:reimbursement:submit",
+  "erp:expense:statistics:list",
+  "erp:expense:statistics:refresh",
+  "finance:month-closing:execute",
+  "finance:month-closing:reopen",
+  "finance:month-closing:view",
+  "finance:other-income-doc:approve",
+  "finance:other-income-doc:create",
+  "finance:other-income-doc:delete",
+  "finance:other-income-doc:update",
+  "finance:other-income-doc:view",
+  "finance:period:create",
+  "finance:period:update",
+  "finance:period:view",
+  "finance:receivable:analysis",
+  "finance:receivable:create",
+  "finance:receivable:delete",
+  "finance:receivable:edit",
+  "finance:receivable:export",
+  "finance:receivable:list",
+  "finance:receivable:payment",
+  "finance:receivable:query",
+  "finance:reconciliation:create",
+  "finance:reconciliation:delete",
+  "finance:reconciliation:reconcile",
+  "finance:reconciliation:update",
+  "finance:reconciliation:view",
+  "finance:subject:view",
+  "hr-recruitment:add",
+  "hr-recruitment:delete",
+  "hr-recruitment:edit",
+  "hr:attendance:clock",
+  "hr:attendance:delete",
+  "hr:attendance:list",
+  "hr:attendance:rule",
+  "hr:attendance:update",
+  "hr:candidate:create",
+  "hr:candidate:delete",
+  "hr:candidate:interview",
+  "hr:candidate:list",
+  "hr:candidate:update",
+  "hr:contract:create",
+  "hr:contract:delete",
+  "hr:contract:list",
+  "hr:contract:update",
+  "hr:employee:create",
+  "hr:employee:delete",
+  "hr:employee:list",
+  "hr:employee:status",
+  "hr:employee:update",
+  "hr:leave:approve",
+  "hr:leave:create",
+  "hr:leave:delete",
+  "hr:leave:list",
+  "hr:leave:quota",
+  "hr:leave:update",
+  "hr:performance:confirm",
+  "hr:performance:list",
+  "hr:performance:update",
+  "hr:position:create",
+  "hr:position:delete",
+  "hr:position:list",
+  "hr:position:update",
+  "hr:recruitment:create",
+  "hr:recruitment:delete",
+  "hr:recruitment:list",
+  "hr:recruitment:update",
+  "hr:salary:confirm",
+  "hr:salary:generate",
+  "hr:salary:list",
+  "hr:salary:update",
+  "log:audit:create",
+  "log:audit:delete",
+  "log:audit:detail",
+  "log:audit:export",
+  "log:audit:list",
+  "log:audit:stats",
+  "log:login:detail",
+  "log:login:export",
+  "log:login:list",
+  "log:login:stats",
+  "log:oper:delete",
+  "log:oper:detail",
+  "log:oper:export",
+  "log:oper:list",
+  "payment:channel:list",
+  "payment:config:list",
+  "payment:config:update",
+  "payment:record:list",
+  "payment:request:cancel",
+  "payment:request:confirm",
+  "payment:request:create",
+  "payment:request:list",
+  "permission:create",
+  "permission:delete",
+  "permission:list",
+  "permission:manage",
+  "permission:update",
+  "platform:tenant-package:create",
+  "platform:tenant-package:delete",
+  "platform:tenant-package:list",
+  "platform:tenant-package:update",
+  "platform:tenant-quota:create",
+  "platform:tenant-quota:delete",
+  "platform:tenant-quota:list",
+  "platform:tenant-quota:update",
+  "position:assign",
+  "position:create",
+  "position:delete",
+  "position:edit",
+  "position:list",
+  "position:manage",
+  "position:query",
+  "purchase:manage",
+  "purchase:order:approve",
+  "purchase:order:cancel",
+  "purchase:order:create",
+  "purchase:order:delete",
+  "purchase:order:detail",
+  "purchase:order:list",
+  "purchase:order:submit",
+  "purchase:order:update",
+  "role:create",
+  "role:delete",
+  "role:list",
+  "role:manage",
+  "role:update",
+  "sale:manage",
+  "sale:order:approve",
+  "sale:order:cancel",
+  "sale:order:create",
+  "sale:order:delete",
+  "sale:order:payment",
+  "sale:order:ship",
+  "sale:order:submit",
+  "sale:order:update",
+  "set:company-info:save",
+  "set:initial-finance:create",
+  "set:initial-finance:delete",
+  "set:initial-finance:update",
+  "set:initial-finance:view",
+  "set:print-config:update",
+  "set:print-config:view",
+  "set:rebuild:execute",
+  "set:system-task:download",
+  "set:system-task:view",
+  "stock:list",
+  "stock:manage",
+  "system:config:create",
+  "system:config:delete",
+  "system:config:export",
+  "system:config:list",
+  "system:config:query",
+  "system:config:update",
+  "system:data-scope:assign",
+  "system:data-scope:delete",
+  "system:data-scope:list",
+  "system:dataimport:create",
+  "system:dataimport:delete",
+  "system:dataimport:list",
+  "system:dataimport:manage",
+  "system:dataimport:sync",
+  "system:dataimport:test",
+  "system:dataimport:update",
+  "system:dev:api-test:send",
+  "system:dev:scheduler:create",
+  "system:dev:scheduler:delete",
+  "system:dev:scheduler:execute",
+  "system:dev:scheduler:list",
+  "system:dev:scheduler:update",
+  "system:dict:create",
+  "system:dict:delete",
+  "system:dict:export",
+  "system:dict:update",
+  "system:field-permission:assign",
+  "system:field-permission:delete",
+  "system:field-permission:list",
+  "system:manage",
+  "system:menu:create",
+  "system:menu:delete",
+  "system:menu:detail",
+  "system:menu:list",
+  "system:menu:update",
+  "system:menu:update-status",
+  "system:module:create",
+  "system:module:delete",
+  "system:module:list",
+  "system:module:update",
+  "system:permission:assign",
+  "system:permission:cache",
+  "system:permission:check",
+  "system:permission:clear",
+  "system:permission:create",
+  "system:permission:delete",
+  "system:permission:detail",
+  "system:permission:export",
+  "system:permission:list",
+  "system:permission:update",
+  "system:permission:view",
+  "system:role:assign",
+  "system:role:assign-menu",
+  "system:role:assign-permission",
+  "system:role:clear",
+  "system:role:create",
+  "system:role:delete",
+  "system:role:detail",
+  "system:role:export",
+  "system:role:list",
+  "system:role:update",
+  "system:role:update-status",
+  "system:role:view",
+  "system:simulate",
+  "system:sod-rule:create",
+  "system:sod-rule:delete",
+  "system:sod-rule:list",
+  "system:sod-rule:update",
+  "system:sod-rule:validate",
+  "system:tenant:approve",
+  "system:tenant:create",
+  "system:tenant:delete",
+  "system:tenant:update",
+  "system:user:assign-role",
+  "system:user:create",
+  "system:user:delete",
+  "system:user:detail",
+  "system:user:export",
+  "system:user:list",
+  "system:user:reset-password",
+  "system:user:update",
+  "system:user:update-status",
+  "tenant:config",
+  "tenant:create",
+  "tenant:delete",
+  "tenant:list",
+  "tenant:menu:assign",
+  "tenant:menu:query",
+  "tenant:menu:remove",
+  "tenant:update",
+  "user:create",
+  "user:delete",
+  "user:list",
+  "user:manage",
+  "user:update",
+  "workflow:analysis:view",
+  "workflow:audit:list",
+  "workflow:audit:update",
+  "workflow:definition:delete",
+  "workflow:definition:disable",
+  "workflow:definition:list",
+  "workflow:definition:publish",
+  "workflow:definition:save",
+  "workflow:instance:diagram",
+  "workflow:instance:intervene",
+  "workflow:instance:view",
+  "workflow:task:approve",
+  "workflow:task:transfer",
+  "workflow:task:view"
+ ],
+ "missing_in_db": [
+  "dms:channel:create",
+  "dms:channel:delete",
+  "dms:channel:update",
+  "dms:config:update",
+  "dms:dispatch:assign",
+  "dms:dispatch:auto",
+  "dms:dispatch:candidates",
+  "dms:dispatch:config",
+  "dms:dispatch:fence",
+  "dms:dispatch:reassign",
+  "dms:dispatch:view",
+  "dms:event:retry",
+  "dms:execution:operate",
+  "dms:rider:approve",
+  "dms:rider:create",
+  "dms:rider:delete",
+  "dms:rider:update",
+  "dms:sign:audit",
+  "dms:sign:submit",
+  "dms:tracking:report",
+  "dms:vehicle:create",
+  "dms:vehicle:delete",
+  "dms:vehicle:update",
+  "erp:product:approval",
+  "erp:product:create",
+  "erp:product:delete",
+  "erp:product:list",
+  "erp:product:price-batch",
+  "erp:product:status",
+  "erp:product:update",
+  "erp:product:view",
+  "finance:subject:create",
+  "finance:subject:delete",
+  "finance:subject:edit",
+  "log:oper:stats",
+  "permission-template:apply",
+  "permission-template:create",
+  "permission-template:delete",
+  "permission-template:detail",
+  "permission-template:list",
+  "permission-template:update",
+  "permission-template:update-status",
+  "platform:mail:config",
+  "platform:mail:test",
+  "platform:mail:update",
+  "platform:security:policy",
+  "platform:security:update",
+  "platform:sms:config",
+  "platform:sms:test",
+  "platform:sms:update",
+  "platform:storage:config",
+  "platform:storage:test",
+  "platform:storage:update",
+  "purchase:cost-sharing:cancel",
+  "purchase:cost-sharing:complete",
+  "purchase:cost-sharing:create",
+  "purchase:cost-sharing:detail",
+  "purchase:cost-sharing:list",
+  "purchase:cost-sharing:update",
+  "purchase_order:approve",
+  "purchase_order:create",
+  "purchase_order:delete",
+  "purchase_order:execute",
+  "purchase_order:export",
+  "purchase_order:submit",
+  "purchase_order:update",
+  "role-inheritance:manage",
+  "role-inheritance:view",
+  "sale:order:list",
+  "sale:order:print",
+  "sale:promotion:create",
+  "sale:promotion:delete",
+  "sale:promotion:publish",
+  "sale:promotion:update",
+  "system:agent:activate",
+  "system:agent:deactivate",
+  "system:agent:delete",
+  "system:agent:detail",
+  "system:agent:list",
+  "system:agent:register",
+  "system:agent:update",
+  "system:datasource:create",
+  "system:datasource:delete",
+  "system:datasource:list",
+  "system:datasource:test",
+  "system:datasource:update",
+  "system:permission:update-status",
+  "system:session:disable",
+  "system:session:kickout",
+  "system:session:view"
+ ],
+ "unused_in_code": [
+  "crm:contract:approve",
+  "crm:contract:batchapprove",
+  "crm:contract:create",
+  "crm:contract:detailrefresh",
+  "crm:contract:download",
+  "crm:contract:edit",
+  "crm:contract:refresh",
+  "crm:contract:renewapply",
+  "crm:contract:sign",
+  "crm:contract:view",
+  "crm:create",
+  "crm:customer:addtolevel",
+  "crm:customer:batchassign",
+  "crm:customer:create",
+  "crm:customer:delete",
+  "crm:customer:edit",
+  "crm:customer:follow",
+  "crm:customer:import",
+  "crm:customer:list",
+  "crm:customer:refresh",
+  "crm:customer:update",
+  "crm:customer:view",
+  "crm:invoice:cancelconfirm",
+  "crm:invoice:create",
+  "crm:invoice:detailrefresh",
+  "crm:invoice:edit",
+  "crm:invoice:issue",
+  "crm:invoice:send",
+  "crm:invoice:view",
+  "crm:lead:assign",
+  "crm:lead:batchassign",
+  "crm:lead:batchconvert",
+  "crm:lead:convert",
+  "crm:lead:create",
+  "crm:lead:edit",
+  "crm:lead:import",
+  "crm:lead:view",
+  "crm:manage",
+  "crm:opportunity:convert",
+  "crm:opportunity:create",
+  "crm:opportunity:detailrefresh",
+  "crm:opportunity:edit",
+  "crm:opportunity:move",
+  "crm:opportunity:reset",
+  "crm:opportunity:search",
+  "crm:opportunity:view",
+  "crm:quotation:batchsend",
+  "crm:quotation:convert",
+  "crm:quotation:convertfromdetail",
+  "crm:quotation:create",
+  "crm:quotation:detailrefresh",
+  "crm:quotation:downloadpdf",
+  "crm:quotation:edit",
+  "crm:quotation:send",
+  "crm:quotation:sendfromdetail",
+  "crm:quotation:view",
+  "crm:refresh",
+  "department:create",
+  "department:delete",
+  "department:edit",
+  "department:list",
+  "department:manage",
+  "department:query",
+  "erp:expense:application:approve",
+  "erp:expense:application:create",
+  "erp:expense:application:delete",
+  "erp:expense:application:edit",
+  "erp:expense:application:list",
+  "erp:expense:application:query",
+  "erp:expense:application:submit",
+  "erp:expense:approval:list",
+  "erp:expense:approval:process",
+  "erp:expense:approval:query",
+  "erp:expense:payment:cancel",
+  "erp:expense:payment:confirm",
+  "erp:expense:payment:create",
+  "erp:expense:payment:list",
+  "erp:expense:payment:query",
+  "erp:expense:reimbursement:create",
+  "erp:expense:reimbursement:delete",
+  "erp:expense:reimbursement:edit",
+  "erp:expense:reimbursement:list",
+  "erp:expense:reimbursement:query",
+  "erp:expense:reimbursement:submit",
+  "erp:expense:statistics:list",
+  "erp:expense:statistics:refresh",
+  "finance:month-closing:execute",
+  "finance:month-closing:reopen",
+  "finance:month-closing:view",
+  "finance:other-income-doc:approve",
+  "finance:other-income-doc:create",
+  "finance:other-income-doc:delete",
+  "finance:other-income-doc:update",
+  "finance:other-income-doc:view",
+  "finance:period:create",
+  "finance:period:update",
+  "finance:period:view",
+  "finance:receivable:analysis",
+  "finance:receivable:create",
+  "finance:receivable:delete",
+  "finance:receivable:edit",
+  "finance:receivable:export",
+  "finance:receivable:list",
+  "finance:receivable:payment",
+  "finance:receivable:query",
+  "finance:reconciliation:create",
+  "finance:reconciliation:delete",
+  "finance:reconciliation:reconcile",
+  "finance:reconciliation:update",
+  "finance:reconciliation:view",
+  "hr-recruitment:add",
+  "hr-recruitment:delete",
+  "hr-recruitment:edit",
+  "hr:attendance:clock",
+  "hr:attendance:delete",
+  "hr:attendance:list",
+  "hr:attendance:rule",
+  "hr:attendance:update",
+  "hr:candidate:create",
+  "hr:candidate:delete",
+  "hr:candidate:interview",
+  "hr:candidate:list",
+  "hr:candidate:update",
+  "hr:contract:create",
+  "hr:contract:delete",
+  "hr:contract:list",
+  "hr:contract:update",
+  "hr:employee:create",
+  "hr:employee:delete",
+  "hr:employee:list",
+  "hr:employee:status",
+  "hr:employee:update",
+  "hr:leave:approve",
+  "hr:leave:create",
+  "hr:leave:delete",
+  "hr:leave:list",
+  "hr:leave:quota",
+  "hr:leave:update",
+  "hr:performance:confirm",
+  "hr:performance:list",
+  "hr:performance:update",
+  "hr:position:create",
+  "hr:position:delete",
+  "hr:position:list",
+  "hr:position:update",
+  "hr:recruitment:create",
+  "hr:recruitment:delete",
+  "hr:recruitment:list",
+  "hr:recruitment:update",
+  "hr:salary:confirm",
+  "hr:salary:generate",
+  "hr:salary:list",
+  "hr:salary:update",
+  "permission:create",
+  "permission:delete",
+  "permission:list",
+  "permission:manage",
+  "permission:update",
+  "position:assign",
+  "position:create",
+  "position:delete",
+  "position:edit",
+  "position:list",
+  "position:manage",
+  "position:query",
+  "purchase:manage",
+  "role:create",
+  "role:delete",
+  "role:list",
+  "role:manage",
+  "role:update",
+  "sale:manage",
+  "set:system-task:download",
+  "set:system-task:view",
+  "stock:list",
+  "stock:manage",
+  "system:config:create",
+  "system:config:query",
+  "system:dataimport:create",
+  "system:dataimport:delete",
+  "system:dataimport:list",
+  "system:dataimport:manage",
+  "system:dataimport:sync",
+  "system:dataimport:test",
+  "system:dataimport:update",
+  "system:dev:api-test:send",
+  "system:dev:scheduler:create",
+  "system:dev:scheduler:delete",
+  "system:dev:scheduler:execute",
+  "system:dev:scheduler:list",
+  "system:dev:scheduler:update",
+  "system:manage",
+  "system:permission:assign",
+  "system:permission:cache",
+  "system:permission:check",
+  "system:permission:clear",
+  "system:permission:export",
+  "system:permission:view",
+  "system:role:clear",
+  "system:role:export",
+  "system:role:view",
+  "tenant:config",
+  "tenant:create",
+  "tenant:delete",
+  "tenant:list",
+  "tenant:update",
+  "user:create",
+  "user:delete",
+  "user:list",
+  "user:manage",
+  "user:update"
+ ],
+ "refs": {
+  "system:agent:register": [
+   "backend/core/agent/core-agent/src/main/java/cn/aiedge/agent/controller/AgentController.java:30"
+  ],
+  "system:agent:update": [
+   "backend/core/agent/core-agent/src/main/java/cn/aiedge/agent/controller/AgentController.java:39"
+  ],
+  "system:agent:delete": [
+   "backend/core/agent/core-agent/src/main/java/cn/aiedge/agent/controller/AgentController.java:47"
+  ],
+  "system:agent:activate": [
+   "backend/core/agent/core-agent/src/main/java/cn/aiedge/agent/controller/AgentController.java:54"
+  ],
+  "system:agent:deactivate": [
+   "backend/core/agent/core-agent/src/main/java/cn/aiedge/agent/controller/AgentController.java:61"
+  ],
+  "system:agent:list": [
+   "backend/core/agent/core-agent/src/main/java/cn/aiedge/agent/controller/AgentController.java:74"
+  ],
+  "system:agent:detail": [
+   "backend/core/agent/core-agent/src/main/java/cn/aiedge/agent/controller/AgentController.java:87"
+  ],
+  "log:audit:create": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/audit/controller/AuditLogController.java:34"
+  ],
+  "log:audit:list": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/audit/controller/AuditLogController.java:42",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/audit/controller/AuditLogController.java:68",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/audit/controller/AuditLogController.java:77"
+  ],
+  "log:audit:detail": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/audit/controller/AuditLogController.java:60"
+  ],
+  "log:audit:stats": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/audit/controller/AuditLogController.java:86"
+  ],
+  "log:audit:export": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/audit/controller/AuditLogController.java:98"
+  ],
+  "log:audit:delete": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/audit/controller/AuditLogController.java:110"
+  ],
+  "log:oper:list": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/audit/controller/SysLogStubController.java:100",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/audit/controller/SysLogStubController.java:137",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/audit/controller/SysLogStubController.java:155",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/LogManageController.java:46",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/LogManageController.java:69"
+  ],
+  "log:oper:detail": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/audit/controller/SysLogStubController.java:119",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/LogManageController.java:62"
+  ],
+  "log:oper:delete": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/audit/controller/SysLogStubController.java:173",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/audit/controller/SysLogStubController.java:194",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/LogManageController.java:137"
+  ],
+  "log:oper:export": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/audit/controller/SysLogStubController.java:206",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/LogManageController.java:95"
+  ],
+  "log:login:list": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/audit/controller/SysLogStubController.java:247",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/LogManageController.java:146",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/LogManageController.java:168"
+  ],
+  "log:login:export": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/audit/controller/SysLogStubController.java:265",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/LogManageController.java:193"
+  ],
+  "system:config:list": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/config/controller/SystemConfigController.java:189",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/config/controller/SystemConfigController.java:218",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/config/controller/SystemConfigController.java:236",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/config/controller/SystemConfigController.java:249",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/config/controller/SystemConfigController.java:328",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysConfigController.java:33",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysConfigController.java:40",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysConfigController.java:47",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysConfigController.java:54",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysConfigController.java:61",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysConfigController.java:120",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysConfigController.java:135"
+  ],
+  "system:config:update": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/config/controller/SystemConfigController.java:282",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/config/controller/SystemConfigController.java:293",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/config/controller/SystemConfigController.java:306",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/config/controller/SystemConfigController.java:339",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysConfigController.java:70",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysConfigController.java:84",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysConfigController.java:102",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysConfigController.java:110",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysConfigController.java:127"
+  ],
+  "system:config:delete": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/config/controller/SystemConfigController.java:317",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/config/controller/SystemConfigController.java:353",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysConfigController.java:92"
+  ],
+  "system:config:export": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/config/controller/SystemConfigController.java:363"
+  ],
+  "datasource:backup:list": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/datasource/controller/BackupController.java:37"
+  ],
+  "datasource:backup:create": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/datasource/controller/BackupController.java:61"
+  ],
+  "datasource:backup:restore": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/datasource/controller/BackupController.java:92"
+  ],
+  "datasource:backup:delete": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/datasource/controller/BackupController.java:108"
+  ],
+  "datasource:cleanup:list": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/datasource/controller/CleanupRuleController.java:37",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/datasource/controller/CleanupRuleController.java:60"
+  ],
+  "datasource:cleanup:create": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/datasource/controller/CleanupRuleController.java:67"
+  ],
+  "datasource:cleanup:update": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/datasource/controller/CleanupRuleController.java:80"
+  ],
+  "datasource:cleanup:delete": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/datasource/controller/CleanupRuleController.java:97"
+  ],
+  "datasource:cleanup:execute": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/datasource/controller/CleanupRuleController.java:106"
+  ],
+  "system:datasource:list": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/datasource/controller/DataSourceController.java:27",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/datasource/controller/DataSourceController.java:51"
+  ],
+  "system:datasource:create": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/datasource/controller/DataSourceController.java:62"
+  ],
+  "system:datasource:update": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/datasource/controller/DataSourceController.java:73"
+  ],
+  "system:datasource:delete": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/datasource/controller/DataSourceController.java:88"
+  ],
+  "system:datasource:test": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/datasource/controller/DataSourceController.java:96"
+  ],
+  "datasource:slowquery:list": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/datasource/controller/SlowQueryController.java:27"
+  ],
+  "datasource:slowquery:export": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/datasource/controller/SlowQueryController.java:51"
+  ],
+  "datasource:sync:list": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/datasource/controller/SyncTaskController.java:37"
+  ],
+  "datasource:sync:create": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/datasource/controller/SyncTaskController.java:60"
+  ],
+  "datasource:sync:update": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/datasource/controller/SyncTaskController.java:73"
+  ],
+  "datasource:sync:delete": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/datasource/controller/SyncTaskController.java:90"
+  ],
+  "datasource:sync:execute": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/datasource/controller/SyncTaskController.java:99"
+  ],
+  "system:dict:create": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/dict/controller/DictItemController.java:37",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/dict/controller/DictItemController.java:45",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/dict/controller/DictTypeController.java:36"
+  ],
+  "system:dict:update": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/dict/controller/DictItemController.java:53",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/dict/controller/DictItemController.java:130",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/dict/controller/DictItemController.java:168",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/dict/controller/DictTypeController.java:44",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/dict/controller/DictTypeController.java:121",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/dict/controller/DictTypeController.java:149",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/dict/controller/DictTypeController.java:158"
+  ],
+  "system:dict:delete": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/dict/controller/DictItemController.java:61",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/dict/controller/DictItemController.java:160",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/dict/controller/DictTypeController.java:52"
+  ],
+  "system:dict:export": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/dict/controller/DictItemController.java:140",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/dict/controller/DictTypeController.java:131"
+  ],
+  "system:module:list": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/module/controller/ModuleController.java:30",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/module/controller/ModuleController.java:46",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/module/controller/ModuleController.java:63",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/module/controller/ModuleController.java:82",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/module/controller/ModuleController.java:90"
+  ],
+  "system:module:create": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/module/controller/ModuleController.java:101"
+  ],
+  "system:module:update": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/module/controller/ModuleController.java:109",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/module/controller/ModuleController.java:131",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/module/controller/ModuleController.java:142",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/module/controller/ModuleController.java:165"
+  ],
+  "system:module:delete": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/module/controller/ModuleController.java:123"
+  ],
+  "system:simulate": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/permission/controller/PermissionSimulationController.java:33",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/permission/controller/PermissionSimulationController.java:43",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/permission/controller/PermissionSimulationController.java:51"
+  ],
+  "platform:mail:config": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/platform/controller/MailConfigController.java:27"
+  ],
+  "platform:mail:update": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/platform/controller/MailConfigController.java:35"
+  ],
+  "platform:mail:test": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/platform/controller/MailConfigController.java:44"
+  ],
+  "platform:security:policy": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/platform/controller/SecurityPolicyController.java:26"
+  ],
+  "platform:security:update": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/platform/controller/SecurityPolicyController.java:34"
+  ],
+  "platform:sms:config": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/platform/controller/SmsConfigController.java:27"
+  ],
+  "platform:sms:update": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/platform/controller/SmsConfigController.java:35"
+  ],
+  "platform:sms:test": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/platform/controller/SmsConfigController.java:44"
+  ],
+  "platform:storage:config": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/platform/controller/StorageConfigController.java:27"
+  ],
+  "platform:storage:update": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/platform/controller/StorageConfigController.java:35"
+  ],
+  "platform:storage:test": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/platform/controller/StorageConfigController.java:44"
+  ],
+  "set:rebuild:execute": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/tenant/controller/SetRebuildController.java:88",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/tenant/controller/SetRebuildController.java:117"
+  ],
+  "system:tenant:create": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/tenant/controller/TenantController.java:110"
+  ],
+  "system:tenant:update": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/tenant/controller/TenantController.java:125",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/tenant/controller/TenantController.java:217"
+  ],
+  "set:company-info:save": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/tenant/controller/TenantController.java:175"
+  ],
+  "system:tenant:delete": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/tenant/controller/TenantController.java:195",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/tenant/controller/TenantController.java:206"
+  ],
+  "platform:tenant-package:list": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/tenant/controller/TenantPackageController.java:27",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/tenant/controller/TenantPackageController.java:35"
+  ],
+  "platform:tenant-package:create": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/tenant/controller/TenantPackageController.java:46"
+  ],
+  "platform:tenant-package:update": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/tenant/controller/TenantPackageController.java:54"
+  ],
+  "platform:tenant-package:delete": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/tenant/controller/TenantPackageController.java:68"
+  ],
+  "platform:tenant-quota:list": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/tenant/controller/TenantQuotaController.java:27",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/tenant/controller/TenantQuotaController.java:35"
+  ],
+  "platform:tenant-quota:create": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/tenant/controller/TenantQuotaController.java:46"
+  ],
+  "platform:tenant-quota:update": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/tenant/controller/TenantQuotaController.java:54"
+  ],
+  "platform:tenant-quota:delete": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/tenant/controller/TenantQuotaController.java:68"
+  ],
+  "system:tenant:approve": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/tenant/controller/TenantRegistrationController.java:52",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/tenant/controller/TenantRegistrationController.java:65",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/tenant/controller/TenantRegistrationController.java:78"
+  ],
+  "system:user:list": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/user/controller/UserController.java:29",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysUserController.java:154",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysUserController.java:169"
+  ],
+  "system:user:detail": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/user/controller/UserController.java:36",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysUserController.java:182"
+  ],
+  "system:user:create": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/user/controller/UserController.java:44",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysUserController.java:98"
+  ],
+  "system:user:update": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/user/controller/UserController.java:52",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/user/controller/UserController.java:77",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/user/controller/UserController.java:88",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/user/controller/UserController.java:98",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysUserController.java:111"
+  ],
+  "system:user:delete": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/user/controller/UserController.java:60",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/user/controller/UserController.java:69",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysUserController.java:125",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysUserController.java:137"
+  ],
+  "system:user:export": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/user/controller/UserController.java:108"
+  ],
+  "system:role:assign": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/user/controller/UserController.java:115"
+  ],
+  "workflow:definition:list": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/workflow/controller/WorkflowController.java:73",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/workflow/controller/WorkflowController.java:88"
+  ],
+  "workflow:definition:save": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/workflow/controller/WorkflowController.java:101",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/workflow/controller/WorkflowController.java:112"
+  ],
+  "workflow:definition:publish": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/workflow/controller/WorkflowController.java:127"
+  ],
+  "workflow:definition:disable": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/workflow/controller/WorkflowController.java:141"
+  ],
+  "workflow:definition:delete": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/workflow/controller/WorkflowController.java:155"
+  ],
+  "workflow:audit:list": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/workflow/controller/WorkflowController.java:187"
+  ],
+  "workflow:audit:update": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/workflow/controller/WorkflowController.java:194"
+  ],
+  "workflow:instance:view": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/workflow/controller/WorkflowController.java:251",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/workflow/controller/WorkflowController.java:269",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/workflow/controller/WorkflowController.java:282",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/workflow/controller/WorkflowController.java:579"
+  ],
+  "workflow:task:view": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/workflow/controller/WorkflowController.java:362",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/workflow/controller/WorkflowController.java:382",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/workflow/controller/WorkflowController.java:400"
+  ],
+  "workflow:task:approve": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/workflow/controller/WorkflowController.java:415"
+  ],
+  "workflow:task:transfer": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/workflow/controller/WorkflowController.java:435"
+  ],
+  "workflow:analysis:view": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/workflow/controller/WorkflowController.java:465",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/workflow/controller/WorkflowController.java:475"
+  ],
+  "workflow:instance:diagram": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/workflow/controller/WorkflowController.java:589"
+  ],
+  "workflow:instance:intervene": [
+   "backend/core/api/core-api/src/main/java/cn/aiedge/workflow/controller/WorkflowController.java:601"
+  ],
+  "data-permission:create": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/DataPermissionController.java:34"
+  ],
+  "data-permission:update": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/DataPermissionController.java:45"
+  ],
+  "data-permission:delete": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/DataPermissionController.java:57"
+  ],
+  "data-permission:list": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/DataPermissionController.java:68"
+  ],
+  "data-permission:view": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/DataPermissionController.java:87",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/DataPermissionController.java:98"
+  ],
+  "data-permission:check": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/DataPermissionController.java:109"
+  ],
+  "data-permission:assign": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/DataPermissionController.java:124",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/DataPermissionController.java:137"
+  ],
+  "data-permission:update-status": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/DataPermissionController.java:150"
+  ],
+  "log:oper:stats": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/LogManageController.java:76",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/LogManageController.java:85"
+  ],
+  "log:login:detail": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/LogManageController.java:161"
+  ],
+  "log:login:stats": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/LogManageController.java:175",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/LogManageController.java:184"
+  ],
+  "permission-template:create": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/PermissionTemplateController.java:34"
+  ],
+  "permission-template:update": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/PermissionTemplateController.java:45"
+  ],
+  "permission-template:delete": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/PermissionTemplateController.java:57"
+  ],
+  "permission-template:list": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/PermissionTemplateController.java:68",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/PermissionTemplateController.java:119"
+  ],
+  "permission-template:detail": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/PermissionTemplateController.java:86"
+  ],
+  "permission-template:apply": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/PermissionTemplateController.java:97",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/PermissionTemplateController.java:108"
+  ],
+  "permission-template:update-status": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/PermissionTemplateController.java:130"
+  ],
+  "system:role:detail": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/RoleBillTypeController.java:33",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/RoleBillTypeController.java:42"
+  ],
+  "system:role:assign-permission": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/RoleBillTypeController.java:49",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysRoleController.java:69",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysRoleController.java:144"
+  ],
+  "role-inheritance:manage": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/RoleInheritanceController.java:32",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/RoleInheritanceController.java:46",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/RoleInheritanceController.java:60"
+  ],
+  "role-inheritance:view": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/RoleInheritanceController.java:73",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/RoleInheritanceController.java:84",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/RoleInheritanceController.java:95"
+  ],
+  "system:session:view": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SessionController.java:57",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SessionController.java:117",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SessionController.java:131"
+  ],
+  "system:session:kickout": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SessionController.java:68",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SessionController.java:80",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SessionController.java:142"
+  ],
+  "system:session:disable": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SessionController.java:92",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SessionController.java:105"
+  ],
+  "system:data-scope:list": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysDataScopeController.java:35",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysDataScopeController.java:50"
+  ],
+  "system:data-scope:assign": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysDataScopeController.java:58"
+  ],
+  "system:data-scope:delete": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysDataScopeController.java:66"
+  ],
+  "system:field-permission:list": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysFieldPermissionController.java:36",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysFieldPermissionController.java:53"
+  ],
+  "system:field-permission:assign": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysFieldPermissionController.java:70"
+  ],
+  "system:field-permission:delete": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysFieldPermissionController.java:78"
+  ],
+  "system:menu:create": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysMenuController.java:39"
+  ],
+  "system:menu:update": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysMenuController.java:53",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysMenuController.java:171"
+  ],
+  "system:menu:delete": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysMenuController.java:68"
+  ],
+  "system:menu:list": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysMenuController.java:82",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysMenuController.java:136",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysMenuController.java:160"
+  ],
+  "system:menu:detail": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysMenuController.java:149"
+  ],
+  "system:menu:update-status": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysMenuController.java:183"
+  ],
+  "system:permission:create": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysPermissionController.java:38"
+  ],
+  "system:permission:update": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysPermissionController.java:52",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysPermissionController.java:160"
+  ],
+  "system:permission:delete": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysPermissionController.java:67",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysPermissionController.java:81"
+  ],
+  "system:permission:list": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysPermissionController.java:95",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysPermissionController.java:124",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysPermissionController.java:135"
+  ],
+  "system:permission:detail": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysPermissionController.java:113"
+  ],
+  "system:permission:update-status": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysPermissionController.java:148"
+  ],
+  "system:role:create": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysRoleController.java:35"
+  ],
+  "system:role:update": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysRoleController.java:46"
+  ],
+  "system:role:delete": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysRoleController.java:58"
+  ],
+  "system:role:assign-menu": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysRoleController.java:80"
+  ],
+  "system:role:list": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysRoleController.java:91"
+  ],
+  "system:role:update-status": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysRoleController.java:133"
+  ],
+  "system:sod-rule:list": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysSodRuleController.java:34",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysSodRuleController.java:46"
+  ],
+  "system:sod-rule:create": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysSodRuleController.java:53"
+  ],
+  "system:sod-rule:update": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysSodRuleController.java:61"
+  ],
+  "system:sod-rule:delete": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysSodRuleController.java:70"
+  ],
+  "system:sod-rule:validate": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysSodRuleController.java:78"
+  ],
+  "tenant:menu:query": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysTenantMenuController.java:36"
+  ],
+  "tenant:menu:assign": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysTenantMenuController.java:47"
+  ],
+  "tenant:menu:remove": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysTenantMenuController.java:60",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysTenantMenuController.java:73"
+  ],
+  "system:user:reset-password": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysUserController.java:194"
+  ],
+  "system:user:assign-role": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysUserController.java:225",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysUserController.java:241"
+  ],
+  "system:user:update-status": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysUserController.java:256"
+  ],
+  "payment:config:list": [
+   "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/PaymentConfigController.java:50",
+   "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/PaymentConfigController.java:59",
+   "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/PaymentConfigController.java:79",
+   "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/PaymentConfigController.java:100",
+   "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/PaymentConfigController.java:122"
+  ],
+  "payment:config:update": [
+   "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/PaymentConfigController.java:66",
+   "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/PaymentConfigController.java:88",
+   "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/PaymentConfigController.java:108"
+  ],
+  "payment:request:create": [
+   "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/PaymentController.java:42"
+  ],
+  "payment:request:list": [
+   "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/PaymentController.java:56",
+   "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/PaymentController.java:73",
+   "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/PaymentController.java:81"
+  ],
+  "payment:request:cancel": [
+   "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/PaymentController.java:88"
+  ],
+  "payment:request:confirm": [
+   "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/PaymentController.java:105"
+  ],
+  "payment:record:list": [
+   "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/PaymentController.java:115",
+   "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/PaymentController.java:130"
+  ],
+  "payment:channel:list": [
+   "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/PaymentController.java:138"
+  ],
+  "dms:channel:create": [
+   "backend/dms/src/main/java/cn/aiedge/dms/channel/controller/ChannelController.java:95"
+  ],
+  "dms:channel:update": [
+   "backend/dms/src/main/java/cn/aiedge/dms/channel/controller/ChannelController.java:102",
+   "backend/dms/src/main/java/cn/aiedge/dms/channel/controller/ChannelController.java:110",
+   "backend/dms/src/main/java/cn/aiedge/dms/channel/controller/ChannelController.java:119",
+   "backend/dms/src/main/java/cn/aiedge/dms/channel/controller/ChannelController.java:144",
+   "backend/dms/src/main/java/cn/aiedge/dms/channel/controller/ChannelController.java:152",
+   "backend/dms/src/main/java/cn/aiedge/dms/channel/controller/ChannelController.java:164"
+  ],
+  "dms:channel:delete": [
+   "backend/dms/src/main/java/cn/aiedge/dms/channel/controller/ChannelController.java:128",
+   "backend/dms/src/main/java/cn/aiedge/dms/channel/controller/ChannelController.java:136"
+  ],
+  "dms:config:update": [
+   "backend/dms/src/main/java/cn/aiedge/dms/config/controller/ConfigController.java:56",
+   "backend/dms/src/main/java/cn/aiedge/dms/config/controller/ConfigController.java:85",
+   "backend/dms/src/main/java/cn/aiedge/dms/config/controller/ConfigController.java:102",
+   "backend/dms/src/main/java/cn/aiedge/dms/config/controller/ConfigController.java:153"
+  ],
+  "dms:dispatch:view": [
+   "backend/dms/src/main/java/cn/aiedge/dms/dispatch/controller/DispatchController.java:53",
+   "backend/dms/src/main/java/cn/aiedge/dms/dispatch/controller/DispatchController.java:160",
+   "backend/dms/src/main/java/cn/aiedge/dms/dispatch/controller/RouteRiderController.java:51",
+   "backend/dms/src/main/java/cn/aiedge/dms/dispatch/controller/RouteRiderController.java:58",
+   "backend/dms/src/main/java/cn/aiedge/dms/dispatch/controller/RouteRiderController.java:66"
+  ],
+  "dms:dispatch:config": [
+   "backend/dms/src/main/java/cn/aiedge/dms/dispatch/controller/DispatchController.java:60",
+   "backend/dms/src/main/java/cn/aiedge/dms/dispatch/controller/RouteRiderController.java:74",
+   "backend/dms/src/main/java/cn/aiedge/dms/dispatch/controller/RouteRiderController.java:81",
+   "backend/dms/src/main/java/cn/aiedge/dms/dispatch/controller/RouteRiderController.java:88",
+   "backend/dms/src/main/java/cn/aiedge/dms/dispatch/controller/RouteRiderController.java:97"
+  ],
+  "dms:dispatch:auto": [
+   "backend/dms/src/main/java/cn/aiedge/dms/dispatch/controller/DispatchController.java:69",
+   "backend/dms/src/main/java/cn/aiedge/dms/dispatch/controller/DispatchController.java:76",
+   "backend/dms/src/main/java/cn/aiedge/dms/dispatch/controller/DispatchController.java:127"
+  ],
+  "dms:dispatch:assign": [
+   "backend/dms/src/main/java/cn/aiedge/dms/dispatch/controller/DispatchController.java:84",
+   "backend/dms/src/main/java/cn/aiedge/dms/dispatch/controller/DispatchController.java:119"
+  ],
+  "dms:dispatch:reassign": [
+   "backend/dms/src/main/java/cn/aiedge/dms/dispatch/controller/DispatchController.java:100"
+  ],
+  "dms:dispatch:candidates": [
+   "backend/dms/src/main/java/cn/aiedge/dms/dispatch/controller/DispatchController.java:135"
+  ],
+  "dms:dispatch:fence": [
+   "backend/dms/src/main/java/cn/aiedge/dms/dispatch/controller/DispatchController.java:143"
+  ],
+  "dms:event:retry": [
+   "backend/dms/src/main/java/cn/aiedge/dms/event/controller/EventController.java:43"
+  ],
+  "dms:execution:operate": [
+   "backend/dms/src/main/java/cn/aiedge/dms/execution/controller/ExecutionController.java:31",
+   "backend/dms/src/main/java/cn/aiedge/dms/execution/controller/ExecutionController.java:40",
+   "backend/dms/src/main/java/cn/aiedge/dms/execution/controller/ExecutionController.java:49",
+   "backend/dms/src/main/java/cn/aiedge/dms/execution/controller/ExecutionController.java:58"
+  ],
+  "dms:rider:create": [
+   "backend/dms/src/main/java/cn/aiedge/dms/rider/controller/RiderController.java:85",
+   "backend/dms/src/main/java/cn/aiedge/dms/rider/controller/RiderController.java:211"
+  ],
+  "dms:rider:update": [
+   "backend/dms/src/main/java/cn/aiedge/dms/rider/controller/RiderController.java:92",
+   "backend/dms/src/main/java/cn/aiedge/dms/rider/controller/RiderController.java:100",
+   "backend/dms/src/main/java/cn/aiedge/dms/rider/controller/RiderController.java:109"
+  ],
+  "dms:rider:approve": [
+   "backend/dms/src/main/java/cn/aiedge/dms/rider/controller/RiderController.java:116",
+   "backend/dms/src/main/java/cn/aiedge/dms/rider/controller/RiderController.java:125"
+  ],
+  "dms:rider:delete": [
+   "backend/dms/src/main/java/cn/aiedge/dms/rider/controller/RiderController.java:141",
+   "backend/dms/src/main/java/cn/aiedge/dms/rider/controller/RiderController.java:149"
+  ],
+  "dms:sign:audit": [
+   "backend/dms/src/main/java/cn/aiedge/dms/sign/controller/SignController.java:85",
+   "backend/dms/src/main/java/cn/aiedge/dms/sign/controller/SignController.java:93",
+   "backend/dms/src/main/java/cn/aiedge/dms/sign/controller/SignController.java:108"
+  ],
+  "dms:sign:submit": [
+   "backend/dms/src/main/java/cn/aiedge/dms/sign/controller/SignController.java:118"
+  ],
+  "dms:tracking:report": [
+   "backend/dms/src/main/java/cn/aiedge/dms/tracking/controller/TrackingController.java:158"
+  ],
+  "dms:vehicle:create": [
+   "backend/dms/src/main/java/cn/aiedge/dms/vehicle/controller/VehicleController.java:167"
+  ],
+  "dms:vehicle:update": [
+   "backend/dms/src/main/java/cn/aiedge/dms/vehicle/controller/VehicleController.java:174",
+   "backend/dms/src/main/java/cn/aiedge/dms/vehicle/controller/VehicleController.java:197",
+   "backend/dms/src/main/java/cn/aiedge/dms/vehicle/controller/VehicleController.java:205",
+   "backend/dms/src/main/java/cn/aiedge/dms/vehicle/controller/VehicleController.java:214",
+   "backend/dms/src/main/java/cn/aiedge/dms/vehicle/controller/VehicleController.java:224",
+   "backend/dms/src/main/java/cn/aiedge/dms/vehicle/controller/VehicleController.java:239"
+  ],
+  "dms:vehicle:delete": [
+   "backend/dms/src/main/java/cn/aiedge/dms/vehicle/controller/VehicleController.java:182",
+   "backend/dms/src/main/java/cn/aiedge/dms/vehicle/controller/VehicleController.java:190"
+  ],
+  "finance:subject:view": [
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/controller/AccountSubjectController.java:51",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/controller/AccountSubjectController.java:59",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/controller/AccountSubjectController.java:67",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/controller/AccountSubjectController.java:75",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/controller/AccountSubjectController.java:82",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/controller/AccountSubjectController.java:140"
+  ],
+  "finance:subject:create": [
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/controller/AccountSubjectController.java:91"
+  ],
+  "finance:subject:edit": [
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/controller/AccountSubjectController.java:100",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/controller/AccountSubjectController.java:120"
+  ],
+  "finance:subject:delete": [
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/controller/AccountSubjectController.java:111",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/controller/AccountSubjectController.java:131"
+  ],
+  "set:initial-finance:view": [
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/initial/controller/InitialFinanceController.java:82",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/initial/controller/InitialFinanceController.java:131",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/initial/controller/InitialFinanceController.java:180",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/initial/controller/InitialFinanceController.java:194",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/initial/controller/InitialFinanceController.java:205",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/initial/controller/InitialFinanceController.java:217"
+  ],
+  "set:initial-finance:create": [
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/initial/controller/InitialFinanceController.java:93",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/initial/controller/InitialFinanceController.java:142"
+  ],
+  "set:initial-finance:update": [
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/initial/controller/InitialFinanceController.java:107",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/initial/controller/InitialFinanceController.java:156"
+  ],
+  "set:initial-finance:delete": [
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/initial/controller/InitialFinanceController.java:118",
+   "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/initial/controller/InitialFinanceController.java:167"
+  ],
+  "set:print-config:view": [
+   "backend/erp/erp-printing/src/main/java/cn/aiedge/erp/printing/controller/PrintConfigController.java:94",
+   "backend/erp/erp-printing/src/main/java/cn/aiedge/erp/printing/controller/PrintConfigController.java:149"
+  ],
+  "set:print-config:update": [
+   "backend/erp/erp-printing/src/main/java/cn/aiedge/erp/printing/controller/PrintConfigController.java:138"
+  ],
+  "purchase:cost-sharing:list": [
+   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/CostSharingController.java:35"
+  ],
+  "purchase:cost-sharing:detail": [
+   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/CostSharingController.java:59"
+  ],
+  "purchase:cost-sharing:create": [
+   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/CostSharingController.java:79"
+  ],
+  "purchase:cost-sharing:update": [
+   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/CostSharingController.java:90"
+  ],
+  "purchase:cost-sharing:complete": [
+   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/CostSharingController.java:101"
+  ],
+  "purchase:cost-sharing:cancel": [
+   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/CostSharingController.java:112"
+  ],
+  "purchase:order:create": [
+   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseOrderController.java:78",
+   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseOrderController.java:224"
+  ],
+  "purchase:order:update": [
+   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseOrderController.java:89"
+  ],
+  "purchase:order:detail": [
+   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseOrderController.java:100",
+   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseOrderController.java:198"
+  ],
+  "purchase:order:delete": [
+   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseOrderController.java:111"
+  ],
+  "purchase:order:submit": [
+   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseOrderController.java:122"
+  ],
+  "purchase:order:approve": [
+   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseOrderController.java:133",
+   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseOrderController.java:144",
+   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseOrderController.java:155"
+  ],
+  "purchase:order:cancel": [
+   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseOrderController.java:166"
+  ],
+  "purchase:order:list": [
+   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseOrderController.java:209",
+   "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseOrderController.java:235"
+  ],
+  "purchase_order:create": [
+   "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/order/controller/OrderController.java:64"
+  ],
+  "purchase_order:update": [
+   "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/order/controller/OrderController.java:72",
+   "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/order/controller/OrderController.java:203"
+  ],
+  "purchase_order:delete": [
+   "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/order/controller/OrderController.java:81",
+   "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/order/controller/OrderController.java:211"
+  ],
+  "purchase_order:submit": [
+   "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/order/controller/OrderController.java:89"
+  ],
+  "purchase_order:approve": [
+   "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/order/controller/OrderController.java:98",
+   "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/order/controller/OrderController.java:107",
+   "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/order/controller/OrderController.java:116"
+  ],
+  "purchase_order:execute": [
+   "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/order/controller/OrderController.java:125",
+   "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/order/controller/OrderController.java:135",
+   "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/order/controller/OrderController.java:146",
+   "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/order/controller/OrderController.java:157"
+  ],
+  "purchase_order:export": [
+   "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/order/controller/OrderController.java:191"
+  ],
+  "sale:promotion:create": [
+   "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/controller/PromotionController.java:28"
+  ],
+  "sale:promotion:update": [
+   "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/controller/PromotionController.java:36"
+  ],
+  "sale:promotion:delete": [
+   "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/controller/PromotionController.java:44"
+  ],
+  "sale:promotion:publish": [
+   "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/controller/PromotionController.java:75",
+   "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/controller/PromotionController.java:83"
+  ],
+  "sale:order:create": [
+   "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/controller/SaleOrderController.java:84",
+   "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/controller/SaleOrderController.java:214"
+  ],
+  "sale:order:update": [
+   "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/controller/SaleOrderController.java:92",
+   "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/controller/SaleOrderController.java:702"
+  ],
+  "sale:order:delete": [
+   "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/controller/SaleOrderController.java:102",
+   "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/controller/SaleOrderController.java:180"
+  ],
+  "sale:order:submit": [
+   "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/controller/SaleOrderController.java:115"
+  ],
+  "sale:order:approve": [
+   "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/controller/SaleOrderController.java:124",
+   "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/controller/SaleOrderController.java:133",
+   "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/controller/SaleOrderController.java:189"
+  ],
+  "sale:order:cancel": [
+   "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/controller/SaleOrderController.java:142"
+  ],
+  "sale:order:ship": [
+   "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/controller/SaleOrderController.java:151"
+  ],
+  "sale:order:payment": [
+   "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/controller/SaleOrderController.java:160"
+  ],
+  "sale:order:list": [
+   "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/controller/SaleOrderController.java:203"
+  ],
+  "sale:order:print": [
+   "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/controller/SaleOrderController.java:674"
+  ],
+  "erp:product:list": [
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductBarcodeController.java:67",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductBarcodeController.java:90",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductController.java:49",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductController.java:61",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductController.java:156",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductController.java:253",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductController.java:260",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductController.java:268",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductController.java:385",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductController.java:441",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductPriceController.java:63",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductPriceController.java:85",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductPriceController.java:163",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductPriceController.java:170",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductPriceController.java:177",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductPriceController.java:184",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductPriceController.java:195",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductPriceController.java:206",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductPriceController.java:244",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductPriceController.java:257",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductPriceController.java:293",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductPriceController.java:307",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductPriceController.java:349",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductShieldController.java:30"
+  ],
+  "erp:product:update": [
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductBarcodeController.java:148",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductController.java:127",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductController.java:275",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductController.java:291",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductController.java:314",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductController.java:338",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductController.java:365",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductController.java:411",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductController.java:549",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductShieldController.java:43",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductShieldController.java:53",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductShieldController.java:65"
+  ],
+  "erp:product:view": [
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductController.java:87",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductController.java:94",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductController.java:109"
+  ],
+  "erp:product:create": [
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductController.java:120",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductController.java:434",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductController.java:452",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductController.java:486"
+  ],
+  "erp:product:status": [
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductController.java:135",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductController.java:227"
+  ],
+  "erp:product:delete": [
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductController.java:142",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductController.java:234"
+  ],
+  "erp:product:price-batch": [
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductController.java:149",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductPriceController.java:156",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductPriceController.java:226",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductPriceController.java:234",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductPriceController.java:268",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductPriceController.java:276",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductPriceController.java:284",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductPriceController.java:324",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductPriceController.java:332",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductPriceController.java:340",
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductPriceController.java:401"
+  ],
+  "erp:product:approval": [
+   "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductController.java:241"
+  ]
+ }
+}

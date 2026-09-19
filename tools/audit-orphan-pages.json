@@ -1,0 +1,2762 @@
+{
+ "summary": {
+  "componentMap_keys": 685,
+  "views_vue_files": 513,
+  "db_menu_rows": 386,
+  "db_distinct_components": 269,
+  "required_routes": 74,
+  "orphan_keys": 262,
+  "untracked_view_files": 19,
+  "db_missing_in_frontend": 2
+ },
+ "orphan_keys": [
+  {
+   "key": "budget/adjustment/index",
+   "files": [
+    "budget/adjustment/index.vue"
+   ]
+  },
+  {
+   "key": "budget/annual/detail",
+   "files": [
+    "budget/annual/BudgetDetail.vue"
+   ]
+  },
+  {
+   "key": "budget/annual/index",
+   "files": [
+    "budget/annual/index.vue"
+   ]
+  },
+  {
+   "key": "budget/index",
+   "files": [
+    "budget/index.vue"
+   ]
+  },
+  {
+   "key": "budget/report/index",
+   "files": [
+    "budget/report/index.vue"
+   ]
+  },
+  {
+   "key": "budget/template/index",
+   "files": [
+    "budget/template/index.vue"
+   ]
+  },
+  {
+   "key": "charts/index",
+   "files": [
+    "charts/index.vue"
+   ]
+  },
+  {
+   "key": "common/placeholder/index",
+   "files": [
+    "common/placeholder/index.vue"
+   ]
+  },
+  {
+   "key": "crm/contract/form",
+   "files": [
+    "crm/contract/form.vue"
+   ]
+  },
+  {
+   "key": "crm/customer/form",
+   "files": [
+    "crm/customer/form.vue"
+   ]
+  },
+  {
+   "key": "crm/invoice",
+   "files": [
+    "crm/invoice/index.vue"
+   ]
+  },
+  {
+   "key": "crm/invoice/index",
+   "files": [
+    "crm/invoice/index.vue"
+   ]
+  },
+  {
+   "key": "crm/lead/form",
+   "files": [
+    "crm/lead/form.vue"
+   ]
+  },
+  {
+   "key": "crm/opportunity/form",
+   "files": [
+    "crm/opportunity/form.vue"
+   ]
+  },
+  {
+   "key": "crm/quotation",
+   "files": [
+    "crm/quotation/index.vue"
+   ]
+  },
+  {
+   "key": "crm/quotation/index",
+   "files": [
+    "crm/quotation/index.vue"
+   ]
+  },
+  {
+   "key": "crm/supplier/index",
+   "files": [
+    "crm/supplier/index.vue"
+   ]
+  },
+  {
+   "key": "dispatch/dispatch-order",
+   "files": [
+    "dispatch/dispatch-order/index.vue"
+   ]
+  },
+  {
+   "key": "dispatch/dispatch-order/index",
+   "files": [
+    "dispatch/dispatch-order/index.vue"
+   ]
+  },
+  {
+   "key": "dms/order-pool/bid-detail",
+   "files": [
+    "dms/order-pool/bid-detail.vue"
+   ]
+  },
+  {
+   "key": "dms/rider/form",
+   "files": [
+    "dms/rider/form.vue"
+   ]
+  },
+  {
+   "key": "dms/vehicle/form",
+   "files": [
+    "dms/vehicle/form.vue"
+   ]
+  },
+  {
+   "key": "erp/batch/index",
+   "files": [
+    "erp/batch/index.vue"
+   ]
+  },
+  {
+   "key": "erp/column-config/sale-order-item",
+   "files": [
+    "erp/column-config/SaleOrderItemColumnConfig.vue"
+   ]
+  },
+  {
+   "key": "erp/dashboard/index",
+   "files": [
+    "erp/dashboard/index.vue"
+   ]
+  },
+  {
+   "key": "erp/expense/application/detail",
+   "files": [
+    "erp/expense/application/detail.vue"
+   ]
+  },
+  {
+   "key": "erp/expense/application/index",
+   "files": [
+    "erp/expense/application/index.vue"
+   ]
+  },
+  {
+   "key": "erp/expense/approval/index",
+   "files": [
+    "erp/expense/approval/index.vue"
+   ]
+  },
+  {
+   "key": "erp/expense/payment/index",
+   "files": [
+    "erp/expense/payment/index.vue"
+   ]
+  },
+  {
+   "key": "erp/expense/reimbursement/detail",
+   "files": [
+    "erp/expense/reimbursement/detail.vue"
+   ]
+  },
+  {
+   "key": "erp/expense/reimbursement/index",
+   "files": [
+    "erp/expense/reimbursement/index.vue"
+   ]
+  },
+  {
+   "key": "erp/expense/statistics/index",
+   "files": [
+    "erp/expense/statistics/index.vue"
+   ]
+  },
+  {
+   "key": "erp/mall/banner/index",
+   "files": [
+    "erp/mall/banner/index.vue"
+   ]
+  },
+  {
+   "key": "erp/mall/config/index",
+   "files": [
+    "erp/mall/config/index.vue"
+   ]
+  },
+  {
+   "key": "erp/mall/order/index",
+   "files": [
+    "erp/mall/order/index.vue"
+   ]
+  },
+  {
+   "key": "erp/mall/product/index",
+   "files": [
+    "erp/mall/product/index.vue"
+   ]
+  },
+  {
+   "key": "erp/mall/user-audit/index",
+   "files": [
+    "erp/mall/user-audit/index.vue"
+   ]
+  },
+  {
+   "key": "erp/partner/detail",
+   "files": [
+    "erp/partner/detail.vue"
+   ]
+  },
+  {
+   "key": "erp/partner/index",
+   "files": [
+    "erp/partner/index.vue"
+   ]
+  },
+  {
+   "key": "erp/pricing/approval/index",
+   "files": [
+    "erp/pricing/approval/index.vue"
+   ]
+  },
+  {
+   "key": "erp/pricing/index",
+   "files": [
+    "erp/pricing/index.vue"
+   ]
+  },
+  {
+   "key": "erp/pricing/tiers/index",
+   "files": [
+    "erp/pricing/tiers/index.vue"
+   ]
+  },
+  {
+   "key": "erp/product/create",
+   "files": [
+    "erp/product/form.vue"
+   ]
+  },
+  {
+   "key": "erp/product/form",
+   "files": [
+    "erp/product/form.vue"
+   ]
+  },
+  {
+   "key": "erp/product/grade",
+   "files": [
+    "erp/product/grade.vue"
+   ]
+  },
+  {
+   "key": "erp/product/inventory-mode",
+   "files": [
+    "erp/product/inventory-mode.vue"
+   ]
+  },
+  {
+   "key": "erp/product/price-batch",
+   "files": [
+    "erp/product/price-batch.vue"
+   ]
+  },
+  {
+   "key": "erp/purchase-contract/form",
+   "files": [
+    "erp/purchase-contract/form.vue"
+   ]
+  },
+  {
+   "key": "erp/purchase-contract/index",
+   "files": [
+    "erp/purchase-contract/index.vue"
+   ]
+  },
+  {
+   "key": "erp/purchase/index",
+   "files": [
+    "erp/purchase/index.vue"
+   ]
+  },
+  {
+   "key": "erp/return",
+   "files": [
+    "erp/return/index.vue"
+   ]
+  },
+  {
+   "key": "erp/return/form",
+   "files": [
+    "erp/return/form.vue"
+   ]
+  },
+  {
+   "key": "erp/return/index",
+   "files": [
+    "erp/return/index.vue"
+   ]
+  },
+  {
+   "key": "erp/sale/index",
+   "files": [
+    "erp/sale/index.vue"
+   ]
+  },
+  {
+   "key": "erp/sales-analysis/index",
+   "files": [
+    "erp/sales-analysis/index.vue"
+   ]
+  },
+  {
+   "key": "erp/sales-report/index",
+   "files": [
+    "erp/sales-report/index.vue"
+   ]
+  },
+  {
+   "key": "erp/serial/detail",
+   "files": [
+    "erp/serial/detail.vue"
+   ]
+  },
+  {
+   "key": "erp/serial/index",
+   "files": [
+    "erp/serial/index.vue"
+   ]
+  },
+  {
+   "key": "erp/shipment",
+   "files": [
+    "erp/shipment/index.vue"
+   ]
+  },
+  {
+   "key": "erp/shipment/form",
+   "files": [
+    "erp/shipment/form.vue"
+   ]
+  },
+  {
+   "key": "erp/shipment/index",
+   "files": [
+    "erp/shipment/index.vue"
+   ]
+  },
+  {
+   "key": "erp/stock-assemble/index",
+   "files": [
+    "erp/stock-assemble/index.vue"
+   ]
+  },
+  {
+   "key": "erp/stock-bom/index",
+   "files": [
+    "erp/stock-bom/index.vue"
+   ]
+  },
+  {
+   "key": "erp/stock-cost-adjust/index",
+   "files": [
+    "erp/stock-cost-adjust/index.vue"
+   ]
+  },
+  {
+   "key": "erp/stock-damage/index",
+   "files": [
+    "erp/stock-damage/index.vue"
+   ]
+  },
+  {
+   "key": "erp/stock-in/index",
+   "files": [
+    "erp/stock-in/index.vue"
+   ]
+  },
+  {
+   "key": "erp/stock-out/index",
+   "files": [
+    "erp/stock-out/index.vue"
+   ]
+  },
+  {
+   "key": "erp/stock-overflow/index",
+   "files": [
+    "erp/stock-overflow/index.vue"
+   ]
+  },
+  {
+   "key": "erp/stock-replenishment/index",
+   "files": [
+    "erp/stock/replenishment/index.vue"
+   ]
+  },
+  {
+   "key": "erp/stock-split/index",
+   "files": [
+    "erp/stock-split/index.vue"
+   ]
+  },
+  {
+   "key": "erp/stock-transfer/index",
+   "files": [
+    "erp/stock-transfer/index.vue"
+   ]
+  },
+  {
+   "key": "erp/stock/index",
+   "files": [
+    "erp/stock/index.vue"
+   ]
+  },
+  {
+   "key": "erp/stock/replenishment/index",
+   "files": [
+    "erp/stock/replenishment/index.vue"
+   ]
+  },
+  {
+   "key": "erp/stocktake/index",
+   "files": [
+    "erp/stocktake/index.vue"
+   ]
+  },
+  {
+   "key": "finance/advance-payment",
+   "files": [
+    "finance/advance-payment/index.vue"
+   ]
+  },
+  {
+   "key": "finance/advance-payment/index",
+   "files": [
+    "finance/advance-payment/index.vue"
+   ]
+  },
+  {
+   "key": "finance/advance-receipt",
+   "files": [
+    "finance/advance-receipt/index.vue"
+   ]
+  },
+  {
+   "key": "finance/advance-receipt/index",
+   "files": [
+    "finance/advance-receipt/index.vue"
+   ]
+  },
+  {
+   "key": "finance/ar-ap-adjust",
+   "files": [
+    "finance/ar-ap-adjust/index.vue"
+   ]
+  },
+  {
+   "key": "finance/ar-ap-adjust/index",
+   "files": [
+    "finance/ar-ap-adjust/index.vue"
+   ]
+  },
+  {
+   "key": "finance/auxiliary",
+   "files": [
+    "finance/auxiliary/index.vue"
+   ]
+  },
+  {
+   "key": "finance/auxiliary/index",
+   "files": [
+    "finance/auxiliary/index.vue"
+   ]
+  },
+  {
+   "key": "finance/budget-plan",
+   "files": [
+    "finance/budget-plan/index.vue"
+   ]
+  },
+  {
+   "key": "finance/budget-plan/index",
+   "files": [
+    "finance/budget-plan/index.vue"
+   ]
+  },
+  {
+   "key": "finance/capital-flow/index",
+   "files": [
+    "finance/capital-flow/index.vue"
+   ]
+  },
+  {
+   "key": "finance/cash-transfer",
+   "files": [
+    "finance/cash-transfer/index.vue"
+   ]
+  },
+  {
+   "key": "finance/cash-transfer/index",
+   "files": [
+    "finance/cash-transfer/index.vue"
+   ]
+  },
+  {
+   "key": "finance/deposit/index",
+   "files": [
+    "finance/deposit/index.vue"
+   ]
+  },
+  {
+   "key": "finance/expense-apply",
+   "files": [
+    "finance/expense-apply/index.vue"
+   ]
+  },
+  {
+   "key": "finance/expense-apply/index",
+   "files": [
+    "finance/expense-apply/index.vue"
+   ]
+  },
+  {
+   "key": "finance/expense-doc",
+   "files": [
+    "finance/expense-doc/index.vue"
+   ]
+  },
+  {
+   "key": "finance/expense-doc/index",
+   "files": [
+    "finance/expense-doc/index.vue"
+   ]
+  },
+  {
+   "key": "finance/expense-pay",
+   "files": [
+    "finance/expense-pay/index.vue"
+   ]
+  },
+  {
+   "key": "finance/expense-pay/index",
+   "files": [
+    "finance/expense-pay/index.vue"
+   ]
+  },
+  {
+   "key": "finance/expense-reimburse",
+   "files": [
+    "finance/expense-reimburse/index.vue"
+   ]
+  },
+  {
+   "key": "finance/expense-reimburse/index",
+   "files": [
+    "finance/expense-reimburse/index.vue"
+   ]
+  },
+  {
+   "key": "finance/index",
+   "files": [
+    "finance/index.vue"
+   ]
+  },
+  {
+   "key": "finance/offset/index",
+   "files": [
+    "finance/offset/index.vue"
+   ]
+  },
+  {
+   "key": "finance/other-income",
+   "files": [
+    "finance/other-income-doc/index.vue"
+   ]
+  },
+  {
+   "key": "finance/other-income-doc",
+   "files": [
+    "finance/other-income-doc/index.vue"
+   ]
+  },
+  {
+   "key": "finance/other-income-doc/index",
+   "files": [
+    "finance/other-income-doc/index.vue"
+   ]
+  },
+  {
+   "key": "finance/other-income/index",
+   "files": [
+    "finance/other-income-doc/index.vue"
+   ]
+  },
+  {
+   "key": "finance/payable/index",
+   "files": [
+    "finance/payable/index.vue"
+   ]
+  },
+  {
+   "key": "finance/payment-doc",
+   "files": [
+    "finance/payment-doc/index.vue"
+   ]
+  },
+  {
+   "key": "finance/payment-doc/index",
+   "files": [
+    "finance/payment-doc/index.vue"
+   ]
+  },
+  {
+   "key": "finance/payment/index",
+   "files": [
+    "finance/payment/index.vue"
+   ]
+  },
+  {
+   "key": "finance/pre-payment/index",
+   "files": [
+    "finance/pre-payment/index.vue"
+   ]
+  },
+  {
+   "key": "finance/pre-receipt/index",
+   "files": [
+    "finance/pre-receipt/index.vue"
+   ]
+  },
+  {
+   "key": "finance/receipt-doc",
+   "files": [
+    "finance/receipt-doc/index.vue"
+   ]
+  },
+  {
+   "key": "finance/receipt-doc/index",
+   "files": [
+    "finance/receipt-doc/index.vue"
+   ]
+  },
+  {
+   "key": "finance/receipt/index",
+   "files": [
+    "finance/receipt/index.vue"
+   ]
+  },
+  {
+   "key": "finance/receivable/index",
+   "files": [
+    "finance/receivable/index.vue"
+   ]
+  },
+  {
+   "key": "finance/report/index",
+   "files": [
+    "finance/report/index.vue"
+   ]
+  },
+  {
+   "key": "finance/reports/index",
+   "files": [
+    "finance/reports/index.vue"
+   ]
+  },
+  {
+   "key": "finance/subject/index",
+   "files": [
+    "finance/subject/index.vue"
+   ]
+  },
+  {
+   "key": "finance/voucher/VoucherDetail",
+   "files": [
+    "finance/voucher/VoucherDetail.vue"
+   ]
+  },
+  {
+   "key": "finance/voucher/index",
+   "files": [
+    "finance/voucher/index.vue"
+   ]
+  },
+  {
+   "key": "finance/write-off/index",
+   "files": [
+    "finance/write-off/index.vue"
+   ]
+  },
+  {
+   "key": "fixed-asset/asset/detail",
+   "files": [
+    "fixed-asset/asset/AssetDetail.vue"
+   ]
+  },
+  {
+   "key": "fixed-asset/asset/index",
+   "files": [
+    "fixed-asset/asset/index.vue"
+   ]
+  },
+  {
+   "key": "fixed-asset/category/index",
+   "files": [
+    "fixed-asset/category/index.vue"
+   ]
+  },
+  {
+   "key": "fixed-asset/depreciation/index",
+   "files": [
+    "fixed-asset/depreciation/index.vue"
+   ]
+  },
+  {
+   "key": "fixed-asset/disposal/index",
+   "files": [
+    "fixed-asset/disposal/index.vue"
+   ]
+  },
+  {
+   "key": "fixed-asset/index",
+   "files": [
+    "fixed-asset/index.vue"
+   ]
+  },
+  {
+   "key": "fixed-asset/inventory/index",
+   "files": [
+    "fixed-asset/inventory/index.vue"
+   ]
+  },
+  {
+   "key": "fixed-asset/purchase/index",
+   "files": [
+    "fixed-asset/purchase/index.vue"
+   ]
+  },
+  {
+   "key": "fixed-asset/report/index",
+   "files": [
+    "fixed-asset/report/index.vue"
+   ]
+  },
+  {
+   "key": "fixed-asset/transfer/index",
+   "files": [
+    "fixed-asset/transfer/index.vue"
+   ]
+  },
+  {
+   "key": "hr/attendance/index",
+   "files": [
+    "hr/attendance/index.vue"
+   ]
+  },
+  {
+   "key": "hr/employee/form",
+   "files": [
+    "hr/employee/form.vue"
+   ]
+  },
+  {
+   "key": "hr/employee/index",
+   "files": [
+    "hr/employee/index.vue"
+   ]
+  },
+  {
+   "key": "hr/leave/index",
+   "files": [
+    "hr/leave/index.vue"
+   ]
+  },
+  {
+   "key": "hr/organization/index",
+   "files": [
+    "hr/organization/index.vue"
+   ]
+  },
+  {
+   "key": "hr/performance/index",
+   "files": [
+    "hr/performance/index.vue"
+   ]
+  },
+  {
+   "key": "hr/salary/form",
+   "files": [
+    "hr/salary/form.vue"
+   ]
+  },
+  {
+   "key": "hr/salary/index",
+   "files": [
+    "hr/salary/index.vue"
+   ]
+  },
+  {
+   "key": "mall/banner/index",
+   "files": [
+    "erp/mall/banner/index.vue"
+   ]
+  },
+  {
+   "key": "mall/config/index",
+   "files": [
+    "erp/mall/config/index.vue"
+   ]
+  },
+  {
+   "key": "mall/order/index",
+   "files": [
+    "erp/mall/order/index.vue"
+   ]
+  },
+  {
+   "key": "mall/product/index",
+   "files": [
+    "erp/mall/product/index.vue"
+   ]
+  },
+  {
+   "key": "mall/user-audit",
+   "files": [
+    "erp/mall/user-audit/index.vue"
+   ]
+  },
+  {
+   "key": "mall/user-audit/index",
+   "files": [
+    "erp/mall/user-audit/index.vue"
+   ]
+  },
+  {
+   "key": "md/customer/form",
+   "files": [
+    "md/customer/form.vue"
+   ]
+  },
+  {
+   "key": "md/logistics/form",
+   "files": [
+    "md/logistics/form.vue"
+   ]
+  },
+  {
+   "key": "md/partner/form",
+   "files": [
+    "md/partner/form.vue"
+   ]
+  },
+  {
+   "key": "md/product",
+   "files": [
+    "erp/product/index.vue"
+   ]
+  },
+  {
+   "key": "md/product-aux",
+   "files": [
+    "md/product-supplement/index.vue"
+   ]
+  },
+  {
+   "key": "md/product-aux/index",
+   "files": [
+    "md/product-supplement/index.vue"
+   ]
+  },
+  {
+   "key": "md/product/form",
+   "files": [
+    "erp/product/form.vue"
+   ]
+  },
+  {
+   "key": "md/supplier/form",
+   "files": [
+    "md/supplier/form.vue"
+   ]
+  },
+  {
+   "key": "member/points-history",
+   "files": [
+    "member/points-history/index.vue"
+   ]
+  },
+  {
+   "key": "member/points-history/index",
+   "files": [
+    "member/points-history/index.vue"
+   ]
+  },
+  {
+   "key": "member/profile",
+   "files": [
+    "member/profile/index.vue"
+   ]
+  },
+  {
+   "key": "member/profile/index",
+   "files": [
+    "member/profile/index.vue"
+   ]
+  },
+  {
+   "key": "notification/index",
+   "files": [
+    "notification/index.vue"
+   ]
+  },
+  {
+   "key": "order-center/index",
+   "files": [
+    "order-center/index.vue"
+   ]
+  },
+  {
+   "key": "partner/detail",
+   "files": [
+    "erp/partner/detail.vue"
+   ]
+  },
+  {
+   "key": "partner/index",
+   "files": [
+    "erp/partner/index.vue"
+   ]
+  },
+  {
+   "key": "pricing/index",
+   "files": [
+    "erp/pricing/index.vue"
+   ]
+  },
+  {
+   "key": "printing/chain/index",
+   "files": [
+    "printing/chain/index.vue"
+   ]
+  },
+  {
+   "key": "printing/client/index",
+   "files": [
+    "printing/client/index.vue"
+   ]
+  },
+  {
+   "key": "printing/designer/index",
+   "files": [
+    "printing/designer/index.vue"
+   ]
+  },
+  {
+   "key": "printing/task/index",
+   "files": [
+    "printing/task/index.vue"
+   ]
+  },
+  {
+   "key": "printing/template/index",
+   "files": [
+    "printing/template/index.vue"
+   ]
+  },
+  {
+   "key": "profile/index",
+   "files": [
+    "profile/index.vue"
+   ]
+  },
+  {
+   "key": "purchase/cost-sharing",
+   "files": [
+    "purchase/cost-sharing/index.vue"
+   ]
+  },
+  {
+   "key": "purchase/cost-sharing/index",
+   "files": [
+    "purchase/cost-sharing/index.vue"
+   ]
+  },
+  {
+   "key": "purchase/detail/inbound/InboundDetail",
+   "files": [
+    "purchase/detail/inbound/InboundDetail.vue"
+   ]
+  },
+  {
+   "key": "purchase/detail/inquiry/InquiryDetail",
+   "files": [
+    "purchase/detail/inquiry/InquiryDetail.vue"
+   ]
+  },
+  {
+   "key": "purchase/exchange",
+   "files": [
+    "purchase/exchange/index.vue"
+   ]
+  },
+  {
+   "key": "purchase/exchange/form",
+   "files": [
+    "purchase/exchange/form.vue"
+   ]
+  },
+  {
+   "key": "purchase/exchange/index",
+   "files": [
+    "purchase/exchange/index.vue"
+   ]
+  },
+  {
+   "key": "purchase/inbound",
+   "files": [
+    "purchase/inbound/index.vue"
+   ]
+  },
+  {
+   "key": "purchase/inbound/index",
+   "files": [
+    "purchase/inbound/index.vue"
+   ]
+  },
+  {
+   "key": "purchase/index",
+   "files": [
+    "erp/purchase/index.vue"
+   ]
+  },
+  {
+   "key": "purchase/order",
+   "files": [
+    "erp/purchase/index.vue"
+   ]
+  },
+  {
+   "key": "purchase/return",
+   "files": [
+    "purchase/return/index.vue"
+   ]
+  },
+  {
+   "key": "purchase/return/index",
+   "files": [
+    "purchase/return/index.vue"
+   ]
+  },
+  {
+   "key": "quality/certificate/list",
+   "files": [
+    "quality/certificate/list.vue"
+   ]
+  },
+  {
+   "key": "quality/inspection/list",
+   "files": [
+    "quality/inspection/list.vue"
+   ]
+  },
+  {
+   "key": "quality/standard/list",
+   "files": [
+    "quality/standard/list.vue"
+   ]
+  },
+  {
+   "key": "sale/index",
+   "files": [
+    "erp/sale/index.vue"
+   ]
+  },
+  {
+   "key": "sales/exchange",
+   "files": [
+    "sales/exchange/index.vue"
+   ]
+  },
+  {
+   "key": "sales/exchange/index",
+   "files": [
+    "sales/exchange/index.vue"
+   ]
+  },
+  {
+   "key": "sales/order",
+   "files": [
+    "erp/sale/index.vue"
+   ]
+  },
+  {
+   "key": "sales/outbound",
+   "files": [
+    "sales/outbound/index.vue"
+   ]
+  },
+  {
+   "key": "sales/outbound/create",
+   "files": [
+    "sales/outbound/form.vue"
+   ]
+  },
+  {
+   "key": "sales/outbound/form/:id",
+   "files": [
+    "sales/outbound/form.vue"
+   ]
+  },
+  {
+   "key": "sales/outbound/index",
+   "files": [
+    "sales/outbound/index.vue"
+   ]
+  },
+  {
+   "key": "sales/pre-order/create",
+   "files": [
+    "sales/pre-order/form.vue"
+   ]
+  },
+  {
+   "key": "sales/pre-order/form/:id",
+   "files": [
+    "sales/pre-order/form.vue"
+   ]
+  },
+  {
+   "key": "sales/pre-order/index",
+   "files": [
+    "sales/pre-order/index.vue"
+   ]
+  },
+  {
+   "key": "sales/retail",
+   "files": [
+    "sales/retail/index.vue"
+   ]
+  },
+  {
+   "key": "sales/retail/create",
+   "files": [
+    "sales/retail/form.vue"
+   ]
+  },
+  {
+   "key": "sales/retail/form/:id",
+   "files": [
+    "sales/retail/form.vue"
+   ]
+  },
+  {
+   "key": "sales/retail/index",
+   "files": [
+    "sales/retail/index.vue"
+   ]
+  },
+  {
+   "key": "sales/return",
+   "files": [
+    "erp/return/index.vue"
+   ]
+  },
+  {
+   "key": "sales/return-apply",
+   "files": [
+    "sales/return-apply/index.vue"
+   ]
+  },
+  {
+   "key": "sales/return-apply/create",
+   "files": [
+    "sales/return-apply/form.vue"
+   ]
+  },
+  {
+   "key": "sales/return-apply/form/:id",
+   "files": [
+    "sales/return-apply/form.vue"
+   ]
+  },
+  {
+   "key": "sales/return-apply/index",
+   "files": [
+    "sales/return-apply/index.vue"
+   ]
+  },
+  {
+   "key": "sales/return-doc",
+   "files": [
+    "sales/return-doc/index.vue"
+   ]
+  },
+  {
+   "key": "sales/return-doc/create",
+   "files": [
+    "sales/return-doc/form.vue"
+   ]
+  },
+  {
+   "key": "sales/return-doc/form/:id",
+   "files": [
+    "sales/return-doc/form.vue"
+   ]
+  },
+  {
+   "key": "sales/return-doc/index",
+   "files": [
+    "sales/return-doc/index.vue"
+   ]
+  },
+  {
+   "key": "sales/shipment",
+   "files": [
+    "erp/shipment/index.vue"
+   ]
+  },
+  {
+   "key": "set/audit-config/form",
+   "files": [
+    "set/audit-config/form.vue"
+   ]
+  },
+  {
+   "key": "set/workflow-designer",
+   "files": [
+    "workflow/designer/index.vue"
+   ]
+  },
+  {
+   "key": "stock/detail/StockDetail",
+   "files": [
+    "erp/stock/index.vue"
+   ]
+  },
+  {
+   "key": "stock/index",
+   "files": [
+    "erp/stock/index.vue"
+   ]
+  },
+  {
+   "key": "supplier/create",
+   "files": [
+    "supplier/create.vue"
+   ]
+  },
+  {
+   "key": "supplier/detail",
+   "files": [
+    "supplier/detail.vue"
+   ]
+  },
+  {
+   "key": "supplier/edit",
+   "files": [
+    "supplier/edit.vue"
+   ]
+  },
+  {
+   "key": "supplier/index",
+   "files": [
+    "supplier/index.vue"
+   ]
+  },
+  {
+   "key": "supplier/inquiry/index",
+   "files": [
+    "supplier/inquiry/index.vue"
+   ]
+  },
+  {
+   "key": "supplier/performance/index",
+   "files": [
+    "supplier/performance/index.vue"
+   ]
+  },
+  {
+   "key": "system/data-import/index",
+   "files": [
+    "system/data-import/index.vue"
+   ]
+  },
+  {
+   "key": "system/department/index",
+   "files": [
+    "system/department/index.vue"
+   ]
+  },
+  {
+   "key": "system/log/index",
+   "files": [
+    "system/log/index.vue"
+   ]
+  },
+  {
+   "key": "system/position/index",
+   "files": [
+    "system/position/index.vue"
+   ]
+  },
+  {
+   "key": "system/role/index",
+   "files": [
+    "system/role/index.vue"
+   ]
+  },
+  {
+   "key": "system/user/index",
+   "files": [
+    "system/user/index.vue"
+   ]
+  },
+  {
+   "key": "trade/mall-return",
+   "files": [
+    "trade/mall-return/index.vue"
+   ]
+  },
+  {
+   "key": "trade/mall-return/index",
+   "files": [
+    "trade/mall-return/index.vue"
+   ]
+  },
+  {
+   "key": "wh/borrow-in/index",
+   "files": [
+    "wh/borrow-in/index.vue"
+   ]
+  },
+  {
+   "key": "wh/borrow-out/index",
+   "files": [
+    "wh/borrow-out/index.vue"
+   ]
+  },
+  {
+   "key": "wh/inventory-order/form",
+   "files": [
+    "wh/inventory-order/form/index.vue"
+   ]
+  },
+  {
+   "key": "wh/inventory-order/index",
+   "files": [
+    "wh/inventory-order/index.vue"
+   ]
+  },
+  {
+   "key": "wh/move-order/index",
+   "files": [
+    "wh/move-order/index.vue"
+   ]
+  },
+  {
+   "key": "wh/picking-order/index",
+   "files": [
+    "wh/picking-order/index.vue"
+   ]
+  },
+  {
+   "key": "wh/putaway-order/index",
+   "files": [
+    "wh/putaway-order/index.vue"
+   ]
+  },
+  {
+   "key": "wh/receiving-order/index",
+   "files": [
+    "wh/receiving-order/index.vue"
+   ]
+  },
+  {
+   "key": "wh/shipping-order/index",
+   "files": [
+    "wh/shipping-order/index.vue"
+   ]
+  },
+  {
+   "key": "wms/check",
+   "files": [
+    "wms/check/index.vue"
+   ]
+  },
+  {
+   "key": "wms/check/form",
+   "files": [
+    "wms/check/form.vue"
+   ]
+  },
+  {
+   "key": "wms/check/index",
+   "files": [
+    "wms/check/index.vue"
+   ]
+  },
+  {
+   "key": "wms/event/index",
+   "files": [
+    "wms/event/index.vue"
+   ]
+  },
+  {
+   "key": "wms/inventory/index",
+   "files": [
+    "wms/inventory/index.vue"
+   ]
+  },
+  {
+   "key": "wms/location/index",
+   "files": [
+    "wms/location/index.vue"
+   ]
+  },
+  {
+   "key": "wms/move",
+   "files": [
+    "wh/move-order/index.vue"
+   ]
+  },
+  {
+   "key": "wms/move/form",
+   "files": [
+    "wh/move-order/form/index.vue"
+   ]
+  },
+  {
+   "key": "wms/move/index",
+   "files": [
+    "wh/move-order/index.vue"
+   ]
+  },
+  {
+   "key": "wms/pick",
+   "files": [
+    "wh/picking-order/index.vue"
+   ]
+  },
+  {
+   "key": "wms/pick/form",
+   "files": [
+    "wh/picking-order/form/index.vue"
+   ]
+  },
+  {
+   "key": "wms/pick/index",
+   "files": [
+    "wh/picking-order/index.vue"
+   ]
+  },
+  {
+   "key": "wms/putaway",
+   "files": [
+    "wh/putaway-order/index.vue"
+   ]
+  },
+  {
+   "key": "wms/putaway/form",
+   "files": [
+    "wh/putaway-order/form/index.vue"
+   ]
+  },
+  {
+   "key": "wms/putaway/index",
+   "files": [
+    "wh/putaway-order/index.vue"
+   ]
+  },
+  {
+   "key": "wms/receipt",
+   "files": [
+    "wms/receipt/index.vue"
+   ]
+  },
+  {
+   "key": "wms/receipt/form",
+   "files": [
+    "wms/receipt/form.vue"
+   ]
+  },
+  {
+   "key": "wms/receipt/index",
+   "files": [
+    "wms/receipt/index.vue"
+   ]
+  },
+  {
+   "key": "wms/receive",
+   "files": [
+    "wh/receiving-order/index.vue"
+   ]
+  },
+  {
+   "key": "wms/receive/form",
+   "files": [
+    "wh/receiving-order/form/index.vue"
+   ]
+  },
+  {
+   "key": "wms/receive/index",
+   "files": [
+    "wh/receiving-order/index.vue"
+   ]
+  },
+  {
+   "key": "wms/ship",
+   "files": [
+    "wh/shipping-order/index.vue"
+   ]
+  },
+  {
+   "key": "wms/ship/form",
+   "files": [
+    "wh/shipping-order/form/index.vue"
+   ]
+  },
+  {
+   "key": "wms/ship/index",
+   "files": [
+    "wh/shipping-order/index.vue"
+   ]
+  },
+  {
+   "key": "wms/warehouse/index",
+   "files": [
+    "wms/warehouse/index.vue"
+   ]
+  },
+  {
+   "key": "wms/wave",
+   "files": [
+    "wms/wave/index.vue"
+   ]
+  },
+  {
+   "key": "wms/wave/form",
+   "files": [
+    "wms/wave/form.vue"
+   ]
+  },
+  {
+   "key": "wms/wave/index",
+   "files": [
+    "wms/wave/index.vue"
+   ]
+  },
+  {
+   "key": "workflow/definition",
+   "files": [
+    "workflow/designer/index.vue"
+   ]
+  }
+ ],
+ "untracked_view_files": [
+  "erp/product/components/ProductAttachmentsPanel.vue",
+  "erp/product/components/ProductAttributesPanel.vue",
+  "erp/product/components/ProductBarcodesPanel.vue",
+  "erp/product/components/ProductRelatedPanel.vue",
+  "erp/product/components/ProductUnitsPanel.vue",
+  "finance/subsidiary-balance/index.vue",
+  "finance/trial-balance/index.vue",
+  "md/components/PartnerFormLayout.vue",
+  "purchase/exchange/components/ExchangeApproveModal.vue",
+  "purchase/exchange/components/ExchangeDetailModal.vue",
+  "purchase/exchange/components/ExchangeTrackModal.vue",
+  "wms/move/form.vue",
+  "wms/move/index.vue",
+  "wms/pick/form.vue",
+  "wms/pick/index.vue",
+  "wms/putaway/form.vue",
+  "wms/putaway/index.vue",
+  "wms/ship/form.vue",
+  "wms/ship/index.vue"
+ ],
+ "db_missing_in_frontend": [
+  "erp/purchase-exchange/form",
+  "workflow/designer/index"
+ ],
+ "required_routes": [
+  {
+   "path": "erp/product/create",
+   "name": "ErpProductCreate",
+   "component": "erp/product/form.vue",
+   "title": "新增商品"
+  },
+  {
+   "path": "erp/product/form/:id",
+   "name": "ErpProductFormEdit",
+   "component": "erp/product/form.vue",
+   "title": "编辑商品"
+  },
+  {
+   "path": "erp/product/price-batch",
+   "name": "ErpProductPriceBatch",
+   "component": "erp/product/price-batch.vue",
+   "title": "批量价格管理"
+  },
+  {
+   "path": "erp/product/inventory-mode",
+   "name": "ErpProductInventoryMode",
+   "component": "erp/product/inventory-mode.vue",
+   "title": "库存管理模式"
+  },
+  {
+   "path": "erp/product/grade",
+   "name": "ErpProductGrade",
+   "component": "erp/product/grade.vue",
+   "title": "价格等级管理"
+  },
+  {
+   "path": "erp/purchase/form",
+   "name": "ErpPurchaseFormCreate",
+   "component": "erp/purchase/form.vue",
+   "title": "采购订单"
+  },
+  {
+   "path": "purchase/order/:id",
+   "name": "PurchaseOrderDetail",
+   "component": "erp/purchase/form.vue",
+   "title": "采购订单详情"
+  },
+  {
+   "path": "purchase/inquiry/:id",
+   "name": "PurchaseInquiryDetail",
+   "component": "purchase/detail/inquiry/InquiryDetail.vue",
+   "title": "询价详情"
+  },
+  {
+   "path": "purchase/inbound/:id",
+   "name": "PurchaseInboundDetail",
+   "component": "purchase/detail/inbound/InboundDetail.vue",
+   "title": "入库详情"
+  },
+  {
+   "path": "purchase/return/:id",
+   "name": "PurchaseReturnDetail",
+   "component": "purchase/return/form.vue",
+   "title": "采购退货单详情"
+  },
+  {
+   "path": "sale/order/:id",
+   "name": "SaleOrderDetail",
+   "component": "erp/sale/form.vue",
+   "title": "销售订单详情"
+  },
+  {
+   "path": "crm/customer/:id",
+   "name": "CrmCustomerDetail",
+   "component": "crm/customer/form.vue",
+   "title": "客户详情"
+  },
+  {
+   "path": "stock/detail/:id",
+   "name": "StockDetail",
+   "component": "erp/stock/index.vue",
+   "title": "库存详情"
+  },
+  {
+   "path": "erp/partner",
+   "name": "ErpPartner",
+   "component": "erp/partner/index.vue",
+   "title": "往来单位管理"
+  },
+  {
+   "path": "erp/partner/:id",
+   "name": "ErpPartnerDetail",
+   "component": "erp/partner/detail.vue",
+   "title": "单位详情"
+  },
+  {
+   "path": "erp/partner/create",
+   "name": "ErpPartnerCreate",
+   "component": "erp/partner/detail.vue",
+   "title": "新增单位"
+  },
+  {
+   "path": "erp/stock-in/:id",
+   "name": "ErpStockInDetail",
+   "component": "erp/stock-in/form.vue",
+   "title": "入库单详情"
+  },
+  {
+   "path": "erp/shipment/:id",
+   "name": "ErpShipmentDetail",
+   "component": "erp/shipment/form.vue",
+   "title": "出库单详情"
+  },
+  {
+   "path": "erp/stocktake/:id",
+   "name": "ErpStocktakeDetail",
+   "component": "erp/stocktake/form.vue",
+   "title": "盘点单详情"
+  },
+  {
+   "path": "erp/return/:id",
+   "name": "ErpReturnDetail",
+   "component": "erp/return/form.vue",
+   "title": "退货单详情"
+  },
+  {
+   "path": "erp/batch",
+   "name": "ErpBatch",
+   "component": "erp/batch/index.vue",
+   "title": "批次管理"
+  },
+  {
+   "path": "erp/serial",
+   "name": "ErpSerial",
+   "component": "erp/serial/index.vue",
+   "title": "序列号管理"
+  },
+  {
+   "path": "erp/serial/:id",
+   "name": "ErpSerialDetail",
+   "component": "erp/serial/detail.vue",
+   "title": "序列号追溯"
+  },
+  {
+   "path": "erp/column-config/sale-order-item",
+   "name": "ErpSaleOrderItemColumnConfig",
+   "component": "erp/column-config/SaleOrderItemColumnConfig.vue",
+   "title": "销售订单明细列配置"
+  },
+  {
+   "path": "supplier/detail/:id",
+   "name": "SupplierDetail",
+   "component": "supplier/detail.vue",
+   "title": "供应商详情"
+  },
+  {
+   "path": "supplier/create",
+   "name": "SupplierCreate",
+   "component": "supplier/create.vue",
+   "title": "新增供应商"
+  },
+  {
+   "path": "supplier/edit/:id",
+   "name": "SupplierEdit",
+   "component": "supplier/edit.vue",
+   "title": "编辑供应商"
+  },
+  {
+   "path": "workflow/instance-monitor",
+   "name": "WorkflowInstanceMonitor",
+   "component": "workflow/instance-monitor.vue",
+   "title": "流程监控"
+  },
+  {
+   "path": "workflow/task-management",
+   "name": "WorkflowTaskManagement",
+   "component": "workflow/task-management.vue",
+   "title": "任务管理"
+  },
+  {
+   "path": "workflow/process-analysis",
+   "name": "WorkflowProcessAnalysis",
+   "component": "workflow/process-analysis.vue",
+   "title": "流程分析"
+  },
+  {
+   "path": "notification/index",
+   "name": "Notification",
+   "component": "notification/index.vue",
+   "title": "通知公告"
+  },
+  {
+   "path": "profile/index",
+   "name": "Profile",
+   "component": "profile/index.vue",
+   "title": "个人中心"
+  },
+  {
+   "path": "charts/index",
+   "name": "Charts",
+   "component": "charts/index.vue",
+   "title": "图表"
+  },
+  {
+   "path": "system/data-import",
+   "name": "DataImport",
+   "component": "system/data-import/index.vue",
+   "title": "数据导入"
+  },
+  {
+   "path": "mall/config",
+   "name": "MallConfig",
+   "component": "erp/mall/config/index.vue",
+   "title": "商城配置"
+  },
+  {
+   "path": "mall/user-audit",
+   "name": "MallUserAudit",
+   "component": "erp/mall/user-audit/index.vue",
+   "title": "用户审核"
+  },
+  {
+   "path": "mall/banner",
+   "name": "MallBanner",
+   "component": "erp/mall/banner/index.vue",
+   "title": "轮播图管理"
+  },
+  {
+   "path": "mall/order",
+   "name": "MallOrder",
+   "component": "erp/mall/order/index.vue",
+   "title": "订单管理"
+  },
+  {
+   "path": "mall/product",
+   "name": "MallProduct",
+   "component": "erp/mall/product/index.vue",
+   "title": "商品管理"
+  },
+  {
+   "path": "stock",
+   "name": "Stock",
+   "component": "erp/stock/index.vue",
+   "title": "销售出库"
+  },
+  {
+   "path": "finance",
+   "name": "Finance",
+   "component": "finance/index.vue",
+   "title": "财务管理首页"
+  },
+  {
+   "path": "erp/pricing/approval",
+   "name": "ErpPricingApproval",
+   "component": "erp/pricing/approval/index.vue",
+   "title": "价格审批"
+  },
+  {
+   "path": "erp/pricing",
+   "name": "ErpPricing",
+   "component": "erp/pricing/index.vue",
+   "title": "价格管理"
+  },
+  {
+   "path": "erp/purchase",
+   "name": "ErpPurchase",
+   "component": "erp/purchase/index.vue",
+   "title": "采购管理"
+  },
+  {
+   "path": "erp/purchase-contract",
+   "name": "ErpPurchaseContract",
+   "component": "erp/purchase-contract/index.vue",
+   "title": "采购合同"
+  },
+  {
+   "path": "erp/purchase/inquiry",
+   "name": "ErpPurchaseInquiry",
+   "component": "erp/purchase/index.vue",
+   "title": "采购询价"
+  },
+  {
+   "path": "erp/sales-analysis",
+   "name": "ErpSalesAnalysis",
+   "component": "erp/sales-analysis/index.vue",
+   "title": "销售分析"
+  },
+  {
+   "path": "erp/sales-report",
+   "name": "ErpSalesReport",
+   "component": "erp/sales-report/index.vue",
+   "title": "销售报表"
+  },
+  {
+   "path": "erp/stock",
+   "name": "ErpStock",
+   "component": "erp/stock/index.vue",
+   "title": "库存管理"
+  },
+  {
+   "path": "erp/stock-in",
+   "name": "ErpStockIn",
+   "component": "erp/stock-in/index.vue",
+   "title": "入库管理"
+  },
+  {
+   "path": "erp/stocktake",
+   "name": "ErpStocktake",
+   "component": "erp/stocktake/index.vue",
+   "title": "库存盘点"
+  },
+  {
+   "path": "erp/stock/replenishment",
+   "name": "ErpStockReplenishment",
+   "component": "erp/stock/replenishment/index.vue",
+   "title": "智能补货"
+  },
+  {
+   "path": "erp/batch",
+   "name": "ErpBatchMain",
+   "component": "erp/batch/index.vue",
+   "title": "批次管理"
+  },
+  {
+   "path": "erp/serial",
+   "name": "ErpSerialMain",
+   "component": "erp/serial/index.vue",
+   "title": "序列号管理"
+  },
+  {
+   "path": "erp/return",
+   "name": "ErpReturnMain",
+   "component": "erp/return/index.vue",
+   "title": "退货管理"
+  },
+  {
+   "path": "erp/stock-bom",
+   "name": "ErpStockBom",
+   "component": "erp/stock-bom/index.vue",
+   "title": "生产模板"
+  },
+  {
+   "path": "erp/stock-bom/form/:id",
+   "name": "StockBomFormEdit",
+   "component": "erp/stock-bom/form.vue",
+   "title": "编辑生产模板"
+  },
+  {
+   "path": "sales/retail",
+   "name": "RetailList",
+   "component": "sales/retail/index.vue",
+   "title": "零售单"
+  },
+  {
+   "path": "sales/retail/create",
+   "name": "RetailFormCreate",
+   "component": "sales/retail/form.vue",
+   "title": "新增零售单"
+  },
+  {
+   "path": "sales/retail/form/:id",
+   "name": "RetailFormDetail",
+   "component": "sales/retail/form.vue",
+   "title": "零售单详情"
+  },
+  {
+   "path": "sales/outbound/form/:id",
+   "name": "SalesOutboundFormEdit",
+   "component": "sales/outbound/form.vue",
+   "title": "编辑销售出库单"
+  },
+  {
+   "path": "dms/order-pool/bid-detail",
+   "name": "DmsOrderPoolBidDetail",
+   "component": "dms/order-pool/bid-detail.vue",
+   "title": "竞标详情"
+  },
+  {
+   "path": "sales/return-apply/form/:id",
+   "name": "SaleReturnApplyFormEdit",
+   "component": "sales/return-apply/form.vue",
+   "title": "编辑销售退货申请"
+  },
+  {
+   "path": "mall/user-audit/form",
+   "name": "MallUserAuditForm",
+   "component": "erp/mall/user-audit/form.vue",
+   "title": "用户审核"
+  },
+  {
+   "path": "mall/user-audit/form/:id",
+   "name": "MallUserAuditFormDetail",
+   "component": "erp/mall/user-audit/form.vue",
+   "title": "用户审核详情"
+  },
+  {
+   "path": "md/logistics/form/:id",
+   "name": "MdLogisticsFormEdit",
+   "component": "md/logistics/form.vue",
+   "title": "编辑物流公司"
+  },
+  {
+   "path": "sales/pre-order",
+   "name": "PreOrderListAlias",
+   "component": "sales/pre-order/index.vue",
+   "title": "预订货单"
+  },
+  {
+   "path": "sales/pre-order/form",
+   "name": "PreOrderForm",
+   "component": "sales/pre-order/form.vue",
+   "title": "新增预订货单"
+  },
+  {
+   "path": "sales/pre-order/form/:id",
+   "name": "PreOrderFormEdit",
+   "component": "sales/pre-order/form.vue",
+   "title": "编辑预订货单"
+  },
+  {
+   "path": "sales/pre-order/create",
+   "name": "PreOrderCreate",
+   "component": "sales/pre-order/form.vue",
+   "title": "新增预订货单"
+  },
+  {
+   "path": "erp/stock-assemble/form",
+   "name": "StockAssembleForm",
+   "component": "erp/stock-assemble/form.vue",
+   "title": "新增组装单"
+  },
+  {
+   "path": "erp/stock-assemble/form/:id",
+   "name": "StockAssembleFormEdit",
+   "component": "erp/stock-assemble/form.vue",
+   "title": "编辑组装单"
+  },
+  {
+   "path": "erp/stock-split/form",
+   "name": "StockSplitForm",
+   "component": "erp/stock-split/form.vue",
+   "title": "新增拆分单"
+  },
+  {
+   "path": "erp/stock-split/form/:id",
+   "name": "StockSplitFormEdit",
+   "component": "erp/stock-split/form.vue",
+   "title": "编辑拆分单"
+  }
+ ],
+ "fallback_routes": [
+  {
+   "path": "dashboard",
+   "component": "dashboard/index.vue"
+  },
+  {
+   "path": "charts/index",
+   "component": "charts/index.vue"
+  },
+  {
+   "path": "notification/index",
+   "component": "notification/index.vue"
+  },
+  {
+   "path": "profile/index",
+   "component": "profile/index.vue"
+  }
+ ],
+ "component_map": {
+  "erp/product/index": "erp/product/index.vue",
+  "erp/product/create": "erp/product/form.vue",
+  "erp/product/form": "erp/product/form.vue",
+  "erp/product/price-batch": "erp/product/price-batch.vue",
+  "erp/product/inventory-mode": "erp/product/inventory-mode.vue",
+  "erp/product/grade": "erp/product/grade.vue",
+  "erp/column-config/sale-order-item": "erp/column-config/SaleOrderItemColumnConfig.vue",
+  "partner/index": "erp/partner/index.vue",
+  "partner/detail": "erp/partner/detail.vue",
+  "erp/partner/index": "erp/partner/index.vue",
+  "erp/partner/detail": "erp/partner/detail.vue",
+  "pricing/index": "erp/pricing/index.vue",
+  "charts/index": "charts/index.vue",
+  "crm/contract/index": "crm/contract/index.vue",
+  "crm/customer/index": "crm/customer/index.vue",
+  "crm/invoice/index": "crm/invoice/index.vue",
+  "crm/lead/index": "crm/lead/index.vue",
+  "crm/opportunity/index": "crm/opportunity/index.vue",
+  "crm/quotation/index": "crm/quotation/index.vue",
+  "crm/supplier/index": "crm/supplier/index.vue",
+  "dashboard/index": "dashboard/index.vue",
+  "finance/index": "finance/index.vue",
+  "finance/reconciliation/index": "finance/reconciliation/index.vue",
+  "finance/reports/index": "finance/reports/index.vue",
+  "finance/voucher/index": "finance/voucher/index.vue",
+  "finance/voucher/VoucherDetail": "finance/voucher/VoucherDetail.vue",
+  "finance/subject/index": "finance/subject/index.vue",
+  "finance/receivable/index": "finance/receivable/index.vue",
+  "finance/payable/index": "finance/payable/index.vue",
+  "finance/pre-receipt/index": "finance/pre-receipt/index.vue",
+  "finance/pre-payment/index": "finance/pre-payment/index.vue",
+  "finance/deposit/index": "finance/deposit/index.vue",
+  "finance/write-off/index": "finance/write-off/index.vue",
+  "finance/offset/index": "finance/offset/index.vue",
+  "finance/capital-flow/index": "finance/capital-flow/index.vue",
+  "finance/receipt/index": "finance/receipt/index.vue",
+  "finance/payment/index": "finance/payment/index.vue",
+  "finance/report/index": "finance/report/index.vue",
+  "notification/index": "notification/index.vue",
+  "order-center/index": "order-center/index.vue",
+  "profile/index": "profile/index.vue",
+  "purchase/detail/inbound/InboundDetail": "purchase/detail/inbound/InboundDetail.vue",
+  "purchase/detail/inquiry/InquiryDetail": "purchase/detail/inquiry/InquiryDetail.vue",
+  "purchase/index": "erp/purchase/index.vue",
+  "sale/index": "erp/sale/index.vue",
+  "stock/detail/StockDetail": "erp/stock/index.vue",
+  "stock/index": "erp/stock/index.vue",
+  "supplier/create": "supplier/create.vue",
+  "supplier/detail": "supplier/detail.vue",
+  "supplier/edit": "supplier/edit.vue",
+  "supplier/index": "supplier/index.vue",
+  "supplier/inquiry/index": "supplier/inquiry/index.vue",
+  "supplier/performance/index": "supplier/performance/index.vue",
+  "system/config/index": "system/config/index.vue",
+  "system/department/index": "system/department/index.vue",
+  "system/dict/index": "system/dict/index.vue",
+  "system/log/index": "system/log/index.vue",
+  "system/menu/index": "system/menu/index.vue",
+  "system/permission/index": "system/permission/index.vue",
+  "system/position/index": "system/position/index.vue",
+  "system/role/index": "system/role/index.vue",
+  "system/user/index": "system/user/index.vue",
+  "system/data-import/index": "system/data-import/index.vue",
+  "workflow/instance-monitor": "workflow/instance-monitor.vue",
+  "workflow/definition": "workflow/designer/index.vue",
+  "set/workflow-designer": "workflow/designer/index.vue",
+  "workflow/process-analysis": "workflow/process-analysis.vue",
+  "workflow/task-management": "workflow/task-management.vue",
+  "printing/template/index": "printing/template/index.vue",
+  "printing/chain/index": "printing/chain/index.vue",
+  "printing/client/index": "printing/client/index.vue",
+  "printing/task/index": "printing/task/index.vue",
+  "printing/designer/index": "printing/designer/index.vue",
+  "erp/sale/index": "erp/sale/index.vue",
+  "erp/sale/form": "erp/sale/form.vue",
+  "erp/stock/index": "erp/stock/index.vue",
+  "erp/sales-analysis/index": "erp/sales-analysis/index.vue",
+  "erp/sales-report/index": "erp/sales-report/index.vue",
+  "erp/stock-in/index": "erp/stock-in/index.vue",
+  "erp/stock-out/index": "erp/stock-out/index.vue",
+  "erp/stock/replenishment/index": "erp/stock/replenishment/index.vue",
+  "erp/stocktake/index": "erp/stocktake/index.vue",
+  "erp/return/index": "erp/return/index.vue",
+  "erp/shipment/index": "erp/shipment/index.vue",
+  "erp/pricing/index": "erp/pricing/index.vue",
+  "erp/pricing/approval/index": "erp/pricing/approval/index.vue",
+  "erp/pricing/tiers/index": "erp/pricing/tiers/index.vue",
+  "erp/dashboard/index": "erp/dashboard/index.vue",
+  "erp/purchase/index": "erp/purchase/index.vue",
+  "erp/purchase/form": "erp/purchase/form.vue",
+  "erp/purchase-contract/index": "erp/purchase-contract/index.vue",
+  "erp/purchase-contract/form": "erp/purchase-contract/form.vue",
+  "erp/batch/index": "erp/batch/index.vue",
+  "erp/serial/index": "erp/serial/index.vue",
+  "erp/serial/detail": "erp/serial/detail.vue",
+  "erp/stock-cost-adjust/index": "erp/stock-cost-adjust/index.vue",
+  "erp/stock-cost-adjust/form": "erp/stock-cost-adjust/form.vue",
+  "erp/stock-overflow/index": "erp/stock-overflow/index.vue",
+  "erp/stock-overflow/form": "erp/stock-overflow/form.vue",
+  "erp/stock-damage/index": "erp/stock-damage/index.vue",
+  "erp/stock-damage/form": "erp/stock-damage/form.vue",
+  "erp/stock-transfer/index": "erp/stock-transfer/index.vue",
+  "erp/stock-transfer/form": "erp/stock-transfer/form.vue",
+  "erp/stock-replenishment/index": "erp/stock/replenishment/index.vue",
+  "erp/stock-alert-config/index": "erp/stock-alert-config/index.vue",
+  "erp/stock-bom/index": "erp/stock-bom/index.vue",
+  "erp/stock-bom/form": "erp/stock-bom/form.vue",
+  "erp/stock-out/form": "erp/stock-out/form.vue",
+  "erp/stock-assemble/index": "erp/stock-assemble/index.vue",
+  "erp/stock-assemble/form": "erp/stock-assemble/form.vue",
+  "erp/stock-split/index": "erp/stock-split/index.vue",
+  "erp/stock-split/form": "erp/stock-split/form.vue",
+  "wms/warehouse/index": "wms/warehouse/index.vue",
+  "wms/location/index": "wms/location/index.vue",
+  "wms/receipt/index": "wms/receipt/index.vue",
+  "wms/putaway/index": "wh/putaway-order/index.vue",
+  "wms/pick/index": "wh/picking-order/index.vue",
+  "wms/wave/index": "wms/wave/index.vue",
+  "wms/ship/index": "wh/shipping-order/index.vue",
+  "wms/inventory/index": "wms/inventory/index.vue",
+  "wms/move/index": "wh/move-order/index.vue",
+  "wms/check/index": "wms/check/index.vue",
+  "wms/event/index": "wms/event/index.vue",
+  "erp/mall/config/index": "erp/mall/config/index.vue",
+  "erp/mall/user-audit/index": "erp/mall/user-audit/index.vue",
+  "erp/mall/banner/index": "erp/mall/banner/index.vue",
+  "erp/mall/order/index": "erp/mall/order/index.vue",
+  "erp/mall/product/index": "erp/mall/product/index.vue",
+  "mall/config/index": "erp/mall/config/index.vue",
+  "mall/user-audit/index": "erp/mall/user-audit/index.vue",
+  "mall/banner/index": "erp/mall/banner/index.vue",
+  "mall/order/index": "erp/mall/order/index.vue",
+  "mall/product/index": "erp/mall/product/index.vue",
+  "fixed-asset/index": "fixed-asset/index.vue",
+  "fixed-asset/asset/index": "fixed-asset/asset/index.vue",
+  "fixed-asset/asset/detail": "fixed-asset/asset/AssetDetail.vue",
+  "fixed-asset/category/index": "fixed-asset/category/index.vue",
+  "fixed-asset/depreciation/index": "fixed-asset/depreciation/index.vue",
+  "fixed-asset/transfer/index": "fixed-asset/transfer/index.vue",
+  "fixed-asset/disposal/index": "fixed-asset/disposal/index.vue",
+  "fixed-asset/inventory/index": "fixed-asset/inventory/index.vue",
+  "fixed-asset/report/index": "fixed-asset/report/index.vue",
+  "fixed-asset/purchase/index": "fixed-asset/purchase/index.vue",
+  "erp/expense/application/index": "erp/expense/application/index.vue",
+  "erp/expense/application/detail": "erp/expense/application/detail.vue",
+  "erp/expense/reimbursement/index": "erp/expense/reimbursement/index.vue",
+  "erp/expense/reimbursement/detail": "erp/expense/reimbursement/detail.vue",
+  "erp/expense/approval/index": "erp/expense/approval/index.vue",
+  "erp/expense/payment/index": "erp/expense/payment/index.vue",
+  "erp/expense/statistics/index": "erp/expense/statistics/index.vue",
+  "budget/index": "budget/index.vue",
+  "budget/template/index": "budget/template/index.vue",
+  "budget/annual/index": "budget/annual/index.vue",
+  "budget/annual/detail": "budget/annual/BudgetDetail.vue",
+  "budget/adjustment/index": "budget/adjustment/index.vue",
+  "budget/report/index": "budget/report/index.vue",
+  "dms/dashboard/index": "dms/dashboard/index.vue",
+  "dms/channel/index": "dms/channel/index.vue",
+  "dms/rider/index": "dms/rider/index.vue",
+  "dms/vehicle/index": "dms/vehicle/index.vue",
+  "dms/vehicle/maintenance": "dms/vehicle/maintenance.vue",
+  "dms/verification/index": "dms/verification/index.vue",
+  "dms/vehicle/usage/index": "dms/vehicle/usage/index.vue",
+  "dms/route/index": "dms/route/index.vue",
+  "dms/dispatch/index": "dms/dispatch/index.vue",
+  "dms/order-pool/index": "dms/order-pool/index.vue",
+  "dms/order-pool/bid-detail": "dms/order-pool/bid-detail.vue",
+  "dms/config/index": "dms/config/index.vue",
+  "dms/tracking/index": "dms/tracking/index.vue",
+  "dms/sign/index": "dms/sign/index.vue",
+  "dms/settlement/index": "dms/settlement/index.vue",
+  "dms/payment/index": "dms/payment/index.vue",
+  "admin/tenant/approval": "admin/tenant/approval/index.vue",
+  "admin/monitor/log": "system/log/index.vue",
+  "admin/tenant/list": "admin/tenant/list/index.vue",
+  "admin/tenant/package": "admin/tenant/package/index.vue",
+  "admin/tenant/module-auth": "admin/tenant/module-auth/index.vue",
+  "admin/tenant/quota": "admin/tenant/quota/index.vue",
+  "admin/monitor/health": "admin/monitor/health/index.vue",
+  "admin/monitor/performance": "admin/monitor/performance/index.vue",
+  "admin/monitor/api": "admin/monitor/api/index.vue",
+  "admin/monitor/audit": "admin/monitor/audit/index.vue",
+  "admin/monitor/cache": "admin/monitor/cache/index.vue",
+  "admin/data/connection": "admin/data/connection/index.vue",
+  "admin/data/slow-query": "admin/data/slow-query/index.vue",
+  "admin/data/backup": "admin/data/backup/index.vue",
+  "admin/data/sync": "admin/data/sync/index.vue",
+  "admin/data/cleanup": "admin/data/cleanup/index.vue",
+  "admin/module/list": "admin/module/list/index.vue",
+  "admin/module/version": "admin/module/version/index.vue",
+  "admin/module/release": "admin/module/release/index.vue",
+  "admin/module/usage": "admin/module/usage/index.vue",
+  "admin/dev/template": "admin/dev/template/index.vue",
+  "admin/dev/api-doc": "admin/dev/api-doc/index.vue",
+  "admin/dev/api-test": "admin/dev/api-test/index.vue",
+  "admin/dev/scheduler": "admin/dev/scheduler/index.vue",
+  "admin/platform/params": "admin/platform/params/index.vue",
+  "admin/platform/mail": "admin/platform/mail/index.vue",
+  "admin/platform/sms": "admin/platform/sms/index.vue",
+  "admin/platform/storage": "admin/platform/storage/index.vue",
+  "admin/platform/security": "admin/platform/security/index.vue",
+  "common/placeholder/index": "common/placeholder/index.vue",
+  "erp/shipment/form": "erp/shipment/form.vue",
+  "erp/return/form": "erp/return/form.vue",
+  "erp/stock-in/form": "erp/stock-in/form.vue",
+  "erp/stocktake/form": "erp/stocktake/form.vue",
+  "wms/receipt/form": "wms/receipt/form.vue",
+  "wms/putaway/form": "wh/putaway-order/form/index.vue",
+  "wms/pick/form": "wh/picking-order/form/index.vue",
+  "wms/wave/form": "wms/wave/form.vue",
+  "wms/ship/form": "wh/shipping-order/form/index.vue",
+  "wms/move/form": "wh/move-order/form/index.vue",
+  "wms/check/form": "wms/check/form.vue",
+  "finance/receipt-doc/form": "finance/receipt-doc/form.vue",
+  "finance/receipt-doc": "finance/receipt-doc/index.vue",
+  "finance/receipt-doc/index": "finance/receipt-doc/index.vue",
+  "finance/payment-doc/form": "finance/payment-doc/form.vue",
+  "finance/payment-doc": "finance/payment-doc/index.vue",
+  "finance/payment-doc/index": "finance/payment-doc/index.vue",
+  "finance/expense-doc/form": "finance/expense-doc/form.vue",
+  "finance/voucher/form": "finance/voucher/form.vue",
+  "finance/advance-receipt/form": "finance/advance-receipt/form.vue",
+  "finance/advance-payment/form": "finance/advance-payment/form.vue",
+  "finance/ar-ap-adjust/form": "finance/ar-ap-adjust/form.vue",
+  "finance/budget-plan/form": "finance/budget-plan/form.vue",
+  "dms/rider/form": "dms/rider/form.vue",
+  "dms/vehicle/form": "dms/vehicle/form.vue",
+  "sales/order": "erp/sale/index.vue",
+  "purchase/order": "erp/purchase/index.vue",
+  "sales/return": "erp/return/index.vue",
+  "sales/shipment": "erp/shipment/index.vue",
+  "wms/receipt": "wms/receipt/index.vue",
+  "wms/putaway": "wh/putaway-order/index.vue",
+  "wms/pick": "wh/picking-order/index.vue",
+  "wms/wave": "wms/wave/index.vue",
+  "wms/ship": "wh/shipping-order/index.vue",
+  "wms/move": "wh/move-order/index.vue",
+  "wms/check": "wms/check/index.vue",
+  "mall/user-audit": "erp/mall/user-audit/index.vue",
+  "crm/quotation": "crm/quotation/index.vue",
+  "crm/invoice": "crm/invoice/index.vue",
+  "crm/customer": "crm/customer/index.vue",
+  "crm/lead": "crm/lead/index.vue",
+  "crm/opportunity": "crm/opportunity/index.vue",
+  "crm/contract": "crm/contract/index.vue",
+  "dms/rider": "dms/rider/index.vue",
+  "dms/vehicle": "dms/vehicle/index.vue",
+  "dms/sign": "dms/sign/index.vue",
+  "dms/settlement": "dms/settlement/index.vue",
+  "dms/payment": "dms/payment/index.vue",
+  "erp/return": "erp/return/index.vue",
+  "erp/shipment": "erp/shipment/index.vue",
+  "sales/visit-plan": "sales/visit-plan/index.vue",
+  "sales/visit-plan/index": "sales/visit-plan/index.vue",
+  "sales/visit-exec": "sales/visit-exec/index.vue",
+  "sales/visit-exec/index": "sales/visit-exec/index.vue",
+  "sales/visit-review": "sales/visit-review/index.vue",
+  "sales/visit-review/index": "sales/visit-review/index.vue",
+  "sales/return-apply": "sales/return-apply/index.vue",
+  "sales/return-apply/index": "sales/return-apply/index.vue",
+  "sales/return-apply/form": "sales/return-apply/form.vue",
+  "sales/return-apply/form/:id": "sales/return-apply/form.vue",
+  "sales/return-apply/create": "sales/return-apply/form.vue",
+  "sales/pre-order/index": "sales/pre-order/index.vue",
+  "sales/pre-order/form": "sales/pre-order/form.vue",
+  "sales/pre-order/form/:id": "sales/pre-order/form.vue",
+  "sales/pre-order/create": "sales/pre-order/form.vue",
+  "sales/retail": "sales/retail/index.vue",
+  "sales/retail/index": "sales/retail/index.vue",
+  "sales/retail/form": "sales/retail/form.vue",
+  "sales/retail/form/:id": "sales/retail/form.vue",
+  "sales/retail/create": "sales/retail/form.vue",
+  "sales/outbound": "sales/outbound/index.vue",
+  "sales/outbound/index": "sales/outbound/index.vue",
+  "sales/outbound/form": "sales/outbound/form.vue",
+  "sales/outbound/form/:id": "sales/outbound/form.vue",
+  "sales/outbound/create": "sales/outbound/form.vue",
+  "sales/return-doc": "sales/return-doc/index.vue",
+  "sales/return-doc/index": "sales/return-doc/index.vue",
+  "sales/return-doc/form": "sales/return-doc/form.vue",
+  "sales/return-doc/form/:id": "sales/return-doc/form.vue",
+  "sales/return-doc/create": "sales/return-doc/form.vue",
+  "sales/exchange": "sales/exchange/index.vue",
+  "sales/exchange/index": "sales/exchange/index.vue",
+  "sales/exchange/form": "sales/exchange/form.vue",
+  "sales/doc-query": "sales/doc-query/index.vue",
+  "sales/doc-query/index": "sales/doc-query/index.vue",
+  "sales/detail-query": "sales/detail-query/index.vue",
+  "sales/detail-query/index": "sales/detail-query/index.vue",
+  "sales/price-track": "sales/price-track/index.vue",
+  "sales/price-track/index": "sales/price-track/index.vue",
+  "purchase/alert-replenish": "purchase/alert-replenish/index.vue",
+  "purchase/alert-replenish/index": "purchase/alert-replenish/index.vue",
+  "purchase/shortage-replenish": "purchase/shortage-replenish/index.vue",
+  "purchase/shortage-replenish/index": "purchase/shortage-replenish/index.vue",
+  "purchase/smart-replenish": "purchase/smart-replenish/index.vue",
+  "purchase/smart-replenish/index": "purchase/smart-replenish/index.vue",
+  "purchase/sales-driven": "purchase/sales-driven/index.vue",
+  "purchase/sales-driven/index": "purchase/sales-driven/index.vue",
+  "purchase/inbound": "purchase/inbound/index.vue",
+  "purchase/inbound/index": "purchase/inbound/index.vue",
+  "purchase/inbound/form": "purchase/inbound/form.vue",
+  "purchase/return": "purchase/return/index.vue",
+  "purchase/return/index": "purchase/return/index.vue",
+  "purchase/return/form": "purchase/return/form.vue",
+  "purchase/exchange": "purchase/exchange/index.vue",
+  "purchase/exchange/index": "purchase/exchange/index.vue",
+  "purchase/exchange/form": "purchase/exchange/form.vue",
+  "purchase/cost-sharing": "purchase/cost-sharing/index.vue",
+  "purchase/cost-sharing/index": "purchase/cost-sharing/index.vue",
+  "purchase/cost-sharing/form": "purchase/cost-sharing/form.vue",
+  "purchase/doc-query": "purchase/doc-query/index.vue",
+  "purchase/doc-query/index": "purchase/doc-query/index.vue",
+  "purchase/detail-query": "purchase/detail-query/index.vue",
+  "purchase/detail-query/index": "purchase/detail-query/index.vue",
+  "purchase/price-track": "purchase/price-track/index.vue",
+  "purchase/price-track/index": "purchase/price-track/index.vue",
+  "dispatch/query": "dispatch/query/index.vue",
+  "dispatch/query/index": "dispatch/query/index.vue",
+  "dispatch/logistics-ship": "dispatch/logistics-ship/index.vue",
+  "dispatch/logistics-ship/index": "dispatch/logistics-ship/index.vue",
+  "dispatch/freight-reconcile": "dispatch/freight-reconcile/index.vue",
+  "dispatch/freight-reconcile/index": "dispatch/freight-reconcile/index.vue",
+  "dispatch/ship-query": "dispatch/ship-query/index.vue",
+  "dispatch/ship-query/index": "dispatch/ship-query/index.vue",
+  "dispatch/return-receive": "dispatch/return-receive/index.vue",
+  "dispatch/return-receive/index": "dispatch/return-receive/index.vue",
+  "dispatch/purchase-receive": "dispatch/purchase-receive/index.vue",
+  "dispatch/purchase-receive/index": "dispatch/purchase-receive/index.vue",
+  "dispatch/dispatch-order": "dispatch/dispatch-order/index.vue",
+  "dispatch/dispatch-order/index": "dispatch/dispatch-order/index.vue",
+  "finance/expense-doc": "finance/expense-doc/index.vue",
+  "finance/expense-doc/index": "finance/expense-doc/index.vue",
+  "finance/other-income": "finance/other-income-doc/index.vue",
+  "finance/other-income/index": "finance/other-income-doc/index.vue",
+  "finance/ar-ap-adjust": "finance/ar-ap-adjust/index.vue",
+  "finance/ar-ap-adjust/index": "finance/ar-ap-adjust/index.vue",
+  "finance/account-delivery": "finance/account-delivery/index.vue",
+  "finance/account-delivery/index": "finance/account-delivery/index.vue",
+  "finance/general-ledger": "finance/general-ledger/index.vue",
+  "finance/general-ledger/index": "finance/general-ledger/index.vue",
+  "finance/detail-ledger": "finance/detail-ledger/index.vue",
+  "finance/detail-ledger/index": "finance/detail-ledger/index.vue",
+  "finance/balance-sheet": "finance/balance-sheet/index.vue",
+  "finance/balance-sheet/index": "finance/balance-sheet/index.vue",
+  "finance/aux-balance": "finance/aux-balance/index.vue",
+  "finance/aux-balance/index": "finance/aux-balance/index.vue",
+  "finance/balance-report": "finance/balance-report/index.vue",
+  "finance/balance-report/index": "finance/balance-report/index.vue",
+  "finance/profit-report": "finance/profit-report/index.vue",
+  "finance/profit-report/index": "finance/profit-report/index.vue",
+  "finance/expense-apply": "finance/expense-apply/index.vue",
+  "finance/expense-apply/index": "finance/expense-apply/index.vue",
+  "finance/expense-reimburse": "finance/expense-reimburse/index.vue",
+  "finance/expense-reimburse/index": "finance/expense-reimburse/index.vue",
+  "finance/expense-approval": "finance/expense-approval/index.vue",
+  "finance/expense-approval/index": "finance/expense-approval/index.vue",
+  "finance/expense-pay": "finance/expense-pay/index.vue",
+  "finance/expense-pay/index": "finance/expense-pay/index.vue",
+  "finance/expense-stats": "finance/expense-stats/index.vue",
+  "finance/expense-stats/index": "finance/expense-stats/index.vue",
+  "finance/advance-receipt": "finance/advance-receipt/index.vue",
+  "finance/advance-receipt/index": "finance/advance-receipt/index.vue",
+  "finance/cash-transfer": "finance/cash-transfer/index.vue",
+  "finance/cash-transfer/index": "finance/cash-transfer/index.vue",
+  "finance/receipt-by-doc": "finance/receipt-by-doc/index.vue",
+  "finance/receipt-by-doc/index": "finance/receipt-by-doc/index.vue",
+  "finance/pending-confirm": "finance/pending-confirm/index.vue",
+  "finance/pending-confirm/index": "finance/pending-confirm/index.vue",
+  "finance/online-payment-reconcile": "finance/online-payment-reconcile/index.vue",
+  "finance/online-payment-reconcile/index": "finance/online-payment-reconcile/index.vue",
+  "finance/payment-by-doc": "finance/payment-by-doc/index.vue",
+  "finance/payment-by-doc/index": "finance/payment-by-doc/index.vue",
+  "finance/month-closing": "finance/month-closing/index.vue",
+  "finance/month-closing/index": "finance/month-closing/index.vue",
+  "finance/budget-plan": "finance/budget-plan/index.vue",
+  "finance/budget-plan/index": "finance/budget-plan/index.vue",
+  "finance/budget-exec": "finance/budget-exec/index.vue",
+  "finance/budget-exec/index": "finance/budget-exec/index.vue",
+  "finance/advance-payment": "finance/advance-payment/index.vue",
+  "finance/advance-payment/index": "finance/advance-payment/index.vue",
+  "finance/other-income-doc": "finance/other-income-doc/index.vue",
+  "finance/other-income-doc/index": "finance/other-income-doc/index.vue",
+  "finance/other-income-doc/form": "finance/other-income-doc/form.vue",
+  "crm/customer-follow": "crm/customer-follow/index.vue",
+  "crm/customer-follow/index": "crm/customer-follow/index.vue",
+  "crm/customer-grade": "crm/customer-grade/index.vue",
+  "crm/customer-grade/index": "crm/customer-grade/index.vue",
+  "crm/customer-pool": "crm/customer-pool/index.vue",
+  "crm/customer-pool/index": "crm/customer-pool/index.vue",
+  "crm/lead-convert": "crm/lead-convert/index.vue",
+  "crm/lead-convert/index": "crm/lead-convert/index.vue",
+  "crm/opportunity-stage": "crm/opportunity-stage/index.vue",
+  "crm/opportunity-stage/index": "crm/opportunity-stage/index.vue",
+  "crm/contract-approval": "crm/contract-approval/index.vue",
+  "crm/contract-approval/index": "crm/contract-approval/index.vue",
+  "crm/funnel": "crm/funnel/index.vue",
+  "crm/funnel/index": "crm/funnel/index.vue",
+  "crm/customer-analysis": "crm/customer-analysis/index.vue",
+  "crm/customer-analysis/index": "crm/customer-analysis/index.vue",
+  "hr/employee/list": "hr/employee/list.vue",
+  "hr/employee/index": "hr/employee/index.vue",
+  "hr/employee/form": "hr/employee/form.vue",
+  "hr/attendance/list": "hr/attendance/list.vue",
+  "hr/attendance/index": "hr/attendance/index.vue",
+  "hr/leave/list": "hr/leave/list.vue",
+  "hr/leave/index": "hr/leave/index.vue",
+  "hr/salary/list": "hr/salary/list.vue",
+  "hr/salary/index": "hr/salary/index.vue",
+  "hr/salary/form": "hr/salary/form.vue",
+  "hr/performance/list": "hr/performance/list.vue",
+  "hr/performance/index": "hr/performance/index.vue",
+  "hr/recruitment/list": "hr/recruitment/list.vue",
+  "hr/organization/position-list": "hr/organization/position-list.vue",
+  "hr/organization/index": "hr/organization/index.vue",
+  "trade/mall-order/list": "trade/mall-order/list.vue",
+  "trade/cart/list": "trade/cart/list.vue",
+  "trade/api-monitor/list": "trade/api-monitor/list.vue",
+  "trade/inventory-sync/list": "trade/inventory-sync/list.vue",
+  "trade/external-order/list": "trade/external-order/list.vue",
+  "trade/channel/config": "trade/channel/config.vue",
+  "quality/inspection/form": "quality/inspection/form.vue",
+  "quality/inspection/list": "quality/inspection/list.vue",
+  "quality/standard/list": "quality/standard/list.vue",
+  "quality/standard/form": "quality/standard/form.vue",
+  "quality/defect/list": "quality/defect/list.vue",
+  "quality/certificate/list": "quality/certificate/list.vue",
+  "payment/request/list": "payment/request/list.vue",
+  "payment/record/list": "payment/record/list.vue",
+  "payment/refund/list": "payment/refund/list.vue",
+  "payment/reconciliation/daily": "payment/reconciliation/daily.vue",
+  "md/barcode": "md/barcode/index.vue",
+  "md/barcode/index": "md/barcode/index.vue",
+  "md/product-price": "md/product-price/index.vue",
+  "md/product-price/index": "md/product-price/index.vue",
+  "md/product-aux": "md/product-supplement/index.vue",
+  "md/product-aux/index": "md/product-supplement/index.vue",
+  "md/product-supplement": "md/product-supplement/index.vue",
+  "md/product-supplement/index": "md/product-supplement/index.vue",
+  "md/image": "md/image/index.vue",
+  "md/image/index": "md/image/index.vue",
+  "md/linked-account": "md/linked-account/index.vue",
+  "md/linked-account/index": "md/linked-account/index.vue",
+  "md/location": "md/location/index.vue",
+  "md/location/index": "md/location/index.vue",
+  "md/route": "md/route/index.vue",
+  "md/route/index": "md/route/index.vue",
+  "md/bank-account": "md/bank-account/index.vue",
+  "md/bank-account/index": "md/bank-account/index.vue",
+  "md/expense-type": "md/expense-type/index.vue",
+  "md/expense-type/index": "md/expense-type/index.vue",
+  "md/other-income": "md/other-income/index.vue",
+  "md/other-income/index": "md/other-income/index.vue",
+  "md/accounting-subject": "md/accounting-subject/index.vue",
+  "md/accounting-subject/index": "md/accounting-subject/index.vue",
+  "set/initial-stock": "set/initial-stock/index.vue",
+  "set/initial-stock/index": "set/initial-stock/index.vue",
+  "set/initial-finance": "set/initial-finance/index.vue",
+  "set/initial-finance/index": "set/initial-finance/index.vue",
+  "set/rebuild": "set/rebuild/index.vue",
+  "set/rebuild/index": "set/rebuild/index.vue",
+  "set/system-task": "set/system-task/index.vue",
+  "set/system-task/index": "set/system-task/index.vue",
+  "set/accounting-period": "set/accounting-period/index.vue",
+  "set/accounting-period/index": "set/accounting-period/index.vue",
+  "set/operation-log": "set/operation-log/index.vue",
+  "set/operation-log/index": "set/operation-log/index.vue",
+  "set/sys-params": "set/sys-params/index.vue",
+  "set/sys-params/index": "set/sys-params/index.vue",
+  "set/company-info": "set/company-info/index.vue",
+  "set/company-info/index": "set/company-info/index.vue",
+  "set/menu-config": "set/menu-config/index.vue",
+  "set/menu-config/index": "set/menu-config/index.vue",
+  "set/audit-config": "set/audit-config/index.vue",
+  "set/audit-config/index": "set/audit-config/index.vue",
+  "set/audit-config/form": "set/audit-config/form.vue",
+  "set/payment-config": "set/payment-config/index.vue",
+  "set/payment-config/index": "set/payment-config/index.vue",
+  "set/app-center": "set/app-center/index.vue",
+  "set/app-center/index": "set/app-center/index.vue",
+  "set/print-config": "set/print-config/index.vue",
+  "set/print-config/index": "set/print-config/index.vue",
+  "crm/customer/form": "crm/customer/form.vue",
+  "crm/lead/form": "crm/lead/form.vue",
+  "crm/opportunity/form": "crm/opportunity/form.vue",
+  "crm/contract/form": "crm/contract/form.vue",
+  "crm/quotation/form": "crm/quotation/form.vue",
+  "crm/invoice/form": "crm/invoice/form.vue",
+  "md/product/form": "erp/product/form.vue",
+  "md/product": "erp/product/index.vue",
+  "md/customer/form": "md/customer/form.vue",
+  "md/supplier/form": "md/supplier/form.vue",
+  "md/logistics/form": "md/logistics/form.vue",
+  "md/partner/form": "md/partner/form.vue",
+  "md/customer": "md/customer/index.vue",
+  "md/supplier": "md/supplier/index.vue",
+  "md/logistics": "md/logistics/index.vue",
+  "md/partner": "md/partner/index.vue",
+  "md/customer/index": "md/customer/index.vue",
+  "md/supplier/index": "md/supplier/index.vue",
+  "md/logistics/index": "md/logistics/index.vue",
+  "md/partner/index": "md/partner/index.vue",
+  "marketing/member-manage": "marketing/member-manage/index.vue",
+  "marketing/member-manage/index": "marketing/member-manage/index.vue",
+  "marketing/points-exchange": "marketing/points-exchange/index.vue",
+  "marketing/points-exchange/index": "marketing/points-exchange/index.vue",
+  "marketing/stored-card": "marketing/stored-card/index.vue",
+  "marketing/stored-card/index": "marketing/stored-card/index.vue",
+  "marketing/auto-campaign": "marketing/auto-campaign/index.vue",
+  "marketing/auto-campaign/index": "marketing/auto-campaign/index.vue",
+  "marketing/member-config": "marketing/member-config/index.vue",
+  "marketing/member-config/index": "marketing/member-config/index.vue",
+  "marketing/sms-send": "marketing/sms-send/index.vue",
+  "marketing/sms-send/index": "marketing/sms-send/index.vue",
+  "marketing/coupon": "marketing/coupon/index.vue",
+  "marketing/coupon/index": "marketing/coupon/index.vue",
+  "marketing/product-promo": "marketing/product-promo/index.vue",
+  "marketing/product-promo/index": "marketing/product-promo/index.vue",
+  "marketing/order-promo": "marketing/order-promo/index.vue",
+  "marketing/order-promo/index": "marketing/order-promo/index.vue",
+  "marketing/special-price": "marketing/special-price/index.vue",
+  "marketing/special-price/index": "marketing/special-price/index.vue",
+  "marketing/package-deal": "marketing/package-deal/index.vue",
+  "marketing/package-deal/index": "marketing/package-deal/index.vue",
+  "marketing/mall-group": "marketing/mall-group/index.vue",
+  "marketing/mall-group/index": "marketing/mall-group/index.vue",
+  "marketing/mall-flash": "marketing/mall-flash/index.vue",
+  "marketing/mall-flash/index": "marketing/mall-flash/index.vue",
+  "marketing/mall-presale": "marketing/mall-presale/index.vue",
+  "marketing/mall-presale/index": "marketing/mall-presale/index.vue",
+  "marketing/mall-popup": "marketing/mall-popup/index.vue",
+  "marketing/mall-popup/index": "marketing/mall-popup/index.vue",
+  "marketing/add-on-deal": "marketing/add-on-deal/index.vue",
+  "marketing/add-on-deal/index": "marketing/add-on-deal/index.vue",
+  "marketing/hot-keywords": "marketing/hot-keywords/index.vue",
+  "marketing/hot-keywords/index": "marketing/hot-keywords/index.vue",
+  "marketing/promote-create": "marketing/promote-create/index.vue",
+  "marketing/promote-create/index": "marketing/promote-create/index.vue",
+  "marketing/promote-history": "marketing/promote-history/index.vue",
+  "marketing/promote-history/index": "marketing/promote-history/index.vue",
+  "mall/order-process": "mall/order-process/index.vue",
+  "mall/order-process/index": "mall/order-process/index.vue",
+  "mall/return-process": "mall/return-process/index.vue",
+  "mall/return-process/index": "mall/return-process/index.vue",
+  "mall/product-shelf": "mall/product-shelf/index.vue",
+  "mall/product-shelf/index": "mall/product-shelf/index.vue",
+  "mall/unit-display": "mall/unit-display/index.vue",
+  "mall/unit-display/index": "mall/unit-display/index.vue",
+  "mall/buyer-apply": "mall/buyer-apply/index.vue",
+  "mall/buyer-apply/index": "mall/buyer-apply/index.vue",
+  "mall/buyer-account": "mall/buyer-account/index.vue",
+  "mall/buyer-account/index": "mall/buyer-account/index.vue",
+  "mall/product-combo": "mall/product-combo/index.vue",
+  "mall/product-combo/index": "mall/product-combo/index.vue",
+  "mall/basic-config": "mall/basic-config/index.vue",
+  "mall/basic-config/index": "mall/basic-config/index.vue",
+  "mall/shop-config": "mall/shop-config/index.vue",
+  "mall/shop-config/index": "mall/shop-config/index.vue",
+  "mall/freight-config": "mall/freight-config/index.vue",
+  "mall/freight-config/index": "mall/freight-config/index.vue",
+  "mall/shop-decoration": "mall/shop-decoration/index.vue",
+  "mall/shop-decoration/index": "mall/shop-decoration/index.vue",
+  "mall/notice-config": "mall/notice-config/index.vue",
+  "mall/notice-config/index": "mall/notice-config/index.vue",
+  "mall/keyword-bank": "mall/keyword-bank/index.vue",
+  "mall/keyword-bank/index": "mall/keyword-bank/index.vue",
+  "trade/mall-return": "trade/mall-return/index.vue",
+  "trade/mall-return/index": "trade/mall-return/index.vue",
+  "member/profile": "member/profile/index.vue",
+  "member/profile/index": "member/profile/index.vue",
+  "member/points-history": "member/points-history/index.vue",
+  "member/points-history/index": "member/points-history/index.vue",
+  "analytics/pending-approval": "analytics/pending-approval/index.vue",
+  "analytics/pending-approval/index": "analytics/pending-approval/index.vue",
+  "analytics/draft": "analytics/draft/index.vue",
+  "analytics/draft/index": "analytics/draft/index.vue",
+  "analytics/business-history": "analytics/business-history/index.vue",
+  "analytics/business-history/index": "analytics/business-history/index.vue",
+  "analytics/sales-performance": "analytics/sales-performance/index.vue",
+  "analytics/sales-performance/index": "analytics/sales-performance/index.vue",
+  "analytics/sales-analysis": "analytics/sales-analysis/index.vue",
+  "analytics/sales-analysis/index": "analytics/sales-analysis/index.vue",
+  "analytics/sales-fulfillment": "analytics/sales-fulfillment/index.vue",
+  "analytics/sales-fulfillment/index": "analytics/sales-fulfillment/index.vue",
+  "analytics/sales-debt": "analytics/sales-debt/index.vue",
+  "analytics/sales-debt/index": "analytics/sales-debt/index.vue",
+  "analytics/sales-expense": "analytics/sales-expense/index.vue",
+  "analytics/sales-expense/index": "analytics/sales-expense/index.vue",
+  "analytics/customer-active": "analytics/customer-active/index.vue",
+  "analytics/customer-active/index": "analytics/customer-active/index.vue",
+  "analytics/promotion-analysis": "analytics/promotion-analysis/index.vue",
+  "analytics/promotion-analysis/index": "analytics/promotion-analysis/index.vue",
+  "analytics/pre-order-query": "analytics/pre-order-query/index.vue",
+  "analytics/pre-order-query/index": "analytics/pre-order-query/index.vue",
+  "analytics/purchase-analysis": "analytics/purchase-analysis/index.vue",
+  "analytics/purchase-analysis/index": "analytics/purchase-analysis/index.vue",
+  "analytics/purchase-prep": "analytics/purchase-prep/index.vue",
+  "analytics/purchase-prep/index": "analytics/purchase-prep/index.vue",
+  "analytics/check-stock": "analytics/check-stock/index.vue",
+  "analytics/check-stock/index": "analytics/check-stock/index.vue",
+  "analytics/check-batch": "analytics/check-batch/index.vue",
+  "analytics/check-batch/index": "analytics/check-batch/index.vue",
+  "analytics/inventory-analysis": "analytics/inventory-analysis/index.vue",
+  "analytics/inventory-analysis/index": "analytics/inventory-analysis/index.vue",
+  "analytics/stock-detail": "analytics/stock-detail/index.vue",
+  "analytics/stock-detail/index": "analytics/stock-detail/index.vue",
+  "analytics/staff-commission": "analytics/staff-commission/index.vue",
+  "analytics/staff-commission/index": "analytics/staff-commission/index.vue",
+  "analytics/collection-stats": "analytics/collection-stats/index.vue",
+  "analytics/collection-stats/index": "analytics/collection-stats/index.vue",
+  "analytics/commission-center": "analytics/commission-center/index.vue",
+  "analytics/commission-center/index": "analytics/commission-center/index.vue",
+  "analytics/business-analysis": "analytics/business-analysis/index.vue",
+  "analytics/business-analysis/index": "analytics/business-analysis/index.vue",
+  "analytics/check-fund": "analytics/check-fund/index.vue",
+  "analytics/check-fund/index": "analytics/check-fund/index.vue",
+  "analytics/check-expense": "analytics/check-expense/index.vue",
+  "analytics/check-expense/index": "analytics/check-expense/index.vue",
+  "analytics/invoice-stats": "analytics/invoice-stats/index.vue",
+  "analytics/invoice-stats/index": "analytics/invoice-stats/index.vue",
+  "analytics/check-receivable": "analytics/check-receivable/index.vue",
+  "analytics/check-receivable/index": "analytics/check-receivable/index.vue",
+  "analytics/check-payable": "analytics/check-payable/index.vue",
+  "analytics/check-payable/index": "analytics/check-payable/index.vue",
+  "analytics/ar-balance-sheet": "analytics/ar-balance-sheet/index.vue",
+  "analytics/ar-balance-sheet/index": "analytics/ar-balance-sheet/index.vue",
+  "analytics/mkt-activity-analysis": "analytics/mkt-activity-analysis/index.vue",
+  "analytics/mkt-activity-analysis/index": "analytics/mkt-activity-analysis/index.vue",
+  "analytics/mkt-promote-analysis": "analytics/mkt-promote-analysis/index.vue",
+  "analytics/mkt-promote-analysis/index": "analytics/mkt-promote-analysis/index.vue",
+  "analytics/trade-analysis": "analytics/trade-analysis/index.vue",
+  "analytics/trade-analysis/index": "analytics/trade-analysis/index.vue",
+  "analytics/mall-customer-list": "analytics/mall-customer-list/index.vue",
+  "analytics/mall-customer-list/index": "analytics/mall-customer-list/index.vue",
+  "dms/route-list": "dms/route-list/index.vue",
+  "dms/route-list/index": "dms/route-list/index.vue",
+  "dms/dispatch-task": "dms/dispatch-task/index.vue",
+  "dms/dispatch-task/index": "dms/dispatch-task/index.vue",
+  "dms/realtime-tracking": "dms/realtime-tracking/index.vue",
+  "dms/realtime-tracking/index": "dms/realtime-tracking/index.vue",
+  "dms/config-params": "dms/config-params/index.vue",
+  "dms/config-params/index": "dms/config-params/index.vue",
+  "erp/alert-query": "erp/alert-query/index.vue",
+  "erp/alert-query/index": "erp/alert-query/index.vue",
+  "wh/borrow-in/form": "wh/borrow-in/form/index.vue",
+  "wh/borrow-out/form": "wh/borrow-out/form/index.vue",
+  "wh/receiving-order/form": "wh/receiving-order/form/index.vue",
+  "wms/receive/form": "wh/receiving-order/form/index.vue",
+  "wms/receive": "wh/receiving-order/index.vue",
+  "wms/receive/index": "wh/receiving-order/index.vue",
+  "wh/putaway-order/form": "wh/putaway-order/form/index.vue",
+  "wh/picking-order/form": "wh/picking-order/form/index.vue",
+  "wh/shipping-order/form": "wh/shipping-order/form/index.vue",
+  "wh/move-order/form": "wh/move-order/form/index.vue",
+  "wh/inventory-order/form": "wh/inventory-order/form/index.vue",
+  "wh/borrow-query": "wh/borrow-query/index.vue",
+  "wh/borrow-query/index": "wh/borrow-query/index.vue",
+  "wh/borrow-in/index": "wh/borrow-in/index.vue",
+  "wh/borrow-out/index": "wh/borrow-out/index.vue",
+  "wh/receiving-order/index": "wh/receiving-order/index.vue",
+  "wh/putaway-order/index": "wh/putaway-order/index.vue",
+  "wh/picking-order/index": "wh/picking-order/index.vue",
+  "wh/shipping-order/index": "wh/shipping-order/index.vue",
+  "wh/move-order/index": "wh/move-order/index.vue",
+  "wh/inventory-order/index": "wh/inventory-order/index.vue",
+  "sales/order-center": "sales/order-center/index.vue",
+  "sales/order-center/index": "sales/order-center/index.vue",
+  "finance/cash-transfer/form": "finance/cash-transfer/form/index.vue",
+  "finance/auxiliary/index": "finance/auxiliary/index.vue",
+  "finance/auxiliary": "finance/auxiliary/index.vue",
+  "md/warehouse-plan": "md/warehouse-plan/index.vue",
+  "md/warehouse-plan/index": "md/warehouse-plan/index.vue",
+  "md/staff-dept": "md/staff-dept/index.vue",
+  "md/staff-dept/index": "md/staff-dept/index.vue",
+  "md/staff-role": "md/staff-role/index.vue",
+  "md/staff-role/index": "md/staff-role/index.vue",
+  "md/staff-all": "md/staff-all/index.vue",
+  "md/staff-all/index": "md/staff-all/index.vue",
+  "md/payment-method": "md/payment-method/index.vue",
+  "md/payment-method/index": "md/payment-method/index.vue",
+  "md/payment-channel": "md/payment-channel/index.vue",
+  "md/payment-channel/index": "md/payment-channel/index.vue",
+  "md/payment-account": "md/payment-account/index.vue",
+  "md/payment-account/index": "md/payment-account/index.vue",
+  "dispatch/dispatch-order/form": "dispatch/dispatch-order/form/index.vue"
+ }
+}

@@ -17,12 +17,12 @@
       class="spreadsheet-table"
       :style="spreadsheetTableStyle"
     >
-      <!-- 空数据提示（没有 minRows 时才显示） -->
+      <!-- 空数据提示（没有 minRows 时才显示；文案可由 empty-text 覆盖，默认「暂无数据」不影响既有页面） -->
       <div
         v-if="!loading && dataSourceModel.length === 0 && !minRows"
         class="table-empty-text"
       >
-        暂无数据
+        {{ emptyText }}
       </div>
       <table
         v-else
@@ -122,6 +122,7 @@
             :key="record[rowKey] ?? record.id ?? rowIndex"
             class="ss-row"
             :class="{ 'ss-empty-row': record._isEmptyRow }"
+            :data-row-key="record._isEmptyRow ? undefined : (record[rowKey] ?? record.id)"
           >
             <td
               v-for="col in visibleColumns"
@@ -539,6 +540,8 @@ const props = withDefaults(defineProps<{
   loading?: boolean
   /** 最小显示行数（不足时用空行填充；默认 20，业务页确需改变才传入并在传参处注释原因） */
   minRows?: number
+  /** 空数据提示文案（默认「暂无数据」；仅在未传 min-rows 时显示，供对标页还原 ql361 空态文案） */
+  emptyText?: string
   /** 列配置存储键名（不同表格使用不同键，避免冲突） */
   storageKey?: string
   /** 全局列配置持久化键名（传入后「全局配置」Tab 落后端 user-config，跨浏览器生效） */
@@ -569,6 +572,7 @@ const props = withDefaults(defineProps<{
   loading: false,
   // 默认 20 行（金标准）：与「空数据时显示空提示（dataSource 为空且未传 minRows）」配合；业务页确需改变才在页面传 :min-rows 并注释原因
   minRows: 20,
+  emptyText: '暂无数据',
   defaultExpanded: false,
   storageKey: 'product-unit-columns-config',
   // ⚠️ 组件级解决操作列超宽（勿改回 false）：默认启用 __filler__ 空列占满剩余宽度，

@@ -19,6 +19,9 @@ public class LoyaltyCoupon {
     private Long tenantId;
     private Long programId;
 
+    /** 归属券模板（mkt_coupon_template.id，营销→优惠券「优惠券设置」定义） */
+    private Long templateId;
+
     /** 使用人（关联往来单位联系人，NULL=未绑定） */
     private Long partnerId;
 
@@ -46,6 +49,11 @@ public class LoyaltyCoupon {
 
     /** 有效期 */
     private LocalDateTime expirationDate;
+
+    /** 领取时间（对标「领用明细」列的领取时间） */
+    private LocalDateTime receiveTime;
+    /** 来源单据号（对标「领用明细」列的来源单据） */
+    private String sourceBillNo;
 
     private String remark;
 

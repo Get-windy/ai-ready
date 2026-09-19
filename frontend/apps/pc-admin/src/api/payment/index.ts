@@ -27,10 +27,11 @@ export const REFUND_STATUS_MAP: Record<number, { text: string; color: string }> 
   3: { text: '已拒绝', color: 'error' }
 }
 
-// ── 支付渠道参数配置 ──
-// 后端无支付渠道参数专用 CRUD 端点（core-payment 仅提供渠道查询/支付请求/记录），
-// 渠道参数（商户号、密钥、回调地址等）以 JSON 形式暂存系统参数：
-// configGroup = payment，configKey = payment.channel.{channelCode 小写}
+// ── 支付配置（设置 → 系统配置 → 支付配置，菜单 80623） ──
+//
+// 2026-09-18 重写：原实现在此「借用」/config/list + /config/save-value 暂存渠道参数，
+// 而后端写路径只写缓存、读路径只返回内置 12 条 → 保存后重新打开抽屉永远为空（P0 假保存）。
+// 现改为调用 core-payment 的专用端点 /payment/config/*，全部真实读写 sys_project_config。
 
 export interface PaymentChannelParam {
   appId?: string
@@ -40,38 +41,78 @@ export interface PaymentChannelParam {
   enabled?: boolean
 }
 
-const channelParamKey = (channelCode: string) => `payment.channel.${channelCode.toLowerCase()}`
+/** 「支付方式」Tab 的一行：渠道（来自后端渠道 Bean）+ 已保存的参数 */
+export interface PaymentChannelConfigVO {
+  channelCode: string
+  channelName: string
+  minAmount: number
+  maxAmount: number
+  available: boolean
+  appId?: string
+  merchantNo?: string
+  notifyUrl?: string
+  /** 密钥原文不在列表回传，只给「是否已配置」 */
+  secretConfigured?: boolean
+  enabled?: boolean
+  updateTime?: string
+}
 
-export const paymentChannelConfigApi = {
-  /** 读取渠道参数（经 /api/config/list?configGroup=payment，无记录时返回 null） */
-  async load(channelCode: string): Promise<PaymentChannelParam | null> {
-    const res: any = await request.get('/config/list', { configGroup: 'payment' })
-    const records: any[] = res?.records || []
-    const hit = records.find((r: any) => r.configKey === channelParamKey(channelCode))
-    if (!hit?.configValue) return null
-    try {
-      return JSON.parse(hit.configValue) as PaymentChannelParam
-    } catch {
-      return null
-    }
-  },
+/** 「微信公众号配置」/「在线退款」Tab 的一行：一个配置项 */
+export interface PaymentConfigItemVO {
+  itemKey: string
+  itemName: string
+  itemValue: string
+  /** text（文本）/ boolean（开关）/ password（密钥，界面掩码） */
+  valueType: string
+  description?: string
+  updateTime?: string
+}
 
-  /**
-   * 保存渠道参数。后端写接口 /api/config/save-value 返回 { success, message }（无 code 字段），
-   * 响应拦截器会将其误判为失败并reject，因此保存后重新读取校验是否真实写入。
-   */
-  async save(channelCode: string, data: PaymentChannelParam): Promise<boolean> {
-    try {
-      await request.post('/config/save-value', {
-        configKey: channelParamKey(channelCode),
-        configValue: JSON.stringify(data)
-      })
-      return true
-    } catch {
-      const loaded = await paymentChannelConfigApi.load(channelCode)
-      return loaded !== null
-    }
-  }
+/** 「场景配置」Tab 的一行：一个支付场景 × 允许的渠道集合 */
+export interface PaymentSceneVO {
+  sceneCode: string
+  sceneName: string
+  channels: string[]
+  updateTime?: string
+}
+
+export const paymentConfigApi = {
+  // ── Tab② 支付方式 ──
+
+  /** 渠道配置列表（渠道清单来自后端渠道 Bean，参数来自已落库的配置） */
+  listChannels: (params?: { keyword?: string; enabled?: boolean }) =>
+    request.get<Result<PaymentChannelConfigVO[]>>('/payment/config/channels', { params }),
+
+  /** 单渠道参数（编辑抽屉回填，含密钥原文） */
+  getChannelParam: (channelCode: string) =>
+    request.get<Result<PaymentChannelParam>>(`/payment/config/channels/${channelCode}`),
+
+  /** 保存渠道参数（真实落库；保存后必须重新 GET 回读） */
+  saveChannelParam: (channelCode: string, data: PaymentChannelParam) =>
+    request.post<Result<void>>(`/payment/config/channels/${channelCode}`, data),
+
+  // ── Tab① 微信公众号配置 / Tab④ 在线退款 ──
+
+  /** 配置项列表（tab: wechat / refund） */
+  listItems: (tab: 'wechat' | 'refund', keyword?: string) =>
+    request.get<Result<PaymentConfigItemVO[]>>('/payment/config/items', { params: { tab, keyword } }),
+
+  /** 保存单个配置项 */
+  saveItem: (itemKey: string, itemValue: string) =>
+    request.post<Result<void>>('/payment/config/items', { itemKey, itemValue }),
+
+  // ── Tab③ 场景配置 ──
+
+  listScenes: (keyword?: string) =>
+    request.get<Result<PaymentSceneVO[]>>('/payment/config/scenes', { params: { keyword } }),
+
+  saveScene: (sceneCode: string, channels: string[]) =>
+    request.post<Result<void>>(`/payment/config/scenes/${sceneCode}`, { channels }),
+
+  // ── Tab④ 在线退款：说明文案（后端下发，逐字对标 ql361） ──
+
+  refundNotes: () =>
+    request.get<Result<string[]>>('/payment/config/refund-notes')
 }
 
 // 对账状态枚举（与后端 payment_reconciliation.status 注释一致；3「处理中」用于页面统计口径）

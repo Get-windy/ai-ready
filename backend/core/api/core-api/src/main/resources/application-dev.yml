@@ -76,3 +76,39 @@ logging:
 storage:
   local:
     base-path: ${STORAGE_LOCAL_BASE_PATH:I:/AI-Ready/uploads}
+
+# ── 数据管理（系统 → 数据管理 → 备份 62303 / 同步 62304 / 清理 62305）的运维动作参数 ──
+# 全部字段在 Java 侧都有安全默认值（见 cn.aiedge.datasource.config.DataMaintenanceProperties），
+# 此处显式列出只是为了「配置可发现」。同步引擎地址不在这里配 —— 它只有一个事实来源：
+# cn.aiedge.integration 的 sync-engine.api-url（本模块复用其服务，不重复配置）。
+app:
+  data-maintenance:
+    backup:
+      # 备份落盘根目录（服务端唯一可信根，所有路径校验都锚定它）。
+      # 留空则回退到 storage.local.base-path 的同级 backups 目录。
+      dir: ${DATA_BACKUP_DIR:I:/AI-Ready/backups}
+      # PostgreSQL 客户端 bin 目录；留空则自动探测 PATH 与 C:/Program Files/PostgreSQL/<ver>/bin
+      pg-bin-dir: ${PG_BIN_DIR:}
+      dump-timeout-seconds: 600
+      restore-timeout-seconds: 600
+      min-free-space-mb: 512
+    sync:
+      # last_run_status=running 的「在途」判定窗口；超过即视为上次中断，允许重新执行
+      inflight-timeout-seconds: 600
+    cleanup:
+      # 目标表白名单（服务端唯一可信来源，前端不可影响）。默认只放行纯追加的日志/审计表。
+      allowed-tables:
+        - sys_oper_log
+        - sys_login_log
+        - sys_audit_log
+        - sys_system_log
+        - sys_job_log
+        - scheduled_task_log
+        - api_access_log
+        - gateway_log
+        - dms_task_log
+        - sync_history
+      batch-size: 1000
+      max-rows-per-run: 5000
+      min-retention-days: 1
+      require-temporal-column: true

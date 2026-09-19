@@ -144,160 +144,164 @@
     />
 
     <ErrorBoundary @error="handleError">
-      <BillTableList
-        ref="tableRef"
-        :columns="vxeColumns"
-        :data-source="dataSource"
-        :loading="loading"
-        :pagination="pagination"
-        :row-key="'id'"
-        :filter-fields="filterFields"
-        :selectable="true"
-        :show-export="true"
-        export-permission="shipment:export"
-        add-text="新建出库单"
-        add-permission="shipment:create"
-        @add="handleCreate"
-        @refresh="() => fetchData()"
-        @export="handleExport"
-        @search="(e: any) => handleSearch(e)"
-        @page-change="handlePageChange"
-        @filter-change="handleFilterChange"
-        @selection-change="handleSelectionChange"
-        @cell-dblclick="handleView"
+      <div
+        ref="tableWrap"
+        class="table-area"
       >
-        <template #toolbar-actions>
-          <span class="stats-summary">
-            <span class="stats-item">
-              <span class="stats-label">待审核:</span>
-              <span class="stats-value pending">{{ statusCounts.pending }}</span>
+        <BillTableList
+          ref="tableRef"
+          :columns="vxeColumns"
+          :data-source="dataSource"
+          :loading="loading"
+          :pagination="pagination"
+          :row-key="'id'"
+          :filter-fields="filterFields"
+          :selectable="true"
+          :show-export="true"
+          export-permission="shipment:export"
+          add-text="新建出库单"
+          add-permission="shipment:create"
+          @add="handleCreate"
+          @refresh="() => fetchData()"
+          @export="handleExport"
+          @search="(e: any) => handleSearch(e)"
+          @page-change="handlePageChange"
+          @filter-change="handleFilterChange"
+          @selection-change="handleSelectionChange"
+        >
+          <template #toolbar-actions>
+            <span class="stats-summary">
+              <span class="stats-item">
+                <span class="stats-label">待审核:</span>
+                <span class="stats-value pending">{{ statusCounts.pending }}</span>
+              </span>
+              <span class="stats-item">
+                <span class="stats-label">待出库:</span>
+                <span class="stats-value processing">{{ statusCounts.processing }}</span>
+              </span>
+              <span class="stats-item">
+                <span class="stats-label">已完成:</span>
+                <span class="stats-value completed">{{ statusCounts.completed }}</span>
+              </span>
             </span>
-            <span class="stats-item">
-              <span class="stats-label">待出库:</span>
-              <span class="stats-value processing">{{ statusCounts.processing }}</span>
-            </span>
-            <span class="stats-item">
-              <span class="stats-label">已完成:</span>
-              <span class="stats-value completed">{{ statusCounts.completed }}</span>
-            </span>
-          </span>
-        </template>
+          </template>
 
-        <template #empty>
-          <div
-            v-if="hasError"
-            class="table-empty"
-          >
-            <WarningOutlined class="table-empty-icon" />
-            <p class="table-empty-text">
-              数据加载异常，请重试
-            </p>
-            <a-button
-              type="primary"
-              @click="() => fetchData()"
+          <template #empty>
+            <div
+              v-if="hasError"
+              class="table-empty"
             >
-              <ReloadOutlined /> 重试
-            </a-button>
-          </div>
-          <EmptyState
-            v-else
-            title="暂无数据"
-            description="暂无出库单数据"
-            size="small"
-            :show-actions="false"
-          />
-        </template>
-
-        <template #action="{ record }">
-          <a-space>
-            <a-tooltip title="查看详情">
+              <WarningOutlined class="table-empty-icon" />
+              <p class="table-empty-text">
+                数据加载异常，请重试
+              </p>
               <a-button
-                v-permission="'erp:shipment:view'"
-                type="link"
-                size="small"
-                @click="handleView(record)"
+                type="primary"
+                @click="() => fetchData()"
               >
-                <template #icon>
-                  <EyeOutlined />
-                </template>
+                <ReloadOutlined /> 重试
               </a-button>
-            </a-tooltip>
-            <a-tooltip
-              v-if="record.status === 0"
-              title="审核"
-            >
-              <a-button
-                v-permission="'erp:shipment:approve'"
-                type="link"
-                size="small"
-                @click="handleApprove(record)"
-              >
-                <template #icon>
-                  <CheckCircleOutlined />
-                </template>
-              </a-button>
-            </a-tooltip>
-            <a-tooltip
-              v-if="record.status === 1"
-              title="出库"
-            >
-              <a-button
-                v-permission="'erp:shipment:ship'"
-                type="link"
-                size="small"
-                @click="handleShip(record)"
-              >
-                <template #icon>
-                  <ExportOutlined />
-                </template>
-              </a-button>
-            </a-tooltip>
-            <PrintButton
-              v-if="record.status >= 2"
-              template-type="stock_out"
-              :business-id="record.id"
-              business-type="shipment"
-              button-text="打印"
-              button-size="small"
-              @print-success="handlePrintSuccess(record)"
-              @print-error="handlePrintError"
+            </div>
+            <EmptyState
+              v-else
+              title="暂无数据"
+              description="暂无出库单数据"
+              size="small"
+              :show-actions="false"
             />
-            <a-dropdown trigger="click">
-              <a-button
-                type="link"
-                size="small"
-                class="action-more-btn"
+          </template>
+
+          <template #action="{ record }">
+            <a-space>
+              <a-tooltip title="查看详情">
+                <a-button
+                  v-permission="'erp:shipment:view'"
+                  type="link"
+                  size="small"
+                  @click="handleView(record)"
+                >
+                  <template #icon>
+                    <EyeOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip
+                v-if="record.status === 0"
+                title="审核"
               >
-                <template #icon>
-                  <EllipsisOutlined />
+                <a-button
+                  v-permission="'erp:shipment:approve'"
+                  type="link"
+                  size="small"
+                  @click="handleApprove(record)"
+                >
+                  <template #icon>
+                    <CheckCircleOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip
+                v-if="record.status === 1"
+                title="出库"
+              >
+                <a-button
+                  v-permission="'erp:shipment:ship'"
+                  type="link"
+                  size="small"
+                  @click="handleShip(record)"
+                >
+                  <template #icon>
+                    <ExportOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+              <PrintButton
+                v-if="record.status >= 2"
+                template-type="stock_out"
+                :business-id="record.id"
+                business-type="shipment"
+                button-text="打印"
+                button-size="small"
+                @print-success="handlePrintSuccess(record)"
+                @print-error="handlePrintError"
+              />
+              <a-dropdown trigger="click">
+                <a-button
+                  type="link"
+                  size="small"
+                  class="action-more-btn"
+                >
+                  <template #icon>
+                    <EllipsisOutlined />
+                  </template>
+                </a-button>
+                <template #overlay>
+                  <a-menu @click="(e) => handleActionMenuClick(e.key, record)">
+                    <a-menu-item
+                      v-if="record.status === 0"
+                      key="edit"
+                    >
+                      <EditOutlined /> 编辑
+                    </a-menu-item>
+                    <a-menu-item
+                      v-if="record.status === 0"
+                      key="delete"
+                    >
+                      <DeleteOutlined /> 删除
+                    </a-menu-item>
+                    <a-menu-item
+                      v-if="record.status >= 2 && !record.trackingNo"
+                      key="tracking"
+                    >
+                      <NumberOutlined /> 填写物流单号
+                    </a-menu-item>
+                  </a-menu>
                 </template>
-              </a-button>
-              <template #overlay>
-                <a-menu @click="(e) => handleActionMenuClick(e.key, record)">
-                  <a-menu-item
-                    v-if="record.status === 0"
-                    key="edit"
-                  >
-                    <EditOutlined /> 编辑
-                  </a-menu-item>
-                  <a-menu-item
-                    v-if="record.status === 0"
-                    key="delete"
-                  >
-                    <DeleteOutlined /> 删除
-                  </a-menu-item>
-                  <a-menu-item
-                    v-if="record.status >= 2 && !record.trackingNo"
-                    key="tracking"
-                  >
-                    <NumberOutlined /> 填写物流单号
-                  </a-menu-item>
-                </a-menu>
-              </template>
-            </a-dropdown>
-          </a-space>
-        </template>
-      </BillTableList>
+              </a-dropdown>
+            </a-space>
+          </template>
+        </BillTableList>
+      </div>
     </ErrorBoundary>
 
     <!-- 详情弹窗 -->
@@ -879,6 +883,7 @@ import EmptyState from '@/components/EmptyState/EmptyState.vue'
 import type { SearchField } from '@/components/SearchBar/SearchBar.vue'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
 import { SHIPMENT_STATUS } from '@/utils/statusConfig'
+import { useRowDblclick } from '@/composables/useRowDblclick'
 import request from '@/utils/request'
 import {
   EyeOutlined,
@@ -1375,6 +1380,11 @@ const handleView = (record: Shipment) => {
   fetchDetail(record.id)
 }
 
+// 双击行 → 打开详情：页面侧自行实现（共享表格组件不再派发该事件）
+// 行标识由表格行上的 data-row-key 反查，与该表 row-key（'id'）同口径
+const tableWrap = ref<HTMLElement | null>(null)
+useRowDblclick(tableWrap, () => dataSource.value, handleView, 'id')
+
 const handleViewOrder = () => {
   if (currentRecord.value?.orderNo) {
     message.info(`查看销售订单: ${currentRecord.value.orderNo}`)
@@ -1640,6 +1650,16 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+
+/* 双击行入口容器（页面侧事件委托，见脚本 useRowDblclick）：撑满剩余空间，避免表格高度塌陷 */
+.table-area {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
 .shipment-page-header {
   display: flex;
   justify-content: space-between;

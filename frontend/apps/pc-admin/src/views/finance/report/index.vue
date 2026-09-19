@@ -44,7 +44,11 @@
           </div>
         </div>
       </template>
-      <div class="finance-report-page">
+      <!-- ref 供页面侧双击行入口使用（表格自身的双击事件冒泡到该容器） -->
+      <div
+        ref="tableWrap"
+        class="finance-report-page"
+      >
         <!-- 统计卡片 -->
         <div class="stat-cards">
           <div
@@ -197,7 +201,6 @@
               :selectable="true"
               size="small"
               @selection-change="handleSelectionChange"
-              @cell-dblclick="handleView"
             >
               <template #empty>
                 <div class="table-empty">
@@ -255,7 +258,6 @@
               :selectable="true"
               size="small"
               @selection-change="handleSelectionChange"
-              @cell-dblclick="handleView"
             >
               <template #empty>
                 <div class="table-empty">
@@ -309,7 +311,6 @@
               :summary-data="incomeSummaryData"
               size="small"
               @selection-change="handleSelectionChange"
-              @cell-dblclick="handleView"
             >
               <template #empty>
                 <div class="table-empty">
@@ -358,6 +359,7 @@ import {
 } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
+import { useRowDblclick } from '@/composables/useRowDblclick'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import { reportApi } from '@/api/finance'
 
@@ -568,6 +570,19 @@ const handleSelectionChange = (keys: any[]) => {
 const handleView = (record: any) => {
   message.info(`查看: ${record.subjectName || record.itemName || '-'}`)
 }
+
+/**
+ * 双击行查看 —— **页面侧自行实现**（共享表格组件不再派发该事件）
+ * 行标识由表格 <tr> 上的 data-row-key 反查（与 row-key="id" 同口径），
+ * 占位空行不带该属性，行内按钮等交互控件的双击也会被过滤掉。
+ * 三个标签页各有表格且共用同一个容器，故按当前标签页返回对应行数组。
+ */
+const tableWrap = ref<HTMLElement | null>(null)
+useRowDblclick(tableWrap, () => {
+  if (activeTab.value === 'trial-balance') return trialBalanceData.value
+  if (activeTab.value === 'balance-sheet') return balanceSheetData.value
+  return incomeStatementData.value
+}, handleView, 'id')
 
 // 定时刷新（30s）
 let refreshTimer: ReturnType<typeof setInterval> | null = null

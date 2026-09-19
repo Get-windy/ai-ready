@@ -25,9 +25,8 @@ public class SecurityPolicyController {
     @GetMapping
     @SaCheckPermission("platform:security:policy")
     @Operation(summary = "获取安全策略")
-    public ResponseEntity<Map<String, Object>> getPolicy(
-            @RequestHeader(value = "X-Tenant-Id", required = false) Long tenantId) {
-        SecurityPolicy policy = securityPolicyService.getPolicy(tenantId);
+    public ResponseEntity<Map<String, Object>> getPolicy() {
+        SecurityPolicy policy = securityPolicyService.getPolicy(0L);
         return ResponseEntity.ok(Map.of("code", 200, "data", policy, "message", "ok"));
     }
 
@@ -35,9 +34,8 @@ public class SecurityPolicyController {
     @SaCheckPermission("platform:security:update")
     @Operation(summary = "保存安全策略")
     public ResponseEntity<Map<String, Object>> savePolicy(
-            @RequestBody SecurityPolicy policy,
-            @RequestHeader(value = "X-Tenant-Id", required = false) Long tenantId) {
-        SecurityPolicy saved = securityPolicyService.savePolicy(policy, tenantId);
+            @RequestBody SecurityPolicy policy) {
+        SecurityPolicy saved = securityPolicyService.savePolicy(policy, 0L);
         return ResponseEntity.ok(Map.of("code", 200, "data", saved, "message", "保存成功"));
     }
 }

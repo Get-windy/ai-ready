@@ -45,7 +45,10 @@
         </div>
       </template>
 
-      <div class="position-management">
+      <div
+        ref="tableWrap"
+        class="position-management"
+      >
         <!-- 统计卡片 -->
         <div class="stat-cards">
           <div class="stat-card stat-total">
@@ -128,7 +131,6 @@
           @page-change="handlePageChange"
           @filter-change="handleFilterChange"
           @selection-change="(keys: any) => { (selectedRowKeys as any) = keys }"
-          @cell-dblclick="handleView"
         >
           <template #toolbar-actions>
             <a-button @click="handleCategoryManage">
@@ -507,6 +509,159 @@
             />
           </div>
         </FullScreenDetail>
+
+        <!-- ═══ 岗位详情（只读）═══ -->
+        <!-- 双击行打开（见下方 useRowDblclick）；:show-footer="false" 即没有保存/保存并新增按钮，
+             纯只读查看，不提交、不删除、不做岗位人员分配 -->
+        <FullScreenDetail
+          :visible="viewVisible"
+          :title="viewTitle"
+          :show-footer="false"
+          @close="handleViewClose"
+        >
+          <a-skeleton
+            v-if="viewLoading"
+            active
+            :paragraph="{ rows: 6 }"
+            style="padding: 8px;"
+          />
+
+          <a-result
+            v-else-if="viewError"
+            status="error"
+            title="详情加载失败"
+            :sub-title="viewErrorMessage"
+          >
+            <template #extra>
+              <a-button
+                type="primary"
+                @click="debounceClick('viewReload', reloadView)()"
+              >
+                <template #icon>
+                  <ReloadOutlined />
+                </template>
+                重新加载
+              </a-button>
+            </template>
+          </a-result>
+
+          <template v-else-if="viewDetail">
+            <!-- 基本信息：字段口径对齐后端 PositionVO（GET /api/position/{id}） -->
+            <a-descriptions
+              :column="2"
+              size="small"
+              bordered
+            >
+              <a-descriptions-item label="岗位编码">
+                {{ viewDetail.positionCode || '-' }}
+              </a-descriptions-item>
+              <a-descriptions-item label="岗位名称">
+                {{ viewDetail.positionName || '-' }}
+              </a-descriptions-item>
+              <a-descriptions-item label="岗位分类">
+                {{ viewDetail.categoryName || '未分类' }}
+              </a-descriptions-item>
+              <a-descriptions-item label="所属部门">
+                {{ viewDeptName }}
+              </a-descriptions-item>
+              <a-descriptions-item label="岗位级别">
+                <a-tag :color="getLevelColor(viewDetail.level)">
+                  {{ getLevelName(viewDetail.level) }}
+                </a-tag>
+              </a-descriptions-item>
+              <a-descriptions-item label="排序">
+                {{ viewDetail.sort ?? '-' }}
+              </a-descriptions-item>
+              <a-descriptions-item label="状态">
+                <a-tag :color="viewDetail.status === 0 ? 'success' : 'error'">
+                  {{ viewDetail.status === 0 ? '正常' : '停用' }}
+                </a-tag>
+              </a-descriptions-item>
+              <a-descriptions-item label="关联用户数">
+                {{ viewDetail.userCount ?? '-' }}
+              </a-descriptions-item>
+              <a-descriptions-item label="创建时间">
+                {{ viewDetail.createTime || '-' }}
+              </a-descriptions-item>
+              <a-descriptions-item label="更新时间">
+                {{ viewDetail.updateTime || '-' }}
+              </a-descriptions-item>
+              <a-descriptions-item
+                label="描述"
+                :span="2"
+              >
+                {{ viewDetail.description || '-' }}
+              </a-descriptions-item>
+              <a-descriptions-item
+                label="备注"
+                :span="2"
+              >
+                {{ viewDetail.remark || '-' }}
+              </a-descriptions-item>
+            </a-descriptions>
+
+            <!-- 该岗位下的人员：GET /api/position/{id}/users -->
+            <div class="detail-section-header">
+              <span class="detail-section-title">该岗位下的人员</span>
+              <span class="detail-section-count">共 {{ viewUsers.length }} 人</span>
+            </div>
+
+            <a-result
+              v-if="viewUsersError"
+              status="error"
+              title="人员加载失败"
+              sub-title="请检查网络后重试"
+            >
+              <template #extra>
+                <a-button
+                  type="primary"
+                  @click="debounceClick('viewUsersReload', reloadViewUsers)()"
+                >
+                  <template #icon>
+                    <ReloadOutlined />
+                  </template>
+                  重新加载
+                </a-button>
+              </template>
+            </a-result>
+
+            <BillTableList
+              v-else-if="viewUsers.length > 0 || viewUsersLoading"
+              :data-source="viewUsers"
+              :loading="viewUsersLoading"
+              :columns="viewUserColumns"
+              :pagination="false"
+              row-key="userId"
+              storage-key="position-detail-user-columns"
+              :min-empty-rows="0"
+              :show-toolbar="false"
+              :selectable="false"
+              :show-add="false"
+              :show-search="false"
+              :show-export="false"
+              :show-batch-delete="false"
+            >
+              <template #nameCell="{ record: userRecord }">
+                {{ userRecord.nickname || userRecord.realName || '-' }}
+              </template>
+              <template #primaryCell="{ record: userRecord }">
+                <a-tag :color="userRecord.isPrimary === 1 ? 'blue' : 'default'">
+                  {{ userRecord.isPrimary === 1 ? '是' : '否' }}
+                </a-tag>
+              </template>
+              <template #statusCell="{ record: userRecord }">
+                <a-tag :color="userRecord.status === 0 ? 'success' : 'error'">
+                  {{ userRecord.status === 0 ? '正常' : '停用' }}
+                </a-tag>
+              </template>
+            </BillTableList>
+
+            <a-empty
+              v-else
+              description="该岗位暂无人员"
+            />
+          </template>
+        </FullScreenDetail>
       </div>
     </PageContainer>
   </ErrorBoundary>
@@ -515,6 +670,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
+import { useRowDblclick } from '@/composables/useRowDblclick'
 import { onBeforeRouteLeave } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
@@ -531,7 +687,7 @@ import {
   WarningOutlined
 } from '@ant-design/icons-vue'
 import BillTableList, { type FilterField } from '@/components/BillTableList/BillTableList.vue'
-import { positionApi, type PositionInfo, type PositionCategory, type PositionQuery } from '@/api/position'
+import { positionApi, type PositionInfo, type PositionCategory, type PositionQuery, type PositionUserInfo } from '@/api/position'
 import { departmentApi, type DepartmentInfo } from '@/api/department'
 import { useSubmitLock } from '@/composables'
 import { useUserStore } from '@/stores/user'
@@ -1121,8 +1277,133 @@ onUnmounted(() => {
 defineExpose({ handleQuery: fetchData })
 
 function handleError(err: any) { console.warn('[ErrorBoundary]', err) }
-// 查看详情
-const handleView = (record: any) => {}
+
+// ==================== 岗位详情（只读） ====================
+// 复用本页既有的 FullScreenDetail 容器（:show-footer="false" → 无保存/保存并新增按钮，
+// 纯只读，不提交、不删除、不做岗位人员分配）
+// 基本信息字段口径对齐后端 PositionVO（比列表多 deptId/deptName/remark/userCount）
+type PositionDetail = PositionInfo & {
+  deptId?: string | number
+  deptName?: string
+  remark?: string
+  userCount?: number
+}
+
+const viewVisible = ref(false)
+const viewLoading = ref(false)
+const viewError = ref(false)
+const viewErrorMessage = ref('')
+const viewDetail = ref<PositionDetail | null>(null)
+const viewUsers = ref<PositionUserInfo[]>([])
+const viewUsersLoading = ref(false)
+const viewUsersError = ref(false)
+/** 当前查看的岗位 id：雪花 ID 按原值（字符串）透传，不做 Number() 转换 */
+const viewPositionId = ref<string | number | null>(null)
+
+const viewTitle = computed(() => viewDetail.value?.positionName
+  ? `岗位详情 - ${viewDetail.value.positionName}`
+  : '岗位详情')
+
+/**
+ * 所属部门名称：优先后端回填的 deptName；后端未回填时用本页已加载的部门列表按 deptId 反查
+ * （本页 onMounted 已调 departmentApi.getList，供「部门关联」弹窗使用，不额外发请求）
+ */
+const viewDeptName = computed(() => {
+  const detail = viewDetail.value
+  if (!detail) return '-'
+  if (detail.deptName) return detail.deptName
+  if (detail.deptId !== undefined && detail.deptId !== null) {
+    const matched = departmentList.value.find(d => String(d.id) === String(detail.deptId))
+    return matched ? matched.departmentName : '未找到对应部门'
+  }
+  return '未设置'
+})
+
+// 只读列定义：无操作列（详情内不提供写操作）
+// 插槽列必须显式 type:'slot'，否则只写 slotName 会直出原始值而不是标签
+const viewUserColumns: any[] = [
+  { title: '姓名', field: 'nickname', width: 140, type: 'slot', slotName: 'nameCell' },
+  { title: '账号', field: 'username', width: 180 },
+  { title: '主岗位', field: 'isPrimary', width: 100, type: 'slot', slotName: 'primaryCell' },
+  { title: '状态', field: 'status', width: 100, type: 'slot', slotName: 'statusCell' },
+]
+
+/** 该岗位下的人员：GET /api/position/{id}/users */
+const fetchViewUsers = async (positionId: string | number) => {
+  viewUsersLoading.value = true
+  viewUsersError.value = false
+  try {
+    const res: any = await positionApi.getUsers(positionId)
+    // 响应拦截器在成功时已把 ApiResponse 拆包成 data，这里同时兼容两种形态
+    viewUsers.value = Array.isArray(res) ? res : (res?.data ?? [])
+  } catch (err) {
+    // 接口失败必须显式进入错误态并给重试，不能静默显示成「该岗位暂无人员」
+    viewUsers.value = []
+    viewUsersError.value = true
+    console.warn('[岗位管理] 加载岗位人员失败', err)
+  } finally {
+    viewUsersLoading.value = false
+  }
+}
+
+/** 基本信息：GET /api/position/{id}（详情始终取接口实时值，不复用列表行快照） */
+const fetchViewDetail = async (positionId: string | number) => {
+  viewLoading.value = true
+  viewError.value = false
+  viewErrorMessage.value = ''
+  viewDetail.value = null
+  try {
+    const res: any = await positionApi.getById(positionId)
+    const vo: PositionDetail | null = res?.data ?? res ?? null
+    if (!vo || vo.id === undefined || vo.id === null) {
+      viewError.value = true
+      viewErrorMessage.value = '未找到该岗位，可能已被删除'
+      return
+    }
+    viewDetail.value = vo
+  } catch (err) {
+    viewError.value = true
+    viewErrorMessage.value = '岗位详情加载失败'
+    console.warn('[岗位管理] 加载岗位详情失败', err)
+  } finally {
+    viewLoading.value = false
+  }
+}
+
+// 重试：人员单独重试，不阻塞已加载的基本信息
+const reloadViewUsers = () => {
+  if (viewPositionId.value === null) return
+  fetchViewUsers(viewPositionId.value)
+}
+
+// 重试：基本信息 + 人员一起重载
+const reloadView = () => {
+  if (viewPositionId.value === null) return
+  fetchViewDetail(viewPositionId.value)
+  fetchViewUsers(viewPositionId.value)
+}
+
+const handleViewClose = () => {
+  viewVisible.value = false
+}
+
+// 查看详情（只读，由双击行触发）
+const handleView = (record: any) => {
+  const positionId = record?.id
+  if (positionId === undefined || positionId === null) return
+  viewPositionId.value = positionId
+  viewVisible.value = true
+  viewDetail.value = null
+  viewUsers.value = []
+  viewUsersError.value = false
+  fetchViewDetail(positionId)
+  fetchViewUsers(positionId)
+}
+
+// 双击行查看岗位详情 —— 页面侧自行实现（不依赖共享表格组件派发事件）
+// 行标识由表格行上的 data-row-key（= 默认 row-key 指定的 id）反查得到；占位空行不带该属性
+const tableWrap = ref<HTMLElement | null>(null)
+useRowDblclick(tableWrap, () => tableData.value, handleView, 'id')
 </script>
 
 <style scoped>
@@ -1229,6 +1510,25 @@ const handleView = (record: any) => {}
 .department-modal-content p {
   margin-bottom: 16px;
   font-size: 14px;
+}
+
+/* 详情内分区标题（与系统模块其它详情页一致） */
+.detail-section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0 8px;
+}
+
+.detail-section-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1890ff;
+}
+
+.detail-section-count {
+  font-size: 12px;
+  color: #666;
 }
 
 /* ── VxeTable 表头边框线 2px ─────────────────────────── */

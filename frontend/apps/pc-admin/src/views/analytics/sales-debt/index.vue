@@ -1,270 +1,638 @@
 <template>
-  <ErrorBoundary>
-    <PageContainer title="销售欠款分析">
-      <!-- ═══ 账龄卡片 ═══ -->
-      <ARStatCards
-        :items="statCards"
-        :loading="agingLoading"
+  <ErrorBoundary @error="handleError">
+    <PageContainer full-height>
+      <!--
+        销售欠款分析（分析 → 采销分析 → 销售欠款分析，菜单 80415）
+        对标 ql361「销售欠款分析」：3 个视图 Tab（按职员 15/12、按客户 17/16、按区域 17/16），逐 Tab 独立列配置；
+        列 = 欠款滚动五要素（此前欠款 → 本期新增欠款 → 本期新增收款 → 结算优惠 → 欠款余额）
+        + 超期欠款总额 + 账龄五档 + 信用额度三项，列名逐字取自《销售欠款分析开发文档》§3；
+        查询区：时间快捷段 8 段 + 日期范围 + 客户 + 日期类型（默认「单据日期」）+ 显示层次（横向网格）；
+        左侧分类树随 Tab 切换（按职员=部门树、按区域=区域树、按客户=客户分类树）；
+        工具栏：设置｜刷新｜打印(F8)｜导出｜页面配置（对标有「按职员/按客户/按区域-页面配置弹窗」实据 → 接 PageConfigPanel）。
+        取数：/erp/sale/analysis/sales-debt/page?tab=staff|customer|region。
+      -->
+      <CategoryListLayout
+        :tabs="TABS"
+        :active-tab="activeTab"
+        :show-category-panel="true"
+        :category-title="categoryTitle"
+        :category-tree-data="categoryTree"
+        :category-loading="categoryLoading"
+        :category-editable="false"
+        :selected-category-id="selectedCategoryId"
+        :current-path="currentPath"
+        :show-table-footer="true"
+        @tab-change="onTabChange"
+        @category-select="onCategorySelect"
+      >
+        <!-- ═══ 工具栏右侧：刷新｜打印(F8)｜导出｜页面配置（对标「设置」弹窗口径未抓取，不伪造入口） ═══ -->
+        <template #toolbar-right>
+          <a-space :size="8">
+            <a-button v-if="isButtonEnabled('refresh')" size="small" :loading="loading" @click="fetchData">
+              <ReloadOutlined /> 刷新
+            </a-button>
+            <a-button v-if="isButtonEnabled('printF8')" size="small" @click="handlePrint">
+              <PrinterOutlined /> 打印(F8)
+            </a-button>
+            <a-button v-if="isButtonEnabled('export')" size="small" :loading="exporting" @click="handleExport">
+              <DownloadOutlined /> 导出
+            </a-button>
+            <a-button size="small" @click="showPageConfig = true">
+              <SettingOutlined /> 页面配置
+            </a-button>
+          </a-space>
+        </template>
+
+        <!-- ═══ 查询区（对标查询项，横向自适应网格） ═══ -->
+        <template #search-fields>
+          <div class="search-area">
+            <div class="search-grid">
+              <div class="search-item">
+                <span class="search-label">日期</span>
+                <a-range-picker
+                  v-model:value="dateRange"
+                  size="small"
+                  value-format="YYYY-MM-DD"
+                  :allow-clear="false"
+                  style="width: 240px"
+                  @change="handleSearch"
+                />
+              </div>
+              <div v-if="isQueryVisible(`${activeTab}.customerName`)" class="search-item">
+                <span class="search-label">客户</span>
+                <a-input v-model:value="query.customerName" size="small" placeholder="客户名称" allow-clear style="width: 170px" @press-enter="handleSearch" />
+              </div>
+              <div v-if="isQueryVisible(`${activeTab}.dateType`)" class="search-item">
+                <span class="search-label">日期类型</span>
+                <a-select v-model:value="query.dateType" size="small" style="width: 130px" :options="DATE_TYPE_OPTIONS" @change="handleSearch" />
+              </div>
+              <div class="search-item search-actions">
+                <a-checkbox v-model:checked="query.showHierarchy" @change="handleSearch">显示层次</a-checkbox>
+                <a-button type="primary" size="small" @click="handleSearch">查询</a-button>
+                <a-button size="small" @click="handleReset">重置</a-button>
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <!-- ═══ 数据表格（表头齿轮列配置，逐 Tab 一套） ═══ -->
+        <template #table>
+          <div class="table-area" :data-cols="colSummary">
+            <BillDetailTable
+              :data-source="rows"
+              :columns="activeColumns"
+              :loading="loading"
+              :view-mode="true"
+              :min-rows="20"
+              :summary-columns="summaryColumns"
+              row-key="dimKey"
+              :storage-key="`analytics-sales-debt-columns-${activeTab}`"
+              :global-config-key="`analytics-sales-debt-columns-${activeTab}`"
+            >
+              <template #emptyCell>
+                <span class="cell-empty">-</span>
+              </template>
+            </BillDetailTable>
+          </div>
+        </template>
+
+        <template #table-footer>
+          <StandardPagination
+            variant="classic"
+            :current="pagination.page"
+            :page-size="pagination.size"
+            :total="pagination.total"
+            :page-size-options="[20, 50, 100]"
+            @change="handlePageChange"
+          />
+        </template>
+      </CategoryListLayout>
+
+      <!-- ═══ 页面配置（对标有「按职员/按客户/按区域-页面配置弹窗」实据 → 逐 Tab 独立 storage-key） ═══ -->
+      <PageConfigPanel
+        :open="showPageConfig"
+        :query-fields-config="queryFields"
+        :function-buttons-config="functionButtons"
+        :default-query-fields-config="defaultQueryFields"
+        :default-function-buttons-config="DEFAULT_FUNCTION_BUTTONS"
+        :storage-key="`analytics-sales-debt-page-config-${activeTab}`"
+        :print-config-items="PRINT_ITEMS"
+        @update:open="showPageConfig = $event"
+        @change="handlePageConfigChange"
       />
-
-      <!-- ═══ 查询区 ═══ -->
-      <div class="search-area">
-        <a-form layout="inline">
-          <a-form-item>
-            <a-input
-              v-model:value="keyword"
-              placeholder="客户名称/ID"
-              allow-clear
-              style="width: 220px"
-              @press-enter="handleSearch"
-            />
-          </a-form-item>
-          <a-form-item>
-            <a-space>
-              <a-button
-                type="primary"
-                @click="handleSearch"
-              >
-                <template #icon>
-                  <SearchOutlined />
-                </template>查询
-              </a-button>
-              <a-button @click="handleReset">
-                <template #icon>
-                  <ClearOutlined />
-                </template>重置
-              </a-button>
-            </a-space>
-          </a-form-item>
-        </a-form>
-      </div>
-
-      <!-- ═══ 图表区 ═══ -->
-      <div class="chart-grid">
-        <ARReportChart
-          title="客户欠款排行 TOP10"
-          :option="debtBarOption"
-          :loading="chartLoading"
-          :height="360"
-        />
-      </div>
-
-      <!-- ═══ 客户欠款表 ═══ -->
-      <div class="table-area">
-        <a-table
-          :columns="columns"
-          :data-source="rows"
-          :loading="loading"
-          :pagination="tablePagination"
-          :row-key="(record: any) => String(record.partnerId)"
-          :locale="{ emptyText: '暂无数据' }"
-          size="small"
-          @change="handleTableChange"
-        >
-          <template #bodyCell="{ column, text }">
-            <template v-if="['receivableBalance', 'preReceiptBalance', 'netBalance'].includes(column.dataIndex as string)">
-              {{ formatMoney(text) }}
-            </template>
-          </template>
-        </a-table>
-      </div>
     </PageContainer>
   </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
-import { SearchOutlined, ClearOutlined } from '@ant-design/icons-vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { message } from 'ant-design-vue'
+import {
+  DownloadOutlined, PrinterOutlined, ReloadOutlined, SettingOutlined
+} from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
-import ARStatCards from '@/components/ARStatCards/ARStatCards.vue'
-import ARReportChart from '@/components/ARReportChart/ARReportChart.vue'
-import type { StatCardItem } from '@/components/ARReportPage/types'
-import { receivableApi, financeAnalyticsApi } from '@/api/analytics'
+import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayout.vue'
+import BillDetailTable from '@/components/BillFormPage/BillDetailTable/index.vue'
+import StandardPagination from '@/components/Pagination/Pagination.vue'
+import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
+import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTable/types'
+import { saleAnalysisReportApi } from '@/api/analytics-sales'
+import type { SaleAnalysisQuery } from '@/api/analytics-sales'
+import { departmentApi } from '@/api/department'
+import { customerRegionApi, partnerCategoryApi } from '@/api/erp/partner'
+import { useExport } from '@/composables/useExport'
+import { QUICK_DATES, quickDateRange } from '../shared/docTypes'
+import { useAnalyticsPageConfig } from '../shared/useAnalyticsPageConfig'
+import type { FunctionButtonSetting, QueryFieldSetting } from '../shared/useAnalyticsPageConfig'
 
-// ═══ 账龄卡片（独立请求 /erp/finance/receivable/aging） ═══
-interface AgingBucket {
-  agingPeriod: string
-  count: number
-  totalAmount: number
-}
+defineOptions({ name: 'AnalyticsSalesDebt' })
 
-const agingLoading = ref(false)
-const agingData = ref<AgingBucket[]>([])
+// ═══ 视图 Tab（对标实测顺序：按职员 / 按客户 / 按区域） ═══
+const TABS = [
+  { key: 'staff', label: '按职员' },
+  { key: 'customer', label: '按客户' },
+  { key: 'region', label: '按区域' }
+]
+const activeTab = ref('staff')
+const quickDate = ref('month')
+const dateRange = ref<[string, string]>(quickDateRange('month') as [string, string])
 
-const statCards = computed<StatCardItem[]>(() => {
-  const totalAmount = agingData.value.reduce((acc, b) => acc + (Number(b.totalAmount) || 0), 0)
-  const totalCount = agingData.value.reduce((acc, b) => acc + (Number(b.count) || 0), 0)
-  const cards: StatCardItem[] = [
-    { label: '应收余额合计', value: totalAmount, precision: 2, prefix: '¥', suffix: `${totalCount} 笔` }
-  ]
-  for (const bucket of agingData.value) {
-    cards.push({
-      label: `账龄 ${bucket.agingPeriod}`,
-      value: Number(bucket.totalAmount) || 0,
-      precision: 2,
-      prefix: '¥',
-      suffix: `${bucket.count} 笔`
-    })
-  }
-  return cards
-})
-
-// ═══ 客户欠款表（/erp/finance/partner-balance/page，客户口径） ═══
-const loading = ref(false)
-const keyword = ref('')
-const rows = ref<any[]>([])
-const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
-
-const tablePagination = computed(() => ({
-  current: pagination.current,
-  pageSize: pagination.pageSize,
-  total: pagination.total,
-  showSizeChanger: true,
-  showTotal: (t: number) => `共 ${t} 条`
-}))
-
-const columns: any[] = [
-  { title: '客户', dataIndex: 'partnerName', key: 'partnerName', ellipsis: true },
-  { title: '应收余额', dataIndex: 'receivableBalance', key: 'receivableBalance', width: 140, align: 'right' },
-  { title: '预收余额', dataIndex: 'preReceiptBalance', key: 'preReceiptBalance', width: 140, align: 'right' },
-  { title: '净余额', dataIndex: 'netBalance', key: 'netBalance', width: 140, align: 'right' },
-  { title: '最后业务日期', dataIndex: 'lastBizDate', key: 'lastBizDate', width: 130 }
+/** 日期类型（对标实测默认「单据日期」；可选值对标未抓全，本系统仅提供可得口径） */
+const DATE_TYPE_OPTIONS = [
+  { label: '单据日期', value: 'bizDate' },
+  { label: '到期日期', value: 'dueDate' }
 ]
 
-// ═══ 欠款排行图（取前 50 条按应收余额降序取 TOP10） ═══
-const chartLoading = ref(false)
-const topDebtors = ref<any[]>([])
-
-const debtBarOption = computed(() => {
-  const top = [...topDebtors.value].reverse()
-  return {
-    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-    grid: { left: 120, right: 50, top: 20, bottom: 30 },
-    xAxis: { type: 'value', name: '应收余额(元)' },
-    yAxis: { type: 'category', data: top.map(r => r.partnerName || `客户${r.partnerId}`) },
-    series: [
-      {
-        name: '应收余额',
-        type: 'bar',
-        barMaxWidth: 20,
-        itemStyle: { color: '#f5222d', borderRadius: [0, 4, 4, 0] },
-        data: top.map(r => Number(r.receivableBalance) || 0)
-      }
-    ]
-  }
+const query = reactive({
+  scheme: '',
+  customerName: '',
+  dateType: 'bizDate',
+  showHierarchy: false,
+  /** 左侧分类树选中的节点名（按职员=部门名、按区域=区域名，后端按名称模糊过滤） */
+  categoryName: '',
+  /** 左侧客户分类树选中的节点及其全部下级ID（逗号分隔） */
+  categoryIds: ''
 })
 
-// ═══ 工具 ═══
-function formatMoney(val: number | null | undefined): string {
-  if (val === null || val === undefined || isNaN(Number(val))) return '-'
-  return Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
+const loading = ref(false)
+const rows = ref<any[]>([])
+const pagination = reactive({ page: 1, size: 20, total: 0 })
+const summary = ref<Record<string, any>>({})
 
-// ═══ 数据请求 ═══
-async function loadAging() {
-  agingLoading.value = true
-  try {
-    const res: any = await receivableApi.getAging()
-    agingData.value = Array.isArray(res) ? res : []
-  } catch (e) {
-    agingData.value = []
-    console.warn('[销售欠款分析] 账龄汇总获取失败', e)
-  } finally {
-    agingLoading.value = false
+function buildParams(): SaleAnalysisQuery {
+  return {
+    tab: activeTab.value,
+    startDate: dateRange.value?.[0],
+    endDate: dateRange.value?.[1],
+    customerName: query.customerName || undefined,
+    // 左侧分类树下推：部门/区域按名称模糊、客户分类按ID集合
+    deptName: activeTab.value === 'staff' ? (query.categoryName || undefined) : undefined,
+    region: activeTab.value === 'region' ? (query.categoryName || undefined) : undefined,
+    customerCategoryIds: activeTab.value === 'customer' ? (query.categoryIds || undefined) : undefined,
+    page: pagination.page,
+    size: pagination.size
   }
 }
 
-async function loadTable() {
+async function fetchData() {
   loading.value = true
   try {
-    const res: any = await financeAnalyticsApi.partnerBalancePage({
-      partnerType: 'customer',
-      onlyNonZero: true,
-      keyword: keyword.value || undefined,
-      page: pagination.current,
-      size: pagination.pageSize
-    })
-    const page = res?.records ? res : res?.data || { records: [], total: 0 }
-    rows.value = page.records || []
-    pagination.total = Number(page.total) || 0
+    const res = await saleAnalysisReportApi.debt(buildParams())
+    rows.value = res?.records || []
+    pagination.total = res?.total || 0
+    summary.value = res?.summary || {}
   } catch (e) {
+    console.warn('[销售欠款分析] 取数失败', e)
     rows.value = []
     pagination.total = 0
-    console.warn('[销售欠款分析] 客户欠款获取失败', e)
+    summary.value = {}
+    message.error('获取数据失败')
   } finally {
     loading.value = false
   }
 }
 
-async function loadTopDebtors() {
-  chartLoading.value = true
-  try {
-    const res: any = await financeAnalyticsApi.partnerBalancePage({
-      partnerType: 'customer',
-      onlyNonZero: true,
-      keyword: keyword.value || undefined,
-      page: 1,
-      size: 50
-    })
-    const page = res?.records ? res : res?.data || { records: [] }
-    topDebtors.value = (page.records || [])
-      .sort((a: any, b: any) => (Number(b.receivableBalance) || 0) - (Number(a.receivableBalance) || 0))
-      .slice(0, 10)
-  } catch (e) {
-    topDebtors.value = []
-    console.warn('[销售欠款分析] 欠款排行获取失败', e)
-  } finally {
-    chartLoading.value = false
-  }
-}
-
-function handleTableChange(pag: { current?: number; pageSize?: number }) {
-  pagination.current = pag.current || 1
-  pagination.pageSize = pag.pageSize || 20
-  loadTable()
-}
-
 function handleSearch() {
-  pagination.current = 1
-  loadTable()
-  loadTopDebtors()
+  pagination.page = 1
+  fetchData()
+}
+
+function handlePageChange(page: number, size: number) {
+  pagination.page = page
+  pagination.size = size
+  fetchData()
 }
 
 function handleReset() {
-  keyword.value = ''
-  pagination.current = 1
-  loadTable()
-  loadTopDebtors()
+  Object.assign(query, { scheme: '', customerName: '', dateType: 'bizDate', showHierarchy: false, categoryName: '', categoryIds: '' })
+  dateRange.value = quickDateRange('month') as [string, string]
+  quickDate.value = 'month'
+  selectedCategoryId.value = '0'
+  currentPath.value = categoryRootPath.value
+  handleSearch()
+}
+
+function setQuickDate(key: string) {
+  quickDate.value = key
+  dateRange.value = quickDateRange(key) as [string, string]
+  handleSearch()
+}
+
+function onTabChange(key: string) {
+  activeTab.value = key
+  pagination.page = 1
+  selectedCategoryId.value = '0'
+  query.categoryName = ''
+  query.categoryIds = ''
+  fetchCategoryTree()
+  fetchData()
+}
+
+// ═══ 左侧分类树（随 Tab 切换：按职员=部门树、按区域=区域树、按客户=客户分类树） ═══
+const categoryTree = ref<any[]>([])
+const categoryLoading = ref(false)
+const selectedCategoryId = ref<string | number>('0')
+const currentPath = ref('全部')
+const categoryRootPath = computed(() =>
+  activeTab.value === 'staff' ? '全部' : activeTab.value === 'region' ? '全部' : '全部往来单位'
+)
+const categoryTitle = computed(() =>
+  activeTab.value === 'staff' ? '部门' : activeTab.value === 'region' ? '区域' : '客户分类'
+)
+
+async function fetchCategoryTree() {
+  categoryLoading.value = true
+  currentPath.value = categoryRootPath.value
+  try {
+    if (activeTab.value === 'staff') {
+      const res: any = await departmentApi.getTree()
+      categoryTree.value = mapTree(Array.isArray(res) ? res : res?.data || [], 'departmentName')
+    } else if (activeTab.value === 'region') {
+      const res: any = await customerRegionApi.list()
+      const list = Array.isArray(res) ? res : res?.data || []
+      categoryTree.value = buildFlatTree(list.map((r: any) => ({
+        id: r.id, categoryName: r.regionName, parentId: r.parentId
+      })))
+    } else {
+      const res: any = await partnerCategoryApi.getTree('CUSTOMER')
+      categoryTree.value = mapTree(Array.isArray(res) ? res : res?.data || [], 'categoryName')
+    }
+  } catch (e) {
+    console.warn('[销售欠款分析] 分类树获取失败', e)
+    categoryTree.value = []
+  } finally {
+    categoryLoading.value = false
+  }
+}
+
+function mapTree(list: any[], nameField: string): any[] {
+  return (list || []).map(n => ({
+    id: n.id,
+    categoryName: n[nameField],
+    children: n.children?.length ? mapTree(n.children, nameField) : undefined
+  }))
+}
+
+/** 扁平列表（parentId 关联）→ 树 */
+function buildFlatTree(list: any[]): any[] {
+  const map = new Map<string, any>()
+  list.forEach(n => map.set(String(n.id), { ...n, children: [] }))
+  const roots: any[] = []
+  list.forEach(n => {
+    const node = map.get(String(n.id))
+    const parent = n.parentId != null ? map.get(String(n.parentId)) : null
+    if (parent) parent.children.push(node)
+    else roots.push(node)
+  })
+  const prune = (nodes: any[]): any[] => nodes.map(n => ({
+    ...n,
+    children: n.children.length ? prune(n.children) : undefined
+  }))
+  return prune(roots)
+}
+
+function findNode(nodes: any[], id: string): any | null {
+  for (const n of nodes || []) {
+    if (String(n.id) === id) return n
+    const found = n.children?.length ? findNode(n.children, id) : null
+    if (found) return found
+  }
+  return null
+}
+
+function collectIds(nodes: any[], id: string): string[] | null {
+  const node = findNode(nodes, id)
+  if (!node) return null
+  const out: string[] = []
+  const walk = (n: any) => {
+    out.push(String(n.id))
+    ;(n.children || []).forEach(walk)
+  }
+  walk(node)
+  return out
+}
+
+function onCategorySelect(keys: (string | number)[]) {
+  const key = keys?.length ? String(keys[0]) : ''
+  selectedCategoryId.value = key || '0'
+  const node = key ? findNode(categoryTree.value, key) : null
+  query.categoryName = node ? node.categoryName : ''
+  query.categoryIds = activeTab.value === 'customer' && key ? (collectIds(categoryTree.value, key) || []).join(',') : ''
+  currentPath.value = node ? node.categoryName : categoryRootPath.value
+  handleSearch()
+}
+
+// ═══ 列定义辅助（列名逐字取自《销售欠款分析开发文档》§3） ═══
+type Kind = 'money' | 'num' | 'rate' | 'text'
+
+function fmtNum(v: any): string {
+  if (v === null || v === undefined || v === '' || isNaN(Number(v))) return '-'
+  return Number(v).toLocaleString('zh-CN', { maximumFractionDigits: 2 })
+}
+
+function fmtMoney(v: any): string {
+  if (v === null || v === undefined || v === '' || isNaN(Number(v))) return '-'
+  return Number(v).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+const FORMATTER: Record<Kind, (v: any) => string> = {
+  money: fmtMoney,
+  num: fmtNum,
+  rate: v => (v === null || v === undefined || v === '' || isNaN(Number(v)) ? '-' : `${fmtNum(v)}%`),
+  text: v => (v === null || v === undefined || v === '' ? '-' : String(v))
+}
+
+function col(key: string, title: string, kind: Kind, width = 110, hidden = false): DetailColumnConfig {
+  return {
+    key,
+    title,
+    width,
+    align: kind === 'text' ? 'left' : 'right',
+    formatter: FORMATTER[kind],
+    ...(hidden ? { defaultHidden: true } : {})
+  }
+}
+
+/** 无数据源列（职员编号等，详见开发文档「缺口登记」） */
+function gap(key: string, title: string, width = 110, hidden = false): DetailColumnConfig {
+  return {
+    key,
+    title,
+    width,
+    align: 'right',
+    type: 'slot',
+    slotName: 'emptyCell',
+    ...(hidden ? { defaultHidden: true } : {})
+  }
+}
+
+const ROW_NO: DetailColumnConfig = { key: 'rowNo', title: '', type: 'rowNo', width: 44, fixed: 'left' }
+
+/** 超期欠款分布（账龄五档，逐 Tab 一致，默认全部可见） */
+function agingGroup(): DetailColumnConfig {
+  return {
+    key: 'agingGroup',
+    title: '超期欠款分布',
+    children: [
+      col('agingLt1m', '小于1个月', 'money', 110),
+      col('aging1to3m', '1-3个月', 'money', 110),
+      col('aging3to6m', '3-6个月', 'money', 110),
+      col('aging6to12m', '6-12个月', 'money', 110),
+      col('agingGt12m', '12个月以上', 'money', 120)
+    ]
+  }
+}
+
+// ── Tab1「按职员」：全部 15 / 默认 12 ──
+const staffColumns: DetailColumnConfig[] = [
+  ROW_NO,
+  gap('staffCode', '职员编号', 110, true),
+  col('dimLabel', '职员名称', 'text', 130),
+  col('deptName', '所属部门', 'text', 120, true),
+  col('netSaleAmount', '实销金额', 'money', 110),
+  col('prevDebt', '此前欠款', 'money', 110),
+  col('newDebt', '本期新增欠款', 'money', 120),
+  col('settleDiscountInPeriod', '结算优惠', 'money', 110),
+  col('receiptInPeriod', '本期新增收款', 'money', 120, true),
+  col('debtBalance', '欠款余额', 'money', 110),
+  col('overdueDebt', '超期欠款总额', 'money', 120),
+  agingGroup()
+]
+
+// ── Tab2「按客户」：全部 17 / 默认 16（唯一默认隐藏列：本期新增欠款） ──
+const customerColumns: DetailColumnConfig[] = [
+  ROW_NO,
+  col('dimLabel', '客户名称', 'text', 200),
+  col('customerCode', '客户编号', 'text', 110),
+  col('netSaleAmount', '实销金额', 'money', 110),
+  col('prevDebt', '此前欠款', 'money', 110),
+  col('newDebt', '本期新增欠款', 'money', 120, true),
+  col('settleDiscountInPeriod', '结算优惠', 'money', 110),
+  col('receiptInPeriod', '本期新增收款', 'money', 120),
+  col('debtBalance', '欠款余额', 'money', 110),
+  col('overdueDebt', '超期欠款总额', 'money', 120),
+  agingGroup(),
+  col('creditLimit', '信用总额度', 'money', 110),
+  col('usedCredit', '已用信用额度', 'money', 120),
+  col('creditUsageRate', '信用额度使用率', 'rate', 130)
+]
+
+// ── Tab3「按区域」：全部 17 / 默认 16（与按客户同构，仅维度列不同） ──
+const regionColumns: DetailColumnConfig[] = [
+  ROW_NO,
+  col('dimLabel', '区域名称', 'text', 160),
+  gap('regionCode', '区域编号', 110),
+  col('netSaleAmount', '实销金额', 'money', 110),
+  col('prevDebt', '此前欠款', 'money', 110),
+  col('newDebt', '本期新增欠款', 'money', 120, true),
+  col('settleDiscountInPeriod', '结算优惠', 'money', 110),
+  col('receiptInPeriod', '本期新增收款', 'money', 120),
+  col('debtBalance', '欠款余额', 'money', 110),
+  col('overdueDebt', '超期欠款总额', 'money', 120),
+  agingGroup(),
+  col('creditLimit', '信用总额度', 'money', 110),
+  col('usedCredit', '已用信用额度', 'money', 120),
+  col('creditUsageRate', '信用额度使用率', 'rate', 130)
+]
+
+const COLUMNS_BY_TAB: Record<string, DetailColumnConfig[]> = {
+  staff: staffColumns, customer: customerColumns, region: regionColumns
+}
+const activeColumns = computed<DetailColumnConfig[]>(() => COLUMNS_BY_TAB[activeTab.value] || staffColumns)
+const leafColumns = computed<DetailColumnConfig[]>(() =>
+  activeColumns.value.flatMap(c => (c.children?.length ? c.children : [c]))
+)
+const configurableColumns = computed<DetailColumnConfig[]>(() =>
+  leafColumns.value.filter(c => c.key !== 'rowNo')
+)
+/** `全部可配置列/默认显示列`（供真机校验对标 15/12、17/16、17/16） */
+const colSummary = computed(() => {
+  const total = configurableColumns.value.length
+  const def = configurableColumns.value.filter(c => !c.defaultHidden).length
+  return `${total}/${def}`
+})
+
+const SUMMARY_KEYS = ['netSaleAmount', 'prevDebt', 'newDebt', 'settleDiscountInPeriod', 'receiptInPeriod',
+  'debtBalance', 'overdueDebt', 'agingLt1m', 'aging1to3m', 'aging3to6m', 'aging6to12m', 'agingGt12m',
+  'creditLimit', 'usedCredit']
+const summaryColumns = computed(() => SUMMARY_KEYS
+  .filter(k => configurableColumns.value.some(c => c.key === k))
+  .map(k => ({ key: k, value: Number(summary.value[k]) || 0 })))
+
+// ═══ 页面配置（逐 Tab 一套查询条件清单与 storage-key） ═══
+const QUERY_FIELDS_BY_TAB: Record<string, QueryFieldSetting[]> = {
+  staff: [
+    { key: 'staff.customerName', label: '客户', visible: true },
+    { key: 'staff.dateType', label: '日期类型', visible: true }
+  ],
+  customer: [
+    { key: 'customer.customerName', label: '客户', visible: true },
+    { key: 'customer.dateType', label: '日期类型', visible: true }
+  ],
+  region: [
+    { key: 'region.customerName', label: '客户', visible: true },
+    { key: 'region.dateType', label: '日期类型', visible: true }
+  ]
+}
+const DEFAULT_FUNCTION_BUTTONS: FunctionButtonSetting[] = [
+  { key: 'refresh', label: '刷新', enabled: true },
+  { key: 'printF8', label: '打印(F8)', enabled: true },
+  { key: 'export', label: '导出', enabled: true }
+]
+const PRINT_ITEMS = [
+  { key: 'showCompany', label: '打印抬头显示公司名' },
+  { key: 'showSummary', label: '打印底部显示合计行' }
+]
+
+const configByTab = {
+  staff: useAnalyticsPageConfig({
+    storageKey: 'analytics-sales-debt-page-config-staff',
+    defaultQueryFields: QUERY_FIELDS_BY_TAB.staff,
+    defaultFunctionButtons: DEFAULT_FUNCTION_BUTTONS
+  }),
+  customer: useAnalyticsPageConfig({
+    storageKey: 'analytics-sales-debt-page-config-customer',
+    defaultQueryFields: QUERY_FIELDS_BY_TAB.customer,
+    defaultFunctionButtons: DEFAULT_FUNCTION_BUTTONS
+  }),
+  region: useAnalyticsPageConfig({
+    storageKey: 'analytics-sales-debt-page-config-region',
+    defaultQueryFields: QUERY_FIELDS_BY_TAB.region,
+    defaultFunctionButtons: DEFAULT_FUNCTION_BUTTONS
+  })
+}
+
+const activeConfig = computed(() => configByTab[activeTab.value as 'staff' | 'customer' | 'region'])
+const queryFields = computed(() => activeConfig.value.queryFields.value)
+const functionButtons = computed(() => activeConfig.value.functionButtons.value)
+const defaultQueryFields = computed(() => QUERY_FIELDS_BY_TAB[activeTab.value])
+const showPageConfig = ref(false)
+
+function isQueryVisible(key: string): boolean {
+  return activeConfig.value.isQueryVisible(key)
+}
+
+function isButtonEnabled(key: string): boolean {
+  return activeConfig.value.isButtonEnabled(key)
+}
+
+function handlePageConfigChange(config: any) {
+  activeConfig.value.handlePageConfigChange(config)
+}
+
+// ═══ 打印(F8) / 导出 ═══
+const printableColumns = computed<DetailColumnConfig[]>(() =>
+  leafColumns.value.filter(c => c.key !== 'rowNo' && !c.defaultHidden)
+)
+
+function cellText(c: DetailColumnConfig, r: any): string {
+  const raw = r[c.key]
+  return c.formatter ? c.formatter(raw, r) : (raw === null || raw === undefined || raw === '' ? '-' : String(raw))
+}
+
+function handlePrint() {
+  const cols = printableColumns.value
+  const header = cols.map(c => c.title)
+  const body = rows.value.map(r => cols.map(c => cellText(c, r)))
+  const win = window.open('', '_blank', 'width=1400,height=800')
+  if (!win) {
+    message.warning('浏览器拦截了打印窗口，请允许弹窗后重试')
+    return
+  }
+  const tabLabel = TABS.find(t => t.key === activeTab.value)?.label || '销售欠款分析'
+  const html = `<html><head><meta charset="utf-8"><title>销售欠款分析-${tabLabel}</title>
+    <style>body{font-family:system-ui,sans-serif;font-size:12px;padding:12px}
+    h3{margin:0 0 8px}table{border-collapse:collapse;width:100%}
+    th,td{border:1px solid #999;padding:4px 6px;text-align:left;white-space:nowrap}</style></head><body>
+    <h3>销售欠款分析 · ${tabLabel}（${dateRange.value?.[0]} ~ ${dateRange.value?.[1]}）</h3>
+    <table><thead><tr>${header.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+    <tbody>${body.map(row => `<tr>${row.map(v => `<td>${v}</td>`).join('')}</tr>`).join('')}</tbody>
+    </table></body></html>`
+  win.document.write(html)
+  win.document.close()
+  win.focus()
+  win.print()
+}
+
+/** F8 快捷键（对标工具栏「打印(F8)」） */
+function handleF8Key(e: KeyboardEvent) {
+  if (e.key === 'F8') {
+    e.preventDefault()
+    handlePrint()
+  }
+}
+
+const { execute: executeExport, exporting } = useExport()
+
+async function fetchAllRows(): Promise<any[]> {
+  const size = 200
+  const all: any[] = []
+  const pages = Math.max(1, Math.ceil(pagination.total / size))
+  for (let p = 1; p <= pages; p++) {
+    const res = await saleAnalysisReportApi.debt({ ...buildParams(), page: p, size })
+    const list = res?.records || []
+    all.push(...list)
+    if (list.length < size) break
+  }
+  return all
+}
+
+function handleExport() {
+  const cols = printableColumns.value
+  executeExport({
+    fileName: `销售欠款分析-${TABS.find(t => t.key === activeTab.value)?.label || ''}`,
+    headers: cols.map(c => c.title),
+    total: pagination.total,
+    fetchAll: fetchAllRows,
+    mapToRows: (list: any[]) => list.map(r => cols.map(c => cellText(c, r))),
+    fallbackRows: () => rows.value.map(r => cols.map(c => cellText(c, r)))
+  })
+}
+
+function handleError(err: any) {
+  console.error('[销售欠款分析] 页面异常', err)
 }
 
 onMounted(() => {
-  loadAging()
-  loadTable()
-  loadTopDebtors()
+  fetchCategoryTree()
+  fetchData()
+  window.addEventListener('keydown', handleF8Key)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleF8Key)
 })
 </script>
 
 <style scoped>
-.search-area {
-  background: #fff;
-  padding: 16px 20px 0;
-  border-radius: 8px;
-  margin-bottom: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
+/* 插槽内容不受宿主 scoped 样式影响，查询区样式随页面自带 */
+.search-area { width: 100%; }
+.search-grid { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; }
+.search-item { display: flex; align-items: center; gap: 6px; }
+.search-label { color: #666; font-size: 13px; white-space: nowrap; }
+.search-actions { margin-left: auto; }
 
-.chart-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 16px;
-  margin-bottom: 16px;
-}
-
-.table-area {
-  background: #fff;
-  padding: 16px;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
+.table-area { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+.cell-empty { color: #bfbfbf; }
 </style>

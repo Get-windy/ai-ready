@@ -35,6 +35,20 @@ export interface PositionCategory {
 }
 
 /**
+ * 岗位下的人员（岗位详情只读展示用）
+ * 字段口径对齐后端 PositionUserVO；雪花 ID 按原值（字符串）透传，禁止 Number() 转换
+ */
+export interface PositionUserInfo {
+  userId: string | number
+  username: string
+  nickname?: string
+  realName?: string
+  deptId?: string | number
+  isPrimary?: number
+  status?: number
+}
+
+/**
  * 岗位查询参数
  */
 export interface PositionQuery {
@@ -80,9 +94,17 @@ export const positionApi = {
 
   /**
    * 获取岗位详情
+   * id 允许字符串：雪花 ID 超出 JS 安全整数范围，前端按原值透传
    */
-  getById(id: number): Promise<ApiResponse<PositionInfo>> {
+  getById(id: number | string): Promise<ApiResponse<PositionInfo>> {
     return request.get(`/position/${id}`)
+  },
+
+  /**
+   * 获取岗位下的人员（含账号/姓名/主岗位/状态）
+   */
+  getUsers(id: number | string): Promise<ApiResponse<PositionUserInfo[]>> {
+    return request.get(`/position/${id}/users`)
   },
 
   /**

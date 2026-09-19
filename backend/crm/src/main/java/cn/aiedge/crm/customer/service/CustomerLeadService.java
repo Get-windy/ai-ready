@@ -21,5 +21,11 @@ public interface CustomerLeadService extends IService<CustomerLead> {
 
     Customer convertToCustomer(Long leadId);
 
+    /**
+     * 批量转化线索为客户（线索页 / 线索转化页「批量转化」）。
+     * 逐条调用单条转化，失败项不中断整批，返回成功/失败明细。
+     */
+    java.util.Map<String, Object> batchConvertToCustomer(List<Long> leadIds);
+
     String generateLeadCode();
 }

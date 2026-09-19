@@ -102,160 +102,164 @@
           style="padding: 20px;"
         />
 
-        <BillTableList
-          ref="tableRef"
-          :columns="vxeColumns"
-          :data-source="tableDataSource"
-          :loading="loading"
-          :pagination="pagination"
-          :row-key="'id'"
-          :filter-fields="filterFields"
-          :selectable="true"
-          :show-export="true"
-          :show-summary="true"
-          :summary-data="summaryData"
-          :min-empty-rows="12"
-          add-text="新建调整"
-          @add="handleAdd"
-          @cell-dblclick="handleView"
-          @refresh="debounceClick('refresh', loadData)"
-          @search="handleSearch"
-          @export="handleExport"
-          @page-change="handlePageChange"
-          @filter-change="handleFilterChange"
-          @selection-change="handleSelectionChange"
-          @batch-delete="handleBatchDelete"
+        <div
+          ref="tableWrap"
+          class="table-area"
         >
-          <template #batch-actions="{ selectedRows: rows }">
-            <a-button
-              v-permission="'budget:plan:batchsubmit'"
-              size="small"
-              :disabled="!canBatchSubmit(rows)"
-              @click="handleBatchSubmit(rows)"
-            >
-              <template #icon>
-                <CheckCircleOutlined />
-              </template>
-              批量提交
-            </a-button>
-          </template>
-
-          <template #empty>
-            <div
-              v-if="hasError"
-              class="table-empty table-empty-error"
-            >
-              <WarningOutlined class="table-empty-icon table-empty-icon-error" />
-              <p class="table-empty-text">
-                数据加载失败，请重试
-              </p>
+          <BillTableList
+            ref="tableRef"
+            :columns="vxeColumns"
+            :data-source="tableDataSource"
+            :loading="loading"
+            :pagination="pagination"
+            :row-key="'id'"
+            :filter-fields="filterFields"
+            :selectable="true"
+            :show-export="true"
+            :show-summary="true"
+            :summary-data="summaryData"
+            :min-empty-rows="12"
+            add-text="新建调整"
+            @add="handleAdd"
+            @refresh="debounceClick('refresh', loadData)"
+            @search="handleSearch"
+            @export="handleExport"
+            @page-change="handlePageChange"
+            @filter-change="handleFilterChange"
+            @selection-change="handleSelectionChange"
+            @batch-delete="handleBatchDelete"
+          >
+            <template #batch-actions="{ selectedRows: rows }">
               <a-button
+                v-permission="'budget:plan:batchsubmit'"
                 size="small"
-                @click="loadData"
+                :disabled="!canBatchSubmit(rows)"
+                @click="handleBatchSubmit(rows)"
               >
                 <template #icon>
-                  <ReloadOutlined />
+                  <CheckCircleOutlined />
                 </template>
-                重试
+                批量提交
               </a-button>
-            </div>
-            <div
-              v-else
-              class="table-empty"
-            >
-              <SearchOutlined
-                v-if="hasActiveFilters"
-                class="table-empty-icon"
-              />
-              <InboxOutlined
-                v-else
-                class="table-empty-icon"
-              />
-              <p
-                v-if="hasActiveFilters"
-                class="table-empty-text"
-              >
-                没有符合条件的调整记录，<a @click="handleResetFilters">清除筛选</a>
-              </p>
-              <p
-                v-else
-                class="table-empty-text"
-              >
-                暂无预算调整记录，点击「新建调整」开始创建
-              </p>
-            </div>
-          </template>
+            </template>
 
-          <template #action="{ record }">
-            <a-space
-              :size="0"
-              class="action-cell-inner"
-            >
-              <a-tooltip title="查看">
-                <a-button
-                  v-permission="'budget:plan:view'"
-                  type="link"
-                  size="small"
-                  @click="handleView(record)"
-                >
-                  <template #icon>
-                    <EyeOutlined />
-                  </template>
-                </a-button>
-              </a-tooltip>
-              <a-tooltip
-                v-if="record.status === 'draft'"
-                title="编辑"
+            <template #empty>
+              <div
+                v-if="hasError"
+                class="table-empty table-empty-error"
               >
+                <WarningOutlined class="table-empty-icon table-empty-icon-error" />
+                <p class="table-empty-text">
+                  数据加载失败，请重试
+                </p>
                 <a-button
-                  v-permission="'budget:plan:edit'"
-                  type="link"
                   size="small"
-                  @click="handleEdit(record)"
+                  @click="loadData"
                 >
                   <template #icon>
-                    <EditOutlined />
+                    <ReloadOutlined />
                   </template>
+                  重试
                 </a-button>
-              </a-tooltip>
-              <a-tooltip title="更多操作">
-                <a-dropdown trigger="click">
+              </div>
+              <div
+                v-else
+                class="table-empty"
+              >
+                <SearchOutlined
+                  v-if="hasActiveFilters"
+                  class="table-empty-icon"
+                />
+                <InboxOutlined
+                  v-else
+                  class="table-empty-icon"
+                />
+                <p
+                  v-if="hasActiveFilters"
+                  class="table-empty-text"
+                >
+                  没有符合条件的调整记录，<a @click="handleResetFilters">清除筛选</a>
+                </p>
+                <p
+                  v-else
+                  class="table-empty-text"
+                >
+                  暂无预算调整记录，点击「新建调整」开始创建
+                </p>
+              </div>
+            </template>
+
+            <template #action="{ record }">
+              <a-space
+                :size="0"
+                class="action-cell-inner"
+              >
+                <a-tooltip title="查看">
                   <a-button
+                    v-permission="'budget:plan:view'"
                     type="link"
                     size="small"
-                    class="action-more-btn"
+                    @click="handleView(record)"
                   >
                     <template #icon>
-                      <EllipsisOutlined />
+                      <EyeOutlined />
                     </template>
                   </a-button>
-                  <template #overlay>
-                    <a-menu @click="({ key }) => handleActionMenuClick(key as string, record)">
-                      <a-menu-item
-                        v-if="record.status === 'draft'"
-                        key="submit"
-                      >
-                        <CheckCircleOutlined /> 提交
-                      </a-menu-item>
-                      <a-menu-item
-                        v-if="record.status === 'submitted'"
-                        key="approve"
-                      >
-                        <AuditOutlined /> 通过
-                      </a-menu-item>
-                      <a-menu-item
-                        v-if="record.status === 'submitted'"
-                        key="reject"
-                      >
-                        <CloseCircleOutlined /> 拒绝
-                      </a-menu-item>
-                    </a-menu>
-                  </template>
-                </a-dropdown>
-              </a-tooltip>
-            </a-space>
-          </template>
-        </BillTableList>
+                </a-tooltip>
+                <a-tooltip
+                  v-if="record.status === 'draft'"
+                  title="编辑"
+                >
+                  <a-button
+                    v-permission="'budget:plan:edit'"
+                    type="link"
+                    size="small"
+                    @click="handleEdit(record)"
+                  >
+                    <template #icon>
+                      <EditOutlined />
+                    </template>
+                  </a-button>
+                </a-tooltip>
+                <a-tooltip title="更多操作">
+                  <a-dropdown trigger="click">
+                    <a-button
+                      type="link"
+                      size="small"
+                      class="action-more-btn"
+                    >
+                      <template #icon>
+                        <EllipsisOutlined />
+                      </template>
+                    </a-button>
+                    <template #overlay>
+                      <a-menu @click="({ key }) => handleActionMenuClick(key as string, record)">
+                        <a-menu-item
+                          v-if="record.status === 'draft'"
+                          key="submit"
+                        >
+                          <CheckCircleOutlined /> 提交
+                        </a-menu-item>
+                        <a-menu-item
+                          v-if="record.status === 'submitted'"
+                          key="approve"
+                        >
+                          <AuditOutlined /> 通过
+                        </a-menu-item>
+                        <a-menu-item
+                          v-if="record.status === 'submitted'"
+                          key="reject"
+                        >
+                          <CloseCircleOutlined /> 拒绝
+                        </a-menu-item>
+                      </a-menu>
+                    </template>
+                  </a-dropdown>
+                </a-tooltip>
+              </a-space>
+            </template>
+          </BillTableList>
+        </div>
 
         <!-- 全屏详情抽屉（新建/编辑） -->
         <FullScreenDetail
@@ -404,6 +408,7 @@ import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 import { budgetAdjustmentApi, annualBudgetApi, type BudgetAdjustment } from '@/api/budget'
+import { useRowDblclick } from '@/composables/useRowDblclick'
 
 const searchFilters = reactive<Record<string, any>>({})
 
@@ -675,6 +680,11 @@ const handleView = (record: BudgetAdjustment) => {
   handleEdit(record)
 }
 
+// 双击行 → 打开详情：页面侧自行实现（共享表格组件不再派发该事件）
+// 行标识由表格行上的 data-row-key 反查，与该表 row-key（'id'）同口径
+const tableWrap = ref<HTMLElement | null>(null)
+useRowDblclick(tableWrap, () => tableDataSource.value, handleView, 'id')
+
 const handleSubmit = async (record: BudgetAdjustment) => {
   try {
     await budgetAdjustmentApi.submit(record.id)
@@ -881,6 +891,16 @@ function handleError(err: any) { console.warn('[ErrorBoundary]', err) }
 </script>
 
 <style scoped>
+
+/* 双击行入口容器（页面侧事件委托，见脚本 useRowDblclick）：撑满剩余空间，避免表格高度塌陷 */
+.table-area {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
 .adjustment-page-header {
   display: flex;
   justify-content: space-between;

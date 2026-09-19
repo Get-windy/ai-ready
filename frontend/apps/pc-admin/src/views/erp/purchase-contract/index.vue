@@ -203,137 +203,141 @@
         </div>
 
         <!-- 数据表格 -->
-        <BillTableList
-          ref="tableRef"
-          :columns="vxeColumns"
-          :data-source="dataSource"
-          :loading="loading"
-          :pagination="pagination"
-          row-key="id"
-          :show-toolbar="false"
-          :selectable="false"
-          :show-add="false"
-          :show-search="false"
-          :show-export="false"
-          :show-batch-delete="false"
-          @cell-dblclick="handleView"
-          @page-change="handlePageChange"
+        <div
+          ref="tableWrap"
+          class="table-area"
         >
-          <template #empty>
-            <div
-              v-if="hasError"
-              class="table-empty"
-            >
-              <WarningOutlined class="table-empty-icon" />
-              <p class="table-empty-text">
-                数据加载异常，请重试
-              </p>
-              <a-button
-                type="primary"
-                @click="fetchData"
+          <BillTableList
+            ref="tableRef"
+            :columns="vxeColumns"
+            :data-source="dataSource"
+            :loading="loading"
+            :pagination="pagination"
+            row-key="id"
+            :show-toolbar="false"
+            :selectable="false"
+            :show-add="false"
+            :show-search="false"
+            :show-export="false"
+            :show-batch-delete="false"
+            @page-change="handlePageChange"
+          >
+            <template #empty>
+              <div
+                v-if="hasError"
+                class="table-empty"
               >
-                <ReloadOutlined /> 重试
-              </a-button>
-            </div>
-            <EmptyState
-              v-else
-              title="暂无数据"
-              description="暂无采购合同数据"
-              size="small"
-              :show-actions="false"
-            />
-          </template>
-          <template #contractNoCell="{ record }">
-            <a-button
-              type="link"
-              size="small"
-              @click="handleView(record)"
-            >
-              {{ record.contractNo }}
-            </a-button>
-          </template>
-          <template #statusCell="{ record }">
-            <a-tag :color="getStatusColor(record.contractStatus)">
-              {{ getStatusText(record.contractStatus) }}
-            </a-tag>
-          </template>
-          <template #totalAmountCell="{ record }">
-            ¥{{ record.totalAmount?.toFixed(2) }}
-          </template>
-          <template #executedAmountCell="{ record }">
-            ¥{{ (record.executedAmount || 0).toFixed(2) }}
-            <span v-if="record.executedPercent">({{ record.executedPercent }}%)</span>
-          </template>
-          <template #action="{ record }">
-            <a-space>
+                <WarningOutlined class="table-empty-icon" />
+                <p class="table-empty-text">
+                  数据加载异常，请重试
+                </p>
+                <a-button
+                  type="primary"
+                  @click="fetchData"
+                >
+                  <ReloadOutlined /> 重试
+                </a-button>
+              </div>
+              <EmptyState
+                v-else
+                title="暂无数据"
+                description="暂无采购合同数据"
+                size="small"
+                :show-actions="false"
+              />
+            </template>
+            <template #contractNoCell="{ record }">
               <a-button
                 type="link"
                 size="small"
                 @click="handleView(record)"
               >
-                查看
+                {{ record.contractNo }}
               </a-button>
-              <a-button
-                v-if="record.contractStatus === ContractStatus.DRAFT"
-                type="link"
-                size="small"
-                @click="handleEdit(record)"
-              >
-                编辑
-              </a-button>
-              <a-button
-                v-if="record.contractStatus === ContractStatus.DRAFT"
-                type="link"
-                size="small"
-                @click="handleSubmit(record)"
-              >
-                提交
-              </a-button>
-              <a-button
-                v-if="record.contractStatus === ContractStatus.PENDING_APPROVAL"
-                type="link"
-                size="small"
-                @click="handleApprove(record)"
-              >
-                审批
-              </a-button>
-              <a-button
-                v-if="record.contractStatus === ContractStatus.APPROVED"
-                type="link"
-                size="small"
-                @click="handleActivate(record)"
-              >
-                激活
-              </a-button>
-              <a-button
-                v-if="record.contractStatus === ContractStatus.ACTIVE"
-                type="link"
-                size="small"
-                danger
-                @click="handleTerminate(record)"
-              >
-                终止
-              </a-button>
-              <a-button
-                v-if="record.contractStatus === ContractStatus.ACTIVE || record.contractStatus === ContractStatus.COMPLETED"
-                type="link"
-                size="small"
-                @click="handleArchive(record)"
-              >
-                归档
-              </a-button>
-              <a-button
-                v-if="record.contractStatus === ContractStatus.DRAFT || record.contractStatus === ContractStatus.REJECTED"
-                type="link"
-                size="small"
-                danger
-                @click="handleDelete(record)"
-              >
-                删除
-              </a-button>
-            </a-space>
-          </template>
-        </BillTableList>
+            </template>
+            <template #statusCell="{ record }">
+              <a-tag :color="getStatusColor(record.contractStatus)">
+                {{ getStatusText(record.contractStatus) }}
+              </a-tag>
+            </template>
+            <template #totalAmountCell="{ record }">
+              ¥{{ record.totalAmount?.toFixed(2) }}
+            </template>
+            <template #executedAmountCell="{ record }">
+              ¥{{ (record.executedAmount || 0).toFixed(2) }}
+              <span v-if="record.executedPercent">({{ record.executedPercent }}%)</span>
+            </template>
+            <template #action="{ record }">
+              <a-space>
+                <a-button
+                  type="link"
+                  size="small"
+                  @click="handleView(record)"
+                >
+                  查看
+                </a-button>
+                <a-button
+                  v-if="record.contractStatus === ContractStatus.DRAFT"
+                  type="link"
+                  size="small"
+                  @click="handleEdit(record)"
+                >
+                  编辑
+                </a-button>
+                <a-button
+                  v-if="record.contractStatus === ContractStatus.DRAFT"
+                  type="link"
+                  size="small"
+                  @click="handleSubmit(record)"
+                >
+                  提交
+                </a-button>
+                <a-button
+                  v-if="record.contractStatus === ContractStatus.PENDING_APPROVAL"
+                  type="link"
+                  size="small"
+                  @click="handleApprove(record)"
+                >
+                  审批
+                </a-button>
+                <a-button
+                  v-if="record.contractStatus === ContractStatus.APPROVED"
+                  type="link"
+                  size="small"
+                  @click="handleActivate(record)"
+                >
+                  激活
+                </a-button>
+                <a-button
+                  v-if="record.contractStatus === ContractStatus.ACTIVE"
+                  type="link"
+                  size="small"
+                  danger
+                  @click="handleTerminate(record)"
+                >
+                  终止
+                </a-button>
+                <a-button
+                  v-if="record.contractStatus === ContractStatus.ACTIVE || record.contractStatus === ContractStatus.COMPLETED"
+                  type="link"
+                  size="small"
+                  @click="handleArchive(record)"
+                >
+                  归档
+                </a-button>
+                <a-button
+                  v-if="record.contractStatus === ContractStatus.DRAFT || record.contractStatus === ContractStatus.REJECTED"
+                  type="link"
+                  size="small"
+                  danger
+                  @click="handleDelete(record)"
+                >
+                  删除
+                </a-button>
+              </a-space>
+            </template>
+          </BillTableList>
+        </div>
       </a-card>
     </PageContainer>
   </ErrorBoundary>
@@ -358,6 +362,7 @@ import {
   purchaseContractApi, ContractStatus,
   type PurchaseContract, type ContractStatistics,
 } from '@/api/purchase-contract'
+import { useRowDblclick } from '@/composables/useRowDblclick'
 
 defineOptions({ name: 'PurchaseContractList' })
 const router = useRouter()
@@ -559,6 +564,11 @@ const handleView = (record: PurchaseContract) => {
   router.push(`/erp/purchase-contract/form?id=${record.id}`)
 }
 
+// 双击行 → 打开详情：页面侧自行实现（共享表格组件不再派发该事件）
+// 行标识由表格行上的 data-row-key 反查，与该表 row-key（'id'）同口径
+const tableWrap = ref<HTMLElement | null>(null)
+useRowDblclick(tableWrap, () => dataSource.value, handleView, 'id')
+
 const handleEdit = (record: PurchaseContract) => {
   router.push(`/erp/purchase-contract/form?id=${record.id}`)
 }
@@ -729,6 +739,16 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+
+/* 双击行入口容器（页面侧事件委托，见脚本 useRowDblclick）：撑满剩余空间，避免表格高度塌陷 */
+.table-area {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
 .purchase-contract-header {
   display: flex;
   justify-content: space-between;

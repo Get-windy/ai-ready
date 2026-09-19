@@ -62,7 +62,7 @@ public class DataSource implements Serializable {
     private String updateBy;
 
     @Schema(description = "是否删除")
-    private Boolean deleted;
+    private Integer deleted;
 
     // Getters and Setters
     public Long getId() { return id; }
@@ -95,6 +95,6 @@ public class DataSource implements Serializable {
     public void setCreateBy(String createBy) { this.createBy = createBy; }
     public String getUpdateBy() { return updateBy; }
     public void setUpdateBy(String updateBy) { this.updateBy = updateBy; }
-    public Boolean getDeleted() { return deleted; }
-    public void setDeleted(Boolean deleted) { this.deleted = deleted; }
+    public Integer getDeleted() { return deleted; }
+    public void setDeleted(Integer deleted) { this.deleted = deleted; }
 }

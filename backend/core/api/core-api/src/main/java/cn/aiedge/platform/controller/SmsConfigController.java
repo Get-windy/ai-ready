@@ -1,5 +1,6 @@
 package cn.aiedge.platform.controller;
 
+import cn.aiedge.platform.dto.ConnectionTestResult;
 import cn.aiedge.platform.model.SmsConfig;
 import cn.aiedge.platform.service.SmsConfigService;
 import cn.dev33.satoken.annotation.SaCheckPermission;
@@ -25,9 +26,8 @@ public class SmsConfigController {
     @GetMapping("/config")
     @SaCheckPermission("platform:sms:config")
     @Operation(summary = "获取短信配置")
-    public ResponseEntity<Map<String, Object>> getConfig(
-            @RequestHeader(value = "X-Tenant-Id", required = false) Long tenantId) {
-        SmsConfig config = smsConfigService.getConfig(tenantId);
+    public ResponseEntity<Map<String, Object>> getConfig() {
+        SmsConfig config = smsConfigService.getConfig(0L);
         return ResponseEntity.ok(Map.of("code", 200, "data", config, "message", "ok"));
     }
 
@@ -35,9 +35,8 @@ public class SmsConfigController {
     @SaCheckPermission("platform:sms:update")
     @Operation(summary = "保存短信配置")
     public ResponseEntity<Map<String, Object>> saveConfig(
-            @RequestBody SmsConfig config,
-            @RequestHeader(value = "X-Tenant-Id", required = false) Long tenantId) {
-        SmsConfig saved = smsConfigService.saveConfig(config, tenantId);
+            @RequestBody SmsConfig config) {
+        SmsConfig saved = smsConfigService.saveConfig(config, 0L);
         return ResponseEntity.ok(Map.of("success", true, "config", saved));
     }
 
@@ -46,10 +45,11 @@ public class SmsConfigController {
     @Operation(summary = "测试短信服务")
     public ResponseEntity<Map<String, Object>> testConnection(
             @RequestBody SmsConfig config) {
-        boolean success = smsConfigService.testConnection(config);
+        // 真实测试：返回布尔 + 人话原因（此前只 return true，页面永远显示成功）
+        ConnectionTestResult result = smsConfigService.testConnection(config);
         return ResponseEntity.ok(Map.of(
-                "success", success,
-                "message", success ? "短信服务测试成功" : "短信服务测试失败"
+                "success", result.success(),
+                "message", result.message()
         ));
     }
 }

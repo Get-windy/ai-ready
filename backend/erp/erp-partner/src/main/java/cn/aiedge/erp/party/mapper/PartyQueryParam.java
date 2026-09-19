@@ -49,6 +49,8 @@ public class PartyQueryParam {
     private String deliveryMethod;
 
     // ── 会员管理子标签查询条件 ──
+    /** 客户编号/客户名称复合检索（模糊）——营销「会员管理」页的「筛选条件」 */
+    private String partyKeyword;
     /** 会员名称/会员卡号（模糊） */
     private String memberKeyword;
     /** 联系电话（模糊） */
