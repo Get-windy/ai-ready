@@ -263,3 +263,120 @@
 6. **遗留运行产物（未删，仅报告）**：`backend/*.log` 共 299MB（`dq-start.log` 72MB、`preorder-backend-5777.log` 63MB …，均未跟踪）、`frontend/.._tool-results_*.png`（3）、`backend/cols.tmp`、`backend/.atcode`+`frontend/**/.atcode` 下 285 个运行时文件（57 个目录）。
 7. **孤儿数据库对象**：本轮删除的实体对应表（促销老模型 `marketing_discount/freight/gift/threshold`、装配拆分、`finance_auxiliary_balance`、`fee_*` 旧费用栈、`commission_settlement_config` 等）仍留在库中。删表属于格式决策，未处理。
 8. **并行会话提交混入**：`6acdb6374 "feat: 营销模块全栈开发 + … + 死代码清理 + …"` 把本轮的 121 个删除混进了功能提交。清理与功能混在一起会让回溯困难，建议后续拆分提交。
+
+---
+
+# 治理机制落地（2026-09-19 第二轮）
+
+> 死代码治理是机制而不是项目：上面删掉的 330 个文件只是结果，防止再生才是收益。
+> 本节记录本轮落地的两条门禁与三份待裁决清单。
+
+## ② 装配门禁测试（已落地）
+
+**文件**：`backend/core/api/core-api/src/test/java/cn/aiedge/architecture/ComponentScanCoverageTest.java`
+**基线**：`backend/core/api/core-api/src/test/resources/known-unscanned-controller-packages.txt`
+
+**它断言什么**
+1. 任何含 `@RestController`/`@Controller` 的包，必须落在「`AiReadyApplication.scanBasePackages` + 被覆盖的 `@ComponentScan` 闭包」内，或在基线里显式豁免；
+2. 基线不得过期（已装配/已无控制器的包必须从基线删除）——保证清单只会缩小；
+3. 扫到的控制器数量不得低于 300（实测 394）——**防止门禁因 classpath 不完整而空跑成装饰**。
+
+**为什么落在 core-api**：`core-api` 是唯一依赖全部 23 个业务模块的模块，其测试 classpath 能看见所有控制器。
+（对照：`backend/tests` 模块的 `ArchitectureComplianceTest` 只依赖 `core-base`，其 `importPackages("cn.aiedge.erp")` 扫不到任何类 → 规则全部空跑通过，属于"从来没红过的守卫"。建议把该测试迁到能看见全量 classpath 的模块，或给它补一条与本门禁相同的数量下限断言。）
+
+**当前状态**：13 个包 / 19 个控制器在基线内（即已知未装配），其余全部装配。新增漏配会直接 CI 红。
+
+**实现注记（踩过的坑）**：`@ConditionalOnProperty` 的类会被父类扫描器在**扫描阶段**就用 `ConditionEvaluator` 跳过。
+实测：`cn.aiedge.mq.controller` 的两个控制器带 `@ConditionalOnProperty(mq.rabbit.enabled=true)`，在无条件环境下根本扫不到，
+于是"基线过期检查"把它误判成"包里已没有控制器"。装配门禁要回答的是静态问题（这个包在不在扫描范围内），
+与运行期开关无关，故测试内用 `StaticAnnotationScanner` 子类绕开了条件评估（Spring 6.1 未提供公开开关）。
+
+**验证（守卫有牙齿）**——不是"跑通了"，而是"该红时确实红"：
+| 探针 | 期望 | 实测 |
+|------|------|------|
+| 从基线里删掉 `cn.aiedge.report.controller` | 断言 1 失败并列出未装配控制器 | ✅ 红：逐条列出 `ReportController` / `ReportAnalyticsController` / `ReportScheduleController` |
+| 把控制器数量下限临时改成 99999 | 断言 3 失败 | ✅ 红：`只扫描到 396 个控制器（期望 ≥ 99999）` |
+| 还原后重跑 | 3/3 通过 | ✅ 绿（BUILD SUCCESS） |
+
+（顺带确认：算上被条件过滤的类，运行期实际扫到 396 个控制器，源码口径 394 —— 差值即上述 mq 两个控制器。）
+
+## ③ 仓库产物门禁（已落地）
+
+**文件**：`tools/check-repo-hygiene.sh`（本地可跑）
+**接入**：`.github/workflows/ci-optimized.yml` 新增 `repo-hygiene` 作业（阶段 0，独立于变更检测，秒级）
+
+**规则**：`git ls-files` 命中 `*.log|*.bak|*.tmp|*.pyc|*.pyo|*.swp|*.orig|*.rej`、`__pycache__/`、`*.tsbuildinfo`、`vite.config.ts.timestamp-*`、`node_modules/`、`dist/`、`playwright-report/`、`test-results/`、`.DS_Store` 即失败；另拒绝 >5MB 的已提交文件。
+
+**落地时它立刻清出的历史欠账**（说明规则不是空转）：
+- 34 个 Python 字节码（`backend/sync-engine/**`、`backend/tests/additional-tests/**`、`tools/__pycache__/`）此前一直入库；
+- `frontend/playwright-report/index.html`（0.5MB 的 HTML 报告）、`frontend/test-results/.last-run.json`、`frontend/apps/pc-admin/test-results/.last-run.json`。
+以上已 `git rm --cached`（工作区文件保留）+ 补 `.gitignore`。
+
+**注意（反例）**：`frontend/apps/pc-admin/package-lock.json` 看似 npm 残留，实际被 `ci-optimized.yml:255-266` 的 `npm ci` 使用——**不能删**。这就是"删除前必须验证引用"的具体代价。
+
+## ④ 接口命中审计（运行期证据，已落地）
+
+**文件**：`tools/audit-endpoint-hits.py`（自检：`python tools/audit-endpoint-hits.py --self-test`）
+
+**为什么需要**：`tools/audit-api-usage.py` 只能证明"前端源码里没搜到调用"，证明不了"生产上没人调"。公网链接（扫码评价/签收）、外部系统回调（WMS→ERP）、移动端旧版本、第三方集成都不会出现在本仓库里。
+
+**做法**：把访问日志（nginx combined / Tomcat access log 均可）与静态候选清单 `tools/audit-api-usage.json`（1118 + 104 个"前端从未调用"接口）对上，输出：
+- ① 观察窗口内**零命中** → 可进入弃用流程（`@Deprecated` + 文档标注 + `Sunset` 响应头 → 再观察一个发布周期 → 删除）；
+- ② **有命中**（静态漏判）→ 禁止删除，附命中次数与 UA。
+
+**现状**：运行期调用日志目前只覆盖 `/api/open/**`（`ApiCallLogInterceptor` + `api_access_log` 表），**不覆盖** 11 个契约控制器所在路径。因此在观察期开始前，需要按脚本头部注释在 nginx 打开访问日志（或临时把拦截器扩到所需前缀）。观察窗口建议 2–4 周，覆盖月结/对账这类低频周期。
+
+## ⑤ 未装配功能包决策清单（待裁决）
+
+口径：`scanBasePackages` 闭包外、含控制器的包。共同特征——**代码在、表建了、控制器没装配、没有菜单、没有前端页面**（迁移里 `component` 引用为 0，`dynamicRoutes` 无对应键）。
+
+| 包 | 类数 | 控制器 | 建表迁移 | 前端调用 | 文档提及 | 建议 |
+|----|-----|-------|---------|---------|---------|------|
+| `cn.aiedge.storage.*` | 29 | 3 | `sys_file`、`sys_file_permission` | 无（前端 `/api/file` 走 `cn.aiedge.common.file`，已装配） | 《存储配置开发文档》 | **删除**：与 `platform.StorageConfigController` + `common.file.FileUploadController` 重复 |
+| `cn.aiedge.report.*` | 22 | 3 | `report_definition/schedule/schedule_log` | 无 | 无 | 删除（未接线；注意 `ErrorReportController` 在 `base.log`，那条链是通的） |
+| `cn.aiedge.search.*` | 22 | 2 | 无 | 1 处 `searchHotApi`，但该 api 函数无人调用 | 无 | 删除（两侧都没接线） |
+| `cn.aiedge.knowledge.*` | 17 | 1 | `kb_knowledge_base/document/document_chunk` | 无 | 3 篇（含 gap-analysis） | 裁决：推荐删实现，只按 `AGENTS.md`「AI 只保留接口」在 `core-agent` 保留契约 |
+| `cn.aiedge.gateway.*` | 15 | 2 | `gateway_log` | 无 | 19 篇（多为通用提及） | **删除**：`GatewayAutoConfiguration` 已被主应用 `exclude`，微服务网关方案已废弃 |
+| `cn.aiedge.mq.*` | 13 | 2 | 无 | 无 | 1 篇 | 删除（`@ConditionalOnProperty(mq.rabbit)` 未开启） |
+| `cn.aiedge.recommendation.*` | 10 | 1 | `rec_recommendation`、`rec_user_behavior` | 无 | 2 篇 | 删除或按产品决定 |
+| `cn.aiedge.webhook.*` | 10 | 1 | `sys_webhook`、`sys_webhook_log` | 无 | 1 篇 | 删除 |
+| `cn.aiedge.agent.*` | 29 | 2 | `ai_agent*` | 无 | `AGENTS.md` 声明「接口预留」 | **保留接口、删实现**（需与 `AGENTS.md` 的预留范围对齐） |
+| `cn.aiedge.assistant.*` | 8 | 1 | `assistant_conversation` | 无 | 无 | 删除（与 `core-agent` 定位重叠） |
+| `cn.aiedge.feedback.*` | 6 | 1 | 无表 | 无（mobile-admin 只 `push('/feedback')`，该路由不存在） | 35 处「反馈」多为泛述 | 删除，或补齐 mobile 反馈页 |
+
+**每条裁决三选一**（都要带 owner 与期限，不能停在中间）：
+- **a) 要** → 加进 `scanBasePackages`（或某个被扫描的 `@ComponentScan`）→ 从基线清单移除该行 → 补一条能打到端点的冒烟。**没有冒烟就不算"要"**。
+- **b) 不要** → 删代码 → 表按下方 ⑥ 的流程处理。
+- **c) 暂缓** → 实现收进 `cn.aiedge.experimental.*`，加 `@ConditionalOnProperty` 默认关，并在 CI 里禁止新代码依赖。
+
+**顺带发现（文档与代码不一致，需更正）**：`docs/Yh-Spec/手动整理对标开发文档/系统模块/存储配置开发文档.md:54` 与 `:371-378` 断言「`/api/storage` 前缀是'活的'」——实际 `cn.aiedge.storage` 从未进入 `scanBasePackages`（同仓 `scheduler/controller/SystemTaskController.java:109-110` 的注释也确认了这一点），因此 `/api/storage/**` 整体 404，不是"活的前缀"。该文档据此得出的排查结论需要更正。
+
+## ⑥ 孤儿数据库表清单与标记方案（只标记，未建迁移）
+
+**口径**：本轮删除的实体所对应的表，且**当前源码零引用**（含 raw SQL）。
+
+**确认为孤儿（30 张，均已有 CREATE TABLE 迁移）**：
+`fee_application`、`fee_application_item`、`fee_approval_record`、`fee_payment_record`、`fee_reimbursement`、`fee_reimbursement_item`、`fee_statistics`、`finance_auxiliary_balance`、`erp_commission_settlement_config`、`erp_marketing_discount`、`erp_marketing_freight`、`erp_marketing_gift`、`erp_marketing_rule_product`、`erp_marketing_threshold`、`erp_marketing_tiered`、`erp_kit_assembly`、`erp_kit_assembly_item`、`erp_kit_disassembly`、`erp_kit_disassembly_item`、`purchase_supplier_candidate`、`purchase_supplier_evaluation`、`purchase_supplier_quotation`、`batch_rule`、`batchsn_audit_log`、`batch_snapshot_cache`、`serial_status_cache`、`traceability_log`、`erp_supplier_benefit`、`erp_supplier_notification`、`erp_supplier_points_rule`
+（多数由 `V9.32.0__Create_All_Missing_Tables.sql`、`V9.34.0__Backfill_Missing_Tables.sql` 批量建出——**这正是"表能建、点不动"的源头**：按实体批量建表，与功能是否接线无关。）
+
+**仍被使用、明确排除（2 张）**：
+- `mkt_presale_order` —— 被 `erp-marketing/mapper/MarketingQueryMapper.java:161` 的 raw SQL 查询；
+- `biz_party_transaction` —— 被 `erp-partner/party/mapper/PartyMapper.java:15` 查询，且列入 `base/config/MyBatisPlusConfig.java:97` 的多租户表清单。
+（实体类被删≠表可删：这两张表证明必须按 SQL 引用而非实体是否存在来判断。）
+
+**流程（不要与代码删除同批）**：
+1. 先观察：`pg_stat_user_tables` 的 `seq_scan/idx_scan` + `pg_stat_statements` 观察 1–2 个发布周期，确认零访问；
+2. 再改名：新增 Flyway 迁移 `ALTER TABLE x RENAME TO zz_deprecated_<x>_<date>`（或移入 `archive` schema），迁移注释写明"为什么可以 drop、观察了多久、证据是什么"；
+3. 再 drop：下个发布周期无异常后，用 Flyway 迁移 drop，并同步删除本清单条目。
+4. 前置：确认备份可用（`pg_dump` 或已有备份且验证过可恢复）——**数据不可回滚，代码可回滚**。
+
+## ⑦ 日志归档与历史瘦身（方案，未执行）
+
+**工作区产物（未跟踪，可先归档再删）**：
+- `backend/*.log` 共 299MB（`dq-start.log` 72MB、`preorder-backend-5777.log` 63MB、`bank-run2.log` 43MB、`customer-api-5671.log` 18MB …）
+- `frontend/.._tool-results_*.png`（3 个路径 glob 写错产生的文件名）、`backend/cols.tmp`
+- `backend/**/.atcode` + `frontend/**/.atcode` 共 285 个文件 / 57 个目录（工具运行时状态，已在 `.gitignore`）
+
+**建议顺序**：① 门禁已就位（防新增）→ ② 需要留档的压缩归档到仓库外（`tar -czf` 后校验可解压）→ ③ 删除工作区产物。
+**历史瘦身**（把已入库的大文件从 `.git` 里真正去掉）需要 `git filter-repo` **改写历史**，会让所有人的本地克隆失效，必须在全团队知情的窗口做，且要配合 `git push --force-with-lease` 与重新克隆指引——**单独立项，不要在清理里顺手做**。
+**执行前必做**：`git count-objects -vH` 与 `git rev-list --objects --all | git cat-file --batch-check` 找出历史大对象清单，用它决定值不值得瘦身（若历史里主要是 `.log`，收益明显；若只是几张截图，收益有限）。

@@ -58,6 +58,24 @@ concurrency:
 
 jobs:
   # ============================================
+  # 阶段0: 仓库卫生（运行产物 / 超大文件不得入库）
+  # ------------------------------------------------------------
+  # 独立于变更检测、只读 git 索引，秒级完成，任何 push/PR 都跑。
+  # 由来：backend_new.log 7.2GB、299MB 的 *.log、pnpm 安装包 3.8MB、
+  #      34 个 .pyc、Playwright 报告、*.bak 备份都曾进入版本库——删掉也仍在历史里。
+  # 规则与处理方式见 tools/check-repo-hygiene.sh。
+  # ============================================
+  repo-hygiene:
+    name: Repo Hygiene
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: 运行产物与超大文件检查
+        run: bash tools/check-repo-hygiene.sh
+
+  # ============================================
   # 阶段1: 变更检测（快速跳过不必要的构建）
   # ============================================
   changes:

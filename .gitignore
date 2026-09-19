@@ -64,6 +64,10 @@ coverage/
 .nyc_output/
 *.gcov
 
+# Playwright / E2E 产物（HTML 报告与运行状态，不入库）
+playwright-report/
+test-results/
+
 # Build
 dist/
 build/
@@ -77,6 +81,9 @@ node_modules/
 __pycache__/
 *.pyc
 *.pyo
+
+# Maven flatten 插件的中间产物（每次构建按 ${revision} 重新生成，clean 阶段自删）
+**/.flattened-pom.xml
 
 # Agent documentation files
 **/AGENTS.md

@@ -1,0 +1,52 @@
+# 已知未装配的控制器包 —— 基线（棘轮清单）
+#
+# 语义：下面这些包里的 @RestController 目前不在 AiReadyApplication.scanBasePackages 的扫描闭包内，
+#       所以运行时端点一律 404（Mapper 是通配扫描，表能建 → 表现为「表能建、点不动」）。
+#       它们是「已实现但未接线」，不是「已确认的死代码」——逐条都需要一次裁决。
+#
+# 规则：① 消除一个就删一行；② 新增一行必须先在 CLEANUP_AUDIT_REPORT.md
+#        「第二轮死代码清理（2026-09-19）」章节写明理由，否则这个门禁会退化成「默认放行」。
+#
+# 核算口径（2026-09-19 全量核算）：主源码 @RestController/@Controller 共 394 个，
+#       已装配 375 个，未装配 19 个（即本文件 13 个包）。
+#
+# 每个包的现状与建议（裁决方式见 CLEANUP_AUDIT_REPORT.md「范围外发现」第 1 条）：
+
+# AI 能力接口（2 个控制器）—— AGENTS.md 声明「AI 是外部服务，只保留接口不实现算法」
+cn.aiedge.agent.controller
+
+# 对话助手（1 个）—— 无前端调用方，与 core-agent 的定位重叠
+cn.aiedge.assistant.controller
+
+# 用户反馈提交（1 个）—— mobile-admin 只 push 了 /feedback 路由（该路由未注册）
+cn.aiedge.feedback.controller
+
+# 微服务网关管理（1 个）—— AiReadyApplication 已 exclude GatewayAutoConfiguration，微服务方案已废弃
+cn.aiedge.gateway.controller
+
+# 网关降级兜底（1 个）—— 同上，随网关方案废弃
+cn.aiedge.gateway.fallback
+
+# 知识库（1 个）—— 无前端调用方；若要保留需连同向量检索/文档解析一起接线
+cn.aiedge.knowledge.controller
+
+# 消息队列运维端点（2 个）—— @ConditionalOnProperty(mq.rabbit)，当前配置未开启
+cn.aiedge.mq.controller
+
+# 商品/内容推荐（1 个）—— 无前端调用方
+cn.aiedge.recommendation.controller
+
+# 报表中心（3 个）—— 无前端调用方；注意 ErrorReportController 在 cn.aiedge.base.log，那条链是通装配的
+cn.aiedge.report.controller
+
+# 搜索 / 语义搜索（2 个）—— 无前端调用方
+cn.aiedge.search.controller
+
+# 分片上传（1 个）—— 前端上传走的是别的端点
+cn.aiedge.storage.chunk
+
+# 文件存储与访问（2 个）—— 同上
+cn.aiedge.storage.controller
+
+# Webhook 回调（1 个）—— 无调用方；集成模块的接收端点另有 ImplementationController
+cn.aiedge.webhook.controller
