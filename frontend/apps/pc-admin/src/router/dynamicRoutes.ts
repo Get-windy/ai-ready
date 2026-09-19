@@ -1447,13 +1447,19 @@ function getRequiredRoutes(): RouteRecordRaw[] {
       meta: { title: '流程分析', icon: 'AuditOutlined', keepAlive: true, requiresAuth: true }
     },
     {
-      path: 'notification/index',
+      // ⚠️ path 必须是 'notification'（不是 'notification/index'）：
+      // 顶栏通知铃铛走 useNotification.ts:108 的 router.push('/notification')，
+      // 注册成 /notification/index 会让该入口 404。全仓无人使用带 /index 的写法。
+      path: 'notification',
       name: 'Notification',
       component: () => import('@/views/notification/index.vue'),
       meta: { title: '通知公告', icon: 'BellOutlined', keepAlive: true, requiresAuth: true }
     },
     {
-      path: 'profile/index',
+      // ⚠️ path 必须是 'profile'：用户下拉「个人中心」走 BasicLayout.vue:367 的
+      // navigateTo('/profile')，而 navigateTo 对以 / 开头的路径直接 router.push，
+      // 注册成 /profile/index 时该入口必 404。全仓无人使用带 /index 的写法。
+      path: 'profile',
       name: 'Profile',
       component: () => import('@/views/profile/index.vue'),
       meta: { title: '个人中心', icon: 'UserOutlined', keepAlive: true, requiresAuth: true }
@@ -1762,8 +1768,10 @@ function getFallbackRoutes(): RouteRecordRaw[] {
         // 结论：降级时宁可不显示入口，也不能凭空给出可能越权的入口。
         // 仅保留与角色/模块无关、任何登录用户都该能进的通用页。
         { path: 'charts/index', name: 'Charts', component: () => import('@/views/charts/index.vue'), meta: { title: '图表', icon: 'BarChartOutlined', keepAlive: true, requiresAuth: true } },
-        { path: 'notification/index', name: 'Notification', component: () => import('@/views/notification/index.vue'), meta: { title: '通知公告', icon: 'BellOutlined', keepAlive: true, requiresAuth: true } },
-        { path: 'profile/index', name: 'Profile', component: () => import('@/views/profile/index.vue'), meta: { title: '个人中心', icon: 'UserOutlined', keepAlive: true, requiresAuth: true } },
+        // path 用 'notification' / 'profile'：与 requiredRoutes 保持一致，
+        // 否则走 fallback 分支时顶栏通知铃铛与「个人中心」入口仍会 404（详见 requiredRoutes 处的注释）
+        { path: 'notification', name: 'Notification', component: () => import('@/views/notification/index.vue'), meta: { title: '通知公告', icon: 'BellOutlined', keepAlive: true, requiresAuth: true } },
+        { path: 'profile', name: 'Profile', component: () => import('@/views/profile/index.vue'), meta: { title: '个人中心', icon: 'UserOutlined', keepAlive: true, requiresAuth: true } },
       ]
     }
   ]
