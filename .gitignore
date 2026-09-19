@@ -73,6 +73,11 @@ out/
 node_modules/
 *.tsbuildinfo
 
+# Python（tools/ 下脚本的运行产物，不入库）
+__pycache__/
+*.pyc
+*.pyo
+
 # Agent documentation files
 **/AGENTS.md
 

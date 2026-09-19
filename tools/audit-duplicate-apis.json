@@ -1,0 +1,1467 @@
+{
+ "check/page": [
+  {
+   "verb": "GET",
+   "path": "/api/erp/stock/check/page",
+   "cls": "StockCheckController",
+   "file": "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/StockCheckController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "GET",
+   "path": "/api/wms/check/page",
+   "cls": "CheckController",
+   "file": "backend/wms/src/main/java/cn/aiedge/wms/controller/CheckController.java",
+   "frontend_unused": false
+  }
+ ],
+ "check/{}": [
+  {
+   "verb": "GET",
+   "path": "/api/erp/stock/check/{}",
+   "cls": "StockCheckController",
+   "file": "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/StockCheckController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "GET",
+   "path": "/api/wms/check/{}",
+   "cls": "CheckController",
+   "file": "backend/wms/src/main/java/cn/aiedge/wms/controller/CheckController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "DELETE",
+   "path": "/api/wms/check/{}",
+   "cls": "CheckController",
+   "file": "backend/wms/src/main/java/cn/aiedge/wms/controller/CheckController.java",
+   "frontend_unused": false
+  }
+ ],
+ "config/batch": [
+  {
+   "verb": "DELETE",
+   "path": "/api/config/batch",
+   "cls": "SystemConfigController",
+   "file": "backend/core/api/core-api/src/main/java/cn/aiedge/config/controller/SystemConfigController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "PUT",
+   "path": "/api/dms/config/batch",
+   "cls": "ConfigController",
+   "file": "backend/dms/src/main/java/cn/aiedge/dms/config/controller/ConfigController.java",
+   "frontend_unused": false
+  }
+ ],
+ "config/export": [
+  {
+   "verb": "GET",
+   "path": "/api/config/export",
+   "cls": "SystemConfigController",
+   "file": "backend/core/api/core-api/src/main/java/cn/aiedge/config/controller/SystemConfigController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "GET",
+   "path": "/api/dms/config/export",
+   "cls": "ConfigController",
+   "file": "backend/dms/src/main/java/cn/aiedge/dms/config/controller/ConfigController.java",
+   "frontend_unused": false
+  }
+ ],
+ "config/list": [
+  {
+   "verb": "GET",
+   "path": "/api/config/list",
+   "cls": "SystemConfigController",
+   "file": "backend/core/api/core-api/src/main/java/cn/aiedge/config/controller/SystemConfigController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "GET",
+   "path": "/api/dms/config/list",
+   "cls": "ConfigController",
+   "file": "backend/dms/src/main/java/cn/aiedge/dms/config/controller/ConfigController.java",
+   "frontend_unused": false
+  }
+ ],
+ "config/page": [
+  {
+   "verb": "GET",
+   "path": "/api/config/page",
+   "cls": "SystemConfigController",
+   "file": "backend/core/api/core-api/src/main/java/cn/aiedge/config/controller/SystemConfigController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "GET",
+   "path": "/api/dms/config/page",
+   "cls": "ConfigController",
+   "file": "backend/dms/src/main/java/cn/aiedge/dms/config/controller/ConfigController.java",
+   "frontend_unused": false
+  }
+ ],
+ "config/{}": [
+  {
+   "verb": "DELETE",
+   "path": "/api/config/{}",
+   "cls": "SystemConfigController",
+   "file": "backend/core/api/core-api/src/main/java/cn/aiedge/config/controller/SystemConfigController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "GET",
+   "path": "/api/dms/config/{}",
+   "cls": "ConfigController",
+   "file": "backend/dms/src/main/java/cn/aiedge/dms/config/controller/ConfigController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "PUT",
+   "path": "/api/dms/config/{}",
+   "cls": "ConfigController",
+   "file": "backend/dms/src/main/java/cn/aiedge/dms/config/controller/ConfigController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "DELETE",
+   "path": "/api/dms/config/{}",
+   "cls": "ConfigController",
+   "file": "backend/dms/src/main/java/cn/aiedge/dms/config/controller/ConfigController.java",
+   "frontend_unused": false
+  }
+ ],
+ "contract/statistics": [
+  {
+   "verb": "GET",
+   "path": "/api/crm/contract/statistics",
+   "cls": "ContractController",
+   "file": "backend/crm/src/main/java/cn/aiedge/crm/contract/controller/ContractController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "GET",
+   "path": "/api/erp/purchase/contract/statistics",
+   "cls": "PurchaseContractController",
+   "file": "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseContractController.java",
+   "frontend_unused": false
+  }
+ ],
+ "contract/{}": [
+  {
+   "verb": "GET",
+   "path": "/api/crm/contract/{}",
+   "cls": "ContractController",
+   "file": "backend/crm/src/main/java/cn/aiedge/crm/contract/controller/ContractController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "PUT",
+   "path": "/api/crm/contract/{}",
+   "cls": "ContractController",
+   "file": "backend/crm/src/main/java/cn/aiedge/crm/contract/controller/ContractController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "GET",
+   "path": "/api/erp/purchase/contract/{}",
+   "cls": "PurchaseContractController",
+   "file": "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseContractController.java",
+   "frontend_unused": false
+  }
+ ],
+ "contract/{}/approve": [
+  {
+   "verb": "POST",
+   "path": "/api/crm/contract/{}/approve",
+   "cls": "ContractController",
+   "file": "backend/crm/src/main/java/cn/aiedge/crm/contract/controller/ContractController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "POST",
+   "path": "/api/erp/purchase/contract/{}/approve",
+   "cls": "PurchaseContractController",
+   "file": "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseContractController.java",
+   "frontend_unused": false
+  }
+ ],
+ "contract/{}/submit": [
+  {
+   "verb": "POST",
+   "path": "/api/crm/contract/{}/submit",
+   "cls": "ContractController",
+   "file": "backend/crm/src/main/java/cn/aiedge/crm/contract/controller/ContractController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "POST",
+   "path": "/api/erp/purchase/contract/{}/submit",
+   "cls": "PurchaseContractController",
+   "file": "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseContractController.java",
+   "frontend_unused": false
+  }
+ ],
+ "contract/{}/terminate": [
+  {
+   "verb": "POST",
+   "path": "/api/crm/contract/{}/terminate",
+   "cls": "ContractController",
+   "file": "backend/crm/src/main/java/cn/aiedge/crm/contract/controller/ContractController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "POST",
+   "path": "/api/erp/purchase/contract/{}/terminate",
+   "cls": "PurchaseContractController",
+   "file": "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseContractController.java",
+   "frontend_unused": false
+  }
+ ],
+ "customer/batch": [
+  {
+   "verb": "DELETE",
+   "path": "/api/customer/batch",
+   "cls": "CustomerController",
+   "file": "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "DELETE",
+   "path": "/api/erp/md/customer/batch",
+   "cls": "MdCustomerController",
+   "file": "backend/erp/erp-partner/src/main/java/cn/aiedge/erp/party/controller/MdCustomerController.java",
+   "frontend_unused": false
+  }
+ ],
+ "customer/export": [
+  {
+   "verb": "GET",
+   "path": "/api/customer/export",
+   "cls": "CustomerController",
+   "file": "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "GET",
+   "path": "/api/erp/md/customer/export",
+   "cls": "MdCustomerController",
+   "file": "backend/erp/erp-partner/src/main/java/cn/aiedge/erp/party/controller/MdCustomerController.java",
+   "frontend_unused": false
+  }
+ ],
+ "customer/import": [
+  {
+   "verb": "POST",
+   "path": "/api/customer/import",
+   "cls": "CustomerController",
+   "file": "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "POST",
+   "path": "/api/erp/md/customer/import",
+   "cls": "MdCustomerController",
+   "file": "backend/erp/erp-partner/src/main/java/cn/aiedge/erp/party/controller/MdCustomerController.java",
+   "frontend_unused": true
+  }
+ ],
+ "customer/level/{}": [
+  {
+   "verb": "GET",
+   "path": "/api/customer/level/{}",
+   "cls": "CustomerController",
+   "file": "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java",
+   "frontend_unused": true
+  },
+  {
+   "verb": "GET",
+   "path": "/api/erp/customer/level/{}",
+   "cls": "CustomerLevelController",
+   "file": "backend/erp/erp-partner/src/main/java/cn/aiedge/erp/customer/controller/CustomerLevelController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "PUT",
+   "path": "/api/erp/customer/level/{}",
+   "cls": "CustomerLevelController",
+   "file": "backend/erp/erp-partner/src/main/java/cn/aiedge/erp/customer/controller/CustomerLevelController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "DELETE",
+   "path": "/api/erp/customer/level/{}",
+   "cls": "CustomerLevelController",
+   "file": "backend/erp/erp-partner/src/main/java/cn/aiedge/erp/customer/controller/CustomerLevelController.java",
+   "frontend_unused": false
+  }
+ ],
+ "customer/list": [
+  {
+   "verb": "GET",
+   "path": "/api/customer/list",
+   "cls": "CustomerController",
+   "file": "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java",
+   "frontend_unused": true
+  },
+  {
+   "verb": "GET",
+   "path": "/api/erp/md/customer/list",
+   "cls": "MdCustomerController",
+   "file": "backend/erp/erp-partner/src/main/java/cn/aiedge/erp/party/controller/MdCustomerController.java",
+   "frontend_unused": false
+  }
+ ],
+ "customer/page": [
+  {
+   "verb": "GET",
+   "path": "/api/customer/page",
+   "cls": "CustomerController",
+   "file": "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "GET",
+   "path": "/api/erp/md/customer/page",
+   "cls": "MdCustomerController",
+   "file": "backend/erp/erp-partner/src/main/java/cn/aiedge/erp/party/controller/MdCustomerController.java",
+   "frontend_unused": false
+  }
+ ],
+ "customer/{}": [
+  {
+   "verb": "GET",
+   "path": "/api/customer/{}",
+   "cls": "CustomerController",
+   "file": "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "PUT",
+   "path": "/api/customer/{}",
+   "cls": "CustomerController",
+   "file": "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "DELETE",
+   "path": "/api/customer/{}",
+   "cls": "CustomerController",
+   "file": "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "GET",
+   "path": "/api/erp/md/customer/{}",
+   "cls": "MdCustomerController",
+   "file": "backend/erp/erp-partner/src/main/java/cn/aiedge/erp/party/controller/MdCustomerController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "PUT",
+   "path": "/api/erp/md/customer/{}",
+   "cls": "MdCustomerController",
+   "file": "backend/erp/erp-partner/src/main/java/cn/aiedge/erp/party/controller/MdCustomerController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "DELETE",
+   "path": "/api/erp/md/customer/{}",
+   "cls": "MdCustomerController",
+   "file": "backend/erp/erp-partner/src/main/java/cn/aiedge/erp/party/controller/MdCustomerController.java",
+   "frontend_unused": false
+  }
+ ],
+ "customer/{}/follow": [
+  {
+   "verb": "POST",
+   "path": "/api/customer/{}/follow",
+   "cls": "CustomerController",
+   "file": "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "POST",
+   "path": "/api/erp/md/customer/{}/follow",
+   "cls": "MdCustomerController",
+   "file": "backend/erp/erp-partner/src/main/java/cn/aiedge/erp/party/controller/MdCustomerController.java",
+   "frontend_unused": true
+  }
+ ],
+ "customer/{}/status": [
+  {
+   "verb": "PUT",
+   "path": "/api/customer/{}/status",
+   "cls": "CustomerController",
+   "file": "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "PUT",
+   "path": "/api/erp/md/customer/{}/status",
+   "cls": "MdCustomerController",
+   "file": "backend/erp/erp-partner/src/main/java/cn/aiedge/erp/party/controller/MdCustomerController.java",
+   "frontend_unused": false
+  }
+ ],
+ "dashboard/stats": [
+  {
+   "verb": "GET",
+   "path": "/api/dashboard/stats",
+   "cls": "DashboardController",
+   "file": "backend/core/api/core-api/src/main/java/cn/aiedge/dashboard/controller/DashboardController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "GET",
+   "path": "/api/dms/dashboard/stats",
+   "cls": "DashboardController",
+   "file": "backend/dms/src/main/java/cn/aiedge/dms/dashboard/controller/DashboardController.java",
+   "frontend_unused": true
+  }
+ ],
+ "dashboard/trend": [
+  {
+   "verb": "GET",
+   "path": "/api/dashboard/trend",
+   "cls": "DashboardController",
+   "file": "backend/core/api/core-api/src/main/java/cn/aiedge/dashboard/controller/DashboardController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "GET",
+   "path": "/api/dms/dashboard/trend",
+   "cls": "DashboardController",
+   "file": "backend/dms/src/main/java/cn/aiedge/dms/dashboard/controller/DashboardController.java",
+   "frontend_unused": true
+  }
+ ],
+ "exchange/batch-print": [
+  {
+   "verb": "POST",
+   "path": "/api/erp/purchase/exchange/batch-print",
+   "cls": "PurchaseExchangeController",
+   "file": "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/purchaseexchange/controller/PurchaseExchangeController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "POST",
+   "path": "/api/erp/sale/exchange/batch-print",
+   "cls": "SaleExchangeController",
+   "file": "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/saleexchange/controller/SaleExchangeController.java",
+   "frontend_unused": false
+  }
+ ],
+ "exchange/export": [
+  {
+   "verb": "GET",
+   "path": "/api/erp/purchase/exchange/export",
+   "cls": "PurchaseExchangeController",
+   "file": "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/purchaseexchange/controller/PurchaseExchangeController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "GET",
+   "path": "/api/erp/sale/exchange/export",
+   "cls": "SaleExchangeController",
+   "file": "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/saleexchange/controller/SaleExchangeController.java",
+   "frontend_unused": false
+  }
+ ],
+ "exchange/next-no": [
+  {
+   "verb": "GET",
+   "path": "/api/erp/purchase/exchange/next-no",
+   "cls": "PurchaseExchangeController",
+   "file": "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/purchaseexchange/controller/PurchaseExchangeController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "GET",
+   "path": "/api/erp/sale/exchange/next-no",
+   "cls": "SaleExchangeController",
+   "file": "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/saleexchange/controller/SaleExchangeController.java",
+   "frontend_unused": false
+  }
+ ],
+ "exchange/page": [
+  {
+   "verb": "GET",
+   "path": "/api/erp/purchase/exchange/page",
+   "cls": "PurchaseExchangeController",
+   "file": "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/purchaseexchange/controller/PurchaseExchangeController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "GET",
+   "path": "/api/erp/sale/exchange/page",
+   "cls": "SaleExchangeController",
+   "file": "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/saleexchange/controller/SaleExchangeController.java",
+   "frontend_unused": false
+  }
+ ],
+ "exchange/{}": [
+  {
+   "verb": "GET",
+   "path": "/api/erp/purchase/exchange/{}",
+   "cls": "PurchaseExchangeController",
+   "file": "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/purchaseexchange/controller/PurchaseExchangeController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "PUT",
+   "path": "/api/erp/purchase/exchange/{}",
+   "cls": "PurchaseExchangeController",
+   "file": "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/purchaseexchange/controller/PurchaseExchangeController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "DELETE",
+   "path": "/api/erp/purchase/exchange/{}",
+   "cls": "PurchaseExchangeController",
+   "file": "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/purchaseexchange/controller/PurchaseExchangeController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "GET",
+   "path": "/api/erp/sale/exchange/{}",
+   "cls": "SaleExchangeController",
+   "file": "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/saleexchange/controller/SaleExchangeController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "PUT",
+   "path": "/api/erp/sale/exchange/{}",
+   "cls": "SaleExchangeController",
+   "file": "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/saleexchange/controller/SaleExchangeController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "DELETE",
+   "path": "/api/erp/sale/exchange/{}",
+   "cls": "SaleExchangeController",
+   "file": "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/saleexchange/controller/SaleExchangeController.java",
+   "frontend_unused": false
+  }
+ ],
+ "exchange/{}/approval-records": [
+  {
+   "verb": "GET",
+   "path": "/api/erp/purchase/exchange/{}/approval-records",
+   "cls": "PurchaseExchangeController",
+   "file": "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/purchaseexchange/controller/PurchaseExchangeController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "GET",
+   "path": "/api/erp/sale/exchange/{}/approval-records",
+   "cls": "SaleExchangeController",
+   "file": "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/saleexchange/controller/SaleExchangeController.java",
+   "frontend_unused": false
+  }
+ ],
+ "exchange/{}/approve": [
+  {
+   "verb": "POST",
+   "path": "/api/erp/purchase/exchange/{}/approve",
+   "cls": "PurchaseExchangeController",
+   "file": "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/purchaseexchange/controller/PurchaseExchangeController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "POST",
+   "path": "/api/erp/sale/exchange/{}/approve",
+   "cls": "SaleExchangeController",
+   "file": "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/saleexchange/controller/SaleExchangeController.java",
+   "frontend_unused": false
+  }
+ ],
+ "exchange/{}/cancel": [
+  {
+   "verb": "POST",
+   "path": "/api/erp/purchase/exchange/{}/cancel",
+   "cls": "PurchaseExchangeController",
+   "file": "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/purchaseexchange/controller/PurchaseExchangeController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "POST",
+   "path": "/api/erp/sale/exchange/{}/cancel",
+   "cls": "SaleExchangeController",
+   "file": "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/saleexchange/controller/SaleExchangeController.java",
+   "frontend_unused": false
+  }
+ ],
+ "exchange/{}/complete": [
+  {
+   "verb": "POST",
+   "path": "/api/erp/purchase/exchange/{}/complete",
+   "cls": "PurchaseExchangeController",
+   "file": "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/purchaseexchange/controller/PurchaseExchangeController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "POST",
+   "path": "/api/erp/sale/exchange/{}/complete",
+   "cls": "SaleExchangeController",
+   "file": "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/saleexchange/controller/SaleExchangeController.java",
+   "frontend_unused": false
+  }
+ ],
+ "exchange/{}/items": [
+  {
+   "verb": "GET",
+   "path": "/api/erp/purchase/exchange/{}/items",
+   "cls": "PurchaseExchangeController",
+   "file": "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/purchaseexchange/controller/PurchaseExchangeController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "GET",
+   "path": "/api/erp/sale/exchange/{}/items",
+   "cls": "SaleExchangeController",
+   "file": "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/saleexchange/controller/SaleExchangeController.java",
+   "frontend_unused": false
+  }
+ ],
+ "exchange/{}/print": [
+  {
+   "verb": "POST",
+   "path": "/api/erp/purchase/exchange/{}/print",
+   "cls": "PurchaseExchangeController",
+   "file": "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/purchaseexchange/controller/PurchaseExchangeController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "POST",
+   "path": "/api/erp/sale/exchange/{}/print",
+   "cls": "SaleExchangeController",
+   "file": "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/saleexchange/controller/SaleExchangeController.java",
+   "frontend_unused": false
+  }
+ ],
+ "exchange/{}/reject": [
+  {
+   "verb": "POST",
+   "path": "/api/erp/purchase/exchange/{}/reject",
+   "cls": "PurchaseExchangeController",
+   "file": "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/purchaseexchange/controller/PurchaseExchangeController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "POST",
+   "path": "/api/erp/sale/exchange/{}/reject",
+   "cls": "SaleExchangeController",
+   "file": "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/saleexchange/controller/SaleExchangeController.java",
+   "frontend_unused": false
+  }
+ ],
+ "exchange/{}/submit": [
+  {
+   "verb": "POST",
+   "path": "/api/erp/purchase/exchange/{}/submit",
+   "cls": "PurchaseExchangeController",
+   "file": "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/purchaseexchange/controller/PurchaseExchangeController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "POST",
+   "path": "/api/erp/sale/exchange/{}/submit",
+   "cls": "SaleExchangeController",
+   "file": "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/saleexchange/controller/SaleExchangeController.java",
+   "frontend_unused": false
+  }
+ ],
+ "exchange/{}/tracking": [
+  {
+   "verb": "GET",
+   "path": "/api/erp/purchase/exchange/{}/tracking",
+   "cls": "PurchaseExchangeController",
+   "file": "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/purchaseexchange/controller/PurchaseExchangeController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "GET",
+   "path": "/api/erp/sale/exchange/{}/tracking",
+   "cls": "SaleExchangeController",
+   "file": "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/saleexchange/controller/SaleExchangeController.java",
+   "frontend_unused": false
+  }
+ ],
+ "order/batch-approve": [
+  {
+   "verb": "POST",
+   "path": "/api/erp/purchase/order/batch-approve",
+   "cls": "PurchaseOrderController",
+   "file": "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseOrderController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "POST",
+   "path": "/api/erp/sale/order/batch-approve",
+   "cls": "SaleOrderController",
+   "file": "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/controller/SaleOrderController.java",
+   "frontend_unused": false
+  }
+ ],
+ "order/batch-print": [
+  {
+   "verb": "POST",
+   "path": "/api/erp/purchase/order/batch-print",
+   "cls": "PurchaseOrderController",
+   "file": "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseOrderController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "POST",
+   "path": "/api/erp/sale/order/batch-print",
+   "cls": "SaleOrderController",
+   "file": "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/controller/SaleOrderController.java",
+   "frontend_unused": false
+  }
+ ],
+ "order/export": [
+  {
+   "verb": "GET",
+   "path": "/api/erp/purchase/order/export",
+   "cls": "PurchaseOrderController",
+   "file": "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseOrderController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "GET",
+   "path": "/api/erp/sale/order/export",
+   "cls": "SaleOrderController",
+   "file": "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/controller/SaleOrderController.java",
+   "frontend_unused": false
+  }
+ ],
+ "order/import": [
+  {
+   "verb": "POST",
+   "path": "/api/erp/purchase/order/import",
+   "cls": "PurchaseOrderController",
+   "file": "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseOrderController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "POST",
+   "path": "/api/erp/sale/order/import",
+   "cls": "SaleOrderController",
+   "file": "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/controller/SaleOrderController.java",
+   "frontend_unused": false
+  }
+ ],
+ "order/next-no": [
+  {
+   "verb": "GET",
+   "path": "/api/erp/purchase/order/next-no",
+   "cls": "PurchaseOrderController",
+   "file": "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseOrderController.java",
+   "frontend_unused": true
+  },
+  {
+   "verb": "GET",
+   "path": "/api/erp/sale/order/next-no",
+   "cls": "SaleOrderController",
+   "file": "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/controller/SaleOrderController.java",
+   "frontend_unused": false
+  }
+ ],
+ "order/{}": [
+  {
+   "verb": "PUT",
+   "path": "/api/erp/purchase/order/{}",
+   "cls": "PurchaseOrderController",
+   "file": "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseOrderController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "GET",
+   "path": "/api/erp/purchase/order/{}",
+   "cls": "PurchaseOrderController",
+   "file": "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseOrderController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "DELETE",
+   "path": "/api/erp/purchase/order/{}",
+   "cls": "PurchaseOrderController",
+   "file": "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseOrderController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "GET",
+   "path": "/api/erp/sale/order/{}",
+   "cls": "SaleOrderController",
+   "file": "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/controller/SaleOrderController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "PUT",
+   "path": "/api/erp/sale/order/{}",
+   "cls": "SaleOrderController",
+   "file": "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/controller/SaleOrderController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "DELETE",
+   "path": "/api/erp/sale/order/{}",
+   "cls": "SaleOrderController",
+   "file": "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/controller/SaleOrderController.java",
+   "frontend_unused": false
+  }
+ ],
+ "order/{}/approve": [
+  {
+   "verb": "POST",
+   "path": "/api/erp/purchase/order/{}/approve",
+   "cls": "PurchaseOrderController",
+   "file": "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseOrderController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "POST",
+   "path": "/api/erp/sale/order/{}/approve",
+   "cls": "SaleOrderController",
+   "file": "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/controller/SaleOrderController.java",
+   "frontend_unused": false
+  }
+ ],
+ "order/{}/cancel": [
+  {
+   "verb": "POST",
+   "path": "/api/erp/purchase/order/{}/cancel",
+   "cls": "PurchaseOrderController",
+   "file": "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseOrderController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "POST",
+   "path": "/api/erp/sale/order/{}/cancel",
+   "cls": "SaleOrderController",
+   "file": "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/controller/SaleOrderController.java",
+   "frontend_unused": false
+  }
+ ],
+ "order/{}/reject": [
+  {
+   "verb": "POST",
+   "path": "/api/erp/purchase/order/{}/reject",
+   "cls": "PurchaseOrderController",
+   "file": "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseOrderController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "POST",
+   "path": "/api/erp/sale/order/{}/reject",
+   "cls": "SaleOrderController",
+   "file": "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/controller/SaleOrderController.java",
+   "frontend_unused": false
+  }
+ ],
+ "order/{}/submit": [
+  {
+   "verb": "POST",
+   "path": "/api/erp/purchase/order/{}/submit",
+   "cls": "PurchaseOrderController",
+   "file": "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/controller/PurchaseOrderController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "POST",
+   "path": "/api/erp/sale/order/{}/submit",
+   "cls": "SaleOrderController",
+   "file": "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/controller/SaleOrderController.java",
+   "frontend_unused": false
+  }
+ ],
+ "payment/export": [
+  {
+   "verb": "GET",
+   "path": "/api/dms/payment/export",
+   "cls": "PaymentController",
+   "file": "backend/dms/src/main/java/cn/aiedge/dms/payment/controller/PaymentController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "GET",
+   "path": "/api/erp/payment/export",
+   "cls": "PaymentController",
+   "file": "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PaymentController.java",
+   "frontend_unused": false
+  }
+ ],
+ "payment/page": [
+  {
+   "verb": "GET",
+   "path": "/api/dms/payment/page",
+   "cls": "PaymentController",
+   "file": "backend/dms/src/main/java/cn/aiedge/dms/payment/controller/PaymentController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "GET",
+   "path": "/api/erp/payment/page",
+   "cls": "PaymentController",
+   "file": "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PaymentController.java",
+   "frontend_unused": false
+  }
+ ],
+ "payment/{}": [
+  {
+   "verb": "GET",
+   "path": "/api/dms/payment/{}",
+   "cls": "PaymentController",
+   "file": "backend/dms/src/main/java/cn/aiedge/dms/payment/controller/PaymentController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "GET",
+   "path": "/api/erp/payment/{}",
+   "cls": "PaymentController",
+   "file": "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PaymentController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "PUT",
+   "path": "/api/erp/payment/{}",
+   "cls": "PaymentController",
+   "file": "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PaymentController.java",
+   "frontend_unused": false
+  }
+ ],
+ "payment/{}/write-off": [
+  {
+   "verb": "POST",
+   "path": "/api/dms/payment/{}/write-off",
+   "cls": "PaymentController",
+   "file": "backend/dms/src/main/java/cn/aiedge/dms/payment/controller/PaymentController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "POST",
+   "path": "/api/erp/payment/{}/write-off",
+   "cls": "PaymentController",
+   "file": "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/PaymentController.java",
+   "frontend_unused": false
+  }
+ ],
+ "receipt/next-no": [
+  {
+   "verb": "GET",
+   "path": "/api/erp/receipt/next-no",
+   "cls": "ReceiptController",
+   "file": "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "GET",
+   "path": "/api/wms/receipt/next-no",
+   "cls": "ReceiptController",
+   "file": "backend/wms/src/main/java/cn/aiedge/wms/controller/ReceiptController.java",
+   "frontend_unused": false
+  }
+ ],
+ "receipt/page": [
+  {
+   "verb": "GET",
+   "path": "/api/erp/receipt/page",
+   "cls": "ReceiptController",
+   "file": "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "GET",
+   "path": "/api/wms/receipt/page",
+   "cls": "ReceiptController",
+   "file": "backend/wms/src/main/java/cn/aiedge/wms/controller/ReceiptController.java",
+   "frontend_unused": false
+  }
+ ],
+ "receipt/page-detail": [
+  {
+   "verb": "GET",
+   "path": "/api/erp/receipt/page-detail",
+   "cls": "ReceiptController",
+   "file": "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "GET",
+   "path": "/api/wms/receipt/page-detail",
+   "cls": "ReceiptController",
+   "file": "backend/wms/src/main/java/cn/aiedge/wms/controller/ReceiptController.java",
+   "frontend_unused": false
+  }
+ ],
+ "receipt/{}": [
+  {
+   "verb": "GET",
+   "path": "/api/erp/receipt/{}",
+   "cls": "ReceiptController",
+   "file": "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "PUT",
+   "path": "/api/erp/receipt/{}",
+   "cls": "ReceiptController",
+   "file": "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/payment/controller/ReceiptController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "GET",
+   "path": "/api/wms/receipt/{}",
+   "cls": "ReceiptController",
+   "file": "backend/wms/src/main/java/cn/aiedge/wms/controller/ReceiptController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "DELETE",
+   "path": "/api/wms/receipt/{}",
+   "cls": "ReceiptController",
+   "file": "backend/wms/src/main/java/cn/aiedge/wms/controller/ReceiptController.java",
+   "frontend_unused": false
+  }
+ ],
+ "reconciliation/{}": [
+  {
+   "verb": "GET",
+   "path": "/api/reconciliation/{}",
+   "cls": "ReconciliationController",
+   "file": "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/ReconciliationController.java",
+   "frontend_unused": true
+  },
+  {
+   "verb": "GET",
+   "path": "/api/erp/finance/reconciliation/{}",
+   "cls": "ReconciliationController",
+   "file": "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/reconciliation/controller/ReconciliationController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "DELETE",
+   "path": "/api/erp/finance/reconciliation/{}",
+   "cls": "ReconciliationController",
+   "file": "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/reconciliation/controller/ReconciliationController.java",
+   "frontend_unused": false
+  }
+ ],
+ "return/export": [
+  {
+   "verb": "GET",
+   "path": "/api/erp/purchase/return/export",
+   "cls": "PurchaseReturnController",
+   "file": "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/purchasereturn/controller/PurchaseReturnController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "GET",
+   "path": "/api/erp/sale/return/export",
+   "cls": "SaleReturnController",
+   "file": "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/salereturn/controller/SaleReturnController.java",
+   "frontend_unused": false
+  }
+ ],
+ "return/next-no": [
+  {
+   "verb": "GET",
+   "path": "/api/erp/purchase/return/next-no",
+   "cls": "PurchaseReturnController",
+   "file": "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/purchasereturn/controller/PurchaseReturnController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "GET",
+   "path": "/api/erp/sale/return/next-no",
+   "cls": "SaleReturnController",
+   "file": "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/salereturn/controller/SaleReturnController.java",
+   "frontend_unused": false
+  }
+ ],
+ "return/page": [
+  {
+   "verb": "GET",
+   "path": "/api/erp/purchase/return/page",
+   "cls": "PurchaseReturnController",
+   "file": "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/purchasereturn/controller/PurchaseReturnController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "GET",
+   "path": "/api/erp/sale/return/page",
+   "cls": "SaleReturnController",
+   "file": "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/salereturn/controller/SaleReturnController.java",
+   "frontend_unused": false
+  }
+ ],
+ "return/{}": [
+  {
+   "verb": "GET",
+   "path": "/api/erp/purchase/return/{}",
+   "cls": "PurchaseReturnController",
+   "file": "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/purchasereturn/controller/PurchaseReturnController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "PUT",
+   "path": "/api/erp/purchase/return/{}",
+   "cls": "PurchaseReturnController",
+   "file": "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/purchasereturn/controller/PurchaseReturnController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "GET",
+   "path": "/api/erp/sale/return/{}",
+   "cls": "SaleReturnController",
+   "file": "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/salereturn/controller/SaleReturnController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "PUT",
+   "path": "/api/erp/sale/return/{}",
+   "cls": "SaleReturnController",
+   "file": "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/salereturn/controller/SaleReturnController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "DELETE",
+   "path": "/api/erp/sale/return/{}",
+   "cls": "SaleReturnController",
+   "file": "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/salereturn/controller/SaleReturnController.java",
+   "frontend_unused": false
+  }
+ ],
+ "return/{}/approve": [
+  {
+   "verb": "POST",
+   "path": "/api/erp/purchase/return/{}/approve",
+   "cls": "PurchaseReturnController",
+   "file": "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/purchasereturn/controller/PurchaseReturnController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "POST",
+   "path": "/api/erp/sale/return/{}/approve",
+   "cls": "SaleReturnController",
+   "file": "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/salereturn/controller/SaleReturnController.java",
+   "frontend_unused": false
+  }
+ ],
+ "return/{}/cancel": [
+  {
+   "verb": "POST",
+   "path": "/api/erp/purchase/return/{}/cancel",
+   "cls": "PurchaseReturnController",
+   "file": "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/purchasereturn/controller/PurchaseReturnController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "POST",
+   "path": "/api/erp/sale/return/{}/cancel",
+   "cls": "SaleReturnController",
+   "file": "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/salereturn/controller/SaleReturnController.java",
+   "frontend_unused": false
+  }
+ ],
+ "return/{}/complete": [
+  {
+   "verb": "POST",
+   "path": "/api/erp/purchase/return/{}/complete",
+   "cls": "PurchaseReturnController",
+   "file": "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/purchasereturn/controller/PurchaseReturnController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "POST",
+   "path": "/api/erp/sale/return/{}/complete",
+   "cls": "SaleReturnController",
+   "file": "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/salereturn/controller/SaleReturnController.java",
+   "frontend_unused": false
+  }
+ ],
+ "return/{}/items": [
+  {
+   "verb": "GET",
+   "path": "/api/erp/purchase/return/{}/items",
+   "cls": "PurchaseReturnController",
+   "file": "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/purchasereturn/controller/PurchaseReturnController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "POST",
+   "path": "/api/erp/purchase/return/{}/items",
+   "cls": "PurchaseReturnController",
+   "file": "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/purchasereturn/controller/PurchaseReturnController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "GET",
+   "path": "/api/erp/sale/return/{}/items",
+   "cls": "SaleReturnController",
+   "file": "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/salereturn/controller/SaleReturnController.java",
+   "frontend_unused": false
+  }
+ ],
+ "return/{}/reject": [
+  {
+   "verb": "POST",
+   "path": "/api/erp/purchase/return/{}/reject",
+   "cls": "PurchaseReturnController",
+   "file": "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/purchasereturn/controller/PurchaseReturnController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "POST",
+   "path": "/api/erp/sale/return/{}/reject",
+   "cls": "SaleReturnController",
+   "file": "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/salereturn/controller/SaleReturnController.java",
+   "frontend_unused": false
+  }
+ ],
+ "return/{}/submit": [
+  {
+   "verb": "POST",
+   "path": "/api/erp/purchase/return/{}/submit",
+   "cls": "PurchaseReturnController",
+   "file": "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/purchasereturn/controller/PurchaseReturnController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "POST",
+   "path": "/api/erp/sale/return/{}/submit",
+   "cls": "SaleReturnController",
+   "file": "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/salereturn/controller/SaleReturnController.java",
+   "frontend_unused": false
+  }
+ ],
+ "supplier-portal/inquiries/supplier/{}": [
+  {
+   "verb": "GET",
+   "path": "/api/v1/supplier-portal/inquiries/supplier/{}",
+   "cls": "SupplierPortalController",
+   "file": "backend/erp/erp-supplier-portal/src/main/java/cn/aiedge/erp/supplier/controller/SupplierPortalController.java",
+   "frontend_unused": true
+  },
+  {
+   "verb": "GET",
+   "path": "/api/supplier-portal/inquiries/supplier/{}",
+   "cls": "SupplierPortalInquiryController",
+   "file": "backend/erp/erp-supplier-portal/src/main/java/cn/aiedge/erp/supplier/controller/SupplierPortalInquiryController.java",
+   "frontend_unused": false
+  }
+ ],
+ "supplier-portal/points/{}/records": [
+  {
+   "verb": "GET",
+   "path": "/api/v1/supplier-portal/points/{}/records",
+   "cls": "SupplierPortalController",
+   "file": "backend/erp/erp-supplier-portal/src/main/java/cn/aiedge/erp/supplier/controller/SupplierPortalController.java",
+   "frontend_unused": true
+  },
+  {
+   "verb": "GET",
+   "path": "/api/supplier-portal/points/{}/records",
+   "cls": "SupplierPortalInquiryController",
+   "file": "backend/erp/erp-supplier-portal/src/main/java/cn/aiedge/erp/supplier/controller/SupplierPortalInquiryController.java",
+   "frontend_unused": false
+  }
+ ],
+ "user/batch": [
+  {
+   "verb": "DELETE",
+   "path": "/api/v2/user/batch",
+   "cls": "UserController",
+   "file": "backend/core/api/core-api/src/main/java/cn/aiedge/user/controller/UserController.java",
+   "frontend_unused": true
+  },
+  {
+   "verb": "DELETE",
+   "path": "/api/user/batch",
+   "cls": "SysUserController",
+   "file": "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysUserController.java",
+   "frontend_unused": false
+  }
+ ],
+ "user/page": [
+  {
+   "verb": "GET",
+   "path": "/api/v2/user/page",
+   "cls": "UserController",
+   "file": "backend/core/api/core-api/src/main/java/cn/aiedge/user/controller/UserController.java",
+   "frontend_unused": true
+  },
+  {
+   "verb": "GET",
+   "path": "/api/user/page",
+   "cls": "SysUserController",
+   "file": "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysUserController.java",
+   "frontend_unused": false
+  }
+ ],
+ "user/{}": [
+  {
+   "verb": "GET",
+   "path": "/api/v2/user/{}",
+   "cls": "UserController",
+   "file": "backend/core/api/core-api/src/main/java/cn/aiedge/user/controller/UserController.java",
+   "frontend_unused": true
+  },
+  {
+   "verb": "DELETE",
+   "path": "/api/v2/user/{}",
+   "cls": "UserController",
+   "file": "backend/core/api/core-api/src/main/java/cn/aiedge/user/controller/UserController.java",
+   "frontend_unused": true
+  },
+  {
+   "verb": "PUT",
+   "path": "/api/user/{}",
+   "cls": "SysUserController",
+   "file": "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysUserController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "DELETE",
+   "path": "/api/user/{}",
+   "cls": "SysUserController",
+   "file": "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysUserController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "GET",
+   "path": "/api/user/{}",
+   "cls": "SysUserController",
+   "file": "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysUserController.java",
+   "frontend_unused": false
+  }
+ ],
+ "user/{}/password/reset": [
+  {
+   "verb": "PUT",
+   "path": "/api/v2/user/{}/password/reset",
+   "cls": "UserController",
+   "file": "backend/core/api/core-api/src/main/java/cn/aiedge/user/controller/UserController.java",
+   "frontend_unused": true
+  },
+  {
+   "verb": "PUT",
+   "path": "/api/user/{}/password/reset",
+   "cls": "SysUserController",
+   "file": "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysUserController.java",
+   "frontend_unused": false
+  }
+ ],
+ "user/{}/roles": [
+  {
+   "verb": "POST",
+   "path": "/api/v2/user/{}/roles",
+   "cls": "UserController",
+   "file": "backend/core/api/core-api/src/main/java/cn/aiedge/user/controller/UserController.java",
+   "frontend_unused": true
+  },
+  {
+   "verb": "POST",
+   "path": "/api/user/{}/roles",
+   "cls": "SysUserController",
+   "file": "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysUserController.java",
+   "frontend_unused": false
+  }
+ ],
+ "user/{}/status": [
+  {
+   "verb": "PUT",
+   "path": "/api/v2/user/{}/status",
+   "cls": "UserController",
+   "file": "backend/core/api/core-api/src/main/java/cn/aiedge/user/controller/UserController.java",
+   "frontend_unused": true
+  },
+  {
+   "verb": "PUT",
+   "path": "/api/user/{}/status",
+   "cls": "SysUserController",
+   "file": "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysUserController.java",
+   "frontend_unused": false
+  }
+ ],
+ "warehouse/page": [
+  {
+   "verb": "GET",
+   "path": "/api/erp/warehouse/page",
+   "cls": "WarehouseController",
+   "file": "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/WarehouseController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "GET",
+   "path": "/api/wms/warehouse/page",
+   "cls": "WarehouseController",
+   "file": "backend/wms/src/main/java/cn/aiedge/wms/controller/WarehouseController.java",
+   "frontend_unused": false
+  }
+ ],
+ "warehouse/save": [
+  {
+   "verb": "POST",
+   "path": "/api/erp/warehouse/save",
+   "cls": "WarehouseController",
+   "file": "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/WarehouseController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "POST",
+   "path": "/api/wms/warehouse/save",
+   "cls": "WarehouseController",
+   "file": "backend/wms/src/main/java/cn/aiedge/wms/controller/WarehouseController.java",
+   "frontend_unused": false
+  }
+ ],
+ "warehouse/update": [
+  {
+   "verb": "POST",
+   "path": "/api/erp/warehouse/update",
+   "cls": "WarehouseController",
+   "file": "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/WarehouseController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "POST",
+   "path": "/api/wms/warehouse/update",
+   "cls": "WarehouseController",
+   "file": "backend/wms/src/main/java/cn/aiedge/wms/controller/WarehouseController.java",
+   "frontend_unused": false
+  }
+ ],
+ "warehouse/{}": [
+  {
+   "verb": "GET",
+   "path": "/api/erp/warehouse/{}",
+   "cls": "WarehouseController",
+   "file": "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/WarehouseController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "DELETE",
+   "path": "/api/erp/warehouse/{}",
+   "cls": "WarehouseController",
+   "file": "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/WarehouseController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "GET",
+   "path": "/api/wms/warehouse/{}",
+   "cls": "WarehouseController",
+   "file": "backend/wms/src/main/java/cn/aiedge/wms/controller/WarehouseController.java",
+   "frontend_unused": false
+  },
+  {
+   "verb": "DELETE",
+   "path": "/api/wms/warehouse/{}",
+   "cls": "WarehouseController",
+   "file": "backend/wms/src/main/java/cn/aiedge/wms/controller/WarehouseController.java",
+   "frontend_unused": false
+  }
+ ]
+}
