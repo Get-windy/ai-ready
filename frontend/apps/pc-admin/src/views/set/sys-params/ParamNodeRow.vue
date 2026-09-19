@@ -58,7 +58,7 @@
             placement="bottom"
           >
             <a-checkbox
-              :checked="isOn(child.key)"
+              :checked="isOnKey(child.key)"
               :disabled="child.locked"
               :data-param-key="child.key"
               @change="(e: any) => emit('update', child.key, e.target.checked ? 'true' : 'false')"
@@ -190,7 +190,17 @@ const emit = defineEmits<{
 /** 每层缩进 20px（与页面的 .param-row--child 视觉一致） */
 const indent = computed(() => `${(props.depth + 1) * 20}px`)
 const value = computed(() => props.values[props.node.key] ?? '')
+/** 本行（node.key）的布尔开值 */
 const isOn = computed(() => value.value === 'true')
+/**
+ * 按任意 key 判断布尔开值 —— 供「分组行的内联布尔子项」使用。
+ *
+ * ⚠️ isOn 是绑定在 node.key 上的 computed（**值**，不是函数）；
+ * 内联子项各自有自己的 child.key，必须走本函数判断。
+ * 此前 61 行误写成 `isOn(child.key)`，运行时报
+ * `TypeError: $setup.isOn is not a function`，整个系统参数页被 ErrorBoundary 兜住。
+ */
+const isOnKey = (key: string): boolean => (props.values[key] ?? '') === 'true'
 const optionsOf = computed(() => props.enumOptions[props.node.key] || [])
 const segmentOptionsOf = computed(() => props.segmentOptions[props.node.key] || [])
 

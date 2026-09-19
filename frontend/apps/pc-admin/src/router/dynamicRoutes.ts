@@ -50,7 +50,6 @@ const componentMap: Record<string, () => Promise<any>> = {
   'erp/product/index': () => import('@/views/erp/product/index.vue'),
   'erp/product/create': () => import('@/views/erp/product/form.vue'),
   'erp/product/form': () => import('@/views/erp/product/form.vue'),
-  'erp/product/price-batch': () => import('@/views/erp/product/price-batch.vue'),
   'erp/product/inventory-mode': () => import('@/views/erp/product/inventory-mode.vue'),
   'erp/product/grade': () => import('@/views/erp/product/grade.vue'),
   'erp/column-config/sale-order-item': () => import('@/views/erp/column-config/SaleOrderItemColumnConfig.vue'),
@@ -58,7 +57,6 @@ const componentMap: Record<string, () => Promise<any>> = {
   'partner/detail': () => import('@/views/erp/partner/detail.vue'),
   'erp/partner/index': () => import('@/views/erp/partner/index.vue'),
   'erp/partner/detail': () => import('@/views/erp/partner/detail.vue'),
-  'charts/index': () => import('@/views/charts/index.vue'),
   'crm/contract/index': () => import('@/views/crm/contract/index.vue'),
   'crm/customer/index': () => import('@/views/crm/customer/index.vue'),
   'crm/invoice/index': () => import('@/views/crm/invoice/index.vue'),
@@ -72,21 +70,16 @@ const componentMap: Record<string, () => Promise<any>> = {
   'dashboard/index': () => import('@/views/dashboard/index.vue'),
   'finance/index': () => import('@/views/finance/index.vue'),
   'finance/reconciliation/index': () => import('@/views/finance/reconciliation/index.vue'),
-  'finance/reports/index': () => import('@/views/finance/reports/index.vue'),
   'finance/voucher/index': () => import('@/views/finance/voucher/index.vue'),
   'finance/voucher/VoucherDetail': () => import('@/views/finance/voucher/VoucherDetail.vue'),
-  'finance/subject/index': () => import('@/views/finance/subject/index.vue'),
   'finance/receivable/index': () => import('@/views/finance/receivable/index.vue'),
   'finance/payable/index': () => import('@/views/finance/payable/index.vue'),
-  'finance/pre-receipt/index': () => import('@/views/finance/pre-receipt/index.vue'),
   'finance/pre-payment/index': () => import('@/views/finance/pre-payment/index.vue'),
   'finance/deposit/index': () => import('@/views/finance/deposit/index.vue'),
   'finance/write-off/index': () => import('@/views/finance/write-off/index.vue'),
   'finance/offset/index': () => import('@/views/finance/offset/index.vue'),
-  'finance/capital-flow/index': () => import('@/views/finance/capital-flow/index.vue'),
   'finance/receipt/index': () => import('@/views/finance/receipt/index.vue'),
   'finance/payment/index': () => import('@/views/finance/payment/index.vue'),
-  'finance/report/index': () => import('@/views/finance/report/index.vue'),
   'notification/index': () => import('@/views/notification/index.vue'),
   'order-center/index': () => import('@/views/order-center/index.vue'),
   'profile/index': () => import('@/views/profile/index.vue'),
@@ -103,7 +96,6 @@ const componentMap: Record<string, () => Promise<any>> = {
   'supplier/inquiry/index': () => import('@/views/supplier/inquiry/index.vue'),
   'supplier/performance/index': () => import('@/views/supplier/performance/index.vue'),
   'system/config/index': () => import('@/views/system/config/index.vue'),
-  'system/department/index': () => import('@/views/system/department/index.vue'),
   'system/dict/index': () => import('@/views/system/dict/index.vue'),
   'system/log/index': () => import('@/views/system/log/index.vue'),
   'system/menu/index': () => import('@/views/system/menu/index.vue'),
@@ -131,13 +123,11 @@ const componentMap: Record<string, () => Promise<any>> = {
   'erp/sale/index': () => import('@/views/erp/sale/index.vue'),
   'erp/sale/form': () => import('@/views/erp/sale/form.vue'),
   'erp/stock/index': () => import('@/views/erp/stock/index.vue'),
-  'erp/sales-analysis/index': () => import('@/views/erp/sales-analysis/index.vue'),
   'erp/sales-report/index': () => import('@/views/erp/sales-report/index.vue'),
   'erp/stock-in/index': () => import('@/views/erp/stock-in/index.vue'),
   'erp/stock-out/index': () => import('@/views/erp/stock-out/index.vue'),
   'erp/stock/replenishment/index': () => import('@/views/erp/stock/replenishment/index.vue'),
   'erp/stocktake/index': () => import('@/views/erp/stocktake/index.vue'),
-  'erp/return/index': () => import('@/views/erp/return/index.vue'),
   'erp/shipment/index': () => import('@/views/erp/shipment/index.vue'),
   // ── 价格引擎模块 ──
   // 'erp/pricing/index' 的映射已移除：该页（1704 行）与菜单 70503「商品价格管理」
@@ -147,7 +137,6 @@ const componentMap: Record<string, () => Promise<any>> = {
   // 其 v-permission 码 pricing:compare/seasonal/history 在 sys_permission 中也不存在
   // ⇒ 按钮对非超管直接隐藏。既是坏功能又无入口，故直接清理，页面文件已删除。
   'erp/pricing/approval/index': () => import('@/views/erp/pricing/approval/index.vue'),
-  'erp/pricing/tiers/index': () => import('@/views/erp/pricing/tiers/index.vue'),
   'erp/dashboard/index': () => import('@/views/erp/dashboard/index.vue'),
   'erp/purchase/index': () => import('@/views/erp/purchase/index.vue'),
   'erp/purchase/form': () => import('@/views/erp/purchase/form.vue'),
@@ -178,28 +167,16 @@ const componentMap: Record<string, () => Promise<any>> = {
 
   // ── WMS 仓储管理模块 ──
   'wms/warehouse/index': () => import('@/views/wms/warehouse/index.vue'),
-  'wms/location/index': () => import('@/views/wms/location/index.vue'),
-  'wms/receipt/index': () => import('@/views/wms/receipt/index.vue'),
   'wms/putaway/index': () => import('@/views/wh/putaway-order/index.vue'),
   'wms/pick/index': () => import('@/views/wh/picking-order/index.vue'),
   'wms/wave/index': () => import('@/views/wms/wave/index.vue'),
   'wms/ship/index': () => import('@/views/wh/shipping-order/index.vue'),
-  'wms/inventory/index': () => import('@/views/wms/inventory/index.vue'),
   'wms/move/index': () => import('@/views/wh/move-order/index.vue'),
-  'wms/check/index': () => import('@/views/wms/check/index.vue'),
   'wms/event/index': () => import('@/views/wms/event/index.vue'),
 
   // ── 商城管理模块 ──
-  'erp/mall/config/index': () => import('@/views/erp/mall/config/index.vue'),
-  'erp/mall/user-audit/index': () => import('@/views/erp/mall/user-audit/index.vue'),
-  'erp/mall/banner/index': () => import('@/views/erp/mall/banner/index.vue'),
-  'erp/mall/order/index': () => import('@/views/erp/mall/order/index.vue'),
   'erp/mall/product/index': () => import('@/views/erp/mall/product/index.vue'),
   // 商城顶级路由
-  'mall/config/index': () => import('@/views/erp/mall/config/index.vue'),
-  'mall/user-audit/index': () => import('@/views/erp/mall/user-audit/index.vue'),
-  'mall/banner/index': () => import('@/views/erp/mall/banner/index.vue'),
-  'mall/order/index': () => import('@/views/erp/mall/order/index.vue'),
   'mall/product/index': () => import('@/views/erp/mall/product/index.vue'),
 
   'fixed-asset/index': () => import('@/views/fixed-asset/index.vue'),
@@ -219,13 +196,9 @@ const componentMap: Record<string, () => Promise<any>> = {
   'erp/expense/reimbursement/index': () => import('@/views/erp/expense/reimbursement/index.vue'),
   'erp/expense/reimbursement/detail': () => import('@/views/erp/expense/reimbursement/detail.vue'),
   'erp/expense/approval/index': () => import('@/views/erp/expense/approval/index.vue'),
-  'erp/expense/payment/index': () => import('@/views/erp/expense/payment/index.vue'),
-  'erp/expense/statistics/index': () => import('@/views/erp/expense/statistics/index.vue'),
 
   'budget/index': () => import('@/views/budget/index.vue'),
   'budget/template/index': () => import('@/views/budget/template/index.vue'),
-  'budget/annual/index': () => import('@/views/budget/annual/index.vue'),
-  'budget/annual/detail': () => import('@/views/budget/annual/BudgetDetail.vue'),
   'budget/adjustment/index': () => import('@/views/budget/adjustment/index.vue'),
   'budget/report/index': () => import('@/views/budget/report/index.vue'),
 
@@ -283,7 +256,6 @@ const componentMap: Record<string, () => Promise<any>> = {
   'admin/platform/security': () => import('@/views/admin/platform/security/index.vue'),
 
   // ── 系统级占位页面（新功能未实现时使用） ──
-  'common/placeholder/index': () => import('@/views/common/placeholder/index.vue'),
 
   // ── displayMode=1 表单页路由（Phase 1 ERP 核心单据） ──
   'erp/shipment/form': () => import('@/views/erp/shipment/form.vue'),
@@ -321,16 +293,21 @@ const componentMap: Record<string, () => Promise<any>> = {
   // ── displayMode=1 列表页 URL→组件映射（有实际列表组件） ──
   'sales/order': () => import('@/views/erp/sale/index.vue'),
   'purchase/order': () => import('@/views/erp/purchase/index.vue'),
-  'sales/return': () => import('@/views/erp/return/index.vue'),
+  // 旧 erp/return/index.vue 已于 2026-09-19 删除，本别名键被菜单 list_path=sales/return 使用，
+  // 改指《CLEANUP_SCOPE_20260919.md》记录的取代页 sales/return-doc（70022）。
+  'sales/return': () => import('@/views/sales/return-doc/index.vue'),
   'sales/shipment': () => import('@/views/erp/shipment/index.vue'),
-  'wms/receipt': () => import('@/views/wms/receipt/index.vue'),
   'wms/putaway': () => import('@/views/wh/putaway-order/index.vue'),
   'wms/pick': () => import('@/views/wh/picking-order/index.vue'),
   'wms/wave': () => import('@/views/wms/wave/index.vue'),
   'wms/ship': () => import('@/views/wh/shipping-order/index.vue'),
   'wms/move': () => import('@/views/wh/move-order/index.vue'),
-  'wms/check': () => import('@/views/wms/check/index.vue'),
-  'mall/user-audit': () => import('@/views/erp/mall/user-audit/index.vue'),
+  // 旧 wms/receipt/index.vue 已删除（form.vue 保留），本别名键被菜单 list_path=wms/receipt 及
+  // wms/receipt/form.vue 的 redirectPath='/wms/receipt' 使用，改指取代页 wh/receiving-order（80012）。
+  'wms/receipt': () => import('@/views/wh/receiving-order/index.vue'),
+  // 旧 wms/check/index.vue 已删除（form.vue 保留），本别名键被菜单 list_path=wms/check 及
+  // wms/check/form.vue 的 redirectPath='/wms/check' 使用，改指取代页 wh/inventory-order（60302）。
+  'wms/check': () => import('@/views/wh/inventory-order/index.vue'),
   'crm/quotation': () => import('@/views/crm/quotation/index.vue'),
   'crm/invoice': () => import('@/views/crm/invoice/index.vue'),
   'crm/customer': () => import('@/views/crm/customer/index.vue'),
@@ -342,7 +319,8 @@ const componentMap: Record<string, () => Promise<any>> = {
   'dms/sign': () => import('@/views/dms/sign/index.vue'),
   'dms/settlement': () => import('@/views/dms/settlement/index.vue'),
   'dms/payment': () => import('@/views/dms/payment/index.vue'),
-  'erp/return': () => import('@/views/erp/return/index.vue'),
+  // 旧 erp/return/index.vue 已删除，本别名键改指取代页 sales/return-doc（70022）。
+  'erp/return': () => import('@/views/sales/return-doc/index.vue'),
   'erp/shipment': () => import('@/views/erp/shipment/index.vue'),
 
   // ── displayMode=1 列表页 URL→组件映射（Phase 4 - 全量实现） ──
@@ -452,14 +430,8 @@ const componentMap: Record<string, () => Promise<any>> = {
   'finance/balance-report/index': () => import('@/views/finance/balance-report/index.vue'),
   'finance/profit-report': () => import('@/views/finance/profit-report/index.vue'),
   'finance/profit-report/index': () => import('@/views/finance/profit-report/index.vue'),
-  'finance/expense-apply': () => import('@/views/finance/expense-apply/index.vue'),
-  'finance/expense-apply/index': () => import('@/views/finance/expense-apply/index.vue'),
-  'finance/expense-reimburse': () => import('@/views/finance/expense-reimburse/index.vue'),
-  'finance/expense-reimburse/index': () => import('@/views/finance/expense-reimburse/index.vue'),
   'finance/expense-approval': () => import('@/views/finance/expense-approval/index.vue'),
   'finance/expense-approval/index': () => import('@/views/finance/expense-approval/index.vue'),
-  'finance/expense-pay': () => import('@/views/finance/expense-pay/index.vue'),
-  'finance/expense-pay/index': () => import('@/views/finance/expense-pay/index.vue'),
   'finance/expense-stats': () => import('@/views/finance/expense-stats/index.vue'),
   'finance/expense-stats/index': () => import('@/views/finance/expense-stats/index.vue'),
   'finance/advance-receipt': () => import('@/views/finance/advance-receipt/index.vue'),
@@ -509,20 +481,13 @@ const componentMap: Record<string, () => Promise<any>> = {
 
   // ── HR 人力资源模块 ──
   'hr/employee/list': () => import('@/views/hr/employee/list.vue'),
-  'hr/employee/index': () => import('@/views/hr/employee/index.vue'),
-  'hr/employee/form': () => import('@/views/hr/employee/form.vue'),
   'hr/attendance/list': () => import('@/views/hr/attendance/list.vue'),
   'hr/attendance/index': () => import('@/views/hr/attendance/index.vue'),
   'hr/leave/list': () => import('@/views/hr/leave/list.vue'),
-  'hr/leave/index': () => import('@/views/hr/leave/index.vue'),
   'hr/salary/list': () => import('@/views/hr/salary/list.vue'),
-  'hr/salary/index': () => import('@/views/hr/salary/index.vue'),
-  'hr/salary/form': () => import('@/views/hr/salary/form.vue'),
   'hr/performance/list': () => import('@/views/hr/performance/list.vue'),
-  'hr/performance/index': () => import('@/views/hr/performance/index.vue'),
   'hr/recruitment/list': () => import('@/views/hr/recruitment/list.vue'),
   'hr/organization/position-list': () => import('@/views/hr/organization/position-list.vue'),
-  'hr/organization/index': () => import('@/views/hr/organization/index.vue'),
 
   // ── Trade 交易模块 ──
   'trade/mall-order/list': () => import('@/views/trade/mall-order/list.vue'),
@@ -698,8 +663,6 @@ const componentMap: Record<string, () => Promise<any>> = {
   'mall/keyword-bank/index': () => import('@/views/mall/keyword-bank/index.vue'),
 
   // ── Trade 交易模块（新增页面） ──
-  'trade/mall-return': () => import('@/views/trade/mall-return/index.vue'),
-  'trade/mall-return/index': () => import('@/views/trade/mall-return/index.vue'),
 
   // ── Member 会员模块 ──
   'member/profile': () => import('@/views/member/profile/index.vue'),
@@ -848,7 +811,6 @@ const routeBillTypeMap: Record<string, string> = {
   'sale/index': '604',
   'sale/order': '604',
   'erp/sale': '604',
-  'erp/sales-analysis': '604',
   'erp/sales-report': '604',
   'sales/pre-order': '604',
 
@@ -870,7 +832,6 @@ const routeBillTypeMap: Record<string, string> = {
   'erp/stock-alert-config': '601',
   'erp/stock-replenishment': '601',
   'purchase/exchange': '601',
-  'erp/return': '601',
   'sales/outbound': '601',
 
   // ── 采购订单 (504) ──
@@ -884,8 +845,6 @@ const routeBillTypeMap: Record<string, string> = {
   // ── 收款单 (801) ──
   'finance/receivable': '801',
   'finance/receivable/index': '801',
-  'finance/pre-receipt': '801',
-  'finance/pre-receipt/index': '801',
   'finance/advance-receipt': '801',
   'finance/advance-receipt/index': '801',
   'finance/advance-receipt/form': '801',
@@ -973,6 +932,19 @@ const ROUTE_PASSTHROUGH = defineComponent({
  * 将后台菜单转换为 Vue Router 路由配置，返回数组以支持双入口（displayMode=1 时生成两条路由）
  */
 function transformMenuToRoutes(menu: MenuItem, parentPath: string = ''): RouteRecordRaw[] {
+  // ⚠️ 按钮类型（menuType=2/3）只承载权限码，**没有页面**，不生成路由。
+  //
+  // 不跳过会出真事故：按钮项的 path / component 都是空，`routePath` 算出来是 ''，
+  // 而「空 path 的子路由」与父路由同 URL ⇒ 会**抢走父级的路由匹配**，
+  // 其 meta.title 覆盖父级标题。实测：
+  //   · 803「我的待办」下有 8031~8034（审批通过/驳回/转交/撤回，menuType=2）
+  //     ⇒ /workflow/task 的浏览器标题变成「审批通过」而不是「我的待办」；
+  //   · 801「流程定义」下的 8011~8015、907「招聘管理」下的 9071~9073 同理。
+  // 页面内容不受影响（仍渲染父级组件），只有 meta 被污染 —— 症状隐蔽，故在此拦掉。
+  if (menu.menuType === 2 || menu.menuType === 3) {
+    return []
+  }
+
   let routePath = menu.path || ''
 
   if (parentPath && menu.path && menu.path.startsWith(parentPath + '/')) {
@@ -1275,12 +1247,6 @@ function getRequiredRoutes(): RouteRecordRaw[] {
       meta: { title: '编辑商品', icon: 'FileTextOutlined', keepAlive: false, requiresAuth: true, hidden: true }
     },
     {
-      path: 'erp/product/price-batch',
-      name: 'ErpProductPriceBatch',
-      component: () => import('@/views/erp/product/price-batch.vue'),
-      meta: { title: '批量价格管理', icon: 'DollarOutlined', keepAlive: false, requiresAuth: true, hidden: true }
-    },
-    {
       path: 'erp/product/inventory-mode',
       name: 'ErpProductInventoryMode',
       component: () => import('@/views/erp/product/inventory-mode.vue'),
@@ -1431,12 +1397,13 @@ function getRequiredRoutes(): RouteRecordRaw[] {
       component: () => import('@/views/workflow/instance-monitor.vue'),
       meta: { title: '流程监控', icon: 'AuditOutlined', keepAlive: true, requiresAuth: true }
     },
-    {
-      path: 'workflow/task-management',
-      name: 'WorkflowTaskManagement',
-      component: () => import('@/views/workflow/task-management.vue'),
-      meta: { title: '任务管理', icon: 'AuditOutlined', keepAlive: true, requiresAuth: true }
-    },
+    // 'workflow/task-management' 的兜底条目已移除（2026-09-19）：
+    //   · 该路径**已无任何菜单使用** —— 803「我的待办」/ 804「我的已办」的 path 分别是
+    //     /workflow/task 与 /workflow/done（sys_menu 实测），本条目成了孤儿路由；
+    //   · 它的 name `WorkflowTaskManagement` 不在 task-management.vue 的 DONE_ROUTE_NAMES 里，
+    //     谁访问这个旧路径看到的都会是「待办」视图 —— 语义误导，删掉更安全。
+    // ⚠️ componentMap 里的 `'workflow/task-management'` 键**必须保留**：803/804 的菜单
+    //    component（views/workflow/task-management[.vue]）归一化后正是这个 key，删了菜单会解析不到组件。
     // 流程分析（设置 → 工作流 → 流程分析，菜单 80611 / set:workflow-analysis）：
     // 菜单行已于迁移 V11.417.0 补齐，正常情况由后端菜单树生成路由（path /workflow/process-analysis）。
     // 此处刻意**保留**同路径兜底条目，理由：
@@ -1469,12 +1436,6 @@ function getRequiredRoutes(): RouteRecordRaw[] {
       meta: { title: '个人中心', icon: 'UserOutlined', keepAlive: true, requiresAuth: true }
     },
     {
-      path: 'charts/index',
-      name: 'Charts',
-      component: () => import('@/views/charts/index.vue'),
-      meta: { title: '图表', icon: 'BarChartOutlined', keepAlive: true, requiresAuth: true }
-    },
-    {
       path: 'system/data-import',
       name: 'DataImport',
       component: () => import('@/views/system/data-import/index.vue'),
@@ -1482,30 +1443,6 @@ function getRequiredRoutes(): RouteRecordRaw[] {
     },
 
     // ── 商城管理模块 ──
-    {
-      path: 'mall/config',
-      name: 'MallConfig',
-      component: () => import('@/views/erp/mall/config/index.vue'),
-      meta: { title: '商城配置', icon: 'SettingOutlined', keepAlive: true, requiresAuth: true, hidden: true }
-    },
-    {
-      path: 'mall/user-audit',
-      name: 'MallUserAudit',
-      component: () => import('@/views/erp/mall/user-audit/index.vue'),
-      meta: { title: '用户审核', icon: 'AuditOutlined', keepAlive: true, requiresAuth: true, hidden: true }
-    },
-    {
-      path: 'mall/banner',
-      name: 'MallBanner',
-      component: () => import('@/views/erp/mall/banner/index.vue'),
-      meta: { title: '轮播图管理', icon: 'PictureOutlined', keepAlive: true, requiresAuth: true, hidden: true }
-    },
-    {
-      path: 'mall/order',
-      name: 'MallOrder',
-      component: () => import('@/views/erp/mall/order/index.vue'),
-      meta: { title: '订单管理', icon: 'ShoppingCartOutlined', keepAlive: true, requiresAuth: true, hidden: true }
-    },
     {
       path: 'mall/product',
       name: 'MallProduct',
@@ -1558,12 +1495,6 @@ function getRequiredRoutes(): RouteRecordRaw[] {
       meta: { title: '采购询价', icon: 'SearchOutlined', keepAlive: true, requiresAuth: true, billType: '504' }
     },
     {
-      path: 'erp/sales-analysis',
-      name: 'ErpSalesAnalysis',
-      component: () => import('@/views/erp/sales-analysis/index.vue'),
-      meta: { title: '销售分析', icon: 'BarChartOutlined', keepAlive: true, requiresAuth: true, billType: '604' }
-    },
-    {
       path: 'erp/sales-report',
       name: 'ErpSalesReport',
       component: () => import('@/views/erp/sales-report/index.vue'),
@@ -1604,12 +1535,6 @@ function getRequiredRoutes(): RouteRecordRaw[] {
       name: 'ErpSerialMain',
       component: () => import('@/views/erp/serial/index.vue'),
       meta: { title: '序列号管理', icon: 'NumberOutlined', keepAlive: true, requiresAuth: true, billType: '601' }
-    },
-    {
-      path: 'erp/return',
-      name: 'ErpReturnMain',
-      component: () => import('@/views/erp/return/index.vue'),
-      meta: { title: '退货管理', icon: 'RollbackOutlined', keepAlive: true, requiresAuth: true, billType: '601' }
     },
 
     // ── 脏路由修复：存在组件但无菜单覆盖的兜底路由 ──
@@ -1770,7 +1695,6 @@ function getFallbackRoutes(): RouteRecordRaw[] {
         //
         // 结论：降级时宁可不显示入口，也不能凭空给出可能越权的入口。
         // 仅保留与角色/模块无关、任何登录用户都该能进的通用页。
-        { path: 'charts/index', name: 'Charts', component: () => import('@/views/charts/index.vue'), meta: { title: '图表', icon: 'BarChartOutlined', keepAlive: true, requiresAuth: true } },
         // path 用 'notification' / 'profile'：与 requiredRoutes 保持一致，
         // 否则走 fallback 分支时顶栏通知铃铛与「个人中心」入口仍会 404（详见 requiredRoutes 处的注释）
         { path: 'notification', name: 'Notification', component: () => import('@/views/notification/index.vue'), meta: { title: '通知公告', icon: 'BellOutlined', keepAlive: true, requiresAuth: true } },
@@ -1797,12 +1721,12 @@ function getFallbackRoutes(): RouteRecordRaw[] {
  *    （`validModuleCodes.includes('customer')` 恒为 false）。
  */
 const MODULE_ROUTE_MAP: Record<string, string[]> = {
-  'sale': ['sale', 'erp/sale', 'erp/sales-analysis', 'erp/sales-report',
+  'sale': ['sale', 'erp/sale', 'erp/sales-report',
            'sales/outbound', 'sales/pre-order', 'sales/retail', 'sales/return-apply',
            'sales/exchange', 'sales/return-doc', 'sales/order-center'],
   'purchase': ['purchase', 'erp/purchase', 'purchase/exchange', 'purchase/return',
                'erp/purchase-contract', 'purchase/inquiry'],
-  'warehouse': ['stock', 'erp/stock', 'erp/stock-in', 'erp/stocktake', 'erp/return',
+  'warehouse': ['stock', 'erp/stock', 'erp/stock-in', 'erp/stocktake',
                 'erp/shipment', 'erp/batch', 'erp/serial', 'erp/stock-bom',
                 'erp/stock-assemble', 'erp/stock-split', 'wms', 'wh'],
   'finance': ['finance', 'erp/finance', 'budget', 'fixed-asset'],

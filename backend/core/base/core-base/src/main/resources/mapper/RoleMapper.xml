@@ -2,9 +2,18 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="cn.aiedge.base.mapper.RoleMapper">
 
-    <!-- 根据角色编码查询角色 -->
+    <!--
+      根据角色编码查询角色。
+
+      ⚠️ 同 `selectByUserId`：`sys_role.status` 是「0 = 启用 / 1 = 停用」，
+      这里必须写 `status = 0`，不要写 1。
+
+      2026-09-19 加固：本查询被 `WorkflowServiceImpl` 用于解析 `approverType=role` 的审批人
+      （先按 roleCode 查角色、再经 `sys_user_role` 取用户），此前只过滤 deleted，
+      停用的角色仍能解析出审批人 ⇒ 审批授权未收回。今天零行为变化。
+    -->
     <select id="selectByRoleCode" resultType="cn.aiedge.base.entity.SysRole">
-        SELECT * FROM sys_role WHERE role_code = #{roleCode} AND deleted = 0
+        SELECT * FROM sys_role WHERE role_code = #{roleCode} AND deleted = 0 AND status = 0
     </select>
 
     <!-- 根据用户ID查询角色列表 -->

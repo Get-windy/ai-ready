@@ -1,0 +1,101 @@
+[
+ {
+  "jaccard": 1.0,
+  "a": "md/partner/index.vue",
+  "b": "md/supplier/index.vue",
+  "a_orphan": false,
+  "b_orphan": false,
+  "shared": [
+   "erp/partner#partnerApi",
+   "erp/partner#partnerAttachmentApi",
+   "erp/partner#partnerCategoryApi"
+  ]
+ },
+ {
+  "jaccard": 1.0,
+  "a": "delivery/sign.vue",
+  "b": "sign/index.vue",
+  "a_orphan": false,
+  "b_orphan": false,
+  "shared": [
+   "dms#dataUrlToBlob",
+   "dms#dmsApi",
+   "dms#uploadFile"
+  ]
+ },
+ {
+  "jaccard": 0.8,
+  "a": "crm/opportunity-stage/index.vue",
+  "b": "crm/opportunity/index.vue",
+  "a_orphan": false,
+  "b_orphan": false,
+  "shared": [
+   "crm#crmCustomerApi",
+   "crm#opportunityApi",
+   "crm#opportunityStageApi",
+   "user#userApi"
+  ]
+ },
+ {
+  "jaccard": 0.75,
+  "a": "sales/visit-exec/index.vue",
+  "b": "sales/visit-plan/index.vue",
+  "a_orphan": false,
+  "b_orphan": false,
+  "shared": [
+   "crm#crmCustomerApi",
+   "crm#visitPlanApi",
+   "user#userApi"
+  ]
+ },
+ {
+  "jaccard": 0.71,
+  "a": "mall/freight-config/index.vue",
+  "b": "mall/shop-config/index.vue",
+  "a_orphan": false,
+  "b_orphan": false,
+  "shared": [
+   "erp/mall#bitToBool",
+   "erp/mall#boolToBit",
+   "erp/mall#parseJsonField",
+   "erp/mall#shopConfigApi",
+   "erp/mall#stringifyJsonField"
+  ]
+ },
+ {
+  "jaccard": 0.6,
+  "a": "md/customer/index.vue",
+  "b": "md/supplier/index.vue",
+  "a_orphan": false,
+  "b_orphan": false,
+  "shared": [
+   "erp/partner#partnerApi",
+   "erp/partner#partnerAttachmentApi",
+   "erp/partner#partnerCategoryApi"
+  ]
+ },
+ {
+  "jaccard": 0.6,
+  "a": "md/customer/index.vue",
+  "b": "md/partner/index.vue",
+  "a_orphan": false,
+  "b_orphan": false,
+  "shared": [
+   "erp/partner#partnerApi",
+   "erp/partner#partnerAttachmentApi",
+   "erp/partner#partnerCategoryApi"
+  ]
+ },
+ {
+  "jaccard": 0.6,
+  "a": "erp/column-config/PreOrderFormConfig.vue",
+  "b": "erp/column-config/SaleReturnDocFormConfig.vue",
+  "a_orphan": false,
+  "b_orphan": false,
+  "shared": [
+   "options#getCustomers",
+   "options#getUsers",
+   "options#getWarehouses"
+  ]
+ }
+]

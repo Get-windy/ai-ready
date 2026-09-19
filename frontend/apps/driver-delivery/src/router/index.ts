@@ -67,10 +67,13 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '导航', showTabBar: false }
   },
   {
+    // 2026-09-19：原 `/sign` 是第二套签收页（签收类型硬编码为正常签收、照片走 electron 桥在 Web 下静默失效）。
+    // 统一到 /delivery/:id/sign 的四要素签收页，这里只保留旧入口的重定向。
     path: '/sign',
     name: 'SignNew',
-    component: () => import('@/views/sign/index.vue'),
-    meta: { title: '签收确认', showTabBar: false }
+    redirect: to => (to.query.orderId
+      ? { path: `/delivery/${to.query.orderId}/sign` }
+      : { path: '/delivery' })
   },
   {
     path: '/map/navigation/:id',

@@ -1,12 +1,12 @@
 {
  "summary": {
-  "componentMap_keys": 685,
-  "views_vue_files": 513,
-  "db_menu_rows": 386,
-  "db_distinct_components": 269,
-  "required_routes": 74,
-  "orphan_keys": 262,
-  "untracked_view_files": 19,
+  "componentMap_keys": 678,
+  "views_vue_files": 491,
+  "db_menu_rows": 389,
+  "db_distinct_components": 272,
+  "required_routes": 72,
+  "orphan_keys": 254,
+  "untracked_view_files": 0,
   "db_missing_in_frontend": 2
  },
  "orphan_keys": [
@@ -104,12 +104,6 @@
    "key": "crm/quotation/index",
    "files": [
     "crm/quotation/index.vue"
-   ]
-  },
-  {
-   "key": "crm/supplier/index",
-   "files": [
-    "crm/supplier/index.vue"
    ]
   },
   {
@@ -242,18 +236,6 @@
    "key": "erp/partner/index",
    "files": [
     "erp/partner/index.vue"
-   ]
-  },
-  {
-   "key": "erp/pricing/approval/index",
-   "files": [
-    "erp/pricing/approval/index.vue"
-   ]
-  },
-  {
-   "key": "erp/pricing/index",
-   "files": [
-    "erp/pricing/index.vue"
    ]
   },
   {
@@ -959,12 +941,6 @@
    ]
   },
   {
-   "key": "pricing/index",
-   "files": [
-    "erp/pricing/index.vue"
-   ]
-  },
-  {
    "key": "printing/chain/index",
    "files": [
     "printing/chain/index.vue"
@@ -1307,12 +1283,6 @@
    ]
   },
   {
-   "key": "system/data-import/index",
-   "files": [
-    "system/data-import/index.vue"
-   ]
-  },
-  {
    "key": "system/department/index",
    "files": [
     "system/department/index.vue"
@@ -1322,24 +1292,6 @@
    "key": "system/log/index",
    "files": [
     "system/log/index.vue"
-   ]
-  },
-  {
-   "key": "system/position/index",
-   "files": [
-    "system/position/index.vue"
-   ]
-  },
-  {
-   "key": "system/role/index",
-   "files": [
-    "system/role/index.vue"
-   ]
-  },
-  {
-   "key": "system/user/index",
-   "files": [
-    "system/user/index.vue"
    ]
   },
   {
@@ -1583,27 +1535,7 @@
    ]
   }
  ],
- "untracked_view_files": [
-  "erp/product/components/ProductAttachmentsPanel.vue",
-  "erp/product/components/ProductAttributesPanel.vue",
-  "erp/product/components/ProductBarcodesPanel.vue",
-  "erp/product/components/ProductRelatedPanel.vue",
-  "erp/product/components/ProductUnitsPanel.vue",
-  "finance/subsidiary-balance/index.vue",
-  "finance/trial-balance/index.vue",
-  "md/components/PartnerFormLayout.vue",
-  "purchase/exchange/components/ExchangeApproveModal.vue",
-  "purchase/exchange/components/ExchangeDetailModal.vue",
-  "purchase/exchange/components/ExchangeTrackModal.vue",
-  "wms/move/form.vue",
-  "wms/move/index.vue",
-  "wms/pick/form.vue",
-  "wms/pick/index.vue",
-  "wms/putaway/form.vue",
-  "wms/putaway/index.vue",
-  "wms/ship/form.vue",
-  "wms/ship/index.vue"
- ],
+ "untracked_view_files": [],
  "db_missing_in_frontend": [
   "erp/purchase-exchange/form",
   "workflow/designer/index"
@@ -1778,25 +1710,19 @@
    "title": "流程监控"
   },
   {
-   "path": "workflow/task-management",
-   "name": "WorkflowTaskManagement",
-   "component": "workflow/task-management.vue",
-   "title": "任务管理"
-  },
-  {
    "path": "workflow/process-analysis",
    "name": "WorkflowProcessAnalysis",
    "component": "workflow/process-analysis.vue",
    "title": "流程分析"
   },
   {
-   "path": "notification/index",
+   "path": "notification",
    "name": "Notification",
    "component": "notification/index.vue",
    "title": "通知公告"
   },
   {
-   "path": "profile/index",
+   "path": "profile",
    "name": "Profile",
    "component": "profile/index.vue",
    "title": "个人中心"
@@ -1862,12 +1788,6 @@
    "title": "价格审批"
   },
   {
-   "path": "erp/pricing",
-   "name": "ErpPricing",
-   "component": "erp/pricing/index.vue",
-   "title": "价格管理"
-  },
-  {
    "path": "erp/purchase",
    "name": "ErpPurchase",
    "component": "erp/purchase/index.vue",
@@ -1882,7 +1802,7 @@
   {
    "path": "erp/purchase/inquiry",
    "name": "ErpPurchaseInquiry",
-   "component": "erp/purchase/index.vue",
+   "component": "purchase/inquiry/index.vue",
    "title": "采购询价"
   },
   {
@@ -2064,11 +1984,11 @@
    "component": "charts/index.vue"
   },
   {
-   "path": "notification/index",
+   "path": "notification",
    "component": "notification/index.vue"
   },
   {
-   "path": "profile/index",
+   "path": "profile",
    "component": "profile/index.vue"
   }
  ],
@@ -2084,7 +2004,6 @@
   "partner/detail": "erp/partner/detail.vue",
   "erp/partner/index": "erp/partner/index.vue",
   "erp/partner/detail": "erp/partner/detail.vue",
-  "pricing/index": "erp/pricing/index.vue",
   "charts/index": "charts/index.vue",
   "crm/contract/index": "crm/contract/index.vue",
   "crm/customer/index": "crm/customer/index.vue",
@@ -2092,7 +2011,6 @@
   "crm/lead/index": "crm/lead/index.vue",
   "crm/opportunity/index": "crm/opportunity/index.vue",
   "crm/quotation/index": "crm/quotation/index.vue",
-  "crm/supplier/index": "crm/supplier/index.vue",
   "dashboard/index": "dashboard/index.vue",
   "finance/index": "finance/index.vue",
   "finance/reconciliation/index": "finance/reconciliation/index.vue",
@@ -2157,7 +2075,6 @@
   "erp/stocktake/index": "erp/stocktake/index.vue",
   "erp/return/index": "erp/return/index.vue",
   "erp/shipment/index": "erp/shipment/index.vue",
-  "erp/pricing/index": "erp/pricing/index.vue",
   "erp/pricing/approval/index": "erp/pricing/approval/index.vue",
   "erp/pricing/tiers/index": "erp/pricing/tiers/index.vue",
   "erp/dashboard/index": "erp/dashboard/index.vue",
@@ -2747,10 +2664,6 @@
   "md/warehouse-plan/index": "md/warehouse-plan/index.vue",
   "md/staff-dept": "md/staff-dept/index.vue",
   "md/staff-dept/index": "md/staff-dept/index.vue",
-  "md/staff-role": "md/staff-role/index.vue",
-  "md/staff-role/index": "md/staff-role/index.vue",
-  "md/staff-all": "md/staff-all/index.vue",
-  "md/staff-all/index": "md/staff-all/index.vue",
   "md/payment-method": "md/payment-method/index.vue",
   "md/payment-method/index": "md/payment-method/index.vue",
   "md/payment-channel": "md/payment-channel/index.vue",

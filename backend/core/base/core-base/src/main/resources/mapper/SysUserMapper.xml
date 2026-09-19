@@ -35,13 +35,26 @@
         LIMIT 1
     </select>
 
-    <!-- 查询用户的角色列表 -->
+    <!--
+      查询用户的角色列表。
+
+      ⚠️ status 语义逐表不同，本文件三个查询各自按实证取值，不要统一：
+        sys_role.status      0=启用（实证：5 行全 0；注意实体注释写的是「0-正常 1-禁用」，与数据一致）
+        sys_permission.status 0=正常（实证：454 行全 0）
+        sys_menu.status      1=启用（实证：389 行全 1；**与实体注释「0-正常 1-禁用」相反**，
+                             与 sys_role/sys_permission 也相反 —— 见 V11.426.0 的 INSERT 用的就是 status=1）
+
+      2026-09-19 加固：这三个查询是 @SaCheck* 的真实取数路径（StpInterfaceImpl → UnifiedPermissionCacheService
+      → SysUserServiceImpl → 本文件），此前只过滤 deleted、不过滤 status，属 fail-open（CWE-636 / OWASP A10:2025）：
+      把角色/权限/菜单置为禁用并不会真正收回授权。补上 status 条件后，今天零行为变化（三表数据方向一致）。
+    -->
     <select id="selectRoleCodesByUserId" resultType="java.lang.String">
         SELECT r.role_code
         FROM sys_role r
         INNER JOIN sys_user_role ur ON r.id = ur.role_id
         WHERE ur.user_id = #{userId}
         AND r.deleted = 0
+        AND r.status = 0
     </select>
 
     <!-- 查询用户的权限列表（按租户 scope 自动过滤） -->
@@ -54,7 +67,9 @@
         INNER JOIN sys_user u ON ur.user_id = u.id
         WHERE ur.user_id = #{userId}
         AND p.deleted = 0
+        AND p.status = 0
         AND r.deleted = 0
+        AND r.status = 0
         AND (u.tenant_id IS NULL OR r.tenant_id = u.tenant_id)
     </select>
 
@@ -68,7 +83,9 @@
         INNER JOIN sys_user u ON ur.user_id = u.id
         WHERE ur.user_id = #{userId}
         AND m.deleted = 0
+        AND m.status = 1
         AND r.deleted = 0
+        AND r.status = 0
         AND (u.tenant_id IS NULL OR r.tenant_id = u.tenant_id)
     </select>
 

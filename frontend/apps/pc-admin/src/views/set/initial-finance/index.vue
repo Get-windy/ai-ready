@@ -768,6 +768,14 @@ const loading = ref(false)
 const saving = ref(false)
 const exporting = ref(false)
 const tableData = ref<any[]>([])
+/**
+ * 科目 Tab 的**全量**行（末级科目骨架 + 已录期初）。
+ *
+ * 为什么单独存：骨架是全量的（不走上后端分页），而表格只显示当前页切片。
+ * 保存时必须按**全量**提交，否则「翻到第 2 页点保存」会漏掉第 1 页填的数。
+ * 切片与全量共享同一批对象引用，故在表格里改金额会同步反映到本数组。
+ */
+const allSubjectRows = ref<any[]>([])
 const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
 
 const gridRef = ref<HTMLElement | null>(null)
@@ -1030,6 +1038,33 @@ function buildQueryParams(): InitialFinanceQuery {
 }
 
 /** 加载当前 Tab 的期初列表（保存后也必须回读本方法） */
+/**
+ * 末级科目骨架（按科目录入的底座）。
+ *
+ * 对标用友/金蝶的「科目余额表」形态：进页面就把**全部末级科目**铺成行，
+ * 用户只在「期初金额」列逐行填写，而不是「新增一行 → 选科目 → 再填」。
+ * 只取末级（`isLeaf`）—— 上级科目由系统汇总，不参与录入（这是两家软件的硬规则）。
+ */
+async function loadLeafSubjects(): Promise<any[]> {
+  try {
+    const res: any = await accountSubjectApi.getList()
+    const list: any[] = Array.isArray(res) ? res : (res?.data ?? [])
+    return list.filter((s: any) => s?.isLeaf === true && s?.isEnabled !== false)
+  } catch (error) {
+    console.warn('[财务期初] 末级科目加载失败', error)
+    return []
+  }
+}
+
+/**
+ * 按当前分页切出科目 Tab 的**可见行**。
+ * 与 {@link allSubjectRows} 共享对象引用，故表格里的编辑会同步回全量数组。
+ */
+function sliceSubjectRows(): any[] {
+  const start = (pagination.current - 1) * pagination.pageSize
+  return allSubjectRows.value.slice(start, start + pagination.pageSize)
+}
+
 async function load() {
   loading.value = true
   try {
@@ -1039,11 +1074,49 @@ async function load() {
       pageNum: pagination.current,
       pageSize: pagination.pageSize,
     }
-    const res: any = tab.kind === 'subject'
-      ? await initialFinanceApi.subjectPage(params)
-      : await initialFinanceApi.partnerPage(params)
-    tableData.value = res?.records || []
-    pagination.total = Number(res?.total) || 0
+
+    if (tab.kind === 'subject') {
+      // ── 科目 Tab：以「末级科目」为骨架，左连接已录期初 ──
+      // 骨架全量返回（科目数量有限），故此处不走后端分页，直接整体铺开。
+      const [subjects, recordedRes] = await Promise.all([
+        loadLeafSubjects(),
+        initialFinanceApi.subjectPage({ ...buildQueryParams(), pageNum: 1, pageSize: 2000 }),
+      ])
+      const recordedList: any[] = (recordedRes as any)?.records || []
+      // 同租户+同类型+同年度+同科目唯一（后端有防重录校验），故按 subjectId 建索引即可
+      const bySubject = new Map<string, any>()
+      recordedList.forEach((r: any) => {
+        if (r?.subjectId != null) {
+          bySubject.set(String(r.subjectId), r)
+        }
+      })
+      tableData.value = subjects.map((s: any) => {
+        const rec = bySubject.get(String(s.id))
+        if (rec) {
+          // 已录：用库中行（带 id，保存时按更新处理）
+          return { ...rec }
+        }
+        // 未录：造骨架行（**不带 id**，保存时后端按新增处理）
+        return {
+          id: undefined,
+          subjectId: s.id,
+          subjectCode: s.subjectCode,
+          subjectName: s.subjectName,
+          direction: s.direction,
+          openingAmount: undefined,
+          periodYear: accountingYear.value ?? undefined,
+          __skeleton: true,
+        }
+      })
+      allSubjectRows.value = tableData.value
+      pagination.current = 1
+      pagination.total = allSubjectRows.value.length
+      tableData.value = sliceSubjectRows()
+    } else {
+      const res: any = await initialFinanceApi.partnerPage(params)
+      tableData.value = res?.records || []
+      pagination.total = Number(res?.total) || 0
+    }
   } catch (error: any) {
     console.error('[财务期初] 加载列表失败', error)
     message.error(error?.response?.data?.message || '加载列表失败')
@@ -1075,6 +1148,12 @@ function handleRefresh() {
 function handlePageChange(page: number, pageSize: number) {
   pagination.current = page
   pagination.pageSize = pageSize
+  // 科目 Tab：骨架全量已在内存，翻页只需重新切片。
+  // 这里**不能**调 load()——那会重新拉取并把用户尚未保存的金额编辑冲掉。
+  if (activeTabConfig.value.kind === 'subject' && allSubjectRows.value.length) {
+    tableData.value = sliceSubjectRows()
+    return
+  }
   load()
 }
 
@@ -1236,6 +1315,17 @@ function toNumberOrUndefined(value: any): number | undefined {
   return Number.isFinite(num) ? num : undefined
 }
 
+/**
+ * 该行是否填了金额。
+ *
+ * 用于「保存期初」的过滤：科目 Tab 现在以**末级科目骨架**铺行（见 load），
+ * 未填写的骨架行若也提交，会把一堆 0 / 空值写进库；本函数把它们挡在提交之外。
+ * 注意 0 是**合法金额**（余额为 0 的科目），故不能用 `!value` 判断。
+ */
+function hasAmount(value: any): boolean {
+  return toNumberOrUndefined(value) !== undefined
+}
+
 /** 新增：POST /save（后端收数组，单条也包成数组）；编辑：PUT /update（科目/往来单位不可改） */
 async function handleSave() {
   try {
@@ -1300,28 +1390,44 @@ async function handleSave() {
  * 后端 save 按 id 判定新增/更新，故与「录入期初」共用同一端点。
  */
 async function handleSaveSheet() {
-  const rows = (tableData.value || []).filter(r => !r.__ghost)
+  const tab = activeTabConfig.value
+  // 科目 Tab 按**全量**提交（见 allSubjectRows 注释）：表格只显示当前页切片，
+  // 若按 tableData 提交，「翻到第 2 页再点保存」会漏掉第 1 页填的数据。
+  const source = tab.kind === 'subject' && allSubjectRows.value.length
+    ? allSubjectRows.value
+    : (tableData.value || [])
+  const rows = source.filter(r => !r.__ghost)
   if (!rows.length) {
     message.warning('当前没有可保存的期初数据')
     return
   }
-  const tab = activeTabConfig.value
   saving.value = true
   try {
     if (tab.kind === 'subject') {
-      await initialFinanceApi.subjectSave(rows.map(r => ({
-        id: String(r.id),
-        initialType: tab.initialType,
-        periodYear: r.periodYear ? Number(r.periodYear) : undefined,
-        subjectId: r.subjectId ? String(r.subjectId) : undefined,
-        subjectCode: r.subjectCode,
-        subjectName: r.subjectName,
-        direction: tab.key === 'balanceSheet' ? r.direction : undefined,
-        openingAmount: toNumberOrUndefined(r.openingAmount),
-      })))
+      // 骨架行（未录科目）不带 id ⇒ 后端按「新增」处理；
+      // 已录行带 id ⇒ 按「更新」处理（后端 save 以 id 有无判定，见 InitialFinanceService）。
+      // 且**只提交「已有 id」或「填了金额」的行** —— 否则会把 22 个尚未填写的空科目一并写库。
+      const payload = rows
+        .filter(r => r.id != null || hasAmount(r.openingAmount))
+        .map(r => ({
+          id: r.id != null ? String(r.id) : undefined,
+          initialType: tab.initialType,
+          periodYear: r.periodYear ? Number(r.periodYear) : (accountingYear.value ?? undefined),
+          subjectId: r.subjectId ? String(r.subjectId) : undefined,
+          subjectCode: r.subjectCode,
+          subjectName: r.subjectName,
+          direction: tab.key === 'balanceSheet' ? r.direction : undefined,
+          openingAmount: toNumberOrUndefined(r.openingAmount),
+        }))
+      if (!payload.length) {
+        message.warning('请先在「期初金额」列填写数据再保存')
+        return
+      }
+      await initialFinanceApi.subjectSave(payload)
+      message.success(`已保存 ${payload.length} 条期初`)
     } else {
       await initialFinanceApi.partnerSave(rows.map(r => ({
-        id: String(r.id),
+        id: r.id != null ? String(r.id) : undefined,
         initialType: tab.initialType,
         periodYear: r.periodYear ? Number(r.periodYear) : undefined,
         partnerId: r.partnerId ? String(r.partnerId) : undefined,
@@ -1333,8 +1439,8 @@ async function handleSaveSheet() {
         receivableAmount: toNumberOrUndefined(r.receivableAmount),
         advanceAmount: toNumberOrUndefined(r.advanceAmount),
       })))
+      message.success(`已保存 ${rows.length} 条期初`)
     }
-    message.success(`已保存 ${rows.length} 条期初`)
     // 保存后回读（以库中值为准）
     await load()
   } catch (error: any) {
@@ -1348,6 +1454,13 @@ async function handleSaveSheet() {
 
 function handleDelete(record: any) {
   const tab = activeTabConfig.value
+  // 骨架行（科目已铺出但尚未录入）在库里根本没有记录 —— 直接提示，
+  // 否则会带着 undefined 去请求 /subject/undefined。
+  if (record?.id == null) {
+    const label = record?.subjectName || record?.subjectCode || record?.partnerName || ''
+    message.info(`「${label}」尚未录入期初，无需删除`)
+    return
+  }
   const who = tab.kind === 'subject'
     ? `科目「${record.subjectName || record.subjectCode || ''}」`
     : `${tab.partnerLabel}「${record.partnerName || record.partnerCode || ''}」`

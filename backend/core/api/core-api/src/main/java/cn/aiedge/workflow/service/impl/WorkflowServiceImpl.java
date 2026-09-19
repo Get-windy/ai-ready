@@ -1716,11 +1716,17 @@ public class WorkflowServiceImpl implements WorkflowService {
                     }
                 }
                 if (!deptIds.isEmpty()) {
-                    // sys_user.status: 0-正常 1-禁用 2-锁定（见 AuthServiceImpl 登录校验）；
-                    // deleted=0 由 @TableLogic 自动过滤
+                    // sys_user.status 的权威语义是「1 = 启用，0 = 禁用/待审批」——
+                    // 口径来源：`SysUserServiceImpl#login:101` 用 `getStatus() != 1` 拒绝登录；
+                    // `TenantRegistrationService` 注册时 `setStatus(0)`（待审批）、审批通过 `setStatus(1)`。
+                    // deleted=0 由 @TableLogic 自动过滤。
+                    //
+                    // 2026-09-19 修正：此处原写 `.eq(getStatus, 0)`，注释引用的是一个方向写反的
+                    // 旧鉴权实现（该类与 @Primary 版本重名并存，已于同日清理）。
+                    // 原写法会把**已停用账号**选成部门审批人 ⇒ 审批授权 fail-open（选到不该审批的人）。
                     List<SysUser> members = sysUserMapper.selectList(new LambdaQueryWrapper<SysUser>()
                             .in(SysUser::getDeptId, deptIds)
-                            .eq(SysUser::getStatus, 0)
+                            .eq(SysUser::getStatus, 1)
                             .eq(tenantId != null, SysUser::getTenantId, tenantId));
                     for (SysUser member : members) {
                         userIds.add(member.getId());

@@ -193,7 +193,7 @@
                 type="primary"
                 ghost
                 block
-                @click="$router.push('/budget/annual')"
+                @click="$router.push('/finance/budget-plan')"
               >
                 <template #icon>
                   <CalendarOutlined />

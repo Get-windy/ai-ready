@@ -66,6 +66,13 @@ public class ClientAuthController {
             return ResponseEntity.ok(ApiResponse.fail(401, "用户名或密码错误"));
         }
 
+        // 3.5 校验用户状态：sys_user.status 语义是「1=启用，0=禁用/待审批」
+        //     与主站登录 SysUserServiceImpl#login 的口径保持一致（同为 != 1 即拒绝）。
+        //     2026-09-19 补：此前本端点只校验密码与租户归属，被停用的账号仍能登录取到 Sa-Token。
+        if (user.getStatus() == null || user.getStatus() != 1) {
+            return ResponseEntity.ok(ApiResponse.fail(403, "用户已禁用或锁定"));
+        }
+
         // 4. 验证租户归属
         Long userTenantId = user.getTenantId();
         if (userTenantId == null || !userTenantId.equals(tenantId)) {

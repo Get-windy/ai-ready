@@ -117,6 +117,13 @@ export const dataSourceApi = {
   page(params?: { keyword?: string; page?: number; pageSize?: number }): Promise<AdminPage<DataSourceItem>> {
     return request.get('/data-source/list', params)
   },
+  /**
+   * 当前**生效**的数据库连接——本系统自身连的那个库，不是下方登记的外部数据源。
+   * 后端从运行时 DataSource 读 JDBC 元数据；密码不返回，用户名已脱敏。
+   */
+  current(): Promise<Record<string, any>> {
+    return request.get('/data-source/current')
+  },
   /** 新建数据源 */
   create(data: Partial<DataSourceItem>): Promise<DataSourceItem> {
     return mutate('post', '/data-source/', data)

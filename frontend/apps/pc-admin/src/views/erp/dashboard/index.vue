@@ -188,12 +188,10 @@ import {
   InboxOutlined,
   SendOutlined,
   CheckSquareOutlined,
-  RollbackOutlined,
   TeamOutlined,
   ContainerOutlined,
   NumberOutlined,
   BarcodeOutlined,
-  BarChartOutlined,
   LineChartOutlined,
   DollarOutlined
 } from '@ant-design/icons-vue'
@@ -201,7 +199,7 @@ import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'
 import request from '@/utils/request'
-import { INBOUND_STATUS, SHIPMENT_STATUS, STOCKTAKE_STATUS_ORDER, RETURN_STATUS } from '@/utils/statusConfig'
+import { INBOUND_STATUS, SHIPMENT_STATUS, STOCKTAKE_STATUS_ORDER } from '@/utils/statusConfig'
 
 const router = useRouter()
 const loading = ref(false)
@@ -221,7 +219,6 @@ const kpiCards = ref<KpiItem[]>([
   { key: 'pendingInbound', label: '待入库', value: 0, color: '#faad14', path: '/erp/stock-in' },
   { key: 'pendingShipment', label: '待发货', value: 0, color: '#fa8c16', path: '/erp/shipment' },
   { key: 'pendingStocktake', label: '待盘点', value: 0, color: '#13c2c2', path: '/erp/stocktake' },
-  { key: 'pendingReturn', label: '待退货', value: 0, color: '#f5222d', path: '/erp/return' },
 ])
 
 const quickEntries = [
@@ -232,11 +229,9 @@ const quickEntries = [
   { key: 'stock-in', label: '入库管理', icon: InboxOutlined, path: '/erp/stock-in' },
   { key: 'shipment', label: '发货管理', icon: SendOutlined, path: '/erp/shipment' },
   { key: 'stocktake', label: '库存盘点', icon: CheckSquareOutlined, path: '/erp/stocktake' },
-  { key: 'return', label: '退货管理', icon: RollbackOutlined, path: '/erp/return' },
   { key: 'purchase-exchange', label: '采购换货', icon: SwapOutlined, path: '/purchase/exchange' },
   { key: 'batch', label: '批次管理', icon: BarcodeOutlined, path: '/erp/batch' },
   { key: 'serial', label: '序列号管理', icon: NumberOutlined, path: '/erp/serial' },
-  { key: 'sales-analysis', label: '销售分析', icon: BarChartOutlined, path: '/erp/sales-analysis' },
 ]
 
 const quickTips = [
@@ -284,15 +279,13 @@ async function loadData() {
       partnerRes,
       inboundRes,
       shipmentRes,
-      stocktakeRes,
-      returnRes
+      stocktakeRes
     ] = await Promise.allSettled([
       request.get('/erp/product/list', { pageSize: 1 }),
       request.get('/erp/md/customer/list', { pageSize: 1 }),
       request.get('/erp/purchase/inbound/page', { pageSize: 999, status: 0 }),
       request.get('/erp/sale/outbound/page', { pageSize: 999, status: 0 }),
       request.get('/erp/stock/check/page', { pageSize: 999, status: 0 }),
-      request.get('/erp/sale/return/page', { pageSize: 999, status: 0 }),
     ])
 
     // 更新 KPI
@@ -313,10 +306,6 @@ async function loadData() {
     if (stocktakeRes.status === 'fulfilled') {
       const data = stocktakeRes.value.data
       kpiCards.value[4].value = data?.total || data?.records?.length || 0
-    }
-    if (returnRes.status === 'fulfilled') {
-      const data = returnRes.value.data
-      kpiCards.value[5].value = data?.total || data?.records?.length || 0
     }
 
     // 汇总待处理事项
@@ -372,24 +361,6 @@ async function loadData() {
           statusMap: STOCKTAKE_STATUS_ORDER,
           date: r.checkDate || r.stocktakeDate || '',
           path: '/erp/stocktake',
-        })
-      })
-    }
-
-    if (returnRes.status === 'fulfilled') {
-      const records = returnRes.value.data?.records || []
-      records.slice(0, 5).forEach((r: any) => {
-        items.push({
-          id: `return-${r.id}`,
-          type: 'return',
-          typeLabel: '退货',
-          typeColor: 'red',
-          code: r.returnNo || '-',
-          summary: r.customerName || r.returnReason || '',
-          status: r.status,
-          statusMap: RETURN_STATUS,
-          date: r.returnDate || '',
-          path: '/erp/return',
         })
       })
     }

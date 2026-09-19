@@ -9,82 +9,84 @@ import cn.aiedge.common.dto.auth.LoginRequest;
 import cn.aiedge.common.dto.auth.LoginVO;
 import cn.aiedge.common.exception.BusinessException;
 import cn.dev33.satoken.stp.StpUtil;
-import cn.dev33.satoken.util.SaTokenConsts;
-import lombok.RequiredArgsConstructor;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Primary;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-/**
- * 认证服务实现类
- * 包含登录失败锁定机制: 连续5次失败后锁定账户30分钟
- */
 @Slf4j
 @Service
+@Primary
 public class AuthServiceImpl implements AuthService {
 
-    private final UserService userService;
-    private final PasswordEncoder passwordEncoder;
-    private final StringRedisTemplate stringRedisTemplate;
-    private final TenantMapper tenantMapper;
+    @Autowired
+    private UserService userService;
+    
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+    
+    @Autowired(required = false)
+    private RedisTemplate<String, Object> redisTemplate;
 
-    /** 最大失败次数 */
-    private static final int MAX_FAILURE_COUNT = 5;
-    /** 锁定时长（分钟） */
-    private static final int LOCK_DURATION_MINUTES = 30;
-    /** Redis 失败计数键前缀 */
-    private static final String FAILURE_KEY_PREFIX = "login:failure:";
+    @Autowired
+    private TenantMapper tenantMapper;
 
-    public AuthServiceImpl(UserService userService, PasswordEncoder passwordEncoder,
-                           StringRedisTemplate stringRedisTemplate,
-                           TenantMapper tenantMapper) {
-        this.userService = userService;
-        this.passwordEncoder = passwordEncoder;
-        this.stringRedisTemplate = stringRedisTemplate;
-        this.tenantMapper = tenantMapper;
-    }
+    private final Cache<String, Integer> loginFailCache = Caffeine.newBuilder()
+            .maximumSize(10000)
+            .expireAfterWrite(30, TimeUnit.MINUTES)
+            .build();
+
+    private final Cache<String, LocalDateTime> loginRateCache = Caffeine.newBuilder()
+            .maximumSize(10000)
+            .expireAfterWrite(1, TimeUnit.MINUTES)
+            .build();
+
+    private static final String LOGIN_FAIL_KEY_PREFIX = "login:fail:";
+    private static final String ACCOUNT_LOCK_KEY_PREFIX = "account:lock:";
+    private static final String LOGIN_RATE_KEY_PREFIX = "login:rate:";
+    private static final String LOGIN_LOG_KEY_PREFIX = "login:log:";
+    
+    private static final int MAX_LOGIN_FAIL_ATTEMPTS = 5;
+    private static final int ACCOUNT_LOCK_DURATION_MINUTES = 30;
+    private static final int LOGIN_RATE_LIMIT_SECONDS = 3;
+    private static final int PASSWORD_MIN_LENGTH = 8;
 
     @Override
     public LoginVO login(LoginRequest request, String clientIp) {
-        String failureKey = FAILURE_KEY_PREFIX + request.getUsername();
-
-        // 检查是否被锁定
-        String failureCount = stringRedisTemplate.opsForValue().get(failureKey);
-        if (failureCount != null && Integer.parseInt(failureCount) >= MAX_FAILURE_COUNT) {
-            Long ttl = stringRedisTemplate.getExpire(failureKey, TimeUnit.MINUTES);
-            long remainingMinutes = (ttl != null && ttl > 0) ? ttl : LOCK_DURATION_MINUTES;
-            throw BusinessException.badRequest(
-                "账户已被锁定，请" + remainingMinutes + "分钟后重试");
-        }
-
-        // 查询用户
-        SysUser user = userService.getByUsername(request.getUsername());
+        String username = request.getUsername();
+        String password = request.getPassword();
+        
+        checkAccountLock(username);
+        checkLoginRateLimit(username, clientIp);
+        
+        SysUser user = userService.getByUsername(username);
         if (user == null) {
-            recordFailure(request.getUsername());
+            recordLoginFail(username, clientIp);
             throw BusinessException.badRequest("用户名或密码错误");
         }
 
-        // 检查用户状态 (0正常 1停用)
-        if (user.getStatus() == 1) {
+        if (user.getStatus() != 1) {
             throw BusinessException.badRequest("用户已被禁用");
         }
 
-        // 验证密码
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            recordFailure(request.getUsername());
+        if (!passwordEncoder.matches(password, user.getPassword())) {
+            recordLoginFail(username, clientIp);
             throw BusinessException.badRequest("用户名或密码错误");
         }
 
-        // 登录成功，清除失败计数
-        stringRedisTemplate.delete(failureKey);
+        clearLoginFailRecord(username);
 
-        // 检查租户有效性（过期或停用的租户禁止登录）
+        // 租户过期/停用检查
         if (user.getTenantId() != null) {
             SysTenant tenant = tenantMapper.selectById(user.getTenantId());
             if (tenant == null || tenant.getDeleted() == 1) {
@@ -98,28 +100,109 @@ public class AuthServiceImpl implements AuthService {
             }
         }
 
-        // Sa-Token 登录
         StpUtil.login(user.getId());
 
-        // 存储租户ID和部门ID到会话，供后续权限检查使用
-        StpUtil.getSession().set("tenantId", user.getTenantId());
-        StpUtil.getSession().set("deptId", user.getDeptId());
-        log.debug("用户会话已保存租户信息: userId={}, tenantId={}, deptId={}",
-                user.getId(), user.getTenantId(), user.getDeptId());
-
-        // 获取Token信息
         String tokenValue = StpUtil.getTokenValue();
         long tokenTimeout = StpUtil.getTokenTimeout();
 
-        // 更新登录信息
-        userService.updateLoginInfo(user.getId(), clientIp);
+        updateLoginInfoAsync(user.getId(), clientIp);
 
-        // 构建响应
+        LoginVO vo = buildLoginResponse(user, tokenValue, tokenTimeout);
+
+        recordLoginSuccess(user.getId(), username, clientIp);
+
+        log.info("用户登录成功: {}", user.getUsername());
+        return vo;
+    }
+
+    private void checkAccountLock(String username) {
+        if (redisTemplate != null) {
+            String lockKey = ACCOUNT_LOCK_KEY_PREFIX + username;
+            Boolean isLocked = (Boolean) redisTemplate.opsForValue().get(lockKey);
+            
+            if (Boolean.TRUE.equals(isLocked)) {
+                Long ttl = redisTemplate.getExpire(lockKey, TimeUnit.MINUTES);
+                throw BusinessException.badRequest(
+                    String.format("账户已被锁定，请%d分钟后重试", ttl != null ? ttl : ACCOUNT_LOCK_DURATION_MINUTES)
+                );
+            }
+        } else {
+            Integer failCount = loginFailCache.getIfPresent(username);
+            if (failCount != null && failCount >= MAX_LOGIN_FAIL_ATTEMPTS) {
+                throw BusinessException.badRequest("账户已被锁定，请稍后重试");
+            }
+        }
+    }
+
+    private void checkLoginRateLimit(String username, String clientIp) {
+        LocalDateTime lastLogin = loginRateCache.getIfPresent(username);
+        
+        if (lastLogin != null) {
+            long secondsSinceLastLogin = ChronoUnit.SECONDS.between(lastLogin, LocalDateTime.now());
+            if (secondsSinceLastLogin < LOGIN_RATE_LIMIT_SECONDS) {
+                throw BusinessException.badRequest(
+                    String.format("登录过于频繁，请%d秒后再试", LOGIN_RATE_LIMIT_SECONDS - secondsSinceLastLogin)
+                );
+            }
+        }
+        
+        loginRateCache.put(username, LocalDateTime.now());
+    }
+
+    private void recordLoginFail(String username, String clientIp) {
+        Integer failCount = loginFailCache.getIfPresent(username);
+        failCount = (failCount == null) ? 1 : failCount + 1;
+        loginFailCache.put(username, failCount);
+        
+        if (redisTemplate != null) {
+            String failKey = LOGIN_FAIL_KEY_PREFIX + username;
+            redisTemplate.opsForValue().set(failKey, failCount, 30, TimeUnit.MINUTES);
+            
+            if (failCount >= MAX_LOGIN_FAIL_ATTEMPTS) {
+                String lockKey = ACCOUNT_LOCK_KEY_PREFIX + username;
+                redisTemplate.opsForValue().set(lockKey, true, ACCOUNT_LOCK_DURATION_MINUTES, TimeUnit.MINUTES);
+            }
+        }
+        
+        log.warn("登录失败: username={}, ip={}, failCount={}", username, clientIp, failCount);
+        
+        if (failCount >= MAX_LOGIN_FAIL_ATTEMPTS) {
+            throw BusinessException.badRequest(
+                String.format("登录失败次数过多，账户已锁定%d分钟", ACCOUNT_LOCK_DURATION_MINUTES)
+            );
+        }
+    }
+
+    private void clearLoginFailRecord(String username) {
+        loginFailCache.invalidate(username);
+        
+        if (redisTemplate != null) {
+            String failKey = LOGIN_FAIL_KEY_PREFIX + username;
+            String lockKey = ACCOUNT_LOCK_KEY_PREFIX + username;
+            redisTemplate.delete(failKey);
+            redisTemplate.delete(lockKey);
+        }
+    }
+
+    private void updateLoginInfoAsync(Long userId, String loginIp) {
+        if (redisTemplate != null) {
+            String logKey = LOGIN_LOG_KEY_PREFIX + LocalDateTime.now().toLocalDate();
+            String logEntry = String.format("%d|%s|%d", userId, loginIp, System.currentTimeMillis());
+            redisTemplate.opsForList().rightPush(logKey, logEntry);
+        }
+        
+        userService.updateLoginInfo(userId, loginIp);
+    }
+
+    private void recordLoginSuccess(Long userId, String username, String clientIp) {
+        log.info("登录成功: userId={}, username={}, ip={}", userId, username, clientIp);
+    }
+
+    private LoginVO buildLoginResponse(SysUser user, String tokenValue, long tokenTimeout) {
         LoginVO vo = new LoginVO();
         vo.setAccessToken(tokenValue);
         vo.setExpiresIn(tokenTimeout);
 
-        // 用户信息
         LoginVO.UserInfo userInfo = new LoginVO.UserInfo();
         userInfo.setId(user.getId());
         userInfo.setUsername(user.getUsername());
@@ -130,15 +213,12 @@ public class AuthServiceImpl implements AuthService {
         userInfo.setPhone(user.getPhone());
         userInfo.setDeptId(user.getDeptId());
 
-        // 角色和权限
         List<String> roles = userService.getRoleCodes(user.getId());
         List<String> permissions = userService.getPermissionCodes(user.getId());
         userInfo.setRoles(roles);
         userInfo.setPermissions(permissions);
 
         vo.setUserInfo(userInfo);
-
-        log.info("用户登录成功: {}", user.getUsername());
         return vo;
     }
 
@@ -153,30 +233,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public LoginVO refreshToken(String refreshToken) {
-        if (!StpUtil.isLogin()) {
-            throw BusinessException.unauthorized("用户未登录，请重新登录");
-        }
-        Long userId = StpUtil.getLoginIdAsLong();
-        String newToken = StpUtil.getTokenValue();
-
-        SysUser user = userService.getById(userId);
-        if (user == null) {
-            throw BusinessException.notFound("用户不存在");
-        }
-
-        LoginVO vo = new LoginVO();
-        vo.setAccessToken(newToken);
-        vo.setTokenType("Bearer");
-        LoginVO.UserInfo userInfo = new LoginVO.UserInfo();
-        userInfo.setId(userId);
-        userInfo.setUsername(user.getUsername());
-        userInfo.setNickname(user.getNickname());
-        userInfo.setAvatar(user.getAvatar());
-        userInfo.setEmail(user.getEmail());
-        userInfo.setPhone(user.getPhone());
-        userInfo.setDeptId(user.getDeptId());
-        vo.setUserInfo(userInfo);
-        return vo;
+        throw BusinessException.badRequest("暂不支持刷新令牌");
     }
 
     @Override
@@ -214,17 +271,32 @@ public class AuthServiceImpl implements AuthService {
         return userService.getByUsername(username) == null;
     }
 
-    /**
-     * 记录登录失败次数，超过阈值锁定账户
-     */
-    private void recordFailure(String username) {
-        String failureKey = FAILURE_KEY_PREFIX + username;
-        Long count = stringRedisTemplate.opsForValue().increment(failureKey);
-        if (count != null && count == 1) {
-            stringRedisTemplate.expire(failureKey, LOCK_DURATION_MINUTES, TimeUnit.MINUTES);
+    public void validatePasswordStrength(String password) {
+        if (!StringUtils.hasText(password)) {
+            throw BusinessException.badRequest("密码不能为空");
         }
-        if (count != null && count >= MAX_FAILURE_COUNT) {
-            log.warn("账户已被锁定: username={}, failureCount={}", username, count);
+        
+        if (password.length() < PASSWORD_MIN_LENGTH) {
+            throw BusinessException.badRequest("密码长度至少为" + PASSWORD_MIN_LENGTH + "位");
+        }
+        
+        if (!password.matches(".*\\d.*")) {
+            throw BusinessException.badRequest("密码必须包含数字");
+        }
+        
+        if (!password.matches(".*[a-zA-Z].*")) {
+            throw BusinessException.badRequest("密码必须包含字母");
+        }
+        
+        if (!password.matches(".*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>/?].*")) {
+            throw BusinessException.badRequest("密码必须包含特殊字符");
+        }
+        
+        String[] weakPasswords = {"password", "12345678", "qwerty", "admin123"};
+        for (String weak : weakPasswords) {
+            if (password.toLowerCase().contains(weak)) {
+                throw BusinessException.badRequest("密码过于简单，请使用更复杂的密码");
+            }
         }
     }
 }

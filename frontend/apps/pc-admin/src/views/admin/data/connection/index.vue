@@ -8,6 +8,53 @@
         · 后端：cn.aiedge.datasource.controller.DataSourceController（前缀 /api/data-source）
         · 开发文档：docs/Yh-Spec/手动整理对标开发文档/系统模块/连接管理开发文档.md
       -->
+      <!--
+        ═══ 当前生效连接 ═══
+        本系统**自身**此刻连的库（运行时 DataSource 的 JDBC 元数据）。
+        与下方表格（sys_data_source 里用户登记的外部数据源）是两回事——
+        此前页面只有后者，这张表为空时整页空白，最该看到的「我连的是哪个库」反而没有。
+      -->
+      <a-alert
+        v-if="currentConn"
+        type="info"
+        show-icon
+        class="current-conn-bar"
+      >
+        <template #message>
+          <span class="cc-label">当前连接</span>
+          <a-tag
+            v-if="currentConn.dbType"
+            color="blue"
+          >
+            {{ currentConn.dbType }}
+          </a-tag>
+          <span
+            v-if="currentConn.host"
+            class="cc-item"
+          >
+            {{ currentConn.host }}:{{ currentConn.port }}/{{ currentConn.databaseName }}
+          </span>
+          <span
+            v-if="currentConn.username"
+            class="cc-item"
+          >
+            用户 {{ currentConn.username }}
+          </span>
+          <span
+            v-if="currentConn.poolTotal != null"
+            class="cc-item"
+          >
+            连接池 {{ currentConn.poolActive }}/{{ currentConn.poolTotal }}（上限 {{ currentConn.poolMax }}）
+          </span>
+          <span
+            v-if="currentConn.error"
+            class="cc-item cc-error"
+          >
+            元数据读取失败：{{ currentConn.error }}
+          </span>
+        </template>
+      </a-alert>
+
       <CategoryListLayout
         :tabs="[]"
         :show-category-panel="false"
@@ -359,6 +406,12 @@ const tableData = ref<DataSourceItem[]>([])
 
 /** 后端 /list 为内存分页（page/pageSize + records/total/current/size/pages），真分页参数 */
 const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
+
+/**
+ * 当前**生效**的数据库连接（本系统自身连的库），来自 /data-source/current。
+ * 与下面 tableData（`sys_data_source` 里用户登记的外部数据源）是两回事。
+ */
+const currentConn = ref<Record<string, any> | null>(null)
 const searchForm = reactive({
   keyword: '' as string,
   dbType: undefined as string | undefined,
@@ -451,8 +504,31 @@ function fmtTime(val: string | null | undefined): string {
 }
 
 // ═══ 数据加载 ═══
+
+/**
+ * 当前**生效**的数据库连接（本系统自身）。
+ *
+ * 背景：本页原先只展示 `sys_data_source` 里**用户登记的外部数据源**。该表为空时页面一片空白，
+ * 而管理员打开「连接管理」最想知道的「本系统此刻连的是哪个库」反而看不到。
+ * 后端 /data-source/current 从运行时 DataSource 读 JDBC 元数据（不读任何表；密码不返回、用户名已脱敏）。
+ *
+ * 定义放在 fetchList 之前：虽然函数声明本就会提升，但放在前面可避免
+ * Vite HMR 部分更新时出现「调用方已更新、被调方未注入」的假 ReferenceError。
+ */
+async function fetchCurrent() {
+  try {
+    currentConn.value = await dataSourceApi.current()
+  } catch (error: any) {
+    console.warn('[连接管理] 获取当前生效连接失败', error)
+    currentConn.value = null
+  }
+}
+
 async function fetchList() {
   loading.value = true
+  // 并行刷新「当前生效连接」：它是本系统自身连的库，与下方登记的外部数据源无关，
+  // 失败只告警、不阻塞列表（两个数据源相互独立）
+  fetchCurrent()
   try {
     const res: any = await dataSourceApi.page({
       keyword: searchForm.keyword || undefined,
@@ -601,4 +677,9 @@ onMounted(fetchList)
 .cell-link { color: #1890ff; cursor: pointer; }
 .cell-link:hover { text-decoration: underline; }
 .btn-add { background: #fa8c16; border-color: #fa8c16; }
+/* ═══ 当前生效连接提示条 ═══ */
+.current-conn-bar { margin: 0 0 8px 0; }
+.current-conn-bar .cc-label { font-weight: 600; margin-right: 8px; }
+.current-conn-bar .cc-item { margin-left: 16px; }
+.current-conn-bar .cc-error { color: #cf1322; }
 </style>

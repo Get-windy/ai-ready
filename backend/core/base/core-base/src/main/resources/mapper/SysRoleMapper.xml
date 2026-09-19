@@ -28,13 +28,21 @@
         LIMIT 1
     </select>
 
-    <!-- 查询用户的角色列表 -->
+    <!--
+      查询用户的角色列表。
+
+      2026-09-19 加固：本查询经 `SysRoleServiceImpl#getUserRoles` 参与数据权限判定
+      （`DataPermissionServiceImpl#checkUserDataPermission`）与审批人解析，
+      此前只过滤 deleted，停用的角色仍被当成有效角色。sys_role.status 语义 **0 = 启用**（5 行全 0）。
+      今天零行为变化。
+    -->
     <select id="selectRolesByUserId" resultMap="BaseResultMap">
         SELECT sr.*
         FROM sys_role sr
         INNER JOIN sys_user_role sur ON sr.id = sur.role_id
         WHERE sur.user_id = #{userId}
           AND sr.deleted = 0
+          AND sr.status = 0
         ORDER BY sr.sort ASC
     </select>
 
@@ -69,13 +77,20 @@
         </if>
     </select>
 
-    <!-- 获取角色的权限ID列表 -->
+    <!--
+      获取角色的权限ID列表。
+
+      2026-09-19 加固：本查询经 `RoleInheritanceServiceImpl` 参与「角色继承后的有效权限集合」计算
+      （进而影响 `PermissionUtils` 与角色详情），此前只过滤 deleted，禁用的权限仍算进有效权限。
+      sys_permission.status 语义 **0 = 正常**（454 行全 0）。今天零行为变化。
+    -->
     <select id="selectPermissionIdsByRoleId" resultType="long">
         SELECT sp.id
         FROM sys_role_permission srp
         INNER JOIN sys_permission sp ON srp.permission_id = sp.id
         WHERE srp.role_id = #{roleId}
           AND sp.deleted = 0
+          AND sp.status = 0
     </select>
 
     <!-- 获取角色的菜单ID列表 -->

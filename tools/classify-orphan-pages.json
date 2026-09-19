@@ -1,10 +1,5 @@
 {
- "D1_dead_files": [
-  "finance/subsidiary-balance/index.vue",
-  "finance/trial-balance/index.vue",
-  "wms/pick/form.vue",
-  "wms/putaway/form.vue"
- ],
+ "D1_dead_files": [],
  "D2_url_only": [
   {
    "key": "charts/index",
@@ -45,14 +40,6 @@
   {
    "key": "erp/partner/index",
    "file": "erp/partner/index.vue"
-  },
-  {
-   "key": "erp/pricing/approval/index",
-   "file": "erp/pricing/approval/index.vue"
-  },
-  {
-   "key": "erp/pricing/index",
-   "file": "erp/pricing/index.vue"
   },
   {
    "key": "erp/product/grade",
@@ -109,10 +96,6 @@
   {
    "key": "profile/index",
    "file": "profile/index.vue"
-  },
-  {
-   "key": "system/data-import/index",
-   "file": "system/data-import/index.vue"
   }
  ],
  "D3_mapping_only": [
@@ -127,10 +110,6 @@
   {
    "key": "common/placeholder/index",
    "file": "common/placeholder/index.vue"
-  },
-  {
-   "key": "crm/supplier/index",
-   "file": "crm/supplier/index.vue"
   },
   {
    "key": "erp/dashboard/index",
@@ -329,18 +308,6 @@
    "file": "system/department/index.vue"
   },
   {
-   "key": "system/position/index",
-   "file": "system/position/index.vue"
-  },
-  {
-   "key": "system/role/index",
-   "file": "system/role/index.vue"
-  },
-  {
-   "key": "system/user/index",
-   "file": "system/user/index.vue"
-  },
-  {
    "key": "trade/mall-return",
    "file": "trade/mall-return/index.vue"
   },
@@ -378,30 +345,6 @@
   }
  ],
  "D4_push_only": [
-  {
-   "key": "(仅 push 可达)",
-   "file": "wms/move/form.vue"
-  },
-  {
-   "key": "(仅 push 可达)",
-   "file": "wms/move/index.vue"
-  },
-  {
-   "key": "(仅 push 可达)",
-   "file": "wms/pick/index.vue"
-  },
-  {
-   "key": "(仅 push 可达)",
-   "file": "wms/putaway/index.vue"
-  },
-  {
-   "key": "(仅 push 可达)",
-   "file": "wms/ship/form.vue"
-  },
-  {
-   "key": "(仅 push 可达)",
-   "file": "wms/ship/index.vue"
-  },
   {
    "key": "budget/adjustment/index",
    "file": "budget/adjustment/index.vue"

@@ -1,0 +1,220 @@
+{
+ "java_duplicate_bodies": [
+  {
+   "methods": [
+    "getClientIp"
+   ],
+   "files": [
+    "backend/core/agent/core-agent/src/main/java/cn/aiedge/agent/controller/AgentInvokeController.java",
+    "backend/core/base/core-base/src/main/java/cn/aiedge/common/log/RequestLoggingFilter.java",
+    "backend/core/base/core-base/src/main/java/cn/aiedge/common/ratelimit/RateLimitInterceptor.java",
+    "backend/erp/erp-printing/src/main/java/cn/aiedge/erp/printing/controller/PrintTaskController.java"
+   ]
+  },
+  {
+   "methods": [
+    "extractParameter"
+   ],
+   "files": [
+    "backend/erp/erp-pricing/src/main/java/cn/aiedge/erp/pricing/strategy/algorithm/pricing/CompetitivePricingStrategy.java",
+    "backend/erp/erp-pricing/src/main/java/cn/aiedge/erp/pricing/strategy/algorithm/pricing/CostBasedPricingStrategy.java",
+    "backend/erp/erp-pricing/src/main/java/cn/aiedge/erp/pricing/strategy/algorithm/pricing/MarketBasedPricingStrategy.java",
+    "backend/erp/erp-pricing/src/main/java/cn/aiedge/erp/pricing/strategy/algorithm/pricing/ValueBasedPricingStrategy.java"
+   ]
+  },
+  {
+   "methods": [
+    "parse",
+    "parseTime"
+   ],
+   "files": [
+    "backend/core/base/core-base/src/main/java/cn/aiedge/trade/monitor/TimeParsers.java",
+    "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/service/impl/PaymentServiceImpl.java",
+    "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/service/impl/RefundServiceImpl.java"
+   ]
+  },
+  {
+   "methods": [
+    "sortBy"
+   ],
+   "files": [
+    "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/preorder/analytics/service/impl/PreOrderAnalysisReportServiceImpl.java",
+    "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/service/impl/SaleAnalysisReportServiceImpl.java",
+    "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/analytics/service/impl/InventoryAnalysisReportServiceImpl.java"
+   ]
+  },
+  {
+   "methods": [
+    "buildJdbcUrl"
+   ],
+   "files": [
+    "backend/core/api/core-api/src/main/java/cn/aiedge/datasource/service/impl/DataSourceServiceImpl.java",
+    "backend/core/api/core-api/src/main/java/cn/aiedge/report/service/impl/ReportDataSourceServiceImpl.java"
+   ]
+  },
+  {
+   "methods": [
+    "getClientIp",
+    "getRemoteAddress"
+   ],
+   "files": [
+    "backend/core/api/core-api/src/main/java/cn/aiedge/gateway/filter/BlackWhiteListFilter.java",
+    "backend/core/api/core-api/src/main/java/cn/aiedge/gateway/filter/GlobalLogFilter.java"
+   ]
+  },
+  {
+   "methods": [
+    "send"
+   ],
+   "files": [
+    "backend/core/api/core-api/src/main/java/cn/aiedge/mq/producer/EnhancedMessageProducer.java",
+    "backend/core/api/core-api/src/main/java/cn/aiedge/mq/producer/MessageProducer.java"
+   ]
+  },
+  {
+   "methods": [
+    "sendDelayed"
+   ],
+   "files": [
+    "backend/core/api/core-api/src/main/java/cn/aiedge/mq/producer/EnhancedMessageProducer.java",
+    "backend/core/api/core-api/src/main/java/cn/aiedge/mq/producer/MessageProducer.java"
+   ]
+  },
+  {
+   "methods": [
+    "tokenize"
+   ],
+   "files": [
+    "backend/core/api/core-api/src/main/java/cn/aiedge/search/index/InvertedIndex.java",
+    "backend/core/api/core-api/src/main/java/cn/aiedge/search/index/SearchQueryBuilder.java"
+   ]
+  },
+  {
+   "methods": [
+    "getSearchHistory"
+   ],
+   "files": [
+    "backend/core/api/core-api/src/main/java/cn/aiedge/search/service/impl/AdvancedSearchServiceImpl.java",
+    "backend/core/api/core-api/src/main/java/cn/aiedge/search/service/impl/SearchServiceImpl.java"
+   ]
+  },
+  {
+   "methods": [
+    "deleteSearchHistory"
+   ],
+   "files": [
+    "backend/core/api/core-api/src/main/java/cn/aiedge/search/service/impl/AdvancedSearchServiceImpl.java",
+    "backend/core/api/core-api/src/main/java/cn/aiedge/search/service/impl/SearchServiceImpl.java"
+   ]
+  },
+  {
+   "methods": [
+    "buildSearchResult"
+   ],
+   "files": [
+    "backend/core/api/core-api/src/main/java/cn/aiedge/search/service/impl/AdvancedSearchServiceImpl.java",
+    "backend/core/api/core-api/src/main/java/cn/aiedge/search/service/impl/SearchServiceImpl.java"
+   ]
+  },
+  {
+   "methods": [
+    "getClientIp"
+   ],
+   "files": [
+    "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/AuthController.java",
+    "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysUserController.java"
+   ]
+  },
+  {
+   "methods": [
+    "getCurrentUserInfo"
+   ],
+   "files": [
+    "backend/core/base/core-base/src/main/java/cn/aiedge/base/service/impl/AuthServiceImpl.java",
+    "backend/core/base/core-base/src/main/java/cn/aiedge/base/service/impl/AuthServiceOptimizedImpl.java"
+   ]
+  },
+  {
+   "methods": [
+    "getNullPropertyNames"
+   ],
+   "files": [
+    "backend/core/base/core-base/src/main/java/cn/aiedge/common/utils/BeanCopyUtils.java",
+    "backend/erp/erp-supplier-portal/src/main/java/cn/aiedge/common/core/utils/BeanUtils.java"
+   ]
+  },
+  {
+   "methods": [
+    "parseTimeToSeconds"
+   ],
+   "files": [
+    "backend/dms/src/main/java/cn/aiedge/dms/route/service/RouteService.java",
+    "backend/dms/src/main/java/cn/aiedge/dms/route/service/RouteVrpPlanner.java"
+   ]
+  },
+  {
+   "methods": [
+    "page"
+   ],
+   "files": [
+    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/service/impl/ExpenseTypeSubjectServiceImpl.java",
+    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/service/impl/OtherIncomeSubjectServiceImpl.java"
+   ]
+  },
+  {
+   "methods": [
+    "toTrialBalanceDTO"
+   ],
+   "files": [
+    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/service/impl/FinancialReportServiceImpl.java",
+    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/finance/service/impl/LedgerServiceImpl.java"
+   ]
+  },
+  {
+   "methods": [
+    "calculateBulkDiscount"
+   ],
+   "files": [
+    "backend/erp/erp-pricing/src/main/java/cn/aiedge/erp/pricing/strategy/calculator/PromotionalDiscountCalculator.java",
+    "backend/erp/erp-pricing/src/main/java/cn/aiedge/erp/pricing/strategy/calculator/StandardDiscountCalculator.java"
+   ]
+  },
+  {
+   "methods": [
+    "pageResult"
+   ],
+   "files": [
+    "backend/erp/erp-purchase/src/main/java/cn/aiedge/erp/purchase/analytics/service/impl/PurchaseAnalysisReportServiceImpl.java",
+    "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/service/impl/SaleAnalysisReportServiceImpl.java"
+   ]
+  },
+  {
+   "methods": [
+    "currentUserName"
+   ],
+   "files": [
+    "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/saleexchange/service/impl/SaleExchangeServiceImpl.java",
+    "backend/erp/erp-sales/src/main/java/cn/aiedge/erp/sale/salereturn/service/impl/SaleReturnServiceImpl.java"
+   ]
+  },
+  {
+   "methods": [
+    "toLongList"
+   ],
+   "files": [
+    "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductController.java",
+    "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductShieldController.java"
+   ]
+  }
+ ],
+ "ts_duplicate_exports": {
+  "useFeatureFlag": [
+   "frontend/apps/pc-admin/src/composables/useFeatureFlag.ts",
+   "frontend/apps/pc-admin/src/utils/featureFlags.ts"
+  ],
+  "useFeatureFlags": [
+   "frontend/apps/pc-admin/src/composables/useFeatureFlag.ts",
+   "frontend/apps/pc-admin/src/utils/featureFlags.ts"
+  ]
+ }
+}

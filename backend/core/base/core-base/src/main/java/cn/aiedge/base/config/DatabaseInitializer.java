@@ -119,7 +119,7 @@ public class DatabaseInitializer implements CommandLineRunner {
      *
      * 执行内容：
      * 1. 添加 sys_menu 表的新字段（Mega Menu 改造）
-     * 2. 确保默认菜单数据存在
+     * 2. 确保菜单与超级管理员的关联存在
      */
     @EventListener(ApplicationReadyEvent.class)
     public void onApplicationReady() {
@@ -132,7 +132,7 @@ public class DatabaseInitializer implements CommandLineRunner {
             log.warn("ensureMenuSchemaSafe 失败: {}", e.getMessage());
         }
 
-        // 确保默认菜单数据存在（sys_menu 和 sys_role_menu）
+        // 确保菜单与超级管理员的关联存在（sys_role_menu）
         try {
             ensureMenuData();
         } catch (Exception e) {
@@ -1496,205 +1496,17 @@ public class DatabaseInitializer implements CommandLineRunner {
     }
 
     /**
-     * 确保 tenant-admin 菜单数据存在
-     * 若 sys_menu 表中尚无 tenant-admin 客户端菜单，则批量插入默认菜单树
-     * 并将全部菜单关联到超级管理员角色（role_id=1）
+     * 确保菜单与超级管理员的关联存在。
+     *
+     * 菜单树本身已由 Flyway 迁移维护（见 core-api/src/main/resources/db/migration），
+     * 此处只做关联兜底。
+     *
+     * 历史说明：本方法曾内置一套 ID 1000-14004 的旧菜单种子（133 条 appendMenu），
+     * 与 Flyway 的 6xxxx/7xxxx/8xxxx 体系并行，且用的是 H2 方言 `MERGE INTO ... KEY(id)`，
+     * 在 PostgreSQL 上必然执行失败。已于 2026-09-19 清理，
+     * 依据见仓库根目录 CLEANUP_SCOPE_20260919.md 的 DC-01。
      */
     private void ensureMenuData() {
-        // 检查菜单数据是否已存在
-        try {
-            Integer count = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM sys_menu WHERE client_type = 'tenant-admin' AND deleted = 0", Integer.class);
-            if (count != null && count > 0) {
-                log.info("tenant-admin 菜单数据已存在 ({} 条)，跳过初始化", count);
-                return;
-            }
-        } catch (Exception e) {
-            log.warn("检查菜单数据失败: {}", e.getMessage());
-        }
-
-        log.info("初始化 tenant-admin 菜单树...");
-        StringBuilder sql = new StringBuilder();
-        sql.append("MERGE INTO sys_menu (id, tenant_id, parent_id, menu_name, menu_code, menu_type, path, component, icon, sort, visible, status, client_type, deleted, display_mode, list_path, tag_label, display_group) KEY(id) VALUES ");
-
-        // ═══════════════ 工作台 ═══════════════
-        appendMenu(sql, 1000, 0, "工作台", "Dashboard", 1, "dashboard", "dashboard/index", "DashboardOutlined", 1);
-
-        // ═══════════════ 系统管理 ═══════════════
-        appendMenu(sql, 2000, 0, "系统管理", "System", 0, "system", null, "SettingOutlined", 10);
-        appendMenu(sql, 2001, 2000, "用户管理", "SystemUser", 1, "system/user", "system/user/index", "UserOutlined", 1);
-        appendMenu(sql, 2002, 2000, "角色管理", "SystemRole", 1, "system/role", "system/role/index", "SafetyOutlined", 2);
-        appendMenu(sql, 2003, 2000, "菜单管理", "SystemMenu", 1, "system/menu", "system/menu/index", "MenuOutlined", 3);
-        appendMenu(sql, 2004, 2000, "权限管理", "SystemPermission", 1, "system/permission", "system/permission/index", "LockOutlined", 4);
-        appendMenu(sql, 2005, 2000, "部门管理", "SystemDepartment", 1, "system/department", "system/department/index", "ApartmentOutlined", 5);
-        appendMenu(sql, 2006, 2000, "岗位管理", "SystemPosition", 1, "system/position", "system/position/index", "IdcardOutlined", 6);
-        appendMenu(sql, 2007, 2000, "系统配置", "SystemConfig", 1, "system/config", "system/config/index", "SettingOutlined", 7);
-        appendMenu(sql, 2008, 2000, "字典管理", "SystemDict", 1, "system/dict", "system/dict/index", "BookOutlined", 8);
-        appendMenu(sql, 2009, 2000, "系统日志", "SystemLog", 1, "system/log", "system/log/index", "FileTextOutlined", 9);
-        appendMenu(sql, 2010, 2000, "租户管理", "SystemTenant", 1, "system/tenant", "system/tenant/index", "TeamOutlined", 10);
-        appendMenu(sql, 2011, 2000, "租户审批", "SystemTenantApproval", 1, "system/tenant-approval", "system/tenant-approval/index", "SafetyOutlined", 11);
-        appendMenu(sql, 2013, 2000, "数据权限范围", "DataScope", 1, "system/data-scope", "system/data-scope/index", "SafetyOutlined", 13);
-        appendMenu(sql, 2014, 2000, "字段级权限", "FieldPermission", 1, "system/field-permission", "system/field-permission/index", "LockOutlined", 14);
-        appendMenu(sql, 2015, 2000, "职责分离规则", "SodRule", 1, "system/sod-rule", "system/sod-rule/index", "AuditOutlined", 15);
-
-        // ═══════════════ 采购管理 ═══════════════
-        appendMenu(sql, 3000, 0, "采购管理", "Purchase", 0, "erp/purchase", null, "ShoppingCartOutlined", 20);
-        appendMenu(sql, 3001, 3000, "采购订单", "PurchaseOrder", 1, "erp/purchase", "erp/purchase/index", "ShoppingCartOutlined", 1);
-        appendMenu(sql, 3002, 3000, "采购换货", "PurchaseExchange", 1, "erp/purchase-exchange", "erp/purchase-exchange/index", "SwapOutlined", 2);
-
-        // ═══════════════ 销售管理 ═══════════════
-        appendMenu(sql, 4000, 0, "销售管理", "Sale", 0, "erp/sale", null, "ShoppingOutlined", 30);
-        // ── 外勤拜访 ──
-        appendMenu(sql, 4010, 4000, "拜访规划", "sales:visit-plan", 1, "sales/visit-plan", "sales/visit-plan/index", "ScheduleOutlined", 10);
-        appendMenu(sql, 4011, 4000, "拜访执行", "sales:visit-exec", 1, "sales/visit-exec", "sales/visit-exec/index", "FormOutlined", 11);
-        appendMenu(sql, 4012, 4000, "拜访检视", "sales:visit-review", 1, "sales/visit-review", "sales/visit-review/index", "EyeOutlined", 12);
-        // ── 订货业务（displayMode=1 → "历史"标签按钮） ──
-        appendMenu(sql, 4020, 4000, "销售订单", "sales:order", 1, "sales/order/form", "sales/order/index", "ShoppingOutlined", 20, 1, "sales/order", "历史", 0);
-        appendMenu(sql, 4021, 4000, "销售退货申请", "sales:return", 1, "sales/return-apply/form", "sales/return-apply/index", "RollbackOutlined", 21, 1, "sales/return-apply", "历史", 0);
-        appendMenu(sql, 4022, 4000, "预订货单", "sales:pre-order", 1, "sales/pre-order/form", "sales/pre-order/index", "ScheduleOutlined", 22, 1, "sales/pre-order", "历史", 0);
-        // ── 销售业务（displayMode=1 → "历史"标签按钮） ──
-        appendMenu(sql, 4030, 4000, "零售单", "sales:retail", 1, "sales/retail/form", "sales/retail/index", "ShopOutlined", 30, 1, "sales/retail", "历史", 0);
-        appendMenu(sql, 4031, 4000, "销售出库单", "sales:outbound", 1, "sales/outbound/form", "sales/outbound/index", "SendOutlined", 31, 1, "sales/outbound", "历史", 0);
-        appendMenu(sql, 4032, 4000, "销售退货单", "erp:return", 1, "sales/return/form", "sales/return/index", "RollbackOutlined", 32, 1, "sales/return", "历史", 0);
-        appendMenu(sql, 4033, 4000, "销售换货单", "erp:purchase-exchange", 1, "sales/exchange/form", "sales/exchange/index", "SwapOutlined", 33, 1, "sales/exchange", "历史", 0);
-        // ── 销售查询 ──
-        appendMenu(sql, 4040, 4000, "销售单据查询", "sales:doc-query", 1, "sales/doc-query", "sales/doc-query/index", "SearchOutlined", 40);
-        appendMenu(sql, 4041, 4000, "销售明细查询", "sales:detail-query", 1, "sales/detail-query", "sales/detail-query/index", "FileTextOutlined", 41);
-        appendMenu(sql, 4042, 4000, "销售价格跟踪", "sales:price-track", 1, "sales/price-track", "sales/price-track/index", "LineChartOutlined", 42);
-
-        // ═══════════════ 库存管理 ═══════════════
-        appendMenu(sql, 5000, 0, "库存管理", "Stock", 0, "erp/stock", null, "ContainerOutlined", 40);
-        appendMenu(sql, 5001, 5000, "库存列表", "StockList", 1, "erp/stock", "erp/stock/index", "ContainerOutlined", 1);
-        appendMenu(sql, 5002, 5000, "入库管理", "StockIn", 1, "erp/stock-in", "erp/stock-in/index", "InboxOutlined", 2);
-        appendMenu(sql, 5003, 5000, "库存盘点", "Stocktake", 1, "erp/stocktake", "erp/stocktake/index", "CheckSquareOutlined", 3);
-        appendMenu(sql, 5004, 5000, "退货管理", "Return", 1, "erp/return", "erp/return/index", "RollbackOutlined", 4);
-        appendMenu(sql, 5005, 5000, "发货管理", "Shipment", 1, "erp/shipment", "erp/shipment/index", "SendOutlined", 5);
-        appendMenu(sql, 5006, 5000, "批次管理", "Batch", 1, "erp/batch", "erp/batch/index", "BarcodeOutlined", 6);
-        appendMenu(sql, 5007, 5000, "序列号管理", "Serial", 1, "erp/serial", "erp/serial/index", "NumberOutlined", 7);
-        appendMenu(sql, 5008, 5000, "成本调整", "CostAdjust", 1, "erp/stock-cost-adjust", "erp/stock-cost-adjust/index", "DollarOutlined", 8);
-        appendMenu(sql, 5009, 5000, "溢余管理", "Overflow", 1, "erp/stock-overflow", "erp/stock-overflow/index", "PlusCircleOutlined", 9);
-        appendMenu(sql, 5010, 5000, "报损管理", "Damage", 1, "erp/stock-damage", "erp/stock-damage/index", "MinusCircleOutlined", 10);
-        appendMenu(sql, 5011, 5000, "调拨管理", "Transfer", 1, "erp/stock-transfer", "erp/stock-transfer/index", "SwapOutlined", 11);
-        appendMenu(sql, 5012, 5000, "补货管理", "Replenishment", 1, "erp/stock-replenishment", "erp/stock-replenishment/index", "ShoppingCartOutlined", 12);
-        appendMenu(sql, 5013, 5000, "库存预警", "AlertConfig", 1, "erp/stock-alert-config", "erp/stock-alert-config/index", "AlertOutlined", 13);
-        appendMenu(sql, 5014, 5000, "BOM管理", "StockBom", 1, "erp/stock-bom", "erp/stock-bom/index", "DeploymentUnitOutlined", 14);
-        appendMenu(sql, 5015, 5000, "组装管理", "Assemble", 1, "erp/stock-assemble", "erp/stock-assemble/index", "ToolOutlined", 15);
-        appendMenu(sql, 5016, 5000, "拆分管理", "Split", 1, "erp/stock-split", "erp/stock-split/index", "ScissorOutlined", 16);
-
-        // ═══════════════ 财务管理 ═══════════════
-        appendMenu(sql, 6000, 0, "财务管理", "Finance", 0, "finance", null, "DollarOutlined", 50);
-        appendMenu(sql, 6001, 6000, "财务总览", "FinanceIndex", 1, "finance", "finance/index", "DollarOutlined", 1);
-        appendMenu(sql, 6002, 6000, "科目管理", "FinanceSubject", 1, "finance/subject", "finance/subject/index", "FileTextOutlined", 2);
-        appendMenu(sql, 6003, 6000, "凭证管理", "FinanceVoucher", 1, "finance/voucher", "finance/voucher/index", "FileTextOutlined", 3);
-        appendMenu(sql, 6004, 6000, "财务报表", "FinanceReport", 1, "finance/report", "finance/report/index", "BarChartOutlined", 4);
-        appendMenu(sql, 6005, 6000, "应收账款", "Receivable", 1, "finance/receivable", "finance/receivable/index", "DollarOutlined", 5);
-        appendMenu(sql, 6006, 6000, "应付账款", "Payable", 1, "finance/payable", "finance/payable/index", "DollarOutlined", 6);
-        appendMenu(sql, 6007, 6000, "收款单", "Receipt", 1, "finance/receipt", "finance/receipt/index", "DollarOutlined", 7);
-        appendMenu(sql, 6008, 6000, "付款单", "Payment", 1, "finance/payment", "finance/payment/index", "DollarOutlined", 8);
-        appendMenu(sql, 6009, 6000, "预收款", "PreReceipt", 1, "finance/pre-receipt", "finance/pre-receipt/index", "DollarOutlined", 9);
-        appendMenu(sql, 6010, 6000, "预付款", "PrePayment", 1, "finance/pre-payment", "finance/pre-payment/index", "DollarOutlined", 10);
-        appendMenu(sql, 6011, 6000, "定金押金", "Deposit", 1, "finance/deposit", "finance/deposit/index", "DollarOutlined", 11);
-        appendMenu(sql, 6012, 6000, "收付款核销", "WriteOff", 1, "finance/write-off", "finance/write-off/index", "CheckCircleOutlined", 12);
-        appendMenu(sql, 6013, 6000, "往来对冲", "Offset", 1, "finance/offset", "finance/offset/index", "SwapOutlined", 13);
-        appendMenu(sql, 6014, 6000, "资金流水", "CapitalFlow", 1, "finance/capital-flow", "finance/capital-flow/index", "FileTextOutlined", 14);
-        appendMenu(sql, 6015, 6000, "对账管理", "Reconciliation", 1, "finance/reconciliation", "finance/reconciliation/index", "AuditOutlined", 15);
-        appendMenu(sql, 6016, 6000, "应收账龄分析", "AccountsReceivable", 1, "finance/accounts-receivable", "finance/accounts-receivable/index", "DollarOutlined", 16);
-        appendMenu(sql, 6017, 6000, "应付账龄分析", "AccountsPayable", 1, "finance/accounts-payable", "finance/accounts-payable/index", "DollarOutlined", 17);
-
-        // ═══════════════ CRM ═══════════════
-        appendMenu(sql, 7000, 0, "CRM", "Crm", 0, "crm", null, "TeamOutlined", 60);
-        appendMenu(sql, 7001, 7000, "客户管理", "CrmCustomer", 1, "crm/customer", "crm/customer/index", "TeamOutlined", 1);
-        appendMenu(sql, 7002, 7000, "合同管理", "CrmContract", 1, "crm/contract", "crm/contract/index", "FileTextOutlined", 2);
-        appendMenu(sql, 7003, 7000, "线索管理", "CrmLead", 1, "crm/lead", "crm/lead/index", "FireOutlined", 3);
-        appendMenu(sql, 7004, 7000, "商机管理", "CrmOpportunity", 1, "crm/opportunity", "crm/opportunity/index", "BulbOutlined", 4);
-        appendMenu(sql, 7005, 7000, "报价管理", "CrmQuotation", 1, "crm/quotation", "crm/quotation/index", "DollarOutlined", 5);
-        appendMenu(sql, 7006, 7000, "发票管理", "CrmInvoice", 1, "crm/invoice", "crm/invoice/index", "FileTextOutlined", 6);
-
-        // ═══════════════ 供应商管理 ═══════════════
-        appendMenu(sql, 8000, 0, "供应商管理", "Supplier", 0, "supplier", null, "TeamOutlined", 70);
-        appendMenu(sql, 8001, 8000, "供应商列表", "SupplierIndex", 1, "supplier", "supplier/index", "TeamOutlined", 1);
-        appendMenu(sql, 8002, 8000, "供应商询价", "SupplierInquiry", 1, "supplier/inquiry", "supplier/inquiry/index", "QuestionCircleOutlined", 2);
-        appendMenu(sql, 8003, 8000, "供应商绩效", "SupplierPerformance", 1, "supplier/performance", "supplier/performance/index", "StarOutlined", 3);
-
-        // ═══════════════ ERP管理 ═══════════════
-        appendMenu(sql, 9000, 0, "ERP管理", "Erp", 0, "erp", null, "AppstoreOutlined", 80);
-        appendMenu(sql, 9001, 9000, "ERP仪表盘", "ErpDashboard", 1, "erp/dashboard", "erp/dashboard/index", "DashboardOutlined", 1);
-        appendMenu(sql, 9002, 9000, "产品管理", "ErpProduct", 1, "erp/product", "erp/product/index", "AppstoreOutlined", 2);
-        appendMenu(sql, 9003, 9000, "往来单位", "ErpPartner", 1, "erp/partner", "erp/partner/index", "TeamOutlined", 3);
-        appendMenu(sql, 9004, 9000, "客户等级定价", "PricingGrade", 1, "erp/pricing/customer-grade", "erp/pricing/index", "DollarOutlined", 4);
-        appendMenu(sql, 9005, 9000, "定价审批", "PricingApproval", 1, "erp/pricing/approval", "erp/pricing/approval/index", "AuditOutlined", 5);
-        appendMenu(sql, 9006, 9000, "价格层级", "PricingTiers", 1, "erp/pricing/tiers", "erp/pricing/tiers/index", "PullRequestOutlined", 6);
-        appendMenu(sql, 9007, 9000, "批量价格", "PriceBatch", 1, "erp/product/price-batch", "erp/product/price-batch", "DollarOutlined", 7);
-        appendMenu(sql, 9008, 9000, "库存模式", "InventoryMode", 1, "erp/product/inventory-mode", "erp/product/inventory-mode", "SettingOutlined", 8);
-        appendMenu(sql, 9009, 9000, "价格等级", "ProductGrade", 1, "erp/product/grade", "erp/product/grade", "CrownOutlined", 9);
-
-        // ═══════════════ 固定资产 ═══════════════
-        appendMenu(sql, 10000, 0, "固定资产", "FixedAsset", 0, "fixed-asset", null, "BankOutlined", 90);
-        appendMenu(sql, 10001, 10000, "资产总览", "FaIndex", 1, "fixed-asset", "fixed-asset/index", "BankOutlined", 1);
-        appendMenu(sql, 10002, 10000, "资产管理", "FaAsset", 1, "fixed-asset/asset", "fixed-asset/asset/index", "AppstoreOutlined", 2);
-        appendMenu(sql, 10003, 10000, "资产分类", "FaCategory", 1, "fixed-asset/category", "fixed-asset/category/index", "UnorderedListOutlined", 3);
-        appendMenu(sql, 10004, 10000, "折旧管理", "FaDepreciation", 1, "fixed-asset/depreciation", "fixed-asset/depreciation/index", "CalculatorOutlined", 4);
-        appendMenu(sql, 10005, 10000, "资产调拨", "FaTransfer", 1, "fixed-asset/transfer", "fixed-asset/transfer/index", "SwapOutlined", 5);
-        appendMenu(sql, 10006, 10000, "资产处置", "FaDisposal", 1, "fixed-asset/disposal", "fixed-asset/disposal/index", "DeleteOutlined", 6);
-        appendMenu(sql, 10007, 10000, "资产盘点", "FaInventory", 1, "fixed-asset/inventory", "fixed-asset/inventory/index", "CheckSquareOutlined", 7);
-        appendMenu(sql, 10008, 10000, "资产报表", "FaReport", 1, "fixed-asset/report", "fixed-asset/report/index", "BarChartOutlined", 8);
-        appendMenu(sql, 10009, 10000, "资产采购", "FaPurchase", 1, "fixed-asset/purchase", "fixed-asset/purchase/index", "ShoppingCartOutlined", 9);
-
-        // ═══════════════ 费用管理 ═══════════════
-        appendMenu(sql, 11000, 0, "费用管理", "Expense", 0, "erp/expense", null, "DollarOutlined", 100);
-        appendMenu(sql, 11001, 11000, "费用申请", "ExpenseApply", 1, "erp/expense/application", "erp/expense/application/index", "FileTextOutlined", 1);
-        appendMenu(sql, 11002, 11000, "费用报销", "ExpenseReimburse", 1, "erp/expense/reimbursement", "erp/expense/reimbursement/index", "DollarOutlined", 2);
-        appendMenu(sql, 11003, 11000, "费用审批", "ExpenseApproval", 1, "erp/expense/approval", "erp/expense/approval/index", "AuditOutlined", 3);
-        appendMenu(sql, 11004, 11000, "费用付款", "ExpensePayment", 1, "erp/expense/payment", "erp/expense/payment/index", "DollarOutlined", 4);
-        appendMenu(sql, 11005, 11000, "费用统计", "ExpenseStats", 1, "erp/expense/statistics", "erp/expense/statistics/index", "BarChartOutlined", 5);
-
-        // ═══════════════ 预算管理 ═══════════════
-        appendMenu(sql, 12000, 0, "预算管理", "Budget", 0, "budget", null, "FundOutlined", 110);
-        appendMenu(sql, 12001, 12000, "预算总览", "BudgetIndex", 1, "budget", "budget/index", "FundOutlined", 1);
-        appendMenu(sql, 12002, 12000, "预算模板", "BudgetTemplate", 1, "budget/template", "budget/template/index", "FileTextOutlined", 2);
-        appendMenu(sql, 12003, 12000, "年度预算", "BudgetAnnual", 1, "budget/annual", "budget/annual/index", "CalendarOutlined", 3);
-        appendMenu(sql, 12004, 12000, "预算调整", "BudgetAdjust", 1, "budget/adjustment", "budget/adjustment/index", "EditOutlined", 4);
-        appendMenu(sql, 12005, 12000, "预算报表", "BudgetReport", 1, "budget/report", "budget/report/index", "BarChartOutlined", 5);
-
-        // ═══════════════ 商城管理 ═══════════════
-        appendMenu(sql, 13000, 0, "商城管理", "Mall", 0, "erp/mall", null, "ShopOutlined", 120);
-        appendMenu(sql, 13001, 13000, "商城配置", "MallConfig", 1, "erp/mall/config", "erp/mall/config/index", "SettingOutlined", 1);
-        appendMenu(sql, 13002, 13000, "用户审核", "MallUserAudit", 1, "erp/mall/user-audit", "erp/mall/user-audit/index", "AuditOutlined", 2);
-        appendMenu(sql, 13003, 13000, "轮播图管理", "MallBanner", 1, "erp/mall/banner", "erp/mall/banner/index", "PictureOutlined", 3);
-        appendMenu(sql, 13004, 13000, "订单管理", "MallOrder", 1, "erp/mall/order", "erp/mall/order/index", "ShoppingCartOutlined", 4);
-        appendMenu(sql, 13005, 13000, "商品管理", "MallProduct", 1, "erp/mall/product", "erp/mall/product/index", "AppstoreOutlined", 5);
-
-        // ═══════════════ 打印管理 ═══════════════
-        appendMenu(sql, 14000, 0, "打印管理", "Printing", 0, "printing", null, "PrinterOutlined", 130);
-        appendMenu(sql, 14001, 14000, "打印模板", "PrintTemplate", 1, "printing/template", "printing/template/index", "FileTextOutlined", 1);
-        appendMenu(sql, 14002, 14000, "打印链路", "PrintChain", 1, "printing/chain", "printing/chain/index", "LinkOutlined", 2);
-        appendMenu(sql, 14003, 14000, "打印客户端", "PrintClient", 1, "printing/client", "printing/client/index", "LaptopOutlined", 3);
-        appendMenu(sql, 14004, 14000, "打印任务", "PrintTask", 1, "printing/task", "printing/task/index", "AuditOutlined", 4);
-
-        // ═══════════════ 工作流管理 ═══════════════
-        appendMenu(sql, 14100, 0, "工作流管理", "Workflow", 0, "workflow", null, "AuditOutlined", 135);
-        appendMenu(sql, 14101, 14100, "实例监控", "WorkflowMonitor", 1, "workflow/instance-monitor", "workflow/instance-monitor", "AuditOutlined", 1);
-        appendMenu(sql, 14102, 14100, "任务管理", "WorkflowTask", 1, "workflow/task-management", "workflow/task-management", "AuditOutlined", 2);
-        appendMenu(sql, 14103, 14100, "流程分析", "WorkflowAnalysis", 1, "workflow/process-analysis", "workflow/process-analysis", "AuditOutlined", 3);
-
-        // ═══════════════ 独立页面 ═══════════════
-        appendMenu(sql, 15000, 0, "通知公告", "Notification", 1, "notification", "notification/index", "BellOutlined", 140);
-        appendMenu(sql, 15100, 0, "个人中心", "Profile", 1, "profile", "profile/index", "UserOutlined", 150);
-        appendMenu(sql, 15200, 0, "图表", "Charts", 1, "charts", "charts/index", "BarChartOutlined", 160);
-        appendMenu(sql, 15300, 0, "订单中心", "OrderCenter", 1, "order-center", "order-center/index", "ShoppingCartOutlined", 170);
-
-        // 移除末尾逗号
-        sql.setLength(sql.length() - 1);
-
-        try {
-            jdbcTemplate.execute(sql.toString());
-            log.info("tenant-admin 菜单数据初始化完成");
-        } catch (Exception e) {
-            log.error("插入菜单数据失败: {}", e.getMessage());
-            return;
-        }
-
-        // 关联菜单与超级管理员角色
         ensureRoleMenuAssociations();
     }
 
@@ -1724,46 +1536,5 @@ public class DatabaseInitializer implements CommandLineRunner {
         } catch (Exception e) {
             log.warn("插入角色菜单关联失败: {}", e.getMessage());
         }
-    }
-
-    /**
-     * 向 MERGE INTO 追加一个 VALUES 元组（默认 display_mode=0, 无 list_path/tag_label, display_group=0）
-     */
-    private void appendMenu(StringBuilder sb, long id, long parentId, String name, String code, int type, String path, String component, String icon, int sort) {
-        appendMenu(sb, id, parentId, name, code, type, path, component, icon, sort, 0, null, null, 0);
-    }
-
-    /**
-     * 向 MERGE INTO 追加一个 VALUES 元组（支持 display_mode / list_path / tag_label / display_group）
-     */
-    private void appendMenu(StringBuilder sb, long id, long parentId, String name, String code, int type,
-                             String path, String component, String icon, int sort,
-                             int displayMode, String listPath, String tagLabel, int displayGroup) {
-        sb.append("(").append(id).append(", 0, ").append(parentId).append(", '")
-          .append(name.replace("'", "''")).append("', '")
-          .append(code.replace("'", "''")).append("', ").append(type).append(", '")
-          .append(path.replace("'", "''")).append("', ");
-        if (component != null && !component.isEmpty()) {
-            sb.append("'").append(component.replace("'", "''")).append("'");
-        } else {
-            sb.append("NULL");
-        }
-        sb.append(", '").append(icon.replace("'", "''")).append("', ")
-          .append(sort).append(", 1, 1, 'tenant-admin', 0, ")
-          .append(displayMode).append(", ");
-        // list_path (nullable)
-        if (listPath != null && !listPath.isEmpty()) {
-            sb.append("'").append(listPath.replace("'", "''")).append("'");
-        } else {
-            sb.append("NULL");
-        }
-        sb.append(", ");
-        // tag_label (nullable)
-        if (tagLabel != null && !tagLabel.isEmpty()) {
-            sb.append("'").append(tagLabel.replace("'", "''")).append("'");
-        } else {
-            sb.append("NULL");
-        }
-        sb.append(", ").append(displayGroup).append("),");
     }
 }
