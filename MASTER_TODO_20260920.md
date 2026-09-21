@@ -910,7 +910,16 @@
 - `CustomerController`（`crm/.../customer/controller/`）整个类**零鉴权注解**（pageList/create/update/delete/batchDelete/export/import）。
 - 匿名白名单已在 09-19 移除 ⇒ 现为「登录后越权」（低权限用户直调高权限接口）。
 - **修法**：E-01 批次 2（先补权限码种子）。
-- **状态**：⬜
+- **状态**：🔄 **部分完成**（2026-09-21）：E-02 批次 2 已给 `CustomerController` 的 `list/update/delete` 接上 `crm:customer:{list,update,delete}`（另接线 `crm:lead:view`、`crm:opportunity:{create,view}`，两向验证 18/18）；`create/batchDelete/export/import` 等**仍未接线**，待后续批次（其码已在库：`crm:customer:*`）。
+
+#### CRM-CAP-01 [P2] CRM「售后阶段」（工单 / 售后）功能缺失 —— 用户口径：后期迭代补
+
+- **背景（2026-09-21 用户口径）**：CRM 是**一条连续的客户维护链**——前期是销售（收集线索、维护客户、客情服务），**成交后是盯工单与售后**。所以「CRM 内部分两个阶段，但同属**客户服务管理**」⇒ 模块名定为「**客户服务**」，模块内部按阶段拆两个码子域：`crm:*`（售前）+ **`crm:service:*`（售后）**。业界同构：Salesforce = Sales Cloud + Service Cloud；Zoho = CRM + Desk；Odoo = CRM + Helpdesk。
+- **实测缺口（三处都查过，非推测）**：`backend/crm` 现有 **10 个控制器全是售前**（Lead/Opportunity/Quotation+Template/Contract/Customer/CustomerFollowUp/CustomerPool/Visit/MarketingCampaign）；库里 **0 张** ticket / service / aftersale / complaint 表；菜单里**没有**工单/售后入口（仅系统监控的"服务状态"）。唯一沾边的是 `DatabaseInitializer` 里的 `customer_ticket` **字段**（VARCHAR，疑似"客户工单号"登记位），无实体、无接口。
+- **影响**：客户服务链路只覆盖到成交，**成交之后的工单/售后无系统承接**；`crm:service:*` 码域为空 ⇒ 即便将来接线也无码可接。
+- **修法（需新建，不是接线）**：工单实体 + 表 + 接口 + 菜单 + 权限码（`crm:service:*`）+ 与合同/客户/发货的关联。**量级不小，属独立功能项**，不要混进 E-02 接线批次（后者只是"把已有码接到已有接口上"）。
+- **用户决议（2026-09-21）**：**后期迭代再补**，当期只计入本待办清单，不排期、不动手。
+- **状态**：⬜ 待后期迭代（已登记，不阻塞当前接线与模块授权工作）
 
 ---
 
