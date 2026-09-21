@@ -1,11 +1,9 @@
 package cn.aiedge.payment.callback;
 
-import cn.aiedge.base.config.MyBatisPlusConfig;
 import cn.aiedge.base.payment.PaymentCallbackContext;
 import cn.aiedge.base.payment.PaymentCallbackResult;
 import cn.aiedge.base.payment.PaymentCallbackVerificationException;
 import cn.aiedge.base.payment.PaymentCallbackVerifier;
-import cn.aiedge.base.service.SysConfigService;
 import cn.aiedge.payment.dto.PaymentChannelParam;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -76,7 +74,8 @@ public class UnionPayCallbackVerifier implements PaymentCallbackVerifier {
     /** 不参与验签的字段 */
     private static final String FIELD_SIGNATURE = "signature";
 
-    private final SysConfigService sysConfigService;
+    /** 按租户严格读取凭据（不回落平台行、不依赖会话）—— 见 TenantChannelCredentialReader 类注释 */
+    private final TenantChannelCredentialReader credentialReader;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -90,7 +89,8 @@ public class UnionPayCallbackVerifier implements PaymentCallbackVerifier {
         PaymentChannelParam param = loadParam(tenantId);
         return param != null
                 && Boolean.TRUE.equals(param.getEnabled())
-                && !parseCerts(param.getUnionPayCerts()).isEmpty();
+                // 每张证书都要能解析（同微信：混坏证书会「时好时坏」）
+                && PaymentCredentialValidator.allCertsValid(parseCerts(param.getUnionPayCerts()));
     }
 
     @Override
@@ -243,22 +243,17 @@ public class UnionPayCallbackVerifier implements PaymentCallbackVerifier {
         }
     }
 
+    /** 按租户读取渠道参数。**严格本租户**，绝不回落平台行（凭据是身份，不是默认值）。 */
     private PaymentChannelParam loadParam(Long tenantId) {
-        if (tenantId == null) {
+        String raw = credentialReader.read(tenantId, CONFIG_KEY);
+        if (raw == null || raw.isBlank()) {
             return null;
         }
-        MyBatisPlusConfig.setTempTenantId(tenantId);
         try {
-            String raw = sysConfigService.getValue(CONFIG_KEY, null);
-            if (!hasText(raw)) {
-                return null;
-            }
             return objectMapper.readValue(raw, PaymentChannelParam.class);
         } catch (Exception e) {
-            log.warn("读取银联渠道配置失败：tenantId={}, reason={}", tenantId, e.getMessage());
+            log.warn("支付渠道配置解析失败：tenantId={}, channel={}, reason={}", tenantId, CHANNEL_CODE, e.getMessage());
             return null;
-        } finally {
-            MyBatisPlusConfig.clearTempTenantId();
         }
     }
 

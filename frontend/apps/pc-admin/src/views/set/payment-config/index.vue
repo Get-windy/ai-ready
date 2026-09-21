@@ -287,8 +287,14 @@
                 {{ formatMoney(record.minAmount) }} ~ {{ formatMoney(record.maxAmount) }}
               </template>
 
+              <!-- 渠道状态：区分「渠道本身不支持」与「渠道支持但你没配凭据」——
+                   后者是可修的，必须给出明确指引，否则管理员只会看到「不可用」不知道怎么办 -->
               <template #methodAvailableCell="{ record }">
-                <a-tag :color="record.available ? 'success' : 'default'">
+                <a-tooltip v-if="!record.available && record.credentialReady === false"
+                           title="该渠道需要回调验签凭据（公钥 / APIv3 密钥 / 平台证书表），未配置或配置无效时不生效">
+                  <a-tag color="warning">未配凭据</a-tag>
+                </a-tooltip>
+                <a-tag v-else :color="record.available ? 'success' : 'default'">
                   {{ record.available ? '可用' : '不可用' }}
                 </a-tag>
               </template>

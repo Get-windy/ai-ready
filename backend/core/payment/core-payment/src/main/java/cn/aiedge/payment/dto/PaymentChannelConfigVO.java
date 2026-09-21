@@ -33,8 +33,27 @@ public class PaymentChannelConfigVO {
     @Schema(description = "单笔最高限额（元）")
     private BigDecimal maxAmount;
 
-    @Schema(description = "渠道是否可用（由渠道 Bean 的 isAvailable 决定）")
+    /**
+     * 该渠道**在本租户下**是否可用。
+     *
+     * <p>2026-09-21 口径变更：原为「渠道 Bean 的 isAvailable」，而所有渠道实现都无条件返回
+     * {@code true} ⇒ **没配任何凭据也显示「可用」**，管理员会以为配好了。
+     * 现在改为 {@code 渠道自身可用 && credentialReady} ——
+     * 未配置凭据、或凭据格式无效（公钥解析不出来）都算**不可用**。</p>
+     */
+    @Schema(description = "本租户下是否可用（渠道可用 且 凭据就绪）")
     private Boolean available;
+
+    /**
+     * 该渠道的回调验签凭据是否已**就绪且格式有效**。
+     *
+     * <p>与 {@link #available} 分开返回，是为了让页面能区分
+     * 「渠道本身不支持」与「渠道支持但你没配凭据」—— 后者是可修的，需要明确提示。</p>
+     *
+     * <p>无验签器的渠道（现金/银行转账，不走回调）恒为 {@code true}。</p>
+     */
+    @Schema(description = "回调验签凭据是否已配置且格式有效")
+    private Boolean credentialReady;
 
     @Schema(description = "APP ID")
     private String appId;

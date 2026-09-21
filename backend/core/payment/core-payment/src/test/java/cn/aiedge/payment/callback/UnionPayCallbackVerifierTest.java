@@ -3,7 +3,6 @@ package cn.aiedge.payment.callback;
 import cn.aiedge.base.payment.PaymentCallbackContext;
 import cn.aiedge.base.payment.PaymentCallbackResult;
 import cn.aiedge.base.payment.PaymentCallbackVerificationException;
-import cn.aiedge.base.service.SysConfigService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -39,7 +38,7 @@ class UnionPayCallbackVerifierTest {
     private static final com.fasterxml.jackson.databind.ObjectMapper OM =
             new com.fasterxml.jackson.databind.ObjectMapper();
 
-    private SysConfigService sysConfigService;
+    private TenantChannelCredentialReader credentialReader;
     private UnionPayCallbackVerifier verifier;
     private KeyPair keyPair;
 
@@ -49,8 +48,8 @@ class UnionPayCallbackVerifierTest {
         gen.initialize(2048);
         keyPair = gen.generateKeyPair();
 
-        sysConfigService = mock(SysConfigService.class);
-        verifier = new UnionPayCallbackVerifier(sysConfigService);
+        credentialReader = mock(TenantChannelCredentialReader.class);
+        verifier = new UnionPayCallbackVerifier(credentialReader);
     }
 
     private static String pem(java.security.PublicKey key) {
@@ -64,7 +63,7 @@ class UnionPayCallbackVerifierTest {
         config.put("merchantNo", "777290058110048");
         config.put("enabled", enabled);
         config.put("unionPayCerts", OM.writeValueAsString(certs));
-        when(sysConfigService.getValue(eq(UnionPayCallbackVerifier.CONFIG_KEY), any()))
+        when(credentialReader.read(eq(TENANT_ID), eq(UnionPayCallbackVerifier.CONFIG_KEY)))
                 .thenReturn(OM.writeValueAsString(config));
     }
 

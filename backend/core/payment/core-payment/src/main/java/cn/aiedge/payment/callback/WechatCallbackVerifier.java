@@ -1,11 +1,9 @@
 package cn.aiedge.payment.callback;
 
-import cn.aiedge.base.config.MyBatisPlusConfig;
 import cn.aiedge.base.payment.PaymentCallbackContext;
 import cn.aiedge.base.payment.PaymentCallbackResult;
 import cn.aiedge.base.payment.PaymentCallbackVerificationException;
 import cn.aiedge.base.payment.PaymentCallbackVerifier;
-import cn.aiedge.base.service.SysConfigService;
 import cn.aiedge.payment.dto.PaymentChannelParam;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -78,10 +76,8 @@ public class WechatCallbackVerifier implements PaymentCallbackVerifier {
     /** 微信语义下的支付成功 */
     private static final String TRADE_STATE_SUCCESS = "SUCCESS";
 
-    /** APIv3 密钥长度固定 32 字节（AES-256） */
-    private static final int API_V3_KEY_LENGTH = 32;
-
-    private final SysConfigService sysConfigService;
+    /** 按租户严格读取凭据（不回落平台行、不依赖会话）—— 见 TenantChannelCredentialReader 类注释 */
+    private final TenantChannelCredentialReader credentialReader;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -95,8 +91,10 @@ public class WechatCallbackVerifier implements PaymentCallbackVerifier {
         PaymentChannelParam param = loadParam(tenantId);
         return param != null
                 && Boolean.TRUE.equals(param.getEnabled())
-                && isValidApiV3Key(param.getWechatApiV3Key())
-                && !parseCerts(param.getWechatPlatformCerts()).isEmpty();
+                && PaymentCredentialValidator.isValidApiV3Key(param.getWechatApiV3Key())
+                // 证书表要求**每一张**都能解析成 RSA 公钥：混进一张坏证书时，
+                // 按「至少一张有效」放行会导致「时好时坏」（轮换到那张就失败）
+                && PaymentCredentialValidator.allCertsValid(parseCerts(param.getWechatPlatformCerts()));
     }
 
     @Override
@@ -105,7 +103,7 @@ public class WechatCallbackVerifier implements PaymentCallbackVerifier {
         if (param == null || !Boolean.TRUE.equals(param.getEnabled())) {
             throw new PaymentCallbackVerificationException("微信支付渠道未启用，拒绝回调");
         }
-        if (!isValidApiV3Key(param.getWechatApiV3Key())) {
+        if (!PaymentCredentialValidator.isValidApiV3Key(param.getWechatApiV3Key())) {
             throw new PaymentCallbackVerificationException("微信 APIv3 密钥未配置或长度不是 32 字节");
         }
         Map<String, String> certs = parseCerts(param.getWechatPlatformCerts());
@@ -245,23 +243,17 @@ public class WechatCallbackVerifier implements PaymentCallbackVerifier {
 
     // ─────────────────────────── 凭据读取 ───────────────────────────
 
-    /** 按租户读取渠道参数；回调无会话，用临时租户，**必须 finally 清理**。 */
+    /** 按租户读取渠道参数。**严格本租户**，绝不回落平台行（凭据是身份，不是默认值）。 */
     private PaymentChannelParam loadParam(Long tenantId) {
-        if (tenantId == null) {
+        String raw = credentialReader.read(tenantId, CONFIG_KEY);
+        if (raw == null || raw.isBlank()) {
             return null;
         }
-        MyBatisPlusConfig.setTempTenantId(tenantId);
         try {
-            String raw = sysConfigService.getValue(CONFIG_KEY, null);
-            if (isBlank(raw)) {
-                return null;
-            }
             return objectMapper.readValue(raw, PaymentChannelParam.class);
         } catch (Exception e) {
-            log.warn("读取微信支付渠道配置失败：tenantId={}, reason={}", tenantId, e.getMessage());
+            log.warn("支付渠道配置解析失败：tenantId={}, channel={}, reason={}", tenantId, CHANNEL_CODE, e.getMessage());
             return null;
-        } finally {
-            MyBatisPlusConfig.clearTempTenantId();
         }
     }
 
@@ -287,10 +279,6 @@ public class WechatCallbackVerifier implements PaymentCallbackVerifier {
             log.warn("微信平台证书表不是合法 JSON，按未配置处理：{}", e.getMessage());
         }
         return map;
-    }
-
-    private boolean isValidApiV3Key(String key) {
-        return key != null && key.getBytes(StandardCharsets.UTF_8).length == API_V3_KEY_LENGTH;
     }
 
     /** 请求头大小写不敏感查找（微信实际发的就是 Wechatpay-Timestamp 这种形式）。 */

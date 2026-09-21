@@ -3,7 +3,6 @@ package cn.aiedge.payment.callback;
 import cn.aiedge.base.payment.PaymentCallbackContext;
 import cn.aiedge.base.payment.PaymentCallbackResult;
 import cn.aiedge.base.payment.PaymentCallbackVerificationException;
-import cn.aiedge.base.service.SysConfigService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -46,7 +45,7 @@ class WechatCallbackVerifierTest {
     /** 测试内部把「报文」与「签名」拼一起传递的分隔符（纯 ASCII，避免源码里出现控制字符）。 */
     private static final String SIGN_SEPARATOR = "@@SIGN@@";
 
-    private SysConfigService sysConfigService;
+    private TenantChannelCredentialReader credentialReader;
     private WechatCallbackVerifier verifier;
     private KeyPair platformKeyPair;
     private KeyPair rotatedKeyPair;
@@ -58,8 +57,8 @@ class WechatCallbackVerifierTest {
         platformKeyPair = gen.generateKeyPair();
         rotatedKeyPair = gen.generateKeyPair();
 
-        sysConfigService = mock(SysConfigService.class);
-        verifier = new WechatCallbackVerifier(sysConfigService);
+        credentialReader = mock(TenantChannelCredentialReader.class);
+        verifier = new WechatCallbackVerifier(credentialReader);
     }
 
     private static final com.fasterxml.jackson.databind.ObjectMapper OM =
@@ -84,7 +83,7 @@ class WechatCallbackVerifierTest {
         config.put("enabled", enabled);
         config.put("wechatApiV3Key", apiV3Key == null ? "" : apiV3Key);
         config.put("wechatPlatformCerts", OM.writeValueAsString(certs));
-        when(sysConfigService.getValue(eq(WechatCallbackVerifier.CONFIG_KEY), any()))
+        when(credentialReader.read(eq(TENANT_ID), eq(WechatCallbackVerifier.CONFIG_KEY)))
                 .thenReturn(OM.writeValueAsString(config));
     }
 

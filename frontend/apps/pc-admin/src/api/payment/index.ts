@@ -72,7 +72,19 @@ export interface PaymentChannelConfigVO {
   channelName: string
   minAmount: number
   maxAmount: number
+  /**
+   * 本租户下是否可用 = 渠道自身可用 且 凭据就绪。
+   *
+   * 2026-09-21 口径变更：原为「渠道 Bean 的 isAvailable」，而所有渠道实现都无条件返回 true
+   * ⇒ **没配任何凭据也显示「可用」**。现在未配凭据 / 凭据格式无效都算不可用。
+   */
   available: boolean
+  /**
+   * 回调验签凭据是否已配置**且格式有效**（公钥能解析成 RSA key）。
+   * 与 available 分开返回，用于区分「渠道不支持」与「渠道支持但你没配凭据」。
+   * 现金/银行转账不走回调，恒为 true。
+   */
+  credentialReady?: boolean
   appId?: string
   merchantNo?: string
   notifyUrl?: string

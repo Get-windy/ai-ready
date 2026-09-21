@@ -3,6 +3,7 @@ package cn.aiedge.payment.service.impl;
 import cn.aiedge.base.config.MyBatisPlusConfig;
 import cn.aiedge.base.entity.SysProjectConfig;
 import cn.aiedge.base.mapper.SysProjectConfigMapper;
+import cn.aiedge.base.payment.PaymentCallbackVerifier;
 import cn.aiedge.payment.channel.PaymentChannel;
 import cn.aiedge.payment.config.PaymentConfigCatalog;
 import cn.aiedge.payment.dto.PaymentChannelConfigVO;
@@ -69,9 +70,36 @@ public class PaymentConfigServiceImpl implements PaymentConfigService {
     private final SysProjectConfigMapper configMapper;
     private final List<PaymentChannel> channels;
 
+    /**
+     * 平台提供的回调验签实现。
+     *
+     * <p>用来判定「本租户下该渠道是否真的能生效」：**没配凭据 / 凭据格式无效 ⇒ 不生效**。
+     * 渠道 Bean 的 {@code isAvailable()} 只表示「代码层面支持该渠道」（实测所有实现都无条件返回
+     * true），不能用来代表「这个租户配好了」。没有验签器的渠道（现金/银行）不走回调，视为就绪。</p>
+     */
+    private final List<PaymentCallbackVerifier> callbackVerifiers;
+
     // ═══════════════════════════════════════════════════════════════════
     // Tab② 支付方式：渠道参数
     // ═══════════════════════════════════════════════════════════════════
+
+    /**
+     * 本租户下该渠道的回调验签凭据是否就绪。
+     *
+     * <p>判定交给对应的 {@link PaymentCallbackVerifier#isConfigured}（内部做**格式解析**，
+     * 不是看字段非空）—— 这样「填了半截公钥」等同于「没填」。</p>
+     *
+     * <p>没有任何验签器认领该渠道时返回 {@code true}：现金、银行转账这类**不走回调**的渠道
+     * 没有验签凭据可配，不应因此被判为不可用。</p>
+     */
+    private boolean credentialReady(String channelCode) {
+        Long tenantId = MyBatisPlusConfig.getCurrentTenantIdValue();
+        return callbackVerifiers.stream()
+                .filter(v -> v.channelCode() != null && v.channelCode().equalsIgnoreCase(channelCode))
+                .findFirst()
+                .map(v -> v.isConfigured(tenantId))
+                .orElse(true);
+    }
 
     @Override
     public List<PaymentChannelConfigVO> listChannelConfigs(String keyword, Boolean enabled) {
@@ -90,7 +118,10 @@ public class PaymentConfigServiceImpl implements PaymentConfigService {
             vo.setChannelName(name);
             vo.setMinAmount(channel.getMinAmount());
             vo.setMaxAmount(channel.getMaxAmount());
-            vo.setAvailable(channel.isAvailable());
+            // 生效判定 = 渠道自身可用 且 本租户凭据就绪（未配 / 格式无效 都算未就绪）
+            boolean credentialReady = credentialReady(code);
+            vo.setCredentialReady(credentialReady);
+            vo.setAvailable(channel.isAvailable() && credentialReady);
             if (param != null) {
                 vo.setAppId(param.getAppId());
                 vo.setMerchantNo(param.getMerchantNo());
@@ -241,7 +272,10 @@ public class PaymentConfigServiceImpl implements PaymentConfigService {
     private void upsert(String configKey, String configValue, String configType, String description) {
         Long tenantId = writeTenantId();
         LocalDateTime now = LocalDateTime.now();
-        SysProjectConfig existing = findRow(configKey, tenantId);
+        // ⚠️ 必须用 findOwnRow：原实现用 findRow（含「回落平台行」），
+        // 于是**本租户没配过时，会把平台那一行当成"已存在"并更新它** ——
+        // 租户 A 保存自己的渠道参数 = 覆盖平台配置（并可能波及所有未配置的租户）。
+        SysProjectConfig existing = findOwnRow(configKey, tenantId);
 
         if (existing != null) {
             LambdaUpdateWrapper<SysProjectConfig> update = new LambdaUpdateWrapper<>();
@@ -271,6 +305,19 @@ public class PaymentConfigServiceImpl implements PaymentConfigService {
     }
 
     /** 按当前租户读取配置行（取不到时回落平台默认行 tenant_id = 0） */
+    /**
+     * 只取**本租户**的行，**不回落平台行**。
+     *
+     * <p>用于承载凭据的配置（支付渠道参数）：凭据是身份，不是可继承的默认值 ——
+     * 回落等于把平台商户号借给所有租户用，违背「凭证只能本租户自用」。</p>
+     */
+    private SysProjectConfig findOwnRow(String configKey, Long tenantId) {
+        if (tenantId == null) {
+            return null;
+        }
+        return selectByKeyAndTenant(configKey, tenantId);
+    }
+
     private SysProjectConfig findRow(String configKey) {
         return findRow(configKey, currentTenantId());
     }
@@ -302,7 +349,9 @@ public class PaymentConfigServiceImpl implements PaymentConfigService {
         if (code == null) {
             return null;
         }
-        SysProjectConfig row = findRow(PaymentConfigCatalog.channelKey(code));
+        // ⚠️ 用 findOwnRow 而非 findRow：渠道参数里有商户号与密钥，
+        // **不得回落平台行**，否则租户没配时会读到平台凭据并显示为「已配置」。
+        SysProjectConfig row = findOwnRow(PaymentConfigCatalog.channelKey(code), currentTenantId());
         if (row == null || StrUtil.isBlank(row.getConfigValue())) {
             return null;
         }

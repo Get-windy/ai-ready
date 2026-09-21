@@ -3,7 +3,6 @@ package cn.aiedge.payment.callback;
 import cn.aiedge.base.payment.PaymentCallbackContext;
 import cn.aiedge.base.payment.PaymentCallbackResult;
 import cn.aiedge.base.payment.PaymentCallbackVerificationException;
-import cn.aiedge.base.service.SysConfigService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -41,7 +40,7 @@ class AlipayCallbackVerifierTest {
 
     private static final Long TENANT_ID = 1L;
 
-    private SysConfigService sysConfigService;
+    private TenantChannelCredentialReader credentialReader;
     private AlipayCallbackVerifier verifier;
     private KeyPair keyPair;
     private String appId;
@@ -53,8 +52,8 @@ class AlipayCallbackVerifierTest {
         keyPair = gen.generateKeyPair();
         appId = "2021000000000000";
 
-        sysConfigService = mock(SysConfigService.class);
-        verifier = new AlipayCallbackVerifier(sysConfigService);
+        credentialReader = mock(TenantChannelCredentialReader.class);
+        verifier = new AlipayCallbackVerifier(credentialReader);
     }
 
     /** 把公钥写进渠道配置（模拟租户已配置支付宝渠道）。 */
@@ -63,7 +62,7 @@ class AlipayCallbackVerifierTest {
         String json = String.format(
                 "{\"appId\":\"%s\",\"merchantNo\":\"m1\",\"enabled\":%s,\"alipayPublicKey\":\"%s\"}",
                 configuredAppId, enabled, publicKey);
-        when(sysConfigService.getValue(eq(AlipayCallbackVerifier.CONFIG_KEY), any())).thenReturn(json);
+        when(credentialReader.read(eq(TENANT_ID), eq(AlipayCallbackVerifier.CONFIG_KEY))).thenReturn(json);
     }
 
     /** 按支付宝规则构造并签名的回调报文。 */
@@ -191,7 +190,7 @@ class AlipayCallbackVerifierTest {
     @Test
     @DisplayName("渠道未配置公钥 → isConfigured=false（fail-closed 的依据）")
     void notConfiguredWithoutPublicKey() {
-        when(sysConfigService.getValue(eq(AlipayCallbackVerifier.CONFIG_KEY), any()))
+        when(credentialReader.read(eq(TENANT_ID), eq(AlipayCallbackVerifier.CONFIG_KEY)))
                 .thenReturn("{\"appId\":\"x\",\"enabled\":true}");
         assertFalse(verifier.isConfigured(TENANT_ID));
         assertThrows(PaymentCallbackVerificationException.class,
@@ -210,7 +209,7 @@ class AlipayCallbackVerifierTest {
     @Test
     @DisplayName("无配置行 → isConfigured=false")
     void noConfigRow() {
-        when(sysConfigService.getValue(eq(AlipayCallbackVerifier.CONFIG_KEY), any())).thenReturn(null);
+        when(credentialReader.read(eq(TENANT_ID), eq(AlipayCallbackVerifier.CONFIG_KEY))).thenReturn(null);
         assertFalse(verifier.isConfigured(TENANT_ID));
     }
 
