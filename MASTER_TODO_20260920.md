@@ -231,8 +231,19 @@
 - **修法**：二选一 —— 接线，或从授权矩阵下线（前端 `v-permission` 302 处也是消费方，不能只扫后端）。
 - **脚本**：`tools/gen-permission-effectivity.py` → `GET /api/permission/effectivity`；`tools/audit-permission-codes.py`。
 - **状态**：🔄 **已重测 + 已逐条定性，剩"接线 or 删码"的施工（2026-09-21）**
-  - **重测结果（当前口径）**：`994 = 824 生效 + 159 未生效 + 11 分组节点`。`permission-effectivity.json` 已重跑并写入（后端 `GET /api/permission/effectivity` 读的就是它）。**僵尸码 144 → 159**：不是变差，是 E-04 补进来的 485 个新码里有 15 个对应的注解还没补（E-01 只覆盖了 97 个控制器）。
-  - **逐条定性（新增 `tools/classify-zombie-permissions.py`，产出 `tools/zombie-permissions.json`）**：把每条僵尸码判成「有端点但没注解」（**113 条**）还是「端点不存在」（**46 条**）。
+  - **重测结果（当前口径，已修正）**：`994 = 873 生效 + 110 未生效 + 11 分组节点`。
+    ⚠️ **原先报的 159 是工具误判**（见下方"根因"），修正后**真实僵尸码是 110**：
+    **A 类 69**（有端点但无权限注解）+ **B 类 41**（端点不存在）。
+    `permission-effectivity.json` 已重跑并写入（后端 `GET /api/permission/effectivity` 读的就是它）。
+  - **🔴 根因：僵尸码被**虚增**了一半 —— 生效性扫描的正则漏了 `@RequiresPermission`（少一个 s）**
+    本仓真正在用的注解是 core-base 的 **`@RequiresPermission`**（配 `PermissionAspect` 的
+    `@Around("@annotation(...RequiresPermission)")` **真实拦截**），共 **15 个控制器 / 92 个码**；
+    而 `tools/gen-permission-effectivity.py` 里的正则写的是 `@RequirePermission`（无 s）⇒
+    **这些已被真实注解保护的码全被判成"没有消费方"**。hr 域那 35 个"僵尸码"全是这么来的
+    （`HrController` 里就有 77 处 `@RequiresPermission("hr:…")`）。
+    已在生效性脚本与分类脚本**两处**修正（两种拼写都收），重测：**159 → 110**（hr 归零）。
+    教训：**判"僵尸码"的工具本身要先被验证**，否则会凭空指挥出一场不必要的"重建"。
+  - **逐条定性（新增 `tools/classify-zombie-permissions.py`，产出 `tools/zombie-permissions.json`）**：把每条僵尸码判成「有端点但没注解」（**修正后 69 条**）还是「端点不存在」（**修正后 41 条**）。
     - **A 类 113 条按域**：`hr 35 / erp 13 / crm 12 / product 12 / md 7 / finance 6 / department 5 / permission 4 / position 4 / role 4 / tenant 4 / doc 2 / user 2 / purchase 1 / sale 1 / set 1`。**处置 = 补 `@SaCheckPermission`（这是 E-01 的活，不是 E-02 能"修"的）**；且**必须先确认码已在库**（本仓铁律：没有码就补注解 ⇒ 该接口对所有非超管一律 403）。
     - **B 类 46 条**：`data-permission:* 8 / system:dataimport:* 6 / system:dev:scheduler:* 5 / crm 3 / doc 3 / hr 3 / product 4(价格视图类) / finance 2 / 其余零散`。**⚠️ 这批不能照单删**：抽样即发现**假阴性** —— 例如 `system:dev:scheduler:*` 其实有 `SchedulerController` 系列控制器（路径 `/api/scheduler/*` 与 `system` 前缀无关，分类器按域前缀匹配不到），**照单删码会把本该接线的码删掉**。故 B 类清单只能当"待人工逐条确认"的工作单，**未做任何删除**。
   - **为什么这一轮不直接施工**：A 类 113 条的施工量等同 E-01 的剩余批次（hr/crm/core-api/erp-finance 四个模块约 10 个控制器目录），B 类 46 条需逐条人工确认；两者都不是"顺手改几行"，且误删/误注解的代价分别是"功能永久 403"与"删掉还要的码"。**这是本轮唯一没做完的项**，下一步是 E-01 批次（先补码后注解）+ B 类人工确认单。
@@ -268,6 +279,16 @@
     **我倾向 (B)**：这批历史码本来就是"码与端点对不上"的产物（E-02 的定义），(A) 是逐条打补丁，
     下次加接口又会重新错位；(B) 一次对齐后生成器能在 CI 里持续守住。但它动授权，需要你点头。
   - **✅ 已拍板（2026-09-21，用户）：走 (B) —— 以代码路径为准重建码库，按模块推进，从 hr 开始。**
+  - **⛔ 但 hr 这一批执行后**已主动回滚**（当日）**：动手后才发现上面那条"根因"——hr 根本不是
+    无注解模块，它用 `@RequiresPermission` 保护得好好的，35 个"僵尸码"是工具误判。
+    我为 (B) 生成的 `V11.451.0__Rebuild_Hr_Permissions.sql`（+27 码 / −3 码）**已按反向 SQL
+    完整回滚**（删掉 27 个零引用新码、补回 3 个被误删且有真实引用的码），
+    迁移文件也已删除，**未进 flyway_schema_history**；hr 码数回到 **40**、3 个引用码全部在位。
+    **结论**：hr 不需要重建。(B) 是否还要做、对**哪些**域做，要等用修正后的口径重看 110 个僵尸码
+    （A 69 / B 41）再定 —— 很可能只需要补那 69 个缺注解的端点，而不是重建任何码库。
+    **⚠️ 另需一并定夺**：本仓存在**两套注解机制**（Sa-Token 的 `@SaCheckPermission` 用在前 97 个控制器、
+    core-base 的 `@RequiresPermission` 用在 15 个控制器），二者都有真实拦截 —— 属用户诉求 #2
+    「同样功能的代码有新旧两套要统一」，应与 (B) 一起裁定收敛到哪一套。
   - **为 (B) 先把生成器的推导质量补齐了（否则重建出来的码库比历史码更粗，等于降级）**：
     ① **资源回退**：类级路径没给资源时，改从**方法路径的首个非动作段**取资源。本仓 `HrController`
        的 base 就是 `/api/hr`（全部实体写在方法路径上），不做这层回退时 92 个端点只产出 18 个码，

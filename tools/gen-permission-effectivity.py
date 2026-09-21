@@ -34,7 +34,13 @@ DST = os.path.join(BACKEND, 'core', 'base', 'core-base', 'src', 'main', 'resourc
                    'permission-effectivity.json')
 
 # ── 后端：注解里的权限码 ───────────────────────────────────────────────
-BACKEND_ANNO = re.compile(r'@(?:SaCheckPermission|RequirePermission)\s*\(([^)]*)\)', re.S)
+# ⚠️ 2026-09-21 修正：这里原来只认 `@RequirePermission`（**少一个 s**），
+#    而本仓实际用的是 `@RequiresPermission`（core-base 的 `RequiresPermission` 注解 +
+#    `PermissionAspect` 真实拦截；15 个控制器 / 92 个码在用）。
+#    漏认的后果：这些**已被真实注解保护**的码被判成「僵尸码」，虚增了 E-02 的规模
+#    —— hr 域那 35 个"僵尸码"就是这么来的（HrController 里有 77 处 @RequiresPermission）。
+#    两种拼写都收，避免再因笔误造成同类误判。
+BACKEND_ANNO = re.compile(r'@(?:SaCheckPermission|RequiresPermission|RequirePermission)\s*\(([^)]*)\)', re.S)
 STR_LITERAL = re.compile(r'"([^"]+)"')
 
 # ── 前端：v-permission 指令 + 权限判断函数调用 ─────────────────────────

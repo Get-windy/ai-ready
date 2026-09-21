@@ -2,8 +2,8 @@
  "generatedAt": "2026-09-21",
  "summary": {
   "db": 994,
-  "effective": 824,
-  "ineffective": 159,
+  "effective": 873,
+  "ineffective": 110,
   "groupNodes": 11
  },
  "ineffective": [
@@ -30,11 +30,6 @@
   "data-permission:update",
   "data-permission:update-status",
   "data-permission:view",
-  "department:create",
-  "department:delete",
-  "department:edit",
-  "department:list",
-  "department:query",
   "doc:date:edit",
   "doc:draft:view-others",
   "doc:reverse",
@@ -61,46 +56,6 @@
   "finance:receivable:list",
   "finance:receivable:payment",
   "finance:receivable:query",
-  "hr:attendance:clock",
-  "hr:attendance:delete",
-  "hr:attendance:list",
-  "hr:attendance:rule",
-  "hr:attendance:update",
-  "hr:candidate:create",
-  "hr:candidate:delete",
-  "hr:candidate:interview",
-  "hr:candidate:list",
-  "hr:candidate:update",
-  "hr:contract:create",
-  "hr:contract:delete",
-  "hr:contract:list",
-  "hr:contract:update",
-  "hr:employee:create",
-  "hr:employee:delete",
-  "hr:employee:list",
-  "hr:employee:status",
-  "hr:employee:update",
-  "hr:leave:approve",
-  "hr:leave:create",
-  "hr:leave:delete",
-  "hr:leave:list",
-  "hr:leave:quota",
-  "hr:leave:update",
-  "hr:performance:confirm",
-  "hr:performance:list",
-  "hr:performance:update",
-  "hr:position:create",
-  "hr:position:delete",
-  "hr:position:list",
-  "hr:position:update",
-  "hr:recruitment:create",
-  "hr:recruitment:delete",
-  "hr:recruitment:list",
-  "hr:recruitment:update",
-  "hr:salary:confirm",
-  "hr:salary:generate",
-  "hr:salary:list",
-  "hr:salary:update",
   "md:product-price:create",
   "md:product-price:delete",
   "md:product-price:export",
@@ -114,10 +69,6 @@
   "permission:delete",
   "permission:list",
   "permission:update",
-  "position:assign",
-  "position:create",
-  "position:list",
-  "position:query",
   "print:draft",
   "product:barcodes:export",
   "product:barcodes:list",
@@ -558,6 +509,26 @@
    "frontend": 0
   },
   "datasource:sync:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "department:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "department:delete": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "department:edit": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "department:list": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "department:query": {
    "backend": 1,
    "frontend": 0
   },
@@ -1235,6 +1206,166 @@
   },
   "fixed-asset:transfer:update": {
    "backend": 1,
+   "frontend": 0
+  },
+  "hr:attendance:clock": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "hr:attendance:delete": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "hr:attendance:list": {
+   "backend": 4,
+   "frontend": 0
+  },
+  "hr:attendance:rule": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "hr:attendance:update": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "hr:candidate:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "hr:candidate:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "hr:candidate:interview": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "hr:candidate:list": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "hr:candidate:update": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "hr:contract:create": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "hr:contract:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "hr:contract:list": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "hr:contract:update": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "hr:employee:create": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "hr:employee:delete": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "hr:employee:list": {
+   "backend": 4,
+   "frontend": 0
+  },
+  "hr:employee:status": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "hr:employee:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "hr:leave:approve": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "hr:leave:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "hr:leave:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "hr:leave:list": {
+   "backend": 6,
+   "frontend": 0
+  },
+  "hr:leave:quota": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "hr:leave:update": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "hr:performance:confirm": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "hr:performance:list": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "hr:performance:update": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "hr:position:create": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "hr:position:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "hr:position:list": {
+   "backend": 5,
+   "frontend": 0
+  },
+  "hr:position:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "hr:recruitment:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "hr:recruitment:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "hr:recruitment:list": {
+   "backend": 4,
+   "frontend": 0
+  },
+  "hr:recruitment:update": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "hr:salary:confirm": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "hr:salary:generate": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "hr:salary:list": {
+   "backend": 6,
+   "frontend": 0
+  },
+  "hr:salary:update": {
+   "backend": 4,
    "frontend": 0
   },
   "invoice:application:approve": {
@@ -2185,13 +2316,29 @@
    "backend": 1,
    "frontend": 0
   },
+  "position:assign": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "position:create": {
+   "backend": 2,
+   "frontend": 0
+  },
   "position:delete": {
-   "backend": 0,
+   "backend": 3,
    "frontend": 1
   },
   "position:edit": {
-   "backend": 0,
+   "backend": 4,
    "frontend": 3
+  },
+  "position:list": {
+   "backend": 5,
+   "frontend": 0
+  },
+  "position:query": {
+   "backend": 3,
+   "frontend": 0
   },
   "product:attachments:create": {
    "backend": 1,

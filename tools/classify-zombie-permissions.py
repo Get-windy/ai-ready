@@ -42,7 +42,11 @@ MAPPING = re.compile(r'@(Get|Post|Put|Delete|Patch|Request)Mapping\s*\(\s*(?:val
                      r'(?:\{[^}]*\}|\"([^\"]*)\")?', re.S)
 CLASS_MAPPING = re.compile(r'@RequestMapping\s*\(\s*(?:value\s*=\s*)?\"([^\"]*)\"')
 CLASS_DECL = re.compile(r'class\s+(\w+)')
-PERM_ANNO = re.compile(r'@(?:SaCheckPermission|RequirePermission)\s*\(')
+# ⚠️ 2026-09-21 修正：原来漏了 `@RequiresPermission`（多一个 s）。
+# 本仓真正在用的是 core-base 的 `RequiresPermission` + `PermissionAspect`（真实拦截），
+# 15 个控制器 / 92 个码用它 —— 漏认会把「已被注解保护的端点」判成"无注解"，
+# 进而把**有效码**误判成僵尸码（hr 域整域被误判就是这么来的）。
+PERM_ANNO = re.compile(r'@(?:SaCheckPermission|RequiresPermission|RequirePermission)\s*\(')
 
 # action → 允许的 HTTP 方法（读类动作只认 GET；写类动作认写方法）
 READ_ACTIONS = {'list', 'detail', 'view', 'page', 'export', 'query', 'tree', 'options', 'logs', 'history'}
