@@ -4,6 +4,7 @@ import cn.aiedge.base.utils.SecurityUtils;
 import cn.aiedge.base.vo.Result;
 import cn.aiedge.docquery.dto.DocQueryParams;
 import cn.aiedge.docquery.service.DocQueryService;
+import cn.aiedge.common.exception.BusinessException;
 import cn.dev33.satoken.annotation.SaCheckLogin;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -63,13 +64,21 @@ public class DocQueryController {
     }
 
     /**
-     * 获取当前租户ID；Sa-Token Session 中取不到时回退默认租户 1
+     * 获取当前租户ID。
+     *
+     * <p><b>2026-09-21 租户专项</b>：原实现是「Session 里取不到 tenantId ⇒ 回退默认租户 1」。
+     * 这是本专项要根除的那一类写法 —— 本类全部端点都带 {@code @SaCheckLogin}，
+     * 正常必然解析得出租户；一旦解析不出（旧 token、登录链路漏存 tenantId 等），
+     * 「回退 1」就等于**把租户 1 的经营历程/待审批/草稿单据展示给另一个租户的用户**。
+     * 解析不出时应当明确报「请重新登录」，而不是猜一个租户继续查。</p>
+     *
+     * <p>口径与 {@code SetAppCenterController}/{@code SetRebuildController}、
+     * {@code TenantController} 一致（那两处也是「解析不到就拒绝」）。</p>
      */
     private Long currentTenantId() {
         Long tenantId = SecurityUtils.getCurrentTenantId();
         if (tenantId == null) {
-            log.debug("Sa-Token Session 中无 tenantId，使用默认租户 1");
-            return 1L;
+            throw new BusinessException(401, "无法确定当前租户，请重新登录");
         }
         return tenantId;
     }

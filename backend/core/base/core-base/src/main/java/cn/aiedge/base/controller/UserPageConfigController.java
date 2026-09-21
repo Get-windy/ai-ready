@@ -1,5 +1,6 @@
 package cn.aiedge.base.controller;
 
+import cn.aiedge.base.config.MyBatisPlusConfig;
 import cn.aiedge.base.entity.SysProjectConfig;
 import cn.aiedge.base.mapper.SysProjectConfigMapper;
 import cn.aiedge.base.vo.Result;
@@ -23,6 +24,14 @@ import java.util.Map;
  * 复用 sys_project_config 表存储。
  * </p>
  *
+ * <p><b>2026-09-21 租户专项</b>：这里原先写的是 {@code config.setTenantId(1L)} —— 与
+ * {@code SysConfigServiceImpl} 里那句 {@code CURRENT_TENANT_ID = 1L} 是同一类硬编码，
+ * 即「所有租户的用户页面配置都落在租户 1 名下」。它当时没暴露出串数据，只是因为
+ * 配置键末尾拼了全局唯一的 userId；一旦哪天键里的用户标识改成租户内序号就会立刻串。
+ * 现在：写入落**会话租户**（解析不到时落平台行 0），读取/更新也带租户条件。</p>
+ *
+ * <p>⚠️ 存量数据已核对（真库 15 行全部属于租户 1 的用户），加租户条件不会让任何人的配置"消失"。</p>
+ *
  * @author AI-Ready Team
  * @since 1.0.0
  */
@@ -31,6 +40,9 @@ import java.util.Map;
 @RequiredArgsConstructor
 @Tag(name = "用户页面配置")
 public class UserPageConfigController {
+
+    /** 平台默认行的租户 ID（与 SysConfigServiceImpl.PLATFORM_TENANT_ID 同一约定） */
+    private static final Long PLATFORM_TENANT_ID = 0L;
 
     private final SysProjectConfigMapper configMapper;
 
@@ -42,6 +54,7 @@ public class UserPageConfigController {
         String key = buildKey(module, page, userId);
         SysProjectConfig config = configMapper.selectOne(
                 new LambdaQueryWrapper<SysProjectConfig>()
+                        .eq(SysProjectConfig::getTenantId, scopedTenantId())
                         .eq(SysProjectConfig::getConfigKey, key)
                         .eq(SysProjectConfig::getDeleted, 0)
                         .last("LIMIT 1")
@@ -64,6 +77,7 @@ public class UserPageConfigController {
 
         String key = buildKey(module, page, userId);
         LambdaQueryWrapper<SysProjectConfig> wrapper = new LambdaQueryWrapper<SysProjectConfig>()
+                .eq(SysProjectConfig::getTenantId, scopedTenantId())
                 .eq(SysProjectConfig::getConfigKey, key)
                 .eq(SysProjectConfig::getDeleted, 0)
                 .orderByAsc(SysProjectConfig::getId);
@@ -83,7 +97,9 @@ public class UserPageConfigController {
             configMapper.updateById(config);
         } else {
             config = new SysProjectConfig();
-            config.setTenantId(1L);
+            // 会话租户（**不是**常量 1）；MetaObjectHandler 只在 tenantId 为 null 时兜底，
+            // 这里显式写死来源，避免"看起来是自动填的、实际是别人填的"
+            config.setTenantId(scopedTenantId());
             config.setConfigKey(key);
             config.setConfigValue(value);
             config.setConfigType("json");
@@ -99,5 +115,16 @@ public class UserPageConfigController {
 
     private static String buildKey(String module, String page, long userId) {
         return "user_page_config:" + module + ":" + page + ":" + userId;
+    }
+
+    /**
+     * 配置归属租户 = 当前会话租户；解析不到时用平台行（0）。
+     *
+     * <p>本控制器全部端点都是 {@code @SaCheckLogin}，正常不会走到兜底分支；
+     * 兜底取 0 而不是 1，是因为「猜一个具体租户」正是本专项要根除的写法。</p>
+     */
+    private static Long scopedTenantId() {
+        Long tenantId = MyBatisPlusConfig.getCurrentTenantIdValue();
+        return tenantId != null ? tenantId : PLATFORM_TENANT_ID;
     }
 }
