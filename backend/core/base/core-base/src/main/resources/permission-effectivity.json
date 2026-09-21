@@ -108,7 +108,7 @@
   "md:product-price:list",
   "md:product-price:update",
   "md:product-price:view",
-  "partner:merge",
+  "party:merge",
   "payment:account:select",
   "permission:create",
   "permission:delete",
@@ -832,6 +832,42 @@
   "finance:payable:write-off": {
    "backend": 1,
    "frontend": 0
+  },
+  "finance:payment:approve": {
+   "backend": 2,
+   "frontend": 1
+  },
+  "finance:payment:create": {
+   "backend": 11,
+   "frontend": 1
+  },
+  "finance:payment:delete": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "finance:payment:detail": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "finance:payment:export": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "finance:payment:list": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "finance:payment:submit": {
+   "backend": 1,
+   "frontend": 1
+  },
+  "finance:payment:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "finance:payment:view": {
+   "backend": 2,
+   "frontend": 1
   },
   "finance:period:create": {
    "backend": 1,
@@ -1837,96 +1873,36 @@
    "backend": 2,
    "frontend": 0
   },
-  "partner:attachments:create": {
+  "party:attachments:create": {
    "backend": 1,
    "frontend": 0
   },
-  "partner:attachments:delete": {
+  "party:attachments:delete": {
    "backend": 1,
    "frontend": 0
   },
-  "partner:attachments:detail": {
+  "party:attachments:detail": {
    "backend": 1,
    "frontend": 0
   },
-  "partner:categories:create": {
+  "party:categories:create": {
    "backend": 1,
    "frontend": 0
   },
-  "partner:categories:delete": {
+  "party:categories:delete": {
    "backend": 1,
    "frontend": 0
   },
-  "partner:categories:list": {
+  "party:categories:list": {
    "backend": 1,
    "frontend": 0
   },
-  "partner:categories:update": {
+  "party:categories:update": {
    "backend": 1,
    "frontend": 0
   },
-  "partner:categories:view": {
+  "party:categories:view": {
    "backend": 1,
-   "frontend": 0
-  },
-  "partner:contacts:create": {
-   "backend": 1,
-   "frontend": 0
-  },
-  "partner:contacts:delete": {
-   "backend": 1,
-   "frontend": 0
-  },
-  "partner:contacts:detail": {
-   "backend": 2,
-   "frontend": 0
-  },
-  "partner:contacts:list": {
-   "backend": 1,
-   "frontend": 0
-  },
-  "partner:contacts:update": {
-   "backend": 2,
-   "frontend": 0
-  },
-  "partner:grades:create": {
-   "backend": 1,
-   "frontend": 0
-  },
-  "partner:grades:delete": {
-   "backend": 1,
-   "frontend": 0
-  },
-  "partner:grades:detail": {
-   "backend": 1,
-   "frontend": 0
-  },
-  "partner:grades:update": {
-   "backend": 1,
-   "frontend": 0
-  },
-  "partner:grades:view": {
-   "backend": 1,
-   "frontend": 0
-  },
-  "partner:roles:create": {
-   "backend": 1,
-   "frontend": 0
-  },
-  "partner:roles:delete": {
-   "backend": 1,
-   "frontend": 0
-  },
-  "partner:roles:detail": {
-   "backend": 1,
-   "frontend": 0
-  },
-  "partner:roles:list": {
-   "backend": 2,
-   "frontend": 0
-  },
-  "partner:roles:update": {
-   "backend": 2,
    "frontend": 0
   },
   "party:contact:create": {
@@ -1951,6 +1927,26 @@
   },
   "party:contact:view": {
    "backend": 1,
+   "frontend": 0
+  },
+  "party:contacts:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "party:contacts:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "party:contacts:detail": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "party:contacts:list": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "party:contacts:update": {
+   "backend": 2,
    "frontend": 0
   },
   "party:create": {
@@ -1985,6 +1981,26 @@
    "backend": 5,
    "frontend": 0
   },
+  "party:grades:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "party:grades:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "party:grades:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "party:grades:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "party:grades:view": {
+   "backend": 1,
+   "frontend": 0
+  },
   "party:list": {
    "backend": 1,
    "frontend": 0
@@ -2005,15 +2021,31 @@
    "backend": 1,
    "frontend": 0
   },
+  "party:roles:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "party:roles:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "party:roles:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "party:roles:list": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "party:roles:update": {
+   "backend": 2,
+   "frontend": 0
+  },
   "party:update": {
    "backend": 2,
    "frontend": 0
   },
   "party:view": {
-   "backend": 2,
-   "frontend": 0
-  },
-  "payment:approve": {
    "backend": 2,
    "frontend": 0
   },
@@ -2028,26 +2060,6 @@
   "payment:config:update": {
    "backend": 3,
    "frontend": 4
-  },
-  "payment:create": {
-   "backend": 11,
-   "frontend": 0
-  },
-  "payment:delete": {
-   "backend": 2,
-   "frontend": 0
-  },
-  "payment:detail": {
-   "backend": 3,
-   "frontend": 0
-  },
-  "payment:export": {
-   "backend": 1,
-   "frontend": 0
-  },
-  "payment:list": {
-   "backend": 3,
-   "frontend": 0
   },
   "payment:record:list": {
    "backend": 2,
@@ -2067,18 +2079,6 @@
   },
   "payment:request:list": {
    "backend": 3,
-   "frontend": 0
-  },
-  "payment:submit": {
-   "backend": 1,
-   "frontend": 0
-  },
-  "payment:update": {
-   "backend": 1,
-   "frontend": 0
-  },
-  "payment:view": {
-   "backend": 2,
    "frontend": 0
   },
   "permission-template:apply": {

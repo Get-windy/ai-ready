@@ -230,7 +230,12 @@
 - **⚠️ 数字已过时**：`V11.435.0__Remove_Legacy_Permission_Codes.sql` 已执行成功，DB 实测 `sys_permission` 现为 **500 行** ⇒ 需**重跑脚本取当前口径**再动手。
 - **修法**：二选一 —— 接线，或从授权矩阵下线（前端 `v-permission` 302 处也是消费方，不能只扫后端）。
 - **脚本**：`tools/gen-permission-effectivity.py` → `GET /api/permission/effectivity`；`tools/audit-permission-codes.py`。
-- **状态**：⬜ 待重测
+- **状态**：🔄 **已重测 + 已逐条定性，剩"接线 or 删码"的施工（2026-09-21）**
+  - **重测结果（当前口径）**：`994 = 824 生效 + 159 未生效 + 11 分组节点`。`permission-effectivity.json` 已重跑并写入（后端 `GET /api/permission/effectivity` 读的就是它）。**僵尸码 144 → 159**：不是变差，是 E-04 补进来的 485 个新码里有 15 个对应的注解还没补（E-01 只覆盖了 97 个控制器）。
+  - **逐条定性（新增 `tools/classify-zombie-permissions.py`，产出 `tools/zombie-permissions.json`）**：把每条僵尸码判成「有端点但没注解」（**113 条**）还是「端点不存在」（**46 条**）。
+    - **A 类 113 条按域**：`hr 35 / erp 13 / crm 12 / product 12 / md 7 / finance 6 / department 5 / permission 4 / position 4 / role 4 / tenant 4 / doc 2 / user 2 / purchase 1 / sale 1 / set 1`。**处置 = 补 `@SaCheckPermission`（这是 E-01 的活，不是 E-02 能"修"的）**；且**必须先确认码已在库**（本仓铁律：没有码就补注解 ⇒ 该接口对所有非超管一律 403）。
+    - **B 类 46 条**：`data-permission:* 8 / system:dataimport:* 6 / system:dev:scheduler:* 5 / crm 3 / doc 3 / hr 3 / product 4(价格视图类) / finance 2 / 其余零散`。**⚠️ 这批不能照单删**：抽样即发现**假阴性** —— 例如 `system:dev:scheduler:*` 其实有 `SchedulerController` 系列控制器（路径 `/api/scheduler/*` 与 `system` 前缀无关，分类器按域前缀匹配不到），**照单删码会把本该接线的码删掉**。故 B 类清单只能当"待人工逐条确认"的工作单，**未做任何删除**。
+  - **为什么这一轮不直接施工**：A 类 113 条的施工量等同 E-01 的剩余批次（hr/crm/core-api/erp-finance 四个模块约 10 个控制器目录），B 类 46 条需逐条人工确认；两者都不是"顺手改几行"，且误删/误注解的代价分别是"功能永久 403"与"删掉还要的码"。**这是本轮唯一没做完的项**，下一步是 E-01 批次（先补码后注解）+ B 类人工确认单。
 
 #### E-03 [P1] `sys_permission.api_path` 只填 238/474
 
@@ -238,7 +243,15 @@
 - **状态**：🔄 **大部分已完成（2026-09-21）** —— 实测 **238/474 → 734/994（74%）**。
   本轮生成器在建码时**顺带写入** `api_path`/`method`（取该码扫描到的第一个代表端点），
   即「补 E-04 的同时把 E-03 一起解决」，没有另做一遍。
-  **剩余**：仍无 `api_path` 的主要是老码（历史遗留），需单独清点。
+  **剩余 260 条已清点（2026-09-21）**：按域 `crm 53 / system 43 / finance 34 / dms 23 /
+  platform 19 / datasource 16 / sale 10 / purchase 8 / data-permission 8 / erp 8 /
+  permission-template 7 / doc 5 / product 4 / tenant 3 / log 3 / 其余零散`。
+  **规律很清楚**：这 260 条集中在 `tools/gen-module-permission-seed.py` **从未覆盖的模块**
+  （生成器的 MODULES 只有 budget/fixedasset/stock/marketing/party/invoice/payment 七个 +
+  wms/b2b 仅出清单）⇒ 补全 = 把这几个模块补进生成器，再按「端点 → 码」回填 `api_path`。
+  **本轮未做**：它是按模块推进的机械活（且属 E-01/E-04 的同一批），与本轮"删/接线僵尸码"
+  是同一张工单，避免重复劳动。`api_path` 的唯一消费方 `PermissionServiceImpl.checkApiPermission`
+  目前无内部调用方、且 fail-closed，故此缺口**不产生错误放行**，只影响权限矩阵的"按路径反查"。
 
 #### E-04 [P1] 9 个模块 0 权限码
 
@@ -577,7 +590,13 @@
 
 - **证据**：`erp_stock` 4 行，`product_name/product_code/warehouse_name/serial_no/batch_no/supplier_id/unit_price` **全 100% NULL**；唯一写入方 `StockServiceImpl.java:41-93` 只 set `productId/warehouseId/quantity*`（仅 `recordStockIn` 那一路会 set 快照，但**不被主链路调用**）。
 - **影响**：`ProductPriceQueryMapper`、`StockReportMapper` 都 SELECT 了这些列 → 列表页该列为空。
-- **状态**：⬜
+- **状态**：✅ **已闭环（2026-09-21）**
+  - **⚠️ 复核更正（原「影响」一句不准确）**：逐个查证后，绝大多数读路径**根本不依赖这些快照列** —— `ProductPriceQueryMapper` 取的是 JOIN 出来的 `p.product_code/p.product_name`；`StockReportMapper` 取的是单据明细/表头列；`StockAlertReplenishMapper:72,74,75`、`ShortageReplenishMapper:101,123` 都写了 `COALESCE(快照, 档案)`。全仓**只有 2 处**是"直接取快照、无回退"：`InitialStockQueryMapper:60`（仓库名）与 `:62`（期初单价），且它们只作用于 `is_initial = 1` 的期初页。所以这条**不是"列表页整列空白"**，而是"写入口口径不一致 + 唯一无回退的那列（期初仓库名）有风险"。
+  - **写入侧根治**：`StockServiceImpl` 新增 `fillSnapshot()`（**只补空列、不覆盖调用方已给的值**，已完整的行零成本），挂到 **4 条会建行/改行的路径**：`increaseStock`（增改两支）、`checkStock`（盘点，凭空建行的高发路径）、`recordStockIn`（增改两支）、`saveInitialStock`。根因是「调用方自觉」不可靠：`increaseStock`/`checkStock` 只收 id，`wms.InventoryServiceImpl` 的 ERP 轨镜像与盘点调整**根本无从传名称**。
+  - **存量回填**：迁移 `V11.449.0__Backfill_Erp_Stock_Snapshots.sql`（幂等，按 `tenant_id IS NOT DISTINCT FROM` 关联档案防跨租户取到别家商品名）。回填后 4 行的 `product_name/product_code/warehouse_name` 全部有值（前两行 `unit` 为空是因为商品档案本身 `unit` 就是 NULL，属正确行为）。
+  - **读侧收口**：`InitialStockQueryMapper:60` 就地标注「本列直接取快照、依赖写入侧保证」，避免后人误以为有 COALESCE。
+  - **验证**：新增 `tools/verify-stock-snapshot.cjs` —— **13/13 全绿**，三向断言：① 存量回填后无空行；② 走真实 `POST /erp/stock/increase`（只传 id）建出的**新行**快照有值（证明改在写入口而不是只靠迁移糊）；③ 人为清空快照后再写一次能被**自愈**补回、且数量未被补快照的动作改坏。脚本自清理测试行。
+  - **⚠️ 仍未闭环（登记）**：`supplier_id` / `supplier_name` 这两列**任何写入路径都不写** —— 它们无法从商品/仓库档案推导，只能由单据传入，而当前**没有任何调用方传**（`StockOverflowServiceImpl` 传了商品/仓库/单位/金额，也没传供应商）。影响面：`ShortageReplenishMapper:123`、`SmartReplenishMapper:172`、`StockAlertReplenishMapper:120` 三处"补货建议的供应商列"依赖它（都有 COALESCE/回退到 lead price，故表现为兜底值或空，而非整列失效）。归入**独立待办**：需要决定「入库时从采购单带供应商」的链路改造。
 
 #### STK-BREAK-05 [P2] 库存单据链大面积空表，报表 JOIN 空表
 
@@ -633,14 +652,21 @@
 - **影响**：订单中心"明细 Tab"对 25/27 张单为空，无法出库/发货；促销明细有行而商品明细无行 = 典型"半截写入"。
 - **修法**：`createOrder` 加最小校验（`items` 非空 + `billAmount` 与明细合计一致）。
 - **需确认**：24 单无明细是 E2E 造数还是前端某入口漏传。
-- **状态**：⬜
+- **状态**：✅ **已闭环（2026-09-21），但结论与原判断不同 —— 原统计口径是错的**
+  - **⚠️ 复核更正**：那 24 张 `XSDD-20260918-0001..0024` 的 `erp_sale_order.deleted` **全是 1（已逻辑删除）**。原统计「27 行里 25 张无明细」**没有过滤 `deleted`**，把 24 张**已删单**也算进去了；**活着的只有 3 张**（`QO202607232493` 2 行明细、`ZZT-QO-001` 2 行、`ZZT-QO-CANCEL` 0 行且 status=6 已取消）。这 24 张是 `tools/e2e-marketing.cjs` 跑出来的（金额 210/250/3 与 40/100/1 两两成对、共 12 对 = 12 次运行），脚本 `finally` 里删单 → 单据逻辑删除、明细物理删除，故留下"有单无明细"的残影。**"半截写入"不成立**（明细之所以不在，是被 `deleteOrder` 按设计删掉的）。
+  - **据此不改 createOrder 的校验**：原「修法」是在错误前提下写的。硬加「明细非空才允许建单」会**打断合法的"先存空草稿"**（前端表单允许存草稿后再录明细），而没有任何证据表明有真实调用方在建空单。
+  - **真正查出并修掉的缺陷（顺带）**：`SaleOrderServiceImpl.updateOrder` 原为「**无条件**删光旧明细 + **有条件**（`items != null`）重建」——删与建条件不一致 ⇒ 任何一次**不带明细的更新**（只改表头字段的保存、局部字段补写、脚本的部分字段 PUT）都会把该单**全部明细删掉且不补回**，而主表照常更新。已把删除并入同一条件，并把语义钉死：`items == null` → 不动明细；`items == []` → 显式清空；非空 → 先删后插。
+  - **验证**：新增 `tools/verify-sale-pur-breaks.cjs`（与 PUR-BREAK-03 合并成一个脚本，**17/17 全绿**）：建单带 2 行 → 只改表头（不带 items）后**明细仍是 2 行**且 `summary` 确实被改（证明这次 PUT 真生效）→ 带 1 行更新后替换为 1 行 → 显式传 `[]` 清空。脚本自删测试单。
 
 #### SAL-BREAK-03 [P2] 销售订单主表关键列 100% NULL + 第三条写入路径漏字段
 
 - **证据**：`warehouse_id` 0/27、`salesman_id` 0/27、`dept_id` 0/27、`customer_name` 仅 5/27。
 - **三条写入路径**：`SaleOrderServiceImpl.java:194-215`（正常录单，全字段 ✔）/ `SalePreOrderServiceImpl.java:515`（预订单转正式单）/ **`SaleOrderServiceImpl.java:1235 findOrCreateOrder()`（批量导入，只写 orderNo/date/type/status/generationMethod，完全不写 customer/warehouse/salesman/dept ✘）**。
 - **影响**：`sales/order-center/index.vue:367,411,421,622,703,791` 用 `salesmanName` 做查询与列展示，恒空；`SaleOrderServiceImpl.java:1623` 的 `warehouse_id` 筛选恒无结果；导入订单无客户 ⇒ 出库/对账无法自动带往来单位。且服务端**无强校验**（27/27 为空）。
-- **状态**：⬜
+- **状态**：✅ **已闭环（2026-09-21）**
+  - **⚠️ 口径更正**：`0/27` 这个分母包含了 24 张**已逻辑删除**的 E2E 单（见上条）。活着的 3 张单同为空 —— 但它们来自 seed（`ZZT-QO-*`）与早期造数，**没有任何来自 UI 录单的样本**，所以「正常录单路径漏字段」这个推论其实没有证据；`createOrder` 对这几个字段是**无条件 set(dto 值)**，UI 传什么就写什么。
+  - **确认并修掉的唯一代码缺陷是批量导入那条路径**：`findOrCreateOrder` 此前只写单号/日期/类型/状态。现改为从该单**第一行**解析「客户 / 仓库 / 业务员 / 部门」并写入：客户按 `供应商/客户编码` 或 `名称` 查 `biz_party`（编码优先）、仓库按名称查 `erp_warehouse`、业务员按 `username` 或 `real_name` 查 `sys_user`、部门按名称查 `sys_dept`；新注入了 3 个 Mapper（`WarehouseMapper`/`SysUserMapper`/`SysDeptMapper`）。四个字段都是**可选列**：Excel 没这些表头、或名称解析不到，就留空**不报错**（不该因为一个仓库名拼错让整单导入失败）。表头别名支持英文驼峰与中文两套。
+  - **仍未闭环（登记）**：`sys_dept` 本身 0 行（PUR-BREAK-02，已拍板冻结）⇒ 部门这一项即使解析也拿不到 id；`erp_sale_order.warehouse_id` 在现有数据里全空，属**历史数据**而非写路径问题，是否需要回填要业务定。
 
 #### SAL-BREAK-04 [P2] 销售出库单 `order_id` 22/25 悬空
 
@@ -719,13 +745,20 @@
 
 - **证据**：`PurchaseAnalysisReportServiceImpl.java:297,317` `LEFT JOIN erp_supplier s ON s.id = pr.supplier_id`，且 `:315` 用 `MAX(po.supplier_name) AS dimLabel`；实测 `erp_supplier` **0 行**、`supplier` **0 行**、`erp_purchase_order.supplier_name` **0/11 非空**（真实供应商在 `biz_party` 152 行）。
 - 列表页靠 `erp_purchase_order_partner_snapshot`(10 行)兜住，**分析报表没有这层兜底** ⇒ "按供应商"维度标签与编码列为空，报表不可读。
-- **状态**：⬜
+- **状态**：✅ **已闭环（2026-09-21）**
+  - **根因（比原判断更准确）**：`erp_supplier` 是个**没人写、没人维护的重复供应商档案表**（建表语句在 `DatabaseInitializer`，全仓消费方只有 `PurchaseAnalysisReportServiceImpl` 与 `SupplierSnapshotMapper` 两处）；系统真正在用的供应商主数据是 **`biz_party`**（按 `party_type` 区分角色），供应商管理页 `views/md/supplier` 走的也是 biz_party（`partnerApi`）。所以这不是"JOIN 写错了一个词"，是**两套供应商主数据**（专项 C）。第二处断点是 `MAX(po.supplier_name)` —— `PurchaseOrder` 实体**根本没有 supplierName 字段**，故该列**在代码层面就不可能被写入**。
+  - **改法**：① `PurchaseAnalysisReportServiceImpl` 的两处 `erp_supplier` → `biz_party`（`supplierIdentity` 同步改用 `party_code`）；② `supplierCodeBlock` 的标签/编码改为**三级取值**「订单表冗余列 → 供应商快照 → biz_party 档案」，与采购列表页（`UnifiedPurchaseDocQueryServiceImpl` 用快照兜底）同口径；③ `SupplierSnapshotMapper`（为采购单据列表补「供应商编号/联系人/电话/地址」五列，读的也是 0 行的 `erp_supplier`）一并改指 `biz_party`：编号←`party_code`、联系人←`default_handler_name`（空则退 `legal_person`）、电话←`phone`（空则退 `legal_person_phone`）、地址←`address`、备注←`remark`。
+  - **验证**：`tools/verify-sale-pur-breaks.cjs`（与 SAL-BREAK-02 合并）**17/17 全绿**，其中前提断言写明「`erp_supplier` 实测 0 行」「该供应商名称/编码**只存在于快照表**」，随后断言响应里出现 `E2EGYS001` 与 `E2E采购供应商`，且 `dimKey=2099000000000000901` 那行同时带 `dimLabel` 与 `supplierCode`（修复前两者为 null）；对照组「按商品」维度不带出供应商字段。
+  - **仍未闭环（登记）**：① 分析页的**「供应商名称」筛选**仍 `w.like("po.supplier_name", ...)`（订单表恒空列）⇒ 按供应商名搜索恒无结果，要修得给三个聚合块都加 biz_party/快照 JOIN；② `erp_supplier` 这张 0 行表是否删除（还有 `PurchaseExchange` 实体的注释、`DatabaseInitializer` 建表语句引用它）—— 归专项 C「重复主数据」。
 
 #### PUR-BREAK-04 [P2] 采购入库/退货的源单与主体断链
 
 - `erp_purchase_inbound` 39 行中 `order_id` 仅 31 非空（**8 张 20260722 的单 `order_id`/`order_no` 全空却已 status=8**）；`erp_purchase_return` 仅 1 行且 `purchase_order_id`/`supplier_id` **全空** ⇒ `PurchaseOrderMapper.xml:88` 的退货聚合子查询永远匹配不上。
 - 对比：入库单 `supplier_name` 36/39 有值，**订单表 0/11** —— 同一字段两表一写一不写。
-- **状态**：⬜
+- **状态**：🔄 **部分闭环（2026-09-21）—— 数据面判定为历史造数，代码面补掉一处**
+  - **⚠️ 数据面逐条查证后不成立**：那 8 张 `PI202607220001..0008` 全是 2026-07-22 一批、其中 6 张 `supplier_id=100 / supplier_name='测试供应商'`，**是早期测试数据**而非活路径产物（`客户/仓库/主体` 全是测试值）；唯一那行 `PR202608280001` 同样 `supplier_name='测试供应商'`、`purchase_order_id` 为空 —— 它是走「直接新增退货单」建的，**本来就没有源单**，所以 `GROUP BY r.purchase_order_id` 匹配不上是**正确行为**，不是缺陷。此项若要"修数据"，属于**要不要清理历史测试单**的业务决定，不做静默改写。
+  - **代码面补掉的真实缺口**：`POST /api/erp/purchase/return/from-order/{orderId}`（前端 `api/erp.ts:239` 已封装）对应的 `PurchaseReturnServiceImpl.createFromOrder` 此前**只写 `purchase_order_id`** —— 单号、供应商全不写，主体是空的。现补 `fillSourceOrder()`：写 `purchase_order_no` + `supplier_id` + `supplier_name`；名称**只从供应商快照取**（订单实体没有 supplierName 字段，取不到）。订单不存在时抛 404 而不是建出无源单。
+  - **仍未闭环（登记）**：入库单没有类似 `fillSourceOrder` 的收口就建出 `order_id` 为空的单 —— 需要确认入库单是否允许"无源单直接入库"（业务上通常允许），若允许则应显式标注来源类型，而不是留空 order_id 让人误以为是断链。
 
 #### PUR-DUP-01 [P1] 采购订单/入库/退货对称复制
 

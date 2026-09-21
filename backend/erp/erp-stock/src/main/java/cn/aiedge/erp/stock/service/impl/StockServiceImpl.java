@@ -1,8 +1,12 @@
 package cn.aiedge.erp.stock.service.impl;
 
 import cn.aiedge.erp.stock.controller.initial.InitialStockDTO;
+import cn.aiedge.erp.stock.entity.Product;
 import cn.aiedge.erp.stock.entity.Stock;
+import cn.aiedge.erp.stock.entity.Warehouse;
+import cn.aiedge.erp.stock.mapper.ProductMapper;
 import cn.aiedge.erp.stock.mapper.StockMapper;
+import cn.aiedge.erp.stock.mapper.WarehouseMapper;
 import cn.aiedge.erp.stock.service.StockService;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -29,6 +33,14 @@ public class StockServiceImpl extends ServiceImpl<StockMapper, Stock> implements
 
     @Autowired
     private StockMapper stockMapper;
+
+    /** 用于补齐库存行的展示快照列（商品名/编码/单位）——见 {@link #fillSnapshot} */
+    @Autowired
+    private ProductMapper productMapper;
+
+    /** 用于补齐库存行的展示快照列（仓库名）——见 {@link #fillSnapshot} */
+    @Autowired
+    private WarehouseMapper warehouseMapper;
 
     /**
      * 默认库存预警阈值（从配置文件读取）
@@ -60,6 +72,8 @@ public class StockServiceImpl extends ServiceImpl<StockMapper, Stock> implements
             stock.setQuantity(quantity);
             stock.setAvailableQuantity(quantity);
             stock.setFrozenQuantity(BigDecimal.ZERO);
+            // 本方法只收 id（调用方如 wms 的 ERP 轨镜像无从传名称）⇒ 快照必须自己查档案补
+            fillSnapshot(stock);
             return this.save(stock);
         } else {
             // 更新现有库存
@@ -67,6 +81,8 @@ public class StockServiceImpl extends ServiceImpl<StockMapper, Stock> implements
             BigDecimal newAvailableQuantity = stock.getAvailableQuantity().add(quantity);
             stock.setQuantity(newQuantity);
             stock.setAvailableQuantity(newAvailableQuantity);
+            // 顺带自愈历史空快照行（已完整的行不查库、不改值）
+            fillSnapshot(stock);
             return this.updateById(stock);
         }
     }
@@ -125,6 +141,8 @@ public class StockServiceImpl extends ServiceImpl<StockMapper, Stock> implements
             s.setProductionDate(movement.getProductionDate());
             s.setValidityDate(movement.getValidityDate());
             s.setIsInitial(0);
+            // 调用方漏传的名称/编码/单位在这里兜住（单据传了的以单据为准）
+            fillSnapshot(s);
             return this.save(s);
         }
 
@@ -146,6 +164,8 @@ public class StockServiceImpl extends ServiceImpl<StockMapper, Stock> implements
         if (exist.getProductCode() == null) exist.setProductCode(movement.getProductCode());
         if (exist.getProductName() == null) exist.setProductName(movement.getProductName());
         if (exist.getUnit() == null) exist.setUnit(movement.getUnit());
+        // 仓库名等仍未补齐的列回档案取（历史空快照行在此自愈）
+        fillSnapshot(exist);
         return this.updateById(exist);
     }
 
@@ -225,10 +245,13 @@ public class StockServiceImpl extends ServiceImpl<StockMapper, Stock> implements
             stock.setQuantity(actualQuantity);
             stock.setAvailableQuantity(actualQuantity);
             stock.setFrozenQuantity(BigDecimal.ZERO);
+            // 盘点调整是「凭空建行」的高发路径（StockTakeServiceImpl 只传 id）⇒ 同样要补快照
+            fillSnapshot(stock);
             return this.save(stock);
         } else {
             stock.setQuantity(actualQuantity);
             stock.setAvailableQuantity(actualQuantity.subtract(stock.getFrozenQuantity()));
+            fillSnapshot(stock);
             return this.updateById(stock);
         }
     }
@@ -255,6 +278,55 @@ public class StockServiceImpl extends ServiceImpl<StockMapper, Stock> implements
                 .orderByDesc("create_time")
                 .last("LIMIT 1");
         return this.getOne(queryWrapper);
+    }
+
+    /**
+     * 补齐库存行的**展示快照列**（`product_code` / `product_name` / `unit` / `warehouse_name`）。
+     *
+     * <p><b>为什么需要它（STK-BREAK-04，2026-09-21）</b>：`erp_stock` 有一组冗余的展示列
+     * （商品名/编码、仓库名）。实测存量 4 行的这些列**全部为 NULL**，原因是写入口对调用方
+     * 的"自觉"依赖不一致：`recordStockIn` / `saveInitialStock` 会带齐这些值（调用方
+     * 如报溢单 {@code StockOverflowServiceImpl} 确实传了），而 `increaseStock` / `checkStock`
+     * 只收 {@code productId + warehouseId + quantity} —— 调用方（如
+     * {@code wms.InventoryServiceImpl} 的 ERP 轨镜像、盘点调整）**根本无从传入**，
+     * 于是新建出来的行天然是空快照。</p>
+     *
+     * <p><b>口径</b>：只补**空**列，绝不覆盖调用方已给的值（调用方给的可能是单据当时的值，
+     * 属权威值）。因此本方法对"已经完整的行"零成本（不查库、不改值），对历史 NULL 行则
+     * 顺带**自愈**（下次该行被任何写路径碰过即补齐）。</p>
+     *
+     * <p>不处理 {@code supplier_id}/{@code supplier_name}：这两个值无法从商品/仓库档案推导，
+     * 只能由单据传入，而当前**没有任何调用方传**（属功能缺口，不是本方法能兜的），
+     * 已在 MASTER_TODO 登记。</p>
+     */
+    private void fillSnapshot(Stock stock) {
+        if (stock == null) {
+            return;
+        }
+        boolean needProduct = stock.getProductId() != null
+                && (!StringUtils.hasText(stock.getProductCode())
+                    || !StringUtils.hasText(stock.getProductName())
+                    || !StringUtils.hasText(stock.getUnit()));
+        if (needProduct) {
+            Product product = productMapper.selectById(stock.getProductId());
+            if (product != null) {
+                if (!StringUtils.hasText(stock.getProductCode())) {
+                    stock.setProductCode(product.getProductCode());
+                }
+                if (!StringUtils.hasText(stock.getProductName())) {
+                    stock.setProductName(product.getProductName());
+                }
+                if (!StringUtils.hasText(stock.getUnit())) {
+                    stock.setUnit(product.getUnit());
+                }
+            }
+        }
+        if (stock.getWarehouseId() != null && !StringUtils.hasText(stock.getWarehouseName())) {
+            Warehouse warehouse = warehouseMapper.selectById(stock.getWarehouseId());
+            if (warehouse != null) {
+                stock.setWarehouseName(warehouse.getWarehouseName());
+            }
+        }
     }
 
     /**
@@ -288,6 +360,9 @@ public class StockServiceImpl extends ServiceImpl<StockMapper, Stock> implements
             stock.setIsInitial(1); // 标记为期初库存
             stock.setFrozenQuantity(BigDecimal.ZERO); // 期初无冻结库存
             stock.setDeleted(0); // 未删除状态
+            // 前端若只传了 id 没传名称，在这里回档案补齐 ——
+            // 期初库存列表的「仓库」列（InitialStockQueryMapper:60）是**直接取快照**的，不补就是空白列
+            fillSnapshot(stock);
 
             this.save(stock);
         }

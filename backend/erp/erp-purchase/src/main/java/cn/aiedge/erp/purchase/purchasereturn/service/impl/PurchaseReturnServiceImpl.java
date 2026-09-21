@@ -1,6 +1,11 @@
 package cn.aiedge.erp.purchase.purchasereturn.service.impl;
 
 import cn.aiedge.common.event.InventoryChangeEvent;
+import cn.aiedge.common.exception.BusinessException;
+import cn.aiedge.erp.purchase.entity.PurchaseOrder;
+import cn.aiedge.erp.purchase.entity.PurchaseOrderPartnerSnapshot;
+import cn.aiedge.erp.purchase.mapper.PurchaseOrderMapper;
+import cn.aiedge.erp.purchase.mapper.PurchaseOrderPartnerSnapshotMapper;
 import cn.aiedge.erp.purchase.purchasereturn.entity.PurchaseReturn;
 import cn.aiedge.erp.purchase.purchasereturn.entity.PurchaseReturnItem;
 import cn.aiedge.erp.purchase.purchasereturn.enums.ReturnStatus;
@@ -32,6 +37,11 @@ public class PurchaseReturnServiceImpl extends ServiceImpl<PurchaseReturnMapper,
     private final PurchaseReturnItemMapper returnItemMapper;
     private final StockService stockService;
     private final ApplicationEventPublisher eventPublisher;
+
+    /** 「从订单生成退货单」需要读源单（见 {@link #fillSourceOrder}） */
+    private final PurchaseOrderMapper purchaseOrderMapper;
+    /** 源单的供应商快照（订单表 supplier_name 常空，快照才是有效来源） */
+    private final PurchaseOrderPartnerSnapshotMapper partnerSnapshotMapper;
 
     @Override
     public PurchaseReturn getByReturnNo(String returnNo) {
@@ -201,7 +211,40 @@ public class PurchaseReturnServiceImpl extends ServiceImpl<PurchaseReturnMapper,
         ret.setPurchaseOrderId(orderId);
         ret.setReturnDate(LocalDate.now());
         ret.setReturnType(1);
+        fillSourceOrder(ret, orderId);
         return createReturn(ret, null);
+    }
+
+    /**
+     * 从源采购订单带出「单号 + 供应商」，避免退货单只挂一个 id、主体全空（PUR-BREAK-04）。
+     *
+     * <p>原实现只写 {@code purchase_order_id}：退货单建出来没有单号、没有供应商，
+     * 源单只能靠 id 匹配（而 `PurchaseOrderMapper.xml` 的退货聚合正是 `GROUP BY r.purchase_order_id`
+     * —— 只要这个 id 没写对，聚合就永远匹配不上），列表里也带不出往来单位。</p>
+     *
+     * <p>名称只从**供应商快照**取，不从订单表取 —— 这不是偷懒：{@code PurchaseOrder} 实体
+     * **根本没有 supplierName 字段**（DB 列 `erp_purchase_order.supplier_name` 存在，
+     * 但实体没有对应属性 ⇒ 任何写入路径都不可能写它，实测 0/11 非空就是这么来的）。
+     * 而 `erp_purchase_order_partner_snapshot` 有值（采购列表页正是靠它兜底）。</p>
+     */
+    private void fillSourceOrder(PurchaseReturn ret, Long orderId) {
+        if (orderId == null) {
+            return;
+        }
+        PurchaseOrder order = purchaseOrderMapper.selectById(orderId);
+        if (order == null) {
+            throw BusinessException.notFound("采购订单不存在: " + orderId);
+        }
+        ret.setPurchaseOrderNo(order.getOrderNo());
+        ret.setSupplierId(order.getSupplierId());
+
+        PurchaseOrderPartnerSnapshot snapshot = partnerSnapshotMapper.selectOne(
+                new LambdaQueryWrapper<PurchaseOrderPartnerSnapshot>()
+                        .eq(PurchaseOrderPartnerSnapshot::getOrderId, orderId)
+                        .last("LIMIT 1"));
+        if (snapshot != null) {
+            ret.setSupplierName(snapshot.getSupplierName());
+        }
     }
 
     @Override

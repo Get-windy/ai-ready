@@ -178,7 +178,8 @@ public class PurchaseAnalysisReportServiceImpl implements PurchaseAnalysisReport
         if (!"supplier".equals(dim)) {
             return "";
         }
-        return ", MAX(" + supplierAlias + ".supplier_code) AS \"supplierCode\"";
+        // 别名指向 biz_party（PUR-BREAK-03：原先指向 0 行的 erp_supplier）
+        return ", MAX(" + supplierAlias + ".party_code) AS \"supplierCode\"";
     }
 
     // ════════════════════════════════════════════════════════════════
@@ -294,13 +295,28 @@ public class PurchaseAnalysisReportServiceImpl implements PurchaseAnalysisReport
             + " FROM erp_purchase_return_item pri"
             + " JOIN erp_purchase_return pr ON pr.id = pri.return_id AND pr.tenant_id = pri.tenant_id"
             + " LEFT JOIN erp_product p ON p.id = pri.product_id AND p.tenant_id = pri.tenant_id AND p.deleted = 0"
-            + " LEFT JOIN erp_supplier s ON s.id = pr.supplier_id AND s.tenant_id = pr.tenant_id AND s.deleted = 0"
+            // 供应商档案走 biz_party（见 supplierCodeBlock 上方注释）
+            + " LEFT JOIN biz_party s ON s.id = pr.supplier_id AND s.tenant_id = pr.tenant_id AND s.deleted = 0"
             + " WHERE pri.deleted = 0 AND pri.tenant_id = ? AND " + RETURN_VALID + w.sql()
             + " GROUP BY 1";
         return groupBy(sql, params);
     }
 
-    /** 供应商编号块（仅「按供应商」维度；采购订单/入库单块输出，保证只出现一次） */
+    /**
+     * 供应商编号块（仅「按供应商」维度；采购订单/入库单块输出，保证只出现一次）
+     *
+     * <p><b>2026-09-21 修复（PUR-BREAK-03）：供应商取数改走 `biz_party`。</b>
+     * 原先这里（以及上面退货块）`LEFT JOIN erp_supplier`，而 `erp_supplier` **实测 0 行**
+     * —— 那是个没人写、没人维护的重复供应商档案表（建表语句在 `DatabaseInitializer` 里，
+     * 消费方只有本类与 `SupplierSnapshotMapper`）；系统里**真正在用的供应商主数据是
+     * `biz_party`（152 行，角色里含供应商）**，供应商管理页 `views/md/supplier` 也走
+     * `partnerApi`（biz_party）。于是「按供应商」维度的编码列恒空。</p>
+     *
+     * <p>顺带修掉第二处断点：`MAX(po.supplier_name)` —— 实测 `erp_purchase_order.supplier_name`
+     * **0/11 非空**（订单表根本不写这一列，只有入库单写），所以标签也恒空。
+     * 现按「订单表冗余 → 供应商快照 → 档案」三级取值，与采购单据列表页
+     * （`UnifiedPurchaseDocQueryServiceImpl` 用 `erp_purchase_order_partner_snapshot` 兜底）同口径。</p>
+     */
     private Map<String, Map<String, Object>> supplierCodeBlock(String dim, PurchaseAnalysisQueryDTO q) {
         if (!"supplier".equals(dim)) {
             return Map.of();
@@ -311,10 +327,12 @@ public class PurchaseAnalysisReportServiceImpl implements PurchaseAnalysisReport
         List<Object> params = new ArrayList<>();
         params.add(tenantId());
         params.addAll(w.list());
-        String sql = "SELECT COALESCE(po.supplier_id::text, po.supplier_name) AS \"dimKey\","
-            + " MAX(po.supplier_name) AS \"dimLabel\", MAX(s.supplier_code) AS \"supplierCode\""
+        String sql = "SELECT COALESCE(po.supplier_id::text, ps.supplier_name, po.supplier_name) AS \"dimKey\","
+            + " COALESCE(MAX(NULLIF(po.supplier_name, '')), MAX(ps.supplier_name), MAX(s.party_name)) AS \"dimLabel\","
+            + " COALESCE(MAX(ps.supplier_code), MAX(s.party_code)) AS \"supplierCode\""
             + " FROM erp_purchase_order po"
-            + " LEFT JOIN erp_supplier s ON s.id = po.supplier_id AND s.tenant_id = po.tenant_id AND s.deleted = 0"
+            + " LEFT JOIN erp_purchase_order_partner_snapshot ps ON ps.order_id = po.id"
+            + " LEFT JOIN biz_party s ON s.id = po.supplier_id AND s.tenant_id = po.tenant_id AND s.deleted = 0"
             + " WHERE po.tenant_id = ? AND " + ORDER_VALID + w.sql() + " GROUP BY 1";
         return groupBy(sql, params);
     }

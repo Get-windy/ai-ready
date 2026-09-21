@@ -57,8 +57,13 @@ public interface InitialStockQueryMapper {
         // 小单位：优先商品档案的小单位（对标列名即「小单位」），其次入库时的单位快照，最后回退基础单位
         + " COALESCE(NULLIF(p.small_unit, ''), NULLIF(s.unit, ''), p.unit) AS unit,"
         + " s.warehouse_id AS warehouse_id,"
+        // ⚠️ 本列**直接取快照、没有回退**（与上面 product_name/product_code 的 COALESCE 口径不同）：
+        //    它依赖写入侧保证 warehouse_name 非空。写入侧口径已收口到
+        //    StockServiceImpl.fillSnapshot()（2026-09-21，STK-BREAK-04），存量空值由迁移
+        //    V11.449.0 回填。若将来再出现空仓库列，先查写入路径有没有绕过 fillSnapshot。
         + " s.warehouse_name AS warehouse_name,"
         + " s.quantity AS quantity,"
+        // 同理：期初单价取快照，由 saveInitialStock/updateInitialStock 写入
         + " s.unit_price AS unit_price,"
         + " (s.quantity * s.unit_price) AS amount,"
         + " s.production_date AS production_date,"

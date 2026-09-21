@@ -78,6 +78,18 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
     /** 往来单位Mapper */
     private final PartyMapper partyMapper;
 
+    /**
+     * 仓库 / 业务员 / 部门 Mapper —— **仅供批量导入**按名称解析成 ID（SAL-BREAK-03）。
+     *
+     * <p>为什么是这三个而非常规依赖：批量导入的 Excel 里这几列是「名称」，
+     * 而订单主表要的是 ID。此前 {@code findOrCreateOrder} 只写单号/日期/类型/状态，
+     * 客户、仓库、业务员、部门**一个都没写** ⇒ 导入单在服务端无主体，
+     * 出库/对账带不出往来单位，订单中心的仓库筛选恒无结果。</p>
+     */
+    private final cn.aiedge.erp.stock.mapper.WarehouseMapper warehouseMapper;
+    private final cn.aiedge.base.mapper.SysUserMapper sysUserMapper;
+    private final cn.aiedge.base.mapper.SysDeptMapper sysDeptMapper;
+
     /** 销售物流域服务（包裹/运费/取号/发货通知） */
     private final SaleLogisticsService saleLogisticsService;
 
@@ -351,10 +363,20 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
         deleteSubTables(order.getId());
         saveSubTables(order.getId(), dto);
 
-        // 更新明细
-        List<SaleOrderItem> oldItems = itemMapper.selectByOrderId(dto.getId());
-        oldItems.forEach(item -> itemMapper.deleteById(item.getId()));
+        // 更新明细。
+        //
+        // ⚠️ 2026-09-21 修复「明细被静默删光」（SAL-BREAK-02 顺带查出）：
+        //    原实现是「**无条件**删光旧明细 + **有条件**重建（dto.getItems() != null）」——
+        //    删与建的条件不一致，于是任何一次**不带明细的更新**（只改表头字段的保存、
+        //    局部字段补写、自动化脚本的部分字段 PUT）都会把该单**全部明细删掉且不补回**，
+        //    而主表照常更新 ⇒ 表现为「订单在、明细没了、金额还在」（主表金额来自 dto，不会被清）。
+        //    现在把删除放进同一个条件里，并明确两种语义：
+        //      · items == null   → 「本次不改明细」，保留原样（局部更新）
+        //      · items == []     → 「显式清空明细」（调用方确实要清）
+        //      · items 非空      → 先删后插，行号重排
         if (dto.getItems() != null) {
+            List<SaleOrderItem> oldItems = itemMapper.selectByOrderId(dto.getId());
+            oldItems.forEach(item -> itemMapper.deleteById(item.getId()));
             int lineNo = 1;
             for (SaleOrderItemDTO itemDTO : dto.getItems()) {
                 SaleOrderItem item = createOrderItem(itemDTO, order.getId(), dto.getCustomerId(), dto.getWarehouseId());
@@ -1182,8 +1204,8 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
                 String orderNo = group.getKey();
                 List<Map<String, Object>> rows = group.getValue();
 
-                // 查找或创建订单
-                SaleOrder order = findOrCreateOrder(orderNo, tenantId);
+                // 查找或创建订单（主体字段取该单第一行——同一单据号的各行本应同客户/同仓库）
+                SaleOrder order = findOrCreateOrder(orderNo, tenantId, rows.get(0));
                 orderCount++;
 
                 // 创建订单明细
@@ -1225,8 +1247,18 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
         }
     }
 
-    /** 查找或创建导入订单 */
-    private SaleOrder findOrCreateOrder(String orderNo, Long tenantId) {
+    /**
+     * 查找或创建导入订单。
+     *
+     * <p><b>2026-09-21 修复（SAL-BREAK-03）</b>：原实现只写 orderNo/orderDate/saleType/status/
+     * generationMethod 与三个 0，**客户、仓库、业务员、部门一个都没写** —— 导入单建出来即无主体，
+     * 出库/对账带不出往来单位、订单中心的仓库筛选恒无结果。现从该单第一行解析这四项。</p>
+     *
+     * <p>四个字段都是**可选列**：Excel 没有这些表头就照旧留空（不报错），
+     * 名称解析不到对应主数据也留空（不报错）—— 导入的职责是把能认出来的写上，
+     * 不该因为一个仓库名拼错就整单导入失败。</p>
+     */
+    private SaleOrder findOrCreateOrder(String orderNo, Long tenantId, Map<String, Object> firstRow) {
         LambdaQueryWrapper<SaleOrder> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SaleOrder::getOrderNo, orderNo);
         SaleOrder existing = getOne(wrapper, false);
@@ -1245,8 +1277,91 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
         order.setTotalQuantity(BigDecimal.ZERO);
         order.setPrintCount(0);
         order.setCreatorName("导入");
+        applyImportedHeaderFields(order, firstRow);
         save(order);
         return order;
+    }
+
+    /**
+     * 把导入行里的「客户 / 仓库 / 业务员 / 部门」解析成主数据 ID 写到订单上（SAL-BREAK-03）。
+     *
+     * <p>表头别名两套（英文驼峰 + 中文），因为导入模板由用户自己准备、没有随代码发布的模板文件。
+     * 解析不到就跳过该字段（留空），不抛异常。</p>
+     */
+    private void applyImportedHeaderFields(SaleOrder order, Map<String, Object> rowData) {
+        if (rowData == null || rowData.isEmpty()) {
+            return;
+        }
+
+        // ── 客户：编码优先，其次名称（两者都没有则完全不查，避免无条件的 selectOne 取到任意一行） ──
+        String customerCode = firstNonBlank(getString(rowData, "customerCode", "客户编码"),
+                getString(rowData, "partyCode", "客户编码"));
+        String customerName = firstNonBlank(getString(rowData, "customerName", "客户名称"),
+                getString(rowData, "partyName", "客户"), getString(rowData, "customer", "客户"));
+        if (customerCode != null || customerName != null) {
+            Party party = partyMapper.selectOne(new LambdaQueryWrapper<Party>()
+                    .eq(customerCode != null, Party::getPartyCode, customerCode)
+                    .eq(customerName != null, Party::getPartyName, customerName)
+                    .last("LIMIT 1"));
+            if (party != null) {
+                order.setCustomerId(party.getId());
+                order.setCustomerName(party.getPartyName());
+                order.setCustomerCode(party.getPartyCode());
+            }
+        }
+
+        // ── 仓库：按名称（erp_warehouse.warehouse_name） ──
+        String warehouseName = firstNonBlank(getString(rowData, "warehouseName", "仓库名称"),
+                getString(rowData, "warehouse", "仓库"));
+        if (warehouseName != null) {
+            cn.aiedge.erp.stock.entity.Warehouse warehouse = warehouseMapper.selectOne(
+                    new LambdaQueryWrapper<cn.aiedge.erp.stock.entity.Warehouse>()
+                            .eq(cn.aiedge.erp.stock.entity.Warehouse::getWarehouseName, warehouseName)
+                            .last("LIMIT 1"));
+            if (warehouse != null) {
+                order.setWarehouseId(warehouse.getId());
+            }
+        }
+
+        // ── 业务员：登录名或姓名都可以（模板里人写的是姓名，系统里存的是 username） ──
+        String salesmanName = firstNonBlank(getString(rowData, "salesmanName", "业务员"),
+                getString(rowData, "salesman", "业务员"));
+        if (salesmanName != null) {
+            cn.aiedge.base.entity.SysUser user = sysUserMapper.selectOne(
+                    new LambdaQueryWrapper<cn.aiedge.base.entity.SysUser>()
+                            .and(w -> w.eq(cn.aiedge.base.entity.SysUser::getUsername, salesmanName)
+                                    .or().eq(cn.aiedge.base.entity.SysUser::getRealName, salesmanName))
+                            .last("LIMIT 1"));
+            if (user != null) {
+                order.setSalesmanId(user.getId());
+            }
+        }
+
+        // ── 部门 ──
+        String deptName = firstNonBlank(getString(rowData, "deptName", "部门"),
+                getString(rowData, "departmentName", "部门"));
+        if (deptName != null) {
+            cn.aiedge.base.entity.SysDept dept = sysDeptMapper.selectOne(
+                    new LambdaQueryWrapper<cn.aiedge.base.entity.SysDept>()
+                            .eq(cn.aiedge.base.entity.SysDept::getDeptName, deptName)
+                            .last("LIMIT 1"));
+            if (dept != null) {
+                order.setDeptId(dept.getId());
+            }
+        }
+    }
+
+    /** 取第一个非空白值（全为空白/ null 时返回 null） */
+    private static String firstNonBlank(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String v : values) {
+            if (v != null && !v.trim().isEmpty()) {
+                return v.trim();
+            }
+        }
+        return null;
     }
 
     /** 重新计算订单金额 */
