@@ -39,6 +39,31 @@ export interface PaymentChannelParam {
   appSecret?: string
   notifyUrl?: string
   enabled?: boolean
+
+  // ── 回调验签凭据（2026-09-21 新增，与后端 cn.aiedge.payment.dto.PaymentChannelParam 对齐）──
+  //
+  // 前 5 个字段够「发起支付」，但**不够验签回调**：
+  //   · 支付宝异步通知是 RSA2 签名，验签要**支付宝公钥**（不是应用私钥）；
+  //   · 微信支付 APIv3 是「平台证书签名 + APIv3 密钥 AES-GCM 加密 resource」，
+  //     验签要**平台证书公钥**，解 resource 还要 **APIv3 密钥**。
+  // 不配这些，回调端点会 fail-closed 拒绝（不会「不验签当成功」）。
+
+  /** 【验签·支付宝】支付宝公钥（Base64，可带 PEM 头尾） */
+  alipayPublicKey?: string
+  /** 【验签·微信】APIv3 密钥（32 位） */
+  wechatApiV3Key?: string
+  /**
+   * 【验签·微信】平台证书表：JSON 对象，键=证书序列号，值=PEM 公钥。
+   * 形如 `{"5157F09E…":"-----BEGIN PUBLIC KEY-----\n…\n-----END PUBLIC KEY-----"}`。
+   * **为什么是表**：微信平台证书会轮换、轮换期新旧并存，回调头 `Wechatpay-Serial` 指定用哪张；
+   * 只配一张的话，轮换当天全部回调验签失败。
+   */
+  wechatPlatformCerts?: string
+  /**
+   * 【验签·银联】平台证书表：JSON 对象，键=证书 ID（certId），值=PEM 公钥。
+   * 银联回调报文带 `certId` 指明用哪张证书验签；证书换发时新旧并存，故同样是「表」。
+   */
+  unionPayCerts?: string
 }
 
 /** 「支付方式」Tab 的一行：渠道（来自后端渠道 Bean）+ 已保存的参数 */

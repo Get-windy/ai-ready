@@ -52,9 +52,25 @@ public class PaymentChannelParam {
     @Schema(description = "【验签】微信支付 APIv3 密钥（32 位，用于 AES-256-GCM 解 resource）")
     private String wechatApiV3Key;
 
-    @Schema(description = "【验签】微信支付平台证书序列号（对应回调头 Wechatpay-Serial）")
-    private String wechatPlatformSerial;
+    /**
+     * 【验签】微信支付**平台证书公钥表**：JSON 对象，键=证书序列号，值=PEM 公钥文本。
+     * <pre>{"5157F09E...":"-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----"}</pre>
+     *
+     * <p><b>为什么是「表」而不是单个证书</b>：微信平台证书会**定期轮换**，且轮换期间
+     * 新旧证书并存 —— 回调头 {@code Wechatpay-Serial} 告诉本次用哪张。
+     * 若只配一张，轮换当天所有回调验签失败。故按序列号建映射，新旧共存，平滑过渡。</p>
+     *
+     * <p>自动下载平台证书需要商户私钥 + 证书序列号做签名请求（{@code GET /v3/certificates}），
+     * 属后续增强；本字段是**验签的权威来源**，自动下载只是它的填充器。</p>
+     */
+    private String wechatPlatformCerts;
 
-    @Schema(description = "【验签】微信支付平台证书公钥（PEM 文本）")
-    private String wechatPlatformPublicKey;
+    /**
+     * 【验签·银联】**银联平台证书公钥表**：JSON 对象，键=证书 ID（certId），值=PEM 公钥文本。
+     * <pre>{"68759529225":"-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----"}</pre>
+     *
+     * <p>与微信同理是「表」：银联回调报文里带 {@code certId} 指明用哪张证书验签，
+     * 证书换发时新旧并存 —— 只配一张会在换发当天全部验签失败。</p>
+     */
+    private String unionPayCerts;
 }

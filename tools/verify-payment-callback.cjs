@@ -72,20 +72,36 @@ const FORGED = { out_trade_no: 'FORGED-ORDER-0001', trade_status: 'SUCCESS', tot
 
   section('② 新端点：一律拒绝（fail-closed），且区分「渠道没实现」与「渠道没配凭据」')
   // 未实现该渠道 → 401 UNSUPPORTED_CHANNEL
-  for (const ch of ['WECHAT', 'UNKNOWN_CHANNEL']) {
+  // （案例随实现推进而变：支付宝、微信、银联均已实现。
+  //   CASH 是**应当**未实现的 —— 现金支付没有网关，不会产生回调。）
+  for (const ch of ['CASH', 'UNKNOWN_CHANNEL']) {
     const r = await req('POST', `/v1/mall/payments/callback/1/${ch}`, { token, body: FORGED })
     ok(`${ch}（未实现）被拒绝`, r.status === 401 && /UNSUPPORTED_CHANNEL/.test(r.text),
       `status=${r.status} body=${r.text.slice(0, 60)}`)
   }
-  // 已实现但该租户未配凭据 → 401 + 该渠道的失败应答（支付宝是纯文本 failure，不是 JSON）
-  // 注意：这条断言在「配好凭据之后」仍然成立 —— 届时伪造报文会因验签失败走同一分支返回 failure，
+  // 已实现但该租户未配凭据 → 401 + **该渠道自己的失败应答**。
+  // 注意：这些断言在「配好凭据之后」仍然成立 —— 届时伪造报文会因验签失败走同一分支，
   // 故不会因为环境变化而假失败。
   const alipay = await req('POST', '/v1/mall/payments/callback/1/ALIPAY', { token, body: FORGED })
-  ok('ALIPAY（已实现但未配凭据）被拒绝，且应答是渠道要求的 failure',
+  ok('ALIPAY（已实现）被拒绝，且应答是支付宝要求的纯文本 failure',
     alipay.status === 401 && alipay.text.trim() === 'failure',
     `status=${alipay.status} body=${alipay.text.slice(0, 60)}`)
-  ok('伪造回调的应答不是成功体（未出现 success/SUCCESS）',
-    !/^\s*(success|SUCCESS)\s*$/.test(alipay.text), `body=${alipay.text.slice(0, 40)}`)
+
+  const wechat = await req('POST', '/v1/mall/payments/callback/1/WECHAT', { token, body: FORGED })
+  ok('WECHAT（已实现）被拒绝，且应答是微信要求的 JSON（非纯文本 success）',
+    wechat.status === 401 && /"code"\s*:\s*"FAIL"/.test(wechat.text),
+    `status=${wechat.status} body=${wechat.text.slice(0, 70)}`)
+
+  const unionpay = await req('POST', '/v1/mall/payments/callback/1/UNIONPAY', { token, body: FORGED })
+  ok('UNIONPAY（已实现）被拒绝，且应答是银联约定的 ok/fail（此处应为 fail）',
+    unionpay.status === 401 && unionpay.text.trim() === 'fail',
+    `status=${unionpay.status} body=${unionpay.text.slice(0, 60)}`)
+
+  // 关键反向断言：任何渠道的成功应答都不得出现在伪造回调的响应里
+  for (const [ch, r] of [['ALIPAY', alipay], ['WECHAT', wechat], ['UNIONPAY', unionpay]]) {
+    const looksLikeSuccess = /^\s*success\s*$/i.test(r.text) || /"code"\s*:\s*"SUCCESS"/.test(r.text)
+    ok(`${ch} 伪造回调的应答不是成功体`, !looksLikeSuccess, `body=${r.text.slice(0, 50)}`)
+  }
 
   section('③ 伪造回调的报文不会落到任何订单上')
   // ② 已证明回调被拒，理论上不会有状态变更。这里再确认「伪造单号」在库里不存在，

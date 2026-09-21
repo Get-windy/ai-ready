@@ -480,11 +480,61 @@
               placeholder="https://..."
             />
           </a-form-item>
+          <!-- ── 回调验签凭据（2026-09-21）──────────────────────────────────
+               上面 5 项够「发起支付」，但不够**验签回调**。不配这些，
+               回调端点会 fail-closed 拒绝（而不是「不验签当成功」）。
+               按渠道条件展示：支付宝只要一个公钥；微信要 APIv3 密钥 + 平台证书表。 -->
+          <a-form-item
+            v-if="isAlipayChannel"
+            label="支付宝公钥（回调验签用）"
+          >
+            <a-textarea
+              v-model:value="paramForm.alipayPublicKey"
+              :rows="5"
+              placeholder="支付宝公钥 Base64，可带 -----BEGIN PUBLIC KEY----- 头尾"
+            />
+          </a-form-item>
+          <a-form-item
+            v-if="isWechatChannel"
+            label="APIv3 密钥（解密回调 resource）"
+          >
+            <a-input-password
+              v-model:value="paramForm.wechatApiV3Key"
+              placeholder="32 位 APIv3 密钥，长度不对后端会拒绝"
+            />
+          </a-form-item>
+          <a-form-item
+            v-if="isWechatChannel"
+            label="平台证书表（回调验签用）"
+            :validate-status="certsError ? 'error' : undefined"
+            :help="certsError || '键=证书序列号，值=PEM 公钥；轮换期新旧证书都放进来'"
+          >
+            <a-textarea
+              v-model:value="paramForm.wechatPlatformCerts"
+              :rows="6"
+              :placeholder="CERTS_PLACEHOLDER"
+            />
+          </a-form-item>
+          <a-form-item
+            v-if="isUnionPayChannel"
+            label="平台证书表（回调验签用）"
+            :validate-status="certsError ? 'error' : undefined"
+            :help="certsError || '键=证书 ID（certId），值=PEM 公钥'"
+          >
+            <a-textarea
+              v-model:value="paramForm.unionPayCerts"
+              :rows="6"
+              :placeholder="CERTS_PLACEHOLDER"
+            />
+          </a-form-item>
           <a-form-item label="是否启用">
             <a-switch v-model:checked="paramForm.enabled" />
           </a-form-item>
           <div class="drawer-tip">
             在线渠道（支付宝 / 微信 / 银联）必须填商户号与 API 密钥；线下渠道（银行转账 / 现金）无需填写。
+            <br />
+            若要接收**支付结果回调**，还需按渠道补上「回调验签凭据」—— 支付宝要公钥，
+            微信要 APIv3 密钥与平台证书表。缺这些时回调会被安全拒绝（不会不验签直接当成功）。
           </div>
           <a-button
             v-permission="'payment:config:update'"
@@ -948,10 +998,58 @@ const paramForm = reactive<Required<PaymentChannelParam>>({
   appSecret: '',
   notifyUrl: '',
   enabled: true,
+  // 回调验签凭据（2026-09-21）
+  alipayPublicKey: '',
+  wechatApiV3Key: '',
+  wechatPlatformCerts: '',
+  unionPayCerts: '',
 })
 
 /** 在线渠道必须填商户号与密钥；线下渠道（BANK/CASH）无需填（与后端 confirmOfflinePayment 的口径一致） */
 const ONLINE_CHANNELS = ['ALIPAY', 'WECHAT', 'UNIONPAY']
+
+/** 当前抽屉里的渠道码（大写） */
+const paramChannelCode = computed(() =>
+  String(currentChannel.value?.channelCode || '').toUpperCase(),
+)
+const isAlipayChannel = computed(() => paramChannelCode.value === 'ALIPAY')
+const isWechatChannel = computed(() => paramChannelCode.value === 'WECHAT')
+const isUnionPayChannel = computed(() => paramChannelCode.value === 'UNIONPAY')
+
+const CERTS_PLACEHOLDER =
+  '{\n  "证书序列号": "-----BEGIN PUBLIC KEY-----\\n...\\n-----END PUBLIC KEY-----"\n}'
+
+/**
+ * 平台证书表的即时校验。
+ *
+ * <p>⚠️ 为什么要在**保存前**校验而不是交给后端：后端 `parseCerts` 遇到非法 JSON 会
+ * 静默返回空表（fail-closed），表现为「保存成功、但回调永远被拒」——
+ * 管理员会以为配好了。这里提前拦住，避免把「JSON 写错」变成「回调莫名其妙不工作」。</p>
+ */
+const certsError = computed(() => {
+  // 微信与银联都是「证书表」形状，共用同一套校验；当前渠道不适用则跳过
+  const raw = (isWechatChannel.value
+    ? paramForm.wechatPlatformCerts
+    : isUnionPayChannel.value
+      ? paramForm.unionPayCerts
+      : ''
+  )?.trim() || ''
+  if (!isWechatChannel.value && !isUnionPayChannel.value) return ''
+  if (!raw) return '' // 允许留空（此时回调会被拒，但配置本身可保存）
+  try {
+    const parsed = JSON.parse(raw)
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+      return '必须是 JSON 对象：{"证书序列号":"PEM 公钥"}'
+    }
+    const bad = Object.entries(parsed).find(
+      ([k, v]) => !k || typeof v !== 'string' || !String(v).includes('BEGIN PUBLIC KEY'),
+    )
+    if (bad) return `条目「${bad[0]}」的值不像 PEM 公钥（应含 BEGIN PUBLIC KEY）`
+    return ''
+  } catch {
+    return '不是合法 JSON，请检查引号与换行转义'
+  }
+})
 
 const paramRules = computed(() => {
   const code = String(currentChannel.value?.channelCode || '').toUpperCase()
@@ -983,6 +1081,10 @@ async function openParamDrawer(record: PaymentChannelConfigVO) {
   paramForm.appSecret = ''
   paramForm.notifyUrl = ''
   paramForm.enabled = true
+  paramForm.alipayPublicKey = ''
+  paramForm.wechatApiV3Key = ''
+  paramForm.wechatPlatformCerts = ''
+  paramForm.unionPayCerts = ''
   paramVisible.value = true
   paramLoading.value = true
   try {
@@ -993,6 +1095,11 @@ async function openParamDrawer(record: PaymentChannelConfigVO) {
       paramForm.appSecret = saved.appSecret || ''
       paramForm.notifyUrl = saved.notifyUrl || ''
       paramForm.enabled = saved.enabled !== false
+      // 回调验签凭据：后端按 String 存（证书表本身是一段 JSON 文本），原样回显
+      paramForm.alipayPublicKey = saved.alipayPublicKey || ''
+      paramForm.wechatApiV3Key = saved.wechatApiV3Key || ''
+      paramForm.wechatPlatformCerts = saved.wechatPlatformCerts || ''
+      paramForm.unionPayCerts = saved.unionPayCerts || ''
     }
     await nextTick()
     paramFormRef.value?.clearValidate?.()
@@ -1008,6 +1115,12 @@ async function saveParam() {
   try {
     await paramFormRef.value?.validate()
   } catch {
+    return
+  }
+  // 平台证书表格式不对就不让保存：后端遇到非法 JSON 会静默当成「没配」，
+  // 表现是「保存成功但回调永远被拒」，比当场报错难查得多
+  if (certsError.value) {
+    message.error(`平台证书表格式有误：${certsError.value}`)
     return
   }
   paramSaving.value = true
