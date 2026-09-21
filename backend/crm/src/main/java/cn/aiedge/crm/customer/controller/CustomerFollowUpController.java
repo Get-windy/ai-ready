@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @RestController
 @RequestMapping("/api/crm/followUp")
@@ -73,6 +74,7 @@ public class CustomerFollowUpController {
     }
     
     @Operation(summary = "查询线索的跟进记录")
+    @SaCheckPermission("crm:lead:view")
     @GetMapping("/lead/{leadId}")
     public List<CustomerFollowUp> listByLead(@PathVariable Long leadId) {
         return customerFollowUpService.listByLeadId(leadId);

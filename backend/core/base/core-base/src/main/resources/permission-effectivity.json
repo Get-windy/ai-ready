@@ -2,8 +2,8 @@
  "generatedAt": "2026-09-21",
  "summary": {
   "db": 994,
-  "effective": 883,
-  "ineffective": 100,
+  "effective": 889,
+  "ineffective": 94,
   "groupNodes": 11
  },
  "ineffective": [
@@ -12,15 +12,9 @@
   "crm:contract:refresh",
   "crm:contract:renewapply",
   "crm:create",
-  "crm:customer:delete",
-  "crm:customer:list",
-  "crm:customer:update",
-  "crm:lead:view",
-  "crm:opportunity:create",
   "crm:opportunity:detailrefresh",
   "crm:opportunity:reset",
   "crm:opportunity:search",
-  "crm:opportunity:view",
   "crm:refresh",
   "data-permission:assign",
   "data-permission:check",
@@ -302,6 +296,10 @@
    "backend": 0,
    "frontend": 1
   },
+  "crm:customer:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
   "crm:customer:edit": {
    "backend": 0,
    "frontend": 1
@@ -314,9 +312,17 @@
    "backend": 0,
    "frontend": 1
   },
+  "crm:customer:list": {
+   "backend": 1,
+   "frontend": 0
+  },
   "crm:customer:refresh": {
    "backend": 0,
    "frontend": 1
+  },
+  "crm:customer:update": {
+   "backend": 1,
+   "frontend": 0
   },
   "crm:customer:view": {
    "backend": 0,
@@ -378,9 +384,17 @@
    "backend": 0,
    "frontend": 1
   },
+  "crm:lead:view": {
+   "backend": 1,
+   "frontend": 0
+  },
   "crm:opportunity:convert": {
    "backend": 0,
    "frontend": 1
+  },
+  "crm:opportunity:create": {
+   "backend": 1,
+   "frontend": 0
   },
   "crm:opportunity:edit": {
    "backend": 0,
@@ -389,6 +403,10 @@
   "crm:opportunity:move": {
    "backend": 0,
    "frontend": 1
+  },
+  "crm:opportunity:view": {
+   "backend": 1,
+   "frontend": 0
   },
   "crm:quotation:batchsend": {
    "backend": 0,

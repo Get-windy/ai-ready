@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @RestController
 @RequestMapping("/api/customer")
@@ -23,6 +24,7 @@ public class CustomerController {
     private final CustomerFollowUpService customerFollowUpService;
     
     @Operation(summary = "分页查询客户列表")
+    @SaCheckPermission("crm:customer:list")
     @GetMapping("/page")
     public Page<Customer> pageList(
             @Parameter(description = "关键词") @RequestParam(required = false) String keyword,
@@ -56,6 +58,7 @@ public class CustomerController {
     }
     
     @Operation(summary = "更新客户")
+    @SaCheckPermission("crm:customer:update")
     @PutMapping("/{id}")
     public Customer update(@PathVariable Long id, @RequestBody Customer customer) {
         customer.setId(id);
@@ -64,6 +67,7 @@ public class CustomerController {
     }
     
     @Operation(summary = "删除客户")
+    @SaCheckPermission("crm:customer:delete")
     @DeleteMapping("/{id}")
     public boolean delete(@PathVariable Long id) {
         return customerService.removeById(id);

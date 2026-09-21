@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @RestController
 @RequestMapping("/api/crm/opportunity")
@@ -47,6 +48,7 @@ public class CustomerOpportunityController {
     }
     
     @Operation(summary = "创建商机")
+    @SaCheckPermission("crm:opportunity:create")
     @PostMapping
     public CustomerOpportunity create(@RequestBody CustomerOpportunity opportunity) {
         opportunity.setOpportunityCode(customerOpportunityService.generateOpportunityCode());
@@ -128,6 +130,7 @@ public class CustomerOpportunityController {
     }
     
     @Operation(summary = "商机统计")
+    @SaCheckPermission("crm:opportunity:view")
     @GetMapping("/statistics")
     public Map<String, Object> getStatistics(
             @Parameter(description = "销售人员ID") @RequestParam(required = false) Long salesPersonId) {
