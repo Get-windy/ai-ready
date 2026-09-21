@@ -30,29 +30,44 @@ public class TenantModuleService {
     /**
      * 获取租户的有效模块编码集合
      * 过滤条件：未删除 + 状态正常 + 未过期
+     *
+     * <p>读失败时返回空集合（= "没开通"）。调用方若需要区分「真的没开通」与「读不出来」，
+     * 用 {@link #getValidModuleCodesStrict(Long)}。</p>
      */
     public Set<String> getValidModuleCodes(Long tenantId) {
-        if (tenantId == null) {
-            return Collections.emptySet();
-        }
-
         try {
-            List<SysTenantModule> modules = tenantModuleMapper.selectList(
-                    new LambdaQueryWrapper<SysTenantModule>()
-                            .eq(SysTenantModule::getTenantId, tenantId)
-                            .eq(SysTenantModule::getStatus, 0)
-                            .eq(SysTenantModule::getDeleted, 0)
-            );
-
-            LocalDateTime now = LocalDateTime.now();
-            return modules.stream()
-                    .filter(m -> m.getExpireTime() == null || now.isBefore(m.getExpireTime()))
-                    .map(SysTenantModule::getModuleCode)
-                    .collect(Collectors.toSet());
+            return getValidModuleCodesStrict(tenantId);
         } catch (Exception e) {
             log.error("获取租户模块调用权失败: tenantId={}", tenantId, e);
             return Collections.emptySet();
         }
+    }
+
+    /**
+     * 与 {@link #getValidModuleCodes(Long)} 同口径，但**不吞异常**。
+     *
+     * <p>给模块 entitlement 门用：那道门必须能区分
+     * ①「这个租户确实没开通该模块」（→ 403，正常业务结果）与
+     * ②「这次读库失败了」（→ 不能当成 ①，否则一次 DB 抖动会把整个租户打成 403）。
+     * 原来只有一个吞异常的版本，两种情况在返回值上完全一样。</p>
+     */
+    public Set<String> getValidModuleCodesStrict(Long tenantId) {
+        if (tenantId == null) {
+            return Collections.emptySet();
+        }
+
+        List<SysTenantModule> modules = tenantModuleMapper.selectList(
+                new LambdaQueryWrapper<SysTenantModule>()
+                        .eq(SysTenantModule::getTenantId, tenantId)
+                        .eq(SysTenantModule::getStatus, 0)
+                        .eq(SysTenantModule::getDeleted, 0)
+        );
+
+        LocalDateTime now = LocalDateTime.now();
+        return modules.stream()
+                .filter(m -> m.getExpireTime() == null || now.isBefore(m.getExpireTime()))
+                .map(SysTenantModule::getModuleCode)
+                .collect(Collectors.toSet());
     }
 
     /**

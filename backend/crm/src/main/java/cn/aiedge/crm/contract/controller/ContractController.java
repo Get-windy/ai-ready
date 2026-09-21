@@ -1,5 +1,6 @@
 package cn.aiedge.crm.contract.controller;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.crm.common.CrmPermissions;
 import cn.aiedge.crm.contract.dto.ContractCreateDTO;
 import cn.aiedge.crm.contract.dto.ContractVO;
@@ -56,7 +57,9 @@ public class ContractController {
     public ContractVO getById(@PathVariable Long id) {
         Contract contract = contractService.getById(id);
         if (contract == null) {
-            throw new RuntimeException("合同不存在");
+            // 用 BusinessException.notFound 而非 RuntimeException：后者会被 GlobalExceptionHandler
+            // 兜底成 HTTP 500「系统异常，请稍后重试」，把「单据不存在」误导成「服务故障」
+            throw BusinessException.notFound("合同不存在");
         }
         ContractVO vo = convertToVO(contract);
         vo.setPaidPercentage(contractService.calculatePaidPercentage(id));
@@ -98,7 +101,8 @@ public class ContractController {
     public ContractVO create(@RequestBody ContractCreateDTO dto) {
         Contract contract = new Contract();
         BeanUtils.copyProperties(dto, contract);
-        contract.setTenantId(1L);
+        // 不再硬编码 tenant_id = 1：tenantId 由 MetaObjectHandler 从会话租户自动填充，
+        // 否则任何租户建的合同都会落进系统租户（见 MASTER_TODO 的 CRM-BREAK-02）
         contract.setCreateBy(StpUtil.getLoginIdAsLong());
         Contract created = contractService.createContract(contract);
         return convertToVO(created);

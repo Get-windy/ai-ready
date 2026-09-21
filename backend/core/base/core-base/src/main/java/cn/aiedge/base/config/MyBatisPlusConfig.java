@@ -43,6 +43,12 @@ public class MyBatisPlusConfig {
         "sys_permission",         // 权限定义系统级
         "sys_role_permission",    // 角色权限分配系统级
         "sys_permission_template", // 权限模板系统级
+        // 「模块 → 权限码前缀」映射（V11.454.0）：**平台级参考数据**，行上 tenant_id 恒为 0。
+        // 不忽略时：模块 entitlement 门是在**租户会话**里读它的，会被注入
+        // `AND tenant_id = <会话租户>` → 一行都读不到 → 前缀解析全空 →
+        // 「模块未开通」拦不住任何人，即这道门**静默失效（fail-open）**。
+        // 与 sys_menu / sys_permission / sys_role_permission 同性质、同处置。
+        "sys_module_permission",
         "sys_user_tenant",        // 用户租户关联表（登录时按用户名跨租户找账号，需要无过滤）
         // ⚠️ `sys_user` **已于 2026-09-18 从本清单移出**（原注释：「用户表（登录时需要无租户过滤查询）」）。
         //    历史问题：整表不隔离 → 除登录之外的**所有** sys_user 查询都没有租户条件，

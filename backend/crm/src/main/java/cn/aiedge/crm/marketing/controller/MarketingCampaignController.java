@@ -1,6 +1,7 @@
 package cn.aiedge.crm.marketing.controller;
 
 import cn.aiedge.base.vo.Result;
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.crm.marketing.dto.CampaignCreateDTO;
 import cn.aiedge.crm.marketing.dto.CampaignVO;
 import cn.aiedge.crm.marketing.entity.MarketingCampaign;
@@ -52,7 +53,7 @@ public class MarketingCampaignController {
     public CampaignVO getById(@PathVariable Long id) {
         MarketingCampaign campaign = campaignService.getById(id);
         if (campaign == null) {
-            throw new RuntimeException("营销活动不存在");
+            throw BusinessException.notFound("营销活动不存在");
         }
         CampaignVO vo = convertToVO(campaign);
         vo.setTotalCost(campaignService.calculateTotalCost(id));
@@ -81,7 +82,7 @@ public class MarketingCampaignController {
     public CampaignVO create(@RequestBody CampaignCreateDTO dto) {
         MarketingCampaign campaign = new MarketingCampaign();
         BeanUtils.copyProperties(dto, campaign);
-        campaign.setTenantId(1L);
+        // tenantId 交由 MetaObjectHandler 从会话租户填充，不再硬编码 1（CRM-BREAK-02 同类）
         campaign.setCreateBy(StpUtil.getLoginIdAsLong());
         MarketingCampaign created = campaignService.createCampaign(campaign);
         return convertToVO(created);

@@ -1,5 +1,6 @@
 package cn.aiedge.crm.quotation.controller;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.crm.quotation.entity.QuotationTemplate;
 import cn.aiedge.crm.quotation.entity.QuotationTemplateItem;
 import cn.aiedge.crm.quotation.service.QuotationTemplateService;
@@ -38,7 +39,7 @@ public class QuotationTemplateController {
     public QuotationTemplate getById(@PathVariable Long id) {
         QuotationTemplate template = templateService.getById(id);
         if (template == null) {
-            throw new RuntimeException("报价模板不存在");
+            throw BusinessException.notFound("报价模板不存在");
         }
         return template;
     }
@@ -70,7 +71,7 @@ public class QuotationTemplateController {
     @PostMapping
     @Operation(summary = "创建报价模板")
     public QuotationTemplate create(@RequestBody QuotationTemplate template) {
-        template.setTenantId(1L);
+        // tenantId 交由 MetaObjectHandler 从会话租户填充，不再硬编码 1（CRM-BREAK-02 同类）
         return templateService.createTemplate(template, null);
     }
 

@@ -43,7 +43,7 @@
 
 | 模块 | 断点 | 新旧重复 | 死代码/死表 | 权限 | 拍板项 | 状态 |
 |---|---|---|---|---|---|---|
-| 平台/系统（core-*、租户、用户） | 3 | 4 | 12 | 15 | 6 | 🔄 **`SysConfigService` 硬编码租户专项已闭环**（配置读写按租户隔离，28/28 真机验证）；剩 `ConfigChangeListener` 死缓存待清 |
+| 平台/系统（core-*、租户、用户） | 3 | 4 | 12 | 15 | 6 | 🔄 **`SysConfigService` 硬编码租户专项已闭环**；**平台-BREAK-02 ✅ 闭环**（单测 4/4 + 反向验证）；**平台-BREAK-01 ✅ 已实机验证**（fail-open → fail-closed，回归 37 项全绿）；**平台-MODULE-01 entitlement 门 ✅ 已实现**（模块开关从"纯展示"变成真拦截）；剩 `AuthServiceImpl` 死代码、`ConfigChangeListener` 死缓存、模块开通/停用写入入口缺失 |
 | 财务域（erp-finance） | 5 | 2 | 3 | 4 | 2 | ⬜ |
 | 库存仓储（erp-stock + wms） | 6 | 4 | 8 | 1 | 2 | 🔄 STK-BREAK-01/03 已闭环；-02 剩 2 处、-04/05 待做 |
 | 销售域（erp-sales） | 4 | 3 | 2 | 3 | 2 | ⬜ |
@@ -53,7 +53,7 @@
 | DMS 配送 | 3 | 1 | 2 | 2 | 1 | ⬜ |
 | 商城/营销（erp-mall / marketing） | 3 | 2 | 4 | 2 | 1 | ⬜ |
 | HR | 1 | 1 | 2 | 1 | 1 | ⬜ |
-| CRM | 1 | 1 | 2 | 4 | 0 | ⬜ |
+| CRM | 2 | 1 | 2 | 4 | 1 | 🔄 **CRM-BREAK-02 硬编码租户/异常口径已修**（crm 域 7 处同类一次收口，实机 4/4）；**CRM-BREAK-03 新立（软删后重号 400，需拍板修法）**；该类 40 端点鉴权注解仍待做 |
 | 报表分析 | 2 | 1 | 5 | 3 | 0 | ⬜ |
 | 其余（打印/固定/预算/发票/observability） | 2 | 2 | 4 | 4 | 1 | ⬜ |
 | 前端工程 / 构建 / 门禁 | — | 2 | 3 | — | 0 | ⬜ |
@@ -78,7 +78,40 @@
 - **代码里把 fail-open 论证成"上游 SaInterceptor 会拦未登录"** —— 但上游只判「是否登录」，不判「租户上下文是否存在」，这两件事在本项目不等价。
 - **修法**：`shouldSkip()` 拆两语义：超管豁免（显式意图）保留；**上下文缺失对业务表 fail-closed**（抛异常或注入恒假条件）。登录链路对 `sys_user` 的查询用白名单式 `@InterceptorIgnore` 单独开口，而不是全局跳过。
 - **依赖**：平台-BREAK-02 的 `insertFill` 问题同源，建议一并改。
-- **状态**：⬜
+- **状态**：✅ **代码已改并实机验证（2026-09-21）**，回归 37 项全绿
+  （`verify-tenant-hardening` 14/14 + `verify-permission-changes` 23/23）。
+  **但拒绝分支（已登录却无租户）当前无法用 API 触达**，属纵深防御，详见末段"验证边界"。
+  做法比原"修法"更省：**没有**给 `sys_user`
+  的登录查询加 `@InterceptorIgnore`，因为登录查询发生在 `StpUtil.login()` **之前**，天然属于
+  「未登录」分支，本来就会跳过。改动只有三处：
+  1. `AiReadyTenantLineInnerInterceptor#shouldSkip()` 拆成三支（顺序即优先级）：
+     ① 超管豁免 → 跳过；② 有会话租户 → 注入；③ 无租户上下文 → **只有未登录才跳过**，
+     「已登录却没租户」不再跳过 ⇒ 父类注入 `tenant_id = null`（PG 中恒 UNKNOWN）＝ **fail-closed**。
+  2. `MallAuthServiceImpl#login` 在 `StpUtil.login()` 之后**立刻**写 `session.tenantId`
+     （必须早于同方法内的 `buildIdentities`，它要查 `biz_party` / `shop_user_party_link`）。
+  3. `MallAuthServiceImpl#refreshToken` 同上补写 —— `StpUtil.login()` 会**重建会话**，
+     不补写则「刷新过 token 的会话」又退化成无租户上下文。
+- **全仓 `StpUtil.login()` 只有 6 处**，已逐一核对：主站 `SysUserServiceImpl:115`、
+  `AuthController:227`（走前者）、PDA `PdaAuthController:57`、打印端 `ClientAuthController:83`、
+  商城 `MallAuthServiceImpl:67`（本轮补）、`AuthServiceImpl:103`（**死代码**，见下）。前四处原本已写租户。
+- **新发现（未处理，需裁决）**：`core/base/.../service/impl/AuthServiceImpl.java` 与接口
+  `cn.aiedge.base.service.AuthService` **全仓零引用/零注入**（实测 grep），是死代码，且它同样漏写
+  `session.tenantId`。建议随「死代码清理」批次整对删除（属 平台-CLEAN 系列）。
+- **新发现（未处理，需裁决）**：`MallAuthServiceImpl#register` 造 `ShopUser` 时**没有** tenantId，
+  而注册发生在未登录态 ⇒ `insertFill` 不填、拦截器也不注入；实测 `shop_user.tenant_id`
+  是 **NOT NULL 且无默认值** ⇒ **商城注册当前必然插入失败**。租户只能来自请求头 `X-Tenant-Id`
+  （`MallGuestAccess#currentShopTenantId` 已有现成口径），但 `frontend/apps/mobile-mall` **不发这个头**
+  （实测 grep），属前后端一起定的产品口径，故本轮不动手。
+- **代价（须知悉）**：漏写租户的登录入口今后表现为「登录成功但列表全空」，而不是「看到别人的数据」。
+  反过来说，**任何新增登录入口都必须在 `StpUtil.login()` 后立刻写 `session.tenantId`**，
+  已写进拦截器类注释。
+- **⚠️ 验证边界（不要把它读成"已验证完毕"）**：本轮实机只能验证**两条放行分支**
+  （未登录 → 跳过；有租户 → 注入），因为**拒绝分支已无法用 API 触达** ——
+  全仓 `StpUtil.login()` 仅 6 处，除死代码 `AuthServiceImpl` 外 5 处全部写租户，
+  即"已登录却无租户"的会话在现有数据下**造不出来**（商城 C 端 `shop_user` 表 0 行）。
+  该分支的收益是**纵深防御**：将来若有第 7 个登录入口漏写租户，
+  失败方向是"看不到数据"而非"全租户可见可写"。**要真正两向验证，需先有可造的租户缺失会话**
+  （例如新增登录入口时，在 e2e 脚本里刻意注入一个无租户 token）。
 
 #### 平台-BREAK-02 [P0] `insertFill` 无条件覆盖实体 tenantId ⇒ 跨租户写全部落错租户
 
@@ -86,13 +119,23 @@
 - **项目自己已踩过**：`SysTenantMenuMapper.java:24-31` 注释记着「给租户 A 授权写到会话租户头上（2026-09-18 实踩）」，`SysTenantMenuMapper.xml:36-40` 因此改用标量 `#{tenantId}` 绕过。
 - **数据佐证**：`sys_role_permission` 中 `role_tenant=1` 而关联行 `tenant_id=0` 的有 **16 行**、`=1` 的 518 行 —— 同一角色权限关联行租户标记不一致。
 - **修法**：改为「仅当 `getValue("tenantId") == null` 时填充」+ 单测覆盖「显式指定 ≠ 会话租户」。
-- **状态**：🔄 **代码已改（2026-09-20）** —— `MyBatisPlusConfig.java:253` 已加 `hasGetter` + `getValue(...) == null` 双重条件（并核实全仓无实体在自己初始化 `tenantId = 数字`，故无"显式 0 被跳过填充"风险）。**待办**：单测 + 编译验证。
+- **状态**：✅ **已闭环（2026-09-21）** —— `MyBatisPlusConfig.java:256-257` 的 `hasGetter` +
+  `getValue(...) == null` 双重条件保留，并补上单测
+  `core/base/core-base/src/test/java/cn/aiedge/base/config/TenantInsertFillTest.java`（4 例：
+  显式租户保留 / 按会话租户填充 / 无上下文保持 null / 不影响其它公共字段）。
+  **反向验证**：把守卫改回无条件覆盖后重跑，2 例失败且报
+  `expected: <7> but was: <9>`（正是"给租户 A 建数据却落到会话租户头上"），恢复后 4/4 通过。
+  全仓 grep 已确认无实体自初始化 `tenantId = 数字`，故无"显式 0 被跳过填充"风险。
 
 #### 平台-BREAK-03 [P1] 51 行业务数据 `tenant_id IS NULL`，对任何租户都不可见
 
 - **证据**（全库动态扫 494 张含 `tenant_id` 的表）：`budget_item` 21 / `annual_budget` 15 / `budget_execution_log` 7 / `finance_voucher_item` 6 / `erp_group_buy_activity` 1 / `finance_ledger` 1 = **51 行**。
 - **成因**：`setTenantId(null)` 共 12 处（`HrAttendanceServiceImpl.java:297`、`MallKeywordServiceImpl.java:81`、`MallNoticeServiceImpl.java:83`、`CouponTemplateController.java:77` 等），依赖 `insertFill` 兜底，而**无上下文时 `insertFill` 是 no-op**。
 - **修法**：补 `tenant_id NOT NULL DEFAULT 0` + 一次性回填（需确认归属）+ 修 12 处调用点。
+- **同类但方向相反的实证（2026-09-21 补，见 平台-BREAK-01）**：`shop_user.tenant_id` 是
+  **NOT NULL 且无默认值**，而商城注册链同样不填 ⇒ 不是"落 NULL 行"，而是**注册直接插入失败**。
+  即同一根因（注册/建单链路没有租户上下文）在两种列定义下表现为两种故障：
+  **可空列 → 造出谁都看不见的行；NOT NULL 列 → 功能整条不可用**。修的时候要一起看。
 - **状态**：⬜
 
 #### 平台-BREAK-04 [P1] 租户初始化不写菜单授权 ⇒ 新租户管理员登录后看不到菜单
@@ -709,10 +752,44 @@
 - **验证**：新增 `tools/verify-module-mapping.cjs` **35/35** —— 13 模块名逐条比对、
   映射无孤儿模块码、**923/923 在役码 100% 有归属**、无同长前缀歧义、
   `analytics` 映射数为 0（已知缺口，断言为 0 以防被塞假码）、两租户各 13 条开通记录。
+- **✅ entitlement 门已实现（2026-09-21）** —— 新增 4 个文件 + 2 处登记：
+  | 文件 | 作用 |
+  |---|---|
+  | `core-base/.../entity/SysModulePermission.java` + `mapper/SysModulePermissionMapper.java` | `sys_module_permission` 的实体/Mapper（此前只有表、没有代码入口） |
+  | `core-api/.../module/service/ModuleEntitlementService.java` | 码→模块解析（**最长前缀优先、同长取 sort 小**）+ 租户开通集合缓存（30s）+ 前缀规则缓存（5min） |
+  | `core-api/.../module/interceptor/ModuleEntitlementInterceptor.java` | 请求链判定，未开通 → `BusinessException.forbidden("模块未开通：<名>（<码>），请联系平台管理员")` |
+  | `core-api/.../config/WebMvcConfig.java` | 注册 **order 3**（core-base 不能反向依赖 core-api，故注册点只能在这里） |
+  · `MyBatisPlusConfig.IGNORE_TENANT_TABLES` 增加 `sys_module_permission`（平台级参考数据，
+    否则租户会话读它会被注入 `AND tenant_id=<会话租户>` → 一行读不到 → **这道门静默失效**）。
+  · `TenantModuleService` 新增 `getValidModuleCodesStrict()`（**不吞异常**），
+    原方法改为「调用它 + try/catch」以保持行为不变；目的是让门能区分
+    「真没开通」与「读库失败」——两者都判成 403，会把一次 DB 抖动放大成整租户不可用。
+- **判定链与三条「有意不拦」**（都写进了类注释）：码无归属前缀 → 不拦（`analytics` 整域无码；
+  把"查不到归属"当"未开通"会让任何新码当场 403）；超管 → 不拦；**读库失败 → 不拦**（fail-open + ERROR 日志）。
+  第三条与 `AiReadyTenantLineInnerInterceptor` 的 fail-closed 口径**故意相反**，理由不同：
+  数据边界必须 fail-closed，而模块门只表达"平台方卖没卖"，一次 DB 抖动不该让整租户全站 403。
+- **顺序已反编译确认**：`SaInterceptor`(order 1) 的 `preHandle` 内部先调
+  `SaStrategy.checkMethodAnnotation`（做 `@SaCheckPermission`）再跑 auth 函数，
+  故 order 3 天然在其之后 —— 无权限时报的仍是「无权限访问: xxx」而非「模块未开通」。
+  这个顺序**只会影响文案、不会报错**，所以必须显式断言，见验证脚本第 ② 组。
+- **覆盖口径（实测端点计数）**：认两种注解 —— `@SaCheckPermission` **1438 个端点**（主流）
+  与 `@RequirePermission` **18 个**。两者默认语义**相反**，已分别取值：
+  `SaCheckPermission.mode` 默认 **AND**（反编译 `AnnotationDefault: SaMode.AND` 确认），
+  `RequirePermission.logical` 默认 **OR** ⇒ OR 语义下"第一个码的模块没开通"不足以拦人
+  （用户可能靠第二个码进得来），必须全不满足才拦。**这个参数不能省。**
+- **两处已知不覆盖/顺序例外**（都写进了类注释）：
+  ① `CrmPermissions.require(code)` 这类**程序化**校验共 3 处（在 crm 子模块，因为它只依赖
+     core-base 拿不到注解）—— 没有可枚举的注解，模块门看不见它们。不是权限被放开，
+     是模块门对那 3 个接口不生效；要收口需改成 `@SaCheckPermission`（sa-token 注解任何模块都能用）。
+  ② `@RequirePermission` 由 **AOP 切面** `PermissionAspect` 处理，而 AOP 切的是方法调用、
+     永远晚于所有拦截器 `preHandle` ⇒ 这 18 个端点上模块门会**先于**权限检查说话。
+     两者都是 403 且都真实成立，故未为此把那批判定搬进切面（代价是同类拒绝文案不同）。
 - **⚠️ 遗留（这是下一段活的全部内容）**：
-  ① **后端 entitlement 门**：把 `TenantModuleService.hasModuleAccess()` 接进请求链
-     （位置在 `@SaCheckPermission` 之后，超管豁免，403 语义要与"无权限"可区分），
-     并在模块开通/停用时**自动派生/回收该租户的授权**；
+  ① **模块开通/停用没有写入入口**：`TenantModuleService.assignModule()` / `removeModule()`
+     **全仓零调用方**（实测 grep），`SetAppCenterController` 与 `TenantModuleController` 都只读，
+     前端 `views/admin/tenant/module-auth` 也只有查询。
+     ⇒ 现在这道门**只能拦、不能放**：平台方无法从界面上给租户开关模块（只能改库）。
+     原「开通/停用时自动派生/回收该租户的授权」因此**无法开工**，属要先补的产品能力（写接口 + 码 + 页面）。
   ② **分析模块整域没有权限码**（`analytics%` 查询 0 行，`/views/analytics/**` 只有登录校验，
      见 E-08）⇒ 该模块的映射先建成空表，码族要单独设计；
   ③ ~~平台级「系统」模块该开给谁~~ **✅ 已裁定（2026-09-21 用户）**：
@@ -747,7 +824,8 @@
     已加 `|| true`，空结果会走"没有正在运行的后端实例"分支。
 - **状态**：🔄 名册与映射表 ✅（`verify-module-mapping.cjs` **43/43**）；
   「系统」只开系统租户 ✅（`V11.455.0`）；**租户管理码族 ✅（`V11.456.0` + `V11.457.0`）**；
-  entitlement 门本身 ⬜ 待做（**口径阻塞已解除**，可开工）
+  **entitlement 门 ✅ 已实现并实机验证**（`tools/verify-module-entitlement.cjs`，
+  拒绝/放行/顺序/恢复四组）；**剩「模块开通/停用写入入口」缺失 ⇒ 这道门目前只能拦不能放**。
 
 ---
 
@@ -1123,7 +1201,54 @@
 - **修法**：去掉硬编码，租户取当前会话（`SecurityUtils.getCurrentTenantId()` / `insertFill` 自动填充）；
   `RuntimeException` → `BusinessException.notFound`。**与该类的 `@SaCheckPermission` 补注解同批做**
   （它现在整类 40 端点零鉴权，见 MD-AUTHZ-01）。
-- **状态**：⬜
+- **状态**：🔄 **硬编码租户与异常口径已修（2026-09-21），鉴权注解仍待做**。实际改动比本条原描述更大——
+  **同类硬编码在 crm 域共 7 处**（读源实测），已一次性收口：
+  | 文件 | 原写法 | 现写法 |
+  |---|---|---|
+  | `ContractController#create` | `contract.setTenantId(1L)` | 删除，走 `insertFill` |
+  | `QuotationController#create` | `quotation.setTenantId(1L)` | 删除 |
+  | `QuotationTemplateController#create` | `template.setTenantId(1L)` | 删除 |
+  | `MarketingCampaignController#create` | `campaign.setTenantId(1L)` | 删除 |
+  | `CustomerPoolServiceImpl#putToPool` / `#returnToPool` | `pool.setTenantId(1L)` | 删除 |
+  | `CustomerPoolMapper#countAvailable` | SQL 里写死 `AND tenant_id = #{tenantId}` + 调用方传 `1L` | 删条件与入参，交给租户拦截器 |
+  **异常口径**：crm 域 4 处 `throw new RuntimeException("xx不存在")` 全部改 `BusinessException.notFound`
+  （`ContractController:59`、`QuotationController:55`、`QuotationTemplateController:41`、
+  `MarketingCampaignController:55`）。
+  **验证**：`./mvnw -o -DskipTests -pl crm -am compile` **BUILD SUCCESS**。
+  **仍待办 ①**：该类 40 端点的鉴权注解（见 MD-AUTHZ-01 / E-08）。
+  **仍待办 ②（本轮有意不动）**：死代码里还剩 2 处同款硬编码租户 1，**均无任何调用方**（grep 实测）：
+  `ContractServiceImpl#listByStatus`（`baseMapper.selectByStatus(status, 1L)`）与
+  `MarketingCampaignServiceImpl#listByStatus`（同写法），对应 Mapper 是
+  `WHERE ... AND tenant_id = #{tenantId}`。它们不是活缺陷，但一旦被调用就是「查别的租户」——
+  建议随「死代码清理」批次**整方法删除**（属 平台-CLEAN / MD-DUP 同类），而不是改一改继续留着。
+
+#### CRM-BREAK-03 [P0] 软删单据后再新建 ⇒ 撞唯一索引报 400（当天最后一张的号会被复用）
+
+- **证据（2026-09-21 实机复现，非推测）**：`crm_contract` 上
+  `uk_crm_contract_no UNIQUE(contract_no)` **不含 `deleted`**（真库 `pg_indexes` 已核），
+  而 `ContractServiceImpl#generateContractNo()` 统计的是
+  `likeRight(contractNo, 前缀).eq(deleted, 0).orderByDesc(...).last("LIMIT 1")`
+  ⇒ **软删行不参与计数，但占着号**。把当天最后一张合同软删掉之后，
+  下一次生成又拿回同一个号，插入直接撞唯一索引，前端看到的是
+  **400「请求数据不完整或存在冲突」**（`DataIntegrityViolationException` 的兜底文案），
+  而不是任何与"合同号冲突"有关的提示。实测：软删 `CT202609210001` 后新建即复现。
+- **波及面**：crm 域共有 **12 个 `uk_crm_*` 唯一索引**都是「业务单号 UNIQUE、不含 deleted」
+  （contract / quotation / quotation_template / lead / opportunity / customer /
+  follow_up / campaign / content / channel / visit_plan / contract_change），
+  且 `QuotationServiceImpl#generateQuotationNo`、`QuotationTemplateServiceImpl#generateTemplateCode`
+  用的是**同一套"查最大号 +1"算法** ⇒ 同一缺陷同构存在，不是合同独有。
+- **为什么容易踩**：列表页"删除"走的是软删（`deleted=1`），单据在界面上"没了"，
+  但号码还在库里 —— 用户会认为是新单据没保存上。
+- **修法（三选一，需拍板）**：
+  ① `generateContractNo` 去掉 `.eq(deleted, 0)`（把软删行也算进序号）—— 一行改动，最小风险，
+     代价是号段有洞但绝不重号；
+  ② 唯一索引改为**部分唯一索引** `WHERE deleted = 0` —— 语义最正确，但 12 张表都要改，
+     且**存量软删行会立刻产生同号冲突**，必须先清洗数据；
+  ③ 单号改为「日期 + 随机/序列」不再"查最大+1" —— 改动最大，能顺带解决并发下的
+     "两个请求算出同一个号"（现算法天然有竞态）。
+- **状态**：⬜ **本轮只做到"定位 + 复现 + 不被它挡住"**（验证脚本
+  `tools/verify-crm-tenant-fix.cjs` 因此改用**硬删除**清场，并在文件头写明了原因）。
+  修法需要拍板，未擅自改。
 
 #### CRM-CAP-01 [P2] CRM「售后阶段」（工单 / 售后）功能缺失 —— 用户口径：后期迭代补
 
@@ -1375,6 +1500,17 @@
 | 2026-09-21 | STK-BREAK-03 | 防再生落 DB：迁移 `V11.440.0` 给 `wms_inventory` + `erp_stock` 各加 4 条 CHECK（幂等 DO 块）。**不加冗余断言**——四条 Service 路径本身守恒，历史违规全来自绕过 Service 的直写（STK-BREAK-02 那批反向路径），约束才是覆盖全部写入方的收口点 | ✅ 8 条约束落库；回归 `verify-tenant-hardening` **14/14** + `verify-permission-changes` **23/23** |
 | 2026-09-21 | **提交 + 推送** | 上一批 175 文件 / +13675 −5218 提交为 `ce0dd04a9`，推送 `origin`(gitee) `3db75f8a0..ce0dd04a9` | ✅ 本地与 `origin/localization` 同步。⚠️ `github` 远端 `localization` **落后 93 个提交**且长期未同步（最老缺失 `d40ac870`），**未推**，待确认是否废弃 |
 | 2026-09-21 | **E-04 权限码（7/9）** | 新增 `tools/gen-module-permission-seed.py`（按类级路由路径推导「域:资源:动作」，`--apply` 幂等插注解）。生成并应用 `V11.441.0`~`V11.447.0` 七个迁移，**485 个新权限码**，全部带 `api_path`/`method` 并显式关联超管角色 | ✅ `sys_permission` **500 → 994**；`api_path` **238/474 → 734/994**；同码重复 0 组；迁移全部 `success`；每个迁移均事务内干跑 + 幂等重跑校验 |
+| 2026-09-21 | CRM-BREAK-02 | crm 域硬编码租户 **7 处**一次收口（4 个 Controller 的 `setTenantId(1L)`、`CustomerPoolServiceImpl` 2 处、`CustomerPoolMapper#countAvailable` 的 SQL 条件与入参）；异常口径 4 处 `RuntimeException` → `BusinessException.notFound`。新增 `tools/verify-crm-tenant-fix.cjs` | ✅ 编译 `BUILD SUCCESS`；**实机 4/4**：租户 2 建合同落库 `tenant_id = 2`（DB 直查两条探针行均 =2，探针行已 `deleted=1` 回收）、查不存在合同 → **404「合同不存在」**（修复前为 500「系统异常」） |
+| 2026-09-21 | 平台-BREAK-02 | 补单测 `TenantInsertFillTest`（core-base，4 例） | ✅ **4/4**，且**反向验证**：改回无条件覆盖后 2 例失败并报 `expected: <7> but was: <9>` |
+| 2026-09-21 | 平台-BREAK-01 | `shouldSkip()` 语义收紧（已登录无租户 → fail-closed）；`MallAuthServiceImpl#login`/`#refreshToken` 补写会话租户；同步订正 PDA / 打印端两处已过期的 fail-open 注释 | 编译 **BUILD SUCCESS**（core-base + erp-mall + wms + crm，6 模块）；**实机回归 3 套全绿**：`verify-tenant-hardening` **14/14**、`verify-permission-changes` **23/23**、`verify-module-mapping` **43/43**；未登录白名单链路（登录本身即跨租户查 `sys_user`）与游客商城入口均正常 |
+| 2026-09-21 | ⚠️ 验证边界声明 | 平台-BREAK-01 的**拒绝分支（已登录却无租户）当前无法用 API 触达** —— 全仓 6 处 `StpUtil.login()` 已有 5 处写租户、第 6 处是死代码，即"漏洞入口"已不存在 | 该分支属**纵深防御**：价值在于将来新增的第 7 个登录入口漏写时**失败方向是"看不到"而不是"全租户可见"**。已用 37 项回归覆盖其两条放行分支，拒绝分支只有代码级论证 |
+| 2026-09-21 | STK-BREAK-01 复核 | DB 实测两轨对齐：`erp_stock` 4 行 / `wms_inventory` 3 行，共同 key 全部相等（`0/0`、`152/152`、`95/95`，原 95 vs 43 漂移已消失） | ⚠️ 残留 1 行"ERP 有、WMS 无"：`product_id=2073239284579586050, warehouse_id=2, qty=0`（2026-09-10 起未再变动）。**零数量、无价值漂移**，但说明"ERP 侧可存在 WMS 无对应行的库存行"，对账脚本应按 key 而非按行数比对 |
+| 2026-09-21 | **平台-MODULE-01 entitlement 门** | 新增 `SysModulePermission` 实体/Mapper、`ModuleEntitlementService`（码→模块 + 双缓存）、`ModuleEntitlementInterceptor`（order 3）、`WebMvcConfig` 注册；`IGNORE_TENANT_TABLES` 增 `sys_module_permission`；`TenantModuleService` 增 `getValidModuleCodesStrict()` | ✅ 编译 **BUILD SUCCESS**；新增 `tools/verify-module-entitlement.cjs` **8/8**：超管豁免 200、有码+模块开通 200、**停用模块后同一人同一接口 403「模块未开通：设置（settings）」**、恢复后回到 200（全程 `status` 复原核对 = 0） |
+| 2026-09-21 | 模块门 · 顺序断言 | 用「租户 2 调 `/tenant/page`」做**唯一可证伪**的排序证据：该用户既无 `system:tenant:list` 码、租户也没开 `system` 模块 | ✅ 文案是 `无权限访问: system:tenant:list` 而**不是**「模块未开通」⇒ 证明模块门（order 3）确实排在 `@SaCheckPermission`（`SaInterceptor` order 1 内部）之后 |
+| 2026-09-21 | 模块门 · 全量回归 | 后端重启（模块门是全局行为改动，必须回归） | ✅ 四套全绿：`verify-tenant-hardening` **14/14**、`verify-permission-changes` **23/23**、`verify-module-mapping` **43/43**、`verify-module-entitlement` **8/8** |
+| 2026-09-21 | ⚠️ 模块门的已知缺口 | ① `analytics` 整域无权限码 ⇒ 该模块映射到 0 条码，门对它不生效（与映射脚本"断言为 0"一致）；② 码无归属前缀时**放行**（不是拦），否则任何新写的码会当场 403；③ 端口缓存 30s ⇒ 平台侧改开关后最迟 30s 生效 | ① ② 已写进 `ModuleEntitlementService` 类注释；③ 由 `evictTenant()` 兜底（供将来的开通/停用接口调用），跨实例场景需另接 Redis 失效广播 |
+| 2026-09-21 | 模块门 · 覆盖与语义补正 | 实测两种权限注解 **`@SaCheckPermission` 1438 端点（默认 AND，已反编译确认）+ `@RequirePermission` 18 端点（默认 OR）**，语义相反故分别取值；OR 下"全不满足才拦"，否则会误伤 | ✅ 编译通过；仍 **8/8 + 14/14 + 23/23 + 43/43** 全绿。另记录两处例外：`CrmPermissions.require()` 程序化校验 3 处不被覆盖；`@RequirePermission` 走 AOP 故模块门会先于权限检查说话（两边都 403、都真实成立） |
+| 2026-09-21 | **CRM-BREAK-03（本轮新发现）** | `uk_crm_contract_no UNIQUE(contract_no)` 不含 `deleted`，而 `generateContractNo()` 只数 `deleted=0` 的行 ⇒ **软删当天最后一张合同后再新建必然 400「请求数据不完整或存在冲突」**。crm 域同构的 `uk_crm_*` 唯一索引共 **12 个**，报价单/报价模板用的是同一套算法 | 实机复现（软删 `CT202609210001` 后新建即撞）；已在验证脚本改用硬删除清场并写明原因。**修法需拍板**，未擅自改 |
 | 2026-09-21 | **E-01 鉴权注解（7 模块）** | 给 budget / fixedasset / stock+product+md / invoice / payment / party / marketing 共 **97 控制器 / 709 端点**补 `@SaCheckPermission` | ✅ 新增 `tools/verify-module-authz.cjs`（**两向断言**：超管放行证明码在库 + 非超管被拒证明注解生效）**7 模块全绿**；无 `@SaCheck*` 控制器 **224(57%) → 139(35%)**；端点 2028 → 1319 |
 | 2026-09-21 | 门禁棘轮同步 | `known-unauthorized-controllers.txt` 删除 **104 行**（85 本轮 + 19 历史过期：含 09-20 erp-finance 批量迁移与已删除的 `FieldPermissionController`） | ✅ `AuthzAnnotationCoverageTest` + `PointcutTargetExistenceTest` **4/4 通过**（含 `baselineMustNotBeStale`） |
 | 2026-09-21 | 三个回归复跑 | `verify-tenant-hardening` / `verify-permission-changes` / `verify-purchase-contract` | ✅ **14/14、23/23、17/17** 全绿 |
@@ -1423,6 +1559,7 @@
 | 2026-09-21 | **🔴 工具坑：`build-backend.sh` 在"无实例在跑"时静默 exit 1（已修）** | 脚本是 `set -euo pipefail`，而 `find_backend_pids` 末尾的 `grep -E '^[0-9]+$'` 在"没有实例"时无匹配返回 1 ⇒ pipeline 返 1 ⇒ 赋值语句触发 `set -e` ⇒ **立刻退出**；因为退出发生在任何 `echo` 之前，现场表现是**零输出 + exit 1**（极易被误判成"构建卡住/环境坏了"）。触发路径很普通：上一次启动失败（迁移报错）之后本来就没有实例，再跑构建就什么都看不到 —— 本轮连续踩了两次。已加 `\|\| true`，空结果会走到"==> 没有正在运行的后端实例"分支。 | ✅ 修复后连续三次构建重启均正常打印 |
 | 2026-09-21 | **用户裁定：另立「租户管理」码族 `tenant-admin:`（迁移 `V11.456.0` + `V11.457.0`）** | 冲突：租户内"人/角色/权限"的码前缀都是 `system:`、按映射全归「系统」模块，而「系统」已收紧为只开给系统租户 ⇒ 业务租户再无码可管理自己的用户与角色；但用户口述又说"部门管理员权限由租户的系统管理员配置"。**裁定 ③：另立码族，归「设置」（租户级）模块。**<br>· 7 个子域从 `system:` 剥离：user / role / permission / data-scope / field-permission / record-rule / sod-rule<br>· 5 个原裸前缀子域并入同族：department / position / permission-template / role-inheritance / **data-scope**<br>· 合计 **72 条码**；映射表加 `tenant-admin:` → 「设置」，清掉「系统」里已迁走的 5 条前缀。<br>新增 `tools/rename-permission-prefix.py`（**从真库读码 → 整码精确匹配 → 跨后端注解/前端指令/种子一起改 → 复扫断言零残留**），实测 **225 处 / 24 文件**，改动是干净的 1:1 替换。 | ✅ 两个迁移 Flyway `success`；`verify-module-mapping.cjs` **43/43**；`verify-authz-batch45.cjs` **66/66**（新增第⑥段：7 个新码在库且旧码不存在 + 6 个端点「超管非 403 / 非超管 403」+ 一条正向对照 `tenant-admin:user:list` 被租户侧角色真实持有，故 `/user/page` 对非超管放行是**正确行为**）；**生效性数字一字未变**（`934 = 902 + 21 + 11`，后端 1615 处 / 前端 324 处）⇒ 证明改名左右对称、没有码丢失消费方。<br>⚠️ 脚本第一版的两个坑（CSS `position:relative` 误伤、`data-scope` 半搬）已修并写进脚本注释；后者是靠"在役码 100% 有归属"断言抓出来的 |
 | 2026-09-21 | **用户裁定：「系统」模块只开给系统租户；「设置」是租户级管理设置模块（迁移 `V11.455.0`）** | 上个迁移（V11.454.0）为"不替业务做减法"把 13 个模块全量补给了两个租户，并在末尾登记了这个待裁定项。现按裁定收紧：**软删非系统租户的 `system` 开通记录**（回收的是开通记录，不是模块本身，可回滚），系统租户缺则补上。本迁移**只动 entitlement 名册，不动权限码、不动鉴权注解** —— `hasModuleAccess()` 仍是零调用方，故**不改变任何接口今天的可达性**。<br>🔴 **顺带暴露新问题（已登记，等裁定）**：租户内的用户/角色/权限管理码前缀都是 `system:`，按映射全归「系统」模块 ⇒ 收紧后**业务租户再无码可管理自己的用户与角色**（「设置」现有码不含 user/role/dept/position）；而用户口述又说"部门管理员权限由租户的系统管理员配置"。两者对不上，**不猜、不动映射表**，否则 entitlement 门一上租户 2 连配角色都做不到。 | ✅ Flyway `success`；`verify-module-mapping.cjs` **39/39**（新增第⑥⑦段钉住裁定：`system` 开通租户**恰好只有 1**、系统租户 13 个模块、业务租户 12 个、业务租户必须有「设置」、`sys_module` 里模块仍在、无悬空开通行） |
+| 2026-09-21 | **bump version 0.3.21 → 0.3.22（用户指令"更新版本"）** | 版本号只存在于两处、必须同改：`backend/pom.xml` 的 `<revision>`（全 30 个模块经 `${revision}` 继承）+ `tools/build-backend.sh` 里写死的 jar 名（已重构成 `VERSION` 常量，并同步 powershell 匹配串与注释）。<br>**⚠️ 这一轮又踩出三个版本相关的坑，全部已修并写进脚本注释**：<br>① **bump 后必须做【全仓】构建**：版本一变，本地 Maven 仓库里那批 `xxx:0.3.21` 的 jar 全部对不上，只构建核心模块时 core-api 直接报 **20 个依赖 absent**（`core-agent/core-notification/crm/erp-*/hr-base/wms/dms-delivery`…）。正确顺序：先 `cd backend && ./mvnw clean install -DskipTests -B`（不写 `-pl`），再跑本脚本。<br>② **bump 前必须先停掉旧版本实例**：`stop_backend` 按 jar 名匹配进程，版本号一改就匹配不到正在跑的旧实例 ⇒ 端口仍被占、clean 删不掉旧 jar。<br>③ **并发跑两次构建会把 jar 从运行中实例的脚下换掉**：实测第一个实例启动到第 10 秒时报 `NoClassDefFoundError: ch/qos/logback/classic/spi/ThrowableProxy`（jar 完整性检查却是 OK），而**该 exec jar 的时间戳正好是实例崩溃那一刻** —— 是并发的第二次 `clean install` 重写了它。表象极具误导性（像是"jar 坏了/依赖缺失"），实际是构建并发冲突。<br>④ **另发现环境冲突（非本仓问题，已如实记录）**：`tool-results/system-module/core-api-mine.jar` 有**另一个会话的副本实例在抢 5655 端口**（构建脚本头注释早就警告过"别动 tool-results 里其它会话的副本"）。故本轮重启期间出现过"端口被占/实例身份不清"的干扰，验证结论均以**确认 PID 属于本单位实例**的结果为准。 | ✅ 全仓构建 **BUILD SUCCESS（30 模块 / 7:24）**；0.3.22 产物实测能起（`logs/backend-20260921-215102.log`：`Starting AiReadyApplication v0.3.22` + 134.6s 起完）；bump 后四个验证脚本全绿：`verify-module-mapping` **43/43**、`verify-authz-batch45` **66/66**、`verify-authz-batch1` **32/32**、`verify-authz-batch2` **18/18** |
 
 ---
 

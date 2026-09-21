@@ -55,8 +55,8 @@ public class PdaAuthController {
         }
 
         StpUtil.login(user.getId());
-        // 与主站登录同口径：必须写租户上下文。否则多租户拦截器取不到会**整体跳过过滤**（fail-open），
-        // 该 token 将对所有租户表全租户可见可写。
+        // 与主站登录同口径：必须写租户上下文。漏写时该会话会被租户拦截器判为
+        // 「已登录但无租户」，查询/写入全部落空（fail-closed）——不是能看别人数据，而是什么都看不到。
         StpUtil.getSession().set("tenantId", tenantId);
         StpUtil.getSession().set("tenantScopeExempt", StpUtil.hasRole("SUPER_ADMIN"));
         String token = StpUtil.getTokenValue();

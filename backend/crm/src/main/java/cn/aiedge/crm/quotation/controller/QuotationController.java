@@ -1,5 +1,6 @@
 package cn.aiedge.crm.quotation.controller;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.crm.quotation.dto.QuotationCreateDTO;
 import cn.aiedge.crm.quotation.dto.QuotationItemDTO;
 import cn.aiedge.crm.quotation.dto.QuotationVO;
@@ -52,7 +53,7 @@ public class QuotationController {
     public QuotationVO getById(@PathVariable Long id) {
         Quotation quotation = quotationService.getById(id);
         if (quotation == null) {
-            throw new RuntimeException("报价单不存在");
+            throw BusinessException.notFound("报价单不存在");
         }
         QuotationVO vo = convertToVO(quotation);
         List<QuotationItem> items = quotationService.getItems(id);
@@ -94,7 +95,7 @@ public class QuotationController {
     public QuotationVO create(@RequestBody QuotationCreateDTO dto) {
         Quotation quotation = new Quotation();
         BeanUtils.copyProperties(dto, quotation);
-        quotation.setTenantId(1L);
+        // tenantId 交由 MetaObjectHandler 从会话租户填充，不再硬编码 1（CRM-BREAK-02 同类）
         quotation.setCreateBy(StpUtil.getLoginIdAsLong());
         List<QuotationItem> items = null;
         if (dto.getItems() != null) {

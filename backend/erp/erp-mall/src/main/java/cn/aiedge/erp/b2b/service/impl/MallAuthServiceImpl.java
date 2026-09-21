@@ -66,6 +66,14 @@ public class MallAuthServiceImpl implements MallAuthService {
         // 登录到 Sa-Token
         StpUtil.login(user.getId());
 
+        // ⚠️ 必须在下面的 buildIdentities 之前写入会话租户：
+        // buildIdentities 要查 biz_party / shop_user_party_link，而这些查询会经过租户拦截器；
+        // 「已登录但 session 里没有 tenantId」在拦截器侧是 fail-closed（平台-BREAK-01），
+        // 写晚了会让身份列表恒为空。与主站登录 SysUserServiceImpl#login 同口径。
+        if (user.getTenantId() != null) {
+            StpUtil.getSession().set("tenantId", user.getTenantId());
+        }
+
         // 加载可用身份列表，默认激活个人会员身份
         List<IdentityDTO> identities = buildIdentities(user);
         Long defaultActiveId = identities.stream()
@@ -196,7 +204,14 @@ public class MallAuthServiceImpl implements MallAuthService {
     @Override
     public String refreshToken() {
         log.info("刷新商城用户token");
-        StpUtil.login(StpUtil.getLoginIdAsString());
+        // StpUtil.login 会重建会话，会话里的租户标记随之丢失；必须在重建后补写，
+        // 否则「刷新过 token 的会话」又变回「已登录但无租户上下文」（平台-BREAK-01）。
+        // 先按旧会话取用户（此时旧 tenantId 还在，查询正常），再重建。
+        ShopUser user = currentShopUser();
+        StpUtil.login(user.getId());
+        if (user.getTenantId() != null) {
+            StpUtil.getSession().set("tenantId", user.getTenantId());
+        }
         SaTokenInfo tokenInfo = StpUtil.getTokenInfo();
         return tokenInfo.getTokenValue();
     }

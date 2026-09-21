@@ -89,7 +89,6 @@ public class CustomerPoolServiceImpl extends ServiceImpl<CustomerPoolMapper, Cus
         pool.setExpireTime(LocalDateTime.now().plusDays(30));
         pool.setStatus(PoolStatus.AVAILABLE.getCode());
         pool.setRemark(remark);
-        pool.setTenantId(1L);
         save(pool);
         customer.setSalesPersonId(null);
         customer.setSalesPersonName(null);
@@ -143,7 +142,6 @@ public class CustomerPoolServiceImpl extends ServiceImpl<CustomerPoolMapper, Cus
         newPool.setExpireTime(LocalDateTime.now().plusDays(30));
         newPool.setStatus(PoolStatus.AVAILABLE.getCode());
         newPool.setRemark(remark);
-        newPool.setTenantId(1L);
         save(newPool);
         pool.setStatus(PoolStatus.RETURNED.getCode());
         updateById(pool);
@@ -177,7 +175,7 @@ public class CustomerPoolServiceImpl extends ServiceImpl<CustomerPoolMapper, Cus
 
     @Override
     public Integer getAvailableCount() {
-        return baseMapper.countAvailable(1L);
+        return baseMapper.countAvailable();
     }
 
     @Override

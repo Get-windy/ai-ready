@@ -23,8 +23,10 @@ public interface CustomerPoolMapper extends BaseMapper<CustomerPool> {
     @Select("SELECT * FROM crm_customer_pool WHERE customer_id = #{customerId} AND deleted = 0 ORDER BY pool_time DESC LIMIT 1")
     CustomerPool selectLatestByCustomer(@Param("customerId") Long customerId);
 
-    @Select("SELECT COUNT(*) FROM crm_customer_pool WHERE status = 1 AND deleted = 0 AND tenant_id = #{tenantId}")
-    Integer countAvailable(@Param("tenantId") Long tenantId);
+    // 不再手写 tenant_id 条件：本表由租户拦截器自动注入会话租户，
+    // 原来由调用方传 1L 会让非系统租户的统计恒为 0（CRM-BREAK-02 同类）
+    @Select("SELECT COUNT(*) FROM crm_customer_pool WHERE status = 1 AND deleted = 0")
+    Integer countAvailable();
 
     @Select("SELECT COUNT(*) FROM crm_customer_pool WHERE claim_sales_person_id = #{salesPersonId} AND deleted = 0")
     Integer countByClaimSalesPerson(@Param("salesPersonId") Long salesPersonId);
