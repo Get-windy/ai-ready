@@ -121,13 +121,34 @@ const N = (stmt) => Number(one(stmt))
     const sum = Object.values(byMod).reduce((a, b) => a + b, 0)
     ok(`各模块码数之和 = 在役码总数（${sum} = ${total}）`, sum === total, `${sum} vs ${total}`)
 
-    section('⑥ 既有租户的开通记录已回填（迁移口径：现状不降级）')
-    for (const t of ['1', '2']) {
-      const n = N(`SELECT count(*) FROM sys_tenant_module WHERE tenant_id = ${t} AND deleted = 0`)
-      ok(`租户 ${t} 开通记录 ≥ 13 条`, n >= 13, `实际 ${n} 条`)
-    }
+    section('⑥ 租户模块开通的语义（用户裁定 2026-09-21）')
+    // 裁定：平台级「系统」模块**只开给系统租户**（tenant 1）；「设置」才是租户级的管理设置模块。
+    const sysTenants = rowsOf(`SELECT DISTINCT tenant_id FROM sys_tenant_module
+      WHERE deleted = 0 AND module_code = 'system' ORDER BY tenant_id`).map(r => r[0])
+    ok('「系统」模块只开给系统租户(1)', JSON.stringify(sysTenants) === JSON.stringify(['1']),
+      `实际开通租户 = ${JSON.stringify(sysTenants)}`)
+
+    const t1 = N(`SELECT count(*) FROM sys_tenant_module WHERE tenant_id = 1 AND deleted = 0`)
+    ok('系统租户(1) 拥有全部 13 个模块', t1 === 13, `实际 ${t1} 条`)
+
+    const t2 = N(`SELECT count(*) FROM sys_tenant_module WHERE tenant_id = 2 AND deleted = 0`)
+    ok('业务租户(2) 拥有 12 个模块（13 减去平台级「系统」）', t2 === 12, `实际 ${t2} 条`)
+
+    const t2Settings = N(`SELECT count(*) FROM sys_tenant_module
+      WHERE tenant_id = 2 AND module_code = 'settings' AND deleted = 0`)
+    ok('业务租户(2) 拥有租户级「设置」模块（它是租户自己的管理设置入口）', t2Settings === 1,
+      `实际 ${t2Settings} 条`)
+
     const crmName = one(`SELECT DISTINCT module_name FROM sys_tenant_module WHERE module_code='crm' AND deleted=0`)
     ok('租户开通记录里 crm 名称已同步为「客户服务」', crmName === '客户服务', `实际「${crmName}」`)
+
+    section('⑦ 数据完整性（回收开通记录不得误删模块本身 / 不得留下悬空引用）')
+    const sysModRows = N(`SELECT count(*) FROM sys_module WHERE deleted = 0 AND module_code = 'system'`)
+    ok('sys_module 里的「系统」模块仍在（回收的是开通记录，不是模块）', sysModRows === 1, `实际 ${sysModRows} 条`)
+    const dangling = N(`SELECT count(*) FROM sys_tenant_module tm
+      WHERE tm.deleted = 0
+        AND NOT EXISTS (SELECT 1 FROM sys_module m WHERE m.module_code = tm.module_code AND m.deleted = 0)`)
+    ok('开通记录里无指向不存在模块的悬空行', dangling === 0, `悬空 ${dangling} 条`)
   } catch (e) {
     fail++
     console.error(`\n!! 异常中止: ${e.message}`)
