@@ -211,6 +211,11 @@
 | 5 | `erp.marketing.*` / `erp.b2b.*` | 含 C 端公开接口，需逐个甄别 |
 
 - **另**：`erp.pricing.controller.PriceApprovalController`（价格审批）单独补。
+- **⚠️ 实测标尺（2026-09-21，以 E-08 为准）**：**202 个控制器 / 1794 处端点**整类零权限注解
+  （E-01 原先按 2170 端点估的口径只算到"类内一个注解都没有"的那部分，两者不矛盾，
+  但**扫描脚本可复跑**，以后报告进度请用它的数字）。按模块：
+  `wms 23/172`、`erp-mall 13/113`、`crm 7/144`、`erp-pricing 6/50`、`erp-marketing 1/7`，
+  其余散落在 core-* 与 DMS/配送。
 - **状态**：🔄 **批次 3（stock）与部分批次 1 已完成（2026-09-21）** ——
   本轮给 **7 个模块 / 97 个控制器 / 709 处端点**补上了 `@SaCheckPermission`：
   budget(54) + fixedasset(50) + stock/product/md(288) + invoice(42) + payment(95) +
@@ -926,7 +931,11 @@
 #### STK-AUTHZ-01 [P1] `wms.*` / PDA 零权限码
 
 - 见 E-04；需先定 PDA 设备鉴权策略（`PdaAuthController` 本身还有 平台-BREAK-01 的漏写租户问题）。
-- **状态**：⬜
+- **状态**：⬜ **确认仍未做（2026-09-21 实测）** —— `wms` 模块实测仍有
+  **23 个裸控制器 / 172 端点**（含 `PdaAuthController` / `Pda*Controller` 一整套 PDA 端），
+  是 E-08 裸端点盘点里最集中的一块。
+  **必须先定的口径**：PDA 设备怎么鉴权（设备令牌？还是复用用户会话？）——
+  这决定补 `@SaCheckPermission` 之前要不要先换一套认证方式，**属拍板项**。
 
 ---
 
@@ -1096,6 +1105,25 @@
 - 匿名白名单已在 09-19 移除 ⇒ 现为「登录后越权」（低权限用户直调高权限接口）。
 - **修法**：E-01 批次 2（先补权限码种子）。
 - **状态**：🔄 **部分完成**（2026-09-21）：E-02 批次 2 已给 `CustomerController` 的 `list/update/delete` 接上 `crm:customer:{list,update,delete}`（另接线 `crm:lead:view`、`crm:opportunity:{create,view}`，两向验证 18/18）；`create/batchDelete/export/import` 等**仍未接线**，待后续批次（其码已在库：`crm:customer:*`）。
+  **实测剩余规模（2026-09-21 E-08 扫描）**：`crm` 域仍有 **7 个裸控制器 / 144 端点** ——
+  批次 2 只覆盖了 6 个端点，**这个模块的活才开头**（`ContractController` 一个类就 40 端点、
+  且它里面还有 `contract.setTenantId(1L)` 的硬编码租户，见 CRM 域条目）。
+
+#### CRM-BREAK-02 [P0] `ContractController` 新建合同**硬编码 `tenant_id = 1`**，且异常口径错
+
+- **证据（2026-09-21 读源发现）**：`backend/crm/.../contract/controller/ContractController.java`
+  的 `create()` 里写死 `contract.setTenantId(1L);` —— **任何租户建合同都落进租户 1（系统租户）**。
+  与 平台-BREAK-02（`insertFill` 无条件覆盖 tenantId）是同一类"跨租户写错位"，
+  但这里是**控制器里手写常量**，`insertFill` 的修复救不了它。
+- **同文件另一处**：`getById()` 用 `throw new RuntimeException("合同不存在")` —— 会被
+  `GlobalExceptionHandler` 兜底成 **HTTP 500「系统异常，请稍后重试」**，把"单据不存在（404）"
+  报成"服务故障"。本仓已有 `BusinessException.notFound(msg)`（→404），应改用它。
+  （与刚修完的 E-07 是同一类"异常语义错位"，只是这次在业务代码里。）
+- **影响**：跨租户数据污染（租户 2 建的合同出现在租户 1），且排查时会被 500 误导。
+- **修法**：去掉硬编码，租户取当前会话（`SecurityUtils.getCurrentTenantId()` / `insertFill` 自动填充）；
+  `RuntimeException` → `BusinessException.notFound`。**与该类的 `@SaCheckPermission` 补注解同批做**
+  （它现在整类 40 端点零鉴权，见 MD-AUTHZ-01）。
+- **状态**：⬜
 
 #### CRM-CAP-01 [P2] CRM「售后阶段」（工单 / 售后）功能缺失 —— 用户口径：后期迭代补
 
@@ -1170,7 +1198,13 @@
 #### MKT-AUTHZ-01 [P1] `erp.marketing.*` / `erp.b2b.*` 零权限码
 
 - 含 C 端公开接口，需**逐个甄别**哪些必须公开、哪些是后台管理（`MallAdminController` 等后台接口必须补）。
-- **状态**：⬜
+- **状态**：🔄 **一半已完成（2026-09-21 实测）** ——
+  · **marketing 侧 ✅ 基本收口**：E-01 那批已给 marketing 补 142 处注解，
+    实测剩余裸控制器 **1 个 / 7 端点**（另有 E-04 已补的 103 条 `marketing:*` 码）。
+  · **b2b / 商城侧 ⬜ 未做**：实测 `erp-mall` 仍有 **13 个裸控制器 / 113 端点**，
+    其中 `MallAdminController`（40 端点，后台管理）**必须补**；
+    C 端公开接口（`MallProductController` 等，走 `/api/v1/mall/**`）需按"确定公开"登记进基线，
+    不许用基线当"懒得甄别"的筐。
 
 ---
 
@@ -1184,10 +1218,16 @@
 - **✅ 已拍板（2026-09-21，用户）**：启用部门维度，先冻结不改代码（同 PUR-BREAK-02）。
 - **状态**：🔄 冻结中
 
-#### HR-AUTHZ-01 [P1] HR 模块 40 条僵尸权限码
+#### HR-AUTHZ-01 [P1] HR 模块 40 条僵尸权限码 —— ❌ **本条是误判，已关闭**
 
-- `E-02` 分布中 hr 占 40 条（集中在 crm 57 / hr 40 / finance 25 / system 25 / erp 23）。
-- **状态**：⬜
+- 原记录：`E-02` 分布中 hr 占 40 条（集中在 crm 57 / hr 40 / finance 25 / system 25 / erp 23）。
+- **❌ 该 40 条并非僵尸码，是工具误判**：`tools/gen-permission-effectivity.py` 的正则原先只认
+  `@RequirePermission`（**少一个 s**），而本仓 hr 域真正在用的是 core-base 的
+  `@RequiresPermission`（配 `PermissionAspect` 真实拦截，`HrController` 里就有 77 处）。
+  正则一修，hr 域的"僵尸码"**归零**，E-02 的规模也从 159 缩到 110（后续批次清理到 21）。
+- **实证**：E-02 闭环后，`GET /api/permission/effectivity` 的 `ineffective` 清单里
+  **hr 域 0 条**（见 `verify-authz-batch45.cjs` 第⑦段钉住的 21 条）。
+- **状态**：✅ **已关闭（2026-09-21，随 E-02 闭环；结论是"不存在这个工作"）**
 
 ---
 
@@ -1208,7 +1248,11 @@
 #### MISC-AUTHZ-01 [P1] `erp-fixed-asset`(8) / `erp-budget`(7) / `erp.payment`(9) 控制器无鉴权
 
 - 见 E-01 批次 1/3。
-- **状态**：⬜
+- **状态**：✅ **已完成（2026-09-21 实测更正：此前标 ⬜ 是过期）** ——
+  E-01 的「7 模块 / 97 控制器 / 709 端点」那批已包含 fixedasset(50) / budget(54) / payment(95)，
+  注解由 `tools/gen-module-permission-seed.py --apply` 统一插入。
+  **实测核对**：`tools/scan-unguarded-controllers.py` 里
+  `erp-fixedasset` / `erp-budget` / `erp-payment` **裸控制器均为 0 个**。
 
 ---
 
