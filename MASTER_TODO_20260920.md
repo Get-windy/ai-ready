@@ -1307,3 +1307,19 @@ SELECT 9592000 + row_number() OVER (ORDER BY p.id), 2065122951570362369, p.id, 1
 用户的要求（普通员工无利润权限 ⇒ 看不到当日毛利润；无汇总权限 ⇒ 看不到营业额）**不属于模块权益**，而是**同一页面上按权限裁剪字段/指标**。本仓已有的相关件：
 `sys_permission` 的 `data-permission` 域（8 条）、前端页面配置（`user_page_config:*` 列显隐）、以及 `FieldPermission*`（此前已在死代码清理中评估过）。
 ⇒ 单独立项：**工作台指标级权限**（哪些指标对哪些角色可见），不要塞进模块/权益体系。
+
+### 附三之补：模块划分与成熟系统的对照核验（2026-09-21 调研）
+
+| 用户口径 | 成熟系统是否如此 | 依据 |
+|---|---|---|
+| 销售（出库/收款方向）与采购对称 | ✅ 是 | SAP：**SD**（Sales & Distribution：订单/发货/开票）与 **MM**（Materials Management）对称，同属 Logistics |
+| 「交易」（网上订货/网络销售）独立于销售 | ✅ 是，且这正是两派的分野 | **Odoo 把 eCommerce 当一等公民 App**（与 Sales/Inventory/Website 原生打通）；**SAP 里 ecommerce 只评"basic"**、靠外围系统。本仓是"租户商城 + 平台交易"，更接近 Odoo 式 ⇒ 独立成模块成立 |
+| 仓储与资料分开 | ✅ 是，共识 | SAP：物料主数据/分类/批次在 **LO（General Logistics）** 或专门的 **Master Data Management**，与 **EWM/WM** 仓库作业分离；Odoo：Products（主数据）与 Inventory（作业）是两个 App |
+| dms 配送独立 | ✅ 是 | SAP **TM / LE**；Odoo Delivery |
+| hr 独立 | ✅ 是 | SAP HCM/SuccessFactors；Odoo HR |
+| 系统（平台级）与设置（租户级）分开 | ✅ 是，且是硬要求 | 平台管理（租户/模块/监控）与租户配置**必须分层**，否则租户管理员能触及平台级配置。本仓码数分布也印证：`system` 104 条 vs `set` 10 条 |
+| 分析独立 | ✅ 是 | SAP **BW/Analytics**；Odoo Reporting |
+| **工作台不是模块**，字段随用户权限裁剪 | ✅ **完全正确，且是关键洞察** | SAP Fiori Launchpad 的 tile 按角色裁剪；Odoo 仪表盘按权限隐藏指标。工作台是"门户页面"，其可见性属**字段/指标级权限** |
+| **「crm 是客服」** | ⚠️ **需澄清** | 成熟系统里 **CRM（线索/商机/报价 → 销售过程）** 与 **Service/Helpdesk（工单/售后 → 客服）** 是**两个不同 App**（Odoo 有 CRM + Helpdesk；SAP 有 CRM/CS）。本仓 CRM 菜单现为「外勤拜访/客户/线索/商机/报价/合同/发票/CRM报表」⇒ **语义上是 CRM（销售过程），不是客服**。若真要"客服"，内容对不上（缺工单/售后），应另立模块；若只是"给客服部门用"，那是**使用部门**表述而非模块语义 |
+
+**结论**：用户口径 8/9 与成熟系统一致，且"工作台不算模块""仓储与资料分开""交易独立"三条比本仓现状更贴近业界。**唯一要澄清的是 `crm` 到底是 CRM（销售过程）还是客服（Service/Helpdesk）** —— 这决定它是改名还是新增一个模块。
