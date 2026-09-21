@@ -29,7 +29,7 @@ public class RoleInheritanceController {
      */
     @Operation(summary = "设置角色继承关系")
     @PostMapping
-    @SaCheckPermission("role-inheritance:manage")
+    @SaCheckPermission("tenant-admin:role-inheritance:manage")
     public Result<Void> setRoleInheritance(
             @RequestParam Long parentRoleId,
             @RequestParam Long childRoleId,
@@ -43,7 +43,7 @@ public class RoleInheritanceController {
      */
     @Operation(summary = "批量设置角色继承关系")
     @PostMapping("/batch")
-    @SaCheckPermission("role-inheritance:manage")
+    @SaCheckPermission("tenant-admin:role-inheritance:manage")
     public Result<Void> batchSetRoleInheritance(
             @RequestParam Long parentRoleId,
             @RequestBody List<Long> childRoleIds,
@@ -57,7 +57,7 @@ public class RoleInheritanceController {
      */
     @Operation(summary = "删除角色继承关系")
     @DeleteMapping
-    @SaCheckPermission("role-inheritance:manage")
+    @SaCheckPermission("tenant-admin:role-inheritance:manage")
     public Result<Void> removeRoleInheritance(
             @RequestParam Long parentRoleId,
             @RequestParam Long childRoleId) {
@@ -70,7 +70,7 @@ public class RoleInheritanceController {
      */
     @Operation(summary = "获取角色的所有父角色")
     @GetMapping("/parents/{childRoleId}")
-    @SaCheckPermission("role-inheritance:view")
+    @SaCheckPermission("tenant-admin:role-inheritance:view")
     public Result<List<Long>> getParentRoleIds(@PathVariable Long childRoleId) {
         List<Long> parentRoleIds = roleInheritanceService.getParentRoleIds(childRoleId);
         return Result.ok(parentRoleIds);
@@ -81,7 +81,7 @@ public class RoleInheritanceController {
      */
     @Operation(summary = "获取角色的所有子角色")
     @GetMapping("/children/{parentRoleId}")
-    @SaCheckPermission("role-inheritance:view")
+    @SaCheckPermission("tenant-admin:role-inheritance:view")
     public Result<List<Long>> getChildRoleIds(@PathVariable Long parentRoleId) {
         List<Long> childRoleIds = roleInheritanceService.getChildRoleIds(parentRoleId);
         return Result.ok(childRoleIds);
@@ -92,7 +92,7 @@ public class RoleInheritanceController {
      */
     @Operation(summary = "获取角色继承的所有权限")
     @GetMapping("/permissions/{roleId}")
-    @SaCheckPermission("role-inheritance:view")
+    @SaCheckPermission("tenant-admin:role-inheritance:view")
     public Result<List<Long>> getAllRolePermissionsWithInheritance(@PathVariable Long roleId) {
         List<Long> allPermissions = roleInheritanceService.getAllRolePermissionsWithInheritance(roleId);
         return Result.ok(allPermissions);

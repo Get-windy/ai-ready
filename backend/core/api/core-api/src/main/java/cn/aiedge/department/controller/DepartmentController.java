@@ -31,7 +31,7 @@ public class DepartmentController {
 
     @Operation(summary = "分页查询部门")
     @GetMapping("/page")
-    @RequiresPermission("department:list")
+    @RequiresPermission("tenant-admin:department:list")
     public ApiResponse<PageResult<DepartmentVO>> pageList(DepartmentQueryRequest request) {
         return ApiResponse.ok(departmentService.pageList(request));
     }
@@ -58,21 +58,21 @@ public class DepartmentController {
 
     @Operation(summary = "获取部门详情")
     @GetMapping("/{id}")
-    @RequiresPermission("department:query")
+    @RequiresPermission("tenant-admin:department:query")
     public ApiResponse<DepartmentVO> getDetail(@PathVariable Long id) {
         return ApiResponse.ok(departmentService.getDetail(id));
     }
 
     @Operation(summary = "创建部门")
     @PostMapping
-    @RequiresPermission("department:create")
+    @RequiresPermission("tenant-admin:department:create")
     public ApiResponse<Long> create(@RequestBody DepartmentVO request) {
         return ApiResponse.ok(departmentService.create(request));
     }
 
     @Operation(summary = "更新部门")
     @PutMapping("/{id}")
-    @RequiresPermission("department:edit")
+    @RequiresPermission("tenant-admin:department:edit")
     public ApiResponse<Void> update(@PathVariable Long id, @RequestBody DepartmentVO request) {
         departmentService.update(id, request);
         return ApiResponse.ok();
@@ -80,7 +80,7 @@ public class DepartmentController {
 
     @Operation(summary = "删除部门")
     @DeleteMapping("/{id}")
-    @RequiresPermission("department:delete")
+    @RequiresPermission("tenant-admin:department:delete")
     public ApiResponse<Void> delete(@PathVariable Long id) {
         departmentService.delete(id);
         return ApiResponse.ok();
@@ -88,7 +88,7 @@ public class DepartmentController {
 
     @Operation(summary = "批量删除部门")
     @DeleteMapping("/batch")
-    @RequiresPermission("department:delete")
+    @RequiresPermission("tenant-admin:department:delete")
     public ApiResponse<Void> batchDelete(@RequestBody List<Long> ids) {
         departmentService.batchDelete(ids);
         return ApiResponse.ok();
@@ -96,7 +96,7 @@ public class DepartmentController {
 
     @Operation(summary = "更新部门状态")
     @PutMapping("/{id}/status")
-    @RequiresPermission("department:edit")
+    @RequiresPermission("tenant-admin:department:edit")
     public ApiResponse<Void> updateStatus(@PathVariable Long id, @RequestParam Integer status) {
         departmentService.updateStatus(id, status);
         return ApiResponse.ok();
@@ -104,7 +104,7 @@ public class DepartmentController {
 
     @Operation(summary = "移动部门")
     @PostMapping("/{id}/move")
-    @RequiresPermission("department:edit")
+    @RequiresPermission("tenant-admin:department:edit")
     public ApiResponse<Void> move(@PathVariable Long id, @RequestBody MoveRequest request) {
         departmentService.move(id, request.getTargetId(), request.getPosition());
         return ApiResponse.ok();
@@ -112,7 +112,7 @@ public class DepartmentController {
 
     @Operation(summary = "导出部门")
     @GetMapping("/export")
-    @RequiresPermission("department:list")
+    @RequiresPermission("tenant-admin:department:list")
     public void export(DepartmentQueryRequest request, HttpServletResponse response) throws IOException {
         departmentService.export(request, response);
     }

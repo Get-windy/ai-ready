@@ -282,48 +282,55 @@ public class PermissionInitializationConfig implements ApplicationRunner {
 
         // 创建岗位管理权限
         List<SysPermission> positionPermissions = Arrays.asList(
-            createPermission("岗位管理", "position:manage", 1, "/position", null, null, 41),
-            createPermission("岗位查询", "position:list", 3, null, "/api/position/page", "GET", 42),
-            createPermission("岗位创建", "position:create", 3, null, "/api/position", "POST", 43),
-            createPermission("岗位更新", "position:edit", 3, null, "/api/position/*", "PUT", 44),
-            createPermission("岗位删除", "position:delete", 3, null, "/api/position/*", "DELETE", 45),
-            createPermission("岗位详情", "position:query", 3, null, "/api/position/*", "GET", 46),
-            createPermission("岗位分配", "position:assign", 3, null, "/api/position/assign", "POST", 47)
+            createPermission("岗位管理", "tenant-admin:position:manage", 1, "/position", null, null, 41),
+            createPermission("岗位查询", "tenant-admin:position:list", 3, null, "/api/position/page", "GET", 42),
+            createPermission("岗位创建", "tenant-admin:position:create", 3, null, "/api/position", "POST", 43),
+            createPermission("岗位更新", "tenant-admin:position:edit", 3, null, "/api/position/*", "PUT", 44),
+            createPermission("岗位删除", "tenant-admin:position:delete", 3, null, "/api/position/*", "DELETE", 45),
+            createPermission("岗位详情", "tenant-admin:position:query", 3, null, "/api/position/*", "GET", 46),
+            createPermission("岗位分配", "tenant-admin:position:assign", 3, null, "/api/position/assign", "POST", 47)
         );
         savePermissions(positionPermissions);
 
         // 创建部门管理权限
         List<SysPermission> departmentPermissions = Arrays.asList(
-            createPermission("部门管理", "department:manage", 1, "/department", null, null, 48),
-            createPermission("部门查询", "department:list", 3, null, "/api/department/page", "GET", 49),
-            createPermission("部门创建", "department:create", 3, null, "/api/department", "POST", 50),
-            createPermission("部门更新", "department:edit", 3, null, "/api/department/*", "PUT", 51),
-            createPermission("部门删除", "department:delete", 3, null, "/api/department/*", "DELETE", 52),
-            createPermission("部门详情", "department:query", 3, null, "/api/department/*", "GET", 53)
+            createPermission("部门管理", "tenant-admin:department:manage", 1, "/department", null, null, 48),
+            createPermission("部门查询", "tenant-admin:department:list", 3, null, "/api/department/page", "GET", 49),
+            createPermission("部门创建", "tenant-admin:department:create", 3, null, "/api/department", "POST", 50),
+            createPermission("部门更新", "tenant-admin:department:edit", 3, null, "/api/department/*", "PUT", 51),
+            createPermission("部门删除", "tenant-admin:department:delete", 3, null, "/api/department/*", "DELETE", 52),
+            createPermission("部门详情", "tenant-admin:department:query", 3, null, "/api/department/*", "GET", 53)
         );
         savePermissions(departmentPermissions);
 
-        // 创建系统管理权限（统一使用 system: 前缀，匹配 @SaCheckPermission 注解）
+        // 创建**租户内**的「人 / 角色 / 权限」管理权限 —— 前缀 `tenant-admin:`
+        // ⚠️ 2026-09-21 改名（迁移 V11.456.0）：这批码原先是 `system:user:*` / `system:role:*` /
+        //    `system:permission:*`，与平台级的「系统」域混在同一个前缀里。但两者归属的**模块**不同：
+        //    「系统」模块只开给系统租户（用户裁定），而租户自己的系统管理员要配本租户的角色/用户，
+        //    就必须能拿到这批码 ⇒ 不能挂在只属于系统租户的模块下。故独立成 `tenant-admin:` 码族，
+        //    归「设置」（租户级）模块。同批并入的还有 department / position / data-scope /
+        //    field-permission / record-rule / sod-rule / permission-template / role-inheritance
+        //    —— 它们本来就是裸前缀，一并纳入同一个族，避免"半新半旧"两种写法。
         List<SysPermission> systemMgmtPermissions = Arrays.asList(
-            createPermission("用户列表", "system:user:list", 3, null, "/api/v2/user/page", "GET", 54),
-            createPermission("用户详情", "system:user:detail", 3, null, "/api/v2/user/{id}", "GET", 55),
-            createPermission("用户创建", "system:user:create", 3, null, "/api/v2/user", "POST", 56),
-            createPermission("用户更新", "system:user:update", 3, null, "/api/v2/user", "PUT", 57),
-            createPermission("用户删除", "system:user:delete", 3, null, "/api/v2/user/{id}", "DELETE", 58),
-            createPermission("用户导出", "system:user:export", 3, null, "/api/v2/user/export", "GET", 59),
-            createPermission("用户角色分配", "system:role:assign", 3, null, "/api/v2/user/{id}/roles", "POST", 60),
-            createPermission("角色列表", "system:role:list", 3, null, "/api/role/page", "GET", 61),
-            createPermission("角色创建", "system:role:create", 3, null, "/api/role", "POST", 62),
-            createPermission("角色更新", "system:role:update", 3, null, "/api/role", "PUT", 63),
-            createPermission("角色删除", "system:role:delete", 3, null, "/api/role/{id}", "DELETE", 64),
-            createPermission("角色导出", "system:role:export", 3, null, "/api/role/export", "GET", 65),
-            createPermission("角色权限分配", "system:permission:assign", 3, null, "/api/role/{id}/permissions", "POST", 66),
-            createPermission("权限列表", "system:permission:list", 3, null, "/api/permission/page", "GET", 67),
-            createPermission("权限详情", "system:permission:detail", 3, null, "/api/permission/{id}", "GET", 68),
-            createPermission("权限创建", "system:permission:create", 3, null, "/api/permission", "POST", 69),
-            createPermission("权限更新", "system:permission:update", 3, null, "/api/permission", "PUT", 70),
-            createPermission("权限删除", "system:permission:delete", 3, null, "/api/permission/{id}", "DELETE", 71),
-            createPermission("权限导出", "system:permission:export", 3, null, "/api/permission/export", "GET", 72),
+            createPermission("用户列表", "tenant-admin:user:list", 3, null, "/api/v2/user/page", "GET", 54),
+            createPermission("用户详情", "tenant-admin:user:detail", 3, null, "/api/v2/user/{id}", "GET", 55),
+            createPermission("用户创建", "tenant-admin:user:create", 3, null, "/api/v2/user", "POST", 56),
+            createPermission("用户更新", "tenant-admin:user:update", 3, null, "/api/v2/user", "PUT", 57),
+            createPermission("用户删除", "tenant-admin:user:delete", 3, null, "/api/v2/user/{id}", "DELETE", 58),
+            createPermission("用户导出", "tenant-admin:user:export", 3, null, "/api/v2/user/export", "GET", 59),
+            createPermission("用户角色分配", "tenant-admin:role:assign", 3, null, "/api/v2/user/{id}/roles", "POST", 60),
+            createPermission("角色列表", "tenant-admin:role:list", 3, null, "/api/role/page", "GET", 61),
+            createPermission("角色创建", "tenant-admin:role:create", 3, null, "/api/role", "POST", 62),
+            createPermission("角色更新", "tenant-admin:role:update", 3, null, "/api/role", "PUT", 63),
+            createPermission("角色删除", "tenant-admin:role:delete", 3, null, "/api/role/{id}", "DELETE", 64),
+            createPermission("角色导出", "tenant-admin:role:export", 3, null, "/api/role/export", "GET", 65),
+            createPermission("角色权限分配", "tenant-admin:permission:assign", 3, null, "/api/role/{id}/permissions", "POST", 66),
+            createPermission("权限列表", "tenant-admin:permission:list", 3, null, "/api/permission/page", "GET", 67),
+            createPermission("权限详情", "tenant-admin:permission:detail", 3, null, "/api/permission/{id}", "GET", 68),
+            createPermission("权限创建", "tenant-admin:permission:create", 3, null, "/api/permission", "POST", 69),
+            createPermission("权限更新", "tenant-admin:permission:update", 3, null, "/api/permission", "PUT", 70),
+            createPermission("权限删除", "tenant-admin:permission:delete", 3, null, "/api/permission/{id}", "DELETE", 71),
+            createPermission("权限导出", "tenant-admin:permission:export", 3, null, "/api/permission/export", "GET", 72),
             createPermission("字典创建", "system:dict:create", 3, null, "/api/dict/type", "POST", 73),
             createPermission("字典更新", "system:dict:update", 3, null, "/api/dict/type", "PUT", 74),
             createPermission("字典删除", "system:dict:delete", 3, null, "/api/dict/type/{id}", "DELETE", 75),
@@ -387,12 +394,12 @@ public class PermissionInitializationConfig implements ApplicationRunner {
 
         // 创建旧版权限管理所需权限（匹配 PermissionController @RequirePermission 注解）
         List<SysPermission> legacyPermMgmtPermissions = Arrays.asList(
-            createPermission("查看用户权限", "system:permission:view", 3, null, "/api/permission/user/{userId}/permissions", "GET", 118),
-            createPermission("查看用户角色", "system:role:view", 3, null, "/api/permission/user/{userId}/roles", "GET", 119),
-            createPermission("清除用户角色", "system:role:clear", 3, null, "/api/permission/user/{userId}/roles", "DELETE", 120),
-            createPermission("清除角色权限", "system:permission:clear", 3, null, "/api/permission/role/{roleId}/permissions", "DELETE", 121),
-            createPermission("权限校验", "system:permission:check", 3, null, "/api/permission/check/api", "GET", 122),
-            createPermission("管理权限缓存", "system:permission:cache", 3, null, "/api/permission/cache/refresh/{userId}", "POST", 123)
+            createPermission("查看用户权限", "tenant-admin:permission:view", 3, null, "/api/permission/user/{userId}/permissions", "GET", 118),
+            createPermission("查看用户角色", "tenant-admin:role:view", 3, null, "/api/permission/user/{userId}/roles", "GET", 119),
+            createPermission("清除用户角色", "tenant-admin:role:clear", 3, null, "/api/permission/user/{userId}/roles", "DELETE", 120),
+            createPermission("清除角色权限", "tenant-admin:permission:clear", 3, null, "/api/permission/role/{roleId}/permissions", "DELETE", 121),
+            createPermission("权限校验", "tenant-admin:permission:check", 3, null, "/api/permission/check/api", "GET", 122),
+            createPermission("管理权限缓存", "tenant-admin:permission:cache", 3, null, "/api/permission/cache/refresh/{userId}", "POST", 123)
         );
         savePermissions(legacyPermMgmtPermissions);
 
@@ -419,23 +426,23 @@ public class PermissionInitializationConfig implements ApplicationRunner {
 
         // 创建数据权限范围管理权限
         List<SysPermission> dataScopePermissions = Arrays.asList(
-            createPermission("数据权限范围列表", "system:data-scope:list", 3, null, "/api/data-scope/page", "GET", 136),
-            createPermission("数据权限范围分配", "system:data-scope:assign", 3, null, "/api/data-scope/save", "POST", 137),
-            createPermission("数据权限范围删除", "system:data-scope:delete", 3, null, "/api/data-scope/*", "DELETE", 138),
-            createPermission("字段级权限列表", "system:field-permission:list", 3, null, "/api/field-permission/page", "GET", 139),
-            createPermission("字段级权限分配", "system:field-permission:assign", 3, null, "/api/field-permission/save", "POST", 140),
-            createPermission("字段级权限删除", "system:field-permission:delete", 3, null, "/api/field-permission/*", "DELETE", 141),
-            createPermission("SoD规则列表", "system:sod-rule:list", 3, null, "/api/sod-rule/page", "GET", 142),
-            createPermission("SoD规则创建", "system:sod-rule:create", 3, null, "/api/sod-rule", "POST", 143),
-            createPermission("SoD规则更新", "system:sod-rule:update", 3, null, "/api/sod-rule/*", "PUT", 144),
-            createPermission("SoD规则删除", "system:sod-rule:delete", 3, null, "/api/sod-rule/*", "DELETE", 145),
-            createPermission("SoD规则验证", "system:sod-rule:validate", 3, null, "/api/sod-rule/validate", "POST", 146),
+            createPermission("数据权限范围列表", "tenant-admin:data-scope:list", 3, null, "/api/data-scope/page", "GET", 136),
+            createPermission("数据权限范围分配", "tenant-admin:data-scope:assign", 3, null, "/api/data-scope/save", "POST", 137),
+            createPermission("数据权限范围删除", "tenant-admin:data-scope:delete", 3, null, "/api/data-scope/*", "DELETE", 138),
+            createPermission("字段级权限列表", "tenant-admin:field-permission:list", 3, null, "/api/field-permission/page", "GET", 139),
+            createPermission("字段级权限分配", "tenant-admin:field-permission:assign", 3, null, "/api/field-permission/save", "POST", 140),
+            createPermission("字段级权限删除", "tenant-admin:field-permission:delete", 3, null, "/api/field-permission/*", "DELETE", 141),
+            createPermission("SoD规则列表", "tenant-admin:sod-rule:list", 3, null, "/api/sod-rule/page", "GET", 142),
+            createPermission("SoD规则创建", "tenant-admin:sod-rule:create", 3, null, "/api/sod-rule", "POST", 143),
+            createPermission("SoD规则更新", "tenant-admin:sod-rule:update", 3, null, "/api/sod-rule/*", "PUT", 144),
+            createPermission("SoD规则删除", "tenant-admin:sod-rule:delete", 3, null, "/api/sod-rule/*", "DELETE", 145),
+            createPermission("SoD规则验证", "tenant-admin:sod-rule:validate", 3, null, "/api/sod-rule/validate", "POST", 146),
             createPermission("权限模拟", "system:simulate", 3, null, "/api/simulate/*", "POST", 147),
             // 记录级数据规则（RecordRuleController，2026-09-20 补齐接口权限校验）
-            createPermission("记录规则列表", "system:record-rule:list", 3, null, "/api/permission/record/**", "GET", 148),
-            createPermission("记录规则创建", "system:record-rule:create", 3, null, "/api/permission/record", "POST", 149),
-            createPermission("记录规则更新", "system:record-rule:update", 3, null, "/api/permission/record/{id}", "PUT", 150),
-            createPermission("记录规则删除", "system:record-rule:delete", 3, null, "/api/permission/record/{id}", "DELETE", 151)
+            createPermission("记录规则列表", "tenant-admin:record-rule:list", 3, null, "/api/permission/record/**", "GET", 148),
+            createPermission("记录规则创建", "tenant-admin:record-rule:create", 3, null, "/api/permission/record", "POST", 149),
+            createPermission("记录规则更新", "tenant-admin:record-rule:update", 3, null, "/api/permission/record/{id}", "PUT", 150),
+            createPermission("记录规则删除", "tenant-admin:record-rule:delete", 3, null, "/api/permission/record/{id}", "DELETE", 151)
         );
         savePermissions(dataScopePermissions);
 

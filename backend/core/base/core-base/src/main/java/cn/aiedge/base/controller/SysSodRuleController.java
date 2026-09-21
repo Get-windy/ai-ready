@@ -31,7 +31,7 @@ public class SysSodRuleController {
 
     @Operation(summary = "分页查询 SoD 规则")
     @GetMapping("/page")
-    @SaCheckPermission("system:sod-rule:list")
+    @SaCheckPermission("tenant-admin:sod-rule:list")
     public Result<Page<SysSodRule>> page(
             @RequestParam(defaultValue = "1") int pageNum,
             @RequestParam(defaultValue = "10") int pageSize) {
@@ -43,14 +43,14 @@ public class SysSodRuleController {
 
     @Operation(summary = "获取 SoD 规则详情")
     @GetMapping("/{id}")
-    @SaCheckPermission("system:sod-rule:list")
+    @SaCheckPermission("tenant-admin:sod-rule:list")
     public Result<SysSodRule> getById(@PathVariable Long id) {
         return Result.ok(sysSodRuleService.getById(id));
     }
 
     @Operation(summary = "创建 SoD 规则")
     @PostMapping
-    @SaCheckPermission("system:sod-rule:create")
+    @SaCheckPermission("tenant-admin:sod-rule:create")
     public Result<Long> create(@RequestBody SysSodRule rule) {
         sysSodRuleService.save(rule);
         return Result.ok("创建成功", rule.getId());
@@ -58,7 +58,7 @@ public class SysSodRuleController {
 
     @Operation(summary = "更新 SoD 规则")
     @PutMapping("/{id}")
-    @SaCheckPermission("system:sod-rule:update")
+    @SaCheckPermission("tenant-admin:sod-rule:update")
     public Result<Void> update(@PathVariable Long id, @RequestBody SysSodRule rule) {
         rule.setId(id);
         sysSodRuleService.updateById(rule);
@@ -67,7 +67,7 @@ public class SysSodRuleController {
 
     @Operation(summary = "删除 SoD 规则")
     @DeleteMapping("/{id}")
-    @SaCheckPermission("system:sod-rule:delete")
+    @SaCheckPermission("tenant-admin:sod-rule:delete")
     public Result<Void> delete(@PathVariable Long id) {
         sysSodRuleService.removeById(id);
         return Result.ok("删除成功", null);
@@ -75,7 +75,7 @@ public class SysSodRuleController {
 
     @Operation(summary = "验证角色分配是否违反 SoD 规则")
     @PostMapping("/validate")
-    @SaCheckPermission("system:sod-rule:validate")
+    @SaCheckPermission("tenant-admin:sod-rule:validate")
     public Result<java.util.List<SysSodRule>> validate(
             @RequestParam(required = false) Long userId,
             @RequestBody java.util.List<Long> roleIds) {

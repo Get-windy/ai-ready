@@ -107,7 +107,7 @@
           :selectable="true"
           :min-empty-rows="12"
           add-text="新增用户"
-          add-permission="system:user:create"
+          add-permission="tenant-admin:user:create"
           @add="handleAdd"
           @edit="handleEdit"
           @delete="handleDelete"
@@ -127,7 +127,7 @@
                   <TeamOutlined style="font-size: 48px; color: #d9d9d9;" />
                 </template>
                 <a-button
-                  v-permission="'system:user:create'"
+                  v-permission="'tenant-admin:user:create'"
                   type="primary"
                   size="small"
                   @click="handleAdd"
@@ -205,7 +205,7 @@
           <template #action="{ record }">
             <a-space>
               <a-button
-                v-permission="'system:user:update'"
+                v-permission="'tenant-admin:user:update'"
                 type="link"
                 size="small"
                 @click="handleEdit(record)"
@@ -213,7 +213,7 @@
                 编辑
               </a-button>
               <a-button
-                v-permission="'system:role:assign'"
+                v-permission="'tenant-admin:role:assign'"
                 type="link"
                 size="small"
                 @click="handleAssignRole(record)"
@@ -230,7 +230,7 @@
                 <template #overlay>
                   <a-menu>
                     <a-menu-item
-                      v-permission="'system:user:update'"
+                      v-permission="'tenant-admin:user:update'"
                       @click="handleResetPassword(record)"
                     >
                       <KeyOutlined /> 重置密码
@@ -243,14 +243,14 @@
                       <EyeOutlined /> 以该用户身份预览
                     </a-menu-item>
                     <a-menu-item
-                      v-permission="'system:user:update'"
+                      v-permission="'tenant-admin:user:update'"
                       @click="handleToggleStatus(record)"
                     >
                       <StopOutlined /> {{ record.status === 0 ? '停用' : '启用' }}
                     </a-menu-item>
                     <a-menu-divider />
                     <a-menu-item
-                      v-permission="'system:user:delete'"
+                      v-permission="'tenant-admin:user:delete'"
                       danger
                       @click="handleDelete(record)"
                     >
@@ -1302,7 +1302,7 @@ async function loadDetail(id?: any) {
  * 已把角色随详情一并返回），不再单开一个端点。
  *
  * ⚠️ 历史弯路（勿再走回）：本页曾改调 `GET /api/user-permission/user/{id}/role-ids`，
- * 那条路径要 `system:role:view` 权限（仅授 SUPER_ADMIN）→ **租户管理员调用会 500**，
+ * 那条路径要 `tenant-admin:role:view` 权限（仅授 SUPER_ADMIN）→ **租户管理员调用会 500**，
  * 且还要再发一次 `/role/list` 做 id→名映射。真正的根因在**后端**：
  * `RoleMapper.selectByUserId` 的状态过滤写成 `r.status = 1`，而 `sys_role.status`
  * 是 **0 = 启用 / 1 = 停用**（见 `PermissionInitializationConfig` 的 `setStatus(0); // 启用`）

@@ -142,7 +142,33 @@ const N = (stmt) => Number(one(stmt))
     const crmName = one(`SELECT DISTINCT module_name FROM sys_tenant_module WHERE module_code='crm' AND deleted=0`)
     ok('租户开通记录里 crm 名称已同步为「客户服务」', crmName === '客户服务', `实际「${crmName}」`)
 
-    section('⑦ 数据完整性（回收开通记录不得误删模块本身 / 不得留下悬空引用）')
+    section('⑦ 租户管理码族 `tenant-admin:`（用户裁定：另立码族，归「设置」模块）')
+    const taOwner = rowsOf(`SELECT DISTINCT module_code FROM sys_module_permission
+      WHERE deleted = 0 AND permission_prefix = 'tenant-admin:'`).map(r => r[0])
+    ok('tenant-admin: 前缀归属「设置」模块', JSON.stringify(taOwner) === JSON.stringify(['settings']),
+      `实际归属 = ${JSON.stringify(taOwner)}`)
+
+    // 72 = 70（V11.456.0：7 个从 system: 剥离的子域 + 4 个原裸前缀子域）
+    //       + 2（V11.457.0 补漏：裸前缀的 data-scope:{view,set}）
+    // 数字写死是故意的：码族规模变化必须有人来看一眼，而不是被"≥1"之类的宽断言放过去。
+    const taCount = N(`SELECT count(*) FROM sys_permission WHERE deleted = 0 AND permission_code LIKE 'tenant-admin:%'`)
+    ok('tenant-admin: 码族共 72 条（70 + 补漏 2）', taCount === 72, `实际 ${taCount} 条`)
+
+    const oldLeft = N(`SELECT count(*) FROM sys_permission WHERE deleted = 0 AND (
+        permission_code LIKE 'system:user:%' OR permission_code LIKE 'system:role:%'
+        OR permission_code LIKE 'system:permission:%' OR permission_code LIKE 'system:data-scope:%'
+        OR permission_code LIKE 'system:field-permission:%' OR permission_code LIKE 'system:record-rule:%'
+        OR permission_code LIKE 'system:sod-rule:%' OR permission_code LIKE 'department:%'
+        OR permission_code LIKE 'position:%' OR permission_code LIKE 'permission-template:%'
+        OR permission_code LIKE 'role-inheritance:%')`)
+    ok('11 个旧前缀族零残留（源码已同步改名，残留即会与非超管 403 并存）', oldLeft === 0, `残留 ${oldLeft} 条`)
+
+    const staleMap = N(`SELECT count(*) FROM sys_module_permission WHERE deleted = 0
+      AND module_code = 'system' AND permission_prefix IN
+      ('data-scope:', 'department:', 'position:', 'permission-template:', 'role-inheritance:')`)
+    ok('「系统」模块不再残留已迁走的码前缀', staleMap === 0, `残留 ${staleMap} 条`)
+
+    section('⑧ 数据完整性（回收开通记录不得误删模块本身 / 不得留下悬空引用）')
     const sysModRows = N(`SELECT count(*) FROM sys_module WHERE deleted = 0 AND module_code = 'system'`)
     ok('sys_module 里的「系统」模块仍在（回收的是开通记录，不是模块）', sysModRows === 1, `实际 ${sysModRows} 条`)
     const dangling = N(`SELECT count(*) FROM sys_tenant_module tm

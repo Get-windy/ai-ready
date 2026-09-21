@@ -26,14 +26,14 @@ public class UserController {
     private final UserService userService;
 
     @Operation(summary = "分页查询用户")
-    @SaCheckPermission("system:user:list")
+    @SaCheckPermission("tenant-admin:user:list")
     @GetMapping("/page")
     public ApiResponse<PageResult<UserVO>> pageList(UserQueryRequest request) {
         return ApiResponse.ok(userService.pageList(request));
     }
 
     @Operation(summary = "获取用户详情")
-    @SaCheckPermission("system:user:detail")
+    @SaCheckPermission("tenant-admin:user:detail")
     @GetMapping("/{id}")
     public ApiResponse<UserVO> getDetail(
             @Parameter(description = "用户ID") @PathVariable Long id) {
@@ -41,7 +41,7 @@ public class UserController {
     }
 
     @Operation(summary = "创建用户")
-    @SaCheckPermission("system:user:create")
+    @SaCheckPermission("tenant-admin:user:create")
     @PostMapping
     public ApiResponse<Long> create(@Valid @RequestBody UserCreateRequest request) {
         Long userId = userService.create(request);
@@ -49,7 +49,7 @@ public class UserController {
     }
 
     @Operation(summary = "更新用户")
-    @SaCheckPermission("system:user:update")
+    @SaCheckPermission("tenant-admin:user:update")
     @PutMapping
     public ApiResponse<Void> update(@Valid @RequestBody UserUpdateRequest request) {
         userService.update(request);
@@ -57,7 +57,7 @@ public class UserController {
     }
 
     @Operation(summary = "删除用户")
-    @SaCheckPermission("system:user:delete")
+    @SaCheckPermission("tenant-admin:user:delete")
     @DeleteMapping("/{id}")
     public ApiResponse<Void> delete(
             @Parameter(description = "用户ID") @PathVariable Long id) {
@@ -66,7 +66,7 @@ public class UserController {
     }
 
     @Operation(summary = "批量删除用户")
-    @SaCheckPermission("system:user:delete")
+    @SaCheckPermission("tenant-admin:user:delete")
     @DeleteMapping("/batch")
     public ApiResponse<Void> batchDelete(@RequestBody List<Long> ids) {
         userService.batchDelete(ids);
@@ -74,7 +74,7 @@ public class UserController {
     }
 
     @Operation(summary = "修改密码")
-    @SaCheckPermission("system:user:update")
+    @SaCheckPermission("tenant-admin:user:update")
     @PutMapping("/{id}/password")
     public ApiResponse<Void> changePassword(
             @Parameter(description = "用户ID") @PathVariable Long id,
@@ -85,7 +85,7 @@ public class UserController {
     }
 
     @Operation(summary = "重置密码")
-    @SaCheckPermission("system:user:update")
+    @SaCheckPermission("tenant-admin:user:update")
     @PutMapping("/{id}/password/reset")
     public ApiResponse<Void> resetPassword(
             @Parameter(description = "用户ID") @PathVariable Long id,
@@ -95,7 +95,7 @@ public class UserController {
     }
 
     @Operation(summary = "启用/禁用用户")
-    @SaCheckPermission("system:user:update")
+    @SaCheckPermission("tenant-admin:user:update")
     @PutMapping("/{id}/status")
     public ApiResponse<Void> updateStatus(
             @Parameter(description = "用户ID") @PathVariable Long id,
@@ -105,14 +105,14 @@ public class UserController {
     }
 
     @Operation(summary = "导出用户")
-    @SaCheckPermission("system:user:export")
+    @SaCheckPermission("tenant-admin:user:export")
     @GetMapping("/export")
     public ApiResponse<List<cn.aiedge.base.entity.SysUser>> export() {
         return ApiResponse.ok(userService.list());
     }
 
     @Operation(summary = "分配角色")
-    @SaCheckPermission("system:role:assign")
+    @SaCheckPermission("tenant-admin:role:assign")
     @PostMapping("/{id}/roles")
     public ApiResponse<Void> assignRoles(
             @Parameter(description = "用户ID") @PathVariable Long id,

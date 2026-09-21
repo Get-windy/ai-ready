@@ -67,7 +67,7 @@ public class PermissionController {
 
     @Operation(summary = "获取用户权限列表")
     @GetMapping("/user/{userId}/permissions")
-    @RequirePermission("system:permission:view")
+    @RequirePermission("tenant-admin:permission:view")
     public List<String> getUserPermissions(
             @Parameter(description = "用户ID") @PathVariable Long userId) {
         return permissionService.getUserPermissionCodes(userId);
@@ -75,7 +75,7 @@ public class PermissionController {
 
     @Operation(summary = "获取用户角色列表")
     @GetMapping("/user/{userId}/roles")
-    @RequirePermission("system:role:view")
+    @RequirePermission("tenant-admin:role:view")
     public List<String> getUserRoles(
             @Parameter(description = "用户ID") @PathVariable Long userId) {
         return permissionService.getUserRoleCodes(userId);
@@ -83,7 +83,7 @@ public class PermissionController {
 
     @Operation(summary = "获取用户角色ID列表")
     @GetMapping("/user/{userId}/role-ids")
-    @RequirePermission("system:role:view")
+    @RequirePermission("tenant-admin:role:view")
     public List<Long> getUserRoleIds(
             @Parameter(description = "用户ID") @PathVariable Long userId) {
         return permissionService.getUserRoleIds(userId);
@@ -91,14 +91,14 @@ public class PermissionController {
 
     @Operation(summary = "分配用户角色")
     @PostMapping("/user/assign-roles")
-    @RequirePermission("system:role:assign")
+    @RequirePermission("tenant-admin:role:assign")
     public void assignUserRoles(@RequestBody UserRoleDTO dto) {
         permissionService.assignUserRoles(dto.getUserId(), dto.getTenantId(), dto.getRoleIds());
     }
 
     @Operation(summary = "清除用户角色")
     @DeleteMapping("/user/{userId}/roles")
-    @RequirePermission("system:role:clear")
+    @RequirePermission("tenant-admin:role:clear")
     public void clearUserRoles(
             @Parameter(description = "用户ID") @PathVariable Long userId) {
         permissionService.clearUserRoles(userId);
@@ -108,7 +108,7 @@ public class PermissionController {
 
     @Operation(summary = "获取角色权限ID列表")
     @GetMapping("/role/{roleId}/permissions")
-    @RequirePermission("system:permission:view")
+    @RequirePermission("tenant-admin:permission:view")
     public List<Long> getRolePermissions(
             @Parameter(description = "角色ID") @PathVariable Long roleId) {
         return permissionService.getRolePermissionIds(roleId);
@@ -116,14 +116,14 @@ public class PermissionController {
 
     @Operation(summary = "分配角色权限")
     @PostMapping("/role/assign-permissions")
-    @RequirePermission("system:permission:assign")
+    @RequirePermission("tenant-admin:permission:assign")
     public void assignRolePermissions(@RequestBody RoleDTO dto) {
         permissionService.assignRolePermissions(dto.getRoleId(), dto.getTenantId(), dto.getPermissionIds());
     }
 
     @Operation(summary = "清除角色权限")
     @DeleteMapping("/role/{roleId}/permissions")
-    @RequirePermission("system:permission:clear")
+    @RequirePermission("tenant-admin:permission:clear")
     public void clearRolePermissions(
             @Parameter(description = "角色ID") @PathVariable Long roleId) {
         permissionService.clearRolePermissions(roleId);
@@ -133,7 +133,7 @@ public class PermissionController {
 
     @Operation(summary = "验证API访问权限")
     @GetMapping("/check/api")
-    @RequirePermission("system:permission:check")
+    @RequirePermission("tenant-admin:permission:check")
     public boolean checkApiPermission(
             @Parameter(description = "用户ID") @RequestParam Long userId,
             @Parameter(description = "API路径") @RequestParam String apiPath,
@@ -143,7 +143,7 @@ public class PermissionController {
 
     @Operation(summary = "验证数据访问权限")
     @GetMapping("/check/data")
-    @RequirePermission("system:permission:check")
+    @RequirePermission("tenant-admin:permission:check")
     public boolean checkDataPermission(
             @Parameter(description = "用户ID") @RequestParam Long userId,
             @Parameter(description = "数据租户ID") @RequestParam(required = false) Long dataTenantId,
@@ -153,7 +153,7 @@ public class PermissionController {
 
     @Operation(summary = "验证租户访问权限")
     @GetMapping("/check/tenant")
-    @RequirePermission("system:permission:check")
+    @RequirePermission("tenant-admin:permission:check")
     public boolean checkTenantPermission(
             @Parameter(description = "用户ID") @RequestParam Long userId,
             @Parameter(description = "租户ID") @RequestParam Long tenantId) {
@@ -164,7 +164,7 @@ public class PermissionController {
 
     @Operation(summary = "刷新用户权限缓存")
     @PostMapping("/cache/refresh/{userId}")
-    @RequirePermission("system:permission:cache")
+    @RequirePermission("tenant-admin:permission:cache")
     public void refreshUserPermissionCache(
             @Parameter(description = "用户ID") @PathVariable Long userId) {
         permissionService.refreshUserPermissionCache(userId);
@@ -172,7 +172,7 @@ public class PermissionController {
 
     @Operation(summary = "清除所有权限缓存")
     @DeleteMapping("/cache/clear")
-    @RequirePermission("system:permission:cache")
+    @RequirePermission("tenant-admin:permission:cache")
     public void clearPermissionCache() {
         permissionService.clearPermissionCache();
     }

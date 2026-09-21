@@ -31,7 +31,7 @@ public class PermissionTemplateController {
      */
     @Operation(summary = "创建权限模板")
     @PostMapping
-    @SaCheckPermission("permission-template:create")
+    @SaCheckPermission("tenant-admin:permission-template:create")
     public Result<Long> createTemplate(@RequestBody PermissionTemplate template) {
         Long templateId = permissionTemplateService.createTemplate(template);
         return Result.ok("创建成功", templateId);
@@ -42,7 +42,7 @@ public class PermissionTemplateController {
      */
     @Operation(summary = "更新权限模板")
     @PutMapping("/{id}")
-    @SaCheckPermission("permission-template:update")
+    @SaCheckPermission("tenant-admin:permission-template:update")
     public Result<Void> updateTemplate(@PathVariable Long id, @RequestBody PermissionTemplate template) {
         template.setId(id);
         permissionTemplateService.updateTemplate(template);
@@ -54,7 +54,7 @@ public class PermissionTemplateController {
      */
     @Operation(summary = "删除权限模板")
     @DeleteMapping("/{id}")
-    @SaCheckPermission("permission-template:delete")
+    @SaCheckPermission("tenant-admin:permission-template:delete")
     public Result<Void> deleteTemplate(@PathVariable Long id) {
         permissionTemplateService.deleteTemplate(id);
         return Result.ok("删除成功", null);
@@ -65,7 +65,7 @@ public class PermissionTemplateController {
      */
     @Operation(summary = "分页查询权限模板")
     @GetMapping("/page")
-    @SaCheckPermission("permission-template:list")
+    @SaCheckPermission("tenant-admin:permission-template:list")
     public Result<Page<PermissionTemplate>> pageTemplates(
             @RequestParam(defaultValue = "1") Long current,
             @RequestParam(defaultValue = "10") Long size,
@@ -83,7 +83,7 @@ public class PermissionTemplateController {
      */
     @Operation(summary = "获取权限模板详情")
     @GetMapping("/{id}")
-    @SaCheckPermission("permission-template:detail")
+    @SaCheckPermission("tenant-admin:permission-template:detail")
     public Result<PermissionTemplate> getTemplateDetail(@PathVariable Long id) {
         PermissionTemplate template = permissionTemplateService.getTemplateDetail(id);
         return Result.ok(template);
@@ -94,7 +94,7 @@ public class PermissionTemplateController {
      */
     @Operation(summary = "应用权限模板到角色")
     @PostMapping("/apply-to-role")
-    @SaCheckPermission("permission-template:apply")
+    @SaCheckPermission("tenant-admin:permission-template:apply")
     public Result<Void> applyTemplateToRole(@RequestParam Long templateId, @RequestParam Long roleId) {
         permissionTemplateService.applyTemplateToRole(templateId, roleId);
         return Result.ok("应用成功", null);
@@ -105,7 +105,7 @@ public class PermissionTemplateController {
      */
     @Operation(summary = "应用权限模板到用户")
     @PostMapping("/apply-to-user")
-    @SaCheckPermission("permission-template:apply")
+    @SaCheckPermission("tenant-admin:permission-template:apply")
     public Result<Void> applyTemplateToUser(@RequestParam Long templateId, @RequestParam Long userId) {
         permissionTemplateService.applyTemplateToUser(templateId, userId);
         return Result.ok("应用成功", null);
@@ -116,7 +116,7 @@ public class PermissionTemplateController {
      */
     @Operation(summary = "获取系统默认模板")
     @GetMapping("/system-templates")
-    @SaCheckPermission("permission-template:list")
+    @SaCheckPermission("tenant-admin:permission-template:list")
     public Result<List<PermissionTemplate>> getSystemTemplates() {
         List<PermissionTemplate> templates = permissionTemplateService.getSystemTemplates();
         return Result.ok(templates);
@@ -127,7 +127,7 @@ public class PermissionTemplateController {
      */
     @Operation(summary = "更新权限模板状态")
     @PutMapping("/{id}/status")
-    @SaCheckPermission("permission-template:update-status")
+    @SaCheckPermission("tenant-admin:permission-template:update-status")
     public Result<Void> updateTemplateStatus(@PathVariable Long id, @RequestParam Integer status) {
         permissionTemplateService.updateTemplateStatus(id, status);
         return Result.ok("状态更新成功", null);

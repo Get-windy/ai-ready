@@ -85,7 +85,7 @@ const EXPECTED_INEFFECTIVE = [
   'party:merge', 'payment:account:select', 'print:draft',
   'product:cost:view', 'product:purchase-price:view', 'product:retail-price:view', 'product:wholesale-price:view',
   'receipt:account:select', 'sale:discount:edit', 'sale:settle:force',
-  'system:permission:export', 'system:role:export',
+  'tenant-admin:permission:export', 'tenant-admin:role:export',
 ]
 
 let pass = 0, fail = 0
@@ -172,7 +172,47 @@ async function login(user) {
       AND permission_code IN (${DELETED.map(c => `'${c}'`).join(',')})`).map(r => r[0])
     ok('60 条已删僵尸码在库中均已下架', revived.length === 0, `复活=${JSON.stringify(revived)}`)
 
-    section('⑥ 缺陷钉子 C：「未生效」清单必须正好是 21 条已裁定项')
+    section('⑥ 租户管理码族 `tenant-admin:` 改名后仍真的在把门（两向）')
+    // 改名（V11.456.0 / V11.457.0）最容易出的错是"库改了、注解没改"，
+    // 症状是**该端点对所有非超管一律 403**（不是漏防，是锁死）。所以两个方向都要看：
+    //   超管放行 ⇒ 证明新码在库、注解没写错；
+    //   非超管 403 ⇒ 证明新码真的被检查（而不是注解被改成了不存在的码后"恰好超管有 * 通配"）。
+    const TA_PROBES = [
+      { code: 'tenant-admin:role:list', method: 'GET', path: '/role/page?pageNum=1&pageSize=1' },
+      { code: 'tenant-admin:permission:list', method: 'GET', path: '/permission/page?pageNum=1&pageSize=1' },
+      { code: 'tenant-admin:data-scope:list', method: 'GET', path: '/data-scope/page?pageNum=1&pageSize=1' },
+      { code: 'tenant-admin:department:list', method: 'GET', path: '/department/page?pageNum=1&pageSize=1' },
+      { code: 'tenant-admin:position:list', method: 'GET', path: '/position/page?pageNum=1&pageSize=1' },
+      { code: 'tenant-admin:permission:view', method: 'GET', path: '/user-permission/user/1/permissions' },
+      // ⚠️ 注意这里**故意没有** `/user/page`：它的码是 `tenant-admin:user:list`，
+      //    而租户 2 的管理员角色（E2E租户2管理员）**本来就真实持有**这个码
+      //    ⇒ 非超管拿到 200 是**正确行为**，不是漏洞。双向断言的前提是"非超管不持有该码"，
+      //    所以探针只收「只被超管持有」的码，另见下面单独的一条正向断言。
+    ]
+    for (const c of [...new Set(TA_PROBES.map(p => p.code))]) {
+      const n = Number(rowsOf(`SELECT count(*) FROM sys_permission WHERE deleted = 0 AND permission_code = '${c}'`)[0][0])
+      const old = Number(rowsOf(`SELECT count(*) FROM sys_permission WHERE deleted = 0
+        AND permission_code = '${c.replace('tenant-admin:', 'system:')}'`)[0][0])
+      ok(`新码在库且旧码已不存在: ${c}`, n === 1 && old === 0, `新码=${n} 旧码=${old}`)
+    }
+    for (const p of TA_PROBES) {
+      const a = await req(p.method, p.path, { token: adminToken })
+      const o = await req(p.method, p.path, { token: outToken })
+      ok(`${p.method} ${p.path.split('?')[0]}：超管非 403 / 非超管 403`,
+        a.status !== 403 && o.status === 403, `超管=${a.status} 非超管=${o.status}`)
+    }
+
+    // 正向对照：租户 2 的管理员**真实持有** tenant-admin:user:list ⇒ `/user/page` 应放行。
+    // 这条断言的作用是把它钉成"已知的正确行为"，而不是让下一个人把它当成漏防再"修"一遍。
+    const holder = rowsOf(`SELECT r.role_name FROM sys_permission p
+      JOIN sys_role_permission rp ON rp.permission_id = p.id
+      JOIN sys_role r ON r.id = rp.role_id
+      WHERE p.deleted = 0 AND p.permission_code = 'tenant-admin:user:list'`)
+      .map(r => r[0]).sort()
+    ok('tenant-admin:user:list 的持有者包含租户侧角色（故 /user/page 对非超管放行是正确行为）',
+      holder.some(h => h !== '超级管理员'), `持有者=${JSON.stringify(holder)}`)
+
+    section('⑦ 缺陷钉子 C：「未生效」清单必须正好是 21 条已裁定项')
     const ineff = rowsOf(`SELECT permission_code FROM sys_permission
       WHERE deleted = 0 AND permission_type <> 1 AND permission_code IS NOT NULL
       ORDER BY permission_code`).map(r => r[0])

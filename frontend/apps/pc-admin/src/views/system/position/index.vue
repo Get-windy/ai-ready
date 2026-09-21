@@ -120,9 +120,9 @@
           :show-export="false"
           :show-batch-delete="false"
           add-text="新增岗位"
-          add-permission="position:create"
-          edit-permission="position:edit"
-          delete-permission="position:delete"
+          add-permission="tenant-admin:position:create"
+          edit-permission="tenant-admin:position:edit"
+          delete-permission="tenant-admin:position:delete"
           @add="handleAdd"
           @edit="handleEdit"
           @delete="handleDelete"
@@ -180,7 +180,7 @@
           <template #actionCell="{ record }">
             <a-space>
               <a-button
-                v-permission="'position:edit'"
+                v-permission="'tenant-admin:position:edit'"
                 type="link"
                 size="small"
                 @click="handleEdit(record)"
@@ -188,7 +188,7 @@
                 编辑
               </a-button>
               <a-button
-                v-permission="'position:edit'"
+                v-permission="'tenant-admin:position:edit'"
                 type="link"
                 size="small"
                 @click="handleAssignDepartment(record)"
@@ -205,14 +205,14 @@
                 <template #overlay>
                   <a-menu>
                     <a-menu-item
-                      v-permission="'position:edit'"
+                      v-permission="'tenant-admin:position:edit'"
                       @click="handleToggleStatus(record)"
                     >
                       <StopOutlined /> {{ record.status === 0 ? '停用' : '启用' }}
                     </a-menu-item>
                     <a-menu-divider />
                     <a-menu-item
-                      v-permission="'position:delete'"
+                      v-permission="'tenant-admin:position:delete'"
                       danger
                       @click="handleDelete(record)"
                     >

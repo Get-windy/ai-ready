@@ -35,7 +35,7 @@ public class RecordRuleController {
     private final RecordRuleService ruleService;
 
     @Operation(summary = "创建记录规则")
-    @SaCheckPermission("system:record-rule:create")
+    @SaCheckPermission("tenant-admin:record-rule:create")
     @PostMapping
     public ResponseEntity<Map<String, Object>> createRule(@RequestBody RecordRuleCreateRequest request) {
         RecordRule rule = ruleService.createRule(request);
@@ -43,7 +43,7 @@ public class RecordRuleController {
     }
 
     @Operation(summary = "更新记录规则")
-    @SaCheckPermission("system:record-rule:update")
+    @SaCheckPermission("tenant-admin:record-rule:update")
     @PutMapping("/{id}")
     public ResponseEntity<Map<String, Object>> updateRule(@PathVariable Long id, @RequestBody RecordRuleCreateRequest request) {
         RecordRule rule = ruleService.updateRule(id, request);
@@ -51,7 +51,7 @@ public class RecordRuleController {
     }
 
     @Operation(summary = "获取规则详情")
-    @SaCheckPermission("system:record-rule:list")
+    @SaCheckPermission("tenant-admin:record-rule:list")
     @GetMapping("/{id}")
     public ResponseEntity<Map<String, Object>> getRule(@PathVariable Long id) {
         RecordRule rule = ruleService.getRuleById(id);
@@ -59,7 +59,7 @@ public class RecordRuleController {
     }
 
     @Operation(summary = "获取模型的所有规则")
-    @SaCheckPermission("system:record-rule:list")
+    @SaCheckPermission("tenant-admin:record-rule:list")
     @GetMapping("/model/{modelName}")
     public ResponseEntity<Map<String, Object>> getRulesByModel(@PathVariable String modelName) {
         List<RecordRule> rules = ruleService.getRulesByModel(modelName);
@@ -67,7 +67,7 @@ public class RecordRuleController {
     }
 
     @Operation(summary = "获取用户的所有规则")
-    @SaCheckPermission("system:record-rule:list")
+    @SaCheckPermission("tenant-admin:record-rule:list")
     @GetMapping("/user/{userId}")
     public ResponseEntity<Map<String, Object>> getRulesByUser(@PathVariable Long userId) {
         List<RecordRule> rules = ruleService.getRulesByUser(userId);
@@ -75,7 +75,7 @@ public class RecordRuleController {
     }
 
     @Operation(summary = "获取角色的所有规则")
-    @SaCheckPermission("system:record-rule:list")
+    @SaCheckPermission("tenant-admin:record-rule:list")
     @GetMapping("/group/{groupId}")
     public ResponseEntity<Map<String, Object>> getRulesByGroup(@PathVariable Long groupId) {
         List<RecordRule> rules = ruleService.getRulesByGroup(groupId);
@@ -83,7 +83,7 @@ public class RecordRuleController {
     }
 
     @Operation(summary = "规则列表查询")
-    @SaCheckPermission("system:record-rule:list")
+    @SaCheckPermission("tenant-admin:record-rule:list")
     @GetMapping("/list")
     public ResponseEntity<Map<String, Object>> listRules(
             @RequestParam(defaultValue = "1") Integer page,
@@ -101,7 +101,7 @@ public class RecordRuleController {
     }
 
     @Operation(summary = "删除规则")
-    @SaCheckPermission("system:record-rule:delete")
+    @SaCheckPermission("tenant-admin:record-rule:delete")
     @DeleteMapping("/{id}")
     public ResponseEntity<Map<String, Object>> deleteRule(@PathVariable Long id) {
         ruleService.deleteRule(id);
@@ -109,7 +109,7 @@ public class RecordRuleController {
     }
 
     @Operation(summary = "激活规则")
-    @SaCheckPermission("system:record-rule:update")
+    @SaCheckPermission("tenant-admin:record-rule:update")
     @PostMapping("/{id}/activate")
     public ResponseEntity<Map<String, Object>> activateRule(@PathVariable Long id) {
         ruleService.activateRule(id);
@@ -117,7 +117,7 @@ public class RecordRuleController {
     }
 
     @Operation(summary = "停用规则")
-    @SaCheckPermission("system:record-rule:update")
+    @SaCheckPermission("tenant-admin:record-rule:update")
     @PostMapping("/{id}/deactivate")
     public ResponseEntity<Map<String, Object>> deactivateRule(@PathVariable Long id) {
         ruleService.deactivateRule(id);
@@ -125,7 +125,7 @@ public class RecordRuleController {
     }
 
     @Operation(summary = "构建Domain过滤条件")
-    @SaCheckPermission("system:record-rule:list")
+    @SaCheckPermission("tenant-admin:record-rule:list")
     @PostMapping("/build-domain")
     public ResponseEntity<Map<String, Object>> buildDomain(
             @RequestParam String modelName,
@@ -135,7 +135,7 @@ public class RecordRuleController {
     }
 
     @Operation(summary = "检查记录访问权限")
-    @SaCheckPermission("system:record-rule:list")
+    @SaCheckPermission("tenant-admin:record-rule:list")
     @PostMapping("/check-access")
     public ResponseEntity<Map<String, Object>> checkAccess(
             @RequestParam String modelName,
@@ -147,7 +147,7 @@ public class RecordRuleController {
     }
 
     @Operation(summary = "过滤记录列表")
-    @SaCheckPermission("system:record-rule:list")
+    @SaCheckPermission("tenant-admin:record-rule:list")
     @PostMapping("/filter-records")
     public ResponseEntity<Map<String, Object>> filterRecords(
             @RequestParam String modelName,

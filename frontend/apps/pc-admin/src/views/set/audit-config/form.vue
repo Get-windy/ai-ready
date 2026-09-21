@@ -87,7 +87,7 @@ const saving = ref(false)
 const editorRows = ref<EditorRow[]>([])
 
 // ═══ 审批人下拉（复用通用选项 API：/user/list） ═══
-// ⚠️ 该端点需要 system:user:list 权限；无权限时降级为空列表并提示，不阻塞其它功能
+// ⚠️ 该端点需要 tenant-admin:user:list 权限；无权限时降级为空列表并提示，不阻塞其它功能
 const approverOptions = ref<{ label: string; value: string }[]>([])
 const approverLoaded = ref(false)
 

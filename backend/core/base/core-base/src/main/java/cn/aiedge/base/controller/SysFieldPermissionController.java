@@ -33,7 +33,7 @@ public class SysFieldPermissionController {
 
     @Operation(summary = "分页查询字段权限规则")
     @GetMapping("/page")
-    @SaCheckPermission("system:field-permission:list")
+    @SaCheckPermission("tenant-admin:field-permission:list")
     public Result<Page<SysFieldPermission>> page(
             @RequestParam(defaultValue = "1") int pageNum,
             @RequestParam(defaultValue = "10") int pageSize,
@@ -50,7 +50,7 @@ public class SysFieldPermissionController {
 
     @Operation(summary = "查询角色对指定表的字段权限")
     @GetMapping("/list")
-    @SaCheckPermission("system:field-permission:list")
+    @SaCheckPermission("tenant-admin:field-permission:list")
     public Result<List<SysFieldPermission>> list(
             @RequestParam(required = false) Long roleId,
             @RequestParam(required = false) String targetTable) {
@@ -67,7 +67,7 @@ public class SysFieldPermissionController {
 
     @Operation(summary = "保存角色字段权限（全量覆盖）")
     @PostMapping("/save")
-    @SaCheckPermission("system:field-permission:assign")
+    @SaCheckPermission("tenant-admin:field-permission:assign")
     public Result<Void> save(@RequestParam Long roleId, @RequestBody List<SysFieldPermission> permissions) {
         sysFieldPermissionService.saveRoleFieldPermissions(roleId, permissions);
         return Result.ok("保存成功", null);
@@ -75,7 +75,7 @@ public class SysFieldPermissionController {
 
     @Operation(summary = "删除字段权限规则")
     @DeleteMapping("/{id}")
-    @SaCheckPermission("system:field-permission:delete")
+    @SaCheckPermission("tenant-admin:field-permission:delete")
     public Result<Void> delete(@PathVariable Long id) {
         sysFieldPermissionService.removeById(id);
         return Result.ok("删除成功", null);

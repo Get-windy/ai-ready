@@ -19,7 +19,7 @@ import java.util.Map;
  * 维度白名单见 {@link UserDataScopeService#SCOPE_KEYS}。
  * </p>
  * <p>
- * 鉴权：权限码 {@code data-scope:view} / {@code data-scope:set}（种子见 V11.430.0）。
+ * 鉴权：权限码 {@code tenant-admin:data-scope:view} / {@code tenant-admin:data-scope:set}（种子见 V11.430.0）。
  * 参数校验失败抛 {@link IllegalArgumentException}，由 GlobalExceptionHandler 统一转 400。
  * </p>
  * <p>
@@ -45,7 +45,7 @@ public class UserDataScopeController {
      */
     @Operation(summary = "查询操作员全部维度的数据权限")
     @GetMapping("/{userId}")
-    @SaCheckPermission("data-scope:view")
+    @SaCheckPermission("tenant-admin:data-scope:view")
     public Result<Map<String, List<String>>> getUserScopes(@PathVariable Long userId) {
         validateUserId(userId);
         return Result.ok(userDataScopeService.getUserScopes(userId));
@@ -56,7 +56,7 @@ public class UserDataScopeController {
      */
     @Operation(summary = "覆盖保存操作员某维度的数据权限")
     @PutMapping("/{userId}/{scopeKey}")
-    @SaCheckPermission("data-scope:set")
+    @SaCheckPermission("tenant-admin:data-scope:set")
     public Result<Void> saveScope(@PathVariable Long userId,
                                   @PathVariable String scopeKey,
                                   @RequestBody(required = false) List<String> targetIds) {
@@ -71,7 +71,7 @@ public class UserDataScopeController {
      */
     @Operation(summary = "清除操作员某维度的数据权限")
     @DeleteMapping("/{userId}/{scopeKey}")
-    @SaCheckPermission("data-scope:set")
+    @SaCheckPermission("tenant-admin:data-scope:set")
     public Result<Void> clearScope(@PathVariable Long userId,
                                    @PathVariable String scopeKey) {
         validateUserId(userId);
@@ -88,7 +88,7 @@ public class UserDataScopeController {
      */
     @Operation(summary = "查询某维度可授权的候选对象清单")
     @GetMapping("/targets")
-    @SaCheckPermission("data-scope:view")
+    @SaCheckPermission("tenant-admin:data-scope:view")
     public Result<List<Map<String, Object>>> listTargets(@RequestParam String scopeKey,
                                                          @RequestParam(required = false) String keyword) {
         validateScopeKey(scopeKey);

@@ -95,7 +95,7 @@ public class SysUserController {
      */
     @Operation(summary = "创建用户")
     @PostMapping
-    @SaCheckPermission("system:user:create")
+    @SaCheckPermission("tenant-admin:user:create")
     @OperationLog(module = "用户管理", type = "CREATE", desc = "创建用户")
     public Result<Long> createUser(@RequestBody @Valid UserCreateRequest dto) {
         SysUser user = convertToEntity(dto);
@@ -108,7 +108,7 @@ public class SysUserController {
      */
     @Operation(summary = "更新用户")
     @PutMapping("/{id}")
-    @SaCheckPermission("system:user:update")
+    @SaCheckPermission("tenant-admin:user:update")
     public Result<Void> updateUser(@PathVariable Long id, @RequestBody UserUpdateRequest dto) {
         assertSameTenant(id);
         SysUser user = convertToEntity(dto);
@@ -122,7 +122,7 @@ public class SysUserController {
      */
     @Operation(summary = "删除用户")
     @DeleteMapping("/{id}")
-    @SaCheckPermission("system:user:delete")
+    @SaCheckPermission("tenant-admin:user:delete")
     public Result<Void> deleteUser(@PathVariable Long id) {
         assertSameTenant(id);
         userService.deleteUser(id);
@@ -134,7 +134,7 @@ public class SysUserController {
      */
     @Operation(summary = "批量删除用户")
     @DeleteMapping("/batch")
-    @SaCheckPermission("system:user:delete")
+    @SaCheckPermission("tenant-admin:user:delete")
     public Result<Void> batchDeleteUsers(@RequestBody List<Long> ids) {
         // 逐个校验归属：批量入口同样不能成为越权的旁路
         if (ids != null) {
@@ -151,7 +151,7 @@ public class SysUserController {
      */
     @Operation(summary = "分页查询用户")
     @GetMapping("/page")
-    @SaCheckPermission("system:user:list")
+    @SaCheckPermission("tenant-admin:user:list")
     public Result<Page<SysUser>> pageUsers(UserDTO.Query query) {
         int pageNum = query.pageNum() != null ? query.pageNum() : 1;
         int pageSize = query.pageSize() != null ? query.pageSize() : 10;
@@ -166,7 +166,7 @@ public class SysUserController {
      */
     @Operation(summary = "获取用户列表")
     @GetMapping("/list")
-    @SaCheckPermission("system:user:list")
+    @SaCheckPermission("tenant-admin:user:list")
     public Result<List<SysUser>> listUsers(UserDTO.Query query) {
         Page<SysUser> page = new Page<>(1, query.pageSize() != null ? query.pageSize() : 1000);
         Page<SysUser> result = userService.pageUsers(page, query.tenantId(),
@@ -179,7 +179,7 @@ public class SysUserController {
      */
     @Operation(summary = "获取用户详情")
     @GetMapping("/{id}")
-    @SaCheckPermission("system:user:detail")
+    @SaCheckPermission("tenant-admin:user:detail")
     public Result<SysUser> getUserDetail(@PathVariable Long id) {
         assertSameTenant(id);
         SysUser user = userService.getUserDetail(id);
@@ -191,7 +191,7 @@ public class SysUserController {
      */
     @Operation(summary = "重置密码")
     @PutMapping("/{id}/password/reset")
-    @SaCheckPermission("system:user:reset-password")
+    @SaCheckPermission("tenant-admin:user:reset-password")
     @OperationLog(module = "用户管理", type = "UPDATE", desc = "重置用户密码")
     public Result<Void> resetPassword(@PathVariable Long id, @RequestParam String newPassword) {
         assertSameTenant(id);
@@ -222,7 +222,7 @@ public class SysUserController {
      */
     @Operation(summary = "分配角色")
     @PostMapping("/{id}/roles")
-    @SaCheckPermission("system:user:assign-role")
+    @SaCheckPermission("tenant-admin:user:assign-role")
     @OperationLog(module = "用户管理", type = "UPDATE", desc = "分配用户角色", saveParams = true)
     public Result<Void> assignRoles(@PathVariable Long id, @RequestBody List<Long> roleIds) {
         assertSameTenant(id);
@@ -238,7 +238,7 @@ public class SysUserController {
      */
     @Operation(summary = "批量分配角色")
     @PostMapping("/batch-assign-roles")
-    @SaCheckPermission("system:user:assign-role")
+    @SaCheckPermission("tenant-admin:user:assign-role")
     @OperationLog(module = "用户管理", type = "UPDATE", desc = "批量分配角色", saveParams = true)
     public Result<Void> batchAssignRoles(@RequestBody @Valid BatchAssignRolesRequest dto) {
         userService.batchAssignRoles(dto.getUserIds(), dto.getRoleIds());
@@ -253,7 +253,7 @@ public class SysUserController {
      */
     @Operation(summary = "更新用户状态")
     @PutMapping("/{id}/status")
-    @SaCheckPermission("system:user:update-status")
+    @SaCheckPermission("tenant-admin:user:update-status")
     @OperationLog(module = "用户管理", type = "UPDATE", desc = "更新用户状态")
     public Result<Void> updateStatus(@PathVariable Long id, @RequestParam Integer status) {
         userService.updateUserStatus(id, status);

@@ -50,7 +50,7 @@ public class SysPermissionController {
      */
     @Operation(summary = "创建权限")
     @PostMapping
-    @SaCheckPermission("system:permission:create")
+    @SaCheckPermission("tenant-admin:permission:create")
     @OperationLog(module = "权限管理", type = "CREATE", desc = "创建权限")
     public Result<Long> createPermission(@RequestBody SysPermission permission) {
         Long permissionId = permissionService.createPermission(permission);
@@ -64,7 +64,7 @@ public class SysPermissionController {
      */
     @Operation(summary = "更新权限")
     @PutMapping("/{id}")
-    @SaCheckPermission("system:permission:update")
+    @SaCheckPermission("tenant-admin:permission:update")
     @OperationLog(module = "权限管理", type = "UPDATE", desc = "更新权限")
     public Result<Void> updatePermission(@PathVariable Long id, @RequestBody SysPermission permission) {
         permission.setId(id);
@@ -79,7 +79,7 @@ public class SysPermissionController {
      */
     @Operation(summary = "删除权限")
     @DeleteMapping("/{id}")
-    @SaCheckPermission("system:permission:delete")
+    @SaCheckPermission("tenant-admin:permission:delete")
     @OperationLog(module = "权限管理", type = "DELETE", desc = "删除权限")
     public Result<Void> deletePermission(@PathVariable Long id) {
         permissionService.deletePermission(id);
@@ -93,7 +93,7 @@ public class SysPermissionController {
      */
     @Operation(summary = "批量删除权限")
     @DeleteMapping("/batch")
-    @SaCheckPermission("system:permission:delete")
+    @SaCheckPermission("tenant-admin:permission:delete")
     @OperationLog(module = "权限管理", type = "DELETE", desc = "批量删除权限")
     public Result<Void> batchDeletePermissions(@RequestBody List<Long> ids) {
         permissionService.batchDeletePermissions(ids);
@@ -107,7 +107,7 @@ public class SysPermissionController {
      */
     @Operation(summary = "分页查询权限")
     @GetMapping("/page")
-    @SaCheckPermission("system:permission:list")
+    @SaCheckPermission("tenant-admin:permission:list")
     public Result<Page<SysPermission>> pagePermissions(
             @RequestParam(defaultValue = "1") Long current,
             @RequestParam(defaultValue = "10") Long size,
@@ -125,7 +125,7 @@ public class SysPermissionController {
      */
     @Operation(summary = "获取权限详情")
     @GetMapping("/{id}")
-    @SaCheckPermission("system:permission:detail")
+    @SaCheckPermission("tenant-admin:permission:detail")
     public Result<SysPermission> getPermissionDetail(@PathVariable Long id) {
         SysPermission permission = permissionService.getPermissionDetail(id);
         return Result.ok(permission);
@@ -136,7 +136,7 @@ public class SysPermissionController {
      */
     @Operation(summary = "获取权限树")
     @GetMapping("/tree")
-    @SaCheckPermission("system:permission:list")
+    @SaCheckPermission("tenant-admin:permission:list")
     public Result<List<SysPermission>> getPermissionTree(@RequestParam Long tenantId) {
         List<SysPermission> tree = permissionService.getPermissionTree(tenantId);
         return Result.ok(tree);
@@ -147,7 +147,7 @@ public class SysPermissionController {
      */
     @Operation(summary = "获取子权限列表")
     @GetMapping("/children/{parentId}")
-    @SaCheckPermission("system:permission:list")
+    @SaCheckPermission("tenant-admin:permission:list")
     public Result<List<SysPermission>> getChildrenPermissions(
             @PathVariable Long parentId,
             @RequestParam Long tenantId) {
@@ -160,7 +160,7 @@ public class SysPermissionController {
      */
     @Operation(summary = "更新权限状态")
     @PutMapping("/{id}/status")
-    @SaCheckPermission("system:permission:update-status")
+    @SaCheckPermission("tenant-admin:permission:update-status")
     @OperationLog(module = "权限管理", type = "UPDATE", desc = "更新权限状态")
     public Result<Void> updateStatus(@PathVariable Long id, @RequestParam Integer status) {
         permissionService.updatePermissionStatus(id, status);
@@ -172,7 +172,7 @@ public class SysPermissionController {
      */
     @Operation(summary = "更新权限排序")
     @PutMapping("/{id}/sort")
-    @SaCheckPermission("system:permission:update")
+    @SaCheckPermission("tenant-admin:permission:update")
     public Result<Void> updateSort(@PathVariable Long id, @RequestParam Integer sort) {
         permissionService.updatePermissionSort(id, sort);
         return Result.ok("排序更新成功", null);
@@ -203,7 +203,7 @@ public class SysPermissionController {
      */
     @Operation(summary = "获取权限生效性清单")
     @GetMapping("/effectivity")
-    @SaCheckPermission("system:permission:list")
+    @SaCheckPermission("tenant-admin:permission:list")
     public Result<Map<String, Object>> getEffectivity() {
         Map<String, Object> cached = effectivityCache;
         if (cached != null) {

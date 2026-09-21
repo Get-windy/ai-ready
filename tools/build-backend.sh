@@ -42,10 +42,18 @@ done
 
 # ── 1. 找出正在跑本 jar 的进程（只认这一个 jar；别动 tool-results 里其它会话的副本）──
 # 注意返回**全部** PID：历史上出现过两个实例同时持有同一 jar 的情况，只 kill 第一个会导致 clean 失败。
+#
+# ⚠️ 2026-09-21 修：末尾必须 `|| true`。
+#   本脚本是 `set -euo pipefail`，而"没有实例在跑"时 `grep -E '^[0-9]+$'` 无匹配返回 1，
+#     pipeline 随之返回 1 ⇒ 赋值语句失败 ⇒ `set -e` **立刻退出**，且因为退出发生在
+#     任何 echo 之前，现场表现是**完全静默地 exit 1**（零输出），极易被误判成"构建卡住/环境坏了"。
+#     实测触发路径很普通：上一次启动失败（迁移报错）之后本来就没有实例在跑，
+#     于是再跑本脚本就什么都看不到。加 `|| true` 后，空结果会走到下面的
+#     "==> 没有正在运行的后端实例" 分支。
 find_backend_pids() {
   powershell -NoProfile -Command \
     "(Get-CimInstance Win32_Process -Filter \"Name='java.exe'\" | Where-Object { \$_.CommandLine -like '*target/core-api-0.3.21-exec.jar*' }).ProcessId" \
-    2>/dev/null | tr -d '\r' | grep -E '^[0-9]+$'
+    2>/dev/null | tr -d '\r' | grep -E '^[0-9]+$' || true
 }
 
 stop_backend() {

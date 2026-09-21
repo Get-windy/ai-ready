@@ -42,7 +42,7 @@
               刷新
             </a-button>
             <a-button
-              v-permission="'system:permission:create'"
+              v-permission="'tenant-admin:permission:create'"
               type="primary"
               size="small"
               @click="handleAddPermission"
@@ -53,7 +53,7 @@
               新增权限
             </a-button>
             <a-button
-              v-permission="'system:permission:create'"
+              v-permission="'tenant-admin:permission:create'"
               size="small"
               @click="showPermissionDefDrawer = true"
             >
@@ -206,7 +206,7 @@
           >
             <template #toolbar-actions>
               <a-button
-                v-permission="'system:permission:create'"
+                v-permission="'tenant-admin:permission:create'"
                 type="primary"
                 @click="handleDefAdd(null)"
               >
@@ -294,7 +294,7 @@
             <template #action="{ record }">
               <a-space>
                 <a-button
-                  v-permission="'system:permission:create'"
+                  v-permission="'tenant-admin:permission:create'"
                   type="link"
                   size="small"
                   @click="handleDefAdd(record)"
@@ -302,7 +302,7 @@
                   新增子权限
                 </a-button>
                 <a-button
-                  v-permission="'system:permission:update'"
+                  v-permission="'tenant-admin:permission:update'"
                   type="link"
                   size="small"
                   @click="handleDefEdit(record)"
@@ -310,7 +310,7 @@
                   编辑
                 </a-button>
                 <a-button
-                  v-permission="'system:permission:delete'"
+                  v-permission="'tenant-admin:permission:delete'"
                   type="link"
                   size="small"
                   danger
@@ -367,7 +367,7 @@
             >
               <a-input
                 v-model:value="defFormState.permissionCode"
-                placeholder="如：system:user:list"
+                placeholder="如：tenant-admin:user:list"
               />
             </a-form-item>
             <a-form-item

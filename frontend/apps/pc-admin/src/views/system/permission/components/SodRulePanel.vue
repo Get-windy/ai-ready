@@ -16,7 +16,7 @@
           刷新
         </a-button>
         <a-button
-          v-permission="'system:sod-rule:create'"
+          v-permission="'tenant-admin:sod-rule:create'"
           type="primary"
           size="small"
           @click="openCreate"
@@ -66,7 +66,7 @@
         <template v-else-if="column.key === 'action'">
           <a-space :size="4">
             <a-button
-              v-permission="'system:sod-rule:update'"
+              v-permission="'tenant-admin:sod-rule:update'"
               type="link"
               size="small"
               @click="openEdit(record)"
@@ -74,7 +74,7 @@
               编辑
             </a-button>
             <a-button
-              v-permission="'system:sod-rule:delete'"
+              v-permission="'tenant-admin:sod-rule:delete'"
               type="link"
               size="small"
               danger

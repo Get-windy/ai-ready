@@ -26,20 +26,20 @@
   "receipt:account:select",
   "sale:discount:edit",
   "sale:settle:force",
-  "system:permission:export",
-  "system:role:export"
+  "tenant-admin:permission:export",
+  "tenant-admin:role:export"
  ],
  "groupNodes": [
   "crm:manage",
-  "department:manage",
   "permission:manage",
-  "position:manage",
   "purchase:manage",
   "role:manage",
   "sale:manage",
   "stock:manage",
   "system:dataimport:manage",
   "system:manage",
+  "tenant-admin:department:manage",
+  "tenant-admin:position:manage",
   "user:manage"
  ],
  "refCounts": {
@@ -375,14 +375,6 @@
    "backend": 0,
    "frontend": 1
   },
-  "data-scope:set": {
-   "backend": 2,
-   "frontend": 0
-  },
-  "data-scope:view": {
-   "backend": 2,
-   "frontend": 0
-  },
   "datasource:backup:create": {
    "backend": 1,
    "frontend": 0
@@ -444,26 +436,6 @@
    "frontend": 0
   },
   "datasource:sync:update": {
-   "backend": 1,
-   "frontend": 0
-  },
-  "department:create": {
-   "backend": 1,
-   "frontend": 0
-  },
-  "department:delete": {
-   "backend": 2,
-   "frontend": 0
-  },
-  "department:edit": {
-   "backend": 3,
-   "frontend": 0
-  },
-  "department:list": {
-   "backend": 2,
-   "frontend": 0
-  },
-  "department:query": {
    "backend": 1,
    "frontend": 0
   },
@@ -2187,34 +2159,6 @@
    "backend": 3,
    "frontend": 0
   },
-  "permission-template:apply": {
-   "backend": 2,
-   "frontend": 0
-  },
-  "permission-template:create": {
-   "backend": 1,
-   "frontend": 0
-  },
-  "permission-template:delete": {
-   "backend": 1,
-   "frontend": 0
-  },
-  "permission-template:detail": {
-   "backend": 1,
-   "frontend": 0
-  },
-  "permission-template:list": {
-   "backend": 2,
-   "frontend": 0
-  },
-  "permission-template:update": {
-   "backend": 1,
-   "frontend": 0
-  },
-  "permission-template:update-status": {
-   "backend": 1,
-   "frontend": 0
-  },
   "platform:mail:config": {
    "backend": 1,
    "frontend": 0
@@ -2289,30 +2233,6 @@
   },
   "platform:tenant-quota:update": {
    "backend": 1,
-   "frontend": 0
-  },
-  "position:assign": {
-   "backend": 2,
-   "frontend": 0
-  },
-  "position:create": {
-   "backend": 2,
-   "frontend": 0
-  },
-  "position:delete": {
-   "backend": 3,
-   "frontend": 1
-  },
-  "position:edit": {
-   "backend": 4,
-   "frontend": 3
-  },
-  "position:list": {
-   "backend": 5,
-   "frontend": 0
-  },
-  "position:query": {
-   "backend": 3,
    "frontend": 0
   },
   "product:attachments:create": {
@@ -2613,14 +2533,6 @@
   },
   "purchase:price:edit": {
    "backend": 6,
-   "frontend": 0
-  },
-  "role-inheritance:manage": {
-   "backend": 3,
-   "frontend": 0
-  },
-  "role-inheritance:view": {
-   "backend": 3,
    "frontend": 0
   },
   "sale:order:approve": {
@@ -3191,18 +3103,6 @@
    "backend": 9,
    "frontend": 1
   },
-  "system:data-scope:assign": {
-   "backend": 1,
-   "frontend": 1
-  },
-  "system:data-scope:delete": {
-   "backend": 1,
-   "frontend": 0
-  },
-  "system:data-scope:list": {
-   "backend": 2,
-   "frontend": 0
-  },
   "system:dataimport:create": {
    "backend": 1,
    "frontend": 0
@@ -3287,18 +3187,6 @@
    "backend": 7,
    "frontend": 2
   },
-  "system:field-permission:assign": {
-   "backend": 1,
-   "frontend": 1
-  },
-  "system:field-permission:delete": {
-   "backend": 1,
-   "frontend": 0
-  },
-  "system:field-permission:list": {
-   "backend": 2,
-   "frontend": 0
-  },
   "system:menu:create": {
    "backend": 1,
    "frontend": 2
@@ -3339,110 +3227,6 @@
    "backend": 4,
    "frontend": 0
   },
-  "system:permission:assign": {
-   "backend": 1,
-   "frontend": 1
-  },
-  "system:permission:cache": {
-   "backend": 2,
-   "frontend": 0
-  },
-  "system:permission:check": {
-   "backend": 3,
-   "frontend": 0
-  },
-  "system:permission:clear": {
-   "backend": 1,
-   "frontend": 0
-  },
-  "system:permission:create": {
-   "backend": 1,
-   "frontend": 4
-  },
-  "system:permission:delete": {
-   "backend": 2,
-   "frontend": 1
-  },
-  "system:permission:detail": {
-   "backend": 1,
-   "frontend": 0
-  },
-  "system:permission:list": {
-   "backend": 4,
-   "frontend": 0
-  },
-  "system:permission:update": {
-   "backend": 2,
-   "frontend": 1
-  },
-  "system:permission:update-status": {
-   "backend": 1,
-   "frontend": 0
-  },
-  "system:permission:view": {
-   "backend": 2,
-   "frontend": 0
-  },
-  "system:record-rule:create": {
-   "backend": 1,
-   "frontend": 0
-  },
-  "system:record-rule:delete": {
-   "backend": 1,
-   "frontend": 0
-  },
-  "system:record-rule:list": {
-   "backend": 8,
-   "frontend": 0
-  },
-  "system:record-rule:update": {
-   "backend": 3,
-   "frontend": 1
-  },
-  "system:role:assign": {
-   "backend": 2,
-   "frontend": 1
-  },
-  "system:role:assign-menu": {
-   "backend": 1,
-   "frontend": 1
-  },
-  "system:role:assign-permission": {
-   "backend": 3,
-   "frontend": 0
-  },
-  "system:role:clear": {
-   "backend": 1,
-   "frontend": 0
-  },
-  "system:role:create": {
-   "backend": 1,
-   "frontend": 0
-  },
-  "system:role:delete": {
-   "backend": 1,
-   "frontend": 1
-  },
-  "system:role:detail": {
-   "backend": 2,
-   "frontend": 0
-  },
-  "system:role:list": {
-   "backend": 1,
-   "frontend": 0
-  },
-  "system:role:update": {
-   "backend": 1,
-   "frontend": 1
-  },
-  "system:role:update-status": {
-   "backend": 1,
-   "frontend": 0
-  },
-  "system:role:view": {
-   "backend": 2,
-   "frontend": 0
-  },
   "system:session:disable": {
    "backend": 2,
    "frontend": 0
@@ -3458,26 +3242,6 @@
   "system:simulate": {
    "backend": 3,
    "frontend": 2
-  },
-  "system:sod-rule:create": {
-   "backend": 1,
-   "frontend": 1
-  },
-  "system:sod-rule:delete": {
-   "backend": 1,
-   "frontend": 1
-  },
-  "system:sod-rule:list": {
-   "backend": 2,
-   "frontend": 0
-  },
-  "system:sod-rule:update": {
-   "backend": 1,
-   "frontend": 1
-  },
-  "system:sod-rule:validate": {
-   "backend": 1,
-   "frontend": 0
   },
   "system:tenant:approve": {
    "backend": 3,
@@ -3503,39 +3267,275 @@
    "backend": 2,
    "frontend": 0
   },
-  "system:user:assign-role": {
-   "backend": 2,
-   "frontend": 0
-  },
-  "system:user:create": {
-   "backend": 2,
+  "tenant-admin:data-scope:assign": {
+   "backend": 1,
    "frontend": 1
   },
-  "system:user:delete": {
-   "backend": 4,
-   "frontend": 1
-  },
-  "system:user:detail": {
-   "backend": 2,
-   "frontend": 0
-  },
-  "system:user:export": {
+  "tenant-admin:data-scope:delete": {
    "backend": 1,
    "frontend": 0
   },
-  "system:user:list": {
+  "tenant-admin:data-scope:list": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "tenant-admin:data-scope:set": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "tenant-admin:data-scope:view": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "tenant-admin:department:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "tenant-admin:department:delete": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "tenant-admin:department:edit": {
    "backend": 3,
    "frontend": 0
   },
-  "system:user:reset-password": {
+  "tenant-admin:department:list": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "tenant-admin:department:query": {
    "backend": 1,
    "frontend": 0
   },
-  "system:user:update": {
+  "tenant-admin:field-permission:assign": {
+   "backend": 1,
+   "frontend": 1
+  },
+  "tenant-admin:field-permission:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "tenant-admin:field-permission:list": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "tenant-admin:permission-template:apply": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "tenant-admin:permission-template:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "tenant-admin:permission-template:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "tenant-admin:permission-template:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "tenant-admin:permission-template:list": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "tenant-admin:permission-template:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "tenant-admin:permission-template:update-status": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "tenant-admin:permission:assign": {
+   "backend": 1,
+   "frontend": 1
+  },
+  "tenant-admin:permission:cache": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "tenant-admin:permission:check": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "tenant-admin:permission:clear": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "tenant-admin:permission:create": {
+   "backend": 1,
+   "frontend": 4
+  },
+  "tenant-admin:permission:delete": {
+   "backend": 2,
+   "frontend": 1
+  },
+  "tenant-admin:permission:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "tenant-admin:permission:list": {
+   "backend": 4,
+   "frontend": 0
+  },
+  "tenant-admin:permission:update": {
+   "backend": 2,
+   "frontend": 1
+  },
+  "tenant-admin:permission:update-status": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "tenant-admin:permission:view": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "tenant-admin:position:assign": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "tenant-admin:position:create": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "tenant-admin:position:delete": {
+   "backend": 3,
+   "frontend": 1
+  },
+  "tenant-admin:position:edit": {
+   "backend": 4,
+   "frontend": 3
+  },
+  "tenant-admin:position:list": {
+   "backend": 5,
+   "frontend": 0
+  },
+  "tenant-admin:position:query": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "tenant-admin:record-rule:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "tenant-admin:record-rule:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "tenant-admin:record-rule:list": {
+   "backend": 8,
+   "frontend": 0
+  },
+  "tenant-admin:record-rule:update": {
+   "backend": 3,
+   "frontend": 1
+  },
+  "tenant-admin:role-inheritance:manage": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "tenant-admin:role-inheritance:view": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "tenant-admin:role:assign": {
+   "backend": 2,
+   "frontend": 1
+  },
+  "tenant-admin:role:assign-menu": {
+   "backend": 1,
+   "frontend": 1
+  },
+  "tenant-admin:role:assign-permission": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "tenant-admin:role:clear": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "tenant-admin:role:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "tenant-admin:role:delete": {
+   "backend": 1,
+   "frontend": 1
+  },
+  "tenant-admin:role:detail": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "tenant-admin:role:list": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "tenant-admin:role:update": {
+   "backend": 1,
+   "frontend": 1
+  },
+  "tenant-admin:role:update-status": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "tenant-admin:role:view": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "tenant-admin:sod-rule:create": {
+   "backend": 1,
+   "frontend": 1
+  },
+  "tenant-admin:sod-rule:delete": {
+   "backend": 1,
+   "frontend": 1
+  },
+  "tenant-admin:sod-rule:list": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "tenant-admin:sod-rule:update": {
+   "backend": 1,
+   "frontend": 1
+  },
+  "tenant-admin:sod-rule:validate": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "tenant-admin:user:assign-role": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "tenant-admin:user:create": {
+   "backend": 2,
+   "frontend": 1
+  },
+  "tenant-admin:user:delete": {
+   "backend": 4,
+   "frontend": 1
+  },
+  "tenant-admin:user:detail": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "tenant-admin:user:export": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "tenant-admin:user:list": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "tenant-admin:user:reset-password": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "tenant-admin:user:update": {
    "backend": 5,
    "frontend": 3
   },
-  "system:user:update-status": {
+  "tenant-admin:user:update-status": {
    "backend": 1,
    "frontend": 0
   },

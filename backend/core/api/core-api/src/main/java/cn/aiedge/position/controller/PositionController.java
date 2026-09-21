@@ -31,28 +31,28 @@ public class PositionController {
 
     @Operation(summary = "分页查询岗位")
     @GetMapping("/page")
-    @RequiresPermission("position:list")
+    @RequiresPermission("tenant-admin:position:list")
     public ApiResponse<PageResult<PositionVO>> pageList(PositionQueryRequest request) {
         return ApiResponse.ok(positionService.pageList(request));
     }
 
     @Operation(summary = "获取岗位列表")
     @GetMapping("/list")
-    @RequiresPermission("position:list")
+    @RequiresPermission("tenant-admin:position:list")
     public ApiResponse<List<PositionVO>> list() {
         return ApiResponse.ok(positionService.listAll());
     }
 
     @Operation(summary = "获取岗位详情")
     @GetMapping("/{id}")
-    @RequiresPermission("position:query")
+    @RequiresPermission("tenant-admin:position:query")
     public ApiResponse<PositionVO> getDetail(@PathVariable Long id) {
         return ApiResponse.ok(positionService.getDetail(id));
     }
 
     @Operation(summary = "创建岗位")
     @PostMapping
-    @RequiresPermission("position:create")
+    @RequiresPermission("tenant-admin:position:create")
     public ApiResponse<Long> create(@Valid @RequestBody PositionCreateRequest request) {
         Long positionId = positionService.create(request);
         return ApiResponse.success(positionId);
@@ -60,7 +60,7 @@ public class PositionController {
 
     @Operation(summary = "更新岗位")
     @PutMapping("/{id}")
-    @RequiresPermission("position:edit")
+    @RequiresPermission("tenant-admin:position:edit")
     public ApiResponse<Void> update(@PathVariable Long id, @Valid @RequestBody PositionUpdateRequest request) {
         request.setId(id);
         positionService.update(request);
@@ -69,7 +69,7 @@ public class PositionController {
 
     @Operation(summary = "删除岗位")
     @DeleteMapping("/{id}")
-    @RequiresPermission("position:delete")
+    @RequiresPermission("tenant-admin:position:delete")
     public ApiResponse<Void> delete(@PathVariable Long id) {
         positionService.delete(id);
         return ApiResponse.success();
@@ -77,7 +77,7 @@ public class PositionController {
 
     @Operation(summary = "批量删除岗位")
     @DeleteMapping("/batch")
-    @RequiresPermission("position:delete")
+    @RequiresPermission("tenant-admin:position:delete")
     public ApiResponse<Void> batchDelete(@RequestBody List<Long> ids) {
         positionService.batchDelete(ids);
         return ApiResponse.success();
@@ -85,7 +85,7 @@ public class PositionController {
 
     @Operation(summary = "启用/禁用岗位")
     @PutMapping("/{id}/status")
-    @RequiresPermission("position:edit")
+    @RequiresPermission("tenant-admin:position:edit")
     public ApiResponse<Void> updateStatus(@PathVariable Long id, @RequestParam Integer status) {
         positionService.updateStatus(id, status);
         return ApiResponse.ok(null);
@@ -93,21 +93,21 @@ public class PositionController {
 
     @Operation(summary = "导出岗位")
     @GetMapping("/export")
-    @RequiresPermission("position:list")
+    @RequiresPermission("tenant-admin:position:list")
     public void export(PositionQueryRequest request, HttpServletResponse response) throws IOException {
         positionService.export(request, response);
     }
 
     @Operation(summary = "根据部门获取岗位")
     @GetMapping("/dept/{deptId}")
-    @RequiresPermission("position:list")
+    @RequiresPermission("tenant-admin:position:list")
     public ApiResponse<List<PositionVO>> getByDeptId(@PathVariable Long deptId) {
         return ApiResponse.ok(positionService.getByDeptId(deptId));
     }
 
     @Operation(summary = "分配岗位给用户")
     @PostMapping("/assign")
-    @RequiresPermission("position:assign")
+    @RequiresPermission("tenant-admin:position:assign")
     public ApiResponse<Void> assignToUser(@RequestParam Long userId,
                                            @RequestBody List<Long> positionIds,
                                            @RequestParam(required = false) Long primaryPositionId) {
@@ -117,7 +117,7 @@ public class PositionController {
 
     @Operation(summary = "移除用户岗位")
     @DeleteMapping("/remove")
-    @RequiresPermission("position:assign")
+    @RequiresPermission("tenant-admin:position:assign")
     public ApiResponse<Void> removeFromUser(@RequestParam Long userId,
                                             @RequestBody List<Long> positionIds) {
         positionService.removeFromUser(userId, positionIds);
@@ -126,7 +126,7 @@ public class PositionController {
 
     @Operation(summary = "获取岗位下的人员")
     @GetMapping("/{id}/users")
-    @RequiresPermission("position:query")
+    @RequiresPermission("tenant-admin:position:query")
     public ApiResponse<List<PositionUserVO>> getUsers(@PathVariable Long id) {
         return ApiResponse.ok(positionService.getUsers(id));
     }

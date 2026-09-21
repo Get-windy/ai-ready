@@ -32,7 +32,7 @@ public class SysRoleController {
 
     @Operation(summary = "创建角色")
     @PostMapping
-    @SaCheckPermission("system:role:create")
+    @SaCheckPermission("tenant-admin:role:create")
     @OperationLog(module = "角色管理", type = "CREATE", desc = "创建角色")
     public Result<Long> createRole(@RequestBody SysRole role) {
         Long roleId = roleService.createRole(role);
@@ -43,7 +43,7 @@ public class SysRoleController {
 
     @Operation(summary = "更新角色")
     @PutMapping("/{id}")
-    @SaCheckPermission("system:role:update")
+    @SaCheckPermission("tenant-admin:role:update")
     @OperationLog(module = "角色管理", type = "UPDATE", desc = "更新角色")
     public Result<Void> updateRole(@PathVariable Long id, @RequestBody SysRole role) {
         role.setId(id);
@@ -55,7 +55,7 @@ public class SysRoleController {
 
     @Operation(summary = "删除角色")
     @DeleteMapping("/{id}")
-    @SaCheckPermission("system:role:delete")
+    @SaCheckPermission("tenant-admin:role:delete")
     @OperationLog(module = "角色管理", type = "DELETE", desc = "删除角色")
     public Result<Void> deleteRole(@PathVariable Long id) {
         roleService.deleteRole(id);
@@ -66,7 +66,7 @@ public class SysRoleController {
 
     @Operation(summary = "分配权限")
     @PostMapping("/{id}/permissions")
-    @SaCheckPermission("system:role:assign-permission")
+    @SaCheckPermission("tenant-admin:role:assign-permission")
     @OperationLog(module = "权限管理", type = "UPDATE", desc = "分配角色权限", saveParams = true)
     public Result<Void> assignPermissions(@PathVariable Long id, @RequestBody List<Long> permissionIds) {
         roleService.assignPermissions(id, permissionIds);
@@ -77,7 +77,7 @@ public class SysRoleController {
 
     @Operation(summary = "分配菜单")
     @PostMapping("/{id}/menus")
-    @SaCheckPermission("system:role:assign-menu")
+    @SaCheckPermission("tenant-admin:role:assign-menu")
     @OperationLog(module = "权限管理", type = "UPDATE", desc = "分配角色菜单", saveParams = true)
     public Result<Void> assignMenus(@PathVariable Long id, @RequestBody List<Long> menuIds) {
         roleService.assignMenus(id, menuIds);
@@ -88,7 +88,7 @@ public class SysRoleController {
 
     @Operation(summary = "分页查询角色")
     @GetMapping("/page")
-    @SaCheckPermission("system:role:list")
+    @SaCheckPermission("tenant-admin:role:list")
     public Result<Page<SysRole>> pageRoles(
             @RequestParam(defaultValue = "1") Long current,
             @RequestParam(defaultValue = "10") Long size,
@@ -130,7 +130,7 @@ public class SysRoleController {
 
     @Operation(summary = "更新角色状态")
     @PutMapping("/{id}/status")
-    @SaCheckPermission("system:role:update-status")
+    @SaCheckPermission("tenant-admin:role:update-status")
     @OperationLog(module = "角色管理", type = "UPDATE", desc = "更新角色状态")
     public Result<Void> updateStatus(@PathVariable Long id, @RequestParam Integer status) {
         roleService.updateRoleStatus(id, status);
@@ -141,7 +141,7 @@ public class SysRoleController {
 
     @Operation(summary = "复制角色权限", description = "从源角色复制权限和菜单配置到目标角色")
     @PostMapping("/{id}/copy-from/{sourceRoleId}")
-    @SaCheckPermission("system:role:assign-permission")
+    @SaCheckPermission("tenant-admin:role:assign-permission")
     @OperationLog(module = "权限管理", type = "UPDATE", desc = "复制角色权限")
     public Result<Void> copyPermissions(@PathVariable Long id, @PathVariable Long sourceRoleId) {
         roleService.copyPermissions(id, sourceRoleId);

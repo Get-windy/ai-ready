@@ -303,12 +303,12 @@
                     </a-button>
                     <!--
                       例外说明：「角色」按钮实际调用 POST /api/role/{id}/menus（角色域），
-                      故使用该端点真实要求的 system:role:assign-menu，不强行归入 system:menu:*。
+                      故使用该端点真实要求的 tenant-admin:role:assign-menu，不强行归入 system:menu:*。
                       ⚠️ 遗留：其前置步骤 roleApi.getMenus() → GET /api/role/{id}/menus 后端不存在（404），
                       该功能在补齐后端端点前不可用（本轮只改前端，保持如实报错）。
                     -->
                     <a-button
-                      v-permission="'system:role:assign-menu'"
+                      v-permission="'tenant-admin:role:assign-menu'"
                       type="link"
                       size="small"
                       @click="handleAssignRole(record)"
@@ -460,7 +460,7 @@
           >
             <a-input
               v-model:value="formData.menuCode"
-              placeholder="请输入权限标识，如：system:user:list"
+              placeholder="请输入权限标识，如：tenant-admin:user:list"
             />
           </a-form-item>
 
@@ -688,7 +688,7 @@
  *     PUT    /api/menu/{id}/status    → system:menu:update-status  （状态开关）
  *     GET    /api/menu/tree           → system:menu:list           （树/列表查询）
  *   唯一例外：行内「角色」按钮实际调用 `POST /api/role/{id}/menus`，属**角色域**，
- *   故用该端点真实要求的 `system:role:assign-menu`，不强行改成 `system:menu:*`。
+ *   故用该端点真实要求的 `tenant-admin:role:assign-menu`，不强行改成 `system:menu:*`。
  *   🔴 遗留（需后端补种子，本轮只改前端）：`system:menu:*` 六个码在 `sys_permission`
  *   表中 0 行 → 除超管（前端指令对 `*` 放行）外仍会 403（开发文档 §10.1-⑯）。
  *

@@ -106,7 +106,7 @@
           :show-search="false"
           :selectable="false"
           add-text="新增角色"
-          add-permission="system:role:create"
+          add-permission="tenant-admin:role:create"
           @add="handleAdd"
           @edit="handleEdit"
           @delete="handleDeleteConfirm"
@@ -163,7 +163,7 @@
           <template #action="{ record }">
             <a-space>
               <a-button
-                v-permission="'system:role:update'"
+                v-permission="'tenant-admin:role:update'"
                 type="link"
                 size="small"
                 @click="handleEdit(record)"
@@ -173,7 +173,7 @@
               <!-- 只保留一个「设置权限」入口：功能权限 / 菜单权限 / 单据类型权限 收进同一个弹窗的 Tab 里
                    （对标 ql361 —— 它的行操作只有 修改 / 删除 / 设置权限 三个，所有授权都在一个面板内完成） -->
               <a-button
-                v-permission="'system:permission:assign'"
+                v-permission="'tenant-admin:permission:assign'"
                 type="link"
                 size="small"
                 @click="handlePermission(record)"
@@ -181,7 +181,7 @@
                 设置权限
               </a-button>
               <a-button
-                v-permission="'system:role:delete'"
+                v-permission="'tenant-admin:role:delete'"
                 type="link"
                 size="small"
                 danger
@@ -459,7 +459,7 @@
                 </div>
                 <div class="detail-perm-tags">
                   <!-- 展示权限中文名，权限码放进 tooltip 供实施核对：
-                       普通管理员看不懂 system:role:create 这类编码 -->
+                       普通管理员看不懂 tenant-admin:role:create 这类编码 -->
                   <a-tooltip
                     v-for="item in group.items"
                     :key="item.id"
@@ -1008,10 +1008,10 @@ const permMatrixDomainKeyword = ref('')
  * 原实现是三个权限码取「或」，结果是只有功能权限分配权的人也能编辑字段权限，
  * 用户填完才被后端的 @SaCheckPermission 拒绝 —— 这里改成各 Tab 用各自的权限码。
  */
-const readonlyFieldPerm = computed(() => !userStore.hasPermission('system:field-permission:assign'))
-const readonlyDataScope = computed(() => !userStore.hasPermission('system:data-scope:assign'))
+const readonlyFieldPerm = computed(() => !userStore.hasPermission('tenant-admin:field-permission:assign'))
+const readonlyDataScope = computed(() => !userStore.hasPermission('tenant-admin:data-scope:assign'))
 // 记录规则后端已补齐 system:record-rule:* 权限码（此前该 Controller 无任何权限校验）
-const readonlyRecordRule = computed(() => !userStore.hasPermission('system:record-rule:update'))
+const readonlyRecordRule = computed(() => !userStore.hasPermission('tenant-admin:record-rule:update'))
 
 /**
  * 「敏感信息保护」「数据可见范围」两个 Tab 的子组件引用。
@@ -1932,7 +1932,7 @@ const viewPermOptionsError = ref(false)
 /** sys_permission.id → { name, code }，用于把分配到角色的权限 ID 还原成权限码 */
 const viewPermOptionMap = ref<Map<string, { name: string; code: string }>>(new Map())
 
-/** 权限码形如 system:role:list，第一段即模块标识，据此分组（sys_permission 无可用父子层级） */
+/** 权限码形如 tenant-admin:role:list，第一段即模块标识，据此分组（sys_permission 无可用父子层级） */
 const viewPermissionGroups = computed(() => {
   const groups = new Map<string, { id: string; name: string; code: string }[]>()
   for (const id of viewPermissionIds.value) {

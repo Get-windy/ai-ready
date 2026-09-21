@@ -714,19 +714,35 @@
      **「系统」模块只开给系统租户**（"系统模块权限由超管授权给系统租户的用户"）；
      **「设置」才是租户级的管理设置模块**。落实在迁移 `V11.455.0`（软删非系统租户的
      `system` 开通记录 + 补系统租户那条），实测租户 1 = 13 个模块、租户 2 = 12 个（无「系统」）。
-- **🔴 该裁定顺带暴露的新问题（需要产品口径，别绕过）**：租户内的**用户/角色/权限管理**码
-  目前是 `system:user:*` / `system:role:*` / `system:permission:*` / `system:data-scope:*`，
-  **前缀都是 `system:`** ⇒ 按映射它们全归「系统」模块 ⇒ 收紧之后，**业务租户将再无任何码
-  可以管理自己的用户与角色**（「设置」模块现有 25 个码是 `set:` / `workflow:` / `print:`，
-  不含用户/角色/部门/岗位）。
-  **但用户口述同时说"租户内的部门管理员权限由租户所在系统管理员给与配置"** ——
-  租户的系统管理员要配本租户角色，就得有这批码。两者对不上，属产品口径，**不猜、不动映射表**：
-  entitlement 门一旦上线，租户 2 会连"配本租户角色"都做不到。
-  可选口径：①把"租户管理员"那批码（user/role/permission/data-scope/field-permission/
-  department/position）从「系统」重新划归「设置」；②「系统」模块改按**子域**授权（平台子域
-  vs 租户子域）；③另立租户管理码族。**等裁定。**
-- **状态**：🔄 名册与映射表 ✅ 完成（`verify-module-mapping.cjs` **39/39**）；
-  「系统」模块只开系统租户 ✅ 已落地（`V11.455.0`）；entitlement 门本身 ⬜ 待做（被上面那条口径阻塞）
+- **✅ 该裁定顺带暴露的冲突已解决（2026-09-21，用户裁定：③ 另立租户管理码族）**：
+  冲突是——租户内"人/角色/权限"的码前缀都是 `system:`、按映射全归「系统」模块，
+  而「系统」已收紧为**只开给系统租户** ⇒ 业务租户将再无码可管理自己的用户与角色；
+  但用户口述同时说"租户内的部门管理员权限由租户所在系统管理员给与配置"。两者对不上。
+  **裁定：另立「租户管理」码族 `tenant-admin:`，归「设置」（租户级）模块。**
+  落实为 `V11.456.0` + `V11.457.0` 两个迁移与一次**跨端重命名**：
+  · **7 个子域从 `system:` 剥离**：`system:<fam>:<act>` → `tenant-admin:<fam>:<act>`
+    （user / role / permission / data-scope / field-permission / record-rule / sod-rule）；
+  · **5 个原裸前缀子域并入同一族**：`<fam>:<act>` → `tenant-admin:<fam>:<act>`
+    （department / position / permission-template / role-inheritance / **data-scope**）；
+  · 合计 **72 条码**，映射表新增 `tenant-admin:` 前缀挂到「设置」，并清掉「系统」模块里
+    已迁走的 5 条前缀。
+  **⚠️ 这类"改码文本"的活比命名本身危险得多**：本仓铁律是「码必须先在库里存在，注解才能挂」，
+  改一半（库改了注解没改）的症状是**所有非超管一律 403**，且不报编译错、不报启动错。
+  故写了 `tools/rename-permission-prefix.py`：**从真库读码 → 整码精确匹配 → 跨后端注解 +
+  前端 v-permission + 种子配置一起改 → 改完复扫断言旧码零残留**。实测 **225 处引用 / 24 个文件**。
+  · **该脚本第一版按"前缀"替换，踩了两个坑，都已修并写进脚本注释**：
+    ① 把打印引擎里的 CSS `position:relative;` / `position:absolute;`（4 处）当成权限码；
+    ② 漏了「同一个子域里混着两种写法」的情况 —— `data-scope` 有 3 条在 `system:` 下、
+       另 2 条是裸前缀，第一版只搬了 system: 那半，结果那 2 条**变成无模块归属**。
+       暴露靠的不是人肉复查，而是 `verify-module-mapping.cjs` 里那条
+       **"在役码必须 100% 能被某个前缀接住"** 的断言（直接报 `未归属 2 条`）。
+  · **另一个顺带修掉的工具坑**：`tools/build-backend.sh` 在"没有实例在跑"时会
+    **完全静默地 exit 1**（`grep -E '^[0-9]+$'` 无匹配 → `pipefail` → `set -e`，
+    且退出发生在任何 echo 之前）。上一次启动失败之后本来就没实例，再跑构建就什么都看不到。
+    已加 `|| true`，空结果会走"没有正在运行的后端实例"分支。
+- **状态**：🔄 名册与映射表 ✅（`verify-module-mapping.cjs` **43/43**）；
+  「系统」只开系统租户 ✅（`V11.455.0`）；**租户管理码族 ✅（`V11.456.0` + `V11.457.0`）**；
+  entitlement 门本身 ⬜ 待做（**口径阻塞已解除**，可开工）
 
 ---
 
@@ -1360,6 +1376,8 @@
 | 2026-09-21 | **E-02 验收：批次 1/2/4/5 全量复跑** | `verify-authz-batch45.cjs` **53/53**（① 11 码在库且只被超管持有 ② 18 条超管探针全非 403 ③ 18 条非超管全 403 ④ 403 钉 4/4 ⑤ 60 条已删码不得复活 ⑥ 未生效清单必须正好 21 条）；批次 1 **32/32**、批次 2 **18/18** 无回归。新增 `tools/refs-of-codes.py`（删码前全仓引用核对：B 类 35 条的引用只落在种子 SQL / 文档 / 审计 JSON，无一处活跃代码）。 | ✅ 全绿；构建 `MODULES=core-base,core-platform,core-api,erp-finance,erp-purchase,erp-sales` clean install 成功，启动 137s |
 | 2026-09-21 | **🔴 鉴权门禁（棘轮）自批次 1 起一直是红的（已修）** | `AuthzAnnotationCoverageTest#baselineMustNotBeStale` 的规则是"补了注解就必须从基线清单删行"。批次 1/2 接线后**基线没同步收缩**，实测 **7 行过期**（`crm.customer.controller.CustomerController` / `CustomerFollowUpController` / `CustomerOpportunityController` + `erp.expense.controller` 的 ExpenseApproval/Expense/ExpensePayment/ExpenseReimbursement），加上本轮新补的 `PurchasePriceTrackController` / `SalesPriceTrackController` 共 9 行。 | ✅ 删掉 9 行（并按文件维护规则补注释说明出处），`known-unauthorized-controllers.txt` **139 → 130** 行；`./mvnw -pl core/api/core-api test -Dtest=AuthzAnnotationCoverageTest,PointcutTargetExistenceTest` **4/4 通过**（控制器总数 394 / 端点 3533；无任何 `@SaCheck*` 130 个 = 33%，覆盖端点 1231）。<br>⚠️ 教训：**接线批次的收尾清单里必须有"跑门禁测试"这一步**，否则棘轮会腐烂成"永远豁免"名册 |
 | 2026-09-21 | **A 方案完成：模块目录 6 → 13 + 建「模块→码」映射表（迁移 `V11.454.0`）** | 用户定稿的 13 模块落到数据上：`crm` 改名「**客户服务**」（售前+售后两阶段同属一个模块；业界同构 Salesforce Sales+Service Cloud / Zoho CRM+Desk / Odoo CRM+Helpdesk）、`warehouse` 语义收窄（只留 `stock:`+`wms:`，商品档案/往来单位划给新的「资料」）、新增 资料/交易/配送/人力资源/分析/设置(租户级)/系统(平台级)。<br>新建 **`sys_module_permission`**（模块 → 权限码前缀），**37 条前缀**覆盖 12 个有码模块；归属口径 = **最长前缀优先、同长取 sort 小**。<br>回填租户 1/2 的开通记录（口径：**现状不降级** —— 迁移不替业务做减法，先按"今天能用的全开"，再由平台职员按合同关）。 | ✅ 迁移 Flyway `success`；新增 `tools/verify-module-mapping.cjs` **35/35** —— 13 模块名逐条比对、无孤儿模块码、**923/923 在役码 100% 有归属**、无同长前缀歧义、`analytics` 映射数为 0（断言为 0 以防被塞假码）、两租户各 13 条开通记录。<br>⬜ 遗留：entitlement 门本身（`hasModuleAccess()` 仍是零调用方）、分析模块码族、系统模块开给谁的口径（见 平台-MODULE-01） |
+| 2026-09-21 | **🔴 工具坑：`build-backend.sh` 在"无实例在跑"时静默 exit 1（已修）** | 脚本是 `set -euo pipefail`，而 `find_backend_pids` 末尾的 `grep -E '^[0-9]+$'` 在"没有实例"时无匹配返回 1 ⇒ pipeline 返 1 ⇒ 赋值语句触发 `set -e` ⇒ **立刻退出**；因为退出发生在任何 `echo` 之前，现场表现是**零输出 + exit 1**（极易被误判成"构建卡住/环境坏了"）。触发路径很普通：上一次启动失败（迁移报错）之后本来就没有实例，再跑构建就什么都看不到 —— 本轮连续踩了两次。已加 `\|\| true`，空结果会走到"==> 没有正在运行的后端实例"分支。 | ✅ 修复后连续三次构建重启均正常打印 |
+| 2026-09-21 | **用户裁定：另立「租户管理」码族 `tenant-admin:`（迁移 `V11.456.0` + `V11.457.0`）** | 冲突：租户内"人/角色/权限"的码前缀都是 `system:`、按映射全归「系统」模块，而「系统」已收紧为只开给系统租户 ⇒ 业务租户再无码可管理自己的用户与角色；但用户口述又说"部门管理员权限由租户的系统管理员配置"。**裁定 ③：另立码族，归「设置」（租户级）模块。**<br>· 7 个子域从 `system:` 剥离：user / role / permission / data-scope / field-permission / record-rule / sod-rule<br>· 5 个原裸前缀子域并入同族：department / position / permission-template / role-inheritance / **data-scope**<br>· 合计 **72 条码**；映射表加 `tenant-admin:` → 「设置」，清掉「系统」里已迁走的 5 条前缀。<br>新增 `tools/rename-permission-prefix.py`（**从真库读码 → 整码精确匹配 → 跨后端注解/前端指令/种子一起改 → 复扫断言零残留**），实测 **225 处 / 24 文件**，改动是干净的 1:1 替换。 | ✅ 两个迁移 Flyway `success`；`verify-module-mapping.cjs` **43/43**；`verify-authz-batch45.cjs` **66/66**（新增第⑥段：7 个新码在库且旧码不存在 + 6 个端点「超管非 403 / 非超管 403」+ 一条正向对照 `tenant-admin:user:list` 被租户侧角色真实持有，故 `/user/page` 对非超管放行是**正确行为**）；**生效性数字一字未变**（`934 = 902 + 21 + 11`，后端 1615 处 / 前端 324 处）⇒ 证明改名左右对称、没有码丢失消费方。<br>⚠️ 脚本第一版的两个坑（CSS `position:relative` 误伤、`data-scope` 半搬）已修并写进脚本注释；后者是靠"在役码 100% 有归属"断言抓出来的 |
 | 2026-09-21 | **用户裁定：「系统」模块只开给系统租户；「设置」是租户级管理设置模块（迁移 `V11.455.0`）** | 上个迁移（V11.454.0）为"不替业务做减法"把 13 个模块全量补给了两个租户，并在末尾登记了这个待裁定项。现按裁定收紧：**软删非系统租户的 `system` 开通记录**（回收的是开通记录，不是模块本身，可回滚），系统租户缺则补上。本迁移**只动 entitlement 名册，不动权限码、不动鉴权注解** —— `hasModuleAccess()` 仍是零调用方，故**不改变任何接口今天的可达性**。<br>🔴 **顺带暴露新问题（已登记，等裁定）**：租户内的用户/角色/权限管理码前缀都是 `system:`，按映射全归「系统」模块 ⇒ 收紧后**业务租户再无码可管理自己的用户与角色**（「设置」现有码不含 user/role/dept/position）；而用户口述又说"部门管理员权限由租户的系统管理员配置"。两者对不上，**不猜、不动映射表**，否则 entitlement 门一上租户 2 连配角色都做不到。 | ✅ Flyway `success`；`verify-module-mapping.cjs` **39/39**（新增第⑥⑦段钉住裁定：`system` 开通租户**恰好只有 1**、系统租户 13 个模块、业务租户 12 个、业务租户必须有「设置」、`sys_module` 里模块仍在、无悬空开通行） |
 
 ---

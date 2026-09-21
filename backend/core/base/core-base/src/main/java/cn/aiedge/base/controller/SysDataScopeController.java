@@ -32,7 +32,7 @@ public class SysDataScopeController {
 
     @Operation(summary = "分页查询数据权限规则")
     @GetMapping("/page")
-    @SaCheckPermission("system:data-scope:list")
+    @SaCheckPermission("tenant-admin:data-scope:list")
     public Result<Page<SysDataScope>> page(
             @RequestParam(defaultValue = "1") int pageNum,
             @RequestParam(defaultValue = "10") int pageSize,
@@ -47,7 +47,7 @@ public class SysDataScopeController {
 
     @Operation(summary = "获取角色的数据权限规则列表")
     @GetMapping("/list")
-    @SaCheckPermission("system:data-scope:list")
+    @SaCheckPermission("tenant-admin:data-scope:list")
     public Result<List<SysDataScope>> list(@RequestParam Long roleId) {
         List<SysDataScope> list = sysDataScopeService.getByRoleIds(List.of(roleId));
         return Result.ok(list);
@@ -55,7 +55,7 @@ public class SysDataScopeController {
 
     @Operation(summary = "保存角色数据权限规则（全量覆盖）")
     @PostMapping("/save")
-    @SaCheckPermission("system:data-scope:assign")
+    @SaCheckPermission("tenant-admin:data-scope:assign")
     public Result<Void> save(@RequestParam Long roleId, @RequestBody List<SysDataScope> scopes) {
         sysDataScopeService.saveRoleDataScopes(roleId, scopes);
         return Result.ok("保存成功", null);
@@ -63,7 +63,7 @@ public class SysDataScopeController {
 
     @Operation(summary = "删除数据权限规则")
     @DeleteMapping("/{id}")
-    @SaCheckPermission("system:data-scope:delete")
+    @SaCheckPermission("tenant-admin:data-scope:delete")
     public Result<Void> delete(@PathVariable Long id) {
         sysDataScopeService.removeById(id);
         return Result.ok("删除成功", null);
