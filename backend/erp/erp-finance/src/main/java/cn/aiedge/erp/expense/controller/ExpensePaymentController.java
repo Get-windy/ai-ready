@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @RestController
@@ -37,6 +38,7 @@ public class ExpensePaymentController {
     private final ExpenseApplicationRepository applicationRepository;
 
     @Operation(summary = "支付分页列表", description = "获取费用支付分页列表")
+    @SaCheckPermission("erp:expense:payment:list")
     @GetMapping("/page")
     public ApiResponse<Map<String, Object>> page(
             @Parameter(description = "付款人ID") @RequestParam(required = false) String payerId,
@@ -78,6 +80,7 @@ public class ExpensePaymentController {
     }
 
     @Operation(summary = "获取支付详情", description = "根据ID获取支付详细信息")
+    @SaCheckPermission("erp:expense:payment:query")
     @GetMapping("/{id}")
     public ApiResponse<ExpensePayment> getById(
             @Parameter(description = "支付ID") @PathVariable Long id) {
@@ -90,6 +93,7 @@ public class ExpensePaymentController {
     }
 
     @Operation(summary = "创建支付记录", description = "为已审批通过的费用单创建支付记录")
+    @SaCheckPermission("erp:expense:payment:create")
     @PostMapping
     public ApiResponse<ExpensePayment> create(@RequestBody ExpensePayment payment) {
         if (payment.getApplicationId() != null) {
@@ -116,6 +120,7 @@ public class ExpensePaymentController {
     }
 
     @Operation(summary = "确认支付", description = "确认费用支付完成")
+    @SaCheckPermission("erp:expense:payment:confirm")
     @PostMapping("/{id}/confirm")
     public ApiResponse<ExpensePayment> confirm(
             @Parameter(description = "支付ID") @PathVariable Long id) {
@@ -149,6 +154,7 @@ public class ExpensePaymentController {
     }
 
     @Operation(summary = "取消支付", description = "取消费用支付")
+    @SaCheckPermission("erp:expense:payment:cancel")
     @PostMapping("/{id}/cancel")
     public ApiResponse<ExpensePayment> cancel(
             @Parameter(description = "支付ID") @PathVariable Long id) {

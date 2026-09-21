@@ -18,6 +18,7 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @RestController
@@ -95,6 +96,7 @@ public class ExpenseApprovalController {
     }
 
     @Operation(summary = "审批记录", description = "获取费用单的审批记录")
+    @SaCheckPermission("erp:expense:approval:list")
     @GetMapping("/records")
     public ApiResponse<List<ExpenseApproval>> getApprovalRecords(
             @Parameter(description = "费用申请ID") @RequestParam(required = false) Long applicationId,
@@ -117,6 +119,7 @@ public class ExpenseApprovalController {
     }
 
     @Operation(summary = "待审批列表", description = "获取当前待审批的费用单列表")
+    @SaCheckPermission("erp:expense:approval:list")
     @GetMapping("/pending")
     public ApiResponse<List<ExpenseApplication>> getPendingApprovals(
             @Parameter(description = "审批人ID") @RequestParam(required = false) String approverId) {

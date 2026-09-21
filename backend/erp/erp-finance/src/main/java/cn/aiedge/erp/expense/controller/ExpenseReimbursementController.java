@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @RestController
@@ -79,6 +80,7 @@ public class ExpenseReimbursementController {
     }
 
     @Operation(summary = "获取报销详情", description = "根据ID获取报销详细信息")
+    @SaCheckPermission("erp:expense:reimbursement:query")
     @GetMapping("/{id}")
     public ApiResponse<ExpenseReimbursement> getById(
             @Parameter(description = "报销ID") @PathVariable Long id) {

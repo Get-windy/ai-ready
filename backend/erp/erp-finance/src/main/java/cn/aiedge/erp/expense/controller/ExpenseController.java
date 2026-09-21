@@ -18,6 +18,7 @@ import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @RestController
 @RequestMapping("/api/erp/expense")
@@ -30,6 +31,7 @@ public class ExpenseController {
     // ========== /application/* 端点（前端标准路径） ==========
 
     @Operation(summary = "费用申请分页列表", description = "获取费用申请分页列表")
+    @SaCheckPermission("erp:expense:application:list")
     @GetMapping("/application/page")
     public ApiResponse<List<ExpenseApplicationDTO>> getApplicationPage(
             @Parameter(description = "申请人ID") @RequestParam(required = false) String applicantId,
@@ -47,6 +49,7 @@ public class ExpenseController {
     }
 
     @Operation(summary = "获取费用申请详情", description = "根据ID获取费用申请详细信息")
+    @SaCheckPermission("erp:expense:application:query")
     @GetMapping("/application/{id}")
     public ApiResponse<ExpenseApplicationDTO> getApplicationDetail(
             @Parameter(description = "费用申请ID") @PathVariable Long id) {
@@ -98,6 +101,7 @@ public class ExpenseController {
     // ========== /statistics/* 端点 ==========
 
     @Operation(summary = "统计分页列表", description = "获取费用统计数据分页列表")
+    @SaCheckPermission("erp:expense:statistics:list")
     @GetMapping("/statistics/page")
     public ApiResponse<Map<String, Object>> getStatisticsPage(
             @Parameter(description = "开始日期") @RequestParam(required = false)

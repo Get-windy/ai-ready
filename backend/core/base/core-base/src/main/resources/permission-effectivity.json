@@ -2,8 +2,8 @@
  "generatedAt": "2026-09-21",
  "summary": {
   "db": 994,
-  "effective": 873,
-  "ineffective": 110,
+  "effective": 883,
+  "ineffective": 100,
   "groupNodes": 11
  },
  "ineffective": [
@@ -36,17 +36,7 @@
   "doc:unapprove",
   "doc:void",
   "erp:expense:application:approve",
-  "erp:expense:application:list",
-  "erp:expense:application:query",
-  "erp:expense:approval:list",
   "erp:expense:approval:query",
-  "erp:expense:payment:cancel",
-  "erp:expense:payment:confirm",
-  "erp:expense:payment:create",
-  "erp:expense:payment:list",
-  "erp:expense:payment:query",
-  "erp:expense:reimbursement:query",
-  "erp:expense:statistics:list",
   "erp:expense:statistics:refresh",
   "finance:balance:view",
   "finance:other-income-doc:approve",
@@ -636,13 +626,45 @@
    "backend": 0,
    "frontend": 1
   },
+  "erp:expense:application:list": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "erp:expense:application:query": {
+   "backend": 1,
+   "frontend": 0
+  },
   "erp:expense:application:submit": {
    "backend": 0,
    "frontend": 1
   },
+  "erp:expense:approval:list": {
+   "backend": 2,
+   "frontend": 0
+  },
   "erp:expense:approval:process": {
    "backend": 0,
    "frontend": 1
+  },
+  "erp:expense:payment:cancel": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "erp:expense:payment:confirm": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "erp:expense:payment:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "erp:expense:payment:list": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "erp:expense:payment:query": {
+   "backend": 1,
+   "frontend": 0
   },
   "erp:expense:reimbursement:create": {
    "backend": 0,
@@ -660,9 +682,17 @@
    "backend": 0,
    "frontend": 1
   },
+  "erp:expense:reimbursement:query": {
+   "backend": 1,
+   "frontend": 0
+  },
   "erp:expense:reimbursement:submit": {
    "backend": 0,
    "frontend": 1
+  },
+  "erp:expense:statistics:list": {
+   "backend": 1,
+   "frontend": 0
   },
   "erp:product:approval": {
    "backend": 1,
