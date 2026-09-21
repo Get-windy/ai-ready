@@ -57,5 +57,19 @@
             <artifactId>lombok</artifactId>
             <scope>provided</scope>
         </dependency>
+
+        <!--
+            Test dependencies
+            2026-09-21 新增：本模块此前没有测试依赖，而支付回调验签（AlipayCallbackVerifier）
+            必须被测试钉死 —— 验签属「错了不报错、只是形同虚设」的典型代码：
+            待验签串拼错会让所有回调失败（容易发现），但「异常就 return true」这类反向错误
+            会让所有回调都通过，且线上完全看不出来。测试用**自生成 RSA 密钥对**，
+            不需要真实支付宝凭据。
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 </project>

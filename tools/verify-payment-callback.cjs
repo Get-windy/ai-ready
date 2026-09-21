@@ -70,22 +70,31 @@ const FORGED = { out_trade_no: 'FORGED-ORDER-0001', trade_status: 'SUCCESS', tot
     old.status === 404 || old.status === 405,
     `status=${old.status} ${old.json?.message || ''}`)
 
-  section('② 新端点：无渠道实现 ⇒ 拒绝（fail-closed）')
-  for (const ch of ['WECHAT', 'ALIPAY', 'UNKNOWN_CHANNEL']) {
+  section('② 新端点：一律拒绝（fail-closed），且区分「渠道没实现」与「渠道没配凭据」')
+  // 未实现该渠道 → 401 UNSUPPORTED_CHANNEL
+  for (const ch of ['WECHAT', 'UNKNOWN_CHANNEL']) {
     const r = await req('POST', `/v1/mall/payments/callback/1/${ch}`, { token, body: FORGED })
-    const rejected = r.status === 401 && /UNSUPPORTED_CHANNEL/.test(r.text)
-    ok(`${ch} 被拒绝且未按成功处理`, rejected, `status=${r.status} body=${r.text.slice(0, 60)}`)
+    ok(`${ch}（未实现）被拒绝`, r.status === 401 && /UNSUPPORTED_CHANNEL/.test(r.text),
+      `status=${r.status} body=${r.text.slice(0, 60)}`)
   }
+  // 已实现但该租户未配凭据 → 401 + 该渠道的失败应答（支付宝是纯文本 failure，不是 JSON）
+  // 注意：这条断言在「配好凭据之后」仍然成立 —— 届时伪造报文会因验签失败走同一分支返回 failure，
+  // 故不会因为环境变化而假失败。
+  const alipay = await req('POST', '/v1/mall/payments/callback/1/ALIPAY', { token, body: FORGED })
+  ok('ALIPAY（已实现但未配凭据）被拒绝，且应答是渠道要求的 failure',
+    alipay.status === 401 && alipay.text.trim() === 'failure',
+    `status=${alipay.status} body=${alipay.text.slice(0, 60)}`)
+  ok('伪造回调的应答不是成功体（未出现 success/SUCCESS）',
+    !/^\s*(success|SUCCESS)\s*$/.test(alipay.text), `body=${alipay.text.slice(0, 40)}`)
 
   section('③ 伪造回调的报文不会落到任何订单上')
   // ② 已证明回调被拒，理论上不会有状态变更。这里再确认「伪造单号」在库里不存在，
   // 避免将来有人误以为该单号是被本回调创建/改写的。
   // ⚠️ 不通过业务接口统计（本仓接口路径不能靠猜，猜错会把「入参缺失」误判成失败）——
   //    订单侧的状态核对在脚本外用只读 SQL 做。
-  const probe = await req('POST', '/v1/mall/payments/callback/1/WECHAT', { token, body: FORGED })
+  const probe = await req('POST', '/v1/mall/payments/callback/1/ALIPAY', { token, body: FORGED })
   ok('重复投递同样被拒（未因「已处理」而改走成功分支）',
-    probe.status === 401 && /UNSUPPORTED_CHANNEL/.test(probe.text),
-    `status=${probe.status}`)
+    probe.status === 401, `status=${probe.status} body=${probe.text.slice(0, 40)}`)
   console.log(`  [NOTE] 伪造单号 ${FORGED.out_trade_no} 不应在 erp_sale_order 中存在，可用只读 SQL 复核`)
 
   console.log(`\n===== 结果：PASS ${pass} / FAIL ${fail} =====`)
