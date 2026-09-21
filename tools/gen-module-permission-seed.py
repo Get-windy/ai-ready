@@ -140,6 +140,56 @@ MODULES = {
         'manual_only': True,
         'dirs': ['backend/erp/erp-mall/src/main/java/cn/aiedge/erp/b2b/controller'],
     },
+
+    # ── 2026-09-21 新增：E-02 僵尸码 A 类（"有端点但没注解"）与 E-03 缺 api_path 的码
+    #    集中的模块。这七个模块的码**早已在库**（不是零码模块），所以它们的正确用法是
+    #      `--apply` 把注解补到端点上 + 用推导结果回填 `api_path`，
+    #    **不是**再生成一份种子迁移（那会造出重复码）。
+    #    dirs 给到模块根即可 —— scan/apply 已改为递归。
+    'hr': {
+        'label': '人力资源',
+        'slot': 9,
+        'domain': 'hr',
+        'dirs': ['backend/hr/hr-base/src/main/java/cn/aiedge'],
+    },
+    'crm': {
+        'label': '客户关系',
+        'slot': 10,
+        'domain': 'crm',
+        'dirs': ['backend/crm/src/main/java/cn/aiedge'],
+    },
+    # core-api 一个根就覆盖 system / user / role / permission / department / position /
+    # tenant / platform / datasource / scheduler / docquery 等域（域由**类级路径**推导，与目录无关）
+    'coreapi': {
+        'label': '平台与系统',
+        'slot': 11,
+        'domain': 'system',
+        'dirs': ['backend/core/api/core-api/src/main/java/cn/aiedge'],
+    },
+    'erpfinance': {
+        'label': '财务域其余',
+        'slot': 12,
+        'domain': 'finance',
+        'dirs': ['backend/erp/erp-finance/src/main/java/cn/aiedge'],
+    },
+    'dms': {
+        'label': '配送',
+        'slot': 13,
+        'domain': 'dms',
+        'dirs': ['backend/dms/src/main/java/cn/aiedge'],
+    },
+    'sales': {
+        'label': '销售',
+        'slot': 14,
+        'domain': 'sale',
+        'dirs': ['backend/erp/erp-sales/src/main/java/cn/aiedge'],
+    },
+    'purchase': {
+        'label': '采购',
+        'slot': 15,
+        'domain': 'purchase',
+        'dirs': ['backend/erp/erp-purchase/src/main/java/cn/aiedge'],
+    },
 }
 
 # 端点 → 动作。**有序**，首个匹配生效。
@@ -197,30 +247,45 @@ MAPPING = re.compile(
 REST = re.compile(r'@(RestController|Controller)\b')
 
 
-def scan(dirs):
-    """返回 [(controller, resource, verb, path, endpoint)]，按扫描顺序。"""
-    rows = []
+def iter_controllers(dirs):
+    """递归产出 dirs 下所有「控制器」Java 文件的绝对路径。
+
+    ⚠️ 原实现用 `os.listdir`（**只扫一层**），于是「控制器按子包分目录」的模块整片漏掉：
+    `crm/contract/controller`、`erp-finance/expensedoc/controller`、
+    `erp-stock/controller/initial` 在旧实现下**一个端点都扫不到**。
+    改为递归后，MODULES 里每个模块只需给一个**模块根目录**。
+    """
     for d in dirs:
         full = os.path.join(ROOT, d)
         if not os.path.isdir(full):
             continue
-        for name in sorted(os.listdir(full)):
-            if not name.endswith('.java'):
+        for dirpath, dirnames, filenames in os.walk(full):
+            dirnames[:] = [x for x in dirnames if x != 'target']
+            if os.sep + 'src' + os.sep + 'test' in dirpath:
                 continue
-            text = open(os.path.join(full, name), encoding='utf-8').read()
-            if not REST.search(text):
-                continue
-            m = CLS_RM.search(text)
-            if not m:
-                continue
-            base = m.group(1).rstrip('/')
-            for verb, path in MAPPING.findall(text):
-                verb = verb.upper()
-                path = (path or '').strip()
-                rows.append({
-                    'file': name, 'base': base, 'verb': verb, 'path': path,
-                    'endpoint': f'{verb} {base}{path}',
-                })
+            for name in sorted(filenames):
+                if name.endswith('.java'):
+                    yield os.path.join(dirpath, name)
+
+
+def scan(dirs):
+    """返回 [(controller, resource, verb, path, endpoint)]，按扫描顺序。"""
+    rows = []
+    for fp in iter_controllers(dirs):
+        text = open(fp, encoding='utf-8').read()
+        if not REST.search(text):
+            continue
+        m = CLS_RM.search(text)
+        if not m:
+            continue
+        base = m.group(1).rstrip('/')
+        for verb, path in MAPPING.findall(text):
+            verb = verb.upper()
+            path = (path or '').strip()
+            rows.append({
+                'file': os.path.basename(fp), 'base': base, 'verb': verb, 'path': path,
+                'endpoint': f'{verb} {base}{path}',
+            })
     return rows
 
 
@@ -327,91 +392,144 @@ def label_for(module, resource, action):
 
 
 MAP_LINE = re.compile(r'^(\s*)@(Get|Post|Put|Delete|Patch)Mapping\b(.*)$')
+# 类级覆盖判定：任何鉴权注解都算"这个类已经管了"
 ANY_AUTH = re.compile(r'@(SaCheckPermission|SaCheckLogin|SaCheckRole|RequirePermission|SaIgnore)\b')
+# 方法级幂等判定：只认**权限类**注解。
+# ⚠️ 不能复用 ANY_AUTH —— 本仓方法上普遍有 `@SaCheckLogin`（只要登录即可访问），
+# 若把它当成"已有权限控制"，E-01 要补的注解会被**整片跳过**（看起来跑了、实际什么都没补）。
+PERM_ONLY = re.compile(r'@(SaCheckPermission|RequirePermission)\b')
 IMPORT_LINE = 'import cn.dev33.satoken.annotation.SaCheckPermission;\n'
 
 
-def apply_annotations(module):
-    """把 @SaCheckPermission("码") 插到各映射注解之前（幂等）。
+def load_db_codes():
+    """只读 `sys_permission.permission_code`（用于 --apply 前的铁律校验）。
+
+    ⚠️ **这是本脚本唯一连库的地方，且只读**。为什么要连库：
+    `--apply` 会给端点插 `@SaCheckPermission("<推导出的码>")`，而**如果那个码不在库里，
+    该接口会对所有非超管一律 403**（本仓铁律，见记忆 `permission-code-missing-lockout`）。
+    推导规则（路径 → 码）与库里历史码**不一定逐字一致**（历史码是人写的），
+    所以必须逐条比对；不一致的一律**不插**并列入 `missing` 报告。
+    """
+    if 'codes' in DB_CODE_CACHE:
+        return DB_CODE_CACHE['codes']
+    import psycopg2
+    conn = psycopg2.connect(host='localhost', port=5432, dbname='devdb',
+                            user='devuser', password='devuser123')
+    try:
+        cur = conn.cursor()
+        cur.execute('SELECT permission_code FROM sys_permission')
+        codes = {r[0] for r in cur.fetchall()}
+        cur.close()
+    finally:
+        conn.close()
+    DB_CODE_CACHE['codes'] = codes
+    return codes
+
+
+DB_CODE_CACHE = {}
+
+
+def apply_annotations(module, check_db=True):
+    """把 @SaCheckPermission("码") 插到各映射注解之前（幂等 + 铁律校验）。
 
     为什么用脚本而不是手改：端点→码的映射是**同一套规则**推导出来的，
     手改 7 个文件（后续还有 120+ 个）必然出现漏改/改错，而漏改是静默失效、改错是 403。
-    脚本逐行处理，并**显式报告**每一处跳过/无法判定，不静默放过。
+    脚本逐行处理，并**显式报告**每一处跳过/无法判定/码不在库，不静默放过。
+
+    `check_db=True`（默认）：推导出的码**必须在库**才插注解，否则跳过并计入 missing。
     """
     cfg = MODULES[module]
-    changed, skipped, unresolved = [], [], []
-    for d in cfg['dirs']:
-        full = os.path.join(ROOT, d)
-        if not os.path.isdir(full):
+    changed, skipped, unresolved, missing = [], [], [], []
+    known = load_db_codes() if check_db else None
+    for fp in iter_controllers(cfg['dirs']):
+        name = os.path.basename(fp)
+        text = open(fp, encoding='utf-8').read()
+        if not REST.search(text):
             continue
-        for name in sorted(os.listdir(full)):
-            if not name.endswith('.java'):
-                continue
-            fp = os.path.join(full, name)
-            text = open(fp, encoding='utf-8').read()
-            if not REST.search(text):
-                continue
-            m = CLS_RM.search(text)
-            if not m:
-                continue
-            base = m.group(1).rstrip('/')
-            lines = text.splitlines(keepends=True)
-            # 类级已有鉴权注解 ⇒ 整类已覆盖，不动
-            if ANY_AUTH.search(text.split('class ')[0]):
-                skipped.append((name, '类级已有鉴权注解'))
-                continue
+        m = CLS_RM.search(text)
+        if not m:
+            continue
+        base = m.group(1).rstrip('/')
+        lines = text.splitlines(keepends=True)
+        # 类级已有鉴权注解 ⇒ 整类已覆盖，不动
+        if ANY_AUTH.search(text.split('class ')[0]):
+            skipped.append((name, '类级已有鉴权注解'))
+            continue
 
-            out, i, hits = [], 0, 0
-            while i < len(lines):
-                line = lines[i]
-                mm = MAP_LINE.match(line)
-                if not mm:
-                    out.append(line)
-                    i += 1
-                    continue
-                indent, verb, rest = mm.group(1), mm.group(2).upper(), mm.group(3)
-                # 路径可能写在同一行，也可能换行写在下一行
-                pm = re.search(r'["\']([^"\']*)["\']', rest)
-                path = pm.group(1) if pm else ''
-                if not pm and i + 1 < len(lines):
-                    pm2 = re.search(r'["\']([^"\']*)["\']', lines[i + 1])
-                    if pm2:
-                        path = pm2.group(1)
-                # 已在该方法上（前一行）有注解 ⇒ 幂等跳过
-                prev = out[-1] if out else ''
-                if ANY_AUTH.search(prev):
-                    out.append(line)
-                    i += 1
-                    continue
-                if path is None:
-                    unresolved.append((name, f'{verb} {rest.strip()}'))
-                    out.append(line)
-                    i += 1
-                    continue
-                code = code_of(base, verb, path, cfg['domain'])
-                out.append(f'{indent}@SaCheckPermission("{code}")\n')
+        out, i, hits = [], 0, 0
+        while i < len(lines):
+            line = lines[i]
+            mm = MAP_LINE.match(line)
+            if not mm:
                 out.append(line)
-                hits += 1
                 i += 1
+                continue
+            indent, verb, rest = mm.group(1), mm.group(2).upper(), mm.group(3)
+            # 路径可能写在同一行，也可能换行写在下一行
+            pm = re.search(r'["\']([^"\']*)["\']', rest)
+            path = pm.group(1) if pm else ''
+            if not pm and i + 1 < len(lines):
+                pm2 = re.search(r'["\']([^"\']*)["\']', lines[i + 1])
+                if pm2:
+                    path = pm2.group(1)
+            # 已在该方法上有注解 ⇒ 幂等跳过。
+            # ⚠️ 必须**同时往前往后看**，只看前一行会漏判并**重复插入同一条注解**。
+            # 本仓两种写法都有：`@Operation` / `@SaCheckPermission` / `@GetMapping`（注解在映射前）
+            # 和 `@Operation` / `@PostMapping` / `@SaCheckPermission`（注解在映射后）。
+            # 2026-09-21 在销售域实测踩到：只回溯前几行时，后一种写法会被判成"没注解"，
+            # 一次 --apply 就在 SaleOrderController 里插出重复注解。
+            # 双向窗口都以「空行 / 方法体边界」为终止，避免把相邻方法的注解当成本方法的。
+            window = []
+            for prev in reversed(out[-6:]):
+                s = prev.strip()
+                if s == '' or s.startswith('}') or s.startswith('{'):
+                    break
+                window.append(s)
+            for nxt in lines[i + 1:i + 4]:
+                s = nxt.strip()
+                if s == '' or s.startswith('}') or s.startswith('{'):
+                    break
+                window.append(s)
+            if PERM_ONLY.search('\n'.join(window)):
+                out.append(line)
+                i += 1
+                continue
+            if path is None:
+                unresolved.append((name, f'{verb} {rest.strip()}'))
+                out.append(line)
+                i += 1
+                continue
+            code = code_of(base, verb, path, cfg['domain'])
+            if known is not None and code not in known:
+                # 铁律：码不在库 ⇒ 绝不能插注解（插了就是该接口对所有非超管 403）
+                missing.append((name, code, f'{verb} {base}{path}'))
+                out.append(line)
+                i += 1
+                continue
+            out.append(f'{indent}@SaCheckPermission("{code}")\n')
+            out.append(line)
+            hits += 1
+            i += 1
 
-            if hits:
-                new = ''.join(out)
-                if 'import cn.dev33.satoken.annotation.SaCheckPermission;' not in new:
-                    # 插到最后一个 import 之后，保持 import 块连续
-                    nl = new.splitlines(keepends=True)
-                    last = max(idx for idx, l in enumerate(nl) if l.startswith('import '))
-                    nl.insert(last + 1, IMPORT_LINE)
-                    new = ''.join(nl)
-                open(fp, 'w', encoding='utf-8', newline='\n').write(new)
-                changed.append((name, hits))
-    return changed, skipped, unresolved
+        if hits:
+            new = ''.join(out)
+            if 'import cn.dev33.satoken.annotation.SaCheckPermission;' not in new:
+                # 插到最后一个 import 之后，保持 import 块连续
+                nl = new.splitlines(keepends=True)
+                last = max(idx for idx, l in enumerate(nl) if l.startswith('import '))
+                nl.insert(last + 1, IMPORT_LINE)
+                new = ''.join(nl)
+            open(fp, 'w', encoding='utf-8', newline='\n').write(new)
+            changed.append((name, hits))
+    return changed, skipped, unresolved, missing
 
 
 def main():
     args = sys.argv[1:]
     if not args or args[0] == '--list':
         for k, v in MODULES.items():
-            print(f"{k:12s} {v['label']:6s} domain={v['domain']:12s} strip={v['strip']}")
+            flag = ' (manual_only)' if v.get('manual_only') else ''
+            print(f"{k:12s} {v['label']:6s} domain={v['domain']:12s} slot={v.get('slot')}{flag}")
         return
     module = args[0]
     if module not in MODULES:
@@ -421,7 +539,8 @@ def main():
     cfg = MODULES[module]
 
     if '--apply' in args:
-        changed, skipped, unresolved = apply_annotations(module)
+        check_db = '--no-db-check' not in args
+        changed, skipped, unresolved, missing = apply_annotations(module, check_db=check_db)
         print(f"═══ {cfg['label']}（{module}）注解写入 ═══\n")
         for name, n in changed:
             print(f"  ✅ {name:42s} +{n} 处 @SaCheckPermission")
@@ -429,9 +548,19 @@ def main():
             print(f"  ⏭  {name:42s} 跳过（{why}）")
         for name, what in unresolved:
             print(f"  ⚠️  {name:42s} 无法判定路径：{what}")
-        print(f"\n改动 {len(changed)} 个文件 / 新增 {sum(n for _, n in changed)} 处注解")
-        if unresolved:
-            print('⚠️ 有无法判定的端点，请人工处理后再跑一次', file=sys.stderr)
+        if missing:
+            print(f"\n  🛑 {len(missing)} 处**码不在库**，已按铁律跳过（未插注解）：")
+            seen = set()
+            for name, code, ep in missing:
+                if code in seen:
+                    continue
+                seen.add(code)
+                print(f"     {code:44s} ← {name} {ep}")
+            print('     ⇒ 要么补种子迁移把这些码建出来，要么说明推导规则与历史码不一致（需人工定夺）')
+        print(f"\n改动 {len(changed)} 个文件 / 新增 {sum(n for _, n in changed)} 处注解"
+              + (f"；跳过（码不在库）{len(missing)} 处" if missing else ""))
+        if unresolved or missing:
+            print('⚠️ 有未处理项（无法判定路径 / 码不在库），请人工处理后重跑', file=sys.stderr)
             sys.exit(3)
         return
 
