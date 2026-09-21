@@ -14,7 +14,28 @@ import java.util.Map;
 
 /**
  * 系统配置管理控制器
- * 
+ *
+ * <p><b>⚠️ 2026-09-21 登记：本类没有前端调用方，且与 {@code SystemConfigController} 共用一套权限码。</b></p>
+ *
+ * <p>两个类都叫「系统配置」，但读写的是**不同的表**：</p>
+ * <ul>
+ *   <li>本类（{@code /api/system/config}，12 端点 + history / rollback / compare）读写
+ *       {@code sys_project_config}（经 {@code SysConfigServiceImpl}）；</li>
+ *   <li>{@code cn.aiedge.config.controller.SystemConfigController}（{@code /api/config}）读写 {@code sys_config}，
+ *       且它才是 {@code views/system/config/index.vue} 与 {@code views/set/sys-params/index.vue}
+ *       实际调用的那一套（前端 {@code api/config.ts} 全部指向 {@code /config/*}）。</li>
+ * </ul>
+ *
+ * <p>两者共用 {@code system:config:list|update|delete|export} 这套权限码，而
+ * {@code sys_permission.api_path} 每个码只有一列 ⇒ 库里这几条码的 {@code api_path} 记的是
+ * {@code /api/config/*}（有调用方的那一个）。因此 {@code PermissionServiceImpl.checkApiPermission}
+ * 拿 {@code /api/system/config/*} 反查永远命中不到。</p>
+ *
+ * <p><b>这不是 {@code api_path} 填错了</b> —— 它描述的正是唯一有调用方的控制器；
+ * 真正的问题是「同一套码被两个控制器共用」。处置（删掉本类，还是把它的
+ * history/rollback/compare 接到活页面上）属**待拍板项**，见 {@code MASTER_TODO_20260920.md}。
+ * 在拍板前**不要**给本类单独造一套新权限码 —— 那等于给没有调用方的接口造码。</p>
+ *
  * @author AI-Ready Team
  * @since 1.0.0
  */
