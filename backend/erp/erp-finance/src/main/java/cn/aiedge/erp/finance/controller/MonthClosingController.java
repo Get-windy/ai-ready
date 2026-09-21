@@ -1,5 +1,6 @@
 package cn.aiedge.erp.finance.controller;
 
+import cn.dev33.satoken.annotation.SaCheckPermission;
 import cn.aiedge.base.entity.SysUser;
 import cn.aiedge.base.log.annotation.OperationLog;
 import cn.aiedge.base.service.UserService;
@@ -15,7 +16,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.access.prepost.PreAuthorize;
+
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -68,7 +69,7 @@ public class MonthClosingController {
 
     @Operation(summary = "执行月结")
     @PostMapping("/execute")
-    @PreAuthorize("hasPermission('/api/erp/finance/month-closing/execute', 'finance:month-closing:execute')")
+    @SaCheckPermission("finance:month-closing:execute")
     @OperationLog(module = "总账月结", type = "UPDATE", desc = "执行月结")
     public Result<MonthClosingResultDTO> execute(
             @Parameter(description = "期间编码 yyyy-MM") @RequestParam String periodCode,
@@ -80,7 +81,7 @@ public class MonthClosingController {
 
     @Operation(summary = "批量执行月结")
     @PostMapping("/batch-execute")
-    @PreAuthorize("hasPermission('/api/erp/finance/month-closing/execute', 'finance:month-closing:execute')")
+    @SaCheckPermission("finance:month-closing:execute")
     @OperationLog(module = "总账月结", type = "UPDATE", desc = "批量执行月结")
     public Result<List<MonthClosingResultDTO>> batchExecute(
             @Parameter(description = "期间编码列表 yyyy-MM") @RequestBody List<String> periodCodes,
@@ -92,7 +93,7 @@ public class MonthClosingController {
 
     @Operation(summary = "反月结（重新开启期间）")
     @PostMapping("/reopen")
-    @PreAuthorize("hasPermission('/api/erp/finance/month-closing/reopen', 'finance:month-closing:reopen')")
+    @SaCheckPermission("finance:month-closing:reopen")
     @OperationLog(module = "总账月结", type = "UPDATE", desc = "反月结")
     public Result<MonthClosingResultDTO> reopen(
             @Parameter(description = "期间编码 yyyy-MM") @RequestParam String periodCode,
@@ -104,7 +105,7 @@ public class MonthClosingController {
 
     @Operation(summary = "查询期间月结状态")
     @GetMapping("/status")
-    @PreAuthorize("hasPermission('/api/erp/finance/month-closing/status', 'finance:month-closing:view')")
+    @SaCheckPermission("finance:month-closing:view")
     @OperationLog(module = "总账月结", type = "QUERY", desc = "查询期间月结状态")
     public Result<Map<String, Object>> status(
             @Parameter(description = "期间编码 yyyy-MM") @RequestParam String periodCode) {
@@ -113,7 +114,7 @@ public class MonthClosingController {
 
     @Operation(summary = "分页查询月结日志")
     @GetMapping("/logs/page")
-    @PreAuthorize("hasPermission('/api/erp/finance/month-closing/logs', 'finance:month-closing:view')")
+    @SaCheckPermission("finance:month-closing:view")
     @OperationLog(module = "总账月结", type = "QUERY", desc = "分页查询月结日志")
     public Result<IPage<MonthClosingLog>> logPage(
             @Parameter(description = "期间编码 yyyy-MM") @RequestParam(required = false) String periodCode,

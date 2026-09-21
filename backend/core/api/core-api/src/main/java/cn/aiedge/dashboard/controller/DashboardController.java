@@ -2,7 +2,7 @@ package cn.aiedge.dashboard.controller;
 
 import cn.aiedge.base.utils.SecurityUtils;
 import cn.aiedge.base.vo.Result;
-import cn.aiedge.erp.order.service.IPurchaseOrderService;
+import cn.aiedge.erp.purchase.service.PurchaseOrderService;
 import cn.aiedge.erp.sale.mapper.SaleOrderMapper;
 import cn.aiedge.erp.stock.service.StockService;
 import cn.dev33.satoken.annotation.SaCheckLogin;
@@ -32,7 +32,7 @@ import java.util.stream.Collectors;
 public class DashboardController {
 
     private final SaleOrderMapper saleOrderMapper;
-    private final IPurchaseOrderService purchaseOrderService;
+    private final PurchaseOrderService purchaseOrderService;
     private final StockService stockService;
 
     /**

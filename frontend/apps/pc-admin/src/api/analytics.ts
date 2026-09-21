@@ -618,7 +618,7 @@ export const commissionApi = {
   }
 }
 
-// ═══ 采购分析（/erp/purchase-orders + /erp/purchase/inbound + doc-query） ═══
+// ═══ 采购分析（/erp/purchase/order/statistics + /erp/purchase/inbound + doc-query） ═══
 
 /** 采购订单逐日统计 */
 export interface PurchaseDailyStatistic {
@@ -641,7 +641,7 @@ export interface PurchaseSupplierStatistic {
   onTimeDeliveryRate: number
 }
 
-/** 采购订单统计（/erp/purchase-orders/statistics 响应，ApiResponse 解包后为 DTO 本体） */
+/** 采购订单统计（/erp/purchase/order/statistics 响应，ApiResponse 解包后为 DTO 本体） */
 export interface PurchaseOrderStatistics {
   totalOrders?: number
   totalItems?: number
@@ -674,9 +674,14 @@ export interface PurchaseInboundItemVO {
 }
 
 export const purchaseAnalyticsApi = {
-  /** 采购订单统计（startDate/endDate 必填，yyyy-MM-dd） */
+  /**
+   * 采购订单统计（startDate/endDate 必填，yyyy-MM-dd）。
+   *
+   * 2026-09-20 从已下线的旧实现 `/erp/purchase-orders/statistics` 迁到采购模块的统一实现，
+   * 参数与返回结构不变。
+   */
   orderStatistics(params: { tenantId: number; startDate: string; endDate: string }): Promise<PurchaseOrderStatistics> {
-    return request.get('/erp/purchase-orders/statistics', params)
+    return request.get('/erp/purchase/order/statistics', params)
   },
   /** 采购入库单分页（裸 Page 响应：records/total，可用于入库汇总） */
   inboundPage(params?: { pageNum?: number; pageSize?: number; keyword?: string; status?: number }) {

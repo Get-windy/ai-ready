@@ -14,6 +14,7 @@ import cn.aiedge.erp.stock.entity.Stock;
 import cn.aiedge.erp.stock.mapper.ProductMapper;
 import cn.aiedge.erp.stock.mapper.StockMapper;
 import cn.aiedge.erp.stock.service.StockService;
+import cn.aiedge.common.event.InventoryChangeEvent;
 import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.common.serial.BizNumberGeneratorService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -23,6 +24,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -45,6 +47,7 @@ public class RetailOrderServiceImpl extends ServiceImpl<RetailOrderMapper, Retai
     private final StockMapper stockMapper;
     private final StockService stockService;
     private final BizNumberGeneratorService bizNumberGeneratorService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     public IPage<RetailOrder> pageByDoc(Page<RetailOrder> page, RetailQueryDTO query) {
@@ -392,19 +395,14 @@ public class RetailOrderServiceImpl extends ServiceImpl<RetailOrderMapper, Retai
                     continue;
                 }
                 BigDecimal quantity = item.getQuantity().abs();
-                if (isReturn) {
-                    boolean success = stockService.increaseStock(item.getProductId(), order.getWarehouseId(), quantity);
-                    if (!success) {
-                        throw BusinessException.badRequest(String.format("退货库存回补失败，结算失败: 商品ID=%d，需回补%s",
-                                item.getProductId(), quantity));
-                    }
-                } else {
-                    boolean success = stockService.decreaseStock(item.getProductId(), order.getWarehouseId(), quantity);
-                    if (!success) {
-                        throw BusinessException.badRequest(String.format("库存不足，结算失败: 商品ID=%d，需扣减%s",
-                                item.getProductId(), quantity));
-                    }
-                }
+                // 统一走 WMS 唯一写入口（发事件），不再直写 erp_stock：此前只写 ERP 轨、不动 wms_inventory，
+                // 会造成两轨单向漂移（2026-09-20 修复）。库存不足由 WMS 侧抛异常并回滚本事务。
+                InventoryChangeEvent.ChangeType changeType = isReturn
+                        ? InventoryChangeEvent.ChangeType.INCREASE
+                        : InventoryChangeEvent.ChangeType.DECREASE;
+                eventPublisher.publishEvent(new InventoryChangeEvent(
+                        changeType, item.getProductId(), order.getWarehouseId(), null,
+                        null, quantity, "RETAIL_ORDER", orderId, order.getRetailNo(), null, null));
             }
         } else {
             log.warn("零售单 {} 未指定仓库，跳过库存处理", orderId);

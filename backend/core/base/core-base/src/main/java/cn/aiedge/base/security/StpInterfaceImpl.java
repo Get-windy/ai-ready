@@ -38,7 +38,7 @@ public class StpInterfaceImpl implements StpInterface {
         if (loginId == null) {
             return new ArrayList<>();
         }
-        Long userId = Long.parseLong(loginId.toString());
+        Long userId = resolveEffectiveUserId(Long.parseLong(loginId.toString()));
         return permissionCacheService.getPermissions(userId);
     }
 
@@ -50,8 +50,39 @@ public class StpInterfaceImpl implements StpInterface {
         if (loginId == null) {
             return new ArrayList<>();
         }
-        Long userId = Long.parseLong(loginId.toString());
+        Long userId = resolveEffectiveUserId(Long.parseLong(loginId.toString()));
         return permissionCacheService.getRoles(userId);
+    }
+
+    /**
+     * 解析本次权限判定以哪个用户为准（权限模拟的落地点）。
+     *
+     * <p>默认返回真实登录用户 —— 未开启模拟时行为与改动前**完全一致**；
+     * 仅在开启模拟时返回被模拟用户，这正是「以某用户身份预览权限」的语义。</p>
+     *
+     * <p>此前 {@code PermissionSimulationService} 只把模拟态写进自己的 ThreadLocal、
+     * 且没有任何判定逻辑读取它，功能是个空壳；现在由这里消费（2026-09-20 修复）。</p>
+     */
+    private Long resolveEffectiveUserId(Long actualUserId) {
+        // 1) 单次模拟：请求头 X-Simulate-User-Id，由过滤器解析后写入 ThreadLocal
+        Long singleRequest = PermissionSimulationHolder.getCurrentRequestTarget();
+        if (singleRequest != null && !singleRequest.equals(actualUserId)) {
+            return singleRequest;
+        }
+        // 2) 持久模拟：由 /api/simulate/start 写入 Sa-Token Session
+        try {
+            Object simulated = cn.dev33.satoken.stp.StpUtil.getSession()
+                    .get(PermissionSimulationHolder.SESSION_KEY);
+            if (simulated != null) {
+                Long target = Long.parseLong(simulated.toString());
+                if (!target.equals(actualUserId)) {
+                    return target;
+                }
+            }
+        } catch (Exception ignored) {
+            // 无会话上下文（定时任务、内部调用、未登录）时按真实用户处理
+        }
+        return actualUserId;
     }
 
     /**

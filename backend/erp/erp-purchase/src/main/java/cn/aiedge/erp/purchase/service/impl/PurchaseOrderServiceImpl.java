@@ -3,6 +3,7 @@ package cn.aiedge.erp.purchase.service.impl;
 import cn.aiedge.base.workflow.facade.ApprovalFacade;
 import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.purchase.dto.PurchaseOrderDTO;
+import cn.aiedge.erp.purchase.dto.PurchaseOrderStatisticsDTO;
 import cn.aiedge.erp.purchase.entity.*;
 import cn.aiedge.erp.purchase.mapper.*;
 import cn.aiedge.erp.purchase.service.PurchaseOrderService;
@@ -25,6 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
@@ -672,5 +674,41 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
             }
         }
         logger.info("批量打印 {} 条订单，模板: {}", orderIds.size(), template);
+    }
+
+    /**
+     * 采购订单统计。
+     *
+     * <p>实现照搬旧模块 {@code cn.aiedge.erp.order.service.impl.PurchaseOrderServiceImpl#getPurchaseStatistics}，
+     * 口径刻意保持一致（同样按 tenantId + deleted=0 + createTime 区间过滤，总额同样取 total_amount 列），
+     * 目的是让首页 KPI 与采购分析页的数值在切换实现前后**不发生任何变化**。</p>
+     */
+    @Override
+    public PurchaseOrderStatisticsDTO getPurchaseStatistics(Long tenantId, LocalDateTime startDate, LocalDateTime endDate) {
+        logger.info("获取采购订单统计: {} - {}", startDate, endDate);
+
+        PurchaseOrderStatisticsDTO statistics = new PurchaseOrderStatisticsDTO();
+        statistics.setStartDate(startDate);
+        statistics.setEndDate(endDate);
+
+        LambdaQueryWrapper<PurchaseOrder> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(PurchaseOrder::getTenantId, tenantId)
+                .eq(PurchaseOrder::getDeleted, 0)
+                .between(PurchaseOrder::getCreateTime, startDate, endDate);
+        List<PurchaseOrder> orders = list(queryWrapper);
+
+        statistics.setTotalOrders(orders.size());
+        statistics.setTotalAmount(orders.stream()
+                .map(PurchaseOrder::getTotalAmount)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add));
+
+        statistics.setOrdersByStatus(orders.stream()
+                .collect(Collectors.groupingBy(o -> String.valueOf(o.getStatus()), Collectors.summingInt(o -> 1))));
+        statistics.setOrdersByPurchaseType(orders.stream()
+                .collect(Collectors.groupingBy(o -> String.valueOf(o.getPurchaseType()), Collectors.summingInt(o -> 1))));
+
+        logger.info("采购订单统计完成, 总计: {} 个订单", orders.size());
+        return statistics;
     }
 }

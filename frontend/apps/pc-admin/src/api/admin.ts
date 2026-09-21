@@ -23,12 +23,17 @@ const API_PREFIX = '/api'
 
 /** 与全局 request 拦截器一致的认证/租户请求头（后端读 X-Tenant-Id） */
 function adminHeaders(): Record<string, string> {
-  const tenantId = localStorage.getItem('tenantId') || '1'
-  return {
-    ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}),
-    'X-Tenant-Id': tenantId,
-    tenantId
+  const headers: Record<string, string> = {
+    ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {})
   }
+  // 仅在拿到真实租户时才发送：不再回落 '1'（回落会让未初始化会话冒充平台租户，
+  // 且与后端 TenantHeaderInterceptor 的会话租户校验冲突而 403）
+  const tenantId = localStorage.getItem('tenantId')
+  if (tenantId) {
+    headers['X-Tenant-Id'] = tenantId
+    headers.tenantId = tenantId
+  }
+  return headers
 }
 
 /** {success, message, data?} 操作响应 */

@@ -1,0 +1,1574 @@
+{
+ "generatedAt": "2026-09-20",
+ "summary": {
+  "db": 506,
+  "effective": 351,
+  "ineffective": 144,
+  "groupNodes": 11
+ },
+ "ineffective": [
+  "crm:contract:batchapprove",
+  "crm:contract:download",
+  "crm:contract:refresh",
+  "crm:contract:renewapply",
+  "crm:create",
+  "crm:customer:delete",
+  "crm:customer:list",
+  "crm:customer:update",
+  "crm:lead:view",
+  "crm:opportunity:create",
+  "crm:opportunity:detailrefresh",
+  "crm:opportunity:reset",
+  "crm:opportunity:search",
+  "crm:opportunity:view",
+  "crm:refresh",
+  "data-permission:assign",
+  "data-permission:check",
+  "data-permission:create",
+  "data-permission:delete",
+  "data-permission:list",
+  "data-permission:update",
+  "data-permission:update-status",
+  "data-permission:view",
+  "department:create",
+  "department:delete",
+  "department:edit",
+  "department:list",
+  "department:query",
+  "doc:date:edit",
+  "doc:draft:view-others",
+  "doc:reverse",
+  "doc:unapprove",
+  "doc:void",
+  "erp:expense:application:approve",
+  "erp:expense:application:list",
+  "erp:expense:application:query",
+  "erp:expense:approval:list",
+  "erp:expense:approval:query",
+  "erp:expense:payment:cancel",
+  "erp:expense:payment:confirm",
+  "erp:expense:payment:create",
+  "erp:expense:payment:list",
+  "erp:expense:payment:query",
+  "erp:expense:reimbursement:query",
+  "erp:expense:statistics:list",
+  "erp:expense:statistics:refresh",
+  "finance:balance:view",
+  "finance:other-income-doc:approve",
+  "finance:receivable:analysis",
+  "finance:receivable:edit",
+  "finance:receivable:export",
+  "finance:receivable:list",
+  "finance:receivable:payment",
+  "finance:receivable:query",
+  "hr-recruitment:add",
+  "hr-recruitment:delete",
+  "hr-recruitment:edit",
+  "hr:attendance:clock",
+  "hr:attendance:delete",
+  "hr:attendance:list",
+  "hr:attendance:rule",
+  "hr:attendance:update",
+  "hr:candidate:create",
+  "hr:candidate:delete",
+  "hr:candidate:interview",
+  "hr:candidate:list",
+  "hr:candidate:update",
+  "hr:contract:create",
+  "hr:contract:delete",
+  "hr:contract:list",
+  "hr:contract:update",
+  "hr:employee:create",
+  "hr:employee:delete",
+  "hr:employee:list",
+  "hr:employee:status",
+  "hr:employee:update",
+  "hr:leave:approve",
+  "hr:leave:create",
+  "hr:leave:delete",
+  "hr:leave:list",
+  "hr:leave:quota",
+  "hr:leave:update",
+  "hr:performance:confirm",
+  "hr:performance:list",
+  "hr:performance:update",
+  "hr:position:create",
+  "hr:position:delete",
+  "hr:position:list",
+  "hr:position:update",
+  "hr:recruitment:create",
+  "hr:recruitment:delete",
+  "hr:recruitment:list",
+  "hr:recruitment:update",
+  "hr:salary:confirm",
+  "hr:salary:generate",
+  "hr:salary:list",
+  "hr:salary:update",
+  "partner:merge",
+  "payment:account:select",
+  "permission:create",
+  "permission:delete",
+  "permission:list",
+  "permission:update",
+  "position:assign",
+  "position:create",
+  "position:list",
+  "position:query",
+  "print:draft",
+  "product:cost:view",
+  "product:purchase-price:view",
+  "product:retail-price:view",
+  "product:wholesale-price:view",
+  "purchase:price:edit",
+  "receipt:account:select",
+  "role:create",
+  "role:delete",
+  "role:list",
+  "role:update",
+  "sale:discount:edit",
+  "sale:price:edit",
+  "sale:settle:force",
+  "set:system-task:view",
+  "stock:list",
+  "system:dataimport:create",
+  "system:dataimport:delete",
+  "system:dataimport:list",
+  "system:dataimport:sync",
+  "system:dataimport:test",
+  "system:dataimport:update",
+  "system:dev:api-test:send",
+  "system:dev:scheduler:create",
+  "system:dev:scheduler:delete",
+  "system:dev:scheduler:execute",
+  "system:dev:scheduler:list",
+  "system:dev:scheduler:update",
+  "system:permission:export",
+  "system:role:export",
+  "tenant:config",
+  "tenant:create",
+  "tenant:delete",
+  "tenant:list",
+  "tenant:update",
+  "user:list",
+  "user:update"
+ ],
+ "groupNodes": [
+  "crm:manage",
+  "department:manage",
+  "permission:manage",
+  "position:manage",
+  "purchase:manage",
+  "role:manage",
+  "sale:manage",
+  "stock:manage",
+  "system:dataimport:manage",
+  "system:manage",
+  "user:manage"
+ ],
+ "refCounts": {
+  "crm:contract:approve": {
+   "backend": 0,
+   "frontend": 3
+  },
+  "crm:contract:create": {
+   "backend": 0,
+   "frontend": 1
+  },
+  "crm:contract:detailrefresh": {
+   "backend": 0,
+   "frontend": 1
+  },
+  "crm:contract:edit": {
+   "backend": 0,
+   "frontend": 3
+  },
+  "crm:contract:sign": {
+   "backend": 0,
+   "frontend": 1
+  },
+  "crm:contract:view": {
+   "backend": 0,
+   "frontend": 1
+  },
+  "crm:customer:addtolevel": {
+   "backend": 0,
+   "frontend": 1
+  },
+  "crm:customer:batchassign": {
+   "backend": 0,
+   "frontend": 1
+  },
+  "crm:customer:create": {
+   "backend": 0,
+   "frontend": 1
+  },
+  "crm:customer:edit": {
+   "backend": 0,
+   "frontend": 1
+  },
+  "crm:customer:follow": {
+   "backend": 0,
+   "frontend": 1
+  },
+  "crm:customer:import": {
+   "backend": 0,
+   "frontend": 1
+  },
+  "crm:customer:refresh": {
+   "backend": 0,
+   "frontend": 1
+  },
+  "crm:customer:view": {
+   "backend": 0,
+   "frontend": 1
+  },
+  "crm:invoice:cancelconfirm": {
+   "backend": 0,
+   "frontend": 1
+  },
+  "crm:invoice:create": {
+   "backend": 0,
+   "frontend": 1
+  },
+  "crm:invoice:detailrefresh": {
+   "backend": 0,
+   "frontend": 1
+  },
+  "crm:invoice:edit": {
+   "backend": 0,
+   "frontend": 1
+  },
+  "crm:invoice:issue": {
+   "backend": 0,
+   "frontend": 1
+  },
+  "crm:invoice:send": {
+   "backend": 0,
+   "frontend": 1
+  },
+  "crm:invoice:view": {
+   "backend": 0,
+   "frontend": 1
+  },
+  "crm:lead:assign": {
+   "backend": 0,
+   "frontend": 1
+  },
+  "crm:lead:batchassign": {
+   "backend": 0,
+   "frontend": 1
+  },
+  "crm:lead:batchconvert": {
+   "backend": 0,
+   "frontend": 2
+  },
+  "crm:lead:convert": {
+   "backend": 0,
+   "frontend": 2
+  },
+  "crm:lead:create": {
+   "backend": 0,
+   "frontend": 1
+  },
+  "crm:lead:edit": {
+   "backend": 0,
+   "frontend": 1
+  },
+  "crm:lead:import": {
+   "backend": 0,
+   "frontend": 1
+  },
+  "crm:opportunity:convert": {
+   "backend": 0,
+   "frontend": 1
+  },
+  "crm:opportunity:edit": {
+   "backend": 0,
+   "frontend": 1
+  },
+  "crm:opportunity:move": {
+   "backend": 0,
+   "frontend": 1
+  },
+  "crm:quotation:batchsend": {
+   "backend": 0,
+   "frontend": 1
+  },
+  "crm:quotation:convert": {
+   "backend": 0,
+   "frontend": 1
+  },
+  "crm:quotation:convertfromdetail": {
+   "backend": 0,
+   "frontend": 1
+  },
+  "crm:quotation:create": {
+   "backend": 0,
+   "frontend": 1
+  },
+  "crm:quotation:detailrefresh": {
+   "backend": 0,
+   "frontend": 1
+  },
+  "crm:quotation:downloadpdf": {
+   "backend": 0,
+   "frontend": 1
+  },
+  "crm:quotation:edit": {
+   "backend": 0,
+   "frontend": 2
+  },
+  "crm:quotation:send": {
+   "backend": 0,
+   "frontend": 1
+  },
+  "crm:quotation:sendfromdetail": {
+   "backend": 0,
+   "frontend": 1
+  },
+  "crm:quotation:view": {
+   "backend": 0,
+   "frontend": 1
+  },
+  "data-scope:set": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "data-scope:view": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "datasource:backup:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "datasource:backup:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "datasource:backup:list": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "datasource:backup:restore": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "datasource:cleanup:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "datasource:cleanup:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "datasource:cleanup:execute": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "datasource:cleanup:list": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "datasource:cleanup:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "datasource:slowquery:export": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "datasource:slowquery:list": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "datasource:sync:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "datasource:sync:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "datasource:sync:execute": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "datasource:sync:list": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "datasource:sync:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "dms:channel:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "dms:channel:delete": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "dms:channel:update": {
+   "backend": 6,
+   "frontend": 0
+  },
+  "dms:config:update": {
+   "backend": 4,
+   "frontend": 0
+  },
+  "dms:dispatch:assign": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "dms:dispatch:auto": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "dms:dispatch:candidates": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "dms:dispatch:config": {
+   "backend": 5,
+   "frontend": 0
+  },
+  "dms:dispatch:fence": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "dms:dispatch:reassign": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "dms:dispatch:view": {
+   "backend": 5,
+   "frontend": 0
+  },
+  "dms:event:retry": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "dms:execution:operate": {
+   "backend": 4,
+   "frontend": 0
+  },
+  "dms:rider:approve": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "dms:rider:create": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "dms:rider:delete": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "dms:rider:update": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "dms:sign:audit": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "dms:sign:submit": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "dms:tracking:report": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "dms:vehicle:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "dms:vehicle:delete": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "dms:vehicle:update": {
+   "backend": 6,
+   "frontend": 0
+  },
+  "erp:expense:application:create": {
+   "backend": 0,
+   "frontend": 1
+  },
+  "erp:expense:application:delete": {
+   "backend": 0,
+   "frontend": 1
+  },
+  "erp:expense:application:edit": {
+   "backend": 0,
+   "frontend": 1
+  },
+  "erp:expense:application:submit": {
+   "backend": 0,
+   "frontend": 1
+  },
+  "erp:expense:approval:process": {
+   "backend": 0,
+   "frontend": 1
+  },
+  "erp:expense:reimbursement:create": {
+   "backend": 0,
+   "frontend": 1
+  },
+  "erp:expense:reimbursement:delete": {
+   "backend": 0,
+   "frontend": 1
+  },
+  "erp:expense:reimbursement:edit": {
+   "backend": 0,
+   "frontend": 1
+  },
+  "erp:expense:reimbursement:list": {
+   "backend": 0,
+   "frontend": 1
+  },
+  "erp:expense:reimbursement:submit": {
+   "backend": 0,
+   "frontend": 1
+  },
+  "erp:product:approval": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "erp:product:create": {
+   "backend": 4,
+   "frontend": 0
+  },
+  "erp:product:delete": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "erp:product:list": {
+   "backend": 24,
+   "frontend": 0
+  },
+  "erp:product:price-batch": {
+   "backend": 11,
+   "frontend": 0
+  },
+  "erp:product:status": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "erp:product:update": {
+   "backend": 12,
+   "frontend": 0
+  },
+  "erp:product:view": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "finance:auxiliary:create": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "finance:auxiliary:delete": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "finance:auxiliary:update": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "finance:auxiliary:view": {
+   "backend": 6,
+   "frontend": 0
+  },
+  "finance:collection-stats:view": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "finance:month-closing:execute": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "finance:month-closing:reopen": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "finance:month-closing:view": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "finance:other-income-doc:create": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "finance:other-income-doc:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "finance:other-income-doc:update": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "finance:other-income-doc:view": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "finance:partner-balance:view": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "finance:payable:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "finance:payable:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "finance:payable:view": {
+   "backend": 4,
+   "frontend": 0
+  },
+  "finance:payable:write-off": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "finance:period:create": {
+   "backend": 1,
+   "frontend": 1
+  },
+  "finance:period:update": {
+   "backend": 2,
+   "frontend": 2
+  },
+  "finance:period:view": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "finance:receivable:bad-debt": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "finance:receivable:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "finance:receivable:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "finance:receivable:view": {
+   "backend": 4,
+   "frontend": 0
+  },
+  "finance:receivable:write-off": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "finance:reconciliation:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "finance:reconciliation:delete": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "finance:reconciliation:reconcile": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "finance:reconciliation:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "finance:reconciliation:view": {
+   "backend": 5,
+   "frontend": 0
+  },
+  "finance:report:approve": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "finance:report:generate": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "finance:report:view": {
+   "backend": 15,
+   "frontend": 0
+  },
+  "finance:subject:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "finance:subject:delete": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "finance:subject:edit": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "finance:subject:view": {
+   "backend": 6,
+   "frontend": 0
+  },
+  "finance:tax:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "finance:tax:edit": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "finance:tax:view": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "finance:transaction:approve": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "finance:transaction:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "finance:transaction:revoke": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "finance:transaction:view": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "finance:voucher:audit": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "finance:voucher:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "finance:voucher:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "finance:voucher:edit": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "finance:voucher:post": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "finance:voucher:reverse": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "finance:voucher:view": {
+   "backend": 5,
+   "frontend": 0
+  },
+  "log:audit:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "log:audit:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "log:audit:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "log:audit:export": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "log:audit:list": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "log:audit:stats": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "log:login:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "log:login:export": {
+   "backend": 2,
+   "frontend": 1
+  },
+  "log:login:list": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "log:login:stats": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "log:oper:delete": {
+   "backend": 3,
+   "frontend": 2
+  },
+  "log:oper:detail": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "log:oper:export": {
+   "backend": 2,
+   "frontend": 1
+  },
+  "log:oper:list": {
+   "backend": 5,
+   "frontend": 0
+  },
+  "log:oper:stats": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "md:payment-channel:edit": {
+   "backend": 5,
+   "frontend": 0
+  },
+  "md:payment-channel:view": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "payment:channel:list": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "payment:config:list": {
+   "backend": 5,
+   "frontend": 1
+  },
+  "payment:config:update": {
+   "backend": 3,
+   "frontend": 4
+  },
+  "payment:record:list": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "payment:request:cancel": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "payment:request:confirm": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "payment:request:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "payment:request:list": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "permission-template:apply": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "permission-template:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "permission-template:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "permission-template:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "permission-template:list": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "permission-template:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "permission-template:update-status": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "platform:mail:config": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "platform:mail:test": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "platform:mail:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "platform:security:policy": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "platform:security:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "platform:sms:config": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "platform:sms:test": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "platform:sms:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "platform:storage:config": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "platform:storage:test": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "platform:storage:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "platform:tenant-package:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "platform:tenant-package:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "platform:tenant-package:list": {
+   "backend": 2,
+   "frontend": 1
+  },
+  "platform:tenant-package:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "platform:tenant-quota:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "platform:tenant-quota:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "platform:tenant-quota:list": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "platform:tenant-quota:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "position:delete": {
+   "backend": 0,
+   "frontend": 1
+  },
+  "position:edit": {
+   "backend": 0,
+   "frontend": 3
+  },
+  "purchase:cost-sharing:cancel": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "purchase:cost-sharing:complete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "purchase:cost-sharing:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "purchase:cost-sharing:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "purchase:cost-sharing:list": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "purchase:cost-sharing:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "purchase:order:approve": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "purchase:order:cancel": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "purchase:order:create": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "purchase:order:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "purchase:order:detail": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "purchase:order:list": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "purchase:order:submit": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "purchase:order:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "purchase_order:approve": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "purchase_order:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "purchase_order:delete": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "purchase_order:execute": {
+   "backend": 4,
+   "frontend": 0
+  },
+  "purchase_order:export": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "purchase_order:submit": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "purchase_order:update": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "role-inheritance:manage": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "role-inheritance:view": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "sale:order:approve": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "sale:order:cancel": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "sale:order:create": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "sale:order:delete": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "sale:order:list": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "sale:order:payment": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "sale:order:print": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "sale:order:ship": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "sale:order:submit": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "sale:order:update": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "sale:promotion:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "sale:promotion:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "sale:promotion:publish": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "sale:promotion:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "set:company-info:save": {
+   "backend": 1,
+   "frontend": 1
+  },
+  "set:initial-finance:create": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "set:initial-finance:delete": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "set:initial-finance:update": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "set:initial-finance:view": {
+   "backend": 6,
+   "frontend": 0
+  },
+  "set:print-config:update": {
+   "backend": 1,
+   "frontend": 1
+  },
+  "set:print-config:view": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "set:rebuild:execute": {
+   "backend": 2,
+   "frontend": 1
+  },
+  "set:system-task:download": {
+   "backend": 0,
+   "frontend": 1
+  },
+  "system:agent:activate": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "system:agent:deactivate": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "system:agent:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "system:agent:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "system:agent:list": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "system:agent:register": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "system:agent:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "system:config:create": {
+   "backend": 0,
+   "frontend": 1
+  },
+  "system:config:delete": {
+   "backend": 3,
+   "frontend": 1
+  },
+  "system:config:export": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "system:config:list": {
+   "backend": 12,
+   "frontend": 0
+  },
+  "system:config:query": {
+   "backend": 0,
+   "frontend": 1
+  },
+  "system:config:update": {
+   "backend": 9,
+   "frontend": 1
+  },
+  "system:data-scope:assign": {
+   "backend": 1,
+   "frontend": 1
+  },
+  "system:data-scope:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "system:data-scope:list": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "system:datasource:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "system:datasource:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "system:datasource:list": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "system:datasource:test": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "system:datasource:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "system:dict:create": {
+   "backend": 3,
+   "frontend": 2
+  },
+  "system:dict:delete": {
+   "backend": 3,
+   "frontend": 2
+  },
+  "system:dict:export": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "system:dict:update": {
+   "backend": 7,
+   "frontend": 2
+  },
+  "system:field-permission:assign": {
+   "backend": 1,
+   "frontend": 1
+  },
+  "system:field-permission:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "system:field-permission:list": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "system:menu:create": {
+   "backend": 1,
+   "frontend": 2
+  },
+  "system:menu:delete": {
+   "backend": 1,
+   "frontend": 1
+  },
+  "system:menu:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "system:menu:list": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "system:menu:update": {
+   "backend": 2,
+   "frontend": 1
+  },
+  "system:menu:update-status": {
+   "backend": 1,
+   "frontend": 1
+  },
+  "system:module:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "system:module:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "system:module:list": {
+   "backend": 5,
+   "frontend": 0
+  },
+  "system:module:update": {
+   "backend": 4,
+   "frontend": 0
+  },
+  "system:permission:assign": {
+   "backend": 1,
+   "frontend": 2
+  },
+  "system:permission:cache": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "system:permission:check": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "system:permission:clear": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "system:permission:create": {
+   "backend": 1,
+   "frontend": 4
+  },
+  "system:permission:delete": {
+   "backend": 2,
+   "frontend": 1
+  },
+  "system:permission:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "system:permission:list": {
+   "backend": 4,
+   "frontend": 0
+  },
+  "system:permission:update": {
+   "backend": 2,
+   "frontend": 1
+  },
+  "system:permission:update-status": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "system:permission:view": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "system:role:assign": {
+   "backend": 2,
+   "frontend": 1
+  },
+  "system:role:assign-menu": {
+   "backend": 1,
+   "frontend": 1
+  },
+  "system:role:assign-permission": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "system:role:clear": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "system:role:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "system:role:delete": {
+   "backend": 1,
+   "frontend": 1
+  },
+  "system:role:detail": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "system:role:list": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "system:role:update": {
+   "backend": 1,
+   "frontend": 1
+  },
+  "system:role:update-status": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "system:role:view": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "system:session:disable": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "system:session:kickout": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "system:session:view": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "system:simulate": {
+   "backend": 3,
+   "frontend": 2
+  },
+  "system:sod-rule:create": {
+   "backend": 1,
+   "frontend": 1
+  },
+  "system:sod-rule:delete": {
+   "backend": 1,
+   "frontend": 1
+  },
+  "system:sod-rule:list": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "system:sod-rule:update": {
+   "backend": 1,
+   "frontend": 1
+  },
+  "system:sod-rule:validate": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "system:tenant:approve": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "system:tenant:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "system:tenant:delete": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "system:tenant:update": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "system:user:assign-role": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "system:user:create": {
+   "backend": 2,
+   "frontend": 1
+  },
+  "system:user:delete": {
+   "backend": 4,
+   "frontend": 1
+  },
+  "system:user:detail": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "system:user:export": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "system:user:list": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "system:user:reset-password": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "system:user:update": {
+   "backend": 5,
+   "frontend": 3
+  },
+  "system:user:update-status": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "tenant:menu:assign": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "tenant:menu:query": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "tenant:menu:remove": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "user:create": {
+   "backend": 0,
+   "frontend": 3
+  },
+  "user:delete": {
+   "backend": 0,
+   "frontend": 3
+  },
+  "workflow:analysis:view": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "workflow:audit:list": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "workflow:audit:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "workflow:definition:delete": {
+   "backend": 1,
+   "frontend": 1
+  },
+  "workflow:definition:disable": {
+   "backend": 1,
+   "frontend": 1
+  },
+  "workflow:definition:list": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "workflow:definition:publish": {
+   "backend": 1,
+   "frontend": 1
+  },
+  "workflow:definition:save": {
+   "backend": 2,
+   "frontend": 3
+  },
+  "workflow:instance:diagram": {
+   "backend": 1,
+   "frontend": 1
+  },
+  "workflow:instance:intervene": {
+   "backend": 1,
+   "frontend": 2
+  },
+  "workflow:instance:view": {
+   "backend": 4,
+   "frontend": 2
+  },
+  "workflow:task:approve": {
+   "backend": 1,
+   "frontend": 1
+  },
+  "workflow:task:transfer": {
+   "backend": 1,
+   "frontend": 1
+  },
+  "workflow:task:view": {
+   "backend": 3,
+   "frontend": 1
+  }
+ }
+}

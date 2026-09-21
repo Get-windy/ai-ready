@@ -1,5 +1,6 @@
 package cn.aiedge.hr.employee;
 
+import cn.aiedge.base.annotation.DataMask;
 import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
 import lombok.experimental.Accessors;
@@ -72,16 +73,19 @@ public class HrEmployee {
     /**
      * 手机号
      */
+    @DataMask(table = "hr_employee")
     private String phone;
 
     /**
      * 邮箱
      */
+    @DataMask(table = "hr_employee")
     private String email;
 
     /**
      * 身份证号
      */
+    @DataMask(table = "hr_employee")
     private String idCard;
 
     /**

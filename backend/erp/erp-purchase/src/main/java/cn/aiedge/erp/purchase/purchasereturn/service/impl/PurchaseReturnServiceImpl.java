@@ -1,5 +1,6 @@
 package cn.aiedge.erp.purchase.purchasereturn.service.impl;
 
+import cn.aiedge.common.event.InventoryChangeEvent;
 import cn.aiedge.erp.purchase.purchasereturn.entity.PurchaseReturn;
 import cn.aiedge.erp.purchase.purchasereturn.entity.PurchaseReturnItem;
 import cn.aiedge.erp.purchase.purchasereturn.enums.ReturnStatus;
@@ -12,6 +13,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,6 +31,7 @@ public class PurchaseReturnServiceImpl extends ServiceImpl<PurchaseReturnMapper,
 
     private final PurchaseReturnItemMapper returnItemMapper;
     private final StockService stockService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     public PurchaseReturn getByReturnNo(String returnNo) {
@@ -408,12 +411,12 @@ public class PurchaseReturnServiceImpl extends ServiceImpl<PurchaseReturnMapper,
         for (PurchaseReturnItem item : items) {
             BigDecimal qty = item.getReturnQuantity();
             if (qty != null && qty.compareTo(BigDecimal.ZERO) > 0 && item.getProductId() != null) {
-                boolean success = stockService.decreaseStock(item.getProductId(), warehouseId, qty);
-                if (!success) {
-                    throw new RuntimeException("退货出库回写库存失败（可能库存不足）: 产品ID=" + item.getProductId()
-                            + ", 仓库ID=" + warehouseId + ", 数量=" + qty);
-                }
-                log.info("采购退货回写库存成功: 退货单ID={}, 产品ID={}, 仓库ID={}, 数量={}",
+                // 统一走 WMS 唯一写入口（发事件），不再直写 erp_stock：此前只写 ERP 轨、不动 wms_inventory，
+                // 会造成两轨单向漂移（2026-09-20 修复）。库存不足由 WMS 侧抛异常并回滚本事务。
+                eventPublisher.publishEvent(new InventoryChangeEvent(
+                        InventoryChangeEvent.ChangeType.DECREASE, item.getProductId(), warehouseId, null,
+                        null, qty, "PURCHASE_RETURN", returnId, ret.getReturnNo(), null, null));
+                log.info("采购退货回写库存(WMS 过账): 退货单ID={}, 产品ID={}, 仓库ID={}, 数量={}",
                         returnId, item.getProductId(), warehouseId, qty);
             }
         }

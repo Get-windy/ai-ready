@@ -41,7 +41,10 @@ export interface PageResult<T = any> {
 
 function rawHeaders(): Record<string, string> {
   const token = getToken()
-  const headers: Record<string, string> = { tenantId: localStorage.getItem('tenantId') || '1' }
+  const headers: Record<string, string> = {}
+  // 仅在拿到真实租户时才发送（不再回落 '1'，理由同 admin.ts 的 adminHeaders）
+  const tenantId = localStorage.getItem('tenantId')
+  if (tenantId) headers.tenantId = tenantId
   if (token) headers.Authorization = `Bearer ${token}`
   return headers
 }

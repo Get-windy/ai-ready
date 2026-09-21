@@ -1,6 +1,7 @@
 package cn.aiedge.erp.sale.saleexchange.service.impl;
 
 import cn.aiedge.base.config.MyBatisPlusConfig;
+import cn.aiedge.common.event.InventoryChangeEvent;
 import cn.aiedge.erp.sale.saleexchange.dto.SaleExchangeQuery;
 import cn.aiedge.erp.sale.saleexchange.entity.ExchangeApprovalRecord;
 import cn.aiedge.erp.sale.saleexchange.entity.SaleExchange;
@@ -21,6 +22,7 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -57,6 +59,9 @@ public class SaleExchangeServiceImpl extends ServiceImpl<SaleExchangeMapper, Sal
 
     @Autowired
     private StockService stockService;
+
+    @Autowired
+    private ApplicationEventPublisher eventPublisher;
 
     @Autowired
     private cn.aiedge.base.mapper.SysUserMapper sysUserMapper;
@@ -359,16 +364,15 @@ public class SaleExchangeServiceImpl extends ServiceImpl<SaleExchangeMapper, Sal
             if (item.getProductId() == null || isZero(item.getQuantity())) {
                 continue;
             }
-            boolean ok;
-            if (isInType(item)) {
-                ok = stockService.increaseStock(item.getProductId(), exchange.getInWarehouseId(), item.getQuantity());
-            } else {
-                ok = stockService.decreaseStock(item.getProductId(), exchange.getOutWarehouseId(), item.getQuantity());
-            }
-            if (!ok) {
-                throw new RuntimeException("库存过账失败，商品ID: " + item.getProductId()
-                        + "（换出仓库库存不足或仓库无效）");
-            }
+            // 统一走 WMS 唯一写入口（发事件），不再直写 erp_stock：此前只写 ERP 轨、不动 wms_inventory，
+            // 会造成两轨单向漂移（2026-09-20 修复）。库存不足由 WMS 侧抛异常并回滚本事务。
+            boolean inType = isInType(item);
+            eventPublisher.publishEvent(new InventoryChangeEvent(
+                    inType ? InventoryChangeEvent.ChangeType.INCREASE : InventoryChangeEvent.ChangeType.DECREASE,
+                    item.getProductId(),
+                    inType ? exchange.getInWarehouseId() : exchange.getOutWarehouseId(),
+                    null, null, item.getQuantity(), "SALE_EXCHANGE",
+                    exchange.getId(), exchange.getExchangeNo(), null, null));
         }
     }
 
@@ -384,15 +388,14 @@ public class SaleExchangeServiceImpl extends ServiceImpl<SaleExchangeMapper, Sal
             if (item.getProductId() == null || isZero(item.getQuantity())) {
                 continue;
             }
-            boolean ok;
-            if (isInType(item)) {
-                ok = stockService.decreaseStock(item.getProductId(), exchange.getInWarehouseId(), item.getQuantity());
-            } else {
-                ok = stockService.increaseStock(item.getProductId(), exchange.getOutWarehouseId(), item.getQuantity());
-            }
-            if (!ok) {
-                throw new RuntimeException("库存回滚失败，商品ID: " + item.getProductId());
-            }
+            // 反向冲销同样走 WMS 唯一写入口（与过账对称，2026-09-20 修复）
+            boolean inType = isInType(item);
+            eventPublisher.publishEvent(new InventoryChangeEvent(
+                    inType ? InventoryChangeEvent.ChangeType.DECREASE : InventoryChangeEvent.ChangeType.INCREASE,
+                    item.getProductId(),
+                    inType ? exchange.getInWarehouseId() : exchange.getOutWarehouseId(),
+                    null, null, item.getQuantity(), "SALE_EXCHANGE_ROLLBACK",
+                    exchange.getId(), exchange.getExchangeNo(), null, null));
         }
     }
 

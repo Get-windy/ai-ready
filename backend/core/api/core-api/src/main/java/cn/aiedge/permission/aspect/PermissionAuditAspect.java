@@ -94,10 +94,6 @@ public class PermissionAuditAspect {
     @Pointcut("execution(* cn.aiedge.base.controller.RoleBillTypeController.assignBillTypes(..))")
     public void billTypeAssignment() {}
 
-    /** 数据权限操作 */
-    @Pointcut("execution(* cn.aiedge.base.controller.DataPermissionController.*(..))")
-    public void dataPermissionOperations() {}
-
     /** 会话管理（强制下线等） */
     @Pointcut("execution(* cn.aiedge.base.controller.SessionController.kickout*(..)) || " +
               "execution(* cn.aiedge.base.controller.SessionController.disable*(..)) || " +
@@ -111,7 +107,7 @@ public class PermissionAuditAspect {
                                "userRoleAssignment() || newUserRoleAssignment() || " +
                                "menuOperations() || roleInheritanceOperations() || " +
                                "permissionTemplateOperations() || billTypeAssignment() || " +
-                               "dataPermissionOperations() || sessionManagement()",
+                               "sessionManagement()",
                     returning = "result")
     public void auditPermissionChange(JoinPoint joinPoint, Object result) {
         try {
@@ -171,7 +167,6 @@ public class PermissionAuditAspect {
             case "RoleInheritanceController" -> "角色继承";
             case "PermissionTemplateController" -> "权限模板";
             case "RoleBillTypeController" -> "单据类型权限";
-            case "DataPermissionController" -> "数据权限";
             case "SessionController" -> "会话管理";
             default -> "权限系统";
         };
@@ -201,7 +196,6 @@ public class PermissionAuditAspect {
             case "RoleInheritanceController" -> "role-inheritance";
             case "PermissionTemplateController" -> "permission-template";
             case "RoleBillTypeController" -> "role-bill-type";
-            case "DataPermissionController" -> "data-permission";
             case "SessionController" -> "session";
             default -> "permission";
         };

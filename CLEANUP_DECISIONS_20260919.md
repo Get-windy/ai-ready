@@ -406,6 +406,88 @@ D-05 的 13 包裁决、D-06 契约控制器、D-08 权限码冗余、D-09 接�
 | 基线一致性 | 脚本 `--baseline` 输出 vs 基线文件交叉比对 | 243 == 243，完全一致 |
 | 改动 XML 格式 | ElementTree 解析 5 个 mapper | 全部合法 |
 | 加固条件核对 | 正则提取 `status` 条件 | 与预期逐条吻合（`m.*`=1，`p./sr./sp./r.`=0） |
+| 孤儿页面删除 | 代理执行 34 + 2 个文件；`npx vite build` | **EXIT=0**（6m13s），构建日志中 `Could not resolve` **0 次**；`dynamicRoutes.ts` 清理 48 条 componentMap + 4 条别名改指 |
+| 删后菜单完整性 | `check-menu-targets.py` | 坏菜单仍只有 1 条（70063，已由 V11.427.0 修复，待启动生效）——**删除未产生新的坏菜单** |
+| 删后 `list_path` 完整性 | 自建脚本复刻 `getComponent` 三级兜底 | 58 条 `list_path` **全部可解析，0 条悬空** |
+| 挂载迁移 `V11.428.0` | 事务中试跑 28 条 INSERT 后 ROLLBACK | **28/28 成功**；字段分布 `(status=1, client_type=tenant-admin, menu_type=1)` ×28；60607 资产管理 0→1、61205 打印管理 1→5、60608 预算管理 2→6 |
+
+> 挂载迁移刻意**未手工执行**，devdb 保持原状，实际生效由应用启动时的 Flyway 完成 —— 遵守项目的迁移管理流程，避免 devdb 与 `flyway_schema_history` 脱节。
+
+### 6.1 仍需在启动环境验证（编译与静态检查覆盖不到）
+
+1. `V11.427.0` 生效后：采购换货单「新增/编辑」页面正常渲染、console 无 error；
+2. `V11.428.0` 生效后：上述 28 个菜单以 tenant-admin 角色登录可见、可打开、无「页面组件未找到」；重点看 60607 资产管理（原先完全无入口）与 61205 打印管理；
+3. 授权加固后：以**非超管**账号登录，菜单/权限/角色显示与加固前一致（预期零变化）；
+4. 打印客户端用**已停用账号**登录 → 应被拒（403）。
+
+---
+
+## 7. 本轮未完成、需后续开发的任务
+
+以下四项**不是清理工作，是功能开发**，因此本轮只登记、不动手。每项都给了验收标准，可直接派工。
+
+### 7.1 盘点两套的整合（对应 §1.4，前端开发）
+
+**现状**：`wh/inventory-order`（`checkApi`，`/wms/check/*`，含点位/差异明细、可跳 `wms/check/form`）与菜单 5003「盘点单」（`stockTakeApi`）是两套并行实现。经复核，`wh/inventory-order` 的能力是 `wms/check` 的**超集**（另有 `submitResult`/`cancelCheck`/`saveDetails`）。
+
+**为什么本轮没做**：这是页面合并，会改动正在被使用的功能，风险高于"删冗余"。
+
+**建议落法（对标 SAP EWM 的三阶段）**：
+1. 以菜单 5003「盘点单」为**单据层**（审批 + 库存变动）；
+2. 把 `wh/inventory-order` 的作业明细作为其**执行阶段视图**（Tab 或子页），复用 `checkApi` 的数据，不做数据迁移；
+3. 对齐后删除重复的列表入口与冗余接口（`api/wms/check.ts` 若仍被 form 使用则保留）。
+
+**验收**：同一张盘点单能走完「准备（生成作业）→ 执行（录入实盘/复盘）→ 审批（库存变动 + 可追溯审计）」；`wms/check/form.vue` 仍可达；两处入口不再并存。
+
+> ⚠️ **`wh/inventory-order` 与 `wms/check/index.vue` 的去留是绑定的**：`wms/check/index.vue` 已被删除，但 `wms/check/form.vue` 被保留（仍被 `wh/inventory-order` 跳转）。若后续决定连 `wh/inventory-order` 一起删，必须先把它的能力搬到 5003。
+
+### 7.2 15 项页面的写能力补齐（对应 §1.8，前端开发）
+
+这些页面**本轮刻意未删**（删了会丢功能）。二选一：把独有写能力搬到已挂菜单的新页面（推荐），或改判第 2 类挂菜单。
+
+| # | 旧页面 | 要补的能力 | 补到哪 | 备注 |
+|---|---|---|---|---|
+| 1 | `finance/receipt/index.vue` | 完成收款 `complete` | `finance/receipt-doc` | 后端 `POST /{id}/complete` 已存在 |
+| 2 | `finance/payment/index.vue` | 完成付款 `complete` | `finance/payment-doc` | 同上 |
+| 3 | `finance/pre-payment/index.vue` | 预付转付款 `offsetToPayment` | `finance/advance-payment` | 状态文案已有「已冲抵」，缺入口 |
+| 4 | `erp/expense/application/index.vue` | 删除草稿 | `finance/expense-doc` | api 层已有 `expenseDocApi.delete` |
+| 5 | `erp/expense/reimbursement/index.vue` | 删除草稿 | `finance/expense-doc` | 同上 |
+| 6 | `erp/expense/approval/index.vue` | 审批**退回**（RETURN） | `finance/expense-approval` | 需先扩 api 枚举（现仅 APPROVE/REJECT） |
+| 7 | `erp/mall/product/index.vue` | 删除商品（单个 + 批量） | `mall/product-shelf` | 该页现无任何 delete |
+| 8 | `erp/shipment/index.vue` | 审核 `approve`、出库 `ship` | `sales/outbound` | api 方法已存在，只差 UI 挂载 |
+| 9 | `order-center/index.vue` | 采购单 `submit/approve/cancel/delete`；销售单 `submit/batchDelete` | `sales/order-center` | **采购侧整体缺失**，工作量最大 |
+| 10 | `erp/partner/index.vue` | 地址簿/银行账户/标签/多联系人 CRUD | `md/partner` | 现仅单主联系人 |
+| 11 | `erp/stock/replenishment/index.vue` | 生成建议/忽略/创建采购单 | `purchase/smart-replenish` | 后端三个端点齐全，新页只读 |
+| 12 | `erp/stock/index.vue` | 冻结/解冻库存 | `analytics/check-stock` | 后端 `StockController:58/71` |
+| 13 | `supplier/index.vue` | 激活/禁用供应商门户 | `md/supplier` | 后端两端点齐全 |
+| 14 | `wms/warehouse/index.vue` | `/wms/warehouse` 主数据 CRUD | 待定 | ⚠️ **需业务先拍板**：`wms_warehouse` 与 `erp_warehouse` 是否两套并存（是两套独立后端资源） |
+| 15 | `hr/attendance/index.vue` | 签到/签退 | `hr/attendance/list.vue` | 低危：旧实现硬编码 `employeeId=0` **写脏数据**，新页已注明"待后端按登录人解析员工"。建议先修后端再迁 UI |
+
+**验收**：每补完一项，从其旧页面删除对应入口；全部补完后，旧页面方可删除。
+
+### 7.3 鉴权注解分批补（对应 §2.4）
+
+门禁与基线已就位（243 行棘轮）。后续按批次推进，**每批必须先补权限码种子再补注解**：
+
+| 批次 | 范围 | 理由 |
+|---|---|---|
+| 1 | `erp.finance.*` / `erp.payment.*` / `erp.invoice.*` / `erp.budget.*` | 涉及金额，越权后果最重 |
+| 2 | `crm.*`（8 个控制器） | 整模块零鉴权，含客户主数据 |
+| 3 | `erp.stock.*` | 采购/库存/销售单据 |
+| 4 | `wms.*` / PDA | 需先定 PDA 设备鉴权策略 |
+| 5 | `erp.marketing.*` / `erp.b2b.*` | 含 C 端公开接口，需逐个甄别 |
+
+**另需单独处理 1 项**：`erp.pricing.controller.PriceApprovalController`（价格审批）—— 类注释声明是"口径与页面对齐"而刻意不加，但**价格审批涉及定价，建议补**。补前须建权限码种子。
+
+### 7.4 未装配 13 包的裁决执行（对应 §3）
+
+推荐已给出（多数删除、`agent`/`knowledge` 保留契约删实现）。执行前对每个包做一次 `git log` 确认近期无人在动。
+
+### 7.5 后端 30 张孤儿表（D-13）
+
+流程：观察 `pg_stat_user_tables` 1–2 个发布周期 → 改名 `zz_deprecated_*` → 再观察一个周期 → drop。**前置：确认备份可用**。数据不可回滚，代码可回滚。
+
+> 注意与并行会话的 `TABLE_DUPLICATE_AUDIT.md`（72 张孤儿表 / 553 张表分档）交叉核对后再动 —— 两份清单口径不同，取并集前先对齐。
 
 **仍需在启动环境验证的**（编译无法覆盖）：
 1. `V11.427.0` 迁移生效后，采购换货单「新增/编辑」页面正常且 console 无 error；

@@ -50,11 +50,14 @@ public class PermissionSimulationController {
     @GetMapping("/status")
     @SaCheckPermission("system:simulate")
     public Result<Map<String, Object>> getStatus() {
-        return Result.ok(Map.of(
-            "simulating", simulationService.isSimulating(),
-            "targetUserId", simulationService.getSimulatedUserId(),
-            "actualUserId", simulationService.getActualUserId(),
-            "reason", simulationService.getSimulateReason()
-        ));
+        // ⚠️ 这里**不能用 Map.of**：未模拟时 targetUserId / reason 为 null，
+        //    而 Map.of 不接受 null 值 → 抛 NPE → 接口 500（本轮实踩：把「没在模拟」
+        //    这个完全正常的状态变成了服务端异常，前端横幅一进系统就报错）。
+        Map<String, Object> status = new java.util.HashMap<>();
+        status.put("simulating", simulationService.isSimulating());
+        status.put("targetUserId", simulationService.getSimulatedUserId());
+        status.put("actualUserId", simulationService.getActualUserId());
+        status.put("reason", simulationService.getSimulateReason());
+        return Result.ok(status);
     }
 }

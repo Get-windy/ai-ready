@@ -1,5 +1,6 @@
 package cn.aiedge.erp.finance.controller;
 
+import cn.dev33.satoken.annotation.SaCheckPermission;
 import cn.aiedge.base.log.annotation.OperationLog;
 import cn.aiedge.base.vo.Result;
 import cn.aiedge.common.exception.BusinessException;
@@ -25,7 +26,7 @@ import org.apache.poi.xssf.usermodel.XSSFDrawing;
 import org.apache.poi.xssf.usermodel.XSSFRichTextString;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.springframework.security.access.prepost.PreAuthorize;
+
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -79,7 +80,7 @@ public class MdPaymentChannelController {
 
     @Operation(summary = "分页查询支付渠道")
     @OperationLog(module = "支付渠道管理", type = "QUERY", desc = "分页查询支付渠道")
-    @PreAuthorize("hasPermission('/api/erp/md/payment-channel/page', 'md:payment-channel:view')")
+    @SaCheckPermission("md:payment-channel:view")
     @GetMapping("/page")
     public Result<Page<PaymentChannelVO>> page(PaymentChannelQuery query) {
         return Result.success(paymentChannelService.page(query));
@@ -87,7 +88,7 @@ public class MdPaymentChannelController {
 
     @Operation(summary = "查询支付渠道详情")
     @OperationLog(module = "支付渠道管理", type = "QUERY", desc = "查询支付渠道详情")
-    @PreAuthorize("hasPermission('/api/erp/md/payment-channel/detail', 'md:payment-channel:view')")
+    @SaCheckPermission("md:payment-channel:view")
     @GetMapping("/{id}")
     public Result<PaymentChannelVO> getById(@PathVariable Long id) {
         return Result.success(paymentChannelService.detail(id));
@@ -105,7 +106,7 @@ public class MdPaymentChannelController {
 
     @Operation(summary = "新增支付渠道")
     @OperationLog(module = "支付渠道管理", type = "CREATE", desc = "新增支付渠道")
-    @PreAuthorize("hasPermission('/api/erp/md/payment-channel/create', 'md:payment-channel:edit')")
+    @SaCheckPermission("md:payment-channel:edit")
     @PostMapping
     public Result<PaymentChannelVO> create(@RequestBody PaymentChannelDTO dto) {
         return Result.success("新增成功", paymentChannelService.create(dto));
@@ -113,7 +114,7 @@ public class MdPaymentChannelController {
 
     @Operation(summary = "更新支付渠道")
     @OperationLog(module = "支付渠道管理", type = "UPDATE", desc = "更新支付渠道")
-    @PreAuthorize("hasPermission('/api/erp/md/payment-channel/update', 'md:payment-channel:edit')")
+    @SaCheckPermission("md:payment-channel:edit")
     @PutMapping("/{id}")
     public Result<PaymentChannelVO> update(@PathVariable Long id, @RequestBody PaymentChannelDTO dto) {
         return Result.success("修改成功", paymentChannelService.update(id, dto));
@@ -121,7 +122,7 @@ public class MdPaymentChannelController {
 
     @Operation(summary = "删除支付渠道")
     @OperationLog(module = "支付渠道管理", type = "DELETE", desc = "删除支付渠道")
-    @PreAuthorize("hasPermission('/api/erp/md/payment-channel/delete', 'md:payment-channel:edit')")
+    @SaCheckPermission("md:payment-channel:edit")
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
         paymentChannelService.delete(id);
@@ -130,7 +131,7 @@ public class MdPaymentChannelController {
 
     @Operation(summary = "启用/停用支付渠道")
     @OperationLog(module = "支付渠道管理", type = "UPDATE", desc = "更新支付渠道状态")
-    @PreAuthorize("hasPermission('/api/erp/md/payment-channel/status', 'md:payment-channel:edit')")
+    @SaCheckPermission("md:payment-channel:edit")
     @PutMapping("/{id}/status")
     public Result<PaymentChannelVO> updateStatus(@PathVariable Long id, @RequestBody Map<String, Object> body) {
         return Result.success(paymentChannelService.updateStatus(id, parseInt(body == null ? null : body.get("status"))));
@@ -169,7 +170,7 @@ public class MdPaymentChannelController {
     @Operation(summary = "Excel 导入支付渠道（真实落库）")
     @PostMapping("/import-excel")
     @OperationLog(module = "支付渠道管理", type = "CREATE", desc = "Excel 导入支付渠道")
-    @PreAuthorize("hasPermission('/api/erp/md/payment-channel/create', 'md:payment-channel:edit')")
+    @SaCheckPermission("md:payment-channel:edit")
     public Result<Map<String, Object>> importExcel(@RequestParam("file") MultipartFile file) {
         return Result.success("导入完成", paymentChannelService.importExcel(file));
     }

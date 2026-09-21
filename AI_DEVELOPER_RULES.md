@@ -226,3 +226,76 @@ Get-CimInstance Win32_Process -Filter "name='node.exe'" |
 
 ### 8.2 最终交付物
 一个前后端风格统一、代码极致精简（YAGNI）、数据模型干净无冗余、安全防御到位的生产级企业管理系统。凡是我们比 Odoo 做得好的地方（如 UI 细节、业务流适配）必须保留优势，其余严格参照 Odoo 实现，绝不自创反模式。
+
+---
+
+## 九、数据与授权落位规则（2026-09-20 新增）
+
+> 立此章的直接原因：审计中发现同一个 `tenant_id`、同一类"配置表"被多种口径混用，
+> 导致跨租户读写、新租户看不到菜单、看板显示别家数据等一串问题。以下三条是**强制规则**。
+
+### 9.1 租户语义：`0` 与 `1` 各自代表什么（不得混用）
+
+| 值 | 含义 | 举例 |
+|---|---|---|
+| `tenant_id = 0` | **全局默认 / 租户初始化模板容器** —— 不是租户 | `sys_menu` 416 行、`sys_config` 173 行、`sys_permission`（全局码）、`erp_product_grade`/`erp_member_level`（等级字典）、`sys_tenant_package` |
+| `tenant_id = 1` | **平台租户 SYSTEM**（`admin` 所在，`SYSTEM_TENANT_ID = 1L`） | 平台自身用户、`SUPER_ADMIN` 角色 |
+
+**规则**
+1. `tenant_id = 0` 的租户记录（若有）**不是真租户**，不得作为登录/切换目标；DB 中已有一条
+   `tenant_mqd4cr9h`（status=0）属注册残留，应作废。
+2. 全局表读取用 `@InterceptorIgnore(tenantLine = "true")` + **显式** `tenant_id = 0`，
+   不要依赖"租户插件放行"（那会变成全租户可见）。
+3. **严禁**在业务 SQL 里把租户写死成常量。定时任务等无会话上下文的场景，必须
+   `MyBatisPlusConfig.setTempTenantId(...)` 逐租户设置并在 `finally` 中 `clearTempTenantId()`
+   （ThreadLocal + 线程池复用，不清理会串租户）。
+4. 新建的"租户初始化"能力，默认数据放 0 号容器，初始化时复制/派生到新租户 ——
+   参考既有实现：`TenantRegistrationService#approve` → `PermissionTemplateService.applyTemplateToRole`。
+
+### 9.2 参数落在哪张表（避免"能力重复"继续扩散）
+
+| 参数类型 | 落位 | 读写口径 |
+|---|---|---|
+| 系统级参数（行业设置、平台配置、安全策略等） | `sys_config` | 全局默认行 `tenant_id = 0`；读 `tenant_id IN (0, 会话租户)` |
+| DMS 配送业务参数（键前缀 `dms.*`） | `dms_config` | 同上（全局默认 + 租户覆盖） |
+| 外部服务/密钥/通道配置 | 见《对标开发技术参考文档》§5.6 与各模块文档「配置落位」小节 | 按该章的四通道口径 |
+
+**⚠️ 已知结构限制**：`sys_config` 目前是 `UNIQUE(param_key)`（**不含 tenant_id**），
+**容不下"租户覆盖"** —— 租户行与全局行不能共存，`selectByKey` 永远命中全局行。
+在改为 `UNIQUE(param_key, tenant_id) WHERE deleted = 0` 并把 `selectByKey` 改成"租户行优先"
+之前，**不要**对外宣称配置支持租户覆盖。
+
+### 9.3 对称模块必须同步改（采购 ↔ 销售）
+
+以下接口逐个方法一一对应（`FUNCTION_DUPLICATE_AUDIT` §1.2 实测），
+**任何一侧改审批流、单号规则、字段或校验，另一侧必须同步改**：
+
+| 对称组 | 接口数 | 示例 |
+|---|---|---|
+| `order/*` | 11 | `PurchaseOrderController` ↔ `SaleOrderController` |
+| `exchange/*` | 14 | `PurchaseExchangeController` ↔ `SaleExchangeController` |
+| `return/*` | 10 | `PurchaseReturnController` ↔ `SaleReturnController` |
+| `contract/*` | 5 | `ContractController`（CRM） ↔ `PurchaseContractController` |
+
+对应表结构相似度 0.70–0.79，字段复制程度高，改一处漏一处是历史高发问题。
+
+### 9.4 新增权限码的标准流程（顺序不可反）
+
+1. **先写种子迁移**：`INSERT INTO sys_permission`，口径对齐同域既有码
+   （`tenant_id=0, parent_id=0, permission_type=3, status=0, visible=1`），
+   `id` 取实测空闲段（不要用序列，也不要猜）。
+2. **同时关联超管角色**：本仓超管权限**不是**硬编码放行，而是来自 `sys_role_permission`
+   （`StpInterfaceImpl#getPermissionList` → `permissionCacheService.getPermissions`）。
+   沿用既有写法：
+   ```sql
+   INSERT INTO sys_role_permission (id, role_id, permission_id, tenant_id, create_time)
+   SELECT 9400000 + (p.sort - <基准>), 1, p.id, 1, now()
+   FROM sys_permission p
+   WHERE p.permission_code IN (...)
+     AND NOT EXISTS (SELECT 1 FROM sys_role_permission rp
+                     WHERE rp.role_id = 1 AND rp.permission_id = p.id);
+   ```
+3. **最后才加注解**（`@SaCheckPermission`）。
+   > 铁律来历：曾有 90 个注解引用了库中不存在的权限码，导致**所有非超管用户全 403**。
+4. 平台专属能力（如租户菜单授权）不能只靠权限码，**必须加身份硬校验**
+   （`MyBatisPlusConfig.isTenantScopeExempt()`），因为权限码可被授予租户角色。

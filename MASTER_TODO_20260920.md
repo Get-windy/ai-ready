@@ -1,0 +1,955 @@
+# AI-Ready 全面收尾 · 主待办清单
+
+> 建立日期：2026-09-20 · 本文是**唯一的总控清单**，其余四份审计报告降级为证据附件。
+> 使用方式：每条任务有唯一编号（`模块-序号`），处理完把「状态」改为 ✅ 并在文末「执行日志」追加一行。
+> 状态口径：⬜ 未开始 / 🔄 进行中 / ✅ 已完成 / ⏸ 待业务拍板 / 🚫 决定不做（写明理由）
+
+## 0. 口径与证据来源
+
+**证据附件（不重复劳动，直接引用）**
+
+| 文件 | 覆盖 |
+|---|---|
+| `CLEANUP_SCOPE_20260919.md` | 三类遗留全量盘点 + 孤儿页 87 个分档 |
+| `CLEANUP_AUDIT_REPORT.md` | 死代码逐项证据 |
+| `TABLE_DUPLICATE_AUDIT.md` | 553 张表分档 + A 类 9 组两套实现 + 72 张孤儿表 |
+| `FUNCTION_DUPLICATE_AUDIT.md` | 接口 78 组 / 页面 8 组 / 方法体 22 段重复 |
+| `CLEANUP_DECISIONS_20260919.md` | 7 项裁决单 + 已修项 + 防再生门禁 |
+
+**本轮（09-20）新增的两份专项审计结论已并入本文**：① 双层权限（系统级/租户级）审计；② 数据链路断点审计（含逐列非空率实测）。
+
+**可复现脚本**：`tools/audit-*.py`（表/页面/接口/代码/权限码/鉴权覆盖/命中）、`tools/dbq2.py "SELECT ..."`（只读查库）、`tools/build-backend.sh`（clean 构建+重启）。
+
+**两条铁律（血泪换来的，违反会造成线上事故）**
+1. **补鉴权注解前必须先补权限码种子** —— 代码引用了库里没有的码，会让非超管全部 403。
+2. **删任何文件必须 `mvn clean package`** —— 增量构建不清理 `target/` 旧产物（`.class` 会被组件扫描继续加载，`.xml` 会被打进 fat jar）。删 `*Controller`/`*Service` 前还要按**类名**搜 `@Pointcut`/`execution(`，切点是软引用，编译不报错、启动才炸。
+
+---
+
+## 1. 用户六条诉求 → 专项映射
+
+| # | 诉求 | 对应专项 | 条目分布 |
+|---|---|---|---|
+| 1 | 死代码、死数据库表清理 | 专项 A（死代码）/ 专项 B（死表） | A-* / B-* / 各模块 `-CLEAN` 条目 |
+| 2 | 同代码新旧多版本，需统一 | 专项 C（新旧并存） | C-* / 各模块 `-DUP` 条目 |
+| 3 | 数据有没有打通、有没有断点 | **专项 D（数据断点）** | 各模块 `-BREAK` 条目 |
+| 4 | 权限重构后的权限遗漏 | **专项 E（权限遗漏）** | E-* / 各模块 `-AUTHZ` 条目 |
+| 5 | 按模块按功能逐个处理 | 第 3 节模块清单 | 全部 |
+| 6 | 权限有系统级 + 租户级两层 | **专项 F（双层权限）** | F-* |
+
+---
+
+## 2. 进度看板
+
+| 模块 | 断点 | 新旧重复 | 死代码/死表 | 权限 | 拍板项 | 状态 |
+|---|---|---|---|---|---|---|
+| 平台/系统（core-*、租户、用户） | 3 | 4 | 12 | 15 | 6 | 🔄 |
+| 财务域（erp-finance） | 5 | 2 | 3 | 4 | 2 | ⬜ |
+| 库存仓储（erp-stock + wms） | 6 | 4 | 8 | 1 | 2 | 🔄 STK-BREAK-01/03 已闭环；-02 剩 2 处、-04/05 待做 |
+| 销售域（erp-sales） | 4 | 3 | 2 | 3 | 2 | ⬜ |
+| 采购域（erp-purchase） | 4 | 3 | 2 | 3 | 1 | 🔄 PUR-BREAK-01 已闭环；PUR-BREAK-03/04 待做 |
+| 主数据（erp-partner / md-*） | 3 | 3 | 6 | 1 | 1 | ⬜ |
+| DMS 配送 | 3 | 1 | 2 | 2 | 1 | ⬜ |
+| 商城/营销（erp-mall / marketing） | 3 | 2 | 4 | 2 | 1 | ⬜ |
+| HR | 1 | 1 | 2 | 1 | 1 | ⬜ |
+| CRM | 1 | 1 | 2 | 4 | 0 | ⬜ |
+| 报表分析 | 2 | 1 | 5 | 3 | 0 | ⬜ |
+| 其余（打印/固定/预算/发票/observability） | 2 | 2 | 4 | 4 | 1 | ⬜ |
+| 前端工程 / 构建 / 门禁 | — | 2 | 3 | — | 0 | ⬜ |
+
+---
+
+## 3. 模块清单（处理顺序 = 下表顺序）
+
+---
+
+### 3.1 平台 / 系统域（core-base、core-api、core-platform、租户、用户、权限）
+
+#### 平台-BREAK-01 [P0] 租户上下文缺失 = 全租户可见可写（fail-open）✅ 已定位，待修
+
+- **现象**：任何**已登录但 session 里没有 `tenantId`** 的会话，其所有租户表查询/写入都**不带租户条件**。
+- **证据**：`AiReadyTenantLineInnerInterceptor.java:54-57` `shouldSkip()` = `getCurrentTenantIdValue() == null || isTenantScopeExempt()`；`MyBatisPlusConfig.java:125-144` 只认 ThreadLocal 与会话两来源。
+- **四个漏写租户的登录入口**（登录成功但不写 `session.tenantId`）：
+  - `backend/wms/.../PdaAuthController.java:42`（PDA 仓库端登录）
+  - `backend/erp/erp-printing/.../v2/ClientAuthController.java:83`（打印客户端）
+  - `backend/erp/erp-mall/.../b2b/service/impl/MallAuthServiceImpl.java:67`（商城 C 端，**且在白名单里**）
+  - `AuthServiceImpl.java:103`（待确认是否有调用方）
+- **代码里把 fail-open 论证成"上游 SaInterceptor 会拦未登录"** —— 但上游只判「是否登录」，不判「租户上下文是否存在」，这两件事在本项目不等价。
+- **修法**：`shouldSkip()` 拆两语义：超管豁免（显式意图）保留；**上下文缺失对业务表 fail-closed**（抛异常或注入恒假条件）。登录链路对 `sys_user` 的查询用白名单式 `@InterceptorIgnore` 单独开口，而不是全局跳过。
+- **依赖**：平台-BREAK-02 的 `insertFill` 问题同源，建议一并改。
+- **状态**：⬜
+
+#### 平台-BREAK-02 [P0] `insertFill` 无条件覆盖实体 tenantId ⇒ 跨租户写全部落错租户
+
+- **证据**：`MyBatisPlusConfig.java:253-263` 用 `metaObject.setValue("tenantId", tenantId)` 而**非** `strictInsertFill`，不判断字段是否已有值。
+- **项目自己已踩过**：`SysTenantMenuMapper.java:24-31` 注释记着「给租户 A 授权写到会话租户头上（2026-09-18 实踩）」，`SysTenantMenuMapper.xml:36-40` 因此改用标量 `#{tenantId}` 绕过。
+- **数据佐证**：`sys_role_permission` 中 `role_tenant=1` 而关联行 `tenant_id=0` 的有 **16 行**、`=1` 的 518 行 —— 同一角色权限关联行租户标记不一致。
+- **修法**：改为「仅当 `getValue("tenantId") == null` 时填充」+ 单测覆盖「显式指定 ≠ 会话租户」。
+- **状态**：🔄 **代码已改（2026-09-20）** —— `MyBatisPlusConfig.java:253` 已加 `hasGetter` + `getValue(...) == null` 双重条件（并核实全仓无实体在自己初始化 `tenantId = 数字`，故无"显式 0 被跳过填充"风险）。**待办**：单测 + 编译验证。
+
+#### 平台-BREAK-03 [P1] 51 行业务数据 `tenant_id IS NULL`，对任何租户都不可见
+
+- **证据**（全库动态扫 494 张含 `tenant_id` 的表）：`budget_item` 21 / `annual_budget` 15 / `budget_execution_log` 7 / `finance_voucher_item` 6 / `erp_group_buy_activity` 1 / `finance_ledger` 1 = **51 行**。
+- **成因**：`setTenantId(null)` 共 12 处（`HrAttendanceServiceImpl.java:297`、`MallKeywordServiceImpl.java:81`、`MallNoticeServiceImpl.java:83`、`CouponTemplateController.java:77` 等），依赖 `insertFill` 兜底，而**无上下文时 `insertFill` 是 no-op**。
+- **修法**：补 `tenant_id NOT NULL DEFAULT 0` + 一次性回填（需确认归属）+ 修 12 处调用点。
+- **状态**：⬜
+
+#### 平台-BREAK-04 [P1] 租户初始化不写菜单授权 ⇒ 新租户管理员登录后看不到菜单
+
+- **现状（`TenantRegistrationService.approve()` 实测阅读）**：租户审批通过时做了 6 步 —— 启用租户 → 启用 admin 并标记
+  `isTenantAdmin` → `createDefaultAdminRole(tenantId)` 建默认管理员角色 → 给 admin 分配该角色 →
+  **从「系统默认权限模板」（`PermissionTemplateService.getSystemTemplates()` + `applyTemplateToRole`）初始化角色权限** →
+  清权限缓存。
+- **断点**：初始化覆盖了 **`sys_role_permission`（接口权限）**，但**完全没有**写
+  **`sys_role_menu`（角色菜单授权）** 与 **`sys_tenant_menu`（租户菜单授权）**。
+- **证据链（DB 实测）**：`sys_role_menu` 全表仅 3 行（全属 SUPER_ADMIN）；租户 2 的 `E2E_T2_ADMIN`
+  有 2 条 `sys_role_permission` 但 `sys_role_menu` **为 0**；`sys_tenant_menu` 的 tenant 1/2 均 0 行。
+  而 `SysMenuServiceImpl.java:279-291` 要求 `sys_tenant_menu ∩ sys_role_menu` 取交集 ⇒ **交集恒空，菜单返回空数组**。
+- **影响**：每个新批下来的租户，其管理员**能登录但导航为空**（靠前端静态路由兜底才没被当成故障）。
+  这是平台-AUTHZ-01「非超管菜单授权为 0」的**根因与再生产机制**。
+- **修法（二选一）**：
+  - **A（推荐）**：把菜单可见性改为**从权限派生**（有 `xxx:list` 权限即显示对应菜单），从根本上不再维护第二套数据；
+  - **B**：在 `approve()` 里补两步 —— 按默认模板写入 `sys_role_menu` 与 `sys_tenant_menu`，
+    并把 `sys_permission_template`（现仅 2 行且无 UI、见 F-11）补成一个可维护的完整模板。
+- **✅ 已拍板（2026-09-21，用户）**：选 **A —— 菜单可见性从权限派生**，租户初始化不再写第二套菜单授权表。
+- **状态**：🔄 实施中（依赖权限码覆盖率，见下方「派生可行性实测」）
+
+#### 平台-BREAK-05 [P1] 经营指标 / 会计期间查询**硬编码 `tenant_id = 1`**，多租户下取错数据
+
+- **证据**：
+  - `erp-observability/.../MetricsCalculationServiceImpl.java:39` `private static final long DEFAULT_TENANT_ID = 1L;`
+    且 **30 余处** SQL 直接字符串拼接 `" ... AND tenant_id = " + DEFAULT_TENANT_ID`
+    （:152/168/183/199/215/248/263/279/294/343/358/408/424/440/456/482 等）。
+  - `erp-observability/.../MetricsServiceImpl.java:48` 同样 `DEFAULT_TENANT_ID = 1L`（:146/188 使用）。
+  - `erp-finance/.../AccountingPeriodServiceImpl.java:35` `DEFAULT_TENANT_ID = 1L`，:42/:54 用于查会计期间。
+- **影响**：**经营看板/指标对任何租户都只统计租户 1 的数据** —— 租户 2 的管理员看到的是平台租户的经营数据
+  （既是数据不准，也是跨租户数据泄露）；会计期间同理（非租户 1 的租户查自己的期间会取到租户 1 的）。
+- **性质**：与 F-01 同源（`tenant_id = 1` 被当成"全局"用），但这里是**在业务查询里写死**，
+  绕过了多租户插件（字符串拼接的 SQL 插件也改不了）。
+- **修法**：改为取**当前会话租户**（`MyBatisPlusConfig.getCurrentTenantIdValue()`），
+  平台级汇总场景显式传参而非硬编码；`AccountingPeriodServiceImpl` 同期改。
+- **状态**：✅ **已实施（2026-09-20），待运行验证** ——
+  1. `MetricsCalculationServiceImpl`：常量 `DEFAULT_TENANT_ID` → `FALLBACK_TENANT_ID` + 新增
+     `currentTenantId()`（`MyBatisPlusConfig.getCurrentTenantIdValue()` 优先，取不到才回落），
+     **全部 30 余处字符串拼接的 `tenant_id = 1` 已替换**；
+  2. `MetricsServiceImpl` 同样处理；
+  3. `AccountingPeriodServiceImpl` 同样处理（此前写死 1 会让非平台租户的**月结/关账作用到租户 1**）；
+  4. `MetricsScheduler.collectRealtimeMetrics()` 改为**逐租户采集**：定时任务没有会话上下文，
+     原先两边叠加的结果是"所有指标只统计平台租户"；现在调度器 `listActiveTenantIds()`
+     （查 `sys_tenant` 中 `status=1`）→ 逐租户 `setTempTenantId` → 采集 → **finally clear**
+     （ThreadLocal + 线程池复用，不清理会串租户）。单租户失败不影响其余租户；租户列表查询失败则
+     本轮跳过（fail-closed，而不是回落去采平台租户 —— 那会把"读不到租户"变成"所有看板都显示平台数据"）。
+- **性能提示**：采集耗时变为「租户数 × 单租户」，当前租户量级可接受；租户显著增多时应改为按租户轮转。
+
+#### 平台-DUP-01 [P1] 用户/角色/权限三套旧实现并存（v2 前缀 + 复数表 + 被遮蔽实现）
+
+- **清单**：
+  - `SysUserController`（新） vs `UserController`（`/api/v2/user/...` 旧前缀）
+  - 5 张复数命名旧 RBAC 表 `users`/`roles`/`permissions`/`user_roles`/`role_permissions`（全 0 行、无实体无查询）→ 最安全的删除项（`TABLE_DUPLICATE_AUDIT` A-06）
+  - `SearchServiceImpl`(@Primary) vs `AdvancedSearchServiceImpl`（**已删**，09-19）
+  - `AuthServiceOptimizedImpl`(@Primary) vs `AuthServiceImpl`（**已删并改名**，09-19）
+- **修法**：`/api/v2/user/*` 走弃用流程（先看访问日志）。
+- **状态**：🔄 **A-06 五表已删除（本轮核验）** —— 迁移 `V11.433.0__Drop_Legacy_Permission_Tables.sql` 已执行成功（同时删掉 `sys_data_permission` 这套重复的数据权限实现），DB 实测 `users/roles/permissions/user_roles/role_permissions` 均不存在。`SearchServiceImpl`/`AuthServiceImpl` 两处遮蔽实现已于 09-19 删除。**剩余**：`/api/v2/user/*` 旧前缀走弃用观察流程。
+
+#### 平台-SEC-01 [P0·安全] `PdaAuthController.login` 是桩实现：不校验密码，任意用户可登录
+
+- **证据**：`backend/wms/src/main/java/cn/aiedge/wms/controller/PdaAuthController.java:37,42,68-80` —— `resolveUserId()` 用 `Math.abs(username.hashCode() % 10000) + 1` 造 userId，**只检查用户名≥2位、密码≥6位**，不做任何数据库查询与密码校验，随后直接 `StpUtil.login(userId)` 发 token。注释自己写着"临时实现…生产环境应替换为"。
+- **影响**：任何人可对 PDA 端取得任意身份的有效 token（且该 token 又因 平台-BREAK-01 不带租户上下文 ⇒ 全租户可见可写）。属**认证绕过**。
+- **消费方**：PDA 前端 `frontend/apps/pda-warehouse/src/api/index.ts:120-125` 定义了 `auth.login/logout`（需进一步确认页面是否真调用）；后端该控制器已被登记进 `core-api/src/test/resources/known-unauthorized-controllers.txt:337`。
+- **⚠️ 本轮核验更正（2026-09-20 实测）**：该登录接口 **`/api/v1/warehouse/auth/login` 不在 `SaTokenConfig` 的任何白名单里**
+  （两处 `excludePathPatterns` 均无它）⇒ 未登录调用会被 `SaInterceptor` 拦下返回 `{"code":401,"message":"请先登录"}`（已实测）。
+  因此原判断需修正为两点：
+  1. **原"认证绕过"漏洞实际不可被外部利用**（未登录根本进不到该端点；仅已登录用户可调用，且会把自己的会话重登为 hash userId）；
+  2. 但反过来暴露一个真问题：**PDA 登录功能从来就是坏的**（接口不可达，前端 `api/index.ts:120` 定义了却必然 401）。
+- **决策（用户 2026-09-20）**：**采用方案 A —— 改真实鉴权**。
+- **实施（已完成）**：
+  1. `PdaAuthController` 重写 —— 注入 `SysUserMapper` + `PasswordEncryptor`，按
+     `selectByUsername(username, null)`（该方法带 `@InterceptorIgnore`，用户名全局唯一故不按租户过滤）查用户，
+     依次校验密码（BCrypt）、`status == 1`、`tenantId != null`；登录后写 `session.tenantId` 与
+     `tenantScopeExempt`，与主站登录完全同口径。删除了 `resolveUserId()` 桩方法。
+  2. **`SaTokenConfig` 两处 `excludePathPatterns` 补 `/api/v1/warehouse/auth/login`**（否则登录接口不可达，
+     见上面的核验更正）—— 只放行登录本身，`/api/v1/warehouse/**` 下业务接口仍需登录。
+- **⚠️ 行为变更**：PDA 端必须改用**真实 `sys_user` 账号 + 密码**登录。若 PDA 演示环境此前依赖假账号，会立即失败 —— 这是预期。
+- **✅ 验证通过（2026-09-20 重启实测）**：
+  - 错误密码 → `{"code":401,"message":"用户名或密码错误"}`
+  - 用户名过短 → `{"code":400,...}`
+  - 未登录调用不再被拦成「请先登录」⇒ 白名单与真实鉴权同时生效。
+- **状态**：✅ 已完成并验证
+
+#### 平台-CLEAN-01 [P2] 13 个未装配功能包
+
+- **清单**：`storage`/`report`/`search`/`knowledge`/`gateway`/`mq`/`recommendation`/`webhook`/`agent`/`assistant`/`feedback`/`runner`/`inventory.repository`。
+- **推荐**（`CLEANUP_DECISIONS` §3）：多数删除；`agent`/`knowledge` 按 `AGENTS.md` 保留契约删实现。
+- **前置**：逐包 `git log` 确认近期无人在动。
+- **状态**：⬜
+
+#### 平台-CLEAN-02 [P1] 两套 feature flag 前端实现
+
+- **证据**：`composables/useFeatureFlag.ts` 与 `utils/featureFlags.ts` **都有引用方**（`composables/index.ts` / `main.ts`）。
+- **修法**：收敛为一套。
+- **状态**：⬜
+
+---
+
+### 3.2 专项 E：权限遗漏（跨模块）
+
+> 完整分析见记忆 `permission-layering-gap-audit`（09-20 已修一大批：数据权限拦截器入插件链、表级自动模式、权限模拟接线、SoD 挂对入口、erp-finance 103 处 `@PreAuthorize` → `@SaCheckPermission`）。**以下为仍未闭环项。**
+
+#### E-01 [P0] 243/397 控制器无任何访问控制注解（覆盖 2170 端点）
+
+- **口径**：必须计入自定义注解 `@RequirePermission`（`PermissionAspect` 真实执行）等；**不**计入 `@DataPermission`（它管数据范围不管可达性）。
+- **门禁已落地**：`AuthzAnnotationCoverageTest`（棘轮基线，新增违例即红）。
+- **分批补（每批先补权限码种子）**：
+
+| 批次 | 范围 | 理由 |
+|---|---|---|
+| 1 | `erp-finance.*` / `erp-payment.*` / `erp-invoice.*` / `erp-budget.*` | 涉及金额，越权后果最重（erp-finance 已由 09-20 修完 103 处，需复核余量） |
+| 2 | `crm.*`（8 个控制器） | 整模块零鉴权，含客户主数据 |
+| 3 | `erp.stock.*` | 采购/库存/销售单据 |
+| 4 | `wms.*` / PDA | 需先定 PDA 设备鉴权策略 |
+| 5 | `erp.marketing.*` / `erp.b2b.*` | 含 C 端公开接口，需逐个甄别 |
+
+- **另**：`erp.pricing.controller.PriceApprovalController`（价格审批）单独补。
+- **状态**：⬜ 批次 1 需先复核
+
+#### E-02 [P1] 僵尸权限码（能在矩阵勾选，勾了不生效）
+
+- **实测口径（09-20）**：`474 = 312 生效 + 151 未生效 + 11 分组节点`；补 32 码后为 `506`，未生效 **144**。
+- **⚠️ 数字已过时**：`V11.435.0__Remove_Legacy_Permission_Codes.sql` 已执行成功，DB 实测 `sys_permission` 现为 **500 行** ⇒ 需**重跑脚本取当前口径**再动手。
+- **修法**：二选一 —— 接线，或从授权矩阵下线（前端 `v-permission` 302 处也是消费方，不能只扫后端）。
+- **脚本**：`tools/gen-permission-effectivity.py` → `GET /api/permission/effectivity`；`tools/audit-permission-codes.py`。
+- **状态**：⬜ 待重测
+
+#### E-03 [P1] `sys_permission.api_path` 只填 238/474
+
+- **修法**：补全映射（若依式「权限码↔接口」），或明确废弃该列。
+- **状态**：⬜
+
+#### E-04 [P1] 9 个模块 0 权限码
+
+- **清单**：stock / wms / marketing / b2b / payment / party / budget / invoice / fixedasset；另 analytics / report 零权限。
+- **依赖**：补码是 E-01 的前置（铁律）。
+- **状态**：⬜
+
+#### E-05 [P2] 记录规则 `sys_record_rule` 无查询消费方
+
+- **证据**：`buildDomainFilter` 仍无人调用；表 0 行。
+- **状态**：⬜
+
+#### E-06 [P1] 非超管角色的菜单授权为 0（与业务断点 7.1 同一件事，见 权限区域模块）
+
+- **见** 平台-AUTHZ-01。
+
+---
+
+### 3.3 专项 F：双层权限（系统级 / 租户级）
+
+> **核心结论：本项目不是两条清晰的授权链，而是「一个拦截器 + 一个会话角色码」的布尔开关。**
+
+#### F-01 [P0] `tenant_id = 0` 与「平台租户 = 1」两个语义混用
+
+- **证据**：系统级数据（`sys_menu` 416 行、`sys_config` 173 行、`sys_permission` 105 行）落在 `tenant_id = 0`；而代码硬编码 `SYSTEM_TENANT_ID = 1L`（`SysMenuServiceImpl.java:48`），DB 里 `id=1` 是 `tenant_code=SYSTEM / 系统租户`。
+- **影响**：这是 F-02~F-06 多条问题的总根源。
+- **✅ 已查清（2026-09-20 实测）**：
+  - `admin` 用户 → `tenant_id=1`、`is_super_admin=true`、status=1；角色 `SUPER_ADMIN` 也在 `tenant_id=1`。
+  - 租户 1 = `SYSTEM / 系统租户`（status=1）⇒ **代码硬编码 `SYSTEM_TENANT_ID=1L` 是正确的，不用改**。
+  - 租户 0 = `tenant_mqd4cr9h`，**status=0 已禁用、无 admin_user_id** ⇒ **不是真租户，是注册测试残留**。
+  - 所以 `tenant_id=0` 的真实身份是**「全局/平台共享数据」的容器**，不是租户。
+- **`tenant_id=0` 上实际混着三类数据（实测分布）**：
+
+  | 类别 | 表与行数 | 处置 |
+  |---|---|---|
+  | **设计上就该在 0 的全局数据** | `sys_menu` 416、`sys_config` 173、`sys_permission` 105、`dms_config` 57、`sys_tenant_package` 3、`sys_module` 6、`erp_product_grade` 8、`erp_member_level` 4、`sys_security_policy` 1、`sys_storage_config` 1、`sys_tenant_menu` 4 | **保留**，并把"0 = 全局"语义固化到代码/规范 |
+  | **本应属于租户的数据** | `sys_login_log` 79、`workflow_node` 19 + `workflow_task` 15 + `workflow_instance` 5 + `workflow_definition` 4、`scheduled_task` 16 + `scheduled_task_log` 15、`sys_role_permission` **16**（正是"角色在租户 1、关联行在 0"那批）、`biz_party` 14 | **需按真实租户回填**（先定归属再改） |
+  | **测试脏数据** | `sys_user` 3（`apitest_*`/`e2e_test*`，全 status=0）、`sys_department` 3（E2E） | **清理** |
+
+- **语义定义（用户 2026-09-20 确认，本文以此为准）**：
+  > `tenant_id = 0` = **「租户初始化数据容器」** —— 存放给新租户的默认数据：
+  > 默认角色、以及租户初始化所需的其他信息。新租户从 0 号容器复制/派生自己的初始数据。
+
+  实测现状与该定义**部分吻合**：已实现的"权限模板"（`sys_permission_template` → `applyTemplateToRole`）
+  就是这个容器的一个实例（见 平台-BREAK-04）；但**菜单授权、租户菜单授权没有走模板**，是该定义下缺失的部分。
+- **动作**：
+  1. 作废/清理租户记录 0（`tenant_mqd4cr9h`）—— 它是 status=0 的注册残留，**不应作为租户存在**；
+     但其中作为"初始化模板"的数据要保留（作废租户记录 ≠ 删 0 号数据）；
+  2. 把语义写进规范：**`0` 表示"初始化模板/全局默认数据"，`1` 表示平台租户（SYSTEM，admin 所在）**；
+     全局表读用 `@InterceptorIgnore` + 显式 `tenant_id = 0`；
+  3. 按此语义补齐缺失的初始化项（菜单授权等，见 平台-BREAK-04）；
+  4. 清理上面第二、三类数据（**先逐表确认归属，勿批量 UPDATE**）。
+- **状态**：🔄 语义已定，数据清理与初始化补齐待逐表确认
+
+#### F-02 [P0] `X-Tenant-Id` 头由客户端完全决定，后端无任何与会话比对
+
+- **证据**：
+  - 前端无条件注入且**默认回落 `'1'`**：`pc-admin/src/utils/request.ts:127-129`、`api/admin.ts:26`。
+  - 后端 **21 个文件 / 104 处**消费该头，无任何全局校验。
+  - 头优先于会话：`PrintTemplateV2Controller.java:39-52`、`SystemConfigServiceImpl.java:540-545`、`ReportScheduleController.java:197-200`。
+  - 直接落库：`WorkflowController.java:105-107` → `WorkflowServiceImpl.java:126`（工作流四表在 ignore 清单，且实体不继承 BaseEntity 无 fill → **头值是唯一租户判据**）。
+- **影响**：改 localStorage 或直接 curl 带头，即可读写别的租户（含平台租户 0/1）的流程定义、打印模板、报表、数据源、系统配置。
+- **修法**：SaInterceptor 之后加全局 `HandlerInterceptor` 比对头与会话租户（超管豁免）；104 处消费点改从会话取；前端去掉 `'1'` 回落。
+- **状态**：✅ **已实施（2026-09-20），待运行验证**
+  - 新增 `cn.aiedge.base.security.TenantHeaderInterceptor`：头缺失/未登录/超管/无会话租户 → 放行；其余账号头值 ≠ 会话租户 → **403**（宁可拒绝也不静默改写，避免越权读取看起来成功）。
+  - 注册进 `SaTokenConfig`，`order(2)`（排在鉴权之后）。
+  - 前端 4 处去掉 `|| '1'` 回落：`utils/request.ts:127`、`api/admin.ts:26`、`api/marketing.ts:44`、`views/dms/realtime-tracking/index.vue:819`
+    —— 拿不到租户时**不发该头**，交由后端使用会话租户。
+
+#### F-03 [P0] `/api/config/**` 整表 `@InterceptorIgnore`，租户管理员带头 `X-Tenant-Id: 0` 即可改全局配置
+
+- **证据**：`SysConfigMapper.java` 逐条 `@InterceptorIgnore(tenantLine="true")`（65/91/118/127/132/158/167/187/199/204 行）；`:187` 的 `UPDATE sys_config ... WHERE deleted=0 AND id=#{c.id}` **无 tenant_id 条件**；作用域全由头决定（`SystemConfigServiceImpl.java:540-545`）。`sys_config` 173 行**全在 `tenant_id=0`**。
+- **修法**：`effectiveTenant` 改为「仅超管可用头，其余强制会话租户」（照抄 `TenantModuleController.java:76-92 resolveReadableTenantId`）；`updateConfig`/`logicDeleteById` 补 `tenant_id` 条件。
+- **🔍 本轮深挖（与初判不同，更严重）**：`sys_config` 的唯一约束是 **`UNIQUE(param_key)`（不含 tenant_id）**，
+  且 173 行**全在 `tenant_id=0`** ⇒ `selectByKey` 永远命中那唯一一行（`tenant_id IN (0,?)` 只能命中 0 行）
+  ⇒ **租户管理员保存配置，实际改的就是全局配置**（影响所有租户），而不是"改自己租户"。
+  也就是说：**当前表结构根本容不下"租户覆盖"**（mapper 注释也承认这点）。读路径的
+  `tenant_id IN (0, #{tenantId})` 写法是对的，但受唯一约束限制，"覆盖"无从存在。
+- **已完成（本轮）**：`effectiveTenant` 加固 —— 非超管**一律强制会话租户**，传入的头值忽略并告警；
+  超管仍可用头（含 0 = 全局）。这一步堵住"任意指定租户"。
+- **待拍板（完整实现"全局默认 + 租户覆盖"）**：
+  1. 迁移去掉 `UNIQUE(param_key)`，改为 `UNIQUE(param_key, tenant_id) WHERE deleted = 0`（顺带修掉"软删后不能重建同键"）；
+  2. `selectByKey` 排序改为**租户行优先**（现为 `ORDER BY tenant_id ASC` = 全局行优先，与覆盖语义相反）；
+  3. `selectConfigs` 需按 `param_key` 去重（`DISTINCT ON`），否则同一键会出现两行；
+  4. 写路径：租户管理员只写自己租户的行，超管写 0 行。
+  **替代方案**：若判定"系统参数是平台专属功能"，则只需把 `system:config:*` 码收归平台角色，无需改表。
+- **状态**：🔄 越权头已加固（✅）；租户覆盖待拍板（⏸）
+
+#### F-04 [P1] 平台侧 `/api/tenant/**` 读接口可被任意租户用户调用
+
+- **证据**：`TenantController.java:42-47` 类级只有 `@SaCheckLogin`；`getPage`(:59-87)/`getById`(:95-103)/`getConfig`(:229-246) 无权限注解；`sys_tenant` 在 ignore 清单 → 无租户条件。写接口反而有码（`:110/:125/:195`）。
+- **影响**：任意登录用户可枚举全部租户档案（含联系方式、`admin_user_id`、到期时间）。
+- **修法**：补 `system:tenant:list`/`query` 码；service 层非超管收敛为仅本租户。
+- **状态**：✅ **已实施（2026-09-20），待运行验证**（顺序遵守「先种子后注解」铁律）：
+  1. 迁移 `V11.438.0__Seed_Tenant_Query_Permissions.sql`：补 `system:tenant:list`(90066)、
+     `system:tenant:query`(90067)，并**显式关联超管角色**（本仓超管权限不是硬编码放行，
+     而是来自 `sys_role_permission`，不关联则平台管理员自己也会被拒）；
+  2. `TenantController` 三个读接口补注解：`getPage` → `system:tenant:list`，
+     `getById`、`getConfig` → `system:tenant:query`。
+  **刻意未加**：`GET /current`（租户侧读自己公司信息，加了会让租户管理员看不到本企业档案）。
+
+#### F-05 [P1] 平台/租户两层在权限码维度上无隔离，提权链完整
+
+- **证据**：`sys_permission` / `sys_role_permission` **都在 ignore 清单**（全局表）；`SysRoleServiceImpl.assignPermissions`(:75-130) 对 `permissionIds` **不做任何白名单/归属校验**；DB 实证租户 2 的角色已持 `system:user:list/detail`（这些码落库时 `tenant_id=1`）。
+- **提权链**：租户管理员拿到 `system:role:assign-permission` → 把 `tenant:menu:assign` 授给自己 → 调 `SysTenantMenuController` 改写**任意租户**菜单授权。**当前未被利用，但链是通的。**
+- **修法**：给权限码引入"作用域"（平台专属 / 可授租户）字段，`assignPermissions` 按调用者身份过滤；或在平台侧接口加硬校验，不依赖权限码。
+- **需拍板**：`system:*` 码是否允许授予租户角色？（迁移注释把"租户管理员自行勾选"当预期）
+- **状态**：⏸ 部分需拍板
+
+#### F-06 [P1] `SysTenantMenuController` 只认权限码，不认平台身份
+
+- **证据**：四个端点的 `tenantId` 全部来自 `@PathVariable`，注解仅 `@SaCheckPermission("tenant:menu:*")`，类里**没有 import 任何身份判定工具**；写入 `SysTenantMenuMapper.xml:36-40` 用标量 `#{tenantId}`（刻意绕开 fill），删除 `:47-50` 是**物理删**全量。
+- **修法**：service 入口加平台管理员硬校验（`isTenantScopeExempt()` 或 SUPER_ADMIN），非平台管理员 403。
+- **状态**：✅ **已实施（2026-09-20），待运行验证** —— `SysTenantMenuController` 新增私有方法
+  `assertPlatformAdmin()`（非 `isTenantScopeExempt()` 即抛 `BusinessException.forbidden`），
+  四个端点（query/assign/remove/clear）全部前置调用。理由写在方法注释里：权限码可被授予租户角色，
+  而 `sys_tenant_menu` 在忽略清单、写入走标量 `#{tenantId}`，只靠码挡不住。
+
+#### F-07 [P1] 租户级菜单授权这一层数据为空，第二层形同虚设
+
+- **证据（SQL）**：`sys_tenant_menu`：`tenant_id=0` → 4 行，`tenant 1/2` → **0 行**；`sys_role_menu`：`tenant_id=1` → **3 行**，其余 0。`sys_menu` 416 行在 `tenant_id=0`。
+- **代码路径**：`SysMenuServiceImpl.java:279-291` 两级取交集；租户 2 交集为空 → `:302-304` 返回空菜单。
+- **影响**：任何真实租户的"平台授权给租户的菜单"都没数据；结合平台-AUTHZ-01，租户用户导航只剩前端静态路由兜底。
+- **✅ 已拍板（2026-09-21）**：随 平台-AUTHZ-01 一并由权限派生取代，`sys_tenant_menu` 退出菜单主链路
+  （`tenantId` 归属之争随之作废，不再需要裁定 0 还是 1）。
+- **状态**：🔄 实施中
+
+#### F-08 [P1] 匿名 `/api/file/view/**` 无租户维度
+
+- **证据**：白名单 `SaTokenConfig.java:48,90`；实现 `FileUploadController.java:108-126` 只做路径穿越防护，**路径里没有租户层级**。而做了租户校验的 `FileAccessController`（`/files/**`）**不在白名单**——安全的那份管不到曝光的那份。
+- **影响**：未登录者凭 `yyyy/MM/dd/{uuid}.ext` 可读任意租户上传的证件/附件/头像（UUID 提供一定不可猜性）。
+- **修法**：路径改 `{tenantId}/...` 并校验归属；或合并两份实现，统一到安全的那份。
+- **需拍板**：是否接受"UUID 即权限"？
+- **状态**：⏸ 需拍板
+
+#### F-09 [P2] 其余加固清单（均有位置，未逐一实测）
+
+- `@InterceptorIgnore(tenantLine="true")` 是第二张更隐蔽的忽略清单：**30 文件 / 76 处**（含 `SysUserMapper.java:24`、`SysMenuMapper.java:59,65`、`MailConfigMapper.java:27`、`SecurityPolicyMapper.java:27`、`SmsConfigMapper.java:17`、`DmsChannelMapper.java:46`）。
+- `setTenantId(1L)` 字面量散落 stock/purchase/finance（`StockInServiceImpl.java:157`、`PurchaseInboundServiceImpl.java:294`、`PaymentController.java:128` 等），无会话上下文时写死平台租户。
+- `SysTenantMenuMapper.deleteByMenuId`(:41 / XML :53-56) **无任何调用方** ⇒ 删菜单不清租户授权，遗留脏授权。
+- `NotificationController`（core-notification）信任 `X-User-Id` 头（:31-35），可越权读写他人通知。
+- **34 张表的 `tenant_id` 是 varchar**，拦截器却注入 `LongValue`：`budget_*`/`expense_*`/`invoice_*`/`fixed_asset_*`/`erp_supplier_*`/`erp_inquiry_quotation`。对 `erp_inquiry_quotation` 执行 `WHERE tenant_id = 0` 直接报 `operator does not exist: character varying = integer`，**PG 中会中止整个事务** ⇒ 表现为"整单 500"。
+- **做对的地方**（勿动）：`TEMP_TENANT_ID` ThreadLocal 的 13 处 set 全部有 finally clear，未发现线程池串租户。
+- **状态**：⬜
+
+#### F-10 [P2] 前端"切换租户"只改 localStorage，不改会话租户
+
+- **证据**：`BasicLayout.vue:849-865` 只做 `localStorage.setItem` + `router.push`，无后端调用；会话租户只在登录时写一次（`SysUserServiceImpl.java:119`）。另有多处 `|| 1` 硬编码回落（`dynamicRoutes.ts:1073`、`stores/user.ts:108,113,172`、`request.ts:358`、`tokenRefresher.ts:142`）。
+- **影响**：对拦截器自动注入的 460 张表**完全无效**，只对 F-02 的 21 个头消费模块生效 → 行为不一致。
+- **需拍板**：「切换租户」是切换会话身份（需重签 token，仅超管可切）还是只切换视图过滤？
+- **状态**：⏸ 需拍板
+
+#### F-11 [P1] SoD（职责分离）表空、权限模板无 UI 等
+
+- `sys_sod_rule` 0 行（校验已挂对入口，规则为空时零影响）；`sys_permission_template` 2 行无 UI；`sys_field_permission` 0 行且 **core-platform 的 `FieldPermission` 实体列名与表不符**（`modelName/fieldName/groupId` vs 真库 `role_id/target_table/target_field`）⇒ 一旦被调用即报列不存在。
+- **状态**：⬜
+
+#### 平台-AUTHZ-01 [P1] 非超管角色的菜单授权为 0
+
+- **证据（SQL）**：`sys_role_menu` 总共 **3 行**：SUPER_ADMIN(1) 有 3 条；`SYSTEM_ADMIN`/`DEPT_ADMIN`/`E2E_T2_ADMIN` **均为 0**。而接口权限 `sys_role_permission` 有 536 行（18/16/2 分布）。
+- **代码**：`SysMenuServiceImpl.java:279-289` 普通租户走 `sys_tenant_menu ∩ sys_role_menu`，空交集 → `:299 log.warn("用户没有可访问的菜单")` 返回空数组；超管靠 `:270` 硬编码早退才拿到全菜单。
+- **影响**：除超管外所有角色登录后菜单接口返回空，导航靠前端静态路由兜底（因此不易被发现）；新增角色/租户会立即复现。
+- **根因**：**两套授权模型两处存、只维护一处**（接口权限有人维护、菜单授权无人维护）。
+- **修法**：角色保存时同步写 `sys_role_menu`，或改由 `sys_permission` 派生菜单可见性；统一超管早退分支。
+- **✅ 已拍板（2026-09-21，用户）**：**从 `sys_permission` 派生菜单可见性**，不再双维护 `sys_role_menu` / `sys_tenant_menu`。
+- **🔬 派生可行性实测（2026-09-21）**：`sys_menu` **没有** `permission_code` 列（28 列已核）；
+  307 个叶子菜单的 `menu_code` 里**只有 2 个**能精确命中权限码 —— 但**前缀规则成立**：
+  菜单 `finance:other-income-doc` ↔ 权限 `finance:other-income-doc:view` 可派生。
+  按前缀规则实测可见菜单数：SUPER_ADMIN 500 码 → 覆盖面广；SYSTEM_ADMIN(18 码) / DEPT_ADMIN(16 码) → **仅 3 个**；
+  E2E_T2_ADMIN(2 码) → **0 个**。
+  ⇒ **结论：「从权限派生」的瓶颈不是服务端逻辑，而是权限码库本身只覆盖 31/500 个 `erp:*`**
+  （stock/wms/marketing/b2b/payment/party/budget/invoice/fixedasset 九个模块零权限码，见 E-04）。
+  **正确顺序**：E-04 补码 → E-01 补注解 → 再切换菜单派生的默认口径。
+- **未映射菜单的过渡口径（本轮实施）**：菜单码无对应权限时**保持可见**（后端 API 鉴权才是真正的访问控制点，
+  菜单只是导航）；有对应权限的菜单则按权限显隐。这样既终止空菜单，又不因覆盖率不足而让导航"变少"。
+- **状态**：🔄 实施中
+
+---
+
+### 3.4 财务域（erp-finance）
+
+#### FIN-BREAK-01 [致命 P0] 总账虚增，利润表数字是假的
+
+- **证据（同年度两套口径实测）**：
+
+| 科目 | 凭证分录口径 `finance_voucher_item` | 总账口径 `finance_ledger` |
+|---|---|---|
+| 6001 主营业务收入（贷） | 2,500 | **18,230** |
+| 1122 应收账款（借/贷） | 2,500 / 500 | **17,900 / 22,000** |
+| 1403 库存商品（借/贷） | 255 / 0 | 4,815 / 3,120 |
+
+  分期间：2026 期1 凭证 1,000 vs 总账 4,000（4 倍）；期9 2,666 vs 44,666（约 17 倍）。凭证借贷本身平衡（57/57）。
+- **代码根因**：`finance_ledger` 唯一写入方 `LedgerServiceImpl.postToLedger()`（由 `VoucherServiceImpl.java:251` 过账调用）是**纯累加式**（`LedgerServiceImpl.java:448` `setPeriodDebit(existing + debit)`），**无按凭证重算/回滚入口**；唯一重算方法 `closePeriod()`（`:482`）**全仓无调用方**。凭证删了总账永久残留。
+- **取数源分裂**：`TrialBalanceMapper.java:44` 读 `finance_voucher_item`（正确）；`FinancialReportServiceImpl.java:47,68,188,547,809,876` 读 `finance_ledger`（虚增）⇒ **利润表/资产负债表/总账账簿数字全错**。
+- **修法**：① 新增"按凭证重算 `finance_ledger`"入口并执行一次；② `closePeriod` 接线或删除；③ 全报表统一到「凭证 → 总账」单向派生。
+- **需拍板**：财务口径由谁确认；重算以凭证为准是否认可。
+- **状态**：⏸ 修法明确，待财务确认后执行
+
+#### FIN-BREAK-02 [P1] 凭证头 `summary` / `source_no` 永不写入（字段名对不上）
+
+- **证据**：`finance_voucher` 69 行，`summary` **0/69**、`source_no` **0/69**、`handler_name`/`dept_name` 0/69；但**行级** `finance_voucher_item.source_no` 137/145 有值。
+- **根因**：`BusinessAccountingServiceImpl.java:100-104` 组装时只 `setRemark(request.getSummary())`，**没有 `setSummary(...)` 也没有 `setSourceNo(...)`**；而 `VoucherServiceImpl.java:79,82` 读的是 `dto.getSummary()` / `dto.getSourceNo()` —— **remark ≠ summary**，来源单号整条漏传。
+- **影响**：凭证列表"摘要/来源单据"列恒空；**无法从凭证反查业务单据**（`VoucherQuery.sourceNo` 条件永远筛不出）。而调用方 `ExpenseDocServiceImpl.java:289,466`、`CashTransferServiceImpl.java:381`、`ArApAdjustServiceImpl.java:339` 都老实 `setSourceNo(doc.getDocNo())` —— **白传**。
+- **修法**：网关补 `setSummary`/`setSourceNo`；`finance_voucher.source_no` 用 `source_type + source_id` 反查回填。
+- **状态**：✅ **已修（2026-09-20）** —— `BusinessAccountingServiceImpl.java:82` 后补 `setSummary(request.getSummary())` + `setSourceNo(request.getSourceNo())`；新增回填迁移 `V11.436.0__Backfill_Finance_Voucher_Summary_SourceNo.sql`（summary 从 remark 复制、source_no 从 `finance_voucher_item.source_no` 按 voucher_id 取 MIN 回填，幂等）。**待办**：启动后验证新产生的凭证两列有值。
+
+#### FIN-BREAK-03 [P2] 财务多表业务列全空
+
+- `finance_payable.invoice_no` 0/3、`finance_receivable.invoice_no` 0/6；`erp_expense_doc.pay_account2_id/2_name/3_id/4_id` **全 0/40**（多账户付款字段前端在传、后端不写）；`erp_pre_receipt` 的 `source_type/source_id/source_no/handler_id/dept_id/bookkeeper_id/payment_method/bank_account/transaction_no` 全 0/2；`erp_capital_flow` 的 `bank_account/bank_name/transaction_no/reconcile_at` 全 0/41。
+- **影响**：发票核销、资金对账、多账户付款、预收款来源追溯全部无数据。
+- **状态**：⬜
+
+#### FIN-BREAK-04 [P2] 辅助核算项目字典近乎空
+
+- `finance_auxiliary_item` 仅 1 行（E2E 临时项且已软删）、`finance_auxiliary_type` 6 行（1 条 E2E）。`AuxBalanceMapper.java` 的 DEPT 分支又反查 0 行的 `sys_dept` ⇒ 辅助核算余额表按核算项分行取数恒空。
+- **状态**：⬜
+
+#### FIN-DUP-01 [P1] 费用报销两套（旧 `erp/expense` 包）
+
+- **证据**：新 `erp/finance/expensedoc`（`erp_expense_item` 53 行）vs 旧 `erp/expense`（`expense_item` **0 行**），31 个 java 文件、列数差异大，**两次独立实现**。
+- **关键**：旧包有 **6 个 Controller**，是 HTTP 入口，不受"零 Java 引用"结论覆盖。实测：
+  - `/api/erp/expense/statistics/*`（`ExpenseAnalyticsController`）**仍在使用**（`api/analytics-finance.ts:162-172`、`api/analytics.ts:760,832,836` 在调，服务「查费用 80454」页面）→ **必须保留**。
+  - 另 5 个 `/application,reimbursement,approval,payment,type/*` 的消费者是 `api/erp/expense/index.ts`，只被**孤儿页**引用。
+- **正确顺序**：**先删孤儿页，再删这 5 个 Controller 及 Service/Mapper/Model**（顺序反了留 404 端点）。
+- **状态**：⬜ 依赖孤儿页批次
+
+#### FIN-DUP-02 [P1] 应收/应付子分类账 vs 查应收/查应付（原判定有误，已纠正）
+
+- **纠正**：`ReceivableController`/`PayableController` 是**完整子分类账**（新增/列表/账龄/核销/坏账/导出），不是只读报表，**不能删**。
+- **推荐**：挂菜单到「财务」，与 `analytics/check-*`（查询分析）并存，命名区分：「应收账款管理」/「应付账款管理」。
+- **前置**：核对 `finance/receivable/index.vue` 是否已接线 `PUT /{id}/write-off`、`PUT /{id}/bad-debt`，未接线先接线。
+- **状态**：⏸ 待拍板
+
+#### FIN-DUP-03 [P2] 核销中心 `finance/write-off` 只读
+
+- 仅 4 个 GET；真正的核销在 `Receivable/PayableController`。**推荐保留挂菜单并标注"（查询）"**，批量核销列入后续迭代。
+- **状态**：⏸ 待拍板
+
+#### FIN-DUP-04 [P2] 资金流水 vs 查资金（80453）
+
+- 两者同用 `capitalFlowApi`。**决策点**：财务是否需要"任意条件导出全部资金流水"的独立入口？要 → 挂台账；不要 → 删台账、导出并入分析页。
+- **状态**：⏸ 待拍板
+
+#### FIN-DUP-05 [P1] 预算两套（`budget/annual` vs 已挂 `finance/budget-plan` 80130）
+
+- **推荐**：以 80130 为唯一编制入口。
+- **状态**：⏸ 待拍板
+
+---
+
+### 3.5 库存 / 仓储域（erp-stock + wms）
+
+#### STK-BREAK-01 [致命 P0] `erp_stock`（ERP 轨）与 `wms_inventory`（WMS 轨）实测漂移
+
+- **证据**：`wms/.../InventoryServiceImpl.java:185-191` 扣减时镜像失败**只记 error 不回滚**（注释自认"不回滚本轨——避免历史漂移卡死仓库现场"）。实测：
+
+| product_id | 仓库 | erp_stock 可用 | wms_inventory 可用 | 差 |
+|---|---|---|---|---|
+| 2073239284579586050 | 1 | 95 | 43 | **52** |
+| 990000000000000003 | 1 | 152 | 152 | 0 |
+
+- **影响**：`erp_stock` 是**所有库存类报表的唯一数据源**（`StockReportMapper.java:254`、`StockAlertQueryMapper.java:44`、`ProductMapper.java:29,54`、`ShortageReplenishMapper.java:127`、`ProductPriceQueryMapper.java:39`、`MetricsCalculationServiceImpl.java:247`）⇒ 可用库存/缺货预警/智能补货/经营看板全部与仓库现场作业依据不一致。已有 `InventoryReconcileService.reconcile()` 但**只读检测、无自动收敛**。
+- **决策（用户 2026-09-20）**：**以 `erp_stock` 为准**（ERP 是系统核心）。
+- **实施（已完成）**：
+  1. **数据校准**：新增迁移 `V11.437.0__Reconcile_Wms_Inventory_To_Erp_Stock.sql` —— 按
+     `(product_id, warehouse_id, batch_no)` 把 `wms_inventory` 的 quantity/available_quantity 对齐到 `erp_stock`；
+     **仅处理单行 key**（同一 key 在 WMS 有多行/多库位时跳过，避免把仓库级汇总摊错），幂等。
+  2. **停止新增漂移**：`InventoryServiceImpl.decrease()` 的镜像失败从"只记 error 不回滚"改为
+     **抛 `WmsBusinessException` 回滚**（与 `increase` 对称）。这是此前两轨单向漂移的主因。
+- **本轮实测差异**：**仅 1 行** —— `product_id=2073239284579586050, warehouse_id=1`：
+  `erp_stock.available=95` vs `wms_inventory.available=43`（差 52），且该 WMS 行自身矛盾
+  （`quantity=31 < available_quantity=43`，即 STK-BREAK-03）。
+- **⚠️ 行为变更（需运行验证）**：收紧后，若 ERP 轨可用量不足，仓库出库作业会**直接失败**（此前会静默放过）。
+  这是"以 erp_stock 为准"的必然结果；若现场出现卡单，说明 ERP 轨账本身有问题，应走对账而不是放宽。
+- **状态**：🔄 代码 + 迁移已就绪，**待启动执行与验证**
+
+#### STK-BREAK-02 [P0] 6 处代码绕过「库存唯一写入口」，方向不对称
+
+- **设计约定**：`InventoryChangeEvent`/`InventoryService` 注释明确"ERP 侧严禁直写 `erp_stock`"。
+- **实测违规点**（只写 `erp_stock` 不动 `wms_inventory`，全是**反向/取消**路径）：
+  - `erp-purchase/.../PurchaseInboundServiceImpl.java:653`（取消入库回冲 —— 同文件 633 行注释刚说"不再直写"）；`reverseStock()` 还会因漂移抛异常**卡死"取消入库"**
+  - `erp-purchase/.../PurchaseReturnServiceImpl.java:411`
+  - `erp-sales/.../RetailOrderServiceImpl.java:396,402`
+  - `erp-sales/.../SaleExchangeServiceImpl.java:364,366,389,391`
+  - `erp-sales/.../SaleOrderServiceImpl.java:557`（发货扣减）
+  - `erp-stock/.../StockController.java:89,102`（手工增减库存 API）
+- **影响**：**正向走 WMS 双写、反向只写 ERP 单轨** ⇒ 每次取消/退回产生一次单向漂移，这正是 STK-BREAK-01 的成因。
+- **修法**：全部改为发 `InventoryChangeEvent`。属缺陷修复，**不需拍板**。
+- **状态**：🔄 **已完成 5 处（2026-09-20）**：
+  - `PurchaseInboundServiceImpl#reverseStock`（取消入库回冲，改发 DECREASE）
+  - `PurchaseReturnServiceImpl#updateStock`（采购退货出库，DECREASE）
+  - `RetailOrderServiceImpl`（零售结算：退货 INCREASE / 正常 DECREASE）
+  - `SaleExchangeServiceImpl`（换货过账 + 取消回滚，两处对称）
+  **剩余 2 处需设计定稿（本轮未改）**：
+  - `SaleOrderServiceImpl#confirmShipment` —— 它先 `unfreezeStock` 再 `decreaseStock`，而 **WMS 侧没有冻结/解冻概念**（`InventoryChangeEvent` 只有 INCREASE/DECREASE）。审批时冻结的是 `erp_stock.frozen_quantity`（`SaleOrderServiceImpl.java:2347`），WMS 的 `available_quantity` 从未被冻结 ⇒ 直接改事件会让 WMS 判"可用不足"而失败。**这是双轨制下"可用量"定义不一致的根问题，需先定冻结语义**。另该方法 `:558-560` 把库存异常**吞掉只记 error** 后仍标记发货，属独立缺陷。
+  - `StockController` 的 `/increase`、`/decrease`、`/freeze`、`/unfreeze` 手工库存调整 API —— 管理员手工调账是否应作用于 WMS 轨，需业务定义。
+
+#### STK-BREAK-03 [P1] `wms_inventory` 自身"可用量 > 总量"
+
+- **证据**：`2079717784150593538` qty=31/avail=43；`9909046245377695746` qty=0/avail=152（2 行命中）。
+- **影响**：超卖校验会放行不存在的库存。
+- **修法**：加约束 + `increase/decrease/freeze/unfreeze` 补断言；先归零历史脏数据。
+- **状态**：✅ **已完成并验证（2026-09-21）** ——
+  1. 脏数据已由 `V11.437.0` 校准（那 2 行矛盾随「以 erp_stock 为准」对齐后消失）；
+  2. 防再生落到**数据库约束**：迁移 `V11.440.0__Inventory_Quantity_Invariants.sql`
+     给 `wms_inventory` 与 `erp_stock` 各加 4 条 CHECK：`available <= quantity`、`quantity >= 0`、
+     `available >= 0`、`frozen >= 0`；用 `DO` + `pg_constraint` 判存在 ⇒ **幂等**（实测重跑通过）。
+     干跑前实测两表 0 违规（wms 3 行 / erp_stock 4 行），加约束不会失败。
+  3. **为何是约束而非断言**：`increase`/`decrease`/`freeze`/`unfreeze` 四条路径**本身都守恒**
+     （同增同减，且 decrease/freeze 前置校验 `available >= quantity`）——历史违规全部来自
+     **绕过 Service 的直写**（正是 STK-BREAK-02 那批反向路径）。约束是唯一能覆盖
+     「Service + 手工 SQL + 运维脚本」全部写入方的收口点，故不再加冗余断言。
+
+#### STK-BREAK-04 [P2] `erp_stock` 展示快照列 100% NULL
+
+- **证据**：`erp_stock` 4 行，`product_name/product_code/warehouse_name/serial_no/batch_no/supplier_id/unit_price` **全 100% NULL**；唯一写入方 `StockServiceImpl.java:41-93` 只 set `productId/warehouseId/quantity*`（仅 `recordStockIn` 那一路会 set 快照，但**不被主链路调用**）。
+- **影响**：`ProductPriceQueryMapper`、`StockReportMapper` 都 SELECT 了这些列 → 列表页该列为空。
+- **状态**：⬜
+
+#### STK-BREAK-05 [P2] 库存单据链大面积空表，报表 JOIN 空表
+
+- **0 行表**：`erp_stock_out`/`_item`、`erp_stock_check`/`_item`、`erp_stock_take`/`_item`、`erp_stock_split`/`_item`、`erp_stock_replenishment`、`erp_stock_bom`/`_item`、`erp_stock_alert_config`；`erp_stock_in`/`_item` 各仅 1 行。
+- **`StockReportMapper.java:114`、`InventoryAnalysisReportServiceImpl.java:143,160` JOIN 这些表** ⇒ 库存报表"出入库汇总/盘点"分区恒为空。
+- **状态**：⬜
+
+#### STK-DUP-01 [P1] 盘点两套（`wh/inventory-order` + `checkApi`/`/wms/check/*` vs 菜单 5003 盘点单）
+
+- `wh/inventory-order` 能力是 `wms/check` 的**超集**（另有 `submitResult`/`cancelCheck`/`saveDetails`）。
+- **建议落法**（对标 SAP EWM 三阶段）：5003 为单据层（审批+库存变动），`wh/inventory-order` 作业明细作为其执行阶段视图，复用 `checkApi` 数据、不迁数据；对齐后删重复入口。
+- **绑定关系**：`wms/check/index.vue` 已删，`form.vue` 保留（被 `wh/inventory-order` 跳转）；删 `wh/inventory-order` 前必须先搬能力。
+- **验收**：同一盘点单走完「准备 → 执行 → 审批」，`wms/check/form.vue` 仍可达，两入口不再并存。
+- **状态**：⏸ 待拍板 / ⬜ 前端开发
+
+#### STK-DUP-02 [P1] `wms_warehouse`(3 行) vs `erp_warehouse`(**105 行**) —— **两套都活着**
+
+- **⚠️ 本轮核验修正（子代理初判"确认合并、可删"是错的）**：`wms_warehouse` **不是**无引用的死表 —— 它有完整消费者：`wms/controller/WarehouseController.java:26`、`wms/controller/LocationController.java:42`、`wms/receipt/service/impl/ReceiptServiceImpl.java:50` 三处注入 `cn.aiedge.wms.warehouse.service.WarehouseService`（该 Service 的 Mapper 就是 `WmsWarehouseMapper`）。另 `WMS-ARCHITECTURE.md:178` 明确其定位是「在 `erp_warehouse` 基础上扩展库区数量、类型、容量」。
+- **数据实证（实测）**：`erp_warehouse` **105 行**、`wms_warehouse` 3 行，后者 id=1,2,3 与前者同 id 行字段一致。
+- **真实性质**：这是 `FUNCTION_DUPLICATE_AUDIT` §1.1 的「`warehouse/*` 两套接口」（erp `WarehouseController` vs wms `WarehouseController`）—— 属**新旧/两套实现并存**（专项 C），不是死表。
+- **修法（二选一，需裁定）**：① 承认扩展表设计，补齐 WMS 侧写入路径使其与 `erp_warehouse` 同步；② 收敛为一套（保留 `erp_warehouse`，把库区/类型/容量并入或另设 1:1 扩展表），删另一套的 Controller/Service。
+- **状态**：⏸ 需裁定
+
+> **⚠️ 口径教训（本轮第 4 次踩）**：判断"某表/某类无引用"**不能只搜 SQL 字符串或 `@TableName`** ——
+> 必须搜 **Service/接口名**（`WarehouseService` 这类跨包引用不会出现在表名搜索里）。
+> 子代理报告中的"无引用/可删"结论**一律需复核后才能落到删除动作**。
+
+#### STK-CLEAN-01 [P2] 仓储域孤儿表
+
+- `erp_kit_*`(4)、`batch_rule`/`batch_snapshot_cache`/`inventory_query_cache`/`serial_status_cache`(4)、`wms_event_outbox`(0 行，有实体无消费方)、`traceability_log` 等 → 走「备份 + 观察期 → 改名 `zz_deprecated_*` → 再观察 → drop」流程。
+- **状态**：⬜
+
+#### STK-AUTHZ-01 [P1] `wms.*` / PDA 零权限码
+
+- 见 E-04；需先定 PDA 设备鉴权策略（`PdaAuthController` 本身还有 平台-BREAK-01 的漏写租户问题）。
+- **状态**：⬜
+
+---
+
+### 3.6 销售域（erp-sales）
+
+#### SAL-BREAK-01 [P1] 销售退货三段链路全断
+
+- **证据**：`erp_sale_return` 25 行，`sale_order_id`/`sale_order_no` **0/25 非空**；`erp_sale_return_doc` 1 行，`return_apply_id`/`return_apply_no` **0/1 非空**；`salereturn` 包内**无任何 `saleReturnDocService` 引用**（grep 无输出）⇒ **申请审批通过后没有生成退货单的代码路径**。
+- **影响**：退货申请永不关联原销售单（无法带出原单价格/数量校验），申请→退货单需人工重建；`wms_inventory_log` 里已有 25+ 条 `SALE_RETURN_APPLY`/`SALE_RETURN_DOC` 流水 ⇒ **两条链各自独立动库存，存在重复退货风险**。
+- **修法**：保存申请时写 `sale_order_id/sale_order_no`；审批通过触发 `SaleReturnDocService` 生成草稿并回写 `return_apply_id`。
+- **需拍板**：是否一申请一单？
+- **状态**：⏸ 部分需拍板
+
+#### SAL-BREAK-02 [P1] 销售订单明细只落 4 行，27 张单里 25 张无明细
+
+- **证据**：`erp_sale_order` 27 行 vs `erp_sale_order_item` **仅 4 行**（分属 2 张单）；而 `erp_sale_order_promo_detail` 有 72 行、`min/max(order_id)` 精确落在那 24 张新建单上。下单路径 `SaleOrderServiceImpl.java:255,275,277` 确实 `itemMapper.insert` ⇒ 这 24 单是**在明细为空的情况下建出来的**（`total_amount` 也全 0）。
+- **影响**：订单中心"明细 Tab"对 25/27 张单为空，无法出库/发货；促销明细有行而商品明细无行 = 典型"半截写入"。
+- **修法**：`createOrder` 加最小校验（`items` 非空 + `billAmount` 与明细合计一致）。
+- **需确认**：24 单无明细是 E2E 造数还是前端某入口漏传。
+- **状态**：⬜
+
+#### SAL-BREAK-03 [P2] 销售订单主表关键列 100% NULL + 第三条写入路径漏字段
+
+- **证据**：`warehouse_id` 0/27、`salesman_id` 0/27、`dept_id` 0/27、`customer_name` 仅 5/27。
+- **三条写入路径**：`SaleOrderServiceImpl.java:194-215`（正常录单，全字段 ✔）/ `SalePreOrderServiceImpl.java:515`（预订单转正式单）/ **`SaleOrderServiceImpl.java:1235 findOrCreateOrder()`（批量导入，只写 orderNo/date/type/status/generationMethod，完全不写 customer/warehouse/salesman/dept ✘）**。
+- **影响**：`sales/order-center/index.vue:367,411,421,622,703,791` 用 `salesmanName` 做查询与列展示，恒空；`SaleOrderServiceImpl.java:1623` 的 `warehouse_id` 筛选恒无结果；导入订单无客户 ⇒ 出库/对账无法自动带往来单位。且服务端**无强校验**（27/27 为空）。
+- **状态**：⬜
+
+#### SAL-BREAK-04 [P2] 销售出库单 `order_id` 22/25 悬空
+
+- **证据**：`erp_sale_outbound.order_id` 25 条非空，`LEFT JOIN erp_sale_order` 仅 **3 条命中**（按单号文本同样 3 条）；悬空值形如 `1789286438970`（疑 E2E 造数）。表间**无外键约束**。
+- **影响**：出库单"源单"跳转/JOIN 取订单信息为空。
+- **状态**：⬜
+
+#### SAL-DUP-01 [P2] `erp_sale_return` / `erp_sale_return_doc` —— **不能合并**
+
+- 退货**申请**与退货**单**是两个业务阶段（非重复）；但两者**当前无任何关联键**（见 SAL-BREAK-01）。**要修的是"补关联"，不是"合并表"。**
+- 另注：两表 133/132 列高度重合，字段复制到维护危险的程度 → 列入「字段收敛」专项（见 ARCH-02）。
+- **状态**：⬜
+
+#### SAL-CLEAN-01 [P2] 销售域孤儿页
+
+- `erp/sale/index.vue`、`erp/purchase/index.vue` 是**非孤儿**（`list_path` + `componentMap` 兜底解析，禁止删除，见 `CLEANUP_SCOPE` §2.1）。
+- `trade/mall-return`、`erp/return`、`erp/sales-analysis`、`erp/shipment/index.vue`、`order-center/index.vue` 在删除/补能力清单内 → 见 SAL-CAP-01。
+- **状态**：⬜
+
+#### SAL-CAP-01 [P1] 15 项页面的写能力补齐（清单见 `CLEANUP_DECISIONS` §7.2）
+
+- 与销售域相关：`erp/shipment/index.vue`（审核/出库 → `sales/outbound`）、`order-center/index.vue`（**采购侧 submit/approve/cancel/delete 整体缺失，工作量最大**）。
+- **验收**：每补完一项，从旧页面删除对应入口；全部补完后旧页面方可删除。
+- **状态**：⬜
+
+---
+
+### 3.7 采购域（erp-purchase）
+
+#### PUR-BREAK-01 [P0] 采购合同：菜单在、页面在、接口 404、表还不存在（三重断）
+
+- **证据链**：菜单 `sys_menu.id=81010`（采购合同）→ `views/erp/purchase-contract/index.vue:506` 调 `purchaseContractApi.page()` → `GET /erp/purchase/contract/page`；而 `PurchaseContractController.java:16` 的映射**没有 `/page`**（只有 `GET /{id}`、`/by-no/{}`、`/supplier/{}`、`/statistics` + 5 个 POST）；`PurchaseContractMapper.java:16-34` 全部 `FROM purchase_contract`，而该表**在 devdb 中不存在**（548 张表里没有）⇒ 即便有 `/page` 也是 500。
+- **影响**：「采购合同」菜单点进去即 404/500，**整个功能不可用**。
+- **修法**：二选一 ——（推荐）删菜单 81010 + 页面 + Controller/Service/Mapper（合同能力由 CRM `crm_contract` 承担）；或补建表 + 补 `/page`。
+- **✅ 已拍板（2026-09-21，用户）**：**补建 `purchase_contract` 表 + 补 `GET /erp/purchase/contract/page` 接口**，
+  保留 ERP 侧合同能力（不删菜单 81010、不并入 CRM）。
+- **状态**：✅ **已完成并验证（2026-09-21）** —— 改动清单：
+  1. 迁移 `V11.439.0__Create_Purchase_Contract.sql`：建 `purchase_contract`（含 `tenant_id` +
+     `UNIQUE(tenant_id, contract_no)`）、`purchase_contract_item`、`purchase_contract_modification`；
+     补 7 个权限码 `purchase:contract:{list,detail,create,update,delete,approve,export}`（id 90068-90074）
+     并**显式关联超管角色**（铁律：先补码后补注解）。命名对齐同域既有约定 `purchase:<资源>:<动作>`
+     （用 `detail`/`update`，**不是** `view`/`edit`，见 `purchase:order:*`）。
+     干跑校验：事务内 3 表 + 7 码 + 7 关联，已回滚。
+  2. `PurchaseContractController` 补 `/page`、`POST /`、`PUT /{id}`、`DELETE /{id}`、`/export` 五个端点
+     （导出为 CSV，带 BOM）；**全部端点补 `@SaCheckPermission`**；返回类型由裸实体
+     `ResponseEntity<PurchaseContract>` 改为 `ApiResponse<T>`（前端类型本就是 `ApiResponse`，
+     原返回形态下前端取不到 `data`）。
+  3. `PurchaseContractService(+Impl)` 补 `pageContracts` / `createContract` / `updateContract` /
+     `deleteContract`；新增 `PurchaseContractQueryDTO`。
+  4. **两处连带缺陷一并修掉**：
+     - `PurchaseContractMapper.findExpiringContracts` 原为 `end_date <= #{date}` 而参数是 `int days`
+       → PG 抛 `operator does not exist: timestamp <= integer`，该查询从未成功执行过；改为「距今 days 天内到期」。
+     - `ContractStatisticsDTO` 缺 `totalCount`/`draftCount`/`totalAmount`，列表页统计卡片恒为 0。
+     - `PurchaseContractMapper.update` 只更新 7 列，用户改「供应商/质保期/合同附件」保存后**静默丢改动**；已补齐。
+  5. **租户口径**：本 Mapper 是自定义 `@Insert` 注解 SQL，**不经过 `insertFill`** ⇒ Service 显式
+     `setTenantId(MyBatisPlusConfig.getCurrentTenantIdValue())`，INSERT 列表显式带 `tenant_id`。
+     漏写不会报错，但会落成 `tenant_id=0` 的「谁都不看不见」数据（同 平台-BREAK-03 的成因）。
+  6. 单元测试同步：`PurchaseContractControllerTest` 断言路径下沉到 `$.data.*`，并补 `/page` 用例。
+     `./mvnw -o -pl erp/erp-purchase test-compile` **通过**。
+  **验证**：新增 `tools/verify-purchase-contract.cjs` —— **17/17 全绿**（建→查→列→改→删→导出→鉴权，
+  脚本自建自删不留残留）。其中「建完必须能回查/列表命中」是租户口径的关键断言：
+  若 `tenant_id` 落成 0，多租户插件会注入 `tenant_id = 1` 使其不可见 —— 只断言「创建返回 200」会漏掉该 P0。
+
+#### PUR-BREAK-02 [P1] `sys_dept`（0 行）被采购/财务活代码 JOIN —— 双重断点
+
+- **证据**：`PurchaseOrderMapper.xml:76,198` `LEFT JOIN sys_dept d ON d.id = o.dept_id` → `d.dept_name` 恒空；**且** `erp_purchase_order.dept_id` 本身 **0/11 非空** ⇒ **即使 `sys_dept` 有数据仍为空**（双重断点）。
+- **同链路受害者**：`AuxBalanceMapper.java:71`、`InboundNameLookupMapper.java:32`、`PurchaseAnalysisReportServiceImpl.java:201`、`WorkflowServiceImpl`（按部门找审批人）、`ExpenseApprovalServiceImpl.java:289,353`。
+- **真实部门**在 `sys_department`（5 行：D9001/D9002 + 3 条 E2E）。
+- **影响**：采购单据"部门"列、辅助核算 DEPT 编码、按部门筛选、按部门找审批人**全部失效**。
+- **修法**：按 `TABLE_DUPLICATE_AUDIT` A-01 既定顺序 —— **暂不动代码**（触及 `DataScopeAspect` 数据权限 + 部门功能未启用，改完无法端到端验证）；先在 `SysDept` 标 `@Deprecated`，待部门启用后：迁 4 个 Java 消费方 → 改 5 处 SQL → 删 `SysDept`/`SysDeptMapper` → 观察期后 DROP。
+- **✅ 已拍板（2026-09-21，用户）**：**启用部门维度，但先冻结不改代码** —— `SysDept` 标 `@Deprecated` 并登记
+  A-01 迁移计划；待 `sys_user.dept_id` 有真实数据后再迁 4 处 Java + 5 处 SQL。理由：现在改完无法端到端验证。
+- **状态**：🔄 仅标注冻结，不迁移
+
+#### PUR-BREAK-03 [P2] 采购分析的供应商名/编码恒空
+
+- **证据**：`PurchaseAnalysisReportServiceImpl.java:297,317` `LEFT JOIN erp_supplier s ON s.id = pr.supplier_id`，且 `:315` 用 `MAX(po.supplier_name) AS dimLabel`；实测 `erp_supplier` **0 行**、`supplier` **0 行**、`erp_purchase_order.supplier_name` **0/11 非空**（真实供应商在 `biz_party` 152 行）。
+- 列表页靠 `erp_purchase_order_partner_snapshot`(10 行)兜住，**分析报表没有这层兜底** ⇒ "按供应商"维度标签与编码列为空，报表不可读。
+- **状态**：⬜
+
+#### PUR-BREAK-04 [P2] 采购入库/退货的源单与主体断链
+
+- `erp_purchase_inbound` 39 行中 `order_id` 仅 31 非空（**8 张 20260722 的单 `order_id`/`order_no` 全空却已 status=8**）；`erp_purchase_return` 仅 1 行且 `purchase_order_id`/`supplier_id` **全空** ⇒ `PurchaseOrderMapper.xml:88` 的退货聚合子查询永远匹配不上。
+- 对比：入库单 `supplier_name` 36/39 有值，**订单表 0/11** —— 同一字段两表一写一不写。
+- **状态**：⬜
+
+#### PUR-DUP-01 [P1] 采购订单/入库/退货对称复制
+
+- 与销售侧一一对应（`FUNCTION_DUPLICATE_AUDIT` §1.2：order 11 组 / exchange 14 组 / return 10 组），**本轮不动**（抽公共基类属架构改造）。
+- **但**：任一侧改审批流/单号规则时**必须两侧同步改** → 写入 `ARCH-03 对称模块同步清单`。
+- **状态**：🚫 本轮不做（记录规则）
+
+---
+
+### 3.8 主数据域（erp-partner、crm、md/*）
+
+#### MD-DUP-01 [P1] 客户两套（接口 + 菜单）
+
+- **接口**：`CustomerController`（crm） vs `MdCustomerController`（erp）—— `customer/page|list|import|export|batch|{}` 等 7 个同名端点。
+- **菜单**：`80200 crm` vs `80510 md` **重名**（`CLEANUP_SCOPE` D-04）。
+- **相关**：`crm_erp_customer_mapping` 表在孤儿清单里（0 引用）。
+- **修法**：先定哪套是客户主数据的权威入口（记忆 `erp-vs-crm-customer`：CRM=公海客户，ERP=往来单位，**语义不同**）→ 据此改菜单名消歧、收敛接口。
+- **状态**：⏸ 需拍板
+
+#### MD-DUP-02 [P1] 供应商两套空壳表
+
+- `supplier`(0 行/13 列) 与 `erp_supplier`(0 行/44 列) 同属 `erp-supplier-portal` 模块；真实供应商数据在 **`biz_party`(152 行)**。
+- **修法**：确认数据落点后**两套表一起废弃**（不是合并入 `biz_party` —— 它们本就是零行空壳）。
+- **状态**：⬜
+
+#### MD-DUP-03 [P1] 客户等级价两套（两个同名类）
+
+- `biz_customer_grade_price`(0 行，`erp/party/entity/CustomerGradePrice.java`) vs `erp_customer_grade_price`(**18 行**，`erp/stock/entity/CustomerGradePrice.java`，属「商品价格管理-子标签3」）。
+- **修法**：删除 `erp-party` 那套（含实体）。与 `priceLevelConfig.ts` 契约零引用（D-10）同属价格域。
+- **状态**：⬜
+
+#### MD-DUP-04 [P2] 往来单位三个页面同源（`md/partner` / `md/supplier` / `md/customer`）
+
+- `partner`(1136 行) 与 `supplier`(1165 行) 的 API 指纹**完全一致**（Jaccard 1.00），靠 `party_type` 区分；差异 779 行（67%）⇒ 同骨架 + 大量各自定制。
+- **修法**：是否收敛为「一个页面的三个筛选视图」，**需业务裁定**。
+- **状态**：⏸ 待拍板
+
+#### MD-AUTHZ-01 [P0] `crm/*` 8 个控制器整模块零鉴权（含客户主数据）
+
+- `CustomerController`（`crm/.../customer/controller/`）整个类**零鉴权注解**（pageList/create/update/delete/batchDelete/export/import）。
+- 匿名白名单已在 09-19 移除 ⇒ 现为「登录后越权」（低权限用户直调高权限接口）。
+- **修法**：E-01 批次 2（先补权限码种子）。
+- **状态**：⬜
+
+---
+
+### 3.9 DMS 配送域
+
+#### DMS-BREAK-01 [P1] `dms_task.order_id` 全空，DMS 与业务单据只有文本弱关联
+
+- **证据**：`dms_task` 96 行，`order_id` **0/96** 非空；`order_no` 74 非空、`source_bill_no` 29 非空；按 `source_bill_no = erp_sale_outbound.outbound_no` 只有 **5/29 命中**。
+- **影响**：DMS 任务无法与销售订单/出库单做 ID 级关联 ⇒ 订单跟踪、回单核销、配送结算只能靠字符串匹配，**单号一改即断链**。这也是 `dms_settlement` 全空的根因（结算需要单据 ID）。
+- **修法**：派单时写入 `order_id`/`source_bill_id`；或补映射表。
+- **状态**：⬜
+
+#### DMS-BREAK-02 [P2] DMS 结算三表全空、支付表关键列全空
+
+- `dms_settlement`/`_item`/`_rule` 全 0 行，而 `DmsSettlementItemMapper.java:25` 却 `JOIN dms_settlement` ⇒ 接口取数恒空；`SettlementService.java:614` 还向财务推送记账（`finance_voucher` 里一条自动凭证都没有）。
+- `dms_payment` 仅 1 行且 `rider_id/audit_by/audit_time/pay_channel/trade_no/callback_time/finance_trace_id/qrcode_url` **全部 0**。
+- **修法**：确认结算是否本期范围；不在范围则**删菜单 + 表**，避免"看起来能用"。
+- **状态**：⏸ 需拍板
+
+#### DMS-BREAK-03 [P2] 车辆主数据大面积空列
+
+- `dms_vehicle` 45 列中 **26 列 100% NULL**（`vin/engine_no/rated_load/current_rider_id/owner_name/...`）；`dms_vehicle_maintenance` 的 `maint_cost/maint_vendor/next_maint_date` 全空；`dms_vehicle_energy_log.voucher_url` 全空；`dms_rider.id_card/entry_date/driver_license/settle_method` 全空。
+- **影响**：「车辆台账/保养/证件」页面字段恒空。
+- **状态**：⬜
+
+#### DMS-CLEAN-01 [P2] DMS 孤儿表 5 张
+
+- `dms_logistics_ship`/`dms_return_receive`/`dms_ship_order`/`dms_purchase_receive`/`dms_dispatch_record` → 走观察期流程。
+- **状态**：⬜
+
+---
+
+### 3.10 商城 / 营销域（erp-mall、erp-marketing）
+
+#### MKT-BREAK-01 [P0] 商城商品「新增写废弃表、列表读视图、删除删幽灵表」
+
+- **证据**：`MallAdminController.java:226` 列表读视图 `v_mall_product`（实测 **6 行**）；`:245` 新建写已废弃 `mall_product`（**85 行 `deleted=0`**）；`:264` 删除也按 `mall_product` 定位与软删。
+- **⚠️ 本轮核验修正（子代理初判"忘记改"，实为有意设计）**：`MallAdminServiceImpl.java:625-649` 有长篇注释说明原因 —— 「`erp_product` 是 ERP 商品主数据（product_code 唯一、含单位/分类/价格体系/审批与库存联动等必填约束），由商城弹窗仅凭「商品编码+名称+价格」INSERT 会造出半可用的主数据，且可能撞 product_code 唯一约束。**正确做法是新增时从 ERP 商品档案选取既有商品再上架**」。删除侧注释（`:699-705`）同样说明「改闭环需业务确认是软删 `erp_product` 还是仅下架」。
+- **影响**：后台「新增商品」保存成功但列表看不到（用户视角 = 功能坏了），且持续往废表写脏数据；「删除」删幽灵表、列表行删不掉。
+- **两个候选修法（需产品拍板）**：
+  - **A（推荐，代码注释自述的正确做法）**：把「新增商品」改为「从 ERP 商品档案选取 → 上架」（后端 `createProduct` 按 `product_code` 查 `erp_product`，找到则置 `mall_shelf_status=1`；找不到明确报错提示先建商品档案）。需前端配合改交互。
+  - **B**：允许商城新建商品，但补齐单位/分类/价格体系等必填字段后再写 `erp_product`。
+  - 删除侧：先统一为「下架」（`mall_shelf_status=0`，可逆），是否允许软删主数据另议。
+- **状态**：⏸ 需产品拍板（A/B）
+
+#### MKT-BREAK-02 [P1] `mall_product` 是商品的第二份数据，且主键类型不兼容
+
+- **证据**：`mall_product.product_id` 是 **`character varying`**（存 `product_code` 文本如 `'SP-20260704-040'`），`erp_product.id` 是 `bigint` ⇒ `LEFT JOIN erp_product e ON e.id = m.product_id` **直接报 `bigint = character varying` 类型错误**，永远无法用 ID 关联。
+- 按 `product_code` 文本比对：`erp_product` 83 行全部能在 `mall_product` 找到同码行；但 `erp_product` 仅 6 行未删、`mall_product` 85 行全未删 ⇒ **商城在售的是 ERP 已删商品**。
+- **修法**：**确认合并** —— `mall_product` 整体废弃，商城统一走 `v_mall_product`（源 `erp_product` + `erp_stock`）。
+- **状态**：⬜
+
+#### MKT-BREAK-03 [P2] `erp_product` 商城上架列全空
+
+- `approval_status`/`approval_by`/`approval_time`/`mall_category_id`/`mall_category_name`/`mall_display_title`/`mall_description`/`video_url`/`rich_text_detail` **全 0/83** ⇒ 商品上架审核、商城详情页字段无数据来源。
+- **状态**：⬜
+
+#### MKT-CLEAN-01 [P2] 营销老模型孤儿表 6 张（`erp_marketing_*`）+ `mkt_presale_order` 注意
+
+- `mkt_presale_order` **不在**孤儿清单内 —— 被 `MarketingQueryMapper.java` 的 raw SQL 引用 ⇒ **实体删除 ≠ 表可删**（D-14）。
+- **状态**：⬜
+
+#### MKT-AUTHZ-01 [P1] `erp.marketing.*` / `erp.b2b.*` 零权限码
+
+- 含 C 端公开接口，需**逐个甄别**哪些必须公开、哪些是后台管理（`MallAdminController` 等后台接口必须补）。
+- **状态**：⬜
+
+---
+
+### 3.11 HR 域
+
+#### HR-BREAK-01 [P2] 部门/数据权限链路三处同时断
+
+- `sys_user.dept_id` **0/75 非空**；`sys_dept` **0 行**（`DataScopeAspect`/`RbacService.isDescendantDept` 读它）；`sys_user_data_scope` 6 行**全部 `deleted=1`**（`target_ids` 都是 `9001`）。
+- **影响**：按部门的数据行级隔离**完全未启用**；"按部门看数据"要么拿全量要么拿不到（越权风险）。
+- **修法**：见 PUR-BREAK-02（同一件事，A-01 迁移顺序）。
+- **✅ 已拍板（2026-09-21，用户）**：启用部门维度，先冻结不改代码（同 PUR-BREAK-02）。
+- **状态**：🔄 冻结中
+
+#### HR-AUTHZ-01 [P1] HR 模块 40 条僵尸权限码
+
+- `E-02` 分布中 hr 占 40 条（集中在 crm 57 / hr 40 / finance 25 / system 25 / erp 23）。
+- **状态**：⬜
+
+---
+
+### 3.12 其余模块（打印、固定资产、预算、发票、observability）
+
+#### MISC-DUP-01 [P1] 打印 v1 / v2 两套（表 + 实体）
+
+- `erp_print_task`/`erp_print_template`(0 行，`printing/entity/`) vs `sys_print_task`/`sys_print_template`(0 行，`printing/entity/v2/`)。
+- **修法**：随打印管理菜单（61205）补挂时一并定版，**v1 整体删除**。菜单 61205 已挂 5 个页面（09-19 迁移 `V11.428.0`）。
+- **状态**：⬜
+
+#### MISC-DUP-02 [P2] 两套 key-value 配置（`dms_config` 97 行 vs `sys_config` 173 行）
+
+- 列集合**完全不重叠**、业务键无交集 ⇒ **不是表级重复**，是**能力重复**（后续新参数不知进哪张表）。
+- **修法**：**不删表**，出《参数落位规则》并写入开发规范。
+- **状态**：⬜
+
+#### MISC-AUTHZ-01 [P1] `erp-fixed-asset`(8) / `erp-budget`(7) / `erp.payment`(9) 控制器无鉴权
+
+- 见 E-01 批次 1/3。
+- **状态**：⬜
+
+---
+
+### 3.13 前端工程 / 架构 / 门禁
+
+#### ARCH-01 [P2] 两个菜单一致性脚本应接进 CI（当前 CI 只跑 repo-hygiene）
+
+- **口径问题已澄清（本轮实测）**：`CLEANUP_DECISIONS` §4 建议"先修 `check-menu-targets.py` 口径"，但实际上 **`tools/check-menu-list-paths.py` 已专门覆盖 `list_path` 链路**（`display_mode=1` 的菜单走它），两者分工明确、**无需再改口径**。
+- **本轮实测结果（2026-09-20）**：
+  - `check-menu-targets.py`：菜单指向组件不存在 **0 条**（说明 `V11.427.0` 的采购换货单修复**已生效**）；`menu_name` 重复 **3 组**；同一组件被多菜单引用 **5 个**。
+  - `check-menu-list-paths.py`：58 条 `list_path` **全部可解析、0 悬空**。
+- **待处理（源自上面实测）**：3 组重名中的「销售退货申请」70011 与 80091 **path 完全相同**（`sales/return-apply/form`）= 真重复挂载，按 D-04 应删 70011；另两组（其他收入 70542/80116、客户 80200/80510）是**同名不同功能**，改菜单名消歧。
+- **CI 现状**：`.github/workflows/ci-optimized.yml` 只接了 `check-repo-hygiene.sh`；两个菜单脚本都还是手工跑。
+- **建议**：给两个脚本加 `--ci` 开关（发现问题时 `exit 1`）后接入 CI。
+- **⚠️ 注意**：修改 CI 流水线属需确认操作，**本轮未动**。
+- **状态**：⬜（脚本已可跑；接 CI 待确认）
+
+#### ARCH-02 [P2] 字段收敛专项：`erp_sale_return`(133 列) / `erp_sale_return_doc`(132 列)
+
+- 高度重合、非重复但**字段复制到维护危险的程度**（改一处漏一处）。**单独立项**，不在本轮。
+- **状态**：⬜
+
+#### ARCH-03 [P1] 建立《对称模块同步清单》
+
+- 采购/销售对称的 40 组接口（order 11 / exchange 14 / return 10 / contract 5）**逐个方法一一对应**，任一侧改审批流/单号规则必须两侧同步改。
+- **产出**：写入 `AI_DEVELOPER_RULES.md` 或 `AGENTS.md`。
+- **状态**：⬜
+
+#### ARCH-04 [P1] 把《参数落位规则》写入开发规范（对应 MISC-DUP-02）
+
+- 内容：技术配置进 `sys_config`、DMS 业务参数进 `dms_config`、全局默认（`tenant_id=0`）+ 租户覆盖的读取姿势（`@InterceptorIgnore` + 显式租户）。
+- **状态**：⬜
+
+#### FE-CLEAN-01 [P2] 工作区运行产物
+
+- `backend/*.log` **299MB**、`frontend/.._tool-results_*.png`、`backend/cols.tmp`、`*/**/.atcode` 285 个文件。
+- 已有 `tools/archive-runtime-logs.sh` + `check-repo-hygiene.sh` 门禁。
+- **状态**：⬜
+
+#### FE-CLEAN-02 [P2] 文档与代码不一致
+
+- `docs/.../存储配置开发文档.md:54,371-378` 断言 `/api/storage` 前缀"是活的"，实际 `cn.aiedge.storage` 从未进 `scanBasePackages`，整体 404（D-11）。
+- `frontend/docs/ui-components/feedback-components-usage.md` 通篇用不存在的路径 `@/components/@ai-ready/common/components/feedback`（D-12）。
+- **修法**：更正/删除。
+- **状态**：⬜
+
+---
+
+## 4. 需求业务拍板的清单（汇总，共 15 项）
+
+| # | 问题 | 影响条目 | 我的建议 |
+|---|---|---|---|
+| 1 | `tenant_id=0` 与「平台租户=1」谁是平台？0 号租户是真实租户吗 | F-01/03/07、平台-BREAK-03 | 统一为 0=平台全局，并加 `is_global` 显式建模 |
+| 2 | 普通租户用户该不该看见 `tenant_id=0` 的数据 | F-01/07 | 不建议直接可见，靠显式"全局数据"标记 |
+| 3 | `system:*` 权限码能否授予租户角色 | F-05 | 不接受 → 需引入"平台专属码"机制 |
+| 4 | 「切换租户」的产品语义（切会话 vs 切视图） | F-10 | 切会话身份且仅超管可切 |
+| 5 | `sys_tenant_menu` 的授权主体是平台还是租户管理员 | F-06/07 | 平台侧专属能力 |
+| 6 | 文件访问是否接受"UUID 即权限" | F-08 | 不接受 → 路径加租户层级 |
+| 7 | 授权模型：菜单可见性由 `sys_role_menu` 还是从权限派生 | 平台-AUTHZ-01 | 从权限派生，消除双维护 | ✅ **2026-09-21 决议：从权限派生**（分阶段，依赖 E-04 补码） |
+| 8 | 部门维度是否启用（决定 A-01 迁移时机） | PUR-BREAK-02、HR-BREAK-01 | 启用后再迁移 | ✅ **2026-09-21 决议：启用，但先冻结不改代码** |
+| 9 | 库存双轨以哪一轨为准 | STK-BREAK-01 | 以 WMS 为准（有流水可回溯） | ✅ **2026-09-20 决议：以 `erp_stock` 为准**（本行建议已过期，以决议为准） |
+| 10 | 退货是否"一申请一单" | SAL-BREAK-01 | 是，并自动生成草稿退货单 | ⏸ 待拍板 |
+| 11 | 采购合同保留 ERP 还是 CRM | PUR-BREAK-01 | 保留 CRM，删 ERP 菜单/页面/代码 | ✅ **2026-09-21 决议：保留 ERP —— 补建 `purchase_contract` 表 + 补 `/page` 接口**（与建议相反） |
+| 12 | DMS 结算是否本期范围 | DMS-BREAK-02 | 不在则删菜单+表 |
+| 13 | 财务口径确认：总账以凭证重算是否认可 | FIN-BREAK-01 | 认可，且统一"凭证→总账"单向派生 |
+| 14 | 应收/应付是否挂菜单（子分类账） | FIN-DUP-02 | 挂菜单，与查应收/查应付并存 |
+| 15 | 往来单位三页面是否收敛为一个页面三视图 | MD-DUP-04 | 建议收敛 |
+
+**另需确认**：24 张无明细销售单 / 22 条悬空 `order_id` / DMS 24 条悬空 `source_bill_no` 是 E2E 造数还是代码缺陷（值形态都像测试数据，但**无法从只读数据判定**）。
+
+---
+
+## 5. 不需拍板、可直接动手的清单（按建议顺序）
+
+| 顺序 | 条目 | 类型 | 预估改动面 |
+|---|---|---|---|
+| 1 | FIN-BREAK-02 凭证头 `summary`/`source_no` 漏写 | 缺陷 | 1 个网关类 + 1 条回填迁移 |
+| 2 | MKT-BREAK-01 商城商品写废弃表 | 缺陷 | `MallAdminController` 2 个方法 |
+| 3 | STK-BREAK-02 6 处绕过库存唯一写入口 | 缺陷 | 6 个 Service/Controller |
+| 4 | 平台-BREAK-02 `insertFill` 覆盖 tenantId | 缺陷（跨租户写错位） | 1 个配置类 + 单测 |
+| 5 | MD-DUP-03 删 `erp-party` 客户等级价 | 死代码 | 1 实体 + 引用 |
+| 6 | STK-DUP-02 删 `wms_warehouse` + 实体 | 死表/死代码 | 1 实体 + 1 迁移 |
+| 7 | 平台-BREAK-01 租户上下文 fail-closed | 加固 | 1 拦截器 + 4 个登录入口 |
+| 8 | F-02 `X-Tenant-Id` 与会话比对 | 加固 | 新增 1 拦截器 + 逐步改 104 处 |
+| 9 | A-06 5 张旧 RBAC 表删除 | 死表 | 1 迁移（需备份+观察期） |
+| 10 | ARCH-03/04 两份规则文档 | 文档 | 2 处规范 |
+
+---
+
+## 6. 执行日志（追加式，最新在下）
+
+| 日期 | 条目 | 动作 | 验证 |
+|---|---|---|---|
+| 2026-09-20 | 本文建立 | 汇总四份既有报告 + 两份新专项审计（双层权限、数据断点） | 新增 2 个子代理审计报告，均带 file:line/SQL 证据 |
+| 2026-09-20 | FIN-BREAK-02 | 网关补 `setSummary`/`setSourceNo`；新增回填迁移 V11.436.0 | 待编译 + 启动验证 |
+| 2026-09-20 | 平台-BREAK-02 | `insertFill` 加"仅在 tenantId 为空时填充" | 全仓 grep 确认无实体自初始化 tenantId |
+| 2026-09-20 | STK-BREAK-02（5/7） | 采购入库回冲、采购退货、零售结算、换货过账与回滚改走 `InventoryChangeEvent` | 剩 2 处需设计定稿（已写清原因） |
+| 2026-09-20 | 平台-BREAK-01（1/4） | `ClientAuthController` 登录补写 `session.tenantId` | 另 3 个入口：PDA 桩需拍板、商城 C 端需设计、`AuthServiceImpl` 疑似无调用方 |
+| 2026-09-20 | 核验纠错 | 子代理报告 **4 处误判**已就地修正：MKT-BREAK-01（实为有意设计）、wms_warehouse（实为活的扩展实现，有 3 处消费者）、erp_warehouse 行数（105 非 3）、A-06 五表（早已由 V11.433.0 删除） | 教训：**"无引用/可删"结论必须复核后才能落到删除动作** |
+| 2026-09-20 | 编译验证 | `./mvnw -o -DskipTests -pl core/base/core-base,erp/erp-finance,erp/erp-purchase,erp/erp-sales -am compile` | **BUILD SUCCESS**（EXIT=0），5 个改动文件全部通过 |
+| 2026-09-20 | ⚠️ 未验证项 | `V11.436.0` 回填迁移与所有运行时行为**尚未在启动环境验证** —— 需一次后端重启（Flyway 执行迁移 + 打凭证/库存接口） | 重启后端属共享环境操作，**等待用户确认时机**，不擅自执行 |
+| 2026-09-20 | 实测复核 | `check-menu-targets.py` / `check-menu-list-paths.py` 实跑 | 坏菜单 **0 条**（V11.427.0 已生效）、`list_path` 58 条 **0 悬空**；暴露出「销售退货申请」70011/80091 **path 完全重复**（真重复挂载）；CI 仅接 repo-hygiene |
+| 2026-09-20 | 平台-SEC-01 | PDA 登录由桩改为真实鉴权（`SysUserMapper` + `PasswordEncryptor` + status/租户校验 + 写 session.tenantId） | wms 模块 **BUILD SUCCESS** |
+| 2026-09-20 | STK-BREAK-01 | 按用户决策「以 erp_stock 为准」：新增迁移 `V11.437.0` 校准两轨 + `InventoryServiceImpl.decrease()` 镜像失败改为抛异常回滚 | wms 模块 **BUILD SUCCESS**；实测差异仅 1 行 |
+| 2026-09-20 | F-01 | 查清 `tenant_id` 语义：admin 在租户 1（SYSTEM，硬编码正确）；租户 0 是已禁用的注册残留；0 上三类数据已按表列出 | 数据清理待逐表确认归属 |
+| 2026-09-20 | **重启验证（第 1 轮）** | `clean install` 8 个模块 + 重启（3:24 构建 / 134s 启动，无启动错误） | ✅ 迁移 `V11.436.0`+`V11.437.0` 均 `success=true`；✅ 凭证回填 summary **0→69/69**、source_no **0→59/69**；✅ 库存两轨对齐 `95/95`、`152/152`（矛盾数据消失） |
+| 2026-09-20 | 平台-SEC-01 复验 | 补 `SaTokenConfig` 白名单后重启，实测 PDA 登录 | ✅ 不再返回「请先登录」（白名单生效）；✅ 不存在账号与错误密码均被拒（真实鉴权生效） |
+| 2026-09-20 | 夜间批次 A（安全加固） | F-02 新增 `TenantHeaderInterceptor` + 前端 4 处去 `\|\| '1'`；F-03 `effectiveTenant` 强制会话租户；F-04 补 2 个权限码 + 3 个读接口注解；F-06 `assertPlatformAdmin()`；平台-BREAK-05 三处写死 `tenant_id=1` 改为上下文租户 + 调度器逐租户采集 | 后端 **BUILD SUCCESS**（4 模块）；待重启验证 |
+| 2026-09-21 | **重启验证（第 2 轮）** | `MODULES="core/base/core-base,core/platform/core-platform,erp/erp-finance,erp/erp-observability,erp/erp-partner,erp/erp-printing,erp/erp-purchase,erp/erp-sales,hr/hr-base,wms,core/api/core-api" tools/build-backend.sh`（clean install 11 模块 → 3:51 产物 → 140.7s 启动成功） | ✅ `V11.438.0` 迁移 `Successfully applied`；✅ 启动日志「数据权限拦截器已挂载…位置 1，链路共 4 个插件」 |
+| 2026-09-21 | 批次 A 专项验证 | 新增 `tools/verify-tenant-hardening.cjs`（14 项，**拒绝路径 + 放行路径都测**） | ✅ **14/14 全绿**：非超管带跨租户头 → `403 无权访问其他租户的数据`；带头=本租户/不带头 → 200；超管带头 → 放行；`/tenant/page` 非超管 → `403 system:tenant:list`、超管 → 200；`/tenant-menu/2` 非平台管理员 → `403 tenant:menu:query`；回归 `/menu/tree`、`/permission/page` 均 200 |
+| 2026-09-21 | 既有验证脚本复跑 | `tools/verify-permission-changes.cjs`（细粒度权限接线 23 项） | ✅ **23/23 全绿**（模拟态跨请求保持、生效性清单 351+144+11=506 自洽） |
+| 2026-09-21 | 拍板落库 | 用户决议 4 项写入本文：菜单授权**改从权限派生**；采购合同**保留 ERP、补建表 + 补 `/page`**；部门维度**启用但先冻结**；库存双轨以 `erp_stock` 为准（09-20 已定，表格建议行已标注过期） | 见各条「已拍板」与第 4 节表格 |
+| 2026-09-21 | 菜单派生可行性实测 | `sys_menu` 无 `permission_code` 列；307 个叶子菜单的 `menu_code` 仅 **2 个**精确命中权限码，但**前缀规则成立**（`finance:other-income-doc` ↔ `finance:other-income-doc:view`）。按前缀规则实测：SYSTEM_ADMIN(18 码)/DEPT_ADMIN(16 码) → 可见 **3 个**菜单；E2E_T2_ADMIN(2 码) → **0 个**。根因是权限码库只覆盖 31/500 个 `erp:*`（九个模块零码，见 E-04）⇒ **派生必须先补码** | 结论写入 平台-AUTHZ-01 条目 |
+| 2026-09-21 | PUR-BREAK-01 | 补建 `purchase_contract` 等 3 表 + 7 权限码（V11.439.0）；补 `/page`、POST、PUT、DELETE、`/export` 五端点并补鉴权；返回类型改 `ApiResponse`；Service 补 CRUD。顺带修掉 3 个连带缺陷（`findExpiringContracts` 类型错误、统计 DTO 缺 3 字段、`update` 静默丢列） | ✅ 迁移 success；**17/17 验证全绿**（含租户口径回查断言） |
+| 2026-09-21 | STK-BREAK-03 | 防再生落 DB：迁移 `V11.440.0` 给 `wms_inventory` + `erp_stock` 各加 4 条 CHECK（幂等 DO 块）。**不加冗余断言**——四条 Service 路径本身守恒，历史违规全来自绕过 Service 的直写（STK-BREAK-02 那批反向路径），约束才是覆盖全部写入方的收口点 | ✅ 8 条约束落库；回归 `verify-tenant-hardening` **14/14** + `verify-permission-changes` **23/23** |
+

@@ -1,5 +1,6 @@
 package cn.aiedge.erp.finance.controller;
 
+import cn.dev33.satoken.annotation.SaCheckPermission;
 import cn.aiedge.erp.finance.model.entity.FinanceReport;
 import cn.aiedge.erp.finance.service.FinanceReportService;
 import cn.aiedge.base.log.annotation.OperationLog;
@@ -8,7 +9,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.access.prepost.PreAuthorize;
+
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -29,7 +30,7 @@ public class FinanceReportController {
      * 生成财务报表
      */
     @OperationLog(module = "财务报表管理", type = "CREATE", desc = "生成财务报表")
-    @PreAuthorize("hasPermission('/api/erp/finance/report/generate', 'finance:report:generate')")
+    @SaCheckPermission("finance:report:generate")
     @PostMapping("/generate")
     public Result<Void> generateReport(
             @Parameter(description = "报表类型") @RequestBody Integer reportType,
@@ -42,7 +43,7 @@ public class FinanceReportController {
      * 查询报表列表
      */
     @OperationLog(module = "财务报表管理", type = "QUERY", desc = "查询报表列表")
-    @PreAuthorize("hasPermission('/api/erp/finance/report/list', 'finance:report:view')")
+    @SaCheckPermission("finance:report:view")
     @GetMapping("/list")
     public Result<List<FinanceReport>> listReports(
             @Parameter(description = "报表类型") @RequestParam(required = false) Integer reportType,
@@ -56,7 +57,7 @@ public class FinanceReportController {
      * 查询报表详情
      */
     @OperationLog(module = "财务报表管理", type = "QUERY", desc = "查询报表详情")
-    @PreAuthorize("hasPermission('/api/erp/finance/report/detail', 'finance:report:view')")
+    @SaCheckPermission("finance:report:view")
     @GetMapping("/detail/{reportNo}")
     public Result<FinanceReport> getReportDetail(@PathVariable String reportNo) {
         FinanceReport report = financeReportService.getReportDetail(reportNo);
@@ -67,7 +68,7 @@ public class FinanceReportController {
      * 审核报表
      */
     @OperationLog(module = "财务报表管理", type = "UPDATE", desc = "审核报表")
-    @PreAuthorize("hasPermission('/api/erp/finance/report/approve', 'finance:report:approve')")
+    @SaCheckPermission("finance:report:approve")
     @PutMapping("/approve/{reportNo}")
     public Result<Void> approveReport(
             @PathVariable String reportNo,

@@ -46,6 +46,18 @@ public interface PermissionService {
      */
     java.util.List<cn.aiedge.base.entity.SysDataScope> getUserCustomDataScopes(String tableName);
 
+    /**
+     * 获取「已启用数据权限控制」的表名集合。
+     *
+     * <p>对标用友的「数据权限控制设置」（先勾选哪些业务对象要控制，再分配范围）：
+     * 管理员在「角色 → 数据范围」里配置过的表进入本集合，行级数据权限拦截器据此决定
+     * 是否对某条 SQL 注入过滤条件。</p>
+     *
+     * <p><b>集合为空时拦截器零开销直接返回</b> —— 即「没配置 = 不影响任何查询」，
+     * 这是本机制可以默认开启的前提。</p>
+     */
+    Set<String> getEnabledDataScopeTables();
+
     // ==================== 权限查询 ====================
 
     /**

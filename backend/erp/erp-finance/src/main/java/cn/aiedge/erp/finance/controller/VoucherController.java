@@ -1,5 +1,6 @@
 package cn.aiedge.erp.finance.controller;
 
+import cn.dev33.satoken.annotation.SaCheckPermission;
 import cn.aiedge.base.log.annotation.OperationLog;
 import cn.aiedge.base.vo.Result;
 import cn.aiedge.erp.finance.dto.VoucherDTO;
@@ -15,7 +16,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import org.springframework.security.access.prepost.PreAuthorize;
+
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -34,7 +35,7 @@ public class VoucherController {
 
     @Operation(summary = "创建凭证")
     @PostMapping("/")
-    @PreAuthorize("hasPermission('/api/erp/finance/voucher/create', 'finance:voucher:create')")
+    @SaCheckPermission("finance:voucher:create")
     @OperationLog(module = "凭证管理", type = "CREATE", desc = "创建凭证")
     public Result<VoucherDTO> create(@Valid @RequestBody VoucherDTO dto) {
         VoucherDTO result = voucherService.create(dto);
@@ -43,7 +44,7 @@ public class VoucherController {
 
     @Operation(summary = "更新凭证（草稿可改分录）")
     @PutMapping("/{id:\\d+}")
-    @PreAuthorize("hasPermission('/api/erp/finance/voucher/edit', 'finance:voucher:edit')")
+    @SaCheckPermission("finance:voucher:edit")
     @OperationLog(module = "凭证管理", type = "UPDATE", desc = "更新凭证")
     public Result<VoucherDTO> update(
             @Parameter(description = "凭证ID") @PathVariable Long id,
@@ -53,7 +54,7 @@ public class VoucherController {
 
     @Operation(summary = "获取下一张凭证编号")
     @GetMapping("/next-no")
-    @PreAuthorize("hasPermission('/api/erp/finance/voucher/list', 'finance:voucher:view')")
+    @SaCheckPermission("finance:voucher:view")
     @OperationLog(module = "凭证管理", type = "QUERY", desc = "获取下一张凭证编号")
     public Result<String> nextNo() {
         return Result.success(voucherService.nextNo());
@@ -61,7 +62,7 @@ public class VoucherController {
 
     @Operation(summary = "根据ID查询凭证")
     @GetMapping("/{id:\\d+}")
-    @PreAuthorize("hasPermission('/api/erp/finance/voucher/view', 'finance:voucher:view')")
+    @SaCheckPermission("finance:voucher:view")
     @OperationLog(module = "凭证管理", type = "QUERY", desc = "根据ID查询凭证")
     public Result<VoucherDTO> getById(@Parameter(description = "凭证ID") @PathVariable Long id) {
         return Result.success(voucherService.getById(id));
@@ -69,7 +70,7 @@ public class VoucherController {
 
     @Operation(summary = "根据凭证编号查询")
     @GetMapping("/no/{voucherNo}")
-    @PreAuthorize("hasPermission('/api/erp/finance/voucher/view', 'finance:voucher:view')")
+    @SaCheckPermission("finance:voucher:view")
     @OperationLog(module = "凭证管理", type = "QUERY", desc = "根据凭证编号查询")
     public Result<VoucherDTO> getByVoucherNo(@Parameter(description = "凭证编号") @PathVariable String voucherNo) {
         return Result.success(voucherService.getByVoucherNo(voucherNo));
@@ -77,7 +78,7 @@ public class VoucherController {
 
     @Operation(summary = "分页查询凭证列表")
     @GetMapping("/list")
-    @PreAuthorize("hasPermission('/api/erp/finance/voucher/list', 'finance:voucher:view')")
+    @SaCheckPermission("finance:voucher:view")
     @OperationLog(module = "凭证管理", type = "QUERY", desc = "分页查询凭证列表")
     public Result<IPage<VoucherDTO>> list(
             @Parameter(description = "查询条件") VoucherQuery query,
@@ -89,7 +90,7 @@ public class VoucherController {
 
     @Operation(summary = "审核凭证")
     @PutMapping("/{id}/audit")
-    @PreAuthorize("hasPermission('/api/erp/finance/voucher/audit', 'finance:voucher:audit')")
+    @SaCheckPermission("finance:voucher:audit")
     @OperationLog(module = "凭证管理", type = "UPDATE", desc = "审核凭证")
     public Result<VoucherDTO> audit(
             @Parameter(description = "凭证ID") @PathVariable Long id,
@@ -103,7 +104,7 @@ public class VoucherController {
 
     @Operation(summary = "凭证过账")
     @PutMapping("/{id}/post")
-    @PreAuthorize("hasPermission('/api/erp/finance/voucher/post', 'finance:voucher:post')")
+    @SaCheckPermission("finance:voucher:post")
     @OperationLog(module = "凭证管理", type = "UPDATE", desc = "凭证过账")
     public Result<VoucherDTO> post(
             @Parameter(description = "凭证ID") @PathVariable Long id,
@@ -117,7 +118,7 @@ public class VoucherController {
 
     @Operation(summary = "冲销凭证")
     @PostMapping("/{id}/reverse")
-    @PreAuthorize("hasPermission('/api/erp/finance/voucher/reverse', 'finance:voucher:reverse')")
+    @SaCheckPermission("finance:voucher:reverse")
     @OperationLog(module = "凭证管理", type = "CREATE", desc = "冲销凭证")
     public Result<VoucherDTO> reverse(
             @Parameter(description = "凭证ID") @PathVariable Long id,
@@ -134,7 +135,7 @@ public class VoucherController {
 
     @Operation(summary = "批量删除凭证")
     @DeleteMapping("/batch")
-    @PreAuthorize("hasPermission('/api/erp/finance/voucher/delete', 'finance:voucher:delete')")
+    @SaCheckPermission("finance:voucher:delete")
     @OperationLog(module = "凭证管理", type = "DELETE", desc = "批量删除凭证")
     public Result<Void> deleteBatch(@RequestBody List<Long> ids) {
         voucherService.deleteBatch(ids);
@@ -143,7 +144,7 @@ public class VoucherController {
 
     @Operation(summary = "导出凭证列表")
     @GetMapping("/export")
-    @PreAuthorize("hasPermission('/api/erp/finance/voucher/list', 'finance:voucher:view')")
+    @SaCheckPermission("finance:voucher:view")
     @OperationLog(module = "凭证管理", type = "QUERY", desc = "导出凭证列表")
     public Result<List<VoucherDTO>> export(
             @Parameter(description = "查询条件") VoucherQuery query) {

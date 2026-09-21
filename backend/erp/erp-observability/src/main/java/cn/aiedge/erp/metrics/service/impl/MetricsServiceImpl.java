@@ -44,8 +44,14 @@ public class MetricsServiceImpl implements MetricsService {
     private final MetricsCalculationService calculationService;
     private final JdbcTemplate jdbcTemplate;
 
-    /** 默认租户ID（与 monitor 包采集任务口径一致） */
-    private static final long DEFAULT_TENANT_ID = 1L;
+    /** 无租户上下文时的回落租户（与 monitor 包采集任务口径一致；正常路径由调度器逐租户设置上下文） */
+    private static final long FALLBACK_TENANT_ID = 1L;
+
+    /** 本次查询所属租户：调度/会话上下文优先，都取不到才回落（2026-09-20 修复写死租户 1 的问题） */
+    private long currentTenantId() {
+        Long tid = cn.aiedge.base.config.MyBatisPlusConfig.getCurrentTenantIdValue();
+        return tid != null ? tid : FALLBACK_TENANT_ID;
+    }
     
     @Override
     public DashboardMetricsDTO getDashboardMetrics() {
@@ -143,7 +149,7 @@ public class MetricsServiceImpl implements MetricsService {
                     "GROUP BY CAST(create_time AS date)";
             jdbcTemplate.query(sql, rs -> {
                 byDay.put(rs.getDate("d").toLocalDate(), rs.getLong("c"));
-            }, DEFAULT_TENANT_ID, from);
+            }, currentTenantId(), from);
         } catch (Exception e) {
             log.warn("查询订单趋势失败，返回空序列: {}", e.getMessage());
         }
@@ -185,7 +191,7 @@ public class MetricsServiceImpl implements MetricsService {
             jdbcTemplate.query(sql, rs -> {
                 labels.add(rs.getString("cat"));
                 data.add(rs.getBigDecimal("amt") != null ? rs.getBigDecimal("amt") : BigDecimal.ZERO);
-            }, DEFAULT_TENANT_ID, LocalDate.now().minusDays(30));
+            }, currentTenantId(), LocalDate.now().minusDays(30));
         } catch (Exception e) {
             log.warn("查询销售分布失败，返回空序列: {}", e.getMessage());
         }

@@ -538,10 +538,23 @@ public class SystemConfigServiceImpl implements SystemConfigService {
      * <p>为 null 表示「无会话租户」（平台超管等），此时 {@link SysConfigMapper} 的查询不加租户条件。</p>
      */
     private Long effectiveTenant(Long tenantId) {
-        if (tenantId != null) {
-            return tenantId;
+        Long sessionTenantId = MyBatisPlusConfig.getCurrentTenantIdValue();
+
+        // 平台超管（租户隔离豁免）：允许用调用方传入的租户（含 0 = 全局默认行）
+        if (MyBatisPlusConfig.isTenantScopeExempt()) {
+            return tenantId != null ? tenantId : sessionTenantId;
         }
-        return MyBatisPlusConfig.getCurrentTenantIdValue();
+
+        // 非超管：一律强制会话租户，传入的 tenantId（来自 X-Tenant-Id 头，客户端可随意伪造）一律忽略。
+        // 2026-09-20 加固：此前 tenantId 优先，任何持有 system:config:update 的租户管理员只要把
+        // 请求头改成 0（或他人租户），就能读写全系统生效的全局配置 —— 属跨层越权。
+        if (sessionTenantId == null) {
+            throw new IllegalStateException("无法解析当前会话租户，请重新登录后再试");
+        }
+        if (tenantId != null && !tenantId.equals(sessionTenantId)) {
+            log.warn("系统参数：忽略越权的 tenantId 参数，requested={}, session={}", tenantId, sessionTenantId);
+        }
+        return sessionTenantId;
     }
 
     /** 空串（含纯空白）归一为 null —— Mapper 的过滤口径是「null = 不限」，非 null 才拼条件 */

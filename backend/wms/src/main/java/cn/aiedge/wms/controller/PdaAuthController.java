@@ -1,5 +1,8 @@
 package cn.aiedge.wms.controller;
 
+import cn.aiedge.base.entity.SysUser;
+import cn.aiedge.base.mapper.SysUserMapper;
+import cn.aiedge.base.security.PasswordEncryptor;
 import cn.aiedge.base.vo.Result;
 import cn.dev33.satoken.stp.StpUtil;
 import io.swagger.v3.oas.annotations.Operation;
@@ -20,33 +23,50 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class PdaAuthController {
 
+    private final SysUserMapper sysUserMapper;
+    private final PasswordEncryptor passwordEncryptor;
+
     @Operation(summary = "仓库人员登录")
     @PostMapping("/auth/login")
     public Result<Map<String, Object>> login(@RequestParam @NotBlank String username,
                                              @RequestParam @NotBlank String password) {
         if (username.length() < 2) {
-            return Result.fail("用户名至少2个字符");
+            return Result.fail(400, "用户名至少2个字符");
         }
         if (password.length() < 6) {
-            return Result.fail("密码至少6个字符");
+            return Result.fail(400, "密码至少6个字符");
         }
 
-        // 使用 Sa-Token 进行登录认证
-        // 通过用户名查询用户并验证密码（此处简化为直接登录，实际应查询数据库验证密码）
-        // 使用用户名作为登录ID，实际生产环境应该查询 sys_user 表验证
-        Long userId = resolveUserId(username, password);
-        if (userId == null) {
-            return Result.fail("用户名或密码错误");
+        // 2026-09-20 由桩实现改为真实鉴权：此前 resolveUserId() 用 username.hashCode() 造 userId、
+        // 且完全不校验密码（只查长度），任何人凭任意凭据即可登录取到 token —— 属认证绕过。
+        // 现与主站登录（SysUserServiceImpl#login）同口径。
+        // tenantId 传 null：用户名全局唯一，登录阶段还拿不到租户。
+        SysUser user = sysUserMapper.selectByUsername(username, null);
+        if (user == null || !passwordEncryptor.matches(password, user.getPassword())) {
+            return Result.fail(401, "用户名或密码错误");
+        }
+        // sys_user.status 语义是「1=启用，0=禁用/待审批」
+        if (user.getStatus() == null || user.getStatus() != 1) {
+            return Result.fail(403, "用户已禁用或锁定");
+        }
+        Long tenantId = user.getTenantId();
+        if (tenantId == null) {
+            return Result.fail(403, "用户未绑定租户，无法登录");
         }
 
-        StpUtil.login(userId);
+        StpUtil.login(user.getId());
+        // 与主站登录同口径：必须写租户上下文。否则多租户拦截器取不到会**整体跳过过滤**（fail-open），
+        // 该 token 将对所有租户表全租户可见可写。
+        StpUtil.getSession().set("tenantId", tenantId);
+        StpUtil.getSession().set("tenantScopeExempt", StpUtil.hasRole("SUPER_ADMIN"));
         String token = StpUtil.getTokenValue();
 
         Map<String, Object> result = new java.util.HashMap<>();
         result.put("token", token);
-        result.put("userId", userId);
-        result.put("userName", username);
-        log.info("PDA登录成功: username={}, userId={}", username, userId);
+        result.put("userId", user.getId());
+        result.put("userName", user.getUsername());
+        result.put("tenantId", tenantId);
+        log.info("PDA登录成功: username={}, userId={}, tenantId={}", username, user.getId(), tenantId);
         return Result.ok(result);
     }
 
@@ -59,23 +79,5 @@ public class PdaAuthController {
             log.info("PDA登出: userId={}", userId);
         }
         return Result.ok();
-    }
-
-    /**
-     * 解析用户ID（简化实现）
-     * 实际生产环境应注入 SysUserService 进行数据库查询和密码校验
-     */
-    private Long resolveUserId(String username, String password) {
-        // 临时实现：使用用户名哈希作为userId，仅用于开发阶段
-        // 生产环境应替换为：
-        // SysUser user = sysUserService.findByUsername(username);
-        // if (user != null && passwordEncoder.matches(password, user.getPassword())) {
-        //     return user.getId();
-        // }
-        // return null;
-        if (username.length() >= 2 && password.length() >= 6) {
-            return (long) Math.abs(username.hashCode() % 10000) + 1;
-        }
-        return null;
     }
 }

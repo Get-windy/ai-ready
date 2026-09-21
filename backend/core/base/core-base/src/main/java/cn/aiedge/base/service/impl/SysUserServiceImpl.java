@@ -60,6 +60,10 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser>
     @Autowired(required = false)
     private PlatformSecuritySettingsProvider securitySettingsProvider;
 
+    /** SoD（职责分离）规则校验：分配角色前检查是否存在互斥组合 */
+    @Autowired(required = false)
+    private cn.aiedge.base.service.SysSodRuleService sysSodRuleService;
+
     /**
      * 解析密码最长有效期。
      *
@@ -381,6 +385,22 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser>
             if ("TENANT".equals(role.getScope()) && !isTenantUser) {
                 throw BusinessException.forbidden(
                     "不能将租户级角色「" + role.getRoleName() + "」分配给平台用户");
+            }
+        }
+
+        // SoD（职责分离）校验：新角色集合内部是否存在互斥组合。
+        // ⚠️ 此前只有 core-api 的 assignUserRoles 做了这个校验，而前端「分配角色」走的是本方法
+        //    （POST /user/{id}/roles），导致 SoD 规则配了也不拦人（2026-09-20 修复）。
+        //    规则为空表时 findConflictingRoleIds 返回空集合，故对现有行为零影响。
+        if (sysSodRuleService != null) {
+            List<Long> conflictingRoleIds = sysSodRuleService.findConflictingRoleIds(roleIds);
+            if (conflictingRoleIds != null && !conflictingRoleIds.isEmpty()) {
+                String conflictNames = roleMapper.selectBatchIds(conflictingRoleIds).stream()
+                        .map(SysRole::getRoleName)
+                        .collect(Collectors.joining("、"));
+                log.warn("SoD 校验失败: userId={}, 互斥角色={}", userId, conflictNames);
+                throw BusinessException.forbidden(
+                        "职责分离冲突：角色「" + conflictNames + "」互斥，不能同时分配给同一用户");
             }
         }
 

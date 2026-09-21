@@ -47,9 +47,6 @@ class PermissionManagementConcurrentTest {
     private RoleInheritanceService inheritanceService;
     
     @Autowired
-    private DataPermissionService dataPermissionService;
-    
-    @Autowired
     private PermissionUtils permissionUtils;
 
     private static final int THREAD_COUNT = 10;
@@ -291,42 +288,6 @@ class PermissionManagementConcurrentTest {
 
         assertTrue(successCount.get() > 0, "至少应有部分模板创建成功");
         System.out.println("成功创建模板数: " + successCount.get());
-    }
-
-    @Test
-    void testConcurrentDataPermissionCreation() throws InterruptedException {
-        ExecutorService executor = Executors.newFixedThreadPool(THREAD_COUNT);
-        CountDownLatch latch = new CountDownLatch(THREAD_COUNT);
-        AtomicInteger successCount = new AtomicInteger(0);
-
-        for (int i = 0; i < THREAD_COUNT; i++) {
-            final int index = i;
-            executor.submit(() -> {
-                try {
-                    DataPermission dataPermission = new DataPermission();
-                    dataPermission.setPermissionName("并发测试数据权限_" + index);
-                    dataPermission.setPermissionCode("concurrent:data:" + index + ":" + System.currentTimeMillis());
-                    dataPermission.setDataScope(0);
-                    dataPermission.setScopeType(3);
-                    dataPermission.setStatus(0);
-                    dataPermission.setTenantId(1L);
-                    
-                    Long permissionId = dataPermissionService.createDataPermission(dataPermission);
-                    if (permissionId != null) {
-                        successCount.incrementAndGet();
-                    }
-                } catch (Exception e) {
-                } finally {
-                    latch.countDown();
-                }
-            });
-        }
-
-        latch.await(30, TimeUnit.SECONDS);
-        executor.shutdown();
-
-        assertTrue(successCount.get() > 0, "至少应有部分数据权限创建成功");
-        System.out.println("成功创建数据权限数: " + successCount.get());
     }
 
     @Test

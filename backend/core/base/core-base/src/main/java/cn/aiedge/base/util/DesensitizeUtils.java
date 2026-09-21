@@ -8,8 +8,9 @@ package cn.aiedge.base.util;
  * <b>存储层与投递链路仍用明文</b>——短信下发、退订匹配都必须拿真实号码，
  * 所以掩码只发生在「出参给前端」这一刻。</p>
  *
- * <p>与 core-api 的 {@code @DataMask} 注解分工：注解版依赖 {@code sys_field_permission}
- * 的字段级权限配置、按角色动态决定是否脱敏；本工具用于「该字段本身就是日志/台账性质，
+ * <p>与同包的 {@code @DataMask} / {@code @DataMaskNumber} 注解分工：注解版依赖
+ * {@code sys_field_permission} 的字段级权限配置、按角色动态决定是否脱敏（管理员可在
+ * 「岗位权限 → 敏感信息保护」里开关）；本工具用于「该字段本身就是日志/台账性质，
  * 不需要任何角色看到全文」的场景，无需配置即生效。二者不重复，也不互相替代。</p>
  */
 public final class DesensitizeUtils {

@@ -441,6 +441,8 @@
           minHeight: contentMinHeight
         }"
       >
+        <!-- 权限预览中：全局提示 + 一键结束（仅模拟开启时渲染） -->
+        <SimulationBanner />
         <router-view v-slot="{ Component, route }">
           <transition
             name="fade"
@@ -497,6 +499,7 @@ import { userApi, type TenantInfo } from '@/api/user'
 import LocaleSwitcher from '@/components/LocaleSwitcher.vue'
 import GlobalSearch from '@/components/GlobalSearch/GlobalSearch.vue'
 import TabsView from '@/components/TabsView/TabsView.vue'
+import SimulationBanner from '@/components/SimulationBanner.vue'
 import { useResponsive } from '@/composables/useResponsiveState'
 import { useNotification } from '@/composables/useNotification'
 import { getToken } from '@/utils/tokenRefresher'

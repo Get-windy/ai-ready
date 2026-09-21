@@ -650,12 +650,12 @@ public class PurchaseInboundServiceImpl extends ServiceImpl<PurchaseInboundMappe
         for (PurchaseInboundItem item : items) {
             BigDecimal qty = item.getInboundQuantity();
             if (qty != null && qty.compareTo(BigDecimal.ZERO) > 0 && item.getProductId() != null && warehouseId != null) {
-                boolean success = stockService.decreaseStock(item.getProductId(), warehouseId, qty);
-                if (!success) {
-                    throw new RuntimeException("库存回冲失败（可能被后续出库占用，请先核查库存）: 产品ID="
-                            + item.getProductId() + ", 仓库ID=" + warehouseId + ", 数量=" + qty);
-                }
-                log.info("采购入库取消回冲库存: 入库单ID={}, 产品ID={}, 仓库ID={}, 数量={}",
+                // 与 updateStock 对称：反向回冲同样走 WMS 唯一写入口（发事件），不再直写 erp_stock。
+                // 此前正向走 WMS 双写、反向只写 ERP 单轨，每次「取消入库」都会制造一次单向漂移（2026-09-20 修复）
+                applicationEventPublisher.publishEvent(new InventoryChangeEvent(
+                        InventoryChangeEvent.ChangeType.DECREASE, item.getProductId(), warehouseId, null,
+                        null, qty, "PURCHASE_INBOUND_CANCEL", inboundId, inbound.getInboundNo(), null, null));
+                log.info("采购入库取消回冲库存(WMS 过账): 入库单ID={}, 产品ID={}, 仓库ID={}, 数量={}",
                         inboundId, item.getProductId(), warehouseId, qty);
             }
         }

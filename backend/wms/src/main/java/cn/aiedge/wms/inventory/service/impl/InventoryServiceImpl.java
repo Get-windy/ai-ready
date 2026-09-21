@@ -202,11 +202,16 @@ public class InventoryServiceImpl implements InventoryService {
                 sourceType, sourceId, sourceNo, operatorId, operatorName);
 
         // 镜像扣减到 ERP 轨仓库级汇总账 erp_stock（同事务；库位/批次维度丢弃）。
-        // 返回 false 表示 ERP 轨存量不足（历史漂移所致），不回滚本轨——避免历史漂移
-        // 卡死仓库现场作业；记 error 日志留作后续对账线索，事务继续提交。
+        // 以 erp_stock 为准（用户 2026-09-20 决策）：镜像失败必须回滚，否则两轨永久单向漂移。
+        // 此前此处只记 error、不回滚（理由"避免历史漂移卡死仓库现场作业"），是双轨漂移的主要来源；
+        // 历史差异已由迁移 V11.437.0 按 erp_stock 校准，此后若再失败说明 ERP 轨确实不足，
+        // 应让本次作业失败并暴露出来，而不是悄悄放过继续累积差异。
         if (!stockService.decreaseStock(productId, warehouseId, quantity)) {
-            log.error("ERP轨库存镜像扣减失败(decreaseStock返回false，疑为历史漂移): productId={}, warehouseId={}, 应扣量={}, traceId={}",
+            log.error("ERP轨库存镜像扣减失败(erp_stock 可用量不足，两轨不一致需对账): productId={}, warehouseId={}, 应扣量={}, traceId={}",
                     productId, warehouseId, quantity, traceId);
+            throw new WmsBusinessException(String.format(
+                    "ERP轨库存镜像扣减失败(erp_stock 可用量不足，两轨不一致需对账): productId=%d, warehouseId=%d, quantity=%s",
+                    productId, warehouseId, quantity));
         }
     }
 

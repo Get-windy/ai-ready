@@ -122,11 +122,16 @@ service.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`
     }
 
-    // 添加 tenantId 请求头（从 localStorage 或默认值获取）
-    // 同时发送 tenantId 与 X-Tenant-Id 两种头，兼容后端两种读取方式
-    const tenantId = localStorage.getItem('tenantId') || '1'
-    config.headers.tenantId = tenantId
-    config.headers['X-Tenant-Id'] = tenantId
+    // 添加 tenantId 请求头（只从 localStorage 取真实值）
+    // 同时发送 tenantId 与 X-Tenant-Id 两种头，兼容后端两种读取方式。
+    // ⚠️ 不再回落到 '1'：回落会让未初始化的会话以「平台租户」身份发请求，
+    // 且后端 TenantHeaderInterceptor 会因头与会话租户不一致而 403（2026-09-20）。
+    // 拿不到租户时索性不发该头，交由后端使用会话租户。
+    const tenantId = localStorage.getItem('tenantId')
+    if (tenantId) {
+      config.headers.tenantId = tenantId
+      config.headers['X-Tenant-Id'] = tenantId
+    }
 
     // FormData 上传（证件/附件/头像等）：必须移除全局默认的 application/json，
     // 交由 axios/浏览器写入 multipart/form-data 与 boundary；

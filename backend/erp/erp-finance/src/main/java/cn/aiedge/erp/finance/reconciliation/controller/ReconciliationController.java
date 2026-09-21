@@ -1,5 +1,6 @@
 package cn.aiedge.erp.finance.reconciliation.controller;
 
+import cn.dev33.satoken.annotation.SaCheckPermission;
 import cn.aiedge.base.log.annotation.OperationLog;
 import cn.aiedge.common.result.ApiResponse;
 import cn.aiedge.common.result.PageResult;
@@ -13,7 +14,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import org.springframework.security.access.prepost.PreAuthorize;
+
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -35,7 +36,7 @@ public class ReconciliationController {
 
     @Operation(summary = "创建对账记录")
     @PostMapping("/create")
-    @PreAuthorize("hasPermission('/api/erp/finance/reconciliation/create', 'finance:reconciliation:create')")
+    @SaCheckPermission("finance:reconciliation:create")
     @OperationLog(module = "对账管理", type = "CREATE", desc = "创建对账记录")
     public ApiResponse<Long> createReconciliation(@Valid @RequestBody ReconciliationCreateRequest request) {
         Long id = reconciliationService.createReconciliation(request);
@@ -44,7 +45,7 @@ public class ReconciliationController {
 
     @Operation(summary = "更新对账记录")
     @PutMapping("/update")
-    @PreAuthorize("hasPermission('/api/erp/finance/reconciliation/update', 'finance:reconciliation:update')")
+    @SaCheckPermission("finance:reconciliation:update")
     @OperationLog(module = "对账管理", type = "UPDATE", desc = "更新对账记录")
     public ApiResponse<Void> updateReconciliation(@Valid @RequestBody ReconciliationUpdateRequest request) {
         reconciliationService.updateReconciliation(request);
@@ -53,7 +54,7 @@ public class ReconciliationController {
 
     @Operation(summary = "根据ID获取对账记录详情")
     @GetMapping("/{id}")
-    @PreAuthorize("hasPermission('/api/erp/finance/reconciliation/view', 'finance:reconciliation:view')")
+    @SaCheckPermission("finance:reconciliation:view")
     @OperationLog(module = "对账管理", type = "QUERY", desc = "根据ID获取对账记录详情")
     public ApiResponse<ReconciliationVO> getReconciliationById(@PathVariable Long id) {
         ReconciliationVO reconciliationVO = reconciliationService.getReconciliationById(id);
@@ -62,7 +63,7 @@ public class ReconciliationController {
 
     @Operation(summary = "删除对账记录")
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasPermission('/api/erp/finance/reconciliation/delete', 'finance:reconciliation:delete')")
+    @SaCheckPermission("finance:reconciliation:delete")
     @OperationLog(module = "对账管理", type = "DELETE", desc = "删除对账记录")
     public ApiResponse<Void> deleteReconciliation(@PathVariable Long id) {
         reconciliationService.deleteReconciliation(id);
@@ -71,7 +72,7 @@ public class ReconciliationController {
 
     @Operation(summary = "分页查询对账记录")
     @PostMapping("/list")
-    @PreAuthorize("hasPermission('/api/erp/finance/reconciliation/list', 'finance:reconciliation:view')")
+    @SaCheckPermission("finance:reconciliation:view")
     @OperationLog(module = "对账管理", type = "QUERY", desc = "分页查询对账记录")
     public ApiResponse<PageResult<ReconciliationVO>> pageReconciliations(@RequestBody ReconciliationQueryRequest request) {
         Page<ReconciliationVO> pageResult = reconciliationService.pageReconciliations(request);
@@ -85,7 +86,7 @@ public class ReconciliationController {
 
     @Operation(summary = "执行对账")
     @PostMapping("/reconcile/{id}")
-    @PreAuthorize("hasPermission('/api/erp/finance/reconciliation/reconcile', 'finance:reconciliation:reconcile')")
+    @SaCheckPermission("finance:reconciliation:reconcile")
     @OperationLog(module = "对账管理", type = "UPDATE", desc = "执行对账")
     public ApiResponse<Void> reconcile(@PathVariable Long id) {
         reconciliationService.reconcile(id);
@@ -94,7 +95,7 @@ public class ReconciliationController {
 
     @Operation(summary = "处理差异")
     @PostMapping("/handle-difference/{id}")
-    @PreAuthorize("hasPermission('/api/erp/finance/reconciliation/handle-difference', 'finance:reconciliation:reconcile')")
+    @SaCheckPermission("finance:reconciliation:reconcile")
     @OperationLog(module = "对账管理", type = "UPDATE", desc = "处理对账差异")
     public ApiResponse<Void> handleDifference(@PathVariable Long id, @RequestParam String differenceReason) {
         reconciliationService.handleDifference(id, differenceReason);
@@ -103,7 +104,7 @@ public class ReconciliationController {
 
     @Operation(summary = "批量删除对账记录")
     @DeleteMapping("/batch")
-    @PreAuthorize("hasPermission('/api/erp/finance/reconciliation/delete', 'finance:reconciliation:delete')")
+    @SaCheckPermission("finance:reconciliation:delete")
     @OperationLog(module = "对账管理", type = "DELETE", desc = "批量删除对账记录")
     public ApiResponse<Void> deleteBatch(@RequestBody List<Long> ids) {
         reconciliationService.removeBatchByIds(ids);
@@ -112,7 +113,7 @@ public class ReconciliationController {
 
     @Operation(summary = "获取对账统计数据")
     @GetMapping("/stats")
-    @PreAuthorize("hasPermission('/api/erp/finance/reconciliation/stats', 'finance:reconciliation:view')")
+    @SaCheckPermission("finance:reconciliation:view")
     @OperationLog(module = "对账管理", type = "QUERY", desc = "获取对账统计数据")
     public ApiResponse<java.util.Map<String, Object>> getStats() {
         java.util.Map<String, Object> stats = reconciliationService.getStats();
@@ -121,7 +122,7 @@ public class ReconciliationController {
 
     @Operation(summary = "查询对方系统余额（银行=账户余额/客户=应收/供应商=应付）")
     @GetMapping("/balance")
-    @PreAuthorize("hasPermission('/api/erp/finance/reconciliation/view', 'finance:reconciliation:view')")
+    @SaCheckPermission("finance:reconciliation:view")
     @OperationLog(module = "对账管理", type = "QUERY", desc = "查询对方系统余额用于预填")
     public ApiResponse<java.util.Map<String, Object>> getBalance(
             @Parameter(description = "对账类型") @RequestParam String reconciliationType,
@@ -133,7 +134,7 @@ public class ReconciliationController {
 
     @Operation(summary = "导出对账记录列表")
     @GetMapping("/export")
-    @PreAuthorize("hasPermission('/api/erp/finance/reconciliation/list', 'finance:reconciliation:view')")
+    @SaCheckPermission("finance:reconciliation:view")
     @OperationLog(module = "对账管理", type = "QUERY", desc = "导出对账记录列表")
     public ApiResponse<List<ReconciliationVO>> export(
             @Parameter(description = "对账类型") @RequestParam(required = false) String reconciliationType,

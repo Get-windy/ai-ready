@@ -2,6 +2,7 @@ package cn.aiedge.erp.purchase.controller;
 
 import cn.aiedge.common.result.ApiResponse;
 import cn.aiedge.erp.purchase.dto.PurchaseOrderDTO;
+import cn.aiedge.erp.purchase.dto.PurchaseOrderStatisticsDTO;
 import cn.aiedge.erp.purchase.entity.PurchaseOrder;
 import cn.aiedge.erp.purchase.entity.PurchaseOrderItem;
 import cn.aiedge.erp.purchase.mapper.PurchaseOrderItemMapper;
@@ -13,10 +14,12 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.format.annotation.DateTimeFormat;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
@@ -241,5 +244,35 @@ public class PurchaseOrderController {
         String template = params.get("template") != null ? params.get("template").toString() : "default";
         purchaseOrderService.batchPrint(ids, template);
         return ApiResponse.ok("打印完成", null);
+    }
+
+    /**
+     * 采购订单统计（区间内的单数、总额，以及按状态 / 采购类型的分布）。
+     *
+     * <p>2026-09-20 从旧模块 {@code cn.aiedge.erp.order.OrderController} 迁移而来
+     * （原路径 {@code GET /api/erp/purchase-orders/statistics}），用于把「两套采购订单实现」收敛为一套。</p>
+     *
+     * <p><b>参数用 {@link LocalDate} 而非 LocalDateTime</b>：前端传的是 {@code yyyy-MM-dd}（ISO.DATE），
+     * 而旧接口把参数声明成 {@code LocalDateTime} + {@code ISO.DATE}，Spring 无法把 "2026-09-01"
+     * 解析成 LocalDateTime，导致该接口**一直返回 400**（采购分析页的统计因此从未成功过）。
+     * 这里改成 LocalDate 接收、再转成时刻传给 service。</p>
+     *
+     * <p>区间含 endDate 当天，故结束时刻取次日零点 —— 与 {@code DashboardController} 里
+     * 同一份统计的 KPI 口径保持一致。</p>
+     *
+     * <p><b>校验口径与旧接口一致</b>：旧接口只要求登录（{@code @SaCheckLogin}）而无细粒度权限码，
+     * 这里刻意不收紧，避免采购分析页对既有角色突然 403。后续若要补权限，
+     * 建议用已存在的 {@code purchase:order:list}（新权限码必须先登记权限种子，否则非超管全 403）。</p>
+     */
+    @Operation(summary = "采购订单统计")
+    @GetMapping("/statistics")
+    @SaCheckLogin
+    public ApiResponse<PurchaseOrderStatisticsDTO> statistics(
+            @RequestParam Long tenantId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+        PurchaseOrderStatisticsDTO statistics = purchaseOrderService.getPurchaseStatistics(
+                tenantId, startDate.atStartOfDay(), endDate.plusDays(1).atStartOfDay());
+        return ApiResponse.ok(statistics);
     }
 }

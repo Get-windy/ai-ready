@@ -29,17 +29,26 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class AccountingPeriodServiceImpl implements AccountingPeriodService {
 
+    /** 无租户上下文时回落的租户（定时任务/初始化场景，与既有初始化数据一致） */
+    private static final Long FALLBACK_TENANT_ID = 1L;
+
     /**
-     * 默认租户ID（本模块暂按单租户处理，与初始化数据一致）
+     * 本模块所属租户：会话上下文优先，取不到才回落。
+     *
+     * <p><b>2026-09-20 修复</b>：此前一律写死 1 ⇒ 非平台租户查到的会计期间是**租户 1 的**，
+     * 月结/关账会作用到错误的租户上（既是数据不准，也是跨租户写入）。</p>
      */
-    private static final Long DEFAULT_TENANT_ID = 1L;
+    private Long currentTenantId() {
+        Long tid = cn.aiedge.base.config.MyBatisPlusConfig.getCurrentTenantIdValue();
+        return tid != null ? tid : FALLBACK_TENANT_ID;
+    }
 
     private final AccountingPeriodMapper accountingPeriodMapper;
 
     @Override
     public IPage<AccountingPeriodDTO> page(Integer periodYear, Integer status, Page<AccountingPeriodDTO> page) {
         LambdaQueryWrapper<AccountingPeriod> wrapper = new LambdaQueryWrapper<AccountingPeriod>()
-                .eq(AccountingPeriod::getTenantId, DEFAULT_TENANT_ID)
+                .eq(AccountingPeriod::getTenantId, currentTenantId())
                 .eq(periodYear != null, AccountingPeriod::getPeriodYear, periodYear)
                 .eq(status != null, AccountingPeriod::getStatus, status)
                 .orderByAsc(AccountingPeriod::getPeriodCode);
@@ -51,7 +60,7 @@ public class AccountingPeriodServiceImpl implements AccountingPeriodService {
     @Override
     public List<AccountingPeriodDTO> list(Integer periodYear) {
         LambdaQueryWrapper<AccountingPeriod> wrapper = new LambdaQueryWrapper<AccountingPeriod>()
-                .eq(AccountingPeriod::getTenantId, DEFAULT_TENANT_ID)
+                .eq(AccountingPeriod::getTenantId, currentTenantId())
                 .eq(periodYear != null, AccountingPeriod::getPeriodYear, periodYear)
                 .orderByAsc(AccountingPeriod::getPeriodCode);
         return accountingPeriodMapper.selectList(wrapper).stream()
@@ -64,14 +73,14 @@ public class AccountingPeriodServiceImpl implements AccountingPeriodService {
     public AccountingPeriodDTO create(AccountingPeriodDTO dto) {
         String periodCode = buildPeriodCode(dto);
 
-        accountingPeriodMapper.findByPeriodCode(DEFAULT_TENANT_ID, periodCode)
+        accountingPeriodMapper.findByPeriodCode(currentTenantId(), periodCode)
                 .ifPresent(p -> {
                     throw BusinessException.badRequest("会计期间已存在: " + periodCode);
                 });
 
         YearMonth ym = YearMonth.of(dto.getPeriodYear(), dto.getPeriodMonth());
         AccountingPeriod entity = new AccountingPeriod();
-        entity.setTenantId(DEFAULT_TENANT_ID);
+        entity.setTenantId(currentTenantId());
         entity.setPeriodYear(dto.getPeriodYear());
         entity.setPeriodMonth(dto.getPeriodMonth());
         entity.setPeriodCode(periodCode);
@@ -123,7 +132,7 @@ public class AccountingPeriodServiceImpl implements AccountingPeriodService {
                 throw BusinessException.badRequest("起始日期不能晚于结账日期");
             }
             AccountingPeriod entity = accountingPeriodMapper.selectById(item.getId());
-            if (entity == null || !DEFAULT_TENANT_ID.equals(entity.getTenantId())) {
+            if (entity == null || !currentTenantId().equals(entity.getTenantId())) {
                 throw BusinessException.notFound("会计期间不存在: " + item.getId());
             }
             // 已关闭（已月结）的期间视为账期已锁定：允许改日期会让已过账凭证落到期间区间之外，

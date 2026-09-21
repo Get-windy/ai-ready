@@ -221,8 +221,9 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, SysRole> implements
             throw BusinessException.badRequest("该角色已分配给用户，无法删除");
         }
         
-        // 删除角色权限关联
-        rolePermissionMapper.deleteByRoleId(id);
+        // 删除角色权限关联（sys_role_permission 无 deleted 列 → 物理删除；租户条件由拦截器注入）
+        rolePermissionMapper.delete(new LambdaQueryWrapper<SysRolePermission>()
+                .eq(SysRolePermission::getRoleId, id));
         
         // 删除角色
         removeById(id);
@@ -246,8 +247,9 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, SysRole> implements
             throw BusinessException.badRequest("部分角色已分配给用户，无法删除");
         }
         
-        // 删除角色权限关联
-        ids.forEach(rolePermissionMapper::deleteByRoleId);
+        // 删除角色权限关联（批量，一条 SQL 覆盖全部被删角色）
+        rolePermissionMapper.delete(new LambdaQueryWrapper<SysRolePermission>()
+                .in(SysRolePermission::getRoleId, ids));
         
         // 批量删除角色
         removeByIds(ids);
@@ -276,10 +278,11 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, SysRole> implements
         String roleName = (role != null) ? role.getRoleName() : String.valueOf(roleId);
 
         // 获取当前已有权限 ID（用于后续 diff 计算）
-        List<Long> oldPermissionIds = rolePermissionMapper.selectPermissionIdsByRoleId(roleId);
+        List<Long> oldPermissionIds = listRolePermissionIds(roleId);
 
-        // 删除原有权限
-        rolePermissionMapper.deleteByRoleId(roleId);
+        // 删除原有权限（覆盖式保存）
+        rolePermissionMapper.delete(new LambdaQueryWrapper<SysRolePermission>()
+                .eq(SysRolePermission::getRoleId, roleId));
 
         // 添加新权限
         if (!CollectionUtils.isEmpty(permissionIds)) {
@@ -292,7 +295,9 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, SysRole> implements
                         return rp;
                     })
                     .collect(Collectors.toList());
-            rolePermissionMapper.batchInsert(rolePermissions);
+            // 逐条 insert：BaseMapper 不提供批量插入，且本 Mapper 原有的 batchInsert **从来没有 SQL 绑定**
+            // （调用即 Invalid bound statement → 保存恒 500），故此处不再依赖它
+            rolePermissions.forEach(rolePermissionMapper::insert);
         }
 
         // 清除该角色下所有用户的权限缓存
@@ -378,7 +383,26 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, SysRole> implements
 
     @Override
     public List<Long> getPermissionIds(Long roleId) {
-        return rolePermissionMapper.selectPermissionIdsByRoleId(roleId);
+        return listRolePermissionIds(roleId);
+    }
+
+    /**
+     * 读取某角色的权限ID列表。
+     * <p>用 {@code LambdaQueryWrapper} 而非 Mapper 自定义方法 —— 后者在本 Mapper 上没有 SQL 绑定
+     * （见 {@code SysRolePermissionMapper} 类注释）。</p>
+     */
+    private List<Long> listRolePermissionIds(Long roleId) {
+        List<SysRolePermission> rows = rolePermissionMapper.selectList(
+                new LambdaQueryWrapper<SysRolePermission>().eq(SysRolePermission::getRoleId, roleId));
+        List<Long> ids = new ArrayList<>();
+        if (rows != null) {
+            for (SysRolePermission row : rows) {
+                if (row.getPermissionId() != null) {
+                    ids.add(row.getPermissionId());
+                }
+            }
+        }
+        return ids;
     }
 
     /**

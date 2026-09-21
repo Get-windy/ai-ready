@@ -1,5 +1,6 @@
 package cn.aiedge.erp.finance.controller;
 
+import cn.dev33.satoken.annotation.SaCheckPermission;
 import cn.aiedge.base.log.annotation.OperationLog;
 import cn.aiedge.base.vo.Result;
 import cn.aiedge.erp.finance.dto.AuxBalancePageDTO;
@@ -17,7 +18,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.access.prepost.PreAuthorize;
+
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -38,7 +39,7 @@ public class FinanceAuxiliaryController {
 
     @Operation(summary = "辅助核算类型分页查询")
     @GetMapping("/type/page")
-    @PreAuthorize("hasPermission('/api/erp/finance/auxiliary/type/list', 'finance:auxiliary:view')")
+    @SaCheckPermission("finance:auxiliary:view")
     @OperationLog(module = "辅助核算管理", type = "QUERY", desc = "辅助核算类型分页查询")
     public Result<IPage<FinanceAuxiliaryTypeDTO>> typePage(
             @Parameter(description = "类型编码") @RequestParam(required = false) String typeCode,
@@ -51,7 +52,7 @@ public class FinanceAuxiliaryController {
 
     @Operation(summary = "查询辅助核算类型列表")
     @GetMapping("/type/list")
-    @PreAuthorize("hasPermission('/api/erp/finance/auxiliary/type/list', 'finance:auxiliary:view')")
+    @SaCheckPermission("finance:auxiliary:view")
     @OperationLog(module = "辅助核算管理", type = "QUERY", desc = "查询辅助核算类型列表")
     public Result<java.util.List<FinanceAuxiliaryTypeDTO>> typeList(
             @Parameter(description = "是否启用") @RequestParam(required = false) Boolean enabled) {
@@ -60,7 +61,7 @@ public class FinanceAuxiliaryController {
 
     @Operation(summary = "根据ID查询辅助核算类型")
     @GetMapping("/type/{id}")
-    @PreAuthorize("hasPermission('/api/erp/finance/auxiliary/type/view', 'finance:auxiliary:view')")
+    @SaCheckPermission("finance:auxiliary:view")
     @OperationLog(module = "辅助核算管理", type = "QUERY", desc = "根据ID查询辅助核算类型")
     public Result<FinanceAuxiliaryTypeDTO> getTypeById(
             @Parameter(description = "类型ID") @PathVariable Long id) {
@@ -69,7 +70,7 @@ public class FinanceAuxiliaryController {
 
     @Operation(summary = "创建辅助核算类型")
     @PostMapping("/type")
-    @PreAuthorize("hasPermission('/api/erp/finance/auxiliary/type/create', 'finance:auxiliary:create')")
+    @SaCheckPermission("finance:auxiliary:create")
     @OperationLog(module = "辅助核算管理", type = "CREATE", desc = "创建辅助核算类型")
     public Result<FinanceAuxiliaryTypeDTO> createType(@Valid @RequestBody FinanceAuxiliaryTypeDTO dto) {
         return Result.success("创建成功", financeAuxiliaryTypeService.create(dto));
@@ -77,7 +78,7 @@ public class FinanceAuxiliaryController {
 
     @Operation(summary = "更新辅助核算类型")
     @PutMapping("/type/{id}")
-    @PreAuthorize("hasPermission('/api/erp/finance/auxiliary/type/update', 'finance:auxiliary:update')")
+    @SaCheckPermission("finance:auxiliary:update")
     @OperationLog(module = "辅助核算管理", type = "UPDATE", desc = "更新辅助核算类型")
     public Result<FinanceAuxiliaryTypeDTO> updateType(
             @Parameter(description = "类型ID") @PathVariable Long id,
@@ -87,7 +88,7 @@ public class FinanceAuxiliaryController {
 
     @Operation(summary = "删除辅助核算类型")
     @DeleteMapping("/type/{id}")
-    @PreAuthorize("hasPermission('/api/erp/finance/auxiliary/type/delete', 'finance:auxiliary:delete')")
+    @SaCheckPermission("finance:auxiliary:delete")
     @OperationLog(module = "辅助核算管理", type = "DELETE", desc = "删除辅助核算类型")
     public Result<Void> deleteType(
             @Parameter(description = "类型ID") @PathVariable Long id) {
@@ -99,7 +100,7 @@ public class FinanceAuxiliaryController {
 
     @Operation(summary = "辅助核算项目分页查询")
     @GetMapping("/item/page")
-    @PreAuthorize("hasPermission('/api/erp/finance/auxiliary/item/list', 'finance:auxiliary:view')")
+    @SaCheckPermission("finance:auxiliary:view")
     @OperationLog(module = "辅助核算管理", type = "QUERY", desc = "辅助核算项目分页查询")
     public Result<IPage<FinanceAuxiliaryItemDTO>> itemPage(
             @Parameter(description = "辅助核算类型ID") @RequestParam(required = false) Long auxiliaryTypeId,
@@ -113,7 +114,7 @@ public class FinanceAuxiliaryController {
 
     @Operation(summary = "查询指定类型下的辅助核算项目列表")
     @GetMapping("/item/list")
-    @PreAuthorize("hasPermission('/api/erp/finance/auxiliary/item/list', 'finance:auxiliary:view')")
+    @SaCheckPermission("finance:auxiliary:view")
     @OperationLog(module = "辅助核算管理", type = "QUERY", desc = "查询指定类型下的辅助核算项目列表")
     public Result<java.util.List<FinanceAuxiliaryItemDTO>> itemList(
             @Parameter(description = "辅助核算类型ID") @RequestParam(required = false) Long auxiliaryTypeId,
@@ -123,7 +124,7 @@ public class FinanceAuxiliaryController {
 
     @Operation(summary = "根据ID查询辅助核算项目")
     @GetMapping("/item/{id}")
-    @PreAuthorize("hasPermission('/api/erp/finance/auxiliary/item/view', 'finance:auxiliary:view')")
+    @SaCheckPermission("finance:auxiliary:view")
     @OperationLog(module = "辅助核算管理", type = "QUERY", desc = "根据ID查询辅助核算项目")
     public Result<FinanceAuxiliaryItemDTO> getItemById(
             @Parameter(description = "项目ID") @PathVariable Long id) {
@@ -132,7 +133,7 @@ public class FinanceAuxiliaryController {
 
     @Operation(summary = "创建辅助核算项目")
     @PostMapping("/item")
-    @PreAuthorize("hasPermission('/api/erp/finance/auxiliary/item/create', 'finance:auxiliary:create')")
+    @SaCheckPermission("finance:auxiliary:create")
     @OperationLog(module = "辅助核算管理", type = "CREATE", desc = "创建辅助核算项目")
     public Result<FinanceAuxiliaryItemDTO> createItem(@Valid @RequestBody FinanceAuxiliaryItemDTO dto) {
         return Result.success("创建成功", financeAuxiliaryItemService.create(dto));
@@ -140,7 +141,7 @@ public class FinanceAuxiliaryController {
 
     @Operation(summary = "更新辅助核算项目")
     @PutMapping("/item/{id}")
-    @PreAuthorize("hasPermission('/api/erp/finance/auxiliary/item/update', 'finance:auxiliary:update')")
+    @SaCheckPermission("finance:auxiliary:update")
     @OperationLog(module = "辅助核算管理", type = "UPDATE", desc = "更新辅助核算项目")
     public Result<FinanceAuxiliaryItemDTO> updateItem(
             @Parameter(description = "项目ID") @PathVariable Long id,
@@ -150,7 +151,7 @@ public class FinanceAuxiliaryController {
 
     @Operation(summary = "删除辅助核算项目")
     @DeleteMapping("/item/{id}")
-    @PreAuthorize("hasPermission('/api/erp/finance/auxiliary/item/delete', 'finance:auxiliary:delete')")
+    @SaCheckPermission("finance:auxiliary:delete")
     @OperationLog(module = "辅助核算管理", type = "DELETE", desc = "删除辅助核算项目")
     public Result<Void> deleteItem(
             @Parameter(description = "项目ID") @PathVariable Long id) {
@@ -162,7 +163,7 @@ public class FinanceAuxiliaryController {
 
     @Operation(summary = "辅助核算余额表分页查询（按科目+核算项汇总四段余额 + 表尾合计）")
     @GetMapping("/balance/page")
-    @PreAuthorize("hasPermission('/api/erp/finance/auxiliary/balance/page', 'finance:report:view')")
+    @SaCheckPermission("finance:report:view")
     @OperationLog(module = "辅助核算余额表", type = "QUERY", desc = "查询辅助核算余额表")
     public Result<AuxBalancePageDTO> balancePage(AuxBalanceQuery query) {
         return Result.success(financeAuxiliaryBalanceService.page(query != null ? query : new AuxBalanceQuery()));

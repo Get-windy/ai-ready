@@ -195,7 +195,7 @@
                      漏传会让「金额/数量」类格子恒取到 undefined（显示 0，而合计行却正确）。 -->
                 <slot
                   v-else
-                  :name="col.slotName || 'actionCell'"
+                  :name="resolveActionSlotName(col)"
                   :record="record"
                   :column="col"
                   :index="rowIndex"
@@ -500,7 +500,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, reactive, nextTick, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, reactive, nextTick, onMounted, onBeforeUnmount, useSlots } from 'vue'
 import { SettingOutlined, FullscreenOutlined, CaretUpOutlined, CaretDownOutlined, QuestionCircleOutlined } from '@ant-design/icons-vue'
 import { Modal, Button, Checkbox, Select, InputNumber, Input, Tabs } from 'ant-design-vue'
 import type { DetailColumnConfig, ColumnSetting, DetailColumnOption } from './types'
@@ -1458,6 +1458,24 @@ function toggleExpand() {
 }
 
 /** 锁定列（系统列，不参与列配置）：行号 / 勾选 / 操作 */
+const slotBag = useSlots() as Record<string, unknown>
+
+/**
+ * 解析「操作列」要渲染的插槽名。
+ *
+ * 🔴 历史坑（2026-09-20 修）：本组件原先只认 `col.slotName || 'actionCell'`，且**没有** `action` 回退；
+ * 而全站有 **38 个页面**写的是 `#action`（列定义里也没有 `slotName`）→
+ * 这些页面的**操作列整列空白**（表现为"没有编辑/删除按钮"，会被误判成权限问题，
+ * 实际是插槽名不匹配 —— 实测 role 页操作列单元格渲染为空，而权限码与 v-permission 均正常）。
+ * 现按「显式 slotName → actionCell → action」优先级回退，两种写法都兼容。
+ */
+function resolveActionSlotName(col: { slotName?: string } | null | undefined): string {
+  if (col?.slotName) return col.slotName
+  if (slotBag.actionCell) return 'actionCell'
+  if (slotBag.action) return 'action'
+  return 'actionCell'
+}
+
 const LOCKED_COLUMNS = ['rowNo', 'checkbox', 'action']
 function isLockedColumn(key: string): boolean {
   return LOCKED_COLUMNS.includes(key)

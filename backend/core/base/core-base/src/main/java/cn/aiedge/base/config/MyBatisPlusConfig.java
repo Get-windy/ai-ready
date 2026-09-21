@@ -1,6 +1,5 @@
 package cn.aiedge.base.config;
 
-import cn.aiedge.base.interceptor.DataScopeInterceptor;
 import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.annotation.DbType;
 import com.baomidou.mybatisplus.core.handlers.MetaObjectHandler;
@@ -225,8 +224,11 @@ public class MyBatisPlusConfig {
         // 乐观锁插件（支持 @Version 注解）
         interceptor.addInnerInterceptor(new OptimisticLockerInnerInterceptor());
 
-        // 数据权限插件 — 根据 @DataScope 注解注入行级权限条件
-        interceptor.addInnerInterceptor(new DataScopeInterceptor());
+        // 注：core-base 原有的「@DataScope 注解式数据权限」（DataScopeAspect + DataScopeContextHolder
+        // + DataScopeInterceptor 三件套）已于 2026-09-20 删除 —— 该注解全仓零业务引用，即整条链
+        // 从未生效过；而其能力已由 core-api 的 @DataPermission 注解 + 表级自动模式
+        // （见 PermissionConfig 的 dataPermissionInterceptorRegistrar）覆盖，
+        // 两套并存只会让后来者以为 @DataScope 还能用。
 
         return interceptor;
     }
@@ -247,8 +249,12 @@ public class MyBatisPlusConfig {
                 // `null value in column "version" violates not-null constraint`（2026-09-18 实机踩到）。
                 // 这里统一填 0（= 初始版本，与 @Version 语义一致；DB 默认值也是 0）。
                 this.strictInsertFill(metaObject, "version", Integer.class, 0);
-                // 自动填充 tenantId（从当前租户ID获取）
-                if (metaObject.hasSetter("tenantId")) {
+                // 自动填充 tenantId（从当前租户ID获取）。
+                // 仅在实体**未显式指定**租户时填充：此前无条件 setValue 会覆盖调用方写入的 tenantId，
+                // 造成「给租户 A 建数据却落到会话租户头上」这类跨租户写错位（2026-09-18 已在
+                // SysTenantMenuMapper 实踩并绕过；sys_role_permission 亦有 16 行租户标记不一致的实证）。
+                if (metaObject.hasSetter("tenantId") && metaObject.hasGetter("tenantId")
+                        && metaObject.getValue("tenantId") == null) {
                     Long tenantId = getCurrentTenantIdValue();
                     if (tenantId != null) {
                         // 兼容 String 类型 tenantId 的实体（如 erp-finance 域），按字段类型赋值避免类型不匹配

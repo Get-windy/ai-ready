@@ -15,6 +15,9 @@ public class PurchaseContractItem {
 
     private Long id;
 
+    /** 租户ID（子表随主表；同样是自定义 @Insert，需 Service 显式写入） */
+    private Long tenantId;
+
     private Long contractId;
 
     private String materialName;

@@ -1,13 +1,7 @@
 {
  "used": [
-  "data-permission:assign",
-  "data-permission:check",
-  "data-permission:create",
-  "data-permission:delete",
-  "data-permission:list",
-  "data-permission:update",
-  "data-permission:update-status",
-  "data-permission:view",
+  "data-scope:set",
+  "data-scope:view",
   "datasource:backup:create",
   "datasource:backup:delete",
   "datasource:backup:list",
@@ -310,6 +304,8 @@
   "data-permission:update",
   "data-permission:update-status",
   "data-permission:view",
+  "data-scope:set",
+  "data-scope:view",
   "datasource:backup:create",
   "datasource:backup:delete",
   "datasource:backup:list",
@@ -355,6 +351,11 @@
   "dms:vehicle:create",
   "dms:vehicle:delete",
   "dms:vehicle:update",
+  "doc:date:edit",
+  "doc:draft:view-others",
+  "doc:reverse",
+  "doc:unapprove",
+  "doc:void",
   "erp:expense:application:approve",
   "erp:expense:application:create",
   "erp:expense:application:delete",
@@ -386,6 +387,7 @@
   "erp:product:status",
   "erp:product:update",
   "erp:product:view",
+  "finance:balance:view",
   "finance:month-closing:execute",
   "finance:month-closing:reopen",
   "finance:month-closing:view",
@@ -472,6 +474,8 @@
   "log:oper:export",
   "log:oper:list",
   "log:oper:stats",
+  "partner:merge",
+  "payment:account:select",
   "payment:channel:list",
   "payment:config:list",
   "payment:config:update",
@@ -518,6 +522,11 @@
   "position:list",
   "position:manage",
   "position:query",
+  "print:draft",
+  "product:cost:view",
+  "product:purchase-price:view",
+  "product:retail-price:view",
+  "product:wholesale-price:view",
   "purchase:cost-sharing:cancel",
   "purchase:cost-sharing:complete",
   "purchase:cost-sharing:create",
@@ -533,6 +542,7 @@
   "purchase:order:list",
   "purchase:order:submit",
   "purchase:order:update",
+  "purchase:price:edit",
   "purchase_order:approve",
   "purchase_order:create",
   "purchase_order:delete",
@@ -540,6 +550,7 @@
   "purchase_order:export",
   "purchase_order:submit",
   "purchase_order:update",
+  "receipt:account:select",
   "role-inheritance:manage",
   "role-inheritance:view",
   "role:create",
@@ -547,6 +558,7 @@
   "role:list",
   "role:manage",
   "role:update",
+  "sale:discount:edit",
   "sale:manage",
   "sale:order:approve",
   "sale:order:cancel",
@@ -558,10 +570,12 @@
   "sale:order:ship",
   "sale:order:submit",
   "sale:order:update",
+  "sale:price:edit",
   "sale:promotion:create",
   "sale:promotion:delete",
   "sale:promotion:publish",
   "sale:promotion:update",
+  "sale:settle:force",
   "set:company-info:save",
   "set:initial-finance:create",
   "set:initial-finance:delete",
@@ -759,12 +773,25 @@
   "crm:quotation:sendfromdetail",
   "crm:quotation:view",
   "crm:refresh",
+  "data-permission:assign",
+  "data-permission:check",
+  "data-permission:create",
+  "data-permission:delete",
+  "data-permission:list",
+  "data-permission:update",
+  "data-permission:update-status",
+  "data-permission:view",
   "department:create",
   "department:delete",
   "department:edit",
   "department:list",
   "department:manage",
   "department:query",
+  "doc:date:edit",
+  "doc:draft:view-others",
+  "doc:reverse",
+  "doc:unapprove",
+  "doc:void",
   "erp:expense:application:approve",
   "erp:expense:application:create",
   "erp:expense:application:delete",
@@ -788,6 +815,7 @@
   "erp:expense:reimbursement:submit",
   "erp:expense:statistics:list",
   "erp:expense:statistics:refresh",
+  "finance:balance:view",
   "finance:month-closing:execute",
   "finance:month-closing:reopen",
   "finance:month-closing:view",
@@ -855,6 +883,8 @@
   "hr:salary:generate",
   "hr:salary:list",
   "hr:salary:update",
+  "partner:merge",
+  "payment:account:select",
   "permission:create",
   "permission:delete",
   "permission:list",
@@ -867,13 +897,23 @@
   "position:list",
   "position:manage",
   "position:query",
+  "print:draft",
+  "product:cost:view",
+  "product:purchase-price:view",
+  "product:retail-price:view",
+  "product:wholesale-price:view",
   "purchase:manage",
+  "purchase:price:edit",
+  "receipt:account:select",
   "role:create",
   "role:delete",
   "role:list",
   "role:manage",
   "role:update",
+  "sale:discount:edit",
   "sale:manage",
+  "sale:price:edit",
+  "sale:settle:force",
   "set:system-task:download",
   "set:system-task:view",
   "stock:list",
@@ -1047,20 +1087,21 @@
    "backend/core/api/core-api/src/main/java/cn/aiedge/datasource/controller/CleanupRuleController.java:106"
   ],
   "system:datasource:list": [
-   "backend/core/api/core-api/src/main/java/cn/aiedge/datasource/controller/DataSourceController.java:27",
-   "backend/core/api/core-api/src/main/java/cn/aiedge/datasource/controller/DataSourceController.java:51"
+   "backend/core/api/core-api/src/main/java/cn/aiedge/datasource/controller/DataSourceController.java:40",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/datasource/controller/DataSourceController.java:64",
+   "backend/core/api/core-api/src/main/java/cn/aiedge/datasource/controller/DataSourceController.java:137"
   ],
   "system:datasource:create": [
-   "backend/core/api/core-api/src/main/java/cn/aiedge/datasource/controller/DataSourceController.java:62"
+   "backend/core/api/core-api/src/main/java/cn/aiedge/datasource/controller/DataSourceController.java:75"
   ],
   "system:datasource:update": [
-   "backend/core/api/core-api/src/main/java/cn/aiedge/datasource/controller/DataSourceController.java:73"
+   "backend/core/api/core-api/src/main/java/cn/aiedge/datasource/controller/DataSourceController.java:86"
   ],
   "system:datasource:delete": [
-   "backend/core/api/core-api/src/main/java/cn/aiedge/datasource/controller/DataSourceController.java:88"
+   "backend/core/api/core-api/src/main/java/cn/aiedge/datasource/controller/DataSourceController.java:101"
   ],
   "system:datasource:test": [
-   "backend/core/api/core-api/src/main/java/cn/aiedge/datasource/controller/DataSourceController.java:96"
+   "backend/core/api/core-api/src/main/java/cn/aiedge/datasource/controller/DataSourceController.java:109"
   ],
   "datasource:slowquery:list": [
    "backend/core/api/core-api/src/main/java/cn/aiedge/datasource/controller/SlowQueryController.java:27"
@@ -1294,32 +1335,6 @@
   "workflow:instance:intervene": [
    "backend/core/api/core-api/src/main/java/cn/aiedge/workflow/controller/WorkflowController.java:601"
   ],
-  "data-permission:create": [
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/DataPermissionController.java:34"
-  ],
-  "data-permission:update": [
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/DataPermissionController.java:45"
-  ],
-  "data-permission:delete": [
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/DataPermissionController.java:57"
-  ],
-  "data-permission:list": [
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/DataPermissionController.java:68"
-  ],
-  "data-permission:view": [
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/DataPermissionController.java:87",
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/DataPermissionController.java:98"
-  ],
-  "data-permission:check": [
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/DataPermissionController.java:109"
-  ],
-  "data-permission:assign": [
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/DataPermissionController.java:124",
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/DataPermissionController.java:137"
-  ],
-  "data-permission:update-status": [
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/DataPermissionController.java:150"
-  ],
   "log:oper:stats": [
    "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/LogManageController.java:76",
    "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/LogManageController.java:85"
@@ -1429,26 +1444,27 @@
    "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysMenuController.java:183"
   ],
   "system:permission:create": [
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysPermissionController.java:38"
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysPermissionController.java:53"
   ],
   "system:permission:update": [
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysPermissionController.java:52",
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysPermissionController.java:160"
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysPermissionController.java:67",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysPermissionController.java:175"
   ],
   "system:permission:delete": [
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysPermissionController.java:67",
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysPermissionController.java:81"
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysPermissionController.java:82",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysPermissionController.java:96"
   ],
   "system:permission:list": [
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysPermissionController.java:95",
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysPermissionController.java:124",
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysPermissionController.java:135"
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysPermissionController.java:110",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysPermissionController.java:139",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysPermissionController.java:150",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysPermissionController.java:206"
   ],
   "system:permission:detail": [
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysPermissionController.java:113"
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysPermissionController.java:128"
   ],
   "system:permission:update-status": [
-   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysPermissionController.java:148"
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysPermissionController.java:163"
   ],
   "system:role:create": [
    "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysRoleController.java:35"
@@ -1503,6 +1519,14 @@
   ],
   "system:user:update-status": [
    "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/SysUserController.java:256"
+  ],
+  "data-scope:view": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/UserDataScopeController.java:48",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/UserDataScopeController.java:91"
+  ],
+  "data-scope:set": [
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/UserDataScopeController.java:59",
+   "backend/core/base/core-base/src/main/java/cn/aiedge/base/controller/UserDataScopeController.java:74"
   ],
   "payment:config:list": [
    "backend/core/payment/core-payment/src/main/java/cn/aiedge/payment/controller/PaymentConfigController.java:50",

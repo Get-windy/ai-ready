@@ -81,6 +81,10 @@ public class ClientAuthController {
 
         // 5. 创建登录会话
         StpUtil.login(user.getId());
+        // 与主站登录（SysUserServiceImpl#login）同口径：必须把租户写进 Sa-Token Session。
+        // 否则多租户拦截器取不到租户上下文会**整体跳过过滤**（= 该 token 对所有租户表全租户可见可写），
+        // 是 fail-open。2026-09-20 补。
+        StpUtil.getSession().set("tenantId", tenantId);
         String accessToken = StpUtil.getTokenValue();
 
         // 6. 记录登录日志

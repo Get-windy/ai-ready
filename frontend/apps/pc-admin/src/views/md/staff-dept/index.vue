@@ -10,6 +10,83 @@
         · 数据来源 sys_department（表有 tenant_id，多租户拦截器正常注入）
         · 表单：弹窗内用分区卡片 + 两列栅格（部门是主数据档案，非单据，不用 BillFormPage）
       -->
+      <a-tabs
+        v-model:activeKey="activeTab"
+        class="staff-dept-tabs"
+        @change="handleTabChange"
+      >
+        <!-- ═══ 职员信息（对标 ql361 同名子标签；本表只读，增删改停用在「人力资源 → 员工列表」） ═══ -->
+        <a-tab-pane
+          key="staff"
+          tab="职员信息"
+        >
+          <div class="staff-tab">
+            <div class="search-area">
+              <div class="search-row">
+                <div class="search-item">
+                  <span class="search-label">职员编号/姓名</span>
+                  <a-input
+                    v-model:value="staffSearch.keyword"
+                    placeholder="请输入职员编号/姓名"
+                    size="small"
+                    style="width: 200px"
+                    allow-clear
+                    @press-enter="handleStaffSearch"
+                  />
+                </div>
+                <a-button
+                  type="primary"
+                  size="small"
+                  @click="handleStaffSearch"
+                >
+                  查询
+                </a-button>
+                <a-button
+                  size="small"
+                  @click="handleStaffReset"
+                >
+                  重置
+                </a-button>
+                <a-button
+                  size="small"
+                  @click="handleGoEmployee"
+                >
+                  前往员工管理
+                </a-button>
+              </div>
+            </div>
+            <div class="table-area">
+              <BillTableList
+                :columns="staffColumns"
+                :data-source="staffData"
+                :loading="staffLoading"
+                :pagination="false"
+                :show-toolbar="false"
+                :show-search="false"
+                :show-add="false"
+                :show-export="false"
+                :show-batch-delete="false"
+                storage-key="md-staff-dept-staff-columns"
+                global-config-key="md-staff-dept-staff-columns"
+                row-key="id"
+              />
+            </div>
+            <StandardPagination
+              variant="classic"
+              :current="staffPagination.current"
+              :page-size="staffPagination.pageSize"
+              :total="staffPagination.total"
+              :page-size-options="[20, 50, 100]"
+              @change="handleStaffPageChange"
+            />
+          </div>
+        </a-tab-pane>
+
+        <!-- ═══ 部门信息（原有部门主数据 CRUD，行为不变） ═══ -->
+        <a-tab-pane
+          key="dept"
+          tab="部门信息"
+        >
       <CategoryListLayout
         :tabs="[]"
         :show-category-panel="true"
@@ -226,6 +303,8 @@
           />
         </template>
       </CategoryListLayout>
+        </a-tab-pane>
+      </a-tabs>
 
       <!-- ═══ 新增 / 修改弹窗（主数据：分区卡片 + 两列栅格） ═══ -->
       <a-modal
@@ -388,6 +467,7 @@
 // ⑦ 规格判定本页打印 N/A（本模块无 ql361 对标页）；此处按调用方要求保留 F8 打印当前筛选结果，可由页面配置关闭。
 // ⑧ 负责人口径下的「部门负责人（现任员工）」、成本中心、编制数、部门合并等业界能力本系统未实现，无对应接口。
 import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue'
+import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import dayjs from 'dayjs'
 import {
@@ -406,8 +486,92 @@ import StandardPagination from '@/components/Pagination/Pagination.vue'
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
 import FormSection from '@/components/FormSection/index.vue'
 import { departmentApi } from '@/api/department'
+import { hrEmployeeApi } from '@/api/hr'
 
 defineOptions({ name: 'MdStaffDept' })
+
+const router = useRouter()
+
+// ═══ 双 Tab（对标 ql361「资料 → 职员权限 → 职员部门」页的两个子标签：职员信息 | 部门信息） ═══
+// 默认停在「部门信息」以保持本页既有行为不变（本页菜单语义主体是部门主数据）。
+const activeTab = ref<'staff' | 'dept'>('dept')
+const staffLoaded = ref(false)
+
+// ── 职员信息 Tab：只读职员清单 ───────────────────────────────────────
+// 数据源 hr_employee（本系统职员档案的权威来源），**只读**：增删改停用统一在
+// 「人力资源 → 员工管理 → 员工列表」(hr/employee) 维护，避免同一主数据两处可写。
+// 列对齐 ql361 实抓的 10 列，其中「直属上级」hr_employee 无对应字段，故本表不上该列（已在开发文档登记为缺口）。
+const staffLoading = ref(false)
+const staffData = ref<any[]>([])
+const staffPagination = reactive({ current: 1, pageSize: 20, total: 0 })
+const staffSearch = reactive({ keyword: '' })
+
+const staffColumns: DetailColumnConfig[] = [
+  { key: 'rowNo', title: '', type: 'rowNo', width: 40, fixed: 'left' },
+  { key: 'employeeNo', title: '职员编号', type: 'input', width: 110 },
+  { key: 'employeeName', title: '职员姓名', type: 'input', width: 120 },
+  { key: 'genderText', title: '性别', type: 'input', width: 70 },
+  { key: 'deptName', title: '部门', type: 'input', width: 120 },
+  { key: 'userPositionName', title: '职务', type: 'input', width: 130 },
+  { key: 'phone', title: '联系电话', type: 'input', width: 130 },
+  { key: 'isOperatorText', title: '是操作员', type: 'input', width: 90 },
+  { key: 'userLoginName', title: '操作员账号', type: 'input', width: 150 },
+]
+
+async function fetchStaff() {
+  staffLoading.value = true
+  try {
+    const res: any = await hrEmployeeApi.page({
+      pageNum: staffPagination.current,
+      pageSize: staffPagination.pageSize,
+      keyword: staffSearch.keyword.trim() || undefined,
+    })
+    const records = res?.records || res?.data?.records || []
+    staffData.value = records.map((r: any) => ({
+      ...r,
+      genderText: r.gender === 1 ? '男' : r.gender === 2 ? '女' : '-',
+      // 「是操作员」以是否绑定系统账号（user_id）判定，与「全部操作员」页同源
+      isOperatorText: r.userId ? '√' : '',
+    }))
+    staffPagination.total = Number(res?.total ?? res?.data?.total ?? 0) || 0
+  } catch (error: any) {
+    console.error('[职员部门] 加载职员清单失败', error)
+    message.error(error?.response?.data?.message || '加载职员清单失败')
+    staffData.value = []
+    staffPagination.total = 0
+  } finally {
+    staffLoading.value = false
+  }
+}
+
+function handleStaffSearch() {
+  staffPagination.current = 1
+  fetchStaff()
+}
+
+function handleStaffReset() {
+  staffSearch.keyword = ''
+  handleStaffSearch()
+}
+
+/** 跳到员工列表维护职员档案（本 Tab 刻意只读，避免同一主数据两处可写） */
+function handleGoEmployee() {
+  router.push('/hr/employee')
+}
+
+function handleStaffPageChange(page: number, pageSize: number) {
+  staffPagination.current = page
+  staffPagination.pageSize = pageSize
+  fetchStaff()
+}
+
+/** 切到「职员信息」时懒加载一次；切回不重复请求 */
+function handleTabChange(key: string | number) {
+  if (key === 'staff' && !staffLoaded.value) {
+    staffLoaded.value = true
+    fetchStaff()
+  }
+}
 
 // ═══ 状态 ═══
 const loading = ref(false)
@@ -868,6 +1032,17 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleF8Key))
 .search-label { font-size: 13px; color: #666; white-space: nowrap; }
 /* 必须是 flex 纵向容器：表格根元素为 flex:1，父级非 flex 时表格高度会塌陷为 0 */
 .table-area { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+
+/* ═══ 双 Tab 高度链 ═══
+   PageContainer(full-height) → a-tabs → tab-pane → 内容 必须逐层撑满，
+   否则表格根元素（flex:1）高度会塌陷为 0（本项目踩过的坑）。 */
+.staff-dept-tabs { height: 100%; display: flex; flex-direction: column; }
+.staff-dept-tabs :deep(.ant-tabs-nav) { margin: 0; flex-shrink: 0; }
+.staff-dept-tabs :deep(.ant-tabs-content-holder) { flex: 1; min-height: 0; }
+.staff-dept-tabs :deep(.ant-tabs-content) { height: 100%; }
+.staff-dept-tabs :deep(.ant-tabs-tabpane) { height: 100%; }
+/* 职员信息 Tab：查询区 + 表格 + 经典分页 的弹性纵向布局 */
+.staff-tab { height: 100%; display: flex; flex-direction: column; }
 .cell-link { color: #1890ff; cursor: pointer; }
 .cell-link:hover { text-decoration: underline; }
 

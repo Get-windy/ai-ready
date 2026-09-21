@@ -190,6 +190,18 @@
             <span>{{ tenantMap[record.tenantId] || `租户${record.tenantId}` }}</span>
           </template>
 
+          <!-- 7 类数据权限列：列值是可点链接，点击进入该维度的授权设置（行为与 ql361 一致） -->
+          <template
+            v-for="c in DATA_SCOPE_COLUMNS"
+            :key="c.key"
+            #[`scope_${c.key}`]="{ record }"
+          >
+            <a
+              class="scope-link"
+              @click="handleOpenScope(record, c.key)"
+            >{{ scopeText(record.id, c.key) }}</a>
+          </template>
+
           <template #action="{ record }">
             <a-space>
               <a-button
@@ -222,6 +234,13 @@
                       @click="handleResetPassword(record)"
                     >
                       <KeyOutlined /> 重置密码
+                    </a-menu-item>
+                    <!-- 权限预览：以该用户身份查看菜单/按钮/数据可见范围（后端按被模拟用户判定权限） -->
+                    <a-menu-item
+                      v-permission="'system:simulate'"
+                      @click="handleSimulate(record)"
+                    >
+                      <EyeOutlined /> 以该用户身份预览
                     </a-menu-item>
                     <a-menu-item
                       v-permission="'system:user:update'"
@@ -374,6 +393,110 @@
             show-search
             :filter-option="filterRoleOption"
           />
+        </a-modal>
+
+        <!-- 数据权限设置弹窗（对标 ql361「XX数据权限设置」：左侧分类 + 名称/已授权 勾选表） -->
+        <a-modal
+          v-model:open="scopeModalVisible"
+          :title="`${scopeModalTitle}（${scopeTargetUserName}）`"
+          width="760px"
+          :confirm-loading="scopeSaving"
+          ok-text="保存"
+          cancel-text="关闭"
+          @ok="handleScopeOk"
+        >
+          <a-spin :spinning="scopeModalLoading">
+            <div class="scope-dialog">
+              <!-- 左侧分类（维度无分类数据时不显示） -->
+              <div
+                v-if="scopeCategories.length"
+                class="scope-dialog__side"
+              >
+                <div class="scope-dialog__side-title">
+                  分类
+                </div>
+                <ul class="scope-dialog__categories">
+                  <li
+                    :class="{ active: scopeCategoryId === '' }"
+                    @click="scopeCategoryId = ''"
+                  >
+                    <span>全部</span>
+                    <span class="cnt">{{ scopeTargets.length }}</span>
+                  </li>
+                  <li
+                    v-for="c in scopeCategories"
+                    :key="c.name"
+                    :class="{ active: scopeCategoryId === c.name }"
+                    @click="scopeCategoryId = c.name"
+                  >
+                    <span>{{ c.name }}</span>
+                    <span class="cnt">{{ c.count }}</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div class="scope-dialog__main">
+                <div class="scope-dialog__toolbar">
+                  <a-space :size="8">
+                    <a-input
+                      v-model:value="scopeKeyword"
+                      placeholder="名称/编号"
+                      size="small"
+                      style="width: 180px"
+                      allow-clear
+                    />
+                    <a-button
+                      size="small"
+                      @click="toggleAllScope(true)"
+                    >
+                      全选
+                    </a-button>
+                    <a-button
+                      size="small"
+                      @click="toggleAllScope(false)"
+                    >
+                      清空
+                    </a-button>
+                  </a-space>
+                  <span class="scope-dialog__summary">已授权 <b>{{ scopeChecked.size }}</b> 项</span>
+                </div>
+                <div class="scope-dialog__table-wrap">
+                  <table class="scope-dialog__table">
+                    <thead>
+                      <tr>
+                        <th>名称</th>
+                        <th class="col-auth">
+                          已授权
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr
+                        v-for="t in scopeFilteredTargets"
+                        :key="t.id"
+                      >
+                        <td>{{ t.name }}</td>
+                        <td class="col-auth">
+                          <a-checkbox
+                            :checked="scopeChecked.has(t.id)"
+                            @change="(e: any) => toggleScopeTarget(t.id, !!e.target.checked)"
+                          />
+                        </td>
+                      </tr>
+                      <tr v-if="!scopeFilteredTargets.length">
+                        <td
+                          colspan="2"
+                          class="scope-dialog__empty"
+                        >
+                          无可授权的对象
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </a-spin>
         </a-modal>
 
         <!-- 用户详情抽屉（只读）：双击行打开，不提供任何写操作 -->
@@ -569,12 +692,14 @@ import { useRowDblclick } from '@/composables/useRowDblclick'
 import { useRouter, onBeforeRouteLeave } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
-import { DownOutlined, KeyOutlined, StopOutlined, DeleteOutlined, PlusOutlined, TeamOutlined, CheckCircleOutlined, ReloadOutlined, SyncOutlined, WarningOutlined } from '@ant-design/icons-vue'
+import { DownOutlined, KeyOutlined, StopOutlined, DeleteOutlined, PlusOutlined, TeamOutlined, CheckCircleOutlined, ReloadOutlined, SyncOutlined, WarningOutlined, EyeOutlined } from '@ant-design/icons-vue'
+import { useSimulation } from '@/composables/useSimulation'
 import BillTableList, { type FilterField } from '@/components/BillTableList/BillTableList.vue'
 import { userApi, type UserInfo, type TenantInfo } from '@/api/user'
 import { roleApi, type RoleInfo } from '@/api/role'
 import { dictItemApi } from '@/api/dict'
 import { departmentApi } from '@/api/department'
+import { userDataScopeApi, type DataScopeKey, type DataScopeTarget } from '@/api/userDataScope'
 import { useSubmitLock, useOptimisticUpdate } from '@/composables'
 import { useUserStore } from '@/stores/user'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
@@ -607,11 +732,30 @@ const disabledCount = computed(() => tableData.value.filter(r => r.status === 1)
 // ── 数据源 ────────────────────────────────────────────
 const tableDataSource = tableData
 
+// ═══ 数据权限维度（对标 ql361「全部操作员」7 类数据权限，2026-09-19 实抓） ═══
+// 列顺序与 ql361 一致：仓库 / 调拨 / 部门 / 往来单位 / 商品 / 现金银行 / 客户级别
+const DATA_SCOPE_COLUMNS: Array<{ key: DataScopeKey; title: string }> = [
+  { key: 'warehouse', title: '仓库权限' },
+  { key: 'transfer', title: '调拨权限' },
+  { key: 'department', title: '部门权限' },
+  { key: 'partner', title: '往来单位权限' },
+  { key: 'product', title: '商品权限' },
+  { key: 'fund', title: '现金银行权限' },
+  { key: 'customer_level', title: '客户级别权限' },
+]
+
 const vxeColumns = computed(() => [
   { field: 'username', title: '用户信息', width: 200, slotName: 'usernameCell' },
   { field: 'phone', title: '手机号', width: 120 },
   { field: 'email', title: '邮箱', width: 180, showOverflow: 'tooltip' },
   { field: 'userType', title: '用户类型', width: 100, slotName: 'userTypeCell' },
+  // 7 类数据权限列（列值是可点链接，点击进入该维度的授权设置，行为与 ql361 一致）
+  ...DATA_SCOPE_COLUMNS.map(c => ({
+    field: `scope_${c.key}`,
+    title: c.title,
+    width: 132,
+    slotName: `scope_${c.key}`,
+  })),
   { field: 'tenantName', title: '所属租户', width: 120, slotName: 'tenantNameCell' },
   { field: 'status', title: '状态', width: 80, align: 'center', slotName: 'statusCell' },
   { field: 'createTime', title: '创建时间', width: 160 },
@@ -630,6 +774,136 @@ const filterFields = computed<FilterField[]>(() => {
   }
   return fields
 })
+
+// ═══ 数据权限（对标 ql361「全部操作员」7 类数据权限设置） ═══════════════════════
+// ql361 形态：列表 7 列各显示授权摘要，列值是可点链接 → 打开「XX数据权限设置」面板
+// （左侧分类 + 「名称 ｜ 已授权」勾选表）。后端表 sys_user_data_scope（user_id + scope_key + target_ids）。
+/** userId(字符串) → scopeKey → 已授权对象数（用于列表列上的摘要） */
+const scopeSummary = ref<Record<string, Record<string, number>>>({})
+const scopeModalVisible = ref(false)
+const scopeModalLoading = ref(false)
+const scopeSaving = ref(false)
+const scopeTargetUserId = ref('')
+const scopeTargetUserName = ref('')
+const scopeModalKey = ref<DataScopeKey>('warehouse')
+const scopeTargets = ref<DataScopeTarget[]>([])
+const scopeChecked = ref<Set<string>>(new Set())
+const scopeKeyword = ref('')
+const scopeCategoryId = ref('')
+
+const scopeModalTitle = computed(() => {
+  const hit = DATA_SCOPE_COLUMNS.find(c => c.key === scopeModalKey.value)
+  return `${hit?.title || '数据权限'}设置`
+})
+
+/** 左侧分类（由候选对象自带的 categoryName 派生，无分类的维度不显示该栏） */
+const scopeCategories = computed(() => {
+  const map = new Map<string, number>()
+  for (const t of scopeTargets.value) {
+    const key = t.categoryName || ''
+    if (!key) continue
+    map.set(key, (map.get(key) || 0) + 1)
+  }
+  return Array.from(map.entries()).map(([name, count]) => ({ name, count }))
+})
+
+const scopeFilteredTargets = computed(() => {
+  const kw = scopeKeyword.value.trim().toLowerCase()
+  return scopeTargets.value.filter(t => {
+    if (scopeCategoryId.value && (t.categoryName || '') !== scopeCategoryId.value) return false
+    if (!kw) return true
+    return (t.name || '').toLowerCase().includes(kw) || (t.code || '').toLowerCase().includes(kw)
+  })
+})
+
+/** 列上展示的授权摘要文案 */
+function scopeText(userId: unknown, key: DataScopeKey): string {
+  const n = scopeSummary.value[String(userId)]?.[key]
+  if (!n) return '未设置'
+  return `${n} 个`
+}
+
+/** 列表加载后拉当前页各操作员的授权摘要（并发、失败不阻断列表） */
+async function loadScopeSummary(rows: UserInfo[]) {
+  if (!rows?.length) {
+    scopeSummary.value = {}
+    return
+  }
+  const next: Record<string, Record<string, number>> = {}
+  await Promise.allSettled(rows.map(async (r) => {
+    const uid = String(r.id)
+    try {
+      const res = await userDataScopeApi.getUserScopes(uid) as unknown as { data?: Record<string, string[]> }
+      const map = res?.data || {}
+      const counts: Record<string, number> = {}
+      for (const [k, v] of Object.entries(map)) counts[k] = Array.isArray(v) ? v.length : 0
+      next[uid] = counts
+    } catch {
+      // 单个用户取不到摘要不影响列表展示，保持「未设置」
+      next[uid] = {}
+    }
+  }))
+  scopeSummary.value = next
+}
+
+/** 打开某操作员的某维度数据权限设置面板 */
+async function handleOpenScope(record: UserInfo, key: DataScopeKey) {
+  scopeTargetUserId.value = String(record.id)
+  scopeTargetUserName.value = record.username || ''
+  scopeModalKey.value = key
+  scopeKeyword.value = ''
+  scopeCategoryId.value = ''
+  scopeTargets.value = []
+  scopeChecked.value = new Set()
+  scopeModalVisible.value = true
+  scopeModalLoading.value = true
+  try {
+    const [targetsRes, scopesRes] = await Promise.all([
+      userDataScopeApi.getTargets(key),
+      userDataScopeApi.getUserScopes(scopeTargetUserId.value),
+    ])
+    scopeTargets.value = ((targetsRes as unknown as { data?: DataScopeTarget[] })?.data) || []
+    const map = (scopesRes as unknown as { data?: Record<string, string[]> })?.data || {}
+    scopeChecked.value = new Set((map?.[key] || []).map(id => String(id)))
+  } catch (err) {
+    console.warn('[用户管理] 加载数据权限失败', err)
+    message.error('加载数据权限失败')
+  } finally {
+    scopeModalLoading.value = false
+  }
+}
+
+function toggleScopeTarget(id: string, checked: boolean) {
+  const next = new Set(scopeChecked.value)
+  if (checked) next.add(id)
+  else next.delete(id)
+  scopeChecked.value = next
+}
+
+function toggleAllScope(checked: boolean) {
+  const next = new Set(scopeChecked.value)
+  for (const t of scopeFilteredTargets.value) {
+    if (checked) next.add(t.id)
+    else next.delete(t.id)
+  }
+  scopeChecked.value = next
+}
+
+async function handleScopeOk() {
+  if (!scopeTargetUserId.value) return
+  scopeSaving.value = true
+  try {
+    await userDataScopeApi.saveScope(scopeTargetUserId.value, scopeModalKey.value, Array.from(scopeChecked.value))
+    message.success(`${scopeModalTitle.value}保存成功，共 ${scopeChecked.value.size} 项`)
+    scopeModalVisible.value = false
+    await loadScopeSummary(tableData.value)
+  } catch (err) {
+    console.warn('[用户管理] 保存数据权限失败', err)
+    message.error('保存数据权限失败')
+  } finally {
+    scopeSaving.value = false
+  }
+}
 
 const modalVisible = ref(false)
 const { isSubmitting: submittingLoading, withSubmitLock } = useSubmitLock()
@@ -721,6 +995,8 @@ const fetchData = async () => {
   try {
     const res = await userApi.getPage({ tenantId: userStore.tenantId, ...searchForm, pageNum: pagination.current, pageSize: pagination.pageSize })
     if (res) { tableData.value = res.records || []; pagination.total = res.total || 0 }
+    // 列表就绪后并行拉 7 类数据权限摘要（失败不阻断列表）
+    loadScopeSummary(tableData.value)
   } catch (err) {
     hasError.value = true
     console.warn('[系统管理] 加载用户数据失败', err)
@@ -826,6 +1102,24 @@ const handleBatchDelete = (deleteKeys?: number[]) => {
       batchDeleteLoading.value = false
     },
   })
+}
+
+// ── 权限预览（以该用户身份查看） ──────────────────────────────
+const { start: startSimulation } = useSimulation()
+
+/**
+ * 以该用户身份预览权限。
+ *
+ * 开启后**全局**按该用户的权限判定（后端 StpInterfaceImpl 以被模拟用户计算权限），
+ * 顶栏出现「结束预览」横幅 —— 用于验证「某人到底能看哪些菜单/按钮/数据」，
+ * 而不是靠管理员猜。需 system:simulate 权限。
+ */
+async function handleSimulate(record: UserInfo) {
+  try {
+    await startSimulation(String(record.id), `用户管理预览：${record.username}`)
+  } catch {
+    // 失败提示已在 useSimulation 内完成
+  }
 }
 
 const handleResetPassword = (record: UserInfo) => {
@@ -1056,6 +1350,117 @@ useRowDblclick(tableWrap, () => tableDataSource.value, handleView, 'id')
 </script>
 
 <style scoped>
+/* ═══ 数据权限设置面板（对标 ql361「XX数据权限设置」） ═══ */
+.scope-link {
+  color: #1677ff;
+  cursor: pointer;
+}
+.scope-link:hover {
+  text-decoration: underline;
+}
+.scope-dialog {
+  display: flex;
+  gap: 12px;
+  min-height: 360px;
+}
+.scope-dialog__side {
+  width: 160px;
+  flex-shrink: 0;
+  border: 1px solid #e8e8e8;
+  border-radius: 4px;
+  padding: 8px;
+  max-height: 420px;
+  overflow-y: auto;
+}
+.scope-dialog__side-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 8px;
+}
+.scope-dialog__categories {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.scope-dialog__categories li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 8px;
+  font-size: 13px;
+  color: #303133;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.scope-dialog__categories li:hover {
+  background: #f5f7fa;
+}
+.scope-dialog__categories li.active {
+  background: #e6f4ff;
+  color: #1677ff;
+  font-weight: 600;
+}
+.scope-dialog__categories .cnt {
+  font-size: 12px;
+  color: #909399;
+}
+.scope-dialog__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.scope-dialog__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.scope-dialog__summary {
+  font-size: 13px;
+  color: #606266;
+}
+.scope-dialog__summary b {
+  color: #1677ff;
+  padding: 0 2px;
+}
+.scope-dialog__table-wrap {
+  flex: 1;
+  overflow: auto;
+  border: 1px solid #e8e8e8;
+  border-radius: 4px;
+  max-height: 380px;
+}
+.scope-dialog__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.scope-dialog__table th,
+.scope-dialog__table td {
+  border-bottom: 1px solid #f0f0f0;
+  padding: 6px 10px;
+  text-align: left;
+  color: #303133;
+}
+.scope-dialog__table thead th {
+  position: sticky;
+  top: 0;
+  background: #fafafa;
+  font-weight: 600;
+  z-index: 1;
+}
+.scope-dialog__table .col-auth {
+  width: 80px;
+  text-align: center;
+}
+.scope-dialog__empty {
+  text-align: center;
+  color: #909399;
+  padding: 32px 0;
+}
+
 .user-page-header {
   display: flex;
   justify-content: space-between;

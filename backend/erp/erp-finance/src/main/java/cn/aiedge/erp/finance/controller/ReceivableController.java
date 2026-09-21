@@ -1,5 +1,6 @@
 package cn.aiedge.erp.finance.controller;
 
+import cn.dev33.satoken.annotation.SaCheckPermission;
 import cn.aiedge.base.log.annotation.OperationLog;
 import cn.aiedge.base.vo.Result;
 import cn.aiedge.erp.finance.dto.ReceivableDTO;
@@ -14,7 +15,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import org.springframework.security.access.prepost.PreAuthorize;
+
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -35,7 +36,7 @@ public class ReceivableController {
 
     @Operation(summary = "创建应收款")
     @PostMapping("/")
-    @PreAuthorize("hasPermission('/api/erp/finance/receivable/create', 'finance:receivable:create')")
+    @SaCheckPermission("finance:receivable:create")
     @OperationLog(module = "应收管理", type = "CREATE", desc = "创建应收款")
     public Result<ReceivableDTO> create(@Valid @RequestBody ReceivableDTO dto) {
         ReceivableDTO result = receivableService.create(dto);
@@ -44,7 +45,7 @@ public class ReceivableController {
 
     @Operation(summary = "根据ID查询应收款")
     @GetMapping("/{id:\\d+}")
-    @PreAuthorize("hasPermission('/api/erp/finance/receivable/view', 'finance:receivable:view')")
+    @SaCheckPermission("finance:receivable:view")
     @OperationLog(module = "应收管理", type = "QUERY", desc = "根据ID查询应收款")
     public Result<ReceivableDTO> getById(@Parameter(description = "应收款ID") @PathVariable Long id) {
         return Result.success(receivableService.getById(id));
@@ -52,7 +53,7 @@ public class ReceivableController {
 
     @Operation(summary = "分页查询应收款列表")
     @GetMapping("/list")
-    @PreAuthorize("hasPermission('/api/erp/finance/receivable/list', 'finance:receivable:view')")
+    @SaCheckPermission("finance:receivable:view")
     @OperationLog(module = "应收管理", type = "QUERY", desc = "分页查询应收款列表")
     public Result<IPage<ReceivableDTO>> list(
             @Parameter(description = "客户ID") @RequestParam(required = false) String customerId,
@@ -65,7 +66,7 @@ public class ReceivableController {
 
     @Operation(summary = "应收账龄分析")
     @GetMapping("/aging")
-    @PreAuthorize("hasPermission('/api/erp/finance/receivable/aging', 'finance:receivable:view')")
+    @SaCheckPermission("finance:receivable:view")
     @OperationLog(module = "应收管理", type = "QUERY", desc = "应收账龄分析")
     public Result<List<Map<String, Object>>> aging() {
         return Result.success(receivableService.getAgingAnalysis());
@@ -73,7 +74,7 @@ public class ReceivableController {
 
     @Operation(summary = "核销应收款")
     @PutMapping("/{id}/write-off")
-    @PreAuthorize("hasPermission('/api/erp/finance/receivable/write-off', 'finance:receivable:write-off')")
+    @SaCheckPermission("finance:receivable:write-off")
     @OperationLog(module = "应收管理", type = "UPDATE", desc = "核销应收款")
     public Result<ReceivableDTO> writeOff(
             @Parameter(description = "应收款ID") @PathVariable Long id,
@@ -84,7 +85,7 @@ public class ReceivableController {
 
     @Operation(summary = "标记为坏账")
     @PutMapping("/{id}/bad-debt")
-    @PreAuthorize("hasPermission('/api/erp/finance/receivable/bad-debt', 'finance:receivable:bad-debt')")
+    @SaCheckPermission("finance:receivable:bad-debt")
     @OperationLog(module = "应收管理", type = "UPDATE", desc = "标记为坏账")
     public Result<ReceivableDTO> markBadDebt(
             @Parameter(description = "应收款ID") @PathVariable Long id) {
@@ -100,7 +101,7 @@ public class ReceivableController {
 
     @Operation(summary = "批量删除应收账款")
     @DeleteMapping("/batch")
-    @PreAuthorize("hasPermission('/api/erp/finance/receivable/delete', 'finance:receivable:delete')")
+    @SaCheckPermission("finance:receivable:delete")
     @OperationLog(module = "应收管理", type = "DELETE", desc = "批量删除应收账款")
     public Result<Void> deleteBatch(@RequestBody List<Long> ids) {
         receivableService.deleteBatch(ids);
@@ -109,7 +110,7 @@ public class ReceivableController {
 
     @Operation(summary = "导出应收账款列表")
     @GetMapping("/export")
-    @PreAuthorize("hasPermission('/api/erp/finance/receivable/list', 'finance:receivable:view')")
+    @SaCheckPermission("finance:receivable:view")
     @OperationLog(module = "应收管理", type = "QUERY", desc = "导出应收账款列表")
     public Result<List<ReceivableDTO>> export(
             @Parameter(description = "客户ID") @RequestParam(required = false) String customerId,

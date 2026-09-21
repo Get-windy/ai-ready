@@ -813,10 +813,12 @@ async function connectStream() {
   const controller = new AbortController()
   streamAbort = controller
   try {
+    const realtimeTenantId = localStorage.getItem('tenantId')
     const res = await fetch('/api/dms/tracking/stream', {
       headers: {
         Authorization: `Bearer ${token}`,
-        tenantId: localStorage.getItem('tenantId') || '1',
+        // 仅在拿到真实租户时才发送（不再回落 '1'，否则与后端 TenantHeaderInterceptor 冲突而 403）
+        ...(realtimeTenantId ? { tenantId: realtimeTenantId } : {}),
       },
       signal: controller.signal,
     })

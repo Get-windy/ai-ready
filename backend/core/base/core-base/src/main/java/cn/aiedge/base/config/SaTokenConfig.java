@@ -1,6 +1,7 @@
 package cn.aiedge.base.config;
 
 import cn.aiedge.base.security.StpInterfaceImpl;
+import cn.aiedge.base.security.TenantHeaderInterceptor;
 import cn.dev33.satoken.interceptor.SaInterceptor;
 import cn.dev33.satoken.stp.StpUtil;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +20,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class SaTokenConfig implements WebMvcConfigurer {
 
     private final StpInterfaceImpl stpInterface;
+    private final TenantHeaderInterceptor tenantHeaderInterceptor;
 
     /**
      * 注册 Sa-Token 拦截器
@@ -48,6 +50,10 @@ public class SaTokenConfig implements WebMvcConfigurer {
                         "/api/file/view/**",
                         // C 端商城登录（C 端用户无 Sa-Token 会话，必须匿名可达）
                         "/api/v1/mall/auth/**",
+                        // PDA(仓库端)登录：登录接口若不放行，未登录就取不到 token（死锁，功能不可用）。
+                        // 只放行登录本身 —— /api/v1/warehouse/ 下的业务接口仍需登录。
+                        // 该接口 2026-09-20 已由桩实现改为真实鉴权（BCrypt + status + 租户校验）。
+                        "/api/v1/warehouse/auth/login",
                         // 前端错误上报：只放行上报端点本身（登录页出错也要能上报）。
                         // 注意不能用 /api/error-report/** —— 那会把 /recent、/query、/statistics
                         // 三个管理端查询接口一起放行，未登录即可读错误日志（含堆栈、SQL、类名）。
@@ -90,6 +96,10 @@ public class SaTokenConfig implements WebMvcConfigurer {
                         "/api/file/view/**",
                         // C 端商城登录（C 端用户无 Sa-Token 会话，必须匿名可达）
                         "/api/v1/mall/auth/**",
+                        // PDA(仓库端)登录：登录接口若不放行，未登录就取不到 token（死锁，功能不可用）。
+                        // 只放行登录本身 —— /api/v1/warehouse/ 下的业务接口仍需登录。
+                        // 该接口 2026-09-20 已由桩实现改为真实鉴权（BCrypt + status + 租户校验）。
+                        "/api/v1/warehouse/auth/login",
                         // 前端错误上报：只放行上报端点本身（登录页出错也要能上报）。
                         // 注意不能用 /api/error-report/** —— 那会把 /recent、/query、/statistics
                         // 三个管理端查询接口一起放行，未登录即可读错误日志（含堆栈、SQL、类名）。
@@ -108,5 +118,14 @@ public class SaTokenConfig implements WebMvcConfigurer {
                         "/error"
                 )
                 .order(1);
+
+        // 租户请求头一致性校验（order=2，排在鉴权之后）：
+        // 非超管若携带与会话租户不一致的 X-Tenant-Id → 403。
+        // 背景：全仓 20+ 文件、100 余处直接消费该头，而它完全由客户端决定
+        // （前端原先还默认回落 '1'），这些查询所在表要么在租户插件忽略清单、要么根本不带
+        // tenant_id 条件 ⇒ 多租户插件救不了，头是唯一租户判据。详见 TenantHeaderInterceptor。
+        registry.addInterceptor(tenantHeaderInterceptor)
+                .addPathPatterns("/**")
+                .order(2);
     }
 }

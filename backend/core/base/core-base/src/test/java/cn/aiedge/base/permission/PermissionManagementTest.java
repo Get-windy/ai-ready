@@ -44,9 +44,6 @@ class PermissionManagementTest {
     private RoleInheritanceService inheritanceService;
     
     @Autowired
-    private DataPermissionService dataPermissionService;
-    
-    @Autowired
     private PermissionUtils permissionUtils;
 
     /**
@@ -175,30 +172,6 @@ class PermissionManagementTest {
         
         List<Long> childIds = inheritanceService.getChildRoleIds(parentRoleId);
         assertTrue(childIds.contains(childRoleId));
-    }
-
-    /**
-     * 测试数据权限功能
-     */
-    @Test
-    void testDataPermission() {
-        // 创建数据权限
-        DataPermission dataPermission = new DataPermission();
-        dataPermission.setPermissionName("测试数据权限");
-        dataPermission.setPermissionCode("test:data:permission");
-        dataPermission.setDataScope(0); // 全部数据
-        dataPermission.setScopeType(3); // 全局
-        dataPermission.setStatus(0); // 启用
-        dataPermission.setTenantId(1L);
-        
-        Long permissionId = dataPermissionService.createDataPermission(dataPermission);
-        assertNotNull(permissionId);
-        
-        // 查询数据权限
-        DataPermission savedPermission = dataPermissionService.getById(permissionId);
-        assertNotNull(savedPermission);
-        assertEquals("测试数据权限", savedPermission.getPermissionName());
-        assertEquals("test:data:permission", savedPermission.getPermissionCode());
     }
 
     /**

@@ -1,10 +1,12 @@
 package cn.aiedge.erp.purchase.service;
 
 import cn.aiedge.erp.purchase.dto.ContractStatisticsDTO;
+import cn.aiedge.erp.purchase.dto.PurchaseContractQueryDTO;
 import cn.aiedge.erp.purchase.entity.PurchaseContract;
 import cn.aiedge.erp.purchase.entity.PurchaseContractItem;
 import cn.aiedge.erp.purchase.entity.PurchaseSupplierQuote;
 import cn.aiedge.erp.purchase.enums.ContractStatus;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -55,4 +57,20 @@ public interface PurchaseContractService {
     PurchaseContract modifyContract(Long id, String modificationReason, String detail);
 
     ContractStatisticsDTO generateContractStatistics();
+
+    // ── 以下 4 个方法对应前端合同列表页（菜单 81010）的 CRUD，2026-09-21 补齐 ──
+    // 此前该页调用的 /page、POST /、PUT /{id}、DELETE /{id} 在后端**都不存在**
+    // （Controller 只有详情/审批类端点，且 purchase_contract 表本身也缺失）⇒ 整页不可用。
+
+    /** 分页查询合同（菜单 81010） */
+    Page<PurchaseContract> pageContracts(PurchaseContractQueryDTO query);
+
+    /** 新增合同（状态强制为草稿） */
+    PurchaseContract createContract(PurchaseContract contract);
+
+    /** 编辑合同（仅草稿/已驳回可改） */
+    PurchaseContract updateContract(Long id, PurchaseContract contract);
+
+    /** 删除合同（仅草稿可删；级联删除明细） */
+    void deleteContract(Long id);
 }

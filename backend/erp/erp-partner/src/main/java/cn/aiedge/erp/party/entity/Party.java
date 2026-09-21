@@ -1,5 +1,7 @@
 package cn.aiedge.erp.party.entity;
 
+import cn.aiedge.base.annotation.DataMask;
+import cn.aiedge.base.annotation.DataMaskNumber;
 import com.baomidou.mybatisplus.annotation.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -35,22 +37,29 @@ public class Party {
 
     private String partyLevel;
 
+    // 金额型敏感字段：只支持「可见/不可见」（不可见时不下发，而不是给 0）
+    @DataMaskNumber(table = "biz_party")
     private BigDecimal creditLimit;
 
+    @DataMaskNumber(table = "biz_party")
     private BigDecimal currentDebt;
 
     private Integer settlementType;
 
     private Integer settlementDays;
 
+    @DataMask(table = "biz_party")
     private String unifiedCode;
 
     private String businessLicense;
 
+    @DataMask(table = "biz_party")
     private String taxNumber;
 
+    @DataMask(table = "biz_party")
     private String bankName;
 
+    @DataMask(table = "biz_party")
     private String bankAccount;
 
     // ── 纳税人信息（基础资料：公司全称 / 地址 / 开户行地址） ──
@@ -60,16 +69,20 @@ public class Party {
 
     private String bankAddress;
 
+    @DataMask(table = "biz_party")
     private String phone;
 
     private String fax;
 
+    @DataMask(table = "biz_party")
     private String email;
 
     private String website;
 
+    @DataMask(table = "biz_party")
     private String legalPerson;
 
+    @DataMask(table = "biz_party")
     private String legalPersonPhone;
 
     private Integer status;

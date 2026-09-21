@@ -431,7 +431,12 @@ public class PermissionInitializationConfig implements ApplicationRunner {
             createPermission("SoD规则更新", "system:sod-rule:update", 3, null, "/api/sod-rule/*", "PUT", 144),
             createPermission("SoD规则删除", "system:sod-rule:delete", 3, null, "/api/sod-rule/*", "DELETE", 145),
             createPermission("SoD规则验证", "system:sod-rule:validate", 3, null, "/api/sod-rule/validate", "POST", 146),
-            createPermission("权限模拟", "system:simulate", 3, null, "/api/simulate/*", "POST", 147)
+            createPermission("权限模拟", "system:simulate", 3, null, "/api/simulate/*", "POST", 147),
+            // 记录级数据规则（RecordRuleController，2026-09-20 补齐接口权限校验）
+            createPermission("记录规则列表", "system:record-rule:list", 3, null, "/api/permission/record/**", "GET", 148),
+            createPermission("记录规则创建", "system:record-rule:create", 3, null, "/api/permission/record", "POST", 149),
+            createPermission("记录规则更新", "system:record-rule:update", 3, null, "/api/permission/record/{id}", "PUT", 150),
+            createPermission("记录规则删除", "system:record-rule:delete", 3, null, "/api/permission/record/{id}", "DELETE", 151)
         );
         savePermissions(dataScopePermissions);
 

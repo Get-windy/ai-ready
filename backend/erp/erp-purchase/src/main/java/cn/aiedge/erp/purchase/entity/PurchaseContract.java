@@ -16,6 +16,16 @@ public class PurchaseContract {
 
     private Long id;
 
+    /**
+     * 租户ID。
+     *
+     * <p>⚠️ 本实体的持久化走 `PurchaseContractMapper` 的**自定义 @Insert 注解 SQL**，
+     * 不经过 MyBatis-Plus 的 `BaseMapper.insert`，因此 **`insertFill` 不会执行**。
+     * 租户必须由 Service 显式 set 并在 INSERT 列表里带上 tenant_id；
+     * 漏了不会报错，但会落成 `tenant_id = 0` 的「谁都不看不见」数据。</p>
+     */
+    private Long tenantId;
+
     private String contractNo;
 
     private Long inquiryId;

@@ -32,6 +32,26 @@ export interface PermissionQuery {
   size?: number
 }
 
+/**
+ * 权限生效性清单（`GET /permission/effectivity`）
+ *
+ * 数据由 `tools/gen-permission-effectivity.py` 扫描前后端源码生成：
+ * 一条权限码只要被后端 @SaCheckPermission/@RequirePermission 或前端 v-permission/checkPermission 用过，
+ * 就算「生效」；两边都没有的，勾进角色也不会控制任何东西。
+ */
+export interface PermissionEffectivity {
+  /** 未生成清单时为 false（前端静默降级，不做标注） */
+  available?: boolean
+  generatedAt?: string
+  summary?: { db: number; effective: number; ineffective: number; groupNodes: number }
+  /** 没有任何消费方的权限码：勾进角色也不会生效 */
+  ineffective?: string[]
+  /** 分组节点（`xxx:manage` 这类），不参与生效性判定 */
+  groupNodes?: string[]
+  /** 生效权限码的引用条数，用于 tooltip 展示「被 N 处接口 / M 处按钮使用」 */
+  refCounts?: Record<string, { backend: number; frontend: number }>
+}
+
 // 权限API
 export const permissionApi = {
   // 分页查询权限
@@ -77,6 +97,11 @@ export const permissionApi = {
   // 检查权限编码
   checkCode(code: string, tenantId: number, excludeId?: number): Promise<ApiResponse<boolean>> {
     return request.get('/permission/check-code', { code, tenantId, excludeId })
+  },
+
+  // 权限生效性清单：ineffective 里的权限码勾了不会被任何代码检查（后端无注解、前端无指令）
+  getEffectivity(): Promise<ApiResponse<PermissionEffectivity>> {
+    return request.get('/permission/effectivity')
   }
 }
 

@@ -42,6 +42,14 @@ public class DepartmentController {
         return ApiResponse.ok(departmentService.listAll());
     }
 
+    @Operation(summary = "获取部门下拉选项（含禁用部门，供全站部门下拉使用）")
+    @GetMapping("/options")
+    public ApiResponse<List<DepartmentVO>> options() {
+        // 权限口径与 /list 保持一致：不挂权限注解，仅要求登录。
+        // 不要擅自加权限码 —— 会锁死非超管用户，导致无法选择上级部门。
+        return ApiResponse.ok(departmentService.listOptions());
+    }
+
     @Operation(summary = "获取部门树")
     @GetMapping("/tree")
     public ApiResponse<List<DepartmentVO>> getTree() {

@@ -1,5 +1,6 @@
 package cn.aiedge.erp.finance.otherincome.controller;
 
+import cn.dev33.satoken.annotation.SaCheckPermission;
 import cn.aiedge.base.log.annotation.OperationLog;
 import cn.aiedge.common.result.ApiResponse;
 import cn.aiedge.erp.finance.otherincome.dto.OtherIncomeCreateDTO;
@@ -11,7 +12,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.prepost.PreAuthorize;
+
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -30,7 +31,7 @@ public class OtherIncomeDocController {
 
     @Operation(summary = "分页查询其他收入单（按单据）")
     @GetMapping("/page")
-    @PreAuthorize("hasPermission('/api/erp/finance/other-income-doc/page', 'finance:other-income-doc:view')")
+    @SaCheckPermission("finance:other-income-doc:view")
     @OperationLog(module = "其他收入单", type = "QUERY", desc = "分页查询其他收入单")
     public ApiResponse<Page<OtherIncomeVO>> page(
             @Parameter(description = "关键词") @RequestParam(required = false) String keyword,
@@ -59,7 +60,7 @@ public class OtherIncomeDocController {
 
     @Operation(summary = "分页查询其他收入单（按明细）")
     @GetMapping("/page-detail")
-    @PreAuthorize("hasPermission('/api/erp/finance/other-income-doc/page-detail', 'finance:other-income-doc:view')")
+    @SaCheckPermission("finance:other-income-doc:view")
     @OperationLog(module = "其他收入单", type = "QUERY", desc = "按明细分页查询其他收入单")
     public ApiResponse<Page<OtherIncomeItemDetailVO>> pageDetail(
             @Parameter(description = "关键词") @RequestParam(required = false) String keyword,
@@ -83,7 +84,7 @@ public class OtherIncomeDocController {
 
     @Operation(summary = "生成下一个其他收入单号（QTSRD-）")
     @GetMapping("/next-no")
-    @PreAuthorize("hasPermission('/api/erp/finance/other-income-doc/next-no', 'finance:other-income-doc:create')")
+    @SaCheckPermission("finance:other-income-doc:create")
     @OperationLog(module = "其他收入单", type = "QUERY", desc = "生成下一个其他收入单号")
     public ApiResponse<String> nextNo() {
         return ApiResponse.success(otherIncomeDocService.nextNo());
@@ -91,7 +92,7 @@ public class OtherIncomeDocController {
 
     @Operation(summary = "获取其他收入单详情")
     @GetMapping("/{id}")
-    @PreAuthorize("hasPermission('/api/erp/finance/other-income-doc/view', 'finance:other-income-doc:view')")
+    @SaCheckPermission("finance:other-income-doc:view")
     @OperationLog(module = "其他收入单", type = "QUERY", desc = "获取其他收入单详情")
     public ApiResponse<OtherIncomeVO> getById(@PathVariable Long id) {
         return ApiResponse.success(otherIncomeDocService.getDetail(id));
@@ -99,7 +100,7 @@ public class OtherIncomeDocController {
 
     @Operation(summary = "保存草稿")
     @PostMapping("/save-draft")
-    @PreAuthorize("hasPermission('/api/erp/finance/other-income-doc/create', 'finance:other-income-doc:create')")
+    @SaCheckPermission("finance:other-income-doc:create")
     @OperationLog(module = "其他收入单", type = "CREATE", desc = "保存草稿")
     public ApiResponse<OtherIncomeVO> saveDraft(@RequestBody OtherIncomeCreateDTO dto) {
         return ApiResponse.success(otherIncomeDocService.saveDoc(null, dto, false));
@@ -107,7 +108,7 @@ public class OtherIncomeDocController {
 
     @Operation(summary = "更新草稿")
     @PutMapping("/{id}")
-    @PreAuthorize("hasPermission('/api/erp/finance/other-income-doc/update', 'finance:other-income-doc:update')")
+    @SaCheckPermission("finance:other-income-doc:update")
     @OperationLog(module = "其他收入单", type = "UPDATE", desc = "更新草稿")
     public ApiResponse<OtherIncomeVO> update(@PathVariable Long id, @RequestBody OtherIncomeCreateDTO dto) {
         return ApiResponse.success(otherIncomeDocService.saveDoc(id, dto, false));
@@ -115,7 +116,7 @@ public class OtherIncomeDocController {
 
     @Operation(summary = "记账（生成凭证，入总账/明细账）")
     @PostMapping("/{id}/confirm")
-    @PreAuthorize("hasPermission('/api/erp/finance/other-income-doc/confirm', 'finance:other-income-doc:update')")
+    @SaCheckPermission("finance:other-income-doc:update")
     @OperationLog(module = "其他收入单", type = "UPDATE", desc = "记账")
     public ApiResponse<OtherIncomeVO> confirm(@PathVariable Long id) {
         return ApiResponse.success(otherIncomeDocService.confirm(id));
@@ -123,7 +124,7 @@ public class OtherIncomeDocController {
 
     @Operation(summary = "删除其他收入单")
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasPermission('/api/erp/finance/other-income-doc/delete', 'finance:other-income-doc:delete')")
+    @SaCheckPermission("finance:other-income-doc:delete")
     @OperationLog(module = "其他收入单", type = "DELETE", desc = "删除其他收入单")
     public ApiResponse<Boolean> delete(@PathVariable Long id) {
         otherIncomeDocService.removeDoc(id);

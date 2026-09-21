@@ -35,8 +35,22 @@ import java.util.Map;
 @Slf4j
 public class MetricsCalculationServiceImpl implements MetricsCalculationService {
 
-    /** 默认租户ID（与 monitor 包 MetricCollectorConfig 保持一致） */
-    private static final long DEFAULT_TENANT_ID = 1L;
+    /**
+     * 无租户上下文时的回落租户（与 monitor 包 MetricCollectorConfig 保持一致）。
+     *
+     * <p>正常路径不会用到它：定时任务由 {@code MetricsScheduler} 逐租户
+     * {@code setTempTenantId} 后调用，请求触发时取会话租户。
+     * <b>2026-09-20 修复</b>：此前本类所有指标 SQL 都把租户**写死成 1**
+     * （字符串拼接 `" AND tenant_id = " + currentTenantId()`），
+     * 导致非平台租户的管理员在经营看板上看到的是**租户 1 的数据** —— 既不准也属跨租户泄露。</p>
+     */
+    private static final long FALLBACK_TENANT_ID = 1L;
+
+    /** 本次计算所属租户：调度/会话上下文优先，都取不到才回落 */
+    private long currentTenantId() {
+        Long tid = cn.aiedge.base.config.MyBatisPlusConfig.getCurrentTenantIdValue();
+        return tid != null ? tid : FALLBACK_TENANT_ID;
+    }
 
     private final BusinessMetricRepository metricRepository;
     private final MetricDataRepository metricDataRepository;
@@ -149,7 +163,7 @@ public class MetricsCalculationServiceImpl implements MetricsCalculationService 
         try {
             LocalDate today = calculationTime.toLocalDate();
             String sql = "SELECT COUNT(*) FROM erp_sale_order " +
-                    "WHERE create_time::date = ? AND deleted = 0 AND tenant_id = " + DEFAULT_TENANT_ID;
+                    "WHERE create_time::date = ? AND deleted = 0 AND tenant_id = " + currentTenantId();
             Long count = jdbcTemplate.queryForObject(sql, Long.class, today);
             return count != null ? BigDecimal.valueOf(count) : BigDecimal.ZERO;
         } catch (Exception e) {
@@ -165,7 +179,7 @@ public class MetricsCalculationServiceImpl implements MetricsCalculationService 
         try {
             LocalDate today = calculationTime.toLocalDate();
             String sql = "SELECT COALESCE(SUM(total_amount), 0) FROM erp_sale_order " +
-                    "WHERE create_time::date = ? AND status <> 6 AND deleted = 0 AND tenant_id = " + DEFAULT_TENANT_ID;
+                    "WHERE create_time::date = ? AND status <> 6 AND deleted = 0 AND tenant_id = " + currentTenantId();
             BigDecimal amount = jdbcTemplate.queryForObject(sql, BigDecimal.class, today);
             return amount != null ? amount : BigDecimal.ZERO;
         } catch (Exception e) {
@@ -180,7 +194,7 @@ public class MetricsCalculationServiceImpl implements MetricsCalculationService 
     private BigDecimal calculateOrderPendingCount(LocalDateTime calculationTime) {
         try {
             String sql = "SELECT COUNT(*) FROM erp_sale_order " +
-                    "WHERE status IN (1, 2, 3) AND deleted = 0 AND tenant_id = " + DEFAULT_TENANT_ID;
+                    "WHERE status IN (1, 2, 3) AND deleted = 0 AND tenant_id = " + currentTenantId();
             Long count = jdbcTemplate.queryForObject(sql, Long.class);
             return count != null ? BigDecimal.valueOf(count) : BigDecimal.ZERO;
         } catch (Exception e) {
@@ -196,7 +210,7 @@ public class MetricsCalculationServiceImpl implements MetricsCalculationService 
         try {
             LocalDate today = calculationTime.toLocalDate();
             String sql = "SELECT COUNT(*) FROM erp_sale_order " +
-                    "WHERE update_time::date = ? AND status = 5 AND deleted = 0 AND tenant_id = " + DEFAULT_TENANT_ID;
+                    "WHERE update_time::date = ? AND status = 5 AND deleted = 0 AND tenant_id = " + currentTenantId();
             Long count = jdbcTemplate.queryForObject(sql, Long.class, today);
             return count != null ? BigDecimal.valueOf(count) : BigDecimal.ZERO;
         } catch (Exception e) {
@@ -212,7 +226,7 @@ public class MetricsCalculationServiceImpl implements MetricsCalculationService 
         try {
             LocalDate today = calculationTime.toLocalDate();
             String sql = "SELECT COUNT(*) FROM erp_sale_order " +
-                    "WHERE update_time::date = ? AND status = 6 AND deleted = 0 AND tenant_id = " + DEFAULT_TENANT_ID;
+                    "WHERE update_time::date = ? AND status = 6 AND deleted = 0 AND tenant_id = " + currentTenantId();
             Long count = jdbcTemplate.queryForObject(sql, Long.class, today);
             return count != null ? BigDecimal.valueOf(count) : BigDecimal.ZERO;
         } catch (Exception e) {
@@ -245,7 +259,7 @@ public class MetricsCalculationServiceImpl implements MetricsCalculationService 
         try {
             String sql = "SELECT COALESCE(SUM(s.quantity * COALESCE(p.cost_price, 0)), 0) " +
                     "FROM erp_stock s JOIN erp_product p ON p.id = s.product_id AND p.deleted = 0 " +
-                    "WHERE s.deleted = 0 AND s.tenant_id = " + DEFAULT_TENANT_ID;
+                    "WHERE s.deleted = 0 AND s.tenant_id = " + currentTenantId();
             BigDecimal value = jdbcTemplate.queryForObject(sql, BigDecimal.class);
             return value != null ? value : BigDecimal.ZERO;
         } catch (Exception e) {
@@ -260,7 +274,7 @@ public class MetricsCalculationServiceImpl implements MetricsCalculationService 
     private BigDecimal calculateInventoryLowStockCount(LocalDateTime calculationTime) {
         try {
             String sql = "SELECT COUNT(*) FROM erp_stock " +
-                    "WHERE deleted = 0 AND tenant_id = " + DEFAULT_TENANT_ID +
+                    "WHERE deleted = 0 AND tenant_id = " + currentTenantId() +
                     " AND safety_stock IS NOT NULL AND quantity <= safety_stock";
             Long count = jdbcTemplate.queryForObject(sql, Long.class);
             return count != null ? BigDecimal.valueOf(count) : BigDecimal.ZERO;
@@ -276,7 +290,7 @@ public class MetricsCalculationServiceImpl implements MetricsCalculationService 
     private BigDecimal calculateInventoryOutOfStockCount(LocalDateTime calculationTime) {
         try {
             String sql = "SELECT COUNT(*) FROM erp_stock " +
-                    "WHERE deleted = 0 AND tenant_id = " + DEFAULT_TENANT_ID + " AND quantity <= 0";
+                    "WHERE deleted = 0 AND tenant_id = " + currentTenantId() + " AND quantity <= 0";
             Long count = jdbcTemplate.queryForObject(sql, Long.class);
             return count != null ? BigDecimal.valueOf(count) : BigDecimal.ZERO;
         } catch (Exception e) {
@@ -291,7 +305,7 @@ public class MetricsCalculationServiceImpl implements MetricsCalculationService 
     private BigDecimal calculateInventoryTotalSku(LocalDateTime calculationTime) {
         try {
             String sql = "SELECT COUNT(*) FROM erp_product " +
-                    "WHERE deleted = 0 AND tenant_id = " + DEFAULT_TENANT_ID + " AND status = 'ENABLED'";
+                    "WHERE deleted = 0 AND tenant_id = " + currentTenantId() + " AND status = 'ENABLED'";
             Long count = jdbcTemplate.queryForObject(sql, Long.class);
             return count != null ? BigDecimal.valueOf(count) : BigDecimal.ZERO;
         } catch (Exception e) {
@@ -340,7 +354,7 @@ public class MetricsCalculationServiceImpl implements MetricsCalculationService 
         try {
             LocalDate today = calculationTime.toLocalDate();
             String sql = "SELECT COUNT(*) FROM sys_user " +
-                    "WHERE create_time::date = ? AND deleted = 0 AND tenant_id = " + DEFAULT_TENANT_ID;
+                    "WHERE create_time::date = ? AND deleted = 0 AND tenant_id = " + currentTenantId();
             Long count = jdbcTemplate.queryForObject(sql, Long.class, today);
             return count != null ? BigDecimal.valueOf(count) : BigDecimal.ZERO;
         } catch (Exception e) {
@@ -355,7 +369,7 @@ public class MetricsCalculationServiceImpl implements MetricsCalculationService 
     private BigDecimal calculateUserTotalCount(LocalDateTime calculationTime) {
         try {
             String sql = "SELECT COUNT(*) FROM sys_user " +
-                    "WHERE deleted = 0 AND status = 1 AND tenant_id = " + DEFAULT_TENANT_ID;
+                    "WHERE deleted = 0 AND status = 1 AND tenant_id = " + currentTenantId();
             Long count = jdbcTemplate.queryForObject(sql, Long.class);
             return count != null ? BigDecimal.valueOf(count) : BigDecimal.ZERO;
         } catch (Exception e) {
@@ -405,7 +419,7 @@ public class MetricsCalculationServiceImpl implements MetricsCalculationService 
         try {
             LocalDate today = calculationTime.toLocalDate();
             String sql = "SELECT COALESCE(SUM(total_amount), 0) FROM erp_sale_order " +
-                    "WHERE create_time::date = ? AND status = 5 AND deleted = 0 AND tenant_id = " + DEFAULT_TENANT_ID;
+                    "WHERE create_time::date = ? AND status = 5 AND deleted = 0 AND tenant_id = " + currentTenantId();
             BigDecimal amount = jdbcTemplate.queryForObject(sql, BigDecimal.class, today);
             return amount != null ? amount : BigDecimal.ZERO;
         } catch (Exception e) {
@@ -421,7 +435,7 @@ public class MetricsCalculationServiceImpl implements MetricsCalculationService 
         try {
             LocalDate today = calculationTime.toLocalDate();
             String sql = "SELECT COUNT(*) FROM erp_sale_order " +
-                    "WHERE create_time::date = ? AND status = 5 AND deleted = 0 AND tenant_id = " + DEFAULT_TENANT_ID;
+                    "WHERE create_time::date = ? AND status = 5 AND deleted = 0 AND tenant_id = " + currentTenantId();
             Long count = jdbcTemplate.queryForObject(sql, Long.class, today);
             return count != null ? BigDecimal.valueOf(count) : BigDecimal.ZERO;
         } catch (Exception e) {
@@ -437,7 +451,7 @@ public class MetricsCalculationServiceImpl implements MetricsCalculationService 
         try {
             LocalDate today = calculationTime.toLocalDate();
             String sql = "SELECT COALESCE(AVG(total_amount), 0) FROM erp_sale_order " +
-                    "WHERE create_time::date = ? AND status = 5 AND deleted = 0 AND tenant_id = " + DEFAULT_TENANT_ID;
+                    "WHERE create_time::date = ? AND status = 5 AND deleted = 0 AND tenant_id = " + currentTenantId();
             BigDecimal avg = jdbcTemplate.queryForObject(sql, BigDecimal.class, today);
             return avg != null ? avg : BigDecimal.ZERO;
         } catch (Exception e) {
@@ -453,7 +467,7 @@ public class MetricsCalculationServiceImpl implements MetricsCalculationService 
         try {
             LocalDate today = calculationTime.toLocalDate();
             String sql = "SELECT COALESCE(COUNT(*) FILTER (WHERE status = 5) * 100.0 / NULLIF(COUNT(*), 0), 0) " +
-                    "FROM erp_sale_order WHERE create_time::date = ? AND deleted = 0 AND tenant_id = " + DEFAULT_TENANT_ID;
+                    "FROM erp_sale_order WHERE create_time::date = ? AND deleted = 0 AND tenant_id = " + currentTenantId();
             BigDecimal rate = jdbcTemplate.queryForObject(sql, BigDecimal.class, today);
             return rate != null ? rate : BigDecimal.ZERO;
         } catch (Exception e) {
@@ -479,7 +493,7 @@ public class MetricsCalculationServiceImpl implements MetricsCalculationService 
     private BigDecimal calculateFinanceRevenueMonth(LocalDateTime calculationTime) {
         try {
             String sql = "SELECT COALESCE(SUM(total_amount), 0) FROM erp_sale_order " +
-                    "WHERE status = 5 AND deleted = 0 AND tenant_id = " + DEFAULT_TENANT_ID +
+                    "WHERE status = 5 AND deleted = 0 AND tenant_id = " + currentTenantId() +
                     " AND create_time >= date_trunc('month', CURRENT_DATE)";
             BigDecimal amount = jdbcTemplate.queryForObject(sql, BigDecimal.class);
             return amount != null ? amount : BigDecimal.ZERO;

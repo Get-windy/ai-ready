@@ -3,6 +3,7 @@ package cn.aiedge.erp.purchase.controller;
 import cn.aiedge.erp.purchase.entity.PurchaseContract;
 import cn.aiedge.erp.purchase.enums.ContractStatus;
 import cn.aiedge.erp.purchase.service.PurchaseContractService;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -16,6 +17,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -61,11 +63,13 @@ class PurchaseContractControllerTest {
     void testGetPurchaseContractById() throws Exception {
         when(purchaseContractService.getContractById(1L)).thenReturn(testContract);
 
+        // 2026-09-21：控制器返回类型由裸实体改为 ApiResponse<T>（前端类型即 ApiResponse），
+        // 断言路径相应下沉到 $.data.*
         mockMvc.perform(get("/api/erp/purchase/contract/{id}", 1L))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.contractNo").value("PC-20260505-001"))
-                .andExpect(jsonPath("$.supplierName").value("测试供应商有限公司"));
+                .andExpect(jsonPath("$.data.id").value(1))
+                .andExpect(jsonPath("$.data.contractNo").value("PC-20260505-001"))
+                .andExpect(jsonPath("$.data.supplierName").value("测试供应商有限公司"));
     }
 
     @Test
@@ -150,6 +154,22 @@ class PurchaseContractControllerTest {
 
         mockMvc.perform(get("/api/erp/purchase/contract/{id}", 3L))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.totalAmount").value(0));
+                .andExpect(jsonPath("$.data.totalAmount").value(0));
+    }
+
+    @Test
+    @DisplayName("分页查询采购合同测试（2026-09-21 补齐 /page 端点）")
+    void testPageContracts() throws Exception {
+        Page<PurchaseContract> page = new Page<>(1, 10);
+        page.setRecords(List.of(testContract));
+        page.setTotal(1);
+        when(purchaseContractService.pageContracts(any())).thenReturn(page);
+
+        mockMvc.perform(get("/api/erp/purchase/contract/page")
+                .param("current", "1")
+                .param("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.total").value(1))
+                .andExpect(jsonPath("$.data.records[0].contractNo").value("PC-20260505-001"));
     }
 }

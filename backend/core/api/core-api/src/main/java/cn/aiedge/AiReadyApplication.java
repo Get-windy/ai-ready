@@ -36,7 +36,6 @@ import io.swagger.v3.oas.annotations.info.License;
     "cn.aiedge.erp.purchase",
     "cn.aiedge.erp.finance",
     "cn.aiedge.erp.sale",
-    "cn.aiedge.erp.order",
     "cn.aiedge.erp.stock",
     "cn.aiedge.erp.monitor",
     "cn.aiedge.erp.controller",

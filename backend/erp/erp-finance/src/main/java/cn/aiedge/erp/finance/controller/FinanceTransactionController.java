@@ -1,5 +1,6 @@
 package cn.aiedge.erp.finance.controller;
 
+import cn.dev33.satoken.annotation.SaCheckPermission;
 import cn.aiedge.erp.finance.model.entity.FinanceTransaction;
 import cn.aiedge.erp.finance.service.FinanceTransactionService;
 import cn.aiedge.base.log.annotation.OperationLog;
@@ -8,7 +9,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.access.prepost.PreAuthorize;
+
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -31,7 +32,7 @@ public class FinanceTransactionController {
      * 创建交易记录
      */
     @OperationLog(module = "财务交易管理", type = "CREATE", desc = "创建交易记录")
-    @PreAuthorize("hasPermission('/api/erp/finance/transaction', 'finance:transaction:create')")
+    @SaCheckPermission("finance:transaction:create")
     @PostMapping("/")
     public Result<FinanceTransaction> createTransaction(@RequestBody FinanceTransaction transaction) {
         boolean success = financeTransactionService.createTransaction(transaction);
@@ -42,7 +43,7 @@ public class FinanceTransactionController {
      * 查询交易列表
      */
     @OperationLog(module = "财务交易管理", type = "QUERY", desc = "查询交易列表")
-    @PreAuthorize("hasPermission('/api/erp/finance/transaction/list', 'finance:transaction:view')")
+    @SaCheckPermission("finance:transaction:view")
     @GetMapping("/list")
     public Result<List<FinanceTransaction>> listTransactions(
             @Parameter(description = "交易类型") @RequestParam(required = false) Integer transactionType,
@@ -57,7 +58,7 @@ public class FinanceTransactionController {
      * 查询交易统计
      */
     @OperationLog(module = "财务交易管理", type = "QUERY", desc = "查询交易统计")
-    @PreAuthorize("hasPermission('/api/erp/finance/transaction/statistics', 'finance:transaction:view')")
+    @SaCheckPermission("finance:transaction:view")
     @GetMapping("/statistics")
     public Result<Object> getTransactionStatistics(
             @Parameter(description = "业务类型") @RequestParam(required = false) Integer bizType,
@@ -70,7 +71,7 @@ public class FinanceTransactionController {
      * 审核交易
      */
     @OperationLog(module = "财务交易管理", type = "UPDATE", desc = "审核交易")
-    @PreAuthorize("hasPermission('/api/erp/finance/transaction/approve', 'finance:transaction:approve')")
+    @SaCheckPermission("finance:transaction:approve")
     @PutMapping("/approve/{id}")
     public Result<Void> approveTransaction(
             @Parameter(description = "交易ID") @PathVariable Long id,
@@ -83,7 +84,7 @@ public class FinanceTransactionController {
      * 撤销交易
      */
     @OperationLog(module = "财务交易管理", type = "DELETE", desc = "撤销交易")
-    @PreAuthorize("hasPermission('/api/erp/finance/transaction/revoke', 'finance:transaction:revoke')")
+    @SaCheckPermission("finance:transaction:revoke")
     @DeleteMapping("/revoke/{id}")
     public Result<Void> revokeTransaction(@PathVariable Long id) {
         boolean success = financeTransactionService.revokeTransaction(id);

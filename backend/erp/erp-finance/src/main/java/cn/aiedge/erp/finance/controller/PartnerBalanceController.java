@@ -1,5 +1,6 @@
 package cn.aiedge.erp.finance.controller;
 
+import cn.dev33.satoken.annotation.SaCheckPermission;
 import cn.aiedge.base.log.annotation.OperationLog;
 import cn.aiedge.base.vo.Result;
 import cn.aiedge.erp.finance.dto.PartnerBalanceDTO;
@@ -11,7 +12,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.access.prepost.PreAuthorize;
+
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -31,7 +32,7 @@ public class PartnerBalanceController {
 
     @Operation(summary = "分页查询往来余额表")
     @GetMapping("/page")
-    @PreAuthorize("hasPermission('/api/erp/finance/partner-balance/page', 'finance:partner-balance:view')")
+    @SaCheckPermission("finance:partner-balance:view")
     @OperationLog(module = "往来余额表", type = "QUERY", desc = "分页查询往来余额表")
     public Result<IPage<PartnerBalanceDTO>> page(
             @Parameter(description = "往来单位类型(customer/supplier/空=全部)") @RequestParam(required = false) String partnerType,

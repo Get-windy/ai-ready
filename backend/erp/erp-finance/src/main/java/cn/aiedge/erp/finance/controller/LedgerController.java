@@ -1,5 +1,6 @@
 package cn.aiedge.erp.finance.controller;
 
+import cn.dev33.satoken.annotation.SaCheckPermission;
 import cn.aiedge.base.log.annotation.OperationLog;
 import cn.aiedge.base.vo.Result;
 import cn.aiedge.erp.finance.dto.GeneralLedgerQueryDTO;
@@ -21,7 +22,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.access.prepost.PreAuthorize;
+
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
@@ -55,7 +56,7 @@ public class LedgerController {
 
     @Operation(summary = "总账（按科目层级汇总：期初余额 + 本期发生 = 期末余额）")
     @GetMapping("/general")
-    @PreAuthorize("hasPermission('/api/erp/finance/ledger/general', 'finance:report:view')")
+    @SaCheckPermission("finance:report:view")
     @OperationLog(module = "分类账", type = "QUERY", desc = "查询总账")
     public Result<List<GeneralLedgerRowDTO>> general(GeneralLedgerQueryDTO query) {
         return Result.success(ledgerService.queryGeneralReport(query));
@@ -63,14 +64,14 @@ public class LedgerController {
 
     @Operation(summary = "总账科目层级选项")
     @GetMapping("/levels")
-    @PreAuthorize("hasPermission('/api/erp/finance/ledger/levels', 'finance:report:view')")
+    @SaCheckPermission("finance:report:view")
     public Result<List<Integer>> levels() {
         return Result.success(ledgerService.listSubjectLevels());
     }
 
     @Operation(summary = "明细账（按科目逐笔凭证分录）")
     @GetMapping("/detail")
-    @PreAuthorize("hasPermission('/api/erp/finance/ledger/detail', 'finance:report:view')")
+    @SaCheckPermission("finance:report:view")
     @OperationLog(module = "分类账", type = "QUERY", desc = "查询明细账")
     public Result<List<LedgerDetailDTO>> detail(
             @Parameter(description = "会计年度") @RequestParam(required = false) Integer fiscalYear,
@@ -81,7 +82,7 @@ public class LedgerController {
 
     @Operation(summary = "明细账分页查询（期初余额 + 逐笔发生额与期末余额 + 合计）")
     @GetMapping("/detail-page")
-    @PreAuthorize("hasPermission('/api/erp/finance/ledger/detail-page', 'finance:report:view')")
+    @SaCheckPermission("finance:report:view")
     @OperationLog(module = "分类账", type = "QUERY", desc = "查询明细账")
     public Result<LedgerDetailPageDTO> detailPage(LedgerDetailQuery query) {
         return Result.success(queryDetailPage(query != null ? query : new LedgerDetailQuery()));
@@ -89,7 +90,7 @@ public class LedgerController {
 
     @Operation(summary = "明细账科目分类树（全部 / 资产类 / 负债类 / 权益类 / 成本类 / 损益类）")
     @GetMapping("/subject-tree")
-    @PreAuthorize("hasPermission('/api/erp/finance/ledger/subject-tree', 'finance:report:view')")
+    @SaCheckPermission("finance:report:view")
     @OperationLog(module = "分类账", type = "QUERY", desc = "查询明细账科目分类树")
     public Result<List<LedgerSubjectTreeNodeDTO>> subjectTree() {
         return Result.success(buildSubjectTree());

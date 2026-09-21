@@ -66,15 +66,20 @@
         </div>
       </template>
 
-      <!-- 权限配置面板（通用组件） -->
-      <PermissionConfigPanel
-        :fetch-roles="fetchRoles"
-        :fetch-permission-tree="fetchPermissionTree"
-        :fetch-role-permissions="fetchRolePermissions"
-        :save-role-permissions="saveRolePermissions"
-        @save-success="onSaveSuccess"
-        @loaded="onPanelLoaded"
-      />
+      <!-- ⚠️ 原「角色 × 权限」勾选面板已下线（2026-09-20 收敛裁定）：
+           角色授权统一到「岗位权限」（view: views/system/role/index.vue）——那里有与 ql361 同构的
+           域树 + 权限矩阵，并且是本系统唯一带「变更明细确认」的授权入口。
+           本页保留两件只有这里才有的事：① 权限码定义与生效状态 ② 全局的职责分离（SoD）规则。 -->
+      <a-alert
+        type="info"
+        show-icon
+        class="role-auth-redirect"
+      >
+        <template #message>
+          给岗位分配权限请到<b>「岗位权限」</b>；本页负责<b>权限码定义与生效状态</b>，
+          以及<b>职责分离规则</b>（防止同一人身兼互相冲突的岗位，如既管采购又管付款）。
+        </template>
+      </a-alert>
 
       <!-- 权限列表表格 -->
       <a-card
@@ -95,6 +100,14 @@
                 {{ ['目录','菜单','按钮','API'][record.permissionType] || '未知' }}
               </a-tag>
             </template>
+            <!-- 生效状态：这条权限码是否真的被接口注解或前端按钮使用（映射视图） -->
+            <template v-if="column.dataIndex === 'effectivity'">
+              <a-tooltip :title="effectivityOf(record).tip">
+                <a-tag :color="effectivityOf(record).color">
+                  {{ effectivityOf(record).text }}
+                </a-tag>
+              </a-tooltip>
+            </template>
             <template v-if="column.dataIndex === 'status'">
               <a-tag :color="record.status === 0 ? 'success' : 'error'">
                 {{ record.status === 0 ? '启用' : '停用' }}
@@ -102,6 +115,11 @@
             </template>
           </template>
         </a-table>
+      </a-card>
+
+      <!-- 职责分离（SoD）规则：全局互斥角色约束，分配角色时由后端强制校验 -->
+      <a-card class="sod-card">
+        <SodRulePanel />
       </a-card>
 
       <!-- 权限定义管理抽屉（系统级功能，保留在原页面） -->
@@ -513,9 +531,9 @@ import {
   UserOutlined, DashboardOutlined, FileTextOutlined
 } from '@ant-design/icons-vue'
 import BillTableList, { type FilterField } from '@/components/BillTableList/BillTableList.vue'
-import PermissionConfigPanel from '@/components/PermissionConfigPanel/index.vue'
+// 职责分离（SoD）规则面板：全局互斥角色约束，此前表与接口齐全但零入口
+import SodRulePanel from './components/SodRulePanel.vue'
 import { permissionApi, type PermissionInfo } from '@/api/permission'
-import { roleApi, type RoleInfo } from '@/api/role'
 import { useUserStore } from '@/stores/user'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 
@@ -537,33 +555,7 @@ function debounceClick(key: string, fn: (...args: any[]) => any) {
   }
 }
 
-// ==================== PermissionConfigPanel Props ====================
-const fetchRoles = async () => {
-  const res = await roleApi.listAll()
-  return res
-}
-
-const fetchPermissionTree = async () => {
-  const res = await permissionApi.getTree(userStore.tenantId || 1)
-  return res
-}
-
-const fetchRolePermissions = async (roleId: number) => {
-  const res = await roleApi.getPermissions(roleId)
-  return res
-}
-
-const saveRolePermissions = async (roleId: number, permissionIds: number[]) => {
-  return await roleApi.assignPermissions(roleId, permissionIds)
-}
-
-const onSaveSuccess = () => {
-  lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
-}
-
-const onPanelLoaded = () => {
-  lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
-}
+// （原 PermissionConfigPanel 的 props 供给函数已随面板下线一并移除，见模板顶部说明）
 
 // ==================== 权限定义管理（抽屉内 CRUD） ====================
 const showPermissionDefDrawer = ref(false)
@@ -662,7 +654,13 @@ const defFormRules: any = {
 }
 
 const loadDefParentTree = async () => {
-  try { const res = await permissionApi.getTree(userStore.tenantId || 1); if (res.data) defParentTreeData.value = res.data } catch (_) {}
+  try {
+    const res = await permissionApi.getTree(userStore.tenantId || 1)
+    if (res.data) defParentTreeData.value = res.data
+  } catch (err) {
+    // 父级权限树只用于新增权限时选择上级，加载失败不阻断主流程
+    console.warn('[权限配置] 加载父级权限树失败', err)
+  }
 }
 
 const handleDefAdd = (record: PermissionInfo | null) => {
@@ -743,10 +741,57 @@ function flattenPermissions(nodes: PermissionInfo[], level = 0): any[] {
   return result
 }
 const flattenedPermissions = computed(() => flattenPermissions(permissionDefData.value))
+
+// ── 权限码生效性（「这条权限码到底有没有消费方」的映射视图） ────────────
+// 数据来自 GET /permission/effectivity（由 tools/gen-permission-effectivity.py 扫前后端源码生成）
+const ineffectiveCodes = ref<Set<string>>(new Set())
+const refCountMap = ref<Record<string, { backend: number; frontend: number }>>({})
+
+async function loadEffectivity() {
+  try {
+    const res = await permissionApi.getEffectivity()
+    type Shape = { available?: boolean; ineffective?: string[]; refCounts?: Record<string, { backend: number; frontend: number }> }
+    const raw = res as unknown as Shape & { data?: Shape }
+    const payload: Shape | undefined = Array.isArray(raw?.ineffective) ? raw : raw?.data
+    if (payload && payload.available !== false) {
+      ineffectiveCodes.value = new Set(payload.ineffective || [])
+      refCountMap.value = payload.refCounts || {}
+    }
+  } catch (err) {
+    console.warn('[权限配置] 加载权限生效性清单失败，本次不做生效标注', err)
+  }
+}
+
+/** 权限码使用情况：分组节点 / 未生效 / 生效（N 处） */
+function effectivityOf(record: any): { color: string; text: string; tip: string } {
+  const code = record?.permissionCode
+  if (!code) return { color: 'default', text: '-', tip: '' }
+  if (record.permissionType === 1) {
+    return { color: 'default', text: '分组节点', tip: '该类权限是功能分组，不是可独立授权的功能点' }
+  }
+  if (ineffectiveCodes.value.has(code)) {
+    return {
+      color: 'warning',
+      text: '未生效',
+      tip: '没有任何后端接口注解或前端按钮使用该权限码：勾进角色也不会控制任何功能',
+    }
+  }
+  const rc = refCountMap.value[code]
+  if (rc) {
+    return {
+      color: 'success',
+      text: `生效（${(rc.backend || 0) + (rc.frontend || 0)} 处）`,
+      tip: `后端接口 ${rc.backend || 0} 处、前端按钮 ${rc.frontend || 0} 处使用`,
+    }
+  }
+  return { color: 'success', text: '生效', tip: '' }
+}
+
 const permissionTableColumns = [
   { title: '权限名称', dataIndex: 'permissionName', width: 200 },
   { title: '权限编码', dataIndex: 'permissionCode', width: 180 },
   { title: '类型', dataIndex: 'permissionType', width: 80, slots: { customRender: 'typeCell' } },
+  { title: '生效状态', dataIndex: 'effectivity', width: 130 },
   { title: '路由/API路径', dataIndex: 'path', ellipsis: true },
   { title: '排序', dataIndex: 'sort', width: 60 },
   { title: '状态', dataIndex: 'status', width: 80, slots: { customRender: 'statusCell' } },
@@ -766,6 +811,8 @@ function handleKeydown(e: KeyboardEvent) {
 
 onMounted(() => {
   fetchDefData()
+  // 生效性清单只随构建变化，加载一次即可（失败静默降级，不标注）
+  void loadEffectivity()
   document.addEventListener('keydown', handleKeydown)
   autoRefreshCountdown.value = 30
   refreshTimer = setInterval(() => {

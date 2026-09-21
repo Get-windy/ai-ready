@@ -105,6 +105,60 @@ public class PermissionServiceImpl implements PermissionService {
         }
     }
 
+    // ==================== 行级数据权限：启用表清单 ====================
+
+    /** 「已启用数据权限控制」的表名（小写）缓存 */
+    private volatile Set<String> enabledDataScopeTablesCache = Set.of();
+    private volatile long enabledDataScopeTablesExpireAt = 0L;
+    /** 防重入标志：加载过程中本方法会经拦截器被再次调用（见方法内注释） */
+    private final java.util.concurrent.atomic.AtomicBoolean loadingDataScopeTables =
+            new java.util.concurrent.atomic.AtomicBoolean(false);
+    /** 缓存有效期：管理员在「数据范围」改配置后最多 1 分钟生效（避免每条 SQL 都查库） */
+    private static final long DATA_SCOPE_TABLE_CACHE_TTL_MS = 60_000L;
+
+    /**
+     * 已启用数据权限控制的表名集合（小写）。
+     *
+     * <p>对标用友「数据权限控制设置」：先在「数据范围」里为哪些业务对象配置规则，
+     * 这些表才进入本集合，行级拦截器据此决定要不要给该表的查询注入过滤条件。</p>
+     *
+     * <p><b>返回空集合时拦截器直接返回</b>（当前 sys_data_scope 为 0 行，即默认状态），
+     * 所以本机制「不配置就完全不影响现有查询」。</p>
+     */
+    @Override
+    public Set<String> getEnabledDataScopeTables() {
+        long now = System.currentTimeMillis();
+        if (now < enabledDataScopeTablesExpireAt) {
+            return enabledDataScopeTablesCache;
+        }
+        // 🔴 防重入（本轮实踩 StackOverflowError，栈深 242 层）：
+        //    本方法要查 sys_data_scope 表，而**这条查询自己也会经过数据权限拦截器**
+        //    → beforeQuery → resolveDataScopeTable → 又回到本方法 → 无限递归。
+        //    正在加载时直接返回上一次的快照（首次为不可变空集合），宁可这一轮不注入，
+        //    也不能让拦截器把应用打成栈溢出。
+        if (!loadingDataScopeTables.compareAndSet(false, true)) {
+            return enabledDataScopeTablesCache;
+        }
+        try {
+            List<SysDataScope> rows = sysDataScopeService.list(
+                    new LambdaQueryWrapper<SysDataScope>()
+                            .eq(SysDataScope::getStatus, 1)
+                            .select(SysDataScope::getTargetTable));
+            enabledDataScopeTablesCache = rows.stream()
+                    .map(SysDataScope::getTargetTable)
+                    .filter(StrUtil::isNotBlank)
+                    .map(t -> t.toLowerCase().trim())
+                    .collect(Collectors.toSet());
+        } catch (Exception e) {
+            log.debug("加载「已启用数据权限的表」失败: {}", e.getMessage());
+            enabledDataScopeTablesCache = Set.of();
+        } finally {
+            enabledDataScopeTablesExpireAt = now + DATA_SCOPE_TABLE_CACHE_TTL_MS;
+            loadingDataScopeTables.set(false);
+        }
+        return enabledDataScopeTablesCache;
+    }
+
     @Override
     public List<SysDataScope> getUserCustomDataScopes(String tableName) {
         try {

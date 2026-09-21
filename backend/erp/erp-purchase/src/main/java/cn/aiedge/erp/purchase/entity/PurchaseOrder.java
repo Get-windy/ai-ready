@@ -60,6 +60,15 @@ public class PurchaseOrder {
     /** 商品金额 */
     private BigDecimal productAmount;
 
+    /**
+     * 订单总额。
+     *
+     * <p>表 {@code erp_purchase_order} 上的既有列（{@code total_amount}），本模块的业务写入不设置它，
+     * 仅供采购统计沿用旧口径读取 —— 注意它与 {@link #billAmount}（本单金额 / {@code bill_amount}）
+     * 是**两个不同的列**，不可互相替代，否则首页「今日采购」KPI 的数值会变。</p>
+     */
+    private BigDecimal totalAmount;
+
     /** 直接优惠金额 */
     private BigDecimal discountAmount;
 

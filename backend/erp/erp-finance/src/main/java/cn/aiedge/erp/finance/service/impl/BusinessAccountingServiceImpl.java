@@ -79,6 +79,10 @@ public class BusinessAccountingServiceImpl implements BusinessAccountingService 
         voucherDTO.setVoucherDate(voucherDate);
         voucherDTO.setFiscalYear(fiscalYear);
         voucherDTO.setFiscalPeriod(fiscalPeriod);
+        // 摘要与来源单号必须在此显式传递：VoucherServiceImpl#create 读的是 dto.getSummary()/dto.getSourceNo()，
+        // 此前只 setRemark 导致 finance_voucher.summary/source_no 全空，凭证无法反查业务单据（2026-09-20 修复）
+        voucherDTO.setSummary(request.getSummary());
+        voucherDTO.setSourceNo(request.getSourceNo());
         voucherDTO.setRemark(request.getSummary());
         voucherDTO.setAttachments(0);
         voucherDTO.setItems(items);

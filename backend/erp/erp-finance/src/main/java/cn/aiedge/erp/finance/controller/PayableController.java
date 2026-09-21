@@ -1,5 +1,6 @@
 package cn.aiedge.erp.finance.controller;
 
+import cn.dev33.satoken.annotation.SaCheckPermission;
 import cn.aiedge.base.log.annotation.OperationLog;
 import cn.aiedge.base.vo.Result;
 import cn.aiedge.erp.finance.dto.PayableDTO;
@@ -14,7 +15,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import org.springframework.security.access.prepost.PreAuthorize;
+
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -35,7 +36,7 @@ public class PayableController {
 
     @Operation(summary = "创建应付款")
     @PostMapping("/")
-    @PreAuthorize("hasPermission('/api/erp/finance/payable/create', 'finance:payable:create')")
+    @SaCheckPermission("finance:payable:create")
     @OperationLog(module = "应付管理", type = "CREATE", desc = "创建应付款")
     public Result<PayableDTO> create(@Valid @RequestBody PayableDTO dto) {
         PayableDTO result = payableService.create(dto);
@@ -44,7 +45,7 @@ public class PayableController {
 
     @Operation(summary = "根据ID查询应付款")
     @GetMapping("/{id:\\d+}")
-    @PreAuthorize("hasPermission('/api/erp/finance/payable/view', 'finance:payable:view')")
+    @SaCheckPermission("finance:payable:view")
     @OperationLog(module = "应付管理", type = "QUERY", desc = "根据ID查询应付款")
     public Result<PayableDTO> getById(@Parameter(description = "应付款ID") @PathVariable Long id) {
         return Result.success(payableService.getById(id));
@@ -52,7 +53,7 @@ public class PayableController {
 
     @Operation(summary = "分页查询应付款列表")
     @GetMapping("/list")
-    @PreAuthorize("hasPermission('/api/erp/finance/payable/list', 'finance:payable:view')")
+    @SaCheckPermission("finance:payable:view")
     @OperationLog(module = "应付管理", type = "QUERY", desc = "分页查询应付款列表")
     public Result<IPage<PayableDTO>> list(
             @Parameter(description = "供应商ID") @RequestParam(required = false) String supplierId,
@@ -65,7 +66,7 @@ public class PayableController {
 
     @Operation(summary = "应付账龄分析")
     @GetMapping("/aging")
-    @PreAuthorize("hasPermission('/api/erp/finance/payable/aging', 'finance:payable:view')")
+    @SaCheckPermission("finance:payable:view")
     @OperationLog(module = "应付管理", type = "QUERY", desc = "应付账龄分析")
     public Result<List<Map<String, Object>>> aging() {
         return Result.success(payableService.getAgingAnalysis());
@@ -73,7 +74,7 @@ public class PayableController {
 
     @Operation(summary = "核销应付款")
     @PutMapping("/{id}/write-off")
-    @PreAuthorize("hasPermission('/api/erp/finance/payable/write-off', 'finance:payable:write-off')")
+    @SaCheckPermission("finance:payable:write-off")
     @OperationLog(module = "应付管理", type = "UPDATE", desc = "核销应付款")
     public Result<PayableDTO> writeOff(
             @Parameter(description = "应付款ID") @PathVariable Long id,
@@ -90,7 +91,7 @@ public class PayableController {
 
     @Operation(summary = "批量删除应付账款")
     @DeleteMapping("/batch")
-    @PreAuthorize("hasPermission('/api/erp/finance/payable/delete', 'finance:payable:delete')")
+    @SaCheckPermission("finance:payable:delete")
     @OperationLog(module = "应付管理", type = "DELETE", desc = "批量删除应付账款")
     public Result<Void> deleteBatch(@RequestBody List<Long> ids) {
         payableService.deleteBatch(ids);
@@ -99,7 +100,7 @@ public class PayableController {
 
     @Operation(summary = "导出应付账款列表")
     @GetMapping("/export")
-    @PreAuthorize("hasPermission('/api/erp/finance/payable/list', 'finance:payable:view')")
+    @SaCheckPermission("finance:payable:view")
     @OperationLog(module = "应付管理", type = "QUERY", desc = "导出应付账款列表")
     public Result<List<PayableDTO>> export(
             @Parameter(description = "供应商ID") @RequestParam(required = false) String supplierId,

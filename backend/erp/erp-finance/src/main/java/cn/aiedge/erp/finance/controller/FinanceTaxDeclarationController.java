@@ -1,5 +1,6 @@
 package cn.aiedge.erp.finance.controller;
 
+import cn.dev33.satoken.annotation.SaCheckPermission;
 import cn.aiedge.erp.finance.model.entity.FinanceTaxDeclaration;
 import cn.aiedge.erp.finance.service.FinanceTaxDeclarationService;
 import cn.aiedge.base.log.annotation.OperationLog;
@@ -8,7 +9,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.access.prepost.PreAuthorize;
+
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -29,7 +30,7 @@ public class FinanceTaxDeclarationController {
      * 创建税务申报
      */
     @OperationLog(module = "税务申报管理", type = "CREATE", desc = "创建税务申报")
-    @PreAuthorize("hasPermission('/api/erp/finance/tax/declaration', 'finance:tax:create')")
+    @SaCheckPermission("finance:tax:create")
     @PostMapping("/declaration")
     public Result<FinanceTaxDeclaration> createDeclaration(@RequestBody FinanceTaxDeclaration declaration) {
         boolean success = financeTaxDeclarationService.createDeclaration(declaration);
@@ -40,7 +41,7 @@ public class FinanceTaxDeclarationController {
      * 查询申报列表
      */
     @OperationLog(module = "税务申报管理", type = "QUERY", desc = "查询申报列表")
-    @PreAuthorize("hasPermission('/api/erp/finance/tax/declaration/list', 'finance:tax:view')")
+    @SaCheckPermission("finance:tax:view")
     @GetMapping("/declaration/list")
     public Result<List<FinanceTaxDeclaration>> listDeclarations(
             @Parameter(description = "税种") @RequestParam(required = false) Integer taxType,
@@ -54,7 +55,7 @@ public class FinanceTaxDeclarationController {
      * 查询申报详情
      */
     @OperationLog(module = "税务申报管理", type = "QUERY", desc = "查询申报详情")
-    @PreAuthorize("hasPermission('/api/erp/finance/tax/declaration/detail', 'finance:tax:view')")
+    @SaCheckPermission("finance:tax:view")
     @GetMapping("/declaration/detail/{declarationNo}")
     public Result<FinanceTaxDeclaration> getDeclarationDetail(@PathVariable String declarationNo) {
         FinanceTaxDeclaration declaration = financeTaxDeclarationService.getDeclarationDetail(declarationNo);
@@ -65,7 +66,7 @@ public class FinanceTaxDeclarationController {
      * 更新申报状态
      */
     @OperationLog(module = "税务申报管理", type = "UPDATE", desc = "更新申报状态")
-    @PreAuthorize("hasPermission('/api/erp/finance/tax/declaration/status', 'finance:tax:edit')")
+    @SaCheckPermission("finance:tax:edit")
     @PutMapping("/declaration/status")
     public Result<Void> updateDeclarationStatus(
             @RequestBody FinanceTaxDeclaration declaration) {
@@ -78,7 +79,7 @@ public class FinanceTaxDeclarationController {
      * 查询应缴税款统计
      */
     @OperationLog(module = "税务申报管理", type = "QUERY", desc = "查询应缴税款统计")
-    @PreAuthorize("hasPermission('/api/erp/finance/tax/payable', 'finance:tax:view')")
+    @SaCheckPermission("finance:tax:view")
     @GetMapping("/tax/payable")
     public Result<Object> getTaxPayableStatistics(@RequestParam(required = false) String period) {
         Object statistics = financeTaxDeclarationService.getTaxPayableStatistics(period);

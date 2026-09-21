@@ -62,8 +62,9 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole>
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deleteRole(Long roleId) {
-        // 删除角色前先删除关联数据
-        rolePermissionMapper.deleteByRoleId(roleId);
+        // 删除角色前先删除关联数据（sys_role_permission 无 deleted 列 → 物理删除；租户条件由拦截器注入）
+        rolePermissionMapper.delete(new LambdaQueryWrapper<SysRolePermission>()
+                .eq(SysRolePermission::getRoleId, roleId));
         roleMenuMapper.deleteByRoleId(roleId);
         removeById(roleId);
         log.info("删除角色成功: roleId={}", roleId);
@@ -78,7 +79,8 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole>
         }
         if (permissionIds == null || permissionIds.isEmpty()) {
             // 清空角色权限
-            rolePermissionMapper.deleteByRoleId(roleId);
+            rolePermissionMapper.delete(new LambdaQueryWrapper<SysRolePermission>()
+                    .eq(SysRolePermission::getRoleId, roleId));
             // 清除所有拥有该角色的用户权限缓存
             List<Long> userIds = sysUserRoleMapper.selectUserIdsByRoleId(roleId);
             for (Long uid : userIds) {
@@ -94,8 +96,9 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole>
             throw new RuntimeException("角色不存在");
         }
 
-        // 删除原有权限关联
-        rolePermissionMapper.deleteByRoleId(roleId);
+        // 删除原有权限关联（覆盖式保存）
+        rolePermissionMapper.delete(new LambdaQueryWrapper<SysRolePermission>()
+                .eq(SysRolePermission::getRoleId, roleId));
 
         // 批量插入新的权限关联
         List<SysRolePermission> rolePermissions = permissionIds.stream()
@@ -110,7 +113,8 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole>
                 .toList();
 
         if (!rolePermissions.isEmpty()) {
-            rolePermissionMapper.batchInsert(rolePermissions);
+            // 逐条 insert：本 Mapper 原有的 batchInsert **从来没有 SQL 绑定**（调用即 Invalid bound statement）
+            rolePermissions.forEach(rolePermissionMapper::insert);
         }
 
         // 清除所有拥有该角色的用户权限缓存
@@ -201,7 +205,8 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole>
         List<Long> menuIds = baseMapper.selectMenuIdsByRoleId(sourceRoleId);
 
         // 4. 删除目标角色原有权限和菜单关联
-        rolePermissionMapper.deleteByRoleId(targetRoleId);
+        rolePermissionMapper.delete(new LambdaQueryWrapper<SysRolePermission>()
+                .eq(SysRolePermission::getRoleId, targetRoleId));
         roleMenuMapper.deleteByRoleId(targetRoleId);
 
         // 5. 复制权限
@@ -216,7 +221,8 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole>
                         return rp;
                     })
                     .toList();
-            rolePermissionMapper.batchInsert(rolePermissions);
+            // 逐条 insert：本 Mapper 原有的 batchInsert **从来没有 SQL 绑定**（调用即 Invalid bound statement）
+            rolePermissions.forEach(rolePermissionMapper::insert);
         }
 
         // 6. 复制菜单

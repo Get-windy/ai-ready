@@ -16,21 +16,21 @@ public interface PurchaseContractItemMapper {
     @Select("SELECT * FROM purchase_contract_item WHERE contract_id = #{contractId}")
     List<PurchaseContractItem> findByContractId(Long contractId);
 
-    @Insert("INSERT INTO purchase_contract_item (contract_id, material_name, specification, " +
+    @Insert("INSERT INTO purchase_contract_item (tenant_id, contract_id, material_name, specification, " +
             "unit, quantity, unit_price, amount, tax_rate, tax_amount, brand, model, " +
             "quality_level, origin_country, lead_time, delivery_location, item_note) " +
-            "VALUES (#{contractId}, #{materialName}, #{specification}, #{unit}, #{quantity}, " +
+            "VALUES (#{tenantId}, #{contractId}, #{materialName}, #{specification}, #{unit}, #{quantity}, " +
             "#{unitPrice}, #{amount}, #{taxRate}, #{taxAmount}, #{brand}, #{model}, " +
             "#{qualityLevel}, #{originCountry}, #{leadTime}, #{deliveryLocation}, #{itemNote})")
     @Options(useGeneratedKeys = true, keyProperty = "id")
     int insert(PurchaseContractItem item);
 
     @Insert("<script>" +
-            "INSERT INTO purchase_contract_item (contract_id, material_name, unit, " +
-            "quantity, unit_price, amount) VALUES " +
+            "INSERT INTO purchase_contract_item (tenant_id, contract_id, material_name, specification, " +
+            "unit, quantity, unit_price, amount, tax_rate) VALUES " +
             "<foreach collection='items' item='item' separator=','>" +
-            "(#{item.contractId}, #{item.materialName}, #{item.unit}, " +
-            "#{item.quantity}, #{item.unitPrice}, #{item.amount})" +
+            "(#{item.tenantId}, #{item.contractId}, #{item.materialName}, #{item.specification}, " +
+            "#{item.unit}, #{item.quantity}, #{item.unitPrice}, #{item.amount}, #{item.taxRate})" +
             "</foreach>" +
             "</script>")
     int batchInsert(@Param("items") List<PurchaseContractItem> items);
