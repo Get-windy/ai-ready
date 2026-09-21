@@ -17,12 +17,30 @@
 #   tools/build-backend.sh --with-tests     # 构建时跑测试（默认 -DskipTests）
 #   PORT=5656 tools/build-backend.sh        # 指定端口做就绪探测
 #
+# ⚠️ 版本号（`VERSION`）是**手写常量**，与 backend/pom.xml 的 `<revision>` 必须一致。
+#    bump 版本时两处一起改，否则（见下）停服会失效。
+#
+# ⚠️⚠️ **bump 版本前必须先停掉旧版本实例**：`stop_backend` 是按 jar 名匹配进程的，
+#    新版本号一改，**正在跑的旧版本实例就匹配不到了** ⇒ 不会被 kill ⇒ 端口仍被占 ⇒
+#    clean 删不掉旧 jar、新实例也起不来。顺序：先 `taskkill` 旧实例，再改版本号并构建。
+#    （2026-09-21 bump 0.3.22 时实测确认过这一串症状。）
+#
+# ⚠️⚠️⚠️ **bump 版本后必须做一次【全仓】构建，不能只跑本脚本**：
+#    所有模块的版本都来自 `${revision}`，版本号一变，本地 Maven 仓库里那批
+#    `xxx:0.3.21` 的 jar 就**全部对不上** ⇒ 只构建核心模块时，core-api 会因为
+#    「找不到 cn.aiedge:core-agent:jar:0.3.22 等 20 个依赖」直接失败。
+#    （2026-09-21 bump 0.3.22 实测：确实报了 20 个 absent。）
+#    正确顺序：
+#      cd backend && ./mvnw clean install -DskipTests -B     # 全仓（不写 -pl）
+#      bash tools/build-backend.sh                            # 之后本脚本即可正常工作
+#
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
 PORT="${PORT:-5655}"
-JAR="backend/core/api/core-api/target/core-api-0.3.21-exec.jar"
+VERSION="0.3.22"
+JAR="backend/core/api/core-api/target/core-api-${VERSION}-exec.jar"
 # 默认只构建「核心模块 + 聚合模块」，其余业务模块从本地仓库取，避免全仓重建。
 # ⚠️ 改了别的业务模块（如 erp/erp-finance）时必须显式带上它，否则 core-api 打包会从
 #    本地仓库取到**旧版**那个模块的 jar：
@@ -52,7 +70,7 @@ done
 #     "==> 没有正在运行的后端实例" 分支。
 find_backend_pids() {
   powershell -NoProfile -Command \
-    "(Get-CimInstance Win32_Process -Filter \"Name='java.exe'\" | Where-Object { \$_.CommandLine -like '*target/core-api-0.3.21-exec.jar*' }).ProcessId" \
+    "(Get-CimInstance Win32_Process -Filter \"Name='java.exe'\" | Where-Object { \$_.CommandLine -like '*target/core-api-${VERSION}-exec.jar*' }).ProcessId" \
     2>/dev/null | tr -d '\r' | grep -E '^[0-9]+$' || true
 }
 
@@ -72,7 +90,7 @@ stop_backend() {
       sleep 1
     done
     # ⚠️ Windows 上进程退出后**文件句柄不会立刻释放**，此处的等待必须有：
-    #    否则 clean 会直接失败 "Failed to delete ...core-api-0.3.21-exec.jar"。
+    #    否则 clean 会直接失败 "Failed to delete ...core-api-${VERSION}-exec.jar"。
     # ⚠️⚠️ 更隐蔽的是：这个循环**绝对不能**写成 `[ ! -f "$JAR" ] && break` ——
     #    条件为假时整条语句返回非零，在 `set -e` 下会让脚本**静默退出**（本脚本踩过两次，
     #    表现是"只打印了'停止后端实例'就没下文了"）。必须用 if 写法。
