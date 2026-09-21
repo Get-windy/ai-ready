@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @RestController
@@ -33,12 +34,14 @@ public class PrePaymentController {
 
     private final PrePaymentService prePaymentService;
 
+    @SaCheckPermission("finance:pre-payment:list")
     @GetMapping("/next-no")
     @Operation(summary = "生成下一预付款单号")
     public String nextNo(@Parameter(description = "编号前缀") @RequestParam(required = false) String prefix) {
         return prePaymentService.generatePrePaymentNo();
     }
 
+    @SaCheckPermission("finance:pre-payment:list")
     @GetMapping("/page")
     @Operation(summary = "分页查询预付款单")
     public Page<PrePaymentDTO> page(
@@ -51,18 +54,21 @@ public class PrePaymentController {
         return voPage;
     }
 
+    @SaCheckPermission("finance:pre-payment:view")
     @GetMapping("/advance-balance")
     @Operation(summary = "查询结算单位（供应商）预付余额")
     public BigDecimal advanceBalance(@Parameter(description = "供应商ID") @RequestParam Long supplierId) {
         return prePaymentService.getSupplierAdvanceBalance(supplierId);
     }
 
+    @SaCheckPermission("finance:pre-payment:detail")
     @GetMapping("/{id}")
     @Operation(summary = "获取预付款单详情（含付款账户明细）")
     public PrePaymentDTO getById(@PathVariable Long id) {
         return prePaymentService.getDetail(id);
     }
 
+    @SaCheckPermission("finance:pre-payment:create")
     @PostMapping("/save")
     @Operation(summary = "保存预付款单草稿（含付款账户明细）")
     public PrePaymentDTO save(@Valid @RequestBody PrePaymentSaveDTO dto) {
@@ -70,6 +76,7 @@ public class PrePaymentController {
         return convertToDTO(prePayment);
     }
 
+    @SaCheckPermission("finance:pre-payment:create")
     @PostMapping("/confirm")
     @Operation(summary = "预付款单记账（预付余额增加 + 生成凭证）")
     public PrePaymentDTO confirm(
@@ -81,6 +88,7 @@ public class PrePaymentController {
         return convertToDTO(prePayment);
     }
 
+    @SaCheckPermission("finance:pre-payment:create")
     @PostMapping
     @Operation(summary = "创建预付款单（旧版）")
     public PrePaymentDTO create(@Valid @RequestBody PrePaymentCreateDTO dto) {
@@ -92,6 +100,7 @@ public class PrePaymentController {
         return convertToDTO(created);
     }
 
+    @SaCheckPermission("finance:pre-payment:create")
     @PostMapping("/{id}/offset-to-payment")
     @Operation(summary = "冲抵到付款单")
     public void offsetToPayment(
@@ -101,6 +110,7 @@ public class PrePaymentController {
         prePaymentService.offsetToPayment(id, paymentId, amount);
     }
 
+    @SaCheckPermission("finance:pre-payment:create")
     @PostMapping("/{id}/recover")
     @Operation(summary = "收回预付款(供应商违约)")
     public PrePaymentDTO recover(
@@ -110,6 +120,7 @@ public class PrePaymentController {
         return convertToDTO(prePayment);
     }
 
+    @SaCheckPermission("finance:pre-payment:create")
     @PostMapping("/{id}/refund")
     @Operation(summary = "退还预付款(供应商退款)")
     public PrePaymentDTO refund(
@@ -119,6 +130,7 @@ public class PrePaymentController {
         return convertToDTO(prePayment);
     }
 
+    @SaCheckPermission("finance:pre-payment:view")
     @GetMapping("/statistics")
     @Operation(summary = "预付款统计")
     public Map<String, Object> statistics() {

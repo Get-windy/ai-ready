@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 产品等级Controller - 等级字典管理
@@ -24,12 +25,14 @@ public class ProductGradeController {
     private final ProductGradeService productGradeService;
 
     @Operation(summary = "获取全部等级列表")
+    @SaCheckPermission("product:grade:list")
     @GetMapping("/list")
     public Result<List<ProductGrade>> list() {
         return Result.ok(productGradeService.getActiveGrades());
     }
 
     @Operation(summary = "获取等级详情")
+    @SaCheckPermission("product:grade:detail")
     @GetMapping("/{id}")
     public Result<ProductGrade> getById(@PathVariable Long id) {
         return Result.ok(productGradeService.getAllGrades().stream()
@@ -38,6 +41,7 @@ public class ProductGradeController {
     }
 
     @Operation(summary = "新增等级")
+    @SaCheckPermission("product:grade:create")
     @PostMapping
     public Result<Boolean> create(@RequestBody ProductGrade grade) {
         // 价格等级是全局标准槽位字典（种子 tenant_id=0），新增同样落在全局
@@ -49,6 +53,7 @@ public class ProductGradeController {
     }
 
     @Operation(summary = "编辑等级")
+    @SaCheckPermission("product:grade:update")
     @PutMapping("/{id}")
     public Result<Boolean> update(@PathVariable Long id, @RequestBody ProductGrade grade) {
         grade.setId(id);
@@ -56,6 +61,7 @@ public class ProductGradeController {
     }
 
     @Operation(summary = "删除等级")
+    @SaCheckPermission("product:grade:delete")
     @DeleteMapping("/{id}")
     public Result<Boolean> delete(@PathVariable Long id) {
         return Result.ok(productGradeService.deleteGrade(id));

@@ -23,6 +23,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 仓库Controller（资料 → 仓库管理 → 仓库规划）
@@ -51,6 +52,7 @@ public class WarehouseController {
     private final WarehouseService warehouseService;
 
     @Operation(summary = "查询仓库列表")
+    @SaCheckPermission("wms:list")
     @GetMapping("/list")
     public Result<List<Warehouse>> list() {
         List<Warehouse> list = warehouseService.getWarehouseList();
@@ -58,18 +60,21 @@ public class WarehouseController {
     }
 
     @Operation(summary = "仓库规划分页查询")
+    @SaCheckPermission("wms:list")
     @GetMapping("/page")
     public Result<Page<Warehouse>> page(WarehouseQuery query) {
         return Result.ok(warehouseService.pageWarehouse(query));
     }
 
     @Operation(summary = "生成下一个仓库编号")
+    @SaCheckPermission("wms:view")
     @GetMapping("/next-code")
     public Result<String> nextCode() {
         return Result.ok(warehouseService.nextCode());
     }
 
     @Operation(summary = "仓库详情")
+    @SaCheckPermission("wms:detail")
     @GetMapping("/{id}")
     public Result<Warehouse> getById(@PathVariable Long id) {
         Warehouse warehouse = warehouseService.getWarehouseDetail(id);
@@ -77,18 +82,21 @@ public class WarehouseController {
     }
 
     @Operation(summary = "新增仓库")
+    @SaCheckPermission("wms:create")
     @PostMapping("/save")
     public Result<Warehouse> save(@RequestBody Warehouse warehouse) {
         return Result.ok(warehouseService.createWarehouse(warehouse));
     }
 
     @Operation(summary = "修改仓库")
+    @SaCheckPermission("wms:create")
     @PostMapping("/update")
     public Result<Boolean> update(@RequestBody Warehouse warehouse) {
         return Result.ok(warehouseService.updateWarehouse(warehouse));
     }
 
     @Operation(summary = "启用/停用仓库")
+    @SaCheckPermission("wms:create")
     @PostMapping("/{id}/status")
     public Result<Boolean> updateStatus(@PathVariable Long id,
                                         @RequestParam(required = false) Integer status) {
@@ -96,12 +104,14 @@ public class WarehouseController {
     }
 
     @Operation(summary = "删除仓库")
+    @SaCheckPermission("wms:delete")
     @DeleteMapping("/{id}")
     public Result<Boolean> delete(@PathVariable Long id) {
         return Result.ok(warehouseService.removeWarehouse(id));
     }
 
     @Operation(summary = "导出仓库列表（xlsx）")
+    @SaCheckPermission("wms:export")
     @GetMapping("/export")
     public void export(WarehouseQuery query, HttpServletResponse response) throws IOException {
         query.setPageSize(EXPORT_MAX_ROWS);

@@ -18,6 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @Tag(name = "团购管理")
@@ -31,6 +32,7 @@ public class GroupBuyController {
     private final GroupBuyQueryMapper groupBuyQueryMapper;
 
     @Operation(summary = "分页查询团购活动")
+    @SaCheckPermission("marketing:group-buy:list")
     @GetMapping("/page")
     public Result<IPage<GroupBuyActivity>> page(
             @RequestParam(defaultValue = "1") Integer pageNum,
@@ -40,6 +42,7 @@ public class GroupBuyController {
     }
 
     @Operation(summary = "商城拼团 →「拼团活动」Tab（9 列，含开团/成功团个数）")
+    @SaCheckPermission("marketing:group-buy:list")
     @GetMapping("/activity/page")
     public Result<IPage<GroupBuyActivityRowVO>> activityPage(
             @RequestParam(required = false) String name,
@@ -55,6 +58,7 @@ public class GroupBuyController {
     }
 
     @Operation(summary = "商城拼团 →「拼团订单」Tab（11 列）")
+    @SaCheckPermission("marketing:group-buy:list")
     @GetMapping("/order/page")
     public Result<IPage<GroupBuyOrderRowVO>> orderPage(
             @RequestParam(required = false) String groupId,
@@ -77,18 +81,21 @@ public class GroupBuyController {
     }
 
     @Operation(summary = "查询团购详情")
+    @SaCheckPermission("marketing:group-buy:detail")
     @GetMapping("/{id}")
     public Result<GroupBuyActivity> getById(@PathVariable Long id) {
         return Result.ok(activityService.getById(id));
     }
 
     @Operation(summary = "新建团购活动")
+    @SaCheckPermission("marketing:group-buy:create")
     @PostMapping
     public Result<Boolean> create(@RequestBody GroupBuyActivity activity) {
         return Result.ok(activityService.save(activity));
     }
 
     @Operation(summary = "更新团购活动")
+    @SaCheckPermission("marketing:group-buy:update")
     @PutMapping("/{id}")
     public Result<Boolean> update(@PathVariable Long id, @RequestBody GroupBuyActivity activity) {
         activity.setId(id);
@@ -96,6 +103,7 @@ public class GroupBuyController {
     }
 
     @Operation(summary = "变更活动状态")
+    @SaCheckPermission("marketing:group-buy:update")
     @PutMapping("/{id}/status")
     public Result<Boolean> updateStatus(@PathVariable Long id, @RequestParam String status) {
         GroupBuyActivity a = new GroupBuyActivity();
@@ -105,6 +113,7 @@ public class GroupBuyController {
     }
 
     @Operation(summary = "查询参与记录")
+    @SaCheckPermission("marketing:group-buy:view")
     @GetMapping("/{id}/participants")
     public Result<List<GroupBuyParticipant>> getParticipants(@PathVariable Long id) {
         return Result.ok(participantMapper.selectList(

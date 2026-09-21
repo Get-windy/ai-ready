@@ -20,6 +20,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 图片管理Controller（资料 → 商品管理 → 图片管理）
@@ -36,6 +37,7 @@ public class ProductImageController {
     private final ProductImageService productImageService;
 
     @Operation(summary = "商品图片列表分页（商品维度）")
+    @SaCheckPermission("md:image:list")
     @GetMapping("/page")
     public Result<IPage<ProductImageRowVO>> page(
             @RequestParam(required = false) Long categoryId,
@@ -55,6 +57,7 @@ public class ProductImageController {
     }
 
     @Operation(summary = "图片空间分页（素材库）")
+    @SaCheckPermission("md:image:view")
     @GetMapping("/space-page")
     public Result<IPage<ProductImage>> spacePage(
             @RequestParam(required = false) String keyword,
@@ -65,6 +68,7 @@ public class ProductImageController {
     }
 
     @Operation(summary = "上传图片")
+    @SaCheckPermission("md:image:create")
     @PostMapping("/upload")
     public Result<ProductImage> upload(
             @RequestParam("file") MultipartFile file,
@@ -79,6 +83,7 @@ public class ProductImageController {
     }
 
     @Operation(summary = "自动匹配（按名称/按商品货号）")
+    @SaCheckPermission("md:image:create")
     @PostMapping("/auto-match")
     public Result<ProductImageMatchResultVO> autoMatch(
             @RequestParam(required = false, defaultValue = "NAME") String matchType) {
@@ -86,6 +91,7 @@ public class ProductImageController {
     }
 
     @Operation(summary = "选择图片：绑定素材到商品")
+    @SaCheckPermission("md:image:create")
     @PostMapping("/bind")
     public Result<Boolean> bind(@RequestBody Map<String, Object> body) {
         Long imageId = toLong(body.get("imageId"));
@@ -95,6 +101,7 @@ public class ProductImageController {
     }
 
     @Operation(summary = "搬移素材到商品")
+    @SaCheckPermission("md:image:create")
     @PostMapping("/move")
     public Result<Integer> move(@RequestBody Map<String, Object> body) {
         @SuppressWarnings("unchecked")
@@ -105,6 +112,7 @@ public class ProductImageController {
     }
 
     @Operation(summary = "批量删除图片")
+    @SaCheckPermission("md:image:delete")
     @PostMapping("/batch-delete")
     public Result<Integer> batchDelete(@RequestBody Map<String, Object> body) {
         @SuppressWarnings("unchecked")
@@ -114,12 +122,14 @@ public class ProductImageController {
     }
 
     @Operation(summary = "设置主图")
+    @SaCheckPermission("md:image:create")
     @PostMapping("/{id}/main")
     public Result<Boolean> setMain(@PathVariable Long id) {
         return Result.ok(productImageService.setMain(id));
     }
 
     @Operation(summary = "商品图片列表（按商品ID）")
+    @SaCheckPermission("md:image:detail")
     @GetMapping("/product/{productId}")
     public Result<List<ProductImage>> listByProduct(@PathVariable Long productId) {
         return Result.ok(productImageService.listByProductId(productId));
@@ -129,6 +139,7 @@ public class ProductImageController {
      * 图片内容访问（供 img 标签直接引用；SaTokenConfig 已放行本路径）
      */
     @Operation(summary = "图片内容访问")
+    @SaCheckPermission("md:image:detail")
     @GetMapping("/view/{id}")
     public ResponseEntity<byte[]> view(@PathVariable Long id) {
         try {

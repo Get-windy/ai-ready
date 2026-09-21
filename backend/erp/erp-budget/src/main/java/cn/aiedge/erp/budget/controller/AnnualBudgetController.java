@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @RestController
 @RequestMapping("/api/erp/budget/annual")
@@ -24,6 +25,7 @@ public class AnnualBudgetController {
     private final AnnualBudgetService annualBudgetService;
 
     @Operation(summary = "创建年度预算")
+    @SaCheckPermission("budget:annual:create")
     @PostMapping
     public ApiResponse<AnnualBudgetDTO> create(@Valid @RequestBody AnnualBudgetDTO dto) {
         AnnualBudgetDTO result = annualBudgetService.create(dto);
@@ -31,6 +33,7 @@ public class AnnualBudgetController {
     }
 
     @Operation(summary = "更新年度预算")
+    @SaCheckPermission("budget:annual:update")
     @PutMapping("/{id}")
     public ApiResponse<AnnualBudgetDTO> update(
             @Parameter(description = "预算ID") @PathVariable Long id,
@@ -40,6 +43,7 @@ public class AnnualBudgetController {
     }
 
     @Operation(summary = "删除年度预算")
+    @SaCheckPermission("budget:annual:delete")
     @DeleteMapping("/{id}")
     public ApiResponse<Void> delete(@Parameter(description = "预算ID") @PathVariable Long id) {
         annualBudgetService.delete(id);
@@ -47,6 +51,7 @@ public class AnnualBudgetController {
     }
 
     @Operation(summary = "获取年度预算详情")
+    @SaCheckPermission("budget:annual:detail")
     @GetMapping("/{id}")
     public ApiResponse<AnnualBudgetDTO> getDetail(@Parameter(description = "预算ID") @PathVariable Long id) {
         AnnualBudgetDTO result = annualBudgetService.getById(id);
@@ -54,42 +59,49 @@ public class AnnualBudgetController {
     }
 
     @Operation(summary = "多条件分页查询预算编制单")
+    @SaCheckPermission("budget:annual:list")
     @GetMapping("/page")
     public ApiResponse<Map<String, Object>> page(AnnualBudgetQuery query) {
         return ApiResponse.success(annualBudgetService.pageQuery(query));
     }
 
     @Operation(summary = "多条件分页查询预算编制单（别名）")
+    @SaCheckPermission("budget:annual:list")
     @GetMapping("/doc-query")
     public ApiResponse<Map<String, Object>> docQuery(AnnualBudgetQuery query) {
         return ApiResponse.success(annualBudgetService.pageQuery(query));
     }
 
     @Operation(summary = "生成下一预算编制单号")
+    @SaCheckPermission("budget:annual:list")
     @GetMapping("/next-no")
     public ApiResponse<String> nextNo() {
         return ApiResponse.success(annualBudgetService.generateDocNo());
     }
 
     @Operation(summary = "保存预算编制单（含预算科目明细）")
+    @SaCheckPermission("budget:annual:create")
     @PostMapping("/save")
     public ApiResponse<AnnualBudgetDTO> save(@RequestBody AnnualBudgetDTO dto) {
         return ApiResponse.success("保存成功", annualBudgetService.save(dto));
     }
 
     @Operation(summary = "批量删除预算编制单（仅草稿/已驳回）")
+    @SaCheckPermission("budget:annual:delete")
     @PostMapping("/batch-delete")
     public ApiResponse<Integer> batchDelete(@RequestBody BudgetBatchOpRequest request) {
         return ApiResponse.success("批量删除完成", annualBudgetService.batchDelete(request.getIds()));
     }
 
     @Operation(summary = "批量提交审批")
+    @SaCheckPermission("budget:annual:submit")
     @PostMapping("/batch-submit")
     public ApiResponse<Integer> batchSubmit(@RequestBody BudgetBatchOpRequest request) {
         return ApiResponse.success("批量提交完成", annualBudgetService.batchSubmit(request.getIds()));
     }
 
     @Operation(summary = "批量审批通过")
+    @SaCheckPermission("budget:annual:approve")
     @PostMapping("/batch-approve")
     public ApiResponse<Integer> batchApprove(@RequestBody BudgetBatchOpRequest request) {
         return ApiResponse.success("批量审批完成", annualBudgetService.batchApprove(
@@ -97,6 +109,7 @@ public class AnnualBudgetController {
     }
 
     @Operation(summary = "批量驳回")
+    @SaCheckPermission("budget:annual:approve")
     @PostMapping("/batch-reject")
     public ApiResponse<Integer> batchReject(@RequestBody BudgetBatchOpRequest request) {
         return ApiResponse.success("批量驳回完成", annualBudgetService.batchReject(
@@ -104,6 +117,7 @@ public class AnnualBudgetController {
     }
 
     @Operation(summary = "打印次数 +1")
+    @SaCheckPermission("budget:annual:print")
     @PostMapping("/{id}/print")
     public ApiResponse<Void> print(@PathVariable Long id) {
         annualBudgetService.increasePrintCount(id);
@@ -111,6 +125,7 @@ public class AnnualBudgetController {
     }
 
     @Operation(summary = "提交审批")
+    @SaCheckPermission("budget:annual:submit")
     @PostMapping("/{id}/submit")
     public ApiResponse<AnnualBudgetDTO> submit(@Parameter(description = "预算ID") @PathVariable Long id) {
         AnnualBudgetDTO result = annualBudgetService.submit(id);
@@ -118,6 +133,7 @@ public class AnnualBudgetController {
     }
 
     @Operation(summary = "审批通过")
+    @SaCheckPermission("budget:annual:approve")
     @PostMapping("/{id}/approve")
     public ApiResponse<AnnualBudgetDTO> approve(@Parameter(description = "预算ID") @PathVariable Long id) {
         AnnualBudgetDTO result = annualBudgetService.approve(id);
@@ -125,6 +141,7 @@ public class AnnualBudgetController {
     }
 
     @Operation(summary = "审批拒绝")
+    @SaCheckPermission("budget:annual:approve")
     @PostMapping("/{id}/reject")
     public ApiResponse<AnnualBudgetDTO> reject(@Parameter(description = "预算ID") @PathVariable Long id) {
         AnnualBudgetDTO result = annualBudgetService.reject(id);
@@ -132,6 +149,7 @@ public class AnnualBudgetController {
     }
 
     @Operation(summary = "开始执行")
+    @SaCheckPermission("budget:annual:execute")
     @PostMapping("/{id}/start-exec")
     public ApiResponse<AnnualBudgetDTO> startExec(@Parameter(description = "预算ID") @PathVariable Long id) {
         AnnualBudgetDTO result = annualBudgetService.startExec(id);
@@ -139,6 +157,7 @@ public class AnnualBudgetController {
     }
 
     @Operation(summary = "关闭预算")
+    @SaCheckPermission("budget:annual:close")
     @PostMapping("/{id}/close")
     public ApiResponse<AnnualBudgetDTO> close(@Parameter(description = "预算ID") @PathVariable Long id) {
         AnnualBudgetDTO result = annualBudgetService.close(id);
@@ -146,6 +165,7 @@ public class AnnualBudgetController {
     }
 
     @Operation(summary = "导出年度预算列表")
+    @SaCheckPermission("budget:annual:export")
     @GetMapping("/export")
     public ApiResponse<List<AnnualBudgetDTO>> export(
             @Parameter(description = "关键词") @RequestParam(required = false) String keyword,

@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Tag(name = "客户等级管理", description = "客户等级CRUD接口")
 @RestController
@@ -20,6 +21,7 @@ public class CustomerGradeController {
     private final CustomerGradeService customerGradeService;
 
     @Operation(summary = "获取客户等级列表")
+    @SaCheckPermission("party:grades:view")
     @GetMapping
     public ResponseEntity<ApiResponse<List<CustomerGrade>>> getGrades(@RequestParam(required = false) String gradeType) {
         List<CustomerGrade> grades = customerGradeService.list();
@@ -27,6 +29,7 @@ public class CustomerGradeController {
     }
 
     @Operation(summary = "根据ID获取客户等级")
+    @SaCheckPermission("party:grades:detail")
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<CustomerGrade>> getById(@PathVariable Long id) {
         CustomerGrade grade = customerGradeService.getById(id);
@@ -34,6 +37,7 @@ public class CustomerGradeController {
     }
 
     @Operation(summary = "创建客户等级")
+    @SaCheckPermission("party:grades:create")
     @PostMapping
     public ResponseEntity<ApiResponse<Boolean>> create(@RequestBody CustomerGrade grade) {
         boolean success = customerGradeService.save(grade);
@@ -41,6 +45,7 @@ public class CustomerGradeController {
     }
 
     @Operation(summary = "更新客户等级")
+    @SaCheckPermission("party:grades:update")
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<Boolean>> update(@PathVariable Long id, @RequestBody CustomerGrade grade) {
         grade.setId(id);
@@ -49,6 +54,7 @@ public class CustomerGradeController {
     }
 
     @Operation(summary = "删除客户等级")
+    @SaCheckPermission("party:grades:delete")
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Boolean>> delete(@PathVariable Long id) {
         boolean success = customerGradeService.removeById(id);

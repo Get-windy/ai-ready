@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @RestController
@@ -25,6 +26,7 @@ public class CapitalFlowController {
 
     private final CapitalFlowService capitalFlowService;
 
+    @SaCheckPermission("finance:capital-flow:list")
     @GetMapping("/page")
     @Operation(summary = "分页查询资金流水")
     public Page<CapitalFlowDTO> page(
@@ -43,6 +45,7 @@ public class CapitalFlowController {
         return voPage;
     }
 
+    @SaCheckPermission("finance:capital-flow:export")
     @GetMapping("/export")
     @Operation(summary = "导出资金流水")
     public List<CapitalFlowDTO> export(
@@ -56,6 +59,7 @@ public class CapitalFlowController {
                 .stream().map(this::convertToDTO).collect(Collectors.toList());
     }
 
+    @SaCheckPermission("finance:capital-flow:view")
     @GetMapping("/statistics")
     @Operation(summary = "资金流水统计")
     public java.util.Map<String, Object> statistics(
@@ -80,6 +84,7 @@ public class CapitalFlowController {
         return stats;
     }
 
+    @SaCheckPermission("finance:capital-flow:list")
     @GetMapping("/reconcile/page")
     @Operation(summary = "在线支付对账单分页查询（支付类型/状态/方式/对账标记）")
     public Page<CapitalFlowDTO> reconcilePage(
@@ -101,6 +106,7 @@ public class CapitalFlowController {
         return voPage;
     }
 
+    @SaCheckPermission("finance:capital-flow:update")
     @PutMapping("/reconcile/{id}")
     @Operation(summary = "切换对账标记")
     public void toggleReconcile(

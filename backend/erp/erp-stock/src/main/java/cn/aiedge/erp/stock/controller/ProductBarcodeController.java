@@ -58,6 +58,7 @@ public class ProductBarcodeController {
     private final ProductBarcodeService productBarcodeService;
 
     @Operation(summary = "查询产品条形码列表")
+    @SaCheckPermission("product:barcodes:detail")
     @GetMapping("/{productId}")
     public Result<List<ProductBarcode>> getByProduct(@PathVariable Long productId) {
         return Result.ok(productBarcodeService.getByProductId(productId));
@@ -154,12 +155,14 @@ public class ProductBarcodeController {
     }
 
     @Operation(summary = "新增条形码")
+    @SaCheckPermission("product:barcodes:create")
     @PostMapping
     public Result<Boolean> create(@RequestBody ProductBarcode barcode) {
         return Result.ok(productBarcodeService.save(barcode));
     }
 
     @Operation(summary = "更新条形码")
+    @SaCheckPermission("product:barcodes:update")
     @PutMapping("/{id}")
     public Result<Boolean> update(@PathVariable Long id, @RequestBody ProductBarcode barcode) {
         barcode.setId(id);
@@ -167,6 +170,7 @@ public class ProductBarcodeController {
     }
 
     @Operation(summary = "删除条形码")
+    @SaCheckPermission("product:barcodes:delete")
     @DeleteMapping("/{id}")
     public Result<Boolean> delete(@PathVariable Long id) {
         return Result.ok(productBarcodeService.removeById(id));

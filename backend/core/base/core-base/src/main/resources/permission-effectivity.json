@@ -1,9 +1,9 @@
 {
- "generatedAt": "2026-09-20",
+ "generatedAt": "2026-09-21",
  "summary": {
-  "db": 506,
-  "effective": 351,
-  "ineffective": 144,
+  "db": 994,
+  "effective": 824,
+  "ineffective": 159,
   "groupNodes": 11
  },
  "ineffective": [
@@ -61,9 +61,6 @@
   "finance:receivable:list",
   "finance:receivable:payment",
   "finance:receivable:query",
-  "hr-recruitment:add",
-  "hr-recruitment:delete",
-  "hr-recruitment:edit",
   "hr:attendance:clock",
   "hr:attendance:delete",
   "hr:attendance:list",
@@ -104,6 +101,13 @@
   "hr:salary:generate",
   "hr:salary:list",
   "hr:salary:update",
+  "md:product-price:create",
+  "md:product-price:delete",
+  "md:product-price:export",
+  "md:product-price:import",
+  "md:product-price:list",
+  "md:product-price:update",
+  "md:product-price:view",
   "partner:merge",
   "payment:account:select",
   "permission:create",
@@ -115,9 +119,21 @@
   "position:list",
   "position:query",
   "print:draft",
+  "product:barcodes:export",
+  "product:barcodes:list",
   "product:cost:view",
+  "product:create",
+  "product:delete",
+  "product:detail",
+  "product:export",
+  "product:import",
+  "product:list",
   "product:purchase-price:view",
   "product:retail-price:view",
+  "product:shield:create",
+  "product:shield:list",
+  "product:update",
+  "product:view",
   "product:wholesale-price:view",
   "purchase:price:edit",
   "receipt:account:select",
@@ -129,7 +145,6 @@
   "sale:price:edit",
   "sale:settle:force",
   "set:system-task:view",
-  "stock:list",
   "system:dataimport:create",
   "system:dataimport:delete",
   "system:dataimport:list",
@@ -166,6 +181,150 @@
   "user:manage"
  ],
  "refCounts": {
+  "budget:adjustment:approve": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "budget:adjustment:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "budget:adjustment:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "budget:adjustment:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "budget:adjustment:export": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "budget:adjustment:list": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "budget:adjustment:submit": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "budget:adjustment:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "budget:annual:approve": {
+   "backend": 4,
+   "frontend": 0
+  },
+  "budget:annual:close": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "budget:annual:create": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "budget:annual:delete": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "budget:annual:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "budget:annual:execute": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "budget:annual:export": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "budget:annual:list": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "budget:annual:print": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "budget:annual:submit": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "budget:annual:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "budget:control:check": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "budget:control:consume": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "budget:control:freeze": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "budget:control:release": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "budget:execution:list": {
+   "backend": 4,
+   "frontend": 0
+  },
+  "budget:item:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "budget:item:export": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "budget:item:list": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "budget:item:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "budget:report:view": {
+   "backend": 5,
+   "frontend": 0
+  },
+  "budget:template:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "budget:template:delete": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "budget:template:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "budget:template:export": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "budget:template:list": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "budget:template:publish": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "budget:template:update": {
+   "backend": 1,
+   "frontend": 0
+  },
   "crm:contract:approve": {
    "backend": 0,
    "frontend": 3
@@ -582,7 +741,35 @@
    "backend": 6,
    "frontend": 0
   },
+  "finance:capital-flow:export": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "finance:capital-flow:list": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "finance:capital-flow:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "finance:capital-flow:view": {
+   "backend": 1,
+   "frontend": 0
+  },
   "finance:collection-stats:view": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "finance:deposit-condition:create": {
+   "backend": 5,
+   "frontend": 0
+  },
+  "finance:deposit-condition:detail": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "finance:deposit-condition:view": {
    "backend": 1,
    "frontend": 0
   },
@@ -596,6 +783,18 @@
   },
   "finance:month-closing:view": {
    "backend": 2,
+   "frontend": 0
+  },
+  "finance:offset:create": {
+   "backend": 3,
+   "frontend": 1
+  },
+  "finance:offset:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "finance:offset:list": {
+   "backend": 1,
    "frontend": 0
   },
   "finance:other-income-doc:create": {
@@ -645,6 +844,70 @@
   "finance:period:view": {
    "backend": 2,
    "frontend": 0
+  },
+  "finance:pre-payment:create": {
+   "backend": 6,
+   "frontend": 0
+  },
+  "finance:pre-payment:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "finance:pre-payment:list": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "finance:pre-payment:view": {
+   "backend": 2,
+   "frontend": 1
+  },
+  "finance:pre-receipt:create": {
+   "backend": 7,
+   "frontend": 0
+  },
+  "finance:pre-receipt:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "finance:pre-receipt:list": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "finance:pre-receipt:view": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "finance:receipt:approve": {
+   "backend": 2,
+   "frontend": 1
+  },
+  "finance:receipt:create": {
+   "backend": 11,
+   "frontend": 1
+  },
+  "finance:receipt:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "finance:receipt:detail": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "finance:receipt:list": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "finance:receipt:submit": {
+   "backend": 1,
+   "frontend": 1
+  },
+  "finance:receipt:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "finance:receipt:view": {
+   "backend": 2,
+   "frontend": 1
   },
   "finance:receivable:bad-debt": {
    "backend": 1,
@@ -770,6 +1033,230 @@
    "backend": 5,
    "frontend": 0
   },
+  "finance:write-off:detail": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "finance:write-off:list": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "fixed-asset:asset:create": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "fixed-asset:asset:delete": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "fixed-asset:asset:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "fixed-asset:asset:export": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "fixed-asset:asset:list": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "fixed-asset:asset:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "fixed-asset:asset:view": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "fixed-asset:category:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "fixed-asset:category:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "fixed-asset:category:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "fixed-asset:category:list": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "fixed-asset:category:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "fixed-asset:depreciation:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "fixed-asset:depreciation:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "fixed-asset:depreciation:list": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "fixed-asset:disposal:approve": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "fixed-asset:disposal:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "fixed-asset:disposal:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "fixed-asset:disposal:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "fixed-asset:disposal:list": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "fixed-asset:disposal:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "fixed-asset:inventory:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "fixed-asset:inventory:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "fixed-asset:inventory:list": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "fixed-asset:inventory:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "fixed-asset:purchase:approve": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "fixed-asset:purchase:create": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "fixed-asset:purchase:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "fixed-asset:purchase:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "fixed-asset:purchase:list": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "fixed-asset:purchase:submit": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "fixed-asset:purchase:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "fixed-asset:purchase:view": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "fixed-asset:report:view": {
+   "backend": 4,
+   "frontend": 0
+  },
+  "fixed-asset:transfer:approve": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "fixed-asset:transfer:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "fixed-asset:transfer:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "fixed-asset:transfer:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "fixed-asset:transfer:list": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "fixed-asset:transfer:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "invoice:application:approve": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "invoice:application:create": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "invoice:application:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "invoice:application:detail": {
+   "backend": 4,
+   "frontend": 0
+  },
+  "invoice:application:list": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "invoice:application:submit": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "invoice:application:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "invoice:application:view": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "invoice:create": {
+   "backend": 9,
+   "frontend": 0
+  },
+  "invoice:detail": {
+   "backend": 6,
+   "frontend": 0
+  },
+  "invoice:export": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "invoice:list": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "invoice:update": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "invoice:view": {
+   "backend": 5,
+   "frontend": 0
+  },
   "log:audit:create": {
    "backend": 1,
    "frontend": 0
@@ -830,11 +1317,703 @@
    "backend": 2,
    "frontend": 0
   },
+  "mall:tag:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "mall:tag:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "mall:tag:export": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "mall:tag:list": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "mall:tag:update": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "marketing:addon-rule:create": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "marketing:addon-rule:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:addon-rule:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:addon-rule:list": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:addon-rule:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:auto-campaign:create": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "marketing:auto-campaign:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:auto-campaign:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:auto-campaign:execute": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:auto-campaign:list": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "marketing:auto-campaign:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:auto-campaign:view": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "marketing:card:create": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "marketing:card:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:card:detail": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "marketing:card:list": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:card:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:commission-record:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:commission-record:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:commission-record:list": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:commission-rule:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:commission-rule:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:commission-rule:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:commission-rule:list": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "marketing:commission-rule:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:commission:list": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:coupon-template:create": {
+   "backend": 5,
+   "frontend": 0
+  },
+  "marketing:coupon-template:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:coupon-template:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:coupon-template:list": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "marketing:coupon-template:update": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "marketing:coupon-template:view": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "marketing:coupon:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:coupon:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:coupon:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:coupon:list": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:flash-sale:create": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "marketing:flash-sale:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:flash-sale:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:flash-sale:list": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:flash-sale:publish": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:flash-sale:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:flash-sale:view": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:group-buy:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:group-buy:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:group-buy:list": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "marketing:group-buy:update": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "marketing:group-buy:view": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:member-config:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:member-config:view": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:member-level:create": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "marketing:member-level:view": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:points-exchange:create": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "marketing:points-exchange:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:points-exchange:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:points-exchange:list": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:points-exchange:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:points-ledger:create": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "marketing:points-ledger:list": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "marketing:points-ledger:view": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "marketing:points:list": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:presale:create": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "marketing:presale:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:presale:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:presale:list": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "marketing:presale:publish": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:presale:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:product-points-rule:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:product-points-rule:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:product-points-rule:list": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:product-points-rule:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:program:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:program:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:program:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:program:list": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "marketing:program:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:program:view": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:promote:list": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:promotion-activity:create": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "marketing:promotion-activity:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:promotion-activity:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:promotion-activity:list": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:promotion-activity:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:promotion-activity:view": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "marketing:promotion:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:rules:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:rules:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:rules:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:rules:list": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:rules:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:share:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:share:list": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "marketing:share:view": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:sms:create": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "marketing:sms:delete": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "marketing:sms:list": {
+   "backend": 5,
+   "frontend": 0
+  },
+  "marketing:sms:update": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "marketing:sms:view": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:stored-card:consume": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "marketing:stored-card:create": {
+   "backend": 4,
+   "frontend": 0
+  },
+  "marketing:stored-card:detail": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "marketing:stored-card:list": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "marketing:stored-card:view": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "md:customer:create": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "md:customer:delete": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "md:customer:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "md:customer:export": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "md:customer:import": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "md:customer:list": {
+   "backend": 4,
+   "frontend": 0
+  },
+  "md:customer:update": {
+   "backend": 7,
+   "frontend": 0
+  },
+  "md:customer:view": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "md:image:create": {
+   "backend": 5,
+   "frontend": 0
+  },
+  "md:image:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "md:image:detail": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "md:image:list": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "md:image:view": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "md:linked-account:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "md:linked-account:delete": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "md:linked-account:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "md:linked-account:export": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "md:linked-account:list": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "md:linked-account:update": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "md:linked-account:view": {
+   "backend": 1,
+   "frontend": 0
+  },
   "md:payment-channel:edit": {
    "backend": 5,
    "frontend": 0
   },
   "md:payment-channel:view": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "partner:attachments:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "partner:attachments:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "partner:attachments:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "partner:categories:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "partner:categories:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "partner:categories:list": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "partner:categories:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "partner:categories:view": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "partner:contacts:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "partner:contacts:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "partner:contacts:detail": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "partner:contacts:list": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "partner:contacts:update": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "partner:grades:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "partner:grades:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "partner:grades:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "partner:grades:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "partner:grades:view": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "partner:roles:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "partner:roles:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "partner:roles:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "partner:roles:list": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "partner:roles:update": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "party:contact:create": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "party:contact:delete": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "party:contact:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "party:contact:list": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "party:contact:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "party:contact:view": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "party:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "party:customer-region:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "party:customer-region:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "party:customer-region:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "party:customer-region:list": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "party:customer-region:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "party:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "party:detail": {
+   "backend": 5,
+   "frontend": 0
+  },
+  "party:list": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "party:member-level:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "party:member-level:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "party:member-level:list": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "party:member-level:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "party:update": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "party:view": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "payment:approve": {
    "backend": 2,
    "frontend": 0
   },
@@ -849,6 +2028,26 @@
   "payment:config:update": {
    "backend": 3,
    "frontend": 4
+  },
+  "payment:create": {
+   "backend": 11,
+   "frontend": 0
+  },
+  "payment:delete": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "payment:detail": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "payment:export": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "payment:list": {
+   "backend": 3,
+   "frontend": 0
   },
   "payment:record:list": {
    "backend": 2,
@@ -868,6 +2067,18 @@
   },
   "payment:request:list": {
    "backend": 3,
+   "frontend": 0
+  },
+  "payment:submit": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "payment:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "payment:view": {
+   "backend": 2,
    "frontend": 0
   },
   "permission-template:apply": {
@@ -982,6 +2193,246 @@
    "backend": 0,
    "frontend": 3
   },
+  "product:attachments:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "product:attachments:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "product:attachments:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "product:attributes:create": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "product:attributes:delete": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "product:attributes:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "product:attributes:list": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "product:attributes:update": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "product:attributes:view": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "product:barcodes:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "product:barcodes:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "product:barcodes:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "product:barcodes:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "product:brand:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "product:brand:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "product:brand:export": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "product:brand:list": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "product:brand:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "product:category:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "product:category:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "product:category:detail": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "product:category:list": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "product:category:update": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "product:grade:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "product:grade:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "product:grade:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "product:grade:list": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "product:grade:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "product:location:create": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "product:location:export": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "product:location:list": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "product:related:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "product:related:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "product:related:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "product:sku-rules:create": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "product:sku-rules:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "product:sku-rules:update": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "product:sku-rules:view": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "product:unit-dict:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "product:unit-dict:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "product:unit-dict:export": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "product:unit-dict:list": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "product:unit-dict:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "product:unit-group:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "product:unit-group:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "product:unit-group:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "product:unit-group:export": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "product:unit-group:list": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "product:unit-group:update": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "product:units:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "product:units:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "product:units:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "product:units:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "purchase:contract:approve": {
+   "backend": 4,
+   "frontend": 0
+  },
+  "purchase:contract:create": {
+   "backend": 1,
+   "frontend": 1
+  },
+  "purchase:contract:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "purchase:contract:detail": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "purchase:contract:export": {
+   "backend": 1,
+   "frontend": 1
+  },
+  "purchase:contract:list": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "purchase:contract:update": {
+   "backend": 2,
+   "frontend": 0
+  },
   "purchase:cost-sharing:cancel": {
    "backend": 1,
    "frontend": 0
@@ -1036,34 +2487,6 @@
   },
   "purchase:order:update": {
    "backend": 1,
-   "frontend": 0
-  },
-  "purchase_order:approve": {
-   "backend": 3,
-   "frontend": 0
-  },
-  "purchase_order:create": {
-   "backend": 1,
-   "frontend": 0
-  },
-  "purchase_order:delete": {
-   "backend": 2,
-   "frontend": 0
-  },
-  "purchase_order:execute": {
-   "backend": 4,
-   "frontend": 0
-  },
-  "purchase_order:export": {
-   "backend": 1,
-   "frontend": 0
-  },
-  "purchase_order:submit": {
-   "backend": 1,
-   "frontend": 0
-  },
-  "purchase_order:update": {
-   "backend": 2,
    "frontend": 0
   },
   "role-inheritance:manage": {
@@ -1165,6 +2588,422 @@
   "set:system-task:download": {
    "backend": 0,
    "frontend": 1
+  },
+  "stock:alert-config:create": {
+   "backend": 5,
+   "frontend": 0
+  },
+  "stock:alert-config:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:alert-config:detail": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "stock:alert-config:list": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:alert-config:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:alert-config:view": {
+   "backend": 5,
+   "frontend": 0
+  },
+  "stock:alert:list": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:assemble:approve": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "stock:assemble:create": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "stock:assemble:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:assemble:execute": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:assemble:list": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "stock:assemble:submit": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:assemble:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:bom:create": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "stock:bom:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:bom:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:bom:list": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "stock:bom:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:check:approve": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "stock:check:check": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:check:create": {
+   "backend": 6,
+   "frontend": 0
+  },
+  "stock:check:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:check:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:check:export": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:check:list": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "stock:check:submit": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:check:view": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:cost-adjust:approve": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "stock:cost-adjust:create": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "stock:cost-adjust:delete": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "stock:cost-adjust:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:cost-adjust:execute": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:cost-adjust:list": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "stock:cost-adjust:submit": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:cost-adjust:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:cost-adjust:view": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:create": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "stock:damage:create": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "stock:damage:delete": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "stock:damage:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:damage:execute": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:damage:list": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "stock:damage:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:damage:view": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:detail": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "stock:export": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:freeze": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:in:approve": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "stock:in:create": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "stock:in:delete": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "stock:in:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:in:list": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "stock:in:submit": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:in:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:in:view": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:inventory-mode:list": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:inventory-mode:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:inventory-mode:view": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:list": {
+   "backend": 6,
+   "frontend": 0
+  },
+  "stock:out:approve": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "stock:out:create": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "stock:out:delete": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "stock:out:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:out:list": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "stock:out:submit": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:out:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:out:view": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:overflow:approve": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "stock:overflow:create": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "stock:overflow:delete": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "stock:overflow:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:overflow:execute": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:overflow:list": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "stock:overflow:submit": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:overflow:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:overflow:view": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:replenishment:create": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "stock:replenishment:list": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:replenishment:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:split:approve": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "stock:split:create": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "stock:split:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:split:execute": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:split:list": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "stock:split:submit": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:split:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:take:create": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "stock:take:delete": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "stock:take:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:take:list": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "stock:take:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:take:view": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "stock:transfer:approve": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "stock:transfer:create": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "stock:transfer:delete": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "stock:transfer:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:transfer:execute": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:transfer:export": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:transfer:list": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "stock:transfer:submit": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:transfer:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:transfer:view": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "stock:view": {
+   "backend": 3,
+   "frontend": 0
   },
   "system:agent:activate": {
    "backend": 1,
@@ -1320,7 +3159,7 @@
   },
   "system:permission:assign": {
    "backend": 1,
-   "frontend": 2
+   "frontend": 1
   },
   "system:permission:cache": {
    "backend": 2,
@@ -1361,6 +3200,22 @@
   "system:permission:view": {
    "backend": 2,
    "frontend": 0
+  },
+  "system:record-rule:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "system:record-rule:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "system:record-rule:list": {
+   "backend": 8,
+   "frontend": 0
+  },
+  "system:record-rule:update": {
+   "backend": 3,
+   "frontend": 1
   },
   "system:role:assign": {
    "backend": 2,
@@ -1454,6 +3309,14 @@
    "backend": 2,
    "frontend": 0
   },
+  "system:tenant:list": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "system:tenant:query": {
+   "backend": 2,
+   "frontend": 0
+  },
   "system:tenant:update": {
    "backend": 2,
    "frontend": 0
@@ -1513,6 +3376,50 @@
   "user:delete": {
    "backend": 0,
    "frontend": 3
+  },
+  "wms:category:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "wms:category:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "wms:category:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "wms:category:list": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "wms:category:update": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "wms:create": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "wms:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "wms:detail": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "wms:export": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "wms:list": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "wms:view": {
+   "backend": 1,
+   "frontend": 0
   },
   "workflow:analysis:view": {
    "backend": 2,

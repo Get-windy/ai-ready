@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 会员积分明细（营销 → 会员中心 → 会员管理 →「积分明细」）
@@ -29,6 +30,7 @@ public class PointsJournalController {
     private final MarketingQueryMapper marketingQueryMapper;
 
     @Operation(summary = "分页查询会员积分明细")
+    @SaCheckPermission("marketing:points:list")
     @GetMapping("/page")
     public Result<IPage<PointsJournalRow>> page(
             @RequestParam(required = false) String memberCardNo,

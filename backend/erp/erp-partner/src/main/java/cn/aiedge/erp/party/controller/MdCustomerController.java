@@ -43,6 +43,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * MD客户管理——往来单位（POS/ERP成交客户）
@@ -141,6 +142,7 @@ public class MdCustomerController {
     // ==== 分页查询 ====
 
     @Operation(summary = "分页查询MD客户")
+    @SaCheckPermission("md:customer:list")
     @GetMapping("/page")
     public ResponseEntity<ApiResponse<PageResult<MdCustomerVO>>> page(
             @RequestParam(required = false) String keyword,
@@ -223,6 +225,7 @@ public class MdCustomerController {
     // ==== 会员管理子标签 ====
 
     @Operation(summary = "分页查询客户会员（会员管理子标签）")
+    @SaCheckPermission("md:customer:list")
     @GetMapping("/member/page")
     public ResponseEntity<ApiResponse<PageResult<MdCustomerVO>>> memberPage(
             @RequestParam(required = false) String memberKeyword,
@@ -276,6 +279,7 @@ public class MdCustomerController {
     // ==== 全部联系人子标签 ====
 
     @Operation(summary = "分页查询客户联系人（全部联系人子标签）")
+    @SaCheckPermission("md:customer:list")
     @GetMapping("/contact/page")
     public ResponseEntity<ApiResponse<PageResult<PartyContactRow>>> contactPage(
             @RequestParam(required = false) String keyword,
@@ -359,6 +363,7 @@ public class MdCustomerController {
     // ==== 查询详情 ====
 
     @Operation(summary = "查询MD客户详情")
+    @SaCheckPermission("md:customer:detail")
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<MdCustomerVO>> getById(@PathVariable Long id) {
         Party party = partyService.getPartyDetailById(id);
@@ -373,6 +378,7 @@ public class MdCustomerController {
     // ==== 搜索(下拉) ====
 
     @Operation(summary = "搜索MD客户(下拉)")
+    @SaCheckPermission("md:customer:view")
     @GetMapping("/search")
     public ResponseEntity<ApiResponse<List<MdCustomerVO>>> search(
             @RequestParam String keyword,
@@ -386,6 +392,7 @@ public class MdCustomerController {
     // ==== 获取列表(不分页) ====
 
     @Operation(summary = "获取MD客户列表(不分页)")
+    @SaCheckPermission("md:customer:list")
     @GetMapping("/list")
     public ResponseEntity<ApiResponse<List<MdCustomerVO>>> list(
             @RequestParam(required = false) String partnerType,
@@ -408,6 +415,7 @@ public class MdCustomerController {
     // ==== 新增 ====
 
     @Operation(summary = "新增MD客户")
+    @SaCheckPermission("md:customer:create")
     @PostMapping
     public ResponseEntity<ApiResponse<MdCustomerVO>> create(@RequestBody Map<String, Object> body) {
         Party party = fromBody(body, null);
@@ -423,6 +431,7 @@ public class MdCustomerController {
     // ==== 更新 ====
 
     @Operation(summary = "更新MD客户")
+    @SaCheckPermission("md:customer:update")
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<Boolean>> update(@PathVariable Long id, @RequestBody Map<String, Object> body) {
         Party party = fromBody(body, id);
@@ -433,6 +442,7 @@ public class MdCustomerController {
     // ==== 状态更新 ====
 
     @Operation(summary = "启用/停用MD客户")
+    @SaCheckPermission("md:customer:update")
     @PutMapping("/{id}/status")
     public ResponseEntity<ApiResponse<Boolean>> updateStatus(@PathVariable Long id, @RequestParam String status) {
         Integer statusVal = "DISABLED".equalsIgnoreCase(status) ? 0 : 1;
@@ -443,6 +453,7 @@ public class MdCustomerController {
     // ==== 删除 ====
 
     @Operation(summary = "删除MD客户")
+    @SaCheckPermission("md:customer:delete")
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Boolean>> delete(@PathVariable Long id) {
         boolean success = partyService.removeById(id);
@@ -452,6 +463,7 @@ public class MdCustomerController {
     // ==== 下一个编号 ====
 
     @Operation(summary = "获取下一个编号序号")
+    @SaCheckPermission("md:customer:view")
     @GetMapping("/next-seq")
     public ResponseEntity<ApiResponse<Map<String, Integer>>> getNextSeq(@RequestParam String prefix) {
         Map<String, Integer> result = new HashMap<>();
@@ -462,6 +474,7 @@ public class MdCustomerController {
     // ==== 跟进记录 ====
 
     @Operation(summary = "添加跟进记录")
+    @SaCheckPermission("md:customer:create")
     @PostMapping("/{id}/follow")
     public ResponseEntity<ApiResponse<Boolean>> addFollow(@PathVariable Long id, @RequestBody Map<String, Object> body) {
         PartyFollow follow = new PartyFollow();
@@ -530,6 +543,7 @@ public class MdCustomerController {
     }
 
     @Operation(summary = "导出MD客户(真实 Excel 流，与分页查询同一过滤口径)")
+    @SaCheckPermission("md:customer:export")
     @GetMapping("/export")
     public void export(
             @RequestParam(required = false) String keyword,
@@ -631,6 +645,7 @@ public class MdCustomerController {
     // ==== 主联系人（表单「联系人」分区：联系人 / 联系电话 / 联系地址） ====
 
     @Operation(summary = "保存主联系人")
+    @SaCheckPermission("md:customer:update")
     @PutMapping("/{id}/primary-contact")
     public ResponseEntity<ApiResponse<Boolean>> savePrimaryContact(@PathVariable Long id,
                                                                    @RequestBody Map<String, Object> body) {
@@ -712,6 +727,7 @@ public class MdCustomerController {
     // ==== 批量操作（列表工具栏「更多」：停用/启用/取消价格跟踪/批量删除/批量搬移） ====
 
     @Operation(summary = "批量启用/停用")
+    @SaCheckPermission("md:customer:update")
     @PutMapping("/batch-status")
     public ResponseEntity<ApiResponse<Boolean>> batchStatus(@RequestBody Map<String, Object> body) {
         List<Long> ids = toIdList(body.get("ids"));
@@ -730,6 +746,7 @@ public class MdCustomerController {
     }
 
     @Operation(summary = "批量设置价格跟踪开关")
+    @SaCheckPermission("md:customer:update")
     @PutMapping("/batch-price-track")
     public ResponseEntity<ApiResponse<Boolean>> batchPriceTrack(@RequestBody Map<String, Object> body) {
         List<Long> ids = toIdList(body.get("ids"));
@@ -748,6 +765,7 @@ public class MdCustomerController {
     }
 
     @Operation(summary = "批量删除")
+    @SaCheckPermission("md:customer:delete")
     @DeleteMapping("/batch")
     public ResponseEntity<ApiResponse<Boolean>> batchDelete(@RequestBody Map<String, Object> body) {
         List<Long> ids = toIdList(body.get("ids"));
@@ -758,6 +776,7 @@ public class MdCustomerController {
     }
 
     @Operation(summary = "批量搬移（改所属分类）")
+    @SaCheckPermission("md:customer:update")
     @PutMapping("/batch-move")
     public ResponseEntity<ApiResponse<Boolean>> batchMove(@RequestBody Map<String, Object> body) {
         List<Long> ids = toIdList(body.get("ids"));
@@ -816,6 +835,7 @@ public class MdCustomerController {
      * </p>
      */
     @Operation(summary = "客商合并（源彻底并入目标）")
+    @SaCheckPermission("md:customer:update")
     @PutMapping("/{id}/merge-partner")
     @Transactional(rollbackFor = Exception.class)
     public ResponseEntity<ApiResponse<Map<String, Object>>> mergePartner(@PathVariable Long id,
@@ -946,6 +966,7 @@ public class MdCustomerController {
     // ==== 导入 ====
 
     @Operation(summary = "导入MD客户(CSV)")
+    @SaCheckPermission("md:customer:import")
     @PostMapping("/import")
     public ResponseEntity<ApiResponse<Boolean>> importCustomers(@RequestBody List<Map<String, Object>> records) {
         if (records == null || records.isEmpty()) {
@@ -987,6 +1008,7 @@ public class MdCustomerController {
     }
 
     @Operation(summary = "下载基础资料导入模板（对标「基本信息导入」向导第 1 步）")
+    @SaCheckPermission("md:customer:view")
     @GetMapping("/import-template")
     public void importTemplate(@RequestParam(required = false, defaultValue = "other") String partnerType,
                                HttpServletResponse response) throws IOException {
@@ -1042,6 +1064,7 @@ public class MdCustomerController {
     }
 
     @Operation(summary = "Excel导入基础资料（真实落库；其他往来单位/物流公司共用）")
+    @SaCheckPermission("md:customer:create")
     @PostMapping("/import-excel")
     public ResponseEntity<ApiResponse<Map<String, Object>>> importExcelOther(
             @RequestParam("file") MultipartFile file,

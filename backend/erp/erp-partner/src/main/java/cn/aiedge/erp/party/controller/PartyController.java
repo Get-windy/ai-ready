@@ -14,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Tag(name = "往来单位管理", description = "往来单位CRUD接口")
 @RestController
@@ -24,6 +25,7 @@ public class PartyController {
     private final PartyService partyService;
 
     @Operation(summary = "搜索往来单位（按名称/手机/卡号模糊匹配）")
+    @SaCheckPermission("party:view")
     @GetMapping("/search")
     public ResponseEntity<ApiResponse<List<Party>>> search(
             @RequestParam String keyword,
@@ -44,6 +46,7 @@ public class PartyController {
     }
 
     @Operation(summary = "获取往来单位详情")
+    @SaCheckPermission("party:detail")
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<Party>> getById(@PathVariable Long id) {
         Party party = partyService.getById(id);
@@ -51,6 +54,7 @@ public class PartyController {
     }
 
     @Operation(summary = "根据单位编码查询")
+    @SaCheckPermission("party:detail")
     @GetMapping("/by-code/{partyCode}")
     public ResponseEntity<ApiResponse<Party>> getByPartyCode(@PathVariable String partyCode) {
         Party party = partyService.getByPartyCode(partyCode);
@@ -58,6 +62,7 @@ public class PartyController {
     }
 
     @Operation(summary = "根据单位类型查询列表")
+    @SaCheckPermission("party:detail")
     @GetMapping("/by-type/{partyType}")
     public ResponseEntity<ApiResponse<List<Party>>> listByPartyType(@PathVariable Integer partyType) {
         List<Party> parties = partyService.listByPartyType(partyType);
@@ -65,6 +70,7 @@ public class PartyController {
     }
 
     @Operation(summary = "根据分类ID查询列表")
+    @SaCheckPermission("party:detail")
     @GetMapping("/by-category/{categoryId}")
     public ResponseEntity<ApiResponse<List<Party>>> listByCategoryId(@PathVariable Long categoryId) {
         List<Party> parties = partyService.listByCategoryId(categoryId);
@@ -72,6 +78,7 @@ public class PartyController {
     }
 
     @Operation(summary = "根据状态查询列表")
+    @SaCheckPermission("party:detail")
     @GetMapping("/by-status/{status}")
     public ResponseEntity<ApiResponse<List<Party>>> listByStatus(@PathVariable Integer status) {
         List<Party> parties = partyService.listByStatus(status);
@@ -79,6 +86,7 @@ public class PartyController {
     }
 
     @Operation(summary = "分页查询往来单位")
+    @SaCheckPermission("party:list")
     @GetMapping("/page")
     public ResponseEntity<ApiResponse<PageResult<Party>>> page(
             @RequestParam(defaultValue = "1") Long current,
@@ -107,6 +115,7 @@ public class PartyController {
     }
 
     @Operation(summary = "创建往来单位")
+    @SaCheckPermission("party:create")
     @PostMapping
     public ResponseEntity<ApiResponse<Boolean>> create(@RequestBody Party party) {
         boolean success = partyService.save(party);
@@ -114,6 +123,7 @@ public class PartyController {
     }
 
     @Operation(summary = "更新往来单位")
+    @SaCheckPermission("party:update")
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<Boolean>> update(@PathVariable Long id, @RequestBody Party party) {
         party.setId(id);
@@ -122,6 +132,7 @@ public class PartyController {
     }
 
     @Operation(summary = "更新往来单位状态")
+    @SaCheckPermission("party:update")
     @PutMapping("/{id}/status")
     public ResponseEntity<ApiResponse<Boolean>> updateStatus(
             @PathVariable Long id,
@@ -131,6 +142,7 @@ public class PartyController {
     }
 
     @Operation(summary = "删除往来单位")
+    @SaCheckPermission("party:delete")
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Boolean>> delete(@PathVariable Long id) {
         boolean success = partyService.removeById(id);
@@ -138,6 +150,7 @@ public class PartyController {
     }
 
     @Operation(summary = "检查往来单位是否有交易记录")
+    @SaCheckPermission("party:view")
     @GetMapping("/{id}/has-transactions")
     public ResponseEntity<ApiResponse<Boolean>> hasTransactions(@PathVariable Long id) {
         boolean hasTransactions = partyService.hasTransactions(id);

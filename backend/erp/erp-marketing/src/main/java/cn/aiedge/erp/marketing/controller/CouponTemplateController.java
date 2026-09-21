@@ -18,6 +18,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 优惠券（营销 → 营销活动 → 优惠券，菜单 80311）
@@ -36,6 +37,7 @@ public class CouponTemplateController {
     // ══════ Tab1 优惠券设置 ══════
 
     @Operation(summary = "分页查询优惠券（券模板）")
+    @SaCheckPermission("marketing:coupon-template:list")
     @GetMapping("/page")
     public Result<IPage<CouponTemplate>> page(
             @RequestParam(required = false) String couponName,
@@ -48,6 +50,7 @@ public class CouponTemplateController {
     }
 
     @Operation(summary = "优惠券详情")
+    @SaCheckPermission("marketing:coupon-template:detail")
     @GetMapping("/{id}")
     public Result<CouponTemplate> getById(@PathVariable Long id) {
         CouponTemplate tpl = couponTemplateService.getById(id);
@@ -57,6 +60,7 @@ public class CouponTemplateController {
     }
 
     @Operation(summary = "新增优惠券")
+    @SaCheckPermission("marketing:coupon-template:create")
     @PostMapping
     public Result<CouponTemplate> create(@RequestBody CouponTemplate tpl) {
         Long tenantId = SecurityUtils.getCurrentTenantId();
@@ -71,6 +75,7 @@ public class CouponTemplateController {
     }
 
     @Operation(summary = "修改优惠券")
+    @SaCheckPermission("marketing:coupon-template:update")
     @PutMapping("/{id}")
     public Result<CouponTemplate> update(@PathVariable Long id, @RequestBody CouponTemplate tpl) {
         tpl.setId(id);
@@ -81,12 +86,14 @@ public class CouponTemplateController {
     }
 
     @Operation(summary = "删除优惠券")
+    @SaCheckPermission("marketing:coupon-template:delete")
     @DeleteMapping("/{id}")
     public Result<Boolean> delete(@PathVariable Long id) {
         return Result.ok(couponTemplateService.removeById(id));
     }
 
     @Operation(summary = "作废优惠券（同步作废其未使用的券）")
+    @SaCheckPermission("marketing:coupon-template:create")
     @PostMapping("/{id}/void")
     public Result<Boolean> voidTemplate(@PathVariable Long id) {
         couponTemplateService.voidTemplate(id);
@@ -94,18 +101,21 @@ public class CouponTemplateController {
     }
 
     @Operation(summary = "优惠券数量统计（总数/已领取（未使用）/已使用/未领取）")
+    @SaCheckPermission("marketing:coupon-template:view")
     @GetMapping("/{id}/stat")
     public Result<Map<String, Object>> stat(@PathVariable Long id) {
         return Result.ok(couponTemplateService.stat(id));
     }
 
     @Operation(summary = "查询券模板指定客户")
+    @SaCheckPermission("marketing:coupon-template:view")
     @GetMapping("/{id}/customers")
     public Result<List<CouponCustomer>> customers(@PathVariable Long id) {
         return Result.ok(couponTemplateService.listCustomers(id));
     }
 
     @Operation(summary = "保存券模板指定客户")
+    @SaCheckPermission("marketing:coupon-template:update")
     @PutMapping("/{id}/customers")
     public Result<Boolean> saveCustomers(@PathVariable Long id, @RequestBody List<CouponCustomer> customers) {
         couponTemplateService.saveCustomers(id, customers);
@@ -113,6 +123,7 @@ public class CouponTemplateController {
     }
 
     @Operation(summary = "发优惠券（对指定客户发放 N 张）")
+    @SaCheckPermission("marketing:coupon-template:create")
     @PostMapping("/{id}/issue")
     public Result<Integer> issue(@PathVariable Long id, @RequestBody IssueRequest req) {
         int n = couponTemplateService.issue(id, req.getPartnerIds(),
@@ -123,6 +134,7 @@ public class CouponTemplateController {
     // ══════ Tab2 领用明细 ══════
 
     @Operation(summary = "分页查询优惠券领用明细")
+    @SaCheckPermission("marketing:coupon-template:list")
     @GetMapping("/record/page")
     public Result<IPage<CouponRecordRow>> recordPage(
             @RequestParam(required = false) Long templateId,
@@ -136,6 +148,7 @@ public class CouponTemplateController {
     }
 
     @Operation(summary = "核销优惠券（后台补录：把券置为已使用并记录单据号）")
+    @SaCheckPermission("marketing:coupon-template:create")
     @PostMapping("/record/{couponId}/redeem")
     public Result<Boolean> redeem(@PathVariable Long couponId,
                                   @RequestParam(required = false) Long orderId,
@@ -145,6 +158,7 @@ public class CouponTemplateController {
     }
 
     @Operation(summary = "作废单张券（领用明细行级）")
+    @SaCheckPermission("marketing:coupon-template:create")
     @PostMapping("/record/{couponId}/void")
     public Result<Boolean> voidCoupon(@PathVariable Long couponId) {
         couponTemplateService.voidCoupon(couponId);

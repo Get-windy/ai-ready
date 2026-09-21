@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 积分兑换（营销 → 会员中心 → 积分兑换，菜单 80301）
@@ -37,6 +38,7 @@ public class PointsExchangeController {
     }
 
     @Operation(summary = "分页查询可兑换商品")
+    @SaCheckPermission("marketing:points-exchange:list")
     @GetMapping("/page")
     public Result<IPage<PointsExchangeRow>> page(
             @RequestParam(required = false) String keyword,
@@ -46,6 +48,7 @@ public class PointsExchangeController {
     }
 
     @Operation(summary = "查询某商品是否已在兑换目录")
+    @SaCheckPermission("marketing:points-exchange:detail")
     @GetMapping("/product/{productId}")
     public Result<PointsExchangeProduct> getByProduct(@PathVariable Long productId) {
         return Result.ok(mapper.selectOne(new LambdaQueryWrapper<PointsExchangeProduct>()
@@ -55,6 +58,7 @@ public class PointsExchangeController {
     }
 
     @Operation(summary = "新增兑换商品")
+    @SaCheckPermission("marketing:points-exchange:create")
     @PostMapping
     public Result<Boolean> create(@RequestBody PointsExchangeProduct req) {
         if (req.getProductId() == null) throw new IllegalArgumentException("请先选择商品");
@@ -76,6 +80,7 @@ public class PointsExchangeController {
     }
 
     @Operation(summary = "修改兑换商品（兑换所需积分 / 排序 / 状态 / 备注）")
+    @SaCheckPermission("marketing:points-exchange:update")
     @PutMapping("/{id}")
     public Result<Boolean> update(@PathVariable Long id, @RequestBody PointsExchangeProduct req) {
         req.setId(id);
@@ -86,12 +91,14 @@ public class PointsExchangeController {
     }
 
     @Operation(summary = "移出兑换目录")
+    @SaCheckPermission("marketing:points-exchange:delete")
     @DeleteMapping("/{id}")
     public Result<Boolean> delete(@PathVariable Long id) {
         return Result.ok(mapper.deleteById(id) > 0);
     }
 
     @Operation(summary = "批量新增兑换商品（从商品选择器选品入目录）")
+    @SaCheckPermission("marketing:points-exchange:create")
     @PostMapping("/batch")
     public Result<Integer> batchCreate(@RequestBody List<PointsExchangeProduct> list) {
         if (list == null || list.isEmpty()) throw new IllegalArgumentException("请先选择商品");

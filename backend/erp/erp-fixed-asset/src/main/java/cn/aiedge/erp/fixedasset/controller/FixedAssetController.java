@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 固定资产控制器
@@ -29,6 +30,7 @@ public class FixedAssetController {
     private final FixedAssetService fixedAssetService;
 
     @Operation(summary = "创建固定资产")
+    @SaCheckPermission("fixed-asset:asset:create")
     @PostMapping
     @RequiresPermission("erp:fixed-asset:asset:create")
     public ApiResponse<FixedAssetDTO> create(@Valid @RequestBody FixedAssetDTO dto) {
@@ -37,6 +39,7 @@ public class FixedAssetController {
     }
 
     @Operation(summary = "更新固定资产")
+    @SaCheckPermission("fixed-asset:asset:update")
     @PutMapping("/{id}")
     @RequiresPermission("erp:fixed-asset:asset:update")
     public ApiResponse<FixedAssetDTO> update(
@@ -47,6 +50,7 @@ public class FixedAssetController {
     }
 
     @Operation(summary = "删除固定资产")
+    @SaCheckPermission("fixed-asset:asset:delete")
     @DeleteMapping("/{id}")
     @RequiresPermission("erp:fixed-asset:asset:delete")
     public ApiResponse<Void> delete(
@@ -56,6 +60,7 @@ public class FixedAssetController {
     }
 
     @Operation(summary = "获取固定资产详情")
+    @SaCheckPermission("fixed-asset:asset:detail")
     @GetMapping("/{id}")
     @RequiresPermission("erp:fixed-asset:asset:query")
     public ApiResponse<FixedAssetDTO> getById(
@@ -65,6 +70,7 @@ public class FixedAssetController {
     }
 
     @Operation(summary = "分页查询固定资产")
+    @SaCheckPermission("fixed-asset:asset:list")
     @GetMapping("/page")
     @RequiresPermission("erp:fixed-asset:asset:list")
     public ApiResponse<Page<FixedAssetDTO>> getPage(
@@ -82,6 +88,7 @@ public class FixedAssetController {
     }
 
     @Operation(summary = "计提折旧")
+    @SaCheckPermission("fixed-asset:asset:create")
     @PostMapping("/{id}/depreciate")
     @RequiresPermission("erp:fixed-asset:asset:depreciate")
     public ApiResponse<FixedAssetDTO> depreciate(
@@ -91,6 +98,7 @@ public class FixedAssetController {
     }
 
     @Operation(summary = "获取资产统计")
+    @SaCheckPermission("fixed-asset:asset:view")
     @GetMapping("/statistics")
     @RequiresPermission("erp:fixed-asset:asset:query")
     public ApiResponse<Map<String, Object>> getStatistics() {
@@ -99,6 +107,7 @@ public class FixedAssetController {
     }
 
     @Operation(summary = "批量删除固定资产")
+    @SaCheckPermission("fixed-asset:asset:delete")
     @DeleteMapping("/batch")
     @RequiresPermission("erp:fixed-asset:asset:delete")
     public ApiResponse<Void> batchDelete(@RequestBody List<Long> ids) {
@@ -107,6 +116,7 @@ public class FixedAssetController {
     }
 
     @Operation(summary = "导出固定资产列表")
+    @SaCheckPermission("fixed-asset:asset:export")
     @GetMapping("/export")
     @RequiresPermission("erp:fixed-asset:asset:export")
     public ApiResponse<List<FixedAssetDTO>> export(

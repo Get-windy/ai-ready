@@ -32,6 +32,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.function.Function;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 商品货位设置（资料 → 仓库管理 → 商品货位设置，菜单 70520 / md:location）
@@ -84,24 +85,28 @@ public class ProductLocationController {
     private final ProductLocationService productLocationService;
 
     @Operation(summary = "商品货位设置分页查询（商品 × 仓库 → 推荐货位）")
+    @SaCheckPermission("product:location:list")
     @GetMapping("/page")
     public Result<IPage<ProductLocationVO>> page(ProductLocationQuery query) {
         return Result.ok(productLocationService.page(query));
     }
 
     @Operation(summary = "设置商品推荐货位（支持批量，同一仓库）")
+    @SaCheckPermission("product:location:create")
     @PostMapping("/set")
     public Result<Integer> set(@RequestBody ProductLocationSetDTO dto) {
         return Result.ok(productLocationService.setLocation(dto));
     }
 
     @Operation(summary = "批量移除商品推荐货位（同一仓库）")
+    @SaCheckPermission("product:location:create")
     @PostMapping("/batch-remove")
     public Result<Integer> batchRemove(@RequestBody ProductLocationSetDTO dto) {
         return Result.ok(productLocationService.removeLocation(dto));
     }
 
     @Operation(summary = "导出商品货位设置（真实 Excel 流）")
+    @SaCheckPermission("product:location:export")
     @GetMapping("/export")
     public void export(ProductLocationQuery query, HttpServletResponse response) throws IOException {
         List<ProductLocationVO> rows = productLocationService.list(query);

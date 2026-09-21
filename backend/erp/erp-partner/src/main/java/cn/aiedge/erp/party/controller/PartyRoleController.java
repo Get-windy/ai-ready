@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.stream.Collectors;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @Tag(name = "往来单位角色管理")
@@ -27,6 +28,7 @@ public class PartyRoleController {
     private final IPartyRoleService partyRoleService;
 
     @Operation(summary = "分页查询角色")
+    @SaCheckPermission("party:roles:list")
     @GetMapping("/page")
     public Result<IPage<PartyRoleDTO>> pageRoles(
             @RequestParam(required = false) String roleName,
@@ -55,6 +57,7 @@ public class PartyRoleController {
     }
 
     @Operation(summary = "查询所有启用的角色")
+    @SaCheckPermission("party:roles:list")
     @GetMapping("/list")
     public Result<List<PartyRoleDTO>> listRoles() {
         List<PartyRole> roles = partyRoleService.list(
@@ -66,6 +69,7 @@ public class PartyRoleController {
     }
 
     @Operation(summary = "获取角色详情")
+    @SaCheckPermission("party:roles:detail")
     @GetMapping("/{id}")
     public Result<PartyRoleDTO> getRole(@PathVariable Long id) {
         PartyRole role = partyRoleService.getById(id);
@@ -76,6 +80,7 @@ public class PartyRoleController {
     }
 
     @Operation(summary = "新增角色")
+    @SaCheckPermission("party:roles:create")
     @PostMapping
     public Result<Boolean> addRole(@RequestBody PartyRoleDTO dto) {
         // 检查角色代码是否已存在
@@ -94,6 +99,7 @@ public class PartyRoleController {
     }
 
     @Operation(summary = "更新角色")
+    @SaCheckPermission("party:roles:update")
     @PutMapping("/{id}")
     public Result<Boolean> updateRole(@PathVariable Long id, @RequestBody PartyRoleDTO dto) {
         PartyRole role = partyRoleService.getById(id);
@@ -118,6 +124,7 @@ public class PartyRoleController {
     }
 
     @Operation(summary = "删除角色")
+    @SaCheckPermission("party:roles:delete")
     @DeleteMapping("/{id}")
     public Result<Boolean> deleteRole(@PathVariable Long id) {
         PartyRole role = partyRoleService.getById(id);
@@ -132,6 +139,7 @@ public class PartyRoleController {
     }
 
     @Operation(summary = "启用/禁用角色")
+    @SaCheckPermission("party:roles:update")
     @PutMapping("/{id}/status")
     public Result<Boolean> updateStatus(@PathVariable Long id, @RequestParam Integer status) {
         PartyRole role = partyRoleService.getById(id);

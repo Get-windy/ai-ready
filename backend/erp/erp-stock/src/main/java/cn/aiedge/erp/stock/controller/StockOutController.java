@@ -16,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @RestController
@@ -26,36 +27,42 @@ public class StockOutController {
 
     private final StockOutService stockOutService;
 
+    @SaCheckPermission("stock:out:list")
     @GetMapping("/page")
     @Operation(summary = "分页查询出库单(按单据)")
     public Result<Page<StockOut>> page(@Parameter(description = "查询条件") @ModelAttribute StockOutQuery query) {
         return Result.ok(stockOutService.pageList(query));
     }
 
+    @SaCheckPermission("stock:out:view")
     @GetMapping("/page-detail")
     @Operation(summary = "分页查询出库明细(按明细)")
     public Result<Page<StockOutItemVO>> pageDetail(@Parameter(description = "查询条件") @ModelAttribute StockOutQuery query) {
         return Result.ok(stockOutService.pageDetail(query));
     }
 
+    @SaCheckPermission("stock:out:list")
     @GetMapping("/next-no")
     @Operation(summary = "生成下一出库单号")
     public Result<String> nextNo() {
         return Result.ok(stockOutService.generateNo());
     }
 
+    @SaCheckPermission("stock:out:detail")
     @GetMapping("/{id}")
     @Operation(summary = "获取出库单详情")
     public Result<StockOut> getById(@PathVariable Long id) {
         return Result.ok(stockOutService.getDetail(id));
     }
 
+    @SaCheckPermission("stock:out:list")
     @GetMapping("/{id}/items")
     @Operation(summary = "获取出库明细")
     public Result<List<StockOutItem>> getItems(@PathVariable Long id) {
         return Result.ok(stockOutService.getItems(id));
     }
 
+    @SaCheckPermission("stock:out:create")
     @PostMapping
     @Operation(summary = "创建出库单(保存草稿)")
     public Result<StockOut> create(@RequestBody StockOut stockOut) {
@@ -64,6 +71,7 @@ public class StockOutController {
         return Result.ok(stockOutService.createStockOut(stockOut, items));
     }
 
+    @SaCheckPermission("stock:out:update")
     @PutMapping("/{id}")
     @Operation(summary = "更新出库单(草稿)")
     public Result<StockOut> update(@PathVariable Long id, @RequestBody StockOut stockOut) {
@@ -72,6 +80,7 @@ public class StockOutController {
         return Result.ok(stockOutService.updateStockOut(id, stockOut, items));
     }
 
+    @SaCheckPermission("stock:out:delete")
     @DeleteMapping("/{id}")
     @Operation(summary = "删除出库单")
     public Result<Boolean> delete(@PathVariable Long id) {
@@ -82,36 +91,42 @@ public class StockOutController {
         return Result.ok(stockOutService.removeById(id));
     }
 
+    @SaCheckPermission("stock:out:submit")
     @PostMapping("/{id}/submit")
     @Operation(summary = "提交审批")
     public Result<StockOut> submit(@PathVariable Long id) {
         return Result.ok(stockOutService.submitForApproval(id));
     }
 
+    @SaCheckPermission("stock:out:approve")
     @PostMapping("/{id}/approve")
     @Operation(summary = "审批通过")
     public Result<StockOut> approve(@PathVariable Long id, @RequestParam(required = false) String note) {
         return Result.ok(stockOutService.approve(id, StpUtil.getLoginIdAsLong(), note));
     }
 
+    @SaCheckPermission("stock:out:approve")
     @PostMapping("/{id}/reject")
     @Operation(summary = "审批拒绝")
     public Result<StockOut> reject(@PathVariable Long id, @RequestParam String reason) {
         return Result.ok(stockOutService.reject(id, reason));
     }
 
+    @SaCheckPermission("stock:out:create")
     @PostMapping("/{id}/complete")
     @Operation(summary = "执行出库(记账)")
     public Result<StockOut> complete(@PathVariable Long id) {
         return Result.ok(stockOutService.execute(id));
     }
 
+    @SaCheckPermission("stock:out:create")
     @PostMapping("/{id}/cancel")
     @Operation(summary = "取消出库单")
     public Result<StockOut> cancel(@PathVariable Long id, @RequestParam(required = false) String reason) {
         return Result.ok(stockOutService.cancel(id, reason));
     }
 
+    @SaCheckPermission("stock:out:delete")
     @DeleteMapping("/batch")
     @Operation(summary = "批量删除出库单")
     public Result<Boolean> batchDelete(@RequestBody List<Long> ids) {

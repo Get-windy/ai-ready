@@ -13,6 +13,7 @@ import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 发票申请控制器
@@ -31,6 +32,7 @@ public class InvoiceApplicationController {
      * @param application 发票申请对象
      * @return 创建的发票申请
      */
+    @SaCheckPermission("invoice:application:create")
     @PostMapping
     public ResponseEntity<InvoiceApplication> createInvoiceApplication(@Valid @RequestBody InvoiceApplication application) {
         InvoiceApplication created = invoiceApplicationService.createInvoiceApplication(application);
@@ -43,6 +45,7 @@ public class InvoiceApplicationController {
      * @param id 申请ID
      * @return 发票申请对象
      */
+    @SaCheckPermission("invoice:application:detail")
     @GetMapping("/{id}")
     public ResponseEntity<InvoiceApplication> getInvoiceApplicationById(@PathVariable Long id) {
         Optional<InvoiceApplication> application = invoiceApplicationService.getInvoiceApplicationById(id);
@@ -55,6 +58,7 @@ public class InvoiceApplicationController {
      *
      * @return 发票申请列表
      */
+    @SaCheckPermission("invoice:application:list")
     @GetMapping("/list")
     public ResponseEntity<List<InvoiceApplication>> getAllInvoiceApplications() {
         List<InvoiceApplication> applications = invoiceApplicationService.getAllInvoiceApplications();
@@ -67,6 +71,7 @@ public class InvoiceApplicationController {
      * @param pageable 分页参数
      * @return 发票申请分页
      */
+    @SaCheckPermission("invoice:application:list")
     @GetMapping("/page")
     public ResponseEntity<Page<InvoiceApplication>> getInvoiceApplicationsPage(Pageable pageable) {
         Page<InvoiceApplication> applications = invoiceApplicationService.getInvoiceApplications(pageable);
@@ -79,6 +84,7 @@ public class InvoiceApplicationController {
      * @param status 申请状态
      * @return 发票申请列表
      */
+    @SaCheckPermission("invoice:application:detail")
     @GetMapping("/status/{status}")
     public ResponseEntity<List<InvoiceApplication>> getInvoiceApplicationsByStatus(@PathVariable InvoiceStatus status) {
         List<InvoiceApplication> applications = invoiceApplicationService.getInvoiceApplicationsByStatus(status);
@@ -91,6 +97,7 @@ public class InvoiceApplicationController {
      * @param customerId 客户ID
      * @return 发票申请列表
      */
+    @SaCheckPermission("invoice:application:detail")
     @GetMapping("/customer/{customerId}")
     public ResponseEntity<List<InvoiceApplication>> getInvoiceApplicationsByCustomerId(@PathVariable Long customerId) {
         List<InvoiceApplication> applications = invoiceApplicationService.getInvoiceApplicationsByCustomerId(customerId);
@@ -103,6 +110,7 @@ public class InvoiceApplicationController {
      * @param supplierId 供应商ID
      * @return 发票申请列表
      */
+    @SaCheckPermission("invoice:application:detail")
     @GetMapping("/supplier/{supplierId}")
     public ResponseEntity<List<InvoiceApplication>> getInvoiceApplicationsBySupplierId(@PathVariable Long supplierId) {
         List<InvoiceApplication> applications = invoiceApplicationService.getInvoiceApplicationsBySupplierId(supplierId);
@@ -116,6 +124,7 @@ public class InvoiceApplicationController {
      * @param endDate 结束日期
      * @return 发票申请列表
      */
+    @SaCheckPermission("invoice:application:view")
     @GetMapping("/date-range")
     public ResponseEntity<List<InvoiceApplication>> getInvoiceApplicationsByDateRange(
             @RequestParam LocalDate startDate,
@@ -131,6 +140,7 @@ public class InvoiceApplicationController {
      * @param application 更新的申请对象
      * @return 更新后的申请对象
      */
+    @SaCheckPermission("invoice:application:update")
     @PutMapping("/{id}")
     public ResponseEntity<InvoiceApplication> updateInvoiceApplication(
             @PathVariable Long id,
@@ -146,6 +156,7 @@ public class InvoiceApplicationController {
      * @param deletedBy 删除人ID
      * @return 操作结果
      */
+    @SaCheckPermission("invoice:application:delete")
     @DeleteMapping("/{id}")
     public ResponseEntity<Boolean> deleteInvoiceApplication(@PathVariable Long id, @RequestParam String deletedBy) {
         boolean result = invoiceApplicationService.deleteInvoiceApplication(id, deletedBy);
@@ -159,6 +170,7 @@ public class InvoiceApplicationController {
      * @param submittedBy 提交人ID
      * @return 操作结果
      */
+    @SaCheckPermission("invoice:application:submit")
     @PostMapping("/{id}/submit")
     public ResponseEntity<Boolean> submitInvoiceApplication(@PathVariable Long id, @RequestParam Long submittedBy) {
         boolean result = invoiceApplicationService.submitInvoiceApplication(id, submittedBy);
@@ -173,6 +185,7 @@ public class InvoiceApplicationController {
      * @param notes 批准意见
      * @return 操作结果
      */
+    @SaCheckPermission("invoice:application:approve")
     @PostMapping("/{id}/approve")
     public ResponseEntity<Boolean> approveInvoiceApplication(
             @PathVariable Long id,
@@ -190,6 +203,7 @@ public class InvoiceApplicationController {
      * @param reason 拒绝原因
      * @return 操作结果
      */
+    @SaCheckPermission("invoice:application:approve")
     @PostMapping("/{id}/reject")
     public ResponseEntity<Boolean> rejectInvoiceApplication(
             @PathVariable Long id,
@@ -207,6 +221,7 @@ public class InvoiceApplicationController {
      * @param reason 取消原因
      * @return 操作结果
      */
+    @SaCheckPermission("invoice:application:create")
     @PostMapping("/{id}/cancel")
     public ResponseEntity<Boolean> cancelInvoiceApplication(
             @PathVariable Long id,
@@ -224,6 +239,7 @@ public class InvoiceApplicationController {
      * @param issuedByName 开票人姓名
      * @return 生成的发票ID
      */
+    @SaCheckPermission("invoice:application:create")
     @PostMapping("/{id}/generate-invoice")
     public ResponseEntity<Long> generateInvoiceFromApplication(
             @PathVariable Long id,
@@ -239,6 +255,7 @@ public class InvoiceApplicationController {
      * @param keyword 关键词
      * @return 发票申请列表
      */
+    @SaCheckPermission("invoice:application:view")
     @GetMapping("/search")
     public ResponseEntity<List<InvoiceApplication>> searchInvoiceApplications(@RequestParam String keyword) {
         List<InvoiceApplication> applications = invoiceApplicationService.searchInvoiceApplications(keyword);

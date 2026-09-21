@@ -19,6 +19,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 商品品牌Controller
@@ -48,6 +49,7 @@ public class ProductBrandController {
     }
 
     @Operation(summary = "分页查询品牌列表")
+    @SaCheckPermission("product:brand:list")
     @GetMapping("/page")
     public Result<IPage<ProductBrand>> page(
             @RequestParam(required = false) String keyword,
@@ -57,12 +59,14 @@ public class ProductBrandController {
     }
 
     @Operation(summary = "获取所有品牌（当前租户）")
+    @SaCheckPermission("product:brand:list")
     @GetMapping("/list")
     public Result<List<ProductBrand>> list() {
         return Result.ok(productBrandService.getByTenantId(currentTenantId()));
     }
 
     @Operation(summary = "创建品牌")
+    @SaCheckPermission("product:brand:create")
     @PostMapping
     public Result<Boolean> create(@RequestBody ProductBrand brand) {
         brand.setTenantId(currentTenantId());
@@ -73,6 +77,7 @@ public class ProductBrandController {
     }
 
     @Operation(summary = "更新品牌")
+    @SaCheckPermission("product:brand:update")
     @PutMapping("/{id}")
     public Result<Boolean> update(@PathVariable Long id, @RequestBody ProductBrand brand) {
         brand.setId(id);
@@ -80,12 +85,14 @@ public class ProductBrandController {
     }
 
     @Operation(summary = "删除品牌")
+    @SaCheckPermission("product:brand:delete")
     @DeleteMapping("/{id}")
     public Result<Boolean> delete(@PathVariable Long id) {
         return Result.ok(productBrandService.removeById(id));
     }
 
     @Operation(summary = "导出品牌（真实 Excel 流，与分页查询同一过滤口径）")
+    @SaCheckPermission("product:brand:export")
     @GetMapping("/export")
     public void export(@RequestParam(required = false) String keyword,
                        HttpServletResponse response) throws IOException {

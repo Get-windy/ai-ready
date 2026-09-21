@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 客户区域管理（资料 → 往来单位 → 客户 → 区域管理子标签）
@@ -31,6 +32,7 @@ public class CustomerRegionController {
     private final CustomerRegionService customerRegionService;
 
     @Operation(summary = "分页查询客户区域")
+    @SaCheckPermission("party:customer-region:list")
     @GetMapping("/page")
     public ResponseEntity<ApiResponse<PageResult<CustomerRegion>>> page(
             @RequestParam(required = false) String keyword,
@@ -54,6 +56,7 @@ public class CustomerRegionController {
     }
 
     @Operation(summary = "获取客户区域列表（不分页）")
+    @SaCheckPermission("party:customer-region:list")
     @GetMapping("/list")
     public ResponseEntity<ApiResponse<List<CustomerRegion>>> list(
             @RequestParam(required = false) String keyword,
@@ -62,12 +65,14 @@ public class CustomerRegionController {
     }
 
     @Operation(summary = "查询客户区域详情")
+    @SaCheckPermission("party:customer-region:detail")
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<CustomerRegion>> getById(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.ok(customerRegionService.getById(id)));
     }
 
     @Operation(summary = "新增客户区域")
+    @SaCheckPermission("party:customer-region:create")
     @PostMapping
     public ResponseEntity<ApiResponse<CustomerRegion>> create(@RequestBody Map<String, Object> body) {
         CustomerRegion region = new CustomerRegion();
@@ -82,6 +87,7 @@ public class CustomerRegionController {
     }
 
     @Operation(summary = "更新客户区域")
+    @SaCheckPermission("party:customer-region:update")
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<Boolean>> update(@PathVariable Long id,
                                                        @RequestBody Map<String, Object> body) {
@@ -113,6 +119,7 @@ public class CustomerRegionController {
     }
 
     @Operation(summary = "删除客户区域（存在子区域时拒绝）")
+    @SaCheckPermission("party:customer-region:delete")
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<String>> delete(@PathVariable Long id) {
         CustomerRegion exist = customerRegionService.getById(id);

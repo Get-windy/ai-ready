@@ -19,6 +19,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 商品单位字典Controller
@@ -49,6 +50,7 @@ public class ProductUnitDictController {
     }
 
     @Operation(summary = "分页查询单位列表")
+    @SaCheckPermission("product:unit-dict:list")
     @GetMapping("/page")
     public Result<IPage<ProductUnitDict>> page(
             @RequestParam(required = false) String keyword,
@@ -58,12 +60,14 @@ public class ProductUnitDictController {
     }
 
     @Operation(summary = "获取所有单位（当前租户）")
+    @SaCheckPermission("product:unit-dict:list")
     @GetMapping("/list")
     public Result<List<ProductUnitDict>> list() {
         return Result.ok(productUnitDictService.getByTenantId(currentTenantId()));
     }
 
     @Operation(summary = "创建单位")
+    @SaCheckPermission("product:unit-dict:create")
     @PostMapping
     public Result<Boolean> create(@RequestBody ProductUnitDict unit) {
         unit.setTenantId(currentTenantId());
@@ -75,6 +79,7 @@ public class ProductUnitDictController {
     }
 
     @Operation(summary = "更新单位")
+    @SaCheckPermission("product:unit-dict:update")
     @PutMapping("/{id}")
     public Result<Boolean> update(@PathVariable Long id, @RequestBody ProductUnitDict unit) {
         unit.setId(id);
@@ -82,12 +87,14 @@ public class ProductUnitDictController {
     }
 
     @Operation(summary = "删除单位")
+    @SaCheckPermission("product:unit-dict:delete")
     @DeleteMapping("/{id}")
     public Result<Boolean> delete(@PathVariable Long id) {
         return Result.ok(productUnitDictService.removeById(id));
     }
 
     @Operation(summary = "导出单位（真实 Excel 流，与分页查询同一过滤口径）")
+    @SaCheckPermission("product:unit-dict:export")
     @GetMapping("/export")
     public void export(@RequestParam(required = false) String keyword,
                        HttpServletResponse response) throws IOException {

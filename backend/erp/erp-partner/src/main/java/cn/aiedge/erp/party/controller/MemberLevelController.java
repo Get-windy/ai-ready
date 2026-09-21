@@ -11,6 +11,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 会员级别（营销权益等级）
@@ -28,6 +29,7 @@ public class MemberLevelController {
     private final IMemberLevelService memberLevelService;
 
     @Operation(summary = "会员级别列表（下拉/放大镜选择用）")
+    @SaCheckPermission("party:member-level:list")
     @GetMapping("/list")
     public Result<List<MemberLevel>> list(@RequestParam(required = false) String keyword) {
         LambdaQueryWrapper<MemberLevel> w = new LambdaQueryWrapper<>();
@@ -38,6 +40,7 @@ public class MemberLevelController {
     }
 
     @Operation(summary = "新增会员级别")
+    @SaCheckPermission("party:member-level:create")
     @PostMapping
     public Result<MemberLevel> create(@RequestBody MemberLevel body) {
         body.setId(null);
@@ -48,6 +51,7 @@ public class MemberLevelController {
     }
 
     @Operation(summary = "更新会员级别")
+    @SaCheckPermission("party:member-level:update")
     @PutMapping("/{id}")
     public Result<Boolean> update(@PathVariable Long id, @RequestBody MemberLevel body) {
         MemberLevel exist = memberLevelService.getById(id);
@@ -57,6 +61,7 @@ public class MemberLevelController {
     }
 
     @Operation(summary = "删除会员级别")
+    @SaCheckPermission("party:member-level:delete")
     @DeleteMapping("/{id}")
     public Result<Boolean> delete(@PathVariable Long id) {
         return Result.ok(memberLevelService.removeById(id));

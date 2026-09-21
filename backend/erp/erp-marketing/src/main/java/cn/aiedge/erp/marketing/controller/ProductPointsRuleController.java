@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 商品级积分系数（会员设置「详细设置」入口，菜单 80302）
@@ -28,6 +29,7 @@ public class ProductPointsRuleController {
     private final ProductPointsRuleMapper mapper;
 
     @Operation(summary = "查询商品级积分系数列表")
+    @SaCheckPermission("marketing:product-points-rule:list")
     @GetMapping("/list")
     public Result<List<ProductPointsRule>> list(@RequestParam(required = false) String keyword) {
         LambdaQueryWrapper<ProductPointsRule> wrapper = new LambdaQueryWrapper<>();
@@ -40,6 +42,7 @@ public class ProductPointsRuleController {
     }
 
     @Operation(summary = "新增商品级积分系数")
+    @SaCheckPermission("marketing:product-points-rule:create")
     @PostMapping
     public Result<Boolean> create(@RequestBody ProductPointsRule rule) {
         Long tenantId = SecurityUtils.getCurrentTenantId();
@@ -52,6 +55,7 @@ public class ProductPointsRuleController {
     }
 
     @Operation(summary = "更新商品级积分系数")
+    @SaCheckPermission("marketing:product-points-rule:update")
     @PutMapping("/{id}")
     public Result<Boolean> update(@PathVariable Long id, @RequestBody ProductPointsRule rule) {
         rule.setId(id);
@@ -61,6 +65,7 @@ public class ProductPointsRuleController {
     }
 
     @Operation(summary = "删除商品级积分系数")
+    @SaCheckPermission("marketing:product-points-rule:delete")
     @DeleteMapping("/{id}")
     public Result<Boolean> delete(@PathVariable Long id) {
         return Result.ok(mapper.deleteById(id) > 0);

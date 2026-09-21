@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 固定资产报表控制器
@@ -24,6 +25,7 @@ public class FixedAssetReportController {
     private final FixedAssetReportService reportService;
 
     @Operation(summary = "折旧汇总")
+    @SaCheckPermission("fixed-asset:report:view")
     @GetMapping("/depreciation-summary")
     @RequiresPermission("erp:fixed-asset:report:query")
     public ApiResponse<List<Map<String, Object>>> getDepreciationSummary(
@@ -33,6 +35,7 @@ public class FixedAssetReportController {
     }
 
     @Operation(summary = "资产台账")
+    @SaCheckPermission("fixed-asset:report:view")
     @GetMapping("/asset-ledger")
     @RequiresPermission("erp:fixed-asset:report:query")
     public ApiResponse<List<Map<String, Object>>> getAssetLedger(
@@ -43,6 +46,7 @@ public class FixedAssetReportController {
     }
 
     @Operation(summary = "账龄分析")
+    @SaCheckPermission("fixed-asset:report:view")
     @GetMapping("/age-analysis")
     @RequiresPermission("erp:fixed-asset:report:query")
     public ApiResponse<List<Map<String, Object>>> getAgeAnalysis() {
@@ -51,6 +55,7 @@ public class FixedAssetReportController {
     }
 
     @Operation(summary = "分类汇总")
+    @SaCheckPermission("fixed-asset:report:view")
     @GetMapping("/category-summary")
     @RequiresPermission("erp:fixed-asset:report:query")
     public ApiResponse<List<Map<String, Object>>> getCategorySummary() {

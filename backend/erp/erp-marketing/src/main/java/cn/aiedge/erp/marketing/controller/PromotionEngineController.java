@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 促销引擎试算（营销 → 营销活动 → 商品促销/整单促销/特价 的共用计算入口）。
@@ -30,6 +31,7 @@ public class PromotionEngineController {
     private final PromotionEngine promotionEngine;
 
     @Operation(summary = "试算订单可享受的促销与优惠券优惠（只读，不核销不累加次数）")
+    @SaCheckPermission("marketing:promotion:create")
     @PostMapping("/calc")
     public Result<PromotionResult> calc(@RequestBody PromotionRequest req) {
         if (req.getTenantId() == null) {

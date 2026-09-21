@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @RestController
@@ -33,12 +34,14 @@ public class PreReceiptController {
 
     private final PreReceiptService preReceiptService;
 
+    @SaCheckPermission("finance:pre-receipt:list")
     @GetMapping("/next-no")
     @Operation(summary = "生成下一预收款单号")
     public String nextNo(@Parameter(description = "编号前缀") @RequestParam(required = false) String prefix) {
         return preReceiptService.generatePreReceiptNo();
     }
 
+    @SaCheckPermission("finance:pre-receipt:list")
     @GetMapping("/page")
     @Operation(summary = "分页查询预收款单")
     public Page<PreReceiptDTO> page(
@@ -51,18 +54,21 @@ public class PreReceiptController {
         return voPage;
     }
 
+    @SaCheckPermission("finance:pre-receipt:view")
     @GetMapping("/advance-balance")
     @Operation(summary = "查询结算单位（客户）预收余额")
     public BigDecimal advanceBalance(@Parameter(description = "客户ID") @RequestParam Long customerId) {
         return preReceiptService.getCustomerAdvanceBalance(customerId);
     }
 
+    @SaCheckPermission("finance:pre-receipt:detail")
     @GetMapping("/{id}")
     @Operation(summary = "获取预收款单详情（含收款账户明细）")
     public PreReceiptDTO getById(@PathVariable Long id) {
         return preReceiptService.getDetail(id);
     }
 
+    @SaCheckPermission("finance:pre-receipt:create")
     @PostMapping("/save")
     @Operation(summary = "保存预收款单草稿（含收款账户明细）")
     public PreReceiptDTO save(@Valid @RequestBody PreReceiptSaveDTO dto) {
@@ -70,6 +76,7 @@ public class PreReceiptController {
         return convertToDTO(preReceipt);
     }
 
+    @SaCheckPermission("finance:pre-receipt:create")
     @PostMapping("/confirm")
     @Operation(summary = "预收款单记账（预收余额增加 + 生成凭证）")
     public PreReceiptDTO confirm(
@@ -81,6 +88,7 @@ public class PreReceiptController {
         return convertToDTO(preReceipt);
     }
 
+    @SaCheckPermission("finance:pre-receipt:create")
     @PostMapping
     @Operation(summary = "创建预收款单（旧版）")
     public PreReceiptDTO create(@Valid @RequestBody PreReceiptCreateDTO dto) {
@@ -92,6 +100,7 @@ public class PreReceiptController {
         return convertToDTO(created);
     }
 
+    @SaCheckPermission("finance:pre-receipt:create")
     @PostMapping("/batch-confirm")
     @Operation(summary = "批量确认预收款（到账入账）")
     public int batchConfirm(@Parameter(description = "预收款ID列表") @RequestBody List<Long> ids) {
@@ -107,6 +116,7 @@ public class PreReceiptController {
         return count;
     }
 
+    @SaCheckPermission("finance:pre-receipt:create")
     @PostMapping("/{id}/offset-to-receipt")
     @Operation(summary = "冲抵到收款单")
     public void offsetToReceipt(
@@ -116,6 +126,7 @@ public class PreReceiptController {
         preReceiptService.offsetToReceipt(id, receiptId, amount);
     }
 
+    @SaCheckPermission("finance:pre-receipt:create")
     @PostMapping("/{id}/forfeit")
     @Operation(summary = "没收定金")
     public PreReceiptDTO forfeit(
@@ -125,6 +136,7 @@ public class PreReceiptController {
         return convertToDTO(preReceipt);
     }
 
+    @SaCheckPermission("finance:pre-receipt:create")
     @PostMapping("/{id}/refund")
     @Operation(summary = "退还预收款")
     public PreReceiptDTO refund(
@@ -134,6 +146,7 @@ public class PreReceiptController {
         return convertToDTO(preReceipt);
     }
 
+    @SaCheckPermission("finance:pre-receipt:view")
     @GetMapping("/statistics")
     @Operation(summary = "预收款统计")
     public Map<String, Object> statistics() {

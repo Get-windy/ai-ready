@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @Tag(name = "产品关联管理")
@@ -21,18 +22,21 @@ public class ProductRelatedController {
     private final ProductRelatedService productRelatedService;
 
     @Operation(summary = "查询关联产品列表")
+    @SaCheckPermission("product:related:detail")
     @GetMapping("/{productId}")
     public Result<List<ProductRelated>> getByProduct(@PathVariable Long productId) {
         return Result.ok(productRelatedService.getByProductId(productId));
     }
 
     @Operation(summary = "新增关联")
+    @SaCheckPermission("product:related:create")
     @PostMapping
     public Result<Boolean> create(@RequestBody ProductRelated related) {
         return Result.ok(productRelatedService.save(related));
     }
 
     @Operation(summary = "删除关联")
+    @SaCheckPermission("product:related:delete")
     @DeleteMapping("/{id}")
     public Result<Boolean> delete(@PathVariable Long id) {
         return Result.ok(productRelatedService.removeById(id));

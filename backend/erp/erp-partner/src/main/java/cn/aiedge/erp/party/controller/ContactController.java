@@ -18,6 +18,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 联系人（独立主数据）
@@ -38,6 +39,7 @@ public class ContactController {
     private final PartyService partyService;
 
     @Operation(summary = "分页查询联系人")
+    @SaCheckPermission("party:contact:list")
     @GetMapping("/page")
     public Result<IPage<Contact>> page(
             @RequestParam(required = false) String keyword,
@@ -59,6 +61,7 @@ public class ContactController {
     }
 
     @Operation(summary = "联系人下拉/放大镜选择（轻量）")
+    @SaCheckPermission("party:contact:list")
     @GetMapping("/options")
     public Result<List<Contact>> options(@RequestParam(required = false) String keyword,
                                          @RequestParam(defaultValue = "50") Integer limit) {
@@ -72,6 +75,7 @@ public class ContactController {
     }
 
     @Operation(summary = "联系人详情")
+    @SaCheckPermission("party:contact:detail")
     @GetMapping("/{id}")
     public Result<Contact> detail(@PathVariable Long id) {
         Contact c = contactService.getById(id);
@@ -79,6 +83,7 @@ public class ContactController {
     }
 
     @Operation(summary = "新增联系人")
+    @SaCheckPermission("party:contact:create")
     @PostMapping
     public Result<Contact> create(@RequestBody Contact body) {
         body.setId(null);
@@ -89,6 +94,7 @@ public class ContactController {
     }
 
     @Operation(summary = "更新联系人")
+    @SaCheckPermission("party:contact:update")
     @PutMapping("/{id}")
     public Result<Boolean> update(@PathVariable Long id, @RequestBody Contact body) {
         Contact exist = contactService.getById(id);
@@ -98,6 +104,7 @@ public class ContactController {
     }
 
     @Operation(summary = "删除联系人（存在关联往来单位时拒绝）")
+    @SaCheckPermission("party:contact:delete")
     @DeleteMapping("/{id}")
     public Result<String> delete(@PathVariable Long id) {
         Long rel = partyContactService.count(new QueryWrapper<PartyContact>()
@@ -111,6 +118,7 @@ public class ContactController {
     // ─────────── 关联往来单位（多对多） ───────────
 
     @Operation(summary = "查询该联系人服务的往来单位")
+    @SaCheckPermission("party:contact:view")
     @GetMapping("/{id}/parties")
     public Result<List<Map<String, Object>>> listParties(@PathVariable Long id) {
         List<PartyContact> rels = partyContactService.list(new QueryWrapper<PartyContact>()
@@ -138,6 +146,7 @@ public class ContactController {
     }
 
     @Operation(summary = "按往来单位维护联系人（人 upsert + 关联 upsert，供往来单位表单联系人分区调用）")
+    @SaCheckPermission("party:contact:create")
     @PostMapping("/link")
     public Result<Map<String, Object>> link(@RequestBody Map<String, Object> body) {
         Long partyId = toLong(body.get("partyId"));
@@ -214,6 +223,7 @@ public class ContactController {
     }
 
     @Operation(summary = "绑定往来单位（已绑定则更新关系上下文）")
+    @SaCheckPermission("party:contact:create")
     @PostMapping("/{id}/parties")
     public Result<Long> bindParty(@PathVariable Long id, @RequestBody Map<String, Object> body) {
         Long partyId = toLong(body.get("partyId"));
@@ -251,6 +261,7 @@ public class ContactController {
     }
 
     @Operation(summary = "解除与往来单位的关联")
+    @SaCheckPermission("party:contact:delete")
     @DeleteMapping("/{id}/parties/{relId}")
     public Result<Boolean> unbindParty(@PathVariable Long id, @PathVariable Long relId) {
         PartyContact rel = partyContactService.getById(relId);

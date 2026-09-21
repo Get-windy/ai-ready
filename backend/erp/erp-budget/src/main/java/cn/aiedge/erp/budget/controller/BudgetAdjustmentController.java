@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @RestController
 @RequestMapping("/api/erp/budget/adjustment")
@@ -22,6 +23,7 @@ public class BudgetAdjustmentController {
     private final BudgetAdjustmentService budgetAdjustmentService;
 
     @Operation(summary = "创建预算调整")
+    @SaCheckPermission("budget:adjustment:create")
     @PostMapping
     public ApiResponse<BudgetAdjustmentDTO> create(@Valid @RequestBody BudgetAdjustmentDTO dto) {
         BudgetAdjustmentDTO result = budgetAdjustmentService.create(dto);
@@ -29,6 +31,7 @@ public class BudgetAdjustmentController {
     }
 
     @Operation(summary = "更新预算调整")
+    @SaCheckPermission("budget:adjustment:update")
     @PutMapping("/{id}")
     public ApiResponse<BudgetAdjustmentDTO> update(
             @Parameter(description = "调整ID") @PathVariable Long id,
@@ -38,6 +41,7 @@ public class BudgetAdjustmentController {
     }
 
     @Operation(summary = "获取预算调整详情")
+    @SaCheckPermission("budget:adjustment:detail")
     @GetMapping("/{id}")
     public ApiResponse<BudgetAdjustmentDTO> getDetail(@Parameter(description = "调整ID") @PathVariable Long id) {
         BudgetAdjustmentDTO result = budgetAdjustmentService.getById(id);
@@ -45,6 +49,7 @@ public class BudgetAdjustmentController {
     }
 
     @Operation(summary = "分页查询预算调整列表")
+    @SaCheckPermission("budget:adjustment:list")
     @GetMapping("/page")
     public ApiResponse<Map<String, Object>> page(
             @Parameter(description = "预算ID") @RequestParam(required = false) Long budgetId,
@@ -57,6 +62,7 @@ public class BudgetAdjustmentController {
     }
 
     @Operation(summary = "提交审批")
+    @SaCheckPermission("budget:adjustment:submit")
     @PostMapping("/{id}/submit")
     public ApiResponse<BudgetAdjustmentDTO> submit(@Parameter(description = "调整ID") @PathVariable Long id) {
         BudgetAdjustmentDTO result = budgetAdjustmentService.submit(id);
@@ -64,6 +70,7 @@ public class BudgetAdjustmentController {
     }
 
     @Operation(summary = "审批通过")
+    @SaCheckPermission("budget:adjustment:approve")
     @PostMapping("/{id}/approve")
     public ApiResponse<BudgetAdjustmentDTO> approve(
             @Parameter(description = "调整ID") @PathVariable Long id,
@@ -73,6 +80,7 @@ public class BudgetAdjustmentController {
     }
 
     @Operation(summary = "审批拒绝")
+    @SaCheckPermission("budget:adjustment:approve")
     @PostMapping("/{id}/reject")
     public ApiResponse<BudgetAdjustmentDTO> reject(
             @Parameter(description = "调整ID") @PathVariable Long id,
@@ -82,6 +90,7 @@ public class BudgetAdjustmentController {
     }
 
     @Operation(summary = "导出预算调整列表")
+    @SaCheckPermission("budget:adjustment:export")
     @GetMapping("/export")
     public ApiResponse<List<BudgetAdjustmentDTO>> export(
             @Parameter(description = "预算ID") @RequestParam(required = false) Long budgetId,
@@ -92,6 +101,7 @@ public class BudgetAdjustmentController {
     }
 
     @Operation(summary = "删除预算调整")
+    @SaCheckPermission("budget:adjustment:delete")
     @DeleteMapping("/{id}")
     public ApiResponse<Void> delete(@Parameter(description = "调整ID") @PathVariable Long id) {
         budgetAdjustmentService.delete(id);

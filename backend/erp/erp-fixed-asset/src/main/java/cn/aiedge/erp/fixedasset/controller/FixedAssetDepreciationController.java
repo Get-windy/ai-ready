@@ -14,6 +14,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 固定资产折旧控制器
@@ -27,6 +28,7 @@ public class FixedAssetDepreciationController {
     private final FixedAssetDepreciationService depreciationService;
 
     @Operation(summary = "批量计提折旧")
+    @SaCheckPermission("fixed-asset:depreciation:create")
     @PostMapping("/batch-calculate")
     @RequiresPermission("erp:fixed-asset:depreciation:calculate")
     public ApiResponse<List<FixedAssetDepreciationDTO>> batchCalculate() {
@@ -35,6 +37,7 @@ public class FixedAssetDepreciationController {
     }
 
     @Operation(summary = "分页查询折旧记录")
+    @SaCheckPermission("fixed-asset:depreciation:list")
     @GetMapping("/page")
     @RequiresPermission("erp:fixed-asset:depreciation:list")
     public ApiResponse<Page<FixedAssetDepreciationDTO>> getPage(
@@ -48,6 +51,7 @@ public class FixedAssetDepreciationController {
     }
 
     @Operation(summary = "获取折旧记录详情")
+    @SaCheckPermission("fixed-asset:depreciation:detail")
     @GetMapping("/{id}")
     @RequiresPermission("erp:fixed-asset:depreciation:query")
     public ApiResponse<FixedAssetDepreciationDTO> getById(

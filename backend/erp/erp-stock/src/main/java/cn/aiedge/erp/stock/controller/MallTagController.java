@@ -20,6 +20,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 商城标签Controller
@@ -48,6 +49,7 @@ public class MallTagController {
     }
 
     @Operation(summary = "获取所有标签（当前租户，含标准槽位初始化）")
+    @SaCheckPermission("mall:tag:list")
     @GetMapping("/list")
     public Result<List<MallTag>> list() {
         // 标签是「标准槽位 TAG_1..TAG_20 + 用户自定义昵称」，租户首次访问时补齐槽位
@@ -55,6 +57,7 @@ public class MallTagController {
     }
 
     @Operation(summary = "分页查询标签（含「对应商品」聚合）")
+    @SaCheckPermission("mall:tag:list")
     @GetMapping("/page")
     public Result<IPage<MallTagVO>> page(
             @RequestParam(required = false) String keyword,
@@ -64,6 +67,7 @@ public class MallTagController {
     }
 
     @Operation(summary = "创建标签（槽位编码由系统按 TAG_N 递增分配）")
+    @SaCheckPermission("mall:tag:create")
     @PostMapping
     public Result<Boolean> create(@RequestBody MallTag tag) {
         tag.setTenantId(currentTenantId());
@@ -71,6 +75,7 @@ public class MallTagController {
     }
 
     @Operation(summary = "更新标签")
+    @SaCheckPermission("mall:tag:update")
     @PutMapping("/{id}")
     public Result<Boolean> update(@PathVariable Long id, @RequestBody MallTag tag) {
         tag.setId(id);
@@ -78,6 +83,7 @@ public class MallTagController {
     }
 
     @Operation(summary = "启用/停用标签")
+    @SaCheckPermission("mall:tag:update")
     @PutMapping("/{id}/status")
     public Result<Void> updateStatus(@PathVariable Long id, @RequestParam Integer status) {
         mallTagService.updateStatus(currentTenantId(), id, status);
@@ -85,12 +91,14 @@ public class MallTagController {
     }
 
     @Operation(summary = "删除标签")
+    @SaCheckPermission("mall:tag:delete")
     @DeleteMapping("/{id}")
     public Result<Boolean> delete(@PathVariable Long id) {
         return Result.ok(mallTagService.removeById(id));
     }
 
     @Operation(summary = "导出标签（真实 Excel 流）")
+    @SaCheckPermission("mall:tag:export")
     @GetMapping("/export")
     public void export(@RequestParam(required = false) String keyword,
                        HttpServletResponse response) throws IOException {

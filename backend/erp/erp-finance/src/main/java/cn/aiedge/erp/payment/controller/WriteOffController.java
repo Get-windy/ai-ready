@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @RestController
@@ -21,6 +22,7 @@ public class WriteOffController {
 
     private final WriteOffService writeOffService;
 
+    @SaCheckPermission("finance:write-off:list")
     @GetMapping("/page")
     @Operation(summary = "分页查询核销记录")
     public Page<WriteOff> page(
@@ -38,6 +40,7 @@ public class WriteOffController {
                 receivableId, payableId, startDate, endDate, pageNum, pageSize);
     }
 
+    @SaCheckPermission("finance:write-off:detail")
     @GetMapping("/{id}")
     @Operation(summary = "获取核销记录详情")
     public WriteOff getById(@PathVariable Long id) {
@@ -48,12 +51,14 @@ public class WriteOffController {
         return writeOff;
     }
 
+    @SaCheckPermission("finance:write-off:detail")
     @GetMapping("/receipt/{receiptId}")
     @Operation(summary = "根据收款单查询核销记录")
     public List<WriteOff> getByReceiptId(@PathVariable Long receiptId) {
         return writeOffService.getByReceiptId(receiptId);
     }
 
+    @SaCheckPermission("finance:write-off:detail")
     @GetMapping("/payment/{paymentId}")
     @Operation(summary = "根据付款单查询核销记录")
     public List<WriteOff> getByPaymentId(@PathVariable Long paymentId) {

@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 员工提成汇总控制器
@@ -27,6 +28,7 @@ public class CommissionStaffSummaryController {
 
     @Operation(summary = "员工提成汇总分页",
             description = "按推荐人(referrerId=员工/业务员)聚合: 成单数、订单金额合计、提成金额合计、按结算状态拆分(未结DRAFT/CONFIRMED、已结PAID)")
+    @SaCheckPermission("marketing:commission:list")
     @GetMapping("/staff-summary/page")
     public Result<Page<StaffCommissionSummaryDTO>> staffSummaryPage(
             @RequestParam(defaultValue = "1") Integer page,

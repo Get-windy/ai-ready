@@ -13,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @Tag(name = "加价购规则管理")
@@ -24,6 +25,7 @@ public class AddonRuleController {
     private final AddonRuleService addonRuleService;
 
     @Operation(summary = "分页查询加价购规则")
+    @SaCheckPermission("marketing:addon-rule:list")
     @GetMapping("/page")
     public Result<IPage<AddonRule>> page(
             @RequestParam(required = false) String ruleName,
@@ -43,12 +45,14 @@ public class AddonRuleController {
     }
 
     @Operation(summary = "查询加价购规则详情")
+    @SaCheckPermission("marketing:addon-rule:detail")
     @GetMapping("/{id}")
     public Result<AddonRule> getById(@PathVariable Long id) {
         return Result.ok(addonRuleService.getById(id));
     }
 
     @Operation(summary = "创建加价购规则")
+    @SaCheckPermission("marketing:addon-rule:create")
     @PostMapping
     public Result<Boolean> create(@RequestBody AddonRule addonRule) {
         addonRule.setId(null);
@@ -60,6 +64,7 @@ public class AddonRuleController {
     }
 
     @Operation(summary = "更新加价购规则")
+    @SaCheckPermission("marketing:addon-rule:update")
     @PutMapping("/{id}")
     public Result<Boolean> update(@PathVariable Long id, @RequestBody AddonRule addonRule) {
         addonRule.setId(id);
@@ -67,12 +72,14 @@ public class AddonRuleController {
     }
 
     @Operation(summary = "删除加价购规则")
+    @SaCheckPermission("marketing:addon-rule:delete")
     @DeleteMapping("/{id}")
     public Result<Boolean> delete(@PathVariable Long id) {
         return Result.ok(addonRuleService.removeById(id));
     }
 
     @Operation(summary = "启用加价购规则")
+    @SaCheckPermission("marketing:addon-rule:create")
     @PostMapping("/{id}/enable")
     public Result<Boolean> enable(@PathVariable Long id) {
         addonRuleService.enable(id);
@@ -80,6 +87,7 @@ public class AddonRuleController {
     }
 
     @Operation(summary = "停用加价购规则")
+    @SaCheckPermission("marketing:addon-rule:create")
     @PostMapping("/{id}/disable")
     public Result<Boolean> disable(@PathVariable Long id) {
         addonRuleService.disable(id);

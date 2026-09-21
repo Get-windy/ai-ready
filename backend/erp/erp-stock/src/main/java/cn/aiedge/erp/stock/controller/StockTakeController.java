@@ -16,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @RestController
@@ -26,42 +27,49 @@ public class StockTakeController {
 
     private final StockTakeService stockTakeService;
 
+    @SaCheckPermission("stock:take:list")
     @GetMapping("/page")
     @Operation(summary = "分页查询盘点单(按单据)")
     public Result<Page<StockTake>> page(@Parameter(description = "查询条件") @ModelAttribute StockTakeQuery query) {
         return Result.ok(stockTakeService.pageList(query));
     }
 
+    @SaCheckPermission("stock:take:view")
     @GetMapping("/page-detail")
     @Operation(summary = "分页查询盘点明细(按明细)")
     public Result<Page<StockTakeItemVO>> pageDetail(@Parameter(description = "查询条件") @ModelAttribute StockTakeQuery query) {
         return Result.ok(stockTakeService.pageDetail(query));
     }
 
+    @SaCheckPermission("stock:take:list")
     @GetMapping("/next-no")
     @Operation(summary = "生成下一盘点单号")
     public Result<String> nextNo() {
         return Result.ok(stockTakeService.generateNo());
     }
 
+    @SaCheckPermission("stock:take:view")
     @GetMapping("/unchecked-products")
     @Operation(summary = "未盘商品查询(按仓库列出库存商品，排除已盘))")
     public Result<List<StockTakeUncheckedVO>> uncheckedProducts(@ModelAttribute StockTakeQuery query) {
         return Result.ok(stockTakeService.uncheckedProducts(query));
     }
 
+    @SaCheckPermission("stock:take:detail")
     @GetMapping("/{id}")
     @Operation(summary = "获取盘点单详情")
     public Result<StockTake> getById(@PathVariable Long id) {
         return Result.ok(stockTakeService.getDetail(id));
     }
 
+    @SaCheckPermission("stock:take:list")
     @GetMapping("/{id}/items")
     @Operation(summary = "获取盘点明细")
     public Result<List<StockTakeItem>> getItems(@PathVariable Long id) {
         return Result.ok(stockTakeService.getItems(id));
     }
 
+    @SaCheckPermission("stock:take:create")
     @PostMapping
     @Operation(summary = "创建盘点单(保存)")
     public Result<StockTake> create(@RequestBody StockTake stockTake) {
@@ -70,6 +78,7 @@ public class StockTakeController {
         return Result.ok(stockTakeService.createStockTake(stockTake, items));
     }
 
+    @SaCheckPermission("stock:take:update")
     @PutMapping("/{id}")
     @Operation(summary = "更新盘点单(保存)")
     public Result<StockTake> update(@PathVariable Long id, @RequestBody StockTake stockTake) {
@@ -78,6 +87,7 @@ public class StockTakeController {
         return Result.ok(stockTakeService.updateStockTake(id, stockTake, items));
     }
 
+    @SaCheckPermission("stock:take:delete")
     @DeleteMapping("/{id}")
     @Operation(summary = "删除盘点单")
     public Result<Boolean> delete(@PathVariable Long id) {
@@ -88,12 +98,14 @@ public class StockTakeController {
         return Result.ok(stockTakeService.removeById(id));
     }
 
+    @SaCheckPermission("stock:take:create")
     @PostMapping("/{id}/process")
     @Operation(summary = "盘点处理(生成报损单/报溢单)")
     public Result<StockTake> process(@PathVariable Long id) {
         return Result.ok(stockTakeService.process(id));
     }
 
+    @SaCheckPermission("stock:take:delete")
     @DeleteMapping("/batch")
     @Operation(summary = "批量删除盘点单")
     public Result<Boolean> batchDelete(@RequestBody List<Long> ids) {

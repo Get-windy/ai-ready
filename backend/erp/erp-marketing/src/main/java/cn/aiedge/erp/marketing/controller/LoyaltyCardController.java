@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @Tag(name = "会员卡管理")
@@ -25,6 +26,7 @@ public class LoyaltyCardController {
     private final LoyaltyCardService loyaltyCardService;
 
     @Operation(summary = "分页查询会员卡")
+    @SaCheckPermission("marketing:card:list")
     @GetMapping("/page")
     public Result<IPage<LoyaltyCard>> page(
             @RequestParam(required = false) Long memberId,
@@ -39,12 +41,14 @@ public class LoyaltyCardController {
     }
 
     @Operation(summary = "查询会员的所有卡片")
+    @SaCheckPermission("marketing:card:detail")
     @GetMapping("/member/{memberId}")
     public Result<List<LoyaltyCard>> listByMember(@PathVariable Long memberId) {
         return Result.ok(loyaltyCardService.listByMember(memberId));
     }
 
     @Operation(summary = "获取卡片详情")
+    @SaCheckPermission("marketing:card:detail")
     @GetMapping("/{id}")
     public Result<LoyaltyCard> getById(@PathVariable Long id) {
         LoyaltyCard card = loyaltyCardService.getById(id);
@@ -55,6 +59,7 @@ public class LoyaltyCardController {
     }
 
     @Operation(summary = "创建会员卡")
+    @SaCheckPermission("marketing:card:create")
     @PostMapping
     public Result<Boolean> create(@RequestBody LoyaltyCard card) {
         if (card.getPoints() == null) card.setPoints(BigDecimal.ZERO);
@@ -63,6 +68,7 @@ public class LoyaltyCardController {
     }
 
     @Operation(summary = "更新会员卡")
+    @SaCheckPermission("marketing:card:update")
     @PutMapping("/{id}")
     public Result<Boolean> update(@PathVariable Long id, @RequestBody LoyaltyCard card) {
         card.setId(id);
@@ -70,6 +76,7 @@ public class LoyaltyCardController {
     }
 
     @Operation(summary = "增加积分")
+    @SaCheckPermission("marketing:card:create")
     @PostMapping("/{id}/points/add")
     public Result<Boolean> addPoints(@PathVariable Long id, @RequestParam Integer points) {
         loyaltyCardService.addPoints(id, points);
@@ -77,6 +84,7 @@ public class LoyaltyCardController {
     }
 
     @Operation(summary = "扣减积分")
+    @SaCheckPermission("marketing:card:create")
     @PostMapping("/{id}/points/deduct")
     public Result<Boolean> deductPoints(@PathVariable Long id, @RequestParam Integer points) {
         loyaltyCardService.deductPoints(id, points);
@@ -84,6 +92,7 @@ public class LoyaltyCardController {
     }
 
     @Operation(summary = "删除会员卡")
+    @SaCheckPermission("marketing:card:delete")
     @DeleteMapping("/{id}")
     public Result<Boolean> delete(@PathVariable Long id) {
         return Result.ok(loyaltyCardService.removeById(id));

@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 会员设置（营销 → 会员中心 → 会员设置，菜单 80302）
@@ -25,12 +26,14 @@ public class MemberConfigController {
     private final MemberConfigService memberConfigService;
 
     @Operation(summary = "读取会员设置")
+    @SaCheckPermission("marketing:member-config:view")
     @GetMapping
     public Result<MemberConfig> get() {
         return Result.ok(memberConfigService.getConfig());
     }
 
     @Operation(summary = "保存会员设置")
+    @SaCheckPermission("marketing:member-config:update")
     @PutMapping
     public Result<MemberConfig> save(@RequestBody MemberConfig config) {
         validate(config);

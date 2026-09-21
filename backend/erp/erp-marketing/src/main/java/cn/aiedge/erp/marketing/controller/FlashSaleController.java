@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @Tag(name = "秒杀场次管理")
@@ -23,6 +24,7 @@ public class FlashSaleController {
     private final FlashSaleService flashSaleService;
 
     @Operation(summary = "分页查询秒杀场次")
+    @SaCheckPermission("marketing:flash-sale:list")
     @GetMapping("/page")
     public Result<IPage<FlashSale>> page(
             @RequestParam(required = false) String title,
@@ -44,12 +46,14 @@ public class FlashSaleController {
     }
 
     @Operation(summary = "查询秒杀场次详情")
+    @SaCheckPermission("marketing:flash-sale:detail")
     @GetMapping("/{id}")
     public Result<FlashSale> getById(@PathVariable Long id) {
         return Result.ok(flashSaleService.getById(id));
     }
 
     @Operation(summary = "创建秒杀场次")
+    @SaCheckPermission("marketing:flash-sale:create")
     @PostMapping
     public Result<Boolean> create(@RequestBody FlashSale flashSale) {
         flashSale.setId(null);
@@ -59,6 +63,7 @@ public class FlashSaleController {
     }
 
     @Operation(summary = "更新秒杀场次")
+    @SaCheckPermission("marketing:flash-sale:update")
     @PutMapping("/{id}")
     public Result<Boolean> update(@PathVariable Long id, @RequestBody FlashSale flashSale) {
         flashSale.setId(id);
@@ -68,12 +73,14 @@ public class FlashSaleController {
     }
 
     @Operation(summary = "删除秒杀场次")
+    @SaCheckPermission("marketing:flash-sale:delete")
     @DeleteMapping("/{id}")
     public Result<Boolean> delete(@PathVariable Long id) {
         return Result.ok(flashSaleService.removeById(id));
     }
 
     @Operation(summary = "发布秒杀场次（校验时间与库存）")
+    @SaCheckPermission("marketing:flash-sale:publish")
     @PostMapping("/{id}/publish")
     public Result<Boolean> publish(@PathVariable Long id) {
         flashSaleService.publish(id);
@@ -81,6 +88,7 @@ public class FlashSaleController {
     }
 
     @Operation(summary = "取消秒杀场次")
+    @SaCheckPermission("marketing:flash-sale:create")
     @PostMapping("/{id}/cancel")
     public Result<Boolean> cancel(@PathVariable Long id) {
         flashSaleService.cancel(id);
@@ -88,6 +96,7 @@ public class FlashSaleController {
     }
 
     @Operation(summary = "分页查询场次参与记录")
+    @SaCheckPermission("marketing:flash-sale:view")
     @GetMapping("/{id}/participants")
     public Result<IPage<FlashSaleOrder>> participants(
             @PathVariable Long id,

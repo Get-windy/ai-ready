@@ -22,6 +22,7 @@ import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 营销自动化（菜单 80303，本系统建模页）
@@ -46,6 +47,7 @@ public class AutoCampaignController {
     // ══════ Tab1 自动化规则 ══════
 
     @Operation(summary = "分页查询自动化规则")
+    @SaCheckPermission("marketing:auto-campaign:list")
     @GetMapping("/page")
     public Result<IPage<AutoCampaign>> page(
             @RequestParam(required = false) String name,
@@ -62,6 +64,7 @@ public class AutoCampaignController {
     }
 
     @Operation(summary = "规则详情")
+    @SaCheckPermission("marketing:auto-campaign:detail")
     @GetMapping("/{id}")
     public Result<AutoCampaign> getById(@PathVariable Long id) {
         AutoCampaign c = campaignMapper.selectById(id);
@@ -70,6 +73,7 @@ public class AutoCampaignController {
     }
 
     @Operation(summary = "新增自动化规则")
+    @SaCheckPermission("marketing:auto-campaign:create")
     @PostMapping
     public Result<Long> create(@RequestBody AutoCampaign req) {
         validate(req);
@@ -85,6 +89,7 @@ public class AutoCampaignController {
     }
 
     @Operation(summary = "修改自动化规则")
+    @SaCheckPermission("marketing:auto-campaign:update")
     @PutMapping("/{id}")
     public Result<Boolean> update(@PathVariable Long id, @RequestBody AutoCampaign req) {
         validate(req);
@@ -96,12 +101,14 @@ public class AutoCampaignController {
     }
 
     @Operation(summary = "删除自动化规则")
+    @SaCheckPermission("marketing:auto-campaign:delete")
     @DeleteMapping("/{id}")
     public Result<Boolean> delete(@PathVariable Long id) {
         return Result.ok(campaignMapper.deleteById(id) > 0);
     }
 
     @Operation(summary = "启用/停用规则")
+    @SaCheckPermission("marketing:auto-campaign:create")
     @PostMapping("/{id}/status")
     public Result<Boolean> changeStatus(@PathVariable Long id, @RequestParam Integer status) {
         AutoCampaign c = new AutoCampaign().setId(id).setStatus(status).setUpdateTime(LocalDateTime.now());
@@ -109,6 +116,7 @@ public class AutoCampaignController {
     }
 
     @Operation(summary = "候选会员预览（不执行动作）")
+    @SaCheckPermission("marketing:auto-campaign:view")
     @GetMapping("/{id}/candidates")
     public Result<List<AutoCampaignCandidate>> candidates(@PathVariable Long id,
                                                           @RequestParam(defaultValue = "200") Integer limit) {
@@ -122,6 +130,7 @@ public class AutoCampaignController {
     }
 
     @Operation(summary = "立即执行一次规则")
+    @SaCheckPermission("marketing:auto-campaign:execute")
     @PostMapping("/{id}/run")
     public Result<Map<String, Object>> run(@PathVariable Long id,
                                            @RequestParam(defaultValue = "500") Integer limit) {
@@ -129,12 +138,14 @@ public class AutoCampaignController {
     }
 
     @Operation(summary = "执行全部启用规则（定时任务入口）")
+    @SaCheckPermission("marketing:auto-campaign:create")
     @PostMapping("/run-all")
     public Result<Map<String, Object>> runAll(@RequestParam(defaultValue = "500") Integer limitPerCampaign) {
         return Result.ok(autoCampaignService.runAll(limitPerCampaign));
     }
 
     @Operation(summary = "规则执行概况（规则数/启用数/近 7 日触达）")
+    @SaCheckPermission("marketing:auto-campaign:view")
     @GetMapping("/stat")
     public Result<Map<String, Object>> stat() {
         Long total = campaignMapper.selectCount(new LambdaQueryWrapper<>());
@@ -153,6 +164,7 @@ public class AutoCampaignController {
     // ══════ Tab2 执行记录 ══════
 
     @Operation(summary = "分页查询执行记录")
+    @SaCheckPermission("marketing:auto-campaign:list")
     @GetMapping("/log/page")
     public Result<IPage<AutoCampaignLog>> logPage(
             @RequestParam(required = false) Long campaignId,

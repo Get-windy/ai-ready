@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 我要推广（营销 → 营销推广 → 我要推广，菜单 80330）
@@ -32,6 +33,7 @@ public class PromoteController {
     private final MarketingQueryMapper marketingQueryMapper;
 
     @Operation(summary = "分页查询可推广商品（含库存、最近销售时间与分享统计）")
+    @SaCheckPermission("marketing:promote:list")
     @GetMapping("/product/page")
     public Result<IPage<PromoteProductRow>> productPage(
             @RequestParam(required = false) String keyword,

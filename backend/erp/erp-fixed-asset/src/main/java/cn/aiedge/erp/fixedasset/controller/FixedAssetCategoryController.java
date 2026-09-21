@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 固定资产分类控制器
@@ -26,6 +27,7 @@ public class FixedAssetCategoryController {
     private final FixedAssetCategoryService categoryService;
 
     @Operation(summary = "创建分类")
+    @SaCheckPermission("fixed-asset:category:create")
     @PostMapping
     @RequiresPermission("erp:fixed-asset:category:create")
     public ApiResponse<FixedAssetCategoryDTO> create(@Valid @RequestBody FixedAssetCategoryDTO dto) {
@@ -34,6 +36,7 @@ public class FixedAssetCategoryController {
     }
 
     @Operation(summary = "更新分类")
+    @SaCheckPermission("fixed-asset:category:update")
     @PutMapping("/{id}")
     @RequiresPermission("erp:fixed-asset:category:update")
     public ApiResponse<FixedAssetCategoryDTO> update(
@@ -44,6 +47,7 @@ public class FixedAssetCategoryController {
     }
 
     @Operation(summary = "删除分类")
+    @SaCheckPermission("fixed-asset:category:delete")
     @DeleteMapping("/{id}")
     @RequiresPermission("erp:fixed-asset:category:delete")
     public ApiResponse<Void> delete(
@@ -53,6 +57,7 @@ public class FixedAssetCategoryController {
     }
 
     @Operation(summary = "获取分类详情")
+    @SaCheckPermission("fixed-asset:category:detail")
     @GetMapping("/{id}")
     @RequiresPermission("erp:fixed-asset:category:query")
     public ApiResponse<FixedAssetCategoryDTO> getById(
@@ -62,6 +67,7 @@ public class FixedAssetCategoryController {
     }
 
     @Operation(summary = "获取所有分类")
+    @SaCheckPermission("fixed-asset:category:list")
     @GetMapping("/list")
     @RequiresPermission("erp:fixed-asset:category:list")
     public ApiResponse<List<FixedAssetCategoryDTO>> getAll() {
@@ -70,6 +76,7 @@ public class FixedAssetCategoryController {
     }
 
     @Operation(summary = "获取分类树")
+    @SaCheckPermission("fixed-asset:category:list")
     @GetMapping("/tree")
     @RequiresPermission("erp:fixed-asset:category:list")
     public ApiResponse<List<Map<String, Object>>> getTree() {

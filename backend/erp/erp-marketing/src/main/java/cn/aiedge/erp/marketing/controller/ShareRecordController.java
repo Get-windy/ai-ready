@@ -19,6 +19,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 推广分享（营销 → 营销推广 → 我要推广 80330 / 推广历史查询 80331）
@@ -38,6 +39,7 @@ public class ShareRecordController {
     }
 
     @Operation(summary = "分页查询推广历史（全部分享人）")
+    @SaCheckPermission("marketing:share:list")
     @GetMapping("/page")
     public Result<IPage<ShareRecord>> page(
             @RequestParam(required = false) String shareType,
@@ -51,6 +53,7 @@ public class ShareRecordController {
     }
 
     @Operation(summary = "分页查询我的推广（仅当前登录人）")
+    @SaCheckPermission("marketing:share:list")
     @GetMapping("/my/page")
     public Result<IPage<ShareRecord>> myPage(
             @RequestParam(required = false) String shareType,
@@ -75,6 +78,7 @@ public class ShareRecordController {
     }
 
     @Operation(summary = "按分享对象聚合的分享统计（我要推广各物料 Tab 的 5 个统计列）")
+    @SaCheckPermission("marketing:share:view")
     @GetMapping("/summary")
     public Result<List<ShareSummaryRow>> summary(
             @RequestParam String shareType,
@@ -84,6 +88,7 @@ public class ShareRecordController {
     }
 
     @Operation(summary = "登记一次分享（我要推广 →「分享」按钮）")
+    @SaCheckPermission("marketing:share:create")
     @PostMapping
     public Result<Long> create(@RequestBody ShareRecord req) {
         if (req.getShareType() == null || req.getShareType().isBlank()) {

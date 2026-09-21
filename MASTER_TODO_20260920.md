@@ -48,6 +48,7 @@
 | 库存仓储（erp-stock + wms） | 6 | 4 | 8 | 1 | 2 | 🔄 STK-BREAK-01/03 已闭环；-02 剩 2 处、-04/05 待做 |
 | 销售域（erp-sales） | 4 | 3 | 2 | 3 | 2 | ⬜ |
 | 采购域（erp-purchase） | 4 | 3 | 2 | 3 | 1 | 🔄 PUR-BREAK-01 已闭环；PUR-BREAK-03/04 待做 |
+| **权限专项（E-01/E-04）** | — | — | — | 7 模块已补 | — | 🔄 97 控制器 / 709 端点已补；剩 crm/wms/b2b/analytics |
 | 主数据（erp-partner / md-*） | 3 | 3 | 6 | 1 | 1 | ⬜ |
 | DMS 配送 | 3 | 1 | 2 | 2 | 1 | ⬜ |
 | 商城/营销（erp-mall / marketing） | 3 | 2 | 4 | 2 | 1 | ⬜ |
@@ -210,7 +211,18 @@
 | 5 | `erp.marketing.*` / `erp.b2b.*` | 含 C 端公开接口，需逐个甄别 |
 
 - **另**：`erp.pricing.controller.PriceApprovalController`（价格审批）单独补。
-- **状态**：⬜ 批次 1 需先复核
+- **状态**：🔄 **批次 3（stock）与部分批次 1 已完成（2026-09-21）** ——
+  本轮给 **7 个模块 / 97 个控制器 / 709 处端点**补上了 `@SaCheckPermission`：
+  budget(54) + fixedasset(50) + stock/product/md(288) + invoice(42) + payment(95) +
+  party(92) + marketing(142)。注解由 `tools/gen-module-permission-seed.py --apply`
+  按同一套规则插入（手改 87 个文件必然漏改；漏改是静默 fail-open，改错是 403）。
+  **覆盖率变化**：无 `@SaCheckPermission` 的控制器 **311(79%) → 218(55%)**；
+  **无任何 `@SaCheck*` 的 224(57%) → 139(35%)**（端点 2028 → 1319）。
+  **门禁同步**：`known-unauthorized-controllers.txt` 按棘轮规则删掉 **104 行**
+  （85 行本轮 + 19 行历史过期，后者含 09-20 erp-finance 那批与已删的 FieldPermissionController）；
+  `AuthzAnnotationCoverageTest` + `PointcutTargetExistenceTest` **4/4 通过**。
+  **未做**：批次 2（crm 8 控制器，MD-AUTHZ-01 P0）、批次 4（wms/PDA）、批次 5（marketing/b2b 的 C 端甄别）、
+  以及 `analytics`/`report` 零权限。
 
 #### E-02 [P1] 僵尸权限码（能在矩阵勾选，勾了不生效）
 
@@ -223,13 +235,37 @@
 #### E-03 [P1] `sys_permission.api_path` 只填 238/474
 
 - **修法**：补全映射（若依式「权限码↔接口」），或明确废弃该列。
-- **状态**：⬜
+- **状态**：🔄 **大部分已完成（2026-09-21）** —— 实测 **238/474 → 734/994（74%）**。
+  本轮生成器在建码时**顺带写入** `api_path`/`method`（取该码扫描到的第一个代表端点），
+  即「补 E-04 的同时把 E-03 一起解决」，没有另做一遍。
+  **剩余**：仍无 `api_path` 的主要是老码（历史遗留），需单独清点。
 
 #### E-04 [P1] 9 个模块 0 权限码
 
 - **清单**：stock / wms / marketing / b2b / payment / party / budget / invoice / fixedasset；另 analytics / report 零权限。
 - **依赖**：补码是 E-01 的前置（铁律）。
-- **状态**：⬜
+- **状态**：🔄 **7/9 已完成并验证（2026-09-21）**，剩 wms / b2b 需先拍板：
+  - **已完成**：budget(36) / fixedasset(40) / stock+product+md(202) / invoice(14) /
+    payment+finance(37) / party+partner+md(59) / marketing(98) —— 共 **485 个新码**，
+    迁移 `V11.441.0`（budget）+ `V11.442.0`~`V11.447.0`（六模块），全部 success。
+  - **工具**：新增 `tools/gen-module-permission-seed.py` —— 按**类级路由路径**推导「域:资源:动作」
+    （不能按模块目录推导：`erp-stock` 目录里装的是 `/api/erp/product/*`、`/api/erp/md/*` 控制器，
+    `wms` 里混着 `/api/v1/warehouse/*`，`erp-mall` 里既有后台 `/api/erp/mall/admin/*` 又有 C 端
+    `/api/v1/mall/*`）。`--apply` 可幂等地把注解插到映射注解之前。
+  - **口径**：一码一「资源×动作」（对齐既有：`PurchaseOrderController` 16 端点→8 码），
+    动作词复用库中已有的，不新造同义词。
+  - **域命名规范（2026-09-21 定案，当场归一）**：域 = 类级路由路径去掉 `/api`、跳过 `erp`/`v1`
+    容器段后的**第一段**（首段含 `-` 且前缀是已知域时拆开，如 `product-category` → `product:category`）。
+    **不允许按模块目录推导** —— 二者在本仓不对应（`erp-stock` 目录里是 `/api/erp/product/*`、
+    `/api/erp/md/*` 控制器；`wms` 里混 `/api/v1/warehouse/*`；`erp-mall` 里后台与 C 端混装）。
+    同名不同物用**路径级覆盖**（`PATH_OVERRIDE`）解决，不用段级猜测。
+    遗留的 `partner` 域与 `payment` 语义混用已由 `V11.448.0` 一并归一。
+  - **未做（需拍板）**：`wms`（PDA 设备鉴权策略未定，设备端不能直接套员工账号口令模型）、
+    `b2b`（`/api/v1/mall/**` 是 C 端公开接口，自动补注解会把商城顾客挡在门外，
+    需逐个甄别哪些必须公开）。工具里已标记为 `manual_only`，不会误改。
+  - **另**：`analytics` / `report` 零权限仍待补（本轮未覆盖）。
+- **⚠️ 防僵尸码红线（本轮已验证守住）**：补码必须与补注解同批，否则就是凭空造僵尸码（加重 E-02）。
+  实测：新增 485 码后，未生效数仅 144 → **159（+15）**，即新码约 **97% 真接线**。
 
 #### E-05 [P2] 记录规则 `sys_record_rule` 无查询消费方
 
@@ -952,4 +988,11 @@
 | 2026-09-21 | 菜单派生可行性实测 | `sys_menu` 无 `permission_code` 列；307 个叶子菜单的 `menu_code` 仅 **2 个**精确命中权限码，但**前缀规则成立**（`finance:other-income-doc` ↔ `finance:other-income-doc:view`）。按前缀规则实测：SYSTEM_ADMIN(18 码)/DEPT_ADMIN(16 码) → 可见 **3 个**菜单；E2E_T2_ADMIN(2 码) → **0 个**。根因是权限码库只覆盖 31/500 个 `erp:*`（九个模块零码，见 E-04）⇒ **派生必须先补码** | 结论写入 平台-AUTHZ-01 条目 |
 | 2026-09-21 | PUR-BREAK-01 | 补建 `purchase_contract` 等 3 表 + 7 权限码（V11.439.0）；补 `/page`、POST、PUT、DELETE、`/export` 五端点并补鉴权；返回类型改 `ApiResponse`；Service 补 CRUD。顺带修掉 3 个连带缺陷（`findExpiringContracts` 类型错误、统计 DTO 缺 3 字段、`update` 静默丢列） | ✅ 迁移 success；**17/17 验证全绿**（含租户口径回查断言） |
 | 2026-09-21 | STK-BREAK-03 | 防再生落 DB：迁移 `V11.440.0` 给 `wms_inventory` + `erp_stock` 各加 4 条 CHECK（幂等 DO 块）。**不加冗余断言**——四条 Service 路径本身守恒，历史违规全来自绕过 Service 的直写（STK-BREAK-02 那批反向路径），约束才是覆盖全部写入方的收口点 | ✅ 8 条约束落库；回归 `verify-tenant-hardening` **14/14** + `verify-permission-changes` **23/23** |
+| 2026-09-21 | **提交 + 推送** | 上一批 175 文件 / +13675 −5218 提交为 `ce0dd04a9`，推送 `origin`(gitee) `3db75f8a0..ce0dd04a9` | ✅ 本地与 `origin/localization` 同步。⚠️ `github` 远端 `localization` **落后 93 个提交**且长期未同步（最老缺失 `d40ac870`），**未推**，待确认是否废弃 |
+| 2026-09-21 | **E-04 权限码（7/9）** | 新增 `tools/gen-module-permission-seed.py`（按类级路由路径推导「域:资源:动作」，`--apply` 幂等插注解）。生成并应用 `V11.441.0`~`V11.447.0` 七个迁移，**485 个新权限码**，全部带 `api_path`/`method` 并显式关联超管角色 | ✅ `sys_permission` **500 → 994**；`api_path` **238/474 → 734/994**；同码重复 0 组；迁移全部 `success`；每个迁移均事务内干跑 + 幂等重跑校验 |
+| 2026-09-21 | **E-01 鉴权注解（7 模块）** | 给 budget / fixedasset / stock+product+md / invoice / payment / party / marketing 共 **97 控制器 / 709 端点**补 `@SaCheckPermission` | ✅ 新增 `tools/verify-module-authz.cjs`（**两向断言**：超管放行证明码在库 + 非超管被拒证明注解生效）**7 模块全绿**；无 `@SaCheck*` 控制器 **224(57%) → 139(35%)**；端点 2028 → 1319 |
+| 2026-09-21 | 门禁棘轮同步 | `known-unauthorized-controllers.txt` 删除 **104 行**（85 本轮 + 19 历史过期：含 09-20 erp-finance 批量迁移与已删除的 `FieldPermissionController`） | ✅ `AuthzAnnotationCoverageTest` + `PointcutTargetExistenceTest` **4/4 通过**（含 `baselineMustNotBeStale`） |
+| 2026-09-21 | 三个回归复跑 | `verify-tenant-hardening` / `verify-permission-changes` / `verify-purchase-contract` | ✅ **14/14、23/23、17/17** 全绿 |
+| 2026-09-21 | **域前缀归一（本轮当场解决）** | 迁移 `V11.448.0`：① 往来单位 `partner:*` → `party:*`（同一业务对象被拆两个域；历史 `partner:merge` 实测零引用）；② `/api/erp/payment` 的 `payment:<动作>` → `finance:payment:*`（历史 `payment` 域指**第三方支付网关** `/api/payment`、`/refund`、`/reconciliation`，同名不同物）；历史 9 个 `payment:*` **保持不动**。用 `UPDATE permission_code` 改名（保留 id 与角色关联），并同步改 6 个控制器的注解字面量 | ✅ 迁移 `success`；干跑校验：`partner:*` 归零、`party:*` 45、`finance:payment:*` 9、历史 `payment:*` 仍 9、幂等；七模块鉴权 **40/40**；三回归 **14/14 + 23/23 + 17/17** |
+| 2026-09-21 | 🔴 **新发现（商城支付回调被 401 挡住）** | `SaTokenConfig` 白名单里**只有** `/api/v1/mall/auth/**`；实测 `POST /api/v1/mall/payments/callback` 未登录返回 `401 请先登录` —— 微信/支付宝服务器**不带商城用户 token**，回调永远进不来 ⇒ 支付结果无法回写、订单停在待支付。同类回调在 DMS 里是加了白名单的（`/api/dms/channel/callback`），商城漏了 | 实测 8 条 C 端路径全部 401（含商品浏览）；详见 `tools/probe-mall-public.cjs` |
 

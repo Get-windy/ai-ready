@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @RestController
 @RequestMapping("/api/erp/budget/template")
@@ -22,6 +23,7 @@ public class BudgetTemplateController {
     private final BudgetTemplateService budgetTemplateService;
 
     @Operation(summary = "创建预算模板")
+    @SaCheckPermission("budget:template:create")
     @PostMapping
     public ApiResponse<BudgetTemplateDTO> create(@Valid @RequestBody BudgetTemplateDTO dto) {
         BudgetTemplateDTO result = budgetTemplateService.create(dto);
@@ -29,6 +31,7 @@ public class BudgetTemplateController {
     }
 
     @Operation(summary = "更新预算模板")
+    @SaCheckPermission("budget:template:update")
     @PutMapping("/{id}")
     public ApiResponse<BudgetTemplateDTO> update(
             @Parameter(description = "模板ID") @PathVariable Long id,
@@ -38,6 +41,7 @@ public class BudgetTemplateController {
     }
 
     @Operation(summary = "删除预算模板")
+    @SaCheckPermission("budget:template:delete")
     @DeleteMapping("/{id}")
     public ApiResponse<Void> delete(@Parameter(description = "模板ID") @PathVariable Long id) {
         budgetTemplateService.delete(id);
@@ -45,6 +49,7 @@ public class BudgetTemplateController {
     }
 
     @Operation(summary = "获取预算模板详情")
+    @SaCheckPermission("budget:template:detail")
     @GetMapping("/{id}")
     public ApiResponse<BudgetTemplateDTO> getDetail(@Parameter(description = "模板ID") @PathVariable Long id) {
         BudgetTemplateDTO result = budgetTemplateService.getById(id);
@@ -52,6 +57,7 @@ public class BudgetTemplateController {
     }
 
     @Operation(summary = "分页查询预算模板列表")
+    @SaCheckPermission("budget:template:list")
     @GetMapping("/page")
     public ApiResponse<Map<String, Object>> page(
             @Parameter(description = "关键词") @RequestParam(required = false) String keyword,
@@ -64,6 +70,7 @@ public class BudgetTemplateController {
     }
 
     @Operation(summary = "发布模板")
+    @SaCheckPermission("budget:template:publish")
     @PostMapping("/{id}/publish")
     public ApiResponse<BudgetTemplateDTO> publish(@Parameter(description = "模板ID") @PathVariable Long id) {
         BudgetTemplateDTO result = budgetTemplateService.publish(id);
@@ -71,6 +78,7 @@ public class BudgetTemplateController {
     }
 
     @Operation(summary = "按年度查询模板列表")
+    @SaCheckPermission("budget:template:list")
     @GetMapping("/list-by-year")
     public ApiResponse<List<BudgetTemplateDTO>> listByYear(
             @Parameter(description = "财政年度") @RequestParam Integer fiscalYear) {
@@ -79,6 +87,7 @@ public class BudgetTemplateController {
     }
 
     @Operation(summary = "批量删除预算模板")
+    @SaCheckPermission("budget:template:delete")
     @DeleteMapping("/batch")
     public ApiResponse<Void> batchDelete(@RequestBody List<Long> ids) {
         budgetTemplateService.batchDelete(ids);
@@ -86,6 +95,7 @@ public class BudgetTemplateController {
     }
 
     @Operation(summary = "导出预算模板列表")
+    @SaCheckPermission("budget:template:export")
     @GetMapping("/export")
     public ApiResponse<List<BudgetTemplateDTO>> export(
             @Parameter(description = "关键词") @RequestParam(required = false) String keyword,

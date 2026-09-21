@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @RestController
@@ -60,18 +61,21 @@ public class StockSplitController {
         private List<StockSplitItem> items;
     }
 
+    @SaCheckPermission("stock:split:list")
     @GetMapping("/page")
     @Operation(summary = "分页查询拆分单")
     public Result<Page<StockSplit>> page(@ModelAttribute StockSplitQuery query) {
         return Result.ok(splitService.pageList(query));
     }
 
+    @SaCheckPermission("stock:split:list")
     @GetMapping("/next-no")
     @Operation(summary = "生成拆分单单号")
     public Result<String> nextNo() {
         return Result.ok(splitService.generateNo());
     }
 
+    @SaCheckPermission("stock:split:detail")
     @GetMapping("/{id}")
     @Operation(summary = "获取拆分单详情")
     public Result<StockSplit> getById(@PathVariable Long id) {
@@ -82,12 +86,14 @@ public class StockSplitController {
         return Result.ok(split);
     }
 
+    @SaCheckPermission("stock:split:list")
     @GetMapping("/{id}/items")
     @Operation(summary = "获取拆分明细")
     public Result<List<StockSplitItem>> getItems(@PathVariable Long id) {
         return Result.ok(splitService.getItemList(id));
     }
 
+    @SaCheckPermission("stock:split:create")
     @PostMapping
     @Operation(summary = "创建拆分单")
     public Result<StockSplit> create(@RequestBody CreateSplitRequest request) {
@@ -120,6 +126,7 @@ public class StockSplitController {
         return Result.ok(splitService.createSplit(split, request.getItems()));
     }
 
+    @SaCheckPermission("stock:split:update")
     @PutMapping("/{id}")
     @Operation(summary = "更新草稿拆分单")
     public Result<StockSplit> update(@PathVariable Long id, @RequestBody CreateSplitRequest request) {
@@ -151,18 +158,21 @@ public class StockSplitController {
         return Result.ok(splitService.updateSplit(id, split, request.getItems()));
     }
 
+    @SaCheckPermission("stock:split:create")
     @PostMapping("/create-with-items")
     @Operation(summary = "创建拆分单并添加明细")
     public Result<StockSplit> createWithItems(@RequestBody SplitCreateRequest request) {
         return Result.ok(splitService.createSplit(request.getSplit(), request.getItems()));
     }
 
+    @SaCheckPermission("stock:split:submit")
     @PostMapping("/{id}/submit")
     @Operation(summary = "提交审批")
     public Result<StockSplit> submitForApproval(@PathVariable Long id) {
         return Result.ok(splitService.submitForApproval(id));
     }
 
+    @SaCheckPermission("stock:split:approve")
     @PostMapping("/{id}/approve")
     @Operation(summary = "审批通过")
     public Result<StockSplit> approve(@PathVariable Long id, @RequestParam(required = false) String note) {
@@ -170,18 +180,21 @@ public class StockSplitController {
         return Result.ok(splitService.approve(id, approverId, note));
     }
 
+    @SaCheckPermission("stock:split:approve")
     @PostMapping("/{id}/reject")
     @Operation(summary = "审批拒绝")
     public Result<StockSplit> reject(@PathVariable Long id, @RequestParam String reason) {
         return Result.ok(splitService.reject(id, reason));
     }
 
+    @SaCheckPermission("stock:split:execute")
     @PostMapping("/{id}/execute")
     @Operation(summary = "执行拆分（扣减原料库存，增加子件库存）")
     public Result<StockSplit> execute(@PathVariable Long id) {
         return Result.ok(splitService.execute(id));
     }
 
+    @SaCheckPermission("stock:split:create")
     @PostMapping("/{id}/cancel")
     @Operation(summary = "取消拆分单")
     public Result<StockSplit> cancel(@PathVariable Long id, @RequestParam String reason) {

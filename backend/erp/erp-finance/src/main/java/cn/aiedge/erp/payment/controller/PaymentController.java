@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @RestController
@@ -32,6 +33,7 @@ public class PaymentController {
 
     private final PaymentService paymentService;
 
+    @SaCheckPermission("finance:payment:list")
     @GetMapping("/page")
     @Operation(summary = "分页查询付款单")
     public Page<PaymentVO> page(
@@ -64,6 +66,7 @@ public class PaymentController {
         return voPage;
     }
 
+    @SaCheckPermission("finance:payment:view")
     @GetMapping("/page-detail")
     @Operation(summary = "按明细付款单分页查询（付款明细 tab）")
     public Page<cn.aiedge.erp.payment.dto.PaymentItemDetailVO> pageDetail(
@@ -82,12 +85,14 @@ public class PaymentController {
                 settlementNo, startDate, endDate, pageNum, pageSize);
     }
 
+    @SaCheckPermission("finance:payment:list")
     @GetMapping("/next-no")
     @Operation(summary = "生成付款单号（FKD- 前缀）")
     public String nextNo() {
         return paymentService.nextNo();
     }
 
+    @SaCheckPermission("finance:payment:detail")
     @GetMapping("/{id}")
     @Operation(summary = "获取付款单详情")
     public PaymentVO getById(@PathVariable Long id) {
@@ -100,12 +105,14 @@ public class PaymentController {
         return vo;
     }
 
+    @SaCheckPermission("finance:payment:list")
     @GetMapping("/{id}/items")
     @Operation(summary = "获取付款明细")
     public List<PaymentItem> getItems(@PathVariable Long id) {
         return paymentService.getItems(id);
     }
 
+    @SaCheckPermission("finance:payment:detail")
     @GetMapping("/supplier/{supplierId}")
     @Operation(summary = "获取供应商付款单列表")
     public List<PaymentVO> listBySupplierId(@PathVariable Long supplierId) {
@@ -113,6 +120,7 @@ public class PaymentController {
                 .map(this::convertToVO).collect(Collectors.toList());
     }
 
+    @SaCheckPermission("finance:payment:detail")
     @GetMapping("/order/{orderId}")
     @Operation(summary = "获取订单付款单列表")
     public List<PaymentVO> listByOrderId(@PathVariable Long orderId) {
@@ -120,6 +128,7 @@ public class PaymentController {
                 .map(this::convertToVO).collect(Collectors.toList());
     }
 
+    @SaCheckPermission("finance:payment:create")
     @PostMapping
     @Operation(summary = "创建付款单")
     public PaymentVO create(@RequestBody PaymentCreateDTO dto) {
@@ -139,6 +148,7 @@ public class PaymentController {
         return convertToVO(created);
     }
 
+    @SaCheckPermission("finance:payment:create")
     @PostMapping("/from-order/{orderId}")
     @Operation(summary = "从订单创建付款单")
     public PaymentVO createFromOrder(@PathVariable Long orderId) {
@@ -146,6 +156,7 @@ public class PaymentController {
         return convertToVO(payment);
     }
 
+    @SaCheckPermission("finance:payment:create")
     @PostMapping("/from-invoice/{invoiceId}")
     @Operation(summary = "从发票创建付款单")
     public PaymentVO createFromInvoice(@PathVariable Long invoiceId) {
@@ -153,6 +164,7 @@ public class PaymentController {
         return convertToVO(payment);
     }
 
+    @SaCheckPermission("finance:payment:update")
     @PutMapping("/{id}")
     @Operation(summary = "更新付款单")
     public PaymentVO update(@PathVariable Long id, @RequestBody PaymentCreateDTO dto) {
@@ -170,6 +182,7 @@ public class PaymentController {
         return convertToVO(updated);
     }
 
+    @SaCheckPermission("finance:payment:submit")
     @PostMapping("/{id}/submit")
     @Operation(summary = "提交审批")
     public PaymentVO submitForApproval(@PathVariable Long id) {
@@ -177,6 +190,7 @@ public class PaymentController {
         return convertToVO(payment);
     }
 
+    @SaCheckPermission("finance:payment:approve")
     @PostMapping("/{id}/approve")
     @Operation(summary = "审批通过")
     public PaymentVO approve(@PathVariable Long id, @RequestParam(required = false) String note) {
@@ -185,6 +199,7 @@ public class PaymentController {
         return convertToVO(payment);
     }
 
+    @SaCheckPermission("finance:payment:approve")
     @PostMapping("/{id}/reject")
     @Operation(summary = "审批拒绝")
     public PaymentVO reject(@PathVariable Long id, @RequestParam String reason) {
@@ -192,6 +207,7 @@ public class PaymentController {
         return convertToVO(payment);
     }
 
+    @SaCheckPermission("finance:payment:create")
     @PostMapping("/{id}/start-verify")
     @Operation(summary = "开始核销")
     public PaymentVO startVerify(@PathVariable Long id) {
@@ -199,6 +215,7 @@ public class PaymentController {
         return convertToVO(payment);
     }
 
+    @SaCheckPermission("finance:payment:create")
     @PostMapping("/{id}/items/{itemId}/verify")
     @Operation(summary = "核销明细")
     public PaymentItem verifyItem(
@@ -207,6 +224,7 @@ public class PaymentController {
         return paymentService.verifyItem(itemId, verifyAmount);
     }
 
+    @SaCheckPermission("finance:payment:create")
     @PostMapping("/{id}/complete-verify")
     @Operation(summary = "完成核销")
     public PaymentVO completeVerify(@PathVariable Long id) {
@@ -214,6 +232,7 @@ public class PaymentController {
         return convertToVO(payment);
     }
 
+    @SaCheckPermission("finance:payment:create")
     @PostMapping("/{id}/write-off")
     @Operation(summary = "核销付款单")
     public PaymentVO writeOff(@PathVariable Long id, @RequestBody Map<String, BigDecimal> body) {
@@ -222,6 +241,7 @@ public class PaymentController {
         return convertToVO(payment);
     }
 
+    @SaCheckPermission("finance:payment:create")
     @PostMapping("/{id}/complete")
     @Operation(summary = "完成付款")
     public PaymentVO complete(@PathVariable Long id) {
@@ -229,6 +249,7 @@ public class PaymentController {
         return convertToVO(payment);
     }
 
+    @SaCheckPermission("finance:payment:create")
     @PostMapping("/{id}/cancel")
     @Operation(summary = "取消付款")
     public PaymentVO cancel(@PathVariable Long id, @RequestParam String reason) {
@@ -236,6 +257,7 @@ public class PaymentController {
         return convertToVO(payment);
     }
 
+    @SaCheckPermission("finance:payment:create")
     @PostMapping("/{id}/items")
     @Operation(summary = "添加付款明细")
     public PaymentItem addItem(@PathVariable Long id, @RequestBody PaymentItemDTO dto) {
@@ -244,18 +266,21 @@ public class PaymentController {
         return paymentService.addItem(id, item);
     }
 
+    @SaCheckPermission("finance:payment:delete")
     @DeleteMapping("/{id}/items/{itemId}")
     @Operation(summary = "删除付款明细")
     public void removeItem(@PathVariable Long itemId) {
         paymentService.removeItem(itemId);
     }
 
+    @SaCheckPermission("finance:payment:delete")
     @DeleteMapping("/batch")
     @Operation(summary = "批量删除付款单")
     public boolean batchDelete(@RequestBody List<Long> ids) {
         return paymentService.removeBatchByIds(ids);
     }
 
+    @SaCheckPermission("finance:payment:create")
     @PostMapping("/batch-print")
     @Operation(summary = "批量打印付款单")
     public Map<String, Object> batchPrint(@RequestBody Map<String, Object> body) {
@@ -269,6 +294,7 @@ public class PaymentController {
         return result;
     }
 
+    @SaCheckPermission("finance:payment:export")
     @GetMapping("/export")
     @Operation(summary = "导出付款单列表")
     public List<Payment> export(
@@ -279,6 +305,7 @@ public class PaymentController {
         return paymentService.exportList(keyword, supplierId, orderId, status);
     }
 
+    @SaCheckPermission("finance:payment:view")
     @GetMapping("/statistics")
     @Operation(summary = "付款统计")
     public Map<String, Object> statistics() {

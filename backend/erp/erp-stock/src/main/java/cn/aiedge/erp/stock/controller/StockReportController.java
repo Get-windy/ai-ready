@@ -26,6 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 库存分析报表Controller（进销存汇总 / 库存变动流水 / 采购准备分析）
@@ -46,6 +47,7 @@ public class StockReportController {
     private final SmartReplenishService smartReplenishService;
 
     @Operation(summary = "进销存汇总分页", description = "每商品+仓库一行：期初数量/金额、期间入库、期间出库、结存（金额按成本价）")
+    @SaCheckPermission("stock:list")
     @GetMapping("/inv-summary/page")
     public Result<IPage<InvSummaryVO>> invSummaryPage(
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") Integer pageNum,
@@ -58,6 +60,7 @@ public class StockReportController {
     }
 
     @Operation(summary = "库存变动流水分页", description = "每单据明细行一条变动：时间/单据/商品/仓库/变动数量(正负)/变动后结存/操作人")
+    @SaCheckPermission("stock:list")
     @GetMapping("/flow/page")
     public Result<IPage<StockFlowVO>> stockFlowPage(
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") Integer pageNum,
@@ -71,6 +74,7 @@ public class StockReportController {
     }
 
     @Operation(summary = "采购准备分析", description = "预警商品数/缺货SKU数/在途采购/建议补货金额汇总")
+    @SaCheckPermission("stock:view")
     @GetMapping("/prep-analysis")
     public Result<PurchasePrepAnalysisVO> purchasePrepAnalysis(
             @Parameter(description = "仓库ID（可空，为空统计全部仓库）") @RequestParam(required = false) Long warehouseId) {
@@ -78,6 +82,7 @@ public class StockReportController {
     }
 
     @Operation(summary = "库存预警补货分页", description = "按商品×仓库一行：仓库/商品档案/预警类型/缺货数量/待发货/账面库存/待收货/最近采购")
+    @SaCheckPermission("stock:list")
     @GetMapping("/alert-replenish/page")
     public Result<IPage<StockAlertReplenishVO>> alertReplenishPage(
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") Integer pageNum,
@@ -94,6 +99,7 @@ public class StockReportController {
     }
 
     @Operation(summary = "缺货补货分页", description = "按商品×仓库一行：订单数量/价税合计/已发货/待发货/待收货/账面库存/缺货数量")
+    @SaCheckPermission("stock:list")
     @GetMapping("/shortage-replenish/page")
     public Result<IPage<ShortageReplenishVO>> shortageReplenishPage(
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") Integer pageNum,
@@ -116,6 +122,7 @@ public class StockReportController {
     }
 
     @Operation(summary = "智能补货分页", description = "每商品一行：商品档案/销售数量/销售金额/采购金额/日均销量/待收货/待发货/采购数量/账面库存/换算结果/计划采购数量/可用库存/最近销售/最近进货")
+    @SaCheckPermission("stock:list")
     @GetMapping("/smart-replenish/page")
     public Result<IPage<SmartReplenishVO>> smartReplenishPage(
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") Integer pageNum,

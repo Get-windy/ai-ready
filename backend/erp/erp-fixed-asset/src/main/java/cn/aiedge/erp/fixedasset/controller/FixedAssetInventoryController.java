@@ -13,6 +13,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.*;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 固定资产盘点控制器
@@ -26,6 +27,7 @@ public class FixedAssetInventoryController {
     private final FixedAssetInventoryService inventoryService;
 
     @Operation(summary = "创建盘点记录")
+    @SaCheckPermission("fixed-asset:inventory:create")
     @PostMapping
     @RequiresPermission("erp:fixed-asset:inventory:create")
     public ApiResponse<FixedAssetInventoryDTO> create(@Valid @RequestBody FixedAssetInventoryDTO dto) {
@@ -34,6 +36,7 @@ public class FixedAssetInventoryController {
     }
 
     @Operation(summary = "更新盘点记录")
+    @SaCheckPermission("fixed-asset:inventory:update")
     @PutMapping("/{id}")
     @RequiresPermission("erp:fixed-asset:inventory:update")
     public ApiResponse<FixedAssetInventoryDTO> update(
@@ -44,6 +47,7 @@ public class FixedAssetInventoryController {
     }
 
     @Operation(summary = "分页查询盘点记录")
+    @SaCheckPermission("fixed-asset:inventory:list")
     @GetMapping("/page")
     @RequiresPermission("erp:fixed-asset:inventory:list")
     public ApiResponse<Page<FixedAssetInventoryDTO>> getPage(
@@ -58,6 +62,7 @@ public class FixedAssetInventoryController {
     }
 
     @Operation(summary = "获取盘点记录详情")
+    @SaCheckPermission("fixed-asset:inventory:detail")
     @GetMapping("/{id}")
     @RequiresPermission("erp:fixed-asset:inventory:query")
     public ApiResponse<FixedAssetInventoryDTO> getById(

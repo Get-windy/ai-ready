@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @RestController
@@ -27,6 +28,7 @@ public class StockAlertConfigController {
 
     private final StockAlertConfigService stockAlertConfigService;
 
+    @SaCheckPermission("stock:alert-config:list")
     @GetMapping("/page")
     @Operation(summary = "分页查询预警配置")
     public Result<Page<StockAlertConfig>> page(
@@ -38,12 +40,14 @@ public class StockAlertConfigController {
         return Result.ok(stockAlertConfigService.pageList(keyword, warehouseId, active, pageNum, pageSize));
     }
 
+    @SaCheckPermission("stock:alert-config:detail")
     @GetMapping("/{id}")
     @Operation(summary = "获取预警配置详情")
     public Result<StockAlertConfig> getById(@PathVariable Long id) {
         return Result.ok(stockAlertConfigService.getById(id));
     }
 
+    @SaCheckPermission("stock:alert-config:detail")
     @GetMapping("/product/{productId}/warehouse/{warehouseId}")
     @Operation(summary = "根据产品和仓库获取预警配置")
     public Result<StockAlertConfig> getByProductAndWarehouse(
@@ -52,18 +56,21 @@ public class StockAlertConfigController {
         return Result.ok(stockAlertConfigService.getByProductAndWarehouse(productId, warehouseId));
     }
 
+    @SaCheckPermission("stock:alert-config:detail")
     @GetMapping("/warehouse/{warehouseId}")
     @Operation(summary = "获取仓库预警配置列表")
     public Result<List<StockAlertConfig>> listByWarehouse(@PathVariable Long warehouseId) {
         return Result.ok(stockAlertConfigService.listByWarehouse(warehouseId));
     }
 
+    @SaCheckPermission("stock:alert-config:view")
     @GetMapping("/active")
     @Operation(summary = "获取所有激活的预警配置")
     public Result<List<StockAlertConfig>> listAllActive() {
         return Result.ok(stockAlertConfigService.listAllActive());
     }
 
+    @SaCheckPermission("stock:alert-config:create")
     @PostMapping
     @Operation(summary = "创建预警配置")
     public Result<StockAlertConfig> create(@RequestBody StockAlertConfig config) {
@@ -71,12 +78,14 @@ public class StockAlertConfigController {
         return Result.ok(stockAlertConfigService.createConfig(config));
     }
 
+    @SaCheckPermission("stock:alert-config:update")
     @PutMapping("/{id}")
     @Operation(summary = "更新预警配置")
     public Result<StockAlertConfig> update(@PathVariable Long id, @RequestBody StockAlertConfig config) {
         return Result.ok(stockAlertConfigService.updateConfig(id, config));
     }
 
+    @SaCheckPermission("stock:alert-config:create")
     @PostMapping("/{id}/activate")
     @Operation(summary = "激活预警配置")
     public Result<Void> activate(@PathVariable Long id) {
@@ -84,6 +93,7 @@ public class StockAlertConfigController {
         return Result.ok();
     }
 
+    @SaCheckPermission("stock:alert-config:create")
     @PostMapping("/{id}/deactivate")
     @Operation(summary = "停用预警配置")
     public Result<Void> deactivate(@PathVariable Long id) {
@@ -91,6 +101,7 @@ public class StockAlertConfigController {
         return Result.ok();
     }
 
+    @SaCheckPermission("stock:alert-config:delete")
     @DeleteMapping("/{id}")
     @Operation(summary = "删除预警配置")
     public Result<Void> delete(@PathVariable Long id) {
@@ -98,12 +109,14 @@ public class StockAlertConfigController {
         return Result.ok();
     }
 
+    @SaCheckPermission("stock:alert-config:view")
     @GetMapping("/check")
     @Operation(summary = "检查库存预警")
     public Result<List<StockAlertConfig>> checkAlerts() {
         return Result.ok(stockAlertConfigService.checkAlerts());
     }
 
+    @SaCheckPermission("stock:alert-config:view")
     @GetMapping("/statistics")
     @Operation(summary = "预警配置统计")
     public Result<java.util.Map<String, Object>> statistics() {
@@ -117,6 +130,7 @@ public class StockAlertConfigController {
 
     // ═══════════════ 预警设置页（库存预警固定值设置） ═══════════════
 
+    @SaCheckPermission("stock:alert-config:view")
     @GetMapping("/config-items")
     @Operation(summary = "预警设置：商品清单+上下限配置分页")
     public Result<IPage<StockAlertQueryVO>> configItems(
@@ -129,6 +143,7 @@ public class StockAlertConfigController {
         return Result.ok(stockAlertConfigService.configItemsPage(warehouseId, keyword, brand, categoryId, pageNum, pageSize));
     }
 
+    @SaCheckPermission("stock:alert-config:create")
     @PostMapping("/batch-set")
     @Operation(summary = "预警设置：批量设置/保存上下限（items 优先，否则统一赋值）")
     public Result<Void> batchSet(@RequestBody BatchSetRequest request) {
@@ -141,12 +156,14 @@ public class StockAlertConfigController {
         return Result.ok();
     }
 
+    @SaCheckPermission("stock:alert-config:view")
     @GetMapping("/comparison")
     @Operation(summary = "获取比较口径配置")
     public Result<Map<String, Object>> getComparison() {
         return Result.ok(stockAlertConfigService.getComparison());
     }
 
+    @SaCheckPermission("stock:alert-config:create")
     @PostMapping("/comparison")
     @Operation(summary = "保存比较口径配置")
     public Result<Void> setComparison(@RequestBody Map<String, String> body) {

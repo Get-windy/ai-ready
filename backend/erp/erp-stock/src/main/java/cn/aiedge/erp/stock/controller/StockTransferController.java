@@ -17,6 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @RestController
@@ -27,48 +28,56 @@ public class StockTransferController {
 
     private final StockTransferService transferService;
 
+    @SaCheckPermission("stock:transfer:list")
     @GetMapping("/page")
     @Operation(summary = "分页查询调拨单(按单据)")
     public Result<Page<StockTransfer>> page(@Parameter(description = "查询条件") @ModelAttribute StockTransferQuery query) {
         return Result.ok(transferService.pageList(query));
     }
 
+    @SaCheckPermission("stock:transfer:view")
     @GetMapping("/page-detail")
     @Operation(summary = "分页查询调拨明细(按明细)")
     public Result<Page<StockTransferItemVO>> pageDetail(@Parameter(description = "查询条件") @ModelAttribute StockTransferQuery query) {
         return Result.ok(transferService.pageDetail(query));
     }
 
+    @SaCheckPermission("stock:transfer:list")
     @GetMapping("/next-no")
     @Operation(summary = "生成下一调拨单号")
     public Result<String> nextNo() {
         return Result.ok(transferService.generateTransferNo());
     }
 
+    @SaCheckPermission("stock:transfer:detail")
     @GetMapping("/{id}")
     @Operation(summary = "获取调拨单详情")
     public Result<StockTransfer> getById(@PathVariable Long id) {
         return Result.ok(transferService.getDetail(id));
     }
 
+    @SaCheckPermission("stock:transfer:list")
     @GetMapping("/{id}/items")
     @Operation(summary = "获取调拨明细")
     public Result<List<StockTransferItem>> getItems(@PathVariable Long id) {
         return Result.ok(transferService.getItems(id));
     }
 
+    @SaCheckPermission("stock:transfer:create")
     @PostMapping
     @Operation(summary = "创建调拨单(保存草稿)")
     public Result<StockTransfer> create(@RequestBody StockTransferCreateDTO dto) {
         return Result.ok(transferService.createTransfer(dto));
     }
 
+    @SaCheckPermission("stock:transfer:update")
     @PutMapping("/{id}")
     @Operation(summary = "更新调拨单(草稿)")
     public Result<StockTransfer> update(@PathVariable Long id, @RequestBody StockTransferCreateDTO dto) {
         return Result.ok(transferService.updateTransfer(id, dto));
     }
 
+    @SaCheckPermission("stock:transfer:delete")
     @DeleteMapping("/{id}")
     @Operation(summary = "删除调拨单")
     public Result<Boolean> delete(@PathVariable Long id) {
@@ -79,6 +88,7 @@ public class StockTransferController {
         return Result.ok(transferService.removeById(id));
     }
 
+    @SaCheckPermission("stock:transfer:delete")
     @DeleteMapping("/batch")
     @Operation(summary = "批量删除调拨单")
     public Result<Boolean> batchDelete(@RequestBody List<Long> ids) {
@@ -91,42 +101,49 @@ public class StockTransferController {
         return Result.ok(transferService.removeBatchByIds(ids));
     }
 
+    @SaCheckPermission("stock:transfer:submit")
     @PostMapping("/{id}/submit")
     @Operation(summary = "提交审批")
     public Result<StockTransfer> submitForApproval(@PathVariable Long id) {
         return Result.ok(transferService.submitForApproval(id));
     }
 
+    @SaCheckPermission("stock:transfer:approve")
     @PostMapping("/{id}/approve")
     @Operation(summary = "审批通过")
     public Result<StockTransfer> approve(@PathVariable Long id, @RequestParam(required = false) String note) {
         return Result.ok(transferService.approve(id, StpUtil.getLoginIdAsLong(), note));
     }
 
+    @SaCheckPermission("stock:transfer:approve")
     @PostMapping("/{id}/reject")
     @Operation(summary = "审批拒绝")
     public Result<StockTransfer> reject(@PathVariable Long id, @RequestParam String reason) {
         return Result.ok(transferService.reject(id, reason));
     }
 
+    @SaCheckPermission("stock:transfer:execute")
     @PostMapping("/{id}/execute")
     @Operation(summary = "执行调拨(记账)")
     public Result<StockTransfer> execute(@PathVariable Long id) {
         return Result.ok(transferService.execute(id));
     }
 
+    @SaCheckPermission("stock:transfer:create")
     @PostMapping("/{id}/cancel")
     @Operation(summary = "取消调拨单")
     public Result<StockTransfer> cancel(@PathVariable Long id, @RequestParam(required = false) String reason) {
         return Result.ok(transferService.cancel(id, reason));
     }
 
+    @SaCheckPermission("stock:transfer:export")
     @GetMapping("/export")
     @Operation(summary = "导出调拨单列表")
     public Result<List<StockTransfer>> export(@Parameter(description = "查询条件") @ModelAttribute StockTransferQuery query) {
         return Result.ok(transferService.exportList(query));
     }
 
+    @SaCheckPermission("stock:transfer:create")
     @PostMapping("/batch-print")
     @Operation(summary = "批量打印调拨单")
     public Result<Void> batchPrint(@RequestBody java.util.Map<String, Object> params) {

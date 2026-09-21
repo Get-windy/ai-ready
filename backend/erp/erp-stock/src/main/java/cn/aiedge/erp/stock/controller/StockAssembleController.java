@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @RestController
@@ -56,18 +57,21 @@ public class StockAssembleController {
         private List<StockAssembleItem> items;
     }
 
+    @SaCheckPermission("stock:assemble:list")
     @GetMapping("/page")
     @Operation(summary = "分页查询组装单")
     public Result<Page<StockAssemble>> page(@org.springframework.web.bind.annotation.ModelAttribute StockAssembleQuery query) {
         return Result.ok(assembleService.pageList(query));
     }
 
+    @SaCheckPermission("stock:assemble:list")
     @GetMapping("/next-no")
     @Operation(summary = "生成下一组装单号")
     public Result<String> nextNo() {
         return Result.ok(assembleService.generateNo());
     }
 
+    @SaCheckPermission("stock:assemble:detail")
     @GetMapping("/{id}")
     @Operation(summary = "获取组装单详情")
     public Result<StockAssemble> getById(@PathVariable Long id) {
@@ -78,12 +82,14 @@ public class StockAssembleController {
         return Result.ok(assemble);
     }
 
+    @SaCheckPermission("stock:assemble:list")
     @GetMapping("/{id}/items")
     @Operation(summary = "获取组装明细")
     public Result<List<StockAssembleItem>> getItems(@PathVariable Long id) {
         return Result.ok(assembleService.getItemList(id));
     }
 
+    @SaCheckPermission("stock:assemble:create")
     @PostMapping
     @Operation(summary = "创建组装单")
     public Result<StockAssemble> create(@RequestBody CreateAssembleRequest request) {
@@ -115,6 +121,7 @@ public class StockAssembleController {
         return Result.ok(assembleService.createAssemble(assemble, request.getItems()));
     }
 
+    @SaCheckPermission("stock:assemble:update")
     @PutMapping("/{id}")
     @Operation(summary = "更新草稿组装单")
     public Result<StockAssemble> update(@PathVariable Long id, @RequestBody CreateAssembleRequest request) {
@@ -145,12 +152,14 @@ public class StockAssembleController {
         return Result.ok(assembleService.updateAssemble(id, assemble, request.getItems()));
     }
 
+    @SaCheckPermission("stock:assemble:submit")
     @PostMapping("/{id}/submit")
     @Operation(summary = "提交审批")
     public Result<StockAssemble> submitForApproval(@PathVariable Long id) {
         return Result.ok(assembleService.submitForApproval(id));
     }
 
+    @SaCheckPermission("stock:assemble:approve")
     @PostMapping("/{id}/approve")
     @Operation(summary = "审批通过")
     public Result<StockAssemble> approve(@PathVariable Long id, @RequestParam(required = false) String note) {
@@ -158,18 +167,21 @@ public class StockAssembleController {
         return Result.ok(assembleService.approve(id, approverId, note));
     }
 
+    @SaCheckPermission("stock:assemble:approve")
     @PostMapping("/{id}/reject")
     @Operation(summary = "审批拒绝")
     public Result<StockAssemble> reject(@PathVariable Long id, @RequestParam String reason) {
         return Result.ok(assembleService.reject(id, reason));
     }
 
+    @SaCheckPermission("stock:assemble:execute")
     @PostMapping("/{id}/execute")
     @Operation(summary = "执行组装（扣减子件库存，增加成品库存）")
     public Result<StockAssemble> execute(@PathVariable Long id) {
         return Result.ok(assembleService.execute(id));
     }
 
+    @SaCheckPermission("stock:assemble:create")
     @PostMapping("/{id}/cancel")
     @Operation(summary = "取消组装单")
     public Result<StockAssemble> cancel(@PathVariable Long id, @RequestParam String reason) {

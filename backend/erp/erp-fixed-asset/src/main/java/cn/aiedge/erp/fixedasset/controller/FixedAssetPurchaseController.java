@@ -15,6 +15,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.*;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 固定资产购置申请控制器
@@ -28,6 +29,7 @@ public class FixedAssetPurchaseController {
     private final FixedAssetPurchaseService purchaseService;
 
     @Operation(summary = "创建购置申请")
+    @SaCheckPermission("fixed-asset:purchase:create")
     @PostMapping
     @RequiresPermission("erp:fixed-asset:purchase:create")
     public ApiResponse<FixedAssetPurchaseDTO> create(@Valid @RequestBody FixedAssetPurchaseDTO dto) {
@@ -36,6 +38,7 @@ public class FixedAssetPurchaseController {
     }
 
     @Operation(summary = "更新购置申请")
+    @SaCheckPermission("fixed-asset:purchase:update")
     @PutMapping("/{id}")
     @RequiresPermission("erp:fixed-asset:purchase:update")
     public ApiResponse<FixedAssetPurchaseDTO> update(
@@ -46,6 +49,7 @@ public class FixedAssetPurchaseController {
     }
 
     @Operation(summary = "删除购置申请")
+    @SaCheckPermission("fixed-asset:purchase:delete")
     @DeleteMapping("/{id}")
     @RequiresPermission("erp:fixed-asset:purchase:delete")
     public ApiResponse<Void> delete(
@@ -55,6 +59,7 @@ public class FixedAssetPurchaseController {
     }
 
     @Operation(summary = "分页查询购置申请")
+    @SaCheckPermission("fixed-asset:purchase:list")
     @GetMapping("/page")
     @RequiresPermission("erp:fixed-asset:purchase:list")
     public ApiResponse<Page<FixedAssetPurchaseDTO>> getPage(
@@ -69,6 +74,7 @@ public class FixedAssetPurchaseController {
     }
 
     @Operation(summary = "获取购置申请详情")
+    @SaCheckPermission("fixed-asset:purchase:detail")
     @GetMapping("/{id}")
     @RequiresPermission("erp:fixed-asset:purchase:query")
     public ApiResponse<FixedAssetPurchaseDTO> getById(
@@ -78,6 +84,7 @@ public class FixedAssetPurchaseController {
     }
 
     @Operation(summary = "提交审批")
+    @SaCheckPermission("fixed-asset:purchase:submit")
     @PostMapping("/{id}/submit")
     @RequiresPermission("erp:fixed-asset:purchase:submit")
     public ApiResponse<FixedAssetPurchaseDTO> submit(
@@ -87,6 +94,7 @@ public class FixedAssetPurchaseController {
     }
 
     @Operation(summary = "审批通过")
+    @SaCheckPermission("fixed-asset:purchase:approve")
     @PostMapping("/{id}/approve")
     @RequiresPermission("erp:fixed-asset:purchase:approve")
     public ApiResponse<FixedAssetPurchaseDTO> approve(
@@ -97,6 +105,7 @@ public class FixedAssetPurchaseController {
     }
 
     @Operation(summary = "审批拒绝")
+    @SaCheckPermission("fixed-asset:purchase:approve")
     @PostMapping("/{id}/reject")
     @RequiresPermission("erp:fixed-asset:purchase:approve")
     public ApiResponse<FixedAssetPurchaseDTO> reject(
@@ -107,6 +116,7 @@ public class FixedAssetPurchaseController {
     }
 
     @Operation(summary = "入库验收")
+    @SaCheckPermission("fixed-asset:purchase:create")
     @PostMapping("/{id}/accept")
     @RequiresPermission("erp:fixed-asset:purchase:accept")
     public ApiResponse<FixedAssetPurchaseDTO> accept(
@@ -117,6 +127,7 @@ public class FixedAssetPurchaseController {
     }
 
     @Operation(summary = "获取购置申请统计")
+    @SaCheckPermission("fixed-asset:purchase:view")
     @GetMapping("/statistics")
     @RequiresPermission("erp:fixed-asset:purchase:list")
     public ApiResponse<Map<String, Object>> getStatistics() {

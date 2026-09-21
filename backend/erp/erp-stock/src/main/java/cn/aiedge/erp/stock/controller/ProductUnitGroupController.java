@@ -20,6 +20,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 商品单位组Controller
@@ -48,6 +49,7 @@ public class ProductUnitGroupController {
     }
 
     @Operation(summary = "分页查询单位组")
+    @SaCheckPermission("product:unit-group:list")
     @GetMapping("/page")
     public Result<IPage<ProductUnitGroupVO>> page(
             @RequestParam(required = false) String keyword,
@@ -58,18 +60,21 @@ public class ProductUnitGroupController {
     }
 
     @Operation(summary = "单位组详情（含组内单位明细）")
+    @SaCheckPermission("product:unit-group:detail")
     @GetMapping("/{id}")
     public Result<ProductUnitGroupVO> detail(@PathVariable Long id) {
         return Result.ok(productUnitGroupService.getDetail(currentTenantId(), id));
     }
 
     @Operation(summary = "新增单位组")
+    @SaCheckPermission("product:unit-group:create")
     @PostMapping
     public Result<Long> create(@RequestBody ProductUnitGroupDTO dto) {
         return Result.ok(productUnitGroupService.createGroup(currentTenantId(), dto));
     }
 
     @Operation(summary = "修改单位组")
+    @SaCheckPermission("product:unit-group:update")
     @PutMapping("/{id}")
     public Result<Void> update(@PathVariable Long id, @RequestBody ProductUnitGroupDTO dto) {
         productUnitGroupService.updateGroup(currentTenantId(), id, dto);
@@ -77,6 +82,7 @@ public class ProductUnitGroupController {
     }
 
     @Operation(summary = "删除单位组")
+    @SaCheckPermission("product:unit-group:delete")
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
         productUnitGroupService.deleteGroup(currentTenantId(), id);
@@ -84,6 +90,7 @@ public class ProductUnitGroupController {
     }
 
     @Operation(summary = "启用/停用单位组")
+    @SaCheckPermission("product:unit-group:update")
     @PutMapping("/{id}/status")
     public Result<Void> updateStatus(@PathVariable Long id, @RequestParam Integer status) {
         productUnitGroupService.updateStatus(currentTenantId(), id, status);
@@ -91,6 +98,7 @@ public class ProductUnitGroupController {
     }
 
     @Operation(summary = "导出单位组（真实 xlsx）")
+    @SaCheckPermission("product:unit-group:export")
     @GetMapping("/export")
     public void export(@RequestParam(required = false) String keyword,
                        @RequestParam(required = false) Integer status,

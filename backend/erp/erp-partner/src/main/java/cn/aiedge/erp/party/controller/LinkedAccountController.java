@@ -32,6 +32,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 互联账号（资料 → 往来单位 → 互联账号）
@@ -69,6 +70,7 @@ public class LinkedAccountController {
     // ==== 分页查询 ====
 
     @Operation(summary = "分页查询互联账号")
+    @SaCheckPermission("md:linked-account:list")
     @GetMapping("/page")
     public ResponseEntity<ApiResponse<PageResult<LinkedAccountVO>>> page(
             @RequestParam(required = false) Long partyId,
@@ -98,6 +100,7 @@ public class LinkedAccountController {
     // ==== 列表（不分页，供营销/会员/商城互联引用同一口径） ====
 
     @Operation(summary = "获取互联账号列表(不分页)")
+    @SaCheckPermission("md:linked-account:list")
     @GetMapping("/list")
     public ResponseEntity<ApiResponse<List<LinkedAccountVO>>> list(
             @RequestParam(required = false) Long partyId,
@@ -118,6 +121,7 @@ public class LinkedAccountController {
     // ==== 字典（平台 / 关联类型，全局唯一） ====
 
     @Operation(summary = "互联账号字典（互联平台 / 关联类型）")
+    @SaCheckPermission("md:linked-account:view")
     @GetMapping("/dict")
     public ResponseEntity<ApiResponse<Map<String, List<Map<String, String>>>>> dict() {
         return ResponseEntity.ok(ApiResponse.ok(linkedAccountService.dict()));
@@ -126,6 +130,7 @@ public class LinkedAccountController {
     // ==== 查询详情 ====
 
     @Operation(summary = "查询互联账号详情")
+    @SaCheckPermission("md:linked-account:detail")
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<LinkedAccountVO>> getById(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.ok(linkedAccountService.toVO(linkedAccountService.getById(id))));
@@ -134,6 +139,7 @@ public class LinkedAccountController {
     // ==== 绑定（新增） ====
 
     @Operation(summary = "绑定互联账号")
+    @SaCheckPermission("md:linked-account:create")
     @PostMapping
     public ResponseEntity<ApiResponse<LinkedAccountVO>> create(@RequestBody Map<String, Object> body) {
         LinkedAccount entity = fromBody(body);
@@ -172,6 +178,7 @@ public class LinkedAccountController {
     // ==== 修改 ====
 
     @Operation(summary = "修改互联账号")
+    @SaCheckPermission("md:linked-account:update")
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<Boolean>> update(@PathVariable Long id, @RequestBody Map<String, Object> body) {
         LinkedAccount exist = linkedAccountService.getById(id);
@@ -232,6 +239,7 @@ public class LinkedAccountController {
     // ==== 状态切换（解绑 / 重新绑定） ====
 
     @Operation(summary = "解绑 / 重新绑定（状态切换）")
+    @SaCheckPermission("md:linked-account:update")
     @PutMapping("/{id}/status")
     public ResponseEntity<ApiResponse<Boolean>> updateStatus(@PathVariable Long id,
                                                              @RequestParam(required = false) Integer status) {
@@ -241,6 +249,7 @@ public class LinkedAccountController {
     }
 
     @Operation(summary = "批量解绑 / 批量绑定")
+    @SaCheckPermission("md:linked-account:update")
     @PutMapping("/batch-status")
     public ResponseEntity<ApiResponse<Boolean>> batchStatus(@RequestBody Map<String, Object> body) {
         List<Long> ids = toIdList(body.get("ids"));
@@ -255,12 +264,14 @@ public class LinkedAccountController {
     // ==== 删除 ====
 
     @Operation(summary = "删除互联账号")
+    @SaCheckPermission("md:linked-account:delete")
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Boolean>> delete(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.ok(linkedAccountService.removeById(id)));
     }
 
     @Operation(summary = "批量删除互联账号")
+    @SaCheckPermission("md:linked-account:delete")
     @DeleteMapping("/batch")
     public ResponseEntity<ApiResponse<Boolean>> batchDelete(@RequestBody Map<String, Object> body) {
         List<Long> ids = toIdList(body.get("ids"));
@@ -273,6 +284,7 @@ public class LinkedAccountController {
     // ==== 导出 ====
 
     @Operation(summary = "导出互联账号(真实 Excel 流，与分页查询同一过滤口径)")
+    @SaCheckPermission("md:linked-account:export")
     @GetMapping("/export")
     public void export(
             @RequestParam(required = false) Long partyId,

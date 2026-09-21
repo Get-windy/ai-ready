@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 储值卡（菜单 80304，本系统建模页）
@@ -43,6 +44,7 @@ public class StoredCardController {
     // ══════ Tab1 卡档案 ══════
 
     @Operation(summary = "分页查询储值卡")
+    @SaCheckPermission("marketing:stored-card:list")
     @GetMapping("/page")
     public Result<IPage<StoredCard>> page(
             @RequestParam(required = false) String keyword,
@@ -63,6 +65,7 @@ public class StoredCardController {
     }
 
     @Operation(summary = "卡详情")
+    @SaCheckPermission("marketing:stored-card:detail")
     @GetMapping("/{id}")
     public Result<StoredCard> getById(@PathVariable Long id) {
         StoredCard card = storedCardService.getById(id);
@@ -71,24 +74,28 @@ public class StoredCardController {
     }
 
     @Operation(summary = "按卡号查询（收银/开单场景）")
+    @SaCheckPermission("marketing:stored-card:view")
     @GetMapping("/by-no")
     public Result<StoredCard> getByCardNo(@RequestParam String cardNo) {
         return Result.ok(storedCardService.getByCardNo(cardNo));
     }
 
     @Operation(summary = "查询某会员的全部卡")
+    @SaCheckPermission("marketing:stored-card:detail")
     @GetMapping("/by-partner/{partnerId}")
     public Result<List<StoredCard>> byPartner(@PathVariable Long partnerId) {
         return Result.ok(storedCardService.listByPartner(partnerId));
     }
 
     @Operation(summary = "开卡（面值 + 可选赠送）")
+    @SaCheckPermission("marketing:stored-card:create")
     @PostMapping
     public Result<Long> issue(@RequestBody IssueRequest req) {
         return Result.ok(storedCardService.issue(req.getCard(), req.getBonusAmount(), req.getRemark()));
     }
 
     @Operation(summary = "充值（金额 + 赠送）")
+    @SaCheckPermission("marketing:stored-card:create")
     @PostMapping("/{id}/recharge")
     public Result<StoredCard> recharge(@PathVariable Long id, @RequestBody AmountRequest req) {
         // settleAccount：CASH 库存现金 / BANK 银行存款 —— 决定凭证的借方科目
@@ -97,18 +104,21 @@ public class StoredCardController {
     }
 
     @Operation(summary = "消费扣减")
+    @SaCheckPermission("marketing:stored-card:consume")
     @PostMapping("/{id}/consume")
     public Result<StoredCard> consume(@PathVariable Long id, @RequestBody AmountRequest req) {
         return Result.ok(storedCardService.consume(id, req.getAmount(), req.getSourceBillNo()));
     }
 
     @Operation(summary = "退款（预付费合规入口：部分/全额）")
+    @SaCheckPermission("marketing:stored-card:create")
     @PostMapping("/{id}/refund")
     public Result<StoredCard> refund(@PathVariable Long id, @RequestBody AmountRequest req) {
         return Result.ok(storedCardService.refund(id, req.getAmount(), req.getRemark()));
     }
 
     @Operation(summary = "冻结 / 解冻")
+    @SaCheckPermission("marketing:stored-card:create")
     @PostMapping("/{id}/status")
     public Result<StoredCard> changeStatus(@PathVariable Long id, @RequestParam String status,
                                            @RequestParam(required = false) String remark) {
@@ -116,6 +126,7 @@ public class StoredCardController {
     }
 
     @Operation(summary = "卡统计（在用卡数 / 余额合计 / 累计充值 / 累计消费）")
+    @SaCheckPermission("marketing:stored-card:view")
     @GetMapping("/stat")
     public Result<java.util.Map<String, Object>> stat() {
         Long tid = tenantId();
@@ -134,6 +145,7 @@ public class StoredCardController {
     // ══════ Tab2 储值流水 ══════
 
     @Operation(summary = "分页查询储值流水")
+    @SaCheckPermission("marketing:stored-card:list")
     @GetMapping("/flow/page")
     public Result<IPage<StoredCardFlow>> flowPage(
             @RequestParam(required = false) Long cardId,

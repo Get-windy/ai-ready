@@ -13,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @RestController
@@ -23,6 +24,7 @@ public class StockReplenishmentController {
 
     private final StockReplenishmentService replenishmentService;
 
+    @SaCheckPermission("stock:replenishment:list")
     @GetMapping("/list")
     @Operation(summary = "查询补货建议列表")
     public ResponseEntity<Page<StockReplenishment>> list(
@@ -35,6 +37,7 @@ public class StockReplenishmentController {
         return ResponseEntity.ok(page);
     }
 
+    @SaCheckPermission("stock:replenishment:create")
     @PostMapping("/generate")
     @Operation(summary = "生成补货建议")
     public ResponseEntity<List<StockReplenishment>> generate() {
@@ -42,6 +45,7 @@ public class StockReplenishmentController {
         return ResponseEntity.ok(suggestions);
     }
 
+    @SaCheckPermission("stock:replenishment:create")
     @PostMapping("/{id}/create-order")
     @Operation(summary = "根据补货建议创建采购订单")
     public ResponseEntity<StockReplenishment> createOrder(
@@ -52,6 +56,7 @@ public class StockReplenishmentController {
         return ResponseEntity.ok(result);
     }
 
+    @SaCheckPermission("stock:replenishment:update")
     @PutMapping("/{id}/ignore")
     @Operation(summary = "忽略补货建议")
     public ResponseEntity<StockReplenishment> ignore(

@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @RestController
@@ -31,6 +32,7 @@ public class ReceiptController {
 
     private final ReceiptService receiptService;
 
+    @SaCheckPermission("finance:receipt:list")
     @GetMapping("/page")
     @Operation(summary = "分页查询收款单")
     public Page<ReceiptVO> page(
@@ -65,6 +67,7 @@ public class ReceiptController {
         return voPage;
     }
 
+    @SaCheckPermission("finance:receipt:create")
     @PostMapping("/batch-confirm")
     @Operation(summary = "批量确认待确认款项（到账入账）")
     public int batchConfirm(
@@ -80,6 +83,7 @@ public class ReceiptController {
         return count;
     }
 
+    @SaCheckPermission("finance:receipt:view")
     @GetMapping("/page-detail")
     @Operation(summary = "按明细收款单分页查询（收款明细 tab）")
     public Page<cn.aiedge.erp.payment.dto.ReceiptItemDetailVO> pageDetail(
@@ -98,12 +102,14 @@ public class ReceiptController {
                 settlementNo, startDate, endDate, pageNum, pageSize);
     }
 
+    @SaCheckPermission("finance:receipt:list")
     @GetMapping("/next-no")
     @Operation(summary = "生成收款单号（SKD- 前缀）")
     public String nextNo() {
         return receiptService.nextNo();
     }
 
+    @SaCheckPermission("finance:receipt:detail")
     @GetMapping("/{id}")
     @Operation(summary = "获取收款单详情")
     public ReceiptVO getById(@PathVariable Long id) {
@@ -116,12 +122,14 @@ public class ReceiptController {
         return vo;
     }
 
+    @SaCheckPermission("finance:receipt:list")
     @GetMapping("/{id}/items")
     @Operation(summary = "获取收款明细")
     public List<ReceiptItem> getItems(@PathVariable Long id) {
         return receiptService.getItems(id);
     }
 
+    @SaCheckPermission("finance:receipt:detail")
     @GetMapping("/customer/{customerId}")
     @Operation(summary = "获取客户收款单列表")
     public List<ReceiptVO> listByCustomerId(@PathVariable Long customerId) {
@@ -129,6 +137,7 @@ public class ReceiptController {
                 .map(this::convertToVO).collect(Collectors.toList());
     }
 
+    @SaCheckPermission("finance:receipt:detail")
     @GetMapping("/order/{orderId}")
     @Operation(summary = "获取订单收款单列表")
     public List<ReceiptVO> listByOrderId(@PathVariable Long orderId) {
@@ -136,6 +145,7 @@ public class ReceiptController {
                 .map(this::convertToVO).collect(Collectors.toList());
     }
 
+    @SaCheckPermission("finance:receipt:create")
     @PostMapping
     @Operation(summary = "创建收款单")
     public ReceiptVO create(@RequestBody ReceiptCreateDTO dto) {
@@ -155,6 +165,7 @@ public class ReceiptController {
         return convertToVO(created);
     }
 
+    @SaCheckPermission("finance:receipt:create")
     @PostMapping("/from-order/{orderId}")
     @Operation(summary = "从订单创建收款单")
     public ReceiptVO createFromOrder(@PathVariable Long orderId) {
@@ -162,6 +173,7 @@ public class ReceiptController {
         return convertToVO(receipt);
     }
 
+    @SaCheckPermission("finance:receipt:create")
     @PostMapping("/from-invoice/{invoiceId}")
     @Operation(summary = "从发票创建收款单")
     public ReceiptVO createFromInvoice(@PathVariable Long invoiceId) {
@@ -169,6 +181,7 @@ public class ReceiptController {
         return convertToVO(receipt);
     }
 
+    @SaCheckPermission("finance:receipt:update")
     @PutMapping("/{id}")
     @Operation(summary = "更新收款单")
     public ReceiptVO update(@PathVariable Long id, @RequestBody ReceiptCreateDTO dto) {
@@ -186,6 +199,7 @@ public class ReceiptController {
         return convertToVO(updated);
     }
 
+    @SaCheckPermission("finance:receipt:submit")
     @PostMapping("/{id}/submit")
     @Operation(summary = "提交审批")
     public ReceiptVO submitForApproval(@PathVariable Long id) {
@@ -193,6 +207,7 @@ public class ReceiptController {
         return convertToVO(receipt);
     }
 
+    @SaCheckPermission("finance:receipt:approve")
     @PostMapping("/{id}/approve")
     @Operation(summary = "审批通过")
     public ReceiptVO approve(@PathVariable Long id, @RequestParam(required = false) String note) {
@@ -201,6 +216,7 @@ public class ReceiptController {
         return convertToVO(receipt);
     }
 
+    @SaCheckPermission("finance:receipt:approve")
     @PostMapping("/{id}/reject")
     @Operation(summary = "审批拒绝")
     public ReceiptVO reject(@PathVariable Long id, @RequestParam String reason) {
@@ -208,6 +224,7 @@ public class ReceiptController {
         return convertToVO(receipt);
     }
 
+    @SaCheckPermission("finance:receipt:create")
     @PostMapping("/{id}/start-verify")
     @Operation(summary = "开始核销")
     public ReceiptVO startVerify(@PathVariable Long id) {
@@ -215,6 +232,7 @@ public class ReceiptController {
         return convertToVO(receipt);
     }
 
+    @SaCheckPermission("finance:receipt:create")
     @PostMapping("/{id}/items/{itemId}/verify")
     @Operation(summary = "核销明细")
     public ReceiptItem verifyItem(
@@ -223,6 +241,7 @@ public class ReceiptController {
         return receiptService.verifyItem(itemId, verifyAmount);
     }
 
+    @SaCheckPermission("finance:receipt:create")
     @PostMapping("/{id}/complete-verify")
     @Operation(summary = "完成核销")
     public ReceiptVO completeVerify(@PathVariable Long id) {
@@ -230,6 +249,7 @@ public class ReceiptController {
         return convertToVO(receipt);
     }
 
+    @SaCheckPermission("finance:receipt:create")
     @PostMapping("/{id}/write-off")
     @Operation(summary = "核销收款单")
     public ReceiptVO writeOff(@PathVariable Long id, @RequestBody Map<String, BigDecimal> body) {
@@ -238,6 +258,7 @@ public class ReceiptController {
         return convertToVO(receipt);
     }
 
+    @SaCheckPermission("finance:receipt:create")
     @PostMapping("/{id}/complete")
     @Operation(summary = "完成收款")
     public ReceiptVO complete(@PathVariable Long id) {
@@ -245,6 +266,7 @@ public class ReceiptController {
         return convertToVO(receipt);
     }
 
+    @SaCheckPermission("finance:receipt:create")
     @PostMapping("/{id}/cancel")
     @Operation(summary = "取消收款")
     public ReceiptVO cancel(@PathVariable Long id, @RequestParam String reason) {
@@ -252,6 +274,7 @@ public class ReceiptController {
         return convertToVO(receipt);
     }
 
+    @SaCheckPermission("finance:receipt:create")
     @PostMapping("/{id}/items")
     @Operation(summary = "添加收款明细")
     public ReceiptItem addItem(@PathVariable Long id, @RequestBody ReceiptItemDTO dto) {
@@ -260,12 +283,14 @@ public class ReceiptController {
         return receiptService.addItem(id, item);
     }
 
+    @SaCheckPermission("finance:receipt:delete")
     @DeleteMapping("/{id}/items/{itemId}")
     @Operation(summary = "删除收款明细")
     public void removeItem(@PathVariable Long itemId) {
         receiptService.removeItem(itemId);
     }
 
+    @SaCheckPermission("finance:receipt:view")
     @GetMapping("/statistics")
     @Operation(summary = "收款统计")
     public Map<String, Object> statistics() {

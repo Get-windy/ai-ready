@@ -13,6 +13,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.*;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 固定资产转移控制器
@@ -26,6 +27,7 @@ public class FixedAssetTransferController {
     private final FixedAssetTransferService transferService;
 
     @Operation(summary = "创建转移申请")
+    @SaCheckPermission("fixed-asset:transfer:create")
     @PostMapping
     @RequiresPermission("erp:fixed-asset:transfer:create")
     public ApiResponse<FixedAssetTransferDTO> create(@Valid @RequestBody FixedAssetTransferDTO dto) {
@@ -34,6 +36,7 @@ public class FixedAssetTransferController {
     }
 
     @Operation(summary = "更新转移申请")
+    @SaCheckPermission("fixed-asset:transfer:update")
     @PutMapping("/{id}")
     @RequiresPermission("erp:fixed-asset:transfer:update")
     public ApiResponse<FixedAssetTransferDTO> update(
@@ -44,6 +47,7 @@ public class FixedAssetTransferController {
     }
 
     @Operation(summary = "删除转移申请")
+    @SaCheckPermission("fixed-asset:transfer:delete")
     @DeleteMapping("/{id}")
     @RequiresPermission("erp:fixed-asset:transfer:delete")
     public ApiResponse<Void> delete(
@@ -53,6 +57,7 @@ public class FixedAssetTransferController {
     }
 
     @Operation(summary = "分页查询转移记录")
+    @SaCheckPermission("fixed-asset:transfer:list")
     @GetMapping("/page")
     @RequiresPermission("erp:fixed-asset:transfer:list")
     public ApiResponse<Page<FixedAssetTransferDTO>> getPage(
@@ -66,6 +71,7 @@ public class FixedAssetTransferController {
     }
 
     @Operation(summary = "获取转移记录详情")
+    @SaCheckPermission("fixed-asset:transfer:detail")
     @GetMapping("/{id}")
     @RequiresPermission("erp:fixed-asset:transfer:query")
     public ApiResponse<FixedAssetTransferDTO> getById(
@@ -75,6 +81,7 @@ public class FixedAssetTransferController {
     }
 
     @Operation(summary = "审批通过")
+    @SaCheckPermission("fixed-asset:transfer:approve")
     @PostMapping("/{id}/approve")
     @RequiresPermission("erp:fixed-asset:transfer:approve")
     public ApiResponse<FixedAssetTransferDTO> approve(
@@ -85,6 +92,7 @@ public class FixedAssetTransferController {
     }
 
     @Operation(summary = "审批拒绝")
+    @SaCheckPermission("fixed-asset:transfer:approve")
     @PostMapping("/{id}/reject")
     @RequiresPermission("erp:fixed-asset:transfer:approve")
     public ApiResponse<FixedAssetTransferDTO> reject(

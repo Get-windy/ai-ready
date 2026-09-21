@@ -18,6 +18,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 发票管理控制器
@@ -36,6 +37,7 @@ public class InvoiceController {
      * @param id 发票ID
      * @return 发票对象
      */
+    @SaCheckPermission("invoice:detail")
     @GetMapping("/{id}")
     public ResponseEntity<Invoice> getInvoiceById(@PathVariable Long id) {
         Optional<Invoice> invoice = invoiceService.getInvoiceById(id);
@@ -49,6 +51,7 @@ public class InvoiceController {
      * @param invoiceNumber 发票号码
      * @return 发票对象
      */
+    @SaCheckPermission("invoice:detail")
     @GetMapping("/number/{invoiceNumber}")
     public ResponseEntity<Invoice> getInvoiceByNumber(@PathVariable String invoiceNumber) {
         Optional<Invoice> invoice = invoiceService.getInvoiceByNumber(invoiceNumber);
@@ -61,6 +64,7 @@ public class InvoiceController {
      *
      * @return 发票列表
      */
+    @SaCheckPermission("invoice:list")
     @GetMapping("/list")
     public ResponseEntity<List<Invoice>> getAllInvoices() {
         List<Invoice> invoices = invoiceService.getAllInvoices();
@@ -73,6 +77,7 @@ public class InvoiceController {
      * @param pageable 分页参数
      * @return 发票分页
      */
+    @SaCheckPermission("invoice:list")
     @GetMapping("/page")
     public Result<Page<Invoice>> getInvoicesPage(Pageable pageable) {
         Page<Invoice> invoices = invoiceService.getInvoices(pageable);
@@ -92,6 +97,7 @@ public class InvoiceController {
      * @param pageable      分页参数
      * @return 发票分页
      */
+    @SaCheckPermission("invoice:view")
     @GetMapping("/query")
     public Result<Page<Invoice>> queryInvoices(
             @RequestParam(required = false) String direction,
@@ -112,6 +118,7 @@ public class InvoiceController {
      * @param status 发票状态
      * @return 发票列表
      */
+    @SaCheckPermission("invoice:detail")
     @GetMapping("/status/{status}")
     public ResponseEntity<List<Invoice>> getInvoicesByStatus(@PathVariable InvoiceStatus status) {
         List<Invoice> invoices = invoiceService.getInvoicesByStatus(status);
@@ -124,6 +131,7 @@ public class InvoiceController {
      * @param paymentStatus 付款状态
      * @return 发票列表
      */
+    @SaCheckPermission("invoice:detail")
     @GetMapping("/payment-status/{paymentStatus}")
     public ResponseEntity<List<Invoice>> getInvoicesByPaymentStatus(@PathVariable PaymentStatus paymentStatus) {
         List<Invoice> invoices = invoiceService.getInvoicesByPaymentStatus(paymentStatus);
@@ -136,6 +144,7 @@ public class InvoiceController {
      * @param customerId 客户ID
      * @return 发票列表
      */
+    @SaCheckPermission("invoice:detail")
     @GetMapping("/customer/{customerId}")
     public ResponseEntity<List<Invoice>> getInvoicesByCustomerId(@PathVariable Long customerId) {
         List<Invoice> invoices = invoiceService.getInvoicesByCustomerId(customerId);
@@ -148,6 +157,7 @@ public class InvoiceController {
      * @param supplierId 供应商ID
      * @return 发票列表
      */
+    @SaCheckPermission("invoice:detail")
     @GetMapping("/supplier/{supplierId}")
     public ResponseEntity<List<Invoice>> getInvoicesBySupplierId(@PathVariable Long supplierId) {
         List<Invoice> invoices = invoiceService.getInvoicesBySupplierId(supplierId);
@@ -161,6 +171,7 @@ public class InvoiceController {
      * @param endDate 结束日期
      * @return 发票列表
      */
+    @SaCheckPermission("invoice:view")
     @GetMapping("/date-range")
     public Result<List<Invoice>> getInvoicesByDateRange(
             @RequestParam LocalDate startDate,
@@ -176,6 +187,7 @@ public class InvoiceController {
      * @param maxAmount 最大金额
      * @return 发票列表
      */
+    @SaCheckPermission("invoice:view")
     @GetMapping("/amount-range")
     public ResponseEntity<List<Invoice>> getInvoicesByAmountRange(
             @RequestParam BigDecimal minAmount,
@@ -192,6 +204,7 @@ public class InvoiceController {
      * @param issuedByName 开票人姓名
      * @return 创建的发票
      */
+    @SaCheckPermission("invoice:create")
     @PostMapping("/create-from-application")
     public ResponseEntity<Invoice> createInvoiceFromApplication(
             @Valid @RequestBody InvoiceApplication application,
@@ -208,6 +221,7 @@ public class InvoiceController {
      * @param payload   待更新字段
      * @return 更新后的发票
      */
+    @SaCheckPermission("invoice:update")
     @PutMapping("/{invoiceId}")
     public Result<Invoice> updateInvoice(
             @PathVariable Long invoiceId,
@@ -223,6 +237,7 @@ public class InvoiceController {
      * @param notes 状态变更说明
      * @return 操作结果
      */
+    @SaCheckPermission("invoice:update")
     @PutMapping("/{invoiceId}/status")
     public ResponseEntity<Boolean> updateInvoiceStatus(
             @PathVariable Long invoiceId,
@@ -240,6 +255,7 @@ public class InvoiceController {
      * @param notes 状态变更说明
      * @return 操作结果
      */
+    @SaCheckPermission("invoice:update")
     @PutMapping("/{invoiceId}/payment-status")
     public ResponseEntity<Boolean> updatePaymentStatus(
             @PathVariable Long invoiceId,
@@ -258,6 +274,7 @@ public class InvoiceController {
      * @param notes 付款说明
      * @return 操作结果
      */
+    @SaCheckPermission("invoice:create")
     @PostMapping("/{invoiceId}/payment")
     public ResponseEntity<Boolean> recordPayment(
             @PathVariable Long invoiceId,
@@ -277,6 +294,7 @@ public class InvoiceController {
      * @param reason 退款原因
      * @return 操作结果
      */
+    @SaCheckPermission("invoice:create")
     @PostMapping("/{invoiceId}/partial-refund")
     public ResponseEntity<Boolean> recordPartialRefund(
             @PathVariable Long invoiceId,
@@ -295,6 +313,7 @@ public class InvoiceController {
      * @param reason 退款原因
      * @return 操作结果
      */
+    @SaCheckPermission("invoice:create")
     @PostMapping("/{invoiceId}/full-refund")
     public ResponseEntity<Boolean> recordFullRefund(
             @PathVariable Long invoiceId,
@@ -312,6 +331,7 @@ public class InvoiceController {
      * @param voidedBy 作废人ID
      * @return 操作结果
      */
+    @SaCheckPermission("invoice:create")
     @PostMapping("/{invoiceId}/void")
     public ResponseEntity<Boolean> voidInvoice(
             @PathVariable Long invoiceId,
@@ -329,6 +349,7 @@ public class InvoiceController {
      * @param creditedBy 冲红人ID
      * @return 冲红后的新发票
      */
+    @SaCheckPermission("invoice:create")
     @PostMapping("/{invoiceId}/credit")
     public ResponseEntity<Invoice> creditInvoice(
             @PathVariable Long invoiceId,
@@ -346,6 +367,7 @@ public class InvoiceController {
      * @param sentBy 发送人ID
      * @return 操作结果
      */
+    @SaCheckPermission("invoice:create")
     @PostMapping("/{invoiceId}/send")
     public ResponseEntity<Boolean> sendInvoice(
             @PathVariable Long invoiceId,
@@ -363,6 +385,7 @@ public class InvoiceController {
      * @param sentBy 发送人ID
      * @return 操作结果
      */
+    @SaCheckPermission("invoice:create")
     @PostMapping("/{invoiceId}/resend")
     public ResponseEntity<Boolean> resendInvoice(
             @PathVariable Long invoiceId,
@@ -378,6 +401,7 @@ public class InvoiceController {
      * @param invoiceId 发票ID
      * @return 文档字节数组
      */
+    @SaCheckPermission("invoice:export")
     @GetMapping("/{invoiceId}/download")
     public ResponseEntity<byte[]> downloadInvoiceDocument(@PathVariable Long invoiceId) {
         byte[] document = invoiceService.downloadInvoiceDocument(invoiceId);
@@ -396,6 +420,7 @@ public class InvoiceController {
      * @param keyword 关键词
      * @return 发票列表
      */
+    @SaCheckPermission("invoice:view")
     @GetMapping("/search")
     public ResponseEntity<List<Invoice>> searchInvoices(@RequestParam String keyword) {
         List<Invoice> invoices = invoiceService.searchInvoices(keyword);
@@ -409,6 +434,7 @@ public class InvoiceController {
      * @param endDate 结束日期（可空，空=全量）
      * @return 统计信息
      */
+    @SaCheckPermission("invoice:view")
     @GetMapping("/statistics")
     public Result<InvoiceService.InvoiceStatistics> getInvoiceStatistics(
             @RequestParam(required = false) LocalDate startDate,
@@ -425,6 +451,7 @@ public class InvoiceController {
      * @param issuedByName 开票人姓名
      * @return 生成的发票列表
      */
+    @SaCheckPermission("invoice:create")
     @PostMapping("/batch-generate")
     public ResponseEntity<List<Invoice>> batchGenerateInvoices(
             @RequestBody List<Long> applicationIds,

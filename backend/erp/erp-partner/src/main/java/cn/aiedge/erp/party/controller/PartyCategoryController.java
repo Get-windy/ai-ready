@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Tag(name = "往来单位分类管理", description = "往来单位分类CRUD接口")
 @RestController
@@ -42,6 +43,7 @@ public class PartyCategoryController {
     );
 
     @Operation(summary = "获取分类树")
+    @SaCheckPermission("party:categories:list")
     @GetMapping("/tree")
     public ResponseEntity<ApiResponse<List<PartyCategory>>> getCategoryTree(
             @RequestParam(required = false) String categoryType) {
@@ -51,6 +53,7 @@ public class PartyCategoryController {
     }
 
     @Operation(summary = "根据类型获取分类列表")
+    @SaCheckPermission("party:categories:view")
     @GetMapping
     public ResponseEntity<ApiResponse<List<PartyCategory>>> getCategoryList(
             @RequestParam(required = false) String categoryType) {
@@ -60,6 +63,7 @@ public class PartyCategoryController {
     }
 
     @Operation(summary = "新增分类")
+    @SaCheckPermission("party:categories:create")
     @PostMapping
     public ResponseEntity<ApiResponse<Long>> create(@RequestBody Map<String, Object> body) {
         PartyCategory category = new PartyCategory();
@@ -76,6 +80,7 @@ public class PartyCategoryController {
     }
 
     @Operation(summary = "更新分类")
+    @SaCheckPermission("party:categories:update")
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<Boolean>> update(@PathVariable Long id,
                                                        @RequestBody Map<String, Object> body) {
@@ -109,6 +114,7 @@ public class PartyCategoryController {
     }
 
     @Operation(summary = "删除分类（分类下仍有往来单位时拒绝）")
+    @SaCheckPermission("party:categories:delete")
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<String>> delete(@PathVariable Long id) {
         PartyCategory exist = partyCategoryService.getById(id);

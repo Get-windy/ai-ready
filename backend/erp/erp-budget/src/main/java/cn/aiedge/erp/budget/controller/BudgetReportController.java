@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @RestController
 @RequestMapping("/api/erp/budget/report")
@@ -21,6 +22,7 @@ public class BudgetReportController {
     private final BudgetReportService budgetReportService;
 
     @Operation(summary = "执行概览")
+    @SaCheckPermission("budget:report:view")
     @GetMapping("/execution-summary")
     public ApiResponse<BudgetStatisticsDTO> executionSummary(
             @Parameter(description = "财政年度") @RequestParam(required = false) Integer fiscalYear) {
@@ -32,6 +34,7 @@ public class BudgetReportController {
     }
 
     @Operation(summary = "部门预算汇总")
+    @SaCheckPermission("budget:report:view")
     @GetMapping("/department-summary")
     public ApiResponse<List<Map<String, Object>>> departmentSummary(
             @Parameter(description = "财政年度") @RequestParam(required = false) Integer fiscalYear) {
@@ -43,6 +46,7 @@ public class BudgetReportController {
     }
 
     @Operation(summary = "科目预算汇总")
+    @SaCheckPermission("budget:report:view")
     @GetMapping("/subject-summary")
     public ApiResponse<List<Map<String, Object>>> subjectSummary(
             @Parameter(description = "财政年度") @RequestParam(required = false) Integer fiscalYear,
@@ -55,6 +59,7 @@ public class BudgetReportController {
     }
 
     @Operation(summary = "差异分析")
+    @SaCheckPermission("budget:report:view")
     @GetMapping("/variance-analysis")
     public ApiResponse<List<Map<String, Object>>> varianceAnalysis(
             @Parameter(description = "财政年度") @RequestParam(required = false) Integer fiscalYear) {
@@ -66,6 +71,7 @@ public class BudgetReportController {
     }
 
     @Operation(summary = "趋势数据")
+    @SaCheckPermission("budget:report:view")
     @GetMapping("/trend")
     public ApiResponse<List<Map<String, Object>>> trend(
             @Parameter(description = "财政年度") @RequestParam(required = false) Integer fiscalYear) {

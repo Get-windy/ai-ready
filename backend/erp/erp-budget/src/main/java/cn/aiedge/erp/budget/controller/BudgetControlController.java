@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @RestController
 @RequestMapping("/api/erp/budget/control")
@@ -20,6 +21,7 @@ public class BudgetControlController {
     private final BudgetControlService budgetControlService;
 
     @Operation(summary = "检查预算可用性")
+    @SaCheckPermission("budget:control:check")
     @PostMapping("/check")
     public ApiResponse<Map<String, Object>> check(
             @Parameter(description = "预算ID") @RequestParam Long budgetId,
@@ -30,6 +32,7 @@ public class BudgetControlController {
     }
 
     @Operation(summary = "冻结预算金额")
+    @SaCheckPermission("budget:control:freeze")
     @PostMapping("/freeze")
     public ApiResponse<Map<String, Object>> freeze(
             @Parameter(description = "预算ID") @RequestParam Long budgetId,
@@ -44,6 +47,7 @@ public class BudgetControlController {
     }
 
     @Operation(summary = "释放冻结金额")
+    @SaCheckPermission("budget:control:release")
     @PostMapping("/release")
     public ApiResponse<Map<String, Object>> release(
             @Parameter(description = "预算ID") @RequestParam Long budgetId,
@@ -58,6 +62,7 @@ public class BudgetControlController {
     }
 
     @Operation(summary = "记录预算消耗")
+    @SaCheckPermission("budget:control:consume")
     @PostMapping("/consume")
     public ApiResponse<Map<String, Object>> consume(
             @Parameter(description = "预算ID") @RequestParam Long budgetId,

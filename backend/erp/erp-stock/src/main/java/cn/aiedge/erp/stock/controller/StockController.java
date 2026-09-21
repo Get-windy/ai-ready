@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 库存管理Controller
@@ -37,12 +38,14 @@ public class StockController {
     private final WarehouseService warehouseService;
 
     @Operation(summary = "查询仓库列表")
+    @SaCheckPermission("stock:view")
     @GetMapping("/warehouses")
     public Result<List<Warehouse>> getWarehouses() {
         return Result.ok(warehouseService.getWarehouseList());
     }
 
     @Operation(summary = "查询库存详情")
+    @SaCheckPermission("stock:detail")
     @GetMapping("/{productId}/{warehouseId}")
     public Result<Stock> getStockDetail(
             @Parameter(description = "产品ID") @PathVariable Long productId,
@@ -55,6 +58,7 @@ public class StockController {
     }
 
     @Operation(summary = "冻结库存")
+    @SaCheckPermission("stock:freeze")
     @PostMapping("/freeze")
     public Result<Boolean> freezeStock(
             @Parameter(description = "产品ID") @RequestParam Long productId,
@@ -68,6 +72,7 @@ public class StockController {
     }
 
     @Operation(summary = "解冻库存")
+    @SaCheckPermission("stock:create")
     @PostMapping("/unfreeze")
     public Result<Boolean> unfreezeStock(
             @Parameter(description = "产品ID") @RequestParam Long productId,
@@ -81,6 +86,7 @@ public class StockController {
     }
 
     @Operation(summary = "库存增加")
+    @SaCheckPermission("stock:create")
     @PostMapping("/increase")
     public Result<Boolean> increaseStock(
             @Parameter(description = "产品ID") @RequestParam Long productId,
@@ -94,6 +100,7 @@ public class StockController {
     }
 
     @Operation(summary = "库存减少")
+    @SaCheckPermission("stock:create")
     @PostMapping("/decrease")
     public Result<Boolean> decreaseStock(
             @Parameter(description = "产品ID") @RequestParam Long productId,
@@ -107,6 +114,7 @@ public class StockController {
     }
 
     @Operation(summary = "分页查询库存")
+    @SaCheckPermission("stock:list")
     @GetMapping("/page")
     public Result<IPage<Stock>> page(
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") Integer pageNum,
@@ -125,6 +133,7 @@ public class StockController {
     }
 
     @Operation(summary = "查询库存详情(by id)")
+    @SaCheckPermission("stock:detail")
     @GetMapping("/{id}")
     public Result<Stock> getById(@Parameter(description = "库存ID") @PathVariable Long id) {
         Stock stock = stockService.getById(id);
@@ -135,12 +144,14 @@ public class StockController {
     }
 
     @Operation(summary = "库存预警检查")
+    @SaCheckPermission("stock:view")
     @GetMapping("/alert")
     public Result<List<Stock>> checkStockAlert() {
         return Result.ok(stockService.checkStockAlert());
     }
 
     @Operation(summary = "根据产品ID查询库存汇总")
+    @SaCheckPermission("stock:detail")
     @GetMapping("/by-product/{productId}")
     public Result<Stock> getByProductId(
             @Parameter(description = "产品ID") @PathVariable Long productId) {
@@ -152,6 +163,7 @@ public class StockController {
     }
 
     @Operation(summary = "导出库存列表")
+    @SaCheckPermission("stock:export")
     @GetMapping("/export")
     public Result<List<Stock>> export() {
         return Result.ok(stockService.list());

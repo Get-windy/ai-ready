@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 预警查询Controller —— 触发上下限预警商品清单查询（只读）
@@ -30,6 +31,7 @@ public class StockAlertQueryController {
     private final StockAlertQueryService stockAlertQueryService;
 
     @Operation(summary = "分页查询预警清单")
+    @SaCheckPermission("stock:alert:list")
     @GetMapping("/page")
     public Result<IPage<StockAlertQueryVO>> page(
             @Parameter(description = "仓库ID（空=全部仓库）") @RequestParam(required = false) Long warehouseId,

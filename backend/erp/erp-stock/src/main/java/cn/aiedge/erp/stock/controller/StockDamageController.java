@@ -14,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @RestController
@@ -24,36 +25,42 @@ public class StockDamageController {
 
     private final StockDamageService damageService;
 
+    @SaCheckPermission("stock:damage:list")
     @GetMapping("/page")
     @Operation(summary = "分页查询报损单(按单据)")
     public Result<Page<StockDamage>> page(@org.springframework.web.bind.annotation.ModelAttribute StockDamageQuery query) {
         return Result.ok(damageService.pageList(query));
     }
 
+    @SaCheckPermission("stock:damage:view")
     @GetMapping("/page-detail")
     @Operation(summary = "分页查询报损明细(按明细)")
     public Result<Page<StockDamageItemVO>> pageDetail(@org.springframework.web.bind.annotation.ModelAttribute StockDamageQuery query) {
         return Result.ok(damageService.pageDetail(query));
     }
 
+    @SaCheckPermission("stock:damage:list")
     @GetMapping("/next-no")
     @Operation(summary = "生成下一报损单号")
     public Result<String> nextNo() {
         return Result.ok(damageService.generateNo());
     }
 
+    @SaCheckPermission("stock:damage:detail")
     @GetMapping("/{id}")
     @Operation(summary = "获取报损单详情")
     public Result<StockDamage> getById(@PathVariable Long id) {
         return Result.ok(damageService.getDetail(id));
     }
 
+    @SaCheckPermission("stock:damage:list")
     @GetMapping("/{id}/items")
     @Operation(summary = "获取报损明细")
     public Result<List<StockDamageItem>> getItems(@PathVariable Long id) {
         return Result.ok(damageService.getItems(id));
     }
 
+    @SaCheckPermission("stock:damage:create")
     @PostMapping
     @Operation(summary = "创建报损单(保存草稿)")
     public Result<StockDamage> create(@RequestBody StockDamage damage) {
@@ -62,6 +69,7 @@ public class StockDamageController {
         return Result.ok(damageService.createStockDamage(damage, items));
     }
 
+    @SaCheckPermission("stock:damage:update")
     @PutMapping("/{id}")
     @Operation(summary = "更新报损单(草稿)")
     public Result<StockDamage> update(@PathVariable Long id, @RequestBody StockDamage damage) {
@@ -70,6 +78,7 @@ public class StockDamageController {
         return Result.ok(damageService.updateStockDamage(id, damage, items));
     }
 
+    @SaCheckPermission("stock:damage:delete")
     @DeleteMapping("/{id}")
     @Operation(summary = "删除报损单")
     public Result<Boolean> delete(@PathVariable Long id) {
@@ -80,24 +89,28 @@ public class StockDamageController {
         return Result.ok(damageService.removeById(id));
     }
 
+    @SaCheckPermission("stock:damage:create")
     @PostMapping("/{id}/complete")
     @Operation(summary = "执行记帐(出库生效)")
     public Result<StockDamage> complete(@PathVariable Long id) {
         return Result.ok(damageService.execute(id));
     }
 
+    @SaCheckPermission("stock:damage:execute")
     @PostMapping("/{id}/execute")
     @Operation(summary = "执行记帐(出库生效)")
     public Result<StockDamage> execute(@PathVariable Long id) {
         return Result.ok(damageService.execute(id));
     }
 
+    @SaCheckPermission("stock:damage:create")
     @PostMapping("/{id}/cancel")
     @Operation(summary = "取消报损单")
     public Result<StockDamage> cancel(@PathVariable Long id, @RequestParam(required = false) String reason) {
         return Result.ok(damageService.cancel(id, reason));
     }
 
+    @SaCheckPermission("stock:damage:delete")
     @DeleteMapping("/batch")
     @Operation(summary = "批量删除报损单")
     public Result<Boolean> batchDelete(@RequestBody List<Long> ids) {

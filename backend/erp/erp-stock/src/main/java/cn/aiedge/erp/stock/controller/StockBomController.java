@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @RestController
@@ -37,6 +38,7 @@ public class StockBomController {
         private List<StockBomItem> items;
     }
 
+    @SaCheckPermission("stock:bom:list")
     @GetMapping("/page")
     @Operation(summary = "分页查询BOM清单")
     public Result<Page<StockBom>> page(
@@ -50,6 +52,7 @@ public class StockBomController {
         return Result.ok(bomService.pageList(keyword, productId, productName, bomType, status, pageNum, pageSize));
     }
 
+    @SaCheckPermission("stock:bom:detail")
     @GetMapping("/{id}")
     @Operation(summary = "获取BOM详情")
     public Result<StockBom> getById(@PathVariable Long id) {
@@ -60,12 +63,14 @@ public class StockBomController {
         return Result.ok(bom);
     }
 
+    @SaCheckPermission("stock:bom:list")
     @GetMapping("/{id}/items")
     @Operation(summary = "获取BOM明细")
     public Result<List<StockBomItem>> getItems(@PathVariable Long id) {
         return Result.ok(bomService.getItems(id));
     }
 
+    @SaCheckPermission("stock:bom:create")
     @PostMapping
     @Operation(summary = "创建BOM")
     public Result<StockBom> create(@RequestBody CreateBomRequest request) {
@@ -80,6 +85,7 @@ public class StockBomController {
         return Result.ok(bomService.createBom(bom, request.getItems()));
     }
 
+    @SaCheckPermission("stock:bom:update")
     @PutMapping("/{id}")
     @Operation(summary = "更新BOM")
     public Result<StockBom> update(@PathVariable Long id, @RequestBody CreateBomRequest request) {
@@ -94,18 +100,21 @@ public class StockBomController {
         return Result.ok(bomService.updateBom(id, bom, request.getItems()));
     }
 
+    @SaCheckPermission("stock:bom:create")
     @PostMapping("/{id}/enable")
     @Operation(summary = "启用BOM")
     public Result<StockBom> enableBom(@PathVariable Long id) {
         return Result.ok(bomService.enableBom(id));
     }
 
+    @SaCheckPermission("stock:bom:create")
     @PostMapping("/{id}/disable")
     @Operation(summary = "停用BOM")
     public Result<StockBom> disableBom(@PathVariable Long id) {
         return Result.ok(bomService.disableBom(id));
     }
 
+    @SaCheckPermission("stock:bom:delete")
     @DeleteMapping("/{id}")
     @Operation(summary = "删除BOM")
     public Result<Boolean> delete(@PathVariable Long id) {

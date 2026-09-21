@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @Tag(name = "营销规则管理")
@@ -22,6 +23,7 @@ public class MarketingRuleController {
     private final MarketingRuleService ruleService;
 
     @Operation(summary = "分页查询规则")
+    @SaCheckPermission("marketing:rules:list")
     @GetMapping("/page")
     public Result<IPage<MarketingRule>> page(
             @RequestParam(required = false) String ruleType,
@@ -38,18 +40,21 @@ public class MarketingRuleController {
     }
 
     @Operation(summary = "查询规则详情")
+    @SaCheckPermission("marketing:rules:detail")
     @GetMapping("/{id}")
     public Result<MarketingRule> getById(@PathVariable Long id) {
         return Result.ok(ruleService.getById(id));
     }
 
     @Operation(summary = "新增规则")
+    @SaCheckPermission("marketing:rules:create")
     @PostMapping
     public Result<Boolean> create(@RequestBody MarketingRule rule) {
         return Result.ok(ruleService.save(rule));
     }
 
     @Operation(summary = "更新规则")
+    @SaCheckPermission("marketing:rules:update")
     @PutMapping("/{id}")
     public Result<Boolean> update(@PathVariable Long id, @RequestBody MarketingRule rule) {
         rule.setId(id);
@@ -57,6 +62,7 @@ public class MarketingRuleController {
     }
 
     @Operation(summary = "删除规则")
+    @SaCheckPermission("marketing:rules:delete")
     @DeleteMapping("/{id}")
     public Result<Boolean> delete(@PathVariable Long id) {
         return Result.ok(ruleService.removeById(id));

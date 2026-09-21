@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.stream.Collectors;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @RestController
@@ -30,6 +31,7 @@ public class OffsetController {
 
     private final OffsetService offsetService;
 
+    @SaCheckPermission("finance:offset:list")
     @GetMapping("/page")
     @Operation(summary = "分页查询对冲单")
     public Page<OffsetDTO> page(
@@ -45,6 +47,7 @@ public class OffsetController {
         return voPage;
     }
 
+    @SaCheckPermission("finance:offset:detail")
     @GetMapping("/{id}")
     @Operation(summary = "获取对冲单详情")
     public OffsetDTO getById(@PathVariable Long id) {
@@ -57,6 +60,7 @@ public class OffsetController {
         return dto;
     }
 
+    @SaCheckPermission("finance:offset:create")
     @PostMapping
     @Operation(summary = "创建对冲单")
     public OffsetDTO create(@Valid @RequestBody OffsetCreateDTO dto) {
@@ -77,6 +81,7 @@ public class OffsetController {
         return result;
     }
 
+    @SaCheckPermission("finance:offset:create")
     @PostMapping("/{id}/complete")
     @Operation(summary = "完成对冲")
     public OffsetDTO complete(@PathVariable Long id) {
@@ -84,6 +89,7 @@ public class OffsetController {
         return convertToDTO(offset);
     }
 
+    @SaCheckPermission("finance:offset:create")
     @PostMapping("/{id}/cancel")
     @Operation(summary = "取消对冲")
     public OffsetDTO cancel(@PathVariable Long id, @RequestParam String reason) {

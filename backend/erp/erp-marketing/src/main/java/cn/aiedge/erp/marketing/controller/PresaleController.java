@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @Tag(name = "预售活动管理")
@@ -26,6 +27,7 @@ public class PresaleController {
     private final MarketingQueryMapper marketingQueryMapper;
 
     @Operation(summary = "分页查询预售活动")
+    @SaCheckPermission("marketing:presale:list")
     @GetMapping("/page")
     public Result<IPage<Presale>> page(
             @RequestParam(required = false) String activityName,
@@ -47,6 +49,7 @@ public class PresaleController {
     }
 
     @Operation(summary = "商城预售 →「预售订单」Tab（8 列）")
+    @SaCheckPermission("marketing:presale:list")
     @GetMapping("/order/page")
     public Result<IPage<PresaleOrderRowVO>> orderPage(
             @RequestParam(required = false) String customer,
@@ -61,12 +64,14 @@ public class PresaleController {
     }
 
     @Operation(summary = "查询预售活动详情")
+    @SaCheckPermission("marketing:presale:detail")
     @GetMapping("/{id}")
     public Result<Presale> getById(@PathVariable Long id) {
         return Result.ok(presaleService.getById(id));
     }
 
     @Operation(summary = "创建预售活动")
+    @SaCheckPermission("marketing:presale:create")
     @PostMapping
     public Result<Boolean> create(@RequestBody Presale presale) {
         presale.setId(null);
@@ -79,6 +84,7 @@ public class PresaleController {
     }
 
     @Operation(summary = "更新预售活动")
+    @SaCheckPermission("marketing:presale:update")
     @PutMapping("/{id}")
     public Result<Boolean> update(@PathVariable Long id, @RequestBody Presale presale) {
         presale.setId(id);
@@ -88,12 +94,14 @@ public class PresaleController {
     }
 
     @Operation(summary = "删除预售活动")
+    @SaCheckPermission("marketing:presale:delete")
     @DeleteMapping("/{id}")
     public Result<Boolean> delete(@PathVariable Long id) {
         return Result.ok(presaleService.removeById(id));
     }
 
     @Operation(summary = "发布预售活动（校验时间与库存）")
+    @SaCheckPermission("marketing:presale:publish")
     @PostMapping("/{id}/publish")
     public Result<Boolean> publish(@PathVariable Long id) {
         presaleService.publish(id);
@@ -101,6 +109,7 @@ public class PresaleController {
     }
 
     @Operation(summary = "取消预售活动")
+    @SaCheckPermission("marketing:presale:create")
     @PostMapping("/{id}/cancel")
     public Result<Boolean> cancel(@PathVariable Long id) {
         presaleService.cancel(id);

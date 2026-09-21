@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 发短信（营销 → 营销活动 → 发短信，菜单 80310）
@@ -62,6 +63,7 @@ public class SmsMarketingController {
     // ══════ 短信设置（公司签名 + 配额） ══════
 
     @Operation(summary = "读取短信设置")
+    @SaCheckPermission("marketing:sms:view")
     @GetMapping("/setting")
     public Result<SmsSetting> getSetting() {
         SmsSetting setting = loadOrCreateSetting();
@@ -69,6 +71,7 @@ public class SmsMarketingController {
     }
 
     @Operation(summary = "保存短信设置")
+    @SaCheckPermission("marketing:sms:update")
     @PutMapping("/setting")
     public Result<SmsSetting> saveSetting(@RequestBody SmsSetting req) {
         SmsSetting current = loadOrCreateSetting();
@@ -120,6 +123,7 @@ public class SmsMarketingController {
     // ══════ 短信模板管理 ══════
 
     @Operation(summary = "分页查询短信模板")
+    @SaCheckPermission("marketing:sms:list")
     @GetMapping("/template/page")
     public Result<IPage<SmsTemplate>> templatePage(
             @RequestParam(required = false) String keyword,
@@ -137,6 +141,7 @@ public class SmsMarketingController {
     }
 
     @Operation(summary = "查询全部启用短信模板（供「选择短信模板」）")
+    @SaCheckPermission("marketing:sms:list")
     @GetMapping("/template/list")
     public Result<List<SmsTemplate>> templateList(@RequestParam(required = false) String smsType) {
         LambdaQueryWrapper<SmsTemplate> w = new LambdaQueryWrapper<>();
@@ -146,6 +151,7 @@ public class SmsMarketingController {
     }
 
     @Operation(summary = "新增短信模板")
+    @SaCheckPermission("marketing:sms:create")
     @PostMapping("/template")
     public Result<Boolean> createTemplate(@RequestBody SmsTemplate tpl) {
         tpl.setId(null);
@@ -158,6 +164,7 @@ public class SmsMarketingController {
     }
 
     @Operation(summary = "修改短信模板")
+    @SaCheckPermission("marketing:sms:update")
     @PutMapping("/template/{id}")
     public Result<Boolean> updateTemplate(@PathVariable Long id, @RequestBody SmsTemplate tpl) {
         tpl.setId(id);
@@ -167,6 +174,7 @@ public class SmsMarketingController {
     }
 
     @Operation(summary = "删除短信模板")
+    @SaCheckPermission("marketing:sms:delete")
     @DeleteMapping("/template/{id}")
     public Result<Boolean> deleteTemplate(@PathVariable Long id) {
         return Result.ok(templateMapper.deleteById(id) > 0);
@@ -175,6 +183,7 @@ public class SmsMarketingController {
     // ══════ 短信历史 ══════
 
     @Operation(summary = "分页查询短信历史")
+    @SaCheckPermission("marketing:sms:list")
     @GetMapping("/history/page")
     public Result<IPage<SmsHistoryRow>> historyPage(
             @RequestParam(required = false) String receiver,
@@ -194,6 +203,7 @@ public class SmsMarketingController {
     // ══════ 合规：退订名单 / 同意留痕 ══════
 
     @Operation(summary = "分页查询短信退订名单")
+    @SaCheckPermission("marketing:sms:list")
     @GetMapping("/opt-out/page")
     public Result<IPage<cn.aiedge.erp.marketing.entity.SmsOptOut>> optOutPage(
             @RequestParam(required = false) String mobile,
@@ -211,6 +221,7 @@ public class SmsMarketingController {
     }
 
     @Operation(summary = "登记退订（回复R / 人工登记 / 客户主动要求）")
+    @SaCheckPermission("marketing:sms:create")
     @PostMapping("/opt-out")
     public Result<Boolean> addOptOut(@RequestBody cn.aiedge.erp.marketing.entity.SmsOptOut req) {
         if (req.getMobile() == null || req.getMobile().isBlank()) {
@@ -232,12 +243,14 @@ public class SmsMarketingController {
     }
 
     @Operation(summary = "移出退订名单（须客户重新明确同意后才可移出）")
+    @SaCheckPermission("marketing:sms:delete")
     @DeleteMapping("/opt-out/{id}")
     public Result<Boolean> removeOptOut(@PathVariable Long id) {
         return Result.ok(smsOptOutMapper.deleteById(id) > 0);
     }
 
     @Operation(summary = "分页查询同意留痕（合规举证）")
+    @SaCheckPermission("marketing:sms:list")
     @GetMapping("/consent/page")
     public Result<IPage<cn.aiedge.erp.marketing.entity.SmsConsent>> consentPage(
             @RequestParam(required = false) String mobile,
@@ -257,6 +270,7 @@ public class SmsMarketingController {
     // ══════ 发短信（群发） ══════
 
     @Operation(summary = "群发短信（对选中客户逐个入队发送）")
+    @SaCheckPermission("marketing:sms:create")
     @PostMapping("/send")
     public Result<Map<String, Object>> send(@RequestBody SendRequest req) {
         if (!Boolean.TRUE.equals(req.getAgreed())) {

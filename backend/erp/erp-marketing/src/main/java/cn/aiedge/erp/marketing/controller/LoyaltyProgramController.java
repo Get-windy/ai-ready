@@ -14,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @Tag(name = "促销与忠诚程序管理")
@@ -25,6 +26,7 @@ public class LoyaltyProgramController {
     private final LoyaltyProgramService loyaltyProgramService;
 
     @Operation(summary = "分页查询程序列表")
+    @SaCheckPermission("marketing:program:list")
     @GetMapping("/page")
     public Result<IPage<LoyaltyProgram>> page(
             @RequestParam(required = false) String programType,
@@ -44,6 +46,7 @@ public class LoyaltyProgramController {
     }
 
     @Operation(summary = "按类型查询程序列表")
+    @SaCheckPermission("marketing:program:list")
     @GetMapping("/list")
     public Result<List<LoyaltyProgram>> list(@RequestParam(required = false) String programType) {
         if (programType != null && !programType.isEmpty()) {
@@ -53,12 +56,14 @@ public class LoyaltyProgramController {
     }
 
     @Operation(summary = "查询当前有效的促销程序")
+    @SaCheckPermission("marketing:program:view")
     @GetMapping("/active")
     public Result<List<LoyaltyProgram>> active() {
         return Result.ok(loyaltyProgramService.listActive());
     }
 
     @Operation(summary = "获取程序详情")
+    @SaCheckPermission("marketing:program:detail")
     @GetMapping("/{id}")
     public Result<LoyaltyProgram> getById(@PathVariable Long id) {
         LoyaltyProgram program = loyaltyProgramService.getById(id);
@@ -69,6 +74,7 @@ public class LoyaltyProgramController {
     }
 
     @Operation(summary = "创建程序")
+    @SaCheckPermission("marketing:program:create")
     @PostMapping
     public Result<Boolean> create(@RequestBody LoyaltyProgram program) {
         Long tenantId = SecurityUtils.getCurrentTenantId();
@@ -81,6 +87,7 @@ public class LoyaltyProgramController {
     }
 
     @Operation(summary = "更新程序")
+    @SaCheckPermission("marketing:program:update")
     @PutMapping("/{id}")
     public Result<Boolean> update(@PathVariable Long id, @RequestBody LoyaltyProgram program) {
         program.setId(id);
@@ -88,6 +95,7 @@ public class LoyaltyProgramController {
     }
 
     @Operation(summary = "删除程序")
+    @SaCheckPermission("marketing:program:delete")
     @DeleteMapping("/{id}")
     public Result<Boolean> delete(@PathVariable Long id) {
         return Result.ok(loyaltyProgramService.removeById(id));

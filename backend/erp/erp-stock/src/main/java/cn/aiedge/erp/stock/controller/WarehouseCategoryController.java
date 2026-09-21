@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 仓库分类Controller（资料 → 仓库管理 → 仓库规划 左侧分类树）
@@ -27,12 +28,14 @@ public class WarehouseCategoryController {
     private final WarehouseCategoryService warehouseCategoryService;
 
     @Operation(summary = "仓库分类树")
+    @SaCheckPermission("wms:category:list")
     @GetMapping("/tree")
     public Result<List<WarehouseCategory>> tree() {
         return Result.ok(warehouseCategoryService.getCategoryTree());
     }
 
     @Operation(summary = "根据ID查询分类")
+    @SaCheckPermission("wms:category:detail")
     @GetMapping("/{id}")
     public Result<WarehouseCategory> getById(@PathVariable Long id) {
         WarehouseCategory category = warehouseCategoryService.getById(id);
@@ -40,12 +43,14 @@ public class WarehouseCategoryController {
     }
 
     @Operation(summary = "新增分类")
+    @SaCheckPermission("wms:category:create")
     @PostMapping
     public Result<WarehouseCategory> create(@RequestBody WarehouseCategory category) {
         return Result.ok(warehouseCategoryService.createCategory(category));
     }
 
     @Operation(summary = "修改分类")
+    @SaCheckPermission("wms:category:update")
     @PutMapping("/{id}")
     public Result<Boolean> update(@PathVariable Long id, @RequestBody WarehouseCategory category) {
         category.setId(id);
@@ -53,6 +58,7 @@ public class WarehouseCategoryController {
     }
 
     @Operation(summary = "删除分类")
+    @SaCheckPermission("wms:category:delete")
     @DeleteMapping("/{id}")
     public Result<Boolean> delete(@PathVariable Long id) {
         return Result.ok(warehouseCategoryService.removeCategory(id));

@@ -61,8 +61,6 @@ cn.aiedge.notification.controller.NotificationTemplateController
 cn.aiedge.payment.controller.ReconciliationController
 cn.aiedge.payment.controller.RefundController
 # cn.aiedge.permission.controller
-cn.aiedge.permission.controller.FieldPermissionController
-cn.aiedge.permission.controller.RecordRuleController
 # cn.aiedge.storage.controller
 cn.aiedge.storage.controller.FileAccessController
 # cn.aiedge.trade.controller
@@ -106,53 +104,20 @@ cn.aiedge.erp.finance.bankaccount.controller.BankAccountController
 # cn.aiedge.erp.finance.cashtransfer.controller
 cn.aiedge.erp.finance.cashtransfer.controller.CashTransferController
 # cn.aiedge.erp.finance.controller
-cn.aiedge.erp.finance.controller.AccountingPeriodController
 cn.aiedge.erp.finance.controller.BusinessAccountingController
-cn.aiedge.erp.finance.controller.CollectionStatsController
 cn.aiedge.erp.finance.controller.ExpenseTypeSubjectController
 cn.aiedge.erp.finance.controller.FinanceAccountController
-cn.aiedge.erp.finance.controller.FinanceAuxiliaryController
-cn.aiedge.erp.finance.controller.FinanceReportController
-cn.aiedge.erp.finance.controller.FinanceTaxDeclarationController
-cn.aiedge.erp.finance.controller.FinanceTransactionController
-cn.aiedge.erp.finance.controller.FinancialReportController
-cn.aiedge.erp.finance.controller.LedgerController
-cn.aiedge.erp.finance.controller.MdPaymentChannelController
 cn.aiedge.erp.finance.controller.MdPaymentMethodController
-cn.aiedge.erp.finance.controller.MonthClosingController
 cn.aiedge.erp.finance.controller.OtherIncomeSubjectController
-cn.aiedge.erp.finance.controller.PartnerBalanceController
-cn.aiedge.erp.finance.controller.PayableController
-cn.aiedge.erp.finance.controller.ReceivableController
-cn.aiedge.erp.finance.controller.VoucherController
 # cn.aiedge.erp.finance.expensedoc.controller
 cn.aiedge.erp.finance.expensedoc.controller.ExpenseApprovalController
 cn.aiedge.erp.finance.expensedoc.controller.ExpenseDocController
 cn.aiedge.erp.finance.expensedoc.controller.ExpenseStatsController
 # cn.aiedge.erp.finance.otherincome.controller
-cn.aiedge.erp.finance.otherincome.controller.OtherIncomeDocController
 # cn.aiedge.erp.finance.reconciliation.controller
-cn.aiedge.erp.finance.reconciliation.controller.ReconciliationController
 # cn.aiedge.erp.invoice.controller
-cn.aiedge.erp.invoice.controller.InvoiceApplicationController
-cn.aiedge.erp.invoice.controller.InvoiceController
 # cn.aiedge.erp.payment.controller
-cn.aiedge.erp.payment.controller.CapitalFlowController
-cn.aiedge.erp.payment.controller.DepositConditionController
-cn.aiedge.erp.payment.controller.OffsetController
-cn.aiedge.erp.payment.controller.PaymentController
-cn.aiedge.erp.payment.controller.PrePaymentController
-cn.aiedge.erp.payment.controller.PreReceiptController
-cn.aiedge.erp.payment.controller.ReceiptController
-cn.aiedge.erp.payment.controller.WriteOffController
 # cn.aiedge.erp.budget.controller
-cn.aiedge.erp.budget.controller.AnnualBudgetController
-cn.aiedge.erp.budget.controller.BudgetAdjustmentController
-cn.aiedge.erp.budget.controller.BudgetControlController
-cn.aiedge.erp.budget.controller.BudgetExecutionController
-cn.aiedge.erp.budget.controller.BudgetItemController
-cn.aiedge.erp.budget.controller.BudgetReportController
-cn.aiedge.erp.budget.controller.BudgetTemplateController
 
 # ── 商品 / 库存 / 采购 / 销售（主数据与单据，量大）─────────────────────────
 # cn.aiedge.erp.controller
@@ -167,17 +132,6 @@ cn.aiedge.erp.metrics.controller.MetricsController
 # cn.aiedge.erp.monitor.controller
 cn.aiedge.erp.monitor.controller.BusinessMetricController
 # cn.aiedge.erp.party.controller
-cn.aiedge.erp.party.controller.ContactController
-cn.aiedge.erp.party.controller.CustomerGradeController
-cn.aiedge.erp.party.controller.CustomerRegionController
-cn.aiedge.erp.party.controller.LinkedAccountController
-cn.aiedge.erp.party.controller.MdCustomerController
-cn.aiedge.erp.party.controller.MemberLevelController
-cn.aiedge.erp.party.controller.PartyAttachmentController
-cn.aiedge.erp.party.controller.PartyCategoryController
-cn.aiedge.erp.party.controller.PartyContactController
-cn.aiedge.erp.party.controller.PartyController
-cn.aiedge.erp.party.controller.PartyRoleController
 # cn.aiedge.erp.pricing.api
 cn.aiedge.erp.pricing.api.PriceEngineController
 cn.aiedge.erp.pricing.api.PriceStrategyConfigController
@@ -193,7 +147,6 @@ cn.aiedge.erp.pricing.controller.ProductGradePriceController
 # cn.aiedge.erp.product.kit.controller
 cn.aiedge.erp.product.kit.controller.ProductKitController
 # cn.aiedge.erp.purchase.controller
-cn.aiedge.erp.purchase.controller.PurchaseContractController
 cn.aiedge.erp.purchase.controller.PurchaseDetailQueryController
 cn.aiedge.erp.purchase.controller.PurchaseDocQueryController
 cn.aiedge.erp.purchase.controller.PurchaseInquiryController
@@ -220,39 +173,6 @@ cn.aiedge.erp.sale.saleexchange.controller.SaleExchangeController
 cn.aiedge.erp.signature.controller.RatingController
 cn.aiedge.erp.signature.controller.SignatureController
 # cn.aiedge.erp.stock.controller
-cn.aiedge.erp.stock.controller.GroupBuyController
-cn.aiedge.erp.stock.controller.InventoryModeController
-cn.aiedge.erp.stock.controller.MallTagController
-cn.aiedge.erp.stock.controller.ProductAttachmentController
-cn.aiedge.erp.stock.controller.ProductAttributeController
-cn.aiedge.erp.stock.controller.ProductBrandController
-cn.aiedge.erp.stock.controller.ProductCategoryController
-cn.aiedge.erp.stock.controller.ProductGradeController
-cn.aiedge.erp.stock.controller.ProductImageController
-cn.aiedge.erp.stock.controller.ProductLocationController
-cn.aiedge.erp.stock.controller.ProductRelatedController
-cn.aiedge.erp.stock.controller.ProductSkuRuleController
-cn.aiedge.erp.stock.controller.ProductUnitController
-cn.aiedge.erp.stock.controller.ProductUnitDictController
-cn.aiedge.erp.stock.controller.ProductUnitGroupController
-cn.aiedge.erp.stock.controller.StockAlertConfigController
-cn.aiedge.erp.stock.controller.StockAlertQueryController
-cn.aiedge.erp.stock.controller.StockAssembleController
-cn.aiedge.erp.stock.controller.StockBomController
-cn.aiedge.erp.stock.controller.StockCheckController
-cn.aiedge.erp.stock.controller.StockController
-cn.aiedge.erp.stock.controller.StockCostAdjustController
-cn.aiedge.erp.stock.controller.StockDamageController
-cn.aiedge.erp.stock.controller.StockInController
-cn.aiedge.erp.stock.controller.StockOutController
-cn.aiedge.erp.stock.controller.StockOverflowController
-cn.aiedge.erp.stock.controller.StockReplenishmentController
-cn.aiedge.erp.stock.controller.StockReportController
-cn.aiedge.erp.stock.controller.StockSplitController
-cn.aiedge.erp.stock.controller.StockTakeController
-cn.aiedge.erp.stock.controller.StockTransferController
-cn.aiedge.erp.stock.controller.WarehouseCategoryController
-cn.aiedge.erp.stock.controller.WarehouseController
 # cn.aiedge.erp.supplier.controller
 cn.aiedge.erp.supplier.controller.SupplierController
 cn.aiedge.erp.supplier.controller.SupplierPortalController
@@ -278,30 +198,6 @@ cn.aiedge.erp.b2b.controller.MallProductController
 cn.aiedge.erp.b2b.controller.MallTradeAnalysisController
 cn.aiedge.erp.b2b.controller.MallUserController
 # cn.aiedge.erp.marketing.controller
-cn.aiedge.erp.marketing.controller.AddonRuleController
-cn.aiedge.erp.marketing.controller.AutoCampaignController
-cn.aiedge.erp.marketing.controller.CommissionRecordController
-cn.aiedge.erp.marketing.controller.CommissionRuleController
-cn.aiedge.erp.marketing.controller.CommissionStaffSummaryController
-cn.aiedge.erp.marketing.controller.CouponTemplateController
-cn.aiedge.erp.marketing.controller.FlashSaleController
-cn.aiedge.erp.marketing.controller.LoyaltyCardController
-cn.aiedge.erp.marketing.controller.LoyaltyCouponController
-cn.aiedge.erp.marketing.controller.LoyaltyProgramController
-cn.aiedge.erp.marketing.controller.MarketingRuleController
-cn.aiedge.erp.marketing.controller.MemberConfigController
-cn.aiedge.erp.marketing.controller.MemberLevelRuleController
-cn.aiedge.erp.marketing.controller.PointsExchangeController
-cn.aiedge.erp.marketing.controller.PointsJournalController
-cn.aiedge.erp.marketing.controller.PointsLedgerController
-cn.aiedge.erp.marketing.controller.PresaleController
-cn.aiedge.erp.marketing.controller.ProductPointsRuleController
-cn.aiedge.erp.marketing.controller.PromoActivityController
-cn.aiedge.erp.marketing.controller.PromoteController
-cn.aiedge.erp.marketing.controller.PromotionEngineController
-cn.aiedge.erp.marketing.controller.ShareRecordController
-cn.aiedge.erp.marketing.controller.SmsMarketingController
-cn.aiedge.erp.marketing.controller.StoredCardController
 
 # ── 打印 / 质量 ────────────────────────────────────────────────────────────
 # cn.aiedge.erp.printing.controller

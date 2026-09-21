@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @RestController
 @RequestMapping("/api/erp/budget/item")
@@ -21,6 +22,7 @@ public class BudgetItemController {
     private final BudgetItemService budgetItemService;
 
     @Operation(summary = "获取预算科目列表")
+    @SaCheckPermission("budget:item:list")
     @GetMapping("/list-by-budget/{budgetId}")
     public ApiResponse<List<BudgetItemDTO>> listByBudget(
             @Parameter(description = "预算ID") @PathVariable Long budgetId) {
@@ -29,6 +31,7 @@ public class BudgetItemController {
     }
 
     @Operation(summary = "更新预算科目")
+    @SaCheckPermission("budget:item:update")
     @PutMapping("/{id}")
     public ApiResponse<BudgetItemDTO> update(
             @Parameter(description = "科目ID") @PathVariable Long id,
@@ -38,6 +41,7 @@ public class BudgetItemController {
     }
 
     @Operation(summary = "获取预算科目详情")
+    @SaCheckPermission("budget:item:detail")
     @GetMapping("/{id}")
     public ApiResponse<BudgetItemDTO> getDetail(@Parameter(description = "科目ID") @PathVariable Long id) {
         BudgetItemDTO result = budgetItemService.getById(id);
@@ -45,6 +49,7 @@ public class BudgetItemController {
     }
 
     @Operation(summary = "导出预算科目列表")
+    @SaCheckPermission("budget:item:export")
     @GetMapping("/export/{budgetId}")
     public ApiResponse<List<BudgetItemDTO>> export(@Parameter(description = "预算ID") @PathVariable Long budgetId) {
         List<BudgetItemDTO> list = budgetItemService.listByBudgetId(budgetId);

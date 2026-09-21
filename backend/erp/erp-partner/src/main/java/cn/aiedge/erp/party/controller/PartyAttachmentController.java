@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 往来单位附件管理（基础资料表单「上传附件」分区 + 列表「附件」列）
@@ -23,18 +24,21 @@ public class PartyAttachmentController {
     private final PartyAttachmentService partyAttachmentService;
 
     @Operation(summary = "查询某往来单位的附件列表")
+    @SaCheckPermission("party:attachments:detail")
     @GetMapping("/by-partner/{partyId}")
     public ResponseEntity<ApiResponse<List<PartyAttachment>>> listByPartner(@PathVariable Long partyId) {
         return ResponseEntity.ok(ApiResponse.ok(partyAttachmentService.listByPartnerId(partyId)));
     }
 
     @Operation(summary = "新增附件记录")
+    @SaCheckPermission("party:attachments:create")
     @PostMapping
     public ResponseEntity<ApiResponse<Boolean>> create(@RequestBody PartyAttachment attachment) {
         return ResponseEntity.ok(ApiResponse.ok(partyAttachmentService.save(attachment)));
     }
 
     @Operation(summary = "删除附件")
+    @SaCheckPermission("party:attachments:delete")
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Boolean>> delete(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.ok(partyAttachmentService.removeById(id)));

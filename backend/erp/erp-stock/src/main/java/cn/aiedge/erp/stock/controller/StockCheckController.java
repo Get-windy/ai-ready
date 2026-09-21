@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @RestController
@@ -26,6 +27,7 @@ public class StockCheckController {
 
     private final StockCheckService checkService;
 
+    @SaCheckPermission("stock:check:list")
     @GetMapping("/page")
     @Operation(summary = "分页查询盘点单")
     public Result<Page<StockCheck>> page(
@@ -38,6 +40,7 @@ public class StockCheckController {
         return Result.ok(checkService.pageList(keyword, warehouseId, status, checkType, pageNum, pageSize));
     }
 
+    @SaCheckPermission("stock:check:detail")
     @GetMapping("/{id}")
     @Operation(summary = "获取盘点单详情")
     public Result<StockCheck> getById(@PathVariable Long id) {
@@ -48,18 +51,21 @@ public class StockCheckController {
         return Result.ok(check);
     }
 
+    @SaCheckPermission("stock:check:list")
     @GetMapping("/{id}/items")
     @Operation(summary = "获取盘点明细")
     public Result<List<StockCheckItem>> getItems(@PathVariable Long id) {
         return Result.ok(checkService.getItems(id));
     }
 
+    @SaCheckPermission("stock:check:view")
     @GetMapping("/{id}/diff-items")
     @Operation(summary = "获取差异明细")
     public Result<List<StockCheckItem>> getDiffItems(@PathVariable Long id) {
         return Result.ok(checkService.getDiffItems(id));
     }
 
+    @SaCheckPermission("stock:check:create")
     @PostMapping
     @Operation(summary = "创建盘点单")
     public Result<StockCheck> create(@RequestBody StockCheck check) {
@@ -68,18 +74,21 @@ public class StockCheckController {
         return Result.ok(checkService.createCheck(check));
     }
 
+    @SaCheckPermission("stock:check:create")
     @PostMapping("/create-with-items/{warehouseId}")
     @Operation(summary = "创建盘点单并生成明细")
     public Result<StockCheck> createWithItems(@PathVariable Long warehouseId) {
         return Result.ok(checkService.createCheckWithItems(warehouseId));
     }
 
+    @SaCheckPermission("stock:check:submit")
     @PostMapping("/{id}/submit")
     @Operation(summary = "提交审批")
     public Result<StockCheck> submitForApproval(@PathVariable Long id) {
         return Result.ok(checkService.submitForApproval(id));
     }
 
+    @SaCheckPermission("stock:check:approve")
     @PostMapping("/{id}/approve")
     @Operation(summary = "审批通过")
     public Result<StockCheck> approve(@PathVariable Long id, @RequestParam(required = false) String note) {
@@ -87,18 +96,21 @@ public class StockCheckController {
         return Result.ok(checkService.approve(id, approverId, note));
     }
 
+    @SaCheckPermission("stock:check:approve")
     @PostMapping("/{id}/reject")
     @Operation(summary = "审批拒绝")
     public Result<StockCheck> reject(@PathVariable Long id, @RequestParam String reason) {
         return Result.ok(checkService.reject(id, reason));
     }
 
+    @SaCheckPermission("stock:check:create")
     @PostMapping("/{id}/start")
     @Operation(summary = "开始盘点")
     public Result<StockCheck> startCheck(@PathVariable Long id) {
         return Result.ok(checkService.startCheck(id));
     }
 
+    @SaCheckPermission("stock:check:check")
     @PostMapping("/{id}/items/{itemId}/check")
     @Operation(summary = "盘点明细")
     public Result<StockCheckItem> checkItem(
@@ -108,30 +120,35 @@ public class StockCheckController {
         return Result.ok(checkService.checkItem(itemId, actualQuantity, note));
     }
 
+    @SaCheckPermission("stock:check:create")
     @PostMapping("/{id}/complete")
     @Operation(summary = "完成盘点")
     public Result<StockCheck> completeCheck(@PathVariable Long id) {
         return Result.ok(checkService.completeCheck(id));
     }
 
+    @SaCheckPermission("stock:check:create")
     @PostMapping("/{id}/adjust")
     @Operation(summary = "库存调整")
     public Result<StockCheck> adjust(@PathVariable Long id) {
         return Result.ok(checkService.adjust(id));
     }
 
+    @SaCheckPermission("stock:check:create")
     @PostMapping("/{id}/cancel")
     @Operation(summary = "取消盘点")
     public Result<StockCheck> cancel(@PathVariable Long id, @RequestParam String reason) {
         return Result.ok(checkService.cancel(id, reason));
     }
 
+    @SaCheckPermission("stock:check:delete")
     @DeleteMapping("/batch")
     @Operation(summary = "批量删除盘点单")
     public Result<Boolean> batchDelete(@RequestBody List<Long> ids) {
         return Result.ok(checkService.removeBatchByIds(ids));
     }
 
+    @SaCheckPermission("stock:check:export")
     @GetMapping("/export")
     @Operation(summary = "导出盘点单列表")
     public Result<List<StockCheck>> export(

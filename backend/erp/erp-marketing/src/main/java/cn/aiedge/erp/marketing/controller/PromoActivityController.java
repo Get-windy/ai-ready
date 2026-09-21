@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 促销活动（营销 → 营销活动 → 商品促销 80312 / 整单促销 80313 / 特价 80314）
@@ -46,6 +47,7 @@ public class PromoActivityController {
     }
 
     @Operation(summary = "分页查询促销活动（activityType 省略＝全部促销方式，供「我要推广-促销」使用）")
+    @SaCheckPermission("marketing:promotion-activity:list")
     @GetMapping("/page")
     public Result<IPage<PromoActivity>> page(
             @RequestParam(required = false) String activityType,
@@ -62,6 +64,7 @@ public class PromoActivityController {
     }
 
     @Operation(summary = "促销活动详情")
+    @SaCheckPermission("marketing:promotion-activity:detail")
     @GetMapping("/{id}")
     public Result<PromoActivity> getById(@PathVariable Long id) {
         PromoActivity a = mapper.selectById(id);
@@ -70,6 +73,7 @@ public class PromoActivityController {
     }
 
     @Operation(summary = "新增促销活动")
+    @SaCheckPermission("marketing:promotion-activity:create")
     @PostMapping
     public Result<Long> create(@RequestBody PromoActivity req) {
         validate(req);
@@ -85,6 +89,7 @@ public class PromoActivityController {
     }
 
     @Operation(summary = "修改促销活动")
+    @SaCheckPermission("marketing:promotion-activity:update")
     @PutMapping("/{id}")
     public Result<Boolean> update(@PathVariable Long id, @RequestBody PromoActivity req) {
         validate(req);
@@ -96,12 +101,14 @@ public class PromoActivityController {
     }
 
     @Operation(summary = "删除促销活动")
+    @SaCheckPermission("marketing:promotion-activity:delete")
     @DeleteMapping("/{id}")
     public Result<Boolean> delete(@PathVariable Long id) {
         return Result.ok(mapper.deleteById(id) > 0);
     }
 
     @Operation(summary = "启用/停用促销活动")
+    @SaCheckPermission("marketing:promotion-activity:create")
     @PostMapping("/{id}/status")
     public Result<Boolean> changeStatus(@PathVariable Long id, @RequestParam String status) {
         return Result.ok(mapper.update(null, new LambdaUpdateWrapper<PromoActivity>()
@@ -111,6 +118,7 @@ public class PromoActivityController {
     }
 
     @Operation(summary = "查看促销商品")
+    @SaCheckPermission("marketing:promotion-activity:view")
     @GetMapping("/{id}/products")
     public Result<List<PromoProductRow>> products(@PathVariable Long id) {
         PromoActivity a = mapper.selectById(id);
@@ -120,6 +128,7 @@ public class PromoActivityController {
     }
 
     @Operation(summary = "查看促销客户")
+    @SaCheckPermission("marketing:promotion-activity:view")
     @GetMapping("/{id}/customers")
     public Result<List<PromoCustomerRow>> customers(@PathVariable Long id) {
         PromoActivity a = mapper.selectById(id);

@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @Tag(name = "往来单位联系人管理")
@@ -34,6 +35,7 @@ public class PartyContactController {
     private final IContactService contactService;
 
     @Operation(summary = "分页查询联系人")
+    @SaCheckPermission("party:contacts:list")
     @GetMapping("/page")
     public Result<IPage<PartyContactDTO>> pageContacts(
             @RequestParam(required = false) Long partyId,
@@ -62,6 +64,7 @@ public class PartyContactController {
     }
 
     @Operation(summary = "根据往来单位ID查询联系人列表")
+    @SaCheckPermission("party:contacts:detail")
     @GetMapping("/by-party/{partyId}")
     public Result<List<PartyContactDTO>> getContactsByParty(@PathVariable Long partyId) {
         List<PartyContact> contacts = partyContactService.list(
@@ -73,6 +76,7 @@ public class PartyContactController {
     }
 
     @Operation(summary = "获取联系人详情")
+    @SaCheckPermission("party:contacts:detail")
     @GetMapping("/{id}")
     public Result<PartyContactDTO> getContact(@PathVariable Long id) {
         PartyContact contact = partyContactService.getById(id);
@@ -83,6 +87,7 @@ public class PartyContactController {
     }
 
     @Operation(summary = "新增联系人")
+    @SaCheckPermission("party:contacts:create")
     @PostMapping
     public Result<Boolean> addContact(@RequestBody PartyContactDTO dto) {
         PartyContact contact = new PartyContact();
@@ -92,6 +97,7 @@ public class PartyContactController {
     }
 
     @Operation(summary = "更新联系人")
+    @SaCheckPermission("party:contacts:update")
     @PutMapping("/{id}")
     public Result<Boolean> updateContact(@PathVariable Long id, @RequestBody PartyContactDTO dto) {
         PartyContact contact = partyContactService.getById(id);
@@ -105,6 +111,7 @@ public class PartyContactController {
     }
 
     @Operation(summary = "删除联系人")
+    @SaCheckPermission("party:contacts:delete")
     @DeleteMapping("/{id}")
     public Result<Boolean> deleteContact(@PathVariable Long id) {
         PartyContact contact = partyContactService.getById(id);
@@ -117,6 +124,7 @@ public class PartyContactController {
     }
 
     @Operation(summary = "设置主要联系人")
+    @SaCheckPermission("party:contacts:update")
     @PutMapping("/{id}/primary")
     public Result<Boolean> setPrimaryContact(@PathVariable Long id, @RequestParam Long partyId) {
         // 先将该往来单位的所有联系人设为非主要

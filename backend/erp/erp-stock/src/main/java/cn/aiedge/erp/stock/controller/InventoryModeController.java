@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 库存管理模式控制器
@@ -28,6 +29,7 @@ public class InventoryModeController {
     private final SysConfigService configService;
 
     @Operation(summary = "获取当前租户的库存管理模式")
+    @SaCheckPermission("stock:inventory-mode:view")
     @GetMapping
     public Result<InventoryMode> getMode() {
         String value = configService.getValue(CONFIG_KEY, "BATCH");
@@ -35,6 +37,7 @@ public class InventoryModeController {
     }
 
     @Operation(summary = "设置库存管理模式")
+    @SaCheckPermission("stock:inventory-mode:update")
     @PutMapping
     public Result<Void> setMode(@RequestBody InventoryModeRequest request) {
         configService.setValue(CONFIG_KEY, request.getMode().name(), "string", "inventory", "库存管理模式");
@@ -42,6 +45,7 @@ public class InventoryModeController {
     }
 
     @Operation(summary = "获取所有支持的库存管理模式")
+    @SaCheckPermission("stock:inventory-mode:list")
     @GetMapping("/options")
     public Result<List<ModeOption>> getOptions() {
         return Result.ok(List.of(

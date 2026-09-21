@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.util.*;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 会员等级规则：规则读取 + 自动升级评估/执行。
@@ -38,6 +39,7 @@ public class MemberLevelRuleController {
     private final MemberConfigService memberConfigService;
 
     @Operation(summary = "等级规则清单（含门槛/保级周期/默认等级）")
+    @SaCheckPermission("marketing:member-level:view")
     @GetMapping("/rules")
     public Result<List<Map<String, Object>>> rules() {
         Long tenantId = tenantId();
@@ -48,6 +50,7 @@ public class MemberLevelRuleController {
     }
 
     @Operation(summary = "评估会员等级（dry-run：只算不改，返回将升级/降级的清单）")
+    @SaCheckPermission("marketing:member-level:create")
     @PostMapping("/evaluate")
     public Result<Map<String, Object>> evaluate(@RequestParam(defaultValue = "500") Integer limit) {
         List<MemberLevelChangeRow> changes = evaluateInternal(Math.min(Math.max(limit, 1), 5000));
@@ -62,6 +65,7 @@ public class MemberLevelRuleController {
     }
 
     @Operation(summary = "执行等级升降级（写 biz_party.member_level；受「会员自动升级」开关门控）")
+    @SaCheckPermission("marketing:member-level:create")
     @PostMapping("/apply")
     @Transactional(rollbackFor = Exception.class)
     public Result<Map<String, Object>> apply(@RequestParam(defaultValue = "500") Integer limit,

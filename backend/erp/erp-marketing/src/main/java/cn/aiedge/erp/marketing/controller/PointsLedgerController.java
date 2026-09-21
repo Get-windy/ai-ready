@@ -20,6 +20,7 @@ import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 会员积分台账（批次 / 流水 / 过期）——积分有效期闭环。
@@ -37,18 +38,21 @@ public class PointsLedgerController {
     private final PointsJournalMapper pointsJournalMapper;
 
     @Operation(summary = "查询某会员的积分批次（含到期时间与剩余）")
+    @SaCheckPermission("marketing:points-ledger:list")
     @GetMapping("/batch/list")
     public Result<List<PointsBatch>> batches(@RequestParam String memberCardNo) {
         return Result.ok(pointsLedgerService.listBatches(memberCardNo));
     }
 
     @Operation(summary = "查询某会员当前可用积分（各有效批次剩余之和）")
+    @SaCheckPermission("marketing:points-ledger:view")
     @GetMapping("/available")
     public Result<BigDecimal> available(@RequestParam String memberCardNo) {
         return Result.ok(pointsLedgerService.available(memberCardNo));
     }
 
     @Operation(summary = "分页查询积分变动流水（EARN/USE/EXPIRE/ADJUST）")
+    @SaCheckPermission("marketing:points-ledger:list")
     @GetMapping("/journal/page")
     public Result<IPage<PointsJournal>> journalPage(
             @RequestParam(required = false) String memberCardNo,
@@ -65,6 +69,7 @@ public class PointsLedgerController {
     }
 
     @Operation(summary = "手工记一笔积分获得（写入批次，按配置的有效期计算到期）")
+    @SaCheckPermission("marketing:points-ledger:create")
     @PostMapping("/earn")
     public Result<Long> earn(@RequestBody EarnRequest req) {
         if (req.getMemberCardNo() == null || req.getMemberCardNo().isBlank()) {
@@ -78,12 +83,14 @@ public class PointsLedgerController {
     }
 
     @Operation(summary = "手工扣减积分（FIFO 扣减各批次剩余）")
+    @SaCheckPermission("marketing:points-ledger:create")
     @PostMapping("/use")
     public Result<BigDecimal> use(@RequestBody EarnRequest req) {
         return Result.ok(pointsLedgerService.use(req.getMemberCardNo(), req.getPoints(), req.getSourceBillNo()));
     }
 
     @Operation(summary = "执行积分过期处理（把已到期批次的剩余清零并写 EXPIRE 流水）")
+    @SaCheckPermission("marketing:points-ledger:create")
     @PostMapping("/expire")
     public Result<Map<String, Object>> expire(@RequestParam(required = false) String asOf) {
         Map<String, BigDecimal> detail = pointsLedgerService.expireDue(
@@ -96,6 +103,7 @@ public class PointsLedgerController {
     }
 
     @Operation(summary = "近 N 天内到期且仍有剩余的批次（到期提醒 / 触达数据源）")
+    @SaCheckPermission("marketing:points-ledger:view")
     @GetMapping("/expiring-soon")
     public Result<List<PointsBatch>> expiringSoon(@RequestParam(defaultValue = "30") Integer days) {
         return Result.ok(pointsLedgerService.expiringSoon(days));

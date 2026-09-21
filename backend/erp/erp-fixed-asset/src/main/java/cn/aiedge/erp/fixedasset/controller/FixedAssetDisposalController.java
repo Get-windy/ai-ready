@@ -13,6 +13,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.*;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 固定资产处置控制器
@@ -26,6 +27,7 @@ public class FixedAssetDisposalController {
     private final FixedAssetDisposalService disposalService;
 
     @Operation(summary = "创建处置申请")
+    @SaCheckPermission("fixed-asset:disposal:create")
     @PostMapping
     @RequiresPermission("erp:fixed-asset:disposal:create")
     public ApiResponse<FixedAssetDisposalDTO> create(@Valid @RequestBody FixedAssetDisposalDTO dto) {
@@ -34,6 +36,7 @@ public class FixedAssetDisposalController {
     }
 
     @Operation(summary = "更新处置申请")
+    @SaCheckPermission("fixed-asset:disposal:update")
     @PutMapping("/{id}")
     @RequiresPermission("erp:fixed-asset:disposal:update")
     public ApiResponse<FixedAssetDisposalDTO> update(
@@ -44,6 +47,7 @@ public class FixedAssetDisposalController {
     }
 
     @Operation(summary = "删除处置申请")
+    @SaCheckPermission("fixed-asset:disposal:delete")
     @DeleteMapping("/{id}")
     @RequiresPermission("erp:fixed-asset:disposal:delete")
     public ApiResponse<Void> delete(
@@ -53,6 +57,7 @@ public class FixedAssetDisposalController {
     }
 
     @Operation(summary = "分页查询处置记录")
+    @SaCheckPermission("fixed-asset:disposal:list")
     @GetMapping("/page")
     @RequiresPermission("erp:fixed-asset:disposal:list")
     public ApiResponse<Page<FixedAssetDisposalDTO>> getPage(
@@ -66,6 +71,7 @@ public class FixedAssetDisposalController {
     }
 
     @Operation(summary = "获取处置记录详情")
+    @SaCheckPermission("fixed-asset:disposal:detail")
     @GetMapping("/{id}")
     @RequiresPermission("erp:fixed-asset:disposal:query")
     public ApiResponse<FixedAssetDisposalDTO> getById(
@@ -75,6 +81,7 @@ public class FixedAssetDisposalController {
     }
 
     @Operation(summary = "审批通过")
+    @SaCheckPermission("fixed-asset:disposal:approve")
     @PostMapping("/{id}/approve")
     @RequiresPermission("erp:fixed-asset:disposal:approve")
     public ApiResponse<FixedAssetDisposalDTO> approve(
@@ -85,6 +92,7 @@ public class FixedAssetDisposalController {
     }
 
     @Operation(summary = "审批拒绝")
+    @SaCheckPermission("fixed-asset:disposal:approve")
     @PostMapping("/{id}/reject")
     @RequiresPermission("erp:fixed-asset:disposal:approve")
     public ApiResponse<FixedAssetDisposalDTO> reject(
