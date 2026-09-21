@@ -1172,3 +1172,48 @@
 | 2026-09-21 | ⏸ **批次 1 剩余 3 码待删（无对应端点）** | `erp:expense:application:approve`（真实端点是 `/api/erp/expense/{id}/approve`，路径上并没有 `application` 段）、`erp:expense:approval:query`（`/approval` 下只有 `/process`、`/records`、`/pending`，没有 `/{id}`）、`erp:expense:statistics:refresh`（`/statistics` 下无 refresh 端点）。三者都无对应端点 ⇒ 按 (A) 口径应**删码**。**未删**，归入"B 类删除批次"统一处理（删除也要一次性验一遍引用）。 | ⬜ 待删除批次 |
 | 2026-09-21 | **E-02 批次 2 完成：crm 6 处接线（两向验证 18/18）** | crm 四个控制器（`ContractController`/`CustomerController`/`CustomerFollowUpController`/`CustomerOpportunityController`）此前**零权限注解**（只有登录校验），属真缺口。本批接线 6 条（逐条读源码后定的落点）：`crm:customer:list`←`GET /customer/page`、`crm:customer:update`←`PUT /customer/{id}`、`crm:customer:delete`←`DELETE /customer/{id}`、`crm:lead:view`←`GET /crm/followUp/lead/{leadId}`、`crm:opportunity:create`←`POST /crm/opportunity`、`crm:opportunity:view`←`GET /crm/opportunity/statistics`。 | ✅ `tools/verify-authz-batch2.cjs` **18/18**（6 码在库且只被超管持有 / 超管 6 条非 403 / 非超管 6 条全 403）。effectivity：未生效 **100 → 94**。 |
 | 2026-09-21 | ⏸ **批次 2 剩余 6 码待删 + 1 个顺带发现** | **待删（无对应端点）**：`crm:contract:batchapprove`（`/contract` 下只有 `/batch`(DELETE) 与 `/{id}/approve`，没有 batch-approve）、`crm:contract:refresh`、`crm:create`（两段码、无资源，指代不明）、`crm:opportunity:detailrefresh`、`crm:opportunity:reset`、`crm:refresh` —— 均无对应端点，按 (A) 口径应删，归入 B 类删除批次。<br>**顺带发现**：`GET /crm/opportunity/statistics` 对超管返回 **500**（非本次改动引入，鉴权通过后业务报错）⇒ 该端点的统计查询有 bug，单独登记。 | ⬜ 待删除批次 / ⬜ 新 bug |
+
+---
+
+## 附：权限授权的双层模型（2026-09-21 用户口述，**这是本仓权限口径的权威描述**）
+
+> 「我们所有的权限除了系统模块的是授权给超管和超管所在的系统租户的。其他模块就看超管和系统租户是否授权给某个租户，只要是授权给某个租户，租户所属的系统管理员就拥有了租户内的最高权限，租户内的部门管理员权限由租户所在系统管理员给与配置。当然系统模块的权限由系统超管授权给系统租户所属的用户和部门管理员。」
+
+读法（落到本仓的表上）：
+
+| 层 | 表 | 谁操作 | 含义 |
+|---|---|---|---|
+| 系统模块 | `sys_permission`（`system:*`、`platform:*` 等） + `sys_role_permission` | **系统超管** | 直接授给「系统租户」下的用户/部门管理员角色 |
+| 业务模块 | 同上，但**必须先由平台把码授给该租户** | **超管/系统租户** | 「授权给某租户」= **启用该模块给该租户** |
+| 租户内 | `sys_role_permission`（角色属租户：`sys_role.tenant_id`） | **该租户的系统管理员** | 被启用后，租户系统管理员在本租户内拥有**最高权限**（= 模块级全权） |
+| 租户内下级 | 同上 | 租户系统管理员 | 部门管理员的权限由租户系统管理员自行配置 |
+
+**⚠️ 对本轮 E-02 接线工作的直接结论**：
+1. **接线（补 `@SaCheckPermission`）与授权（`sys_role_permission`）是两件事**。
+   接线是把"这个接口受哪个码管"写进代码；**是否给某个租户启用该模块是平台侧的产品决定**，
+   不能由脚本代做。所以本轮把码接到端点上、**不**顺手授权，是符合模型的做法。
+2. 因此当前「已接线但只被超管持有」的码 = **"模块已具备管控能力，但尚未启用给任何租户"**，
+   这是一个**合法且明确的中间态**，不是缺陷。
+3. 但要注意：在启用之前，那些端点对**非超管的租户用户是 403**（而接线前是"登录即可访问"）。
+   ⇒ **接线等于"把模块交给平台来开关"**。每批接线后都应登记"待启用的模块"，让平台决定何时/给谁开。
+
+### 待启用的模块清单（接线已完成，尚未授权给任何租户）
+
+| 批次 | 模块 | 码数 | 涉及端点 | 启用方式 |
+|---|---|---|---|---|
+| E-01（09-20/21 那 7 个模块） | budget / fixedasset / stock+product+md / invoice / payment / party / marketing | 485 | 709 | 见下方 SQL |
+| E-02 批次 1 | `erp:expense:*`（费用申请/支付/审批/统计） | 11 | 11 | 同上 |
+| E-02 批次 2 | `crm:*`（客户/商机/跟进） | 6 | 6 | 同上 |
+
+**启用某个模块给某个租户 = 把该模块的码授给该租户的系统管理员角色**（本仓实测：租户 1 的系统管理员角色 id `2065122951570362369`、部门管理员 `2065122951620694018`），SQL 形态：
+
+```sql
+-- 例：把费用模块启用给租户 1 的系统管理员（先确认角色 id 与码前缀）
+INSERT INTO sys_role_permission (id, role_id, permission_id, tenant_id, create_time)
+SELECT 9592000 + row_number() OVER (ORDER BY p.id), 2065122951570362369, p.id, 1, now()
+  FROM sys_permission p
+ WHERE p.permission_code LIKE 'erp:expense:%'
+   AND NOT EXISTS (SELECT 1 FROM sys_role_permission rp
+                    WHERE rp.role_id = 2065122951570362369 AND rp.permission_id = p.id);
+```
+（`id` 用新号段 `959xxxx`，避开已用号段；`NOT EXISTS` 保证幂等。）
