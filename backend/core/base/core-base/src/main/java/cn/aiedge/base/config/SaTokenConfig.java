@@ -50,6 +50,13 @@ public class SaTokenConfig implements WebMvcConfigurer {
                         "/api/file/view/**",
                         // C 端商城登录（C 端用户无 Sa-Token 会话，必须匿名可达）
                         "/api/v1/mall/auth/**",
+                        // 商城商品浏览（B2B 租户商城：允许游客进店看商品）。
+                        // ⚠️ 放行的是**可达性**，不是数据范围 —— 真正的准入在
+                        // `MallProductServiceImpl#requireShop()`：先确定「逛的是哪家店」
+                        // （会话租户 → 其次 X-Tenant-Id 头），再按该店 `tenant_shop_config.allowGuest`
+                        // 决定是否允许游客；未开通商城（无配置行）一律拒绝。
+                        // 价格是否下发另由同表的 `guestShowPrice` 控制（已登录买家不受该开关影响）。
+                        "/api/v1/mall/products/**",
                         // PDA(仓库端)登录：登录接口若不放行，未登录就取不到 token（死锁，功能不可用）。
                         // 只放行登录本身 —— /api/v1/warehouse/ 下的业务接口仍需登录。
                         // 该接口 2026-09-20 已由桩实现改为真实鉴权（BCrypt + status + 租户校验）。
@@ -96,6 +103,13 @@ public class SaTokenConfig implements WebMvcConfigurer {
                         "/api/file/view/**",
                         // C 端商城登录（C 端用户无 Sa-Token 会话，必须匿名可达）
                         "/api/v1/mall/auth/**",
+                        // 商城商品浏览（B2B 租户商城：允许游客进店看商品）。
+                        // ⚠️ 放行的是**可达性**，不是数据范围 —— 真正的准入在
+                        // `MallProductServiceImpl#requireShop()`：先确定「逛的是哪家店」
+                        // （会话租户 → 其次 X-Tenant-Id 头），再按该店 `tenant_shop_config.allowGuest`
+                        // 决定是否允许游客；未开通商城（无配置行）一律拒绝。
+                        // 价格是否下发另由同表的 `guestShowPrice` 控制（已登录买家不受该开关影响）。
+                        "/api/v1/mall/products/**",
                         // PDA(仓库端)登录：登录接口若不放行，未登录就取不到 token（死锁，功能不可用）。
                         // 只放行登录本身 —— /api/v1/warehouse/ 下的业务接口仍需登录。
                         // 该接口 2026-09-20 已由桩实现改为真实鉴权（BCrypt + status + 租户校验）。
