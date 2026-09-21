@@ -217,7 +217,27 @@ RULES = [
     ('POST',   r'.*/release$',                 'release'),
     ('POST',   r'.*/consume$',                 'consume'),
     ('POST',   r'.*/import$',                  'import'),
+    # 业务动作（都要先于 POST 兜底，否则会被当成"新建"）。
+    # 这些动作词都来自**库中已有的历史码**（hr:salary:generate / hr:candidate:interview /
+    # hr:attendance:clock），保住它们就等于保住职责分离，不是新造词。
+    ('POST',   r'.*/(generate|gen)$',          'generate'),
+    ('POST',   r'.*/interview$',               'interview'),
+    ('POST',   r'.*/clock(-in|-out)?$',        'clock'),
     ('POST',   r'.*',                          'create'),    # 兜底：新建/保存
+    # ── PUT / PATCH：动作后缀要**先于**下面的兜底匹配 ──
+    # 为什么必须补这几条：本仓大量"动作"端点用的是 PUT 而不是 POST
+    # （`PUT /api/hr/leave/{id}/approve`、`PUT /api/hr/performance/{id}/confirm`…），
+    # 只按 POST 写规则会让它们全部落到 `update` 兜底上 ⇒ **把「审批」与「编辑」合并成同一个码**，
+    # 等于丢掉职责分离（能改请假单的人顺便能批准它）。实测 hr 域有 6 条历史动作码会被这样吃掉。
+    ('PUT',    r'.*/(approve|reject|audit)$',  'approve'),
+    ('PUT',    r'.*/submit$',                  'submit'),
+    ('PUT',    r'.*/(confirm|verify)$',        'confirm'),
+    ('PUT',    r'.*/(generate|gen)$',          'generate'),
+    ('PUT',    r'.*/(status|state)$',          'status'),
+    ('PUT',    r'.*/cancel$',                  'cancel'),
+    ('PUT',    r'.*/close$',                   'close'),
+    ('PUT',    r'.*/publish$',                 'publish'),
+    ('PUT',    r'.*/execute$',                 'execute'),
     # ── PUT / PATCH / DELETE ──
     ('PUT',    r'.*',                          'update'),
     ('PATCH',  r'.*',                          'update'),
@@ -231,6 +251,8 @@ ACTION_LABEL = {
     'export': '导出', 'import': '导入', 'execute': '执行', 'close': '关闭',
     'print': '打印', 'publish': '发布', 'check': '校验', 'freeze': '冻结',
     'release': '解冻', 'consume': '占用', 'cancel': '取消',
+    'confirm': '确认', 'generate': '生成', 'interview': '面试',
+    'clock': '打卡', 'rule': '规则', 'quota': '额度', 'status': '状态',
 }
 
 # ⚠️ 资源标签**不要**再带模块名（模块名由 `MODULES[..]['label']` 提供），
@@ -356,9 +378,57 @@ def domain_of(base, fallback):
     return domain_resource_of(base)[0] or fallback
 
 
+# 这些段是"动作/容器"而不是"实体"，取资源时要跳过
+SEG_SKIP = {
+    'page', 'list', 'detail', 'create', 'update', 'delete', 'view', 'export', 'import',
+    'batch', 'stat', 'statistics', 'options', 'tree', 'next-no', 'search', 'query',
+    'submit', 'approve', 'reject', 'cancel', 'confirm', 'generate', 'refresh', 'save',
+    'test', 'logs', 'history', 'all', 'count', 'simple',
+}
+
+# 域内"历史资源名"词表（由库中已有码的第 2 段构成），用于单复数对齐 ——
+# 目标是让新码与**前端 v-permission 里的旧字符串**尽量同名，减少接线改动。
+RESOURCE_VOCAB = {}
+
+
+def first_resource_segment(path):
+    """从方法路径里取「这是哪个实体的接口」。
+
+    仅当**类级路径没有给出资源**时使用。本仓存在把整个域挂在一个扁平基路径下的控制器
+    （`HrController` 的 base 就是 `/api/hr`，全部实体都写在方法路径上：
+    `/positions/page`、`/employees`、`/salary/structure`、`/leave/{id}/approve`…）。
+    不做这层回退的话，这些端点会全部塌成 `hr:create` / `hr:update` 这类**没有任何实体信息**的码
+    —— 实测 92 个端点只产出 18 个码，其中 `hr:update` 一个码覆盖 19 个端点，
+    等于「能改职位的人也能改工资结构」，粒度反而比历史码更粗。
+    """
+    segs = [s for s in path.strip('/').split('/') if s and not s.startswith('{')]
+    for s in segs:
+        if s in SEG_SKIP:
+            continue
+        return s
+    return None
+
+
+def normalize_resource(res, domain):
+    """把资源名对齐到该域历史的单复数写法（`positions` → `position`）。
+
+    只做**保守的单复数对齐**：仅当去掉尾部 `s` 后能在历史词表里命中才替换，
+    避免把 `status` / `statistics` 这类本身以 s 结尾的词改坏。
+    """
+    vocab = RESOURCE_VOCAB.get(domain)
+    if not res or not vocab or res in vocab:
+        return res
+    if res.endswith('s') and res[:-1] in vocab:
+        return res[:-1]
+    return res
+
+
 def code_of(base, verb, path, fallback_domain):
     dom, res = domain_resource_of(base)
     dom = dom or fallback_domain
+    if not res:
+        res = first_resource_segment(path)
+    res = normalize_resource(res, dom)
     act = action_of(verb, path)
     return f'{dom}:{res}:{act}' if res else f'{dom}:{act}'
 
@@ -372,10 +442,14 @@ def action_of(verb, path):
 
 def build(module):
     cfg = MODULES[module]
+    load_resource_vocab(cfg['domain'])
     rows = scan(cfg['dirs'])
     for r in rows:
         dom, res = domain_resource_of(r['base'])
         r['domain'] = dom or cfg['domain']
+        if not res:
+            res = first_resource_segment(r['path'])
+        res = normalize_resource(res, r['domain'])
         r['resource'] = res or dom or cfg['domain']
         r['action'] = action_of(r['verb'], r['path'])
         r['code'] = (f"{r['domain']}:{res}:{r['action']}" if res
@@ -384,6 +458,29 @@ def build(module):
     for r in rows:
         codes.setdefault(r['code'], []).append(r)
     return rows, codes
+
+
+def load_resource_vocab(domain):
+    """把该域**库中已有码**的第 2 段收成词表（只读库；失败则退化为空词表 = 不做单复数对齐）。"""
+    if domain in RESOURCE_VOCAB:
+        return RESOURCE_VOCAB[domain]
+    try:
+        import psycopg2
+        conn = psycopg2.connect(host='localhost', port=5432, dbname='devdb',
+                                user='devuser', password='devuser123')
+        try:
+            cur = conn.cursor()
+            cur.execute('SELECT permission_code FROM sys_permission')
+            codes = [r[0] for r in cur.fetchall()]
+            cur.close()
+        finally:
+            conn.close()
+    except Exception:
+        RESOURCE_VOCAB[domain] = set()
+        return RESOURCE_VOCAB[domain]
+    RESOURCE_VOCAB[domain] = {c.split(':')[1] for c in codes
+                              if c.count(':') >= 2 and c.split(':')[0] == domain}
+    return RESOURCE_VOCAB[domain]
 
 
 def label_for(module, resource, action):
