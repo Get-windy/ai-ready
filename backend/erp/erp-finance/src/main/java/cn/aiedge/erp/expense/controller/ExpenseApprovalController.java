@@ -20,6 +20,16 @@ import java.util.List;
 import java.util.Map;
 import cn.dev33.satoken.annotation.SaCheckPermission;
 
+/**
+ * 费用审批管理。
+ *
+ * <p><b>鉴权（E-02 批次 1 + 批次 4）：</b>{@code /records}、{@code /pending} 于批次 1 挂
+ * {@code erp:expense:approval:list}；{@code /process}（审批通过 / 拒绝）此前**完全无鉴权** ——
+ * 任何登录用户都能批掉别人的费用单，而前端审批页的「通过/拒绝」按钮
+ * （{@code views/erp/expense/approval/index.vue}）一直在检查
+ * {@code erp:expense:approval:process}，即"前端藏了按钮、后端还敞着门"。
+ * 批次 4 补上该码，两侧口径对齐。</p>
+ */
 @Slf4j
 @RestController
 @RequestMapping("/api/erp/expense/approval")
@@ -32,6 +42,7 @@ public class ExpenseApprovalController {
 
     @Operation(summary = "处理审批", description = "审批通过或拒绝费用单")
     @PostMapping("/process")
+    @SaCheckPermission("erp:expense:approval:process")
     public ApiResponse<Map<String, Object>> processApproval(@RequestBody Map<String, Object> request) {
         Long applicationId = Long.valueOf(request.get("applicationId").toString());
         String action = (String) request.get("action"); // APPROVE or REJECT

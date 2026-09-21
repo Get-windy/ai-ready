@@ -1,6 +1,7 @@
 package cn.aiedge.base.config;
 
 import cn.aiedge.base.entity.*;
+import cn.aiedge.base.mapper.SysPermissionMapper;
 import cn.aiedge.base.mapper.SysRoleBillTypeMapper;
 import cn.aiedge.base.mapper.SysRolePermissionMapper;
 import cn.aiedge.base.security.SecurityContext;
@@ -34,6 +35,7 @@ public class PermissionInitializationConfig implements ApplicationRunner {
     private final PermissionTemplateService templateService;
     private final SysUserService userService;
     private final SysRolePermissionMapper rolePermissionMapper;
+    private final SysPermissionMapper permissionMapper;
     private final SecurityContext securityContext;
     private final RoleBillTypeService roleBillTypeService;
 
@@ -231,23 +233,18 @@ public class PermissionInitializationConfig implements ApplicationRunner {
         log.info("初始化系统权限...");
         
         // 创建系统管理相关权限
+        // ⚠️ 2026-09-21（E-02 批次 4）：删掉裸域动作码 user:* / role:* / permission:*（共 12 条）。
+        //    它们是**遗留基线**——同一份清单下面（见 systemPermissionsV2 段）已经有一套
+        //    system:user:{list,create,update,delete} / system:role:* / system:permission:*，
+        //    真正在把门的是 system: 那套（SysPermissionController / SysRoleController /
+        //    PermissionController 的注解都用它），裸域那套零消费方，在矩阵里勾了不生效。
+        //    ⚠️ 只删 **type=3 的动作码**；`user:manage`/`role:manage`/`permission:manage`
+        //    （type=1）是分组节点，用来在矩阵里挂子树，仍保留。
         List<SysPermission> systemPermissions = Arrays.asList(
             createPermission("系统管理", "system:manage", 1, "/system", null, null, 0),
             createPermission("用户管理", "user:manage", 1, "/user", null, null, 1),
-            createPermission("用户查询", "user:list", 3, null, "/api/user/page", "GET", 2),
-            createPermission("用户创建", "user:create", 3, null, "/api/user", "POST", 3),
-            createPermission("用户更新", "user:update", 3, null, "/api/user/*", "PUT", 4),
-            createPermission("用户删除", "user:delete", 3, null, "/api/user/*", "DELETE", 5),
             createPermission("角色管理", "role:manage", 1, "/role", null, null, 6),
-            createPermission("权限管理", "permission:manage", 1, "/permission", null, null, 7),
-            createPermission("角色查询", "role:list", 3, null, "/api/role/page", "GET", 8),
-            createPermission("角色创建", "role:create", 3, null, "/api/role", "POST", 9),
-            createPermission("角色更新", "role:update", 3, null, "/api/role/*", "PUT", 10),
-            createPermission("角色删除", "role:delete", 3, null, "/api/role/*", "DELETE", 11),
-            createPermission("权限查询", "permission:list", 3, null, "/api/permission/page", "GET", 12),
-            createPermission("权限创建", "permission:create", 3, null, "/api/permission", "POST", 13),
-            createPermission("权限更新", "permission:update", 3, null, "/api/permission/*", "PUT", 14),
-            createPermission("权限删除", "permission:delete", 3, null, "/api/permission/*", "DELETE", 15)
+            createPermission("权限管理", "permission:manage", 1, "/permission", null, null, 7)
         );
 
         // 保存权限
@@ -352,9 +349,10 @@ public class PermissionInitializationConfig implements ApplicationRunner {
             createPermission("费用申请编辑", "erp:expense:application:edit", 3, null, "/api/erp/expense/application/{id}", "PUT", 90),
             createPermission("费用申请删除", "erp:expense:application:delete", 3, null, "/api/erp/expense/application/{id}", "DELETE", 91),
             createPermission("费用申请提交", "erp:expense:application:submit", 3, null, "/api/erp/expense/application/{id}/submit", "POST", 92),
-            createPermission("费用申请审批", "erp:expense:application:approve", 3, null, "/api/erp/expense/application/{id}/approve", "POST", 93),
+            // ⚠️ 2026-09-21（E-02 批次 4）删：erp:expense:application:approve（92~93 号那两条
+            //    "app:approve / approval:query"）—— 审批走的是 approval:process，
+            //    这两个名字从来没有对应端点，属"多起的名字"。详见 V11.452.0。
             createPermission("费用审批处理", "erp:expense:approval:process", 3, null, "/api/erp/expense/approval/process", "POST", 94),
-            createPermission("费用审批查询", "erp:expense:approval:query", 3, null, "/api/erp/expense/approval/{id}", "GET", 95),
             createPermission("费用审批列表", "erp:expense:approval:list", 3, null, "/api/erp/expense/approval/page", "GET", 96),
             createPermission("费用付款创建", "erp:expense:payment:create", 3, null, "/api/erp/expense/payment", "POST", 97),
             createPermission("费用付款确认", "erp:expense:payment:confirm", 3, null, "/api/erp/expense/payment/{id}/confirm", "POST", 98),
@@ -367,21 +365,23 @@ public class PermissionInitializationConfig implements ApplicationRunner {
             createPermission("报销编辑", "erp:expense:reimbursement:edit", 3, null, "/api/erp/expense/reimbursement/{id}", "PUT", 105),
             createPermission("报销删除", "erp:expense:reimbursement:delete", 3, null, "/api/erp/expense/reimbursement/{id}", "DELETE", 106),
             createPermission("报销提交", "erp:expense:reimbursement:submit", 3, null, "/api/erp/expense/reimbursement/{id}/submit", "POST", 107),
-            createPermission("费用统计查询", "erp:expense:statistics:list", 3, null, "/api/erp/expense/statistics", "GET", 108),
-            createPermission("费用统计刷新", "erp:expense:statistics:refresh", 3, null, "/api/erp/expense/statistics/refresh", "POST", 109)
+            createPermission("费用统计查询", "erp:expense:statistics:list", 3, null, "/api/erp/expense/statistics", "GET", 108)
+            // ⚠️ 2026-09-21（E-02 批次 4）删：erp:expense:statistics:refresh —— 无对应端点
         );
         savePermissions(expensePermissions);
 
-        // 创建财务管理权限（匹配 ReceivableController @RequiresPermission 注解）
+        // 创建财务管理权限（匹配 ReceivableController @SaCheckPermission 注解）
+        // ⚠️ 2026-09-21（E-02 批次 4）：删掉 finance:receivable:{list,query,edit,export} 四条 ——
+        //    实测 ReceivableController 的**读全部用 finance:receivable:view**（/{id}、/list、
+        //    /aging、/export 都是），写用 create / write-off / bad-debt / delete，
+        //    这四条零消费方。其 api_path 写的是 `/api/finance/receivable/...`（**缺 erp 段**），
+        //    与真实路径 `/api/erp/finance/receivable/...` 也对不上，是复制来的旧路径。
+        //    留下的 :payment / :analysis 仍属"已定义未实现"，保留待建，见 MASTER_TODO。
         List<SysPermission> financePermissions = Arrays.asList(
-            createPermission("应收列表", "finance:receivable:list", 3, null, "/api/finance/receivable/page", "GET", 110),
-            createPermission("应收详情", "finance:receivable:query", 3, null, "/api/finance/receivable/{id}", "GET", 111),
             createPermission("应收创建", "finance:receivable:create", 3, null, "/api/finance/receivable", "POST", 112),
-            createPermission("应收编辑", "finance:receivable:edit", 3, null, "/api/finance/receivable/{id}", "PUT", 113),
             createPermission("应收删除", "finance:receivable:delete", 3, null, "/api/finance/receivable/{id}", "DELETE", 114),
             createPermission("应收收款", "finance:receivable:payment", 3, null, "/api/finance/receivable/{id}/payment", "POST", 115),
-            createPermission("应收分析", "finance:receivable:analysis", 3, null, "/api/finance/receivable/analysis", "GET", 116),
-            createPermission("应收导出", "finance:receivable:export", 3, null, "/api/finance/receivable/export", "GET", 117)
+            createPermission("应收分析", "finance:receivable:analysis", 3, null, "/api/finance/receivable/analysis", "GET", 116)
         );
         savePermissions(financePermissions);
 
@@ -397,13 +397,12 @@ public class PermissionInitializationConfig implements ApplicationRunner {
         savePermissions(legacyPermMgmtPermissions);
 
         // 创建租户管理权限
-        List<SysPermission> tenantPermissions = Arrays.asList(
-            createPermission("租户列表", "tenant:list", 3, null, "/api/tenant/page", "GET", 124),
-            createPermission("租户创建", "tenant:create", 3, null, "/api/tenant", "POST", 125),
-            createPermission("租户更新", "tenant:update", 3, null, "/api/tenant/*", "PUT", 126),
-            createPermission("租户删除", "tenant:delete", 3, null, "/api/tenant/*", "DELETE", 127),
-            createPermission("租户配置", "tenant:config", 3, null, "/api/tenant/*/config", "GET", 128)
-        );
+        // ⚠️ 2026-09-21（E-02 批次 5）：整段 5 条裸域码 tenant:{list,create,update,delete,config}
+        //    已删 —— 与它们重影的是 system:tenant:{list,create,update,delete,query}（正主，
+        //    TenantController 的注解用的是 system:tenant:*；`GET /api/tenant/{id}/config`
+        //    用的也是 system:tenant:query）。
+        //    这段列表因此清空，保留空壳与注释，避免后来者以为"漏种了租户权限"再补回来。
+        List<SysPermission> tenantPermissions = List.of();
         savePermissions(tenantPermissions);
 
         // 创建数据导入配置权限
@@ -453,18 +452,42 @@ public class PermissionInitializationConfig implements ApplicationRunner {
     /**
      * 保存权限列表（查询存在则更新，否则插入）
      */
+    /**
+     * 幂等种码：已存在则更新，从未存在才插入，**被软删过的一律跳过**。
+     *
+     * <p><b>⚠️ 2026-09-21 修正（E-02 批次 4 实测发现）：</b>原实现只按 {@code permission_code}
+     * 查一次，查到就 {@code setId} 更新、查不到就插入。但 {@code SysPermission.deleted} 带
+     * {@code @TableLogic}，条件构造器会被自动追加 {@code deleted = 0} —— <b>查不到墓碑</b>，
+     * 于是「被有意软删的码」被当成「从未种过的码」，**每重启一次就重新插一行**。
+     *
+     * <p>后果有两层：① 管理端在权限矩阵删掉的权限，重启就复活（删除形同虚设）；
+     * ② 库里同码留两行（墓碑 + 新活行），而 {@code assignAllPermissionsToSuperAdmin()}
+     * 会把新的活行又全量授给超管，把清理工作整体撤销 —— E-02 的删码迁移因此被反复回滚
+     * （实测 24 条）。
+     *
+     * <p>现在：查到墓碑 → 记一条日志并**跳过**。语义变为「初始化器只负责补种从未存在的码，
+     * 不负责推翻别人已做的删除决定」。要让某个码重新出现，走迁移显式恢复，而不是靠重启。
+     */
     private void savePermissions(List<SysPermission> permissions) {
         for (SysPermission permission : permissions) {
+            String code = permission.getPermissionCode();
             try {
                 SysPermission existing = permissionService.getOne(
                     new LambdaQueryWrapper<SysPermission>()
-                        .eq(SysPermission::getPermissionCode, permission.getPermissionCode()));
+                        .eq(SysPermission::getPermissionCode, code));
                 if (existing != null) {
                     permission.setId(existing.getId());
+                    permissionService.saveOrUpdate(permission);
+                    continue;
+                }
+                // 只有"从未种过"才新建；有墓碑说明是被有意删掉的，不复活
+                if (permissionMapper.countDeletedByCode(code) > 0) {
+                    log.info("权限码 {} 已被有意删除（存在墓碑行），初始化器跳过不复活", code);
+                    continue;
                 }
                 permissionService.saveOrUpdate(permission);
             } catch (Exception e) {
-                log.warn("创建权限失败: code={}, error={}", permission.getPermissionCode(), e.getMessage());
+                log.warn("创建权限失败: code={}, error={}", code, e.getMessage());
             }
         }
     }

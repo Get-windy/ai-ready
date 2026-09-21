@@ -48,7 +48,7 @@
 | 库存仓储（erp-stock + wms） | 6 | 4 | 8 | 1 | 2 | 🔄 STK-BREAK-01/03 已闭环；-02 剩 2 处、-04/05 待做 |
 | 销售域（erp-sales） | 4 | 3 | 2 | 3 | 2 | ⬜ |
 | 采购域（erp-purchase） | 4 | 3 | 2 | 3 | 1 | 🔄 PUR-BREAK-01 已闭环；PUR-BREAK-03/04 待做 |
-| **权限专项（E-01/E-04）** | — | — | — | 7 模块已补 | — | 🔄 97 控制器 / 709 端点已补；剩 crm/wms/b2b/analytics |
+| **权限专项（E-01/E-04/E-02）** | — | — | — | 7 模块已补 + 60 僵尸码已清 | — | 🔄 **E-02 ✅ 闭环**（`934 = 902 生效 + 21 未生效 + 11 分组节点`，21 条全部已裁定）；**E-07 ✅ 已修**（权限拒绝 500 → 403）；**E-08 ⬜ 新立标尺**（202 控制器 / 1794 裸端点）；E-01 剩 crm/wms/b2b/analytics |
 | 主数据（erp-partner / md-*） | 3 | 3 | 6 | 1 | 1 | ⬜ |
 | DMS 配送 | 3 | 1 | 2 | 2 | 1 | ⬜ |
 | 商城/营销（erp-mall / marketing） | 3 | 2 | 4 | 2 | 1 | ⬜ |
@@ -230,7 +230,12 @@
 - **⚠️ 数字已过时**：`V11.435.0__Remove_Legacy_Permission_Codes.sql` 已执行成功，DB 实测 `sys_permission` 现为 **500 行** ⇒ 需**重跑脚本取当前口径**再动手。
 - **修法**：二选一 —— 接线，或从授权矩阵下线（前端 `v-permission` 302 处也是消费方，不能只扫后端）。
 - **脚本**：`tools/gen-permission-effectivity.py` → `GET /api/permission/effectivity`；`tools/audit-permission-codes.py`。
-- **状态**：🔄 **已重测 + 已逐条定性，剩"接线 or 删码"的施工（2026-09-21）**
+- **状态**：✅ **已完成（2026-09-21）** —— 批次 1~5 全部施工完毕，`934 = 902 生效 + 21 未生效 + 11 分组节点`，
+  僵尸码 **159(误判) → 110 → 21**，且**剩下的 21 条逐条都有裁定记录**（20 条"功能未建"+ 1 条待拍板），
+  不再有"未定性的僵尸"。全过程与三个工具盲点见下方"✅ 闭环"块。
+  施工前的定性过程（保留，因为里面的两个工具误判教训还要复用）：
+  <details><summary>展开：定性过程与被推翻的数字</summary>
+- （原）🔄 已重测 + 已逐条定性，剩"接线 or 删码"的施工（2026-09-21）
   - **重测结果（当前口径，已修正）**：`994 = 873 生效 + 110 未生效 + 11 分组节点`。
     ⚠️ **原先报的 159 是工具误判**（见下方"根因"），修正后**真实僵尸码是 110**：
     **A 类 69**（有端点但无权限注解）+ **B 类 41**（端点不存在）。
@@ -341,6 +346,82 @@
     "已有权限控制"而**整片跳过**（看起来跑了、实际什么都没补）。现拆成两个正则：
     类级覆盖用 `ANY_AUTH`（任一鉴权注解即可），方法级幂等只用 `PERM_ONLY`（`@SaCheckPermission`/`@RequirePermission`）。
     修完后在同一模块复跑：**插入数从 22 降到 4、重复注解 0**。
+  </details>
+
+  - **✅ 闭环（2026-09-21 续做：批次 3/4/5 全部施工完毕）** —— 僵尸码
+    **159(误判) → 110 → 100(批次1) → 94(批次2) → 75(批次3) → 68(修工具) → 70(修工具) → 36(批次4) → 21(批次5)**，
+    库中 `sys_permission` **994 → 934**（删 60 条），`GET /api/permission/effectivity` 现报
+    **`934 = 902 生效 + 21 未生效 + 11 分组节点`**。剩的 21 条**全部已逐条裁定**，不再是"未定性的僵尸"。
+    - **⚠️ 过程中又挖出三个同类工具盲点（都先修工具再动手，这是本仓的硬规矩）**：
+      ① **权限码写在常量里**：`@SaCheckPermission(PERM_VIEW)` + `private static final String PERM_VIEW = "set:system-task:view"`，
+         扫描器只认字面量 ⇒ **7 个码被误判为僵尸**（`system:dev:scheduler:*` 6 个 + `set:system-task:view`）。
+         现按同文件常量表解析，解析不出来的**显式列出**（不再静默漏判）。**75 → 68**。
+      ② **测试文件被当成消费方**：`pc-admin/src/__tests__/permission.test.ts` 里的 `'user:create'` 只是断言假数据，
+         却让这些码被判「生效」⇒ 掩盖真僵尸。现测试路径不计消费方，单独列出。**68 → 70**（`user:create/delete` 现形）。
+      ③ **显式调用式校验**：crm 子模块只依赖 core-base、拿不到 core-api 的切面，用
+         `CrmPermissions.require("crm:contract:edit")` 做校验（见 `crm/common/CrmPermissions.java` 类注释），
+         注解式扫描看不见。现用保守模式 `\w*Permissions?\.require("码")` 收（**不用** `\brequire\("` 这种宽模式，
+         宁可漏认也不要把无关调用当消费方）。
+    - **批次 3（product/md 19 条，全部删除）**：核到 `product:*`（**无 `erp:` 前缀**）是 E-04 造出的**平行命名空间** ——
+      子实体控制器（attributes/category/brand/grade/units…）真在用，但顶层 8 条 CRUD 与
+      `product:barcodes:{list,export}`、`product:shield:{list,create}` 零消费方；真正把门的是
+      **`erp:product:`\* 8 条**（`ProductController`）。`md:product-price:*` 7 条同理，端点已被
+      `erp:product:list` / `erp:product:price-batch` 守着。迁移 `V11.451.0`。
+    - **批次 4（核心域 32 条删除 + 5 控制器 20 端点接线）**：
+      · **删**：裸域重影 `permission:* / role:* / user:* / tenant:*`（16 条，正主是 `system:*` 那套）
+        + 同族多余动作码 16 条（`erp:expense:{application:approve,statistics:refresh,approval:query}`、
+        `finance:receivable:{list,query,export,edit}`、`finance:balance:view`、`doc:{date:edit,unapprove}`、crm 6 条）。迁移 `V11.452.0`。
+      · **接线（全部用库里已有的码，不造新码）**：`PartnerLedgerController` 3 读 ← `finance:partner-balance:view`；
+        `ExpenseAnalyticsController` 3 读 ← `erp:expense:statistics:list`；`ExpenseApprovalController#/process`
+        ← **`erp:expense:approval:process`**（前端审批页按钮一直在查这个码，后端却没挂 ⇒ "前端藏了按钮、后端敞着门"）；
+        `PurchasePriceTrackController` 6 端点 ← `purchase:price:edit`；`SalesPriceTrackController` 7 端点 ← `sale:price:edit`。
+        ⚠️ 价格跟踪的**读**也用写码：库里没有读码，而"最近采购价"是成本敏感数据，
+        只保护写等于让未授权用户照样翻到全量进价 —— 权衡后读写同码，待该页单独设计码族时替换（已登记）。
+      · **有意保留 1 条**：`finance:other-income-doc:approve`（端点只有 `confirm`，用的是 `...:update`），
+        但它**被「部门管理员」「系统管理员」真实持有**（种子有意授权）⇒ 不盲删，
+        究竟该"删码"还是"补一个审批环节"属产品决策，**留待拍板**，仍显示为"未生效（标灰）"。
+    - **批次 5（9 条重影删除 + `SyncConfigController` 9 端点接线）**：
+      · **删**：`data-permission:*` 8 条（整族重影，正主是 `system:data-scope:*` —— `SysDataScopeController`
+        + 前端 `RoleDataScopeTab.vue` 真在用）+ `tenant:config`（正主 `system:tenant:query`）。迁移 `V11.453.0`。
+      · **接线**：`SyncConfigController`（`/api/v1/sync-config`，9 端点）此前只有 `@SaCheckLogin`，
+        而 `system:dataimport:{list,create,update,delete,test,sync}` **6 个码早在库里躺着**，
+        且 `sys_permission.api_path` 回填的正是 `/api/v1/sync-config*` ⇒ 属"码在等接口"，两侧对齐即可。
+      · **剩下的 21 条 = 20 条「已定义未实现」+ 1 条待拍板**，**不删**：它们各自是一个**尚未实现的独立能力**
+        （`crm:contract:{download,renewapply}`、`crm:opportunity:search`、`doc:{reverse,void,draft:view-others}`、
+        `party:merge`、`print:draft`、`sale:{discount:edit,settle:force}`、`payment:account:select`、
+        `receipt:account:select`、`finance:receivable:{analysis,payment}`、`system:{permission,role}:export`、
+        `product:{cost,purchase-price,retail-price,wholesale-price}:view`），
+        不是别人的重影。删掉等于销毁路线图；保留则在矩阵里显示「未生效（标灰）」——**那正是它们此刻的真实状态**。
+        ⚠️ 其中 `product:cost:view` / `product:*price:view` 四条是**字段级可见性**（"没有利润权限就看不到毛利"），
+        与工作台字段级权限专项是同一件事，**应当由那个专项统一设计**，别在这里随手删。
+    - **🔴 断掉"删码被重启撤销"的回路（独立缺陷，本轮实测发现）**：首批删完重启后，**24 条码全部复活**。
+      根因在 `PermissionInitializationConfig#savePermissions`：它按 `permission_code` 查一次、
+      查到就更新查不到就插入，而 `SysPermission.deleted` 带 `@TableLogic` ⇒ 条件构造器被自动追加
+      `deleted = 0`，**看不见墓碑** ⇒ 「被有意删掉的码」被当成「从未种过的码」，**每重启一次插一行新的**；
+      随后 `assignAllPermissionsToSuperAdmin()` 又把新活行全量授给超管，把清理整体撤销。
+      后果两层：① 管理端在权限矩阵删掉的权限，重启就回来（删除形同虚设）；② 库里同码两行（墓碑 + 活行）。
+      **修法**：`SysPermissionMapper.countDeletedByCode`（`@Select` 直写 SQL 绕开 @TableLogic）+ 初始化器
+      查到墓碑即**跳过不复活**；同时把已删的 24 条从初始化器的静态清单里摘掉（否则清单还在"想要"它们）。
+      **实证**：临时软删 `log:audit:stats` 后重启，日志出现"已被有意删除（存在墓碑行），初始化器跳过不复活"，
+      活行 0 / 墓碑 1、全库同码双行 **0 组**；测试后已原样恢复。
+    - **🔴 顺带发现：鉴权门禁自批次 1 起就是红的（已修）**。`AuthzAnnotationCoverageTest` 的棘轮规则要求
+      「补了注解就必须从 `known-unauthorized-controllers.txt` 删掉对应行」，而批次 1/2 接线后基线**没同步收缩**，
+      实测有 **7 行过期**（`CustomerController`/`CustomerFollowUpController`/`CustomerOpportunityController`
+      + `erp.expense.controller` 四个）。也就是说 `baselineMustNotBeStale` 这条**从批次 1 起就一直在报红**，
+      只是当时没人跑这个测试。现已删掉 7 行并**真跑门禁**：`AuthzAnnotationCoverageTest`(3) +
+      `PointcutTargetExistenceTest`(1) **4/4 通过**。教训：接线批次必须把「跑门禁测试」写进收尾清单，
+      否则棘轮会腐烂成一份"永远豁免"的名册。
+    - **验证**：新增 `tools/verify-authz-batch45.cjs` **53/53 全绿**（三向 + 三个缺陷钉子）；
+      批次 1 `32/32`、批次 2 `18/18` 复跑无回归；`GET /api/permission/effectivity` 与 DB 对账一致
+      （`902 + 21 + 11 = 934`）。新增 `tools/scan-unguarded-controllers.py`（E-01 的记分牌）、
+      `tools/refs-of-codes.py`（删码前全仓引用核对）。
+    - **⚠️ 新的可量化结论（给 E-01 用）**：裸端点扫描实测 **202 个控制器 / 1794 处端点零权限注解**
+      （全局拦截器 `SaTokenConfig` 只做 `StpUtil.checkLogin()`，**不做权限校验**）。
+      实测用例：租户 2 的 HR 用户（无任何财务/采购/销售码）打
+      `/erp/finance/expense-approval/pending`、`/erp/finance/expense-doc/page`、
+      `/erp/finance/analytics/partner-balance/page`、`/purchase/price-track/page`、
+      `/sales/price-track/page` **全部 200**。⇒ E-01 的真实规模远大于原估，
+      且**"整类零注解的控制器"**是最危险的一档（不是"漏了某个端点"）。
 
 #### E-03 [P1] `sys_permission.api_path` 只填 238/474
 
@@ -397,6 +478,47 @@
 #### E-06 [P1] 非超管角色的菜单授权为 0（与业务断点 7.1 同一件事，见 权限区域模块）
 
 - **见** 平台-AUTHZ-01。
+
+#### E-07 [P1] 权限拒绝被吞成 HTTP 500「系统异常，请稍后重试」（本轮实测发现并已修）
+
+- **现象**：非超管打 `GET /api/user-permission/user/1/permissions`（`PermissionController`，走
+  `cn.aiedge.permission.annotation.RequirePermission` + `PermissionAspect`）拿到的是
+  **500 `{"code":500,"message":"系统异常，请稍后重试"}`**，而超管同一路径 200。
+  即**权限不足与服务器故障对调用方完全无法区分**：前端会把它报成"系统故障"，
+  运维会被误导去查服务，而两向验证里「非超管必须 403」这条断言也会被误判为失败。
+- **根因（精确）**：`PermissionDeniedException` 原来直接 `extends RuntimeException`，
+  而 core-base 的 `GlobalExceptionHandler` 有一个 `@ExceptionHandler(RuntimeException.class)` 兜底
+  （返回 500「系统异常，请稍后重试」）。`@RestControllerAdvice` **两个都没写 `@Order`**，
+  按注册顺序兜底那个先命中 ⇒ 专治权限拒绝的 `PermissionExceptionHandler`（返回 403）**根本没被调用**。
+  是"注册顺序碰运气"埋的雷，不是处理器没写。
+- **修法（双保险，三层都改）**：
+  ① `PermissionDeniedException extends BusinessException`（code=**403**）——
+  即便仍被 core-base 的兜底 advice 先命中，也会走 `handleBusinessException` 按 code 映射成 HTTP 403；
+  ② `PermissionExceptionHandler` 加 `@Order(Ordered.HIGHEST_PRECEDENCE)`，确定性地先命中，
+  并/把响应体从自造的三字段 `{code,message,success}` 改成全局统一的 `Result.fail(403, msg)`；
+  ③ 登录类走 Sa-Token 的 `NotPermissionException`（`GlobalExceptionHandler` 里已有 403 映射），不受影响。
+- **验证**：`tools/verify-authz-batch45.cjs` §④ 钉住 —— 非超管 `→ 403`（不是 500）、超管 `非 403`；4/4 通过。
+- **状态**：✅ **已修（2026-09-21）**
+
+#### E-08 [P0] 裸端点全量盘点：202 控制器 / 1794 端点零权限注解（本轮实测，为 E-01 立标尺）
+
+- **口径**：类内 `(Get|Post|Put|Delete|Patch)Mapping` 数 > 0，且
+  `@SaCheckPermission` / `@RequiresPermission` / `@RequirePermission` 数 == 0。
+  脚本 `tools/scan-unguarded-controllers.py`（输出同时区分「仅 `@SaCheckLogin`」与「连类级校验都没有」）。
+- **实测**：**202 个控制器 / 1794 处端点**。全局拦截器只有
+  `SaTokenConfig` 里 `new SaInterceptor(handle -> StpUtil.checkLogin())` —— **只校验登录，不校验权限**。
+- **实证用例**（租户 2 的 HR 用户 `e2e_hr_t2`，不持有任何财务/采购/销售码）：
+  `/erp/finance/expense-approval/pending`、`/erp/finance/expense-doc/page`、
+  `/erp/finance/analytics/partner-balance/page`、`/purchase/price-track/page`、`/sales/price-track/page`
+  **全部 200**。其中前两类是**金额类**端点，属越权后果最重的一档。
+- **⚠️ 与 E-01 的关系**：E-01 原先按"控制器数/端点数"估的是 2170 端点；
+  本次扫描给出**可复跑的下限 1794**（只算"整类零注解"，不含"类内有注解但漏了某些方法"的那部分）。
+  **"整类零注解"是最危险的一档** —— 它的存在说明权限不是"漏了个别端点"，而是**整个功能面没设防**。
+- **⚠️ 也有豁免项**（扫出来不等于都要补）：公开接口（商城 `/api/v1/mall/**`）、
+  只读本租户数据且租户 id 取自会话的（`SetAppCenterController`，类注释里有裁定）、
+  纯转发/健康检查。故本脚本**只负责列出来，不负责定罪**。
+- **修法**：并入 E-01 的分批（每批仍需先确认码在库 —— 本仓铁律）。
+- **状态**：⬜ 待 E-01 分批施工（记分牌已就位）
 
 ---
 
@@ -1181,6 +1303,15 @@
 | 2026-09-21 | ⏸ **批次 1 剩余 3 码待删（无对应端点）** | `erp:expense:application:approve`（真实端点是 `/api/erp/expense/{id}/approve`，路径上并没有 `application` 段）、`erp:expense:approval:query`（`/approval` 下只有 `/process`、`/records`、`/pending`，没有 `/{id}`）、`erp:expense:statistics:refresh`（`/statistics` 下无 refresh 端点）。三者都无对应端点 ⇒ 按 (A) 口径应**删码**。**未删**，归入"B 类删除批次"统一处理（删除也要一次性验一遍引用）。 | ⬜ 待删除批次 |
 | 2026-09-21 | **E-02 批次 2 完成：crm 6 处接线（两向验证 18/18）** | crm 四个控制器（`ContractController`/`CustomerController`/`CustomerFollowUpController`/`CustomerOpportunityController`）此前**零权限注解**（只有登录校验），属真缺口。本批接线 6 条（逐条读源码后定的落点）：`crm:customer:list`←`GET /customer/page`、`crm:customer:update`←`PUT /customer/{id}`、`crm:customer:delete`←`DELETE /customer/{id}`、`crm:lead:view`←`GET /crm/followUp/lead/{leadId}`、`crm:opportunity:create`←`POST /crm/opportunity`、`crm:opportunity:view`←`GET /crm/opportunity/statistics`。 | ✅ `tools/verify-authz-batch2.cjs` **18/18**（6 码在库且只被超管持有 / 超管 6 条非 403 / 非超管 6 条全 403）。effectivity：未生效 **100 → 94**。 |
 | 2026-09-21 | ⏸ **批次 2 剩余 6 码待删 + 1 个顺带发现** | **待删（无对应端点）**：`crm:contract:batchapprove`（`/contract` 下只有 `/batch`(DELETE) 与 `/{id}/approve`，没有 batch-approve）、`crm:contract:refresh`、`crm:create`（两段码、无资源，指代不明）、`crm:opportunity:detailrefresh`、`crm:opportunity:reset`、`crm:refresh` —— 均无对应端点，按 (A) 口径应删，归入 B 类删除批次。<br>**顺带发现**：`GET /crm/opportunity/statistics` 对超管返回 **500**（非本次改动引入，鉴权通过后业务报错）⇒ 该端点的统计查询有 bug，单独登记。 | ⬜ 待删除批次 / ⬜ 新 bug |
+| 2026-09-21 | **E-02 批次 3 完成：product/md 19 条全部删码（迁移 `V11.451.0`）** | 逐条读源后定处置 —— **结论是"全删"而非"补注解"**：`product:*`（**无 `erp:` 前缀**）是 E-04 造出的平行命名空间，子实体控制器（attributes/category/brand/grade/units…）真在用，但顶层 8 条 CRUD 与 `product:barcodes:{list,export}`、`product:shield:{list,create}` 零消费方；真正把门的是 `erp:product:*` **8 条**（`ProductController`）。`md:product-price:*` 7 条的端点已被 `erp:product:list` / `erp:product:price-batch` 守着。删前核对：19 条均为叶子节点、仅超管持有、菜单零引用。 | ✅ effectivity 未生效 **94 → 75**（精确 -19）。迁移含三段自检（19 条必须下架 / `erp:product:*` 8 条必须仍在 / 无同码多行）。 |
+| 2026-09-21 | **修工具：生效性扫描器三个同类盲点（先修工具再动手）** | ① **常量写法**：`@SaCheckPermission(PERM_VIEW)` 这类写法看不见 ⇒ 7 码误判；现按同文件常量表解析 + 未解析的显式列出。② **测试文件当消费方**：`__tests__/*.test.ts` 里的码是断言假数据，却让 `user:create/delete` 被判"生效"；现测试路径不计消费方并单独列出。③ **显式调用式校验**：crm 用 `CrmPermissions.require("...")`（模块依赖限制，见其类注释），注解式扫描看不见；现用保守模式收（不用宽模式，宁可漏认也不把无关调用当消费方）。 | ✅ 未生效 **75 → 68（-7，与预测一致）→ 70（+2，`user:create/delete` 现形）**；0 处未解析。三个盲点全部写进脚本注释。 |
+| 2026-09-21 | **E-02 批次 4 完成：核心域 32 条删码 + 5 控制器 20 端点接线（迁移 `V11.452.0`）** | **删**：裸域重影 `permission:* / role:* / user:* / tenant:*`（16 条，正主是 `system:*`）+ 同族多余动作码 16 条。**接线（只用库里已有的码）**：`PartnerLedgerController` 3 读←`finance:partner-balance:view`；`ExpenseAnalyticsController` 3 读←`erp:expense:statistics:list`；`ExpenseApprovalController#/process`←`erp:expense:approval:process`（**前端按钮一直在查这个码、后端却没挂**）；`PurchasePriceTrackController` 6 端点←`purchase:price:edit`；`SalesPriceTrackController` 7 端点←`sale:price:edit`。<br>**有意保留 1 条**：`finance:other-income-doc:approve` —— 被「部门管理员」「系统管理员」真实持有（种子有意授权），删码会静默回收授权 ⇒ 留待拍板。 | ✅ 新增 `tools/verify-authz-batch45.cjs`（三向 + 三个缺陷钉子）。effectivity 未生效 **70 → 36**。 |
+| 2026-09-21 | **E-02 批次 5 完成：9 条重影删码 + `SyncConfigController` 9 端点接线（迁移 `V11.453.0`）** | **删**：`data-permission:*` 8 条（整族重影，正主 `system:data-scope:*` —— `SysDataScopeController` + 前端 `RoleDataScopeTab.vue` 真在用）+ `tenant:config`（正主 `system:tenant:query`）。**接线**：`SyncConfigController`（`/api/v1/sync-config`）此前只有登录校验，而 `system:dataimport:{list,create,update,delete,test,sync}` **6 码早在库里**、`api_path` 回填的正是该路径 ⇒ "码在等接口"。<br>**剩 21 条不删**：20 条是「已定义未实现」的独立能力（不是重影），1 条待拍板；它们在矩阵里显示"未生效（标灰）"就是真实状态。 | ✅ effectivity 未生效 **36 → 21**；`GET /api/permission/effectivity` 与 DB 对账一致（`902 + 21 + 11 = 934`）。 |
+| 2026-09-21 | **🔴 独立缺陷：删掉的权限码"重启就复活"（已修 + 实证）** | 首批删完重启后**24 条码全部复活**。根因在 `PermissionInitializationConfig#savePermissions`：按 `permission_code` 查一次、查到更新查不到插入，而 `SysPermission.deleted` 带 `@TableLogic` ⇒ 条件构造器被自动追加 `deleted = 0`，**看不见墓碑** ⇒ 「被有意删掉的码」被当成「从未种过的码」，每重启插一行新的；随后 `assignAllPermissionsToSuperAdmin()` 又把新活行全量授给超管，把清理整体撤销。**两层后果**：① 管理端在矩阵删掉的权限重启就回来（删除形同虚设）；② 库里同码两行。<br>**修法**：`SysPermissionMapper.countDeletedByCode`（`@Select` 绕开 @TableLogic）+ 初始化器查到墓碑即**跳过不复活**；并把已删的 24 条从初始化器静态清单里摘掉。 | ✅ **实证**：临时软删 `log:audit:stats` 后重启，日志出现"已被有意删除（存在墓碑行），初始化器跳过不复活"，活行 0 / 墓碑 1、全库同码双行 **0 组**；测试后原样恢复。 |
+| 2026-09-21 | **🔴 独立缺陷：权限拒绝被吞成 500（已修）→ E-07** | 非超管打 `GET /api/user-permission/user/1/permissions` 拿到 **500「系统异常，请稍后重试」**，超管 200。根因：`PermissionDeniedException extends RuntimeException`，被 core-base `GlobalExceptionHandler` 的 `@ExceptionHandler(RuntimeException.class)` 兜底吞掉；两个 `@RestControllerAdvice` 都没写 `@Order`，兜底那个按注册顺序先命中 ⇒ 专治权限拒绝的 403 处理器根本没被调用。**权限不足与服务器故障对调用方无法区分**。<br>**修法**：异常改继承 `BusinessException(403)`（双保险）+ 处理器加 `@Order(HIGHEST_PRECEDENCE)` + 响应体统一成 `Result.fail(403, msg)`。 | ✅ 新增断言钉住：非超管 `→ 403`（不是 500）、超管 `非 403`，4/4 通过。 |
+| 2026-09-21 | **🔴 E-08 新立标尺：裸端点盘点 202 控制器 / 1794 端点** | 新增 `tools/scan-unguarded-controllers.py`。实测**整类零权限注解**的控制器 **202 个 / 1794 处端点**；全局拦截器 `SaTokenConfig` 只有 `StpUtil.checkLogin()`，**不校验权限**。**实证**：租户 2 的 HR 用户（无任何财务/采购/销售码）打 `/erp/finance/expense-approval/pending`、`/erp/finance/expense-doc/page`、`/erp/finance/analytics/partner-balance/page`、`/purchase/price-track/page`、`/sales/price-track/page` **全部 200**（前两类是金额端点）。<br>结论：权限不是"漏了个别端点"，而是**整个功能面没设防**；E-01 的真实规模大于原估。 | ⬜ 待 E-01 分批施工（记分牌已就位；脚本只列不罪，公开接口/本租户只读类属豁免） |
+| 2026-09-21 | **E-02 验收：批次 1/2/4/5 全量复跑** | `verify-authz-batch45.cjs` **53/53**（① 11 码在库且只被超管持有 ② 18 条超管探针全非 403 ③ 18 条非超管全 403 ④ 403 钉 4/4 ⑤ 60 条已删码不得复活 ⑥ 未生效清单必须正好 21 条）；批次 1 **32/32**、批次 2 **18/18** 无回归。新增 `tools/refs-of-codes.py`（删码前全仓引用核对：B 类 35 条的引用只落在种子 SQL / 文档 / 审计 JSON，无一处活跃代码）。 | ✅ 全绿；构建 `MODULES=core-base,core-platform,core-api,erp-finance,erp-purchase,erp-sales` clean install 成功，启动 137s |
+| 2026-09-21 | **🔴 鉴权门禁（棘轮）自批次 1 起一直是红的（已修）** | `AuthzAnnotationCoverageTest#baselineMustNotBeStale` 的规则是"补了注解就必须从基线清单删行"。批次 1/2 接线后**基线没同步收缩**，实测 **7 行过期**（`crm.customer.controller.CustomerController` / `CustomerFollowUpController` / `CustomerOpportunityController` + `erp.expense.controller` 的 ExpenseApproval/Expense/ExpensePayment/ExpenseReimbursement），加上本轮新补的 `PurchasePriceTrackController` / `SalesPriceTrackController` 共 9 行。 | ✅ 删掉 9 行（并按文件维护规则补注释说明出处），`known-unauthorized-controllers.txt` **139 → 130** 行；`./mvnw -pl core/api/core-api test -Dtest=AuthzAnnotationCoverageTest,PointcutTargetExistenceTest` **4/4 通过**（控制器总数 394 / 端点 3533；无任何 `@SaCheck*` 130 个 = 33%，覆盖端点 1231）。<br>⚠️ 教训：**接线批次的收尾清单里必须有"跑门禁测试"这一步**，否则棘轮会腐烂成"永远豁免"名册 |
 
 ---
 

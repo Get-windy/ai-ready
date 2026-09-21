@@ -25,67 +25,19 @@
    ]
   },
   {
-   "code": "crm:customer:delete",
-   "candidates": [
-    "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java:59 [PUT /api/customer/{id}] ★无注解",
-    "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java:67 [DELETE /api/customer/{id}] ★无注解",
-    "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java:73 [DELETE /api/customer/batch] ★无注解"
-   ]
-  },
-  {
-   "code": "crm:customer:list",
-   "candidates": [
-    "backend/crm/src/main/java/cn/aiedge/crm/contract/controller/ContractController.java:68 [GET /api/crm/contract/customer/{customerId}] ★无注解",
-    "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java:26 [GET /api/customer/page] ★无注解",
-    "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java:39 [GET /api/customer/{id}] ★无注解"
-   ]
-  },
-  {
-   "code": "crm:customer:update",
-   "candidates": [
-    "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java:59 [PUT /api/customer/{id}] ★无注解",
-    "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java:67 [DELETE /api/customer/{id}] ★无注解",
-    "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerController.java:73 [DELETE /api/customer/batch] ★无注解"
-   ]
-  },
-  {
-   "code": "crm:lead:view",
-   "candidates": [
-    "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerFollowUpController.java:76 [GET /api/crm/followUp/lead/{leadId}] ★无注解",
-    "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerLeadController.java:25 [GET /api/crm/lead/page] ★无注解",
-    "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerLeadController.java:37 [GET /api/crm/lead/{id}] ★无注解"
-   ]
-  },
-  {
-   "code": "crm:opportunity:create",
-   "candidates": [
-    "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerOpportunityController.java:58 [PUT /api/crm/opportunity/{id}] ★无注解",
-    "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerOpportunityController.java:66 [DELETE /api/crm/opportunity/{id}] ★无注解",
-    "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerOpportunityController.java:72 [DELETE /api/crm/opportunity/batch] ★无注解"
-   ]
-  },
-  {
    "code": "crm:opportunity:detailrefresh",
    "candidates": [
-    "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerOpportunityController.java:58 [PUT /api/crm/opportunity/{id}] ★无注解",
-    "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerOpportunityController.java:66 [DELETE /api/crm/opportunity/{id}] ★无注解",
-    "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerOpportunityController.java:72 [DELETE /api/crm/opportunity/batch] ★无注解"
+    "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerOpportunityController.java:60 [PUT /api/crm/opportunity/{id}] ★无注解",
+    "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerOpportunityController.java:68 [DELETE /api/crm/opportunity/{id}] ★无注解",
+    "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerOpportunityController.java:74 [DELETE /api/crm/opportunity/batch] ★无注解"
    ]
   },
   {
    "code": "crm:opportunity:reset",
    "candidates": [
-    "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerOpportunityController.java:58 [PUT /api/crm/opportunity/{id}] ★无注解",
-    "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerOpportunityController.java:66 [DELETE /api/crm/opportunity/{id}] ★无注解",
-    "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerOpportunityController.java:72 [DELETE /api/crm/opportunity/batch] ★无注解"
-   ]
-  },
-  {
-   "code": "crm:opportunity:view",
-   "candidates": [
-    "backend/crm/src/main/java/cn/aiedge/crm/contract/controller/ContractController.java:75 [GET /api/crm/contract/opportunity/{opportunityId}] ★无注解",
-    "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerFollowUpController.java:70 [GET /api/crm/followUp/opportunity/{opportunityId}] ★无注解",
-    "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerOpportunityController.java:25 [GET /api/crm/opportunity/page] ★无注解"
+    "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerOpportunityController.java:60 [PUT /api/crm/opportunity/{id}] ★无注解",
+    "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerOpportunityController.java:68 [DELETE /api/crm/opportunity/{id}] ★无注解",
+    "backend/crm/src/main/java/cn/aiedge/crm/customer/controller/CustomerOpportunityController.java:74 [DELETE /api/crm/opportunity/batch] ★无注解"
    ]
   },
   {
@@ -113,33 +65,9 @@
   {
    "code": "erp:expense:application:approve",
    "candidates": [
-    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/expense/controller/ExpenseApprovalController.java:33 [POST /api/erp/expense/approval/process] ★无注解",
-    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/expense/controller/ExpenseController.java:58 [POST /api/erp/expense/application] ★无注解",
-    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/expense/controller/ExpenseController.java:66 [PUT /api/erp/expense/application/{id}] ★无注解"
-   ]
-  },
-  {
-   "code": "erp:expense:application:list",
-   "candidates": [
-    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/expense/analytics/controller/ExpenseAnalyticsController.java:33 [GET /api/erp/expense/statistics/matrix] ★无注解",
-    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/expense/analytics/controller/ExpenseAnalyticsController.java:41 [GET /api/erp/expense/statistics/detail] ★无注解",
-    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/expense/analytics/controller/ExpenseAnalyticsController.java:48 [GET /api/erp/expense/statistics/partner] ★无注解"
-   ]
-  },
-  {
-   "code": "erp:expense:application:query",
-   "candidates": [
-    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/expense/analytics/controller/ExpenseAnalyticsController.java:33 [GET /api/erp/expense/statistics/matrix] ★无注解",
-    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/expense/analytics/controller/ExpenseAnalyticsController.java:41 [GET /api/erp/expense/statistics/detail] ★无注解",
-    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/expense/analytics/controller/ExpenseAnalyticsController.java:48 [GET /api/erp/expense/statistics/partner] ★无注解"
-   ]
-  },
-  {
-   "code": "erp:expense:approval:list",
-   "candidates": [
-    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/expense/analytics/controller/ExpenseAnalyticsController.java:33 [GET /api/erp/expense/statistics/matrix] ★无注解",
-    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/expense/analytics/controller/ExpenseAnalyticsController.java:41 [GET /api/erp/expense/statistics/detail] ★无注解",
-    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/expense/analytics/controller/ExpenseAnalyticsController.java:48 [GET /api/erp/expense/statistics/partner] ★无注解"
+    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/expense/controller/ExpenseApprovalController.java:34 [POST /api/erp/expense/approval/process] ★无注解",
+    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/expense/controller/ExpenseController.java:61 [POST /api/erp/expense/application] ★无注解",
+    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/expense/controller/ExpenseController.java:69 [PUT /api/erp/expense/application/{id}] ★无注解"
    ]
   },
   {
@@ -151,67 +79,11 @@
    ]
   },
   {
-   "code": "erp:expense:payment:cancel",
-   "candidates": [
-    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/expense/controller/ExpenseApprovalController.java:33 [POST /api/erp/expense/approval/process] ★无注解",
-    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/expense/controller/ExpenseController.java:58 [POST /api/erp/expense/application] ★无注解",
-    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/expense/controller/ExpenseController.java:66 [PUT /api/erp/expense/application/{id}] ★无注解"
-   ]
-  },
-  {
-   "code": "erp:expense:payment:confirm",
-   "candidates": [
-    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/expense/controller/ExpenseApprovalController.java:33 [POST /api/erp/expense/approval/process] ★无注解",
-    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/expense/controller/ExpenseController.java:58 [POST /api/erp/expense/application] ★无注解",
-    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/expense/controller/ExpenseController.java:66 [PUT /api/erp/expense/application/{id}] ★无注解"
-   ]
-  },
-  {
-   "code": "erp:expense:payment:create",
-   "candidates": [
-    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/expense/controller/ExpenseApprovalController.java:33 [POST /api/erp/expense/approval/process] ★无注解",
-    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/expense/controller/ExpenseController.java:58 [POST /api/erp/expense/application] ★无注解",
-    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/expense/controller/ExpenseController.java:66 [PUT /api/erp/expense/application/{id}] ★无注解"
-   ]
-  },
-  {
-   "code": "erp:expense:payment:list",
-   "candidates": [
-    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/expense/analytics/controller/ExpenseAnalyticsController.java:33 [GET /api/erp/expense/statistics/matrix] ★无注解",
-    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/expense/analytics/controller/ExpenseAnalyticsController.java:41 [GET /api/erp/expense/statistics/detail] ★无注解",
-    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/expense/analytics/controller/ExpenseAnalyticsController.java:48 [GET /api/erp/expense/statistics/partner] ★无注解"
-   ]
-  },
-  {
-   "code": "erp:expense:payment:query",
-   "candidates": [
-    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/expense/analytics/controller/ExpenseAnalyticsController.java:33 [GET /api/erp/expense/statistics/matrix] ★无注解",
-    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/expense/analytics/controller/ExpenseAnalyticsController.java:41 [GET /api/erp/expense/statistics/detail] ★无注解",
-    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/expense/analytics/controller/ExpenseAnalyticsController.java:48 [GET /api/erp/expense/statistics/partner] ★无注解"
-   ]
-  },
-  {
-   "code": "erp:expense:reimbursement:query",
-   "candidates": [
-    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/expense/analytics/controller/ExpenseAnalyticsController.java:33 [GET /api/erp/expense/statistics/matrix] ★无注解",
-    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/expense/analytics/controller/ExpenseAnalyticsController.java:41 [GET /api/erp/expense/statistics/detail] ★无注解",
-    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/expense/analytics/controller/ExpenseAnalyticsController.java:48 [GET /api/erp/expense/statistics/partner] ★无注解"
-   ]
-  },
-  {
-   "code": "erp:expense:statistics:list",
-   "candidates": [
-    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/expense/analytics/controller/ExpenseAnalyticsController.java:33 [GET /api/erp/expense/statistics/matrix] ★无注解",
-    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/expense/analytics/controller/ExpenseAnalyticsController.java:41 [GET /api/erp/expense/statistics/detail] ★无注解",
-    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/expense/analytics/controller/ExpenseAnalyticsController.java:48 [GET /api/erp/expense/statistics/partner] ★无注解"
-   ]
-  },
-  {
    "code": "erp:expense:statistics:refresh",
    "candidates": [
-    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/expense/controller/ExpenseApprovalController.java:33 [POST /api/erp/expense/approval/process] ★无注解",
-    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/expense/controller/ExpenseController.java:58 [POST /api/erp/expense/application] ★无注解",
-    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/expense/controller/ExpenseController.java:66 [PUT /api/erp/expense/application/{id}] ★无注解"
+    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/expense/controller/ExpenseApprovalController.java:34 [POST /api/erp/expense/approval/process] ★无注解",
+    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/expense/controller/ExpenseController.java:61 [POST /api/erp/expense/application] ★无注解",
+    "backend/erp/erp-finance/src/main/java/cn/aiedge/erp/expense/controller/ExpenseController.java:69 [PUT /api/erp/expense/application/{id}] ★无注解"
    ]
   },
   {
@@ -263,62 +135,6 @@
    ]
   },
   {
-   "code": "md:product-price:create",
-   "candidates": [
-    "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductPriceController.java:157 [PUT /api/erp/md/product-price/batch-modify]",
-    "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductPriceController.java:227 [POST /api/erp/md/product-price/grade-discount/save] ★无注解",
-    "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductPriceController.java:235 [DELETE /api/erp/md/product-price/grade-discount/{id}] ★无注解"
-   ]
-  },
-  {
-   "code": "md:product-price:delete",
-   "candidates": [
-    "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductPriceController.java:157 [PUT /api/erp/md/product-price/batch-modify]",
-    "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductPriceController.java:227 [POST /api/erp/md/product-price/grade-discount/save] ★无注解",
-    "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductPriceController.java:235 [DELETE /api/erp/md/product-price/grade-discount/{id}] ★无注解"
-   ]
-  },
-  {
-   "code": "md:product-price:export",
-   "candidates": [
-    "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductPriceController.java:64 [GET /api/erp/md/product-price/page] ★无注解",
-    "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductPriceController.java:86 [GET /api/erp/md/product-price/export] ★无注解",
-    "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductPriceController.java:164 [GET /api/erp/md/product-price/brands]"
-   ]
-  },
-  {
-   "code": "md:product-price:import",
-   "candidates": [
-    "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductPriceController.java:157 [PUT /api/erp/md/product-price/batch-modify]",
-    "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductPriceController.java:227 [POST /api/erp/md/product-price/grade-discount/save] ★无注解",
-    "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductPriceController.java:235 [DELETE /api/erp/md/product-price/grade-discount/{id}] ★无注解"
-   ]
-  },
-  {
-   "code": "md:product-price:list",
-   "candidates": [
-    "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductPriceController.java:64 [GET /api/erp/md/product-price/page] ★无注解",
-    "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductPriceController.java:86 [GET /api/erp/md/product-price/export] ★无注解",
-    "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductPriceController.java:164 [GET /api/erp/md/product-price/brands]"
-   ]
-  },
-  {
-   "code": "md:product-price:update",
-   "candidates": [
-    "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductPriceController.java:157 [PUT /api/erp/md/product-price/batch-modify]",
-    "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductPriceController.java:227 [POST /api/erp/md/product-price/grade-discount/save] ★无注解",
-    "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductPriceController.java:235 [DELETE /api/erp/md/product-price/grade-discount/{id}] ★无注解"
-   ]
-  },
-  {
-   "code": "md:product-price:view",
-   "candidates": [
-    "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductPriceController.java:64 [GET /api/erp/md/product-price/page] ★无注解",
-    "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductPriceController.java:86 [GET /api/erp/md/product-price/export] ★无注解",
-    "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductPriceController.java:164 [GET /api/erp/md/product-price/brands]"
-   ]
-  },
-  {
    "code": "permission:create",
    "candidates": [
     "backend/core/api/core-api/src/main/java/cn/aiedge/permission/controller/PermissionController.java:93 [POST /api/user-permission/user/assign-roles]",
@@ -348,99 +164,6 @@
     "backend/core/api/core-api/src/main/java/cn/aiedge/permission/controller/PermissionController.java:93 [POST /api/user-permission/user/assign-roles]",
     "backend/core/api/core-api/src/main/java/cn/aiedge/permission/controller/PermissionController.java:100 [DELETE /api/user-permission/user/{userId}/roles]",
     "backend/core/api/core-api/src/main/java/cn/aiedge/permission/controller/PermissionController.java:118 [POST /api/user-permission/role/assign-permissions]"
-   ]
-  },
-  {
-   "code": "product:barcodes:export",
-   "candidates": [
-    "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductBarcodeController.java:62 [GET /api/erp/product/barcodes/{productId}]",
-    "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductBarcodeController.java:69 [GET /api/erp/product/barcodes/page] ★无注解",
-    "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductBarcodeController.java:92 [GET /api/erp/product/barcodes/export] ★无注解"
-   ]
-  },
-  {
-   "code": "product:barcodes:list",
-   "candidates": [
-    "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductBarcodeController.java:62 [GET /api/erp/product/barcodes/{productId}]",
-    "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductBarcodeController.java:69 [GET /api/erp/product/barcodes/page] ★无注解",
-    "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductBarcodeController.java:92 [GET /api/erp/product/barcodes/export] ★无注解"
-   ]
-  },
-  {
-   "code": "product:create",
-   "candidates": [
-    "backend/erp/erp-marketing/src/main/java/cn/aiedge/erp/marketing/controller/ProductPointsRuleController.java:59 [PUT /api/erp/marketing/product-points-rule/{id}] ★无注解",
-    "backend/erp/erp-marketing/src/main/java/cn/aiedge/erp/marketing/controller/ProductPointsRuleController.java:69 [DELETE /api/erp/marketing/product-points-rule/{id}] ★无注解",
-    "backend/erp/erp-pricing/src/main/java/cn/aiedge/erp/pricing/controller/ProductGradePriceController.java:33 [POST /api/erp/product-grade-price/batch-save] ★无注解"
-   ]
-  },
-  {
-   "code": "product:delete",
-   "candidates": [
-    "backend/erp/erp-marketing/src/main/java/cn/aiedge/erp/marketing/controller/ProductPointsRuleController.java:59 [PUT /api/erp/marketing/product-points-rule/{id}] ★无注解",
-    "backend/erp/erp-marketing/src/main/java/cn/aiedge/erp/marketing/controller/ProductPointsRuleController.java:69 [DELETE /api/erp/marketing/product-points-rule/{id}] ★无注解",
-    "backend/erp/erp-pricing/src/main/java/cn/aiedge/erp/pricing/controller/ProductGradePriceController.java:33 [POST /api/erp/product-grade-price/batch-save] ★无注解"
-   ]
-  },
-  {
-   "code": "product:detail",
-   "candidates": [
-    "backend/erp/erp-mall/src/main/java/cn/aiedge/erp/b2b/controller/MallProductController.java:37 [GET /api/v1/mall/products/{id}] ★无注解",
-    "backend/erp/erp-mall/src/main/java/cn/aiedge/erp/b2b/controller/MallProductController.java:45 [GET /api/v1/mall/products/categories] ★无注解",
-    "backend/erp/erp-mall/src/main/java/cn/aiedge/erp/b2b/controller/MallProductController.java:52 [GET /api/v1/mall/products/categories/{categoryId}/products] ★无注解"
-   ]
-  },
-  {
-   "code": "product:export",
-   "candidates": [
-    "backend/erp/erp-mall/src/main/java/cn/aiedge/erp/b2b/controller/MallProductController.java:37 [GET /api/v1/mall/products/{id}] ★无注解",
-    "backend/erp/erp-mall/src/main/java/cn/aiedge/erp/b2b/controller/MallProductController.java:45 [GET /api/v1/mall/products/categories] ★无注解",
-    "backend/erp/erp-mall/src/main/java/cn/aiedge/erp/b2b/controller/MallProductController.java:52 [GET /api/v1/mall/products/categories/{categoryId}/products] ★无注解"
-   ]
-  },
-  {
-   "code": "product:import",
-   "candidates": [
-    "backend/erp/erp-marketing/src/main/java/cn/aiedge/erp/marketing/controller/ProductPointsRuleController.java:59 [PUT /api/erp/marketing/product-points-rule/{id}] ★无注解",
-    "backend/erp/erp-marketing/src/main/java/cn/aiedge/erp/marketing/controller/ProductPointsRuleController.java:69 [DELETE /api/erp/marketing/product-points-rule/{id}] ★无注解",
-    "backend/erp/erp-pricing/src/main/java/cn/aiedge/erp/pricing/controller/ProductGradePriceController.java:33 [POST /api/erp/product-grade-price/batch-save] ★无注解"
-   ]
-  },
-  {
-   "code": "product:list",
-   "candidates": [
-    "backend/erp/erp-mall/src/main/java/cn/aiedge/erp/b2b/controller/MallProductController.java:37 [GET /api/v1/mall/products/{id}] ★无注解",
-    "backend/erp/erp-mall/src/main/java/cn/aiedge/erp/b2b/controller/MallProductController.java:45 [GET /api/v1/mall/products/categories] ★无注解",
-    "backend/erp/erp-mall/src/main/java/cn/aiedge/erp/b2b/controller/MallProductController.java:52 [GET /api/v1/mall/products/categories/{categoryId}/products] ★无注解"
-   ]
-  },
-  {
-   "code": "product:shield:create",
-   "candidates": [
-    "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductShieldController.java:54 [POST /api/erp/product-shield/batch-shield] ★无注解",
-    "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductShieldController.java:66 [POST /api/erp/product-shield/batch-cancel] ★无注解"
-   ]
-  },
-  {
-   "code": "product:shield:list",
-   "candidates": [
-    "backend/erp/erp-stock/src/main/java/cn/aiedge/erp/stock/controller/ProductShieldController.java:31 [GET /api/erp/product-shield/page] ★无注解"
-   ]
-  },
-  {
-   "code": "product:update",
-   "candidates": [
-    "backend/erp/erp-marketing/src/main/java/cn/aiedge/erp/marketing/controller/ProductPointsRuleController.java:59 [PUT /api/erp/marketing/product-points-rule/{id}] ★无注解",
-    "backend/erp/erp-marketing/src/main/java/cn/aiedge/erp/marketing/controller/ProductPointsRuleController.java:69 [DELETE /api/erp/marketing/product-points-rule/{id}] ★无注解",
-    "backend/erp/erp-pricing/src/main/java/cn/aiedge/erp/pricing/controller/ProductGradePriceController.java:33 [POST /api/erp/product-grade-price/batch-save] ★无注解"
-   ]
-  },
-  {
-   "code": "product:view",
-   "candidates": [
-    "backend/erp/erp-mall/src/main/java/cn/aiedge/erp/b2b/controller/MallProductController.java:37 [GET /api/v1/mall/products/{id}] ★无注解",
-    "backend/erp/erp-mall/src/main/java/cn/aiedge/erp/b2b/controller/MallProductController.java:45 [GET /api/v1/mall/products/categories] ★无注解",
-    "backend/erp/erp-mall/src/main/java/cn/aiedge/erp/b2b/controller/MallProductController.java:52 [GET /api/v1/mall/products/categories/{categoryId}/products] ★无注解"
    ]
   },
   {
@@ -492,13 +215,6 @@
    ]
   },
   {
-   "code": "set:system-task:view",
-   "candidates": [
-    "backend/core/api/core-api/src/main/java/cn/aiedge/scheduler/controller/SystemTaskController.java:122 [GET /api/set/system-task/page]",
-    "backend/core/api/core-api/src/main/java/cn/aiedge/scheduler/controller/SystemTaskController.java:172 [GET /api/set/system-task/{id}/result]"
-   ]
-  },
-  {
    "code": "tenant:create",
    "candidates": [
     "backend/core/api/core-api/src/main/java/cn/aiedge/tenant/controller/SetRebuildController.java:116 [POST /api/set/rebuild/execute]",
@@ -528,6 +244,22 @@
     "backend/core/api/core-api/src/main/java/cn/aiedge/tenant/controller/SetRebuildController.java:116 [POST /api/set/rebuild/execute]",
     "backend/core/api/core-api/src/main/java/cn/aiedge/tenant/controller/TenantController.java:125 [PUT /api/tenant/{id:\\\\d+}]",
     "backend/core/api/core-api/src/main/java/cn/aiedge/tenant/controller/TenantController.java:175 [PUT /api/tenant/current]"
+   ]
+  },
+  {
+   "code": "user:create",
+   "candidates": [
+    "backend/core/api/core-api/src/main/java/cn/aiedge/permission/controller/PermissionController.java:93 [POST /api/user-permission/user/assign-roles]",
+    "backend/core/api/core-api/src/main/java/cn/aiedge/permission/controller/PermissionController.java:100 [DELETE /api/user-permission/user/{userId}/roles]",
+    "backend/core/api/core-api/src/main/java/cn/aiedge/permission/controller/PermissionController.java:118 [POST /api/user-permission/role/assign-permissions]"
+   ]
+  },
+  {
+   "code": "user:delete",
+   "candidates": [
+    "backend/core/api/core-api/src/main/java/cn/aiedge/permission/controller/PermissionController.java:93 [POST /api/user-permission/user/assign-roles]",
+    "backend/core/api/core-api/src/main/java/cn/aiedge/permission/controller/PermissionController.java:100 [DELETE /api/user-permission/user/{userId}/roles]",
+    "backend/core/api/core-api/src/main/java/cn/aiedge/permission/controller/PermissionController.java:118 [POST /api/user-permission/role/assign-permissions]"
    ]
   },
   {
@@ -674,30 +406,6 @@
   },
   {
    "code": "system:dataimport:update",
-   "domain": "system"
-  },
-  {
-   "code": "system:dev:api-test:send",
-   "domain": "system"
-  },
-  {
-   "code": "system:dev:scheduler:create",
-   "domain": "system"
-  },
-  {
-   "code": "system:dev:scheduler:delete",
-   "domain": "system"
-  },
-  {
-   "code": "system:dev:scheduler:execute",
-   "domain": "system"
-  },
-  {
-   "code": "system:dev:scheduler:list",
-   "domain": "system"
-  },
-  {
-   "code": "system:dev:scheduler:update",
    "domain": "system"
   },
   {

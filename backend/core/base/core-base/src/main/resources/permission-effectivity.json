@@ -1,106 +1,33 @@
 {
  "generatedAt": "2026-09-21",
  "summary": {
-  "db": 994,
-  "effective": 889,
-  "ineffective": 94,
+  "db": 934,
+  "effective": 902,
+  "ineffective": 21,
   "groupNodes": 11
  },
  "ineffective": [
-  "crm:contract:batchapprove",
   "crm:contract:download",
-  "crm:contract:refresh",
   "crm:contract:renewapply",
-  "crm:create",
-  "crm:opportunity:detailrefresh",
-  "crm:opportunity:reset",
   "crm:opportunity:search",
-  "crm:refresh",
-  "data-permission:assign",
-  "data-permission:check",
-  "data-permission:create",
-  "data-permission:delete",
-  "data-permission:list",
-  "data-permission:update",
-  "data-permission:update-status",
-  "data-permission:view",
-  "doc:date:edit",
   "doc:draft:view-others",
   "doc:reverse",
-  "doc:unapprove",
   "doc:void",
-  "erp:expense:application:approve",
-  "erp:expense:approval:query",
-  "erp:expense:statistics:refresh",
-  "finance:balance:view",
   "finance:other-income-doc:approve",
   "finance:receivable:analysis",
-  "finance:receivable:edit",
-  "finance:receivable:export",
-  "finance:receivable:list",
   "finance:receivable:payment",
-  "finance:receivable:query",
-  "md:product-price:create",
-  "md:product-price:delete",
-  "md:product-price:export",
-  "md:product-price:import",
-  "md:product-price:list",
-  "md:product-price:update",
-  "md:product-price:view",
   "party:merge",
   "payment:account:select",
-  "permission:create",
-  "permission:delete",
-  "permission:list",
-  "permission:update",
   "print:draft",
-  "product:barcodes:export",
-  "product:barcodes:list",
   "product:cost:view",
-  "product:create",
-  "product:delete",
-  "product:detail",
-  "product:export",
-  "product:import",
-  "product:list",
   "product:purchase-price:view",
   "product:retail-price:view",
-  "product:shield:create",
-  "product:shield:list",
-  "product:update",
-  "product:view",
   "product:wholesale-price:view",
-  "purchase:price:edit",
   "receipt:account:select",
-  "role:create",
-  "role:delete",
-  "role:list",
-  "role:update",
   "sale:discount:edit",
-  "sale:price:edit",
   "sale:settle:force",
-  "set:system-task:view",
-  "system:dataimport:create",
-  "system:dataimport:delete",
-  "system:dataimport:list",
-  "system:dataimport:sync",
-  "system:dataimport:test",
-  "system:dataimport:update",
-  "system:dev:api-test:send",
-  "system:dev:scheduler:create",
-  "system:dev:scheduler:delete",
-  "system:dev:scheduler:execute",
-  "system:dev:scheduler:list",
-  "system:dev:scheduler:update",
   "system:permission:export",
-  "system:role:export",
-  "tenant:config",
-  "tenant:create",
-  "tenant:delete",
-  "tenant:list",
-  "tenant:update",
-  "user:list",
-  "user:update"
+  "system:role:export"
  ],
  "groupNodes": [
   "crm:manage",
@@ -261,7 +188,7 @@
    "frontend": 0
   },
   "crm:contract:approve": {
-   "backend": 0,
+   "backend": 2,
    "frontend": 3
   },
   "crm:contract:create": {
@@ -273,7 +200,7 @@
    "frontend": 1
   },
   "crm:contract:edit": {
-   "backend": 0,
+   "backend": 1,
    "frontend": 3
   },
   "crm:contract:sign": {
@@ -661,7 +588,7 @@
    "frontend": 0
   },
   "erp:expense:approval:process": {
-   "backend": 0,
+   "backend": 1,
    "frontend": 1
   },
   "erp:expense:payment:cancel": {
@@ -709,7 +636,7 @@
    "frontend": 1
   },
   "erp:expense:statistics:list": {
-   "backend": 1,
+   "backend": 4,
    "frontend": 0
   },
   "erp:product:approval": {
@@ -833,7 +760,7 @@
    "frontend": 0
   },
   "finance:partner-balance:view": {
-   "backend": 1,
+   "backend": 4,
    "frontend": 0
   },
   "finance:payable:create": {
@@ -2684,6 +2611,10 @@
    "backend": 1,
    "frontend": 0
   },
+  "purchase:price:edit": {
+   "backend": 6,
+   "frontend": 0
+  },
   "role-inheritance:manage": {
    "backend": 3,
    "frontend": 0
@@ -2730,6 +2661,10 @@
   },
   "sale:order:update": {
    "backend": 2,
+   "frontend": 0
+  },
+  "sale:price:edit": {
+   "backend": 7,
    "frontend": 0
   },
   "sale:promotion:create": {
@@ -2781,8 +2716,12 @@
    "frontend": 1
   },
   "set:system-task:download": {
-   "backend": 0,
+   "backend": 1,
    "frontend": 1
+  },
+  "set:system-task:view": {
+   "backend": 1,
+   "frontend": 0
   },
   "stock:alert-config:create": {
    "backend": 5,
@@ -3264,6 +3203,30 @@
    "backend": 2,
    "frontend": 0
   },
+  "system:dataimport:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "system:dataimport:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "system:dataimport:list": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "system:dataimport:sync": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "system:dataimport:test": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "system:dataimport:update": {
+   "backend": 2,
+   "frontend": 0
+  },
   "system:datasource:create": {
    "backend": 1,
    "frontend": 0
@@ -3282,6 +3245,30 @@
   },
   "system:datasource:update": {
    "backend": 1,
+   "frontend": 0
+  },
+  "system:dev:api-test:send": {
+   "backend": 2,
+   "frontend": 0
+  },
+  "system:dev:scheduler:create": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "system:dev:scheduler:delete": {
+   "backend": 1,
+   "frontend": 0
+  },
+  "system:dev:scheduler:execute": {
+   "backend": 3,
+   "frontend": 0
+  },
+  "system:dev:scheduler:list": {
+   "backend": 5,
+   "frontend": 0
+  },
+  "system:dev:scheduler:update": {
+   "backend": 5,
    "frontend": 0
   },
   "system:dict:create": {
@@ -3563,14 +3550,6 @@
   "tenant:menu:remove": {
    "backend": 2,
    "frontend": 0
-  },
-  "user:create": {
-   "backend": 0,
-   "frontend": 3
-  },
-  "user:delete": {
-   "backend": 0,
-   "frontend": 3
   },
   "wms:category:create": {
    "backend": 1,

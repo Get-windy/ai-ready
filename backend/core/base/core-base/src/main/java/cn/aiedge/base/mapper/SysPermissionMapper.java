@@ -43,4 +43,22 @@ public interface SysPermissionMapper extends BaseMapper<SysPermission> {
             "WHERE rp.role_id = #{roleId} AND p.deleted = 0 AND p.status = 0 " +
             "ORDER BY p.sort")
     List<SysPermission> selectPermissionsByRoleId(@Param("roleId") Long roleId);
+
+    /**
+     * 统计某权限码的「墓碑行」（{@code deleted = 1}）数量。
+     *
+     * <p><b>为什么需要它：</b>{@link SysPermission} 的 {@code deleted} 带 {@code @TableLogic}，
+     * 所以任何走 MyBatis-Plus 条件构造器的查询都会被自动追加 {@code deleted = 0} ——
+     * <b>看不见墓碑</b>。而 {@code PermissionInitializationConfig#savePermissions} 正是靠
+     * "按码查一次，查到就更新、查不到就插入"来决定动作的：查不到墓碑 ⇒ 把"被有意删掉的码"
+     * 当成"从未种过的码"，<b>每重启一次就重新插一行新的</b>。
+     *
+     * <p>症状：管理端在权限矩阵里删掉一个权限（软删），重启后它又回来了；而且库里同时留着
+     * 墓碑行与新的活行（同码两行）。E-02 批次 4 的删码迁移就是这样被反复撤销的 ——
+     * 2026-09-21 实测 24 条被复活。
+     *
+     * <p>本方法用 {@code @Select} 直写 SQL，**绕开** @TableLogic 注入，从而能看见墓碑。
+     */
+    @Select("SELECT count(*) FROM sys_permission WHERE permission_code = #{code} AND deleted = 1")
+    int countDeletedByCode(@Param("code") String code);
 }

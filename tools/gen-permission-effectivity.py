@@ -43,6 +43,30 @@ DST = os.path.join(BACKEND, 'core', 'base', 'core-base', 'src', 'main', 'resourc
 BACKEND_ANNO = re.compile(r'@(?:SaCheckPermission|RequiresPermission|RequirePermission)\s*\(([^)]*)\)', re.S)
 STR_LITERAL = re.compile(r'"([^"]+)"')
 
+# ⚠️ 2026-09-21 修正（第二个同类盲点）：权限码常常**不写成字面量**，而是写成常量，
+#    例如 `@SaCheckPermission(PERM_VIEW)` + `private static final String PERM_VIEW = "set:system-task:view";`。
+#    只认字面量 ⇒ 这些**已被真实注解保护**的码又被判成僵尸码
+#    （受益规模：8 个码 / 18 处注解，如 system:dev:scheduler:*、system:dev:api-test:send、
+#    set:system-task:view）。修法与上一个盲点同源：**把两种写法都收**。
+#    解析不出来的（跨类引用、拼装字符串…）记入 UNRESOLVED，在输出里显式列出 ——
+#    宁可报「我没看懂这处」，也不要静默当成「没有消费方」。
+CONST_DEF = re.compile(r'^\s*(?:public\s+|private\s+|protected\s+)?static\s+final\s+String\s+'
+                       r'([A-Za-z_]\w*)\s*=\s*"([^"]+)"', re.M)
+IDENT = re.compile(r'\b([A-Za-z_]\w*)\b')
+UNRESOLVED = []
+# 测试路径：__tests__ / /tests/ / *.test.* / *.spec.* —— 里面的权限码是断言假数据，不算消费方
+TEST_PATH = re.compile(r'(__tests__|/tests?/|\.test\.|\.spec\.)')
+TEST_ONLY = {}
+
+# ⚠️ 2026-09-21 修正（第五个同类盲点）：本仓还有**显式调用式**的权限校验 ——
+#    crm 子模块只依赖 core-base、拿不到 core-api 的 @RequirePermission 切面，
+#    于是用 `CrmPermissions.require("crm:contract:edit")` 这种静态调用做校验
+#    （见 crm/common/CrmPermissions.java 的类注释）。注解式扫描看不见它。
+#    ⚠️ 用一个保守的模式（限定 `XxxPermission(s).require("码")`），
+#    宁可漏认也不要用 `\brequire\("` 这种宽模式把无关调用当成消费方
+#    （那会让真僵尸码被伪装成生效码，比漏认更坏）。
+EXPLICIT_CALL = re.compile(r'\b\w*Permissions?\s*\.\s*require\s*\(\s*"([^"]+)"')
+
 # ── 前端：v-permission 指令 + 权限判断函数调用 ─────────────────────────
 #   v-permission="'a:b:c'" / v-permission.disabled="'a:b:c'" / v-permission="['a','b']"
 FRONT_DIRECTIVE = re.compile(r'v-permission(?:\.\w+)?\s*=\s*"([^"]*)"')
@@ -68,16 +92,38 @@ def scan_backend():
                 src = open(p, encoding='utf-8').read()
             except Exception:
                 continue
+            # 本文件内 `static final String 名字 = "码"` 的对照表，供解析常量写法
+            consts = dict(CONST_DEF.findall(src))
+            rel = os.path.relpath(p, ROOT).replace('\\', '/')
+            # 显式调用式校验：CrmPermissions.require("a:b:c")
+            for m in EXPLICIT_CALL.finditer(src):
+                line = src[:m.start()].count('\n') + 1
+                refs[m.group(1)].append('%s:%d' % (rel, line))
             for m in BACKEND_ANNO.finditer(src):
-                for code in STR_LITERAL.findall(m.group(1)):
-                    line = src[:m.start()].count('\n') + 1
-                    rel = os.path.relpath(p, ROOT).replace('\\', '/')
+                arg = m.group(1)
+                line = src[:m.start()].count('\n') + 1
+                codes = STR_LITERAL.findall(arg)
+                # 非字面量的标识符：查本文件常量表解析成真实权限码
+                for ident in IDENT.findall(arg):
+                    if ident in consts:
+                        codes.append(consts[ident])
+                # 注解参数里出现了标识符但一个都没解析出来 → 记下来，别静默漏判
+                if not codes and IDENT.findall(arg):
+                    UNRESOLVED.append('%s:%d  @...( %s )' % (rel, line, arg.strip()))
+                for code in codes:
                     refs[code].append('%s:%d' % (rel, line))
     return refs
 
 
 def scan_frontend():
-    """扫描 pc-admin 的 .vue/.ts，返回 {权限码: [位置, ...]}"""
+    """扫描 pc-admin 的 .vue/.ts，返回 {权限码: [位置, ...]}
+
+    ⚠️ 2026-09-21 修正（第四个同类盲点）：原来把 `__tests__/*.test.ts` 也算成消费方。
+    测试文件里写的 `'user:create'` 只是**断言用的假数据**，不代表这个码真被界面检查 ——
+    后果是「僵尸码」被伪装成「生效码」（例如 user:create / user:delete / user:manage
+    只在 pc-admin/src/__tests__ 里出现过），E-02 的清理列表会因此漏项。
+    现在：测试路径**不计入消费方**，单独收集到 TEST_ONLY 里在输出中提示。
+    """
     refs = collections.defaultdict(list)
     if not os.path.isdir(FRONTEND):
         return refs
@@ -91,6 +137,15 @@ def scan_frontend():
             try:
                 src = open(p, encoding='utf-8').read()
             except Exception:
+                continue
+            rel_probe = os.path.relpath(p, ROOT).replace('\\', '/')
+            if TEST_PATH.search(rel_probe):
+                for i, line_txt in enumerate(src.split('\n'), 1):
+                    for m in FRONT_DIRECTIVE.finditer(line_txt):
+                        for code in PERM_LITERAL.findall(m.group(1)):
+                            TEST_ONLY.setdefault(code, []).append('%s:%d' % (rel_probe, i))
+                    for code in FRONT_FUNC.findall(line_txt):
+                        TEST_ONLY.setdefault(code, []).append('%s:%d' % (rel_probe, i))
                 continue
             rel = os.path.relpath(p, ROOT).replace('\\', '/')
             for i, line_txt in enumerate(src.split('\n'), 1):
@@ -160,6 +215,18 @@ def main():
              sum(len(v) for v in frontend_refs.values())))
     print('未生效:         %d  ← 前端矩阵将标灰' % s['ineffective'])
     print('分组节点(排除):  %d' % s['groupNodes'])
+    if UNRESOLVED:
+        # 不静默：解析不出来的注解会让「生效」被低估、僵尸码被虚增，必须人工看一眼
+        print()
+        print('⚠️ 有 %d 处注解的权限码没能解析（未计入消费方，请人工核对）:' % len(UNRESOLVED))
+        for u in UNRESOLVED:
+            print('   %s' % u)
+    if TEST_ONLY:
+        # 不静默：这些码只在测试文件里出现，**不算**消费方（若库中存在，应进「未生效」等待处置）
+        print()
+        print('ℹ️ 有 %d 个码只出现在前端**测试文件**里（已按非消费方处理）:' % len(TEST_ONLY))
+        for c in sorted(TEST_ONLY):
+            print('   %-40s %s' % (c, TEST_ONLY[c][0]))
     print()
     print('已写入 %s' % os.path.relpath(DST, ROOT).replace('\\', '/'))
 

@@ -77,10 +77,11 @@ cn.aiedge.webhook.controller.WebhookController
 # cn.aiedge.crm.contract.controller
 cn.aiedge.crm.contract.controller.ContractController
 # cn.aiedge.crm.customer.controller
-cn.aiedge.crm.customer.controller.CustomerController
-cn.aiedge.crm.customer.controller.CustomerFollowUpController
+#   ⚠️ 2026-09-21 删（E-02 批次 2 已接线，基线按棘轮规则同步收缩）：
+#     CustomerController            ← crm:customer:{list,update,delete}
+#     CustomerFollowUpController    ← crm:lead:view
+#     CustomerOpportunityController ← crm:opportunity:{create,view}
 cn.aiedge.crm.customer.controller.CustomerLeadController
-cn.aiedge.crm.customer.controller.CustomerOpportunityController
 cn.aiedge.crm.customer.controller.CustomerPoolController
 # cn.aiedge.crm.marketing.controller
 cn.aiedge.crm.marketing.controller.MarketingCampaignController
@@ -92,10 +93,11 @@ cn.aiedge.crm.visit.controller.VisitController
 
 # ── 财务 / 费用 / 发票（涉及金额，优先级最高）───────────────────────────────
 # cn.aiedge.erp.expense.controller
-cn.aiedge.erp.expense.controller.ExpenseApprovalController
-cn.aiedge.erp.expense.controller.ExpenseController
-cn.aiedge.erp.expense.controller.ExpensePaymentController
-cn.aiedge.erp.expense.controller.ExpenseReimbursementController
+#   ⚠️ 2026-09-21 删（E-02 批次 1 已接线，基线按棘轮规则同步收缩）：
+#     ExpenseApprovalController     ← erp:expense:approval:{list,process}
+#     ExpenseController             ← erp:expense:application:{list,query} + statistics:list
+#     ExpensePaymentController      ← erp:expense:payment:{list,query,create,confirm,cancel}
+#     ExpenseReimbursementController← erp:expense:reimbursement:query
 cn.aiedge.erp.expense.controller.ExpenseTypeController
 # cn.aiedge.erp.finance.arapadjust.controller
 cn.aiedge.erp.finance.arapadjust.controller.ArApAdjustController
@@ -150,7 +152,6 @@ cn.aiedge.erp.product.kit.controller.ProductKitController
 cn.aiedge.erp.purchase.controller.PurchaseDetailQueryController
 cn.aiedge.erp.purchase.controller.PurchaseDocQueryController
 cn.aiedge.erp.purchase.controller.PurchaseInquiryController
-cn.aiedge.erp.purchase.controller.PurchasePriceTrackController
 cn.aiedge.erp.purchase.controller.PurchaseQuoteController
 # cn.aiedge.erp.purchase.inbound.controller
 cn.aiedge.erp.purchase.inbound.controller.PurchaseInboundController
@@ -160,7 +161,6 @@ cn.aiedge.erp.purchase.purchaseexchange.controller.PurchaseExchangeController
 cn.aiedge.erp.purchase.purchasereturn.controller.PurchaseReturnController
 # cn.aiedge.erp.sale.controller
 cn.aiedge.erp.sale.controller.SalesDetailQueryController
-cn.aiedge.erp.sale.controller.SalesPriceTrackController
 # cn.aiedge.erp.sale.outbound.controller
 cn.aiedge.erp.sale.outbound.controller.ErpSaleOutConfirmController
 cn.aiedge.erp.sale.outbound.controller.SaleOutboundController

@@ -8,6 +8,7 @@ import cn.aiedge.erp.sale.dto.SalesDetailQueryDTO;
 import cn.aiedge.erp.sale.entity.SalePriceTrack;
 import cn.aiedge.erp.sale.service.SalePriceTrackService;
 import cn.aiedge.erp.sale.service.SalesDetailQueryService;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
@@ -27,6 +28,13 @@ import java.util.Map;
  * 列表（商品×往来单位最近销售价）+ 价格折扣新增 + 修改/删除 + 价格趋势。
  * 另保留销售明细实时聚合接口（未维护价格时的旁证口径）。
  *
+ * <p><b>鉴权（2026-09-21 补，E-02 批次 4）：</b>本类原先**七个端点零权限注解**，
+ * 任何登录用户可读写销售价格记录；现统一挂 {@code sale:price:edit}。</p>
+ *
+ * <p>⚠️ 与 {@code PurchasePriceTrackController} 同一口径：库里没有读码
+ * （{@code sale:price-track:list} 之类），读端点也走这个写码 ——
+ * 只保护写会让售价/成交价对未授权用户敞开。待该页单独设计码族时替换，已登记 MASTER_TODO。</p>
+ *
  * @author AI-Ready Team
  * @since 1.0.0
  */
@@ -43,18 +51,21 @@ public class SalesPriceTrackController {
 
     @Operation(summary = "分页查询价格跟踪列表")
     @GetMapping("/page")
+    @SaCheckPermission("sale:price:edit")
     public ApiResponse<IPage<SalePriceTrack>> page(SalePriceTrackQueryDTO query) {
         return ApiResponse.ok(priceTrackService.page(query));
     }
 
     @Operation(summary = "新增价格折扣")
     @PostMapping
+    @SaCheckPermission("sale:price:edit")
     public ApiResponse<SalePriceTrack> save(@Valid @RequestBody SalePriceTrackSaveDTO dto) {
         return ApiResponse.ok(priceTrackService.saveTrack(dto));
     }
 
     @Operation(summary = "修改价格记录")
     @PutMapping("/{id}")
+    @SaCheckPermission("sale:price:edit")
     public ApiResponse<SalePriceTrack> update(@PathVariable Long id,
                                               @Valid @RequestBody SalePriceTrackSaveDTO dto) {
         return ApiResponse.ok(priceTrackService.updateTrack(id, dto));
@@ -62,6 +73,7 @@ public class SalesPriceTrackController {
 
     @Operation(summary = "删除价格记录")
     @DeleteMapping("/{id}")
+    @SaCheckPermission("sale:price:edit")
     public ApiResponse<Void> delete(@PathVariable Long id) {
         priceTrackService.deleteTrack(id);
         return ApiResponse.ok();
@@ -69,6 +81,7 @@ public class SalesPriceTrackController {
 
     @Operation(summary = "批量删除价格记录")
     @PostMapping("/batch-delete")
+    @SaCheckPermission("sale:price:edit")
     public ApiResponse<Void> batchDelete(@RequestBody List<Long> ids) {
         priceTrackService.batchDelete(ids);
         return ApiResponse.ok();
@@ -76,12 +89,14 @@ public class SalesPriceTrackController {
 
     @Operation(summary = "查询商品销售价格趋势")
     @GetMapping("/trend")
+    @SaCheckPermission("sale:price:edit")
     public ApiResponse<List<SalePriceTrendVO>> trend(@RequestParam Long productId) {
         return ApiResponse.ok(priceTrackService.trend(productId));
     }
 
     @Operation(summary = "最近成交价实时聚合（商品×往来单位，直读销售出库明细）")
     @GetMapping("/recent-price/page")
+    @SaCheckPermission("sale:price:edit")
     public Page<Map<String, Object>> recentPricePage(SalesDetailQueryDTO queryDTO) {
         if (queryDTO.getCurrent() == null || queryDTO.getCurrent() <= 0) {
             queryDTO.setCurrent(1L);
