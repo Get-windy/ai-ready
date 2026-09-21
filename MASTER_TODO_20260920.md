@@ -681,6 +681,42 @@
   菜单只是导航）；有对应权限的菜单则按权限显隐。这样既终止空菜单，又不因覆盖率不足而让导航"变少"。
 - **状态**：🔄 实施中
 
+#### 平台-MODULE-01 [P0] 模块目录（entitlement 的"名册"）只有 6 条，且与权限码没有对应关系
+
+- **背景**：本仓授权是两层 —— ① 模块授权（平台方决定"某租户有没有这个模块"）；
+  ② 权限（租户内管理员决定"某角色能不能做某件事"）。业界同构（Salesforce/Zoho/Odoo = 订阅开关 + 租户内角色）。
+- **实测缺口（两处，都查过）**：
+  ① `sys_module` 只有 **6 条**（sale/purchase/warehouse/finance/crm/marketing），
+     而系统实际有 13 个模块（用户 2026-09-21 定稿）⇒ 一半模块**在名册上不存在**，
+     "给某租户开资料模块"这件事在数据上无从表达；
+  ② **模块与权限码之间没有任何对应关系** —— 谁也不知道"关掉仓储模块"到底该关掉哪些码。
+     且 `TenantModuleService.hasModuleAccess()` / `getValidModuleCodes()` **只有读接口调用**
+     （`TenantModuleController`、`SetAppCenterController`），**没有一处参与请求拦截**
+     ⇒ 后端**不按模块授权做任何拦截**，模块开关目前纯属展示。
+- **✅ 已完成（2026-09-21，迁移 `V11.454.0`）**：
+  · 模块目录 **6 → 13**：`crm` 改名「**客户服务**」（售前+售后两阶段一个模块）、
+    `warehouse` 语义收窄（只留 `stock:` + `wms:`，商品档案/往来单位划出）、
+    新增 资料/交易/配送/人力资源/分析/设置(租户级)/系统(平台级)；
+  · 新建 **`sys_module_permission`**（模块 → 权限码前缀），37 条前缀覆盖全部 12 个有码模块；
+    归属口径 = **最长前缀优先**，同长取 sort 小；
+  · 回填既有两个租户的开通记录（口径：**现状不降级** —— 迁移不替业务做减法，
+    先按"今天实际能用的全都开"，再由平台职员按合同主动关）。
+- **验证**：新增 `tools/verify-module-mapping.cjs` **35/35** —— 13 模块名逐条比对、
+  映射无孤儿模块码、**923/923 在役码 100% 有归属**、无同长前缀歧义、
+  `analytics` 映射数为 0（已知缺口，断言为 0 以防被塞假码）、两租户各 13 条开通记录。
+- **⚠️ 遗留（这是下一段活的全部内容）**：
+  ① **后端 entitlement 门**：把 `TenantModuleService.hasModuleAccess()` 接进请求链
+     （位置在 `@SaCheckPermission` 之后，超管豁免，403 语义要与"无权限"可区分），
+     并在模块开通/停用时**自动派生/回收该租户的授权**；
+  ② **分析模块整域没有权限码**（`analytics%` 查询 0 行，`/views/analytics/**` 只有登录校验，
+     见 E-08）⇒ 该模块的映射先建成空表，码族要单独设计；
+  ③ **一个待用户裁定的口径**：平台级「系统」模块该开给谁 ——
+     说法 A 只开给**系统租户**（依据"系统模块的权限由系统超管授权给系统租户所属的用户和部门管理员"）；
+     说法 B **每个租户都开**（依据"租户内的部门管理员权限由租户所在系统管理员给与配置"，
+     而租户的系统管理员要配本租户角色/用户就得有这个模块）。
+     两说法出自同一段口述，属产品口径，**不猜**；迁移暂按"现状不降级"（两租户都开）处理。
+- **状态**：🔄 名册与映射表 ✅ 完成（35/35）；entitlement 门本身 ⬜ 待做
+
 ---
 
 ### 3.4 财务域（erp-finance）
@@ -1312,6 +1348,7 @@
 | 2026-09-21 | **🔴 E-08 新立标尺：裸端点盘点 202 控制器 / 1794 端点** | 新增 `tools/scan-unguarded-controllers.py`。实测**整类零权限注解**的控制器 **202 个 / 1794 处端点**；全局拦截器 `SaTokenConfig` 只有 `StpUtil.checkLogin()`，**不校验权限**。**实证**：租户 2 的 HR 用户（无任何财务/采购/销售码）打 `/erp/finance/expense-approval/pending`、`/erp/finance/expense-doc/page`、`/erp/finance/analytics/partner-balance/page`、`/purchase/price-track/page`、`/sales/price-track/page` **全部 200**（前两类是金额端点）。<br>结论：权限不是"漏了个别端点"，而是**整个功能面没设防**；E-01 的真实规模大于原估。 | ⬜ 待 E-01 分批施工（记分牌已就位；脚本只列不罪，公开接口/本租户只读类属豁免） |
 | 2026-09-21 | **E-02 验收：批次 1/2/4/5 全量复跑** | `verify-authz-batch45.cjs` **53/53**（① 11 码在库且只被超管持有 ② 18 条超管探针全非 403 ③ 18 条非超管全 403 ④ 403 钉 4/4 ⑤ 60 条已删码不得复活 ⑥ 未生效清单必须正好 21 条）；批次 1 **32/32**、批次 2 **18/18** 无回归。新增 `tools/refs-of-codes.py`（删码前全仓引用核对：B 类 35 条的引用只落在种子 SQL / 文档 / 审计 JSON，无一处活跃代码）。 | ✅ 全绿；构建 `MODULES=core-base,core-platform,core-api,erp-finance,erp-purchase,erp-sales` clean install 成功，启动 137s |
 | 2026-09-21 | **🔴 鉴权门禁（棘轮）自批次 1 起一直是红的（已修）** | `AuthzAnnotationCoverageTest#baselineMustNotBeStale` 的规则是"补了注解就必须从基线清单删行"。批次 1/2 接线后**基线没同步收缩**，实测 **7 行过期**（`crm.customer.controller.CustomerController` / `CustomerFollowUpController` / `CustomerOpportunityController` + `erp.expense.controller` 的 ExpenseApproval/Expense/ExpensePayment/ExpenseReimbursement），加上本轮新补的 `PurchasePriceTrackController` / `SalesPriceTrackController` 共 9 行。 | ✅ 删掉 9 行（并按文件维护规则补注释说明出处），`known-unauthorized-controllers.txt` **139 → 130** 行；`./mvnw -pl core/api/core-api test -Dtest=AuthzAnnotationCoverageTest,PointcutTargetExistenceTest` **4/4 通过**（控制器总数 394 / 端点 3533；无任何 `@SaCheck*` 130 个 = 33%，覆盖端点 1231）。<br>⚠️ 教训：**接线批次的收尾清单里必须有"跑门禁测试"这一步**，否则棘轮会腐烂成"永远豁免"名册 |
+| 2026-09-21 | **A 方案完成：模块目录 6 → 13 + 建「模块→码」映射表（迁移 `V11.454.0`）** | 用户定稿的 13 模块落到数据上：`crm` 改名「**客户服务**」（售前+售后两阶段同属一个模块；业界同构 Salesforce Sales+Service Cloud / Zoho CRM+Desk / Odoo CRM+Helpdesk）、`warehouse` 语义收窄（只留 `stock:`+`wms:`，商品档案/往来单位划给新的「资料」）、新增 资料/交易/配送/人力资源/分析/设置(租户级)/系统(平台级)。<br>新建 **`sys_module_permission`**（模块 → 权限码前缀），**37 条前缀**覆盖 12 个有码模块；归属口径 = **最长前缀优先、同长取 sort 小**。<br>回填租户 1/2 的开通记录（口径：**现状不降级** —— 迁移不替业务做减法，先按"今天能用的全开"，再由平台职员按合同关）。 | ✅ 迁移 Flyway `success`；新增 `tools/verify-module-mapping.cjs` **35/35** —— 13 模块名逐条比对、无孤儿模块码、**923/923 在役码 100% 有归属**、无同长前缀歧义、`analytics` 映射数为 0（断言为 0 以防被塞假码）、两租户各 13 条开通记录。<br>⬜ 遗留：entitlement 门本身（`hasModuleAccess()` 仍是零调用方）、分析模块码族、系统模块开给谁的口径（见 平台-MODULE-01） |
 
 ---
 
