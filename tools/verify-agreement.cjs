@@ -306,7 +306,7 @@ const probeExists = (id) => num(`SELECT count(*) FROM agreement WHERE id = ${mus
   //    真正该钉死的不变量是"**所有 agreement: 码都授给了超管**"（`granted === codeCount`），
   //    它不会随规模增长而失效，且一旦漏授就是真故障。
   const TABLES_BASE = 15   // V11.486.0 地基 4 + V11.488.0 内容层 8 + V11.490.0 生命周期 3
-  const CODES_BASE = 26    // V11.487.0 十 + V11.489.0 十 + V11.491.0 六
+  const CODES_BASE = 27    // V11.487.0 十 + V11.489.0 十 + V11.491.0 六 + V11.493.0 一（平台合规抽查读）
   ok(`协议表已建齐（下界 ${TABLES_BASE}：地基 4 + 内容层 8 + 生命周期 3）`,
     tableCount >= TABLES_BASE, `实际 ${tableCount} 张`)
   ok(`agreement: 权限码不少于 ${CODES_BASE} 条`,
@@ -318,7 +318,7 @@ const probeExists = (id) => num(`SELECT count(*) FROM agreement WHERE id = ${mus
 
   if (tableCount < TABLES_BASE || codeCount < CODES_BASE || granted !== codeCount
       || moduleRow !== 1 || menuRows !== 5) {
-    console.log(`\n!! 前置不成立：请先重启后端让 Flyway 执行到 V11.491.0（本脚本不代替迁移）。`)
+    console.log(`\n!! 前置不成立：请先重启后端让 Flyway 执行到 V11.493.0（本脚本不代替迁移）。`)
     process.exit(2)
   }
 
@@ -481,13 +481,17 @@ const probeExists = (id) => num(`SELECT count(*) FROM agreement WHERE id = ${mus
       `status=${scalar(`SELECT status FROM agreement_version WHERE id=${V1}`)}`)
 
     // 让租户 2 的账号具备协议权限（临时探针，结束还原）
-    section('准备：临时把 20 个协议权限码授予租户 2 角色（结束按原值还原）')
+    section('准备：临时把**租户级**协议权限码授予租户 2 角色（结束按原值还原）')
     // ⚠️ 同样**不过 Number()**：这是"临时授权 + 还原"要写进真实数据表的 id，截断一位就是写错权限
-    const permIds = sql(`SELECT id FROM sys_permission WHERE deleted=0 AND permission_code LIKE 'agreement:%'`)
+    // ⚠️ **刻意排除 `agreement:platform:%`**：平台码归「系统」模块、只开给系统租户（V11.455.0）。
+    //    授给业务租户角色等于把"读任意租户协议"的能力散出去 —— 那正是 §13.9 加独立码要防的事。
+    //    排除之后，⑨ 组才能拿这个会话验**拒绝路径**（有租户级码、无平台码 ⇒ 403）。
+    const permIds = sql(`SELECT id FROM sys_permission WHERE deleted=0 AND permission_code LIKE 'agreement:%'
+        AND permission_code NOT LIKE 'agreement:platform:%'`)
       .replace(/\r/g, '').split('\n').map(l => l.trim())
       .filter(l => /^\d+$/.test(l))
-    ok('协议权限码 id 已全部取到（用于临时授予租户 2）',
-      permIds.length >= CODES_BASE, `实际 ${permIds.length} 条`)
+    ok('租户级协议权限码 id 已全部取到（用于临时授予租户 2）',
+      permIds.length >= CODES_BASE - 4, `实际 ${permIds.length} 条（已排除 4 条 agreement:platform:*）`)
     const grant = await req('POST', `/role/${t2Role}/permissions`, {
       token: adminToken, body: [...new Set([...rolePermIdsBefore, ...permIds])],
     })
@@ -598,6 +602,36 @@ const probeExists = (id) => num(`SELECT count(*) FROM agreement WHERE id = ${mus
       `实际 ${ownerOf('agreement:platform:term-option:manage')}`)
     ok('agreement:list → agreement', ownerOf('agreement:list') === 'agreement')
     ok('agreement:version:activate → agreement', ownerOf('agreement:version:activate') === 'agreement')
+    ok('agreement:platform:compliance:read → system（平台合规抽查读靠它天然只有平台侧能拿）',
+      ownerOf('agreement:platform:compliance:read') === 'system',
+      `实际 ${ownerOf('agreement:platform:compliance:read')}`)
+
+    // ══ ⑨ 平台合规抽查读：平台能读"自己不是任一端"的协议；租户侧读不了 ══
+    // 这一组是 ⑦ 的**反向对照**：同一份 a2（两端是租户 2 与 TX，会话租户 1 不是任一端），
+    //   · 租户级读端点 → ⑦ 已证 404；
+    //   · 平台合规读端点 + 平台码 → 200，且读到的就是它（§13.9 用户明确要的能力）；
+    //   · 租户会话（有租户级码、**无**平台码）→ 403（拒绝路径）。
+    section('⑨ 平台合规抽查读：平台读得到「自己不是任一端」的协议，租户侧拿不到这个能力')
+    const compDetail = await req('GET', `/agreement/platform/compliance/${A2}`, { token: adminToken })
+    ok('平台侧（超管，持 agreement:platform:compliance:read）读 a2 详情 → 200',
+      compDetail.status === 200, `status=${compDetail.status} ${msgOf(compDetail)}`)
+    ok('读到的确实是 a2（不是"刚好读到了自己的"）',
+      String((dataOf(compDetail) || {}).id || '') === A2,
+      `实际 id=${(dataOf(compDetail) || {}).id}`)
+    const compPage = await req('GET', '/agreement/platform/compliance/page?current=1&size=200',
+      { token: adminToken })
+    const compRecords = (dataOf(compPage) || {}).records || []
+    ok('合规抽查列表里**也有** a2（列表与详情口径一致，不是只有详情放行）',
+      compRecords.some(r => String(r.id) === A2), `共 ${compRecords.length} 条`)
+
+    const compByTenant = await req('GET', `/agreement/platform/compliance/${A2}`, { token: t2Token2 })
+    ok('租户会话（有租户级码、无平台码）走合规端端点 → 403（拒绝路径）',
+      compByTenant.status === 403, `status=${compByTenant.status} ${msgOf(compByTenant)}`)
+
+    // 反向对照：租户会话走它**自己**的租户级读端点仍然正常（证明 403 是"没平台码"，不是"整个账号废了"）
+    const tenantReadOk = await req('GET', `/agreement/${A2}`, { token: t2Token2 })
+    ok('同一会话走租户级端点仍 200（证明 403 只来自平台码缺失，不是账号权限被清空）',
+      tenantReadOk.status === 200, `status=${tenantReadOk.status} ${msgOf(tenantReadOk)}`)
   } finally {
     console.log('\n—— 现场还原（探针数据一律硬删）——')
     // 1) 角色权限还原（**字符串** id，绝不 Number()：截断会把"还原"写成"删掉原有权限"）

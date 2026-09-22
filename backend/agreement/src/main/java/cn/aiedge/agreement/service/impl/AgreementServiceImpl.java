@@ -105,13 +105,47 @@ public class AgreementServiceImpl implements AgreementService {
 
     @Override
     public Page<AgreementVO> page(AgreementQuery query, Long sessionTenantId) {
-        long current = query.getCurrent() == null || query.getCurrent() < 1 ? 1L : query.getCurrent();
-        long size = query.getSize() == null || query.getSize() < 1 ? 20L : Math.min(query.getSize(), 200L);
-
         // 可见性（唯一构造处，裁定⑥）+ 类型范围（agreementScope / agreementType）都在这里组装：
         // ⚠️ 必须是 **SQL 条件**，不能取回后在内存里筛 —— 分页拦截器按 Wrapper 条件算 count，
         //    内存筛选会让 total 与显示行数不一致（本次修复的正是这一点）。
-        LambdaQueryWrapper<Agreement> wrapper = AgreementListConditions.build(query, sessionTenantId);
+        return pageBy(AgreementListConditions.build(query, sessionTenantId), query);
+    }
+
+    @Override
+    public AgreementVO detail(Long id, Long sessionTenantId) {
+        return toDetailVO(requireVisible(id, sessionTenantId));
+    }
+
+    // ══════════════════════════ 平台合规抽查读（DOMAIN-MODEL §13.9） ══════════════════════════
+    //
+    // 与租户侧读的差别**只有可见性那一句**（在 AgreementListConditions / AgreementVisibility 里），
+    // 其余（类型范围、状态、关键字、排序、分页、详情装配）全部复用同一段代码 —— 各写一遍必然跑偏。
+    //
+    // ⚠️ 授权靠**独立码** `agreement:platform:compliance:read`（前缀归属「系统」模块
+    //   ⇒ 天然只有平台侧能拿），**不是**租户级的 `agreement:view`；调用端另加 @OperLog 留痕。
+
+    @Override
+    public Page<AgreementVO> compliancePage(AgreementQuery query) {
+        log.info("平台合规抽查读 · 列表: agreementScope={}, agreementType={}, status={}, keyword={}",
+                query.getAgreementScope(), query.getAgreementType(), query.getStatus(), query.getKeyword());
+        return pageBy(AgreementListConditions.buildForPlatformCompliance(query), query);
+    }
+
+    @Override
+    public AgreementVO complianceDetail(Long id) {
+        Agreement agreement = agreementMapper.selectById(id);
+        AgreementVisibility.assertPlatformComplianceReadable(agreement);
+        log.info("平台合规抽查读 · 详情: agreementId={}, agreementNo={}, 两端租户=({}, {})",
+                id, agreement.getAgreementNo(),
+                agreement.getPartyATenantId(), agreement.getPartyBTenantId());
+        return toDetailVO(agreement);
+    }
+
+    /** 列表查询的公共部分（可见性条件由调用方传入，两种入口共用以免口径跑偏）。 */
+    private Page<AgreementVO> pageBy(LambdaQueryWrapper<Agreement> wrapper, AgreementQuery query) {
+        long current = query.getCurrent() == null || query.getCurrent() < 1 ? 1L : query.getCurrent();
+        long size = query.getSize() == null || query.getSize() < 1 ? 20L : Math.min(query.getSize(), 200L);
+
         if (trimToNull(query.getStatus()) != null) {
             wrapper.eq(Agreement::getStatus, requireStatus(query.getStatus()).getCode());
         }
@@ -128,9 +162,8 @@ public class AgreementServiceImpl implements AgreementService {
         return result;
     }
 
-    @Override
-    public AgreementVO detail(Long id, Long sessionTenantId) {
-        Agreement agreement = requireVisible(id, sessionTenantId);
+    /** 详情装配（含当前生效版本），两种入口共用。 */
+    private AgreementVO toDetailVO(Agreement agreement) {
         AgreementVO vo = toVoList(List.of(agreement)).get(0);
         if (agreement.getCurrentVersionId() != null) {
             AgreementVersion version = versionMapper.selectById(agreement.getCurrentVersionId());

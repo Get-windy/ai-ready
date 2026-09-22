@@ -50,22 +50,44 @@ public final class AgreementListConditions {
         AgreementVisibility.apply(wrapper, sessionTenantId);
 
         // ② 类型：具体类型优先于范围（理由见类注释）
+        applyTypeScope(wrapper, query);
+        return wrapper;
+    }
+
+    /**
+     * **平台合规抽查读**的列表条件（DOMAIN-MODEL §13.9）。
+     *
+     * <p>与 {@link #build} 的差别**只有可见性那一句**：换成
+     * {@link AgreementVisibility#applyPlatformCompliance}（不限制两端之一）。
+     * 类型条件复用同一个 {@link #applyTypeScope} —— 两处若各写一遍，
+     * 迟早出现"租户侧能筛平台协议、平台侧筛不了"这类不对称缺陷。</p>
+     *
+     * <p>⚠️ 只能被 `agreement:platform:compliance:read` 保护的端点调用（见该方法的注释）。</p>
+     */
+    public static LambdaQueryWrapper<Agreement> buildForPlatformCompliance(AgreementQuery query) {
+        LambdaQueryWrapper<Agreement> wrapper = new LambdaQueryWrapper<>();
+        AgreementVisibility.applyPlatformCompliance(wrapper);
+        applyTypeScope(wrapper, query);
+        return wrapper;
+    }
+
+    /** 类型范围条件（两种入口共用，别各写一遍）。 */
+    private static void applyTypeScope(LambdaQueryWrapper<Agreement> wrapper, AgreementQuery query) {
         String typeName = trimToNull(query.getAgreementType());
         if (typeName != null) {
             AgreementType type = AgreementType.parse(typeName);
             wrapper.eq(Agreement::getAgreementType, type.name());
-        } else {
-            AgreementScope scope = AgreementScope.parse(query.getAgreementScope());
-            if (scope == AgreementScope.PLATFORM) {
-                // 平台级 = 只有 PLATFORM_SERVICE
-                wrapper.eq(Agreement::getAgreementType, AgreementType.PLATFORM_SERVICE.name());
-            } else if (scope == AgreementScope.TENANT) {
-                // 租户级 = 排除 PLATFORM_SERVICE（代销 / 购销框架 / 消费者单方承诺）
-                wrapper.ne(Agreement::getAgreementType, AgreementType.PLATFORM_SERVICE.name());
-            }
-            // scope == null ⇒ 不加任何类型条件（历史行为不变）
+            return;
         }
-        return wrapper;
+        AgreementScope scope = AgreementScope.parse(query.getAgreementScope());
+        if (scope == AgreementScope.PLATFORM) {
+            // 平台级 = 只有 PLATFORM_SERVICE
+            wrapper.eq(Agreement::getAgreementType, AgreementType.PLATFORM_SERVICE.name());
+        } else if (scope == AgreementScope.TENANT) {
+            // 租户级 = 排除 PLATFORM_SERVICE（代销 / 购销框架 / 消费者单方承诺）
+            wrapper.ne(Agreement::getAgreementType, AgreementType.PLATFORM_SERVICE.name());
+        }
+        // scope == null ⇒ 不加任何类型条件（历史行为不变）
     }
 
     private static String trimToNull(String s) {

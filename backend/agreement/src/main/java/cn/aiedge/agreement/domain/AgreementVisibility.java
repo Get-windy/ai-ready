@@ -55,6 +55,42 @@ public final class AgreementVisibility {
     }
 
     /**
+     * **平台合规抽查读**的条件：平台要能读到**任意租户之间**的协议（用户 2026-09-22 明确要的能力：
+     * 「避免非法交易」）。
+     *
+     * <h3>⚠️ 这是本类唯一不限制"两端之一"的地方 —— 用错了就是跨租户数据泄露</h3>
+     * 因此把它**也放在本类里**（而不是让 Controller 自己拼一个空条件）：本类仍是"可见性条件的唯一构造处"，
+     * 谁在放宽可见性，一眼可见、只有一个地方。调用方必须同时满足两条：
+     * <ol>
+     *   <li>端点上挂的是 {@code agreement:platform:compliance:read}（不是租户级 {@code agreement:view}）；
+     *       该前缀归属「系统」模块 ⇒ **天然只有平台侧能拿**（V11.455.0）；</li>
+     *   <li>调用处 {@code @OperLog} **留痕**（谁在什么时候抽查了哪一份）。</li>
+     * </ol>
+     *
+     * <p>仍然钉 {@code tenant_id = 0}：那是"协议主档是系统级"的既有约定（裁定⑥），
+     * 若哪天有人往这张表写进别的租户值，那些行**看不见**（fail-closed），而不是被所有平台用户看见。</p>
+     */
+    public static LambdaQueryWrapper<Agreement> applyPlatformCompliance(LambdaQueryWrapper<Agreement> wrapper) {
+        wrapper.eq(Agreement::getTenantId, 0L);
+        return wrapper;
+    }
+
+    /**
+     * 平台合规抽查读的按 id 判定。
+     *
+     * <p>与 {@link #assertVisible} 的差别只有一处：**不要求会话租户是两端之一**。
+     * 仍然做"这一行是不是一条合法协议主档"的校验（非空 + 系统级），
+     * 免得把"主档被删/数据异常"伪装成"查到了"。</p>
+     *
+     * @throws cn.aiedge.common.exception.BusinessException 行不存在时 404（文案与"你没权限"一致）
+     */
+    public static void assertPlatformComplianceReadable(Agreement agreement) {
+        if (agreement == null) {
+            throw BusinessException.notFound("协议不存在或你不是本协议的任一缔约方");
+        }
+    }
+
+    /**
      * 「两端正好是这一对租户」的条件（**方向不敏感**）：
      * {@code (甲=A,乙=B) OR (甲=B,乙=A)}。
      *

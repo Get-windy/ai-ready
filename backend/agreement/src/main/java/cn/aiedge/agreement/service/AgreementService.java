@@ -28,6 +28,18 @@ public interface AgreementService {
     /** 详情（含当前生效版本与条款）。 */
     AgreementVO detail(Long id, Long sessionTenantId);
 
+    // ── 平台合规抽查读（DOMAIN-MODEL §13.9，用户 2026-09-22 明确要的能力：避免非法交易）──
+    //
+    // 这两条**不按会话租户过滤**（平台要能读任意租户之间的协议），
+    // 因此授权必须靠独立的 `agreement:platform:compliance:read`（前缀归「系统」模块，
+    // 按 V11.455.0 只开给系统租户），**不是**租户级 `agreement:view`；调用端另加 @OperLog 留痕。
+
+    /** 平台合规抽查读 · 分页（能读到任意租户之间的协议）。 */
+    Page<AgreementVO> compliancePage(AgreementQuery query);
+
+    /** 平台合规抽查读 · 详情（含当前生效版本与条款，用于取证）。 */
+    AgreementVO complianceDetail(Long id);
+
     /** 新建协议草稿（自动生成协议编号 + 首个 DRAFT 版本），返回协议 ID。 */
     Long create(AgreementCreateDTO dto, Long sessionTenantId, Long operatorId);
 

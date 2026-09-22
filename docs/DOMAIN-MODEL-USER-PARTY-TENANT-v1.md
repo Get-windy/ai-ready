@@ -1510,7 +1510,7 @@ B2B 现实：大客户的采购常挂在**项目**下（工程、装修、集成
 | 日期 | 新议题 | 落点 / 状态 |
 |---|---|---|
 | 2026-09-22 | **「结算方式」是「账期」的前置字段** —— 账期天数**只在"账期结算"下适用**；**现款现货分三种**（先款后货 / 现款现结 / 货到付款），三者**到期日不同**；**无协议 / 协议到期 / 未约定结算方式 ⇒ 默认现款现结**（低风险缺省） | ✅ **已裁定并落在 §13.3 补充口径 3**（v3.8~v3.14 五轮演进）；✅ **实施项已完成**（v3.17：字段字典 + 判定顺序 + `NO_CREDIT_TERM` 态 + 拒单 + 去掉 30 天默认账期 + 验收脚本），见该节「对实现的直接要求」 |
-| 2026-09-22 | **协议模块的「平台合规抽查读权限」尚无独立权限码** —— 协议的所有读端点仍复用**租户级** `agreement:view` | ⬜ 待做（§13.9 明确要求；模板读已用 `agreement:platform:template:read`，**协议正本**的抽查读仍未隔离） |
+| 2026-09-22 | **协议模块的「平台合规抽查读权限」尚无独立权限码** —— 协议的所有读端点仍复用**租户级** `agreement:view` | ✅ **已做**（v3.19 / `V11.493.0`）：新增独立码 `agreement:platform:compliance:read`（前缀归「系统」模块 ⇒ 天然只有平台侧能拿）+ 端点 `/api/agreement/platform/compliance/{page,\{id\}}` + `@OperLog` 留痕；放宽可见性的那一句仍只写在 `AgreementVisibility#applyPlatformCompliance`。验收按**两向**：平台侧读到"自己不是任一端"的协议 → 200，租户会话（有租户级码、无平台码）→ 403 |
 | 2026-09-22 | **协议签署的「授权范围与限额」未接** —— `agreement_signature.authority_basis` 现只校验**非空**，答不出"他有没有越权" | 🔓 **阻塞已解除**：G13 已于 2026-09-22 裁定为「结构化授权」（**§7.7**）⇒ 本条**转为待实施**，不再是待裁定 |
 | 2026-09-22 | **三层结算口径并存且互不知情** —— `biz_party` 已有 `settlement_type` 等 7 列，但协议 provider 一个都没读，加上采购/销售的硬编码 30 天，共三套口径 | ✅ **已裁定分层规则**（跨租户走协议/现款现结；租户内走档案）见 **§7.7 附**；✅ **实施已完成**（v3.17：优先级链收敛在 `BusinessAccountingServiceImpl`，档案口径经 `PartySettlementProfileMapper` 接入；`PLATFORM_DEFAULT_CREDIT_DAYS = 30` 已移除） |
 
@@ -1579,7 +1579,7 @@ B2B 现实：大客户的采购常挂在**项目**下（工程、装修、集成
 | 特殊形态 | ✅ `erp_marketing_gift`/`erp_sale_exchange`/`erp_group_buy_activity`/`mkt_presale` | **样品**、**以货易货** |
 | 事件/映射先例 | ✅ `wms_event_outbox`、`crm_erp_customer_mapping` | 投递的**验签/幂等/补偿** |
 | 权限与租户隔离 | ✅ **E-01 已收口**（裸控制器 197→27）+ 模块 entitlement 门 + 租户 fail-closed | —（已就绪，是后续所有阶段的地基） |
-| **协议（✅ 已落地）** | **15 张已建**（`V11.486.0`/`V11.488.0`/`V11.490.0`）· **26 个权限码**（与代码注解 100% 对齐）· 5 行菜单（分挂设置/系统两棵树）· 独立 Maven 模块 `backend/agreement` · 前端已接 12 个 lifecycle 端点 | 见下一行的"协议仍缺" |
+| **协议（✅ 已落地）** | **15 张已建**（`V11.486.0`/`V11.488.0`/`V11.490.0`）· **27 个权限码**（与代码注解 100% 对齐；末条 = `V11.493.0` 的平台合规抽查读）· 5 行菜单（分挂设置/系统两棵树）· 独立 Maven 模块 `backend/agreement` · 前端已接 12 个 lifecycle 端点 | 见下一行的"协议仍缺" |
 | **协议仍缺**（阶段 B/C/D） | — | `agreement_item` / `agreement_quota`（价格与额度，阶段 B）· `inter_tenant_doc_link` + 验签投递（阶段 C）· `purchase_contract` 并入统一主档（阶段 D） |
 | **其余待建 17 张** | ❌ 全部不存在（已实测） | `party` `party_tenant` `person` `tenant_owner` `trade_term` `inter_tenant_doc_link` `service_order` `service_type` `trade_party_role` `sales_channel_config` `platform_billing_rule` `project` `complaint` `dispute` `party_alias` `party_change_log` `merge_request` |
 
@@ -1600,7 +1600,7 @@ B2B 现实：大客户的采购常挂在**项目**下（工程、装修、集成
 | **10** | **治理与纠纷** | 保证金/清退权（已定的口径） | 投诉 / 纠纷 / 申诉 / 违规判罚 / 先行赔付 | 阶段 4 | 中 |
 | **11** | **其余缺口** | `purchase_inquiry`(跨租户化) · `erp_customer_*_price`(价格体系) | T2-1 询价链路 · T1-2 价格传递 · T2-4 多级分销返利 · T2-5 类目资质 · U4 项目 · U6 样品/易货 · U7 税率 | — | 低（可并行、可延后） |
 
-> ✅ **协议模块（§十二 / §十三）已先于本路线图落地** —— 15 张表 · 26 个权限码 · 5 行菜单 ·
+> ✅ **协议模块（§十二 / §十三）已先于本路线图落地** —— 15 张表 · 27 个权限码 · 5 行菜单 ·
 > 独立 Maven 模块 `backend/agreement` · 前端已接 12 个 lifecycle 端点 · 单测 94 个。
 > 它原本是阶段 7 的一部分，现已**拆出并完成主体（阶段 A′）**；
 > 阶段 7 剩下的部分是「**价格与额度**（阶段 B）」与「**履约路径接线 + 可售量双重校验**」。
@@ -2176,6 +2176,12 @@ AgreementRuntime.resolve(卖方主体, 买方主体, 租户对, 业务时点) �
 
 - **平台模板**（全员可选）与**租户模板**（本租户内可选）；
 - **平台拥有合规抽查读权限**（用户 2026-09-22 明确需要，目的：**避免非法交易**）；
+  ✅ **2026-09-22 已落地**（`V11.493.0`）：**独立权限码 `agreement:platform:compliance:read`**
+  （前缀 `agreement:platform:` 归「系统」模块 ⇒ 按 V11.455.0 **天然只有平台侧能拿**），
+  端点 `GET /api/agreement/platform/compliance/page` 与 `/{id}`，各带 `@OperLog` **留痕**。
+  ⚠️ 它**不是**租户级 `agreement:view` 的复用：协议正本是**任意两个租户之间的商业契约**，
+  与"平台模板"敏感级别完全不同。放宽可见性的那一句仍然只写在
+  `AgreementVisibility#applyPlatformCompliance`（"唯一构造处"的纪律不破）。
 - 模板是**显式选择的起点**，**不是自动套用的默认值**（否则等于平台替双方定商业条款，㉜）；
   模板可预填，但 `required=true` 的条款**仍必须由双方在"本次这一版"上显式确认**；
 - 版本快照**记录模板来源**（"基于模板 X"）⇒ 司法可追溯；
@@ -2229,3 +2235,4 @@ agreement_fulfillment_mode 协议约定的**履约方式集合**（多行并存�
 | 2026-09-22 | v3.17 | **§13.3 补充口径 3 与 §7.7 附「三层结算口径」的实施完成**（本条只记"文档说的"已变成"仓库里真有的"，口径本身未变）。落地清单：① **迁移 `V11.492.0`** 给字段字典加 `SETTLEMENT_TYPE`（扁平平五项 `CASH_PREPAY`/`CASH_SPOT`/`CASH_ON_DELIVERY`/`CREDIT`/`ROLLING`，**非必填**——"没约定结算方式"是合法状态；`sort=55` 紧挨 `SETTLEMENT_CYCLE` 之后，界面上顺序即判定顺序）+ 五条自检（恰好一行 / 候选值恰好五项 / 消费方在白名单 / 非必填 / `setting_key` 无重号）；② 新增 `cn.aiedge.base.credit.SettlementType`（**协议侧与财务侧共用一套编码**，`requiresCreditDays()` 把"要不要填账期天数"写在枚举语义上，不散落在调用方的 if 里）；③ `CreditTermResult` 由**三态扩为四态**，新增 `NO_CREDIT_TERM`（本笔无账期 = **正常业务结论**）并带上具体是哪一种结算方式，`dueDateFrom` 对其返回**业务日**；④ `AgreementCreditTermProvider` 改为**两层判定**（先结算方式 → 再决定是否问天数），结算方式未约定 / 取值认不出一律 `NO_AGREEMENT`（绝不就此给双方记赊账）；⑤ `BusinessAccountingServiceImpl` 把**三层优先级链收敛到一处**（跨租户→协议 · 无协议→现款现结 · 租户内→`biz_party` 档案 · 都没有→现款现结），`UNDECLARED` 改为**抛业务异常拒单**；⑥ 新增 `PartySettlementProfile` + `PartySettlementProfileMapper`（手写 SQL 自己写 `tenant_id`/`deleted`——本仓实测手写 SQL 不套插件），把此前**零消费方**的 `biz_party.settlement_type`/`credit_days`/`payment_days` 接上；⑦ 采购/销售 `PLATFORM_DEFAULT_CREDIT_DAYS = 30` **移除**，回退到期日改为"业务日当天（现款现结）"；⑧ **拒单必须真的拒得住**：`createReceivableFromBusiness` 的调用方是 catch-and-continue（"记账失败不阻断单据"），故新增 `precheckReceivableDueDate`/`precheckPayableDueDate` 预检接口，并在**销售出库 `complete` / 采购入库 `confirmWarehouse` 的记账 try/catch 之外、状态变更之前**调用 —— 否则拒单理由会被那段 catch 吞掉，等于没拒；⑨ 验收口径同步重写：`verify-credit-term.cjs` 第 ⑤ 组**拆成 ⑤-A（未约定结算方式 ⇒ 单据照开）/ ⑤-B（账期结算缺天数 ⇒ 提交被拒）**，并新增「协议已到期仍可提交」「现金 / 滚结不报未约定账期」两组断言；`CreditTermDueDateWiringTest` / `AgreementCreditTermProviderTest` / `SalesAccountingServiceTest` / `PurchaseAccountingServiceTest` 同步改旧断言 |
 | 2026-09-22 | v3.17⚠️ | **本条的已知取舍与未做项（不许当成已完成）**：① **货到付款的到期日仍取业务日** —— §13.3 第 2 层表格写明「货到付款」应为**到货日**，但记账时点这条链路拿不到到货日；具体是哪一种现款已随 `CreditTermResult#getSettlementType()` 带出，待链路提供到货日后在 `dueDateFrom` 一处收紧，**不需要**改调用方；② **档案口径只接了 `settlement_type` + 天数**，`fixed_payment_day` / `fixed_credit_day`（固定账期日、`payment_term_type=FIXED`）**未接** —— 缺明确口径，不臆造"每月几号"的算法；③ **租户内交易档案写了"非现结"却没填有效天数时不拒单**，落回现款现结（档案是租户自己的政策，且 `settlement_days` 默认 0，按缺省从严会大面积误伤）；④ **§8.2 里「平台合规抽查读权限」仍未做**（协议正本的抽查读仍复用租户级 `agreement:view`）|
 | 2026-09-22 | v3.18 | **新增 §11.6「单据快照规范」（阶段 2 · U2 定稿）** —— 这是唯一"晚做就要全表回填"的规范，故排在动任何单据表之前。要点：① **与旧规「禁止冗余名称字段」的关系给了唯一判据**（"这个值会不会随时间变、且历史单据必须认当时的账"），并明确**快照是列举式白名单**，不是"把主档搬过来"（否则"快照"会变成绕开 ≤25 列红线的借口）；② **必快照清单 → 规范列名**一律**沿用既有惯例**（`<role>_name`/`<role>_code`/**`tax_no`**/`<role>_level`+`_grade_code`/`_grade_name`/`contact_*`/**`receiver_*`**/`bank_*`/**`tax_rate`**/**`agreement_id`+`agreement_version_no`**），并明确 **"对方档案的联系人"与"本单收货人"必须分开**；③ **表形态两种二选一**（默认行内列；击穿 25 列红线时拆 `<bill>_partner_snapshot` 1:1 伴生表，仓里已有 2 例），**禁止拿 JSON 大字段兜"几个字段的快照"**；④ **业务日期的口径**：列名沿用域内语义名（**刻意不做全表改名**）、业务日期 ≠ 凭证日期、同一张单上多个日期列别认错（`erp_sale_outbound.payment_date` 不是它的业务日）、跨模块传递统一用 `business_date`；⑤ **何时写**：生效/过账那一刻写一次、同事务、之后**只读**（改主数据/改协议一律不回写历史单）；⑥ **存量不回改 + 两张只许缩不许涨的清单**（豁免表 13 项 / 存量已知缺口 7 项）；⑦ **登记制**（§11.6.8 登记 32 张单据主表；**`agreement` 刻意不在内**：协议是契约，它的时点是有效期区间、快照是整版 `snapshot_json`）；⑧ **可执行检查** `tools/audit-snapshot-spec.cjs`（R1~R4 + 棘轮退出码）。⚠️ **该脚本第一版的两处自我纠错**留痕：**按"有 `_no` 列"自动判定单据表 ⇒ 真库判出 80+ 张全是明细/台账/缓存，误报率极高**（一条 80% 误报的检查比没有检查更糟）⇒ 改登记制；**`tools/sql.cjs` 有 500 行硬上限且静默截断** ⇒ 第一版"一次拉全库 表→列"的 14146 行被截成 500 行，只看到 29 张表（真实 568）却报"覆盖率 100%"，现要求查询收窄且命中上限直接抛错。**未做**：未给任何表**新增**快照列（按裁定存量不回改，新表立即执行）|
+| 2026-09-22 | v3.19 | **§13.9「平台合规抽查读权限」落地（§8.2 该条待办关闭）** —— 用户 2026-09-22 明确要的能力（「避免非法交易」）此前一直缺独立码：协议**所有**读端点复用**租户级** `agreement:view`，而 `AgreementVisibility` 只放行两端 ⇒ 平台侧要么读不到，要么只能把租户级码授给平台（把"读别人协议"的能力散给所有租户管理员，**更糟**）。落地：① 迁移 `V11.493.0` 加独立码 **`agreement:platform:compliance:read`**（id 111147，已授超管；**不新增菜单** —— 改 `sys_menu` 需另行批准，且合规抽查是稽核动作不走业务导航）；② 端点是**新开的 Controller** `AgreementComplianceController`（`GET /api/agreement/platform/compliance/page` 与 `/{id}`）而不是在原读接口上开开关 —— 靠参数切换可见性，迟早出现"某个分支忘了判角色"的越权，**分开之后"平台能读别人的协议"这件事是文件级显式的**；③ 放宽可见性的那一句写在 **`AgreementVisibility#applyPlatformCompliance`**（"唯一构造处"的纪律不破），列表条件复用同一个 `applyTypeScope`（两种入口各写一遍必然跑偏）；④ **三道门**：独立码（前缀归「系统」⇒ 按 V11.455.0 只开给系统租户）· 可见性收敛 · **`@OperLog` 留痕**（没有留痕的抽查读等于给平台一个静默的超级读权限）；⑤ `verify-agreement.cjs` **55 → 61**：新增 ⑨ 组按**两向**验（平台侧读到"自己不是任一端"的协议 → 200 且读到的确是它、列表口径一致；租户会话**有租户级码无平台码** → 403；同一会话走租户级端点仍 200，证明 403 只来自平台码缺失）。**连带修正**：脚本给租户 2 的临时授权改为**排除 `agreement:platform:%`** —— 把平台码授给业务租户角色正是本条要防的事，且排除后 ⑨ 组才有干净的"无平台码"会话可用。回归：`verify-module-mapping` 45/45 · `entitlement` 8/8 · `tenant-hardening` 14/14 · `permission-changes` 23/23 · `credit-term` 39/39 · 协议单测 107/107 · 鉴权门禁 4/4 |
