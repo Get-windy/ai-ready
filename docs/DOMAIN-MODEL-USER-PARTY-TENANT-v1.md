@@ -1589,7 +1589,7 @@ B2B 现实：大客户的采购常挂在**项目**下（工程、装修、集成
 |---|---|---|---|---|---|
 | **0** ✅ | 权限与租户隔离地基 | E-01 鉴权收口 · 模块 entitlement 门 · 租户 fail-closed · `sys_module_permission` | — | — | **已完成** |
 | **1** | **自然人侧收尾（R3）** | `shop_user`（已系统级）· **`shop_user_tenant`（表已建）** · `MallGuestAccess` · `tenant_shop_config.reg_audit_required` · `MallAdminController` 顾客页 | 登录**入店校验** · 注册**两分支**（新建系统顾客 / 复用并绑定，**须自证身份**）· 租户**同意/拒绝/默认同意** · 审核改挂关联表 | 无 | 低（表已就位） |
-| **2** | **快照规范（U2）**（横切） | `erp_purchase_order` 已有部分名称快照 | 快照字段清单**落成建表规范** + 统一快照写入工具；**新单据立即执行**，存量不回改 | 无 | 低，但**必须早做**（晚做要全表回填） |
+| **2** | **快照规范（U2）**（横切） | `erp_purchase_order` 已有部分名称快照 | ✅ **规范已定稿 = §11.6**（清单/列名/表形态/业务日期/两张存量清单/登记表/`tools/audit-snapshot-spec.cjs` 门禁）。**仍待**：统一快照写入工具（等**第一张新单据**落地时一并做 —— 现在没有消费方，先造工具就是过度设计）；**新单据立即执行**，存量不回改 | 无 | 低，但**必须早做**（晚做要全表回填） |
 | **3** | **往来单位升系统级（R2 拆两层 + R1 转正）** | `biz_party`(152) · `biz_party_contact`(72) · `shop_user_party_link`(壳) · `sys_user_tenant`(形状可抄) | `party`(unified_code 唯一) · `party_tenant`(按 direction) · `person_party` · `party_alias`/`party_change_log`/`party_relation`/`merge_request` | 阶段 2 | **🔴 最高**：动 ERP 大量读取路径 ⇒ 建议**并存期**（视图/双读） |
 | **4** | **开店与租户主体（R4）** | `TenantRegistrationController`（申请→审批→初始化）· `sys_tenant` | `tenant_owner`（一照一店 + `multi_store_exempt` + **法人授权留痕**） | 阶段 3 | 中；⚠️ 该接口**不在白名单**（缺陷表已登记） |
 | **5** | **单据四主体 + 角色** | 全部业务单据表 + 名称快照习惯 | `seller_party_id`/`buyer_party_id`/`person_id`/`acting_party_id` · `trade_party_role`（+ U4 项目维度预留） | 阶段 2·3 | 中（改动面广但机械） |
@@ -1611,6 +1611,8 @@ B2B 现实：大客户的采购常挂在**项目**下（工程、装修、集成
 ### 11.4 关键横切事项（不是某个阶段的事）
 
 1. **快照规范**（阶段 2）—— 一旦定，**所有新表**都按它建；这是唯一"早做省回填"的事。
+   ✅ **2026-09-22 已定稿**：见 **§11.6**（必快照清单 → 规范列名 / 表形态二选一 / 业务日期口径 /
+   存量两张清单 / 登记制 + 棘轮 / `tools/audit-snapshot-spec.cjs` 可执行检查）。
 2. **验签与幂等**（阶段 6）—— 跨租户投递的**安全底线**，必须在写第一个投递接口之前定。
 3. **可见性矩阵**（T1-3）—— 谁能在跨租户协作里看到什么，**应在阶段 6 之前定**，否则会边做边漏。
 4. **不变量**（贯穿）：已生效不可变（第三条原则）· 单方承诺不传导（第四条）· 平台不设默认（§3.4.4d1）· 违法即无效（第五条）。
@@ -1622,6 +1624,136 @@ B2B 现实：大客户的采购常挂在**项目**下（工程、装修、集成
 3. **阶段 3 + 5 应连做**：只做 3（主体升系统级）会让"单据上的主体字段"无处落；两者一起才闭环。
 4. **阶段 4 依赖 3**（R4 要指向 `party`）；**阶段 6 依赖 5**（跨租户关联要有主体字段）；**7/8 依赖 6**。
 5. **9/10/11 可并行或延后** —— 它们都不动地基。
+
+---
+
+### 11.6 单据快照规范（**阶段 2** · U2 的落地形态，2026-09-22 制定）
+
+> **一句话**：单据一旦**已生效**，它引用的**外部信息必须同时落一份"当时的副本"**。
+> 缺了它，历史无法复现、对账与举证全会输（U2 的"一票否决级"结论，与第三条通用原则同源）。
+> 它是**唯一"晚做就要全表回填"的事**，所以排在阶段 2、在动任何单据表之前先定。
+
+#### 11.6.1 与旧规「禁止冗余名称字段」的关系（**唯一判据**，必须写下来免得两条规则打架）
+
+| 旧规（2026-07-13 开发技术规范） | 新规（U2，2026-09-22） |
+|---|---|
+| 禁止冗余名称字段，只存 ID，名称靠 JOIN | 已生效单据**必须**存名称等外部信息的快照 |
+
+**两者不矛盾**，因为判据不同：
+
+> **判据 = 这个值会不会随时间变，且历史单据必须认"当时"的账？**
+> · **会变**（主体名称/税号/地址/联系人/价格/税率/等级/**协议版本**）⇒ **必须快照**；
+> · **不会变、或只用于当下展示**（如仓库 id、分类 id）⇒ **仍然只存 ID、JOIN 取**。
+
+⚠️ **快照是"列举式白名单"，不是"把主档搬过来"**：只冗余 §11.6.2 那几列，
+**白名单之外一律只存 ID**（否则"快照"就成了绕开 ≤25 列红线的借口，旧规的初衷会被架空）。
+
+#### 11.6.2 必快照清单（U2 (b) 推荐集 → **规范列名**，一律沿用既有惯例，不另造一套）
+
+| 语义 | **规范列名** | 来源主档 | 现状（2026-09-22 真库实测） |
+|---|---|---|---|
+| 主体名称 | `<role>_name`（`customer_name`/`supplier_name`/`seller_name`/`buyer_name`） | `biz_party.party_name` | ✅ 已普及：38 张含 `customer_id` 的表有 **32** 张有；29 张含 `supplier_id` 的有 **26** 张有 |
+| 主体编码 | `<role>_code` | `biz_party.party_code` | 🔶 部分（`erp_sale_outbound.customer_code` 有） |
+| **税号**（企业=统一社会信用代码，自然人=身份证号） | **`tax_no`**（沿用多数派 11 处，**不要**另叫 `_unified_code`） | `biz_party.unified_code` | 🔶 11 处已有；`erp_purchase_inbound` **缺** |
+| 客户/供应商等级 | `<role>_level` + `<role>_grade_code` + `<role>_grade_name` | `biz_party.party_level` / `CustomerGrade` | 🔶 仅销售侧（`sale_order`/`sale_outbound`）有 |
+| **对方档案**上的联系人 | `contact_name` / `contact_phone` / `contact_address` | `biz_party_contact` | 🔶 2 张伴生快照表为此形态 |
+| **本单收货**信息（≠ 对方档案的联系人，**必须分开**） | `receiver_name` / `receiver_phone` / `receiver_address` | 单据自身 | 🔶 `erp_sale_outbound` 有 `receiver_*`，但地址还叫 `shipping_address`（**历史别名，新表一律用 `receiver_address`**） |
+| 银行 | `bank_name` / `bank_account` | `biz_party` | ✅ 2 张伴生快照表有 |
+| **税率**（**时点属性**：开票当时是多少就是多少） | `tax_rate`（明细行粒度优先） | 商品/协议 | ❌ **两张主单据都缺**（只有 `tax_amount`/`total_amount_with_tax`，算不出当时税率） |
+| **协议版本号**（回答"当时按哪一版"） | `agreement_id` + `agreement_version_no` | 协议模块 | ❌ **全新**（㉛ 要求：只记"当时生效的那一版"，**不许记 `current_version_id`**） |
+| **业务发生日** | 域内既有语义名，见 §11.6.4 | 单据自身 | ✅ 基本都有 |
+
+#### 11.6.3 表形态：**两种，二选一，不许第三种**
+
+| 形态 | 何时用 | 依据 |
+|---|---|---|
+| **① 行内列**（默认） | 快照字段能放进主表（守"主表 ≤25 列"红线） | 现实里 38 张含 `customer_id` 的表，**32 张**已经这么做 ⇒ **规范的正名，而不是另起一套** |
+| **② 1:1 伴生表** `<bill>_partner_snapshot` | 快照字段多到会击穿 25 列红线时 | 仓里已有 **2 例**：`erp_sale_order_partner_snapshot` / `erp_purchase_order_partner_snapshot`（列：`*_name`/`*_code`/`contact_*`/`bank_*`/`tax_no`/`region`） |
+
+❌ **禁止第三种：拿一个 JSON 大字段兜底"几个字段的快照"**。
+`agreement_version.snapshot_json` 那种大字段是**"一整份文件"的整版快照**（它的语义就是"这一版协议长什么样"），
+与"单据上几个外部字段的时点副本"不是一回事，**不要混用**。
+
+#### 11.6.4 业务发生日（业务日期 ≠ 系统日期）
+
+- 单据**必须**有业务日期列；**列名沿用各域既有语义名**（`order_date`/`outbound_date`/`inbound_date`/
+  `invoice_date`/`payment_date`/`apply_date`…）—— **刻意不做全表改名**，那本身就是一次全表回填。
+- ⚠️ **业务日期 ≠ 凭证日期**：补录、跨期调整时两者不同，拿 `voucher_date` 当起算基准会把账算到错的月份
+  （协议账期已按此实现：`CreditTermResult#dueDateFrom` 只认业务日期）。
+- ⚠️ **同一张单上会有多个日期列，别认错**：`erp_sale_outbound` 上还有 `payment_date`/`reconciliation_date`，
+  它们是"收款/对账"日期，**不是**本单的业务发生日（本单是 `outbound_date`）。
+- **跨模块传递**（业财记账）统一用字段名 **`business_date`**（既有 `BusinessAccountingRequest.businessDate`）。
+
+#### 11.6.5 何时写、写完能不能改
+
+- **写**：单据**生效/过账那一刻**写一次，与单据状态变更**同一事务**（拿不到外部值就如实留空，**不许编**）。
+- **之后**：**只读**，随单据一起不可变（第三条通用原则）——**改主数据、改协议一律不回写历史单**。
+- 因此快照**不在更新接口里维护**：单据一旦生效，快照列的任何写入都是 bug。
+
+#### 11.6.6 存量处置：**不回改** + 两张清单（豁免表 / 存量缺口），都只许缩不许涨
+
+**（一）豁免表：不是"已生效单据"，故 R1/R2/R3 不适用**（`tools/audit-snapshot-spec.cjs` 的 `EXEMPT`）
+
+实测（2026-09-22）：全库含 `customer_id` 的 **38** 张里 32 张有 `customer_name`（84%）、
+含 `supplier_id` 的 **29** 张里 26 张有（90%）。**逐张看过缺的那几张，全部不是"已生效单据"**：
+
+| 表 | 是什么 | 结论 |
+|---|---|---|
+| `erp_balance_log` | 余额变动台账 | 台账，豁免 |
+| `erp_customer_product_price` | 客户商品价格档案 | 档案，豁免 |
+| `erp_price_memory` | 比价记忆（含 `order_no`/`order_date`） | 过程记录，豁免 |
+| `erp_group_buy_participant` | 拼团参与记录（子表） | 父单承载快照，豁免 |
+| `invoice_payment_record` | 发票×付款核销关联表 | 关联表，豁免 |
+| `mkt_presale_order` | 预售单↔商城单↔客户**关联**（真正单据是它指向的商城订单） | 关联表，豁免 |
+| `erp_supplier_performance` / `erp_supplier_points_record` | 供应商绩效/积分台账 | 台账，豁免 |
+| `erp_delivery_rating` / `erp_supplier_notification` | 评分记录 / 通知消息 | 非单据，豁免 |
+| `batch_number` / `batch_flow_record` | 批次主档 / 流转记录 | 主数据 + 台账，豁免 |
+
+⇒ **在 §11.6.8 登记的"单据主表"上，主体名称快照覆盖率是 100%**（不是"若干处违规"）。
+**真正缺的是 U2 里那几类"还没人做过的时点字段"**：**税率**、**协议版本号**、等级/税号在采购侧的缺失。
+
+**（二）存量已知缺口（棘轮基线，**只许缩不许涨**）**
+收敛掉一条就从这里删一条；**新增一条 = 放宽规范，必须先在本表写下理由**。
+
+| 表 | 规则 | 缺口 |
+|---|---|---|
+| `dms_ship_order` | R2 | 配送发货单：只有 `create_time`，无业务发生日（配送域遗留） |
+| `dms_settlement` | R2 | 配送结算单：同上 |
+| `erp_sale_order` | R3 | 有 `tax_amount` 无 `tax_rate`（税率是时点属性） |
+| `erp_purchase_order` | R3 | 同上 |
+| `erp_purchase_inbound` | R3 | 同上 |
+| `erp_purchase_return` | R3 | 同上 |
+| `finance_tax_declaration` | R3 | 纳税申报表：有税额无税率（申报口径，待定） |
+
+#### 11.6.7 可执行检查（规范不是纸面的）
+
+`tools/audit-snapshot-spec.cjs` —— 扫**真库** `information_schema`，输出
+① R1 主体名称快照覆盖（全库）+ 豁免清单、② R2 业务日期缺口、③ R3 税率缺口、④ R4 协议版本号覆盖，
+并以**退出码**守棘轮：**只有出现清单之外的新违规才 exit 1**（已知存量缺口不算）。
+
+**为什么用"登记制"而不是自动猜"哪些是单据"**：第一版按"有 `_no` 列"自动判定，真库上判出 **80+ 张** ——
+明细表 / 台账 / 缓存 / 日志全被卷进来（`wms_pick_detail`、`serial_status_cache`…）。
+**一条 80% 误报的检查比没有检查更糟**（会训练所有人忽略它）⇒ 受约束的表**由人显式登记**（§11.6.8）。
+
+⚠️ **写这类脚本必踩的坑**：`tools/sql.cjs` 有**硬上限 500 行且静默截断**。
+第一版想"一次把全库 表→列 拉回来"，14146 行被截成前 500 行 ⇒ 只看到 29 张表（真实 568 张）
+**而且不报错**，"覆盖率 100%"是假的。⇒ 查询必须收窄，且**命中上限要直接抛错**，绝不静默用截断结果下结论。
+
+#### 11.6.8 受本规范约束的**单据主表**（登记制，新增单据主表必须登记进来）
+
+判据（人判）：**这张表是"一笔业务发生后要留痕、要认当时账"的单据主表**。
+明细表 / 台账 / 关联表 / 档案 / 现势表**不登记**（登记了只会制造误报）。
+
+- **销售**：`erp_sale_order` · `erp_sale_outbound` · `erp_sale_return` · `erp_sale_return_doc` · `erp_sale_exchange` · `erp_sale_pre_order` · `erp_retail_order`
+- **采购**：`erp_purchase_order` · `erp_purchase_inbound` · `erp_purchase_return` · `erp_purchase_exchange`
+- **资金**：`erp_receipt` · `erp_payment` · `erp_pre_receipt` · `erp_pre_payment` · `erp_ar_ap_adjust` · `erp_write_off` · `erp_offset` · `erp_cash_transfer` · `erp_expense_doc`
+- **库存**：`erp_stock_in` · `erp_stock_out` · `erp_stock_transfer` · `erp_stock_damage` · `erp_stock_overflow` · `erp_stock_take` · `erp_stock_assemble` · `erp_stock_split`
+- **配送**：`dms_ship_order` · `dms_settlement`
+- **合同 / 报价**：`crm_contract` · `crm_quotation`
+
+⚠️ **协议（`agreement`）不在此登记表内**：它是**契约**不是单据 —— 它的"时点"是
+`effective_from/to` 的**有效期区间**（§13.7），它的快照是一整版
+`agreement_version.snapshot_json`（§11.6.3 的第三种形态），与"单据的业务发生日 + 字段快照"不是一回事。
 
 ---
 
@@ -2096,3 +2228,4 @@ agreement_fulfillment_mode 协议约定的**履约方式集合**（多行并存�
 | 2026-09-22 | v3.16 | **四条主干缺口裁定 + 三层结算口径**（用户 2026-09-22 逐条圈选）⇒ **新增 §7.7**（实施前必须照此定表）：**G13 → 结构化授权**（范围+限额+有效期+审批阈值，分两步：先金额后范围；`authority_basis` 由此可闭环）· **G12 → 从属表 `doc_party_role`（即阶段 5 已规划的 `trade_party_role`）为主 + 收货/开票两列冗余主表** · **G11 → 写进协议（`customer_info_exposure` 条款）为机制，A/B/C 为可选值，"明文"设硬底线（仅同集团/自营物流）** · **U3 → 选 A「各记各的 + 关联表」**（与 §4.3 推单同构、复用协议双签；**明确不做平台对账中心**）。**连带**：① **决策 ⑫ 收窄**（净额结算本批不做，只做对账）；② §7.6 U3 标记为已裁定；③ §8.2 登记「三层结算口径」新议题并解除签署授权那条的阻塞；④ **新增 §7.7 附：三层结算口径** —— 实测 `biz_party` 已有 `settlement_type` 等 7 列却无人消费，裁定按"是否跨租户"分层（跨租户走协议 / 现款现结；**租户内走档案** `biz_party.settlement_type`；都没有 ⇒ 现款现结），并指出 `PLATFORM_DEFAULT_CREDIT_DAYS = 30` 在任何一层都不成立 |
 | 2026-09-22 | v3.17 | **§13.3 补充口径 3 与 §7.7 附「三层结算口径」的实施完成**（本条只记"文档说的"已变成"仓库里真有的"，口径本身未变）。落地清单：① **迁移 `V11.492.0`** 给字段字典加 `SETTLEMENT_TYPE`（扁平平五项 `CASH_PREPAY`/`CASH_SPOT`/`CASH_ON_DELIVERY`/`CREDIT`/`ROLLING`，**非必填**——"没约定结算方式"是合法状态；`sort=55` 紧挨 `SETTLEMENT_CYCLE` 之后，界面上顺序即判定顺序）+ 五条自检（恰好一行 / 候选值恰好五项 / 消费方在白名单 / 非必填 / `setting_key` 无重号）；② 新增 `cn.aiedge.base.credit.SettlementType`（**协议侧与财务侧共用一套编码**，`requiresCreditDays()` 把"要不要填账期天数"写在枚举语义上，不散落在调用方的 if 里）；③ `CreditTermResult` 由**三态扩为四态**，新增 `NO_CREDIT_TERM`（本笔无账期 = **正常业务结论**）并带上具体是哪一种结算方式，`dueDateFrom` 对其返回**业务日**；④ `AgreementCreditTermProvider` 改为**两层判定**（先结算方式 → 再决定是否问天数），结算方式未约定 / 取值认不出一律 `NO_AGREEMENT`（绝不就此给双方记赊账）；⑤ `BusinessAccountingServiceImpl` 把**三层优先级链收敛到一处**（跨租户→协议 · 无协议→现款现结 · 租户内→`biz_party` 档案 · 都没有→现款现结），`UNDECLARED` 改为**抛业务异常拒单**；⑥ 新增 `PartySettlementProfile` + `PartySettlementProfileMapper`（手写 SQL 自己写 `tenant_id`/`deleted`——本仓实测手写 SQL 不套插件），把此前**零消费方**的 `biz_party.settlement_type`/`credit_days`/`payment_days` 接上；⑦ 采购/销售 `PLATFORM_DEFAULT_CREDIT_DAYS = 30` **移除**，回退到期日改为"业务日当天（现款现结）"；⑧ **拒单必须真的拒得住**：`createReceivableFromBusiness` 的调用方是 catch-and-continue（"记账失败不阻断单据"），故新增 `precheckReceivableDueDate`/`precheckPayableDueDate` 预检接口，并在**销售出库 `complete` / 采购入库 `confirmWarehouse` 的记账 try/catch 之外、状态变更之前**调用 —— 否则拒单理由会被那段 catch 吞掉，等于没拒；⑨ 验收口径同步重写：`verify-credit-term.cjs` 第 ⑤ 组**拆成 ⑤-A（未约定结算方式 ⇒ 单据照开）/ ⑤-B（账期结算缺天数 ⇒ 提交被拒）**，并新增「协议已到期仍可提交」「现金 / 滚结不报未约定账期」两组断言；`CreditTermDueDateWiringTest` / `AgreementCreditTermProviderTest` / `SalesAccountingServiceTest` / `PurchaseAccountingServiceTest` 同步改旧断言 |
 | 2026-09-22 | v3.17⚠️ | **本条的已知取舍与未做项（不许当成已完成）**：① **货到付款的到期日仍取业务日** —— §13.3 第 2 层表格写明「货到付款」应为**到货日**，但记账时点这条链路拿不到到货日；具体是哪一种现款已随 `CreditTermResult#getSettlementType()` 带出，待链路提供到货日后在 `dueDateFrom` 一处收紧，**不需要**改调用方；② **档案口径只接了 `settlement_type` + 天数**，`fixed_payment_day` / `fixed_credit_day`（固定账期日、`payment_term_type=FIXED`）**未接** —— 缺明确口径，不臆造"每月几号"的算法；③ **租户内交易档案写了"非现结"却没填有效天数时不拒单**，落回现款现结（档案是租户自己的政策，且 `settlement_days` 默认 0，按缺省从严会大面积误伤）；④ **§8.2 里「平台合规抽查读权限」仍未做**（协议正本的抽查读仍复用租户级 `agreement:view`）|
+| 2026-09-22 | v3.18 | **新增 §11.6「单据快照规范」（阶段 2 · U2 定稿）** —— 这是唯一"晚做就要全表回填"的规范，故排在动任何单据表之前。要点：① **与旧规「禁止冗余名称字段」的关系给了唯一判据**（"这个值会不会随时间变、且历史单据必须认当时的账"），并明确**快照是列举式白名单**，不是"把主档搬过来"（否则"快照"会变成绕开 ≤25 列红线的借口）；② **必快照清单 → 规范列名**一律**沿用既有惯例**（`<role>_name`/`<role>_code`/**`tax_no`**/`<role>_level`+`_grade_code`/`_grade_name`/`contact_*`/**`receiver_*`**/`bank_*`/**`tax_rate`**/**`agreement_id`+`agreement_version_no`**），并明确 **"对方档案的联系人"与"本单收货人"必须分开**；③ **表形态两种二选一**（默认行内列；击穿 25 列红线时拆 `<bill>_partner_snapshot` 1:1 伴生表，仓里已有 2 例），**禁止拿 JSON 大字段兜"几个字段的快照"**；④ **业务日期的口径**：列名沿用域内语义名（**刻意不做全表改名**）、业务日期 ≠ 凭证日期、同一张单上多个日期列别认错（`erp_sale_outbound.payment_date` 不是它的业务日）、跨模块传递统一用 `business_date`；⑤ **何时写**：生效/过账那一刻写一次、同事务、之后**只读**（改主数据/改协议一律不回写历史单）；⑥ **存量不回改 + 两张只许缩不许涨的清单**（豁免表 13 项 / 存量已知缺口 7 项）；⑦ **登记制**（§11.6.8 登记 32 张单据主表；**`agreement` 刻意不在内**：协议是契约，它的时点是有效期区间、快照是整版 `snapshot_json`）；⑧ **可执行检查** `tools/audit-snapshot-spec.cjs`（R1~R4 + 棘轮退出码）。⚠️ **该脚本第一版的两处自我纠错**留痕：**按"有 `_no` 列"自动判定单据表 ⇒ 真库判出 80+ 张全是明细/台账/缓存，误报率极高**（一条 80% 误报的检查比没有检查更糟）⇒ 改登记制；**`tools/sql.cjs` 有 500 行硬上限且静默截断** ⇒ 第一版"一次拉全库 表→列"的 14146 行被截成 500 行，只看到 29 张表（真实 568）却报"覆盖率 100%"，现要求查询收窄且命中上限直接抛错。**未做**：未给任何表**新增**快照列（按裁定存量不回改，新表立即执行）|
