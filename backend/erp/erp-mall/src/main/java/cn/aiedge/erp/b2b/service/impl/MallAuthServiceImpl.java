@@ -286,6 +286,12 @@ public class MallAuthServiceImpl implements MallAuthService {
             // 未知状态一律**不放行**（fail-closed）：宁可让顾客问一句，也不放一个状态不明的人进店
             throw BusinessException.badRequest("您在本店的注册状态异常（" + status + "），请联系店铺管理员");
         }
+        // 审核通过之后还有一道：**本店**有没有把他停用。
+        // ⚠️ 这是**逐租户**的开关（`shop_user_tenant.enabled`），不是 `shop_user.status`：
+        //    后者是平台级封号，会让他在所有店都进不去。租户管理员点"停用"只该影响本店。
+        if (link.getEnabled() != null && ShopUserTenant.ENABLED_NO == link.getEnabled()) {
+            throw BusinessException.badRequest("您在本店的账号已被停用，请联系店铺管理员");
+        }
         log.debug("入店校验通过: shopUserId={}, 本店租户={}", link.getShopUserId(), shop);
     }
 

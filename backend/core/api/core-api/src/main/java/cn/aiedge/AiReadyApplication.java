@@ -132,7 +132,19 @@ import io.swagger.v3.oas.annotations.info.License;
     "cn.aiedge.erp.fixedasset.model",
     "cn.aiedge.erp.budget.model"
 })
-@MapperScan(value = {"cn.aiedge.**.mapper", "cn.aiedge.**.dao", "cn.aiedge.common.serial.mapper", "cn.aiedge.erp.supplier.repository"},
+@MapperScan(value = {"cn.aiedge.**.mapper", "cn.aiedge.**.dao", "cn.aiedge.common.serial.mapper",
+        "cn.aiedge.erp.supplier.repository",
+        // ⚠️ 下面这个包**不以 `.mapper`/`.dao` 结尾**，通配规则扫不到它。
+        // 而本仓用了显式 `@MapperScan` ⇒ MyBatis 的"自动扫 @Mapper 接口"会**退让**
+        // （AutoConfiguredMapperScannerRegistrar 在已有 MapperScan 时不生效），
+        // 所以接口上写了 `@Mapper` 也**不会**被注册成 Bean ⇒ 依赖它的 @Component 起不来
+        // ⇒ **整个应用启动失败**（实测 2026-09-23：`NoSuchBeanDefinitionException:
+        // ReplenishmentProductMapper`，描述见 APPLICATION FAILED TO START）。
+        //
+        // 判据（放之四海）：**mapper 接口必须住在以 `mapper`/`dao` 命名的包里，
+        // 否则必须在此显式登记**。`ComponentScanCoverageTest` 目前只校验**控制器**包，
+        // 不校验 mapper 包 —— 这条就是那个门禁的盲区（待补）。
+        "cn.aiedge.erp.purchase.replenishment"},
             nameGenerator = FullyQualifiedBeanNameGenerator.class)
 @OpenAPIDefinition(
     info = @Info(

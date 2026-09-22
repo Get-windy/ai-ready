@@ -8,14 +8,21 @@
  *     · 入口失守：任何一个系统顾客能登进**任何一家店**（跨租户）；
  *     · 后台失守：租户侧顾客页按 `shop_user.tenant_id` 过滤 ⇒ **永远空列表**，审核永远 404。
  *
- * 【本脚本验的七件事】
+ * 【本脚本验的十件事】
  *   ① 新顾客在某店注册 ⇒ **建系统顾客（tenant_id=0）+ 本店关联**（需审核店 ⇒ 待审核）
  *   ② 待审核时登录 ⇒ 拒，且文案是「等待店铺审核」（不是含糊的"登录失败"）
  *   ③ **复用别人的用户名 + 错密码**在本店注册 ⇒ 拒（自证失败 = 防冒名绑定）
  *   ④ **复用 + 正确密码** ⇒ 通过，且**不新建系统顾客**（只补一条本店关联，source=system_reuse）
  *   ⑤ 免审核店（`reg_audit_required=0`）⇒ 关联直接「正常」；此时登录 ⇒ 放行
  *   ⑥ **入店校验**：在 A 店注册过、没在 B 店注册的顾客登录 B 店 ⇒ 拒「还没有在本店注册」
- *   ⑦ 不带店铺标识 ⇒ 拒（绝不放行成"看全表"或"猜一家店"）
+ *   ⑦ 租户审核通过（改**关联表** status）⇒ 立刻能进
+ *   ⑧ 不带店铺标识 ⇒ 拒（绝不放行成"看全表"或"猜一家店"）
+ *   ⑨ **停用是逐租户的**（`shop_user_tenant.enabled`）：在 A 店停用 ⇒ A 店进不去、
+ *      **B 店照常能进**；重新启用 ⇒ 立刻又能进（反向对照）
+ *
+ * 【⑨ 存在的理由】"停用"原写在 `shop_user.status`（系统级）上 ⇒ 租户点一次停用，
+ *   该顾客在**所有店**都进不去（A 店的运营动作关掉了 B 店的门）。
+ *   ⑨ 就是这条下沉的**两向证据**：「影响本店」与「不影响他店」都必须验。
  *
  * 【为什么必须真机】这条链路横跨"白名单端点（无登录态）→ 会话租户 → 租户拦截器"，
  *   单测只能覆盖纯判定（见 `MallAuthServiceImplTest`），装配部分只有在真进程上开一次门才算数。
@@ -215,8 +222,49 @@ const linkOf = (username, shop) => scalar(`SELECT st.status FROM shop_user_tenan
     })
     ok('审核通过后登录 A 店 ⇒ 放行（HTTP 200）', r7.status === 200, `status=${r7.status} ${msgOf(r7)}`)
 
-    // ══ ⑧ 不带店铺标识 ⇒ 拒 ══
-    section('⑧ 不带店铺标识（无 X-Tenant-Id）⇒ 拒（绝不放行成"看全表"或"猜一家店"）')
+    // ══ ⑨ 停用是**逐租户**的：A 店停用不影响他在 B 店 ══
+    section('⑨ 本店停用只影响本店（`shop_user_tenant.enabled`），不影响他在别家店')
+    const rRegB = await req('POST', '/v1/mall/auth/register', {
+      shop: SHOP_B, body: { username: USER_REUSE, password: PASSWORD },
+    })
+    ok('先在 B 店也注册（夹具：该顾客此时在 A/B 两店都正常）', rRegB.status === 200,
+      `status=${rRegB.status} ${msgOf(rRegB)}`)
+    const reuseLoginB = await req('POST', '/v1/mall/auth/login', {
+      shop: SHOP_B, body: { username: USER_REUSE, password: PASSWORD },
+    })
+    ok('B 店登录基线 ⇒ 放行', reuseLoginB.status === 200, `status=${reuseLoginB.status} ${msgOf(reuseLoginB)}`)
+
+    sql(`UPDATE shop_user_tenant SET enabled = 0
+      WHERE shop_user_id = (SELECT id FROM shop_user WHERE username='${USER_REUSE}')
+        AND tenant_id = ${SHOP_A}`)
+    ok('已把他在 **A 店**停用（enabled=0），B 店未动',
+      scalar(`SELECT st.status || '/' || st.enabled FROM shop_user_tenant st
+        JOIN shop_user u ON u.id=st.shop_user_id
+        WHERE u.username='${USER_REUSE}' AND st.tenant_id=${SHOP_A}`) === '1/0')
+
+    const rA9 = await req('POST', '/v1/mall/auth/login', {
+      shop: SHOP_A, body: { username: USER_REUSE, password: PASSWORD },
+    })
+    ok('A 店登录 ⇒ 被拒（已停用）', rA9.status !== 200, `status=${rA9.status}`)
+    ok('文案是「已被停用」而不是"没注册/待审核"', /已被停用/.test(msgOf(rA9)), `message=${msgOf(rA9)}`)
+
+    const rB9 = await req('POST', '/v1/mall/auth/login', {
+      shop: SHOP_B, body: { username: USER_REUSE, password: PASSWORD },
+    })
+    ok('**B 店登录仍放行** —— 这就是"停用下沉到关联表"的意义（A 店的动作不该关掉 B 店的门）',
+      rB9.status === 200, `status=${rB9.status} ${msgOf(rB9)}`)
+
+    sql(`UPDATE shop_user_tenant SET enabled = 1
+      WHERE shop_user_id = (SELECT id FROM shop_user WHERE username='${USER_REUSE}')
+        AND tenant_id = ${SHOP_A}`)
+    const rA9b = await req('POST', '/v1/mall/auth/login', {
+      shop: SHOP_A, body: { username: USER_REUSE, password: PASSWORD },
+    })
+    ok('把 A 店重新启用 ⇒ 立刻又能进（反向对照，证明拒的不是"账号坏了"）',
+      rA9b.status === 200, `status=${rA9b.status} ${msgOf(rA9b)}`)
+
+    // ══ ⑩ 不带店铺标识 ⇒ 拒 ══
+    section('⑩ 不带店铺标识（无 X-Tenant-Id）⇒ 拒（绝不放行成"看全表"或"猜一家店"）')
     const r8 = await req('POST', '/v1/mall/auth/login', {
       body: { username: USER_SELF, password: PASSWORD },
     })

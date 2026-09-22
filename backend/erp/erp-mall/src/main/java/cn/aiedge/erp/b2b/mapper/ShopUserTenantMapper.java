@@ -24,10 +24,19 @@ public interface ShopUserTenantMapper extends BaseMapper<ShopUserTenant> {
             + "AND tenant_id = #{tenantId} AND deleted = 0 LIMIT 1")
     ShopUserTenant selectLink(@Param("shopUserId") Long shopUserId, @Param("tenantId") Long tenantId);
 
-    /** 某租户下全部关联（后台顾客管理；按状态可选） */
+    /**
+     * 某租户下全部关联（后台顾客管理）。
+     *
+     * @param tenantId    本店租户
+     * @param status      **准入审核**状态过滤（0待审/1正常/2已拒绝/3已解除），可为 null 表示不过滤
+     * @param enabled     **本店启用**过滤（1启用/0停用），可为 null 表示不过滤；
+     *                    ⚠️ 它是与 status **正交**的维度：停用一个已通过的顾客，status 仍是 1
+     */
     @Select("<script>SELECT * FROM shop_user_tenant WHERE tenant_id = #{tenantId} AND deleted = 0 "
             + "<if test='status != null'> AND status = #{status} </if> "
+            + "<if test='enabled != null'> AND enabled = #{enabled} </if> "
             + "ORDER BY create_time DESC</script>")
     List<ShopUserTenant> selectByTenant(@Param("tenantId") Long tenantId,
-                                        @Param("status") Integer status);
+                                        @Param("status") Integer status,
+                                        @Param("enabled") Integer enabled);
 }

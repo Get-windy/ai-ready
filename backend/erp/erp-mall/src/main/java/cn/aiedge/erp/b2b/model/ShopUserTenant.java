@@ -49,6 +49,11 @@ public class ShopUserTenant {
     /** 来源：租户后台添加 */
     public static final String SOURCE_TENANT_ADD = "tenant_add";
 
+    /** 本店启用 */
+    public static final int ENABLED_YES = 1;
+    /** 本店停用（本店管理员操作，**只影响本店**） */
+    public static final int ENABLED_NO = 0;
+
     @TableId(type = IdType.ASSIGN_ID)
     private Long id;
 
@@ -58,8 +63,19 @@ public class ShopUserTenant {
     /** 租户 id —— "这个顾客属于哪家店"就是本列 */
     private Long tenantId;
 
-    /** 0=待审核 1=正常 2=已拒绝 3=已解除 */
+    /** **准入审核**：0=待审核 1=正常 2=已拒绝 3=已解除 */
     private Integer status;
+
+    /**
+     * **本店启用状态**：1=启用 0=停用（本店管理员操作，**只影响本店**）。
+     *
+     * <p>与 {@link #status} 是**两个正交维度**：停用一个已通过的顾客，
+     * 他的审核记录仍然是"已通过"。</p>
+     *
+     * <p>⚠️ 别和 {@code shop_user.status} 混：那是**平台级**账号开关（封号），
+     * 影响该顾客在**所有店**；本列只影响本店。</p>
+     */
+    private Integer enabled;
 
     /** 来源：self_register / system_reuse / tenant_add */
     private String source;

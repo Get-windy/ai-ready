@@ -216,25 +216,26 @@ public class MallAdminServiceImpl implements MallAdminService {
         // ⚠️ 不能再按 shop_user.tenant_id 过滤：顾客已升为**系统级身份**、该列恒 0，
         //    那样过滤的结果是**永远空列表**（本次修掉的正是这个）。
         //    审核状态口径：前端 0待审/1通过/2驳回，与关联表 status 的取值一一对应，直接透传。
-        List<ShopUserTenant> links = shopUserTenantMapper.selectByTenant(tenantId, auditStatus);
+        //
+        // ★ 启用/停用也**逐租户**（`shop_user_tenant.enabled`，本批新增）：
+        //   前端"停用"传的 status=0/1 与它一一对应 ⇒ 列表过滤与回填都走关联表，
+        //   否则 A 店停用的顾客在 B 店的列表里也会显示成停用（而他在 B 店其实能买）。
+        //   显示停用（买家账号页勾选框）：false = 只看启用账号（强制 enabled=1，忽略 status 参数）；
+        //   true / null = 不过滤停用，此时仍可用 status 参数显式指定
+        Integer enabledFilter = Boolean.FALSE.equals(showDisabled) ? ShopUserTenant.ENABLED_YES : status;
+        List<ShopUserTenant> links = shopUserTenantMapper.selectByTenant(tenantId, auditStatus, enabledFilter);
         if (links.isEmpty()) {
             return new Page<>(pageNum, pageSize, 0);
         }
         Map<Long, Integer> shopStatusOf = new LinkedHashMap<>();
+        Map<Long, Integer> shopEnabledOf = new LinkedHashMap<>();
         for (ShopUserTenant l : links) {
             shopStatusOf.putIfAbsent(l.getShopUserId(), l.getStatus());
+            shopEnabledOf.putIfAbsent(l.getShopUserId(), l.getEnabled());
         }
 
         LambdaQueryWrapper<ShopUser> wrapper = new LambdaQueryWrapper<>();
         wrapper.in(ShopUser::getId, shopStatusOf.keySet());
-
-        // 显示停用（买家账号页勾选框）：false = 只看启用账号（强制 status=1，忽略 status 参数）；
-        // true / null = 不过滤停用，此时仍可用 status 参数显式指定
-        if (Boolean.FALSE.equals(showDisabled)) {
-            wrapper.eq(ShopUser::getStatus, 1);
-        } else if (status != null) {
-            wrapper.eq(ShopUser::getStatus, status);
-        }
         if (keyword != null && !keyword.isEmpty()) {
             wrapper.and(w -> w.like(ShopUser::getUsername, keyword)
                     .or().like(ShopUser::getNickname, keyword)
@@ -264,13 +265,18 @@ public class MallAdminServiceImpl implements MallAdminService {
         wrapper.orderByDesc(ShopUser::getCreateTime);
         Page<ShopUser> page = shopUserMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);
 
-        // 回填「**本店**的审核状态」：shop_user.audit_status 已降级为历史列（顾客是系统级的，
-        // 而审核是逐租户的），页面上的审核状态只能来自关联表 —— 否则同一个顾客
-        // 在 A 店的审核结果会被 B 店的页面读到。
+        // 回填「**本店**视角"的两个状态：
+        //   · auditStatus ← 关联表 status（准入审核）；shop_user.audit_status 已降级为历史列；
+        //   · status      ← 关联表 enabled（本店启用/停用）；shop_user.status 是**平台级**开关，
+        //     直接回显它会把"A 店停用"显示成"B 店也停用"（前端就是读这个字段渲染开关的）。
         for (ShopUser u : page.getRecords()) {
             Integer shopStatus = shopStatusOf.get(u.getId());
             if (shopStatus != null) {
                 u.setAuditStatus(shopStatus);
+            }
+            Integer shopEnabled = shopEnabledOf.get(u.getId());
+            if (shopEnabled != null) {
+                u.setStatus(shopEnabled);
             }
         }
         return page;
@@ -514,13 +520,16 @@ public class MallAdminServiceImpl implements MallAdminService {
     public void toggleUserStatus(Long userId, Integer status) {
         // 先确认"他是本店顾客"再看账号：否则任一租户管理员都能停用别家的顾客
         // （旧代码按 shop_user.tenant_id 判，那一列现在恒 0，守卫已失效）
-        requireShopLink(userId);
-        ShopUser user = shopUserMapper.selectById(userId);
-        if (user == null) {
-            throw BusinessException.notFound("用户不存在");
-        }
-        user.setStatus(status);
-        shopUserMapper.updateById(user);
+        //
+        // ⚠️ 写的是**关联表**的 enabled，不是 shop_user.status：
+        //    后者是平台级账号开关，租户管理员点一次"停用"会让该顾客**在所有店**都进不去
+        //    （A 店的运营动作影响 B 店）。本批把它下沉为逐租户。
+        ShopUserTenant link = requireShopLink(userId);
+        link.setEnabled(ShopUserTenant.ENABLED_YES == status ? ShopUserTenant.ENABLED_YES
+                : ShopUserTenant.ENABLED_NO);
+        shopUserTenantMapper.updateById(link);
+        log.info("本店顾客启用状态变更: shopUserId={}, 本店租户={}, enabled={}",
+                userId, getCurrentTenantId(), link.getEnabled());
     }
 
     // ==================== 轮播图管理 ====================

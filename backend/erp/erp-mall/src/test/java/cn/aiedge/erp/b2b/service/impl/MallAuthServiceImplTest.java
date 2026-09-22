@@ -95,6 +95,33 @@ class MallAuthServiceImplTest {
                 () -> service.assertShopEntryAllowed(link(ShopUserTenant.STATUS_ACTIVE, null), SHOP));
     }
 
+    // ══════════════════════ 停用是**第二个维度**（审核通过 ≠ 一定放行） ══════════════════════
+
+    @Test
+    @DisplayName("审核通过但**本店已停用** ⇒ 拒（两个维度正交：停用不改审核记录）")
+    void activeButDisabledIsRejected() {
+        ShopUserTenant disabled = link(ShopUserTenant.STATUS_ACTIVE, null);
+        disabled.setEnabled(ShopUserTenant.ENABLED_NO);
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> service.assertShopEntryAllowed(disabled, SHOP));
+        assertTrue(ex.getMessage().contains("已被停用"), ex.getMessage());
+        assertEquals(ShopUserTenant.STATUS_ACTIVE, disabled.getStatus(),
+                "停用**不该**改动审核状态（status 仍是「已通过」）");
+    }
+
+    @Test
+    @DisplayName("本店启用 ⇒ 放行（enabled=1 与缺值都按启用处理）")
+    void enabledYesIsAllowed() {
+        ShopUserTenant on = link(ShopUserTenant.STATUS_ACTIVE, null);
+        on.setEnabled(ShopUserTenant.ENABLED_YES);
+        assertDoesNotThrow(() -> service.assertShopEntryAllowed(on, SHOP));
+
+        ShopUserTenant absent = link(ShopUserTenant.STATUS_ACTIVE, null);
+        absent.setEnabled(null);   // 理论上不会出现（列 NOT NULL），但缺值按启用、绝不按停用
+        assertDoesNotThrow(() -> service.assertShopEntryAllowed(absent, SHOP));
+    }
+
     @Test
     @DisplayName("状态为 null / 未知值 ⇒ **不放行**（fail-closed，宁可让顾客问一句）")
     void unknownStatusIsRejected() {
