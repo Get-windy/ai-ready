@@ -22,6 +22,7 @@ import java.io.InputStream;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 文件上传控制器
@@ -41,6 +42,7 @@ public class FileStorageController {
     private final FileValidator fileValidator;
     private final FilePreviewService filePreviewService;
 
+    @SaCheckPermission("system:storage:create")
     @PostMapping("/upload")
     @Operation(summary = "上传文件")
     public ResponseEntity<StorageFile> upload(
@@ -69,6 +71,7 @@ public class FileStorageController {
         }
     }
 
+    @SaCheckPermission("system:storage:export")
     @GetMapping("/download/{fileId}")
     @Operation(summary = "下载文件")
     public ResponseEntity<Resource> download(
@@ -92,6 +95,7 @@ public class FileStorageController {
                 .body(resource);
     }
 
+    @SaCheckPermission("system:storage:detail")
     @GetMapping("/info/{fileId}")
     @Operation(summary = "获取文件信息")
     public ResponseEntity<StorageFile> getFileInfo(
@@ -104,6 +108,7 @@ public class FileStorageController {
         return ResponseEntity.ok(fileInfo);
     }
 
+    @SaCheckPermission("system:storage:detail")
     @GetMapping("/preview/{fileId}")
     @Operation(summary = "获取文件预览信息")
     public ResponseEntity<FilePreviewService.PreviewInfo> getPreview(
@@ -118,6 +123,7 @@ public class FileStorageController {
         return ResponseEntity.ok(previewInfo);
     }
 
+    @SaCheckPermission("system:storage:delete")
     @DeleteMapping("/{fileId}")
     @Operation(summary = "删除文件")
     public ResponseEntity<Void> delete(
@@ -130,6 +136,7 @@ public class FileStorageController {
         return ResponseEntity.notFound().build();
     }
 
+    @SaCheckPermission("system:storage:delete")
     @DeleteMapping("/batch")
     @Operation(summary = "批量删除文件")
     public ResponseEntity<Integer> deleteBatch(
@@ -139,6 +146,7 @@ public class FileStorageController {
         return ResponseEntity.ok(count);
     }
 
+    @SaCheckPermission("system:storage:detail")
     @GetMapping("/url/{fileId}")
     @Operation(summary = "获取文件访问URL")
     public ResponseEntity<String> getAccessUrl(
@@ -151,6 +159,7 @@ public class FileStorageController {
         return ResponseEntity.ok(url);
     }
 
+    @SaCheckPermission("system:storage:detail")
     @GetMapping("/presigned-url/{fileId}")
     @Operation(summary = "获取临时访问URL")
     public ResponseEntity<String> getPresignedUrl(

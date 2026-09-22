@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 车辆补能（加油 / 充电 / 加气 / 换电）控制器
@@ -45,24 +46,28 @@ public class VehicleEnergyLogController {
     private final VehicleEnergyCardService energyCardService;
 
     @Operation(summary = "分页查询补能流水")
+    @SaCheckPermission("dms:vehicle-energy:list")
     @GetMapping("/page")
     public ApiResponse<IPage<EnergyLogVO>> page(EnergyLogQuery query) {
         return ApiResponse.ok(energyLogService.page(query));
     }
 
     @Operation(summary = "补能记录详情")
+    @SaCheckPermission("dms:vehicle-energy:detail")
     @GetMapping("/{id}")
     public ApiResponse<EnergyLogVO> detail(@Parameter(description = "补能记录ID") @PathVariable Long id) {
         return ApiResponse.ok(energyLogService.detail(id));
     }
 
     @Operation(summary = "新增补能记录（自动算区间里程/每公里成本/异常标记）")
+    @SaCheckPermission("dms:vehicle-energy:create")
     @PostMapping
     public ApiResponse<EnergyLogVO> create(@Valid @RequestBody EnergyLogCreateDTO dto) {
         return ApiResponse.ok("新增成功", energyLogService.create(dto));
     }
 
     @Operation(summary = "修改补能记录")
+    @SaCheckPermission("dms:vehicle-energy:update")
     @PutMapping("/{id}")
     public ApiResponse<EnergyLogVO> update(@Parameter(description = "补能记录ID") @PathVariable Long id,
                                            @Valid @RequestBody EnergyLogCreateDTO dto) {
@@ -70,6 +75,7 @@ public class VehicleEnergyLogController {
     }
 
     @Operation(summary = "删除补能记录")
+    @SaCheckPermission("dms:vehicle-energy:delete")
     @DeleteMapping("/{id}")
     public ApiResponse<Void> delete(@Parameter(description = "补能记录ID") @PathVariable Long id) {
         energyLogService.delete(id);
@@ -77,12 +83,14 @@ public class VehicleEnergyLogController {
     }
 
     @Operation(summary = "批量删除补能记录")
+    @SaCheckPermission("dms:vehicle-energy:update")
     @PostMapping("/batch-delete")
     public ApiResponse<Integer> batchDelete(@RequestBody List<Long> ids) {
         return ApiResponse.ok("删除成功", energyLogService.batchDelete(ids));
     }
 
     @Operation(summary = "能耗报表（汇总 + 油电对比 + 按主体/能源类型分组）")
+    @SaCheckPermission("dms:vehicle-energy:view")
     @GetMapping("/stats")
     public ApiResponse<EnergyStatsVO> stats(EnergyLogQuery query) {
         return ApiResponse.ok(energyLogService.stats(query));
@@ -91,30 +99,35 @@ public class VehicleEnergyLogController {
     // ==================== 补能卡 / 套餐（一卡一车一人） ====================
 
     @Operation(summary = "分页查询补能卡/套餐")
+    @SaCheckPermission("dms:vehicle-energy:list")
     @GetMapping("/card/page")
     public ApiResponse<IPage<EnergyCardVO>> cardPage(EnergyCardQuery query) {
         return ApiResponse.ok(energyCardService.page(query));
     }
 
     @Operation(summary = "补能卡详情")
+    @SaCheckPermission("dms:vehicle-energy:detail")
     @GetMapping("/card/{id}")
     public ApiResponse<EnergyCardVO> cardDetail(@Parameter(description = "补能卡ID") @PathVariable Long id) {
         return ApiResponse.ok(energyCardService.detail(id));
     }
 
     @Operation(summary = "启用补能卡下拉（补能录入选卡）")
+    @SaCheckPermission("dms:vehicle-energy:list")
     @GetMapping("/card/options")
     public ApiResponse<List<EnergyCardVO>> cardOptions() {
         return ApiResponse.ok(energyCardService.options());
     }
 
     @Operation(summary = "新增补能卡/套餐（一卡一车一人）")
+    @SaCheckPermission("dms:vehicle-energy:update")
     @PostMapping("/card")
     public ApiResponse<EnergyCardVO> cardCreate(@Valid @RequestBody EnergyCardCreateDTO dto) {
         return ApiResponse.ok("新增成功", energyCardService.create(dto));
     }
 
     @Operation(summary = "修改补能卡/套餐")
+    @SaCheckPermission("dms:vehicle-energy:update")
     @PutMapping("/card/{id}")
     public ApiResponse<EnergyCardVO> cardUpdate(@Parameter(description = "补能卡ID") @PathVariable Long id,
                                                 @Valid @RequestBody EnergyCardCreateDTO dto) {
@@ -122,6 +135,7 @@ public class VehicleEnergyLogController {
     }
 
     @Operation(summary = "删除补能卡/套餐")
+    @SaCheckPermission("dms:vehicle-energy:delete")
     @DeleteMapping("/card/{id}")
     public ApiResponse<Void> cardDelete(@Parameter(description = "补能卡ID") @PathVariable Long id) {
         energyCardService.delete(id);
@@ -129,6 +143,7 @@ public class VehicleEnergyLogController {
     }
 
     @Operation(summary = "启停补能卡")
+    @SaCheckPermission("dms:vehicle-energy:status")
     @PutMapping("/card/{id}/status")
     public ApiResponse<Void> cardStatus(@Parameter(description = "补能卡ID") @PathVariable Long id,
                                         @RequestParam Integer status) {
@@ -137,6 +152,7 @@ public class VehicleEnergyLogController {
     }
 
     @Operation(summary = "导出补能流水（真实 xlsx）")
+    @SaCheckPermission("dms:vehicle-energy:export")
     @GetMapping("/export")
     public void export(EnergyLogQuery query, HttpServletResponse response) throws IOException {
         energyLogService.export(query, response);

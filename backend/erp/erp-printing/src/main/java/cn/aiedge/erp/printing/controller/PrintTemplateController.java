@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Tag(name = "打印模板管理", description = "打印模板的增删改查、预览、复制等操作")
 @RestController
@@ -22,6 +23,7 @@ public class PrintTemplateController {
     private final PrintTemplateService templateService;
 
     @Operation(summary = "创建打印模板")
+    @SaCheckPermission("print:template:create")
     @PostMapping
     public ResponseEntity<Map<String, Object>> createTemplate(@RequestBody PrintTemplate template) {
         PrintTemplate created = templateService.createTemplate(template);
@@ -29,6 +31,7 @@ public class PrintTemplateController {
     }
 
     @Operation(summary = "更新打印模板")
+    @SaCheckPermission("print:template:update")
     @PutMapping("/{id}")
     public ResponseEntity<Map<String, Object>> updateTemplate(@PathVariable Long id, @RequestBody PrintTemplate template) {
         PrintTemplate updated = templateService.updateTemplate(id, template);
@@ -36,6 +39,7 @@ public class PrintTemplateController {
     }
 
     @Operation(summary = "获取模板详情")
+    @SaCheckPermission("print:template:detail")
     @GetMapping("/{id}")
     public ResponseEntity<Map<String, Object>> getTemplate(@PathVariable Long id) {
         PrintTemplate template = templateService.getTemplateById(id);
@@ -43,6 +47,7 @@ public class PrintTemplateController {
     }
 
     @Operation(summary = "模板列表查询")
+    @SaCheckPermission("print:template:list")
     @GetMapping
     public ResponseEntity<Map<String, Object>> listTemplates(
             @RequestParam(defaultValue = "1") Integer page,
@@ -59,6 +64,7 @@ public class PrintTemplateController {
     }
 
     @Operation(summary = "删除打印模板")
+    @SaCheckPermission("print:template:delete")
     @DeleteMapping("/{id}")
     public ResponseEntity<Map<String, Object>> deleteTemplate(@PathVariable Long id) {
         templateService.deleteTemplate(id);
@@ -66,6 +72,7 @@ public class PrintTemplateController {
     }
 
     @Operation(summary = "复制打印模板")
+    @SaCheckPermission("print:template:copy")
     @PostMapping("/{id}/copy")
     public ResponseEntity<Map<String, Object>> copyTemplate(
             @PathVariable Long id,
@@ -75,6 +82,7 @@ public class PrintTemplateController {
     }
 
     @Operation(summary = "预览打印模板")
+    @SaCheckPermission("print:template:view")
     @PostMapping("/{id}/preview")
     public ResponseEntity<Map<String, Object>> previewTemplate(
             @PathVariable Long id,
@@ -84,6 +92,7 @@ public class PrintTemplateController {
     }
 
     @Operation(summary = "按类型获取模板列表")
+    @SaCheckPermission("print:template:list")
     @GetMapping("/type/{templateType}")
     public ResponseEntity<Map<String, Object>> listByType(@PathVariable String templateType) {
         List<PrintTemplate> templates = templateService.listByType(templateType);

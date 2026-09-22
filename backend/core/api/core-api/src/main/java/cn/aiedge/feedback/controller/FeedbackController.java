@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 用户反馈控制器
@@ -112,6 +113,7 @@ public class FeedbackController {
 
     // ==================== 反馈查询 ====================
 
+    @SaCheckPermission("system:feedback:list")
     @GetMapping("/list")
     @Operation(summary = "获取反馈列表")
     public ResponseEntity<Map<String, Object>> listFeedbacks(
@@ -142,6 +144,7 @@ public class FeedbackController {
         return ResponseEntity.ok(result);
     }
 
+    @SaCheckPermission("system:feedback:detail")
     @GetMapping("/{feedbackId}")
     @Operation(summary = "获取反馈详情")
     public ResponseEntity<Feedback> getFeedback(@PathVariable String feedbackId) {
@@ -152,6 +155,7 @@ public class FeedbackController {
         return ResponseEntity.ok(feedback);
     }
 
+    @SaCheckPermission("system:feedback:view")
     @GetMapping("/{feedbackId}/replies")
     @Operation(summary = "获取反馈回复")
     public ResponseEntity<List<FeedbackReply>> getReplies(@PathVariable String feedbackId) {
@@ -195,6 +199,7 @@ public class FeedbackController {
         return ResponseEntity.ok(result);
     }
 
+    @SaCheckPermission("system:feedback:view")
     @GetMapping("/statistics/by-status")
     @Operation(summary = "按状态统计")
     public ResponseEntity<Map<String, Long>> countByStatus(
@@ -203,6 +208,7 @@ public class FeedbackController {
         return ResponseEntity.ok(result);
     }
 
+    @SaCheckPermission("system:feedback:view")
     @GetMapping("/statistics/by-type")
     @Operation(summary = "按类型统计")
     public ResponseEntity<Map<String, Long>> countByType(
@@ -211,6 +217,7 @@ public class FeedbackController {
         return ResponseEntity.ok(result);
     }
 
+    @SaCheckPermission("system:feedback:view")
     @GetMapping("/statistics/by-category")
     @Operation(summary = "按分类统计")
     public ResponseEntity<Map<String, Long>> countByCategory(

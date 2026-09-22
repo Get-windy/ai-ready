@@ -36,6 +36,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 订单池（众包 / 抢单竞价大厅）控制器
@@ -60,6 +61,7 @@ public class OrderPoolController {
     // ═══════════════════════════════════════════════
 
     @Operation(summary = "订单池台账分页（多条件，联查任务主数据）")
+    @SaCheckPermission("dms:order-pool:list")
     @GetMapping("/page")
     public ApiResponse<Page<OrderPoolRowVO>> page(
             OrderPoolQuery query,
@@ -69,6 +71,7 @@ public class OrderPoolController {
     }
 
     @Operation(summary = "导出订单池台账（真实 Excel）")
+    @SaCheckPermission("dms:order-pool:export")
     @GetMapping("/export")
     public void export(OrderPoolQuery query, HttpServletResponse response) {
         List<OrderPoolRowVO> list = orderPoolService.pageQuery(query, 1, 10000).getRecords();
@@ -127,6 +130,7 @@ public class OrderPoolController {
     }
 
     @Operation(summary = "获取订单池条目详情")
+    @SaCheckPermission("dms:order-pool:detail")
     @GetMapping("/{id}")
     public ApiResponse<DmsOrderPool> getById(@Parameter(description = "订单池ID") @PathVariable Long id) {
         return ApiResponse.ok(orderPoolService.getById(id));
@@ -137,6 +141,7 @@ public class OrderPoolController {
     // ═══════════════════════════════════════════════
 
     @Operation(summary = "发布任务到订单池（批量；可同时开启竞价）")
+    @SaCheckPermission("dms:order-pool:update")
     @PostMapping("/publish")
     public ApiResponse<List<Long>> publish(@Valid @RequestBody PublishRequest request) {
         List<Long> poolIds = new ArrayList<>();
@@ -152,6 +157,7 @@ public class OrderPoolController {
     }
 
     @Operation(summary = "下架订单池条目")
+    @SaCheckPermission("dms:order-pool:update")
     @PostMapping("/{id}/offline")
     public ApiResponse<Void> offline(@Parameter(description = "订单池ID") @PathVariable Long id,
                                      @Parameter(description = "下架原因") @RequestParam(required = false) String reason) {
@@ -160,6 +166,7 @@ public class OrderPoolController {
     }
 
     @Operation(summary = "开启竞价（待抢单 → 竞价中）")
+    @SaCheckPermission("dms:order-pool:update")
     @PostMapping("/{id}/enable-bid")
     public ApiResponse<Void> enableBid(@Parameter(description = "订单池ID") @PathVariable Long id,
                                        @Parameter(description = "起拍价") @RequestParam BigDecimal startPrice,
@@ -169,12 +176,14 @@ public class OrderPoolController {
     }
 
     @Operation(summary = "关闭竞价（竞价中 → 待抢单；作废本次全部报价）")
+    @SaCheckPermission("dms:order-pool:update")
     @PostMapping("/{id}/disable-bid")
     public ApiResponse<Integer> disableBid(@Parameter(description = "订单池ID") @PathVariable Long id) {
         return ApiResponse.ok(orderPoolService.disableBid(id));
     }
 
     @Operation(summary = "结算竞价（价低优先）：落中标 + 同事务指派任务")
+    @SaCheckPermission("dms:order-pool:update")
     @PostMapping("/{id}/settle")
     public ApiResponse<Long> settle(@Parameter(description = "订单池ID") @PathVariable Long id) {
         Long taskId = orderPoolService.getById(id).getTaskId();
@@ -183,6 +192,7 @@ public class OrderPoolController {
     }
 
     @Operation(summary = "强制分配（定向指派：池 → 已接单）")
+    @SaCheckPermission("dms:order-pool:update")
     @PostMapping("/{id}/force-assign")
     public ApiResponse<Void> forceAssign(@Parameter(description = "订单池ID") @PathVariable Long id,
                                         @Parameter(description = "指派请求") @Valid @RequestBody GrabRequest request) {
@@ -191,6 +201,7 @@ public class OrderPoolController {
     }
 
     @Operation(summary = "过期扫描（竞价截止的池 → 已过期，可人工回退到《调度任务》指派）")
+    @SaCheckPermission("dms:order-pool:update")
     @PostMapping("/expire-scan")
     public ApiResponse<Integer> expireScan() {
         return ApiResponse.ok(orderPoolService.expirePools());
@@ -201,6 +212,7 @@ public class OrderPoolController {
     // ═══════════════════════════════════════════════
 
     @Operation(summary = "抢单（先到先得；校验配送员在线与实名资质）")
+    @SaCheckPermission("dms:order-pool:update")
     @PostMapping("/{id}/grab")
     public ApiResponse<Void> grab(@Parameter(description = "订单池ID") @PathVariable Long id,
                                   @Parameter(description = "抢单请求") @Valid @RequestBody GrabRequest request) {
@@ -209,6 +221,7 @@ public class OrderPoolController {
     }
 
     @Operation(summary = "出价（竞价中，价低者优）")
+    @SaCheckPermission("dms:order-pool:update")
     @PostMapping("/{id}/bid")
     public ApiResponse<DmsBid> bid(@Parameter(description = "订单池ID") @PathVariable Long id,
                                    @Parameter(description = "竞价请求") @Valid @RequestBody BidRequest request) {
@@ -216,6 +229,7 @@ public class OrderPoolController {
     }
 
     @Operation(summary = "竞价记录列表（价低优先）")
+    @SaCheckPermission("dms:order-pool:view")
     @GetMapping("/{id}/bid-list")
     public ApiResponse<List<DmsBid>> getBidList(@Parameter(description = "订单池ID") @PathVariable Long id) {
         orderPoolService.getById(id);
@@ -223,6 +237,7 @@ public class OrderPoolController {
     }
 
     @Operation(summary = "取消出价")
+    @SaCheckPermission("dms:order-pool:update")
     @PostMapping("/{id}/cancel-bid")
     public ApiResponse<Void> cancelBid(@Parameter(description = "订单池ID") @PathVariable Long id,
                                        @Parameter(description = "取消竞价请求") @Valid @RequestBody CancelBidRequest request) {

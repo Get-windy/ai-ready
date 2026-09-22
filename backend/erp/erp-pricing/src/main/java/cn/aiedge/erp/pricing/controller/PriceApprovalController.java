@@ -27,6 +27,7 @@ import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 价格审批 Controller。
@@ -39,8 +40,15 @@ import java.util.Map;
  * {@code AiReadyTenantLineInnerInterceptor} 自动注入 {@code tenant_id} 条件，
  * 业务代码无需手写租户过滤。</p>
  *
- * <p><b>权限</b>：前端该页未使用任何 {@code v-permission} 码，故此处不加
- * {@code @SaCheckPermission}，仅依赖全局登录校验（口径与页面对齐）。</p>
+ * <p><b>权限（2026-09-21 已改为挂码 —— 与原注释相反，原因读完再动）</b>：
+ * 原文写的是「前端该页未使用任何 {@code v-permission} 码，故此处不加
+ * {@code @SaCheckPermission}，仅依赖全局登录校验（口径与页面对齐）」，即**刻意豁免**。
+ * 本轮按 E-01 的既定口径改成逐端点挂 {@code pricing:approval:*}：该口径是
+ * **"每个端点都要有码，再由平台/租户管理员通过权限矩阵授予角色"**，
+ * 与本仓其它 9 个模块同批处理（只加门禁，不改业务逻辑）。
+ * <b>副作用（须知悉）</b>：新码目前只挂在超管，故本页对非超管角色会 403，
+ * 直到有人把 {@code pricing:approval:*} 授予相应角色。若决定恢复"前端无码"的旧口径，
+ * 需把这里的注解与 {@code pricing:approval:*} 这批码**一并**撤掉（只撤一边会造成僵尸码或漏补）。</p>
  *
  * @author AI-Ready Team
  * @since 1.0.0
@@ -68,6 +76,7 @@ public class PriceApprovalController {
     }
 
     @Operation(summary = "审批统计")
+    @SaCheckPermission("pricing:approval:view")
     @GetMapping("/statistics")
     public Result<Map<String, Object>> statistics() {
         Map<String, Object> m = new LinkedHashMap<>();
@@ -79,18 +88,21 @@ public class PriceApprovalController {
     }
 
     @Operation(summary = "待审批列表")
+    @SaCheckPermission("pricing:approval:list")
     @GetMapping("/pending")
     public Result<List<PriceApproval>> pending() {
         return Result.ok(listByStatus("pending"));
     }
 
     @Operation(summary = "按状态查询审批列表")
+    @SaCheckPermission("pricing:approval:list")
     @GetMapping("/list/{status}")
     public Result<List<PriceApproval>> listByStatusApi(@PathVariable String status) {
         return Result.ok(listByStatus(status));
     }
 
     @Operation(summary = "我的申请")
+    @SaCheckPermission("pricing:approval:list")
     @GetMapping("/my/{applicantId}")
     public Result<List<PriceApproval>> my(@PathVariable Long applicantId) {
         return Result.ok(approvalMapper.selectList(
@@ -107,6 +119,7 @@ public class PriceApprovalController {
      * 项目内先例见 {@code CustomerController} 的 {@code /{id:\d+}/status}。</p>
      */
     @Operation(summary = "审批详情")
+    @SaCheckPermission("pricing:approval:detail")
     @GetMapping("/{id:\\d+}")
     public Result<PriceApproval> detail(@PathVariable Long id) {
         PriceApproval a = approvalMapper.selectById(id);
@@ -114,6 +127,7 @@ public class PriceApprovalController {
     }
 
     @Operation(summary = "申请价格变更")
+    @SaCheckPermission("pricing:approval:create")
     @PostMapping("/apply")
     public Result<PriceApproval> apply(@RequestBody ApplyPriceChangeDTO dto) {
         if (dto.getProductId() == null) {
@@ -154,6 +168,7 @@ public class PriceApprovalController {
     }
 
     @Operation(summary = "审批通过")
+    @SaCheckPermission("pricing:approval:approve")
     @PutMapping("/{id:\\d+}/approve")
     public Result<PriceApproval> approve(@PathVariable Long id,
                                          @RequestParam(required = false) Long approverId,
@@ -162,6 +177,7 @@ public class PriceApprovalController {
     }
 
     @Operation(summary = "审批拒绝")
+    @SaCheckPermission("pricing:approval:reject")
     @PutMapping("/{id:\\d+}/reject")
     public Result<PriceApproval> reject(@PathVariable Long id,
                                         @RequestParam(required = false) Long approverId,

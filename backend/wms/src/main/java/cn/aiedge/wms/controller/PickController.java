@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @Validated
@@ -37,6 +38,7 @@ public class PickController {
     // ==================== 波次管理 ====================
 
     @Operation(summary = "从销售订单创建波次")
+    @SaCheckPermission("wms:pick:create")
     @PostMapping("/wave/create")
     public Result<WmsPickWave> createWave(@RequestBody List<Long> saleOrderIds) {
         WmsPickWave wave = pickService.createWave(saleOrderIds);
@@ -45,6 +47,7 @@ public class PickController {
     }
 
     @Operation(summary = "新增波次")
+    @SaCheckPermission("wms:pick:create")
     @PostMapping("/wave/save")
     public Result<WmsPickWave> saveWave(@Valid @RequestBody WmsPickWave wave) {
         pickService.saveWave(wave);
@@ -53,6 +56,7 @@ public class PickController {
     }
 
     @Operation(summary = "更新波次")
+    @SaCheckPermission("wms:pick:create")
     @PostMapping("/wave/update")
     public Result<Boolean> updateWave(@Valid @RequestBody WmsPickWave wave) {
         boolean updated = pickService.updateWave(wave);
@@ -61,6 +65,7 @@ public class PickController {
     }
 
     @Operation(summary = "根据ID查询波次")
+    @SaCheckPermission("wms:pick:detail")
     @GetMapping("/wave/{id}")
     public Result<WmsPickWave> getWaveById(@PathVariable @NotNull Long id) {
         WmsPickWave wave = pickService.getWaveById(id);
@@ -69,12 +74,14 @@ public class PickController {
     }
 
     @Operation(summary = "分页查询波次")
+    @SaCheckPermission("wms:pick:list")
     @GetMapping("/wave/page")
     public Result<Page<WmsPickWave>> wavePage(@Valid Page<WmsPickWave> page, WmsPickWave query) {
         return Result.ok(pickService.pageWave(page, query));
     }
 
     @Operation(summary = "删除波次")
+    @SaCheckPermission("wms:pick:delete")
     @DeleteMapping("/wave/{id}")
     public Result<String> deleteWave(@PathVariable @NotNull Long id) {
         pickService.removeWave(id);
@@ -85,6 +92,7 @@ public class PickController {
     // ==================== 任务管理 ====================
 
     @Operation(summary = "新增拣货任务")
+    @SaCheckPermission("wms:pick:create")
     @PostMapping("/task/save")
     public Result<WmsPickTask> saveTask(@Valid @RequestBody WmsPickTask task) {
         pickService.saveTask(task);
@@ -93,6 +101,7 @@ public class PickController {
     }
 
     @Operation(summary = "更新拣货任务")
+    @SaCheckPermission("wms:pick:create")
     @PostMapping("/task/update")
     public Result<Boolean> updateTask(@Valid @RequestBody WmsPickTask task) {
         boolean updated = pickService.updateTask(task);
@@ -101,6 +110,7 @@ public class PickController {
     }
 
     @Operation(summary = "根据ID查询拣货任务")
+    @SaCheckPermission("wms:pick:detail")
     @GetMapping("/task/{id}")
     public Result<WmsPickTask> getTaskById(@PathVariable @NotNull Long id) {
         WmsPickTask task = pickService.getTaskById(id);
@@ -109,6 +119,7 @@ public class PickController {
     }
 
     @Operation(summary = "分页查询拣货任务")
+    @SaCheckPermission("wms:pick:list")
     @GetMapping("/task/page")
     public Result<Page<WmsPickTask>> taskPage(@Valid Page<WmsPickTask> page, WmsPickTask query,
                                               @RequestParam(required = false) String keyword) {
@@ -121,6 +132,7 @@ public class PickController {
     }
 
     @Operation(summary = "删除拣货任务")
+    @SaCheckPermission("wms:pick:delete")
     @DeleteMapping("/task/{id}")
     public Result<String> deleteTask(@PathVariable @NotNull Long id) {
         pickService.removeTask(id);
@@ -129,6 +141,7 @@ public class PickController {
     }
 
     @Operation(summary = "开始拣货")
+    @SaCheckPermission("wms:pick:execute")
     @PostMapping("/task/start")
     public Result<String> startTask(@RequestParam @NotNull Long taskId,
                                     @RequestParam @NotNull Long userId,
@@ -139,6 +152,7 @@ public class PickController {
     }
 
     @Operation(summary = "完成拣货")
+    @SaCheckPermission("wms:pick:complete")
     @PostMapping("/task/complete")
     public Result<String> completeTask(@RequestParam @NotNull Long taskId) {
         pickService.completePick(taskId);
@@ -147,6 +161,7 @@ public class PickController {
     }
 
     @Operation(summary = "取消拣货任务")
+    @SaCheckPermission("wms:pick:cancel")
     @PostMapping("/task/cancel")
     public Result<String> cancelTask(@RequestParam @NotNull Long taskId,
                                      @RequestParam(required = false) String reason) {
@@ -156,6 +171,7 @@ public class PickController {
     }
 
     @Operation(summary = "根据波次查询拣货任务列表")
+    @SaCheckPermission("wms:pick:list")
     @GetMapping("/task/list-by-wave/{waveId}")
     public Result<List<WmsPickTask>> listTasksByWave(@PathVariable @NotNull Long waveId) {
         return Result.ok(pickService.listByWaveId(waveId));
@@ -164,6 +180,7 @@ public class PickController {
     // ==================== 明细管理 ====================
 
     @Operation(summary = "确认拣货明细")
+    @SaCheckPermission("wms:pick:update")
     @PostMapping("/detail/confirm")
     public Result<String> confirmDetail(@RequestParam @NotNull Long detailId,
                                         @RequestParam @Positive BigDecimal pickedQuantity) {
@@ -173,6 +190,7 @@ public class PickController {
     }
 
     @Operation(summary = "标记缺货")
+    @SaCheckPermission("wms:pick:update")
     @PostMapping("/detail/shortage")
     public Result<String> shortage(@RequestParam @NotNull Long detailId,
                                    @RequestParam @Positive BigDecimal shortageQuantity) {
@@ -182,12 +200,14 @@ public class PickController {
     }
 
     @Operation(summary = "查询拣货明细列表")
+    @SaCheckPermission("wms:pick:list")
     @GetMapping("/detail/list/{taskId}")
     public Result<List<WmsPickDetail>> listDetails(@PathVariable @NotNull Long taskId) {
         return Result.ok(pickService.listByTaskId(taskId));
     }
 
     @Operation(summary = "保存拣货明细（整体替换，先删后插）")
+    @SaCheckPermission("wms:pick:create")
     @PostMapping("/detail/save")
     public Result<String> saveDetails(@Valid @RequestBody DetailSaveRequest<WmsPickDetail> request) {
         pickService.saveDetails(request.getTaskId(), request.getDetails());
@@ -198,18 +218,21 @@ public class PickController {
     // ==================== 金标准查询 / 编号 ====================
 
     @Operation(summary = "生成下一拣货单号")
+    @SaCheckPermission("wms:pick:list")
     @GetMapping("/next-no")
     public Result<String> nextNo() {
         return Result.ok(pickService.generateNo());
     }
 
     @Operation(summary = "多条件分页查询拣货单(按单据)")
+    @SaCheckPermission("wms:pick:list")
     @GetMapping("/doc-query")
     public Result<Page<WmsPickTask>> docQuery(PickTaskQuery query) {
         return Result.ok(pickService.pageOrderByQuery(query));
     }
 
     @Operation(summary = "分页查询拣货明细(按明细)")
+    @SaCheckPermission("wms:pick:view")
     @GetMapping("/page-detail")
     public Result<Page<PickTaskDetailVO>> pageDetail(PickTaskQuery query) {
         return Result.ok(pickService.pageDetail(query));

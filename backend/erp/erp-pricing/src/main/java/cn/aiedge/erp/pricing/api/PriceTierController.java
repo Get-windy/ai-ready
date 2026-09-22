@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 层级定价管理控制器
@@ -72,6 +73,7 @@ public class PriceTierController {
     // ==================== Controllers ====================
 
     @Operation(summary = "计算层级价格", description = "根据客户等级和数量计算产品的层级价格")
+    @SaCheckPermission("pricing:tier:view")
     @PostMapping("/calculate")
     public ApiResponse<TieredPricingCalculator.TieredPriceResult> calculateTierPrice(
             @Parameter(description = "价格计算请求") @RequestBody PriceCalculationRequest request) {
@@ -96,6 +98,7 @@ public class PriceTierController {
     }
 
     @Operation(summary = "获取客户价格", description = "获取客户专属价格（含所有适用价层）")
+    @SaCheckPermission("pricing:tier:view")
     @GetMapping("/customer-price")
     public ApiResponse<List<PriceTier>> getCustomerTierPrices(
             @Parameter(description = "客户ID") @RequestParam String customerId,
@@ -117,6 +120,7 @@ public class PriceTierController {
     }
 
     @Operation(summary = "创建价层", description = "创建新的价格层级")
+    @SaCheckPermission("pricing:tier:create")
     @PostMapping("/tier")
     public ApiResponse<PriceTier> createTier(@RequestBody PriceTier tier) {
         try {
@@ -131,6 +135,7 @@ public class PriceTierController {
     }
 
     @Operation(summary = "更新价层", description = "更新价格层级信息")
+    @SaCheckPermission("pricing:tier:update")
     @PutMapping("/tier/{tierId}")
     public ApiResponse<PriceTier> updateTier(
             @Parameter(description = "价层ID") @PathVariable String tierId,
@@ -148,6 +153,7 @@ public class PriceTierController {
     }
 
     @Operation(summary = "删除价层", description = "删除指定的价格层级")
+    @SaCheckPermission("pricing:tier:delete")
     @DeleteMapping("/tier/{tierId}")
     public ApiResponse<Void> deleteTier(
             @Parameter(description = "价层ID") @PathVariable String tierId) {
@@ -160,6 +166,7 @@ public class PriceTierController {
     }
 
     @Operation(summary = "获取所有价层", description = "获取全部价格层级列表")
+    @SaCheckPermission("pricing:tier:list")
     @GetMapping("/tiers")
     public ApiResponse<List<PriceTier>> getAllTiers() {
         try {
@@ -172,6 +179,7 @@ public class PriceTierController {
     }
 
     @Operation(summary = "批量查询层级价格", description = "批量查询多个产品的层级价格")
+    @SaCheckPermission("pricing:tier:view")
     @PostMapping("/calculate/batch")
     public ApiResponse<List<TieredPricingCalculator.TieredPriceResult>> calculateBatchTierPrices(
             @RequestBody List<PriceCalculationRequest> requests) {
@@ -191,6 +199,7 @@ public class PriceTierController {
     }
 
     @Operation(summary = "获取产品可用价层", description = "获取指定产品的所有可用价格层级")
+    @SaCheckPermission("pricing:tier:list")
     @GetMapping("/product/{productId}")
     public ApiResponse<List<PriceTier>> getProductTiers(
             @Parameter(description = "产品ID") @PathVariable String productId,

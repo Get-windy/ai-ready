@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 知识库控制器
@@ -28,26 +29,31 @@ public class KnowledgeController {
     @Autowired
     private VectorSearchService vectorSearchService;
 
+    @SaCheckPermission("system:knowledge:create")
     @PostMapping("/base")
     public KnowledgeBase createKnowledgeBase(@RequestBody KnowledgeBaseRequest request) {
         return knowledgeBaseService.createKnowledgeBase(request);
     }
 
+    @SaCheckPermission("system:knowledge:detail")
     @GetMapping("/base/{id}")
     public KnowledgeBase getKnowledgeBase(@PathVariable Long id) {
         return knowledgeBaseService.getKnowledgeBase(id);
     }
 
+    @SaCheckPermission("system:knowledge:list")
     @GetMapping("/base/list")
     public List<KnowledgeBase> listKnowledgeBases(@RequestParam Long tenantId) {
         return knowledgeBaseService.listKnowledgeBases(tenantId);
     }
 
+    @SaCheckPermission("system:knowledge:delete")
     @DeleteMapping("/base/{id}")
     public void deleteKnowledgeBase(@PathVariable Long id) {
         knowledgeBaseService.deleteKnowledgeBase(id);
     }
 
+    @SaCheckPermission("system:knowledge:create")
     @PostMapping("/document/upload")
     public KnowledgeDocument uploadDocument(
             @RequestParam Long knowledgeBaseId,
@@ -55,21 +61,25 @@ public class KnowledgeController {
         return documentService.uploadDocument(knowledgeBaseId, file);
     }
 
+    @SaCheckPermission("system:knowledge:update")
     @PostMapping("/document/{id}/parse")
     public void parseDocument(@PathVariable Long id) {
         documentService.parseDocument(id);
     }
 
+    @SaCheckPermission("system:knowledge:list")
     @GetMapping("/document/list")
     public List<KnowledgeDocument> listDocuments(@RequestParam Long knowledgeBaseId) {
         return documentService.listDocuments(knowledgeBaseId);
     }
 
+    @SaCheckPermission("system:knowledge:list")
     @PostMapping("/search")
     public List<VectorSearchResult> search(@RequestBody VectorSearchRequest request) {
         return vectorSearchService.search(request);
     }
 
+    @SaCheckPermission("system:knowledge:execute")
     @PostMapping("/embedding")
     public float[] generateEmbedding(@RequestBody Map<String, String> request) {
         return vectorSearchService.generateEmbedding(request.get("text"));

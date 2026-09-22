@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Tag(name = "打印日志管理", description = "打印日志查询、统计、导出等操作")
 @RestController
@@ -23,6 +24,7 @@ public class PrintLogController {
     private final PrintLogService logService;
 
     @Operation(summary = "打印记录查询")
+    @SaCheckPermission("print:log:list")
     @GetMapping
     public ResponseEntity<Map<String, Object>> queryLogs(PrintLogQueryRequest request) {
         if (request.getPage() == null) request.setPage(1);
@@ -37,6 +39,7 @@ public class PrintLogController {
     }
 
     @Operation(summary = "打印统计")
+    @SaCheckPermission("print:log:view")
     @GetMapping("/statistics")
     public ResponseEntity<Map<String, Object>> getStatistics(
             @RequestParam(required = false) String startDate,
@@ -47,6 +50,7 @@ public class PrintLogController {
     }
 
     @Operation(summary = "打印日志导出")
+    @SaCheckPermission("print:log:export")
     @GetMapping("/export")
     public ResponseEntity<byte[]> exportLogs(
             @RequestParam(required = false) String startDate,

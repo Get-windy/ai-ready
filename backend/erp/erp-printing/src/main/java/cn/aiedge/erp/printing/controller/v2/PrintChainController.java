@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @Tag(name = "V2-打印链路管理", description = "打印链路的增删改查，支持多级步骤（1~10级）")
@@ -60,6 +61,7 @@ public class PrintChainController {
     }
 
     @Operation(summary = "创建打印链路（含明细）")
+    @SaCheckPermission("print:chain:create")
     @PostMapping
     public ResponseEntity<ApiResponse<Object>> createChain(
             @Valid @RequestBody PrintChainCreateRequest request,
@@ -72,6 +74,7 @@ public class PrintChainController {
     }
 
     @Operation(summary = "更新打印链路（全量替换明细）")
+    @SaCheckPermission("print:chain:update")
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<Object>> updateChain(
             @PathVariable Long id,
@@ -85,6 +88,7 @@ public class PrintChainController {
     }
 
     @Operation(summary = "获取链路详情（含全部明细）")
+    @SaCheckPermission("print:chain:detail")
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<Object>> getChain(@PathVariable Long id, @RequestHeader(required = false) Long tenantId) {
         Long resolvedTenantId = resolveTenantId(tenantId);
@@ -93,6 +97,7 @@ public class PrintChainController {
     }
 
     @Operation(summary = "链路列表查询")
+    @SaCheckPermission("print:chain:list")
     @GetMapping
     public ResponseEntity<ApiResponse<Object>> listChains(
             @RequestParam(defaultValue = "1") Integer page,
@@ -110,6 +115,7 @@ public class PrintChainController {
     }
 
     @Operation(summary = "按 pageCode 获取链路列表")
+    @SaCheckPermission("print:chain:list")
     @GetMapping("/by-page/{pageCode}")
     public ResponseEntity<ApiResponse<Object>> listByPageCode(
             @PathVariable String pageCode,
@@ -120,6 +126,7 @@ public class PrintChainController {
     }
 
     @Operation(summary = "删除打印链路")
+    @SaCheckPermission("print:chain:delete")
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Object>> deleteChain(@PathVariable Long id, @RequestHeader(required = false) Long tenantId) {
         Long resolvedTenantId = resolveTenantId(tenantId);
@@ -128,6 +135,7 @@ public class PrintChainController {
     }
 
     @Operation(summary = "启用/禁用链路")
+    @SaCheckPermission("print:chain:status")
     @PutMapping("/{id}/status")
     public ResponseEntity<ApiResponse<Object>> updateStatus(
             @PathVariable Long id,

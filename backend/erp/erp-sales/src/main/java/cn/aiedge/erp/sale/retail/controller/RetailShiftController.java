@@ -13,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @Tag(name = "零售交班管理", description = "POS收银班次开班、交班、班次汇总查询")
@@ -24,6 +25,7 @@ public class RetailShiftController {
     private final IRetailShiftService retailShiftService;
 
     // ═══ 1. 开班 ═══
+    @SaCheckPermission("sale:retail-shift:create")
     @PostMapping("/open")
     @Operation(summary = "开班（校验无未交班班次）")
     public RetailShift open(@RequestBody OpenShiftRequest request) {
@@ -32,6 +34,7 @@ public class RetailShiftController {
     }
 
     // ═══ 2. 交班 ═══
+    @SaCheckPermission("sale:retail-shift:close")
     @PostMapping("/close")
     @Operation(summary = "交班（录入实点现金，自动汇总班次销售并计算长短款）")
     public RetailShift close(@RequestBody CloseShiftRequest request) {
@@ -39,6 +42,7 @@ public class RetailShiftController {
     }
 
     // ═══ 3. 当前班次 ═══
+    @SaCheckPermission("sale:retail-shift:view")
     @GetMapping("/current")
     @Operation(summary = "查询收银员当前营业中班次")
     public RetailShift current(
@@ -47,6 +51,7 @@ public class RetailShiftController {
     }
 
     // ═══ 4. 历史班次分页 ═══
+    @SaCheckPermission("sale:retail-shift:list")
     @GetMapping("/page")
     @Operation(summary = "历史班次分页查询")
     public IPage<RetailShift> page(
@@ -60,6 +65,7 @@ public class RetailShiftController {
     }
 
     // ═══ 5. 班次详情（含汇总明细） ═══
+    @SaCheckPermission("sale:retail-shift:detail")
     @GetMapping("/{id}")
     @Operation(summary = "查询班次详情（含该班次已结算零售单明细）")
     public ShiftDetailVO getDetail(@PathVariable Long id) {

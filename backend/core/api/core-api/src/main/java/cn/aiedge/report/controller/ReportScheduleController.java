@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 定时报表控制器
@@ -33,6 +34,7 @@ public class ReportScheduleController {
     /**
      * 创建定时报表任务
      */
+    @SaCheckPermission("system:report-schedule:create")
     @PostMapping
     @Operation(summary = "创建定时报表任务", description = "创建一个新的定时报表任务")
     public ResponseEntity<Map<String, Object>> createScheduleReport(
@@ -60,6 +62,7 @@ public class ReportScheduleController {
     /**
      * 更新定时报表任务
      */
+    @SaCheckPermission("system:report-schedule:update")
     @PutMapping("/{scheduleId}")
     @Operation(summary = "更新定时报表任务", description = "更新已存在的定时报表任务")
     public ResponseEntity<Map<String, Object>> updateScheduleReport(
@@ -83,6 +86,7 @@ public class ReportScheduleController {
     /**
      * 删除定时报表任务
      */
+    @SaCheckPermission("system:report-schedule:delete")
     @DeleteMapping("/{scheduleId}")
     @Operation(summary = "删除定时报表任务", description = "删除指定的定时报表任务")
     public ResponseEntity<Map<String, Object>> deleteScheduleReport(
@@ -101,6 +105,7 @@ public class ReportScheduleController {
     /**
      * 获取定时报表任务列表
      */
+    @SaCheckPermission("system:report-schedule:view")
     @GetMapping
     @Operation(summary = "获取定时报表任务列表", description = "获取所有定时报表任务")
     public ResponseEntity<Map<String, Object>> getScheduleReports(
@@ -122,6 +127,7 @@ public class ReportScheduleController {
     /**
      * 立即执行定时报表任务
      */
+    @SaCheckPermission("system:report-schedule:execute")
     @PostMapping("/{scheduleId}/trigger")
     @Operation(summary = "立即执行定时报表", description = "立即执行一次定时报表任务")
     public ResponseEntity<Map<String, Object>> triggerScheduleReport(
@@ -140,6 +146,7 @@ public class ReportScheduleController {
     /**
      * 暂停定时报表任务
      */
+    @SaCheckPermission("system:report-schedule:pause")
     @PostMapping("/{scheduleId}/pause")
     @Operation(summary = "暂停定时报表任务", description = "暂停指定的定时报表任务")
     public ResponseEntity<Map<String, Object>> pauseScheduleReport(
@@ -158,6 +165,7 @@ public class ReportScheduleController {
     /**
      * 恢复定时报表任务
      */
+    @SaCheckPermission("system:report-schedule:resume")
     @PostMapping("/{scheduleId}/resume")
     @Operation(summary = "恢复定时报表任务", description = "恢复指定的定时报表任务")
     public ResponseEntity<Map<String, Object>> resumeScheduleReport(
@@ -176,6 +184,7 @@ public class ReportScheduleController {
     /**
      * 获取定时报表执行历史
      */
+    @SaCheckPermission("system:report-schedule:view")
     @GetMapping("/{scheduleId}/history")
     @Operation(summary = "获取定时报表执行历史", description = "获取定时报表任务的执行历史")
     public ResponseEntity<Map<String, Object>> getExecutionHistory(

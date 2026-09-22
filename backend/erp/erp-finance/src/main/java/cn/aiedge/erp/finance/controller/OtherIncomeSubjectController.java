@@ -26,6 +26,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 其他收入（资料 → 财务账户 → 其他收入）Controller。
@@ -48,6 +49,7 @@ public class OtherIncomeSubjectController {
     private final OtherIncomeSubjectService otherIncomeSubjectService;
 
     @Operation(summary = "分页查询收入科目")
+    @SaCheckPermission("md:other-income:list")
     @GetMapping("/page")
     @OperationLog(module = "其他收入", type = "QUERY", desc = "分页查询收入科目")
     public Result<Page<AccountSubjectDTO>> page(
@@ -58,6 +60,7 @@ public class OtherIncomeSubjectController {
     }
 
     @Operation(summary = "收入科目平铺列表（下拉/导出共用口径）")
+    @SaCheckPermission("md:other-income:list")
     @GetMapping("/list")
     @OperationLog(module = "其他收入", type = "QUERY", desc = "查询收入科目列表")
     public Result<List<AccountSubjectDTO>> list(AccountSubjectQuery query) {
@@ -65,12 +68,14 @@ public class OtherIncomeSubjectController {
     }
 
     @Operation(summary = "核算项可选项（辅助核算类型，供收入科目编辑器下拉）")
+    @SaCheckPermission("md:other-income:view")
     @GetMapping("/aux-types")
     public Result<List<FinanceAuxiliaryTypeDTO>> auxTypes() {
         return Result.success(otherIncomeSubjectService.getAuxTypeOptions());
     }
 
     @Operation(summary = "收入科目详情")
+    @SaCheckPermission("md:other-income:detail")
     @GetMapping("/{id}")
     @OperationLog(module = "其他收入", type = "QUERY", desc = "查询收入科目详情")
     public Result<AccountSubjectDTO> getById(@Parameter(description = "科目ID") @PathVariable Long id) {
@@ -78,6 +83,7 @@ public class OtherIncomeSubjectController {
     }
 
     @Operation(summary = "新增收入")
+    @SaCheckPermission("md:other-income:create")
     @PostMapping({"", "/"})
     @OperationLog(module = "其他收入", type = "CREATE", desc = "新增收入科目")
     public Result<AccountSubjectDTO> create(@RequestBody AccountSubjectDTO dto) {
@@ -85,6 +91,7 @@ public class OtherIncomeSubjectController {
     }
 
     @Operation(summary = "修改收入")
+    @SaCheckPermission("md:other-income:update")
     @PutMapping("/{id}")
     @OperationLog(module = "其他收入", type = "UPDATE", desc = "修改收入科目")
     public Result<AccountSubjectDTO> update(
@@ -94,6 +101,7 @@ public class OtherIncomeSubjectController {
     }
 
     @Operation(summary = "删除收入")
+    @SaCheckPermission("md:other-income:delete")
     @DeleteMapping("/{id}")
     @OperationLog(module = "其他收入", type = "DELETE", desc = "删除收入科目")
     public Result<Void> delete(@Parameter(description = "科目ID") @PathVariable Long id) {
@@ -102,6 +110,7 @@ public class OtherIncomeSubjectController {
     }
 
     @Operation(summary = "启用/停用收入科目")
+    @SaCheckPermission("md:other-income:update")
     @PutMapping("/{id}/enable")
     @OperationLog(module = "其他收入", type = "UPDATE", desc = "启用/停用收入科目")
     public Result<AccountSubjectDTO> toggleEnabled(
@@ -111,6 +120,7 @@ public class OtherIncomeSubjectController {
     }
 
     @Operation(summary = "导出收入科目（真实 Excel 流，与列表同一口径）")
+    @SaCheckPermission("md:other-income:export")
     @GetMapping("/export")
     public void export(AccountSubjectQuery query, HttpServletResponse response) throws IOException {
         List<AccountSubjectDTO> rows = otherIncomeSubjectService.list(query);

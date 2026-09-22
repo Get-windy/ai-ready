@@ -35,6 +35,7 @@ public class ExpenseReimbursementController {
     private final ExpenseReimbursementRepository reimbursementRepository;
 
     @Operation(summary = "报销分页列表", description = "获取费用报销分页列表")
+    @SaCheckPermission("erp:expense:reimbursement:list")
     @GetMapping("/page")
     public ApiResponse<Map<String, Object>> page(
             @Parameter(description = "申请人ID") @RequestParam(required = false) String applicantId,
@@ -93,6 +94,7 @@ public class ExpenseReimbursementController {
     }
 
     @Operation(summary = "创建报销单", description = "创建新的费用报销")
+    @SaCheckPermission("erp:expense:reimbursement:create")
     @PostMapping
     public ApiResponse<ExpenseReimbursement> create(@RequestBody ExpenseReimbursement reimbursement) {
         reimbursement.setStatus(ExpenseStatus.DRAFT);
@@ -105,6 +107,7 @@ public class ExpenseReimbursementController {
     }
 
     @Operation(summary = "更新报销单", description = "更新费用报销信息")
+    @SaCheckPermission("erp:expense:reimbursement:edit")
     @PutMapping("/{id}")
     public ApiResponse<ExpenseReimbursement> update(
             @Parameter(description = "报销ID") @PathVariable Long id,
@@ -134,6 +137,7 @@ public class ExpenseReimbursementController {
     }
 
     @Operation(summary = "删除报销单", description = "删除指定的费用报销")
+    @SaCheckPermission("erp:expense:reimbursement:delete")
     @DeleteMapping("/{id}")
     public ApiResponse<Void> delete(
             @Parameter(description = "报销ID") @PathVariable Long id) {
@@ -146,6 +150,7 @@ public class ExpenseReimbursementController {
     }
 
     @Operation(summary = "提交报销审批", description = "提交报销单进入审批流程")
+    @SaCheckPermission("erp:expense:reimbursement:submit")
     @PostMapping("/{id}/submit")
     public ApiResponse<ExpenseReimbursement> submit(
             @Parameter(description = "报销ID") @PathVariable Long id) {
@@ -167,6 +172,7 @@ public class ExpenseReimbursementController {
     }
 
     @Operation(summary = "撤回报销申请", description = "撤回已提交的报销申请")
+    @SaCheckPermission("erp:expense:reimbursement:create")
     @PostMapping("/{id}/withdraw")
     public ApiResponse<ExpenseReimbursement> withdraw(
             @Parameter(description = "报销ID") @PathVariable Long id) {

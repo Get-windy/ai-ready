@@ -90,6 +90,7 @@ public class AgentController {
     }
 
     @Operation(summary = "获取活跃Agent列表")
+    @SaCheckPermission("system:agent:list")
     @GetMapping("/active")
     public List<Agent> getActiveAgents() {
         return agentService.getActiveAgents();

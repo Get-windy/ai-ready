@@ -203,6 +203,7 @@ public class WorkflowController {
 
     // ==================== 流程实例 ====================
 
+    @SaCheckPermission("workflow:instance:start")
     @PostMapping("/start")
     @Operation(summary = "发起流程")
     public ApiResponse<Map<String, Object>> startWorkflow(
@@ -230,6 +231,7 @@ public class WorkflowController {
         return ApiResponse.ok(result);
     }
 
+    @SaCheckPermission("workflow:instance:view")
     @GetMapping("/instances/{instanceId}")
     @Operation(summary = "获取流程实例详情")
     public ApiResponse<WorkflowInstance> getWorkflowInstance(@PathVariable String instanceId) {
@@ -240,6 +242,7 @@ public class WorkflowController {
         return ApiResponse.ok(instance);
     }
 
+    @SaCheckPermission("workflow:instance:view")
     @GetMapping("/instances/{instanceId}/status")
     @Operation(summary = "获取流程状态")
     public ApiResponse<Map<String, Object>> getWorkflowStatus(@PathVariable String instanceId) {
@@ -295,6 +298,7 @@ public class WorkflowController {
 
     // ==================== 待办/已办 ====================
 
+    @SaCheckPermission("workflow:task:view")
     @GetMapping("/pending")
     @Operation(summary = "获取我的待办")
     public ApiResponse<Map<String, Object>> getMyPendingApprovals(
@@ -314,6 +318,7 @@ public class WorkflowController {
         return ApiResponse.ok(result);
     }
 
+    @SaCheckPermission("workflow:task:view")
     @GetMapping("/approved")
     @Operation(summary = "获取我的已办")
     public ApiResponse<Map<String, Object>> getMyApproved(
@@ -331,6 +336,7 @@ public class WorkflowController {
         return ApiResponse.ok(result);
     }
 
+    @SaCheckPermission("workflow:instance:view")
     @GetMapping("/my-applications")
     @Operation(summary = "获取我发起的流程")
     public ApiResponse<Map<String, Object>> getMyApplications(
@@ -348,6 +354,7 @@ public class WorkflowController {
         return ApiResponse.ok(result);
     }
 
+    @SaCheckPermission("workflow:task:view")
     @GetMapping("/pending/count")
     @Operation(summary = "获取待办数量")
     public ApiResponse<Map<String, Object>> getPendingCount(
@@ -484,6 +491,7 @@ public class WorkflowController {
 
     // ==================== 审批操作 ====================
 
+    @SaCheckPermission("workflow:task:approve")
     @PostMapping("/{instanceId}/approve")
     @Operation(summary = "审批通过")
     public ApiResponse<Map<String, Object>> approve(
@@ -502,6 +510,7 @@ public class WorkflowController {
         return ApiResponse.ok(result);
     }
 
+    @SaCheckPermission("workflow:task:approve")
     @PostMapping("/{instanceId}/reject")
     @Operation(summary = "审批拒绝")
     public ApiResponse<Map<String, Object>> reject(
@@ -520,6 +529,7 @@ public class WorkflowController {
         return ApiResponse.ok(result);
     }
 
+    @SaCheckPermission("workflow:task:transfer")
     @PostMapping("/{instanceId}/transfer")
     @Operation(summary = "转交他人")
     public ApiResponse<Map<String, Object>> transfer(
@@ -537,6 +547,7 @@ public class WorkflowController {
         return ApiResponse.ok(result);
     }
 
+    @SaCheckPermission("workflow:instance:withdraw")
     @PostMapping("/{instanceId}/withdraw")
     @Operation(summary = "撤回流程")
     public ApiResponse<Map<String, Object>> withdraw(
@@ -555,6 +566,7 @@ public class WorkflowController {
         return ApiResponse.ok(result);
     }
 
+    @SaCheckPermission("workflow:instance:cancel")
     @PostMapping("/{instanceId}/cancel")
     @Operation(summary = "取消流程")
     public ApiResponse<Map<String, Object>> cancel(
@@ -624,6 +636,7 @@ public class WorkflowController {
 
     // ==================== 回调补偿（第三期） ====================
 
+    @SaCheckPermission("workflow:callback-log:list")
     @GetMapping("/callback-log/page")
     @Operation(summary = "分页查询审批回调补偿日志")
     public ApiResponse<Map<String, Object>> pageCallbackLogs(
@@ -634,6 +647,7 @@ public class WorkflowController {
         return ApiResponse.ok(callbackDispatcher.pageLogs(status, pageNum, pageSize));
     }
 
+    @SaCheckPermission("workflow:callback-log:retry")
     @PostMapping("/callback-log/{id}/retry")
     @Operation(summary = "人工重试回调（重置重试周期并立即分发）")
     public ApiResponse<Map<String, Object>> retryCallbackLog(@PathVariable Long id) {

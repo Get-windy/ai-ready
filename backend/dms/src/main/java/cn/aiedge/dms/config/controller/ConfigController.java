@@ -44,6 +44,7 @@ public class ConfigController {
     private final ConfigService configService;
 
     @Operation(summary = "获取指定配置")
+    @SaCheckPermission("dms:config:detail")
     @GetMapping("/{key}")
     public ApiResponse<DmsConfig> getConfig(
             @Parameter(description = "租户ID") @RequestParam(required = false) Long tenantId,
@@ -90,6 +91,7 @@ public class ConfigController {
     }
 
     @Operation(summary = "配置变更历史（敏感键只返回掩码）")
+    @SaCheckPermission("dms:config:view")
     @GetMapping("/{key}/history")
     public ApiResponse<List<DmsConfigHistory>> history(
             @Parameter(description = "租户ID") @RequestParam(required = false) Long tenantId,
@@ -108,6 +110,7 @@ public class ConfigController {
     }
 
     @Operation(summary = "获取租户所有配置")
+    @SaCheckPermission("dms:config:list")
     @GetMapping("/list")
     public ApiResponse<List<DmsConfig>> listAll(
             @Parameter(description = "租户ID") @RequestParam(required = false) Long tenantId) {
@@ -117,24 +120,28 @@ public class ConfigController {
     // ==================== 参数中心（金标准：元数据驱动 / 分页 / 批量保存 / 恢复默认） ====================
 
     @Operation(summary = "参数中心分页（多条件；行内含元数据：类型/默认值/范围/单位/生效方式）")
+    @SaCheckPermission("dms:config:list")
     @GetMapping("/page")
     public ApiResponse<Page<ConfigItemVO>> page(ConfigQueryDTO query) {
         return ApiResponse.success(configService.page(query));
     }
 
     @Operation(summary = "参数元数据 + 分组树计数（驱动前端按类型渲染控件）")
+    @SaCheckPermission("dms:config:view")
     @GetMapping("/meta")
     public ApiResponse<Map<String, Object>> meta() {
         return ApiResponse.success(configService.meta());
     }
 
     @Operation(summary = "批量保存参数（事务；逐项类型/范围/枚举/JSON/时间范围校验；敏感键留空=不修改）")
+    @SaCheckPermission("dms:config:update")
     @PutMapping("/batch")
     public ApiResponse<Integer> batchUpdate(@RequestBody List<ConfigItemDTO> items) {
         return ApiResponse.success("保存成功", configService.batchUpdate(items));
     }
 
     @Operation(summary = "恢复默认值（依据元数据注册表）")
+    @SaCheckPermission("dms:config:update")
     @PostMapping("/{key}/reset")
     public ApiResponse<DmsConfig> reset(
             @Parameter(description = "租户ID") @RequestParam(required = false) Long tenantId,
@@ -143,6 +150,7 @@ public class ConfigController {
     }
 
     @Operation(summary = "导出参数集（JSON 参数清单；按查询条件过滤；敏感键不导出明文）")
+    @SaCheckPermission("dms:config:export")
     @GetMapping("/export")
     public ApiResponse<ConfigExportVO> exportConfigs(ConfigQueryDTO query) {
         return ApiResponse.success(configService.exportConfigs(query));

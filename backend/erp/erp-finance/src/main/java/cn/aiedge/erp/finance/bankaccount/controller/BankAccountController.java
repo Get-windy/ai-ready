@@ -35,6 +35,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.function.Function;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 银行账户（资料 → 财务账户 → 银行账户）Controller
@@ -57,6 +58,7 @@ public class BankAccountController {
     private static final String[] ACCOUNT_TYPE_TEXT = {"", "银行账户", "现金账户", "内部账户", "外部账户"};
 
     @Operation(summary = "分页查询银行账户（支持显示停用/显示层次结构）")
+    @SaCheckPermission("finance:bank-account:list")
     @GetMapping("/page")
     @OperationLog(module = "银行账户", type = "QUERY", desc = "分页查询银行账户")
     public ApiResponse<Page<BankAccountDTO>> page(BankAccountQueryDTO query) {
@@ -64,6 +66,7 @@ public class BankAccountController {
     }
 
     @Operation(summary = "查询银行账户详情")
+    @SaCheckPermission("finance:bank-account:detail")
     @GetMapping("/{id}")
     @OperationLog(module = "银行账户", type = "QUERY", desc = "查询银行账户详情")
     public ApiResponse<BankAccountDTO> detail(@PathVariable Long id) {
@@ -71,6 +74,7 @@ public class BankAccountController {
     }
 
     @Operation(summary = "上级账户下拉（树形顺序）")
+    @SaCheckPermission("finance:bank-account:list")
     @GetMapping("/options")
     @OperationLog(module = "银行账户", type = "QUERY", desc = "查询银行账户下拉")
     public ApiResponse<List<BankAccountDTO>> options() {
@@ -78,6 +82,7 @@ public class BankAccountController {
     }
 
     @Operation(summary = "生成下一个银行编号")
+    @SaCheckPermission("finance:bank-account:view")
     @GetMapping("/next-code")
     @OperationLog(module = "银行账户", type = "QUERY", desc = "生成下一个银行编号")
     public ApiResponse<String> nextCode(
@@ -86,6 +91,7 @@ public class BankAccountController {
     }
 
     @Operation(summary = "新增银行账户")
+    @SaCheckPermission("finance:bank-account:create")
     @PostMapping
     @OperationLog(module = "银行账户", type = "CREATE", desc = "新增银行账户")
     public ApiResponse<BankAccountDTO> create(@RequestBody BankAccountDTO dto) {
@@ -93,6 +99,7 @@ public class BankAccountController {
     }
 
     @Operation(summary = "修改银行账户")
+    @SaCheckPermission("finance:bank-account:update")
     @PutMapping("/{id}")
     @OperationLog(module = "银行账户", type = "UPDATE", desc = "修改银行账户")
     public ApiResponse<BankAccountDTO> update(@PathVariable Long id, @RequestBody BankAccountDTO dto) {
@@ -100,6 +107,7 @@ public class BankAccountController {
     }
 
     @Operation(summary = "删除银行账户")
+    @SaCheckPermission("finance:bank-account:delete")
     @DeleteMapping("/{id}")
     @OperationLog(module = "银行账户", type = "DELETE", desc = "删除银行账户")
     public ApiResponse<Void> delete(@PathVariable Long id) {
@@ -108,6 +116,7 @@ public class BankAccountController {
     }
 
     @Operation(summary = "启用/停用银行账户")
+    @SaCheckPermission("finance:bank-account:status")
     @PutMapping("/{id}/status")
     @OperationLog(module = "银行账户", type = "UPDATE", desc = "启用/停用银行账户")
     public ApiResponse<BankAccountDTO> updateStatus(
@@ -117,6 +126,7 @@ public class BankAccountController {
     }
 
     @Operation(summary = "导出银行账户（真实 xlsx）")
+    @SaCheckPermission("finance:bank-account:export")
     @GetMapping("/export")
     @OperationLog(module = "银行账户", type = "QUERY", desc = "导出银行账户")
     public void export(BankAccountQueryDTO query, HttpServletResponse response) throws IOException {

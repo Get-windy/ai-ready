@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @RestController
 @RequestMapping("/api/crm/visit")
@@ -27,6 +28,7 @@ public class VisitController {
     // ═══ 拜访计划 ═══
 
     @Operation(summary = "分页查询拜访计划")
+    @SaCheckPermission("crm:visit:list")
     @GetMapping("/plan/page")
     public Page<VisitPlan> planPage(
             @Parameter(description = "客户ID") @RequestParam(required = false) Long customerId,
@@ -43,6 +45,7 @@ public class VisitController {
     }
 
     @Operation(summary = "创建拜访计划")
+    @SaCheckPermission("crm:visit:create")
     @PostMapping("/plan")
     public VisitPlan createPlan(@RequestBody VisitPlan plan) {
         if (plan.getPlanNo() == null || plan.getPlanNo().isEmpty()) {
@@ -56,6 +59,7 @@ public class VisitController {
     }
 
     @Operation(summary = "更新拜访计划")
+    @SaCheckPermission("crm:visit:update")
     @PutMapping("/plan/{id}")
     public VisitPlan updatePlan(@PathVariable Long id, @RequestBody VisitPlan plan) {
         plan.setId(id);
@@ -64,12 +68,14 @@ public class VisitController {
     }
 
     @Operation(summary = "删除拜访计划")
+    @SaCheckPermission("crm:visit:delete")
     @DeleteMapping("/plan/{id}")
     public boolean deletePlan(@PathVariable Long id) {
         return visitPlanService.removeById(id);
     }
 
     @Operation(summary = "取消拜访计划")
+    @SaCheckPermission("crm:visit:cancel")
     @PutMapping("/plan/{id}/cancel")
     public boolean cancelPlan(@PathVariable Long id) {
         return visitPlanService.cancel(id);
@@ -78,6 +84,7 @@ public class VisitController {
     // ═══ 拜访执行 ═══
 
     @Operation(summary = "分页查询拜访执行记录")
+    @SaCheckPermission("crm:visit:list")
     @GetMapping("/record/page")
     public Page<VisitRecord> recordPage(
             @Parameter(description = "客户ID") @RequestParam(required = false) Long customerId,
@@ -94,12 +101,14 @@ public class VisitController {
     }
 
     @Operation(summary = "创建拜访执行记录（签到打卡，关联计划自动置为已完成）")
+    @SaCheckPermission("crm:visit:create")
     @PostMapping("/record")
     public VisitRecord checkIn(@RequestBody VisitRecord record) {
         return visitRecordService.checkIn(record);
     }
 
     @Operation(summary = "更新拜访执行记录")
+    @SaCheckPermission("crm:visit:update")
     @PutMapping("/record/{id}")
     public VisitRecord updateRecord(@PathVariable Long id, @RequestBody VisitRecord record) {
         record.setId(id);
@@ -108,6 +117,7 @@ public class VisitController {
     }
 
     @Operation(summary = "删除拜访执行记录")
+    @SaCheckPermission("crm:visit:delete")
     @DeleteMapping("/record/{id}")
     public boolean deleteRecord(@PathVariable Long id) {
         return visitRecordService.removeById(id);
@@ -116,6 +126,7 @@ public class VisitController {
     // ═══ 拜访检视 ═══
 
     @Operation(summary = "拜访检视（各结果计数+按日期分组+分页列表）")
+    @SaCheckPermission("crm:visit:list")
     @GetMapping("/review/page")
     public Map<String, Object> reviewPage(
             @Parameter(description = "拜访结果(1有意向/2一般/3无意向)") @RequestParam(required = false) Integer result,
@@ -130,6 +141,7 @@ public class VisitController {
     }
 
     @Operation(summary = "拜访统计汇总（今日/本周拜访数/计划覆盖率）")
+    @SaCheckPermission("crm:visit:view")
     @GetMapping("/stats/summary")
     public Map<String, Object> statsSummary() {
         return visitRecordService.statsSummary();

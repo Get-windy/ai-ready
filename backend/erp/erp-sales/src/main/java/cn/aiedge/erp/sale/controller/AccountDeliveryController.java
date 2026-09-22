@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 账款交账控制器
@@ -29,18 +30,21 @@ public class AccountDeliveryController {
     }
 
     @Operation(summary = "按单据视图：分页查询待交账单据 + 五档统计")
+    @SaCheckPermission("finance:account-delivery:view")
     @GetMapping("/doc-page")
     public AccountDeliveryResult docPage(AccountDeliveryQueryDTO query) {
         return accountDeliveryService.docPage(query);
     }
 
     @Operation(summary = "按职员视图：按交账职员分组汇总 + 五档统计")
+    @SaCheckPermission("finance:account-delivery:view")
     @GetMapping("/staff")
     public AccountDeliveryResult staff(AccountDeliveryQueryDTO query) {
         return accountDeliveryService.staffList(query);
     }
 
     @Operation(summary = "交账动作（去交账/配送退货）：回写结算状态为已结算")
+    @SaCheckPermission("finance:account-delivery:update")
     @PostMapping("/deliver")
     public Map<String, Object> deliver(@RequestBody AccountDeliveryQueryDTO query) {
         accountDeliveryService.deliver(query);

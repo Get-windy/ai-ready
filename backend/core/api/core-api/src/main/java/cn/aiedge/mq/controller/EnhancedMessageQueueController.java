@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 增强版消息队列管理控制器
@@ -39,6 +40,7 @@ public class EnhancedMessageQueueController {
 
     // ==================== 消息发送增强 ====================
 
+    @SaCheckPermission("system:mq-enhanced:execute")
     @PostMapping("/send/batch")
     @Operation(summary = "批量发送消息")
     public Result<Object> sendBatchMessage(
@@ -55,6 +57,7 @@ public class EnhancedMessageQueueController {
         ));
     }
 
+    @SaCheckPermission("system:mq-enhanced:execute")
     @PostMapping("/send/idempotent")
     @Operation(summary = "发送幂等性消息")
     public Result<Object> sendIdempotentMessage(
@@ -71,6 +74,7 @@ public class EnhancedMessageQueueController {
         ));
     }
 
+    @SaCheckPermission("system:mq-enhanced:execute")
     @PostMapping("/send/transaction")
     @Operation(summary = "发送事务消息")
     public Result<Object> sendTransactionMessage(
@@ -89,6 +93,7 @@ public class EnhancedMessageQueueController {
         }
     }
 
+    @SaCheckPermission("system:mq-enhanced:execute")
     @PostMapping("/send/order-created")
     @Operation(summary = "发送订单创建消息")
     public Result<Object> sendOrderCreated(
@@ -107,6 +112,7 @@ public class EnhancedMessageQueueController {
         }
     }
 
+    @SaCheckPermission("system:mq-enhanced:execute")
     @PostMapping("/send/payment-result")
     @Operation(summary = "发送支付结果消息")
     public Result<Object> sendPaymentResult(
@@ -131,6 +137,7 @@ public class EnhancedMessageQueueController {
 
     // ==================== 监控功能 ====================
 
+    @SaCheckPermission("system:mq-enhanced:view")
     @GetMapping("/monitor/metrics")
     @Operation(summary = "获取监控指标")
     public Result<Object> getMetrics() {
@@ -138,6 +145,7 @@ public class EnhancedMessageQueueController {
         return Result.success(metrics);
     }
 
+    @SaCheckPermission("system:mq-enhanced:view")
     @GetMapping("/monitor/health")
     @Operation(summary = "健康检查")
     public Result<Object> healthCheck() {
@@ -145,6 +153,7 @@ public class EnhancedMessageQueueController {
         return Result.success(healthStatus);
     }
 
+    @SaCheckPermission("system:mq-enhanced:view")
     @GetMapping("/monitor/stats")
     @Operation(summary = "获取统计信息")
     public Result<Object> getStats() {
@@ -162,6 +171,7 @@ public class EnhancedMessageQueueController {
 
     // ==================== 重试管理 ====================
 
+    @SaCheckPermission("system:mq-enhanced:detail")
     @GetMapping("/retry/status/{messageId}")
     @Operation(summary = "获取消息重试状态")
     public Result<Object> getRetryStatus(@PathVariable String messageId) {
@@ -171,6 +181,7 @@ public class EnhancedMessageQueueController {
         return Result.success(retryStatus);
     }
 
+    @SaCheckPermission("system:mq-enhanced:retry")
     @PostMapping("/retry/resend/{messageId}")
     @Operation(summary = "重新发送失败的消息")
     public Result<Object> resendFailedMessage(
@@ -190,6 +201,7 @@ public class EnhancedMessageQueueController {
         ));
     }
 
+    @SaCheckPermission("system:mq-enhanced:retry")
     @PostMapping("/retry/batch-resend")
     @Operation(summary = "批量重发消息")
     public Result<Object> batchResendMessages(
@@ -208,6 +220,7 @@ public class EnhancedMessageQueueController {
 
     // ==================== 队列管理 ====================
 
+    @SaCheckPermission("system:mq-enhanced:view")
     @GetMapping("/queues")
     @Operation(summary = "获取队列信息")
     public Result<Object> getQueueInfo() {
@@ -226,6 +239,7 @@ public class EnhancedMessageQueueController {
         return Result.success(queues);
     }
 
+    @SaCheckPermission("system:mq-enhanced:view")
     @GetMapping("/queues/{queueName}/status")
     @Operation(summary = "获取指定队列状态")
     public Result<Object> getQueueStatus(@PathVariable String queueName) {
@@ -243,6 +257,7 @@ public class EnhancedMessageQueueController {
 
     // ==================== 消息管理 ====================
 
+    @SaCheckPermission("system:mq-enhanced:view")
     @GetMapping("/messages/pending")
     @Operation(summary = "获取待处理消息统计")
     public Result<Object> getPendingMessages() {

@@ -97,6 +97,113 @@
 
         <!-- ═══ 授权勾选区（替代表格；滚动容器高度自适应） ═══ -->
         <template #table>
+          <!--
+            模块开通 / 停用（平台侧授权下发）
+            · 模块目录来自接口（系统模块注册表），**不在页面硬编码模块名单**；
+              该租户「是否已开通」来自租户模块记录，两者按 moduleCode 合并后展示。
+            · 未选中租户时整块不出现（下面紧跟着的「请先选择一个租户」已经提示了原因）。
+          -->
+          <div
+            v-if="selectedTenantId"
+            class="module-area"
+          >
+            <div class="module-bar">
+              <span class="module-stat">
+                模块开通 <b>{{ openedCount }}</b> / 共 <b>{{ moduleCatalog.length }}</b> 个
+                <span class="module-hint">（停用后该租户所有用户访问该模块都会被拒绝）</span>
+              </span>
+              <a-space :size="8">
+                <a-button
+                  size="small"
+                  type="link"
+                  :loading="modulesLoading"
+                  @click="handleRefreshModules"
+                >
+                  刷新模块
+                </a-button>
+                <a-button
+                  size="small"
+                  type="link"
+                  @click="moduleExpanded = !moduleExpanded"
+                >
+                  {{ moduleExpanded ? '收起' : '展开' }}
+                </a-button>
+              </a-space>
+            </div>
+
+            <div
+              v-show="moduleExpanded"
+              class="module-grid-wrap"
+            >
+              <a-spin :spinning="modulesLoading">
+                <a-empty
+                  v-if="!moduleCatalog.length && !modulesLoading"
+                  description="未获取到模块目录，请点「刷新模块」重试"
+                />
+                <div
+                  v-else
+                  class="module-grid"
+                >
+                  <div
+                    v-for="m in moduleCatalog"
+                    :key="m.moduleCode"
+                    class="module-item"
+                  >
+                    <span class="module-name">{{ m.moduleName || m.moduleCode }}</span>
+                    <!-- 注册表状态 0 = 已下线（该状态来自模块目录接口，不是本页判断） -->
+                    <a-tag
+                      v-if="m.sysStatus === 0"
+                      color="default"
+                    >
+                      已下线
+                    </a-tag>
+                    <a-tag
+                      v-else-if="licenseOf(m.moduleCode) && licenseOf(m.moduleCode)?.status === 0"
+                      color="green"
+                    >
+                      已开通
+                    </a-tag>
+                    <a-tag
+                      v-else-if="licenseOf(m.moduleCode)"
+                      color="orange"
+                    >
+                      已停用
+                    </a-tag>
+                    <a-tag
+                      v-else
+                      color="default"
+                    >
+                      未开通
+                    </a-tag>
+
+                    <template v-if="isButtonEnabled('moduleToggle')">
+                      <a-button
+                        v-if="licenseOf(m.moduleCode) && licenseOf(m.moduleCode)?.status === 0"
+                        size="small"
+                        type="link"
+                        danger
+                        :loading="operatingCode === m.moduleCode"
+                        @click="handleRemoveModule(m)"
+                      >
+                        停用
+                      </a-button>
+                      <a-button
+                        v-else
+                        size="small"
+                        type="link"
+                        :disabled="m.sysStatus === 0"
+                        :loading="operatingCode === m.moduleCode"
+                        @click="handleAssignModule(m)"
+                      >
+                        开通
+                      </a-button>
+                    </template>
+                  </div>
+                </div>
+              </a-spin>
+            </div>
+          </div>
+
           <div class="auth-area">
             <!-- 统计 + 批量勾选（作用于「当前筛选结果」） -->
             <div class="auth-bar">
@@ -205,6 +312,8 @@ import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayo
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
 import { tenantApi } from '@/api/tenant'
 import { menuApi, type MenuInfo } from '@/api/menu'
+import { tenantModuleApi, type TenantModule } from '@/api/tenantModule'
+import { appCenterApi, type AppCenterModule } from '@/api/set/app-center'
 
 defineOptions({ name: 'AdminTenantModuleAuth' })
 
@@ -239,6 +348,27 @@ const authorizedIds = ref<string[]>([])
 const saving = ref(false)
 const keyword = ref('')
 
+// ── 模块开通 / 停用（平台侧授权下发） ──
+/** 模块目录（系统模块注册表全量；来源见 loadModules 注释） */
+const moduleCatalog = ref<AppCenterModule[]>([])
+/** 该租户的模块开通记录（按 moduleCode 建索引） */
+const moduleLicenses = ref<Map<string, TenantModule>>(new Map())
+const modulesLoading = ref(false)
+/** 正在开通/停用的模块编码（只让被点的那一行转圈） */
+const operatingCode = ref('')
+/** 模块区默认展开：13 个模块用「展开/收起」折起来，不挤占下面的菜单授权区 */
+const moduleExpanded = ref(true)
+
+/** 已开通模块数（status = 0 才算正常开通） */
+const openedCount = computed(() =>
+  moduleCatalog.value.filter(m => licenseOf(m.moduleCode)?.status === 0).length,
+)
+
+/** 取某模块的开通记录；未开通返回 undefined */
+function licenseOf(moduleCode: string): TenantModule | undefined {
+  return moduleLicenses.value.get(moduleCode)
+}
+
 // ═══ 计算 ═══
 const tenantOptions = computed<TenantOption[]>(() =>
   tenants.value.map(t => ({
@@ -248,6 +378,12 @@ const tenantOptions = computed<TenantOption[]>(() =>
     tenantCode: t.tenantCode,
   })),
 )
+
+/** 所选租户的展示名（提示文案用；未选中时回落为「该租户」） */
+const currentTenantLabel = computed(() => {
+  const t = tenants.value.find(x => String(x.id) === selectedTenantId.value)
+  return t ? `${t.tenantName}（${t.tenantCode}）` : '该租户'
+})
 
 /** 按名称/编码实时过滤（381 条候选必须能筛） */
 const filteredMenus = computed(() => {
@@ -278,6 +414,7 @@ const DEFAULT_FUNCTION_BUTTONS: FunctionButtonSetting[] = [
   { key: 'save', label: '保存授权', enabled: true },
   { key: 'refresh', label: '刷新', enabled: true },
   { key: 'selectAll', label: '全选/全不选', enabled: true },
+  { key: 'moduleToggle', label: '模块开通/停用', enabled: true },
 ]
 const queryFields = ref<QueryFieldSetting[]>(DEFAULT_QUERY_FIELDS.map(f => ({ ...f })))
 const functionButtons = ref<FunctionButtonSetting[]>(DEFAULT_FUNCTION_BUTTONS.map(f => ({ ...f })))
@@ -371,6 +508,101 @@ async function loadTenantAuth(tenantId: string) {
   }
 }
 
+/**
+ * 加载「模块目录 + 该租户是否已开通」。
+ *
+ * 数据来源（两段都是已有接口，页面**不硬编码模块名单**）：
+ *  ① 模块目录：`GET /api/set/app-center/modules`（`SetAppCenterController#modules`，
+ *     registry 取自 sys_module；该方法走 `@InterceptorIgnore(tenantLine)`，
+ *     不受会话租户过滤，任何会话都能拿到完整注册表）。
+ *     响应里的 `licensed` 是**当前会话租户**的口径，本页要按「所选租户」展示，故**不采用**，
+ *     只取模块编码/名称/排序/上线状态；非注册表的历史细粒度编码（sysStatus 为 null）不算模块，过滤掉。
+ *  ② 开通状态：`GET /api/tenant-module/list?tenantId=`（`TenantModuleController#getTenantModules`，
+ *     平台超管可指定任意租户，非超管传他人租户 id 会被忽略并返回本租户）。
+ */
+async function loadModules(tenantId: string) {
+  modulesLoading.value = true
+  try {
+    const [catalog, licenses] = await Promise.all([
+      appCenterApi.modules(),
+      tenantModuleApi.getList(Number(tenantId)),
+    ])
+    moduleCatalog.value = (Array.isArray(catalog) ? catalog : [])
+      .filter(m => m.sysStatus !== null && m.sysStatus !== undefined)
+      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+    const licenseList = Array.isArray(licenses) ? licenses : []
+    moduleLicenses.value = new Map(licenseList.map(l => [String(l.moduleCode), l]))
+  } catch (error: unknown) {
+    console.error('[模块授权] 加载模块开通状态失败', error)
+    message.error(errMsg(error, '加载模块开通状态失败'))
+    moduleCatalog.value = []
+    moduleLicenses.value = new Map()
+  } finally {
+    modulesLoading.value = false
+  }
+}
+
+function handleRefreshModules() {
+  if (selectedTenantId.value) loadModules(selectedTenantId.value)
+}
+
+/**
+ * 开通模块（POST /api/tenant-module/assign）。
+ * 只提交必填的 租户 + 模块编码；`purchaseType` / `expireTime` 是可选字段，由后端取默认。
+ */
+async function handleAssignModule(m: AppCenterModule) {
+  const tenantId = selectedTenantId.value
+  if (!tenantId) {
+    message.warning('请先选择租户')
+    return
+  }
+  operatingCode.value = m.moduleCode
+  try {
+    await tenantModuleApi.assignModule({ tenantId: Number(tenantId), moduleCode: m.moduleCode })
+    message.success(`已为「${currentTenantLabel.value}」开通「${m.moduleName || m.moduleCode}」`)
+    await loadModules(tenantId)
+  } catch (error: unknown) {
+    console.error('[模块授权] 开通模块失败', error)
+    message.error(errMsg(error, `开通「${m.moduleName || m.moduleCode}」失败`))
+  } finally {
+    operatingCode.value = ''
+  }
+}
+
+/**
+ * 停用模块（DELETE /api/tenant-module/remove）。
+ *
+ * ⚠️ 必须二次确认：停用是**不可逆的权限面变更** —— 该租户下所有用户访问该模块的接口
+ * 都会立即被模块门拒绝（403「模块未开通」），不是仅仅隐藏菜单。
+ */
+async function handleRemoveModule(m: AppCenterModule) {
+  const tenantId = selectedTenantId.value
+  if (!tenantId) {
+    message.warning('请先选择租户')
+    return
+  }
+  const name = m.moduleName || m.moduleCode
+  const ok = await confirmModal(
+    `确认停用「${name}」?`,
+    `停用后，「${currentTenantLabel.value}」下所有用户访问「${name}」相关功能都会被拒绝`
+      + '（接口返回 403「模块未开通」，菜单与按钮也不可用），且不会再自动恢复。'
+      + `请确认该租户确实不再需要「${name}」，是否继续?`,
+  )
+  if (!ok) return
+
+  operatingCode.value = m.moduleCode
+  try {
+    await tenantModuleApi.removeModule(Number(tenantId), m.moduleCode)
+    message.success(`已停用「${name}」`)
+    await loadModules(tenantId)
+  } catch (error: unknown) {
+    console.error('[模块授权] 停用模块失败', error)
+    message.error(errMsg(error, `停用「${name}」失败`))
+  } finally {
+    operatingCode.value = ''
+  }
+}
+
 // ═══ 事件 ═══
 /**
  * 切换租户：候选与勾选**全部重算**，绝不留上一次的勾选。
@@ -393,7 +625,10 @@ async function handleTenantChange(val: unknown) {
   menus.value = []
   selectedMenuIds.value = []
   authorizedIds.value = []
-  if (next) await loadTenantAuth(next)
+  // 模块区同样必须按新租户重算，否则会把上一个租户的开通状态显示给新租户（误导性极强）
+  moduleCatalog.value = []
+  moduleLicenses.value = new Map()
+  if (next) await Promise.all([loadTenantAuth(next), loadModules(next)])
 }
 
 function handleReset() {
@@ -402,7 +637,10 @@ function handleReset() {
 
 function handleRefresh() {
   fetchTenants()
-  if (selectedTenantId.value) loadTenantAuth(selectedTenantId.value)
+  if (selectedTenantId.value) {
+    loadTenantAuth(selectedTenantId.value)
+    loadModules(selectedTenantId.value)
+  }
 }
 
 /** 全选 / 全不选**当前筛选结果**；筛选之外已勾选的项不受影响 */
@@ -521,6 +759,41 @@ onMounted(() => {
 .search-area { padding: 8px 16px; background: #fff; border-bottom: 1px solid #e8e8e8; flex-shrink: 0; }
 .search-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .search-label { font-size: 13px; color: #666; white-space: nowrap; }
+
+/* ─ 模块开通/停用区：固定在表格区顶部（flex-shrink:0），把剩余高度让给下方的菜单授权区 ─ */
+.module-area { flex-shrink: 0; background: #fff; border-bottom: 1px solid #e8e8e8; }
+.module-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 16px;
+  background: #fafafa;
+  border-bottom: 1px solid #f0f0f0;
+}
+.module-stat { font-size: 13px; color: #666; }
+.module-stat b { color: #1890ff; }
+.module-hint { color: #999; font-size: 12px; }
+/* 13 个模块也可能更长：给一个最大高度，内部滚动，避免把菜单授权区压到看不见 */
+.module-grid-wrap { max-height: 220px; overflow: auto; padding: 10px 16px; }
+.module-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 8px;
+}
+.module-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid #f0f0f0;
+  border-radius: 4px;
+  line-height: 20px;
+  overflow: hidden;
+}
+.module-item:hover { border-color: #91d5ff; background: #f5faff; }
+.module-name { flex: 1; font-weight: 500; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.module-item :deep(.ant-tag) { flex-shrink: 0; margin-inline-end: 0; font-size: 11px; line-height: 16px; }
 
 /* 授权区：flex 纵向容器，滚动区 flex:1 + min-height:0 才能正确自适应高度 */
 .auth-area { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }

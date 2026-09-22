@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 供应商管理控制器
@@ -32,6 +33,7 @@ public class SupplierController {
     
     private final SupplierService supplierService;
     
+    @SaCheckPermission("supplier:create")
     @PostMapping
     @Operation(summary = "创建供应商", description = "创建新的供应商信息")
     public R<SupplierDTO> createSupplier(@Valid @RequestBody SupplierDTO supplierDTO) {
@@ -39,6 +41,7 @@ public class SupplierController {
         return supplierService.createSupplier(supplierDTO);
     }
     
+    @SaCheckPermission("supplier:update")
     @PutMapping
     @Operation(summary = "更新供应商", description = "更新现有供应商信息")
     public R<SupplierDTO> updateSupplier(@Valid @RequestBody SupplierDTO supplierDTO) {
@@ -46,6 +49,7 @@ public class SupplierController {
         return supplierService.updateSupplier(supplierDTO);
     }
     
+    @SaCheckPermission("supplier:detail")
     @GetMapping("/{id:\\d+}")
     @Operation(summary = "获取供应商详情", description = "根据ID获取供应商详细信息")
     public R<SupplierDTO> getSupplierById(
@@ -55,6 +59,7 @@ public class SupplierController {
         return supplierService.getSupplierById(id);
     }
     
+    @SaCheckPermission("supplier:detail")
     @GetMapping("/code/{supplierCode}")
     @Operation(summary = "根据编码获取供应商", description = "根据供应商编码获取详细信息")
     public R<SupplierDTO> getSupplierByCode(
@@ -64,6 +69,7 @@ public class SupplierController {
         return supplierService.getSupplierByCode(supplierCode);
     }
     
+    @SaCheckPermission("supplier:list")
     @PostMapping("/page")
     @Operation(summary = "分页查询供应商", description = "根据条件分页查询供应商列表")
     public R<PageResult<SupplierDTO>> querySupplierPage(@Valid @RequestBody SupplierQueryDTO queryDTO) {
@@ -71,6 +77,7 @@ public class SupplierController {
         return supplierService.querySupplierPage(queryDTO);
     }
     
+    @SaCheckPermission("supplier:list")
     @PostMapping("/list")
     @Operation(summary = "查询供应商列表", description = "根据条件查询供应商列表（不分页，POST方式，带查询条件）")
     public R<List<SupplierDTO>> querySupplierList(@Valid @RequestBody SupplierQueryDTO queryDTO) {
@@ -78,6 +85,7 @@ public class SupplierController {
         return supplierService.querySupplierList(queryDTO);
     }
 
+    @SaCheckPermission("supplier:list")
     @GetMapping("/list")
     @Operation(summary = "查询供应商列表", description = "获取所有可用供应商列表（GET方式，供下拉选择器使用）")
     public R<List<SupplierDTO>> listAll() {
@@ -85,6 +93,7 @@ public class SupplierController {
         return supplierService.querySupplierList(new SupplierQueryDTO());
     }
     
+    @SaCheckPermission("supplier:delete")
     @DeleteMapping("/{id}")
     @Operation(summary = "删除供应商", description = "逻辑删除供应商信息")
     public R<Boolean> deleteSupplier(
@@ -94,6 +103,7 @@ public class SupplierController {
         return supplierService.deleteSupplier(id);
     }
     
+    @SaCheckPermission("supplier:delete")
     @DeleteMapping("/batch")
     @Operation(summary = "批量删除供应商", description = "批量逻辑删除供应商信息")
     public R<Boolean> batchDeleteSupplier(
@@ -103,6 +113,7 @@ public class SupplierController {
         return supplierService.batchDeleteSupplier(ids);
     }
     
+    @SaCheckPermission("supplier:update")
     @PostMapping("/{id}/activate-portal")
     @Operation(summary = "激活供应商门户", description = "激活供应商门户账户")
     public R<Boolean> activateSupplierPortal(
@@ -114,6 +125,7 @@ public class SupplierController {
         return supplierService.activateSupplierPortal(id, portalAccountId);
     }
     
+    @SaCheckPermission("supplier:update")
     @PostMapping("/{id}/disable-portal")
     @Operation(summary = "禁用供应商门户", description = "禁用供应商门户账户")
     public R<Boolean> disableSupplierPortal(
@@ -125,6 +137,7 @@ public class SupplierController {
         return supplierService.disableSupplierPortal(id, reason);
     }
     
+    @SaCheckPermission("supplier:update")
     @PostMapping("/{id}/update-level")
     @Operation(summary = "更新供应商等级", description = "更新供应商等级")
     public R<Boolean> updateSupplierLevel(
@@ -138,6 +151,7 @@ public class SupplierController {
         return supplierService.updateSupplierLevel(id, supplierLevel, reason);
     }
     
+    @SaCheckPermission("supplier:update")
     @PostMapping("/{id}/update-cooperation-status")
     @Operation(summary = "更新合作状态", description = "更新供应商合作状态")
     public R<Boolean> updateCooperationStatus(
@@ -151,6 +165,7 @@ public class SupplierController {
         return supplierService.updateCooperationStatus(id, cooperationStatus, reason);
     }
     
+    @SaCheckPermission("supplier:performance:create")
     @PostMapping("/performance/evaluate")
     @Operation(summary = "评估供应商绩效", description = "对供应商进行绩效评估")
     public R<Boolean> evaluateSupplierPerformance(@Valid @RequestBody SupplierPerformanceDTO performanceDTO) {
@@ -158,6 +173,7 @@ public class SupplierController {
         return supplierService.evaluateSupplierPerformance(performanceDTO);
     }
     
+    @SaCheckPermission("supplier:performance:list")
     @GetMapping("/{supplierId}/performance/history")
     @Operation(summary = "获取绩效历史", description = "获取供应商绩效评估历史记录")
     public R<List<SupplierPerformanceDTO>> getSupplierPerformanceHistory(
@@ -171,6 +187,7 @@ public class SupplierController {
         return supplierService.getSupplierPerformanceHistory(supplierId, periodType, limit);
     }
     
+    @SaCheckPermission("supplier:performance:view")
     @GetMapping("/{supplierId}/comprehensive-score")
     @Operation(summary = "获取综合评分", description = "获取供应商综合评分")
     public R<Double> getSupplierComprehensiveScore(
@@ -180,6 +197,7 @@ public class SupplierController {
         return supplierService.getSupplierComprehensiveScore(supplierId);
     }
     
+    @SaCheckPermission("supplier:import")
     @PostMapping("/import")
     @Operation(summary = "导入供应商", description = "批量导入供应商数据")
     public R<Boolean> importSuppliers(
@@ -189,6 +207,7 @@ public class SupplierController {
         return supplierService.importSuppliers(supplierList);
     }
     
+    @SaCheckPermission("supplier:export")
     @PostMapping("/export")
     @Operation(summary = "导出供应商", description = "导出供应商数据")
     public R<List<SupplierDTO>> exportSuppliers(@Valid @RequestBody SupplierQueryDTO queryDTO) {
@@ -196,6 +215,7 @@ public class SupplierController {
         return supplierService.exportSuppliers(queryDTO);
     }
     
+    @SaCheckPermission("supplier:check")
     @PostMapping("/validate")
     @Operation(summary = "验证供应商", description = "验证供应商信息有效性")
     public R<Boolean> validateSupplier(@Valid @RequestBody SupplierDTO supplierDTO) {
@@ -203,6 +223,7 @@ public class SupplierController {
         return supplierService.validateSupplier(supplierDTO);
     }
     
+    @SaCheckPermission("supplier:update")
     @PostMapping("/{id}/sync-portal")
     @Operation(summary = "同步门户账户", description = "同步供应商门户账户信息")
     public R<Boolean> syncSupplierPortalAccount(
@@ -212,6 +233,7 @@ public class SupplierController {
         return supplierService.syncSupplierPortalAccount(id);
     }
     
+    @SaCheckPermission("supplier:view")
     @GetMapping("/statistics")
     @Operation(summary = "获取统计信息", description = "获取供应商统计信息")
     public R<Map<String, Object>> getSupplierStatistics() {
@@ -221,6 +243,7 @@ public class SupplierController {
         return supplierService.getSupplierStatistics(tenantId);
     }
 
+    @SaCheckPermission("supplier:view")
     @GetMapping("/stats")
     @Operation(summary = "获取统计信息(别名)", description = "与/statistics相同，兼容前端不同拼写")
     public R<Map<String, Object>> getSupplierStats() {

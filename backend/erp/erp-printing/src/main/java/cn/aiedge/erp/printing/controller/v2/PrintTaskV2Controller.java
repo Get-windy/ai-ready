@@ -16,6 +16,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Tag(name = "V2-打印任务管理", description = "支持单模板打印和链路打印，含截图确认流程")
 @RestController
@@ -27,6 +28,7 @@ public class PrintTaskV2Controller {
     private final SysPrintTaskMapper taskMapper;
 
     @Operation(summary = "按链路执行打印")
+    @SaCheckPermission("print:task:execute")
     @PostMapping("/by-chain")
     public ResponseEntity<ApiResponse<Object>> executeByChain(
             @Valid @RequestBody ChainTaskExecuteRequest request,
@@ -37,6 +39,7 @@ public class PrintTaskV2Controller {
     }
 
     @Operation(summary = "获取任务详情")
+    @SaCheckPermission("print:task:detail")
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<Object>> getTask(@PathVariable Long id, @RequestHeader Long tenantId) {
         SysPrintTask task = taskMapper.selectById(id);
@@ -47,6 +50,7 @@ public class PrintTaskV2Controller {
     }
 
     @Operation(summary = "任务列表查询")
+    @SaCheckPermission("print:task:list")
     @GetMapping
     public ResponseEntity<ApiResponse<Object>> listTasks(
             @RequestParam(defaultValue = "1") Integer page,
@@ -74,6 +78,7 @@ public class PrintTaskV2Controller {
     }
 
     @Operation(summary = "取消任务")
+    @SaCheckPermission("print:task:cancel")
     @PostMapping("/{id}/cancel")
     public ResponseEntity<ApiResponse<Object>> cancelTask(@PathVariable Long id) {
         chainExecutorService.cancelWaitingTask(id);
@@ -81,6 +86,7 @@ public class PrintTaskV2Controller {
     }
 
     @Operation(summary = "确认截图并继续打印")
+    @SaCheckPermission("print:task:confirm")
     @PostMapping("/{id}/confirm-screenshot")
     public ResponseEntity<ApiResponse<Object>> confirmScreenshot(@PathVariable Long id) {
         chainExecutorService.confirmScreenshot(id);
@@ -88,6 +94,7 @@ public class PrintTaskV2Controller {
     }
 
     @Operation(summary = "获取任务队列（PRINTING 状态）")
+    @SaCheckPermission("print:task:list")
     @GetMapping("/queue")
     public ResponseEntity<ApiResponse<Object>> getQueue(@RequestHeader Long tenantId) {
         LambdaQueryWrapper<SysPrintTask> wrapper = new LambdaQueryWrapper<>();

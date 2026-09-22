@@ -104,5 +104,11 @@ backend/cn/
 *.err
 tool-results/
 
+# 商标初筛脚本用的浏览器临时 profile（Chromium 缓存/凭据，约 12MB，绝不入库）
+tools/.tm-clearance-profile/
+tools/tm-clearance-cache.json
+tools/tm-clearance-run.log
+tools/tm-clearance-result.json
+
 # AtCode tool runtime
 **/.atcode/

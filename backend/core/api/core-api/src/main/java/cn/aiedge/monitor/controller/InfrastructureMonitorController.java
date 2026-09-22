@@ -20,6 +20,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.*;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 基础设施监控控制器
@@ -38,6 +39,7 @@ public class InfrastructureMonitorController {
     /**
      * 获取服务器基本信息
      */
+    @SaCheckPermission("system:monitor-infrastructure:view")
     @GetMapping("/server/info")
     @Operation(summary = "获取服务器基本信息")
     public Map<String, Object> getServerInfo() {
@@ -77,6 +79,7 @@ public class InfrastructureMonitorController {
     /**
      * 获取CPU详细信息
      */
+    @SaCheckPermission("system:monitor-infrastructure:view")
     @GetMapping("/cpu/detail")
     @Operation(summary = "获取CPU详细信息")
     public Map<String, Object> getCpuDetail() {
@@ -109,6 +112,7 @@ public class InfrastructureMonitorController {
     /**
      * 获取磁盘信息
      */
+    @SaCheckPermission("system:monitor-infrastructure:view")
     @GetMapping("/disk/info")
     @Operation(summary = "获取磁盘信息")
     public List<Map<String, Object>> getDiskInfo() {
@@ -170,6 +174,7 @@ public class InfrastructureMonitorController {
     /**
      * 获取网络接口信息
      */
+    @SaCheckPermission("system:monitor-infrastructure:view")
     @GetMapping("/network/interfaces")
     @Operation(summary = "获取网络接口信息")
     public List<Map<String, Object>> getNetworkInterfaces() {
@@ -219,6 +224,7 @@ public class InfrastructureMonitorController {
     /**
      * 获取网络统计信息
      */
+    @SaCheckPermission("system:monitor-infrastructure:view")
     @GetMapping("/network/stats")
     @Operation(summary = "获取网络统计信息")
     public Map<String, Object> getNetworkStats() {
@@ -252,6 +258,7 @@ public class InfrastructureMonitorController {
     /**
      * 获取进程信息
      */
+    @SaCheckPermission("system:monitor-infrastructure:view")
     @GetMapping("/process/info")
     @Operation(summary = "获取进程信息")
     public Map<String, Object> getProcessInfo() {
@@ -274,6 +281,7 @@ public class InfrastructureMonitorController {
     /**
      * 获取环境信息
      */
+    @SaCheckPermission("system:monitor-infrastructure:view")
     @GetMapping("/environment")
     @Operation(summary = "获取环境信息")
     public Map<String, Object> getEnvironment() {

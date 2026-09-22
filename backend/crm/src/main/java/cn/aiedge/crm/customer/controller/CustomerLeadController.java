@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @RestController
 @RequestMapping("/api/crm/lead")
@@ -22,6 +23,7 @@ public class CustomerLeadController {
     private final CustomerLeadService customerLeadService;
     
     @Operation(summary = "分页查询线索列表")
+    @SaCheckPermission("crm:lead:view")
     @GetMapping("/page")
     public Page<CustomerLead> pageList(
             @Parameter(description = "关键词") @RequestParam(required = false) String keyword,
@@ -34,18 +36,21 @@ public class CustomerLeadController {
     }
     
     @Operation(summary = "获取线索详情")
+    @SaCheckPermission("crm:lead:view")
     @GetMapping("/{id}")
     public CustomerLead getDetail(@PathVariable Long id) {
         return customerLeadService.getById(id);
     }
     
     @Operation(summary = "根据编码查询线索")
+    @SaCheckPermission("crm:lead:view")
     @GetMapping("/code/{leadCode}")
     public CustomerLead getByCode(@PathVariable String leadCode) {
         return customerLeadService.getByLeadCode(leadCode);
     }
     
     @Operation(summary = "创建线索")
+    @SaCheckPermission("crm:lead:create")
     @PostMapping
     public CustomerLead create(@RequestBody CustomerLead lead) {
         lead.setLeadCode(customerLeadService.generateLeadCode());
@@ -54,6 +59,7 @@ public class CustomerLeadController {
     }
     
     @Operation(summary = "更新线索")
+    @SaCheckPermission("crm:lead:edit")
     @PutMapping("/{id}")
     public CustomerLead update(@PathVariable Long id, @RequestBody CustomerLead lead) {
         lead.setId(id);
@@ -62,18 +68,21 @@ public class CustomerLeadController {
     }
     
     @Operation(summary = "删除线索")
+    @SaCheckPermission("crm:lead:delete")
     @DeleteMapping("/{id}")
     public boolean delete(@PathVariable Long id) {
         return customerLeadService.removeById(id);
     }
 
     @Operation(summary = "批量删除线索")
+    @SaCheckPermission("crm:lead:delete")
     @DeleteMapping("/batch")
     public boolean batchDelete(@RequestBody List<Long> ids) {
         return customerLeadService.removeBatchByIds(ids);
     }
 
     @Operation(summary = "导出线索列表")
+    @SaCheckPermission("crm:lead:export")
     @GetMapping("/export")
     public List<CustomerLead> export(
             @Parameter(description = "关键词") @RequestParam(required = false) String keyword,
@@ -84,18 +93,21 @@ public class CustomerLeadController {
     }
     
     @Operation(summary = "转化线索为客户")
+    @SaCheckPermission("crm:lead:convert")
     @PostMapping("/{id}/convert")
     public Customer convertToCustomer(@PathVariable Long id) {
         return customerLeadService.convertToCustomer(id);
     }
 
     @Operation(summary = "批量转化线索为客户（单条失败不中断整批）")
+    @SaCheckPermission("crm:lead:batchconvert")
     @PostMapping("/batch-convert")
     public Map<String, Object> batchConvert(@RequestBody List<Long> ids) {
         return customerLeadService.batchConvertToCustomer(ids);
     }
     
     @Operation(summary = "查询销售人员的线索")
+    @SaCheckPermission("crm:lead:view")
     @GetMapping("/salesPerson/{salesPersonId}")
     public List<CustomerLead> listBySalesPerson(@PathVariable Long salesPersonId) {
         return customerLeadService.listBySalesPersonId(salesPersonId);

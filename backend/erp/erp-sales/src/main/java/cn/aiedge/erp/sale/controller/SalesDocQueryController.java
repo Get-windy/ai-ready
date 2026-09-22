@@ -18,6 +18,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 销售单据查询控制器
@@ -48,6 +49,7 @@ public class SalesDocQueryController {
      * @param queryDTO 查询参数
      * @return 分页结果
      */
+    @SaCheckPermission("sale:doc-query:list")
     @GetMapping("/page")
     public Page<UnifiedSalesDocumentDTO> unifiedPage(UnifiedSalesDocQueryDTO queryDTO) {
         // 设置默认分页参数
@@ -73,6 +75,7 @@ public class SalesDocQueryController {
      * @param id 单据ID
      * @param body 请求体 { remark: "备注内容" }
      */
+    @SaCheckPermission("sale:doc-query:update")
     @PutMapping("/{docType}/{id}/remark")
     public Map<String, Object> updateRemark(
             @PathVariable String docType,

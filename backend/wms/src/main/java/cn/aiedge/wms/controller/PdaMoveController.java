@@ -13,6 +13,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @Validated
@@ -28,6 +29,7 @@ public class PdaMoveController {
     private static final String DEFAULT_USER_NAME = "PDA操作员";
 
     @Operation(summary = "创建移库任务")
+    @SaCheckPermission("wms:move:create")
     @PostMapping
     public Result<Map<String, Object>> create(@Valid @RequestBody WmsMoveTask task) {
         moveService.saveTask(task);
@@ -36,6 +38,7 @@ public class PdaMoveController {
     }
 
     @Operation(summary = "获取移库任务详情")
+    @SaCheckPermission("wms:move:detail")
     @GetMapping("/{id}")
     public Result<WmsMoveTask> detail(@PathVariable @NotNull Long id) {
         WmsMoveTask task = moveService.getTaskById(id);
@@ -44,6 +47,7 @@ public class PdaMoveController {
     }
 
     @Operation(summary = "执行移库")
+    @SaCheckPermission("wms:move:execute")
     @PostMapping("/{id}/execute")
     public Result<Void> execute(@PathVariable @NotNull Long id) {
         moveService.executeMove(id, DEFAULT_USER_ID, DEFAULT_USER_NAME);

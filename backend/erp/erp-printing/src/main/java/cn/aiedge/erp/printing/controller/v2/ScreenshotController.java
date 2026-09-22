@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Tag(name = "V2-截图服务", description = "打印模板截图生成、预览图获取，预留微信发送扩展")
 @RestController
@@ -24,6 +25,7 @@ public class ScreenshotController {
     private final ScreenshotService screenshotService;
 
     @Operation(summary = "创建截图任务")
+    @SaCheckPermission("print:screenshot:create")
     @PostMapping
     public ResponseEntity<ApiResponse<Object>> create(
             @Valid @RequestBody ScreenshotCreateRequest request,
@@ -34,6 +36,7 @@ public class ScreenshotController {
     }
 
     @Operation(summary = "获取截图详情")
+    @SaCheckPermission("print:screenshot:detail")
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<Object>> get(@PathVariable Long id, @RequestHeader Long tenantId) {
         ScreenshotVO vo = screenshotService.getScreenshot(id, tenantId);
@@ -41,6 +44,7 @@ public class ScreenshotController {
     }
 
     @Operation(summary = "截图任务列表")
+    @SaCheckPermission("print:screenshot:list")
     @GetMapping
     public ResponseEntity<ApiResponse<Object>> list(
             @RequestParam(defaultValue = "1") Integer page,
@@ -51,6 +55,7 @@ public class ScreenshotController {
     }
 
     @Operation(summary = "前端截图回调 - 上传截图结果")
+    @SaCheckPermission("print:screenshot:complete")
     @PutMapping("/{id}/complete")
     public ResponseEntity<ApiResponse<Object>> complete(
             @PathVariable Long id,
@@ -64,6 +69,7 @@ public class ScreenshotController {
     }
 
     @Operation(summary = "重试截图任务（超时后可重新调起，无需重新打印）")
+    @SaCheckPermission("print:screenshot:retry")
     @PostMapping("/{id}/retry")
     public ResponseEntity<ApiResponse<Object>> retry(@PathVariable Long id) {
         screenshotService.retryScreenshot(id);

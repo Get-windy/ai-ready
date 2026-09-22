@@ -13,6 +13,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 业务记账集成Controller (内部接口)
@@ -28,6 +29,7 @@ public class BusinessAccountingController {
     private final BusinessAccountingService businessAccountingService;
 
     @Operation(summary = "从业务创建凭证")
+    @SaCheckPermission("finance:integration:create")
     @PostMapping("/voucher")
     @OperationLog(module = "业务记账集成", type = "CREATE", desc = "从业务创建凭证")
     public Result<VoucherDTO> createVoucherFromBusiness(@Valid @RequestBody BusinessAccountingRequest request) {
@@ -36,6 +38,7 @@ public class BusinessAccountingController {
     }
 
     @Operation(summary = "从业务创建应收款")
+    @SaCheckPermission("finance:integration:create")
     @PostMapping("/receivable")
     @OperationLog(module = "业务记账集成", type = "CREATE", desc = "从业务创建应收款")
     public Result<ReceivableDTO> createReceivableFromBusiness(@Valid @RequestBody BusinessAccountingRequest request) {
@@ -44,6 +47,7 @@ public class BusinessAccountingController {
     }
 
     @Operation(summary = "从业务创建应付款")
+    @SaCheckPermission("finance:integration:create")
     @PostMapping("/payable")
     @OperationLog(module = "业务记账集成", type = "CREATE", desc = "从业务创建应付款")
     public Result<PayableDTO> createPayableFromBusiness(@Valid @RequestBody BusinessAccountingRequest request) {

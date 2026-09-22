@@ -25,6 +25,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 销售明细查询控制器
@@ -83,6 +84,7 @@ public class SalesDetailQueryController {
 
     private final SalesDetailQueryService salesDetailQueryService;
 
+    @SaCheckPermission("sale:detail-query:list")
     @GetMapping("/page")
     @Operation(summary = "分页查询销售明细（96列）")
     public Page<Map<String, Object>> page(SalesDetailQueryDTO queryDTO) {
@@ -95,6 +97,7 @@ public class SalesDetailQueryController {
         return salesDetailQueryService.pageDetail(queryDTO);
     }
 
+    @SaCheckPermission("sale:detail-query:export")
     @GetMapping("/export")
     @Operation(summary = "导出销售明细（真实 Excel 流，96 列，与查询同一过滤口径）")
     public void export(SalesDetailQueryDTO queryDTO, HttpServletResponse response) throws IOException {

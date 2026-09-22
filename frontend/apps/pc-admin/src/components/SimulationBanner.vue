@@ -8,7 +8,7 @@
     <div class="simulation-banner__inner">
       <EyeOutlined class="simulation-banner__icon" />
       <span class="simulation-banner__text">
-        正在以用户 <b>#{{ status.targetUserId }}</b> 的身份预览权限
+        正在以 <b>{{ targetName }}</b> 的权限视角查看
         <span
           v-if="status.reason"
           class="simulation-banner__reason"
@@ -33,11 +33,22 @@
  *
  * 状态来自 useSimulation 的模块级单例，任何页面调用 start() 后本组件自动出现。
  */
-import { onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
 import { EyeOutlined } from '@ant-design/icons-vue'
 import { useSimulation } from '@/composables/useSimulation'
 
-const { status, loading, refresh, stop } = useSimulation()
+const { status, loading, targetLabel, refresh, stop } = useSimulation()
+
+/**
+ * 横幅上显示「在模拟谁」。
+ * 拿到用户名就显示「张三（#12）」；刷新页面后只剩服务端会话里的 ID，
+ * 就退回显示 ID —— 不猜、不编造姓名。
+ */
+const targetName = computed(() => {
+  const id = status.value.targetUserId
+  if (targetLabel.value) return id == null ? targetLabel.value : `${targetLabel.value}（#${id}）`
+  return id == null ? '未知用户' : `用户 #${id}`
+})
 
 // 刷新页面后模拟态仍在服务端会话里，这里补一次查询以恢复横幅
 onMounted(() => {

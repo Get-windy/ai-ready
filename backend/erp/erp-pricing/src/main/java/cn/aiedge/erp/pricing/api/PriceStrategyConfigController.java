@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 价格策略配置API控制器
@@ -32,6 +33,7 @@ public class PriceStrategyConfigController {
         this.configValidator = configValidator;
     }
     
+    @SaCheckPermission("pricing:strategy:view")
     @PostMapping("/parse/json")
     @Operation(summary = "解析JSON配置", description = "解析JSON格式的价格策略配置")
     public ResponseEntity<ApiResponse<PriceStrategyConfig>> parseJsonConfig(
@@ -47,6 +49,7 @@ public class PriceStrategyConfigController {
         }
     }
     
+    @SaCheckPermission("pricing:strategy:view")
     @PostMapping("/parse/xml")
     @Operation(summary = "解析XML配置", description = "解析XML格式的价格策略配置")
     public ResponseEntity<ApiResponse<PriceStrategyConfig>> parseXmlConfig(
@@ -62,6 +65,7 @@ public class PriceStrategyConfigController {
         }
     }
     
+    @SaCheckPermission("pricing:strategy:view")
     @PostMapping("/parse/yaml")
     @Operation(summary = "解析YAML配置", description = "解析YAML格式的价格策略配置")
     public ResponseEntity<ApiResponse<PriceStrategyConfig>> parseYamlConfig(
@@ -77,6 +81,7 @@ public class PriceStrategyConfigController {
         }
     }
     
+    @SaCheckPermission("pricing:strategy:view")
     @PostMapping("/parse/batch")
     @Operation(summary = "批量解析配置", description = "批量解析多种格式的价格策略配置")
     public ResponseEntity<ApiResponse<List<PriceStrategyConfig>>> parseBatchConfigs(
@@ -92,6 +97,7 @@ public class PriceStrategyConfigController {
         }
     }
     
+    @SaCheckPermission("pricing:strategy:check")
     @PostMapping("/validate")
     @Operation(summary = "验证配置", description = "验证价格策略配置的有效性和完整性")
     public ResponseEntity<ApiResponse<IPriceConfigValidator.ValidationResult>> validateConfig(
@@ -107,6 +113,7 @@ public class PriceStrategyConfigController {
         }
     }
     
+    @SaCheckPermission("pricing:strategy:check")
     @PostMapping("/validate/batch")
     @Operation(summary = "批量验证配置", description = "批量验证多个价格策略配置")
     public ResponseEntity<ApiResponse<List<IPriceConfigValidator.ValidationResult>>> validateBatchConfigs(
@@ -122,6 +129,7 @@ public class PriceStrategyConfigController {
         }
     }
     
+    @SaCheckPermission("pricing:strategy:check")
     @PostMapping("/check/completeness")
     @Operation(summary = "检查配置完整性", description = "检查价格策略配置的完整性")
     public ResponseEntity<ApiResponse<IPriceConfigValidator.CompletenessCheckResult>> checkCompleteness(
@@ -137,6 +145,7 @@ public class PriceStrategyConfigController {
         }
     }
     
+    @SaCheckPermission("pricing:strategy:check")
     @PostMapping("/check/consistency")
     @Operation(summary = "检查配置一致性", description = "检查多个配置之间的一致性")
     public ResponseEntity<ApiResponse<IPriceConfigValidator.ConsistencyCheckResult>> checkConsistency(
@@ -152,6 +161,7 @@ public class PriceStrategyConfigController {
         }
     }
     
+    @SaCheckPermission("pricing:strategy:check")
     @PostMapping("/validate/business-rules")
     @Operation(summary = "验证业务规则", description = "验证配置是否符合业务规则")
     public ResponseEntity<ApiResponse<IPriceConfigValidator.BusinessRuleValidationResult>> validateBusinessRules(
@@ -167,6 +177,7 @@ public class PriceStrategyConfigController {
         }
     }
     
+    @SaCheckPermission("pricing:strategy:view")
     @GetMapping("/supported-formats")
     @Operation(summary = "获取支持的格式", description = "获取支持的配置格式列表")
     public ResponseEntity<ApiResponse<List<String>>> getSupportedFormats() {
@@ -179,6 +190,7 @@ public class PriceStrategyConfigController {
         }
     }
     
+    @SaCheckPermission("pricing:strategy:view")
     @GetMapping("/validation-rules")
     @Operation(summary = "获取验证规则", description = "获取所有验证规则")
     public ResponseEntity<ApiResponse<List<IPriceConfigValidator.ValidationRule>>> getValidationRules() {
@@ -191,6 +203,7 @@ public class PriceStrategyConfigController {
         }
     }
     
+    @SaCheckPermission("pricing:strategy:view")
     @PostMapping("/format")
     @Operation(summary = "格式化配置", description = "将配置格式化为指定格式")
     public ResponseEntity<ApiResponse<String>> formatConfig(
@@ -213,6 +226,7 @@ public class PriceStrategyConfigController {
         }
     }
     
+    @SaCheckPermission("pricing:strategy:view")
     @GetMapping("/health")
     @Operation(summary = "健康检查", description = "检查配置服务健康状态")
     public ResponseEntity<Map<String, Object>> healthCheck() {

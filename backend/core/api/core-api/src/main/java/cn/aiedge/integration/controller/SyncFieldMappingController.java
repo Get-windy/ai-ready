@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 同步字段映射控制器
@@ -30,6 +31,7 @@ public class SyncFieldMappingController {
 
     // ==================== 查询 ====================
 
+    @SaCheckPermission("system:dataimport:list")
     @GetMapping("/{configId}/field-mappings")
     @Operation(summary = "查询指定配置的所有字段映射")
     public ResponseEntity<ApiResponse<List<SyncFieldMapping>>> listFieldMappings(
@@ -44,6 +46,7 @@ public class SyncFieldMappingController {
         return ResponseEntity.ok(ApiResponse.success(mappings));
     }
 
+    @SaCheckPermission("system:dataimport:list")
     @GetMapping("/{configId}/field-mappings/{billType}")
     @Operation(summary = "按单据类型查询字段映射")
     public ResponseEntity<ApiResponse<List<SyncFieldMapping>>> getMappingsByBillType(
@@ -54,6 +57,7 @@ public class SyncFieldMappingController {
 
     // ==================== 增删改 ====================
 
+    @SaCheckPermission("system:dataimport:create")
     @PostMapping("/{configId}/field-mappings")
     @Operation(summary = "创建字段映射")
     public ResponseEntity<ApiResponse<SyncFieldMapping>> createFieldMapping(
@@ -63,6 +67,7 @@ public class SyncFieldMappingController {
         return ResponseEntity.ok(ApiResponse.success(fieldMappingService.create(mapping)));
     }
 
+    @SaCheckPermission("system:dataimport:update")
     @PutMapping("/{configId}/field-mappings/{id}")
     @Operation(summary = "更新字段映射")
     public ResponseEntity<ApiResponse<SyncFieldMapping>> updateFieldMapping(
@@ -72,6 +77,7 @@ public class SyncFieldMappingController {
         return ResponseEntity.ok(ApiResponse.success(fieldMappingService.update(id, mapping)));
     }
 
+    @SaCheckPermission("system:dataimport:delete")
     @DeleteMapping("/{configId}/field-mappings/{id}")
     @Operation(summary = "删除字段映射")
     public ResponseEntity<ApiResponse<Map<String, Object>>> deleteFieldMapping(
@@ -85,6 +91,7 @@ public class SyncFieldMappingController {
      * 批量保存：前端传入完整的映射列表，服务端先清空再插入
      * 适用于"一次性保存整个单据类型的映射"场景
      */
+    @SaCheckPermission("system:dataimport:create")
     @PostMapping("/{configId}/field-mappings/batch")
     @Operation(summary = "批量保存字段映射（先清空再写入）")
     public ResponseEntity<ApiResponse<List<SyncFieldMapping>>> batchSaveFieldMappings(
@@ -95,6 +102,7 @@ public class SyncFieldMappingController {
 
     // ==================== 模板初始化 ====================
 
+    @SaCheckPermission("system:dataimport:create")
     @PostMapping("/{configId}/field-mappings/init-template")
     @Operation(summary = "从预置模板初始化字段映射")
     public ResponseEntity<ApiResponse<List<SyncFieldMapping>>> initFromTemplate(

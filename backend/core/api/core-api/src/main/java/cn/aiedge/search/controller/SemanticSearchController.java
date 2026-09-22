@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 语义搜索控制器
@@ -27,6 +28,7 @@ public class SemanticSearchController {
     /**
      * 语义搜索
      */
+    @SaCheckPermission("system:search:list")
     @GetMapping
     public SearchResponse semanticSearch(
             @RequestParam String query,
@@ -38,6 +40,7 @@ public class SemanticSearchController {
     /**
      * 获取查询意图
      */
+    @SaCheckPermission("system:search:list")
     @GetMapping("/intent")
     public String getIntent(@RequestParam String query) {
         return semanticSearchService.getIntent(query);
@@ -46,6 +49,7 @@ public class SemanticSearchController {
     /**
      * 提取关键实体
      */
+    @SaCheckPermission("system:search:list")
     @GetMapping("/entities")
     public List<String> extractEntities(@RequestParam String query) {
         return semanticSearchService.extractEntities(query);
@@ -54,6 +58,7 @@ public class SemanticSearchController {
     /**
      * 查询扩展
      */
+    @SaCheckPermission("system:search:list")
     @GetMapping("/expand")
     public List<String> expandQuery(@RequestParam String query) {
         return semanticSearchService.expandQuery(query);
@@ -62,6 +67,7 @@ public class SemanticSearchController {
     /**
      * 相似度计算
      */
+    @SaCheckPermission("system:search:list")
     @PostMapping("/similarity")
     public Map<String, Double> calculateSimilarity(@RequestBody Map<String, String> request) {
         String text1 = request.get("text1");
@@ -73,6 +79,7 @@ public class SemanticSearchController {
     /**
      * 拼写纠错
      */
+    @SaCheckPermission("system:search:list")
     @GetMapping("/correct")
     public Map<String, String> correctSpelling(@RequestParam String query) {
         String corrected = semanticSearchService.correctSpelling(query);

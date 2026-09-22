@@ -38,6 +38,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 支付方式主数据Controller（资料 → 支付管理 → 支付方式，菜单 80550）
@@ -70,6 +71,7 @@ public class MdPaymentMethodController {
 
     @Operation(summary = "分页查询支付方式")
     @OperationLog(module = "支付方式管理", type = "QUERY", desc = "分页查询支付方式")
+    @SaCheckPermission("md:payment-method:list")
     @GetMapping("/page")
     public Result<Page<PaymentMethodVO>> page(PaymentMethodQuery query) {
         return Result.success(paymentMethodService.pageQuery(query));
@@ -77,6 +79,7 @@ public class MdPaymentMethodController {
 
     @Operation(summary = "查询支付方式详情")
     @OperationLog(module = "支付方式管理", type = "QUERY", desc = "查询支付方式详情")
+    @SaCheckPermission("md:payment-method:detail")
     @GetMapping("/{id}")
     public Result<PaymentMethodVO> getById(@PathVariable Long id) {
         return Result.success(paymentMethodService.getDetail(id));
@@ -84,6 +87,7 @@ public class MdPaymentMethodController {
 
     @Operation(summary = "查询所有启用的支付方式（下拉选择）")
     @OperationLog(module = "支付方式管理", type = "QUERY", desc = "查询下拉列表")
+    @SaCheckPermission("md:payment-method:list")
     @GetMapping("/list")
     public Result<List<PaymentMethodVO>> list() {
         return Result.success(paymentMethodService.listEnabled());
@@ -91,6 +95,7 @@ public class MdPaymentMethodController {
 
     @Operation(summary = "新增支付方式")
     @OperationLog(module = "支付方式管理", type = "CREATE", desc = "新增支付方式")
+    @SaCheckPermission("md:payment-method:create")
     @PostMapping
     public Result<PaymentMethodVO> create(@RequestBody PaymentMethod entity) {
         return Result.success("新增成功", paymentMethodService.create(entity));
@@ -98,6 +103,7 @@ public class MdPaymentMethodController {
 
     @Operation(summary = "修改支付方式")
     @OperationLog(module = "支付方式管理", type = "UPDATE", desc = "修改支付方式")
+    @SaCheckPermission("md:payment-method:update")
     @PutMapping("/{id}")
     public Result<PaymentMethodVO> update(@PathVariable Long id, @RequestBody PaymentMethod entity) {
         return Result.success("修改成功", paymentMethodService.updateMethod(id, entity));
@@ -105,6 +111,7 @@ public class MdPaymentMethodController {
 
     @Operation(summary = "启用/停用支付方式")
     @OperationLog(module = "支付方式管理", type = "UPDATE", desc = "更新支付方式状态")
+    @SaCheckPermission("md:payment-method:status")
     @PutMapping("/{id}/status")
     public Result<PaymentMethodVO> updateStatus(
             @PathVariable Long id,
@@ -114,6 +121,7 @@ public class MdPaymentMethodController {
 
     @Operation(summary = "批量启用/停用支付方式")
     @OperationLog(module = "支付方式管理", type = "UPDATE", desc = "批量更新支付方式状态")
+    @SaCheckPermission("md:payment-method:update")
     @PutMapping("/batch-status")
     public Result<Integer> batchStatus(@RequestBody PaymentMethodBatchDTO body) {
         return Result.success("操作成功", paymentMethodService.batchStatus(body.getIds(), body.getStatus()));
@@ -121,6 +129,7 @@ public class MdPaymentMethodController {
 
     @Operation(summary = "删除支付方式（引用保护）")
     @OperationLog(module = "支付方式管理", type = "DELETE", desc = "删除支付方式")
+    @SaCheckPermission("md:payment-method:delete")
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
         paymentMethodService.delete(id);
@@ -129,6 +138,7 @@ public class MdPaymentMethodController {
 
     @Operation(summary = "导出支付方式（真实 xlsx）")
     @OperationLog(module = "支付方式管理", type = "QUERY", desc = "导出支付方式")
+    @SaCheckPermission("md:payment-method:export")
     @GetMapping("/export")
     public void export(PaymentMethodQuery query, HttpServletResponse response) throws IOException {
         List<PaymentMethodVO> rows = paymentMethodService.listByQuery(query);

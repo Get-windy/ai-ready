@@ -33,6 +33,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 应用中心（设置 → 系统配置 → 应用中心，菜单 80625 / {@code set:app-center}）控制器 —— <b>租户级</b>。
@@ -101,6 +102,7 @@ public class SetAppCenterController {
      * `mkt_sms_setting` + `mkt_sms_record`（短信用量，2026-09-18 核实存在后正式接入）。</p>
      */
     @Operation(summary = "应用中心概览（公司名称 / 到期日期 / 配额 / 模块计数 / 短信用量）")
+    @SaCheckPermission("set:app-center:view")
     @GetMapping("/overview")
     public Result<Map<String, Object>> overview() {
         Long tenantId = requireTenantId();
@@ -248,6 +250,7 @@ public class SetAppCenterController {
      * 而不是像原实现那样「空态 + 无法区分是没开通还是查不到」。</p>
      */
     @Operation(summary = "功能模块清单（已安装 + 本租户是否已开通）")
+    @SaCheckPermission("set:app-center:view")
     @GetMapping("/modules")
     public Result<List<Map<String, Object>>> modules() {
         Long tenantId = requireTenantId();
@@ -293,6 +296,7 @@ public class SetAppCenterController {
      * <p>数据源 `sys_menu`（全局菜单定义，属平台资产，不参与租户隔离）。</p>
      */
     @Operation(summary = "「短信及其他」能力入口（真实存在的租户端菜单）")
+    @SaCheckPermission("set:app-center:view")
     @GetMapping("/capabilities")
     public Result<List<Map<String, Object>>> capabilities() {
         List<SysMenu> menus = menuMapper.selectList(new LambdaQueryWrapper<SysMenu>()

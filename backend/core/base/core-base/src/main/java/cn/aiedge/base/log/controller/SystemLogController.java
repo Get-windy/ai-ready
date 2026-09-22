@@ -18,6 +18,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 系统日志管理控制器
@@ -37,6 +38,7 @@ public class SystemLogController {
     /**
      * 分页查询系统日志
      */
+    @SaCheckPermission("log:oper:list")
     @GetMapping("/system/page")
     @Operation(summary = "分页查询系统日志")
     public Result<Page<SystemLog>> pageSystemLogs(
@@ -56,6 +58,7 @@ public class SystemLogController {
     /**
      * 获取系统日志详情
      */
+    @SaCheckPermission("log:oper:detail")
     @GetMapping("/system/{id}")
     @Operation(summary = "获取系统日志详情")
     public Result<SystemLog> getSystemLog(@PathVariable Long id) {
@@ -65,6 +68,7 @@ public class SystemLogController {
     /**
      * 获取用户最近日志
      */
+    @SaCheckPermission("log:oper:list")
     @GetMapping("/system/recent/{userId}")
     @Operation(summary = "获取用户最近日志")
     public Result<List<SystemLog>> getRecentLogsByUser(@PathVariable Long userId, @RequestParam(defaultValue = "10") int limit) {
@@ -74,6 +78,7 @@ public class SystemLogController {
     /**
      * 获取模块统计
      */
+    @SaCheckPermission("log:oper:stats")
     @GetMapping("/system/stats/module")
     @Operation(summary = "获取模块统计")
     public Result<List<Map<String, Object>>> getModuleStats(
@@ -85,6 +90,7 @@ public class SystemLogController {
     /**
      * 获取用户操作统计
      */
+    @SaCheckPermission("log:oper:stats")
     @GetMapping("/system/stats/user")
     @Operation(summary = "获取用户操作统计")
     public Result<List<Map<String, Object>>> getUserStats(
@@ -97,6 +103,7 @@ public class SystemLogController {
     /**
      * 获取操作类型统计
      */
+    @SaCheckPermission("log:oper:stats")
     @GetMapping("/system/stats/type")
     @Operation(summary = "获取操作类型统计")
     public Result<List<Map<String, Object>>> getOperationTypeStats(
@@ -108,6 +115,7 @@ public class SystemLogController {
     /**
      * 导出系统日志
      */
+    @SaCheckPermission("log:oper:export")
     @GetMapping("/system/export")
     @Operation(summary = "导出系统日志")
     public void exportSystemLogs(
@@ -155,6 +163,7 @@ public class SystemLogController {
     /**
      * 清理历史系统日志
      */
+    @SaCheckPermission("log:oper:delete")
     @DeleteMapping("/system/clean")
     @Operation(summary = "清理历史系统日志")
     public Result<Integer> cleanSystemLogs(@RequestParam(defaultValue = "90") int days) {
@@ -164,6 +173,7 @@ public class SystemLogController {
     /**
      * 删除系统日志
      */
+    @SaCheckPermission("log:oper:delete")
     @DeleteMapping("/system/{id}")
     @Operation(summary = "删除系统日志")
     public Result<Void> deleteSystemLog(@PathVariable Long id) {
@@ -174,6 +184,7 @@ public class SystemLogController {
     /**
      * 批量删除系统日志
      */
+    @SaCheckPermission("log:oper:delete")
     @DeleteMapping("/system/batch")
     @Operation(summary = "批量删除系统日志")
     public Result<Void> batchDeleteSystemLogs(@RequestBody List<Long> ids) {

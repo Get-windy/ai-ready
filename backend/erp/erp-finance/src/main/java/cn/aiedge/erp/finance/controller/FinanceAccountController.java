@@ -29,6 +29,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 支付账户 / 财务账户 Controller（资料 → 支付管理 → 支付账户）
@@ -61,6 +62,7 @@ public class FinanceAccountController {
      * 分页查询支付账户（支持 关键字/账户类型/账户等级/状态/币种 过滤）
      */
     @Operation(summary = "分页查询支付账户")
+    @SaCheckPermission("finance:account:list")
     @GetMapping("/page")
     @OperationLog(module = "支付账户", type = "QUERY", desc = "分页查询支付账户")
     public Result<Page<BankAccountDTO>> page(BankAccountQueryDTO query) {
@@ -71,6 +73,7 @@ public class FinanceAccountController {
      * 支付账户详情
      */
     @Operation(summary = "查询支付账户详情")
+    @SaCheckPermission("finance:account:detail")
     @GetMapping("/{id}")
     @OperationLog(module = "支付账户", type = "QUERY", desc = "查询支付账户详情")
     public Result<BankAccountDTO> detail(@PathVariable Long id) {
@@ -81,6 +84,7 @@ public class FinanceAccountController {
      * 生成下一个账户编号（对标「银行编号」自动建议）
      */
     @Operation(summary = "生成下一个账户编号")
+    @SaCheckPermission("finance:account:view")
     @GetMapping("/next-code")
     @OperationLog(module = "支付账户", type = "QUERY", desc = "生成下一个账户编号")
     public Result<String> nextCode(
@@ -92,6 +96,7 @@ public class FinanceAccountController {
      * 新增支付账户（复用《银行账户》写入口）
      */
     @Operation(summary = "新增支付账户")
+    @SaCheckPermission("finance:account:create")
     @PostMapping
     @OperationLog(module = "支付账户", type = "CREATE", desc = "新增支付账户")
     public Result<BankAccountDTO> create(@RequestBody BankAccountDTO dto) {
@@ -102,6 +107,7 @@ public class FinanceAccountController {
      * 修改支付账户（复用《银行账户》写入口）
      */
     @Operation(summary = "修改支付账户")
+    @SaCheckPermission("finance:account:update")
     @PutMapping("/{id}")
     @OperationLog(module = "支付账户", type = "UPDATE", desc = "修改支付账户")
     public Result<BankAccountDTO> update(@PathVariable Long id, @RequestBody BankAccountDTO dto) {
@@ -112,6 +118,7 @@ public class FinanceAccountController {
      * 删除支付账户（复用《银行账户》写入口：预置账户/有下级/余额非0 均拒绝）
      */
     @Operation(summary = "删除支付账户")
+    @SaCheckPermission("finance:account:delete")
     @DeleteMapping("/{id}")
     @OperationLog(module = "支付账户", type = "DELETE", desc = "删除支付账户")
     public Result<Void> delete(@PathVariable Long id) {
@@ -126,6 +133,7 @@ public class FinanceAccountController {
      * ⚠️ 被全平台账户下拉引用（提存现/费用单/收付款/options.ts），签名与行为保持兼容，勿改。
      */
     @OperationLog(module = "财务账户管理", type = "QUERY", desc = "查询财务账户列表")
+    @SaCheckPermission("finance:account:list")
     @GetMapping("/list")
     public Result<List<FinanceAccount>> listAccounts(
             @Parameter(description = "账户状态") @RequestParam(required = false) Integer status,
@@ -140,6 +148,7 @@ public class FinanceAccountController {
      */
     @Operation(summary = "查询支付账户统计")
     @OperationLog(module = "支付账户", type = "QUERY", desc = "查询支付账户统计")
+    @SaCheckPermission("finance:account:view")
     @GetMapping("/statistics")
     public Result<Object> getAccountStatistics(
             @Parameter(description = "账户状态 0-停用 1-启用") @RequestParam(required = false) Integer status,
@@ -154,6 +163,7 @@ public class FinanceAccountController {
      * 启用/停用账户
      */
     @OperationLog(module = "财务账户管理", type = "UPDATE", desc = "更新账户状态")
+    @SaCheckPermission("finance:account:update")
     @PutMapping("/status/{id}")
     public Result<Void> updateAccountStatus(
             @Parameter(description = "账户ID") @PathVariable Long id,
@@ -166,6 +176,7 @@ public class FinanceAccountController {
      * 余额调整（增量口径：正数增加、负数减少）
      */
     @OperationLog(module = "财务账户管理", type = "UPDATE", desc = "更新账户余额")
+    @SaCheckPermission("finance:account:update")
     @PutMapping("/balance/{accountId}")
     public Result<Void> updateAccountBalance(
             @Parameter(description = "账户ID") @PathVariable Long accountId,
@@ -180,6 +191,7 @@ public class FinanceAccountController {
      * 导出支付账户（真实 xlsx，按当前查询条件）
      */
     @Operation(summary = "导出支付账户")
+    @SaCheckPermission("finance:account:export")
     @GetMapping("/export")
     @OperationLog(module = "支付账户", type = "QUERY", desc = "导出支付账户")
     public void export(BankAccountQueryDTO query, HttpServletResponse response) throws IOException {

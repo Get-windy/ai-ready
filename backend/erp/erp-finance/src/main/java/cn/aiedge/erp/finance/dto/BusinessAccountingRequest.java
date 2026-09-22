@@ -73,6 +73,30 @@ public class BusinessAccountingRequest {
     private LocalDate dueDate;
 
     /**
+     * 业务日期（来源单据的**业务发生日**：销售出库日 / 采购入库日）。
+     *
+     * <p>它是「协议约定的账期」的起算基准日 —— 到期日 = 业务日期 + 约定天数。
+     * 刻意<b>不用</b> {@code voucherDate} 代替：凭证日期是记账口径的日期，两者可以不同
+     * （补录、跨期调整都是常见情形），拿它当起算基准会把账期算到错的月份去。</p>
+     *
+     * <p><b>为空表示调用方未提供</b>：此时不消费协议账期，到期日按下面 {@code dueDate}
+     * 的既有逻辑走（与接入协议账期之前逐字一致）。</p>
+     */
+    private LocalDate businessDate;
+
+    /**
+     * 对方主体（客户 / 供应商）**所属租户 ID**。
+     *
+     * <p>协议是跨租户契约，判定"按哪一份协议执行"必须知道两端租户。
+     * 本端租户取当前会话租户，另一端（对方主体）的租户只能由调用方给出 ——
+     * 本仓现状：单据上只有对方的 {@code biz_party.id}，没有它所属租户。</p>
+     *
+     * <p><b>为空表示调用方未提供</b>：此时不消费协议账期（按既有逻辑走），
+     * 而<b>不是</b>去猜一个租户 —— 猜错租户会读到别人的商业条款。</p>
+     */
+    private Long counterpartyTenantId;
+
+    /**
      * 记账明细项
      */
     private List<AccountingRequestItem> items;

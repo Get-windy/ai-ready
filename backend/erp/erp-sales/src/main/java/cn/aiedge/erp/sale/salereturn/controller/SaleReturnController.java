@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @RestController
@@ -27,6 +28,7 @@ public class SaleReturnController {
 
     private final SaleReturnService saleReturnService;
 
+    @SaCheckPermission("sale:return:list")
     @GetMapping("/page")
     @Operation(summary = "分页查询退货申请单")
     @SaCheckLogin
@@ -80,6 +82,7 @@ public class SaleReturnController {
         return ApiResponse.ok(result);
     }
 
+    @SaCheckPermission("sale:return:detail")
     @GetMapping("/{id}")
     @Operation(summary = "获取退货申请单详情")
     @SaCheckLogin
@@ -88,6 +91,7 @@ public class SaleReturnController {
         return ApiResponse.ok(data);
     }
 
+    @SaCheckPermission("sale:return:detail")
     @GetMapping("/returnNo/{returnNo}")
     @Operation(summary = "根据退货单号获取退货申请单")
     @SaCheckLogin
@@ -96,6 +100,7 @@ public class SaleReturnController {
         return ApiResponse.ok(data);
     }
 
+    @SaCheckPermission("sale:return:create")
     @PostMapping
     @Operation(summary = "创建退货申请单")
     @SaCheckLogin
@@ -104,6 +109,7 @@ public class SaleReturnController {
         return ApiResponse.ok(result);
     }
 
+    @SaCheckPermission("sale:return:update")
     @PutMapping("/{id}")
     @Operation(summary = "更新退货申请单")
     @SaCheckLogin
@@ -113,6 +119,7 @@ public class SaleReturnController {
         return ApiResponse.ok(result);
     }
 
+    @SaCheckPermission("sale:return:submit")
     @PostMapping("/{id}/submit")
     @Operation(summary = "提交审批")
     @SaCheckLogin
@@ -121,6 +128,7 @@ public class SaleReturnController {
         return ApiResponse.ok(result);
     }
 
+    @SaCheckPermission("sale:return:approve")
     @PostMapping("/{id}/approve")
     @Operation(summary = "审批退货申请单")
     @SaCheckLogin
@@ -131,6 +139,7 @@ public class SaleReturnController {
         return ApiResponse.ok(result);
     }
 
+    @SaCheckPermission("sale:return:approve")
     @PostMapping("/{id}/reject")
     @Operation(summary = "拒绝退货申请单")
     @SaCheckLogin
@@ -141,6 +150,7 @@ public class SaleReturnController {
         return ApiResponse.ok(result);
     }
 
+    @SaCheckPermission("sale:return:complete")
     @PostMapping("/{id}/complete")
     @Operation(summary = "完成退货申请单")
     @SaCheckLogin
@@ -149,6 +159,7 @@ public class SaleReturnController {
         return ApiResponse.ok(result);
     }
 
+    @SaCheckPermission("sale:return:cancel")
     @PostMapping("/{id}/cancel")
     @Operation(summary = "取消退货申请单")
     @SaCheckLogin
@@ -159,6 +170,7 @@ public class SaleReturnController {
         return ApiResponse.ok(result);
     }
 
+    @SaCheckPermission("sale:return:approve")
     @PostMapping("/batch-approve")
     @Operation(summary = "批量审批退货申请单")
     @SaCheckLogin
@@ -170,6 +182,7 @@ public class SaleReturnController {
         return ApiResponse.ok(result);
     }
 
+    @SaCheckPermission("sale:return:list")
     @GetMapping("/{id}/items")
     @Operation(summary = "获取退货申请单明细")
     @SaCheckLogin
@@ -178,6 +191,7 @@ public class SaleReturnController {
         return ApiResponse.ok(items);
     }
 
+    @SaCheckPermission("sale:return:delete")
     @DeleteMapping("/{id}")
     @Operation(summary = "删除退货申请单")
     @SaCheckLogin
@@ -186,6 +200,7 @@ public class SaleReturnController {
         return ApiResponse.ok(null);
     }
 
+    @SaCheckPermission("sale:return:delete")
     @DeleteMapping("/batch")
     @Operation(summary = "批量删除退货申请单")
     @SaCheckLogin
@@ -194,6 +209,7 @@ public class SaleReturnController {
         return ApiResponse.ok(result);
     }
 
+    @SaCheckPermission("sale:return:view")
     @GetMapping("/page-detail")
     @Operation(summary = "分页查询退货申请单明细（按明细）")
     @SaCheckLogin
@@ -240,6 +256,7 @@ public class SaleReturnController {
         return ApiResponse.ok(result);
     }
 
+    @SaCheckPermission("sale:return:list")
     @GetMapping("/next-no")
     @Operation(summary = "生成下一退货申请单号（号段 XSTHSQD-yyyyMMdd-NNNN）")
     @SaCheckLogin
@@ -247,6 +264,7 @@ public class SaleReturnController {
         return ApiResponse.ok(saleReturnService.generateReturnNo());
     }
 
+    @SaCheckPermission("sale:return:export")
     @GetMapping("/export")
     @Operation(summary = "导出退货申请单列表")
     @SaCheckLogin

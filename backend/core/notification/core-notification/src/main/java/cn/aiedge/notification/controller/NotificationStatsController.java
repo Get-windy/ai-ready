@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 通知统计与健康检查控制器
@@ -37,6 +38,7 @@ public class NotificationStatsController {
     /**
      * 获取各渠道状态
      */
+    @SaCheckPermission("notification:stats:view")
     @GetMapping("/channels")
     @Operation(summary = "获取渠道状态")
     public ResponseEntity<List<ChannelStatus>> getChannelStatus() {
@@ -59,6 +61,7 @@ public class NotificationStatsController {
     /**
      * 获取发送统计
      */
+    @SaCheckPermission("notification:stats:view")
     @GetMapping("/summary")
     @Operation(summary = "获取发送统计摘要")
     public ResponseEntity<SendSummary> getSendSummary() {
@@ -80,6 +83,7 @@ public class NotificationStatsController {
     /**
      * 获取每日发送统计
      */
+    @SaCheckPermission("notification:stats:view")
     @GetMapping("/daily")
     @Operation(summary = "获取每日发送统计")
     public ResponseEntity<List<DailyStats>> getDailyStats(
@@ -107,6 +111,7 @@ public class NotificationStatsController {
     /**
      * 获取模板使用统计
      */
+    @SaCheckPermission("notification:stats:view")
     @GetMapping("/templates")
     @Operation(summary = "获取模板使用统计")
     public ResponseEntity<List<TemplateUsageStats>> getTemplateUsageStats() {
@@ -123,6 +128,7 @@ public class NotificationStatsController {
     /**
      * 获取限流状态
      */
+    @SaCheckPermission("notification:stats:view")
     @GetMapping("/rate-limit")
     @Operation(summary = "获取限流状态")
     public ResponseEntity<Map<String, Integer>> getRateLimitStatus() {
@@ -139,6 +145,7 @@ public class NotificationStatsController {
     /**
      * 健康检查
      */
+    @SaCheckPermission("notification:stats:view")
     @GetMapping("/health")
     @Operation(summary = "健康检查")
     public ResponseEntity<HealthCheckResult> healthCheck() {
@@ -170,6 +177,7 @@ public class NotificationStatsController {
     /**
      * 处理失败记录重试
      */
+    @SaCheckPermission("notification:stats:retry")
     @PostMapping("/retry-failed")
     @Operation(summary = "重试所有失败记录")
     public ResponseEntity<RetryResult> retryFailed() {

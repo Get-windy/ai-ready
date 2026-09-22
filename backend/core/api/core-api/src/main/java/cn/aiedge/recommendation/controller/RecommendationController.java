@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 智能推荐控制器
@@ -31,6 +32,7 @@ public class RecommendationController {
      * @param request 推荐请求
      * @return 推荐响应
      */
+    @SaCheckPermission("system:recommendation:list")
     @PostMapping("/get")
     public RecommendationResponse getRecommendations(@RequestBody RecommendationRequest request) {
         return recommendationService.getRecommendations(request);
@@ -44,6 +46,7 @@ public class RecommendationController {
      * @param tenantId 租户 ID
      * @return 推荐响应
      */
+    @SaCheckPermission("system:recommendation:view")
     @GetMapping("/personalized")
     public RecommendationResponse getPersonalizedRecommendations(
             @RequestParam Long userId,
@@ -61,6 +64,7 @@ public class RecommendationController {
      * @param tenantId   租户 ID
      * @return 推荐响应
      */
+    @SaCheckPermission("system:recommendation:view")
     @GetMapping("/related")
     public RecommendationResponse getRelatedRecommendations(
             @RequestParam String targetType,
@@ -79,6 +83,7 @@ public class RecommendationController {
      * @param timeRange  时间范围（小时）
      * @return 推荐响应
      */
+    @SaCheckPermission("system:recommendation:view")
     @GetMapping("/hot")
     public RecommendationResponse getHotRecommendations(
             @RequestParam String targetType,
@@ -93,6 +98,7 @@ public class RecommendationController {
      *
      * @param behavior 用户行为
      */
+    @SaCheckPermission("system:recommendation:create")
     @PostMapping("/behavior")
     public void recordBehavior(@RequestBody UserBehavior behavior) {
         recommendationService.recordBehavior(behavior);
@@ -103,6 +109,7 @@ public class RecommendationController {
      *
      * @param behaviors 用户行为列表
      */
+    @SaCheckPermission("system:recommendation:create")
     @PostMapping("/behaviors")
     public void recordBehaviors(@RequestBody List<UserBehavior> behaviors) {
         recommendationService.recordBehaviors(behaviors);
@@ -116,6 +123,7 @@ public class RecommendationController {
      * @param tenantId 租户 ID
      * @return 用户行为列表
      */
+    @SaCheckPermission("system:recommendation:view")
     @GetMapping("/behavior/history")
     public List<UserBehavior> getUserBehaviorHistory(
             @RequestParam Long userId,
@@ -131,6 +139,7 @@ public class RecommendationController {
      * @param tenantId 租户 ID
      * @return 是否成功
      */
+    @SaCheckPermission("system:recommendation:delete")
     @DeleteMapping("/cache")
     public boolean clearUserCache(
             @RequestParam Long userId,

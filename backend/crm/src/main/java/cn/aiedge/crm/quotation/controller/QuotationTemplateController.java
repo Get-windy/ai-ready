@@ -13,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @RestController
@@ -23,6 +24,7 @@ public class QuotationTemplateController {
 
     private final QuotationTemplateService templateService;
 
+    @SaCheckPermission("crm:quotation-template:list")
     @GetMapping("/page")
     @Operation(summary = "分页查询报价模板")
     public Page<QuotationTemplate> page(
@@ -34,6 +36,7 @@ public class QuotationTemplateController {
         return templateService.pageList(keyword, templateType, customerId, pageNum, pageSize);
     }
 
+    @SaCheckPermission("crm:quotation-template:detail")
     @GetMapping("/{id}")
     @Operation(summary = "获取模板详情")
     public QuotationTemplate getById(@PathVariable Long id) {
@@ -44,30 +47,35 @@ public class QuotationTemplateController {
         return template;
     }
 
+    @SaCheckPermission("crm:quotation-template:list")
     @GetMapping("/{id}/items")
     @Operation(summary = "获取模板明细")
     public List<QuotationTemplateItem> getTemplateItems(@PathVariable Long id) {
         return templateService.getTemplateItems(id);
     }
 
+    @SaCheckPermission("crm:quotation-template:view")
     @GetMapping("/active")
     @Operation(summary = "获取活跃模板列表")
     public List<QuotationTemplate> listActiveTemplates() {
         return templateService.listActiveTemplates();
     }
 
+    @SaCheckPermission("crm:quotation-template:detail")
     @GetMapping("/customer/{customerId}")
     @Operation(summary = "获取客户的模板列表")
     public List<QuotationTemplate> listByCustomerId(@PathVariable Long customerId) {
         return templateService.listByCustomerId(customerId);
     }
 
+    @SaCheckPermission("crm:quotation-template:detail")
     @GetMapping("/category/{categoryId}")
     @Operation(summary = "获取产品分类的模板列表")
     public List<QuotationTemplate> listByCategoryId(@PathVariable Long categoryId) {
         return templateService.listByCategoryId(categoryId);
     }
 
+    @SaCheckPermission("crm:quotation-template:create")
     @PostMapping
     @Operation(summary = "创建报价模板")
     public QuotationTemplate create(@RequestBody QuotationTemplate template) {
@@ -75,48 +83,56 @@ public class QuotationTemplateController {
         return templateService.createTemplate(template, null);
     }
 
+    @SaCheckPermission("crm:quotation-template:create")
     @PostMapping("/{id}/copy")
     @Operation(summary = "复制报价模板")
     public QuotationTemplate copy(@PathVariable Long id) {
         return templateService.copyTemplate(id);
     }
 
+    @SaCheckPermission("crm:quotation-template:update")
     @PutMapping("/{id}")
     @Operation(summary = "更新报价模板")
     public QuotationTemplate update(@PathVariable Long id, @RequestBody QuotationTemplate template) {
         return templateService.updateTemplate(id, template, null);
     }
 
+    @SaCheckPermission("crm:quotation-template:update")
     @PostMapping("/{id}/activate")
     @Operation(summary = "激活模板")
     public void activate(@PathVariable Long id) {
         templateService.activateTemplate(id);
     }
 
+    @SaCheckPermission("crm:quotation-template:update")
     @PostMapping("/{id}/deactivate")
     @Operation(summary = "停用模板")
     public void deactivate(@PathVariable Long id) {
         templateService.deactivateTemplate(id);
     }
 
+    @SaCheckPermission("crm:quotation-template:delete")
     @DeleteMapping("/{id}")
     @Operation(summary = "删除报价模板")
     public void delete(@PathVariable Long id) {
         templateService.removeById(id);
     }
 
+    @SaCheckPermission("crm:quotation-template:create")
     @PostMapping("/{id}/items")
     @Operation(summary = "添加模板明细")
     public QuotationTemplateItem addTemplateItem(@PathVariable Long id, @RequestBody QuotationTemplateItem item) {
         return templateService.addTemplateItem(id, item);
     }
 
+    @SaCheckPermission("crm:quotation-template:update")
     @PutMapping("/{id}/items/{itemId}")
     @Operation(summary = "更新模板明细")
     public QuotationTemplateItem updateTemplateItem(@PathVariable Long itemId, @RequestBody QuotationTemplateItem item) {
         return templateService.updateTemplateItem(itemId, item);
     }
 
+    @SaCheckPermission("crm:quotation-template:delete")
     @DeleteMapping("/{id}/items/{itemId}")
     @Operation(summary = "删除模板明细")
     public void removeTemplateItem(@PathVariable Long itemId) {

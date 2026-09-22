@@ -16,6 +16,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Tag(name = "打印任务管理", description = "打印任务的创建、队列管理、状态查询、批量打印等操作")
 @RestController
@@ -32,6 +33,7 @@ public class PrintTaskController {
     private static final long IDEMPOTENT_TTL_SECONDS = 86400;
 
     @Operation(summary = "创建打印任务（支持幂等性）")
+    @SaCheckPermission("print:task:create")
     @PostMapping
     public ResponseEntity<Map<String, Object>> createTask(
             @RequestBody PrintTaskCreateRequest request,
@@ -55,6 +57,7 @@ public class PrintTaskController {
     }
 
     @Operation(summary = "批量打印（支持幂等性）")
+    @SaCheckPermission("print:task:print")
     @PostMapping("/batch")
     public ResponseEntity<Map<String, Object>> batchPrint(
             @RequestBody BatchPrintRequest request,
@@ -78,6 +81,7 @@ public class PrintTaskController {
     }
 
     @Operation(summary = "获取任务详情")
+    @SaCheckPermission("print:task:detail")
     @GetMapping("/{id}")
     public ResponseEntity<Map<String, Object>> getTask(@PathVariable Long id) {
         PrintTask task = taskService.getTaskById(id);
@@ -85,6 +89,7 @@ public class PrintTaskController {
     }
 
     @Operation(summary = "任务列表查询")
+    @SaCheckPermission("print:task:list")
     @GetMapping
     public ResponseEntity<Map<String, Object>> listTasks(
             @RequestParam(defaultValue = "1") Integer page,
@@ -101,6 +106,7 @@ public class PrintTaskController {
     }
 
     @Operation(summary = "获取打印队列")
+    @SaCheckPermission("print:task:list")
     @GetMapping("/queue")
     public ResponseEntity<Map<String, Object>> getPrintQueue() {
         List<PrintTask> queue = taskService.getPrintQueue();
@@ -108,6 +114,7 @@ public class PrintTaskController {
     }
 
     @Operation(summary = "取消打印任务")
+    @SaCheckPermission("print:task:cancel")
     @PostMapping("/{id}/cancel")
     public ResponseEntity<Map<String, Object>> cancelTask(@PathVariable Long id) {
         taskService.cancelTask(id);
@@ -116,6 +123,7 @@ public class PrintTaskController {
     }
 
     @Operation(summary = "重试打印任务")
+    @SaCheckPermission("print:task:retry")
     @PostMapping("/{id}/retry")
     public ResponseEntity<Map<String, Object>> retryTask(@PathVariable Long id) {
         taskService.retryTask(id);
@@ -124,6 +132,7 @@ public class PrintTaskController {
     }
 
     @Operation(summary = "打印历史查询")
+    @SaCheckPermission("print:task:list")
     @GetMapping("/history")
     public ResponseEntity<Map<String, Object>> getHistory(
             @RequestParam(defaultValue = "1") Integer page,
@@ -139,6 +148,7 @@ public class PrintTaskController {
     }
 
     @Operation(summary = "获取队列长度")
+    @SaCheckPermission("print:task:view")
     @GetMapping("/queue/length")
     public ResponseEntity<Map<String, Object>> getQueueLength() {
         int length = taskService.getQueueLength();

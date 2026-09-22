@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 询价单Controller - RESTful API
@@ -21,6 +22,7 @@ public class PurchaseInquiryController {
     /**
      * 创建询价单
      */
+    @SaCheckPermission("purchase:inquiry:create")
     @PostMapping
     public ResponseEntity<PurchaseInquiry> createInquiry(@RequestBody PurchaseInquiry inquiry) {
         PurchaseInquiry created = inquiryService.createInquiry(inquiry);
@@ -30,6 +32,7 @@ public class PurchaseInquiryController {
     /**
      * 更新询价单
      */
+    @SaCheckPermission("purchase:inquiry:update")
     @PutMapping("/{id}")
     public ResponseEntity<PurchaseInquiry> updateInquiry(
             @PathVariable Long id,
@@ -41,6 +44,7 @@ public class PurchaseInquiryController {
     /**
      * 发布询价单
      */
+    @SaCheckPermission("purchase:inquiry:publish")
     @PostMapping("/{id}/publish")
     public ResponseEntity<PurchaseInquiry> publishInquiry(@PathVariable Long id) {
         PurchaseInquiry published = inquiryService.publishInquiry(id);
@@ -50,6 +54,7 @@ public class PurchaseInquiryController {
     /**
      * 发送询价单（API 别名，与 publish 相同）
      */
+    @SaCheckPermission("purchase:inquiry:send")
     @PostMapping("/{id}/send")
     public ResponseEntity<PurchaseInquiry> sendInquiry(@PathVariable Long id) {
         return publishInquiry(id);
@@ -58,6 +63,7 @@ public class PurchaseInquiryController {
     /**
      * 关闭询价单
      */
+    @SaCheckPermission("purchase:inquiry:close")
     @PostMapping("/{id}/close")
     public ResponseEntity<PurchaseInquiry> closeInquiry(@PathVariable Long id) {
         PurchaseInquiry closed = inquiryService.closeInquiry(id);
@@ -67,6 +73,7 @@ public class PurchaseInquiryController {
     /**
      * 取消询价单
      */
+    @SaCheckPermission("purchase:inquiry:cancel")
     @PostMapping("/{id}/cancel")
     public ResponseEntity<PurchaseInquiry> cancelInquiry(@PathVariable Long id) {
         PurchaseInquiry cancelled = inquiryService.cancelInquiry(id);
@@ -76,6 +83,7 @@ public class PurchaseInquiryController {
     /**
      * 分页查询询价单
      */
+    @SaCheckPermission("purchase:inquiry:list")
     @GetMapping("/page")
     public ResponseEntity<Page<PurchaseInquiry>> pageInquiries(
             @RequestParam(defaultValue = "1") int pageNum,
@@ -89,6 +97,7 @@ public class PurchaseInquiryController {
     /**
      * 查询询价单列表
      */
+    @SaCheckPermission("purchase:inquiry:view")
     @GetMapping
     public ResponseEntity<List<PurchaseInquiry>> getAllInquiries() {
         List<PurchaseInquiry> inquiries = inquiryService.getAllInquiries();
@@ -98,6 +107,7 @@ public class PurchaseInquiryController {
     /**
      * 根据状态查询询价单
      */
+    @SaCheckPermission("purchase:inquiry:detail")
     @GetMapping("/status/{status}")
     public ResponseEntity<List<PurchaseInquiry>> getInquiriesByStatus(@PathVariable String status) {
         List<PurchaseInquiry> inquiries = inquiryService.getInquiriesByStatus(status);
@@ -107,6 +117,7 @@ public class PurchaseInquiryController {
     /**
      * 根据采购员查询询价单
      */
+    @SaCheckPermission("purchase:inquiry:detail")
     @GetMapping("/purchaser/{purchaserId}")
     public ResponseEntity<List<PurchaseInquiry>> getInquiriesByPurchaser(@PathVariable Long purchaserId) {
         List<PurchaseInquiry> inquiries = inquiryService.getInquiriesByPurchaser(purchaserId);
@@ -116,6 +127,7 @@ public class PurchaseInquiryController {
     /**
      * 查询询价单详情
      */
+    @SaCheckPermission("purchase:inquiry:detail")
     @GetMapping("/{id}")
     public ResponseEntity<PurchaseInquiry> getInquiryById(@PathVariable Long id) {
         PurchaseInquiry inquiry = inquiryService.getInquiryById(id);
@@ -125,6 +137,7 @@ public class PurchaseInquiryController {
     /**
      * 根据编号查询询价单
      */
+    @SaCheckPermission("purchase:inquiry:detail")
     @GetMapping("/no/{inquiryNo}")
     public ResponseEntity<PurchaseInquiry> getInquiryByNo(@PathVariable String inquiryNo) {
         PurchaseInquiry inquiry = inquiryService.getInquiryByNo(inquiryNo);
@@ -134,6 +147,7 @@ public class PurchaseInquiryController {
     /**
      * 删除询价单
      */
+    @SaCheckPermission("purchase:inquiry:delete")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteInquiry(@PathVariable Long id) {
         inquiryService.deleteInquiry(id);

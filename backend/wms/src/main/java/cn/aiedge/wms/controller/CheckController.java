@@ -17,6 +17,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @Validated
@@ -29,6 +30,7 @@ public class CheckController {
     private final CheckService checkService;
 
     @Operation(summary = "新增盘点任务")
+    @SaCheckPermission("wms:check:create")
     @PostMapping("/save")
     public Result<WmsCheckTask> save(@Valid @RequestBody WmsCheckTask task) {
         checkService.saveTask(task);
@@ -37,6 +39,7 @@ public class CheckController {
     }
 
     @Operation(summary = "更新盘点任务")
+    @SaCheckPermission("wms:check:create")
     @PostMapping("/update")
     public Result<Boolean> update(@Valid @RequestBody WmsCheckTask task) {
         boolean updated = checkService.updateTask(task);
@@ -45,6 +48,7 @@ public class CheckController {
     }
 
     @Operation(summary = "根据ID查询盘点任务")
+    @SaCheckPermission("wms:check:detail")
     @GetMapping("/{id}")
     public Result<WmsCheckTask> getById(@PathVariable @NotNull(message = "任务ID不能为空") Long id) {
         WmsCheckTask task = checkService.getTaskById(id);
@@ -53,12 +57,14 @@ public class CheckController {
     }
 
     @Operation(summary = "分页查询盘点任务")
+    @SaCheckPermission("wms:check:list")
     @GetMapping("/page")
     public Result<Page<WmsCheckTask>> page(@Valid Page<WmsCheckTask> page, WmsCheckTask query) {
         return Result.ok(checkService.pageTask(page, query));
     }
 
     @Operation(summary = "删除盘点任务")
+    @SaCheckPermission("wms:check:delete")
     @DeleteMapping("/{id}")
     public Result<String> delete(@PathVariable @NotNull(message = "任务ID不能为空") Long id) {
         checkService.removeTask(id);
@@ -67,6 +73,7 @@ public class CheckController {
     }
 
     @Operation(summary = "开始盘点")
+    @SaCheckPermission("wms:check:execute")
     @PostMapping("/start")
     public Result<String> start(@RequestParam @NotNull Long taskId,
                                 @RequestParam @NotNull Long userId,
@@ -77,6 +84,7 @@ public class CheckController {
     }
 
     @Operation(summary = "提交盘点结果")
+    @SaCheckPermission("wms:check:submit")
     @PostMapping("/submit")
     public Result<String> submit(@RequestParam @NotNull Long taskId,
                                  @RequestParam @NotNull Long userId,
@@ -87,6 +95,7 @@ public class CheckController {
     }
 
     @Operation(summary = "审核盘点")
+    @SaCheckPermission("wms:check:approve")
     @PostMapping("/approve")
     public Result<String> approve(@RequestParam @NotNull Long taskId,
                                   @RequestParam @NotNull Long userId) {
@@ -96,12 +105,14 @@ public class CheckController {
     }
 
     @Operation(summary = "查询盘点结果列表")
+    @SaCheckPermission("wms:check:detail")
     @GetMapping("/results/{taskId}")
     public Result<List<WmsCheckResult>> results(@PathVariable @NotNull Long taskId) {
         return Result.ok(checkService.listByTaskId(taskId));
     }
 
     @Operation(summary = "保存盘点明细（整体替换，先删后插）")
+    @SaCheckPermission("wms:check:create")
     @PostMapping("/detail/save")
     public Result<String> saveDetails(@Valid @RequestBody DetailSaveRequest<WmsCheckResult> request) {
         checkService.saveDetails(request.getTaskId(), request.getDetails());

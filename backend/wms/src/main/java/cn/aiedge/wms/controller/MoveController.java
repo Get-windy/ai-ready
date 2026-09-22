@@ -19,6 +19,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @Validated
@@ -31,6 +32,7 @@ public class MoveController {
     private final MoveService moveService;
 
     @Operation(summary = "新增移库任务")
+    @SaCheckPermission("wms:move:create")
     @PostMapping("/save")
     public Result<WmsMoveTask> save(@Valid @RequestBody WmsMoveTask task) {
         moveService.saveTask(task);
@@ -39,6 +41,7 @@ public class MoveController {
     }
 
     @Operation(summary = "更新移库任务")
+    @SaCheckPermission("wms:move:create")
     @PostMapping("/update")
     public Result<Boolean> update(@Valid @RequestBody WmsMoveTask task) {
         boolean updated = moveService.updateTask(task);
@@ -47,6 +50,7 @@ public class MoveController {
     }
 
     @Operation(summary = "根据ID查询移库任务")
+    @SaCheckPermission("wms:move:detail")
     @GetMapping("/{id}")
     public Result<WmsMoveTask> getById(@PathVariable @NotNull(message = "任务ID不能为空") Long id) {
         WmsMoveTask task = moveService.getTaskById(id);
@@ -55,6 +59,7 @@ public class MoveController {
     }
 
     @Operation(summary = "分页查询移库任务（按单据）")
+    @SaCheckPermission("wms:move:list")
     @GetMapping("/page")
     public Result<Page<WmsMoveTask>> page(MoveTaskQuery query) {
         Page<WmsMoveTask> page = new Page<>(query.getPageNum(), query.getPageSize());
@@ -62,6 +67,7 @@ public class MoveController {
     }
 
     @Operation(summary = "分页查询移库明细（按明细）")
+    @SaCheckPermission("wms:move:view")
     @GetMapping("/page-detail")
     public Result<Page<MoveDetailVO>> pageDetail(MoveTaskQuery query) {
         Page<MoveDetailVO> page = new Page<>(query.getPageNum(), query.getPageSize());
@@ -69,12 +75,14 @@ public class MoveController {
     }
 
     @Operation(summary = "生成移库单号")
+    @SaCheckPermission("wms:move:list")
     @GetMapping("/next-no")
     public Result<String> nextNo() {
         return Result.ok(moveService.nextNo());
     }
 
     @Operation(summary = "批量删除移库任务")
+    @SaCheckPermission("wms:move:delete")
     @DeleteMapping("/batch")
     public Result<String> batchDelete(@RequestBody java.util.List<Long> ids) {
         for (Long id : ids) {
@@ -85,6 +93,7 @@ public class MoveController {
     }
 
     @Operation(summary = "删除移库任务")
+    @SaCheckPermission("wms:move:delete")
     @DeleteMapping("/{id}")
     public Result<String> delete(@PathVariable @NotNull(message = "任务ID不能为空") Long id) {
         moveService.removeTask(id);
@@ -93,6 +102,7 @@ public class MoveController {
     }
 
     @Operation(summary = "开始移库")
+    @SaCheckPermission("wms:move:execute")
     @PostMapping("/start")
     public Result<String> start(@RequestParam @NotNull Long taskId,
                                 @RequestParam @NotNull Long userId,
@@ -103,6 +113,7 @@ public class MoveController {
     }
 
     @Operation(summary = "执行移库")
+    @SaCheckPermission("wms:move:execute")
     @PostMapping("/execute")
     public Result<String> execute(@RequestParam @NotNull Long taskId,
                                   @RequestParam @NotNull Long userId,
@@ -113,6 +124,7 @@ public class MoveController {
     }
 
     @Operation(summary = "取消移库")
+    @SaCheckPermission("wms:move:cancel")
     @PostMapping("/cancel")
     public Result<String> cancel(@RequestParam @NotNull Long taskId,
                                  @RequestParam(required = false) String reason) {
@@ -122,6 +134,7 @@ public class MoveController {
     }
 
     @Operation(summary = "查询移库明细列表")
+    @SaCheckPermission("wms:move:detail")
     @GetMapping("/details/{taskId}")
     public Result<List<WmsMoveDetail>> details(
             @PathVariable @NotNull(message = "任务ID不能为空") Long taskId) {
@@ -129,6 +142,7 @@ public class MoveController {
     }
 
     @Operation(summary = "保存移库明细（整体替换，先删后插）")
+    @SaCheckPermission("wms:move:create")
     @PostMapping("/detail/save")
     public Result<String> saveDetails(@Valid @RequestBody DetailSaveRequest<WmsMoveDetail> request) {
         moveService.saveDetails(request.getTaskId(), request.getDetails());

@@ -16,6 +16,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @RestController
@@ -33,6 +34,7 @@ public class AlertManagementController {
 
     // ==================== 告警规则管理 ====================
 
+    @SaCheckPermission("system:monitor-alert:create")
     @PostMapping("/rules")
     @Operation(summary = "创建告警规则")
     public Map<String, Object> createAlertRule(@RequestBody AlertRule rule) {
@@ -40,6 +42,7 @@ public class AlertManagementController {
         return Map.of("code", 200, "data", created, "message", "创建成功");
     }
 
+    @SaCheckPermission("system:monitor-alert:update")
     @PutMapping("/rules/{ruleId}")
     @Operation(summary = "更新告警规则")
     public Map<String, Object> updateAlertRule(
@@ -50,6 +53,7 @@ public class AlertManagementController {
         return Map.of("code", 200, "data", updated, "message", "更新成功");
     }
 
+    @SaCheckPermission("system:monitor-alert:delete")
     @DeleteMapping("/rules/{ruleId}")
     @Operation(summary = "删除告警规则")
     public Map<String, Object> deleteAlertRule(@PathVariable Long ruleId) {
@@ -57,6 +61,7 @@ public class AlertManagementController {
         return Map.of("code", 200, "data", deleted, "message", deleted ? "删除成功" : "规则不存在");
     }
 
+    @SaCheckPermission("system:monitor-alert:detail")
     @GetMapping("/rules/{ruleId}")
     @Operation(summary = "获取告警规则详情")
     public Map<String, Object> getAlertRule(@PathVariable Long ruleId) {
@@ -67,6 +72,7 @@ public class AlertManagementController {
         return Map.of("code", 404, "data", null, "message", "规则不存在");
     }
 
+    @SaCheckPermission("system:monitor-alert:view")
     @GetMapping("/rules")
     @Operation(summary = "获取告警规则列表")
     public Map<String, Object> listAlertRules(
@@ -88,6 +94,7 @@ public class AlertManagementController {
         return Map.of("code", 200, "data", rules, "message", "ok");
     }
 
+    @SaCheckPermission("system:monitor-alert:update")
     @PostMapping("/rules/{ruleId}/enable")
     @Operation(summary = "启用告警规则")
     public Map<String, Object> enableAlertRule(@PathVariable Long ruleId) {
@@ -95,6 +102,7 @@ public class AlertManagementController {
         return Map.of("code", 200, "data", success, "message", success ? "已启用" : "规则不存在");
     }
 
+    @SaCheckPermission("system:monitor-alert:update")
     @PostMapping("/rules/{ruleId}/disable")
     @Operation(summary = "禁用告警规则")
     public Map<String, Object> disableAlertRule(@PathVariable Long ruleId) {
@@ -104,6 +112,7 @@ public class AlertManagementController {
 
     // ==================== 告警历史 ====================
 
+    @SaCheckPermission("system:monitor-alert:view")
     @GetMapping("/history")
     @Operation(summary = "获取告警历史")
     public Map<String, Object> getAlertHistory(
@@ -140,6 +149,7 @@ public class AlertManagementController {
         return result;
     }
 
+    @SaCheckPermission("system:monitor-alert:delete")
     @DeleteMapping("/history")
     @Operation(summary = "清除告警历史")
     public Map<String, Object> clearAlertHistory(
@@ -156,6 +166,7 @@ public class AlertManagementController {
 
     // ==================== 告警操作 ====================
 
+    @SaCheckPermission("system:monitor-alert:update")
     @PostMapping("/{alertId}/acknowledge")
     @Operation(summary = "确认告警")
     public Map<String, Object> acknowledgeAlert(
@@ -172,6 +183,7 @@ public class AlertManagementController {
         return Map.of("code", 200, "data", true, "message", "已确认");
     }
 
+    @SaCheckPermission("system:monitor-alert:update")
     @PostMapping("/{alertId}/resolve")
     @Operation(summary = "解决告警")
     public Map<String, Object> resolveAlert(
@@ -192,6 +204,7 @@ public class AlertManagementController {
 
     // ==================== 通知配置 ====================
 
+    @SaCheckPermission("system:monitor-alert:update")
     @PostMapping("/notification/config")
     @Operation(summary = "配置通知渠道")
     public Map<String, Object> configureNotification(@RequestBody Map<String, Object> config) {
@@ -211,6 +224,7 @@ public class AlertManagementController {
         return Map.of("code", 200, "data", true, "message", "通知渠道已配置");
     }
 
+    @SaCheckPermission("system:monitor-alert:view")
     @GetMapping("/notification/config")
     @Operation(summary = "获取通知配置")
     public Map<String, Object> getNotificationConfigs() {
@@ -220,6 +234,7 @@ public class AlertManagementController {
         return Map.of("code", 200, "data", configs, "message", "ok");
     }
 
+    @SaCheckPermission("system:monitor-alert:execute")
     @PostMapping("/notification/test")
     @Operation(summary = "测试通知渠道")
     public Map<String, Object> testNotification(@RequestParam String channel) {
@@ -240,6 +255,7 @@ public class AlertManagementController {
 
     // ==================== 告警统计 ====================
 
+    @SaCheckPermission("system:monitor-alert:view")
     @GetMapping("/statistics")
     @Operation(summary = "获取告警统计")
     public Map<String, Object> getAlertStatistics(

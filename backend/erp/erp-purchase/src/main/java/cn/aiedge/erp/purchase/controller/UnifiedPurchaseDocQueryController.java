@@ -26,6 +26,7 @@ import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 采购单据查询控制器（统一）
@@ -53,12 +54,14 @@ public class UnifiedPurchaseDocQueryController {
     private final PaymentItemMapper paymentItemMapper;
 
     @Operation(summary = "统一采购单据分页查询")
+    @SaCheckPermission("purchase:doc-query:list")
     @GetMapping("/page")
     public Page<UnifiedPurchaseDocumentDTO> unifiedPage(UnifiedPurchaseDocQueryDTO query) {
         return unifiedPurchaseDocQueryService.unifiedPage(query);
     }
 
     @Operation(summary = "更新单据整单备注")
+    @SaCheckPermission("purchase:doc-query:update")
     @PutMapping("/{docType}/{id}/remark")
     public Map<String, Object> updateRemark(
             @PathVariable String docType,
@@ -101,6 +104,7 @@ public class UnifiedPurchaseDocQueryController {
      * @param operator     对账人（前端传当前登录用户名）
      * @return 处理结果
      */
+    @SaCheckPermission("purchase:doc-query:update")
     @PutMapping("/{documentType}/{id}/reconcile")
     @Operation(summary = "按单付款-对账标记")
     public Map<String, Object> reconcile(
@@ -144,6 +148,7 @@ public class UnifiedPurchaseDocQueryController {
      * @param docIds 勾选的采购入库单ID列表
      * @return 处理结果（processed=补核销的付款单明细条数）
      */
+    @SaCheckPermission("purchase:doc-query:update")
     @PostMapping("/no-settle-write-off")
     @Operation(summary = "按单付款-无结算付款单核销")
     public Map<String, Object> noSettleWriteOff(@RequestBody List<Long> docIds) {

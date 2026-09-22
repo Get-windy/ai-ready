@@ -30,6 +30,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @RestController
 @RequestMapping("/api/erp/batch-sn/batches")
@@ -49,6 +50,7 @@ public class BatchNumberController {
         @ApiResponse(responseCode = "400", description = "请求参数错误"),
         @ApiResponse(responseCode = "500", description = "服务器内部错误")
     })
+    @SaCheckPermission("erp:batch:create")
     @PostMapping
     public ResponseEntity<BatchApiResponse<BatchNumber>> createBatch(@Valid @RequestBody CreateBatchRequest request) {
         log.info("创建批次请求: {}", request);
@@ -61,6 +63,7 @@ public class BatchNumberController {
     }
     
     @Operation(summary = "分页查询批次", description = "支持按批次号、产品编码、状态等条件分页查询")
+    @SaCheckPermission("erp:batch:list")
     @GetMapping("/page")
     public ResponseEntity<BatchApiResponse<com.baomidou.mybatisplus.extension.plugins.pagination.Page<BatchNumber>>> pageBatches(@Valid BatchQueryRequest request) {
         log.debug("分页查询批次: {}", request);
@@ -86,6 +89,7 @@ public class BatchNumberController {
         @ApiResponse(responseCode = "404", description = "批次未找到"),
         @ApiResponse(responseCode = "500", description = "服务器内部错误")
     })
+    @SaCheckPermission("erp:batch:detail")
     @GetMapping("/{id}")
     public ResponseEntity<BatchApiResponse<BatchNumber>> getBatch(@PathVariable @NotNull Long id) {
         log.debug("查询批次详情: ID={}", id);
@@ -104,6 +108,7 @@ public class BatchNumberController {
         return ResponseEntity.ok(BatchApiResponse.success(batch));
     }
     
+    @SaCheckPermission("erp:batch:list")
     @GetMapping
     public ResponseEntity<BatchApiResponse<List<BatchNumber>>> listBatches(@Valid BatchQueryRequest request) {
         log.debug("查询批次列表: {}", request);
@@ -123,6 +128,7 @@ public class BatchNumberController {
         return ResponseEntity.ok(BatchApiResponse.success(batches));
     }
     
+    @SaCheckPermission("erp:batch:update")
     @PutMapping("/{id}")
     public ResponseEntity<BatchApiResponse<BatchNumber>> updateBatch(
         @PathVariable @NotNull Long id, @Valid @RequestBody CreateBatchRequest request) {
@@ -141,6 +147,7 @@ public class BatchNumberController {
         return ResponseEntity.ok(BatchApiResponse.success(updated));
     }
     
+    @SaCheckPermission("erp:batch:update-status")
     @PatchMapping("/status")
     public ResponseEntity<BatchApiResponse<Integer>> updateBatchStatus(
         @NotNull @RequestBody List<Long> batchIds, @NotBlank @RequestParam String newStatus) {
@@ -161,6 +168,7 @@ public class BatchNumberController {
         @ApiResponse(responseCode = "400", description = "请求参数错误"),
         @ApiResponse(responseCode = "500", description = "服务器内部错误")
     })
+    @SaCheckPermission("erp:batch:inbound")
     @PostMapping("/inbound")
     public ResponseEntity<BatchApiResponse<BatchNumber>> inbound(
         @Valid @RequestBody CreateBatchRequest request,
@@ -182,6 +190,7 @@ public class BatchNumberController {
         @ApiResponse(responseCode = "404", description = "批次未找到或库存不足"),
         @ApiResponse(responseCode = "500", description = "服务器内部错误")
     })
+    @SaCheckPermission("erp:batch:outbound")
     @PostMapping("/outbound")
     public ResponseEntity<BatchApiResponse<BatchNumber>> outbound(
         @NotNull @RequestParam Long batchId,
@@ -204,6 +213,7 @@ public class BatchNumberController {
         return ResponseEntity.ok(BatchApiResponse.success(result));
     }
     
+    @SaCheckPermission("erp:batch:inspect")
     @PostMapping("/{id}/quality-inspection")
     public ResponseEntity<BatchApiResponse<BatchNumber>> qualityInspection(
         @PathVariable @NotNull Long id,
@@ -223,6 +233,7 @@ public class BatchNumberController {
         return ResponseEntity.ok(BatchApiResponse.success(result));
     }
     
+    @SaCheckPermission("erp:batch:view")
     @GetMapping("/expiring-warning")
     public ResponseEntity<BatchApiResponse<List<BatchNumber>>> getExpiringBatches(
         @RequestParam(defaultValue = "30") @Min(1) int warningDays) {
@@ -232,6 +243,7 @@ public class BatchNumberController {
         return ResponseEntity.ok(BatchApiResponse.success(batches));
     }
     
+    @SaCheckPermission("erp:batch:view")
     @GetMapping("/stock-summary")
     public ResponseEntity<BatchApiResponse<List<BatchNumber>>> getStockSummary() {
         log.debug("查询批次库存汇总");
@@ -240,6 +252,7 @@ public class BatchNumberController {
         return ResponseEntity.ok(BatchApiResponse.success(summary));
     }
     
+    @SaCheckPermission("erp:batch:check")
     @GetMapping("/validate-batch-no")
     public ResponseEntity<BatchApiResponse<Boolean>> validateBatchNo(@NotBlank @RequestParam String batchNo) {
         log.debug("验证批次号唯一性: batchNo={}", batchNo);
@@ -248,12 +261,14 @@ public class BatchNumberController {
         return ResponseEntity.ok(BatchApiResponse.success(!exists));
     }
     
+    @SaCheckPermission("erp:batch:view")
     @GetMapping("/cache-stats")
     public ResponseEntity<BatchApiResponse<ApiCacheManager.CacheStats>> getCacheStats() {
         ApiCacheManager.CacheStats stats = cacheManager.getCacheStats();
         return ResponseEntity.ok(BatchApiResponse.success(stats));
     }
     
+    @SaCheckPermission("erp:batch:clear")
     @DeleteMapping("/clear-cache")
     public ResponseEntity<BatchApiResponse<String>> clearCache() {
         cacheManager.clearAllCache();
@@ -268,6 +283,7 @@ public class BatchNumberController {
         @ApiResponse(responseCode = "404", description = "批次未找到或库存不足"),
         @ApiResponse(responseCode = "500", description = "服务器内部错误")
     })
+    @SaCheckPermission("erp:batch:transfer")
     @PostMapping("/transfer")
     public ResponseEntity<BatchApiResponse<BatchNumber>> transferBatch(@Valid @RequestBody BatchTransferRequest request) {
         log.info("批次转移请求: {}", request);
@@ -299,6 +315,7 @@ public class BatchNumberController {
         @ApiResponse(responseCode = "404", description = "批次未找到"),
         @ApiResponse(responseCode = "500", description = "服务器内部错误")
     })
+    @SaCheckPermission("erp:batch:update")
     @PostMapping("/inventory")
     public ResponseEntity<BatchApiResponse<BatchNumber>> inventoryBatch(@Valid @RequestBody BatchInventoryRequest request) {
         log.info("批次盘点请求: {}", request);
@@ -328,6 +345,7 @@ public class BatchNumberController {
         @ApiResponse(responseCode = "400", description = "请求参数错误"),
         @ApiResponse(responseCode = "500", description = "服务器内部错误")
     })
+    @SaCheckPermission("erp:batch:list")
     @PostMapping("/search")
     public ResponseEntity<BatchApiResponse<List<BatchNumber>>> advancedSearch(@Valid @RequestBody BatchAdvancedSearchRequest request) {
         log.debug("批次高级搜索请求: {}", request);
@@ -353,6 +371,7 @@ public class BatchNumberController {
         return ResponseEntity.ok(BatchApiResponse.success(batches));
     }
     
+    @SaCheckPermission("erp:batch:export")
     @GetMapping("/export")
     public ResponseEntity<?> exportBatches(@Valid BatchQueryRequest request) {
         log.info("批次数据导出请求: {}", request);

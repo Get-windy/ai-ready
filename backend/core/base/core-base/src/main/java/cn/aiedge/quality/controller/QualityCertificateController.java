@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Tag(name = "质量证书", description = "质量证书(COA)管理")
 @RestController
@@ -21,18 +22,21 @@ public class QualityCertificateController {
     private final QualityCertificateService service;
 
     @Operation(summary = "创建质量证书")
+    @SaCheckPermission("quality:certificate:create")
     @PostMapping
     public Result<QualityCertificate> create(@RequestBody QualityCertificate certificate) {
         return Result.success(service.create(certificate));
     }
 
     @Operation(summary = "更新质量证书")
+    @SaCheckPermission("quality:certificate:update")
     @PutMapping("/{id}")
     public Result<QualityCertificate> update(@PathVariable Long id, @RequestBody QualityCertificate certificate) {
         return Result.success(service.update(id, certificate));
     }
 
     @Operation(summary = "删除质量证书")
+    @SaCheckPermission("quality:certificate:delete")
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
         service.delete(id);
@@ -40,6 +44,7 @@ public class QualityCertificateController {
     }
 
     @Operation(summary = "分页查询质量证书")
+    @SaCheckPermission("quality:certificate:list")
     @GetMapping("/page")
     public Result<PageResult<QualityCertificate>> page(
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") Integer pageNum,
@@ -53,6 +58,7 @@ public class QualityCertificateController {
     }
 
     @Operation(summary = "查询质量证书详情")
+    @SaCheckPermission("quality:certificate:detail")
     @GetMapping("/{id}")
     public Result<QualityCertificate> get(@PathVariable Long id) {
         return Result.success(service.get(id));

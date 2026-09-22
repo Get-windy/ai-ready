@@ -30,6 +30,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @Validated
@@ -42,6 +43,7 @@ public class LocationController {
     private final WarehouseService warehouseService;
 
     @Operation(summary = "新增货位")
+    @SaCheckPermission("wms:location:create")
     @PostMapping("/save")
     public Result<WmsLocation> save(@Valid @RequestBody WmsLocation location) {
         warehouseService.saveLocation(location);
@@ -50,6 +52,7 @@ public class LocationController {
     }
 
     @Operation(summary = "更新货位")
+    @SaCheckPermission("wms:location:create")
     @PostMapping("/update")
     public Result<Boolean> update(@Valid @RequestBody WmsLocation location) {
         boolean updated = warehouseService.updateLocation(location);
@@ -60,6 +63,7 @@ public class LocationController {
     }
 
     @Operation(summary = "根据ID查询货位")
+    @SaCheckPermission("wms:location:detail")
     @GetMapping("/{id}")
     public Result<WmsLocation> getById(@PathVariable @NotNull(message = "货位ID不能为空") Long id) {
         WmsLocation location = warehouseService.getLocationById(id);
@@ -70,12 +74,14 @@ public class LocationController {
     }
 
     @Operation(summary = "分页查询货位")
+    @SaCheckPermission("wms:location:list")
     @GetMapping("/page")
     public Result<Page<WmsLocation>> page(@Valid Page<WmsLocation> page, WmsLocation query) {
         return Result.ok(warehouseService.pageLocation(page, query));
     }
 
     @Operation(summary = "删除货位")
+    @SaCheckPermission("wms:location:delete")
     @DeleteMapping("/{id}")
     public Result<String> delete(@PathVariable @NotNull(message = "货位ID不能为空") Long id) {
         warehouseService.removeLocation(id);
@@ -84,6 +90,7 @@ public class LocationController {
     }
 
     @Operation(summary = "根据仓库查询货位列表")
+    @SaCheckPermission("wms:location:list")
     @GetMapping("/list-by-warehouse/{warehouseId}")
     public Result<List<WmsLocation>> listByWarehouse(
             @PathVariable @NotNull(message = "仓库ID不能为空") Long warehouseId) {
@@ -91,6 +98,7 @@ public class LocationController {
     }
 
     @Operation(summary = "推荐上架货位")
+    @SaCheckPermission("wms:location:view")
     @GetMapping("/recommend")
     public Result<List<WmsLocation>> recommend(
             @RequestParam @NotNull Long warehouseId,
@@ -104,12 +112,14 @@ public class LocationController {
     // ══════════════════════════════════════════════════════════════════════
 
     @Operation(summary = "货位列表分页（仓库/货位编号/显示停用）")
+    @SaCheckPermission("wms:location:view")
     @GetMapping("/plan-page")
     public Result<Page<WmsLocation>> planPage(LocationQuery query) {
         return Result.ok(warehouseService.pageLocationPlan(query));
     }
 
     @Operation(summary = "批量生成货位")
+    @SaCheckPermission("wms:location:generate")
     @PostMapping("/generate")
     public Result<Integer> generate(@RequestBody LocationGenerateDTO dto) {
         int created = warehouseService.generateLocations(dto);
@@ -118,6 +128,7 @@ public class LocationController {
     }
 
     @Operation(summary = "启用/停用货位")
+    @SaCheckPermission("wms:location:create")
     @PostMapping("/{id}/enabled")
     public Result<Boolean> updateEnabled(@PathVariable Long id,
                                          @RequestParam(required = false) Integer isEnabled) {
@@ -125,12 +136,14 @@ public class LocationController {
     }
 
     @Operation(summary = "批量删除货位")
+    @SaCheckPermission("wms:location:delete")
     @PostMapping("/batch-delete")
     public Result<Integer> batchDelete(@RequestBody List<Long> ids) {
         return Result.ok(warehouseService.batchRemoveLocations(ids));
     }
 
     @Operation(summary = "导出货位列表（xlsx）")
+    @SaCheckPermission("wms:location:export")
     @GetMapping("/export")
     public void export(LocationQuery query, HttpServletResponse response) throws IOException {
         List<WmsLocation> list = warehouseService.listLocationsForExport(query);

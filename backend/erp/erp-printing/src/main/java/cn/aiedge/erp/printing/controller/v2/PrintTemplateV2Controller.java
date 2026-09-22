@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @Tag(name = "V2-打印模板管理", description = "可视化设计器存储的模板管理，含 template_json 结构")
@@ -66,6 +67,7 @@ public class PrintTemplateV2Controller {
     }
 
     @Operation(summary = "创建模板")
+    @SaCheckPermission("print:template:create")
     @PostMapping
     @Transactional
     public ResponseEntity<ApiResponse<Object>> create(
@@ -105,6 +107,7 @@ public class PrintTemplateV2Controller {
     }
 
     @Operation(summary = "更新模板")
+    @SaCheckPermission("print:template:update")
     @PutMapping("/{id}")
     @Transactional
     public ResponseEntity<ApiResponse<Object>> update(
@@ -144,6 +147,7 @@ public class PrintTemplateV2Controller {
     }
 
     @Operation(summary = "获取模板详情")
+    @SaCheckPermission("print:template:detail")
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<Object>> get(@PathVariable Long id, @RequestHeader(required = false) Long tenantId) {
         Long resolvedTenantId = resolveTenantId(tenantId);
@@ -155,6 +159,7 @@ public class PrintTemplateV2Controller {
     }
 
     @Operation(summary = "模板列表")
+    @SaCheckPermission("print:template:list")
     @GetMapping
     public ResponseEntity<ApiResponse<Object>> list(
             @RequestParam(defaultValue = "1") Integer page,
@@ -179,6 +184,7 @@ public class PrintTemplateV2Controller {
     }
 
     @Operation(summary = "删除模板")
+    @SaCheckPermission("print:template:delete")
     @DeleteMapping("/{id}")
     @Transactional
     public ResponseEntity<ApiResponse<Object>> delete(@PathVariable Long id, @RequestHeader(required = false) Long tenantId) {
@@ -192,6 +198,7 @@ public class PrintTemplateV2Controller {
     }
 
     @Operation(summary = "发布模板")
+    @SaCheckPermission("print:template:publish")
     @PutMapping("/{id}/publish")
     @Transactional
     public ResponseEntity<ApiResponse<Object>> publish(@PathVariable Long id, @RequestHeader(required = false) Long tenantId) {
@@ -206,6 +213,7 @@ public class PrintTemplateV2Controller {
     }
 
     @Operation(summary = "复制模板")
+    @SaCheckPermission("print:template:copy")
     @PostMapping("/{id}/copy")
     @Transactional
     public ResponseEntity<ApiResponse<Object>> copy(

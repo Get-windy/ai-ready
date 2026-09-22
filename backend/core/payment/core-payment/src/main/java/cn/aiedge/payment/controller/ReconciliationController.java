@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Tag(name = "支付对账", description = "日对账、差异处理")
 @RestController
@@ -26,6 +27,7 @@ public class ReconciliationController {
     private final ReconciliationService reconciliationService;
 
     @Operation(summary = "执行日对账")
+    @SaCheckPermission("payment:reconciliation:execute")
     @PostMapping("/execute")
     public Result<List<PaymentReconciliation>> executeDailyReconciliation(
             @Parameter(description = "对账日期") @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate date,
@@ -34,6 +36,7 @@ public class ReconciliationController {
     }
 
     @Operation(summary = "分页查询对账记录")
+    @SaCheckPermission("payment:reconciliation:list")
     @GetMapping("/page")
     public Result<PageResult<PaymentReconciliation>> pageReconciliation(
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") Integer pageNum,
@@ -46,6 +49,7 @@ public class ReconciliationController {
     }
 
     @Operation(summary = "对账统计（后端聚合）")
+    @SaCheckPermission("payment:reconciliation:view")
     @GetMapping("/stat")
     public Result<java.util.Map<String, Object>> statReconciliation(
             @Parameter(description = "开始日期") @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate startDate,
@@ -56,12 +60,14 @@ public class ReconciliationController {
 
     @Operation(summary = "查询对账详情",
             description = "返回对账汇总字段 + 差异明细 diffRecords（无对账明细子表，diffRecords 恒为空数组，见 VO 注释）")
+    @SaCheckPermission("payment:reconciliation:detail")
     @GetMapping("/{id}")
     public Result<ReconciliationDetailVO> getReconciliation(@PathVariable Long id) {
         return Result.success(reconciliationService.getReconciliationDetail(id));
     }
 
     @Operation(summary = "处理差异")
+    @SaCheckPermission("payment:reconciliation:update")
     @PostMapping("/{id}/handle")
     public Result<Void> handleDifference(
             @PathVariable Long id,
@@ -72,6 +78,7 @@ public class ReconciliationController {
     }
 
     @Operation(summary = "获取待对账日期列表")
+    @SaCheckPermission("payment:reconciliation:list")
     @GetMapping("/pending-dates")
     public Result<List<LocalDate>> getPendingDates(
             @Parameter(description = "渠道") @RequestParam(required = false) String channel) {

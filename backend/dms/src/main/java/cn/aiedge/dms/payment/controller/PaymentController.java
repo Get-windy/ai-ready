@@ -23,6 +23,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 末端收款控制器（配送 → 结算收款 → 收款管理，菜单 80920）
@@ -45,12 +46,14 @@ public class PaymentController {
     // ═══ 字典 / 收款码 ═══
 
     @Operation(summary = "收款字典（支付方式 / 收款类型 / 收款码是否开通 / 现金限额与交款时限）")
+    @SaCheckPermission("dms:payment:view")
     @GetMapping("/dict")
     public ApiResponse<Map<String, Object>> dict() {
         return ApiResponse.ok(paymentService.dict());
     }
 
     @Operation(summary = "生成收款二维码（未配置收款码服务时返回空 URL，不生成假二维码）")
+    @SaCheckPermission("dms:payment:update")
     @PostMapping("/qrcode")
     public ApiResponse<DmsPayment> generateQrcode(
             @Parameter(description = "任务ID") @RequestParam Long taskId,
@@ -61,6 +64,7 @@ public class PaymentController {
     // ═══ 收款 ═══
 
     @Operation(summary = "线下收款确认（现金/POS/银行转账；现金超限额拒绝）")
+    @SaCheckPermission("dms:payment:update")
     @PostMapping("/confirm")
     public ApiResponse<DmsPayment> confirmPayment(
             @Parameter(description = "任务ID") @RequestParam Long taskId,
@@ -73,12 +77,14 @@ public class PaymentController {
 
     @OperationLog(module = "收款管理", type = "CREATE", desc = "批量线下收款确认")
     @Operation(summary = "批量线下收款确认（逐单反馈）")
+    @SaCheckPermission("dms:payment:update")
     @PostMapping("/confirm-batch")
     public ApiResponse<Map<String, Object>> confirmBatch(@RequestBody List<Map<String, Object>> rows) {
         return ApiResponse.ok(paymentService.confirmBatch(rows));
     }
 
     @Operation(summary = "支付回调（验签后可接；幂等：重复回调不重复置账）")
+    @SaCheckPermission("dms:payment:update")
     @PostMapping("/callback")
     public ApiResponse<Map<String, Object>> callback(
             @Parameter(description = "任务ID") @RequestParam Long taskId,
@@ -90,6 +96,7 @@ public class PaymentController {
     }
 
     @Operation(summary = "标记未付（挂账）")
+    @SaCheckPermission("dms:payment:update")
     @PostMapping("/mark-unpaid")
     public ApiResponse<Void> markUnpaid(
             @Parameter(description = "任务ID") @RequestParam Long taskId,
@@ -101,6 +108,7 @@ public class PaymentController {
     // ═══ 台账 / 统计 ═══
 
     @Operation(summary = "收款台账分页（联查任务/客户/配送员 + 催收/超时派生列）")
+    @SaCheckPermission("dms:payment:list")
     @GetMapping("/page")
     public ApiResponse<IPage<DmsPaymentVO>> page(PaymentQueryDTO query) {
         return ApiResponse.ok(paymentService.page(query));
@@ -108,12 +116,14 @@ public class PaymentController {
 
     @OperationLog(module = "收款管理", type = "EXPORT", desc = "收款台账导出（含权限审计）")
     @Operation(summary = "收款台账导出数据（前端据此生成真实 xlsx）")
+    @SaCheckPermission("dms:payment:export")
     @GetMapping("/export")
     public ApiResponse<List<DmsPaymentVO>> export(PaymentQueryDTO query) {
         return ApiResponse.ok(paymentService.exportList(query));
     }
 
     @Operation(summary = "收款统计（笔数/金额/未付/代收货款/配送费/已上交/超时未交）")
+    @SaCheckPermission("dms:payment:view")
     @GetMapping("/stat")
     public ApiResponse<Map<String, Object>> stat(PaymentQueryDTO query) {
         return ApiResponse.ok(paymentService.stat(query));
@@ -123,6 +133,7 @@ public class PaymentController {
 
     @OperationLog(module = "收款管理", type = "UPDATE", desc = "交款登记（资金上交）")
     @Operation(summary = "交款登记（配送员上交企业）")
+    @SaCheckPermission("dms:payment:update")
     @PostMapping("/{id}/handover")
     public ApiResponse<DmsPayment> handover(
             @PathVariable Long id,
@@ -134,6 +145,7 @@ public class PaymentController {
     }
 
     @Operation(summary = "交款稽核汇总（按配送员：应上交 vs 已上交 vs 未上交 + 超时预警）")
+    @SaCheckPermission("dms:payment:view")
     @GetMapping("/handover/summary")
     public ApiResponse<Map<String, Object>> handoverSummary(
             @RequestParam(required = false) Long riderId,
@@ -145,6 +157,7 @@ public class PaymentController {
     // ═══ 未付管理（挂账 → 催收 → 核销） ═══
 
     @Operation(summary = "未付（挂账）台账分页")
+    @SaCheckPermission("dms:payment:list")
     @GetMapping("/unpaid/page")
     public ApiResponse<IPage<DmsPaymentVO>> unpaidPage(PaymentQueryDTO query) {
         return ApiResponse.ok(collectionService.unpaidPage(query.getTaskNo(), query.getCustomerName(),
@@ -153,6 +166,7 @@ public class PaymentController {
     }
 
     @Operation(summary = "未付（挂账）汇总")
+    @SaCheckPermission("dms:payment:view")
     @GetMapping("/unpaid/stat")
     public ApiResponse<Map<String, Object>> unpaidStat(PaymentQueryDTO query) {
         return ApiResponse.ok(collectionService.unpaidStat(query.getRiderId(),
@@ -161,6 +175,7 @@ public class PaymentController {
 
     @OperationLog(module = "收款管理", type = "UPDATE", desc = "未付催收登记")
     @Operation(summary = "催收登记（挂账单据催收留痕）")
+    @SaCheckPermission("dms:payment:update")
     @PostMapping("/{id}/urge")
     public ApiResponse<Map<String, Object>> urge(
             @PathVariable Long id,
@@ -172,6 +187,7 @@ public class PaymentController {
     }
 
     @Operation(summary = "承诺付款日登记")
+    @SaCheckPermission("dms:payment:update")
     @PostMapping("/{id}/promise")
     public ApiResponse<DmsPaymentCollection> promise(
             @PathVariable Long id,
@@ -184,6 +200,7 @@ public class PaymentController {
 
     @OperationLog(module = "收款管理", type = "UPDATE", desc = "挂账核销（收款到账）")
     @Operation(summary = "核销（挂账收回，累计收清自动置已支付）")
+    @SaCheckPermission("dms:payment:update")
     @PostMapping("/{id}/write-off")
     public ApiResponse<Map<String, Object>> writeOff(
             @PathVariable Long id,
@@ -196,6 +213,7 @@ public class PaymentController {
     }
 
     @Operation(summary = "挂账动作流水（催收/承诺/核销）")
+    @SaCheckPermission("dms:payment:view")
     @GetMapping("/{id}/collections")
     public ApiResponse<List<DmsPaymentCollection>> collections(@PathVariable Long id) {
         return ApiResponse.ok(collectionService.collections(id));
@@ -205,6 +223,7 @@ public class PaymentController {
 
     @OperationLog(module = "收款管理", type = "UPDATE", desc = "推送财务（收款单/应收核销）")
     @Operation(summary = "推送财务（幂等：重复推送返回既有 traceId）")
+    @SaCheckPermission("dms:payment:update")
     @PostMapping("/push-finance")
     public ApiResponse<Map<String, Object>> pushFinance(
             @Parameter(description = "收款记录ID（单个）") @RequestParam(required = false) Long paymentId,
@@ -221,6 +240,7 @@ public class PaymentController {
     // ═══ 支付流水 / 对账 ═══
 
     @Operation(summary = "支付平台流水分页")
+    @SaCheckPermission("dms:payment:list")
     @GetMapping("/flow/page")
     public ApiResponse<IPage<DmsPaymentFlow>> flowPage(
             @RequestParam(required = false) String channelCode,
@@ -234,6 +254,7 @@ public class PaymentController {
     }
 
     @Operation(summary = "支付平台流水统计（已匹配/未匹配/差异）")
+    @SaCheckPermission("dms:payment:view")
     @GetMapping("/flow/stat")
     public ApiResponse<Map<String, Object>> flowStat(
             @RequestParam(required = false) String channelCode,
@@ -244,6 +265,7 @@ public class PaymentController {
 
     @OperationLog(module = "收款管理", type = "IMPORT", desc = "支付平台流水导入")
     @Operation(summary = "支付平台流水批量导入（同渠道同交易号幂等跳过）")
+    @SaCheckPermission("dms:payment:update")
     @PostMapping("/flow/import")
     public ApiResponse<Map<String, Object>> flowImport(
             @RequestBody List<Map<String, Object>> rows,
@@ -253,6 +275,7 @@ public class PaymentController {
 
     @OperationLog(module = "收款管理", type = "OTHER", desc = "支付流水对账")
     @Operation(summary = "与支付平台流水对账（逐笔匹配，输出三类差异）")
+    @SaCheckPermission("dms:payment:update")
     @PostMapping("/reconcile")
     public ApiResponse<Map<String, Object>> reconcile(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
@@ -262,12 +285,14 @@ public class PaymentController {
     }
 
     @Operation(summary = "流水人工匹配到收款记录")
+    @SaCheckPermission("dms:payment:update")
     @PostMapping("/flow/{id}/match")
     public ApiResponse<DmsPaymentFlow> flowMatch(@PathVariable Long id, @RequestParam Long paymentId) {
         return ApiResponse.ok(flowService.manualMatch(id, paymentId));
     }
 
     @Operation(summary = "忽略流水差异（渠道测试单/误报）")
+    @SaCheckPermission("dms:payment:update")
     @PostMapping("/flow/{id}/ignore")
     public ApiResponse<DmsPaymentFlow> flowIgnore(
             @PathVariable Long id, @RequestParam(required = false) String remark) {
@@ -277,6 +302,7 @@ public class PaymentController {
     // ═══ 兼容旧入口 ═══
 
     @Operation(summary = "按任务查收款记录")
+    @SaCheckPermission("dms:payment:detail")
     @GetMapping("/{taskId}")
     public ApiResponse<DmsPayment> getByTaskId(@PathVariable Long taskId) {
         return ApiResponse.ok(paymentService.getByTaskId(taskId));

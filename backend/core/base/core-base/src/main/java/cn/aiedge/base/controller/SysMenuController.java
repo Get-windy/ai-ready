@@ -103,6 +103,7 @@ public class SysMenuController {
      * 按客户端类型获取菜单树
      */
     @Operation(summary = "按客户端类型获取菜单树")
+    @SaCheckPermission("system:menu:list")
     @GetMapping("/client/{clientType}")
     @SaCheckLogin
     public Result<List<SysMenu>> getMenuByClientType(
@@ -209,6 +210,7 @@ public class SysMenuController {
      * 检查菜单编码是否存在
      */
     @Operation(summary = "检查菜单编码是否存在")
+    @SaCheckPermission("system:menu:check")
     @GetMapping("/check-code")
     public Result<Boolean> checkMenuCodeExists(
             @RequestParam String menuCode,

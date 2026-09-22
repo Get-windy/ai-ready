@@ -22,24 +22,28 @@ public class CustomerFollowUpController {
     private final CustomerFollowUpService customerFollowUpService;
     
     @Operation(summary = "分页查询跟进记录")
+    @SaCheckPermission("crm:follow-up:list")
     @GetMapping("/page")
     public Page<CustomerFollowUp> pageList(CustomerFollowUpQuery query) {
         return customerFollowUpService.pageList(query);
     }
     
     @Operation(summary = "获取跟进记录详情")
+    @SaCheckPermission("crm:follow-up:detail")
     @GetMapping("/{id}")
     public CustomerFollowUp getDetail(@PathVariable Long id) {
         return customerFollowUpService.getById(id);
     }
     
     @Operation(summary = "根据编码查询跟进记录")
+    @SaCheckPermission("crm:follow-up:detail")
     @GetMapping("/code/{followUpCode}")
     public CustomerFollowUp getByCode(@PathVariable String followUpCode) {
         return customerFollowUpService.getByFollowUpCode(followUpCode);
     }
     
     @Operation(summary = "创建跟进记录")
+    @SaCheckPermission("crm:follow-up:create")
     @PostMapping
     public CustomerFollowUp create(@RequestBody CustomerFollowUp followUp) {
         followUp.setFollowUpCode(customerFollowUpService.generateFollowUpCode());
@@ -48,6 +52,7 @@ public class CustomerFollowUpController {
     }
     
     @Operation(summary = "更新跟进记录")
+    @SaCheckPermission("crm:follow-up:update")
     @PutMapping("/{id}")
     public CustomerFollowUp update(@PathVariable Long id, @RequestBody CustomerFollowUp followUp) {
         followUp.setId(id);
@@ -56,18 +61,21 @@ public class CustomerFollowUpController {
     }
     
     @Operation(summary = "删除跟进记录")
+    @SaCheckPermission("crm:follow-up:delete")
     @DeleteMapping("/{id}")
     public boolean delete(@PathVariable Long id) {
         return customerFollowUpService.removeById(id);
     }
     
     @Operation(summary = "查询客户的跟进记录")
+    @SaCheckPermission("crm:follow-up:detail")
     @GetMapping("/customer/{customerId}")
     public List<CustomerFollowUp> listByCustomer(@PathVariable Long customerId) {
         return customerFollowUpService.listByCustomerId(customerId);
     }
     
     @Operation(summary = "查询商机的跟进记录")
+    @SaCheckPermission("crm:follow-up:detail")
     @GetMapping("/opportunity/{opportunityId}")
     public List<CustomerFollowUp> listByOpportunity(@PathVariable Long opportunityId) {
         return customerFollowUpService.listByOpportunityId(opportunityId);

@@ -1116,7 +1116,12 @@ const { start: startSimulation } = useSimulation()
  */
 async function handleSimulate(record: UserInfo) {
   try {
-    await startSimulation(String(record.id), `用户管理预览：${record.username}`)
+    // 传用户名给横幅：顶栏提示要能直接说清「在模拟谁」，不能只给一个数字 ID
+    await startSimulation(
+      String(record.id),
+      `用户管理预览：${record.username}`,
+      record.nickname || record.username,
+    )
   } catch {
     // 失败提示已在 useSimulation 内完成
   }

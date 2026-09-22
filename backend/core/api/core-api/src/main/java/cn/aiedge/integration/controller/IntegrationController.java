@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 系统集成控制器
@@ -33,6 +34,7 @@ public class IntegrationController {
 
     // ==================== 集成配置管理 ====================
 
+    @SaCheckPermission("system:integration:create")
     @PostMapping("/configs")
     @Operation(summary = "创建集成配置")
     public ResponseEntity<IntegrationConfig> createConfig(@RequestBody IntegrationConfig config) {
@@ -40,6 +42,7 @@ public class IntegrationController {
         return ResponseEntity.ok(saved);
     }
 
+    @SaCheckPermission("system:integration:detail")
     @GetMapping("/configs/{configId}")
     @Operation(summary = "获取集成配置")
     public ResponseEntity<IntegrationConfig> getConfig(@PathVariable String configId) {
@@ -50,6 +53,7 @@ public class IntegrationController {
         return ResponseEntity.ok(config);
     }
 
+    @SaCheckPermission("system:integration:detail")
     @GetMapping("/configs/system/{systemCode}")
     @Operation(summary = "根据系统编码获取配置")
     public ResponseEntity<IntegrationConfig> getConfigBySystemCode(@PathVariable String systemCode) {
@@ -60,6 +64,7 @@ public class IntegrationController {
         return ResponseEntity.ok(config);
     }
 
+    @SaCheckPermission("system:integration:update")
     @PutMapping("/configs/{configId}")
     @Operation(summary = "更新集成配置")
     public ResponseEntity<IntegrationConfig> updateConfig(
@@ -72,6 +77,7 @@ public class IntegrationController {
         return ResponseEntity.ok(updated);
     }
 
+    @SaCheckPermission("system:integration:delete")
     @DeleteMapping("/configs/{configId}")
     @Operation(summary = "删除集成配置")
     public ResponseEntity<Map<String, Object>> deleteConfig(@PathVariable String configId) {
@@ -81,6 +87,7 @@ public class IntegrationController {
         return ResponseEntity.ok(result);
     }
 
+    @SaCheckPermission("system:integration:view")
     @GetMapping("/configs")
     @Operation(summary = "获取所有配置")
     public ResponseEntity<List<IntegrationConfig>> listConfigs() {
@@ -88,6 +95,7 @@ public class IntegrationController {
         return ResponseEntity.ok(configs);
     }
 
+    @SaCheckPermission("system:integration:update")
     @PostMapping("/configs/{configId}/toggle")
     @Operation(summary = "启用/禁用配置")
     public ResponseEntity<Map<String, Object>> toggleConfig(
@@ -102,6 +110,7 @@ public class IntegrationController {
 
     // ==================== 用户数据同步 ====================
 
+    @SaCheckPermission("system:integration:execute")
     @PostMapping("/sync/user")
     @Operation(summary = "同步单个用户")
     public ResponseEntity<SyncRecord> syncUser(
@@ -112,6 +121,7 @@ public class IntegrationController {
         return ResponseEntity.ok(record);
     }
 
+    @SaCheckPermission("system:integration:execute")
     @PostMapping("/sync/users")
     @Operation(summary = "批量同步用户")
     public ResponseEntity<List<SyncRecord>> syncUsers(
@@ -124,6 +134,7 @@ public class IntegrationController {
 
     // ==================== 订单数据同步 ====================
 
+    @SaCheckPermission("system:integration:execute")
     @PostMapping("/sync/order")
     @Operation(summary = "同步单个订单")
     public ResponseEntity<SyncRecord> syncOrder(
@@ -134,6 +145,7 @@ public class IntegrationController {
         return ResponseEntity.ok(record);
     }
 
+    @SaCheckPermission("system:integration:execute")
     @PostMapping("/sync/orders")
     @Operation(summary = "批量同步订单")
     public ResponseEntity<List<SyncRecord>> syncOrders(
@@ -146,6 +158,7 @@ public class IntegrationController {
 
     // ==================== 产品数据同步 ====================
 
+    @SaCheckPermission("system:integration:execute")
     @PostMapping("/sync/product")
     @Operation(summary = "同步产品")
     public ResponseEntity<SyncRecord> syncProduct(
@@ -158,6 +171,7 @@ public class IntegrationController {
 
     // ==================== 全量/增量同步 ====================
 
+    @SaCheckPermission("system:integration:execute")
     @PostMapping("/sync/full")
     @Operation(summary = "全量同步")
     public ResponseEntity<Map<String, Object>> fullSync(
@@ -167,6 +181,7 @@ public class IntegrationController {
         return ResponseEntity.ok(result);
     }
 
+    @SaCheckPermission("system:integration:execute")
     @PostMapping("/sync/incremental")
     @Operation(summary = "增量同步")
     public ResponseEntity<Map<String, Object>> incrementalSync(
@@ -179,6 +194,7 @@ public class IntegrationController {
 
     // ==================== 同步记录查询 ====================
 
+    @SaCheckPermission("system:integration:detail")
     @GetMapping("/sync/records/{recordId}")
     @Operation(summary = "获取同步记录")
     public ResponseEntity<SyncRecord> getSyncRecord(@PathVariable String recordId) {
@@ -189,6 +205,7 @@ public class IntegrationController {
         return ResponseEntity.ok(record);
     }
 
+    @SaCheckPermission("system:integration:view")
     @GetMapping("/sync/records")
     @Operation(summary = "查询同步记录")
     public ResponseEntity<List<SyncRecord>> listSyncRecords(
@@ -201,6 +218,7 @@ public class IntegrationController {
         return ResponseEntity.ok(records);
     }
 
+    @SaCheckPermission("system:integration:view")
     @GetMapping("/sync/statistics")
     @Operation(summary = "获取同步统计")
     public ResponseEntity<Map<String, Object>> getSyncStatistics(@RequestParam String configId) {
@@ -208,6 +226,7 @@ public class IntegrationController {
         return ResponseEntity.ok(stats);
     }
 
+    @SaCheckPermission("system:integration:retry")
     @PostMapping("/sync/records/{recordId}/retry")
     @Operation(summary = "重试同步")
     public ResponseEntity<Map<String, Object>> retrySync(@PathVariable String recordId) {
@@ -231,6 +250,7 @@ public class IntegrationController {
         return ResponseEntity.ok(result);
     }
 
+    @SaCheckPermission("system:integration:execute")
     @PostMapping("/webhook/send/{configId}")
     @Operation(summary = "发送WebHook")
     public ResponseEntity<Map<String, Object>> sendWebhook(
@@ -245,6 +265,7 @@ public class IntegrationController {
 
     // ==================== 健康检查 ====================
 
+    @SaCheckPermission("system:integration:detail")
     @GetMapping("/health/{configId}")
     @Operation(summary = "健康检查")
     public ResponseEntity<Map<String, Object>> checkHealth(@PathVariable String configId) {
@@ -252,6 +273,7 @@ public class IntegrationController {
         return ResponseEntity.ok(health);
     }
 
+    @SaCheckPermission("system:integration:execute")
     @PostMapping("/test/{configId}")
     @Operation(summary = "测试连接")
     public ResponseEntity<Map<String, Object>> testConnection(@PathVariable String configId) {

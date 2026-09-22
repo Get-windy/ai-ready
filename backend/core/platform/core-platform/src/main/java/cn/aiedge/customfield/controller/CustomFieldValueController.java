@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Tag(name = "动态字段值管理", description = "业务记录的动态字段值存储和查询")
 @RestController
@@ -21,6 +22,7 @@ public class CustomFieldValueController {
     private final CustomFieldValueService valueService;
 
     @Operation(summary = "保存单个字段值")
+    @SaCheckPermission("custom-field:value:create")
     @PostMapping("/save")
     public ResponseEntity<Map<String, Object>> saveFieldValue(
             @RequestParam String modelName,
@@ -32,6 +34,7 @@ public class CustomFieldValueController {
     }
 
     @Operation(summary = "批量保存字段值（按字段ID）")
+    @SaCheckPermission("custom-field:value:create")
     @PostMapping("/save-batch")
     public ResponseEntity<Map<String, Object>> saveFieldValues(
             @RequestParam String modelName,
@@ -42,6 +45,7 @@ public class CustomFieldValueController {
     }
 
     @Operation(summary = "批量保存字段值（按字段名）")
+    @SaCheckPermission("custom-field:value:create")
     @PostMapping("/save-by-name")
     public ResponseEntity<Map<String, Object>> saveFieldValuesByName(
             @RequestParam String modelName,
@@ -52,6 +56,7 @@ public class CustomFieldValueController {
     }
 
     @Operation(summary = "获取单个字段值")
+    @SaCheckPermission("custom-field:value:view")
     @GetMapping("/get")
     public ResponseEntity<Map<String, Object>> getFieldValue(
             @RequestParam String modelName,
@@ -62,6 +67,7 @@ public class CustomFieldValueController {
     }
 
     @Operation(summary = "按字段名获取字段值")
+    @SaCheckPermission("custom-field:value:view")
     @GetMapping("/get-by-name")
     public ResponseEntity<Map<String, Object>> getFieldValueByName(
             @RequestParam String modelName,
@@ -72,6 +78,7 @@ public class CustomFieldValueController {
     }
 
     @Operation(summary = "获取记录的所有字段值")
+    @SaCheckPermission("custom-field:value:view")
     @GetMapping("/all")
     public ResponseEntity<Map<String, Object>> getAllFieldValues(
             @RequestParam String modelName,
@@ -81,6 +88,7 @@ public class CustomFieldValueController {
     }
 
     @Operation(summary = "删除记录的所有字段值")
+    @SaCheckPermission("custom-field:value:delete")
     @DeleteMapping("/delete")
     public ResponseEntity<Map<String, Object>> deleteFieldValues(
             @RequestParam String modelName,
@@ -90,6 +98,7 @@ public class CustomFieldValueController {
     }
 
     @Operation(summary = "按字段搜索记录")
+    @SaCheckPermission("custom-field:value:view")
     @GetMapping("/search")
     public ResponseEntity<Map<String, Object>> searchRecords(
             @RequestParam String modelName,
@@ -100,6 +109,7 @@ public class CustomFieldValueController {
     }
 
     @Operation(summary = "复制字段值")
+    @SaCheckPermission("custom-field:value:create")
     @PostMapping("/copy")
     public ResponseEntity<Map<String, Object>> copyFieldValues(
             @RequestParam String modelName,

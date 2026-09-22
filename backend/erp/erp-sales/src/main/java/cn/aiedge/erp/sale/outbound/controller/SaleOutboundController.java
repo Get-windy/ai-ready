@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @RestController
@@ -36,6 +37,7 @@ public class SaleOutboundController {
     private final SaleOutboundService saleOutboundService;
     private final SaleOutboundMapper saleOutboundMapper;
 
+    @SaCheckPermission("sale:outbound:list")
     @GetMapping("/page")
     @Operation(summary = "分页查询出库单（按单据，对标文档 40 项查询条件）")
     public Page<SaleOutboundVO> page(SaleOutboundQueryDTO query) {
@@ -45,12 +47,14 @@ public class SaleOutboundController {
         return voPage;
     }
 
+    @SaCheckPermission("sale:outbound:view")
     @GetMapping("/page-detail")
     @Operation(summary = "分页查询出库单明细（按明细，分页口径 = 明细行）")
     public Page<Map<String, Object>> pageDetail(SaleOutboundQueryDTO query) {
         return saleOutboundService.pageDetail(query);
     }
 
+    @SaCheckPermission("sale:outbound:list")
     @GetMapping("/next-no")
     @Operation(summary = "获取下一个出库单号（后端号段，前端禁止自增演示号）")
     public String nextNo() {
@@ -58,6 +62,7 @@ public class SaleOutboundController {
         return saleOutboundService.generateOutboundNo();
     }
 
+    @SaCheckPermission("sale:outbound:detail")
     @GetMapping("/{id}")
     @Operation(summary = "获取出库单详情")
     public SaleOutboundVO getById(@PathVariable Long id) {
@@ -70,12 +75,14 @@ public class SaleOutboundController {
         return vo;
     }
 
+    @SaCheckPermission("sale:outbound:list")
     @GetMapping("/{id}/items")
     @Operation(summary = "获取出库明细")
     public List<SaleOutboundItem> getItems(@PathVariable Long id) {
         return saleOutboundService.getItems(id);
     }
 
+    @SaCheckPermission("sale:outbound:detail")
     @GetMapping("/customer/{customerId}")
     @Operation(summary = "获取客户的出库单列表")
     public List<SaleOutboundVO> listByCustomerId(@PathVariable Long customerId) {
@@ -83,6 +90,7 @@ public class SaleOutboundController {
                 .map(this::convertToVO).collect(Collectors.toList());
     }
 
+    @SaCheckPermission("sale:outbound:detail")
     @GetMapping("/order/{orderId}")
     @Operation(summary = "获取订单的出库单列表")
     public List<SaleOutboundVO> listByOrderId(@PathVariable Long orderId) {
@@ -90,6 +98,7 @@ public class SaleOutboundController {
                 .map(this::convertToVO).collect(Collectors.toList());
     }
 
+    @SaCheckPermission("sale:outbound:create")
     @PostMapping
     @Operation(summary = "创建出库单")
     public SaleOutboundVO create(@RequestBody SaleOutboundCreateDTO dto) {
@@ -107,6 +116,7 @@ public class SaleOutboundController {
         return convertToVO(created);
     }
 
+    @SaCheckPermission("sale:outbound:create")
     @PostMapping("/from-order/{orderId}")
     @Operation(summary = "从销售订单创建出库单")
     public SaleOutboundVO createFromOrder(@PathVariable Long orderId) {
@@ -114,6 +124,7 @@ public class SaleOutboundController {
         return convertToVO(outbound);
     }
 
+    @SaCheckPermission("sale:outbound:update")
     @PutMapping("/{id}")
     @Operation(summary = "更新出库单")
     public SaleOutboundVO update(@PathVariable Long id, @RequestBody SaleOutboundCreateDTO dto) {
@@ -128,6 +139,7 @@ public class SaleOutboundController {
         return convertToVO(updated);
     }
 
+    @SaCheckPermission("sale:outbound:submit")
     @PostMapping("/{id}/submit")
     @Operation(summary = "提交审批")
     public SaleOutboundVO submitForApproval(@PathVariable Long id) {
@@ -135,6 +147,7 @@ public class SaleOutboundController {
         return convertToVO(outbound);
     }
 
+    @SaCheckPermission("sale:outbound:approve")
     @PostMapping("/{id}/approve")
     @Operation(summary = "审批通过")
     public SaleOutboundVO approve(@PathVariable Long id, @RequestParam(required = false) String note) {
@@ -143,6 +156,7 @@ public class SaleOutboundController {
         return convertToVO(outbound);
     }
 
+    @SaCheckPermission("sale:outbound:approve")
     @PostMapping("/{id}/reject")
     @Operation(summary = "审批拒绝")
     public SaleOutboundVO reject(@PathVariable Long id, @RequestParam String reason) {
@@ -150,6 +164,7 @@ public class SaleOutboundController {
         return convertToVO(outbound);
     }
 
+    @SaCheckPermission("sale:outbound:update")
     @PostMapping("/{id}/start-picking")
     @Operation(summary = "开始拣货")
     public SaleOutboundVO startPicking(@PathVariable Long id) {
@@ -158,6 +173,7 @@ public class SaleOutboundController {
         return convertToVO(outbound);
     }
 
+    @SaCheckPermission("sale:outbound:update")
     @PostMapping("/{id}/items/{itemId}/pick")
     @Operation(summary = "拣货明细处理")
     public SaleOutboundItem pickItem(
@@ -167,6 +183,7 @@ public class SaleOutboundController {
         return saleOutboundService.pickItem(itemId, outboundQuantity, batchNo);
     }
 
+    @SaCheckPermission("sale:outbound:update")
     @PostMapping("/{id}/complete-picking")
     @Operation(summary = "完成拣货")
     public SaleOutboundVO completePicking(@PathVariable Long id) {
@@ -174,6 +191,7 @@ public class SaleOutboundController {
         return convertToVO(outbound);
     }
 
+    @SaCheckPermission("sale:outbound:update")
     @PostMapping("/{id}/start-packing")
     @Operation(summary = "开始打包")
     public SaleOutboundVO startPacking(@PathVariable Long id) {
@@ -182,12 +200,14 @@ public class SaleOutboundController {
         return convertToVO(outbound);
     }
 
+    @SaCheckPermission("sale:outbound:update")
     @PostMapping("/{id}/items/{itemId}/pack")
     @Operation(summary = "打包明细处理")
     public SaleOutboundItem packItem(@PathVariable Long itemId) {
         return saleOutboundService.packItem(itemId);
     }
 
+    @SaCheckPermission("sale:outbound:update")
     @PostMapping("/{id}/complete-packing")
     @Operation(summary = "完成打包")
     public SaleOutboundVO completePacking(@PathVariable Long id) {
@@ -195,6 +215,7 @@ public class SaleOutboundController {
         return convertToVO(outbound);
     }
 
+    @SaCheckPermission("sale:outbound:update")
     @PostMapping("/{id}/ship")
     @Operation(summary = "发货")
     public SaleOutboundVO ship(
@@ -206,6 +227,7 @@ public class SaleOutboundController {
         return convertToVO(outbound);
     }
 
+    @SaCheckPermission("sale:outbound:complete")
     @PostMapping("/{id}/complete")
     @Operation(summary = "完成出库")
     public SaleOutboundVO complete(@PathVariable Long id) {
@@ -213,6 +235,7 @@ public class SaleOutboundController {
         return convertToVO(outbound);
     }
 
+    @SaCheckPermission("sale:outbound:cancel")
     @PostMapping("/{id}/cancel")
     @Operation(summary = "取消出库")
     public SaleOutboundVO cancel(@PathVariable Long id, @RequestParam String reason) {
@@ -220,6 +243,7 @@ public class SaleOutboundController {
         return convertToVO(outbound);
     }
 
+    @SaCheckPermission("sale:outbound:update")
     @PostMapping("/{id}/items")
     @Operation(summary = "添加出库明细")
     public SaleOutboundItem addItem(@PathVariable Long id, @RequestBody SaleOutboundItemDTO dto) {
@@ -228,6 +252,7 @@ public class SaleOutboundController {
         return saleOutboundService.addItem(id, item);
     }
 
+    @SaCheckPermission("sale:outbound:update")
     @PutMapping("/{id}/items/{itemId}")
     @Operation(summary = "更新出库明细")
     public SaleOutboundItem updateItem(@PathVariable Long itemId, @RequestBody SaleOutboundItemDTO dto) {
@@ -236,12 +261,14 @@ public class SaleOutboundController {
         return saleOutboundService.updateItem(itemId, item);
     }
 
+    @SaCheckPermission("sale:outbound:delete")
     @DeleteMapping("/{id}/items/{itemId}")
     @Operation(summary = "删除出库明细")
     public void removeItem(@PathVariable Long itemId) {
         saleOutboundService.removeItem(itemId);
     }
 
+    @SaCheckPermission("sale:outbound:view")
     @GetMapping("/calculate-price")
     @Operation(summary = "计算商品价格（前端选品时调用）")
     public Map<String, Object> calculatePrice(
@@ -252,6 +279,7 @@ public class SaleOutboundController {
         return saleOutboundService.calculateItemPrice(customerId, productId, quantity, unitPrice);
     }
 
+    @SaCheckPermission("sale:outbound:view")
     @GetMapping("/statistics")
     @Operation(summary = "出库统计")
     public Map<String, Object> statistics() {
@@ -266,12 +294,14 @@ public class SaleOutboundController {
         return stats;
     }
 
+    @SaCheckPermission("sale:outbound:delete")
     @DeleteMapping("/batch")
     @Operation(summary = "批量删除出库单")
     public boolean batchDelete(@RequestBody List<Long> ids) {
         return saleOutboundService.removeBatchByIds(ids);
     }
 
+    @SaCheckPermission("sale:outbound:export")
     @GetMapping("/export")
     @Operation(summary = "导出售库单列表（真实 Excel 流式输出）")
     public void export(SaleOutboundQueryDTO query, jakarta.servlet.http.HttpServletResponse response) {
@@ -371,6 +401,7 @@ public class SaleOutboundController {
         }
     }
 
+    @SaCheckPermission("sale:outbound:update")
     @PostMapping("/batch-logistics-remark")
     @Operation(summary = "批量写入物流备注（选中单据）")
     public Map<String, Object> batchLogisticsRemark(@RequestBody Map<String, Object> body) {
@@ -423,6 +454,7 @@ public class SaleOutboundController {
         return "";
     }
 
+    @SaCheckPermission("sale:outbound:print")
     @PostMapping("/batch-print")
     @Operation(summary = "批量打印出库单")
     public List<SaleOutboundVO> batchPrint(@RequestBody List<Long> ids) {
@@ -438,6 +470,7 @@ public class SaleOutboundController {
         }).filter(java.util.Objects::nonNull).collect(Collectors.toList());
     }
 
+    @SaCheckPermission("sale:outbound:print")
     @PostMapping("/{id}/print")
     @Operation(summary = "打印后更新打印次数")
     public SaleOutboundVO print(@PathVariable Long id) {
@@ -451,6 +484,7 @@ public class SaleOutboundController {
         return convertToVO(outbound);
     }
 
+    @SaCheckPermission("sale:outbound:create")
     @PostMapping("/{id}/copy")
     @Operation(summary = "复制出库单")
     public SaleOutboundVO copy(@PathVariable Long id) {
@@ -462,6 +496,7 @@ public class SaleOutboundController {
         return convertToVO(copied);
     }
 
+    @SaCheckPermission("sale:outbound:import")
     @PostMapping("/import")
     @Operation(summary = "批量导入出库单")
     public Map<String, Object> importOutbound(@RequestParam("file") org.springframework.web.multipart.MultipartFile file) {

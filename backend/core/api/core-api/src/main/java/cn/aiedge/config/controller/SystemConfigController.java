@@ -255,6 +255,7 @@ public class SystemConfigController {
         return ResponseEntity.ok(all);
     }
 
+    @SaCheckPermission("system:config:list")
     @GetMapping("/map")
     @Operation(summary = "获取配置Map")
     public ResponseEntity<Map<String, String>> getConfigMap(
@@ -265,6 +266,7 @@ public class SystemConfigController {
         return ResponseEntity.ok(configMap);
     }
 
+    @SaCheckPermission("system:config:list")
     @GetMapping("/value/{configKey}")
     @Operation(summary = "获取配置值")
     public ResponseEntity<Map<String, Object>> getConfigValue(
@@ -370,6 +372,7 @@ public class SystemConfigController {
         return ResponseEntity.ok(configs);
     }
 
+    @SaCheckPermission("system:config:list")
     @GetMapping("/types")
     @Operation(summary = "获取配置类型")
     public ResponseEntity<List<Map<String, String>>> getConfigTypes() {
@@ -382,6 +385,7 @@ public class SystemConfigController {
         ));
     }
 
+    @SaCheckPermission("system:config:list")
     @GetMapping("/groups")
     @Operation(summary = "获取配置分组")
     public ResponseEntity<List<Map<String, String>>> getConfigGroups() {

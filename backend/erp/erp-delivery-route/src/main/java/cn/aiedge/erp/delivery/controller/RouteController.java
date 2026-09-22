@@ -29,6 +29,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 配送路线单（执行单）Controller
@@ -56,6 +57,7 @@ public class RouteController {
     // ==================== 台账 ====================
 
     @Operation(summary = "分页查询配送路线单")
+    @SaCheckPermission("delivery:route:list")
     @GetMapping("/page")
     @OperationLog(module = "配送路线单", type = "QUERY", desc = "分页查询配送路线单")
     public ApiResponse<Page<DeliveryRouteVO>> page(DeliveryRouteQueryDTO query) {
@@ -63,6 +65,7 @@ public class RouteController {
     }
 
     @Operation(summary = "查询配送路线单列表（不分页，导出复用）")
+    @SaCheckPermission("delivery:route:list")
     @GetMapping("/list")
     @OperationLog(module = "配送路线单", type = "QUERY", desc = "查询配送路线单列表")
     public ApiResponse<List<DeliveryRouteVO>> list(DeliveryRouteQueryDTO query) {
@@ -70,6 +73,7 @@ public class RouteController {
     }
 
     @Operation(summary = "生成下一个路线编号（PSXL-YYYYMMDD-序号）")
+    @SaCheckPermission("delivery:route:list")
     @GetMapping("/next-no")
     @OperationLog(module = "配送路线单", type = "QUERY", desc = "生成下一个路线编号")
     public ApiResponse<String> nextNo() {
@@ -77,6 +81,7 @@ public class RouteController {
     }
 
     @Operation(summary = "路线详情（含点位明细）")
+    @SaCheckPermission("delivery:route:detail")
     @GetMapping("/{routeId}")
     @OperationLog(module = "配送路线单", type = "QUERY", desc = "查询配送路线单详情")
     public ApiResponse<DeliveryRouteVO> detail(@PathVariable Long routeId) {
@@ -86,6 +91,7 @@ public class RouteController {
     // ==================== 建单 / 改单 ====================
 
     @Operation(summary = "新增配送路线单（手工建单，不依赖高德 key）")
+    @SaCheckPermission("delivery:route:create")
     @PostMapping
     @OperationLog(module = "配送路线单", type = "CREATE", desc = "新增配送路线单")
     public ApiResponse<DeliveryRouteVO> create(@RequestBody DeliveryRouteSaveDTO dto) {
@@ -93,6 +99,7 @@ public class RouteController {
     }
 
     @Operation(summary = "修改配送路线单（仅规划中/待出发）")
+    @SaCheckPermission("delivery:route:update")
     @PutMapping("/{routeId}")
     @OperationLog(module = "配送路线单", type = "UPDATE", desc = "修改配送路线单")
     public ApiResponse<DeliveryRouteVO> update(@PathVariable Long routeId, @RequestBody DeliveryRouteSaveDTO dto) {
@@ -102,6 +109,7 @@ public class RouteController {
     // ==================== 状态流转 ====================
 
     @Operation(summary = "开始配送（规划中/待出发 → 配送中）")
+    @SaCheckPermission("delivery:route:execute")
     @PostMapping("/{routeId}/start")
     @OperationLog(module = "配送路线单", type = "UPDATE", desc = "开始配送")
     public ApiResponse<Void> start(@PathVariable Long routeId) {
@@ -110,6 +118,7 @@ public class RouteController {
     }
 
     @Operation(summary = "完成配送（配送中 → 已完成，未处理点位收口为已跳过）")
+    @SaCheckPermission("delivery:route:complete")
     @PostMapping("/{routeId}/complete")
     @OperationLog(module = "配送路线单", type = "UPDATE", desc = "完成配送")
     public ApiResponse<Void> complete(@PathVariable Long routeId,
@@ -119,6 +128,7 @@ public class RouteController {
     }
 
     @Operation(summary = "取消路线（非终态 → 已取消）")
+    @SaCheckPermission("delivery:route:cancel")
     @PostMapping("/{routeId}/cancel")
     @OperationLog(module = "配送路线单", type = "UPDATE", desc = "取消配送路线")
     public ApiResponse<Void> cancel(@PathVariable Long routeId,
@@ -128,6 +138,7 @@ public class RouteController {
     }
 
     @Operation(summary = "批量状态流转（start / complete / cancel）")
+    @SaCheckPermission("delivery:route:update")
     @PostMapping("/batch-status")
     @OperationLog(module = "配送路线单", type = "UPDATE", desc = "批量流转配送路线状态")
     public ApiResponse<Map<String, Object>> batchStatus(@RequestBody Map<String, Object> body) {
@@ -143,6 +154,7 @@ public class RouteController {
     // ==================== 多点签收 ====================
 
     @Operation(summary = "点位签收（逐点独立：在途/已到达/已送达/配送失败）")
+    @SaCheckPermission("delivery:route:sign")
     @PostMapping("/{routeId}/point/{pointId}/sign")
     @OperationLog(module = "配送路线单", type = "UPDATE", desc = "配送点位签收")
     public ApiResponse<Void> signPoint(@PathVariable Long routeId,
@@ -155,6 +167,7 @@ public class RouteController {
     // ==================== 配送需求归集（围栏自动 + 手动添加） ====================
 
     @Operation(summary = "查询可入线的配送需求（销售出库单/销售订单）")
+    @SaCheckPermission("delivery:demand:list")
     @GetMapping("/demands")
     @OperationLog(module = "配送路线单", type = "QUERY", desc = "查询配送需求")
     public ApiResponse<List<DeliveryDemandVO>> demands(
@@ -165,6 +178,7 @@ public class RouteController {
     }
 
     @Operation(summary = "围栏自动归集预览（干跑，不落库）")
+    @SaCheckPermission("delivery:route:view")
     @PostMapping("/auto-collect/preview")
     @OperationLog(module = "配送路线单", type = "QUERY", desc = "围栏归集预览")
     public ApiResponse<AutoCollectResultVO> autoCollectPreview(@RequestBody(required = false) AutoCollectQueryDTO query) {
@@ -174,6 +188,7 @@ public class RouteController {
     }
 
     @Operation(summary = "围栏自动归集（命中围栏的配送需求自动入线）")
+    @SaCheckPermission("delivery:route:update")
     @PostMapping("/auto-collect")
     @OperationLog(module = "配送路线单", type = "UPDATE", desc = "围栏自动归集")
     public ApiResponse<AutoCollectResultVO> autoCollect(@RequestBody(required = false) AutoCollectQueryDTO query) {
@@ -183,6 +198,7 @@ public class RouteController {
     }
 
     @Operation(summary = "客户配送坐标清单（归集弹窗展示缺坐标客户）")
+    @SaCheckPermission("delivery:route:view")
     @GetMapping("/customer-geo")
     @OperationLog(module = "配送路线单", type = "QUERY", desc = "查询客户配送坐标")
     public ApiResponse<List<Map<String, Object>>> customerGeo(@RequestParam(required = false) Integer limit) {
@@ -190,6 +206,7 @@ public class RouteController {
     }
 
     @Operation(summary = "补录客户配送坐标（围栏归集/地图规划的数据基础）")
+    @SaCheckPermission("delivery:route:update")
     @PutMapping("/customer-geo")
     @OperationLog(module = "配送路线单", type = "UPDATE", desc = "补录客户配送坐标")
     public ApiResponse<Map<String, Object>> saveCustomerGeo(@RequestBody Map<String, Object> body) {
@@ -212,6 +229,7 @@ public class RouteController {
     }
 
     @Operation(summary = "手动添加配送点位（不受围栏限制）")
+    @SaCheckPermission("delivery:route:update")
     @PostMapping("/{routeId}/add-points")
     @OperationLog(module = "配送路线单", type = "UPDATE", desc = "手动添加配送点位")
     public ApiResponse<Map<String, Object>> addPoints(@PathVariable Long routeId,
@@ -222,6 +240,7 @@ public class RouteController {
     // ==================== 路线规划 / 催单 / ETA ====================
 
     @Operation(summary = "按地图能力规划路线顺序（回填顺序/里程/时长，未配 Key 自动降级）")
+    @SaCheckPermission("delivery:route:update")
     @PostMapping("/{routeId}/plan-order")
     @OperationLog(module = "配送路线单", type = "UPDATE", desc = "配送路线规划")
     public ApiResponse<Map<String, Object>> planOrder(@PathVariable Long routeId) {
@@ -229,6 +248,7 @@ public class RouteController {
     }
 
     @Operation(summary = "催单：把指定点位移到目标序号，动态调整后续顺序")
+    @SaCheckPermission("delivery:route:update")
     @PostMapping("/{routeId}/point/{pointId}/expedite")
     @OperationLog(module = "配送路线单", type = "UPDATE", desc = "催单调整配送顺序")
     public ApiResponse<Map<String, Object>> expeditePoint(@PathVariable Long routeId,
@@ -238,6 +258,7 @@ public class RouteController {
     }
 
     @Operation(summary = "ETA 预估（各剩余点位预计到达时间）")
+    @SaCheckPermission("delivery:route:view")
     @GetMapping("/{routeId}/eta")
     @OperationLog(module = "配送路线单", type = "QUERY", desc = "配送 ETA 预估")
     public ApiResponse<RouteEtaVO> eta(@PathVariable Long routeId) {
@@ -245,6 +266,7 @@ public class RouteController {
     }
 
     @Operation(summary = "生成 ETA 客户通知（落库为待发送；短信/推送通道未接入）")
+    @SaCheckPermission("delivery:route:update")
     @PostMapping("/{routeId}/notify-eta")
     @OperationLog(module = "配送路线单", type = "UPDATE", desc = "生成 ETA 客户通知")
     public ApiResponse<Map<String, Object>> notifyEta(@PathVariable Long routeId,
@@ -266,6 +288,7 @@ public class RouteController {
     }
 
     @Operation(summary = "ETA 通知台账分页")
+    @SaCheckPermission("delivery:eta-notify:list")
     @GetMapping("/eta-notify/page")
     @OperationLog(module = "配送路线单", type = "QUERY", desc = "查询 ETA 通知台账")
     public ApiResponse<Page<cn.aiedge.erp.delivery.entity.DeliveryEtaNotify>> etaNotifyPage(DeliveryEtaNotifyQueryDTO query) {
@@ -273,6 +296,7 @@ public class RouteController {
     }
 
     @Operation(summary = "ETA 通知状态回写（标记已发送 / 失败 / 作废）")
+    @SaCheckPermission("delivery:eta-notify:update")
     @PostMapping("/eta-notify/status")
     @OperationLog(module = "配送路线单", type = "UPDATE", desc = "回写 ETA 通知状态")
     public ApiResponse<Integer> etaNotifyStatus(@RequestBody Map<String, Object> body) {
@@ -283,6 +307,7 @@ public class RouteController {
     }
 
     @Operation(summary = "ETA 通知补投递到消息底座（幂等）")
+    @SaCheckPermission("delivery:eta-notify:execute")
     @PostMapping("/eta-notify/dispatch")
     @OperationLog(module = "配送路线单", type = "UPDATE", desc = "补投递 ETA 通知")
     public ApiResponse<Map<String, Object>> etaNotifyDispatch(@RequestBody(required = false) Map<String, Object> body) {
@@ -292,6 +317,7 @@ public class RouteController {
     }
 
     @Operation(summary = "ETA 通知发送（通道未接入时明确返回未配置）")
+    @SaCheckPermission("delivery:eta-notify:execute")
     @PostMapping("/eta-notify/send")
     @OperationLog(module = "配送路线单", type = "UPDATE", desc = "发送 ETA 通知")
     public ApiResponse<Map<String, Object>> etaNotifySend(@RequestBody Map<String, Object> body) {
@@ -306,6 +332,7 @@ public class RouteController {
     }
 
     @Operation(summary = "获取配送员当前进行中的路线")
+    @SaCheckPermission("delivery:route:detail")
     @GetMapping("/active/{deliveryPersonId}")
     public ApiResponse<DeliveryRoute> getActiveRoute(@PathVariable String deliveryPersonId) {
         return ApiResponse.success(routeService.getActiveRouteByPerson(deliveryPersonId));
@@ -314,6 +341,7 @@ public class RouteController {
     // ==================== 导出 ====================
 
     @Operation(summary = "导出配送路线单（真实 xlsx）")
+    @SaCheckPermission("delivery:route:export")
     @GetMapping("/export")
     @OperationLog(module = "配送路线单", type = "QUERY", desc = "导出配送路线单")
     public void export(DeliveryRouteQueryDTO query, HttpServletResponse response) throws IOException {

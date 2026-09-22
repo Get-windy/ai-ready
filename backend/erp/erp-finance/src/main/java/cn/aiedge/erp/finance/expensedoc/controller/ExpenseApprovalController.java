@@ -23,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 费用审批 Controller
@@ -40,12 +41,14 @@ public class ExpenseApprovalController {
     private final SysUserService sysUserService;
 
     @Operation(summary = "待审批分页查询", description = "默认只查审批中的费用单；onlyMine=true 时按当前登录人过滤（审批人隔离）")
+    @SaCheckPermission("finance:expense-approval:view")
     @GetMapping("/pending")
     public Result<Page<ExpenseDoc>> pending(ExpenseApprovalQuery query) {
         return Result.ok(expenseApprovalService.pagePending(query, currentUserId()));
     }
 
     @Operation(summary = "提交审批", description = "草稿/已驳回的费用单提交后进入第一级审批队列")
+    @SaCheckPermission("finance:expense-approval:submit")
     @PostMapping("/submit")
     public Result<ExpenseDoc> submit(@Valid @RequestBody ApprovalSubmitDTO dto) {
         Long operatorId = currentUserId();
@@ -53,6 +56,7 @@ public class ExpenseApprovalController {
     }
 
     @Operation(summary = "审批处理", description = "通过（未到末级则流转下一级）/ 驳回（原因必填）")
+    @SaCheckPermission("finance:expense-approval:create")
     @PostMapping("/process")
     public Result<ExpenseDoc> process(@Valid @RequestBody ApprovalProcessDTO dto) {
         Long operatorId = currentUserId();
@@ -60,24 +64,28 @@ public class ExpenseApprovalController {
     }
 
     @Operation(summary = "审批记录", description = "按费用单查询审批留痕（提交/通过/驳回）")
+    @SaCheckPermission("finance:expense-approval:view")
     @GetMapping("/records")
     public Result<List<ExpenseApproval>> records(@Parameter(description = "费用单ID") @RequestParam Long docId) {
         return Result.ok(expenseApprovalService.records(docId));
     }
 
     @Operation(summary = "审批详情", description = "费用单（含费用项明细）+ 审批记录")
+    @SaCheckPermission("finance:expense-approval:detail")
     @GetMapping("/detail/{docId}")
     public Result<ExpenseApprovalDetailVO> detail(@PathVariable Long docId) {
         return Result.ok(expenseApprovalService.detail(docId));
     }
 
     @Operation(summary = "审批人配置查询", description = "按级别返回默认审批人（用于自动指派）")
+    @SaCheckPermission("finance:expense-approval:view")
     @GetMapping("/approver-config")
     public Result<ExpenseApproverConfigDTO> getApproverConfig() {
         return Result.ok(expenseApprovalService.getApproverConfig());
     }
 
     @Operation(summary = "审批人配置保存", description = "按级别保存默认审批人（null 表示清除该级别）")
+    @SaCheckPermission("finance:expense-approval:create")
     @PostMapping("/approver-config")
     public Result<String> saveApproverConfig(@RequestBody ExpenseApproverConfigDTO dto) {
         expenseApprovalService.saveApproverConfig(dto);
@@ -86,6 +94,7 @@ public class ExpenseApprovalController {
 
     @Operation(summary = "审批人自动指派建议",
             description = "按级别返回建议审批人：一级优先取费用单部门负责人，未设置时取审批人配置；二/三级取审批人配置")
+    @SaCheckPermission("finance:expense-approval:view")
     @GetMapping("/suggest")
     public Result<List<ExpenseApproverSuggestionVO>> suggest(
             @Parameter(description = "费用单ID（用于解析部门负责人）") @RequestParam(required = false) Long docId,

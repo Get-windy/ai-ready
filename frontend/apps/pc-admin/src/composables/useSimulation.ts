@@ -21,6 +21,15 @@ const status = ref<SimulationStatus>({
 })
 const loading = ref(false)
 
+/**
+ * 被模拟用户的展示名（如「张三」）。
+ *
+ * 服务端 `/simulate/status` 只回 `targetUserId`（数字），横幅上光显示 ID 说不清「在模拟谁」；
+ * 开启模拟的页面当场就知道用户名，故由调用方传入并缓存在这里。
+ * 刷新页面后本变量会丢失（会话里只有 ID），横幅回落到显示 ID —— 如实展示，不编造姓名。
+ */
+const targetLabel = ref<string>('')
+
 /** 兼容拦截器是否已拆包：已拆包时顶层就有 simulating 字段 */
 function unwrap<T>(res: unknown): T | undefined {
   const raw = res as (T & { data?: T }) | undefined
@@ -44,6 +53,8 @@ export function useSimulation() {
       const data = unwrap<SimulationStatus>(await simulationApi.status())
       if (data) {
         status.value = data
+        // 已结束模拟（或本次刷新拿不到模拟态）→ 顺带清掉用户名缓存，避免横幅残留张冠李戴
+        if (!data.simulating) targetLabel.value = ''
       }
     } catch (err) {
       // 无 system:simulate 权限的普通用户拿不到状态，属正常情况，不打扰
@@ -51,13 +62,22 @@ export function useSimulation() {
     }
   }
 
-  /** 开始以目标用户身份预览 */
-  async function start(targetUserId: number | string, reason?: string) {
+  /**
+   * 开始以目标用户身份预览
+   *
+   * @param targetUserId 被模拟用户 ID
+   * @param reason       模拟原因（审计用）
+   * @param label        被模拟用户的展示名（如「张三」），仅用于横幅提示；拿不到可不传
+   */
+  async function start(targetUserId: number | string, reason?: string, label?: string) {
     loading.value = true
     try {
       await simulationApi.start(targetUserId, reason)
+      targetLabel.value = label || ''
       await refresh()
-      message.success('已开始以该用户身份预览权限，可在顶栏结束')
+      message.success(
+        label ? `已开始以「${label}」的身份预览权限，可在顶栏结束` : '已开始以该用户身份预览权限，可在顶栏结束',
+      )
     } catch (err: any) {
       message.error(err?.message || '开始权限预览失败')
       throw err
@@ -71,6 +91,7 @@ export function useSimulation() {
     loading.value = true
     try {
       await simulationApi.stop()
+      targetLabel.value = ''
       await refresh()
       message.success('已结束权限预览')
     } catch (err: any) {
@@ -81,5 +102,5 @@ export function useSimulation() {
     }
   }
 
-  return { status, loading, refresh, start, stop }
+  return { status, loading, targetLabel, refresh, start, stop }
 }

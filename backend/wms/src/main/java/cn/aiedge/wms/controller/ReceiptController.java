@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @Validated
@@ -32,6 +33,7 @@ public class ReceiptController {
     private final ReceiptService receiptService;
 
     @Operation(summary = "新增收货任务")
+    @SaCheckPermission("wms:receipt:create")
     @PostMapping("/save")
     public Result<WmsReceiptTask> save(@Valid @RequestBody WmsReceiptTask task) {
         receiptService.saveTask(task);
@@ -40,6 +42,7 @@ public class ReceiptController {
     }
 
     @Operation(summary = "更新收货任务")
+    @SaCheckPermission("wms:receipt:create")
     @PostMapping("/update")
     public Result<Boolean> update(@Valid @RequestBody WmsReceiptTask task) {
         boolean updated = receiptService.updateTask(task);
@@ -50,6 +53,7 @@ public class ReceiptController {
     }
 
     @Operation(summary = "根据ID查询收货任务")
+    @SaCheckPermission("wms:receipt:detail")
     @GetMapping("/{id}")
     public Result<WmsReceiptTask> getById(@PathVariable @NotNull(message = "任务ID不能为空") Long id) {
         WmsReceiptTask task = receiptService.getTaskById(id);
@@ -60,6 +64,7 @@ public class ReceiptController {
     }
 
     @Operation(summary = "分页查询收货任务")
+    @SaCheckPermission("wms:receipt:list")
     @GetMapping("/page")
     public Result<Page<WmsReceiptTask>> page(@Valid Page<WmsReceiptTask> page, WmsReceiptTask query,
                                              @RequestParam(required = false) String keyword) {
@@ -72,12 +77,14 @@ public class ReceiptController {
     }
 
     @Operation(summary = "生成下一收货单号")
+    @SaCheckPermission("wms:receipt:list")
     @GetMapping("/next-no")
     public Result<String> nextNo() {
         return Result.ok(receiptService.generateNo());
     }
 
     @Operation(summary = "分页查询收货明细(按明细)")
+    @SaCheckPermission("wms:receipt:view")
     @GetMapping("/page-detail")
     public Result<Page<WmsReceiptDetailVO>> pageDetail(@Valid Page<WmsReceiptDetailVO> page,
                                                        @RequestParam(required = false) String keyword,
@@ -95,6 +102,7 @@ public class ReceiptController {
     }
 
     @Operation(summary = "删除收货任务")
+    @SaCheckPermission("wms:receipt:delete")
     @DeleteMapping("/{id}")
     public Result<String> delete(@PathVariable @NotNull(message = "任务ID不能为空") Long id) {
         receiptService.removeTask(id);
@@ -103,6 +111,7 @@ public class ReceiptController {
     }
 
     @Operation(summary = "开始收货")
+    @SaCheckPermission("wms:receipt:execute")
     @PostMapping("/start")
     public Result<String> start(@RequestParam @NotNull Long taskId,
                                 @RequestParam @NotNull Long userId,
@@ -113,6 +122,7 @@ public class ReceiptController {
     }
 
     @Operation(summary = "确认收货")
+    @SaCheckPermission("wms:receipt:confirm")
     @PostMapping("/confirm")
     public Result<String> confirm(@RequestParam @NotNull Long taskId,
                                   @RequestParam @NotNull Long userId,
@@ -123,6 +133,7 @@ public class ReceiptController {
     }
 
     @Operation(summary = "取消收货")
+    @SaCheckPermission("wms:receipt:cancel")
     @PostMapping("/cancel")
     public Result<String> cancel(@RequestParam @NotNull Long taskId,
                                  @RequestParam @NotBlank String reason) {
@@ -132,6 +143,7 @@ public class ReceiptController {
     }
 
     @Operation(summary = "查询收货明细列表")
+    @SaCheckPermission("wms:receipt:detail")
     @GetMapping("/details/{taskId}")
     public Result<List<WmsReceiptDetail>> details(
             @PathVariable @NotNull(message = "任务ID不能为空") Long taskId) {
@@ -139,6 +151,7 @@ public class ReceiptController {
     }
 
     @Operation(summary = "保存收货明细（整体替换，先删后插）")
+    @SaCheckPermission("wms:receipt:create")
     @PostMapping("/detail/save")
     public Result<String> saveDetails(@Valid @RequestBody DetailSaveRequest<WmsReceiptDetail> request) {
         receiptService.saveDetails(request.getTaskId(), request.getDetails());

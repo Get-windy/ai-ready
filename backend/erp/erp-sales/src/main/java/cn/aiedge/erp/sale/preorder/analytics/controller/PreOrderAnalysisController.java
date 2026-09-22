@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 预订货查询汇总控制器（分析 → 采销分析 → 销售分析 → 预订货查询，菜单 80419）
@@ -31,6 +32,7 @@ public class PreOrderAnalysisController {
 
     @Operation(summary = "预订货汇总（按商品/按客户）",
             description = "三量递进（预订/已订/已发）+ 赠品三口径 + 价格税口径 + 预订金三口径，含合计行 summary")
+    @SaCheckPermission("sale:pre-order-analysis:list")
     @GetMapping("/page")
     @SaCheckLogin
     public ApiResponse<Map<String, Object>> page(PreOrderAnalysisQueryDTO query) {

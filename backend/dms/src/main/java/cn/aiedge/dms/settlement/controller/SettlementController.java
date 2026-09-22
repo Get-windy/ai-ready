@@ -19,6 +19,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 配送结算控制器（配送 → 结算收款 → 配送结算，菜单 80910）
@@ -43,12 +44,14 @@ public class SettlementController {
     // ═══ 计费规则 ═══
 
     @Operation(summary = "全局缺省计费费率（配送参数 dms.settlement.*）")
+    @SaCheckPermission("dms:settlement:view")
     @GetMapping("/rule")
     public ApiResponse<Map<String, BigDecimal>> rule() {
         return ApiResponse.ok(settlementService.currentRule());
     }
 
     @Operation(summary = "计费规则分页")
+    @SaCheckPermission("dms:settlement:list")
     @GetMapping("/rule/page")
     public ApiResponse<IPage<DmsSettlementRule>> rulePage(
             @RequestParam(required = false) String ruleCode,
@@ -61,24 +64,28 @@ public class SettlementController {
     }
 
     @Operation(summary = "启用中的计费规则（供生成结算单预览）")
+    @SaCheckPermission("dms:settlement:view")
     @GetMapping("/rule/enabled")
     public ApiResponse<List<DmsSettlementRule>> ruleEnabled(@RequestParam(required = false) Integer targetType) {
         return ApiResponse.ok(ruleService.enabledRules(targetType));
     }
 
     @Operation(summary = "新增计费规则")
+    @SaCheckPermission("dms:settlement:create")
     @PostMapping("/rule")
     public ApiResponse<DmsSettlementRule> ruleCreate(@RequestBody DmsSettlementRule rule) {
         return ApiResponse.ok(ruleService.create(rule));
     }
 
     @Operation(summary = "修改计费规则")
+    @SaCheckPermission("dms:settlement:update")
     @PutMapping("/rule/{id}")
     public ApiResponse<DmsSettlementRule> ruleUpdate(@PathVariable Long id, @RequestBody DmsSettlementRule rule) {
         return ApiResponse.ok(ruleService.update(id, rule));
     }
 
     @Operation(summary = "启停计费规则")
+    @SaCheckPermission("dms:settlement:update")
     @PostMapping("/rule/{id}/status")
     public ApiResponse<DmsSettlementRule> ruleStatus(@PathVariable Long id,
                                                      @RequestParam(required = false) Integer status) {
@@ -86,6 +93,7 @@ public class SettlementController {
     }
 
     @Operation(summary = "删除计费规则")
+    @SaCheckPermission("dms:settlement:delete")
     @DeleteMapping("/rule/{id}")
     public ApiResponse<Void> ruleDelete(@PathVariable Long id) {
         ruleService.delete(id);
@@ -95,6 +103,7 @@ public class SettlementController {
     // ═══ 算费 / 报表 ═══
 
     @Operation(summary = "计算单任务配送费（含命中的计费规则与签收折算）")
+    @SaCheckPermission("dms:settlement:detail")
     @GetMapping("/fee/{taskId}")
     public ApiResponse<Map<String, Object>> calculateFee(
             @Parameter(description = "任务ID") @PathVariable Long taskId) {
@@ -102,6 +111,7 @@ public class SettlementController {
     }
 
     @Operation(summary = "周期结算报表（按配送员/按日聚合，口径=已签收/已完成）")
+    @SaCheckPermission("dms:settlement:view")
     @GetMapping("/report")
     public ApiResponse<Map<String, Object>> generateReport(
             @Parameter(description = "租户ID") @RequestParam(required = false) Long tenantId,
@@ -113,6 +123,7 @@ public class SettlementController {
     // ═══ 结算单 ═══
 
     @Operation(summary = "结算单分页")
+    @SaCheckPermission("dms:settlement:list")
     @GetMapping("/page")
     public ApiResponse<IPage<DmsSettlement>> page(
             @RequestParam(required = false) String settlementNo,
@@ -128,6 +139,7 @@ public class SettlementController {
     }
 
     @Operation(summary = "生成结算单（按周期+结算对象聚合已签收任务；对象=配送员/渠道）")
+    @SaCheckPermission("dms:settlement:update")
     @PostMapping("/generate")
     public ApiResponse<DmsSettlement> generate(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate periodStart,
@@ -139,18 +151,21 @@ public class SettlementController {
     }
 
     @Operation(summary = "结算单详情")
+    @SaCheckPermission("dms:settlement:detail")
     @GetMapping("/{id}")
     public ApiResponse<DmsSettlement> detail(@PathVariable Long id) {
         return ApiResponse.ok(settlementService.getById(id));
     }
 
     @Operation(summary = "结算单明细（费用构成 + 签收口径）")
+    @SaCheckPermission("dms:settlement:list")
     @GetMapping("/{id}/items")
     public ApiResponse<List<DmsSettlementItem>> items(@PathVariable Long id) {
         return ApiResponse.ok(settlementService.items(id));
     }
 
     @Operation(summary = "确认结算单（锁定金额）")
+    @SaCheckPermission("dms:settlement:update")
     @PostMapping("/{id}/confirm")
     public ApiResponse<DmsSettlement> confirm(@PathVariable Long id,
                                               @RequestParam(required = false) String remark) {
@@ -158,12 +173,14 @@ public class SettlementController {
     }
 
     @Operation(summary = "推送结算单到 ERP（真实记账：凭证+应付；幂等：已推送返回既有结果）")
+    @SaCheckPermission("dms:settlement:update")
     @PostMapping("/{id}/push-erp")
     public ApiResponse<Map<String, Object>> pushErp(@PathVariable Long id) {
         return ApiResponse.ok(settlementService.pushErp(id));
     }
 
     @Operation(summary = "删除结算单（仅草稿）")
+    @SaCheckPermission("dms:settlement:delete")
     @DeleteMapping("/{id}")
     public ApiResponse<Void> delete(@PathVariable Long id) {
         settlementService.delete(id);
@@ -173,6 +190,7 @@ public class SettlementController {
     // ═══ 对账 ═══
 
     @Operation(summary = "结算对账（凭证金额 / 应付核销 / 配送费收款，输出差异清单）")
+    @SaCheckPermission("dms:settlement:view")
     @GetMapping("/reconcile")
     public ApiResponse<Map<String, Object>> reconcile(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
@@ -184,6 +202,7 @@ public class SettlementController {
     }
 
     @Operation(summary = "推送结算数据到ERP（兼容旧入口）")
+    @SaCheckPermission("dms:settlement:update")
     @PostMapping("/push-erp")
     public ApiResponse<Void> pushToErp(@RequestBody Map<String, Object> settlementData) {
         settlementService.pushToErp(settlementData);

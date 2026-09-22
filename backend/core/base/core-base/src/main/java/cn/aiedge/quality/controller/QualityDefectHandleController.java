@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Tag(name = "不合格处理", description = "不合格处理管理")
 @RestController
@@ -26,6 +27,7 @@ public class QualityDefectHandleController {
     private final QualityDefectHandleService service;
 
     @Operation(summary = "创建不合格处理记录")
+    @SaCheckPermission("quality:defect:create")
     @PostMapping
     public Result<QualityDefectHandle> create(@RequestBody Map<String, Object> params) {
         Long inspectionId = Long.valueOf(params.get("inspectionId").toString());
@@ -37,6 +39,7 @@ public class QualityDefectHandleController {
     }
 
     @Operation(summary = "处理不合格")
+    @SaCheckPermission("quality:defect:update")
     @PostMapping("/{id}/handle")
     public Result<Void> handle(
             @PathVariable Long id,
@@ -51,6 +54,7 @@ public class QualityDefectHandleController {
     }
 
     @Operation(summary = "分页查询不合格处理记录")
+    @SaCheckPermission("quality:defect:list")
     @GetMapping("/page")
     public Result<PageResult<QualityDefectHandle>> page(
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") Integer pageNum,
@@ -91,18 +95,21 @@ public class QualityDefectHandleController {
     }
 
     @Operation(summary = "查询处理记录详情")
+    @SaCheckPermission("quality:defect:detail")
     @GetMapping("/{id}")
     public Result<QualityDefectHandle> get(@PathVariable Long id) {
         return Result.success(service.get(id));
     }
 
     @Operation(summary = "查询待处理记录")
+    @SaCheckPermission("quality:defect:list")
     @GetMapping("/pending")
     public Result<List<QualityDefectHandle>> listPending() {
         return Result.success(service.listPending());
     }
 
     @Operation(summary = "查询缺陷处理历史")
+    @SaCheckPermission("quality:defect:list")
     @GetMapping("/{id}/history")
     public Result<List<QualityDefectHandleHistory>> history(@PathVariable Long id) {
         return Result.success(service.listHistory(id));

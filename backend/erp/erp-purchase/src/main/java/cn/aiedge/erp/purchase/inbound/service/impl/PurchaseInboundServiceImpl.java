@@ -482,22 +482,34 @@ public class PurchaseInboundServiceImpl extends ServiceImpl<PurchaseInboundMappe
                 && !qualityInspectionService.hasPassed("PURCHASE_ORDER", inbound.getOrderNo(), null)) {
             throw new RuntimeException("该采购订单未质检通过，禁止入库，请先完成质检");
         }
+        // 业财直调：收货入库完成产生应付及库存凭证（对标Odoo bill on receipt）
+        BigDecimal payableAmount = inbound.getTotalAmountWithTax() != null
+                ? inbound.getTotalAmountWithTax()
+                : (inbound.getTotalAmount() != null ? inbound.getTotalAmount() : BigDecimal.ZERO);
+
+        // ⚠️ 结算口径预检：协议约定「账期结算」却缺天数/方向 ⇒ **拒单**（DOMAIN-MODEL §13.3 铁律②）。
+        // 必须放在这里、并且是记账的 try/catch **之外** —— 下面那一段的语义是
+        // "记账失败不阻断单据"，会把拒单理由一并吞掉，等于没拒。
+        // 位置刻意选在状态变更之前：此时入库单状态、库存都还没动，拒单不留任何痕迹。
+        if (inbound.getSupplierId() != null && payableAmount.compareTo(BigDecimal.ZERO) > 0) {
+            purchaseAccountingService.assertSettlementResolvable(
+                    String.valueOf(inbound.getSupplierId()), inbound.getInboundDate());
+        }
+
         inbound.setStatus(InboundStatus.WAREHOUSE_CONFIRMED.getCode());
         inbound.setWarehouseConfirmedBy(confirmerId);
         inbound.setWarehouseConfirmedTime(LocalDateTime.now());
         updateById(inbound);
         updateStock(inboundId);
 
-        // 业财直调：收货入库完成产生应付及库存凭证（对标Odoo bill on receipt）
-        BigDecimal payableAmount = inbound.getTotalAmountWithTax() != null
-                ? inbound.getTotalAmountWithTax()
-                : (inbound.getTotalAmount() != null ? inbound.getTotalAmount() : BigDecimal.ZERO);
+        // businessDate 必须传单据的业务日期（入库/收货日期）：协议账期按「下单那一刻生效的版本」算，
+        // 到期日 = 业务日期 + 约定天数，不许用 LocalDate.now() 顶替（补录单据会随日历漂移）
         if (inbound.getSupplierId() != null && payableAmount.compareTo(BigDecimal.ZERO) > 0) {
             try {
                 purchaseAccountingService.createPayableOnReceipt(
                         inbound.getId(), inbound.getInboundNo(),
                         String.valueOf(inbound.getSupplierId()), inbound.getSupplierName(),
-                        payableAmount);
+                        payableAmount, inbound.getInboundDate());
             } catch (Exception e) {
                 log.error("采购收货自动记账失败，入库单ID={}, 原因={}", inboundId, e.getMessage(), e);
                 // 记账失败不影响入库确认

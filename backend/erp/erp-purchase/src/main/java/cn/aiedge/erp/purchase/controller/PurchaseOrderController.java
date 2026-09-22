@@ -45,6 +45,7 @@ public class PurchaseOrderController {
      * 裁决：WMS 不直接依赖 erp-purchase，只 HTTP 调用本接口。
      */
     @Operation(summary = "收货回写：累加采购订单明细已收数量")
+    @SaCheckPermission("purchase:order:list")
     @PostMapping("/received")
     public ApiResponse<Boolean> receiveBackfill(@RequestBody Map<String, Object> body) {
         Object poIdObj = body.get("purchaseOrderId");
@@ -176,6 +177,7 @@ public class PurchaseOrderController {
      * 生成下一单据号
      */
     @Operation(summary = "生成下一单据号")
+    @SaCheckPermission("purchase:order:list")
     @GetMapping("/next-no")
     @SaCheckLogin
     public ApiResponse<String> getNextOrderNo(
@@ -265,6 +267,7 @@ public class PurchaseOrderController {
      * 建议用已存在的 {@code purchase:order:list}（新权限码必须先登记权限种子，否则非超管全 403）。</p>
      */
     @Operation(summary = "采购订单统计")
+    @SaCheckPermission("purchase:order:view")
     @GetMapping("/statistics")
     @SaCheckLogin
     public ApiResponse<PurchaseOrderStatisticsDTO> statistics(

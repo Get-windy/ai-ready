@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 通知模板管理控制器
@@ -35,6 +36,7 @@ public class NotificationTemplateController {
 
     // ==================== 模板CRUD ====================
 
+    @SaCheckPermission("notification:template:create")
     @PostMapping
     @Operation(summary = "创建通知模板")
     public ResponseEntity<NotificationTemplate> createTemplate(@RequestBody NotificationTemplate template) {
@@ -51,6 +53,7 @@ public class NotificationTemplateController {
         return ResponseEntity.ok(notificationService.createTemplate(template));
     }
 
+    @SaCheckPermission("notification:template:update")
     @PutMapping("/{id}")
     @Operation(summary = "更新通知模板")
     public ResponseEntity<NotificationTemplate> updateTemplate(
@@ -69,6 +72,7 @@ public class NotificationTemplateController {
         return ResponseEntity.ok(notificationService.updateTemplate(template));
     }
 
+    @SaCheckPermission("notification:template:delete")
     @DeleteMapping("/{id}")
     @Operation(summary = "删除通知模板")
     public ResponseEntity<Void> deleteTemplate(@PathVariable Long id) {
@@ -76,6 +80,7 @@ public class NotificationTemplateController {
         return ResponseEntity.noContent().build();
     }
 
+    @SaCheckPermission("notification:template:delete")
     @DeleteMapping("/batch")
     @Operation(summary = "批量删除通知模板")
     public ResponseEntity<Map<String, Object>> batchDelete(@RequestBody List<Long> ids) {
@@ -85,6 +90,7 @@ public class NotificationTemplateController {
         return ResponseEntity.ok(Map.of("success", true, "count", ids.size()));
     }
 
+    @SaCheckPermission("notification:template:export")
     @GetMapping("/export")
     @Operation(summary = "导出通知模板")
     public ResponseEntity<List<NotificationTemplate>> export(
@@ -98,6 +104,7 @@ public class NotificationTemplateController {
         return ResponseEntity.ok(templates);
     }
 
+    @SaCheckPermission("notification:template:detail")
     @GetMapping("/{id}")
     @Operation(summary = "获取模板详情")
     public ResponseEntity<NotificationTemplate> getTemplate(@PathVariable Long id) {
@@ -105,6 +112,7 @@ public class NotificationTemplateController {
         return template != null ? ResponseEntity.ok(template) : ResponseEntity.notFound().build();
     }
 
+    @SaCheckPermission("notification:template:detail")
     @GetMapping("/code/{code}")
     @Operation(summary = "根据编码获取模板")
     public ResponseEntity<NotificationTemplate> getTemplateByCode(@PathVariable String code) {
@@ -112,6 +120,7 @@ public class NotificationTemplateController {
         return template != null ? ResponseEntity.ok(template) : ResponseEntity.notFound().build();
     }
 
+    @SaCheckPermission("notification:template:list")
     @GetMapping
     @Operation(summary = "获取所有模板")
     public ResponseEntity<List<NotificationTemplate>> getAllTemplates(
@@ -131,6 +140,7 @@ public class NotificationTemplateController {
     /**
      * 预览模板渲染结果
      */
+    @SaCheckPermission("notification:template:view")
     @PostMapping("/{id}/preview")
     @Operation(summary = "预览模板渲染")
     public ResponseEntity<TemplatePreviewResult> previewTemplate(
@@ -156,6 +166,7 @@ public class NotificationTemplateController {
     /**
      * 根据编码预览模板
      */
+    @SaCheckPermission("notification:template:view")
     @PostMapping("/code/{code}/preview")
     @Operation(summary = "根据编码预览模板")
     public ResponseEntity<TemplatePreviewResult> previewTemplateByCode(
@@ -181,6 +192,7 @@ public class NotificationTemplateController {
     /**
      * 校验模板变量
      */
+    @SaCheckPermission("notification:template:check")
     @PostMapping("/{id}/validate")
     @Operation(summary = "校验模板变量")
     public ResponseEntity<ValidationResult> validateVariables(
@@ -216,6 +228,7 @@ public class NotificationTemplateController {
     /**
      * 提取模板变量列表
      */
+    @SaCheckPermission("notification:template:view")
     @GetMapping("/{id}/variables")
     @Operation(summary = "提取模板变量")
     public ResponseEntity<Set<String>> extractTemplateVariables(@PathVariable Long id) {
@@ -231,6 +244,7 @@ public class NotificationTemplateController {
     /**
      * 获取缓存统计
      */
+    @SaCheckPermission("notification:template:view")
     @GetMapping("/cache/stats")
     @Operation(summary = "获取模板缓存统计")
     public ResponseEntity<NotificationTemplateCache.CacheStats> getCacheStats() {
@@ -240,6 +254,7 @@ public class NotificationTemplateController {
     /**
      * 刷新模板缓存
      */
+    @SaCheckPermission("notification:template:refresh")
     @PostMapping("/cache/refresh")
     @Operation(summary = "刷新模板缓存")
     public ResponseEntity<Void> refreshCache() {

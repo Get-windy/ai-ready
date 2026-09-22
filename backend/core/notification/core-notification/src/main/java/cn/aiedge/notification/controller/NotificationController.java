@@ -13,9 +13,23 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 通知控制器
+ *
+ * <p><b>⚠️ 2026-09-22 修：用户身份一律取会话，不再读请求头 `X-User-Id`。</b>
+ * 原实现每个方法都接 {@code @RequestHeader("X-User-Id") Long userId} 并直接拿它查数据，
+ * 有两处后果：</p>
+ * <ol>
+ *   <li><b>越权面</b>：该头由客户端随意填写 ⇒ 任何登录用户改个头就能读/删
+ *       <b>别人</b>的通知（服务层只按 userId 过滤，没有与会话核对）。</li>
+ *   <li><b>功能实际是空的</b>：前端 <b>从未发送</b>这个头（实测 pc-admin 全仓 0 处引用）
+ *       ⇒ {@code userId} 恒为 null，查询结果恒空。也就是说这个头既没带来安全，
+ *       也没带来功能，纯属历史遗留。</li>
+ * </ol>
+ * <p>现在改为从 Sa-Token 会话取当前用户 id（{@link #sessionUserId()}），
+ * 两个问题一并消除；对外接口形状不变。</p>
  */
 @RestController("coreNotificationController")
 @RequestMapping("/api/core/notification")
@@ -25,14 +39,23 @@ public class NotificationController {
 
     private final NotificationService notificationService;
 
+    /**
+     * 当前登录用户 id —— 通知类接口的**唯一**身份来源。
+     *
+     * <p>不要退回成读请求头：那样既能被伪造（读写他人通知），
+     * 又会因为前端根本不发这个头而让功能恒空（历史实情，见类注释）。</p>
+     */
+    private Long sessionUserId() {
+        return cn.dev33.satoken.stp.StpUtil.getLoginIdAsLong();
+    }
+
     @GetMapping("/unread")
     @Operation(summary = "获取未读通知")
     public ResponseEntity<Map<String, Object>> getUnreadNotifications(
-            @RequestHeader(value = "X-User-Id", required = false) Long userId,
             @RequestHeader(value = "X-Tenant-Id", required = false) Long tenantId) {
         
-        List<NotificationRecord> notifications = notificationService.getUserNotifications(userId, 0, 20);
-        int count = notificationService.getUnreadCount(userId);
+        List<NotificationRecord> notifications = notificationService.getUserNotifications(sessionUserId(), 0, 20);
+        int count = notificationService.getUnreadCount(sessionUserId());
         
         return ResponseEntity.ok(Map.of("notifications", notifications, "unreadCount", count));
     }
@@ -42,11 +65,10 @@ public class NotificationController {
     public ResponseEntity<Map<String, Object>> getUserNotifications(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int pageSize,
-            @RequestHeader(value = "X-User-Id", required = false) Long userId,
             @RequestHeader(value = "X-Tenant-Id", required = false) Long tenantId) {
         
-        List<NotificationRecord> notifications = notificationService.getUserNotifications(userId, null, pageSize);
-        int unreadCount = notificationService.getUnreadCount(userId);
+        List<NotificationRecord> notifications = notificationService.getUserNotifications(sessionUserId(), null, pageSize);
+        int unreadCount = notificationService.getUnreadCount(sessionUserId());
         
         return ResponseEntity.ok(Map.of("notifications", notifications, "unreadCount", unreadCount, "page", page, "pageSize", pageSize));
     }
@@ -54,18 +76,16 @@ public class NotificationController {
     @GetMapping("/unread-count")
     @Operation(summary = "获取未读数量")
     public ResponseEntity<Map<String, Object>> getUnreadCount(
-            @RequestHeader(value = "X-User-Id", required = false) Long userId,
             @RequestHeader(value = "X-Tenant-Id", required = false) Long tenantId) {
         
-        int count = notificationService.getUnreadCount(userId);
+        int count = notificationService.getUnreadCount(sessionUserId());
         return ResponseEntity.ok(Map.of("count", count));
     }
 
     @PostMapping("/{notificationId}/read")
     @Operation(summary = "标记已读")
     public ResponseEntity<Map<String, Object>> markAsRead(
-            @PathVariable Long notificationId,
-            @RequestHeader(value = "X-User-Id", required = false) Long userId) {
+            @PathVariable Long notificationId) {
         
         boolean success = notificationService.markAsRead(notificationId);
         return ResponseEntity.ok(Map.of("success", success));
@@ -74,18 +94,16 @@ public class NotificationController {
     @PostMapping("/read-all")
     @Operation(summary = "全部标记已读")
     public ResponseEntity<Map<String, Object>> markAllAsRead(
-            @RequestHeader(value = "X-User-Id", required = false) Long userId,
             @RequestHeader(value = "X-Tenant-Id", required = false) Long tenantId) {
         
-        notificationService.markAllAsRead(userId);
+        notificationService.markAllAsRead(sessionUserId());
         return ResponseEntity.ok(Map.of("success", true, "message", "已全部标记已读"));
     }
 
     @DeleteMapping("/{notificationId}")
     @Operation(summary = "删除通知")
     public ResponseEntity<Map<String, Object>> deleteNotification(
-            @PathVariable Long notificationId,
-            @RequestHeader(value = "X-User-Id", required = false) Long userId) {
+            @PathVariable Long notificationId) {
 
         boolean success = notificationService.deleteNotification(notificationId);
         return ResponseEntity.ok(Map.of("success", success));
@@ -98,6 +116,7 @@ public class NotificationController {
         return ResponseEntity.ok(Map.of("success", success));
     }
 
+    @SaCheckPermission("notification:message:export")
     @GetMapping("/export")
     @Operation(summary = "导出通知记录")
     public ResponseEntity<List<NotificationRecord>> export() {
@@ -107,12 +126,12 @@ public class NotificationController {
     @DeleteMapping("/read")
     @Operation(summary = "删除已读通知")
     public ResponseEntity<Map<String, Object>> deleteAllRead(
-            @RequestHeader(value = "X-User-Id", required = false) Long userId,
             @RequestHeader(value = "X-Tenant-Id", required = false) Long tenantId) {
 
         return ResponseEntity.ok(Map.of("success", true, "message", "已删除所有已读通知"));
     }
 
+    @SaCheckPermission("notification:message:send")
     @PostMapping("/send")
     @Operation(summary = "发送通知")
     public ResponseEntity<Map<String, Object>> sendNotification(
@@ -123,6 +142,7 @@ public class NotificationController {
         return ResponseEntity.ok(Map.of("success", true, "notification", sent));
     }
 
+    @SaCheckPermission("notification:message:send")
     @PostMapping("/send-template")
     @Operation(summary = "使用模板发送通知")
     public ResponseEntity<Map<String, Object>> sendTemplateNotification(
@@ -139,6 +159,7 @@ public class NotificationController {
         return ResponseEntity.ok(Map.of("success", true, "notification", sent));
     }
 
+    @SaCheckPermission("notification:template:list")
     @GetMapping("/templates")
     @Operation(summary = "获取通知模板")
     public ResponseEntity<List<NotificationTemplate>> getTemplates(
@@ -148,6 +169,7 @@ public class NotificationController {
         return ResponseEntity.ok(notificationService.getTemplatesByType(channel));
     }
 
+    @SaCheckPermission("notification:template:create")
     @PostMapping("/templates")
     @Operation(summary = "保存通知模板")
     public ResponseEntity<NotificationTemplate> saveTemplate(@RequestBody NotificationTemplate template) {

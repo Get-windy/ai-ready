@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 配送查询（配发收 → 配送业务 → 配送查询）查询条件下拉
@@ -31,6 +32,7 @@ public class TaskFilterOptionController {
     private final TaskFilterOptionMapper filterOptionMapper;
 
     @Operation(summary = "配送查询-查询条件下拉（司机/车辆/送货员/制单人）")
+    @SaCheckPermission("dms:task:view")
     @GetMapping("/filter-options")
     public ApiResponse<Map<String, Object>> filterOptions() {
         Map<String, Object> result = new LinkedHashMap<>();

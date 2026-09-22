@@ -17,6 +17,7 @@ import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @Validated
@@ -32,6 +33,7 @@ public class PdaCheckController {
     private static final String DEFAULT_USER_NAME = "PDA操作员";
 
     @Operation(summary = "获取盘点任务列表")
+    @SaCheckPermission("wms:check:view")
     @GetMapping
     public Result<List<WmsCheckTask>> list() {
         Page<WmsCheckTask> page = checkService.pageTask(
@@ -40,6 +42,7 @@ public class PdaCheckController {
     }
 
     @Operation(summary = "获取盘点任务详情")
+    @SaCheckPermission("wms:check:detail")
     @GetMapping("/{id}")
     public Result<Map<String, Object>> detail(@PathVariable @NotNull Long id) {
         WmsCheckTask task = checkService.getTaskById(id);
@@ -52,6 +55,7 @@ public class PdaCheckController {
     }
 
     @Operation(summary = "扫描库位条码")
+    @SaCheckPermission("wms:check:create")
     @PostMapping("/{id}/scan-location")
     public Result<Map<String, Object>> scanLocation(@PathVariable @NotNull Long id,
                                                     @RequestBody Map<String, Object> body) {
@@ -61,6 +65,7 @@ public class PdaCheckController {
     }
 
     @Operation(summary = "扫描商品并录入实际数量")
+    @SaCheckPermission("wms:check:create")
     @PostMapping("/{id}/scan-product")
     public Result<Map<String, Object>> scanProduct(@PathVariable @NotNull Long id,
                                                    @RequestBody Map<String, Object> body) {
@@ -79,6 +84,7 @@ public class PdaCheckController {
     }
 
     @Operation(summary = "提交盘点结果")
+    @SaCheckPermission("wms:check:submit")
     @PutMapping("/{id}/submit")
     public Result<Void> submit(@PathVariable @NotNull Long id) {
         checkService.submitResult(id, DEFAULT_USER_ID, DEFAULT_USER_NAME);

@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @RestController
@@ -36,6 +37,7 @@ public class PurchaseInboundController {
     private final PurchaseInboundService purchaseInboundService;
     private final PurchaseInboundMapper purchaseInboundMapper;
 
+    @SaCheckPermission("purchase:inbound:list")
     @GetMapping("/page")
     @Operation(summary = "分页查询入库单")
     public Page<PurchaseInboundVO> page(@Parameter(description = "查询条件") @ModelAttribute PurchaseInboundQuery query) {
@@ -45,12 +47,14 @@ public class PurchaseInboundController {
         return voPage;
     }
 
+    @SaCheckPermission("purchase:inbound:list")
     @GetMapping("/next-no")
     @Operation(summary = "生成下一入库单号")
     public String nextNo() {
         return purchaseInboundService.generateInboundNo();
     }
 
+    @SaCheckPermission("purchase:inbound:detail")
     @GetMapping("/{id}")
     @Operation(summary = "获取入库单详情")
     public PurchaseInboundVO getById(@PathVariable Long id) {
@@ -63,12 +67,14 @@ public class PurchaseInboundController {
         return vo;
     }
 
+    @SaCheckPermission("purchase:inbound:list")
     @GetMapping("/{id}/items")
     @Operation(summary = "获取入库明细")
     public List<PurchaseInboundItem> getItems(@PathVariable Long id) {
         return purchaseInboundService.getItems(id);
     }
 
+    @SaCheckPermission("purchase:inbound:detail")
     @GetMapping("/supplier/{supplierId}")
     @Operation(summary = "获取供应商的入库单列表")
     public List<PurchaseInboundVO> listBySupplierId(@PathVariable Long supplierId) {
@@ -76,6 +82,7 @@ public class PurchaseInboundController {
                 .map(this::convertToVO).collect(Collectors.toList());
     }
 
+    @SaCheckPermission("purchase:inbound:detail")
     @GetMapping("/order/{orderId}")
     @Operation(summary = "获取订单的入库单列表")
     public List<PurchaseInboundVO> listByOrderId(@PathVariable Long orderId) {
@@ -83,6 +90,7 @@ public class PurchaseInboundController {
                 .map(this::convertToVO).collect(Collectors.toList());
     }
 
+    @SaCheckPermission("purchase:inbound:create")
     @PostMapping
     @Operation(summary = "创建入库单")
     public PurchaseInboundVO create(@RequestBody PurchaseInboundCreateDTO dto) {
@@ -102,6 +110,7 @@ public class PurchaseInboundController {
         return convertToVO(created);
     }
 
+    @SaCheckPermission("purchase:inbound:create")
     @PostMapping("/from-order/{orderId}")
     @Operation(summary = "从采购订单创建入库单")
     public PurchaseInboundVO createFromOrder(@PathVariable Long orderId) {
@@ -109,6 +118,7 @@ public class PurchaseInboundController {
         return convertToVO(inbound);
     }
 
+    @SaCheckPermission("purchase:inbound:update")
     @PutMapping("/{id}")
     @Operation(summary = "更新入库单")
     public PurchaseInboundVO update(@PathVariable Long id, @RequestBody PurchaseInboundCreateDTO dto) {
@@ -126,6 +136,7 @@ public class PurchaseInboundController {
         return convertToVO(updated);
     }
 
+    @SaCheckPermission("purchase:inbound:submit")
     @PostMapping("/{id}/submit")
     @Operation(summary = "提交审批")
     public PurchaseInboundVO submitForApproval(@PathVariable Long id) {
@@ -133,6 +144,7 @@ public class PurchaseInboundController {
         return convertToVO(inbound);
     }
 
+    @SaCheckPermission("purchase:inbound:approve")
     @PostMapping("/{id}/approve")
     @Operation(summary = "审批通过")
     public PurchaseInboundVO approve(@PathVariable Long id, @RequestParam(required = false) String note) {
@@ -141,6 +153,7 @@ public class PurchaseInboundController {
         return convertToVO(inbound);
     }
 
+    @SaCheckPermission("purchase:inbound:approve")
     @PostMapping("/{id}/reject")
     @Operation(summary = "审批拒绝")
     public PurchaseInboundVO reject(@PathVariable Long id, @RequestParam String reason) {
@@ -148,6 +161,7 @@ public class PurchaseInboundController {
         return convertToVO(inbound);
     }
 
+    @SaCheckPermission("purchase:inbound:update")
     @PostMapping("/{id}/receive")
     @Operation(summary = "收货")
     public PurchaseInboundVO receive(@PathVariable Long id) {
@@ -156,6 +170,7 @@ public class PurchaseInboundController {
         return convertToVO(inbound);
     }
 
+    @SaCheckPermission("purchase:inbound:update")
     @PostMapping("/{id}/items/{itemId}/receive")
     @Operation(summary = "收货明细处理")
     public PurchaseInboundItem receiveItem(
@@ -165,6 +180,7 @@ public class PurchaseInboundController {
         return purchaseInboundService.receiveItem(itemId, inboundQuantity, qualityNote);
     }
 
+    @SaCheckPermission("purchase:inbound:update")
     @PostMapping("/{id}/quality-check")
     @Operation(summary = "质检")
     public PurchaseInboundVO qualityCheck(@PathVariable Long id, @RequestParam String result) {
@@ -173,6 +189,7 @@ public class PurchaseInboundController {
         return convertToVO(inbound);
     }
 
+    @SaCheckPermission("purchase:inbound:confirm")
     @PostMapping("/{id}/warehouse-confirm")
     @Operation(summary = "确认入库")
     public PurchaseInboundVO confirmWarehouse(@PathVariable Long id) {
@@ -181,6 +198,7 @@ public class PurchaseInboundController {
         return convertToVO(inbound);
     }
 
+    @SaCheckPermission("purchase:inbound:complete")
     @PostMapping("/{id}/complete")
     @Operation(summary = "完成入库")
     public PurchaseInboundVO complete(@PathVariable Long id) {
@@ -188,6 +206,7 @@ public class PurchaseInboundController {
         return convertToVO(inbound);
     }
 
+    @SaCheckPermission("purchase:inbound:cancel")
     @PostMapping("/{id}/cancel")
     @Operation(summary = "取消入库")
     public PurchaseInboundVO cancel(@PathVariable Long id, @RequestParam String reason) {
@@ -195,12 +214,14 @@ public class PurchaseInboundController {
         return convertToVO(inbound);
     }
 
+    @SaCheckPermission("purchase:inbound:delete")
     @DeleteMapping("/batch")
     @Operation(summary = "批量删除入库单")
     public boolean batchDelete(@RequestBody List<Long> ids) {
         return purchaseInboundService.removeBatchByIds(ids);
     }
 
+    @SaCheckPermission("purchase:inbound:export")
     @GetMapping("/export")
     @Operation(summary = "导出入库单列表")
     public List<PurchaseInbound> export(
@@ -212,6 +233,7 @@ public class PurchaseInboundController {
         return purchaseInboundService.exportList(keyword, supplierId, orderId, warehouseId, status);
     }
 
+    @SaCheckPermission("purchase:inbound:import")
     @PostMapping("/import")
     @Operation(summary = "批量导入入库单")
     public ApiResponse<Map<String, Integer>> importOrders(@RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
@@ -219,6 +241,7 @@ public class PurchaseInboundController {
         return ApiResponse.ok(Map.of("count", count));
     }
 
+    @SaCheckPermission("purchase:inbound:print")
     @PostMapping("/batch-print")
     @Operation(summary = "批量打印入库单")
     public ApiResponse<Void> batchPrint(@RequestBody Map<String, Object> params) {
@@ -230,6 +253,7 @@ public class PurchaseInboundController {
         return ApiResponse.ok("打印完成", null);
     }
 
+    @SaCheckPermission("purchase:inbound:update")
     @PostMapping("/{id}/items")
     @Operation(summary = "添加入库明细")
     public PurchaseInboundItem addItem(@PathVariable Long id, @RequestBody PurchaseInboundItemDTO dto) {
@@ -238,6 +262,7 @@ public class PurchaseInboundController {
         return purchaseInboundService.addItem(id, item);
     }
 
+    @SaCheckPermission("purchase:inbound:update")
     @PutMapping("/{id}/items/{itemId}")
     @Operation(summary = "更新入库明细")
     public PurchaseInboundItem updateItem(@PathVariable Long itemId, @RequestBody PurchaseInboundItemDTO dto) {
@@ -246,12 +271,14 @@ public class PurchaseInboundController {
         return purchaseInboundService.updateItem(itemId, item);
     }
 
+    @SaCheckPermission("purchase:inbound:delete")
     @DeleteMapping("/{id}/items/{itemId}")
     @Operation(summary = "删除入库明细")
     public void removeItem(@PathVariable Long itemId) {
         purchaseInboundService.removeItem(itemId);
     }
 
+    @SaCheckPermission("purchase:inbound:view")
     @GetMapping("/statistics")
     @Operation(summary = "入库统计")
     public ApiResponse<Map<String, Object>> statistics() {

@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 供应商门户查询控制器
@@ -23,12 +24,14 @@ public class SupplierPortalInquiryController {
 
     private final SupplierPortalService supplierPortalService;
 
+    @SaCheckPermission("supplier:inquiry:list")
     @GetMapping("/inquiries/supplier/{supplierId}")
     @Operation(summary = "获取供应商询价单")
     public R<List<InquiryQuotationEntity>> getSupplierInquiries(@PathVariable Long supplierId) {
         return R.ok(supplierPortalService.getSupplierInquiries(supplierId));
     }
 
+    @SaCheckPermission("supplier:points:list")
     @GetMapping("/points/{supplierId}/records")
     @Operation(summary = "获取供应商积分记录")
     public R<List<SupplierPointsRecordEntity>> getPointsRecords(@PathVariable Long supplierId) {

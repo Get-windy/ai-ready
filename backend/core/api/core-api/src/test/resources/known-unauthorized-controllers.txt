@@ -29,92 +29,119 @@
 
 # ── 对外契约 / 基础设施（优先级最低，多为刻意公开）─────────────────────────
 # cn.aiedge.agent.controller
+#   ⚠️ **有意不加权限码**（不是待办，勿删）：JSON-RPC 能力调用入口
+#   （capability.invoke/list/search、system.ping），调用方是 **agent 客户端**
+#   （身份来自 AgentCallContextHolder 的 agentId，user_id/tenant_id 取自请求参数），
+#   没有 Sa-Token 会话。正确修法是服务间鉴权，不是权限码。
+#   同类的 /api/agent/heartbeat、/api/agent/validate 也**有意不加码**；
+#   AgentController 另有 8 个端点已挂 system:agent:*，故它本就不在基线里。
+#   ⚠️ 该包（cn.aiedge.agent.controller）**不在** scanBasePackages 内 ⇒ 运行时一律 404。
 cn.aiedge.agent.controller.AgentInvokeController
 # cn.aiedge.automation.controller
-cn.aiedge.automation.controller.AutomationRuleController
+# ✅ 2026-09-21 coreplatform 批次已出清：AutomationRuleController 的 9 个端点补上
+#    @SaCheckPermission（automation:rule:*，迁移 V11.472.0）。
+#    ⚠️ 另 4 个 /trigger/{create,write,delete,scheduled} 是 **ORM 事件钩子**
+#    （executeOnCreate/OnWrite/OnDelete/scheduled，全仓无调用方），按配置**有意不加码**，
+#    但它们与已注解的方法在同一个类里 ⇒ 本类不再整类零注解，故不列入基线。
+# cn.aiedge.automation.controller
 # cn.aiedge.base.controller
+#   ⚠️ **有意不加权限码**（不是待办，勿删）：行政区划三级联动（/api/sys/region/**），
+#   往来单位等表单「所在地区」的公共下拉数据源 —— 是数据源不是可勾选功能（同 /api/dict 口径）。
 cn.aiedge.base.controller.SysRegionController
 # cn.aiedge.base.log
-cn.aiedge.base.log.AdvancedLogController
-cn.aiedge.base.log.ErrorReportController
-cn.aiedge.base.log.StructuredLogController
+# ✅ 2026-09-21 corebase 批次已出清：AdvancedLogController 12 处 + StructuredLogController 3 处
+#    + ErrorReportController 3 处 @SaCheckPermission（迁移 V11.471.0）。
+#    日志三件套全部并入既有 `log:` 码族：高级查询接 `log:oper:*`（它直接查 SysOperLog 实体），
+#    结构化日志新建 `log:structured:*`，错误报告新建 `log:error-report:*`。
+#    ⚠️ 另：ErrorReportController 的 `POST /api/error-report`（前端全局错误上报，main.ts:59）
+#    **有意不加码**（它本来也没整类零注解、不在基线里）—— 属有意排除而非待办。
+# cn.aiedge.base.log
 # cn.aiedge.base.log.controller
-cn.aiedge.base.log.controller.SystemLogController
+# ✅ 2026-09-21 corebase 批次已出清：SystemLogController 10 处 @SaCheckPermission（迁移 V11.471.0）。
+#    它并入既有 `log:oper:*` —— 与 LogManageController 的 /api/system/log/oper/* 是同一功能的
+#    并行实现（只是表为 sys_system_log），另立 log:system:* 会造平行命名空间。
+# cn.aiedge.base.log.controller
 # cn.aiedge.base.websocket
+#   ⚠️ **有意不加权限码**（不是待办，勿删）：SSE 推送通道
+#   （utils/sseClient.ts:34 以 EventSource + ?token= 直连），推的是**权限缓存失效**事件，
+#   任何登录用户都要用；加码 ⇒ 非超管在权限变更后永远刷不到新菜单。
 cn.aiedge.base.websocket.SseNotificationController
 # cn.aiedge.customfield.controller
-cn.aiedge.customfield.controller.CustomFieldController
-cn.aiedge.customfield.controller.CustomFieldValueController
+# ✅ 2026-09-21 coreplatform 批次已出清：CustomFieldController 14 处 +
+#    CustomFieldValueController 9 处 @SaCheckPermission（custom-field:field|group|value:*，
+#    迁移 V11.472.0）。历史上曾在此登记：CustomFieldController、CustomFieldValueController。
+# cn.aiedge.customfield.controller
 # cn.aiedge.export.controller
-cn.aiedge.export.controller.DataExportControllerExt
+# ✅ 2026-09-21 core-api 批次（E-01，迁移 V11.464.0）已出清：
+#    DataExportControllerExt 4 个端点补上 @SaCheckPermission（system:dataexport:*）。
 # cn.aiedge.gateway.fallback
 cn.aiedge.gateway.fallback.GatewayFallbackController
 # cn.aiedge.kanban.controller
-cn.aiedge.kanban.controller.KanbanController
+# ✅ 2026-09-21 coreplatform 批次已出清：KanbanController 13 处 @SaCheckPermission
+#    （kanban:board|column|card:*，迁移 V11.472.0）。
+# cn.aiedge.kanban.controller
 # cn.aiedge.monitor.controller
-cn.aiedge.monitor.controller.HealthMonitorController
+# ✅ 2026-09-21 core-api 批次（E-01，迁移 V11.464.0）已出清：
+#    HealthMonitorController 7 个端点补上 @SaCheckPermission（system:monitor-health:view）。
 # cn.aiedge.notification.controller
-cn.aiedge.notification.controller.NotificationController
-cn.aiedge.notification.controller.NotificationStatsController
-cn.aiedge.notification.controller.NotificationTemplateController
+# ✅ 2026-09-21 corenotify 批次已出清：NotificationTemplateController 14 处 +
+#    NotificationStatsController 7 处 + NotificationController 5 处 @SaCheckPermission
+#    （notification:template|stats|message:*，迁移 V11.473.0）。
+#    ⚠️ NotificationController 另 8 个「我的通知」端点（unread/list/unread-count/read/
+#    read-all/delete）按配置**有意不加码**（userId 取自 X-User-Id 头而非会话，属自助接口，
+#    且是既有越权缺陷），但它们与已注解的方法同类 ⇒ 该类不再整类零注解。
+# cn.aiedge.notification.controller
 # cn.aiedge.payment.controller
-cn.aiedge.payment.controller.ReconciliationController
-cn.aiedge.payment.controller.RefundController
+# ✅ 2026-09-21 corepayment 批次已出清：ReconciliationController 6 处 +
+#    RefundController 6 处 @SaCheckPermission（payment:reconciliation:* / payment:refund:*，
+#    迁移 V11.474.0）。两控制器的 /callback/{channel} 是渠道侧服务器回调（无会话），
+#    **有意不加码**。历史上曾在此登记：ReconciliationController、RefundController。
+# cn.aiedge.payment.controller
 # cn.aiedge.permission.controller
 # cn.aiedge.storage.controller
 cn.aiedge.storage.controller.FileAccessController
 # cn.aiedge.trade.controller
-cn.aiedge.trade.controller.ChannelConfigController
-cn.aiedge.trade.controller.ExternalOrderController
-cn.aiedge.trade.controller.InventorySyncController
+# ✅ 2026-09-21 corebase 批次已出清：ChannelConfigController 12 处 +
+#    ExternalOrderController 4 处 + InventorySyncController 4 处 @SaCheckPermission
+#    （trade:channel|external-order|inventory-sync:*，迁移 V11.471.0）。
+#    历史上曾在此登记：ChannelConfigController、ExternalOrderController、InventorySyncController。
+# cn.aiedge.trade.controller
+#   ⚠️ **有意不加权限码**（不是待办，勿删）：对外开放 API（/api/open/**）的调用方是
+#   **外部平台服务器**（订单回调/库存查询/商品同步，签名走 @RequestParam signature），
+#   没有员工会话，加用户权限码必然打不通。
+#   ⚠️ 顺带查实（只报告）：类注释声称「安全验证-签名校验」，但 orderCallback 并未把
+#   signature 传给 orderService.receiveCallback(channelCode, data) ⇒ 该参数被接收后未使用。
 cn.aiedge.trade.controller.OpenApiController
 # cn.aiedge.trade.monitor.controller
-cn.aiedge.trade.monitor.controller.ApiMonitorController
+# ✅ 2026-09-21 corebase 批次已出清：ApiMonitorController 13 处 @SaCheckPermission
+#    （trade:api-monitor:*，迁移 V11.471.0）。
+# cn.aiedge.trade.monitor.controller
 # cn.aiedge.webhook.controller
-cn.aiedge.webhook.controller.WebhookController
+# ✅ 2026-09-21 corenotify 批次已出清：WebhookController 14 处 @SaCheckPermission
+#    （notification:webhook:* / notification:webhook-log:*，迁移 V11.473.0）。
+#    ⚠️ 该控制器所在包 **不在** AiReadyApplication.scanBasePackages 里（见
+#    known-unscanned-controller-packages.txt）⇒ 运行时一律 404；码照建，接线后即生效。
+# cn.aiedge.webhook.controller
 
-# ── CRM（整模块零鉴权，优先补）──────────────────────────────────────────────
-# cn.aiedge.crm.contract.controller
-cn.aiedge.crm.contract.controller.ContractController
-# cn.aiedge.crm.customer.controller
-#   ⚠️ 2026-09-21 删（E-02 批次 2 已接线，基线按棘轮规则同步收缩）：
-#     CustomerController            ← crm:customer:{list,update,delete}
-#     CustomerFollowUpController    ← crm:lead:view
-#     CustomerOpportunityController ← crm:opportunity:{create,view}
-cn.aiedge.crm.customer.controller.CustomerLeadController
-cn.aiedge.crm.customer.controller.CustomerPoolController
-# cn.aiedge.crm.marketing.controller
-cn.aiedge.crm.marketing.controller.MarketingCampaignController
-# cn.aiedge.crm.quotation.controller
-cn.aiedge.crm.quotation.controller.QuotationController
-cn.aiedge.crm.quotation.controller.QuotationTemplateController
-# cn.aiedge.crm.visit.controller
-cn.aiedge.crm.visit.controller.VisitController
+# ── CRM ──────────────────────────────────────────────────────────────────
+# ✅ 2026-09-21 **crm 已整体出清**（E-01 crm 批次：10 个控制器 / 185 端点全部补上
+#    @SaCheckPermission，新增迁移 V11.458.0 补 36 个码），本节按棘轮规则收缩为空。
+#    历史上曾在此登记的：ContractController、CustomerController、CustomerFollowUpController、
+#    CustomerOpportunityController、CustomerLeadController、CustomerPoolController、
+#    MarketingCampaignController、QuotationController、QuotationTemplateController、
+#    VisitController —— 全部已带鉴权注解，故不再列入。
 
 # ── 财务 / 费用 / 发票（涉及金额，优先级最高）───────────────────────────────
-# cn.aiedge.erp.expense.controller
-#   ⚠️ 2026-09-21 删（E-02 批次 1 已接线，基线按棘轮规则同步收缩）：
-#     ExpenseApprovalController     ← erp:expense:approval:{list,process}
-#     ExpenseController             ← erp:expense:application:{list,query} + statistics:list
-#     ExpensePaymentController      ← erp:expense:payment:{list,query,create,confirm,cancel}
-#     ExpenseReimbursementController← erp:expense:reimbursement:query
-cn.aiedge.erp.expense.controller.ExpenseTypeController
-# cn.aiedge.erp.finance.arapadjust.controller
-cn.aiedge.erp.finance.arapadjust.controller.ArApAdjustController
-# cn.aiedge.erp.finance.bankaccount.controller
-cn.aiedge.erp.finance.bankaccount.controller.BankAccountController
-# cn.aiedge.erp.finance.cashtransfer.controller
-cn.aiedge.erp.finance.cashtransfer.controller.CashTransferController
-# cn.aiedge.erp.finance.controller
-cn.aiedge.erp.finance.controller.BusinessAccountingController
-cn.aiedge.erp.finance.controller.ExpenseTypeSubjectController
-cn.aiedge.erp.finance.controller.FinanceAccountController
-cn.aiedge.erp.finance.controller.MdPaymentMethodController
-cn.aiedge.erp.finance.controller.OtherIncomeSubjectController
-# cn.aiedge.erp.finance.expensedoc.controller
-cn.aiedge.erp.finance.expensedoc.controller.ExpenseApprovalController
-cn.aiedge.erp.finance.expensedoc.controller.ExpenseDocController
-cn.aiedge.erp.finance.expensedoc.controller.ExpenseStatsController
+# ── 财务 / 费用 / 发票 ───────────────────────────────────────────────────
+# ✅ 2026-09-21 **本域已出清**（E-01 erpfinance 批次：18 个控制器补 124 处 @SaCheckPermission，
+#    新增迁移 V11.463.0 补 72 个码；其中 13 个码是**复用**既有的 `erp:expense:*` 四段式历史码，
+#    把那批长期无人消费的僵尸码接上了真实端点），本节按棘轮规则收缩为空。
+#    历史上曾在此登记：ExpenseTypeController、ArApAdjustController、BankAccountController、
+#    CashTransferController、BusinessAccountingController、ExpenseTypeSubjectController、
+#    FinanceAccountController、MdPaymentMethodController、OtherIncomeSubjectController、
+#    ExpenseApprovalController、ExpenseDocController、ExpenseStatsController，
+#    以及更早由 E-02 批次 1 接线的 ExpenseApprovalController/ExpenseController/
+#    ExpensePaymentController/ExpenseReimbursementController。
 # cn.aiedge.erp.finance.otherincome.controller
 # cn.aiedge.erp.finance.reconciliation.controller
 # cn.aiedge.erp.invoice.controller
@@ -125,69 +152,99 @@ cn.aiedge.erp.finance.expensedoc.controller.ExpenseStatsController
 # cn.aiedge.erp.controller
 cn.aiedge.erp.controller.ErpBasicController
 # cn.aiedge.erp.customer.controller
-cn.aiedge.erp.customer.controller.CustomerLevelController
+# ✅ 2026-09-21 **客户等级已出清**（E-01 partnerlevel 批次：CustomerLevelController 12 处
+#    @SaCheckPermission，码 `party:customer-level:*`，迁移 V11.480.0 补 7 个码）。
+#    该控制器在 erp-partner 的 `cn.aiedge.erp.customer` 包（此前不在 MODULES['party'] 的 dirs 里），
+#    域按类级路径 `/api/erp/customer/level` 推导，与既有 `party:customer-region:*` 同族。
+#    （同包还有别的控制器吗？没有 —— 该包只有这一个 @RestController。）
 # cn.aiedge.erp.batchsn.controller
-cn.aiedge.erp.batchsn.controller.BatchNumberController
-cn.aiedge.erp.batchsn.controller.SerialNumberController
+# ✅ 2026-09-21 **批次/序列号已出清**（E-01 erpbatchsn 批次：2 个控制器补 28 处
+#    @SaCheckPermission，新增迁移 V11.468.0 补 22 个码 `erp:batch:*` / `erp:serial:*`，
+#    域口径见该迁移头部「为什么既不用 stock 也不用 batch-sn」），按棘轮规则从基线移除。
+#    历史上曾在此登记：BatchNumberController、SerialNumberController。
 # cn.aiedge.erp.metrics.controller
-cn.aiedge.erp.metrics.controller.MetricsController
 # cn.aiedge.erp.monitor.controller
-cn.aiedge.erp.monitor.controller.BusinessMetricController
+# ✅ 2026-09-21 **可观测性已出清**（E-01 erpobserv 批次：2 个控制器补 24 处
+#    @SaCheckPermission，新增迁移 V11.467.0 补 9 个码 `metrics:metric:*` /
+#    `monitor:business-metric:*`），按棘轮规则从基线移除。
+#    历史上曾在此登记：MetricsController、BusinessMetricController。
 # cn.aiedge.erp.party.controller
 # cn.aiedge.erp.pricing.api
-cn.aiedge.erp.pricing.api.PriceEngineController
-cn.aiedge.erp.pricing.api.PriceStrategyConfigController
-cn.aiedge.erp.pricing.api.PriceTierController
-# cn.aiedge.erp.pricing.controller
-# PriceApprovalController：类 Javadoc:42-43 明确写了「前端该页未使用任何 v-permission 码，
-# 故此处不加 @SaCheckPermission，仅依赖全局登录校验（口径与页面对齐）」—— 属**刻意豁免**。
-# ⚠️ 但价格审批涉及定价，建议后续补鉴权（后端鉴权的目的是防越权，不是重复前端的隐藏）；
-#    补之前必须先建权限码种子，否则会把功能锁死。
-cn.aiedge.erp.pricing.controller.PriceApprovalController
-cn.aiedge.erp.pricing.controller.PricingController
-cn.aiedge.erp.pricing.controller.ProductGradePriceController
+# ✅ 2026-09-21 **定价域已出清**（E-01 erppricing 批次：5 个控制器补 42 处
+#    @SaCheckPermission，新增迁移 V11.466.0 补 19 个码 `pricing:*` / `product:grade-price:*`），
+#    按棘轮规则从基线移除。历史上曾在此登记：PriceEngineController、
+#    PriceStrategyConfigController、PriceTierController、PricingController、
+#    ProductGradePriceController。
+# ── 定价域 ───────────────────────────────────────────────────────────────
+# ✅ 2026-09-21 **定价域已出清**（E-01 erppricing 批次 + V11.469.0 修正批）。
+#    PriceApprovalController 原本在类 Javadoc 里写了「刻意不加 @SaCheckPermission，仅依赖全局
+#    登录校验」的豁免理由；本轮按 E-01 既定口径改为逐端点挂 `pricing:approval:*`
+#    （口径 = 每个端点都要有码、再由管理员通过权限矩阵授予角色），
+#    该豁免理由也已同步改写进类注释。若将来决定恢复旧口径，需**注解与码一并撤**。
 # cn.aiedge.erp.product.kit.controller
-cn.aiedge.erp.product.kit.controller.ProductKitController
-# cn.aiedge.erp.purchase.controller
-cn.aiedge.erp.purchase.controller.PurchaseDetailQueryController
-cn.aiedge.erp.purchase.controller.PurchaseDocQueryController
-cn.aiedge.erp.purchase.controller.PurchaseInquiryController
-cn.aiedge.erp.purchase.controller.PurchaseQuoteController
-# cn.aiedge.erp.purchase.inbound.controller
-cn.aiedge.erp.purchase.inbound.controller.PurchaseInboundController
-# cn.aiedge.erp.purchase.purchaseexchange.controller
-cn.aiedge.erp.purchase.purchaseexchange.controller.PurchaseExchangeController
-# cn.aiedge.erp.purchase.purchasereturn.controller
-cn.aiedge.erp.purchase.purchasereturn.controller.PurchaseReturnController
-# cn.aiedge.erp.sale.controller
-cn.aiedge.erp.sale.controller.SalesDetailQueryController
-# cn.aiedge.erp.sale.outbound.controller
-cn.aiedge.erp.sale.outbound.controller.ErpSaleOutConfirmController
-cn.aiedge.erp.sale.outbound.controller.SaleOutboundController
-# cn.aiedge.erp.sale.retail.controller
-cn.aiedge.erp.sale.retail.controller.RetailController
-cn.aiedge.erp.sale.retail.controller.RetailShiftController
-# cn.aiedge.erp.sale.saleexchange.controller
-cn.aiedge.erp.sale.saleexchange.controller.SaleExchangeController
+#   ✅ 2026-09-21 已补注解（E-01 sales 批次给 ProductKitController 补了 20 处
+#      @SaCheckPermission，码为 product:kit:*），按棘轮规则从基线移除。
+# ── 采购域 ───────────────────────────────────────────────────────────────
+# ✅ 2026-09-21 **采购域已出清**（E-01 purchase 批次：10 个控制器补 97 处 @SaCheckPermission，
+#    新增迁移 V11.460.0 补 69 个码），本节按棘轮规则收缩为空。
+#    历史上曾在此登记：PurchaseDetailQueryController、PurchaseDocQueryController、
+#    PurchaseInquiryController、PurchaseQuoteController、PurchaseInboundController、
+#    PurchaseExchangeController、PurchaseReturnController —— 均已带鉴权注解。
+# ── 销售域 ───────────────────────────────────────────────────────────────
+# ✅ 2026-09-21 **销售域已出清**（E-01 sales 批次：19 个控制器补 197 处 @SaCheckPermission，
+#    新增迁移 V11.461.0 补 95 个码），本节按棘轮规则收缩为空。
+#    历史上曾在此登记：SalesDetailQueryController、ErpSaleOutConfirmController、
+#    SaleOutboundController、RetailController、RetailShiftController、SaleExchangeController、
+#    SaleReturnController、SaleReturnDocController、SalePreOrderController、
+#    SaleLogisticsController、ProductKitController、PromotionController、
+#    PromotionFunnelController、SaleAnalysisController、SaleAnalysisReportController、
+#    PreOrderAnalysisController、SalesDocQueryController、AccountDeliveryController、
+#    SaleOrderController —— 均已带鉴权注解。
 # cn.aiedge.erp.signature.controller
-cn.aiedge.erp.signature.controller.RatingController
-cn.aiedge.erp.signature.controller.SignatureController
+# ✅ 2026-09-21 已补注解（E-01 erpprinting 批次：RatingController 5 处 / SignatureController 7 处
+#    @SaCheckPermission，码为 `signature:rating:*` / `signature:record:*`，迁移 V11.465.0）。
+#    注：这两个控制器在 erp-printing 模块的 `cn.aiedge.erp.signature` 包里，域按类级路径定，
+#    与打印域 `print:*` 分开；它们在 pc-admin 里暂无调用方（实测）。
 # cn.aiedge.erp.stock.controller
+# ⚠️ E-01 stockextra 批次（2026-09-21，迁移 V11.482.0 补 6 个码）补的是**子包**里的两个控制器：
+#    `cn.aiedge.erp.stock.controller.initial.InitialStockController`（5 处）与
+#    `cn.aiedge.erp.stock.analytics.controller.InventoryAnalysisController`（1 处）。
+#    它们原本各带**类级 `@SaCheckLogin`** ⇒ 按本清单的判据（@SaCheckLogin 也算已鉴权）
+#    **从来不在基线里**，故这里没有行可删。
 # cn.aiedge.erp.supplier.controller
-cn.aiedge.erp.supplier.controller.SupplierController
-cn.aiedge.erp.supplier.controller.SupplierPortalController
-cn.aiedge.erp.supplier.controller.SupplierPortalInquiryController
+# ✅ 2026-09-21 **供应商域已出清**（E-01 supplier 批次：3 个控制器补 47 处 @SaCheckPermission，
+#    新增迁移 V11.478.0 补 27 个码，域 `supplier:`（模块归属 master-data，映射见 V11.483.0））。
+#    ⚠️ 交付判断记一笔：这个模块名像"对外供应商门户"，实测是**员工会话**在调
+#    （pc-admin `views/supplier/**` + `api/supplier.ts`，Sa-Token Bearer，与后台同一套会话），
+#    故**没有**排除。若将来真做外部供应商登录，应另立账号体系，而不是撤掉这批码。
 # cn.aiedge.erp.delivery.controller
-cn.aiedge.erp.delivery.controller.RouteController
+# ✅ 2026-09-21 **配送路线已出清**（E-01 deliveryroute 批次：RouteController 27 处，
+#    码 `delivery:route:*` / `delivery:demand:list` / `delivery:eta-notify:*`，迁移 V11.479.0）。
+#    交付判断：司机端 App（frontend/apps/driver-delivery）走 `POST /auth/login`（主站员工登录）
+#    + Sa-Token Bearer，**不是设备身份** ⇒ 补码而非排除；
+#    ⚠️ 遗留：司机端要能被授权 `delivery:route:{list,detail,execute,complete,update,sign}`。
 # cn.aiedge.erp.delivery.route.controller
-cn.aiedge.erp.delivery.route.controller.RouteMasterController
+# ✅ 2026-09-21 **线路档案已出清**（同上批次：RouteMasterController 11 处，
+#    码 `md:route-master:*`，迁移 V11.479.0）。
+#    ⚠️ 该控制器**保留一个有意排除的端点**：`GET /api/erp/md/route/options`（启用线路下拉）——
+#    被 pc-admin 8 个页面当「配送线路」下拉源（`mdRouteApi.options()`），属"跨模块数据源
+#    不是可勾选功能"，加码会让这些页面的下拉在非超管手里变空。见迁移 V11.479.0 头部。
 
 # ── 营销 / 商城（含 C 端公开接口，需逐个甄别）─────────────────────────────
 # cn.aiedge.erp.b2b.controller
-cn.aiedge.erp.b2b.controller.MallAdminController
-cn.aiedge.erp.b2b.controller.MallAdminKeywordController
-cn.aiedge.erp.b2b.controller.MallAdminNoticeController
-cn.aiedge.erp.b2b.controller.MallAdminPopupAdController
+# ✅ 2026-09-21 **商城域已出清**（E-01 b2b 批次：后台管理侧 5 个控制器补 60 处
+#    @SaCheckPermission，新增迁移 V11.477.0 补 47 个码 `mall:*`，复用槽位 slot=8）。
+#    历史上曾在此登记：MallAdminController、MallAdminKeywordController、MallAdminNoticeController、
+#      MallAdminPopupAdController、MallTradeAnalysisController（**已补码**）与
+#      MallAuthController、MallCartController、MallNoticeController、MallOrderController、
+#      MallPartyLinkController、MallPaymentController、MallProductController、MallUserController
+#      （**有意不加码的 C 端**）。
+#    ⚠️ 下面 8 行是**有意不加权限码的 C 端**（不是"还没补"，勿删、也勿补注解）：
+#    `MallAuthServiceImpl#login` 用 `StpUtil.login(shopUser.getId())`，登录主体是
+#    shop_user（买家）而不是 sys_user，`@SaCheckPermission` 查不到任何码 ⇒ 补注解 = 全部商城顾客 403。
+#    它们连 `@SaCheckLogin` 都没写（登录闸在 SaTokenConfig 的全局拦截器上），故按本清单的判据
+#    仍然"无任何访问控制注解"⇒ 必须留在基线里，否则 `AuthzAnnotationCoverageTest` 会红。
+#    详见迁移 V11.477.0 头部「为什么 C 端必须排除」。
 cn.aiedge.erp.b2b.controller.MallAuthController
 cn.aiedge.erp.b2b.controller.MallCartController
 cn.aiedge.erp.b2b.controller.MallNoticeController
@@ -195,54 +252,48 @@ cn.aiedge.erp.b2b.controller.MallOrderController
 cn.aiedge.erp.b2b.controller.MallPartyLinkController
 cn.aiedge.erp.b2b.controller.MallPaymentController
 cn.aiedge.erp.b2b.controller.MallProductController
-cn.aiedge.erp.b2b.controller.MallTradeAnalysisController
 cn.aiedge.erp.b2b.controller.MallUserController
 # cn.aiedge.erp.marketing.controller
+# ⚠️ 本批（E-01 mktanalytics）只动了 `cn.aiedge.erp.marketing.analytics.controller`
+#    （CommissionAnalyticsController，7 处 / 迁移 V11.481.0）—— 它原本就带 `@SaCheckLogin`，
+#    **从来不在本基线里**，故这里没有行可删。`cn.aiedge.erp.marketing.controller` 一栏历史上为空。
 
 # ── 打印 / 质量 ────────────────────────────────────────────────────────────
-# cn.aiedge.erp.printing.controller
-cn.aiedge.erp.printing.controller.PrintLogController
-cn.aiedge.erp.printing.controller.PrintTaskController
-cn.aiedge.erp.printing.controller.PrintTemplateController
-cn.aiedge.erp.printing.controller.PrinterController
+# ✅ 2026-09-21 **打印域已出清**（E-01 erpprinting 批次：v1+v2 打印共 12 个控制器补 82 处
+#    @SaCheckPermission，新增迁移 V11.465.0 补 61 个码；另复用既有 `set:print-config:view`
+#    1 处），按棘轮规则从基线移除。历史上曾在此登记：
+#    cn.aiedge.erp.printing.controller.{PrintLogController, PrintTaskController,
+#      PrintTemplateController, PrinterController}、
+#    cn.aiedge.erp.printing.controller.v2.{FormatController, MessageController,
+#      PrintChainController, PrintClientController, PrintTaskV2Controller,
+#      PrintTemplateV2Controller, ScreenshotController}。
 # cn.aiedge.erp.printing.controller.v2
 cn.aiedge.erp.printing.controller.v2.ClientApiController
-cn.aiedge.erp.printing.controller.v2.FormatController
-cn.aiedge.erp.printing.controller.v2.MessageController
-cn.aiedge.erp.printing.controller.v2.PrintChainController
-cn.aiedge.erp.printing.controller.v2.PrintClientController
-cn.aiedge.erp.printing.controller.v2.PrintTaskV2Controller
-cn.aiedge.erp.printing.controller.v2.PrintTemplateV2Controller
-cn.aiedge.erp.printing.controller.v2.ScreenshotController
+#   ⚠️ **有意不加权限码**（不是待办，勿删）：Windows 打印客户端直连的设备端 API
+#   （/api/v2/print/client/**），类注释写明「使用 auth_key 认证」，方法体逐调用
+#   `clientService.authenticate(clientId, authKey)`，**没有用户会话**。
+#   加用户权限码 ⇒ 客户端永远打不通。正确修法是补服务间鉴权（authKey 已有），
+#   不是塞权限码，也不是塞白名单（那会变成匿名可达）。见迁移 V11.465.0 头部。
+#   （同一白名单结论还适用于 ClientAuthController —— 它因带 @SaCheckLogin 不在本基线里，
+#    但 /api/v2/print/client/auth/login 其实**不在** SaTokenConfig 白名单，
+#    属既有缺陷：Electron 客户端今天登不进来。）
 # cn.aiedge.quality.controller
-cn.aiedge.quality.controller.QualityCertificateController
-cn.aiedge.quality.controller.QualityDefectHandleController
-cn.aiedge.quality.controller.QualityInspectionController
-cn.aiedge.quality.controller.QualityStandardController
+# ✅ 2026-09-21 corebase 批次已出清：质量 4 个控制器共 28 处 @SaCheckPermission
+#    （quality:certificate|defect|inspection|standard:*，迁移 V11.471.0）。
+#    历史上曾在此登记：QualityCertificateController、QualityDefectHandleController、
+#    QualityInspectionController、QualityStandardController。
+# cn.aiedge.quality.controller
 
-# ── WMS / PDA（PDA 端为设备登录，需单独定鉴权策略）────────────────────────
-# cn.aiedge.wms.controller
-cn.aiedge.wms.controller.BorrowController
-cn.aiedge.wms.controller.CheckController
+# ── WMS / PDA ────────────────────────────────────────────────────────────
+# 2026-09-21 E-01 wms 批次已给 20 个控制器补上 @SaCheckPermission（见迁移 V11.459.0），
+# 相应行已按「基线是棘轮、只允许缩小」的规则删除。
+# 仍在册的 3 个是**有意不加权限码**的，不是待办：
 cn.aiedge.wms.controller.ErpCallbackController
+#   内部 outbox 回调（/api/erp/wms/**），调用方不带认证头；无会话，加码必然打不通。
+#   ⚠️ 它也不在白名单里、且**没有任何验签实现** ⇒ 该链路的正确修法是补服务间鉴权
+#   （验签/内部令牌），不是塞白名单（那会变成匿名可达）。属独立决策项。
 cn.aiedge.wms.controller.ErpIntegrationController
-cn.aiedge.wms.controller.EventController
-cn.aiedge.wms.controller.InventoryController
-cn.aiedge.wms.controller.LocationController
-cn.aiedge.wms.controller.MoveController
+#   外部系统入站指令（/api/wms/erp/**），同上无会话、无验签。
 cn.aiedge.wms.controller.PdaAuthController
-cn.aiedge.wms.controller.PdaCheckController
-cn.aiedge.wms.controller.PdaInventoryController
-cn.aiedge.wms.controller.PdaMoveController
-cn.aiedge.wms.controller.PdaPickController
-cn.aiedge.wms.controller.PdaPutawayController
-cn.aiedge.wms.controller.PdaReceiveController
-cn.aiedge.wms.controller.PdaShipController
-cn.aiedge.wms.controller.PdaTaskController
-cn.aiedge.wms.controller.PickController
-cn.aiedge.wms.controller.PutawayController
-cn.aiedge.wms.controller.ReceiptController
-cn.aiedge.wms.controller.ShipController
-cn.aiedge.wms.controller.WarehouseController
-# cn.aiedge.wms.inventory.service
-cn.aiedge.wms.inventory.service.InventoryReconcileController
+#   PDA 登录/登出。login 在 SaTokenConfig 两处白名单里（未登录必须可达）；
+#   logout 不能要求权限码，否则"没有该码的用户无法登出"。

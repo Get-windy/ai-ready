@@ -23,6 +23,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 销售换货单接口。
@@ -38,18 +39,21 @@ public class SaleExchangeController {
 
     private final SaleExchangeService saleExchangeService;
 
+    @SaCheckPermission("sale:exchange:list")
     @GetMapping("/page")
     @Operation(summary = "分页查询换货单（按单据）")
     public Page<SaleExchange> page(SaleExchangeQuery query) {
         return saleExchangeService.pageListExtended(query);
     }
 
+    @SaCheckPermission("sale:exchange:list")
     @GetMapping("/next-no")
     @Operation(summary = "生成下一换货单号（号段 XSHHD-yyyyMMdd-NNNN）")
     public ApiResponse<String> nextNo() {
         return ApiResponse.ok(saleExchangeService.generateExchangeNo());
     }
 
+    @SaCheckPermission("sale:exchange:detail")
     @GetMapping("/{id:\\d+}")
     @Operation(summary = "获取换货单详情（含明细）")
     public SaleExchange getById(@PathVariable Long id) {
@@ -60,12 +64,14 @@ public class SaleExchangeController {
         return exchange;
     }
 
+    @SaCheckPermission("sale:exchange:list")
     @GetMapping("/{id}/items")
     @Operation(summary = "获取换货单明细")
     public List<SaleExchangeItem> getItems(@PathVariable Long id) {
         return saleExchangeService.getItems(id);
     }
 
+    @SaCheckPermission("sale:exchange:list")
     @GetMapping("/{id}/items/{warehouseType}")
     @Operation(summary = "按仓库类型获取明细（1=换入, 2=换出）")
     public List<SaleExchangeItem> getItemsByWarehouseType(
@@ -74,24 +80,28 @@ public class SaleExchangeController {
         return saleExchangeService.getItemsByWarehouseType(id, warehouseType);
     }
 
+    @SaCheckPermission("sale:exchange:create")
     @PostMapping
     @Operation(summary = "创建换货单")
     public SaleExchange create(@RequestBody SaleExchange exchange) {
         return saleExchangeService.createExchange(exchange);
     }
 
+    @SaCheckPermission("sale:exchange:update")
     @PutMapping("/{id}")
     @Operation(summary = "更新换货单")
     public SaleExchange update(@PathVariable Long id, @RequestBody SaleExchange exchange) {
         return saleExchangeService.updateExchange(id, exchange);
     }
 
+    @SaCheckPermission("sale:exchange:delete")
     @DeleteMapping("/{id}")
     @Operation(summary = "删除换货单")
     public boolean delete(@PathVariable Long id) {
         return saleExchangeService.deleteExchange(id);
     }
 
+    @SaCheckPermission("sale:exchange:delete")
     @DeleteMapping("/batch")
     @Operation(summary = "批量删除换货单")
     public boolean batchDelete(@RequestBody List<Long> ids) {
@@ -102,12 +112,14 @@ public class SaleExchangeController {
         return allOk;
     }
 
+    @SaCheckPermission("sale:exchange:submit")
     @PostMapping("/{id}/submit")
     @Operation(summary = "提交审批")
     public SaleExchange submit(@PathVariable Long id) {
         return saleExchangeService.submitForApproval(id);
     }
 
+    @SaCheckPermission("sale:exchange:approve")
     @PostMapping("/{id}/approve")
     @Operation(summary = "审批换货单（通过即过账库存）")
     public SaleExchange approve(
@@ -117,12 +129,14 @@ public class SaleExchangeController {
         return saleExchangeService.approve(id, StpUtil.getLoginIdAsLong(), null, remark);
     }
 
+    @SaCheckPermission("sale:exchange:approve")
     @PostMapping("/batch-approve")
     @Operation(summary = "批量审核")
     public int batchApprove(@RequestBody List<Long> ids) {
         return saleExchangeService.batchApprove(ids, StpUtil.getLoginIdAsLong(), null);
     }
 
+    @SaCheckPermission("sale:exchange:approve")
     @PostMapping("/{id}/reject")
     @Operation(summary = "拒绝换货单")
     public SaleExchange reject(
@@ -131,6 +145,7 @@ public class SaleExchangeController {
         return saleExchangeService.reject(id, remark);
     }
 
+    @SaCheckPermission("sale:exchange:cancel")
     @PostMapping("/{id}/cancel")
     @Operation(summary = "取消换货单（回滚库存）")
     public SaleExchange cancel(
@@ -139,36 +154,42 @@ public class SaleExchangeController {
         return saleExchangeService.cancel(id, reason);
     }
 
+    @SaCheckPermission("sale:exchange:complete")
     @PostMapping("/{id}/complete")
     @Operation(summary = "完成换货单")
     public SaleExchange complete(@PathVariable Long id) {
         return saleExchangeService.complete(id);
     }
 
+    @SaCheckPermission("sale:exchange:print")
     @PostMapping("/{id}/print")
     @Operation(summary = "打印（打印次数+1）")
     public void print(@PathVariable Long id) {
         saleExchangeService.print(id);
     }
 
+    @SaCheckPermission("sale:exchange:print")
     @PostMapping("/batch-print")
     @Operation(summary = "批量打印（打印次数+1）")
     public void batchPrint(@RequestBody List<Long> ids) {
         saleExchangeService.batchPrint(ids);
     }
 
+    @SaCheckPermission("sale:exchange:view")
     @GetMapping("/{id}/approval-records")
     @Operation(summary = "获取审批记录")
     public List<ExchangeApprovalRecord> getApprovalRecords(@PathVariable Long id) {
         return saleExchangeService.getApprovalRecords(id);
     }
 
+    @SaCheckPermission("sale:exchange:view")
     @GetMapping("/{id}/tracking")
     @Operation(summary = "获取换货单跟踪信息")
     public Map<String, Object> getTracking(@PathVariable Long id) {
         return saleExchangeService.getTracking(id);
     }
 
+    @SaCheckPermission("sale:exchange:export")
     @GetMapping("/export")
     @Operation(summary = "导出换货单列表（xlsx）")
     public ResponseEntity<byte[]> export(SaleExchangeQuery query) {

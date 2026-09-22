@@ -66,6 +66,7 @@ public class DictItemController {
         return ApiResponse.success(Map.of("success", result));
     }
 
+    @SaCheckPermission("system:dict:detail")
     @GetMapping("/{id}")
     @Operation(summary = "获取字典项详情")
     public ApiResponse<DictItemVO> getById(
@@ -73,6 +74,7 @@ public class DictItemController {
         return ApiResponse.success(dictItemService.getById(id));
     }
 
+    @SaCheckPermission("system:dict:list")
     @GetMapping("/type/{dictTypeId}")
     @Operation(summary = "根据字典类型查询字典项")
     public ApiResponse<List<DictItemVO>> getByDictTypeId(
@@ -87,6 +89,7 @@ public class DictItemController {
         return ResponseEntity.ok(ApiResponse.success(dictItemService.getByDictCode(dictCode)));
     }
 
+    @SaCheckPermission("system:dict:list")
     @GetMapping("/tree")
     @Operation(summary = "获取字典项树形结构")
     public ApiResponse<List<DictItemVO>> getTree(
@@ -95,6 +98,7 @@ public class DictItemController {
         return ApiResponse.success(dictItemService.getTree(dictTypeId, parentId));
     }
 
+    @SaCheckPermission("system:dict:list")
     @GetMapping("/list")
     @Operation(summary = "查询字典项列表")
     public Map<String, Object> list(
@@ -118,6 +122,7 @@ public class DictItemController {
         return dictItemService.list(params);
     }
 
+    @SaCheckPermission("system:dict:view")
     @GetMapping("/value")
     @Operation(summary = "根据字典类型和项值获取字典项")
     public ApiResponse<DictItemVO> getByDictCodeAndValue(

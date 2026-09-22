@@ -15,6 +15,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 费用单 Controller
@@ -30,42 +31,49 @@ public class ExpenseDocController {
     private final ExpenseDocService expenseDocService;
 
     @Operation(summary = "多条件分页查询费用单(按单据)")
+    @SaCheckPermission("finance:expense-doc:list")
     @GetMapping("/page")
     public Result<Page<ExpenseDoc>> page(ExpenseDocQuery query) {
         return Result.ok(expenseDocService.pageQuery(query));
     }
 
     @Operation(summary = "多条件分页查询费用单(按单据，别名)")
+    @SaCheckPermission("finance:expense-doc:list")
     @GetMapping("/doc-query")
     public Result<Page<ExpenseDoc>> docQuery(ExpenseDocQuery query) {
         return Result.ok(expenseDocService.pageQuery(query));
     }
 
     @Operation(summary = "分页查询费用明细(按明细)")
+    @SaCheckPermission("finance:expense-doc:view")
     @GetMapping("/page-detail")
     public Result<Page<ExpenseDocItemVO>> pageDetail(ExpenseDocQuery query) {
         return Result.ok(expenseDocService.pageDetail(query));
     }
 
     @Operation(summary = "生成下一费用单号")
+    @SaCheckPermission("finance:expense-doc:list")
     @GetMapping("/next-no")
     public Result<String> nextNo(@RequestParam(required = false) String prefix) {
         return Result.ok(expenseDocService.generateDocNo());
     }
 
     @Operation(summary = "查询费用单详情（含费用项明细细）")
+    @SaCheckPermission("finance:expense-doc:detail")
     @GetMapping("/{id}")
     public Result<ExpenseDocVO> getById(@PathVariable Long id) {
         return Result.ok(expenseDocService.getDetail(id));
     }
 
     @Operation(summary = "保存费用单草稿（含费用项明细）")
+    @SaCheckPermission("finance:expense-doc:create")
     @PostMapping("/create")
     public Result<ExpenseDoc> create(@Valid @RequestBody ExpenseDocSaveDTO dto) {
         return Result.ok(expenseDocService.saveDraft(dto));
     }
 
     @Operation(summary = "更新费用单草稿（明细整体替换）")
+    @SaCheckPermission("finance:expense-doc:create")
     @PostMapping("/update")
     public Result<Boolean> update(@Valid @RequestBody ExpenseDocSaveDTO dto) {
         expenseDocService.update(dto);
@@ -73,6 +81,7 @@ public class ExpenseDocController {
     }
 
     @Operation(summary = "费用单记账（生成凭证 + 动账户余额 + 记资金流水）")
+    @SaCheckPermission("finance:expense-doc:confirm")
     @PostMapping("/confirm")
     public Result<ExpenseDoc> confirm(@Parameter(description = "单据ID") @RequestParam Long id,
                                       @Parameter(description = "记账人ID") @RequestParam(required = false) Long operatorId,
@@ -82,6 +91,7 @@ public class ExpenseDocController {
     }
 
     @Operation(summary = "取消费用单（仅草稿）")
+    @SaCheckPermission("finance:expense-doc:cancel")
     @PostMapping("/cancel")
     public Result<String> cancel(@RequestParam Long id) {
         expenseDocService.cancel(id);
@@ -89,6 +99,7 @@ public class ExpenseDocController {
     }
 
     @Operation(summary = "删除费用单（仅草稿/已取消）")
+    @SaCheckPermission("finance:expense-doc:delete")
     @DeleteMapping("/{id}")
     public Result<String> delete(@PathVariable Long id) {
         expenseDocService.remove(id);

@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 销售分析组报表控制器（分析 → 采销分析）
@@ -37,6 +38,7 @@ public class SaleAnalysisReportController {
 
     @Operation(summary = "销售业绩（按时间/按职员）",
             description = "漏斗口径：拓客/拜访/订货/销售/退货/回款/利润，含合计行 summary")
+    @SaCheckPermission("sale:analysis:list")
     @GetMapping("/sales-performance/page")
     @SaCheckLogin
     public ApiResponse<Map<String, Object>> salesPerformance(SaleAnalysisReportQueryDTO query) {
@@ -45,6 +47,7 @@ public class SaleAnalysisReportController {
 
     @Operation(summary = "销售分析（8 维度量本利）",
             description = "按时间/商品/品牌/客户/区域/仓库/职员/来源聚合：数量/金额/退货/收入/成本/毛利/费用/利润，含合计行 summary")
+    @SaCheckPermission("sale:analysis:list")
     @GetMapping("/sales-analysis/page")
     @SaCheckLogin
     public ApiResponse<Map<String, Object>> salesAnalysis(SaleAnalysisReportQueryDTO query) {
@@ -53,6 +56,7 @@ public class SaleAnalysisReportController {
 
     @Operation(summary = "销售履约分析（按单据/按客户）",
             description = "发货履约率 + 订单价税合计/发货/未发/已结/未结五金额口径，含合计行 summary")
+    @SaCheckPermission("sale:analysis:list")
     @GetMapping("/sales-fulfillment/page")
     @SaCheckLogin
     public ApiResponse<Map<String, Object>> salesFulfillment(SaleAnalysisReportQueryDTO query) {
@@ -61,6 +65,7 @@ public class SaleAnalysisReportController {
 
     @Operation(summary = "销售欠款分析（按职员/按客户/按区域）",
             description = "欠款滚动（此前欠款/本期新增/本期收款/结算优惠/欠款余额）+ 超期账龄五档 + 信用额度，含合计行 summary")
+    @SaCheckPermission("sale:analysis:list")
     @GetMapping("/sales-debt/page")
     @SaCheckLogin
     public ApiResponse<Map<String, Object>> salesDebt(SaleAnalysisReportQueryDTO query) {

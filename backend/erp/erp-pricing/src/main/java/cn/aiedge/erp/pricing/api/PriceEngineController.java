@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @RestController
 @RequestMapping("/api/v1/price-engine")
@@ -22,6 +23,7 @@ public class PriceEngineController {
         this.priceEngineService = priceEngineService;
     }
     
+    @SaCheckPermission("pricing:engine:view")
     @PostMapping("/calculate")
     @Operation(summary = "计算价格", description = "根据请求参数计算产品价格")
     public ApiResponse<PriceCalculationResult> calculatePrice(
@@ -35,6 +37,7 @@ public class PriceEngineController {
         }
     }
     
+    @SaCheckPermission("pricing:engine:view")
     @PostMapping("/calculate/batch")
     @Operation(summary = "批量计算价格", description = "批量计算多个产品的价格")
     public ApiResponse<List<PriceCalculationResult>> calculateBatchPrices(
@@ -48,6 +51,7 @@ public class PriceEngineController {
         }
     }
     
+    @SaCheckPermission("pricing:engine:view")
     @PostMapping("/simulate")
     @Operation(summary = "模拟价格", description = "模拟价格策略效果")
     public ApiResponse<PriceCalculationResult> simulatePrice(
@@ -63,6 +67,7 @@ public class PriceEngineController {
         }
     }
     
+    @SaCheckPermission("pricing:engine:view")
     @PostMapping("/optimize")
     @Operation(summary = "获取最优价格", description = "根据优化算法获取最优价格建议")
     public ApiResponse<PriceCalculationResult> getOptimalPrice(
@@ -76,6 +81,7 @@ public class PriceEngineController {
         }
     }
     
+    @SaCheckPermission("pricing:engine:list")
     @GetMapping("/history/{productId}")
     @Operation(summary = "获取价格历史", description = "获取产品的价格计算历史")
     public ApiResponse<Map<String, Object>> getPriceHistory(
@@ -93,6 +99,7 @@ public class PriceEngineController {
         }
     }
     
+    @SaCheckPermission("pricing:engine:view")
     @GetMapping("/statistics/{productId}")
     @Operation(summary = "获取价格统计", description = "获取产品的价格统计信息")
     public ApiResponse<Map<String, Object>> getPriceStatistics(
@@ -106,6 +113,7 @@ public class PriceEngineController {
         }
     }
     
+    @SaCheckPermission("pricing:engine:view")
     @PostMapping("/strategies/applicable")
     @Operation(summary = "获取适用策略", description = "获取适用于当前请求的价格策略")
     public ApiResponse<List<String>> getApplicableStrategies(
@@ -119,6 +127,7 @@ public class PriceEngineController {
         }
     }
     
+    @SaCheckPermission("pricing:engine:view")
     @GetMapping("/validate/{strategyId}")
     @Operation(summary = "验证价格配置", description = "验证价格策略配置的有效性")
     public ApiResponse<Boolean> validatePriceConfiguration(
@@ -132,6 +141,7 @@ public class PriceEngineController {
         }
     }
     
+    @SaCheckPermission("pricing:engine:execute")
     @PostMapping("/cache/refresh")
     @Operation(summary = "刷新价格缓存", description = "清除并刷新价格计算缓存")
     public ApiResponse<Void> refreshPriceCache() {
@@ -143,6 +153,7 @@ public class PriceEngineController {
         }
     }
     
+    @SaCheckPermission("pricing:engine:view")
     @GetMapping("/health")
     @Operation(summary = "引擎健康检查", description = "检查价格引擎的健康状态")
     public ApiResponse<Map<String, Object>> getEngineHealth() {

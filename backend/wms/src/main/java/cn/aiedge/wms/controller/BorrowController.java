@@ -22,6 +22,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @Validated
@@ -34,12 +35,14 @@ public class BorrowController {
     private final BorrowService borrowService;
 
     @Operation(summary = "分页查询借进借出单")
+    @SaCheckPermission("wms:borrow:list")
     @GetMapping("/page")
     public Result<Page<WmsBorrowOrder>> page(@Valid Page<WmsBorrowOrder> page, WmsBorrowOrder query) {
         return Result.ok(borrowService.pageOrder(page, query));
     }
 
     @Operation(summary = "生成下一借进/借出单号")
+    @SaCheckPermission("wms:borrow:list")
     @GetMapping("/next-no")
     public Result<String> nextNo(@RequestParam(required = false) Integer direction,
                                  @RequestParam(required = false) String prefix) {
@@ -52,18 +55,21 @@ public class BorrowController {
     }
 
     @Operation(summary = "多条件分页查询借进借出单(按单据)")
+    @SaCheckPermission("wms:borrow:list")
     @GetMapping("/doc-query")
     public Result<Page<WmsBorrowOrder>> docQuery(BorrowOrderQuery query) {
         return Result.ok(borrowService.pageOrderByQuery(query));
     }
 
     @Operation(summary = "分页查询借进借出明细(按明细)")
+    @SaCheckPermission("wms:borrow:view")
     @GetMapping("/page-detail")
     public Result<Page<BorrowOrderItemVO>> pageDetail(BorrowOrderQuery query) {
         return Result.ok(borrowService.pageDetail(query));
     }
 
     @Operation(summary = "记账(入库/出库)")
+    @SaCheckPermission("wms:borrow:post")
     @PostMapping("/post")
     public Result<String> post(@RequestParam @NotNull Long id,
                                @RequestParam(required = false) Long operatorId,
@@ -74,6 +80,7 @@ public class BorrowController {
     }
 
     @Operation(summary = "借转采购登记")
+    @SaCheckPermission("wms:borrow:convert")
     @PostMapping("/convert-purchase")
     public Result<WmsBorrowOrder> convertPurchase(@Valid @RequestBody ConvertPurchaseRequest request) {
         WmsBorrowOrder updated = borrowService.convertPurchase(request);
@@ -82,6 +89,7 @@ public class BorrowController {
     }
 
     @Operation(summary = "借转销售登记（借出方向）")
+    @SaCheckPermission("wms:borrow:convert")
     @PostMapping("/convert-sale")
     public Result<WmsBorrowOrder> convertSale(@Valid @RequestBody ConvertPurchaseRequest request) {
         WmsBorrowOrder updated = borrowService.convertSale(request);
@@ -90,6 +98,7 @@ public class BorrowController {
     }
 
     @Operation(summary = "借进借出商品台账聚合查询（按 商品×往来单位 分组）")
+    @SaCheckPermission("wms:borrow:view")
     @GetMapping("/aggregate")
     public Result<List<java.util.Map<String, Object>>> aggregate(
             @Parameter(description = "方向 1-借进 2-借出") @RequestParam(required = false) Integer direction,
@@ -104,6 +113,7 @@ public class BorrowController {
     }
 
     @Operation(summary = "查询借进借出单（含明细）")
+    @SaCheckPermission("wms:borrow:detail")
     @GetMapping("/{id}")
     public Result<WmsBorrowOrderVO> getById(@PathVariable @NotNull(message = "单据ID不能为空") Long id) {
         WmsBorrowOrderVO vo = borrowService.getOrderDetail(id);
@@ -114,6 +124,7 @@ public class BorrowController {
     }
 
     @Operation(summary = "新建借进借出单（含明细）")
+    @SaCheckPermission("wms:borrow:create")
     @PostMapping("/create")
     public Result<WmsBorrowOrder> create(@Valid @RequestBody WmsBorrowOrderVO order) {
         WmsBorrowOrder created = borrowService.createOrder(order);
@@ -122,6 +133,7 @@ public class BorrowController {
     }
 
     @Operation(summary = "更新借进借出单（仅草稿，明细整体替换）")
+    @SaCheckPermission("wms:borrow:create")
     @PostMapping("/update")
     public Result<Boolean> update(@Valid @RequestBody WmsBorrowOrderVO order) {
         borrowService.updateOrder(order);
@@ -130,6 +142,7 @@ public class BorrowController {
     }
 
     @Operation(summary = "删除借进借出单（仅草稿/已取消）")
+    @SaCheckPermission("wms:borrow:delete")
     @DeleteMapping("/{id}")
     public Result<String> delete(@PathVariable @NotNull(message = "单据ID不能为空") Long id) {
         borrowService.removeOrder(id);
@@ -138,6 +151,7 @@ public class BorrowController {
     }
 
     @Operation(summary = "提交审批")
+    @SaCheckPermission("wms:borrow:submit")
     @PostMapping("/submit")
     public Result<String> submit(@RequestParam @NotNull Long id) {
         borrowService.submit(id);
@@ -146,6 +160,7 @@ public class BorrowController {
     }
 
     @Operation(summary = "审批通过（借进库存增加/借出库存扣减）")
+    @SaCheckPermission("wms:borrow:approve")
     @PostMapping("/approve")
     public Result<String> approve(@RequestParam @NotNull Long id,
                                   @RequestParam(required = false) Long operatorId,
@@ -156,6 +171,7 @@ public class BorrowController {
     }
 
     @Operation(summary = "取消单据")
+    @SaCheckPermission("wms:borrow:cancel")
     @PostMapping("/cancel")
     public Result<String> cancel(@RequestParam @NotNull Long id) {
         borrowService.cancel(id);
@@ -164,6 +180,7 @@ public class BorrowController {
     }
 
     @Operation(summary = "归还登记（支持部分归还，库存反向回冲）")
+    @SaCheckPermission("wms:borrow:return")
     @PostMapping("/return")
     public Result<WmsBorrowReturn> returnOrder(@Valid @RequestBody BorrowReturnRequest request) {
         WmsBorrowReturn ret = borrowService.returnOrder(request);
@@ -172,6 +189,7 @@ public class BorrowController {
     }
 
     @Operation(summary = "归还记录分页")
+    @SaCheckPermission("wms:borrow:view")
     @GetMapping("/return-page")
     public Result<Page<WmsBorrowReturn>> returnPage(@Valid Page<WmsBorrowReturn> page,
                                                     @RequestParam(required = false) Long orderId) {
@@ -179,6 +197,7 @@ public class BorrowController {
     }
 
     @Operation(summary = "归还记录明细")
+    @SaCheckPermission("wms:borrow:detail")
     @GetMapping("/return-items/{returnId}")
     public Result<List<WmsBorrowReturnItem>> returnItems(@PathVariable @NotNull Long returnId) {
         return Result.ok(borrowService.listReturnItems(returnId));

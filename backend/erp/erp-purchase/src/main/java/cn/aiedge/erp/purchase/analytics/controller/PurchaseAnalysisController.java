@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 采购分析控制器（分析 → 采销分析 → 采购分析，菜单 80421）
@@ -36,6 +37,7 @@ public class PurchaseAnalysisController {
 
     @Operation(summary = "采购分析（按时间/按商品/按供应商）",
             description = "采订/采购入库/采购退货三段量额 + 实采金额、退货率派生列，含合计行 summary")
+    @SaCheckPermission("purchase:analytics:list")
     @GetMapping("/page")
     @SaCheckLogin
     public ApiResponse<Map<String, Object>> page(PurchaseAnalysisQueryDTO query) {

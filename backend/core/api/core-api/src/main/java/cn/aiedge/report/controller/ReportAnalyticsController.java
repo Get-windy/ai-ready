@@ -16,6 +16,7 @@ import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 报表统计分析控制器
@@ -37,6 +38,7 @@ public class ReportAnalyticsController {
     /**
      * 同比分析
      */
+    @SaCheckPermission("system:report-analytics:view")
     @PostMapping("/{reportId}/yoy")
     @Operation(summary = "同比分析", description = "比较当前周期与上年同期的数据变化")
     public ResponseEntity<YoYResult> yearOverYearAnalysis(
@@ -55,6 +57,7 @@ public class ReportAnalyticsController {
     /**
      * 环比分析
      */
+    @SaCheckPermission("system:report-analytics:view")
     @PostMapping("/{reportId}/mom")
     @Operation(summary = "环比分析", description = "比较当前周期与上一周期的数据变化")
     public ResponseEntity<MoMResult> monthOverMonthAnalysis(
@@ -73,6 +76,7 @@ public class ReportAnalyticsController {
     /**
      * 趋势分析
      */
+    @SaCheckPermission("system:report-analytics:view")
     @PostMapping("/{reportId}/trend")
     @Operation(summary = "趋势分析", description = "分析指定时间段内的数据趋势")
     public ResponseEntity<TrendResult> trendAnalysis(
@@ -92,6 +96,7 @@ public class ReportAnalyticsController {
     /**
      * 排名分析
      */
+    @SaCheckPermission("system:report-analytics:view")
     @PostMapping("/{reportId}/ranking")
     @Operation(summary = "排名分析", description = "按指定维度进行排名")
     public ResponseEntity<RankingResult> rankingAnalysis(
@@ -111,6 +116,7 @@ public class ReportAnalyticsController {
     /**
      * 占比分析
      */
+    @SaCheckPermission("system:report-analytics:view")
     @PostMapping("/{reportId}/proportion")
     @Operation(summary = "占比分析", description = "分析各部分占总体的比例")
     public ResponseEntity<ProportionResult> proportionAnalysis(
@@ -128,6 +134,7 @@ public class ReportAnalyticsController {
     /**
      * 分布分析
      */
+    @SaCheckPermission("system:report-analytics:view")
     @PostMapping("/{reportId}/distribution")
     @Operation(summary = "分布分析", description = "分析数据的分布情况")
     public ResponseEntity<DistributionResult> distributionAnalysis(
@@ -145,6 +152,7 @@ public class ReportAnalyticsController {
     /**
      * 异常检测
      */
+    @SaCheckPermission("system:report-analytics:view")
     @PostMapping("/{reportId}/anomaly")
     @Operation(summary = "异常检测", description = "检测数据中的异常值")
     public ResponseEntity<AnomalyResult> anomalyDetection(
@@ -162,6 +170,7 @@ public class ReportAnalyticsController {
     /**
      * 综合统计报告
      */
+    @SaCheckPermission("system:report-analytics:view")
     @PostMapping("/{reportId}/comprehensive")
     @Operation(summary = "综合统计报告", description = "生成包含多种分析的综合报告")
     public ResponseEntity<ComprehensiveReport> generateComprehensiveReport(
@@ -180,6 +189,7 @@ public class ReportAnalyticsController {
     /**
      * 快速统计概览
      */
+    @SaCheckPermission("system:report-analytics:view")
     @GetMapping("/{reportId}/overview")
     @Operation(summary = "快速统计概览", description = "获取报表的快速统计概览")
     public ResponseEntity<Map<String, Object>> getOverview(

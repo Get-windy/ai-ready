@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Tag(name = "退款管理", description = "退款请求、退款审批、退款记录")
 @RestController
@@ -25,6 +26,7 @@ public class RefundController {
     private final RefundService refundService;
 
     @Operation(summary = "创建退款请求")
+    @SaCheckPermission("payment:refund:create")
     @PostMapping("/request")
     public Result<RefundRequest> createRefund(@RequestBody Map<String, Object> params) {
         Long paymentId = Long.valueOf(params.get("paymentId").toString());
@@ -36,6 +38,7 @@ public class RefundController {
     }
 
     @Operation(summary = "分页查询退款请求")
+    @SaCheckPermission("payment:refund:list")
     @GetMapping("/request/page")
     public Result<PageResult<RefundRequest>> pageRefundRequest(
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") Integer pageNum,
@@ -50,6 +53,7 @@ public class RefundController {
     }
 
     @Operation(summary = "退款请求统计（后端聚合）")
+    @SaCheckPermission("payment:refund:view")
     @GetMapping("/request/stat")
     public Result<Map<String, Object>> statRefundRequest(
             @Parameter(description = "支付渠道") @RequestParam(required = false) String channel) {
@@ -57,12 +61,14 @@ public class RefundController {
     }
 
     @Operation(summary = "查询退款请求详情")
+    @SaCheckPermission("payment:refund:detail")
     @GetMapping("/request/{id}")
     public Result<RefundRequest> getRefundRequest(@PathVariable Long id) {
         return Result.success(refundService.getRefundRequest(id));
     }
 
     @Operation(summary = "审批退款")
+    @SaCheckPermission("payment:refund:approve")
     @PostMapping("/request/{id}/approve")
     public Result<Void> approveRefund(
             @PathVariable Long id,
@@ -82,6 +88,7 @@ public class RefundController {
     }
 
     @Operation(summary = "分页查询退款记录")
+    @SaCheckPermission("payment:refund:list")
     @GetMapping("/record/page")
     public Result<PageResult<RefundRecord>> pageRefundRecord(
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") Integer pageNum,

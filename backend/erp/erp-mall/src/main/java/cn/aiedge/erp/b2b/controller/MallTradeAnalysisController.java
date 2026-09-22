@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 商城交易分析控制器
@@ -23,6 +24,7 @@ public class MallTradeAnalysisController {
 
     private final MallTradeAnalysisService tradeAnalysisService;
 
+    @SaCheckPermission("mall:trade-analysis:view")
     @GetMapping("/trade-analysis")
     @Operation(summary = "交易分析",
             description = "按日分组(订单数/GMV/客单价) + 汇总(总单数/GMV/客单价/退款单数/退款率) + 支付状态分布")

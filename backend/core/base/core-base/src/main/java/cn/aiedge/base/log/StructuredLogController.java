@@ -19,6 +19,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 集中式结构化 JSON 日志查询控制器
@@ -43,6 +44,7 @@ public class StructuredLogController {
     /**
      * 分页查询结构化日志（从 JSONL 文件中读取）
      */
+    @SaCheckPermission("log:structured:list")
     @GetMapping("/query")
     @Operation(summary = "分页查询结构化日志")
     public StructuredLogQueryResult queryStructuredLogs(
@@ -124,6 +126,7 @@ public class StructuredLogController {
     /**
      * 获取结构化日志统计信息
      */
+    @SaCheckPermission("log:structured:stats")
     @GetMapping("/stats")
     @Operation(summary = "结构化日志统计")
     public Map<String, Object> getStructuredLogStats() {
@@ -174,6 +177,7 @@ public class StructuredLogController {
     /**
      * 获取最近 N 条结构化错误日志（快捷接口）
      */
+    @SaCheckPermission("log:structured:list")
     @GetMapping("/recent")
     @Operation(summary = "获取最近的结构化错误日志")
     public List<Map<String, Object>> getRecentStructuredErrors(

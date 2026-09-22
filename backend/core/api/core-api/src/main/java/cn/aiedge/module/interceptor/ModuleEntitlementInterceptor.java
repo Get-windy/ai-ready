@@ -114,10 +114,11 @@ public class ModuleEntitlementInterceptor implements HandlerInterceptor {
      * </ul>
      * 两者都没标注时返回空 ⇒ 放行（见类注释：没有码就没有"归属模块"可判）。</p>
      *
-     * <p><b>已知不覆盖</b>：{@code CrmPermissions.require(code)} 这类**程序化**校验
-     * （全仓 3 处，在 crm 子模块，因为它只依赖 core-base 拿不到本模块的注解）。
-     * 那种写法没有可枚举的注解，本门看不见 —— 不是权限被放开，是模块门对那几个接口不生效。
-     * 要收口需把那 3 处改成 {@code @SaCheckPermission}（sa-token 的注解任何模块都能用）。</p>
+     * <p><b>已知不覆盖</b>：**程序化**权限校验（如 core-base 的
+     * {@code SecurityContext#checkPermission(code)}）没有可枚举的注解，本门看不见 ——
+     * 不是权限被放开，而是模块门对那几个调用点不生效。
+     * （crm 曾有一处同类写法 {@code CrmPermissions.require}，2026-09-21 已随该域的
+     * E-01 批次统一改成 {@code @SaCheckPermission} 并删掉该类，现在能被本门看见。）</p>
      */
     private Requirement requiredPermissions(HandlerMethod handlerMethod) {
         SaCheckPermission sa = AnnotatedElementUtils.findMergedAnnotation(

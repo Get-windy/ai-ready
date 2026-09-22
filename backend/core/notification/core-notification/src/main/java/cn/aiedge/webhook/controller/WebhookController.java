@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Tag(name = "Webhook管理", description = "事件推送通知机制")
 @RestController
@@ -24,6 +25,7 @@ public class WebhookController {
     private final WebhookService webhookService;
 
     @Operation(summary = "创建Webhook")
+    @SaCheckPermission("notification:webhook:create")
     @PostMapping
     public ResponseEntity<Map<String, Object>> createWebhook(@RequestBody WebhookCreateRequest request) {
         Webhook webhook = webhookService.createWebhook(request);
@@ -31,6 +33,7 @@ public class WebhookController {
     }
 
     @Operation(summary = "更新Webhook")
+    @SaCheckPermission("notification:webhook:update")
     @PutMapping("/{id}")
     public ResponseEntity<Map<String, Object>> updateWebhook(@PathVariable Long id, @RequestBody WebhookCreateRequest request) {
         Webhook webhook = webhookService.updateWebhook(id, request);
@@ -38,6 +41,7 @@ public class WebhookController {
     }
 
     @Operation(summary = "获取Webhook详情")
+    @SaCheckPermission("notification:webhook:detail")
     @GetMapping("/{id}")
     public ResponseEntity<Map<String, Object>> getWebhook(@PathVariable Long id) {
         Webhook webhook = webhookService.getWebhookById(id);
@@ -45,6 +49,7 @@ public class WebhookController {
     }
 
     @Operation(summary = "获取模型的所有Webhook")
+    @SaCheckPermission("notification:webhook:list")
     @GetMapping("/model/{modelName}")
     public ResponseEntity<Map<String, Object>> getWebhooksByModel(@PathVariable String modelName) {
         List<Webhook> webhooks = webhookService.getWebhooksByModel(modelName);
@@ -52,6 +57,7 @@ public class WebhookController {
     }
 
     @Operation(summary = "获取模型特定事件的Webhook")
+    @SaCheckPermission("notification:webhook:list")
     @GetMapping("/model/{modelName}/event/{triggerEvent}")
     public ResponseEntity<Map<String, Object>> getWebhooksByModelAndEvent(
             @PathVariable String modelName,
@@ -61,6 +67,7 @@ public class WebhookController {
     }
 
     @Operation(summary = "Webhook列表查询")
+    @SaCheckPermission("notification:webhook:list")
     @GetMapping("/list")
     public ResponseEntity<Map<String, Object>> listWebhooks(
             @RequestParam(defaultValue = "1") Integer page,
@@ -77,6 +84,7 @@ public class WebhookController {
     }
 
     @Operation(summary = "删除Webhook")
+    @SaCheckPermission("notification:webhook:delete")
     @DeleteMapping("/{id}")
     public ResponseEntity<Map<String, Object>> deleteWebhook(@PathVariable Long id) {
         webhookService.deleteWebhook(id);
@@ -84,6 +92,7 @@ public class WebhookController {
     }
 
     @Operation(summary = "激活Webhook")
+    @SaCheckPermission("notification:webhook:update")
     @PostMapping("/{id}/activate")
     public ResponseEntity<Map<String, Object>> activateWebhook(@PathVariable Long id) {
         webhookService.activateWebhook(id);
@@ -91,6 +100,7 @@ public class WebhookController {
     }
 
     @Operation(summary = "停用Webhook")
+    @SaCheckPermission("notification:webhook:update")
     @PostMapping("/{id}/deactivate")
     public ResponseEntity<Map<String, Object>> deactivateWebhook(@PathVariable Long id) {
         webhookService.deactivateWebhook(id);
@@ -98,6 +108,7 @@ public class WebhookController {
     }
 
     @Operation(summary = "手动触发Webhook")
+    @SaCheckPermission("notification:webhook:execute")
     @PostMapping("/trigger")
     public ResponseEntity<Map<String, Object>> triggerWebhook(
             @RequestParam String modelName,
@@ -109,6 +120,7 @@ public class WebhookController {
     }
 
     @Operation(summary = "获取Webhook日志")
+    @SaCheckPermission("notification:webhook-log:list")
     @GetMapping("/{webhookId}/logs")
     public ResponseEntity<Map<String, Object>> getWebhookLogs(
             @PathVariable Long webhookId,
@@ -118,6 +130,7 @@ public class WebhookController {
     }
 
     @Operation(summary = "日志列表查询")
+    @SaCheckPermission("notification:webhook-log:list")
     @GetMapping("/logs/list")
     public ResponseEntity<Map<String, Object>> listLogs(
             @RequestParam(defaultValue = "1") Integer page,
@@ -134,6 +147,7 @@ public class WebhookController {
     }
 
     @Operation(summary = "重试失败的Webhook")
+    @SaCheckPermission("notification:webhook:retry")
     @PostMapping("/retry")
     public ResponseEntity<Map<String, Object>> retryFailedWebhooks() {
         webhookService.retryFailedWebhooks();
@@ -141,6 +155,7 @@ public class WebhookController {
     }
 
     @Operation(summary = "验证签名")
+    @SaCheckPermission("notification:webhook:check")
     @PostMapping("/verify-signature")
     public ResponseEntity<Map<String, Object>> verifySignature(
             @RequestParam String secretKey,

@@ -23,6 +23,7 @@ public class CustomerOpportunityController {
     private final CustomerOpportunityService customerOpportunityService;
     
     @Operation(summary = "分页查询商机列表")
+    @SaCheckPermission("crm:opportunity:view")
     @GetMapping("/page")
     public Page<CustomerOpportunity> pageList(
             @Parameter(description = "关键词") @RequestParam(required = false) String keyword,
@@ -36,12 +37,14 @@ public class CustomerOpportunityController {
     }
     
     @Operation(summary = "获取商机详情")
+    @SaCheckPermission("crm:opportunity:view")
     @GetMapping("/{id}")
     public CustomerOpportunity getDetail(@PathVariable Long id) {
         return customerOpportunityService.getById(id);
     }
     
     @Operation(summary = "根据编码查询商机")
+    @SaCheckPermission("crm:opportunity:view")
     @GetMapping("/code/{opportunityCode}")
     public CustomerOpportunity getByCode(@PathVariable String opportunityCode) {
         return customerOpportunityService.getByOpportunityCode(opportunityCode);
@@ -57,6 +60,7 @@ public class CustomerOpportunityController {
     }
     
     @Operation(summary = "更新商机")
+    @SaCheckPermission("crm:opportunity:edit")
     @PutMapping("/{id}")
     public CustomerOpportunity update(@PathVariable Long id, @RequestBody CustomerOpportunity opportunity) {
         opportunity.setId(id);
@@ -65,18 +69,21 @@ public class CustomerOpportunityController {
     }
     
     @Operation(summary = "删除商机")
+    @SaCheckPermission("crm:opportunity:delete")
     @DeleteMapping("/{id}")
     public boolean delete(@PathVariable Long id) {
         return customerOpportunityService.removeById(id);
     }
 
     @Operation(summary = "批量删除商机")
+    @SaCheckPermission("crm:opportunity:delete")
     @DeleteMapping("/batch")
     public boolean batchDelete(@RequestBody List<Long> ids) {
         return customerOpportunityService.removeBatchByIds(ids);
     }
 
     @Operation(summary = "导出商机列表")
+    @SaCheckPermission("crm:opportunity:export")
     @GetMapping("/export")
     public List<CustomerOpportunity> export(
             @Parameter(description = "关键词") @RequestParam(required = false) String keyword,
@@ -88,12 +95,14 @@ public class CustomerOpportunityController {
     }
 
     @Operation(summary = "推进商机阶段")
+    @SaCheckPermission("crm:opportunity:edit")
     @PostMapping("/{id}/advance")
     public CustomerOpportunity advanceStage(@PathVariable Long id) {
         return customerOpportunityService.advanceStage(id);
     }
 
     @Operation(summary = "跳转到指定阶段（商机看板拖拽改阶段）")
+    @SaCheckPermission("crm:opportunity:edit")
     @PutMapping("/{id}/stage")
     public CustomerOpportunity updateStage(
             @PathVariable Long id,
@@ -102,6 +111,7 @@ public class CustomerOpportunityController {
     }
     
     @Operation(summary = "商机赢单")
+    @SaCheckPermission("crm:opportunity:edit")
     @PostMapping("/{id}/win")
     public CustomerOpportunity winOpportunity(
             @PathVariable Long id,
@@ -110,6 +120,7 @@ public class CustomerOpportunityController {
     }
     
     @Operation(summary = "商机输单")
+    @SaCheckPermission("crm:opportunity:edit")
     @PostMapping("/{id}/lose")
     public CustomerOpportunity loseOpportunity(
             @PathVariable Long id,
@@ -118,12 +129,14 @@ public class CustomerOpportunityController {
     }
     
     @Operation(summary = "查询客户的商机")
+    @SaCheckPermission("crm:opportunity:view")
     @GetMapping("/customer/{customerId}")
     public List<CustomerOpportunity> listByCustomer(@PathVariable Long customerId) {
         return customerOpportunityService.listByCustomerId(customerId);
     }
     
     @Operation(summary = "查询销售人员的商机")
+    @SaCheckPermission("crm:opportunity:view")
     @GetMapping("/salesPerson/{salesPersonId}")
     public List<CustomerOpportunity> listBySalesPerson(@PathVariable Long salesPersonId) {
         return customerOpportunityService.listBySalesPersonId(salesPersonId);

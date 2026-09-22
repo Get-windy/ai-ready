@@ -182,6 +182,7 @@ public class SysPermissionController {
      * 检查权限编码是否存在
      */
     @Operation(summary = "检查权限编码是否存在")
+    @SaCheckPermission("tenant-admin:permission:check")
     @GetMapping("/check-code")
     public Result<Boolean> checkPermissionCodeExists(
             @RequestParam String permissionCode,

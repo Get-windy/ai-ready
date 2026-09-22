@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @Validated
@@ -23,12 +24,14 @@ public class EventController {
     private final EventService eventOutboxService;
 
     @Operation(summary = "分页查询事件发件箱")
+    @SaCheckPermission("wms:event:list")
     @GetMapping("/outbox/page")
     public Result<Page<WmsEventOutbox>> outboxPage(Page<WmsEventOutbox> page, WmsEventOutbox query) {
         return Result.ok(eventOutboxService.page(page, query));
     }
 
     @Operation(summary = "手动重试失败事件")
+    @SaCheckPermission("wms:event:retry")
     @PostMapping("/outbox/retry")
     public Result<String> retryOutbox(@RequestParam @NotNull Long eventId) {
         eventOutboxService.retryEvent(eventId);
@@ -37,6 +40,7 @@ public class EventController {
     }
 
     @Operation(summary = "触发处理待处理事件")
+    @SaCheckPermission("wms:event:execute")
     @PostMapping("/outbox/process")
     public Result<String> processPending() {
         eventOutboxService.processPendingEvents();

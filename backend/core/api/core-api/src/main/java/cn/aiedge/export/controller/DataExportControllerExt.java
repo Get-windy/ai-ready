@@ -15,6 +15,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 数据导出控制器扩展
@@ -32,6 +33,7 @@ public class DataExportControllerExt {
     private final DataExportService dataExportService;
     private final PdfExportService pdfExportService;
 
+    @SaCheckPermission("system:dataexport:export")
     @PostMapping("/batch/excel")
     @Operation(summary = "批量导出Excel（大数据量）")
     public void exportBatchExcel(
@@ -51,6 +53,7 @@ public class DataExportControllerExt {
         );
     }
 
+    @SaCheckPermission("system:dataexport:export")
     @PostMapping("/pdf/export")
     @Operation(summary = "导出PDF")
     public void exportPdf(
@@ -69,6 +72,7 @@ public class DataExportControllerExt {
                 response.getOutputStream());
     }
 
+    @SaCheckPermission("system:dataexport:export")
     @PostMapping("/pdf/report")
     @Operation(summary = "导出PDF报告")
     public void exportPdfReport(
@@ -83,6 +87,7 @@ public class DataExportControllerExt {
                 response.getOutputStream());
     }
 
+    @SaCheckPermission("system:dataexport:view")
     @GetMapping("/template/{dataType}")
     @Operation(summary = "获取导出模板配置")
     public ExportConfig getExportConfig(

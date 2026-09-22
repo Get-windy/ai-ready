@@ -20,6 +20,7 @@ import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 业务指标监控控制器
@@ -38,6 +39,7 @@ public class BusinessMetricController {
 
     // ==================== 实时指标 ====================
 
+    @SaCheckPermission("monitor:business-metric:view")
     @GetMapping("/realtime")
     @Operation(summary = "获取实时指标")
     public Result<List<MetricRealTimeDTO>> getRealTimeMetrics(
@@ -47,6 +49,7 @@ public class BusinessMetricController {
         return Result.ok(businessMetricService.getRealTimeMetrics(tenantId, types));
     }
 
+    @SaCheckPermission("monitor:business-metric:view")
     @GetMapping("/dashboard")
     @Operation(summary = "获取指标仪表盘")
     public Result<MetricDashboardDTO> getDashboard(
@@ -56,6 +59,7 @@ public class BusinessMetricController {
 
     // ==================== 指标查询 ====================
 
+    @SaCheckPermission("monitor:business-metric:list")
     @PostMapping("/query")
     @Operation(summary = "查询指标列表")
     public Result<IPage<BusinessMetric>> queryMetrics(
@@ -66,6 +70,7 @@ public class BusinessMetricController {
         return Result.ok(businessMetricService.queryMetrics(page, query));
     }
 
+    @SaCheckPermission("monitor:business-metric:list")
     @GetMapping("/history")
     @Operation(summary = "获取历史指标")
     public Result<List<BusinessMetric>> getHistoryMetrics(
@@ -77,6 +82,7 @@ public class BusinessMetricController {
         return Result.ok(businessMetricService.getHistoryMetrics(tenantId, metricCode, period, startTime, endTime));
     }
 
+    @SaCheckPermission("monitor:business-metric:view")
     @GetMapping("/trend/{metricCode}")
     @Operation(summary = "获取指标趋势")
     public Result<Map<String, Object>> getMetricTrend(
@@ -89,6 +95,7 @@ public class BusinessMetricController {
 
     // ==================== 业务指标 ====================
 
+    @SaCheckPermission("monitor:business-metric:view")
     @GetMapping("/core")
     @Operation(summary = "获取核心业务指标")
     public Result<Map<String, Object>> getCoreBusinessMetrics(
@@ -96,6 +103,7 @@ public class BusinessMetricController {
         return Result.ok(businessMetricService.getCoreBusinessMetrics(tenantId));
     }
 
+    @SaCheckPermission("monitor:business-metric:view")
     @GetMapping("/order")
     @Operation(summary = "获取订单指标")
     public Result<Map<String, Object>> getOrderMetrics(
@@ -104,6 +112,7 @@ public class BusinessMetricController {
         return Result.ok(businessMetricService.getOrderMetrics(tenantId, period));
     }
 
+    @SaCheckPermission("monitor:business-metric:view")
     @GetMapping("/inventory")
     @Operation(summary = "获取库存指标")
     public Result<Map<String, Object>> getInventoryMetrics(
@@ -112,6 +121,7 @@ public class BusinessMetricController {
         return Result.ok(businessMetricService.getInventoryMetrics(tenantId, period));
     }
 
+    @SaCheckPermission("monitor:business-metric:view")
     @GetMapping("/user")
     @Operation(summary = "获取用户指标")
     public Result<Map<String, Object>> getUserMetrics(
@@ -120,6 +130,7 @@ public class BusinessMetricController {
         return Result.ok(businessMetricService.getUserMetrics(tenantId, period));
     }
 
+    @SaCheckPermission("monitor:business-metric:view")
     @GetMapping("/sales")
     @Operation(summary = "获取销售指标")
     public Result<Map<String, Object>> getSalesMetrics(
@@ -130,6 +141,7 @@ public class BusinessMetricController {
 
     // ==================== 指标定义管理 ====================
 
+    @SaCheckPermission("monitor:business-metric:list")
     @GetMapping("/definitions")
     @Operation(summary = "获取指标定义列表")
     public Result<List<MetricDefinition>> getMetricDefinitions(
@@ -138,6 +150,7 @@ public class BusinessMetricController {
         return Result.ok(businessMetricService.getMetricDefinitions(tenantId, metricType));
     }
 
+    @SaCheckPermission("monitor:business-metric:create")
     @PostMapping("/definitions")
     @Operation(summary = "保存指标定义")
     public Result<MetricDefinition> saveMetricDefinition(
@@ -145,6 +158,7 @@ public class BusinessMetricController {
         return Result.ok(businessMetricService.saveMetricDefinition(definition));
     }
 
+    @SaCheckPermission("monitor:business-metric:delete")
     @DeleteMapping("/definitions/{id}")
     @Operation(summary = "删除指标定义")
     public Result<Map<String, Object>> deleteMetricDefinition(@PathVariable Long id) {
@@ -154,6 +168,7 @@ public class BusinessMetricController {
 
     // ==================== 指标刷新 ====================
 
+    @SaCheckPermission("monitor:business-metric:execute")
     @PostMapping("/refresh")
     @Operation(summary = "刷新指标数据")
     public Result<Map<String, Object>> refreshMetrics(

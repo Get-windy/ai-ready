@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 外部订单管理端控制器（交易模块 → 外部平台 → 外部订单）
@@ -34,6 +35,7 @@ public class ExternalOrderController {
     private final ExternalOrderService externalOrderService;
 
     @Operation(summary = "外部订单分页查询")
+    @SaCheckPermission("trade:external-order:list")
     @GetMapping("/page")
     public Result<PageResult<ExternalOrderRaw>> page(
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") Integer pageNum,
@@ -48,6 +50,7 @@ public class ExternalOrderController {
     }
 
     @Operation(summary = "失败订单重试", description = "将失败订单重新加入待处理队列")
+    @SaCheckPermission("trade:external-order:retry")
     @PostMapping("/{id}/retry")
     public Result<Boolean> retry(@PathVariable Long id) {
         return Result.success(externalOrderService.retry(id));
@@ -55,12 +58,14 @@ public class ExternalOrderController {
 
     @Operation(summary = "外部订单处理状态统计",
             description = "真实聚合 SQL（COUNT + GROUP BY，租户过滤）：待处理 / 已处理 / 失败 笔数，非当前页口径")
+    @SaCheckPermission("trade:external-order:view")
     @GetMapping("/stat")
     public Result<java.util.Map<String, Object>> stat() {
         return Result.success(externalOrderService.statExternalOrders());
     }
 
     @Operation(summary = "待处理订单数量")
+    @SaCheckPermission("trade:external-order:view")
     @GetMapping("/pending-count")
     public Result<Integer> pendingCount(@Parameter(description = "渠道编码(可选)") @RequestParam(required = false) String channelCode) {
         return Result.success(externalOrderService.countPending(channelCode));

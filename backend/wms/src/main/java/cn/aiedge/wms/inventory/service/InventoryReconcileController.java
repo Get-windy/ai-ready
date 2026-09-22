@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 库存双账收敛（P0-2）控制器：期初建档 + 对账。
@@ -26,6 +27,7 @@ public class InventoryReconcileController {
     /**
      * 期初建档：把 erp_stock 存量写入 wms_inventory（幂等）。返回 created/skipped 统计。
      */
+    @SaCheckPermission("wms:inventory:update")
     @PostMapping("/init-from-erp")
     public Map<String, Object> initFromErp() {
         return reconcileService.initFromErp();
@@ -34,6 +36,7 @@ public class InventoryReconcileController {
     /**
      * 对账：比较 erp_stock 与 wms_inventory 按 (product,warehouse,batch) 聚合的可用量差异。
      */
+    @SaCheckPermission("wms:inventory:view")
     @GetMapping("/reconcile")
     public List<Map<String, Object>> reconcile() {
         return reconcileService.reconcile();

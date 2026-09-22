@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 岗位管理控制器
@@ -30,6 +31,7 @@ public class PositionController {
     private final PositionService positionService;
 
     @Operation(summary = "分页查询岗位")
+    @SaCheckPermission("tenant-admin:position:list")
     @GetMapping("/page")
     @RequiresPermission("tenant-admin:position:list")
     public ApiResponse<PageResult<PositionVO>> pageList(PositionQueryRequest request) {
@@ -37,6 +39,7 @@ public class PositionController {
     }
 
     @Operation(summary = "获取岗位列表")
+    @SaCheckPermission("tenant-admin:position:list")
     @GetMapping("/list")
     @RequiresPermission("tenant-admin:position:list")
     public ApiResponse<List<PositionVO>> list() {
@@ -44,6 +47,7 @@ public class PositionController {
     }
 
     @Operation(summary = "获取岗位详情")
+    @SaCheckPermission("tenant-admin:position:query")
     @GetMapping("/{id}")
     @RequiresPermission("tenant-admin:position:query")
     public ApiResponse<PositionVO> getDetail(@PathVariable Long id) {
@@ -51,6 +55,7 @@ public class PositionController {
     }
 
     @Operation(summary = "创建岗位")
+    @SaCheckPermission("tenant-admin:position:create")
     @PostMapping
     @RequiresPermission("tenant-admin:position:create")
     public ApiResponse<Long> create(@Valid @RequestBody PositionCreateRequest request) {
@@ -59,6 +64,7 @@ public class PositionController {
     }
 
     @Operation(summary = "更新岗位")
+    @SaCheckPermission("tenant-admin:position:edit")
     @PutMapping("/{id}")
     @RequiresPermission("tenant-admin:position:edit")
     public ApiResponse<Void> update(@PathVariable Long id, @Valid @RequestBody PositionUpdateRequest request) {
@@ -68,6 +74,7 @@ public class PositionController {
     }
 
     @Operation(summary = "删除岗位")
+    @SaCheckPermission("tenant-admin:position:delete")
     @DeleteMapping("/{id}")
     @RequiresPermission("tenant-admin:position:delete")
     public ApiResponse<Void> delete(@PathVariable Long id) {
@@ -76,6 +83,7 @@ public class PositionController {
     }
 
     @Operation(summary = "批量删除岗位")
+    @SaCheckPermission("tenant-admin:position:delete")
     @DeleteMapping("/batch")
     @RequiresPermission("tenant-admin:position:delete")
     public ApiResponse<Void> batchDelete(@RequestBody List<Long> ids) {
@@ -84,6 +92,7 @@ public class PositionController {
     }
 
     @Operation(summary = "启用/禁用岗位")
+    @SaCheckPermission("tenant-admin:position:edit")
     @PutMapping("/{id}/status")
     @RequiresPermission("tenant-admin:position:edit")
     public ApiResponse<Void> updateStatus(@PathVariable Long id, @RequestParam Integer status) {
@@ -92,6 +101,7 @@ public class PositionController {
     }
 
     @Operation(summary = "导出岗位")
+    @SaCheckPermission("tenant-admin:position:list")
     @GetMapping("/export")
     @RequiresPermission("tenant-admin:position:list")
     public void export(PositionQueryRequest request, HttpServletResponse response) throws IOException {
@@ -99,6 +109,7 @@ public class PositionController {
     }
 
     @Operation(summary = "根据部门获取岗位")
+    @SaCheckPermission("tenant-admin:position:list")
     @GetMapping("/dept/{deptId}")
     @RequiresPermission("tenant-admin:position:list")
     public ApiResponse<List<PositionVO>> getByDeptId(@PathVariable Long deptId) {
@@ -106,6 +117,7 @@ public class PositionController {
     }
 
     @Operation(summary = "分配岗位给用户")
+    @SaCheckPermission("tenant-admin:position:assign")
     @PostMapping("/assign")
     @RequiresPermission("tenant-admin:position:assign")
     public ApiResponse<Void> assignToUser(@RequestParam Long userId,
@@ -116,6 +128,7 @@ public class PositionController {
     }
 
     @Operation(summary = "移除用户岗位")
+    @SaCheckPermission("tenant-admin:position:assign")
     @DeleteMapping("/remove")
     @RequiresPermission("tenant-admin:position:assign")
     public ApiResponse<Void> removeFromUser(@RequestParam Long userId,
@@ -125,6 +138,7 @@ public class PositionController {
     }
 
     @Operation(summary = "获取岗位下的人员")
+    @SaCheckPermission("tenant-admin:position:query")
     @GetMapping("/{id}/users")
     @RequiresPermission("tenant-admin:position:query")
     public ApiResponse<List<PositionUserVO>> getUsers(@PathVariable Long id) {

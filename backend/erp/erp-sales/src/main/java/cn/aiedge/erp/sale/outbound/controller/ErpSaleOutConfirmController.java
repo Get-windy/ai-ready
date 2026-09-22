@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * WMS 发货确认回调控制器。
@@ -25,6 +26,7 @@ public class ErpSaleOutConfirmController {
         this.saleOutboundService = saleOutboundService;
     }
 
+    @SaCheckPermission("sale:out:confirm")
     @PostMapping("/confirm")
     public Map<String, Object> confirmFromWms(@RequestBody Map<String, Object> body) {
         Object so = body.get("saleOrderId");

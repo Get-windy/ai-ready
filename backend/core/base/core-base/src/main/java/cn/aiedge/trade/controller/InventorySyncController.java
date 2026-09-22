@@ -28,6 +28,7 @@ import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 库存同步记录（配送 → API监控 页「库存同步记录」Tab）
@@ -50,6 +51,7 @@ public class InventorySyncController {
     private final ApiMonitorService apiMonitorService;
 
     @Operation(summary = "库存同步记录分页")
+    @SaCheckPermission("trade:inventory-sync:list")
     @GetMapping("/page")
     public Result<PageResult<InventorySyncRecord>> page(
             @RequestParam(defaultValue = "1") long pageNum,
@@ -70,6 +72,7 @@ public class InventorySyncController {
 
     @Operation(summary = "库存同步状态统计",
             description = "真实聚合 SQL（COUNT + GROUP BY，租户过滤）：待同步 / 成功 / 失败 笔数，非当前页口径")
+    @SaCheckPermission("trade:inventory-sync:view")
     @GetMapping("/stat")
     public Result<Map<String, Object>> stat() {
         long pending = 0L;
@@ -96,12 +99,14 @@ public class InventorySyncController {
     @Operation(summary = "同步失败重试",
             description = "按记录ID重放推送渠道并回写原记录（重试次数/结果/错误分类），"
                     + "等价于 /api/trade/api-monitor/sync/{id}/retry，供「库存同步记录」页直接调用")
+    @SaCheckPermission("trade:inventory-sync:retry")
     @PostMapping("/{id}/retry")
     public Result<Map<String, Object>> retry(@PathVariable Long id) {
         return Result.success(apiMonitorService.retrySync(id));
     }
 
     @Operation(summary = "库存同步记录导出（真实 xlsx）")
+    @SaCheckPermission("trade:inventory-sync:export")
     @GetMapping("/export")
     public void export(
             @RequestParam(required = false) String channelCode,

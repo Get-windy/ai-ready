@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 缓存管理控制器（系统 → 系统监控 → 缓存管理，菜单 62206）
@@ -49,6 +50,7 @@ public class CacheManageController {
 
     // ==================== 缓存概览 ====================
 
+    @SaCheckPermission("system:cache:view")
     @GetMapping("/status")
     @Operation(summary = "获取缓存概览统计（真实读取 Redis INFO）")
     public ResponseEntity<Map<String, Object>> getCacheStatus() {
@@ -138,6 +140,7 @@ public class CacheManageController {
 
     // ==================== 缓存区域管理 ====================
 
+    @SaCheckPermission("system:cache:delete")
     @DeleteMapping("/region/{name}")
     @Operation(summary = "清除指定缓存区域（按前缀 SCAN 删除）")
     public ResponseEntity<Map<String, Object>> clearRegion(@PathVariable String name) {
@@ -154,6 +157,7 @@ public class CacheManageController {
         }
     }
 
+    @SaCheckPermission("system:cache:delete")
     @DeleteMapping("/all")
     @Operation(summary = "清除所有缓存（危险：会一并删除登录会话等全部键）")
     public ResponseEntity<Map<String, Object>> clearAll() {
@@ -173,6 +177,7 @@ public class CacheManageController {
 
     // ==================== 缓存键管理 ====================
 
+    @SaCheckPermission("system:cache:view")
     @GetMapping("/region/{name}/keys")
     @Operation(summary = "获取缓存区域键列表（SCAN 真实列举，最多 " + SCAN_LIMIT + " 个）")
     public ResponseEntity<Map<String, Object>> getRegionKeys(@PathVariable String name) {
@@ -197,6 +202,7 @@ public class CacheManageController {
         }
     }
 
+    @SaCheckPermission("system:cache:delete")
     @DeleteMapping("/region/{region}/key/{key}")
     @Operation(summary = "删除指定缓存键")
     public ResponseEntity<Map<String, Object>> deleteKey(

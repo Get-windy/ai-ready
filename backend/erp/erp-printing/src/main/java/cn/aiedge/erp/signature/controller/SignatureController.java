@@ -13,6 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.HashMap;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Tag(name = "电子签收管理", description = "拍照签收、电子签名、签收记录查询、防篡改验证")
 @RestController
@@ -23,6 +24,7 @@ public class SignatureController {
     private final SignatureService signatureService;
 
     @Operation(summary = "拍照签收")
+    @SaCheckPermission("signature:record:create")
     @PostMapping("/photo")
     public ResponseEntity<Map<String, Object>> photoSignature(
             @RequestParam String orderNo,
@@ -54,6 +56,7 @@ public class SignatureController {
     }
 
     @Operation(summary = "电子签名签收")
+    @SaCheckPermission("signature:record:create")
     @PostMapping("/electronic")
     public ResponseEntity<Map<String, Object>> electronicSignature(@RequestBody ElectronicSignatureRequest request) {
         SignatureRecord record = signatureService.electronicSignature(request);
@@ -61,6 +64,7 @@ public class SignatureController {
     }
 
     @Operation(summary = "获取签收详情")
+    @SaCheckPermission("signature:record:detail")
     @GetMapping("/{id}")
     public ResponseEntity<Map<String, Object>> getSignature(@PathVariable Long id) {
         SignatureRecord record = signatureService.getSignatureById(id);
@@ -68,6 +72,7 @@ public class SignatureController {
     }
 
     @Operation(summary = "签收防篡改验证")
+    @SaCheckPermission("signature:record:check")
     @GetMapping("/{id}/verify")
     public ResponseEntity<Map<String, Object>> verifyIntegrity(@PathVariable Long id) {
         IntegrityVerifyResult result = signatureService.verifyIntegrity(id);
@@ -75,6 +80,7 @@ public class SignatureController {
     }
 
     @Operation(summary = "签收记录列表查询")
+    @SaCheckPermission("signature:record:list")
     @GetMapping("/list")
     public ResponseEntity<Map<String, Object>> listSignatures(
             @RequestParam(defaultValue = "1") Integer page,
@@ -91,6 +97,7 @@ public class SignatureController {
     }
 
     @Operation(summary = "获取订单最新签收记录")
+    @SaCheckPermission("signature:record:detail")
     @GetMapping("/order/{orderNo}")
     public ResponseEntity<Map<String, Object>> getLatestByOrderNo(@PathVariable String orderNo) {
         SignatureRecord record = signatureService.getLatestByOrderNo(orderNo);
@@ -98,6 +105,7 @@ public class SignatureController {
     }
 
     @Operation(summary = "配送员签收记录查询")
+    @SaCheckPermission("signature:record:list")
     @GetMapping("/delivery-person/{deliveryPersonId}")
     public ResponseEntity<Map<String, Object>> listByDeliveryPerson(
             @PathVariable String deliveryPersonId,

@@ -32,6 +32,7 @@ public class EventController {
     private final cn.aiedge.dms.event.mapper.DmsEventOutboxMapper eventOutboxMapper;
 
     @Operation(summary = "查询待发送事件列表")
+    @SaCheckPermission("dms:event:view")
     @GetMapping("/pending")
     public ApiResponse<List<DmsEventOutbox>> getPendingEvents() {
         List<DmsEventOutbox> pendingEvents = eventOutboxMapper.findPendingEvents();

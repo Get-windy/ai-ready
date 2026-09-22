@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 《发货查询》（配发收 → 发货查询，菜单 70156）页面固定项：配送状态 / 配送线路
@@ -52,6 +53,7 @@ public class OutboundDeliveryFilterController {
     private final OutboundDeliveryLookupMapper lookupMapper;
 
     @Operation(summary = "按配送状态/线路反查命中的出库单号")
+    @SaCheckPermission("dms:task:view")
     @GetMapping("/outbound-filter")
     public ApiResponse<DeliveryOutboundFilterVO> outboundFilter(
             @Parameter(description = "配送状态：PENDING-待配送 DELIVERING-配送中 DELIVERED-已配送；空=不限")

@@ -12,6 +12,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Tag(name = "质检标准", description = "质检标准管理")
 @RestController
@@ -23,18 +24,21 @@ public class QualityStandardController {
     private final QualityStandardService service;
 
     @Operation(summary = "创建质检标准")
+    @SaCheckPermission("quality:standard:create")
     @PostMapping
     public Result<QualityStandard> create(@RequestBody QualityStandard standard) {
         return Result.success(service.create(standard));
     }
 
     @Operation(summary = "更新质检标准")
+    @SaCheckPermission("quality:standard:update")
     @PutMapping("/{id}")
     public Result<QualityStandard> update(@PathVariable Long id, @RequestBody QualityStandard standard) {
         return Result.success(service.update(id, standard));
     }
 
     @Operation(summary = "删除质检标准")
+    @SaCheckPermission("quality:standard:delete")
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
         service.delete(id);
@@ -42,6 +46,7 @@ public class QualityStandardController {
     }
 
     @Operation(summary = "分页查询质检标准")
+    @SaCheckPermission("quality:standard:list")
     @GetMapping("/page")
     public Result<PageResult<QualityStandard>> page(
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") Integer pageNum,
@@ -54,18 +59,21 @@ public class QualityStandardController {
     }
 
     @Operation(summary = "查询质检标准详情")
+    @SaCheckPermission("quality:standard:detail")
     @GetMapping("/{id}")
     public Result<QualityStandard> get(@PathVariable Long id) {
         return Result.success(service.get(id));
     }
 
     @Operation(summary = "生成质检标准编码")
+    @SaCheckPermission("quality:standard:list")
     @GetMapping("/next-no")
     public Result<String> nextNo() {
         return Result.success(service.generateNo());
     }
 
     @Operation(summary = "根据检验类型查询标准列表")
+    @SaCheckPermission("quality:standard:list")
     @GetMapping("/list-by-type")
     public Result<List<QualityStandard>> listByType(@RequestParam String inspectionType) {
         return Result.success(service.listByType(inspectionType));

@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 菜单配置（设置 → 系统配置 → 菜单配置，菜单 80620）控制器 —— <b>租户级</b>。
@@ -32,9 +33,16 @@ import java.util.Set;
  *   <li>只读全局菜单定义（{@code sys_menu}，平台资产），<b>不提供任何增删改菜单定义的端点</b>；</li>
  *   <li>写操作只落在<b>本租户</b>的配置行上（{@code sys_project_config.tenant_id = 当前会话租户}），
  *       租户 ID 一律取自登录会话，不接受前端传入，杜绝跨租户影响；</li>
- *   <li>复用仓库既有的租户自助配置口径（{@code UserPageConfigController} 的 {@code @SaCheckLogin}）——
- *       {@code sys_permission} 中不存在 {@code set:*} 权限码，凭空新增权限码而不授予任何角色
- *       会复现设置模块文档 §5.5 记录的「注解齐全但无权限码 → 非超管全 403」同症。</li>
+ *   <li><b>2026-09-21 E-01 口径变更（本条原写的是「刻意只用 {@code @SaCheckLogin}」）</b>：
+ *       本轮按 E-01 的既定口径（每个端点都要有码，再由管理员通过权限矩阵授予角色）改为
+ *       {@code @SaCheckPermission("set:menu-config:view|update")}，并**同批次**补上这两个权限码
+ *       （迁移 {@code V11.471.0}，所属模块 = 设置）。原豁免理由里的事实前提也不成立 ——
+ *       {@code sys_permission} 里**有** 11 条 {@code set:*} 码（set:print-config / set:system-task 等），
+ *       只是没有 menu-config；真正的风险（注解挂上了、码却不在库 ⇒ 非超管全 403，
+ *       见设置模块文档 §5.5）靠「先补码后补注解」规避。
+ *       ⚠️ 副作用须知：这两个码默认只授予超管角色 ⇒ 非超管要能看到/操作本页，
+ *       必须先在权限矩阵里给它的角色勾上 {@code set:menu-config:*}。
+ *       若将来决定恢复旧口径，需**注解与这两个码一并撤**。</li>
  * </ul>
  *
  * @author AI-Ready Team
@@ -72,6 +80,7 @@ public class SetMenuConfigController {
      * 本租户可配置的页面级菜单清单（含当前已隐藏的菜单，否则关掉就再也打不开了）。
      */
     @Operation(summary = "本租户可配置的菜单清单")
+    @SaCheckPermission("set:menu-config:list")
     @GetMapping("/list")
     @SaCheckLogin
     public Result<List<MenuConfigItemVO>> list() {
@@ -137,6 +146,7 @@ public class SetMenuConfigController {
      * @param visible true = 显示；false = 隐藏
      */
     @Operation(summary = "设置本租户菜单显隐")
+    @SaCheckPermission("set:menu-config:update")
     @PutMapping("/visible")
     @SaCheckLogin
     @OperationLog(module = "菜单配置", type = "UPDATE", desc = "租户级菜单显隐")

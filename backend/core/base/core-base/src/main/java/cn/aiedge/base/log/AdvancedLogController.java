@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 高级日志查询控制器
@@ -31,12 +32,14 @@ public class AdvancedLogController {
     private final AdvancedLogQueryService advancedLogQueryService;
     private final LogExportService logExportService;
 
+    @SaCheckPermission("log:oper:list")
     @PostMapping("/query")
     @Operation(summary = "高级日志查询")
     public LogQueryResponse advancedQuery(@RequestBody LogQueryRequest request) {
         return advancedLogQueryService.query(request);
     }
 
+    @SaCheckPermission("log:oper:list")
     @GetMapping("/fulltext")
     @Operation(summary = "全文检索日志")
     public Object fullTextSearch(
@@ -46,6 +49,7 @@ public class AdvancedLogController {
         return advancedLogQueryService.fullTextSearch(keyword, page, pageSize);
     }
 
+    @SaCheckPermission("log:oper:list")
     @GetMapping("/ip/{ip}")
     @Operation(summary = "按IP查询日志")
     public List<SysOperLog> queryByIp(
@@ -57,6 +61,7 @@ public class AdvancedLogController {
         return advancedLogQueryService.queryByIp(ip, startTime, endTime);
     }
 
+    @SaCheckPermission("log:oper:list")
     @GetMapping("/slow")
     @Operation(summary = "查询慢操作日志")
     public List<SysOperLog> querySlowOperations(
@@ -66,6 +71,7 @@ public class AdvancedLogController {
         return advancedLogQueryService.querySlowOperations(minCost, maxCost, limit);
     }
 
+    @SaCheckPermission("log:oper:list")
     @GetMapping("/failed")
     @Operation(summary = "查询失败操作日志")
     public List<SysOperLog> queryFailedOperations(
@@ -77,6 +83,7 @@ public class AdvancedLogController {
         return advancedLogQueryService.queryFailedOperations(startTime, endTime, limit);
     }
 
+    @SaCheckPermission("log:oper:stats")
     @GetMapping("/summary")
     @Operation(summary = "获取日志统计摘要")
     public Map<String, Object> getLogSummary(
@@ -87,6 +94,7 @@ public class AdvancedLogController {
         return advancedLogQueryService.getLogSummary(startTime, endTime);
     }
 
+    @SaCheckPermission("log:oper:stats")
     @GetMapping("/trend")
     @Operation(summary = "获取操作趋势")
     public List<Map<String, Object>> getOperationTrend(
@@ -98,6 +106,7 @@ public class AdvancedLogController {
         return advancedLogQueryService.getOperationTrend(startTime, endTime, timeUnit);
     }
 
+    @SaCheckPermission("log:oper:list")
     @GetMapping("/user-activity/{userId}")
     @Operation(summary = "获取用户活动分析")
     public Map<String, Object> getUserActivityAnalysis(
@@ -106,6 +115,7 @@ public class AdvancedLogController {
         return advancedLogQueryService.getUserActivityAnalysis(userId, days);
     }
 
+    @SaCheckPermission("log:oper:stats")
     @GetMapping("/anomaly")
     @Operation(summary = "检测异常操作")
     public List<Map<String, Object>> detectAnomalies(
@@ -113,6 +123,7 @@ public class AdvancedLogController {
         return advancedLogQueryService.detectAnomalousOperations(userId);
     }
 
+    @SaCheckPermission("log:oper:export")
     @GetMapping("/export/excel")
     @Operation(summary = "导出日志为Excel")
     public void exportToExcel(
@@ -137,6 +148,7 @@ public class AdvancedLogController {
         logExportService.exportToExcel(logs, response);
     }
 
+    @SaCheckPermission("log:oper:export")
     @GetMapping("/export/csv")
     @Operation(summary = "导出日志为CSV")
     public void exportToCsv(
@@ -161,6 +173,7 @@ public class AdvancedLogController {
         logExportService.exportToCsv(logs, response);
     }
 
+    @SaCheckPermission("log:oper:export")
     @GetMapping("/export/json")
     @Operation(summary = "导出日志为JSON")
     public void exportToJson(

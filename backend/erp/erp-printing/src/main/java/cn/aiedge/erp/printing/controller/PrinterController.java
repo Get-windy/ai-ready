@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Tag(name = "打印机管理", description = "打印机的注册、状态管理、分组管理等操作")
 @RestController
@@ -24,6 +25,7 @@ public class PrinterController {
     private final PrinterService printerService;
 
     @Operation(summary = "注册打印机")
+    @SaCheckPermission("print:printer:create")
     @PostMapping
     public ResponseEntity<Map<String, Object>> createPrinter(@RequestBody Printer printer) {
         Printer created = printerService.createPrinter(printer);
@@ -31,6 +33,7 @@ public class PrinterController {
     }
 
     @Operation(summary = "更新打印机")
+    @SaCheckPermission("print:printer:update")
     @PutMapping("/{id}")
     public ResponseEntity<Map<String, Object>> updatePrinter(@PathVariable Long id, @RequestBody Printer printer) {
         Printer updated = printerService.updatePrinter(id, printer);
@@ -38,6 +41,7 @@ public class PrinterController {
     }
 
     @Operation(summary = "获取打印机详情")
+    @SaCheckPermission("print:printer:detail")
     @GetMapping("/{id}")
     public ResponseEntity<Map<String, Object>> getPrinter(@PathVariable Long id) {
         Printer printer = printerService.getPrinterById(id);
@@ -45,6 +49,7 @@ public class PrinterController {
     }
 
     @Operation(summary = "打印机列表查询")
+    @SaCheckPermission("print:printer:list")
     @GetMapping
     public ResponseEntity<Map<String, Object>> listPrinters(
             @RequestParam(defaultValue = "1") Integer page,
@@ -61,6 +66,7 @@ public class PrinterController {
     }
 
     @Operation(summary = "删除打印机")
+    @SaCheckPermission("print:printer:delete")
     @DeleteMapping("/{id}")
     public ResponseEntity<Map<String, Object>> deletePrinter(@PathVariable Long id) {
         printerService.deletePrinter(id);
@@ -68,6 +74,7 @@ public class PrinterController {
     }
 
     @Operation(summary = "获取打印机状态")
+    @SaCheckPermission("print:printer:view")
     @GetMapping("/{id}/status")
     public ResponseEntity<Map<String, Object>> getPrinterStatus(@PathVariable Long id) {
         PrinterStatusDTO status = printerService.getPrinterStatus(id);
@@ -75,6 +82,7 @@ public class PrinterController {
     }
 
     @Operation(summary = "更新打印机状态")
+    @SaCheckPermission("print:printer:status")
     @PutMapping("/{id}/status")
     public ResponseEntity<Map<String, Object>> updatePrinterStatus(
             @PathVariable Long id,
@@ -85,6 +93,7 @@ public class PrinterController {
     }
 
     @Operation(summary = "创建打印机分组")
+    @SaCheckPermission("print:printer-group:create")
     @PostMapping("/groups")
     public ResponseEntity<Map<String, Object>> createGroup(@RequestBody PrinterGroup group) {
         PrinterGroup created = printerService.createGroup(group);
@@ -92,6 +101,7 @@ public class PrinterController {
     }
 
     @Operation(summary = "更新打印机分组")
+    @SaCheckPermission("print:printer-group:update")
     @PutMapping("/groups/{id}")
     public ResponseEntity<Map<String, Object>> updateGroup(@PathVariable Long id, @RequestBody PrinterGroup group) {
         PrinterGroup updated = printerService.updateGroup(id, group);
@@ -99,6 +109,7 @@ public class PrinterController {
     }
 
     @Operation(summary = "删除打印机分组")
+    @SaCheckPermission("print:printer-group:delete")
     @DeleteMapping("/groups/{id}")
     public ResponseEntity<Map<String, Object>> deleteGroup(@PathVariable Long id) {
         printerService.deleteGroup(id);
@@ -106,6 +117,7 @@ public class PrinterController {
     }
 
     @Operation(summary = "打印机分组列表")
+    @SaCheckPermission("print:printer-group:list")
     @GetMapping("/groups")
     public ResponseEntity<Map<String, Object>> listGroups(
             @RequestParam(defaultValue = "1") Integer page,
@@ -118,6 +130,7 @@ public class PrinterController {
     }
 
     @Operation(summary = "分配打印机到分组")
+    @SaCheckPermission("print:printer-group:assign")
     @PostMapping("/groups/{groupId}/assign")
     public ResponseEntity<Map<String, Object>> assignPrinters(
             @PathVariable Long groupId,
@@ -127,6 +140,7 @@ public class PrinterController {
     }
 
     @Operation(summary = "获取分组下的打印机")
+    @SaCheckPermission("print:printer-group:detail")
     @GetMapping("/groups/{groupId}/printers")
     public ResponseEntity<Map<String, Object>> listPrintersByGroup(@PathVariable Long groupId) {
         List<Printer> printers = printerService.listPrintersByGroup(groupId);

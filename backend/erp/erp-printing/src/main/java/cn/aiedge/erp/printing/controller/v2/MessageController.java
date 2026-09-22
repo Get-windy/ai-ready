@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Tag(name = "V2-消息发送（预留）", description = "将截图发送至微信等通讯工具，当前为预留接口")
 @RestController
@@ -21,6 +22,7 @@ import java.util.Map;
 public class MessageController {
 
     @Operation(summary = "发送消息（功能即将开放）")
+    @SaCheckPermission("print:message:send")
     @PostMapping("/send")
     public ResponseEntity<ApiResponse<Object>> send(@Valid @RequestBody MessageSendRequest request) {
         // 使用占位实现，后续对接具体渠道

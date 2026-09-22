@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.*;
 import java.util.stream.Collectors;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 费用类型管理控制器
@@ -26,6 +27,7 @@ public class ExpenseTypeController {
      * GET /api/erp/expense/type/list
      */
     @Operation(summary = "费用类型列表", description = "获取所有费用类型")
+    @SaCheckPermission("erp:expense:type:list")
     @GetMapping("/list")
     public ApiResponse<List<Map<String, Object>>> getExpenseTypeList() {
         List<Map<String, Object>> types = Arrays.stream(ExpenseType.values())
@@ -49,6 +51,7 @@ public class ExpenseTypeController {
      * 获取费用类型详情
      */
     @Operation(summary = "获取费用类型详情", description = "根据code获取费用类型详情")
+    @SaCheckPermission("erp:expense:type:query")
     @GetMapping("/{code}")
     public ApiResponse<Map<String, Object>> getExpenseTypeDetail(@PathVariable String code) {
         ExpenseType type = ExpenseType.fromCode(code);
@@ -68,6 +71,7 @@ public class ExpenseTypeController {
      * 获取费用类型描述列表（用于下拉框）
      */
     @Operation(summary = "费用类型描述列表", description = "获取所有费用类型的描述，用于前端下拉框")
+    @SaCheckPermission("erp:expense:type:view")
     @GetMapping("/descriptions")
     public ApiResponse<List<String>> getExpenseTypeDescriptions() {
         List<String> descriptions = Arrays.asList(ExpenseType.getAllDescriptions());
@@ -78,6 +82,7 @@ public class ExpenseTypeController {
      * 获取费用类型代码列表
      */
     @Operation(summary = "费用类型代码列表", description = "获取所有费用类型的代码")
+    @SaCheckPermission("erp:expense:type:view")
     @GetMapping("/codes")
     public ApiResponse<List<String>> getExpenseTypeCodes() {
         List<String> codes = Arrays.asList(ExpenseType.getAllCodes());

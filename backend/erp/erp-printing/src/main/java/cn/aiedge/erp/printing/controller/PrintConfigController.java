@@ -115,6 +115,7 @@ public class PrintConfigController {
      *
      * <p>无行时与 {@link #getPrintConfig()} 同口径按默认值建行（一行一租户，唯一索引兜底）。</p>
      */
+    @SaCheckPermission("set:print-config:view")
     @GetMapping("/behavior")
     @Operation(summary = "读取打印行为配置（打印组件专用，无需管理权限）")
     public ResponseEntity<Map<String, Object>> getBehaviorConfig() {

@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.*;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 错误报告控制器 — 接收前端错误上报并提供查询接口
@@ -87,6 +88,7 @@ public class ErrorReportController {
         return (String) err.getOrDefault("message", "未知错误");
     }
 
+    @SaCheckPermission("log:error-report:list")
     @GetMapping("/recent")
     @Operation(summary = "获取最近错误列表")
     public Result<List<ErrorLogEntry>> getRecentErrors(
@@ -94,6 +96,7 @@ public class ErrorReportController {
         return Result.success(errorLogService.getRecentErrors(limit));
     }
 
+    @SaCheckPermission("log:error-report:list")
     @GetMapping("/query")
     @Operation(summary = "按日期范围查询错误日志")
     public Result<List<ErrorLogEntry>> queryErrors(
@@ -105,6 +108,7 @@ public class ErrorReportController {
         return Result.success(errorLogService.queryErrors(startDate, endDate, level, source, limit));
     }
 
+    @SaCheckPermission("log:error-report:stats")
     @GetMapping("/statistics")
     @Operation(summary = "错误日志统计信息")
     public Result<Map<String, Object>> getStatistics() {

@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 序列号管理控制器
@@ -25,6 +26,7 @@ public class SerialNumberController {
     /**
      * 创建序列号
      */
+    @SaCheckPermission("erp:serial:create")
     @PostMapping
     public ResponseEntity<SerialNumber> createSerial(@RequestBody SerialNumber serial) {
         SerialNumber created = serialNumberService.createSerial(serial);
@@ -34,6 +36,7 @@ public class SerialNumberController {
     /**
      * 查询序列号详情
      */
+    @SaCheckPermission("erp:serial:detail")
     @GetMapping("/{id}")
     public ResponseEntity<SerialNumber> getSerial(@PathVariable Long id) {
         SerialNumber serial = serialNumberService.getSerialById(id);
@@ -43,6 +46,7 @@ public class SerialNumberController {
     /**
      * 查询序列号列表
      */
+    @SaCheckPermission("erp:serial:list")
     @GetMapping
     public ResponseEntity<List<SerialNumber>> listSerials(
         @RequestParam(required = false) String serialNo,
@@ -59,6 +63,7 @@ public class SerialNumberController {
     /**
      * 更新序列号信息
      */
+    @SaCheckPermission("erp:serial:update")
     @PutMapping("/{id}")
     public ResponseEntity<SerialNumber> updateSerial(@PathVariable Long id, @RequestBody SerialNumber serial) {
         SerialNumber updated = serialNumberService.updateSerial(id, serial);
@@ -68,6 +73,7 @@ public class SerialNumberController {
     /**
      * 序列号入库
      */
+    @SaCheckPermission("erp:serial:inbound")
     @PostMapping("/inbound")
     public ResponseEntity<SerialNumber> inbound(
         @RequestBody SerialNumber serial,
@@ -82,6 +88,7 @@ public class SerialNumberController {
     /**
      * 序列号出库
      */
+    @SaCheckPermission("erp:serial:outbound")
     @PostMapping("/outbound")
     public ResponseEntity<SerialNumber> outbound(
         @RequestParam Long serialId,
@@ -97,6 +104,7 @@ public class SerialNumberController {
     /**
      * 更新序列号状态
      */
+    @SaCheckPermission("erp:serial:update-status")
     @PatchMapping("/{id}/status")
     public ResponseEntity<SerialNumber> updateStatus(
         @PathVariable Long id,
@@ -110,6 +118,7 @@ public class SerialNumberController {
     /**
      * 查询质保即将到期的序列号
      */
+    @SaCheckPermission("erp:serial:view")
     @GetMapping("/warranty-warning")
     public ResponseEntity<List<SerialNumber>> getWarrantyExpiring(
         @RequestParam(defaultValue = "30") int warningDays
@@ -121,6 +130,7 @@ public class SerialNumberController {
     /**
      * 查询序列号完整流转历史
      */
+    @SaCheckPermission("erp:serial:view")
     @GetMapping("/{id}/full-history")
     public ResponseEntity<List<SerialNumber>> getFullHistory(@PathVariable Long id) {
         List<SerialNumber> history = serialNumberService.getFullHistory(id);
@@ -130,6 +140,7 @@ public class SerialNumberController {
     /**
      * 验证序列号唯一性
      */
+    @SaCheckPermission("erp:serial:check")
     @GetMapping("/validate-serial-no")
     public ResponseEntity<Boolean> validateSerialNo(@RequestParam String serialNo) {
         boolean exists = serialNumberService.serialNoExists(serialNo);

@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Tag(name = "看板视图管理", description = "Odoo核心特性：卡片式任务管理视图")
 @RestController
@@ -24,6 +25,7 @@ public class KanbanController {
     private final KanbanService kanbanService;
 
     @Operation(summary = "获取看板数据")
+    @SaCheckPermission("kanban:board:list")
     @GetMapping("/{modelName}/data")
     public ResponseEntity<Map<String, Object>> getKanbanData(
             @PathVariable String modelName,
@@ -34,6 +36,7 @@ public class KanbanController {
     }
 
     @Operation(summary = "创建列")
+    @SaCheckPermission("kanban:column:create")
     @PostMapping("/column")
     public ResponseEntity<Map<String, Object>> createColumn(@RequestBody ColumnCreateRequest request) {
         KanbanColumn column = kanbanService.createColumn(request);
@@ -41,6 +44,7 @@ public class KanbanController {
     }
 
     @Operation(summary = "更新列")
+    @SaCheckPermission("kanban:column:update")
     @PutMapping("/column/{id}")
     public ResponseEntity<Map<String, Object>> updateColumn(@PathVariable Long id, @RequestBody ColumnCreateRequest request) {
         KanbanColumn column = kanbanService.updateColumn(id, request);
@@ -48,6 +52,7 @@ public class KanbanController {
     }
 
     @Operation(summary = "删除列")
+    @SaCheckPermission("kanban:column:delete")
     @DeleteMapping("/column/{id}")
     public ResponseEntity<Map<String, Object>> deleteColumn(@PathVariable Long id) {
         kanbanService.deleteColumn(id);
@@ -55,6 +60,7 @@ public class KanbanController {
     }
 
     @Operation(summary = "获取模型的列")
+    @SaCheckPermission("kanban:column:list")
     @GetMapping("/{modelName}/columns")
     public ResponseEntity<Map<String, Object>> getColumns(
             @PathVariable String modelName,
@@ -64,6 +70,7 @@ public class KanbanController {
     }
 
     @Operation(summary = "创建卡片")
+    @SaCheckPermission("kanban:card:create")
     @PostMapping("/card")
     public ResponseEntity<Map<String, Object>> createCard(@RequestBody CardCreateRequest request) {
         KanbanCard card = kanbanService.createCard(request);
@@ -71,6 +78,7 @@ public class KanbanController {
     }
 
     @Operation(summary = "更新卡片")
+    @SaCheckPermission("kanban:card:update")
     @PutMapping("/card/{id}")
     public ResponseEntity<Map<String, Object>> updateCard(@PathVariable Long id, @RequestBody CardCreateRequest request) {
         KanbanCard card = kanbanService.updateCard(id, request);
@@ -78,6 +86,7 @@ public class KanbanController {
     }
 
     @Operation(summary = "删除卡片")
+    @SaCheckPermission("kanban:card:delete")
     @DeleteMapping("/card/{id}")
     public ResponseEntity<Map<String, Object>> deleteCard(@PathVariable Long id) {
         kanbanService.deleteCard(id);
@@ -85,6 +94,7 @@ public class KanbanController {
     }
 
     @Operation(summary = "移动卡片")
+    @SaCheckPermission("kanban:card:update")
     @PostMapping("/card/move")
     public ResponseEntity<Map<String, Object>> moveCard(@RequestBody CardMoveRequest request) {
         kanbanService.moveCard(request);
@@ -92,6 +102,7 @@ public class KanbanController {
     }
 
     @Operation(summary = "获取列的卡片")
+    @SaCheckPermission("kanban:card:list")
     @GetMapping("/column/{columnId}/cards")
     public ResponseEntity<Map<String, Object>> getCardsByColumn(@PathVariable Long columnId) {
         List<KanbanCard> cards = kanbanService.getCardsByColumn(columnId);
@@ -99,6 +110,7 @@ public class KanbanController {
     }
 
     @Operation(summary = "卡片列表查询")
+    @SaCheckPermission("kanban:card:list")
     @GetMapping("/card/list")
     public ResponseEntity<Map<String, Object>> listCards(
             @RequestParam(defaultValue = "1") Integer page,
@@ -115,6 +127,7 @@ public class KanbanController {
     }
 
     @Operation(summary = "获取记录的卡片")
+    @SaCheckPermission("kanban:card:detail")
     @GetMapping("/{modelName}/record/{recordId}/card")
     public ResponseEntity<Map<String, Object>> getCardByRecord(
             @PathVariable String modelName,
@@ -124,6 +137,7 @@ public class KanbanController {
     }
 
     @Operation(summary = "同步模型数据到看板")
+    @SaCheckPermission("kanban:board:execute")
     @PostMapping("/{modelName}/sync")
     public ResponseEntity<Map<String, Object>> syncCards(
             @PathVariable String modelName,

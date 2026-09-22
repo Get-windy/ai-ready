@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @Validated
@@ -35,6 +36,7 @@ public class PdaReceiveController {
     private static final String DEFAULT_USER_NAME = "PDA操作员";
 
     @Operation(summary = "获取收货任务列表")
+    @SaCheckPermission("wms:receipt:view")
     @GetMapping
     public Result<List<WmsReceiptTask>> list() {
         Page<WmsReceiptTask> page = receiptService.pageTask(
@@ -43,6 +45,7 @@ public class PdaReceiveController {
     }
 
     @Operation(summary = "获取收货任务详情")
+    @SaCheckPermission("wms:receipt:detail")
     @GetMapping("/{id}")
     public Result<WmsReceiptTask> detail(@PathVariable @NotNull Long id) {
         WmsReceiptTask task = receiptService.getTaskById(id);
@@ -53,6 +56,7 @@ public class PdaReceiveController {
     }
 
     @Operation(summary = "扫描商品条码进行收货")
+    @SaCheckPermission("wms:receipt:update")
     @PostMapping("/{id}/scan")
     public Result<Map<String, Object>> scan(@PathVariable @NotNull Long id,
                                             @RequestBody @Validated ScanRequest request) {
@@ -113,6 +117,7 @@ public class PdaReceiveController {
     }
 
     @Operation(summary = "确认收货完成")
+    @SaCheckPermission("wms:receipt:confirm")
     @PostMapping("/{id}/confirm")
     public Result<Void> confirm(@PathVariable @NotNull Long id) {
         receiptService.confirmReceipt(id, DEFAULT_USER_ID, DEFAULT_USER_NAME);
@@ -121,6 +126,7 @@ public class PdaReceiveController {
     }
 
     @Operation(summary = "报告收货异常")
+    @SaCheckPermission("wms:receipt:update")
     @PostMapping("/{id}/exception")
     public Result<Void> reportException(@PathVariable @NotNull Long id,
                                         @RequestBody Map<String, String> body) {

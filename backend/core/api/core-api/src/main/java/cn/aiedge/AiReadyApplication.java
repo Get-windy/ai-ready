@@ -61,6 +61,9 @@ import io.swagger.v3.oas.annotations.info.License;
     "cn.aiedge.erp.payment",
     "cn.aiedge.erp.pricing",
     "cn.aiedge.crm",
+    // 协议模块（独立 Maven 模块 backend/agreement）：漏了本行 ⇒ 控制器/服务不在容器里，
+    // 表现为「页面空白 / 端点 404」（本仓实踩过，见 DOMAIN-MODEL §12.3 的第四条装配线）。
+    "cn.aiedge.agreement",
     "cn.aiedge.erp.b2b",
     "cn.aiedge.quality",
     "cn.aiedge.trade",

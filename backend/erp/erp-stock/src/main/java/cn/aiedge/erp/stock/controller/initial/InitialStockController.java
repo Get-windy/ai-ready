@@ -14,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 期初库存管理 Controller（设置 → 数据录入 → 库存期初，菜单 70550）
@@ -46,6 +47,7 @@ public class InitialStockController {
     private final StockService stockService;
     private final InitialStockQueryMapper initialStockQueryMapper;
 
+    @SaCheckPermission("set:initial-stock:list")
     @GetMapping("/page")
     @Operation(summary = "分页查询期初库存")
     @SaCheckLogin
@@ -66,6 +68,7 @@ public class InitialStockController {
         return ApiResponse.ok(pageResult);
     }
 
+    @SaCheckPermission("set:initial-stock:create")
     @PostMapping("/save")
     @Operation(summary = "保存期初库存")
     @SaCheckLogin
@@ -86,6 +89,7 @@ public class InitialStockController {
         return ApiResponse.ok(null);
     }
 
+    @SaCheckPermission("set:initial-stock:update")
     @PutMapping("/update")
     @Operation(summary = "更新期初库存")
     @SaCheckLogin
@@ -97,6 +101,7 @@ public class InitialStockController {
         return ApiResponse.ok(null);
     }
 
+    @SaCheckPermission("set:initial-stock:delete")
     @DeleteMapping("/{id}")
     @Operation(summary = "删除期初库存")
     @SaCheckLogin
@@ -108,6 +113,7 @@ public class InitialStockController {
         return ApiResponse.ok(null);
     }
 
+    @SaCheckPermission("set:initial-stock:export")
     @GetMapping("/export")
     @Operation(summary = "导出期初库存")
     @SaCheckLogin

@@ -12,6 +12,7 @@ import java.lang.management.*;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 性能指标聚合分析控制器
@@ -33,6 +34,7 @@ public class PerformanceMetricsController {
     /**
      * 获取实时性能指标
      */
+    @SaCheckPermission("system:monitor-performance:view")
     @GetMapping("/realtime")
     @Operation(summary = "获取实时性能指标")
     public Map<String, Object> getRealtimeMetrics() {
@@ -67,6 +69,7 @@ public class PerformanceMetricsController {
     /**
      * 获取性能聚合统计
      */
+    @SaCheckPermission("system:monitor-performance:view")
     @GetMapping("/aggregate")
     @Operation(summary = "获取性能指标聚合统计")
     public Map<String, Object> getAggregateMetrics(
@@ -112,6 +115,7 @@ public class PerformanceMetricsController {
     /**
      * 获取性能趋势
      */
+    @SaCheckPermission("system:monitor-performance:view")
     @GetMapping("/trend/{metricType}")
     @Operation(summary = "获取性能趋势")
     public Map<String, Object> getPerformanceTrend(
@@ -168,6 +172,7 @@ public class PerformanceMetricsController {
     /**
      * 获取性能预测
      */
+    @SaCheckPermission("system:monitor-performance:view")
     @GetMapping("/predict/{metricType}")
     @Operation(summary = "获取性能预测")
     public Map<String, Object> predictPerformance(
@@ -218,6 +223,7 @@ public class PerformanceMetricsController {
     /**
      * 获取性能瓶颈分析
      */
+    @SaCheckPermission("system:monitor-performance:view")
     @GetMapping("/bottleneck")
     @Operation(summary = "获取性能瓶颈分析")
     public Map<String, Object> analyzeBottleneck() {
@@ -299,6 +305,7 @@ public class PerformanceMetricsController {
     /**
      * 获取性能对比
      */
+    @SaCheckPermission("system:monitor-performance:view")
     @GetMapping("/compare")
     @Operation(summary = "获取性能指标对比")
     public Map<String, Object> compareMetrics(

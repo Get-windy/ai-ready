@@ -60,6 +60,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 实名认证（KYC）与人车核验控制器
@@ -91,18 +92,21 @@ public class VerificationController {
     // ==================== 人车绑定 ====================
 
     @Operation(summary = "创建人车绑定（出车登记）")
+    @SaCheckPermission("dms:verification:update")
     @PostMapping("/bind")
     public ApiResponse<Long> bind(@Valid @RequestBody BindingCreateDTO dto) {
         return ApiResponse.success(verificationService.bind(dto));
     }
 
     @Operation(summary = "分页查询人车绑定")
+    @SaCheckPermission("dms:verification:list")
     @GetMapping("/binding/page")
     public ApiResponse<IPage<DmsRiderVehicleBinding>> pageBindings(VerificationQueryDTO query) {
         return ApiResponse.success(verificationService.pageBindings(query));
     }
 
     @Operation(summary = "人车绑定详情（含核验历史/巡检/预警）")
+    @SaCheckPermission("dms:verification:detail")
     @GetMapping("/binding/{id}")
     public ApiResponse<BindingDetailVO> bindingDetail(
             @Parameter(description = "绑定记录ID") @PathVariable Long id) {
@@ -110,6 +114,7 @@ public class VerificationController {
     }
 
     @Operation(summary = "交车（解绑）")
+    @SaCheckPermission("dms:verification:update")
     @PostMapping("/binding/{id}/handover")
     public ApiResponse<Void> handover(
             @Parameter(description = "绑定记录ID") @PathVariable Long id,
@@ -119,6 +124,7 @@ public class VerificationController {
     }
 
     @Operation(summary = "获取配送员活跃绑定")
+    @SaCheckPermission("dms:verification:detail")
     @GetMapping("/binding/active/rider/{riderId}")
     public ApiResponse<DmsRiderVehicleBinding> getActiveBindingByRider(
             @Parameter(description = "配送员ID") @PathVariable Long riderId) {
@@ -126,6 +132,7 @@ public class VerificationController {
     }
 
     @Operation(summary = "获取车辆活跃绑定")
+    @SaCheckPermission("dms:verification:detail")
     @GetMapping("/binding/active/vehicle/{vehicleId}")
     public ApiResponse<DmsRiderVehicleBinding> getActiveBindingByVehicle(
             @Parameter(description = "车辆ID") @PathVariable Long vehicleId) {
@@ -135,12 +142,14 @@ public class VerificationController {
     // ==================== 出车验车 / 巡检 ====================
 
     @Operation(summary = "创建巡检记录")
+    @SaCheckPermission("dms:verification:update")
     @PostMapping("/inspection")
     public ApiResponse<Long> createInspection(@Valid @RequestBody VehicleInspectionCreateDTO dto) {
         return ApiResponse.success(verificationService.createInspection(dto, dto.getRiderId()));
     }
 
     @Operation(summary = "巡检记录详情（出车/收车/抽检单张完整检查项）")
+    @SaCheckPermission("dms:verification:detail")
     @GetMapping("/inspection/{id}")
     public ApiResponse<DmsVehicleInspection> inspectionDetail(
             @Parameter(description = "巡检记录ID") @PathVariable Long id) {
@@ -148,12 +157,14 @@ public class VerificationController {
     }
 
     @Operation(summary = "分页查询巡检记录")
+    @SaCheckPermission("dms:verification:list")
     @GetMapping("/inspection/page")
     public ApiResponse<IPage<DmsVehicleInspection>> pageInspections(VerificationQueryDTO query) {
         return ApiResponse.success(verificationService.pageInspections(query));
     }
 
     @Operation(summary = "审核巡检记录")
+    @SaCheckPermission("dms:verification:update")
     @PutMapping("/inspection/{id}/review")
     public ApiResponse<Void> reviewInspection(
             @Parameter(description = "巡检记录ID") @PathVariable Long id,
@@ -165,6 +176,7 @@ public class VerificationController {
     // ==================== 位置核验 ====================
 
     @Operation(summary = "手动位置核验")
+    @SaCheckPermission("dms:verification:update")
     @PostMapping("/verify/{bindingId}")
     public ApiResponse<Long> verifyPosition(
             @Parameter(description = "绑定记录ID") @PathVariable Long bindingId,
@@ -180,6 +192,7 @@ public class VerificationController {
     }
 
     @Operation(summary = "分页查询位置核验记录")
+    @SaCheckPermission("dms:verification:list")
     @GetMapping("/verify/page")
     public ApiResponse<IPage<DmsPositionVerification>> pageVerifications(
             @RequestParam(defaultValue = "1") int page,
@@ -191,12 +204,14 @@ public class VerificationController {
     // ==================== 预警 ====================
 
     @Operation(summary = "分页查询核验预警")
+    @SaCheckPermission("dms:verification:list")
     @GetMapping("/alert/page")
     public ApiResponse<IPage<DmsVerificationAlert>> pageAlerts(VerificationQueryDTO query) {
         return ApiResponse.success(verificationService.pageAlerts(query));
     }
 
     @Operation(summary = "处理预警（处理人取登录态）")
+    @SaCheckPermission("dms:verification:update")
     @PutMapping("/alert/{id}/handle")
     public ApiResponse<Void> handleAlert(
             @Parameter(description = "预警ID") @PathVariable Long id,
@@ -208,36 +223,42 @@ public class VerificationController {
     // ==================== 实名认证 / 资质（KYC） ====================
 
     @Operation(summary = "实名认证台账分页（含到期提醒与资质判定）")
+    @SaCheckPermission("dms:verification:list")
     @GetMapping("/kyc/page")
     public ApiResponse<IPage<KycVO>> pageKyc(KycQueryDTO query) {
         return ApiResponse.success(kycService.page(query));
     }
 
     @Operation(summary = "实名认证详情（含证照明细）")
+    @SaCheckPermission("dms:verification:detail")
     @GetMapping("/kyc/{id}")
     public ApiResponse<KycVO> kycDetail(@Parameter(description = "台账ID") @PathVariable Long id) {
         return ApiResponse.success(kycService.detail(id));
     }
 
     @Operation(summary = "按配送员取实名认证（表单回填）")
+    @SaCheckPermission("dms:verification:detail")
     @GetMapping("/kyc/by-rider/{riderId}")
     public ApiResponse<KycVO> kycByRider(@Parameter(description = "配送员ID") @PathVariable Long riderId) {
         return ApiResponse.success(kycService.getByRiderId(riderId));
     }
 
     @Operation(summary = "证照核验分页（证照维度：到期清单 + 剩余天数）")
+    @SaCheckPermission("dms:verification:list")
     @GetMapping("/kyc/certificate/page")
     public ApiResponse<IPage<KycCertificateVO>> pageCertificates(CertQueryDTO query) {
         return ApiResponse.success(kycService.pageCertificates(query));
     }
 
     @Operation(summary = "提交实名认证 / 资质材料")
+    @SaCheckPermission("dms:verification:update")
     @PostMapping("/kyc/submit")
     public ApiResponse<Long> kycSubmit(@Valid @RequestBody KycSubmitDTO dto) {
         return ApiResponse.success(kycService.submit(dto));
     }
 
     @Operation(summary = "实名认证审核（审核人取登录态）")
+    @SaCheckPermission("dms:verification:update")
     @PostMapping("/kyc/{id}/audit")
     public ApiResponse<Void> kycAudit(
             @Parameter(description = "台账ID") @PathVariable Long id,
@@ -247,6 +268,7 @@ public class VerificationController {
     }
 
     @Operation(summary = "准入核验分页（人证 × 车证一屏：可否接单 / 可否出车 + 阻塞原因）")
+    @SaCheckPermission("dms:verification:list")
     @GetMapping("/onboarding/page")
     public ApiResponse<IPage<OnboardingCheckVO>> onboardingPage(
             @RequestParam(defaultValue = "1") int page,
@@ -257,6 +279,7 @@ public class VerificationController {
     }
 
     @Operation(summary = "骑手接单资质校验（无资质不接单）")
+    @SaCheckPermission("dms:verification:detail")
     @GetMapping("/kyc/eligibility/{riderId}")
     public ApiResponse<EligibilityVO> eligibility(@Parameter(description = "配送员ID") @PathVariable Long riderId) {
         return ApiResponse.success(kycService.eligibility(riderId));
@@ -265,12 +288,14 @@ public class VerificationController {
     // ==================== 扫描任务（手动触发，与定时任务同一实现） ====================
 
     @Operation(summary = "批量核验（真实扫描：绑定超时/异常滞留/人车分离）")
+    @SaCheckPermission("dms:verification:update")
     @PostMapping("/scan")
     public ApiResponse<ScanResultVO> scan() {
         return ApiResponse.success(verificationService.batchVerification());
     }
 
     @Operation(summary = "证照到期扫描（标注状态 + 产生到期预警）")
+    @SaCheckPermission("dms:verification:update")
     @PostMapping("/kyc/scan-expiry")
     public ApiResponse<Integer> scanExpiry(@RequestParam(required = false) Integer warnDays) {
         return ApiResponse.success(kycService.scanExpiry(warnDays));
@@ -279,12 +304,14 @@ public class VerificationController {
     // ==================== 下拉选项 ====================
 
     @Operation(summary = "当前登录人对应的配送员（司机端用：无需前端传 riderId）")
+    @SaCheckPermission("dms:verification:view")
     @GetMapping("/me/rider")
     public ApiResponse<DmsRider> myRider() {
         return ApiResponse.success(verificationService.currentRider());
     }
 
     @Operation(summary = "配送员下拉选项")
+    @SaCheckPermission("dms:verification:list")
     @GetMapping("/options/riders")
     public ApiResponse<List<Map<String, Object>>> riderOptions(@RequestParam(required = false) String keyword) {
         List<DmsRider> riders = riderMapper.selectList(new LambdaQueryWrapper<DmsRider>()
@@ -306,6 +333,7 @@ public class VerificationController {
     }
 
     @Operation(summary = "运力渠道下拉选项（外部平台背书方）")
+    @SaCheckPermission("dms:verification:list")
     @GetMapping("/options/channels")
     public ApiResponse<List<Map<String, Object>>> channelOptions() {
         List<DmsChannel> channels = channelMapper.selectList(new LambdaQueryWrapper<DmsChannel>()
@@ -328,6 +356,7 @@ public class VerificationController {
      * 台账导出：{@code tab = kyc | binding | alert | inspection}
      */
     @Operation(summary = "导出台账（真实 xlsx）")
+    @SaCheckPermission("dms:verification:export")
     @GetMapping("/export")
     public void export(@RequestParam(defaultValue = "kyc") String tab,
                        VerificationQueryDTO query,
@@ -410,6 +439,7 @@ public class VerificationController {
 
     /** 证照明细导出（独立于台账，便于资质归档） */
     @Operation(summary = "导出证照明细（真实 xlsx）")
+    @SaCheckPermission("dms:verification:export")
     @GetMapping("/kyc/certificates/export")
     public void exportCertificates(@RequestParam Long verificationId, HttpServletResponse response) throws IOException {
         KycVO detail = kycService.detail(verificationId);

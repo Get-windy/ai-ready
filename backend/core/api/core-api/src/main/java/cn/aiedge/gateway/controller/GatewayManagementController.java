@@ -8,6 +8,7 @@ import org.springframework.cloud.gateway.route.RouteDefinition;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 网关管理控制器
@@ -27,6 +28,7 @@ public class GatewayManagementController {
     /**
      * 获取所有路由定义
      */
+    @SaCheckPermission("system:gateway:view")
     @GetMapping("/routes")
     public Result<List<RouteDefinition>> getAllRoutes() {
         return Result.success(routeManagementService.getAllRoutes());
@@ -35,6 +37,7 @@ public class GatewayManagementController {
     /**
      * 添加路由
      */
+    @SaCheckPermission("system:gateway:create")
     @PostMapping("/route")
     public Result<Boolean> addRoute(@RequestBody RouteDefinition routeDefinition) {
         return Result.success(routeManagementService.addRoute(routeDefinition));
@@ -43,6 +46,7 @@ public class GatewayManagementController {
     /**
      * 删除路由
      */
+    @SaCheckPermission("system:gateway:delete")
     @DeleteMapping("/route/{id}")
     public Result<Boolean> deleteRoute(@PathVariable String id) {
         return Result.success(routeManagementService.deleteRoute(id));
@@ -51,6 +55,7 @@ public class GatewayManagementController {
     /**
      * 更新路由
      */
+    @SaCheckPermission("system:gateway:update")
     @PutMapping("/route")
     public Result<Boolean> updateRoute(@RequestBody RouteDefinition routeDefinition) {
         return Result.success(routeManagementService.updateRoute(routeDefinition));
@@ -59,6 +64,7 @@ public class GatewayManagementController {
     /**
      * 刷新路由
      */
+    @SaCheckPermission("system:gateway:update")
     @PostMapping("/routes/refresh")
     public Result<Boolean> refreshRoutes() {
         routeManagementService.refreshRoutes();
@@ -68,6 +74,7 @@ public class GatewayManagementController {
     /**
      * 获取网关统计信息
      */
+    @SaCheckPermission("system:gateway:view")
     @GetMapping("/stats")
     public Result<Object> getGatewayStats() {
         return Result.success(routeManagementService.getGatewayStats());

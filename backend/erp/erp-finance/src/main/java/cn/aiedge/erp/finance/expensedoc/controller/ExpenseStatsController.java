@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 费用统计 Controller（只读报表）
@@ -30,24 +31,28 @@ public class ExpenseStatsController {
     private final ExpenseStatsService expenseStatsService;
 
     @Operation(summary = "统计汇总（卡片 + 按类型/部门分组映射 + 月度趋势）")
+    @SaCheckPermission("finance:expense-stats:view")
     @GetMapping("/summary")
     public Result<ExpenseStatsSummaryVO> summary(ExpenseDocQuery query) {
         return Result.ok(expenseStatsService.getSummary(query));
     }
 
     @Operation(summary = "按部门分组统计明细（含占比/单均）")
+    @SaCheckPermission("finance:expense-stats:view")
     @GetMapping("/by-department")
     public Result<List<ExpenseStatsRowVO>> byDepartment(ExpenseDocQuery query) {
         return Result.ok(expenseStatsService.listByDepartment(query));
     }
 
     @Operation(summary = "按费用类型分组统计明细（含占比/单均）")
+    @SaCheckPermission("finance:expense-stats:view")
     @GetMapping("/by-type")
     public Result<List<ExpenseStatsRowVO>> byType(ExpenseDocQuery query) {
         return Result.ok(expenseStatsService.listByType(query));
     }
 
     @Operation(summary = "月度费用趋势")
+    @SaCheckPermission("finance:expense-stats:view")
     @GetMapping("/monthly-trend")
     public Result<List<ExpenseStatsTrendVO>> monthlyTrend(ExpenseDocQuery query) {
         return Result.ok(expenseStatsService.listMonthlyTrend(query));

@@ -58,6 +58,7 @@ public class ExpenseController {
     }
 
     @Operation(summary = "创建费用申请", description = "创建新的费用申请")
+    @SaCheckPermission("erp:expense:application:create")
     @PostMapping("/application")
     public ApiResponse<ExpenseApplicationDTO> createApplication(
             @Valid @RequestBody ExpenseRequest request) {
@@ -66,6 +67,7 @@ public class ExpenseController {
     }
 
     @Operation(summary = "更新费用申请", description = "更新费用申请信息")
+    @SaCheckPermission("erp:expense:application:edit")
     @PutMapping("/application/{id}")
     public ApiResponse<ExpenseApplicationDTO> updateApplication(
             @Parameter(description = "费用申请ID") @PathVariable Long id,
@@ -75,6 +77,7 @@ public class ExpenseController {
     }
 
     @Operation(summary = "删除费用申请", description = "删除指定的费用申请")
+    @SaCheckPermission("erp:expense:application:delete")
     @DeleteMapping("/application/{id}")
     public ApiResponse<Void> deleteApplication(
             @Parameter(description = "费用申请ID") @PathVariable Long id) {
@@ -83,6 +86,7 @@ public class ExpenseController {
     }
 
     @Operation(summary = "提交审批", description = "提交费用单进入审批流程")
+    @SaCheckPermission("erp:expense:application:submit")
     @PostMapping("/application/{id}/submit")
     public ApiResponse<ExpenseApplicationDTO> submitApplication(
             @Parameter(description = "费用申请ID") @PathVariable Long id) {
@@ -91,6 +95,7 @@ public class ExpenseController {
     }
 
     @Operation(summary = "撤回申请", description = "撤回已提交的费用申请")
+    @SaCheckPermission("erp:expense:application:edit")
     @PostMapping("/application/{id}/withdraw")
     public ApiResponse<ExpenseApplicationDTO> withdrawApplication(
             @Parameter(description = "费用申请ID") @PathVariable Long id) {
@@ -120,6 +125,7 @@ public class ExpenseController {
     }
 
     @Operation(summary = "统计汇总", description = "获取费用统计汇总数据")
+    @SaCheckPermission("erp:expense:statistics:list")
     @GetMapping("/statistics/summary")
     public ApiResponse<Map<String, Object>> getStatisticsSummary(
             @Parameter(description = "开始日期") @RequestParam(required = false)
@@ -134,6 +140,7 @@ public class ExpenseController {
     }
 
     @Operation(summary = "按部门统计", description = "获取按部门维度的费用统计")
+    @SaCheckPermission("erp:expense:statistics:list")
     @GetMapping("/statistics/by-department")
     public ApiResponse<Map<String, Object>> getStatisticsByDepartment(
             @Parameter(description = "开始日期") @RequestParam(required = false)
@@ -150,6 +157,7 @@ public class ExpenseController {
     }
 
     @Operation(summary = "按类型统计", description = "获取按费用类型维度的统计")
+    @SaCheckPermission("erp:expense:statistics:list")
     @GetMapping("/statistics/by-type")
     public ApiResponse<Map<String, Object>> getStatisticsByType(
             @Parameter(description = "开始日期") @RequestParam(required = false)
@@ -168,6 +176,7 @@ public class ExpenseController {
     // ========== 兼容旧路径端点 ==========
 
     @Operation(summary = "申请费用单", description = "创建新的费用申请（兼容旧路径）")
+    @SaCheckPermission("erp:expense:application:create")
     @PostMapping("/apply")
     public ApiResponse<ExpenseApplicationDTO> applyExpense(
             @Valid @RequestBody ExpenseRequest request) {
@@ -176,6 +185,7 @@ public class ExpenseController {
     }
 
     @Operation(summary = "获取费用单详情", description = "根据ID获取费用单详细信息（兼容旧路径）")
+    @SaCheckPermission("erp:expense:application:query")
     @GetMapping("/{id}")
     public ApiResponse<ExpenseApplicationDTO> getExpenseDetail(
             @Parameter(description = "费用单ID") @PathVariable Long id) {
@@ -184,6 +194,7 @@ public class ExpenseController {
     }
 
     @Operation(summary = "更新费用单", description = "更新费用单信息（兼容旧路径）")
+    @SaCheckPermission("erp:expense:application:edit")
     @PutMapping("/{id}")
     public ApiResponse<ExpenseApplicationDTO> updateExpense(
             @Parameter(description = "费用单ID") @PathVariable Long id,
@@ -193,6 +204,7 @@ public class ExpenseController {
     }
 
     @Operation(summary = "删除费用单", description = "删除指定的费用单（兼容旧路径）")
+    @SaCheckPermission("erp:expense:application:delete")
     @DeleteMapping("/{id}")
     public ApiResponse<Void> deleteExpense(
             @Parameter(description = "费用单ID") @PathVariable Long id) {
@@ -201,6 +213,7 @@ public class ExpenseController {
     }
 
     @Operation(summary = "审批通过", description = "审批人批准费用单")
+    @SaCheckPermission("erp:expense:approval:process")
     @PostMapping("/{id}/approve")
     public ApiResponse<ExpenseApplicationDTO> approveExpense(
             @Parameter(description = "费用单ID") @PathVariable Long id,
@@ -210,6 +223,7 @@ public class ExpenseController {
     }
 
     @Operation(summary = "审批拒绝", description = "审批人拒绝费用单")
+    @SaCheckPermission("erp:expense:approval:process")
     @PostMapping("/{id}/reject")
     public ApiResponse<ExpenseApplicationDTO> rejectExpense(
             @Parameter(description = "费用单ID") @PathVariable Long id,
@@ -219,6 +233,7 @@ public class ExpenseController {
     }
 
     @Operation(summary = "费用单列表", description = "获取费用单列表，支持分页和过滤（兼容旧路径）")
+    @SaCheckPermission("erp:expense:application:list")
     @GetMapping("/list")
     public ApiResponse<List<ExpenseApplicationDTO>> getExpenseList(
             @Parameter(description = "申请人ID") @RequestParam(required = false) String applicantId,
@@ -236,6 +251,7 @@ public class ExpenseController {
     }
 
     @Operation(summary = "费用统计", description = "获取费用统计数据（兼容旧路径）")
+    @SaCheckPermission("erp:expense:statistics:list")
     @GetMapping("/statistics")
     public ApiResponse<Map<String, Object>> getExpenseStatistics(
             @Parameter(description = "开始日期") @RequestParam(required = false)

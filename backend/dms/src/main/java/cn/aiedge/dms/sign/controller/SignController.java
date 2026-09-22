@@ -55,24 +55,28 @@ public class SignController {
     // ==================== 台账 ====================
 
     @Operation(summary = "签收台账分页（多条件）")
+    @SaCheckPermission("dms:sign:list")
     @GetMapping("/page")
     public ApiResponse<Page<SignVO>> page(SignQueryDTO query) {
         return ApiResponse.ok(signService.page(query));
     }
 
     @Operation(summary = "签收记录详情")
+    @SaCheckPermission("dms:sign:detail")
     @GetMapping("/detail/{id}")
     public ApiResponse<SignVO> detail(@Parameter(description = "签收记录ID") @PathVariable Long id) {
         return ApiResponse.ok(signService.detail(id));
     }
 
     @Operation(summary = "签收统计（签收率 / 超阈值率 / 拒收率）")
+    @SaCheckPermission("dms:sign:view")
     @GetMapping("/stat")
     public ApiResponse<SignStatVO> stat(SignQueryDTO query) {
         return ApiResponse.ok(signService.stat(query));
     }
 
     @Operation(summary = "导出签收台账（真实 xlsx）")
+    @SaCheckPermission("dms:sign:export")
     @GetMapping("/export")
     public void export(SignQueryDTO query, HttpServletResponse response) throws IOException {
         signService.export(query, response);
@@ -135,6 +139,7 @@ public class SignController {
     }
 
     @Operation(summary = "根据任务ID获取签收记录（取最新一条）")
+    @SaCheckPermission("dms:sign:detail")
     @GetMapping("/{taskId}")
     public ApiResponse<SignVO> getByTaskId(@Parameter(description = "任务ID") @PathVariable Long taskId) {
         return ApiResponse.ok(signService.getByTaskId(taskId));

@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @RestController
 @RequestMapping("/api/erp/customer/level")
@@ -20,6 +21,7 @@ public class CustomerLevelController {
     @Autowired
     private CustomerLevelService customerLevelService;
     
+    @SaCheckPermission("party:customer-level:list")
     @GetMapping("/list")
     @Operation(summary = "获取所有等级")
     public List<CustomerLevel> listAll() {
@@ -27,6 +29,7 @@ public class CustomerLevelController {
         return customerLevelService.listAll(tenantId);
     }
     
+    @SaCheckPermission("party:customer-level:list")
     @GetMapping("/list/enabled")
     @Operation(summary = "获取启用的等级")
     public List<CustomerLevel> listEnabled() {
@@ -34,6 +37,7 @@ public class CustomerLevelController {
         return customerLevelService.listEnabled(tenantId);
     }
     
+    @SaCheckPermission("party:customer-level:list")
     @GetMapping("/page")
     @Operation(summary = "分页查询等级")
     public Page<CustomerLevel> page(
@@ -47,12 +51,14 @@ public class CustomerLevelController {
         return customerLevelService.pageList(tenantId, levelName, levelCode, enabled, page);
     }
     
+    @SaCheckPermission("party:customer-level:detail")
     @GetMapping("/{id}")
     @Operation(summary = "获取等级详情")
     public CustomerLevel getById(@PathVariable Long id) {
         return customerLevelService.getById(id);
     }
     
+    @SaCheckPermission("party:customer-level:detail")
     @GetMapping("/code/{code}")
     @Operation(summary = "按编码获取等级")
     public CustomerLevel getByCode(@PathVariable String code) {
@@ -60,6 +66,7 @@ public class CustomerLevelController {
         return customerLevelService.getByCode(tenantId, code);
     }
     
+    @SaCheckPermission("party:customer-level:create")
     @PostMapping
     @Operation(summary = "创建等级")
     public boolean create(@RequestBody CustomerLevel level) {
@@ -68,6 +75,7 @@ public class CustomerLevelController {
         return customerLevelService.createLevel(level);
     }
     
+    @SaCheckPermission("party:customer-level:update")
     @PutMapping("/{id}")
     @Operation(summary = "更新等级")
     public boolean update(@PathVariable Long id, @RequestBody CustomerLevel level) {
@@ -75,6 +83,7 @@ public class CustomerLevelController {
         return customerLevelService.updateLevel(level);
     }
     
+    @SaCheckPermission("party:customer-level:delete")
     @DeleteMapping("/{id}")
     @Operation(summary = "删除等级")
     public boolean delete(@PathVariable Long id) {
@@ -82,6 +91,7 @@ public class CustomerLevelController {
         return customerLevelService.deleteLevel(tenantId, id);
     }
     
+    @SaCheckPermission("party:customer-level:update")
     @PutMapping("/{id}/enable")
     @Operation(summary = "启用等级")
     public boolean enable(@PathVariable Long id) {
@@ -89,6 +99,7 @@ public class CustomerLevelController {
         return customerLevelService.enableLevel(tenantId, id);
     }
     
+    @SaCheckPermission("party:customer-level:update")
     @PutMapping("/{id}/disable")
     @Operation(summary = "停用等级")
     public boolean disable(@PathVariable Long id) {
@@ -96,6 +107,7 @@ public class CustomerLevelController {
         return customerLevelService.disableLevel(tenantId, id);
     }
     
+    @SaCheckPermission("party:customer-level:view")
     @PostMapping("/calculate")
     @Operation(summary = "计算客户等级")
     public CustomerLevel calculateLevel(
@@ -106,6 +118,7 @@ public class CustomerLevelController {
         return customerLevelService.calculateCustomerLevel(tenantId, totalAmount, frequency, paymentRate);
     }
     
+    @SaCheckPermission("party:customer-level:assign")
     @PostMapping("/assign/{customerId}")
     @Operation(summary = "为客户分配等级")
     public boolean assignLevel(@PathVariable Long customerId) {

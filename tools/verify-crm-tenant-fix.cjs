@@ -2,11 +2,18 @@
 /**
  * CRM-BREAK-02 专项验证（2026-09-21）
  *
- * 覆盖两处修复，**拒绝路径与放行路径都测**：
+ * 覆盖三件事，**拒绝路径与放行路径都测**：
  *   ① 新建单据不再硬编码 `tenant_id = 1` —— 用**租户 2 的账号**建合同，
  *      落库租户必须是 2（修复前恒为 1，即"租户 2 建的合同出现在租户 1"）。
  *   ② `RuntimeException` → `BusinessException.notFound` —— 查不存在的单据应是
  *      **404「合同不存在」**，而不是 500「系统异常，请稍后重试」。
+ *   ③ E-01 crm 批次的注解生效性：本账号有 `crm:contract:create/view`（① 能过）、
+ *      未授 `crm:contract:approve`（必须 403）—— 同一控制器上双向都成立。
+ *
+ * <p><b>前置（本脚本依赖，属测试夹具不在迁移里）</b>：E2E 账号 `e2e_hr_t2` 的角色
+ * `E2E_T2_ADMIN` 需持有 `crm:contract:create` 与 `crm:contract:view`。
+ * E-01 补注解后这两个码若不授予，本脚本 ① 会变 403 —— 那是**预期行为**
+ * （补注解后租户角色必须被显式授权），不是脚本坏了。</p>
  *
  * 用法：
  *   node tools/verify-crm-tenant-fix.cjs
@@ -131,6 +138,17 @@ async function login(user) {
     ok('【拒绝路径】文案是业务文案而非兜底文案',
       /合同不存在/.test(missing.json?.message || '') && !/系统异常/.test(missing.json?.message || ''),
       `message=${missing.json?.message || ''}`)
+
+    // ══ ③ 注解生效的双向证据（E-01 crm 批次，2026-09-21）══
+    // 本账号有 create/view 两个契约码（放行，见 ①②），但没有 approve
+    // ⇒ 同一个控制器上「有码放行 / 无码被拒」都成立，才说明注解真的长在方法上。
+    section('③ E-01 注解生效：本账号有 create/view、没有 approve')
+    const approve = await req('POST',
+      `/crm/contract/${id}/approve?note=probe`, { token: t2Token })
+    ok('【拒绝路径】未授的 crm:contract:approve → 403',
+      approve.status === 403, `status=${approve.status} ${approve.json?.message || ''}`)
+    ok('【拒绝路径】是权限拒绝文案（不是 500/404 之类被业务逻辑挡下）',
+      /无权限访问/.test(approve.json?.message || ''), `message=${approve.json?.message || ''}`)
   } finally {
     if (probeId) {
       deleteProbe(probeId)

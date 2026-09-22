@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 弹窗广告管理（管理后台）
@@ -23,6 +24,7 @@ public class MallAdminPopupAdController {
 
     private final MallPopupAdService mallPopupAdService;
 
+    @SaCheckPermission("mall:popup-ad:list")
     @GetMapping("/page")
     @Operation(summary = "分页查询弹窗广告")
     public Result<IPage<MallPopupAd>> page(
@@ -50,12 +52,14 @@ public class MallAdminPopupAdController {
         return Result.ok(mallPopupAdService.page(page, wrapper));
     }
 
+    @SaCheckPermission("mall:popup-ad:detail")
     @GetMapping("/{id}")
     @Operation(summary = "查询弹窗广告详情")
     public Result<MallPopupAd> getById(@PathVariable Long id) {
         return Result.ok(mallPopupAdService.getById(id));
     }
 
+    @SaCheckPermission("mall:popup-ad:create")
     @PostMapping
     @Operation(summary = "创建弹窗广告")
     public Result<Void> create(@RequestBody MallPopupAd popupAd) {
@@ -66,6 +70,7 @@ public class MallAdminPopupAdController {
         return Result.ok();
     }
 
+    @SaCheckPermission("mall:popup-ad:update")
     @PutMapping("/{id}")
     @Operation(summary = "更新弹窗广告")
     public Result<Void> update(@PathVariable Long id, @RequestBody MallPopupAd popupAd) {
@@ -76,6 +81,7 @@ public class MallAdminPopupAdController {
         return Result.ok();
     }
 
+    @SaCheckPermission("mall:popup-ad:delete")
     @DeleteMapping("/{id}")
     @Operation(summary = "删除弹窗广告")
     public Result<Void> delete(@PathVariable Long id) {
@@ -83,6 +89,7 @@ public class MallAdminPopupAdController {
         return Result.ok();
     }
 
+    @SaCheckPermission("mall:popup-ad:publish")
     @PostMapping("/{id}/publish")
     @Operation(summary = "发布弹窗广告（草稿→投放中）")
     public Result<Void> publish(@PathVariable Long id) {
@@ -90,6 +97,7 @@ public class MallAdminPopupAdController {
         return Result.ok();
     }
 
+    @SaCheckPermission("mall:popup-ad:update")
     @PostMapping("/{id}/offline")
     @Operation(summary = "下线弹窗广告（投放中→已下架）")
     public Result<Void> offline(@PathVariable Long id) {

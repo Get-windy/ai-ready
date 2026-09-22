@@ -19,6 +19,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 数据导入控制器
@@ -41,6 +42,7 @@ public class DataImportController {
     /**
      * 导入Excel文件
      */
+    @SaCheckPermission("system:import:create")
     @PostMapping("/excel/{dataType}")
     @Operation(summary = "导入Excel文件", description = "上传Excel文件并导入数据")
     public ResponseEntity<Map<String, Object>> importExcel(
@@ -78,6 +80,7 @@ public class DataImportController {
     /**
      * 导入CSV文件
      */
+    @SaCheckPermission("system:import:create")
     @PostMapping("/csv/{dataType}")
     @Operation(summary = "导入CSV文件", description = "上传CSV文件并导入数据")
     public ResponseEntity<Map<String, Object>> importCsv(
@@ -115,6 +118,7 @@ public class DataImportController {
     /**
      * 预览导入数据
      */
+    @SaCheckPermission("system:import:view")
     @PostMapping("/preview/{dataType}")
     @Operation(summary = "预览导入数据", description = "预览文件前N行数据，不执行导入")
     public ResponseEntity<Map<String, Object>> preview(
@@ -138,6 +142,7 @@ public class DataImportController {
     /**
      * 校验导入数据
      */
+    @SaCheckPermission("system:import:check")
     @PostMapping("/validate/{dataType}")
     @Operation(summary = "校验导入数据", description = "校验文件数据是否符合规则")
     public ResponseEntity<Map<String, Object>> validate(
@@ -168,6 +173,7 @@ public class DataImportController {
     /**
      * 获取字段定义
      */
+    @SaCheckPermission("system:import:detail")
     @GetMapping("/fields/{dataType}")
     @Operation(summary = "获取字段定义", description = "获取指定数据类型的导入字段定义")
     public ResponseEntity<Map<String, Object>> getFieldDefinitions(
@@ -186,6 +192,7 @@ public class DataImportController {
     /**
      * 获取支持的数据类型
      */
+    @SaCheckPermission("system:import:view")
     @GetMapping("/datatypes")
     @Operation(summary = "获取支持的数据类型", description = "获取系统支持的所有导入数据类型")
     public ResponseEntity<Map<String, Object>> getSupportedDataTypes() {
@@ -206,6 +213,7 @@ public class DataImportController {
     /**
      * 下载导入模板
      */
+    @SaCheckPermission("system:import:detail")
     @GetMapping("/template/{dataType}")
     @Operation(summary = "下载导入模板", description = "下载指定数据类型的导入模板文件")
     public void downloadTemplate(

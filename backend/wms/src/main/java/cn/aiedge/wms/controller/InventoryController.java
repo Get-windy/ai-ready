@@ -18,6 +18,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @Validated
@@ -30,6 +31,7 @@ public class InventoryController {
     private final InventoryService inventoryService;
 
     @Operation(summary = "查询库存（唯一键）")
+    @SaCheckPermission("wms:inventory:view")
     @GetMapping("/query")
     public Result<WmsInventory> query(@RequestParam @NotNull Long productId,
                                       @RequestParam @NotNull Long warehouseId,
@@ -39,12 +41,14 @@ public class InventoryController {
     }
 
     @Operation(summary = "分页查询库存列表")
+    @SaCheckPermission("wms:inventory:list")
     @GetMapping("/page")
     public Result<Page<WmsInventory>> page(@Valid Page<WmsInventory> page, WmsInventory query) {
         return Result.ok(inventoryService.pageInventory(page, query));
     }
 
     @Operation(summary = "查询商品在仓库下的可用库存批次列表（按批次拣选）")
+    @SaCheckPermission("wms:inventory:view")
     @GetMapping("/batch-list")
     public Result<java.util.List<WmsInventory>> batchList(@RequestParam @NotNull Long productId,
                                                           @RequestParam @NotNull Long warehouseId) {
@@ -52,12 +56,14 @@ public class InventoryController {
     }
 
     @Operation(summary = "分页查询库存流水")
+    @SaCheckPermission("wms:inventory:list")
     @GetMapping("/log/page")
     public Result<Page<WmsInventoryLog>> logPage(@Valid Page<WmsInventoryLog> page, WmsInventoryLog query) {
         return Result.ok(inventoryService.pageLog(page, query));
     }
 
     @Operation(summary = "增加库存")
+    @SaCheckPermission("wms:inventory:update")
     @PostMapping("/increase")
     public Result<String> increase(@Valid @RequestBody StockChangeRequest request) {
         inventoryService.increase(
@@ -71,6 +77,7 @@ public class InventoryController {
     }
 
     @Operation(summary = "减少库存")
+    @SaCheckPermission("wms:inventory:update")
     @PostMapping("/decrease")
     public Result<String> decrease(@Valid @RequestBody StockChangeRequest request) {
         inventoryService.decrease(
@@ -84,6 +91,7 @@ public class InventoryController {
     }
 
     @Operation(summary = "冻结库存")
+    @SaCheckPermission("wms:inventory:freeze")
     @PostMapping("/freeze")
     public Result<String> freeze(@Valid @RequestBody FreezeRequest request) {
         inventoryService.freeze(
@@ -97,6 +105,7 @@ public class InventoryController {
     }
 
     @Operation(summary = "解冻库存")
+    @SaCheckPermission("wms:inventory:release")
     @PostMapping("/unfreeze")
     public Result<String> unfreeze(@Valid @RequestBody FreezeRequest request) {
         inventoryService.unfreeze(
@@ -110,6 +119,7 @@ public class InventoryController {
     }
 
     @Operation(summary = "移库（库存转移）")
+    @SaCheckPermission("wms:inventory:update")
     @PostMapping("/move")
     public Result<String> move(@Valid @RequestBody MoveRequest request) {
         inventoryService.move(

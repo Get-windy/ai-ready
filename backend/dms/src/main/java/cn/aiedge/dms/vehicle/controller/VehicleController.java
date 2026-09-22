@@ -68,6 +68,7 @@ public class VehicleController {
     // ==================== 查询 ====================
 
     @Operation(summary = "分页查询车辆（多条件）")
+    @SaCheckPermission("dms:vehicle:list")
     @GetMapping("/page")
     @SaCheckLogin
     public ApiResponse<Page<VehicleDTO>> page(VehicleQueryDTO query) {
@@ -75,6 +76,7 @@ public class VehicleController {
     }
 
     @Operation(summary = "车辆下拉选项（调度指派 / 人车绑定 / 线路共用，排除已报废）")
+    @SaCheckPermission("dms:vehicle:list")
     @GetMapping("/options")
     @SaCheckLogin
     public ApiResponse<List<VehicleDTO>> options() {
@@ -82,6 +84,7 @@ public class VehicleController {
     }
 
     @Operation(summary = "生成下一个车辆编码")
+    @SaCheckPermission("dms:vehicle:view")
     @GetMapping("/next-code")
     @SaCheckLogin
     public ApiResponse<String> nextCode() {
@@ -89,6 +92,7 @@ public class VehicleController {
     }
 
     @Operation(summary = "证件到期清单（保险 / 年检 / 营运证三证统一视图）")
+    @SaCheckPermission("dms:vehicle:view")
     @GetMapping("/expiring")
     @SaCheckLogin
     public ApiResponse<List<VehicleCertExpiryVO>> expiring(
@@ -98,6 +102,7 @@ public class VehicleController {
     }
 
     @Operation(summary = "导出车辆（真实 xlsx）")
+    @SaCheckPermission("dms:vehicle:export")
     @GetMapping("/export")
     @SaCheckLogin
     public void export(VehicleQueryDTO query, HttpServletResponse response) throws IOException {
@@ -154,6 +159,7 @@ public class VehicleController {
     }
 
     @Operation(summary = "获取车辆详情")
+    @SaCheckPermission("dms:vehicle:detail")
     @GetMapping("/{id}")
     @SaCheckLogin
     public ApiResponse<VehicleDTO> getDetail(@Parameter(description = "车辆ID") @PathVariable Long id) {
@@ -228,6 +234,7 @@ public class VehicleController {
     }
 
     @Operation(summary = "绑定/解绑流水")
+    @SaCheckPermission("dms:vehicle:view")
     @GetMapping("/{id}/binding-history")
     @SaCheckLogin
     public ApiResponse<List<DmsRiderVehicleBinding>> bindingHistory(@Parameter(description = "车辆ID") @PathVariable Long id) {
@@ -244,6 +251,7 @@ public class VehicleController {
     }
 
     @Operation(summary = "待保养/证件到期提醒列表")
+    @SaCheckPermission("dms:vehicle:view")
     @GetMapping("/maintenance-due")
     @SaCheckLogin
     public ApiResponse<Page<VehicleDTO>> maintenanceDue(

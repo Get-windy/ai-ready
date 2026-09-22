@@ -251,6 +251,7 @@ public class TenantController {
     /**
      * 更新租户配置（占位）
      */
+    @SaCheckPermission("system:tenant:update")
     @PutMapping("/{id}/config")
     @Operation(summary = "更新租户配置")
     public Result<Boolean> updateConfig(@PathVariable Long id, @RequestBody Map<String, Object> config) {

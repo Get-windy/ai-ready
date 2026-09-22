@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 模块目录（13 条）与「模块 → 权限码」映射的完整性验证。
+ * 模块目录（14 条）与「模块 → 权限码」映射的完整性验证。
  *
  * 背景：授权是**两层** —— ① 模块授权（平台方决定某租户有没有这个模块）；
  * ② 权限（租户内管理员决定某角色能不能做某件事）。两层之间的桥是
@@ -8,13 +8,13 @@
  * entitlement 拦截就会"按模块关掉一批接口"却说不清关掉了哪些 —— 故必须能对账。
  *
  * 本脚本核对六件事（全部从真库读，不采信迁移注释）：
- *   ① 模块目录 = 13 条，且 `crm` 已改名「客户服务」、`warehouse` 描述已收窄；
+ *   ① 模块目录 = 14 条（2026-09-22 新增「协议」），且 `crm` 已改名「客户服务」、`warehouse` 描述已收窄；
  *   ② 映射表里每个 module_code 都真实存在于 sys_module（防拼错模块码）；
  *   ③ **100% 覆盖**：在役的 type<>1 权限码，每一条都能被某个前缀接住（不许有"(未归属)"）；
  *   ④ 归属判定**确定**：按「最长前缀优先、同长取 sort 小」解析时，不存在歧义并列；
  *   ⑤ `analytics` 映射到的码数 **必须是 0** —— 这是**已知缺口**（分析模块整域还没有码族，
  *      见 E-08），断言为 0 是为了让"将来补了码族"或"有人误删了别的模块的码"都能被发现；
- *   ⑥ 既有租户的开通记录覆盖全部 13 个模块（迁移按"现状不降级"回填）。
+ *   ⑥ 既有租户的开通记录覆盖全部 14 个模块（迁移按"现状不降级"回填）。
  *
  * 用法：node tools/verify-module-mapping.cjs
  */
@@ -34,6 +34,7 @@ const EXPECTED_MODULES = {
   'trade': '交易',
   'dms': '配送',
   'hr': '人力资源',
+  'agreement': '协议',      // 2026-09-22 新增（独立 Maven 模块 backend/agreement）
   'analytics': '分析',
   'settings': '设置',
   'system': '系统',
@@ -59,10 +60,10 @@ const N = (stmt) => Number(one(stmt))
 
 ;(async () => {
   try {
-    section('① 模块目录 = 13 条，改名/收窄已生效')
+    section('① 模块目录 = 14 条，改名/收窄已生效')
     const mods = rowsOf(`SELECT module_code, module_name FROM sys_module WHERE deleted = 0 ORDER BY sort_order`)
     const got = Object.fromEntries(mods)
-    ok(`模块目录共 13 条`, mods.length === 13, `实际 ${mods.length} 条`)
+    ok(`模块目录共 14 条`, mods.length === 14, `实际 ${mods.length} 条`)
     for (const [code, name] of Object.entries(EXPECTED_MODULES)) {
       ok(`模块 ${code} = 「${name}」`, got[code] === name, `实际「${got[code] || '缺失'}」`)
     }
@@ -129,10 +130,10 @@ const N = (stmt) => Number(one(stmt))
       `实际开通租户 = ${JSON.stringify(sysTenants)}`)
 
     const t1 = N(`SELECT count(*) FROM sys_tenant_module WHERE tenant_id = 1 AND deleted = 0`)
-    ok('系统租户(1) 拥有全部 13 个模块', t1 === 13, `实际 ${t1} 条`)
+    ok('系统租户(1) 拥有全部 14 个模块', t1 === 14, `实际 ${t1} 条`)
 
     const t2 = N(`SELECT count(*) FROM sys_tenant_module WHERE tenant_id = 2 AND deleted = 0`)
-    ok('业务租户(2) 拥有 12 个模块（13 减去平台级「系统」）', t2 === 12, `实际 ${t2} 条`)
+    ok('业务租户(2) 拥有 13 个模块（14 减去平台级「系统」）', t2 === 13, `实际 ${t2} 条`)
 
     const t2Settings = N(`SELECT count(*) FROM sys_tenant_module
       WHERE tenant_id = 2 AND module_code = 'settings' AND deleted = 0`)

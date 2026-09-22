@@ -44,6 +44,7 @@ public class RiderController {
     private final RiderService riderService;
 
     @Operation(summary = "多条件分页查询配送员")
+    @SaCheckPermission("dms:rider:list")
     @GetMapping("/page")
     @SaCheckLogin
     public ApiResponse<Page<RiderVO>> page(RiderQuery query) {
@@ -51,6 +52,7 @@ public class RiderController {
     }
 
     @Operation(summary = "配送员列表（不分页，导出/兼容旧调用）")
+    @SaCheckPermission("dms:rider:list")
     @GetMapping("/list")
     @SaCheckLogin
     public ApiResponse<List<RiderVO>> list(RiderQuery query) {
@@ -58,6 +60,7 @@ public class RiderController {
     }
 
     @Operation(summary = "配送员选择器数据源")
+    @SaCheckPermission("dms:rider:list")
     @GetMapping("/options")
     @SaCheckLogin
     public ApiResponse<List<Map<String, Object>>> options(
@@ -67,6 +70,7 @@ public class RiderController {
     }
 
     @Operation(summary = "生成下一个配送员编号")
+    @SaCheckPermission("dms:rider:view")
     @GetMapping("/next-code")
     @SaCheckLogin
     public ApiResponse<String> nextCode() {
@@ -74,6 +78,7 @@ public class RiderController {
     }
 
     @Operation(summary = "获取配送员详情")
+    @SaCheckPermission("dms:rider:detail")
     @GetMapping("/{id}")
     @SaCheckLogin
     public ApiResponse<RiderVO> getDetail(@Parameter(description = "配送员ID") @PathVariable Long id) {
@@ -129,6 +134,7 @@ public class RiderController {
     }
 
     @Operation(summary = "位置上报（配送员端调用）")
+    @SaCheckPermission("dms:rider:update")
     @PostMapping("/location")
     @SaCheckLogin
     public ApiResponse<Void> reportLocation(@Parameter(description = "位置信息") @RequestBody LocationRequest request) {
@@ -152,6 +158,7 @@ public class RiderController {
     }
 
     @Operation(summary = "下载配送员导入模板")
+    @SaCheckPermission("dms:rider:view")
     @GetMapping("/import-template")
     @SaCheckLogin
     public void importTemplate(HttpServletResponse response) throws IOException {
@@ -214,6 +221,7 @@ public class RiderController {
     }
 
     @Operation(summary = "导出配送员（真实 xlsx）")
+    @SaCheckPermission("dms:rider:export")
     @GetMapping("/export")
     @SaCheckLogin
     public void export(RiderQuery query, HttpServletResponse response) throws IOException {

@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 配送仪表盘控制器
@@ -43,6 +44,7 @@ public class DashboardController {
     private final DashboardService dashboardService;
 
     @Operation(summary = "KPI 聚合（运力规模 / 单量结构 / 时效 / 金额 / 待办计数）")
+    @SaCheckPermission("dms:dashboard:view")
     @GetMapping("/stats")
     public ApiResponse<DashboardStatsVO> stats(
             @Parameter(description = "时间范围：today/yesterday/last7/last30/month/custom")
@@ -58,6 +60,7 @@ public class DashboardController {
     }
 
     @Operation(summary = "活跃人车绑定（绑定中，分页）")
+    @SaCheckPermission("dms:dashboard:view")
     @GetMapping("/active-bindings")
     public ApiResponse<IPage<DmsRiderVehicleBinding>> activeBindings(
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") int page,
@@ -66,6 +69,7 @@ public class DashboardController {
     }
 
     @Operation(summary = "人车核验预警（默认未处理，分页）")
+    @SaCheckPermission("dms:dashboard:view")
     @GetMapping("/pending-alerts")
     public ApiResponse<IPage<DmsVerificationAlert>> pendingAlerts(
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") int page,
@@ -76,6 +80,7 @@ public class DashboardController {
     }
 
     @Operation(summary = "任务状态分布（9 态全量，区间无数据补 0）")
+    @SaCheckPermission("dms:dashboard:view")
     @GetMapping("/task-summary")
     public ApiResponse<List<TaskSummaryItemVO>> taskSummary(
             @RequestParam(defaultValue = "today") String range,
@@ -87,6 +92,7 @@ public class DashboardController {
     }
 
     @Operation(summary = "单量时效趋势（按日，缺失日期补 0）")
+    @SaCheckPermission("dms:dashboard:view")
     @GetMapping("/trend")
     public ApiResponse<List<TrendPointVO>> trend(
             @RequestParam(defaultValue = "today") String range,
@@ -100,6 +106,7 @@ public class DashboardController {
     }
 
     @Operation(summary = "配送员绩效 Top（单量/完成量/准时率/时长/评分）")
+    @SaCheckPermission("dms:dashboard:view")
     @GetMapping("/top-riders")
     public ApiResponse<List<TopRiderVO>> topRiders(
             @RequestParam(defaultValue = "today") String range,
@@ -113,6 +120,7 @@ public class DashboardController {
     }
 
     @Operation(summary = "任务分布（by=channel 按渠道 / by=orderType 按订单类型）")
+    @SaCheckPermission("dms:dashboard:view")
     @GetMapping("/distribution")
     public ApiResponse<List<DistributionItemVO>> distribution(
             @Parameter(description = "分布维度：channel / orderType")

@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @RestController
 @RequestMapping("/api/import")
@@ -24,6 +25,7 @@ public class BatchImportController {
 
     private final BatchImportService batchImportService;
 
+    @SaCheckPermission("system:import:create")
     @PostMapping("/upload")
     @Operation(summary = "上传导入文件")
     public ResponseEntity<Map<String, Object>> uploadImportFile(
@@ -41,6 +43,7 @@ public class BatchImportController {
         ));
     }
 
+    @SaCheckPermission("system:import:detail")
     @GetMapping("/progress/{taskId}")
     @Operation(summary = "获取导入进度")
     public ResponseEntity<BatchImportService.ImportProgress> getProgress(@PathVariable String taskId) {
@@ -51,6 +54,7 @@ public class BatchImportController {
         return ResponseEntity.ok(progress);
     }
 
+    @SaCheckPermission("system:import:update")
     @PostMapping("/cancel/{taskId}")
     @Operation(summary = "取消导入任务")
     public ResponseEntity<Map<String, Object>> cancelTask(@PathVariable String taskId) {
@@ -61,6 +65,7 @@ public class BatchImportController {
         ));
     }
 
+    @SaCheckPermission("system:import:detail")
     @GetMapping("/template/{dataType}")
     @Operation(summary = "下载导入模板")
     public void downloadTemplate(@PathVariable String dataType, HttpServletResponse response) throws Exception {
@@ -75,12 +80,14 @@ public class BatchImportController {
         response.getOutputStream().flush();
     }
 
+    @SaCheckPermission("system:import:view")
     @GetMapping("/template/{dataType}/config")
     @Operation(summary = "获取模板配置")
     public ResponseEntity<BatchImportService.ImportTemplate> getTemplateConfig(@PathVariable String dataType) {
         return ResponseEntity.ok(batchImportService.getTemplate(dataType));
     }
 
+    @SaCheckPermission("system:import:view")
     @GetMapping("/datatypes")
     @Operation(summary = "获取支持的数据类型")
     public ResponseEntity<Map<String, String>> getSupportedDataTypes() {

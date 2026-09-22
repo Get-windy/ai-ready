@@ -126,12 +126,18 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
     @Override
     public Page<SaleOrderListDTO> pageOrders(Page<SaleOrder> page, Long tenantId, String orderNo,
                                               Long customerId, Integer status, String startDate, String endDate) {
-        LambdaQueryWrapper<SaleOrder> wrapper = buildQueryWrapper(tenantId, Map.of(
-                "orderNo", orderNo != null ? orderNo : "",
-                "customerId", customerId, "status", status,
-                "startDate", startDate != null ? startDate : "",
-                "endDate", endDate != null ? endDate : ""
-        ));
+        // ⚠️ 这里**不能**用 `Map.of(...)`：`Map.of` 对 null 值直接抛 NPE，
+        // 而 customerId / status 是可选筛选条件（不传就是 null）⇒
+        // **不带这两个参数查订单列表必然 500**（2026-09-22 实机踩到：
+        // 无参 `GET /api/erp/sale/order/page` → NPE at 本方法）。
+        // 改用允许 null 的 HashMap；下游 buildQueryWrapper 本就是 `get(...) != null` 判空。
+        Map<String, Object> filters = new HashMap<>();
+        filters.put("orderNo", orderNo != null ? orderNo : "");
+        filters.put("customerId", customerId);
+        filters.put("status", status);
+        filters.put("startDate", startDate != null ? startDate : "");
+        filters.put("endDate", endDate != null ? endDate : "");
+        LambdaQueryWrapper<SaleOrder> wrapper = buildQueryWrapper(tenantId, filters);
         wrapper.orderByDesc(SaleOrder::getCreateTime);
 
         Page<SaleOrder> result = page(page, wrapper);

@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 以销定购控制器
@@ -35,6 +36,7 @@ public class SalesDrivenController {
      * 以销定购-销售订单列表分页（42列 + 订金 + 是否已采购）
      */
     @Operation(summary = "以销定购列表")
+    @SaCheckPermission("purchase:sales-driven:list")
     @GetMapping("/page")
     public ApiResponse<Page<SalesDrivenRowDTO>> page(SalesDrivenQueryDTO query) {
         return ApiResponse.ok(salesDrivenService.page(query));
@@ -44,6 +46,7 @@ public class SalesDrivenController {
      * 采购成品：按销售订单商品生成采购订单并提交
      */
     @Operation(summary = "采购成品")
+    @SaCheckPermission("purchase:sales-driven:update")
     @PostMapping("/{id}/purchase-finished")
     public ApiResponse<SalesDrivenPurchaseResult> purchaseFinished(@PathVariable Long id) {
         return ApiResponse.ok(salesDrivenService.purchase(id, SalesDrivenService.MODE_FINISHED));
@@ -53,6 +56,7 @@ public class SalesDrivenController {
      * 采购原料：按销售订单商品 BOM 拆解原料生成采购订单并提交
      */
     @Operation(summary = "采购原料")
+    @SaCheckPermission("purchase:sales-driven:update")
     @PostMapping("/{id}/purchase-material")
     public ApiResponse<SalesDrivenPurchaseResult> purchaseMaterial(@PathVariable Long id) {
         return ApiResponse.ok(salesDrivenService.purchase(id, SalesDrivenService.MODE_MATERIAL));

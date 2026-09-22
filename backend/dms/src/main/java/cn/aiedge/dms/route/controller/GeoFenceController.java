@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 电子围栏档案控制器（配送 → 配送路线 → 路线规划 → 围栏管理）
@@ -32,36 +33,42 @@ public class GeoFenceController {
     private final GeoFenceService geoFenceService;
 
     @Operation(summary = "围栏分页查询")
+    @SaCheckPermission("dms:route-fence:list")
     @GetMapping("/page")
     public ApiResponse<Page<GeoFenceDTO>> page(GeoFenceQueryDTO query) {
         return ApiResponse.success(geoFenceService.page(query));
     }
 
     @Operation(summary = "围栏详情")
+    @SaCheckPermission("dms:route-fence:detail")
     @GetMapping("/{id}")
     public ApiResponse<GeoFenceDTO> detail(@Parameter(description = "围栏ID") @PathVariable Long id) {
         return ApiResponse.success(geoFenceService.detail(id));
     }
 
     @Operation(summary = "生成下一个围栏编码")
+    @SaCheckPermission("dms:route-fence:view")
     @GetMapping("/next-code")
     public ApiResponse<String> nextCode() {
         return ApiResponse.success(geoFenceService.nextCode());
     }
 
     @Operation(summary = "启用围栏下拉（供线路/渠道绑定）")
+    @SaCheckPermission("dms:route-fence:list")
     @GetMapping("/options")
     public ApiResponse<List<GeoFenceDTO>> options() {
         return ApiResponse.success(geoFenceService.options());
     }
 
     @Operation(summary = "新增围栏")
+    @SaCheckPermission("dms:route-fence:create")
     @PostMapping
     public ApiResponse<GeoFenceDTO> create(@RequestBody GeoFenceDTO dto) {
         return ApiResponse.success(geoFenceService.create(dto));
     }
 
     @Operation(summary = "修改围栏")
+    @SaCheckPermission("dms:route-fence:update")
     @PutMapping("/{id}")
     public ApiResponse<GeoFenceDTO> update(@Parameter(description = "围栏ID") @PathVariable Long id,
                                            @RequestBody GeoFenceDTO dto) {
@@ -69,6 +76,7 @@ public class GeoFenceController {
     }
 
     @Operation(summary = "删除围栏")
+    @SaCheckPermission("dms:route-fence:delete")
     @DeleteMapping("/{id}")
     public ApiResponse<Void> remove(@Parameter(description = "围栏ID") @PathVariable Long id) {
         geoFenceService.remove(id);
@@ -76,6 +84,7 @@ public class GeoFenceController {
     }
 
     @Operation(summary = "启用 / 停用围栏")
+    @SaCheckPermission("dms:route-fence:status")
     @PutMapping("/{id}/status")
     public ApiResponse<GeoFenceDTO> updateStatus(@Parameter(description = "围栏ID") @PathVariable Long id,
                                                  @Parameter(description = "状态 ENABLED/DISABLED") @RequestParam String status) {

@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @Validated
@@ -27,6 +28,7 @@ public class PdaPickController {
     private final PickService pickService;
 
     @Operation(summary = "获取拣货任务列表")
+    @SaCheckPermission("wms:pick:view")
     @GetMapping
     public Result<List<WmsPickTask>> list() {
         Page<WmsPickTask> page = pickService.pageTask(
@@ -35,6 +37,7 @@ public class PdaPickController {
     }
 
     @Operation(summary = "获取拣货任务详情")
+    @SaCheckPermission("wms:pick:detail")
     @GetMapping("/{id}")
     public Result<WmsPickTask> detail(@PathVariable @NotNull Long id) {
         WmsPickTask task = pickService.getTaskById(id);
@@ -43,6 +46,7 @@ public class PdaPickController {
     }
 
     @Operation(summary = "扫描商品验证")
+    @SaCheckPermission("wms:pick:confirm")
     @PostMapping("/{id}/verify")
     public Result<Map<String, Object>> verify(@PathVariable @NotNull Long id,
                                               @RequestBody Map<String, Object> body) {
@@ -52,6 +56,7 @@ public class PdaPickController {
     }
 
     @Operation(summary = "确认拣货数量")
+    @SaCheckPermission("wms:pick:update")
     @PutMapping("/item/{itemId}")
     public Result<Void> confirmItem(@PathVariable @NotNull Long itemId,
                                     @RequestBody Map<String, Object> body) {
@@ -62,6 +67,7 @@ public class PdaPickController {
     }
 
     @Operation(summary = "完成拣货")
+    @SaCheckPermission("wms:pick:complete")
     @PutMapping("/{id}/complete")
     public Result<Void> complete(@PathVariable @NotNull Long id) {
         pickService.completePick(id);
@@ -70,6 +76,7 @@ public class PdaPickController {
     }
 
     @Operation(summary = "标记拣货短缺")
+    @SaCheckPermission("wms:pick:update")
     @PostMapping("/{id}/shortage")
     public Result<Void> shortage(@PathVariable @NotNull Long id,
                                  @RequestBody Map<String, Object> body) {

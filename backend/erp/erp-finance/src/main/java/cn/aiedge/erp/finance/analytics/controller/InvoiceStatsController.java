@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 发票统计（分析 → 财务分析 → 发票统计，菜单 80455）。
@@ -29,6 +30,7 @@ public class InvoiceStatsController {
 
     @Operation(summary = "发票统计分页（按月进销项台账）",
             description = "销项/进项各 7 列（正负数张数与金额、净开票金额、价税合计、税额）+ 抵扣后应交税额；含合计行 summary")
+    @SaCheckPermission("finance:analytics-invoice-stats:list")
     @GetMapping("/page")
     @SaCheckLogin
     public ApiResponse<Map<String, Object>> page(AnalyticsQuery query) {

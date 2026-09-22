@@ -38,13 +38,16 @@
         <!-- HR Module -->
         <module>hr</module>
 
+        <!-- Agreement Module（协议：租户之间 / 租户与平台之间） -->
+        <module>agreement</module>
+
         <!-- Tests -->
         <module>tests</module>
     </modules>
     
     <properties>
         <!-- 项目版本号，统一管理，所有子模块通过 ${revision} 引用 -->
-        <revision>0.3.22</revision>
+        <revision>0.3.23</revision>
 
         <java.version>17</java.version>
         <maven.compiler.source>17</maven.compiler.source>
@@ -265,6 +268,12 @@
             <dependency>
                 <groupId>cn.aiedge.crm</groupId>
                 <artifactId>crm</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <!-- 协议模块（租户之间 / 租户与平台之间的协议） -->
+            <dependency>
+                <groupId>cn.aiedge.agreement</groupId>
+                <artifactId>agreement</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

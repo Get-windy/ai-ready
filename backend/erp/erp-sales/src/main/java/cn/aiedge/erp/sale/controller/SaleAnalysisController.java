@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 销售分析控制器
@@ -27,6 +28,7 @@ public class SaleAnalysisController {
 
     @Operation(summary = "客户活跃分析分页",
             description = "每客户一行: 近N天订单数/金额、最近下单时间、历史订单总数/总额、跟进次数、活跃度分层(活跃/一般/沉默)")
+    @SaCheckPermission("sale:analysis:list")
     @GetMapping("/analysis/customer-active/page")
     @SaCheckLogin
     public ApiResponse<Page<CustomerActiveAnalysisDTO>> customerActivePage(
@@ -41,6 +43,7 @@ public class SaleAnalysisController {
 
     @Operation(summary = "促销效果分析",
             description = "促销活动按状态/类型计数+时间分布+区间活动列表+区间订单优惠概况(订单无promotion_id, 无法归因到具体活动)")
+    @SaCheckPermission("sale:promotion:view")
     @GetMapping("/promotion/analysis")
     @SaCheckLogin
     public ApiResponse<PromotionAnalysisDTO> promotionAnalysis(

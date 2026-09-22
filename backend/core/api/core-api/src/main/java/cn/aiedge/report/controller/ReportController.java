@@ -19,6 +19,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 报表控制器
@@ -39,6 +40,7 @@ public class ReportController {
     /**
      * 获取报表列表
      */
+    @SaCheckPermission("system:report:list")
     @GetMapping("/list")
     @Operation(summary = "获取报表列表", description = "获取所有可用的报表定义")
     public ResponseEntity<Map<String, Object>> getReportList(
@@ -57,6 +59,7 @@ public class ReportController {
     /**
      * 获取报表定义
      */
+    @SaCheckPermission("system:report:detail")
     @GetMapping("/{reportId}")
     @Operation(summary = "获取报表定义", description = "获取指定报表的详细定义")
     public ResponseEntity<ReportDefinition> getReportDefinition(
@@ -73,6 +76,7 @@ public class ReportController {
     /**
      * 生成报表
      */
+    @SaCheckPermission("system:report:generate")
     @PostMapping("/{reportId}/generate")
     @Operation(summary = "生成报表", description = "根据参数生成报表数据")
     public ResponseEntity<ReportData> generateReport(
@@ -93,6 +97,7 @@ public class ReportController {
     /**
      * 预览报表
      */
+    @SaCheckPermission("system:report:view")
     @PostMapping("/{reportId}/preview")
     @Operation(summary = "预览报表", description = "预览报表前N行数据")
     public ResponseEntity<ReportData> previewReport(
@@ -112,6 +117,7 @@ public class ReportController {
     /**
      * 导出Excel
      */
+    @SaCheckPermission("system:report:export")
     @PostMapping("/{reportId}/export/excel")
     @Operation(summary = "导出Excel", description = "将报表导出为Excel文件")
     public void exportToExcel(
@@ -139,6 +145,7 @@ public class ReportController {
     /**
      * 导出CSV
      */
+    @SaCheckPermission("system:report:export")
     @PostMapping("/{reportId}/export/csv")
     @Operation(summary = "导出CSV", description = "将报表导出为CSV文件")
     public void exportToCsv(
@@ -168,6 +175,7 @@ public class ReportController {
     /**
      * 导出PDF
      */
+    @SaCheckPermission("system:report:export")
     @PostMapping("/{reportId}/export/pdf")
     @Operation(summary = "导出PDF", description = "将报表导出为PDF文件")
     public void exportToPdf(
@@ -195,6 +203,7 @@ public class ReportController {
     /**
      * 创建报表定义
      */
+    @SaCheckPermission("system:report:create")
     @PostMapping
     @Operation(summary = "创建报表定义", description = "创建新的自定义报表")
     public ResponseEntity<ReportDefinition> createReport(
@@ -210,6 +219,7 @@ public class ReportController {
     /**
      * 更新报表定义
      */
+    @SaCheckPermission("system:report:update")
     @PutMapping("/{reportId}")
     @Operation(summary = "更新报表定义", description = "更新已有的报表定义")
     public ResponseEntity<ReportDefinition> updateReport(
@@ -227,6 +237,7 @@ public class ReportController {
     /**
      * 删除报表定义
      */
+    @SaCheckPermission("system:report:delete")
     @DeleteMapping("/{reportId}")
     @Operation(summary = "删除报表定义", description = "删除指定的报表定义")
     public ResponseEntity<Map<String, Object>> deleteReport(
@@ -247,6 +258,7 @@ public class ReportController {
     /**
      * 复制报表定义
      */
+    @SaCheckPermission("system:report:create")
     @PostMapping("/{reportId}/copy")
     @Operation(summary = "复制报表定义", description = "复制现有报表创建新报表")
     public ResponseEntity<ReportDefinition> copyReport(
@@ -263,6 +275,7 @@ public class ReportController {
     /**
      * 获取报表分类列表
      */
+    @SaCheckPermission("system:report:view")
     @GetMapping("/categories")
     @Operation(summary = "获取报表分类", description = "获取所有报表分类")
     public ResponseEntity<Map<String, Object>> getCategories() {

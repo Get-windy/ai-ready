@@ -42,6 +42,7 @@ public class SaleOrderController {
     // ═══════════════════════════════════════════
 
     @Operation(summary = "分页查询订单")
+    @SaCheckPermission("sale:order:list")
     @GetMapping("/page")
     @SaCheckLogin
     public ApiResponse<Page<SaleOrderListDTO>> page(
@@ -59,6 +60,7 @@ public class SaleOrderController {
     }
 
     @Operation(summary = "获取订单统计")
+    @SaCheckPermission("sale:order:view")
     @GetMapping("/stats")
     @SaCheckLogin
     public ApiResponse<Map<String, Object>> getStats(@RequestParam(required = false) Long tenantId) {
@@ -66,6 +68,7 @@ public class SaleOrderController {
     }
 
     @Operation(summary = "生成下一订单号")
+    @SaCheckPermission("sale:order:list")
     @GetMapping("/next-no")
     @SaCheckLogin
     public ApiResponse<String> nextNo() {
@@ -73,6 +76,7 @@ public class SaleOrderController {
     }
 
     @Operation(summary = "获取订单详情")
+    @SaCheckPermission("sale:order:detail")
     @GetMapping("/{id:\\d+}")
     @SaCheckLogin
     public ApiResponse<SaleOrderDetailDTO> getDetail(@PathVariable Long id) {
@@ -165,6 +169,7 @@ public class SaleOrderController {
     }
 
     @Operation(summary = "待审批订单列表")
+    @SaCheckPermission("sale:order:view")
     @GetMapping("/pending")
     @SaCheckLogin
     public ApiResponse<List<SaleOrderListDTO>> getPending(@RequestParam Long tenantId) {
@@ -228,6 +233,7 @@ public class SaleOrderController {
     // ═══════════════════════════════════════════
 
     @Operation(summary = "订单处理中心统计卡片")
+    @SaCheckPermission("sale:order:view")
     @GetMapping("/center/stats")
     @SaCheckLogin
     public ApiResponse<Map<String, Object>> orderCenterStats(
@@ -240,6 +246,7 @@ public class SaleOrderController {
     }
 
     @Operation(summary = "订单处理中心-按单据分页查询")
+    @SaCheckPermission("sale:order:view")
     @GetMapping("/center/page-by-doc")
     @SaCheckLogin
     public ApiResponse<Page<SaleOrderListDTO>> orderCenterPageByDoc(
@@ -358,6 +365,7 @@ public class SaleOrderController {
     }
 
     @Operation(summary = "订单处理中心-按时间分组统计")
+    @SaCheckPermission("sale:order:view")
     @GetMapping("/center/group-by-date")
     @SaCheckLogin
     public ApiResponse<List<Map<String, Object>>> orderCenterGroupByDate(
@@ -387,6 +395,7 @@ public class SaleOrderController {
     }
 
     @Operation(summary = "订单处理中心-按线路分组统计")
+    @SaCheckPermission("sale:order:view")
     @GetMapping("/center/group-by-route")
     @SaCheckLogin
     public ApiResponse<List<Map<String, Object>>> orderCenterGroupByRoute(
@@ -400,6 +409,7 @@ public class SaleOrderController {
     }
 
     @Operation(summary = "订单处理中心-按客户分组统计")
+    @SaCheckPermission("sale:order:view")
     @GetMapping("/center/group-by-customer")
     @SaCheckLogin
     public ApiResponse<List<Map<String, Object>>> orderCenterGroupByCustomer(
@@ -414,6 +424,7 @@ public class SaleOrderController {
     }
 
     @Operation(summary = "订单处理中心-订单履约分页查询")
+    @SaCheckPermission("sale:order:view")
     @GetMapping("/center/fulfillment-page")
     @SaCheckLogin
     public ApiResponse<Page<SaleOrderListDTO>> orderCenterFulfillmentPage(
@@ -432,6 +443,7 @@ public class SaleOrderController {
     }
 
     @Operation(summary = "订单处理中心-订单履约统计概览")
+    @SaCheckPermission("sale:order:view")
     @GetMapping("/center/fulfillment-overview")
     @SaCheckLogin
     public ApiResponse<Map<String, Object>> orderCenterFulfillmentOverview(
@@ -443,6 +455,7 @@ public class SaleOrderController {
     }
 
     @Operation(summary = "待审核列表")
+    @SaCheckPermission("sale:order:view")
     @GetMapping("/center/pending-review")
     @SaCheckLogin
     public ApiResponse<Page<SaleOrderListDTO>> pendingReviewPage(
@@ -542,6 +555,7 @@ public class SaleOrderController {
     }
 
     @Operation(summary = "拣货/发货列表")
+    @SaCheckPermission("sale:order:view")
     @GetMapping("/center/picking-shipping")
     @SaCheckLogin
     public ApiResponse<Page<SaleOrderListDTO>> pickingShippingPage(
@@ -595,6 +609,7 @@ public class SaleOrderController {
     }
 
     @Operation(summary = "拣货/发货列表合计（销售金额 / 商品数量）")
+    @SaCheckPermission("sale:order:view")
     @GetMapping("/center/picking-shipping-summary")
     @SaCheckLogin
     public ApiResponse<Map<String, Object>> pickingShippingSummary(
@@ -604,6 +619,7 @@ public class SaleOrderController {
     }
 
     @Operation(summary = "拣货完成")
+    @SaCheckPermission("sale:order:update")
     @PostMapping("/{id}/pick-complete")
     @SaCheckLogin
     @OperationLog(module = "销售订单管理", type = "UPDATE", desc = "拣货完成")
@@ -613,6 +629,7 @@ public class SaleOrderController {
     }
 
     @Operation(summary = "批量拣货完成")
+    @SaCheckPermission("sale:order:update")
     @PostMapping("/batch-pick-complete")
     @SaCheckLogin
     @OperationLog(module = "销售订单管理", type = "UPDATE", desc = "批量拣货完成")
@@ -681,6 +698,7 @@ public class SaleOrderController {
     // ═══ 商品汇总 ═══
 
     @Operation(summary = "商品汇总查询")
+    @SaCheckPermission("sale:order:view")
     @GetMapping("/product-summary")
     @SaCheckLogin
     public ApiResponse<List<Map<String, Object>>> productSummary(
@@ -709,6 +727,7 @@ public class SaleOrderController {
     // ═══ 信用额度 ═══
 
     @Operation(summary = "获取客户信用信息")
+    @SaCheckPermission("sale:order:detail")
     @GetMapping("/customer-credit/{customerId}")
     @SaCheckLogin
     public ApiResponse<Map<String, Object>> getCustomerCredit(@PathVariable Long customerId) {
@@ -716,6 +735,7 @@ public class SaleOrderController {
     }
 
     @Operation(summary = "获取客户预收款/订金余额")
+    @SaCheckPermission("sale:order:detail")
     @GetMapping("/customer-deposits/{customerId}")
     @SaCheckLogin
     public ApiResponse<List<Map<String, Object>>> getCustomerDeposits(@PathVariable Long customerId) {

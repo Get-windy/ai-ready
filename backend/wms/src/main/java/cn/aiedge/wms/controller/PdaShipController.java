@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @Validated
@@ -28,6 +29,7 @@ public class PdaShipController {
     private final ShipService shipService;
 
     @Operation(summary = "获取发货任务列表")
+    @SaCheckPermission("wms:ship:view")
     @GetMapping
     public Result<List<WmsShipTask>> list() {
         Page<WmsShipTask> page = shipService.pageTask(
@@ -36,6 +38,7 @@ public class PdaShipController {
     }
 
     @Operation(summary = "获取发货任务详情")
+    @SaCheckPermission("wms:ship:detail")
     @GetMapping("/{id}")
     public Result<Map<String, Object>> detail(@PathVariable @NotNull Long id) {
         WmsShipTask task = shipService.getTaskById(id);
@@ -45,6 +48,7 @@ public class PdaShipController {
     }
 
     @Operation(summary = "扫描条码复核")
+    @SaCheckPermission("wms:ship:update")
     @PostMapping("/{id}/scan")
     public Result<Map<String, Object>> scan(@PathVariable @NotNull Long id,
                                             @RequestBody Map<String, Object> body) {
@@ -65,6 +69,7 @@ public class PdaShipController {
     }
 
     @Operation(summary = "确认发货")
+    @SaCheckPermission("wms:ship:confirm")
     @PutMapping("/{id}/confirm")
     public Result<Void> confirm(@PathVariable @NotNull Long id) {
         shipService.confirmShip(id);

@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 进销存分析控制器（分析 → 仓配分析 → 进销存分析，菜单 80433）
@@ -36,6 +37,7 @@ public class InventoryAnalysisController {
 
     @Operation(summary = "进销存分析（按商品/仓库调拨分析/商品调拨分析）",
             description = "按商品：期初+五类入库−五类出库=期末（小单位数量/金额）；调拨视图：调拨/成本/差异金额，含合计行 summary")
+    @SaCheckPermission("stock:analytics:list")
     @GetMapping("/page")
     @SaCheckLogin
     public ApiResponse<Map<String, Object>> page(InventoryAnalysisQueryDTO query) {

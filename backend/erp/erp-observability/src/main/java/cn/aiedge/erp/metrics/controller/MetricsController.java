@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 业务指标监控Controller
@@ -29,6 +30,7 @@ public class MetricsController {
     /**
      * 获取仪表盘指标数据
      */
+    @SaCheckPermission("metrics:metric:view")
     @GetMapping("/dashboard")
     public ResponseEntity<DashboardMetricsDTO> getDashboardMetrics() {
         log.info("Getting dashboard metrics");
@@ -39,6 +41,7 @@ public class MetricsController {
     /**
      * 按类型获取指标
      */
+    @SaCheckPermission("metrics:metric:list")
     @GetMapping("/type/{type}")
     public ResponseEntity<List<MetricValueDTO>> getMetricsByType(@PathVariable String type) {
         log.info("Getting metrics by type: {}", type);
@@ -54,6 +57,7 @@ public class MetricsController {
     /**
      * 获取指标当前值
      */
+    @SaCheckPermission("metrics:metric:detail")
     @GetMapping("/current/{metricCode}")
     public ResponseEntity<MetricValueDTO> getCurrentMetric(@PathVariable String metricCode) {
         log.info("Getting current metric: {}", metricCode);
@@ -68,6 +72,7 @@ public class MetricsController {
     /**
      * 批量获取指标当前值
      */
+    @SaCheckPermission("metrics:metric:list")
     @PostMapping("/current/batch")
     public ResponseEntity<List<MetricValueDTO>> getCurrentMetricsBatch(@RequestBody List<String> metricCodes) {
         log.info("Getting current metrics batch: {}", metricCodes);
@@ -78,6 +83,7 @@ public class MetricsController {
     /**
      * 获取指标历史数据
      */
+    @SaCheckPermission("metrics:metric:list")
     @PostMapping("/history")
     public ResponseEntity<MetricHistoryDTO> getMetricHistory(@Valid @RequestBody MetricQueryRequest request) {
         log.info("Getting metric history for: {}", request.getMetricCode());
@@ -92,6 +98,7 @@ public class MetricsController {
     /**
      * 获取排名数据（供前端销售分析使用）
      */
+    @SaCheckPermission("metrics:metric:list")
     @GetMapping("/history")
     public ResponseEntity<List<Map<String, Object>>> getRankingHistory(
             @RequestParam String type,
@@ -104,6 +111,7 @@ public class MetricsController {
     /**
      * 获取所有活跃指标
      */
+    @SaCheckPermission("metrics:metric:list")
     @GetMapping("/list")
     public ResponseEntity<List<BusinessMetric>> getAllActiveMetrics() {
         log.info("Getting all active metrics");
@@ -114,6 +122,7 @@ public class MetricsController {
     /**
      * 手动刷新指标数据
      */
+    @SaCheckPermission("metrics:metric:execute")
     @PostMapping("/refresh")
     public ResponseEntity<Map<String, String>> refreshMetrics() {
         log.info("Manual refresh metrics triggered");
@@ -127,6 +136,7 @@ public class MetricsController {
     /**
      * 获取支持的指标类型
      */
+    @SaCheckPermission("metrics:metric:view")
     @GetMapping("/types")
     public ResponseEntity<Map<String, String>> getMetricTypes() {
         log.info("Getting metric types");
@@ -140,6 +150,7 @@ public class MetricsController {
     /**
      * 健康检查
      */
+    @SaCheckPermission("metrics:metric:view")
     @GetMapping("/health")
     public ResponseEntity<Map<String, Object>> healthCheck() {
         Map<String, Object> health = new HashMap<>();

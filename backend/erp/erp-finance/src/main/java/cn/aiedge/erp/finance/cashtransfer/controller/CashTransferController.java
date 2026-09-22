@@ -15,6 +15,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 提存（提存现金转账）Controller
@@ -30,42 +31,49 @@ public class CashTransferController {
     private final CashTransferService cashTransferService;
 
     @Operation(summary = "多条件分页查询提存单(按单据)")
+    @SaCheckPermission("finance:cash-transfer:list")
     @GetMapping("/page")
     public Result<Page<CashTransfer>> page(CashTransferQuery query) {
         return Result.ok(cashTransferService.pageQuery(query));
     }
 
     @Operation(summary = "多条件分页查询提存单(按单据，别名)")
+    @SaCheckPermission("finance:cash-transfer:list")
     @GetMapping("/doc-query")
     public Result<Page<CashTransfer>> docQuery(CashTransferQuery query) {
         return Result.ok(cashTransferService.pageQuery(query));
     }
 
     @Operation(summary = "分页查询提存明细(按明细)")
+    @SaCheckPermission("finance:cash-transfer:view")
     @GetMapping("/page-detail")
     public Result<Page<CashTransferItemVO>> pageDetail(CashTransferQuery query) {
         return Result.ok(cashTransferService.pageDetail(query));
     }
 
     @Operation(summary = "生成下一提存单号")
+    @SaCheckPermission("finance:cash-transfer:list")
     @GetMapping("/next-no")
     public Result<String> nextNo(@RequestParam(required = false) String prefix) {
         return Result.ok(cashTransferService.generateDocNo());
     }
 
     @Operation(summary = "查询提存单详情（含转入账户明细）")
+    @SaCheckPermission("finance:cash-transfer:detail")
     @GetMapping("/{id}")
     public Result<CashTransferVO> getById(@PathVariable Long id) {
         return Result.ok(cashTransferService.getDetail(id));
     }
 
     @Operation(summary = "保存提存单草稿（含转入账户明细）")
+    @SaCheckPermission("finance:cash-transfer:create")
     @PostMapping("/create")
     public Result<CashTransfer> create(@Valid @RequestBody CashTransferSaveDTO dto) {
         return Result.ok(cashTransferService.saveDraft(dto));
     }
 
     @Operation(summary = "更新提存单草稿（明细整体替换）")
+    @SaCheckPermission("finance:cash-transfer:create")
     @PostMapping("/update")
     public Result<Boolean> update(@Valid @RequestBody CashTransferSaveDTO dto) {
         cashTransferService.update(dto);
@@ -73,6 +81,7 @@ public class CashTransferController {
     }
 
     @Operation(summary = "提存单记账（生成凭证 + 动账户余额 + 记资金流水）")
+    @SaCheckPermission("finance:cash-transfer:confirm")
     @PostMapping("/confirm")
     public Result<CashTransfer> confirm(@Parameter(description = "单据ID") @RequestParam Long id,
                                         @Parameter(description = "记账人ID") @RequestParam(required = false) Long operatorId,
@@ -82,6 +91,7 @@ public class CashTransferController {
     }
 
     @Operation(summary = "取消提存单（仅草稿）")
+    @SaCheckPermission("finance:cash-transfer:cancel")
     @PostMapping("/cancel")
     public Result<String> cancel(@RequestParam Long id) {
         cashTransferService.cancel(id);
@@ -89,6 +99,7 @@ public class CashTransferController {
     }
 
     @Operation(summary = "删除提存单（仅草稿/已取消）")
+    @SaCheckPermission("finance:cash-transfer:delete")
     @DeleteMapping("/{id}")
     public Result<String> delete(@PathVariable Long id) {
         cashTransferService.remove(id);

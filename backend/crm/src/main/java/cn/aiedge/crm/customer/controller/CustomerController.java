@@ -38,18 +38,21 @@ public class CustomerController {
     }
     
     @Operation(summary = "获取客户详情")
+    @SaCheckPermission("crm:customer:view")
     @GetMapping("/{id}")
     public Customer getDetail(@PathVariable Long id) {
         return customerService.getById(id);
     }
     
     @Operation(summary = "根据编码查询客户")
+    @SaCheckPermission("crm:customer:view")
     @GetMapping("/code/{customerCode}")
     public Customer getByCode(@PathVariable String customerCode) {
         return customerService.getByCustomerCode(customerCode);
     }
     
     @Operation(summary = "创建客户")
+    @SaCheckPermission("crm:customer:create")
     @PostMapping
     public Customer create(@RequestBody Customer customer) {
         customer.setCustomerCode(customerService.generateCustomerCode());
@@ -74,12 +77,14 @@ public class CustomerController {
     }
 
     @Operation(summary = "批量删除客户")
+    @SaCheckPermission("crm:customer:delete")
     @DeleteMapping("/batch")
     public boolean batchDelete(@RequestBody List<Long> ids) {
         return customerService.removeBatchByIds(ids);
     }
 
     @Operation(summary = "导出客户列表")
+    @SaCheckPermission("crm:customer:list")
     @GetMapping("/export")
     public List<Customer> export(
             @Parameter(description = "关键词") @RequestParam(required = false) String keyword,
@@ -91,18 +96,21 @@ public class CustomerController {
     }
 
     @Operation(summary = "查询销售人员的客户")
+    @SaCheckPermission("crm:customer:view")
     @GetMapping("/salesPerson/{salesPersonId:\\d+}")
     public List<Customer> listBySalesPerson(@PathVariable Long salesPersonId) {
         return customerService.listBySalesPersonId(salesPersonId);
     }
     
     @Operation(summary = "按等级查询客户")
+    @SaCheckPermission("crm:customer:view")
     @GetMapping("/level/{customerLevel:\\d+}")
     public List<Customer> listByLevel(@PathVariable Integer customerLevel) {
         return customerService.listByCustomerLevel(customerLevel);
     }
 
     @Operation(summary = "获取客户选项列表（下拉选择用）")
+    @SaCheckPermission("crm:customer:view")
     @GetMapping("/dropdown")
     public List<java.util.Map<String, Object>> getOptions(
             @Parameter(description = "关键词") @RequestParam(required = false) String keyword) {
@@ -124,6 +132,7 @@ public class CustomerController {
     }
 
     @Operation(summary = "获取客户列表（无分页，供下拉选择器使用）")
+    @SaCheckPermission("crm:customer:list")
     @GetMapping("/list")
     public List<Customer> list(
             @Parameter(description = "关键词") @RequestParam(required = false) String keyword) {
@@ -131,6 +140,7 @@ public class CustomerController {
     }
 
     @Operation(summary = "更新客户状态")
+    @SaCheckPermission("crm:customer:update")
     @PutMapping("/{id:\\d+}/status")
     public Customer updateStatus(
             @PathVariable Long id,
@@ -144,6 +154,7 @@ public class CustomerController {
     }
 
     @Operation(summary = "导入客户")
+    @SaCheckPermission("crm:customer:import")
     @PostMapping("/import")
     public boolean importCustomers(@RequestBody List<Customer> customers) {
         for (Customer customer : customers) {
@@ -154,12 +165,14 @@ public class CustomerController {
     }
 
     @Operation(summary = "获取客户跟进记录")
+    @SaCheckPermission("crm:customer:view")
     @GetMapping("/{customerId:\\d+}/follows")
     public List<CustomerFollowUp> getFollowRecords(@PathVariable Long customerId) {
         return customerFollowUpService.listByCustomerId(customerId);
     }
 
     @Operation(summary = "添加客户跟进记录")
+    @SaCheckPermission("crm:customer:follow")
     @PostMapping("/{customerId:\\d+}/follow")
     public CustomerFollowUp addFollowRecord(
             @PathVariable Long customerId,
@@ -171,6 +184,7 @@ public class CustomerController {
     }
 
     @Operation(summary = "获取客户订单记录")
+    @SaCheckPermission("crm:customer:view")
     @GetMapping("/{customerId:\\d+}/orders")
     public List<?> getOrderRecords(@PathVariable Long customerId) {
         // 订单记录由销售模块提供，此处返回空列表

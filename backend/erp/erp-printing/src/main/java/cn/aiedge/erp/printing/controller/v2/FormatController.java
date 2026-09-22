@@ -13,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Tag(name = "V2-格式化引擎", description = "自定义函数校验、字段格式化、模板 HTML 渲染")
 @RestController
@@ -23,6 +24,7 @@ public class FormatController {
     private final FormatEngine formatEngine;
 
     @Operation(summary = "校验自定义函数表达式合法性")
+    @SaCheckPermission("print:format:check")
     @PostMapping("/validate-formula")
     public ResponseEntity<ApiResponse<Object>> validateFormula(
             @Valid @RequestBody ValidateFormulaRequest request) {
@@ -38,6 +40,7 @@ public class FormatController {
     }
 
     @Operation(summary = "渲染模板为 HTML")
+    @SaCheckPermission("print:format:view")
     @PostMapping("/render")
     public ResponseEntity<ApiResponse<Object>> render(
             @RequestBody Map<String, Object> request) {
@@ -48,6 +51,7 @@ public class FormatController {
     }
 
     @Operation(summary = "格式化单个字段值")
+    @SaCheckPermission("print:format:view")
     @PostMapping("/field")
     public ResponseEntity<ApiResponse<Object>> formatField(@RequestBody Map<String, Object> request) {
         Object value = request.get("value");

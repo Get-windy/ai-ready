@@ -1288,6 +1288,15 @@ public class SaleOutboundServiceImpl extends ServiceImpl<SaleOutboundMapper, Sal
             outbound.setSettlementStatus("unsettled");
         }
 
+        // ⚠️ 结算口径预检：协议约定「账期结算」却缺天数/方向 ⇒ **拒单**（DOMAIN-MODEL §13.3 铁律②）。
+        // 必须放在这里、并且是记账的 try/catch **之外** —— 下面那一段的语义是
+        // "记账失败不阻断单据"，会把拒单理由一并吞掉，等于没拒。
+        // 位置刻意选在 updateById 之前：此时出库单状态、库存都还没动，拒单不留任何痕迹。
+        if (outbound.getCustomerId() != null && totalAmount.compareTo(BigDecimal.ZERO) > 0) {
+            salesAccountingService.assertSettlementResolvable(
+                    String.valueOf(outbound.getCustomerId()), outbound.getOutboundDate());
+        }
+
         updateById(outbound);
 
         // 源单履约跟踪：更新销售订单已出库数量（对标Odoo stock.picking → sale.order 回写）
@@ -1314,12 +1323,14 @@ public class SaleOutboundServiceImpl extends ServiceImpl<SaleOutboundMapper, Sal
         }
 
         // 业财直调：发货完成产生应收及收入凭证（对标Odoo invoice on delivery）
+        // businessDate 必须传单据的业务日期（出库日期）：协议账期按「下单那一刻生效的版本」算，
+        // 到期日 = 业务日期 + 约定天数，不许用 LocalDate.now() 顶替（补录单据会随日历漂移）
         if (outbound.getCustomerId() != null && totalAmount.compareTo(BigDecimal.ZERO) > 0) {
             try {
                 salesAccountingService.createReceivableOnShipment(
                         outbound.getId(), outbound.getOutboundNo(),
                         String.valueOf(outbound.getCustomerId()), outbound.getCustomerName(),
-                        totalAmount);
+                        totalAmount, outbound.getOutboundDate());
             } catch (Exception e) {
                 log.error("销售发货自动记账失败，出库单ID={}, 原因={}", outboundId, e.getMessage(), e);
                 // 记账失败不影响出库单完成状态

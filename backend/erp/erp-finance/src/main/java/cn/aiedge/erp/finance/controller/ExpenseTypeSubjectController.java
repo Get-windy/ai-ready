@@ -26,6 +26,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 费用类型（资料 → 财务账户 → 费用类型）Controller。
@@ -56,6 +57,7 @@ public class ExpenseTypeSubjectController {
     private final ExpenseTypeSubjectService expenseTypeSubjectService;
 
     @Operation(summary = "费用类科目树（hierarchical=false 时返回平铺列表）")
+    @SaCheckPermission("md:expense-type:list")
     @GetMapping("/tree")
     @OperationLog(module = "费用类型", type = "QUERY", desc = "查询费用类型树")
     public Result<List<AccountSubjectDTO>> tree(AccountSubjectQuery query) {
@@ -67,6 +69,7 @@ public class ExpenseTypeSubjectController {
     }
 
     @Operation(summary = "费用类科目平铺列表（下拉/导出共用口径）")
+    @SaCheckPermission("md:expense-type:list")
     @GetMapping("/list")
     @OperationLog(module = "费用类型", type = "QUERY", desc = "查询费用类型列表")
     public Result<List<AccountSubjectDTO>> list(AccountSubjectQuery query) {
@@ -74,12 +77,14 @@ public class ExpenseTypeSubjectController {
     }
 
     @Operation(summary = "核算项可选项（辅助核算类型，供费用类型编辑器下拉）")
+    @SaCheckPermission("md:expense-type:view")
     @GetMapping("/aux-types")
     public Result<List<FinanceAuxiliaryTypeDTO>> auxTypes() {
         return Result.success(expenseTypeSubjectService.getAuxTypeOptions());
     }
 
     @Operation(summary = "费用类型详情")
+    @SaCheckPermission("md:expense-type:detail")
     @GetMapping("/{id}")
     @OperationLog(module = "费用类型", type = "QUERY", desc = "查询费用类型详情")
     public Result<AccountSubjectDTO> getById(@Parameter(description = "科目ID") @PathVariable Long id) {
@@ -87,6 +92,7 @@ public class ExpenseTypeSubjectController {
     }
 
     @Operation(summary = "新增费用")
+    @SaCheckPermission("md:expense-type:create")
     @PostMapping({"", "/"})
     @OperationLog(module = "费用类型", type = "CREATE", desc = "新增费用科目")
     public Result<AccountSubjectDTO> create(@RequestBody AccountSubjectDTO dto) {
@@ -94,6 +100,7 @@ public class ExpenseTypeSubjectController {
     }
 
     @Operation(summary = "修改费用")
+    @SaCheckPermission("md:expense-type:update")
     @PutMapping("/{id}")
     @OperationLog(module = "费用类型", type = "UPDATE", desc = "修改费用科目")
     public Result<AccountSubjectDTO> update(
@@ -103,6 +110,7 @@ public class ExpenseTypeSubjectController {
     }
 
     @Operation(summary = "删除费用")
+    @SaCheckPermission("md:expense-type:delete")
     @DeleteMapping("/{id}")
     @OperationLog(module = "费用类型", type = "DELETE", desc = "删除费用科目")
     public Result<Void> delete(@Parameter(description = "科目ID") @PathVariable Long id) {
@@ -111,6 +119,7 @@ public class ExpenseTypeSubjectController {
     }
 
     @Operation(summary = "启用/停用费用科目")
+    @SaCheckPermission("md:expense-type:update")
     @PutMapping("/{id}/enable")
     @OperationLog(module = "费用类型", type = "UPDATE", desc = "启用/停用费用科目")
     public Result<AccountSubjectDTO> toggleEnabled(
@@ -120,6 +129,7 @@ public class ExpenseTypeSubjectController {
     }
 
     @Operation(summary = "导出费用类型（真实 Excel 流，与列表同一口径）")
+    @SaCheckPermission("md:expense-type:export")
     @GetMapping("/export")
     public void export(AccountSubjectQuery query, HttpServletResponse response) throws IOException {
         List<AccountSubjectDTO> rows = expenseTypeSubjectService.list(query);

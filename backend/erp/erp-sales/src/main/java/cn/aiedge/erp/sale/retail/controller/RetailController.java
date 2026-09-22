@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @Tag(name = "零售单管理", description = "零售单创建、结算、挂单、作废等操作")
@@ -29,6 +30,7 @@ public class RetailController {
     private final IRetailOrderService retailOrderService;
 
     // ═══ 1. 按单据分页查询 ═══
+    @SaCheckPermission("sale:retail:list")
     @GetMapping("/page/doc")
     @Operation(summary = "按单据分页查询零售单")
     public IPage<RetailOrder> pageByDoc(
@@ -91,6 +93,7 @@ public class RetailController {
     }
 
     // ═══ 2. 按明细分页查询 ═══
+    @SaCheckPermission("sale:retail:list")
     @GetMapping("/page/detail")
     @Operation(summary = "按明细分页查询零售单")
     public IPage<Map<String, Object>> pageByDetail(
@@ -133,6 +136,7 @@ public class RetailController {
     }
 
     // ═══ 3. 生成下一个零售单号（后端号段） ═══
+    @SaCheckPermission("sale:retail:list")
     @GetMapping("/next-no")
     @Operation(summary = "生成下一个零售单号（后端号段）")
     public String nextNo() {
@@ -140,6 +144,7 @@ public class RetailController {
     }
 
     // ═══ 4. 查询详情（含明细行） ═══
+    @SaCheckPermission("sale:retail:detail")
     @GetMapping("/{id}")
     @Operation(summary = "查询零售单详情（含明细行和支付明细）")
     public RetailOrderDetailVO getDetail(@PathVariable Long id) {
@@ -147,6 +152,7 @@ public class RetailController {
     }
 
     // ═══ 4. 挂单列表 ═══
+    @SaCheckPermission("sale:retail:view")
     @GetMapping("/hold-list")
     @Operation(summary = "查询挂单列表")
     public List<RetailOrder> holdList(
@@ -155,6 +161,7 @@ public class RetailController {
     }
 
     // ═══ 5. 创建零售单 ═══
+    @SaCheckPermission("sale:retail:create")
     @PostMapping
     @Operation(summary = "创建零售单（含明细行）")
     public RetailOrder create(@RequestBody RetailOrderCreateRequest request) {
@@ -164,6 +171,7 @@ public class RetailController {
     }
 
     // ═══ 6. 更新零售单（草稿状态） ═══
+    @SaCheckPermission("sale:retail:update")
     @PutMapping("/{id}")
     @Operation(summary = "更新零售单（含明细行）")
     public RetailOrder update(@PathVariable Long id, @RequestBody RetailOrderCreateRequest request) {
@@ -174,6 +182,7 @@ public class RetailController {
     }
 
     // ═══ 7. 复制单据 ═══
+    @SaCheckPermission("sale:retail:create")
     @PostMapping("/{id}/copy")
     @Operation(summary = "复制零售单")
     public RetailOrder copy(@PathVariable Long id) {
@@ -181,6 +190,7 @@ public class RetailController {
     }
 
     // ═══ 8. 结算 ═══
+    @SaCheckPermission("sale:retail:update")
     @PostMapping("/{id}/settle")
     @Operation(summary = "结算零售单")
     public RetailOrder settle(@PathVariable Long id, @RequestBody SettleRequest request) {
@@ -188,6 +198,7 @@ public class RetailController {
     }
 
     // ═══ 9. 挂单 ═══
+    @SaCheckPermission("sale:retail:update")
     @PostMapping("/{id}/hold")
     @Operation(summary = "挂单")
     public void hold(@PathVariable Long id) {
@@ -195,6 +206,7 @@ public class RetailController {
     }
 
     // ═══ 10. 取单 ═══
+    @SaCheckPermission("sale:retail:update")
     @PostMapping("/{id}/unhold")
     @Operation(summary = "取单")
     public void unhold(@PathVariable Long id) {
@@ -202,6 +214,7 @@ public class RetailController {
     }
 
     // ═══ 11. 作废 ═══
+    @SaCheckPermission("sale:retail:update")
     @PostMapping("/{id}/void")
     @Operation(summary = "作废零售单")
     public void voidOrder(@PathVariable Long id, @RequestParam(required = false) String reason) {
@@ -209,6 +222,7 @@ public class RetailController {
     }
 
     // ═══ 12. 打印数据 ═══
+    @SaCheckPermission("sale:retail:view")
     @GetMapping("/{id}/print-data")
     @Operation(summary = "获取打印数据")
     public RetailOrderDetailVO printData(@PathVariable Long id) {
@@ -216,6 +230,7 @@ public class RetailController {
     }
 
     // ═══ 13. 打印后更新计数 ═══
+    @SaCheckPermission("sale:retail:print")
     @PostMapping("/{id}/print")
     @Operation(summary = "打印后更新打印次数")
     public void afterPrint(@PathVariable Long id) {
@@ -223,6 +238,7 @@ public class RetailController {
     }
 
     // ═══ 14. 商品快速查找 ═══
+    @SaCheckPermission("sale:retail:view")
     @GetMapping("/products/quick")
     @Operation(summary = "商品快速查找")
     public List<Map<String, Object>> quickSearchProducts(
@@ -232,6 +248,7 @@ public class RetailController {
     }
 
     // ═══ 15. 查询明细行 ═══
+    @SaCheckPermission("sale:retail:list")
     @GetMapping("/{id}/items")
     @Operation(summary = "查询零售单明细行")
     public List<RetailOrderItem> listItems(@PathVariable Long id) {
@@ -239,6 +256,7 @@ public class RetailController {
     }
 
     // ═══ 16. 删除零售单 ═══
+    @SaCheckPermission("sale:retail:delete")
     @DeleteMapping("/{id}")
     @Operation(summary = "删除零售单（仅草稿状态）")
     public void delete(@PathVariable Long id) {

@@ -15,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @Tag(name = "V2-打印客户端管理", description = "Windows 打印客户端注册、状态管理、认证密钥管理")
@@ -58,6 +59,7 @@ public class PrintClientController {
     }
 
     @Operation(summary = "注册打印客户端")
+    @SaCheckPermission("print:client:create")
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<Object>> register(
             @Valid @RequestBody PrintClientRegisterRequest request,
@@ -70,6 +72,7 @@ public class PrintClientController {
     }
 
     @Operation(summary = "更新客户端信息")
+    @SaCheckPermission("print:client:update")
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<Object>> update(
             @PathVariable Long id,
@@ -81,6 +84,7 @@ public class PrintClientController {
     }
 
     @Operation(summary = "获取客户端详情")
+    @SaCheckPermission("print:client:detail")
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<Object>> get(@PathVariable Long id, @RequestHeader(required = false) Long tenantId) {
         Long resolvedTenantId = resolveTenantId(tenantId);
@@ -89,6 +93,7 @@ public class PrintClientController {
     }
 
     @Operation(summary = "客户端列表")
+    @SaCheckPermission("print:client:list")
     @GetMapping
     public ResponseEntity<ApiResponse<Object>> list(
             @RequestParam(defaultValue = "1") Integer page,
@@ -101,6 +106,7 @@ public class PrintClientController {
     }
 
     @Operation(summary = "删除客户端")
+    @SaCheckPermission("print:client:delete")
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Object>> delete(@PathVariable Long id, @RequestHeader(required = false) Long tenantId) {
         Long resolvedTenantId = resolveTenantId(tenantId);
@@ -109,6 +115,7 @@ public class PrintClientController {
     }
 
     @Operation(summary = "重置认证密钥")
+    @SaCheckPermission("print:client:update")
     @PostMapping("/{id}/reset-key")
     public ResponseEntity<ApiResponse<Object>> resetKey(@PathVariable Long id, @RequestHeader(required = false) Long tenantId) {
         Long resolvedTenantId = resolveTenantId(tenantId);
@@ -117,6 +124,7 @@ public class PrintClientController {
     }
 
     @Operation(summary = "更新客户端状态")
+    @SaCheckPermission("print:client:status")
     @PutMapping("/{id}/status")
     public ResponseEntity<ApiResponse<Object>> updateStatus(
             @PathVariable Long id,

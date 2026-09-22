@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @RestController
@@ -35,6 +36,7 @@ public class PurchaseReturnController {
     private final PurchaseReturnService purchaseReturnService;
     private final PurchaseReturnMapper purchaseReturnMapper;
 
+    @SaCheckPermission("purchase:return:list")
     @GetMapping("/page")
     @Operation(summary = "分页查询退货单")
     public Page<PurchaseReturnVO> page(
@@ -52,12 +54,14 @@ public class PurchaseReturnController {
         return voPage;
     }
 
+    @SaCheckPermission("purchase:return:list")
     @GetMapping("/next-no")
     @Operation(summary = "生成下一退货单号")
     public String nextNo() {
         return purchaseReturnService.generateReturnNo();
     }
 
+    @SaCheckPermission("purchase:return:detail")
     @GetMapping("/{id}")
     @Operation(summary = "获取退货单详情")
     public PurchaseReturnVO getById(@PathVariable Long id) {
@@ -70,12 +74,14 @@ public class PurchaseReturnController {
         return vo;
     }
 
+    @SaCheckPermission("purchase:return:list")
     @GetMapping("/{id}/items")
     @Operation(summary = "获取退货明细")
     public List<PurchaseReturnItem> getItems(@PathVariable Long id) {
         return purchaseReturnService.getItems(id);
     }
 
+    @SaCheckPermission("purchase:return:detail")
     @GetMapping("/supplier/{supplierId}")
     @Operation(summary = "获取供应商的退货单列表")
     public List<PurchaseReturnVO> listBySupplierId(@PathVariable Long supplierId) {
@@ -83,6 +89,7 @@ public class PurchaseReturnController {
                 .map(this::convertToVO).collect(Collectors.toList());
     }
 
+    @SaCheckPermission("purchase:return:detail")
     @GetMapping("/order/{orderId}")
     @Operation(summary = "获取源订单的退货单列表")
     public List<PurchaseReturnVO> listByOrderId(@PathVariable Long orderId) {
@@ -90,6 +97,7 @@ public class PurchaseReturnController {
                 .map(this::convertToVO).collect(Collectors.toList());
     }
 
+    @SaCheckPermission("purchase:return:create")
     @PostMapping
     @Operation(summary = "创建退货单")
     public PurchaseReturnVO create(@RequestBody PurchaseReturnDTO dto) {
@@ -109,6 +117,7 @@ public class PurchaseReturnController {
         return convertToVO(created);
     }
 
+    @SaCheckPermission("purchase:return:create")
     @PostMapping("/from-order/{orderId}")
     @Operation(summary = "从采购订单创建退货单")
     public PurchaseReturnVO createFromOrder(@PathVariable Long orderId) {
@@ -116,6 +125,7 @@ public class PurchaseReturnController {
         return convertToVO(ret);
     }
 
+    @SaCheckPermission("purchase:return:update")
     @PutMapping("/{id}")
     @Operation(summary = "更新退货单")
     public PurchaseReturnVO update(@PathVariable Long id, @RequestBody PurchaseReturnDTO dto) {
@@ -133,6 +143,7 @@ public class PurchaseReturnController {
         return convertToVO(updated);
     }
 
+    @SaCheckPermission("purchase:return:submit")
     @PostMapping("/{id}/submit")
     @Operation(summary = "提交审批")
     public PurchaseReturnVO submitForApproval(@PathVariable Long id) {
@@ -140,6 +151,7 @@ public class PurchaseReturnController {
         return convertToVO(ret);
     }
 
+    @SaCheckPermission("purchase:return:approve")
     @PostMapping("/{id}/approve")
     @Operation(summary = "审批通过")
     public PurchaseReturnVO approve(@PathVariable Long id, @RequestParam(required = false) String note) {
@@ -148,6 +160,7 @@ public class PurchaseReturnController {
         return convertToVO(ret);
     }
 
+    @SaCheckPermission("purchase:return:approve")
     @PostMapping("/{id}/reject")
     @Operation(summary = "审批拒绝")
     public PurchaseReturnVO reject(@PathVariable Long id, @RequestParam String reason) {
@@ -155,6 +168,7 @@ public class PurchaseReturnController {
         return convertToVO(ret);
     }
 
+    @SaCheckPermission("purchase:return:complete")
     @PostMapping("/{id}/complete")
     @Operation(summary = "完成退货出库")
     public PurchaseReturnVO complete(@PathVariable Long id) {
@@ -162,6 +176,7 @@ public class PurchaseReturnController {
         return convertToVO(ret);
     }
 
+    @SaCheckPermission("purchase:return:cancel")
     @PostMapping("/{id}/cancel")
     @Operation(summary = "取消退货单")
     public PurchaseReturnVO cancel(@PathVariable Long id, @RequestParam String reason) {
@@ -169,12 +184,14 @@ public class PurchaseReturnController {
         return convertToVO(ret);
     }
 
+    @SaCheckPermission("purchase:return:delete")
     @DeleteMapping("/batch")
     @Operation(summary = "批量删除退货单")
     public boolean batchDelete(@RequestBody List<Long> ids) {
         return purchaseReturnService.removeBatchByIds(ids);
     }
 
+    @SaCheckPermission("purchase:return:export")
     @GetMapping("/export")
     @Operation(summary = "导出退货单列表")
     public List<PurchaseReturnVO> export(
@@ -187,6 +204,7 @@ public class PurchaseReturnController {
                 .map(this::convertToVO).collect(Collectors.toList());
     }
 
+    @SaCheckPermission("purchase:return:print")
     @PostMapping("/batch-print")
     @Operation(summary = "批量打印退货单")
     public ApiResponse<Void> batchPrint(@RequestBody Map<String, Object> params) {
@@ -198,6 +216,7 @@ public class PurchaseReturnController {
         return ApiResponse.ok("打印完成", null);
     }
 
+    @SaCheckPermission("purchase:return:update")
     @PostMapping("/{id}/items")
     @Operation(summary = "添加退货明细")
     public PurchaseReturnItem addItem(@PathVariable Long id, @RequestBody PurchaseReturnItemDTO dto) {
@@ -206,6 +225,7 @@ public class PurchaseReturnController {
         return purchaseReturnService.addItem(id, item);
     }
 
+    @SaCheckPermission("purchase:return:update")
     @PutMapping("/{id}/items/{itemId}")
     @Operation(summary = "更新退货明细")
     public PurchaseReturnItem updateItem(@PathVariable Long itemId, @RequestBody PurchaseReturnItemDTO dto) {
@@ -214,12 +234,14 @@ public class PurchaseReturnController {
         return purchaseReturnService.updateItem(itemId, item);
     }
 
+    @SaCheckPermission("purchase:return:delete")
     @DeleteMapping("/{id}/items/{itemId}")
     @Operation(summary = "删除退货明细")
     public void removeItem(@PathVariable Long itemId) {
         purchaseReturnService.removeItem(itemId);
     }
 
+    @SaCheckPermission("purchase:return:view")
     @GetMapping("/statistics")
     @Operation(summary = "退货统计")
     public ApiResponse<Map<String, Object>> statistics() {

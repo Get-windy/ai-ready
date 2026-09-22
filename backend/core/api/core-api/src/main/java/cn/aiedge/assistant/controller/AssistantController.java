@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 智能助手控制器
@@ -26,27 +27,32 @@ public class AssistantController {
     @Autowired
     private AssistantService assistantService;
 
+    @SaCheckPermission("system:assistant:execute")
     @PostMapping("/chat")
     public AssistantResponse chat(@RequestBody AssistantRequest request) {
         return assistantService.processMessage(request);
     }
 
+    @SaCheckPermission("system:assistant:create")
     @PostMapping("/session/create")
     public String createSession(@RequestParam Long userId, @RequestParam Long tenantId) {
         return assistantService.createNewSession(userId, tenantId);
     }
 
+    @SaCheckPermission("system:assistant:view")
     @GetMapping("/history")
     public List<Conversation> getHistory(@RequestParam String sessionId, 
                                          @RequestParam(defaultValue = "20") Integer limit) {
         return assistantService.getConversationHistory(sessionId, limit);
     }
 
+    @SaCheckPermission("system:assistant:delete")
     @DeleteMapping("/session")
     public boolean clearSession(@RequestParam String sessionId) {
         return assistantService.clearSessionHistory(sessionId);
     }
 
+    @SaCheckPermission("system:assistant:execute")
     @PostMapping("/action")
     public Object executeAction(@RequestParam String sessionId,
                                @RequestParam String action,
@@ -54,6 +60,7 @@ public class AssistantController {
         return assistantService.executeAction(sessionId, action, parameters);
     }
 
+    @SaCheckPermission("system:assistant:view")
     @GetMapping("/functions")
     public List<String> getFunctions(@RequestParam Long tenantId) {
         return assistantService.getAvailableFunctions(tenantId);

@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @Validated
@@ -29,6 +30,7 @@ public class PdaPutawayController {
     private static final String DEFAULT_USER_NAME = "PDA操作员";
 
     @Operation(summary = "获取上架任务列表")
+    @SaCheckPermission("wms:putaway:view")
     @GetMapping
     public Result<List<WmsPutawayTask>> list() {
         Page<WmsPutawayTask> page = putawayService.pageTask(
@@ -37,6 +39,7 @@ public class PdaPutawayController {
     }
 
     @Operation(summary = "获取上架任务详情")
+    @SaCheckPermission("wms:putaway:detail")
     @GetMapping("/{id}")
     public Result<WmsPutawayTask> detail(@PathVariable @NotNull Long id) {
         WmsPutawayTask task = putawayService.getTaskById(id);
@@ -45,6 +48,7 @@ public class PdaPutawayController {
     }
 
     @Operation(summary = "扫描商品条码")
+    @SaCheckPermission("wms:putaway:update")
     @PostMapping("/{id}/scan")
     public Result<Map<String, Object>> scan(@PathVariable @NotNull Long id,
                                             @RequestBody Map<String, Object> body) {
@@ -54,6 +58,7 @@ public class PdaPutawayController {
     }
 
     @Operation(summary = "确认上架完成")
+    @SaCheckPermission("wms:putaway:confirm")
     @PostMapping("/{id}/confirm")
     public Result<Void> confirm(@PathVariable @NotNull Long id) {
         putawayService.confirmPutaway(id, DEFAULT_USER_ID, DEFAULT_USER_NAME);

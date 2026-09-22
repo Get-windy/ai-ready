@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Tag(name = "动态字段管理", description = "Odoo核心特性：运行时动态添加自定义字段")
 @RestController
@@ -24,6 +25,7 @@ public class CustomFieldController {
     private final CustomFieldService fieldService;
 
     @Operation(summary = "创建自定义字段")
+    @SaCheckPermission("custom-field:field:create")
     @PostMapping
     public ResponseEntity<Map<String, Object>> createField(@RequestBody CustomFieldCreateRequest request) {
         CustomField field = fieldService.createField(request);
@@ -31,6 +33,7 @@ public class CustomFieldController {
     }
 
     @Operation(summary = "更新自定义字段")
+    @SaCheckPermission("custom-field:field:update")
     @PutMapping("/{id}")
     public ResponseEntity<Map<String, Object>> updateField(@PathVariable Long id, @RequestBody CustomFieldCreateRequest request) {
         CustomField field = fieldService.updateField(id, request);
@@ -38,6 +41,7 @@ public class CustomFieldController {
     }
 
     @Operation(summary = "获取字段详情")
+    @SaCheckPermission("custom-field:field:detail")
     @GetMapping("/{id}")
     public ResponseEntity<Map<String, Object>> getField(@PathVariable Long id) {
         CustomField field = fieldService.getFieldById(id);
@@ -45,6 +49,7 @@ public class CustomFieldController {
     }
 
     @Operation(summary = "获取模型的所有字段")
+    @SaCheckPermission("custom-field:field:list")
     @GetMapping("/model/{modelName}")
     public ResponseEntity<Map<String, Object>> getFieldsByModel(@PathVariable String modelName) {
         List<CustomField> fields = fieldService.getFieldsByModel(modelName);
@@ -52,6 +57,7 @@ public class CustomFieldController {
     }
 
     @Operation(summary = "获取模型分组的字段")
+    @SaCheckPermission("custom-field:field:list")
     @GetMapping("/model/{modelName}/group/{groupCode}")
     public ResponseEntity<Map<String, Object>> getFieldsByModelAndGroup(
             @PathVariable String modelName,
@@ -61,6 +67,7 @@ public class CustomFieldController {
     }
 
     @Operation(summary = "字段列表查询")
+    @SaCheckPermission("custom-field:field:list")
     @GetMapping("/list")
     public ResponseEntity<Map<String, Object>> listFields(
             @RequestParam(defaultValue = "1") Integer page,
@@ -77,6 +84,7 @@ public class CustomFieldController {
     }
 
     @Operation(summary = "删除字段")
+    @SaCheckPermission("custom-field:field:delete")
     @DeleteMapping("/{id}")
     public ResponseEntity<Map<String, Object>> deleteField(@PathVariable Long id) {
         fieldService.deleteField(id);
@@ -84,6 +92,7 @@ public class CustomFieldController {
     }
 
     @Operation(summary = "激活字段")
+    @SaCheckPermission("custom-field:field:update")
     @PostMapping("/{id}/activate")
     public ResponseEntity<Map<String, Object>> activateField(@PathVariable Long id) {
         fieldService.activateField(id);
@@ -91,6 +100,7 @@ public class CustomFieldController {
     }
 
     @Operation(summary = "停用字段")
+    @SaCheckPermission("custom-field:field:update")
     @PostMapping("/{id}/deactivate")
     public ResponseEntity<Map<String, Object>> deactivateField(@PathVariable Long id) {
         fieldService.deactivateField(id);
@@ -98,6 +108,7 @@ public class CustomFieldController {
     }
 
     @Operation(summary = "获取可搜索字段")
+    @SaCheckPermission("custom-field:field:list")
     @GetMapping("/model/{modelName}/searchable")
     public ResponseEntity<Map<String, Object>> getSearchableFields(@PathVariable String modelName) {
         List<CustomField> fields = fieldService.getSearchableFields(modelName);
@@ -105,6 +116,7 @@ public class CustomFieldController {
     }
 
     @Operation(summary = "获取字段分组")
+    @SaCheckPermission("custom-field:group:list")
     @GetMapping("/group/model/{modelName}")
     public ResponseEntity<Map<String, Object>> getGroupsByModel(@PathVariable String modelName) {
         List<CustomFieldGroup> groups = fieldService.getGroupsByModel(modelName);
@@ -112,6 +124,7 @@ public class CustomFieldController {
     }
 
     @Operation(summary = "创建字段分组")
+    @SaCheckPermission("custom-field:group:create")
     @PostMapping("/group")
     public ResponseEntity<Map<String, Object>> createGroup(
             @RequestParam String modelName,
@@ -122,6 +135,7 @@ public class CustomFieldController {
     }
 
     @Operation(summary = "删除字段分组")
+    @SaCheckPermission("custom-field:group:delete")
     @DeleteMapping("/group/{id}")
     public ResponseEntity<Map<String, Object>> deleteGroup(@PathVariable Long id) {
         fieldService.deleteGroup(id);
@@ -129,6 +143,7 @@ public class CustomFieldController {
     }
 
     @Operation(summary = "验证字段名称")
+    @SaCheckPermission("custom-field:field:check")
     @GetMapping("/validate")
     public ResponseEntity<Map<String, Object>> validateFieldName(
             @RequestParam String modelName,

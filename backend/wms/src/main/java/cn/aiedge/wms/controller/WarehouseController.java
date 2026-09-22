@@ -14,6 +14,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @Validated
@@ -26,6 +27,7 @@ public class WarehouseController {
     private final WarehouseService warehouseService;
 
     @Operation(summary = "新增仓库")
+    @SaCheckPermission("wms:warehouse:create")
     @PostMapping("/save")
     public Result<WmsWarehouse> save(@Valid @RequestBody WmsWarehouse warehouse) {
         warehouseService.saveWarehouse(warehouse);
@@ -34,6 +36,7 @@ public class WarehouseController {
     }
 
     @Operation(summary = "更新仓库")
+    @SaCheckPermission("wms:warehouse:create")
     @PostMapping("/update")
     public Result<Boolean> update(@Valid @RequestBody WmsWarehouse warehouse) {
         boolean updated = warehouseService.updateWarehouse(warehouse);
@@ -44,6 +47,7 @@ public class WarehouseController {
     }
 
     @Operation(summary = "根据ID查询仓库")
+    @SaCheckPermission("wms:warehouse:detail")
     @GetMapping("/{id}")
     public Result<WmsWarehouse> getById(@PathVariable @NotNull(message = "仓库ID不能为空") Long id) {
         WmsWarehouse warehouse = warehouseService.getWarehouseById(id);
@@ -54,12 +58,14 @@ public class WarehouseController {
     }
 
     @Operation(summary = "分页查询仓库")
+    @SaCheckPermission("wms:warehouse:list")
     @GetMapping("/page")
     public Result<Page<WmsWarehouse>> page(@Valid Page<WmsWarehouse> page, WmsWarehouse query) {
         return Result.ok(warehouseService.pageWarehouse(page, query));
     }
 
     @Operation(summary = "删除仓库")
+    @SaCheckPermission("wms:warehouse:delete")
     @DeleteMapping("/{id}")
     public Result<String> delete(@PathVariable @NotNull(message = "仓库ID不能为空") Long id) {
         warehouseService.removeWarehouse(id);
@@ -68,6 +74,7 @@ public class WarehouseController {
     }
 
     @Operation(summary = "查询所有仓库")
+    @SaCheckPermission("wms:warehouse:view")
     @GetMapping("/list-all")
     public Result<List<WmsWarehouse>> listAll() {
         Page<WmsWarehouse> page = warehouseService.pageWarehouse(new Page<>(1, 10000), new WmsWarehouse());

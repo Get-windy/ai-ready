@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 综合单据查询控制器（分析 &gt; 综合单据）
@@ -35,6 +36,7 @@ public class DocQueryController {
     /**
      * 经营历程分页查询（全部状态的各类单据，按单据日期倒序）
      */
+    @SaCheckPermission("doc:docquery:list")
     @GetMapping("/business-history/page")
     @Operation(summary = "经营历程分页查询", description = "UNION 聚合各类单据（销售/采购/收付款/库存/费用），按单据日期倒序分页；默认排除已取消单据（显示红冲）")
     public Result<Map<String, Object>> businessHistory(DocQueryParams params) {
@@ -44,6 +46,7 @@ public class DocQueryController {
     /**
      * 待审批单据分页查询（各表 待审批 状态，附按类型计数汇总）
      */
+    @SaCheckPermission("doc:docquery:list")
     @GetMapping("/pending-docs/page")
     @Operation(summary = "待审批单据分页查询", description = "仅取各表待审批状态单据，summary 返回每类待审批数量")
     public Result<Map<String, Object>> pendingDocs(DocQueryParams params) {
@@ -57,6 +60,7 @@ public class DocQueryController {
     /**
      * 业务草稿分页查询（各表 草稿 状态）
      */
+    @SaCheckPermission("doc:docquery:list")
     @GetMapping("/draft-docs/page")
     @Operation(summary = "业务草稿分页查询", description = "仅取各表草稿状态单据，按单据日期倒序分页")
     public Result<Map<String, Object>> draftDocs(DocQueryParams params) {

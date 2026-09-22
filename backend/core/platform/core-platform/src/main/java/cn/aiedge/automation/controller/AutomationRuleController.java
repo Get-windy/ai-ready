@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Tag(name = "自动化规则管理", description = "Odoo核心特性：自动触发业务动作")
 @RestController
@@ -23,6 +24,7 @@ public class AutomationRuleController {
     private final AutomationRuleService ruleService;
 
     @Operation(summary = "创建自动化规则")
+    @SaCheckPermission("automation:rule:create")
     @PostMapping
     public ResponseEntity<Map<String, Object>> createRule(@RequestBody AutomationRuleCreateRequest request) {
         AutomationRule rule = ruleService.createRule(request);
@@ -30,6 +32,7 @@ public class AutomationRuleController {
     }
 
     @Operation(summary = "更新自动化规则")
+    @SaCheckPermission("automation:rule:update")
     @PutMapping("/{id}")
     public ResponseEntity<Map<String, Object>> updateRule(@PathVariable Long id, @RequestBody AutomationRuleCreateRequest request) {
         AutomationRule rule = ruleService.updateRule(id, request);
@@ -37,6 +40,7 @@ public class AutomationRuleController {
     }
 
     @Operation(summary = "获取规则详情")
+    @SaCheckPermission("automation:rule:detail")
     @GetMapping("/{id}")
     public ResponseEntity<Map<String, Object>> getRule(@PathVariable Long id) {
         AutomationRule rule = ruleService.getRuleById(id);
@@ -44,6 +48,7 @@ public class AutomationRuleController {
     }
 
     @Operation(summary = "获取模型的所有规则")
+    @SaCheckPermission("automation:rule:list")
     @GetMapping("/model/{modelName}")
     public ResponseEntity<Map<String, Object>> getRulesByModel(@PathVariable String modelName) {
         List<AutomationRule> rules = ruleService.getRulesByModel(modelName);
@@ -51,6 +56,7 @@ public class AutomationRuleController {
     }
 
     @Operation(summary = "获取模型特定触发类型的规则")
+    @SaCheckPermission("automation:rule:list")
     @GetMapping("/model/{modelName}/trigger/{triggerType}")
     public ResponseEntity<Map<String, Object>> getRulesByModelAndTrigger(
             @PathVariable String modelName,
@@ -60,6 +66,7 @@ public class AutomationRuleController {
     }
 
     @Operation(summary = "规则列表查询")
+    @SaCheckPermission("automation:rule:list")
     @GetMapping("/list")
     public ResponseEntity<Map<String, Object>> listRules(
             @RequestParam(defaultValue = "1") Integer page,
@@ -76,6 +83,7 @@ public class AutomationRuleController {
     }
 
     @Operation(summary = "删除规则")
+    @SaCheckPermission("automation:rule:delete")
     @DeleteMapping("/{id}")
     public ResponseEntity<Map<String, Object>> deleteRule(@PathVariable Long id) {
         ruleService.deleteRule(id);
@@ -83,6 +91,7 @@ public class AutomationRuleController {
     }
 
     @Operation(summary = "激活规则")
+    @SaCheckPermission("automation:rule:update")
     @PostMapping("/{id}/activate")
     public ResponseEntity<Map<String, Object>> activateRule(@PathVariable Long id) {
         ruleService.activateRule(id);
@@ -90,6 +99,7 @@ public class AutomationRuleController {
     }
 
     @Operation(summary = "停用规则")
+    @SaCheckPermission("automation:rule:update")
     @PostMapping("/{id}/deactivate")
     public ResponseEntity<Map<String, Object>> deactivateRule(@PathVariable Long id) {
         ruleService.deactivateRule(id);

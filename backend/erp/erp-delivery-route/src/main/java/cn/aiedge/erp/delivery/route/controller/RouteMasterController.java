@@ -36,6 +36,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 线路主数据 Controller（资料 → 配送管理 → 线路）
@@ -55,6 +56,7 @@ public class RouteMasterController {
     private final RouteMasterService routeMasterService;
 
     @Operation(summary = "分页查询线路")
+    @SaCheckPermission("md:route-master:list")
     @GetMapping("/page")
     @OperationLog(module = "线路", type = "QUERY", desc = "分页查询线路")
     public ApiResponse<Page<RouteDTO>> page(RouteQueryDTO query) {
@@ -62,6 +64,7 @@ public class RouteMasterController {
     }
 
     @Operation(summary = "查询线路详情（含配送区域子表）")
+    @SaCheckPermission("md:route-master:detail")
     @GetMapping("/{id}")
     @OperationLog(module = "线路", type = "QUERY", desc = "查询线路详情")
     public ApiResponse<RouteDTO> detail(@PathVariable Long id) {
@@ -76,6 +79,7 @@ public class RouteMasterController {
     }
 
     @Operation(summary = "生成下一个线路编号")
+    @SaCheckPermission("md:route-master:view")
     @GetMapping("/next-code")
     @OperationLog(module = "线路", type = "QUERY", desc = "生成下一个线路编号")
     public ApiResponse<String> nextCode() {
@@ -83,6 +87,7 @@ public class RouteMasterController {
     }
 
     @Operation(summary = "新增线路")
+    @SaCheckPermission("md:route-master:create")
     @PostMapping
     @OperationLog(module = "线路", type = "CREATE", desc = "新增线路")
     public ApiResponse<RouteDTO> create(@RequestBody RouteDTO dto) {
@@ -90,6 +95,7 @@ public class RouteMasterController {
     }
 
     @Operation(summary = "修改线路")
+    @SaCheckPermission("md:route-master:update")
     @PutMapping("/{id}")
     @OperationLog(module = "线路", type = "UPDATE", desc = "修改线路")
     public ApiResponse<RouteDTO> update(@PathVariable Long id, @RequestBody RouteDTO dto) {
@@ -97,6 +103,7 @@ public class RouteMasterController {
     }
 
     @Operation(summary = "删除线路")
+    @SaCheckPermission("md:route-master:delete")
     @DeleteMapping("/{id}")
     @OperationLog(module = "线路", type = "DELETE", desc = "删除线路")
     public ApiResponse<Void> delete(@PathVariable Long id) {
@@ -105,6 +112,7 @@ public class RouteMasterController {
     }
 
     @Operation(summary = "启用/停用线路")
+    @SaCheckPermission("md:route-master:status")
     @PutMapping("/{id}/status")
     @OperationLog(module = "线路", type = "UPDATE", desc = "启用/停用线路")
     public ApiResponse<RouteDTO> updateStatus(
@@ -114,6 +122,7 @@ public class RouteMasterController {
     }
 
     @Operation(summary = "批量启用/停用线路")
+    @SaCheckPermission("md:route-master:status")
     @PostMapping("/batch-status")
     @OperationLog(module = "线路", type = "UPDATE", desc = "批量启用/停用线路")
     public ApiResponse<Integer> batchStatus(@RequestBody Map<String, Object> body) {
@@ -126,6 +135,7 @@ public class RouteMasterController {
     }
 
     @Operation(summary = "下载线路导入模板（对标「基本信息导入」向导第 1 步）")
+    @SaCheckPermission("md:route-master:view")
     @GetMapping("/import-template")
     public void importTemplate(HttpServletResponse response) throws IOException {
         String[] headers = {"导入结果", "线路编号", "线路名称(必填)", "线路类型(自配/物流)", "物流公司", "配送区域编码", "备注"};
@@ -171,6 +181,7 @@ public class RouteMasterController {
     }
 
     @Operation(summary = "Excel 导入线路（真实落库）")
+    @SaCheckPermission("md:route-master:import")
     @PostMapping("/import-excel")
     @OperationLog(module = "线路", type = "CREATE", desc = "Excel 导入线路")
     public ApiResponse<Map<String, Object>> importExcel(@RequestParam("file") MultipartFile file) {
@@ -178,6 +189,7 @@ public class RouteMasterController {
     }
 
     @Operation(summary = "导出线路（真实 xlsx）")
+    @SaCheckPermission("md:route-master:export")
     @GetMapping("/export")
     @OperationLog(module = "线路", type = "QUERY", desc = "导出线路")
     public void export(RouteQueryDTO query, HttpServletResponse response) throws IOException {

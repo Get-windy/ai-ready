@@ -48,6 +48,7 @@ public class PromotionController {
     }
 
     @Operation(summary = "获取活动详情")
+    @SaCheckPermission("sale:promotion:detail")
     @GetMapping("/{id}")
     @SaCheckLogin
     public Result<PromotionActivityDTO> getPromotionDetail(@PathVariable Long id) {
@@ -56,6 +57,7 @@ public class PromotionController {
     }
 
     @Operation(summary = "分页查询活动列表")
+    @SaCheckPermission("sale:promotion:list")
     @GetMapping("/page")
     @SaCheckLogin
     public Result<Page<PromotionActivityDTO>> pagePromotions(
@@ -87,6 +89,7 @@ public class PromotionController {
     }
 
     @Operation(summary = "获取当前生效的促销")
+    @SaCheckPermission("sale:promotion:view")
     @GetMapping("/active")
     @SaCheckLogin
     public Result<List<PromotionActivityDTO>> getActivePromotions(@RequestParam Long tenantId) {
@@ -95,6 +98,7 @@ public class PromotionController {
     }
 
     @Operation(summary = "获取适用的促销")
+    @SaCheckPermission("sale:promotion:view")
     @GetMapping("/applicable")
     @SaCheckLogin
     public Result<List<PromotionActivityDTO>> getApplicablePromotions(

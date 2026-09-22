@@ -21,6 +21,7 @@ import java.io.InputStream;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 导入模板管理控制器
@@ -48,12 +49,14 @@ public class ImportTemplateController {
 
     // ==================== 模板管理 ====================
 
+    @SaCheckPermission("system:import-template:view")
     @GetMapping
     @Operation(summary = "获取所有模板列表")
     public ResponseEntity<List<ImportTemplateDefinition>> getAllTemplates() {
         return ResponseEntity.ok(templateStore.getAllTemplates());
     }
 
+    @SaCheckPermission("system:import-template:detail")
     @GetMapping("/{templateId}")
     @Operation(summary = "获取模板详情")
     public ResponseEntity<ImportTemplateDefinition> getTemplate(@PathVariable String templateId) {
@@ -61,6 +64,7 @@ public class ImportTemplateController {
         return template != null ? ResponseEntity.ok(template) : ResponseEntity.notFound().build();
     }
 
+    @SaCheckPermission("system:import-template:detail")
     @GetMapping("/data-type/{dataType}")
     @Operation(summary = "根据数据类型获取模板")
     public ResponseEntity<ImportTemplateDefinition> getTemplateByDataType(@PathVariable String dataType) {
@@ -68,12 +72,14 @@ public class ImportTemplateController {
         return template != null ? ResponseEntity.ok(template) : ResponseEntity.notFound().build();
     }
 
+    @SaCheckPermission("system:import-template:view")
     @GetMapping("/data-types")
     @Operation(summary = "获取支持的数据类型")
     public ResponseEntity<Set<String>> getSupportedDataTypes() {
         return ResponseEntity.ok(templateStore.getSupportedDataTypes());
     }
 
+    @SaCheckPermission("system:import-template:create")
     @PostMapping
     @Operation(summary = "注册新模板")
     public ResponseEntity<Map<String, Object>> registerTemplate(@RequestBody ImportTemplateDefinition template) {
@@ -92,6 +98,7 @@ public class ImportTemplateController {
         }
     }
 
+    @SaCheckPermission("system:import-template:update")
     @PutMapping("/{templateId}")
     @Operation(summary = "更新模板")
     public ResponseEntity<Map<String, Object>> updateTemplate(
@@ -112,6 +119,7 @@ public class ImportTemplateController {
         }
     }
 
+    @SaCheckPermission("system:import-template:delete")
     @DeleteMapping("/{templateId}")
     @Operation(summary = "删除模板")
     public ResponseEntity<Map<String, Object>> deleteTemplate(@PathVariable String templateId) {
@@ -124,6 +132,7 @@ public class ImportTemplateController {
 
     // ==================== 模板下载 ====================
 
+    @SaCheckPermission("system:import-template:export")
     @GetMapping("/{templateId}/download")
     @Operation(summary = "下载导入模板")
     public void downloadTemplate(@PathVariable String templateId, HttpServletResponse response) throws IOException {
@@ -143,6 +152,7 @@ public class ImportTemplateController {
         response.getOutputStream().flush();
     }
 
+    @SaCheckPermission("system:import-template:export")
     @GetMapping("/data-type/{dataType}/download")
     @Operation(summary = "根据数据类型下载模板")
     public void downloadTemplateByDataType(@PathVariable String dataType, HttpServletResponse response) throws IOException {
@@ -164,6 +174,7 @@ public class ImportTemplateController {
 
     // ==================== 数据校验 ====================
 
+    @SaCheckPermission("system:import-template:check")
     @PostMapping("/{templateId}/validate")
     @Operation(summary = "校验导入数据")
     public ResponseEntity<ImportTemplateValidator.ValidationResult> validateData(
@@ -183,6 +194,7 @@ public class ImportTemplateController {
         return ResponseEntity.ok(result);
     }
 
+    @SaCheckPermission("system:import-template:check")
     @PostMapping("/{templateId}/validate-row")
     @Operation(summary = "校验单行数据")
     public ResponseEntity<ImportTemplateValidator.RowValidationResult> validateRow(
@@ -203,6 +215,7 @@ public class ImportTemplateController {
 
     // ==================== 模板预览 ====================
 
+    @SaCheckPermission("system:import-template:view")
     @GetMapping("/{templateId}/preview")
     @Operation(summary = "预览模板结构")
     public ResponseEntity<TemplatePreview> previewTemplate(@PathVariable String templateId) {
@@ -237,6 +250,7 @@ public class ImportTemplateController {
 
     // ==================== 字段校验规则 ====================
 
+    @SaCheckPermission("system:import-template:view")
     @GetMapping("/{templateId}/fields/{fieldName}/validation")
     @Operation(summary = "获取字段校验规则")
     public ResponseEntity<FieldValidationRules> getFieldValidationRules(

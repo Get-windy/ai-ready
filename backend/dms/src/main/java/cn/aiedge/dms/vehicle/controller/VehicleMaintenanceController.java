@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 车辆维保记录控制器（配送 → 人车管理 → 车辆维护）
@@ -38,6 +39,7 @@ public class VehicleMaintenanceController {
     private final VehicleMaintenanceService maintenanceService;
 
     @Operation(summary = "分页查询维保记录")
+    @SaCheckPermission("dms:vehicle-maintenance:list")
     @GetMapping("/page")
     public ApiResponse<Page<MaintenanceVO>> page(
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") Integer pageNum,
@@ -47,18 +49,21 @@ public class VehicleMaintenanceController {
     }
 
     @Operation(summary = "获取维保记录详情")
+    @SaCheckPermission("dms:vehicle-maintenance:detail")
     @GetMapping("/{id}")
     public ApiResponse<MaintenanceVO> detail(@Parameter(description = "维保记录ID") @PathVariable Long id) {
         return ApiResponse.ok(maintenanceService.detail(id));
     }
 
     @Operation(summary = "生成下一个维保单号")
+    @SaCheckPermission("dms:vehicle-maintenance:list")
     @GetMapping("/next-no")
     public ApiResponse<String> nextNo() {
         return ApiResponse.ok(maintenanceService.nextNo());
     }
 
     @Operation(summary = "维保厂商选择器（往来单位：供应商/其他往来单位）")
+    @SaCheckPermission("dms:vehicle-maintenance:view")
     @GetMapping("/vendor-options")
     public ApiResponse<List<VendorOptionVO>> vendorOptions(
             @Parameter(description = "名称/编码/助记码关键字") @RequestParam(required = false) String keyword,
@@ -67,12 +72,14 @@ public class VehicleMaintenanceController {
     }
 
     @Operation(summary = "维保费用统计（按类型/月份/车辆/厂商）")
+    @SaCheckPermission("dms:vehicle-maintenance:view")
     @GetMapping("/stat")
     public ApiResponse<Map<String, Object>> stat(MaintenanceQuery query) {
         return ApiResponse.ok(maintenanceService.stat(query));
     }
 
     @Operation(summary = "维保到期提醒（日期 + 里程双阈值）")
+    @SaCheckPermission("dms:vehicle-maintenance:view")
     @GetMapping("/expiring")
     public ApiResponse<List<MaintenanceVO>> expiring(
             @Parameter(description = "日期预警窗口(天)") @RequestParam(defaultValue = "30") Integer days,
@@ -81,12 +88,14 @@ public class VehicleMaintenanceController {
     }
 
     @Operation(summary = "新增维保记录")
+    @SaCheckPermission("dms:vehicle-maintenance:create")
     @PostMapping
     public ApiResponse<MaintenanceVO> create(@Valid @RequestBody MaintenanceCreateDTO dto) {
         return ApiResponse.ok("维保记录创建成功", maintenanceService.create(dto));
     }
 
     @Operation(summary = "修改维保记录")
+    @SaCheckPermission("dms:vehicle-maintenance:update")
     @PutMapping("/{id}")
     public ApiResponse<MaintenanceVO> update(@Parameter(description = "维保记录ID") @PathVariable Long id,
                                              @Valid @RequestBody MaintenanceCreateDTO dto) {
@@ -94,6 +103,7 @@ public class VehicleMaintenanceController {
     }
 
     @Operation(summary = "删除维保记录")
+    @SaCheckPermission("dms:vehicle-maintenance:delete")
     @DeleteMapping("/{id}")
     public ApiResponse<Void> delete(@Parameter(description = "维保记录ID") @PathVariable Long id) {
         maintenanceService.delete(id);
@@ -101,6 +111,7 @@ public class VehicleMaintenanceController {
     }
 
     @Operation(summary = "导出维保记录 xlsx")
+    @SaCheckPermission("dms:vehicle-maintenance:export")
     @GetMapping("/export")
     public void export(MaintenanceQuery query, HttpServletResponse response) throws IOException {
         maintenanceService.export(query, response);

@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @RestController
@@ -32,6 +33,7 @@ public class MarketingCampaignController {
 
     private final MarketingCampaignService campaignService;
 
+    @SaCheckPermission("crm:marketing:list")
     @GetMapping("/page")
     @Operation(summary = "分页查询营销活动")
     public Page<CampaignVO> page(
@@ -48,6 +50,7 @@ public class MarketingCampaignController {
         return voPage;
     }
 
+    @SaCheckPermission("crm:marketing:detail")
     @GetMapping("/{id}")
     @Operation(summary = "获取营销活动详情")
     public CampaignVO getById(@PathVariable Long id) {
@@ -63,6 +66,7 @@ public class MarketingCampaignController {
         return vo;
     }
 
+    @SaCheckPermission("crm:marketing:view")
     @GetMapping("/running")
     @Operation(summary = "获取进行中的营销活动")
     public List<CampaignVO> listRunningCampaigns() {
@@ -70,6 +74,7 @@ public class MarketingCampaignController {
                 .map(this::convertToVO).collect(Collectors.toList());
     }
 
+    @SaCheckPermission("crm:marketing:view")
     @GetMapping("/ended")
     @Operation(summary = "获取已结束的营销活动")
     public List<CampaignVO> listEndedCampaigns() {
@@ -77,6 +82,7 @@ public class MarketingCampaignController {
                 .map(this::convertToVO).collect(Collectors.toList());
     }
 
+    @SaCheckPermission("crm:marketing:create")
     @PostMapping
     @Operation(summary = "创建营销活动")
     public CampaignVO create(@RequestBody CampaignCreateDTO dto) {
@@ -88,6 +94,7 @@ public class MarketingCampaignController {
         return convertToVO(created);
     }
 
+    @SaCheckPermission("crm:marketing:update")
     @PutMapping("/{id}")
     @Operation(summary = "更新营销活动")
     public CampaignVO update(@PathVariable Long id, @RequestBody CampaignCreateDTO dto) {
@@ -97,6 +104,7 @@ public class MarketingCampaignController {
         return convertToVO(updated);
     }
 
+    @SaCheckPermission("crm:marketing:submit")
     @PostMapping("/{id}/submit")
     @Operation(summary = "提交审批")
     public CampaignVO submitForApproval(@PathVariable Long id) {
@@ -104,6 +112,7 @@ public class MarketingCampaignController {
         return convertToVO(campaign);
     }
 
+    @SaCheckPermission("crm:marketing:approve")
     @PostMapping("/{id}/approve")
     @Operation(summary = "审批通过")
     public CampaignVO approve(@PathVariable Long id, @RequestParam(required = false) String note) {
@@ -112,6 +121,7 @@ public class MarketingCampaignController {
         return convertToVO(campaign);
     }
 
+    @SaCheckPermission("crm:marketing:approve")
     @PostMapping("/{id}/reject")
     @Operation(summary = "审批拒绝")
     public CampaignVO reject(@PathVariable Long id, @RequestParam String reason) {
@@ -120,6 +130,7 @@ public class MarketingCampaignController {
         return convertToVO(campaign);
     }
 
+    @SaCheckPermission("crm:marketing:update")
     @PostMapping("/{id}/schedule")
     @Operation(summary = "排期")
     public CampaignVO schedule(@PathVariable Long id) {
@@ -127,6 +138,7 @@ public class MarketingCampaignController {
         return convertToVO(campaign);
     }
 
+    @SaCheckPermission("crm:marketing:update")
     @PostMapping("/{id}/start")
     @Operation(summary = "启动活动")
     public CampaignVO start(@PathVariable Long id) {
@@ -134,6 +146,7 @@ public class MarketingCampaignController {
         return convertToVO(campaign);
     }
 
+    @SaCheckPermission("crm:marketing:update")
     @PostMapping("/{id}/pause")
     @Operation(summary = "暂停活动")
     public CampaignVO pause(@PathVariable Long id) {
@@ -141,6 +154,7 @@ public class MarketingCampaignController {
         return convertToVO(campaign);
     }
 
+    @SaCheckPermission("crm:marketing:update")
     @PostMapping("/{id}/resume")
     @Operation(summary = "恢复活动")
     public CampaignVO resume(@PathVariable Long id) {
@@ -148,6 +162,7 @@ public class MarketingCampaignController {
         return convertToVO(campaign);
     }
 
+    @SaCheckPermission("crm:marketing:update")
     @PostMapping("/{id}/complete")
     @Operation(summary = "完成活动")
     public CampaignVO complete(@PathVariable Long id) {
@@ -155,6 +170,7 @@ public class MarketingCampaignController {
         return convertToVO(campaign);
     }
 
+    @SaCheckPermission("crm:marketing:update")
     @PostMapping("/{id}/cancel")
     @Operation(summary = "取消活动")
     public CampaignVO cancel(@PathVariable Long id, @RequestParam String reason) {
@@ -162,6 +178,7 @@ public class MarketingCampaignController {
         return convertToVO(campaign);
     }
 
+    @SaCheckPermission("crm:marketing:update")
     @PostMapping("/{id}/update-progress")
     @Operation(summary = "更新进度")
     public CampaignVO updateProgress(@PathVariable Long id) {
@@ -169,48 +186,56 @@ public class MarketingCampaignController {
         return convertToVO(campaign);
     }
 
+    @SaCheckPermission("crm:marketing:view")
     @GetMapping("/{id}/targets")
     @Operation(summary = "获取目标客户列表")
     public List<MarketingTarget> getTargets(@PathVariable Long id) {
         return campaignService.getTargets(id);
     }
 
+    @SaCheckPermission("crm:marketing:update")
     @PostMapping("/{id}/targets")
     @Operation(summary = "添加目标客户")
     public MarketingTarget addTarget(@PathVariable Long id, @RequestBody MarketingTarget target) {
         return campaignService.addTarget(id, target);
     }
 
+    @SaCheckPermission("crm:marketing:update")
     @PostMapping("/{id}/targets/batch")
     @Operation(summary = "批量添加目标客户")
     public List<MarketingTarget> batchAddTargets(@PathVariable Long id, @RequestBody List<Long> customerIds) {
         return campaignService.batchAddTargets(id, customerIds);
     }
 
+    @SaCheckPermission("crm:marketing:update")
     @PutMapping("/{id}/targets/{targetId}")
     @Operation(summary = "更新目标客户")
     public MarketingTarget updateTarget(@PathVariable Long targetId, @RequestBody MarketingTarget target) {
         return campaignService.updateTarget(targetId, target);
     }
 
+    @SaCheckPermission("crm:marketing:delete")
     @DeleteMapping("/{id}/targets/{targetId}")
     @Operation(summary = "删除目标客户")
     public void removeTarget(@PathVariable Long targetId) {
         campaignService.removeTarget(targetId);
     }
 
+    @SaCheckPermission("crm:marketing:update")
     @PostMapping("/{id}/targets/{targetId}/reach")
     @Operation(summary = "标记已触达")
     public MarketingTarget markReached(@PathVariable Long targetId, @RequestParam Integer channel) {
         return campaignService.markReached(targetId, channel);
     }
 
+    @SaCheckPermission("crm:marketing:update")
     @PostMapping("/{id}/targets/{targetId}/respond")
     @Operation(summary = "标记已响应")
     public MarketingTarget markResponded(@PathVariable Long targetId, @RequestParam String content) {
         return campaignService.markResponded(targetId, content);
     }
 
+    @SaCheckPermission("crm:marketing:update")
     @PostMapping("/{id}/targets/{targetId}/convert")
     @Operation(summary = "标记已转化")
     public MarketingTarget markConverted(
@@ -222,18 +247,21 @@ public class MarketingCampaignController {
         return campaignService.markConverted(targetId, leadId, opportunityId, orderId, orderAmount);
     }
 
+    @SaCheckPermission("crm:marketing:view")
     @GetMapping("/{id}/executions")
     @Operation(summary = "获取执行记录")
     public List<MarketingExecution> getExecutions(@PathVariable Long id) {
         return campaignService.getExecutions(id);
     }
 
+    @SaCheckPermission("crm:marketing:update")
     @PostMapping("/{id}/executions")
     @Operation(summary = "添加执行记录")
     public MarketingExecution addExecution(@PathVariable Long id, @RequestBody MarketingExecution execution) {
         return campaignService.addExecution(id, execution);
     }
 
+    @SaCheckPermission("crm:marketing:view")
     @GetMapping("/statistics")
     @Operation(summary = "营销活动统计")
     public Result<Map<String, Object>> statistics() {

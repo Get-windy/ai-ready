@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 路线规划与地理能力控制器
@@ -28,6 +29,7 @@ public class RouteController {
     private final RouteService routeService;
 
     @Operation(summary = "配送路线规划（多点最优，兼容 waypoints / destinations）")
+    @SaCheckPermission("dms:route:update")
     @PostMapping("/plan")
     public ApiResponse<RoutePlanResponse> planDeliveryRoute(
             @Parameter(description = "路线规划请求") @RequestBody RoutePlanRequest request) {
@@ -35,6 +37,7 @@ public class RouteController {
     }
 
     @Operation(summary = "重新规划（当前位置 → 剩余点位重排序）")
+    @SaCheckPermission("dms:route:update")
     @PostMapping("/reoptimize")
     public ApiResponse<RoutePlanResponse> reoptimize(
             @Parameter(description = "重新规划请求，visitedCount 为已访问点数") @RequestBody RoutePlanRequest request) {
@@ -42,6 +45,7 @@ public class RouteController {
     }
 
     @Operation(summary = "地理编码：地址转坐标（返回候选列表，带缓存）")
+    @SaCheckPermission("dms:route:view")
     @GetMapping("/geocode")
     public ApiResponse<GeocodeResponse> geocode(
             @Parameter(description = "地址") @RequestParam String address,
@@ -50,6 +54,7 @@ public class RouteController {
     }
 
     @Operation(summary = "逆地理编码：坐标转地址")
+    @SaCheckPermission("dms:route:view")
     @GetMapping("/reverse-geocode")
     public ApiResponse<ReverseGeocodeResponse> reverseGeocode(
             @Parameter(description = "纬度") @RequestParam double lat,
@@ -59,6 +64,7 @@ public class RouteController {
     }
 
     @Operation(summary = "批量距离计算")
+    @SaCheckPermission("dms:route:update")
     @PostMapping("/distance")
     public ApiResponse<DistanceResponse> calculateDistances(
             @Parameter(description = "距离计算请求") @RequestBody DistanceRequest request) {
@@ -66,6 +72,7 @@ public class RouteController {
     }
 
     @Operation(summary = "电子围栏校验（围栏档案 / 内联圆形 / 内联多边形，支持批量点位）")
+    @SaCheckPermission("dms:route:update")
     @PostMapping("/fence-check")
     public ApiResponse<FenceCheckResponse> fenceCheck(
             @Parameter(description = "围栏校验请求") @RequestBody FenceCheckRequest request) {
@@ -73,6 +80,7 @@ public class RouteController {
     }
 
     @Operation(summary = "坐标体系转换（WGS84 / GCJ02 / BD09 互转）")
+    @SaCheckPermission("dms:route:update")
     @PostMapping("/convert")
     public ApiResponse<CoordConvertResponse> convert(
             @Parameter(description = "坐标转换请求") @RequestBody CoordConvertRequest request) {
@@ -80,12 +88,14 @@ public class RouteController {
     }
 
     @Operation(summary = "地理能力配置状态（服务商 / 是否降级 / 坐标体系）")
+    @SaCheckPermission("dms:route:view")
     @GetMapping("/config")
     public ApiResponse<RouteConfigResponse> config() {
         return ApiResponse.success(routeService.config());
     }
 
     @Operation(summary = "地图服务连通性自检（用当前 Key 真实调用一次地理编码）")
+    @SaCheckPermission("dms:route:update")
     @PostMapping("/verify")
     public ApiResponse<RouteVerifyResponse> verify() {
         return ApiResponse.success(routeService.verify());

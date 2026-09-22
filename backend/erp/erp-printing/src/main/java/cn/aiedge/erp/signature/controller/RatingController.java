@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Tag(name = "配送评价管理", description = "配送评价提交、查询、统计")
 @RestController
@@ -22,6 +23,7 @@ public class RatingController {
     private final RatingService ratingService;
 
     @Operation(summary = "提交配送评价")
+    @SaCheckPermission("signature:rating:create")
     @PostMapping
     public ResponseEntity<Map<String, Object>> createRating(@RequestBody RatingCreateRequest request) {
         DeliveryRating rating = ratingService.createRating(request);
@@ -29,6 +31,7 @@ public class RatingController {
     }
 
     @Operation(summary = "获取评价详情")
+    @SaCheckPermission("signature:rating:detail")
     @GetMapping("/{id}")
     public ResponseEntity<Map<String, Object>> getRating(@PathVariable Long id) {
         DeliveryRating rating = ratingService.getRatingById(id);
@@ -36,6 +39,7 @@ public class RatingController {
     }
 
     @Operation(summary = "获取签收记录的评价")
+    @SaCheckPermission("signature:rating:detail")
     @GetMapping("/signature/{signatureId}")
     public ResponseEntity<Map<String, Object>> getRatingBySignature(@PathVariable Long signatureId) {
         DeliveryRating rating = ratingService.getRatingBySignatureId(signatureId);
@@ -43,6 +47,7 @@ public class RatingController {
     }
 
     @Operation(summary = "评价列表查询")
+    @SaCheckPermission("signature:rating:list")
     @GetMapping("/list")
     public ResponseEntity<Map<String, Object>> listRatings(
             @RequestParam(defaultValue = "1") Integer page,
@@ -56,6 +61,7 @@ public class RatingController {
     }
 
     @Operation(summary = "配送员评价统计")
+    @SaCheckPermission("signature:rating:view")
     @GetMapping("/stats/{deliveryPersonId}")
     public ResponseEntity<Map<String, Object>> getRatingStats(@PathVariable Long deliveryPersonId) {
         Map<String, Object> stats = ratingService.getRatingStats(deliveryPersonId);

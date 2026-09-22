@@ -1,7 +1,6 @@
 package cn.aiedge.crm.contract.controller;
 
 import cn.aiedge.common.exception.BusinessException;
-import cn.aiedge.crm.common.CrmPermissions;
 import cn.aiedge.crm.contract.dto.ContractCreateDTO;
 import cn.aiedge.crm.contract.dto.ContractVO;
 import cn.aiedge.crm.contract.entity.Contract;
@@ -25,6 +24,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @RestController
@@ -35,6 +35,7 @@ public class ContractController {
 
     private final ContractService contractService;
 
+    @SaCheckPermission("crm:contract:view")
     @GetMapping("/page")
     @Operation(summary = "分页查询合同")
     public Page<ContractVO> page(
@@ -52,6 +53,7 @@ public class ContractController {
         return voPage;
     }
 
+    @SaCheckPermission("crm:contract:view")
     @GetMapping("/{id}")
     @Operation(summary = "获取合同详情")
     public ContractVO getById(@PathVariable Long id) {
@@ -68,6 +70,7 @@ public class ContractController {
         return vo;
     }
 
+    @SaCheckPermission("crm:contract:view")
     @GetMapping("/customer/{customerId}")
     @Operation(summary = "获取客户的合同列表")
     public List<ContractVO> listByCustomerId(@PathVariable Long customerId) {
@@ -75,6 +78,7 @@ public class ContractController {
                 .map(this::convertToVO).collect(Collectors.toList());
     }
 
+    @SaCheckPermission("crm:contract:view")
     @GetMapping("/opportunity/{opportunityId}")
     @Operation(summary = "获取商机的合同列表")
     public List<ContractVO> listByOpportunityId(@PathVariable Long opportunityId) {
@@ -82,6 +86,7 @@ public class ContractController {
                 .map(this::convertToVO).collect(Collectors.toList());
     }
 
+    @SaCheckPermission("crm:contract:view")
     @GetMapping("/expiring")
     @Operation(summary = "获取即将到期合同")
     public List<ContractVO> getExpiringContracts(@RequestParam(defaultValue = "30") int days) {
@@ -89,6 +94,7 @@ public class ContractController {
                 .map(this::convertToVO).collect(Collectors.toList());
     }
 
+    @SaCheckPermission("crm:contract:view")
     @GetMapping("/expired")
     @Operation(summary = "获取已过期合同")
     public List<ContractVO> getExpiredContracts() {
@@ -96,6 +102,7 @@ public class ContractController {
                 .map(this::convertToVO).collect(Collectors.toList());
     }
 
+    @SaCheckPermission("crm:contract:create")
     @PostMapping
     @Operation(summary = "创建合同")
     public ContractVO create(@RequestBody ContractCreateDTO dto) {
@@ -108,6 +115,7 @@ public class ContractController {
         return convertToVO(created);
     }
 
+    @SaCheckPermission("crm:contract:create")
     @PostMapping("/from-quotation/{quotationId}")
     @Operation(summary = "从报价单创建合同")
     public ContractVO createFromQuotation(@PathVariable Long quotationId) {
@@ -115,6 +123,7 @@ public class ContractController {
         return convertToVO(contract);
     }
 
+    @SaCheckPermission("crm:contract:edit")
     @PutMapping("/{id}")
     @Operation(summary = "更新合同")
     public ContractVO update(@PathVariable Long id, @RequestBody ContractCreateDTO dto) {
@@ -124,33 +133,34 @@ public class ContractController {
         return convertToVO(updated);
     }
 
+    @SaCheckPermission("crm:contract:edit")
     @PostMapping("/{id}/submit")
     @Operation(summary = "提交审批")
     public ContractVO submitForApproval(@PathVariable Long id) {
         // 提交审批属编辑动作：能改合同的人才能提交（原先三个端点均无鉴权，任何登录用户可自审）
-        CrmPermissions.require("crm:contract:edit");
         Contract contract = contractService.submitForApproval(id);
         return convertToVO(contract);
     }
 
+    @SaCheckPermission("crm:contract:approve")
     @PostMapping("/{id}/approve")
     @Operation(summary = "审批通过")
     public ContractVO approve(@PathVariable Long id, @RequestParam(required = false) String note) {
-        CrmPermissions.require("crm:contract:approve");
         Long approverId = StpUtil.getLoginIdAsLong();
         Contract contract = contractService.approve(id, approverId, note);
         return convertToVO(contract);
     }
 
+    @SaCheckPermission("crm:contract:approve")
     @PostMapping("/{id}/reject")
     @Operation(summary = "审批拒绝")
     public ContractVO reject(@PathVariable Long id, @RequestParam String reason) {
-        CrmPermissions.require("crm:contract:approve");
         Long rejecterId = StpUtil.getLoginIdAsLong();
         Contract contract = contractService.reject(id, rejecterId, reason);
         return convertToVO(contract);
     }
 
+    @SaCheckPermission("crm:contract:sign")
     @PostMapping("/{id}/sign")
     @Operation(summary = "签署合同")
     public ContractVO sign(
@@ -162,6 +172,7 @@ public class ContractController {
         return convertToVO(contract);
     }
 
+    @SaCheckPermission("crm:contract:edit")
     @PostMapping("/{id}/effective")
     @Operation(summary = "合同生效")
     public ContractVO makeEffective(@PathVariable Long id) {
@@ -169,6 +180,7 @@ public class ContractController {
         return convertToVO(contract);
     }
 
+    @SaCheckPermission("crm:contract:edit")
     @PostMapping("/{id}/complete")
     @Operation(summary = "合同完成")
     public ContractVO complete(@PathVariable Long id) {
@@ -176,6 +188,7 @@ public class ContractController {
         return convertToVO(contract);
     }
 
+    @SaCheckPermission("crm:contract:edit")
     @PostMapping("/{id}/terminate")
     @Operation(summary = "终止合同")
     public ContractVO terminate(@PathVariable Long id, @RequestParam String reason) {
@@ -184,6 +197,7 @@ public class ContractController {
         return convertToVO(contract);
     }
 
+    @SaCheckPermission("crm:contract:edit")
     @PostMapping("/{id}/cancel")
     @Operation(summary = "取消合同")
     public ContractVO cancel(@PathVariable Long id, @RequestParam String reason) {
@@ -191,12 +205,14 @@ public class ContractController {
         return convertToVO(contract);
     }
 
+    @SaCheckPermission("crm:contract:delete")
     @DeleteMapping("/batch")
     @Operation(summary = "批量删除合同")
     public boolean batchDelete(@RequestBody List<Long> ids) {
         return contractService.removeBatchByIds(ids);
     }
 
+    @SaCheckPermission("crm:contract:download")
     @GetMapping("/export")
     @Operation(summary = "导出合同列表")
     public List<Contract> export(
@@ -209,6 +225,7 @@ public class ContractController {
         return contractService.exportList(keyword, customerId, opportunityId, status, contractType, salesPersonId);
     }
 
+    @SaCheckPermission("crm:contract:renewapply")
     @PostMapping("/{id}/renew")
     @Operation(summary = "续签合同")
     public ContractVO renew(@PathVariable Long id, @RequestParam LocalDate newEndDate) {
@@ -216,12 +233,14 @@ public class ContractController {
         return convertToVO(contract);
     }
 
+    @SaCheckPermission("crm:contract:refresh")
     @PostMapping("/mark-expired")
     @Operation(summary = "标记过期合同")
     public void markExpiredContracts() {
         contractService.markExpiredContracts();
     }
 
+    @SaCheckPermission("crm:contract:edit")
     @PutMapping("/{id}/progress")
     @Operation(summary = "更新执行进度")
     public ContractVO updateProgress(
@@ -232,90 +251,105 @@ public class ContractController {
         return convertToVO(contract);
     }
 
+    @SaCheckPermission("crm:contract:view")
     @GetMapping("/{id}/clauses")
     @Operation(summary = "获取合同条款")
     public List<ContractClause> getContractClauses(@PathVariable Long id) {
         return contractService.getContractClauses(id);
     }
 
+    @SaCheckPermission("crm:contract:edit")
     @PostMapping("/{id}/clauses")
     @Operation(summary = "添加合同条款")
     public ContractClause addClause(@PathVariable Long id, @RequestBody ContractClause clause) {
         return contractService.addClause(id, clause);
     }
 
+    @SaCheckPermission("crm:contract:edit")
     @PutMapping("/{id}/clauses/{clauseId}")
     @Operation(summary = "更新合同条款")
     public ContractClause updateClause(@PathVariable Long clauseId, @RequestBody ContractClause clause) {
         return contractService.updateClause(clauseId, clause);
     }
 
+    @SaCheckPermission("crm:contract:edit")
     @DeleteMapping("/{id}/clauses/{clauseId}")
     @Operation(summary = "删除合同条款")
     public void removeClause(@PathVariable Long clauseId) {
         contractService.removeClause(clauseId);
     }
 
+    @SaCheckPermission("crm:contract:view")
     @GetMapping("/{id}/attachments")
     @Operation(summary = "获取合同附件")
     public List<ContractAttachment> getAttachments(@PathVariable Long id) {
         return contractService.getAttachments(id);
     }
 
+    @SaCheckPermission("crm:contract:edit")
     @PostMapping("/{id}/attachments")
     @Operation(summary = "添加合同附件")
     public ContractAttachment addAttachment(@PathVariable Long id, @RequestBody ContractAttachment attachment) {
         return contractService.addAttachment(id, attachment);
     }
 
+    @SaCheckPermission("crm:contract:edit")
     @DeleteMapping("/{id}/attachments/{attachmentId}")
     @Operation(summary = "删除合同附件")
     public void removeAttachment(@PathVariable Long attachmentId) {
         contractService.removeAttachment(attachmentId);
     }
 
+    @SaCheckPermission("crm:contract:view")
     @GetMapping("/{id}/payments")
     @Operation(summary = "获取付款计划")
     public List<ContractPayment> getPayments(@PathVariable Long id) {
         return contractService.getPayments(id);
     }
 
+    @SaCheckPermission("crm:contract:view")
     @GetMapping("/{id}/payments/due")
     @Operation(summary = "获取到期付款")
     public List<ContractPayment> getDuePayments(@PathVariable Long id) {
         return contractService.getDuePayments(id);
     }
 
+    @SaCheckPermission("crm:contract:edit")
     @PostMapping("/{id}/payments")
     @Operation(summary = "添加付款计划")
     public ContractPayment addPayment(@PathVariable Long id, @RequestBody ContractPayment payment) {
         return contractService.addPayment(id, payment);
     }
 
+    @SaCheckPermission("crm:contract:edit")
     @PutMapping("/{id}/payments/{paymentId}")
     @Operation(summary = "更新付款计划")
     public ContractPayment updatePayment(@PathVariable Long paymentId, @RequestBody ContractPayment payment) {
         return contractService.updatePayment(paymentId, payment);
     }
 
+    @SaCheckPermission("crm:contract:edit")
     @PostMapping("/{id}/payments/{paymentId}/confirm")
     @Operation(summary = "确认付款")
     public ContractPayment confirmPayment(@PathVariable Long paymentId, @RequestParam BigDecimal actualAmount) {
         return contractService.confirmPayment(paymentId, actualAmount);
     }
 
+    @SaCheckPermission("crm:contract:view")
     @GetMapping("/{id}/changes")
     @Operation(summary = "获取合同变更记录")
     public List<ContractChange> getChanges(@PathVariable Long id) {
         return contractService.getChanges(id);
     }
 
+    @SaCheckPermission("crm:contract:edit")
     @PostMapping("/{id}/changes")
     @Operation(summary = "提出合同变更")
     public ContractChange proposeChange(@PathVariable Long id, @RequestBody ContractChange change) {
         return contractService.proposeChange(id, change);
     }
 
+    @SaCheckPermission("crm:contract:approve")
     @PostMapping("/{id}/changes/{changeId}/approve")
     @Operation(summary = "审批变更")
     public ContractChange approveChange(@PathVariable Long changeId, @RequestParam(required = false) String note) {
@@ -323,6 +357,7 @@ public class ContractController {
         return contractService.approveChange(changeId, approverId, note);
     }
 
+    @SaCheckPermission("crm:contract:approve")
     @PostMapping("/{id}/changes/{changeId}/reject")
     @Operation(summary = "拒绝变更")
     public ContractChange rejectChange(@PathVariable Long changeId, @RequestParam String reason) {
@@ -330,12 +365,14 @@ public class ContractController {
         return contractService.rejectChange(changeId, rejecterId, reason);
     }
 
+    @SaCheckPermission("crm:contract:edit")
     @PostMapping("/{id}/changes/{changeId}/execute")
     @Operation(summary = "执行变更")
     public ContractChange executeChange(@PathVariable Long changeId) {
         return contractService.executeChange(changeId);
     }
 
+    @SaCheckPermission("crm:contract:view")
     @GetMapping("/statistics")
     @Operation(summary = "合同统计")
     public Map<String, Object> statistics() {

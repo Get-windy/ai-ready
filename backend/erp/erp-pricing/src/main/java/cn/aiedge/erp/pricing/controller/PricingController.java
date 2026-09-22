@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.util.*;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @Tag(name = "取价逻辑引擎")
@@ -32,6 +33,7 @@ public class PricingController {
     private final ProductMapper productMapper;
 
     @Operation(summary = "查询取价配置")
+    @SaCheckPermission("pricing:price:view")
     @GetMapping("/configs")
     public Result<List<PricingRuleConfig>> getConfigs() {
         return Result.ok(configMapper.selectList(
@@ -39,6 +41,7 @@ public class PricingController {
     }
 
     @Operation(summary = "更新取价配置")
+    @SaCheckPermission("pricing:price:update")
     @PutMapping("/configs/{id}")
     public Result<Boolean> updateConfig(@PathVariable Long id, @RequestBody PricingRuleConfig config) {
         config.setId(id);
@@ -46,6 +49,7 @@ public class PricingController {
     }
 
     @Operation(summary = "解析最终价格(按优先级链路)")
+    @SaCheckPermission("pricing:price:view")
     @GetMapping("/resolve")
     public Result<Map<String, Object>> resolve(
             @RequestParam Long productId,
@@ -114,6 +118,7 @@ public class PricingController {
     }
 
     @Operation(summary = "分页查询价格记忆")
+    @SaCheckPermission("pricing:price:list")
     @GetMapping("/price-memory/page")
     public Result<IPage<PriceMemory>> priceMemoryPage(
             @RequestParam(required = false) Long productId,
@@ -128,6 +133,7 @@ public class PricingController {
     }
 
     @Operation(summary = "记录交易价格")
+    @SaCheckPermission("pricing:price:create")
     @PostMapping("/price-memory")
     public Result<Boolean> recordPrice(@RequestBody PriceMemory priceMemory) {
         // 取消旧的最新标记
@@ -142,6 +148,7 @@ public class PricingController {
     }
 
     @Operation(summary = "查询最新交易价格")
+    @SaCheckPermission("pricing:price:detail")
     @GetMapping("/price-memory/latest/{productId}/{customerId}")
     public Result<PriceMemory> getLatestPrice(
             @PathVariable Long productId,

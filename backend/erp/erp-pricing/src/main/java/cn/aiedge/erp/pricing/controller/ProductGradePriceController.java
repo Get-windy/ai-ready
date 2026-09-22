@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 产品等级价格Controller - 产品详情页内的等级价格管理
@@ -24,12 +25,14 @@ public class ProductGradePriceController {
     private final IProductGradePriceService gradePriceService;
 
     @Operation(summary = "获取某产品的等级价格列表")
+    @SaCheckPermission("product:grade-price:list")
     @GetMapping("/by-product/{productId}")
     public Result<List<ProductGradePrice>> getByProduct(@PathVariable Long productId) {
         return Result.ok(gradePriceService.getByProductId(productId));
     }
 
     @Operation(summary = "批量保存产品等级价格(全量覆盖)")
+    @SaCheckPermission("product:grade-price:update")
     @PostMapping("/batch-save")
     public Result<Boolean> batchSave(@RequestParam Long productId,
                                       @RequestBody List<ProductGradePrice> priceList) {
@@ -38,6 +41,7 @@ public class ProductGradePriceController {
     }
 
     @Operation(summary = "新增单条等级价格")
+    @SaCheckPermission("product:grade-price:create")
     @PostMapping
     public Result<Boolean> create(@RequestBody ProductGradePrice price) {
         if (price.getIsActive() == null) price.setIsActive(1);
@@ -46,6 +50,7 @@ public class ProductGradePriceController {
     }
 
     @Operation(summary = "编辑等级价格")
+    @SaCheckPermission("product:grade-price:update")
     @PutMapping("/{id}")
     public Result<Boolean> update(@PathVariable Long id, @RequestBody ProductGradePrice price) {
         price.setId(id);
@@ -53,6 +58,7 @@ public class ProductGradePriceController {
     }
 
     @Operation(summary = "删除等级价格")
+    @SaCheckPermission("product:grade-price:delete")
     @DeleteMapping("/{id}")
     public Result<Boolean> delete(@PathVariable Long id) {
         ProductGradePrice price = gradePriceService.getById(id);

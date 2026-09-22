@@ -47,6 +47,20 @@ interface MenuItem {
 }
 
 const componentMap: Record<string, () => Promise<any>> = {
+  // 协议模块（菜单由后端迁移落库，component 写 views/agreement/index）
+  'agreement/index': () => import('@/views/agreement/index.vue'),
+  'agreement/detail': () => import('@/views/agreement/detail.vue'),
+  'agreement/term-option/index': () => import('@/views/agreement/term-option/index.vue'),
+  'agreement/term-option': () => import('@/views/agreement/term-option/index.vue'),
+  // 发起契约向导（隐藏路由，入口在协议列表工具栏「发起契约」）
+  'agreement/wizard/index': () => import('@/views/agreement/wizard/index.vue'),
+  'agreement/wizard': () => import('@/views/agreement/wizard/index.vue'),
+  // 契约模板管理（隐藏路由，入口在协议列表工具栏「契约模板」）
+  'agreement/template/index': () => import('@/views/agreement/template/index.vue'),
+  'agreement/template': () => import('@/views/agreement/template/index.vue'),
+  // 受邀方打开契约邀请（短链由后端唯一送达下发：/agreement/invite?token=xxx）
+  'agreement/invite/index': () => import('@/views/agreement/invite/index.vue'),
+  'agreement/invite': () => import('@/views/agreement/invite/index.vue'),
   'erp/product/index': () => import('@/views/erp/product/index.vue'),
   'erp/product/create': () => import('@/views/erp/product/form.vue'),
   'erp/product/form': () => import('@/views/erp/product/form.vue'),
@@ -1234,6 +1248,43 @@ export async function loadDynamicRoutes(router?: Router): Promise<RouteRecordRaw
  */
 function getRequiredRoutes(): RouteRecordRaw[] {
   return [
+    // ── 协议模块：详情页与平台侧条款字典不挂菜单，但必须常驻 ──
+    // 详情页（列表页行内「查看详情」/「发起变更」跳这里；不依赖后端菜单树）
+    {
+      path: 'agreement/detail/:id',
+      name: 'AgreementDetail',
+      component: () => import('@/views/agreement/detail.vue'),
+      meta: { title: '协议详情', icon: 'FileTextOutlined', keepAlive: false, requiresAuth: true, hidden: true }
+    },
+    // 平台侧条款字典维护（入口在协议列表工具栏，按平台权限码隔离）
+    {
+      path: 'agreement/term-option',
+      name: 'AgreementTermOption',
+      component: () => import('@/views/agreement/term-option/index.vue'),
+      meta: { title: '条款字典维护', icon: 'BookOutlined', keepAlive: false, requiresAuth: true, hidden: true }
+    },
+    // 发起契约向导（入口在协议列表工具栏「发起契约」；选模板或从零起草都走这里）
+    {
+      path: 'agreement/wizard',
+      name: 'AgreementWizard',
+      component: () => import('@/views/agreement/wizard/index.vue'),
+      meta: { title: '发起契约', icon: 'FileAddOutlined', keepAlive: false, requiresAuth: true, hidden: true }
+    },
+    // 契约模板管理（入口在协议列表工具栏「契约模板」；平台侧与租户侧共用，可见范围由服务端判定）
+    {
+      path: 'agreement/template',
+      name: 'AgreementTemplate',
+      component: () => import('@/views/agreement/template/index.vue'),
+      meta: { title: '契约模板', icon: 'ProfileOutlined', keepAlive: false, requiresAuth: true, hidden: true }
+    },
+    // 受邀方打开契约邀请 —— ⚠️ 路径必须与后端下发的短链一致
+    // （AgreementInviteToken.shortLink = /agreement/invite?token=xxx），否则唯一送达的链接点进来是 404
+    {
+      path: 'agreement/invite',
+      name: 'AgreementInviteOpen',
+      component: () => import('@/views/agreement/invite/index.vue'),
+      meta: { title: '打开契约邀请', icon: 'LinkOutlined', keepAlive: false, requiresAuth: true, hidden: true }
+    },
     {
       path: 'erp/product/create',
       name: 'ErpProductCreate',

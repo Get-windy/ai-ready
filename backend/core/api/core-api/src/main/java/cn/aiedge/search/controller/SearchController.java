@@ -15,6 +15,7 @@ import jakarta.validation.Valid;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 搜索服务控制器
@@ -37,6 +38,7 @@ public class SearchController {
     /**
      * 全局搜索
      */
+    @SaCheckPermission("system:search:list")
     @PostMapping
     @Operation(summary = "全局搜索", description = "支持客户、产品、订单等多类型搜索")
     public ResponseEntity<SearchResponse> search(
@@ -57,6 +59,7 @@ public class SearchController {
     /**
      * 快速搜索（GET方式）
      */
+    @SaCheckPermission("system:search:list")
     @GetMapping
     @Operation(summary = "快速搜索", description = "通过URL参数进行快速搜索")
     public ResponseEntity<SearchResponse> quickSearch(
@@ -82,6 +85,7 @@ public class SearchController {
     /**
      * 搜索客户
      */
+    @SaCheckPermission("system:search:list")
     @GetMapping("/customer")
     @Operation(summary = "搜索客户", description = "搜索客户信息")
     public ResponseEntity<List<SearchResult>> searchCustomer(
@@ -98,6 +102,7 @@ public class SearchController {
     /**
      * 搜索产品
      */
+    @SaCheckPermission("system:search:list")
     @GetMapping("/product")
     @Operation(summary = "搜索产品", description = "搜索产品信息")
     public ResponseEntity<List<SearchResult>> searchProduct(
@@ -114,6 +119,7 @@ public class SearchController {
     /**
      * 搜索订单
      */
+    @SaCheckPermission("system:search:list")
     @GetMapping("/order")
     @Operation(summary = "搜索订单", description = "搜索订单信息")
     public ResponseEntity<List<SearchResult>> searchOrder(
@@ -130,6 +136,7 @@ public class SearchController {
     /**
      * 获取搜索建议
      */
+    @SaCheckPermission("system:search:list")
     @GetMapping("/suggestions")
     @Operation(summary = "获取搜索建议", description = "根据输入前缀获取搜索建议")
     public ResponseEntity<List<SearchSuggestion>> getSuggestions(
@@ -145,6 +152,7 @@ public class SearchController {
     /**
      * 获取热门搜索词
      */
+    @SaCheckPermission("system:search:list")
     @GetMapping("/hot")
     @Operation(summary = "获取热门搜索词", description = "获取当前热门搜索词列表")
     public ResponseEntity<Map<String, Object>> getHotSearches(
@@ -162,6 +170,7 @@ public class SearchController {
     /**
      * 获取搜索历史
      */
+    @SaCheckPermission("system:search:list")
     @GetMapping("/history")
     @Operation(summary = "获取搜索历史", description = "获取用户搜索历史记录")
     public ResponseEntity<List<SearchHistory>> getSearchHistory(
@@ -176,6 +185,7 @@ public class SearchController {
     /**
      * 清空搜索历史
      */
+    @SaCheckPermission("system:search:delete")
     @DeleteMapping("/history")
     @Operation(summary = "清空搜索历史", description = "清空用户所有搜索历史记录")
     public ResponseEntity<Map<String, Object>> clearSearchHistory(
@@ -193,6 +203,7 @@ public class SearchController {
     /**
      * 删除单条搜索历史
      */
+    @SaCheckPermission("system:search:delete")
     @DeleteMapping("/history/{historyId}")
     @Operation(summary = "删除单条搜索历史", description = "删除指定的搜索历史记录")
     public ResponseEntity<Map<String, Object>> deleteSearchHistory(
@@ -211,6 +222,7 @@ public class SearchController {
     /**
      * 索引客户数据
      */
+    @SaCheckPermission("system:search:update")
     @PostMapping("/index/customer/{customerId}")
     @Operation(summary = "索引客户数据", description = "将客户数据添加到搜索索引")
     public ResponseEntity<Map<String, Object>> indexCustomer(
@@ -230,6 +242,7 @@ public class SearchController {
     /**
      * 索引产品数据
      */
+    @SaCheckPermission("system:search:update")
     @PostMapping("/index/product/{productId}")
     @Operation(summary = "索引产品数据", description = "将产品数据添加到搜索索引")
     public ResponseEntity<Map<String, Object>> indexProduct(
@@ -249,6 +262,7 @@ public class SearchController {
     /**
      * 索引订单数据
      */
+    @SaCheckPermission("system:search:update")
     @PostMapping("/index/order/{orderId}")
     @Operation(summary = "索引订单数据", description = "将订单数据添加到搜索索引")
     public ResponseEntity<Map<String, Object>> indexOrder(
@@ -268,6 +282,7 @@ public class SearchController {
     /**
      * 删除索引
      */
+    @SaCheckPermission("system:search:delete")
     @DeleteMapping("/index/{type}/{id}")
     @Operation(summary = "删除索引", description = "从搜索索引中删除数据")
     public ResponseEntity<Map<String, Object>> deleteIndex(
@@ -301,6 +316,7 @@ public class SearchController {
     /**
      * 重建索引
      */
+    @SaCheckPermission("system:search:update")
     @PostMapping("/index/rebuild/{type}")
     @Operation(summary = "重建索引", description = "重建指定类型的搜索索引")
     public ResponseEntity<Map<String, Object>> rebuildIndex(

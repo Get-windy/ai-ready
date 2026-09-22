@@ -19,6 +19,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @Validated
@@ -31,6 +32,7 @@ public class PutawayController {
     private final PutawayService putawayService;
 
     @Operation(summary = "新增上架任务")
+    @SaCheckPermission("wms:putaway:create")
     @PostMapping("/save")
     public Result<WmsPutawayTask> save(@Valid @RequestBody WmsPutawayTask task) {
         putawayService.saveTask(task);
@@ -39,6 +41,7 @@ public class PutawayController {
     }
 
     @Operation(summary = "更新上架任务")
+    @SaCheckPermission("wms:putaway:create")
     @PostMapping("/update")
     public Result<Boolean> update(@Valid @RequestBody WmsPutawayTask task) {
         boolean updated = putawayService.updateTask(task);
@@ -49,6 +52,7 @@ public class PutawayController {
     }
 
     @Operation(summary = "根据ID查询上架任务")
+    @SaCheckPermission("wms:putaway:detail")
     @GetMapping("/{id}")
     public Result<WmsPutawayTask> getById(@PathVariable @NotNull(message = "任务ID不能为空") Long id) {
         WmsPutawayTask task = putawayService.getTaskById(id);
@@ -57,12 +61,14 @@ public class PutawayController {
     }
 
     @Operation(summary = "分页查询上架任务")
+    @SaCheckPermission("wms:putaway:list")
     @GetMapping("/page")
     public Result<Page<WmsPutawayTask>> page(@Valid Page<WmsPutawayTask> page, WmsPutawayTask query) {
         return Result.ok(putawayService.pageTask(page, query));
     }
 
     @Operation(summary = "按明细分页查询上架任务")
+    @SaCheckPermission("wms:putaway:view")
     @GetMapping("/page-detail")
     public Result<Page<WmsPutawayDetailVO>> pageDetail(WmsPutawayDetailQuery query) {
         if (query == null) query = new WmsPutawayDetailQuery();
@@ -73,6 +79,7 @@ public class PutawayController {
     }
 
     @Operation(summary = "删除上架任务")
+    @SaCheckPermission("wms:putaway:delete")
     @DeleteMapping("/{id}")
     public Result<String> delete(@PathVariable @NotNull(message = "任务ID不能为空") Long id) {
         putawayService.removeTask(id);
@@ -81,6 +88,7 @@ public class PutawayController {
     }
 
     @Operation(summary = "开始上架")
+    @SaCheckPermission("wms:putaway:execute")
     @PostMapping("/start")
     public Result<String> start(@RequestParam @NotNull Long taskId,
                                 @RequestParam @NotNull Long userId,
@@ -91,6 +99,7 @@ public class PutawayController {
     }
 
     @Operation(summary = "确认上架")
+    @SaCheckPermission("wms:putaway:confirm")
     @PostMapping("/confirm")
     public Result<String> confirm(@RequestParam @NotNull Long taskId,
                                   @RequestParam @NotNull Long userId,
@@ -101,6 +110,7 @@ public class PutawayController {
     }
 
     @Operation(summary = "取消上架")
+    @SaCheckPermission("wms:putaway:cancel")
     @PostMapping("/cancel")
     public Result<String> cancel(@RequestParam @NotNull Long taskId,
                                  @RequestParam(required = false) String reason) {
@@ -110,6 +120,7 @@ public class PutawayController {
     }
 
     @Operation(summary = "查询上架明细列表")
+    @SaCheckPermission("wms:putaway:detail")
     @GetMapping("/details/{taskId}")
     public Result<List<WmsPutawayDetail>> details(
             @PathVariable @NotNull(message = "任务ID不能为空") Long taskId) {
@@ -117,6 +128,7 @@ public class PutawayController {
     }
 
     @Operation(summary = "保存上架明细（整体替换，先删后插）")
+    @SaCheckPermission("wms:putaway:create")
     @PostMapping("/detail/save")
     public Result<String> saveDetails(@Valid @RequestBody DetailSaveRequest<WmsPutawayDetail> request) {
         putawayService.saveDetails(request.getTaskId(), request.getDetails());

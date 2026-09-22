@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @RestController
@@ -27,6 +28,7 @@ public class CustomerPoolController {
     private final CustomerPoolService customerPoolService;
 
     @Operation(summary = "分页查询公海池")
+    @SaCheckPermission("crm:customer-pool:list")
     @GetMapping("/page")
     public Page<CustomerPool> page(
             @Parameter(description = "关键词") @RequestParam(required = false) String keyword,
@@ -47,12 +49,14 @@ public class CustomerPoolController {
     }
 
     @Operation(summary = "获取可领取客户列表")
+    @SaCheckPermission("crm:customer-pool:view")
     @GetMapping("/available")
     public List<CustomerPool> listAvailable() {
         return customerPoolService.listAvailable();
     }
 
     @Operation(summary = "获取我领取的客户")
+    @SaCheckPermission("crm:customer-pool:view")
     @GetMapping("/my-claimed")
     public List<CustomerPool> listMyClaimed() {
         Long salesPersonId = StpUtil.getLoginIdAsLong();
@@ -60,6 +64,7 @@ public class CustomerPoolController {
     }
 
     @Operation(summary = "获取我放入公海的客户")
+    @SaCheckPermission("crm:customer-pool:view")
     @GetMapping("/my-returned")
     public List<CustomerPool> listMyReturned() {
         Long salesPersonId = StpUtil.getLoginIdAsLong();
@@ -67,6 +72,7 @@ public class CustomerPoolController {
     }
 
     @Operation(summary = "放入公海池")
+    @SaCheckPermission("crm:customer-pool:update")
     @PostMapping("/put/{customerId}")
     public CustomerPool putToPool(
             @PathVariable Long customerId,
@@ -76,6 +82,7 @@ public class CustomerPoolController {
     }
 
     @Operation(summary = "从公海池领取客户")
+    @SaCheckPermission("crm:customer-pool:update")
     @PostMapping("/claim/{poolId}")
     public CustomerPool claimFromPool(@PathVariable Long poolId) {
         Long salesPersonId = StpUtil.getLoginIdAsLong();
@@ -83,6 +90,7 @@ public class CustomerPoolController {
     }
 
     @Operation(summary = "退回公海池")
+    @SaCheckPermission("crm:customer-pool:update")
     @PostMapping("/return/{poolId}")
     public CustomerPool returnToPool(
             @PathVariable Long poolId,
@@ -91,18 +99,21 @@ public class CustomerPoolController {
     }
 
     @Operation(summary = "执行自动回收")
+    @SaCheckPermission("crm:customer-pool:update")
     @PostMapping("/auto-recovery")
     public void autoRecovery(@RequestParam(defaultValue = "30") Integer noFollowUpDays) {
         customerPoolService.autoRecovery(noFollowUpDays);
     }
 
     @Operation(summary = "检查过期客户")
+    @SaCheckPermission("crm:customer-pool:update")
     @PostMapping("/check-expired")
     public void checkExpired() {
         customerPoolService.checkExpired();
     }
 
     @Operation(summary = "公海池统计")
+    @SaCheckPermission("crm:customer-pool:view")
     @GetMapping("/statistics")
     public Map<String, Object> statistics() {
         Map<String, Object> stats = new HashMap<>();

@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @RestController
 @RequestMapping("/api/erp/mall/admin")
@@ -35,12 +36,14 @@ public class MallAdminController {
 
     // ==================== 商城配置 ====================
 
+    @SaCheckPermission("mall:config:view")
     @GetMapping("/config")
     @Operation(summary = "获取商城配置")
     public Result<ShopConfig> getConfig() {
         return Result.ok(mallAdminService.getConfig());
     }
 
+    @SaCheckPermission("mall:config:update")
     @PutMapping("/config")
     @Operation(summary = "更新商城配置")
     public Result<Void> updateConfig(@RequestBody ShopConfig config) {
@@ -50,6 +53,7 @@ public class MallAdminController {
 
     // ==================== 商城用户审核 ====================
 
+    @SaCheckPermission("mall:user:list")
     @GetMapping("/user/page")
     @Operation(summary = "分页查询商城用户（买家账号页：注册时间范围/归属分类/客户级别/显示停用）")
     public Result<Page<ShopUser>> pageUsers(
@@ -67,6 +71,7 @@ public class MallAdminController {
                 createTimeStart, createTimeEnd, categoryId, gradeId, showDisabled));
     }
 
+    @SaCheckPermission("mall:user:approve")
     @PutMapping("/user/{id}/approve")
     @Operation(summary = "审核通过")
     public Result<Void> approveUser(@Parameter(description = "用户ID") @PathVariable Long id) {
@@ -74,6 +79,7 @@ public class MallAdminController {
         return Result.ok();
     }
 
+    @SaCheckPermission("mall:user:approve")
     @PutMapping("/user/{id}/reject")
     @Operation(summary = "审核驳回")
     public Result<Void> rejectUser(
@@ -83,6 +89,7 @@ public class MallAdminController {
         return Result.ok();
     }
 
+    @SaCheckPermission("mall:user:update")
     @PutMapping("/user/{id}/status")
     @Operation(summary = "启用/禁用用户")
     public Result<Void> toggleUserStatus(
@@ -92,12 +99,14 @@ public class MallAdminController {
         return Result.ok();
     }
 
+    @SaCheckPermission("mall:user:delete")
     @DeleteMapping("/user/{id}")
     @Operation(summary = "删除买家账号（逻辑删除 shop_user.deleted=1，非物理删除；记录不存在返回 404 业务异常）")
     public Result<Boolean> deleteUser(@Parameter(description = "买家账号ID") @PathVariable Long id) {
         return Result.ok(mallAdminService.deleteUser(id));
     }
 
+    @SaCheckPermission("mall:user:update")
     @PutMapping("/user/{id}")
     @Operation(summary = "编辑买家账号（部分更新：仅更新请求体中非 null 的可编辑字段，返回更新后对象）")
     public Result<ShopUser> updateUser(
@@ -108,12 +117,14 @@ public class MallAdminController {
 
     // ==================== 轮播图管理 ====================
 
+    @SaCheckPermission("mall:banner:list")
     @GetMapping("/banner")
     @Operation(summary = "获取轮播图列表")
     public Result<List<ShopBanner>> listBanners() {
         return Result.ok(mallAdminService.listBanners());
     }
 
+    @SaCheckPermission("mall:banner:create")
     @PostMapping("/banner")
     @Operation(summary = "创建轮播图")
     public Result<Void> createBanner(@RequestBody ShopBanner banner) {
@@ -121,6 +132,7 @@ public class MallAdminController {
         return Result.ok();
     }
 
+    @SaCheckPermission("mall:banner:update")
     @PutMapping("/banner/{id}")
     @Operation(summary = "更新轮播图")
     public Result<Void> updateBanner(
@@ -131,6 +143,7 @@ public class MallAdminController {
         return Result.ok();
     }
 
+    @SaCheckPermission("mall:banner:delete")
     @DeleteMapping("/banner/{id}")
     @Operation(summary = "删除轮播图")
     public Result<Void> deleteBanner(@Parameter(description = "轮播图ID") @PathVariable Long id) {
@@ -140,18 +153,21 @@ public class MallAdminController {
 
     // ==================== 页面模板（「我的模板」+ 行业模板库） ====================
 
+    @SaCheckPermission("mall:template:list")
     @GetMapping("/template/list")
     @Operation(summary = "获取启用的模板列表（本租户「我的模板」；行业库条目 is_library=1 不在本列表，见 /template/library）")
     public Result<List<ShopTemplate>> listTemplates() {
         return Result.ok(mallAdminService.listTemplates());
     }
 
+    @SaCheckPermission("mall:template:list")
     @GetMapping("/template/library")
     @Operation(summary = "行业模板库列表（对标实测 14 行业；⚠️ 各行业模板的内部布局内容未实测，库条目 configJson 一律为空）")
     public Result<List<ShopTemplate>> listTemplateLibrary() {
         return Result.ok(mallAdminService.listTemplateLibrary());
     }
 
+    @SaCheckPermission("mall:template:create")
     @PostMapping("/template")
     @Operation(summary = "新增「我的模板」（对标「装修模板 → 我的模板 → 新增模板」；templateName 必填，"
             + "templateCode 为空时按 DECO_<时间戳> 自动生成；configJson 为装修结构 JSON 文本，"
@@ -160,6 +176,7 @@ public class MallAdminController {
         return Result.ok(mallAdminService.createTemplate(template));
     }
 
+    @SaCheckPermission("mall:template:create")
     @PostMapping("/template/library/{id}/reference")
     @Operation(summary = "引用行业库模板（复制库条目为本租户「我的模板」，is_library=0；"
             + "⚠️ 库条目内容为空，引用结果同样为空 —— 如实留缺口，不臆造模板内容）")
@@ -170,6 +187,7 @@ public class MallAdminController {
 
     // ==================== 装修配置（排版布局存储） ====================
 
+    @SaCheckPermission("mall:decoration:list")
     @GetMapping("/decoration")
     @Operation(summary = "查询装修配置列表（可按 scope 过滤：HOME 首页 / CATEGORY 分类页 / PRODUCT_DETAIL 商品详情）")
     public Result<List<ShopDecoration>> listDecorations(
@@ -178,18 +196,21 @@ public class MallAdminController {
         return Result.ok(mallAdminService.listDecorations(scope));
     }
 
+    @SaCheckPermission("mall:decoration:detail")
     @GetMapping("/decoration/{id}")
     @Operation(summary = "获取装修配置详情")
     public Result<ShopDecoration> getDecoration(@Parameter(description = "装修配置 id") @PathVariable Long id) {
         return Result.ok(mallAdminService.getDecoration(id));
     }
 
+    @SaCheckPermission("mall:decoration:create")
     @PostMapping("/decoration")
     @Operation(summary = "新增装修配置（name 必填；scope 为空默认 HOME；configJson 为装修结构 JSON 文本）")
     public Result<ShopDecoration> createDecoration(@RequestBody ShopDecoration decoration) {
         return Result.ok(mallAdminService.createDecoration(decoration));
     }
 
+    @SaCheckPermission("mall:decoration:update")
     @PutMapping("/decoration/{id}")
     @Operation(summary = "更新装修配置（部分更新：仅覆盖请求体中非 null 字段）")
     public Result<ShopDecoration> updateDecoration(
@@ -198,6 +219,7 @@ public class MallAdminController {
         return Result.ok(mallAdminService.updateDecoration(id, decoration));
     }
 
+    @SaCheckPermission("mall:decoration:delete")
     @DeleteMapping("/decoration/{id}")
     @Operation(summary = "逻辑删除装修配置（及其应用商品关联，同一事务）")
     public Result<Void> deleteDecoration(@Parameter(description = "装修配置 id") @PathVariable Long id) {
@@ -205,6 +227,7 @@ public class MallAdminController {
         return Result.ok();
     }
 
+    @SaCheckPermission("mall:decoration:detail")
     @GetMapping("/decoration/{id}/products")
     @Operation(summary = "查询装修配置已关联的商品 id 集合（对标商品详情「设置应用商品」）")
     public Result<List<Long>> listDecorationProducts(
@@ -212,6 +235,7 @@ public class MallAdminController {
         return Result.ok(mallAdminService.listDecorationProducts(id));
     }
 
+    @SaCheckPermission("mall:decoration:update")
     @PutMapping("/decoration/{id}/products")
     @Operation(summary = "全量替换装修配置的关联商品集合（先逻辑删旧、再插新，同一事务；"
             + "⚠️ 对标「设置应用商品」交互未实测，本端点为「能承载前端多选集合」的本实现口径）")
@@ -223,6 +247,7 @@ public class MallAdminController {
 
     // ==================== 商品管理 ====================
 
+    @SaCheckPermission("mall:product:list")
     @GetMapping("/product/page")
     @Operation(summary = "分页查询商城商品（数据源 v_mall_product 视图，含商品上架页 8 项查询条件）")
     public Result<Page<ErpProductMall>> pageProducts(
@@ -241,6 +266,7 @@ public class MallAdminController {
                 brand, productName, productTag, couponUsed, productType, visibleStatus));
     }
 
+    @SaCheckPermission("mall:product:create")
     @PostMapping("/product")
     @Operation(summary = "创建商品（⚠️ 未闭环缺口：仍写已废弃的 mall_product 表，列表读 v_mall_product 视图，"
             + "故新增后列表不反映；正确做法应为从 ERP 商品档案选取既有 erp_product 再上架）")
@@ -249,6 +275,7 @@ public class MallAdminController {
         return Result.ok();
     }
 
+    @SaCheckPermission("mall:product:update")
     @PutMapping("/product/{id}")
     @Operation(summary = "更新商品（写权威表 erp_product：product_name/image_url/retail_price(销售价)/"
             + "wholesale_price(市场价)/mall_category_name/mall_shelf_status(上架状态)/mall_description，"
@@ -261,6 +288,7 @@ public class MallAdminController {
         return Result.ok();
     }
 
+    @SaCheckPermission("mall:product:delete")
     @DeleteMapping("/product/{id}")
     @Operation(summary = "删除商品（⚠️ 遗留：仍按已废弃的 mall_product 表定位与软删，未改）")
     public Result<Void> deleteProduct(@PathVariable Long id) {
@@ -270,6 +298,7 @@ public class MallAdminController {
 
     // ==================== 订单管理 ====================
 
+    @SaCheckPermission("mall:order:list")
     @GetMapping("/order/page")
     @Operation(summary = "分页查询商城订单（管理端；查询条件为空即不过滤）",
             description = "状态口径：erp_sale_order.status 0草稿/1待审批/2已审批/3部分出库/4完成/5交易完成/6已取消。"
@@ -292,12 +321,14 @@ public class MallAdminController {
                 orderNo, startDate, endDate, consignee, paymentMethod, orderSource, productName));
     }
 
+    @SaCheckPermission("mall:order:detail")
     @GetMapping("/order/{id}")
     @Operation(summary = "获取订单详情")
     public Result<ErpSaleOrderMall> getOrderDetail(@PathVariable Long id) {
         return Result.ok(mallAdminService.getOrderDetail(id));
     }
 
+    @SaCheckPermission("mall:order:approve")
     @PutMapping("/order/{id}/approve")
     @Operation(summary = "审核通过订单")
     public Result<Void> approveOrder(@PathVariable Long id) {
@@ -305,6 +336,7 @@ public class MallAdminController {
         return Result.ok();
     }
 
+    @SaCheckPermission("mall:order:approve")
     @PutMapping("/order/{id}/reject")
     @Operation(summary = "审核驳回订单")
     public Result<Void> rejectOrder(
@@ -314,12 +346,14 @@ public class MallAdminController {
         return Result.ok();
     }
 
+    @SaCheckPermission("mall:order:view")
     @GetMapping("/order/stats")
     @Operation(summary = "商城订单统计卡（总订单数/GMV/客单价/退款率，真实聚合口径）")
     public Result<TradeAnalysisDTO.Summary> orderStats() {
         return Result.ok(mallAdminService.getOrderStats());
     }
 
+    @SaCheckPermission("mall:order:list")
     @GetMapping("/order/page-detail")
     @Operation(summary = "按明细分页查询商城订单（erp_sale_order_item JOIN erp_sale_order）",
             description = "查询条件与 /order/page 同口径（状态、单据编号、日期范围、收货人、支付方式、订单来源、商品）；"
@@ -341,6 +375,7 @@ public class MallAdminController {
                 orderNo, startDate, endDate, consignee, paymentMethod, orderSource, productName));
     }
 
+    @SaCheckPermission("mall:order:payment")
     @PostMapping("/order/{id}/pay")
     @Operation(summary = "订单收款（记收款金额并置为已支付）")
     public Result<Void> payOrder(@PathVariable Long id) {
@@ -348,6 +383,7 @@ public class MallAdminController {
         return Result.ok();
     }
 
+    @SaCheckPermission("mall:order:payment")
     @PostMapping("/order/{id}/receive")
     @Operation(summary = "订单收款（订单处理页行级收款，与 /pay 同实现）")
     public Result<Void> receiveOrder(@PathVariable Long id) {
@@ -355,6 +391,7 @@ public class MallAdminController {
         return Result.ok();
     }
 
+    @SaCheckPermission("mall:order:ship")
     @PostMapping("/order/{id}/ship")
     @Operation(summary = "订单发货（物流公司/运单号落 logistics_company/waybill_no，发货状态置已发货）")
     public Result<Void> shipOrder(
@@ -364,6 +401,7 @@ public class MallAdminController {
         return Result.ok();
     }
 
+    @SaCheckPermission("mall:order:refund")
     @PostMapping("/order/{id}/refund")
     @Operation(summary = "订单退款（支付状态置为已退款）")
     public Result<Void> refundOrder(
@@ -373,6 +411,7 @@ public class MallAdminController {
         return Result.ok();
     }
 
+    @SaCheckPermission("mall:order:cancel")
     @PostMapping("/order/{id}/terminate")
     @Operation(summary = "强制终止订单（状态置为已取消）")
     public Result<Void> terminateOrder(
@@ -382,12 +421,14 @@ public class MallAdminController {
         return Result.ok();
     }
 
+    @SaCheckPermission("mall:order:approve")
     @PutMapping("/order/batch-approve")
     @Operation(summary = "批量审核通过订单（返回成功条数）")
     public Result<Integer> batchApproveOrders(@RequestBody List<Long> ids) {
         return Result.ok(mallAdminService.batchApproveOrders(ids));
     }
 
+    @SaCheckPermission("mall:order:ship")
     @PutMapping("/order/batch-ship")
     @Operation(summary = "批量发货订单（返回成功条数）")
     public Result<Integer> batchShipOrders(@RequestBody List<Long> ids) {

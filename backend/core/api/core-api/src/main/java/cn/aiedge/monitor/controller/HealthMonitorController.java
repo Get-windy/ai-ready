@@ -20,6 +20,7 @@ import java.lang.management.MemoryUsage;
 import java.lang.management.ThreadMXBean;
 import java.time.LocalDateTime;
 import java.util.*;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 服务健康状态监控控制器
@@ -42,6 +43,7 @@ public class HealthMonitorController {
     /**
      * 获取综合健康状态
      */
+    @SaCheckPermission("system:monitor-health:view")
     @GetMapping("/status")
     @Operation(summary = "获取服务综合健康状态")
     public Map<String, Object> getHealthStatus() {
@@ -71,6 +73,7 @@ public class HealthMonitorController {
     /**
      * 获取数据库健康状态
      */
+    @SaCheckPermission("system:monitor-health:view")
     @GetMapping("/database")
     @Operation(summary = "获取数据库健康状态")
     public Map<String, Object> getDatabaseHealth() {
@@ -117,6 +120,7 @@ public class HealthMonitorController {
     /**
      * 获取JVM健康状态
      */
+    @SaCheckPermission("system:monitor-health:view")
     @GetMapping("/jvm")
     @Operation(summary = "获取JVM健康状态")
     public Map<String, Object> getJvmHealth() {
@@ -184,6 +188,7 @@ public class HealthMonitorController {
     /**
      * 获取磁盘健康状态
      */
+    @SaCheckPermission("system:monitor-health:view")
     @GetMapping("/disk")
     @Operation(summary = "获取磁盘健康状态")
     public Map<String, Object> getDiskHealth() {
@@ -234,6 +239,7 @@ public class HealthMonitorController {
     /**
      * 获取依赖服务健康状态
      */
+    @SaCheckPermission("system:monitor-health:view")
     @GetMapping("/dependencies")
     @Operation(summary = "获取依赖服务健康状态")
     public Map<String, Object> getDependenciesHealth() {
@@ -271,6 +277,7 @@ public class HealthMonitorController {
     /**
      * 获取就绪状态（Readiness Probe）
      */
+    @SaCheckPermission("system:monitor-health:view")
     @GetMapping("/ready")
     @Operation(summary = "获取服务就绪状态（Kubernetes Readiness Probe）")
     public Map<String, Object> getReadiness() {
@@ -305,6 +312,7 @@ public class HealthMonitorController {
     /**
      * 获取存活状态（Liveness Probe）
      */
+    @SaCheckPermission("system:monitor-health:view")
     @GetMapping("/live")
     @Operation(summary = "获取服务存活状态（Kubernetes Liveness Probe）")
     public Map<String, Object> getLiveness() {

@@ -107,6 +107,7 @@ public class SysRoleController {
     }
 
     @Operation(summary = "获取角色详情")
+    @SaCheckPermission("tenant-admin:role:detail")
     @GetMapping("/{id}")
     public Result<SysRole> getRoleDetail(@PathVariable Long id) {
         SysRole role = roleService.getById(id);
@@ -114,6 +115,7 @@ public class SysRoleController {
     }
 
     @Operation(summary = "获取角色权限")
+    @SaCheckPermission("tenant-admin:role:detail")
     @GetMapping("/{id}/permissions")
     public Result<List<Long>> getRolePermissions(@PathVariable Long id) {
         List<Long> permissionIds = roleService.getRolePermissionIds(id);
@@ -121,6 +123,7 @@ public class SysRoleController {
     }
 
     @Operation(summary = "获取角色菜单")
+    @SaCheckPermission("tenant-admin:role:detail")
     @GetMapping("/{id}/menus")
     public Result<List<Long>> getRoleMenus(@PathVariable Long id) {
         // 与 POST /{id}/menus（assignMenus）配对：前端「菜单管理 → 角色」弹窗

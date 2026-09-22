@@ -95,6 +95,7 @@ public class MdPaymentChannelController {
     }
 
     @Operation(summary = "查询启用的支付渠道（收付款单资金路由下拉）")
+    @SaCheckPermission("md:payment-channel:list")
     @GetMapping("/list")
     public Result<List<PaymentChannelVO>> list(
             @Parameter(description = "支付方式ID筛选") @RequestParam(required = false) Long methodId) {
@@ -138,6 +139,7 @@ public class MdPaymentChannelController {
     }
 
     @Operation(summary = "下载支付渠道导入模板（三步向导第 1 步）")
+    @SaCheckPermission("md:payment-channel:view")
     @GetMapping("/import-template")
     public void importTemplate(HttpServletResponse response) throws IOException {
         String fileName = "支付渠道导入模板_" + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd")) + ".xlsx";
@@ -176,6 +178,7 @@ public class MdPaymentChannelController {
     }
 
     @Operation(summary = "导出支付渠道（真实 xlsx）")
+    @SaCheckPermission("md:payment-channel:export")
     @GetMapping("/export")
     @OperationLog(module = "支付渠道管理", type = "QUERY", desc = "导出支付渠道")
     public void export(PaymentChannelQuery query, HttpServletResponse response) throws IOException {

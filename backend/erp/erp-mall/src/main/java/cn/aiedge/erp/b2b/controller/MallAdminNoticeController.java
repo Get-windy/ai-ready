@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 商城公告管理（管理后台）
@@ -21,6 +22,7 @@ public class MallAdminNoticeController {
 
     private final MallNoticeService mallNoticeService;
 
+    @SaCheckPermission("mall:notice:list")
     @GetMapping("/page")
     @Operation(summary = "分页查询公告")
     public Result<IPage<MallNotice>> page(
@@ -32,12 +34,14 @@ public class MallAdminNoticeController {
         return Result.ok(mallNoticeService.pageNotices(pageNum, pageSize, title, noticeType, status));
     }
 
+    @SaCheckPermission("mall:notice:detail")
     @GetMapping("/{id}")
     @Operation(summary = "查询公告详情")
     public Result<MallNotice> getById(@PathVariable Long id) {
         return Result.ok(mallNoticeService.getNotice(id));
     }
 
+    @SaCheckPermission("mall:notice:create")
     @PostMapping
     @Operation(summary = "创建公告")
     public Result<Void> create(@RequestBody MallNotice notice) {
@@ -45,6 +49,7 @@ public class MallAdminNoticeController {
         return Result.ok();
     }
 
+    @SaCheckPermission("mall:notice:update")
     @PutMapping("/{id}")
     @Operation(summary = "更新公告")
     public Result<Void> update(@PathVariable Long id, @RequestBody MallNotice notice) {
@@ -53,6 +58,7 @@ public class MallAdminNoticeController {
         return Result.ok();
     }
 
+    @SaCheckPermission("mall:notice:delete")
     @DeleteMapping("/{id}")
     @Operation(summary = "删除公告")
     public Result<Void> delete(@PathVariable Long id) {
@@ -60,6 +66,7 @@ public class MallAdminNoticeController {
         return Result.ok();
     }
 
+    @SaCheckPermission("mall:notice:publish")
     @PutMapping("/{id}/publish")
     @Operation(summary = "发布公告")
     public Result<Void> publish(@PathVariable Long id) {
@@ -67,6 +74,7 @@ public class MallAdminNoticeController {
         return Result.ok();
     }
 
+    @SaCheckPermission("mall:notice:update")
     @PutMapping("/{id}/offline")
     @Operation(summary = "下线公告")
     public Result<Void> offline(@PathVariable Long id) {

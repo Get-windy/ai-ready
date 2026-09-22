@@ -65,6 +65,7 @@ public class CostSharingController {
      * 获取下一个分摊单号
      */
     @Operation(summary = "获取下一个分摊单号")
+    @SaCheckPermission("purchase:cost-sharing:list")
     @GetMapping("/next-no")
     @SaCheckLogin
     public ApiResponse<String> nextNo() {

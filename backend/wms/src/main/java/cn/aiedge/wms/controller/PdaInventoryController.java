@@ -12,6 +12,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @Validated
@@ -24,6 +25,7 @@ public class PdaInventoryController {
     private final InventoryService inventoryService;
 
     @Operation(summary = "查询库存（按商品编码或货位编码）")
+    @SaCheckPermission("wms:inventory:view")
     @GetMapping("/query")
     public Result<List<WmsInventory>> query(
             @RequestParam(required = false) String productCode,

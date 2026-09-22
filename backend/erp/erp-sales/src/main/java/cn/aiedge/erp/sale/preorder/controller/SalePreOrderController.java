@@ -20,6 +20,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @RestController
@@ -32,6 +33,7 @@ public class SalePreOrderController {
     private final SalePreOrderItemMapper itemMapper;
     private final BizNumberGeneratorService bizNumberGeneratorService;
 
+    @SaCheckPermission("sale:pre-order:list")
     @GetMapping("/page")
     @Operation(summary = "分页查询预订货单（按单据）")
     @SaCheckLogin
@@ -72,6 +74,7 @@ public class SalePreOrderController {
                 pageNum, pageSize);
     }
 
+    @SaCheckPermission("sale:pre-order:view")
     @GetMapping("/page-detail")
     @Operation(summary = "分页查询预订货单明细（按明细）")
     @SaCheckLogin
@@ -107,6 +110,7 @@ public class SalePreOrderController {
                 pageNum, pageSize);
     }
 
+    @SaCheckPermission("sale:pre-order:list")
     @GetMapping("/next-no")
     @Operation(summary = "生成下一预订货单号（号段 YDHD-yyyyMMdd-NNNN）")
     @SaCheckLogin
@@ -114,6 +118,7 @@ public class SalePreOrderController {
         return ApiResponse.ok(salePreOrderService.generateOrderNo());
     }
 
+    @SaCheckPermission("sale:pre-order:detail")
     @GetMapping("/{id:\\d+}")
     @Operation(summary = "获取预订货单详情")
     @SaCheckLogin
@@ -195,6 +200,7 @@ public class SalePreOrderController {
         return ApiResponse.ok(result);
     }
 
+    @SaCheckPermission("sale:pre-order:create")
     @PostMapping
     @Operation(summary = "创建预订货单")
     @SaCheckLogin
@@ -213,6 +219,7 @@ public class SalePreOrderController {
         return ApiResponse.ok(savedOrder);
     }
 
+    @SaCheckPermission("sale:pre-order:update")
     @PutMapping("/{id}")
     @Operation(summary = "更新预订货单")
     @SaCheckLogin
@@ -226,6 +233,7 @@ public class SalePreOrderController {
         return ApiResponse.ok(order);
     }
 
+    @SaCheckPermission("sale:pre-order:delete")
     @DeleteMapping("/{id}")
     @Operation(summary = "删除预订货单")
     @SaCheckLogin
@@ -238,6 +246,7 @@ public class SalePreOrderController {
         return ApiResponse.ok(null);
     }
 
+    @SaCheckPermission("sale:pre-order:submit")
     @PostMapping("/{id}/submit")
     @Operation(summary = "提交审批")
     @SaCheckLogin
@@ -246,6 +255,7 @@ public class SalePreOrderController {
         return ApiResponse.ok(null);
     }
 
+    @SaCheckPermission("sale:pre-order:approve")
     @PostMapping("/{id}/approve")
     @Operation(summary = "审批通过")
     @SaCheckLogin
@@ -254,6 +264,7 @@ public class SalePreOrderController {
         return ApiResponse.ok(null);
     }
 
+    @SaCheckPermission("sale:pre-order:export")
     @GetMapping("/export")
     @Operation(summary = "导出预订货单")
     @SaCheckLogin
@@ -391,6 +402,7 @@ public class SalePreOrderController {
         }
     }
 
+    @SaCheckPermission("sale:pre-order:update")
     @PostMapping("/batch-order")
     @Operation(summary = "批量订货")
     @SaCheckLogin
@@ -419,6 +431,7 @@ public class SalePreOrderController {
         return ApiResponse.ok(result);
     }
 
+    @SaCheckPermission("sale:pre-order:print")
     @PostMapping("/{id}/print")
     @Operation(summary = "打印计数递增")
     @SaCheckLogin

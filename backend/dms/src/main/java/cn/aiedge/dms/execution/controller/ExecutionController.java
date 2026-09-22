@@ -63,6 +63,7 @@ public class ExecutionController {
     }
 
     @Operation(summary = "获取优化路线")
+    @SaCheckPermission("dms:execution:view")
     @GetMapping("/{taskId}/route")
     public ApiResponse<?> getRoute(
             @Parameter(description = "任务ID") @PathVariable Long taskId) {

@@ -39,6 +39,11 @@
             <groupId>cn.aiedge.crm</groupId>
             <artifactId>crm</artifactId>
         </dependency>
+        <!-- 协议模块（租户之间 / 租户与平台之间的协议；版本不可变 + 双签 + 必填条款） -->
+        <dependency>
+            <groupId>cn.aiedge.agreement</groupId>
+            <artifactId>agreement</artifactId>
+        </dependency>
         <!-- ERP 库存模块（含批次序列号） -->
         <dependency>
             <groupId>cn.aiedge.erp</groupId>

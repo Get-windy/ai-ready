@@ -19,6 +19,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -26,7 +28,25 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class RecordRuleServiceImpl implements RecordRuleService {
 
+    /** 「启用中规则的模型名」缓存 TTL：与数据权限表缓存同量级，改配置后最多滞后这么久 */
+    private static final long ENABLED_MODELS_CACHE_TTL_MS = 30_000L;
+
     private final RecordRuleMapper ruleMapper;
+
+    /** 启用中规则的模型名快照（小写）。volatile：被拦截器多线程读，写后不再改内容 */
+    private volatile Set<String> enabledModelsCache = Set.of();
+    private volatile long enabledModelsExpireAt = 0L;
+    /** 快照归属的租户：sys_record_rule 按租户隔离，缓存必须按租户区分，否则 A 租户先加载会让 B 租户的规则在 TTL 内不生效（漏过滤） */
+    private volatile Long enabledModelsTenantId = null;
+
+    /**
+     * 加载启用模型集合的防重入闸。
+     *
+     * <p>本方法要查 {@code sys_record_rule}，而那条查询自己也会经过记录规则拦截器 —— 若不加锁，
+     * 拦截器 → 本方法 → 拦截器 → 本方法 会无限递归（数据权限侧在 {@code sys_data_scope} 上
+     * 实踩过 StackOverflowError）。加载中直接返回上一次快照。</p>
+     */
+    private final AtomicBoolean loadingEnabledModels = new AtomicBoolean(false);
 
     @Override
     @Transactional
@@ -46,6 +66,7 @@ public class RecordRuleServiceImpl implements RecordRuleService {
         rule.setPermDelete(request.getPermDelete() != null && request.getPermDelete() ? 1 : 0);
         rule.setDescription(request.getDescription());
         ruleMapper.insert(rule);
+        invalidateEnabledModelsCache();
         return rule;
     }
 
@@ -69,6 +90,7 @@ public class RecordRuleServiceImpl implements RecordRuleService {
         rule.setPermDelete(request.getPermDelete() != null && request.getPermDelete() ? 1 : 0);
         rule.setDescription(request.getDescription());
         ruleMapper.updateById(rule);
+        invalidateEnabledModelsCache();
         return rule;
     }
 
@@ -113,6 +135,7 @@ public class RecordRuleServiceImpl implements RecordRuleService {
     @Transactional
     public void deleteRule(Long id) {
         ruleMapper.deleteById(id);
+        invalidateEnabledModelsCache();
     }
 
     @Override
@@ -122,6 +145,7 @@ public class RecordRuleServiceImpl implements RecordRuleService {
         if (rule != null) {
             rule.setActive(true);
             ruleMapper.updateById(rule);
+            invalidateEnabledModelsCache();
         }
     }
 
@@ -132,6 +156,7 @@ public class RecordRuleServiceImpl implements RecordRuleService {
         if (rule != null) {
             rule.setActive(false);
             ruleMapper.updateById(rule);
+            invalidateEnabledModelsCache();
         }
     }
 
@@ -176,6 +201,56 @@ public class RecordRuleServiceImpl implements RecordRuleService {
         }
 
         return "[\"|\", " + domains.stream().collect(Collectors.joining(", ")) + "]";
+    }
+
+    @Override
+    public String buildReadDomainFilter(String modelName, Long userId, List<Long> groupIds) {
+        if (StrUtil.isBlank(modelName)) {
+            return null;
+        }
+        PermissionContext context = new PermissionContext();
+        context.setModelName(modelName);
+        context.setUserId(userId);
+        if (groupIds != null) {
+            // 复制一份：调用方（拦截器）传的是不可变集合，且本对象只读，避免共享可变引用
+            context.setGroupIds(new ArrayList<>(groupIds));
+        }
+        context.setOperation("read");
+        return buildDomainFilter(modelName, context);
+    }
+
+    @Override
+    public Set<String> getEnabledRecordRuleModels() {
+        long now = System.currentTimeMillis();
+        // 只读 Sa-Token 会话取租户，不查库（查库会经拦截器递归）；缓存按租户区分
+        Long tenantId = cn.aiedge.base.config.MyBatisPlusConfig.getCurrentTenantIdValue();
+        if (now < enabledModelsExpireAt && java.util.Objects.equals(tenantId, enabledModelsTenantId)) {
+            return enabledModelsCache;
+        }
+        if (!loadingEnabledModels.compareAndSet(false, true)) {
+            // 正在加载（多半是拦截器自己的查询触发的）→ 返回上一次快照，绝不递归
+            return enabledModelsCache;
+        }
+        try {
+            List<String> models = ruleMapper.selectActiveModelNames();
+            enabledModelsCache = models == null ? Set.of() : models.stream()
+                    .filter(StrUtil::isNotBlank)
+                    .map(m -> m.trim().toLowerCase())
+                    .collect(Collectors.toSet());
+            enabledModelsTenantId = tenantId;
+        } catch (Exception e) {
+            // 加载失败**不清空**上一次快照：安全策略宁可沿用旧配置，也不因一次数据库抖动就整体放开过滤
+            log.debug("加载「启用中记录规则的模型」失败，沿用上一次快照: {}", e.getMessage());
+        } finally {
+            enabledModelsExpireAt = now + ENABLED_MODELS_CACHE_TTL_MS;
+            loadingEnabledModels.set(false);
+        }
+        return enabledModelsCache;
+    }
+
+    /** 规则发生增删改后让缓存立即失效，配置改动最多滞后一次查询 */
+    private void invalidateEnabledModelsCache() {
+        enabledModelsExpireAt = 0L;
     }
 
     @Override

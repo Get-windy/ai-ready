@@ -102,10 +102,73 @@ public class MyBatisPlusConfig {
         "biz_party_transaction",
         "biz_customer_grade_price",
         "biz_migration_log",
+        // 通知记录（通知服务）：⚠️ **无 tenant_id 列**（真库 information_schema 已核，2026-09-22）。
+        // 不忽略时拦截器注入 `AND tenant_id = <会话租户>` → SQL 直接报「字段 tenant_id 不存在」
+        // ⇒ `/api/core/notification/**` 对**任何租户会话**整块 500（超管因豁免而不报，故长期未暴露；
+        // 实测日志 `logs/backend-20260922-020602.log` 的 BadSqlGrammarException）。
+        // 归属由 receiver_id（用户）决定，不按租户行过滤，与上面那批「无 tenant_id 列」的表同处置。
+        "sys_notification_record",
+        // 商城顾客（买家）身份表：**已按 2026-09-22 用户裁定改为「系统级身份」** ——
+        // 它就是商城侧的 `sys_user`，`tenant_id` 恒为 0（全局容器）。
+        // "这个顾客属于哪个租户"改由 `shop_user_tenant`（顾客 × 租户关联 + 审核状态）表达，
+        // 而那张表**不忽略**、由本拦截器按会话租户过滤。
+        // ⚠️ 不忽略本表会让**所有租户会话读不到任何商城顾客**（注入 `AND tenant_id = <会话租户>`，
+        // 而表里只有 0）—— 商城登录会变成"查无此人"。
+        "shop_user",
         // 开发模板表（系统 → 开发工具 → 模板管理，菜单 62402）：⚠️ **无 tenant_id 列**（真库已核；V6.17.0 建表即无），
         // 平台级共享数据（模板定义不按租户归属 + 代码生成遗留种子同表）。不忽略时拦截器注入 `AND tenant_id = 1`
         // → SQL 报「字段 tenant_id 不存在」→ /api/import-templates 13 个端点全 500（2026-09-19 落库改造引入该表读写）。
-        "dev_template"
+        "dev_template",
+        // ⚠️⚠️ 协议模块四张表（2026-09-22 裁定⑥，DOMAIN-MODEL §12.1）：**主档是系统级**，
+        //   `agreement.tenant_id` 恒为 0，其余三张表同属该协议（版本/条款/平台字典）。
+        //
+        //   为什么**必须**忽略：协议天然跨租户（平台↔租户、租户↔租户）。若按会话租户自动过滤：
+        //   给某份协议存了"创建方租户"，则**乙方一行也查不到** —— 一份只有一方看得见的协议
+        //   既无法双签、也无法共同执行，整个模块就白做了。
+        //
+        //   ⚠️ 代价与防线（这条最容易做错）：自动租户隔离在这四张表上**不生效**，
+        //   "看不到别人的协议"完全靠代码里**显式写对的可见性条件**：
+        //   `party_a_tenant_id = 会话租户 OR party_b_tenant_id = 会话租户`。
+        //   该条件**收敛到唯一一处**（`cn.aiedge.agreement.domain.AgreementVisibility`），
+        //   不许在任何 Service 方法里各写一遍；否则迟早漏一处 = 跨租户数据泄露。
+        //   真机防线由 `tools/verify-agreement.cjs` 的「第三方会话看不到别人的协议」钉死。
+        "agreement",
+        "agreement_version",
+        "agreement_term",
+        "agreement_term_option",
+        // ⚠️ 协议**内容层** 8 张表（2026-09-22，DOMAIN-MODEL §13.11）同属系统级，理由同上。
+        //   这里统一登记而不是只靠各 Mapper 上的 `@InterceptorIgnore`：两套口径并存时，
+        //   漏给某个新 Mapper 加注解就会静默串租户（本模块内容层原先 12 个 Mapper 里只有 9 个加了注解）。
+        //   全局清单是**能被一眼看全**的那一处；Mapper 上的注解保留为冗余防线。
+        //   ⚠️ 尤其注意 `agreement_template*`：它**带 tenant_id**（平台级填 0、租户级填本租户），
+        //   若不忽略，平台级模板(tenant_id=0)对任何租户会话都读不到；忽略后由
+        //   `cn.aiedge.agreement.domain.AgreementTemplateVisibility` 显式判定可见性
+        //   （平台侧还额外有**合规抽查读权限**，见 §13.9）。
+        "agreement_setting",
+        "agreement_setting_def",
+        "agreement_narrative",
+        "agreement_fulfillment_mode",
+        "agreement_template",
+        "agreement_template_term",
+        "agreement_template_setting",
+        "agreement_template_narrative",
+        // ⚠️ 协议**成立过程与终止** 3 张表（2026-09-22，DOMAIN-MODEL §13.4~§13.7）同属系统级，理由同上：
+        //   `agreement_invite`（唯一送达）/ `agreement_signature`（签署留痕）/ `agreement_termination`（终止留痕）。
+        //
+        //   为什么**必须**忽略：这三张表都是"跨租户契约的过程件"，与父协议同生共死 ——
+        //     ① 邀请要发给**另一端**：按会话租户过滤会让收件方一行也读不到，邀请永远打不开；
+        //     ② 签署记录要双方都看得到（否则双签无从核对，"我到底签没签"说不清）；
+        //     ③ 终止记录要双方都看得到（否则"对方什么时候终止的"只能靠猜）。
+        //
+        //   ⚠️ 代价与防线：自动租户隔离在这三张表上**不生效**，它们都靠父协议的两端判定。
+        //   本模块的纪律是：**先取父协议、过 `AgreementVisibility.assertVisible`，再读这三张表**
+        //   （见 `AgreementLifecycleServiceImpl#requireVisibleAgreement`）；邀请另有一层
+        //   五绑定判定（`AgreementInviteGuard`：目标主体 + 目标租户 + 目标版本 + 时效 + 一次性），
+        //   身份不匹配一律回「这份契约不是发给你的」。
+        //   ⇒ 新增任何读这三张表的方法，都必须先过父协议可见性，不许直接按 id 取。
+        "agreement_invite",
+        "agreement_signature",
+        "agreement_termination"
     ));
 
     /** 临时租户ID（ThreadLocal）- 用于登录等未认证场景 */

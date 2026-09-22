@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 推广分析控制器（分析 → 采销分析 → 销售分析 → 推广分析，菜单 80418）
@@ -32,6 +33,7 @@ public class PromotionFunnelController {
 
     @Operation(summary = "职员推广漏斗分页",
             description = "按分享人归集：分享次数/浏览次数/下单笔数/下单金额（新客注册无归因链路，返回 null），含合计行 summary")
+    @SaCheckPermission("sale:analysis-promotion-funnel:list")
     @GetMapping("/page")
     @SaCheckLogin
     public ApiResponse<Map<String, Object>> page(PromotionFunnelQueryDTO query) {

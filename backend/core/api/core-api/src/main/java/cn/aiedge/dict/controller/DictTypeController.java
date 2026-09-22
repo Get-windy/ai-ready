@@ -57,6 +57,7 @@ public class DictTypeController {
         return ApiResponse.success(Map.of("success", result));
     }
 
+    @SaCheckPermission("system:dict:detail")
     @GetMapping("/{id}")
     @Operation(summary = "获取字典类型详情")
     public ApiResponse<DictTypeVO> getById(
@@ -64,6 +65,7 @@ public class DictTypeController {
         return ApiResponse.success(dictTypeService.getById(id));
     }
 
+    @SaCheckPermission("system:dict:detail")
     @GetMapping("/code/{dictCode}")
     @Operation(summary = "根据编码获取字典类型")
     public ApiResponse<DictTypeVO> getByDictCode(
@@ -71,6 +73,7 @@ public class DictTypeController {
         return ApiResponse.success(dictTypeService.getByDictCode(dictCode));
     }
 
+    @SaCheckPermission("system:dict:list")
     @GetMapping("/page")
     @Operation(summary = "分页查询字典类型")
     public ApiResponse<Map<String, Object>> page(
@@ -83,6 +86,7 @@ public class DictTypeController {
         return ApiResponse.success(list(tenantId, dictCode, dictName, status, page, pageSize));
     }
 
+    @SaCheckPermission("system:dict:list")
     @GetMapping("/list")
     @Operation(summary = "查询字典类型列表")
     public Map<String, Object> list(
@@ -104,6 +108,7 @@ public class DictTypeController {
         return dictTypeService.list(params);
     }
 
+    @SaCheckPermission("system:dict:list")
     @GetMapping("/tree")
     @Operation(summary = "获取字典类型树形结构")
     public ApiResponse<List<DictTypeVO>> getTree(
@@ -111,6 +116,7 @@ public class DictTypeController {
         return ApiResponse.success(dictTypeService.getTree(parentId));
     }
 
+    @SaCheckPermission("system:dict:view")
     @GetMapping("/enabled")
     @Operation(summary = "获取所有启用的字典类型")
     public ApiResponse<List<DictTypeVO>> getEnabled() {

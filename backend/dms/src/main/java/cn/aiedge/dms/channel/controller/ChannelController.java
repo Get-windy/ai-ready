@@ -49,6 +49,7 @@ public class ChannelController {
     }
 
     @Operation(summary = "分页查询渠道（多条件）")
+    @SaCheckPermission("dms:channel:list")
     @GetMapping("/page")
     @SaCheckLogin
     public ApiResponse<Page<ChannelVO>> page(
@@ -68,6 +69,7 @@ public class ChannelController {
     }
 
     @Operation(summary = "启用渠道下拉（选择器统一口径）")
+    @SaCheckPermission("dms:channel:list")
     @GetMapping("/options")
     @SaCheckLogin
     public ApiResponse<List<Map<String, Object>>> options() {
@@ -84,6 +86,7 @@ public class ChannelController {
     }
 
     @Operation(summary = "获取渠道详情（对接凭据脱敏）")
+    @SaCheckPermission("dms:channel:detail")
     @GetMapping("/{id}")
     @SaCheckLogin
     public ApiResponse<ChannelVO> getDetail(@Parameter(description = "渠道ID") @PathVariable Long id) {
@@ -173,6 +176,7 @@ public class ChannelController {
     }
 
     @Operation(summary = "外部单台账分页（按渠道）")
+    @SaCheckPermission("dms:channel:view")
     @GetMapping("/{id}/orders")
     @SaCheckLogin
     public ApiResponse<Page<DmsChannelOrder>> orderPage(
@@ -185,6 +189,7 @@ public class ChannelController {
     }
 
     @Operation(summary = "回调日志分页（验签/防重放/处理结果留痕）")
+    @SaCheckPermission("dms:channel:view")
     @GetMapping("/{id}/callback-logs")
     @SaCheckLogin
     public ApiResponse<Page<DmsChannelCallbackLog>> callbackLogPage(

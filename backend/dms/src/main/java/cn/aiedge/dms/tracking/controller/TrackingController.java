@@ -57,12 +57,14 @@ public class TrackingController {
 
     @Operation(summary = "轨迹台账分页（多条件）")
     @OperationLog(module = "配送跟踪", type = "QUERY", desc = "轨迹台账查询")
+    @SaCheckPermission("dms:tracking:list")
     @GetMapping("/page")
     public ApiResponse<Page<TrackingVO>> page(TrackingQueryDTO query) {
         return ApiResponse.ok(trackingService.page(query));
     }
 
     @Operation(summary = "里程聚合（按配送员 / 任务 / 日）")
+    @SaCheckPermission("dms:tracking:view")
     @GetMapping("/mileage")
     public ApiResponse<List<TrackingMileageVO>> mileage(
             TrackingQueryDTO query,
@@ -72,6 +74,7 @@ public class TrackingController {
 
     @Operation(summary = "导出轨迹台账（真实 xlsx）")
     @OperationLog(module = "配送跟踪", type = "EXPORT", desc = "轨迹台账导出")
+    @SaCheckPermission("dms:tracking:export")
     @GetMapping("/export")
     public void export(TrackingQueryDTO query, HttpServletResponse response) throws IOException {
         trackingService.export(query, response);
@@ -80,18 +83,21 @@ public class TrackingController {
     // ==================== 实时跟踪（配送员位置聚合 / 统计 / 预警 / 回放） ====================
 
     @Operation(summary = "配送员实时位置分页（一次聚合，替代 N+1）")
+    @SaCheckPermission("dms:tracking:view")
     @GetMapping("/rider-page")
     public ApiResponse<Page<RiderLocationVO>> riderPage(RiderLocationQuery query) {
         return ApiResponse.ok(trackingService.riderPage(query));
     }
 
     @Operation(summary = "实时跟踪统计卡（后端聚合）")
+    @SaCheckPermission("dms:tracking:view")
     @GetMapping("/stat")
     public ApiResponse<TrackingStatVO> stat() {
         return ApiResponse.ok(trackingService.stat());
     }
 
     @Operation(summary = "异常预警（超速 / 异常停留 / 超时在途）")
+    @SaCheckPermission("dms:tracking:view")
     @GetMapping("/alerts")
     public ApiResponse<List<TrackingAlertVO>> alerts(TrackingQueryDTO query) {
         return ApiResponse.ok(trackingService.alerts(query));
@@ -99,6 +105,7 @@ public class TrackingController {
 
     @Operation(summary = "轨迹回放点序列（按时间轴抽稀；riderId 与 taskId 二选一）")
     @OperationLog(module = "配送跟踪", type = "QUERY", desc = "轨迹回放查询")
+    @SaCheckPermission("dms:tracking:view")
     @GetMapping("/replay")
     public ApiResponse<List<TrackingVO>> replay(
             @Parameter(description = "配送员ID") @RequestParam(required = false) Long riderId,
@@ -113,12 +120,14 @@ public class TrackingController {
     }
 
     @Operation(summary = "实时位置推送（SSE，在线配送员位置增量；Authorization 标准鉴权）")
+    @SaCheckPermission("dms:tracking:view")
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter stream() {
         return trackingStreamService.subscribe();
     }
 
     @Operation(summary = "合规：按保留策略清理历史轨迹（返回删除条数；days 缺省读配置）")
+    @SaCheckPermission("dms:tracking:create")
     @PostMapping("/clean-expired")
     public ApiResponse<Integer> cleanExpired(
             @Parameter(description = "保留天数；缺省读 dms.tracking.retention.days") @RequestParam(required = false) Integer days) {
@@ -133,6 +142,7 @@ public class TrackingController {
 
     @Operation(summary = "按配送员取轨迹（供地图绘制/回放，含抽稀）")
     @OperationLog(module = "配送跟踪", type = "QUERY", desc = "轨迹明细查询（按配送员）")
+    @SaCheckPermission("dms:tracking:view")
     @GetMapping("/track-vo")
     public ApiResponse<List<TrackingVO>> trackVO(
             @Parameter(description = "配送员ID") @RequestParam Long riderId,
@@ -144,6 +154,7 @@ public class TrackingController {
 
     @Operation(summary = "按任务取轨迹（供地图绘制，含抽稀）")
     @OperationLog(module = "配送跟踪", type = "QUERY", desc = "轨迹明细查询（按任务）")
+    @SaCheckPermission("dms:tracking:detail")
     @GetMapping("/task-vo/{taskId}")
     public ApiResponse<List<TrackingVO>> trackByTaskVO(
             @Parameter(description = "任务ID") @PathVariable Long taskId,
@@ -171,6 +182,7 @@ public class TrackingController {
     }
 
     @Operation(summary = "获取配送员最新位置")
+    @SaCheckPermission("dms:tracking:detail")
     @GetMapping("/latest/{riderId}")
     public ApiResponse<DmsTracking> getLatestLocation(
             @Parameter(description = "配送员ID") @PathVariable Long riderId) {
@@ -178,6 +190,7 @@ public class TrackingController {
     }
 
     @Operation(summary = "获取轨迹（时间范围，原始实体，兼容旧接口）")
+    @SaCheckPermission("dms:tracking:view")
     @GetMapping("/track")
     public ApiResponse<List<DmsTracking>> getTrack(
             @Parameter(description = "配送员ID") @RequestParam Long riderId,
@@ -187,6 +200,7 @@ public class TrackingController {
     }
 
     @Operation(summary = "获取任务轨迹（原始实体，兼容旧接口）")
+    @SaCheckPermission("dms:tracking:detail")
     @GetMapping("/task/{taskId}")
     public ApiResponse<List<DmsTracking>> getTrackByTask(
             @Parameter(description = "任务ID") @PathVariable Long taskId) {

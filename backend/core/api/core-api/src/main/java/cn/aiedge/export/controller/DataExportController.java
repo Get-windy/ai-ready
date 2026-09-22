@@ -15,6 +15,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 数据导入导出控制器
@@ -31,6 +32,7 @@ public class DataExportController {
 
     private final DataExportService dataExportService;
 
+    @SaCheckPermission("system:dataexport:export")
     @PostMapping("/excel/export")
     @Operation(summary = "导出Excel")
     public void exportExcel(
@@ -46,6 +48,7 @@ public class DataExportController {
         // TODO: 实现真实Excel导出逻辑
     }
 
+    @SaCheckPermission("system:dataexport:export")
     @PostMapping("/csv/export")
     @Operation(summary = "导出CSV")
     public void exportCsv(
@@ -59,6 +62,7 @@ public class DataExportController {
         // TODO: 实现真实CSV导出逻辑
     }
 
+    @SaCheckPermission("system:dataexport:import")
     @PostMapping("/excel/import")
     @Operation(summary = "导入Excel")
     public DataExportService.ImportResult importExcel(
@@ -75,6 +79,7 @@ public class DataExportController {
         }
     }
 
+    @SaCheckPermission("system:dataexport:import")
     @PostMapping("/csv/import")
     @Operation(summary = "导入CSV")
     public DataExportService.ImportResult importCsv(
@@ -90,6 +95,7 @@ public class DataExportController {
         }
     }
 
+    @SaCheckPermission("system:dataexport:view")
     @PostMapping("/template/download")
     @Operation(summary = "下载导入模板")
     public void downloadTemplate(

@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 按明细Tab查询控制器
@@ -25,6 +26,7 @@ public class PurchaseDetailQueryController {
     private final PurchaseDetailQueryService purchaseDetailQueryService;
 
     @Operation(summary = "按明细Tab分页查询")
+    @SaCheckPermission("purchase:order:list")
     @GetMapping("/page")
     public ApiResponse<Page<PurchaseDetailListDTO>> pageByDetail(PurchaseDetailQueryDTO query) {
         Page<PurchaseDetailListDTO> page = purchaseDetailQueryService.pageByDetail(query);

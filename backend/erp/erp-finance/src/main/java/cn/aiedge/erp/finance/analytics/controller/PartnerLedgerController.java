@@ -61,6 +61,7 @@ public class PartnerLedgerController {
     }
 
     @Operation(summary = "行级「清账」：应收与应付对冲（经会计凭证，只支持应收/应付账款）")
+    @SaCheckPermission("finance:analytics-partner-balance:reconcile")
     @PostMapping("/reconcile")
     @SaCheckLogin
     public ApiResponse<Map<String, Object>> reconcile(

@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 消息队列管理控制器
@@ -33,6 +34,7 @@ public class MessageQueueController {
 
     // ==================== 消息发送 ====================
 
+    @SaCheckPermission("system:mq:execute")
     @PostMapping("/send/email")
     public ResponseEntity<Map<String, Object>> sendEmail(
             @RequestParam String to,
@@ -47,6 +49,7 @@ public class MessageQueueController {
         ));
     }
 
+    @SaCheckPermission("system:mq:execute")
     @PostMapping("/send/sms")
     public ResponseEntity<Map<String, Object>> sendSms(
             @RequestParam String phone,
@@ -60,6 +63,7 @@ public class MessageQueueController {
         ));
     }
 
+    @SaCheckPermission("system:mq:execute")
     @PostMapping("/send/notification")
     public ResponseEntity<Map<String, Object>> sendNotification(
             @RequestParam Long userId,
@@ -74,6 +78,7 @@ public class MessageQueueController {
         ));
     }
 
+    @SaCheckPermission("system:mq:execute")
     @PostMapping("/send")
     public ResponseEntity<Map<String, Object>> sendMessage(
             @RequestParam String routingKey,
@@ -88,6 +93,7 @@ public class MessageQueueController {
         ));
     }
 
+    @SaCheckPermission("system:mq:execute")
     @PostMapping("/send-delayed")
     public ResponseEntity<Map<String, Object>> sendDelayedMessage(
             @RequestParam String routingKey,
@@ -106,6 +112,7 @@ public class MessageQueueController {
 
     // ==================== 队列状态 ====================
 
+    @SaCheckPermission("system:mq:view")
     @GetMapping("/queues")
     public ResponseEntity<Map<String, Object>> getQueueInfo() {
         Map<String, Object> queues = new HashMap<>();
@@ -125,6 +132,7 @@ public class MessageQueueController {
         return ResponseEntity.ok(queues);
     }
 
+    @SaCheckPermission("system:mq:view")
     @GetMapping("/health")
     public ResponseEntity<Map<String, Object>> healthCheck() {
         Map<String, Object> health = new HashMap<>();
@@ -145,6 +153,7 @@ public class MessageQueueController {
 
     // ==================== 消息统计 ====================
 
+    @SaCheckPermission("system:mq:view")
     @GetMapping("/stats")
     public ResponseEntity<Map<String, Object>> getStats() {
         // 实际应该从RabbitMQ Management API获取

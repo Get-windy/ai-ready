@@ -37,6 +37,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 配送单（配送任务）管理控制器
@@ -62,12 +63,14 @@ public class TaskController {
     // ═══════════════════════════════════════════════
 
     @Operation(summary = "获取下一个配送单号（PSD-YYYYMMDD-序号）")
+    @SaCheckPermission("dms:task:list")
     @GetMapping("/next-no")
     public String nextNo() {
         return taskService.generateTaskNo();
     }
 
     @Operation(summary = "分页查询配送单（按单据视图，多条件）")
+    @SaCheckPermission("dms:task:list")
     @GetMapping("/page")
     public ApiResponse<IPage<DmsTask>> page(DmsTaskQuery query,
                                             @RequestParam(defaultValue = "1") long current,
@@ -76,6 +79,7 @@ public class TaskController {
     }
 
     @Operation(summary = "分页查询配送单（按明细视图）")
+    @SaCheckPermission("dms:task:view")
     @GetMapping("/page-detail")
     public ApiResponse<IPage<DmsTaskItemRowDTO>> pageDetail(DmsTaskQuery query,
                                                             @RequestParam(defaultValue = "1") long current,
@@ -84,6 +88,7 @@ public class TaskController {
     }
 
     @Operation(summary = "导出配送单列表（真实 Excel）")
+    @SaCheckPermission("dms:task:export")
     @GetMapping("/export")
     public void export(DmsTaskQuery query, HttpServletResponse response) {
         List<DmsTask> list = taskService.exportList(query);
@@ -154,12 +159,14 @@ public class TaskController {
     // ═══════════════════════════════════════════════
 
     @Operation(summary = "获取配送单详情（含商品明细）")
+    @SaCheckPermission("dms:task:detail")
     @GetMapping("/{id}")
     public ApiResponse<DmsTaskDetailDTO> getById(@Parameter(description = "配送单ID") @PathVariable Long id) {
         return ApiResponse.ok(taskService.getDetail(id));
     }
 
     @Operation(summary = "保存配送单（头 + 商品明细；新建/修改）")
+    @SaCheckPermission("dms:task:create")
     @PostMapping("/save")
     public ApiResponse<DmsTaskDetailDTO> save(@Valid @RequestBody DmsTaskSaveDTO dto) {
         DmsTask task = taskService.save(dto);
@@ -167,6 +174,7 @@ public class TaskController {
     }
 
     @Operation(summary = "删除配送单（逻辑删除）")
+    @SaCheckPermission("dms:task:delete")
     @DeleteMapping("/{id}")
     public ApiResponse<Void> delete(@Parameter(description = "配送单ID") @PathVariable Long id) {
         taskService.delete(id);
@@ -174,6 +182,7 @@ public class TaskController {
     }
 
     @Operation(summary = "审核配送单（待分配 → 已分配）")
+    @SaCheckPermission("dms:task:update")
     @PostMapping("/{id}/audit")
     public ApiResponse<Void> audit(@Parameter(description = "配送单ID") @PathVariable Long id) {
         taskService.audit(id);
@@ -181,6 +190,7 @@ public class TaskController {
     }
 
     @Operation(summary = "反审核配送单（已分配 → 待分配）")
+    @SaCheckPermission("dms:task:update")
     @PostMapping("/{id}/unaudit")
     public ApiResponse<Void> unaudit(@Parameter(description = "配送单ID") @PathVariable Long id) {
         taskService.unaudit(id);
@@ -188,6 +198,7 @@ public class TaskController {
     }
 
     @Operation(summary = "记录打印次数")
+    @SaCheckPermission("dms:task:update")
     @PostMapping("/{id}/print")
     public ApiResponse<Void> print(@Parameter(description = "配送单ID") @PathVariable Long id) {
         taskService.incrementPrintCount(id);
@@ -199,6 +210,7 @@ public class TaskController {
     // ═══════════════════════════════════════════════
 
     @Operation(summary = "指派配送员（调度任务，等价 /api/dms/dispatch/{id}/assign）")
+    @SaCheckPermission("dms:task:update")
     @PostMapping("/{id}/assign")
     public ApiResponse<Void> assign(@Parameter(description = "任务ID") @PathVariable Long id,
                                     @RequestBody Map<String, Object> body) {
@@ -211,6 +223,7 @@ public class TaskController {
     }
 
     @Operation(summary = "改派配送员（调度任务，等价 /api/dms/dispatch/{id}/reassign）")
+    @SaCheckPermission("dms:task:update")
     @PostMapping("/{id}/reassign")
     public ApiResponse<Void> reassign(@Parameter(description = "任务ID") @PathVariable Long id,
                                       @RequestBody Map<String, Object> body) {
@@ -229,6 +242,7 @@ public class TaskController {
     }
 
     @Operation(summary = "批量指派（逐单结果反馈）")
+    @SaCheckPermission("dms:task:update")
     @PostMapping("/batch-assign")
     public ApiResponse<BatchResultVO> batchAssign(@RequestBody DmsTaskBatchDTO dto) {
         return ApiResponse.ok("批量指派完成",
@@ -236,6 +250,7 @@ public class TaskController {
     }
 
     @Operation(summary = "批量取消（逐单结果反馈）")
+    @SaCheckPermission("dms:task:update")
     @PostMapping("/batch-cancel")
     public ApiResponse<BatchResultVO> batchCancel(@RequestBody DmsTaskBatchDTO dto) {
         return ApiResponse.ok("批量取消完成",
@@ -243,12 +258,14 @@ public class TaskController {
     }
 
     @Operation(summary = "批量记录打印次数（批量打印配送单后回写）")
+    @SaCheckPermission("dms:task:update")
     @PostMapping("/batch-print")
     public ApiResponse<Integer> batchPrint(@RequestBody DmsTaskBatchDTO dto) {
         return ApiResponse.ok(taskService.batchIncrementPrintCount(dto.getTaskIds()));
     }
 
     @Operation(summary = "任务调度审计（指派/改派/取消/异常/超时升级时间线）")
+    @SaCheckPermission("dms:task:list")
     @GetMapping("/{id}/logs")
     public ApiResponse<List<DmsTaskLog>> logs(@Parameter(description = "任务ID") @PathVariable Long id) {
         return ApiResponse.ok(taskLogService.listByTask(id));
@@ -259,12 +276,14 @@ public class TaskController {
     // ═══════════════════════════════════════════════
 
     @Operation(summary = "创建配送任务")
+    @SaCheckPermission("dms:task:create")
     @PostMapping
     public ApiResponse<DmsTask> create(@Parameter(description = "任务信息") @Valid @RequestBody DmsTask task) {
         return ApiResponse.ok(taskService.create(task));
     }
 
     @Operation(summary = "更新配送任务")
+    @SaCheckPermission("dms:task:update")
     @PutMapping("/{id}")
     public ApiResponse<Void> update(@Parameter(description = "任务ID") @PathVariable Long id,
                                     @Parameter(description = "任务信息") @RequestBody DmsTask task) {
@@ -274,6 +293,7 @@ public class TaskController {
     }
 
     @Operation(summary = "更新任务状态")
+    @SaCheckPermission("dms:task:status")
     @PutMapping("/{id}/status")
     public ApiResponse<Void> updateStatus(@Parameter(description = "任务ID") @PathVariable Long id,
                                           @Parameter(description = "状态变更信息(fromStatus, toStatus)")
@@ -285,6 +305,7 @@ public class TaskController {
     }
 
     @Operation(summary = "取消任务（可带取消原因，写调度审计）")
+    @SaCheckPermission("dms:task:update")
     @PostMapping("/{id}/cancel")
     public ApiResponse<Void> cancel(@Parameter(description = "任务ID") @PathVariable Long id,
                                     @RequestBody(required = false) Map<String, Object> body) {
@@ -293,6 +314,7 @@ public class TaskController {
     }
 
     @Operation(summary = "标记任务异常（可带原因，写调度审计）")
+    @SaCheckPermission("dms:task:update")
     @PostMapping("/{id}/exception")
     public ApiResponse<Void> markException(@Parameter(description = "任务ID") @PathVariable Long id,
                                            @RequestBody(required = false) Map<String, Object> body) {
@@ -301,6 +323,7 @@ public class TaskController {
     }
 
     @Operation(summary = "按配送员查询任务（司机端）")
+    @SaCheckPermission("dms:task:detail")
     @GetMapping("/rider/{riderId}")
     public ApiResponse<List<DmsTask>> listByRider(@PathVariable Long riderId,
                                                   @RequestParam(required = false) Integer status) {
@@ -308,6 +331,7 @@ public class TaskController {
     }
 
     @Operation(summary = "查询配送员活跃任务数")
+    @SaCheckPermission("dms:task:view")
     @GetMapping("/rider/{riderId}/active-count")
     public ApiResponse<Long> activeCount(@PathVariable Long riderId) {
         return ApiResponse.ok(taskService.getActiveTaskCount(riderId));

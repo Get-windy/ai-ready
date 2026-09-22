@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 回款统计（分析 → 提成分析 → 回款统计，菜单 80442）。
@@ -31,6 +32,7 @@ public class CollectionStatsAnalyticsController {
 
     @Operation(summary = "回款统计分页（tab=staff 按职员 / dept 按部门）",
             description = "收款金额 + 预收款金额 + 预订货收款金额 = 回款总金额；含合计行 summary")
+    @SaCheckPermission("finance:analytics-collection-stats:list")
     @GetMapping("/page")
     @SaCheckLogin
     public ApiResponse<Map<String, Object>> page(AnalyticsQuery query) {
@@ -38,6 +40,7 @@ public class CollectionStatsAnalyticsController {
     }
 
     @Operation(summary = "回款统计行级明细钻取", description = "该职员/部门下的收款单 / 预收款单 / 预订货单流水")
+    @SaCheckPermission("finance:analytics-collection-stats:view")
     @GetMapping("/detail")
     @SaCheckLogin
     public ApiResponse<Map<String, Object>> detail(AnalyticsQuery query) {

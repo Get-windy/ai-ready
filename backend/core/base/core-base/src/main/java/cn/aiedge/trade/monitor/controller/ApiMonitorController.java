@@ -27,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * API 监控（配送 → API监控，菜单 90107 `trade:api-monitor`）
@@ -55,18 +56,21 @@ public class ApiMonitorController {
     }
 
     @Operation(summary = "统计卡片（今日调用量/成功率/平均耗时/P95/失败数/库存同步失败数）")
+    @SaCheckPermission("trade:api-monitor:view")
     @GetMapping("/stat")
     public Result<Map<String, Object>> stat() {
         return Result.success(apiMonitorService.stat());
     }
 
     @Operation(summary = "依赖健康逐项（DB / Redis / MQ / 地图 / 第三方渠道）")
+    @SaCheckPermission("trade:api-monitor:view")
     @GetMapping("/deps")
     public Result<List<DependencyHealthVO>> deps() {
         return Result.success(apiMonitorService.deps());
     }
 
     @Operation(summary = "接口调用日志分页")
+    @SaCheckPermission("trade:api-monitor:list")
     @GetMapping("/calls/page")
     public Result<PageResult<ApiAccessLog>> callsPage(
             @RequestParam(defaultValue = "1") long pageNum,
@@ -84,6 +88,7 @@ public class ApiMonitorController {
     }
 
     @Operation(summary = "接口调用日志导出（真实 xlsx，最多 5000 条）")
+    @SaCheckPermission("trade:api-monitor:export")
     @GetMapping("/calls/export")
     public void callsExport(
             @RequestParam(required = false) String channelCode,
@@ -108,6 +113,7 @@ public class ApiMonitorController {
     }
 
     @Operation(summary = "接口调用日志分维度统计（groupBy = channel / api / direction）")
+    @SaCheckPermission("trade:api-monitor:view")
     @GetMapping("/calls/stat")
     public Result<List<Map<String, Object>>> callsStat(
             @RequestParam(defaultValue = "api") String groupBy,
@@ -118,6 +124,7 @@ public class ApiMonitorController {
     }
 
     @Operation(summary = "接口调用量按小时趋势")
+    @SaCheckPermission("trade:api-monitor:view")
     @GetMapping("/calls/trend")
     public Result<List<Map<String, Object>>> callsTrend(
             @RequestParam(required = false) String startTime,
@@ -127,12 +134,14 @@ public class ApiMonitorController {
     }
 
     @Operation(summary = "开放接口目录（联调分组树 + 参数定义）")
+    @SaCheckPermission("trade:api-monitor:list")
     @GetMapping("/calls/endpoints")
     public Result<List<ApiEndpointVO>> endpoints() {
         return Result.success(apiMonitorService.endpoints());
     }
 
     @Operation(summary = "快速联调：回环调用真实开放接口（落 SANDBOX 调用日志，即联调历史）")
+    @SaCheckPermission("trade:api-monitor:execute")
     @PostMapping("/sandbox/invoke")
     public Result<SandboxResultVO> sandboxInvoke(
             @RequestBody SandboxInvokeRequest request,
@@ -143,18 +152,21 @@ public class ApiMonitorController {
     }
 
     @Operation(summary = "异常告警（阈值判定 + 静默期 + 事件外发）")
+    @SaCheckPermission("trade:api-monitor:list")
     @GetMapping("/alerts")
     public Result<List<ApiMonitorAlertVO>> alerts() {
         return Result.success(apiMonitorService.alerts());
     }
 
     @Operation(summary = "当前生效阈值（含来源：配置中心 / 代码默认）")
+    @SaCheckPermission("trade:api-monitor:view")
     @GetMapping("/thresholds")
     public Result<Map<String, Object>> thresholds() {
         return Result.success(apiMonitorService.thresholds());
     }
 
     @Operation(summary = "按保留策略清理调用日志（保留天数 0 = 不清理）")
+    @SaCheckPermission("trade:api-monitor:clear")
     @PostMapping("/clean-expired")
     public Result<Map<String, Object>> cleanExpired() {
         int deleted = apiMonitorService.cleanExpired();
@@ -162,12 +174,14 @@ public class ApiMonitorController {
     }
 
     @Operation(summary = "库存同步记录统计（状态分布 + 失败原因分类）")
+    @SaCheckPermission("trade:api-monitor:view")
     @GetMapping("/sync/stat")
     public Result<Map<String, Object>> syncStat() {
         return Result.success(apiMonitorService.syncStat());
     }
 
     @Operation(summary = "同步失败重试（复用原记录回写重试次数与结果）")
+    @SaCheckPermission("trade:api-monitor:retry")
     @PostMapping("/sync/{id}/retry")
     public Result<Map<String, Object>> retrySync(@PathVariable Long id) {
         return Result.success(apiMonitorService.retrySync(id));

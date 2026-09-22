@@ -13,6 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 分片上传控制器
@@ -30,6 +31,7 @@ public class ChunkUploadController {
 
     private final ChunkUploadService chunkUploadService;
 
+    @SaCheckPermission("system:storage:create")
     @PostMapping("/init")
     @Operation(summary = "初始化分片上传")
     public ResponseEntity<ChunkUploadInfo> initUpload(
@@ -45,6 +47,7 @@ public class ChunkUploadController {
         return ResponseEntity.ok(uploadInfo);
     }
 
+    @SaCheckPermission("system:storage:create")
     @PostMapping("/upload")
     @Operation(summary = "上传分片")
     public ResponseEntity<ChunkUploadInfo> uploadChunk(
@@ -63,6 +66,7 @@ public class ChunkUploadController {
         }
     }
 
+    @SaCheckPermission("system:storage:create")
     @PostMapping("/merge/{uploadId}")
     @Operation(summary = "合并分片")
     public ResponseEntity<StorageFile> mergeChunks(
@@ -72,6 +76,7 @@ public class ChunkUploadController {
         return ResponseEntity.ok(storageFile);
     }
 
+    @SaCheckPermission("system:storage:detail")
     @GetMapping("/info/{uploadId}")
     @Operation(summary = "获取上传信息")
     public ResponseEntity<ChunkUploadInfo> getUploadInfo(
@@ -84,6 +89,7 @@ public class ChunkUploadController {
         return ResponseEntity.ok(uploadInfo);
     }
 
+    @SaCheckPermission("system:storage:delete")
     @DeleteMapping("/abort/{uploadId}")
     @Operation(summary = "取消上传")
     public ResponseEntity<Void> abortUpload(
@@ -96,6 +102,7 @@ public class ChunkUploadController {
         return ResponseEntity.notFound().build();
     }
 
+    @SaCheckPermission("system:storage:view")
     @GetMapping("/pending")
     @Operation(summary = "获取待处理上传列表")
     public ResponseEntity<List<ChunkUploadInfo>> getPendingUploads(
@@ -106,6 +113,7 @@ public class ChunkUploadController {
         return ResponseEntity.ok(uploads);
     }
 
+    @SaCheckPermission("system:storage:check")
     @PostMapping("/check")
     @Operation(summary = "检查文件是否已存在（秒传）")
     public ResponseEntity<Map<String, Object>> checkFileExists(

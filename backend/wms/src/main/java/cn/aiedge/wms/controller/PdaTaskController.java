@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 @Slf4j
 @Validated
@@ -50,6 +51,7 @@ public class PdaTaskController {
                           LocalDateTime createTime) {}
 
     @Operation(summary = "获取所有任务列表（聚合所有作业类型）")
+    @SaCheckPermission("wms:task:view")
     @GetMapping
     public Result<List<TaskDTO>> listTasks() {
         List<TaskDTO> tasks = new ArrayList<>();
@@ -78,6 +80,7 @@ public class PdaTaskController {
     }
 
     @Operation(summary = "获取任务详情（需指定 taskType）")
+    @SaCheckPermission("wms:task:detail")
     @GetMapping("/{id}")
     public Result<Map<String, Object>> getTask(@PathVariable @NotNull Long id,
                                                @RequestParam @NotBlank String taskType) {
@@ -119,6 +122,7 @@ public class PdaTaskController {
     }
 
     @Operation(summary = "领取/开始任务")
+    @SaCheckPermission("wms:task:execute")
     @PutMapping("/{id}/start")
     public Result<Void> startTask(@PathVariable @NotNull Long id,
                                   @RequestBody Map<String, String> body) {
@@ -138,6 +142,7 @@ public class PdaTaskController {
     }
 
     @Operation(summary = "完成任务")
+    @SaCheckPermission("wms:task:complete")
     @PutMapping("/{id}/complete")
     public Result<Void> completeTask(@PathVariable @NotNull Long id,
                                      @RequestBody Map<String, String> body) {

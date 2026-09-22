@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 商城搜索关键词库管理（管理后台）
@@ -21,6 +22,7 @@ public class MallAdminKeywordController {
 
     private final MallKeywordService mallKeywordService;
 
+    @SaCheckPermission("mall:keyword:list")
     @GetMapping("/page")
     @Operation(summary = "分页查询关键词")
     public Result<IPage<MallKeyword>> page(
@@ -33,6 +35,7 @@ public class MallAdminKeywordController {
         return Result.ok(mallKeywordService.pageKeywords(pageNum, pageSize, keyword, keywordType, status, remark));
     }
 
+    @SaCheckPermission("mall:keyword:create")
     @PostMapping
     @Operation(summary = "新增关键词")
     public Result<Void> create(@RequestBody MallKeyword keyword) {
@@ -40,6 +43,7 @@ public class MallAdminKeywordController {
         return Result.ok();
     }
 
+    @SaCheckPermission("mall:keyword:update")
     @PutMapping("/{id}")
     @Operation(summary = "更新关键词")
     public Result<Void> update(@PathVariable Long id, @RequestBody MallKeyword keyword) {
@@ -48,6 +52,7 @@ public class MallAdminKeywordController {
         return Result.ok();
     }
 
+    @SaCheckPermission("mall:keyword:delete")
     @DeleteMapping("/{id}")
     @Operation(summary = "删除关键词")
     public Result<Void> delete(@PathVariable Long id) {
@@ -55,6 +60,7 @@ public class MallAdminKeywordController {
         return Result.ok();
     }
 
+    @SaCheckPermission("mall:keyword:status")
     @PutMapping("/{id}/status")
     @Operation(summary = "启用/禁用关键词")
     public Result<Void> toggleStatus(

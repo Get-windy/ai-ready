@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 
 /**
  * 系统监控控制器
@@ -31,12 +32,14 @@ public class SystemMonitorController {
 
     // ==================== 系统监控 ====================
 
+    @SaCheckPermission("system:monitor:view")
     @GetMapping("/metrics")
     @Operation(summary = "获取当前系统指标")
     public Result<SystemMetrics> getCurrentMetrics() {
         return Result.ok(monitorService.getCurrentMetrics());
     }
 
+    @SaCheckPermission("system:monitor:view")
     @GetMapping("/metrics/history")
     @Operation(summary = "获取历史指标")
     public Result<List<SystemMetrics>> getHistoryMetrics(
@@ -44,6 +47,7 @@ public class SystemMonitorController {
         return Result.ok(monitorService.getHistoryMetrics(hours));
     }
 
+    @SaCheckPermission("system:monitor:view")
     @GetMapping("/metrics/trend/{metricName}")
     @Operation(summary = "获取指标趋势")
     public Result<Map<String, Object>> getMetricTrend(
@@ -52,36 +56,42 @@ public class SystemMonitorController {
         return Result.ok(monitorService.getMetricTrend(metricName, hours));
     }
 
+    @SaCheckPermission("system:monitor:view")
     @GetMapping("/overview")
     @Operation(summary = "获取系统概览")
     public Result<Map<String, Object>> getSystemOverview() {
         return Result.ok(monitorService.getSystemOverview());
     }
 
+    @SaCheckPermission("system:monitor:view")
     @GetMapping("/health")
     @Operation(summary = "检查系统健康状态")
     public Result<Map<String, Object>> checkHealth() {
         return Result.ok(monitorService.checkHealth());
     }
 
+    @SaCheckPermission("system:monitor:view")
     @GetMapping("/jvm")
     @Operation(summary = "获取JVM信息")
     public Result<Map<String, Object>> getJvmInfo() {
         return Result.ok(monitorService.getJvmInfo());
     }
 
+    @SaCheckPermission("system:monitor:view")
     @GetMapping("/threads")
     @Operation(summary = "获取线程信息")
     public Result<Map<String, Object>> getThreadInfo() {
         return Result.ok(monitorService.getThreadInfo());
     }
 
+    @SaCheckPermission("system:monitor:view")
     @GetMapping("/memory")
     @Operation(summary = "获取内存信息")
     public Result<Map<String, Object>> getMemoryInfo() {
         return Result.ok(monitorService.getMemoryInfo());
     }
 
+    @SaCheckPermission("system:monitor:execute")
     @PostMapping("/gc")
     @Operation(summary = "执行垃圾回收")
     public Result<Map<String, Object>> performGc() {
