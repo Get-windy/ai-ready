@@ -956,15 +956,22 @@ function handlePrintF8() {
   openPrintForm(selectedRowKeys.value[0])
 }
 
-/** 批量打印：逐张打开选中单据打印（对标管家婆批量打印） */
+/** 打印（含批量入口）：跳转单据表单页打印。
+ *  ⚠️ 2026-09-22 文案修正：本页打印走「跳转表单页渲染 PrintDialog」，**一次只能打一张**，
+ *  而原弹窗文案写的是「将依次打开选中的 N 张」——承诺与实际不符（onOk 只取 [0]）。
+ *  真正的批量打印参照 `sales/exchange/index.vue`（本页直接挂 PrintDialog + print-data.docs
+ *  多张渲染 + 打印成功后调 /batch-print 回写次数），本页列表未挂该组件，登记为待完善。 */
 function handleBatchPrint() {
   if (selectedRowKeys.value.length === 0) {
     message.warning('请先选择要批量打印的单据')
     return
   }
+  const n = selectedRowKeys.value.length
   Modal.confirm({
     title: '批量打印',
-    content: `将依次打开选中的 ${selectedRowKeys.value.length} 张单据进行打印，确定继续吗？`,
+    content: n === 1
+      ? '将打开选中的单据进行打印，确定继续吗？'
+      : `当前选中 ${n} 张。本页一次只打印第一张，打印完成后可返回列表继续选择其余单据。`,
     okText: '开始打印',
     cancelText: '取消',
     onOk: () => openPrintForm(selectedRowKeys.value[0]),

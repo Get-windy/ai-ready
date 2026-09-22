@@ -366,18 +366,25 @@ async function handleAddDefault(key: string) {
   selectorSearchText.value = ''
   selectorSelectedId.value = null
   // Load options based on field type
+  // ⚠️ 2026-09-22 修正：四个分支原先**全部指向不存在的端点**，且异常被 catch 吞成空数组，
+  // 表现为「录单默认值」的快速选择弹窗永远是空的（用户只看到空列表，没有任何报错）：
+  //   · `/api/erp/partner/customer/list` → 后端无此控制器（往来单位在 MdCustomerController）
+  //     且 request.baseURL 已是 `/api`，写成 `/api/...` 还会拼成 `/api/api/...`（双前缀）
+  //   · `/api/wms/warehouse/list`        → 实际端点是 `/list-all`
+  //   · `/api/system/user/list`          → 用户控制器前缀是 `/api/user`
+  //   · `/md/logistics/list`             → 无此控制器（物流公司是 partnerType=LOGISTICS）
   try {
     if (key === 'customerId') {
-      const res = await request.get('/api/erp/partner/customer/list')
+      const res = await request.get('/erp/md/customer/list', { partnerType: 'CUSTOMER', status: 'ENABLED', pageSize: 500 })
       selectorOptions.value = res || []
     } else if (key === 'warehouseId') {
-      const res = await request.get('/api/wms/warehouse/list')
+      const res = await request.get('/wms/warehouse/list-all')
       selectorOptions.value = res || []
     } else if (key === 'salesPersonId') {
-      const res = await request.get('/api/system/user/list')
+      const res = await request.get('/user/list', { status: 1, pageSize: 1000 })
       selectorOptions.value = res || []
     } else if (key === 'logisticsCompany') {
-      const res = await request.get('/md/logistics/list')
+      const res = await request.get('/erp/md/customer/list', { partnerType: 'LOGISTICS', status: 'ENABLED', pageSize: 500 })
       selectorOptions.value = res || []
     } else {
       selectorOptions.value = []

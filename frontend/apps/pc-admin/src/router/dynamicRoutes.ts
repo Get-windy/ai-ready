@@ -1643,6 +1643,72 @@ function getRequiredRoutes(): RouteRecordRaw[] {
       component: () => import('@/views/sales/return-apply/form.vue'),
       meta: { title: '编辑销售退货申请', icon: 'RollbackOutlined', keepAlive: false, requiresAuth: true, hidden: true, billType: '601' }
     },
+    // ═══ 销售模块：列表「新增/详情/编辑」与「返回列表」路由补齐（2026-09-22）═══
+    //
+    // 为什么必须在这里补：这批页面在数据库里**有**菜单记录（新增 80601/80602/80603/80604、
+    // 表单 80092），但它们的 `client_type='pc-admin'` 且 `visible=0`；而本前端固定请求
+    // `/menu/user/mega/tenant-admin`（见文件顶部 CLIENT_TYPE），服务端
+    // `SysMenuServiceImpl.getUserMegaMenus` 又强制 `client_type = ? AND visible = 1`
+    // ⇒ 这批菜单**永远不会下发**，依赖菜单树注册的路由也就永远不会存在。
+    // 症状：销售退货单列表的「新增 / 详情 / 编辑 / 打印」、退货申请列表的「新增」、
+    // 订单中心「详情」、各表单的「历史」按钮，点下去都落到 Layout 下的 catch-all 404 页
+    //（URL 不变但内容是 404，比被弹回工作台更隐蔽）。
+    // 判定与实测证据：`tools/verify-sales-routes.cjs`（修复前 14/22 通过）。
+    // 与既有做法一致：pre-order / retail 的同类补齐见本函数下方注释。
+    {
+      path: 'sales/return-doc/create',
+      name: 'SaleReturnDocCreate',
+      component: () => import('@/views/sales/return-doc/form.vue'),
+      meta: { title: '新增销售退货单', icon: 'RollbackOutlined', keepAlive: false, requiresAuth: true, hidden: true, billType: '601' }
+    },
+    {
+      path: 'sales/return-doc/form/:id',
+      name: 'SaleReturnDocFormEdit',
+      component: () => import('@/views/sales/return-doc/form.vue'),
+      meta: { title: '销售退货单详情', icon: 'RollbackOutlined', keepAlive: false, requiresAuth: true, hidden: true, billType: '601' }
+    },
+    // 列表别名：菜单 70022 的主路由是 sales/return-doc/form（双入口的「表单」入口），
+    // 表单页「历史」按钮跳的却是文档约定的列表地址 /sales/return-doc（无后缀），此前无路由。
+    {
+      path: 'sales/return-doc',
+      name: 'SaleReturnDocListAlias',
+      component: () => import('@/views/sales/return-doc/index.vue'),
+      meta: { title: '销售退货单', icon: 'RollbackOutlined', keepAlive: true, requiresAuth: true, hidden: true, billType: '601' }
+    },
+    {
+      path: 'sales/outbound/create',
+      name: 'SaleOutboundCreate',
+      component: () => import('@/views/sales/outbound/form.vue'),
+      meta: { title: '新增销售出库单', icon: 'SendOutlined', keepAlive: false, requiresAuth: true, hidden: true, billType: '601' }
+    },
+    {
+      path: 'sales/outbound',
+      name: 'SaleOutboundListAlias',
+      component: () => import('@/views/sales/outbound/index.vue'),
+      meta: { title: '销售出库单', icon: 'SendOutlined', keepAlive: true, requiresAuth: true, hidden: true, billType: '601' }
+    },
+    {
+      path: 'sales/return-apply/create',
+      name: 'SaleReturnApplyCreate',
+      component: () => import('@/views/sales/return-apply/form.vue'),
+      meta: { title: '新增销售退货申请', icon: 'RollbackOutlined', keepAlive: false, requiresAuth: true, hidden: true, billType: '601' }
+    },
+    // 列表别名：退货申请文档约定列表地址为 /sales/return-apply，而菜单 70011 注册的列表路由
+    // 是它的 list_path（/sales/return-apply/index）⇒ 直接访问文档地址会 404。
+    {
+      path: 'sales/return-apply',
+      name: 'SaleReturnApplyListAlias',
+      component: () => import('@/views/sales/return-apply/index.vue'),
+      meta: { title: '销售退货申请', icon: 'RollbackOutlined', keepAlive: true, requiresAuth: true, hidden: true, billType: '601' }
+    },
+    // 订单中心「详情」与销售退货申请「跳源订单」都跳 /sales/order/form/:id（带 id）。
+    // 菜单 70010 注册的是「表单入口」sales/order/form，带 id 的详情页不在菜单树内。
+    {
+      path: 'sales/order/form/:id',
+      name: 'SaleOrderFormDetail',
+      component: () => import('@/views/erp/sale/form.vue'),
+      meta: { title: '销售订单详情', icon: 'FileTextOutlined', keepAlive: false, requiresAuth: true, hidden: true, billType: '604' }
+    },
     // ═══ 商城用户审核表单 ═══
     {
       path: 'mall/user-audit/form',

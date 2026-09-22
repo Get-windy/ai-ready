@@ -988,7 +988,12 @@ async function handleTabSuffixBtn(fieldKey: string, _btnText: string) {
     return
   }
   if (fieldKey === 'logisticsCompany') {
-    const list = await request.get('/md/logistics/list').then((res: any) => res?.data || res || []).catch(() => [])
+    // ⚠️ 原为 `request.get('/md/logistics/list')`：后端**不存在** `/api/md/logistics` 控制器
+    // （物流公司是 biz_party 的一种 partnerType，无独立档案控制器），该请求必然 404，
+    // 又被 .catch(() => []) 吞掉，表现为固定提示「暂无物流公司主数据」——快速查询实际不可用。
+    // 正确来源与 `md/logistics` 页面、`order-center` 一致：/erp/md/customer/list + LOGISTICS。
+    const list = await request.get('/erp/md/customer/list', { partnerType: 'LOGISTICS', status: 'ENABLED', pageSize: 500 })
+      .then((res: any) => res?.data || res || []).catch(() => [])
     if (!list.length) {
       message.warning('暂无物流公司主数据，请先在资料中维护')
       return

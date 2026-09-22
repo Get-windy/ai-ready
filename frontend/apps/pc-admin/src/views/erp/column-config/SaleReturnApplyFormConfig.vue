@@ -333,14 +333,16 @@ async function handleAddDefault(key: string) {
   selectorSearchText.value = ''
   selectorSelectedId.value = null
   try {
+    // ⚠️ 2026-09-22 修正：四个分支原先全部指向不存在的端点（异常被 catch 吞成空数组，
+    // 表现为快速选择弹窗永远为空、无任何报错）。正确端点见 SaleOutboundFormConfig 同处注释。
     if (key === 'customerId') {
-      const res = await request.get('/api/erp/partner/customer/list')
+      const res = await request.get('/erp/md/customer/list', { partnerType: 'CUSTOMER', status: 'ENABLED', pageSize: 500 })
       selectorOptions.value = res || []
     } else if (key === 'warehouseId') {
-      const res = await request.get('/api/wms/warehouse/list')
+      const res = await request.get('/wms/warehouse/list-all')
       selectorOptions.value = res || []
     } else if (key === 'handlerId') {
-      const res = await request.get('/api/system/user/list')
+      const res = await request.get('/user/list', { status: 1, pageSize: 1000 })
       selectorOptions.value = res || []
     } else if (key === 'returnApplyType') {
       selectorOptions.value = [
@@ -350,7 +352,7 @@ async function handleAddDefault(key: string) {
         { id: 3, name: '其他' },
       ]
     } else if (key === 'logisticsCompany') {
-      const res = await request.get('/md/logistics/list')
+      const res = await request.get('/erp/md/customer/list', { partnerType: 'LOGISTICS', status: 'ENABLED', pageSize: 500 })
       selectorOptions.value = res || []
     } else {
       selectorOptions.value = []
