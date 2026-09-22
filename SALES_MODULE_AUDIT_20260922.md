@@ -186,6 +186,35 @@ salesAccountingService.createReceivableOnShipment(...);
 | 13 | **订单明细页自定义字段/死列** | `erp_sale_return` 的 `applicant_id/apply_time/sale_order_id/sale_order_no` 全空且实体无字段（退货申请无法记录申请人/来源订单）；`erp_sale_order` 13 列实体不映射 |
 | 14 | **迁移与 Flyway 漂移** | `flyway_schema_history` 有 13 个 version 重复（同 script 同 checksum 不同 installed_on）；`V8.100.0` 已应用但仓库中不存在；125 处重复 `ADD COLUMN`（均带 `IF NOT EXISTS`，不阻断） |
 | 15 | **主单据表单号无唯一索引** | `erp_sale_order/outbound/exchange/return_doc` 的单号列只有主键索引，重复单号仅靠生成器约束 |
+| 16 | **`api/erp.ts` 对象字面量内重复键** | `outboundApi` 里 `print`（360 行）与 `batchPrint`（362 行）被 376/383 行的同名键静默覆盖，前两条属不可达代码 |
+| 17 | **零售单「积分规则（每元积分数）」配置无效** | `retail/form.vue:350` 的 `retailSettings.pointPerYuan` 默认 1、可配置，但全文件仅出现在定义与默认值两处，实际积分按 `Math.floor(payableAmount)` 硬编码（`:1461`） |
+| 18 | **「打印配置」Tab 在多页形同虚设** | `PageConfigPanel` 的打印配置 Tab 默认渲染，但 `return-doc/return-apply/retail/pre-order/visit-*` 列表页既不隐藏也不读取 `printConfig`；`exchange/index.vue` 未传 `:always-last-template` → 该勾选无效 |
+| 19 | **全局列配置未落后端** | `BillDetailTable` 仅在传 `globalConfigKey` 时才存后端；`sales/order-center/index.vue:68`、`sales/retail/index.vue:167` 只传 `storage-key` ⇒ 「全局配置」在这两页只写 localStorage，跨浏览器不生效 |
+| 20 | **`erp/sales-analysis/` 空目录残留** | `index.vue` 已删，目录只剩 `.`/`..` |
+| 21 | **换货单制单人历史断档** | `erp_sale_exchange` 前 4 行写的是 `created_by/created_by_name`（当前代码树已无写入方），后 4 行才是实体的 `creator_id/creator_name` ⇒ 老数据的制单人列读不出来 |
+| 22 | **`tenant_id` 默认值 0/1 不一致** | `erp_sale_return_doc(_item)`、`erp_sale_order_promo_detail` 为 `NOT NULL DEFAULT 0`，其余为 `DEFAULT 1`；走无会话路径时会落到 tenant 0（对所有租户不可见）。当前库未能复现，登记待观察 |
+| 23 | **重复语义的迁移文件** | `V11.1.0` 与 `V11.2.0` 同名 `Fix_Budget_FixedAsset_Invoice_Metrics_Schema.sql`；`V9.41.0` 与 `V9.42.0` 同名 `Add_Sale_Outbound_Item_Fields.sql` |
+
+---
+
+## 四之二、与采购的对称性核查（P1）
+
+销售与采购在本仓是**对称模块**（`AI_DEVELOPER_RULES.md` §9.3 要求「对称接口必须同步改」）。抽查订单/退货/换货/合同四组后，**三类均有单侧缺失**：
+
+| 维度 | 销售 | 采购 |
+|---|---|---|
+| 单号生成 | 走集中式 `BizNumberGeneratorService.nextSaleOrderNo()` | **本地手搓** `"CG"+yyyyMMdd`（`PurchaseOrderServiceImpl:282`，内含 `Integer.parseInt` 无并发保护）；集中式 `nextPurchaseOrderNo()` 是**死代码** |
+| 单号格式 | `前缀-yyyyMMdd-4位`（`XSDD/XSTHSQD/XSTHD/XSHHD`），出库 `XSCK`+8 位是唯一例外 | `字母前缀+yyyyMMdd` **无连字符** ⇒ 靠前缀解析单号做跨模块路由的代码会单侧失效 |
+| 状态枚举 | **无** `SaleOrderStatus`，散落魔法数字（`SaleOrderServiceImpl:217/427/482/524/556`） | 有完整 `OrderStatus` 枚举，但 `:249` 取消写 `status=4`（枚举 4=IN_PROGRESS，CANCELLED=7），前端又定义 `4:'已取消'` ⇒ **同一状态三套口径** |
+| 审批/快照流水 | `erp_sale_order_audit_trail` 3 行；`partner_snapshot` **0 行** | 15 行；10 行 |
+| 合同能力 | **完全没有销售合同模块**（无表、无类、无控制器） | `purchase_contract` + 完整审批链（提交/审批/生效/终止/归档） |
+| 换货 | `erp_sale_exchange` 9 行（代码+数据都在） | Controller/Service/号段齐备但 **0 行**（代码存在、运行时不存在） |
+
+**销售有、采购缺**：订单的 11 个履约看板端点（`/ship`、`/payment`、`/pending`、`/customer-credit`、`/center/*` …）与审批时的**库存预检 + 冻结**（`checkAndFreezeStock`）。
+**采购有、销售缺**：销售退货无 `statistics` / `batch-print` / `order/{orderId}` / `from-order/{orderId}` / 明细行 CRUD。
+**唯一真正对称做对的是财务预检模式**：`SaleOutboundServiceImpl:1296` ↔ `PurchaseInboundServiceImpl:495`，两者都刻意放在记账 try/catch **之外**。
+
+> 本节多数根因在采购侧，但「销售无状态枚举」「销售无合同模块」是销售侧的缺口，且**单号格式不对称**会直接影响任何按前缀解析单号的串联逻辑。
 
 ---
 
