@@ -115,6 +115,15 @@ public class MyBatisPlusConfig {
         // ⚠️ 不忽略本表会让**所有租户会话读不到任何商城顾客**（注入 `AND tenant_id = <会话租户>`，
         // 而表里只有 0）—— 商城登录会变成"查无此人"。
         "shop_user",
+        // ⚠️ 自然人 × 往来单位（R1）关联表：**无 tenant_id 列**（真库 information_schema 已核，2026-09-22）。
+        // 按 DOMAIN-MODEL §3.2 的四条边，R1 的两端都是**系统级主体**（自然人 × 往来单位），
+        // 关系本身不归租户 ⇒ 这张表**本就不该有 tenant_id**，不是"漏加列"。
+        // 不忽略时拦截器注入 `AND tenant_id = <会话租户>` ⇒ SQL 报「字段 tenant_id 不存在」⇒
+        // **商城登录整条链路 500**（`MallAuthServiceImpl#buildIdentities` 要读它；
+        // 2026-09-22 由 `tools/verify-mall-shop-entry.cjs` 在真机上首次暴露 —— 此前
+        // 因为库里没有任何商城顾客，这条路从未被走通过）。
+        // 取数按 `shop_user_id`（本人）为轴，不按租户行过滤，与上面那批同处置。
+        "shop_user_party_link",
         // 开发模板表（系统 → 开发工具 → 模板管理，菜单 62402）：⚠️ **无 tenant_id 列**（真库已核；V6.17.0 建表即无），
         // 平台级共享数据（模板定义不按租户归属 + 代码生成遗留种子同表）。不忽略时拦截器注入 `AND tenant_id = 1`
         // → SQL 报「字段 tenant_id 不存在」→ /api/import-templates 13 个端点全 500（2026-09-19 落库改造引入该表读写）。

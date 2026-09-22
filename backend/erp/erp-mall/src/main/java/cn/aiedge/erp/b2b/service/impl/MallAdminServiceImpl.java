@@ -22,6 +22,7 @@ import cn.aiedge.erp.b2b.mapper.ShopDecorationMapper;
 import cn.aiedge.erp.b2b.mapper.ShopDecorationProductMapper;
 import cn.aiedge.erp.b2b.mapper.ShopTemplateMapper;
 import cn.aiedge.erp.b2b.mapper.ShopUserMapper;
+import cn.aiedge.erp.b2b.mapper.ShopUserTenantMapper;
 import cn.aiedge.erp.b2b.model.MallProduct;
 import cn.aiedge.erp.b2b.model.ShopBanner;
 import cn.aiedge.erp.b2b.model.ShopConfig;
@@ -29,6 +30,7 @@ import cn.aiedge.erp.b2b.model.ShopDecoration;
 import cn.aiedge.erp.b2b.model.ShopDecorationProduct;
 import cn.aiedge.erp.b2b.model.ShopTemplate;
 import cn.aiedge.erp.b2b.model.ShopUser;
+import cn.aiedge.erp.b2b.model.ShopUserTenant;
 import cn.aiedge.erp.b2b.service.MallAdminService;
 import cn.aiedge.erp.party.entity.CustomerGrade;
 import cn.aiedge.erp.party.service.CustomerGradeService;
@@ -52,8 +54,10 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
@@ -62,6 +66,8 @@ import java.util.Set;
 public class MallAdminServiceImpl implements MallAdminService {
 
     private final ShopConfigMapper shopConfigMapper;
+    /** 「系统顾客 × 租户」关联：本店顾客是谁、审核到哪一步，**唯一事实来源**（§11.3 阶段 1）。 */
+    private final ShopUserTenantMapper shopUserTenantMapper;
     private final ShopUserMapper shopUserMapper;
     private final ShopBannerMapper shopBannerMapper;
     private final ShopTemplateMapper shopTemplateMapper;
@@ -101,6 +107,7 @@ public class MallAdminServiceImpl implements MallAdminService {
 
     public MallAdminServiceImpl(ShopConfigMapper shopConfigMapper,
                                 ShopUserMapper shopUserMapper,
+                                ShopUserTenantMapper shopUserTenantMapper,
                                 ShopBannerMapper shopBannerMapper,
                                 ShopTemplateMapper shopTemplateMapper,
                                 ShopDecorationMapper shopDecorationMapper,
@@ -116,6 +123,7 @@ public class MallAdminServiceImpl implements MallAdminService {
                                 PlatformTransactionManager transactionManager) {
         this.shopConfigMapper = shopConfigMapper;
         this.shopUserMapper = shopUserMapper;
+        this.shopUserTenantMapper = shopUserTenantMapper;
         this.shopBannerMapper = shopBannerMapper;
         this.shopTemplateMapper = shopTemplateMapper;
         this.shopDecorationMapper = shopDecorationMapper;
@@ -203,12 +211,23 @@ public class MallAdminServiceImpl implements MallAdminService {
                                     String createTimeStart, String createTimeEnd,
                                     Long categoryId, Long gradeId, Boolean showDisabled) {
         Long tenantId = getCurrentTenantId();
-        LambdaQueryWrapper<ShopUser> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ShopUser::getTenantId, tenantId);
 
-        if (auditStatus != null) {
-            wrapper.eq(ShopUser::getAuditStatus, auditStatus);
+        // ★ 本店顾客 = shop_user_tenant 里属于本租户的关联（§11.3 阶段 1：审核改挂关联表）。
+        // ⚠️ 不能再按 shop_user.tenant_id 过滤：顾客已升为**系统级身份**、该列恒 0，
+        //    那样过滤的结果是**永远空列表**（本次修掉的正是这个）。
+        //    审核状态口径：前端 0待审/1通过/2驳回，与关联表 status 的取值一一对应，直接透传。
+        List<ShopUserTenant> links = shopUserTenantMapper.selectByTenant(tenantId, auditStatus);
+        if (links.isEmpty()) {
+            return new Page<>(pageNum, pageSize, 0);
         }
+        Map<Long, Integer> shopStatusOf = new LinkedHashMap<>();
+        for (ShopUserTenant l : links) {
+            shopStatusOf.putIfAbsent(l.getShopUserId(), l.getStatus());
+        }
+
+        LambdaQueryWrapper<ShopUser> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(ShopUser::getId, shopStatusOf.keySet());
+
         // 显示停用（买家账号页勾选框）：false = 只看启用账号（强制 status=1，忽略 status 参数）；
         // true / null = 不过滤停用，此时仍可用 status 参数显式指定
         if (Boolean.FALSE.equals(showDisabled)) {
@@ -243,7 +262,18 @@ public class MallAdminServiceImpl implements MallAdminService {
         }
 
         wrapper.orderByDesc(ShopUser::getCreateTime);
-        return shopUserMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);
+        Page<ShopUser> page = shopUserMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);
+
+        // 回填「**本店**的审核状态」：shop_user.audit_status 已降级为历史列（顾客是系统级的，
+        // 而审核是逐租户的），页面上的审核状态只能来自关联表 —— 否则同一个顾客
+        // 在 A 店的审核结果会被 B 店的页面读到。
+        for (ShopUser u : page.getRecords()) {
+            Integer shopStatus = shopStatusOf.get(u.getId());
+            if (shopStatus != null) {
+                u.setAuditStatus(shopStatus);
+            }
+        }
+        return page;
     }
 
     /**
@@ -331,9 +361,10 @@ public class MallAdminServiceImpl implements MallAdminService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean deleteUser(Long userId) {
-        Long tenantId = getCurrentTenantId();
+        // ⚠️ 归属判断改走**关联表**（shop_user.tenant_id 现在恒 0，旧判断已失效 ⇒ 会变成谁都能删）
+        requireShopLink(userId);
         ShopUser user = shopUserMapper.selectById(userId);
-        if (user == null || (tenantId != null && !tenantId.equals(user.getTenantId()))) {
+        if (user == null) {
             throw BusinessException.notFound("买家账号不存在");
         }
         // 逻辑删除：ShopUser.deleted 带 @TableLogic，deleteById 实际生成
@@ -349,9 +380,10 @@ public class MallAdminServiceImpl implements MallAdminService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ShopUser updateUser(Long userId, ShopUserUpdateRequest request) {
-        Long tenantId = getCurrentTenantId();
+        // ⚠️ 同上：归属改走关联表
+        requireShopLink(userId);
         ShopUser user = shopUserMapper.selectById(userId);
-        if (user == null || (tenantId != null && !tenantId.equals(user.getTenantId()))) {
+        if (user == null) {
             throw BusinessException.notFound("买家账号不存在");
         }
         if (request == null) {
@@ -432,42 +464,59 @@ public class MallAdminServiceImpl implements MallAdminService {
         }
     }
 
+    // ══════════════════════ 顾客审核（**逐租户**，§11.3 阶段 1） ══════════════════════
+    //
+    // ⚠️ 审核结果落在 shop_user_tenant（关联表），**不是** shop_user.audit_status：
+    //    顾客是系统级身份，同一个顾客在 A 店被批准、在 B 店被拒绝是合法状态。
+    //    旧实现在 shop_user 上写审核状态 + 按 shop_user.tenant_id 判归属 ⇒
+    //    顾客升系统级（该列恒 0）之后，这里的判归属**恒不成立**（永远 404），
+    //    商城顾客页也永远空列表 —— 本批一并修正。
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void approveUser(Long userId) {
-        Long tenantId = getCurrentTenantId();
-        ShopUser user = shopUserMapper.selectById(userId);
-        if (user == null || !user.getTenantId().equals(tenantId)) {
-            throw BusinessException.notFound("用户不存在");
-        }
-        user.setAuditStatus(1);
-        user.setAuditTime(LocalDateTime.now());
-        user.setAuditBy(StpUtil.getLoginIdAsLong());
-        user.setRejectReason(null);
-        shopUserMapper.updateById(user);
+        ShopUserTenant link = requireShopLink(userId);
+        link.setStatus(ShopUserTenant.STATUS_ACTIVE);
+        link.setAuditBy(StpUtil.getLoginIdAsLong());
+        link.setAuditTime(LocalDateTime.now());
+        link.setRejectReason(null);
+        shopUserTenantMapper.updateById(link);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void rejectUser(Long userId, String reason) {
-        Long tenantId = getCurrentTenantId();
-        ShopUser user = shopUserMapper.selectById(userId);
-        if (user == null || !user.getTenantId().equals(tenantId)) {
-            throw BusinessException.notFound("用户不存在");
+        ShopUserTenant link = requireShopLink(userId);
+        link.setStatus(ShopUserTenant.STATUS_REJECTED);
+        link.setAuditBy(StpUtil.getLoginIdAsLong());
+        link.setAuditTime(LocalDateTime.now());
+        link.setRejectReason(reason);
+        shopUserTenantMapper.updateById(link);
+    }
+
+    /**
+     * 取「这个系统顾客在**本店**的关联」；没有就 404。
+     *
+     * <p>它是本类所有"按顾客 id 操作"的入口守卫：顾客是系统级的，
+     * 不先确认"他属于本店"，任何一个租户管理员都能改到别家的顾客
+     * （旧代码靠 {@code shop_user.tenant_id} 判，那一列现在恒 0，守卫已失效）。</p>
+     */
+    private ShopUserTenant requireShopLink(Long shopUserId) {
+        ShopUserTenant link = shopUserTenantMapper.selectLink(shopUserId, getCurrentTenantId());
+        if (link == null) {
+            throw BusinessException.notFound("该顾客不属于本店");
         }
-        user.setAuditStatus(2);
-        user.setAuditTime(LocalDateTime.now());
-        user.setAuditBy(StpUtil.getLoginIdAsLong());
-        user.setRejectReason(reason);
-        shopUserMapper.updateById(user);
+        return link;
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void toggleUserStatus(Long userId, Integer status) {
-        Long tenantId = getCurrentTenantId();
+        // 先确认"他是本店顾客"再看账号：否则任一租户管理员都能停用别家的顾客
+        // （旧代码按 shop_user.tenant_id 判，那一列现在恒 0，守卫已失效）
+        requireShopLink(userId);
         ShopUser user = shopUserMapper.selectById(userId);
-        if (user == null || !user.getTenantId().equals(tenantId)) {
+        if (user == null) {
             throw BusinessException.notFound("用户不存在");
         }
         user.setStatus(status);
