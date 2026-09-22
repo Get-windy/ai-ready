@@ -58,8 +58,11 @@
                 <SettingOutlined />
               </a-button>
             </a-tooltip>
+            <!-- 按钮权限：与后端 @SaCheckPermission("sale:retail:*") 同一套码；
+                 码族里没有 export，故「导出」不拦（避免误伤）。 -->
             <a-button
               v-if="isButtonEnabled('add')"
+              v-permission="'sale:retail:create'"
               type="primary"
               size="small"
               @click="handleAdd"
@@ -75,6 +78,7 @@
             </a-button>
             <a-button
               v-if="isButtonEnabled('printF8')"
+              v-permission="'sale:retail:print'"
               size="small"
               @click="handlePrintF8()"
             >

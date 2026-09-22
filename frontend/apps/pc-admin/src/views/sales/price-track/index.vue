@@ -28,7 +28,9 @@
 
         <template #toolbar-right>
           <a-space :size="8">
-            <a-button type="primary" @click="openAddModal">
+            <!-- 按钮权限：本页码族只有一个 sale:price:edit（读写共用，后端价格跟踪端点亦全部挂它），
+                 故写操作统一用它；「打印/刷新」属查看，不拦。 -->
+            <a-button v-permission="'sale:price:edit'" type="primary" @click="openAddModal">
               <PlusOutlined /> 新增
             </a-button>
             <a-button size="small" :loading="loading" @click="fetchData">
@@ -119,8 +121,8 @@
           >
             <template #actionCell="{ record }">
               <a-space v-if="!record.__ghost" :size="2">
-                <a-button type="link" size="small" @click="openEditModal(record)">修改</a-button>
-                <a-button type="link" size="small" danger @click="handleRowDelete(record)">删除</a-button>
+                <a-button v-permission="'sale:price:edit'" type="link" size="small" @click="openEditModal(record)">修改</a-button>
+                <a-button v-permission="'sale:price:edit'" type="link" size="small" danger @click="handleRowDelete(record)">删除</a-button>
                 <a-button type="link" size="small" @click="openTrend(record)">
                   <LineChartOutlined /> 趋势
                 </a-button>

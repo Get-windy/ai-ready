@@ -42,7 +42,8 @@
                 <SettingOutlined />
               </a-button>
             </a-tooltip>
-            <a-button v-if="isButtonEnabled('add')" type="primary" size="small" @click="handleAdd">
+            <!-- 按钮权限：与后端 @SaCheckPermission("sale:return-doc:*") 同一套码 -->
+            <a-button v-if="isButtonEnabled('add')" v-permission="'sale:return-doc:create'" type="primary" size="small" @click="handleAdd">
               <PlusOutlined /> 新增
             </a-button>
             <a-button v-if="isButtonEnabled('refresh')" size="small" @click="fetchData">
@@ -52,23 +53,23 @@
               <AppstoreOutlined /> 商品汇总
             </a-button>
             <a-tooltip v-if="isButtonEnabled('batchPrint')" title="批量打印选中单据" placement="bottom">
-              <a-button size="small" @click="handleBatchPrint">
+              <a-button v-permission="'sale:return-doc:print'" size="small" @click="handleBatchPrint">
                 <PrinterOutlined /> 批量打印
               </a-button>
             </a-tooltip>
             <a-tooltip v-if="isButtonEnabled('print')" title="打印(F8)" placement="bottom">
-              <a-button size="small" @click="handlePrintF8">
+              <a-button v-permission="'sale:return-doc:print'" size="small" @click="handlePrintF8">
                 <PrinterOutlined /> 打印(F8)
               </a-button>
             </a-tooltip>
-            <a-button v-if="isButtonEnabled('export')" size="small" @click="handleExport">
+            <a-button v-if="isButtonEnabled('export')" v-permission="'sale:return-doc:export'" size="small" @click="handleExport">
               <ExportOutlined /> 导出
             </a-button>
             <!-- 批量操作（仅在有选中行时显示） -->
-            <a-button v-if="selectedRowKeys.length > 0" size="small" @click="handleBatchApprove">
+            <a-button v-if="selectedRowKeys.length > 0" v-permission="'sale:return-doc:approve'" size="small" @click="handleBatchApprove">
               <CheckOutlined /> 批量审核
             </a-button>
-            <a-button v-if="selectedRowKeys.length > 0" size="small" danger @click="handleBatchDelete">
+            <a-button v-if="selectedRowKeys.length > 0" v-permission="'sale:return-doc:delete'" size="small" danger @click="handleBatchDelete">
               <DeleteOutlined /> 批量删除
             </a-button>
           </a-space>
@@ -226,10 +227,10 @@
           <!-- 操作列 -->
           <template #actionCell="{ record }">
             <a-space :size="4">
-              <a-button type="link" size="small" @click="handleView(record)">详情</a-button>
-              <a-button v-if="record.status === 0" type="link" size="small" @click="handleEdit(record)">编辑</a-button>
-              <a-button v-if="record.status === 0" type="link" size="small" @click="handleCopy(record)">复制</a-button>
-              <a-button v-if="record.status === 0" type="link" size="small" danger @click="handleDelete(record)">删除</a-button>
+              <a-button v-permission="'sale:return-doc:detail'" type="link" size="small" @click="handleView(record)">详情</a-button>
+              <a-button v-if="record.status === 0" v-permission="'sale:return-doc:update'" type="link" size="small" @click="handleEdit(record)">编辑</a-button>
+              <a-button v-if="record.status === 0" v-permission="'sale:return-doc:create'" type="link" size="small" @click="handleCopy(record)">复制</a-button>
+              <a-button v-if="record.status === 0" v-permission="'sale:return-doc:delete'" type="link" size="small" danger @click="handleDelete(record)">删除</a-button>
               <a-dropdown v-if="record.status > 0">
                 <a-button type="link" size="small">更多</a-button>
                 <template #overlay>

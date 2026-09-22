@@ -34,7 +34,7 @@
           <a-button v-if="isButtonEnabled('refresh')" size="small" @click="fetchData">
             <ReloadOutlined /> 刷新
           </a-button>
-          <a-button v-if="isButtonEnabled('export')" size="small" :loading="exporting" @click="handleExport">
+          <a-button v-if="isButtonEnabled('export')" v-permission="'sale:detail-query:export'" size="small" :loading="exporting" @click="handleExport">
             <DownloadOutlined /> 导出
           </a-button>
         </a-space>

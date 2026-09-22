@@ -70,10 +70,11 @@
           >
             <template #actionCell="{ record }">
               <!-- 拣货/发货阶段行级操作：取消 / 拣完 / 发货 / 更多（对齐《物流发货开发文档》§3 实测） -->
+              <!-- 按钮权限：与后端 @SaCheckPermission("sale:order:*") 同一套码 -->
               <a-space v-if="mainTab === 'picking'" :size="4">
-                <a-button type="link" size="small" @click="handleReject(record)">取消</a-button>
-                <a-button type="link" size="small" :disabled="pickedDone(record)" @click="handlePickOne(record)">拣完</a-button>
-                <a-button type="link" size="small" @click="handleShip(record)">发货</a-button>
+                <a-button v-permission="'sale:order:cancel'" type="link" size="small" @click="handleReject(record)">取消</a-button>
+                <a-button v-permission="'sale:order:ship'" type="link" size="small" :disabled="pickedDone(record)" @click="handlePickOne(record)">拣完</a-button>
+                <a-button v-permission="'sale:order:ship'" type="link" size="small" @click="handleShip(record)">发货</a-button>
                 <a-dropdown>
                   <a-button type="link" size="small">更多</a-button>
                   <template #overlay>
@@ -88,10 +89,10 @@
                 </a-dropdown>
               </a-space>
               <a-space v-else :size="4">
-                <a-button type="link" size="small" @click="goDetail(record)">查看</a-button>
-                <a-button v-if="record.status === 1" type="link" size="small" @click="handleApprove(record)">审核</a-button>
-                <a-button v-if="record.status === 2" type="link" size="small" @click="handleShip(record)">发货</a-button>
-                <a-button v-if="record.status === 1" type="link" size="small" @click="handleReject(record)">取消</a-button>
+                <a-button v-permission="'sale:order:detail'" type="link" size="small" @click="goDetail(record)">查看</a-button>
+                <a-button v-if="record.status === 1" v-permission="'sale:order:approve'" type="link" size="small" @click="handleApprove(record)">审核</a-button>
+                <a-button v-if="record.status === 2" v-permission="'sale:order:ship'" type="link" size="small" @click="handleShip(record)">发货</a-button>
+                <a-button v-if="record.status === 1" v-permission="'sale:order:cancel'" type="link" size="small" @click="handleReject(record)">取消</a-button>
                 <a-dropdown>
                   <a-button type="link" size="small">更多</a-button>
                   <template #overlay>

@@ -55,8 +55,11 @@
         <!-- ══ 工具栏右侧：操作按钮（对标截图：全部平铺，无"更多"下拉） ═══ -->
         <template #toolbar-right>
           <a-space :size="8">
+            <!-- 按钮权限：与后端 @SaCheckPermission("sale:return:*") 同一套码；
+                 「打印(F8)」在权限码族里没有对应读码，故不加（避免误拦）。 -->
             <a-button
               v-if="isButtonEnabled('add')"
+              v-permission="'sale:return:create'"
               type="primary"
               size="small"
               @click="handleAdd"
@@ -70,23 +73,23 @@
             >
               <ReloadOutlined /> 刷新
             </a-button>
-            <a-button v-if="activeTab === 'doc' && isButtonEnabled('batchPrint')" size="small" @click="handleBatchPrint">
+            <a-button v-if="activeTab === 'doc' && isButtonEnabled('batchPrint')" v-permission="'sale:return:export'" size="small" @click="handleBatchPrint">
               <PrinterOutlined /> 批量打印
             </a-button>
             <a-button v-if="isButtonEnabled('printF8')" size="small" @click="handlePrintF8">
               <PrinterOutlined /> 打印(F8)
             </a-button>
-            <a-button v-if="isButtonEnabled('export')" size="small" @click="handleExport">
+            <a-button v-if="isButtonEnabled('export')" v-permission="'sale:return:export'" size="small" @click="handleExport">
               <ExportOutlined /> 导出
             </a-button>
             <a-button v-if="isButtonEnabled('config')" size="small" @click="showPageConfig = true">
               <SettingOutlined /> 配置
             </a-button>
             <!-- 批量操作（仅在有选中行时显示） -->
-            <a-button v-if="activeTab === 'doc' && selectedRowKeys.length > 0" size="small" @click="handleBatchApprove">
+            <a-button v-if="activeTab === 'doc' && selectedRowKeys.length > 0" v-permission="'sale:return:approve'" size="small" @click="handleBatchApprove">
               <CheckOutlined /> 批量审核
             </a-button>
-            <a-button v-if="selectedRowKeys.length > 0" size="small" danger @click="handleBatchDelete">
+            <a-button v-if="selectedRowKeys.length > 0" v-permission="'sale:return:delete'" size="small" danger @click="handleBatchDelete">
               <DeleteOutlined /> 批量删除
             </a-button>
           </a-space>

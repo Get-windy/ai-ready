@@ -55,8 +55,10 @@
         <!-- ═══ 工具栏右侧：操作按钮（显隐由页面配置「功能按钮」驱动） ═══ -->
         <template #toolbar-right>
           <a-space :size="4">
+            <!-- 按钮权限：与后端 @SaCheckPermission("sale:pre-order:*") 同一套码 -->
             <a-button
               v-if="btnEnabled('add')"
+              v-permission="'sale:pre-order:create'"
               type="primary"
               size="small"
               @click="handleAdd"
@@ -80,6 +82,7 @@
             </a-button>
             <a-button
               v-if="btnEnabled('printF8')"
+              v-permission="'sale:pre-order:print'"
               size="small"
               @click="handlePrint"
             >
@@ -87,6 +90,7 @@
             </a-button>
             <a-button
               v-if="btnEnabled('export')"
+              v-permission="'sale:pre-order:export'"
               size="small"
               @click="handleExport"
             >

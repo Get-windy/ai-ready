@@ -63,8 +63,11 @@
                 <SettingOutlined />
               </a-button>
             </a-tooltip>
+            <!-- 按钮权限：与后端 @SaCheckPermission("sale:outbound:*") 同一套码。
+                 「商品汇总 / 物流备注」在码族里没有对应项，保持不拦（避免误伤）。 -->
             <a-button
               v-if="isButtonEnabled('add')"
+              v-permission="'sale:outbound:create'"
               type="primary"
               size="small"
               @click="handleAdd"
@@ -80,6 +83,7 @@
             </a-button>
             <a-button
               v-if="isButtonEnabled('batchPrint')"
+              v-permission="'sale:outbound:print'"
               size="small"
               @click="handleBatchPrint"
             >
@@ -98,6 +102,7 @@
                 <a-menu>
                   <a-menu-item
                     v-if="isButtonEnabled('batchImport')"
+                    v-permission="'sale:outbound:import'"
                     key="batch-import"
                     @click="handleBatchImport"
                   >
@@ -112,6 +117,7 @@
                   </a-menu-item>
                   <a-menu-item
                     v-if="isButtonEnabled('printF8')"
+                    v-permission="'sale:outbound:print'"
                     key="print-f8"
                     @click="handlePrintF8"
                   >
@@ -119,6 +125,7 @@
                   </a-menu-item>
                   <a-menu-item
                     v-if="isButtonEnabled('export')"
+                    v-permission="'sale:outbound:export'"
                     key="export"
                     @click="handleExport"
                   >

@@ -66,7 +66,7 @@
                 title="新增"
                 placement="bottom"
               >
-                <a-button type="primary" size="small" @click="handleAdd">
+                <a-button v-permission="'sale:exchange:create'" type="primary" size="small" @click="handleAdd">
                   <PlusOutlined /> 新增
                 </a-button>
               </a-tooltip>
@@ -84,7 +84,7 @@
                 title="批量打印"
                 placement="bottom"
               >
-                <a-button size="small" @click="handleBatchPrint">
+                <a-button v-permission="'sale:exchange:print'" size="small" @click="handleBatchPrint">
                   <PrinterOutlined /> 批量打印
                 </a-button>
               </a-tooltip>
@@ -93,7 +93,7 @@
                 title="打印(F8)"
                 placement="bottom"
               >
-                <a-button size="small" @click="handlePrintSelected">
+                <a-button v-permission="'sale:exchange:print'" size="small" @click="handlePrintSelected">
                   <PrinterOutlined /> 打印(F8)
                 </a-button>
               </a-tooltip>
@@ -102,7 +102,7 @@
                 title="导出"
                 placement="bottom"
               >
-                <a-button size="small" :disabled="exporting" @click="handleExport">
+                <a-button v-permission="'sale:exchange:export'" size="small" :disabled="exporting" @click="handleExport">
                   <ExportOutlined /> 导出
                 </a-button>
               </a-tooltip>
