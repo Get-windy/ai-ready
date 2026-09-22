@@ -447,7 +447,13 @@ public class SalePreOrderController {
         // tenant_id 由 MyBatis-Plus MetaObjectHandler 自动填充
 
         // 单号来自后端号段 /next-no（前端原样回传，严禁被丢弃后另生成一个号）
-        if (body.get("orderNo") != null) order.setOrderNo(str(body.get("orderNo")));
+        // ⚠️ order_no 在库上是 NOT NULL 且无默认值：前端漏传会直接撞 NOT NULL 违例，
+        // 用户只看到「系统异常」（500）。这里提前拦成可读的业务错误，不让它打到数据库。
+        String orderNo = str(body.get("orderNo"));
+        if (orderNo == null || orderNo.isBlank()) {
+            throw new RuntimeException("缺少单据编号：请先调用 GET /erp/sale/pre-order/next-no 取号后再保存");
+        }
+        order.setOrderNo(orderNo);
         if (body.get("customerId") != null) order.setCustomerId(toLong(body.get("customerId")));
         if (body.get("customerName") != null) order.setCustomerName(str(body.get("customerName")));
         if (body.get("customerCode") != null) order.setCustomerCode(str(body.get("customerCode")));
@@ -460,7 +466,9 @@ public class SalePreOrderController {
         if (body.get("handlerName") != null) order.setHandlerName(str(body.get("handlerName")));
         if (body.get("deptId") != null) order.setDeptId(toLong(body.get("deptId")));
         if (body.get("deptName") != null) order.setDeptName(str(body.get("deptName")));
-        order.setOrderDate(toLocalDate(body.get("orderDate")));
+        // order_date 同为 NOT NULL 无默认值：表单未填时按「录单当天」，不要留 null 撞库（500）
+        java.time.LocalDate orderDate = toLocalDate(body.get("orderDate"));
+        order.setOrderDate(orderDate != null ? orderDate : java.time.LocalDate.now());
         if (body.get("saleType") != null) order.setSaleType(toInt(body.get("saleType")));
         if (body.get("receiverName") != null) order.setReceiverName(str(body.get("receiverName")));
         if (body.get("receiverPhone") != null) order.setReceiverPhone(str(body.get("receiverPhone")));

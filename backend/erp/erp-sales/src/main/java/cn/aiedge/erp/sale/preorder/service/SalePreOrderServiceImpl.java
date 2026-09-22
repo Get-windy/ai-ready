@@ -300,7 +300,11 @@ public class SalePreOrderServiceImpl extends ServiceImpl<SalePreOrderMapper, Sal
     @Transactional
     public SalePreOrder validateAndCreate(SalePreOrder order, List<SalePreOrderItem> items) {
         // 1. 验证客户是否存在
-        validateCustomer(order.getCustomerId());
+        // 回填客户名：该列 NOT NULL 且无默认值，前端漏传名称时不能靠"撞库报错"暴露
+        String customerName = validateCustomer(order.getCustomerId());
+        if (order.getCustomerName() == null || order.getCustomerName().isBlank()) {
+            order.setCustomerName(customerName);
+        }
 
         // 2. 验证仓库是否存在
         if (order.getWarehouseId() != null) {
@@ -381,7 +385,11 @@ public class SalePreOrderServiceImpl extends ServiceImpl<SalePreOrderMapper, Sal
         }
 
         // 3. 验证客户
-        validateCustomer(order.getCustomerId());
+        // 回填客户名：该列 NOT NULL 且无默认值，前端漏传名称时不能靠"撞库报错"暴露
+        String customerName = validateCustomer(order.getCustomerId());
+        if (order.getCustomerName() == null || order.getCustomerName().isBlank()) {
+            order.setCustomerName(customerName);
+        }
 
         // 4. 验证仓库
         if (order.getWarehouseId() != null) {
@@ -448,7 +456,15 @@ public class SalePreOrderServiceImpl extends ServiceImpl<SalePreOrderMapper, Sal
 
     // ─── 私有验证方法（外键验证，确保数据引用完整性） ───
 
-    private void validateCustomer(Long customerId) {
+    /**
+     * 校验客户存在，并返回客户档案中的名称（供调用方回填 {@code customerName}）。
+     *
+     * <p>为什么要回填名称：{@code erp_sale_pre_order.customer_name} 在库上是
+     * {@code NOT NULL} 且无默认值。前端只传 {@code customerId} 而不传名称时，
+     * 插入会直接撞 NOT NULL 违例 —— 用户看到的是「系统异常」（500），
+     * 而这本可以从客户档案里取到。</p>
+     */
+    private String validateCustomer(Long customerId) {
         if (customerId == null) {
             throw new RuntimeException("客户不能为空");
         }
@@ -456,6 +472,7 @@ public class SalePreOrderServiceImpl extends ServiceImpl<SalePreOrderMapper, Sal
         if (party == null) {
             throw new RuntimeException("客户不存在：" + customerId);
         }
+        return party.getPartyName();
     }
 
     private void validateWarehouse(Long warehouseId) {

@@ -39,6 +39,11 @@ public class SalesAccountingService {
      * @param customerId   客户ID
      * @param customerName 客户名称
      * @param amount       金额
+     * @param costAmount   <b>本单成本合计</b>（出库明细的 costAmount 求和，可为 null/0）。
+     *                     大于 0 时凭证追加成本段「Dr. 主营业务成本(6401) / Cr. 库存商品(1405)」；
+     *                     为 0 时省略成本段（与退货侧口径一致）。
+     *                     <p>⚠️ 成本段必须与收入段写在<b>同一张凭证</b>里并一起过账。历史上出库的成本段
+     *                     写在另一张永远停留在 draft 的本地凭证里 ⇒ 总账中销售成本从未结转。</p>
      * @param businessDate <b>单据的业务日期</b>（销售出库单的 {@code outboundDate} = 出库日期）。
      *                     它是「双方约定账期」的起算基准日：到期日 = 业务日期 + 约定天数。
      *                     <b>不许用 {@link LocalDate#now()} 顶替</b> —— 协议口径是「下单时刻生效的那一版」，
@@ -50,7 +55,8 @@ public class SalesAccountingService {
      * {@link #assertSettlementResolvable}，且必须放在那段 try/catch 之外。</p>
      */
     public void createReceivableOnShipment(Long shipmentId, String shipmentNo, String customerId,
-                                           String customerName, BigDecimal amount, LocalDate businessDate) {
+                                           String customerName, BigDecimal amount, BigDecimal costAmount,
+                                           LocalDate businessDate) {
         // 防重复记账：同一发货单已产生应收则整体跳过（应收与凭证一并跳过）
         if (receivableService.existsBySource("SALE_SHIPMENT", shipmentId)) {
             log.warn("发货单已存在应收记录，跳过重复记账: shipmentId={}, shipmentNo={}", shipmentId, shipmentNo);
@@ -86,23 +92,90 @@ public class SalesAccountingService {
         voucherRequest.setSummary("销售出库凭证 - " + shipmentNo);
         voucherRequest.setVoucherDate(LocalDate.now());
 
-        // Accounting entries: Dr. AR, Cr. Revenue
-        BusinessAccountingRequest.AccountingRequestItem debitEntry = new BusinessAccountingRequest.AccountingRequestItem();
-        debitEntry.setSummary("销售出库");
-        debitEntry.setSubjectCode("1122");  // 应收账款
-        debitEntry.setDebitAmount(amount);
-        debitEntry.setCreditAmount(BigDecimal.ZERO);
+        // Accounting entries: Dr. AR / Cr. Revenue（+ 成本段）
+        // 往来科目行挂客户名作辅助核算项，供辅助核算余额表按客户归集（与退货侧同口径）。
+        List<BusinessAccountingRequest.AccountingRequestItem> entries = new java.util.ArrayList<>();
+        entries.add(buildEntry("销售出库", "1122", amount, BigDecimal.ZERO, customerName));      // 借 应收账款
+        entries.add(buildEntry("确认收入", "6001", BigDecimal.ZERO, amount, null));              // 贷 主营业务收入
 
-        BusinessAccountingRequest.AccountingRequestItem creditEntry = new BusinessAccountingRequest.AccountingRequestItem();
-        creditEntry.setSummary("确认收入");
-        creditEntry.setSubjectCode("6001");  // 主营业务收入
-        creditEntry.setDebitAmount(BigDecimal.ZERO);
-        creditEntry.setCreditAmount(amount);
-
-        voucherRequest.setItems(List.of(debitEntry, creditEntry));
+        BigDecimal cost = costAmount != null ? costAmount : BigDecimal.ZERO;
+        if (cost.signum() > 0) {
+            entries.add(buildEntry("结转销售成本", "6401", cost, BigDecimal.ZERO, null));       // 借 主营业务成本
+            entries.add(buildEntry("结转销售成本", "1405", BigDecimal.ZERO, cost, null));       // 贷 库存商品
+        }
+        voucherRequest.setItems(entries);
 
         VoucherDTO voucherResult = businessAccountingService.createVoucherFromBusiness(voucherRequest);
         log.info("凭证创建成功: voucherNo={}", voucherResult.getVoucherNo());
+    }
+
+    /**
+     * 销售出库单取消时<b>作废</b>其应收。
+     *
+     * <p>取消的单据若把应收留在账上，客户对账单会凭空多出一笔欠款、账龄分析持续累计。
+     * 与「核销」不同：核销表示钱收到了，作废表示这笔业务从未发生（见
+     * {@link cn.aiedge.erp.finance.service.ReceivableService#cancelBySource}）。</p>
+     *
+     * <p>⚠️ 这是取消动作的<b>组成部分</b>，不是可选的记账增强 —— 调用方不要把它和
+     * 「记账失败不阻断单据」的那段 try/catch 混在一起。</p>
+     *
+     * @return 实际作废条数；0 表示该单本就没有应收（未记账/已作废），属正常
+     */
+    public int cancelReceivableOnShipment(Long shipmentId, String reason) {
+        int n = receivableService.cancelBySource("SALE_SHIPMENT", shipmentId, reason);
+        if (n == 0) {
+            log.info("取消出库单时未找到可作废的应收（本单未记账或已作废）: shipmentId={}", shipmentId);
+        }
+        return n;
+    }
+
+    /**
+     * 销售出库单取消（已完成单）生成红字冲销凭证 —— 与退货侧的
+     * {@link #createSaleReturnDocReverseVoucher} 完全对称。
+     *
+     * <p>收入段：Dr. 主营业务收入(6001) / Cr. 应收账款(1122)；</p>
+     * <p>成本段：Dr. 库存商品(1405) / Cr. 主营业务成本(6401)（成本为 0 时省略）。</p>
+     *
+     * <p>走 {@code createVoucherFromBusiness} ⇒ 自动 create→audit→post。
+     * 历史实现是本地 {@code voucherService.create} 写一张**永远停在 draft** 的红冲凭证
+     * ⇒ 总账上被取消单据的收入仍然成立。</p>
+     *
+     * @return 凭证编号；未生成时返回空串
+     */
+    public String createSaleOutboundReverseVoucher(Long outboundId, String outboundNo, String customerId,
+                                                   String customerName, BigDecimal amount, BigDecimal costAmount) {
+        if (amount == null || amount.signum() <= 0) {
+            log.warn("销售出库单金额为0，跳过红冲: outboundNo={}", outboundNo);
+            return "";
+        }
+        log.info("创建销售出库单红冲凭证: outboundNo={}, customerId={}, amount={}, costAmount={}",
+                outboundNo, customerId, amount, costAmount);
+
+        BusinessAccountingRequest voucherRequest = new BusinessAccountingRequest();
+        voucherRequest.setSourceType("SALE_OUTBOUND_CANCEL");
+        voucherRequest.setSourceId(outboundId);
+        voucherRequest.setSourceNo(outboundNo);
+        voucherRequest.setCustomerId(customerId);
+        voucherRequest.setCustomerName(customerName);
+        voucherRequest.setAmount(amount);
+        voucherRequest.setSummary("取消出库红冲 - " + outboundNo);
+        voucherRequest.setVoucherDate(LocalDate.now());
+
+        List<BusinessAccountingRequest.AccountingRequestItem> entries = new java.util.ArrayList<>();
+        entries.add(buildEntry("取消出库冲减收入", "6001", amount, BigDecimal.ZERO, null));
+        entries.add(buildEntry("取消出库冲减应收", "1122", BigDecimal.ZERO, amount, customerName));
+
+        BigDecimal cost = costAmount != null ? costAmount : BigDecimal.ZERO;
+        if (cost.signum() > 0) {
+            entries.add(buildEntry("取消出库转回库存", "1405", cost, BigDecimal.ZERO, null));
+            entries.add(buildEntry("取消出库转回成本", "6401", BigDecimal.ZERO, cost, null));
+        }
+        voucherRequest.setItems(entries);
+
+        VoucherDTO voucherResult = businessAccountingService.createVoucherFromBusiness(voucherRequest);
+        String voucherNo = voucherResult.getVoucherNo() != null ? voucherResult.getVoucherNo() : "";
+        log.info("销售出库单红冲凭证创建成功: outboundNo={}, voucherNo={}", outboundNo, voucherNo);
+        return voucherNo;
     }
 
     /**
@@ -188,7 +261,7 @@ public class SalesAccountingService {
     /**
      * 销售退货申请审核通过时创建红字冲销凭证
      * <p>收入段：Dr. 主营业务收入(6001) / Cr. 应收账款(1122)——冲回已确认的收入与应收；</p>
-     * <p>成本段：Dr. 库存商品(1403) / Cr. 主营业务成本(6401)——退货入库冲回已结转成本（成本为 0 时省略）。</p>
+     * <p>成本段：Dr. 库存商品(1405) / Cr. 主营业务成本(6401)——退货入库冲回已结转成本（成本为 0 时省略）。</p>
      *
      * @param returnId     退货申请单ID
      * @param returnNo     退货申请单编号
@@ -206,7 +279,7 @@ public class SalesAccountingService {
     /**
      * 销售退货申请取消（已记账后）生成反向冲回凭证
      * <p>收入段：Dr. 应收账款(1122) / Cr. 主营业务收入(6001)；</p>
-     * <p>成本段：Dr. 主营业务成本(6401) / Cr. 库存商品(1403)。</p>
+     * <p>成本段：Dr. 主营业务成本(6401) / Cr. 库存商品(1405)。</p>
      *
      * @return 凭证编号；未生成时返回空串
      */
@@ -218,7 +291,7 @@ public class SalesAccountingService {
     /**
      * 销售退货单（实际退货入库单）审核通过时生成红字冲销凭证
      * <p>口径与退货申请一致：收入段 Dr. 主营业务收入(6001) / Cr. 应收账款(1122)；
-     * 成本段 Dr. 库存商品(1403) / Cr. 主营业务成本(6401)（成本为 0 时省略）。</p>
+     * 成本段 Dr. 库存商品(1405) / Cr. 主营业务成本(6401)（成本为 0 时省略）。</p>
      *
      * @param returnDocId  退货单ID
      * @param returnDocNo  退货单编号
@@ -268,7 +341,7 @@ public class SalesAccountingService {
 
         BigDecimal cost = costAmount != null ? costAmount : BigDecimal.ZERO;
         if (cost.signum() > 0) {
-            entries.add(buildEntry(reversed ? "销售退货单取消转回成本" : "退货入库", "1403",
+            entries.add(buildEntry(reversed ? "销售退货单取消转回成本" : "退货入库", "1405",
                     reversed ? BigDecimal.ZERO : cost, reversed ? cost : BigDecimal.ZERO, null));
             entries.add(buildEntry(reversed ? "销售退货单取消转回库存" : "冲回主营业务成本", "6401",
                     reversed ? cost : BigDecimal.ZERO, reversed ? BigDecimal.ZERO : cost, null));
@@ -313,7 +386,7 @@ public class SalesAccountingService {
         // 成本段：正向退货入库冲回已结转成本；反向退回出库恢复成本
         BigDecimal cost = costAmount != null ? costAmount : BigDecimal.ZERO;
         if (cost.signum() > 0) {
-            entries.add(buildEntry(reversed ? "销售退货取消转回成本" : "退货入库", "1403",
+            entries.add(buildEntry(reversed ? "销售退货取消转回成本" : "退货入库", "1405",
                     reversed ? BigDecimal.ZERO : cost, reversed ? cost : BigDecimal.ZERO, null));
             entries.add(buildEntry(reversed ? "销售退货取消转回库存" : "冲回主营业务成本", "6401",
                     reversed ? cost : BigDecimal.ZERO, reversed ? BigDecimal.ZERO : cost, null));

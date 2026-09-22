@@ -860,10 +860,6 @@ function isButtonEnabled(key: string): boolean {
   const btn = functionButtonConfig.value.find(b => b.key === key)
   return btn ? btn.enabled : true
 }
-// 可见查询字段数量（用于控制折叠）
-const visibleDocQueryCount = computed(() => docQueryConfig.value.filter(f => f.visible).length)
-const visibleDetailQueryCount = computed(() => detailQueryConfig.value.filter(f => f.visible).length)
-
 // 动态折叠：前8个visible字段默认显示，其余折叠
 const DEFAULT_VISIBLE_COUNT = 8
 const docDefaultVisibleKeys = computed(() =>
@@ -881,13 +877,6 @@ const detailExtraVisibleKeys = computed(() =>
   detailQueryConfig.value.filter(f => f.visible).slice(DEFAULT_VISIBLE_COUNT).map(f => f.key)
 )
 const hasMoreDetailConditions = computed(() => detailExtraVisibleKeys.value.length > 0)
-
-function isDocDefaultVisible(key: string): boolean {
-  return docDefaultVisibleKeys.value.includes(key)
-}
-function isDetailDefaultVisible(key: string): boolean {
-  return detailDefaultVisibleKeys.value.includes(key)
-}
 
 // ═══ 数据加载 ═══
 

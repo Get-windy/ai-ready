@@ -75,6 +75,40 @@ public class ReceivableServiceImpl implements ReceivableService {
     }
 
     @Override
+    @Transactional
+    public int cancelBySource(String sourceType, Long sourceId, String reason) {
+        if (!StringUtils.hasText(sourceType) || sourceId == null) {
+            return 0;
+        }
+        List<Receivable> rows = receivableMapper.selectList(new LambdaQueryWrapper<Receivable>()
+                .eq(Receivable::getSourceType, sourceType)
+                .eq(Receivable::getSourceId, sourceId));
+        if (rows.isEmpty()) {
+            return 0;
+        }
+        // 已经发生核销（收到过钱）的应收**不能**自动作废：直接删会连收款记录一起吞掉，
+        // 留下"钱收了但没有对应应收"的悬空流水。这类交给人工判断（退款/红冲收款单）。
+        List<Long> removable = new ArrayList<>();
+        for (Receivable r : rows) {
+            BigDecimal paid = r.getPaidAmount() != null ? r.getPaidAmount() : BigDecimal.ZERO;
+            if (paid.signum() > 0) {
+                log.error("来源单据已取消，但其应收已发生核销，未自动作废、需人工介入: "
+                                + "sourceType={}, sourceId={}, receivableId={}, paidAmount={}",
+                        sourceType, sourceId, r.getId(), paid);
+                continue;
+            }
+            removable.add(r.getId());
+        }
+        if (removable.isEmpty()) {
+            return 0;
+        }
+        receivableMapper.deleteBatchIds(removable);
+        log.info("按来源作废应收: sourceType={}, sourceId={}, 条数={}, 原因={}",
+                sourceType, sourceId, removable.size(), reason);
+        return removable.size();
+    }
+
+    @Override
     public IPage<ReceivableDTO> list(String customerId, String status, Page<ReceivableDTO> page) {
         LambdaQueryWrapper<Receivable> wrapper = new LambdaQueryWrapper<>();
         if (StringUtils.hasText(customerId)) {

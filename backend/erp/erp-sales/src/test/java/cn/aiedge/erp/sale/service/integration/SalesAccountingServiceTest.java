@@ -91,7 +91,7 @@ class SalesAccountingServiceTest {
     @DisplayName("回退到期日 = 出库日期本身（现款现结、当天结清），不再是「出库日期 + 30」")
     void fallbackDueDateIsCashOnSpotNotThirtyDays() {
         service.createReceivableOnShipment(9001L, "XSCK-9001", CUSTOMER_ID, "客户甲",
-                new BigDecimal("100.00"), OUTBOUND_DATE);
+                new BigDecimal("100.00"), null, OUTBOUND_DATE);
 
         BusinessAccountingRequest request = capturedRequest();
 
@@ -109,7 +109,7 @@ class SalesAccountingServiceTest {
         LocalDate today = LocalDate.now();
 
         service.createReceivableOnShipment(9001L, "XSCK-9001", CUSTOMER_ID, "客户甲",
-                new BigDecimal("100.00"), null);
+                new BigDecimal("100.00"), null, null);
 
         BusinessAccountingRequest request = capturedRequest();
 
@@ -127,7 +127,7 @@ class SalesAccountingServiceTest {
                 .thenThrow(new IllegalStateException("模拟主数据取数异常"));
 
         assertDoesNotThrow(() -> service.createReceivableOnShipment(9001L, "XSCK-9001", CUSTOMER_ID,
-                "客户甲", new BigDecimal("100.00"), OUTBOUND_DATE));
+                "客户甲", new BigDecimal("100.00"), null, OUTBOUND_DATE));
 
         BusinessAccountingRequest request = capturedRequest();
         assertNull(request.getCounterpartyTenantId(),
@@ -139,7 +139,7 @@ class SalesAccountingServiceTest {
     @DisplayName("客户 ID 不是数字（只有名字快照）⇒ 不查租户、不阻断")
     void nonNumericCustomerIdIsTreatedAsMissingIdentity() {
         assertDoesNotThrow(() -> service.createReceivableOnShipment(9001L, "XSCK-9001", "客户甲",
-                "客户甲", new BigDecimal("100.00"), OUTBOUND_DATE));
+                "客户甲", new BigDecimal("100.00"), null, OUTBOUND_DATE));
 
         assertNull(capturedRequest().getCounterpartyTenantId(),
                 "非数字 ID 无法定位 biz_party 主体，不许用名字去猜");
@@ -156,7 +156,7 @@ class SalesAccountingServiceTest {
         when(businessAccountingService.createReceivableFromBusiness(any())).thenReturn(noDueDate);
 
         assertDoesNotThrow(() -> service.createReceivableOnShipment(9001L, "XSCK-9001", CUSTOMER_ID,
-                "客户甲", new BigDecimal("100.00"), OUTBOUND_DATE),
+                "客户甲", new BigDecimal("100.00"), null, OUTBOUND_DATE),
                 "「本笔无账期」是正常业务结论、「无适用协议」走现款现结 —— 两种都不许阻断开单");
 
         verify(businessAccountingService, times(1)).createVoucherFromBusiness(any());

@@ -858,7 +858,6 @@ const activeColumns = computed(() => {
   if (subTab.value === 'byCustomer') return byCustomerColumns
   return byDocColumns
 })
-const storageKey = computed(() => `order-center-${mainTab.value}-${subTab.value}`)
 
 // ═══ 拣货/发货合计（与列表同查询条件，服务端全量汇总；对齐文档「合计 销售金额 | 商品数量」） ═══
 const pickingSummary = ref<{ productAmount: number; totalQuantity: number; totalOrders: number }>({

@@ -153,7 +153,7 @@
 import { computed, ref, onMounted } from 'vue'
 
 defineOptions({ name: 'SaleOutboundForm' })
-import { useRouter, useRoute } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import {
   PrinterOutlined,
@@ -177,7 +177,6 @@ import request from '@/utils/request'
 import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
-const route = useRoute()
 const userStore = useUserStore()
 const currentUserName = computed(() => userStore?.userInfo?.nickname || userStore?.userInfo?.username || '')
 

@@ -2,9 +2,6 @@ package cn.aiedge.erp.sale.outbound.service.impl;
 
 import cn.aiedge.common.event.InventoryChangeEvent;
 import cn.aiedge.crm.customer.service.CustomerCreditService;
-import cn.aiedge.erp.finance.dto.VoucherDTO;
-import cn.aiedge.erp.finance.dto.VoucherItemDTO;
-import cn.aiedge.erp.finance.service.VoucherService;
 import cn.aiedge.erp.pricing.service.PriceEngineService;
 import cn.aiedge.erp.pricing.strategy.entity.PriceCalculationRequest;
 import cn.aiedge.erp.pricing.strategy.entity.PriceCalculationResult;
@@ -68,7 +65,6 @@ public class SaleOutboundServiceImpl extends ServiceImpl<SaleOutboundMapper, Sal
     private final StockService stockService;
     private final PriceEngineService priceEngineService;
     private final CustomerCreditService customerCreditService;
-    private final VoucherService voucherService;
     private final SalesAccountingService salesAccountingService;
     private final ProductMapper productMapper;
     private final ProductCategoryService productCategoryService;
@@ -1304,37 +1300,38 @@ public class SaleOutboundServiceImpl extends ServiceImpl<SaleOutboundMapper, Sal
             updateSourceOrderFulfillment(outbound.getOrderId(), outboundId);
         }
 
-        // 自动生成会计凭证（对标SAP/金蝶的凭证自动生成）
-        // 记账人/记账时间仅在凭证生成成功时写入；失败则留空，列表页「仅显示异常记账单据」据此可查
-        boolean voucherPosted = false;
-        try {
-            generateAccountingVoucher(outbound);
-            voucherPosted = true;
-        } catch (Exception e) {
-            log.error("自动生成会计凭证失败，出库单ID={}, 原因={}", outboundId, e.getMessage(), e);
-            // 凭证生成失败不影响出库单完成状态
-        }
-        if (voucherPosted) {
-            outbound.setBookkeeperName(outbound.getCreatorName());
-            outbound.setBookkeepingTime(LocalDateTime.now());
-            updateById(outbound);
-        } else {
-            log.warn("出库单 {} 记账异常（凭证未生成），可通过「仅显示异常记账单据」筛选", outbound.getOutboundNo());
-        }
-
-        // 业财直调：发货完成产生应收及收入凭证（对标Odoo invoice on delivery）
+        // 业财直调：发货完成**一次**生成「应收 + 收入 + 成本」凭证（对标 Odoo invoice on delivery）。
+        //
+        // ⚠️ 2026-09-22 收口：这里原先**同时**跑两条记账路径 —— 本地 generateAccountingVoucher()
+        //    写一张永远停在 draft 的凭证（借应收/贷收入 + 借成本/贷库存），业财直调再写一张
+        //    posted 的（借应收/贷收入）。实测（finance_voucher，每张单 3 张凭证）后果有两条：
+        //      ① 收入被记两遍 —— 草稿那份一旦被人过账就是双倍收入；
+        //      ② **成本段只存在于草稿里** ⇒ 总账中销售成本从未结转。
+        //    现收敛为一次调用：收入与成本同写一张凭证、由财务侧自动 create→audit→post。
         // businessDate 必须传单据的业务日期（出库日期）：协议账期按「下单那一刻生效的版本」算，
         // 到期日 = 业务日期 + 约定天数，不许用 LocalDate.now() 顶替（补录单据会随日历漂移）
-        if (outbound.getCustomerId() != null && totalAmount.compareTo(BigDecimal.ZERO) > 0) {
+        boolean accounted = false;
+        boolean needAccounting = outbound.getCustomerId() != null && totalAmount.compareTo(BigDecimal.ZERO) > 0;
+        if (needAccounting) {
             try {
                 salesAccountingService.createReceivableOnShipment(
                         outbound.getId(), outbound.getOutboundNo(),
                         String.valueOf(outbound.getCustomerId()), outbound.getCustomerName(),
-                        totalAmount, outbound.getOutboundDate());
+                        totalAmount, sumCostAmount(outboundId), outbound.getOutboundDate());
+                accounted = true;
             } catch (Exception e) {
                 log.error("销售发货自动记账失败，出库单ID={}, 原因={}", outboundId, e.getMessage(), e);
                 // 记账失败不影响出库单完成状态
             }
+        }
+
+        // 记账人/记账时间仅在记账成功时写入；失败则留空，列表页「仅显示异常记账单据」据此可查
+        if (accounted) {
+            outbound.setBookkeeperName(outbound.getCreatorName());
+            outbound.setBookkeepingTime(LocalDateTime.now());
+            updateById(outbound);
+        } else if (needAccounting) {
+            log.warn("出库单 {} 记账异常（凭证未生成），可通过「仅显示异常记账单据」筛选", outbound.getOutboundNo());
         }
 
         // 更新客户信用欠款（对标Odoo/SAP信用管理）
@@ -1374,100 +1371,16 @@ public class SaleOutboundServiceImpl extends ServiceImpl<SaleOutboundMapper, Sal
     }
 
     /**
-     * 自动生成会计凭证（对标SAP/金蝶/用友的销售出库凭证模板）
-     * 标准分录：
-     *   借：应收账款（客户）  →  本单金额
-     *   贷：主营业务收入       →  本单金额（不含税）
-     * 如果有成本信息则同时结转成本：
-     *   借：主营业务成本       →  成本金额
-     *   贷：库存商品           →  成本金额
+     * 本单成本合计（明细 {@code costAmount} 求和），供记账的成本段使用。
+     *
+     * <p>原先这个取数逻辑在 {@code generateAccountingVoucher} 内部，那段代码会把成本写进
+     * 一张**永远停在 draft** 的本地凭证；2026-09-22 收口后成本段并入业财直调的那一张凭证
+     * （见 {@code complete()} 处的说明），此处只负责取数。</p>
      */
-    private void generateAccountingVoucher(SaleOutbound outbound) {
-        BigDecimal totalAmount = outbound.getTotalAmount() != null ? outbound.getTotalAmount() : BigDecimal.ZERO;
-        if (totalAmount.compareTo(BigDecimal.ZERO) <= 0) {
-            return;
-        }
-
-        LocalDateTime now = LocalDateTime.now();
-        int fiscalYear = now.getYear();
-        int fiscalPeriod = now.getMonthValue();
-
-        // 构建凭证明细
-        List<VoucherItemDTO> voucherItems = new ArrayList<>();
-
-        // 1. 借：应收账款（科目代码待配置，这里用标准代码 1122）
-        VoucherItemDTO debitReceivable = new VoucherItemDTO();
-        debitReceivable.setSummary("销售出库 - " + outbound.getOutboundNo() + " " + outbound.getCustomerName());
-        debitReceivable.setSubjectCode("1122");
-        debitReceivable.setSubjectName("应收账款");
-        debitReceivable.setDebitAmount(totalAmount);
-        debitReceivable.setCreditAmount(BigDecimal.ZERO);
-        debitReceivable.setSourceType("sale_outbound");
-        debitReceivable.setSourceId(outbound.getId());
-        debitReceivable.setSourceNo(outbound.getOutboundNo());
-        voucherItems.add(debitReceivable);
-
-        // 2. 贷：主营业务收入（科目代码 6001）
-        VoucherItemDTO creditRevenue = new VoucherItemDTO();
-        creditRevenue.setSummary("销售出库 - " + outbound.getOutboundNo());
-        creditRevenue.setSubjectCode("6001");
-        creditRevenue.setSubjectName("主营业务收入");
-        creditRevenue.setDebitAmount(BigDecimal.ZERO);
-        creditRevenue.setCreditAmount(totalAmount);
-        creditRevenue.setSourceType("sale_outbound");
-        creditRevenue.setSourceId(outbound.getId());
-        creditRevenue.setSourceNo(outbound.getOutboundNo());
-        voucherItems.add(creditRevenue);
-
-        // 3. 结转成本（如果有成本数据）
-        List<SaleOutboundItem> items = getItems(outbound.getId());
-        BigDecimal totalCost = items.stream()
+    private BigDecimal sumCostAmount(Long outboundId) {
+        return getItems(outboundId).stream()
                 .map(i -> i.getCostAmount() != null ? i.getCostAmount() : BigDecimal.ZERO)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        if (totalCost.compareTo(BigDecimal.ZERO) > 0) {
-            // 借：主营业务成本（科目代码 6401）
-            VoucherItemDTO debitCost = new VoucherItemDTO();
-            debitCost.setSummary("结转成本 - " + outbound.getOutboundNo());
-            debitCost.setSubjectCode("6401");
-            debitCost.setSubjectName("主营业务成本");
-            debitCost.setDebitAmount(totalCost);
-            debitCost.setCreditAmount(BigDecimal.ZERO);
-            debitCost.setSourceType("sale_outbound");
-            debitCost.setSourceId(outbound.getId());
-            debitCost.setSourceNo(outbound.getOutboundNo());
-            voucherItems.add(debitCost);
-
-            // 贷：库存商品（科目代码 1405）
-            VoucherItemDTO creditStock = new VoucherItemDTO();
-            creditStock.setSummary("结转成本 - " + outbound.getOutboundNo());
-            creditStock.setSubjectCode("1405");
-            creditStock.setSubjectName("库存商品");
-            creditStock.setDebitAmount(BigDecimal.ZERO);
-            creditStock.setCreditAmount(totalCost);
-            creditStock.setSourceType("sale_outbound");
-            creditStock.setSourceId(outbound.getId());
-            creditStock.setSourceNo(outbound.getOutboundNo());
-            voucherItems.add(creditStock);
-        }
-
-        // 创建凭证
-        VoucherDTO voucher = new VoucherDTO();
-        voucher.setVoucherDate(LocalDate.now());
-        voucher.setFiscalYear(fiscalYear);
-        voucher.setFiscalPeriod(fiscalPeriod);
-        voucher.setAttachments(0);
-        voucher.setPrepBy(outbound.getCreatorName());
-        voucher.setPrepAt(now);
-        voucher.setStatus("draft");
-        voucher.setTotalDebit(totalAmount.add(totalCost));
-        voucher.setTotalCredit(totalAmount.add(totalCost));
-        voucher.setRemark("销售出库自动生成 - " + outbound.getOutboundNo());
-        voucher.setItems(voucherItems);
-
-        VoucherDTO created = voucherService.create(voucher);
-        log.info("销售出库凭证自动生成成功，凭证ID={}, 凭证号={}, 出库单={}",
-                created.getId(), created.getVoucherNo(), outbound.getOutboundNo());
     }
 
     @Override
@@ -1487,13 +1400,36 @@ public class SaleOutboundServiceImpl extends ServiceImpl<SaleOutboundMapper, Sal
                 log.error("取消完成状态出库单时回滚库存失败，出库单ID={}: {}", outboundId, e.getMessage());
                 throw new RuntimeException("库存回滚异常，取消操作无法完成", e);
             }
+            // 作废该单产生的应收（对标Odoo：取消交货单应冲销其应收）
+            // ⚠️ 2026-09-22 补：此前 cancel() 完全没有碰 finance_receivable ——
+            //    实测 6 张已取消出库单的应收全部仍是 status='normal'，永久挂账。
+            //    作废应收是「取消」这个业务动作的组成部分，失败只记 error 不阻断取消（财务可人工处理）。
+            if (outbound.getCustomerId() != null) {
+                try {
+                    salesAccountingService.cancelReceivableOnShipment(
+                            outboundId, "取消出库单：" + (reason != null ? reason : "未填原因"));
+                } catch (Exception e) {
+                    log.error("取消出库单时作废应收失败，出库单ID={}（该单应收可能仍挂账，需人工核销）: {}",
+                            outboundId, e.getMessage(), e);
+                }
+            }
             // 生成红字冲销凭证（对标SAP/金蝶：取消完成出库单需红冲凭证）
-            try {
-                VoucherDTO createdVoucher = generateReverseVoucher(outbound);
-                log.info("红字冲销凭证生成成功，凭证ID={}", createdVoucher.getId());
-            } catch (Exception e) {
-                log.warn("取消完成状态出库单时生成红冲凭证失败，出库单ID={}: {}", outboundId, e.getMessage());
-                // 凭证生成失败不影响取消操作
+            // ⚠️ 2026-09-22 收口：原实现走本地 generateReverseVoucher()，写出的凭证 status 恒为 draft、
+            //    从不 audit/post，且只有收入段、漏了成本段 ⇒ 总账上被取消单据的收入仍然成立。
+            //    现改走业财直调（自动 create→audit→post），收入段 + 成本段一张凭证，
+            //    与退货侧的 createSaleReturnDocReverseVoucher 完全对称。
+            if (outbound.getCustomerId() != null) {
+                try {
+                    String reverseVoucherNo = salesAccountingService.createSaleOutboundReverseVoucher(
+                            outbound.getId(), outbound.getOutboundNo(),
+                            String.valueOf(outbound.getCustomerId()), outbound.getCustomerName(),
+                            outbound.getTotalAmount() != null ? outbound.getTotalAmount() : BigDecimal.ZERO,
+                            sumCostAmount(outboundId));
+                    log.info("红字冲销凭证生成成功，凭证号={}", reverseVoucherNo);
+                } catch (Exception e) {
+                    log.warn("取消完成状态出库单时生成红冲凭证失败，出库单ID={}: {}", outboundId, e.getMessage());
+                    // 凭证生成失败不影响取消操作
+                }
             }
             // 更新客户信用欠款
             if (outbound.getCustomerId() != null) {
@@ -1588,50 +1524,12 @@ public class SaleOutboundServiceImpl extends ServiceImpl<SaleOutboundMapper, Sal
      *   借：主营业务收入（红字）
      *   贷：应收账款（红字）
      */
-    private VoucherDTO generateReverseVoucher(SaleOutbound outbound) {
-        BigDecimal totalAmount = outbound.getTotalAmount() != null ? outbound.getTotalAmount() : BigDecimal.ZERO;
-        if (totalAmount.compareTo(BigDecimal.ZERO) <= 0) {
-            return null;
-        }
-        LocalDateTime now = LocalDateTime.now();
-        List<VoucherItemDTO> voucherItems = new ArrayList<>();
-        // 红字冲销：方向与原凭证相反（收入冲红）
-        VoucherItemDTO debitRevenue = new VoucherItemDTO();
-        debitRevenue.setSummary("取消出库红冲 - " + outbound.getOutboundNo());
-        debitRevenue.setSubjectCode("6001");
-        debitRevenue.setSubjectName("主营业务收入");
-        debitRevenue.setDebitAmount(totalAmount);
-        debitRevenue.setCreditAmount(BigDecimal.ZERO);
-        debitRevenue.setSourceType("sale_outbound_cancel");
-        debitRevenue.setSourceId(outbound.getId());
-        debitRevenue.setSourceNo(outbound.getOutboundNo());
-        voucherItems.add(debitRevenue);
-
-        VoucherItemDTO creditReceivable = new VoucherItemDTO();
-        creditReceivable.setSummary("取消出库红冲 - " + outbound.getOutboundNo());
-        creditReceivable.setSubjectCode("1122");
-        creditReceivable.setSubjectName("应收账款");
-        creditReceivable.setDebitAmount(BigDecimal.ZERO);
-        creditReceivable.setCreditAmount(totalAmount);
-        creditReceivable.setSourceType("sale_outbound_cancel");
-        creditReceivable.setSourceId(outbound.getId());
-        creditReceivable.setSourceNo(outbound.getOutboundNo());
-        voucherItems.add(creditReceivable);
-
-        VoucherDTO voucher = new VoucherDTO();
-        voucher.setVoucherDate(LocalDate.now());
-        voucher.setFiscalYear(now.getYear());
-        voucher.setFiscalPeriod(now.getMonthValue());
-        voucher.setAttachments(0);
-        voucher.setPrepBy(outbound.getCreatorName());
-        voucher.setPrepAt(now);
-        voucher.setStatus("draft");
-        voucher.setTotalDebit(totalAmount);
-        voucher.setTotalCredit(totalAmount);
-        voucher.setRemark("取消出库自动红冲 - " + outbound.getOutboundNo());
-        voucher.setItems(voucherItems);
-        return voucherService.create(voucher);
-    }
+    /**
+     * 红字冲销凭证已收口到业财直调
+     * {@link cn.aiedge.erp.sale.service.integration.SalesAccountingService#createSaleOutboundReverseVoucher}：
+     * 原本地实现（本方法）写出的凭证 status 恒为 {@code draft}、从不 audit/post，且只有收入段、
+     * 漏了成本段，导致「已取消单据在总账上收入仍然成立」。2026-09-22 删除。
+     */
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -1764,10 +1662,16 @@ public class SaleOutboundServiceImpl extends ServiceImpl<SaleOutboundMapper, Sal
             throw new RuntimeException("出库单未指定发货仓库，无法过账库存");
         }
         List<SaleOutboundItem> items = getItems(outboundId);
+        if (items.isEmpty()) {
+            // 没有明细就不该走到发货：宁可拦住，也不要把"零成本出库"写进库存账
+            throw new RuntimeException("出库单 " + outbound.getOutboundNo() + " 没有明细行，无法过账库存，已阻止发货");
+        }
         boolean anyPosted = false;
+        int skipped = 0;
         for (SaleOutboundItem item : items) {
             BigDecimal qty = item.getOutboundQuantity();
             if (item.getProductId() == null || qty == null || qty.signum() <= 0) {
+                skipped++;
                 continue;
             }
             // 库存唯一写入口是 WMS：ERP 侧只发布变动请求，由 InventoryChangeEventListener →
@@ -1784,7 +1688,15 @@ public class SaleOutboundServiceImpl extends ServiceImpl<SaleOutboundMapper, Sal
             anyPosted = true;
         }
         if (!anyPosted) {
-            log.warn("出库单 {} 无有效出库明细，未产生库存变动", outbound.getOutboundNo());
+            // ⚠️ 2026-09-22：原先这里只打一行 log.warn 就放行 —— 单据照常发货、库存一点没动，
+            // 而调用方（ship）无从知晓。实测 `erp_sale_outbound` 里已发货/已完成的单据中，
+            // 明细 product_id 为空的那几张就是这么"静默漏扣"掉的。
+            // 一条明细都过不了账 = 数据缺陷（缺商品或数量为空），必须拦住：
+            // ship() 是 @Transactional，抛异常会连同上面的状态变更一起回滚，不留痕迹。
+            throw new RuntimeException(String.format(
+                    "出库单 %s 没有任何可过账的明细（共 %d 行，其中 %d 行的商品或数量为空），"
+                            + "已阻止发货以避免库存漏扣；请先补全明细的商品与出库数量",
+                    outbound.getOutboundNo(), items.size(), skipped));
         }
         refreshStockSnapshot(warehouseId, items);
     }

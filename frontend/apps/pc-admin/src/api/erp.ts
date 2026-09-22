@@ -356,10 +356,6 @@ export const outboundApi = {
       return blob
     })
   },
-  /** 打印次数 +1（发货查询 打印/批量打印 后回写，真实落库 print_count） */
-  print(id: number) { return request.post(`/erp/sale/outbound/${id}/print`) },
-  /** 批量打印（后端返回单据 VO 列表，供模板批量渲染） */
-  batchPrint(ids: number[]) { return request.post('/erp/sale/outbound/batch-print', ids) },
   /** 批量写入物流备注（真实落库 logistics_remark） */
   batchLogisticsRemark(ids: number[], logisticsRemark: string) {
     return request.post('/erp/sale/outbound/batch-logistics-remark', { ids, logisticsRemark })
@@ -380,6 +376,7 @@ export const outboundApi = {
     return request.post('/erp/sale/outbound/import', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
   },
   // ═══ 打印/复制 ═══
+  /** 打印次数 +1（打印/批量打印 后回写，真实落库 print_count；页面另走 PrintDialog 渲染模板） */
   print(id: number) { return request.post(`/erp/sale/outbound/${id}/print`) },
   copy(id: number) { return request.post(`/erp/sale/outbound/${id}/copy`) },
   // ═══ 统计 ═══
@@ -1353,40 +1350,6 @@ export const stockBomApi = {
   }
 }
 
-// ── 发货管理 ──────────────────────────────────────────
-export interface ShipmentOrder {
-  id: number; shipmentNo: string; orderNo?: string; customerName: string
-  shipmentDate: string; status: number; totalAmount?: number; creatorName?: string; createTime: string
-}
-export const shipmentApi = {
-  page(params: PageQuery): Promise<PageResult<ShipmentOrder>> {
-    return request.get('/erp/shipment/page', params)
-  },
-  getById(id: number) { return request.get(`/erp/shipment/${id}`) },
-  create(data: any) { return request.post('/erp/shipment', data) },
-  update(id: number, data: any) { return request.put(`/erp/shipment/${id}`, data) },
-  delete(id: number) { return request.delete(`/erp/shipment/${id}`) },
-  submit(id: number) { return request.post(`/erp/shipment/${id}/submit`) },
-  approve(id: number) { return request.post(`/erp/shipment/${id}/approve`) },
-}
-
-// ── 退货管理 ──────────────────────────────────────────
-export interface ReturnOrder {
-  id: number; returnNo: string; orderNo?: string; customerName: string
-  returnDate: string; status: number; totalAmount?: number; creatorName?: string; createTime: string
-}
-export const returnOrderApi = {
-  page(params: PageQuery): Promise<PageResult<ReturnOrder>> {
-    return request.get('/erp/return/page', params)
-  },
-  getById(id: number) { return request.get(`/erp/return/${id}`) },
-  create(data: any) { return request.post('/erp/return', data) },
-  update(id: number, data: any) { return request.put(`/erp/return/${id}`, data) },
-  delete(id: number) { return request.delete(`/erp/return/${id}`) },
-  submit(id: number) { return request.post(`/erp/return/${id}/submit`) },
-  approve(id: number) { return request.post(`/erp/return/${id}/approve`) },
-}
-
 // ── 其他出库单（库存出库：领用/赠送/样品/盘亏/其他） ──
 export interface StockOutOrder {
   id: number; stockOutNo: string; stockOutType: number; stockOutTypeName?: string
@@ -1650,7 +1613,7 @@ export const saleOrderApi = {
   ship(id: number, warehouseId: number) { return request.post(`/erp/sale/order/${id}/ship`, null, { params: { warehouseId } }) },
   payment(id: number, amount: number) { return request.post(`/erp/sale/order/${id}/payment`, null, { params: { amount } }) },
   batchApprove(ids: number[]) { return request.post('/erp/sale/order/batch-approve', ids) },
-  print(id: number) { return request.get(`/erp/sale/order/${id}/print`) },
+  // 单张打印无后端端点（后端只有 batch-print）：页面走 PrintDialog 渲染模板 + batchPrint 回写次数
   batchPrint(ids: number[]) { return request.post('/erp/sale/order/batch-print', ids) },
   export(params: any) { return request.get('/erp/sale/order/export', params) },
   getStats(params: any) { return request.get('/erp/sale/order/stats', params) },
