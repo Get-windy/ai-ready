@@ -265,7 +265,7 @@ public class StockOutServiceImpl extends ServiceImpl<StockOutMapper, StockOut> i
         d.setBookkeeperName(StpUtil.getLoginId().toString());
         d.setBookkeepingTime(LocalDateTime.now());
         this.updateById(d);
-        // TODO-P0 库存收敛：发布库存变动请求，由 WMS InventoryService 统一过账（唯一写入口，不再直写 erp_stock）
+        // 库存收敛（已落地 2026-09）：发布库存变动请求，由 WMS InventoryService 统一过账（唯一写入口，不再直写 erp_stock）
         List<StockOutItem> items = stockOutItemMapper.selectList(new LambdaQueryWrapper<StockOutItem>().eq(StockOutItem::getStockOutId, id));
         if (items != null && d.getWarehouseId() != null) {
             for (StockOutItem it : items) {

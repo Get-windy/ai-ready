@@ -1,5 +1,6 @@
 package cn.aiedge.wms.receipt.service.impl;
 
+import cn.aiedge.common.event.PurchaseReceiptBackfillEvent;
 import cn.aiedge.quality.service.QualityInspectionService;
 import cn.aiedge.wms.controller.dto.WmsReceiptDetailVO;
 import cn.aiedge.wms.entity.WmsLocation;
@@ -16,14 +17,9 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.BeanUtils;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.util.HashMap;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,12 +46,14 @@ public class ReceiptServiceImpl implements ReceiptService {
     private final WarehouseService warehouseService;
     private final QualityInspectionService qualityInspectionService;
 
-    /** WMS→ERP：收货确认回写采购订单已收数量（红线：WMS 只 HTTP 调用，不依赖 erp-purchase） */
-    private static final String ERP_RECEIPT_BACKFILL_URL = "/api/erp/purchase/order/received";
-    private final ObjectMapper objectMapper = new ObjectMapper();
-    @Value("${wms.erp.base-url:http://localhost:5655}")
-    private String erpBaseUrl;
-    private final HttpClient httpClient = HttpClient.newBuilder().build();
+    /**
+     * 采购订单收货回写：发布进程内事件，由 core-api 编排回写采购订单明细已收数。
+     *
+     * <p>不再用 HTTP 自调 —— 原实现在同一 JVM 内裸调 ERP 端点且不带 Authorization，
+     * 必然被 SaInterceptor 拦成 401，异常还会回滚整个收货确认事务。
+     * 详见 {@link PurchaseReceiptBackfillEvent}。</p>
+     */
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -339,9 +337,9 @@ public class ReceiptServiceImpl implements ReceiptService {
                     qty, "RECEIPT-" + task.getTaskNo(), "RECEIPT",
                     task.getId(), task.getTaskNo(), userId, userName);
         }
-        // 跨模块：收货确认后回写采购订单明细已收数量（WMS 只 HTTP 调用 ERP 接口）
+        // 跨模块：收货确认后回写采购订单明细已收数量（进程内事件 → core-api 编排）
         if (task.getSourceOrderId() != null) {
-            callErpReceiveBackfill(task, details);
+            publishReceiptBackfill(task, details);
         }
         task.setStatus(WmsTaskStatus.COMPLETED);
         task.setCompletedTime(LocalDateTime.now());
@@ -349,41 +347,30 @@ public class ReceiptServiceImpl implements ReceiptService {
         log.info("收货任务完成: taskId={}, userId={}, items={}", taskId, userId, details.size());
     }
 
-    /** WMS→ERP：按 productId 聚合本次实收数量，HTTP 累加回写采购订单明细已收数 */
-    private void callErpReceiveBackfill(WmsReceiptTask task, List<WmsReceiptDetail> details) {
-        try {
-            Map<Object, BigDecimal> byProduct = new HashMap<>();
-            for (WmsReceiptDetail d : details) {
-                if (d.getProductId() == null) continue;
-                BigDecimal receivedQty = d.getReceivedQuantity() != null && d.getReceivedQuantity().compareTo(BigDecimal.ZERO) > 0
-                        ? d.getReceivedQuantity() : d.getExpectedQuantity();
-                BigDecimal brokenQty = d.getBrokenQuantity() != null ? d.getBrokenQuantity() : BigDecimal.ZERO;
-                BigDecimal qty = receivedQty.subtract(brokenQty);
-                if (qty == null || qty.compareTo(BigDecimal.ZERO) <= 0) continue;
-                byProduct.merge(d.getProductId(), qty, BigDecimal::add);
-            }
-            if (byProduct.isEmpty()) return;
-            List<Map<String, Object>> items = byProduct.entrySet().stream()
-                    .map(e -> Map.of("productId", e.getKey(), "receivedQuantity", e.getValue()))
-                    .collect(Collectors.toList());
-            String payload = objectMapper.writeValueAsString(Map.of(
-                    "purchaseOrderId", task.getSourceOrderId(),
-                    "items", items));
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(erpBaseUrl + ERP_RECEIPT_BACKFILL_URL))
-                    .header("Content-Type", "application/json")
-                    .header("X-Trace-Id", "RECEIPT-" + task.getTaskNo())
-                    .POST(HttpRequest.BodyPublishers.ofString(payload))
-                    .build();
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() != 200 && response.statusCode() != 201) {
-                throw new WmsBusinessException("调用ERP收货回写失败: HTTP " + response.statusCode() + " " + response.body());
-            }
-        } catch (WmsBusinessException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new WmsBusinessException("调用ERP收货回写异常: " + e.getMessage(), e);
+    /**
+     * WMS→ERP：按 productId 聚合本次实收净增量（已扣破损），发布进程内事件由 core-api 回写采购订单已收数。
+     *
+     * <p>监听方为同线程同步监听且带事务 ⇒ 回写失败会传播异常、收货确认一并回滚，
+     * 与原 HTTP 实现的强一致语义一致，但不再依赖网络、端口与登录态。</p>
+     */
+    private void publishReceiptBackfill(WmsReceiptTask task, List<WmsReceiptDetail> details) {
+        Map<Long, BigDecimal> byProduct = new HashMap<>();
+        for (WmsReceiptDetail d : details) {
+            if (d.getProductId() == null) continue;
+            BigDecimal receivedQty = d.getReceivedQuantity() != null && d.getReceivedQuantity().compareTo(BigDecimal.ZERO) > 0
+                    ? d.getReceivedQuantity() : d.getExpectedQuantity();
+            if (receivedQty == null) continue;
+            BigDecimal brokenQty = d.getBrokenQuantity() != null ? d.getBrokenQuantity() : BigDecimal.ZERO;
+            BigDecimal qty = receivedQty.subtract(brokenQty);
+            if (qty.compareTo(BigDecimal.ZERO) <= 0) continue;
+            byProduct.merge(d.getProductId(), qty, BigDecimal::add);
         }
+        if (byProduct.isEmpty()) return;
+        List<PurchaseReceiptBackfillEvent.Line> lines = byProduct.entrySet().stream()
+                .map(e -> new PurchaseReceiptBackfillEvent.Line(e.getKey(), e.getValue()))
+                .collect(Collectors.toList());
+        applicationEventPublisher.publishEvent(
+                new PurchaseReceiptBackfillEvent(task.getSourceOrderId(), lines, task.getTaskNo()));
     }
 
     @Override

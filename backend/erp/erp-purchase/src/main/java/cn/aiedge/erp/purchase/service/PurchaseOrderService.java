@@ -34,6 +34,26 @@ public interface PurchaseOrderService extends IService<PurchaseOrder> {
     PurchaseOrderDTO getOrderDetail(Long id);
 
     /**
+     * 分页查询采购订单（「按单据」39 列视图，含供应商快照与已收/未收数量聚合）。
+     *
+     * <p>端点 {@code GET /api/erp/purchase/order/page} 是前端长期约定入口
+     * （入库/退货表单选源单、订单中心「采购」tab），但 Controller 一直漏写实现，
+     * 请求会被 {@code @GetMapping("/{id}")} 捕获并以 400 返回。</p>
+     *
+     * @param current      页码（从 1 起）
+     * @param size         每页条数
+     * @param status       单据状态，可空
+     * @param orderNo      单据编号模糊，可空
+     * @param supplierName 供应商名称模糊（走快照表），可空
+     * @param keyword      通用关键字，同时匹配单据编号与供应商名称，可空
+     * @param startDate    单据日期起（yyyy-MM-dd），可空
+     * @param endDate      单据日期止（yyyy-MM-dd，含当天），可空
+     */
+    Page<PurchaseOrderListDTO> pageOrders(Integer current, Integer size, Integer status,
+                                          String orderNo, String supplierName, String keyword,
+                                          String startDate, String endDate);
+
+    /**
      * 删除采购订单
      */
     void deleteOrder(Long orderId);

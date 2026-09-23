@@ -305,7 +305,7 @@ public class BatchNumberServiceImpl extends ServiceImpl<BatchNumberMapper, Batch
             batch.getWarehouseId(), batch.getWarehouseName(), batch.getWarehouseId(), batch.getWarehouseName(),
             batch.getLocationId(), batch.getLocationId());
         
-        // 记录盘点详情到专门的盘点记录表（当前以日志形式记录完整盘点数据，待集成库存盘点模块后改由 StockCheckItem 持久化）
+        // 记录盘点详情到专门的盘点记录表（当前以日志形式记录完整盘点数据；盘点单链路见 erp/stock/take）
         log.info("盘点记录详情: batchId={}, batchNo={}, productId={}, productCode={}, productName={}, "
                 + "systemQuantity={}, physicalQuantity={}, adjustmentQuantity={}, difference={}, "
                 + "adjustmentReason={}, operatorId={}, operatorName={}, warehouseId={}, warehouseName={}, locationId={}",

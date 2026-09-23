@@ -35,6 +35,11 @@ public class PurchaseDocQueryServiceImpl implements PurchaseDocQueryService {
         // 注意：PurchaseOrder 实体字段映射的 DB 列名与 o. 前缀列不冲突（INNER JOIN 的表没有同名列冲突）
         QueryWrapper<PurchaseOrder> wrapper = new QueryWrapper<>();
 
+        // ⚠️ 必须显式写逻辑删除条件：`@TableLogic` 只对 BaseMapper 生成的 SQL 生效，
+        // 本查询是自定义 SQL + ${ew.customSqlSegment}，MyBatis-Plus 不会自动补 `deleted = 0`
+        // → 不加这行会把已逻辑删除的订单一并列出（devdb 实测有 1 张已删单会被带出）。
+        wrapper.eq("o.deleted", 0);
+
         // 日期范围
         wrapper.ge(query.getDateStart() != null, "o.order_date", parseDateStart(query.getDateStart()))
                .le(query.getDateEnd() != null, "o.order_date", parseDateEnd(query.getDateEnd()));

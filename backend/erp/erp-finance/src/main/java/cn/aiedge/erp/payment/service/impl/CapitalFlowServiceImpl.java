@@ -124,9 +124,6 @@ public class CapitalFlowServiceImpl extends ServiceImpl<CapitalFlowMapper, Capit
     @Transactional(rollbackFor = Exception.class)
     public CapitalFlow createFlow(CapitalFlow flow) {
         flow.setFlowNo(generateFlowNo());
-        if (flow.getTenantId() == null) {
-            flow.setTenantId(1L);
-        }
         if (flow.getOccurDate() == null) {
             flow.setOccurDate(LocalDateTime.now());
         }

@@ -12,6 +12,7 @@ import cn.aiedge.erp.purchase.purchasereturn.enums.ReturnStatus;
 import cn.aiedge.erp.purchase.purchasereturn.mapper.PurchaseReturnItemMapper;
 import cn.aiedge.erp.purchase.purchasereturn.mapper.PurchaseReturnMapper;
 import cn.aiedge.erp.purchase.purchasereturn.service.PurchaseReturnService;
+import cn.aiedge.erp.purchase.service.integration.PurchaseAccountingService;
 import cn.aiedge.erp.stock.service.StockService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -42,6 +43,9 @@ public class PurchaseReturnServiceImpl extends ServiceImpl<PurchaseReturnMapper,
     private final PurchaseOrderMapper purchaseOrderMapper;
     /** 源单的供应商快照（订单表 supplier_name 常空，快照才是有效来源） */
     private final PurchaseOrderPartnerSnapshotMapper partnerSnapshotMapper;
+
+    /** 退货完成时的应付冲减与红字凭证（与入库记账对称） */
+    private final PurchaseAccountingService purchaseAccountingService;
 
     @Override
     public PurchaseReturn getByReturnNo(String returnNo) {
@@ -346,6 +350,26 @@ public class PurchaseReturnServiceImpl extends ServiceImpl<PurchaseReturnMapper,
         ret.setStatus(ReturnStatus.COMPLETED.getCode());
         updateById(ret);
         updateStock(returnId);
+
+        // 业财直调：退货出库要冲减应付（负数应付 + 红字凭证 Dr 2202 / Cr 1403）。
+        // 此前只减库存不碰应付 → 退货金额永久挂在应付上，应付账款虚增（2026-09-22 审计 P0）。
+        // 语义同入库：记账失败不阻断单据（与 PurchaseInboundServiceImpl.confirmWarehouse 一致）。
+        BigDecimal payableAmount = ret.getTotalAmountWithTax() != null
+                ? ret.getTotalAmountWithTax()
+                : (ret.getTotalAmount() != null ? ret.getTotalAmount() : BigDecimal.ZERO);
+        if (ret.getSupplierId() != null && payableAmount.compareTo(BigDecimal.ZERO) > 0) {
+            try {
+                purchaseAccountingService.createPayableReversalOnReturn(
+                        ret.getId(), ret.getReturnNo(),
+                        String.valueOf(ret.getSupplierId()), ret.getSupplierName(),
+                        payableAmount, ret.getReturnDate());
+                // 结算状态置为已结算：退货额已被红字应付抵掉，不再挂在待结口径里
+                ret.setSettleStatus(2);
+                updateById(ret);
+            } catch (Exception e) {
+                log.error("采购退货自动冲减应付失败，退货单ID={}, 原因={}", returnId, e.getMessage(), e);
+            }
+        }
         return ret;
     }
 

@@ -1,5 +1,6 @@
 package cn.aiedge.erp.purchase.inbound.service.impl;
 
+import cn.aiedge.base.config.MyBatisPlusConfig;
 import cn.aiedge.common.event.InventoryChangeEvent;
 import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.purchase.entity.PurchaseOrder;
@@ -291,7 +292,8 @@ public class PurchaseInboundServiceImpl extends ServiceImpl<PurchaseInboundMappe
                 PurchaseInbound inbound = new PurchaseInbound();
                 if (supplierCell != null) inbound.setSupplierName(supplierCell.getStringCellValue());
                 if (warehouseCell != null) inbound.setWarehouseName(warehouseCell.getStringCellValue());
-                inbound.setTenantId(1L);
+                // 租户取会话，不能写死 1（否则导入的单据会落到租户 1 名下）
+                inbound.setTenantId(MyBatisPlusConfig.getCurrentTenantIdValue());
                 PurchaseInboundItem item = new PurchaseInboundItem();
                 item.setProductName(productCell.getStringCellValue());
                 item.setOrderQuantity(qtyCell != null ? BigDecimal.valueOf(qtyCell.getNumericCellValue()) : BigDecimal.ZERO);
@@ -501,6 +503,8 @@ public class PurchaseInboundServiceImpl extends ServiceImpl<PurchaseInboundMappe
         inbound.setWarehouseConfirmedTime(LocalDateTime.now());
         updateById(inbound);
         updateStock(inboundId);
+        // 与 updateStock 同源：确认入库即回写源采购订单的已收数量（取消时 reverseStock 对称回冲）
+        writeBackOrderReceivedQuantity(inboundId, false);
 
         // businessDate 必须传单据的业务日期（入库/收货日期）：协议账期按「下单那一刻生效的版本」算，
         // 到期日 = 业务日期 + 约定天数，不许用 LocalDate.now() 顶替（补录单据会随日历漂移）
@@ -548,6 +552,8 @@ public class PurchaseInboundServiceImpl extends ServiceImpl<PurchaseInboundMappe
         // 已确认入库的单据库存已回写，取消前必须先回冲，避免库存虚增
         if (inbound.getStatus() >= InboundStatus.WAREHOUSE_CONFIRMED.getCode()) {
             reverseStock(inboundId);
+            // 与 confirmWarehouse 对称：订单已收数量一并回冲
+            writeBackOrderReceivedQuantity(inboundId, true);
         }
         inbound.setStatus(InboundStatus.CANCELLED.getCode());
         inbound.setRemark(reason);
@@ -671,6 +677,49 @@ public class PurchaseInboundServiceImpl extends ServiceImpl<PurchaseInboundMappe
                         inboundId, item.getProductId(), warehouseId, qty);
             }
         }
+    }
+
+    /**
+     * 回写/回冲源采购订单明细的「已收数量」。
+     *
+     * <p><b>为什么必须有</b>：此前「已收数量」唯一写方是 WMS 的 HTTP 收货回调
+     * （{@code POST /api/erp/purchase/order/received}）。从「来源订单」下推生成的入库单，
+     * 在 ERP 侧走完确认入库后订单已收数量纹丝不动 ⇒ 同一张订单可以被反复下推成多张入库单，
+     * 造成**库存与应付双计**（2026-09-22 审计 P0）。这里补上 ERP 侧的对称写入口。</p>
+     *
+     * <p>定位优先级：明细上的 {@code orderItemId}（由 createFromOrder 写入）→ 退化为
+     * 「订单 + 商品」匹配（历史数据没有 orderItemId）。</p>
+     *
+     * @param reverse true=取消入库时回冲（减），false=确认入库时累加
+     */
+    private void writeBackOrderReceivedQuantity(Long inboundId, boolean reverse) {
+        PurchaseInbound inbound = getById(inboundId);
+        if (inbound == null || inbound.getOrderId() == null) {
+            return; // 无源订单（直接录入的入库单）无需回写
+        }
+        for (PurchaseInboundItem item : getItems(inboundId)) {
+            BigDecimal qty = item.getInboundQuantity();
+            if (qty == null || qty.compareTo(BigDecimal.ZERO) <= 0) {
+                continue;
+            }
+            BigDecimal delta = reverse ? qty.negate() : qty;
+            if (item.getOrderItemId() != null) {
+                purchaseOrderItemMapper.addReceivedQuantity(item.getOrderItemId(), delta);
+                continue;
+            }
+            if (item.getProductId() == null) {
+                continue;
+            }
+            List<PurchaseOrderItem> matched = purchaseOrderItemMapper.selectList(
+                    new LambdaQueryWrapper<PurchaseOrderItem>()
+                            .eq(PurchaseOrderItem::getOrderId, inbound.getOrderId())
+                            .eq(PurchaseOrderItem::getProductId, item.getProductId()));
+            for (PurchaseOrderItem poItem : matched) {
+                purchaseOrderItemMapper.addReceivedQuantity(poItem.getId(), delta);
+            }
+        }
+        log.info("采购入库{}源订单已收数量: 入库单ID={}, 订单ID={}",
+                reverse ? "回冲" : "回写", inboundId, inbound.getOrderId());
     }
 
     private void calculateItemAmounts(PurchaseInboundItem item) {

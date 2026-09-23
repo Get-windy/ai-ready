@@ -83,6 +83,28 @@ public class ReceiptController {
         return count;
     }
 
+    /**
+     * 批量打印收款单。
+     *
+     * <p>与付款单 {@code PaymentController#batchPrint} 保持对称（同一功能在收/付两侧口径一致）。
+     * 收/付两侧当前都只回执打印请求、不做模板渲染，前端 `receipt-doc/index.vue` 拿到响应后
+     * 仅提示「已发送打印」。真实打印需接 `components/PrintDialog`（范本见 `views/md/barcode`、
+     * `views/erp/product` 等），属独立待办，不在此处造桩。
+     */
+    @SaCheckPermission("finance:receipt:create")
+    @PostMapping("/batch-print")
+    @Operation(summary = "批量打印收款单")
+    public Map<String, Object> batchPrint(@RequestBody Map<String, Object> body) {
+        @SuppressWarnings("unchecked")
+        List<Long> ids = (List<Long>) body.getOrDefault("ids", new ArrayList<>());
+        String template = (String) body.getOrDefault("template", "default");
+        Map<String, Object> result = new HashMap<>();
+        result.put("success", true);
+        result.put("count", ids == null ? 0 : ids.size());
+        result.put("template", template);
+        return result;
+    }
+
     @SaCheckPermission("finance:receipt:view")
     @GetMapping("/page-detail")
     @Operation(summary = "按明细收款单分页查询（收款明细 tab）")
@@ -151,7 +173,6 @@ public class ReceiptController {
     public ReceiptVO create(@RequestBody ReceiptCreateDTO dto) {
         Receipt receipt = new Receipt();
         BeanUtils.copyProperties(dto, receipt);
-        receipt.setTenantId(1L);
         receipt.setCreateBy(StpUtil.getLoginIdAsLong());
         List<ReceiptItem> items = null;
         if (dto.getItems() != null) {

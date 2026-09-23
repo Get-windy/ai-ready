@@ -383,7 +383,6 @@ public class ExpenseDocServiceImpl extends ServiceImpl<ExpenseDocMapper, Expense
             item.setId(null);
             item.setExpenseDocId(expenseDocId);
             item.setLineNo(line++);
-            item.setTenantId(1L);
             item.setSubjectCode(item.getSubjectCode() != null && !item.getSubjectCode().isEmpty()
                     ? item.getSubjectCode() : SUBJECT_FEE);
             expenseItemMapper.insert(item);

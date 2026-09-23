@@ -265,4 +265,25 @@ public class ShipServiceImpl implements ShipService {
         taskMapper.updateById(task);
         log.info("发货确认完成(本地冻结): taskId={}", taskId);
     }
+
+    /**
+     * 取消发货任务（待复核 0 / 复核中 1 可取消）。
+     *
+     * <p>库存侧无需回滚：出库扣减的唯一入口是 {@link #confirmShip(Long)}，
+     * 未确认发货前库存未发生任何变化（本单不做前置冻结，冻结发生在拣货单侧）。</p>
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void cancelShip(Long taskId, String reason) {
+        WmsShipTask task = taskMapper.selectById(taskId);
+        if (task == null) throw WmsBusinessException.taskNotFound(taskId, "发货");
+        if (task.getStatus() != WmsTaskStatus.PENDING
+                && task.getStatus() != WmsTaskStatus.IN_PROGRESS) {
+            throw WmsBusinessException.invalidStatus(task.getTaskNo(), task.getStatus(), WmsTaskStatus.PENDING);
+        }
+        task.setStatus(WmsTaskStatus.CANCELLED);
+        task.setRemark(reason);
+        taskMapper.updateById(task);
+        log.info("发货任务取消: taskId={}, reason={}", taskId, reason);
+    }
 }

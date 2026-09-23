@@ -134,7 +134,6 @@ public class PaymentController {
     public PaymentVO create(@RequestBody PaymentCreateDTO dto) {
         Payment payment = new Payment();
         BeanUtils.copyProperties(dto, payment);
-        payment.setTenantId(1L);
         payment.setCreateBy(StpUtil.getLoginIdAsLong());
         List<PaymentItem> items = null;
         if (dto.getItems() != null) {

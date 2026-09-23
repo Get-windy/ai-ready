@@ -295,7 +295,6 @@ public class CashTransferServiceImpl extends ServiceImpl<CashTransferMapper, Cas
             item.setId(null);
             item.setTransferId(transferId);
             item.setLineNo(line++);
-            item.setTenantId(1L);
             item.setToSubjectCode(item.getToSubjectCode() != null ? item.getToSubjectCode() : subjectCodeOf(item.getToAccountType()));
             cashTransferItemMapper.insert(item);
         }

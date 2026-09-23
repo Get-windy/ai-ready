@@ -140,7 +140,6 @@ const componentMap: Record<string, () => Promise<any>> = {
   'erp/sales-report/index': () => import('@/views/erp/sales-report/index.vue'),
   'erp/stock-in/index': () => import('@/views/erp/stock-in/index.vue'),
   'erp/stock-out/index': () => import('@/views/erp/stock-out/index.vue'),
-  'erp/stock/replenishment/index': () => import('@/views/erp/stock/replenishment/index.vue'),
   'erp/stocktake/index': () => import('@/views/erp/stocktake/index.vue'),
   'erp/shipment/index': () => import('@/views/erp/shipment/index.vue'),
   // ── 价格引擎模块 ──
@@ -169,7 +168,6 @@ const componentMap: Record<string, () => Promise<any>> = {
   'erp/stock-damage/form': () => import('@/views/erp/stock-damage/form.vue'),
   'erp/stock-transfer/index': () => import('@/views/erp/stock-transfer/index.vue'),
   'erp/stock-transfer/form': () => import('@/views/erp/stock-transfer/form.vue'),
-  'erp/stock-replenishment/index': () => import('@/views/erp/stock/replenishment/index.vue'),
   'erp/stock-alert-config/index': () => import('@/views/erp/stock-alert-config/index.vue'),
   'erp/stock-bom/index': () => import('@/views/erp/stock-bom/index.vue'),
   'erp/stock-bom/form': () => import('@/views/erp/stock-bom/form.vue'),
@@ -180,7 +178,6 @@ const componentMap: Record<string, () => Promise<any>> = {
   'erp/stock-split/form': () => import('@/views/erp/stock-split/form.vue'),
 
   // ── WMS 仓储管理模块 ──
-  'wms/warehouse/index': () => import('@/views/wms/warehouse/index.vue'),
   'wms/putaway/index': () => import('@/views/wh/putaway-order/index.vue'),
   'wms/pick/index': () => import('@/views/wh/picking-order/index.vue'),
   'wms/wave/index': () => import('@/views/wms/wave/index.vue'),
@@ -278,13 +275,10 @@ const componentMap: Record<string, () => Promise<any>> = {
   'erp/stocktake/form': () => import('@/views/erp/stocktake/form.vue'),
 
   // ── displayMode=1 表单页路由（Phase 2 WMS 仓储执行） ──
-  'wms/receipt/form': () => import('@/views/wms/receipt/form.vue'),
   'wms/putaway/form': () => import('@/views/wh/putaway-order/form/index.vue'),
   'wms/pick/form': () => import('@/views/wh/picking-order/form/index.vue'),
-  'wms/wave/form': () => import('@/views/wms/wave/form.vue'),
   'wms/ship/form': () => import('@/views/wh/shipping-order/form/index.vue'),
   'wms/move/form': () => import('@/views/wh/move-order/form/index.vue'),
-  'wms/check/form': () => import('@/views/wms/check/form.vue'),
 
   // ── Phase 5B: 财务单据 form.vue ──
   'finance/receipt-doc/form': () => import('@/views/finance/receipt-doc/form.vue'),
@@ -313,15 +307,8 @@ const componentMap: Record<string, () => Promise<any>> = {
   'sales/shipment': () => import('@/views/erp/shipment/index.vue'),
   'wms/putaway': () => import('@/views/wh/putaway-order/index.vue'),
   'wms/pick': () => import('@/views/wh/picking-order/index.vue'),
-  'wms/wave': () => import('@/views/wms/wave/index.vue'),
   'wms/ship': () => import('@/views/wh/shipping-order/index.vue'),
   'wms/move': () => import('@/views/wh/move-order/index.vue'),
-  // 旧 wms/receipt/index.vue 已删除（form.vue 保留），本别名键被菜单 list_path=wms/receipt 及
-  // wms/receipt/form.vue 的 redirectPath='/wms/receipt' 使用，改指取代页 wh/receiving-order（80012）。
-  'wms/receipt': () => import('@/views/wh/receiving-order/index.vue'),
-  // 旧 wms/check/index.vue 已删除（form.vue 保留），本别名键被菜单 list_path=wms/check 及
-  // wms/check/form.vue 的 redirectPath='/wms/check' 使用，改指取代页 wh/inventory-order（60302）。
-  'wms/check': () => import('@/views/wh/inventory-order/index.vue'),
   'crm/quotation': () => import('@/views/crm/quotation/index.vue'),
   'crm/invoice': () => import('@/views/crm/invoice/index.vue'),
   'crm/customer': () => import('@/views/crm/customer/index.vue'),
@@ -771,7 +758,6 @@ const componentMap: Record<string, () => Promise<any>> = {
   'wh/picking-order/form': () => import('@/views/wh/picking-order/form/index.vue'),
   'wh/shipping-order/form': () => import('@/views/wh/shipping-order/form/index.vue'),
   'wh/move-order/form': () => import('@/views/wh/move-order/form/index.vue'),
-  'wh/inventory-order/form': () => import('@/views/wh/inventory-order/form/index.vue'),
   'wh/borrow-query': () => import('@/views/wh/borrow-query/index.vue'),
   'wh/borrow-query/index': () => import('@/views/wh/borrow-query/index.vue'),
   // ── WMS 8 作业单列表页（批次 0.1 新增） ──
@@ -782,7 +768,6 @@ const componentMap: Record<string, () => Promise<any>> = {
   'wh/picking-order/index': () => import('@/views/wh/picking-order/index.vue'),
   'wh/shipping-order/index': () => import('@/views/wh/shipping-order/index.vue'),
   'wh/move-order/index': () => import('@/views/wh/move-order/index.vue'),
-  'wh/inventory-order/index': () => import('@/views/wh/inventory-order/index.vue'),
 
   // ── 订单中心 / 财务 ──
   'sales/order-center': () => import('@/views/sales/order-center/index.vue'),
@@ -1506,7 +1491,7 @@ function getRequiredRoutes(): RouteRecordRaw[] {
       path: 'stock',
       name: 'Stock',
       component: () => import('@/views/erp/stock/index.vue'),
-      meta: { title: '销售出库', icon: 'ExportOutlined', keepAlive: true, requiresAuth: true, billType: '601' }
+      meta: { title: '库存管理', icon: 'ContainerOutlined', keepAlive: true, requiresAuth: true, billType: '601' }
     },
     {
       path: 'finance',
@@ -1568,12 +1553,6 @@ function getRequiredRoutes(): RouteRecordRaw[] {
       name: 'ErpStocktake',
       component: () => import('@/views/erp/stocktake/index.vue'),
       meta: { title: '库存盘点', icon: 'CheckSquareOutlined', keepAlive: true, requiresAuth: true, billType: '601' }
-    },
-    {
-      path: 'erp/stock/replenishment',
-      name: 'ErpStockReplenishment',
-      component: () => import('@/views/erp/stock/replenishment/index.vue'),
-      meta: { title: '智能补货', icon: 'RocketOutlined', keepAlive: true, requiresAuth: true, billType: '601' }
     },
     {
       path: 'erp/batch',

@@ -108,7 +108,6 @@ public class PrePaymentServiceImpl extends ServiceImpl<PrePaymentMapper, PrePaym
     @Transactional(rollbackFor = Exception.class)
     public PrePayment createPrePayment(PrePayment payment) {
         payment.setPrePaymentNo(generatePrePaymentNo());
-        payment.setTenantId(1L);
         payment.setUsedAmount(ZERO);
         payment.setRemainingAmount(nvl(payment.getAmount()));
         payment.setStatus(STATUS_CONFIRMED);
@@ -155,7 +154,6 @@ public class PrePaymentServiceImpl extends ServiceImpl<PrePaymentMapper, PrePaym
             payment.setPrePaymentNo(dto.getPrePaymentNo() != null && !dto.getPrePaymentNo().isEmpty()
                     ? dto.getPrePaymentNo() : generatePrePaymentNo());
         }
-        payment.setTenantId(1L);
         payment.setUsedAmount(ZERO);
         payment.setRemainingAmount(nvl(dto.getAmount()));
         payment.setStatus(STATUS_DRAFT);
@@ -375,7 +373,6 @@ public class PrePaymentServiceImpl extends ServiceImpl<PrePaymentMapper, PrePaym
             item.setId(null);
             item.setPrePaymentId(prePaymentId);
             item.setLineNo(line++);
-            item.setTenantId(1L);
             prePaymentItemMapper.insert(item);
         }
     }

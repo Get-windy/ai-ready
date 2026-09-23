@@ -5,12 +5,14 @@ import cn.aiedge.erp.stock.entity.Stock;
 import cn.aiedge.erp.stock.entity.Warehouse;
 import cn.aiedge.erp.stock.mapper.StockMapper;
 import cn.aiedge.erp.stock.mapper.WarehouseMapper;
+import cn.aiedge.common.event.WarehouseChangedEvent;
 import cn.aiedge.erp.stock.service.WarehouseService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -35,6 +37,9 @@ public class WarehouseServiceImpl extends ServiceImpl<WarehouseMapper, Warehouse
     private static final Pattern CODE_PATTERN = Pattern.compile("^ck(\\d+)$", Pattern.CASE_INSENSITIVE);
 
     private final StockMapper stockMapper;
+
+    /** 仓库主数据变更广播：同步到 WMS 扩展表 wms_warehouse（业务下拉的数据源） */
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     public List<Warehouse> getWarehouseList() {
@@ -160,6 +165,10 @@ public class WarehouseServiceImpl extends ServiceImpl<WarehouseMapper, Warehouse
         }
         warehouse.setId(null);
         this.save(warehouse);
+        // 同步 WMS 扩展表：全站业务单据的「仓库」下拉取自 wms_warehouse（详见 WarehouseChangedEvent）
+        eventPublisher.publishEvent(new WarehouseChangedEvent(WarehouseChangedEvent.Action.CREATED,
+                warehouse.getId(), warehouse.getWarehouseCode(), warehouse.getWarehouseName(),
+                warehouse.getStatus(), warehouse.getTenantId()));
         return warehouse;
     }
 
@@ -176,7 +185,14 @@ public class WarehouseServiceImpl extends ServiceImpl<WarehouseMapper, Warehouse
         if (warehouse.getParentId() != null && Objects.equals(warehouse.getParentId(), warehouse.getId())) {
             throw new IllegalArgumentException("上级仓库不能是自己");
         }
-        return this.updateById(warehouse);
+        boolean updated = this.updateById(warehouse);
+        Warehouse latest = this.getById(warehouse.getId());
+        if (latest != null) {
+            eventPublisher.publishEvent(new WarehouseChangedEvent(WarehouseChangedEvent.Action.UPDATED,
+                    latest.getId(), latest.getWarehouseCode(), latest.getWarehouseName(),
+                    latest.getStatus(), latest.getTenantId()));
+        }
+        return updated;
     }
 
     /** 名称必填 + 编号同租户唯一 */
@@ -203,7 +219,10 @@ public class WarehouseServiceImpl extends ServiceImpl<WarehouseMapper, Warehouse
         Warehouse update = new Warehouse();
         update.setId(id);
         update.setStatus(status == null ? 1 : status);
-        return this.updateById(update);
+        boolean updated = this.updateById(update);
+        eventPublisher.publishEvent(new WarehouseChangedEvent(WarehouseChangedEvent.Action.STATUS_CHANGED,
+                id, exist.getWarehouseCode(), exist.getWarehouseName(), update.getStatus(), exist.getTenantId()));
+        return updated;
     }
 
     @Override
@@ -222,7 +241,10 @@ public class WarehouseServiceImpl extends ServiceImpl<WarehouseMapper, Warehouse
         if (stockCount != null && stockCount > 0) {
             throw new IllegalArgumentException("该仓库存在库存，无法删除，请改用停用");
         }
-        return this.removeById(id);
+        boolean removed = this.removeById(id);
+        eventPublisher.publishEvent(new WarehouseChangedEvent(WarehouseChangedEvent.Action.DELETED,
+                id, exist.getWarehouseCode(), exist.getWarehouseName(), exist.getStatus(), exist.getTenantId()));
+        return removed;
     }
 
     @Override

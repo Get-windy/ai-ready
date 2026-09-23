@@ -27,10 +27,20 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class FinanceAuxiliaryItemServiceImpl implements FinanceAuxiliaryItemService {
 
+    /** 无租户上下文时回落的租户（定时任务/初始化场景，与既有初始化数据一致） */
+    private static final Long FALLBACK_TENANT_ID = 1L;
+
     /**
-     * 默认租户ID（本模块暂按单租户处理）
+     * 本模块所属租户：会话上下文优先，取不到才回落。
+     *
+     * <p><b>2026-09-23 修复</b>：此前注释自称「本模块暂按单租户处理」而写死租户 1 ⇒
+     * 非 1 租户查不到自己的辅助核算项目、新建的也落到租户 1 名下（跨租户错写）。
+     * 取法与 {@code AccountingPeriodServiceImpl#currentTenantId} 保持一致。</p>
      */
-    private static final Long DEFAULT_TENANT_ID = 1L;
+    private Long currentTenantId() {
+        Long tid = cn.aiedge.base.config.MyBatisPlusConfig.getCurrentTenantIdValue();
+        return tid != null ? tid : FALLBACK_TENANT_ID;
+    }
 
     private final FinanceAuxiliaryItemMapper financeAuxiliaryItemMapper;
     private final FinanceAuxiliaryTypeMapper financeAuxiliaryTypeMapper;
@@ -38,7 +48,7 @@ public class FinanceAuxiliaryItemServiceImpl implements FinanceAuxiliaryItemServ
     @Override
     public IPage<FinanceAuxiliaryItemDTO> page(Long auxiliaryTypeId, String itemCode, String itemName, Boolean enabled, Page<FinanceAuxiliaryItemDTO> page) {
         LambdaQueryWrapper<FinanceAuxiliaryItem> wrapper = new LambdaQueryWrapper<FinanceAuxiliaryItem>()
-                .eq(FinanceAuxiliaryItem::getTenantId, DEFAULT_TENANT_ID)
+                .eq(FinanceAuxiliaryItem::getTenantId, currentTenantId())
                 .eq(auxiliaryTypeId != null, FinanceAuxiliaryItem::getAuxiliaryTypeId, auxiliaryTypeId)
                 .like(itemCode != null && !itemCode.isBlank(), FinanceAuxiliaryItem::getItemCode, itemCode)
                 .like(itemName != null && !itemName.isBlank(), FinanceAuxiliaryItem::getItemName, itemName)
@@ -53,7 +63,7 @@ public class FinanceAuxiliaryItemServiceImpl implements FinanceAuxiliaryItemServ
     @Override
     public List<FinanceAuxiliaryItemDTO> listByTypeId(Long auxiliaryTypeId, Boolean enabled) {
         LambdaQueryWrapper<FinanceAuxiliaryItem> wrapper = new LambdaQueryWrapper<FinanceAuxiliaryItem>()
-                .eq(FinanceAuxiliaryItem::getTenantId, DEFAULT_TENANT_ID)
+                .eq(FinanceAuxiliaryItem::getTenantId, currentTenantId())
                 .eq(auxiliaryTypeId != null, FinanceAuxiliaryItem::getAuxiliaryTypeId, auxiliaryTypeId)
                 .eq(enabled != null, FinanceAuxiliaryItem::getEnabled, enabled)
                 .orderByAsc(FinanceAuxiliaryItem::getSort)
@@ -82,7 +92,7 @@ public class FinanceAuxiliaryItemServiceImpl implements FinanceAuxiliaryItemServ
         }
 
         // 检查同一类型下编码是否重复
-        financeAuxiliaryItemMapper.findByItemCode(dto.getItemCode(), dto.getAuxiliaryTypeId(), DEFAULT_TENANT_ID)
+        financeAuxiliaryItemMapper.findByItemCode(dto.getItemCode(), dto.getAuxiliaryTypeId(), currentTenantId())
                 .ifPresent(i -> {
                     throw BusinessException.badRequest("辅助核算项目编码已存在: " + dto.getItemCode());
                 });
@@ -96,7 +106,7 @@ public class FinanceAuxiliaryItemServiceImpl implements FinanceAuxiliaryItemServ
         }
 
         FinanceAuxiliaryItem entity = new FinanceAuxiliaryItem();
-        entity.setTenantId(DEFAULT_TENANT_ID);
+        entity.setTenantId(currentTenantId());
         entity.setAuxiliaryTypeId(dto.getAuxiliaryTypeId());
         entity.setItemCode(dto.getItemCode());
         entity.setItemName(dto.getItemName());
@@ -129,7 +139,7 @@ public class FinanceAuxiliaryItemServiceImpl implements FinanceAuxiliaryItemServ
 
         // 如果修改了编码，检查新编码是否已存在
         if (dto.getItemCode() != null && !dto.getItemCode().equals(entity.getItemCode())) {
-            financeAuxiliaryItemMapper.findByItemCode(dto.getItemCode(), entity.getAuxiliaryTypeId(), DEFAULT_TENANT_ID)
+            financeAuxiliaryItemMapper.findByItemCode(dto.getItemCode(), entity.getAuxiliaryTypeId(), currentTenantId())
                     .ifPresent(i -> {
                         throw BusinessException.badRequest("辅助核算项目编码已存在: " + dto.getItemCode());
                     });
@@ -168,6 +178,20 @@ public class FinanceAuxiliaryItemServiceImpl implements FinanceAuxiliaryItemServ
 
     @Override
     @Transactional
+    public FinanceAuxiliaryItemDTO enable(Long id, Boolean enabled) {
+        FinanceAuxiliaryItem entity = financeAuxiliaryItemMapper.selectById(id);
+        if (entity == null) {
+            throw BusinessException.notFound("辅助核算项目不存在: " + id);
+        }
+        // 前端开关一定传值；缺省时按「启用」处理，与 create 的默认口径保持一致
+        entity.setEnabled(enabled == null ? Boolean.TRUE : enabled);
+        financeAuxiliaryItemMapper.updateById(entity);
+        log.info("启用/禁用辅助核算项目: id={}, itemCode={}, enabled={}", id, entity.getItemCode(), entity.getEnabled());
+        return toDTO(entity);
+    }
+
+    @Override
+    @Transactional
     public void delete(Long id) {
         FinanceAuxiliaryItem entity = financeAuxiliaryItemMapper.selectById(id);
         if (entity == null) {
@@ -177,7 +201,7 @@ public class FinanceAuxiliaryItemServiceImpl implements FinanceAuxiliaryItemServ
         // 检查是否有下级项目
         LambdaQueryWrapper<FinanceAuxiliaryItem> wrapper = new LambdaQueryWrapper<FinanceAuxiliaryItem>()
                 .eq(FinanceAuxiliaryItem::getParentId, id)
-                .eq(FinanceAuxiliaryItem::getTenantId, DEFAULT_TENANT_ID);
+                .eq(FinanceAuxiliaryItem::getTenantId, currentTenantId());
         Long count = financeAuxiliaryItemMapper.selectCount(wrapper);
         if (count > 0) {
             throw BusinessException.badRequest("该辅助核算项目存在下级项目，无法删除");

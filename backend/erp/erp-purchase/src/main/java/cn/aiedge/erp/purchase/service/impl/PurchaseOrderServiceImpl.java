@@ -3,12 +3,14 @@ package cn.aiedge.erp.purchase.service.impl;
 import cn.aiedge.base.workflow.facade.ApprovalFacade;
 import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.purchase.dto.PurchaseOrderDTO;
+import cn.aiedge.erp.purchase.dto.PurchaseOrderListDTO;
 import cn.aiedge.erp.purchase.dto.PurchaseOrderStatisticsDTO;
 import cn.aiedge.erp.purchase.entity.*;
 import cn.aiedge.erp.purchase.mapper.*;
 import cn.aiedge.erp.purchase.service.PurchaseOrderService;
 import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.RequiredArgsConstructor;
@@ -136,6 +138,52 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         dto.setItems(orderItemMapper.selectByOrderId(id));
 
         return dto;
+    }
+
+    @Override
+    public Page<PurchaseOrderListDTO> pageOrders(Integer current, Integer size, Integer status,
+                                                 String orderNo, String supplierName, String keyword,
+                                                 String startDate, String endDate) {
+        Page<PurchaseOrderListDTO> page = new Page<>(
+                current == null || current < 1 ? 1L : current.longValue(),
+                size == null || size < 1 ? 10L : size.longValue());
+
+        // 复用「按单据」39 列查询（selectDocListWithNames），口径与采购单据查询页完全一致。
+        // 注意：wrapper 内列名带表别名，与该 SQL 的 JOIN 别名（o / ps）对应。
+        QueryWrapper<PurchaseOrder> wrapper = new QueryWrapper<>();
+        // 自定义 SQL + ${ew.customSqlSegment} 不会自动补逻辑删除条件（@TableLogic 只作用于 BaseMapper）
+        wrapper.eq("o.deleted", 0);
+        wrapper.eq(status != null, "o.status", status);
+        wrapper.like(isNotBlank(orderNo), "o.order_no", orderNo);
+        wrapper.like(isNotBlank(supplierName), "ps.supplier_name", supplierName);
+        if (isNotBlank(keyword)) {
+            // 通用关键字：单据编号 或 供应商名称 命中即可
+            wrapper.and(w -> w.like("o.order_no", keyword).or().like("ps.supplier_name", keyword));
+        }
+        LocalDate start = parseIsoDate(startDate);
+        LocalDate end = parseIsoDate(endDate);
+        wrapper.ge(start != null, "o.order_date", start == null ? null : start.atStartOfDay());
+        wrapper.le(end != null, "o.order_date", end == null ? null : end.atTime(23, 59, 59));
+        wrapper.orderByDesc("o.create_time");
+
+        return baseMapper.selectDocListWithNames(page, wrapper);
+    }
+
+    private static boolean isNotBlank(String s) {
+        return s != null && !s.isBlank();
+    }
+
+    /** 容错解析 yyyy-MM-dd（前端可能传 yyyyMMdd）；解析不了按「不传」处理，不抛异常。 */
+    private static LocalDate parseIsoDate(String s) {
+        if (!isNotBlank(s)) {
+            return null;
+        }
+        try {
+            return s.matches("\\d{8}") ? LocalDate.parse(s, DateTimeFormatter.BASIC_ISO_DATE)
+                    : LocalDate.parse(s, DateTimeFormatter.ISO_LOCAL_DATE);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     @Override

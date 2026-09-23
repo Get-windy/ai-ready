@@ -28,4 +28,6 @@ public interface ShipService {
     void startShip(Long taskId, Long userId, String userName);
     void scanItem(Long detailId, BigDecimal scannedQuantity);
     void confirmShip(Long taskId);
+    /** 取消发货任务（待复核/复核中可取消；未确认前库存未变动，无需回滚） */
+    void cancelShip(Long taskId, String reason);
 }

@@ -66,7 +66,6 @@ public class OffsetController {
     public OffsetDTO create(@Valid @RequestBody OffsetCreateDTO dto) {
         Offset offset = new Offset();
         BeanUtils.copyProperties(dto, offset);
-        offset.setTenantId(1L);
         offset.setCreateBy(StpUtil.getLoginIdAsLong());
 
         List<OffsetItem> items = dto.getItems().stream().map(itemDTO -> {

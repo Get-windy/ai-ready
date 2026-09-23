@@ -28,8 +28,11 @@ public interface PurchasePriceTrackMapper extends BaseMapper<PurchasePriceTrack>
 
     /**
      * 分页查询价格跟踪列表（每组 product×partner 取最近一条）
+     *
+     * <p><b>不要给本方法加 {@code @InterceptorIgnore}</b>：{@code erp_purchase_price_track}
+     * 带 {@code tenant_id} 列，而本 SQL 自己没有补租户条件 —— 忽略注入即等于把**全部租户**的
+     * 最近采购价（成本敏感数据）返回给任意持权用户。2026-09-23 已按此修掉该越权读。</p>
      */
-    @InterceptorIgnore(tenantLine = "true")
     @Select("<script>"
         + "SELECT x.id, x.product_id, x.product_code, x.product_name, x.item_code, x.unit,"
         + "       x.specification, x.model, x.origin, x.barcode,"
@@ -74,8 +77,9 @@ public interface PurchasePriceTrackMapper extends BaseMapper<PurchasePriceTrack>
 
     /**
      * 趋势：某商品全部价格点（按采购日期升序）
+     *
+     * <p>同 {@link #selectTrackPage}：不加 {@code @InterceptorIgnore}，租户由拦截器注入。</p>
      */
-    @InterceptorIgnore(tenantLine = "true")
     @Select("SELECT id, product_id, product_name, purchase_date, purchase_price, partner_name"
         + " FROM erp_purchase_price_track"
         + " WHERE deleted = 0 AND product_id = #{productId}"

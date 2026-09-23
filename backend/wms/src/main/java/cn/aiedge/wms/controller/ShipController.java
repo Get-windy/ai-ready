@@ -130,6 +130,16 @@ public class ShipController {
         return Result.ok("确认发货成功");
     }
 
+    @Operation(summary = "取消发货")
+    @SaCheckPermission("wms:ship:cancel")
+    @PostMapping("/cancel")
+    public Result<String> cancel(@RequestParam @NotNull Long taskId,
+                                 @RequestParam @NotBlank String reason) {
+        shipService.cancelShip(taskId, reason);
+        log.info("取消发货: taskId={}, reason={}", taskId, reason);
+        return Result.ok("取消发货成功");
+    }
+
     @Operation(summary = "查询发货明细列表")
     @SaCheckPermission("wms:ship:detail")
     @GetMapping("/details/{shipId}")

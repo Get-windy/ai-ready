@@ -21,8 +21,12 @@
             o.submit_time,
             o.remark,
             o.create_time,
-            COALESCE(o.received_amount, 0) AS received_quantity,
-            GREATEST(COALESCE(o.total_quantity, 0) - COALESCE(o.received_amount, 0), 0) AS unreceive_quantity,
+            /* 已收/未收数量：必须取明细收到的**数量**，不能拿主表 received_amount（金额列）冒充。
+               主表 received_quantity / received_amount 两列全项目无写入方，
+               唯一写方是 WMS 收货回写 → erp_purchase_order_item.received_quantity，
+               故这里按明细聚合，口径与「按明细Tab」(i.received_quantity) 一致。 */
+            COALESCE(item_agg.total_received, 0) AS received_quantity,
+            GREATEST(COALESCE(o.total_quantity, 0) - COALESCE(item_agg.total_received, 0), 0) AS unreceive_quantity,
 
             /* 名称解析 */
             w.warehouse_name AS warehouse_name,
@@ -86,7 +90,8 @@
         LEFT JOIN (
             SELECT order_id,
                    SUM(COALESCE(weight, 0)) AS total_weight,
-                   SUM(COALESCE(volume, 0)) AS total_volume
+                   SUM(COALESCE(volume, 0)) AS total_volume,
+                   SUM(COALESCE(received_quantity, 0)) AS total_received
             FROM erp_purchase_order_item
             GROUP BY order_id
         ) item_agg ON item_agg.order_id = o.id

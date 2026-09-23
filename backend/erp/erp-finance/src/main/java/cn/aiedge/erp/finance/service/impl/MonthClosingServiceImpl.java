@@ -54,7 +54,21 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class MonthClosingServiceImpl implements MonthClosingService {
 
-    private static final Long DEFAULT_TENANT_ID = 1L;
+    /** 无租户上下文时回落的租户（定时任务/初始化场景，与既有初始化数据一致） */
+    private static final Long FALLBACK_TENANT_ID = 1L;
+
+    /**
+     * 本模块所属租户：会话上下文优先，取不到才回落。
+     *
+     * <p><b>2026-09-23 修复</b>：此前月结的期间查询/日志读写一律写死租户 1 ⇒
+     * 非 1 租户月结直接抛「会计期间不存在」而不可用，月结日志还会落到租户 1（跨租户错写）。
+     * 取法与 {@code AccountingPeriodServiceImpl#currentTenantId} 保持一致。</p>
+     */
+    private Long currentTenantId() {
+        Long tid = cn.aiedge.base.config.MyBatisPlusConfig.getCurrentTenantIdValue();
+        return tid != null ? tid : FALLBACK_TENANT_ID;
+    }
+
     /**
      * 本年利润科目编码（权益类 4103）
      */
@@ -178,7 +192,7 @@ public class MonthClosingServiceImpl implements MonthClosingService {
         parsePeriodCode(periodCode);
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("periodCode", periodCode);
-        AccountingPeriod period = accountingPeriodMapper.findByPeriodCode(DEFAULT_TENANT_ID, periodCode).orElse(null);
+        AccountingPeriod period = accountingPeriodMapper.findByPeriodCode(currentTenantId(), periodCode).orElse(null);
         if (period == null) {
             map.put("exists", false);
             map.put("statusText", "期间不存在");
@@ -192,7 +206,7 @@ public class MonthClosingServiceImpl implements MonthClosingService {
         map.put("endDate", period.getEndDate());
         map.put("closedBy", period.getClosedBy());
         map.put("closedTime", period.getClosedTime());
-        monthClosingLogMapper.findLatestByPeriodCode(DEFAULT_TENANT_ID, periodCode)
+        monthClosingLogMapper.findLatestByPeriodCode(currentTenantId(), periodCode)
                 .ifPresent(latest -> map.put("latestLog", latest));
         return map;
     }
@@ -200,7 +214,7 @@ public class MonthClosingServiceImpl implements MonthClosingService {
     @Override
     public IPage<MonthClosingLog> logPage(String periodCode, Page<MonthClosingLog> page) {
         LambdaQueryWrapper<MonthClosingLog> wrapper = new LambdaQueryWrapper<MonthClosingLog>()
-                .eq(MonthClosingLog::getTenantId, DEFAULT_TENANT_ID)
+                .eq(MonthClosingLog::getTenantId, currentTenantId())
                 .eq(periodCode != null && !periodCode.isBlank(), MonthClosingLog::getPeriodCode, periodCode)
                 .orderByDesc(MonthClosingLog::getId);
         return monthClosingLogMapper.selectPage(page, wrapper);
@@ -390,7 +404,7 @@ public class MonthClosingServiceImpl implements MonthClosingService {
 
     private void writeLog(String periodCode, String action, String operatorId, String operatorName, String checkResult) {
         MonthClosingLog logEntity = new MonthClosingLog();
-        logEntity.setTenantId(DEFAULT_TENANT_ID);
+        logEntity.setTenantId(currentTenantId());
         logEntity.setPeriodCode(periodCode);
         logEntity.setAction(action);
         logEntity.setOperatorId(operatorId);
@@ -416,7 +430,7 @@ public class MonthClosingServiceImpl implements MonthClosingService {
     }
 
     private AccountingPeriod getPeriodOrThrow(String periodCode) {
-        return accountingPeriodMapper.findByPeriodCode(DEFAULT_TENANT_ID, periodCode)
+        return accountingPeriodMapper.findByPeriodCode(currentTenantId(), periodCode)
                 .orElseThrow(() -> BusinessException.notFound("会计期间不存在: " + periodCode));
     }
 

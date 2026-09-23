@@ -12,15 +12,6 @@ export const WMS_STATUS_MAP: Record<number, { text: string; color: string }> = {
   4: { text: '异常', color: 'red' },
 }
 
-/** 盘点任务状态（CheckServiceImpl 流程：0待盘点 1盘点中 2待审核 3已审核） */
-export const CHECK_STATUS_MAP: Record<number, { text: string; color: string }> = {
-  0: { text: '待盘点', color: 'orange' },
-  1: { text: '盘点中', color: 'blue' },
-  2: { text: '待审核', color: 'gold' },
-  3: { text: '已审核', color: 'green' },
-  4: { text: '异常', color: 'red' },
-}
-
 /** 明细行状态（后端明细 status：0待处理 1已完成） */
 export const DETAIL_STATUS_MAP: Record<number, { text: string; color: string }> = {
   0: { text: '待处理', color: 'orange' },

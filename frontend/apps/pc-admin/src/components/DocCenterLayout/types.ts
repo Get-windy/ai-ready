@@ -90,6 +90,19 @@ export type SearchCheckboxConfigMap = Record<string, SearchCheckboxItem[]>
 /** 工具栏按钮配置映射 */
 export type ToolbarConfigMap = Record<string, ToolbarButtonItem[]>
 
+/**
+ * 功能按钮启用态（由页面配置弹窗的「功能按钮」页签产生）。
+ *
+ * key 必须与 ToolbarConfigMap 里按钮的 key 一致，否则开关不起作用；
+ * 未列出的按钮视为启用（fail-open）。与 PageConfigPanel 导出的同名接口同形，
+ * 属结构化类型，页面直接把自己的配置对象传进来即可。
+ */
+export interface FunctionButtonSetting {
+  key: string
+  label: string
+  enabled: boolean
+}
+
 /** 统计卡片配置映射 */
 export type StatCardConfigMap = Record<string, StatCardItem[]>
 

@@ -2,6 +2,7 @@ package cn.aiedge.erp.purchase.controller;
 
 import cn.aiedge.common.result.ApiResponse;
 import cn.aiedge.erp.purchase.dto.PurchaseOrderDTO;
+import cn.aiedge.erp.purchase.dto.PurchaseOrderListDTO;
 import cn.aiedge.erp.purchase.dto.PurchaseOrderStatisticsDTO;
 import cn.aiedge.erp.purchase.entity.PurchaseOrder;
 import cn.aiedge.erp.purchase.entity.PurchaseOrderItem;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.format.annotation.DateTimeFormat;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -94,6 +96,33 @@ public class PurchaseOrderController {
     public ApiResponse<Void> updateOrder(@PathVariable Long id, @RequestBody PurchaseOrderDTO dto) {
         purchaseOrderService.updateOrder(id, dto);
         return ApiResponse.ok("更新成功", null);
+    }
+
+    /**
+     * 分页查询采购订单（「按单据」39 列视图）。
+     *
+     * <p><b>为什么必须放在 {@code /{id}} 之前</b>：本类同时有 {@code @GetMapping("/{id}")}，
+     * 缺了本方法时 {@code GET /api/erp/purchase/order/page} 会落到路径变量上，
+     * 把字符串 "page" 当 Long 解析失败 → 400「参数[id]格式不正确」。
+     * 这是入库/退货表单「选源单」与订单中心「采购」tab 一直打不开的根因。</p>
+     *
+     * <p>入参同时兼容两套前端调用：入库/退货表单传 {@code orderNo/supplierName}，
+     * 订单中心传 {@code keyword/startDate/endDate}；租户一律由会话决定，不收 tenantId。</p>
+     */
+    @Operation(summary = "分页查询采购订单")
+    @GetMapping("/page")
+    @SaCheckPermission("purchase:order:list")
+    public ApiResponse<Page<PurchaseOrderListDTO>> pageOrders(
+            @Parameter(description = "页码，从1起") @RequestParam(required = false) Integer current,
+            @Parameter(description = "每页条数") @RequestParam(required = false) Integer size,
+            @Parameter(description = "单据状态") @RequestParam(required = false) Integer status,
+            @Parameter(description = "单据编号") @RequestParam(required = false) String orderNo,
+            @Parameter(description = "供应商名称") @RequestParam(required = false) String supplierName,
+            @Parameter(description = "通用关键字(编号或供应商)") @RequestParam(required = false) String keyword,
+            @Parameter(description = "单据日期起 yyyy-MM-dd") @RequestParam(required = false) String startDate,
+            @Parameter(description = "单据日期止 yyyy-MM-dd") @RequestParam(required = false) String endDate) {
+        return ApiResponse.ok(purchaseOrderService.pageOrders(
+                current, size, status, orderNo, supplierName, keyword, startDate, endDate));
     }
 
     /**

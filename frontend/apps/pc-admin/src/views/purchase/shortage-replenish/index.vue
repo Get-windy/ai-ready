@@ -73,7 +73,7 @@
           <div class="search-area">
             <div class="search-grid">
               <!-- 日期 -->
-              <div class="search-field-item">
+              <div v-show="queryFieldVisible('dateRange')" class="search-field-item">
                 <a-range-picker
                   v-model:value="dateRange"
                   size="small"
@@ -82,7 +82,7 @@
                 />
               </div>
               <!-- 商品 -->
-              <div class="search-field-item">
+              <div v-show="queryFieldVisible('productKeyword')" class="search-field-item">
                 <a-input
                   v-model:value="searchParams.productKeyword"
                   placeholder="商品"
@@ -92,7 +92,7 @@
                 />
               </div>
               <!-- 仓库 -->
-              <div class="search-field-item">
+              <div v-show="queryFieldVisible('warehouseId')" class="search-field-item">
                 <a-select
                   v-model:value="searchParams.warehouseId"
                   placeholder="仓库"
@@ -103,7 +103,7 @@
                 />
               </div>
               <!-- 客户 -->
-              <div class="search-field-item">
+              <div v-show="queryFieldVisible('customerId')" class="search-field-item">
                 <a-select
                   v-model:value="searchParams.customerId"
                   placeholder="客户"
@@ -116,7 +116,7 @@
                 />
               </div>
               <!-- 供应商 -->
-              <div class="search-field-item">
+              <div v-show="queryFieldVisible('supplierName')" class="search-field-item">
                 <a-input
                   v-model:value="searchParams.supplierName"
                   placeholder="供应商"
@@ -126,7 +126,7 @@
                 />
               </div>
               <!-- 经手人 -->
-              <div class="search-field-item">
+              <div v-show="queryFieldVisible('salesmanId')" class="search-field-item">
                 <a-select
                   v-model:value="searchParams.salesmanId"
                   placeholder="经手人"
@@ -139,7 +139,7 @@
                 />
               </div>
               <!-- 单据状态 -->
-              <div class="search-field-item">
+              <div v-show="queryFieldVisible('orderStatus')" class="search-field-item">
                 <div class="search-select-wrap">
                   <span class="search-select-label">单据状态</span>
                   <a-select v-model:value="searchParams.orderStatus" placeholder="全部" allow-clear size="small" @change="handleSearch">
@@ -153,7 +153,7 @@
                 </div>
               </div>
               <!-- 订单来源 -->
-              <div class="search-field-item">
+              <div v-show="queryFieldVisible('orderSource')" class="search-field-item">
                 <div class="search-select-wrap">
                   <span class="search-select-label">订单来源</span>
                   <a-select v-model:value="searchParams.orderSource" placeholder="全部" allow-clear size="small" @change="handleSearch">
@@ -167,7 +167,7 @@
                 </div>
               </div>
               <!-- 缺货数量= -->
-              <div class="search-field-item">
+              <div v-show="queryFieldVisible('shortageMode')" class="search-field-item">
                 <div class="search-select-wrap">
                   <span class="search-select-label">缺货数量=</span>
                   <a-select v-model:value="shortageMode" size="small" @change="handleSearch">
@@ -182,7 +182,7 @@
                   <SearchOutlined /> 查询
                 </a-button>
               </div>
-              <div class="search-field-item">
+              <div v-show="queryFieldVisible('onlyShortage')" class="search-field-item">
                 <a-checkbox v-model:checked="onlyShortage" @change="handleSearch">
                   仅显示缺货商品
                 </a-checkbox>
@@ -246,7 +246,7 @@
       :open="showPageConfig"
       :query-fields-config="queryFieldsConfig"
       :function-buttons-config="functionButtonConfig"
-      storage-key="purchase-shortage-replenish-page-config"
+      :storage-key="PAGE_CONFIG_STORAGE_KEY"
       @update:open="showPageConfig = $event"
       @change="handlePageConfigChange"
     />
@@ -389,8 +389,47 @@ const functionButtonConfig = ref([
   { key: 'export', label: '导出', enabled: true },
 ])
 
-function handlePageConfigChange() {
-  // 页面配置变更后由 PageConfigPanel 自行持久化
+/** 页面配置在 localStorage 的键，与上面 PageConfigPanel 的 storage-key 同源（改一处即可） */
+const PAGE_CONFIG_STORAGE_KEY = 'purchase-shortage-replenish-page-config'
+
+/** 查询条件是否可见（由页面配置弹窗的「查询条件」页签控制） */
+function queryFieldVisible(key: string): boolean {
+  const field = queryFieldsConfig.value.find(f => f.key === key)
+  return field ? field.visible : true
+}
+
+/**
+ * 应用一份页面配置。
+ * 本页搜索区走 CategoryListLayout 的 #search-fields 插槽自渲染，
+ * 组件层无法代劳，必须自己把配置落到字段显隐上，否则弹窗里的勾选毫无效果。
+ */
+function applyPageConfig(config: { queryFields?: any[]; functionButtons?: any[] }) {
+  if (Array.isArray(config?.queryFields)) {
+    queryFieldsConfig.value = queryFieldsConfig.value.map(df => {
+      const saved = config.queryFields!.find((f: any) => f.key === df.key)
+      return saved ? { ...df, visible: saved.visible !== false } : df
+    })
+  }
+  if (Array.isArray(config?.functionButtons)) {
+    functionButtonConfig.value = functionButtonConfig.value.map(df => {
+      const saved = config.functionButtons!.find((f: any) => f.key === df.key)
+      return saved ? { ...df, enabled: saved.enabled !== false } : df
+    })
+  }
+}
+
+function handlePageConfigChange(config: any) {
+  applyPageConfig(config || {})
+}
+
+/** 挂载时还原已保存配置：PageConfigPanel 只在被打开时才读 localStorage，不会主动同步给页面 */
+function restoreSavedPageConfig() {
+  try {
+    const raw = localStorage.getItem(PAGE_CONFIG_STORAGE_KEY)
+    if (raw) {
+      applyPageConfig(JSON.parse(raw))
+    }
+  } catch { /* 配置损坏时按默认展示 */ }
 }
 
 // ═══ 日期处理 ═══
@@ -569,6 +608,7 @@ function handlePurchase() {
 }
 
 onMounted(() => {
+  restoreSavedPageConfig()
   loadCategoryTree()
   loadOptions()
   setQuickDate('thisWeek')

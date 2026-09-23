@@ -39,12 +39,4 @@ public class EventController {
         return Result.ok("重试成功");
     }
 
-    @Operation(summary = "触发处理待处理事件")
-    @SaCheckPermission("wms:event:execute")
-    @PostMapping("/outbox/process")
-    public Result<String> processPending() {
-        eventOutboxService.processPendingEvents();
-        log.info("触发处理待处理事件");
-        return Result.ok("处理完成");
-    }
 }

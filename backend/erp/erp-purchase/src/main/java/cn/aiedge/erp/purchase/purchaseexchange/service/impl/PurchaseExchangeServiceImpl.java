@@ -1,5 +1,7 @@
 package cn.aiedge.erp.purchase.purchaseexchange.service.impl;
 
+import cn.aiedge.base.config.MyBatisPlusConfig;
+import cn.aiedge.common.event.InventoryChangeEvent;
 import cn.aiedge.erp.purchase.purchaseexchange.entity.ExchangeApprovalRecord;
 import cn.aiedge.erp.purchase.purchaseexchange.entity.PurchaseExchange;
 import cn.aiedge.erp.purchase.purchaseexchange.entity.PurchaseExchangeItem;
@@ -11,7 +13,9 @@ import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +26,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 public class PurchaseExchangeServiceImpl extends ServiceImpl<PurchaseExchangeMapper, PurchaseExchange> implements PurchaseExchangeService {
 
@@ -30,6 +35,10 @@ public class PurchaseExchangeServiceImpl extends ServiceImpl<PurchaseExchangeMap
 
     @Autowired
     private ExchangeApprovalRecordMapper exchangeApprovalRecordMapper;
+
+    /** 换货完成要双向过账库存：换出走 WMS 扣减、换入走 WMS 增加（与采购入库同一条唯一写入口） */
+    @Autowired
+    private ApplicationEventPublisher applicationEventPublisher;
 
     @Override
     public Page<PurchaseExchange> pageList(String keyword, Long supplierId, Integer status, Integer exchangeType,
@@ -173,7 +182,8 @@ public class PurchaseExchangeServiceImpl extends ServiceImpl<PurchaseExchangeMap
         Long loginId = currentLoginId();
         String loginName = currentLoginName();
 
-        exchange.setTenantId(1L);
+        // 租户取会话，不能写死：写死 1 会让租户 2 新建的单据落成租户 1（自己查不到、还污染别人）
+        exchange.setTenantId(MyBatisPlusConfig.getCurrentTenantIdValue());
         exchange.setExchangeNo(generateExchangeNo());
         exchange.setStatus(0);
         exchange.setCreatedBy(loginId);
@@ -200,7 +210,9 @@ public class PurchaseExchangeServiceImpl extends ServiceImpl<PurchaseExchangeMap
         }
 
         exchange.setId(id);
-        exchange.setTenantId(existing.getTenantId() != null ? existing.getTenantId() : 1L);
+        // 保持原租户；兜底也走会话租户而非写死 1
+        exchange.setTenantId(existing.getTenantId() != null
+                ? existing.getTenantId() : MyBatisPlusConfig.getCurrentTenantIdValue());
         exchange.setCreatedBy(existing.getCreatedBy());
         exchange.setCreatedByName(existing.getCreatedByName());
         exchange.setExchangeNo(existing.getExchangeNo());
@@ -225,7 +237,8 @@ public class PurchaseExchangeServiceImpl extends ServiceImpl<PurchaseExchangeMap
         for (PurchaseExchangeItem item : items) {
             item.setId(null);
             item.setExchangeId(exchange.getId());
-            item.setTenantId(exchange.getTenantId() != null ? exchange.getTenantId() : 1L);
+            item.setTenantId(exchange.getTenantId() != null
+                    ? exchange.getTenantId() : MyBatisPlusConfig.getCurrentTenantIdValue());
             item.setWarehouseType(item.getWarehouseType() == null ? 1 : item.getWarehouseType());
             item.setCreateTime(LocalDateTime.now());
             item.setUpdateTime(LocalDateTime.now());
@@ -329,8 +342,48 @@ public class PurchaseExchangeServiceImpl extends ServiceImpl<PurchaseExchangeMap
         exchange.setUpdateTime(LocalDateTime.now());
         this.updateById(exchange);
 
+        // 换货的本质是「一出一进」，两边的库存都必须动。
+        // 此前 complete() 只置状态、全类没有任何库存调用 → 换货对库存零影响（2026-09-22 审计 P0）。
+        postInventoryChanges(exchange);
+
         saveApprovalRecord(id, "complete", "完成换货", null);
         return exchange;
+    }
+
+    /**
+     * 换货完成时的库存双向过账：换出行（warehouseType=2）扣减、换入行（warehouseType=1）增加。
+     *
+     * <p>走 {@link InventoryChangeEvent} 交 WMS {@code InventoryService} 统一过账 ——
+     * 与采购入库/退货同一条唯一写入口，ERP 侧不直写 {@code erp_stock}。</p>
+     *
+     * <p>仓库或商品缺失时**显式抛错**而不是静默跳过：静默跳过正是本次审计要根治的
+     * 「单据完成但账实不动」形态。</p>
+     */
+    private void postInventoryChanges(PurchaseExchange exchange) {
+        Long inWarehouseId = exchange.getInWarehouseId();
+        Long outWarehouseId = exchange.getOutWarehouseId();
+        String exchangeNo = exchange.getExchangeNo();
+        List<PurchaseExchangeItem> items = getItems(exchange.getId());
+
+        for (PurchaseExchangeItem item : items) {
+            BigDecimal qty = qty(item);
+            if (qty.compareTo(BigDecimal.ZERO) <= 0 || item.getProductId() == null) {
+                continue;
+            }
+            boolean isOut = item.getWarehouseType() != null && item.getWarehouseType() == 2;
+            Long warehouseId = isOut ? outWarehouseId : inWarehouseId;
+            if (warehouseId == null) {
+                throw new RuntimeException((isOut ? "换出" : "换入") + "仓库未指定，无法完成换货");
+            }
+            applicationEventPublisher.publishEvent(new InventoryChangeEvent(
+                    isOut ? InventoryChangeEvent.ChangeType.DECREASE : InventoryChangeEvent.ChangeType.INCREASE,
+                    item.getProductId(), warehouseId, null,
+                    null, qty,
+                    isOut ? "PURCHASE_EXCHANGE_OUT" : "PURCHASE_EXCHANGE_IN",
+                    exchange.getId(), exchangeNo, null, null));
+            log.info("采购换货库存过账({}): 换货单={}, 商品ID={}, 仓库ID={}, 数量={}",
+                    isOut ? "换出" : "换入", exchangeNo, item.getProductId(), warehouseId, qty);
+        }
     }
 
     @Override

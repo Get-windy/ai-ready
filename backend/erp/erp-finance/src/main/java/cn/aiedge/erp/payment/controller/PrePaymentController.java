@@ -94,7 +94,6 @@ public class PrePaymentController {
     public PrePaymentDTO create(@Valid @RequestBody PrePaymentCreateDTO dto) {
         PrePayment prePayment = new PrePayment();
         BeanUtils.copyProperties(dto, prePayment);
-        prePayment.setTenantId(1L);
         prePayment.setCreateBy(StpUtil.getLoginIdAsLong());
         PrePayment created = prePaymentService.createPrePayment(prePayment);
         return convertToDTO(created);

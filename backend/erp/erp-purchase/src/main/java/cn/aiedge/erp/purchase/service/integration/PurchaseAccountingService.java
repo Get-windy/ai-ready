@@ -102,8 +102,86 @@ public class PurchaseAccountingService {
     }
 
     /**
-     * 回退到期日 = <b>现款现结</b>（协议账期不介入时使用的那一个）。
+     * 采购退货完成时的**应付冲减**与红字凭证（与 {@link #createPayableOnReceipt} 严格对称）。
      *
+     * <p>入库那一笔是 <b>Dr 1403 原材料 / Cr 2202 应付账款</b>；退货原路反冲即
+     * <b>Dr 2202 应付账款 / Cr 1403 原材料</b>，并按**负数金额**落一条应付记录
+     * （来源类型 {@code PURCHASE_RETURN}），使应付余额与账龄自然回落。</p>
+     *
+     * <p><b>为什么必需</b>：退货只减库存与金额、不碰应付时，退货金额会**永久挂在应付上**，
+     * 造成应付账款虚增（2026-09-22 审计 P0）。</p>
+     *
+     * <p><b>为什么不在这里建「退款收款单」</b>：供应商是退现金还是抵后续货款属商业事实，
+     * 由财务在收款/核销环节按实际发生处理；退货完成即预造收款单会虚增往来与资金流。
+     * （{@code PaymentBusinessIntegrationService#createReceiptFromPurchaseReturn} 保留给
+     * "确认要退现金"的场景由财务侧调用。）</p>
+     *
+     * @param businessDate 退货单的业务日期（退货日期），口径同入库
+     */
+    public void createPayableReversalOnReturn(Long returnId, String returnNo, String supplierId,
+                                              String supplierName, BigDecimal amount, LocalDate businessDate) {
+        if (amount == null || amount.signum() == 0) {
+            return;
+        }
+        // 幂等：同一退货单已冲减过则整体跳过（应付与凭证一并跳过）
+        if (payableService.existsBySource("PURCHASE_RETURN", returnId)) {
+            log.warn("退货单已存在应付冲减记录，跳过重复记账: returnId={}, returnNo={}", returnId, returnNo);
+            return;
+        }
+
+        BigDecimal negative = amount.abs().negate();
+        log.info("创建采购退货应付冲减及红字凭证: returnNo={}, supplierId={}, amount={}", returnNo, supplierId, negative);
+
+        Long counterpartyTenantId = resolveCounterpartyTenantId(supplierId);
+        LocalDate dueDate = fallbackDueDate(businessDate);
+
+        // 1. 负数应付（红字）
+        BusinessAccountingRequest payableRequest = new BusinessAccountingRequest();
+        payableRequest.setSourceType("PURCHASE_RETURN");
+        payableRequest.setSourceId(returnId);
+        payableRequest.setSourceNo(returnNo);
+        payableRequest.setSupplierId(supplierId);
+        payableRequest.setSupplierName(supplierName);
+        payableRequest.setAmount(negative);
+        payableRequest.setBusinessDate(businessDate);
+        payableRequest.setCounterpartyTenantId(counterpartyTenantId);
+        payableRequest.setDueDate(dueDate);
+        payableRequest.setSummary("采购退货 - " + returnNo);
+
+        PayableDTO payableResult = businessAccountingService.createPayableFromBusiness(payableRequest);
+        log.info("退货应付冲减创建成功: payableId={}", payableResult.getId());
+
+        // 2. 红字凭证：Dr 应付账款 / Cr 原材料
+        BusinessAccountingRequest voucherRequest = new BusinessAccountingRequest();
+        voucherRequest.setSourceType("PURCHASE_RETURN");
+        voucherRequest.setSourceId(returnId);
+        voucherRequest.setSourceNo(returnNo);
+        voucherRequest.setSupplierId(supplierId);
+        voucherRequest.setSupplierName(supplierName);
+        voucherRequest.setAmount(negative);
+        voucherRequest.setSummary("采购退货凭证 - " + returnNo);
+        voucherRequest.setVoucherDate(businessDate != null ? businessDate : LocalDate.now());
+
+        BusinessAccountingRequest.AccountingRequestItem debitEntry = new BusinessAccountingRequest.AccountingRequestItem();
+        debitEntry.setSummary("采购退货冲减应付");
+        debitEntry.setSubjectCode("2202");  // 应付账款
+        debitEntry.setDebitAmount(negative.abs());
+        debitEntry.setCreditAmount(BigDecimal.ZERO);
+
+        BusinessAccountingRequest.AccountingRequestItem creditEntry = new BusinessAccountingRequest.AccountingRequestItem();
+        creditEntry.setSummary("采购退货冲减存货");
+        creditEntry.setSubjectCode("1403");  // 原材料
+        creditEntry.setDebitAmount(BigDecimal.ZERO);
+        creditEntry.setCreditAmount(negative.abs());
+
+        voucherRequest.setItems(List.of(debitEntry, creditEntry));
+
+        VoucherDTO voucherResult = businessAccountingService.createVoucherFromBusiness(voucherRequest);
+        log.info("退货红字凭证创建成功: voucherNo={}", voucherResult.getVoucherNo());
+    }
+
+    /**
+     * 回退到期日 = <b>现款现结</b>（协议账期不介入时使用的那一个）。     *
      * <p>⚠️ 这里<b>曾经是"业务日期 + 30 天"</b>（平台硬编码的默认账期）。按
      * DOMAIN-MODEL §13.3 补充口径 3 / §7.7 附 的裁定，**无协议 / 协议到期 /
      * 未约定结算方式一律走"无协议无特定客户模式" = 现款现结**，到期日 = <b>业务日</b>。

@@ -339,9 +339,16 @@ public class ReconciliationServiceImpl extends ServiceImpl<ReconciliationMapper,
         reconciliationItemMapper.insert(item);
     }
 
+    /**
+     * 本模块所属租户：会话上下文优先，取不到才回落。
+     *
+     * <p><b>2026-09-23 修复</b>：此前是 {@code return 1L; // 临时实现}，而该值被用于
+     * 对账数据的写入（{@code setTenantId}）与全部查询过滤 ⇒ 非 1 租户的对账数据
+     * 恒写入租户 1（跨租户错写）、且查不到自己的对账记录。</p>
+     */
     private Long getCurrentTenantId() {
-        // 获取当前租户ID，这里需要根据实际的租户管理实现来获取
-        return 1L; // 临时实现，实际项目中需要正确获取租户ID
+        Long tid = cn.aiedge.base.config.MyBatisPlusConfig.getCurrentTenantIdValue();
+        return tid != null ? tid : 1L;
     }
 
     private String getCurrentUser() {

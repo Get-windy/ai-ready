@@ -16,6 +16,7 @@
         :hidden-field-keys="hiddenSearchFieldKeys"
         :stat-card-config="statCardConfig"
         :toolbar-config="toolbarConfig"
+        :function-buttons-config="functionButtonConfig"
         :show-pagination="true"
         :page-total="pagination.total"
         :stats-data="stats"
@@ -99,6 +100,7 @@ import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import PageConfigPanel from '@/components/PageConfigPanel/index.vue'
 import { userPageConfigApi } from '@/api/erp'
 import request from '@/utils/request'
+import { exportCsvFromColumns } from '@/utils/exportCsv'
 import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTable/types'
 import type {
   SearchConfigMap, SearchCheckboxConfigMap,
@@ -418,7 +420,14 @@ async function handleImportFileChange(e: Event) {
 async function handleExport() {
   try {
     const res: any = await request.get('/erp/purchase/inbound/export', { params: {} })
-    message.success(`已导出 ${res?.data?.length || 0} 条`)
+    const list: any[] = res?.data || res || []
+    if (!list.length) { message.warning('没有可导出的数据'); return }
+    // 原实现只弹提示、不产出文件（点了没有任何下载）；现在按当前列配置真实导出 CSV
+    const count = exportCsvFromColumns(columns as any, list, '采购入库单', {
+      status: (r: any) => r.statusDesc || getStatusText(r.status),
+      settleStatus: (r: any) => r.settleStatusDesc || r.settleStatus,
+    })
+    message.success(`已导出 ${count} 条`)
   } catch { message.error('导出失败') }
 }
 

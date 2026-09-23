@@ -344,7 +344,7 @@ import type {
   DocMainTab, DocSubTab, DateShortcutItem, StatCardItem,
   SearchFieldItem, SearchCheckboxItem, ToolbarButtonItem, FulfillmentStatItem,
   ChartConfig, SearchConfigMap, SearchCheckboxConfigMap, ToolbarConfigMap,
-  StatCardConfigMap, FulfillmentConfigMap,
+  StatCardConfigMap, FulfillmentConfigMap, FunctionButtonSetting,
 } from './types'
 
 // ── Props ──
@@ -358,6 +358,12 @@ const props = withDefaults(defineProps<{
   searchCheckboxConfig?: SearchCheckboxConfigMap
   /** 需要隐藏的搜索字段key列表（由PageConfigPanel控制） */
   hiddenFieldKeys?: string[]
+  /**
+   * 功能按钮启用态（由 PageConfigPanel 的「功能按钮」页签控制）。
+   * key 与 toolbarConfig 里的按钮 key 一一对应；未列出的按钮按「启用」处理（fail-open，
+   * 避免新增按钮时因漏配而在所有页面凭空消失）。
+   */
+  functionButtonsConfig?: FunctionButtonSetting[]
   toolbarConfig?: ToolbarConfigMap
   statCardConfig?: StatCardConfigMap
   fulfillmentConfig?: FulfillmentConfigMap
@@ -386,6 +392,7 @@ const props = withDefaults(defineProps<{
   searchConfig: () => ({}),
   searchCheckboxConfig: () => ({}),
   hiddenFieldKeys: () => [],
+  functionButtonsConfig: () => [],
   toolbarConfig: () => ({}),
   statCardConfig: () => ({}),
   fulfillmentConfig: () => ({}),
@@ -485,7 +492,20 @@ const hasMoreSearchFields = computed(() =>
 
 const visibleToolbarButtons = computed<ToolbarButtonItem[]>(() => {
   const buttons = props.toolbarConfig[currentTabKey()] || []
-  return buttons.filter(btn => !btn.visibleFor || btn.visibleFor(activeMainTab.value, activeSubTab.value))
+  const enabledSettings = props.functionButtonsConfig || []
+  return buttons.filter(btn => {
+    if (btn.visibleFor && !btn.visibleFor(activeMainTab.value, activeSubTab.value)) {
+      return false
+    }
+    // 页面配置的「功能按钮」开关：只对显式列出的按钮生效，未列出视为启用
+    if (enabledSettings.length) {
+      const setting = enabledSettings.find(s => s.key === btn.key)
+      if (setting && !setting.enabled) {
+        return false
+      }
+    }
+    return true
+  })
 })
 
 const currentStatCards = computed<StatCardItem[]>(() =>

@@ -96,13 +96,25 @@ public class PurchaseExchangeItem {
     private String remark;
 
     // ========== 价格等级（8个） ==========
+    // ⚠️ 必须显式写 @TableField：DB 列是 price_level_1（V11.47.0 建），
+    // 而 MyBatis-Plus 的驼峰转下划线对 priceLevel1 会推导成 price_level1（数字前不补下划线）
+    // → 缺注解时全列查询拼出 price_level1，PostgreSQL 报「字段不存在」→ 换货单明细整块 500。
+    // 同类字段的修正先例见 PurchaseOrderSettlement.depositAccount1、PurchaseOrderItem.customField1。
+    @TableField("price_level_1")
     private BigDecimal priceLevel1;
+    @TableField("price_level_2")
     private BigDecimal priceLevel2;
+    @TableField("price_level_3")
     private BigDecimal priceLevel3;
+    @TableField("price_level_4")
     private BigDecimal priceLevel4;
+    @TableField("price_level_5")
     private BigDecimal priceLevel5;
+    @TableField("price_level_6")
     private BigDecimal priceLevel6;
+    @TableField("price_level_7")
     private BigDecimal priceLevel7;
+    @TableField("price_level_8")
     private BigDecimal priceLevel8;
 
     // ========== 自定义字段（数字） ==========

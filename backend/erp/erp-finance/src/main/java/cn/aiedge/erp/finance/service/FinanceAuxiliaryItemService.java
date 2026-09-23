@@ -37,6 +37,15 @@ public interface FinanceAuxiliaryItemService {
     FinanceAuxiliaryItemDTO update(Long id, FinanceAuxiliaryItemDTO dto);
 
     /**
+     * 启用/禁用辅助核算项目
+     *
+     * <p>列表页的「启用」开关专用：只改 enabled 一个字段，
+     * 不走 {@link #update} 的全字段校验（否则列表页只传 enabled 会因缺少
+     * itemCode/auxiliaryTypeId 被 @Valid 拦下）。
+     */
+    FinanceAuxiliaryItemDTO enable(Long id, Boolean enabled);
+
+    /**
      * 删除辅助核算项目
      */
     void delete(Long id);

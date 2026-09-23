@@ -8,9 +8,12 @@
         ORDER BY line_no ASC
     </select>
 
+    <!-- 已收数量增减（quantity 可为负，用于取消入库时回冲）。
+         下界收敛到 0：取消入库/退货回冲多扣时不会把「已收数量」写成负数
+         （负值会让「未收数量 = 订货量 - 已收」反向虚增）。 -->
     <update id="addReceivedQuantity">
         UPDATE erp_purchase_order_item
-        SET received_quantity = COALESCE(received_quantity, 0) + #{quantity},
+        SET received_quantity = GREATEST(COALESCE(received_quantity, 0) + #{quantity}, 0),
             update_time = NOW()
         WHERE id = #{id}
     </update>

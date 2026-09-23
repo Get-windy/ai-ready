@@ -23,14 +23,15 @@ import java.util.List;
  * <p>
  * 列表（商品×往来单位最近采购价）+ 价格折扣新增 + 修改/删除 + 价格趋势。
  *
- * <p><b>鉴权（2026-09-21 补，E-02 批次 4）：</b>本类原先**六个端点零权限注解**
+ * <p><b>鉴权（2026-09-21 补，E-02 批次 4 / 2026-09-23 换码）：</b>本类原先**六个端点零权限注解**
  * （只有全局拦截器的登录校验），任何登录用户都能读改采购价格记录 ——
- * 而"最近采购价"属成本敏感数据。现统一挂 {@code purchase:price:edit}。</p>
+ * 而"最近采购价"属成本敏感数据。</p>
  *
- * <p>⚠️ 读端点（{@code /page}、{@code /trend}）也用了这个写码：库里没有
- * {@code purchase:price-track:list} 之类的读码，而**宁可让读也走这道门，也不能把进价敞开**
- * —— 若只保护写，未授权的用户照样能翻到全量最近采购价。这是权衡后的临时口径，
- * 待该页单独设计码族（读/写分离）时替换，已登记 MASTER_TODO。</p>
+ * <p>2026-09-21 曾临时统一挂粗粒度遗留码 {@code purchase:price:edit}，理由是"库里没有
+ * price-track 的读码"。该前提**已失效**：V11.460.0 已按 URL 种下
+ * {@code purchase:price-track:{list,view,create,update,delete}} 五个码（均已授超管），
+ * 于是本条从"临时口径"变成"读不走读码、且该页菜单按 price-track 前缀派生可见性，
+ * 持真实码的用户反而看不到菜单"。现按资源:动作拆开，读写分离。</p>
  *
  * @author AI-Ready Team
  * @since 1.0.0
@@ -47,21 +48,21 @@ public class PurchasePriceTrackController {
 
     @Operation(summary = "分页查询价格跟踪列表")
     @GetMapping("/page")
-    @SaCheckPermission("purchase:price:edit")
+    @SaCheckPermission("purchase:price-track:list")
     public ApiResponse<IPage<PurchasePriceTrack>> page(PurchasePriceTrackQueryDTO query) {
         return ApiResponse.ok(priceTrackService.page(query));
     }
 
     @Operation(summary = "新增价格折扣")
     @PostMapping
-    @SaCheckPermission("purchase:price:edit")
+    @SaCheckPermission("purchase:price-track:create")
     public ApiResponse<PurchasePriceTrack> save(@Valid @RequestBody PurchasePriceTrackSaveDTO dto) {
         return ApiResponse.ok(priceTrackService.saveTrack(dto));
     }
 
     @Operation(summary = "修改价格记录")
     @PutMapping("/{id}")
-    @SaCheckPermission("purchase:price:edit")
+    @SaCheckPermission("purchase:price-track:update")
     public ApiResponse<PurchasePriceTrack> update(@PathVariable Long id,
                                                   @Valid @RequestBody PurchasePriceTrackSaveDTO dto) {
         return ApiResponse.ok(priceTrackService.updateTrack(id, dto));
@@ -69,7 +70,7 @@ public class PurchasePriceTrackController {
 
     @Operation(summary = "删除价格记录")
     @DeleteMapping("/{id}")
-    @SaCheckPermission("purchase:price:edit")
+    @SaCheckPermission("purchase:price-track:delete")
     public ApiResponse<Void> delete(@PathVariable Long id) {
         priceTrackService.deleteTrack(id);
         return ApiResponse.ok();
@@ -77,7 +78,7 @@ public class PurchasePriceTrackController {
 
     @Operation(summary = "批量删除价格记录")
     @PostMapping("/batch-delete")
-    @SaCheckPermission("purchase:price:edit")
+    @SaCheckPermission("purchase:price-track:delete")
     public ApiResponse<Void> batchDelete(@RequestBody List<Long> ids) {
         priceTrackService.batchDelete(ids);
         return ApiResponse.ok();
@@ -85,7 +86,7 @@ public class PurchasePriceTrackController {
 
     @Operation(summary = "查询商品价格趋势")
     @GetMapping("/trend")
-    @SaCheckPermission("purchase:price:edit")
+    @SaCheckPermission("purchase:price-track:view")
     public ApiResponse<List<PurchasePriceTrendVO>> trend(@RequestParam Long productId) {
         return ApiResponse.ok(priceTrackService.trend(productId));
     }

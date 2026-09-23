@@ -1,5 +1,6 @@
 package cn.aiedge.erp.purchase.inbound.controller;
 
+import cn.aiedge.base.config.MyBatisPlusConfig;
 import cn.aiedge.common.result.ApiResponse;
 import cn.aiedge.erp.purchase.inbound.dto.PurchaseInboundCreateDTO;
 import cn.aiedge.erp.purchase.inbound.dto.PurchaseInboundItemDTO;
@@ -96,7 +97,8 @@ public class PurchaseInboundController {
     public PurchaseInboundVO create(@RequestBody PurchaseInboundCreateDTO dto) {
         PurchaseInbound inbound = new PurchaseInbound();
         BeanUtils.copyProperties(dto, inbound);
-        inbound.setTenantId(1L);
+        // 租户取会话，不能写死：写死 1 会让租户 2 新建的单据落成租户 1（自己查不到、还污染别人）
+        inbound.setTenantId(MyBatisPlusConfig.getCurrentTenantIdValue());
         inbound.setCreateBy(StpUtil.getLoginIdAsLong());
         List<PurchaseInboundItem> items = null;
         if (dto.getItems() != null) {

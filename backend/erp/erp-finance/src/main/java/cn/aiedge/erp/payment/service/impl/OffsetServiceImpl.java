@@ -80,7 +80,6 @@ public class OffsetServiceImpl extends ServiceImpl<OffsetMapper, Offset> impleme
         BigDecimal balanceAmount = offset.getReceivableAmount().subtract(offset.getPayableAmount()).abs();
 
         offset.setOffsetNo(generateOffsetNo());
-        offset.setTenantId(1L);
         offset.setOffsetAmount(offsetAmount);
         offset.setBalanceAmount(balanceAmount);
         offset.setOffsetDate(LocalDate.now());
@@ -92,7 +91,6 @@ public class OffsetServiceImpl extends ServiceImpl<OffsetMapper, Offset> impleme
             OffsetItem item = items.get(i);
             item.setOffsetId(offset.getId());
             item.setLineNo(i + 1);
-            item.setTenantId(1L);
             offsetItemMapper.insert(item);
         }
 

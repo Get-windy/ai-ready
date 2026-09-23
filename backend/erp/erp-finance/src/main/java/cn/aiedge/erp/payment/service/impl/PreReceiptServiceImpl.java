@@ -107,7 +107,6 @@ public class PreReceiptServiceImpl extends ServiceImpl<PreReceiptMapper, PreRece
     @Transactional(rollbackFor = Exception.class)
     public PreReceipt createPreReceipt(PreReceipt receipt) {
         receipt.setPreReceiptNo(generatePreReceiptNo());
-        receipt.setTenantId(1L);
         receipt.setUsedAmount(ZERO);
         receipt.setGiftAmount(receipt.getGiftAmount() != null ? receipt.getGiftAmount() : ZERO);
         receipt.setTotalAmount(nvl(receipt.getAmount()).add(nvl(receipt.getGiftAmount())));
@@ -156,7 +155,6 @@ public class PreReceiptServiceImpl extends ServiceImpl<PreReceiptMapper, PreRece
             receipt.setPreReceiptNo(dto.getPreReceiptNo() != null && !dto.getPreReceiptNo().isEmpty()
                     ? dto.getPreReceiptNo() : generatePreReceiptNo());
         }
-        receipt.setTenantId(1L);
         receipt.setUsedAmount(ZERO);
         receipt.setGiftAmount(nvl(dto.getGiftAmount()));
         receipt.setTotalAmount(nvl(dto.getAmount()).add(nvl(dto.getGiftAmount())));
@@ -383,7 +381,6 @@ public class PreReceiptServiceImpl extends ServiceImpl<PreReceiptMapper, PreRece
             item.setId(null);
             item.setPreReceiptId(preReceiptId);
             item.setLineNo(line++);
-            item.setTenantId(1L);
             preReceiptItemMapper.insert(item);
         }
     }

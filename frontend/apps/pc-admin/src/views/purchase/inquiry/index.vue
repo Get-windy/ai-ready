@@ -15,6 +15,7 @@
         :hidden-field-keys="hiddenSearchFieldKeys"
         :stat-card-config="statCardConfig"
         :toolbar-config="toolbarConfig"
+        :function-buttons-config="functionButtonConfig"
         :show-pagination="true"
         :page-total="pagination.total"
         :stats-data="stats"

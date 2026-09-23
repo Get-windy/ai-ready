@@ -307,13 +307,20 @@ function formatAmount(amount: number): string {
 }
 
 const navigateTo = (page: string) => {
+  // ⚠️ 这里的路径必须与 sys_menu.path 一致：路由由菜单 path 生成，财务域的真实前缀是
+  // `finance/**`（不带 `erp/`）。原先误写成 `/erp/finance/**`，导致 6 个快速入口里
+  // 4 个直接落到 catch-all 的 404 页（URL 照常变化，所以很难被发现）。
+  // 注：`MODULE_ROUTE_MAP` 里的 'erp/finance' 只用于模块授权校验、不产生路由，救不了错路径。
   const routes: Record<string, string> = {
-    subject: '/erp/finance/subject',
-    voucher: '/erp/finance/voucher',
+    // 会计科目：菜单 70543，登记在「资料 → 财务账户」列（财务菜单下无独立科目管理页）
+    subject: '/md/accounting-subject',
+    // 会计凭证：80120 是双入口菜单，主入口是 form，此处跳 list_path 生成的列表路由（可记账/审核）
+    voucher: '/finance/voucher/index',
     receivable: '/finance/receivable',
     payable: '/finance/payable',
-    report: '/erp/finance/reports',
-    reconciliation: '/erp/finance/reconciliation'
+    // 财务报表：跳报表组第一张「资产负债表」（70230）
+    report: '/finance/balance-report',
+    reconciliation: '/finance/reconciliation'
   }
   router.push(routes[page])
 }

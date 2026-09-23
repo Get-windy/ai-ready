@@ -37,7 +37,21 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class VoucherServiceImpl implements VoucherService {
 
-    private static final Long DEFAULT_TENANT_ID = 1L;
+    /** 无租户上下文时回落的租户（定时任务/初始化场景，与既有初始化数据一致） */
+    private static final Long FALLBACK_TENANT_ID = 1L;
+
+    /**
+     * 本模块所属租户：会话上下文优先，取不到才回落。
+     *
+     * <p><b>2026-09-23 修复</b>：此前关账校验一律写死租户 1 ⇒ 非 1 租户下
+     * {@code findByPeriodCode} 查不到期间记录，{@code ifPresent} 不触发 ⇒
+     * <b>「已关账期间禁止新增/修改凭证」这条 P0 红线在非 1 租户下静默失效</b>。
+     * 取法与 {@code AccountingPeriodServiceImpl#currentTenantId} 保持一致。</p>
+     */
+    private Long currentTenantId() {
+        Long tid = cn.aiedge.base.config.MyBatisPlusConfig.getCurrentTenantIdValue();
+        return tid != null ? tid : FALLBACK_TENANT_ID;
+    }
 
     private final VoucherMapper voucherMapper;
     private final VoucherItemMapper voucherItemMapper;
@@ -110,7 +124,7 @@ public class VoucherServiceImpl implements VoucherService {
             return;
         }
         String periodCode = String.format("%04d-%02d", fiscalYear, fiscalPeriod);
-        accountingPeriodMapper.findByPeriodCode(DEFAULT_TENANT_ID, periodCode)
+        accountingPeriodMapper.findByPeriodCode(currentTenantId(), periodCode)
                 .ifPresent(p -> {
                     if (p.getStatus() != null && p.getStatus() == 0) {
                         throw BusinessException.badRequest("会计期间已关闭，禁止新增/修改凭证: " + periodCode);

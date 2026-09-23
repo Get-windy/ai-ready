@@ -1,5 +1,6 @@
 package cn.aiedge.erp.purchase.purchasereturn.controller;
 
+import cn.aiedge.base.config.MyBatisPlusConfig;
 import cn.aiedge.common.result.ApiResponse;
 import cn.aiedge.erp.purchase.purchasereturn.dto.PurchaseReturnDTO;
 import cn.aiedge.erp.purchase.purchasereturn.dto.PurchaseReturnItemDTO;
@@ -103,7 +104,8 @@ public class PurchaseReturnController {
     public PurchaseReturnVO create(@RequestBody PurchaseReturnDTO dto) {
         PurchaseReturn ret = new PurchaseReturn();
         BeanUtils.copyProperties(dto, ret);
-        ret.setTenantId(1L);
+        // 租户取会话，不能写死：写死 1 会让租户 2 新建的单据落成租户 1（自己查不到、还污染别人）
+        ret.setTenantId(MyBatisPlusConfig.getCurrentTenantIdValue());
         ret.setCreateBy(StpUtil.getLoginIdAsLong());
         List<PurchaseReturnItem> items = null;
         if (dto.getItems() != null) {

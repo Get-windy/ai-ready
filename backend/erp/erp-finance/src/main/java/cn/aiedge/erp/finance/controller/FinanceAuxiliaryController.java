@@ -86,6 +86,16 @@ public class FinanceAuxiliaryController {
         return Result.success("更新成功", financeAuxiliaryTypeService.update(id, dto));
     }
 
+    @Operation(summary = "启用/禁用辅助核算类型")
+    @PutMapping("/type/{id}/enable")
+    @SaCheckPermission("finance:auxiliary:update")
+    @OperationLog(module = "辅助核算管理", type = "UPDATE", desc = "启用/禁用辅助核算类型")
+    public Result<FinanceAuxiliaryTypeDTO> enableType(
+            @Parameter(description = "类型ID") @PathVariable Long id,
+            @Parameter(description = "是否启用") @RequestParam(required = false) Boolean enabled) {
+        return Result.success("操作成功", financeAuxiliaryTypeService.enable(id, enabled));
+    }
+
     @Operation(summary = "删除辅助核算类型")
     @DeleteMapping("/type/{id}")
     @SaCheckPermission("finance:auxiliary:delete")
@@ -147,6 +157,16 @@ public class FinanceAuxiliaryController {
             @Parameter(description = "项目ID") @PathVariable Long id,
             @Valid @RequestBody FinanceAuxiliaryItemDTO dto) {
         return Result.success("更新成功", financeAuxiliaryItemService.update(id, dto));
+    }
+
+    @Operation(summary = "启用/禁用辅助核算项目")
+    @PutMapping("/item/{id}/enable")
+    @SaCheckPermission("finance:auxiliary:update")
+    @OperationLog(module = "辅助核算管理", type = "UPDATE", desc = "启用/禁用辅助核算项目")
+    public Result<FinanceAuxiliaryItemDTO> enableItem(
+            @Parameter(description = "项目ID") @PathVariable Long id,
+            @Parameter(description = "是否启用") @RequestParam(required = false) Boolean enabled) {
+        return Result.success("操作成功", financeAuxiliaryItemService.enable(id, enabled));
     }
 
     @Operation(summary = "删除辅助核算项目")

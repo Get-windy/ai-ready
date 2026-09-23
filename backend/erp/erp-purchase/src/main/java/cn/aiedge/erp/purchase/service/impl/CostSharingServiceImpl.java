@@ -392,6 +392,11 @@ public class CostSharingServiceImpl extends ServiceImpl<CostSharingMapper, CostS
         if (sharing.getStatus() == 2) {
             throw BusinessException.badRequest("分摊单已取消");
         }
+        // 已记账的分摊单取消时，必须把回写到入库单明细的成本还原，
+        // 否则入库单位成本会永久带着一笔已作废的分摊（2026-09-22 审计 P0）。
+        if (sharing.getStatus() != null && sharing.getStatus() == 1) {
+            rollbackAllocatedCost(id);
+        }
 
         sharing.setStatus(2);
         sharing.setUpdateTime(LocalDateTime.now());
@@ -403,6 +408,41 @@ public class CostSharingServiceImpl extends ServiceImpl<CostSharingMapper, CostS
         updateById(sharing);
 
         logger.info("取消采购费用分摊单: sharingId={}", id);
+    }
+
+    /**
+     * 回滚已回写的分摊成本：把入库单明细的 {@code unit_cost} 还原为入库时的 {@code unit_price}。
+     *
+     * <p>与 {@code complete()} 的「按商品匹配明细行 → 回写单位成本」一一对称；
+     * 定位方式保持一致（有商品ID按商品匹配，否则整单）。</p>
+     */
+    private void rollbackAllocatedCost(Long sharingId) {
+        List<CostSharingItem> items = costSharingItemMapper.selectList(
+                new LambdaQueryWrapper<CostSharingItem>()
+                        .eq(CostSharingItem::getCostSharingId, sharingId));
+        int rollbackCount = 0;
+        for (CostSharingItem item : items) {
+            if (item.getInboundOrderId() == null) {
+                continue;
+            }
+            List<cn.aiedge.erp.purchase.inbound.entity.PurchaseInboundItem> inboundItems;
+            if (item.getProductId() != null) {
+                inboundItems = inboundItemMapper.selectList(
+                        new LambdaQueryWrapper<cn.aiedge.erp.purchase.inbound.entity.PurchaseInboundItem>()
+                                .eq(cn.aiedge.erp.purchase.inbound.entity.PurchaseInboundItem::getInboundId, item.getInboundOrderId())
+                                .eq(cn.aiedge.erp.purchase.inbound.entity.PurchaseInboundItem::getProductId, item.getProductId()));
+            } else {
+                inboundItems = inboundItemMapper.selectByInboundId(item.getInboundOrderId());
+            }
+            for (cn.aiedge.erp.purchase.inbound.entity.PurchaseInboundItem pi : inboundItems) {
+                if (pi.getUnitPrice() == null) {
+                    continue;
+                }
+                inboundItemMapper.updateInboundItemCost(pi.getId(), pi.getUnitPrice());
+                rollbackCount++;
+            }
+        }
+        logger.info("取消费用分摊已回滚入库成本, 分摊单ID={}, 回滚明细行数={}", sharingId, rollbackCount);
     }
 
     /**

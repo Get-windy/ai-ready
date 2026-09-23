@@ -688,57 +688,6 @@ export const stockApi = {
   getWarehouses(): Promise<any> { return request.get('/erp/stock/warehouses') },
 }
 
-// ── 库存盘点 ──────────────────────────────────────────
-export interface StockCheck {
-  id: number; checkNo: string; warehouseName: string; checkDate: string
-  status: number; creatorName?: string; createTime: string
-}
-export const stockCheckApi = {
-  page(params: PageQuery): Promise<PageResult<StockCheck>> {
-    return request.get('/erp/stock/check/page', params)
-  },
-  getById(id: number) { return request.get(`/erp/stock/check/${id}`) },
-  create(data: any) { return request.post('/erp/stock/check', data) },
-  update(id: number, data: any) { return request.put(`/erp/stock/check/${id}`, data) },
-  getItems(checkId: number): Promise<ApiResponse<StockCheckItem[]>> {
-    return request.get(`/erp/stock/check/${checkId}/items`)
-  },
-  createWithItems(warehouseId: number): Promise<ApiResponse<StockCheck>> {
-    return request.post(`/erp/stock/check/create-with-items/${warehouseId}`)
-  },
-  startCheck(id: number): Promise<ApiResponse<StockCheck>> {
-    return request.post(`/erp/stock/check/${id}/start`)
-  },
-  checkItem(id: number, itemId: number, actualQuantity: number, note?: string): Promise<ApiResponse<StockCheckItem>> {
-    return request.post(`/erp/stock/check/${id}/items/${itemId}/check`, null, { params: { actualQuantity, note } })
-  },
-  completeCheck(id: number): Promise<ApiResponse<StockCheck>> {
-    return request.post(`/erp/stock/check/${id}/complete`)
-  },
-  submitForApproval(id: number): Promise<ApiResponse<StockCheck>> {
-    return request.post(`/erp/stock/check/${id}/submit`)
-  },
-  cancel(id: number, reason: string): Promise<ApiResponse<StockCheck>> {
-    return request.post(`/erp/stock/check/${id}/cancel`, null, { params: { reason } })
-  },
-  delete(id: number): Promise<ApiResponse<void>> {
-    return request.delete(`/erp/stock/check/${id}`)
-  },
-}
-
-export interface StockCheckItem {
-  id: number
-  productId: number
-  productCode: string
-  productName: string
-  productSpec?: string
-  productUnit?: string
-  bookQuantity: number
-  actualQuantity: number | null
-  diffQuantity: number
-  checkStatus?: number
-}
-
 // ── 盘点单 ──────────────────────────────────────────
 export interface StockTake {
   id: number
@@ -894,9 +843,6 @@ export const stockAssembleApi = {
   update(id: number, data: StockAssemble): Promise<ApiResponse<StockAssemble>> {
     return request.put(`/erp/stock/assemble/${id}`, data)
   },
-  delete(id: number): Promise<ApiResponse<void>> {
-    return request.delete(`/erp/stock/assemble/${id}`)
-  },
   submit(id: number): Promise<ApiResponse<void>> {
     return request.post(`/erp/stock/assemble/${id}/submit`)
   },
@@ -911,9 +857,6 @@ export const stockAssembleApi = {
   },
   cancel(id: number, reason: string): Promise<ApiResponse<void>> {
     return request.post(`/erp/stock/assemble/${id}/cancel`, null, { params: { reason } })
-  },
-  export(params: any): Promise<Blob> {
-    return request.get('/erp/stock/assemble/export', params, { responseType: 'blob' })
   },
   nextNo(): Promise<string> {
     return request.get('/erp/stock/assemble/next-no').then((res: any) => res?.data || res || '')
@@ -963,9 +906,6 @@ export const stockSplitApi = {
   update(id: number, data: StockSplit): Promise<ApiResponse<StockSplit>> {
     return request.put(`/erp/stock/split/${id}`, data)
   },
-  delete(id: number): Promise<ApiResponse<void>> {
-    return request.delete(`/erp/stock/split/${id}`)
-  },
   submit(id: number): Promise<ApiResponse<void>> {
     return request.post(`/erp/stock/split/${id}/submit`)
   },
@@ -986,9 +926,6 @@ export const stockSplitApi = {
   },
   nextNo(): Promise<string> {
     return request.get('/erp/stock/split/next-no').then((res: any) => res?.data || res || '')
-  },
-  export(params: any): Promise<Blob> {
-    return request.get('/erp/stock/split/export', params, { responseType: 'blob' })
   }
 }
 
@@ -1204,9 +1141,6 @@ export const stockCostAdjustApi = {
   },
   batchDelete(ids: number[]): Promise<ApiResponse<void>> {
     return request.delete('/erp/stock/cost-adjust/batch', { data: ids })
-  },
-  export(params: any): Promise<Blob> {
-    return request.get('/erp/stock/cost-adjust/export', params, { responseType: 'blob' })
   }
 }
 
@@ -1228,48 +1162,6 @@ export interface StockAlertConfig {
   remark?: string
   createTime: string
   updateTime: string
-}
-
-export const stockAlertConfigApi = {
-  page(params: PageQuery): Promise<PageResult<StockAlertConfig>> {
-    return request.get('/erp/stock-alert-config/page', params)
-  },
-  getById(id: number): Promise<ApiResponse<StockAlertConfig>> {
-    return request.get(`/erp/stock-alert-config/${id}`)
-  },
-  getProductConfig(productId: number, warehouseId: number): Promise<ApiResponse<StockAlertConfig>> {
-    return request.get(`/erp/stock-alert-config/product/${productId}/warehouse/${warehouseId}`)
-  },
-  getWarehouseConfigs(warehouseId: number): Promise<ApiResponse<StockAlertConfig[]>> {
-    return request.get(`/erp/stock-alert-config/warehouse/${warehouseId}`)
-  },
-  getActiveConfigs(): Promise<ApiResponse<StockAlertConfig[]>> {
-    return request.get('/erp/stock-alert-config/active')
-  },
-  create(data: StockAlertConfig): Promise<ApiResponse<StockAlertConfig>> {
-    return request.post('/erp/stock-alert-config', data)
-  },
-  update(id: number, data: StockAlertConfig): Promise<ApiResponse<StockAlertConfig>> {
-    return request.put(`/erp/stock-alert-config/${id}`, data)
-  },
-  delete(id: number): Promise<ApiResponse<void>> {
-    return request.delete(`/erp/stock-alert-config/${id}`)
-  },
-  activate(id: number): Promise<ApiResponse<void>> {
-    return request.post(`/erp/stock-alert-config/${id}/activate`)
-  },
-  deactivate(id: number): Promise<ApiResponse<void>> {
-    return request.post(`/erp/stock-alert-config/${id}/deactivate`)
-  },
-  checkAlerts(): Promise<ApiResponse<any>> {
-    return request.get('/erp/stock-alert-config/check')
-  },
-  getStatistics(): Promise<ApiResponse<any>> {
-    return request.get('/erp/stock-alert-config/statistics')
-  },
-  export(params: any): Promise<Blob> {
-    return request.get('/erp/stock-alert-config/export', params, { responseType: 'blob' })
-  }
 }
 
 // ── BOM管理 ──────────────────────────────────────────
@@ -1344,9 +1236,6 @@ export const stockBomApi = {
   },
   disable(id: number): Promise<ApiResponse<void>> {
     return request.post(`/erp/stock/bom/${id}/disable`)
-  },
-  export(params: any): Promise<Blob> {
-    return request.get('/erp/stock/bom/export', params, { responseType: 'blob' })
   }
 }
 
@@ -1379,29 +1268,6 @@ export const stockOutApi = {
   getItems(id: number) { return request.get(`/erp/stock/out/${id}/items`) },
 }
 
-// ── 其他入库单（库存入库：盘盈/获赠/退货入库/其他） ──
-export interface WarehouseStockInOrder {
-  id: number; stockInNo: string; stockInType: number; stockInTypeName?: string
-  warehouseId: number; warehouseName: string; handlerId?: number; handlerName?: string
-  stockInDate: string; status: number; totalQuantity?: number; totalAmount?: number
-  summary?: string; remark?: string; creatorName?: string; createTime: string; items?: any[]
-}
-export const warehouseStockInApi = {
-  getPage(params: PageQuery): Promise<PageResult<WarehouseStockInOrder>> {
-    return request.get('/erp/stock/in/page', params)
-  },
-  getById(id: number) { return request.get(`/erp/stock/in/${id}`) },
-  create(data: any) { return request.post('/erp/stock/in', data) },
-  update(id: number, data: any) { return request.put(`/erp/stock/in/${id}`, data) },
-  delete(id: number) { return request.delete(`/erp/stock/in/${id}`) },
-  submit(id: number) { return request.post(`/erp/stock/in/${id}/submit`) },
-  approve(id: number, note?: string) { return request.post(`/erp/stock/in/${id}/approve`, null, { params: { note } }) },
-  reject(id: number, reason: string) { return request.post(`/erp/stock/in/${id}/reject`, null, { params: { reason } }) },
-  complete(id: number) { return request.post(`/erp/stock/in/${id}/complete`) },
-  cancel(id: number, reason?: string) { return request.post(`/erp/stock/in/${id}/cancel`, null, { params: { reason } }) },
-  getItems(id: number) { return request.get(`/erp/stock/in/${id}/items`) },
-}
-
 // ── 其他入库单（与其他出库单对称，单号前缀 QTRKD-） ──
 export const stockInApi = {
   getPage(params: PageQuery): Promise<PageResult<any>> {
@@ -1423,23 +1289,6 @@ export const stockInApi = {
   complete(id: number) { return request.post(`/erp/stock/in/${id}/complete`) },
   cancel(id: number, reason?: string) { return request.post(`/erp/stock/in/${id}/cancel`, null, { params: { reason } }) },
   getItems(id: number) { return request.get(`/erp/stock/in/${id}/items`) },
-}
-
-// ── 库存盘点 ──────────────────────────────────────────
-export interface StocktakeOrder {
-  id: number; checkNo: string; warehouseName: string
-  checkDate: string; status: number; creatorName?: string; createTime: string
-}
-export const stocktakeOrderApi = {
-  page(params: PageQuery): Promise<PageResult<StocktakeOrder>> {
-    return request.get('/erp/stocktake/page', params)
-  },
-  getById(id: number) { return request.get(`/erp/stocktake/${id}`) },
-  create(data: any) { return request.post('/erp/stocktake', data) },
-  update(id: number, data: any) { return request.put(`/erp/stocktake/${id}`, data) },
-  delete(id: number) { return request.delete(`/erp/stocktake/${id}`) },
-  submit(id: number) { return request.post(`/erp/stocktake/${id}/submit`) },
-  approve(id: number) { return request.post(`/erp/stocktake/${id}/approve`) },
 }
 
 // ── 销售订单 ──────────────────────────────────────────

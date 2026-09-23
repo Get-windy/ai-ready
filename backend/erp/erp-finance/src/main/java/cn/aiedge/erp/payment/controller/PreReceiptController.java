@@ -94,7 +94,6 @@ public class PreReceiptController {
     public PreReceiptDTO create(@Valid @RequestBody PreReceiptCreateDTO dto) {
         PreReceipt preReceipt = new PreReceipt();
         BeanUtils.copyProperties(dto, preReceipt);
-        preReceipt.setTenantId(1L);
         preReceipt.setCreateBy(StpUtil.getLoginIdAsLong());
         PreReceipt created = preReceiptService.createPreReceipt(preReceipt);
         return convertToDTO(created);

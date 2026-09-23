@@ -3,10 +3,12 @@ package cn.aiedge.erp.stock.service.impl;
 import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.stock.dto.StockCostAdjustItemVO;
 import cn.aiedge.erp.stock.dto.StockCostAdjustQuery;
+import cn.aiedge.erp.stock.entity.Stock;
 import cn.aiedge.erp.stock.entity.StockCostAdjust;
 import cn.aiedge.erp.stock.entity.StockCostAdjustItem;
 import cn.aiedge.erp.stock.mapper.StockCostAdjustItemMapper;
 import cn.aiedge.erp.stock.mapper.StockCostAdjustMapper;
+import cn.aiedge.erp.stock.mapper.StockMapper;
 import cn.aiedge.erp.stock.service.StockCostAdjustService;
 import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -34,6 +36,7 @@ import java.util.stream.Collectors;
 public class StockCostAdjustServiceImpl extends ServiceImpl<StockCostAdjustMapper, StockCostAdjust> implements StockCostAdjustService {
 
     private final StockCostAdjustItemMapper adjustItemMapper;
+    private final StockMapper stockMapper;
 
     private static final String NO_PREFIX = "CBTJD-";
 
@@ -267,6 +270,9 @@ public class StockCostAdjustServiceImpl extends ServiceImpl<StockCostAdjustMappe
             item.setDiffAmount(diff);
             totalAdjustAmount = totalAdjustAmount.add(diff);
             adjustItemMapper.updateById(item);
+            // 记账回写：把调后成本价落到 ERP 轨库存成本（出库成本与毛利的取数口径）。
+            // 本单只改成本、不动数量，故不经 InventoryService（那是数量变动的唯一写入口）。
+            applyCostToStock(item, newCost, adjust.getWarehouseId());
         }
         Long userId = StpUtil.getLoginIdAsLong();
         adjust.setStatus(3);
@@ -278,6 +284,35 @@ public class StockCostAdjustServiceImpl extends ServiceImpl<StockCostAdjustMappe
         adjust.setTotalAdjustAmount(totalAdjustAmount);
         this.updateById(adjust);
         return adjust;
+    }
+
+    /**
+     * 把调后成本价回写到 ERP 轨库存（{@code erp_stock.unit_price}）。
+     *
+     * <p>修复点：改动前 {@code execute} 只更新单据与明细的状态与金额，库存成本单价原封不动，
+     * 导致调价后出库成本、毛利仍按旧价计算。</p>
+     *
+     * <p>定位口径为「商品 × 仓库」—— {@code erp_stock} 是仓库级汇总账，不含库位/批次维度。
+     * WMS 库位级成本 {@code wms_inventory.unit_cost} 不在本处同步，属跨轨口径待收敛项。</p>
+     */
+    private void applyCostToStock(StockCostAdjustItem item, BigDecimal newCost, Long fallbackWarehouseId) {
+        if (item.getProductId() == null || newCost == null) {
+            return;
+        }
+        Long warehouseId = item.getWarehouseId() != null ? item.getWarehouseId() : fallbackWarehouseId;
+        if (warehouseId == null) {
+            return;
+        }
+        Stock stock = stockMapper.selectOne(new LambdaQueryWrapper<Stock>()
+                .eq(Stock::getProductId, item.getProductId())
+                .eq(Stock::getWarehouseId, warehouseId)
+                .last("LIMIT 1"));
+        if (stock == null) {
+            // 该仓库尚无库存行：成本无从落地，保持原值（不凭空建行）
+            return;
+        }
+        stock.setUnitPrice(newCost);
+        stockMapper.updateById(stock);
     }
 
     @Override

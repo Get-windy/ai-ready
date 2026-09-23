@@ -284,7 +284,6 @@ public class ArApAdjustServiceImpl extends ServiceImpl<ArApAdjustMapper, ArApAdj
             item.setId(null);
             item.setAdjustId(adjustId);
             item.setLineNo(line++);
-            item.setTenantId(1L);
             arApAdjustItemMapper.insert(item);
         }
     }

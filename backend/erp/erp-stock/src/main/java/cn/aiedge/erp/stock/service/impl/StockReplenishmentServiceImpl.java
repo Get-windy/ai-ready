@@ -3,9 +3,10 @@ package cn.aiedge.erp.stock.service.impl;
 import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.stock.entity.Stock;
 import cn.aiedge.erp.stock.entity.StockReplenishment;
-import cn.aiedge.erp.stock.event.PurchaseOrderCreateEvent;
 import cn.aiedge.erp.stock.mapper.StockMapper;
 import cn.aiedge.erp.stock.mapper.StockReplenishmentMapper;
+import cn.aiedge.erp.stock.purchase.ReplenishmentOrderGateway;
+import cn.aiedge.erp.stock.purchase.ReplenishmentOrderRequest;
 import cn.aiedge.erp.stock.service.StockReplenishmentService;
 import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -13,7 +14,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,7 +30,9 @@ import java.util.List;
 public class StockReplenishmentServiceImpl extends ServiceImpl<StockReplenishmentMapper, StockReplenishment> implements StockReplenishmentService {
 
     private final StockMapper stockMapper;
-    private final ApplicationEventPublisher eventPublisher;
+
+    /** 采购模块的建单出口（由 erp-purchase 实现；未装配时显式报错，不写假单号） */
+    private final ObjectProvider<ReplenishmentOrderGateway> replenishmentOrderGateway;
 
     @Override
     public Page<StockReplenishment> pageList(String keyword, String priority, String status, int pageNum, int pageSize) {
@@ -129,31 +132,34 @@ public class StockReplenishmentServiceImpl extends ServiceImpl<StockReplenishmen
         if (!"PENDING".equals(suggestion.getStatus())) {
             throw BusinessException.badRequest("只有待处理的补货建议可以创建订单");
         }
+        if (supplierId == null) {
+            throw BusinessException.badRequest("请先选择供应商");
+        }
 
-        // 更新补货建议状态
+        // 真实建单（同步、有返回值）。
+        // 原实现发事件 + 写死 "PO-"+时间戳 的临时号：采购侧没有监听器 → 按钮返回成功却无订单落库，
+        // 且建议已被置为 ORDERED 无法重试（2026-09-22 审计 P0）。改同步后拿真实订单号，失败即整单回滚。
+        ReplenishmentOrderGateway gateway = replenishmentOrderGateway.getIfAvailable();
+        if (gateway == null) {
+            throw BusinessException.badRequest("采购模块未装配，无法生成采购订单");
+        }
+        String orderNo = gateway.createPurchaseOrder(new ReplenishmentOrderRequest(
+                suggestion.getId(), supplierId, suggestion.getSupplierName(),
+                suggestion.getProductCode(), suggestion.getProductName(),
+                suggestion.getProductSpec(), suggestion.getProductUnit(),
+                suggestion.getSuggestedQty(), suggestion.getWarehouseId(), suggestion.getWarehouseName()));
+
+        // 建单成功后才置为已处理，并记录真实订单号
         suggestion.setStatus("ORDERED");
         suggestion.setSupplierId(supplierId);
+        suggestion.setCreatedOrderNo(orderNo);
         suggestion.setUpdateTime(LocalDateTime.now());
         suggestion.setUpdateBy(StpUtil.getLoginIdAsLong());
         this.updateById(suggestion);
 
-        // 通过事件发布解耦创建采购订单，采购模块监听后创建实际采购订单
-        eventPublisher.publishEvent(new PurchaseOrderCreateEvent(
-            this, suggestion.getId(), supplierId,
-            suggestion.getProductCode(), suggestion.getProductName(), suggestion.getSuggestedQty(),
-            suggestion.getWarehouseId(), suggestion.getWarehouseName()));
-
-        // 生成临时订单号并记录到补货建议（后续由采购模块实际创建后更新）
-        String tempOrderNo = "PO-" + System.currentTimeMillis();
-        suggestion.setCreatedOrderNo(tempOrderNo);
-        this.updateById(suggestion);
-
-        log.info("补货建议 {} 已转为采购订单: 供应商ID={}, 产品编码={}, 产品名称={}, "
-                + "建议数量={}, 仓库ID={}, 仓库名称={}, 临时订单号={}, "
-                + "已发布采购订单创建事件，待采购模块监听处理",
-            suggestionId, supplierId,
-            suggestion.getProductCode(), suggestion.getProductName(), suggestion.getSuggestedQty(),
-            suggestion.getWarehouseId(), suggestion.getWarehouseName(), tempOrderNo);
+        log.info("补货建议 {} 已生成采购订单: 供应商ID={}, 商品={}, 数量={}, 订单号={}",
+            suggestionId, supplierId, suggestion.getProductName(),
+            suggestion.getSuggestedQty(), orderNo);
         return suggestion;
     }
 
