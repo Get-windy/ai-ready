@@ -83,6 +83,14 @@
 | `mkt_sms_consent` / `mkt_stored_card` / `mkt_stored_card_flow` `.partner_id` | 无注释；后两者数据只 1~2 行（**样本太少**）；前者的赋值来自某 `info` 的 id，来源未追清 | 待人工确认 |
 | `erp_pre_receipt.customer_id` / `erp_partner_attachment.partner_id` | 无注释，写入来源未追清 | 待人工确认 |
 
+**后续追证（同日）**：又结掉 2 处 —— `erp_loyalty_coupon.partner_id` **已结案**（`PromotionEngineImpl:349-350`
+把它与 `req.getCustomerId()` **直接比较** ⇒ 同一域，实体注释「关联往来单位联系人」**过时**）；
+`erp_pre_receipt.customer_id` 为**中等证据**（写入方 `PaymentBusinessIntegrationService:306`
+写成 `setCustomerId(partyId)`，变量名即往来单位 id + 数据全命中，但样本只 2 行）。
+⇒ **仍待人工确认的收敛到 4 处**：`erp_partner_attachment.partner_id` · `mkt_sms_consent.partner_id` ·
+`mkt_stored_card.partner_id` · `mkt_stored_card_flow.partner_id`（后两者数据仅 1~2 行，**样本太少**，
+靠现有数据无法定性）。**另**：`erp_capital_flow.party_id` 已定性为**多态引用**，须与 `partyType` 一起处理。
+
 ⇒ **印证了方案 §3.2 的判断**：**"数据侧成立" ≠ "引用关系成立"**；正因为如此，
 **读路径切换前必须先把上表这 7 处人工确认掉**，不能拿"14 处"当既成事实去改代码。
 

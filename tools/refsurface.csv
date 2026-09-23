@@ -24,7 +24,7 @@ erp_balance_log,customer_id,bigint,0,0,0,0,全空（无从判定）,,
 erp_customer_product_price,customer_id,bigint,29,27,0,0,部分命中（需人工判定）,,
 erp_delivery_rating,customer_id,bigint,0,0,0,0,全空（无从判定）,,
 erp_group_buy_participant,customer_id,bigint,0,0,0,0,全空（无从判定）,,
-erp_pre_receipt,customer_id,bigint,2,2,0,0,指向 biz_party,实体 PreReceipt.customerId 无注释；同域写入方如 PaymentBusinessIntegrationService:249 直写 ⇒ 来源未追清 ⇒ 待人工确认,（本列留空：留待业务/文档侧确认）
+erp_pre_receipt,customer_id,bigint,2,2,0,0,指向 biz_party,中等证据：写入方 PaymentBusinessIntegrationService:306「receipt.setCustomerId(partyId)」变量名即往来单位 id；数据 2/2 命中 biz_party ⇒ 判定为 biz_party.id（样本少，切换前建议再抽一次）,（本列留空：留待业务/文档侧确认）
 erp_price_approval,customer_id,bigint,0,0,0,0,全空（无从判定）,,
 erp_price_calculation_request,customer_id,character varying,0,0,0,0,全空（无从判定）,,
 erp_price_memory,customer_id,bigint,0,0,0,0,全空（无从判定）,,
@@ -51,7 +51,7 @@ erp_cost_sharing_expense_item,partner_id,bigint,0,0,0,0,全空（无从判定）
 erp_expense_doc,partner_id,bigint,28,28,25,0,指向 biz_party,铁证：ExpenseDoc.java:36「/** 往来单位ID（往来单位费用） */」,（本列留空：留待业务/文档侧确认）
 erp_initial_finance_partner,partner_id,bigint,0,0,0,0,全空（无从判定）,,
 erp_loyalty_card,partner_id,bigint,0,0,0,0,全空（无从判定）,,
-erp_loyalty_coupon,partner_id,bigint,44,44,12,0,指向 biz_party,⚠️ 注释与数据冲突：LoyaltyCoupon.java:25 写「使用人（关联往来单位联系人）」但数据 44/44 命中 biz_party、命中 contact=0 ⇒ 待人工确认（注释疑似过时）,（本列留空：留待业务/文档侧确认）
+erp_loyalty_coupon,partner_id,bigint,44,44,12,0,指向 biz_party,已结案（强证据）：PromotionEngineImpl:349-350 把 coupon.getPartnerId() 与 req.getCustomerId() 直接比较 ⇒ 两者同一域 ⇒ 本列就是**客户**（biz_party.id）；实体注释「关联往来单位联系人」**过时**（数据 44/44 命中 biz_party、contact=0 亦佐证）,（本列留空：留待业务/文档侧确认）
 erp_partner_attachment,partner_id,bigint,11,11,0,6,指向 biz_party,无注释；表名=挂在往来单位上的附件，数据 11/11 命中 biz_party（contact 也命中 6）⇒ 待人工确认,（本列留空：留待业务/文档侧确认）
 erp_partner_contact,partner_id,bigint,0,0,0,0,全空（无从判定）,,
 erp_partner_logistics_ext,partner_id,bigint,0,0,0,0,全空（无从判定）,,
