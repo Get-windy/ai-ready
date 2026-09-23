@@ -1,8 +1,10 @@
 package cn.aiedge.architecture;
 
 import cn.aiedge.AiReadyApplication;
+import org.apache.ibatis.annotations.Mapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.beans.factory.annotation.AnnotatedBeanDefinition;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -58,6 +60,12 @@ public class ComponentScanCoverageTest {
     private static final int MIN_EXPECTED_CONTROLLERS = 300;
 
     private static final String BASELINE_RESOURCE = "known-unscanned-controller-packages.txt";
+
+    /**
+     * mapper 包数量下限：与控制器同理，低于此值说明扫描失效（门禁会退化成"什么都没扫到所以全合规"）。
+     * 2026-09-23 实测该值为 40+（`**.mapper` / `**.dao` 是主仓命名惯例）。
+     */
+    private static final int MIN_EXPECTED_MAPPER_PACKAGES = 20;
 
     @Test
     @DisplayName("装配门禁：所有控制器所在包必须在组件扫描范围内（否则端点必然 404）")
@@ -123,6 +131,43 @@ public class ComponentScanCoverageTest {
                 + "说明测试 classpath 不完整，装配门禁已失去意义，请先修好扫描本身。");
     }
 
+    @Test
+    @DisplayName("装配门禁：所有 @Mapper 接口所在包必须在 @MapperScan 范围内（否则 Bean 不存在 ⇒ 整个应用起不来）")
+    void allMapperInterfacesAreMapperScanned() {
+        Set<String> mapperPackages = new TreeSet<>();
+        Set<String> violations = new TreeSet<>();
+        for (String className : mapperClasses()) {
+            String pkg = packageOf(className);
+            mapperPackages.add(pkg);
+            if (!isMapperScanned(pkg)) {
+                violations.add(pkg + "    ← " + className);
+            }
+        }
+
+        // 防"门禁空跑成装饰"：扫不到东西时它不是通过，而是失效
+        assertTrue(mapperPackages.size() >= MIN_EXPECTED_MAPPER_PACKAGES,
+            "只扫到 " + mapperPackages.size() + " 个 mapper 包（期望 ≥ " + MIN_EXPECTED_MAPPER_PACKAGES
+                + "）：测试 classpath 不完整，本门禁已失去意义，请先修好扫描本身。");
+
+        if (!violations.isEmpty()) {
+            fail("""
+                发现**不会被注册**的 @Mapper 接口（所在包不在 @MapperScan 范围内）：
+                %s
+
+                为什么要命：本仓用的是**显式** @MapperScan，而**一旦存在显式 @MapperScan**，
+                MyBatis 的"自动扫 @Mapper 接口"就会退让（AutoConfiguredMapperScannerRegistrar 不生效）
+                ⇒ 接口上写了 @Mapper 也**不会**成为 Bean ⇒ 依赖它的 @Component 起不来
+                ⇒ **整个应用启动失败**，而不是某个端点 404。
+                （2026-09-23 实测：cn.aiedge.erp.purchase.replenishment.ReplenishmentProductMapper，
+                 报 NoSuchBeanDefinitionException / APPLICATION FAILED TO START。）
+
+                两种修法（选一）：
+                  ① 把接口移进 `xxx.mapper` / `xxx.dao` 包（推荐，通配规则自动覆盖）；
+                  ② 在 AiReadyApplication 的 @MapperScan 上**显式登记**该包（并写明理由）。
+                """.formatted(String.join("\n", violations)));
+        }
+    }
+
     // ────────────────────────── 内部实现 ──────────────────────────
 
     /** 扫描 classpath 上的所有控制器类名 */
@@ -133,6 +178,65 @@ public class ComponentScanCoverageTest {
             names.add(bd.getBeanClassName());
         }
         return names;
+    }
+
+    /** 扫描 classpath 上所有 {@code @Mapper} 接口的类名 */
+    private Set<String> mapperClasses() {
+        ClassPathScanningCandidateComponentProvider scanner = scanner(Mapper.class);
+        Set<String> names = new TreeSet<>();
+        for (BeanDefinition bd : scanner.findCandidateComponents(SCAN_ROOT)) {
+            names.add(bd.getBeanClassName());
+        }
+        return names;
+    }
+
+    /**
+     * {@code @MapperScan} 声明的包模式（含别名 {@code basePackages} 与可重复注解）。
+     *
+     * <p>**从注解本身读**，不写死一份副本：写死的话，那边加了包、这边门禁却看不见，
+     * 就又变回"装饰"。</p>
+     */
+    private static Set<String> mapperScanPatterns() {
+        Set<String> patterns = new LinkedHashSet<>();
+        for (MapperScan scan : AiReadyApplication.class.getAnnotationsByType(MapperScan.class)) {
+            for (String p : scan.value()) {
+                if (!p.isBlank()) {
+                    patterns.add(p.trim());
+                }
+            }
+            for (String p : scan.basePackages()) {
+                if (!p.isBlank()) {
+                    patterns.add(p.trim());
+                }
+            }
+        }
+        return patterns;
+    }
+
+    /**
+     * 包是否落在某个 {@code @MapperScan} 模式内（含子包）。
+     *
+     * <p>只实现本仓实际用到的两种形态，够用且不猜：</p>
+     * <ul>
+     *   <li>字面包：{@code cn.aiedge.erp.supplier.repository} ⇒ 相等或为其子包；</li>
+     *   <li>带 {@code **} 的模式：{@code cn.aiedge.**.mapper} ⇒ 前缀 {@code cn.aiedge.} 且后缀 {@code .mapper}
+     *       （{@code **} 匹配零或多层包，与 MyBatis 解析口径一致）。</li>
+     * </ul>
+     */
+    private static boolean isMapperScanned(String pkg) {
+        for (String pattern : mapperScanPatterns()) {
+            if (pattern.contains("**")) {
+                int idx = pattern.indexOf("**");
+                String prefix = pattern.substring(0, idx).replaceAll("\\.$", "");
+                String suffix = pattern.substring(idx + 2);
+                if (pkg.startsWith(prefix + ".") && (suffix.isEmpty() || pkg.endsWith(suffix))) {
+                    return true;
+                }
+            } else if (pkg.equals(pattern) || pkg.startsWith(pattern + ".")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -299,6 +403,17 @@ public class ComponentScanCoverageTest {
                 }
             }
             return false;
+        }
+
+        /**
+         * ⚠️ 必须一并放开：父类默认要求"独立且**具体**"（{@code isConcrete()}），
+         * 于是**接口会被跳过**。控制器都是具体类，所以过去没暴露这个问题；
+         * 而 **mapper 全是接口** —— 不放开就会扫出 0 个，门禁变成"什么都没扫到所以全合规"。
+         * 能走到这里说明已经过了注解过滤（{@code scanCandidateComponents} 先调上面那个重载）。
+         */
+        @Override
+        protected boolean isCandidateComponent(AnnotatedBeanDefinition beanDefinition) {
+            return beanDefinition.getMetadata().isIndependent();
         }
     }
 
