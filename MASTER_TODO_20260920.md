@@ -2163,3 +2163,8 @@ SELECT 9592000 + row_number() OVER (ORDER BY p.id), 2065122951570362369, p.id, 1
 
 其它要点：并存期取 **B（新增表 + 双写 + 读走视图）**；**不可逆操作（删列/删表/删归并行）一律单独一次发布、排在观察期之后**；
 阶段 5 加主体列时**必须同批加快照列**（64 张表，拆两次就是二次回填）。
+
+**第 0 步已执行（2026-09-23）**：`tools/refsurface.cjs` → `tools/refsurface.csv`（候选 111 处，两列证据留空待填）。
+结果：数据侧确认指向 `biz_party` **14 处**；**3 处同时命中 `biz_party`/`sys_user`（不可区分）**；
+**2 处实际指向 `biz_party_contact`**（`erp_purchase_price_track.partner_id`、`finance_payable.supplier_id`）；
+🔴 **`erp_purchase_inbound.supplier_id` 命中 `biz_party` = 0**（注释说它就是 `biz_party.id`）⇒ 开工前必须查代码证据。
