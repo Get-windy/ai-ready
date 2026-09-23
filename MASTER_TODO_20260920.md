@@ -2167,4 +2167,4 @@ SELECT 9592000 + row_number() OVER (ORDER BY p.id), 2065122951570362369, p.id, 1
 **第 0 步已执行（2026-09-23）**：`tools/refsurface.cjs` → `tools/refsurface.csv`（候选 111 处，两列证据留空待填）。
 结果：数据侧确认指向 `biz_party` **14 处**；**3 处同时命中 `biz_party`/`sys_user`（不可区分）**；
 **2 处实际指向 `biz_party_contact`**（`erp_purchase_price_track.partner_id`、`finance_payable.supplier_id`）；
-🔴 **`erp_purchase_inbound.supplier_id` 命中 `biz_party` = 0**（注释说它就是 `biz_party.id`）⇒ 开工前必须查代码证据。
+✅ **`erp_purchase_inbound.supplier_id` 命中 `biz_party` = 0 已查清：不是代码缺陷，是 dev 库采购单据"用假 id 造"（实测 `2099000000000000901`/`100`，且无名称快照）** ⇒ **数据侧 0 命中 ≠ 代码错**；连带记下：应付侧"三层结算口径按 `biz_party.id` 取档案"那条链路**用现有数据验不了**，要验必须先造"供应商指向真实 `biz_party` 行"的入库单（验收夹具问题）。
